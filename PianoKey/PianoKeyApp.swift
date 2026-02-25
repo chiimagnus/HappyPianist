@@ -1,13 +1,21 @@
+import AppKit
+import MenuBarDockKit
 import SwiftData
 import SwiftUI
 
 @main
 @MainActor
 struct PianoKeyApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     private let modelContainer: ModelContainer
     @State private var viewModel: PianoKeyViewModel
 
     init() {
+        // Default to "menu bar only" to keep PianoKey as a menu bar tool app.
+        UserDefaults.standard.register(defaults: [
+            AppIconDisplayMode.userDefaultsKey: AppIconDisplayMode.menuBarOnly.rawValue
+        ])
+
         let schema = Schema([
             MappingProfileEntity.self,
             RecordingTakeEntity.self,
@@ -35,17 +43,26 @@ struct PianoKeyApp: App {
         )
 
         viewModel.bootstrap()
+        AppContext.shared.viewModel = viewModel
 
         _viewModel = State(initialValue: viewModel)
     }
 
     var body: some Scene {
-        MenuBarExtra("PianoKey", systemImage: "pianokeys") {
-            MenuBarPanelView(viewModel: viewModel)
-        }
-
         Window("", id: "main") {
             MainWindowView(viewModel: viewModel)
         }
+        .defaultSize(width: 960, height: 640)
+        .windowStyle(.hiddenTitleBar)
+        .windowResizability(.contentMinSize)
+        .commands {
+            AppCommands()
+        }
+
+        Window("Settings", id: "setting") {
+            SettingsView()
+        }
+        .defaultSize(width: 480, height: 260)
+        .windowResizability(.contentMinSize)
     }
 }

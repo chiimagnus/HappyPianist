@@ -1,4 +1,5 @@
 import AppKit
+import MenuBarDockKit
 import Observation
 import SwiftUI
 
@@ -69,13 +70,19 @@ struct MenuBarPanelView: View {
             Divider()
 
             Button("Open PianoKey") {
-                NSApp.activate(ignoringOtherApps: true)
+                DockPresenceService.prepareForPresentingMainWindow()
                 openWindow(id: "main")
             }
             .buttonStyle(.bordered)
 
+            Button("Settings") {
+                DockPresenceService.prepareForPresentingMainWindow()
+                openWindow(id: "setting")
+            }
+            .buttonStyle(.bordered)
+
             Button("Quit PianoKey") {
-                NSApp.terminate(nil)
+                NSApplication.shared.terminate(nil)
             }
             .buttonStyle(.bordered)
         }
