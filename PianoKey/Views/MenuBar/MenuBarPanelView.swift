@@ -76,8 +76,9 @@ struct MenuBarPanelView: View {
             .buttonStyle(.bordered)
 
             Button("Settings") {
+                viewModel.selectedMainWindowSection = .settings
                 DockPresenceService.prepareForPresentingMainWindow()
-                openWindow(id: "setting")
+                openWindow(id: "main")
             }
             .buttonStyle(.bordered)
 

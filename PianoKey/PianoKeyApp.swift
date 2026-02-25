@@ -58,11 +58,5 @@ struct PianoKeyApp: App {
         .commands {
             AppCommands()
         }
-
-        Window("Settings", id: "setting") {
-            SettingsView()
-        }
-        .defaultSize(width: 480, height: 260)
-        .windowResizability(.contentMinSize)
     }
 }

@@ -10,6 +10,7 @@ final class PianoKeyViewModel {
         case runtime = "Runtime"
         case mappings = "Mappings"
         case recorder = "Recorder"
+        case settings = "Settings"
 
         var id: String { rawValue }
 
@@ -21,6 +22,8 @@ final class PianoKeyViewModel {
                 return "slider.horizontal.3"
             case .recorder:
                 return "waveform"
+            case .settings:
+                return "gearshape"
             }
         }
     }

@@ -31,6 +31,10 @@ struct MainWindowView: View {
             case .recorder:
                 RecorderPanelView(viewModel: viewModel)
                     .navigationTitle("Recorder")
+
+            case .settings:
+                SettingsView()
+                    .navigationTitle("Settings")
             }
         }
         .background(

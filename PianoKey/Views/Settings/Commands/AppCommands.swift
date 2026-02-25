@@ -7,11 +7,11 @@ struct AppCommands: Commands {
     var body: some Commands {
         CommandGroup(replacing: .appSettings) {
             Button("Settings", systemImage: "gear") {
+                AppContext.shared.viewModel?.selectedMainWindowSection = .settings
                 DockPresenceService.prepareForPresentingMainWindow()
-                openWindow(id: "setting")
+                openWindow(id: "main")
             }
             .keyboardShortcut(",", modifiers: .command)
         }
     }
 }
-
