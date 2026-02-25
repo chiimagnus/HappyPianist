@@ -24,3 +24,4 @@ struct RecorderPanelView: View {
         }
     }
 }
+

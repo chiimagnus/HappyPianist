@@ -101,3 +101,4 @@ struct PianoRollView: View {
         return topInset + (CGFloat(topIndex) * rowHeight)
     }
 }
+

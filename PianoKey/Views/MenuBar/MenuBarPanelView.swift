@@ -1,3 +1,4 @@
+import AppKit
 import Observation
 import SwiftUI
 
@@ -67,15 +68,14 @@ struct MenuBarPanelView: View {
 
             Divider()
 
-            Button("Open Control Panel") {
-                viewModel.showMappingsPanel()
-                openWindow(id: "control-panel")
+            Button("Open PianoKey") {
+                NSApp.activate(ignoringOtherApps: true)
+                openWindow(id: "main")
             }
             .buttonStyle(.bordered)
 
-            Button("Open Recorder") {
-                viewModel.showRecorderPanel()
-                openWindow(id: "control-panel")
+            Button("Quit PianoKey") {
+                NSApp.terminate(nil)
             }
             .buttonStyle(.bordered)
         }

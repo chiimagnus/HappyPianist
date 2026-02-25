@@ -1,11 +1,44 @@
 import Observation
 import SwiftUI
 
-struct ContentView: View {
+struct MainWindowView: View {
     @Bindable var viewModel: PianoKeyViewModel
 
     var body: some View {
-        ControlPanelView(viewModel: viewModel)
-            .frame(minWidth: 540, minHeight: 720)
+        NavigationSplitView {
+            List(selection: sidebarSelection) {
+                ForEach(PianoKeyViewModel.MainWindowSection.allCases) { section in
+                    NavigationLink(value: section) {
+                        Label(section.rawValue, systemImage: section.systemImage)
+                    }
+                }
+            }
+            .listStyle(.sidebar)
+        } detail: {
+            switch viewModel.selectedMainWindowSection {
+            case .runtime:
+                RuntimePanelView(viewModel: viewModel)
+                    .navigationTitle("Runtime")
+
+            case .mappings:
+                MappingsPanelView(viewModel: viewModel)
+                    .navigationTitle("Mappings")
+
+            case .recorder:
+                RecorderPanelView(viewModel: viewModel)
+                    .navigationTitle("Recorder")
+            }
+        }
+    }
+
+    private var sidebarSelection: Binding<PianoKeyViewModel.MainWindowSection?> {
+        Binding(
+            get: { Optional(viewModel.selectedMainWindowSection) },
+            set: { newValue in
+                guard let newValue else { return }
+                viewModel.selectedMainWindowSection = newValue
+            }
+        )
     }
 }
+

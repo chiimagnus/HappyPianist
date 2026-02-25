@@ -43,3 +43,4 @@ struct RecentEventSectionView: View {
         return formatter.string(from: date)
     }
 }
+

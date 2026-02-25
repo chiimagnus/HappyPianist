@@ -36,3 +36,4 @@ struct KeyboardMapSectionView: View {
         return Array(profile.payload.singleKeyRules.sorted(by: { $0.note < $1.note }).prefix(24))
     }
 }
+

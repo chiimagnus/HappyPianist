@@ -31,7 +31,7 @@ final class DefaultMappingEngine: MappingEngineProtocol {
 
         var resolved: [ResolvedMappingAction] = []
 
-        if let output = profile.noteOutput(for: event.note, velocity: event.velocity),
+        if let output = resolveSingleKeyOutput(note: event.note, velocity: event.velocity, profile: profile),
            !output.isEmpty {
             resolved.append(
                 ResolvedMappingAction(
@@ -46,6 +46,25 @@ final class DefaultMappingEngine: MappingEngineProtocol {
         resolved.append(contentsOf: resolveMelodyActions(event: event, profile: profile))
 
         return resolved
+    }
+
+    private func resolveSingleKeyOutput(note: Int, velocity: Int, profile: MappingProfile) -> String? {
+        guard let rule = profile.payload.singleKeyRules.first(where: { $0.note == note }) else {
+            return nil
+        }
+
+        guard profile.payload.velocityEnabled else {
+            return rule.normalOutput
+        }
+
+        let threshold = rule.velocityThreshold ?? profile.payload.defaultVelocityThreshold
+        if velocity >= threshold,
+           let highOutput = rule.highVelocityOutput,
+           !highOutput.isEmpty {
+            return highOutput
+        }
+
+        return rule.normalOutput
     }
 
     private func processNoteOff(event: MIDIEvent, profile: MappingProfile) {

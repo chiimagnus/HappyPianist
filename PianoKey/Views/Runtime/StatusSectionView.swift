@@ -61,3 +61,4 @@ struct StatusSectionView: View {
         return viewModel.connectedSourceNames.joined(separator: ", ")
     }
 }
+

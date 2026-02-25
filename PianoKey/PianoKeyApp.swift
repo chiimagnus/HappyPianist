@@ -43,13 +43,9 @@ struct PianoKeyApp: App {
         MenuBarExtra("PianoKey", systemImage: "pianokeys") {
             MenuBarPanelView(viewModel: viewModel)
         }
-        .menuBarExtraStyle(.window)
 
-        Window("PianoKey", id: "control-panel") {
-            ContentView(viewModel: viewModel)
+        Window("", id: "main") {
+            MainWindowView(viewModel: viewModel)
         }
-        .defaultSize(width: 560, height: 760)
-        .windowResizability(.contentSize)
-        .modelContainer(modelContainer)
     }
 }

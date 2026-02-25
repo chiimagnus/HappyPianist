@@ -17,13 +17,15 @@
 2. 在菜单栏打开应用面板。
 3. 点击 `Grant Permission` 完成辅助功能授权（首次必做）。
 4. 点击 `Start Listening` 开始监听 MIDI。
-5. 打开 `Control Panel`，在 `Profiles / Rules` 中设置你的映射。
+5. 点击 `Open PianoKey` 打开主窗口，在侧边栏选择 `Mappings`，在 `Profiles / Rules` 中设置你的映射。
 6. 回到任意可输入文本的应用，弹琴验证输出。
+
+> 说明：PianoKey 默认不显示在 Dock，仅在菜单栏中提供入口。
 
 ## Recorder（录制与播放）
 
 1. 先点击 `Start Listening`，确认有 MIDI 输入。
-2. 打开 `Control Panel`，切换到 `Recorder` 标签（或菜单栏点 `Open Recorder`）。
+2. 点击 `Open PianoKey` 打开主窗口，在侧边栏选择 `Recorder`（或菜单栏点 `Open Recorder`）。
 3. 点击 `Rec` 开始录制，演奏后点击 `Stop` 结束并生成新 Take。
 4. 在左侧 Library 选择 Take，点击 `Play` 回放，点击 `Stop` 可立即停止。
 5. 重新打开应用后，已保存的 Take 会自动恢复并可继续回放。
