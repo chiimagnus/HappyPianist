@@ -30,6 +30,31 @@
 4. 在左侧 Library 选择 Take，点击 `Play` 回放，点击 `Stop` 可立即停止。
 5. 重新打开应用后，已保存的 Take 会自动恢复并可继续回放。
 
+## PianoKeyCLI（给 AI 的 MIDI 合成工具）
+
+`PianoKeyCLI` 是仓库内的独立 Swift CLI，可把 `.mid` 渲染成钢琴 `.wav`，适合接入 AI 工作流（例如：AI 先生成 MIDI，再批量合成音频）。
+
+### 构建
+
+```bash
+swift build --package-path Packages/PianoKeyCLI
+```
+
+### 使用
+
+```bash
+swift run --package-path Packages/PianoKeyCLI pianokey-cli render \
+  --input ./song.mid \
+  --output ./song.wav
+```
+
+可选参数：
+
+- `--tail-seconds <秒数>`：额外尾音（默认 `1.5`）。
+- `--sample-rate <采样率>`：输出采样率（默认 `44100`）。
+- `--sound-bank <path>`：自定义 DLS/SF2 音色库路径（系统默认音色不可用时使用）。
+- `--json`：输出机器可解析 JSON，便于 AI 或脚本链路消费结果。
+
 ## 权限说明（必须）
 
 PianoKey 通过系统输入注入发送按键，必须开启 macOS 的 `辅助功能 (Accessibility)` 权限。
