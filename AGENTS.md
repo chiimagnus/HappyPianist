@@ -58,3 +58,34 @@
 - 大范围改动前先更新 `.github/plans/` 中对应计划，按批次落地并在每批后做构建验证。
 - 文档更新顺序建议为：`README.md` -> `.github/docs/business-logic.md` -> `AGENTS.md`，确保对外说明、业务地图、协作规范三者一致。
 - 变更核心流程（权限、MIDI 连接、映射规则）时，必须同步更新业务术语与用户流程描述，避免“实现已变更但文档仍旧”。
+
+## Cursor Cloud specific instructions
+
+### Platform constraint
+
+PianoKey is a **macOS-only** native app (SwiftUI + CoreMIDI + SwiftData + AppKit). The Cloud Agent VM runs Linux, so **`xcodebuild`, running the app, and XCTest are unavailable**. Build and run verification must happen on the developer's macOS machine.
+
+### What the Cloud Agent CAN do on Linux
+
+| Tool | Command | Purpose |
+|---|---|---|
+| **SwiftLint** | `swiftlint lint` (from repo root) | Lint all 63 Swift files; catches style, naming, and complexity violations |
+| **Swift syntax check** | `swift -frontend -typecheck <file>.swift` | Verify syntax of files that only import `Foundation` (macOS framework imports will error) |
+
+- Swift 6.0.3 toolchain is installed at `/opt/swift/usr/bin/swift`.
+- SwiftLint 0.63.2 is installed at `/usr/local/bin/swiftlint`.
+- No `.swiftlint.yml` config exists; SwiftLint uses its defaults.
+
+### What the Cloud Agent CANNOT do
+
+- `xcodebuild` (requires macOS + Xcode 26.0+)
+- Run the PianoKey app or any macOS GUI tests
+- Run XCTest targets (`PianoKeyTests`)
+- Build the local `MenuBarDockKit` package (depends on AppKit)
+
+### Workflow for code changes
+
+1. After editing Swift files, run `swiftlint lint` to catch regressions.
+2. For pure-Swift model/utility files (no macOS framework imports), run `swift -frontend -typecheck <file>` for quick validation.
+3. Commit with descriptive messages per existing conventions in AGENTS.md.
+4. Note in PR description that `xcodebuild` verification is required on macOS before merge.
