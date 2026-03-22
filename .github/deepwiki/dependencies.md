@@ -4,12 +4,12 @@
 
 | 维度 | 技术 / 框架 | 版本 / 约束 | 用途 |
 | --- | --- | --- | --- |
-| 语言 | Swift | `swift-tools-version: 6.0`（MenuBarDockKit）, `5.10`（PianoKeyCLI） | 主应用与包实现 |
+| 语言 | Swift | `swift-tools-version: 6.0`（MenuBarDockKit） | 主应用与包实现 |
 | UI | SwiftUI + Observation | macOS App target | 主窗口、菜单栏、设置与编辑器界面 |
 | MIDI 输入 | CoreMIDI | 系统框架 | 实时采集 note on/off |
 | 输入注入 | CoreGraphics / ApplicationServices | 系统框架 + 辅助功能授权 | 文本与按键注入 |
 | 持久化 | SwiftData | App target | Profile 与 Take 本地存储 |
-| 音频回放 | AVFoundation + AudioToolbox | 系统框架 | Recorder 回放与 CLI 渲染 |
+| 音频回放 | AVFoundation + AudioToolbox | 系统框架 | Recorder 回放 |
 
 ## 第一方模块 / 包
 
@@ -17,7 +17,6 @@
 | --- | --- | --- | --- |
 | `PianoKey` | `PianoKey/` + Xcode target | `PianoKey.app` | 终端用户 |
 | `MenuBarDockKit` | `Packages/MenuBarDockKit/` | Swift library | `PianoKey` target |
-| `PianoKeyCLI` | `Packages/PianoKeyCLI/` | `pianokey-cli` executable | 脚本、AI 流水线、手工终端 |
 
 ## 第三方库 / 框架
 
@@ -36,7 +35,7 @@
 | --- | --- | --- | --- |
 | macOS Accessibility | `AccessibilityPermissionService` | AX API + CG 请求接口 | 获取事件注入权限 |
 | macOS Shortcuts | `ShortcutExecutionService` | `shortcuts://run-shortcut?name=` URL Scheme | 执行用户已有快捷指令 |
-| 系统音色库 DLS/SF2 | `AVSamplerMIDIPlaybackService`, `PianoMIDIRenderer` | 文件路径加载 | Acoustic Grand Piano 音色 |
+| 系统音色库 DLS/SF2 | `AVSamplerMIDIPlaybackService` | 文件路径加载 | Acoustic Grand Piano 音色 |
 
 ## 构建、测试与开发工具
 
@@ -44,12 +43,10 @@
 | --- | --- | --- | --- |
 | `open PianoKey.xcodeproj` | 仓库根目录 | 打开主工程 | 主 App 开发入口 |
 | `xcodebuild -project ... -scheme PianoKey ... build` | 仓库根目录 | App 构建 | AGENTS 中推荐 |
-| `swift build --package-path Packages/PianoKeyCLI` | 仓库根目录 | 构建 CLI | 独立于 Xcode target |
-| `swift run --package-path Packages/PianoKeyCLI ...` | 仓库根目录 | 执行 MIDI 渲染 | 支持 `--json` |
 
 ## 平台兼容性
 
-- `MenuBarDockKit` 与 `PianoKeyCLI` package manifest 标注 `macOS(.v14)`。
+- `MenuBarDockKit` package manifest 标注 `macOS(.v14)`。
 - Xcode 工程 `PianoKey` target 在 `project.pbxproj` 中声明 `MACOSX_DEPLOYMENT_TARGET = 26.0`。
 - 仓库是 **macOS-only**；Linux 环境无法执行完整 `xcodebuild` 与 GUI 运行验证。
 
@@ -65,7 +62,7 @@
 ## 升级热点与风险
 
 1. 调整部署目标或 Swift 版本时，需同步验证本地包与主工程兼容。
-2. 变更音频渲染链路需同时覆盖 App 回放与 CLI 渲染。
+2. 变更音频渲染链路需同时覆盖 App 回放与系统音色库加载。
 3. 若引入第三方包，需新增锁定策略与许可审计流程。
 
 ## 示例片段
@@ -79,15 +76,6 @@ let package = Package(
 )
 ```
 
-```swift
-// Packages/PianoKeyCLI/Package.swift
-let package = Package(
-    name: "PianoKeyCLI",
-    platforms: [.macOS(.v14)],
-    products: [.executable(name: "pianokey-cli", targets: ["PianoKeyCLI"])]
-)
-```
-
 ## Coverage Gaps（如有）
 
 - 未发现第三方依赖清单或 SCA 流程说明（当前无第三方包）。
@@ -97,8 +85,6 @@ let package = Package(
 
 - `PianoKey.xcodeproj/project.pbxproj`
 - `Packages/MenuBarDockKit/Package.swift`
-- `Packages/PianoKeyCLI/Package.swift`
-- `Packages/PianoKeyCLI/Sources/PianoKeyCLI/main.swift`
 - `PianoKey/PianoKeyApp.swift`
 - `PianoKey/Services/System/AccessibilityPermissionService.swift`
 - `PianoKey/Services/System/ShortcutExecutionService.swift`

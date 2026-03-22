@@ -9,7 +9,7 @@
 | Accessibility API | `AccessibilityPermissionService` | 检查与请求注入权限 | 无法跨应用输入 |
 | CGEvent | `KeyboardEventService` | 发送文本与组合键 | 动作执行失败 |
 | Shortcuts URL Scheme | `ShortcutExecutionService` | 触发系统快捷指令 | open 失败 |
-| AVAudioEngine/AVAudioUnitSampler | `AVSamplerMIDIPlaybackService` + CLI renderer | 播放与离线渲染 | 回放/渲染失败 |
+| AVAudioEngine/AVAudioUnitSampler | `AVSamplerMIDIPlaybackService` | 播放 | 回放失败 |
 
 ## CoreMIDI 集成细节
 
@@ -63,7 +63,7 @@ keyUp.post(tap: .cghidEventTap)
 | 无 MIDI 输入 | Source 数量与连接状态 | Refresh Sources，确认设备在线 |
 | 有 MIDI 无注入 | 权限状态 | 补齐辅助功能授权 |
 | shortcut 不执行 | URL 生成与 open 返回值 | 校验名称与系统快捷指令存在性 |
-| 回放失败 | 音色库路径与引擎状态 | 指定 `--sound-bank` 或检查系统环境 |
+| 回放失败 | 音色库路径与引擎状态 | 检查系统音色库与 sampler 初始化 |
 
 ## Coverage Gaps（如有）
 
@@ -76,6 +76,5 @@ keyUp.post(tap: .cghidEventTap)
 - `PianoKey/Services/Input/KeyboardEventService.swift`
 - `PianoKey/Services/System/ShortcutExecutionService.swift`
 - `PianoKey/Services/Playback/AVSamplerMIDIPlaybackService.swift`
-- `Packages/PianoKeyCLI/Sources/PianoKeyCLI/main.swift`
 - `PianoKey/ViewModels/PianoKeyViewModel.swift`
 - `.github/scripts/midi-send-test.swift`

@@ -30,7 +30,6 @@
 | --- | --- | --- | --- |
 | Accessibility Permission | macOS 辅助功能授权 | Runtime 状态、权限服务 | 决定是否可注入系统输入 |
 | Source Refresh | 重连 MIDI 来源动作 | Runtime/MenuBar 按钮 | 常见故障恢复入口 |
-| `pianokey-cli render` | CLI 渲染命令 | `PianoKeyCLI/main.swift` | AI/脚本批处理入口 |
 | Marketing Version | 展示版本号 | `project.pbxproj` | 发布沟通与版本追踪 |
 
 ## 易混淆概念
@@ -53,4 +52,3 @@
 - `PianoKey/Services/Mapping/DefaultMappingEngine.swift`
 - `PianoKey/Services/Protocols/MIDIInputServiceProtocol.swift`
 - `Packages/MenuBarDockKit/Sources/MenuBarDockKit/MainWindowDockVisibilityController.swift`
-- `Packages/PianoKeyCLI/Sources/PianoKeyCLI/main.swift`

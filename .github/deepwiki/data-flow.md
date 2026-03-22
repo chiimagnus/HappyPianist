@@ -101,7 +101,6 @@ sequenceDiagram
 | Runtime `Recent Events` | `Views/Runtime/RecentEventSectionView.swift` | 观察触发链路 | 最快的现场证据 |
 | `statusMessage` / `recorderStatusMessage` | `PianoKeyViewModel.swift` | 当前阶段错误提示 | 绑定 UI 状态栏 |
 | MIDI 来源刷新按钮 | Runtime/MenuBar 视图 | 复位连接状态 | 无设备时常用 |
-| CLI `--json` 输出 | `PianoKeyCLI/main.swift` | 机器可读渲染结果 | 便于自动化校验 |
 
 ## 示例片段
 

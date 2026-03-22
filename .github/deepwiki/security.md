@@ -33,7 +33,6 @@
 
 1. 协议分层 + DI，便于隔离高权限操作服务。
 2. 错误分支可见化（statusMessage / recorderStatusMessage）。
-3. CLI 路径与参数有基本校验。
 
 ## 建议补强项
 
@@ -73,5 +72,4 @@ guard let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQue
 - `PianoKey/ViewModels/PianoKeyViewModel.swift`
 - `PianoKey/Services/Storage/SwiftDataMappingProfileRepository.swift`
 - `PianoKey/Services/Storage/SwiftDataRecordingTakeRepository.swift`
-- `Packages/PianoKeyCLI/Sources/PianoKeyCLI/main.swift`
 - `README.md`

@@ -6,10 +6,10 @@ PianoKey 运行于 macOS 桌面环境，依赖系统框架实现：
 
 - CoreMIDI：采集 MIDI 输入。
 - ApplicationServices/CoreGraphics：辅助功能与事件注入。
-- AVFoundation/AudioToolbox：Recorder 回放与 CLI 离线渲染。
+- AVFoundation/AudioToolbox：Recorder 回放。
 - SwiftData：Profile 与 Take 持久化。
 
-系统没有服务端组件，属于 **本地单进程应用 + 本地 CLI** 架构。
+系统没有服务端组件，属于 **本地单进程应用** 架构。
 
 ## 运行时边界
 
@@ -17,7 +17,6 @@ PianoKey 运行于 macOS 桌面环境，依赖系统框架实现：
 | --- | --- | --- | --- |
 | PianoKey App 进程 | `PianoKey/` | App 启动到退出 | UI、监听、映射、录制回放、持久化 |
 | MenuBarDockKit 组件 | `Packages/MenuBarDockKit` | 随 App 进程 | 菜单栏/Dock 显示策略与主窗口辅助 |
-| PianoKeyCLI 进程 | `Packages/PianoKeyCLI` | 命令执行期间 | 离线 MIDI -> WAV 渲染 |
 
 ## 组件地图
 
@@ -88,7 +87,7 @@ flowchart LR
 
 - App：Xcode target `PianoKey`（`com.chiimagnus.PianoKey`）。
 - 单元测试：Xcode target `PianoKeyTests`。
-- 本地包：`MenuBarDockKit` 由 Xcode 工程引用，`PianoKeyCLI` 独立通过 SwiftPM 构建。
+- 本地包：`MenuBarDockKit` 由 Xcode 工程引用。
 
 ## 扩展点与热点
 

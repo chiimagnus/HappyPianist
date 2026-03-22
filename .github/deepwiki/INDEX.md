@@ -48,7 +48,6 @@
 - [modules/mapping-engine.md](modules/mapping-engine.md)
 - [modules/recording-playback.md](modules/recording-playback.md)
 - [modules/menubardockkit.md](modules/menubardockkit.md)
-- [modules/pianokey-cli.md](modules/pianokey-cli.md)
 
 ## 专题页面
 

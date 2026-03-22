@@ -7,7 +7,6 @@
 | 录制逻辑正确性 | Swift Testing 单元测试 | 中 | 验证 note on/off 转换与自动闭合 |
 | ViewModel Recorder 状态机 | Swift Testing + Test Doubles | 中 | 验证 Rec/Play/Stop 状态与副作用 |
 | UI 与权限流程 | 手工冒烟 | 中低 | 验证授权、监听、映射、回放实际可用 |
-| CLI 渲染 | 手工命令 + 输出检查 | 中 | 验证参数解析与 WAV 生成 |
 
 ## 测试层次
 
@@ -24,8 +23,6 @@
 | --- | --- | --- | --- |
 | `xcodebuild -project PianoKey.xcodeproj -scheme PianoKey -configuration Debug build` | 仓库根目录 | 构建主应用 | 每次提交前 |
 | `xcodebuild -project PianoKey.xcodeproj -scheme PianoKeyTests -configuration Debug test` | 仓库根目录 | 执行单元测试（若本地环境可用） | 改动 ViewModel/Service 后 |
-| `swift build --package-path Packages/PianoKeyCLI` | 仓库根目录 | 构建 CLI | 改动 CLI 后 |
-| `swift run --package-path Packages/PianoKeyCLI pianokey-cli render ...` | 仓库根目录 | CLI 集成验证 | 改动渲染逻辑后 |
 
 ## 高风险回归区
 
@@ -61,7 +58,6 @@
 | `Listening MIDI` 但无输入效果 | 辅助功能未授权/未生效 | Runtime Status + 系统设置 |
 | Recorder 保存为空 | 录制期间未收到 note 事件 | `Recent Events` 与 `MIDI Events` |
 | 回放失败 | 系统音色库不可用/音频引擎失败 | `AVSamplerMIDIPlaybackService` 错误文案 |
-| CLI 渲染失败 | 输入路径/参数错误 | CLI 错误输出与 usage |
 
 ## 示例片段
 
@@ -94,4 +90,3 @@
 - `PianoKey/ViewModels/PianoKeyViewModel.swift`
 - `PianoKey/Services/Recording/DefaultRecordingService.swift`
 - `PianoKey/Services/Playback/AVSamplerMIDIPlaybackService.swift`
-- `Packages/PianoKeyCLI/Sources/PianoKeyCLI/main.swift`

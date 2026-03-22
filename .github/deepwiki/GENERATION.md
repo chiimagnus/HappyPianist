@@ -34,7 +34,6 @@
 - `.github/deepwiki/modules/mapping-engine.md`
 - `.github/deepwiki/modules/recording-playback.md`
 - `.github/deepwiki/modules/menubardockkit.md`
-- `.github/deepwiki/modules/pianokey-cli.md`
 
 ### Topic Pages
 
@@ -59,6 +58,7 @@
 - Replaced legacy business entry doc by adding `business-context.md` as正式入口层。
 - Migrated `.github/docs/开发规范.md` to `.github/deepwiki/references/开发规范.md`.
 - Deleted legacy `.github/docs/business-logic.md` as requested.
+- Cleaned up the stale command-line module page and related references because this repository no longer contains an independent command-line implementation.
 
 ## Validation Checklist
 

@@ -8,14 +8,12 @@
 | `MIDI Events: 0` 持续不变 | 无 MIDI Source / 源未连接 | Runtime `Sources` + Refresh | `connectedSourceNames` 是否为空 |
 | Rec 后没有 Take | 录制期间无有效 note 事件 | `Recent Events` + Recorder 状态栏 | 是否出现 note on/off 日志 |
 | Play 失败 | 音色库缺失 / 引擎启动失败 | `recorderStatusMessage` | 是否提示 sound bank / engine failed |
-| CLI `render` 报错 | 输入路径/参数错误 | 终端 stderr + usage | 是否缺少 `--input`/`--output` |
 
 ## 第一现场信息
 
 1. Runtime 页：`Status`、`Sources`、`MIDI Events`、`Pressed`、`Preview`。
 2. Recent Events：查看最近 12 条状态与动作日志。
 3. Recorder 状态栏：`recorderStatusMessage` + `Notes` + `Duration`。
-4. CLI：错误输出与 usage 文本。
 
 ## 常见故障场景
 
@@ -49,14 +47,12 @@
 | `Refresh Sources` | Runtime/MenuBar | 重连 MIDI 来源 | 最常用恢复操作 |
 | `Grant Permission` | Runtime/MenuBar | 触发授权流程 | 未授权时必查 |
 | `xcodebuild ... build` | 仓库根目录 | 校验代码可构建 | 提交前建议执行 |
-| `swift run --package-path Packages/PianoKeyCLI ... --json` | 仓库根目录 | CLI 可观测渲染结果 | 便于脚本诊断 |
 
 ## 恢复与回退
 
 - 监听异常：Stop -> Start -> Refresh Sources。
 - 规则异常：切回默认 profile（`Default QWERTY`）进行最小化验证。
 - 录制异常：删除异常 take，重新录制。
-- CLI 异常：先确认 `--input` 路径，再尝试指定 `--sound-bank`。
 
 ## 已知尖锐边界
 
@@ -77,12 +73,6 @@ guard status == .noteOn || status == .noteOff else {
 }
 ```
 
-```swift
-// Packages/PianoKeyCLI/Sources/PianoKeyCLI/main.swift
-case .missingRequiredOption(let option):
-    return "Missing required option '\(option)'."
-```
-
 ## Coverage Gaps（如有）
 
 - 尚无统一 crash dump 采集方案，复杂现场需依赖本地复现。
@@ -97,4 +87,3 @@ case .missingRequiredOption(let option):
 - `PianoKey/Services/Mapping/DefaultMappingEngine.swift`
 - `PianoKey/Services/Playback/AVSamplerMIDIPlaybackService.swift`
 - `PianoKey/Services/System/AccessibilityPermissionService.swift`
-- `Packages/PianoKeyCLI/Sources/PianoKeyCLI/main.swift`

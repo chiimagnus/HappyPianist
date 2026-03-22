@@ -10,7 +10,7 @@
 
 | 阶段 | 动作 | 产物 | 注意事项 |
 | --- | --- | --- | --- |
-| 需求澄清 | 明确改动属于 mapping / recorder / window shell / CLI | 变更边界说明 | 避免跨模块一次改太多 |
+| 需求澄清 | 明确改动属于 mapping / recorder / window shell | 变更边界说明 | 避免跨模块一次改太多 |
 | 实现 | 先改协议或模型，再改服务和 UI | 原子 commit | 保持 ViewModel 状态语义稳定 |
 | 验证 | 构建 + 单测 + 手工冒烟 | 验证记录 | 权限链路必须实测 |
 | 文档同步 | 更新 deepwiki 与 README（必要时） | 可追溯知识 | 业务入口页链接保持可达 |
@@ -22,7 +22,6 @@
 | 主应用映射链路 | `modules/mapping-engine.md` | Single/Chord/Melody 手测 | 权限与注入副作用 |
 | Recorder | `modules/recording-playback.md` | Rec/Play/Stop + 恢复 | 回放不触发注入 |
 | 菜单栏壳层 | `modules/menubardockkit.md` | 窗口开闭 + Dock 行为 | activationPolicy 时序 |
-| CLI 渲染 | `modules/pianokey-cli.md` | `render --json` | 路径与音色库可用性 |
 
 ## 文档同步工作流
 
@@ -36,7 +35,6 @@
 | --- | --- | --- |
 | 本地构建 | `xcodebuild ... build` | 验证主 target 构建健康 |
 | 本地测试 | `xcodebuild ... test`（可用时） | 验证录制与状态机回归 |
-| CLI 校验 | `swift build/run --package-path Packages/PianoKeyCLI` | 验证离线渲染链路 |
 | 发布准备 | 更新版本号 + release 文档 | 形成可发布产物 |
 
 ## 变更清单
@@ -83,6 +81,4 @@ xcodebuild -project PianoKey.xcodeproj -scheme PianoKey -configuration Debug bui
 - `PianoKey/Views/Settings/Commands/AppCommands.swift`
 - `PianoKey/Views/MenuBar/MenuBarMenuContentView.swift`
 - `PianoKey/Views/Recording/RecorderTransportBarView.swift`
-- `Packages/PianoKeyCLI/README.md`
-- `Packages/PianoKeyCLI/Sources/PianoKeyCLI/main.swift`
 - `PianoKey.xcodeproj/project.pbxproj`

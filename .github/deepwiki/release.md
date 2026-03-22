@@ -5,7 +5,6 @@
 | 资产 | 位置 | 版本字段来源 | 发布形态 |
 | --- | --- | --- | --- |
 | PianoKey App | `PianoKey.xcodeproj` target `PianoKey` | `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` | macOS 应用构建产物 |
-| PianoKeyCLI | `Packages/PianoKeyCLI` | Swift package manifest + git tag（约定） | CLI 可执行文件 |
 | MenuBarDockKit | `Packages/MenuBarDockKit` | Swift package manifest + git tag（约定） | Swift library |
 
 ## 版本真值与策略
@@ -30,14 +29,11 @@
 | --- | --- | --- |
 | App 构建 | `xcodebuild ... -scheme PianoKey build` | 无编译错误 |
 | 单元测试 | `xcodebuild ... -scheme PianoKeyTests test` | 关键测试通过 |
-| CLI 构建 | `swift build --package-path Packages/PianoKeyCLI` | 构建成功 |
-| CLI 渲染 | `swift run ... render --json` | 返回 `ok: true` |
 
 ## 回滚与应急
 
 - App 回滚：回退到上一稳定 commit，重新构建并验证权限/映射链路。
 - 数据层回滚：若涉及 SwiftData schema 变更，需确保兼容旧数据或提供迁移脚本。
-- CLI 回滚：保持上一版可执行文件可复用。
 
 ## 发布风险点
 
@@ -54,12 +50,6 @@ CURRENT_PROJECT_VERSION = 1;
 PRODUCT_BUNDLE_IDENTIFIER = com.chiimagnus.PianoKey;
 ```
 
-```bash
-# CLI release smoke
-swift build --package-path Packages/PianoKeyCLI
-swift run --package-path Packages/PianoKeyCLI pianokey-cli render --input ./song.mid --output ./song.wav --json
-```
-
 ## Coverage Gaps（如有）
 
 - 仓库内缺少 `.github/workflows` 与正式发布流水线定义。
@@ -70,7 +60,4 @@ swift run --package-path Packages/PianoKeyCLI pianokey-cli render --input ./song
 - `PianoKey.xcodeproj/project.pbxproj`
 - `AGENTS.md`
 - `README.md`
-- `Packages/PianoKeyCLI/Package.swift`
-- `Packages/PianoKeyCLI/README.md`
-- `Packages/PianoKeyCLI/Sources/PianoKeyCLI/main.swift`
 - `Packages/MenuBarDockKit/Package.swift`
