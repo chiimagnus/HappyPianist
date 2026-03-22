@@ -9,7 +9,7 @@
 - `ViewModels/`：状态编排与业务流程入口（当前主要是 `PianoKeyViewModel`）。
 - `Views/`：菜单栏面板与控制面板 UI。
 - `Utilities/`：解析器与默认配置工厂。
-- `.github/docs/`：开发规范与业务文档；变更行为时应同步文档。
+- `.github/deepwiki/`：仓库知识库（业务入口 + 技术细节）；变更行为时应同步文档。
 
 ## 构建、测试和开发命令
 
@@ -17,11 +17,11 @@
 - 本地构建（Debug）：`xcodebuild -project PianoKey.xcodeproj -scheme PianoKey -configuration Debug build`
 - 可选发布构建（Release）：`xcodebuild -project PianoKey.xcodeproj -scheme PianoKey -configuration Release build`
 
-当前仓库未提供独立自动化测试 target；回归以构建成功 + 关键手测路径为主。
+仓库已包含 `PianoKeyTests` 自动化测试 target；回归建议采用“本地构建 + 关键单测 + 关键手测路径”组合。
 
 ## 代码风格与命名规范
 
-- 以 `.github/docs/开发规范.md` 为准：MVVM、面向协议、依赖注入。
+- 以 `.github/deepwiki/references/开发规范.md` 为准：MVVM、面向协议、依赖注入。
 - 统一使用 `@Observable`（macOS 14+），避免 `ObservableObject` 旧式写法。
 - 命名遵循语义化：类型 `PascalCase`，变量/函数 `camelCase`，协议以 `Protocol` 结尾，服务实现以 `Service` 结尾。
 - View 保持展示职责，业务逻辑放入 ViewModel，跨模块能力放入 Service。
@@ -56,7 +56,7 @@
 ## Agent 协作说明
 
 - 大范围改动前先更新 `.github/plans/` 中对应计划，按批次落地并在每批后做构建验证。
-- 文档更新顺序建议为：`README.md` -> `.github/docs/business-logic.md` -> `AGENTS.md`，确保对外说明、业务地图、协作规范三者一致。
+- 文档更新顺序建议为：`README.md` -> `.github/deepwiki/business-context.md` -> `AGENTS.md`，确保对外说明、业务地图、协作规范三者一致。
 - 变更核心流程（权限、MIDI 连接、映射规则）时，必须同步更新业务术语与用户流程描述，避免“实现已变更但文档仍旧”。
 
 ## Cursor Cloud specific instructions
