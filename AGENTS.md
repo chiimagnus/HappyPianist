@@ -19,6 +19,34 @@
 
 仓库已包含 `PianoKeyTests` 自动化测试 target；回归建议采用“本地构建 + 关键单测 + 关键手测路径”组合。
 
+## 开发指南（不启动 Xcode）
+
+`README.md` 面向最终用户；开发者相关操作（构建 / 运行 / 回归）以本文件为准。
+
+### 一键 build + open
+
+在仓库根目录执行：
+
+- Debug（默认）：`.github/scripts/build-open.sh`
+- Release：`.github/scripts/build-open.sh --release`
+- 不退出已运行的 App：`.github/scripts/build-open.sh --no-quit`
+
+脚本行为：
+
+- 使用 `xcodebuild` 构建，并把产物输出到 `DERIVED_DATA_PATH`（默认 `.derivedData/`，已在 `.gitignore` 中忽略）。
+- 构建成功后 `open <DerivedData>/Build/Products/<Config>/PianoKey.app`。
+- 默认会尝试优雅退出已运行的 `PianoKey` 进程（便于重新加载新构建）；如需保留现有实例，用 `--no-quit`。
+
+### 高级用法（环境变量覆盖）
+
+如需自定义工程/产物路径，可通过环境变量覆盖：
+
+- `PROJECT_PATH`（默认 `PianoKey.xcodeproj`）
+- `SCHEME`（默认 `PianoKey`）
+- `CONFIGURATION`（默认 `Debug`）
+- `DERIVED_DATA_PATH`（默认 `.derivedData`）
+- `APP_NAME`（默认 `PianoKey`）
+
 ## 代码风格与命名规范
 
 - 以 `.github/deepwiki/references/开发规范.md` 为准：MVVM、面向协议、依赖注入。
