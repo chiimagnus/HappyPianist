@@ -5,6 +5,7 @@
 | 接口 | 调用模块 | 用途 | 失败表现 |
 | --- | --- | --- | --- |
 | CoreMIDI | `CoreMIDIInputService` | 接收 MIDI 事件 | 无事件 / 连接失败 |
+| CoreMIDI（输出验证脚本） | `.github/scripts/midi-send-test.swift` | 验证 macOS → 外部设备的 MIDI 输出链路 | 找不到 destination / send 失败 |
 | Accessibility API | `AccessibilityPermissionService` | 检查与请求注入权限 | 无法跨应用输入 |
 | CGEvent | `KeyboardEventService` | 发送文本与组合键 | 动作执行失败 |
 | Shortcuts URL Scheme | `ShortcutExecutionService` | 触发系统快捷指令 | open 失败 |
@@ -15,6 +16,7 @@
 - 使用 `MIDIClientCreate` + `MIDIInputPortCreateWithProtocol` 建立输入端口。
 - 通过 `MIDIEventListForEachEvent` 遍历消息，仅保留 note on/off。
 - Source 刷新时对全部 source 尝试连接。
+- 仓库内提供一个“输出链路验证”脚本：`swift .github/scripts/midi-send-test.swift --list`（列出 destinations）与 `swift .github/scripts/midi-send-test.swift --dest <index>`（发送 Note On/Off）。
 
 ## 权限与输入注入集成
 
@@ -76,3 +78,4 @@ keyUp.post(tap: .cghidEventTap)
 - `PianoKey/Services/Playback/AVSamplerMIDIPlaybackService.swift`
 - `Packages/PianoKeyCLI/Sources/PianoKeyCLI/main.swift`
 - `PianoKey/ViewModels/PianoKeyViewModel.swift`
+- `.github/scripts/midi-send-test.swift`

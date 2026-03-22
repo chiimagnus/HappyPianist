@@ -34,6 +34,13 @@
 - 授权请求通过 `AXIsProcessTrustedWithOptions` + `CGRequestPostEventAccess`。
 - 仓库中未发现 API keys / secrets / `.env` 依赖；主要是本地系统权限模型。
 
+## 开发脚本
+
+| 脚本 | 用途 | 示例 |
+| --- | --- | --- |
+| `.github/scripts/build-open.sh` | 一键构建并打开 `.app`（默认 Debug，可选 Release） | `.github/scripts/build-open.sh` |
+| `.github/scripts/midi-send-test.swift` | 验证 macOS → 外部设备的 MIDI 输出链路（发送 Note On/Off） | `swift .github/scripts/midi-send-test.swift --list` |
+
 ## 功能开关与行为差异
 
 | 开关 | 开关位置 | 行为差异 | 生效时机 |
