@@ -39,6 +39,7 @@
 | `PianoKey/Services/MIDI/CoreMIDIInputService.swift` | MIDI 接入 | 输入链路首环 |
 | `PianoKey/Services/Mapping/DefaultMappingEngine.swift` | 规则匹配 | 触发逻辑核心 |
 | `PianoKey/Services/Playback/AVSamplerMIDIPlaybackService.swift` | 回放实现 | Recorder 可用性关键 |
+| `PianoKey/Services/Playback/RoutedMIDIPlaybackService.swift` | 回放路由 | 输出选择（本机/外设） |
 | `PianoKey/Views/Mapping/RulesEditorSectionView.swift` | 规则编辑 UI | 用户可配置面主入口 |
 
 ## 上下游依赖
@@ -96,6 +97,12 @@
 
 ```swift
 // PianoKey/PianoKeyApp.swift
+let midiOutputService = CoreMIDIOutputService()
+let playbackService = RoutedMIDIPlaybackService(
+    samplerPlayback: AVSamplerMIDIPlaybackService(),
+    midiOutPlayback: CoreMIDIOutputMIDIPlaybackService(outputService: midiOutputService),
+    outputService: midiOutputService
+)
 let viewModel = PianoKeyViewModel(
     midiInputService: CoreMIDIInputService(),
     keyboardEventService: KeyboardEventService(),
@@ -103,7 +110,7 @@ let viewModel = PianoKeyViewModel(
     repository: repository,
     recordingRepository: recordingRepository,
     recordingService: DefaultRecordingService(clock: SystemClock()),
-    playbackService: AVSamplerMIDIPlaybackService(),
+    playbackService: playbackService,
     mappingEngine: DefaultMappingEngine(),
     shortcutService: ShortcutExecutionService()
 )
@@ -135,6 +142,9 @@ func startListening() {
 - `PianoKey/Views/Mapping/RulesEditorSectionView.swift`
 - `PianoKey/Views/Recording/RecorderTransportBarView.swift`
 - `PianoKey/Services/MIDI/CoreMIDIInputService.swift`
+- `PianoKey/Services/MIDI/CoreMIDIOutputService.swift`
 - `PianoKey/Services/Mapping/DefaultMappingEngine.swift`
+- `PianoKey/Services/Playback/RoutedMIDIPlaybackService.swift`
+- `PianoKey/Services/Playback/CoreMIDIOutputMIDIPlaybackService.swift`
 - `PianoKey/Services/Storage/SwiftDataMappingProfileRepository.swift`
 - `PianoKey/Services/Storage/SwiftDataRecordingTakeRepository.swift`

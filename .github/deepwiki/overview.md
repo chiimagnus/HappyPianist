@@ -52,7 +52,7 @@ PianoKey 仓库包含三条运行面：
 | --- | --- | --- | --- |
 | 映射配置（Profile） | `SwiftDataMappingProfileRepository` | 本地 SwiftData | 含单键/和弦/旋律规则与力度阈值 |
 | 录制 Take | `DefaultRecordingService` + `SwiftDataRecordingTakeRepository` | 本地 SwiftData | 按更新时间排序，重启后恢复 |
-| 音频回放输出 | `AVSamplerMIDIPlaybackService` | 本机音频设备 | 固定钢琴音色回放（不注入按键） |
+| 回放输出 | `RoutedMIDIPlaybackService` | 本机音频或外设 MIDI | 可选 Built-in Sampler 或外部 MIDI destination |
 | CLI 渲染 WAV | `PianoMIDIRenderer` | 文件系统 | 离线渲染，支持 `--json` 输出摘要 |
 
 ## 关键工作流
@@ -68,6 +68,12 @@ PianoKey 仓库包含三条运行面：
 
 ```swift
 // PianoKey/PianoKeyApp.swift
+let midiOutputService = CoreMIDIOutputService()
+let playbackService = RoutedMIDIPlaybackService(
+    samplerPlayback: AVSamplerMIDIPlaybackService(),
+    midiOutPlayback: CoreMIDIOutputMIDIPlaybackService(outputService: midiOutputService),
+    outputService: midiOutputService
+)
 let viewModel = PianoKeyViewModel(
     midiInputService: CoreMIDIInputService(),
     keyboardEventService: KeyboardEventService(),
@@ -75,7 +81,7 @@ let viewModel = PianoKeyViewModel(
     repository: repository,
     recordingRepository: recordingRepository,
     recordingService: DefaultRecordingService(clock: SystemClock()),
-    playbackService: AVSamplerMIDIPlaybackService(),
+    playbackService: playbackService,
     mappingEngine: DefaultMappingEngine(),
     shortcutService: ShortcutExecutionService()
 )
@@ -117,6 +123,8 @@ swift run --package-path Packages/PianoKeyCLI pianokey-cli render --input ./song
 - `PianoKey/PianoKeyApp.swift`
 - `PianoKey/ContentView.swift`
 - `PianoKey/ViewModels/PianoKeyViewModel.swift`
+- `PianoKey/Services/MIDI/CoreMIDIOutputService.swift`
+- `PianoKey/Services/Playback/RoutedMIDIPlaybackService.swift`
 - `PianoKey/Services/Storage/SwiftDataMappingProfileRepository.swift`
 - `PianoKey/Services/Storage/SwiftDataRecordingTakeRepository.swift`
 - `Packages/MenuBarDockKit/Package.swift`

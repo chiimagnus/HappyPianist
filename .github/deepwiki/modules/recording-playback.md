@@ -11,7 +11,9 @@
 | 路径 | 角色 | 备注 |
 | --- | --- | --- |
 | `PianoKey/Services/Recording/DefaultRecordingService.swift` | 录制核心 | note on/off -> RecordedNote |
-| `PianoKey/Services/Playback/AVSamplerMIDIPlaybackService.swift` | 回放核心 | take -> scheduled events -> sampler |
+| `PianoKey/Services/Playback/RoutedMIDIPlaybackService.swift` | 回放路由 | built-in sampler / 外部 MIDI destination |
+| `PianoKey/Services/Playback/AVSamplerMIDIPlaybackService.swift` | 回放实现（本机） | take -> scheduled events -> sampler |
+| `PianoKey/Services/Playback/CoreMIDIOutputMIDIPlaybackService.swift` | 回放实现（外设） | take -> scheduled events -> CoreMIDI out |
 | `PianoKey/Services/Storage/SwiftDataRecordingTakeRepository.swift` | Take 持久化 | 保存/删除/重命名 |
 | `PianoKey/Views/Recording/*` | Recorder UI | Transport/Piano Roll/Status |
 
@@ -29,9 +31,11 @@
 | 文件 | 用途 | 为什么值得看 |
 | --- | --- | --- |
 | `DefaultRecordingService.swift` | 录制时值计算 | stop 自动闭合逻辑在此 |
-| `AVSamplerMIDIPlaybackService.swift` | 音频调度 | noteOn/noteOff 时间排序关键 |
+| `RoutedMIDIPlaybackService.swift` | 回放输出选择 | output 列表与路由逻辑在此 |
+| `AVSamplerMIDIPlaybackService.swift` | 本机音频回放 | noteOn/noteOff 时间排序关键 |
+| `CoreMIDIOutputMIDIPlaybackService.swift` | 外设 MIDI 回放 | 调度与 stop-all-notes 在此 |
 | `SwiftDataRecordingTakeRepository.swift` | 存储映射 | 数据恢复与列表排序逻辑 |
-| `RecorderTransportBarView.swift` | 交互入口 | Rec/Play/Stop/Seek/Rename/Delete 全在此 |
+| `RecorderTransportBarView.swift` | 交互入口 | Rec/Play/Stop/Seek/Output/Rename/Delete 全在此 |
 | `PianoRollView.swift` | 可视化 | 调试音高与时值非常直观 |
 
 ## 上下游依赖
@@ -108,7 +112,9 @@ case (.noteOff, .noteOn):
 
 - `PianoKey/ViewModels/PianoKeyViewModel.swift`
 - `PianoKey/Services/Recording/DefaultRecordingService.swift`
+- `PianoKey/Services/Playback/RoutedMIDIPlaybackService.swift`
 - `PianoKey/Services/Playback/AVSamplerMIDIPlaybackService.swift`
+- `PianoKey/Services/Playback/CoreMIDIOutputMIDIPlaybackService.swift`
 - `PianoKey/Services/Storage/SwiftDataRecordingTakeRepository.swift`
 - `PianoKey/Models/Recording/RecordingTake.swift`
 - `PianoKey/Models/Recording/RecordedNote.swift`

@@ -7,7 +7,7 @@
 | MIDI 监听流 | CoreMIDI source | `CoreMIDIInputService` -> `PianoKeyViewModel` | Runtime 状态 + 映射/录制分支 | `midiEventCount` 递增；音符范围钳制 |
 | 映射执行流 | `MIDIEvent.noteOn` | `DefaultMappingEngine` | `KeyboardEventService` / `ShortcutExecutionService` | 和弦触发去重、旋律冷却、历史窗口裁剪 |
 | 录制持久化流 | `recorderMode == .recording` | `DefaultRecordingService` -> `RecordingTakeRepository` | SwiftData `RecordingTakeEntity` | stop 时自动闭合未 release 音符 |
-| 回放流 | 选中 Take + Play | `AVSamplerMIDIPlaybackService` | 本机音频输出 + playhead 更新 | 事件按时间排序；同时刻 noteOff 优先 |
+| 回放流 | 选中 Take + Play | `RoutedMIDIPlaybackService` | 本机音频或外设 MIDI 输出 + playhead 更新 | 事件按时间排序；同时刻 noteOff 优先 |
 
 ## 触发事件与入口
 
@@ -34,7 +34,8 @@
 | 输入 | `RecordingTake.notes` | `Models/Recording/RecordingTake.swift` | 回放调度原始数据 |
 | 输出 | 注入行为 | `Services/Input/KeyboardEventService.swift` | 文本/按键注入到系统 HID 事件流 |
 | 输出 | 快捷指令触发 | `Services/System/ShortcutExecutionService.swift` | 通过 URL Scheme 启动系统 Shortcuts |
-| 输出 | 音频播放 | `Services/Playback/AVSamplerMIDIPlaybackService.swift` | 本地发声 |
+| 输出 | 音频播放 | `Services/Playback/AVSamplerMIDIPlaybackService.swift` | 本地发声（Built-in Sampler） |
+| 输出 | 外设 MIDI 输出 | `Services/MIDI/CoreMIDIOutputService.swift` | 发送 note on/off 到系统 destination |
 | 输出 | SwiftData 实体 | `Models/Storage/*.swift` | Profile/Take 持久化 |
 
 ## 关键数据结构 / 契约
@@ -141,7 +142,9 @@ return events.sorted { lhs, rhs in
 - `PianoKey/Services/Input/KeyboardEventService.swift`
 - `PianoKey/Services/System/ShortcutExecutionService.swift`
 - `PianoKey/Services/Recording/DefaultRecordingService.swift`
+- `PianoKey/Services/Playback/RoutedMIDIPlaybackService.swift`
 - `PianoKey/Services/Playback/AVSamplerMIDIPlaybackService.swift`
+- `PianoKey/Services/MIDI/CoreMIDIOutputService.swift`
 - `PianoKey/Services/Storage/SwiftDataRecordingTakeRepository.swift`
 - `PianoKey/Models/Mapping/MappingProfile.swift`
 - `PianoKey/Models/Recording/RecordingTake.swift`

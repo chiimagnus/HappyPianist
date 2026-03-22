@@ -9,7 +9,7 @@
 - `ViewModels/`：状态编排与业务流程入口（当前主要是 `PianoKeyViewModel`）。
 - `Views/`：菜单栏面板与控制面板 UI。
 - `Utilities/`：解析器与默认配置工厂。
-- `.github/deepwiki/`：仓库知识库（业务入口 + 技术细节）；变更行为时应同步文档。
+- `.github/deepwiki/`：仓库知识库（业务入口 + 技术细节）。
 
 ## 构建、测试和开发命令
 

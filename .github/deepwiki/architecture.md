@@ -28,7 +28,7 @@ PianoKey 运行于 macOS 桌面环境，依赖系统框架实现：
 | `DefaultMappingEngine` | `PianoKey/Services/Mapping` | `MIDIEvent` + `MappingProfile` | `ResolvedMappingAction[]` | Mapping models |
 | `KeyboardEventService` | `PianoKey/Services/Input` | 文本/按键动作 | 系统输入注入 | CGEvent |
 | `DefaultRecordingService` | `PianoKey/Services/Recording` | note on/off 事件 | `RecordingTake` | `ClockProtocol` |
-| `AVSamplerMIDIPlaybackService` | `PianoKey/Services/Playback` | `RecordingTake` | 音频播放 + 完成回调 | AVAudioEngine |
+| `RoutedMIDIPlaybackService` | `PianoKey/Services/Playback` | `RecordingTake` | 本机音频或外设 MIDI 输出 + 完成回调 | AVAudioEngine / CoreMIDI |
 | SwiftData Repositories | `PianoKey/Services/Storage` | Profile/Take domain model | SwiftData entities | SwiftData |
 
 ## 依赖方向与层次
@@ -54,7 +54,7 @@ flowchart LR
   B --> F[DefaultRecordingService]
   F --> G[SwiftDataRecordingTakeRepository]
   B --> H[SwiftDataMappingProfileRepository]
-  B --> I[AVSamplerMIDIPlaybackService]
+  B --> I[RoutedMIDIPlaybackService]
   J[SwiftUI Views] --> B
   K[MenuBarDockKit] --> J
 ```
@@ -67,6 +67,7 @@ flowchart LR
 | `MappingEngineProtocol` | `PianoKey/Services/Protocols/MappingEngineProtocol.swift` | ViewModel | 事件匹配输出统一接口 |
 | `RecordingServiceProtocol` | `PianoKey/Services/Protocols/RecordingServiceProtocol.swift` | ViewModel | 录制状态机契约 |
 | `MIDIPlaybackServiceProtocol` | `PianoKey/Services/Protocols/MIDIPlaybackServiceProtocol.swift` | ViewModel | 回放/停止与完成通知契约 |
+| `RoutableMIDIPlaybackServiceProtocol` | `PianoKey/Services/Protocols/RoutableMIDIPlaybackServiceProtocol.swift` | ViewModel | 回放输出选择（Built-in Sampler / 外设 MIDI） |
 | `MappingProfileRepositoryProtocol` | `PianoKey/Services/Protocols/MappingProfileRepositoryProtocol.swift` | ViewModel | Profile 持久化接口 |
 | `RecordingTakeRepositoryProtocol` | `PianoKey/Services/Protocols/RecordingTakeRepositoryProtocol.swift` | ViewModel | Take 持久化接口 |
 
@@ -133,8 +134,11 @@ playbackService.onPlaybackFinished = { [weak self] in
 - `PianoKey/Services/Protocols/MIDIInputServiceProtocol.swift`
 - `PianoKey/Services/Protocols/MappingEngineProtocol.swift`
 - `PianoKey/Services/MIDI/CoreMIDIInputService.swift`
+- `PianoKey/Services/MIDI/CoreMIDIOutputService.swift`
 - `PianoKey/Services/Mapping/DefaultMappingEngine.swift`
+- `PianoKey/Services/Playback/RoutedMIDIPlaybackService.swift`
 - `PianoKey/Services/Playback/AVSamplerMIDIPlaybackService.swift`
+- `PianoKey/Services/Playback/CoreMIDIOutputMIDIPlaybackService.swift`
 - `PianoKey/Services/Storage/SwiftDataMappingProfileRepository.swift`
 - `PianoKey/Services/Storage/SwiftDataRecordingTakeRepository.swift`
 - `PianoKey.xcodeproj/project.pbxproj`
