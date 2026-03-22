@@ -30,3 +30,4 @@ playground.xcworkspace
 .swiftpm/
 
 钢琴谱/
+.derivedData
