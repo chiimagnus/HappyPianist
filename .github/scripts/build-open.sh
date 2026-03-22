@@ -14,6 +14,10 @@ Usage: .github/scripts/build-open.sh [--debug|--release] [--no-quit]
 
 Builds the macOS app via xcodebuild and opens the built .app bundle.
 
+Defaults:
+  - Build configuration: Debug
+  - If PianoKey is running: quit it before opening the new build
+
 Environment overrides:
   PROJECT_PATH       (default: PianoKey.xcodeproj)
   SCHEME             (default: PianoKey)
@@ -46,6 +50,13 @@ for arg in "${@:-}"; do
       ;;
   esac
 done
+
+echo "[PianoKey] Build configuration: $configuration"
+if [[ "$quit_before_open" -eq 1 ]]; then
+  echo "[PianoKey] Running app handling: quit before open"
+else
+  echo "[PianoKey] Running app handling: no quit"
+fi
 
 xcodebuild \
   -project "$project_path" \

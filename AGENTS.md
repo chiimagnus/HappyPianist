@@ -21,31 +21,17 @@
 
 ## 开发指南（不启动 Xcode）
 
-`README.md` 面向最终用户；开发者相关操作（构建 / 运行 / 回归）以本文件为准。
-
-### 一键 build + open
-
-在仓库根目录执行：
+一键 build + open，在仓库根目录执行：
 
 - Debug（默认）：`.github/scripts/build-open.sh`
 - Release：`.github/scripts/build-open.sh --release`
-- 不退出已运行的 App：`.github/scripts/build-open.sh --no-quit`
 
 脚本行为：
 
 - 使用 `xcodebuild` 构建，并把产物输出到 `DERIVED_DATA_PATH`（默认 `.derivedData/`，已在 `.gitignore` 中忽略）。
 - 构建成功后 `open <DerivedData>/Build/Products/<Config>/PianoKey.app`。
 - 默认会尝试优雅退出已运行的 `PianoKey` 进程（便于重新加载新构建）；如需保留现有实例，用 `--no-quit`。
-
-### 高级用法（环境变量覆盖）
-
-如需自定义工程/产物路径，可通过环境变量覆盖：
-
-- `PROJECT_PATH`（默认 `PianoKey.xcodeproj`）
-- `SCHEME`（默认 `PianoKey`）
-- `CONFIGURATION`（默认 `Debug`）
-- `DERIVED_DATA_PATH`（默认 `.derivedData`）
-- `APP_NAME`（默认 `PianoKey`）
+- 团队开发约定：日常开发默认使用该脚本作为入口（不带参数即 Debug + quit）。
 
 ## 代码风格与命名规范
 
@@ -80,40 +66,3 @@
 - 本项目涉及系统输入注入能力，任何权限相关改动都应在 PR 中明确“用户可见行为变化”。
 - 不要在仓库中提交本地签名证书、私钥、临时 provisioning profile 或系统路径配置。
 - 若调整 Bundle Identifier 或签名设置，请同步更新 README 中的权限重置示例和排查说明，避免文档失效。
-
-## Agent 协作说明
-
-- 大范围改动前先更新 `.github/plans/` 中对应计划，按批次落地并在每批后做构建验证。
-- 文档更新顺序建议为：`README.md` -> `.github/deepwiki/business-context.md` -> `AGENTS.md`，确保对外说明、业务地图、协作规范三者一致。
-- 变更核心流程（权限、MIDI 连接、映射规则）时，必须同步更新业务术语与用户流程描述，避免“实现已变更但文档仍旧”。
-
-## Cursor Cloud specific instructions
-
-### Platform constraint
-
-PianoKey is a **macOS-only** native app (SwiftUI + CoreMIDI + SwiftData + AppKit). The Cloud Agent VM runs Linux, so **`xcodebuild`, running the app, and XCTest are unavailable**. Build and run verification must happen on the developer's macOS machine.
-
-### What the Cloud Agent CAN do on Linux
-
-| Tool | Command | Purpose |
-|---|---|---|
-| **SwiftLint** | `swiftlint lint` (from repo root) | Lint all 63 Swift files; catches style, naming, and complexity violations |
-| **Swift syntax check** | `swift -frontend -typecheck <file>.swift` | Verify syntax of files that only import `Foundation` (macOS framework imports will error) |
-
-- Swift 6.0.3 toolchain is installed at `/opt/swift/usr/bin/swift`.
-- SwiftLint 0.63.2 is installed at `/usr/local/bin/swiftlint`.
-- No `.swiftlint.yml` config exists; SwiftLint uses its defaults.
-
-### What the Cloud Agent CANNOT do
-
-- `xcodebuild` (requires macOS + Xcode 26.0+)
-- Run the PianoKey app or any macOS GUI tests
-- Run XCTest targets (`PianoKeyTests`)
-- Build the local `MenuBarDockKit` package (depends on AppKit)
-
-### Workflow for code changes
-
-1. After editing Swift files, run `swiftlint lint` to catch regressions.
-2. For pure-Swift model/utility files (no macOS framework imports), run `swift -frontend -typecheck <file>` for quick validation.
-3. Commit with descriptive messages per existing conventions in AGENTS.md.
-4. Note in PR description that `xcodebuild` verification is required on macOS before merge.
