@@ -39,6 +39,29 @@ struct RecorderTransportBarView: View {
                 Spacer(minLength: 0)
 
                 Picker(
+                    selection: playbackOutputBinding,
+                    label: Label("Output", systemImage: "speaker.wave.2")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                ) {
+                    ForEach(viewModel.playbackOutputs) { output in
+                        Text(output.title).tag(output.id)
+                    }
+                }
+                .pickerStyle(.menu)
+                .disabled(viewModel.recorderMode == .playing || viewModel.playbackOutputs.isEmpty)
+
+                Button {
+                    viewModel.refreshPlaybackOutputs()
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .foregroundStyle(.secondary)
+                }
+                .buttonStyle(.plain)
+                .help("Refresh MIDI outputs")
+                .disabled(viewModel.recorderMode == .playing)
+
+                Picker(
                     selection: selectionBinding,
                     label: Label("Library", systemImage: "tray.full")
                         .font(.caption)
@@ -138,6 +161,15 @@ struct RecorderTransportBarView: View {
             set: { newValue in
                 guard let newValue else { return }
                 viewModel.selectTake(newValue)
+            }
+        )
+    }
+
+    private var playbackOutputBinding: Binding<String> {
+        Binding(
+            get: { viewModel.selectedPlaybackOutputID },
+            set: { newValue in
+                viewModel.setPlaybackOutput(id: newValue)
             }
         )
     }

@@ -66,6 +66,8 @@ final class PianoKeyViewModel {
     var selectedTakeID: UUID?
     var playheadSec: TimeInterval = 0
     var recorderStatusMessage = "Recorder ready"
+    var playbackOutputs: [MIDIPlaybackOutputOption] = []
+    var selectedPlaybackOutputID: String = MIDIPlaybackOutputOption.builtInSamplerID
     var previewText = ""
     var pressedNotes: [Int] = []
     var recentLogs: [EventLogItem] = []
@@ -78,7 +80,7 @@ final class PianoKeyViewModel {
     private let repository: MappingProfileRepositoryProtocol
     private let recordingRepository: RecordingTakeRepositoryProtocol
     private let recordingService: RecordingServiceProtocol
-    private let playbackService: MIDIPlaybackServiceProtocol
+    private let playbackService: RoutableMIDIPlaybackServiceProtocol
     private let mappingEngine: MappingEngineProtocol
     private let shortcutService: ShortcutServiceProtocol
     private var permissionPollingTask: Task<Void, Never>?
@@ -95,7 +97,7 @@ final class PianoKeyViewModel {
         repository: MappingProfileRepositoryProtocol,
         recordingRepository: RecordingTakeRepositoryProtocol,
         recordingService: RecordingServiceProtocol,
-        playbackService: MIDIPlaybackServiceProtocol,
+        playbackService: RoutableMIDIPlaybackServiceProtocol,
         mappingEngine: MappingEngineProtocol,
         shortcutService: ShortcutServiceProtocol
     ) {
@@ -153,10 +155,38 @@ final class PianoKeyViewModel {
             try repository.ensureSeedProfilesIfNeeded()
             try reloadProfiles(preserveActiveID: nil)
             try reloadTakes(preserveSelectedID: nil)
+            refreshPlaybackOutputs()
         } catch {
             statusMessage = "Init failed: \(error.localizedDescription)"
             log(title: "Init Failed", detail: error.localizedDescription)
         }
+    }
+
+    func refreshPlaybackOutputs() {
+        playbackService.refreshAvailableOutputs()
+        playbackOutputs = playbackService.availableOutputs
+
+        if playbackOutputs.contains(where: { $0.id == playbackService.selectedOutputID }) {
+            selectedPlaybackOutputID = playbackService.selectedOutputID
+        } else {
+            selectedPlaybackOutputID = MIDIPlaybackOutputOption.builtInSamplerID
+            playbackService.selectedOutputID = selectedPlaybackOutputID
+        }
+    }
+
+    func setPlaybackOutput(id: String) {
+        guard selectedPlaybackOutputID != id else { return }
+        guard playbackOutputs.contains(where: { $0.id == id }) else { return }
+
+        if recorderMode == .playing {
+            stopTransport()
+        }
+
+        selectedPlaybackOutputID = id
+        playbackService.selectedOutputID = id
+        let title = playbackOutputs.first(where: { $0.id == id })?.title ?? "Unknown"
+        recorderStatusMessage = "Output: \(title)"
+        log(title: "Recorder", detail: "Playback output switched")
     }
 
     func toggleListening() {

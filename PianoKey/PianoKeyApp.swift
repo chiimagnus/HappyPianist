@@ -31,6 +31,12 @@ struct PianoKeyApp: App {
 
         let repository = SwiftDataMappingProfileRepository(context: modelContainer.mainContext)
         let recordingRepository = SwiftDataRecordingTakeRepository(context: modelContainer.mainContext)
+        let midiOutputService = CoreMIDIOutputService()
+        let playbackService = RoutedMIDIPlaybackService(
+            samplerPlayback: AVSamplerMIDIPlaybackService(),
+            midiOutPlayback: CoreMIDIOutputMIDIPlaybackService(outputService: midiOutputService),
+            outputService: midiOutputService
+        )
         let viewModel = PianoKeyViewModel(
             midiInputService: CoreMIDIInputService(),
             keyboardEventService: KeyboardEventService(),
@@ -38,7 +44,7 @@ struct PianoKeyApp: App {
             repository: repository,
             recordingRepository: recordingRepository,
             recordingService: DefaultRecordingService(clock: SystemClock()),
-            playbackService: AVSamplerMIDIPlaybackService(),
+            playbackService: playbackService,
             mappingEngine: DefaultMappingEngine(),
             shortcutService: ShortcutExecutionService()
         )

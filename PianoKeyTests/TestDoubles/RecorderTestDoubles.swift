@@ -142,13 +142,24 @@ final class RecordingServiceMock: RecordingServiceProtocol {
 }
 
 @MainActor
-final class MIDIPlaybackServiceMock: MIDIPlaybackServiceProtocol {
+final class MIDIPlaybackServiceMock: RoutableMIDIPlaybackServiceProtocol {
     var isPlaying = false
     var onPlaybackFinished: (@Sendable () -> Void)?
     var playError: Error?
 
+    var availableOutputs: [MIDIPlaybackOutputOption] = [
+        MIDIPlaybackOutputOption(
+            id: MIDIPlaybackOutputOption.builtInSamplerID,
+            title: "Built-in Sampler",
+            kind: .builtInSampler
+        )
+    ]
+    var selectedOutputID: String = MIDIPlaybackOutputOption.builtInSamplerID
+
     private(set) var playedTakes: [RecordingTake] = []
     private(set) var playedOffsets: [TimeInterval] = []
+
+    func refreshAvailableOutputs() {}
 
     func play(take: RecordingTake) throws {
         try play(take: take, fromOffsetSec: 0)
