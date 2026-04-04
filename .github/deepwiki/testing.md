@@ -12,17 +12,17 @@
 
 | 层次 | 位置 | 覆盖对象 | 备注 |
 | --- | --- | --- | --- |
-| 单元测试 | `PianoKeyTests/Recording/DefaultRecordingServiceTests.swift` | 录制事件转换 | 使用 `ClockMock` 控制时间 |
-| 单元测试 | `PianoKeyTests/ViewModels/PianoKeyViewModelRecorderStateTests.swift` | 录制/回放状态机 | 验证不触发键盘注入副作用 |
-| 测试替身 | `PianoKeyTests/TestDoubles/RecorderTestDoubles.swift` | 各类协议 mock | 解耦系统框架依赖 |
+| 单元测试 | `LonelyPianistTests/Recording/DefaultRecordingServiceTests.swift` | 录制事件转换 | 使用 `ClockMock` 控制时间 |
+| 单元测试 | `LonelyPianistTests/ViewModels/LonelyPianistViewModelRecorderStateTests.swift` | 录制/回放状态机 | 验证不触发键盘注入副作用 |
+| 测试替身 | `LonelyPianistTests/TestDoubles/RecorderTestDoubles.swift` | 各类协议 mock | 解耦系统框架依赖 |
 | 包测试（占位） | `Packages/MenuBarDockKit/Tests/...` | 当前仅 placeholder | 需要补实质断言 |
 
 ## 命令与执行顺序
 
 | 命令 | 位置 | 用途 | 何时执行 |
 | --- | --- | --- | --- |
-| `xcodebuild -project PianoKey.xcodeproj -scheme PianoKey -configuration Debug build` | 仓库根目录 | 构建主应用 | 每次提交前 |
-| `xcodebuild -project PianoKey.xcodeproj -scheme PianoKeyTests -configuration Debug test` | 仓库根目录 | 执行单元测试（若本地环境可用） | 改动 ViewModel/Service 后 |
+| `xcodebuild -project LonelyPianist.xcodeproj -scheme LonelyPianist -configuration Debug build` | 仓库根目录 | 构建主应用 | 每次提交前 |
+| `xcodebuild -project LonelyPianist.xcodeproj -scheme LonelyPianist -configuration Debug test` | 仓库根目录 | 执行单元测试（若本地环境可用） | 改动 ViewModel/Service 后 |
 
 ## 高风险回归区
 
@@ -62,13 +62,13 @@
 ## 示例片段
 
 ```swift
-// PianoKeyTests/Recording/DefaultRecordingServiceTests.swift
+// LonelyPianistTests/Recording/DefaultRecordingServiceTests.swift
 #expect(take?.notes.count == 1)
 #expect(abs(durationSec - 0.7) < 0.001)
 ```
 
 ```swift
-// PianoKeyTests/ViewModels/PianoKeyViewModelRecorderStateTests.swift
+// LonelyPianistTests/ViewModels/LonelyPianistViewModelRecorderStateTests.swift
 #expect(context.playback.playedTakes.count == 1)
 #expect(context.keyboard.typedTexts.isEmpty)
 #expect(context.keyboard.keyCombos.isEmpty)
@@ -81,12 +81,12 @@
 
 ## 来源引用（Source References）
 
-- `PianoKeyTests/Recording/DefaultRecordingServiceTests.swift`
-- `PianoKeyTests/ViewModels/PianoKeyViewModelRecorderStateTests.swift`
-- `PianoKeyTests/TestDoubles/RecorderTestDoubles.swift`
+- `LonelyPianistTests/Recording/DefaultRecordingServiceTests.swift`
+- `LonelyPianistTests/ViewModels/LonelyPianistViewModelRecorderStateTests.swift`
+- `LonelyPianistTests/TestDoubles/RecorderTestDoubles.swift`
 - `Packages/MenuBarDockKit/Tests/MenuBarDockKitTests/MenuBarDockKitTests.swift`
 - `AGENTS.md`
 - `README.md`
-- `PianoKey/ViewModels/PianoKeyViewModel.swift`
-- `PianoKey/Services/Recording/DefaultRecordingService.swift`
-- `PianoKey/Services/Playback/AVSamplerMIDIPlaybackService.swift`
+- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
+- `LonelyPianist/Services/Recording/DefaultRecordingService.swift`
+- `LonelyPianist/Services/Playback/AVSamplerMIDIPlaybackService.swift`

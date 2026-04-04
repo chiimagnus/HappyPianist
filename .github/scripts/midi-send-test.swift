@@ -221,12 +221,12 @@ do {
 
     let resolved = try resolveDestination(args)
     var clientRef: MIDIClientRef = 0
-    let statusClient = MIDIClientCreate("PianoKeyMIDIOutTest" as CFString, nil, nil, &clientRef)
+    let statusClient = MIDIClientCreate("LonelyPianistMIDIOutTest" as CFString, nil, nil, &clientRef)
     guard statusClient == noErr else { throw MIDIOutTestError.clientCreate(statusClient) }
     defer { MIDIClientDispose(clientRef) }
 
     var outputPortRef: MIDIPortRef = 0
-    let statusPort = MIDIOutputPortCreate(clientRef, "PianoKeyMIDIOutTestOutput" as CFString, &outputPortRef)
+    let statusPort = MIDIOutputPortCreate(clientRef, "LonelyPianistMIDIOutTestOutput" as CFString, &outputPortRef)
     guard statusPort == noErr else { throw MIDIOutTestError.outputPortCreate(statusPort) }
     defer { MIDIPortDispose(outputPortRef) }
 

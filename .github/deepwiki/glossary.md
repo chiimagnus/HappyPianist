@@ -2,7 +2,7 @@
 
 ## 说明
 
-本页统一 PianoKey 仓库中的业务词汇、工程词汇与运行词汇，避免不同页面对同一概念使用不同称呼。
+本页统一 LonelyPianist 仓库中的业务词汇、工程词汇与运行词汇，避免不同页面对同一概念使用不同称呼。
 
 ## 业务术语
 
@@ -45,10 +45,10 @@
 ## 来源引用（Source References）
 
 - `README.md`
-- `PianoKey/Models/Mapping/MappingRule.swift`
-- `PianoKey/Models/Mapping/MappingAction.swift`
-- `PianoKey/Models/Recording/RecordingTake.swift`
-- `PianoKey/ViewModels/PianoKeyViewModel.swift`
-- `PianoKey/Services/Mapping/DefaultMappingEngine.swift`
-- `PianoKey/Services/Protocols/MIDIInputServiceProtocol.swift`
+- `LonelyPianist/Models/Mapping/MappingRule.swift`
+- `LonelyPianist/Models/Mapping/MappingAction.swift`
+- `LonelyPianist/Models/Recording/RecordingTake.swift`
+- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
+- `LonelyPianist/Services/Mapping/DefaultMappingEngine.swift`
+- `LonelyPianist/Services/Protocols/MIDIInputServiceProtocol.swift`
 - `Packages/MenuBarDockKit/Sources/MenuBarDockKit/MainWindowDockVisibilityController.swift`

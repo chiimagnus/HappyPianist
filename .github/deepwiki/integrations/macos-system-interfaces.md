@@ -16,7 +16,11 @@
 - 使用 `MIDIClientCreate` + `MIDIInputPortCreateWithProtocol` 建立输入端口。
 - 通过 `MIDIEventListForEachEvent` 遍历消息，仅保留 note on/off。
 - Source 刷新时对全部 source 尝试连接。
-- 仓库内提供一个“输出链路验证”脚本：`swift .github/scripts/midi-send-test.swift --list`（列出 destinations）与 `swift .github/scripts/midi-send-test.swift --dest <index>`（发送 Note On/Off）。
+- 仓库内提供一个“输出链路验证”脚本：
+  - `swift .github/scripts/midi-send-test.swift --list`：列出 destinations
+  - `swift .github/scripts/midi-send-test.swift --dest <index>`：向指定 index 发送 Note On/Off
+  - `swift .github/scripts/midi-send-test.swift --match <substring>`：按名称子串匹配 destination 并发送 Note On/Off
+  - 若系统上 **只有一个** destination，可不传 `--dest/--match`，脚本会自动选择该目标。
 
 ## 权限与输入注入集成
 
@@ -42,7 +46,7 @@
 // CoreMIDIInputService.swift
 let status = MIDIInputPortCreateWithProtocol(
     clientRef,
-    "PianoKeyMIDIInput" as CFString,
+    "LonelyPianistMIDIInput" as CFString,
     MIDIProtocolID._1_0,
     &inputPortRef
 ) { [weak self] eventList, _ in
@@ -71,10 +75,10 @@ keyUp.post(tap: .cghidEventTap)
 
 ## 来源引用（Source References）
 
-- `PianoKey/Services/MIDI/CoreMIDIInputService.swift`
-- `PianoKey/Services/System/AccessibilityPermissionService.swift`
-- `PianoKey/Services/Input/KeyboardEventService.swift`
-- `PianoKey/Services/System/ShortcutExecutionService.swift`
-- `PianoKey/Services/Playback/AVSamplerMIDIPlaybackService.swift`
-- `PianoKey/ViewModels/PianoKeyViewModel.swift`
+- `LonelyPianist/Services/MIDI/CoreMIDIInputService.swift`
+- `LonelyPianist/Services/System/AccessibilityPermissionService.swift`
+- `LonelyPianist/Services/Input/KeyboardEventService.swift`
+- `LonelyPianist/Services/System/ShortcutExecutionService.swift`
+- `LonelyPianist/Services/Playback/AVSamplerMIDIPlaybackService.swift`
+- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
 - `.github/scripts/midi-send-test.swift`

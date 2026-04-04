@@ -15,8 +15,8 @@
 
 | 模块 / 包 | 位置 | 产物 | 被谁依赖 |
 | --- | --- | --- | --- |
-| `PianoKey` | `PianoKey/` + Xcode target | `PianoKey.app` | 终端用户 |
-| `MenuBarDockKit` | `Packages/MenuBarDockKit/` | Swift library | `PianoKey` target |
+| `LonelyPianist` | `LonelyPianist/` + Xcode target | `LonelyPianist.app` | 终端用户 |
+| `MenuBarDockKit` | `Packages/MenuBarDockKit/` | Swift library | `LonelyPianist` target |
 
 ## 第三方库 / 框架
 
@@ -41,21 +41,21 @@
 
 | 工具 / 命令 | 位置 | 用途 | 备注 |
 | --- | --- | --- | --- |
-| `open PianoKey.xcodeproj` | 仓库根目录 | 打开主工程 | 主 App 开发入口 |
-| `xcodebuild -project ... -scheme PianoKey ... build` | 仓库根目录 | App 构建 | AGENTS 中推荐 |
+| `open LonelyPianist.xcodeproj` | 仓库根目录 | 打开主工程 | 主 App 开发入口 |
+| `xcodebuild -project ... -scheme LonelyPianist ... build` | 仓库根目录 | App 构建 | AGENTS 中推荐 |
 
 ## 平台兼容性
 
 - `MenuBarDockKit` package manifest 标注 `macOS(.v14)`。
-- Xcode 工程 `PianoKey` target 在 `project.pbxproj` 中声明 `MACOSX_DEPLOYMENT_TARGET = 26.0`。
+- Xcode 工程 `LonelyPianist` target 在 `project.pbxproj` 中声明 `MACOSX_DEPLOYMENT_TARGET = 26.0`。
 - 仓库是 **macOS-only**；Linux 环境无法执行完整 `xcodebuild` 与 GUI 运行验证。
 
 ## 版本与锁定策略
 
 | 维度 | 真值来源 | 当前值 | 备注 |
 | --- | --- | --- | --- |
-| 分支 | Git | `crh` | 生成时当前分支 |
-| Commit | Git | `228d32deee961c17dc0a7c561f90e7753182e805` | 生成时 HEAD |
+| 分支 | `GENERATION.md` | 见 `GENERATION.md` | 避免在多个页面重复维护 |
+| Commit | `GENERATION.md` | 见 `GENERATION.md` | 避免在多个页面重复维护 |
 | App `MARKETING_VERSION` | `configuration.md`（引用 `project.pbxproj`） | 见配置页单一事实源 | 避免多页写死版本值 |
 | App `CURRENT_PROJECT_VERSION` | `configuration.md`（引用 `project.pbxproj`） | 见配置页单一事实源 | 避免多页写死版本值 |
 
@@ -83,11 +83,11 @@ let package = Package(
 
 ## 来源引用（Source References）
 
-- `PianoKey.xcodeproj/project.pbxproj`
+- `LonelyPianist.xcodeproj/project.pbxproj`
 - `Packages/MenuBarDockKit/Package.swift`
-- `PianoKey/PianoKeyApp.swift`
-- `PianoKey/Services/System/AccessibilityPermissionService.swift`
-- `PianoKey/Services/System/ShortcutExecutionService.swift`
-- `PianoKey/Services/Playback/AVSamplerMIDIPlaybackService.swift`
+- `LonelyPianist/LonelyPianistApp.swift`
+- `LonelyPianist/Services/System/AccessibilityPermissionService.swift`
+- `LonelyPianist/Services/System/ShortcutExecutionService.swift`
+- `LonelyPianist/Services/Playback/AVSamplerMIDIPlaybackService.swift`
 - `README.md`
 - `AGENTS.md`

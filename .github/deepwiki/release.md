@@ -4,7 +4,7 @@
 
 | 资产 | 位置 | 版本字段来源 | 发布形态 |
 | --- | --- | --- | --- |
-| PianoKey App | `PianoKey.xcodeproj` target `PianoKey` | `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` | macOS 应用构建产物 |
+| LonelyPianist App | `LonelyPianist.xcodeproj` target `LonelyPianist` | `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` | macOS 应用构建产物 |
 | MenuBarDockKit | `Packages/MenuBarDockKit` | Swift package manifest + git tag（约定） | Swift library |
 
 ## 版本真值与策略
@@ -13,8 +13,8 @@
 | --- | --- | --- |
 | App Marketing Version | `configuration.md`（引用 `project.pbxproj`） | 见配置页单一事实源 |
 | App Build Number | `configuration.md`（引用 `project.pbxproj`） | 见配置页单一事实源 |
-| 分支 | Git | `crh` |
-| Commit | Git | `228d32deee961c17dc0a7c561f90e7753182e805` |
+| 分支 | `GENERATION.md` | 见 `GENERATION.md` |
+| Commit | `GENERATION.md` | 见 `GENERATION.md` |
 
 ## 建议发布流程（当前仓库推断）
 
@@ -27,8 +27,8 @@
 
 | 检查项 | 命令 / 动作 | 通过标准 |
 | --- | --- | --- |
-| App 构建 | `xcodebuild ... -scheme PianoKey build` | 无编译错误 |
-| 单元测试 | `xcodebuild ... -scheme PianoKeyTests test` | 关键测试通过 |
+| App 构建 | `xcodebuild ... -scheme LonelyPianist build` | 无编译错误 |
+| 单元测试 | `xcodebuild ... -scheme LonelyPianist test` | 关键测试通过 |
 
 ## 回滚与应急
 
@@ -44,10 +44,10 @@
 ## 示例片段
 
 ```text
-// PianoKey.xcodeproj/project.pbxproj
-MARKETING_VERSION = 1.0;
-CURRENT_PROJECT_VERSION = 1;
-PRODUCT_BUNDLE_IDENTIFIER = com.chiimagnus.PianoKey;
+// LonelyPianist.xcodeproj/project.pbxproj（示意：实际值以该文件与 configuration.md 为准）
+MARKETING_VERSION = ...;
+CURRENT_PROJECT_VERSION = ...;
+PRODUCT_BUNDLE_IDENTIFIER = ...;
 ```
 
 ## Coverage Gaps（如有）
@@ -57,7 +57,7 @@ PRODUCT_BUNDLE_IDENTIFIER = com.chiimagnus.PianoKey;
 
 ## 来源引用（Source References）
 
-- `PianoKey.xcodeproj/project.pbxproj`
+- `LonelyPianist.xcodeproj/project.pbxproj`
 - `AGENTS.md`
 - `README.md`
 - `Packages/MenuBarDockKit/Package.swift`

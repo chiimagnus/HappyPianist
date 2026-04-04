@@ -53,7 +53,7 @@
 ## 示例片段
 
 ```swift
-// PianoKey/ViewModels/PianoKeyViewModel.swift
+// LonelyPianist/ViewModels/LonelyPianistViewModel.swift
 permissionPollingTask = Task { [weak self] in
     for attempt in 0..<120 {
         try? await Task.sleep(for: .milliseconds(500))
@@ -64,7 +64,7 @@ permissionPollingTask = Task { [weak self] in
 
 ```swift
 // AGENTS.md 中推荐的构建命令
-xcodebuild -project PianoKey.xcodeproj -scheme PianoKey -configuration Debug build
+xcodebuild -project LonelyPianist.xcodeproj -scheme LonelyPianist -configuration Debug build
 ```
 
 ## Coverage Gaps（如有）
@@ -76,9 +76,9 @@ xcodebuild -project PianoKey.xcodeproj -scheme PianoKey -configuration Debug bui
 
 - `AGENTS.md`
 - `README.md`
-- `PianoKey/PianoKeyApp.swift`
-- `PianoKey/ViewModels/PianoKeyViewModel.swift`
-- `PianoKey/Views/Settings/Commands/AppCommands.swift`
-- `PianoKey/Views/MenuBar/MenuBarMenuContentView.swift`
-- `PianoKey/Views/Recording/RecorderTransportBarView.swift`
-- `PianoKey.xcodeproj/project.pbxproj`
+- `LonelyPianist/LonelyPianistApp.swift`
+- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
+- `LonelyPianist/Views/Settings/Commands/AppCommands.swift`
+- `LonelyPianist/Views/MenuBar/MenuBarMenuContentView.swift`
+- `LonelyPianist/Views/Recording/RecorderTransportBarView.swift`
+- `LonelyPianist.xcodeproj/project.pbxproj`

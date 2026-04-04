@@ -2,12 +2,12 @@
 
 ## Generation Summary
 
-- Repository: `PianoKey`
+- Repository: `LonelyPianist`
 - Branch: `crh`
-- Commit: `228d32deee961c17dc0a7c561f90e7753182e805`
-- Generation timestamp (local): `2026-03-23 00:05:04 +0800`
+- Commit: `130d519dbab1a21269011e7a5cd92b54615f637e`
+- Generation timestamp (local): `2026-03-29 01:19:33 +0800`
 - Output language: `Chinese (zh-CN)`
-- Generation mode: `Initial generation`
+- Generation mode: `Incremental sync update`
 
 ## Page Inventory
 
@@ -30,7 +30,7 @@
 
 ### Module Pages
 
-- `.github/deepwiki/modules/pianokey-app.md`
+- `.github/deepwiki/modules/lonelypianist-app.md`
 - `.github/deepwiki/modules/mapping-engine.md`
 - `.github/deepwiki/modules/recording-playback.md`
 - `.github/deepwiki/modules/menubardockkit.md`
@@ -54,6 +54,11 @@
 - Assets directory reserved: `.github/deepwiki/assets/`
 
 ## Update Notes
+
+- 2026-03-29：同步 deepwiki 元数据到当前 `crh` 分支最新提交，并确认文档内容与仓库最新结构一致（移除 CLI 运行面、补齐 MIDI 输出与回放路由、补齐开发脚本入口）。
+- 2026-03-29：补齐 `.github/scripts/midi-send-test.swift` 的参数用法说明（`--dest` / `--match`）与“单 destination 自动选择”的行为细节。
+- 2026-03-29：将 `dependencies.md` / `release.md` 中的分支与 commit 真值源统一指向 `GENERATION.md`，避免多页面写死导致漂移。
+- 2026-03-29：移除 `release.md` 中硬编码的版本示例值，避免与 `configuration.md`（引用 `project.pbxproj`）的单一事实源冲突。
 
 - Replaced legacy business entry doc by adding `business-context.md` as正式入口层。
 - Migrated `.github/docs/开发规范.md` to `.github/deepwiki/references/开发规范.md`.

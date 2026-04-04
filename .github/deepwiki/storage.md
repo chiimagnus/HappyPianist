@@ -68,11 +68,11 @@ existing.notes.removeAll(keepingCapacity: false)
 
 ## 来源引用（Source References）
 
-- `PianoKey/Models/Storage/MappingProfileEntity.swift`
-- `PianoKey/Models/Storage/RecordingTakeEntity.swift`
-- `PianoKey/Models/Storage/RecordedNoteEntity.swift`
-- `PianoKey/Services/Storage/SwiftDataMappingProfileRepository.swift`
-- `PianoKey/Services/Storage/SwiftDataRecordingTakeRepository.swift`
-- `PianoKey/Models/Mapping/MappingProfile.swift`
-- `PianoKey/Models/Recording/RecordingTake.swift`
+- `LonelyPianist/Models/Storage/MappingProfileEntity.swift`
+- `LonelyPianist/Models/Storage/RecordingTakeEntity.swift`
+- `LonelyPianist/Models/Storage/RecordedNoteEntity.swift`
+- `LonelyPianist/Services/Storage/SwiftDataMappingProfileRepository.swift`
+- `LonelyPianist/Services/Storage/SwiftDataRecordingTakeRepository.swift`
+- `LonelyPianist/Models/Mapping/MappingProfile.swift`
+- `LonelyPianist/Models/Recording/RecordingTake.swift`
 - `Packages/MenuBarDockKit/Sources/MenuBarDockKit/AppIconDisplayMode.swift`

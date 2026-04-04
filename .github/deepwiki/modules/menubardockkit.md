@@ -4,7 +4,7 @@
 
 - 负责菜单栏工具类 App 的 Dock/菜单栏图标显示策略与主窗口桥接。
 - 提供可复用的 `WindowReader` 与 `MainWindowDockVisibilityController`。
-- 不负责 PianoKey 的 MIDI、映射和录制业务。
+- 不负责 LonelyPianist 的 MIDI、映射和录制业务。
 
 ## 目录范围
 
@@ -37,7 +37,7 @@
 
 | 方向 | 对象 | 关系 | 影响 |
 | --- | --- | --- | --- |
-| 上游 | `PianoKey` Settings/MenuBar | 调用模式切换与窗口显示函数 | 决定图标行为 |
+| 上游 | `LonelyPianist` Settings/MenuBar | 调用模式切换与窗口显示函数 | 决定图标行为 |
 | 下游 | AppKit `NSApplication`/`NSWindow` | 改 activation policy、监听通知 | 影响窗口与 Dock 可见性 |
 
 ## 对外接口与契约
@@ -111,4 +111,4 @@ if AppIconDisplayMode.current == .menuBarOnly, app.activationPolicy() != .regula
 - `Packages/MenuBarDockKit/Sources/MenuBarDockKit/MainWindowDockVisibilityController.swift`
 - `Packages/MenuBarDockKit/Sources/MenuBarDockKit/WindowReader.swift`
 - `Packages/MenuBarDockKit/Tests/MenuBarDockKitTests/MenuBarDockKitTests.swift`
-- `PianoKey/ContentView.swift`
+- `LonelyPianist/ContentView.swift`

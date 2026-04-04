@@ -2,7 +2,7 @@
 
 ## 系统上下文
 
-PianoKey 运行于 macOS 桌面环境，依赖系统框架实现：
+LonelyPianist 运行于 macOS 桌面环境，依赖系统框架实现：
 
 - CoreMIDI：采集 MIDI 输入。
 - ApplicationServices/CoreGraphics：辅助功能与事件注入。
@@ -15,25 +15,25 @@ PianoKey 运行于 macOS 桌面环境，依赖系统框架实现：
 
 | 运行单元 | 位置 | 生命周期 | 主要职责 |
 | --- | --- | --- | --- |
-| PianoKey App 进程 | `PianoKey/` | App 启动到退出 | UI、监听、映射、录制回放、持久化 |
+| LonelyPianist App 进程 | `LonelyPianist/` | App 启动到退出 | UI、监听、映射、录制回放、持久化 |
 | MenuBarDockKit 组件 | `Packages/MenuBarDockKit` | 随 App 进程 | 菜单栏/Dock 显示策略与主窗口辅助 |
 
 ## 组件地图
 
 | 组件 | 位置 | 输入 | 输出 | 依赖 |
 | --- | --- | --- | --- | --- |
-| `PianoKeyViewModel` | `PianoKey/ViewModels/PianoKeyViewModel.swift` | UI 事件 + MIDI 事件 + 仓储数据 | UI 状态 + 动作执行 | 各类 Service Protocol |
-| `CoreMIDIInputService` | `PianoKey/Services/MIDI` | 系统 MIDI 消息 | `MIDIEvent` 回调 | CoreMIDI |
-| `DefaultMappingEngine` | `PianoKey/Services/Mapping` | `MIDIEvent` + `MappingProfile` | `ResolvedMappingAction[]` | Mapping models |
-| `KeyboardEventService` | `PianoKey/Services/Input` | 文本/按键动作 | 系统输入注入 | CGEvent |
-| `DefaultRecordingService` | `PianoKey/Services/Recording` | note on/off 事件 | `RecordingTake` | `ClockProtocol` |
-| `RoutedMIDIPlaybackService` | `PianoKey/Services/Playback` | `RecordingTake` | 本机音频或外设 MIDI 输出 + 完成回调 | AVAudioEngine / CoreMIDI |
-| SwiftData Repositories | `PianoKey/Services/Storage` | Profile/Take domain model | SwiftData entities | SwiftData |
+| `LonelyPianistViewModel` | `LonelyPianist/ViewModels/LonelyPianistViewModel.swift` | UI 事件 + MIDI 事件 + 仓储数据 | UI 状态 + 动作执行 | 各类 Service Protocol |
+| `CoreMIDIInputService` | `LonelyPianist/Services/MIDI` | 系统 MIDI 消息 | `MIDIEvent` 回调 | CoreMIDI |
+| `DefaultMappingEngine` | `LonelyPianist/Services/Mapping` | `MIDIEvent` + `MappingProfile` | `ResolvedMappingAction[]` | Mapping models |
+| `KeyboardEventService` | `LonelyPianist/Services/Input` | 文本/按键动作 | 系统输入注入 | CGEvent |
+| `DefaultRecordingService` | `LonelyPianist/Services/Recording` | note on/off 事件 | `RecordingTake` | `ClockProtocol` |
+| `RoutedMIDIPlaybackService` | `LonelyPianist/Services/Playback` | `RecordingTake` | 本机音频或外设 MIDI 输出 + 完成回调 | AVAudioEngine / CoreMIDI |
+| SwiftData Repositories | `LonelyPianist/Services/Storage` | Profile/Take domain model | SwiftData entities | SwiftData |
 
 ## 依赖方向与层次
 
 - View -> ViewModel -> Protocol -> Service Implementation。
-- `PianoKeyApp` 负责集中注入实现，ViewModel 仅依赖协议。
+- `LonelyPianistApp` 负责集中注入实现，ViewModel 仅依赖协议。
 - Model 层不依赖 UI 框架；Service 层不依赖具体 View。
 - 禁止在 View 中直接访问 SwiftData 仓储。
 
@@ -46,7 +46,7 @@ PianoKey 运行于 macOS 桌面环境，依赖系统框架实现：
 
 ```mermaid
 flowchart LR
-  A[CoreMIDIInputService] --> B[PianoKeyViewModel]
+  A[CoreMIDIInputService] --> B[LonelyPianistViewModel]
   B --> C[DefaultMappingEngine]
   C --> D[KeyboardEventService]
   C --> E[ShortcutExecutionService]
@@ -62,17 +62,17 @@ flowchart LR
 
 | 契约 | 位置 | 调用方 | 含义 |
 | --- | --- | --- | --- |
-| `MIDIInputServiceProtocol` | `PianoKey/Services/Protocols/MIDIInputServiceProtocol.swift` | ViewModel | 启停监听与事件回调契约 |
-| `MappingEngineProtocol` | `PianoKey/Services/Protocols/MappingEngineProtocol.swift` | ViewModel | 事件匹配输出统一接口 |
-| `RecordingServiceProtocol` | `PianoKey/Services/Protocols/RecordingServiceProtocol.swift` | ViewModel | 录制状态机契约 |
-| `MIDIPlaybackServiceProtocol` | `PianoKey/Services/Protocols/MIDIPlaybackServiceProtocol.swift` | ViewModel | 回放/停止与完成通知契约 |
-| `RoutableMIDIPlaybackServiceProtocol` | `PianoKey/Services/Protocols/RoutableMIDIPlaybackServiceProtocol.swift` | ViewModel | 回放输出选择（Built-in Sampler / 外设 MIDI） |
-| `MappingProfileRepositoryProtocol` | `PianoKey/Services/Protocols/MappingProfileRepositoryProtocol.swift` | ViewModel | Profile 持久化接口 |
-| `RecordingTakeRepositoryProtocol` | `PianoKey/Services/Protocols/RecordingTakeRepositoryProtocol.swift` | ViewModel | Take 持久化接口 |
+| `MIDIInputServiceProtocol` | `LonelyPianist/Services/Protocols/MIDIInputServiceProtocol.swift` | ViewModel | 启停监听与事件回调契约 |
+| `MappingEngineProtocol` | `LonelyPianist/Services/Protocols/MappingEngineProtocol.swift` | ViewModel | 事件匹配输出统一接口 |
+| `RecordingServiceProtocol` | `LonelyPianist/Services/Protocols/RecordingServiceProtocol.swift` | ViewModel | 录制状态机契约 |
+| `MIDIPlaybackServiceProtocol` | `LonelyPianist/Services/Protocols/MIDIPlaybackServiceProtocol.swift` | ViewModel | 回放/停止与完成通知契约 |
+| `RoutableMIDIPlaybackServiceProtocol` | `LonelyPianist/Services/Protocols/RoutableMIDIPlaybackServiceProtocol.swift` | ViewModel | 回放输出选择（Built-in Sampler / 外设 MIDI） |
+| `MappingProfileRepositoryProtocol` | `LonelyPianist/Services/Protocols/MappingProfileRepositoryProtocol.swift` | ViewModel | Profile 持久化接口 |
+| `RecordingTakeRepositoryProtocol` | `LonelyPianist/Services/Protocols/RecordingTakeRepositoryProtocol.swift` | ViewModel | Take 持久化接口 |
 
 ## 状态、存储与消息
 
-- 内存状态：`PianoKeyViewModel` 管理连接状态、事件计数、当前 Profile、当前 Take、playhead、recent logs。
+- 内存状态：`LonelyPianistViewModel` 管理连接状态、事件计数、当前 Profile、当前 Take、playhead、recent logs。
 - 持久化状态：`MappingProfileEntity` + `RecordingTakeEntity` + `RecordedNoteEntity`。
 - 消息边界：Service 通过 callback 将事件推回 ViewModel（例如 `onEvent`, `onPlaybackFinished`）。
 
@@ -85,8 +85,8 @@ flowchart LR
 
 ## 部署 / 发布拓扑
 
-- App：Xcode target `PianoKey`（`com.chiimagnus.PianoKey`）。
-- 单元测试：Xcode target `PianoKeyTests`。
+- App：Xcode target `LonelyPianist`（`com.chiimagnus.LonelyPianist`）。
+- 单元测试：Xcode target `LonelyPianistTests`。
 - 本地包：`MenuBarDockKit` 由 Xcode 工程引用。
 
 ## 扩展点与热点
@@ -101,14 +101,14 @@ flowchart LR
 ## 示例片段
 
 ```swift
-// PianoKey/PianoKeyApp.swift
+// LonelyPianist/LonelyPianistApp.swift
 viewModel.bootstrap()
 AppContext.shared.viewModel = viewModel
 _viewModel = State(initialValue: viewModel)
 ```
 
 ```swift
-// PianoKey/ViewModels/PianoKeyViewModel.swift
+// LonelyPianist/ViewModels/LonelyPianistViewModel.swift
 playbackService.onPlaybackFinished = { [weak self] in
     Task { @MainActor [weak self] in
         guard let self else { return }
@@ -127,18 +127,18 @@ playbackService.onPlaybackFinished = { [weak self] in
 
 ## 来源引用（Source References）
 
-- `PianoKey/PianoKeyApp.swift`
-- `PianoKey/ContentView.swift`
-- `PianoKey/ViewModels/PianoKeyViewModel.swift`
-- `PianoKey/Services/Protocols/MIDIInputServiceProtocol.swift`
-- `PianoKey/Services/Protocols/MappingEngineProtocol.swift`
-- `PianoKey/Services/MIDI/CoreMIDIInputService.swift`
-- `PianoKey/Services/MIDI/CoreMIDIOutputService.swift`
-- `PianoKey/Services/Mapping/DefaultMappingEngine.swift`
-- `PianoKey/Services/Playback/RoutedMIDIPlaybackService.swift`
-- `PianoKey/Services/Playback/AVSamplerMIDIPlaybackService.swift`
-- `PianoKey/Services/Playback/CoreMIDIOutputMIDIPlaybackService.swift`
-- `PianoKey/Services/Storage/SwiftDataMappingProfileRepository.swift`
-- `PianoKey/Services/Storage/SwiftDataRecordingTakeRepository.swift`
-- `PianoKey.xcodeproj/project.pbxproj`
+- `LonelyPianist/LonelyPianistApp.swift`
+- `LonelyPianist/ContentView.swift`
+- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
+- `LonelyPianist/Services/Protocols/MIDIInputServiceProtocol.swift`
+- `LonelyPianist/Services/Protocols/MappingEngineProtocol.swift`
+- `LonelyPianist/Services/MIDI/CoreMIDIInputService.swift`
+- `LonelyPianist/Services/MIDI/CoreMIDIOutputService.swift`
+- `LonelyPianist/Services/Mapping/DefaultMappingEngine.swift`
+- `LonelyPianist/Services/Playback/RoutedMIDIPlaybackService.swift`
+- `LonelyPianist/Services/Playback/AVSamplerMIDIPlaybackService.swift`
+- `LonelyPianist/Services/Playback/CoreMIDIOutputMIDIPlaybackService.swift`
+- `LonelyPianist/Services/Storage/SwiftDataMappingProfileRepository.swift`
+- `LonelyPianist/Services/Storage/SwiftDataRecordingTakeRepository.swift`
+- `LonelyPianist.xcodeproj/project.pbxproj`
 - `Packages/MenuBarDockKit/Sources/MenuBarDockKit/DockPresenceService.swift`

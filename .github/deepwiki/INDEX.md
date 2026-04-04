@@ -1,8 +1,8 @@
-# PianoKey Deepwiki INDEX
+# LonelyPianist Deepwiki INDEX
 
 ## 仓库总览
 
-本知识库目标是让读者在不直接通读源码的情况下，建立对 `PianoKey` 的完整可修改心智模型：
+本知识库目标是让读者在不直接通读源码的情况下，建立对 `LonelyPianist` 的完整可修改心智模型：
 
 - 先理解产品语义与用户旅程。
 - 再定位运行时边界、数据流、配置和风险点。
@@ -28,7 +28,7 @@
 4. [configuration.md](configuration.md)
 5. [testing.md](testing.md)
 6. [workflow.md](workflow.md)
-7. [modules/pianokey-app.md](modules/pianokey-app.md)
+7. [modules/lonelypianist-app.md](modules/lonelypianist-app.md)
 
 ## 核心页面
 
@@ -44,7 +44,7 @@
 
 ## 模块页面
 
-- [modules/pianokey-app.md](modules/pianokey-app.md)
+- [modules/lonelypianist-app.md](modules/lonelypianist-app.md)
 - [modules/mapping-engine.md](modules/mapping-engine.md)
 - [modules/recording-playback.md](modules/recording-playback.md)
 - [modules/menubardockkit.md](modules/menubardockkit.md)

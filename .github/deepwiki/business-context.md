@@ -2,18 +2,18 @@
 
 ## 产品定位与用户
 
-PianoKey 是一个 **macOS 菜单栏工具型应用**：把 MIDI 键盘输入实时映射为系统文本输入、组合键或快捷指令触发，并提供录制与钢琴音色回放能力。它主要服务两类用户：
+LonelyPianist 是一个 **macOS 菜单栏工具型应用**：把 MIDI 键盘输入实时映射为系统文本输入、组合键或快捷指令触发，并提供录制与钢琴音色回放能力。它主要服务两类用户：
 
 1. 希望把“弹琴动作”转化为高频输入操作的效率用户。
 2. 希望快速记录/回放灵感片段的音乐创作者。
 
-与一般 MIDI 监视器不同，PianoKey 的核心价值不是“看 MIDI 数据”，而是把 MIDI 变成 **可直接作用于前台应用的行为输出**。
+与一般 MIDI 监视器不同，LonelyPianist 的核心价值不是“看 MIDI 数据”，而是把 MIDI 变成 **可直接作用于前台应用的行为输出**。
 
 ## 核心体验与可见产物
 
 | 项目 | 内容 | 用户何时感知 | 对应技术页 |
 | --- | --- | --- | --- |
-| 实时映射输出 | note on/off 触发 text / keyCombo / shortcut | 点击 `Start Listening` 后开始弹奏 | [modules/pianokey-app.md](modules/pianokey-app.md), [data-flow.md](data-flow.md) |
+| 实时映射输出 | note on/off 触发 text / keyCombo / shortcut | 点击 `Start Listening` 后开始弹奏 | [modules/lonelypianist-app.md](modules/lonelypianist-app.md), [data-flow.md](data-flow.md) |
 | 规则管理 | Profile + Single/Chord/Melody 规则编辑 | 在主窗口 `Mappings` 页编辑后即时生效 | [modules/mapping-engine.md](modules/mapping-engine.md), [configuration.md](configuration.md) |
 | 录制与回放 | `Rec` 采集 MIDI，`Play` 以钢琴音色回放 | 在 `Recorder` 页操作 Transport | [modules/recording-playback.md](modules/recording-playback.md), [storage.md](storage.md) |
 | 运行可观测性 | Status / Sources / MIDI Events / Pressed / Preview / Recent Events | 在 Runtime 页或菜单栏面板观察状态 | [overview.md](overview.md), [troubleshooting.md](troubleshooting.md) |
@@ -43,7 +43,7 @@ PianoKey 是一个 **macOS 菜单栏工具型应用**：把 MIDI 键盘输入实
 
 ```mermaid
 flowchart TD
-  A[启动 PianoKey] --> B{辅助功能授权?}
+  A[启动 LonelyPianist] --> B{辅助功能授权?}
   B -- 否 --> C[请求授权并提示打开系统设置]
   C --> B
   B -- 是 --> D[Start Listening]
@@ -80,7 +80,7 @@ flowchart TD
 ## 示例片段
 
 ```swift
-// PianoKey/ViewModels/PianoKeyViewModel.swift
+// LonelyPianist/ViewModels/LonelyPianistViewModel.swift
 private func execute(_ action: MappingAction) throws {
     switch action.type {
     case .text:
@@ -95,7 +95,7 @@ private func execute(_ action: MappingAction) throws {
 ```
 
 ```swift
-// PianoKey/Services/Mapping/DefaultMappingEngine.swift
+// LonelyPianist/Services/Mapping/DefaultMappingEngine.swift
 guard requiredNotes == pressedNotes else { continue }
 guard !triggeredChordRuleIDs.contains(rule.id) else { continue }
 ```
@@ -117,11 +117,11 @@ guard !triggeredChordRuleIDs.contains(rule.id) else { continue }
 
 - `README.md`
 - `AGENTS.md`
-- `PianoKey/PianoKeyApp.swift`
-- `PianoKey/ViewModels/PianoKeyViewModel.swift`
-- `PianoKey/Services/Mapping/DefaultMappingEngine.swift`
-- `PianoKey/Services/MIDI/CoreMIDIInputService.swift`
-- `PianoKey/Views/MenuBar/MenuBarPanelView.swift`
-- `PianoKey/Views/Mapping/RulesEditorSectionView.swift`
-- `PianoKey/Views/Recording/RecorderTransportBarView.swift`
-- `PianoKey/Services/Playback/AVSamplerMIDIPlaybackService.swift`
+- `LonelyPianist/LonelyPianistApp.swift`
+- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
+- `LonelyPianist/Services/Mapping/DefaultMappingEngine.swift`
+- `LonelyPianist/Services/MIDI/CoreMIDIInputService.swift`
+- `LonelyPianist/Views/MenuBar/MenuBarPanelView.swift`
+- `LonelyPianist/Views/Mapping/RulesEditorSectionView.swift`
+- `LonelyPianist/Views/Recording/RecorderTransportBarView.swift`
+- `LonelyPianist/Services/Playback/AVSamplerMIDIPlaybackService.swift`

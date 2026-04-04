@@ -4,7 +4,7 @@
 
 | 流程 | 起点 | 中间层 | 终点 | 增量 / 去重策略 |
 | --- | --- | --- | --- | --- |
-| MIDI 监听流 | CoreMIDI source | `CoreMIDIInputService` -> `PianoKeyViewModel` | Runtime 状态 + 映射/录制分支 | `midiEventCount` 递增；音符范围钳制 |
+| MIDI 监听流 | CoreMIDI source | `CoreMIDIInputService` -> `LonelyPianistViewModel` | Runtime 状态 + 映射/录制分支 | `midiEventCount` 递增；音符范围钳制 |
 | 映射执行流 | `MIDIEvent.noteOn` | `DefaultMappingEngine` | `KeyboardEventService` / `ShortcutExecutionService` | 和弦触发去重、旋律冷却、历史窗口裁剪 |
 | 录制持久化流 | `recorderMode == .recording` | `DefaultRecordingService` -> `RecordingTakeRepository` | SwiftData `RecordingTakeEntity` | stop 时自动闭合未 release 音符 |
 | 回放流 | 选中 Take + Play | `RoutedMIDIPlaybackService` | 本机音频或外设 MIDI 输出 + playhead 更新 | 事件按时间排序；同时刻 noteOff 优先 |
@@ -65,7 +65,7 @@
 ```mermaid
 sequenceDiagram
   participant MIDI as CoreMIDIInputService
-  participant VM as PianoKeyViewModel
+  participant VM as LonelyPianistViewModel
   participant ME as DefaultMappingEngine
   participant IO as Keyboard/Shortcut Service
   participant REC as DefaultRecordingService
@@ -99,13 +99,13 @@ sequenceDiagram
 | 入口 / 命令 | 位置 | 用途 | 备注 |
 | --- | --- | --- | --- |
 | Runtime `Recent Events` | `Views/Runtime/RecentEventSectionView.swift` | 观察触发链路 | 最快的现场证据 |
-| `statusMessage` / `recorderStatusMessage` | `PianoKeyViewModel.swift` | 当前阶段错误提示 | 绑定 UI 状态栏 |
+| `statusMessage` / `recorderStatusMessage` | `LonelyPianistViewModel.swift` | 当前阶段错误提示 | 绑定 UI 状态栏 |
 | MIDI 来源刷新按钮 | Runtime/MenuBar 视图 | 复位连接状态 | 无设备时常用 |
 
 ## 示例片段
 
 ```swift
-// PianoKey/ViewModels/PianoKeyViewModel.swift
+// LonelyPianist/ViewModels/LonelyPianistViewModel.swift
 private func handleMIDIEvent(_ event: MIDIEvent) {
     midiEventCount += 1
     updatePressedNotes(for: event)
@@ -117,7 +117,7 @@ private func handleMIDIEvent(_ event: MIDIEvent) {
 ```
 
 ```swift
-// PianoKey/Services/Playback/AVSamplerMIDIPlaybackService.swift
+// LonelyPianist/Services/Playback/AVSamplerMIDIPlaybackService.swift
 return events.sorted { lhs, rhs in
     if lhs.time != rhs.time { return lhs.time < rhs.time }
     switch (lhs.type, rhs.type) {
@@ -135,15 +135,15 @@ return events.sorted { lhs, rhs in
 
 ## 来源引用（Source References）
 
-- `PianoKey/Services/MIDI/CoreMIDIInputService.swift`
-- `PianoKey/ViewModels/PianoKeyViewModel.swift`
-- `PianoKey/Services/Mapping/DefaultMappingEngine.swift`
-- `PianoKey/Services/Input/KeyboardEventService.swift`
-- `PianoKey/Services/System/ShortcutExecutionService.swift`
-- `PianoKey/Services/Recording/DefaultRecordingService.swift`
-- `PianoKey/Services/Playback/RoutedMIDIPlaybackService.swift`
-- `PianoKey/Services/Playback/AVSamplerMIDIPlaybackService.swift`
-- `PianoKey/Services/MIDI/CoreMIDIOutputService.swift`
-- `PianoKey/Services/Storage/SwiftDataRecordingTakeRepository.swift`
-- `PianoKey/Models/Mapping/MappingProfile.swift`
-- `PianoKey/Models/Recording/RecordingTake.swift`
+- `LonelyPianist/Services/MIDI/CoreMIDIInputService.swift`
+- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
+- `LonelyPianist/Services/Mapping/DefaultMappingEngine.swift`
+- `LonelyPianist/Services/Input/KeyboardEventService.swift`
+- `LonelyPianist/Services/System/ShortcutExecutionService.swift`
+- `LonelyPianist/Services/Recording/DefaultRecordingService.swift`
+- `LonelyPianist/Services/Playback/RoutedMIDIPlaybackService.swift`
+- `LonelyPianist/Services/Playback/AVSamplerMIDIPlaybackService.swift`
+- `LonelyPianist/Services/MIDI/CoreMIDIOutputService.swift`
+- `LonelyPianist/Services/Storage/SwiftDataRecordingTakeRepository.swift`
+- `LonelyPianist/Models/Mapping/MappingProfile.swift`
+- `LonelyPianist/Models/Recording/RecordingTake.swift`

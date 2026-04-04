@@ -11,7 +11,7 @@
 
 ## 权限边界
 
-- PianoKey 关键权限：macOS 辅助功能。
+- LonelyPianist 关键权限：macOS 辅助功能。
 - `requestAccessibilityPermission()` 失败时不执行输入注入。
 - 权限状态变化通过轮询与 app 激活回调刷新。
 
@@ -66,10 +66,10 @@ guard let encoded = trimmed.addingPercentEncoding(withAllowedCharacters: .urlQue
 
 ## 来源引用（Source References）
 
-- `PianoKey/Services/System/AccessibilityPermissionService.swift`
-- `PianoKey/Services/System/ShortcutExecutionService.swift`
-- `PianoKey/Services/Input/KeyboardEventService.swift`
-- `PianoKey/ViewModels/PianoKeyViewModel.swift`
-- `PianoKey/Services/Storage/SwiftDataMappingProfileRepository.swift`
-- `PianoKey/Services/Storage/SwiftDataRecordingTakeRepository.swift`
+- `LonelyPianist/Services/System/AccessibilityPermissionService.swift`
+- `LonelyPianist/Services/System/ShortcutExecutionService.swift`
+- `LonelyPianist/Services/Input/KeyboardEventService.swift`
+- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
+- `LonelyPianist/Services/Storage/SwiftDataMappingProfileRepository.swift`
+- `LonelyPianist/Services/Storage/SwiftDataRecordingTakeRepository.swift`
 - `README.md`

@@ -23,7 +23,7 @@
 - 可能原因：系统没有再次弹窗，或用户只打开了设置未实际勾选。
 - 排查步骤：
   1. 手动进入系统设置 `隐私与安全性 > 辅助功能`。
-  2. 确认 `PianoKey` 勾选状态。
+  2. 确认 `LonelyPianist` 勾选状态。
   3. 切回应用触发 `didBecomeActive` 后刷新状态。
 - 处理方式：必要时重新点击 `Grant Permission` 并重启应用。
 
@@ -63,7 +63,7 @@
 ## 示例片段
 
 ```swift
-// PianoKey/Services/MIDI/CoreMIDIInputService.swift
+// LonelyPianist/Services/MIDI/CoreMIDIInputService.swift
 guard status == .noteOn || status == .noteOff else {
     if !didLogNonNoteMessage {
         logger.info("Receiving MIDI data, but no note-on/off yet")
@@ -80,10 +80,10 @@ guard status == .noteOn || status == .noteOff else {
 ## 来源引用（Source References）
 
 - `README.md`
-- `PianoKey/ViewModels/PianoKeyViewModel.swift`
-- `PianoKey/Views/Runtime/StatusSectionView.swift`
-- `PianoKey/Views/Runtime/RecentEventSectionView.swift`
-- `PianoKey/Services/MIDI/CoreMIDIInputService.swift`
-- `PianoKey/Services/Mapping/DefaultMappingEngine.swift`
-- `PianoKey/Services/Playback/AVSamplerMIDIPlaybackService.swift`
-- `PianoKey/Services/System/AccessibilityPermissionService.swift`
+- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
+- `LonelyPianist/Views/Runtime/StatusSectionView.swift`
+- `LonelyPianist/Views/Runtime/RecentEventSectionView.swift`
+- `LonelyPianist/Services/MIDI/CoreMIDIInputService.swift`
+- `LonelyPianist/Services/Mapping/DefaultMappingEngine.swift`
+- `LonelyPianist/Services/Playback/AVSamplerMIDIPlaybackService.swift`
+- `LonelyPianist/Services/System/AccessibilityPermissionService.swift`
