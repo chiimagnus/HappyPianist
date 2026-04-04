@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-project_path="${PROJECT_PATH:-PianoKey.xcodeproj}"
-scheme="${SCHEME:-PianoKey}"
+project_path="${PROJECT_PATH:-LonelyPianist.xcodeproj}"
+scheme="${SCHEME:-LonelyPianist}"
 configuration="${CONFIGURATION:-Debug}"
 derived_data_path="${DERIVED_DATA_PATH:-.derivedData}"
-app_name="${APP_NAME:-PianoKey}"
+app_name="${APP_NAME:-LonelyPianist}"
 quit_before_open=1
 
 print_help() {
@@ -16,14 +16,14 @@ Builds the macOS app via xcodebuild and opens the built .app bundle.
 
 Defaults:
   - Build configuration: Debug
-  - If PianoKey is running: quit it before opening the new build
+  - If LonelyPianist is running: quit it before opening the new build
 
 Environment overrides:
-  PROJECT_PATH       (default: PianoKey.xcodeproj)
-  SCHEME             (default: PianoKey)
+  PROJECT_PATH       (default: LonelyPianist.xcodeproj)
+  SCHEME             (default: LonelyPianist)
   CONFIGURATION      (default: Debug)
   DERIVED_DATA_PATH  (default: .derivedData)
-  APP_NAME           (default: PianoKey)
+  APP_NAME           (default: LonelyPianist)
 EOF
 }
 
@@ -51,11 +51,11 @@ for arg in "$@"; do
   esac
 done
 
-echo "[PianoKey] Build configuration: $configuration"
+echo "[LonelyPianist] Build configuration: $configuration"
 if [[ "$quit_before_open" -eq 1 ]]; then
-  echo "[PianoKey] Running app handling: quit before open"
+  echo "[LonelyPianist] Running app handling: quit before open"
 else
-  echo "[PianoKey] Running app handling: no quit"
+  echo "[LonelyPianist] Running app handling: no quit"
 fi
 
 xcodebuild \

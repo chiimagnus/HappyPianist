@@ -2,7 +2,7 @@
 
 ## Generation Summary
 
-- Repository: `PianoKey`
+- Repository: `LonelyPianist`
 - Branch: `crh`
 - Commit: `130d519dbab1a21269011e7a5cd92b54615f637e`
 - Generation timestamp (local): `2026-03-29 01:19:33 +0800`
@@ -30,7 +30,7 @@
 
 ### Module Pages
 
-- `.github/deepwiki/modules/pianokey-app.md`
+- `.github/deepwiki/modules/lonelypianist-app.md`
 - `.github/deepwiki/modules/mapping-engine.md`
 - `.github/deepwiki/modules/recording-playback.md`
 - `.github/deepwiki/modules/menubardockkit.md`

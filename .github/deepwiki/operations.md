@@ -40,7 +40,7 @@
 ## 示例片段
 
 ```swift
-// PianoKey/ViewModels/PianoKeyViewModel.swift
+// LonelyPianist/ViewModels/LonelyPianistViewModel.swift
 func refreshMIDISources() {
     do {
         try midiInputService.refreshSources()
@@ -52,7 +52,7 @@ func refreshMIDISources() {
 ```
 
 ```swift
-// PianoKey/Views/Runtime/StatusSectionView.swift
+// LonelyPianist/Views/Runtime/StatusSectionView.swift
 Text("Status: \(viewModel.statusMessage)")
 Text("Sources: \(sourceNamesText)")
 Text("MIDI Events: \(viewModel.midiEventCount)")
@@ -64,10 +64,10 @@ Text("MIDI Events: \(viewModel.midiEventCount)")
 
 ## 来源引用（Source References）
 
-- `PianoKey/ViewModels/PianoKeyViewModel.swift`
-- `PianoKey/Views/Runtime/StatusSectionView.swift`
-- `PianoKey/Views/Runtime/RecentEventSectionView.swift`
-- `PianoKey/Views/MenuBar/MenuBarPanelView.swift`
-- `PianoKey/Views/Recording/RecorderStatusBarView.swift`
-- `PianoKey/Services/MIDI/CoreMIDIInputService.swift`
+- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
+- `LonelyPianist/Views/Runtime/StatusSectionView.swift`
+- `LonelyPianist/Views/Runtime/RecentEventSectionView.swift`
+- `LonelyPianist/Views/MenuBar/MenuBarPanelView.swift`
+- `LonelyPianist/Views/Recording/RecorderStatusBarView.swift`
+- `LonelyPianist/Services/MIDI/CoreMIDIInputService.swift`
 - `README.md`

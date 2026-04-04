@@ -2,19 +2,19 @@
 
 ## 仓库目标与用户
 
-PianoKey 仓库主要包含两条运行面：
+LonelyPianist 仓库主要包含两条运行面：
 
-1. `PianoKey` 主应用（macOS 菜单栏 App，实时 MIDI -> 系统输入 + Recorder）。
+1. `LonelyPianist` 主应用（macOS 菜单栏 App，实时 MIDI -> 系统输入 + Recorder）。
 2. `Packages/MenuBarDockKit`（抽象菜单栏应用的 Dock 可见性与窗口桥接能力）。
 
 仓库当前聚焦主应用与共享包，不再保留独立命令行运行面。
 
-用户包括终端用户（PianoKey App）和开发者（模块维护）。
+用户包括终端用户（LonelyPianist App）和开发者（模块维护）。
 
 ## 一句话心智模型
 
-- PianoKey 主应用在启动时完成依赖注入并启动状态机。
-- CoreMIDI 输入进入 `PianoKeyViewModel`，先更新运行状态，再进入映射引擎与 Recorder 分支。
+- LonelyPianist 主应用在启动时完成依赖注入并启动状态机。
+- CoreMIDI 输入进入 `LonelyPianistViewModel`，先更新运行状态，再进入映射引擎与 Recorder 分支。
 - 映射命中后触发文本/组合键/快捷指令；Recorder 分支把事件序列化为 Take 并可回放。
 - 所有配置与录制资产持久化在 SwiftData 实体中。
 
@@ -22,27 +22,27 @@ PianoKey 仓库主要包含两条运行面：
 
 | 运行面 | 位置 | 作用 | 主要入口 |
 | --- | --- | --- | --- |
-| PianoKey App | `PianoKey/` | 实时 MIDI 映射、权限管理、Recorder UI | `PianoKey/PianoKeyApp.swift` |
+| LonelyPianist App | `LonelyPianist/` | 实时 MIDI 映射、权限管理、Recorder UI | `LonelyPianist/LonelyPianistApp.swift` |
 | MenuBarDockKit | `Packages/MenuBarDockKit/` | 菜单栏/Dock 显示策略与 `NSWindow` 读取 | `AppIconDisplayMode.swift`, `DockPresenceService.swift` |
 
 ## 仓库布局
 
 | 路径 | 职责 | 为什么重要 |
 | --- | --- | --- |
-| `PianoKey/Models` | 领域模型 + SwiftData 实体 | 定义规则结构、录制结构与持久化模型 |
-| `PianoKey/Services` | MIDI/输入注入/权限/仓储/回放服务 | 业务执行核心与可替换实现点 |
-| `PianoKey/ViewModels` | 状态编排与流程入口 | 跨 UI 与服务的单一状态协调层 |
-| `PianoKey/Views` | Runtime/Mapping/Recorder/Settings UI | 用户旅程触发入口 |
-| `PianoKeyTests` | 录制与状态机测试 | 当前自动化回归基线 |
+| `LonelyPianist/Models` | 领域模型 + SwiftData 实体 | 定义规则结构、录制结构与持久化模型 |
+| `LonelyPianist/Services` | MIDI/输入注入/权限/仓储/回放服务 | 业务执行核心与可替换实现点 |
+| `LonelyPianist/ViewModels` | 状态编排与流程入口 | 跨 UI 与服务的单一状态协调层 |
+| `LonelyPianist/Views` | Runtime/Mapping/Recorder/Settings UI | 用户旅程触发入口 |
+| `LonelyPianistTests` | 录制与状态机测试 | 当前自动化回归基线 |
 | `Packages/MenuBarDockKit` | 本地共享包（UI 壳能力） | 主应用窗口行为依赖项 |
 
 ## 入口点
 
 | 入口 | 位置 | 用途 | 常用命令 / 调用方式 |
 | --- | --- | --- | --- |
-| App 主入口 | `PianoKey/PianoKeyApp.swift` | 装配 ModelContainer 与服务依赖 | `open PianoKey.xcodeproj` |
-| 菜单栏入口 | `PianoKey/Views/MenuBar/MenuBarMenuContentView.swift` | Start/Stop/Rec/Play/Open 主窗口 | 菜单栏图标操作 |
-| 主窗口入口 | `PianoKey/ContentView.swift` | Runtime/Mappings/Recorder/Settings 导航 | `Open PianoKey` 按钮 |
+| App 主入口 | `LonelyPianist/LonelyPianistApp.swift` | 装配 ModelContainer 与服务依赖 | `open LonelyPianist.xcodeproj` |
+| 菜单栏入口 | `LonelyPianist/Views/MenuBar/MenuBarMenuContentView.swift` | Start/Stop/Rec/Play/Open 主窗口 | 菜单栏图标操作 |
+| 主窗口入口 | `LonelyPianist/ContentView.swift` | Runtime/Mappings/Recorder/Settings 导航 | `Open LonelyPianist` 按钮 |
 
 ## 关键产物
 
@@ -63,14 +63,14 @@ PianoKey 仓库主要包含两条运行面：
 ## 示例片段
 
 ```swift
-// PianoKey/PianoKeyApp.swift
+// LonelyPianist/LonelyPianistApp.swift
 let midiOutputService = CoreMIDIOutputService()
 let playbackService = RoutedMIDIPlaybackService(
     samplerPlayback: AVSamplerMIDIPlaybackService(),
     midiOutPlayback: CoreMIDIOutputMIDIPlaybackService(outputService: midiOutputService),
     outputService: midiOutputService
 )
-let viewModel = PianoKeyViewModel(
+let viewModel = LonelyPianistViewModel(
     midiInputService: CoreMIDIInputService(),
     keyboardEventService: KeyboardEventService(),
     permissionService: AccessibilityPermissionService(),
@@ -85,7 +85,7 @@ let viewModel = PianoKeyViewModel(
 
 ```bash
 # 主工程构建命令
-xcodebuild -project PianoKey.xcodeproj -scheme PianoKey -configuration Debug build
+xcodebuild -project LonelyPianist.xcodeproj -scheme LonelyPianist -configuration Debug build
 ```
 
 ## 从哪里开始
@@ -114,12 +114,12 @@ xcodebuild -project PianoKey.xcodeproj -scheme PianoKey -configuration Debug bui
 
 - `README.md`
 - `AGENTS.md`
-- `PianoKey/PianoKeyApp.swift`
-- `PianoKey/ContentView.swift`
-- `PianoKey/ViewModels/PianoKeyViewModel.swift`
-- `PianoKey/Services/MIDI/CoreMIDIOutputService.swift`
-- `PianoKey/Services/Playback/RoutedMIDIPlaybackService.swift`
-- `PianoKey/Services/Storage/SwiftDataMappingProfileRepository.swift`
-- `PianoKey/Services/Storage/SwiftDataRecordingTakeRepository.swift`
+- `LonelyPianist/LonelyPianistApp.swift`
+- `LonelyPianist/ContentView.swift`
+- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
+- `LonelyPianist/Services/MIDI/CoreMIDIOutputService.swift`
+- `LonelyPianist/Services/Playback/RoutedMIDIPlaybackService.swift`
+- `LonelyPianist/Services/Storage/SwiftDataMappingProfileRepository.swift`
+- `LonelyPianist/Services/Storage/SwiftDataRecordingTakeRepository.swift`
 - `Packages/MenuBarDockKit/Package.swift`
-- `PianoKey.xcodeproj/project.pbxproj`
+- `LonelyPianist.xcodeproj/project.pbxproj`

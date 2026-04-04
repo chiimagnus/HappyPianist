@@ -10,10 +10,10 @@
 
 | 路径 | 角色 | 备注 |
 | --- | --- | --- |
-| `PianoKey/Services/Mapping/DefaultMappingEngine.swift` | 核心实现 | 规则匹配状态机 |
-| `PianoKey/Services/Protocols/MappingEngineProtocol.swift` | 协议与返回契约 | 可替换实现入口 |
-| `PianoKey/Models/Mapping/*` | 规则模型 | 引擎输入配置 |
-| `PianoKey/Utilities/MIDINoteParser.swift` | 规则文本解析 | UI 编辑器辅助 |
+| `LonelyPianist/Services/Mapping/DefaultMappingEngine.swift` | 核心实现 | 规则匹配状态机 |
+| `LonelyPianist/Services/Protocols/MappingEngineProtocol.swift` | 协议与返回契约 | 可替换实现入口 |
+| `LonelyPianist/Models/Mapping/*` | 规则模型 | 引擎输入配置 |
+| `LonelyPianist/Utilities/MIDINoteParser.swift` | 规则文本解析 | UI 编辑器辅助 |
 
 ## 入口点与生命周期
 
@@ -34,7 +34,7 @@
 
 | 方向 | 对象 | 关系 | 影响 |
 | --- | --- | --- | --- |
-| 上游 | `PianoKeyViewModel` | 传入 event + active profile | 决定匹配上下文 |
+| 上游 | `LonelyPianistViewModel` | 传入 event + active profile | 决定匹配上下文 |
 | 下游 | `KeyboardEventService`/`ShortcutService` | 通过 ViewModel 执行动作 | 影响用户可见输出 |
 
 ## 对外接口与契约
@@ -98,11 +98,11 @@ guard !triggeredChordRuleIDs.contains(rule.id) else { continue }
 
 ## 来源引用（Source References）
 
-- `PianoKey/Services/Mapping/DefaultMappingEngine.swift`
-- `PianoKey/Services/Protocols/MappingEngineProtocol.swift`
-- `PianoKey/Models/Mapping/MappingProfile.swift`
-- `PianoKey/Models/Mapping/MappingRule.swift`
-- `PianoKey/Models/Mapping/MappingAction.swift`
-- `PianoKey/Utilities/MIDINoteParser.swift`
-- `PianoKey/ViewModels/PianoKeyViewModel.swift`
-- `PianoKey/Views/Mapping/RulesEditorSectionView.swift`
+- `LonelyPianist/Services/Mapping/DefaultMappingEngine.swift`
+- `LonelyPianist/Services/Protocols/MappingEngineProtocol.swift`
+- `LonelyPianist/Models/Mapping/MappingProfile.swift`
+- `LonelyPianist/Models/Mapping/MappingRule.swift`
+- `LonelyPianist/Models/Mapping/MappingAction.swift`
+- `LonelyPianist/Utilities/MIDINoteParser.swift`
+- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
+- `LonelyPianist/Views/Mapping/RulesEditorSectionView.swift`

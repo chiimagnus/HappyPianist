@@ -46,7 +46,7 @@
 // CoreMIDIInputService.swift
 let status = MIDIInputPortCreateWithProtocol(
     clientRef,
-    "PianoKeyMIDIInput" as CFString,
+    "LonelyPianistMIDIInput" as CFString,
     MIDIProtocolID._1_0,
     &inputPortRef
 ) { [weak self] eventList, _ in
@@ -75,10 +75,10 @@ keyUp.post(tap: .cghidEventTap)
 
 ## 来源引用（Source References）
 
-- `PianoKey/Services/MIDI/CoreMIDIInputService.swift`
-- `PianoKey/Services/System/AccessibilityPermissionService.swift`
-- `PianoKey/Services/Input/KeyboardEventService.swift`
-- `PianoKey/Services/System/ShortcutExecutionService.swift`
-- `PianoKey/Services/Playback/AVSamplerMIDIPlaybackService.swift`
-- `PianoKey/ViewModels/PianoKeyViewModel.swift`
+- `LonelyPianist/Services/MIDI/CoreMIDIInputService.swift`
+- `LonelyPianist/Services/System/AccessibilityPermissionService.swift`
+- `LonelyPianist/Services/Input/KeyboardEventService.swift`
+- `LonelyPianist/Services/System/ShortcutExecutionService.swift`
+- `LonelyPianist/Services/Playback/AVSamplerMIDIPlaybackService.swift`
+- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
 - `.github/scripts/midi-send-test.swift`

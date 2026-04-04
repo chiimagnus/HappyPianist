@@ -5,9 +5,9 @@
 | 配置面 | 位置 / 界面 | 写入方 | 说明 |
 | --- | --- | --- | --- |
 | App 图标显示模式 | Settings -> Picker | `AppIconDisplayViewModel` | `menuBarOnly` / `dockOnly` / `both` |
-| 映射 Profile 配置 | Mappings 页 | `PianoKeyViewModel` + Repository | 规则、力度阈值、活动 profile |
-| Recorder 数据 | Recorder 页 | `PianoKeyViewModel` + Recording Repository | Take 列表、重命名、删除 |
-| 构建配置 | `PianoKey.xcodeproj/project.pbxproj` | Xcode | 部署目标、bundle id、版本号 |
+| 映射 Profile 配置 | Mappings 页 | `LonelyPianistViewModel` + Repository | 规则、力度阈值、活动 profile |
+| Recorder 数据 | Recorder 页 | `LonelyPianistViewModel` + Recording Repository | Take 列表、重命名、删除 |
+| 构建配置 | `LonelyPianist.xcodeproj/project.pbxproj` | Xcode | 部署目标、bundle id、版本号 |
 
 ## 运行时配置
 
@@ -30,7 +30,7 @@
 
 ## 权限、认证与敏感信息
 
-- PianoKey 关键权限是 **辅助功能（Accessibility）**。
+- LonelyPianist 关键权限是 **辅助功能（Accessibility）**。
 - 授权请求通过 `AXIsProcessTrustedWithOptions` + `CGRequestPostEventAccess`。
 - 仓库中未发现 API keys / secrets / `.env` 依赖；主要是本地系统权限模型。
 
@@ -47,7 +47,7 @@
 | --- | --- | --- | --- |
 | AppIconDisplayMode | Settings Picker / UserDefaults | 决定 Dock 与菜单栏可见性 | 变更后立即应用 |
 | Velocity Enabled | Mappings -> Rules | 单键输出是否按力度分流 | 保存 profile 后立即生效 |
-| RecorderMode | `PianoKeyViewModel.recorderMode` | idle/recording/playing 三态约束按钮状态 | 运行时即时 |
+| RecorderMode | `LonelyPianistViewModel.recorderMode` | idle/recording/playing 三态约束按钮状态 | 运行时即时 |
 
 ## 配置漂移检查
 
@@ -64,14 +64,14 @@
 ## 示例片段
 
 ```swift
-// PianoKey/PianoKeyApp.swift
+// LonelyPianist/LonelyPianistApp.swift
 UserDefaults.standard.register(defaults: [
     AppIconDisplayMode.userDefaultsKey: AppIconDisplayMode.menuBarOnly.rawValue
 ])
 ```
 
 ```swift
-// PianoKey/Services/System/AccessibilityPermissionService.swift
+// LonelyPianist/Services/System/AccessibilityPermissionService.swift
 let options = [kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String: kCFBooleanTrue as Any] as CFDictionary
 let axGranted = AXIsProcessTrustedWithOptions(options)
 let cgGranted = CGRequestPostEventAccess()
@@ -84,13 +84,13 @@ let cgGranted = CGRequestPostEventAccess()
 
 ## 来源引用（Source References）
 
-- `PianoKey/PianoKeyApp.swift`
-- `PianoKey/ViewModels/Settings/AppIconDisplayViewModel.swift`
-- `PianoKey/ViewModels/MenuBar/MenuBarExtraVisibilityStore.swift`
+- `LonelyPianist/LonelyPianistApp.swift`
+- `LonelyPianist/ViewModels/Settings/AppIconDisplayViewModel.swift`
+- `LonelyPianist/ViewModels/MenuBar/MenuBarExtraVisibilityStore.swift`
 - `Packages/MenuBarDockKit/Sources/MenuBarDockKit/AppIconDisplayMode.swift`
 - `Packages/MenuBarDockKit/Sources/MenuBarDockKit/DockPresenceService.swift`
-- `PianoKey/Models/Mapping/MappingProfile.swift`
-- `PianoKey/Views/Mapping/RulesEditorSectionView.swift`
-- `PianoKey/Services/System/AccessibilityPermissionService.swift`
-- `PianoKey.xcodeproj/project.pbxproj`
+- `LonelyPianist/Models/Mapping/MappingProfile.swift`
+- `LonelyPianist/Views/Mapping/RulesEditorSectionView.swift`
+- `LonelyPianist/Services/System/AccessibilityPermissionService.swift`
+- `LonelyPianist.xcodeproj/project.pbxproj`
 - `AGENTS.md`
