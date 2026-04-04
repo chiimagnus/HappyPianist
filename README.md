@@ -98,6 +98,14 @@
 
 > 💡 **避坑提示**：不要用库乐队（GarageBand）测试 — 它的 MIDI 事件不会广播给外部应用。
 
+---
+
+## 🗺️ Roadmap
+
+- [ ] **Piano Dialogue** — AI 即兴钢琴对话模式（弹一句，AI 接一句）
+
+---
+
 <p align="center">
   Made with 🎹 by <a href="https://github.com/chiimagnus">chiimagnus</a>
 </p>
