@@ -87,6 +87,117 @@
 
 ---
 
+## 🧑‍💻 开发与启动（从源码）
+
+环境要求：
+
+- macOS 14+
+- Xcode 16+（推荐用最新稳定版）
+
+启动方式二选一：
+
+1) 用 Xcode 打开工程：
+
+```bash
+open LonelyPianist.xcodeproj
+```
+
+2) 用脚本一键 build + open（推荐）：
+
+```bash
+.github/scripts/build-open.sh
+```
+
+验证构建（Debug）：
+
+```bash
+xcodebuild -project LonelyPianist.xcodeproj -scheme LonelyPianist -configuration Debug build
+```
+
+运行单测：
+
+```bash
+xcodebuild -project LonelyPianist.xcodeproj -scheme LonelyPianist -configuration Debug test
+```
+
+---
+
+## 🤖 Piano Dialogue（AI 钢琴对话模式）
+
+> Turn-based：你弹一段 → 停顿 → AI 回一段（AI 音符会用橙色显示，并保存到 Recorder 的同一个 take 内）。
+
+### 1) 准备 Python 后端（首次必做）
+
+本仓库自带本机后端工作区：`piano_dialogue_server/`。
+
+创建虚拟环境并安装依赖：
+
+```bash
+cd piano_dialogue_server
+python3.12 -m venv .venv
+source .venv/bin/activate
+pip install -U pip
+pip install -r requirements.txt
+```
+
+准备模型权重（不要提交仓库）：
+
+- 模型：`stanford-crfm/music-large-800k`
+- 放置路径：
+  - `piano_dialogue_server/models/music-large-800k/model.safetensors`
+  - `piano_dialogue_server/models/music-large-800k/config.json`
+
+（可选）如果你把模型放在其他目录，后端支持：
+
+```bash
+export AMT_MODEL_DIR=/path/to/music-large-800k
+```
+
+### 2) 启动后端服务（保持运行）
+
+在一个独立终端（或 tmux）里启动：
+
+```bash
+cd piano_dialogue_server/server
+../.venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port 8765
+```
+
+健康检查：
+
+```bash
+curl -s http://127.0.0.1:8765/health
+```
+
+期望输出：
+
+```json
+{"status":"ok"}
+```
+
+（可选）端到端测试（会生成 `piano_dialogue_server/out/server_reply.mid`）：
+
+```bash
+cd piano_dialogue_server/server
+../.venv/bin/python test_client.py
+```
+
+### 3) 在 App 中使用 Dialogue
+
+1. 启动 LonelyPianist（从菜单栏打开主窗口）
+2. 首次使用仍需授予 **辅助功能权限**（否则无法开始监听）
+3. 点击 `Start Listening`
+4. 在侧边栏选择 `Dialogue`，点击 `Start Dialogue`
+5. 弹一段，停顿（默认静默 2s + 踏板抬起）后触发 AI 回应
+6. 回应会自动回放到你选择的 playback output，并保存为 take（Recorder 里可见）
+
+回放期间的输入策略（可持久化，默认 B）：
+
+- A Ignore：忽略你的输入
+- B Interrupt：你一按键就打断 AI，立刻开始收集下一句（默认）
+- C Queue：排队，AI 播完后再生成下一句
+
+---
+
 ## 🎹 没有实体 MIDI 键盘？
 
 没问题！你可以用虚拟 MIDI 键盘测试：
@@ -100,7 +211,8 @@
 
 ## 🗺️ Roadmap
 
-- [ ] **Piano Dialogue** — AI 即兴钢琴对话模式（弹一句，AI 接一句）
+- [x] **Piano Dialogue（Turn-based）** — 弹一句，AI 接一句（本机后端 `ws://127.0.0.1:8765/ws`）
+- [ ] **Piano Dialogue（Real-time）** — 真同台即兴（流式生成 + 持续输出，规划中）
 
 ---
 
