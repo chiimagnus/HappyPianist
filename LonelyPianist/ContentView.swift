@@ -1,12 +1,8 @@
-import AppKit
-import MenuBarDockKit
 import Observation
 import SwiftUI
 
 struct MainWindowView: View {
     @Bindable var viewModel: LonelyPianistViewModel
-    @State private var mainWindow: NSWindow?
-    @State private var mainWindowDockVisibilityController = MainWindowDockVisibilityController()
 
     var body: some View {
         NavigationSplitView {
@@ -35,19 +31,7 @@ struct MainWindowView: View {
             case .dialogue:
                 DialogueControlView(viewModel: viewModel)
                     .navigationTitle("Dialogue")
-
-            case .settings:
-                SettingsView()
-                    .navigationTitle("Settings")
             }
-        }
-        .background(
-            WindowReader(window: $mainWindow) { newWindow in
-                mainWindowDockVisibilityController.attachWindow(newWindow)
-            }
-        )
-        .onDisappear {
-            mainWindowDockVisibilityController.reset()
         }
     }
 

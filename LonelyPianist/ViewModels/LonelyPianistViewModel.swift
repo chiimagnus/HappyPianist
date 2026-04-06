@@ -11,7 +11,6 @@ final class LonelyPianistViewModel {
         case mappings = "Mappings"
         case recorder = "Recorder"
         case dialogue = "Dialogue"
-        case settings = "Settings"
 
         var id: String { rawValue }
 
@@ -25,8 +24,6 @@ final class LonelyPianistViewModel {
                 return "waveform"
             case .dialogue:
                 return "bubble.left.and.bubble.right"
-            case .settings:
-                return "gearshape"
             }
         }
     }

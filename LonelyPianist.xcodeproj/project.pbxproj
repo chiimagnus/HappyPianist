@@ -6,10 +6,6 @@
 	objectVersion = 77;
 	objects = {
 
-/* Begin PBXBuildFile section */
-		D86B79822F4F51BB001F3AFE /* MenuBarDockKit in Frameworks */ = {isa = PBXBuildFile; productRef = C2CC4C475B497C8A806F4CBD /* MenuBarDockKit */; };
-/* End PBXBuildFile section */
-
 /* Begin PBXContainerItemProxy section */
 		E10000012A9B000100000007 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -43,7 +39,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D86B79822F4F51BB001F3AFE /* MenuBarDockKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -95,7 +90,6 @@
 			);
 			name = LonelyPianist;
 			packageProductDependencies = (
-				C2CC4C475B497C8A806F4CBD /* MenuBarDockKit */,
 			);
 			productName = LonelyPianist;
 			productReference = D8D4280D2F4DFD3800EC9C9B /* LonelyPianist.app */;
@@ -153,7 +147,6 @@
 			mainGroup = D8D428042F4DFD3800EC9C9B;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				19DF3826F71C63EDEEA9353B /* XCLocalSwiftPackageReference "Packages/MenuBarDockKit" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = D8D4280E2F4DFD3800EC9C9B /* Products */;
@@ -495,20 +488,6 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
-
-/* Begin XCLocalSwiftPackageReference section */
-		19DF3826F71C63EDEEA9353B /* XCLocalSwiftPackageReference "Packages/MenuBarDockKit" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = Packages/MenuBarDockKit;
-		};
-/* End XCLocalSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		C2CC4C475B497C8A806F4CBD /* MenuBarDockKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = MenuBarDockKit;
-		};
-/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = D8D428052F4DFD3800EC9C9B /* Project object */;
 }
