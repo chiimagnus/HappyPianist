@@ -744,8 +744,16 @@ final class LonelyPianistViewModel {
         }
 
         if resolvedActions.isEmpty {
-            let noteName = MIDINote(event.note).name
-            log(title: "MIDI", detail: "\(event.type) \(noteName) velocity \(event.velocity)")
+            switch event.type {
+            case .noteOn(let note, let velocity):
+                let noteName = MIDINote(note).name
+                log(title: "MIDI", detail: "noteOn \(noteName) velocity \(velocity)")
+            case .noteOff(let note, let velocity):
+                let noteName = MIDINote(note).name
+                log(title: "MIDI", detail: "noteOff \(noteName) velocity \(velocity)")
+            case .controlChange(let controller, let value):
+                log(title: "MIDI", detail: "cc \(controller) value \(value)")
+            }
         }
     }
 
@@ -763,13 +771,15 @@ final class LonelyPianistViewModel {
 
     private func updatePressedNotes(for event: MIDIEvent) {
         switch event.type {
-        case .noteOn:
-            if !pressedNotes.contains(event.note) {
-                pressedNotes.append(event.note)
+        case .noteOn(let note, _):
+            if !pressedNotes.contains(note) {
+                pressedNotes.append(note)
                 pressedNotes.sort()
             }
-        case .noteOff:
-            pressedNotes.removeAll { $0 == event.note }
+        case .noteOff(let note, _):
+            pressedNotes.removeAll { $0 == note }
+        case .controlChange:
+            return
         }
     }
 

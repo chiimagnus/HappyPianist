@@ -2,13 +2,12 @@ import Foundation
 
 struct MIDIEvent: Sendable, Equatable {
     enum EventType: Sendable, Equatable {
-        case noteOn
-        case noteOff
+        case noteOn(note: Int, velocity: Int)
+        case noteOff(note: Int, velocity: Int)
+        case controlChange(controller: Int, value: Int)
     }
 
     let type: EventType
-    let note: Int
-    let velocity: Int
     let channel: Int
     let timestamp: Date
 }

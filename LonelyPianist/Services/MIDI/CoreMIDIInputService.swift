@@ -178,7 +178,7 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
         switch message.type {
         case .channelVoice1:
             let status = message.channelVoice1.status
-            guard status == .noteOn || status == .noteOff else {
+            guard status == .noteOn || status == .noteOff || status == .controlChange else {
                 if !didLogNonNoteMessage {
                     logger.info("Receiving MIDI data, but no note-on/off yet")
                     didLogNonNoteMessage = true
@@ -186,15 +186,29 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
                 return
             }
 
-            let note = Int(message.channelVoice1.note.number)
-            let velocity = Int(message.channelVoice1.note.velocity)
             let channel = Int(message.channelVoice1.channel) + 1
-            let eventType: MIDIEvent.EventType = (status == .noteOn && velocity > 0) ? .noteOn : .noteOff
-            emitEvent(type: eventType, note: note, velocity: velocity, channel: channel)
+            switch status {
+            case .controlChange:
+                let controller = Int(message.channelVoice1.controlChange.index)
+                let value = Int(message.channelVoice1.controlChange.data)
+                emitEvent(type: .controlChange(controller: controller, value: value), channel: channel)
+
+            case .noteOn, .noteOff:
+                let note = Int(message.channelVoice1.note.number)
+                let velocity = Int(message.channelVoice1.note.velocity)
+                let eventType: MIDIEvent.EventType =
+                    (status == .noteOn && velocity > 0)
+                    ? .noteOn(note: note, velocity: velocity)
+                    : .noteOff(note: note, velocity: velocity)
+                emitEvent(type: eventType, channel: channel)
+
+            default:
+                break
+            }
 
         case .channelVoice2:
             let status = message.channelVoice2.status
-            guard status == .noteOn || status == .noteOff else {
+            guard status == .noteOn || status == .noteOff || status == .controlChange else {
                 if !didLogNonNoteMessage {
                     logger.info("Receiving MIDI 2.0 data, but no note-on/off yet")
                     didLogNonNoteMessage = true
@@ -202,12 +216,28 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
                 return
             }
 
-            let note = Int(message.channelVoice2.note.number)
-            let velocity16 = Int(message.channelVoice2.note.velocity)
-            let velocity = Int((Double(velocity16) / 65535.0) * 127.0)
             let channel = Int(message.channelVoice2.channel) + 1
-            let eventType: MIDIEvent.EventType = (status == .noteOn && velocity16 > 0) ? .noteOn : .noteOff
-            emitEvent(type: eventType, note: note, velocity: velocity, channel: channel)
+            switch status {
+            case .controlChange:
+                let controller = Int(message.channelVoice2.controlChange.index)
+                let value32 = Double(message.channelVoice2.controlChange.data)
+                let normalized = Int((value32 / Double(UInt32.max)) * 127.0)
+                let value = max(0, min(127, normalized))
+                emitEvent(type: .controlChange(controller: controller, value: value), channel: channel)
+
+            case .noteOn, .noteOff:
+                let note = Int(message.channelVoice2.note.number)
+                let velocity16 = Int(message.channelVoice2.note.velocity)
+                let velocity = Int((Double(velocity16) / 65535.0) * 127.0)
+                let eventType: MIDIEvent.EventType =
+                    (status == .noteOn && velocity16 > 0)
+                    ? .noteOn(note: note, velocity: velocity)
+                    : .noteOff(note: note, velocity: velocity)
+                emitEvent(type: eventType, channel: channel)
+
+            default:
+                break
+            }
 
         default:
             break
@@ -216,17 +246,30 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
 
     private func emitEvent(
         type: MIDIEvent.EventType,
-        note: Int,
-        velocity: Int,
         channel: Int
     ) {
-        let event = MIDIEvent(
-            type: type,
-            note: max(0, min(127, note)),
-            velocity: max(0, min(127, velocity)),
-            channel: max(1, channel),
-            timestamp: Date()
-        )
+        let clampedChannel = max(1, channel)
+
+        let clampedType: MIDIEvent.EventType
+        switch type {
+        case .noteOn(let note, let velocity):
+            clampedType = .noteOn(
+                note: max(0, min(127, note)),
+                velocity: max(0, min(127, velocity))
+            )
+        case .noteOff(let note, let velocity):
+            clampedType = .noteOff(
+                note: max(0, min(127, note)),
+                velocity: max(0, min(127, velocity))
+            )
+        case .controlChange(let controller, let value):
+            clampedType = .controlChange(
+                controller: max(0, min(127, controller)),
+                value: max(0, min(127, value))
+            )
+        }
+
+        let event = MIDIEvent(type: clampedType, channel: clampedChannel, timestamp: Date())
         onEvent?(event)
     }
 }

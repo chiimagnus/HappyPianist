@@ -33,16 +33,16 @@ final class DefaultRecordingService: RecordingServiceProtocol {
         guard isRecording, let startedAt else { return }
 
         let eventTimestamp = event.timestamp < startedAt ? clock.now() : event.timestamp
-        let note = max(0, min(127, event.note))
         let channel = max(1, event.channel)
-        let velocity = max(0, min(127, event.velocity))
-        let key = NoteKey(note: note, channel: channel)
 
         switch event.type {
-        case .noteOn:
+        case .noteOn(let note, let velocity):
+            let clampedNote = max(0, min(127, note))
+            let clampedVelocity = max(0, min(127, velocity))
+            let key = NoteKey(note: clampedNote, channel: channel)
             if let openNote = openNotes[key] {
                 appendRecordedNote(
-                    note: note,
+                    note: clampedNote,
                     velocity: openNote.velocity,
                     channel: channel,
                     startAt: openNote.startedAt,
@@ -50,18 +50,23 @@ final class DefaultRecordingService: RecordingServiceProtocol {
                     recordingStartedAt: startedAt
                 )
             }
-            openNotes[key] = OpenNote(startedAt: eventTimestamp, velocity: velocity)
+            openNotes[key] = OpenNote(startedAt: eventTimestamp, velocity: clampedVelocity)
 
-        case .noteOff:
+        case .noteOff(let note, _):
+            let clampedNote = max(0, min(127, note))
+            let key = NoteKey(note: clampedNote, channel: channel)
             guard let openNote = openNotes.removeValue(forKey: key) else { return }
             appendRecordedNote(
-                note: note,
+                note: clampedNote,
                 velocity: openNote.velocity,
                 channel: channel,
                 startAt: openNote.startedAt,
                 endAt: eventTimestamp,
                 recordingStartedAt: startedAt
             )
+
+        case .controlChange:
+            return
         }
     }
 
