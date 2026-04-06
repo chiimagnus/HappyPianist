@@ -140,9 +140,23 @@ pip install -U pip
 pip install -r requirements.txt
 ```
 
+（可选）离线验证脚本（P1，直接生成可试听的 MIDI，不需要启动服务）：
+
+```bash
+cd piano_dialogue_server
+source .venv/bin/activate
+python scripts/test_generate.py
+python scripts/test_infilling.py
+```
+
+输出位置：
+
+- `piano_dialogue_server/out/output.mid`
+- `piano_dialogue_server/out/output_infilling.mid`
+
 准备模型权重（不要提交仓库）：
 
-- 模型：`stanford-crfm/music-large-800k`
+- 模型（服务默认）：`stanford-crfm/music-large-800k`
 - 放置路径：
   - `piano_dialogue_server/models/music-large-800k/model.safetensors`
   - `piano_dialogue_server/models/music-large-800k/config.json`
@@ -153,6 +167,18 @@ pip install -r requirements.txt
 export AMT_MODEL_DIR=/path/to/music-large-800k
 ```
 
+（可选）脚本/服务支持的环境变量：
+
+- `AMT_MODEL_DIR`：本地模型目录（优先级最高）
+- `AMT_MODEL_ID`：HuggingFace 模型 ID（`scripts/*` 默认是 `stanford-crfm/music-small-800k`；服务默认是 `stanford-crfm/music-large-800k`）
+- `AMT_DEVICE`：`mps` / `cuda` / `cpu`（默认自动选择）
+
+Apple Silicon 上如遇到算子不支持，可尝试：
+
+```bash
+export PYTORCH_ENABLE_MPS_FALLBACK=1
+```
+
 ### 2) 启动后端服务（保持运行）
 
 在一个独立终端（或 tmux）里启动：
@@ -160,6 +186,12 @@ export AMT_MODEL_DIR=/path/to/music-large-800k
 ```bash
 cd piano_dialogue_server/server
 ../.venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port 8765
+```
+
+（可选）开启后端调试包落地（默认关闭；会把每次 generate 的 request/response + prompt/reply MIDI 写到 `piano_dialogue_server/out/dialogue_debug/`）：
+
+```bash
+export DIALOGUE_DEBUG=1
 ```
 
 健康检查：

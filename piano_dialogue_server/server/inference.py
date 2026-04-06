@@ -80,14 +80,28 @@ def _notes_to_events(notes: list[DialogueNote], instrument: int = 0) -> list[int
     return events
 
 
-def _events_to_notes(events: list[int], *, start_time_sec: float, default_velocity: int) -> list[DialogueNote]:
+def _events_to_notes(
+    events: list[int],
+    *,
+    start_time_sec: float,
+    default_velocity: int,
+    stats: dict[str, int] | None = None,
+) -> list[DialogueNote]:
     notes: list[DialogueNote] = []
     if len(events) < 3:
+        if stats is not None:
+            stats["events_too_short"] = int(stats.get("events_too_short", 0)) + 1
         return notes
+
+    def inc(reason: str) -> None:
+        if stats is None:
+            return
+        stats[reason] = int(stats.get(reason, 0)) + 1
 
     for i in range(0, len(events) - 2, 3):
         t_token, d_token, n_token = events[i : i + 3]
         if not (t_token >= TIME_OFFSET and d_token >= DUR_OFFSET and n_token >= NOTE_OFFSET):
+            inc("invalid_triplet")
             continue
 
         t_ticks = t_token - TIME_OFFSET
@@ -97,19 +111,24 @@ def _events_to_notes(events: list[int], *, start_time_sec: float, default_veloci
         instrument = note_id // MAX_PITCH
         pitch = note_id - instrument * MAX_PITCH
         if instrument != 0:
+            inc("instrument_not_piano")
             continue
         if pitch < 21 or pitch > 108:
+            inc("pitch_out_of_range")
             continue
 
         time_sec = t_ticks / TIME_RESOLUTION - start_time_sec
         duration_sec = max(0.01, d_ticks / TIME_RESOLUTION)
         if time_sec < 0:
+            inc("negative_time")
             continue
 
         notes.append(
             DialogueNote(note=pitch, velocity=default_velocity, time=time_sec, duration=duration_sec)
         )
 
+    if stats is not None:
+        stats["emitted_notes"] = len(notes)
     return notes
 
 
@@ -131,6 +150,7 @@ class InferenceEngine:
     model_ref: str
     device: str
     model: Any
+    load_ms: int
 
     def generate_response(
         self, notes: list[DialogueNote], params: GenerateParams, session_id: str | None
@@ -158,6 +178,51 @@ class InferenceEngine:
 
         return _events_to_notes(events, start_time_sec=start_time_sec, default_velocity=default_velocity)
 
+    def generate_response_with_debug(
+        self, notes: list[DialogueNote], params: GenerateParams, session_id: str | None
+    ) -> tuple[list[DialogueNote], dict[str, Any]]:
+        del session_id
+
+        prompt_end_sec = _max_phrase_end_sec(notes)
+        start_time_sec = max(0.0, prompt_end_sec)
+        response_length_sec = _derive_response_length_sec(params)
+        end_time_sec = start_time_sec + response_length_sec
+
+        prompt_events = _notes_to_events(notes, instrument=0)
+        t0 = time.perf_counter()
+        events = sample.generate(
+            self.model,
+            start_time=start_time_sec,
+            end_time=end_time_sec,
+            inputs=prompt_events,
+            top_p=params.top_p,
+        )
+        generate_ms = int((time.perf_counter() - t0) * 1000)
+
+        if notes:
+            default_velocity = int(sum(n.velocity for n in notes) / len(notes))
+            default_velocity = max(1, min(default_velocity, 127))
+        else:
+            default_velocity = 80
+
+        dropped: dict[str, int] = {}
+        reply_notes = _events_to_notes(
+            events, start_time_sec=start_time_sec, default_velocity=default_velocity, stats=dropped
+        )
+
+        debug: dict[str, Any] = {
+            "prompt_end_sec": prompt_end_sec,
+            "effective_start_sec": start_time_sec,
+            "effective_end_sec": end_time_sec,
+            "effective_response_length_sec": response_length_sec,
+            "prompt_events_len": len(prompt_events),
+            "generated_events_len": len(events),
+            "default_velocity": default_velocity,
+            "dropped_notes": dropped,
+            "generate_ms": generate_ms,
+        }
+        return reply_notes, debug
+
 
 _engine: InferenceEngine | None = None
 
@@ -183,7 +248,7 @@ def get_inference_engine() -> InferenceEngine:
     model = AutoModelForCausalLM.from_pretrained(model_ref)
     model.to(device)
     model.eval()
-    _ = time.time() - t0
+    load_ms = int((time.time() - t0) * 1000)
 
-    _engine = InferenceEngine(model_ref=model_ref, device=device, model=model)
+    _engine = InferenceEngine(model_ref=model_ref, device=device, model=model, load_ms=load_ms)
     return _engine
