@@ -72,6 +72,9 @@ final class LonelyPianistViewModel {
     var pressedNotes: [Int] = []
     var recentLogs: [EventLogItem] = []
 
+    var dialogueStatus: DialogueManager.Status = .idle
+    var dialogueLatencyMs: Int?
+
     private let logger = Logger(subsystem: "com.chiimagnus.LonelyPianist", category: "ViewModel")
 
     private let midiInputService: MIDIInputServiceProtocol
@@ -83,6 +86,7 @@ final class LonelyPianistViewModel {
     private let playbackService: RoutableMIDIPlaybackServiceProtocol
     private let mappingEngine: MappingEngineProtocol
     private let shortcutService: ShortcutServiceProtocol
+    private let dialogueManager: DialogueManager
     private var permissionPollingTask: Task<Void, Never>?
     private var appDidBecomeActiveObserver: NSObjectProtocol?
     private var playbackClockTask: Task<Void, Never>?
@@ -99,7 +103,8 @@ final class LonelyPianistViewModel {
         recordingService: RecordingServiceProtocol,
         playbackService: RoutableMIDIPlaybackServiceProtocol,
         mappingEngine: MappingEngineProtocol,
-        shortcutService: ShortcutServiceProtocol
+        shortcutService: ShortcutServiceProtocol,
+        dialogueManager: DialogueManager
     ) {
         self.midiInputService = midiInputService
         self.keyboardEventService = keyboardEventService
@@ -110,9 +115,22 @@ final class LonelyPianistViewModel {
         self.playbackService = playbackService
         self.mappingEngine = mappingEngine
         self.shortcutService = shortcutService
+        self.dialogueManager = dialogueManager
 
         bindServiceCallbacks()
         bindAppLifecycleCallbacks()
+
+        dialogueStatus = dialogueManager.status
+        dialogueManager.onStatusChange = { [weak self] status in
+            Task { @MainActor [weak self] in
+                self?.dialogueStatus = status
+            }
+        }
+        dialogueManager.onLatencyChange = { [weak self] latencyMs in
+            Task { @MainActor [weak self] in
+                self?.dialogueLatencyMs = latencyMs
+            }
+        }
     }
 
     var activeProfile: MappingProfile? {
@@ -214,12 +232,40 @@ final class LonelyPianistViewModel {
     }
 
     func stopListening() {
+        if dialogueManager.isActive {
+            dialogueManager.stop()
+        }
         midiInputService.stop()
         mappingEngine.reset()
         isListening = false
         midiEventCount = 0
         pressedNotes.removeAll(keepingCapacity: false)
         statusMessage = "Stopped"
+    }
+
+    func startDialogue() {
+        guard isListening else {
+            statusMessage = "Start listening before Dialogue"
+            return
+        }
+
+        guard recorderMode == .idle else {
+            statusMessage = "Stop Recorder before Dialogue"
+            return
+        }
+
+        guard !playbackService.isPlaying else {
+            statusMessage = "Stop playback before Dialogue"
+            return
+        }
+
+        dialogueManager.start()
+        statusMessage = "Dialogue started"
+    }
+
+    func stopDialogue() {
+        dialogueManager.stop()
+        statusMessage = "Dialogue stopped"
     }
 
     func requestAccessibilityPermission() {
@@ -664,6 +710,8 @@ final class LonelyPianistViewModel {
                     recorderStatusMessage = "Playback finished"
                     statusMessage = "Playback finished"
                 }
+
+                dialogueManager.notifyPlaybackFinished()
             }
         }
 
@@ -714,6 +762,11 @@ final class LonelyPianistViewModel {
     private func handleMIDIEvent(_ event: MIDIEvent) {
         midiEventCount += 1
         updatePressedNotes(for: event)
+
+        if dialogueManager.isActive {
+            dialogueManager.handle(event: event)
+            return
+        }
 
         if recorderMode == .recording {
             recordingService.append(event: event)

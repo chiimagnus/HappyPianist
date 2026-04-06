@@ -111,6 +111,16 @@ private func makeContext() -> (
     let playback = MIDIPlaybackServiceMock()
     let mapping = MappingEngineMock()
     let shortcut = ShortcutServiceMock()
+    let clock = ClockMock(nowValue: Date(timeIntervalSince1970: 0))
+    let silenceDetectionService = DefaultSilenceDetectionService(clock: clock)
+    let dialogueService = WebSocketDialogueService(session: URLSession(configuration: .ephemeral))
+    let dialogueManager = DialogueManager(
+        clock: clock,
+        silenceDetectionService: silenceDetectionService,
+        dialogueService: dialogueService,
+        recordingRepository: recordingRepository,
+        playbackService: playback
+    )
 
     let viewModel = LonelyPianistViewModel(
         midiInputService: midi,
@@ -121,7 +131,8 @@ private func makeContext() -> (
         recordingService: recordingService,
         playbackService: playback,
         mappingEngine: mapping,
-        shortcutService: shortcut
+        shortcutService: shortcut,
+        dialogueManager: dialogueManager
     )
 
     return (viewModel, recordingRepository, recordingService, playback, keyboard)

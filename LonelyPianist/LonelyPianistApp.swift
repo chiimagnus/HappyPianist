@@ -37,16 +37,29 @@ struct LonelyPianistApp: App {
             midiOutPlayback: CoreMIDIOutputMIDIPlaybackService(outputService: midiOutputService),
             outputService: midiOutputService
         )
+
+        let clock = SystemClock()
+        let silenceDetectionService = DefaultSilenceDetectionService(clock: clock)
+        let dialogueService = WebSocketDialogueService()
+        let dialogueManager = DialogueManager(
+            clock: clock,
+            silenceDetectionService: silenceDetectionService,
+            dialogueService: dialogueService,
+            recordingRepository: recordingRepository,
+            playbackService: playbackService
+        )
+
         let viewModel = LonelyPianistViewModel(
             midiInputService: CoreMIDIInputService(),
             keyboardEventService: KeyboardEventService(),
             permissionService: AccessibilityPermissionService(),
             repository: repository,
             recordingRepository: recordingRepository,
-            recordingService: DefaultRecordingService(clock: SystemClock()),
+            recordingService: DefaultRecordingService(clock: clock),
             playbackService: playbackService,
             mappingEngine: DefaultMappingEngine(),
-            shortcutService: ShortcutExecutionService()
+            shortcutService: ShortcutExecutionService(),
+            dialogueManager: dialogueManager
         )
 
         viewModel.bootstrap()
