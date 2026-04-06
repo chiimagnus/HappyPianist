@@ -71,7 +71,5 @@ struct LonelyPianistApp: App {
         .defaultSize(width: 960, height: 640)
         .windowStyle(.hiddenTitleBar)
         .windowResizability(.contentMinSize)
-        .commands {
-        }
     }
 }

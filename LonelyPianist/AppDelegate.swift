@@ -1,5 +1,4 @@
 import AppKit
-import SwiftUI
 
 @MainActor
 @objc final class AppDelegate: NSObject, NSApplicationDelegate {
