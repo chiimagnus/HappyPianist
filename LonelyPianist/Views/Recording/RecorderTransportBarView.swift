@@ -9,6 +9,7 @@ struct RecorderTransportBarView: View {
     @State private var renameDraft = ""
     @State private var isScrubbing = false
     @State private var isImportingMIDI = false
+    @State private var importMode: LonelyPianistViewModel.MIDIImportMode = .all
 
     var body: some View {
         VStack(spacing: 10) {
@@ -82,6 +83,13 @@ struct RecorderTransportBarView: View {
 
                 Menu {
                     Button("Import MIDI...") {
+                        importMode = .all
+                        isImportingMIDI = true
+                    }
+                    .disabled(viewModel.recorderMode != .idle)
+
+                    Button("Import MIDI (Piano Only)...") {
+                        importMode = .pianoOnly
                         isImportingMIDI = true
                     }
                     .disabled(viewModel.recorderMode != .idle)
@@ -143,7 +151,7 @@ struct RecorderTransportBarView: View {
         ) { result in
             switch result {
             case .success(let url):
-                viewModel.importMIDIFile(from: url)
+                viewModel.importMIDIFile(from: url, mode: importMode)
             case .failure:
                 break
             }

@@ -6,6 +6,7 @@ enum MIDIFileImporterError: LocalizedError, Equatable {
     case loadFailed(OSStatus)
     case secondsConversionFailed(OSStatus)
     case empty
+    case emptyAfterFiltering
 
     var errorDescription: String? {
         switch self {
@@ -17,12 +18,41 @@ enum MIDIFileImporterError: LocalizedError, Equatable {
             return "Failed to convert beats to seconds (OSStatus=\(status))."
         case .empty:
             return "No notes found in MIDI file."
+        case .emptyAfterFiltering:
+            return "No notes left after applying import filters."
         }
     }
 }
 
+struct MIDIFileImportOptions: Sendable, Equatable {
+    var excludedChannels: Set<Int>
+    var remapAllChannelsTo: Int?
+    var clampNoteRange: ClosedRange<Int>?
+    var minimumVelocity: Int
+    var minimumDurationSec: TimeInterval
+
+    static let `default` = MIDIFileImportOptions(
+        excludedChannels: [],
+        remapAllChannelsTo: nil,
+        clampNoteRange: nil,
+        minimumVelocity: 1,
+        minimumDurationSec: 0.01
+    )
+
+    static let pianoOnly = MIDIFileImportOptions(
+        excludedChannels: [10],
+        remapAllChannelsTo: 1,
+        clampNoteRange: 21...108,
+        minimumVelocity: 8,
+        minimumDurationSec: 0.04
+    )
+}
+
 struct MIDIFileImporter {
-    static func importNotes(from url: URL) throws -> (notes: [RecordedNote], durationSec: TimeInterval) {
+    static func importNotes(
+        from url: URL,
+        options: MIDIFileImportOptions = .default
+    ) throws -> (notes: [RecordedNote], durationSec: TimeInterval) {
         var sequence: MusicSequence?
         var status = NewMusicSequence(&sequence)
         guard status == noErr, let sequence else {
@@ -44,7 +74,6 @@ struct MIDIFileImporter {
 
         var notes: [RecordedNote] = []
         notes.reserveCapacity(1024)
-        var maxEndSec: TimeInterval = 0
 
         for index in 0..<trackCount {
             var track: MusicTrack?
@@ -80,9 +109,6 @@ struct MIDIFileImporter {
                     let channel = Int(message.channel) + 1
 
                     let duration = max(0.01, endSec - startSec)
-                    let end = startSec + duration
-                    maxEndSec = max(maxEndSec, end)
-
                     notes.append(
                         RecordedNote(
                             id: UUID(),
@@ -104,14 +130,24 @@ struct MIDIFileImporter {
             throw MIDIFileImporterError.empty
         }
 
-        notes.sort { lhs, rhs in
+        let filtered = applyFilters(notes: notes, options: options)
+        guard !filtered.isEmpty else {
+            throw MIDIFileImporterError.emptyAfterFiltering
+        }
+
+        let durationSec: TimeInterval = filtered.reduce(0) { partial, note in
+            max(partial, note.startOffsetSec + max(options.minimumDurationSec, note.durationSec))
+        }
+
+        var sorted = filtered
+        sorted.sort { lhs, rhs in
             if lhs.startOffsetSec != rhs.startOffsetSec { return lhs.startOffsetSec < rhs.startOffsetSec }
             if lhs.note != rhs.note { return lhs.note < rhs.note }
             if lhs.channel != rhs.channel { return lhs.channel < rhs.channel }
             return lhs.id.uuidString < rhs.id.uuidString
         }
 
-        return (notes: notes, durationSec: maxEndSec)
+        return (notes: sorted, durationSec: durationSec)
     }
 
     private static func seconds(forBeats beats: MusicTimeStamp, in sequence: MusicSequence) throws -> TimeInterval {
@@ -122,5 +158,40 @@ struct MIDIFileImporter {
         }
         return TimeInterval(seconds)
     }
-}
 
+    private static func applyFilters(
+        notes: [RecordedNote],
+        options: MIDIFileImportOptions
+    ) -> [RecordedNote] {
+        var filtered = notes
+
+        if !options.excludedChannels.isEmpty {
+            filtered.removeAll { options.excludedChannels.contains($0.channel) }
+        }
+
+        if let clamp = options.clampNoteRange {
+            filtered.removeAll { !clamp.contains($0.note) }
+        }
+
+        let minVel = max(0, min(127, options.minimumVelocity))
+        if minVel > 0 {
+            filtered.removeAll { $0.velocity < minVel }
+        }
+
+        let minDur = max(0, options.minimumDurationSec)
+        if minDur > 0 {
+            filtered.removeAll { $0.durationSec < minDur }
+        }
+
+        if let remap = options.remapAllChannelsTo {
+            let target = max(1, min(16, remap))
+            filtered = filtered.map { note in
+                var note = note
+                note.channel = target
+                return note
+            }
+        }
+
+        return filtered
+    }
+}

@@ -348,20 +348,26 @@ final class LonelyPianistViewModel {
         }
     }
 
-    func importMIDIFile(from url: URL) {
+    enum MIDIImportMode: Sendable, Equatable {
+        case all
+        case pianoOnly
+    }
+
+    func importMIDIFile(from url: URL, mode: MIDIImportMode = .all) {
         guard recorderMode == .idle else { return }
 
         if url.startAccessingSecurityScopedResource() {
             defer { url.stopAccessingSecurityScopedResource() }
-            importMIDIFileInternal(from: url)
+            importMIDIFileInternal(from: url, mode: mode)
         } else {
-            importMIDIFileInternal(from: url)
+            importMIDIFileInternal(from: url, mode: mode)
         }
     }
 
-    private func importMIDIFileInternal(from url: URL) {
+    private func importMIDIFileInternal(from url: URL, mode: MIDIImportMode) {
         do {
-            let (notes, durationSec) = try MIDIFileImporter.importNotes(from: url)
+            let options: MIDIFileImportOptions = (mode == .pianoOnly) ? .pianoOnly : .default
+            let (notes, durationSec) = try MIDIFileImporter.importNotes(from: url, options: options)
 
             let now = Date()
             let baseName = url.deletingPathExtension().lastPathComponent
