@@ -13,3 +13,6 @@ safetensors>=0.4
 # AMT / anticipation (installed from GitHub; do not vendor weights)
 anticipation @ git+https://github.com/jthickstun/anticipation.git
 
+# Server
+fastapi>=0.110
+uvicorn[standard]>=0.27
