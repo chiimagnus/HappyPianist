@@ -1,5 +1,6 @@
 import Observation
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct RecorderTransportBarView: View {
     @Bindable var viewModel: LonelyPianistViewModel
@@ -7,6 +8,8 @@ struct RecorderTransportBarView: View {
     @State private var renamingTakeID: UUID?
     @State private var renameDraft = ""
     @State private var isScrubbing = false
+    @State private var isImportingMIDI = false
+    @State private var importMode: LonelyPianistViewModel.MIDIImportMode = .all
 
     var body: some View {
         VStack(spacing: 10) {
@@ -79,6 +82,20 @@ struct RecorderTransportBarView: View {
                 .disabled(viewModel.takes.isEmpty)
 
                 Menu {
+                    Button("Import MIDI...") {
+                        importMode = .all
+                        isImportingMIDI = true
+                    }
+                    .disabled(viewModel.recorderMode != .idle)
+
+                    Button("Import MIDI (Piano Only)...") {
+                        importMode = .pianoOnly
+                        isImportingMIDI = true
+                    }
+                    .disabled(viewModel.recorderMode != .idle)
+
+                    Divider()
+
                     if let selectedTake = viewModel.selectedTake {
                         Button("Rename") {
                             renamingTakeID = selectedTake.id
@@ -126,6 +143,17 @@ struct RecorderTransportBarView: View {
             }
             Button("Cancel", role: .cancel) {
                 renamingTakeID = nil
+            }
+        }
+        .fileImporter(
+            isPresented: $isImportingMIDI,
+            allowedContentTypes: [.midi]
+        ) { result in
+            switch result {
+            case .success(let url):
+                viewModel.importMIDIFile(from: url, mode: importMode)
+            case .failure:
+                break
             }
         }
     }

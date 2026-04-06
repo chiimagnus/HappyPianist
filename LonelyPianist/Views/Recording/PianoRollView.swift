@@ -85,13 +85,14 @@ struct PianoRollView: View {
 
     private func drawNotes(in context: inout GraphicsContext, take: RecordingTake) {
         let range = noteRange(for: take)
-        for note in take.notes {
-            let y = yPosition(for: note.note, range: range) + 1
-            let x = leftInset + (CGFloat(note.startOffsetSec) * secondWidth)
-            let width = max(2, CGFloat(note.durationSec) * secondWidth)
+        for recordedNote in take.notes {
+            let y = yPosition(for: recordedNote.note, range: range) + 1
+            let x = leftInset + (CGFloat(recordedNote.startOffsetSec) * secondWidth)
+            let width = max(2, CGFloat(recordedNote.durationSec) * secondWidth)
             let rect = CGRect(x: x, y: y, width: width, height: rowHeight - 2)
             let path = Path(roundedRect: rect, cornerRadius: 3)
-            context.fill(path, with: .color(.accentColor.opacity(0.85)))
+            let color: Color = recordedNote.channel == 4 ? .orange : .accentColor
+            context.fill(path, with: .color(color.opacity(0.85)))
         }
     }
 

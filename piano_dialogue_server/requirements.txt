@@ -1,0 +1,19 @@
+# Core
+numpy>=1.24
+
+# MIDI I/O (offline)
+mido>=1.3.2
+
+# Model / inference
+torch>=2.2
+transformers>=4.41
+accelerate>=0.30
+safetensors>=0.4
+
+# AMT / anticipation (installed from GitHub; do not vendor weights)
+anticipation @ git+https://github.com/jthickstun/anticipation.git
+
+# Server
+fastapi>=0.110
+uvicorn[standard]>=0.27
+websockets>=10.4

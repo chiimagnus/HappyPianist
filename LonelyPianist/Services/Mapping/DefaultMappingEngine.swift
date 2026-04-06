@@ -18,32 +18,39 @@ final class DefaultMappingEngine: MappingEngineProtocol {
 
     func process(event: MIDIEvent, profile: MappingProfile) -> [ResolvedMappingAction] {
         switch event.type {
-        case .noteOn:
-            return processNoteOn(event: event, profile: profile)
-        case .noteOff:
-            processNoteOff(event: event, profile: profile)
+        case .noteOn(let note, let velocity):
+            return processNoteOn(note: note, velocity: velocity, timestamp: event.timestamp, profile: profile)
+        case .noteOff(let note, _):
+            processNoteOff(note: note, profile: profile)
+            return []
+        case .controlChange:
             return []
         }
     }
 
-    private func processNoteOn(event: MIDIEvent, profile: MappingProfile) -> [ResolvedMappingAction] {
-        pressedNotes.insert(event.note)
+    private func processNoteOn(
+        note: Int,
+        velocity: Int,
+        timestamp: Date,
+        profile: MappingProfile
+    ) -> [ResolvedMappingAction] {
+        pressedNotes.insert(note)
 
         var resolved: [ResolvedMappingAction] = []
 
-        if let output = resolveSingleKeyOutput(note: event.note, velocity: event.velocity, profile: profile),
+        if let output = resolveSingleKeyOutput(note: note, velocity: velocity, profile: profile),
            !output.isEmpty {
             resolved.append(
                 ResolvedMappingAction(
                     triggerType: .singleKey,
                     action: .text(output),
-                    sourceDescription: MIDINote(event.note).name
+                    sourceDescription: MIDINote(note).name
                 )
             )
         }
 
         resolved.append(contentsOf: resolveChordActions(profile: profile))
-        resolved.append(contentsOf: resolveMelodyActions(event: event, profile: profile))
+        resolved.append(contentsOf: resolveMelodyActions(note: note, timestamp: timestamp, profile: profile))
 
         return resolved
     }
@@ -67,8 +74,8 @@ final class DefaultMappingEngine: MappingEngineProtocol {
         return rule.normalOutput
     }
 
-    private func processNoteOff(event: MIDIEvent, profile: MappingProfile) {
-        pressedNotes.remove(event.note)
+    private func processNoteOff(note: Int, profile: MappingProfile) {
+        pressedNotes.remove(note)
 
         let rulesByID = Dictionary(uniqueKeysWithValues: profile.payload.chordRules.map { ($0.id, $0) })
         triggeredChordRuleIDs = triggeredChordRuleIDs.filter { ruleID in
@@ -103,21 +110,25 @@ final class DefaultMappingEngine: MappingEngineProtocol {
         return actions
     }
 
-    private func resolveMelodyActions(event: MIDIEvent, profile: MappingProfile) -> [ResolvedMappingAction] {
-        melodyHistory.append((note: event.note, timestamp: event.timestamp))
-        trimMelodyHistory(reference: event.timestamp)
+    private func resolveMelodyActions(
+        note: Int,
+        timestamp: Date,
+        profile: MappingProfile
+    ) -> [ResolvedMappingAction] {
+        melodyHistory.append((note: note, timestamp: timestamp))
+        trimMelodyHistory(reference: timestamp)
 
         var actions: [ResolvedMappingAction] = []
 
         for rule in profile.payload.melodyRules {
-            guard matches(rule: rule, timestamp: event.timestamp) else { continue }
+            guard matches(rule: rule, timestamp: timestamp) else { continue }
 
             if let last = lastMelodyTriggerAt[rule.id],
-               event.timestamp.timeIntervalSince(last) < melodyCooldownSeconds {
+               timestamp.timeIntervalSince(last) < melodyCooldownSeconds {
                 continue
             }
 
-            lastMelodyTriggerAt[rule.id] = event.timestamp
+            lastMelodyTriggerAt[rule.id] = timestamp
             let label = rule.notes.map { MIDINote($0).name }.joined(separator: " ")
 
             actions.append(

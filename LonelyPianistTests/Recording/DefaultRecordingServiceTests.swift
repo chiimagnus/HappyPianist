@@ -8,8 +8,8 @@ func noteOnOffProducesSingleRecordedNote() {
     let service = DefaultRecordingService(clock: ClockMock(nowValue: base))
 
     service.startRecording(at: base)
-    service.append(event: makeEvent(type: .noteOn, note: 60, velocity: 100, at: base.addingTimeInterval(0.5)))
-    service.append(event: makeEvent(type: .noteOff, note: 60, velocity: 0, at: base.addingTimeInterval(1.2)))
+    service.append(event: makeEvent(type: .noteOn(note: 60, velocity: 100), at: base.addingTimeInterval(0.5)))
+    service.append(event: makeEvent(type: .noteOff(note: 60, velocity: 0), at: base.addingTimeInterval(1.2)))
 
     let take = service.stopRecording(
         at: base.addingTimeInterval(1.4),
@@ -34,7 +34,7 @@ func stopRecordingClosesOpenNote() {
     let service = DefaultRecordingService(clock: ClockMock(nowValue: base.addingTimeInterval(2.0)))
 
     service.startRecording(at: base)
-    service.append(event: makeEvent(type: .noteOn, note: 64, velocity: 90, at: base.addingTimeInterval(0.25)))
+    service.append(event: makeEvent(type: .noteOn(note: 64, velocity: 90), at: base.addingTimeInterval(0.25)))
 
     let take = service.stopRecording(
         at: base.addingTimeInterval(1.0),
@@ -50,6 +50,6 @@ func stopRecordingClosesOpenNote() {
     #expect(abs(durationSec - 0.75) < 0.001)
 }
 
-private func makeEvent(type: MIDIEvent.EventType, note: Int, velocity: Int, at date: Date) -> MIDIEvent {
-    MIDIEvent(type: type, note: note, velocity: velocity, channel: 1, timestamp: date)
+private func makeEvent(type: MIDIEvent.EventType, at date: Date) -> MIDIEvent {
+    MIDIEvent(type: type, channel: 1, timestamp: date)
 }

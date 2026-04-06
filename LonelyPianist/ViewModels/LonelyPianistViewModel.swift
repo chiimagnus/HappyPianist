@@ -10,6 +10,7 @@ final class LonelyPianistViewModel {
         case runtime = "Runtime"
         case mappings = "Mappings"
         case recorder = "Recorder"
+        case dialogue = "Dialogue"
         case settings = "Settings"
 
         var id: String { rawValue }
@@ -22,6 +23,8 @@ final class LonelyPianistViewModel {
                 return "slider.horizontal.3"
             case .recorder:
                 return "waveform"
+            case .dialogue:
+                return "bubble.left.and.bubble.right"
             case .settings:
                 return "gearshape"
             }
@@ -72,6 +75,15 @@ final class LonelyPianistViewModel {
     var pressedNotes: [Int] = []
     var recentLogs: [EventLogItem] = []
 
+    var dialogueStatus: DialogueManager.Status = .idle
+    var dialogueLatencyMs: Int?
+    var dialoguePlaybackInterruptionBehavior: DialoguePlaybackInterruptionBehavior = .interrupt {
+        didSet {
+            UserDefaults.standard.set(dialoguePlaybackInterruptionBehavior.rawValue, forKey: DialoguePlaybackInterruptionBehavior.userDefaultsKey)
+            dialogueManager.playbackInterruptionBehavior = dialoguePlaybackInterruptionBehavior
+        }
+    }
+
     private let logger = Logger(subsystem: "com.chiimagnus.LonelyPianist", category: "ViewModel")
 
     private let midiInputService: MIDIInputServiceProtocol
@@ -83,6 +95,7 @@ final class LonelyPianistViewModel {
     private let playbackService: RoutableMIDIPlaybackServiceProtocol
     private let mappingEngine: MappingEngineProtocol
     private let shortcutService: ShortcutServiceProtocol
+    private let dialogueManager: DialogueManager
     private var permissionPollingTask: Task<Void, Never>?
     private var appDidBecomeActiveObserver: NSObjectProtocol?
     private var playbackClockTask: Task<Void, Never>?
@@ -99,7 +112,8 @@ final class LonelyPianistViewModel {
         recordingService: RecordingServiceProtocol,
         playbackService: RoutableMIDIPlaybackServiceProtocol,
         mappingEngine: MappingEngineProtocol,
-        shortcutService: ShortcutServiceProtocol
+        shortcutService: ShortcutServiceProtocol,
+        dialogueManager: DialogueManager
     ) {
         self.midiInputService = midiInputService
         self.keyboardEventService = keyboardEventService
@@ -110,9 +124,37 @@ final class LonelyPianistViewModel {
         self.playbackService = playbackService
         self.mappingEngine = mappingEngine
         self.shortcutService = shortcutService
+        self.dialogueManager = dialogueManager
 
         bindServiceCallbacks()
         bindAppLifecycleCallbacks()
+
+        let behaviorRaw = UserDefaults.standard.string(forKey: DialoguePlaybackInterruptionBehavior.userDefaultsKey)
+        dialoguePlaybackInterruptionBehavior = DialoguePlaybackInterruptionBehavior(rawValue: behaviorRaw ?? "") ?? .interrupt
+
+        dialogueStatus = dialogueManager.status
+        dialogueManager.onStatusChange = { [weak self] status in
+            Task { @MainActor [weak self] in
+                self?.dialogueStatus = status
+            }
+        }
+        dialogueManager.onLatencyChange = { [weak self] latencyMs in
+            Task { @MainActor [weak self] in
+                self?.dialogueLatencyMs = latencyMs
+            }
+        }
+
+        dialogueManager.onSessionTakeSaved = { [weak self] takeID in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                do {
+                    let preserveID = selectedTakeID ?? takeID
+                    try reloadTakes(preserveSelectedID: preserveID)
+                } catch {
+                    log(title: "Dialogue Save", detail: error.localizedDescription)
+                }
+            }
+        }
     }
 
     var activeProfile: MappingProfile? {
@@ -214,12 +256,41 @@ final class LonelyPianistViewModel {
     }
 
     func stopListening() {
+        if dialogueManager.isActive {
+            dialogueManager.stop()
+        }
         midiInputService.stop()
         mappingEngine.reset()
         isListening = false
         midiEventCount = 0
         pressedNotes.removeAll(keepingCapacity: false)
         statusMessage = "Stopped"
+    }
+
+    func startDialogue() {
+        guard isListening else {
+            statusMessage = "Start listening before Dialogue"
+            return
+        }
+
+        guard recorderMode == .idle else {
+            statusMessage = "Stop Recorder before Dialogue"
+            return
+        }
+
+        guard !playbackService.isPlaying else {
+            statusMessage = "Stop playback before Dialogue"
+            return
+        }
+
+        dialogueManager.playbackInterruptionBehavior = dialoguePlaybackInterruptionBehavior
+        dialogueManager.start()
+        statusMessage = "Dialogue started"
+    }
+
+    func stopDialogue() {
+        dialogueManager.stop()
+        statusMessage = "Dialogue stopped"
     }
 
     func requestAccessibilityPermission() {
@@ -345,6 +416,52 @@ final class LonelyPianistViewModel {
         } catch {
             recorderStatusMessage = "Delete failed: \(error.localizedDescription)"
             log(title: "Recorder Delete Failed", detail: error.localizedDescription)
+        }
+    }
+
+    enum MIDIImportMode: Sendable, Equatable {
+        case all
+        case pianoOnly
+    }
+
+    func importMIDIFile(from url: URL, mode: MIDIImportMode = .all) {
+        guard recorderMode == .idle else { return }
+
+        if url.startAccessingSecurityScopedResource() {
+            defer { url.stopAccessingSecurityScopedResource() }
+            importMIDIFileInternal(from: url, mode: mode)
+        } else {
+            importMIDIFileInternal(from: url, mode: mode)
+        }
+    }
+
+    private func importMIDIFileInternal(from url: URL, mode: MIDIImportMode) {
+        do {
+            let options: MIDIFileImportOptions = (mode == .pianoOnly) ? .pianoOnly : .default
+            let (notes, durationSec) = try MIDIFileImporter.importNotes(from: url, options: options)
+
+            let now = Date()
+            let baseName = url.deletingPathExtension().lastPathComponent
+            let name = baseName.isEmpty ? defaultTakeName(at: now) : baseName
+
+            let take = RecordingTake(
+                id: UUID(),
+                name: name,
+                createdAt: now,
+                updatedAt: now,
+                durationSec: durationSec,
+                notes: notes
+            )
+
+            try recordingRepository.saveTake(take)
+            try reloadTakes(preserveSelectedID: take.id)
+            recorderStatusMessage = "Imported \(take.name)"
+            statusMessage = "MIDI imported"
+            log(title: "Recorder", detail: "MIDI imported: \(take.name)")
+        } catch {
+            recorderStatusMessage = "Import failed: \(error.localizedDescription)"
+            statusMessage = "Import failed"
+            log(title: "MIDI Import Failed", detail: error.localizedDescription)
         }
     }
 
@@ -618,6 +735,8 @@ final class LonelyPianistViewModel {
                     recorderStatusMessage = "Playback finished"
                     statusMessage = "Playback finished"
                 }
+
+                dialogueManager.notifyPlaybackFinished()
             }
         }
 
@@ -669,6 +788,11 @@ final class LonelyPianistViewModel {
         midiEventCount += 1
         updatePressedNotes(for: event)
 
+        if dialogueManager.isActive {
+            dialogueManager.handle(event: event)
+            return
+        }
+
         if recorderMode == .recording {
             recordingService.append(event: event)
         }
@@ -698,8 +822,16 @@ final class LonelyPianistViewModel {
         }
 
         if resolvedActions.isEmpty {
-            let noteName = MIDINote(event.note).name
-            log(title: "MIDI", detail: "\(event.type) \(noteName) velocity \(event.velocity)")
+            switch event.type {
+            case .noteOn(let note, let velocity):
+                let noteName = MIDINote(note).name
+                log(title: "MIDI", detail: "noteOn \(noteName) velocity \(velocity)")
+            case .noteOff(let note, let velocity):
+                let noteName = MIDINote(note).name
+                log(title: "MIDI", detail: "noteOff \(noteName) velocity \(velocity)")
+            case .controlChange(let controller, let value):
+                log(title: "MIDI", detail: "cc \(controller) value \(value)")
+            }
         }
     }
 
@@ -717,13 +849,15 @@ final class LonelyPianistViewModel {
 
     private func updatePressedNotes(for event: MIDIEvent) {
         switch event.type {
-        case .noteOn:
-            if !pressedNotes.contains(event.note) {
-                pressedNotes.append(event.note)
+        case .noteOn(let note, _):
+            if !pressedNotes.contains(note) {
+                pressedNotes.append(note)
                 pressedNotes.sort()
             }
-        case .noteOff:
-            pressedNotes.removeAll { $0 == event.note }
+        case .noteOff(let note, _):
+            pressedNotes.removeAll { $0 == note }
+        case .controlChange:
+            return
         }
     }
 

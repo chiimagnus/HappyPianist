@@ -32,6 +32,10 @@ struct MainWindowView: View {
                 RecorderPanelView(viewModel: viewModel)
                     .navigationTitle("Recorder")
 
+            case .dialogue:
+                DialogueControlView(viewModel: viewModel)
+                    .navigationTitle("Dialogue")
+
             case .settings:
                 SettingsView()
                     .navigationTitle("Settings")
