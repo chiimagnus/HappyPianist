@@ -348,6 +348,46 @@ final class LonelyPianistViewModel {
         }
     }
 
+    func importMIDIFile(from url: URL) {
+        guard recorderMode == .idle else { return }
+
+        if url.startAccessingSecurityScopedResource() {
+            defer { url.stopAccessingSecurityScopedResource() }
+            importMIDIFileInternal(from: url)
+        } else {
+            importMIDIFileInternal(from: url)
+        }
+    }
+
+    private func importMIDIFileInternal(from url: URL) {
+        do {
+            let (notes, durationSec) = try MIDIFileImporter.importNotes(from: url)
+
+            let now = Date()
+            let baseName = url.deletingPathExtension().lastPathComponent
+            let name = baseName.isEmpty ? defaultTakeName(at: now) : baseName
+
+            let take = RecordingTake(
+                id: UUID(),
+                name: name,
+                createdAt: now,
+                updatedAt: now,
+                durationSec: durationSec,
+                notes: notes
+            )
+
+            try recordingRepository.saveTake(take)
+            try reloadTakes(preserveSelectedID: take.id)
+            recorderStatusMessage = "Imported \(take.name)"
+            statusMessage = "MIDI imported"
+            log(title: "Recorder", detail: "MIDI imported: \(take.name)")
+        } catch {
+            recorderStatusMessage = "Import failed: \(error.localizedDescription)"
+            statusMessage = "Import failed"
+            log(title: "MIDI Import Failed", detail: error.localizedDescription)
+        }
+    }
+
     func playSelectedTake() {
         guard let selectedTake else { return }
 
