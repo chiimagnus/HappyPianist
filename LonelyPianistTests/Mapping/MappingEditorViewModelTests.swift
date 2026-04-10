@@ -25,6 +25,23 @@ func setSingleKeyMappingWritesUppercaseAndClampsNote() {
 
 @MainActor
 @Test
+func setSingleKeyMappingTrimsNewlinesAndUppercases() {
+    let context = makeContext(payload: .empty)
+
+    context.viewModel.setSingleKeyMapping(note: 60, output: "\n\nq\n")
+
+    guard let activeProfile = context.viewModel.activeProfile,
+          let rule = activeProfile.payload.singleKeyRules.first(where: { $0.note == 60 }) else {
+        Issue.record("Expected a single-key rule at note 60")
+        return
+    }
+
+    #expect(rule.normalOutput == "q")
+    #expect(rule.highVelocityOutput == "Q")
+}
+
+@MainActor
+@Test
 func setSingleKeyMappingKeepsOnlyOneRulePerNote() {
     let duplicatedRules: [SingleKeyMappingRule] = [
         SingleKeyMappingRule(
@@ -99,6 +116,16 @@ func chordCrudNormalizesNotesAndPersists() {
 
 @MainActor
 @Test
+func createChordRuleIgnoresEmptyNotes() {
+    let context = makeContext(payload: .empty)
+
+    context.viewModel.createChordRule(notes: [], action: .text("noop"))
+
+    #expect(context.viewModel.activeProfile?.payload.chordRules.isEmpty == true)
+}
+
+@MainActor
+@Test
 func melodyCrudPersistsSequenceAndInterval() {
     let context = makeContext(payload: .empty)
 
@@ -134,6 +161,31 @@ func melodyCrudPersistsSequenceAndInterval() {
 
     context.viewModel.deleteMelodyRule(id: created.id)
     #expect(context.viewModel.activeProfile?.payload.melodyRules.isEmpty == true)
+}
+
+@MainActor
+@Test
+func createMelodyRuleIgnoresEmptyNotes() {
+    let context = makeContext(payload: .empty)
+
+    context.viewModel.createMelodyRule(notes: [], maxIntervalMilliseconds: 200, action: .text("noop"))
+
+    #expect(context.viewModel.activeProfile?.payload.melodyRules.isEmpty == true)
+}
+
+@MainActor
+@Test
+func createMelodyRuleClampsLowerBoundInterval() {
+    let context = makeContext(payload: .empty)
+
+    context.viewModel.createMelodyRule(notes: [60, 62], maxIntervalMilliseconds: -500, action: .text("mel"))
+
+    guard let created = context.viewModel.activeProfile?.payload.melodyRules.first else {
+        Issue.record("Expected one melody rule after creation")
+        return
+    }
+
+    #expect(created.maxIntervalMilliseconds == 100)
 }
 
 @MainActor

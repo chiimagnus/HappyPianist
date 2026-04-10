@@ -114,12 +114,30 @@ func midiEventsUpdatePressedNotesFromServiceCallback() async {
 
     let now = Date(timeIntervalSince1970: 100)
     context.midi.onEvent?(MIDIEvent(type: .noteOn(note: 60, velocity: 100), channel: 1, timestamp: now))
-    await Task.yield()
-    #expect(context.viewModel.pressedNotes == [60])
+    #expect(await waitForCondition { context.viewModel.pressedNotes == [60] })
 
     context.midi.onEvent?(MIDIEvent(type: .noteOff(note: 60, velocity: 0), channel: 1, timestamp: now.addingTimeInterval(0.1)))
-    await Task.yield()
-    #expect(context.viewModel.pressedNotes.isEmpty)
+    #expect(await waitForCondition { context.viewModel.pressedNotes.isEmpty })
+}
+
+@MainActor
+private func waitForCondition(
+    timeoutMilliseconds: UInt64 = 200,
+    pollMilliseconds: UInt64 = 5,
+    condition: @escaping @MainActor () -> Bool
+) async -> Bool {
+    let effectivePoll = max(1, pollMilliseconds)
+    let iterations = max(1, Int(timeoutMilliseconds / effectivePoll))
+
+    for _ in 0..<iterations {
+        if condition() {
+            return true
+        }
+
+        try? await Task.sleep(nanoseconds: effectivePoll * 1_000_000)
+    }
+
+    return condition()
 }
 
 @MainActor
