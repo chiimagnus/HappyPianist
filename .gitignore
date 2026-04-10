@@ -8,3 +8,5 @@ xcuserdata/
 .derivedData
 .derivedData-avp
 .github/features/
+
+.xcodebuildmcp/
