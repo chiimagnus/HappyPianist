@@ -678,14 +678,6 @@ final class LonelyPianistViewModel {
         }
     }
 
-    func addChordRule() {
-        mutateActiveProfile { profile in
-            profile.payload.chordRules.append(
-                ChordMappingRule(notes: [60, 64, 67], action: .keyCombo("cmd+c"))
-            )
-        }
-    }
-
     func createChordRule(notes: [Int], action: MappingAction) {
         let normalizedNotes = Self.normalizeRuleNotes(notes)
         guard !normalizedNotes.isEmpty else { return }
@@ -706,7 +698,7 @@ final class LonelyPianistViewModel {
         }
     }
 
-    func removeChordRule(_ ruleID: UUID) {
+    private func removeChordRule(_ ruleID: UUID) {
         mutateActiveProfile { profile in
             profile.payload.chordRules.removeAll { $0.id == ruleID }
         }
@@ -714,14 +706,6 @@ final class LonelyPianistViewModel {
 
     func deleteChordRule(id: UUID) {
         removeChordRule(id)
-    }
-
-    func addMelodyRule() {
-        mutateActiveProfile { profile in
-            profile.payload.melodyRules.append(
-                MelodyMappingRule(notes: [60, 62, 64], maxIntervalMilliseconds: 500, action: .text("hello "))
-            )
-        }
     }
 
     func createMelodyRule(notes: [Int], maxIntervalMilliseconds: Int, action: MappingAction) {
@@ -749,7 +733,7 @@ final class LonelyPianistViewModel {
         }
     }
 
-    func removeMelodyRule(_ ruleID: UUID) {
+    private func removeMelodyRule(_ ruleID: UUID) {
         mutateActiveProfile { profile in
             profile.payload.melodyRules.removeAll { $0.id == ruleID }
         }
