@@ -647,18 +647,6 @@ final class LonelyPianistViewModel {
         }
     }
 
-    func addSingleRule(note: Int = 60) {
-        mutateActiveProfile { profile in
-            let newRule = SingleKeyMappingRule(
-                note: max(0, min(127, note)),
-                normalOutput: "a",
-                velocityThreshold: profile.payload.defaultVelocityThreshold,
-                highVelocityOutput: "A"
-            )
-            profile.payload.singleKeyRules.append(newRule)
-        }
-    }
-
     func setSingleKeyMapping(note: Int, output: String) {
         let clampedNote = max(0, min(127, note))
         let normalizedOutput = output.trimmingCharacters(in: .newlines)
@@ -685,19 +673,6 @@ final class LonelyPianistViewModel {
                     )
                 )
             }
-        }
-    }
-
-    func updateSingleRule(_ rule: SingleKeyMappingRule) {
-        mutateActiveProfile { profile in
-            guard let index = profile.payload.singleKeyRules.firstIndex(where: { $0.id == rule.id }) else { return }
-            profile.payload.singleKeyRules[index] = rule
-        }
-    }
-
-    func removeSingleRule(_ ruleID: UUID) {
-        mutateActiveProfile { profile in
-            profile.payload.singleKeyRules.removeAll { $0.id == ruleID }
         }
     }
 
