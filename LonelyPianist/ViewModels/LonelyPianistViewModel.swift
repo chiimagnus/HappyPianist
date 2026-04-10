@@ -55,8 +55,7 @@ final class LonelyPianistViewModel {
     var hasAccessibilityPermission = false
     var statusMessage = "Ready"
 
-    var profiles: [MappingProfile] = []
-    var activeProfileID: UUID?
+    var activeConfig: MappingConfig?
 
     var selectedMainWindowSection: MainWindowSection = .runtime
     var selectedTab: EditorTab = .singleKey
@@ -85,7 +84,7 @@ final class LonelyPianistViewModel {
     private let midiInputService: MIDIInputServiceProtocol
     private let keyboardEventService: KeyboardEventServiceProtocol
     private let permissionService: PermissionServiceProtocol
-    private let repository: MappingProfileRepositoryProtocol
+    private let repository: MappingConfigRepositoryProtocol
     private let recordingRepository: RecordingTakeRepositoryProtocol
     private let recordingService: RecordingServiceProtocol
     private let playbackService: RoutableMIDIPlaybackServiceProtocol
@@ -103,7 +102,7 @@ final class LonelyPianistViewModel {
         midiInputService: MIDIInputServiceProtocol,
         keyboardEventService: KeyboardEventServiceProtocol,
         permissionService: PermissionServiceProtocol,
-        repository: MappingProfileRepositoryProtocol,
+        repository: MappingConfigRepositoryProtocol,
         recordingRepository: RecordingTakeRepositoryProtocol,
         recordingService: RecordingServiceProtocol,
         playbackService: RoutableMIDIPlaybackServiceProtocol,
@@ -153,11 +152,6 @@ final class LonelyPianistViewModel {
         }
     }
 
-    var activeProfile: MappingProfile? {
-        guard let activeProfileID else { return nil }
-        return profiles.first(where: { $0.id == activeProfileID })
-    }
-
     var selectedTake: RecordingTake? {
         guard let selectedTakeID else { return nil }
         return takes.first(where: { $0.id == selectedTakeID })
@@ -190,8 +184,8 @@ final class LonelyPianistViewModel {
         hasAccessibilityPermission = permissionService.hasAccessibilityPermission()
 
         do {
-            try repository.ensureSeedProfilesIfNeeded()
-            try reloadProfiles(preserveActiveID: nil)
+            try repository.ensureSeedConfigIfNeeded()
+            try reloadConfig()
             try reloadTakes(preserveSelectedID: nil)
             refreshPlaybackOutputs()
         } catch {
@@ -554,117 +548,37 @@ final class LonelyPianistViewModel {
         }
     }
 
-    func setActiveProfile(_ id: UUID) {
-        do {
-            try repository.setActiveProfile(id: id)
-            try reloadProfiles(preserveActiveID: id)
-            statusMessage = "Profile switched"
-        } catch {
-            statusMessage = "Switch failed: \(error.localizedDescription)"
-            log(title: "Switch Failed", detail: error.localizedDescription)
-        }
-    }
-
-    func createProfile(named name: String) {
-        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-
-        let now = Date()
-        let templatePayload = activeProfile?.payload ?? .empty
-        let profile = MappingProfile(
-            id: UUID(),
-            name: trimmed,
-            isBuiltIn: false,
-            isActive: true,
-            createdAt: now,
-            updatedAt: now,
-            payload: templatePayload
-        )
-
-        do {
-            try repository.saveProfile(profile)
-            try repository.setActiveProfile(id: profile.id)
-            try reloadProfiles(preserveActiveID: profile.id)
-            statusMessage = "Profile created"
-        } catch {
-            statusMessage = "Create failed: \(error.localizedDescription)"
-            log(title: "Create Profile Failed", detail: error.localizedDescription)
-        }
-    }
-
-    func duplicateActiveProfile() {
-        guard let source = activeProfile else { return }
-
-        let now = Date()
-        let clone = MappingProfile(
-            id: UUID(),
-            name: "\(source.name) Copy",
-            isBuiltIn: false,
-            isActive: true,
-            createdAt: now,
-            updatedAt: now,
-            payload: source.payload
-        )
-
-        do {
-            try repository.saveProfile(clone)
-            try repository.setActiveProfile(id: clone.id)
-            try reloadProfiles(preserveActiveID: clone.id)
-            statusMessage = "Profile duplicated"
-        } catch {
-            statusMessage = "Duplicate failed: \(error.localizedDescription)"
-            log(title: "Duplicate Failed", detail: error.localizedDescription)
-        }
-    }
-
-    func deleteProfile(_ id: UUID) {
-        do {
-            try repository.deleteProfile(id: id)
-            try reloadProfiles(preserveActiveID: nil)
-            statusMessage = "Profile deleted"
-        } catch {
-            statusMessage = "Delete failed: \(error.localizedDescription)"
-            log(title: "Delete Failed", detail: error.localizedDescription)
-        }
-    }
-
-    func updateProfileName(_ name: String) {
-        mutateActiveProfile { profile in
-            profile.name = name
-        }
-    }
-
     func setVelocityEnabled(_ enabled: Bool) {
-        mutateActiveProfile { profile in
-            profile.payload.velocityEnabled = enabled
+        mutateActiveConfig { config in
+            config.payload.velocityEnabled = enabled
         }
     }
 
     func setVelocityThreshold(_ value: Int) {
-        mutateActiveProfile { profile in
-            profile.payload.defaultVelocityThreshold = max(1, min(127, value))
+        mutateActiveConfig { config in
+            config.payload.defaultVelocityThreshold = max(1, min(127, value))
         }
     }
 
     func setSingleKeyMapping(note: Int, keyCode: UInt16) {
         let clampedNote = max(0, min(127, note))
 
-        mutateActiveProfile { profile in
-            let existingForNote = profile.payload.singleKeyRules.filter { $0.note == clampedNote }
+        mutateActiveConfig { config in
+            let existingForNote = config.payload.singleKeyRules.filter { $0.note == clampedNote }
             let selectedExisting = existingForNote.last
 
-            profile.payload.singleKeyRules.removeAll { $0.note == clampedNote }
+            config.payload.singleKeyRules.removeAll { $0.note == clampedNote }
 
             if var selectedExisting {
                 selectedExisting.note = clampedNote
                 selectedExisting.output = KeyStroke(keyCode: keyCode)
-                profile.payload.singleKeyRules.append(selectedExisting)
+                config.payload.singleKeyRules.append(selectedExisting)
             } else {
-                profile.payload.singleKeyRules.append(
+                config.payload.singleKeyRules.append(
                     SingleKeyMappingRule(
                         note: clampedNote,
                         output: KeyStroke(keyCode: keyCode),
-                        velocityThreshold: profile.payload.defaultVelocityThreshold
+                        velocityThreshold: config.payload.defaultVelocityThreshold
                     )
                 )
             }
@@ -683,25 +597,25 @@ final class LonelyPianistViewModel {
         let normalizedNotes = Self.normalizeRuleNotes(notes)
         guard !normalizedNotes.isEmpty else { return }
 
-        mutateActiveProfile { profile in
-            profile.payload.chordRules.append(
+        mutateActiveConfig { config in
+            config.payload.chordRules.append(
                 ChordMappingRule(notes: normalizedNotes, output: output)
             )
         }
     }
 
     func updateChordRule(_ rule: ChordMappingRule) {
-        mutateActiveProfile { profile in
-            guard let index = profile.payload.chordRules.firstIndex(where: { $0.id == rule.id }) else { return }
+        mutateActiveConfig { config in
+            guard let index = config.payload.chordRules.firstIndex(where: { $0.id == rule.id }) else { return }
             var normalizedRule = rule
             normalizedRule.notes = Self.normalizeRuleNotes(rule.notes)
-            profile.payload.chordRules[index] = normalizedRule
+            config.payload.chordRules[index] = normalizedRule
         }
     }
 
     private func removeChordRule(_ ruleID: UUID) {
-        mutateActiveProfile { profile in
-            profile.payload.chordRules.removeAll { $0.id == ruleID }
+        mutateActiveConfig { config in
+            config.payload.chordRules.removeAll { $0.id == ruleID }
         }
     }
 
@@ -789,9 +703,9 @@ final class LonelyPianistViewModel {
             recordingService.append(event: event)
         }
 
-        guard let activeProfile else { return }
+        guard let activeConfig else { return }
 
-        let resolvedActions = mappingEngine.process(event: event, profile: activeProfile)
+        let resolvedActions = mappingEngine.process(event: event, payload: activeConfig.payload)
 
         for resolvedAction in resolvedActions {
             do {
@@ -852,37 +766,23 @@ final class LonelyPianistViewModel {
         }
     }
 
-    private func mutateActiveProfile(_ mutation: (inout MappingProfile) -> Void) {
-        guard var profile = activeProfile else { return }
+    private func mutateActiveConfig(_ mutation: (inout MappingConfig) -> Void) {
+        guard var config = activeConfig else { return }
 
-        mutation(&profile)
-        profile.updatedAt = .now
+        mutation(&config)
+        config.updatedAt = .now
 
         do {
-            try repository.saveProfile(profile)
-            try reloadProfiles(preserveActiveID: profile.id)
+            try repository.saveConfig(config)
+            activeConfig = try repository.fetchConfig()
         } catch {
             statusMessage = "Update failed: \(error.localizedDescription)"
             log(title: "Update Failed", detail: error.localizedDescription)
         }
     }
 
-    private func reloadProfiles(preserveActiveID: UUID?) throws {
-        profiles = try repository.fetchProfiles()
-
-        let preferredID = preserveActiveID ?? activeProfileID
-        if let preferredID, profiles.contains(where: { $0.id == preferredID }) {
-            activeProfileID = preferredID
-        } else {
-            activeProfileID = profiles.first(where: { $0.isActive })?.id ?? profiles.first?.id
-        }
-
-        if let activeProfileID,
-           let active = profiles.first(where: { $0.id == activeProfileID }),
-           !active.isActive {
-            try repository.setActiveProfile(id: activeProfileID)
-            profiles = try repository.fetchProfiles()
-        }
+    private func reloadConfig() throws {
+        activeConfig = try repository.fetchConfig()
     }
 
     private func reloadTakes(preserveSelectedID: UUID?) throws {

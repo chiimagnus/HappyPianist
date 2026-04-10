@@ -9,12 +9,12 @@ final class DefaultMappingEngine: MappingEngineProtocol {
         triggeredChordRuleIDs.removeAll(keepingCapacity: false)
     }
 
-    func process(event: MIDIEvent, profile: MappingProfile) -> [ResolvedKeyStroke] {
+    func process(event: MIDIEvent, payload: MappingConfigPayload) -> [ResolvedKeyStroke] {
         switch event.type {
         case .noteOn(let note, let velocity):
-            return processNoteOn(note: note, velocity: velocity, profile: profile)
+            return processNoteOn(note: note, velocity: velocity, payload: payload)
         case .noteOff(let note, _):
-            processNoteOff(note: note, profile: profile)
+            processNoteOff(note: note, payload: payload)
             return []
         case .controlChange:
             return []
@@ -24,13 +24,13 @@ final class DefaultMappingEngine: MappingEngineProtocol {
     private func processNoteOn(
         note: Int,
         velocity: Int,
-        profile: MappingProfile
+        payload: MappingConfigPayload
     ) -> [ResolvedKeyStroke] {
         pressedNotes.insert(note)
 
         var resolved: [ResolvedKeyStroke] = []
 
-        if let output = resolveSingleKeyOutput(note: note, velocity: velocity, profile: profile) {
+        if let output = resolveSingleKeyOutput(note: note, velocity: velocity, payload: payload) {
             resolved.append(
                 ResolvedKeyStroke(
                     triggerType: .singleKey,
@@ -40,22 +40,22 @@ final class DefaultMappingEngine: MappingEngineProtocol {
             )
         }
 
-        resolved.append(contentsOf: resolveChordActions(profile: profile))
+        resolved.append(contentsOf: resolveChordActions(payload: payload))
         return resolved
     }
 
-    private func resolveSingleKeyOutput(note: Int, velocity: Int, profile: MappingProfile) -> KeyStroke? {
-        guard let rule = profile.payload.singleKeyRules.first(where: { $0.note == note }) else {
+    private func resolveSingleKeyOutput(note: Int, velocity: Int, payload: MappingConfigPayload) -> KeyStroke? {
+        guard let rule = payload.singleKeyRules.first(where: { $0.note == note }) else {
             return nil
         }
 
         let baseOutput = KeyStroke(keyCode: rule.output.keyCode)
 
-        guard profile.payload.velocityEnabled else {
+        guard payload.velocityEnabled else {
             return baseOutput
         }
 
-        let threshold = rule.velocityThreshold ?? profile.payload.defaultVelocityThreshold
+        let threshold = rule.velocityThreshold ?? payload.defaultVelocityThreshold
         if velocity >= threshold {
             return baseOutput.adding(.shift)
         }
@@ -63,10 +63,10 @@ final class DefaultMappingEngine: MappingEngineProtocol {
         return baseOutput
     }
 
-    private func processNoteOff(note: Int, profile: MappingProfile) {
+    private func processNoteOff(note: Int, payload: MappingConfigPayload) {
         pressedNotes.remove(note)
 
-        let rulesByID = Dictionary(uniqueKeysWithValues: profile.payload.chordRules.map { ($0.id, $0) })
+        let rulesByID = Dictionary(uniqueKeysWithValues: payload.chordRules.map { ($0.id, $0) })
         triggeredChordRuleIDs = triggeredChordRuleIDs.filter { ruleID in
             guard let rule = rulesByID[ruleID] else { return false }
             let requiredNotes = Set(rule.notes)
@@ -74,12 +74,12 @@ final class DefaultMappingEngine: MappingEngineProtocol {
         }
     }
 
-    private func resolveChordActions(profile: MappingProfile) -> [ResolvedKeyStroke] {
+    private func resolveChordActions(payload: MappingConfigPayload) -> [ResolvedKeyStroke] {
         guard !pressedNotes.isEmpty else { return [] }
 
         var actions: [ResolvedKeyStroke] = []
 
-        for rule in profile.payload.chordRules {
+        for rule in payload.chordRules {
             let requiredNotes = Set(rule.notes)
             guard !requiredNotes.isEmpty else { continue }
             guard requiredNotes == pressedNotes else { continue }

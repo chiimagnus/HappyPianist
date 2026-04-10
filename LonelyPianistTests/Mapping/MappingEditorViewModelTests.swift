@@ -5,15 +5,15 @@ import Testing
 @MainActor
 @Test
 func setSingleKeyMappingWritesKeyStrokeAndClampsNote() {
-    var payload = MappingProfilePayload.empty
+    var payload = MappingConfigPayload.empty
     payload.defaultVelocityThreshold = 88
 
     let context = makeContext(payload: payload)
 
     context.viewModel.setSingleKeyMapping(note: 188, keyCode: 40)
 
-    guard let activeProfile = context.viewModel.activeProfile,
-          let rule = activeProfile.payload.singleKeyRules.first(where: { $0.note == 127 }) else {
+    guard let activeConfig = context.viewModel.activeConfig,
+          let rule = activeConfig.payload.singleKeyRules.first(where: { $0.note == 127 }) else {
         Issue.record("Expected a single-key rule at note 127")
         return
     }
@@ -38,7 +38,7 @@ func setSingleKeyMappingKeepsOnlyOneRulePerNote() {
         )
     ]
 
-    let payload = MappingProfilePayload(
+    let payload = MappingConfigPayload(
         velocityEnabled: true,
         defaultVelocityThreshold: 90,
         singleKeyRules: duplicatedRules,
@@ -49,12 +49,12 @@ func setSingleKeyMappingKeepsOnlyOneRulePerNote() {
 
     context.viewModel.setSingleKeyMapping(note: 60, keyCode: 12)
 
-    guard let activeProfile = context.viewModel.activeProfile else {
-        Issue.record("Missing active profile")
+    guard let activeConfig = context.viewModel.activeConfig else {
+        Issue.record("Missing active config")
         return
     }
 
-    let rulesAtNote60 = activeProfile.payload.singleKeyRules.filter { $0.note == 60 }
+    let rulesAtNote60 = activeConfig.payload.singleKeyRules.filter { $0.note == 60 }
     #expect(rulesAtNote60.count == 1)
     #expect(rulesAtNote60.first?.output == KeyStroke(keyCode: 12))
     #expect(rulesAtNote60.first?.velocityThreshold == 111)
@@ -68,7 +68,7 @@ func chordCrudNormalizesNotesAndPersists() {
 
     context.viewModel.createChordRule(notes: [67, 60, 67, 64], output: copyStroke)
 
-    guard let created = context.viewModel.activeProfile?.payload.chordRules.first else {
+    guard let created = context.viewModel.activeConfig?.payload.chordRules.first else {
         Issue.record("Expected one chord rule after creation")
         return
     }
@@ -81,7 +81,7 @@ func chordCrudNormalizesNotesAndPersists() {
     updated.output = KeyStroke(keyCode: 35, modifiers: [.command, .shift])
     context.viewModel.updateChordRule(updated)
 
-    guard let updatedRule = context.viewModel.activeProfile?.payload.chordRules.first(where: { $0.id == created.id }) else {
+    guard let updatedRule = context.viewModel.activeConfig?.payload.chordRules.first(where: { $0.id == created.id }) else {
         Issue.record("Expected updated chord rule")
         return
     }
@@ -90,7 +90,7 @@ func chordCrudNormalizesNotesAndPersists() {
     #expect(updatedRule.output == KeyStroke(keyCode: 35, modifiers: [.command, .shift]))
 
     context.viewModel.deleteChordRule(id: created.id)
-    #expect(context.viewModel.activeProfile?.payload.chordRules.isEmpty == true)
+    #expect(context.viewModel.activeConfig?.payload.chordRules.isEmpty == true)
 }
 
 @MainActor
@@ -100,13 +100,13 @@ func createChordRuleIgnoresEmptyNotes() {
 
     context.viewModel.createChordRule(notes: [], output: KeyStroke(keyCode: 8, modifiers: [.command]))
 
-    #expect(context.viewModel.activeProfile?.payload.chordRules.isEmpty == true)
+    #expect(context.viewModel.activeConfig?.payload.chordRules.isEmpty == true)
 }
 
 @MainActor
 @Test
 func mappingEditsPersistAfterRebootstrap() {
-    var payload = MappingProfilePayload.empty
+    var payload = MappingConfigPayload.empty
     payload.defaultVelocityThreshold = 92
 
     let context = makeContext(payload: payload)
@@ -114,43 +114,39 @@ func mappingEditsPersistAfterRebootstrap() {
     context.viewModel.setSingleKeyMapping(note: 60, keyCode: 0)
     context.viewModel.createChordRule(notes: [67, 60, 64], output: KeyStroke(keyCode: 8, modifiers: [.command]))
 
-    let reloadedViewModel = makeViewModel(profileRepository: context.profileRepository)
+    let reloadedViewModel = makeViewModel(configRepository: context.configRepository)
     reloadedViewModel.bootstrap()
 
-    guard let activeProfile = reloadedViewModel.activeProfile else {
-        Issue.record("Expected active profile after rebootstrap")
+    guard let activeConfig = reloadedViewModel.activeConfig else {
+        Issue.record("Expected active config after rebootstrap")
         return
     }
 
-    #expect(activeProfile.payload.singleKeyRules.contains(where: { $0.note == 60 && $0.output == KeyStroke(keyCode: 0) }))
-    #expect(activeProfile.payload.chordRules.contains(where: { $0.notes == [60, 64, 67] && $0.output == KeyStroke(keyCode: 8, modifiers: [.command]) }))
+    #expect(activeConfig.payload.singleKeyRules.contains(where: { $0.note == 60 && $0.output == KeyStroke(keyCode: 0) }))
+    #expect(activeConfig.payload.chordRules.contains(where: { $0.notes == [60, 64, 67] && $0.output == KeyStroke(keyCode: 8, modifiers: [.command]) }))
 }
 
 @MainActor
-private func makeContext(payload: MappingProfilePayload) -> (
+private func makeContext(payload: MappingConfigPayload) -> (
     viewModel: LonelyPianistViewModel,
-    profileRepository: MappingProfileRepositoryTestDouble
+    configRepository: MappingConfigRepositoryTestDouble
 ) {
-    let profile = MappingProfile(
+    let config = MappingConfig(
         id: UUID(),
-        name: "Test Profile",
-        isBuiltIn: false,
-        isActive: true,
-        createdAt: Date(timeIntervalSince1970: 1000),
         updatedAt: Date(timeIntervalSince1970: 1000),
         payload: payload
     )
 
-    let profileRepository = MappingProfileRepositoryTestDouble(profiles: [profile])
-    let viewModel = makeViewModel(profileRepository: profileRepository)
+    let configRepository = MappingConfigRepositoryTestDouble(config: config)
+    let viewModel = makeViewModel(configRepository: configRepository)
 
     viewModel.bootstrap()
 
-    return (viewModel, profileRepository)
+    return (viewModel, configRepository)
 }
 
 @MainActor
-private func makeViewModel(profileRepository: MappingProfileRepositoryTestDouble) -> LonelyPianistViewModel {
+private func makeViewModel(configRepository: MappingConfigRepositoryTestDouble) -> LonelyPianistViewModel {
     let midi = MIDIInputServiceMock()
     let keyboard = KeyboardEventServiceMock()
     let permission = PermissionServiceMock()
@@ -174,7 +170,7 @@ private func makeViewModel(profileRepository: MappingProfileRepositoryTestDouble
         midiInputService: midi,
         keyboardEventService: keyboard,
         permissionService: permission,
-        repository: profileRepository,
+        repository: configRepository,
         recordingRepository: recordingRepository,
         recordingService: recordingService,
         playbackService: playback,

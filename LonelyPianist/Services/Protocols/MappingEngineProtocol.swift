@@ -13,5 +13,5 @@ struct ResolvedKeyStroke: Sendable {
 
 protocol MappingEngineProtocol: AnyObject {
     func reset()
-    func process(event: MIDIEvent, profile: MappingProfile) -> [ResolvedKeyStroke]
+    func process(event: MIDIEvent, payload: MappingConfigPayload) -> [ResolvedKeyStroke]
 }

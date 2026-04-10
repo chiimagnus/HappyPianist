@@ -43,31 +43,21 @@ final class PermissionServiceMock: PermissionServiceProtocol {
 }
 
 @MainActor
-final class MappingProfileRepositoryMock: MappingProfileRepositoryProtocol {
-    var profiles: [MappingProfile] = []
+final class MappingConfigRepositoryMock: MappingConfigRepositoryProtocol {
+    var config: MappingConfig = MappingConfig(
+        id: UUID(),
+        updatedAt: .now,
+        payload: .empty
+    )
 
-    func ensureSeedProfilesIfNeeded() throws {}
+    func ensureSeedConfigIfNeeded() throws {}
 
-    func fetchProfiles() throws -> [MappingProfile] {
-        profiles
+    func fetchConfig() throws -> MappingConfig {
+        config
     }
 
-    func saveProfile(_ profile: MappingProfile) throws {
-        if let index = profiles.firstIndex(where: { $0.id == profile.id }) {
-            profiles[index] = profile
-        } else {
-            profiles.append(profile)
-        }
-    }
-
-    func deleteProfile(id: UUID) throws {
-        profiles.removeAll { $0.id == id }
-    }
-
-    func setActiveProfile(id: UUID) throws {
-        for index in profiles.indices {
-            profiles[index].isActive = profiles[index].id == id
-        }
+    func saveConfig(_ config: MappingConfig) throws {
+        self.config = config
     }
 }
 
@@ -179,7 +169,7 @@ final class MIDIPlaybackServiceMock: RoutableMIDIPlaybackServiceProtocol {
 
 @MainActor
 final class MappingEngineMock: MappingEngineProtocol {
-    func process(event: MIDIEvent, profile: MappingProfile) -> [ResolvedKeyStroke] {
+    func process(event: MIDIEvent, payload: MappingConfigPayload) -> [ResolvedKeyStroke] {
         []
     }
 

@@ -22,7 +22,7 @@ struct PianoMappingsEditorView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
             cancelBindingOnFocusLoss()
         }
-        .onChange(of: viewModel.activeProfileID) { _, _ in
+        .onChange(of: viewModel.activeConfig?.id) { _, _ in
             resetChordEditor()
         }
         .onChange(of: viewModel.selectedTab) { _, _ in
@@ -61,7 +61,6 @@ struct PianoMappingsEditorView: View {
 
     private var sidebar: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ProfileSectionView(viewModel: viewModel)
             modeAndInspectorPanel
             velocityPanel
         }
@@ -171,7 +170,7 @@ struct PianoMappingsEditorView: View {
                 Toggle(
                     "Enable Velocity",
                     isOn: Binding(
-                        get: { viewModel.activeProfile?.payload.velocityEnabled ?? false },
+                        get: { viewModel.activeConfig?.payload.velocityEnabled ?? false },
                         set: { viewModel.setVelocityEnabled($0) }
                     )
                 )
@@ -181,14 +180,14 @@ struct PianoMappingsEditorView: View {
 
                     Slider(
                         value: Binding(
-                            get: { Double(viewModel.activeProfile?.payload.defaultVelocityThreshold ?? 100) },
+                            get: { Double(viewModel.activeConfig?.payload.defaultVelocityThreshold ?? 100) },
                             set: { viewModel.setVelocityThreshold(Int($0.rounded())) }
                         ),
                         in: 1...127,
                         step: 1
                     )
 
-                    Text("\(viewModel.activeProfile?.payload.defaultVelocityThreshold ?? 100)")
+                    Text("\(viewModel.activeConfig?.payload.defaultVelocityThreshold ?? 100)")
                         .frame(width: 30)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -200,14 +199,14 @@ struct PianoMappingsEditorView: View {
     }
 
     private var singleRuleOutputByNote: [Int: String] {
-        guard let profile = viewModel.activeProfile else { return [:] }
-        return profile.payload.singleKeyRules.reduce(into: [:]) { partialResult, rule in
+        guard let config = viewModel.activeConfig else { return [:] }
+        return config.payload.singleKeyRules.reduce(into: [:]) { partialResult, rule in
             partialResult[rule.note] = rule.output.displayLabel
         }
     }
 
     private var chordRules: [ChordMappingRule] {
-        guard let rules = viewModel.activeProfile?.payload.chordRules else { return [] }
+        guard let rules = viewModel.activeConfig?.payload.chordRules else { return [] }
         return rules.sorted { lhs, rhs in
             let lhsKey = MIDINoteParser.stringify(notes: lhs.notes, separator: " ")
             let rhsKey = MIDINoteParser.stringify(notes: rhs.notes, separator: " ")
