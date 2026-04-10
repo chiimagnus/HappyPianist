@@ -4,6 +4,12 @@ import SwiftData
 
 @MainActor
 final class SwiftDataMappingProfileRepository: MappingProfileRepositoryProtocol {
+    private struct ProfileDecodeFailure: Error {
+        let profileID: UUID
+        let profileName: String
+        let underlying: Error
+    }
+
     private let context: ModelContext
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
@@ -37,16 +43,35 @@ final class SwiftDataMappingProfileRepository: MappingProfileRepositoryProtocol 
     }
 
     func fetchProfiles() throws -> [MappingProfile] {
-        let descriptor = FetchDescriptor<MappingProfileEntity>()
-        let entities = try context.fetch(descriptor)
-            .sorted { lhs, rhs in
-                if lhs.isActive != rhs.isActive {
-                    return lhs.isActive && !rhs.isActive
-                }
-                return lhs.updatedAt > rhs.updatedAt
-            }
+        let entities = try fetchEntitiesSorted()
         logger.debug("Fetched profiles count: \(entities.count, privacy: .public)")
-        return try entities.map(makeDomain)
+
+        do {
+            return try decodeProfiles(from: entities)
+        } catch let failure as ProfileDecodeFailure {
+            logger.error(
+                "Failed to decode payload for profile id=\(failure.profileID.uuidString, privacy: .public), name=\(failure.profileName, privacy: .public). Resetting all profiles. Error=\(String(describing: failure.underlying), privacy: .public)"
+            )
+
+            for entity in entities {
+                context.delete(entity)
+            }
+            try context.save()
+            logger.warning("Destructive reset completed after decode failure; reseeding profiles")
+
+            try ensureSeedProfilesIfNeeded()
+
+            let reseededEntities = try fetchEntitiesSorted()
+            logger.debug("Fetched reseeded profiles count: \(reseededEntities.count, privacy: .public)")
+            do {
+                return try decodeProfiles(from: reseededEntities)
+            } catch let reseedFailure as ProfileDecodeFailure {
+                logger.critical(
+                    "Reseeded profiles still fail to decode. id=\(reseedFailure.profileID.uuidString, privacy: .public), name=\(reseedFailure.profileName, privacy: .public), error=\(String(describing: reseedFailure.underlying), privacy: .public)"
+                )
+                throw reseedFailure
+            }
+        }
     }
 
     func saveProfile(_ profile: MappingProfile) throws {
@@ -109,6 +134,27 @@ final class SwiftDataMappingProfileRepository: MappingProfileRepositoryProtocol 
         )
         descriptor.fetchLimit = 1
         return try context.fetch(descriptor).first
+    }
+
+    private func fetchEntitiesSorted() throws -> [MappingProfileEntity] {
+        let descriptor = FetchDescriptor<MappingProfileEntity>()
+        return try context.fetch(descriptor)
+            .sorted { lhs, rhs in
+                if lhs.isActive != rhs.isActive {
+                    return lhs.isActive && !rhs.isActive
+                }
+                return lhs.updatedAt > rhs.updatedAt
+            }
+    }
+
+    private func decodeProfiles(from entities: [MappingProfileEntity]) throws -> [MappingProfile] {
+        try entities.map { entity in
+            do {
+                return try makeDomain(from: entity)
+            } catch {
+                throw ProfileDecodeFailure(profileID: entity.id, profileName: entity.name, underlying: error)
+            }
+        }
     }
 
     private func makeEntity(from profile: MappingProfile) throws -> MappingProfileEntity {

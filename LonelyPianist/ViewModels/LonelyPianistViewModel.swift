@@ -70,6 +70,8 @@ final class LonelyPianistViewModel {
     var selectedPlaybackOutputID: String = MIDIPlaybackOutputOption.builtInSamplerID
     var previewText = ""
     var pressedNotes: [Int] = []
+    var latestNoteOn: Int?
+    var latestNoteOnSequence: Int = 0
     var recentLogs: [EventLogItem] = []
 
     var dialogueStatus: DialogueManager.Status = .idle
@@ -647,35 +649,42 @@ final class LonelyPianistViewModel {
         }
     }
 
-    func addSingleRule(note: Int = 60) {
+    func setSingleKeyMapping(note: Int, output: String) {
+        let clampedNote = max(0, min(127, note))
+        let normalizedOutput = output.trimmingCharacters(in: .newlines)
+        guard !normalizedOutput.isEmpty else { return }
+
         mutateActiveProfile { profile in
-            let newRule = SingleKeyMappingRule(
-                note: max(0, min(127, note)),
-                normalOutput: "a",
-                velocityThreshold: profile.payload.defaultVelocityThreshold,
-                highVelocityOutput: "A"
-            )
-            profile.payload.singleKeyRules.append(newRule)
+            let existingForNote = profile.payload.singleKeyRules.filter { $0.note == clampedNote }
+            let selectedExisting = existingForNote.last
+
+            profile.payload.singleKeyRules.removeAll { $0.note == clampedNote }
+
+            if var selectedExisting {
+                selectedExisting.note = clampedNote
+                selectedExisting.normalOutput = normalizedOutput
+                selectedExisting.highVelocityOutput = normalizedOutput.uppercased()
+                profile.payload.singleKeyRules.append(selectedExisting)
+            } else {
+                profile.payload.singleKeyRules.append(
+                    SingleKeyMappingRule(
+                        note: clampedNote,
+                        normalOutput: normalizedOutput,
+                        velocityThreshold: profile.payload.defaultVelocityThreshold,
+                        highVelocityOutput: normalizedOutput.uppercased()
+                    )
+                )
+            }
         }
     }
 
-    func updateSingleRule(_ rule: SingleKeyMappingRule) {
-        mutateActiveProfile { profile in
-            guard let index = profile.payload.singleKeyRules.firstIndex(where: { $0.id == rule.id }) else { return }
-            profile.payload.singleKeyRules[index] = rule
-        }
-    }
+    func createChordRule(notes: [Int], action: MappingAction) {
+        let normalizedNotes = Self.normalizeRuleNotes(notes)
+        guard !normalizedNotes.isEmpty else { return }
 
-    func removeSingleRule(_ ruleID: UUID) {
-        mutateActiveProfile { profile in
-            profile.payload.singleKeyRules.removeAll { $0.id == ruleID }
-        }
-    }
-
-    func addChordRule() {
         mutateActiveProfile { profile in
             profile.payload.chordRules.append(
-                ChordMappingRule(notes: [60, 64, 67], action: .keyCombo("cmd+c"))
+                ChordMappingRule(notes: normalizedNotes, action: action)
             )
         }
     }
@@ -683,20 +692,33 @@ final class LonelyPianistViewModel {
     func updateChordRule(_ rule: ChordMappingRule) {
         mutateActiveProfile { profile in
             guard let index = profile.payload.chordRules.firstIndex(where: { $0.id == rule.id }) else { return }
-            profile.payload.chordRules[index] = rule
+            var normalizedRule = rule
+            normalizedRule.notes = Self.normalizeRuleNotes(rule.notes)
+            profile.payload.chordRules[index] = normalizedRule
         }
     }
 
-    func removeChordRule(_ ruleID: UUID) {
+    private func removeChordRule(_ ruleID: UUID) {
         mutateActiveProfile { profile in
             profile.payload.chordRules.removeAll { $0.id == ruleID }
         }
     }
 
-    func addMelodyRule() {
+    func deleteChordRule(id: UUID) {
+        removeChordRule(id)
+    }
+
+    func createMelodyRule(notes: [Int], maxIntervalMilliseconds: Int, action: MappingAction) {
+        let normalizedNotes = Self.normalizeMelodyNotes(notes)
+        guard !normalizedNotes.isEmpty else { return }
+
         mutateActiveProfile { profile in
             profile.payload.melodyRules.append(
-                MelodyMappingRule(notes: [60, 62, 64], maxIntervalMilliseconds: 500, action: .text("hello "))
+                MelodyMappingRule(
+                    notes: normalizedNotes,
+                    maxIntervalMilliseconds: max(100, maxIntervalMilliseconds),
+                    action: action
+                )
             )
         }
     }
@@ -704,14 +726,21 @@ final class LonelyPianistViewModel {
     func updateMelodyRule(_ rule: MelodyMappingRule) {
         mutateActiveProfile { profile in
             guard let index = profile.payload.melodyRules.firstIndex(where: { $0.id == rule.id }) else { return }
-            profile.payload.melodyRules[index] = rule
+            var normalizedRule = rule
+            normalizedRule.notes = Self.normalizeMelodyNotes(rule.notes)
+            normalizedRule.maxIntervalMilliseconds = max(100, rule.maxIntervalMilliseconds)
+            profile.payload.melodyRules[index] = normalizedRule
         }
     }
 
-    func removeMelodyRule(_ ruleID: UUID) {
+    private func removeMelodyRule(_ ruleID: UUID) {
         mutateActiveProfile { profile in
             profile.payload.melodyRules.removeAll { $0.id == ruleID }
         }
+    }
+
+    func deleteMelodyRule(id: UUID) {
+        removeMelodyRule(id)
     }
 
     private func bindServiceCallbacks() {
@@ -846,10 +875,16 @@ final class LonelyPianistViewModel {
 
     private func updatePressedNotes(for event: MIDIEvent) {
         switch event.type {
-        case .noteOn(let note, _):
-            if !pressedNotes.contains(note) {
+        case .noteOn(let note, let velocity):
+            if velocity == 0 {
+                pressedNotes.removeAll { $0 == note }
+            } else if !pressedNotes.contains(note) {
                 pressedNotes.append(note)
                 pressedNotes.sort()
+            }
+            if velocity > 0 {
+                latestNoteOn = note
+                latestNoteOnSequence += 1
             }
         case .noteOff(let note, _):
             pressedNotes.removeAll { $0 == note }
@@ -951,5 +986,15 @@ final class LonelyPianistViewModel {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         return "Take \(formatter.string(from: date))"
+    }
+
+    nonisolated private static func normalizeRuleNotes(_ notes: [Int]) -> [Int] {
+        Array(
+            Set(notes.map { max(0, min(127, $0)) })
+        ).sorted()
+    }
+
+    nonisolated private static func normalizeMelodyNotes(_ notes: [Int]) -> [Int] {
+        notes.map { max(0, min(127, $0)) }
     }
 }

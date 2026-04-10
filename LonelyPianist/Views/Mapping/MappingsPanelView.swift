@@ -5,14 +5,7 @@ struct MappingsPanelView: View {
     @Bindable var viewModel: LonelyPianistViewModel
 
     var body: some View {
-        ScrollView {
-            VStack(spacing: 14) {
-                ProfileSectionView(viewModel: viewModel)
-                KeyboardMapSectionView(viewModel: viewModel)
-                RulesEditorSectionView(viewModel: viewModel)
-            }
-            .padding(16)
-        }
+        PianoMappingsEditorView(viewModel: viewModel)
         .background(Color(nsColor: .windowBackgroundColor))
     }
 }
