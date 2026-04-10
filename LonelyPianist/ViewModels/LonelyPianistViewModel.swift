@@ -659,6 +659,35 @@ final class LonelyPianistViewModel {
         }
     }
 
+    func setSingleKeyMapping(note: Int, output: String) {
+        let clampedNote = max(0, min(127, note))
+        let normalizedOutput = output.trimmingCharacters(in: .newlines)
+        guard !normalizedOutput.isEmpty else { return }
+
+        mutateActiveProfile { profile in
+            let existingForNote = profile.payload.singleKeyRules.filter { $0.note == clampedNote }
+            let selectedExisting = existingForNote.last
+
+            profile.payload.singleKeyRules.removeAll { $0.note == clampedNote }
+
+            if var selectedExisting {
+                selectedExisting.note = clampedNote
+                selectedExisting.normalOutput = normalizedOutput
+                selectedExisting.highVelocityOutput = normalizedOutput.uppercased()
+                profile.payload.singleKeyRules.append(selectedExisting)
+            } else {
+                profile.payload.singleKeyRules.append(
+                    SingleKeyMappingRule(
+                        note: clampedNote,
+                        normalOutput: normalizedOutput,
+                        velocityThreshold: profile.payload.defaultVelocityThreshold,
+                        highVelocityOutput: normalizedOutput.uppercased()
+                    )
+                )
+            }
+        }
+    }
+
     func updateSingleRule(_ rule: SingleKeyMappingRule) {
         mutateActiveProfile { profile in
             guard let index = profile.payload.singleKeyRules.firstIndex(where: { $0.id == rule.id }) else { return }
