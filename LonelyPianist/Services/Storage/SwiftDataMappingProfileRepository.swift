@@ -63,7 +63,14 @@ final class SwiftDataMappingProfileRepository: MappingProfileRepositoryProtocol 
 
             let reseededEntities = try fetchEntitiesSorted()
             logger.debug("Fetched reseeded profiles count: \(reseededEntities.count, privacy: .public)")
-            return try decodeProfiles(from: reseededEntities)
+            do {
+                return try decodeProfiles(from: reseededEntities)
+            } catch let reseedFailure as ProfileDecodeFailure {
+                logger.critical(
+                    "Reseeded profiles still fail to decode. id=\(reseedFailure.profileID.uuidString, privacy: .public), name=\(reseedFailure.profileName, privacy: .public), error=\(String(describing: reseedFailure.underlying), privacy: .public)"
+                )
+                throw reseedFailure
+            }
         }
     }
 

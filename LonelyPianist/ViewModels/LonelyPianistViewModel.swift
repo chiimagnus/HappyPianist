@@ -850,8 +850,10 @@ final class LonelyPianistViewModel {
 
     private func updatePressedNotes(for event: MIDIEvent) {
         switch event.type {
-        case .noteOn(let note, _):
-            if !pressedNotes.contains(note) {
+        case .noteOn(let note, let velocity):
+            if velocity == 0 {
+                pressedNotes.removeAll { $0 == note }
+            } else if !pressedNotes.contains(note) {
                 pressedNotes.append(note)
                 pressedNotes.sort()
             }

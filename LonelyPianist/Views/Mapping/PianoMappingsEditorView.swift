@@ -16,6 +16,9 @@ struct PianoMappingsEditorView: View {
                 .frame(width: 320)
         }
         .padding(16)
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)) { _ in
+            cancelBindingOnFocusLoss()
+        }
     }
 
     private var pianoArea: some View {
@@ -153,7 +156,7 @@ struct PianoMappingsEditorView: View {
     }
 
     private func handleCaptureEvent(_ event: NSEvent, note: Int) {
-        if event.keyCode == 53 {
+        if isEscapeEvent(event) {
             bindingTargetNote = nil
             bindingMessage = "已取消绑定 \(MIDINote(note).name)。"
             return
@@ -191,6 +194,16 @@ struct PianoMappingsEditorView: View {
         }
 
         return String(characters)
+    }
+
+    private func isEscapeEvent(_ event: NSEvent) -> Bool {
+        event.keyCode == 53 || event.characters == "\u{1B}"
+    }
+
+    private func cancelBindingOnFocusLoss() {
+        guard let note = bindingTargetNote else { return }
+        bindingTargetNote = nil
+        bindingMessage = "窗口失焦，已取消绑定 \(MIDINote(note).name)。"
     }
 
     private static let modifierOnlyKeyCodes: Set<UInt16> = [
@@ -235,6 +248,7 @@ private struct OneShotKeyCaptureView: NSViewRepresentable {
         fileprivate func promoteToFirstResponder() {
             DispatchQueue.main.async { [weak self] in
                 guard let self, let window else { return }
+                guard window.isKeyWindow else { return }
                 if window.firstResponder !== self {
                     window.makeFirstResponder(self)
                 }
