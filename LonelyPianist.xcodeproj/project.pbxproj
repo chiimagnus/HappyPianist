@@ -209,7 +209,6 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				D8790A192F88DAE50088F3E2 /* .github */,
 				D8D4280F2F4DFD3800EC9C9B /* LonelyPianist */,
 			);
 			name = LonelyPianist;
