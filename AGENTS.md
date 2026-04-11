@@ -40,7 +40,7 @@
 - Swift：Swift 6.0+
 
 平台支持（按项目选择）：
-- iOS 17.0+、iPadOS 17.0+、macOS 14.0+、visionOS 2.0+
+- macOS 26.0+、visionOS 26.0+
 
 ### 设计原则
 
