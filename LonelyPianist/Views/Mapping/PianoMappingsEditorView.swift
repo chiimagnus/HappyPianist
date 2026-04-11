@@ -23,7 +23,7 @@ struct PianoMappingsEditorView: View {
             .onChange(of: viewModel.activeConfig?.id) {
                 resetEditorState()
             }
-            .onChange(of: chordMultiSelectEnabled) { isEnabled in
+            .onChange(of: chordMultiSelectEnabled) { _, isEnabled in
                 bindingTargetNote = nil
                 chordOutputCaptureArmed = false
                 if isEnabled {
@@ -38,7 +38,7 @@ struct PianoMappingsEditorView: View {
                 inspectorPanel
             }
             .inspectorColumnWidth(min: 280, ideal: 320, max: 420)
-            .onChange(of: isInspectorPresented) { isPresented in
+            .onChange(of: isInspectorPresented) { _, isPresented in
                 if !isPresented {
                     bindingTargetNote = nil
                     chordOutputCaptureArmed = false

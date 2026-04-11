@@ -68,7 +68,7 @@ final class SwiftDataMappingConfigRepository: MappingConfigRepositoryProtocol {
     }
 
     func saveConfig(_ config: MappingConfig) throws {
-        var entities = try fetchEntitiesSorted()
+        let entities = try fetchEntitiesSorted()
         let payloadData = try encoder.encode(config.payload)
 
         if entities.isEmpty {
