@@ -1,4 +1,4 @@
-# 仓库指南
+# 项目开发规范与指南
 
 ## 项目结构与模块组织
 
@@ -9,49 +9,6 @@
 - 单元测试：`LonelyPianistTests/`（Swift Testing）
 - visionOS 相关：`LonelyPianistAVP/`、`LonelyPianistAVPTests/`（scheme：`LonelyPianistAVP`）
 - AI 后端工作区：`piano_dialogue_server/`（本机 Python 环境）
-- 规范与知识库：`.github/deepwiki/`（优先参考 `.github/deepwiki/references/开发规范.md`）
-
-## 构建、测试和开发命令
-
-打开工程：
-
-```bash
-open LonelyPianist.xcodeproj
-```
-
-命令行构建（macOS Debug）：
-
-```bash
-xcodebuild -project LonelyPianist.xcodeproj -scheme LonelyPianist -configuration Debug build
-```
-
-运行单测（macOS Debug）：
-
-```bash
-xcodebuild -project LonelyPianist.xcodeproj -scheme LonelyPianist -configuration Debug test
-```
-
-visionOS（可选）：先查看可用 destination，再构建/测试 `LonelyPianistAVP`：
-
-```bash
-xcodebuild -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP -showdestinations
-```
-
-```bash
-xcodebuild -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP -configuration Debug build
-```
-
-Piano Dialogue 后端（可选）：在独立终端启动本机服务（默认 `127.0.0.1:8765`）：
-
-```bash
-cd piano_dialogue_server
-python3.12 -m venv .venv
-source .venv/bin/activate
-pip install -U pip
-pip install -r requirements.txt
-cd server
-../.venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port 8765
-```
 
 ## 代码风格与命名规范
 
@@ -66,21 +23,15 @@ cd server
 - 新增 Service Protocol 时提供最少 1 个测试替身（成功/失败各覆盖）；涉及时间窗口/节流时把时间源做成可注入依赖，避免真实等待。
 - 提交前手测：权限请求与状态刷新、Start Listening 后 Sources/MIDI Events 更新、Single/Chord/Melody 映射各验证一次、Profile 持久化（重启仍保留）。
 
-## 提交与 Pull Request 规范
+## 开发规范
 
-- Commit message：优先 `feat:` / `fix:` / `refactor:` / `test:`，与 `.github/features/**` 的任务可追加标识（如 `P2-T1`）。
-- PR 描述包含：动机、关键改动点、验证方式（命令 + 手测项）；涉及 UI 变更附截图或录屏。
-
-
-# Apple App 开发规范 for AI（Swift/SwiftUI 基线，唯一源）
-
-本文件是 `swift-dev` 下“开发规范”的**唯一真源**（single source of truth）。
+来源：从 `swift-dev` 的 Apple/SwiftUI 开发规范整理而来，并按本仓库（macOS + SwiftUI + Swift Testing）做了少量对齐。
 
 使用方式：
-- **先看 repo 自己的规范**（例如 `AGENTS.md` / `CONTRIBUTING.md` / `README` 中的架构约定）；项目内规范优先级更高。
-- 本文用于补齐“默认假设”和“常见决策边界”（尤其是 MVVM、依赖注入、Observation、测试策略与日志规范）。
+- 本规范优先级低于本仓库代码与工程实际约束（例如测试框架、可用平台）。
+- 用于补齐“默认假设”和“常见决策边界”（尤其是 MVVM、依赖注入、Observation、测试策略与日志规范）。
 
-## 核心技术栈
+### 核心技术栈
 
 - 架构模式：MVVM (Model-View-ViewModel)
 - 编程范式：Protocol-Oriented Programming（面向协议）
@@ -92,7 +43,7 @@ cd server
 平台支持（按项目选择）：
 - iOS 17.0+、iPadOS 17.0+、macOS 14.0+、visionOS 2.0+
 
-## 设计原则
+### 设计原则
 
 - 组合优于继承：优先依赖注入
 - 接口优于单例：利于测试与替换
@@ -104,7 +55,7 @@ cd server
 - YAGNI：不为不确定未来预埋
 - DRY + WET：避免重复，但别过早抽象（通常重复 2–3 次后再抽）
 
-## MVVM 架构规范
+### MVVM 架构规范
 
 职责划分：
 - **Model**：纯数据结构；不放 UI 逻辑（避免引用 SwiftUI/Observation/Combine）
@@ -112,7 +63,7 @@ cd server
 - **View**：渲染与交互绑定；不写业务逻辑；不直接访问数据库/网络
 - **Service/Repository**：网络、持久化、文件 IO 等副作用；优先协议抽象 + 注入
 
-### 模块化建议（可选，不是硬性要求）
+#### 模块化建议（可选，不是硬性要求）
 
 当项目允许时，可把“逻辑层”下沉到 SwiftPM，以便：
 - 更快的单元测试（测试执行方式按项目工具链约束选择）
@@ -127,33 +78,33 @@ cd server
 
 注意：若项目本身不采用 SwiftPM 拆分（例如以 Xcode 项目为主），仍然可以遵循上述“职责划分 + 依赖注入 + 单向依赖”的原则。
 
-### ViewModel 规范（Observation 优先）
+#### ViewModel 规范（Observation 优先）
 
 - iOS 17+ / macOS 14+：优先 `@Observable` / `@Bindable`
 - 避免单例：不要用 `static let shared`
 - 依赖注入优先：初始化参数或 `.environment(...)`
 - 不使用 `ObservableObject` / `@Published` / `@StateObject` / `@ObservedObject` / `@EnvironmentObject`（统一用 Observation 体系）。
 
-### SwiftUI 事件处理
+#### SwiftUI 事件处理
 
 - 优先使用 `.onChange(of:) {}` 的无参数重载。
 - 只有确实需要 `oldValue` / `newValue` 时，才使用带两个参数的重载；不要默认写 `.onChange(of:) { _, _ in }`。
 
-## 协议驱动开发
+### 协议驱动开发
 
 原则：
 1. 先定义协议，再实现类型
 2. 用协议消除类型分支（减少 `switch` 的维护成本）
 3. 新增能力优先“增加实现”而不是“修改中心分发器”
 
-## 测试与调试
+### 测试与调试
 
 工具约束（`swift-dev` 默认）：
 - 本目录下涉及 build/test/run 的操作，统一使用原生 `xcodebuild`。
 - 涉及 Simulator/Device 与日志相关的操作，按需使用原生 `xcrun simctl` / `log stream` 等系统工具。
 
 单元测试优先级建议：
-- **逻辑层 / ViewModel / UI 层**：统一用 XCTest（通过 `xcodebuild test` 跑）
+- **逻辑层 / ViewModel / UI 层**：优先用单元测试覆盖（本仓库采用 Swift Testing；通过 `xcodebuild test` 跑）
 
 调试与日志：
 - 日志用 `os.Logger`，明确 `subsystem` 与 `category`，便于过滤与定位
