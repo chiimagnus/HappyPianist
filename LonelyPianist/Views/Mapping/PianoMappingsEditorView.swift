@@ -4,6 +4,7 @@ import SwiftUI
 
 struct PianoMappingsEditorView: View {
     @Bindable var viewModel: LonelyPianistViewModel
+    @Binding var isInspectorPresented: Bool
     @State private var bindingTargetNote: Int?
     @State private var bindingMessage = "点击琴键进入绑定态；按 Esc 可取消。"
     @State private var selectedSingleNote: Int?
@@ -12,7 +13,6 @@ struct PianoMappingsEditorView: View {
     @State private var chordDraftOutput: KeyStroke = KeyStroke(keyCode: 8, modifiers: [.command])
     @State private var chordOutputCaptureArmed = false
     @State private var chordMultiSelectEnabled = false
-    @State private var isInspectorPresented = false
 
     var body: some View {
         pianoArea
@@ -32,15 +32,6 @@ struct PianoMappingsEditorView: View {
                     chordSelectedNotes.removeAll()
                     selectedChordRuleID = nil
                     bindingMessage = "Chord 多选已关闭：点击琴键将进入 Single 绑定态。"
-                }
-            }
-            .toolbar {
-                ToolbarItem {
-                    Button {
-                        isInspectorPresented.toggle()
-                    } label: {
-                        Label(isInspectorPresented ? "Hide Inspector" : "Show Inspector", systemImage: "sidebar.right")
-                    }
                 }
             }
             .inspector(isPresented: $isInspectorPresented) {
