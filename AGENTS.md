@@ -12,7 +12,6 @@
 
 ## 代码风格与命名规范
 
-- 统一使用 `@Observable`（macOS 14+），避免 `ObservableObject`。
 - 命名：类型 `PascalCase`；变量/函数 `camelCase`；协议以 `Protocol` 结尾；实现以 `Service` 结尾。
 - View 只负责展示；状态编排与业务流程放 `ViewModels/`；跨模块能力下沉到 `Services/`，依赖通过注入传递。
 - SwiftUI 事件：不需要旧/新值时优先 `.onChange(of:) { ... }` 无参数重载，避免 `(_, _)` 形式的冗余闭包签名。
@@ -23,7 +22,7 @@
 - 新增 Service Protocol 时提供最少 1 个测试替身（成功/失败各覆盖）；涉及时间窗口/节流时把时间源做成可注入依赖，避免真实等待。
 - 提交前手测：权限请求与状态刷新、Start Listening 后 Sources/MIDI Events 更新、Single/Chord/Melody 映射各验证一次、Profile 持久化（重启仍保留）。
 
-## 开发规范
+## 开发规范（详细）
 
 来源：从 `swift-dev` 的 Apple/SwiftUI 开发规范整理而来，并按本仓库（macOS + SwiftUI + Swift Testing）做了少量对齐。
 
