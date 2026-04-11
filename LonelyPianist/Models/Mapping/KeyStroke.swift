@@ -10,10 +10,14 @@ struct KeyStrokeModifiers: OptionSet, Hashable, Sendable, Codable {
     static let option = KeyStrokeModifiers(rawValue: 1 << 2)
     static let control = KeyStrokeModifiers(rawValue: 1 << 3)
 
-    private static let supportedFlags: KeyStrokeModifiers = [.shift, .command, .option, .control]
+    private static let supportedMask: UInt8 =
+        (1 << 0) |
+        (1 << 1) |
+        (1 << 2) |
+        (1 << 3)
 
     init(rawValue: UInt8) {
-        self.rawValue = rawValue & Self.supportedFlags.rawValue
+        self.rawValue = rawValue & Self.supportedMask
     }
 
     var displayPrefix: String {

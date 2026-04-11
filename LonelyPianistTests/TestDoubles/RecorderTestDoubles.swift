@@ -183,6 +183,30 @@ final class ShortcutServiceMock: ShortcutServiceProtocol {
     func runShortcut(named: String) throws {}
 }
 
+@MainActor
+final class DialogueServiceMock: DialogueServiceProtocol {
+    var connectionState: DialogueServiceConnectionState = .disconnected {
+        didSet { onConnectionStateChange?(connectionState) }
+    }
+    var onConnectionStateChange: (@Sendable (DialogueServiceConnectionState) -> Void)?
+
+    func connect(url: URL) {
+        connectionState = .connected
+    }
+
+    func disconnect() {
+        connectionState = .disconnected
+    }
+
+    func generate(
+        notes: [DialogueNote],
+        params: DialogueGenerateParams,
+        sessionID: String?
+    ) async throws -> (notes: [DialogueNote], latencyMs: Int?) {
+        ([], nil)
+    }
+}
+
 struct ClockMock: ClockProtocol {
     let nowValue: Date
 

@@ -161,7 +161,7 @@ private func makeContext() -> (
     let shortcut = ShortcutServiceMock()
     let clock = ClockMock(nowValue: Date(timeIntervalSince1970: 0))
     let silenceDetectionService = DefaultSilenceDetectionService(clock: clock)
-    let dialogueService = WebSocketDialogueService(session: URLSession(configuration: .ephemeral))
+    let dialogueService = DialogueServiceMock()
     let dialogueManager = DialogueManager(
         clock: clock,
         silenceDetectionService: silenceDetectionService,
