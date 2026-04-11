@@ -13,19 +13,13 @@ struct LonelyPianistApp: App {
             DialoguePlaybackInterruptionBehavior.userDefaultsKey: DialoguePlaybackInterruptionBehavior.interrupt.rawValue
         ])
 
-        let schema = Schema([
-            MappingProfileEntity.self,
-            RecordingTakeEntity.self,
-            RecordedNoteEntity.self
-        ])
-
         do {
-            modelContainer = try ModelContainer(for: schema)
+            modelContainer = try ModelContainerFactory.makeMainContainer()
         } catch {
             fatalError("Failed to initialize ModelContainer: \(error)")
         }
 
-        let repository = SwiftDataMappingProfileRepository(context: modelContainer.mainContext)
+        let repository = SwiftDataMappingConfigRepository(context: modelContainer.mainContext)
         let recordingRepository = SwiftDataRecordingTakeRepository(context: modelContainer.mainContext)
         let midiOutputService = CoreMIDIOutputService()
         let playbackService = RoutedMIDIPlaybackService(

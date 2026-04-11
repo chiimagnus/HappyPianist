@@ -3,6 +3,7 @@ import SwiftUI
 
 struct MainWindowView: View {
     @Bindable var viewModel: LonelyPianistViewModel
+    @State private var isMappingsInspectorPresented = false
 
     var body: some View {
         NavigationSplitView {
@@ -21,8 +22,22 @@ struct MainWindowView: View {
                     .navigationTitle("Runtime")
 
             case .mappings:
-                MappingsPanelView(viewModel: viewModel)
+                PianoMappingsEditorView(viewModel: viewModel, isInspectorPresented: $isMappingsInspectorPresented)
+                    .background(Color(nsColor: .windowBackgroundColor))
                     .navigationTitle("Mappings")
+                    .toolbar {
+                        ToolbarItemGroup(placement: .automatic) {
+                            Spacer()
+                            Button {
+                                isMappingsInspectorPresented.toggle()
+                            } label: {
+                                Label(
+                                    isMappingsInspectorPresented ? "Hide Inspector" : "Show Inspector",
+                                    systemImage: "sidebar.right"
+                                )
+                            }
+                        }
+                    }
 
             case .recorder:
                 RecorderPanelView(viewModel: viewModel)

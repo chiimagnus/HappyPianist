@@ -28,14 +28,6 @@ final class LonelyPianistViewModel {
         }
     }
 
-    enum EditorTab: String, CaseIterable, Identifiable {
-        case singleKey = "Single Key"
-        case chord = "Chord"
-        case melody = "Melody"
-
-        var id: String { rawValue }
-    }
-
     enum RecorderMode: Equatable {
         case idle
         case recording
@@ -56,11 +48,9 @@ final class LonelyPianistViewModel {
     var hasAccessibilityPermission = false
     var statusMessage = "Ready"
 
-    var profiles: [MappingProfile] = []
-    var activeProfileID: UUID?
+    var activeConfig: MappingConfig?
 
     var selectedMainWindowSection: MainWindowSection = .runtime
-    var selectedTab: EditorTab = .singleKey
     var recorderMode: RecorderMode = .idle
     var takes: [RecordingTake] = []
     var selectedTakeID: UUID?
@@ -70,8 +60,6 @@ final class LonelyPianistViewModel {
     var selectedPlaybackOutputID: String = MIDIPlaybackOutputOption.builtInSamplerID
     var previewText = ""
     var pressedNotes: [Int] = []
-    var latestNoteOn: Int?
-    var latestNoteOnSequence: Int = 0
     var recentLogs: [EventLogItem] = []
 
     var dialogueStatus: DialogueManager.Status = .idle
@@ -88,7 +76,7 @@ final class LonelyPianistViewModel {
     private let midiInputService: MIDIInputServiceProtocol
     private let keyboardEventService: KeyboardEventServiceProtocol
     private let permissionService: PermissionServiceProtocol
-    private let repository: MappingProfileRepositoryProtocol
+    private let repository: MappingConfigRepositoryProtocol
     private let recordingRepository: RecordingTakeRepositoryProtocol
     private let recordingService: RecordingServiceProtocol
     private let playbackService: RoutableMIDIPlaybackServiceProtocol
@@ -106,7 +94,7 @@ final class LonelyPianistViewModel {
         midiInputService: MIDIInputServiceProtocol,
         keyboardEventService: KeyboardEventServiceProtocol,
         permissionService: PermissionServiceProtocol,
-        repository: MappingProfileRepositoryProtocol,
+        repository: MappingConfigRepositoryProtocol,
         recordingRepository: RecordingTakeRepositoryProtocol,
         recordingService: RecordingServiceProtocol,
         playbackService: RoutableMIDIPlaybackServiceProtocol,
@@ -156,11 +144,6 @@ final class LonelyPianistViewModel {
         }
     }
 
-    var activeProfile: MappingProfile? {
-        guard let activeProfileID else { return nil }
-        return profiles.first(where: { $0.id == activeProfileID })
-    }
-
     var selectedTake: RecordingTake? {
         guard let selectedTakeID else { return nil }
         return takes.first(where: { $0.id == selectedTakeID })
@@ -193,8 +176,8 @@ final class LonelyPianistViewModel {
         hasAccessibilityPermission = permissionService.hasAccessibilityPermission()
 
         do {
-            try repository.ensureSeedProfilesIfNeeded()
-            try reloadProfiles(preserveActiveID: nil)
+            try repository.ensureSeedConfigIfNeeded()
+            try reloadConfig()
             try reloadTakes(preserveSelectedID: nil)
             refreshPlaybackOutputs()
         } catch {
@@ -557,190 +540,78 @@ final class LonelyPianistViewModel {
         }
     }
 
-    func setActiveProfile(_ id: UUID) {
-        do {
-            try repository.setActiveProfile(id: id)
-            try reloadProfiles(preserveActiveID: id)
-            statusMessage = "Profile switched"
-        } catch {
-            statusMessage = "Switch failed: \(error.localizedDescription)"
-            log(title: "Switch Failed", detail: error.localizedDescription)
-        }
-    }
-
-    func createProfile(named name: String) {
-        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
-
-        let now = Date()
-        let templatePayload = activeProfile?.payload ?? .empty
-        let profile = MappingProfile(
-            id: UUID(),
-            name: trimmed,
-            isBuiltIn: false,
-            isActive: true,
-            createdAt: now,
-            updatedAt: now,
-            payload: templatePayload
-        )
-
-        do {
-            try repository.saveProfile(profile)
-            try repository.setActiveProfile(id: profile.id)
-            try reloadProfiles(preserveActiveID: profile.id)
-            statusMessage = "Profile created"
-        } catch {
-            statusMessage = "Create failed: \(error.localizedDescription)"
-            log(title: "Create Profile Failed", detail: error.localizedDescription)
-        }
-    }
-
-    func duplicateActiveProfile() {
-        guard let source = activeProfile else { return }
-
-        let now = Date()
-        let clone = MappingProfile(
-            id: UUID(),
-            name: "\(source.name) Copy",
-            isBuiltIn: false,
-            isActive: true,
-            createdAt: now,
-            updatedAt: now,
-            payload: source.payload
-        )
-
-        do {
-            try repository.saveProfile(clone)
-            try repository.setActiveProfile(id: clone.id)
-            try reloadProfiles(preserveActiveID: clone.id)
-            statusMessage = "Profile duplicated"
-        } catch {
-            statusMessage = "Duplicate failed: \(error.localizedDescription)"
-            log(title: "Duplicate Failed", detail: error.localizedDescription)
-        }
-    }
-
-    func deleteProfile(_ id: UUID) {
-        do {
-            try repository.deleteProfile(id: id)
-            try reloadProfiles(preserveActiveID: nil)
-            statusMessage = "Profile deleted"
-        } catch {
-            statusMessage = "Delete failed: \(error.localizedDescription)"
-            log(title: "Delete Failed", detail: error.localizedDescription)
-        }
-    }
-
-    func updateProfileName(_ name: String) {
-        mutateActiveProfile { profile in
-            profile.name = name
-        }
-    }
-
     func setVelocityEnabled(_ enabled: Bool) {
-        mutateActiveProfile { profile in
-            profile.payload.velocityEnabled = enabled
+        mutateActiveConfig { config in
+            config.payload.velocityEnabled = enabled
         }
     }
 
     func setVelocityThreshold(_ value: Int) {
-        mutateActiveProfile { profile in
-            profile.payload.defaultVelocityThreshold = max(1, min(127, value))
+        mutateActiveConfig { config in
+            config.payload.defaultVelocityThreshold = max(1, min(127, value))
         }
     }
 
-    func setSingleKeyMapping(note: Int, output: String) {
+    func setSingleKeyMapping(note: Int, keyCode: UInt16) {
         let clampedNote = max(0, min(127, note))
-        let normalizedOutput = output.trimmingCharacters(in: .newlines)
-        guard !normalizedOutput.isEmpty else { return }
 
-        mutateActiveProfile { profile in
-            let existingForNote = profile.payload.singleKeyRules.filter { $0.note == clampedNote }
+        mutateActiveConfig { config in
+            let existingForNote = config.payload.singleKeyRules.filter { $0.note == clampedNote }
             let selectedExisting = existingForNote.last
 
-            profile.payload.singleKeyRules.removeAll { $0.note == clampedNote }
+            config.payload.singleKeyRules.removeAll { $0.note == clampedNote }
 
             if var selectedExisting {
                 selectedExisting.note = clampedNote
-                selectedExisting.normalOutput = normalizedOutput
-                selectedExisting.highVelocityOutput = normalizedOutput.uppercased()
-                profile.payload.singleKeyRules.append(selectedExisting)
+                selectedExisting.output = KeyStroke(keyCode: keyCode)
+                config.payload.singleKeyRules.append(selectedExisting)
             } else {
-                profile.payload.singleKeyRules.append(
+                config.payload.singleKeyRules.append(
                     SingleKeyMappingRule(
                         note: clampedNote,
-                        normalOutput: normalizedOutput,
-                        velocityThreshold: profile.payload.defaultVelocityThreshold,
-                        highVelocityOutput: normalizedOutput.uppercased()
+                        output: KeyStroke(keyCode: keyCode),
+                        velocityThreshold: config.payload.defaultVelocityThreshold
                     )
                 )
             }
         }
     }
 
-    func createChordRule(notes: [Int], action: MappingAction) {
+    func clearSingleKeyMapping(note: Int) {
+        let clampedNote = max(0, min(127, note))
+        mutateActiveConfig { config in
+            config.payload.singleKeyRules.removeAll { $0.note == clampedNote }
+        }
+    }
+
+    func createChordRule(notes: [Int], output: KeyStroke) {
         let normalizedNotes = Self.normalizeRuleNotes(notes)
         guard !normalizedNotes.isEmpty else { return }
 
-        mutateActiveProfile { profile in
-            profile.payload.chordRules.append(
-                ChordMappingRule(notes: normalizedNotes, action: action)
+        mutateActiveConfig { config in
+            config.payload.chordRules.append(
+                ChordMappingRule(notes: normalizedNotes, output: output)
             )
         }
     }
 
     func updateChordRule(_ rule: ChordMappingRule) {
-        mutateActiveProfile { profile in
-            guard let index = profile.payload.chordRules.firstIndex(where: { $0.id == rule.id }) else { return }
+        mutateActiveConfig { config in
+            guard let index = config.payload.chordRules.firstIndex(where: { $0.id == rule.id }) else { return }
             var normalizedRule = rule
             normalizedRule.notes = Self.normalizeRuleNotes(rule.notes)
-            profile.payload.chordRules[index] = normalizedRule
+            config.payload.chordRules[index] = normalizedRule
         }
     }
 
     private func removeChordRule(_ ruleID: UUID) {
-        mutateActiveProfile { profile in
-            profile.payload.chordRules.removeAll { $0.id == ruleID }
+        mutateActiveConfig { config in
+            config.payload.chordRules.removeAll { $0.id == ruleID }
         }
     }
 
     func deleteChordRule(id: UUID) {
         removeChordRule(id)
-    }
-
-    func createMelodyRule(notes: [Int], maxIntervalMilliseconds: Int, action: MappingAction) {
-        let normalizedNotes = Self.normalizeMelodyNotes(notes)
-        guard !normalizedNotes.isEmpty else { return }
-
-        mutateActiveProfile { profile in
-            profile.payload.melodyRules.append(
-                MelodyMappingRule(
-                    notes: normalizedNotes,
-                    maxIntervalMilliseconds: max(100, maxIntervalMilliseconds),
-                    action: action
-                )
-            )
-        }
-    }
-
-    func updateMelodyRule(_ rule: MelodyMappingRule) {
-        mutateActiveProfile { profile in
-            guard let index = profile.payload.melodyRules.firstIndex(where: { $0.id == rule.id }) else { return }
-            var normalizedRule = rule
-            normalizedRule.notes = Self.normalizeMelodyNotes(rule.notes)
-            normalizedRule.maxIntervalMilliseconds = max(100, rule.maxIntervalMilliseconds)
-            profile.payload.melodyRules[index] = normalizedRule
-        }
-    }
-
-    private func removeMelodyRule(_ ruleID: UUID) {
-        mutateActiveProfile { profile in
-            profile.payload.melodyRules.removeAll { $0.id == ruleID }
-        }
-    }
-
-    func deleteMelodyRule(id: UUID) {
-        removeMelodyRule(id)
     }
 
     private func bindServiceCallbacks() {
@@ -823,23 +694,18 @@ final class LonelyPianistViewModel {
             recordingService.append(event: event)
         }
 
-        guard let activeProfile else { return }
+        guard let activeConfig else { return }
 
-        let resolvedActions = mappingEngine.process(event: event, profile: activeProfile)
+        let resolvedActions = mappingEngine.process(event: event, payload: activeConfig.payload)
 
         for resolvedAction in resolvedActions {
             do {
-                try execute(resolvedAction.action)
-                switch resolvedAction.action.type {
-                case .text:
-                    appendPreview(resolvedAction.action.value)
-                case .keyCombo, .shortcut:
-                    appendPreview("[\(resolvedAction.action.value)]")
-                }
+                try execute(resolvedAction.keyStroke)
+                appendPreview("[\(resolvedAction.keyStroke.displayLabel)]")
 
                 log(
                     title: "\(resolvedAction.triggerType)",
-                    detail: "\(resolvedAction.sourceDescription) -> \(resolvedAction.action.type.rawValue): \(resolvedAction.action.value)"
+                    detail: "\(resolvedAction.sourceDescription) -> \(resolvedAction.keyStroke.displayLabel)"
                 )
             } catch {
                 statusMessage = "Action failed: \(error.localizedDescription)"
@@ -861,16 +727,8 @@ final class LonelyPianistViewModel {
         }
     }
 
-    private func execute(_ action: MappingAction) throws {
-        switch action.type {
-        case .text:
-            try keyboardEventService.typeText(action.value)
-        case .keyCombo:
-            let parsed = try KeyComboParser.parse(action.value)
-            try keyboardEventService.sendKeyCombo(keyCode: parsed.keyCode, modifiers: parsed.modifiers)
-        case .shortcut:
-            try shortcutService.runShortcut(named: action.value)
-        }
+    private func execute(_ keyStroke: KeyStroke) throws {
+        try keyboardEventService.sendKeyStroke(keyStroke)
     }
 
     private func updatePressedNotes(for event: MIDIEvent) {
@@ -881,10 +739,6 @@ final class LonelyPianistViewModel {
             } else if !pressedNotes.contains(note) {
                 pressedNotes.append(note)
                 pressedNotes.sort()
-            }
-            if velocity > 0 {
-                latestNoteOn = note
-                latestNoteOnSequence += 1
             }
         case .noteOff(let note, _):
             pressedNotes.removeAll { $0 == note }
@@ -900,37 +754,23 @@ final class LonelyPianistViewModel {
         }
     }
 
-    private func mutateActiveProfile(_ mutation: (inout MappingProfile) -> Void) {
-        guard var profile = activeProfile else { return }
+    private func mutateActiveConfig(_ mutation: (inout MappingConfig) -> Void) {
+        guard var config = activeConfig else { return }
 
-        mutation(&profile)
-        profile.updatedAt = .now
+        mutation(&config)
+        config.updatedAt = .now
 
         do {
-            try repository.saveProfile(profile)
-            try reloadProfiles(preserveActiveID: profile.id)
+            try repository.saveConfig(config)
+            activeConfig = try repository.fetchConfig()
         } catch {
             statusMessage = "Update failed: \(error.localizedDescription)"
             log(title: "Update Failed", detail: error.localizedDescription)
         }
     }
 
-    private func reloadProfiles(preserveActiveID: UUID?) throws {
-        profiles = try repository.fetchProfiles()
-
-        let preferredID = preserveActiveID ?? activeProfileID
-        if let preferredID, profiles.contains(where: { $0.id == preferredID }) {
-            activeProfileID = preferredID
-        } else {
-            activeProfileID = profiles.first(where: { $0.isActive })?.id ?? profiles.first?.id
-        }
-
-        if let activeProfileID,
-           let active = profiles.first(where: { $0.id == activeProfileID }),
-           !active.isActive {
-            try repository.setActiveProfile(id: activeProfileID)
-            profiles = try repository.fetchProfiles()
-        }
+    private func reloadConfig() throws {
+        activeConfig = try repository.fetchConfig()
     }
 
     private func reloadTakes(preserveSelectedID: UUID?) throws {
@@ -992,9 +832,5 @@ final class LonelyPianistViewModel {
         Array(
             Set(notes.map { max(0, min(127, $0)) })
         ).sorted()
-    }
-
-    nonisolated private static func normalizeMelodyNotes(_ notes: [Int]) -> [Int] {
-        notes.map { max(0, min(127, $0)) }
     }
 }

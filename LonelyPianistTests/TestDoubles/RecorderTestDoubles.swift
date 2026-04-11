@@ -17,13 +17,15 @@ final class MIDIInputServiceMock: MIDIInputServiceProtocol {
 final class KeyboardEventServiceMock: KeyboardEventServiceProtocol {
     private(set) var typedTexts: [String] = []
     private(set) var keyCombos: [(CGKeyCode, CGEventFlags)] = []
+    private(set) var keyStrokes: [KeyStroke] = []
 
     func typeText(_ text: String) throws {
         typedTexts.append(text)
     }
 
-    func sendKeyCombo(keyCode: CGKeyCode, modifiers: CGEventFlags) throws {
-        keyCombos.append((keyCode, modifiers))
+    func sendKeyStroke(_ keyStroke: KeyStroke) throws {
+        keyStrokes.append(keyStroke)
+        keyCombos.append((CGKeyCode(keyStroke.keyCode), keyStroke.modifiers.cgEventFlags))
     }
 }
 
@@ -43,31 +45,21 @@ final class PermissionServiceMock: PermissionServiceProtocol {
 }
 
 @MainActor
-final class MappingProfileRepositoryMock: MappingProfileRepositoryProtocol {
-    var profiles: [MappingProfile] = []
+final class MappingConfigRepositoryMock: MappingConfigRepositoryProtocol {
+    var config: MappingConfig = MappingConfig(
+        id: UUID(),
+        updatedAt: .now,
+        payload: .empty
+    )
 
-    func ensureSeedProfilesIfNeeded() throws {}
+    func ensureSeedConfigIfNeeded() throws {}
 
-    func fetchProfiles() throws -> [MappingProfile] {
-        profiles
+    func fetchConfig() throws -> MappingConfig {
+        config
     }
 
-    func saveProfile(_ profile: MappingProfile) throws {
-        if let index = profiles.firstIndex(where: { $0.id == profile.id }) {
-            profiles[index] = profile
-        } else {
-            profiles.append(profile)
-        }
-    }
-
-    func deleteProfile(id: UUID) throws {
-        profiles.removeAll { $0.id == id }
-    }
-
-    func setActiveProfile(id: UUID) throws {
-        for index in profiles.indices {
-            profiles[index].isActive = profiles[index].id == id
-        }
+    func saveConfig(_ config: MappingConfig) throws {
+        self.config = config
     }
 }
 
@@ -179,7 +171,7 @@ final class MIDIPlaybackServiceMock: RoutableMIDIPlaybackServiceProtocol {
 
 @MainActor
 final class MappingEngineMock: MappingEngineProtocol {
-    func process(event: MIDIEvent, profile: MappingProfile) -> [ResolvedMappingAction] {
+    func process(event: MIDIEvent, payload: MappingConfigPayload) -> [ResolvedKeyStroke] {
         []
     }
 
@@ -189,6 +181,30 @@ final class MappingEngineMock: MappingEngineProtocol {
 @MainActor
 final class ShortcutServiceMock: ShortcutServiceProtocol {
     func runShortcut(named: String) throws {}
+}
+
+@MainActor
+final class DialogueServiceMock: DialogueServiceProtocol {
+    var connectionState: DialogueServiceConnectionState = .disconnected {
+        didSet { onConnectionStateChange?(connectionState) }
+    }
+    var onConnectionStateChange: (@Sendable (DialogueServiceConnectionState) -> Void)?
+
+    func connect(url: URL) {
+        connectionState = .connected
+    }
+
+    func disconnect() {
+        connectionState = .disconnected
+    }
+
+    func generate(
+        notes: [DialogueNote],
+        params: DialogueGenerateParams,
+        sessionID: String?
+    ) async throws -> (notes: [DialogueNote], latencyMs: Int?) {
+        ([], nil)
+    }
 }
 
 struct ClockMock: ClockProtocol {

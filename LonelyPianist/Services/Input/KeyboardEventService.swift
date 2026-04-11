@@ -31,7 +31,14 @@ struct KeyboardEventService: KeyboardEventServiceProtocol {
         }
     }
 
-    func sendKeyCombo(keyCode: CGKeyCode, modifiers: CGEventFlags) throws {
+    func sendKeyStroke(_ keyStroke: KeyStroke) throws {
+        try postKeyStroke(
+            keyCode: CGKeyCode(keyStroke.keyCode),
+            modifiers: keyStroke.modifiers.cgEventFlags
+        )
+    }
+
+    private func postKeyStroke(keyCode: CGKeyCode, modifiers: CGEventFlags) throws {
         guard let eventSource = CGEventSource(stateID: .hidSystemState) else {
             throw KeyboardEventServiceError.createEventSource
         }
