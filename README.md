@@ -6,16 +6,9 @@
   <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License">
 </p>
 
-<p align="center">
-  <em>弹个音符打字，按个和弦触发快捷键，来段旋律启动快捷指令。</em><br>
-  <strong>你的钢琴，不只是钢琴。</strong>
-</p>
-
 ---
 
-## 📌 文档入口（按功能划分，统一看这一份）
-
-这仓库里曾经积累了不少分散的 Markdown。为了降低“入口太多、信息重复”的成本，**所有可执行的使用/开发说明都收敛到这份 `README.md`**。
+## 📌 文档入口
 
 - **macOS 主应用（MIDI → 文本/快捷键/快捷指令）**：见下文「快速上手」「使用指南」
 - **Piano Dialogue（本机 AI 钢琴对话）**：见下文「🤖 Piano Dialogue」
@@ -26,77 +19,7 @@
 - **visionOS 踩坑 Playbook（XCDocs）**：见下文「🧰 visionOS 踩坑 Playbook（XCDocs）」
 - **研发计划/审计（内部）**：`.github/features/`（当前进行中）与 `.github/archived_features/`（历史归档，仅参考）
 
-## ✨ 功能亮点
-
-| 场景 | 能力 |
-|------|------|
-| 🎵 **单音符 → 文本** | 把任意音符映射成字符、单词或整段文本 |
-| 🎼 **和弦 → 组合键** | 一个和弦触发 `⌘C`、`⌘V`、`⌘⇧Z` 等任意快捷键 |
-| 🎶 **旋律 → 快捷指令** | 弹一段旋律，自动启动 macOS Shortcuts 或输入文本 |
-| 🎚️ **力度区分** | 同一个键，轻弹和重弹输出不同内容（如小写/大写） |
-| 🔄 **多 Profile 切换** | 编程、写作、演示……一键切换映射方案 |
-| 🎙️ **录音与回放** | 录制你的演奏，钢琴卷帘窗可视化 |
-
-## 🚀 快速上手
-
-1. **启动应用** → 主窗口直接显示
-2. **授予权限** → 点击 `Grant Permission`（首次必做，否则无法注入按键）
-3. **开始监听** → 点击 `Start Listening` 监听 MIDI 输入
-4. **添加规则** → 在 `Mappings` 页面配置你的映射
-5. **开始演奏** 🎹
-
-> ⚠️ **必须授予辅助功能权限**
-> 
-> 路径：`系统设置 > 隐私与安全性 > 辅助功能` → 勾选 **LonelyPianist**
-> 
-> 没有此权限，应用无法跨应用注入按键。授权后无需重启应用，状态会自动刷新。
-
----
-
 ## 🎛️ 使用指南
-
-### 单音符映射
-
-将 MIDI 音符（如 C4）映射为文本输出。支持力度阈值：
-
-- **普通力度**：输出小写字母（如 `a`）
-- **高力度**：输出大写字母（如 `A`）
-
-默认 QWERTY Profile 将 MIDI 48-83 映射到 `a-z`、`0-9`，力度阈值 100。
-
-### 和弦映射
-
-同时按下多个音符触发组合键：
-
-- **C+E+G** → `⌘C`（复制）
-- **D+F+A** → `⌘V`（粘贴）
-- **A+D+F** → `⌘Z`（撤销）
-
-支持三种动作类型：文本输入、组合键、macOS 快捷指令。
-
-### 旋律触发
-
-按顺序弹奏音符，在时间窗口内完成即可触发：
-
-- **E → E → G**（间隔 ≤ 500ms）→ 输入 "hello "
-- **C → D → E → G** → 启动 "Open Notion" 快捷指令
-
-### 录音与回放
-
-1. 切换到 `Recorder` 面板
-2. 点击录制按钮，开始演奏
-3. 停止后自动生成 Recording Take
-4. 在钢琴卷帘窗中查看音符分布
-5. 支持播放、暂停、拖拽进度条
-
-### 多 Profile 管理
-
-- **新建**：基于当前 Profile 创建新方案
-- **克隆**：完整复制当前 Profile
-- **切换**：下拉选择器即时切换
-- **删除**：删除当前激活的 Profile 时，自动激活最近更新的方案
-
----
 
 ## 🤖 Piano Dialogue（AI 钢琴对话模式）
 
@@ -348,62 +271,9 @@ cd piano_dialogue_server
 
 ---
 
-## 🧰 visionOS 踩坑 Playbook（XCDocs）
-
-这一节把我们实际踩过的坑收敛在一起，并附带可复用的 `xcdocs` 查询 URI，避免以后靠记忆猜 API。
-
-### 1) 首页背后出现 volume / 崩溃：scene role 不匹配
-
-- 现象：`UIWindowSceneSessionRoleVolumetricApplication` 找不到匹配 scene（Fatal error）
-- 根因：`Info.plist` 默认 role 与 `WindowGroup` 的 windowStyle 不一致
-- 修复：`LonelyPianistAVP/Info.plist` 里设 `UIApplicationPreferredDefaultSceneSessionRole = UIWindowSceneSessionRoleApplication`
-- 参考：
-  - `/documentation/BundleResources/Information-Property-List/UIApplicationPreferredDefaultSceneSessionRole#Possible-Values`
-  - `/documentation/SwiftUI/WindowStyle/automatic`
-
-### 2) MusicXML UTType 警告：Info.plist 缺 `UTImportedTypeDeclarations`
-
-- 现象：`UTType(importedAs: "com.recordare.musicxml")` 触发 “expected to be declared and imported in Info.plist”
-- 修复：在 `LonelyPianistAVP/Info.plist` 增加 `UTImportedTypeDeclarations`
-
-### 3) “unproject” 在 visionOS 不可用：文档存在但平台禁用
-
-- 现象：`EntityTargetValue.unproject` 编译报 visionOS unavailable
-- 修复：用 `SpatialTapGesture(coordinateSpace3D: .worldReference)` 的 `location3D` 拿 3D 点做校准
-- 参考：
-  - `/documentation/SwiftUI/SpatialTapGesture/init(count:coordinateSpace3D:)`
-  - `/documentation/SwiftUI/SpatialTapGesture/Value#Getting-the-tap-location`
-
-### 4) Swift 6 / MainActor warning：默认参数在 nonisolated 上下文求值
-
-- 现象：`Call to main actor-isolated initializer ... in a synchronous nonisolated context`
-- 修复：避免在 `@MainActor` 类型的 `init` 上使用会创建对象的默认参数；改为 `convenience init()` 在 MainActor 内构建默认依赖
-
-### 5) HandTracking 权限
-
-- 必备：`NSHandsTrackingUsageDescription`
-- 建议：`NSWorldSensingUsageDescription`
-- 参考：
-  - `/documentation/BundleResources/Information-Property-List/NSHandsTrackingUsageDescription#Details`
-  - `/documentation/BundleResources/Information-Property-List/NSWorldSensingUsageDescription#Details`
-
-### 建议的可复用查询模板（Copy & Paste）
-
-- SwiftUI / window 形态：
-  - `xcdocs search "WindowStyle volumetric" --framework SwiftUI --kind symbol --omit-content --json --limit 10`
-  - `xcdocs get /documentation/SwiftUI/WindowStyle/volumetric --json`
-- 手部追踪权限与 Provider：
-  - `xcdocs search "NSHandsTrackingUsageDescription" --omit-content --json --limit 10`
-  - `xcdocs get /documentation/BundleResources/Information-Property-List/NSHandsTrackingUsageDescription#Details --json`
-  - `xcdocs get /documentation/ARKit/HandTrackingProvider --json`
-- 空间点击拿 3D 点（校准/对齐）：
-  - `xcdocs search "SpatialTapGesture coordinateSpace3D" --framework SwiftUI --omit-content --json --limit 10`
-  - `xcdocs get /documentation/SwiftUI/SpatialTapGesture/init(count:coordinateSpace3D:) --json`
-  - `xcdocs get /documentation/SwiftUI/SpatialTapGesture/Value#Getting-the-tap-location --json`
-
 ## 🙏 致谢
 
-本项目的部分能力依赖以下开源项目/标准（排名不分先后）：
+本项目的部分能力依赖以下开源项目/标准：
 
 - `oemer`：用于 OMR（乐谱 PDF/图片 → MusicXML）的核心推理组件（Python）。
 - `PyMuPDF`：用于 PDF 渲染与页面提取（Python）。
@@ -418,13 +288,6 @@ cd piano_dialogue_server
 - 打开 MidiKeys 后，在 LonelyPianist 中点击 `Refresh MIDI Sources` 即可识别
 
 > 💡 **避坑提示**：不要用库乐队（GarageBand）测试 — 它的 MIDI 事件不会广播给外部应用。
-
----
-
-## 🗺️ Roadmap
-
-- [x] **Piano Dialogue（Turn-based）** — 弹一句，AI 接一句（本机后端 `ws://127.0.0.1:8765/ws`）
-- [ ] **Piano Dialogue（Real-time）** — 真同台即兴（流式生成 + 持续输出，规划中）
 
 ---
 
