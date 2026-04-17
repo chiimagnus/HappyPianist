@@ -12,8 +12,11 @@ struct PianoKeyGeometryService: PianoKeyGeometryServiceProtocol {
     func generateKeyRegions(from calibration: PianoCalibration) -> [PianoKeyRegion] {
         let a0 = calibration.a0.simdValue
         let c8 = calibration.c8.simdValue
-        let axis = simd_normalize(c8 - a0)
         let totalDistance = simd_length(c8 - a0)
+        guard totalDistance > 0.0001 else {
+            return []
+        }
+        let axis = simd_normalize(c8 - a0)
         let keySpacing = totalDistance / Float(max(1, keyCount - 1))
 
         let depth: Float = 0.14

@@ -28,6 +28,8 @@ struct MusicXMLParser: MusicXMLParserProtocol {
 }
 
 private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
+    private let normalizedTicksPerQuarter = 480
+
     private(set) var notes: [MusicXMLNoteEvent] = []
 
     private var currentPartID = "P1"
@@ -64,6 +66,9 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
         switch elementName {
         case "part":
             currentPartID = attributeDict["id"] ?? "P1"
+            if partDivisions[currentPartID] == nil {
+                partDivisions[currentPartID] = 1
+            }
             currentMeasureStartTick = partTick[currentPartID] ?? 0
             partMeasureMaxTick[currentPartID] = currentMeasureStartTick
         case "measure":
@@ -118,12 +123,13 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
             }
         case "duration":
             if let duration = Int(text), duration >= 0 {
+                let normalizedDuration = normalizeDuration(duration)
                 if isInNote {
-                    noteDuration = duration
+                    noteDuration = normalizedDuration
                 } else if isInBackup {
-                    moveCurrentTick(by: -duration)
+                    moveCurrentTick(by: -normalizedDuration)
                 } else if isInForward {
-                    moveCurrentTick(by: duration)
+                    moveCurrentTick(by: normalizedDuration)
                 }
             }
         case "step" where isInNote:
@@ -198,6 +204,12 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
         partTick[currentPartID] = moved
         let currentMax = partMeasureMaxTick[currentPartID] ?? currentMeasureStartTick
         partMeasureMaxTick[currentPartID] = max(currentMax, moved)
+    }
+
+    private func normalizeDuration(_ rawDuration: Int) -> Int {
+        let divisions = max(1, partDivisions[currentPartID] ?? 1)
+        let normalized = Double(rawDuration) * Double(normalizedTicksPerQuarter) / Double(divisions)
+        return max(0, Int(normalized.rounded()))
     }
 
     private static func makeMIDINote(step: String?, alter: Int, octave: Int?) -> Int? {

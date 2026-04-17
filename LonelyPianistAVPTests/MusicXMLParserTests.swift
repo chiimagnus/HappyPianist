@@ -49,7 +49,7 @@ func parserHandlesChordAndBackupTimeline() throws {
     #expect(score.notes[1].midiNote == 64)
     #expect(score.notes[1].isChord == true)
 
-    #expect(score.notes[2].tick == 2)
+    #expect(score.notes[2].tick == 480)
     #expect(score.notes[2].isRest == true)
 
     #expect(score.notes[3].tick == 0)
@@ -88,6 +88,6 @@ func parserHandlesForwardAcrossMeasures() throws {
     let score = try MusicXMLParser().parse(data: Data(xml.utf8))
     #expect(score.notes.count == 2)
     #expect(score.notes[0].tick == 0)
-    #expect(score.notes[1].tick == 4)
+    #expect(score.notes[1].tick == 1920)
     #expect(score.notes[1].midiNote == 62)
 }

@@ -54,6 +54,9 @@ final class CalibrationPointCaptureService {
         guard let a0Point, let c8Point else {
             return nil
         }
+        guard simd_length(c8Point - a0Point) > 0.05 else {
+            return nil
+        }
         return PianoCalibration(a0: a0Point, c8: c8Point, planeHeight: (a0Point.y + c8Point.y) / 2)
     }
 }
