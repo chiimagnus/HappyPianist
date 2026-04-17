@@ -12,6 +12,7 @@ final class PianoGuideOverlayController {
     func updateHighlights(
         currentStep: PracticeStep?,
         keyRegions: [PianoKeyRegion],
+        feedbackState: PracticeSessionViewModel.VisualFeedbackState,
         content: RealityViewContent
     ) {
         if hasAttachedRoot == false {
@@ -22,12 +23,22 @@ final class PianoGuideOverlayController {
         clearMarkers()
         guard let currentStep else { return }
 
+        let tintColor: UIColor
+        switch feedbackState {
+        case .none:
+            tintColor = UIColor.systemTeal.withAlphaComponent(0.65)
+        case .correct:
+            tintColor = UIColor.systemGreen.withAlphaComponent(0.75)
+        case .wrong:
+            tintColor = UIColor.systemRed.withAlphaComponent(0.75)
+        }
+
         let regionByNote = Dictionary(uniqueKeysWithValues: keyRegions.map { ($0.midiNote, $0) })
         for note in currentStep.notes {
             guard let region = regionByNote[note.midiNote] else { continue }
             let marker = ModelEntity(
                 mesh: .generateBox(size: SIMD3<Float>(region.size.x * 0.9, 0.01, region.size.z * 0.9)),
-                materials: [SimpleMaterial(color: UIColor.systemTeal.withAlphaComponent(0.65), isMetallic: false)]
+                materials: [SimpleMaterial(color: tintColor, isMetallic: false)]
             )
             marker.position = SIMD3<Float>(region.center.x, region.center.y + region.size.y * 0.6, region.center.z)
             rootEntity.addChild(marker)

@@ -5,6 +5,12 @@ import simd
 @MainActor
 @Observable
 final class PracticeSessionViewModel {
+    enum VisualFeedbackState: Equatable {
+        case none
+        case correct
+        case wrong
+    }
+
     enum PracticeState: Equatable {
         case idle
         case ready
@@ -16,10 +22,12 @@ final class PracticeSessionViewModel {
     private(set) var calibration: PianoCalibration?
     private(set) var keyRegions: [PianoKeyRegion] = []
     private(set) var pressedNotes: Set<Int> = []
+    private(set) var feedbackState: VisualFeedbackState = .none
     var noteMatchTolerance: Int = 1
 
     private let pressDetectionService: PressDetectionServiceProtocol
     private let stepMatcher: StepMatcherProtocol
+    private var feedbackResetTask: Task<Void, Never>?
 
     init(
         pressDetectionService: PressDetectionServiceProtocol = PressDetectionService(),
@@ -63,6 +71,7 @@ final class PracticeSessionViewModel {
     }
 
     func markCorrect() {
+        setFeedback(.correct)
         advanceToNextStep()
     }
 
@@ -82,7 +91,15 @@ final class PracticeSessionViewModel {
                     tolerance: noteMatchTolerance
                 )
                 if isMatched {
+                    setFeedback(.correct)
                     advanceToNextStep()
+                } else {
+                    let unrelatedPressDetected = detected.contains { pressed in
+                        expected.contains(where: { abs($0 - pressed) <= noteMatchTolerance }) == false
+                    }
+                    if unrelatedPressDetected {
+                        setFeedback(.wrong)
+                    }
                 }
             }
         }
@@ -100,6 +117,18 @@ final class PracticeSessionViewModel {
         } else {
             currentStepIndex = steps.count - 1
             state = .ready
+        }
+    }
+
+    private func setFeedback(_ state: VisualFeedbackState, duration: TimeInterval = 0.25) {
+        feedbackState = state
+        feedbackResetTask?.cancel()
+        feedbackResetTask = Task { [weak self] in
+            try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
+            guard Task.isCancelled == false else { return }
+            await MainActor.run {
+                self?.feedbackState = .none
+            }
         }
     }
 }

@@ -24,12 +24,17 @@ struct ImmersiveView: View {
                 overlayController.updateHighlights(
                     currentStep: appModel.practiceSessionViewModel.currentStep,
                     keyRegions: appModel.practiceSessionViewModel.keyRegions,
+                    feedbackState: appModel.practiceSessionViewModel.feedbackState,
                     content: content
                 )
             } update: { content in
+                _ = appModel.practiceSessionViewModel.handleFingerTipPositions(
+                    appModel.handTrackingService.fingerTipPositions
+                )
                 overlayController.updateHighlights(
                     currentStep: appModel.practiceSessionViewModel.currentStep,
                     keyRegions: appModel.practiceSessionViewModel.keyRegions,
+                    feedbackState: appModel.practiceSessionViewModel.feedbackState,
                     content: content
                 )
             }
@@ -44,6 +49,22 @@ struct ImmersiveView: View {
                     }
                     Button("Mark Correct") {
                         appModel.practiceSessionViewModel.markCorrect()
+                    }
+                }
+                HStack(spacing: 8) {
+                    Button("Tolerance -") {
+                        appModel.practiceSessionViewModel.noteMatchTolerance = max(
+                            0,
+                            appModel.practiceSessionViewModel.noteMatchTolerance - 1
+                        )
+                    }
+                    Text("Tolerance ±\(appModel.practiceSessionViewModel.noteMatchTolerance)")
+                        .font(.caption)
+                    Button("Tolerance +") {
+                        appModel.practiceSessionViewModel.noteMatchTolerance = min(
+                            2,
+                            appModel.practiceSessionViewModel.noteMatchTolerance + 1
+                        )
                     }
                 }
             }
@@ -71,7 +92,8 @@ struct ImmersiveView: View {
         case .idle:
             return "Hand tracking: idle"
         case .running:
-            return "Hand tracking: running (\(appModel.handTrackingService.fingerTipPositions.count) tips)"
+            let pressed = appModel.practiceSessionViewModel.pressedNotes.sorted()
+            return "Hand tracking: running (\(appModel.handTrackingService.fingerTipPositions.count) tips) | pressed: \(pressed)"
         case .unavailable(let reason):
             return "Hand tracking unavailable: \(reason). Use Mark Correct fallback."
         }
