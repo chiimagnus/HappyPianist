@@ -5,8 +5,6 @@
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20visionOS-lightgrey)
 ![Swift](https://img.shields.io/badge/Swift-6-orange)
-![Python](https://img.shields.io/badge/Python-3.12-blue)
-![Status](https://img.shields.io/badge/status-active%20development-brightgreen)
 
 ## ✨ LonelyPianist 是什么
 
