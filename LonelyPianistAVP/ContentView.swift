@@ -9,6 +9,7 @@ import SwiftUI
 import RealityKit
 import RealityKitContent
 import UniformTypeIdentifiers
+import UIKit
 
 struct ContentView: View {
     @Environment(AppModel.self) private var appModel
@@ -31,17 +32,33 @@ struct ContentView: View {
         RealityView { content in
             // Add the initial RealityKit content
             if let scene = try? await Entity(named: "Scene", in: realityKitContentBundle) {
+                scene.name = "RootScene"
+                scene.generateCollisionShapes(recursive: true)
                 content.add(scene)
             }
+
+            let reticle = ModelEntity(
+                mesh: .generateSphere(radius: 0.008),
+                materials: [SimpleMaterial(color: UIColor.systemYellow.withAlphaComponent(0.8), isMetallic: false)]
+            )
+            reticle.name = "CalibrationReticle"
+            reticle.position = calibrationCaptureService.reticlePoint
+            content.add(reticle)
         } update: { content in
             // Update the RealityKit content when SwiftUI state changes
-            if let scene = content.entities.first {
+            if let scene = content.entities.first(where: { $0.name == "RootScene" }) {
                 let uniformScale: Float = enlarge ? 1.4 : 1.0
                 scene.transform.scale = [uniformScale, uniformScale, uniformScale]
             }
+
+            if let reticle = content.entities.first(where: { $0.name == "CalibrationReticle" }) as? ModelEntity {
+                reticle.position = calibrationCaptureService.reticlePoint
+            }
         }
-        .gesture(TapGesture().targetedToAnyEntity().onEnded { _ in
-            enlarge.toggle()
+        .gesture(SpatialTapGesture(coordinateSpace3D: .worldReference).targetedToAnyEntity().onEnded { value in
+            let point3D = value.location3D
+            let point = SIMD3<Float>(Float(point3D.x), Float(point3D.y), Float(point3D.z))
+            calibrationCaptureService.updateReticleEstimate(point)
         })
         .toolbar {
             ToolbarItemGroup(placement: .bottomOrnament) {
