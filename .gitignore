@@ -4,11 +4,10 @@ xcuserdata/
 .build/
 .swiftpm/
 
-钢琴谱/
 .derivedData
 .derivedData-avp
+.github/钢琴谱/
 .github/features/
 .github/archived_features/
-.github/docs
 
 .xcodebuildmcp/
