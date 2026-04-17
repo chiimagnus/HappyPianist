@@ -6,230 +6,52 @@
   <img src="https://img.shields.io/badge/license-MIT-green?style=for-the-badge" alt="License">
 </p>
 
-<p align="center">
-  <em>弹个音符打字，按个和弦触发快捷键，来段旋律启动快捷指令。</em><br>
-  <strong>你的钢琴，不只是钢琴。</strong>
-</p>
-
 ---
 
-## ✨ 功能亮点
+## 一句话介绍
 
-| 场景 | 能力 |
-|------|------|
-| 🎵 **单音符 → 文本** | 把任意音符映射成字符、单词或整段文本 |
-| 🎼 **和弦 → 组合键** | 一个和弦触发 `⌘C`、`⌘V`、`⌘⇧Z` 等任意快捷键 |
-| 🎶 **旋律 → 快捷指令** | 弹一段旋律，自动启动 macOS Shortcuts 或输入文本 |
-| 🎚️ **力度区分** | 同一个键，轻弹和重弹输出不同内容（如小写/大写） |
-| 🔄 **多 Profile 切换** | 编程、写作、演示……一键切换映射方案 |
-| 🎙️ **录音与回放** | 录制你的演奏，钢琴卷帘窗可视化 |
+LonelyPianist 是一个“练琴辅助”工具集合：
 
-## 🚀 快速上手
+- `LonelyPianist/`：macOS 主应用（MIDI 监听与映射、对话模式入口等）
+- `LonelyPianistAVP/`：visionOS（Apple Vision Pro）端 AR Guide 原型（手部追踪 + 校准 + 指引）
+- `piano_dialogue_server/`：本机 Python 工作区（Piano Dialogue 后端 + OMR：PDF/图片→MusicXML）
 
-1. **启动应用** → 主窗口直接显示
-2. **授予权限** → 点击 `Grant Permission`（首次必做，否则无法注入按键）
-3. **开始监听** → 点击 `Start Listening` 监听 MIDI 输入
-4. **添加规则** → 在 `Mappings` 页面配置你的映射
-5. **开始演奏** 🎹
+## 📌 文档入口（完全拆分）
 
-> ⚠️ **必须授予辅助功能权限**
-> 
-> 路径：`系统设置 > 隐私与安全性 > 辅助功能` → 勾选 **LonelyPianist**
-> 
-> 没有此权限，应用无法跨应用注入按键。授权后无需重启应用，状态会自动刷新。
+- macOS 主应用：`LonelyPianist/README.md`
+- Apple Vision Pro（AR Guide）：`LonelyPianistAVP/README.md`
+- 本机 Python（Dialogue + OMR）：`piano_dialogue_server/README.md`
 
----
+（内部）研发计划/审计：
 
-## 🎛️ 使用指南
+- 最新需求草案：`.github/features/1.md`
+- 过程文档：`.github/features/`
 
-### 单音符映射
+## 📁 仓库结构
 
-将 MIDI 音符（如 C4）映射为文本输出。支持力度阈值：
+- `LonelyPianist.xcodeproj`：Xcode 工程入口
+- `LonelyPianist/`：macOS App 源码
+- `LonelyPianistAVP/`：visionOS App 源码
+- `LonelyPianistTests/`：macOS 单测（Swift Testing）
+- `LonelyPianistAVPTests/`：visionOS 单测（Swift Testing）
+- `piano_dialogue_server/`：Python 服务与 OMR 工具链
 
-- **普通力度**：输出小写字母（如 `a`）
-- **高力度**：输出大写字母（如 `A`）
+## 🚀 快速开始（只保留最短入口）
 
-默认 QWERTY Profile 将 MIDI 48-83 映射到 `a-z`、`0-9`，力度阈值 100。
+1. 打开 Xcode 工程：`LonelyPianist.xcodeproj`
+2. 选择 Scheme：
+   - macOS：`LonelyPianist`
+   - visionOS：`LonelyPianistAVP`
+3. 详细“运行/验收/排障”请按各目录 `README.md` 执行（避免重复与漂移）。
 
-### 和弦映射
+## 🙏 致谢
 
-同时按下多个音符触发组合键：
+本项目的部分能力依赖以下开源项目/标准：
 
-- **C+E+G** → `⌘C`（复制）
-- **D+F+A** → `⌘V`（粘贴）
-- **A+D+F** → `⌘Z`（撤销）
-
-支持三种动作类型：文本输入、组合键、macOS 快捷指令。
-
-### 旋律触发
-
-按顺序弹奏音符，在时间窗口内完成即可触发：
-
-- **E → E → G**（间隔 ≤ 500ms）→ 输入 "hello "
-- **C → D → E → G** → 启动 "Open Notion" 快捷指令
-
-### 录音与回放
-
-1. 切换到 `Recorder` 面板
-2. 点击录制按钮，开始演奏
-3. 停止后自动生成 Recording Take
-4. 在钢琴卷帘窗中查看音符分布
-5. 支持播放、暂停、拖拽进度条
-
-### 多 Profile 管理
-
-- **新建**：基于当前 Profile 创建新方案
-- **克隆**：完整复制当前 Profile
-- **切换**：下拉选择器即时切换
-- **删除**：删除当前激活的 Profile 时，自动激活最近更新的方案
-
----
-
-## 🤖 Piano Dialogue（AI 钢琴对话模式）
-
-> Turn-based：你弹一段 → 停顿 → AI 回一段（AI 音符会用橙色显示，并保存到 Recorder 的同一个 take 内）。
-
-### 1) 准备 Python 后端（首次必做）
-
-本仓库自带本机后端工作区：`piano_dialogue_server/`。
-
-创建虚拟环境并安装依赖：
-
-```bash
-cd piano_dialogue_server
-python3.12 -m venv .venv
-source .venv/bin/activate
-pip install -U pip
-pip install -r requirements.txt
-```
-
-（可选）离线验证脚本（P1，直接生成可试听的 MIDI，不需要启动服务）：
-
-```bash
-cd piano_dialogue_server
-source .venv/bin/activate
-python scripts/test_generate.py
-python scripts/test_infilling.py
-```
-
-输出位置：
-
-- `piano_dialogue_server/out/output.mid`
-- `piano_dialogue_server/out/output_infilling.mid`
-
-准备模型权重（不要提交仓库）：
-
-- 模型（服务默认）：`stanford-crfm/music-large-800k`
-- 放置路径：
-  - `piano_dialogue_server/models/music-large-800k/model.safetensors`
-  - `piano_dialogue_server/models/music-large-800k/config.json`
-
-（可选）如果你把模型放在其他目录，后端支持：
-
-```bash
-export AMT_MODEL_DIR=/path/to/music-large-800k
-```
-
-（可选）脚本/服务支持的环境变量：
-
-- `AMT_MODEL_DIR`：本地模型目录（优先级最高）
-- `AMT_MODEL_ID`：HuggingFace 模型 ID（`scripts/*` 默认是 `stanford-crfm/music-small-800k`；服务默认是 `stanford-crfm/music-large-800k`）
-- `AMT_DEVICE`：`mps` / `cuda` / `cpu`（默认自动选择）
-
-Apple Silicon 上如遇到算子不支持，可尝试：
-
-```bash
-export PYTORCH_ENABLE_MPS_FALLBACK=1
-```
-
-### 2) 启动后端服务（保持运行）
-
-在一个独立终端（或 tmux）里启动：
-
-```bash
-cd piano_dialogue_server/server
-../.venv/bin/python -m uvicorn main:app --host 127.0.0.1 --port 8765
-```
-
-（可选）开启后端调试包落地（默认关闭；会把每次 generate 的 request/response + prompt/reply MIDI 写到 `piano_dialogue_server/out/dialogue_debug/`）：
-
-```bash
-export DIALOGUE_DEBUG=1
-```
-
-健康检查：
-
-```bash
-curl -s http://127.0.0.1:8765/health
-```
-
-期望输出：
-
-```json
-{"status":"ok"}
-```
-
-（可选）端到端测试（会生成 `piano_dialogue_server/out/server_reply.mid`）：
-
-```bash
-cd piano_dialogue_server/server
-../.venv/bin/python test_client.py
-```
-
-### 3) 在 App 中使用 Dialogue
-
-1. 启动 LonelyPianist（主窗口直接显示）
-2. 首次使用仍需授予 **辅助功能权限**（否则无法开始监听）
-3. 点击 `Start Listening`
-4. 在侧边栏选择 `Dialogue`，点击 `Start Dialogue`
-5. 弹一段，停顿（默认静默 2s + 踏板抬起）后触发 AI 回应
-6. 回应会自动回放到你选择的 playback output，并保存为 take（Recorder 里可见）
-
-回放期间的输入策略（可持久化，默认 B）：
-
-- A Ignore：忽略你的输入
-- B Interrupt：你一按键就打断 AI，立刻开始收集下一句（默认）
-- C Queue：排队，AI 播完后再生成下一句
-
-### 4) OMR 入口（PDF/图片 → MusicXML）
-
-主 App 现在提供 `OMR` 面板（侧边栏）：
-
-1. 点击 `Select Score…` 选择 PDF 或图片
-2. 点击 `Convert`
-3. 成功后点击 `Reveal in Finder` 打开生成的 `score.musicxml`
-
-默认调用本地转换器工作区 `piano_dialogue_server`。若目录不在当前工作路径，可设置：
-
-```bash
-export LONELY_PIANIST_OMR_SERVER_DIR=/absolute/path/to/piano_dialogue_server
-```
-
-优先推荐设置已打包转换器二进制路径（用于分发形态）：
-
-```bash
-export LONELY_PIANIST_OMR_CONVERTER_BIN=/absolute/path/to/lp-omr-convert
-```
-
-转换输出默认写入 `~/Library/Application Support/LonelyPianist/omr-jobs/`。
-
----
-
-## 🎹 没有实体 MIDI 键盘？
-
-没问题！你可以用虚拟 MIDI 键盘测试：
-
-- 推荐 [MidiKeys](https://github.com/flit/MidiKeys)（开源免费）
-- 打开 MidiKeys 后，在 LonelyPianist 中点击 `Refresh MIDI Sources` 即可识别
-
-> 💡 **避坑提示**：不要用库乐队（GarageBand）测试 — 它的 MIDI 事件不会广播给外部应用。
-
----
-
-## 🗺️ Roadmap
-
-- [x] **Piano Dialogue（Turn-based）** — 弹一句，AI 接一句（本机后端 `ws://127.0.0.1:8765/ws`）
-- [ ] **Piano Dialogue（Real-time）** — 真同台即兴（流式生成 + 持续输出，规划中）
+- `oemer`：用于 OMR（乐谱 PDF/图片 → MusicXML）的核心推理组件（Python）。
+- `PyMuPDF`：用于 PDF 渲染与页面提取（Python）。
+- `FastAPI` / `Uvicorn`：用于本机 Python 服务与 HTTP 接口。
+- MusicXML：乐谱交换格式标准（AVP 导入以 MusicXML 为主）。
 
 ---
 

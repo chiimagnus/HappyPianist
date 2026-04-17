@@ -13,7 +13,7 @@ from anticipation.config import TIME_RESOLUTION
 from anticipation.vocab import DUR_OFFSET, MAX_PITCH, NOTE_OFFSET, REST, TIME_OFFSET
 import anticipation.sample as sample
 
-from protocol import DialogueNote, GenerateParams
+from .protocol import DialogueNote, GenerateParams
 
 
 def _ensure_hf_mirror_env() -> None:
