@@ -18,4 +18,5 @@ class AppModel {
         case open
     }
     var immersiveSpaceState = ImmersiveSpaceState.closed
+    var practiceSessionViewModel = PracticeSessionViewModel()
 }

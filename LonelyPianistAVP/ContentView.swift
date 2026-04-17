@@ -11,16 +11,21 @@ import RealityKitContent
 import UniformTypeIdentifiers
 
 struct ContentView: View {
+    @Environment(AppModel.self) private var appModel
 
     @State private var enlarge = false
     @State private var isImporterPresented = false
     @State private var importedFile: ImportedMusicXMLFile?
+    @State private var importedSteps: [PracticeStep] = []
     @State private var importErrorMessage: String?
     @State private var calibrationCaptureService = CalibrationPointCaptureService()
     @State private var calibrationStatusMessage: String?
 
     private let importService: MusicXMLImportServiceProtocol = MusicXMLImportService()
     private let calibrationStore: PianoCalibrationStoreProtocol = PianoCalibrationStore()
+    private let parser: MusicXMLParserProtocol = MusicXMLParser()
+    private let stepBuilder: PracticeStepBuilderProtocol = PracticeStepBuilder()
+    private let keyGeometryService: PianoKeyGeometryServiceProtocol = PianoKeyGeometryService()
 
     var body: some View {
         RealityView { content in
@@ -106,6 +111,20 @@ struct ContentView: View {
                         Text(calibrationStatusMessage)
                             .font(.caption)
                     }
+
+                    if let currentStep = appModel.practiceSessionViewModel.currentStep {
+                        Text("Current Step: \(stepSummary(for: currentStep))")
+                            .font(.caption)
+                    }
+
+                    HStack(spacing: 8) {
+                        Button("Skip") {
+                            appModel.practiceSessionViewModel.skip()
+                        }
+                        Button("Mark Correct") {
+                            appModel.practiceSessionViewModel.markCorrect()
+                        }
+                    }
                 }
             }
         }
@@ -118,6 +137,7 @@ struct ContentView: View {
         }
         .onAppear {
             calibrationCaptureService.updateReticleEstimate(SIMD3<Float>(0, 0.8, -1.0))
+            loadStoredCalibrationIfPossible()
         }
     }
 
@@ -126,7 +146,16 @@ struct ContentView: View {
             guard let selectedURL = try result.get().first else {
                 return
             }
-            importedFile = try importService.importFile(from: selectedURL)
+            let imported = try importService.importFile(from: selectedURL)
+            importedFile = imported
+            let score = try parser.parse(fileURL: imported.storedURL)
+            let buildResult = stepBuilder.buildSteps(from: score)
+            importedSteps = buildResult.steps
+            if let calibration = try calibrationStore.load() {
+                applySession(steps: importedSteps, calibration: calibration)
+            } else {
+                calibrationStatusMessage = "Imported score. Capture A0/C8 to start guiding."
+            }
             importErrorMessage = nil
         } catch {
             importErrorMessage = "Import failed: \(error.localizedDescription)"
@@ -141,9 +170,43 @@ struct ContentView: View {
             }
             try calibrationStore.save(calibration)
             calibrationStatusMessage = "Calibration saved."
+            if importedSteps.isEmpty == false {
+                applySession(steps: importedSteps, calibration: calibration)
+            }
         } catch {
             calibrationStatusMessage = "Failed to save calibration: \(error.localizedDescription)"
         }
+    }
+
+    private func applySession(steps: [PracticeStep], calibration: PianoCalibration) {
+        let regions = keyGeometryService.generateKeyRegions(from: calibration)
+        appModel.practiceSessionViewModel.configure(steps: steps, calibration: calibration, keyRegions: regions)
+        appModel.practiceSessionViewModel.startGuidingIfReady()
+    }
+
+    private func loadStoredCalibrationIfPossible() {
+        do {
+            guard let calibration = try calibrationStore.load() else { return }
+            calibrationCaptureService.a0Point = calibration.a0.simdValue
+            calibrationCaptureService.c8Point = calibration.c8.simdValue
+            calibrationCaptureService.updateReticleEstimate(calibration.a0.simdValue)
+            if importedSteps.isEmpty == false {
+                applySession(steps: importedSteps, calibration: calibration)
+            }
+        } catch {
+            calibrationStatusMessage = "Failed to load calibration: \(error.localizedDescription)"
+        }
+    }
+
+    private func stepSummary(for step: PracticeStep) -> String {
+        step.notes.map { midiToName($0.midiNote) }.joined(separator: " + ")
+    }
+
+    private func midiToName(_ midi: Int) -> String {
+        let names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
+        let octave = midi / 12 - 1
+        let index = max(0, min(11, midi % 12))
+        return "\(names[index])\(octave)"
     }
 }
 
