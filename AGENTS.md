@@ -19,6 +19,7 @@
 ## 测试指南
 
 - 测试框架：Swift Testing（`import Testing` + `@Test` + `#expect`），新增文件放 `LonelyPianistTests/`，命名 `*Tests.swift`。
+- visionOS 测试同样使用 Swift Testing；测试文件放 `LonelyPianistAVPTests/`，并用 `xcodebuild test -scheme LonelyPianistAVP -destination "platform=visionOS Simulator,name=Apple Vision Pro"` 跑（不要写 XCTest）。
 - 新增 Service Protocol 时提供最少 1 个测试替身（成功/失败各覆盖）；涉及时间窗口/节流时把时间源做成可注入依赖，避免真实等待。
 - 提交前手测：权限请求与状态刷新、Start Listening 后 Sources/MIDI Events 更新、Single/Chord/Melody 映射各验证一次、Profile 持久化（重启仍保留）。
 
