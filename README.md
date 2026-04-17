@@ -16,33 +16,6 @@
 - 🎭 **音乐对话** —— 你弹一句，AI 回一句，轮转式即兴（基于 [Anticipatory Music Transformer](https://crfm.stanford.edu/2023/06/16/anticipatory-music-transformer.html)）。
 - 🥽 **空间引导** —— 在 Apple Vision Pro 上，把 PDF/图片谱转成 MusicXML，空间高亮下一步该按的键。
 
-## 🧭 架构总览
-
-```mermaid
-flowchart LR
-    subgraph macOS[LonelyPianist · macOS]
-        A1[CoreMIDI Input] --> A2[ViewModel]
-        A2 --> A3[Mapping Engine]
-        A2 --> A4[Dialogue Manager]
-        A2 --> A5[SwiftData · Takes & Mappings]
-        A4 --> A6[Playback · Sampler/MIDI Out]
-    end
-    subgraph PY[piano_dialogue_server · Python]
-        P1[FastAPI] --> P2["Inference<br/>Anticipatory MT"]
-        P1 --> P3[OMR Routes]
-        P3 --> P4["oemer pipeline<br/>PDF/Image to MusicXML"]
-    end
-    subgraph AVP[LonelyPianistAVP · visionOS]
-        V1[MusicXML Parser] --> V2[Practice Session]
-        V3[HandTracking · ARKit] --> V2
-        V4[A0/C8 Calibration] --> V2
-        V2 --> V5[RealityKit Overlay]
-    end
-    A4 <-->|WebSocket /ws| P1
-    A2 -->|HTTP /omr/convert| P1
-    P4 -->|score.musicxml| V1
-```
-
 ## 🎯 核心功能
 
 | 能力 | 你能做什么 | 运行面 |
