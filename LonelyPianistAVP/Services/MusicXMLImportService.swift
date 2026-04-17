@@ -54,6 +54,6 @@ struct MusicXMLImportService: MusicXMLImportServiceProtocol {
 
 extension UTType {
     static var musicXML: UTType {
-        UTType(importedAs: "com.recordare.musicxml") ?? UTType(filenameExtension: "musicxml") ?? .xml
+        UTType(importedAs: "com.recordare.musicxml")
     }
 }
