@@ -6,6 +6,28 @@
 	<string>LonelyPianist uses hand tracking to detect which piano keys you press and to advance practice steps.</string>
 	<key>NSWorldSensingUsageDescription</key>
 	<string>LonelyPianist uses world sensing to align AR guidance with your piano.</string>
+	<key>UTImportedTypeDeclarations</key>
+	<array>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.xml</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>MusicXML</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.recordare.musicxml</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>musicxml</string>
+				</array>
+				<key>public.mime-type</key>
+				<string>application/vnd.recordare.musicxml+xml</string>
+			</dict>
+		</dict>
+	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationPreferredDefaultSceneSessionRole</key>
