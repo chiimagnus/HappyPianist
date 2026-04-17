@@ -4,6 +4,17 @@
 
 **导入 MusicXML → 校准钢琴空间位置 → 手部追踪判定按键 → 用 AR 高亮提示下一步。**
 
+## 沉浸式 vs 非沉浸式（用户体验）
+
+visionOS 里我们把体验拆成两部分：
+
+- **非沉浸式（2D Window）**：用于“文件导入、按钮控制、状态文字”（例如 `Import MusicXML…`、`Start AR Guide`、`Set A0/C8`、`Skip` 等）。
+- **沉浸式（Immersive Space）**：用于“空间内容与追踪”（指尖绿点、黄色 reticle 球、AR 高亮等）。
+
+你没进入沉浸式时：通常只会看到一个 2D 窗口（像一个面板）。
+
+你进入沉浸式后：你会看到 2D HUD 面板 + 空间中的视觉指引（reticle/手部点位/高亮）。
+
 ## 功能范围（MVP）
 
 - MusicXML 导入（来自 OMR 或人工准备）
@@ -13,13 +24,15 @@
 
 ## 验收流程（最短闭环）
 
-以根目录说明为准（避免重复与漂移）：
+1. **导入谱子（MusicXML）**：在 2D 窗口点 `Import MusicXML…`，看到 `Steps: N`（N>0）。
+2. **进入 AR Guide**：点 `Start AR Guide`，首次会弹出手部追踪权限弹窗，点允许。
+3. **确认沉浸式状态可见**：你应看到 HUD（`AR Guide` 面板）+ 黄色 reticle 球 + 手指绿点（指尖）。
+4. **校准（A0 / C8）**：在 HUD 点 `Set A0` / `Set C8`，对准真实钢琴两端键位，空间点击捕获，然后 `Save`。
+5. **练习指引**：校准完成后会显示当前 step 的键位高亮；可用 `Skip` / `Mark Correct` 辅助推进验证流程。
 
-- `README.md` →「🕶️ Apple Vision Pro（AR Guide）」→「验收流程（最短闭环）」
+> 重要：当前 MVP 的键位对齐依赖 **A0 / C8 两点校准**。如果高亮位置明显漂移，先重新校准再判断判定逻辑。
 
 ## 依赖与输入
 
 - 推荐输入：`MusicXML`
-- 如果你只有 PDF/图片谱：先走 OMR 转换（见根目录）
-  - `README.md` →「🧾 OMR：PDF/图片 → MusicXML」
-
+- 如果你只有 PDF/图片谱：先走 OMR 转换（见 `piano_dialogue_server/README.md`）
