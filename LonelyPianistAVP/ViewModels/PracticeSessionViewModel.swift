@@ -16,11 +16,17 @@ final class PracticeSessionViewModel {
     private(set) var calibration: PianoCalibration?
     private(set) var keyRegions: [PianoKeyRegion] = []
     private(set) var pressedNotes: Set<Int> = []
+    var noteMatchTolerance: Int = 1
 
     private let pressDetectionService: PressDetectionServiceProtocol
+    private let stepMatcher: StepMatcherProtocol
 
-    init(pressDetectionService: PressDetectionServiceProtocol = PressDetectionService()) {
+    init(
+        pressDetectionService: PressDetectionServiceProtocol = PressDetectionService(),
+        stepMatcher: StepMatcherProtocol = StepMatcher()
+    ) {
         self.pressDetectionService = pressDetectionService
+        self.stepMatcher = stepMatcher
     }
 
     var currentStepIndex: Int = 0 {
@@ -68,6 +74,17 @@ final class PracticeSessionViewModel {
         )
         if detected.isEmpty == false {
             pressedNotes = detected
+            if let currentStep {
+                let expected = currentStep.notes.map(\.midiNote)
+                let isMatched = stepMatcher.matches(
+                    expectedNotes: expected,
+                    pressedNotes: detected,
+                    tolerance: noteMatchTolerance
+                )
+                if isMatched {
+                    advanceToNextStep()
+                }
+            }
         }
         return detected
     }
