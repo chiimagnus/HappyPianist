@@ -8,10 +8,16 @@
 import SwiftUI
 import RealityKit
 import RealityKitContent
+import UniformTypeIdentifiers
 
 struct ContentView: View {
 
     @State private var enlarge = false
+    @State private var isImporterPresented = false
+    @State private var importedFile: ImportedMusicXMLFile?
+    @State private var importErrorMessage: String?
+
+    private let importService: MusicXMLImportServiceProtocol = MusicXMLImportService()
 
     var body: some View {
         RealityView { content in
@@ -32,6 +38,10 @@ struct ContentView: View {
         .toolbar {
             ToolbarItemGroup(placement: .bottomOrnament) {
                 VStack (spacing: 12) {
+                    Button("Import MusicXML…") {
+                        isImporterPresented = true
+                    }
+
                     Button {
                         enlarge.toggle()
                     } label: {
@@ -41,8 +51,38 @@ struct ContentView: View {
                     .fontWeight(.semibold)
 
                     ToggleImmersiveSpaceButton()
+
+                    if let importedFile {
+                        Text("Imported: \(importedFile.fileName)")
+                            .font(.caption)
+                    }
+
+                    if let importErrorMessage {
+                        Text(importErrorMessage)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
                 }
             }
+        }
+        .fileImporter(
+            isPresented: $isImporterPresented,
+            allowedContentTypes: [.xml, .musicXML],
+            allowsMultipleSelection: false
+        ) { result in
+            handleImportResult(result)
+        }
+    }
+
+    private func handleImportResult(_ result: Result<[URL], Error>) {
+        do {
+            guard let selectedURL = try result.get().first else {
+                return
+            }
+            importedFile = try importService.importFile(from: selectedURL)
+            importErrorMessage = nil
+        } catch {
+            importErrorMessage = "Import failed: \(error.localizedDescription)"
         }
     }
 }
