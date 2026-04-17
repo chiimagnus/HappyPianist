@@ -205,6 +205,14 @@ cd piano_dialogue_server/server
 export LONELY_PIANIST_OMR_SERVER_DIR=/absolute/path/to/piano_dialogue_server
 ```
 
+优先推荐设置已打包转换器二进制路径（用于分发形态）：
+
+```bash
+export LONELY_PIANIST_OMR_CONVERTER_BIN=/absolute/path/to/lp-omr-convert
+```
+
+转换输出默认写入 `~/Library/Application Support/LonelyPianist/omr-jobs/`。
+
 ---
 
 ## 🎹 没有实体 MIDI 键盘？

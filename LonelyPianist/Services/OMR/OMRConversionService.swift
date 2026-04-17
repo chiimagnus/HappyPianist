@@ -6,7 +6,8 @@ protocol OMRConversionServiceProtocol {
 
 enum OMRConversionError: LocalizedError {
     case serverDirectoryNotFound
-    case pythonInterpreterNotFound(URL)
+    case converterBinaryNotFound
+    case appSupportDirectoryUnavailable
     case conversionFailed(String)
     case outputPathMissing
 
@@ -14,8 +15,10 @@ enum OMRConversionError: LocalizedError {
         switch self {
         case .serverDirectoryNotFound:
             return "OMR server directory not found. Set LONELY_PIANIST_OMR_SERVER_DIR or run from repository root."
-        case .pythonInterpreterNotFound(let url):
-            return "Python interpreter not found at \(url.path)."
+        case .converterBinaryNotFound:
+            return "OMR converter binary not found. Set LONELY_PIANIST_OMR_CONVERTER_BIN or build packaging artifact."
+        case .appSupportDirectoryUnavailable:
+            return "Application Support directory is unavailable."
         case .conversionFailed(let message):
             return message
         case .outputPathMissing:
@@ -25,6 +28,11 @@ enum OMRConversionError: LocalizedError {
 }
 
 struct OMRConversionService: OMRConversionServiceProtocol {
+    private enum ConverterCommand {
+        case packagedBinary(URL)
+        case pythonInterpreter(URL, serverDirectory: URL)
+    }
+
     private let fileManager: FileManager
     private let environment: [String: String]
 
@@ -34,33 +42,34 @@ struct OMRConversionService: OMRConversionServiceProtocol {
     }
 
     func convert(inputURL: URL) throws -> URL {
-        let serverDirectory = try resolveServerDirectory()
-        let pythonPath = serverDirectory.appendingPathComponent(".venv/bin/python")
-        guard fileManager.fileExists(atPath: pythonPath.path) else {
-            throw OMRConversionError.pythonInterpreterNotFound(pythonPath)
-        }
+        let command = try resolveConverterCommand()
+        let outputRoot = try resolveAppOutputRoot()
 
         let process = Process()
-        process.executableURL = pythonPath
-        process.currentDirectoryURL = serverDirectory
-        process.arguments = ["-m", "omr.cli", "--input", inputURL.path]
-
-        let stdoutPipe = Pipe()
-        let stderrPipe = Pipe()
-        process.standardOutput = stdoutPipe
-        process.standardError = stderrPipe
-
-        try process.run()
-        process.waitUntilExit()
-
-        let stdout = String(data: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        let stderr = String(data: stderrPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-
-        guard process.terminationStatus == 0 else {
-            throw OMRConversionError.conversionFailed(stderr.isEmpty ? stdout : stderr)
+        switch command {
+        case .packagedBinary(let binaryURL):
+            process.executableURL = binaryURL
+            process.arguments = ["--input", inputURL.path, "--output-root", outputRoot.path]
+            process.currentDirectoryURL = binaryURL.deletingLastPathComponent()
+        case .pythonInterpreter(let pythonPath, let serverDirectory):
+            process.executableURL = pythonPath
+            process.currentDirectoryURL = serverDirectory
+            process.arguments = ["-m", "omr.cli", "--input", inputURL.path, "--output-root", outputRoot.path]
         }
 
-        let outputPath = stdout
+        let outputPipe = Pipe()
+        process.standardOutput = outputPipe
+        process.standardError = outputPipe
+
+        try process.run()
+        let output = String(data: outputPipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        process.waitUntilExit()
+
+        guard process.terminationStatus == 0 else {
+            throw OMRConversionError.conversionFailed(output)
+        }
+
+        let outputPath = output
             .split(separator: "\n")
             .first(where: { $0.hasPrefix("musicxml_path=") })
             .map { String($0.dropFirst("musicxml_path=".count)) }
@@ -70,6 +79,42 @@ struct OMRConversionService: OMRConversionServiceProtocol {
         }
 
         return URL(fileURLWithPath: outputPath)
+    }
+
+    private func resolveConverterCommand() throws -> ConverterCommand {
+        if let explicitBinary = environment["LONELY_PIANIST_OMR_CONVERTER_BIN"] {
+            let binaryURL = URL(fileURLWithPath: explicitBinary)
+            if fileManager.isExecutableFile(atPath: binaryURL.path) {
+                return .packagedBinary(binaryURL)
+            }
+        }
+
+        let bundledBinary = Bundle.main.resourceURL?.appendingPathComponent("lp-omr-convert")
+        if let bundledBinary, fileManager.isExecutableFile(atPath: bundledBinary.path) {
+            return .packagedBinary(bundledBinary)
+        }
+
+        let cwdBinary = URL(fileURLWithPath: fileManager.currentDirectoryPath)
+            .appendingPathComponent("piano_dialogue_server/omr/packaging/dist/lp-omr-convert/lp-omr-convert")
+        if fileManager.isExecutableFile(atPath: cwdBinary.path) {
+            return .packagedBinary(cwdBinary)
+        }
+
+        let serverDirectory = try resolveServerDirectory()
+        let pythonPath = serverDirectory.appendingPathComponent(".venv/bin/python")
+        if fileManager.isExecutableFile(atPath: pythonPath.path) {
+            return .pythonInterpreter(pythonPath, serverDirectory: serverDirectory)
+        }
+        throw OMRConversionError.converterBinaryNotFound
+    }
+
+    private func resolveAppOutputRoot() throws -> URL {
+        guard let appSupport = fileManager.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else {
+            throw OMRConversionError.appSupportDirectoryUnavailable
+        }
+        let outputRoot = appSupport.appendingPathComponent("LonelyPianist/omr-jobs", isDirectory: true)
+        try fileManager.createDirectory(at: outputRoot, withIntermediateDirectories: true)
+        return outputRoot
     }
 
     private func resolveServerDirectory() throws -> URL {
