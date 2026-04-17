@@ -7,20 +7,18 @@
 
 import SwiftUI
 import RealityKit
-import RealityKitContent
 import UniformTypeIdentifiers
-import UIKit
 
 struct ContentView: View {
     @Environment(AppModel.self) private var appModel
 
-    @State private var enlarge = false
     @State private var isImporterPresented = false
     @State private var importedFile: ImportedMusicXMLFile?
     @State private var importedSteps: [PracticeStep] = []
     @State private var importErrorMessage: String?
     @State private var calibrationCaptureService = CalibrationPointCaptureService()
     @State private var calibrationStatusMessage: String?
+    @State private var pendingCalibrationCaptureAnchor: CalibrationAnchorPoint?
 
     private let importService: MusicXMLImportServiceProtocol = MusicXMLImportService()
     private let calibrationStore: PianoCalibrationStoreProtocol = PianoCalibrationStore()
@@ -30,35 +28,31 @@ struct ContentView: View {
 
     var body: some View {
         RealityView { content in
-            // Add the initial RealityKit content
-            if let scene = try? await Entity(named: "Scene", in: realityKitContentBundle) {
-                scene.name = "RootScene"
-                scene.generateCollisionShapes(recursive: true)
-                content.add(scene)
-            }
-
-            let reticle = ModelEntity(
-                mesh: .generateSphere(radius: 0.008),
-                materials: [SimpleMaterial(color: UIColor.systemYellow.withAlphaComponent(0.8), isMetallic: false)]
+            let tapTarget = ModelEntity(
+                mesh: .generateBox(size: SIMD3<Float>(10, 10, 10)),
+                materials: [SimpleMaterial(color: .init(white: 1, alpha: 0), isMetallic: false)]
             )
-            reticle.name = "CalibrationReticle"
-            reticle.position = calibrationCaptureService.reticlePoint
-            content.add(reticle)
-        } update: { content in
-            // Update the RealityKit content when SwiftUI state changes
-            if let scene = content.entities.first(where: { $0.name == "RootScene" }) {
-                let uniformScale: Float = enlarge ? 1.4 : 1.0
-                scene.transform.scale = [uniformScale, uniformScale, uniformScale]
-            }
+            tapTarget.name = "TapTarget"
+            tapTarget.components.set(InputTargetComponent())
+            var collision = CollisionComponent(shapes: [.generateBox(size: SIMD3<Float>(10, 10, 10))])
+            collision.filter = CollisionFilter(group: [], mask: [])
+            tapTarget.components.set(collision)
 
-            if let reticle = content.entities.first(where: { $0.name == "CalibrationReticle" }) as? ModelEntity {
-                reticle.position = calibrationCaptureService.reticlePoint
-            }
+            let anchor = AnchorEntity(world: SIMD3<Float>(0, 0, 0))
+            anchor.addChild(tapTarget)
+            content.add(anchor)
+        } update: { content in
+            _ = content
         }
         .gesture(SpatialTapGesture(coordinateSpace3D: .worldReference).targetedToAnyEntity().onEnded { value in
             let point3D = value.location3D
             let point = SIMD3<Float>(Float(point3D.x), Float(point3D.y), Float(point3D.z))
             calibrationCaptureService.updateReticleEstimate(point)
+            if let pendingCalibrationCaptureAnchor {
+                calibrationCaptureService.capture(pendingCalibrationCaptureAnchor)
+                calibrationStatusMessage = "Captured \(pendingCalibrationCaptureAnchor == .a0 ? "A0" : "C8")"
+                self.pendingCalibrationCaptureAnchor = nil
+            }
         })
         .toolbar {
             ToolbarItemGroup(placement: .bottomOrnament) {
@@ -66,14 +60,6 @@ struct ContentView: View {
                     Button("Import MusicXML…") {
                         isImporterPresented = true
                     }
-
-                    Button {
-                        enlarge.toggle()
-                    } label: {
-                        Text(enlarge ? "Reduce RealityView Content" : "Enlarge RealityView Content")
-                    }
-                    .animation(.none, value: 0)
-                    .fontWeight(.semibold)
 
                     ToggleImmersiveSpaceButton()
 
@@ -88,15 +74,17 @@ struct ContentView: View {
                             .foregroundStyle(.red)
                     }
 
-                    Text("Calibration mode: \(calibrationCaptureService.mode == .raycast ? "Raycast" : "Manual Fallback")")
-                        .font(.caption)
+                    if let pendingCalibrationCaptureAnchor {
+                        Text("Tap to set: \(pendingCalibrationCaptureAnchor == .a0 ? "A0" : "C8")")
+                            .font(.caption)
+                    }
 
                     HStack(spacing: 8) {
-                        Button("Capture A0") {
-                            calibrationCaptureService.capture(.a0)
+                        Button("Set A0") {
+                            pendingCalibrationCaptureAnchor = .a0
                         }
-                        Button("Capture C8") {
-                            calibrationCaptureService.capture(.c8)
+                        Button("Set C8") {
+                            pendingCalibrationCaptureAnchor = .c8
                         }
                         Button("Save Calibration") {
                             saveCalibration()
