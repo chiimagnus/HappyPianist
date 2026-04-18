@@ -54,6 +54,15 @@ final class ARGuideViewModel {
         calibrationCaptureService.adjust(anchor: anchor, delta: SIMD3<Float>(x, 0, 0))
     }
 
+    func handleSpatialTap(worldPoint: SIMD3<Float>) {
+        calibrationCaptureService.updateReticleEstimate(worldPoint)
+        if let pendingAnchor = pendingCalibrationCaptureAnchor {
+            calibrationCaptureService.capture(pendingAnchor)
+            calibrationStatusMessage = "已捕获 \(pendingAnchor == .a0 ? "A0" : "C8")"
+            pendingCalibrationCaptureAnchor = nil
+        }
+    }
+
     func skipStep() {
         practiceSessionViewModel.skip()
     }

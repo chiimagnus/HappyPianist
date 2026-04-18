@@ -50,12 +50,7 @@ struct ImmersiveView: View {
         .gesture(SpatialTapGesture(coordinateSpace3D: .worldReference).onEnded { value in
             let point3D = value.location3D
             let point = SIMD3<Float>(Float(point3D.x), Float(point3D.y), Float(point3D.z))
-                viewModel.calibrationCaptureService.updateReticleEstimate(point)
-                if let pendingAnchor = viewModel.pendingCalibrationCaptureAnchor {
-                    viewModel.calibrationCaptureService.capture(pendingAnchor)
-                    viewModel.calibrationStatusMessage = "已捕获 \(pendingAnchor == .a0 ? "A0" : "C8")"
-                    viewModel.pendingCalibrationCaptureAnchor = nil
-                }
+            viewModel.handleSpatialTap(worldPoint: point)
             })
         .onAppear {
             viewModel.handTrackingService.start()
