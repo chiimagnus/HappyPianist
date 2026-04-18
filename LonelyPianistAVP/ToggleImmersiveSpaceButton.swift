@@ -49,7 +49,7 @@ struct ToggleImmersiveSpaceButton: View {
                 }
             }
         } label: {
-            Text(appModel.immersiveSpaceState == .open ? "Stop AR Guide" : "Start AR Guide")
+            Text(appModel.immersiveSpaceState == .open ? "结束 AR 引导" : "开始 AR 引导")
         }
         .disabled(appModel.immersiveSpaceState == .inTransition)
         .animation(.none, value: 0)

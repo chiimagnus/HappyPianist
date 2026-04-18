@@ -13,23 +13,23 @@ struct ContentView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            Text("LonelyPianist")
+            Text("孤独钢琴家")
                 .font(.largeTitle)
                 .fontWeight(.semibold)
 
             VStack(alignment: .leading, spacing: 10) {
-                Text("AR Guide")
+                Text("AR 引导")
                     .font(.headline)
 
                 HStack(spacing: 12) {
                     ToggleImmersiveSpaceButton()
 
-                    Text(appModel.immersiveSpaceState == .open ? "Running" : "Stopped")
+                    Text(appModel.immersiveSpaceState == .open ? "运行中" : "已停止")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
-                Text(appModel.calibration == nil ? "Calibration: not set" : "Calibration: loaded")
+                Text(appModel.calibration == nil ? "校准：未设置" : "校准：已加载")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -47,11 +47,11 @@ struct ContentView: View {
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
 
             VStack(alignment: .leading, spacing: 10) {
-                Text("Score")
+                Text("谱子")
                     .font(.headline)
 
                 HStack(spacing: 12) {
-                    Button("Import MusicXML…") {
+                    Button("导入 MusicXML…") {
                         isImporterPresented = true
                     }
 
@@ -60,7 +60,7 @@ struct ContentView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } else {
-                        Text("No score imported")
+                        Text("未导入谱子")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -73,7 +73,7 @@ struct ContentView: View {
                 }
 
                 if appModel.importedSteps.isEmpty == false {
-                    Text("Steps: \(appModel.importedSteps.count)")
+                    Text("步骤数：\(appModel.importedSteps.count)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -82,7 +82,7 @@ struct ContentView: View {
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
 
             VStack(alignment: .leading, spacing: 10) {
-                Text("Practice")
+                Text("练习")
                     .font(.headline)
 
                 Text(practiceStatusText)
@@ -91,14 +91,14 @@ struct ContentView: View {
 
                 if appModel.importedSteps.isEmpty == false {
                     HStack(spacing: 12) {
-                        Button("Skip") { appModel.practiceSessionViewModel.skip() }
+                        Button("跳过") { appModel.practiceSessionViewModel.skip() }
                             .disabled(appModel.immersiveSpaceState != .open)
 
-                        Button("Mark Correct") { appModel.practiceSessionViewModel.markCorrect() }
+                        Button("标记为正确") { appModel.practiceSessionViewModel.markCorrect() }
                             .disabled(appModel.immersiveSpaceState != .open)
                     }
                 } else {
-                    Text("Import a score to enable step controls.")
+                    Text("请先导入谱子以启用步骤控制。")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -144,24 +144,24 @@ struct ContentView: View {
 
     private var nextActionHint: String {
         if appModel.calibration == nil {
-            return "Next: Enter AR Guide, then use the HUD buttons: Set A0 → Set C8 → Save."
+            return "下一步：进入 AR 引导，然后依次点：设置 A0 → 设置 C8 → 保存。"
         }
         if appModel.importedSteps.isEmpty {
-            return "Next: Import MusicXML in this window."
+            return "下一步：在此窗口导入 MusicXML。"
         }
-        return "Next: Enter AR Guide to see highlighted keys and start guiding."
+        return "下一步：进入 AR 引导，查看键位高亮并开始练习。"
     }
 
     private var practiceStatusText: String {
         switch appModel.practiceSessionViewModel.state {
         case .idle:
-            return "Idle"
+            return "空闲"
         case .ready:
-            return "Ready (enter AR guide)"
+            return "就绪（进入 AR 引导）"
         case .guiding(let index):
-            return "Guiding (step \(index + 1))"
+            return "引导中（第 \(index + 1) 步）"
         case .completed:
-            return "Completed"
+            return "已完成"
         }
     }
 
@@ -174,11 +174,11 @@ struct ContentView: View {
             let score = try parser.parse(fileURL: importedFile.storedURL)
             let buildResult = stepBuilder.buildSteps(from: score)
             if buildResult.unsupportedNoteCount > 0 {
-                appModel.importErrorMessage = "Imported with \(buildResult.unsupportedNoteCount) unsupported notes ignored."
+                appModel.importErrorMessage = "已导入（忽略了 \(buildResult.unsupportedNoteCount) 个不支持的音符）。"
             }
             appModel.setImportedSteps(buildResult.steps, file: importedFile)
         } catch {
-            appModel.importErrorMessage = "Import failed: \(error.localizedDescription)"
+            appModel.importErrorMessage = "导入失败：\(error.localizedDescription)"
         }
     }
 }
@@ -195,11 +195,11 @@ private struct ARGuideSheetView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack(spacing: 12) {
-                Text("AR Guide")
+                Text("AR 引导")
                     .font(.title2)
                     .fontWeight(.semibold)
                 Spacer()
-                Button("Stop") {
+                Button("停止") {
                     Task { @MainActor in
                         await dismissImmersiveSpace()
                     }
@@ -220,7 +220,7 @@ private struct ARGuideSheetView: View {
             if appModel.calibration == nil {
                 calibrationControls
             } else if appModel.importedSteps.isEmpty {
-                Text("Import MusicXML in the main window to start guiding.")
+                Text("请在主窗口导入 MusicXML 以开始引导。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             } else {
@@ -241,36 +241,36 @@ private struct ARGuideSheetView: View {
 
     private var calibrationControls: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("Calibration")
+            Text("校准")
                 .font(.headline)
 
-            Text(appModel.pendingCalibrationCaptureAnchor == nil ? "Tap in space to preview the reticle." : "Tap in space to capture the selected anchor.")
+            Text(appModel.pendingCalibrationCaptureAnchor == nil ? "轻点空间预览准星。" : "轻点空间捕获所选锚点。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
             HStack(spacing: 12) {
-                Button("Set A0") { appModel.pendingCalibrationCaptureAnchor = .a0 }
-                Button("Set C8") { appModel.pendingCalibrationCaptureAnchor = .c8 }
-                Button("Save") { appModel.saveCalibrationIfPossible() }
+                Button("设置 A0") { appModel.pendingCalibrationCaptureAnchor = .a0 }
+                Button("设置 C8") { appModel.pendingCalibrationCaptureAnchor = .c8 }
+                Button("保存") { appModel.saveCalibrationIfPossible() }
                     .fontWeight(.semibold)
             }
 
-            Button("Manual Fallback") {
+            Button("手动微调") {
                 appModel.calibrationCaptureService.updateReticleEstimate(nil)
             }
 
             if appModel.calibrationCaptureService.mode == .manualFallback {
                 HStack(spacing: 8) {
-                    Button("A0 ◀︎") {
+                    Button("A0 左移") {
                         appModel.calibrationCaptureService.adjust(anchor: .a0, delta: SIMD3<Float>(-0.01, 0, 0))
                     }
-                    Button("A0 ▶︎") {
+                    Button("A0 右移") {
                         appModel.calibrationCaptureService.adjust(anchor: .a0, delta: SIMD3<Float>(0.01, 0, 0))
                     }
-                    Button("C8 ◀︎") {
+                    Button("C8 左移") {
                         appModel.calibrationCaptureService.adjust(anchor: .c8, delta: SIMD3<Float>(-0.01, 0, 0))
                     }
-                    Button("C8 ▶︎") {
+                    Button("C8 右移") {
                         appModel.calibrationCaptureService.adjust(anchor: .c8, delta: SIMD3<Float>(0.01, 0, 0))
                     }
                 }
@@ -280,32 +280,32 @@ private struct ARGuideSheetView: View {
 
     private var practiceControls: some View {
         HStack(spacing: 12) {
-            Button("Skip") { appModel.practiceSessionViewModel.skip() }
-            Button("Mark Correct") { appModel.practiceSessionViewModel.markCorrect() }
+            Button("跳过") { appModel.practiceSessionViewModel.skip() }
+            Button("标记为正确") { appModel.practiceSessionViewModel.markCorrect() }
         }
     }
 
     private var handTrackingStatusText: String {
         switch appModel.handTrackingService.state {
         case .idle:
-            return "Hands: idle"
+            return "手部：空闲"
         case .running:
-            return "Hands: running (\(appModel.handTrackingService.fingerTipPositions.count) tips)"
+            return "手部：运行中（\(appModel.handTrackingService.fingerTipPositions.count) 个点）"
         case .unavailable(let reason):
-            return "Hands: unavailable (\(reason))"
+            return "手部：不可用（\(reason)）"
         }
     }
 
     private var practiceStatusText: String {
         switch appModel.practiceSessionViewModel.state {
         case .idle:
-            return "Practice: idle"
+            return "练习：空闲"
         case .ready:
-            return "Practice: ready"
+            return "练习：就绪"
         case .guiding(let index):
-            return "Practice: guiding (step \(index + 1))"
+            return "练习：引导中（第 \(index + 1) 步）"
         case .completed:
-            return "Practice: completed"
+            return "练习：已完成"
         }
     }
 }

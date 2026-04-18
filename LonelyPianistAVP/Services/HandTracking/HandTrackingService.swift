@@ -22,7 +22,7 @@ final class HandTrackingService {
     func start() {
         guard updateTask == nil else { return }
         guard HandTrackingProvider.isSupported else {
-            state = .unavailable(reason: "Hand tracking is not supported on this device.")
+            state = .unavailable(reason: "此设备不支持手部追踪。")
             return
         }
 

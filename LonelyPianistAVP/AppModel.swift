@@ -58,23 +58,23 @@ class AppModel {
             calibrationCaptureService.a0Point = stored.a0.simdValue
             calibrationCaptureService.c8Point = stored.c8.simdValue
             calibrationCaptureService.updateReticleEstimate(stored.a0.simdValue)
-            calibrationStatusMessage = "Calibration loaded"
+            calibrationStatusMessage = "已加载校准"
         } catch {
-            calibrationStatusMessage = "Failed to load calibration: \(error.localizedDescription)"
+            calibrationStatusMessage = "加载校准失败：\(error.localizedDescription)"
         }
     }
 
     func saveCalibrationIfPossible() {
         guard let built = calibrationCaptureService.buildCalibration() else {
-            calibrationStatusMessage = "Calibration is incomplete"
+            calibrationStatusMessage = "校准信息不完整"
             return
         }
         do {
             try calibrationStore.save(built)
             calibration = built
-            calibrationStatusMessage = "Calibration saved"
+            calibrationStatusMessage = "已保存校准"
         } catch {
-            calibrationStatusMessage = "Failed to save calibration: \(error.localizedDescription)"
+            calibrationStatusMessage = "保存校准失败：\(error.localizedDescription)"
         }
     }
 
