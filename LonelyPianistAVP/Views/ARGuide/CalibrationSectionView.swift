@@ -12,15 +12,32 @@ struct CalibrationSectionView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                ControlGroup {
-                    Button("设置 A0") { viewModel.pendingCalibrationCaptureAnchor = .a0 }
-                        .hoverEffect()
-                    Button("设置 C8") { viewModel.pendingCalibrationCaptureAnchor = .c8 }
-                        .hoverEffect()
-                    Button("保存") { viewModel.saveCalibration() }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(viewModel.calibrationCaptureService.buildCalibration() == nil)
-                        .hoverEffect()
+                ViewThatFits {
+                    HStack(spacing: 10) {
+                        Button("设置 A0") { viewModel.pendingCalibrationCaptureAnchor = .a0 }
+                            .buttonStyle(.bordered)
+                            .hoverEffect()
+                        Button("设置 C8") { viewModel.pendingCalibrationCaptureAnchor = .c8 }
+                            .buttonStyle(.bordered)
+                            .hoverEffect()
+                        Button("保存") { viewModel.saveCalibration() }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(viewModel.calibrationCaptureService.buildCalibration() == nil)
+                            .hoverEffect()
+                    }
+
+                    VStack(alignment: .leading, spacing: 10) {
+                        Button("设置 A0") { viewModel.pendingCalibrationCaptureAnchor = .a0 }
+                            .buttonStyle(.bordered)
+                            .hoverEffect()
+                        Button("设置 C8") { viewModel.pendingCalibrationCaptureAnchor = .c8 }
+                            .buttonStyle(.bordered)
+                            .hoverEffect()
+                        Button("保存") { viewModel.saveCalibration() }
+                            .buttonStyle(.borderedProminent)
+                            .disabled(viewModel.calibrationCaptureService.buildCalibration() == nil)
+                            .hoverEffect()
+                    }
                 }
 
                 Button("手动微调") {
