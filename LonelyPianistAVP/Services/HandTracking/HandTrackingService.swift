@@ -18,6 +18,20 @@ final class HandTrackingService {
     private let session = ARKitSession()
     private let provider = HandTrackingProvider()
     private var updateTask: Task<Void, Never>?
+    private var fingerTipUpdatesContinuation: AsyncStream<[String: SIMD3<Float>]>.Continuation?
+
+    func fingerTipUpdatesStream() -> AsyncStream<[String: SIMD3<Float>]> {
+        AsyncStream { continuation in
+            fingerTipUpdatesContinuation?.finish()
+            fingerTipUpdatesContinuation = continuation
+            continuation.yield(fingerTipPositions)
+            continuation.onTermination = { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    self?.fingerTipUpdatesContinuation = nil
+                }
+            }
+        }
+    }
 
     func start() {
         guard updateTask == nil else { return }
@@ -39,6 +53,7 @@ final class HandTrackingService {
                             self.fingerTipPositions = self.fingerTipPositions.filter { key, _ in
                                 key.hasPrefix(chiralityPrefix) == false
                             }
+                            self.fingerTipUpdatesContinuation?.yield(self.fingerTipPositions)
                         }
                         continue
                     }
@@ -48,6 +63,7 @@ final class HandTrackingService {
                             key.hasPrefix(chiralityPrefix) == false
                         }
                         self.fingerTipPositions.merge(tips, uniquingKeysWith: { _, new in new })
+                        self.fingerTipUpdatesContinuation?.yield(self.fingerTipPositions)
                     }
                 }
             } catch {
@@ -55,12 +71,17 @@ final class HandTrackingService {
                     self.state = .unavailable(reason: error.localizedDescription)
                 }
             }
+            await MainActor.run {
+                self.updateTask = nil
+            }
         }
     }
 
     func stop() {
         updateTask?.cancel()
         updateTask = nil
+        fingerTipUpdatesContinuation?.finish()
+        fingerTipUpdatesContinuation = nil
         fingerTipPositions.removeAll()
         if case .running = state {
             state = .idle

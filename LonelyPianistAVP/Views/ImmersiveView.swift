@@ -9,7 +9,6 @@ struct ImmersiveView: View {
 
     var body: some View {
         RealityView { content in
-            viewModel.practiceSessionViewModel.startGuidingIfReady()
             calibrationOverlayController.update(
                 reticlePoint: viewModel.calibrationCaptureService.reticlePoint,
                 a0Point: viewModel.calibrationCaptureService.a0Point,
@@ -27,9 +26,6 @@ struct ImmersiveView: View {
                 content: content
             )
         } update: { content in
-            _ = viewModel.practiceSessionViewModel.handleFingerTipPositions(
-                viewModel.handTrackingService.fingerTipPositions
-            )
             calibrationOverlayController.update(
                 reticlePoint: viewModel.calibrationCaptureService.reticlePoint,
                 a0Point: viewModel.calibrationCaptureService.a0Point,
@@ -53,10 +49,10 @@ struct ImmersiveView: View {
             viewModel.handleSpatialTap(worldPoint: point)
             })
         .onAppear {
-            viewModel.handTrackingService.start()
+            viewModel.onImmersiveAppear()
         }
         .onDisappear {
-            viewModel.handTrackingService.stop()
+            viewModel.onImmersiveDisappear()
         }
     }
 }

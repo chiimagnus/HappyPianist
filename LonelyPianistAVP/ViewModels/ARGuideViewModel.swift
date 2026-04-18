@@ -7,6 +7,8 @@ import simd
 @Observable
 final class ARGuideViewModel {
     private let appModel: AppModel
+    private var handTrackingConsumerTask: Task<Void, Never>?
+    private var hasStartedGuidingInCurrentImmersiveSession = false
 
     init(appModel: AppModel) {
         self.appModel = appModel
@@ -69,6 +71,38 @@ final class ARGuideViewModel {
 
     func markCorrect() {
         practiceSessionViewModel.markCorrect()
+    }
+
+    func onImmersiveAppear() {
+        if hasStartedGuidingInCurrentImmersiveSession == false {
+            practiceSessionViewModel.startGuidingIfReady()
+            hasStartedGuidingInCurrentImmersiveSession = true
+        }
+        startHandTrackingIfNeeded()
+    }
+
+    func onImmersiveDisappear() {
+        hasStartedGuidingInCurrentImmersiveSession = false
+        stopHandTracking()
+    }
+
+    func startHandTrackingIfNeeded() {
+        guard handTrackingConsumerTask == nil else { return }
+        handTrackingService.start()
+        let updates = handTrackingService.fingerTipUpdatesStream()
+        handTrackingConsumerTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await fingerTips in updates {
+                guard Task.isCancelled == false else { return }
+                _ = self.practiceSessionViewModel.handleFingerTipPositions(fingerTips)
+            }
+        }
+    }
+
+    func stopHandTracking() {
+        handTrackingConsumerTask?.cancel()
+        handTrackingConsumerTask = nil
+        handTrackingService.stop()
     }
 
     func stopARGuide(using dismissImmersiveSpace: DismissImmersiveSpaceAction) {
