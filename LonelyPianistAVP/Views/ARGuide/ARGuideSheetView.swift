@@ -165,6 +165,64 @@ private struct CalibrationInstructions: View {
 }
 
 #Preview {
+    ARGuideSheetView(viewModel: ARGuideViewModel(appModel: AppModel()))
+}
+
+#Preview("AR 引导 - 校准（初始）") {
     let appModel = AppModel()
-    ARGuideSheetView(viewModel: ARGuideViewModel(appModel: appModel))
+    appModel.calibrationStatusMessage = "请重新校准"
+    return ARGuideSheetView(viewModel: ARGuideViewModel(appModel: appModel))
+}
+
+#Preview("AR 引导 - 校准（可保存）") {
+    let appModel = AppModel()
+    appModel.calibrationStatusMessage = "已捕获 A0/C8，可保存"
+    appModel.calibrationCaptureService.a0Point = SIMD3<Float>(-0.7, 0.8, -1.0)
+    appModel.calibrationCaptureService.c8Point = SIMD3<Float>(0.7, 0.8, -1.0)
+    return ARGuideSheetView(viewModel: ARGuideViewModel(appModel: appModel))
+}
+
+#Preview("AR 引导 - 未导入谱子") {
+    let appModel = AppModel()
+    appModel.calibration = PianoCalibration(
+        a0: SIMD3<Float>(-0.7, 0.8, -1.0),
+        c8: SIMD3<Float>(0.7, 0.8, -1.0),
+        planeHeight: 0.8
+    )
+    return ARGuideSheetView(viewModel: ARGuideViewModel(appModel: appModel))
+}
+
+#Preview("AR 引导 - 练习（就绪）") {
+    let appModel = AppModel()
+    appModel.calibration = PianoCalibration(
+        a0: SIMD3<Float>(-0.7, 0.8, -1.0),
+        c8: SIMD3<Float>(0.7, 0.8, -1.0),
+        planeHeight: 0.8
+    )
+    appModel.setImportedSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 21, staff: nil)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 60, staff: nil), PracticeStepNote(midiNote: 64, staff: nil)])
+        ],
+        file: nil
+    )
+    return ARGuideSheetView(viewModel: ARGuideViewModel(appModel: appModel))
+}
+
+#Preview("AR 引导 - 练习（引导中）") {
+    let appModel = AppModel()
+    appModel.calibration = PianoCalibration(
+        a0: SIMD3<Float>(-0.7, 0.8, -1.0),
+        c8: SIMD3<Float>(0.7, 0.8, -1.0),
+        planeHeight: 0.8
+    )
+    appModel.setImportedSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: nil)])
+        ],
+        file: nil
+    )
+    appModel.practiceSessionViewModel.startGuidingIfReady()
+    return ARGuideSheetView(viewModel: ARGuideViewModel(appModel: appModel))
 }
