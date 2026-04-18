@@ -374,3 +374,6 @@ Available shapes: `.roundedRectangle`, `.roundedRectangle(radius:)`, `.capsule`,
   - List of reasonable assumptions made.
 
 ## COMMANDS & TOOLS
+- **Docs (Preferred):** Use our local Codex skills:
+  - `xcdocs` CLI skill: `/Users/chii_magnus/.codex/skills/swift-dev/xcdocs`
+  - `visionos` skill: `/Users/chii_magnus/.codex/skills/swift-dev/visionos`
