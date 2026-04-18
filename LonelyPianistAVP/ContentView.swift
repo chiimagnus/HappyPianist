@@ -16,7 +16,36 @@ struct ContentView: View {
                 .font(.largeTitle)
                 .fontWeight(.semibold)
 
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("AR Guide")
+                    .font(.headline)
+
+                HStack(spacing: 12) {
+                    ToggleImmersiveSpaceButton()
+
+                    Text(appModel.immersiveSpaceState == .open ? "Running" : "Stopped")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Text(appModel.calibration == nil ? "Calibration: not set" : "Calibration: loaded")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Text(nextActionHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if let calibrationStatusMessage = appModel.calibrationStatusMessage {
+                    Text(calibrationStatusMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding()
+            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 10) {
                 Text("Score")
                     .font(.headline)
 
@@ -51,24 +80,7 @@ struct ContentView: View {
             .padding()
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Calibration")
-                    .font(.headline)
-
-                Text(appModel.calibration == nil ? "Not calibrated" : "Calibrated")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                if let calibrationStatusMessage = appModel.calibrationStatusMessage {
-                    Text(calibrationStatusMessage)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding()
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-
-            VStack(alignment: .leading, spacing: 8) {
+            VStack(alignment: .leading, spacing: 10) {
                 Text("Practice")
                     .font(.headline)
 
@@ -76,16 +88,18 @@ struct ContentView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                HStack(spacing: 12) {
-                    ToggleImmersiveSpaceButton()
+                if appModel.importedSteps.isEmpty == false {
+                    HStack(spacing: 12) {
+                        Button("Skip") { appModel.practiceSessionViewModel.skip() }
+                            .disabled(appModel.immersiveSpaceState != .open)
 
-                    Button("Skip") {
-                        appModel.practiceSessionViewModel.skip()
+                        Button("Mark Correct") { appModel.practiceSessionViewModel.markCorrect() }
+                            .disabled(appModel.immersiveSpaceState != .open)
                     }
-
-                    Button("Mark Correct") {
-                        appModel.practiceSessionViewModel.markCorrect()
-                    }
+                } else {
+                    Text("Import a score to enable step controls.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
             }
             .padding()
@@ -104,6 +118,16 @@ struct ContentView: View {
         .onAppear {
             appModel.loadStoredCalibrationIfPossible()
         }
+    }
+
+    private var nextActionHint: String {
+        if appModel.calibration == nil {
+            return "Next: Enter AR Guide, then use the HUD buttons: Set A0 → Set C8 → Save."
+        }
+        if appModel.importedSteps.isEmpty {
+            return "Next: Import MusicXML in this window."
+        }
+        return "Next: Enter AR Guide to see highlighted keys and start guiding."
     }
 
     private var practiceStatusText: String {
@@ -141,4 +165,3 @@ struct ContentView: View {
     ContentView()
         .environment(AppModel())
 }
-

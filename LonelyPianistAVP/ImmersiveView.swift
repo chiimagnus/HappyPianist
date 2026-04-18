@@ -14,66 +14,92 @@ struct ImmersiveView: View {
     @State private var overlayController = PianoGuideOverlayController()
     @State private var calibrationOverlayController = CalibrationOverlayController()
     @State private var handDebugOverlayController = HandDebugOverlayController()
+    @State private var hudAnchor = AnchorEntity(.head)
 
     var body: some View {
-        ZStack {
-            RealityView { content in
-                appModel.practiceSessionViewModel.startGuidingIfReady()
-                calibrationOverlayController.update(
-                    reticlePoint: appModel.calibrationCaptureService.reticlePoint,
-                    a0Point: appModel.calibrationCaptureService.a0Point,
-                    c8Point: appModel.calibrationCaptureService.c8Point,
-                    content: content
-                )
-                handDebugOverlayController.update(
-                    fingerTipPositions: appModel.handTrackingService.fingerTipPositions,
-                    content: content
-                )
-                overlayController.updateHighlights(
-                    currentStep: appModel.practiceSessionViewModel.currentStep,
-                    keyRegions: appModel.practiceSessionViewModel.keyRegions,
-                    feedbackState: appModel.practiceSessionViewModel.feedbackState,
-                    content: content
-                )
-            } update: { content in
-                _ = appModel.practiceSessionViewModel.handleFingerTipPositions(
-                    appModel.handTrackingService.fingerTipPositions
-                )
-                calibrationOverlayController.update(
-                    reticlePoint: appModel.calibrationCaptureService.reticlePoint,
-                    a0Point: appModel.calibrationCaptureService.a0Point,
-                    c8Point: appModel.calibrationCaptureService.c8Point,
-                    content: content
-                )
-                handDebugOverlayController.update(
-                    fingerTipPositions: appModel.handTrackingService.fingerTipPositions,
-                    content: content
-                )
-                overlayController.updateHighlights(
-                    currentStep: appModel.practiceSessionViewModel.currentStep,
-                    keyRegions: appModel.practiceSessionViewModel.keyRegions,
-                    feedbackState: appModel.practiceSessionViewModel.feedbackState,
-                    content: content
-                )
+        RealityView { content, attachments in
+            appModel.practiceSessionViewModel.startGuidingIfReady()
+            installHUD(content: content, attachments: attachments)
+            calibrationOverlayController.update(
+                reticlePoint: appModel.calibrationCaptureService.reticlePoint,
+                a0Point: appModel.calibrationCaptureService.a0Point,
+                c8Point: appModel.calibrationCaptureService.c8Point,
+                content: content
+            )
+            handDebugOverlayController.update(
+                fingerTipPositions: appModel.handTrackingService.fingerTipPositions,
+                content: content
+            )
+            overlayController.updateHighlights(
+                currentStep: appModel.practiceSessionViewModel.currentStep,
+                keyRegions: appModel.practiceSessionViewModel.keyRegions,
+                feedbackState: appModel.practiceSessionViewModel.feedbackState,
+                content: content
+            )
+        } update: { content, attachments in
+            installHUD(content: content, attachments: attachments)
+            _ = appModel.practiceSessionViewModel.handleFingerTipPositions(
+                appModel.handTrackingService.fingerTipPositions
+            )
+            calibrationOverlayController.update(
+                reticlePoint: appModel.calibrationCaptureService.reticlePoint,
+                a0Point: appModel.calibrationCaptureService.a0Point,
+                c8Point: appModel.calibrationCaptureService.c8Point,
+                content: content
+            )
+            handDebugOverlayController.update(
+                fingerTipPositions: appModel.handTrackingService.fingerTipPositions,
+                content: content
+            )
+            overlayController.updateHighlights(
+                currentStep: appModel.practiceSessionViewModel.currentStep,
+                keyRegions: appModel.practiceSessionViewModel.keyRegions,
+                feedbackState: appModel.practiceSessionViewModel.feedbackState,
+                content: content
+            )
+        } attachments: {
+            Attachment(id: "hud") {
+                guideHUDPanel
             }
-            .gesture(SpatialTapGesture(coordinateSpace3D: .worldReference).onEnded { value in
-                let point3D = value.location3D
-                let point = SIMD3<Float>(Float(point3D.x), Float(point3D.y), Float(point3D.z))
-                appModel.calibrationCaptureService.updateReticleEstimate(point)
-                if let pendingAnchor = appModel.pendingCalibrationCaptureAnchor {
-                    appModel.calibrationCaptureService.capture(pendingAnchor)
-                    appModel.calibrationStatusMessage = "Captured \(pendingAnchor == .a0 ? "A0" : "C8")"
-                    appModel.pendingCalibrationCaptureAnchor = nil
-                }
-            })
-
-            guideHUDPanel
         }
+        .gesture(SpatialTapGesture(coordinateSpace3D: .worldReference).onEnded { value in
+            let point3D = value.location3D
+            let point = SIMD3<Float>(Float(point3D.x), Float(point3D.y), Float(point3D.z))
+            appModel.calibrationCaptureService.updateReticleEstimate(point)
+            if let pendingAnchor = appModel.pendingCalibrationCaptureAnchor {
+                appModel.calibrationCaptureService.capture(pendingAnchor)
+                appModel.calibrationStatusMessage = "Captured \(pendingAnchor == .a0 ? "A0" : "C8")"
+                appModel.pendingCalibrationCaptureAnchor = nil
+            }
+        })
         .onAppear {
             appModel.handTrackingService.start()
         }
         .onDisappear {
             appModel.handTrackingService.stop()
+        }
+    }
+
+    private func installHUD(content: RealityViewContent, attachments: RealityViewAttachments) {
+        guard hudAnchor.parent == nil else {
+            if let entity = attachments.entity(for: "hud") {
+                ensureHUDChild(entity)
+            }
+            return
+        }
+        hudAnchor.name = "hud-anchor"
+        if let entity = attachments.entity(for: "hud") {
+            entity.name = "hud"
+            entity.position = SIMD3<Float>(0, -0.12, -0.6)
+            ensureHUDChild(entity)
+        }
+        content.add(hudAnchor)
+    }
+
+    private func ensureHUDChild(_ entity: Entity) {
+        if hudAnchor.children.contains(where: { $0.name == "hud" }) == false {
+            entity.position = SIMD3<Float>(0, -0.12, -0.6)
+            hudAnchor.addChild(entity)
         }
     }
 
@@ -98,12 +124,17 @@ struct ImmersiveView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            if appModel.importedSteps.isEmpty {
+            if appModel.calibration == nil {
+                if appModel.importedSteps.isEmpty {
+                    Text("No score loaded. Import MusicXML in the window to start guiding.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                calibrationControls
+            } else if appModel.importedSteps.isEmpty {
                 Text("No score loaded. Import MusicXML in the window to start guiding.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
-            } else if appModel.calibration == nil {
-                calibrationControls
             } else {
                 practiceControls
             }
