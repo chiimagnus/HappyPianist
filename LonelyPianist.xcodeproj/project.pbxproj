@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		D85596AE2F83FF72005BE7FE /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = D85596AD2F83FF72005BE7FE /* RealityKitContent */; };
 		D87909592F88DA6D0088F3E2 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = D87909582F88DA6D0088F3E2 /* README.md */; };
-		D879095B2F88DA7D0088F3E2 /* AGENTS.md in Resources */ = {isa = PBXBuildFile; fileRef = D879095A2F88DA7D0088F3E2 /* AGENTS.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -34,7 +33,6 @@
 		D85596AC2F83FF72005BE7FE /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = text; path = RealityKitContent; sourceTree = "<group>"; };
 		D85596BC2F83FF74005BE7FE /* LonelyPianistAVPTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LonelyPianistAVPTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D87909582F88DA6D0088F3E2 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
-		D879095A2F88DA7D0088F3E2 /* AGENTS.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = AGENTS.md; sourceTree = "<group>"; };
 		D8D4280D2F4DFD3800EC9C9B /* LonelyPianist.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LonelyPianist.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E10000012A9B000100000001 /* LonelyPianistTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LonelyPianistTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -61,11 +59,6 @@
 		D85596BF2F83FF74005BE7FE /* LonelyPianistAVPTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = LonelyPianistAVPTests;
-			sourceTree = "<group>";
-		};
-		D8790A192F88DAE50088F3E2 /* .github */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = .github;
 			sourceTree = "<group>";
 		};
 		D8D4280F2F4DFD3800EC9C9B /* LonelyPianist */ = {
@@ -131,8 +124,6 @@
 				D85596BF2F83FF74005BE7FE /* LonelyPianistAVPTests */,
 				D8D4280E2F4DFD3800EC9C9B /* Products */,
 				D87909582F88DA6D0088F3E2 /* README.md */,
-				D879095A2F88DA7D0088F3E2 /* AGENTS.md */,
-				D8790A192F88DAE50088F3E2 /* .github */,
 			);
 			sourceTree = "<group>";
 		};
@@ -311,7 +302,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				D87909592F88DA6D0088F3E2 /* README.md in Resources */,
-				D879095B2F88DA7D0088F3E2 /* AGENTS.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
