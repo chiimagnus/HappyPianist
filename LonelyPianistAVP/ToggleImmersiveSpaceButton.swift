@@ -1,15 +1,8 @@
-//
-//  ToggleImmersiveSpaceButton.swift
-//  LonelyPianistAVP
-//
-//  Created by chii_magnus on 2026/4/6.
-//
-
 import SwiftUI
 
 struct ToggleImmersiveSpaceButton: View {
 
-    @Environment(AppModel.self) private var appModel
+    @Bindable var viewModel: HomeViewModel
 
     @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
@@ -17,18 +10,18 @@ struct ToggleImmersiveSpaceButton: View {
     var body: some View {
         Button {
             Task { @MainActor in
-                switch appModel.immersiveSpaceState {
+                switch viewModel.immersiveSpaceState {
                     case .open:
-                        appModel.immersiveSpaceState = .inTransition
+                        viewModel.setImmersiveSpaceState(.inTransition)
                         await dismissImmersiveSpace()
                         // Don't set immersiveSpaceState to .closed because there
                         // are multiple paths to ImmersiveView.onDisappear().
                         // Only set .closed in ImmersiveView.onDisappear().
 
                     case .closed:
-                        appModel.immersiveSpaceState = .inTransition
-                        appModel.beginNewARGuideSession()
-                        switch await openImmersiveSpace(id: appModel.immersiveSpaceID) {
+                        viewModel.setImmersiveSpaceState(.inTransition)
+                        viewModel.beginNewARGuideSession()
+                        switch await openImmersiveSpace(id: viewModel.immersiveSpaceID) {
                             case .opened:
                                 // Don't set immersiveSpaceState to .open because there
                                 // may be multiple paths to ImmersiveView.onAppear().
@@ -41,7 +34,7 @@ struct ToggleImmersiveSpaceButton: View {
                                 fallthrough
                             @unknown default:
                                 // On unknown response, assume space did not open.
-                                appModel.immersiveSpaceState = .closed
+                                viewModel.setImmersiveSpaceState(.closed)
                         }
 
                     case .inTransition:
@@ -51,14 +44,14 @@ struct ToggleImmersiveSpaceButton: View {
             }
         } label: {
             Label(
-                appModel.immersiveSpaceState == .open ? "结束 AR 引导" : "开始 AR 引导",
-                systemImage: appModel.immersiveSpaceState == .open ? "stop.fill" : "play.fill"
+                viewModel.immersiveSpaceState == .open ? "结束 AR 引导" : "开始 AR 引导",
+                systemImage: viewModel.immersiveSpaceState == .open ? "stop.fill" : "play.fill"
             )
         }
-        .disabled(appModel.immersiveSpaceState == .inTransition)
+        .disabled(viewModel.immersiveSpaceState == .inTransition)
         .animation(.none, value: 0)
         .buttonStyle(.borderedProminent)
-        .tint(appModel.immersiveSpaceState == .open ? .red : .accentColor)
+        .tint(viewModel.immersiveSpaceState == .open ? .red : .accentColor)
         .fontWeight(.semibold)
         .hoverEffect()
     }

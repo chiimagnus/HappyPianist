@@ -1,27 +1,27 @@
-//
-//  LonelyPianistAVPApp.swift
-//  LonelyPianistAVP
-//
-//  Created by chii_magnus on 2026/4/6.
-//
-
 import SwiftUI
 
 @main
 struct LonelyPianistAVPApp: App {
 
-    @State private var appModel = AppModel()
+    @State private var appModel: AppModel
+    @State private var homeViewModel: HomeViewModel
+    @State private var arGuideViewModel: ARGuideViewModel
+
+    init() {
+        let appModel = AppModel()
+        _appModel = State(initialValue: appModel)
+        _homeViewModel = State(initialValue: HomeViewModel(appModel: appModel))
+        _arGuideViewModel = State(initialValue: ARGuideViewModel(appModel: appModel))
+    }
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
-                .environment(appModel)
+            ContentView(homeViewModel: homeViewModel, arGuideViewModel: arGuideViewModel)
         }
         .windowStyle(.automatic)
 
         ImmersiveSpace(id: appModel.immersiveSpaceID) {
-            ImmersiveView()
-                .environment(appModel)
+            ImmersiveView(viewModel: arGuideViewModel)
                 .onAppear {
                     appModel.immersiveSpaceState = .open
                 }

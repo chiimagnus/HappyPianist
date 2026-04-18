@@ -1,10 +1,3 @@
-//
-//  AppModel.swift
-//  LonelyPianistAVP
-//
-//  Created by chii_magnus on 2026/4/6.
-//
-
 import SwiftUI
 
 /// Maintains app-wide state
@@ -40,17 +33,17 @@ class AppModel {
     private let stepBuilder: PracticeStepBuilderProtocol
 
     init(
-        calibrationStore: PianoCalibrationStoreProtocol = PianoCalibrationStore(),
-        keyGeometryService: PianoKeyGeometryServiceProtocol = PianoKeyGeometryService(),
-        importService: MusicXMLImportServiceProtocol = MusicXMLImportService(),
-        parser: MusicXMLParserProtocol = MusicXMLParser(),
-        stepBuilder: PracticeStepBuilderProtocol = PracticeStepBuilder()
+        calibrationStore: PianoCalibrationStoreProtocol? = nil,
+        keyGeometryService: PianoKeyGeometryServiceProtocol? = nil,
+        importService: MusicXMLImportServiceProtocol? = nil,
+        parser: MusicXMLParserProtocol? = nil,
+        stepBuilder: PracticeStepBuilderProtocol? = nil
     ) {
-        self.calibrationStore = calibrationStore
-        self.keyGeometryService = keyGeometryService
-        self.importService = importService
-        self.parser = parser
-        self.stepBuilder = stepBuilder
+        self.calibrationStore = calibrationStore ?? PianoCalibrationStore()
+        self.keyGeometryService = keyGeometryService ?? PianoKeyGeometryService()
+        self.importService = importService ?? MusicXMLImportService()
+        self.parser = parser ?? MusicXMLParser()
+        self.stepBuilder = stepBuilder ?? PracticeStepBuilder()
     }
 
     func beginNewARGuideSession() {
