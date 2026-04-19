@@ -5,12 +5,20 @@ import SwiftUI
 @Observable
 class AppModel {
     let immersiveSpaceID = "ImmersiveSpace"
+
     enum ImmersiveSpaceState {
         case closed
         case inTransition
         case open
     }
+
+    enum ImmersiveMode {
+        case calibration
+        case practice
+    }
+
     var immersiveSpaceState = ImmersiveSpaceState.closed
+    var immersiveMode: ImmersiveMode = .practice
 
     let practiceSessionViewModel: PracticeSessionViewModel
     let handTrackingService: HandTrackingService
@@ -52,7 +60,7 @@ class AppModel {
         self.calibrationCaptureService = calibrationCaptureService ?? CalibrationPointCaptureService()
     }
 
-    func beginNewARGuideSession() {
+    func beginCalibrationRecapture() {
         pendingCalibrationCaptureAnchor = nil
         calibrationStatusMessage = "请重新校准"
         calibration = nil

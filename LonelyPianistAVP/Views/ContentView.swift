@@ -2,79 +2,43 @@ import SwiftUI
 import UniformTypeIdentifiers
 import simd
 
+fileprivate enum MainFlowRoute: Hashable {
+    case calibration
+    case practice
+}
+
 struct ContentView: View {
     @Bindable var homeViewModel: HomeViewModel
     @Bindable var arGuideViewModel: ARGuideViewModel
 
-    @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
+    @State private var navigationPath: [MainFlowRoute] = []
+    @ScaledMetric(relativeTo: .title) private var stepOrbSize: CGFloat = 250
 
     var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    Text("按步骤完成：校准 → 导入谱子 → AR 引导练习。")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-
-                Section {
-                    LabeledContent("AR 引导") {
-                        Text(homeViewModel.immersiveStatusText)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    LabeledContent("校准") {
-                        Text(homeViewModel.calibrationStatusText)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    LabeledContent("谱子") {
-                        Text(homeViewModel.scoreStatusText)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    if let stepCountText = homeViewModel.stepCountText {
-                        LabeledContent("步骤") {
-                            Text(stepCountText)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                } header: {
-                    Text("状态")
-                } footer: {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(homeViewModel.nextActionHint)
-                        if let message = homeViewModel.calibrationStatusMessage {
-                            Text(message)
-                        }
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                }
-
-                Section("谱子") {
-                    Text("导入 MusicXML 后会生成练习步骤。")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    if let importErrorMessage = homeViewModel.importErrorMessage {
-                        Text(importErrorMessage)
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    }
-
-                    Button("导入 MusicXML…") {
-                        homeViewModel.isImporterPresented = true
-                    }
-                    .buttonStyle(.bordered)
-                    .disabled(homeViewModel.canImportScore == false)
-                    .hoverEffect()
+        NavigationStack(path: $navigationPath) {
+            mainFlowPanel
+                .padding(18)
+            .navigationTitle("孤独钢琴家")
+            .navigationDestination(for: MainFlowRoute.self) { route in
+                switch route {
+                case .calibration:
+                    CalibrationStepView(viewModel: arGuideViewModel)
+                        .navigationTitle("Step 1 · 校准")
+                case .practice:
+                    PracticeStepView(viewModel: arGuideViewModel)
+                        .navigationTitle("Step 2 · 开始练习")
                 }
             }
-            .navigationTitle("孤独钢琴家")
-            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                if navigationPath.isEmpty, homeViewModel.canImportScore {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("导入 MusicXML…") {
+                            homeViewModel.isImporterPresented = true
+                        }
+                    }
+                }
+            }
         }
-        .buttonBorderShape(.roundedRectangle)
         .fileImporter(
             isPresented: $homeViewModel.isImporterPresented,
             allowedContentTypes: [.xml, .musicXML],
@@ -82,70 +46,115 @@ struct ContentView: View {
         ) { result in
             homeViewModel.handleImportResult(result)
         }
-        .sheet(isPresented: arGuideSheetIsPresented) {
-            ARGuideSheetView(viewModel: arGuideViewModel)
-        }
-        .ornament(attachmentAnchor: .scene(.bottom), contentAlignment: .center) {
-            HStack(spacing: 12) {
-                ToggleImmersiveSpaceButton(viewModel: homeViewModel)
-
-                Button("导入 MusicXML…") {
-                    homeViewModel.isImporterPresented = true
+        .alert(
+            "导入失败",
+            isPresented: Binding(
+                get: { homeViewModel.importErrorMessage != nil },
+                set: { isPresented in
+                    if isPresented == false {
+                        homeViewModel.clearImportError()
+                    }
                 }
-                .buttonStyle(.bordered)
-                .disabled(homeViewModel.canImportScore == false)
-                .hoverEffect()
+            )
+        ) {
+            Button("好") {
+                homeViewModel.clearImportError()
             }
-            .controlSize(.large)
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .glassBackgroundEffect()
+        } message: {
+            Text(homeViewModel.importErrorMessage ?? "未知错误")
         }
     }
 
-    private var arGuideSheetIsPresented: Binding<Bool> {
-        Binding(
-            get: { homeViewModel.immersiveSpaceState != .closed },
-            set: { isPresented in
-                guard isPresented == false else { return }
-                homeViewModel.stopARGuide(using: dismissImmersiveSpace)
-            }
-        )
+    private var mainFlowPanel: some View {
+        HStack(alignment: .center) {
+            Spacer()
+
+            StepOrbLink(
+                title: "校准",
+                stepLabel: "第一步",
+                isEnabled: true,
+                route: .calibration,
+                helpText: nil,
+                orbSize: stepOrbSize
+            )
+
+            Spacer()
+
+            Image(systemName: "arrow.right")
+
+            Spacer()
+
+            StepOrbLink(
+                title: "开始练习",
+                stepLabel: "第二步",
+                isEnabled: homeViewModel.canEnterPractice,
+                route: .practice,
+                helpText: homeViewModel.canEnterPractice ? nil : "需要先完成校准并导入 MusicXML",
+                orbSize: stepOrbSize
+            )
+            .opacity(homeViewModel.canEnterPractice ? 1.0 : 0.45)
+
+            Spacer()
+        }
     }
 }
 
-#Preview("主页 - 初始") {
+private struct StepOrbLink: View {
+    let title: String
+    let stepLabel: String
+    let isEnabled: Bool
+    let route: MainFlowRoute
+    let helpText: String?
+    let orbSize: CGFloat
+
+    var body: some View {
+        VStack(spacing: 10) {
+            let base = NavigationLink(value: route) {
+                ZStack {
+                    Text(title)
+                        .font(.title3.weight(.semibold))
+                        .multilineTextAlignment(.center)
+                        .frame(width: orbSize, height: orbSize)
+
+                    if isEnabled == false {
+                        VStack {
+                            Spacer()
+                            Image(systemName: "lock.fill")
+                                .font(.title3.weight(.semibold))
+                                .foregroundStyle(.secondary)
+                        }
+                        .frame(width: orbSize, height: orbSize)
+                        .padding(.bottom, 14)
+                    }
+                }
+            }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.circle)
+            .controlSize(.extraLarge)
+            .disabled(isEnabled == false)
+
+            if let helpText {
+                base.help(helpText)
+            } else {
+                base
+            }
+
+            Text(stepLabel)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+#Preview("主页 - Step2 未解锁") {
     let appModel = AppModel()
-    appModel.calibrationStatusMessage = "请重新校准"
     return ContentView(
         homeViewModel: HomeViewModel(appModel: appModel),
         arGuideViewModel: ARGuideViewModel(appModel: appModel)
     )
 }
 
-#Preview("主页 - 默认") {
-    let appModel = AppModel()
-    return ContentView(
-        homeViewModel: HomeViewModel(appModel: appModel),
-        arGuideViewModel: ARGuideViewModel(appModel: appModel)
-    )
-}
-
-#Preview("主页 - 已校准") {
-    let appModel = AppModel()
-    appModel.calibration = PianoCalibration(
-        a0: SIMD3<Float>(-0.7, 0.8, -1.0),
-        c8: SIMD3<Float>(0.7, 0.8, -1.0),
-        planeHeight: 0.8
-    )
-    appModel.calibrationStatusMessage = "已加载校准"
-    return ContentView(
-        homeViewModel: HomeViewModel(appModel: appModel),
-        arGuideViewModel: ARGuideViewModel(appModel: appModel)
-    )
-}
-
-#Preview("主页 - 已导入谱子") {
+#Preview("主页 - Step2 已解锁") {
     let appModel = AppModel()
     appModel.calibration = PianoCalibration(
         a0: SIMD3<Float>(-0.7, 0.8, -1.0),
@@ -159,6 +168,15 @@ struct ContentView: View {
         ],
         file: nil
     )
+    return ContentView(
+        homeViewModel: HomeViewModel(appModel: appModel),
+        arGuideViewModel: ARGuideViewModel(appModel: appModel)
+    )
+}
+
+#Preview("主页 - 导入失败 Alert") {
+    let appModel = AppModel()
+    appModel.importErrorMessage = "导入失败：预览用错误"
     return ContentView(
         homeViewModel: HomeViewModel(appModel: appModel),
         arGuideViewModel: ARGuideViewModel(appModel: appModel)

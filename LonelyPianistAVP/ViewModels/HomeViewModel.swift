@@ -1,6 +1,5 @@
 import Foundation
 import Observation
-import SwiftUI
 
 @MainActor
 @Observable
@@ -15,14 +14,6 @@ final class HomeViewModel {
 
     var immersiveSpaceState: AppModel.ImmersiveSpaceState {
         appModel.immersiveSpaceState
-    }
-
-    var immersiveSpaceID: String {
-        appModel.immersiveSpaceID
-    }
-
-    var immersiveStatusText: String {
-        immersiveSpaceState == .open ? "运行中" : "已停止"
     }
 
     var calibrationStatusText: String {
@@ -40,12 +31,12 @@ final class HomeViewModel {
 
     var nextActionHint: String {
         if appModel.calibration == nil {
-            return "下一步：开始 AR 引导 → 在弹出的表单里依次点“设置 A0 / 设置 C8”并在空间轻点捕获 → 保存。"
+            return "下一步：进入 Step 1 完成校准（设置 A0 / C8 后保存）。"
         }
         if appModel.importedSteps.isEmpty {
-            return "下一步：导入 MusicXML（.musicxml 或 .xml）。"
+            return "下一步：返回主窗口并用右上角 toolbar 导入 MusicXML（.musicxml 或 .xml）。"
         }
-        return "下一步：开始 AR 引导，在表单里进入“练习”并按高亮键位弹奏。"
+        return "下一步：进入 Step 2 开始练习。"
     }
 
     var importErrorMessage: String? {
@@ -56,8 +47,16 @@ final class HomeViewModel {
         appModel.calibrationStatusMessage
     }
 
+    func clearImportError() {
+        appModel.importErrorMessage = nil
+    }
+
     var canImportScore: Bool {
         immersiveSpaceState == .closed
+    }
+
+    var canEnterPractice: Bool {
+        appModel.calibration != nil && appModel.importedSteps.isEmpty == false
     }
 
     func handleImportResult(_ result: Result<[URL], Error>) {
@@ -69,19 +68,4 @@ final class HomeViewModel {
         }
     }
 
-    func stopARGuide(using dismissImmersiveSpace: DismissImmersiveSpaceAction) {
-        guard immersiveSpaceState == .open else { return }
-        Task { @MainActor in
-            appModel.immersiveSpaceState = .inTransition
-            await dismissImmersiveSpace()
-        }
-    }
-
-    func beginNewARGuideSession() {
-        appModel.beginNewARGuideSession()
-    }
-
-    func setImmersiveSpaceState(_ state: AppModel.ImmersiveSpaceState) {
-        appModel.immersiveSpaceState = state
-    }
 }
