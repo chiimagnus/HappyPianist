@@ -1,33 +1,33 @@
 import Foundation
 
-protocol PianoCalibrationStoreProtocol {
-    func load() throws -> PianoCalibration?
-    func save(_ calibration: PianoCalibration) throws
+protocol WorldAnchorCalibrationStoreProtocol {
+    func load() throws -> StoredWorldAnchorCalibration?
+    func save(_ calibration: StoredWorldAnchorCalibration) throws
 }
 
-enum PianoCalibrationStoreError: Error {
+enum WorldAnchorCalibrationStoreError: Error {
     case documentsUnavailable
 }
 
-struct PianoCalibrationStore: PianoCalibrationStoreProtocol {
+struct WorldAnchorCalibrationStore: WorldAnchorCalibrationStoreProtocol {
     private let fileManager: FileManager
     private let fileName: String
 
-    init(fileManager: FileManager = .default, fileName: String = "piano-calibration.json") {
+    init(fileManager: FileManager = .default, fileName: String = "piano-worldanchor-calibration.json") {
         self.fileManager = fileManager
         self.fileName = fileName
     }
 
-    func load() throws -> PianoCalibration? {
+    func load() throws -> StoredWorldAnchorCalibration? {
         let fileURL = try calibrationFileURL()
         guard fileManager.fileExists(atPath: fileURL.path()) else {
             return nil
         }
         let data = try Data(contentsOf: fileURL)
-        return try JSONDecoder().decode(PianoCalibration.self, from: data)
+        return try JSONDecoder().decode(StoredWorldAnchorCalibration.self, from: data)
     }
 
-    func save(_ calibration: PianoCalibration) throws {
+    func save(_ calibration: StoredWorldAnchorCalibration) throws {
         let fileURL = try calibrationFileURL()
         let data = try JSONEncoder().encode(calibration)
         try data.write(to: fileURL, options: .atomic)
@@ -35,7 +35,7 @@ struct PianoCalibrationStore: PianoCalibrationStoreProtocol {
 
     private func calibrationFileURL() throws -> URL {
         guard let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
-            throw PianoCalibrationStoreError.documentsUnavailable
+            throw WorldAnchorCalibrationStoreError.documentsUnavailable
         }
         return documents.appendingPathComponent(fileName)
     }

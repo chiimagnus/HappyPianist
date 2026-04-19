@@ -17,7 +17,10 @@ final class HomeViewModel {
     }
 
     var calibrationStatusText: String {
-        appModel.calibration == nil ? "未设置" : "已加载"
+        if appModel.calibration != nil {
+            return "已定位"
+        }
+        return appModel.storedCalibration == nil ? "未设置" : "已保存（待定位）"
     }
 
     var scoreStatusText: String {
@@ -30,11 +33,14 @@ final class HomeViewModel {
     }
 
     var nextActionHint: String {
-        if appModel.calibration == nil {
+        if appModel.storedCalibration == nil {
             return "下一步：进入 Step 1 完成校准（设置 A0 / C8 后保存）。"
         }
         if appModel.importedSteps.isEmpty {
             return "下一步：返回主窗口并用右上角 toolbar 导入 MusicXML（.musicxml 或 .xml）。"
+        }
+        if appModel.calibration == nil {
+            return "下一步：进入 Step 2 完成定位后开始练习。"
         }
         return "下一步：进入 Step 2 开始练习。"
     }
@@ -56,7 +62,26 @@ final class HomeViewModel {
     }
 
     var canEnterPractice: Bool {
-        appModel.calibration != nil && appModel.importedSteps.isEmpty == false
+        true
+    }
+
+    var practiceEntryHelpText: String? {
+        let hasImportedSteps = appModel.importedSteps.isEmpty == false
+        let hasStoredCalibration = appModel.storedCalibration != nil
+
+        if hasImportedSteps == false, hasStoredCalibration == false {
+            return "可进入 Step 2；开始练习前需先完成 Step 1 校准并导入 MusicXML。"
+        }
+        if hasImportedSteps == false {
+            return "可进入 Step 2；开始练习前需先导入 MusicXML。"
+        }
+        if hasStoredCalibration == false {
+            return "可进入 Step 2；开始练习前需先完成 Step 1 校准。"
+        }
+        if appModel.calibration == nil {
+            return "可进入 Step 2；进入后会先定位钢琴。"
+        }
+        return nil
     }
 
     func handleImportResult(_ result: Result<[URL], Error>) {

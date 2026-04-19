@@ -87,12 +87,11 @@ struct ContentView: View {
             StepOrbLink(
                 title: "开始练习",
                 stepLabel: "第二步",
-                isEnabled: homeViewModel.canEnterPractice,
+                isEnabled: true,
                 route: .practice,
-                helpText: homeViewModel.canEnterPractice ? nil : "需要先完成校准并导入 MusicXML",
+                helpText: homeViewModel.practiceEntryHelpText,
                 orbSize: stepOrbSize
             )
-            .opacity(homeViewModel.canEnterPractice ? 1.0 : 0.45)
 
             Spacer()
         }

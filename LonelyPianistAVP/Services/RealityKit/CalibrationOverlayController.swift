@@ -12,8 +12,9 @@ final class CalibrationOverlayController {
 
     func update(
         reticlePoint: SIMD3<Float>,
-        a0Point: SIMD3<Float>?,
-        c8Point: SIMD3<Float>?,
+        isReticleReadyToConfirm: Bool,
+        a0TrackedAnchorPoint: SIMD3<Float>?,
+        c8TrackedAnchorPoint: SIMD3<Float>?,
         content: RealityViewContent
     ) {
         if hasAttachedRoot == false {
@@ -21,20 +22,21 @@ final class CalibrationOverlayController {
             hasAttachedRoot = true
         }
 
-        let reticle = ensureSphere(&reticleEntity, color: AVPOverlayPalette.reticleColor, radius: 0.012)
+        let reticleColor = isReticleReadyToConfirm ? AVPOverlayPalette.reticleReadyColor : AVPOverlayPalette.reticleColor
+        let reticle = ensureSphere(&reticleEntity, color: reticleColor, radius: 0.012)
         reticle.position = reticlePoint
 
-        if let a0Point {
+        if let a0TrackedAnchorPoint {
             let a0 = ensureSphere(&a0Entity, color: AVPOverlayPalette.a0AnchorColor, radius: 0.01)
-            a0.position = a0Point
+            a0.position = a0TrackedAnchorPoint
         } else {
             a0Entity?.removeFromParent()
             a0Entity = nil
         }
 
-        if let c8Point {
+        if let c8TrackedAnchorPoint {
             let c8 = ensureSphere(&c8Entity, color: AVPOverlayPalette.c8AnchorColor, radius: 0.01)
-            c8.position = c8Point
+            c8.position = c8TrackedAnchorPoint
         } else {
             c8Entity?.removeFromParent()
             c8Entity = nil
@@ -47,6 +49,7 @@ final class CalibrationOverlayController {
         radius: Float
     ) -> ModelEntity {
         if let entity {
+            entity.model?.materials = [UnlitMaterial(color: color)]
             return entity
         }
 

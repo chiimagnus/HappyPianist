@@ -11,12 +11,13 @@ struct ImmersiveView: View {
         RealityView { content in
             calibrationOverlayController.update(
                 reticlePoint: viewModel.calibrationCaptureService.reticlePoint,
-                a0Point: viewModel.calibrationCaptureService.a0Point,
-                c8Point: viewModel.calibrationCaptureService.c8Point,
+                isReticleReadyToConfirm: viewModel.calibrationCaptureService.isReticleReadyToConfirm,
+                a0TrackedAnchorPoint: viewModel.a0OverlayPoint,
+                c8TrackedAnchorPoint: viewModel.c8OverlayPoint,
                 content: content
             )
             handDebugOverlayController.update(
-                fingerTipPositions: viewModel.handTrackingService.fingerTipPositions,
+                fingerTipPositions: viewModel.arTrackingService.fingerTipPositions,
                 content: content
             )
             overlayController.updateHighlights(
@@ -28,12 +29,13 @@ struct ImmersiveView: View {
         } update: { content in
             calibrationOverlayController.update(
                 reticlePoint: viewModel.calibrationCaptureService.reticlePoint,
-                a0Point: viewModel.calibrationCaptureService.a0Point,
-                c8Point: viewModel.calibrationCaptureService.c8Point,
+                isReticleReadyToConfirm: viewModel.calibrationCaptureService.isReticleReadyToConfirm,
+                a0TrackedAnchorPoint: viewModel.a0OverlayPoint,
+                c8TrackedAnchorPoint: viewModel.c8OverlayPoint,
                 content: content
             )
             handDebugOverlayController.update(
-                fingerTipPositions: viewModel.handTrackingService.fingerTipPositions,
+                fingerTipPositions: viewModel.arTrackingService.fingerTipPositions,
                 content: content
             )
             overlayController.updateHighlights(
@@ -43,11 +45,6 @@ struct ImmersiveView: View {
                 content: content
             )
         }
-        .gesture(SpatialTapGesture(coordinateSpace3D: .worldReference).onEnded { value in
-            let point3D = value.location3D
-            let point = SIMD3<Float>(Float(point3D.x), Float(point3D.y), Float(point3D.z))
-            viewModel.handleSpatialTap(worldPoint: point)
-            })
         .onAppear {
             viewModel.onImmersiveAppear()
         }

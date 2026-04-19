@@ -7,63 +7,79 @@ enum CalibrationAnchorPoint {
     case c8
 }
 
-enum CalibrationCaptureMode: Equatable {
-    case raycast
-    case manualFallback
-}
-
 @MainActor
 @Observable
 final class CalibrationPointCaptureService {
-    var mode: CalibrationCaptureMode = .raycast
     var reticlePoint: SIMD3<Float> = SIMD3<Float>(0, 0.8, -1.0)
-    var a0Point: SIMD3<Float>?
-    var c8Point: SIMD3<Float>?
+    var a0AnchorID: UUID?
+    var c8AnchorID: UUID?
+
+    var isReticleReadyToConfirm: Bool = false
+
+    private var stableStartUptime: TimeInterval?
+    private var lastReticlePointForStability: SIMD3<Float>?
 
     func reset() {
-        mode = .raycast
         reticlePoint = SIMD3<Float>(0, 0.8, -1.0)
-        a0Point = nil
-        c8Point = nil
+        a0AnchorID = nil
+        c8AnchorID = nil
+        isReticleReadyToConfirm = false
+        stableStartUptime = nil
+        lastReticlePointForStability = nil
     }
 
-    func updateReticleEstimate(_ point: SIMD3<Float>?) {
+    func updateReticleFromHandTracking(_ point: SIMD3<Float>?, nowUptime: TimeInterval) {
         guard let point else {
-            mode = .manualFallback
+            isReticleReadyToConfirm = false
+            stableStartUptime = nil
+            lastReticlePointForStability = nil
             return
         }
-        mode = .raycast
+
         reticlePoint = point
+
+        let deltaThresholdMeters: Float = 0.002
+        let stableDurationSeconds: TimeInterval = 0.5
+
+        if let last = lastReticlePointForStability {
+            let delta = simd_length(point - last)
+            if delta < deltaThresholdMeters {
+                if stableStartUptime == nil {
+                    stableStartUptime = nowUptime
+                }
+            } else {
+                stableStartUptime = nil
+            }
+        } else {
+            stableStartUptime = nil
+        }
+
+        lastReticlePointForStability = point
+
+        if let stableStartUptime {
+            let stableFor = max(0, nowUptime - stableStartUptime)
+            let progress = min(1.0, stableFor / stableDurationSeconds)
+            isReticleReadyToConfirm = progress >= 1.0
+        } else {
+            isReticleReadyToConfirm = false
+        }
     }
 
-    func capture(_ anchor: CalibrationAnchorPoint) {
+    func anchorID(for anchor: CalibrationAnchorPoint) -> UUID? {
         switch anchor {
         case .a0:
-            a0Point = reticlePoint
+            return a0AnchorID
         case .c8:
-            c8Point = reticlePoint
+            return c8AnchorID
         }
     }
 
-    func adjust(anchor: CalibrationAnchorPoint, delta: SIMD3<Float>) {
-        mode = .manualFallback
+    func setAnchorID(_ anchorID: UUID, for anchor: CalibrationAnchorPoint) {
         switch anchor {
         case .a0:
-            let current = a0Point ?? SIMD3<Float>(-0.7, reticlePoint.y, reticlePoint.z)
-            a0Point = current + delta
+            a0AnchorID = anchorID
         case .c8:
-            let current = c8Point ?? SIMD3<Float>(0.7, reticlePoint.y, reticlePoint.z)
-            c8Point = current + delta
+            c8AnchorID = anchorID
         }
-    }
-
-    func buildCalibration() -> PianoCalibration? {
-        guard let a0Point, let c8Point else {
-            return nil
-        }
-        guard simd_length(c8Point - a0Point) > 0.05 else {
-            return nil
-        }
-        return PianoCalibration(a0: a0Point, c8: c8Point, planeHeight: (a0Point.y + c8Point.y) / 2)
     }
 }

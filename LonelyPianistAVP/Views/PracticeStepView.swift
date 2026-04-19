@@ -3,12 +3,12 @@ import SwiftUI
 struct PracticeStepView: View {
     @Bindable var viewModel: ARGuideViewModel
 
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
 
     @State private var hasRequestedImmersiveOpen = false
     @State private var isStepVisible = false
-    @State private var immersiveLifecycleMessage: String?
 
     var body: some View {
         Form {
@@ -24,7 +24,7 @@ struct PracticeStepView: View {
             }
 
             Section("控制") {
-                Text("按键位高亮弹奏；也可以使用下方按钮推进步骤。")
+                Text("定位成功后按键位高亮弹奏；也可以使用下方按钮推进步骤。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -38,11 +38,34 @@ struct PracticeStepView: View {
                 }
             }
 
-            if let immersiveLifecycleMessage {
-                Section("沉浸空间") {
-                    Text(immersiveLifecycleMessage)
+            Section("定位") {
+                Text(viewModel.practiceLocalizationStatusText ?? "进入后会自动定位钢琴。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if viewModel.canRetryPracticeLocalization {
+                    Button("重试定位") {
+                        Task { @MainActor in
+                            await viewModel.retryPracticeLocalization(
+                                using: openImmersiveSpace,
+                                dismissImmersiveSpace: dismissImmersiveSpace
+                            )
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .hoverEffect()
+                }
+
+                if viewModel.shouldSuggestCalibrationStep {
+                    Text("若持续失败，请返回主页进入 Step 1 重新校准。")
                         .font(.caption)
                         .foregroundStyle(.secondary)
+
+                    Button("返回主页") {
+                        dismiss()
+                    }
+                    .buttonStyle(.bordered)
+                    .hoverEffect()
                 }
             }
         }
@@ -53,9 +76,9 @@ struct PracticeStepView: View {
             hasRequestedImmersiveOpen = true
 
             Task { @MainActor in
-                immersiveLifecycleMessage = await viewModel.openImmersiveForStep(
-                    mode: .practice,
-                    using: openImmersiveSpace
+                await viewModel.enterPracticeStep(
+                    using: openImmersiveSpace,
+                    dismissImmersiveSpace: dismissImmersiveSpace
                 )
 
                 if isStepVisible == false {
@@ -67,6 +90,7 @@ struct PracticeStepView: View {
         .onDisappear {
             isStepVisible = false
             hasRequestedImmersiveOpen = false
+            viewModel.resetPracticeLocalizationState()
             Task { @MainActor in
                 await viewModel.closeImmersiveForStep(using: dismissImmersiveSpace)
                 await viewModel.recoverImmersiveStateIfStuck()

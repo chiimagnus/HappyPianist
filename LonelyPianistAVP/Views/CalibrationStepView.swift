@@ -1,5 +1,4 @@
 import SwiftUI
-import simd
 
 struct CalibrationStepView: View {
     @Bindable var viewModel: ARGuideViewModel
@@ -19,52 +18,24 @@ struct CalibrationStepView: View {
                     .foregroundStyle(.secondary)
             }
 
-            if viewModel.calibration == nil {
-                Section("校准") {
-                    Text(captureHintText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            Section("校准") {
+                Text(captureHintText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
-                    ViewThatFits {
-                        AnyLayout(HStackLayout(spacing: 10)) {
-                            calibrationButtons
-                        }
-                        AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) {
-                            calibrationButtons
-                        }
+                ViewThatFits {
+                    AnyLayout(HStackLayout(spacing: 10)) {
+                        calibrationButtons
                     }
-
-                    Button("手动微调") {
-                        viewModel.enterManualAdjustMode()
-                    }
-                    .buttonStyle(.bordered)
-                    .hoverEffect()
-
-                    if viewModel.calibrationCaptureService.mode == .manualFallback {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("微调（手动模式）")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            HStack(spacing: 8) {
-                                Button("A0 左移") { viewModel.adjust(anchor: .a0, x: -0.01) }
-                                    .buttonStyle(.bordered)
-                                    .hoverEffect()
-                                Button("A0 右移") { viewModel.adjust(anchor: .a0, x: 0.01) }
-                                    .buttonStyle(.bordered)
-                                    .hoverEffect()
-                                Button("C8 左移") { viewModel.adjust(anchor: .c8, x: -0.01) }
-                                    .buttonStyle(.bordered)
-                                    .hoverEffect()
-                                Button("C8 右移") { viewModel.adjust(anchor: .c8, x: 0.01) }
-                                    .buttonStyle(.bordered)
-                                    .hoverEffect()
-                            }
-                        }
+                    AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) {
+                        calibrationButtons
                     }
                 }
-            } else {
+            }
+
+            if viewModel.storedCalibration != nil {
                 Section("当前校准") {
-                    Text("已加载校准数据。若键位高亮存在偏差，可重新校准。")
+                    Text("当前校准已保存（待定位）。若键位高亮存在偏差，可重新校准。")
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
@@ -130,15 +101,18 @@ struct CalibrationStepView: View {
             .hoverEffect()
         Button("保存") { viewModel.saveCalibration() }
             .buttonStyle(.borderedProminent)
-            .disabled(viewModel.calibrationCaptureService.buildCalibration() == nil)
+            .disabled(
+                viewModel.calibrationCaptureService.a0AnchorID == nil ||
+                viewModel.calibrationCaptureService.c8AnchorID == nil
+            )
             .hoverEffect()
     }
 
     private var captureHintText: String {
         guard let pending = viewModel.pendingCalibrationCaptureAnchor else {
-            return "提示：先在空间轻点一次更新准星位置；选择“设置 A0/C8”后再轻点一次完成捕获。"
+            return "提示：先点“设置 A0 / 设置 C8”。把左手食指按在对应琴键上，等待准星变绿（稳定）后，用右手捏合一次确认。"
         }
-        return "待捕获：\(pending == .a0 ? "A0" : "C8")（现在在空间轻点一次完成捕获）"
+        return "待锁定：\(pending == .a0 ? "A0" : "C8")（左手食指放稳，准星变绿后右手捏合确认）"
     }
 }
 
@@ -150,11 +124,11 @@ struct CalibrationStepView: View {
 
 #Preview("Step 1 - 已校准") {
     let appModel = AppModel()
-    appModel.calibration = PianoCalibration(
-        a0: SIMD3<Float>(-0.7, 0.8, -1.0),
-        c8: SIMD3<Float>(0.7, 0.8, -1.0),
-        planeHeight: 0.8
+    appModel.storedCalibration = StoredWorldAnchorCalibration(
+        a0AnchorID: UUID(),
+        c8AnchorID: UUID(),
+        whiteKeyWidth: 0.0235
     )
-    appModel.calibrationStatusMessage = "已加载校准"
+    appModel.calibrationStatusMessage = "已保存校准（待定位）"
     return CalibrationStepView(viewModel: ARGuideViewModel(appModel: appModel))
 }

@@ -1,31 +1,36 @@
+import Foundation
 import Testing
 import simd
 @testable import LonelyPianistAVP
 
 @Test
 @MainActor
-func canEnterPracticeIsFalseWhenMissingCalibration() {
+func canEnterPracticeIsTrueWhenMissingCalibration() {
     let appModel = makeAppModel(
         calibration: nil,
         hasImportedSteps: true,
+        hasStoredCalibration: false,
         immersiveState: .closed
     )
     let viewModel = HomeViewModel(appModel: appModel)
 
-    #expect(viewModel.canEnterPractice == false)
+    #expect(viewModel.canEnterPractice)
+    #expect(viewModel.practiceEntryHelpText?.contains("Step 1 校准") == true)
 }
 
 @Test
 @MainActor
-func canEnterPracticeIsFalseWhenMissingImportedSteps() {
+func canEnterPracticeIsTrueWhenMissingImportedSteps() {
     let appModel = makeAppModel(
         calibration: sampleCalibration(),
         hasImportedSteps: false,
+        hasStoredCalibration: true,
         immersiveState: .closed
     )
     let viewModel = HomeViewModel(appModel: appModel)
 
-    #expect(viewModel.canEnterPractice == false)
+    #expect(viewModel.canEnterPractice)
+    #expect(viewModel.practiceEntryHelpText?.contains("导入 MusicXML") == true)
 }
 
 @Test
@@ -34,11 +39,27 @@ func canEnterPracticeIsTrueWhenCalibrationAndImportedStepsExist() {
     let appModel = makeAppModel(
         calibration: sampleCalibration(),
         hasImportedSteps: true,
+        hasStoredCalibration: true,
         immersiveState: .closed
     )
     let viewModel = HomeViewModel(appModel: appModel)
 
     #expect(viewModel.canEnterPractice)
+    #expect(viewModel.practiceEntryHelpText == nil)
+}
+
+@Test
+@MainActor
+func practiceEntryShowsLocatingHintWhenStoredCalibrationExistsButRuntimeCalibrationMissing() {
+    let appModel = makeAppModel(
+        calibration: nil,
+        hasImportedSteps: true,
+        hasStoredCalibration: true,
+        immersiveState: .closed
+    )
+    let viewModel = HomeViewModel(appModel: appModel)
+
+    #expect(viewModel.practiceEntryHelpText?.contains("定位钢琴") == true)
 }
 
 @Test
@@ -48,6 +69,7 @@ func canImportScoreDependsOnImmersiveState() {
         appModel: makeAppModel(
             calibration: nil,
             hasImportedSteps: false,
+            hasStoredCalibration: false,
             immersiveState: .closed
         )
     )
@@ -57,6 +79,7 @@ func canImportScoreDependsOnImmersiveState() {
         appModel: makeAppModel(
             calibration: nil,
             hasImportedSteps: false,
+            hasStoredCalibration: false,
             immersiveState: .open
         )
     )
@@ -66,6 +89,7 @@ func canImportScoreDependsOnImmersiveState() {
         appModel: makeAppModel(
             calibration: nil,
             hasImportedSteps: false,
+            hasStoredCalibration: false,
             immersiveState: .inTransition
         )
     )
@@ -76,11 +100,20 @@ func canImportScoreDependsOnImmersiveState() {
 private func makeAppModel(
     calibration: PianoCalibration?,
     hasImportedSteps: Bool,
+    hasStoredCalibration: Bool,
     immersiveState: AppModel.ImmersiveSpaceState
 ) -> AppModel {
     let appModel = AppModel()
     appModel.immersiveSpaceState = immersiveState
     appModel.calibration = calibration
+
+    if hasStoredCalibration {
+        appModel.storedCalibration = StoredWorldAnchorCalibration(
+            a0AnchorID: UUID(),
+            c8AnchorID: UUID(),
+            whiteKeyWidth: 0.0235
+        )
+    }
 
     if hasImportedSteps {
         appModel.setImportedSteps(

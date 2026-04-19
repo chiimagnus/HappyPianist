@@ -3,6 +3,7 @@ import UIKit
 enum AVPOverlayPalette {
     // Calibration
     static let reticleColor: UIColor = UIColor.systemYellow.withAlphaComponent(0.9)
+    static let reticleReadyColor: UIColor = UIColor.systemGreen.withAlphaComponent(0.9)
     static let a0AnchorColor: UIColor = UIColor.systemBlue.withAlphaComponent(0.9)
     static let c8AnchorColor: UIColor = UIColor.systemPurple.withAlphaComponent(0.9)
 
