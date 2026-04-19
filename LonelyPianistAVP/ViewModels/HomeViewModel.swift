@@ -73,19 +73,4 @@ final class HomeViewModel {
         }
     }
 
-    func stopARGuide(using dismissImmersiveSpace: DismissImmersiveSpaceAction) {
-        guard immersiveSpaceState == .open else { return }
-        Task { @MainActor in
-            appModel.immersiveSpaceState = .inTransition
-            await dismissImmersiveSpace()
-        }
-    }
-
-    func beginNewARGuideSession() {
-        appModel.beginNewARGuideSession()
-    }
-
-    func setImmersiveSpaceState(_ state: AppModel.ImmersiveSpaceState) {
-        appModel.immersiveSpaceState = state
-    }
 }

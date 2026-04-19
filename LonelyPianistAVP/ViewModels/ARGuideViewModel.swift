@@ -161,13 +161,6 @@ final class ARGuideViewModel {
         handTrackingService.stop()
     }
 
-    func stopARGuide(using dismissImmersiveSpace: DismissImmersiveSpaceAction) {
-        Task { @MainActor in
-            appModel.immersiveSpaceState = .inTransition
-            await dismissImmersiveSpace()
-        }
-    }
-
     var handTrackingStatusText: String {
         switch handTrackingService.state {
         case .idle:
