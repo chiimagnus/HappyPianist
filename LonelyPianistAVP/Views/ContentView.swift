@@ -7,7 +7,7 @@ struct ContentView: View {
     @Bindable var arGuideViewModel: ARGuideViewModel
 
     @State private var navigationPath: [MainFlowRoute] = []
-    @ScaledMetric(relativeTo: .title) private var stepOrbSize: CGFloat = 150
+    @ScaledMetric(relativeTo: .title) private var stepOrbSize: CGFloat = 200
 
     private enum MainFlowRoute: Hashable {
         case calibration
