@@ -77,6 +77,7 @@ final class ARGuideViewModel {
 
         switch appModel.immersiveSpaceState {
         case .open:
+            handleModeEntryWhileImmersiveIsOpen()
             return nil
 
         case .inTransition:
@@ -115,44 +116,15 @@ final class ARGuideViewModel {
         }
     }
 
-    func closeImmersiveForStep(using dismissImmersiveSpace: DismissImmersiveSpaceAction) async {
-        guard appModel.immersiveSpaceState != .closed else { return }
-        if appModel.immersiveSpaceState == .open {
-            appModel.immersiveSpaceState = .inTransition
-        }
-        await dismissImmersiveSpace()
-        // Don't set immersiveSpaceState to .closed here.
-        // ImmersiveView.onDisappear is the single source of truth.
-    }
-
-    func recoverImmersiveStateIfStuck() async {
-        guard appModel.immersiveSpaceState == .inTransition else { return }
-        for _ in 0..<40 {
-            await Task.yield()
-            if appModel.immersiveSpaceState != .inTransition {
-                return
-            }
-        }
-        appModel.immersiveSpaceState = .closed
+    func enterInactiveMode() {
+        appModel.immersiveMode = .inactive
+        hasStartedGuidingInCurrentImmersiveSession = false
+        wasRightHandPinching = false
+        stopHandTracking()
     }
 
     func onImmersiveAppear() {
-        switch appModel.immersiveMode {
-        case .calibration:
-            hasStartedGuidingInCurrentImmersiveSession = false
-            wasRightHandPinching = false
-            startHandTrackingIfNeeded()
-            if calibrationStatusMessage == nil, case .unavailable(let reason) = handTrackingService.state {
-                calibrationStatusMessage = "手部追踪不可用：\(reason)"
-            }
-
-        case .practice:
-            if hasStartedGuidingInCurrentImmersiveSession == false {
-                practiceSessionViewModel.startGuidingIfReady()
-                hasStartedGuidingInCurrentImmersiveSession = true
-            }
-            startHandTrackingIfNeeded()
-        }
+        handleModeEntryWhileImmersiveIsOpen()
     }
 
     func onImmersiveDisappear() {
@@ -173,8 +145,34 @@ final class ARGuideViewModel {
                     self.handleCalibrationHandUpdates()
                 case .practice:
                     _ = self.practiceSessionViewModel.handleFingerTipPositions(fingerTips)
+                case .inactive:
+                    break
                 }
             }
+        }
+    }
+
+    private func handleModeEntryWhileImmersiveIsOpen() {
+        switch appModel.immersiveMode {
+        case .inactive:
+            hasStartedGuidingInCurrentImmersiveSession = false
+            wasRightHandPinching = false
+            stopHandTracking()
+
+        case .calibration:
+            hasStartedGuidingInCurrentImmersiveSession = false
+            wasRightHandPinching = false
+            startHandTrackingIfNeeded()
+            if calibrationStatusMessage == nil, case .unavailable(let reason) = handTrackingService.state {
+                calibrationStatusMessage = "手部追踪不可用：\(reason)"
+            }
+
+        case .practice:
+            if hasStartedGuidingInCurrentImmersiveSession == false {
+                practiceSessionViewModel.startGuidingIfReady()
+                hasStartedGuidingInCurrentImmersiveSession = true
+            }
+            startHandTrackingIfNeeded()
         }
     }
 

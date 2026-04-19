@@ -11,6 +11,7 @@ final class CalibrationOverlayController {
     private var c8Entity: ModelEntity?
 
     func update(
+        isVisible: Bool,
         reticlePoint: SIMD3<Float>,
         isReticleReadyToConfirm: Bool,
         a0Point: SIMD3<Float>?,
@@ -21,6 +22,9 @@ final class CalibrationOverlayController {
             content.add(rootEntity)
             hasAttachedRoot = true
         }
+
+        rootEntity.isEnabled = isVisible
+        guard isVisible else { return }
 
         let reticleColor = isReticleReadyToConfirm ? AVPOverlayPalette.reticleReadyColor : AVPOverlayPalette.reticleColor
         let reticle = ensureSphere(&reticleEntity, color: reticleColor, radius: 0.012)
