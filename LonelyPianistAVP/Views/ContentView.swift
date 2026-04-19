@@ -77,7 +77,6 @@ struct ContentView: View {
                     stepLabel: "第一步",
                     isEnabled: true,
                     route: .calibration,
-                    accent: .blue,
                     helpText: nil,
                     orbSize: stepOrbSize
                 )
@@ -91,7 +90,6 @@ struct ContentView: View {
                     stepLabel: "第二步",
                     isEnabled: homeViewModel.canEnterPractice,
                     route: .practice,
-                    accent: .green,
                     helpText: homeViewModel.canEnterPractice ? nil : "需要先完成校准并导入 MusicXML",
                     orbSize: stepOrbSize
                 )
@@ -110,7 +108,6 @@ private struct StepOrbLink: View {
     let stepLabel: String
     let isEnabled: Bool
     let route: MainFlowRoute
-    let accent: Color
     let helpText: String?
     let orbSize: CGFloat
 
@@ -135,9 +132,8 @@ private struct StepOrbLink: View {
                     }
                 }
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
             .buttonBorderShape(.circle)
-            .tint(accent)
             .controlSize(.extraLarge)
             .disabled(isEnabled == false)
 
