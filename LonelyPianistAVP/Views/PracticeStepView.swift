@@ -3,6 +3,12 @@ import SwiftUI
 struct PracticeStepView: View {
     @Bindable var viewModel: ARGuideViewModel
 
+    @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
+    @Environment(\.openImmersiveSpace) private var openImmersiveSpace
+
+    @State private var hasRequestedImmersiveOpen = false
+    @State private var immersiveLifecycleMessage: String?
+
     var body: some View {
         Form {
             Section("状态") {
@@ -30,8 +36,33 @@ struct PracticeStepView: View {
                     }
                 }
             }
+
+            if let immersiveLifecycleMessage {
+                Section("沉浸空间") {
+                    Text(immersiveLifecycleMessage)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .buttonBorderShape(.roundedRectangle)
+        .onAppear {
+            guard hasRequestedImmersiveOpen == false else { return }
+            hasRequestedImmersiveOpen = true
+
+            Task { @MainActor in
+                immersiveLifecycleMessage = await viewModel.openImmersiveForStep(
+                    mode: .practice,
+                    using: openImmersiveSpace
+                )
+            }
+        }
+        .onDisappear {
+            hasRequestedImmersiveOpen = false
+            Task { @MainActor in
+                await viewModel.closeImmersiveForStep(using: dismissImmersiveSpace)
+            }
+        }
     }
 
     @ViewBuilder

@@ -44,6 +44,10 @@ final class ARGuideViewModel {
         appModel.importedSteps.isEmpty == false
     }
 
+    var immersiveMode: AppModel.ImmersiveMode {
+        appModel.immersiveMode
+    }
+
     func saveCalibration() {
         appModel.saveCalibrationIfPossible()
     }
@@ -77,12 +81,60 @@ final class ARGuideViewModel {
         practiceSessionViewModel.markCorrect()
     }
 
-    func onImmersiveAppear() {
-        if hasStartedGuidingInCurrentImmersiveSession == false {
-            practiceSessionViewModel.startGuidingIfReady()
-            hasStartedGuidingInCurrentImmersiveSession = true
+    func openImmersiveForStep(
+        mode: AppModel.ImmersiveMode,
+        using openImmersiveSpace: OpenImmersiveSpaceAction
+    ) async -> String? {
+        appModel.immersiveMode = mode
+
+        switch appModel.immersiveSpaceState {
+        case .open, .inTransition:
+            return nil
+
+        case .closed:
+            appModel.immersiveSpaceState = .inTransition
+            switch await openImmersiveSpace(id: appModel.immersiveSpaceID) {
+            case .opened:
+                // Don't set immersiveSpaceState to .open here.
+                // ImmersiveView.onAppear is the single source of truth.
+                return nil
+
+            case .userCancelled:
+                appModel.immersiveSpaceState = .closed
+                return "已取消打开沉浸空间。"
+
+            case .error:
+                appModel.immersiveSpaceState = .closed
+                return "打开沉浸空间失败，请重试。"
+
+            @unknown default:
+                appModel.immersiveSpaceState = .closed
+                return "沉浸空间返回未知状态，请重试。"
+            }
         }
-        startHandTrackingIfNeeded()
+    }
+
+    func closeImmersiveForStep(using dismissImmersiveSpace: DismissImmersiveSpaceAction) async {
+        guard appModel.immersiveSpaceState == .open else { return }
+        appModel.immersiveSpaceState = .inTransition
+        await dismissImmersiveSpace()
+        // Don't set immersiveSpaceState to .closed here.
+        // ImmersiveView.onDisappear is the single source of truth.
+    }
+
+    func onImmersiveAppear() {
+        switch appModel.immersiveMode {
+        case .calibration:
+            hasStartedGuidingInCurrentImmersiveSession = false
+            stopHandTracking()
+
+        case .practice:
+            if hasStartedGuidingInCurrentImmersiveSession == false {
+                practiceSessionViewModel.startGuidingIfReady()
+                hasStartedGuidingInCurrentImmersiveSession = true
+            }
+            startHandTrackingIfNeeded()
+        }
     }
 
     func onImmersiveDisappear() {
