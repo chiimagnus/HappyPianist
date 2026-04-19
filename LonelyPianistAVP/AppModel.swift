@@ -150,6 +150,7 @@ class AppModel {
             pendingCalibrationCaptureAnchor = nil
             calibrationCaptureService.reset()
             calibrationStatusMessage = "已保存校准（待定位）"
+            LegacyPointCalibrationCleanup.removeLegacyFileIfExists()
 
             if let previousStoredCalibration {
                 Task { @MainActor [weak self] in

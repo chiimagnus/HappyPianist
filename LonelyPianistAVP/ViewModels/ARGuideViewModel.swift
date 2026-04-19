@@ -161,14 +161,13 @@ final class ARGuideViewModel {
     }
 
     var shouldSuggestCalibrationStep: Bool {
-        let reason: PracticeLocalizationFailure = {
-            switch practiceLocalizationState {
-            case .blocked(let reason), .failed(let reason):
-                return reason
-            default:
-                return .immersiveOpenFailed(message: "")
-            }
-        }()
+        let reason: PracticeLocalizationFailure
+        switch practiceLocalizationState {
+        case .blocked(let blockingReason), .failed(let blockingReason):
+            reason = blockingReason
+        default:
+            return false
+        }
 
         switch reason {
         case .missingStoredCalibration, .anchorMissing, .anchorNotTracked:
@@ -176,6 +175,18 @@ final class ARGuideViewModel {
         default:
             return false
         }
+    }
+
+    func practiceEntryBlockingReason() -> PracticeLocalizationFailure? {
+        if hasImportedSteps == false {
+            return .missingImportedSteps
+        }
+
+        if storedCalibration == nil {
+            return .missingStoredCalibration
+        }
+
+        return nil
     }
 
     func enterPracticeStep(
@@ -355,7 +366,6 @@ final class ARGuideViewModel {
 
         do {
             try await arTrackingService.worldTrackingProvider.addAnchor(worldAnchor)
-            calibrationCaptureService.capture(pendingAnchor)
             calibrationCaptureService.setAnchorID(worldAnchor.id, for: pendingAnchor)
             calibrationStatusMessage = "已锁定 \(pendingAnchor == .a0 ? "A0" : "C8")"
             pendingCalibrationCaptureAnchor = nil
@@ -417,27 +427,22 @@ final class ARGuideViewModel {
         hasStartedGuidingInCurrentImmersiveSession = false
         appModel.clearRuntimeCalibrationForPracticeRelocation()
 
-        guard hasImportedSteps else {
-            practiceLocalizationState = .blocked(reason: .missingImportedSteps)
+        guard let blockingReason = practiceEntryBlockingReason() else {
+            practiceLocalizationState = .openingImmersive
+            if let openError = await openImmersiveForStep(mode: .practice, using: openImmersiveSpace) {
+                practiceLocalizationState = .failed(reason: .immersiveOpenFailed(message: openError))
+                return
+            }
+
+            practiceLocalizationTask = Task { @MainActor [weak self] in
+                guard let self else { return }
+                await self.runPracticeLocalization(dismissImmersiveSpace: dismissImmersiveSpace)
+                self.practiceLocalizationTask = nil
+            }
             return
         }
 
-        guard storedCalibration != nil else {
-            practiceLocalizationState = .blocked(reason: .missingStoredCalibration)
-            return
-        }
-
-        practiceLocalizationState = .openingImmersive
-        if let openError = await openImmersiveForStep(mode: .practice, using: openImmersiveSpace) {
-            practiceLocalizationState = .failed(reason: .immersiveOpenFailed(message: openError))
-            return
-        }
-
-        practiceLocalizationTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-            await self.runPracticeLocalization(dismissImmersiveSpace: dismissImmersiveSpace)
-            self.practiceLocalizationTask = nil
-        }
+        practiceLocalizationState = .blocked(reason: blockingReason)
     }
 
     private func runPracticeLocalization(
@@ -494,26 +499,33 @@ final class ARGuideViewModel {
 
         guard Task.isCancelled == false else { return }
 
-        let timeoutFailure: PracticeLocalizationFailure
-        if let lastRecoverableResolution {
-            switch lastRecoverableResolution {
-            case .anchorMissing(let id):
-                timeoutFailure = .anchorMissing(id: id)
-            case .anchorNotTracked(let id):
-                timeoutFailure = .anchorNotTracked(
-                    id: id,
-                    waitedSeconds: practiceLocalizationTimeoutSeconds
-                )
-            case .resolved:
-                timeoutFailure = .providerNotRunning(state: currentProviderStateSummary())
-            case .missingStoredCalibration:
-                timeoutFailure = .missingStoredCalibration
-            }
-        } else {
-            timeoutFailure = .providerNotRunning(state: currentProviderStateSummary())
-        }
+        let timeoutFailure = practiceLocalizationTimeoutFailure(
+            lastRecoverableResolution: lastRecoverableResolution
+        )
 
         await handlePracticeLocalizationFailure(timeoutFailure, dismissImmersiveSpace: dismissImmersiveSpace)
+    }
+
+    func practiceLocalizationTimeoutFailure(
+        lastRecoverableResolution: AppModel.PracticeCalibrationResolutionResult?
+    ) -> PracticeLocalizationFailure {
+        guard let lastRecoverableResolution else {
+            return .providerNotRunning(state: currentProviderStateSummary())
+        }
+
+        switch lastRecoverableResolution {
+        case .anchorMissing(let id):
+            return .anchorMissing(id: id)
+        case .anchorNotTracked(let id):
+            return .anchorNotTracked(
+                id: id,
+                waitedSeconds: practiceLocalizationTimeoutSeconds
+            )
+        case .resolved:
+            return .providerNotRunning(state: currentProviderStateSummary())
+        case .missingStoredCalibration:
+            return .missingStoredCalibration
+        }
     }
 
     private func waitForProvidersToRunOrFail() async -> PracticeLocalizationFailure? {
