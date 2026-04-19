@@ -1,7 +1,6 @@
 import Foundation
 import RealityKit
 import SwiftUI
-import UIKit
 
 @MainActor
 final class PianoGuideOverlayController {
@@ -26,11 +25,11 @@ final class PianoGuideOverlayController {
         let tintColor: UIColor
         switch feedbackState {
         case .none:
-            tintColor = UIColor.systemTeal.withAlphaComponent(0.65)
+            tintColor = AVPOverlayPalette.feedbackNoneColor
         case .correct:
-            tintColor = UIColor.systemGreen.withAlphaComponent(0.75)
+            tintColor = AVPOverlayPalette.feedbackCorrectColor
         case .wrong:
-            tintColor = UIColor.systemRed.withAlphaComponent(0.75)
+            tintColor = AVPOverlayPalette.feedbackWrongColor
         }
 
         let regionByNote = Dictionary(uniqueKeysWithValues: keyRegions.map { ($0.midiNote, $0) })

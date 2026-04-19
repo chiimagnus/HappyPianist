@@ -152,7 +152,7 @@ private struct CalibrationInstructions: View {
         VStack(alignment: .leading, spacing: 6) {
             Text("步骤：")
                 .font(.callout)
-                .fontWeight(.semibold)
+                .bold()
             Text("（提示：每次进入 AR 引导都会要求重新校准。）")
                 .foregroundStyle(.secondary)
             Text("1) 点“设置 A0”，然后在空间轻点一次，把点放到 A0 键中心上方。")

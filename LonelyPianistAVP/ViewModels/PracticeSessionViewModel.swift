@@ -28,15 +28,25 @@ final class PracticeSessionViewModel {
 
     private let pressDetectionService: PressDetectionServiceProtocol
     private let chordAttemptAccumulator: ChordAttemptAccumulatorProtocol
+    private let sleeper: SleeperProtocol
     private var feedbackResetTask: Task<Void, Never>?
 
-    init(pressDetectionService: PressDetectionServiceProtocol, chordAttemptAccumulator: ChordAttemptAccumulatorProtocol) {
+    init(
+        pressDetectionService: PressDetectionServiceProtocol,
+        chordAttemptAccumulator: ChordAttemptAccumulatorProtocol,
+        sleeper: SleeperProtocol
+    ) {
         self.pressDetectionService = pressDetectionService
         self.chordAttemptAccumulator = chordAttemptAccumulator
+        self.sleeper = sleeper
     }
 
     convenience init() {
-        self.init(pressDetectionService: PressDetectionService(), chordAttemptAccumulator: ChordAttemptAccumulator())
+        self.init(
+            pressDetectionService: PressDetectionService(),
+            chordAttemptAccumulator: ChordAttemptAccumulator(),
+            sleeper: TaskSleeper()
+        )
     }
 
     var currentStepIndex: Int = 0 {
@@ -142,12 +152,11 @@ final class PracticeSessionViewModel {
     private func setFeedback(_ state: VisualFeedbackState, duration: TimeInterval = 0.25) {
         feedbackState = state
         feedbackResetTask?.cancel()
-        feedbackResetTask = Task { [weak self] in
-            try? await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000))
+        feedbackResetTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            try? await self.sleeper.sleep(for: .seconds(duration))
             guard Task.isCancelled == false else { return }
-            await MainActor.run {
-                self?.feedbackState = .none
-            }
+            self.feedbackState = .none
         }
     }
 }

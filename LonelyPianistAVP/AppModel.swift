@@ -12,8 +12,8 @@ class AppModel {
     }
     var immersiveSpaceState = ImmersiveSpaceState.closed
 
-    var practiceSessionViewModel = PracticeSessionViewModel()
-    var handTrackingService = HandTrackingService()
+    let practiceSessionViewModel: PracticeSessionViewModel
+    let handTrackingService: HandTrackingService
 
     var importedFile: ImportedMusicXMLFile?
     var importedSteps: [PracticeStep] = []
@@ -22,7 +22,7 @@ class AppModel {
     var calibration: PianoCalibration? {
         didSet { applySessionIfPossible() }
     }
-    var calibrationCaptureService = CalibrationPointCaptureService()
+    let calibrationCaptureService: CalibrationPointCaptureService
     var pendingCalibrationCaptureAnchor: CalibrationAnchorPoint?
     var calibrationStatusMessage: String?
 
@@ -37,13 +37,19 @@ class AppModel {
         keyGeometryService: PianoKeyGeometryServiceProtocol? = nil,
         importService: MusicXMLImportServiceProtocol? = nil,
         parser: MusicXMLParserProtocol? = nil,
-        stepBuilder: PracticeStepBuilderProtocol? = nil
+        stepBuilder: PracticeStepBuilderProtocol? = nil,
+        practiceSessionViewModel: PracticeSessionViewModel? = nil,
+        handTrackingService: HandTrackingService? = nil,
+        calibrationCaptureService: CalibrationPointCaptureService? = nil
     ) {
         self.calibrationStore = calibrationStore ?? PianoCalibrationStore()
         self.keyGeometryService = keyGeometryService ?? PianoKeyGeometryService()
         self.importService = importService ?? MusicXMLImportService()
         self.parser = parser ?? MusicXMLParser()
         self.stepBuilder = stepBuilder ?? PracticeStepBuilder()
+        self.practiceSessionViewModel = practiceSessionViewModel ?? PracticeSessionViewModel()
+        self.handTrackingService = handTrackingService ?? HandTrackingService()
+        self.calibrationCaptureService = calibrationCaptureService ?? CalibrationPointCaptureService()
     }
 
     func beginNewARGuideSession() {

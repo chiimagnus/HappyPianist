@@ -1,6 +1,5 @@
 import RealityKit
 import SwiftUI
-import UIKit
 
 @MainActor
 final class HandDebugOverlayController {
@@ -29,7 +28,7 @@ final class HandDebugOverlayController {
             let marker = markerByKey[key] ?? {
                 let model = ModelEntity(
                     mesh: .generateSphere(radius: 0.006),
-                    materials: [UnlitMaterial(color: UIColor.systemGreen.withAlphaComponent(0.9))]
+                    materials: [UnlitMaterial(color: AVPOverlayPalette.handTipColor)]
                 )
                 rootEntity.addChild(model)
                 markerByKey[key] = model

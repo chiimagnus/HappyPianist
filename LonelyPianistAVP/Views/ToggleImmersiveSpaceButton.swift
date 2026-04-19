@@ -52,7 +52,7 @@ struct ToggleImmersiveSpaceButton: View {
         .animation(.none, value: 0)
         .buttonStyle(.borderedProminent)
         .tint(viewModel.immersiveSpaceState == .open ? .red : .accentColor)
-        .fontWeight(.semibold)
+        .bold()
         .hoverEffect()
     }
 }
