@@ -66,34 +66,35 @@ struct ContentView: View {
     }
 
     private var mainFlowPanel: some View {
-        ScrollView(.horizontal) {
+        HStack(alignment: .center) {
+            Spacer()
 
-            HStack {
-                StepOrbLink(
-                    title: "校准",
-                    stepLabel: "第一步",
-                    isEnabled: true,
-                    route: .calibration,
-                    helpText: nil,
-                    orbSize: stepOrbSize
-                )
+            StepOrbLink(
+                title: "校准",
+                stepLabel: "第一步",
+                isEnabled: true,
+                route: .calibration,
+                helpText: nil,
+                orbSize: stepOrbSize
+            )
 
-                Spacer()
+            Spacer()
 
-                Image(systemName: "arrow.right")
+            Image(systemName: "arrow.right")
 
-                Spacer()
+            Spacer()
 
-                StepOrbLink(
-                    title: "开始练习",
-                    stepLabel: "第二步",
-                    isEnabled: homeViewModel.canEnterPractice,
-                    route: .practice,
-                    helpText: homeViewModel.canEnterPractice ? nil : "需要先完成校准并导入 MusicXML",
-                    orbSize: stepOrbSize
-                )
-                .opacity(homeViewModel.canEnterPractice ? 1.0 : 0.45)
-            }
+            StepOrbLink(
+                title: "开始练习",
+                stepLabel: "第二步",
+                isEnabled: homeViewModel.canEnterPractice,
+                route: .practice,
+                helpText: homeViewModel.canEnterPractice ? nil : "需要先完成校准并导入 MusicXML",
+                orbSize: stepOrbSize
+            )
+            .opacity(homeViewModel.canEnterPractice ? 1.0 : 0.45)
+
+            Spacer()
         }
     }
 }
