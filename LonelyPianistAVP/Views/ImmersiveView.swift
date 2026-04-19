@@ -12,8 +12,8 @@ struct ImmersiveView: View {
             calibrationOverlayController.update(
                 reticlePoint: viewModel.calibrationCaptureService.reticlePoint,
                 isReticleReadyToConfirm: viewModel.calibrationCaptureService.isReticleReadyToConfirm,
-                a0Point: viewModel.calibrationCaptureService.a0Point,
-                c8Point: viewModel.calibrationCaptureService.c8Point,
+                a0TrackedAnchorPoint: viewModel.a0OverlayPoint,
+                c8TrackedAnchorPoint: viewModel.c8OverlayPoint,
                 content: content
             )
             handDebugOverlayController.update(
@@ -30,8 +30,8 @@ struct ImmersiveView: View {
             calibrationOverlayController.update(
                 reticlePoint: viewModel.calibrationCaptureService.reticlePoint,
                 isReticleReadyToConfirm: viewModel.calibrationCaptureService.isReticleReadyToConfirm,
-                a0Point: viewModel.calibrationCaptureService.a0Point,
-                c8Point: viewModel.calibrationCaptureService.c8Point,
+                a0TrackedAnchorPoint: viewModel.a0OverlayPoint,
+                c8TrackedAnchorPoint: viewModel.c8OverlayPoint,
                 content: content
             )
             handDebugOverlayController.update(

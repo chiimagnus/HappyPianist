@@ -25,6 +25,16 @@ final class ARGuideViewModel {
         appModel.storedCalibration
     }
 
+    var a0OverlayPoint: SIMD3<Float>? {
+        let anchorID = calibrationCaptureService.a0AnchorID ?? storedCalibration?.a0AnchorID
+        return resolvedTrackedWorldAnchorPoint(anchorID: anchorID)
+    }
+
+    var c8OverlayPoint: SIMD3<Float>? {
+        let anchorID = calibrationCaptureService.c8AnchorID ?? storedCalibration?.c8AnchorID
+        return resolvedTrackedWorldAnchorPoint(anchorID: anchorID)
+    }
+
     var pendingCalibrationCaptureAnchor: CalibrationAnchorPoint? {
         get { appModel.pendingCalibrationCaptureAnchor }
         set { appModel.pendingCalibrationCaptureAnchor = newValue }
@@ -275,5 +285,18 @@ final class ARGuideViewModel {
 
     var canControlPractice: Bool {
         hasImportedSteps
+    }
+
+    private func resolvedTrackedWorldAnchorPoint(anchorID: UUID?) -> SIMD3<Float>? {
+        guard let anchorID else { return nil }
+        guard let anchor = arTrackingService.worldAnchorsByID[anchorID] else { return nil }
+        guard anchor.isTracked else { return nil }
+
+        let transform = anchor.originFromAnchorTransform
+        return SIMD3<Float>(
+            transform.columns.3.x,
+            transform.columns.3.y,
+            transform.columns.3.z
+        )
     }
 }
