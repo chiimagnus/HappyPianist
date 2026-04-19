@@ -13,13 +13,12 @@ class AppModel {
     }
 
     enum ImmersiveMode {
-        case inactive
         case calibration
         case practice
     }
 
     var immersiveSpaceState = ImmersiveSpaceState.closed
-    var immersiveMode: ImmersiveMode = .inactive
+    var immersiveMode: ImmersiveMode = .practice
 
     let practiceSessionViewModel: PracticeSessionViewModel
     let handTrackingService: HandTrackingService

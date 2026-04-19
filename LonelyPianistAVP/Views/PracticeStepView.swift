@@ -3,9 +3,11 @@ import SwiftUI
 struct PracticeStepView: View {
     @Bindable var viewModel: ARGuideViewModel
 
+    @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
 
     @State private var hasRequestedImmersiveOpen = false
+    @State private var isStepVisible = false
     @State private var immersiveLifecycleMessage: String?
 
     var body: some View {
@@ -46,6 +48,7 @@ struct PracticeStepView: View {
         }
         .buttonBorderShape(.roundedRectangle)
         .onAppear {
+            isStepVisible = true
             guard hasRequestedImmersiveOpen == false else { return }
             hasRequestedImmersiveOpen = true
 
@@ -54,11 +57,20 @@ struct PracticeStepView: View {
                     mode: .practice,
                     using: openImmersiveSpace
                 )
+
+                if isStepVisible == false {
+                    await viewModel.closeImmersiveForStep(using: dismissImmersiveSpace)
+                    await viewModel.recoverImmersiveStateIfStuck()
+                }
             }
         }
         .onDisappear {
+            isStepVisible = false
             hasRequestedImmersiveOpen = false
-            viewModel.enterInactiveMode()
+            Task { @MainActor in
+                await viewModel.closeImmersiveForStep(using: dismissImmersiveSpace)
+                await viewModel.recoverImmersiveStateIfStuck()
+            }
         }
     }
 

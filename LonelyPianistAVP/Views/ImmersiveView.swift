@@ -9,9 +9,41 @@ struct ImmersiveView: View {
 
     var body: some View {
         RealityView { content in
-            updateContent(content)
+            calibrationOverlayController.update(
+                reticlePoint: viewModel.calibrationCaptureService.reticlePoint,
+                isReticleReadyToConfirm: viewModel.calibrationCaptureService.isReticleReadyToConfirm,
+                a0Point: viewModel.calibrationCaptureService.a0Point,
+                c8Point: viewModel.calibrationCaptureService.c8Point,
+                content: content
+            )
+            handDebugOverlayController.update(
+                fingerTipPositions: viewModel.handTrackingService.fingerTipPositions,
+                content: content
+            )
+            overlayController.updateHighlights(
+                currentStep: viewModel.practiceSessionViewModel.currentStep,
+                keyRegions: viewModel.practiceSessionViewModel.keyRegions,
+                feedbackState: viewModel.practiceSessionViewModel.feedbackState,
+                content: content
+            )
         } update: { content in
-            updateContent(content)
+            calibrationOverlayController.update(
+                reticlePoint: viewModel.calibrationCaptureService.reticlePoint,
+                isReticleReadyToConfirm: viewModel.calibrationCaptureService.isReticleReadyToConfirm,
+                a0Point: viewModel.calibrationCaptureService.a0Point,
+                c8Point: viewModel.calibrationCaptureService.c8Point,
+                content: content
+            )
+            handDebugOverlayController.update(
+                fingerTipPositions: viewModel.handTrackingService.fingerTipPositions,
+                content: content
+            )
+            overlayController.updateHighlights(
+                currentStep: viewModel.practiceSessionViewModel.currentStep,
+                keyRegions: viewModel.practiceSessionViewModel.keyRegions,
+                feedbackState: viewModel.practiceSessionViewModel.feedbackState,
+                content: content
+            )
         }
         .onAppear {
             viewModel.onImmersiveAppear()
@@ -19,31 +51,6 @@ struct ImmersiveView: View {
         .onDisappear {
             viewModel.onImmersiveDisappear()
         }
-    }
-
-    private func updateContent(_ content: RealityViewContent) {
-        let immersiveMode = viewModel.immersiveMode
-
-        calibrationOverlayController.update(
-            isVisible: immersiveMode == .calibration,
-            reticlePoint: viewModel.calibrationCaptureService.reticlePoint,
-            isReticleReadyToConfirm: viewModel.calibrationCaptureService.isReticleReadyToConfirm,
-            a0Point: viewModel.calibrationCaptureService.a0Point,
-            c8Point: viewModel.calibrationCaptureService.c8Point,
-            content: content
-        )
-
-        handDebugOverlayController.update(
-            fingerTipPositions: immersiveMode == .inactive ? [:] : viewModel.handTrackingService.fingerTipPositions,
-            content: content
-        )
-
-        overlayController.updateHighlights(
-            currentStep: immersiveMode == .practice ? viewModel.practiceSessionViewModel.currentStep : nil,
-            keyRegions: viewModel.practiceSessionViewModel.keyRegions,
-            feedbackState: viewModel.practiceSessionViewModel.feedbackState,
-            content: content
-        )
     }
 }
 
