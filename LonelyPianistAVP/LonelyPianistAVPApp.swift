@@ -9,6 +9,7 @@ struct LonelyPianistAVPApp: App {
 
     init() {
         let appModel = AppModel()
+        appModel.loadStoredCalibrationIfPossible()
         _appModel = State(initialValue: appModel)
         _homeViewModel = State(initialValue: HomeViewModel(appModel: appModel))
         _arGuideViewModel = State(initialValue: ARGuideViewModel(appModel: appModel))
