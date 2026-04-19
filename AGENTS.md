@@ -109,22 +109,6 @@
 调试与日志：
 - 日志用 `os.Logger`，明确 `subsystem` 与 `category`，便于过滤与定位
 
-### Apple 文档查询（XCDocs，强烈推荐频繁使用）
-
-当涉及 SwiftUI / RealityKit / ARKit / visionOS 的新 API、不确定的符号形状、或 2D/3D 结合模式时，优先用本机 `xcdocs` 查询确认，再落到实现与计划中（避免靠记忆猜 API）。
-
-推荐流程：
-
-1. 粗搜：`xcdocs search "<query>" --omit-content --json --limit 10`
-2. 精读：对结果中的 `documents[].uri` 执行 `xcdocs get <uri> --json`
-3. 落盘：在对应的 `plan-px.md` 写清“采用的官方路径 + 对应 uri”，并在实现中按文档形状写代码（必要时加 availability/降级策略）。
-
-对本仓库的高频查询主题：
-
-- 2D/3D 结合：RealityView attachments、SwiftUI ornaments
-- ImmersiveSpace 打开/关闭与窗口/沉浸空间分工
-- HandTrackingProvider（权限/可用性/降级路径）
-
 ### visionOS（LonelyPianistAVP）工程规范对齐
 
 - `LonelyPianistAVP/` 的新增代码同样遵守本仓库 MVVM + Services 分层与命名规范（尽量按 `Models/`、`Services/`、`ViewModels/`、`Views/` 组织；不要把业务逻辑堆在 View 里）。
