@@ -2,17 +2,17 @@ import SwiftUI
 import UniformTypeIdentifiers
 import simd
 
+fileprivate enum MainFlowRoute: Hashable {
+    case calibration
+    case practice
+}
+
 struct ContentView: View {
     @Bindable var homeViewModel: HomeViewModel
     @Bindable var arGuideViewModel: ARGuideViewModel
 
     @State private var navigationPath: [MainFlowRoute] = []
     @ScaledMetric(relativeTo: .title) private var stepOrbSize: CGFloat = 200
-
-    private enum MainFlowRoute: Hashable {
-        case calibration
-        case practice
-    }
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -41,7 +41,6 @@ struct ContentView: View {
                 }
             }
         }
-        .buttonBorderShape(.roundedRectangle)
         .fileImporter(
             isPresented: $homeViewModel.isImporterPresented,
             allowedContentTypes: [.xml, .musicXML],
@@ -73,26 +72,28 @@ struct ContentView: View {
             Spacer(minLength: 0)
 
             HStack(spacing: 18) {
-                stepNode(
+                StepOrbLink(
                     title: "校准",
                     stepLabel: "第一步",
                     isEnabled: true,
                     route: .calibration,
                     accent: .blue,
-                    helpText: nil
+                    helpText: nil,
+                    orbSize: stepOrbSize
                 )
 
                 Image(systemName: "arrow.right")
                     .font(.title3)
                     .foregroundStyle(.secondary)
 
-                stepNode(
+                StepOrbLink(
                     title: "开始练习",
                     stepLabel: "第二步",
                     isEnabled: homeViewModel.canEnterPractice,
                     route: .practice,
                     accent: .green,
-                    helpText: homeViewModel.canEnterPractice ? nil : "需要先完成校准并导入 MusicXML"
+                    helpText: homeViewModel.canEnterPractice ? nil : "需要先完成校准并导入 MusicXML",
+                    orbSize: stepOrbSize
                 )
                 .opacity(homeViewModel.canEnterPractice ? 1.0 : 0.45)
             }
@@ -102,58 +103,80 @@ struct ContentView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
+}
 
-    @ViewBuilder
-    private func stepNode(
-        title: String,
-        stepLabel: String,
-        isEnabled: Bool,
-        route: MainFlowRoute,
-        accent: Color,
-        helpText: String?
-    ) -> some View {
-        let base = NavigationLink(value: route) {
-            VStack(spacing: 10) {
-                ZStack {
-                    Circle()
-                        .fill(.thinMaterial)
-                        .overlay {
-                            Circle()
-                                .strokeBorder(accent.opacity(0.55), lineWidth: 2)
-                        }
+private struct StepOrbLink: View {
+    let title: String
+    let stepLabel: String
+    let isEnabled: Bool
+    let route: MainFlowRoute
+    let accent: Color
+    let helpText: String?
+    let orbSize: CGFloat
 
-                    Text(title)
-                        .font(.title3.weight(.semibold))
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(.primary)
-                        .padding(16)
+    @State private var isHovering = false
 
-                    if isEnabled == false {
-                        VStack {
-                            Spacer()
-                            Image(systemName: "lock.fill")
-                                .font(.title3.weight(.semibold))
-                                .foregroundStyle(.secondary)
-                        }
-                        .padding(.bottom, 14)
-                    }
+    var body: some View {
+        VStack(spacing: 10) {
+            let base = NavigationLink(value: route) {
+                orb
+            }
+            .buttonStyle(.plain)
+            .buttonBorderShape(.circle)
+            .contentShape(Circle())
+            .containerShape(Circle())
+            .hoverEffectDisabled(true)
+            .disabled(isEnabled == false)
+            .onHover { hovering in
+                guard isEnabled else {
+                    isHovering = false
+                    return
                 }
-                .frame(width: stepOrbSize, height: stepOrbSize)
+                isHovering = hovering
+            }
+            .animation(.easeInOut(duration: 0.18), value: isHovering)
 
-                Text(stepLabel)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+            if let helpText {
+                base.help(helpText)
+            } else {
+                base
+            }
+
+            Text(stepLabel)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var orb: some View {
+        ZStack {
+            Circle()
+                .fill(.thinMaterial)
+                .overlay {
+                    Circle()
+                        .strokeBorder(accent.opacity(isHovering ? 0.85 : 0.55), lineWidth: isHovering ? 3 : 2)
+                }
+                .shadow(color: accent.opacity(isHovering ? 0.35 : 0.0), radius: isHovering ? 18 : 0)
+
+            Text(title)
+                .font(.title3.weight(.semibold))
+                .multilineTextAlignment(.center)
+                .foregroundStyle(.primary)
+                .padding(16)
+
+            if isEnabled == false {
+                VStack {
+                    Spacer()
+                    Image(systemName: "lock.fill")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.secondary)
+                }
+                .padding(.bottom, 14)
             }
         }
-        .buttonStyle(.plain)
-        .hoverEffect()
-        .disabled(isEnabled == false)
-
-        if let helpText {
-            base.help(helpText)
-        } else {
-            base
-        }
+        .frame(width: orbSize, height: orbSize)
+        .scaleEffect(isHovering ? 1.06 : 1.0)
+        .contentShape(Circle())
     }
 }
 
