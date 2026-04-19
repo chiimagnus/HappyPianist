@@ -91,38 +91,55 @@ final class ARTrackingService: ARTrackingServiceProtocol {
     func start() {
         guard sessionTask == nil else { return }
 
-        guard HandTrackingProvider.isSupported else {
+        let isHandSupported = HandTrackingProvider.isSupported
+        let isWorldSupported = WorldTrackingProvider.isSupported
+
+        if isHandSupported == false {
             providerStateByName["hand"] = .unsupported
-            return
+        }
+        if isWorldSupported == false {
+            providerStateByName["world"] = .unsupported
         }
 
-        guard WorldTrackingProvider.isSupported else {
-            providerStateByName["world"] = .unsupported
-            return
-        }
+        guard isHandSupported || isWorldSupported else { return }
 
         sessionTask = Task { [weak self] in
             guard let self else { return }
 
-            let requiredAuthorizations = deduplicatedRequiredAuthorizations()
+            let requiredAuthorizations = deduplicatedRequiredAuthorizations(
+                includeHand: isHandSupported,
+                includeWorld: isWorldSupported
+            )
             let statuses = await session.requestAuthorization(for: requiredAuthorizations)
             authorizationStatusByType = statuses
 
-            if statuses[.handTracking] != .allowed {
+            let isHandAllowed = isHandSupported && statuses[.handTracking] == .allowed
+            let isWorldAllowed = isWorldSupported && statuses[.worldSensing] == .allowed
+
+            if isHandSupported, isHandAllowed == false {
                 providerStateByName["hand"] = .unauthorized
-                sessionTask = nil
-                return
             }
-            if statuses[.worldSensing] != .allowed {
+            if isWorldSupported, isWorldAllowed == false {
                 providerStateByName["world"] = .unauthorized
+            }
+
+            var providersToRun: [any DataProvider] = []
+            if isHandAllowed {
+                providersToRun.append(handTrackingProvider)
+            }
+            if isWorldAllowed {
+                providersToRun.append(worldTrackingProvider)
+            }
+
+            guard providersToRun.isEmpty == false else {
                 sessionTask = nil
                 return
             }
 
             do {
-                try await session.run([handTrackingProvider, worldTrackingProvider])
-                providerStateByName["hand"] = .running
-                providerStateByName["world"] = .running
+                try await session.run(providersToRun)
+                if isHandAllowed { providerStateByName["hand"] = .running }
+                if isWorldAllowed { providerStateByName["world"] = .running }
                 startUpdateTasks()
             } catch {
                 if error is CancellationError {
@@ -133,8 +150,8 @@ final class ARTrackingService: ARTrackingServiceProtocol {
                         providerStateByName["world"] = .stopped
                     }
                 } else {
-                    providerStateByName["hand"] = .failed(reason: error.localizedDescription)
-                    providerStateByName["world"] = .failed(reason: error.localizedDescription)
+                    if isHandAllowed { providerStateByName["hand"] = .failed(reason: error.localizedDescription) }
+                    if isWorldAllowed { providerStateByName["world"] = .failed(reason: error.localizedDescription) }
                 }
             }
 
@@ -169,72 +186,84 @@ final class ARTrackingService: ARTrackingServiceProtocol {
     }
 
     private func startUpdateTasks() {
-        guard handUpdatesTask == nil else { return }
-        guard worldAnchorUpdatesTask == nil else { return }
+        if handUpdatesTask == nil, providerStateByName["hand"] == .running {
+            handUpdatesTask = Task { [weak self] in
+                guard let self else { return }
+                for await update in handTrackingProvider.anchorUpdates {
+                    guard Task.isCancelled == false else { return }
 
-        handUpdatesTask = Task { [weak self] in
-            guard let self else { return }
-            for await update in handTrackingProvider.anchorUpdates {
-                guard Task.isCancelled == false else { return }
+                    let chiralityPrefix = "\(update.anchor.chirality)-"
+                    guard update.anchor.isTracked else {
+                        fingerTipPositions = fingerTipPositions.filter { key, _ in
+                            key.hasPrefix(chiralityPrefix) == false
+                        }
+                        switch update.anchor.chirality {
+                        case .left:
+                            leftIndexFingerTipPosition = nil
+                        case .right:
+                            rightIndexFingerTipPosition = nil
+                            rightThumbTipPosition = nil
+                        @unknown default:
+                            break
+                        }
+                        fingerTipUpdatesContinuation?.yield(fingerTipPositions)
+                        continue
+                    }
 
-                let chiralityPrefix = "\(update.anchor.chirality)-"
-                guard update.anchor.isTracked else {
+                    let extracted = extractFingerTips(from: update.anchor)
                     fingerTipPositions = fingerTipPositions.filter { key, _ in
                         key.hasPrefix(chiralityPrefix) == false
                     }
+                    fingerTipPositions.merge(extracted.tips, uniquingKeysWith: { _, new in new })
+
                     switch update.anchor.chirality {
                     case .left:
-                        leftIndexFingerTipPosition = nil
+                        leftIndexFingerTipPosition = extracted.indexFingerTip
                     case .right:
-                        rightIndexFingerTipPosition = nil
-                        rightThumbTipPosition = nil
+                        rightIndexFingerTipPosition = extracted.indexFingerTip
+                        rightThumbTipPosition = extracted.thumbTip
                     @unknown default:
                         break
                     }
                     fingerTipUpdatesContinuation?.yield(fingerTipPositions)
-                    continue
                 }
-
-                let extracted = extractFingerTips(from: update.anchor)
-                fingerTipPositions = fingerTipPositions.filter { key, _ in
-                    key.hasPrefix(chiralityPrefix) == false
-                }
-                fingerTipPositions.merge(extracted.tips, uniquingKeysWith: { _, new in new })
-
-                switch update.anchor.chirality {
-                case .left:
-                    leftIndexFingerTipPosition = extracted.indexFingerTip
-                case .right:
-                    rightIndexFingerTipPosition = extracted.indexFingerTip
-                    rightThumbTipPosition = extracted.thumbTip
-                @unknown default:
-                    break
-                }
-                fingerTipUpdatesContinuation?.yield(fingerTipPositions)
             }
         }
 
-        worldAnchorUpdatesTask = Task { [weak self] in
-            guard let self else { return }
-            for await update in worldTrackingProvider.anchorUpdates {
-                guard Task.isCancelled == false else { return }
-                switch update.event {
-                case .removed:
-                    worldAnchorsByID.removeValue(forKey: update.anchor.id)
-                case .added, .updated:
-                    worldAnchorsByID[update.anchor.id] = update.anchor
-                @unknown default:
-                    worldAnchorsByID[update.anchor.id] = update.anchor
+        if worldAnchorUpdatesTask == nil, providerStateByName["world"] == .running {
+            worldAnchorUpdatesTask = Task { [weak self] in
+                guard let self else { return }
+                for await update in worldTrackingProvider.anchorUpdates {
+                    guard Task.isCancelled == false else { return }
+                    switch update.event {
+                    case .removed:
+                        worldAnchorsByID.removeValue(forKey: update.anchor.id)
+                    case .added, .updated:
+                        worldAnchorsByID[update.anchor.id] = update.anchor
+                    @unknown default:
+                        worldAnchorsByID[update.anchor.id] = update.anchor
+                    }
                 }
             }
         }
     }
 
-    private func deduplicatedRequiredAuthorizations() -> [ARKitSession.AuthorizationType] {
+    private func deduplicatedRequiredAuthorizations(
+        includeHand: Bool,
+        includeWorld: Bool
+    ) -> [ARKitSession.AuthorizationType] {
         var seen: Set<ARKitSession.AuthorizationType> = []
         var ordered: [ARKitSession.AuthorizationType] = []
 
-        for type in HandTrackingProvider.requiredAuthorizations + WorldTrackingProvider.requiredAuthorizations {
+        var required: [ARKitSession.AuthorizationType] = []
+        if includeHand {
+            required += HandTrackingProvider.requiredAuthorizations
+        }
+        if includeWorld {
+            required += WorldTrackingProvider.requiredAuthorizations
+        }
+
+        for type in required {
             if seen.insert(type).inserted {
                 ordered.append(type)
             }

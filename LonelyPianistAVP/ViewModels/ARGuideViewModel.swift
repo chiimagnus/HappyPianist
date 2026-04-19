@@ -290,10 +290,7 @@ final class ARGuideViewModel {
             hasStartedGuidingInCurrentImmersiveSession = false
             wasRightHandPinching = false
             startHandTrackingIfNeeded()
-            if calibrationStatusMessage == nil,
-               arTrackingService.providerStateByName["hand"] == .unsupported {
-                calibrationStatusMessage = "手部追踪不可用：此设备不支持手部追踪。"
-            }
+            updateCalibrationTrackingStatusIfNeeded()
 
         case .practice:
             startHandTrackingIfNeeded()
@@ -330,6 +327,7 @@ final class ARGuideViewModel {
             arTrackingService.leftIndexFingerTipPosition,
             nowUptime: nowUptime
         )
+        updateCalibrationTrackingStatusIfNeeded()
 
         let isRightHandPinching: Bool = {
             guard
@@ -351,6 +349,33 @@ final class ARGuideViewModel {
             }
         }
         wasRightHandPinching = isRightHandPinching
+    }
+
+    private func updateCalibrationTrackingStatusIfNeeded() {
+        guard appModel.immersiveMode == .calibration else { return }
+        guard calibrationStatusMessage == nil else { return }
+
+        let handState = arTrackingService.providerStateByName["hand"] ?? .idle
+        let worldState = arTrackingService.providerStateByName["world"] ?? .idle
+
+        switch (handState, worldState) {
+        case (.unsupported, _):
+            calibrationStatusMessage = "手部追踪不可用：此设备不支持手部追踪。"
+        case (.unauthorized, _):
+            calibrationStatusMessage = "手部追踪未授权：请在系统设置中允许本 App 使用 Hand Tracking。"
+        case (.failed(let reason), _):
+            calibrationStatusMessage = "手部追踪启动失败：\(reason)"
+
+        case (_, .unsupported):
+            calibrationStatusMessage = "世界追踪不可用：此环境不支持 World Tracking。"
+        case (_, .unauthorized):
+            calibrationStatusMessage = "World Sensing 未授权：请在系统设置中允许本 App 访问。"
+        case (_, .failed(let reason)):
+            calibrationStatusMessage = "世界追踪启动失败：\(reason)"
+
+        default:
+            break
+        }
     }
 
     private func confirmPendingCalibrationAnchorIfReady() async {
