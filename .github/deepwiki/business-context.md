@@ -1,7 +1,7 @@
 # 业务入口
 
 ## 产品定位与用户
-- **产品定位**：LonelyPianist 是一个“钢琴输入到数字反馈”的多端系统：macOS 端负责 MIDI 监听/映射/录制与 AI 对话，visionOS 端负责 AR 引导练习，Python 服务端负责对话推理与乐谱 OMR 转换。
+- **产品定位**：LonelyPianist 是一个“钢琴输入到数字反馈”的多端系统：macOS 端负责 MIDI 监听/映射/录制与 AI 对话，visionOS 端负责 AR 引导练习，Python 服务端负责对话推理。
 - **目标用户**：有电子琴/MIDI 键盘的个人练习者、需要键位映射自动化的创作者、希望在 Vision Pro 上做“看谱+按键引导”的体验验证者。
 - **为什么需要它**：它把“演奏输入”同时打通为**控制信号（映射）**、**音乐会话（Dialogue）**、**可视化练习（AVP）**三种结果，而不是单一 MIDI 监视工具。
 
@@ -12,7 +12,6 @@
 | 映射编辑器 | 将单音/和弦映射为键盘按键输出 | 在 Mappings 页点击琴键并绑定 | [modules/lonelypianist-macos.md](modules/lonelypianist-macos.md) |
 | 录音与回放 | 保存 take、波形钢琴卷帘、切换回放输出 | 在 Recorder 页录音/播放 | [modules/lonelypianist-macos.md](modules/lonelypianist-macos.md) |
 | Piano Dialogue | “你弹一句→AI 回一句”的轮转式交互 | Dialogue 页 Start Dialogue 后 | [modules/piano-dialogue-server.md](modules/piano-dialogue-server.md) |
-| OMR 转谱 | PDF/图片转 MusicXML | macOS OMR 面板或 HTTP `/omr/convert` | [modules/omr-pipeline.md](modules/omr-pipeline.md) |
 | AVP AR Guide | MusicXML 导入、A0/C8 校准、按键高亮引导 | visionOS 进入 Immersive Space 后 | [modules/lonelypianist-avp.md](modules/lonelypianist-avp.md) |
 
 ## 核心能力清单
@@ -23,14 +22,12 @@
 | 录音回放 | 保存演奏并复听/外发 MIDI | Recorder 录制与播放 | MIDI 事件、已有 take | `RecordingTake` 持久化、音频/MIDI 回放 | [storage.md](storage.md) |
 | AI 对话 | 与模型进行钢琴短句回应 | Dialogue Start + 静默触发 | Phrase notes | AI reply 回放 + 合并写入会话 take | [modules/piano-dialogue-server.md](modules/piano-dialogue-server.md) |
 | 乐谱导入练习 | 从谱面到按键步骤引导 | AVP Import + Start AR Guide | MusicXML / 手部追踪 | 当前 step 高亮、correct/wrong 反馈 | [modules/lonelypianist-avp.md](modules/lonelypianist-avp.md) |
-| OMR 转换 | PDF/图片可用于 AVP 练习 | CLI/HTTP `/omr/convert` | PDF/JPG/PNG | `score.musicxml` + debug 产物目录 | [modules/omr-pipeline.md](modules/omr-pipeline.md) |
 
 ## 核心用户旅程
 | 旅程 | 起点 | 关键步骤 | 可见结果 | 继续阅读 |
 | --- | --- | --- | --- | --- |
 | 旅程 A：MIDI 到快捷映射 | 启动 macOS App | 授权辅助功能 -> Start Listening -> 绑定规则 -> 演奏 | 目标应用收到按键（如 ⌘C） | [modules/lonelypianist-macos.md](modules/lonelypianist-macos.md) |
 | 旅程 B：人机对话 | 启动本地 Python 服务 | App Start Listening -> Start Dialogue -> 弹奏后静默 | AI 生成并回放下一句，Recorder 出现会话 take | [data-flow.md](data-flow.md) |
-| 旅程 C：从 PDF 到 AR 引导 | 拿到 PDF/图片谱 | OMR 转 MusicXML -> AVP 导入 -> A0/C8 校准 -> 进入 AR Guide | 空间高亮下一步按键，可 Skip/Mark Correct | [modules/omr-pipeline.md](modules/omr-pipeline.md) |
 
 ## 业务主流程图
 ```mermaid
@@ -42,15 +39,13 @@ flowchart TD
   C -->|Dialogue| F[静默检测后发送 WS generate]
   F --> G[Python 推理生成 reply]
   G --> H[回放 reply + 写入会话 take]
-  I[PDF/图片谱] --> J[OMR 转 MusicXML]
-  J --> K[AVP 导入并构建步骤]
-  K --> L[AR 校准 + 手部追踪]
-  L --> M[高亮引导与步骤推进]
+  I[外部 MusicXML 文件] --> J[AVP 导入并构建步骤]
+  J --> K[AR 校准 + 手部追踪]
+  K --> L[高亮引导与步骤推进]
 ```
 
 ## 业务规则与约束
 - Dialogue 是 **turn-based**，触发点为“静默超时 + 踏板抬起”。
-- OMR 当前 MVP 对多页 PDF 仅处理第一页；请求 page>1 会触发约束错误。
 - AVP 指引依赖 A0/C8 两点校准；未完成校准时不进入有效引导态。
 - 映射引擎对和弦触发采用“当前按下集合严格相等”，不是子集匹配。
 - macOS 全局按键注入依赖辅助功能授权，缺少授权时 Runtime 会停在受限状态。
@@ -62,7 +57,6 @@ flowchart TD
 | Phrase | Dialogue 模式中一次用户演奏短句 | 是触发模型生成的最小输入单元 | [data-flow.md](data-flow.md) |
 | Interruption Behavior | AI 回放期间用户输入策略（Ignore/Interrupt/Queue） | 直接改变对话交互手感 | [modules/lonelypianist-macos.md](modules/lonelypianist-macos.md) |
 | Calibration (A0/C8) | 在空间中捕获钢琴两端点位 | 决定 AR 键位几何对齐正确性 | [modules/lonelypianist-avp.md](modules/lonelypianist-avp.md) |
-| OMR Job | 一次转谱任务目录，含 input/debug/output | 是定位 OMR 失败与质量问题的第一现场 | [modules/omr-pipeline.md](modules/omr-pipeline.md) |
 
 ## 从业务进入技术细节
 - 先看 [overview.md](overview.md) 获取三条产品线与目录地图。

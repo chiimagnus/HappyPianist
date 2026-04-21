@@ -10,11 +10,9 @@ from starlette.websockets import WebSocketDisconnect
 
 from .debug_artifacts import debug_enabled, new_request_id, write_debug_bundle
 from .inference import get_inference_engine
-from .omr_routes import router as omr_router
 from .protocol import ErrorResponse, GenerateRequest, ResultResponse
 
 app = FastAPI(title="Piano Dialogue Server", version="0.1.0")
-app.include_router(omr_router)
 
 
 @app.get("/health")

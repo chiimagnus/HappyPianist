@@ -12,7 +12,6 @@ final class LonelyPianistViewModel {
         case recorder = "Recorder"
         case dialogue = "Dialogue"
         case sheet = "Sheet"
-        case omr = "OMR"
 
         var id: String { rawValue }
 
@@ -28,8 +27,6 @@ final class LonelyPianistViewModel {
                 return "bubble.left.and.bubble.right"
             case .sheet:
                 return "music.quarternote.3"
-            case .omr:
-                return "doc.text.viewfinder"
             }
         }
     }

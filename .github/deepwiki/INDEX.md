@@ -11,7 +11,6 @@
 4. [modules/lonelypianist-macos.md](modules/lonelypianist-macos.md)
 5. [modules/lonelypianist-avp.md](modules/lonelypianist-avp.md)
 6. [modules/piano-dialogue-server.md](modules/piano-dialogue-server.md)
-7. [modules/omr-pipeline.md](modules/omr-pipeline.md)
 
 ### engineering-first（先架构后模块）
 1. [overview.md](overview.md)
@@ -42,7 +41,6 @@
 - [modules/lonelypianist-macos.md](modules/lonelypianist-macos.md)
 - [modules/lonelypianist-avp.md](modules/lonelypianist-avp.md)
 - [modules/piano-dialogue-server.md](modules/piano-dialogue-server.md)
-- [modules/omr-pipeline.md](modules/omr-pipeline.md)
 
 ### 术语与元数据
 - [glossary.md](glossary.md)

@@ -38,19 +38,19 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		D85596C62F83FF74005BE7FE /* Exceptions for "LonelyPianistAVP" folder in "LonelyPianistAVP" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = D85596A82F83FF72005BE7FE /* LonelyPianistAVP */;
-		};
 		43211432ECD449DA986D359D /* Exceptions for "LonelyPianist" folder in "LonelyPianist" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
 			);
 			target = D8D4280C2F4DFD3800EC9C9B /* LonelyPianist */;
+		};
+		D85596C62F83FF74005BE7FE /* Exceptions for "LonelyPianistAVP" folder in "LonelyPianistAVP" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = D85596A82F83FF72005BE7FE /* LonelyPianistAVP */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -613,13 +613,13 @@
 				DEVELOPMENT_TEAM = RDQHYSDFFG;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
-					ENABLE_PREVIEWS = YES;
-					ENABLE_USER_SELECTED_FILES = readonly;
-					GENERATE_INFOPLIST_FILE = YES;
-					INFOPLIST_FILE = LonelyPianist/Info.plist;
-					INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-					INFOPLIST_KEY_LSUIElement = NO;
-					INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LonelyPianist/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_LSUIElement = NO;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -654,13 +654,13 @@
 				DEVELOPMENT_TEAM = RDQHYSDFFG;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
-					ENABLE_PREVIEWS = YES;
-					ENABLE_USER_SELECTED_FILES = readonly;
-					GENERATE_INFOPLIST_FILE = YES;
-					INFOPLIST_FILE = LonelyPianist/Info.plist;
-					INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-					INFOPLIST_KEY_LSUIElement = NO;
-					INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = LonelyPianist/Info.plist;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+				INFOPLIST_KEY_LSUIElement = NO;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",

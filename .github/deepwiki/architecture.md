@@ -9,8 +9,7 @@
 | --- | --- | --- | --- |
 | LonelyPianist (macOS) | `LonelyPianist/` | App 启动到窗口关闭 | MIDI 监听、规则映射、Recorder、Dialogue 控制 |
 | LonelyPianistAVP (visionOS) | `LonelyPianistAVP/` | Window + ImmersiveSpace 双场景 | 导入 MusicXML、空间校准、手部追踪、AR 高亮 |
-| Dialogue/OMR 服务 | `piano_dialogue_server/server/` | uvicorn 进程生命周期 | WebSocket 推理、HTTP OMR 转换 |
-| OMR CLI | `piano_dialogue_server/omr/cli.py` | 单次命令执行 | 输入谱面文件并生成 MusicXML |
+| Dialogue 服务 | `piano_dialogue_server/server/` | uvicorn 进程生命周期 | WebSocket 推理 |
 
 ## 组件地图
 | 组件 | 位置 | 输入 | 输出 | 依赖 |
@@ -22,21 +21,18 @@
 | `WebSocketDialogueService` | `LonelyPianist/Services/Dialogue/` | `DialogueNote` 请求 | `DialogueNote` 回复 | URLSessionWebSocket |
 | `PracticeSessionViewModel` | `LonelyPianistAVP/ViewModels/` | 手指点位 + step | 当前步骤状态、反馈色态 | PressDetection + ChordAccumulator |
 | `HandTrackingService` | `LonelyPianistAVP/Services/HandTracking/` | ARKit anchor 更新 | 指尖坐标字典 | ARKit HandTrackingProvider |
-| `convert_to_musicxml` | `piano_dialogue_server/omr/convert.py` | PDF/JPG/PNG | job 目录 + `score.musicxml` | fitz + PIL + oemer |
 | `InferenceEngine` | `piano_dialogue_server/server/inference.py` | `DialogueNote[]` + params | AI 回复 notes | torch + transformers + anticipation |
 
 ## 依赖方向与层次
 - macOS 与 AVP 均采用 `View -> ViewModel -> Services -> Models` 的单向职责分配。
 - ViewModel 通过协议注入服务（例如 `MIDIInputServiceProtocol`、`RecordingTakeRepositoryProtocol`），避免 UI 层直连系统 I/O。
-- Python 服务将协议/校验（`protocol.py`）与执行（`inference.py` / `omr_routes.py`）分离，入口 `main.py` 只做编排。
+- Python 服务将协议/校验（`protocol.py`）与执行（`inference.py`）分离，入口 `main.py` 只做编排。
 - 关键禁止模式：将业务流程塞入 View、以单例隐藏依赖、或在失败时静默吞掉错误。
 
 ## 关键流程
 - **流程 1（映射）**：CoreMIDI -> ViewModel -> MappingEngine -> KeyboardEventService -> 系统按键。
 - **流程 2（Dialogue）**：收集 phrase -> 静默检测 -> WS generate -> AI note 转 take -> Playback -> 归档。
 - **流程 3（AVP 引导）**：MusicXML parse -> step build -> calibration -> key region -> press match -> step advance。
-- **流程 4（OMR）**：上传/CLI -> preprocess -> oemer extract -> 输出 MusicXML + debug 图。
-
 ## 图表
 ```mermaid
 flowchart LR
@@ -51,11 +47,7 @@ flowchart LR
   subgraph PY[Python Server]
     P1[FastAPI main.py]
     P2[inference.py]
-    P3[omr_routes.py]
-    P4[omr convert pipeline]
     P1 --> P2
-    P1 --> P3
-    P3 --> P4
   end
 
   subgraph AVP[LonelyPianistAVP]
@@ -66,8 +58,7 @@ flowchart LR
   end
 
   A4 <-->|WS /ws| P1
-  A2 -->|OMR convert| P1
-  P4 -->|MusicXML| V4
+  E1[External MusicXML File] --> V4
 ```
 
 ## 接口与契约
@@ -77,7 +68,6 @@ flowchart LR
 | `RecordingTakeRepositoryProtocol` | `LonelyPianist/Services/Protocols/` | ViewModel / DialogueManager | take 持久化读写 |
 | `DialogueServiceProtocol` | `LonelyPianist/Services/Protocols/` | DialogueManager | WebSocket 对话请求与回复 |
 | WS `GenerateRequest/ResultResponse` | `piano_dialogue_server/server/protocol.py` | macOS <-> Python | 对话协议版本与字段约束 |
-| HTTP `POST /omr/convert` | `piano_dialogue_server/server/omr_routes.py` | macOS OMR 面板 / 其他客户端 | 文件上传转 MusicXML |
 | `PracticeStepBuilderProtocol` | `LonelyPianistAVP/Services/PracticeStepBuilder.swift` | AVP ContentView | 将解析后的音符事件转步骤 |
 
 ## 状态、存储与消息
@@ -85,27 +75,25 @@ flowchart LR
 - **持久化**：
   - SwiftData：`MappingConfigEntity`、`RecordingTakeEntity`、`RecordedNoteEntity`。
   - AVP 本地文件：`piano-calibration.json`、导入的 MusicXML 文件副本。
-  - Python 输出：`out/omr/*`、`out/dialogue_debug/*`、`out/*.mid`。
+  - Python 输出：`out/dialogue_debug/*`、`out/*.mid`。
 - **消息边界**：`DialogueNote` 在 macOS 与 Python 间双向传输，`protocol_version=1`。
 
 ## 错误处理与可靠性
 - macOS 服务普遍定义 `LocalizedError`，在 ViewModel 中转为 `statusMessage` 与日志。
 - Dialogue 失败不会崩溃主循环：`runGeneration` 捕获错误后回到 `.listening`。
-- OMR 路由对文件名、扩展名、路径穿越做显式校验；转换错误映射为 HTTP 500。
 - 推理调试写盘走 best-effort，失败不影响主响应（仅打印调试失败信息）。
 
 ## 部署 / 发布拓扑
 - 当前是开发者本机运行拓扑：Xcode App + 本地 uvicorn + 本地模型目录。
-- OMR 另有 PyInstaller one-folder 打包路径，产物位于 `omr/packaging/dist/lp-omr-convert`。
 - 未见仓库内 CI workflow 文件，发布流程主要依赖本地脚本与手工步骤。
 
 ## 扩展点与热点
-- **扩展点**：新增映射类型（服务与模型层）、新增 Dialogue 策略、扩展 AVP 匹配策略、OMR 多页合并。
+- **扩展点**：新增映射类型（服务与模型层）、新增 Dialogue 策略、扩展 AVP 匹配策略。
 - **高风险热点**：
   - `LonelyPianistViewModel.handleMIDIEvent`（多流程汇聚点）
   - `DialogueManager` 状态机（listening/thinking/playing）
   - `MusicXMLParser` 时间线处理（backup/forward/chord）
-  - `omr/convert.py` 输入策略与错误处理
+  - `DialogueManager` 状态机与会话控制
 
 ## 示例片段
 ```swift
@@ -137,5 +125,3 @@ class GenerateRequest(BaseModel):
 - `LonelyPianistAVP/Services/HandTracking/HandTrackingService.swift`
 - `piano_dialogue_server/server/main.py`
 - `piano_dialogue_server/server/protocol.py`
-- `piano_dialogue_server/server/omr_routes.py`
-- `piano_dialogue_server/omr/convert.py`

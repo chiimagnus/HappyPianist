@@ -17,7 +17,7 @@ visionOS 里我们把体验拆成两部分：
 
 ## 功能范围（MVP）
 
-- MusicXML 导入（来自 OMR 或人工准备）
+- MusicXML 导入（来自外部下载或人工准备）
 - AR Guide：HUD + reticle + 指尖点位
 - A0 / C8 两点校准（决定键位对齐）
 - `Skip` / `Mark Correct` 推进（便于功能验收）
@@ -35,4 +35,4 @@ visionOS 里我们把体验拆成两部分：
 ## 依赖与输入
 
 - 推荐输入：`MusicXML`
-- 如果你只有 PDF/图片谱：先走 OMR 转换（见 `piano_dialogue_server/README.md`）
+- 如果你只有 PDF/图片谱：请先在其他工具里转换并下载 MusicXML，再回到这里导入。

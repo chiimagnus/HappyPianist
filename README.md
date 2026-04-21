@@ -22,7 +22,7 @@ macOS · visionOS · Python · 本地优先 · 开源
 
 - 🎛 **控制信号** —— 把单音/和弦映射成 macOS 系统按键事件，让钢琴成为你的生产力快捷面板。
 - 🎭 **音乐对话** —— 你弹一句，AI 回一句，轮转式即兴（基于 [Anticipatory Music Transformer](https://crfm.stanford.edu/2023/06/16/anticipatory-music-transformer.html)）。
-- 🥽 **空间引导** —— 在 Apple Vision Pro 上，把 PDF/图片谱转成 MusicXML，空间高亮下一步该按的键。
+- 🥽 **空间引导** —— 在 Apple Vision Pro 上导入外部准备好的 MusicXML，空间高亮下一步该按的键。
 
 ---
 
@@ -39,8 +39,6 @@ flowchart LR
     end
     subgraph PY[piano_dialogue_server · Python]
         P1[FastAPI] --> P2["Inference<br/>Anticipatory MT"]
-        P1 --> P3[OMR Routes]
-        P3 --> P4["oemer pipeline<br/>PDF/Image to MusicXML"]
     end
     subgraph AVP[LonelyPianistAVP · visionOS]
         V1[MusicXML Parser] --> V2[Practice Session]
@@ -49,8 +47,7 @@ flowchart LR
         V2 --> V5[RealityKit Overlay]
     end
     A4 <-->|WebSocket /ws| P1
-    A2 -->|HTTP /omr/convert| P1
-    P4 -->|score.musicxml| V1
+    E1[External MusicXML File] --> V1
 ```
 
 ---
@@ -62,8 +59,7 @@ flowchart LR
 | 🎛 **MIDI → 键盘映射** | 把 C4 → `⌘C`、C 大三和弦 → `⌘⇧P`；支持 velocity 阈值、单音/和弦严格匹配 | macOS |
 | 🎤 **录音 & 回放** | 录 take，用内建 Sampler 或任意 MIDI 目的地回放，SwiftData 持久化 | macOS |
 | 🎭 **Piano Dialogue** | 静默触发 → WS 推理 → AI 回放，支持 `ignore / interrupt / queue` 三种打断策略 | macOS ↔ Python |
-| 📄 **OMR 转谱** | PDF/JPG/PNG → MusicXML，CLI + HTTP 两种入口，每次转换产出完整 job 目录用于调试 | Python |
-| 🥽 **AR Guide** | AVP 内导入 MusicXML，完成 A0/C8 两点校准，手部追踪判定按键，错了变红、对了推进 | visionOS |
+| 🥽 **AR Guide** | AVP 导入外部 MusicXML，完成 A0/C8 两点校准，手部追踪判定按键，错了变红、对了推进 | visionOS |
 
 ---
 
@@ -75,7 +71,7 @@ flowchart LR
 - Apple Vision Pro（可选，若要体验 AR Guide）
 - Python 3.12（建议虚拟环境）
 
-### 1. 启动 Python 后端（Dialogue + OMR）
+### 1. 启动 Python 后端（Dialogue）
 
 ```bash
 cd piano_dialogue_server
@@ -115,20 +111,7 @@ open LonelyPianist.xcodeproj
 
 在 AVP 内：**Import MusicXML → Set A0 → Set C8 → Save → Start AR Guide**。
 
-### 4. 单独用 OMR 转谱
-
-```bash
-cd piano_dialogue_server
-python -m omr.cli --input /abs/path/to/score.pdf
-# 产物：out/omr/<job>/output/score.musicxml
-```
-
-或走 HTTP：
-
-```bash
-curl -F "file=@score.pdf" -F "inline_xml=true" \
-     http://127.0.0.1:8765/omr/convert
-```
+> 说明：本仓库不再提供 PDF/图片转 MusicXML 的本地链路；请先在其他地方准备好 MusicXML 文件再导入。
 
 ---
 
@@ -146,8 +129,7 @@ LonelyPianist/
 ├── LonelyPianistAVPTests/           # visionOS Swift Testing
 ├── Packages/RealityKitContent/      # AVP 用 Swift Package
 └── piano_dialogue_server/           # Python 服务
-    ├── server/                      # FastAPI + WS + 推理 + OMR 路由
-    ├── omr/                         # oemer 转谱管线 + CLI + 打包脚本
+    ├── server/                      # FastAPI + WS + 推理
     └── scripts/                     # 离线 sanity-check 脚本
 ```
 
@@ -165,7 +147,6 @@ LonelyPianist/
 | visionOS | RealityKit · ARKit HandTracking · SpatialTapGesture |
 | 服务层 | FastAPI · Uvicorn · WebSocket (`protocol_version=1`) |
 | 推理 | PyTorch · Transformers · [Anticipation](https://github.com/jthickstun/anticipation) |
-| OMR | [oemer](https://github.com/BreezeWhite/oemer) · PyMuPDF · Pillow |
 | 测试 | Swift Testing（macOS + AVP 双套） |
 
 ---
@@ -213,7 +194,7 @@ cd piano_dialogue_server/server
 | --- | --- |
 | Start Listening 后目标 App 没收到按键 | 系统设置 → 辅助功能是否已授权 |
 | Dialogue 无响应 / 一直 thinking | `curl /health` 是否返回 `ok`；模型权重目录是否存在 |
-| OMR 多页 PDF 报错 | 当前 MVP 仅支持 `page=1`，先手工拆页 |
+| MusicXML 导入失败 | 文件不是有效的 MusicXML / 扩展名不受支持 | 检查文件内容与后缀是否匹配 |
 | AVP 有手指点但不推进 | 重做 A0/C8 校准；确认踏板未按住；观察 0.6s 累积窗口 |
 | 回放无声 | Recorder Output 切回 Built-in Sampler 排除外部 MIDI 目的地 |
 
@@ -225,9 +206,8 @@ cd piano_dialogue_server/server
 
 - [x]  macOS MIDI 映射 / 录音 / 回放
 - [x]  Piano Dialogue（WebSocket + Anticipatory MT）
-- [x]  OMR 单页 PDF / 图片 → MusicXML
 - [x]  AVP A0/C8 校准 + 手部追踪 AR Guide
-- [ ]  OMR 多页 PDF merge
+- [ ]  AVP 导入与练习体验打磨
 - [ ]  黑白键真实几何建模（当前按 88 键等间距近似）
 - [ ]  Dialogue session-level 记忆
 - [ ]  CI / Release workflow
@@ -238,7 +218,6 @@ cd piano_dialogue_server/server
 
 - [Anticipation](https://github.com/jthickstun/anticipation) · [Anticipatory Music Transformer](https://arxiv.org/abs/2306.08620) by John Thickstun, David Hall, Chris Donahue, Percy Liang（Stanford CRFM）
 - [stanford-crfm/music-large-800k](https://huggingface.co/stanford-crfm/music-large-800k) · Dialogue 推理所用预训练权重
-- [oemer](https://github.com/BreezeWhite/oemer) by BreezeWhite · End-to-end OMR 引擎
 - Apple CoreMIDI / RealityKit / ARKit · 让这一切在本机跑得起来
 
 Third-party licenses/notices: see [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).

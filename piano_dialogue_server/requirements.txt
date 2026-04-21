@@ -18,8 +18,3 @@ fastapi>=0.110
 uvicorn[standard]>=0.27
 websockets>=10.4
 python-multipart>=0.0.9
-
-# OMR
-oemer
-pymupdf
-Pillow>=10.0

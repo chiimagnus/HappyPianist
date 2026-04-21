@@ -8,7 +8,6 @@
 | 录音与回放输出 | macOS Recorder 页面 | ViewModel -> playback service | 选择 Built-in Sampler 或 MIDI 目的地 |
 | AVP 校准 | Immersive HUD (`Set A0/C8`, `Save`) | `PianoCalibrationStore` | 写 `piano-calibration.json` |
 | Python 推理配置 | 环境变量 | shell / 启动脚本 | 模型路径、设备、调试开关 |
-| OMR 输入参数 | CLI args / HTTP form | 用户请求 | `page/pdf_dpi/normalize_photo/inline_xml` |
 
 ## 运行时配置
 | 配置项 | 位置 | 默认值 / 示例 | 影响 |
@@ -19,7 +18,6 @@
 | PressDetection 冷却 | `PressDetectionService` | `0.15s` | 避免同键抖动重复触发 |
 | Chord 累积窗口 | `ChordAttemptAccumulator` | `0.6s` | 跨多次按下识别同一步和弦 |
 | 练习容差 | `PracticeSessionViewModel.noteMatchTolerance` | `1` | 允许 ±1 半音容错 |
-| OMR 默认参数 | `omr/cli.py` | `pdf_dpi=300,page=1` | 预处理质量与页选择 |
 
 ## 构建与发布配置
 | 配置项 | 位置 | 作用 | 联动项 |
@@ -27,7 +25,6 @@
 | 主工程与 targets | `LonelyPianist.xcodeproj/project.pbxproj` | 定义 app/test 目标 | scheme 与 test 命令 |
 | macOS 共享 scheme | `xcshareddata/xcschemes/LonelyPianist.xcscheme` | build/test/run 参数 | 本地/自动化命令 |
 | RealityKitContent 平台声明 | `Packages/RealityKitContent/Package.swift` | 最低平台约束 | AVP 相关编译能力 |
-| OMR 打包参数 | `omr/packaging/build_pyinstaller.sh` | 产出可分发 CLI | `.venv` 与 pyinstaller |
 | xcodebuildmcp 默认 profile | `.xcodebuildmcp/config.yaml` | 常用 scheme/simulator 设置 | 本地调试流程 |
 
 ## 权限、认证与敏感信息
@@ -44,7 +41,6 @@
 - `DialoguePlaybackInterruptionBehavior`：影响回放时输入处理（忽略/打断/排队）。
 - `DIALOGUE_DEBUG=1`：启用服务端调试包落盘（请求、响应、MIDI、摘要）。
 - `AMT_MODEL_DIR / AMT_MODEL_ID / AMT_DEVICE`：控制模型加载来源与硬件执行路径。
-- `normalize_photo`：影响 OMR 图片预处理策略。
 
 ## 配置漂移检查
 - 修改对话协议字段时需同步：
@@ -58,7 +54,6 @@
 - **未授权 Accessibility**：Start Listening 后无法正常执行按键注入。
 - **未启动 Python 服务**：Dialogue 进入失败或生成报错。
 - **模型目录缺权重**：`inference.py` 抛出 “weights not found”。
-- **OMR 页码误用**：多页 PDF 请求 `page != 1` 返回明确错误。
 - **AVP 未完成校准**：有 step 但不进入有效键位高亮。
 
 ## 示例片段

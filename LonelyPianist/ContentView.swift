@@ -50,10 +50,6 @@ struct MainWindowView: View {
             case .sheet:
                 SheetMusicPanelView()
                     .navigationTitle("Sheet")
-
-            case .omr:
-                OMRPanelView()
-                    .navigationTitle("OMR")
             }
         }
     }

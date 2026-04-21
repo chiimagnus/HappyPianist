@@ -38,5 +38,5 @@
 
 本目录只维护与 macOS App 相关的使用与验收（本文件）。与 Python/AVP 相关的内容请看：
 
-- Python 服务（Dialogue/OMR）：`piano_dialogue_server/README.md`
+- Python 服务（Dialogue）：`piano_dialogue_server/README.md`
 - AVP（AR Guide）：`LonelyPianistAVP/README.md`
