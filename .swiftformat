@@ -8,7 +8,6 @@
 --enable trailingCommas
 --enable redundantSelf
 --enable consecutiveSpaces
---enable emptyBraces
 
 # 缩进
 --indent 4
