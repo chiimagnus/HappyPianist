@@ -7,6 +7,7 @@ protocol SongLibrarySeederProtocol {
 final class SongLibrarySeeder: SongLibrarySeederProtocol {
     static let seedFileName = "Opus – Ryuichi Sakamoto (Piano Transcription).musicxml"
     static let seedSubdirectory = "Resources/SeedScores"
+    private static let legacyImportedScoresDirectoryName = "ImportedScores"
 
     private let fileManager: FileManager
     private let paths: SongLibraryPaths
@@ -30,59 +31,16 @@ final class SongLibrarySeeder: SongLibrarySeederProtocol {
     }
 
     func seedAndMigrateIfNeeded() throws {
-        var index = try indexStore.load()
-        var didMutate = false
+        try deleteLegacyImportedScoresDirectoryIfExists()
 
-        if index.entries.isEmpty {
-            let migratedEntries = try migrateLegacyImportedScores()
-            if migratedEntries.isEmpty == false {
-                index.entries.append(contentsOf: migratedEntries)
-                didMutate = true
-            }
-        }
+        var index = try indexStore.load()
 
         if index.entries.isEmpty {
             if let seedEntry = try seedEntryFromBundle() {
                 index.entries.append(seedEntry)
-                didMutate = true
+                try indexStore.save(index)
             }
         }
-
-        if didMutate {
-            try indexStore.save(index)
-        }
-    }
-
-    private func migrateLegacyImportedScores() throws -> [SongLibraryEntry] {
-        let legacyDirectoryURL = try paths.legacyImportedScoresDirectoryURL()
-        guard fileManager.fileExists(atPath: legacyDirectoryURL.path()) else {
-            return []
-        }
-
-        let legacyURLs = try fileManager.contentsOfDirectory(
-            at: legacyDirectoryURL,
-            includingPropertiesForKeys: [.isRegularFileKey],
-            options: [.skipsHiddenFiles]
-        )
-
-        var migratedEntries: [SongLibraryEntry] = []
-
-        for legacyURL in legacyURLs {
-            let values = try legacyURL.resourceValues(forKeys: [.isRegularFileKey])
-            guard values.isRegularFile == true else {
-                continue
-            }
-
-            let ext = legacyURL.pathExtension.lowercased()
-            guard ext == "xml" || ext == "musicxml" else {
-                continue
-            }
-
-            let imported = try fileStore.importMusicXML(from: legacyURL)
-            migratedEntries.append(entry(from: imported))
-        }
-
-        return migratedEntries
     }
 
     private func seedEntryFromBundle() throws -> SongLibraryEntry? {
@@ -96,6 +54,19 @@ final class SongLibrarySeeder: SongLibrarySeederProtocol {
 
         let imported = try fileStore.importMusicXML(from: seedURL)
         return entry(from: imported)
+    }
+
+    private func deleteLegacyImportedScoresDirectoryIfExists() throws {
+        guard let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+            return
+        }
+
+        let legacyDirectoryURL = documentsURL.appendingPathComponent(Self.legacyImportedScoresDirectoryName, isDirectory: true)
+        guard fileManager.fileExists(atPath: legacyDirectoryURL.path()) else {
+            return
+        }
+
+        try fileManager.removeItem(at: legacyDirectoryURL)
     }
 
     private func entry(from imported: ImportedSongScoreFile) -> SongLibraryEntry {

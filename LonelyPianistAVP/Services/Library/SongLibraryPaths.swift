@@ -27,10 +27,6 @@ struct SongLibraryPaths {
         try rootDirectoryURL().appendingPathComponent(SongLibraryLayout.indexFileName)
     }
 
-    func legacyImportedScoresDirectoryURL() throws -> URL {
-        try documentsDirectoryURL().appendingPathComponent(SongLibraryLayout.legacyImportedScoresDirectoryName, isDirectory: true)
-    }
-
     func ensureDirectoriesExist() throws {
         try fileManager.createDirectory(at: rootDirectoryURL(), withIntermediateDirectories: true)
         try fileManager.createDirectory(at: scoresDirectoryURL(), withIntermediateDirectories: true)

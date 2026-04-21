@@ -13,12 +13,10 @@ struct LonelyPianistAVPApp: App {
         appModel.loadStoredCalibrationIfPossible()
 
         let songLibrarySeeder = SongLibrarySeeder()
-        Task {
-            do {
-                try songLibrarySeeder.seedAndMigrateIfNeeded()
-            } catch {
-                print("Song library seed failed: \(error.localizedDescription)")
-            }
+        do {
+            try songLibrarySeeder.seedAndMigrateIfNeeded()
+        } catch {
+            print("Song library seed failed: \(error.localizedDescription)")
         }
 
         _appModel = State(initialValue: appModel)

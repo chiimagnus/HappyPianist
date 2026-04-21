@@ -14,6 +14,4 @@ enum SongLibraryLayout {
     static let scoresDirectoryName = "scores"
     static let audioDirectoryName = "audio"
     static let indexFileName = "index.json"
-
-    static let legacyImportedScoresDirectoryName = "ImportedScores"
 }

@@ -12,42 +12,20 @@ protocol MusicXMLImportServiceProtocol {
 }
 
 struct MusicXMLImportService: MusicXMLImportServiceProtocol {
-    private let fileManager: FileManager
+    private let fileStore: SongFileStoreProtocol
 
     init(fileManager: FileManager = .default) {
-        self.fileManager = fileManager
+        let paths = SongLibraryPaths(fileManager: fileManager)
+        self.fileStore = SongFileStore(fileManager: fileManager, paths: paths)
     }
 
     func importFile(from sourceURL: URL) throws -> ImportedMusicXMLFile {
-        let hasScopedAccess = sourceURL.startAccessingSecurityScopedResource()
-        defer {
-            if hasScopedAccess {
-                sourceURL.stopAccessingSecurityScopedResource()
-            }
-        }
-
-        let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first
-        guard let documentsURL else {
-            throw CocoaError(.fileNoSuchFile)
-        }
-
-        let importDirectory = documentsURL.appendingPathComponent("ImportedScores", isDirectory: true)
-        try fileManager.createDirectory(at: importDirectory, withIntermediateDirectories: true)
-
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let timestamp = formatter.string(from: Date()).replacingOccurrences(of: ":", with: "-")
-        let destinationURL = importDirectory.appendingPathComponent("\(timestamp)-\(sourceURL.lastPathComponent)")
-
-        if fileManager.fileExists(atPath: destinationURL.path()) {
-            try fileManager.removeItem(at: destinationURL)
-        }
-        try fileManager.copyItem(at: sourceURL, to: destinationURL)
+        let imported = try fileStore.importMusicXML(from: sourceURL)
 
         return ImportedMusicXMLFile(
-            fileName: sourceURL.lastPathComponent,
-            storedURL: destinationURL,
-            importedAt: Date()
+            fileName: imported.sourceFileName,
+            storedURL: imported.storedURL,
+            importedAt: imported.importedAt
         )
     }
 }
