@@ -7,6 +7,7 @@ final class SongLibraryViewModel {
     private let appModel: AppModel
     private let indexStore: SongLibraryIndexStoreProtocol
     private let fileStore: SongFileStoreProtocol
+    private let audioImportService: AudioImportServiceProtocol
     private let paths: SongLibraryPaths
     private let parser: MusicXMLParserProtocol
     private let stepBuilder: PracticeStepBuilderProtocol
@@ -18,6 +19,7 @@ final class SongLibraryViewModel {
         appModel: AppModel,
         indexStore: SongLibraryIndexStoreProtocol? = nil,
         fileStore: SongFileStoreProtocol? = nil,
+        audioImportService: AudioImportServiceProtocol? = nil,
         paths: SongLibraryPaths? = nil,
         parser: MusicXMLParserProtocol? = nil,
         stepBuilder: PracticeStepBuilderProtocol? = nil
@@ -25,9 +27,11 @@ final class SongLibraryViewModel {
         self.appModel = appModel
         self.indexStore = indexStore ?? SongLibraryIndexStore()
         self.fileStore = fileStore ?? SongFileStore()
+        self.audioImportService = audioImportService ?? AudioImportService()
         self.paths = paths ?? SongLibraryPaths()
         self.parser = parser ?? MusicXMLParser()
         self.stepBuilder = stepBuilder ?? PracticeStepBuilder()
+
         reload()
     }
 
@@ -130,8 +134,6 @@ final class SongLibraryViewModel {
         let entry = index.entries[entryIndex]
 
         do {
-            stopPlaybackIfNeeded(for: entry.id)
-
             var updatedIndex = index
             updatedIndex.entries.remove(at: entryIndex)
 
@@ -155,7 +157,30 @@ final class SongLibraryViewModel {
         }
     }
 
-    private func stopPlaybackIfNeeded(for entryID: UUID) {
-        // P3 将接入音频播放互斥逻辑；当前仅预留删除前停止播放 hook。
+    func bindAudio(entryID: UUID, from sourceURL: URL) {
+        guard let entryIndex = index.entries.firstIndex(where: { $0.id == entryID }) else {
+            return
+        }
+
+        do {
+            let importedAudioFileName = try audioImportService.importAudio(from: sourceURL)
+
+            var updatedIndex = index
+            let previousAudioFileName = updatedIndex.entries[entryIndex].audioFileName
+            updatedIndex.entries[entryIndex].audioFileName = importedAudioFileName
+
+            do {
+                try indexStore.save(updatedIndex)
+                index = updatedIndex
+                if let previousAudioFileName {
+                    try? fileStore.deleteAudioFile(named: previousAudioFileName)
+                }
+            } catch {
+                try? fileStore.deleteAudioFile(named: importedAudioFileName)
+                throw error
+            }
+        } catch {
+            errorMessage = "导入音频失败：\(error.localizedDescription)"
+        }
     }
 }
