@@ -31,10 +31,10 @@
 
 /* Begin PBXFileReference section */
 		D85596AC2F83FF72005BE7FE /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = text; path = RealityKitContent; sourceTree = "<group>"; };
-		D8EA3E752F9778C20059B709 /* LonelyPianistAVP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = LonelyPianistAVP.app; path = "/Users/chii_magnus/Github_OpenSource/LonelyPianist/build/Debug-xros/LonelyPianistAVP.app"; sourceTree = "<absolute>"; };
-		D8EA3E762F9778C20059B709 /* LonelyPianist.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = LonelyPianist.app; path = /Users/chii_magnus/Github_OpenSource/LonelyPianist/build/Debug/LonelyPianist.app; sourceTree = "<absolute>"; };
-		D8EA3E772F9778C20059B709 /* LonelyPianistTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = LonelyPianistTests.xctest; path = /Users/chii_magnus/Github_OpenSource/LonelyPianist/build/Debug/LonelyPianistTests.xctest; sourceTree = "<absolute>"; };
-		D8EA3E782F9778C20059B709 /* LonelyPianistAVPTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = LonelyPianistAVPTests.xctest; path = "/Users/chii_magnus/Github_OpenSource/LonelyPianist/build/Debug-xros/LonelyPianistAVP.app/PlugIns/LonelyPianistAVPTests.xctest"; sourceTree = "<absolute>"; };
+		D8EA41B62F978A340059B709 /* LonelyPianistAVP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LonelyPianistAVP.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D8EA41B72F978A340059B709 /* LonelyPianist.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LonelyPianist.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D8EA41B82F978A340059B709 /* LonelyPianistTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LonelyPianistTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D8EA41B92F978A340059B709 /* LonelyPianistAVPTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LonelyPianistAVPTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -44,6 +44,13 @@
 				Info.plist,
 			);
 			target = D85596A82F83FF72005BE7FE /* LonelyPianistAVP */;
+		};
+		43211432ECD449DA986D359D /* Exceptions for "LonelyPianist" folder in "LonelyPianist" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = D8D4280C2F4DFD3800EC9C9B /* LonelyPianist */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -63,6 +70,9 @@
 		};
 		D8D4280F2F4DFD3800EC9C9B /* LonelyPianist */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				43211432ECD449DA986D359D /* Exceptions for "LonelyPianist" folder in "LonelyPianist" target */,
+			);
 			path = LonelyPianist;
 			sourceTree = "<group>";
 		};
@@ -124,6 +134,10 @@
 				D85596AA2F83FF72005BE7FE /* LonelyPianistAVP */,
 				D85596AB2F83FF72005BE7FE /* Packages */,
 				D85596BF2F83FF74005BE7FE /* LonelyPianistAVPTests */,
+				D8EA41B62F978A340059B709 /* LonelyPianistAVP.app */,
+				D8EA41B72F978A340059B709 /* LonelyPianist.app */,
+				D8EA41B82F978A340059B709 /* LonelyPianistTests.xctest */,
+				D8EA41B92F978A340059B709 /* LonelyPianistAVPTests.xctest */,
 			);
 			sourceTree = "<group>";
 		};
@@ -151,7 +165,7 @@
 				01160424ADBC4765B8EAE97D /* VerovioToolkit */,
 			);
 			productName = LonelyPianistAVP;
-			productReference = D8EA3E752F9778C20059B709 /* LonelyPianistAVP.app */;
+			productReference = D8EA41B62F978A340059B709 /* LonelyPianistAVP.app */;
 			productType = "com.apple.product-type.application";
 		};
 		D85596BB2F83FF74005BE7FE /* LonelyPianistAVPTests */ = {
@@ -174,7 +188,7 @@
 			packageProductDependencies = (
 			);
 			productName = LonelyPianistAVPTests;
-			productReference = D8EA3E782F9778C20059B709 /* LonelyPianistAVPTests.xctest */;
+			productReference = D8EA41B92F978A340059B709 /* LonelyPianistAVPTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		D8D4280C2F4DFD3800EC9C9B /* LonelyPianist */ = {
@@ -197,7 +211,7 @@
 				01160424ADBC4765B8EAE97D /* VerovioToolkit */,
 			);
 			productName = LonelyPianist;
-			productReference = D8EA3E762F9778C20059B709 /* LonelyPianist.app */;
+			productReference = D8EA41B72F978A340059B709 /* LonelyPianist.app */;
 			productType = "com.apple.product-type.application";
 		};
 		E10000012A9B000100000006 /* LonelyPianistTests */ = {
@@ -220,7 +234,7 @@
 			packageProductDependencies = (
 			);
 			productName = LonelyPianistTests;
-			productReference = D8EA3E772F9778C20059B709 /* LonelyPianistTests.xctest */;
+			productReference = D8EA41B82F978A340059B709 /* LonelyPianistTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
@@ -259,7 +273,7 @@
 			mainGroup = D8D428042F4DFD3800EC9C9B;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				CCF4B2D873FD430D823C24DC /* verovio */,
+				CCF4B2D873FD430D823C24DC /* XCLocalSwiftPackageReference "../verovio" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = D8D428042F4DFD3800EC9C9B;
@@ -348,13 +362,6 @@
 			targetProxy = E10000012A9B000100000007 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
-
-/* Begin XCLocalSwiftPackageReference section */
-		CCF4B2D873FD430D823C24DC /* verovio */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = ../verovio;
-		};
-/* End XCLocalSwiftPackageReference section */
 
 /* Begin XCBuildConfiguration section */
 		D85596C22F83FF74005BE7FE /* Debug */ = {
@@ -606,12 +613,13 @@
 				DEVELOPMENT_TEAM = RDQHYSDFFG;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
-				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				INFOPLIST_KEY_LSUIElement = NO;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+					ENABLE_PREVIEWS = YES;
+					ENABLE_USER_SELECTED_FILES = readonly;
+					GENERATE_INFOPLIST_FILE = YES;
+					INFOPLIST_FILE = LonelyPianist/Info.plist;
+					INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+					INFOPLIST_KEY_LSUIElement = NO;
+					INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -646,12 +654,13 @@
 				DEVELOPMENT_TEAM = RDQHYSDFFG;
 				ENABLE_APP_SANDBOX = YES;
 				ENABLE_HARDENED_RUNTIME = YES;
-				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				INFOPLIST_KEY_LSUIElement = NO;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+					ENABLE_PREVIEWS = YES;
+					ENABLE_USER_SELECTED_FILES = readonly;
+					GENERATE_INFOPLIST_FILE = YES;
+					INFOPLIST_FILE = LonelyPianist/Info.plist;
+					INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
+					INFOPLIST_KEY_LSUIElement = NO;
+					INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -774,10 +783,17 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCLocalSwiftPackageReference section */
+		CCF4B2D873FD430D823C24DC /* XCLocalSwiftPackageReference "../verovio" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../verovio;
+		};
+/* End XCLocalSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
 		01160424ADBC4765B8EAE97D /* VerovioToolkit */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = CCF4B2D873FD430D823C24DC /* verovio */;
+			package = CCF4B2D873FD430D823C24DC /* XCLocalSwiftPackageReference "../verovio" */;
 			productName = VerovioToolkit;
 		};
 		D85596AD2F83FF72005BE7FE /* RealityKitContent */ = {
