@@ -1,7 +1,7 @@
 import SwiftUI
 import simd
 
-fileprivate enum MainFlowRoute: Hashable {
+enum MainFlowRoute: Hashable {
     case calibration
     case library
     case practice
@@ -36,7 +36,10 @@ struct ContentView: View {
                     CalibrationStepView(viewModel: arGuideViewModel)
                         .navigationTitle("Step 1 · 校准")
                 case .library:
-                    SongLibraryView(viewModel: songLibraryViewModel)
+                    SongLibraryView(
+                        viewModel: songLibraryViewModel,
+                        navigationPath: $navigationPath
+                    )
                         .navigationTitle("Step 2 · 选曲")
                 case .practice:
                     PracticeStepView(viewModel: arGuideViewModel)

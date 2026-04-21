@@ -3,7 +3,16 @@ import UniformTypeIdentifiers
 
 struct SongLibraryView: View {
     @Bindable var viewModel: SongLibraryViewModel
+    let navigationPath: Binding<[MainFlowRoute]>
     @State private var isImporterPresented = false
+
+    init(
+        viewModel: SongLibraryViewModel,
+        navigationPath: Binding<[MainFlowRoute]> = .constant([])
+    ) {
+        self.viewModel = viewModel
+        self.navigationPath = navigationPath
+    }
 
     var body: some View {
         Group {
@@ -84,7 +93,9 @@ struct SongLibraryView: View {
                 Spacer()
 
                 Button("开始练习") {
-                    viewModel.didTapStartPractice(entryID: entry.id)
+                    if viewModel.preparePractice(entryID: entry.id) {
+                        navigationPath.wrappedValue.append(.practice)
+                    }
                 }
                 .buttonStyle(.bordered)
             }
