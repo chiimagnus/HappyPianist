@@ -10,6 +10,16 @@ struct LonelyPianistAVPApp: App {
     init() {
         let appModel = AppModel()
         appModel.loadStoredCalibrationIfPossible()
+
+        let songLibrarySeeder = SongLibrarySeeder()
+        Task {
+            do {
+                try songLibrarySeeder.seedAndMigrateIfNeeded()
+            } catch {
+                print("Song library seed failed: \(error.localizedDescription)")
+            }
+        }
+
         _appModel = State(initialValue: appModel)
         _homeViewModel = State(initialValue: HomeViewModel(appModel: appModel))
         _arGuideViewModel = State(initialValue: ARGuideViewModel(appModel: appModel))
