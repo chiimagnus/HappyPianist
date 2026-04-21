@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		3C0B79203D96419D8BBA157E /* VerovioToolkit in Frameworks */ = {isa = PBXBuildFile; productRef = 01160424ADBC4765B8EAE97D /* VerovioToolkit */; };
+		6D2C7571C82641C6953C9402 /* VerovioToolkit in Frameworks */ = {isa = PBXBuildFile; productRef = 01160424ADBC4765B8EAE97D /* VerovioToolkit */; };
 		D85596AE2F83FF72005BE7FE /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = D85596AD2F83FF72005BE7FE /* RealityKitContent */; };
 /* End PBXBuildFile section */
 
@@ -28,11 +30,11 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		D85596A92F83FF72005BE7FE /* LonelyPianistAVP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = LonelyPianistAVP.app; path = "/Users/chii_magnus/Github_OpenSource/LonelyPianist/build/Debug-xros/LonelyPianistAVP.app"; sourceTree = "<absolute>"; };
 		D85596AC2F83FF72005BE7FE /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = text; path = RealityKitContent; sourceTree = "<group>"; };
-		D85596BC2F83FF74005BE7FE /* LonelyPianistAVPTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = LonelyPianistAVPTests.xctest; path = "/Users/chii_magnus/Github_OpenSource/LonelyPianist/build/Debug-xros/LonelyPianistAVP.app/PlugIns/LonelyPianistAVPTests.xctest"; sourceTree = "<absolute>"; };
-		D8D4280D2F4DFD3800EC9C9B /* LonelyPianist.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = LonelyPianist.app; path = /Users/chii_magnus/Github_OpenSource/LonelyPianist/build/Debug/LonelyPianist.app; sourceTree = "<absolute>"; };
-		E10000012A9B000100000001 /* LonelyPianistTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = LonelyPianistTests.xctest; path = /Users/chii_magnus/Github_OpenSource/LonelyPianist/build/Debug/LonelyPianistTests.xctest; sourceTree = "<absolute>"; };
+		D8EA3E752F9778C20059B709 /* LonelyPianistAVP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = LonelyPianistAVP.app; path = "/Users/chii_magnus/Github_OpenSource/LonelyPianist/build/Debug-xros/LonelyPianistAVP.app"; sourceTree = "<absolute>"; };
+		D8EA3E762F9778C20059B709 /* LonelyPianist.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = LonelyPianist.app; path = /Users/chii_magnus/Github_OpenSource/LonelyPianist/build/Debug/LonelyPianist.app; sourceTree = "<absolute>"; };
+		D8EA3E772F9778C20059B709 /* LonelyPianistTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = LonelyPianistTests.xctest; path = /Users/chii_magnus/Github_OpenSource/LonelyPianist/build/Debug/LonelyPianistTests.xctest; sourceTree = "<absolute>"; };
+		D8EA3E782F9778C20059B709 /* LonelyPianistAVPTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = LonelyPianistAVPTests.xctest; path = "/Users/chii_magnus/Github_OpenSource/LonelyPianist/build/Debug-xros/LonelyPianistAVP.app/PlugIns/LonelyPianistAVPTests.xctest"; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -77,6 +79,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				D85596AE2F83FF72005BE7FE /* RealityKitContent in Frameworks */,
+				6D2C7571C82641C6953C9402 /* VerovioToolkit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -91,6 +94,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3C0B79203D96419D8BBA157E /* VerovioToolkit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -144,9 +148,10 @@
 			name = LonelyPianistAVP;
 			packageProductDependencies = (
 				D85596AD2F83FF72005BE7FE /* RealityKitContent */,
+				01160424ADBC4765B8EAE97D /* VerovioToolkit */,
 			);
 			productName = LonelyPianistAVP;
-			productReference = D85596A92F83FF72005BE7FE /* LonelyPianistAVP.app */;
+			productReference = D8EA3E752F9778C20059B709 /* LonelyPianistAVP.app */;
 			productType = "com.apple.product-type.application";
 		};
 		D85596BB2F83FF74005BE7FE /* LonelyPianistAVPTests */ = {
@@ -169,7 +174,7 @@
 			packageProductDependencies = (
 			);
 			productName = LonelyPianistAVPTests;
-			productReference = D85596BC2F83FF74005BE7FE /* LonelyPianistAVPTests.xctest */;
+			productReference = D8EA3E782F9778C20059B709 /* LonelyPianistAVPTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		D8D4280C2F4DFD3800EC9C9B /* LonelyPianist */ = {
@@ -189,9 +194,10 @@
 			);
 			name = LonelyPianist;
 			packageProductDependencies = (
+				01160424ADBC4765B8EAE97D /* VerovioToolkit */,
 			);
 			productName = LonelyPianist;
-			productReference = D8D4280D2F4DFD3800EC9C9B /* LonelyPianist.app */;
+			productReference = D8EA3E762F9778C20059B709 /* LonelyPianist.app */;
 			productType = "com.apple.product-type.application";
 		};
 		E10000012A9B000100000006 /* LonelyPianistTests */ = {
@@ -214,7 +220,7 @@
 			packageProductDependencies = (
 			);
 			productName = LonelyPianistTests;
-			productReference = E10000012A9B000100000001 /* LonelyPianistTests.xctest */;
+			productReference = D8EA3E772F9778C20059B709 /* LonelyPianistTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
@@ -761,6 +767,10 @@
 /* End XCConfigurationList section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		01160424ADBC4765B8EAE97D /* VerovioToolkit */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = VerovioToolkit;
+		};
 		D85596AD2F83FF72005BE7FE /* RealityKitContent */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = RealityKitContent;

@@ -47,6 +47,10 @@ struct MainWindowView: View {
                 DialogueControlView(viewModel: viewModel)
                     .navigationTitle("Dialogue")
 
+            case .sheet:
+                SheetMusicPanelView()
+                    .navigationTitle("Sheet")
+
             case .omr:
                 OMRPanelView()
                     .navigationTitle("OMR")

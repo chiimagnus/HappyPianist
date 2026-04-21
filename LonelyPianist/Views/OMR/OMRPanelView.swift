@@ -8,8 +8,11 @@ struct OMRPanelView: View {
     @State private var outputMusicXMLURL: URL?
     @State private var statusMessage = "Select a score and convert to MusicXML."
     @State private var isConverting = false
+    @State private var isPreviewPresented = false
+    @State private var previewSVG: String?
 
     private let conversionService: OMRConversionServiceProtocol = OMRConversionService()
+    private let renderService = VerovioMusicXMLRenderService()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
@@ -43,6 +46,11 @@ struct OMRPanelView: View {
                 Button("Reveal in Finder") {
                     NSWorkspace.shared.activateFileViewerSelecting([outputMusicXMLURL])
                 }
+
+                Button("Preview Sheet") {
+                    renderPreview(from: outputMusicXMLURL)
+                }
+                .disabled(isConverting)
             }
 
             Text(statusMessage)
@@ -52,6 +60,14 @@ struct OMRPanelView: View {
             Spacer()
         }
         .padding(20)
+        .sheet(isPresented: $isPreviewPresented) {
+            if let previewSVG {
+                SheetMusicPreviewView(svg: previewSVG)
+            } else {
+                Text("No preview available.")
+                    .padding(20)
+            }
+        }
         .fileImporter(
             isPresented: $isImporterPresented,
             allowedContentTypes: [.pdf, .png, .jpeg],
@@ -83,6 +99,26 @@ struct OMRPanelView: View {
                 await MainActor.run {
                     statusMessage = "Convert failed: \(error.localizedDescription)"
                     isConverting = false
+                }
+            }
+        }
+    }
+
+    private func renderPreview(from musicXMLURL: URL) {
+        statusMessage = "Rendering preview..."
+        previewSVG = nil
+
+        Task {
+            do {
+                let svg = try renderService.renderSVG(fileURL: musicXMLURL)
+                await MainActor.run {
+                    previewSVG = svg
+                    statusMessage = "Preview ready."
+                    isPreviewPresented = true
+                }
+            } catch {
+                await MainActor.run {
+                    statusMessage = "Preview failed: \(error.localizedDescription)"
                 }
             }
         }
