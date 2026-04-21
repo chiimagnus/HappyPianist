@@ -94,6 +94,15 @@ def convert_to_musicxml(
     try:
         ete.clear_data()
         generated_path = Path(ete.extract(args))
+    except AssertionError as error:
+        # oemer's dewarp step occasionally asserts on certain pages; fall back to
+        # skipping deskew/dewarp to produce a best-effort MusicXML instead of failing.
+        try:
+            args.without_deskew = True
+            ete.clear_data()
+            generated_path = Path(ete.extract(args))
+        except Exception as retry_error:  # noqa: BLE001
+            raise OMRConvertError(f"oemer inference failed for {selected_page}") from retry_error
     except Exception as error:  # noqa: BLE001
         raise OMRConvertError(f"oemer inference failed for {selected_page}") from error
 
