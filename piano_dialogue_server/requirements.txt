@@ -1,5 +1,5 @@
 # Core
-numpy>=1.24
+numpy>=1.24,<2
 
 # MIDI I/O (offline)
 mido>=1.3.2

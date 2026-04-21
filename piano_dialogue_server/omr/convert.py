@@ -7,6 +7,7 @@ from types import SimpleNamespace
 import warnings
 from uuid import uuid4
 
+import numpy as np
 from oemer import ete
 
 from .preprocess import PreprocessError, preprocess_input
@@ -14,6 +15,12 @@ from .preprocess import PreprocessError, preprocess_input
 
 class OMRConvertError(RuntimeError):
     pass
+
+
+# Compatibility: oemer uses deprecated NumPy scalar aliases (e.g. `np.int`).
+# Newer NumPy versions removed these attributes entirely.
+if not hasattr(np, "int"):
+    np.int = int  # type: ignore[attr-defined]
 
 
 @dataclass(frozen=True)
@@ -94,6 +101,15 @@ def convert_to_musicxml(
     try:
         ete.clear_data()
         generated_path = Path(ete.extract(args))
+    except AssertionError as error:
+        # oemer's dewarp step occasionally asserts on certain pages; fall back to
+        # skipping deskew/dewarp to produce a best-effort MusicXML instead of failing.
+        try:
+            args.without_deskew = True
+            ete.clear_data()
+            generated_path = Path(ete.extract(args))
+        except Exception as retry_error:  # noqa: BLE001
+            raise OMRConvertError(f"oemer inference failed for {selected_page}") from retry_error
     except Exception as error:  # noqa: BLE001
         raise OMRConvertError(f"oemer inference failed for {selected_page}") from error
 

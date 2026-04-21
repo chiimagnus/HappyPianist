@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		D85596AE2F83FF72005BE7FE /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = D85596AD2F83FF72005BE7FE /* RealityKitContent */; };
-		D87909592F88DA6D0088F3E2 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = D87909582F88DA6D0088F3E2 /* README.md */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -29,12 +28,11 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		D85596A92F83FF72005BE7FE /* LonelyPianistAVP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LonelyPianistAVP.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D85596A92F83FF72005BE7FE /* LonelyPianistAVP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = LonelyPianistAVP.app; path = "/Users/chii_magnus/Github_OpenSource/LonelyPianist/build/Debug-xros/LonelyPianistAVP.app"; sourceTree = "<absolute>"; };
 		D85596AC2F83FF72005BE7FE /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = text; path = RealityKitContent; sourceTree = "<group>"; };
-		D85596BC2F83FF74005BE7FE /* LonelyPianistAVPTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LonelyPianistAVPTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		D87909582F88DA6D0088F3E2 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
-		D8D4280D2F4DFD3800EC9C9B /* LonelyPianist.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LonelyPianist.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		E10000012A9B000100000001 /* LonelyPianistTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LonelyPianistTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D85596BC2F83FF74005BE7FE /* LonelyPianistAVPTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = LonelyPianistAVPTests.xctest; path = "/Users/chii_magnus/Github_OpenSource/LonelyPianist/build/Debug-xros/LonelyPianistAVP.app/PlugIns/LonelyPianistAVPTests.xctest"; sourceTree = "<absolute>"; };
+		D8D4280D2F4DFD3800EC9C9B /* LonelyPianist.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = LonelyPianist.app; path = /Users/chii_magnus/Github_OpenSource/LonelyPianist/build/Debug/LonelyPianist.app; sourceTree = "<absolute>"; };
+		E10000012A9B000100000001 /* LonelyPianistTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = LonelyPianistTests.xctest; path = /Users/chii_magnus/Github_OpenSource/LonelyPianist/build/Debug/LonelyPianistTests.xctest; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -122,20 +120,7 @@
 				D85596AA2F83FF72005BE7FE /* LonelyPianistAVP */,
 				D85596AB2F83FF72005BE7FE /* Packages */,
 				D85596BF2F83FF74005BE7FE /* LonelyPianistAVPTests */,
-				D8D4280E2F4DFD3800EC9C9B /* Products */,
-				D87909582F88DA6D0088F3E2 /* README.md */,
 			);
-			sourceTree = "<group>";
-		};
-		D8D4280E2F4DFD3800EC9C9B /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				D8D4280D2F4DFD3800EC9C9B /* LonelyPianist.app */,
-				E10000012A9B000100000001 /* LonelyPianistTests.xctest */,
-				D85596A92F83FF72005BE7FE /* LonelyPianistAVP.app */,
-				D85596BC2F83FF74005BE7FE /* LonelyPianistAVPTests.xctest */,
-			);
-			name = Products;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -270,7 +255,7 @@
 			packageReferences = (
 			);
 			preferredProjectObjectVersion = 77;
-			productRefGroup = D8D4280E2F4DFD3800EC9C9B /* Products */;
+			productRefGroup = D8D428042F4DFD3800EC9C9B;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
@@ -301,7 +286,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D87909592F88DA6D0088F3E2 /* README.md in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
