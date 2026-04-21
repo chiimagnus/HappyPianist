@@ -3,15 +3,27 @@ import simd
 
 fileprivate enum MainFlowRoute: Hashable {
     case calibration
+    case library
     case practice
 }
 
 struct ContentView: View {
     @Bindable var homeViewModel: HomeViewModel
     @Bindable var arGuideViewModel: ARGuideViewModel
+    @Bindable var songLibraryViewModel: SongLibraryViewModel
 
     @State private var navigationPath: [MainFlowRoute] = []
     @ScaledMetric(relativeTo: .title) private var stepOrbSize: CGFloat = 250
+
+    init(
+        homeViewModel: HomeViewModel,
+        arGuideViewModel: ARGuideViewModel,
+        songLibraryViewModel: SongLibraryViewModel
+    ) {
+        self.homeViewModel = homeViewModel
+        self.arGuideViewModel = arGuideViewModel
+        self.songLibraryViewModel = songLibraryViewModel
+    }
 
     var body: some View {
         NavigationStack(path: $navigationPath) {
@@ -23,9 +35,12 @@ struct ContentView: View {
                 case .calibration:
                     CalibrationStepView(viewModel: arGuideViewModel)
                         .navigationTitle("Step 1 · 校准")
+                case .library:
+                    SongLibraryView(viewModel: songLibraryViewModel)
+                        .navigationTitle("Step 2 · 选曲")
                 case .practice:
                     PracticeStepView(viewModel: arGuideViewModel)
-                        .navigationTitle("Step 2 · 开始练习")
+                        .navigationTitle("Step 3 · 开始练习")
                 }
             }
         }
@@ -51,10 +66,10 @@ struct ContentView: View {
             Spacer()
 
             StepOrbLink(
-                title: "开始练习",
+                title: "选曲",
                 stepLabel: "第二步",
                 isEnabled: true,
-                route: .practice,
+                route: .library,
                 helpText: homeViewModel.practiceEntryHelpText,
                 orbSize: stepOrbSize
             )
@@ -115,7 +130,8 @@ private struct StepOrbLink: View {
     let appModel = AppModel()
     return ContentView(
         homeViewModel: HomeViewModel(appModel: appModel),
-        arGuideViewModel: ARGuideViewModel(appModel: appModel)
+        arGuideViewModel: ARGuideViewModel(appModel: appModel),
+        songLibraryViewModel: SongLibraryViewModel(appModel: appModel)
     )
 }
 
@@ -135,7 +151,8 @@ private struct StepOrbLink: View {
     )
     return ContentView(
         homeViewModel: HomeViewModel(appModel: appModel),
-        arGuideViewModel: ARGuideViewModel(appModel: appModel)
+        arGuideViewModel: ARGuideViewModel(appModel: appModel),
+        songLibraryViewModel: SongLibraryViewModel(appModel: appModel)
     )
 }
 

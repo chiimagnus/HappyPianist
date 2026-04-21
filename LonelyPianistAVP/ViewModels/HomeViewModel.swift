@@ -37,12 +37,12 @@ final class HomeViewModel {
             return "下一步：进入 Step 1 完成校准（设置 A0 / C8 后保存）。"
         }
         if appModel.importedSteps.isEmpty {
-            return "下一步：返回主窗口并用右上角 toolbar 导入 MusicXML（.musicxml 或 .xml）。"
+            return "下一步：进入 Step 2 选曲页并导入 MusicXML（.musicxml 或 .xml）。"
         }
         if appModel.calibration == nil {
-            return "下一步：进入 Step 2 完成定位后开始练习。"
+            return "下一步：进入 Step 3 完成定位后开始练习。"
         }
-        return "下一步：进入 Step 2 开始练习。"
+        return "下一步：进入 Step 3 开始练习。"
     }
 
     var importErrorMessage: String? {
@@ -70,16 +70,16 @@ final class HomeViewModel {
         let hasStoredCalibration = appModel.storedCalibration != nil
 
         if hasImportedSteps == false, hasStoredCalibration == false {
-            return "可进入 Step 2；开始练习前需先完成 Step 1 校准并导入 MusicXML。"
+            return "可进入 Step 2 选曲；开始练习前需先完成 Step 1 校准并导入 MusicXML。"
         }
         if hasImportedSteps == false {
-            return "可进入 Step 2；开始练习前需先导入 MusicXML。"
+            return "可进入 Step 2 选曲；开始练习前需先导入 MusicXML。"
         }
         if hasStoredCalibration == false {
-            return "可进入 Step 2；开始练习前需先完成 Step 1 校准。"
+            return "可进入 Step 2 选曲；开始练习前需先完成 Step 1 校准。"
         }
         if appModel.calibration == nil {
-            return "可进入 Step 2；进入后会先定位钢琴。"
+            return "可进入 Step 2 选曲；进入练习后会先定位钢琴。"
         }
         return nil
     }
