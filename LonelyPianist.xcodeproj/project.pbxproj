@@ -259,6 +259,7 @@
 			mainGroup = D8D428042F4DFD3800EC9C9B;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				CCF4B2D873FD430D823C24DC /* verovio */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = D8D428042F4DFD3800EC9C9B;
@@ -347,6 +348,13 @@
 			targetProxy = E10000012A9B000100000007 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		CCF4B2D873FD430D823C24DC /* verovio */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../verovio;
+		};
+/* End XCLocalSwiftPackageReference section */
 
 /* Begin XCBuildConfiguration section */
 		D85596C22F83FF74005BE7FE /* Debug */ = {
@@ -769,6 +777,7 @@
 /* Begin XCSwiftPackageProductDependency section */
 		01160424ADBC4765B8EAE97D /* VerovioToolkit */ = {
 			isa = XCSwiftPackageProductDependency;
+			package = CCF4B2D873FD430D823C24DC /* verovio */;
 			productName = VerovioToolkit;
 		};
 		D85596AD2F83FF72005BE7FE /* RealityKitContent */ = {
