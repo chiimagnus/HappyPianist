@@ -85,7 +85,6 @@ platforms: [
 - `piano_dialogue_server/README.md`
 - `piano_dialogue_server/server/inference.py`
 - `piano_dialogue_server/scripts/download_model.sh`
-- `piano_dialogue_server/omr/packaging/build_pyinstaller.sh`
 - `Packages/RealityKitContent/Package.swift`
 - `LonelyPianist.xcodeproj/project.pbxproj`
 - `LonelyPianist/Services/System/ShortcutExecutionService.swift`

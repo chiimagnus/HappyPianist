@@ -26,7 +26,6 @@
 - `modules/lonelypianist-macos.md`
 - `modules/lonelypianist-avp.md`
 - `modules/piano-dialogue-server.md`
-- `modules/omr-pipeline.md`
 
 ## Copied Asset List
 - `None`（本次未复制本地图片资源；图表以 Mermaid 内联形式提供）

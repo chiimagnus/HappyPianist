@@ -51,7 +51,6 @@
 | `xcodebuild test ... -scheme LonelyPianistAVP` | 仓库根 | 验证 AVP 算法层 | 依赖 visionOS simulator |
 | `curl -s http://127.0.0.1:8765/health` | 任意 | 服务在线检测 | 返回 `status: ok` |
 | `../.venv/bin/python test_client.py` | `server/` | Dialogue 端到端验证 | 生成 `out/server_reply.mid` |
-| `python -m omr.cli --input ...` | `piano_dialogue_server/` | 独立 OMR 转换 | 输出 `job_dir` 与 `musicxml_path` |
 
 ## 恢复与回退
 - 对话链路恢复：先停掉 Dialogue，再重启 Python 服务与 Dialogue。
@@ -59,7 +58,6 @@
 - 回放恢复：切回 Built-in Sampler 以排除外部 MIDI 目的地问题。
 
 ## 已知尖锐边界
-- OMR 多页处理能力尚未实现 merge-pages。
 - AVP 引导对空间校准依赖极强，轻微偏差会放大到键位漂移。
 - Dialogue 依赖本地模型与显存/内存，首次加载时间较长且可能失败。
 

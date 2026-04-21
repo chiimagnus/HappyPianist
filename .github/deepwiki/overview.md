@@ -16,7 +16,7 @@
 ## 产品线 / 运行面
 | 运行面 | 位置 | 作用 | 主要入口 |
 | --- | --- | --- | --- |
-| macOS App | `LonelyPianist/` | MIDI 监听、映射、录音、Dialogue UI、本地 OMR 面板 | `LonelyPianist/LonelyPianistApp.swift` |
+| macOS App | `LonelyPianist/` | MIDI 监听、映射、录音、Dialogue UI | `LonelyPianist/LonelyPianistApp.swift` |
 | visionOS App | `LonelyPianistAVP/` | MusicXML 导入、校准、手部追踪、AR 步骤高亮 | `LonelyPianistAVP/LonelyPianistAVPApp.swift` |
 | Python 服务 | `piano_dialogue_server/` | `WS /ws` 对话推理 | `piano_dialogue_server/server/main.py` |
 
@@ -35,8 +35,7 @@
 | --- | --- | --- | --- |
 | macOS App 启动 | `LonelyPianist/LonelyPianistApp.swift` | 初始化容器、服务、ViewModel | `xcodebuild -project LonelyPianist.xcodeproj -scheme LonelyPianist -destination 'platform=macOS' build` |
 | visionOS App 启动 | `LonelyPianistAVP/LonelyPianistAVPApp.swift` | Window + ImmersiveSpace 组合 | `xcodebuild test -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP -destination 'platform=visionOS Simulator,name=Apple Vision Pro'` |
-| Python 服务启动 | `piano_dialogue_server/server/main.py` | 提供 `/health` `/ws` `/omr/convert` | `python -m uvicorn server.main:app --host 127.0.0.1 --port 8765` |
-| OMR CLI | `piano_dialogue_server/omr/cli.py` | 单文件转谱 | `python -m omr.cli --input /abs/score.pdf` |
+| Python 服务启动 | `piano_dialogue_server/server/main.py` | 提供 `/health` `/ws` | `python -m uvicorn server.main:app --host 127.0.0.1 --port 8765` |
 
 ## 关键产物
 | 产物 | 生成方 | 去向 | 说明 |
