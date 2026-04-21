@@ -2,7 +2,7 @@
 
 ## 职责与边界
 - **负责**：MusicXML 导入解析、练习步骤构建、A0/C8 空间校准、手部追踪按键判定、AR 高亮引导。
-- **不负责**：MIDI 映射、Dialogue 模型推理、OMR 算法执行（仅消费 OMR 结果）。
+- **不负责**：MIDI 映射、Dialogue 模型推理、曲谱转 MusicXML（仅消费外部准备好的 MusicXML）。
 - **位置**：`LonelyPianistAVP/` 与 `LonelyPianistAVPTests/`。
 
 ## 目录范围
@@ -39,7 +39,7 @@
 ## 上下游依赖
 | 方向 | 对象 | 关系 | 影响 |
 | --- | --- | --- | --- |
-| 上游 | OMR 产出的 MusicXML | 文件输入来源 | 解析质量决定后续步骤质量 |
+| 上游 | 外部准备好的 MusicXML | 文件输入来源 | 解析质量决定后续步骤质量 |
 | 上游 | ARKit HandTrackingProvider | 指尖位置实时流 | 不可用时引导无法自动推进 |
 | 下游 | RealityKit overlay controllers | 可视化输出层 | 当前步骤与反馈色态可见化 |
 | 下游 | 本地 calibration/imported file 存储 | 状态恢复与复用 | 提升二次进入体验 |

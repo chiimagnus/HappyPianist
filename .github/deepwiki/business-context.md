@@ -66,7 +66,6 @@ flowchart TD
   - macOS App： [modules/lonelypianist-macos.md](modules/lonelypianist-macos.md)
   - AVP： [modules/lonelypianist-avp.md](modules/lonelypianist-avp.md)
   - Dialogue 服务： [modules/piano-dialogue-server.md](modules/piano-dialogue-server.md)
-  - OMR： [modules/omr-pipeline.md](modules/omr-pipeline.md)
 
 ## Coverage Gaps
 - 当前仓库没有可见 CI workflow 定义，无法给出“线上门禁真实执行顺序”。
@@ -83,5 +82,3 @@ flowchart TD
 - `LonelyPianistAVP/ImmersiveView.swift`
 - `piano_dialogue_server/README.md`
 - `piano_dialogue_server/server/main.py`
-- `piano_dialogue_server/server/omr_routes.py`
-- `piano_dialogue_server/omr/convert.py`

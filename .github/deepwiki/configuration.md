@@ -87,6 +87,4 @@ python -m uvicorn server.main:app --host 127.0.0.1 --port 8765
 - `piano_dialogue_server/README.md`
 - `piano_dialogue_server/server/inference.py`
 - `piano_dialogue_server/server/debug_artifacts.py`
-- `piano_dialogue_server/omr/cli.py`
-- `piano_dialogue_server/omr/packaging/build_pyinstaller.sh`
 - `.xcodebuildmcp/config.yaml`

@@ -6,7 +6,7 @@
 | 业务逻辑 | Swift Testing 单元测试 | 高 | 稳定核心算法与状态迁移 |
 | 服务契约 | 协议与模型约束测试（Swift/Python） | 中 | 避免跨进程字段漂移 |
 | UI 流程 | 手工冒烟（README/AGENTS 指南） | 中 | 覆盖权限、设备、交互闭环 |
-| 本地服务连通 | 健康检查与 test client | 中 | 验证 Dialogue/OMR 实际可用 |
+| 本地服务连通 | 健康检查与 test client | 中 | 验证 Dialogue 实际可用 |
 
 ## 测试层次
 | 层次 | 位置 | 覆盖对象 | 备注 |
@@ -50,7 +50,7 @@
 
 ## 常见失败点
 - visionOS simulator 不可用或名称不匹配导致 AVP 测试命令失败。
-- Python 虚拟环境未激活导致依赖缺失（尤其 `torch`, `oemer`）。
+- Python 虚拟环境未激活导致依赖缺失（尤其 `torch`）。
 - 模型目录存在但无权重文件时推理引擎初始化失败。
 - 权限未授予时看似“运行中”但映射动作不生效。
 
@@ -72,7 +72,6 @@ func mappingEngineChordUsesStrictEquality() {
 
 ## Coverage Gaps
 - 尚未看到统一的跨进程自动化（macOS 发 WS、Python 回应、AVP 消费）全链路测试。
-- OMR 质量评估（识别准确率）未见结构化 benchmark。
 
 ## 来源引用（Source References）
 - `AGENTS.md`

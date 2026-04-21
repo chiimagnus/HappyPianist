@@ -4,7 +4,6 @@
 - **负责**：
   - 提供 WebSocket `/ws` 对话推理协议；
   - 提供 `GET /health` 健康检查；
-  - 挂载 OMR HTTP 路由（`/omr/convert`，具体转换逻辑见 OMR 模块页）。
 - **不负责**：macOS/AVP UI、CoreMIDI 采集、客户端状态管理。
 - **位置**：`piano_dialogue_server/server/`。
 
@@ -15,13 +14,12 @@
 | `server/protocol.py` | Pydantic 契约定义 | 请求/响应字段边界 |
 | `server/inference.py` | 推理引擎与模型加载 | `AutoModelForCausalLM` + anticipation |
 | `server/debug_artifacts.py` | 调试包落盘 | `DIALOGUE_DEBUG=1` 生效 |
-| `server/omr_routes.py` | OMR HTTP 路由挂载 | 上传校验 + 调用转换器 |
 | `server/test_client.py` | 端到端客户端 | 构造请求并保存 reply.mid |
 
 ## 入口点与生命周期
 | 入口 / 类型 | 位置 | 何时触发 | 结果 |
 | --- | --- | --- | --- |
-| 服务进程入口 | `uvicorn server.main:app` | 进程启动 | FastAPI app 可响应健康检查、WS、OMR |
+| 服务进程入口 | `uvicorn server.main:app` | 进程启动 | FastAPI app 可响应健康检查与 WS |
 | WS 消息处理 | `main.py::ws_endpoint` | 客户端发 `type=generate` | 返回 `type=result` 或 `type=error` |
 | 模型初始化 | `get_inference_engine()` | 首次 generate 请求 | 懒加载模型并缓存 `_engine` |
 | 调试包写入 | `write_debug_bundle()` | `DIALOGUE_DEBUG=1` 且请求成功 | 落盘 request/response/midi/summary |
@@ -128,4 +126,3 @@ if Path(model_ref).is_dir():
 - `piano_dialogue_server/requirements.txt`
 - `piano_dialogue_server/scripts/test_generate.py`
 - `piano_dialogue_server/scripts/test_infilling.py`
-- `piano_dialogue_server/README.md`

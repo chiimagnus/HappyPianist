@@ -6,13 +6,11 @@
 | MIDI 映射流 | CoreMIDI NoteOn/Off | ViewModel -> MappingEngine | CGEvent 键盘注入 + 事件日志 | chord 规则按“按下集合严格相等”；已触发规则避免重复触发 |
 | Recorder 流 | Runtime MIDI 事件 | DefaultRecordingService | SwiftData RecordingTake | `NoteKey(note,channel)` 合并开闭音，停止时补全未关闭音符 |
 | Dialogue 流 | Phrase notes + silence | DialogueManager -> WebSocketDialogueService -> Python inference | AI reply 回放 + 会话 take 持久化 | phrase 按静默窗口切段；queue 模式队列化 |
-| OMR 流 | PDF/JPG/PNG | preprocess -> oemer extract | `score.musicxml` + job debug 目录 | 多页 PDF MVP 仅 page 1；job 目录按时间戳+随机 ID |
 | AVP 引导流 | MusicXML 文件 + 手指点位 | parser -> stepBuilder -> pressDetection -> chordAccumulator | step 推进 + feedback 状态 | 按键检测冷却窗口 + 和弦累积窗口（0.6s） |
 
 ## 触发事件与入口
 - 用户触发：
   - macOS Runtime：`Start/Stop Listening`、`Start/Stop Dialogue`、`Record/Play`。
-  - OMR 面板：`Select Score` + `Convert`。
   - AVP：`Import MusicXML`、`Start AR Guide`、`Set A0/C8`、`Skip/Mark Correct`。
 - 定时/轮询触发：
   - DialogueManager 每 80ms polling silence。
@@ -31,12 +29,10 @@
 | --- | --- | --- | --- |
 | 输入 | `MIDIEvent` | `LonelyPianist/Models/MIDI/MIDIEvent.swift` | Runtime、Recorder、Dialogue 共用事件载体 |
 | 输入 | `DialogueNote[]` 请求 | `piano_dialogue_server/server/protocol.py` | WS 对话输入 |
-| 输入 | 上传文件 `UploadFile` | `server/omr_routes.py` | OMR HTTP 输入 |
 | 输入 | `MusicXML` 文件 | `LonelyPianistAVP/Services/MusicXMLImportService.swift` | AVP 导入源 |
 | 输出 | `ResolvedKeyStroke[]` | `DefaultMappingEngine` | 映射动作结果 |
 | 输出 | `RecordingTake` | `Models/Recording/RecordingTake.swift` | 录音与对话会话归档 |
 | 输出 | `ResultResponse.notes` | `server/protocol.py` | AI 回复音符序列 |
-| 输出 | `score.musicxml` | `omr/convert.py` | OMR 目标产物 |
 
 ## 关键数据结构 / 契约
 | 结构 | 位置 | 关键字段 | 用途 |
@@ -56,7 +52,7 @@
   - 内存状态：`AppModel`、`PracticeSessionViewModel`。
   - 文件状态：导入 MusicXML 副本与 `piano-calibration.json`。
 - Python：
-  - 输出目录状态：`out/omr/*`、`out/dialogue_debug/*`、`out/*.mid`。
+  - 输出目录状态：`out/dialogue_debug/*`、`out/*.mid`。
 
 ## 后台任务 / 调度 / 异步边界
 - `Task.sleep` 用于 Dialogue polling、回放调度、反馈自动重置、seek debounce。
@@ -81,7 +77,6 @@ sequenceDiagram
 
 ## 失败模式与恢复
 - Dialogue 连接或生成失败：ViewModel 保持可继续监听，状态回落到 listening。
-- OMR 转换失败：返回明确错误文本；job 目录可用于定位。
 - 手部追踪不可用：AVP 状态变为 unavailable，避免伪成功引导。
 - MIDI 权限/连接异常：Runtime 状态区显示失败原因并可刷新来源重试。
 
@@ -91,7 +86,6 @@ sequenceDiagram
   - `GET /health` 健康检查；
   - `DIALOGUE_DEBUG=1` 写 request/response/summary/midi bundle；
   - `server/test_client.py` 端到端回环。
-- OMR：查看 `job_dir` 下 `input/ debug/ output/`。
 
 ## 示例片段
 ```swift
@@ -103,17 +97,16 @@ while !Task.isCancelled {
 ```
 
 ```python
-# OMR HTTP 返回关键路径
+# 端到端返回关键路径
 result = {
-    "status": "ok",
-    "musicxml_path": str(job.musicxml_path),
-    "job_dir": str(job.root),
+  "status": "ok",
+  "notes": reply_notes,
+  "latency_ms": latency_ms,
 }
 ```
 
 ## Coverage Gaps
 - 未见端到端自动化测试覆盖“macOS <-> Python <-> AVP”的完整跨进程链路。
-- OMR 多页 merge 策略仍为后续能力，当前文档按 MVP（page 1）描述。
 
 ## 来源引用（Source References）
 - `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
@@ -126,5 +119,3 @@ result = {
 - `LonelyPianistAVP/Services/HandTracking/PressDetectionService.swift`
 - `piano_dialogue_server/server/main.py`
 - `piano_dialogue_server/server/protocol.py`
-- `piano_dialogue_server/server/omr_routes.py`
-- `piano_dialogue_server/omr/convert.py`

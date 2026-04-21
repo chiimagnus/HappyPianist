@@ -9,7 +9,6 @@
 | --- | --- | --- | --- |
 | Piano Dialogue | 轮转式钢琴对话：人弹一段，AI 回一段 | `LonelyPianist/README.md`、`server/main.py` | 是跨 macOS + Python 的核心产品能力 |
 | AR Guide | visionOS 中按步骤高亮键位的练习模式 | `LonelyPianistAVP/README.md`、`ImmersiveView.swift` | 是 AVP 产品线主体验 |
-| OMR | Optical Music Recognition，谱面转 MusicXML | `piano_dialogue_server/omr/` | 连接 PDF/图片谱与 AVP 引导 |
 | Take | 一次录音或会话产物（含音符数组） | `RecordingTake.swift`、Recorder UI | 持久化与回放的基本单位 |
 
 ## 架构 / 工程术语
@@ -25,13 +24,11 @@
 | --- | --- | --- | --- |
 | `DIALOGUE_DEBUG` | 服务端调试落盘开关（`1` 为开启） | `server/debug_artifacts.py` | 排查推理链路问题首选 |
 | `AMT_MODEL_DIR` | 模型目录环境变量 | `server/inference.py`、README | 控制模型来源与离线能力 |
-| `job_dir` | 一次 OMR 转换任务目录 | `omr/cli.py`、`omr_routes.py` | 包含 input/debug/output 全量证据 |
 | `ImmersiveSpace` | visionOS 沉浸式空间场景 | `LonelyPianistAVPApp.swift` | AR Guide 的运行容器 |
 
 ## 易混淆概念
 - **Recorder take vs Dialogue session take**：两者结构同为 `RecordingTake`，但后者会混合 human + AI note。
 - **Chord 匹配（macOS）vs Step 匹配（AVP）**：前者是“按下集合严格相等触发动作”，后者支持容差并可在时间窗口累积。
-- **OMR CLI 与 OMR HTTP**：底层同一转换管线，但入口参数与错误包装方式不同。
 
 ## Coverage Gaps
 - 尚未见仓库内对“发布/版本术语”形成统一约定文档（当前以 README 与代码注释为主）。
