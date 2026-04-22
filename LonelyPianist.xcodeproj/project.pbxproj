@@ -6,10 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
-	/* Begin PBXBuildFile section */
-			6D2C7571C82641C6953C9402 /* VerovioToolkit in Frameworks */ = {isa = PBXBuildFile; productRef = 01160424ADBC4765B8EAE97D /* VerovioToolkit */; };
-			D85596AE2F83FF72005BE7FE /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = D85596AD2F83FF72005BE7FE /* RealityKitContent */; };
-	/* End PBXBuildFile section */
+/* Begin PBXBuildFile section */
+		6D2C7571C82641C6953C9402 /* VerovioToolkit in Frameworks */ = {isa = PBXBuildFile; productRef = 01160424ADBC4765B8EAE97D /* VerovioToolkit */; };
+		D85596AE2F83FF72005BE7FE /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = D85596AD2F83FF72005BE7FE /* RealityKitContent */; };
+/* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
 		D85596BD2F83FF74005BE7FE /* PBXContainerItemProxy */ = {
@@ -99,13 +99,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-			D8D4280A2F4DFD3800EC9C9B /* Frameworks */ = {
-				isa = PBXFrameworksBuildPhase;
-				buildActionMask = 2147483647;
-				files = (
-				);
-				runOnlyForDeploymentPostprocessing = 0;
-			};
+		D8D4280A2F4DFD3800EC9C9B /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		E10000012A9B000100000003 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -189,7 +189,7 @@
 			productReference = D8EA41B92F978A340059B709 /* LonelyPianistAVPTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-			D8D4280C2F4DFD3800EC9C9B /* LonelyPianist */ = {
+		D8D4280C2F4DFD3800EC9C9B /* LonelyPianist */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = D8D428182F4DFD3900EC9C9B /* Build configuration list for PBXNativeTarget "LonelyPianist" */;
 			buildPhases = (
@@ -204,13 +204,13 @@
 			fileSystemSynchronizedGroups = (
 				D8D4280F2F4DFD3800EC9C9B /* LonelyPianist */,
 			);
-				name = LonelyPianist;
-				packageProductDependencies = (
-				);
-				productName = LonelyPianist;
-				productReference = D8EA41B72F978A340059B709 /* LonelyPianist.app */;
-				productType = "com.apple.product-type.application";
-			};
+			name = LonelyPianist;
+			packageProductDependencies = (
+			);
+			productName = LonelyPianist;
+			productReference = D8EA41B72F978A340059B709 /* LonelyPianist.app */;
+			productType = "com.apple.product-type.application";
+		};
 		E10000012A9B000100000006 /* LonelyPianistTests */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = E10000012A9B00010000000B /* Build configuration list for PBXNativeTarget "LonelyPianistTests" */;
