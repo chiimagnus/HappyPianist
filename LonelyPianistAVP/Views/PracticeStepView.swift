@@ -139,11 +139,17 @@ private struct Step3WindowGeometryHint: UIViewControllerRepresentable {
 private final class WindowGeometryHintViewController: UIViewController {
     private var hasRequestedGeometryUpdate = false
     private var hasRequestedRestoreGeometryUpdate = false
+    private var previousWindowSize: CGSize?
 
     override func viewDidLoad() {
         super.viewDidLoad()
         view.isUserInteractionEnabled = false
         view.backgroundColor = .clear
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        capturePreviousWindowSizeIfNeeded()
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -161,6 +167,7 @@ private final class WindowGeometryHintViewController: UIViewController {
         guard let windowScene = view.window?.windowScene else { return }
 
         hasRequestedGeometryUpdate = true
+        capturePreviousWindowSizeIfNeeded()
 
         let preferences = UIWindowScene.GeometryPreferences.Vision(
             size: CGSize(width: 1600, height: 400),
@@ -179,9 +186,10 @@ private final class WindowGeometryHintViewController: UIViewController {
         guard let windowScene = view.window?.windowScene else { return }
 
         hasRequestedRestoreGeometryUpdate = true
+        let restoreSize = previousWindowSize ?? CGSize(width: 700, height: 700)
 
         let preferences = UIWindowScene.GeometryPreferences.Vision(
-            size: CGSize(width: 700, height: 700),
+            size: restoreSize,
             minimumSize: CGSize(width: 560, height: 560),
             maximumSize: nil,
             resizingRestrictions: nil
@@ -190,6 +198,14 @@ private final class WindowGeometryHintViewController: UIViewController {
         windowScene.requestGeometryUpdate(preferences) { error in
             print("Step 3 restore requestGeometryUpdate failed: \(error.localizedDescription)")
         }
+    }
+
+    private func capturePreviousWindowSizeIfNeeded() {
+        guard previousWindowSize == nil else { return }
+        guard let window = view.window else { return }
+        let size = window.bounds.size
+        guard size.width > 0, size.height > 0 else { return }
+        previousWindowSize = size
     }
 }
 
