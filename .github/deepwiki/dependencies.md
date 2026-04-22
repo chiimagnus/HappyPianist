@@ -4,7 +4,7 @@
 | 维度 | 技术 / 框架 | 版本 / 约束 | 用途 |
 | --- | --- | --- | --- |
 | macOS 前端 | SwiftUI + Observation | Swift 6 / Xcode 26.x 工程 | UI 与状态编排 |
-| MIDI | CoreMIDI / AVFoundation | Apple 系统框架 | 实时输入与回放 |
+| MIDI / 试听播放 | CoreMIDI / AVFoundation | Apple 系统框架 | 实时输入、回放与试听 |
 | 持久化 | SwiftData | App Support 下本地 store | 映射配置与录音 take |
 | visionOS 空间层 | RealityKit + ARKit | visionOS 26+ | 手部追踪与空间高亮 |
 | Python 服务层 | FastAPI + Uvicorn + websockets | `requirements.txt` | WS 对话 |
@@ -79,14 +79,3 @@ platforms: [
 
 ## Coverage Gaps
 - 未发现仓库内统一依赖锁定（如 Python lockfile），跨机器可重复性仍依赖本地环境管理。
-
-## 来源引用（Source References）
-- `piano_dialogue_server/requirements.txt`
-- `piano_dialogue_server/README.md`
-- `piano_dialogue_server/server/inference.py`
-- `piano_dialogue_server/scripts/download_model.sh`
-- `Packages/RealityKitContent/Package.swift`
-- `LonelyPianist.xcodeproj/project.pbxproj`
-- `LonelyPianist/Services/System/ShortcutExecutionService.swift`
-- `LonelyPianist/LonelyPianist.entitlements`
-- `AGENTS.md`

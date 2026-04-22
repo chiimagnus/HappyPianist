@@ -117,16 +117,3 @@ startPolling()
 
 ## Coverage Gaps
 - 未见针对 `CoreMIDIInputService` 的集成测试（主要依赖运行时验证）。
-
-## 来源引用（Source References）
-- `LonelyPianist/LonelyPianistApp.swift`
-- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
-- `LonelyPianist/Services/MIDI/CoreMIDIInputService.swift`
-- `LonelyPianist/Services/MIDI/CoreMIDIOutputService.swift`
-- `LonelyPianist/Services/Mapping/DefaultMappingEngine.swift`
-- `LonelyPianist/Services/Dialogue/DialogueManager.swift`
-- `LonelyPianist/Services/Dialogue/WebSocketDialogueService.swift`
-- `LonelyPianist/Services/Recording/DefaultRecordingService.swift`
-- `LonelyPianist/Services/Playback/RoutedMIDIPlaybackService.swift`
-- `LonelyPianist/Views/Mapping/PianoMappingsEditorView.swift`
-- `LonelyPianistTests/Mapping/UnifiedMappingConfigTests.swift`

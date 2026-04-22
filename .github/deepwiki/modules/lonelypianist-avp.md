@@ -19,14 +19,15 @@
 | `LonelyPianistAVP/Views/Library/SongLibraryView.swift` | Step 2 | 曲库导入、删除、绑定音频、进入练习 |
 | `LonelyPianistAVP/Views/PracticeStepView.swift` | Step 3 | 练习状态、定位状态、手动推进按钮 |
 | `LonelyPianistAVP/ViewModels/ARGuideViewModel.swift` | 定位与练习编排 | provider/anchor 状态机 |
-| `LonelyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift` | 曲库编排 | 索引与文件一致性维护 |
+| `LonelyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift` | 曲库编排 | 索引、文件、试听状态一致性维护 |
+| `LonelyPianistAVP/Services/Library/SongAudioPlayer.swift` | 试听播放器 | `AVAudioPlayer` 封装与播放态回调 |
 | `LonelyPianistAVP/Services/Tracking/ARTrackingService.swift` | AR provider 接线 | 指尖/锚点/授权/状态 |
 | `LonelyPianistAVP/Services/Library/*` | 曲库存储服务层 | index、score、audio、seed、playback |
 
 ## 入口点与生命周期
 | 入口 / 事件 | 文件 | 触发时机 | 行为 |
 | --- | --- | --- | --- |
-| App 初始化 | `LonelyPianistAVPApp.swift` | 启动时 | 加载校准、seed 曲库、初始化 ViewModels |
+| App 初始化 | `LonelyPianistAVPApp.swift` | 启动时 | 加载校准、seed 曲库（MusicXML + 音频）、初始化 ViewModels |
 | 打开沉浸空间 | `ARGuideViewModel.openImmersiveForStep` | Step 1 / Step 3 进入时 | 管理 `.closed/.inTransition/.open` 状态 |
 | 手部与世界追踪启动 | `ARTrackingService.start()` | 沉浸空间 onAppear 后 | 请求授权并启动 providers |
 | 曲库导入 | `SongLibraryViewModel.importMusicXML` | Step 2 导入动作 | 文件复制 + 索引更新 |
@@ -59,6 +60,9 @@
   - `ImmersiveSpaceState`：`closed / inTransition / open`；
   - `PracticeLocalizationState`：`idle / blocked / opening / waiting / locating / failed / ready`；
   - `PracticeState`：`idle / ready / guiding / completed`。
+- 试听状态：
+  - `SongLibraryViewModel` 以 `currentListeningEntryID` / `isCurrentListeningPlaying` 驱动曲库页的“聆听/暂停”按钮；
+  - `SongAudioPlaybackStateController` 与 `SongAudioPlayer` 负责播放态切换、暂停、恢复与完成回调。
 - 关键存储：
   - `Documents/piano-worldanchor-calibration.json`
   - `Documents/SongLibrary/index.json`
@@ -71,6 +75,7 @@
 | Step 1 校准 | 捕获 A0/C8 -> 保存 | 不完整校准返回“校准信息不完整” |
 | Step 2 选曲 | 导入 MusicXML -> 更新索引 | 索引写入失败会回滚已复制文件 |
 | Step 2 绑定音频 | 导入 mp3/m4a -> 更新条目 | 非 mp3/m4a 直接报错 |
+| Step 2 试听 | 点击“聆听/暂停” -> 切换当前播放条目 | 音频丢失或播放器创建失败会提示错误 |
 | Step 3 定位练习 | provider 运行 -> 锚点恢复 -> ready | 失败时关闭沉浸空间并提示重试/回校准 |
 
 ## 扩展点与修改热点
@@ -91,6 +96,7 @@
 | 曲库存储测试 | `SongLibraryIndexStoreTests.swift`、`SongFileStoreTests.swift` | 索引与文件一致性 |
 | 校准存储测试 | `WorldAnchorCalibrationStoreTests.swift` | 读写稳定性 |
 | 播放状态测试 | `SongAudioPlayerStateTests.swift` | 聆听状态迁移 |
+| 试听按钮状态测试 | `SongLibraryViewModelListeningStateTests.swift` | 聆听/暂停按钮与播放态同步 |
 | 解析/步骤测试 | `MusicXMLParserTests.swift`、`PracticeStepBuilderTests.swift` | 练习输入正确性 |
 
 ## 示例片段
@@ -114,19 +120,4 @@ try indexStore.save(nextIndex)
 ## Coverage Gaps
 - 目前仍缺 Immersive UI 自动化测试（依赖手工体验验证）。
 - 曲库长期运行的自动清理策略尚未内置（可能累积历史文件）。
-
-## 来源引用（Source References）
-- `LonelyPianistAVP/LonelyPianistAVPApp.swift`
-- `LonelyPianistAVP/AppModel.swift`
-- `LonelyPianistAVP/Views/ContentView.swift`
-- `LonelyPianistAVP/Views/CalibrationStepView.swift`
-- `LonelyPianistAVP/Views/Library/SongLibraryView.swift`
-- `LonelyPianistAVP/Views/PracticeStepView.swift`
-- `LonelyPianistAVP/ViewModels/ARGuideViewModel.swift`
-- `LonelyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift`
-- `LonelyPianistAVP/Services/Tracking/ARTrackingService.swift`
-- `LonelyPianistAVP/Services/WorldAnchorCalibrationStore.swift`
-- `LonelyPianistAVP/Services/Library/SongLibraryIndexStore.swift`
-- `LonelyPianistAVP/Services/Library/SongFileStore.swift`
-- `LonelyPianistAVP/Services/Library/AudioImportService.swift`
-- `LonelyPianistAVPTests/PracticeLocalizationPolicyTests.swift`
+- `SongLibrarySeeder` 的 seed / backfill 逻辑依赖 bundled `Resources/SeedScores`，缺失资源会直接退化为无种子状态。

@@ -21,11 +21,13 @@
 | `ARGuideViewModel` | `LonelyPianistAVP/ViewModels/ARGuideViewModel.swift` | AR provider 状态 + world anchors | 定位状态机 + 练习控制状态 | `ARTrackingService` + `AppModel` |
 | `PracticeSessionViewModel` | `LonelyPianistAVP/ViewModels/PracticeSessionViewModel.swift` | 指尖点位 + step | 当前步骤推进 + 反馈状态 | PressDetection + ChordAccumulator |
 | `ARTrackingService` | `LonelyPianistAVP/Services/Tracking/` | ARKit session updates | finger tips + world anchors + provider state | `HandTrackingProvider` + `WorldTrackingProvider` |
+| `SongAudioPlaybackStateController` | `LonelyPianistAVP/Services/Library/SongAudioPlayer.swift` | `SongLibraryViewModel` 的试听事件 | 播放/暂停切换 + currentEntryID 同步 | `SongAudioPlayerProtocol` |
 | `InferenceEngine` | `piano_dialogue_server/server/inference.py` | `DialogueNote[]` + params | 回复 notes | torch + transformers + anticipation |
 
 ## 依赖方向与层次
 - macOS 与 AVP 都遵守 `View -> ViewModel -> Services -> Models`。
 - AVP 新增“曲库子系统”后，`SongLibraryViewModel` 仍通过协议注入访问文件与索引，避免 View 直连文件系统。
+- `SongLibraryViewModel` 额外持有试听态（`currentListeningEntryID` / `isCurrentListeningPlaying`），由 `SongAudioPlaybackStateController` 和 `SongAudioPlayer` 共同驱动。
 - Python 端维持 `main.py`（编排）/`protocol.py`（契约）/`inference.py`（执行）分层。
 
 ## 关键流程图
@@ -83,17 +85,3 @@ flowchart LR
 
 ## Coverage Gaps
 - 当前缺少跨进程+跨设备端到端自动化门禁（主要依赖手工与单元测试组合）。
-
-## 来源引用（Source References）
-- `LonelyPianist/LonelyPianistApp.swift`
-- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
-- `LonelyPianist/Services/Dialogue/DialogueManager.swift`
-- `LonelyPianistAVP/LonelyPianistAVPApp.swift`
-- `LonelyPianistAVP/AppModel.swift`
-- `LonelyPianistAVP/ViewModels/HomeViewModel.swift`
-- `LonelyPianistAVP/ViewModels/ARGuideViewModel.swift`
-- `LonelyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift`
-- `LonelyPianistAVP/Services/Tracking/ARTrackingService.swift`
-- `LonelyPianistAVP/Services/Library/SongLibraryIndexStore.swift`
-- `piano_dialogue_server/server/main.py`
-- `piano_dialogue_server/server/protocol.py`
