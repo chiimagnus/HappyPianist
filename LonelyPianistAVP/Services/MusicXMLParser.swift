@@ -23,7 +23,14 @@ struct MusicXMLParser: MusicXMLParserProtocol {
         guard parser.parse() else {
             throw MusicXMLParserError.parseFailed
         }
-        return MusicXMLScore(notes: delegate.notes)
+        return MusicXMLScore(
+            notes: delegate.notes,
+            tempoEvents: delegate.tempoEvents,
+            soundDirectives: delegate.soundDirectives,
+            measures: delegate.measures,
+            repeatDirectives: delegate.repeatDirectives,
+            endingDirectives: delegate.endingDirectives
+        )
     }
 }
 
@@ -31,6 +38,23 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
     private let normalizedTicksPerQuarter = 480
 
     private(set) var notes: [MusicXMLNoteEvent] = []
+    private(set) var tempoEvents: [MusicXMLTempoEvent] = []
+    private(set) var soundDirectives: [MusicXMLSoundDirective] = []
+    private(set) var measures: [MusicXMLMeasureSpan] = []
+    private(set) var repeatDirectives: [MusicXMLRepeatDirective] = []
+    private(set) var endingDirectives: [MusicXMLEndingDirective] = []
+
+    private enum TempoSource: Int {
+        case metronome = 0
+        case sound = 1
+    }
+
+    private struct RawTempoEvent {
+        let partID: String
+        let tick: Int
+        let quarterBPM: Double
+        let source: TempoSource
+    }
 
     private var currentPartID = "P1"
     private var currentMeasureNumber = 1
@@ -46,6 +70,8 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
     private var isInAttributes = false
     private var isInBackup = false
     private var isInForward = false
+    private var isInDirection = false
+    private var isInBarline = false
 
     private var isInNote = false
     private var noteIsRest = false
@@ -56,6 +82,15 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
     private var noteDuration: Int?
     private var noteStaff: Int?
     private var noteVoice: Int?
+    private var noteTieStart = false
+    private var noteTieStop = false
+
+    private var isInDirectionTypeMetronome = false
+    private var metronomeBeatUnit: String?
+    private var metronomeHasDot = false
+    private var metronomePerMinute: Double?
+
+    private var rawTempoEventsByPart: [String: [RawTempoEvent]] = [:]
 
     private var currentMeasureStartTick = 0
 
@@ -84,6 +119,51 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
                 partLastNonChordStartTick[currentPartID] = nil
             case "attributes":
                 isInAttributes = true
+            case "direction":
+                isInDirection = true
+            case "direction-type":
+                break
+            case "barline":
+                isInBarline = true
+            case "repeat":
+                if isInBarline, let rawDirection = attributeDict["direction"], let direction = MusicXMLRepeatDirection(rawValue: rawDirection) {
+                    repeatDirectives.append(
+                        MusicXMLRepeatDirective(
+                            partID: currentPartID,
+                            measureNumber: currentMeasureNumber,
+                            direction: direction
+                        )
+                    )
+                }
+            case "ending":
+                if isInBarline,
+                   let number = attributeDict["number"],
+                   let rawType = attributeDict["type"],
+                   let type = MusicXMLEndingType(rawValue: rawType)
+                {
+                    endingDirectives.append(
+                        MusicXMLEndingDirective(
+                            partID: currentPartID,
+                            measureNumber: currentMeasureNumber,
+                            number: number,
+                            type: type
+                        )
+                    )
+                }
+            case "metronome":
+                if isInDirection {
+                    isInDirectionTypeMetronome = true
+                    metronomeBeatUnit = nil
+                    metronomeHasDot = false
+                    metronomePerMinute = nil
+                }
+            case "sound":
+                if isInDirection, let tempoText = attributeDict["tempo"], let bpm = Double(tempoText) {
+                    recordTempoEvent(quarterBPM: bpm, source: .sound)
+                }
+                if isInDirection {
+                    recordSoundDirective(attributes: attributeDict)
+                }
             case "backup":
                 isInBackup = true
             case "forward":
@@ -98,6 +178,8 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
                 noteDuration = nil
                 noteStaff = nil
                 noteVoice = nil
+                noteTieStart = false
+                noteTieStop = false
             case "rest":
                 if isInNote {
                     noteIsRest = true
@@ -105,6 +187,15 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
             case "chord":
                 if isInNote {
                     noteIsChord = true
+                }
+            case "tie", "tied":
+                if isInNote {
+                    let type = attributeDict["type"]?.lowercased()
+                    if type == "start" {
+                        noteTieStart = true
+                    } else if type == "stop" {
+                        noteTieStop = true
+                    }
                 }
             default:
                 break
@@ -127,6 +218,15 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
                 if let value = Int(text), value > 0 {
                     partDivisions[currentPartID] = value
                 }
+            case "beat-unit" where isInDirectionTypeMetronome:
+                metronomeBeatUnit = text
+            case "beat-unit-dot" where isInDirectionTypeMetronome:
+                metronomeHasDot = true
+            case "per-minute" where isInDirectionTypeMetronome:
+                metronomePerMinute = Double(text)
+            case "metronome":
+                finalizeMetronomeTempoIfNeeded()
+                isInDirectionTypeMetronome = false
             case "duration":
                 if let duration = Int(text), duration >= 0 {
                     let normalizedDuration = normalizeDuration(duration)
@@ -153,16 +253,32 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
                 isInNote = false
             case "attributes":
                 isInAttributes = false
+            case "direction":
+                isInDirection = false
+            case "barline":
+                isInBarline = false
             case "backup":
                 isInBackup = false
             case "forward":
                 isInForward = false
             case "measure":
                 let endTick = partMeasureMaxTick[currentPartID] ?? currentMeasureStartTick
+                measures.append(
+                    MusicXMLMeasureSpan(
+                        partID: currentPartID,
+                        measureNumber: currentMeasureNumber,
+                        startTick: currentMeasureStartTick,
+                        endTick: endTick
+                    )
+                )
                 partTick[currentPartID] = max(endTick, partTick[currentPartID] ?? 0)
             default:
                 break
         }
+    }
+
+    func parserDidEndDocument(_: XMLParser) {
+        tempoEvents = finalizeTempoEvents()
     }
 
     private func finalizeNote() {
@@ -193,6 +309,8 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
                 midiNote: midiNote,
                 isRest: noteIsRest,
                 isChord: noteIsChord,
+                tieStart: noteTieStart,
+                tieStop: noteTieStop,
                 staff: noteStaff,
                 voice: noteVoice
             )
@@ -215,6 +333,90 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
         let divisions = max(1, partDivisions[currentPartID] ?? 1)
         let normalized = Double(rawDuration) * Double(normalizedTicksPerQuarter) / Double(divisions)
         return max(0, Int(normalized.rounded()))
+    }
+
+    private func recordTempoEvent(quarterBPM: Double, source: TempoSource) {
+        guard quarterBPM.isFinite, quarterBPM > 0 else { return }
+
+        let tick = partTick[currentPartID] ?? currentMeasureStartTick
+        let event = RawTempoEvent(partID: currentPartID, tick: tick, quarterBPM: quarterBPM, source: source)
+        rawTempoEventsByPart[currentPartID, default: []].append(event)
+    }
+
+    private func recordSoundDirective(attributes: [String: String]) {
+        let segno = attributes["segno"].flatMap { $0.isEmpty ? nil : $0 }
+        let coda = attributes["coda"].flatMap { $0.isEmpty ? nil : $0 }
+        let tocoda = attributes["tocoda"].flatMap { $0.isEmpty ? nil : $0 }
+        let dalsegno = attributes["dalsegno"].flatMap { $0.isEmpty ? nil : $0 }
+        let dacapo = attributes["dacapo"].flatMap { $0.isEmpty ? nil : $0 }
+
+        guard segno != nil || coda != nil || tocoda != nil || dalsegno != nil || dacapo != nil else {
+            return
+        }
+
+        let tick = partTick[currentPartID] ?? currentMeasureStartTick
+        soundDirectives.append(
+            MusicXMLSoundDirective(
+                partID: currentPartID,
+                measureNumber: currentMeasureNumber,
+                tick: tick,
+                segno: segno,
+                coda: coda,
+                tocoda: tocoda,
+                dalsegno: dalsegno,
+                dacapo: dacapo
+            )
+        )
+    }
+
+    private func finalizeMetronomeTempoIfNeeded() {
+        guard let beatUnit = metronomeBeatUnit?.lowercased(),
+              let perMinute = metronomePerMinute,
+              perMinute.isFinite,
+              perMinute > 0
+        else {
+            return
+        }
+
+        guard beatUnit == "quarter", metronomeHasDot == false else {
+            #if DEBUG
+            print("MusicXMLParser: ignoring metronome beatUnit=\(beatUnit) dot=\(metronomeHasDot)")
+            #endif
+            return
+        }
+
+        recordTempoEvent(quarterBPM: perMinute, source: .metronome)
+    }
+
+    private func finalizeTempoEvents() -> [MusicXMLTempoEvent] {
+        let primaryPart = "P1"
+        let rawEvents: [RawTempoEvent]
+        if let p1Events = rawTempoEventsByPart[primaryPart], p1Events.isEmpty == false {
+            rawEvents = p1Events
+        } else {
+            rawEvents = rawTempoEventsByPart.keys.sorted().flatMap { partID in
+                rawTempoEventsByPart[partID] ?? []
+            }
+        }
+
+        guard rawEvents.isEmpty == false else { return [] }
+
+        var byTick: [Int: RawTempoEvent] = [:]
+        for event in rawEvents {
+            if let existing = byTick[event.tick] {
+                if event.source.rawValue > existing.source.rawValue {
+                    byTick[event.tick] = event
+                } else if event.source == existing.source {
+                    byTick[event.tick] = event
+                }
+            } else {
+                byTick[event.tick] = event
+            }
+        }
+
+        return byTick.values
+            .sorted { $0.tick < $1.tick }
+            .map { MusicXMLTempoEvent(tick: $0.tick, quarterBPM: $0.quarterBPM) }
     }
 
     private static func makeMIDINote(step: String?, alter: Int, octave: Int?) -> Int? {

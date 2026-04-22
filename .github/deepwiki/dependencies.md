@@ -4,7 +4,7 @@
 | 维度 | 技术 / 框架 | 版本 / 约束 | 用途 |
 | --- | --- | --- | --- |
 | macOS 前端 | SwiftUI + Observation | Swift 6 / Xcode 26.x 工程 | UI 与状态编排 |
-| MIDI / 试听播放 | CoreMIDI / AVFoundation | Apple 系统框架 | 实时输入、回放与试听 |
+| MIDI / 试听播放 | CoreMIDI / AVFAudio | Apple 系统框架 | 实时输入、回放与试听 |
 | 持久化 | SwiftData | App Support 下本地 store | 映射配置与录音 take |
 | visionOS 空间层 | RealityKit + ARKit | visionOS 26+ | 手部追踪与空间高亮 |
 | Python 服务层 | FastAPI + Uvicorn + websockets | `requirements.txt` | WS 对话 |

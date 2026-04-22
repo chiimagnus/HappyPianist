@@ -135,6 +135,10 @@ final class ARGuideViewModel {
         practiceSessionViewModel.playCurrentStepSound()
     }
 
+    func setPracticeAutoplayEnabled(_ isEnabled: Bool) {
+        practiceSessionViewModel.setAutoplayEnabled(isEnabled)
+    }
+
     var practiceLocalizationStatusText: String? {
         switch practiceLocalizationState {
             case .idle:

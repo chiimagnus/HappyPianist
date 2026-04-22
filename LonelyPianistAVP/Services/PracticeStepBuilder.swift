@@ -16,6 +16,10 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
                 continue
             }
 
+            if noteEvent.tieStop {
+                continue
+            }
+
             guard let midiNote = noteEvent.midiNote else {
                 continue
             }

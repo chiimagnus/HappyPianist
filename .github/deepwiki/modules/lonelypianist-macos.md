@@ -40,7 +40,7 @@
 | 方向 | 对象 | 关系 | 影响 |
 | --- | --- | --- | --- |
 | 下游 | Python 服务 | WS `generate` | 服务不可用会影响 Dialogue |
-| 下游 | CoreMIDI / CGEvent / AVFoundation | 系统能力调用 | 权限/设备异常会阻断核心能力 |
+| 下游 | CoreMIDI / CGEvent / AVFAudio | 系统能力调用 | 权限/设备异常会阻断核心能力 |
 | 上游 | 用户交互（SwiftUI） | Start/Stop/Bind/Record 操作 | 驱动状态机迁移 |
 | 上游 | 持久化数据（SwiftData） | 配置与 take 恢复 | 影响启动后的可用状态 |
 

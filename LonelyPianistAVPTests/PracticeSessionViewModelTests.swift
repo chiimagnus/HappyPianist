@@ -226,6 +226,120 @@ func advancingAutoPlaysNextStepSound() {
     #expect(audioPlayer.recordedPlays == [[60], [62]])
 }
 
+@Test
+@MainActor
+func autoplaySchedulesAndAdvancesStepsUsingTempoMap() async {
+    let sleeper = ControllableSleeper()
+    let tempoMap = MusicXMLTempoMap(
+        tempoEvents: [
+            MusicXMLTempoEvent(tick: 0, quarterBPM: 120),
+        ]
+    )
+
+    let viewModel = makePracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: sleeper
+    )
+
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: nil)]),
+            PracticeStep(tick: 960, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
+        ],
+        tempoMap: tempoMap
+    )
+    viewModel.setAutoplayEnabled(true)
+    viewModel.startGuidingIfReady()
+    await settleTaskQueue()
+
+    #expect(await sleeper.recordedDurations() == [.seconds(0.5)])
+
+    await sleeper.resumeOldestPending()
+    await settleTaskQueue()
+    #expect(viewModel.currentStepIndex == 1)
+
+    await settleTaskQueue()
+    #expect(await sleeper.recordedDurations() == [.seconds(0.5), .seconds(0.5)])
+
+    viewModel.setAutoplayEnabled(false)
+    await settleTaskQueue()
+    #expect(await sleeper.cancellationCount() == 1)
+}
+
+@Test
+@MainActor
+func autoplaySkipCancelsPendingSleepAndRestartsScheduling() async {
+    let sleeper = ControllableSleeper()
+    let tempoMap = MusicXMLTempoMap(
+        tempoEvents: [
+            MusicXMLTempoEvent(tick: 0, quarterBPM: 120),
+        ]
+    )
+
+    let viewModel = makePracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: sleeper
+    )
+
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: nil)]),
+            PracticeStep(tick: 960, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
+        ],
+        tempoMap: tempoMap
+    )
+    viewModel.setAutoplayEnabled(true)
+    viewModel.startGuidingIfReady()
+    await settleTaskQueue()
+
+    #expect(await sleeper.callCount() == 1)
+    viewModel.skip()
+    await settleTaskQueue()
+
+    #expect(viewModel.currentStepIndex == 1)
+    #expect(await sleeper.callCount() == 2)
+    #expect(await sleeper.cancellationCount() == 1)
+    #expect(await sleeper.wasRequestCancelled(at: 0) == true)
+    #expect(await sleeper.wasRequestCancelled(at: 1) == false)
+
+    viewModel.setAutoplayEnabled(false)
+    await settleTaskQueue()
+}
+
+@Test
+@MainActor
+func autoplayDoesNotAdvanceOnMatch() async {
+    let sleeper = ControllableSleeper()
+    let viewModel = makePracticeSessionViewModel(
+        pressDetectionService: ConstantPressDetectionService(pressedNotes: [60]),
+        chordAttemptAccumulator: AlwaysMatchChordAttemptAccumulator(),
+        sleeper: sleeper
+    )
+
+    viewModel.setSteps([
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+        PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: nil)]),
+    ])
+    viewModel.setAutoplayEnabled(true)
+    viewModel.applyCalibration(
+        PianoCalibration(a0: .zero, c8: SIMD3<Float>(1, 0, 0), planeHeight: 0),
+        keyRegions: [PianoKeyRegion(midiNote: 60, center: .zero, size: SIMD3<Float>(repeating: 1))]
+    )
+
+    _ = viewModel.handleFingerTipPositions(["dummy": .zero])
+    await settleTaskQueue()
+
+    #expect(viewModel.feedbackState == .correct)
+    #expect(viewModel.currentStepIndex == 0)
+
+    viewModel.resetSession()
+    await settleTaskQueue()
+}
+
 @MainActor
 private func makePracticeSessionViewModel(
     pressDetectionService: PressDetectionServiceProtocol,

@@ -98,7 +98,7 @@ LonelyPianist/
 | 层 | 技术 |
 | --- | --- |
 | macOS UI | SwiftUI · `@Observable` · Swift Concurrency |
-| MIDI / 系统 | CoreMIDI · AVFoundation · CGEvent (Accessibility) |
+| MIDI / 系统 | CoreMIDI · AVFAudio · CGEvent (Accessibility) |
 | 持久化 | SwiftData（`MappingConfigEntity` / `RecordingTakeEntity` / `RecordedNoteEntity`） |
 | visionOS | RealityKit · ARKit HandTracking · SpatialTapGesture |
 | 服务层 | FastAPI · Uvicorn · WebSocket (`protocol_version=1`) |

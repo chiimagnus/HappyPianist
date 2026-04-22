@@ -10,6 +10,9 @@ struct PracticeStepView: View {
     @State private var hasRequestedImmersiveOpen = false
     @State private var isStepVisible = false
     @State private var isLocalizationPopoverPresented = false
+    @State private var isSettingsPopoverPresented = false
+
+    @AppStorage("practiceStep3AutoplayEnabled") private var isAutoplayEnabled = false
 
     var body: some View {
         PianoKeyboard88View(highlightedMIDINotes: highlightedMIDINotes)
@@ -46,6 +49,22 @@ struct PracticeStepView: View {
                     .hoverEffect()
                     .disabled(viewModel.practiceSessionViewModel.currentStep == nil)
 
+                    Toggle("自动播放", isOn: $isAutoplayEnabled)
+                        .toggleStyle(.button)
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.roundedRectangle)
+                        .hoverEffect()
+
+                    Button("设置", systemImage: "gearshape") {
+                        isSettingsPopoverPresented.toggle()
+                    }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.roundedRectangle)
+                    .hoverEffect()
+                    .popover(isPresented: $isSettingsPopoverPresented) {
+                        PracticeSettingsView()
+                    }
+
                     Text("进度 \(viewModel.practiceProgressText)")
                         .monospacedDigit()
                         .foregroundStyle(.secondary)
@@ -68,6 +87,7 @@ struct PracticeStepView: View {
                 hasRequestedImmersiveOpen = true
 
                 Task { @MainActor in
+                    viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
                     await viewModel.enterPracticeStep(
                         using: openImmersiveSpace,
                         dismissImmersiveSpace: dismissImmersiveSpace
@@ -79,9 +99,13 @@ struct PracticeStepView: View {
                     }
                 }
             }
+            .onChange(of: isAutoplayEnabled) {
+                viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
+            }
             .onDisappear {
                 isStepVisible = false
                 hasRequestedImmersiveOpen = false
+                viewModel.setPracticeAutoplayEnabled(false)
                 viewModel.resetPracticeLocalizationState()
                 Task { @MainActor in
                     await viewModel.closeImmersiveForStep(using: dismissImmersiveSpace)

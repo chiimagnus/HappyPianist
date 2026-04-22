@@ -18,8 +18,14 @@ final class PracticeSessionViewModel {
         case completed
     }
 
+    enum AutoplayState: Equatable {
+        case off
+        case playing
+    }
+
     private(set) var state: PracticeState = .idle
     private(set) var steps: [PracticeStep] = []
+    private(set) var autoplayState: AutoplayState = .off
     private(set) var calibration: PianoCalibration?
     private(set) var keyRegions: [PianoKeyRegion] = []
     private(set) var pressedNotes: Set<Int> = []
@@ -31,6 +37,9 @@ final class PracticeSessionViewModel {
     private let sleeper: SleeperProtocol
     private let noteAudioPlayer: PracticeNoteAudioPlayerProtocol?
     private var feedbackResetTask: Task<Void, Never>?
+    private var autoplayTask: Task<Void, Never>?
+    private var tempoMap: MusicXMLTempoMap?
+    private var didLogMissingTempoMap = false
 
     init(
         pressDetectionService: PressDetectionServiceProtocol,
@@ -70,6 +79,10 @@ final class PracticeSessionViewModel {
     }
 
     func setSteps(_ steps: [PracticeStep]) {
+        setSteps(steps, tempoMap: nil)
+    }
+
+    func setSteps(_ steps: [PracticeStep], tempoMap: MusicXMLTempoMap?) {
         if state == .completed, self.steps == steps, steps.isEmpty == false {
             return
         }
@@ -78,8 +91,10 @@ final class PracticeSessionViewModel {
 
         feedbackResetTask?.cancel()
         feedbackResetTask = nil
+        stopAutoplayTask()
         chordAttemptAccumulator.reset()
         self.steps = steps
+        self.tempoMap = tempoMap
 
         if shouldResetProgress {
             currentStepIndex = 0
@@ -111,8 +126,10 @@ final class PracticeSessionViewModel {
     func resetSession() {
         feedbackResetTask?.cancel()
         feedbackResetTask = nil
+        stopAutoplayTask()
         chordAttemptAccumulator.reset()
         steps = []
+        tempoMap = nil
         calibration = nil
         keyRegions = []
         pressedNotes.removeAll()
@@ -126,15 +143,28 @@ final class PracticeSessionViewModel {
         currentStepIndex = 0
         state = .guiding(stepIndex: currentStepIndex)
         playCurrentStepSound()
+        startAutoplayTaskIfNeeded()
     }
 
     func skip() {
+        stopAutoplayTask()
         advanceToNextStep()
+        startAutoplayTaskIfNeeded()
     }
 
     func playCurrentStepSound() {
         guard let currentStep else { return }
         noteAudioPlayer?.play(midiNotes: currentStep.notes.map(\.midiNote))
+    }
+
+    func setAutoplayEnabled(_ isEnabled: Bool) {
+        if isEnabled {
+            autoplayState = .playing
+            startAutoplayTaskIfNeeded()
+        } else {
+            autoplayState = .off
+            stopAutoplayTask()
+        }
     }
 
     func handleFingerTipPositions(_ fingerTips: [String: SIMD3<Float>], at timestamp: Date = .now) -> Set<Int> {
@@ -156,7 +186,9 @@ final class PracticeSessionViewModel {
                 )
                 if isMatched {
                     setFeedback(.correct)
-                    advanceToNextStep()
+                    if autoplayState == .off {
+                        advanceToNextStep()
+                    }
                 } else {
                     let unrelatedPressDetected = detected.contains { pressed in
                         expected.contains(where: { abs($0 - pressed) <= noteMatchTolerance }) == false
@@ -184,7 +216,70 @@ final class PracticeSessionViewModel {
             currentStepIndex = steps.count
             pressedNotes.removeAll()
             state = .completed
+            stopAutoplayTask()
         }
+    }
+
+    private func startAutoplayTaskIfNeeded() {
+        guard autoplayState == .playing else { return }
+        guard case .guiding = state else { return }
+        guard steps.count >= 2 else { return }
+
+        if autoplayTask != nil {
+            return
+        }
+
+        let tempoMap = resolvedTempoMap()
+
+        autoplayTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+
+            while Task.isCancelled == false {
+                guard autoplayState == .playing else { break }
+                guard case .guiding = state else { break }
+
+                let index = currentStepIndex
+                guard index + 1 < steps.count else { break }
+
+                let fromTick = steps[index].tick
+                let toTick = steps[index + 1].tick
+                let waitSeconds = tempoMap.durationSeconds(fromTick: fromTick, toTick: toTick)
+
+                if waitSeconds > 0 {
+                    try? await sleeper.sleep(for: .seconds(waitSeconds))
+                } else {
+                    await Task.yield()
+                }
+
+                guard Task.isCancelled == false else { break }
+                guard autoplayState == .playing else { break }
+                guard case .guiding = state else { break }
+
+                advanceToNextStep()
+            }
+
+            autoplayTask = nil
+        }
+    }
+
+    private func stopAutoplayTask() {
+        autoplayTask?.cancel()
+        autoplayTask = nil
+    }
+
+    private func resolvedTempoMap() -> MusicXMLTempoMap {
+        if let tempoMap {
+            return tempoMap
+        }
+
+        if didLogMissingTempoMap == false {
+            didLogMissingTempoMap = true
+            #if DEBUG
+            print("PracticeSessionViewModel: tempoMap missing; falling back to default bpm=120")
+            #endif
+        }
+
+        return MusicXMLTempoMap(tempoEvents: [])
     }
 
     private func setFeedback(_ state: VisualFeedbackState, duration: TimeInterval = 0.25) {
