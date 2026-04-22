@@ -47,7 +47,7 @@ struct ContentView: View {
                         case .practice:
                             PracticeStepView(viewModel: arGuideViewModel)
                                 .frame(minWidth: 920, idealWidth: 1200, minHeight: 320, idealHeight: 360)
-                                .navigationTitle("Step 3 · 开始练习")
+                                .toolbar(.hidden, for: .navigationBar)
                     }
                 }
         }

@@ -23,6 +23,13 @@ struct PracticeStepView: View {
             }
         .toolbar {
             ToolbarItemGroup(placement: .bottomOrnament) {
+                Button("返回", systemImage: "chevron.backward") {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.roundedRectangle)
+                .hoverEffect()
+
                 Button("跳过", systemImage: "forward.fill") {
                     viewModel.skipStep()
                 }
