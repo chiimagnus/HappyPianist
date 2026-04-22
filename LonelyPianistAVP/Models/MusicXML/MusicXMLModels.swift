@@ -4,6 +4,7 @@ struct MusicXMLScore: Equatable {
     var notes: [MusicXMLNoteEvent]
     var tempoEvents: [MusicXMLTempoEvent] = []
     var soundDirectives: [MusicXMLSoundDirective] = []
+    var pedalEvents: [MusicXMLPedalEvent] = []
     var measures: [MusicXMLMeasureSpan] = []
     var repeatDirectives: [MusicXMLRepeatDirective] = []
     var endingDirectives: [MusicXMLEndingDirective] = []
@@ -29,6 +30,25 @@ struct MusicXMLSoundDirective: Equatable, Identifiable {
     let tocoda: String?
     let dalsegno: String?
     let dacapo: String?
+}
+
+enum MusicXMLPedalEventKind: String, Equatable {
+    case start
+    case stop
+    case change
+    case `continue`
+}
+
+struct MusicXMLPedalEvent: Equatable, Identifiable {
+    var id: String {
+        "\(partID)-\(measureNumber)-\(tick)-\(kind.rawValue)-\(isDown.map { $0 ? "down" : "up" } ?? "keep")"
+    }
+
+    let partID: String
+    let measureNumber: Int
+    let tick: Int
+    let kind: MusicXMLPedalEventKind
+    let isDown: Bool?
 }
 
 struct MusicXMLMeasureSpan: Equatable, Identifiable {

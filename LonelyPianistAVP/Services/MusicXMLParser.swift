@@ -27,6 +27,7 @@ struct MusicXMLParser: MusicXMLParserProtocol {
             notes: delegate.notes,
             tempoEvents: delegate.tempoEvents,
             soundDirectives: delegate.soundDirectives,
+            pedalEvents: delegate.pedalEvents,
             measures: delegate.measures,
             repeatDirectives: delegate.repeatDirectives,
             endingDirectives: delegate.endingDirectives
@@ -40,6 +41,7 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
     private(set) var notes: [MusicXMLNoteEvent] = []
     private(set) var tempoEvents: [MusicXMLTempoEvent] = []
     private(set) var soundDirectives: [MusicXMLSoundDirective] = []
+    private(set) var pedalEvents: [MusicXMLPedalEvent] = []
     private(set) var measures: [MusicXMLMeasureSpan] = []
     private(set) var repeatDirectives: [MusicXMLRepeatDirective] = []
     private(set) var endingDirectives: [MusicXMLEndingDirective] = []
@@ -123,6 +125,8 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
                 isInDirection = true
             case "direction-type":
                 break
+            case "pedal":
+                recordPedalEvent(attributes: attributeDict)
             case "barline":
                 isInBarline = true
             case "repeat":
@@ -274,6 +278,75 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
                 partTick[currentPartID] = max(endTick, partTick[currentPartID] ?? 0)
             default:
                 break
+        }
+    }
+
+    private func recordPedalEvent(attributes: [String: String]) {
+        guard isInDirection else { return }
+
+        guard let rawType = attributes["type"]?.lowercased() else { return }
+
+        let tick = partTick[currentPartID] ?? 0
+        let base = (
+            partID: currentPartID,
+            measureNumber: currentMeasureNumber,
+            tick: tick
+        )
+
+        switch rawType {
+            case "start":
+                pedalEvents.append(
+                    MusicXMLPedalEvent(
+                        partID: base.partID,
+                        measureNumber: base.measureNumber,
+                        tick: base.tick,
+                        kind: .start,
+                        isDown: true
+                    )
+                )
+            case "stop":
+                pedalEvents.append(
+                    MusicXMLPedalEvent(
+                        partID: base.partID,
+                        measureNumber: base.measureNumber,
+                        tick: base.tick,
+                        kind: .stop,
+                        isDown: false
+                    )
+                )
+            case "change":
+                pedalEvents.append(
+                    MusicXMLPedalEvent(
+                        partID: base.partID,
+                        measureNumber: base.measureNumber,
+                        tick: base.tick,
+                        kind: .change,
+                        isDown: false
+                    )
+                )
+                pedalEvents.append(
+                    MusicXMLPedalEvent(
+                        partID: base.partID,
+                        measureNumber: base.measureNumber,
+                        tick: base.tick,
+                        kind: .change,
+                        isDown: true
+                    )
+                )
+            case "continue":
+                pedalEvents.append(
+                    MusicXMLPedalEvent(
+                        partID: base.partID,
+                        measureNumber: base.measureNumber,
+                        tick: base.tick,
+                        kind: .continue,
+                        isDown: nil
+                    )
+                )
+            default:
+                #if DEBUG
+                print("MusicXMLParser: ignored pedal type '\(rawType)' at \(base.partID) measure \(base.measureNumber) tick \(base.tick)")
+                #endif
         }
     }
 
