@@ -65,6 +65,45 @@ final class PracticeSessionViewModel {
         return steps[currentStepIndex]
     }
 
+    func setSteps(_ steps: [PracticeStep]) {
+        if state == .completed, self.steps == steps, steps.isEmpty == false {
+            return
+        }
+
+        let shouldResetProgress = self.steps != steps
+
+        feedbackResetTask?.cancel()
+        feedbackResetTask = nil
+        chordAttemptAccumulator.reset()
+        self.steps = steps
+
+        if shouldResetProgress {
+            currentStepIndex = 0
+            pressedNotes.removeAll()
+            feedbackState = .none
+        }
+
+        if steps.isEmpty {
+            state = .idle
+        } else if state != .completed {
+            state = .ready
+        }
+    }
+
+    func applyCalibration(_ calibration: PianoCalibration, keyRegions: [PianoKeyRegion]) {
+        self.calibration = calibration
+        self.keyRegions = keyRegions
+        if steps.isEmpty == false, state != .completed, state != .guiding(stepIndex: currentStepIndex) {
+            state = .ready
+        }
+    }
+
+    func clearCalibration() {
+        calibration = nil
+        keyRegions = []
+        pressedNotes.removeAll()
+    }
+
     func resetSession() {
         feedbackResetTask?.cancel()
         feedbackResetTask = nil
@@ -97,6 +136,7 @@ final class PracticeSessionViewModel {
     }
 
     func handleFingerTipPositions(_ fingerTips: [String: SIMD3<Float>], at timestamp: Date = .now) -> Set<Int> {
+        guard keyRegions.isEmpty == false else { return [] }
         let detected = pressDetectionService.detectPressedNotes(
             fingerTips: fingerTips,
             keyRegions: keyRegions,
