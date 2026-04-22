@@ -23,7 +23,13 @@ struct MusicXMLParser: MusicXMLParserProtocol {
         guard parser.parse() else {
             throw MusicXMLParserError.parseFailed
         }
-        return MusicXMLScore(notes: delegate.notes, tempoEvents: delegate.tempoEvents)
+        return MusicXMLScore(
+            notes: delegate.notes,
+            tempoEvents: delegate.tempoEvents,
+            measures: delegate.measures,
+            repeatDirectives: delegate.repeatDirectives,
+            endingDirectives: delegate.endingDirectives
+        )
     }
 }
 
@@ -32,6 +38,9 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
 
     private(set) var notes: [MusicXMLNoteEvent] = []
     private(set) var tempoEvents: [MusicXMLTempoEvent] = []
+    private(set) var measures: [MusicXMLMeasureSpan] = []
+    private(set) var repeatDirectives: [MusicXMLRepeatDirective] = []
+    private(set) var endingDirectives: [MusicXMLEndingDirective] = []
 
     private enum TempoSource: Int {
         case metronome = 0
@@ -60,6 +69,7 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
     private var isInBackup = false
     private var isInForward = false
     private var isInDirection = false
+    private var isInBarline = false
 
     private var isInNote = false
     private var noteIsRest = false
@@ -111,6 +121,33 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
                 isInDirection = true
             case "direction-type":
                 break
+            case "barline":
+                isInBarline = true
+            case "repeat":
+                if isInBarline, let rawDirection = attributeDict["direction"], let direction = MusicXMLRepeatDirection(rawValue: rawDirection) {
+                    repeatDirectives.append(
+                        MusicXMLRepeatDirective(
+                            partID: currentPartID,
+                            measureNumber: currentMeasureNumber,
+                            direction: direction
+                        )
+                    )
+                }
+            case "ending":
+                if isInBarline,
+                   let number = attributeDict["number"],
+                   let rawType = attributeDict["type"],
+                   let type = MusicXMLEndingType(rawValue: rawType)
+                {
+                    endingDirectives.append(
+                        MusicXMLEndingDirective(
+                            partID: currentPartID,
+                            measureNumber: currentMeasureNumber,
+                            number: number,
+                            type: type
+                        )
+                    )
+                }
             case "metronome":
                 if isInDirection {
                     isInDirectionTypeMetronome = true
@@ -213,12 +250,22 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
                 isInAttributes = false
             case "direction":
                 isInDirection = false
+            case "barline":
+                isInBarline = false
             case "backup":
                 isInBackup = false
             case "forward":
                 isInForward = false
             case "measure":
                 let endTick = partMeasureMaxTick[currentPartID] ?? currentMeasureStartTick
+                measures.append(
+                    MusicXMLMeasureSpan(
+                        partID: currentPartID,
+                        measureNumber: currentMeasureNumber,
+                        startTick: currentMeasureStartTick,
+                        endTick: endTick
+                    )
+                )
                 partTick[currentPartID] = max(endTick, partTick[currentPartID] ?? 0)
             default:
                 break

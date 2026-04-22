@@ -12,6 +12,7 @@ final class SongLibraryViewModel {
     private let parser: MusicXMLParserProtocol
     private let stepBuilder: PracticeStepBuilderProtocol
     private let audioPlaybackController: SongAudioPlaybackStateController
+    private let structureExpander = MusicXMLStructureExpander()
 
     var index: SongLibraryIndex = .empty
     var errorMessage: String?
@@ -110,8 +111,13 @@ final class SongLibraryViewModel {
         do {
             let scoreURL = try paths.scoresDirectoryURL().appendingPathComponent(entry.musicXMLFileName)
             let score = try parser.parse(fileURL: scoreURL)
-            let buildResult = stepBuilder.buildSteps(from: score)
-            let tempoMap = MusicXMLTempoMap(tempoEvents: score.tempoEvents)
+            let shouldExpandStructure = UserDefaults.standard.bool(forKey: "practiceMusicXMLStructureEnabled")
+            let effectiveScore = shouldExpandStructure
+                ? structureExpander.expandRepeatAndEndingIfPossible(score: score)
+                : score
+
+            let buildResult = stepBuilder.buildSteps(from: effectiveScore)
+            let tempoMap = MusicXMLTempoMap(tempoEvents: effectiveScore.tempoEvents)
 
             guard buildResult.steps.isEmpty == false else {
                 errorMessage = "该曲目未生成可练习步骤。"
