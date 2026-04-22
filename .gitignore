@@ -11,3 +11,6 @@ xcuserdata/
 .github/archived_features/
 
 .xcodebuildmcp/
+
+# Large local audio assets (SoundFonts)
+LonelyPianistAVP/Resources/Audio/SoundFonts/*.sf2

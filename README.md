@@ -136,7 +136,9 @@ LonelyPianist/
 - [Anticipation](https://github.com/jthickstun/anticipation) · [Anticipatory Music Transformer](https://arxiv.org/abs/2306.08620) by John Thickstun, David Hall, Chris Donahue, Percy Liang（Stanford CRFM）
 - [stanford-crfm/music-large-800k](https://huggingface.co/stanford-crfm/music-large-800k)，AI Dialogue 推理所用预训练权重
 - Apple CoreMIDI / RealityKit / ARKit，让这一切在本机跑得起来
-- **Salamander Grand Piano** — Alexander Holm 录制的 Yamaha C5 三角钢琴采样，16 层力度，48kHz 24bit。基于 [知识共享署名 3.0 许可协议（CC BY 3.0）](http://creativecommons.org/licenses/by/3.0/) 使用。来源：[FreePats](https://freepats.zenvoid.org/Piano/acoustic-grand-piano.html)
+- **Salamander Grand Piano** — Alexander Holm 录制的 Yamaha C5 三角钢琴采样，16 层力度，48kHz 24bit。基于 [知识共享署名 3.0 许可协议（CC BY 3.0）](http://creativecommons.org/licenses/by/3.0/) 使用。下载：
+  - https://drive.google.com/file/d/0B5gPxvwx-I4KWjZ2SHZOLU42dHM/view?resourcekey=0-MM0kBCZkU-ZEnL9lDeJIVA
+  - https://freepats.zenvoid.org/Piano/SalamanderGrandPiano/SalamanderGrandPiano-SF2-V3+20200602.tar.xz
 
 ## 📄 License
 
