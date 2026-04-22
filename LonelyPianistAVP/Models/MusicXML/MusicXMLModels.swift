@@ -101,3 +101,13 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
     let staff: Int?
     let voice: Int?
 }
+
+struct MusicXMLNoteSpan: Equatable, Identifiable, Sendable {
+    var id: String { "\(midiNote)-\(staff)-\(voice)-\(onTick)-\(offTick)" }
+
+    let midiNote: Int
+    let staff: Int
+    let voice: Int
+    let onTick: Int
+    let offTick: Int
+}
