@@ -17,8 +17,12 @@ struct MusicXMLTempoEvent: Equatable, Identifiable {
 }
 
 struct MusicXMLSoundDirective: Equatable, Identifiable {
-    var id: String { "\(tick)-\(segno ?? "")-\(coda ?? "")-\(tocoda ?? "")-\(dalsegno ?? "")-\(dacapo ?? "")" }
+    var id: String {
+        "\(partID)-\(measureNumber)-\(tick)-\(segno ?? "")-\(coda ?? "")-\(tocoda ?? "")-\(dalsegno ?? "")-\(dacapo ?? "")"
+    }
 
+    let partID: String
+    let measureNumber: Int
     let tick: Int
     let segno: String?
     let coda: String?

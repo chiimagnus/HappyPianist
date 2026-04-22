@@ -183,12 +183,14 @@ struct MusicXMLStructureExpander {
 
             if includeSoundDirectives {
                 let soundsInMeasure = original.soundDirectives.filter { event in
-                    event.tick >= span.startTick && event.tick < span.endTick
+                    event.partID == primaryPartID && event.measureNumber == span.measureNumber
                 }
                 for event in soundsInMeasure {
                     let shiftedTick = currentMeasureStartTick + (event.tick - span.startTick)
                     outputSoundDirectives.append(
                         MusicXMLSoundDirective(
+                            partID: primaryPartID,
+                            measureNumber: outputMeasureNumber,
                             tick: shiftedTick,
                             segno: event.segno,
                             coda: event.coda,
@@ -250,7 +252,8 @@ extension MusicXMLStructureExpander {
         maxOutputMeasures: Int = 10_000,
         maxJumps: Int = 64
     ) -> MusicXMLScore {
-        guard score.soundDirectives.isEmpty == false else { return score }
+        let primarySoundDirectives = score.soundDirectives.filter { $0.partID == primaryPartID }
+        guard primarySoundDirectives.isEmpty == false else { return score }
 
         let primaryMeasures = score.measures
             .filter { $0.partID == primaryPartID }
@@ -258,41 +261,41 @@ extension MusicXMLStructureExpander {
 
         guard primaryMeasures.isEmpty == false else { return score }
 
-        func measureIndex(containingTick tick: Int) -> Int? {
-            for (index, span) in primaryMeasures.enumerated() {
-                if tick >= span.startTick && tick < span.endTick {
-                    return index
-                }
+        var measureIndexByNumber: [Int: Int] = [:]
+        for (index, span) in primaryMeasures.enumerated() {
+            if measureIndexByNumber[span.measureNumber] == nil {
+                measureIndexByNumber[span.measureNumber] = index
             }
-            return nil
         }
 
         var segnoIndexByValue: [String: Int] = [:]
         var codaIndexByValue: [String: Int] = [:]
         var instructions: [JumpInstruction] = []
 
-        for directive in score.soundDirectives {
-            if let value = directive.segno, let index = measureIndex(containingTick: directive.tick) {
+        for directive in primarySoundDirectives {
+            guard let index = measureIndexByNumber[directive.measureNumber] else { continue }
+
+            if let value = directive.segno {
                 if segnoIndexByValue[value] == nil {
                     segnoIndexByValue[value] = index
                 }
             }
 
-            if let value = directive.coda, let index = measureIndex(containingTick: directive.tick) {
+            if let value = directive.coda {
                 if codaIndexByValue[value] == nil {
                     codaIndexByValue[value] = index
                 }
             }
 
-            if let value = directive.tocoda, let index = measureIndex(containingTick: directive.tick) {
+            if let value = directive.tocoda {
                 instructions.append(JumpInstruction(tick: directive.tick, atMeasureIndex: index, kind: .tocoda(value: value)))
             }
 
-            if let value = directive.dalsegno, let index = measureIndex(containingTick: directive.tick) {
+            if let value = directive.dalsegno {
                 instructions.append(JumpInstruction(tick: directive.tick, atMeasureIndex: index, kind: .dalsegno(value: value)))
             }
 
-            if directive.dacapo != nil, let index = measureIndex(containingTick: directive.tick) {
+            if directive.dacapo != nil {
                 instructions.append(JumpInstruction(tick: directive.tick, atMeasureIndex: index, kind: .dacapo))
             }
         }
@@ -326,7 +329,14 @@ extension MusicXMLStructureExpander {
             var didJump = false
 
             for instruction in sortedCandidates {
-                let instructionID = "\(instruction.tick)-\(instruction.atMeasureIndex)"
+                let instructionID: String = switch instruction.kind {
+                    case .dacapo:
+                        "\(instruction.tick)-\(instruction.atMeasureIndex)-dacapo"
+                    case let .dalsegno(value):
+                        "\(instruction.tick)-\(instruction.atMeasureIndex)-dalsegno-\(value)"
+                    case let .tocoda(value):
+                        "\(instruction.tick)-\(instruction.atMeasureIndex)-tocoda-\(value)"
+                }
                 guard executedInstructionIDs.contains(instructionID) == false else { continue }
 
                 let destinationIndex: Int? = switch instruction.kind {

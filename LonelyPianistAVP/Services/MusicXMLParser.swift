@@ -357,6 +357,8 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
         let tick = partTick[currentPartID] ?? currentMeasureStartTick
         soundDirectives.append(
             MusicXMLSoundDirective(
+                partID: currentPartID,
+                measureNumber: currentMeasureNumber,
                 tick: tick,
                 segno: segno,
                 coda: coda,

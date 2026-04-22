@@ -98,6 +98,47 @@ func structureExpanderExpandsDalSegnoJumpOnce() throws {
 }
 
 @Test
+func structureExpanderAssociatesBarlineSoundDirectiveWithPreviousMeasure() throws {
+    let xml = """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <score-partwise version="3.1">
+      <part-list>
+        <score-part id="P1"><part-name>Piano</part-name></score-part>
+      </part-list>
+      <part id="P1">
+        <measure number="1">
+          <attributes><divisions>1</divisions></attributes>
+          <direction><sound segno="S1"/></direction>
+          <note>
+            <pitch><step>C</step><octave>4</octave></pitch>
+            <duration>1</duration>
+          </note>
+        </measure>
+        <measure number="2">
+          <note>
+            <pitch><step>D</step><octave>4</octave></pitch>
+            <duration>1</duration>
+          </note>
+          <direction><sound dalsegno="S1"/></direction>
+        </measure>
+        <measure number="3">
+          <note>
+            <pitch><step>E</step><octave>4</octave></pitch>
+            <duration>1</duration>
+          </note>
+        </measure>
+      </part>
+    </score-partwise>
+    """
+
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let expanded = MusicXMLStructureExpander().expandStructureIfPossible(score: score)
+
+    let midiNotes = expanded.notes.compactMap(\.midiNote)
+    #expect(midiNotes == [60, 62, 60, 62, 64])
+}
+
+@Test
 @MainActor
 func structureExpanderFallsBackWhenJumpLimitsAreHit() {
     let score = MusicXMLScore(
@@ -118,7 +159,7 @@ func structureExpanderFallsBackWhenJumpLimitsAreHit() {
         ],
         tempoEvents: [],
         soundDirectives: [
-            MusicXMLSoundDirective(tick: 0, segno: nil, coda: nil, tocoda: nil, dalsegno: "S1", dacapo: nil),
+            MusicXMLSoundDirective(partID: "P1", measureNumber: 1, tick: 0, segno: nil, coda: nil, tocoda: nil, dalsegno: "S1", dacapo: nil),
         ],
         measures: [
             MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, startTick: 0, endTick: 480),
