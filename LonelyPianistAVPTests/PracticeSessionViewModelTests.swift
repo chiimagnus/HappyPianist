@@ -495,6 +495,64 @@ func autoplayDefersNoteOffWhilePedalIsDownAndReleasesOnPedalUp() async {
 
 @Test
 @MainActor
+func autoplayReleasesPendingNotesOnPedalChangeTickEvenIfPedalStaysDown() async {
+    let sleeper = ControllableSleeper()
+    let tempoMap = MusicXMLTempoMap(
+        tempoEvents: [
+            MusicXMLTempoEvent(tick: 0, quarterBPM: 120),
+        ]
+    )
+    let pedalTimeline = MusicXMLPedalTimeline(
+        events: [
+            MusicXMLPedalEvent(partID: "P1", measureNumber: 1, tick: 0, kind: .start, isDown: true),
+            MusicXMLPedalEvent(partID: "P1", measureNumber: 1, tick: 480, kind: .change, isDown: false),
+            MusicXMLPedalEvent(partID: "P1", measureNumber: 1, tick: 480, kind: .change, isDown: true),
+        ]
+    )
+
+    let output = CapturingMIDINoteOutput()
+    let viewModel = PracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: sleeper,
+        noteAudioPlayer: nil,
+        noteOutput: output
+    )
+
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+            PracticeStep(tick: 1440, notes: [PracticeStepNote(midiNote: 62, staff: nil)]),
+        ],
+        tempoMap: tempoMap,
+        pedalTimeline: pedalTimeline,
+        noteSpans: [
+            MusicXMLNoteSpan(midiNote: 60, staff: 1, voice: 1, onTick: 0, offTick: 480),
+        ]
+    )
+    viewModel.setAutoplayEnabled(true)
+    viewModel.startGuidingIfReady()
+    await settleTaskQueue()
+
+    #expect(output.recordedNoteOns.map(\.midi) == [60])
+    #expect(output.recordedNoteOffs.contains(60) == false)
+
+    await sleeper.resumeOldestPending()
+    await settleTaskQueue()
+
+    for _ in 0 ..< 10 {
+        await sleeper.resumeOldestPending()
+        await settleTaskQueue()
+        if output.recordedNoteOffs.contains(60) {
+            break
+        }
+    }
+
+    #expect(output.recordedNoteOffs.contains(60) == true)
+}
+
+@Test
+@MainActor
 func disablingAutoplayStopsAudioAndClearsPendingScheduling() async {
     let sleeper = ControllableSleeper()
     let tempoMap = MusicXMLTempoMap(

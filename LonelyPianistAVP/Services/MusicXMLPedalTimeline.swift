@@ -7,8 +7,17 @@ struct MusicXMLPedalTimeline: Equatable, Sendable {
     }
 
     private let changes: [Change]
+    private let releaseEdgeTicks: [Int]
 
     init(events: [MusicXMLPedalEvent]) {
+        let releaseEdges = Set(
+            events.compactMap { event -> Int? in
+                guard let isDown = event.isDown else { return nil }
+                return isDown == false ? event.tick : nil
+            }
+        )
+        releaseEdgeTicks = releaseEdges.sorted()
+
         let normalized = events
             .compactMap { event -> Change? in
                 guard let isDown = event.isDown else { return nil }
@@ -75,5 +84,22 @@ struct MusicXMLPedalTimeline: Equatable, Sendable {
         guard low < changes.count else { return nil }
         return changes[low]
     }
-}
 
+    func nextReleaseEdge(afterTick tick: Int) -> Int? {
+        guard releaseEdgeTicks.isEmpty == false else { return nil }
+
+        var low = 0
+        var high = releaseEdgeTicks.count
+        while low < high {
+            let mid = (low + high) / 2
+            if releaseEdgeTicks[mid] <= tick {
+                low = mid + 1
+            } else {
+                high = mid
+            }
+        }
+
+        guard low < releaseEdgeTicks.count else { return nil }
+        return releaseEdgeTicks[low]
+    }
+}

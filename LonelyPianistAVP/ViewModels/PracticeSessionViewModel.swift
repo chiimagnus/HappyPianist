@@ -290,8 +290,9 @@ final class PracticeSessionViewModel {
                 let nextStepTick = steps[index + 1].tick
                 let nextPedalChange = pedalTimeline?.nextChange(afterTick: currentTick)
                 let nextPedalTick = nextPedalChange?.tick ?? Int.max
+                let nextPedalReleaseTick = pedalTimeline?.nextReleaseEdge(afterTick: currentTick) ?? Int.max
                 let nextNoteOffTick = activeNoteOffTickByMIDI.values.min() ?? Int.max
-                let nextEventTick = min(nextStepTick, nextPedalTick, nextNoteOffTick)
+                let nextEventTick = min(nextStepTick, nextPedalTick, nextPedalReleaseTick, nextNoteOffTick)
 
                 let waitSeconds = tempoMap.durationSeconds(fromTick: currentTick, toTick: nextEventTick)
 
@@ -309,14 +310,14 @@ final class PracticeSessionViewModel {
 
                 if nextPedalTick == nextEventTick, let change = nextPedalChange {
                     isSustainPedalDown = change.isDown
-
-                    if change.isDown == false {
-                        releasePendingNotesIfNeeded(atTick: currentTick)
-                    }
                 }
 
                 if nextNoteOffTick == nextEventTick {
                     handleDueNoteOffs(atTick: currentTick)
+                }
+
+                if nextPedalReleaseTick == nextEventTick {
+                    releasePendingNotesIfNeeded(atTick: currentTick)
                 }
 
                 if nextStepTick == nextEventTick {
