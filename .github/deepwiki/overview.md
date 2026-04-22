@@ -35,6 +35,7 @@
 | 映射配置 / 录音 take | macOS repositories | `Application Support/.../LonelyPianist.store` |
 | 世界锚点校准 | AVP 校准流程 | `Documents/piano-worldanchor-calibration.json` |
 | 曲库索引与文件 | AVP Song Library | `Documents/SongLibrary/index.json` + `scores/` + `audio/` |
+| AVP 默认种子曲与试听状态 | AVP 启动 + 曲库页 | bundled `Resources/SeedScores/` -> `Documents/SongLibrary/*` + `currentListeningEntryID` |
 | 对话调试包 | Python server | `piano_dialogue_server/out/dialogue_debug/` |
 
 ## 关键工作流（跨页路由）
@@ -59,15 +60,3 @@ app = FastAPI(title="Piano Dialogue Server", version="0.1.0")
 ## Coverage Gaps
 - `.github/workflows/` 为空，当前文档仅能描述“本地验证链路”。
 - 仓库缺少共享 `LonelyPianistAVP.xcscheme`，跨机器命令稳定性受影响。
-
-## 来源引用（Source References）
-- `README.md`
-- `AGENTS.md`
-- `LonelyPianist/LonelyPianistApp.swift`
-- `LonelyPianistAVP/LonelyPianistAVPApp.swift`
-- `LonelyPianistAVP/Views/ContentView.swift`
-- `LonelyPianistAVP/Services/WorldAnchorCalibrationStore.swift`
-- `LonelyPianistAVP/Services/Library/SongLibraryPaths.swift`
-- `LonelyPianistAVP/Services/Library/SongLibrarySeeder.swift`
-- `piano_dialogue_server/server/main.py`
-- `LonelyPianist.xcodeproj/project.pbxproj`

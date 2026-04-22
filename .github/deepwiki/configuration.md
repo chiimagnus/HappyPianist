@@ -70,16 +70,3 @@
 ## Coverage Gaps
 - 仓库未提供 `.env.example`，Python 环境变量仍分散在 README 与代码中。
 - `LonelyPianistAVP` 共享 scheme 仍未入库，自动化命令一致性不足。
-
-## 来源引用（Source References）
-- `LonelyPianist/LonelyPianistApp.swift`
-- `LonelyPianist/Models/Dialogue/DialoguePlaybackInterruptionBehavior.swift`
-- `LonelyPianist/Services/Dialogue/DialogueManager.swift`
-- `LonelyPianist/Services/Dialogue/DefaultSilenceDetectionService.swift`
-- `LonelyPianist/LonelyPianist.entitlements`
-- `LonelyPianistAVP/Info.plist`
-- `LonelyPianistAVP/ViewModels/ARGuideViewModel.swift`
-- `LonelyPianistAVP/Services/WorldAnchorCalibrationStore.swift`
-- `LonelyPianistAVP/Services/Library/SongLibraryIndexStore.swift`
-- `piano_dialogue_server/server/inference.py`
-- `.xcodebuildmcp/config.yaml`

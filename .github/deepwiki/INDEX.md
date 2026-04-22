@@ -7,10 +7,11 @@
 ### business-first（先业务后实现）
 1. [business-context.md](business-context.md)
 2. [overview.md](overview.md)
-3. [modules/lonelypianist-avp.md](modules/lonelypianist-avp.md)
-4. [data-flow.md](data-flow.md)
-5. [configuration.md](configuration.md)
-6. [troubleshooting.md](troubleshooting.md)
+3. [architecture.md](architecture.md)
+4. [modules/lonelypianist-avp.md](modules/lonelypianist-avp.md)
+5. [data-flow.md](data-flow.md)
+6. [configuration.md](configuration.md)
+7. [troubleshooting.md](troubleshooting.md)
 
 ### engineering-first（先架构后模块）
 1. [overview.md](overview.md)

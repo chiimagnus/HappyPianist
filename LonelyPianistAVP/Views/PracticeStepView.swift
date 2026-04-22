@@ -9,63 +9,47 @@ struct PracticeStepView: View {
 
     @State private var hasRequestedImmersiveOpen = false
     @State private var isStepVisible = false
+    @State private var isLocalizationPopoverPresented = false
 
     var body: some View {
-        Form {
-            Section("状态") {
-                LabeledContent("练习") {
-                    Text(viewModel.practiceStatusText)
-                        .foregroundStyle(.secondary)
-                }
-                LabeledContent("进度") {
-                    Text(viewModel.practiceProgressText)
-                        .foregroundStyle(.secondary)
-                }
+        PianoKeyboard88View(highlightedMIDINotes: highlightedMIDINotes)
+            .aspectRatio(PianoKeyboard88View.aspectRatio, contentMode: .fit)
+            .containerRelativeFrame(.horizontal, count: 10, span: 9, spacing: 0)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .padding(.vertical, 18)
+            .overlay {
+                Step3WindowGeometryHint()
+                    .frame(width: 0, height: 0)
             }
+        .toolbar {
+            ToolbarItemGroup(placement: .bottomOrnament) {
+                Button("返回", systemImage: "chevron.backward") {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.roundedRectangle)
+                .hoverEffect()
 
-            Section("控制") {
-                Text("定位成功后按键位高亮弹奏；也可以使用下方按钮推进步骤。")
-                    .font(.caption)
+                Button("跳过", systemImage: "forward.fill") {
+                    viewModel.skipStep()
+                }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.roundedRectangle)
+                .hoverEffect()
+                .disabled(viewModel.canControlPractice == false)
+
+                Text("进度 \(viewModel.practiceProgressText)")
+                    .monospacedDigit()
                     .foregroundStyle(.secondary)
 
-                ViewThatFits {
-                    AnyLayout(HStackLayout(spacing: 10)) {
-                        practiceButtons
-                    }
-                    AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) {
-                        practiceButtons
-                    }
+                Button("定位", systemImage: "scope") {
+                    isLocalizationPopoverPresented.toggle()
                 }
-            }
-
-            Section("定位") {
-                Text(viewModel.practiceLocalizationStatusText ?? "进入后会自动定位钢琴。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                if viewModel.canRetryPracticeLocalization {
-                    Button("重试定位") {
-                        Task { @MainActor in
-                            await viewModel.retryPracticeLocalization(
-                                using: openImmersiveSpace,
-                                dismissImmersiveSpace: dismissImmersiveSpace
-                            )
-                        }
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .hoverEffect()
-                }
-
-                if viewModel.shouldSuggestCalibrationStep {
-                    Text("若持续失败，请返回主页进入 Step 1 重新校准。")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    Button("返回主页") {
-                        dismiss()
-                    }
-                    .buttonStyle(.bordered)
-                    .hoverEffect()
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.roundedRectangle)
+                .hoverEffect()
+                .popover(isPresented: $isLocalizationPopoverPresented) {
+                    localizationPopover
                 }
             }
         }
@@ -98,20 +82,133 @@ struct PracticeStepView: View {
         }
     }
 
-    @ViewBuilder
-    private var practiceButtons: some View {
-        Button("跳过") { viewModel.skipStep() }
-            .buttonStyle(.bordered)
-            .hoverEffect()
-            .disabled(viewModel.canControlPractice == false)
+    private var highlightedMIDINotes: Set<Int> {
+        guard let currentStep = viewModel.practiceSessionViewModel.currentStep else {
+            return []
+        }
+        return Set(currentStep.notes.map(\.midiNote))
+    }
 
-        Button("标记为正确") { viewModel.markCorrect() }
-            .buttonStyle(.borderedProminent)
-            .hoverEffect()
-            .disabled(viewModel.canControlPractice == false)
+    @ViewBuilder
+    private var localizationPopover: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(viewModel.practiceLocalizationStatusText ?? "进入后会自动定位钢琴。")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            if viewModel.canRetryPracticeLocalization {
+                Button("重试定位", systemImage: "arrow.clockwise") {
+                    Task { @MainActor in
+                        await viewModel.retryPracticeLocalization(
+                            using: openImmersiveSpace,
+                            dismissImmersiveSpace: dismissImmersiveSpace
+                        )
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.roundedRectangle)
+                .hoverEffect()
+            }
+
+            if viewModel.shouldSuggestCalibrationStep {
+                Text("若持续失败，请返回主页进入 Step 1 重新校准。")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Button("返回主页", systemImage: "house") {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.roundedRectangle)
+                .hoverEffect()
+            }
+        }
+        .padding(16)
+        .frame(minWidth: 320)
     }
 }
 
-#Preview("Step 2") {
+private struct Step3WindowGeometryHint: UIViewControllerRepresentable {
+    func makeUIViewController(context: Context) -> UIViewController {
+        WindowGeometryHintViewController()
+    }
+
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
+}
+
+private final class WindowGeometryHintViewController: UIViewController {
+    private var hasRequestedGeometryUpdate = false
+    private var hasRequestedRestoreGeometryUpdate = false
+    private var previousWindowSize: CGSize?
+
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        view.isUserInteractionEnabled = false
+        view.backgroundColor = .clear
+    }
+
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        capturePreviousWindowSizeIfNeeded()
+    }
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        requestGeometryUpdateIfNeeded()
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        requestRestoreGeometryUpdateIfNeeded()
+    }
+
+    private func requestGeometryUpdateIfNeeded() {
+        guard hasRequestedGeometryUpdate == false else { return }
+        guard let windowScene = view.window?.windowScene else { return }
+
+        hasRequestedGeometryUpdate = true
+        capturePreviousWindowSizeIfNeeded()
+
+        let preferences = UIWindowScene.GeometryPreferences.Vision(
+            size: CGSize(width: 1600, height: 400),
+            minimumSize: CGSize(width: 1200, height: 320),
+            maximumSize: nil,
+            resizingRestrictions: nil
+        )
+
+        windowScene.requestGeometryUpdate(preferences) { error in
+            print("Step 3 requestGeometryUpdate failed: \(error.localizedDescription)")
+        }
+    }
+
+    private func requestRestoreGeometryUpdateIfNeeded() {
+        guard hasRequestedRestoreGeometryUpdate == false else { return }
+        guard let windowScene = view.window?.windowScene else { return }
+
+        hasRequestedRestoreGeometryUpdate = true
+        let restoreSize = previousWindowSize ?? CGSize(width: 700, height: 700)
+
+        let preferences = UIWindowScene.GeometryPreferences.Vision(
+            size: restoreSize,
+            minimumSize: CGSize(width: 560, height: 560),
+            maximumSize: nil,
+            resizingRestrictions: nil
+        )
+
+        windowScene.requestGeometryUpdate(preferences) { error in
+            print("Step 3 restore requestGeometryUpdate failed: \(error.localizedDescription)")
+        }
+    }
+
+    private func capturePreviousWindowSizeIfNeeded() {
+        guard previousWindowSize == nil else { return }
+        guard let window = view.window else { return }
+        let size = window.bounds.size
+        guard size.width > 0, size.height > 0 else { return }
+        previousWindowSize = size
+    }
+}
+
+#Preview("Step 3") {
     PracticeStepView(viewModel: ARGuideViewModel(appModel: AppModel()))
 }

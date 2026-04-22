@@ -116,13 +116,3 @@ if Path(model_ref).is_dir():
 ## Coverage Gaps
 - 当前无并发压测数据，吞吐与高并发行为未结构化验证。
 - 会话级上下文（`session_id`）目前未做复杂记忆机制，能力边界需在产品层明确。
-
-## 来源引用（Source References）
-- `piano_dialogue_server/server/main.py`
-- `piano_dialogue_server/server/protocol.py`
-- `piano_dialogue_server/server/inference.py`
-- `piano_dialogue_server/server/debug_artifacts.py`
-- `piano_dialogue_server/server/test_client.py`
-- `piano_dialogue_server/requirements.txt`
-- `piano_dialogue_server/scripts/test_generate.py`
-- `piano_dialogue_server/scripts/test_infilling.py`

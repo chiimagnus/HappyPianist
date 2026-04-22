@@ -18,6 +18,7 @@
 | `DialogueNote` | Swift 与 Python 共享的音符契约 | `Models/Dialogue` + `server/protocol.py` | 跨进程一致性关键 |
 | `PracticeStep` | AVP 练习步进数据单元 | `Models/Practice` | 引导推进粒度 |
 | `DataProviderState` | AR provider 运行状态枚举 | `ARTrackingService` | 定位失败诊断核心 |
+| `SongAudioPlaybackStateController` | AVP 曲库试听按钮的播放态控制器 | `SongLibraryViewModel` + `SongAudioPlayer` | 统一 `currentListeningEntryID` 与播放/暂停状态 |
 
 ## 存储术语
 | 术语 | 定义 | 常见位置 | 为什么重要 |
@@ -25,6 +26,7 @@
 | `StoredWorldAnchorCalibration` | A0/C8 世界锚点校准模型 | AVP `Models/Calibration` | Step 3 定位输入 |
 | `SongLibraryIndex` | 曲库索引模型（entries + lastSelectedEntryID） | AVP `Models/Library` | 曲库一致性中心 |
 | `SongLibraryEntry` | 单曲目条目（曲谱+可选音频） | AVP `Models/Library` | 选曲页面核心数据 |
+| `SongLibrarySeeder` | 启动时从 bundled `Resources/SeedScores` 注入默认曲目与音频，并清理旧目录 | AVP `Services/Library` | 首开可用性与迁移入口 |
 | `dialogue_debug bundle` | 服务端调试落盘工件集合 | `server/debug_artifacts.py` | 线上下问题复盘抓手 |
 
 ## 易混淆概念
@@ -37,14 +39,3 @@
 
 ## Coverage Gaps
 - 发布/版本语义目前仍分散在 README 与提交流程中，尚无独立版本治理页面。
-
-## 来源引用（Source References）
-- `LonelyPianist/Models/MIDI/MIDIEvent.swift`
-- `LonelyPianist/Models/Dialogue/DialogueNote.swift`
-- `piano_dialogue_server/server/protocol.py`
-- `LonelyPianistAVP/Views/ContentView.swift`
-- `LonelyPianistAVP/Models/Practice/PracticeStep.swift`
-- `LonelyPianistAVP/Models/Calibration/StoredWorldAnchorCalibration.swift`
-- `LonelyPianistAVP/Models/Library/SongLibraryIndex.swift`
-- `LonelyPianistAVP/Models/Library/SongLibraryEntry.swift`
-- `piano_dialogue_server/server/debug_artifacts.py`

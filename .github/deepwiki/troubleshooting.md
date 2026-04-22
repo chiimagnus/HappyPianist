@@ -7,7 +7,7 @@
 | Dialogue 无回应 | Python 服务 / 模型加载 | `/health`、服务日志 | `curl /health` 是否为 `ok` |
 | Step 3 定位失败 | AVP provider / world anchors | `practiceLocalizationStatusText` | 是否已存在 stored calibration + provider running |
 | 曲库条目可见但无法开始练习 | AVP 文件/索引不一致 | SongLibraryView 提示 | 目标 MusicXML 文件是否存在 |
-| 音频“聆听”失败 | 音频文件丢失或格式不支持 | SongLibrary 错误弹窗 | 条目 `audioFileName` 指向的文件是否存在 |
+| 音频“聆听”失败 | 音频文件丢失、格式不受 `AVAudioPlayer` 支持或播放器无法创建 | SongLibrary 错误弹窗 | 条目 `audioFileName` 指向的文件是否存在；当前仅接受 mp3 / m4a |
 
 ## 第一现场信息
 - macOS：`statusMessage`、`recentLogs`、Sources 与 Pressed 状态。
@@ -38,6 +38,11 @@
 2. 手工检查 `Documents/SongLibrary/scores|audio` 是否残留文件。
 3. 必要时手工清理残留文件，保持索引与文件一致。
 
+### 场景 5：导入音频后无法试听
+1. 仅支持 mp3 / m4a；其他格式会在导入阶段被拦截。
+2. 确认条目 `audioFileName` 已写入索引，并且对应文件位于 `Documents/SongLibrary/audio/`。
+3. 若播放器仍无法创建，优先检查文件是否损坏或是否被外部进程锁定。
+
 ## 调试命令
 | 命令 | 用途 |
 | --- | --- |
@@ -57,14 +62,3 @@
 
 ## Coverage Gaps
 - 尚未形成统一日志采集与聚合方案（目前以控制台与本地文件为主）。
-
-## 来源引用（Source References）
-- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
-- `LonelyPianist/Services/System/AccessibilityPermissionService.swift`
-- `LonelyPianist/Services/Dialogue/DialogueManager.swift`
-- `LonelyPianistAVP/ViewModels/ARGuideViewModel.swift`
-- `LonelyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift`
-- `LonelyPianistAVP/Services/Tracking/ARTrackingService.swift`
-- `LonelyPianistAVP/Services/Library/SongFileStore.swift`
-- `piano_dialogue_server/server/main.py`
-- `piano_dialogue_server/server/debug_artifacts.py`

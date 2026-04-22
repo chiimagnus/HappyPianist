@@ -6,20 +6,22 @@
 | MIDI 映射流 | CoreMIDI NoteOn/Off | ViewModel -> MappingEngine | CGEvent 注入 + 事件日志 | 和弦按“按下集合严格相等” |
 | Recorder 流 | Runtime MIDI 事件 | DefaultRecordingService | SwiftData `RecordingTake` | 停止时补全未关闭音符 |
 | Dialogue 流 | Phrase + 静默检测 | DialogueManager -> WS -> InferenceEngine | AI 回放 + 会话 take | 80ms polling + 队列策略 |
+| AVP 启动种子流 | App init | SongLibrarySeeder -> IndexStore/FileStore/AudioImportService | bundled MusicXML + MP3 -> `Documents/SongLibrary/*` | seed/backfill + legacy cleanup |
 | AVP 曲库导入流 | fileImporter URLs | SongLibraryViewModel -> SongFileStore/IndexStore | `SongLibrary/index.json` + score/audio 文件 | 先存文件，再提交索引 |
+| AVP 试听流 | 聆听/暂停按钮 | SongLibraryViewModel -> SongAudioPlaybackStateController -> SongAudioPlayer | `currentListeningEntryID` / 播放态 | 切换或暂停当前条目 |
 | AVP 练习定位流 | 已选曲 + 已保存校准 | ARGuideViewModel -> ARTrackingService -> AppModel | 进入 ready 后推进 `PracticeStep` | provider 启动超时 + 定位超时 |
 
 ## 触发入口
 - macOS：`Start Listening`、`Start Dialogue`、录制与回放控制。
 - AVP：
   - Step 1：`设置 A0/C8` + 右手捏合确认；
-  - Step 2：导入 / 删除曲目、绑定音频、开始练习；
+  - Step 2：导入 / 删除曲目、绑定音频、试听/暂停、开始练习；
   - Step 3：自动定位 + 手指按键检测。
 - Python：收到 WS `type=generate` 请求后执行校验与推理。
 
 ## AVP 三步数据路径
 1. **Step 1 校准**：世界锚点 ID 落入 `StoredWorldAnchorCalibration`。
-2. **Step 2 选曲**：MusicXML 复制到 `SongLibrary/scores/`，索引写入 `index.json`，可选音频写入 `SongLibrary/audio/`。
+2. **Step 2 选曲**：MusicXML 复制到 `SongLibrary/scores/`，索引写入 `index.json`，可选音频写入 `SongLibrary/audio/`，试听按钮则驱动播放态切换。
 3. **Step 3 练习**：恢复并定位世界锚点 -> 生成 key regions -> 指尖检测 -> step 推进。
 
 ## 输入与输出（I/O）
@@ -73,20 +75,8 @@ sequenceDiagram
 ## 调试抓手
 - macOS：`statusMessage`、`recentLogs`、Sources/Pressed。
 - AVP：`practiceLocalizationStatusText`、HUD 状态、手指点和键位高亮。
+- AVP 曲库试听：`currentListeningEntryID`、`isCurrentListeningPlaying`、`SongLibraryView` 按钮文案。
 - Python：`/health`、`test_client.py`、`out/dialogue_debug/*`。
 
 ## Coverage Gaps
 - 仍未见覆盖三端完整闭环的自动化 E2E 测试（当前由多套单测 + 手工冒烟组合承担）。
-
-## 来源引用（Source References）
-- `LonelyPianist/Services/Mapping/DefaultMappingEngine.swift`
-- `LonelyPianist/Services/Recording/DefaultRecordingService.swift`
-- `LonelyPianist/Services/Dialogue/DialogueManager.swift`
-- `LonelyPianistAVP/ViewModels/ARGuideViewModel.swift`
-- `LonelyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift`
-- `LonelyPianistAVP/Services/Library/SongFileStore.swift`
-- `LonelyPianistAVP/Services/Library/SongLibraryIndexStore.swift`
-- `LonelyPianistAVP/Services/Tracking/ARTrackingService.swift`
-- `LonelyPianistAVP/ViewModels/PracticeSessionViewModel.swift`
-- `piano_dialogue_server/server/main.py`
-- `piano_dialogue_server/server/protocol.py`

@@ -29,21 +29,25 @@ struct ContentView: View {
         NavigationStack(path: $navigationPath) {
             mainFlowPanel
                 .padding(18)
+                .frame(minWidth: 560, idealWidth: 700)
                 .navigationTitle("孤独钢琴家")
                 .navigationDestination(for: MainFlowRoute.self) { route in
                     switch route {
                         case .calibration:
                             CalibrationStepView(viewModel: arGuideViewModel)
+                                .frame(minWidth: 560, idealWidth: 700)
                                 .navigationTitle("Step 1 · 校准")
                         case .library:
                             SongLibraryView(
                                 viewModel: songLibraryViewModel,
                                 navigationPath: $navigationPath
                             )
+                            .frame(minWidth: 560, idealWidth: 700)
                             .navigationTitle("Step 2 · 选曲")
                         case .practice:
                             PracticeStepView(viewModel: arGuideViewModel)
-                                .navigationTitle("Step 3 · 开始练习")
+                                .frame(minWidth: 920, idealWidth: 1200, minHeight: 320, idealHeight: 360)
+                                .toolbar(.hidden, for: .navigationBar)
                     }
                 }
         }

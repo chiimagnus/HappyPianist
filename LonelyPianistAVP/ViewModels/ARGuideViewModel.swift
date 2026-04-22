@@ -132,10 +132,6 @@ final class ARGuideViewModel {
         practiceSessionViewModel.skip()
     }
 
-    func markCorrect() {
-        practiceSessionViewModel.markCorrect()
-    }
-
     var practiceLocalizationStatusText: String? {
         switch practiceLocalizationState {
             case .idle:

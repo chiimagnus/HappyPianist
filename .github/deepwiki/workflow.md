@@ -22,8 +22,9 @@
 | Python | `server/main.py` + `server/protocol.py` + `server/inference.py` | `/health` + `test_client.py` + `scripts/test_generate.py` |
 
 ## AVP 三步流协作约束
+- App 启动还会先执行 `SongLibrarySeeder.seedAndMigrateIfNeeded()`：从 bundled `Resources/SeedScores` 注入默认曲目与音频，并清理旧 `ImportedScores`。
 - Step 1（校准）改动通常会联动：`WorldAnchorCalibrationStore`、`ARTrackingService`、`ARGuideViewModel`。
-- Step 2（选曲）改动通常会联动：`SongLibraryViewModel`、`SongFileStore`、`SongLibraryIndexStore`。
+- Step 2（选曲/试听）改动通常会联动：`SongLibraryViewModel`、`SongFileStore`、`SongLibraryIndexStore`、`AudioImportService`、`SongAudioPlaybackStateController`。
 - Step 3（练习）改动通常会联动：`PracticeSessionViewModel`、`PressDetectionService`、Overlay controllers。
 
 ## 文档同步流程
@@ -43,15 +44,3 @@
 
 ## Coverage Gaps
 - 目前缺少 CI 自动化门禁与统一发布流水线文档。
-
-## 来源引用（Source References）
-- `AGENTS.md`
-- `README.md`
-- `LonelyPianist/README.md`
-- `LonelyPianistAVP/README.md`
-- `piano_dialogue_server/README.md`
-- `LonelyPianistAVP/Views/ContentView.swift`
-- `LonelyPianistAVP/ViewModels/ARGuideViewModel.swift`
-- `LonelyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift`
-- `piano_dialogue_server/server/main.py`
-- `.xcodebuildmcp/config.yaml`
