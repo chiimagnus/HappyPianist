@@ -23,7 +23,7 @@ struct MusicXMLParser: MusicXMLParserProtocol {
         guard parser.parse() else {
             throw MusicXMLParserError.parseFailed
         }
-        return MusicXMLScore(notes: delegate.notes)
+        return MusicXMLScore(notes: delegate.notes, tempoEvents: delegate.tempoEvents)
     }
 }
 
@@ -31,6 +31,19 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
     private let normalizedTicksPerQuarter = 480
 
     private(set) var notes: [MusicXMLNoteEvent] = []
+    private(set) var tempoEvents: [MusicXMLTempoEvent] = []
+
+    private enum TempoSource: Int {
+        case metronome = 0
+        case sound = 1
+    }
+
+    private struct RawTempoEvent {
+        let partID: String
+        let tick: Int
+        let quarterBPM: Double
+        let source: TempoSource
+    }
 
     private var currentPartID = "P1"
     private var currentMeasureNumber = 1
@@ -46,6 +59,7 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
     private var isInAttributes = false
     private var isInBackup = false
     private var isInForward = false
+    private var isInDirection = false
 
     private var isInNote = false
     private var noteIsRest = false
@@ -56,6 +70,13 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
     private var noteDuration: Int?
     private var noteStaff: Int?
     private var noteVoice: Int?
+
+    private var isInDirectionTypeMetronome = false
+    private var metronomeBeatUnit: String?
+    private var metronomeHasDot = false
+    private var metronomePerMinute: Double?
+
+    private var rawTempoEventsByPart: [String: [RawTempoEvent]] = [:]
 
     private var currentMeasureStartTick = 0
 
@@ -84,6 +105,21 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
                 partLastNonChordStartTick[currentPartID] = nil
             case "attributes":
                 isInAttributes = true
+            case "direction":
+                isInDirection = true
+            case "direction-type":
+                break
+            case "metronome":
+                if isInDirection {
+                    isInDirectionTypeMetronome = true
+                    metronomeBeatUnit = nil
+                    metronomeHasDot = false
+                    metronomePerMinute = nil
+                }
+            case "sound":
+                if isInDirection, let tempoText = attributeDict["tempo"], let bpm = Double(tempoText) {
+                    recordTempoEvent(quarterBPM: bpm, source: .sound)
+                }
             case "backup":
                 isInBackup = true
             case "forward":
@@ -127,6 +163,15 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
                 if let value = Int(text), value > 0 {
                     partDivisions[currentPartID] = value
                 }
+            case "beat-unit" where isInDirectionTypeMetronome:
+                metronomeBeatUnit = text
+            case "beat-unit-dot" where isInDirectionTypeMetronome:
+                metronomeHasDot = true
+            case "per-minute" where isInDirectionTypeMetronome:
+                metronomePerMinute = Double(text)
+            case "metronome":
+                finalizeMetronomeTempoIfNeeded()
+                isInDirectionTypeMetronome = false
             case "duration":
                 if let duration = Int(text), duration >= 0 {
                     let normalizedDuration = normalizeDuration(duration)
@@ -153,6 +198,8 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
                 isInNote = false
             case "attributes":
                 isInAttributes = false
+            case "direction":
+                isInDirection = false
             case "backup":
                 isInBackup = false
             case "forward":
@@ -163,6 +210,10 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
             default:
                 break
         }
+    }
+
+    func parserDidEndDocument(_: XMLParser) {
+        tempoEvents = finalizeTempoEvents()
     }
 
     private func finalizeNote() {
@@ -215,6 +266,62 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
         let divisions = max(1, partDivisions[currentPartID] ?? 1)
         let normalized = Double(rawDuration) * Double(normalizedTicksPerQuarter) / Double(divisions)
         return max(0, Int(normalized.rounded()))
+    }
+
+    private func recordTempoEvent(quarterBPM: Double, source: TempoSource) {
+        guard quarterBPM.isFinite, quarterBPM > 0 else { return }
+
+        let tick = partTick[currentPartID] ?? currentMeasureStartTick
+        let event = RawTempoEvent(partID: currentPartID, tick: tick, quarterBPM: quarterBPM, source: source)
+        rawTempoEventsByPart[currentPartID, default: []].append(event)
+    }
+
+    private func finalizeMetronomeTempoIfNeeded() {
+        guard let beatUnit = metronomeBeatUnit?.lowercased(),
+              let perMinute = metronomePerMinute,
+              perMinute.isFinite,
+              perMinute > 0
+        else {
+            return
+        }
+
+        guard beatUnit == "quarter", metronomeHasDot == false else {
+            #if DEBUG
+            print("MusicXMLParser: ignoring metronome beatUnit=\(beatUnit) dot=\(metronomeHasDot)")
+            #endif
+            return
+        }
+
+        recordTempoEvent(quarterBPM: perMinute, source: .metronome)
+    }
+
+    private func finalizeTempoEvents() -> [MusicXMLTempoEvent] {
+        let primaryPart = "P1"
+        let rawEvents: [RawTempoEvent]
+        if let p1Events = rawTempoEventsByPart[primaryPart], p1Events.isEmpty == false {
+            rawEvents = p1Events
+        } else {
+            rawEvents = rawTempoEventsByPart.values.flatMap { $0 }
+        }
+
+        guard rawEvents.isEmpty == false else { return [] }
+
+        var byTick: [Int: RawTempoEvent] = [:]
+        for event in rawEvents {
+            if let existing = byTick[event.tick] {
+                if event.source.rawValue > existing.source.rawValue {
+                    byTick[event.tick] = event
+                } else if event.source == existing.source {
+                    byTick[event.tick] = event
+                }
+            } else {
+                byTick[event.tick] = event
+            }
+        }
+
+        return byTick.values
+            .sorted { $0.tick < $1.tick }
+            .map { MusicXMLTempoEvent(tick: $0.tick, quarterBPM: $0.quarterBPM) }
     }
 
     private static func makeMIDINote(step: String?, alter: Int, octave: Int?) -> Int? {
