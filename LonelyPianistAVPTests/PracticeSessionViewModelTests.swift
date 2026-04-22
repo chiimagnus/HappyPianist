@@ -162,7 +162,8 @@ func applyingCalibrationDoesNotResetProgress() {
     let viewModel = makePracticeSessionViewModel(
         pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
-        sleeper: TaskSleeper()
+        sleeper: TaskSleeper(),
+        noteAudioPlayer: nil
     )
 
     viewModel.setSteps([
@@ -182,16 +183,61 @@ func applyingCalibrationDoesNotResetProgress() {
     #expect(viewModel.state == .guiding(stepIndex: 1))
 }
 
+@Test
+@MainActor
+func guidingStartAutoPlaysCurrentStepSound() {
+    let audioPlayer = CapturingPracticeNoteAudioPlayer()
+    let viewModel = makePracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: TaskSleeper(),
+        noteAudioPlayer: audioPlayer
+    )
+
+    viewModel.setSteps([
+        PracticeStep(tick: 0, notes: [
+            PracticeStepNote(midiNote: 60, staff: nil),
+            PracticeStepNote(midiNote: 64, staff: nil),
+        ]),
+    ])
+    viewModel.startGuidingIfReady()
+
+    #expect(audioPlayer.recordedPlays == [[60, 64]])
+}
+
+@Test
+@MainActor
+func advancingAutoPlaysNextStepSound() {
+    let audioPlayer = CapturingPracticeNoteAudioPlayer()
+    let viewModel = makePracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: TaskSleeper(),
+        noteAudioPlayer: audioPlayer
+    )
+
+    viewModel.setSteps([
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+        PracticeStep(tick: 1, notes: [PracticeStepNote(midiNote: 62, staff: nil)]),
+    ])
+    viewModel.startGuidingIfReady()
+    viewModel.skip()
+
+    #expect(audioPlayer.recordedPlays == [[60], [62]])
+}
+
 @MainActor
 private func makePracticeSessionViewModel(
     pressDetectionService: PressDetectionServiceProtocol,
     chordAttemptAccumulator: ChordAttemptAccumulatorProtocol,
-    sleeper: SleeperProtocol
+    sleeper: SleeperProtocol,
+    noteAudioPlayer: PracticeNoteAudioPlayerProtocol? = nil
 ) -> PracticeSessionViewModel {
     PracticeSessionViewModel(
         pressDetectionService: pressDetectionService,
         chordAttemptAccumulator: chordAttemptAccumulator,
-        sleeper: sleeper
+        sleeper: sleeper,
+        noteAudioPlayer: noteAudioPlayer
     )
 }
 
@@ -255,6 +301,14 @@ private final class AlwaysMatchChordAttemptAccumulator: ChordAttemptAccumulatorP
     }
 
     func reset() {}
+}
+
+private final class CapturingPracticeNoteAudioPlayer: PracticeNoteAudioPlayerProtocol {
+    private(set) var recordedPlays: [[Int]] = []
+
+    func play(midiNotes: [Int]) {
+        recordedPlays.append(midiNotes)
+    }
 }
 
 private actor ControllableSleeper: SleeperProtocol {
