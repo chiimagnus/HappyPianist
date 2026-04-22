@@ -3,19 +3,18 @@
 ## Generation Summary
 | 字段 | 值 |
 | --- | --- |
-| Commit hash | `0da8ba8` |
-| Branch | `main` |
-| Generation timestamp (local) | `2026-04-18 00:43:53 +0800` |
+| Commit hash | `8e42bd8` |
+| Branch | `crh` |
+| Generation timestamp (local) | `2026-04-22 14:50:52 +0800` |
 | Output language | `Chinese (中文)` |
-| Mode | `首次生成（initial generation）` |
+| Mode | `增量更新（update）` |
 
-## Generated Page List
+## Generated / Updated Page List
 - `INDEX.md`
 - `GENERATION.md`
 - `business-context.md`
 - `overview.md`
 - `architecture.md`
-- `dependencies.md`
 - `data-flow.md`
 - `configuration.md`
 - `storage.md`
@@ -23,13 +22,12 @@
 - `workflow.md`
 - `troubleshooting.md`
 - `glossary.md`
-- `modules/lonelypianist-macos.md`
 - `modules/lonelypianist-avp.md`
-- `modules/piano-dialogue-server.md`
 
 ## Copied Asset List
-- `None`（本次未复制本地图片资源；图表以 Mermaid 内联形式提供）
+- `assets/.gitkeep`（用于固定保留 `assets/` 目录）
 
 ## Notes
-- `business-context.md` 作为正式业务入口页，已链接到 `overview/architecture/data-flow` 与模块页。
-- 已显式记录当前可见 Coverage Gaps（CI 缺失、AVP scheme 可见性依赖本地环境）。
+- 本次更新重点是对齐 `crh` 分支下的 AVP 三步流程（Step 1 校准、Step 2 选曲、Step 3 练习）与 Song Library 子系统事实。
+- 已修正多处历史路径漂移（例如 AVP 视图路径迁移到 `Views/` 子目录）。
+- 已保留并显式更新 Coverage Gaps（CI 缺失、AVP 共享 scheme 不可见）。

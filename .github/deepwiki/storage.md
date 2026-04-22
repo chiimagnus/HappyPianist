@@ -3,65 +3,46 @@
 ## 存储面总览
 | 存储面 | 路径 / 载体 | 写入方 | 读取方 | 主要内容 |
 | --- | --- | --- | --- | --- |
-| SwiftData Store | `Application Support/<bundle>/LonelyPianist.store` | macOS repositories | macOS ViewModel/Services | 映射配置、录音 take、录音 notes |
-| AVP 校准文件 | Documents `piano-calibration.json` | `PianoCalibrationStore` | `AppModel` | A0/C8、平面参数、键宽 |
-| AVP 导入谱面 | Documents `ImportedScores/*` | `MusicXMLImportService` | `ContentView` + parser | 用户导入的 MusicXML 副本 |
-| Dialogue 调试目录 | `piano_dialogue_server/out/dialogue_debug/*` | `debug_artifacts.py` | 开发排障流程 | request/response/summary/prompt.mid/reply.mid |
-| 脚本调试产物 | `piano_dialogue_server/out/*.mid` | test scripts/test_client | 人工试听验证 | 离线生成或回环回复 MIDI |
+| SwiftData Store（macOS） | `Application Support/<bundle>/LonelyPianist.store` | macOS repositories | macOS ViewModel/Services | 映射配置、录音 take、音符实体 |
+| AVP 世界锚点校准 | `Documents/piano-worldanchor-calibration.json` | `WorldAnchorCalibrationStore` | `AppModel` / `ARGuideViewModel` | A0/C8 anchor ID + 键宽 |
+| AVP 曲库索引 | `Documents/SongLibrary/index.json` | `SongLibraryIndexStore` | `SongLibraryViewModel` | 曲目条目与最近选择 |
+| AVP 曲谱文件 | `Documents/SongLibrary/scores/` | `SongFileStore` | SongLibrary + parser | 导入后的 MusicXML 副本 |
+| AVP 音频文件 | `Documents/SongLibrary/audio/` | `AudioImportService` | SongLibrary 播放 | 曲目绑定音频 |
+| Python 调试目录 | `piano_dialogue_server/out/dialogue_debug/*` | `debug_artifacts.py` | 本地排障 | request/response/summary/midi |
 
-## SwiftData 模型与关系
+## SwiftData 模型与关系（macOS）
 | 实体 | 位置 | 关键字段 | 关系 |
 | --- | --- | --- | --- |
-| `MappingConfigEntity` | `Models/Storage/MappingConfigEntity.swift` | `id/updatedAt/payloadData` | 单条配置记录 |
+| `MappingConfigEntity` | `Models/Storage/MappingConfigEntity.swift` | `id/updatedAt/payloadData` | 单条配置 |
 | `RecordingTakeEntity` | `Models/Storage/RecordingTakeEntity.swift` | `id/name/createdAt/updatedAt/durationSec` | 1 -> N notes |
 | `RecordedNoteEntity` | `Models/Storage/RecordedNoteEntity.swift` | `note/velocity/channel/startOffsetSec/durationSec` | 属于某 take |
 
-## 持久化读写路径
-- `SwiftDataMappingConfigRepository`：
-  - 首次空库时 seed 默认配置；
-  - 解码失败会 destructive reset 后 reseed，避免坏数据持续污染。
-- `SwiftDataRecordingTakeRepository`：
-  - `saveTake` 对已有 take 先删旧 notes 再写新 notes；
-  - `fetchTakes` 按 `updatedAt` / `createdAt` 倒序返回。
-- `ModelContainerFactory`：
-  - 容器初始化失败会尝试删除 store/wal/shm/journal 后重建。
-
-## 文件型存储流程
-1. AVP 导入：
-   - 通过 fileImporter 拿到 security-scoped URL；
-   - 复制到 Documents `ImportedScores/<timestamp>-<filename>`；
-   - 再解析构建练习步骤。
+## AVP 曲库持久化路径
+1. `SongLibraryPaths.ensureDirectoriesExist()` 创建 `SongLibrary/`、`scores/`、`audio/`。
+2. `SongFileStore.importMusicXML` 复制文件到 `scores/`，返回导入元信息。
+3. `SongLibraryViewModel` 组装 `SongLibraryEntry` 并写回 `index.json`。
+4. 音频绑定时 `AudioImportService` 把文件复制到 `audio/`，再更新条目的 `audioFileName`。
 
 ## 数据一致性与恢复
-- SwiftData：
-  - 配置解码失败时自动重置（有日志）；
-  - 数据库损坏时可通过容器重建策略恢复。
-- AVP 校准：
-  - 未找到文件返回 `nil`，不会硬失败；
-  - 文件不可读/不可写时通过 status message 暴露错误。
+| 场景 | 策略 |
+| --- | --- |
+| SwiftData 初始化失败 | `ModelContainerFactory` 删除 `store/wal/shm/journal` 后重建 |
+| AVP 校准文件不存在 | 读取返回 `nil`，状态为“未设置/待定位” |
+| 曲库删除流程 | 先写索引，再删文件；文件删失败会提示“索引已删，文件删除失败” |
+| seed/migration | `SongLibrarySeeder` 首次注入 seed 曲，并清理旧 `ImportedScores` 目录 |
+
+## 文件命名与安全
+- 曲谱和音频导入文件采用时间戳前缀，避免同名覆盖。
+- 文件名通过 `lastPathComponent` 限定，防止路径穿越。
+- 索引 JSON 使用 ISO8601 日期编解码与原子写入。
 
 ## 风险与注意事项
-- `ModelContainerFactory` 的自动删库重建对损坏恢复友好，但会丢失历史数据。
-- AVP 文档目录可能累积大量导入谱面副本，当前无内建清理策略。
-
-## 示例片段
-```swift
-let schema = Schema([
-    MappingConfigEntity.self,
-    RecordingTakeEntity.self,
-    RecordedNoteEntity.self
-])
-```
-
-```python
-job_root = root / f"{basename}-{timestamp}-{uuid4().hex[:8]}"
-input_dir = job_root / "input"
-debug_dir = job_root / "debug"
-output_dir = job_root / "output"
-```
+- `ModelContainerFactory` 的删库恢复可提升可用性，但会丢历史数据。
+- 曲库存在“索引与文件最终一致性”窗口：异常中断时可能遗留孤儿文件。
+- 当前无内建垃圾回收任务处理长期累积导入文件。
 
 ## Coverage Gaps
-- 当前未见“数据迁移版本化策略”文档（例如 schema 版本演进说明）。
+- 尚未见 schema 版本化迁移策略文档（SwiftData 与曲库索引都依赖代码内兼容处理）。
 
 ## 来源引用（Source References）
 - `LonelyPianist/Services/Storage/ModelContainerFactory.swift`
@@ -69,7 +50,10 @@ output_dir = job_root / "output"
 - `LonelyPianist/Services/Storage/SwiftDataRecordingTakeRepository.swift`
 - `LonelyPianist/Models/Storage/MappingConfigEntity.swift`
 - `LonelyPianist/Models/Storage/RecordingTakeEntity.swift`
-- `LonelyPianist/Models/Storage/RecordedNoteEntity.swift`
-- `LonelyPianistAVP/Services/PianoCalibrationStore.swift`
-- `LonelyPianistAVP/Services/MusicXMLImportService.swift`
+- `LonelyPianistAVP/Services/WorldAnchorCalibrationStore.swift`
+- `LonelyPianistAVP/Services/Library/SongLibraryPaths.swift`
+- `LonelyPianistAVP/Services/Library/SongLibraryIndexStore.swift`
+- `LonelyPianistAVP/Services/Library/SongFileStore.swift`
+- `LonelyPianistAVP/Services/Library/AudioImportService.swift`
+- `LonelyPianistAVP/Services/Library/SongLibrarySeeder.swift`
 - `piano_dialogue_server/server/debug_artifacts.py`
