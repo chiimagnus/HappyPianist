@@ -29,23 +29,27 @@ final class PracticeSessionViewModel {
     private let pressDetectionService: PressDetectionServiceProtocol
     private let chordAttemptAccumulator: ChordAttemptAccumulatorProtocol
     private let sleeper: SleeperProtocol
+    private let noteAudioPlayer: PracticeNoteAudioPlayerProtocol?
     private var feedbackResetTask: Task<Void, Never>?
 
     init(
         pressDetectionService: PressDetectionServiceProtocol,
         chordAttemptAccumulator: ChordAttemptAccumulatorProtocol,
-        sleeper: SleeperProtocol
+        sleeper: SleeperProtocol,
+        noteAudioPlayer: PracticeNoteAudioPlayerProtocol?
     ) {
         self.pressDetectionService = pressDetectionService
         self.chordAttemptAccumulator = chordAttemptAccumulator
         self.sleeper = sleeper
+        self.noteAudioPlayer = noteAudioPlayer
     }
 
     convenience init() {
         self.init(
             pressDetectionService: PressDetectionService(),
             chordAttemptAccumulator: ChordAttemptAccumulator(),
-            sleeper: TaskSleeper()
+            sleeper: TaskSleeper(),
+            noteAudioPlayer: SinePracticeNoteAudioPlayer()
         )
     }
 
@@ -121,10 +125,16 @@ final class PracticeSessionViewModel {
         guard state == .ready, steps.isEmpty == false else { return }
         currentStepIndex = 0
         state = .guiding(stepIndex: currentStepIndex)
+        playCurrentStepSound()
     }
 
     func skip() {
         advanceToNextStep()
+    }
+
+    func playCurrentStepSound() {
+        guard let currentStep else { return }
+        noteAudioPlayer?.play(midiNotes: currentStep.notes.map(\.midiNote))
     }
 
     func handleFingerTipPositions(_ fingerTips: [String: SIMD3<Float>], at timestamp: Date = .now) -> Set<Int> {
@@ -169,6 +179,7 @@ final class PracticeSessionViewModel {
         if currentStepIndex + 1 < steps.count {
             currentStepIndex += 1
             state = .guiding(stepIndex: currentStepIndex)
+            playCurrentStepSound()
         } else {
             currentStepIndex = steps.count
             pressedNotes.removeAll()
