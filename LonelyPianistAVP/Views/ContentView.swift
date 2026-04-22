@@ -29,7 +29,7 @@ struct ContentView: View {
         NavigationStack(path: $navigationPath) {
             mainFlowPanel
                 .padding(18)
-                .frame(minWidth: 620, idealWidth: 760)
+                .frame(minWidth: 560, idealWidth: 700)
                 .navigationTitle("孤独钢琴家")
                 .navigationDestination(for: MainFlowRoute.self) { route in
                     switch route {
