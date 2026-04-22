@@ -96,11 +96,6 @@ final class PracticeSessionViewModel {
         advanceToNextStep()
     }
 
-    func markCorrect() {
-        setFeedback(.correct)
-        advanceToNextStep()
-    }
-
     func handleFingerTipPositions(_ fingerTips: [String: SIMD3<Float>], at timestamp: Date = .now) -> Set<Int> {
         let detected = pressDetectionService.detectPressedNotes(
             fingerTips: fingerTips,

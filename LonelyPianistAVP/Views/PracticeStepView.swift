@@ -104,11 +104,6 @@ struct PracticeStepView: View {
             .buttonStyle(.bordered)
             .hoverEffect()
             .disabled(viewModel.canControlPractice == false)
-
-        Button("标记为正确") { viewModel.markCorrect() }
-            .buttonStyle(.borderedProminent)
-            .hoverEffect()
-            .disabled(viewModel.canControlPractice == false)
     }
 }
 
