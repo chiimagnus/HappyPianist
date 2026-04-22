@@ -84,6 +84,9 @@ final class SoundFontPracticeNoteAudioPlayer: PracticeNoteAudioPlayerProtocol, P
             return
         }
 
+        stopTask?.cancel()
+        stopTask = nil
+
         sampler.startNote(note, withVelocity: velocity, onChannel: channel)
         playingNotes.insert(note)
     }
