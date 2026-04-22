@@ -96,11 +96,16 @@ class AppModel {
         }
     }
 
-    func setImportedSteps(_ steps: [PracticeStep], file: ImportedMusicXMLFile?, tempoMap: MusicXMLTempoMap? = nil) {
+    func setImportedSteps(
+        _ steps: [PracticeStep],
+        file: ImportedMusicXMLFile?,
+        tempoMap: MusicXMLTempoMap? = nil,
+        pedalTimeline: MusicXMLPedalTimeline? = nil
+    ) {
         importedSteps = steps
         importedFile = file
         importErrorMessage = nil
-        practiceSessionViewModel.setSteps(steps, tempoMap: tempoMap)
+        practiceSessionViewModel.setSteps(steps, tempoMap: tempoMap, pedalTimeline: pedalTimeline)
         applySessionIfPossible()
     }
 
@@ -115,12 +120,13 @@ class AppModel {
 
             let buildResult = stepBuilder.buildSteps(from: effectiveScore)
             let tempoMap = MusicXMLTempoMap(tempoEvents: effectiveScore.tempoEvents)
+            let pedalTimeline = MusicXMLPedalTimeline(events: effectiveScore.pedalEvents)
             if buildResult.unsupportedNoteCount > 0 {
                 importErrorMessage = "已导入（忽略了 \(buildResult.unsupportedNoteCount) 个不支持的音符）。"
             } else {
                 importErrorMessage = nil
             }
-            setImportedSteps(buildResult.steps, file: importedFile, tempoMap: tempoMap)
+            setImportedSteps(buildResult.steps, file: importedFile, tempoMap: tempoMap, pedalTimeline: pedalTimeline)
         } catch {
             importErrorMessage = "导入失败：\(error.localizedDescription)"
         }

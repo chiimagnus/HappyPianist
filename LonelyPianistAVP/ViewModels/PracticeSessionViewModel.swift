@@ -30,6 +30,7 @@ final class PracticeSessionViewModel {
     private(set) var keyRegions: [PianoKeyRegion] = []
     private(set) var pressedNotes: Set<Int> = []
     private(set) var feedbackState: VisualFeedbackState = .none
+    private(set) var isSustainPedalDown = false
     var noteMatchTolerance: Int = 1
 
     private let pressDetectionService: PressDetectionServiceProtocol
@@ -39,6 +40,7 @@ final class PracticeSessionViewModel {
     private var feedbackResetTask: Task<Void, Never>?
     private var autoplayTask: Task<Void, Never>?
     private var tempoMap: MusicXMLTempoMap?
+    private var pedalTimeline: MusicXMLPedalTimeline?
     private var didLogMissingTempoMap = false
 
     init(
@@ -79,10 +81,10 @@ final class PracticeSessionViewModel {
     }
 
     func setSteps(_ steps: [PracticeStep]) {
-        setSteps(steps, tempoMap: nil)
+        setSteps(steps, tempoMap: nil, pedalTimeline: nil)
     }
 
-    func setSteps(_ steps: [PracticeStep], tempoMap: MusicXMLTempoMap?) {
+    func setSteps(_ steps: [PracticeStep], tempoMap: MusicXMLTempoMap?, pedalTimeline: MusicXMLPedalTimeline? = nil) {
         if state == .completed, self.steps == steps, steps.isEmpty == false {
             return
         }
@@ -95,12 +97,16 @@ final class PracticeSessionViewModel {
         chordAttemptAccumulator.reset()
         self.steps = steps
         self.tempoMap = tempoMap
+        self.pedalTimeline = pedalTimeline
 
         if shouldResetProgress {
             currentStepIndex = 0
             pressedNotes.removeAll()
             feedbackState = .none
         }
+
+        let tick = steps.indices.contains(currentStepIndex) ? steps[currentStepIndex].tick : 0
+        isSustainPedalDown = pedalTimeline?.isDown(atTick: tick) ?? false
 
         if steps.isEmpty {
             state = .idle
@@ -130,10 +136,12 @@ final class PracticeSessionViewModel {
         chordAttemptAccumulator.reset()
         steps = []
         tempoMap = nil
+        pedalTimeline = nil
         calibration = nil
         keyRegions = []
         pressedNotes.removeAll()
         feedbackState = .none
+        isSustainPedalDown = false
         currentStepIndex = 0
         state = .idle
     }
