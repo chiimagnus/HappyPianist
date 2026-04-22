@@ -168,6 +168,8 @@ final class PracticeSessionViewModel {
     func setAutoplayEnabled(_ isEnabled: Bool) {
         if isEnabled {
             autoplayState = .playing
+            let tick = currentStep?.tick ?? 0
+            isSustainPedalDown = pedalTimeline?.isDown(atTick: tick) ?? false
             startAutoplayTaskIfNeeded()
         } else {
             autoplayState = .off
@@ -241,6 +243,8 @@ final class PracticeSessionViewModel {
 
         autoplayTask = Task { @MainActor [weak self] in
             guard let self else { return }
+            var currentTick = steps[currentStepIndex].tick
+            isSustainPedalDown = pedalTimeline?.isDown(atTick: currentTick) ?? false
 
             while Task.isCancelled == false {
                 guard autoplayState == .playing else { break }
@@ -249,9 +253,12 @@ final class PracticeSessionViewModel {
                 let index = currentStepIndex
                 guard index + 1 < steps.count else { break }
 
-                let fromTick = steps[index].tick
-                let toTick = steps[index + 1].tick
-                let waitSeconds = tempoMap.durationSeconds(fromTick: fromTick, toTick: toTick)
+                let nextStepTick = steps[index + 1].tick
+                let nextPedalChange = pedalTimeline?.nextChange(afterTick: currentTick)
+                let nextPedalTick = nextPedalChange?.tick ?? Int.max
+                let nextEventTick = min(nextStepTick, nextPedalTick)
+
+                let waitSeconds = tempoMap.durationSeconds(fromTick: currentTick, toTick: nextEventTick)
 
                 if waitSeconds > 0 {
                     try? await sleeper.sleep(for: .seconds(waitSeconds))
@@ -263,7 +270,16 @@ final class PracticeSessionViewModel {
                 guard autoplayState == .playing else { break }
                 guard case .guiding = state else { break }
 
-                advanceToNextStep()
+                if nextPedalTick == nextEventTick, let change = nextPedalChange {
+                    isSustainPedalDown = change.isDown
+                    currentTick = change.tick
+                }
+
+                if nextStepTick == nextEventTick {
+                    advanceToNextStep()
+                    guard case .guiding = state else { break }
+                    currentTick = steps[currentStepIndex].tick
+                }
             }
 
             autoplayTask = nil
