@@ -270,6 +270,54 @@ func autoplaySchedulesAndAdvancesStepsUsingTempoMap() async {
 
 @Test
 @MainActor
+func autoplaySchedulesPedalChangesBetweenSteps() async {
+    let sleeper = ControllableSleeper()
+    let tempoMap = MusicXMLTempoMap(
+        tempoEvents: [
+            MusicXMLTempoEvent(tick: 0, quarterBPM: 120),
+        ]
+    )
+    let pedalTimeline = MusicXMLPedalTimeline(
+        events: [
+            MusicXMLPedalEvent(partID: "P1", measureNumber: 1, tick: 480, kind: .start, isDown: true),
+        ]
+    )
+
+    let viewModel = makePracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: sleeper
+    )
+
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+            PracticeStep(tick: 960, notes: [PracticeStepNote(midiNote: 62, staff: nil)]),
+        ],
+        tempoMap: tempoMap,
+        pedalTimeline: pedalTimeline
+    )
+    viewModel.setAutoplayEnabled(true)
+    viewModel.startGuidingIfReady()
+    await settleTaskQueue()
+
+    #expect(await sleeper.recordedDurations() == [.seconds(0.5)])
+
+    await sleeper.resumeOldestPending()
+    await settleTaskQueue()
+    #expect(viewModel.currentStepIndex == 0)
+    #expect(viewModel.isSustainPedalDown == true)
+
+    await settleTaskQueue()
+    #expect(await sleeper.recordedDurations() == [.seconds(0.5), .seconds(0.5)])
+
+    await sleeper.resumeOldestPending()
+    await settleTaskQueue()
+    #expect(viewModel.currentStepIndex == 1)
+}
+
+@Test
+@MainActor
 func autoplaySkipCancelsPendingSleepAndRestartsScheduling() async {
     let sleeper = ControllableSleeper()
     let tempoMap = MusicXMLTempoMap(
