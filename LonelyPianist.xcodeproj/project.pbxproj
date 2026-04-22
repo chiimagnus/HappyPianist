@@ -66,6 +66,11 @@
 			path = LonelyPianistAVPTests;
 			sourceTree = "<group>";
 		};
+		D8993AFC2F98C94500C2FDFC /* .github */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = .github;
+			sourceTree = "<group>";
+		};
 		D8D4280F2F4DFD3800EC9C9B /* LonelyPianist */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
@@ -134,6 +139,7 @@
 				D8EA41B72F978A340059B709 /* LonelyPianist.app */,
 				D8EA41B82F978A340059B709 /* LonelyPianistTests.xctest */,
 				D8EA41B92F978A340059B709 /* LonelyPianistAVPTests.xctest */,
+				D8993AFC2F98C94500C2FDFC /* .github */,
 			);
 			sourceTree = "<group>";
 		};
