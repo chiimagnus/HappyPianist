@@ -195,7 +195,9 @@ final class PracticeSessionViewModel {
             autoplayState = .playing
             let tick = currentStep?.tick ?? 0
             isSustainPedalDown = pedalTimeline?.isDown(atTick: tick) ?? false
-            playAutoplayOnsetsForCurrentStep()
+            if case .guiding = state {
+                playAutoplayOnsetsForCurrentStep()
+            }
             startAutoplayTaskIfNeeded()
         } else {
             autoplayState = .off
@@ -349,7 +351,15 @@ final class PracticeSessionViewModel {
         guard let noteOutput else { return }
 
         for note in currentStep.notes {
-            noteOutput.noteOff(midi: note.midiNote)
+            noteOffTasksByMIDI[note.midiNote]?.cancel()
+            noteOffTasksByMIDI[note.midiNote] = nil
+
+            if activeNoteOffTickByMIDI[note.midiNote] != nil || pendingReleaseOffTickByMIDI[note.midiNote] != nil {
+                noteOutput.noteOff(midi: note.midiNote)
+            }
+
+            activeNoteOffTickByMIDI[note.midiNote] = nil
+            pendingReleaseOffTickByMIDI[note.midiNote] = nil
         }
 
         for note in currentStep.notes {
