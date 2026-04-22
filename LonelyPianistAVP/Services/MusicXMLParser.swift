@@ -26,6 +26,7 @@ struct MusicXMLParser: MusicXMLParserProtocol {
         return MusicXMLScore(
             notes: delegate.notes,
             tempoEvents: delegate.tempoEvents,
+            soundDirectives: delegate.soundDirectives,
             measures: delegate.measures,
             repeatDirectives: delegate.repeatDirectives,
             endingDirectives: delegate.endingDirectives
@@ -38,6 +39,7 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
 
     private(set) var notes: [MusicXMLNoteEvent] = []
     private(set) var tempoEvents: [MusicXMLTempoEvent] = []
+    private(set) var soundDirectives: [MusicXMLSoundDirective] = []
     private(set) var measures: [MusicXMLMeasureSpan] = []
     private(set) var repeatDirectives: [MusicXMLRepeatDirective] = []
     private(set) var endingDirectives: [MusicXMLEndingDirective] = []
@@ -158,6 +160,9 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
             case "sound":
                 if isInDirection, let tempoText = attributeDict["tempo"], let bpm = Double(tempoText) {
                     recordTempoEvent(quarterBPM: bpm, source: .sound)
+                }
+                if isInDirection {
+                    recordSoundDirective(attributes: attributeDict)
                 }
             case "backup":
                 isInBackup = true
@@ -336,6 +341,30 @@ private final class MusicXMLParserDelegate: NSObject, XMLParserDelegate {
         let tick = partTick[currentPartID] ?? currentMeasureStartTick
         let event = RawTempoEvent(partID: currentPartID, tick: tick, quarterBPM: quarterBPM, source: source)
         rawTempoEventsByPart[currentPartID, default: []].append(event)
+    }
+
+    private func recordSoundDirective(attributes: [String: String]) {
+        let segno = attributes["segno"].flatMap { $0.isEmpty ? nil : $0 }
+        let coda = attributes["coda"].flatMap { $0.isEmpty ? nil : $0 }
+        let tocoda = attributes["tocoda"].flatMap { $0.isEmpty ? nil : $0 }
+        let dalsegno = attributes["dalsegno"].flatMap { $0.isEmpty ? nil : $0 }
+        let dacapo = attributes["dacapo"].flatMap { $0.isEmpty ? nil : $0 }
+
+        guard segno != nil || coda != nil || tocoda != nil || dalsegno != nil || dacapo != nil else {
+            return
+        }
+
+        let tick = partTick[currentPartID] ?? currentMeasureStartTick
+        soundDirectives.append(
+            MusicXMLSoundDirective(
+                tick: tick,
+                segno: segno,
+                coda: coda,
+                tocoda: tocoda,
+                dalsegno: dalsegno,
+                dacapo: dacapo
+            )
+        )
     }
 
     private func finalizeMetronomeTempoIfNeeded() {

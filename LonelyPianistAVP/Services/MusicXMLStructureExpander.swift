@@ -1,6 +1,11 @@
 import Foundation
 
 struct MusicXMLStructureExpander {
+    func expandStructureIfPossible(score: MusicXMLScore, primaryPartID: String = "P1") -> MusicXMLScore {
+        let afterRepeat = expandRepeatAndEndingIfPossible(score: score, primaryPartID: primaryPartID)
+        return expandSoundJumpsIfPossible(score: afterRepeat, primaryPartID: primaryPartID)
+    }
+
     func expandRepeatAndEndingIfPossible(score: MusicXMLScore, primaryPartID: String = "P1") -> MusicXMLScore {
         let primaryMeasures = score.measures
             .filter { $0.partID == primaryPartID }
@@ -71,7 +76,8 @@ struct MusicXMLStructureExpander {
             original: score,
             primaryPartID: primaryPartID,
             primaryMeasures: primaryMeasures,
-            sequence: sequence
+            sequence: sequence,
+            includeSoundDirectives: true
         )
     }
 
@@ -123,14 +129,17 @@ struct MusicXMLStructureExpander {
         original: MusicXMLScore,
         primaryPartID: String,
         primaryMeasures: [MusicXMLMeasureSpan],
-        sequence: [Int]
+        sequence: [Int],
+        includeSoundDirectives: Bool
     ) -> MusicXMLScore {
         var outputNotes: [MusicXMLNoteEvent] = []
         var outputTempoEvents: [MusicXMLTempoEvent] = []
+        var outputSoundDirectives: [MusicXMLSoundDirective] = []
         var outputMeasures: [MusicXMLMeasureSpan] = []
 
         outputNotes.reserveCapacity(original.notes.count)
         outputTempoEvents.reserveCapacity(original.tempoEvents.count)
+        outputSoundDirectives.reserveCapacity(original.soundDirectives.count)
         outputMeasures.reserveCapacity(sequence.count)
 
         var outputTick = 0
@@ -172,6 +181,25 @@ struct MusicXMLStructureExpander {
                 outputTempoEvents.append(MusicXMLTempoEvent(tick: shiftedTick, quarterBPM: event.quarterBPM))
             }
 
+            if includeSoundDirectives {
+                let soundsInMeasure = original.soundDirectives.filter { event in
+                    event.tick >= span.startTick && event.tick < span.endTick
+                }
+                for event in soundsInMeasure {
+                    let shiftedTick = currentMeasureStartTick + (event.tick - span.startTick)
+                    outputSoundDirectives.append(
+                        MusicXMLSoundDirective(
+                            tick: shiftedTick,
+                            segno: event.segno,
+                            coda: event.coda,
+                            tocoda: event.tocoda,
+                            dalsegno: event.dalsegno,
+                            dacapo: event.dacapo
+                        )
+                    )
+                }
+            }
+
             outputMeasures.append(
                 MusicXMLMeasureSpan(
                     partID: primaryPartID,
@@ -190,10 +218,12 @@ struct MusicXMLStructureExpander {
             return (lhs.midiNote ?? -1) < (rhs.midiNote ?? -1)
         }
         outputTempoEvents.sort { $0.tick < $1.tick }
+        outputSoundDirectives.sort { $0.tick < $1.tick }
 
         return MusicXMLScore(
             notes: outputNotes,
             tempoEvents: outputTempoEvents,
+            soundDirectives: outputSoundDirectives,
             measures: outputMeasures,
             repeatDirectives: [],
             endingDirectives: []
@@ -201,3 +231,139 @@ struct MusicXMLStructureExpander {
     }
 }
 
+extension MusicXMLStructureExpander {
+    private struct JumpInstruction: Sendable {
+        enum Kind: Sendable {
+            case dacapo
+            case dalsegno(value: String)
+            case tocoda(value: String)
+        }
+
+        let tick: Int
+        let atMeasureIndex: Int
+        let kind: Kind
+    }
+
+    func expandSoundJumpsIfPossible(
+        score: MusicXMLScore,
+        primaryPartID: String = "P1",
+        maxOutputMeasures: Int = 10_000,
+        maxJumps: Int = 64
+    ) -> MusicXMLScore {
+        guard score.soundDirectives.isEmpty == false else { return score }
+
+        let primaryMeasures = score.measures
+            .filter { $0.partID == primaryPartID }
+            .sorted { $0.startTick < $1.startTick }
+
+        guard primaryMeasures.isEmpty == false else { return score }
+
+        func measureIndex(containingTick tick: Int) -> Int? {
+            for (index, span) in primaryMeasures.enumerated() {
+                if tick >= span.startTick && tick < span.endTick {
+                    return index
+                }
+            }
+            return nil
+        }
+
+        var segnoIndexByValue: [String: Int] = [:]
+        var codaIndexByValue: [String: Int] = [:]
+        var instructions: [JumpInstruction] = []
+
+        for directive in score.soundDirectives {
+            if let value = directive.segno, let index = measureIndex(containingTick: directive.tick) {
+                if segnoIndexByValue[value] == nil {
+                    segnoIndexByValue[value] = index
+                }
+            }
+
+            if let value = directive.coda, let index = measureIndex(containingTick: directive.tick) {
+                if codaIndexByValue[value] == nil {
+                    codaIndexByValue[value] = index
+                }
+            }
+
+            if let value = directive.tocoda, let index = measureIndex(containingTick: directive.tick) {
+                instructions.append(JumpInstruction(tick: directive.tick, atMeasureIndex: index, kind: .tocoda(value: value)))
+            }
+
+            if let value = directive.dalsegno, let index = measureIndex(containingTick: directive.tick) {
+                instructions.append(JumpInstruction(tick: directive.tick, atMeasureIndex: index, kind: .dalsegno(value: value)))
+            }
+
+            if directive.dacapo != nil, let index = measureIndex(containingTick: directive.tick) {
+                instructions.append(JumpInstruction(tick: directive.tick, atMeasureIndex: index, kind: .dacapo))
+            }
+        }
+
+        guard instructions.isEmpty == false else { return score }
+
+        let instructionsByMeasure = Dictionary(grouping: instructions) { $0.atMeasureIndex }
+
+        var outputSequence: [Int] = []
+        outputSequence.reserveCapacity(min(primaryMeasures.count * 2, maxOutputMeasures))
+
+        var currentIndex = 0
+        var jumpCount = 0
+        var executedInstructionIDs: Set<String> = []
+        var didHitLimit = false
+
+        while currentIndex < primaryMeasures.count {
+            if outputSequence.count >= maxOutputMeasures || jumpCount >= maxJumps {
+                didHitLimit = true
+                break
+            }
+
+            outputSequence.append(currentIndex)
+
+            guard let candidateInstructions = instructionsByMeasure[currentIndex] else {
+                currentIndex += 1
+                continue
+            }
+
+            let sortedCandidates = candidateInstructions.sorted { $0.tick < $1.tick }
+            var didJump = false
+
+            for instruction in sortedCandidates {
+                let instructionID = "\(instruction.tick)-\(instruction.atMeasureIndex)"
+                guard executedInstructionIDs.contains(instructionID) == false else { continue }
+
+                let destinationIndex: Int? = switch instruction.kind {
+                    case .dacapo:
+                        0
+                    case let .dalsegno(value):
+                        segnoIndexByValue[value]
+                    case let .tocoda(value):
+                        codaIndexByValue[value]
+                }
+
+                guard let destinationIndex else { continue }
+                executedInstructionIDs.insert(instructionID)
+                jumpCount += 1
+                currentIndex = destinationIndex
+                didJump = true
+                break
+            }
+
+            if didJump == false {
+                currentIndex += 1
+            }
+        }
+
+        if didHitLimit {
+            #if DEBUG
+            print("MusicXMLStructureExpander: jump expansion hit limit (measures=\(outputSequence.count), jumps=\(jumpCount)); falling back to linear score")
+            #endif
+            return score
+        }
+
+        return materializeExpandedScore(
+            original: score,
+            primaryPartID: primaryPartID,
+            primaryMeasures: primaryMeasures,
+            sequence: outputSequence,
+            includeSoundDirectives: false
+        )
+    }
+}

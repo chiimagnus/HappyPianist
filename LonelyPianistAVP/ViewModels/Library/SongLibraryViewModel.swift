@@ -113,7 +113,7 @@ final class SongLibraryViewModel {
             let score = try parser.parse(fileURL: scoreURL)
             let shouldExpandStructure = UserDefaults.standard.bool(forKey: "practiceMusicXMLStructureEnabled")
             let effectiveScore = shouldExpandStructure
-                ? structureExpander.expandRepeatAndEndingIfPossible(score: score)
+                ? structureExpander.expandStructureIfPossible(score: score)
                 : score
 
             let buildResult = stepBuilder.buildSteps(from: effectiveScore)

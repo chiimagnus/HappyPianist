@@ -3,6 +3,7 @@ import Foundation
 struct MusicXMLScore: Equatable {
     var notes: [MusicXMLNoteEvent]
     var tempoEvents: [MusicXMLTempoEvent] = []
+    var soundDirectives: [MusicXMLSoundDirective] = []
     var measures: [MusicXMLMeasureSpan] = []
     var repeatDirectives: [MusicXMLRepeatDirective] = []
     var endingDirectives: [MusicXMLEndingDirective] = []
@@ -13,6 +14,17 @@ struct MusicXMLTempoEvent: Equatable, Identifiable {
 
     let tick: Int
     let quarterBPM: Double
+}
+
+struct MusicXMLSoundDirective: Equatable, Identifiable {
+    var id: String { "\(tick)-\(segno ?? "")-\(coda ?? "")-\(tocoda ?? "")-\(dalsegno ?? "")-\(dacapo ?? "")" }
+
+    let tick: Int
+    let segno: String?
+    let coda: String?
+    let tocoda: String?
+    let dalsegno: String?
+    let dacapo: String?
 }
 
 struct MusicXMLMeasureSpan: Equatable, Identifiable {
