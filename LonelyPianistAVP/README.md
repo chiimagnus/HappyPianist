@@ -36,3 +36,20 @@ visionOS 里我们把体验拆成两部分：
 
 - 推荐输入：`MusicXML`
 - 如果你只有 PDF/图片谱：请先在其他工具里转换并下载 MusicXML，再回到这里导入。
+
+## 🎹 Step 3 琴声（SoundFont）
+
+Step 3 的 2D 键盘高亮会自动播放“当前按键”的琴声，并提供 `播放琴声` 按钮用于重放。
+
+当前默认尝试加载 `SalC5Light2.sf2`（如果本机没有该文件，会自动 fallback 到正弦波占位音色）。
+
+### 本机资源放置（不进 Git）
+
+出于体积考虑，SoundFont 文件默认不提交到仓库（已在 `.gitignore` 忽略）：
+
+- 放置路径：`LonelyPianistAVP/Resources/Audio/SoundFonts/SalC5Light2.sf2`
+
+下载来源（任选其一）：
+
+- `https://drive.google.com/file/d/0B5gPxvwx-I4KWjZ2SHZOLU42dHM/view?resourcekey=0-MM0kBCZkU-ZEnL9lDeJIVA`
+- `https://freepats.zenvoid.org/Piano/SalamanderGrandPiano/SalamanderGrandPiano-SF2-V3+20200602.tar.xz`

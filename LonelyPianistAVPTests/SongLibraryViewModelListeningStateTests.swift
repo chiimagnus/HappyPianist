@@ -18,4 +18,3 @@ func listenButtonStateReflectsObservablePlaybackState() {
     viewModel.isCurrentListeningPlaying = false
     #expect(viewModel.isListeningPlaying(entryID: entryID) == false)
 }
-

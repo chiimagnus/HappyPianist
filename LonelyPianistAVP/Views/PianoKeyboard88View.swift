@@ -82,14 +82,18 @@ private struct WhiteKey: Identifiable {
     let midiNote: Int
     let whiteIndex: Int
 
-    var id: Int { midiNote }
+    var id: Int {
+        midiNote
+    }
 }
 
 private struct BlackKey: Identifiable {
     let midiNote: Int
     let leftWhiteIndex: Int
 
-    var id: Int { midiNote }
+    var id: Int {
+        midiNote
+    }
 }
 
 #Preview {

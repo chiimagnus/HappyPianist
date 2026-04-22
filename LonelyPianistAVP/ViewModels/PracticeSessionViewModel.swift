@@ -29,23 +29,27 @@ final class PracticeSessionViewModel {
     private let pressDetectionService: PressDetectionServiceProtocol
     private let chordAttemptAccumulator: ChordAttemptAccumulatorProtocol
     private let sleeper: SleeperProtocol
+    private let noteAudioPlayer: PracticeNoteAudioPlayerProtocol?
     private var feedbackResetTask: Task<Void, Never>?
 
     init(
         pressDetectionService: PressDetectionServiceProtocol,
         chordAttemptAccumulator: ChordAttemptAccumulatorProtocol,
-        sleeper: SleeperProtocol
+        sleeper: SleeperProtocol,
+        noteAudioPlayer: PracticeNoteAudioPlayerProtocol?
     ) {
         self.pressDetectionService = pressDetectionService
         self.chordAttemptAccumulator = chordAttemptAccumulator
         self.sleeper = sleeper
+        self.noteAudioPlayer = noteAudioPlayer
     }
 
     convenience init() {
         self.init(
             pressDetectionService: PressDetectionService(),
             chordAttemptAccumulator: ChordAttemptAccumulator(),
-            sleeper: TaskSleeper()
+            sleeper: TaskSleeper(),
+            noteAudioPlayer: SoundFontPracticeNoteAudioPlayer(soundFontResourceName: "SalC5Light2")
         )
     }
 
@@ -65,6 +69,45 @@ final class PracticeSessionViewModel {
         return steps[currentStepIndex]
     }
 
+    func setSteps(_ steps: [PracticeStep]) {
+        if state == .completed, self.steps == steps, steps.isEmpty == false {
+            return
+        }
+
+        let shouldResetProgress = self.steps != steps
+
+        feedbackResetTask?.cancel()
+        feedbackResetTask = nil
+        chordAttemptAccumulator.reset()
+        self.steps = steps
+
+        if shouldResetProgress {
+            currentStepIndex = 0
+            pressedNotes.removeAll()
+            feedbackState = .none
+        }
+
+        if steps.isEmpty {
+            state = .idle
+        } else if state != .completed {
+            state = .ready
+        }
+    }
+
+    func applyCalibration(_ calibration: PianoCalibration, keyRegions: [PianoKeyRegion]) {
+        self.calibration = calibration
+        self.keyRegions = keyRegions
+        if steps.isEmpty == false, state != .completed, state != .guiding(stepIndex: currentStepIndex) {
+            state = .ready
+        }
+    }
+
+    func clearCalibration() {
+        calibration = nil
+        keyRegions = []
+        pressedNotes.removeAll()
+    }
+
     func resetSession() {
         feedbackResetTask?.cancel()
         feedbackResetTask = nil
@@ -78,25 +121,24 @@ final class PracticeSessionViewModel {
         state = .idle
     }
 
-    func configure(steps: [PracticeStep], calibration: PianoCalibration, keyRegions: [PianoKeyRegion]) {
-        self.steps = steps
-        self.calibration = calibration
-        self.keyRegions = keyRegions
-        currentStepIndex = 0
-        state = (steps.isEmpty || keyRegions.isEmpty) ? .idle : .ready
-    }
-
     func startGuidingIfReady() {
         guard state == .ready, steps.isEmpty == false else { return }
         currentStepIndex = 0
         state = .guiding(stepIndex: currentStepIndex)
+        playCurrentStepSound()
     }
 
     func skip() {
         advanceToNextStep()
     }
 
+    func playCurrentStepSound() {
+        guard let currentStep else { return }
+        noteAudioPlayer?.play(midiNotes: currentStep.notes.map(\.midiNote))
+    }
+
     func handleFingerTipPositions(_ fingerTips: [String: SIMD3<Float>], at timestamp: Date = .now) -> Set<Int> {
+        guard keyRegions.isEmpty == false else { return [] }
         let detected = pressDetectionService.detectPressedNotes(
             fingerTips: fingerTips,
             keyRegions: keyRegions,
@@ -137,6 +179,7 @@ final class PracticeSessionViewModel {
         if currentStepIndex + 1 < steps.count {
             currentStepIndex += 1
             state = .guiding(stepIndex: currentStepIndex)
+            playCurrentStepSound()
         } else {
             currentStepIndex = steps.count
             pressedNotes.removeAll()

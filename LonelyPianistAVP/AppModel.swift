@@ -99,6 +99,7 @@ class AppModel {
         importedSteps = steps
         importedFile = file
         importErrorMessage = nil
+        practiceSessionViewModel.setSteps(steps)
         applySessionIfPossible()
     }
 
@@ -168,7 +169,7 @@ class AppModel {
 
     func clearRuntimeCalibrationForPracticeRelocation() {
         calibration = nil
-        practiceSessionViewModel.resetSession()
+        practiceSessionViewModel.clearCalibration()
     }
 
     func resolveRuntimeCalibrationFromTrackedAnchors() -> PracticeCalibrationResolutionResult {
@@ -254,9 +255,9 @@ class AppModel {
     }
 
     private func applySessionIfPossible() {
-        guard let calibration, importedSteps.isEmpty == false else { return }
+        guard let calibration else { return }
         let keyRegions = keyGeometryService.generateKeyRegions(from: calibration)
-        practiceSessionViewModel.configure(steps: importedSteps, calibration: calibration, keyRegions: keyRegions)
+        practiceSessionViewModel.applyCalibration(calibration, keyRegions: keyRegions)
     }
 
     private func worldAnchorPoint(from anchor: WorldAnchor) -> SIMD3<Float> {

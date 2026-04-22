@@ -30,7 +30,10 @@ final class SongLibrarySeeder: SongLibrarySeederProtocol {
         self.paths = resolvedPaths
         self.indexStore = indexStore ?? SongLibraryIndexStore(fileManager: fileManager, paths: resolvedPaths)
         self.fileStore = fileStore ?? SongFileStore(fileManager: fileManager, paths: resolvedPaths)
-        self.audioImportService = audioImportService ?? AudioImportService(fileManager: fileManager, paths: resolvedPaths)
+        self.audioImportService = audioImportService ?? AudioImportService(
+            fileManager: fileManager,
+            paths: resolvedPaths
+        )
         self.bundle = bundle
     }
 
