@@ -138,6 +138,7 @@ private struct Step3WindowGeometryHint: UIViewControllerRepresentable {
 
 private final class WindowGeometryHintViewController: UIViewController {
     private var hasRequestedGeometryUpdate = false
+    private var hasRequestedRestoreGeometryUpdate = false
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -148,6 +149,11 @@ private final class WindowGeometryHintViewController: UIViewController {
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
         requestGeometryUpdateIfNeeded()
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        requestRestoreGeometryUpdateIfNeeded()
     }
 
     private func requestGeometryUpdateIfNeeded() {
@@ -165,6 +171,24 @@ private final class WindowGeometryHintViewController: UIViewController {
 
         windowScene.requestGeometryUpdate(preferences) { error in
             print("Step 3 requestGeometryUpdate failed: \(error.localizedDescription)")
+        }
+    }
+
+    private func requestRestoreGeometryUpdateIfNeeded() {
+        guard hasRequestedRestoreGeometryUpdate == false else { return }
+        guard let windowScene = view.window?.windowScene else { return }
+
+        hasRequestedRestoreGeometryUpdate = true
+
+        let preferences = UIWindowScene.GeometryPreferences.Vision(
+            size: CGSize(width: 700, height: 700),
+            minimumSize: CGSize(width: 560, height: 560),
+            maximumSize: nil,
+            resizingRestrictions: nil
+        )
+
+        windowScene.requestGeometryUpdate(preferences) { error in
+            print("Step 3 restore requestGeometryUpdate failed: \(error.localizedDescription)")
         }
     }
 }
