@@ -20,4 +20,11 @@ func songLibrarySeedResourceExistsAndCanBuildPracticeSteps() throws {
     let buildResult = PracticeStepBuilder().buildSteps(from: score)
 
     #expect(buildResult.steps.isEmpty == false)
+
+    let audioURL = bundle.url(
+        forResource: SongLibrarySeeder.seedAudioFileName,
+        withExtension: nil,
+        subdirectory: SongLibrarySeeder.seedSubdirectory
+    ) ?? bundle.url(forResource: SongLibrarySeeder.seedAudioFileName, withExtension: nil)
+    #expect(audioURL != nil)
 }

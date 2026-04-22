@@ -1,44 +1,50 @@
 # 术语表
 
 ## 说明
-- 本页统一仓库中的业务与工程术语，避免跨页面出现“同义不同名”。
-- 术语优先采用代码中的真实命名，再补充中文语义。
+- 本页统一仓库中的业务与工程术语，优先使用代码真实命名。
+- 当术语在不同页面出现时，应保持同一含义，避免“同词多义”。
 
 ## 业务术语
 | 术语 | 定义 | 常见位置 | 为什么重要 |
 | --- | --- | --- | --- |
-| Piano Dialogue | 轮转式钢琴对话：人弹一段，AI 回一段 | `LonelyPianist/README.md`、`server/main.py` | 是跨 macOS + Python 的核心产品能力 |
-| AR Guide | visionOS 中按步骤高亮键位的练习模式 | `LonelyPianistAVP/README.md`、`ImmersiveView.swift` | 是 AVP 产品线主体验 |
-| Take | 一次录音或会话产物（含音符数组） | `RecordingTake.swift`、Recorder UI | 持久化与回放的基本单位 |
+| Piano Dialogue | 你弹一句、AI 回一句的轮转式流程 | macOS Dialogue + Python WS | 跨进程核心体验 |
+| AR Guide Step 1/2/3 | 校准、选曲、练习三步流 | AVP `ContentView` | AVP 主业务入口 |
+| Take | 一次录音/会话产物（含音符数组） | Recorder / Dialogue | 回放与持久化单位 |
 
-## 架构 / 工程术语
+## 架构术语
 | 术语 | 定义 | 常见位置 | 为什么重要 |
 | --- | --- | --- | --- |
-| `MIDIEvent` | 统一 MIDI 输入事件模型 | `Models/MIDI/MIDIEvent.swift` | 映射、录音、对话共享输入 |
-| `MappingConfigPayload` | 映射规则载体（single/chord/velocity） | `Models/Mapping/MappingConfig.swift` | 决定按键输出行为 |
-| `DialogueNote` | 客户端与服务端共用音符契约 | Swift `Models/Dialogue` + Python `protocol.py` | 跨进程协议一致性关键 |
-| `PracticeStep` | AVP 引导步骤（同一 tick 的音符集合） | `Models/Practice/PracticeStep.swift` | 决定引导推进粒度 |
+| `MIDIEvent` | 统一 MIDI 输入事件模型 | `LonelyPianist/Models/MIDI` | 映射/录制/对话共同输入 |
+| `DialogueNote` | Swift 与 Python 共享的音符契约 | `Models/Dialogue` + `server/protocol.py` | 跨进程一致性关键 |
+| `PracticeStep` | AVP 练习步进数据单元 | `Models/Practice` | 引导推进粒度 |
+| `DataProviderState` | AR provider 运行状态枚举 | `ARTrackingService` | 定位失败诊断核心 |
 
-## 运行 / 发布术语
+## 存储术语
 | 术语 | 定义 | 常见位置 | 为什么重要 |
 | --- | --- | --- | --- |
-| `DIALOGUE_DEBUG` | 服务端调试落盘开关（`1` 为开启） | `server/debug_artifacts.py` | 排查推理链路问题首选 |
-| `AMT_MODEL_DIR` | 模型目录环境变量 | `server/inference.py`、README | 控制模型来源与离线能力 |
-| `ImmersiveSpace` | visionOS 沉浸式空间场景 | `LonelyPianistAVPApp.swift` | AR Guide 的运行容器 |
+| `StoredWorldAnchorCalibration` | A0/C8 世界锚点校准模型 | AVP `Models/Calibration` | Step 3 定位输入 |
+| `SongLibraryIndex` | 曲库索引模型（entries + lastSelectedEntryID） | AVP `Models/Library` | 曲库一致性中心 |
+| `SongLibraryEntry` | 单曲目条目（曲谱+可选音频） | AVP `Models/Library` | 选曲页面核心数据 |
+| `dialogue_debug bundle` | 服务端调试落盘工件集合 | `server/debug_artifacts.py` | 线上下问题复盘抓手 |
 
 ## 易混淆概念
-- **Recorder take vs Dialogue session take**：两者结构同为 `RecordingTake`，但后者会混合 human + AI note。
-- **Chord 匹配（macOS）vs Step 匹配（AVP）**：前者是“按下集合严格相等触发动作”，后者支持容差并可在时间窗口累积。
+- **stored calibration** 与 **runtime calibration**：
+  - 前者是持久化 anchor 标识；
+  - 后者是当前场景内通过 tracked anchors 解析出的几何结果。
+- **曲库导入成功** 与 **可开始练习**：
+  - 导入成功仅代表文件和索引写入成功；
+  - 进入练习还要求可解析为有效 steps 且定位成功。
 
 ## Coverage Gaps
-- 尚未见仓库内对“发布/版本术语”形成统一约定文档（当前以 README 与代码注释为主）。
+- 发布/版本语义目前仍分散在 README 与提交流程中，尚无独立版本治理页面。
 
 ## 来源引用（Source References）
-- `LonelyPianist/README.md`
-- `LonelyPianistAVP/README.md`
-- `piano_dialogue_server/README.md`
-- `LonelyPianist/Models/Recording/RecordingTake.swift`
+- `LonelyPianist/Models/MIDI/MIDIEvent.swift`
 - `LonelyPianist/Models/Dialogue/DialogueNote.swift`
 - `piano_dialogue_server/server/protocol.py`
+- `LonelyPianistAVP/Views/ContentView.swift`
+- `LonelyPianistAVP/Models/Practice/PracticeStep.swift`
+- `LonelyPianistAVP/Models/Calibration/StoredWorldAnchorCalibration.swift`
+- `LonelyPianistAVP/Models/Library/SongLibraryIndex.swift`
+- `LonelyPianistAVP/Models/Library/SongLibraryEntry.swift`
 - `piano_dialogue_server/server/debug_artifacts.py`
-- `LonelyPianistAVP/LonelyPianistAVPApp.swift`

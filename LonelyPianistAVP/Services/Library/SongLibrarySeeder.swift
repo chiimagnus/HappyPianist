@@ -6,6 +6,7 @@ protocol SongLibrarySeederProtocol {
 
 final class SongLibrarySeeder: SongLibrarySeederProtocol {
     static let seedFileName = "Opus – Ryuichi Sakamoto (Piano Transcription).musicxml"
+    static let seedAudioFileName = "Opus – Ryuichi Sakamoto (Piano Transcription).mp3"
     static let seedSubdirectory = "Resources/SeedScores"
     private static let legacyImportedScoresDirectoryName = "ImportedScores"
 
@@ -13,6 +14,7 @@ final class SongLibrarySeeder: SongLibrarySeederProtocol {
     private let paths: SongLibraryPaths
     private let indexStore: SongLibraryIndexStoreProtocol
     private let fileStore: SongFileStoreProtocol
+    private let audioImportService: AudioImportServiceProtocol
     private let bundle: Bundle
 
     init(
@@ -20,6 +22,7 @@ final class SongLibrarySeeder: SongLibrarySeederProtocol {
         paths: SongLibraryPaths? = nil,
         indexStore: SongLibraryIndexStoreProtocol? = nil,
         fileStore: SongFileStoreProtocol? = nil,
+        audioImportService: AudioImportServiceProtocol? = nil,
         bundle: Bundle = Bundle(for: SongLibrarySeeder.self)
     ) {
         let resolvedPaths = paths ?? SongLibraryPaths(fileManager: fileManager)
@@ -27,6 +30,7 @@ final class SongLibrarySeeder: SongLibrarySeederProtocol {
         self.paths = resolvedPaths
         self.indexStore = indexStore ?? SongLibraryIndexStore(fileManager: fileManager, paths: resolvedPaths)
         self.fileStore = fileStore ?? SongFileStore(fileManager: fileManager, paths: resolvedPaths)
+        self.audioImportService = audioImportService ?? AudioImportService(fileManager: fileManager, paths: resolvedPaths)
         self.bundle = bundle
     }
 
@@ -40,7 +44,16 @@ final class SongLibrarySeeder: SongLibrarySeederProtocol {
                 index.entries.append(seedEntry)
                 try indexStore.save(index)
             }
+            return
         }
+
+        let seedDisplayName = URL(fileURLWithPath: Self.seedFileName).deletingPathExtension().lastPathComponent
+        guard let entryIndex = index.entries.firstIndex(where: { $0.displayName == seedDisplayName }) else { return }
+        guard index.entries[entryIndex].audioFileName == nil else { return }
+        guard let importedAudioFileName = try importSeedAudioIfAvailable() else { return }
+
+        index.entries[entryIndex].audioFileName = importedAudioFileName
+        try indexStore.save(index)
     }
 
     private func seedEntryFromBundle() throws -> SongLibraryEntry? {
@@ -53,7 +66,21 @@ final class SongLibrarySeeder: SongLibrarySeederProtocol {
         }
 
         let imported = try fileStore.importMusicXML(from: seedURL)
-        return entry(from: imported)
+        var entry = entry(from: imported)
+        entry.audioFileName = try importSeedAudioIfAvailable()
+        return entry
+    }
+
+    private func importSeedAudioIfAvailable() throws -> String? {
+        guard let seedURL = bundle.url(
+            forResource: Self.seedAudioFileName,
+            withExtension: nil,
+            subdirectory: Self.seedSubdirectory
+        ) ?? bundle.url(forResource: Self.seedAudioFileName, withExtension: nil) else {
+            return nil
+        }
+
+        return try audioImportService.importAudio(from: seedURL)
     }
 
     private func deleteLegacyImportedScoresDirectoryIfExists() throws {

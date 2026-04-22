@@ -46,10 +46,6 @@ struct MainWindowView: View {
                 case .dialogue:
                     DialogueControlView(viewModel: viewModel)
                         .navigationTitle("Dialogue")
-
-                case .sheet:
-                    SheetMusicPanelView()
-                        .navigationTitle("Sheet")
             }
         }
     }

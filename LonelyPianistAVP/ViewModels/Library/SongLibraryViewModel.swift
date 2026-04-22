@@ -223,7 +223,7 @@ final class SongLibraryViewModel {
     }
 
     func isListeningPlaying(entryID: UUID) -> Bool {
-        audioPlaybackController.isPlaying(entryID: entryID)
+        currentListeningEntryID == entryID && isCurrentListeningPlaying
     }
 
     private func syncListeningState() {
