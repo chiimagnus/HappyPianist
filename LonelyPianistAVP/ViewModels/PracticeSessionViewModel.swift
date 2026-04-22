@@ -49,7 +49,7 @@ final class PracticeSessionViewModel {
             pressDetectionService: PressDetectionService(),
             chordAttemptAccumulator: ChordAttemptAccumulator(),
             sleeper: TaskSleeper(),
-            noteAudioPlayer: SinePracticeNoteAudioPlayer()
+            noteAudioPlayer: SoundFontPracticeNoteAudioPlayer(soundFontResourceName: "SalC5Light2")
         )
     }
 
