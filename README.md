@@ -137,8 +137,6 @@ LonelyPianist/
 - [stanford-crfm/music-large-800k](https://huggingface.co/stanford-crfm/music-large-800k) · Dialogue 推理所用预训练权重
 - Apple CoreMIDI / RealityKit / ARKit · 让这一切在本机跑得起来
 
-Third-party licenses/notices: see [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
-
 ---
 
 ## 📄 License

@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		6D2C7571C82641C6953C9402 /* VerovioToolkit in Frameworks */ = {isa = PBXBuildFile; productRef = 01160424ADBC4765B8EAE97D /* VerovioToolkit */; };
 		D85596AE2F83FF72005BE7FE /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = D85596AD2F83FF72005BE7FE /* RealityKitContent */; };
 /* End PBXBuildFile section */
 
@@ -88,7 +87,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				D85596AE2F83FF72005BE7FE /* RealityKitContent in Frameworks */,
-				6D2C7571C82641C6953C9402 /* VerovioToolkit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -160,7 +158,6 @@
 			name = LonelyPianistAVP;
 			packageProductDependencies = (
 				D85596AD2F83FF72005BE7FE /* RealityKitContent */,
-				01160424ADBC4765B8EAE97D /* VerovioToolkit */,
 			);
 			productName = LonelyPianistAVP;
 			productReference = D8EA41B62F978A340059B709 /* LonelyPianistAVP.app */;
@@ -270,7 +267,6 @@
 			mainGroup = D8D428042F4DFD3800EC9C9B;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				CCF4B2D873FD430D823C24DC /* XCLocalSwiftPackageReference "../verovio" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = D8D428042F4DFD3800EC9C9B;
@@ -780,19 +776,7 @@
 		};
 /* End XCConfigurationList section */
 
-/* Begin XCLocalSwiftPackageReference section */
-		CCF4B2D873FD430D823C24DC /* XCLocalSwiftPackageReference "../verovio" */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = ../verovio;
-		};
-/* End XCLocalSwiftPackageReference section */
-
 /* Begin XCSwiftPackageProductDependency section */
-		01160424ADBC4765B8EAE97D /* VerovioToolkit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = CCF4B2D873FD430D823C24DC /* XCLocalSwiftPackageReference "../verovio" */;
-			productName = VerovioToolkit;
-		};
 		D85596AD2F83FF72005BE7FE /* RealityKitContent */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = RealityKitContent;
