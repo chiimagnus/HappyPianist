@@ -1,6 +1,49 @@
 import Foundation
 
 extension MusicXMLParserDelegate {
+    func recordDamperPedalEventFromSound(attributes: [String: String]) {
+        guard let rawValue = attributes["damper-pedal"]?.trimmingCharacters(in: .whitespacesAndNewlines),
+              rawValue.isEmpty == false
+        else {
+            return
+        }
+
+        let lowered = rawValue.lowercased()
+        let isDown: Bool?
+        switch lowered {
+            case "yes":
+                isDown = true
+            case "no":
+                isDown = false
+            default:
+                if let value = Int(lowered) {
+                    isDown = value > 0
+                } else {
+                    isDown = nil
+                }
+        }
+
+        guard let isDown else {
+            return
+        }
+
+        let tick: Int = if state.isInDirection {
+            currentDirectionEventTick()
+        } else {
+            state.partTick[state.currentPartID] ?? state.currentMeasureStartTick
+        }
+
+        state.pedalEvents.append(
+            MusicXMLPedalEvent(
+                partID: state.currentPartID,
+                measureNumber: state.currentMeasureNumber,
+                tick: tick,
+                kind: isDown ? .start : .stop,
+                isDown: isDown
+            )
+        )
+    }
+
     func recordPedalEvent(attributes: [String: String]) {
         guard state.isInDirection else { return }
 

@@ -380,6 +380,74 @@ func parserParsesPedalStartAndStopEvents() throws {
 }
 
 @Test
+func parserParsesSoundDamperPedalEventsInsideDirection() throws {
+    let xml = """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <score-partwise version="3.1">
+      <part-list>
+        <score-part id="P1"><part-name>Piano</part-name></score-part>
+      </part-list>
+      <part id="P1">
+        <measure number="1">
+          <attributes><divisions>1</divisions></attributes>
+          <direction>
+            <sound damper-pedal="yes"/>
+          </direction>
+          <note>
+            <pitch><step>C</step><octave>4</octave></pitch>
+            <duration>1</duration>
+          </note>
+          <direction>
+            <sound damper-pedal="no"/>
+          </direction>
+        </measure>
+      </part>
+    </score-partwise>
+    """
+
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    #expect(score.pedalEvents.count == 2)
+    #expect(score.pedalEvents[0].tick == 0)
+    #expect(score.pedalEvents[0].kind == .start)
+    #expect(score.pedalEvents[0].isDown == true)
+    #expect(score.pedalEvents[1].tick == 480)
+    #expect(score.pedalEvents[1].kind == .stop)
+    #expect(score.pedalEvents[1].isDown == false)
+}
+
+@Test
+func parserParsesSoundDamperPedalEventsAtMeasureLevel() throws {
+    let xml = """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <score-partwise version="3.1">
+      <part-list>
+        <score-part id="P1"><part-name>Piano</part-name></score-part>
+      </part-list>
+      <part id="P1">
+        <measure number="1">
+          <attributes><divisions>1</divisions></attributes>
+          <sound damper-pedal="100"/>
+          <note>
+            <pitch><step>C</step><octave>4</octave></pitch>
+            <duration>1</duration>
+          </note>
+          <sound damper-pedal="0"/>
+        </measure>
+      </part>
+    </score-partwise>
+    """
+
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    #expect(score.pedalEvents.count == 2)
+    #expect(score.pedalEvents[0].tick == 0)
+    #expect(score.pedalEvents[0].kind == .start)
+    #expect(score.pedalEvents[0].isDown == true)
+    #expect(score.pedalEvents[1].tick == 480)
+    #expect(score.pedalEvents[1].kind == .stop)
+    #expect(score.pedalEvents[1].isDown == false)
+}
+
+@Test
 func parserExpandsPedalChangeIntoUpThenDownAtSameTick() throws {
     let xml = """
     <?xml version="1.0" encoding="UTF-8"?>
