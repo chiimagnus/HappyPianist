@@ -119,7 +119,8 @@ final class SongLibraryViewModel {
             let buildResult = stepBuilder.buildSteps(from: effectiveScore)
             let tempoMap = MusicXMLTempoMap(tempoEvents: effectiveScore.tempoEvents)
             let pedalTimeline = MusicXMLPedalTimeline(events: effectiveScore.pedalEvents)
-            let shouldUsePerformanceTiming = UserDefaults.standard.bool(forKey: "practiceMusicXMLPerformanceTimingEnabled")
+            let shouldUsePerformanceTiming = UserDefaults.standard
+                .bool(forKey: "practiceMusicXMLPerformanceTimingEnabled")
             let noteSpans = MusicXMLNoteSpanBuilder().buildSpans(
                 from: effectiveScore.notes,
                 performanceTimingEnabled: shouldUsePerformanceTiming

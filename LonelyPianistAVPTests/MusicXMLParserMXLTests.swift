@@ -1,8 +1,7 @@
 import Foundation
+@testable import LonelyPianistAVP
 import Testing
 import ZIPFoundation
-
-@testable import LonelyPianistAVP
 
 struct MusicXMLParserMXLTests {
     @Test
@@ -43,8 +42,8 @@ struct MusicXMLParserMXLTests {
 
         let metaInfURL = baseURL.appending(path: "META-INF")
         try FileManager.default.createDirectory(at: metaInfURL, withIntermediateDirectories: true)
-        try containerXML.data(using: .utf8)!.write(to: metaInfURL.appending(path: "container.xml"))
-        try scoreXML.data(using: .utf8)!.write(to: baseURL.appending(path: "score.xml"))
+        try containerXML.data(using: .utf8)?.write(to: metaInfURL.appending(path: "container.xml"))
+        try scoreXML.data(using: .utf8)?.write(to: baseURL.appending(path: "score.xml"))
 
         let mxlURL = baseURL.appending(path: "fixture.mxl")
         let archive = try Archive(url: mxlURL, accessMode: .create)

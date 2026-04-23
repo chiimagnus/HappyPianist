@@ -298,7 +298,14 @@ func autoplaySchedulesPedalChangesBetweenSteps() async {
     )
     let pedalTimeline = MusicXMLPedalTimeline(
         events: [
-            MusicXMLPedalEvent(partID: "P1", measureNumber: 1, tick: 480, kind: .start, isDown: true, timeOnlyPasses: nil),
+            MusicXMLPedalEvent(
+                partID: "P1",
+                measureNumber: 1,
+                tick: 480,
+                kind: .start,
+                isDown: true,
+                timeOnlyPasses: nil
+            ),
         ]
     )
 
@@ -467,8 +474,22 @@ func autoplayDefersNoteOffWhilePedalIsDownAndReleasesOnPedalUp() async {
     )
     let pedalTimeline = MusicXMLPedalTimeline(
         events: [
-            MusicXMLPedalEvent(partID: "P1", measureNumber: 1, tick: 0, kind: .start, isDown: true, timeOnlyPasses: nil),
-            MusicXMLPedalEvent(partID: "P1", measureNumber: 1, tick: 960, kind: .stop, isDown: false, timeOnlyPasses: nil),
+            MusicXMLPedalEvent(
+                partID: "P1",
+                measureNumber: 1,
+                tick: 0,
+                kind: .start,
+                isDown: true,
+                timeOnlyPasses: nil
+            ),
+            MusicXMLPedalEvent(
+                partID: "P1",
+                measureNumber: 1,
+                tick: 960,
+                kind: .stop,
+                isDown: false,
+                timeOnlyPasses: nil
+            ),
         ]
     )
 
@@ -529,9 +550,30 @@ func autoplayReleasesPendingNotesOnPedalChangeTickEvenIfPedalStaysDown() async {
     )
     let pedalTimeline = MusicXMLPedalTimeline(
         events: [
-            MusicXMLPedalEvent(partID: "P1", measureNumber: 1, tick: 0, kind: .start, isDown: true, timeOnlyPasses: nil),
-            MusicXMLPedalEvent(partID: "P1", measureNumber: 1, tick: 480, kind: .change, isDown: false, timeOnlyPasses: nil),
-            MusicXMLPedalEvent(partID: "P1", measureNumber: 1, tick: 480, kind: .change, isDown: true, timeOnlyPasses: nil),
+            MusicXMLPedalEvent(
+                partID: "P1",
+                measureNumber: 1,
+                tick: 0,
+                kind: .start,
+                isDown: true,
+                timeOnlyPasses: nil
+            ),
+            MusicXMLPedalEvent(
+                partID: "P1",
+                measureNumber: 1,
+                tick: 480,
+                kind: .change,
+                isDown: false,
+                timeOnlyPasses: nil
+            ),
+            MusicXMLPedalEvent(
+                partID: "P1",
+                measureNumber: 1,
+                tick: 480,
+                kind: .change,
+                isDown: true,
+                timeOnlyPasses: nil
+            ),
         ]
     )
 

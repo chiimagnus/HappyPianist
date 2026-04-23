@@ -1,7 +1,6 @@
 import Foundation
-import Testing
-
 @testable import LonelyPianistAVP
+import Testing
 
 struct MusicXMLParserScoreVersionTests {
     @Test
@@ -52,4 +51,3 @@ struct MusicXMLParserScoreVersionTests {
         #expect(score.scoreVersion == "4.0")
     }
 }
-

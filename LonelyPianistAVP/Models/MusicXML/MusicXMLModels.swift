@@ -1,7 +1,7 @@
 import Foundation
 
 struct MusicXMLScore: Equatable {
-    var scoreVersion: String? = nil
+    var scoreVersion: String?
     var notes: [MusicXMLNoteEvent]
     var tempoEvents: [MusicXMLTempoEvent] = []
     var soundDirectives: [MusicXMLSoundDirective] = []
@@ -77,7 +77,14 @@ struct MusicXMLMeasureSpan: Equatable, Identifiable {
         self.endTick = endTick
     }
 
-    init(partID: String, measureNumber: Int, measureIndex: Int, measureNumberToken: String?, startTick: Int, endTick: Int) {
+    init(
+        partID: String,
+        measureNumber: Int,
+        measureIndex: Int,
+        measureNumberToken: String?,
+        startTick: Int,
+        endTick: Int
+    ) {
         self.partID = partID
         self.measureNumber = measureNumber
         self.measureIndex = measureIndex

@@ -51,7 +51,13 @@ struct MusicXMLNoteSpanBuilder {
 
                     let onTick = note.tick + (performanceTimingEnabled ? (note.attackTicks ?? 0) : 0)
                     let offTick = max(onTick, note.tick + max(0, note.durationTicks))
-                    let span = MusicXMLNoteSpan(midiNote: midiNote, staff: staff, voice: voice, onTick: onTick, offTick: offTick)
+                    let span = MusicXMLNoteSpan(
+                        midiNote: midiNote,
+                        staff: staff,
+                        voice: voice,
+                        onTick: onTick,
+                        offTick: offTick
+                    )
                     output.append(span)
                     activeSpanIndexByKey[key] = output.count - 1
                 case .middle:
@@ -72,7 +78,13 @@ struct MusicXMLNoteSpanBuilder {
                         #endif
                         let onTick = note.tick + (performanceTimingEnabled ? (note.attackTicks ?? 0) : 0)
                         let offTick = max(onTick, note.tick + max(0, note.durationTicks))
-                        let span = MusicXMLNoteSpan(midiNote: midiNote, staff: staff, voice: voice, onTick: onTick, offTick: offTick)
+                        let span = MusicXMLNoteSpan(
+                            midiNote: midiNote,
+                            staff: staff,
+                            voice: voice,
+                            onTick: onTick,
+                            offTick: offTick
+                        )
                         output.append(span)
                         activeSpanIndexByKey[key] = output.count - 1
                     }

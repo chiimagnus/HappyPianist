@@ -29,17 +29,16 @@ extension MusicXMLParserDelegate {
         }
 
         let lowered = rawValue.lowercased()
-        let isDown: Bool?
-        switch lowered {
+        let isDown: Bool? = switch lowered {
             case "yes":
-                isDown = true
+                true
             case "no":
-                isDown = false
+                false
             default:
                 if let value = Int(lowered) {
-                    isDown = value > 0
+                    value > 0
                 } else {
-                    isDown = nil
+                    nil
                 }
         }
 
@@ -162,7 +161,8 @@ extension MusicXMLParserDelegate {
             }
             if state.currentDirectionSoundOffsetTempoOverrideTicksByIndex.isEmpty == false {
                 for (i, overrideTick) in state.currentDirectionSoundOffsetTempoOverrideTicksByIndex
-                where i >= state.currentDirectionTempoStartIndex && i < tempoEvents.count {
+                    where i >= state.currentDirectionTempoStartIndex && i < tempoEvents.count
+                {
                     tempoEvents[i] = RawTempoEvent(
                         partID: tempoEvents[i].partID,
                         tick: overrideTick,
@@ -191,7 +191,8 @@ extension MusicXMLParserDelegate {
             }
             if state.currentDirectionSoundOffsetSoundOverrideTicksByIndex.isEmpty == false {
                 for (i, overrideTick) in state.currentDirectionSoundOffsetSoundOverrideTicksByIndex
-                where i >= state.currentDirectionSoundStartIndex && i < state.soundDirectives.count {
+                    where i >= state.currentDirectionSoundStartIndex && i < state.soundDirectives.count
+                {
                     state.soundDirectives[i] = MusicXMLSoundDirective(
                         partID: state.soundDirectives[i].partID,
                         measureNumber: state.soundDirectives[i].measureNumber,
@@ -221,7 +222,8 @@ extension MusicXMLParserDelegate {
             }
             if state.currentDirectionSoundOffsetPedalOverrideTicksByIndex.isEmpty == false {
                 for (i, overrideTick) in state.currentDirectionSoundOffsetPedalOverrideTicksByIndex
-                where i >= state.currentDirectionPedalStartIndex && i < state.pedalEvents.count {
+                    where i >= state.currentDirectionPedalStartIndex && i < state.pedalEvents.count
+                {
                     state.pedalEvents[i] = MusicXMLPedalEvent(
                         partID: state.pedalEvents[i].partID,
                         measureNumber: state.pedalEvents[i].measureNumber,
@@ -346,18 +348,17 @@ extension MusicXMLParserDelegate {
             return
         }
 
-        let beatUnitInQuarters: Double?
-        switch beatUnit {
+        let beatUnitInQuarters: Double? = switch beatUnit {
             case "whole":
-                beatUnitInQuarters = 4
+                4
             case "half":
-                beatUnitInQuarters = 2
+                2
             case "quarter":
-                beatUnitInQuarters = 1
+                1
             case "eighth":
-                beatUnitInQuarters = 0.5
+                0.5
             default:
-                beatUnitInQuarters = nil
+                nil
         }
 
         guard let beatUnitInQuarters else {

@@ -1,8 +1,7 @@
 import Foundation
+@testable import LonelyPianistAVP
 import Testing
 import ZIPFoundation
-
-@testable import LonelyPianistAVP
 
 struct MXLReaderTests {
     @Test
@@ -43,8 +42,8 @@ struct MXLReaderTests {
 
         let metaInfURL = baseURL.appending(path: "META-INF")
         try FileManager.default.createDirectory(at: metaInfURL, withIntermediateDirectories: true)
-        try containerXML.data(using: .utf8)!.write(to: metaInfURL.appending(path: "container.xml"))
-        try scoreXML.data(using: .utf8)!.write(to: baseURL.appending(path: "score.xml"))
+        try containerXML.data(using: .utf8)?.write(to: metaInfURL.appending(path: "container.xml"))
+        try scoreXML.data(using: .utf8)?.write(to: baseURL.appending(path: "score.xml"))
 
         let mxlURL = baseURL.appending(path: "fixture.mxl")
         let archive = try Archive(url: mxlURL, accessMode: .create)
@@ -70,7 +69,7 @@ struct MXLReaderTests {
         <?xml version="1.0" encoding="UTF-8"?>
         <score-partwise version="4.0"></score-partwise>
         """
-        try scoreXML.data(using: .utf8)!.write(to: baseURL.appending(path: "score.xml"))
+        try scoreXML.data(using: .utf8)?.write(to: baseURL.appending(path: "score.xml"))
 
         let mxlURL = baseURL.appending(path: "fixture.mxl")
         let archive = try Archive(url: mxlURL, accessMode: .create)
@@ -99,7 +98,7 @@ struct MXLReaderTests {
 
         let metaInfURL = baseURL.appending(path: "META-INF")
         try FileManager.default.createDirectory(at: metaInfURL, withIntermediateDirectories: true)
-        try containerXML.data(using: .utf8)!.write(to: metaInfURL.appending(path: "container.xml"))
+        try containerXML.data(using: .utf8)?.write(to: metaInfURL.appending(path: "container.xml"))
 
         let mxlURL = baseURL.appending(path: "fixture.mxl")
         let archive = try Archive(url: mxlURL, accessMode: .create)
@@ -130,7 +129,7 @@ struct MXLReaderTests {
 
         let metaInfURL = baseURL.appending(path: "META-INF")
         try FileManager.default.createDirectory(at: metaInfURL, withIntermediateDirectories: true)
-        try containerXML.data(using: .utf8)!.write(to: metaInfURL.appending(path: "container.xml"))
+        try containerXML.data(using: .utf8)?.write(to: metaInfURL.appending(path: "container.xml"))
 
         let mxlURL = baseURL.appending(path: "fixture.mxl")
         let archive = try Archive(url: mxlURL, accessMode: .create)

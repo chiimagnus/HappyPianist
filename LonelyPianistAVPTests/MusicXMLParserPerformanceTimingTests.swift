@@ -1,7 +1,6 @@
 import Foundation
-import Testing
-
 @testable import LonelyPianistAVP
+import Testing
 
 struct MusicXMLParserPerformanceTimingTests {
     @Test
@@ -30,4 +29,3 @@ struct MusicXMLParserPerformanceTimingTests {
         #expect(score.notes.first?.releaseTicks == 240)
     }
 }
-

@@ -60,9 +60,9 @@ private final class MXLContainerXMLParserDelegate: NSObject, XMLParserDelegate {
     private(set) var rootfileFullPath: String?
 
     func parser(
-        _ parser: XMLParser,
+        _: XMLParser,
         didStartElement elementName: String,
-        namespaceURI: String?,
+        namespaceURI _: String?,
         qualifiedName qName: String?,
         attributes attributeDict: [String: String]
     ) {

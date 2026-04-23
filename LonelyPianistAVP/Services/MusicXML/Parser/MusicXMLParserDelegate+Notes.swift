@@ -28,26 +28,25 @@ extension MusicXMLParserDelegate {
         }
 
         let type = rawType.lowercased()
-        let quarters: Double?
-        switch type {
+        let quarters: Double? = switch type {
             case "whole":
-                quarters = 4
+                4
             case "half":
-                quarters = 2
+                2
             case "quarter":
-                quarters = 1
+                1
             case "eighth":
-                quarters = 0.5
+                0.5
             case "16th":
-                quarters = 0.25
+                0.25
             case "32nd":
-                quarters = 0.125
+                0.125
             case "64th":
-                quarters = 0.0625
+                0.0625
             case "128th":
-                quarters = 0.03125
+                0.03125
             default:
-                quarters = nil
+                nil
         }
 
         guard let quarters else { return nil }

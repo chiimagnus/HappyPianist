@@ -1,7 +1,6 @@
 import Foundation
-import Testing
-
 @testable import LonelyPianistAVP
+import Testing
 
 struct MusicXMLParserTimewiseTests {
     @Test

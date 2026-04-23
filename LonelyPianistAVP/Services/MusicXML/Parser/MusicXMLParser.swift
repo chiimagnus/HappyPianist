@@ -12,11 +12,10 @@ protocol MusicXMLParserProtocol {
 
 struct MusicXMLParser: MusicXMLParserProtocol {
     func parse(fileURL: URL) throws -> MusicXMLScore {
-        let data: Data
-        if fileURL.pathExtension.lowercased() == "mxl" {
-            data = try MXLReader().readScoreXMLData(from: fileURL)
+        let data: Data = if fileURL.pathExtension.lowercased() == "mxl" {
+            try MXLReader().readScoreXMLData(from: fileURL)
         } else {
-            data = try Data(contentsOf: fileURL)
+            try Data(contentsOf: fileURL)
         }
         return try parse(data: data)
     }

@@ -1,7 +1,6 @@
 import Foundation
-import Testing
-
 @testable import LonelyPianistAVP
+import Testing
 
 struct MusicXMLParserGraceTupletTests {
     @Test
@@ -79,4 +78,3 @@ struct MusicXMLParserGraceTupletTests {
         #expect(score.notes[1].tick == 160)
     }
 }
-

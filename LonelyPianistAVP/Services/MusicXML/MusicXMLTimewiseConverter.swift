@@ -9,14 +9,14 @@ struct MusicXMLTimewiseConverter {
     func convertToPartwiseIfNeeded(data: Data) throws -> Data {
         let root = detectRootElementName(in: data)
         switch root {
-        case "score-partwise":
-            return data
-        case "score-timewise":
-            return try convertTimewiseToPartwise(data: data)
-        case nil:
-            throw MusicXMLTimewiseConverterError.invalidXML
-        default:
-            throw MusicXMLTimewiseConverterError.unsupportedRootElement
+            case "score-partwise":
+                return data
+            case "score-timewise":
+                return try convertTimewiseToPartwise(data: data)
+            case nil:
+                throw MusicXMLTimewiseConverterError.invalidXML
+            default:
+                throw MusicXMLTimewiseConverterError.unsupportedRootElement
         }
     }
 
@@ -111,9 +111,9 @@ private final class MusicXMLTimewiseParsingDelegate: NSObject, XMLParserDelegate
     }
 
     func parser(
-        _ parser: XMLParser,
+        _: XMLParser,
         didStartElement elementName: String,
-        namespaceURI: String?,
+        namespaceURI _: String?,
         qualifiedName qName: String?,
         attributes attributeDict: [String: String]
     ) {
@@ -136,7 +136,10 @@ private final class MusicXMLTimewiseParsingDelegate: NSObject, XMLParserDelegate
         if matches(elementName, qName: qName, localName: "measure") {
             isInsideMeasure = true
             currentMeasureNumberToken = attributeDict["number"] ?? "\(measures.count + 1)"
-            measures.append(TimewiseMeasure(numberToken: currentMeasureNumberToken ?? "\(measures.count)", partIDToInnerXML: [:]))
+            measures.append(TimewiseMeasure(
+                numberToken: currentMeasureNumberToken ?? "\(measures.count)",
+                partIDToInnerXML: [:]
+            ))
             return
         }
 
@@ -157,7 +160,7 @@ private final class MusicXMLTimewiseParsingDelegate: NSObject, XMLParserDelegate
         }
     }
 
-    func parser(_ parser: XMLParser, foundCharacters string: String) {
+    func parser(_: XMLParser, foundCharacters string: String) {
         if capturingPartListDepth != nil {
             partListBuilder.characters(string)
             return
@@ -168,9 +171,9 @@ private final class MusicXMLTimewiseParsingDelegate: NSObject, XMLParserDelegate
     }
 
     func parser(
-        _ parser: XMLParser,
+        _: XMLParser,
         didEndElement elementName: String,
-        namespaceURI: String?,
+        namespaceURI _: String?,
         qualifiedName qName: String?
     ) {
         if matches(elementName, qName: qName, localName: "measure") {

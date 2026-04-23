@@ -3,7 +3,7 @@ import Foundation
 struct MusicXMLParserDelegateState {
     let normalizedTicksPerQuarter = 480
 
-    var scoreVersion: String? = nil
+    var scoreVersion: String?
 
     var notes: [MusicXMLNoteEvent] = []
     var tempoEvents: [MusicXMLTempoEvent] = []
@@ -28,7 +28,7 @@ struct MusicXMLParserDelegateState {
     var currentPartID = "P1"
     var currentMeasureNumber = 1
     var currentMeasureIndex = 0
-    var currentMeasureNumberToken: String? = nil
+    var currentMeasureNumberToken: String?
 
     var partDivisions: [String: Int] = [:]
     var partTick: [String: Int] = [:]
