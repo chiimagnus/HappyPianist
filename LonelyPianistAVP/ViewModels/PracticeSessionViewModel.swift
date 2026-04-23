@@ -48,7 +48,6 @@ final class PracticeSessionViewModel {
     private var noteSpanOffTickByOnsetKey: [NoteSpanOnsetKey: Int] = [:]
     private var activeNoteOffTickByMIDI: [Int: Int] = [:]
     private var pendingReleaseOffTickByMIDI: [Int: Int] = [:]
-    private var didLogMissingTempoMap = false
 
     init(
         pressDetectionService: PressDetectionServiceProtocol,
@@ -343,6 +342,10 @@ final class PracticeSessionViewModel {
         }
     }
 
+    private func resolvedTempoMap() -> MusicXMLTempoMap {
+        tempoMap ?? MusicXMLTempoMap(tempoEvents: [])
+    }
+
     private func stopAutoplayTask() {
         autoplayTask?.cancel()
         autoplayTask = nil
@@ -468,21 +471,6 @@ final class PracticeSessionViewModel {
         let onTick: Int
         let midiNote: Int
         let staff: Int
-    }
-
-    private func resolvedTempoMap() -> MusicXMLTempoMap {
-        if let tempoMap {
-            return tempoMap
-        }
-
-        if didLogMissingTempoMap == false {
-            didLogMissingTempoMap = true
-            #if DEBUG
-                print("PracticeSessionViewModel: tempoMap missing; falling back to default bpm=120")
-            #endif
-        }
-
-        return MusicXMLTempoMap(tempoEvents: [])
     }
 
     private func recordAudioError(_ error: Error) {

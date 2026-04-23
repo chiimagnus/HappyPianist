@@ -34,11 +34,33 @@ struct MusicXMLParserTimewiseTests {
 
         let score = try MusicXMLParser().parse(data: Data(xml.utf8))
 
-        #expect(score.notes.count == 2)
-        #expect(score.notes[0].midiNote == 60)
-        #expect(score.notes[0].tick == 0)
-        #expect(score.notes[1].midiNote == 62)
-        #expect(score.notes[1].tick == 480)
+        #expect(score.notes.map(\.midiNote) == [60, 62])
+        #expect(score.notes.map(\.tick) == [0, 480])
+    }
+
+    @Test
+    func parseDataConvertsNamespacedTimewiseToPartwiseBeforeParsing() throws {
+        let xml = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <mxl:score-timewise xmlns:mxl="http://www.musicxml.org" version="4.0">
+          <mxl:part-list>
+            <mxl:score-part id="P1"><mxl:part-name>Piano</mxl:part-name></mxl:score-part>
+          </mxl:part-list>
+          <mxl:measure number="1">
+            <mxl:part id="P1">
+              <mxl:attributes><mxl:divisions>1</mxl:divisions></mxl:attributes>
+              <mxl:note>
+                <mxl:pitch><mxl:step>C</mxl:step><mxl:octave>4</mxl:octave></mxl:pitch>
+                <mxl:duration>1</mxl:duration>
+              </mxl:note>
+            </mxl:part>
+          </mxl:measure>
+        </mxl:score-timewise>
+        """
+
+        let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+
+        #expect(score.notes.map(\.midiNote) == [60])
+        #expect(score.notes.map(\.tick) == [0])
     }
 }
-

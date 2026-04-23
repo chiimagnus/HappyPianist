@@ -23,12 +23,13 @@ struct MusicXMLTimewiseConverter {
     private func detectRootElementName(in data: Data) -> String? {
         guard let prefix = String(data: data.prefix(2048), encoding: .utf8) else { return nil }
 
-        if let match = prefix.range(of: "<score-partwise") {
-            _ = match
+        let partwisePattern = "<\\s*(?:[A-Za-z_][\\w\\-.]*:)?score-partwise\\b"
+        if prefix.range(of: partwisePattern, options: .regularExpression) != nil {
             return "score-partwise"
         }
-        if let match = prefix.range(of: "<score-timewise") {
-            _ = match
+
+        let timewisePattern = "<\\s*(?:[A-Za-z_][\\w\\-.]*:)?score-timewise\\b"
+        if prefix.range(of: timewisePattern, options: .regularExpression) != nil {
             return "score-timewise"
         }
         return nil
@@ -96,6 +97,19 @@ private final class MusicXMLTimewiseParsingDelegate: NSObject, XMLParserDelegate
     private var capturingPartInnerXMLDepth: Int?
     private var partInnerBuilder = XMLStringBuilder()
 
+    private func matches(_ elementName: String, qName: String?, localName: String) -> Bool {
+        if elementName == localName { return true }
+        if elementName.hasSuffix(":\(localName)") { return true }
+        return qName?.hasSuffix(":\(localName)") == true
+    }
+
+    private func localName(from elementName: String) -> String {
+        if let last = elementName.split(separator: ":").last {
+            return String(last)
+        }
+        return elementName
+    }
+
     func parser(
         _ parser: XMLParser,
         didStartElement elementName: String,
@@ -103,30 +117,30 @@ private final class MusicXMLTimewiseParsingDelegate: NSObject, XMLParserDelegate
         qualifiedName qName: String?,
         attributes attributeDict: [String: String]
     ) {
-        if scoreVersion == nil, (elementName == "score-timewise" || qName?.hasSuffix(":score-timewise") == true) {
+        if scoreVersion == nil, matches(elementName, qName: qName, localName: "score-timewise") {
             scoreVersion = attributeDict["version"]
         }
 
         if capturingPartListDepth != nil {
             capturingPartListDepth! += 1
-            partListBuilder.startElement(elementName, attributes: attributeDict)
+            partListBuilder.startElement(localName(from: elementName), attributes: attributeDict)
             return
         }
 
-        if elementName == "part-list" || qName?.hasSuffix(":part-list") == true {
+        if matches(elementName, qName: qName, localName: "part-list") {
             capturingPartListDepth = 1
-            partListBuilder.startElement(elementName, attributes: attributeDict)
+            partListBuilder.startElement(localName(from: elementName), attributes: attributeDict)
             return
         }
 
-        if elementName == "measure" || qName?.hasSuffix(":measure") == true {
+        if matches(elementName, qName: qName, localName: "measure") {
             isInsideMeasure = true
             currentMeasureNumberToken = attributeDict["number"] ?? "\(measures.count + 1)"
             measures.append(TimewiseMeasure(numberToken: currentMeasureNumberToken ?? "\(measures.count)", partIDToInnerXML: [:]))
             return
         }
 
-        if isInsideMeasure, let currentMeasureNumberToken, (elementName == "part" || qName?.hasSuffix(":part") == true) {
+        if isInsideMeasure, let currentMeasureNumberToken, matches(elementName, qName: qName, localName: "part") {
             _ = currentMeasureNumberToken
             currentPartID = attributeDict["id"] ?? ""
             if let currentPartID, !currentPartID.isEmpty, !orderedPartIDs.contains(currentPartID) {
@@ -139,7 +153,7 @@ private final class MusicXMLTimewiseParsingDelegate: NSObject, XMLParserDelegate
 
         if capturingPartInnerXMLDepth != nil {
             capturingPartInnerXMLDepth! += 1
-            partInnerBuilder.startElement(elementName, attributes: attributeDict)
+            partInnerBuilder.startElement(localName(from: elementName), attributes: attributeDict)
         }
     }
 
@@ -159,13 +173,13 @@ private final class MusicXMLTimewiseParsingDelegate: NSObject, XMLParserDelegate
         namespaceURI: String?,
         qualifiedName qName: String?
     ) {
-        if elementName == "measure" || qName?.hasSuffix(":measure") == true {
+        if matches(elementName, qName: qName, localName: "measure") {
             isInsideMeasure = false
             currentMeasureNumberToken = nil
         }
 
         if capturingPartListDepth != nil {
-            partListBuilder.endElement(elementName)
+            partListBuilder.endElement(localName(from: elementName))
             capturingPartListDepth! -= 1
             if capturingPartListDepth == 0 {
                 partListXML = partListBuilder.finish()
@@ -176,7 +190,7 @@ private final class MusicXMLTimewiseParsingDelegate: NSObject, XMLParserDelegate
 
         if capturingPartInnerXMLDepth != nil {
             if capturingPartInnerXMLDepth! > 0 {
-                partInnerBuilder.endElement(elementName)
+                partInnerBuilder.endElement(localName(from: elementName))
                 capturingPartInnerXMLDepth! -= 1
                 return
             }
