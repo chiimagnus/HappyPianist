@@ -124,8 +124,14 @@ final class SongLibraryViewModel {
                 wordsSemanticsEnabled: UserDefaults.standard.bool(forKey: "practiceMusicXMLWordsSemanticsEnabled")
             )
             let buildResult = stepBuilder.buildSteps(from: effectiveScore, expressivity: expressivityOptions)
-            let tempoMap = MusicXMLTempoMap(tempoEvents: effectiveScore.tempoEvents)
-            let pedalTimeline = MusicXMLPedalTimeline(events: effectiveScore.pedalEvents)
+            let wordsSemantics = expressivityOptions.wordsSemanticsEnabled
+                ? MusicXMLWordsSemanticsInterpreter().interpret(wordsEvents: effectiveScore.wordsEvents, tempoEvents: effectiveScore.tempoEvents)
+                : nil
+            let tempoMap = MusicXMLTempoMap(
+                tempoEvents: effectiveScore.tempoEvents + (wordsSemantics?.derivedTempoEvents ?? []),
+                tempoRamps: wordsSemantics?.derivedTempoRamps ?? []
+            )
+            let pedalTimeline = MusicXMLPedalTimeline(events: effectiveScore.pedalEvents + (wordsSemantics?.derivedPedalEvents ?? []))
             let fermataTimeline = expressivityOptions.fermataEnabled
                 ? MusicXMLFermataTimeline(fermataEvents: effectiveScore.fermataEvents, notes: effectiveScore.notes)
                 : nil

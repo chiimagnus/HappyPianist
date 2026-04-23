@@ -40,3 +40,18 @@ func tempoMapInsertsTickZeroWhenFirstEventIsLater() {
 
     #expect(abs(map.timeSeconds(atTick: 480) - 1.0) < 0.000_1)
 }
+
+@Test
+func tempoMapIntegratesAcrossLinearRitardandoRamp() {
+    let map = MusicXMLTempoMap(
+        tempoEvents: [
+            MusicXMLTempoEvent(tick: 0, quarterBPM: 120),
+            MusicXMLTempoEvent(tick: 480, quarterBPM: 60),
+        ],
+        tempoRamps: [
+            MusicXMLTempoMap.TempoRamp(startTick: 0, endTick: 480, startQuarterBPM: 120, endQuarterBPM: 60),
+        ]
+    )
+
+    #expect(abs(map.durationSeconds(fromTick: 0, toTick: 480) - log(2)) < 0.000_1)
+}
