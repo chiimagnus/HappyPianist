@@ -183,11 +183,21 @@ struct MusicXMLStructureExpander {
             }
 
             let temposInMeasure = original.tempoEvents.filter { event in
-                event.tick >= span.startTick && event.tick < span.endTick
+                event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick
             }
             for event in temposInMeasure {
                 let shiftedTick = currentMeasureStartTick + (event.tick - span.startTick)
-                outputTempoEvents.append(MusicXMLTempoEvent(tick: shiftedTick, quarterBPM: event.quarterBPM))
+                outputTempoEvents.append(
+                    MusicXMLTempoEvent(
+                        tick: shiftedTick,
+                        quarterBPM: event.quarterBPM,
+                        scope: MusicXMLEventScope(
+                            partID: primaryPartID,
+                            staff: event.scope.staff,
+                            voice: event.scope.voice
+                        )
+                    )
+                )
             }
 
             if includeSoundDirectives {

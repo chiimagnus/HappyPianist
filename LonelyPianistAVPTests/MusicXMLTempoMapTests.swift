@@ -6,7 +6,11 @@ import Testing
 func tempoMapFixedBPMTickToSeconds() {
     let map = MusicXMLTempoMap(
         tempoEvents: [
-            MusicXMLTempoEvent(tick: 0, quarterBPM: 120),
+            MusicXMLTempoEvent(
+                tick: 0,
+                quarterBPM: 120,
+                scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
+            ),
         ]
     )
 
@@ -20,8 +24,16 @@ func tempoMapFixedBPMTickToSeconds() {
 func tempoMapIntegratesAcrossTempoChange() {
     let map = MusicXMLTempoMap(
         tempoEvents: [
-            MusicXMLTempoEvent(tick: 0, quarterBPM: 120),
-            MusicXMLTempoEvent(tick: 480, quarterBPM: 60),
+            MusicXMLTempoEvent(
+                tick: 0,
+                quarterBPM: 120,
+                scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
+            ),
+            MusicXMLTempoEvent(
+                tick: 480,
+                quarterBPM: 60,
+                scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
+            ),
         ]
     )
 
@@ -34,7 +46,11 @@ func tempoMapIntegratesAcrossTempoChange() {
 func tempoMapInsertsTickZeroWhenFirstEventIsLater() {
     let map = MusicXMLTempoMap(
         tempoEvents: [
-            MusicXMLTempoEvent(tick: 480, quarterBPM: 60),
+            MusicXMLTempoEvent(
+                tick: 480,
+                quarterBPM: 60,
+                scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
+            ),
         ]
     )
 
@@ -45,8 +61,16 @@ func tempoMapInsertsTickZeroWhenFirstEventIsLater() {
 func tempoMapIntegratesAcrossLinearRitardandoRamp() {
     let map = MusicXMLTempoMap(
         tempoEvents: [
-            MusicXMLTempoEvent(tick: 0, quarterBPM: 120),
-            MusicXMLTempoEvent(tick: 480, quarterBPM: 60),
+            MusicXMLTempoEvent(
+                tick: 0,
+                quarterBPM: 120,
+                scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
+            ),
+            MusicXMLTempoEvent(
+                tick: 480,
+                quarterBPM: 60,
+                scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
+            ),
         ],
         tempoRamps: [
             MusicXMLTempoMap.TempoRamp(startTick: 0, endTick: 480, startQuarterBPM: 120, endQuarterBPM: 60),

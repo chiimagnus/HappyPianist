@@ -31,6 +31,7 @@ struct MusicXMLParserDelegateState {
         let tick: Int
         let quarterBPM: Double
         let source: TempoSource
+        let staff: Int?
     }
 
     var currentPartID = "P1"

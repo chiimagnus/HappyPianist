@@ -21,6 +21,23 @@ func wordsSemanticsDerivesPedalEventsFromPedAndAsterisk() {
 }
 
 @Test
+func wordsSemanticsDoesNotDerivePedalEventsFromPedSimile() {
+    let interpreter = MusicXMLWordsSemanticsInterpreter()
+    let result = interpreter.interpret(
+        wordsEvents: [
+            MusicXMLWordsEvent(
+                tick: 0,
+                text: "Ped. simile",
+                scope: MusicXMLEventScope(partID: "P1", staff: 1, voice: nil)
+            ),
+        ],
+        tempoEvents: []
+    )
+
+    #expect(result.derivedPedalEvents.isEmpty == true)
+}
+
+@Test
 func wordsSemanticsDerivesTempoRampForRitWhenTargetIsSlower() {
     let interpreter = MusicXMLWordsSemanticsInterpreter()
     let result = interpreter.interpret(
@@ -28,13 +45,27 @@ func wordsSemanticsDerivesTempoRampForRitWhenTargetIsSlower() {
             MusicXMLWordsEvent(tick: 0, text: "rit.", scope: MusicXMLEventScope(partID: "P1", staff: 1, voice: nil)),
         ],
         tempoEvents: [
-            MusicXMLTempoEvent(tick: 0, quarterBPM: 120),
-            MusicXMLTempoEvent(tick: 480, quarterBPM: 60),
+            MusicXMLTempoEvent(
+                tick: 0,
+                quarterBPM: 120,
+                scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
+            ),
+            MusicXMLTempoEvent(
+                tick: 480,
+                quarterBPM: 60,
+                scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
+            ),
         ]
     )
 
     #expect(result.derivedTempoRamps == [
-        MusicXMLTempoMap.TempoRamp(startTick: 0, endTick: 480, startQuarterBPM: 120, endQuarterBPM: 60),
+        MusicXMLTempoMap.TempoRamp(
+            startTick: 0,
+            endTick: 480,
+            startQuarterBPM: 120,
+            endQuarterBPM: 60,
+            curve: .easeInOut
+        ),
     ])
 }
 
@@ -46,8 +77,16 @@ func wordsSemanticsDoesNotDeriveTempoRampForRitWhenTargetIsFaster() {
             MusicXMLWordsEvent(tick: 0, text: "rit.", scope: MusicXMLEventScope(partID: "P1", staff: 1, voice: nil)),
         ],
         tempoEvents: [
-            MusicXMLTempoEvent(tick: 0, quarterBPM: 60),
-            MusicXMLTempoEvent(tick: 480, quarterBPM: 120),
+            MusicXMLTempoEvent(
+                tick: 0,
+                quarterBPM: 60,
+                scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
+            ),
+            MusicXMLTempoEvent(
+                tick: 480,
+                quarterBPM: 120,
+                scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
+            ),
         ]
     )
 

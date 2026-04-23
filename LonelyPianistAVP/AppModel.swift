@@ -126,9 +126,12 @@ class AppModel {
             let importedFile = try importService.importFile(from: selectedURL)
             let score = try parser.parse(fileURL: importedFile.storedURL)
             let shouldExpandStructure = UserDefaults.standard.bool(forKey: "practiceMusicXMLStructureEnabled")
+            let primaryPartIDForExpansion = score.preferredPrimaryPartID()
             let effectiveScore = shouldExpandStructure
-                ? structureExpander.expandStructureIfPossible(score: score)
+                ? structureExpander.expandStructureIfPossible(score: score, primaryPartID: primaryPartIDForExpansion)
                 : score
+            let primaryPartID = effectiveScore.preferredPrimaryPartID(preferredPartID: primaryPartIDForExpansion)
+            let practiceScore = effectiveScore.filtering(toPartID: primaryPartID)
 
             let expressivityOptions = MusicXMLExpressivityOptions(
                 wedgeEnabled: UserDefaults.standard.bool(forKey: "practiceMusicXMLWedgeEnabled"),
@@ -137,32 +140,33 @@ class AppModel {
                 arpeggiateEnabled: UserDefaults.standard.bool(forKey: "practiceMusicXMLArpeggiateEnabled"),
                 wordsSemanticsEnabled: UserDefaults.standard.bool(forKey: "practiceMusicXMLWordsSemanticsEnabled")
             )
-            let buildResult = stepBuilder.buildSteps(from: effectiveScore, expressivity: expressivityOptions)
+            let buildResult = stepBuilder.buildSteps(from: practiceScore, expressivity: expressivityOptions)
             let wordsSemantics = expressivityOptions.wordsSemanticsEnabled
                 ? MusicXMLWordsSemanticsInterpreter().interpret(
-                    wordsEvents: effectiveScore.wordsEvents,
-                    tempoEvents: effectiveScore.tempoEvents
+                    wordsEvents: practiceScore.wordsEvents,
+                    tempoEvents: practiceScore.tempoEvents
                 )
                 : nil
             let tempoMap = MusicXMLTempoMap(
-                tempoEvents: effectiveScore.tempoEvents + (wordsSemantics?.derivedTempoEvents ?? []),
-                tempoRamps: wordsSemantics?.derivedTempoRamps ?? []
+                tempoEvents: practiceScore.tempoEvents + (wordsSemantics?.derivedTempoEvents ?? []),
+                tempoRamps: wordsSemantics?.derivedTempoRamps ?? [],
+                partID: primaryPartID
             )
-            let pedalTimeline = MusicXMLPedalTimeline(events: effectiveScore
+            let pedalTimeline = MusicXMLPedalTimeline(events: practiceScore
                 .pedalEvents + (wordsSemantics?.derivedPedalEvents ?? []))
             let fermataTimeline = expressivityOptions.fermataEnabled
-                ? MusicXMLFermataTimeline(fermataEvents: effectiveScore.fermataEvents, notes: effectiveScore.notes)
+                ? MusicXMLFermataTimeline(fermataEvents: practiceScore.fermataEvents, notes: practiceScore.notes)
                 : nil
             let attributeTimeline = MusicXMLAttributeTimeline(
-                timeSignatureEvents: effectiveScore.timeSignatureEvents,
-                keySignatureEvents: effectiveScore.keySignatureEvents,
-                clefEvents: effectiveScore.clefEvents
+                timeSignatureEvents: practiceScore.timeSignatureEvents,
+                keySignatureEvents: practiceScore.keySignatureEvents,
+                clefEvents: practiceScore.clefEvents
             )
-            let slurTimeline = MusicXMLSlurTimeline(events: effectiveScore.slurEvents)
+            let slurTimeline = MusicXMLSlurTimeline(events: practiceScore.slurEvents)
             let shouldUsePerformanceTiming = UserDefaults.standard
                 .bool(forKey: "practiceMusicXMLPerformanceTimingEnabled")
             let noteSpans = MusicXMLNoteSpanBuilder().buildSpans(
-                from: effectiveScore.notes,
+                from: practiceScore.notes,
                 performanceTimingEnabled: shouldUsePerformanceTiming,
                 expressivity: expressivityOptions,
                 fermataTimeline: fermataTimeline
