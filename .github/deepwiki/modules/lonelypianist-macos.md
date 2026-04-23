@@ -36,15 +36,6 @@
 - `stopTransport`
 - `DialogueManager.start()`
 
-## Source References
-- `LonelyPianist/LonelyPianistApp.swift`
-- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
-- `LonelyPianist/Services/MIDI/CoreMIDIInputService.swift`
-- `LonelyPianist/Services/MIDI/CoreMIDIOutputService.swift`
-- `LonelyPianist/Services/Mapping/DefaultMappingEngine.swift`
-- `LonelyPianist/Services/Dialogue/DialogueManager.swift`
-- `LonelyPianist/Services/Recording/DefaultRecordingService.swift`
-- `LonelyPianist/Services/Storage/ModelContainerFactory.swift`
 
 ## Coverage Gaps
 - 集成测试仍主要覆盖 service / view model 层，没有系统级 E2E。

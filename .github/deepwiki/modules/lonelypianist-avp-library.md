@@ -34,15 +34,6 @@
 - `isCurrentListeningPlaying`
 - `index.entries`
 
-## Source References
-- `LonelyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift`
-- `LonelyPianistAVP/Services/Library/SongLibrarySeeder.swift`
-- `LonelyPianistAVP/Services/Library/SongLibraryIndexStore.swift`
-- `LonelyPianistAVP/Services/Library/SongFileStore.swift`
-- `LonelyPianistAVP/Services/Library/AudioImportService.swift`
-- `LonelyPianistAVP/Services/Library/SongLibraryPaths.swift`
-- `LonelyPianistAVP/Services/Library/SongAudioPlayer.swift`
-- `LonelyPianistAVPTests/SongLibraryIndexStoreTests.swift`
 
 ## Coverage Gaps
 - 长期清理任务没有自动化后台作业，孤儿文件仍可能累积。

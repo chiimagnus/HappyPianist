@@ -32,16 +32,6 @@
 - `storedCalibration`
 - `practiceLocalizationState`
 
-## Source References
-- `LonelyPianistAVP/AppModel.swift`
-- `LonelyPianistAVP/ViewModels/ARGuideViewModel.swift`
-- `LonelyPianistAVP/Services/Calibration/CalibrationPointCaptureService.swift`
-- `LonelyPianistAVP/Services/WorldAnchorCalibrationStore.swift`
-- `LonelyPianistAVP/Services/PianoKeyGeometryService.swift`
-- `LonelyPianistAVP/Models/Calibration/StoredWorldAnchorCalibration.swift`
-- `LonelyPianistAVP/Models/Calibration/PianoCalibration.swift`
-- `LonelyPianistAVPTests/CalibrationPointCaptureServiceTests.swift`
-- `LonelyPianistAVPTests/WorldAnchorCalibrationStoreTests.swift`
 
 ## Coverage Gaps
 - 校准流程的空间交互仍依赖手工验证，缺少沉浸式 UI 自动化。

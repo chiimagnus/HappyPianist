@@ -21,10 +21,6 @@
 - `server/test_client.py` 会把结果写成 `out/server_reply.mid`。
 - `scripts/test_generate.py` / `scripts/test_infilling.py` 可离线生成验证。
 
-## Source References
-- `piano_dialogue_server/server/debug_artifacts.py`
-- `piano_dialogue_server/server/main.py`
-- `piano_dialogue_server/server/test_client.py`
 
 ## Coverage Gaps
 - 调试包没有统一 schema 文档，仍以代码字段为准。

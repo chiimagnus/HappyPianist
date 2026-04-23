@@ -52,18 +52,5 @@
 | 没有 stored calibration | AVP Step 3 无法定位 | 回 Step 1 |
 | 曲库索引和文件不一致 | 选曲失败 / 试听失败 | 重新导入或清理残留 |
 
-## Source References
-- `LonelyPianist/LonelyPianistApp.swift`
-- `LonelyPianist/Services/Dialogue/DialogueManager.swift`
-- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
-- `LonelyPianistAVP/LonelyPianistAVPApp.swift`
-- `LonelyPianistAVP/AppModel.swift`
-- `LonelyPianistAVP/ViewModels/ARGuideViewModel.swift`
-- `LonelyPianistAVP/ViewModels/PracticeSessionViewModel.swift`
-- `LonelyPianistAVP/Views/ContentView.swift`
-- `piano_dialogue_server/server/inference.py`
-- `piano_dialogue_server/server/protocol.py`
-
 ## Coverage Gaps
 - Python 依赖没有 lockfile；环境变量也没有统一 `.env.example`。
-

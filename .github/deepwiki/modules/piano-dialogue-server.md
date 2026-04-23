@@ -31,14 +31,6 @@
 - 安全 logits patch
 - debug 写盘失败
 
-## Source References
-- `piano_dialogue_server/server/main.py`
-- `piano_dialogue_server/server/protocol.py`
-- `piano_dialogue_server/server/inference.py`
-- `piano_dialogue_server/server/debug_artifacts.py`
-- `piano_dialogue_server/server/test_client.py`
-- `piano_dialogue_server/scripts/test_generate.py`
-- `piano_dialogue_server/scripts/test_infilling.py`
 
 ## Coverage Gaps
 - 没有并发压测和高负载稳定性数据。

@@ -46,16 +46,5 @@
 ## 现状
 - 没有 `.github/workflows/*`，所以测试门禁不在 CI 上自动定义。
 
-## Source References
-- `LonelyPianistTests/`
-- `LonelyPianistAVPTests/`
-- `piano_dialogue_server/scripts/test_generate.py`
-- `piano_dialogue_server/scripts/test_infilling.py`
-- `piano_dialogue_server/server/test_client.py`
-- `README.md`
-- `LonelyPianist/README.md`
-- `LonelyPianistAVP/README.md`
-
 ## Coverage Gaps
 - 三端端到端自动化仍缺失；当前覆盖依赖单测和人工冒烟组合。
-

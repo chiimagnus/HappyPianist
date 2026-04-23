@@ -37,17 +37,5 @@
 - 文件名都走 `lastPathComponent` 过滤。
 - index 用 ISO8601 日期编码和原子写入。
 
-## Source References
-- `LonelyPianist/Services/Storage/ModelContainerFactory.swift`
-- `LonelyPianist/Services/Storage/SwiftDataMappingConfigRepository.swift`
-- `LonelyPianist/Services/Storage/SwiftDataRecordingTakeRepository.swift`
-- `LonelyPianistAVP/Services/WorldAnchorCalibrationStore.swift`
-- `LonelyPianistAVP/Services/Library/SongLibrarySeeder.swift`
-- `LonelyPianistAVP/Services/Library/SongLibraryIndexStore.swift`
-- `LonelyPianistAVP/Services/Library/SongFileStore.swift`
-- `LonelyPianistAVP/Services/Library/AudioImportService.swift`
-- `piano_dialogue_server/server/debug_artifacts.py`
-
 ## Coverage Gaps
 - 没有独立的 schema migration 页面；目前迁移逻辑分散在服务实现中。
-

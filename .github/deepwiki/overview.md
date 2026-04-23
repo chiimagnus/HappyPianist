@@ -47,16 +47,5 @@
 3. `data-flow.md`
 4. 进入对应模块页
 
-## Source References
-- `README.md`
-- `LonelyPianist/README.md`
-- `LonelyPianistAVP/README.md`
-- `LonelyPianist/LonelyPianistApp.swift`
-- `LonelyPianistAVP/LonelyPianistAVPApp.swift`
-- `piano_dialogue_server/server/main.py`
-- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
-- `LonelyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift`
-
 ## Coverage Gaps
 - `.github/workflows/` 仍为空；此页只能描述本地可执行入口，不能声明 CI 已存在。
-

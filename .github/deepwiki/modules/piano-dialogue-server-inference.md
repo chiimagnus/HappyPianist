@@ -27,11 +27,6 @@
 | `dropped_notes` | 丢弃原因统计 |
 | `generate_ms` | 推理耗时 |
 
-## Source References
-- `piano_dialogue_server/server/inference.py`
-- `piano_dialogue_server/scripts/test_generate.py`
-- `piano_dialogue_server/scripts/test_infilling.py`
-- `piano_dialogue_server/server/main.py`
 
 ## Coverage Gaps
 - 没有高并发或长时间运行的压力测试证据。

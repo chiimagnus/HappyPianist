@@ -73,19 +73,5 @@ flowchart LR
 - `PracticeSessionViewModel.startAutoplayTaskIfNeeded`
 - `piano_dialogue_server/server/inference.py::_patch_safe_logits`
 
-## Source References
-- `LonelyPianist/LonelyPianistApp.swift`
-- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
-- `LonelyPianist/Services/Dialogue/DialogueManager.swift`
-- `LonelyPianist/Services/MIDI/CoreMIDIInputService.swift`
-- `LonelyPianistAVP/LonelyPianistAVPApp.swift`
-- `LonelyPianistAVP/AppModel.swift`
-- `LonelyPianistAVP/ViewModels/ARGuideViewModel.swift`
-- `LonelyPianistAVP/ViewModels/PracticeSessionViewModel.swift`
-- `LonelyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift`
-- `piano_dialogue_server/server/main.py`
-- `piano_dialogue_server/server/inference.py`
-
 ## Coverage Gaps
 - 目前没有跨三端端到端自动化门禁；复杂边界仍依赖单测 + 手工冒烟。
-

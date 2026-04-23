@@ -31,15 +31,6 @@ Recorder 页覆盖 take 录制、MIDI 导入、take 回放、seek、重命名和
 - `playheadSec`
 - `playbackOutputs` / `selectedPlaybackOutputID`
 
-## Source References
-- `LonelyPianist/Services/Recording/DefaultRecordingService.swift`
-- `LonelyPianist/Services/Playback/RoutedMIDIPlaybackService.swift`
-- `LonelyPianist/Services/Playback/AVSamplerMIDIPlaybackService.swift`
-- `LonelyPianist/Services/Playback/CoreMIDIOutputMIDIPlaybackService.swift`
-- `LonelyPianist/Utilities/MIDIFileImporter.swift`
-- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
-- `LonelyPianist/Services/Protocols/RecordingServiceProtocol.swift`
-- `LonelyPianistTests/Recording/DefaultRecordingServiceTests.swift`
 
 ## Coverage Gaps
 - 外部 MIDI 目的地的实际设备兼容性仍依赖本地环境验证。

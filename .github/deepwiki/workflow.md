@@ -36,16 +36,5 @@
 - 测试命中面变化改 `testing.md`
 - 新增运行面时新增 module page，并补 `INDEX.md`
 
-## Source References
-- `README.md`
-- `LonelyPianist/README.md`
-- `LonelyPianistAVP/README.md`
-- `piano_dialogue_server/README.md`
-- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
-- `LonelyPianistAVP/ViewModels/ARGuideViewModel.swift`
-- `LonelyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift`
-- `piano_dialogue_server/server/main.py`
-
 ## Coverage Gaps
 - 没有统一发布流水线；因此工作流页只记录本地开发和验证路径。
-

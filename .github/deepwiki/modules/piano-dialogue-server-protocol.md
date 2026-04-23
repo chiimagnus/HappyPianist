@@ -23,10 +23,6 @@
 | macOS -> Python | JSON 编码后经 WS 发送 |
 | Python -> macOS | JSON 文本或 binary 都可解析 |
 
-## Source References
-- `piano_dialogue_server/server/protocol.py`
-- `LonelyPianist/Models/Dialogue/DialogueNote.swift`
-- `LonelyPianist/Services/Dialogue/WebSocketDialogueService.swift`
 
 ## Coverage Gaps
 - 协议没有版本协商；当前只按 `protocol_version=1` 运行。

@@ -45,18 +45,5 @@ LonelyPianist 是一个本地优先的钢琴交互系统，围绕三条产品线
 - 流程细节：`data-flow.md`
 - 故障定位：`troubleshooting.md`
 
-## Source References
-- `README.md`
-- `LonelyPianist/README.md`
-- `LonelyPianistAVP/README.md`
-- `piano_dialogue_server/README.md`
-- `LonelyPianist/LonelyPianistApp.swift`
-- `LonelyPianistAVP/LonelyPianistAVPApp.swift`
-- `piano_dialogue_server/server/main.py`
-- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
-- `LonelyPianistAVP/ViewModels/ARGuideViewModel.swift`
-- `LonelyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift`
-
 ## Coverage Gaps
 - 业务入口页只描述已在仓库中出现的能力；未包含任何尚未实现的产品路线图。
-

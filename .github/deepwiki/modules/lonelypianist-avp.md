@@ -36,15 +36,6 @@
 - `importMusicXML`
 - `startAutoplayTaskIfNeeded`
 
-## Source References
-- `LonelyPianistAVP/LonelyPianistAVPApp.swift`
-- `LonelyPianistAVP/AppModel.swift`
-- `LonelyPianistAVP/Views/ContentView.swift`
-- `LonelyPianistAVP/ViewModels/ARGuideViewModel.swift`
-- `LonelyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift`
-- `LonelyPianistAVP/ViewModels/PracticeSessionViewModel.swift`
-- `LonelyPianistAVP/Services/Library/SongLibrarySeeder.swift`
-- `LonelyPianistAVP/Services/MusicXML/MusicXMLImportService.swift`
 
 ## Coverage Gaps
 - Shared scheme 缺失仍是 AVP 验证链路的主要不稳定来源。

@@ -37,19 +37,6 @@
 - `attributeTimeline`
 - `slurTimeline`
 
-## Source References
-- `LonelyPianistAVP/Services/MusicXML/MusicXMLImportService.swift`
-- `LonelyPianistAVP/Services/MusicXML/MXLReader.swift`
-- `LonelyPianistAVP/Services/MusicXML/MusicXMLParser.swift`
-- `LonelyPianistAVP/Services/MusicXML/MusicXMLStructureExpander.swift`
-- `LonelyPianistAVP/Services/MusicXML/MusicXMLTempoMap.swift`
-- `LonelyPianistAVP/Services/MusicXML/MusicXMLPedalTimeline.swift`
-- `LonelyPianistAVP/Services/MusicXML/MusicXMLFermataTimeline.swift`
-- `LonelyPianistAVP/Services/MusicXML/MusicXMLSlurTimeline.swift`
-- `LonelyPianistAVP/Services/MusicXML/MusicXMLAttributeTimeline.swift`
-- `LonelyPianistAVP/Services/PracticeStepBuilder.swift`
-- `LonelyPianistAVPTests/MusicXMLParser*.swift`
-- `LonelyPianistAVPTests/PracticeStepBuilderTests.swift`
 
 ## Coverage Gaps
 - 支持的表达性语义仍是显式开关驱动，未自动识别所有谱面意图。

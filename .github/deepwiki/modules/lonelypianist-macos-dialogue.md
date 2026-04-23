@@ -37,15 +37,6 @@ Dialogue 页覆盖 turn-based 对话状态机、静默触发、回放策略和 t
 - `recentLogs`
 - Python `health` 和 `test_client.py`
 
-## Source References
-- `LonelyPianist/Services/Dialogue/DialogueManager.swift`
-- `LonelyPianist/Services/Dialogue/WebSocketDialogueService.swift`
-- `LonelyPianist/Services/Dialogue/DefaultSilenceDetectionService.swift`
-- `LonelyPianist/Models/Dialogue/DialogueNote.swift`
-- `LonelyPianist/Models/Dialogue/DialoguePlaybackInterruptionBehavior.swift`
-- `piano_dialogue_server/server/protocol.py`
-- `LonelyPianistTests/SilenceDetectionServiceTests.swift`
-- `LonelyPianistTests/ViewModels/LonelyPianistViewModelRecorderStateTests.swift`
 
 ## Coverage Gaps
 - 会话记忆仍是单轮/短上下文，没有额外长期记忆机制。

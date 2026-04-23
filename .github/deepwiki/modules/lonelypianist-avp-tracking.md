@@ -32,13 +32,6 @@
 - `fingerTipPositions`
 - `worldAnchorsByID`
 
-## Source References
-- `LonelyPianistAVP/Services/Tracking/ARTrackingService.swift`
-- `LonelyPianistAVP/ViewModels/ARGuideViewModel.swift`
-- `LonelyPianistAVP/Views/ImmersiveView.swift`
-- `LonelyPianistAVP/Views/CalibrationStepView.swift`
-- `LonelyPianistAVP/Views/PracticeStepView.swift`
-- `LonelyPianistAVPTests/PracticeLocalizationPolicyTests.swift`
 
 ## Coverage Gaps
 - 没有设备级自动化验证 hand/world provider 的实际运行差异。

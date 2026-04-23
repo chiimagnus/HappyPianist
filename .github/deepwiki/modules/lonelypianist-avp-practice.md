@@ -33,16 +33,6 @@
 - `audioErrorMessage`
 - `currentMusicXMLAttributeSummaryText`
 
-## Source References
-- `LonelyPianistAVP/ViewModels/PracticeSessionViewModel.swift`
-- `LonelyPianistAVP/ViewModels/ARGuideViewModel.swift`
-- `LonelyPianistAVP/Services/PracticeStepBuilder.swift`
-- `LonelyPianistAVP/Services/HandTracking/PressDetectionService.swift`
-- `LonelyPianistAVP/Services/Practice/ChordAttemptAccumulator.swift`
-- `LonelyPianistAVP/Services/Audio/PracticeNoteAudioPlayer.swift`
-- `LonelyPianistAVP/Services/Time/Sleeper.swift`
-- `LonelyPianistAVPTests/PracticeSessionViewModelTests.swift`
-- `LonelyPianistAVPTests/StepMatcherTests.swift`
 
 ## Coverage Gaps
 - 视觉反馈和空间布局仍主要依赖手工体验，不是纯逻辑测试就能完全覆盖。

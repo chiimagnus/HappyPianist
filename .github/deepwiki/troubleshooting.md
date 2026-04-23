@@ -32,17 +32,5 @@
 | 索引与文件不一致 | 删除异常条目后重新导入 |
 | 试听状态乱掉 | 停止播放并重新绑定音频 |
 
-## Source References
-- `README.md`
-- `LonelyPianist/README.md`
-- `LonelyPianistAVP/README.md`
-- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
-- `LonelyPianist/Services/Dialogue/DialogueManager.swift`
-- `LonelyPianistAVP/ViewModels/ARGuideViewModel.swift`
-- `LonelyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift`
-- `piano_dialogue_server/server/main.py`
-- `piano_dialogue_server/server/inference.py`
-
 ## Coverage Gaps
 - 目前没有统一日志聚合，因此排障页只能依赖本地状态和调试目录。
-

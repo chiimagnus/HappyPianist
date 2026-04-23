@@ -34,15 +34,6 @@ Runtime 页处理“连没连上、当前在做什么、按下去后发生了什
 - 无来源：先看 `connectionState` 和 `connectedSourceNames`。
 - 无按键注入：先看 `KeyboardEventService` 是否成功发 CGEvent。
 
-## Source References
-- `LonelyPianist/LonelyPianistApp.swift`
-- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
-- `LonelyPianist/Services/MIDI/CoreMIDIInputService.swift`
-- `LonelyPianist/Services/MIDI/CoreMIDIOutputService.swift`
-- `LonelyPianist/Services/Input/KeyboardEventService.swift`
-- `LonelyPianist/Services/System/ShortcutExecutionService.swift`
-- `LonelyPianist/Services/System/AccessibilityPermissionService.swift`
-- `LonelyPianist/AppContext.swift`
 
 ## Coverage Gaps
 - 运行面没有自动化系统测试，设备 / 权限问题仍主要靠手工复现。

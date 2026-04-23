@@ -74,20 +74,5 @@ sequenceDiagram
 - AVP：`practiceLocalizationStatusText`、`calibrationStatusMessage`、`currentListeningEntryID`
 - Python：`/health`、`test_client.py`、`out/dialogue_debug/index.jsonl`
 
-## Source References
-- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
-- `LonelyPianist/Services/Recording/DefaultRecordingService.swift`
-- `LonelyPianist/Services/Dialogue/DialogueManager.swift`
-- `LonelyPianist/Services/Dialogue/WebSocketDialogueService.swift`
-- `LonelyPianist/Services/Mapping/DefaultMappingEngine.swift`
-- `LonelyPianistAVP/AppModel.swift`
-- `LonelyPianistAVP/ViewModels/ARGuideViewModel.swift`
-- `LonelyPianistAVP/ViewModels/PracticeSessionViewModel.swift`
-- `LonelyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift`
-- `LonelyPianistAVP/Services/Library/SongLibrarySeeder.swift`
-- `piano_dialogue_server/server/main.py`
-- `piano_dialogue_server/server/inference.py`
-
 ## Coverage Gaps
 - 没有自动化 E2E 去验证三端全链路；现状仍需要多处单元测试组合覆盖。
-

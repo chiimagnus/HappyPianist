@@ -31,14 +31,6 @@
 - `recentLogs` 会记录触发来源和 key label。
 - `MappingConfigPayload` 编解码回归可直接防止配置漂移。
 
-## Source References
-- `LonelyPianist/Services/Mapping/DefaultMappingEngine.swift`
-- `LonelyPianist/Models/Mapping/MappingConfig.swift`
-- `LonelyPianist/Models/Mapping/MappingRule.swift`
-- `LonelyPianist/Models/Mapping/KeyStroke.swift`
-- `LonelyPianist/ViewModels/LonelyPianistViewModel.swift`
-- `LonelyPianist/Views/Mapping/PianoMappingsEditorView.swift`
-- `LonelyPianistTests/Mapping/UnifiedMappingConfigTests.swift`
 
 ## Coverage Gaps
 - 目前没有映射编辑器的 UI 自动化测试，主要依赖 view model 和 engine 单测。

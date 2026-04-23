@@ -28,15 +28,5 @@
 - **runtime calibration**：当前场景里根据 tracked anchors 解析出来的几何结果。
 - **导入成功** 不等于 **可开始练习**：还要能生成有效 steps，并成功定位。
 
-## Source References
-- `LonelyPianist/Models/Dialogue/DialogueNote.swift`
-- `LonelyPianist/Models/MIDI/MIDIEvent.swift`
-- `LonelyPianistAVP/Models/Practice/PracticeStep.swift`
-- `LonelyPianistAVP/Models/Calibration/StoredWorldAnchorCalibration.swift`
-- `LonelyPianistAVP/Models/Library/SongLibraryIndex.swift`
-- `LonelyPianistAVP/Models/Library/SongLibraryEntry.swift`
-- `piano_dialogue_server/server/protocol.py`
-
 ## Coverage Gaps
 - 发布和版本语义仍散落在 README 和流程中，没有独立页面。
-

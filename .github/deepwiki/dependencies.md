@@ -53,18 +53,5 @@
 | `practiceMusicXML*` defaults | AVP ViewModels | MusicXML 解析和步骤生成 |
 | `DialoguePlaybackInterruptionBehavior` | macOS ViewModel | AI 回放期间输入策略 |
 
-## Source References
-- `LonelyPianist/README.md`
-- `LonelyPianistAVP/README.md`
-- `piano_dialogue_server/README.md`
-- `piano_dialogue_server/requirements.txt`
-- `Packages/RealityKitContent/Package.swift`
-- `LonelyPianist/LonelyPianistApp.swift`
-- `LonelyPianist/Services/Dialogue/WebSocketDialogueService.swift`
-- `LonelyPianistAVP/Services/Library/SongLibrarySeeder.swift`
-- `LonelyPianistAVP/Services/MusicXML/MusicXMLImportService.swift`
-- `piano_dialogue_server/server/inference.py`
-
 ## Coverage Gaps
 - 没有统一 lockfile；Python 依赖和模型权重都依赖本地环境管理。
-
