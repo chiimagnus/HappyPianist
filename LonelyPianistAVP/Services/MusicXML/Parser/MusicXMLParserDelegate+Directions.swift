@@ -310,14 +310,29 @@ extension MusicXMLParserDelegate {
             return
         }
 
-        guard beatUnit == "quarter", state.metronomeHasDot == false else {
+        let beatUnitInQuarters: Double?
+        switch beatUnit {
+            case "whole":
+                beatUnitInQuarters = 4
+            case "half":
+                beatUnitInQuarters = 2
+            case "quarter":
+                beatUnitInQuarters = 1
+            case "eighth":
+                beatUnitInQuarters = 0.5
+            default:
+                beatUnitInQuarters = nil
+        }
+
+        guard let beatUnitInQuarters else {
             #if DEBUG
-                print("MusicXMLParser: ignoring metronome beatUnit=\(beatUnit) dot=\(state.metronomeHasDot)")
+                print("MusicXMLParser: ignoring metronome beatUnit=\(beatUnit)")
             #endif
             return
         }
 
-        recordTempoEvent(quarterBPM: perMinute, source: .metronome)
+        let dottedMultiplier = state.metronomeHasDot ? 1.5 : 1.0
+        recordTempoEvent(quarterBPM: perMinute * beatUnitInQuarters * dottedMultiplier, source: .metronome)
     }
 
     func finalizeTempoEvents() -> [MusicXMLTempoEvent] {

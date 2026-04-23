@@ -222,6 +222,41 @@ func parserParsesMetronomeTempoWhenSoundIsMissing() throws {
 }
 
 @Test
+func parserParsesDottedMetronomeTempo() throws {
+    let xml = """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <score-partwise version="3.1">
+      <part-list>
+        <score-part id="P1"><part-name>Piano</part-name></score-part>
+      </part-list>
+      <part id="P1">
+        <measure number="1">
+          <attributes><divisions>1</divisions></attributes>
+          <direction>
+            <direction-type>
+              <metronome>
+                <beat-unit>quarter</beat-unit>
+                <beat-unit-dot/>
+                <per-minute>80</per-minute>
+              </metronome>
+            </direction-type>
+          </direction>
+          <note>
+            <pitch><step>C</step><octave>4</octave></pitch>
+            <duration>1</duration>
+          </note>
+        </measure>
+      </part>
+    </score-partwise>
+    """
+
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    #expect(score.tempoEvents.count == 1)
+    #expect(score.tempoEvents[0].tick == 0)
+    #expect(score.tempoEvents[0].quarterBPM == 120)
+}
+
+@Test
 func parserPrefersSoundTempoOverMetronomeAtSameTick() throws {
     let xml = """
     <?xml version="1.0" encoding="UTF-8"?>
@@ -288,7 +323,7 @@ func parserTracksTempoChangeTickUsingPartTimeline() throws {
 }
 
 @Test
-func parserIgnoresNonQuarterMetronomeInV1() throws {
+func parserParsesMetronomeEighthBeatUnitTempo() throws {
     let xml = """
     <?xml version="1.0" encoding="UTF-8"?>
     <score-partwise version="3.1">
@@ -316,7 +351,9 @@ func parserIgnoresNonQuarterMetronomeInV1() throws {
     """
 
     let score = try MusicXMLParser().parse(data: Data(xml.utf8))
-    #expect(score.tempoEvents.isEmpty == true)
+    #expect(score.tempoEvents.count == 1)
+    #expect(score.tempoEvents[0].tick == 0)
+    #expect(score.tempoEvents[0].quarterBPM == 60)
 }
 
 @Test
