@@ -66,4 +66,3 @@ struct MusicXMLParserDelegateState {
     var currentDirectionSoundStartIndex = 0
     var currentDirectionPedalStartIndex = 0
 }
-

@@ -30,4 +30,3 @@ extension MusicXMLParserDelegate: XMLParserDelegate {
         state.tempoEvents = finalizeTempoEvents()
     }
 }
-

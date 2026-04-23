@@ -41,7 +41,8 @@ struct PracticeStepView: View {
                         .buttonStyle(.bordered)
                         .buttonBorderShape(.roundedRectangle)
                         .hoverEffect()
-                        .disabled(viewModel.hasImportedSteps == false || viewModel.practiceSessionViewModel.state == .completed)
+                        .disabled(viewModel.hasImportedSteps == false || viewModel.practiceSessionViewModel
+                            .state == .completed)
 
                         Button("播放琴声", systemImage: "speaker.wave.2.fill") {
                             viewModel.playCurrentPracticeStepSound()

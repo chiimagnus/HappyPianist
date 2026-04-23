@@ -458,7 +458,7 @@ final class PracticeSessionViewModel {
         if didLogMissingTempoMap == false {
             didLogMissingTempoMap = true
             #if DEBUG
-            print("PracticeSessionViewModel: tempoMap missing; falling back to default bpm=120")
+                print("PracticeSessionViewModel: tempoMap missing; falling back to default bpm=120")
             #endif
         }
 
@@ -468,7 +468,9 @@ final class PracticeSessionViewModel {
     private func recordAudioError(_ error: Error) {
         guard audioErrorMessage == nil else { return }
 
-        if let localized = error as? LocalizedError, let description = localized.errorDescription, description.isEmpty == false {
+        if let localized = error as? LocalizedError, let description = localized.errorDescription,
+           description.isEmpty == false
+        {
             audioErrorMessage = description
         } else {
             audioErrorMessage = String(describing: error)

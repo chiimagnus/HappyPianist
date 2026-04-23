@@ -38,7 +38,11 @@ extension MusicXMLParserDelegate {
 
         let noteEndTick = startTick + duration
         let currentMax = state.partMeasureMaxTick[state.currentPartID] ?? state.currentMeasureStartTick
-        state.partMeasureMaxTick[state.currentPartID] = max(currentMax, noteEndTick, state.partTick[state.currentPartID] ?? currentTick)
+        state.partMeasureMaxTick[state.currentPartID] = max(
+            currentMax,
+            noteEndTick,
+            state.partTick[state.currentPartID] ?? currentTick
+        )
     }
 
     static func makeMIDINote(step: String?, alter: Int, octave: Int?) -> Int? {
@@ -50,4 +54,3 @@ extension MusicXMLParserDelegate {
         return (octave + 1) * 12 + base + alter
     }
 }
-

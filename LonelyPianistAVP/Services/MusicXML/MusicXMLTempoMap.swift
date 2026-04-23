@@ -1,9 +1,9 @@
 import Foundation
 
-struct MusicXMLTempoMap: Sendable {
+struct MusicXMLTempoMap {
     static let ticksPerQuarter = 480
 
-    private struct TempoPoint: Sendable {
+    private struct TempoPoint {
         let tick: Int
         let quarterBPM: Double
         let secondsAtTick: TimeInterval
@@ -106,4 +106,3 @@ struct MusicXMLTempoMap: Sendable {
         return minutes * 60
     }
 }
-

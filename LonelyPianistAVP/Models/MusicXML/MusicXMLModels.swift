@@ -11,7 +11,9 @@ struct MusicXMLScore: Equatable {
 }
 
 struct MusicXMLTempoEvent: Equatable, Identifiable {
-    var id: String { "\(tick)-\(quarterBPM)" }
+    var id: String {
+        "\(tick)-\(quarterBPM)"
+    }
 
     let tick: Int
     let quarterBPM: Double
@@ -52,7 +54,9 @@ struct MusicXMLPedalEvent: Equatable, Identifiable {
 }
 
 struct MusicXMLMeasureSpan: Equatable, Identifiable {
-    var id: String { "\(partID)-\(measureNumber)-\(startTick)-\(endTick)" }
+    var id: String {
+        "\(partID)-\(measureNumber)-\(startTick)-\(endTick)"
+    }
 
     let partID: String
     let measureNumber: Int
@@ -102,8 +106,10 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
     let voice: Int?
 }
 
-struct MusicXMLNoteSpan: Equatable, Identifiable, Sendable {
-    var id: String { "\(midiNote)-\(staff)-\(voice)-\(onTick)-\(offTick)" }
+struct MusicXMLNoteSpan: Equatable, Identifiable {
+    var id: String {
+        "\(midiNote)-\(staff)-\(voice)-\(onTick)-\(offTick)"
+    }
 
     let midiNote: Int
     let staff: Int

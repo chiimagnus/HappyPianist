@@ -27,22 +27,23 @@ struct MusicXMLNoteSpanBuilder {
             let voice = note.voice ?? 1
             let key = Key(partID: note.partID, midiNote: midiNote, staff: staff, voice: voice)
 
-            let category: Category
-            if note.tieStart, note.tieStop {
-                category = .middle
+            let category: Category = if note.tieStart, note.tieStop {
+                .middle
             } else if note.tieStart {
-                category = .start
+                .start
             } else if note.tieStop {
-                category = .end
+                .end
             } else {
-                category = .normal
+                .normal
             }
 
             switch category {
                 case .start:
                     if activeSpanIndexByKey[key] != nil {
                         #if DEBUG
-                        print("MusicXMLNoteSpanBuilder: duplicate tie-start; replacing active span for \(key.partID) midi=\(midiNote) staff=\(staff) voice=\(voice)")
+                            print(
+                                "MusicXMLNoteSpanBuilder: duplicate tie-start; replacing active span for \(key.partID) midi=\(midiNote) staff=\(staff) voice=\(voice)"
+                            )
                         #endif
                         activeSpanIndexByKey[key] = nil
                     }
@@ -68,7 +69,9 @@ struct MusicXMLNoteSpanBuilder {
                         )
                     } else {
                         #if DEBUG
-                        print("MusicXMLNoteSpanBuilder: tie-middle without active; starting new active span for \(key.partID) midi=\(midiNote) staff=\(staff) voice=\(voice)")
+                            print(
+                                "MusicXMLNoteSpanBuilder: tie-middle without active; starting new active span for \(key.partID) midi=\(midiNote) staff=\(staff) voice=\(voice)"
+                            )
                         #endif
                         let span = MusicXMLNoteSpan(
                             midiNote: midiNote,
@@ -93,7 +96,9 @@ struct MusicXMLNoteSpanBuilder {
                         activeSpanIndexByKey[key] = nil
                     } else {
                         #if DEBUG
-                        print("MusicXMLNoteSpanBuilder: tie-end without active; creating standalone span for \(key.partID) midi=\(midiNote) staff=\(staff) voice=\(voice)")
+                            print(
+                                "MusicXMLNoteSpanBuilder: tie-end without active; creating standalone span for \(key.partID) midi=\(midiNote) staff=\(staff) voice=\(voice)"
+                            )
                         #endif
                         output.append(
                             MusicXMLNoteSpan(

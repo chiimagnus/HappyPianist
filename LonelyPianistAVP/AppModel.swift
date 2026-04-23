@@ -128,7 +128,13 @@ class AppModel {
             } else {
                 importErrorMessage = nil
             }
-            setImportedSteps(buildResult.steps, file: importedFile, tempoMap: tempoMap, pedalTimeline: pedalTimeline, noteSpans: noteSpans)
+            setImportedSteps(
+                buildResult.steps,
+                file: importedFile,
+                tempoMap: tempoMap,
+                pedalTimeline: pedalTimeline,
+                noteSpans: noteSpans
+            )
         } catch {
             importErrorMessage = "导入失败：\(error.localizedDescription)"
         }

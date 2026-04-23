@@ -65,7 +65,9 @@ extension MusicXMLParserDelegate {
                 )
             default:
                 #if DEBUG
-                print("MusicXMLParser: ignored pedal type '\(rawType)' at \(base.partID) measure \(base.measureNumber) tick \(base.tick)")
+                    print(
+                        "MusicXMLParser: ignored pedal type '\(rawType)' at \(base.partID) measure \(base.measureNumber) tick \(base.tick)"
+                    )
                 #endif
         }
     }
@@ -75,7 +77,9 @@ extension MusicXMLParserDelegate {
         let delta = newOffset - state.currentDirectionOffsetTicks
         guard delta != 0 else { return }
 
-        if var tempoEvents = state.rawTempoEventsByPart[state.currentPartID], state.currentDirectionTempoStartIndex < tempoEvents.count {
+        if var tempoEvents = state.rawTempoEventsByPart[state.currentPartID],
+           state.currentDirectionTempoStartIndex < tempoEvents.count
+        {
             for i in state.currentDirectionTempoStartIndex ..< tempoEvents.count {
                 let shifted = max(state.currentDirectionMeasureStartTick, tempoEvents[i].tick + delta)
                 tempoEvents[i] = RawTempoEvent(
@@ -172,7 +176,7 @@ extension MusicXMLParserDelegate {
 
         guard beatUnit == "quarter", state.metronomeHasDot == false else {
             #if DEBUG
-            print("MusicXMLParser: ignoring metronome beatUnit=\(beatUnit) dot=\(state.metronomeHasDot)")
+                print("MusicXMLParser: ignoring metronome beatUnit=\(beatUnit) dot=\(state.metronomeHasDot)")
             #endif
             return
         }
@@ -182,11 +186,12 @@ extension MusicXMLParserDelegate {
 
     func finalizeTempoEvents() -> [MusicXMLTempoEvent] {
         let primaryPart = "P1"
-        let rawEvents: [RawTempoEvent]
-        if let p1Events = state.rawTempoEventsByPart[primaryPart], p1Events.isEmpty == false {
-            rawEvents = p1Events
+        let rawEvents: [RawTempoEvent] = if let p1Events = state.rawTempoEventsByPart[primaryPart],
+                                            p1Events.isEmpty == false
+        {
+            p1Events
         } else {
-            rawEvents = state.rawTempoEventsByPart.keys.sorted().flatMap { partID in
+            state.rawTempoEventsByPart.keys.sorted().flatMap { partID in
                 state.rawTempoEventsByPart[partID] ?? []
             }
         }
@@ -211,4 +216,3 @@ extension MusicXMLParserDelegate {
             .map { MusicXMLTempoEvent(tick: $0.tick, quarterBPM: $0.quarterBPM) }
     }
 }
-

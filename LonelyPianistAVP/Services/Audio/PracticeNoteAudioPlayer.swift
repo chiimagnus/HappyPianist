@@ -1,5 +1,5 @@
-import AVFAudio
 import AudioToolbox
+import AVFAudio
 import Foundation
 
 enum PracticeAudioError: LocalizedError, Equatable {
@@ -130,7 +130,10 @@ final class SoundFontPracticeNoteAudioPlayer: PracticeNoteAudioPlayerProtocol, P
             try engine.start()
             isReady = true
         } catch {
-            throw PracticeAudioError.soundFontLoadFailed(resourceName: soundFontResourceName, detail: error.localizedDescription)
+            throw PracticeAudioError.soundFontLoadFailed(
+                resourceName: soundFontResourceName,
+                detail: error.localizedDescription
+            )
         }
     }
 }

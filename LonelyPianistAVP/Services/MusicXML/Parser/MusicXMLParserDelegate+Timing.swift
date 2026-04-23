@@ -24,4 +24,3 @@ extension MusicXMLParserDelegate {
         return sign * normalized
     }
 }
-

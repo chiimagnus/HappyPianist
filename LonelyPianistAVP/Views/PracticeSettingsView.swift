@@ -19,4 +19,3 @@ struct PracticeSettingsView: View {
 #Preview("练习设置") {
     PracticeSettingsView()
 }
-

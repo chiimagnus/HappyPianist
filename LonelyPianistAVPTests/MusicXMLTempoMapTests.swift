@@ -40,4 +40,3 @@ func tempoMapInsertsTickZeroWhenFirstEventIsLater() {
 
     #expect(abs(map.timeSeconds(atTick: 480) - 1.0) < 0.000_1)
 }
-

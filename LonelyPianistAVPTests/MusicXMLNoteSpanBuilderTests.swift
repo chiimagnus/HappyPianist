@@ -91,4 +91,3 @@ func noteSpanBuilderSkipsRestsAndBuildsNormalSpans() {
     #expect(spans[0].onTick == 0)
     #expect(spans[0].offTick == 480)
 }
-

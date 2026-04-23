@@ -165,7 +165,16 @@ func structureExpanderFallsBackWhenJumpLimitsAreHit() {
         ],
         tempoEvents: [],
         soundDirectives: [
-            MusicXMLSoundDirective(partID: "P1", measureNumber: 1, tick: 0, segno: nil, coda: nil, tocoda: nil, dalsegno: "S1", dacapo: nil),
+            MusicXMLSoundDirective(
+                partID: "P1",
+                measureNumber: 1,
+                tick: 0,
+                segno: nil,
+                coda: nil,
+                tocoda: nil,
+                dalsegno: "S1",
+                dacapo: nil
+            ),
         ],
         measures: [
             MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, startTick: 0, endTick: 480),

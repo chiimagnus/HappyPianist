@@ -81,7 +81,7 @@ struct MusicXMLStructureExpander {
         )
     }
 
-    private struct EndingSpan: Sendable {
+    private struct EndingSpan {
         let startIndex: Int
         let endIndex: Int
     }
@@ -259,8 +259,8 @@ struct MusicXMLStructureExpander {
 }
 
 extension MusicXMLStructureExpander {
-    private struct JumpInstruction: Sendable {
-        enum Kind: Sendable {
+    private struct JumpInstruction {
+        enum Kind {
             case dacapo
             case dalsegno(value: String)
             case tocoda(value: String)
@@ -274,7 +274,7 @@ extension MusicXMLStructureExpander {
     func expandSoundJumpsIfPossible(
         score: MusicXMLScore,
         primaryPartID: String = "P1",
-        maxOutputMeasures: Int = 10_000,
+        maxOutputMeasures: Int = 10000,
         maxJumps: Int = 64
     ) -> MusicXMLScore {
         let primarySoundDirectives = score.soundDirectives.filter { $0.partID == primaryPartID }
@@ -313,11 +313,19 @@ extension MusicXMLStructureExpander {
             }
 
             if let value = directive.tocoda {
-                instructions.append(JumpInstruction(tick: directive.tick, atMeasureIndex: index, kind: .tocoda(value: value)))
+                instructions.append(JumpInstruction(
+                    tick: directive.tick,
+                    atMeasureIndex: index,
+                    kind: .tocoda(value: value)
+                ))
             }
 
             if let value = directive.dalsegno {
-                instructions.append(JumpInstruction(tick: directive.tick, atMeasureIndex: index, kind: .dalsegno(value: value)))
+                instructions.append(JumpInstruction(
+                    tick: directive.tick,
+                    atMeasureIndex: index,
+                    kind: .dalsegno(value: value)
+                ))
             }
 
             if directive.dacapo != nil {
@@ -354,7 +362,7 @@ extension MusicXMLStructureExpander {
             var didJump = false
 
             for instruction in sortedCandidates {
-                let instructionID: String = switch instruction.kind {
+                let instructionID = switch instruction.kind {
                     case .dacapo:
                         "\(instruction.tick)-\(instruction.atMeasureIndex)-dacapo"
                     case let .dalsegno(value):
@@ -388,7 +396,9 @@ extension MusicXMLStructureExpander {
 
         if didHitLimit {
             #if DEBUG
-            print("MusicXMLStructureExpander: jump expansion hit limit (measures=\(outputSequence.count), jumps=\(jumpCount)); falling back to linear score")
+                print(
+                    "MusicXMLStructureExpander: jump expansion hit limit (measures=\(outputSequence.count), jumps=\(jumpCount)); falling back to linear score"
+                )
             #endif
             return score
         }
