@@ -41,6 +41,7 @@ struct MusicXMLParser: MusicXMLParserProtocol {
             timeSignatureEvents: delegate.timeSignatureEvents,
             keySignatureEvents: delegate.keySignatureEvents,
             clefEvents: delegate.clefEvents,
+            wordsEvents: delegate.wordsEvents,
             measures: delegate.measures,
             repeatDirectives: delegate.repeatDirectives,
             endingDirectives: delegate.endingDirectives

@@ -54,6 +54,10 @@ final class MusicXMLParserDelegate: NSObject {
         state.clefEvents
     }
 
+    var wordsEvents: [MusicXMLWordsEvent] {
+        state.wordsEvents
+    }
+
     var measures: [MusicXMLMeasureSpan] {
         state.measures
     }

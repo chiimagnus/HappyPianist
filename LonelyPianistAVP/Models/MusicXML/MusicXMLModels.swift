@@ -13,6 +13,7 @@ struct MusicXMLScore: Equatable {
     var timeSignatureEvents: [MusicXMLTimeSignatureEvent] = []
     var keySignatureEvents: [MusicXMLKeySignatureEvent] = []
     var clefEvents: [MusicXMLClefEvent] = []
+    var wordsEvents: [MusicXMLWordsEvent] = []
     var measures: [MusicXMLMeasureSpan] = []
     var repeatDirectives: [MusicXMLRepeatDirective] = []
     var endingDirectives: [MusicXMLEndingDirective] = []
@@ -125,6 +126,16 @@ struct MusicXMLClefEvent: Equatable, Identifiable {
     let line: Int?
     let octaveChange: Int?
     let numberToken: String?
+    let scope: MusicXMLEventScope
+}
+
+struct MusicXMLWordsEvent: Equatable, Identifiable {
+    var id: String {
+        "\(tick)-\(scope.partID)-\(scope.staff ?? -1)-\(scope.voice ?? -1)-\(text)"
+    }
+
+    let tick: Int
+    let text: String
     let scope: MusicXMLEventScope
 }
 

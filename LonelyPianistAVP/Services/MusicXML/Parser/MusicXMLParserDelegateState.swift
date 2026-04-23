@@ -16,6 +16,7 @@ struct MusicXMLParserDelegateState {
     var timeSignatureEvents: [MusicXMLTimeSignatureEvent] = []
     var keySignatureEvents: [MusicXMLKeySignatureEvent] = []
     var clefEvents: [MusicXMLClefEvent] = []
+    var wordsEvents: [MusicXMLWordsEvent] = []
     var measures: [MusicXMLMeasureSpan] = []
     var repeatDirectives: [MusicXMLRepeatDirective] = []
     var endingDirectives: [MusicXMLEndingDirective] = []
@@ -112,6 +113,7 @@ struct MusicXMLParserDelegateState {
     var currentDirectionDynamicStartIndex = 0
     var currentDirectionWedgeStartIndex = 0
     var currentDirectionFermataStartIndex = 0
+    var currentDirectionWordsStartIndex = 0
 
     var currentOffsetAppliesToSound = false
 
