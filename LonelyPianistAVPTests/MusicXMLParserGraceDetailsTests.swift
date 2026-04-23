@@ -33,4 +33,3 @@ struct MusicXMLParserGraceDetailsTests {
         #expect(note.graceStealTimeFollowing == 0.25)
     }
 }
-

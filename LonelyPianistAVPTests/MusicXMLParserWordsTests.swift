@@ -31,4 +31,3 @@ struct MusicXMLParserWordsTests {
         #expect(event.scope.staff == 2)
     }
 }
-

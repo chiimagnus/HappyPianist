@@ -139,13 +139,17 @@ class AppModel {
             )
             let buildResult = stepBuilder.buildSteps(from: effectiveScore, expressivity: expressivityOptions)
             let wordsSemantics = expressivityOptions.wordsSemanticsEnabled
-                ? MusicXMLWordsSemanticsInterpreter().interpret(wordsEvents: effectiveScore.wordsEvents, tempoEvents: effectiveScore.tempoEvents)
+                ? MusicXMLWordsSemanticsInterpreter().interpret(
+                    wordsEvents: effectiveScore.wordsEvents,
+                    tempoEvents: effectiveScore.tempoEvents
+                )
                 : nil
             let tempoMap = MusicXMLTempoMap(
                 tempoEvents: effectiveScore.tempoEvents + (wordsSemantics?.derivedTempoEvents ?? []),
                 tempoRamps: wordsSemantics?.derivedTempoRamps ?? []
             )
-            let pedalTimeline = MusicXMLPedalTimeline(events: effectiveScore.pedalEvents + (wordsSemantics?.derivedPedalEvents ?? []))
+            let pedalTimeline = MusicXMLPedalTimeline(events: effectiveScore
+                .pedalEvents + (wordsSemantics?.derivedPedalEvents ?? []))
             let fermataTimeline = expressivityOptions.fermataEnabled
                 ? MusicXMLFermataTimeline(fermataEvents: effectiveScore.fermataEvents, notes: effectiveScore.notes)
                 : nil

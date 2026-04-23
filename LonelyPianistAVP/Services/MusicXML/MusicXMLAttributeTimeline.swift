@@ -31,7 +31,10 @@ struct MusicXMLAttributeTimeline: Equatable {
         return lastClef(atOrBeforeTick: tick, events: filtered)
     }
 
-    private func lastTimeSignature(atOrBeforeTick tick: Int, events: [MusicXMLTimeSignatureEvent]) -> MusicXMLTimeSignatureEvent? {
+    private func lastTimeSignature(
+        atOrBeforeTick tick: Int,
+        events: [MusicXMLTimeSignatureEvent]
+    ) -> MusicXMLTimeSignatureEvent? {
         guard events.isEmpty == false else { return nil }
 
         let clamped = max(0, tick)
@@ -52,7 +55,10 @@ struct MusicXMLAttributeTimeline: Equatable {
         return best >= 0 ? events[best] : nil
     }
 
-    private func lastKeySignature(atOrBeforeTick tick: Int, events: [MusicXMLKeySignatureEvent]) -> MusicXMLKeySignatureEvent? {
+    private func lastKeySignature(
+        atOrBeforeTick tick: Int,
+        events: [MusicXMLKeySignatureEvent]
+    ) -> MusicXMLKeySignatureEvent? {
         guard events.isEmpty == false else { return nil }
 
         let clamped = max(0, tick)

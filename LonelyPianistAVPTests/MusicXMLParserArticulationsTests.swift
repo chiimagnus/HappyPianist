@@ -38,4 +38,3 @@ struct MusicXMLParserArticulationsTests {
         #expect(note.articulations.contains(.detachedLegato))
     }
 }
-

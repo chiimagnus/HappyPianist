@@ -25,4 +25,3 @@ func slurTimelineDetectsActiveSpanBetweenStartAndStop() {
     #expect(timeline.isActive(atTick: 480) == true)
     #expect(timeline.isActive(atTick: 481) == false)
 }
-

@@ -63,4 +63,3 @@ struct MusicXMLSlurTimeline: Equatable {
         return spans.contains(where: { $0.startTick <= t && t <= $0.endTick })
     }
 }
-

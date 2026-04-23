@@ -150,7 +150,12 @@ struct MusicXMLNoteSpanBuilder {
                     let baseTick = (plannedGrace?.onTick ?? note.tick) + max(0, arpeggiateOffset)
                     let rawDurationTicks = if let plannedGrace {
                         plannedGrace.durationTicks
-                    } else if let reduction = gracePlan?.durationReductionTicksByKey[GraceKey(partID: note.partID, staff: staff, voice: voice, tick: note.tick)] {
+                    } else if let reduction = gracePlan?.durationReductionTicksByKey[GraceKey(
+                        partID: note.partID,
+                        staff: staff,
+                        voice: voice,
+                        tick: note.tick
+                    )] {
                         max(1, note.durationTicks - reduction)
                     } else {
                         note.durationTicks
@@ -158,7 +163,10 @@ struct MusicXMLNoteSpanBuilder {
 
                     let onTick = baseTick + attackTicks
                     let effectiveDurationTicks = articulatedDurationTicks(for: note, rawDurationTicks: rawDurationTicks)
-                    let offTick = max(onTick, baseTick + max(0, effectiveDurationTicks) + releaseTicks + fermataExtraTicks)
+                    let offTick = max(
+                        onTick,
+                        baseTick + max(0, effectiveDurationTicks) + releaseTicks + fermataExtraTicks
+                    )
                     output.append(
                         MusicXMLNoteSpan(
                             midiNote: midiNote,
@@ -182,7 +190,7 @@ struct MusicXMLNoteSpanBuilder {
         let raw = max(0, rawDurationTicks)
         guard raw > 0 else { return raw }
 
-        let articulationMultiplier: Double = if note.articulations.contains(.staccatissimo) {
+        let articulationMultiplier = if note.articulations.contains(.staccatissimo) {
             0.25
         } else if note.articulations.contains(.staccato) {
             0.5
@@ -240,7 +248,10 @@ struct MusicXMLNoteSpanBuilder {
                     ?? graceNotes.compactMap(\.graceStealTimePrevious).first
                     ?? 0.25
 
-                let totalStolenTicks = max(1, min(followingDuration - 1, Int((Double(followingDuration) * stealFraction).rounded())))
+                let totalStolenTicks = max(
+                    1,
+                    min(followingDuration - 1, Int((Double(followingDuration) * stealFraction).rounded()))
+                )
                 reductions[key] = totalStolenTicks
 
                 let startTick = max(0, key.tick - totalStolenTicks)
@@ -330,7 +341,7 @@ struct MusicXMLNoteSpanBuilder {
             }
 
             var offsets: [String: Int] = [:]
-            offsets.reserveCapacity(candidatesByKey.values.reduce(0, { $0 + $1.count }))
+            offsets.reserveCapacity(candidatesByKey.values.reduce(0) { $0 + $1.count })
 
             for (key, candidates) in candidatesByKey {
                 guard candidates.count >= 2 else {
@@ -340,7 +351,9 @@ struct MusicXMLNoteSpanBuilder {
 
                 let durationTicks = candidates.map(\.durationTicks).max() ?? 0
                 guard durationTicks > 0 else {
-                    for candidate in candidates { offsets[candidate.noteID] = 0 }
+                    for candidate in candidates {
+                        offsets[candidate.noteID] = 0
+                    }
                     continue
                 }
 

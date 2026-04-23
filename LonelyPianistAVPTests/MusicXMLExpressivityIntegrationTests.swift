@@ -74,7 +74,10 @@ func expressivityPipelineParsesAndPlumbsKeySignalsEndToEnd() throws {
         wordsSemanticsEnabled: true
     )
 
-    let wordsSemantics = MusicXMLWordsSemanticsInterpreter().interpret(wordsEvents: score.wordsEvents, tempoEvents: score.tempoEvents)
+    let wordsSemantics = MusicXMLWordsSemanticsInterpreter().interpret(
+        wordsEvents: score.wordsEvents,
+        tempoEvents: score.tempoEvents
+    )
     let pedalTimeline = MusicXMLPedalTimeline(events: score.pedalEvents + wordsSemantics.derivedPedalEvents)
     #expect(pedalTimeline.isDown(atTick: 0) == true)
 
@@ -94,11 +97,14 @@ func expressivityPipelineParsesAndPlumbsKeySignalsEndToEnd() throws {
     #expect(steps[0].notes.first(where: { $0.midiNote == 60 })?.fingeringText == "1")
 
     let fermataTimeline = MusicXMLFermataTimeline(fermataEvents: score.fermataEvents, notes: score.notes)
-    let spans = MusicXMLNoteSpanBuilder().buildSpans(from: score.notes, expressivity: expressivity, fermataTimeline: fermataTimeline)
+    let spans = MusicXMLNoteSpanBuilder().buildSpans(
+        from: score.notes,
+        expressivity: expressivity,
+        fermataTimeline: fermataTimeline
+    )
     let c4Span = spans.first(where: { $0.midiNote == 60 })
     let e4Span = spans.first(where: { $0.midiNote == 64 })
     #expect(c4Span?.onTick == 0)
     #expect(e4Span?.onTick == 30)
     #expect(c4Span?.offTick == 720)
 }
-

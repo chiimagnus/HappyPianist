@@ -12,16 +12,16 @@ enum MXLReaderError: Error, Equatable {
 extension MXLReaderError: LocalizedError {
     var errorDescription: String? {
         switch self {
-        case .invalidArchive:
-            return "无效的 .mxl 压缩包（可能已损坏或无法读取）"
-        case .missingContainerXML:
-            return "无效的 .mxl：缺少 META-INF/container.xml"
-        case .missingRootfileFullPath:
-            return "无效的 .mxl：container.xml 缺少 rootfile full-path"
-        case let .missingScoreXML(path):
-            return "无效的 .mxl：未找到谱面文件（\(path)）"
-        case .invalidContainerXML:
-            return "无效的 .mxl：container.xml 不是有效的 XML"
+            case .invalidArchive:
+                "无效的 .mxl 压缩包（可能已损坏或无法读取）"
+            case .missingContainerXML:
+                "无效的 .mxl：缺少 META-INF/container.xml"
+            case .missingRootfileFullPath:
+                "无效的 .mxl：container.xml 缺少 rootfile full-path"
+            case let .missingScoreXML(path):
+                "无效的 .mxl：未找到谱面文件（\(path)）"
+            case .invalidContainerXML:
+                "无效的 .mxl：container.xml 不是有效的 XML"
         }
     }
 }

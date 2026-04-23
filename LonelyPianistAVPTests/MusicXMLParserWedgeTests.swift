@@ -44,4 +44,3 @@ struct MusicXMLParserWedgeTests {
         #expect(second.scope.staff == 2)
     }
 }
-

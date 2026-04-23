@@ -53,4 +53,3 @@ func wordsSemanticsDoesNotDeriveTempoRampForRitWhenTargetIsFaster() {
 
     #expect(result.derivedTempoRamps.isEmpty == true)
 }
-

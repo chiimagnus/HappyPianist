@@ -21,4 +21,3 @@ struct MusicXMLExpressivityOptions: Equatable {
         self.wordsSemanticsEnabled = wordsSemanticsEnabled
     }
 }
-

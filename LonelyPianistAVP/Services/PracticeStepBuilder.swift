@@ -14,7 +14,8 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
     private let playableRange = 21 ... 108
 
     func buildSteps(from score: MusicXMLScore, expressivity: MusicXMLExpressivityOptions) -> PracticeStepBuildResult {
-        var grouped: [Int: [Int: (staff: Int?, velocity: UInt8, onTickOffset: Int, fingeringText: String?)]] = [:] // tick -> midi -> (staff, velocity, onTickOffset, fingeringText)
+        var grouped: [Int: [Int: (staff: Int?, velocity: UInt8, onTickOffset: Int, fingeringText: String?)]] =
+            [:] // tick -> midi -> (staff, velocity, onTickOffset, fingeringText)
         var unsupportedNoteCount = 0
         let velocityResolver = MusicXMLVelocityResolver(
             dynamicEvents: score.dynamicEvents,
@@ -22,7 +23,8 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
             wedgeEnabled: expressivity.wedgeEnabled
         )
         let graceOnTickByNoteIndex = expressivity.graceEnabled ? computeGraceOnTickByNoteIndex(notes: score.notes) : [:]
-        let arpeggiateOffsetByNoteIndex = expressivity.arpeggiateEnabled ? computeArpeggiateOffsetTicksByNoteIndex(notes: score.notes) : [:]
+        let arpeggiateOffsetByNoteIndex = expressivity
+            .arpeggiateEnabled ? computeArpeggiateOffsetTicksByNoteIndex(notes: score.notes) : [:]
 
         for (index, noteEvent) in score.notes.enumerated() {
             if noteEvent.isRest {
@@ -106,7 +108,7 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
         }
 
         var result: [Int: Int] = [:]
-        result.reserveCapacity(graceIndicesByKey.values.reduce(0, { $0 + $1.count }))
+        result.reserveCapacity(graceIndicesByKey.values.reduce(0) { $0 + $1.count })
 
         for (key, indices) in graceIndicesByKey {
             guard let followingDuration = followingDurationTicksByKey[key], followingDuration > 0 else { continue }
@@ -115,7 +117,10 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
                 ?? indices.compactMap { notes[$0].graceStealTimePrevious }.first
                 ?? 0.25
 
-            let totalStolenTicks = max(1, min(followingDuration - 1, Int((Double(followingDuration) * stealFraction).rounded())))
+            let totalStolenTicks = max(
+                1,
+                min(followingDuration - 1, Int((Double(followingDuration) * stealFraction).rounded()))
+            )
             let startTick = max(0, key.tick - totalStolenTicks)
 
             let slice = max(1, totalStolenTicks / max(1, indices.count))
@@ -189,7 +194,7 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
         guard candidatesByKey.isEmpty == false else { return [:] }
 
         var offsets: [Int: Int] = [:]
-        offsets.reserveCapacity(candidatesByKey.values.reduce(0, { $0 + $1.count }))
+        offsets.reserveCapacity(candidatesByKey.values.reduce(0) { $0 + $1.count })
 
         for (key, candidates) in candidatesByKey {
             guard candidates.count >= 2 else {
@@ -199,7 +204,9 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
 
             let durationTicks = candidates.map(\.durationTicks).max() ?? 0
             guard durationTicks > 0 else {
-                for candidate in candidates { offsets[candidate.index] = 0 }
+                for candidate in candidates {
+                    offsets[candidate.index] = 0
+                }
                 continue
             }
 
@@ -218,7 +225,6 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
                     cursor = min(totalSpreadTicks, cursor + step)
                 }
             }
-
         }
 
         return offsets

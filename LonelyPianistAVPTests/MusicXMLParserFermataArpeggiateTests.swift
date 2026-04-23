@@ -70,4 +70,3 @@ struct MusicXMLParserFermataArpeggiateTests {
         #expect(fermata.scope.staff == 2)
     }
 }
-

@@ -7,7 +7,10 @@ struct MusicXMLWordsSemanticsResult: Equatable {
 }
 
 struct MusicXMLWordsSemanticsInterpreter {
-    func interpret(wordsEvents: [MusicXMLWordsEvent], tempoEvents: [MusicXMLTempoEvent]) -> MusicXMLWordsSemanticsResult {
+    func interpret(
+        wordsEvents: [MusicXMLWordsEvent],
+        tempoEvents: [MusicXMLTempoEvent]
+    ) -> MusicXMLWordsSemanticsResult {
         let markers = wordsEvents
             .compactMap(Self.marker(from:))
             .sorted { lhs, rhs in
@@ -49,7 +52,8 @@ struct MusicXMLWordsSemanticsInterpreter {
 
         let aTempoEvents: [MusicXMLTempoEvent] = markers.compactMap { marker in
             guard marker.kind == .aTempo else { return nil }
-            guard let bpm = Self.lastExplicitTempoBPM(atOrBeforeTick: marker.tick, tempoEvents: validatedTempoEvents) else {
+            guard let bpm = Self.lastExplicitTempoBPM(atOrBeforeTick: marker.tick, tempoEvents: validatedTempoEvents)
+            else {
                 return nil
             }
             return MusicXMLTempoEvent(tick: marker.tick, quarterBPM: bpm)
@@ -60,19 +64,19 @@ struct MusicXMLWordsSemanticsInterpreter {
         let ramps: [MusicXMLTempoMap.TempoRamp] = markers.compactMap { marker in
             switch marker.kind {
                 case .rit:
-                    return Self.tempoRampIfPossible(
+                    Self.tempoRampIfPossible(
                         startTick: marker.tick,
                         requiresSlowingDown: true,
                         explicitTempoEvents: combinedTempoEvents
                     )
                 case .accel:
-                    return Self.tempoRampIfPossible(
+                    Self.tempoRampIfPossible(
                         startTick: marker.tick,
                         requiresSlowingDown: false,
                         explicitTempoEvents: combinedTempoEvents
                     )
                 case .aTempo, .pedalDown, .pedalUp:
-                    return nil
+                    nil
             }
         }
 
@@ -167,7 +171,10 @@ struct MusicXMLWordsSemanticsInterpreter {
             .quarterBPM
     }
 
-    private static func nextExplicitTempo(afterTick tick: Int, tempoEvents: [MusicXMLTempoEvent]) -> MusicXMLTempoEvent? {
+    private static func nextExplicitTempo(
+        afterTick tick: Int,
+        tempoEvents: [MusicXMLTempoEvent]
+    ) -> MusicXMLTempoEvent? {
         tempoEvents.first(where: { $0.tick > tick })
     }
 
@@ -186,8 +193,10 @@ struct MusicXMLWordsSemanticsInterpreter {
         requiresSlowingDown: Bool,
         explicitTempoEvents: [MusicXMLTempoEvent]
     ) -> MusicXMLTempoMap.TempoRamp? {
-        guard let startBPM = lastExplicitTempoBPM(atOrBeforeTick: startTick, tempoEvents: explicitTempoEvents) else { return nil }
-        guard let endEvent = nextExplicitTempo(afterTick: startTick, tempoEvents: explicitTempoEvents) else { return nil }
+        guard let startBPM = lastExplicitTempoBPM(atOrBeforeTick: startTick, tempoEvents: explicitTempoEvents)
+        else { return nil }
+        guard let endEvent = nextExplicitTempo(afterTick: startTick, tempoEvents: explicitTempoEvents)
+        else { return nil }
         let endBPM = endEvent.quarterBPM
 
         if requiresSlowingDown, endBPM >= startBPM { return nil }

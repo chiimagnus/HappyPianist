@@ -113,4 +113,3 @@ struct MusicXMLParserUIInfoTests {
         #expect(score.clefEvents.first?.scope.staff == 2)
     }
 }
-

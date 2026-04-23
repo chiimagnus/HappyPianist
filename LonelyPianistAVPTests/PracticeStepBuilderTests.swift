@@ -202,7 +202,10 @@ func buildStepsIncludesGraceNotesWhenEnabled() {
         ),
     ])
 
-    let result = PracticeStepBuilder().buildSteps(from: score, expressivity: MusicXMLExpressivityOptions(graceEnabled: true))
+    let result = PracticeStepBuilder().buildSteps(
+        from: score,
+        expressivity: MusicXMLExpressivityOptions(graceEnabled: true)
+    )
     #expect(result.steps.map(\.tick) == [360, 480])
     #expect(result.steps[0].notes.map(\.midiNote) == [60])
     #expect(result.steps[1].notes.map(\.midiNote) == [62])
@@ -240,7 +243,10 @@ func buildStepsSetsOnTickOffsetsForArpeggiateChordWhenEnabled() {
         ),
     ])
 
-    let result = PracticeStepBuilder().buildSteps(from: score, expressivity: MusicXMLExpressivityOptions(arpeggiateEnabled: true))
+    let result = PracticeStepBuilder().buildSteps(
+        from: score,
+        expressivity: MusicXMLExpressivityOptions(arpeggiateEnabled: true)
+    )
     #expect(result.steps.count == 1)
     #expect(result.steps[0].tick == 0)
     #expect(result.steps[0].notes.map(\.midiNote) == [60, 64])

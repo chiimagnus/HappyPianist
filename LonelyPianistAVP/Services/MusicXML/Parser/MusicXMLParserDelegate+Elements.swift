@@ -227,7 +227,9 @@ extension MusicXMLParserDelegate {
                 }
             case "slur":
                 if state.isInNote {
-                    let kind: MusicXMLSlurEventKind? = switch attributeDict["type"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+                    let kind: MusicXMLSlurEventKind? = switch attributeDict["type"]?
+                        .trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                    {
                         case "start":
                             .start
                         case "stop":
@@ -251,7 +253,6 @@ extension MusicXMLParserDelegate {
                         state.noteArticulations.insert(articulation)
                     }
                 }
-                break
         }
     }
 
@@ -338,7 +339,11 @@ extension MusicXMLParserDelegate {
                     MusicXMLWordsEvent(
                         tick: currentDirectionEventTick(),
                         text: trimmed,
-                        scope: MusicXMLEventScope(partID: state.currentPartID, staff: state.currentDirectionStaff, voice: nil)
+                        scope: MusicXMLEventScope(
+                            partID: state.currentPartID,
+                            staff: state.currentDirectionStaff,
+                            voice: nil
+                        )
                     )
                 )
             case "offset":

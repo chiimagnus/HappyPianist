@@ -5,11 +5,26 @@ import Testing
 func attributeTimelineResolvesLastEventsAtOrBeforeTick() {
     let timeline = MusicXMLAttributeTimeline(
         timeSignatureEvents: [
-            MusicXMLTimeSignatureEvent(tick: 0, beats: 4, beatType: 4, scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)),
-            MusicXMLTimeSignatureEvent(tick: 480, beats: 3, beatType: 4, scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)),
+            MusicXMLTimeSignatureEvent(
+                tick: 0,
+                beats: 4,
+                beatType: 4,
+                scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
+            ),
+            MusicXMLTimeSignatureEvent(
+                tick: 480,
+                beats: 3,
+                beatType: 4,
+                scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
+            ),
         ],
         keySignatureEvents: [
-            MusicXMLKeySignatureEvent(tick: 0, fifths: -3, modeToken: "minor", scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)),
+            MusicXMLKeySignatureEvent(
+                tick: 0,
+                fifths: -3,
+                modeToken: "minor",
+                scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
+            ),
         ],
         clefEvents: [
             MusicXMLClefEvent(
@@ -41,4 +56,3 @@ func attributeTimelineResolvesLastEventsAtOrBeforeTick() {
     #expect(timeline.clef(atTick: 0, staffNumber: 1)?.signToken == "G")
     #expect(timeline.clef(atTick: 0, staffNumber: 2)?.signToken == "F")
 }
-

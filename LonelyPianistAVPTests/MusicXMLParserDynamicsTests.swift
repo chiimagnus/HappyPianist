@@ -93,4 +93,3 @@ struct MusicXMLParserDynamicsTests {
         #expect(score.notes.first?.dynamicsOverrideVelocity == 100)
     }
 }
-

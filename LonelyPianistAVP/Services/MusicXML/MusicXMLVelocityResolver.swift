@@ -36,7 +36,11 @@ struct MusicXMLVelocityResolver {
         let noteStaff = note.staff ?? 1
 
         let baseVelocity: UInt8 = if wedgeEnabled,
-            let velocity = wedgeVelocity(partID: note.partID, tick: note.tick, staff: noteStaff)
+                                     let velocity = wedgeVelocity(
+                                         partID: note.partID,
+                                         tick: note.tick,
+                                         staff: noteStaff
+                                     )
         {
             velocity
         } else {
@@ -118,8 +122,10 @@ struct MusicXMLVelocityResolver {
         guard span.endTick > span.startTick else { return nil }
         guard span.kind != .stop else { return nil }
 
-        let startVelocity = resolvedVelocityFromDynamics(partID: partID, tick: span.startTick, staff: staff) ?? defaultVelocity
-        guard let endVelocity = firstExplicitDynamicVelocity(atOrAfterTick: span.endTick, partID: partID, staff: staff) else {
+        let startVelocity = resolvedVelocityFromDynamics(partID: partID, tick: span.startTick, staff: staff) ??
+            defaultVelocity
+        guard let endVelocity = firstExplicitDynamicVelocity(atOrAfterTick: span.endTick, partID: partID, staff: staff)
+        else {
             return nil
         }
 

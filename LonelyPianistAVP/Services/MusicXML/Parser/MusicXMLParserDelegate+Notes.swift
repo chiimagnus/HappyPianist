@@ -152,7 +152,11 @@ extension MusicXMLParserDelegate {
                         tick: startTick,
                         kind: slur.kind,
                         numberToken: slur.numberToken,
-                        scope: MusicXMLEventScope(partID: state.currentPartID, staff: state.noteStaff, voice: state.noteVoice)
+                        scope: MusicXMLEventScope(
+                            partID: state.currentPartID,
+                            staff: state.noteStaff,
+                            voice: state.noteVoice
+                        )
                     )
                 )
             }

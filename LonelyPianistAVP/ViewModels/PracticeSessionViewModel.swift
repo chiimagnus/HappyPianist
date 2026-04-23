@@ -110,7 +110,7 @@ final class PracticeSessionViewModel {
 
         let rh = attributeTimeline.clef(atTick: tick, staffNumber: 1).flatMap { Self.clefToken(for: $0) }
         let lh = attributeTimeline.clef(atTick: tick, staffNumber: 2).flatMap { Self.clefToken(for: $0) }
-        let clefTokens = [rh, lh].compactMap { $0 }
+        let clefTokens = [rh, lh].compactMap(\.self)
         if clefTokens.isEmpty == false {
             parts.append("Clef \(clefTokens.joined(separator: "/"))")
         }
@@ -373,7 +373,13 @@ final class PracticeSessionViewModel {
                 let nextPedalReleaseTick = pedalTimeline?.nextReleaseEdge(afterTick: currentTick) ?? Int.max
                 let nextNoteOffTick = activeNoteOffTickByMIDI.values.min() ?? Int.max
                 let nextNoteOnTick = pendingAutoplayOnsetsByTick.keys.min() ?? Int.max
-                let nextEventTick = min(nextStepTick, nextPedalTick, nextPedalReleaseTick, nextNoteOffTick, nextNoteOnTick)
+                let nextEventTick = min(
+                    nextStepTick,
+                    nextPedalTick,
+                    nextPedalReleaseTick,
+                    nextNoteOffTick,
+                    nextNoteOnTick
+                )
 
                 let waitSeconds = tempoMap.durationSeconds(fromTick: currentTick, toTick: nextEventTick)
 
@@ -457,7 +463,10 @@ final class PracticeSessionViewModel {
         guard let noteOutput else { return }
         guard audioErrorMessage == nil else { return }
 
-        pendingAutoplayOnsetsByTick = Dictionary(grouping: currentStep.notes, by: { currentStep.tick + $0.onTickOffset })
+        pendingAutoplayOnsetsByTick = Dictionary(
+            grouping: currentStep.notes,
+            by: { currentStep.tick + $0.onTickOffset }
+        )
 
         for note in currentStep.notes {
             noteOffTasksByMIDI[note.midiNote]?.cancel()
