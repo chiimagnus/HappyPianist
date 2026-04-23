@@ -146,12 +146,16 @@ struct MusicXMLStructureExpander {
 
         var outputTick = 0
         var outputMeasureNumber = 1
+        var passByOriginalMeasureNumber: [Int: Int] = [:]
 
         for index in sequence {
             guard primaryMeasures.indices.contains(index) else { continue }
             let span = primaryMeasures[index]
             let duration = max(0, span.endTick - span.startTick)
             let currentMeasureStartTick = outputTick
+            let originalMeasureNumber = span.measureNumber
+            let pass = (passByOriginalMeasureNumber[originalMeasureNumber] ?? 0) + 1
+            passByOriginalMeasureNumber[originalMeasureNumber] = pass
 
             let notesInMeasure = original.notes.filter { note in
                 note.partID == primaryPartID && note.tick >= span.startTick && note.tick < span.endTick
@@ -188,6 +192,9 @@ struct MusicXMLStructureExpander {
                     event.partID == primaryPartID && event.measureNumber == span.measureNumber
                 }
                 for event in soundsInMeasure {
+                    if let timeOnlyPasses = event.timeOnlyPasses, timeOnlyPasses.contains(pass) == false {
+                        continue
+                    }
                     let shiftedTick = currentMeasureStartTick + (event.tick - span.startTick)
                     outputSoundDirectives.append(
                         MusicXMLSoundDirective(
@@ -198,7 +205,8 @@ struct MusicXMLStructureExpander {
                             coda: event.coda,
                             tocoda: event.tocoda,
                             dalsegno: event.dalsegno,
-                            dacapo: event.dacapo
+                            dacapo: event.dacapo,
+                            timeOnlyPasses: event.timeOnlyPasses
                         )
                     )
                 }
@@ -208,6 +216,9 @@ struct MusicXMLStructureExpander {
                 event.partID == primaryPartID && event.measureNumber == span.measureNumber
             }
             for event in pedalsInMeasure {
+                if let timeOnlyPasses = event.timeOnlyPasses, timeOnlyPasses.contains(pass) == false {
+                    continue
+                }
                 let shiftedTick = currentMeasureStartTick + (event.tick - span.startTick)
                 outputPedalEvents.append(
                     MusicXMLPedalEvent(
@@ -215,7 +226,8 @@ struct MusicXMLStructureExpander {
                         measureNumber: outputMeasureNumber,
                         tick: shiftedTick,
                         kind: event.kind,
-                        isDown: event.isDown
+                        isDown: event.isDown,
+                        timeOnlyPasses: event.timeOnlyPasses
                     )
                 )
             }

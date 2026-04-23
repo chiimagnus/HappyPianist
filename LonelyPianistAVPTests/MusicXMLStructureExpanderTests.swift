@@ -63,6 +63,43 @@ func structureExpanderExpandsRepeatWithEndingsAndTempoEvents() throws {
 }
 
 @Test
+func structureExpanderFiltersTimeOnlyPedalEventsByPass() throws {
+    let xml = """
+    <?xml version="1.0" encoding="UTF-8"?>
+    <score-partwise version="4.0">
+      <part-list>
+        <score-part id="P1"><part-name>Piano</part-name></score-part>
+      </part-list>
+      <part id="P1">
+        <measure number="1">
+          <attributes><divisions>1</divisions></attributes>
+          <barline location="left"><repeat direction="forward"/></barline>
+          <direction><sound damper-pedal="yes" time-only="2"/></direction>
+          <note>
+            <pitch><step>C</step><octave>4</octave></pitch>
+            <duration>1</duration>
+          </note>
+        </measure>
+        <measure number="2">
+          <note>
+            <pitch><step>D</step><octave>4</octave></pitch>
+            <duration>1</duration>
+          </note>
+          <barline location="right"><repeat direction="backward"/></barline>
+        </measure>
+      </part>
+    </score-partwise>
+    """
+
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let expanded = MusicXMLStructureExpander().expandRepeatAndEndingIfPossible(score: score)
+
+    #expect(expanded.pedalEvents.count == 1)
+    #expect(expanded.pedalEvents.first?.tick == 960)
+    #expect(expanded.pedalEvents.first?.measureNumber == 3)
+}
+
+@Test
 func structureExpanderExpandsDalSegnoJumpOnce() throws {
     let xml = """
     <?xml version="1.0" encoding="UTF-8"?>
@@ -173,7 +210,8 @@ func structureExpanderFallsBackWhenJumpLimitsAreHit() {
                 coda: nil,
                 tocoda: nil,
                 dalsegno: "S1",
-                dacapo: nil
+                dacapo: nil,
+                timeOnlyPasses: nil
             ),
         ],
         measures: [

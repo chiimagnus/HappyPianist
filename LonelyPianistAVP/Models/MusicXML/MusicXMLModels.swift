@@ -22,7 +22,7 @@ struct MusicXMLTempoEvent: Equatable, Identifiable {
 
 struct MusicXMLSoundDirective: Equatable, Identifiable {
     var id: String {
-        "\(partID)-\(measureNumber)-\(tick)-\(segno ?? "")-\(coda ?? "")-\(tocoda ?? "")-\(dalsegno ?? "")-\(dacapo ?? "")"
+        "\(partID)-\(measureNumber)-\(tick)-\(segno ?? "")-\(coda ?? "")-\(tocoda ?? "")-\(dalsegno ?? "")-\(dacapo ?? "")-\(timeOnlyPasses?.map(String.init).joined(separator: ",") ?? "")"
     }
 
     let partID: String
@@ -33,6 +33,7 @@ struct MusicXMLSoundDirective: Equatable, Identifiable {
     let tocoda: String?
     let dalsegno: String?
     let dacapo: String?
+    let timeOnlyPasses: [Int]?
 }
 
 enum MusicXMLPedalEventKind: String, Equatable {
@@ -44,7 +45,7 @@ enum MusicXMLPedalEventKind: String, Equatable {
 
 struct MusicXMLPedalEvent: Equatable, Identifiable {
     var id: String {
-        "\(partID)-\(measureNumber)-\(tick)-\(kind.rawValue)-\(isDown.map { $0 ? "down" : "up" } ?? "keep")"
+        "\(partID)-\(measureNumber)-\(tick)-\(kind.rawValue)-\(isDown.map { $0 ? "down" : "up" } ?? "keep")-\(timeOnlyPasses?.map(String.init).joined(separator: ",") ?? "")"
     }
 
     let partID: String
@@ -52,6 +53,7 @@ struct MusicXMLPedalEvent: Equatable, Identifiable {
     let tick: Int
     let kind: MusicXMLPedalEventKind
     let isDown: Bool?
+    let timeOnlyPasses: [Int]?
 }
 
 struct MusicXMLMeasureSpan: Equatable, Identifiable {

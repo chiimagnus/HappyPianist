@@ -5,8 +5,8 @@ import Testing
 func pedalTimelineComputesIsDownAndNextChange() {
     let timeline = MusicXMLPedalTimeline(
         events: [
-            MusicXMLPedalEvent(partID: "P1", measureNumber: 1, tick: 0, kind: .start, isDown: true),
-            MusicXMLPedalEvent(partID: "P1", measureNumber: 1, tick: 480, kind: .stop, isDown: false),
+            MusicXMLPedalEvent(partID: "P1", measureNumber: 1, tick: 0, kind: .start, isDown: true, timeOnlyPasses: nil),
+            MusicXMLPedalEvent(partID: "P1", measureNumber: 1, tick: 480, kind: .stop, isDown: false, timeOnlyPasses: nil),
         ]
     )
 
@@ -34,9 +34,9 @@ func pedalTimelineComputesIsDownAndNextChange() {
 func pedalTimelineIgnoresContinueAndCoalescesSameTickChanges() {
     let timeline = MusicXMLPedalTimeline(
         events: [
-            MusicXMLPedalEvent(partID: "P1", measureNumber: 1, tick: 0, kind: .continue, isDown: nil),
-            MusicXMLPedalEvent(partID: "P1", measureNumber: 1, tick: 120, kind: .change, isDown: false),
-            MusicXMLPedalEvent(partID: "P1", measureNumber: 1, tick: 120, kind: .change, isDown: true),
+            MusicXMLPedalEvent(partID: "P1", measureNumber: 1, tick: 0, kind: .continue, isDown: nil, timeOnlyPasses: nil),
+            MusicXMLPedalEvent(partID: "P1", measureNumber: 1, tick: 120, kind: .change, isDown: false, timeOnlyPasses: nil),
+            MusicXMLPedalEvent(partID: "P1", measureNumber: 1, tick: 120, kind: .change, isDown: true, timeOnlyPasses: nil),
         ]
     )
 
