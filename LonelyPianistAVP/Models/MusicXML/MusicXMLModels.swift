@@ -9,6 +9,10 @@ struct MusicXMLScore: Equatable {
     var dynamicEvents: [MusicXMLDynamicEvent] = []
     var wedgeEvents: [MusicXMLWedgeEvent] = []
     var fermataEvents: [MusicXMLFermataEvent] = []
+    var slurEvents: [MusicXMLSlurEvent] = []
+    var timeSignatureEvents: [MusicXMLTimeSignatureEvent] = []
+    var keySignatureEvents: [MusicXMLKeySignatureEvent] = []
+    var clefEvents: [MusicXMLClefEvent] = []
     var measures: [MusicXMLMeasureSpan] = []
     var repeatDirectives: [MusicXMLRepeatDirective] = []
     var endingDirectives: [MusicXMLEndingDirective] = []
@@ -71,6 +75,57 @@ struct MusicXMLFermataEvent: Equatable, Identifiable {
 struct MusicXMLArpeggiate: Equatable {
     let numberToken: String?
     let directionToken: String?
+}
+
+enum MusicXMLSlurEventKind: Equatable {
+    case start
+    case stop
+}
+
+struct MusicXMLSlurEvent: Equatable, Identifiable {
+    var id: String {
+        "\(tick)-\(kind)-\(numberToken ?? "")-\(scope.partID)-\(scope.staff ?? -1)-\(scope.voice ?? -1)"
+    }
+
+    let tick: Int
+    let kind: MusicXMLSlurEventKind
+    let numberToken: String?
+    let scope: MusicXMLEventScope
+}
+
+struct MusicXMLTimeSignatureEvent: Equatable, Identifiable {
+    var id: String {
+        "\(tick)-\(beats)-\(beatType)-\(scope.partID)"
+    }
+
+    let tick: Int
+    let beats: Int
+    let beatType: Int
+    let scope: MusicXMLEventScope
+}
+
+struct MusicXMLKeySignatureEvent: Equatable, Identifiable {
+    var id: String {
+        "\(tick)-\(fifths)-\(modeToken ?? "")-\(scope.partID)"
+    }
+
+    let tick: Int
+    let fifths: Int
+    let modeToken: String?
+    let scope: MusicXMLEventScope
+}
+
+struct MusicXMLClefEvent: Equatable, Identifiable {
+    var id: String {
+        "\(tick)-\(signToken ?? "")-\(line ?? -1)-\(octaveChange ?? 0)-\(numberToken ?? "")-\(scope.partID)"
+    }
+
+    let tick: Int
+    let signToken: String?
+    let line: Int?
+    let octaveChange: Int?
+    let numberToken: String?
+    let scope: MusicXMLEventScope
 }
 
 enum MusicXMLArticulation: String, CaseIterable, Equatable, Hashable {
@@ -191,7 +246,7 @@ struct MusicXMLEndingDirective: Equatable {
 
 struct MusicXMLNoteEvent: Equatable, Identifiable {
     var id: String {
-        "\(partID)-\(measureNumber)-\(tick)-\(midiNote ?? -1)-\(durationTicks)-\(isRest)-\(isChord)-\(isGrace)-\(graceSlash)-\(graceStealTimePrevious ?? 0)-\(graceStealTimeFollowing ?? 0)-\(tieStart)-\(tieStop)-\(attackTicks ?? 0)-\(releaseTicks ?? 0)-\(dynamicsOverrideVelocity ?? 0)-\(articulations.map(\.rawValue).sorted().joined(separator: ","))-\(arpeggiate?.numberToken ?? "")-\(arpeggiate?.directionToken ?? "")"
+        "\(partID)-\(measureNumber)-\(tick)-\(midiNote ?? -1)-\(durationTicks)-\(isRest)-\(isChord)-\(isGrace)-\(graceSlash)-\(graceStealTimePrevious ?? 0)-\(graceStealTimeFollowing ?? 0)-\(tieStart)-\(tieStop)-\(attackTicks ?? 0)-\(releaseTicks ?? 0)-\(dynamicsOverrideVelocity ?? 0)-\(articulations.map(\.rawValue).sorted().joined(separator: ","))-\(arpeggiate?.numberToken ?? "")-\(arpeggiate?.directionToken ?? "")-\(fingeringText ?? "")"
     }
 
     let partID: String
@@ -214,6 +269,7 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
     let dynamicsOverrideVelocity: UInt8?
     let articulations: Set<MusicXMLArticulation>
     let arpeggiate: MusicXMLArpeggiate?
+    let fingeringText: String?
 
     init(
         partID: String,
@@ -235,7 +291,8 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         releaseTicks: Int? = nil,
         dynamicsOverrideVelocity: UInt8? = nil,
         articulations: Set<MusicXMLArticulation> = [],
-        arpeggiate: MusicXMLArpeggiate? = nil
+        arpeggiate: MusicXMLArpeggiate? = nil,
+        fingeringText: String? = nil
     ) {
         self.partID = partID
         self.measureNumber = measureNumber
@@ -257,6 +314,7 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         self.dynamicsOverrideVelocity = dynamicsOverrideVelocity
         self.articulations = articulations
         self.arpeggiate = arpeggiate
+        self.fingeringText = fingeringText
     }
 }
 

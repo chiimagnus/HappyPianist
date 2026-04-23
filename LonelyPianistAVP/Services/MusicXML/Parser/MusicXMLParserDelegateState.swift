@@ -12,6 +12,10 @@ struct MusicXMLParserDelegateState {
     var dynamicEvents: [MusicXMLDynamicEvent] = []
     var wedgeEvents: [MusicXMLWedgeEvent] = []
     var fermataEvents: [MusicXMLFermataEvent] = []
+    var slurEvents: [MusicXMLSlurEvent] = []
+    var timeSignatureEvents: [MusicXMLTimeSignatureEvent] = []
+    var keySignatureEvents: [MusicXMLKeySignatureEvent] = []
+    var clefEvents: [MusicXMLClefEvent] = []
     var measures: [MusicXMLMeasureSpan] = []
     var repeatDirectives: [MusicXMLRepeatDirective] = []
     var endingDirectives: [MusicXMLEndingDirective] = []
@@ -42,6 +46,17 @@ struct MusicXMLParserDelegateState {
     var elementText = ""
 
     var isInAttributes = false
+    var isInTime = false
+    var timeBeats: Int?
+    var timeBeatType: Int?
+    var isInKey = false
+    var keyFifths: Int?
+    var keyModeToken: String?
+    var isInClef = false
+    var clefSignToken: String?
+    var clefLine: Int?
+    var clefOctaveChange: Int?
+    var clefNumberToken: String?
     var isInBackup = false
     var isInForward = false
     var isInDirection = false
@@ -77,6 +92,9 @@ struct MusicXMLParserDelegateState {
     var noteArticulations: Set<MusicXMLArticulation> = []
     var noteHasFermata = false
     var noteArpeggiate: MusicXMLArpeggiate?
+    var noteFingeringText: String?
+    var notePendingSlurEvents: [(kind: MusicXMLSlurEventKind, numberToken: String?)] = []
+    var isInTechnical = false
 
     var isInDirectionTypeMetronome = false
     var metronomeBeatUnit: String?

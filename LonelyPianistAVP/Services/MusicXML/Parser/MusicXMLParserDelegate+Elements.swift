@@ -26,6 +26,26 @@ extension MusicXMLParserDelegate {
                 state.partLastNonChordStartTick[state.currentPartID] = nil
             case "attributes":
                 state.isInAttributes = true
+            case "time":
+                if state.isInAttributes {
+                    state.isInTime = true
+                    state.timeBeats = nil
+                    state.timeBeatType = nil
+                }
+            case "key":
+                if state.isInAttributes {
+                    state.isInKey = true
+                    state.keyFifths = nil
+                    state.keyModeToken = nil
+                }
+            case "clef":
+                if state.isInAttributes {
+                    state.isInClef = true
+                    state.clefSignToken = nil
+                    state.clefLine = nil
+                    state.clefOctaveChange = nil
+                    state.clefNumberToken = attributeDict["number"]
+                }
             case "direction":
                 state.isInDirection = true
                 state.currentDirectionOffsetTicks = 0
@@ -140,6 +160,13 @@ extension MusicXMLParserDelegate {
                 state.noteArticulations = []
                 state.noteHasFermata = false
                 state.noteArpeggiate = nil
+                state.noteFingeringText = nil
+                state.notePendingSlurEvents = []
+                state.isInTechnical = false
+            case "technical":
+                if state.isInNote {
+                    state.isInTechnical = true
+                }
             case "fermata":
                 if state.isInNote {
                     state.noteHasFermata = true
@@ -197,6 +224,24 @@ extension MusicXMLParserDelegate {
                 if state.isInNote {
                     state.isInNoteArticulations = true
                 }
+            case "slur":
+                if state.isInNote {
+                    let kind: MusicXMLSlurEventKind? = switch attributeDict["type"]?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+                        case "start":
+                            .start
+                        case "stop":
+                            .stop
+                        default:
+                            nil
+                    }
+                    if let kind {
+                        let numberToken = attributeDict["number"].flatMap { token in
+                            let trimmed = token.trimmingCharacters(in: .whitespacesAndNewlines)
+                            return trimmed.isEmpty ? nil : trimmed
+                        }
+                        state.notePendingSlurEvents.append((kind: kind, numberToken: numberToken))
+                    }
+                }
             default:
                 recordDirectionDynamicsMarkIfPresent(elementName: elementName)
                 if state.isInNoteArticulations {
@@ -215,6 +260,65 @@ extension MusicXMLParserDelegate {
                 if let value = Int(text), value > 0 {
                     state.partDivisions[state.currentPartID] = value
                 }
+            case "beats" where state.isInTime:
+                state.timeBeats = Int(text)
+            case "beat-type" where state.isInTime:
+                state.timeBeatType = Int(text)
+            case "time" where state.isInTime:
+                if let beats = state.timeBeats, let beatType = state.timeBeatType, beats > 0, beatType > 0 {
+                    let tick = state.partTick[state.currentPartID] ?? state.currentMeasureStartTick
+                    state.timeSignatureEvents.append(
+                        MusicXMLTimeSignatureEvent(
+                            tick: tick,
+                            beats: beats,
+                            beatType: beatType,
+                            scope: MusicXMLEventScope(partID: state.currentPartID, staff: nil, voice: nil)
+                        )
+                    )
+                }
+                state.isInTime = false
+            case "fifths" where state.isInKey:
+                state.keyFifths = Int(text)
+            case "mode" where state.isInKey:
+                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                state.keyModeToken = trimmed.isEmpty ? nil : trimmed
+            case "key" where state.isInKey:
+                if let fifths = state.keyFifths {
+                    let tick = state.partTick[state.currentPartID] ?? state.currentMeasureStartTick
+                    state.keySignatureEvents.append(
+                        MusicXMLKeySignatureEvent(
+                            tick: tick,
+                            fifths: fifths,
+                            modeToken: state.keyModeToken,
+                            scope: MusicXMLEventScope(partID: state.currentPartID, staff: nil, voice: nil)
+                        )
+                    )
+                }
+                state.isInKey = false
+            case "sign" where state.isInClef:
+                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                state.clefSignToken = trimmed.isEmpty ? nil : trimmed
+            case "line" where state.isInClef:
+                state.clefLine = Int(text)
+            case "clef-octave-change" where state.isInClef:
+                state.clefOctaveChange = Int(text)
+            case "clef" where state.isInClef:
+                if state.clefSignToken != nil {
+                    let tick = state.partTick[state.currentPartID] ?? state.currentMeasureStartTick
+                    let numberToken = state.clefNumberToken?.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let staff = numberToken.flatMap(Int.init)
+                    state.clefEvents.append(
+                        MusicXMLClefEvent(
+                            tick: tick,
+                            signToken: state.clefSignToken,
+                            line: state.clefLine,
+                            octaveChange: state.clefOctaveChange,
+                            numberToken: numberToken?.isEmpty == true ? nil : numberToken,
+                            scope: MusicXMLEventScope(partID: state.currentPartID, staff: staff, voice: nil)
+                        )
+                    )
+                }
+                state.isInClef = false
             case "beat-unit" where state.isInDirectionTypeMetronome:
                 state.metronomeBeatUnit = text
             case "beat-unit-dot" where state.isInDirectionTypeMetronome:
@@ -235,6 +339,11 @@ extension MusicXMLParserDelegate {
                     }
                 }
                 state.currentOffsetAppliesToSound = false
+            case "technical" where state.isInNote:
+                state.isInTechnical = false
+            case "fingering" where state.isInNote && state.isInTechnical:
+                let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                state.noteFingeringText = trimmed.isEmpty ? nil : trimmed
             case "duration":
                 if let duration = Int(text), duration >= 0 {
                     let normalizedDuration = normalizeDuration(duration)
@@ -328,8 +437,12 @@ extension MusicXMLParserDelegate {
             case "note":
                 finalizeNote()
                 state.isInNote = false
+                state.isInTechnical = false
             case "attributes":
                 state.isInAttributes = false
+                state.isInTime = false
+                state.isInKey = false
+                state.isInClef = false
             case "direction":
                 state.isInDirection = false
                 state.currentDirectionOffsetTicks = 0

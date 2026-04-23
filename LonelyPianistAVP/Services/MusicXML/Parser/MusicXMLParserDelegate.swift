@@ -38,6 +38,22 @@ final class MusicXMLParserDelegate: NSObject {
         state.fermataEvents
     }
 
+    var slurEvents: [MusicXMLSlurEvent] {
+        state.slurEvents
+    }
+
+    var timeSignatureEvents: [MusicXMLTimeSignatureEvent] {
+        state.timeSignatureEvents
+    }
+
+    var keySignatureEvents: [MusicXMLKeySignatureEvent] {
+        state.keySignatureEvents
+    }
+
+    var clefEvents: [MusicXMLClefEvent] {
+        state.clefEvents
+    }
+
     var measures: [MusicXMLMeasureSpan] {
         state.measures
     }
