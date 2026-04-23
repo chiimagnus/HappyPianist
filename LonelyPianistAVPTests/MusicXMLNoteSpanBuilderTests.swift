@@ -147,3 +147,50 @@ func noteSpanBuilderShortensDurationForStaccato() {
     #expect(spans[0].onTick == 0)
     #expect(spans[0].offTick == 240)
 }
+
+@Test
+func noteSpanBuilderEmitsGraceSpansAndStealsFromFollowingWhenEnabled() {
+    let builder = MusicXMLNoteSpanBuilder()
+    let notes: [MusicXMLNoteEvent] = [
+        MusicXMLNoteEvent(
+            partID: "P1",
+            measureNumber: 1,
+            tick: 480,
+            durationTicks: 0,
+            midiNote: 60,
+            isRest: false,
+            isChord: false,
+            isGrace: true,
+            graceSlash: false,
+            graceStealTimePrevious: nil,
+            graceStealTimeFollowing: 0.25,
+            tieStart: false,
+            tieStop: false,
+            staff: 1,
+            voice: 1
+        ),
+        MusicXMLNoteEvent(
+            partID: "P1",
+            measureNumber: 1,
+            tick: 480,
+            durationTicks: 480,
+            midiNote: 62,
+            isRest: false,
+            isChord: false,
+            tieStart: false,
+            tieStop: false,
+            staff: 1,
+            voice: 1
+        ),
+    ]
+
+    let spans = builder.buildSpans(from: notes, expressivity: MusicXMLExpressivityOptions(graceEnabled: true))
+    #expect(spans.count == 2)
+
+    let grace = spans.first(where: { $0.midiNote == 60 })
+    let main = spans.first(where: { $0.midiNote == 62 })
+    #expect(grace?.onTick == 360)
+    #expect(grace?.offTick == 480)
+    #expect(main?.onTick == 480)
+    #expect(main?.offTick == 840)
+}

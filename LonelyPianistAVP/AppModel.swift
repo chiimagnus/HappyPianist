@@ -120,7 +120,8 @@ class AppModel {
                 : score
 
             let expressivityOptions = MusicXMLExpressivityOptions(
-                wedgeEnabled: UserDefaults.standard.bool(forKey: "practiceMusicXMLWedgeEnabled")
+                wedgeEnabled: UserDefaults.standard.bool(forKey: "practiceMusicXMLWedgeEnabled"),
+                graceEnabled: UserDefaults.standard.bool(forKey: "practiceMusicXMLGraceEnabled")
             )
             let buildResult = stepBuilder.buildSteps(from: effectiveScore, expressivity: expressivityOptions)
             let tempoMap = MusicXMLTempoMap(tempoEvents: effectiveScore.tempoEvents)
@@ -129,7 +130,8 @@ class AppModel {
                 .bool(forKey: "practiceMusicXMLPerformanceTimingEnabled")
             let noteSpans = MusicXMLNoteSpanBuilder().buildSpans(
                 from: effectiveScore.notes,
-                performanceTimingEnabled: shouldUsePerformanceTiming
+                performanceTimingEnabled: shouldUsePerformanceTiming,
+                expressivity: expressivityOptions
             )
             if buildResult.unsupportedNoteCount > 0 {
                 importErrorMessage = "已导入（忽略了 \(buildResult.unsupportedNoteCount) 个不支持的音符）。"

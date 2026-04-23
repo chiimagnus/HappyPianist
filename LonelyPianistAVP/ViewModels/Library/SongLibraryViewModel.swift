@@ -117,7 +117,8 @@ final class SongLibraryViewModel {
                 : score
 
             let expressivityOptions = MusicXMLExpressivityOptions(
-                wedgeEnabled: UserDefaults.standard.bool(forKey: "practiceMusicXMLWedgeEnabled")
+                wedgeEnabled: UserDefaults.standard.bool(forKey: "practiceMusicXMLWedgeEnabled"),
+                graceEnabled: UserDefaults.standard.bool(forKey: "practiceMusicXMLGraceEnabled")
             )
             let buildResult = stepBuilder.buildSteps(from: effectiveScore, expressivity: expressivityOptions)
             let tempoMap = MusicXMLTempoMap(tempoEvents: effectiveScore.tempoEvents)
@@ -126,7 +127,8 @@ final class SongLibraryViewModel {
                 .bool(forKey: "practiceMusicXMLPerformanceTimingEnabled")
             let noteSpans = MusicXMLNoteSpanBuilder().buildSpans(
                 from: effectiveScore.notes,
-                performanceTimingEnabled: shouldUsePerformanceTiming
+                performanceTimingEnabled: shouldUsePerformanceTiming,
+                expressivity: expressivityOptions
             )
 
             guard buildResult.steps.isEmpty == false else {

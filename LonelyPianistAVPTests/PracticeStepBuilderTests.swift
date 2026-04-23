@@ -166,3 +166,44 @@ func buildStepsSkipsTieStopEvents() {
     #expect(result.steps[0].tick == 0)
     #expect(result.steps[0].notes.map(\.midiNote) == [60])
 }
+
+@Test
+func buildStepsIncludesGraceNotesWhenEnabled() {
+    let score = MusicXMLScore(notes: [
+        MusicXMLNoteEvent(
+            partID: "P1",
+            measureNumber: 1,
+            tick: 480,
+            durationTicks: 0,
+            midiNote: 60,
+            isRest: false,
+            isChord: false,
+            isGrace: true,
+            graceSlash: false,
+            graceStealTimePrevious: nil,
+            graceStealTimeFollowing: 0.25,
+            tieStart: false,
+            tieStop: false,
+            staff: 1,
+            voice: 1
+        ),
+        MusicXMLNoteEvent(
+            partID: "P1",
+            measureNumber: 1,
+            tick: 480,
+            durationTicks: 480,
+            midiNote: 62,
+            isRest: false,
+            isChord: false,
+            tieStart: false,
+            tieStop: false,
+            staff: 1,
+            voice: 1
+        ),
+    ])
+
+    let result = PracticeStepBuilder().buildSteps(from: score, expressivity: MusicXMLExpressivityOptions(graceEnabled: true))
+    #expect(result.steps.map(\.tick) == [360, 480])
+    #expect(result.steps[0].notes.map(\.midiNote) == [60])
+    #expect(result.steps[1].notes.map(\.midiNote) == [62])
+}

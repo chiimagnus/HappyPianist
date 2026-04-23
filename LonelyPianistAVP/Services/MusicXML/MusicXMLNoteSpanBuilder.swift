@@ -8,11 +8,17 @@ struct MusicXMLNoteSpanBuilder {
         let voice: Int
     }
 
-    func buildSpans(from notes: [MusicXMLNoteEvent], performanceTimingEnabled: Bool = false) -> [MusicXMLNoteSpan] {
+    func buildSpans(
+        from notes: [MusicXMLNoteEvent],
+        performanceTimingEnabled: Bool = false,
+        expressivity: MusicXMLExpressivityOptions = MusicXMLExpressivityOptions()
+    ) -> [MusicXMLNoteSpan] {
         let orderedNotes = notes.sorted { lhs, rhs in
             if lhs.tick != rhs.tick { return lhs.tick < rhs.tick }
             return (lhs.midiNote ?? -1) < (rhs.midiNote ?? -1)
         }
+
+        let gracePlan = expressivity.graceEnabled ? GracePlan(notes: notes) : nil
 
         var output: [MusicXMLNoteSpan] = []
         output.reserveCapacity(orderedNotes.count)
@@ -21,7 +27,7 @@ struct MusicXMLNoteSpanBuilder {
 
         for note in orderedNotes {
             guard note.isRest == false else { continue }
-            guard note.isGrace == false else { continue }
+            if note.isGrace, expressivity.graceEnabled == false { continue }
             guard let midiNote = note.midiNote else { continue }
 
             let staff = note.staff ?? 1
@@ -122,9 +128,19 @@ struct MusicXMLNoteSpanBuilder {
                 case .normal:
                     let attackTicks = performanceTimingEnabled ? (note.attackTicks ?? 0) : 0
                     let releaseTicks = performanceTimingEnabled ? (note.releaseTicks ?? 0) : 0
-                    let onTick = note.tick + attackTicks
-                    let effectiveDurationTicks = articulatedDurationTicks(for: note)
-                    let offTick = max(onTick, note.tick + max(0, effectiveDurationTicks) + releaseTicks)
+                    let plannedGrace = note.isGrace ? gracePlan?.scheduleByNoteID[note.id] : nil
+                    let baseTick = plannedGrace?.onTick ?? note.tick
+                    let rawDurationTicks = if let plannedGrace {
+                        plannedGrace.durationTicks
+                    } else if let reduction = gracePlan?.durationReductionTicksByKey[GraceKey(partID: note.partID, staff: staff, voice: voice, tick: note.tick)] {
+                        max(1, note.durationTicks - reduction)
+                    } else {
+                        note.durationTicks
+                    }
+
+                    let onTick = baseTick + attackTicks
+                    let effectiveDurationTicks = articulatedDurationTicks(for: note, rawDurationTicks: rawDurationTicks)
+                    let offTick = max(onTick, baseTick + max(0, effectiveDurationTicks) + releaseTicks)
                     output.append(
                         MusicXMLNoteSpan(
                             midiNote: midiNote,
@@ -144,8 +160,8 @@ struct MusicXMLNoteSpanBuilder {
         }
     }
 
-    private func articulatedDurationTicks(for note: MusicXMLNoteEvent) -> Int {
-        let raw = max(0, note.durationTicks)
+    private func articulatedDurationTicks(for note: MusicXMLNoteEvent, rawDurationTicks: Int) -> Int {
+        let raw = max(0, rawDurationTicks)
         guard raw > 0 else { return raw }
 
         let articulationMultiplier: Double = if note.articulations.contains(.staccatissimo) {
@@ -162,6 +178,73 @@ struct MusicXMLNoteSpanBuilder {
 
         let adjusted = Int((Double(raw) * articulationMultiplier).rounded())
         return min(raw, max(1, adjusted))
+    }
+
+    private struct GraceKey: Hashable {
+        let partID: String
+        let staff: Int
+        let voice: Int
+        let tick: Int
+    }
+
+    private struct GraceSchedule: Equatable {
+        let onTick: Int
+        let durationTicks: Int
+    }
+
+    private struct GracePlan {
+        let scheduleByNoteID: [String: GraceSchedule]
+        let durationReductionTicksByKey: [GraceKey: Int]
+
+        init(notes: [MusicXMLNoteEvent]) {
+            var graceIndicesByKey: [GraceKey: [MusicXMLNoteEvent]] = [:]
+            var followingDurationTicksByKey: [GraceKey: Int] = [:]
+
+            for note in notes where note.isRest == false {
+                let staff = note.staff ?? 1
+                let voice = note.voice ?? 1
+                let key = GraceKey(partID: note.partID, staff: staff, voice: voice, tick: note.tick)
+
+                if note.isGrace {
+                    graceIndicesByKey[key, default: []].append(note)
+                } else if followingDurationTicksByKey[key] == nil {
+                    followingDurationTicksByKey[key] = max(0, note.durationTicks)
+                }
+            }
+
+            var schedule: [String: GraceSchedule] = [:]
+            var reductions: [GraceKey: Int] = [:]
+
+            for (key, graceNotes) in graceIndicesByKey {
+                guard let followingDuration = followingDurationTicksByKey[key], followingDuration > 0 else { continue }
+
+                let stealFraction: Double = graceNotes.compactMap(\.graceStealTimeFollowing).first
+                    ?? graceNotes.compactMap(\.graceStealTimePrevious).first
+                    ?? 0.25
+
+                let totalStolenTicks = max(1, min(followingDuration - 1, Int((Double(followingDuration) * stealFraction).rounded())))
+                reductions[key] = totalStolenTicks
+
+                let startTick = max(0, key.tick - totalStolenTicks)
+                let slice = max(1, totalStolenTicks / max(1, graceNotes.count))
+
+                var cursor = startTick
+                for (i, graceNote) in graceNotes.enumerated() {
+                    var duration = slice
+                    if i == graceNotes.count - 1 {
+                        duration = max(1, key.tick - cursor)
+                    }
+                    if graceNote.graceSlash {
+                        duration = max(1, duration / 2)
+                    }
+                    schedule[graceNote.id] = GraceSchedule(onTick: cursor, durationTicks: duration)
+                    cursor += duration
+                }
+            }
+
+            scheduleByNoteID = schedule
+            durationReductionTicksByKey = reductions
+        }
     }
 
     private enum Category {
