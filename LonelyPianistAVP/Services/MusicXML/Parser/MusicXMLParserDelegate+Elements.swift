@@ -132,6 +132,8 @@ extension MusicXMLParserDelegate {
                 state.noteReleaseTicks = parseNotePerformanceOffsetTicks(attributeDict["release"])
                 state.noteDynamicsOverrideVelocity = nil
                 state.noteDynamicsOverrideVelocity = parseMIDIVelocity(attributeDict["dynamics"])
+                state.isInNoteArticulations = false
+                state.noteArticulations = []
             case "grace":
                 if state.isInNote {
                     state.noteIsGrace = true
@@ -163,8 +165,18 @@ extension MusicXMLParserDelegate {
                         state.noteTieStop = true
                     }
                 }
+            case "articulations":
+                if state.isInNote {
+                    state.isInNoteArticulations = true
+                }
             default:
                 recordDirectionDynamicsMarkIfPresent(elementName: elementName)
+                if state.isInNoteArticulations {
+                    let rawName = elementName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                    if let articulation = MusicXMLArticulation(rawValue: rawName) {
+                        state.noteArticulations.insert(articulation)
+                    }
+                }
                 break
         }
     }
@@ -215,6 +227,10 @@ extension MusicXMLParserDelegate {
             case "time-modification":
                 if state.isInNote {
                     state.isInTimeModification = false
+                }
+            case "articulations":
+                if state.isInNote {
+                    state.isInNoteArticulations = false
                 }
             case "step" where state.isInNote:
                 state.noteStep = text

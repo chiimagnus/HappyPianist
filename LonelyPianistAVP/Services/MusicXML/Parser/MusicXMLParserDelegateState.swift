@@ -69,6 +69,8 @@ struct MusicXMLParserDelegateState {
     var noteTimeModificationActualNotes: Int?
     var noteTimeModificationNormalNotes: Int?
     var noteDynamicsOverrideVelocity: UInt8?
+    var isInNoteArticulations = false
+    var noteArticulations: Set<MusicXMLArticulation> = []
 
     var isInDirectionTypeMetronome = false
     var metronomeBeatUnit: String?

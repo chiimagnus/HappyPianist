@@ -52,6 +52,15 @@ struct MusicXMLWedgeEvent: Equatable, Identifiable {
     let scope: MusicXMLEventScope
 }
 
+enum MusicXMLArticulation: String, CaseIterable, Equatable, Hashable {
+    case staccato
+    case accent
+    case tenuto
+    case marcato
+    case staccatissimo
+    case detachedLegato = "detached-legato"
+}
+
 struct MusicXMLTempoEvent: Equatable, Identifiable {
     var id: String {
         "\(tick)-\(quarterBPM)"
@@ -161,7 +170,7 @@ struct MusicXMLEndingDirective: Equatable {
 
 struct MusicXMLNoteEvent: Equatable, Identifiable {
     var id: String {
-        "\(partID)-\(measureNumber)-\(tick)-\(midiNote ?? -1)-\(durationTicks)-\(isRest)-\(isChord)-\(isGrace)-\(tieStart)-\(tieStop)-\(attackTicks ?? 0)-\(releaseTicks ?? 0)-\(dynamicsOverrideVelocity ?? 0)"
+        "\(partID)-\(measureNumber)-\(tick)-\(midiNote ?? -1)-\(durationTicks)-\(isRest)-\(isChord)-\(isGrace)-\(tieStart)-\(tieStop)-\(attackTicks ?? 0)-\(releaseTicks ?? 0)-\(dynamicsOverrideVelocity ?? 0)-\(articulations.map(\.rawValue).sorted().joined(separator: ","))"
     }
 
     let partID: String
@@ -179,6 +188,7 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
     let attackTicks: Int?
     let releaseTicks: Int?
     let dynamicsOverrideVelocity: UInt8?
+    let articulations: Set<MusicXMLArticulation>
 
     init(
         partID: String,
@@ -195,7 +205,8 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         voice: Int?,
         attackTicks: Int? = nil,
         releaseTicks: Int? = nil,
-        dynamicsOverrideVelocity: UInt8? = nil
+        dynamicsOverrideVelocity: UInt8? = nil,
+        articulations: Set<MusicXMLArticulation> = []
     ) {
         self.partID = partID
         self.measureNumber = measureNumber
@@ -212,6 +223,7 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         self.attackTicks = attackTicks
         self.releaseTicks = releaseTicks
         self.dynamicsOverrideVelocity = dynamicsOverrideVelocity
+        self.articulations = articulations
     }
 }
 
