@@ -22,8 +22,9 @@ struct MusicXMLParser: MusicXMLParserProtocol {
     }
 
     func parse(data: Data) throws -> MusicXMLScore {
+        let normalizedData = try MusicXMLTimewiseConverter().convertToPartwiseIfNeeded(data: data)
         let delegate = MusicXMLParserDelegate()
-        let parser = XMLParser(data: data)
+        let parser = XMLParser(data: normalizedData)
         parser.delegate = delegate
         guard parser.parse() else {
             throw MusicXMLParserError.parseFailed
