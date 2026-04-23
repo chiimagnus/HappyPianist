@@ -72,6 +72,11 @@ struct PracticeStepView: View {
                     if isAutoplayEnabled {
                         Text(viewModel.practiceSessionViewModel.isSustainPedalDown ? "Pedal ↓" : "Pedal ↑")
                             .foregroundStyle(.secondary)
+
+                        if let summary = viewModel.practiceSessionViewModel.currentMusicXMLAttributeSummaryText {
+                            Text(summary)
+                                .foregroundStyle(.secondary)
+                        }
                     }
 
                     Text("进度 \(viewModel.practiceProgressText)")

@@ -102,6 +102,7 @@ class AppModel {
         tempoMap: MusicXMLTempoMap? = nil,
         pedalTimeline: MusicXMLPedalTimeline? = nil,
         fermataTimeline: MusicXMLFermataTimeline? = nil,
+        attributeTimeline: MusicXMLAttributeTimeline? = nil,
         noteSpans: [MusicXMLNoteSpan] = []
     ) {
         importedSteps = steps
@@ -112,6 +113,7 @@ class AppModel {
             tempoMap: tempoMap,
             pedalTimeline: pedalTimeline,
             fermataTimeline: fermataTimeline,
+            attributeTimeline: attributeTimeline,
             noteSpans: noteSpans
         )
         applySessionIfPossible()
@@ -145,6 +147,11 @@ class AppModel {
             let fermataTimeline = expressivityOptions.fermataEnabled
                 ? MusicXMLFermataTimeline(fermataEvents: effectiveScore.fermataEvents, notes: effectiveScore.notes)
                 : nil
+            let attributeTimeline = MusicXMLAttributeTimeline(
+                timeSignatureEvents: effectiveScore.timeSignatureEvents,
+                keySignatureEvents: effectiveScore.keySignatureEvents,
+                clefEvents: effectiveScore.clefEvents
+            )
             let shouldUsePerformanceTiming = UserDefaults.standard
                 .bool(forKey: "practiceMusicXMLPerformanceTimingEnabled")
             let noteSpans = MusicXMLNoteSpanBuilder().buildSpans(
@@ -164,6 +171,7 @@ class AppModel {
                 tempoMap: tempoMap,
                 pedalTimeline: pedalTimeline,
                 fermataTimeline: fermataTimeline,
+                attributeTimeline: attributeTimeline,
                 noteSpans: noteSpans
             )
         } catch {

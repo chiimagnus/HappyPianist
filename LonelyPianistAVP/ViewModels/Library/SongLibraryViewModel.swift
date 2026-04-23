@@ -135,6 +135,11 @@ final class SongLibraryViewModel {
             let fermataTimeline = expressivityOptions.fermataEnabled
                 ? MusicXMLFermataTimeline(fermataEvents: effectiveScore.fermataEvents, notes: effectiveScore.notes)
                 : nil
+            let attributeTimeline = MusicXMLAttributeTimeline(
+                timeSignatureEvents: effectiveScore.timeSignatureEvents,
+                keySignatureEvents: effectiveScore.keySignatureEvents,
+                clefEvents: effectiveScore.clefEvents
+            )
             let shouldUsePerformanceTiming = UserDefaults.standard
                 .bool(forKey: "practiceMusicXMLPerformanceTimingEnabled")
             let noteSpans = MusicXMLNoteSpanBuilder().buildSpans(
@@ -159,6 +164,7 @@ final class SongLibraryViewModel {
                 tempoMap: tempoMap,
                 pedalTimeline: pedalTimeline,
                 fermataTimeline: fermataTimeline,
+                attributeTimeline: attributeTimeline,
                 noteSpans: noteSpans
             )
 

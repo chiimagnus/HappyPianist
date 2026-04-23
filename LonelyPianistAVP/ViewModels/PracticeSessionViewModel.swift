@@ -46,6 +46,7 @@ final class PracticeSessionViewModel {
     private var tempoMap: MusicXMLTempoMap?
     private var pedalTimeline: MusicXMLPedalTimeline?
     private var fermataTimeline: MusicXMLFermataTimeline?
+    private var attributeTimeline: MusicXMLAttributeTimeline?
     private var noteSpanOffTickByOnsetKey: [NoteSpanOnsetKey: Int] = [:]
     private var activeNoteOffTickByMIDI: [Int: Int] = [:]
     private var pendingReleaseOffTickByMIDI: [Int: Int] = [:]
@@ -90,12 +91,59 @@ final class PracticeSessionViewModel {
         return steps[currentStepIndex]
     }
 
+    var currentMusicXMLAttributeSummaryText: String? {
+        guard let attributeTimeline else { return nil }
+        guard let currentStep else { return nil }
+
+        let tick = currentStep.tick
+
+        var parts: [String] = []
+        if let time = attributeTimeline.timeSignature(atTick: tick) {
+            parts.append("\(time.beats)/\(time.beatType)")
+        }
+        if let key = attributeTimeline.keySignature(atTick: tick) {
+            let fifths = key.fifths
+            let token = fifths >= 0 ? "+\(fifths)" : "\(fifths)"
+            parts.append("Key \(token)")
+        }
+
+        let rh = attributeTimeline.clef(atTick: tick, staffNumber: 1).flatMap { Self.clefToken(for: $0) }
+        let lh = attributeTimeline.clef(atTick: tick, staffNumber: 2).flatMap { Self.clefToken(for: $0) }
+        let clefTokens = [rh, lh].compactMap { $0 }
+        if clefTokens.isEmpty == false {
+            parts.append("Clef \(clefTokens.joined(separator: "/"))")
+        }
+
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    private static func clefToken(for event: MusicXMLClefEvent) -> String? {
+        guard let sign = event.signToken, sign.isEmpty == false else { return nil }
+        switch sign.uppercased() {
+            case "G":
+                return "G"
+            case "F":
+                return "F"
+            case "C":
+                return "C"
+            default:
+                return sign
+        }
+    }
+
     func setSteps(_ steps: [PracticeStep]) {
         setSteps(steps, tempoMap: nil, pedalTimeline: nil)
     }
 
     func setSteps(_ steps: [PracticeStep], tempoMap: MusicXMLTempoMap?, pedalTimeline: MusicXMLPedalTimeline? = nil) {
-        setSteps(steps, tempoMap: tempoMap, pedalTimeline: pedalTimeline, fermataTimeline: nil, noteSpans: [])
+        setSteps(
+            steps,
+            tempoMap: tempoMap,
+            pedalTimeline: pedalTimeline,
+            fermataTimeline: nil,
+            attributeTimeline: nil,
+            noteSpans: []
+        )
     }
 
     func setSteps(
@@ -103,6 +151,7 @@ final class PracticeSessionViewModel {
         tempoMap: MusicXMLTempoMap?,
         pedalTimeline: MusicXMLPedalTimeline? = nil,
         fermataTimeline: MusicXMLFermataTimeline? = nil,
+        attributeTimeline: MusicXMLAttributeTimeline? = nil,
         noteSpans: [MusicXMLNoteSpan] = []
     ) {
         if state == .completed, self.steps == steps, steps.isEmpty == false {
@@ -120,6 +169,7 @@ final class PracticeSessionViewModel {
         self.tempoMap = tempoMap
         self.pedalTimeline = pedalTimeline
         self.fermataTimeline = fermataTimeline
+        self.attributeTimeline = attributeTimeline
         noteSpanOffTickByOnsetKey = Self.makeNoteSpanOffTickByOnsetKey(noteSpans)
         pendingAutoplayOnsetsByTick = [:]
 
@@ -163,6 +213,7 @@ final class PracticeSessionViewModel {
         tempoMap = nil
         pedalTimeline = nil
         fermataTimeline = nil
+        attributeTimeline = nil
         noteSpanOffTickByOnsetKey = [:]
         calibration = nil
         keyRegions = []
