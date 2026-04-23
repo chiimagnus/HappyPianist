@@ -123,7 +123,8 @@ struct MusicXMLNoteSpanBuilder {
                     let attackTicks = performanceTimingEnabled ? (note.attackTicks ?? 0) : 0
                     let releaseTicks = performanceTimingEnabled ? (note.releaseTicks ?? 0) : 0
                     let onTick = note.tick + attackTicks
-                    let offTick = max(onTick, note.tick + max(0, note.durationTicks) + releaseTicks)
+                    let effectiveDurationTicks = articulatedDurationTicks(for: note)
+                    let offTick = max(onTick, note.tick + max(0, effectiveDurationTicks) + releaseTicks)
                     output.append(
                         MusicXMLNoteSpan(
                             midiNote: midiNote,
@@ -141,6 +142,26 @@ struct MusicXMLNoteSpanBuilder {
             if lhs.midiNote != rhs.midiNote { return lhs.midiNote < rhs.midiNote }
             return lhs.offTick < rhs.offTick
         }
+    }
+
+    private func articulatedDurationTicks(for note: MusicXMLNoteEvent) -> Int {
+        let raw = max(0, note.durationTicks)
+        guard raw > 0 else { return raw }
+
+        let articulationMultiplier: Double = if note.articulations.contains(.staccatissimo) {
+            0.25
+        } else if note.articulations.contains(.staccato) {
+            0.5
+        } else if note.articulations.contains(.detachedLegato) {
+            0.75
+        } else if note.articulations.contains(.marcato) {
+            0.75
+        } else {
+            1.0
+        }
+
+        let adjusted = Int((Double(raw) * articulationMultiplier).rounded())
+        return min(raw, max(1, adjusted))
     }
 
     private enum Category {

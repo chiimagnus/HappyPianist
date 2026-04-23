@@ -121,4 +121,41 @@ struct MusicXMLVelocityResolverTests {
 
         #expect(resolver.velocity(for: note) == 80)
     }
+
+    @Test
+    func velocityAppliesAccentAndMarcatoBoosts() {
+        let resolver = MusicXMLVelocityResolver(dynamicEvents: [], defaultVelocity: 96)
+
+        let accented = MusicXMLNoteEvent(
+            partID: "P1",
+            measureNumber: 1,
+            tick: 0,
+            durationTicks: 480,
+            midiNote: 60,
+            isRest: false,
+            isChord: false,
+            tieStart: false,
+            tieStop: false,
+            staff: 1,
+            voice: 1,
+            articulations: [.accent]
+        )
+        #expect(resolver.velocity(for: accented) == 106)
+
+        let marcato = MusicXMLNoteEvent(
+            partID: "P1",
+            measureNumber: 1,
+            tick: 0,
+            durationTicks: 480,
+            midiNote: 62,
+            isRest: false,
+            isChord: false,
+            tieStart: false,
+            tieStop: false,
+            staff: 1,
+            voice: 1,
+            articulations: [.marcato]
+        )
+        #expect(resolver.velocity(for: marcato) == 111)
+    }
 }

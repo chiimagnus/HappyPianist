@@ -35,11 +35,26 @@ struct MusicXMLVelocityResolver {
 
         let noteStaff = note.staff ?? 1
 
-        if wedgeEnabled, let velocity = wedgeVelocity(partID: note.partID, tick: note.tick, staff: noteStaff) {
-            return velocity
+        let baseVelocity: UInt8 = if wedgeEnabled,
+            let velocity = wedgeVelocity(partID: note.partID, tick: note.tick, staff: noteStaff)
+        {
+            velocity
+        } else {
+            resolvedVelocityFromDynamics(partID: note.partID, tick: note.tick, staff: noteStaff) ?? defaultVelocity
         }
 
-        return resolvedVelocityFromDynamics(partID: note.partID, tick: note.tick, staff: noteStaff) ?? defaultVelocity
+        return applyArticulations(note: note, velocity: baseVelocity)
+    }
+
+    private func applyArticulations(note: MusicXMLNoteEvent, velocity: UInt8) -> UInt8 {
+        var value = Int(velocity)
+        if note.articulations.contains(.accent) {
+            value += 10
+        }
+        if note.articulations.contains(.marcato) {
+            value += 15
+        }
+        return UInt8(min(127, max(0, value)))
     }
 
     private func resolvedVelocityFromDynamics(partID: String, tick: Int, staff: Int) -> UInt8? {

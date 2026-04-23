@@ -121,3 +121,29 @@ func noteSpanBuilderAppliesAttackAndReleaseWhenEnabled() {
     #expect(performance.first?.onTick == 120)
     #expect(performance.first?.offTick == 600)
 }
+
+@Test
+func noteSpanBuilderShortensDurationForStaccato() {
+    let builder = MusicXMLNoteSpanBuilder()
+    let notes: [MusicXMLNoteEvent] = [
+        MusicXMLNoteEvent(
+            partID: "P1",
+            measureNumber: 1,
+            tick: 0,
+            durationTicks: 480,
+            midiNote: 60,
+            isRest: false,
+            isChord: false,
+            tieStart: false,
+            tieStop: false,
+            staff: 1,
+            voice: 1,
+            articulations: [.staccato]
+        ),
+    ]
+
+    let spans = builder.buildSpans(from: notes)
+    #expect(spans.count == 1)
+    #expect(spans[0].onTick == 0)
+    #expect(spans[0].offTick == 240)
+}
