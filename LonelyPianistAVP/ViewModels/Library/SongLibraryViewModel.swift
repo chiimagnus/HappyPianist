@@ -118,6 +118,8 @@ final class SongLibraryViewModel {
 
             let buildResult = stepBuilder.buildSteps(from: effectiveScore)
             let tempoMap = MusicXMLTempoMap(tempoEvents: effectiveScore.tempoEvents)
+            let pedalTimeline = MusicXMLPedalTimeline(events: effectiveScore.pedalEvents)
+            let noteSpans = MusicXMLNoteSpanBuilder().buildSpans(from: effectiveScore.notes)
 
             guard buildResult.steps.isEmpty == false else {
                 errorMessage = "该曲目未生成可练习步骤。"
@@ -131,7 +133,9 @@ final class SongLibraryViewModel {
                     storedURL: scoreURL,
                     importedAt: entry.importedAt
                 ),
-                tempoMap: tempoMap
+                tempoMap: tempoMap,
+                pedalTimeline: pedalTimeline,
+                noteSpans: noteSpans
             )
 
             var updatedIndex = index
