@@ -34,6 +34,7 @@ struct MusicXMLParser: MusicXMLParserProtocol {
             tempoEvents: delegate.tempoEvents,
             soundDirectives: delegate.soundDirectives,
             pedalEvents: delegate.pedalEvents,
+            dynamicEvents: delegate.dynamicEvents,
             measures: delegate.measures,
             repeatDirectives: delegate.repeatDirectives,
             endingDirectives: delegate.endingDirectives

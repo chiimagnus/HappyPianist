@@ -9,6 +9,7 @@ struct MusicXMLParserDelegateState {
     var tempoEvents: [MusicXMLTempoEvent] = []
     var soundDirectives: [MusicXMLSoundDirective] = []
     var pedalEvents: [MusicXMLPedalEvent] = []
+    var dynamicEvents: [MusicXMLDynamicEvent] = []
     var measures: [MusicXMLMeasureSpan] = []
     var repeatDirectives: [MusicXMLRepeatDirective] = []
     var endingDirectives: [MusicXMLEndingDirective] = []
@@ -44,6 +45,8 @@ struct MusicXMLParserDelegateState {
     var isInDirection = false
     var isInBarline = false
     var isInSound = false
+    var currentDirectionStaff: Int?
+    var isInDirectionTypeDynamics = false
 
     var isInNote = false
     var noteIsRest = false
@@ -64,6 +67,7 @@ struct MusicXMLParserDelegateState {
     var isInTimeModification = false
     var noteTimeModificationActualNotes: Int?
     var noteTimeModificationNormalNotes: Int?
+    var noteDynamicsOverrideVelocity: UInt8?
 
     var isInDirectionTypeMetronome = false
     var metronomeBeatUnit: String?
@@ -78,6 +82,7 @@ struct MusicXMLParserDelegateState {
     var currentDirectionTempoStartIndex = 0
     var currentDirectionSoundStartIndex = 0
     var currentDirectionPedalStartIndex = 0
+    var currentDirectionDynamicStartIndex = 0
 
     var currentOffsetAppliesToSound = false
 

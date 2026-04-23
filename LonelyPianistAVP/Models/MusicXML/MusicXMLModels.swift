@@ -6,9 +6,32 @@ struct MusicXMLScore: Equatable {
     var tempoEvents: [MusicXMLTempoEvent] = []
     var soundDirectives: [MusicXMLSoundDirective] = []
     var pedalEvents: [MusicXMLPedalEvent] = []
+    var dynamicEvents: [MusicXMLDynamicEvent] = []
     var measures: [MusicXMLMeasureSpan] = []
     var repeatDirectives: [MusicXMLRepeatDirective] = []
     var endingDirectives: [MusicXMLEndingDirective] = []
+}
+
+struct MusicXMLEventScope: Equatable {
+    let partID: String
+    let staff: Int?
+    let voice: Int?
+}
+
+enum MusicXMLDynamicEventSource: Equatable {
+    case directionDynamics
+    case soundDynamicsAttribute
+}
+
+struct MusicXMLDynamicEvent: Equatable, Identifiable {
+    var id: String {
+        "\(tick)-\(velocity)-\(scope.partID)-\(scope.staff ?? -1)-\(scope.voice ?? -1)-\(source)"
+    }
+
+    let tick: Int
+    let velocity: UInt8
+    let scope: MusicXMLEventScope
+    let source: MusicXMLDynamicEventSource
 }
 
 struct MusicXMLTempoEvent: Equatable, Identifiable {
@@ -120,7 +143,7 @@ struct MusicXMLEndingDirective: Equatable {
 
 struct MusicXMLNoteEvent: Equatable, Identifiable {
     var id: String {
-        "\(partID)-\(measureNumber)-\(tick)-\(midiNote ?? -1)-\(durationTicks)-\(isRest)-\(isChord)-\(isGrace)-\(tieStart)-\(tieStop)-\(attackTicks ?? 0)-\(releaseTicks ?? 0)"
+        "\(partID)-\(measureNumber)-\(tick)-\(midiNote ?? -1)-\(durationTicks)-\(isRest)-\(isChord)-\(isGrace)-\(tieStart)-\(tieStop)-\(attackTicks ?? 0)-\(releaseTicks ?? 0)-\(dynamicsOverrideVelocity ?? 0)"
     }
 
     let partID: String
@@ -137,6 +160,7 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
     let voice: Int?
     let attackTicks: Int?
     let releaseTicks: Int?
+    let dynamicsOverrideVelocity: UInt8?
 
     init(
         partID: String,
@@ -152,7 +176,8 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         staff: Int?,
         voice: Int?,
         attackTicks: Int? = nil,
-        releaseTicks: Int? = nil
+        releaseTicks: Int? = nil,
+        dynamicsOverrideVelocity: UInt8? = nil
     ) {
         self.partID = partID
         self.measureNumber = measureNumber
@@ -168,6 +193,7 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         self.voice = voice
         self.attackTicks = attackTicks
         self.releaseTicks = releaseTicks
+        self.dynamicsOverrideVelocity = dynamicsOverrideVelocity
     }
 }
 

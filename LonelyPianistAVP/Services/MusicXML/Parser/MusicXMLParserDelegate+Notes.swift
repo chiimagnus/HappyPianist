@@ -115,7 +115,8 @@ extension MusicXMLParserDelegate {
                 staff: state.noteStaff,
                 voice: state.noteVoice,
                 attackTicks: state.noteAttackTicks,
-                releaseTicks: state.noteReleaseTicks
+                releaseTicks: state.noteReleaseTicks,
+                dynamicsOverrideVelocity: state.noteDynamicsOverrideVelocity
             )
         )
 

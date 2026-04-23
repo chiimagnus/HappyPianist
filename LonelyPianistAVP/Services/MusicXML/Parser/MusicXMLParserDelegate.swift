@@ -26,6 +26,10 @@ final class MusicXMLParserDelegate: NSObject {
         state.pedalEvents
     }
 
+    var dynamicEvents: [MusicXMLDynamicEvent] {
+        state.dynamicEvents
+    }
+
     var measures: [MusicXMLMeasureSpan] {
         state.measures
     }

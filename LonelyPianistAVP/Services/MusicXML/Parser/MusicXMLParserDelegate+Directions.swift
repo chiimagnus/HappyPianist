@@ -1,6 +1,86 @@
 import Foundation
 
 extension MusicXMLParserDelegate {
+    func parseMIDIVelocity(_ raw: String?) -> UInt8? {
+        guard let raw = raw?.trimmingCharacters(in: .whitespacesAndNewlines),
+              raw.isEmpty == false,
+              let value = Int(raw)
+        else {
+            return nil
+        }
+        let clamped = min(127, max(0, value))
+        return UInt8(clamped)
+    }
+
+    func velocityForDynamicsMark(_ markElementName: String) -> UInt8? {
+        switch markElementName.lowercased() {
+            case "ppp":
+                30
+            case "pp":
+                40
+            case "p":
+                50
+            case "mp":
+                60
+            case "mf":
+                75
+            case "f":
+                90
+            case "ff":
+                105
+            case "fff":
+                115
+            case "ffff":
+                120
+            default:
+                nil
+        }
+    }
+
+    func recordDynamicEvent(
+        tick: Int,
+        velocity: UInt8,
+        source: MusicXMLDynamicEventSource,
+        staff: Int?
+    ) {
+        state.dynamicEvents.append(
+            MusicXMLDynamicEvent(
+                tick: tick,
+                velocity: velocity,
+                scope: MusicXMLEventScope(partID: state.currentPartID, staff: staff, voice: nil),
+                source: source
+            )
+        )
+    }
+
+    func recordSoundDynamicsAttributeIfPresent(attributes: [String: String]) {
+        guard let velocity = parseMIDIVelocity(attributes["dynamics"]) else { return }
+
+        let tick: Int = if state.isInDirection {
+            currentDirectionEventTick()
+        } else {
+            state.partTick[state.currentPartID] ?? state.currentMeasureStartTick
+        }
+
+        recordDynamicEvent(
+            tick: tick,
+            velocity: velocity,
+            source: .soundDynamicsAttribute,
+            staff: state.isInDirection ? state.currentDirectionStaff : nil
+        )
+    }
+
+    func recordDirectionDynamicsMarkIfPresent(elementName: String) {
+        guard state.isInDirectionTypeDynamics else { return }
+        guard let velocity = velocityForDynamicsMark(elementName) else { return }
+        recordDynamicEvent(
+            tick: currentDirectionEventTick(),
+            velocity: velocity,
+            source: .directionDynamics,
+            staff: state.currentDirectionStaff
+        )
+    }
+
     func parseTimeOnlyPasses(attributes: [String: String]) -> [Int]? {
         guard let raw = attributes["time-only"]?.trimmingCharacters(in: .whitespacesAndNewlines),
               raw.isEmpty == false

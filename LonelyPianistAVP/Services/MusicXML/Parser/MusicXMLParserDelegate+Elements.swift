@@ -33,11 +33,18 @@ extension MusicXMLParserDelegate {
                 state.currentDirectionTempoStartIndex = state.rawTempoEventsByPart[state.currentPartID]?.count ?? 0
                 state.currentDirectionSoundStartIndex = state.soundDirectives.count
                 state.currentDirectionPedalStartIndex = state.pedalEvents.count
+                state.currentDirectionDynamicStartIndex = state.dynamicEvents.count
                 state.currentDirectionSoundOffsetTempoOverrideTicksByIndex = [:]
                 state.currentDirectionSoundOffsetSoundOverrideTicksByIndex = [:]
                 state.currentDirectionSoundOffsetPedalOverrideTicksByIndex = [:]
+                state.currentDirectionStaff = nil
+                state.isInDirectionTypeDynamics = false
             case "direction-type":
                 break
+            case "dynamics":
+                if state.isInDirection {
+                    state.isInDirectionTypeDynamics = true
+                }
             case "pedal":
                 recordPedalEvent(attributes: attributeDict)
             case "offset":
@@ -92,6 +99,7 @@ extension MusicXMLParserDelegate {
                     recordTempoEvent(quarterBPM: bpm, source: .sound)
                 }
                 recordDamperPedalEventFromSound(attributes: attributeDict)
+                recordSoundDynamicsAttributeIfPresent(attributes: attributeDict)
                 if state.isInDirection {
                     recordSoundDirective(attributes: attributeDict)
                 }
@@ -119,6 +127,8 @@ extension MusicXMLParserDelegate {
                 state.noteTieStop = false
                 state.noteAttackTicks = parseNotePerformanceOffsetTicks(attributeDict["attack"])
                 state.noteReleaseTicks = parseNotePerformanceOffsetTicks(attributeDict["release"])
+                state.noteDynamicsOverrideVelocity = nil
+                state.noteDynamicsOverrideVelocity = parseMIDIVelocity(attributeDict["dynamics"])
             case "grace":
                 if state.isInNote {
                     state.noteIsGrace = true
@@ -151,6 +161,7 @@ extension MusicXMLParserDelegate {
                     }
                 }
             default:
+                recordDirectionDynamicsMarkIfPresent(elementName: elementName)
                 break
         }
     }
@@ -170,6 +181,8 @@ extension MusicXMLParserDelegate {
             case "metronome":
                 finalizeMetronomeTempoIfNeeded()
                 state.isInDirectionTypeMetronome = false
+            case "dynamics":
+                state.isInDirectionTypeDynamics = false
             case "offset":
                 if let rawOffset = Int(text) {
                     if state.isInSound {
@@ -208,6 +221,26 @@ extension MusicXMLParserDelegate {
                 state.noteOctave = Int(text)
             case "staff" where state.isInNote:
                 state.noteStaff = Int(text)
+            case "staff" where state.isInDirection:
+                state.currentDirectionStaff = Int(text)
+                if let staff = state.currentDirectionStaff,
+                   state.currentDirectionDynamicStartIndex < state.dynamicEvents.count
+                {
+                    for i in state.currentDirectionDynamicStartIndex ..< state.dynamicEvents.count
+                        where state.dynamicEvents[i].scope.staff == nil
+                    {
+                        state.dynamicEvents[i] = MusicXMLDynamicEvent(
+                            tick: state.dynamicEvents[i].tick,
+                            velocity: state.dynamicEvents[i].velocity,
+                            scope: MusicXMLEventScope(
+                                partID: state.dynamicEvents[i].scope.partID,
+                                staff: staff,
+                                voice: state.dynamicEvents[i].scope.voice
+                            ),
+                            source: state.dynamicEvents[i].source
+                        )
+                    }
+                }
             case "voice" where state.isInNote:
                 state.noteVoice = Int(text)
             case "note":
@@ -222,9 +255,12 @@ extension MusicXMLParserDelegate {
                 state.currentDirectionTempoStartIndex = 0
                 state.currentDirectionSoundStartIndex = 0
                 state.currentDirectionPedalStartIndex = 0
+                state.currentDirectionDynamicStartIndex = 0
                 state.currentDirectionSoundOffsetTempoOverrideTicksByIndex = [:]
                 state.currentDirectionSoundOffsetSoundOverrideTicksByIndex = [:]
                 state.currentDirectionSoundOffsetPedalOverrideTicksByIndex = [:]
+                state.currentDirectionStaff = nil
+                state.isInDirectionTypeDynamics = false
             case "sound":
                 state.isInSound = false
                 state.currentSoundBaseTick = 0
