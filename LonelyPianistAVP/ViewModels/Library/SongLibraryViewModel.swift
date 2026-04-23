@@ -118,17 +118,24 @@ final class SongLibraryViewModel {
 
             let expressivityOptions = MusicXMLExpressivityOptions(
                 wedgeEnabled: UserDefaults.standard.bool(forKey: "practiceMusicXMLWedgeEnabled"),
-                graceEnabled: UserDefaults.standard.bool(forKey: "practiceMusicXMLGraceEnabled")
+                graceEnabled: UserDefaults.standard.bool(forKey: "practiceMusicXMLGraceEnabled"),
+                fermataEnabled: UserDefaults.standard.bool(forKey: "practiceMusicXMLFermataEnabled"),
+                arpeggiateEnabled: UserDefaults.standard.bool(forKey: "practiceMusicXMLArpeggiateEnabled"),
+                wordsSemanticsEnabled: UserDefaults.standard.bool(forKey: "practiceMusicXMLWordsSemanticsEnabled")
             )
             let buildResult = stepBuilder.buildSteps(from: effectiveScore, expressivity: expressivityOptions)
             let tempoMap = MusicXMLTempoMap(tempoEvents: effectiveScore.tempoEvents)
             let pedalTimeline = MusicXMLPedalTimeline(events: effectiveScore.pedalEvents)
+            let fermataTimeline = expressivityOptions.fermataEnabled
+                ? MusicXMLFermataTimeline(fermataEvents: effectiveScore.fermataEvents, notes: effectiveScore.notes)
+                : nil
             let shouldUsePerformanceTiming = UserDefaults.standard
                 .bool(forKey: "practiceMusicXMLPerformanceTimingEnabled")
             let noteSpans = MusicXMLNoteSpanBuilder().buildSpans(
                 from: effectiveScore.notes,
                 performanceTimingEnabled: shouldUsePerformanceTiming,
-                expressivity: expressivityOptions
+                expressivity: expressivityOptions,
+                fermataTimeline: fermataTimeline
             )
 
             guard buildResult.steps.isEmpty == false else {
@@ -145,6 +152,7 @@ final class SongLibraryViewModel {
                 ),
                 tempoMap: tempoMap,
                 pedalTimeline: pedalTimeline,
+                fermataTimeline: fermataTimeline,
                 noteSpans: noteSpans
             )
 

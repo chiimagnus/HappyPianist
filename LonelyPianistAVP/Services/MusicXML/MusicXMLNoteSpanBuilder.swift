@@ -11,7 +11,8 @@ struct MusicXMLNoteSpanBuilder {
     func buildSpans(
         from notes: [MusicXMLNoteEvent],
         performanceTimingEnabled: Bool = false,
-        expressivity: MusicXMLExpressivityOptions = MusicXMLExpressivityOptions()
+        expressivity: MusicXMLExpressivityOptions = MusicXMLExpressivityOptions(),
+        fermataTimeline: MusicXMLFermataTimeline? = nil
     ) -> [MusicXMLNoteSpan] {
         let orderedNotes = notes.sorted { lhs, rhs in
             if lhs.tick != rhs.tick { return lhs.tick < rhs.tick }
@@ -19,6 +20,7 @@ struct MusicXMLNoteSpanBuilder {
         }
 
         let gracePlan = expressivity.graceEnabled ? GracePlan(notes: notes) : nil
+        let arpeggiatePlan = expressivity.arpeggiateEnabled ? ArpeggiatePlan(notes: notes) : nil
 
         var output: [MusicXMLNoteSpan] = []
         output.reserveCapacity(orderedNotes.count)
@@ -33,6 +35,11 @@ struct MusicXMLNoteSpanBuilder {
             let staff = note.staff ?? 1
             let voice = note.voice ?? 1
             let key = Key(partID: note.partID, midiNote: midiNote, staff: staff, voice: voice)
+            let fermataExtraTicks = if expressivity.fermataEnabled, note.isGrace == false {
+                fermataTimeline?.extraTicksForNote(atTick: note.tick, staff: staff) ?? 0
+            } else {
+                0
+            }
 
             let category: Category = if note.tieStart, note.tieStop {
                 .middle
@@ -55,8 +62,10 @@ struct MusicXMLNoteSpanBuilder {
                         activeSpanIndexByKey[key] = nil
                     }
 
-                    let onTick = note.tick + (performanceTimingEnabled ? (note.attackTicks ?? 0) : 0)
-                    let offTick = max(onTick, note.tick + max(0, note.durationTicks))
+                    let arpeggiateOffset = note.isGrace ? 0 : (arpeggiatePlan?.offsetTicksByNoteID[note.id] ?? 0)
+                    let baseTick = note.tick + max(0, arpeggiateOffset)
+                    let onTick = baseTick + (performanceTimingEnabled ? (note.attackTicks ?? 0) : 0)
+                    let offTick = max(onTick, baseTick + max(0, note.durationTicks))
                     let span = MusicXMLNoteSpan(
                         midiNote: midiNote,
                         staff: staff,
@@ -82,8 +91,10 @@ struct MusicXMLNoteSpanBuilder {
                                 "MusicXMLNoteSpanBuilder: tie-middle without active; starting new active span for \(key.partID) midi=\(midiNote) staff=\(staff) voice=\(voice)"
                             )
                         #endif
-                        let onTick = note.tick + (performanceTimingEnabled ? (note.attackTicks ?? 0) : 0)
-                        let offTick = max(onTick, note.tick + max(0, note.durationTicks))
+                        let arpeggiateOffset = note.isGrace ? 0 : (arpeggiatePlan?.offsetTicksByNoteID[note.id] ?? 0)
+                        let baseTick = note.tick + max(0, arpeggiateOffset)
+                        let onTick = baseTick + (performanceTimingEnabled ? (note.attackTicks ?? 0) : 0)
+                        let offTick = max(onTick, baseTick + max(0, note.durationTicks))
                         let span = MusicXMLNoteSpan(
                             midiNote: midiNote,
                             staff: staff,
@@ -103,7 +114,10 @@ struct MusicXMLNoteSpanBuilder {
                             staff: existing.staff,
                             voice: existing.voice,
                             onTick: existing.onTick,
-                            offTick: max(existing.onTick, existing.offTick + max(0, note.durationTicks) + releaseTicks)
+                            offTick: max(
+                                existing.onTick,
+                                existing.offTick + max(0, note.durationTicks) + releaseTicks + fermataExtraTicks
+                            )
                         )
                         activeSpanIndexByKey[key] = nil
                     } else {
@@ -112,15 +126,18 @@ struct MusicXMLNoteSpanBuilder {
                                 "MusicXMLNoteSpanBuilder: tie-end without active; creating standalone span for \(key.partID) midi=\(midiNote) staff=\(staff) voice=\(voice)"
                             )
                         #endif
+                        let arpeggiateOffset = note.isGrace ? 0 : (arpeggiatePlan?.offsetTicksByNoteID[note.id] ?? 0)
+                        let baseTick = note.tick + max(0, arpeggiateOffset)
+                        let onTick = baseTick + (performanceTimingEnabled ? (note.attackTicks ?? 0) : 0)
                         output.append(
                             MusicXMLNoteSpan(
                                 midiNote: midiNote,
                                 staff: staff,
                                 voice: voice,
-                                onTick: note.tick + (performanceTimingEnabled ? (note.attackTicks ?? 0) : 0),
+                                onTick: onTick,
                                 offTick: max(
-                                    note.tick + (performanceTimingEnabled ? (note.attackTicks ?? 0) : 0),
-                                    note.tick + max(0, note.durationTicks) + releaseTicks
+                                    onTick,
+                                    baseTick + max(0, note.durationTicks) + releaseTicks + fermataExtraTicks
                                 )
                             )
                         )
@@ -129,7 +146,8 @@ struct MusicXMLNoteSpanBuilder {
                     let attackTicks = performanceTimingEnabled ? (note.attackTicks ?? 0) : 0
                     let releaseTicks = performanceTimingEnabled ? (note.releaseTicks ?? 0) : 0
                     let plannedGrace = note.isGrace ? gracePlan?.scheduleByNoteID[note.id] : nil
-                    let baseTick = plannedGrace?.onTick ?? note.tick
+                    let arpeggiateOffset = note.isGrace ? 0 : (arpeggiatePlan?.offsetTicksByNoteID[note.id] ?? 0)
+                    let baseTick = (plannedGrace?.onTick ?? note.tick) + max(0, arpeggiateOffset)
                     let rawDurationTicks = if let plannedGrace {
                         plannedGrace.durationTicks
                     } else if let reduction = gracePlan?.durationReductionTicksByKey[GraceKey(partID: note.partID, staff: staff, voice: voice, tick: note.tick)] {
@@ -140,7 +158,7 @@ struct MusicXMLNoteSpanBuilder {
 
                     let onTick = baseTick + attackTicks
                     let effectiveDurationTicks = articulatedDurationTicks(for: note, rawDurationTicks: rawDurationTicks)
-                    let offTick = max(onTick, baseTick + max(0, effectiveDurationTicks) + releaseTicks)
+                    let offTick = max(onTick, baseTick + max(0, effectiveDurationTicks) + releaseTicks + fermataExtraTicks)
                     output.append(
                         MusicXMLNoteSpan(
                             midiNote: midiNote,
@@ -252,5 +270,99 @@ struct MusicXMLNoteSpanBuilder {
         case middle
         case end
         case normal
+    }
+
+    private struct ArpeggiateKey: Hashable {
+        let partID: String
+        let staff: Int
+        let tick: Int
+    }
+
+    private struct ArpeggiateCandidate: Equatable {
+        let noteID: String
+        let midi: Int
+        let durationTicks: Int
+    }
+
+    private struct ArpeggiatePlan {
+        let offsetTicksByNoteID: [String: Int]
+
+        init(notes: [MusicXMLNoteEvent]) {
+            var directionTokenByKey: [ArpeggiateKey: String?] = [:]
+            directionTokenByKey.reserveCapacity(32)
+
+            for note in notes {
+                guard note.isRest == false else { continue }
+                guard note.isGrace == false else { continue }
+                guard note.arpeggiate != nil else { continue }
+
+                let staff = note.staff ?? 1
+                let key = ArpeggiateKey(partID: note.partID, staff: staff, tick: note.tick)
+                if directionTokenByKey[key] == nil {
+                    directionTokenByKey[key] = note.arpeggiate?.directionToken
+                }
+            }
+
+            guard directionTokenByKey.isEmpty == false else {
+                offsetTicksByNoteID = [:]
+                return
+            }
+
+            var candidatesByKey: [ArpeggiateKey: [ArpeggiateCandidate]] = [:]
+            candidatesByKey.reserveCapacity(32)
+
+            for note in notes {
+                guard note.isRest == false else { continue }
+                guard note.isGrace == false else { continue }
+                guard let midi = note.midiNote else { continue }
+
+                let staff = note.staff ?? 1
+                let key = ArpeggiateKey(partID: note.partID, staff: staff, tick: note.tick)
+                guard directionTokenByKey[key] != nil else { continue }
+
+                candidatesByKey[key, default: []].append(
+                    ArpeggiateCandidate(
+                        noteID: note.id,
+                        midi: midi,
+                        durationTicks: max(0, note.durationTicks)
+                    )
+                )
+            }
+
+            var offsets: [String: Int] = [:]
+            offsets.reserveCapacity(candidatesByKey.values.reduce(0, { $0 + $1.count }))
+
+            for (key, candidates) in candidatesByKey {
+                guard candidates.count >= 2 else {
+                    offsets[candidates[0].noteID] = 0
+                    continue
+                }
+
+                let durationTicks = candidates.map(\.durationTicks).max() ?? 0
+                guard durationTicks > 0 else {
+                    for candidate in candidates { offsets[candidate.noteID] = 0 }
+                    continue
+                }
+
+                let spreadUpperBound = min(durationTicks - 1, MusicXMLTempoMap.ticksPerQuarter / 16)
+                let totalSpreadTicks = max(1, min(spreadUpperBound, durationTicks / 4))
+                let step = max(1, totalSpreadTicks / max(1, candidates.count - 1))
+
+                let directionToken = (directionTokenByKey[key] ?? nil)?.lowercased()
+                let ordered = (directionToken == "down")
+                    ? candidates.sorted { $0.midi > $1.midi }
+                    : candidates.sorted { $0.midi < $1.midi }
+
+                var cursor = 0
+                for (i, candidate) in ordered.enumerated() {
+                    offsets[candidate.noteID] = cursor
+                    if i < ordered.count - 1 {
+                        cursor = min(totalSpreadTicks, cursor + step)
+                    }
+                }
+            }
+
+            offsetTicksByNoteID = offsets
+        }
     }
 }

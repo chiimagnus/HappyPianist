@@ -207,3 +207,43 @@ func buildStepsIncludesGraceNotesWhenEnabled() {
     #expect(result.steps[0].notes.map(\.midiNote) == [60])
     #expect(result.steps[1].notes.map(\.midiNote) == [62])
 }
+
+@Test
+func buildStepsSetsOnTickOffsetsForArpeggiateChordWhenEnabled() {
+    let score = MusicXMLScore(notes: [
+        MusicXMLNoteEvent(
+            partID: "P1",
+            measureNumber: 1,
+            tick: 0,
+            durationTicks: 480,
+            midiNote: 60,
+            isRest: false,
+            isChord: false,
+            tieStart: false,
+            tieStop: false,
+            staff: 1,
+            voice: 1,
+            arpeggiate: MusicXMLArpeggiate(numberToken: nil, directionToken: nil)
+        ),
+        MusicXMLNoteEvent(
+            partID: "P1",
+            measureNumber: 1,
+            tick: 0,
+            durationTicks: 480,
+            midiNote: 64,
+            isRest: false,
+            isChord: true,
+            tieStart: false,
+            tieStop: false,
+            staff: 1,
+            voice: 1
+        ),
+    ])
+
+    let result = PracticeStepBuilder().buildSteps(from: score, expressivity: MusicXMLExpressivityOptions(arpeggiateEnabled: true))
+    #expect(result.steps.count == 1)
+    #expect(result.steps[0].tick == 0)
+    #expect(result.steps[0].notes.map(\.midiNote) == [60, 64])
+    #expect(result.steps[0].notes[0].onTickOffset == 0)
+    #expect(result.steps[0].notes[1].onTickOffset == 30)
+}

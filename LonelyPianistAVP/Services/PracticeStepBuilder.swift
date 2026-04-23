@@ -14,7 +14,7 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
     private let playableRange = 21 ... 108
 
     func buildSteps(from score: MusicXMLScore, expressivity: MusicXMLExpressivityOptions) -> PracticeStepBuildResult {
-        var grouped: [Int: [Int: (staff: Int?, velocity: UInt8)]] = [:] // tick -> midi -> (staff, velocity)
+        var grouped: [Int: [Int: (staff: Int?, velocity: UInt8, onTickOffset: Int)]] = [:] // tick -> midi -> (staff, velocity, onTickOffset)
         var unsupportedNoteCount = 0
         let velocityResolver = MusicXMLVelocityResolver(
             dynamicEvents: score.dynamicEvents,
@@ -22,6 +22,7 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
             wedgeEnabled: expressivity.wedgeEnabled
         )
         let graceOnTickByNoteIndex = expressivity.graceEnabled ? computeGraceOnTickByNoteIndex(notes: score.notes) : [:]
+        let arpeggiateOffsetByNoteIndex = expressivity.arpeggiateEnabled ? computeArpeggiateOffsetTicksByNoteIndex(notes: score.notes) : [:]
 
         for (index, noteEvent) in score.notes.enumerated() {
             if noteEvent.isRest {
@@ -47,9 +48,10 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
 
             let velocity = velocityResolver.velocity(for: noteEvent)
             let effectiveTick = graceOnTickByNoteIndex[index] ?? noteEvent.tick
+            let onTickOffset = max(0, arpeggiateOffsetByNoteIndex[index] ?? 0)
             var map = grouped[effectiveTick] ?? [:]
             if map[midiNote] == nil {
-                map[midiNote] = (staff: noteEvent.staff, velocity: velocity)
+                map[midiNote] = (staff: noteEvent.staff, velocity: velocity, onTickOffset: onTickOffset)
             }
             grouped[effectiveTick] = map
         }
@@ -58,7 +60,12 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
             let notesMap = grouped[tick] ?? [:]
             let notes = notesMap.keys.sorted().map { midiNote in
                 let entry = notesMap[midiNote]
-                return PracticeStepNote(midiNote: midiNote, staff: entry?.staff, velocity: entry?.velocity ?? 96)
+                return PracticeStepNote(
+                    midiNote: midiNote,
+                    staff: entry?.staff,
+                    velocity: entry?.velocity ?? 96,
+                    onTickOffset: entry?.onTickOffset ?? 0
+                )
             }
             return PracticeStep(tick: tick, notes: notes)
         }
@@ -121,5 +128,93 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
         }
 
         return result
+    }
+
+    private struct ArpeggiateKey: Hashable {
+        let partID: String
+        let staff: Int
+        let tick: Int
+    }
+
+    private func computeArpeggiateOffsetTicksByNoteIndex(notes: [MusicXMLNoteEvent]) -> [Int: Int] {
+        struct Candidate {
+            let index: Int
+            let midi: Int
+            let durationTicks: Int
+        }
+
+        var directionTokenByKey: [ArpeggiateKey: String?] = [:]
+        directionTokenByKey.reserveCapacity(32)
+
+        for note in notes {
+            guard note.isRest == false else { continue }
+            guard note.isGrace == false else { continue }
+            guard note.arpeggiate != nil else { continue }
+
+            let staff = note.staff ?? 1
+            let key = ArpeggiateKey(partID: note.partID, staff: staff, tick: note.tick)
+            if directionTokenByKey[key] == nil {
+                directionTokenByKey[key] = note.arpeggiate?.directionToken
+            }
+        }
+
+        guard directionTokenByKey.isEmpty == false else { return [:] }
+
+        var candidatesByKey: [ArpeggiateKey: [Candidate]] = [:]
+        candidatesByKey.reserveCapacity(32)
+
+        for (index, note) in notes.enumerated() {
+            guard note.isRest == false else { continue }
+            guard note.isGrace == false else { continue }
+            guard let midi = note.midiNote else { continue }
+
+            let staff = note.staff ?? 1
+            let key = ArpeggiateKey(partID: note.partID, staff: staff, tick: note.tick)
+            guard directionTokenByKey[key] != nil else { continue }
+            candidatesByKey[key, default: []].append(
+                Candidate(
+                    index: index,
+                    midi: midi,
+                    durationTicks: max(0, note.durationTicks)
+                )
+            )
+        }
+
+        guard candidatesByKey.isEmpty == false else { return [:] }
+
+        var offsets: [Int: Int] = [:]
+        offsets.reserveCapacity(candidatesByKey.values.reduce(0, { $0 + $1.count }))
+
+        for (key, candidates) in candidatesByKey {
+            guard candidates.count >= 2 else {
+                offsets[candidates[0].index] = 0
+                continue
+            }
+
+            let durationTicks = candidates.map(\.durationTicks).max() ?? 0
+            guard durationTicks > 0 else {
+                for candidate in candidates { offsets[candidate.index] = 0 }
+                continue
+            }
+
+            let spreadUpperBound = min(durationTicks - 1, MusicXMLTempoMap.ticksPerQuarter / 16)
+            let totalSpreadTicks = max(1, min(spreadUpperBound, durationTicks / 4))
+            let step = max(1, totalSpreadTicks / max(1, candidates.count - 1))
+            let directionToken = (directionTokenByKey[key] ?? nil)?.lowercased()
+            let ordered = (directionToken == "down")
+                ? candidates.sorted { $0.midi > $1.midi }
+                : candidates.sorted { $0.midi < $1.midi }
+
+            var cursor = 0
+            for (i, candidate) in ordered.enumerated() {
+                offsets[candidate.index] = cursor
+                if i < ordered.count - 1 {
+                    cursor = min(totalSpreadTicks, cursor + step)
+                }
+            }
+
+        }
+
+        return offsets
     }
 }

@@ -45,9 +45,11 @@ final class PracticeSessionViewModel {
     private var noteOffTasksByMIDI: [Int: Task<Void, Never>] = [:]
     private var tempoMap: MusicXMLTempoMap?
     private var pedalTimeline: MusicXMLPedalTimeline?
+    private var fermataTimeline: MusicXMLFermataTimeline?
     private var noteSpanOffTickByOnsetKey: [NoteSpanOnsetKey: Int] = [:]
     private var activeNoteOffTickByMIDI: [Int: Int] = [:]
     private var pendingReleaseOffTickByMIDI: [Int: Int] = [:]
+    private var pendingAutoplayOnsetsByTick: [Int: [PracticeStepNote]] = [:]
 
     init(
         pressDetectionService: PressDetectionServiceProtocol,
@@ -93,13 +95,14 @@ final class PracticeSessionViewModel {
     }
 
     func setSteps(_ steps: [PracticeStep], tempoMap: MusicXMLTempoMap?, pedalTimeline: MusicXMLPedalTimeline? = nil) {
-        setSteps(steps, tempoMap: tempoMap, pedalTimeline: pedalTimeline, noteSpans: [])
+        setSteps(steps, tempoMap: tempoMap, pedalTimeline: pedalTimeline, fermataTimeline: nil, noteSpans: [])
     }
 
     func setSteps(
         _ steps: [PracticeStep],
         tempoMap: MusicXMLTempoMap?,
         pedalTimeline: MusicXMLPedalTimeline? = nil,
+        fermataTimeline: MusicXMLFermataTimeline? = nil,
         noteSpans: [MusicXMLNoteSpan] = []
     ) {
         if state == .completed, self.steps == steps, steps.isEmpty == false {
@@ -116,7 +119,9 @@ final class PracticeSessionViewModel {
         self.steps = steps
         self.tempoMap = tempoMap
         self.pedalTimeline = pedalTimeline
+        self.fermataTimeline = fermataTimeline
         noteSpanOffTickByOnsetKey = Self.makeNoteSpanOffTickByOnsetKey(noteSpans)
+        pendingAutoplayOnsetsByTick = [:]
 
         if shouldResetProgress {
             currentStepIndex = 0
@@ -157,6 +162,7 @@ final class PracticeSessionViewModel {
         steps = []
         tempoMap = nil
         pedalTimeline = nil
+        fermataTimeline = nil
         noteSpanOffTickByOnsetKey = [:]
         calibration = nil
         keyRegions = []
@@ -166,6 +172,7 @@ final class PracticeSessionViewModel {
         audioErrorMessage = nil
         currentStepIndex = 0
         state = .idle
+        pendingAutoplayOnsetsByTick = [:]
     }
 
     func clearAudioError() {
@@ -177,7 +184,7 @@ final class PracticeSessionViewModel {
         currentStepIndex = 0
         state = .guiding(stepIndex: currentStepIndex)
         if autoplayState == .playing {
-            playAutoplayOnsetsForCurrentStep()
+            prepareAutoplayOnsetsForCurrentStep()
         } else {
             playCurrentStepSound()
         }
@@ -207,7 +214,7 @@ final class PracticeSessionViewModel {
             let tick = currentStep?.tick ?? 0
             isSustainPedalDown = pedalTimeline?.isDown(atTick: tick) ?? false
             if case .guiding = state {
-                playAutoplayOnsetsForCurrentStep()
+                prepareAutoplayOnsetsForCurrentStep()
             }
             startAutoplayTaskIfNeeded()
         } else {
@@ -262,7 +269,7 @@ final class PracticeSessionViewModel {
             currentStepIndex += 1
             state = .guiding(stepIndex: currentStepIndex)
             if autoplayState == .playing {
-                playAutoplayOnsetsForCurrentStep()
+                prepareAutoplayOnsetsForCurrentStep()
             } else {
                 playCurrentStepSound()
             }
@@ -303,7 +310,8 @@ final class PracticeSessionViewModel {
                 let nextPedalTick = nextPedalChange?.tick ?? Int.max
                 let nextPedalReleaseTick = pedalTimeline?.nextReleaseEdge(afterTick: currentTick) ?? Int.max
                 let nextNoteOffTick = activeNoteOffTickByMIDI.values.min() ?? Int.max
-                let nextEventTick = min(nextStepTick, nextPedalTick, nextPedalReleaseTick, nextNoteOffTick)
+                let nextNoteOnTick = pendingAutoplayOnsetsByTick.keys.min() ?? Int.max
+                let nextEventTick = min(nextStepTick, nextPedalTick, nextPedalReleaseTick, nextNoteOffTick, nextNoteOnTick)
 
                 let waitSeconds = tempoMap.durationSeconds(fromTick: currentTick, toTick: nextEventTick)
 
@@ -331,7 +339,25 @@ final class PracticeSessionViewModel {
                     releasePendingNotesIfNeeded(atTick: currentTick)
                 }
 
+                if nextNoteOnTick == nextEventTick {
+                    playPendingAutoplayOnsetsIfDue(atTick: currentTick)
+                }
+
                 if nextStepTick == nextEventTick {
+                    let staffs = Set(steps[index].notes.map { $0.staff ?? 1 })
+                    let fermataDelay = fermataTimeline?.extraHoldSeconds(
+                        atTick: steps[index].tick,
+                        staffs: staffs,
+                        tempoMap: tempoMap
+                    ) ?? 0
+                    if fermataDelay > 0 {
+                        try? await sleeper.sleep(for: .seconds(fermataDelay))
+                    }
+
+                    guard Task.isCancelled == false else { break }
+                    guard autoplayState == .playing else { break }
+                    guard case .guiding = state else { break }
+
                     advanceToNextStep()
                     guard case .guiding = state else { break }
                     currentTick = steps[currentStepIndex].tick
@@ -358,15 +384,18 @@ final class PracticeSessionViewModel {
         noteOffTasksByMIDI = [:]
         activeNoteOffTickByMIDI = [:]
         pendingReleaseOffTickByMIDI = [:]
+        pendingAutoplayOnsetsByTick = [:]
         noteOutput?.allNotesOff()
         refreshAutoplayHighlightedMIDINotes()
     }
 
-    private func playAutoplayOnsetsForCurrentStep() {
+    private func prepareAutoplayOnsetsForCurrentStep() {
         guard let currentStep else { return }
         guard autoplayState == .playing else { return }
         guard let noteOutput else { return }
         guard audioErrorMessage == nil else { return }
+
+        pendingAutoplayOnsetsByTick = Dictionary(grouping: currentStep.notes, by: { currentStep.tick + $0.onTickOffset })
 
         for note in currentStep.notes {
             noteOffTasksByMIDI[note.midiNote]?.cancel()
@@ -380,10 +409,21 @@ final class PracticeSessionViewModel {
             pendingReleaseOffTickByMIDI[note.midiNote] = nil
         }
 
-        for note in currentStep.notes {
+        playPendingAutoplayOnsetsIfDue(atTick: currentStep.tick)
+
+        refreshAutoplayHighlightedMIDINotes()
+    }
+
+    private func playPendingAutoplayOnsetsIfDue(atTick tick: Int) {
+        guard autoplayState == .playing else { return }
+        guard let noteOutput else { return }
+        guard audioErrorMessage == nil else { return }
+        guard let notes = pendingAutoplayOnsetsByTick.removeValue(forKey: tick) else { return }
+
+        for note in notes {
             do {
                 try noteOutput.noteOn(midi: note.midiNote, velocity: note.velocity)
-                let offTick = resolveOffTick(midi: note.midiNote, staff: note.staff, onTick: currentStep.tick)
+                let offTick = resolveOffTick(midi: note.midiNote, staff: note.staff, onTick: tick)
                 activeNoteOffTickByMIDI[note.midiNote] = offTick
             } catch {
                 recordAudioError(error)

@@ -289,6 +289,122 @@ func autoplaySchedulesAndAdvancesStepsUsingTempoMap() async {
 
 @Test
 @MainActor
+func autoplaySchedulesPendingOnsetsInsideCurrentStep() async {
+    let sleeper = ControllableSleeper()
+    let tempoMap = MusicXMLTempoMap(
+        tempoEvents: [
+            MusicXMLTempoEvent(tick: 0, quarterBPM: 120),
+        ]
+    )
+    let output = CapturingMIDINoteOutput()
+
+    let viewModel = PracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: sleeper,
+        noteAudioPlayer: nil,
+        noteOutput: output
+    )
+
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [
+                PracticeStepNote(midiNote: 60, staff: 1, onTickOffset: 0),
+                PracticeStepNote(midiNote: 64, staff: 1, onTickOffset: 30),
+            ]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 67, staff: 1)]),
+        ],
+        tempoMap: tempoMap,
+        pedalTimeline: nil,
+        fermataTimeline: nil,
+        noteSpans: [
+            MusicXMLNoteSpan(midiNote: 60, staff: 1, voice: 1, onTick: 0, offTick: 480),
+            MusicXMLNoteSpan(midiNote: 64, staff: 1, voice: 1, onTick: 30, offTick: 510),
+        ]
+    )
+
+    viewModel.setAutoplayEnabled(true)
+    viewModel.startGuidingIfReady()
+    await settleTaskQueue()
+
+    #expect(output.recordedNoteOns.map(\.midi) == [60])
+    #expect(await sleeper.recordedDurations() == [.seconds(0.03125)])
+
+    await sleeper.resumeOldestPending()
+    await settleTaskQueue()
+
+    #expect(output.recordedNoteOns.map(\.midi) == [60, 64])
+    #expect(await sleeper.recordedDurations() == [.seconds(0.03125), .seconds(0.46875)])
+}
+
+@Test
+@MainActor
+func autoplayInsertsFermataHoldBeforeAdvancingWhenTimelineProvided() async {
+    let sleeper = ControllableSleeper()
+    let tempoMap = MusicXMLTempoMap(
+        tempoEvents: [
+            MusicXMLTempoEvent(tick: 0, quarterBPM: 120),
+        ]
+    )
+    let fermataTimeline = MusicXMLFermataTimeline(
+        fermataEvents: [
+            MusicXMLFermataEvent(
+                tick: 0,
+                scope: MusicXMLEventScope(partID: "P1", staff: 1, voice: 1),
+                source: .noteNotations
+            ),
+        ],
+        notes: [
+            MusicXMLNoteEvent(
+                partID: "P1",
+                measureNumber: 1,
+                tick: 0,
+                durationTicks: 480,
+                midiNote: 60,
+                isRest: false,
+                isChord: false,
+                tieStart: false,
+                tieStop: false,
+                staff: 1,
+                voice: 1
+            ),
+        ]
+    )
+
+    let viewModel = makePracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: sleeper
+    )
+
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
+        ],
+        tempoMap: tempoMap,
+        pedalTimeline: nil,
+        fermataTimeline: fermataTimeline
+    )
+
+    viewModel.setAutoplayEnabled(true)
+    viewModel.startGuidingIfReady()
+    await settleTaskQueue()
+
+    #expect(await sleeper.recordedDurations() == [.seconds(0.5)])
+
+    await sleeper.resumeOldestPending()
+    await settleTaskQueue()
+    #expect(viewModel.currentStepIndex == 0)
+    #expect(await sleeper.recordedDurations() == [.seconds(0.5), .seconds(0.25)])
+
+    await sleeper.resumeOldestPending()
+    await settleTaskQueue()
+    #expect(viewModel.currentStepIndex == 1)
+}
+
+@Test
+@MainActor
 func autoplaySchedulesPedalChangesBetweenSteps() async {
     let sleeper = ControllableSleeper()
     let tempoMap = MusicXMLTempoMap(
