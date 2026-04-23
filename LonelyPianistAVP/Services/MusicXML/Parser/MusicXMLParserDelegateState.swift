@@ -10,6 +10,7 @@ struct MusicXMLParserDelegateState {
     var soundDirectives: [MusicXMLSoundDirective] = []
     var pedalEvents: [MusicXMLPedalEvent] = []
     var dynamicEvents: [MusicXMLDynamicEvent] = []
+    var wedgeEvents: [MusicXMLWedgeEvent] = []
     var measures: [MusicXMLMeasureSpan] = []
     var repeatDirectives: [MusicXMLRepeatDirective] = []
     var endingDirectives: [MusicXMLEndingDirective] = []
@@ -83,6 +84,7 @@ struct MusicXMLParserDelegateState {
     var currentDirectionSoundStartIndex = 0
     var currentDirectionPedalStartIndex = 0
     var currentDirectionDynamicStartIndex = 0
+    var currentDirectionWedgeStartIndex = 0
 
     var currentOffsetAppliesToSound = false
 

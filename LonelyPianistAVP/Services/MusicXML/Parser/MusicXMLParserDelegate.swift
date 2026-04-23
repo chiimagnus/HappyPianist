@@ -30,6 +30,10 @@ final class MusicXMLParserDelegate: NSObject {
         state.dynamicEvents
     }
 
+    var wedgeEvents: [MusicXMLWedgeEvent] {
+        state.wedgeEvents
+    }
+
     var measures: [MusicXMLMeasureSpan] {
         state.measures
     }

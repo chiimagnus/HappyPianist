@@ -81,6 +81,42 @@ extension MusicXMLParserDelegate {
         )
     }
 
+    func recordWedgeEvent(attributes: [String: String]) {
+        guard state.isInDirection else { return }
+        guard let rawType = attributes["type"]?.trimmingCharacters(in: .whitespacesAndNewlines),
+              rawType.isEmpty == false
+        else {
+            return
+        }
+
+        let kind: MusicXMLWedgeKind? = switch rawType.lowercased() {
+            case "crescendo":
+                .crescendoStart
+            case "diminuendo":
+                .diminuendoStart
+            case "stop":
+                .stop
+            default:
+                nil
+        }
+
+        guard let kind else { return }
+
+        let numberToken = attributes["number"].flatMap { token in
+            let trimmed = token.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+        }
+
+        state.wedgeEvents.append(
+            MusicXMLWedgeEvent(
+                tick: currentDirectionEventTick(),
+                kind: kind,
+                numberToken: numberToken,
+                scope: MusicXMLEventScope(partID: state.currentPartID, staff: state.currentDirectionStaff, voice: nil)
+            )
+        )
+    }
+
     func parseTimeOnlyPasses(attributes: [String: String]) -> [Int]? {
         guard let raw = attributes["time-only"]?.trimmingCharacters(in: .whitespacesAndNewlines),
               raw.isEmpty == false

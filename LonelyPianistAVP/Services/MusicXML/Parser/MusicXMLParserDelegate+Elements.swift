@@ -34,6 +34,7 @@ extension MusicXMLParserDelegate {
                 state.currentDirectionSoundStartIndex = state.soundDirectives.count
                 state.currentDirectionPedalStartIndex = state.pedalEvents.count
                 state.currentDirectionDynamicStartIndex = state.dynamicEvents.count
+                state.currentDirectionWedgeStartIndex = state.wedgeEvents.count
                 state.currentDirectionSoundOffsetTempoOverrideTicksByIndex = [:]
                 state.currentDirectionSoundOffsetSoundOverrideTicksByIndex = [:]
                 state.currentDirectionSoundOffsetPedalOverrideTicksByIndex = [:]
@@ -47,6 +48,8 @@ extension MusicXMLParserDelegate {
                 }
             case "pedal":
                 recordPedalEvent(attributes: attributeDict)
+            case "wedge":
+                recordWedgeEvent(attributes: attributeDict)
             case "offset":
                 if state.isInDirection, state.isInSound == false {
                     state.currentOffsetAppliesToSound = attributeDict["sound"]?.lowercased() == "yes"
@@ -241,6 +244,24 @@ extension MusicXMLParserDelegate {
                         )
                     }
                 }
+                if let staff = state.currentDirectionStaff,
+                   state.currentDirectionWedgeStartIndex < state.wedgeEvents.count
+                {
+                    for i in state.currentDirectionWedgeStartIndex ..< state.wedgeEvents.count
+                        where state.wedgeEvents[i].scope.staff == nil
+                    {
+                        state.wedgeEvents[i] = MusicXMLWedgeEvent(
+                            tick: state.wedgeEvents[i].tick,
+                            kind: state.wedgeEvents[i].kind,
+                            numberToken: state.wedgeEvents[i].numberToken,
+                            scope: MusicXMLEventScope(
+                                partID: state.wedgeEvents[i].scope.partID,
+                                staff: staff,
+                                voice: state.wedgeEvents[i].scope.voice
+                            )
+                        )
+                    }
+                }
             case "voice" where state.isInNote:
                 state.noteVoice = Int(text)
             case "note":
@@ -256,6 +277,7 @@ extension MusicXMLParserDelegate {
                 state.currentDirectionSoundStartIndex = 0
                 state.currentDirectionPedalStartIndex = 0
                 state.currentDirectionDynamicStartIndex = 0
+                state.currentDirectionWedgeStartIndex = 0
                 state.currentDirectionSoundOffsetTempoOverrideTicksByIndex = [:]
                 state.currentDirectionSoundOffsetSoundOverrideTicksByIndex = [:]
                 state.currentDirectionSoundOffsetPedalOverrideTicksByIndex = [:]

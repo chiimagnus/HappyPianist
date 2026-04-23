@@ -7,6 +7,7 @@ struct MusicXMLScore: Equatable {
     var soundDirectives: [MusicXMLSoundDirective] = []
     var pedalEvents: [MusicXMLPedalEvent] = []
     var dynamicEvents: [MusicXMLDynamicEvent] = []
+    var wedgeEvents: [MusicXMLWedgeEvent] = []
     var measures: [MusicXMLMeasureSpan] = []
     var repeatDirectives: [MusicXMLRepeatDirective] = []
     var endingDirectives: [MusicXMLEndingDirective] = []
@@ -32,6 +33,23 @@ struct MusicXMLDynamicEvent: Equatable, Identifiable {
     let velocity: UInt8
     let scope: MusicXMLEventScope
     let source: MusicXMLDynamicEventSource
+}
+
+enum MusicXMLWedgeKind: Equatable {
+    case crescendoStart
+    case diminuendoStart
+    case stop
+}
+
+struct MusicXMLWedgeEvent: Equatable, Identifiable {
+    var id: String {
+        "\(tick)-\(kind)-\(numberToken ?? "")-\(scope.partID)-\(scope.staff ?? -1)-\(scope.voice ?? -1)"
+    }
+
+    let tick: Int
+    let kind: MusicXMLWedgeKind
+    let numberToken: String?
+    let scope: MusicXMLEventScope
 }
 
 struct MusicXMLTempoEvent: Equatable, Identifiable {
