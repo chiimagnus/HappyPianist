@@ -207,6 +207,25 @@ func guidingStartAutoPlaysCurrentStepSound() {
 
 @Test
 @MainActor
+func guidingStartRecordsAudioErrorWhenAudioPlayerThrows() async {
+    let viewModel = makePracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: TaskSleeper(),
+        noteAudioPlayer: ThrowingPracticeNoteAudioPlayer()
+    )
+
+    viewModel.setSteps([
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+    ])
+    viewModel.startGuidingIfReady()
+    await settleTaskQueue()
+
+    #expect(viewModel.audioErrorMessage?.isEmpty == false)
+}
+
+@Test
+@MainActor
 func advancingAutoPlaysNextStepSound() {
     let audioPlayer = CapturingPracticeNoteAudioPlayer()
     let viewModel = makePracticeSessionViewModel(
@@ -672,8 +691,14 @@ private final class AlwaysMatchChordAttemptAccumulator: ChordAttemptAccumulatorP
 private final class CapturingPracticeNoteAudioPlayer: PracticeNoteAudioPlayerProtocol {
     private(set) var recordedPlays: [[Int]] = []
 
-    func play(midiNotes: [Int]) {
+    func play(midiNotes: [Int]) throws {
         recordedPlays.append(midiNotes)
+    }
+}
+
+private final class ThrowingPracticeNoteAudioPlayer: PracticeNoteAudioPlayerProtocol {
+    func play(midiNotes _: [Int]) throws {
+        throw PracticeAudioError.soundFontMissing(resourceName: "TestSoundFont")
     }
 }
 
@@ -683,7 +708,7 @@ private final class CapturingMIDINoteOutput: PracticeMIDINoteOutputProtocol {
     private(set) var recordedNoteOffs: [Int] = []
     private(set) var allNotesOffCount = 0
 
-    func noteOn(midi: Int, velocity: UInt8) {
+    func noteOn(midi: Int, velocity: UInt8) throws {
         recordedNoteOns.append((midi: midi, velocity: velocity))
     }
 

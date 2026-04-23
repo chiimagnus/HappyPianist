@@ -11,6 +11,7 @@ struct PracticeStepView: View {
     @State private var isStepVisible = false
     @State private var isLocalizationPopoverPresented = false
     @State private var isSettingsPopoverPresented = false
+    @State private var isAudioErrorAlertPresented = false
 
     @AppStorage("practiceStep3AutoplayEnabled") private var isAutoplayEnabled = false
 
@@ -110,6 +111,16 @@ struct PracticeStepView: View {
             }
             .onChange(of: isAutoplayEnabled) {
                 viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
+            }
+            .onChange(of: viewModel.practiceSessionViewModel.audioErrorMessage) {
+                isAudioErrorAlertPresented = viewModel.practiceSessionViewModel.audioErrorMessage != nil
+            }
+            .alert("音频不可用", isPresented: $isAudioErrorAlertPresented) {
+                Button("知道了") {
+                    viewModel.practiceSessionViewModel.clearAudioError()
+                }
+            } message: {
+                Text(viewModel.practiceSessionViewModel.audioErrorMessage ?? "")
             }
             .onDisappear {
                 isStepVisible = false

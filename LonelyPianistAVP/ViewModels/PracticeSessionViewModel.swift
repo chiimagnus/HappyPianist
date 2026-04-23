@@ -31,6 +31,7 @@ final class PracticeSessionViewModel {
     private(set) var pressedNotes: Set<Int> = []
     private(set) var feedbackState: VisualFeedbackState = .none
     private(set) var isSustainPedalDown = false
+    private(set) var audioErrorMessage: String?
     var noteMatchTolerance: Int = 1
 
     private let pressDetectionService: PressDetectionServiceProtocol
@@ -162,8 +163,13 @@ final class PracticeSessionViewModel {
         pressedNotes.removeAll()
         feedbackState = .none
         isSustainPedalDown = false
+        audioErrorMessage = nil
         currentStepIndex = 0
         state = .idle
+    }
+
+    func clearAudioError() {
+        audioErrorMessage = nil
     }
 
     func startGuidingIfReady() {
@@ -187,7 +193,12 @@ final class PracticeSessionViewModel {
 
     func playCurrentStepSound() {
         guard let currentStep else { return }
-        noteAudioPlayer?.play(midiNotes: currentStep.notes.map(\.midiNote))
+        guard audioErrorMessage == nil else { return }
+        do {
+            try noteAudioPlayer?.play(midiNotes: currentStep.notes.map(\.midiNote))
+        } catch {
+            recordAudioError(error)
+        }
     }
 
     func setAutoplayEnabled(_ isEnabled: Bool) {
@@ -350,6 +361,7 @@ final class PracticeSessionViewModel {
         guard let currentStep else { return }
         guard autoplayState == .playing else { return }
         guard let noteOutput else { return }
+        guard audioErrorMessage == nil else { return }
 
         for note in currentStep.notes {
             noteOffTasksByMIDI[note.midiNote]?.cancel()
@@ -364,9 +376,14 @@ final class PracticeSessionViewModel {
         }
 
         for note in currentStep.notes {
-            noteOutput.noteOn(midi: note.midiNote, velocity: 96)
-            let offTick = resolveOffTick(midi: note.midiNote, staff: note.staff, onTick: currentStep.tick)
-            activeNoteOffTickByMIDI[note.midiNote] = offTick
+            do {
+                try noteOutput.noteOn(midi: note.midiNote, velocity: 96)
+                let offTick = resolveOffTick(midi: note.midiNote, staff: note.staff, onTick: currentStep.tick)
+                activeNoteOffTickByMIDI[note.midiNote] = offTick
+            } catch {
+                recordAudioError(error)
+                break
+            }
         }
     }
 
@@ -446,6 +463,16 @@ final class PracticeSessionViewModel {
         }
 
         return MusicXMLTempoMap(tempoEvents: [])
+    }
+
+    private func recordAudioError(_ error: Error) {
+        guard audioErrorMessage == nil else { return }
+
+        if let localized = error as? LocalizedError, let description = localized.errorDescription, description.isEmpty == false {
+            audioErrorMessage = description
+        } else {
+            audioErrorMessage = String(describing: error)
+        }
     }
 
     private func setFeedback(_ state: VisualFeedbackState, duration: TimeInterval = 0.25) {
