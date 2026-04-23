@@ -22,7 +22,7 @@ struct MusicXMLWordsSemanticsInterpreter {
             switch marker.kind {
                 case .pedalDown:
                     MusicXMLPedalEvent(
-                        partID: marker.partID,
+                        partID: marker.scope.partID,
                         measureNumber: 0,
                         tick: marker.tick,
                         kind: .start,
@@ -31,7 +31,7 @@ struct MusicXMLWordsSemanticsInterpreter {
                     )
                 case .pedalUp:
                     MusicXMLPedalEvent(
-                        partID: marker.partID,
+                        partID: marker.scope.partID,
                         measureNumber: 0,
                         tick: marker.tick,
                         kind: .stop,
@@ -46,34 +46,45 @@ struct MusicXMLWordsSemanticsInterpreter {
         let validatedTempoEvents = tempoEvents
             .filter { $0.quarterBPM.isFinite && $0.quarterBPM > 0 }
             .sorted { lhs, rhs in
-                if lhs.tick != rhs.tick { return lhs.tick < rhs.tick }
-                return false
+                if lhs.scope.partID != rhs.scope.partID { return lhs.scope.partID < rhs.scope.partID }
+                return lhs.tick < rhs.tick
             }
 
         let aTempoEvents: [MusicXMLTempoEvent] = markers.compactMap { marker in
             guard marker.kind == .aTempo else { return nil }
-            guard let bpm = Self.lastExplicitTempoBPM(atOrBeforeTick: marker.tick, tempoEvents: validatedTempoEvents)
+            guard let bpm = Self.lastExplicitTempoBPM(
+                atOrBeforeTick: marker.tick,
+                tempoEvents: validatedTempoEvents,
+                partID: marker.scope.partID
+            )
             else {
                 return nil
             }
-            return MusicXMLTempoEvent(tick: marker.tick, quarterBPM: bpm)
+            return MusicXMLTempoEvent(
+                tick: marker.tick,
+                quarterBPM: bpm,
+                scope: MusicXMLEventScope(partID: marker.scope.partID, staff: nil, voice: nil)
+            )
         }
 
         let combinedTempoEvents = Self.dedupTempoEvents(validatedTempoEvents + aTempoEvents)
 
         let ramps: [MusicXMLTempoMap.TempoRamp] = markers.compactMap { marker in
+            let tempoScope = MusicXMLEventScope(partID: marker.scope.partID, staff: nil, voice: nil)
             switch marker.kind {
                 case .rit:
                     Self.tempoRampIfPossible(
                         startTick: marker.tick,
                         requiresSlowingDown: true,
-                        explicitTempoEvents: combinedTempoEvents
+                        explicitTempoEvents: combinedTempoEvents,
+                        scope: tempoScope
                     )
                 case .accel:
                     Self.tempoRampIfPossible(
                         startTick: marker.tick,
                         requiresSlowingDown: false,
-                        explicitTempoEvents: combinedTempoEvents
+                        explicitTempoEvents: combinedTempoEvents,
+                        scope: tempoScope
                     )
                 case .aTempo, .pedalDown, .pedalUp:
                     nil
@@ -107,7 +118,7 @@ struct MusicXMLWordsSemanticsInterpreter {
         }
 
         let tick: Int
-        let partID: String
+        let scope: MusicXMLEventScope
         let kind: Kind
     }
 
@@ -118,23 +129,23 @@ struct MusicXMLWordsSemanticsInterpreter {
         let tokens = tokenize(normalized)
 
         if tokens.count == 1, tokens[0] == "ped" {
-            return Marker(tick: event.tick, partID: event.scope.partID, kind: .pedalDown)
+            return Marker(tick: event.tick, scope: event.scope, kind: .pedalDown)
         }
 
         if tokens.contains("*"), tokens.count == 1 {
-            return Marker(tick: event.tick, partID: event.scope.partID, kind: .pedalUp)
+            return Marker(tick: event.tick, scope: event.scope, kind: .pedalUp)
         }
 
         if containsATempoPhrase(normalized, tokens: tokens) {
-            return Marker(tick: event.tick, partID: event.scope.partID, kind: .aTempo)
+            return Marker(tick: event.tick, scope: event.scope, kind: .aTempo)
         }
 
         if tokens.contains("rit") || tokens.contains("rit.") || tokens.contains("ritardando") {
-            return Marker(tick: event.tick, partID: event.scope.partID, kind: .rit)
+            return Marker(tick: event.tick, scope: event.scope, kind: .rit)
         }
 
         if tokens.contains("accel") || tokens.contains("accel.") || tokens.contains("accelerando") {
-            return Marker(tick: event.tick, partID: event.scope.partID, kind: .accel)
+            return Marker(tick: event.tick, scope: event.scope, kind: .accel)
         }
 
         return nil
@@ -163,39 +174,109 @@ struct MusicXMLWordsSemanticsInterpreter {
         return false
     }
 
-    private static func lastExplicitTempoBPM(atOrBeforeTick tick: Int, tempoEvents: [MusicXMLTempoEvent]) -> Double? {
+    private static func lastExplicitTempoBPM(
+        atOrBeforeTick tick: Int,
+        tempoEvents: [MusicXMLTempoEvent],
+        partID: String
+    ) -> Double? {
         guard tempoEvents.isEmpty == false else { return nil }
-        return tempoEvents
-            .filter { $0.tick <= tick }
-            .last?
-            .quarterBPM
+
+        var bestTick = Int.min
+        var bestEvent: MusicXMLTempoEvent?
+
+        for event in tempoEvents where event.scope.partID == partID && event.tick <= tick {
+            if event.tick > bestTick {
+                bestTick = event.tick
+                bestEvent = event
+                continue
+            }
+
+            guard event.tick == bestTick, let current = bestEvent else { continue }
+
+            let currentStaff = current.scope.staff
+            let candidateStaff = event.scope.staff
+
+            if currentStaff == nil, candidateStaff != nil {
+                continue
+            }
+            if currentStaff != nil, candidateStaff == nil {
+                bestEvent = event
+                continue
+            }
+            if let currentStaff, let candidateStaff, candidateStaff < currentStaff {
+                bestEvent = event
+            }
+        }
+
+        return bestEvent?.quarterBPM
     }
 
     private static func nextExplicitTempo(
         afterTick tick: Int,
-        tempoEvents: [MusicXMLTempoEvent]
+        tempoEvents: [MusicXMLTempoEvent],
+        partID: String
     ) -> MusicXMLTempoEvent? {
-        tempoEvents.first(where: { $0.tick > tick })
+        guard tempoEvents.isEmpty == false else { return nil }
+
+        var bestTick = Int.max
+        var bestEvent: MusicXMLTempoEvent?
+
+        for event in tempoEvents where event.scope.partID == partID && event.tick > tick {
+            if event.tick < bestTick {
+                bestTick = event.tick
+                bestEvent = event
+                continue
+            }
+
+            guard event.tick == bestTick, let current = bestEvent else { continue }
+
+            let currentStaff = current.scope.staff
+            let candidateStaff = event.scope.staff
+
+            if currentStaff == nil, candidateStaff != nil {
+                continue
+            }
+            if currentStaff != nil, candidateStaff == nil {
+                bestEvent = event
+                continue
+            }
+            if let currentStaff, let candidateStaff, candidateStaff < currentStaff {
+                bestEvent = event
+            }
+        }
+
+        return bestEvent
     }
 
     private static func dedupTempoEvents(_ events: [MusicXMLTempoEvent]) -> [MusicXMLTempoEvent] {
-        var bpmByTick: [Int: Double] = [:]
+        var byKey: [String: MusicXMLTempoEvent] = [:]
         for event in events {
-            bpmByTick[event.tick] = event.quarterBPM
+            let staffKey = event.scope.staff.map(String.init) ?? "_"
+            let voiceKey = event.scope.voice.map(String.init) ?? "_"
+            let key = "\(event.scope.partID)-\(staffKey)-\(voiceKey)-\(event.tick)"
+            byKey[key] = event
         }
-        return bpmByTick.keys.sorted().map { tick in
-            MusicXMLTempoEvent(tick: tick, quarterBPM: bpmByTick[tick] ?? 120)
+        let sorted = byKey.values.sorted { lhs, rhs in
+            if lhs.scope.partID != rhs.scope.partID { return lhs.scope.partID < rhs.scope.partID }
+            if lhs.tick != rhs.tick { return lhs.tick < rhs.tick }
+            return (lhs.scope.staff ?? -1) < (rhs.scope.staff ?? -1)
         }
+        return sorted
     }
 
     private static func tempoRampIfPossible(
         startTick: Int,
         requiresSlowingDown: Bool,
-        explicitTempoEvents: [MusicXMLTempoEvent]
+        explicitTempoEvents: [MusicXMLTempoEvent],
+        scope: MusicXMLEventScope
     ) -> MusicXMLTempoMap.TempoRamp? {
-        guard let startBPM = lastExplicitTempoBPM(atOrBeforeTick: startTick, tempoEvents: explicitTempoEvents)
+        guard let startBPM = lastExplicitTempoBPM(
+            atOrBeforeTick: startTick,
+            tempoEvents: explicitTempoEvents,
+            partID: scope.partID
+        )
         else { return nil }
-        guard let endEvent = nextExplicitTempo(afterTick: startTick, tempoEvents: explicitTempoEvents)
+        guard let endEvent = nextExplicitTempo(afterTick: startTick, tempoEvents: explicitTempoEvents, partID: scope.partID)
         else { return nil }
         let endBPM = endEvent.quarterBPM
 
@@ -206,7 +287,8 @@ struct MusicXMLWordsSemanticsInterpreter {
             startTick: startTick,
             endTick: endEvent.tick,
             startQuarterBPM: startBPM,
-            endQuarterBPM: endBPM
+            endQuarterBPM: endBPM,
+            scope: scope
         )
     }
 }

@@ -283,7 +283,8 @@ extension MusicXMLParserDelegate {
                     partID: tempoEvents[i].partID,
                     tick: shifted,
                     quarterBPM: tempoEvents[i].quarterBPM,
-                    source: tempoEvents[i].source
+                    source: tempoEvents[i].source,
+                    staff: tempoEvents[i].staff
                 )
             }
             if state.currentDirectionSoundOffsetTempoOverrideTicksByIndex.isEmpty == false {
@@ -294,7 +295,8 @@ extension MusicXMLParserDelegate {
                         partID: tempoEvents[i].partID,
                         tick: overrideTick,
                         quarterBPM: tempoEvents[i].quarterBPM,
-                        source: tempoEvents[i].source
+                        source: tempoEvents[i].source,
+                        staff: tempoEvents[i].staff
                     )
                 }
             }
@@ -378,7 +380,8 @@ extension MusicXMLParserDelegate {
                     partID: tempoEvents[i].partID,
                     tick: tick,
                     quarterBPM: tempoEvents[i].quarterBPM,
-                    source: tempoEvents[i].source
+                    source: tempoEvents[i].source,
+                    staff: tempoEvents[i].staff
                 )
                 if state.isInDirection {
                     state.currentDirectionSoundOffsetTempoOverrideTicksByIndex[i] = tick
@@ -434,7 +437,13 @@ extension MusicXMLParserDelegate {
         guard quarterBPM.isFinite, quarterBPM > 0 else { return }
 
         let tick = currentDirectionEventTick()
-        let event = RawTempoEvent(partID: state.currentPartID, tick: tick, quarterBPM: quarterBPM, source: source)
+        let event = RawTempoEvent(
+            partID: state.currentPartID,
+            tick: tick,
+            quarterBPM: quarterBPM,
+            source: source,
+            staff: state.currentDirectionStaff
+        )
         state.rawTempoEventsByPart[state.currentPartID, default: []].append(event)
     }
 
@@ -500,34 +509,41 @@ extension MusicXMLParserDelegate {
     }
 
     func finalizeTempoEvents() -> [MusicXMLTempoEvent] {
-        let primaryPart = "P1"
-        let rawEvents: [RawTempoEvent] = if let p1Events = state.rawTempoEventsByPart[primaryPart],
-                                            p1Events.isEmpty == false
-        {
-            p1Events
-        } else {
-            state.rawTempoEventsByPart.keys.sorted().flatMap { partID in
-                state.rawTempoEventsByPart[partID] ?? []
-            }
-        }
+        guard state.rawTempoEventsByPart.isEmpty == false else { return [] }
 
-        guard rawEvents.isEmpty == false else { return [] }
+        var output: [MusicXMLTempoEvent] = []
+        output.reserveCapacity(state.rawTempoEventsByPart.values.reduce(0) { $0 + $1.count })
 
-        var byTick: [Int: RawTempoEvent] = [:]
-        for event in rawEvents {
-            if let existing = byTick[event.tick] {
-                if event.source.rawValue > existing.source.rawValue {
-                    byTick[event.tick] = event
-                } else if event.source == existing.source {
+        for partID in state.rawTempoEventsByPart.keys.sorted() {
+            let rawEvents = state.rawTempoEventsByPart[partID] ?? []
+            guard rawEvents.isEmpty == false else { continue }
+
+            var byTick: [Int: RawTempoEvent] = [:]
+            for event in rawEvents {
+                if let existing = byTick[event.tick] {
+                    if event.source.rawValue > existing.source.rawValue {
+                        byTick[event.tick] = event
+                    } else if event.source == existing.source {
+                        byTick[event.tick] = event
+                    }
+                } else {
                     byTick[event.tick] = event
                 }
-            } else {
-                byTick[event.tick] = event
             }
+
+            output.append(contentsOf: byTick.values.map {
+                MusicXMLTempoEvent(
+                    tick: $0.tick,
+                    quarterBPM: $0.quarterBPM,
+                    scope: MusicXMLEventScope(partID: $0.partID, staff: $0.staff, voice: nil)
+                )
+            })
         }
 
-        return byTick.values
-            .sorted { $0.tick < $1.tick }
-            .map { MusicXMLTempoEvent(tick: $0.tick, quarterBPM: $0.quarterBPM) }
+        output.sort { lhs, rhs in
+            if lhs.scope.partID != rhs.scope.partID { return lhs.scope.partID < rhs.scope.partID }
+            return lhs.tick < rhs.tick
+        }
+        return output
     }
 }

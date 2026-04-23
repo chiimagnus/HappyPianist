@@ -3,6 +3,8 @@ import Foundation
 import simd
 import Testing
 
+private let defaultTempoScope = MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
+
 @Test
 @MainActor
 func markCorrectSchedulesFeedbackResetWithExpectedDuration() async {
@@ -251,7 +253,7 @@ func autoplaySchedulesAndAdvancesStepsUsingTempoMap() async {
     let sleeper = ControllableSleeper()
     let tempoMap = MusicXMLTempoMap(
         tempoEvents: [
-            MusicXMLTempoEvent(tick: 0, quarterBPM: 120),
+            MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope),
         ]
     )
 
@@ -293,7 +295,7 @@ func autoplaySchedulesPendingOnsetsInsideCurrentStep() async {
     let sleeper = ControllableSleeper()
     let tempoMap = MusicXMLTempoMap(
         tempoEvents: [
-            MusicXMLTempoEvent(tick: 0, quarterBPM: 120),
+            MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope),
         ]
     )
     let output = CapturingMIDINoteOutput()
@@ -343,7 +345,7 @@ func autoplayInsertsFermataHoldBeforeAdvancingWhenTimelineProvided() async {
     let sleeper = ControllableSleeper()
     let tempoMap = MusicXMLTempoMap(
         tempoEvents: [
-            MusicXMLTempoEvent(tick: 0, quarterBPM: 120),
+            MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope),
         ]
     )
     let fermataTimeline = MusicXMLFermataTimeline(
@@ -409,7 +411,7 @@ func autoplaySchedulesPedalChangesBetweenSteps() async {
     let sleeper = ControllableSleeper()
     let tempoMap = MusicXMLTempoMap(
         tempoEvents: [
-            MusicXMLTempoEvent(tick: 0, quarterBPM: 120),
+            MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope),
         ]
     )
     let pedalTimeline = MusicXMLPedalTimeline(
@@ -464,7 +466,7 @@ func autoplaySkipCancelsPendingSleepAndRestartsScheduling() async {
     let sleeper = ControllableSleeper()
     let tempoMap = MusicXMLTempoMap(
         tempoEvents: [
-            MusicXMLTempoEvent(tick: 0, quarterBPM: 120),
+            MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope),
         ]
     )
 
@@ -536,7 +538,7 @@ func autoplaySchedulesNoteOffUsingNoteSpans() async {
     let sleeper = ControllableSleeper()
     let tempoMap = MusicXMLTempoMap(
         tempoEvents: [
-            MusicXMLTempoEvent(tick: 0, quarterBPM: 120),
+            MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope),
         ]
     )
     let output = CapturingMIDINoteOutput()
@@ -585,7 +587,7 @@ func autoplayDefersNoteOffWhilePedalIsDownAndReleasesOnPedalUp() async {
     let sleeper = ControllableSleeper()
     let tempoMap = MusicXMLTempoMap(
         tempoEvents: [
-            MusicXMLTempoEvent(tick: 0, quarterBPM: 120),
+            MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope),
         ]
     )
     let pedalTimeline = MusicXMLPedalTimeline(
@@ -661,7 +663,7 @@ func autoplayReleasesPendingNotesOnPedalChangeTickEvenIfPedalStaysDown() async {
     let sleeper = ControllableSleeper()
     let tempoMap = MusicXMLTempoMap(
         tempoEvents: [
-            MusicXMLTempoEvent(tick: 0, quarterBPM: 120),
+            MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope),
         ]
     )
     let pedalTimeline = MusicXMLPedalTimeline(
@@ -740,7 +742,7 @@ func disablingAutoplayStopsAudioAndClearsPendingScheduling() async {
     let sleeper = ControllableSleeper()
     let tempoMap = MusicXMLTempoMap(
         tempoEvents: [
-            MusicXMLTempoEvent(tick: 0, quarterBPM: 120),
+            MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope),
         ]
     )
     let output = CapturingMIDINoteOutput()

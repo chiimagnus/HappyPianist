@@ -150,11 +150,12 @@ enum MusicXMLArticulation: String, CaseIterable, Equatable, Hashable {
 
 struct MusicXMLTempoEvent: Equatable, Identifiable {
     var id: String {
-        "\(tick)-\(quarterBPM)"
+        "\(tick)-\(quarterBPM)-\(scope.partID)-\(scope.staff ?? -1)-\(scope.voice ?? -1)"
     }
 
     let tick: Int
     let quarterBPM: Double
+    let scope: MusicXMLEventScope
 }
 
 struct MusicXMLSoundDirective: Equatable, Identifiable {

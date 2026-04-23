@@ -41,8 +41,8 @@ func wordsSemanticsDerivesTempoRampForRitWhenTargetIsSlower() {
             MusicXMLWordsEvent(tick: 0, text: "rit.", scope: MusicXMLEventScope(partID: "P1", staff: 1, voice: nil)),
         ],
         tempoEvents: [
-            MusicXMLTempoEvent(tick: 0, quarterBPM: 120),
-            MusicXMLTempoEvent(tick: 480, quarterBPM: 60),
+            MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)),
+            MusicXMLTempoEvent(tick: 480, quarterBPM: 60, scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)),
         ]
     )
 
@@ -59,8 +59,8 @@ func wordsSemanticsDoesNotDeriveTempoRampForRitWhenTargetIsFaster() {
             MusicXMLWordsEvent(tick: 0, text: "rit.", scope: MusicXMLEventScope(partID: "P1", staff: 1, voice: nil)),
         ],
         tempoEvents: [
-            MusicXMLTempoEvent(tick: 0, quarterBPM: 60),
-            MusicXMLTempoEvent(tick: 480, quarterBPM: 120),
+            MusicXMLTempoEvent(tick: 0, quarterBPM: 60, scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)),
+            MusicXMLTempoEvent(tick: 480, quarterBPM: 120, scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)),
         ]
     )
 

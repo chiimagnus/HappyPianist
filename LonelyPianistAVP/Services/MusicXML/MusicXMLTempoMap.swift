@@ -4,16 +4,32 @@ struct MusicXMLTempoMap {
     static let ticksPerQuarter = 480
 
     struct TempoRamp: Equatable {
+        enum Curve: Equatable {
+            case linearBPM
+            case easeInOut
+        }
+
         let startTick: Int
         let endTick: Int
         let startQuarterBPM: Double
         let endQuarterBPM: Double
+        let scope: MusicXMLEventScope
+        let curve: Curve
 
-        init(startTick: Int, endTick: Int, startQuarterBPM: Double, endQuarterBPM: Double) {
+        init(
+            startTick: Int,
+            endTick: Int,
+            startQuarterBPM: Double,
+            endQuarterBPM: Double,
+            scope: MusicXMLEventScope = MusicXMLEventScope(partID: "P1", staff: nil, voice: nil),
+            curve: Curve = .linearBPM
+        ) {
             self.startTick = startTick
             self.endTick = endTick
             self.startQuarterBPM = startQuarterBPM
             self.endQuarterBPM = endQuarterBPM
+            self.scope = scope
+            self.curve = curve
         }
     }
 
@@ -28,23 +44,54 @@ struct MusicXMLTempoMap {
     private let segments: [Segment]
 
     init(tempoEvents: [MusicXMLTempoEvent], defaultQuarterBPM: Double = 120) {
-        self.init(tempoEvents: tempoEvents, tempoRamps: [], defaultQuarterBPM: defaultQuarterBPM)
+        self.init(
+            tempoEvents: tempoEvents,
+            tempoRamps: [],
+            defaultQuarterBPM: defaultQuarterBPM,
+            partID: tempoEvents.first?.scope.partID
+        )
     }
 
     init(tempoEvents: [MusicXMLTempoEvent], tempoRamps: [TempoRamp], defaultQuarterBPM: Double = 120) {
+        self.init(
+            tempoEvents: tempoEvents,
+            tempoRamps: tempoRamps,
+            defaultQuarterBPM: defaultQuarterBPM,
+            partID: tempoEvents.first?.scope.partID
+        )
+    }
+
+    init(
+        tempoEvents: [MusicXMLTempoEvent],
+        tempoRamps: [TempoRamp],
+        defaultQuarterBPM: Double = 120,
+        partID: String?
+    ) {
+        let effectivePartID = partID ?? tempoEvents.first?.scope.partID ?? "P1"
         let validatedDefault = (defaultQuarterBPM.isFinite && defaultQuarterBPM > 0) ? defaultQuarterBPM : 120
 
         let validatedEvents = tempoEvents
-            .filter { $0.quarterBPM.isFinite && $0.quarterBPM > 0 }
-            .sorted { lhs, rhs in
-                if lhs.tick != rhs.tick { return lhs.tick < rhs.tick }
-                return false
-            }
+            .filter { $0.scope.partID == effectivePartID && $0.quarterBPM.isFinite && $0.quarterBPM > 0 }
 
-        var bpmByTick: [Int: Double] = [:]
+        var bestByTick: [Int: (staff: Int?, bpm: Double)] = [:]
         for event in validatedEvents {
-            bpmByTick[event.tick] = event.quarterBPM
+            if let existing = bestByTick[event.tick] {
+                let existingStaff = existing.staff
+                let candidateStaff = event.scope.staff
+
+                if candidateStaff == nil, existingStaff != nil {
+                    bestByTick[event.tick] = (staff: candidateStaff, bpm: event.quarterBPM)
+                } else if candidateStaff != nil, existingStaff == nil {
+                    continue
+                } else if let existingStaff, let candidateStaff, candidateStaff < existingStaff {
+                    bestByTick[event.tick] = (staff: candidateStaff, bpm: event.quarterBPM)
+                }
+            } else {
+                bestByTick[event.tick] = (staff: event.scope.staff, bpm: event.quarterBPM)
+            }
         }
+
+        var bpmByTick: [Int: Double] = Dictionary(uniqueKeysWithValues: bestByTick.map { ($0.key, $0.value.bpm) })
 
         if bpmByTick[0] == nil {
             let firstTick = bpmByTick.keys.min()
@@ -60,6 +107,7 @@ struct MusicXMLTempoMap {
                     && ramp.endQuarterBPM.isFinite
                     && ramp.startQuarterBPM > 0
                     && ramp.endQuarterBPM > 0
+                    && ramp.scope.partID == effectivePartID
             }
             .sorted { lhs, rhs in
                 if lhs.startTick != rhs.startTick { return lhs.startTick < rhs.startTick }
@@ -247,6 +295,12 @@ struct MusicXMLTempoMap {
         let end = Double(ramp.endTick)
         let t = min(max(Double(tick), start), end)
         let fraction = (t - start) / max(1.0, end - start)
-        return ramp.startQuarterBPM + (ramp.endQuarterBPM - ramp.startQuarterBPM) * fraction
+        let easedFraction: Double = switch ramp.curve {
+            case .linearBPM:
+                fraction
+            case .easeInOut:
+                fraction * fraction * (3 - 2 * fraction)
+        }
+        return ramp.startQuarterBPM + (ramp.endQuarterBPM - ramp.startQuarterBPM) * easedFraction
     }
 }
