@@ -7,9 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		D85596AE2F83FF72005BE7FE /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = D85596AD2F83FF72005BE7FE /* RealityKitContent */; };
 		2D68D2A6F2F444DAB62E88DF /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 83545B10812945C78780DB2C /* ZIPFoundation */; };
 		D5BDD7D2BFC4449DACA31CD2 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 83545B10812945C78780DB2C /* ZIPFoundation */; };
+		D85596AE2F83FF72005BE7FE /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = D85596AD2F83FF72005BE7FE /* RealityKitContent */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -279,7 +279,7 @@
 			mainGroup = D8D428042F4DFD3800EC9C9B;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				CE41CC1AE881448991CF5B94 /* ZIPFoundation */,
+				CE41CC1AE881448991CF5B94 /* XCRemoteSwiftPackageReference "ZIPFoundation" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = D8D428042F4DFD3800EC9C9B;
@@ -293,17 +293,6 @@
 			);
 		};
 /* End PBXProject section */
-
-/* Begin XCRemoteSwiftPackageReference section */
-		CE41CC1AE881448991CF5B94 /* ZIPFoundation */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/weichsel/ZIPFoundation";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.9.0;
-			};
-		};
-/* End XCRemoteSwiftPackageReference section */
 
 /* Begin PBXResourcesBuildPhase section */
 		D85596A72F83FF72005BE7FE /* Resources */ = {
@@ -800,15 +789,26 @@
 		};
 /* End XCConfigurationList section */
 
+/* Begin XCRemoteSwiftPackageReference section */
+		CE41CC1AE881448991CF5B94 /* XCRemoteSwiftPackageReference "ZIPFoundation" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/weichsel/ZIPFoundation";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
 /* Begin XCSwiftPackageProductDependency section */
+		83545B10812945C78780DB2C /* ZIPFoundation */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = CE41CC1AE881448991CF5B94 /* XCRemoteSwiftPackageReference "ZIPFoundation" */;
+			productName = ZIPFoundation;
+		};
 		D85596AD2F83FF72005BE7FE /* RealityKitContent */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = RealityKitContent;
-		};
-		83545B10812945C78780DB2C /* ZIPFoundation */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = CE41CC1AE881448991CF5B94 /* ZIPFoundation */;
-			productName = ZIPFoundation;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
