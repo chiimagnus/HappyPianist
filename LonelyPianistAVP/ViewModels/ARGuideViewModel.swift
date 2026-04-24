@@ -16,6 +16,7 @@ final class ARGuideViewModel {
         case anchorMissing(id: UUID)
         case anchorNotTracked(id: UUID, waitedSeconds: Int)
         case anchorsTooClose(distanceMeters: Float)
+        case devicePoseUnavailable(waitedSeconds: Int)
         case immersiveOpenFailed(message: String)
 
         var message: String {
@@ -36,6 +37,8 @@ final class ARGuideViewModel {
                     "无法定位：锚点存在但尚未追踪（id=\(id.uuidString)，已等待 \(waitedSeconds) 秒）。"
                 case let .anchorsTooClose(distanceMeters):
                     "校准数据异常：A0 与 C8 距离过近（\(String(format: "%.3f", distanceMeters))m）。请返回 Step 1 重新校准。"
+                case let .devicePoseUnavailable(waitedSeconds):
+                    "无法定位：设备位姿尚不可用（已等待 \(waitedSeconds) 秒）。"
                 case let .immersiveOpenFailed(message):
                     message
             }
@@ -511,6 +514,9 @@ final class ARGuideViewModel {
                         dismissImmersiveSpace: dismissImmersiveSpace
                     )
                     return
+
+                case .devicePoseUnavailable:
+                    lastRecoverableResolution = .devicePoseUnavailable
             }
 
             if elapsed >= Double(practiceLocalizationTimeoutSeconds) {
@@ -546,6 +552,8 @@ final class ARGuideViewModel {
                 )
             case let .anchorsTooClose(distanceMeters):
                 return .anchorsTooClose(distanceMeters: distanceMeters)
+            case .devicePoseUnavailable:
+                return .devicePoseUnavailable(waitedSeconds: practiceLocalizationTimeoutSeconds)
             case .resolved:
                 return .providerNotRunning(state: currentProviderStateSummary())
             case .missingStoredCalibration:

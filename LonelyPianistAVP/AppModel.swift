@@ -12,6 +12,7 @@ class AppModel {
         case anchorMissing(id: UUID)
         case anchorNotTracked(id: UUID)
         case anchorsTooClose(distanceMeters: Float)
+        case devicePoseUnavailable
     }
 
     let immersiveSpaceID = "ImmersiveSpace"
@@ -273,11 +274,53 @@ class AppModel {
             return .anchorsTooClose(distanceMeters: distanceMeters)
         }
 
+        let planeY = (a0Point.y + c8Point.y) / 2
+
+        // Interpret calibrated A0/C8 as the keyboard's *front edge line* (keyboard-local z = 0).
+        // We still need to place highlights and hit regions at key centers, which are offset by
+        // ±keyDepth/2 along the keyboard-local Z axis. Determine the correct sign using the current
+        // device pose (which side the user is on).
+        let frontEdgeToKeyCenterLocalZ: Float
+        if let frame = KeyboardFrame(a0World: a0Point, c8World: c8Point, planeHeight: planeY) {
+            let timestamp = ProcessInfo.processInfo.systemUptime
+            guard
+                let deviceAnchor = arTrackingService.worldTrackingProvider.queryDeviceAnchor(atTimestamp: timestamp),
+                deviceAnchor.isTracked
+            else {
+                return .devicePoseUnavailable
+            }
+
+            let deviceTransform = deviceAnchor.originFromAnchorTransform
+            let devicePos = SIMD3<Float>(
+                deviceTransform.columns.3.x,
+                deviceTransform.columns.3.y,
+                deviceTransform.columns.3.z
+            )
+
+            let origin = frame.originWorld
+            let toDevice = SIMD3<Float>(devicePos.x - origin.x, 0, devicePos.z - origin.z)
+            let toDeviceLen = simd_length(toDevice)
+            if toDeviceLen > 1e-4 {
+                let toDeviceDir = toDevice / toDeviceLen
+                let zAxis = frame.zAxisWorld
+                // If the device is on +Z side, keyboard interior is -Z; otherwise interior is +Z.
+                let interiorIsNegativeZ = simd_dot(toDeviceDir, zAxis) > 0
+                frontEdgeToKeyCenterLocalZ = (interiorIsNegativeZ ? -1 : 1) *
+                    (PianoKeyGeometryService.keyDepthMeters / 2)
+            } else {
+                // Degenerate; fall back to "no offset" rather than guessing a direction.
+                frontEdgeToKeyCenterLocalZ = 0
+            }
+        } else {
+            frontEdgeToKeyCenterLocalZ = 0
+        }
+
         calibration = PianoCalibration(
             a0: a0Point,
             c8: c8Point,
-            planeHeight: (a0Point.y + c8Point.y) / 2,
-            whiteKeyWidth: storedCalibration.whiteKeyWidth
+            planeHeight: planeY,
+            whiteKeyWidth: storedCalibration.whiteKeyWidth,
+            frontEdgeToKeyCenterLocalZ: frontEdgeToKeyCenterLocalZ
         )
 
         return .resolved

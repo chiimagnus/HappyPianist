@@ -79,7 +79,7 @@ final class PianoGuideOverlayController {
                 activeMarkersByMIDINote[midiNote] = marker
                 keyboardRootEntity.addChild(marker)
             }
-            marker.position = SIMD3<Float>(centerLocal.x, centerLocal.y + region.size.y * 0.6, centerLocal.z)
+            marker.position = SIMD3<Float>(centerLocal.x, centerLocal.y, centerLocal.z)
         }
     }
 

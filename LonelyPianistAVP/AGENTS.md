@@ -308,6 +308,13 @@ func load() throws(LoadError) { ... }
 - **Documentation:** public API 使用清晰命名并写必要的 doc comments。
 - **交付格式:** 遵循下方约定的输出格式。
 
+### 坐标系与校准语义（本仓库约定）
+
+- **A0/C8 的语义是“琴键前沿线”**（keyboard-local `z = 0`），不是按键中心线。
+- 按键中心线通过 `frontEdgeToKeyCenterLocalZ` 表达（通常为 `± keyDepth/2`）；偏移正负需要用 `DeviceAnchor`（`WorldTrackingProvider.queryDeviceAnchor(atTimestamp:)`）判定“用户在键盘哪一侧”。
+- **KeyboardFrame 坐标轴约定**：A0 为原点，+X 指向 C8（水平投影），+Y 向上，+Z 右手系推导（满足 `cross(x, y) == z`）。
+- 练习设置里可开启 `debugKeyboardAxesOverlayEnabled` 显示键盘坐标轴（含 X/Y/Z 标注），用于排查“方向反了/整体偏移”等问题。
+
 ## 推荐代码模式
 
 ### 带错误处理的 Model 加载

@@ -20,11 +20,13 @@ struct KeyboardFrame {
 
         let yAxis = SIMD3<Float>(0, 1, 0)
 
-        // Use the plan's z-axis convention `cross(worldUp, xAxisCandidate)` (horizontal),
-        // then recompute x from (y,z) to guarantee a right-handed orthonormal basis:
-        // cross(x, y) == z.
+        // Build a right-handed, horizontal basis:
+        // - x points A0 -> C8 (projected onto XZ)
+        // - y is world up
+        // - z is derived so that cross(x, y) == z
+        // Then recompute x from (y,z) to guarantee orthonormality.
         let xAxisProjected = xCandidate / xLen
-        let zAxis = simd_normalize(simd_cross(yAxis, xAxisProjected))
+        let zAxis = simd_normalize(simd_cross(xAxisProjected, yAxis))
         let xAxis = simd_normalize(simd_cross(yAxis, zAxis))
 
         let origin = SIMD3<Float>(a0World.x, planeHeight, a0World.z)
