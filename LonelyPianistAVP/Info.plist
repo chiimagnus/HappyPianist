@@ -4,6 +4,8 @@
 <dict>
 	<key>NSHandsTrackingUsageDescription</key>
 	<string>LonelyPianist uses hand tracking to detect which piano keys you press and to advance practice steps.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>LonelyPianist uses camera access to track your device position and align AR guidance with your piano keyboard.</string>
 	<key>NSWorldSensingUsageDescription</key>
 	<string>LonelyPianist uses world sensing to align AR guidance with your piano keyboard.</string>
 	<key>UTImportedTypeDeclarations</key>
