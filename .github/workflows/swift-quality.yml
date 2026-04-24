@@ -1,5 +1,6 @@
 name: Swift Quality
 
+# Touch this workflow to rerun SwiftFormat and SwiftLint on crh.
 on:
   push:
     paths:
