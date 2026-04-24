@@ -1,6 +1,6 @@
 # Deepwiki 索引（LonelyPianist）
 
-本索引是 `.github/deepwiki/` 的入口。目标是让读者先看业务，再看实现；或者先看工程，再落到模块。
+本索引是 `.github/deepwiki/` 的入口。目标是让读者先看业务，再看实现；或者先看工程，再落到模块。当前 wiki 已覆盖 macOS、visionOS、Python Dialogue 服务、PR-only Xcode tests、manual-only Swift Quality workflow，以及 AVP 光柱式 AR 练习引导。
 
 ## 推荐阅读路径
 
@@ -10,9 +10,11 @@
 3. [architecture.md](architecture.md)
 4. [data-flow.md](data-flow.md)
 5. [modules/lonelypianist-avp.md](modules/lonelypianist-avp.md)
-6. [modules/lonelypianist-macos.md](modules/lonelypianist-macos.md)
-7. [modules/piano-dialogue-server.md](modules/piano-dialogue-server.md)
-8. [troubleshooting.md](troubleshooting.md)
+6. [modules/lonelypianist-avp-practice.md](modules/lonelypianist-avp-practice.md)
+7. [modules/lonelypianist-macos.md](modules/lonelypianist-macos.md)
+8. [modules/piano-dialogue-server.md](modules/piano-dialogue-server.md)
+9. [testing.md](testing.md)
+10. [troubleshooting.md](troubleshooting.md)
 
 ### engineering-first
 1. [overview.md](overview.md)
@@ -24,7 +26,15 @@
 7. [workflow.md](workflow.md)
 8. [modules/lonelypianist-macos-runtime.md](modules/lonelypianist-macos-runtime.md)
 9. [modules/lonelypianist-avp-musicxml.md](modules/lonelypianist-avp-musicxml.md)
-10. [modules/piano-dialogue-server-inference.md](modules/piano-dialogue-server-inference.md)
+10. [modules/lonelypianist-avp-practice.md](modules/lonelypianist-avp-practice.md)
+11. [modules/piano-dialogue-server-inference.md](modules/piano-dialogue-server-inference.md)
+
+### ci-first
+1. [testing.md](testing.md)
+2. [workflow.md](workflow.md)
+3. [configuration.md](configuration.md)
+4. [architecture.md](architecture.md#github-actions-架构)
+5. [troubleshooting.md](troubleshooting.md)
 
 ## 页面分组
 
@@ -63,6 +73,13 @@
 - [modules/piano-dialogue-server-inference.md](modules/piano-dialogue-server-inference.md)
 - [modules/piano-dialogue-server-debug.md](modules/piano-dialogue-server-debug.md)
 
+### CI / 自动化
+- [testing.md](testing.md)
+- [workflow.md](workflow.md)
+- [configuration.md](configuration.md)
+- `.github/workflows/pr-tests.yml`：PR-only macOS / AVP split Xcode tests
+- `.github/workflows/swift-quality.yml`：manual-only SwiftFormat / SwiftLint autocorrect
+
 ### 术语与元数据
 - [glossary.md](glossary.md)
 - [GENERATION.md](GENERATION.md)
@@ -71,10 +88,26 @@
 - **想先理解产品在做什么**：先看 `business-context.md`。
 - **要改 macOS 监听 / 映射 / 录音 / 对话**：看 `modules/lonelypianist-macos.md`，再下钻对应子页。
 - **要改 AVP 导入 / 校准 / 练习 / MusicXML**：看 `modules/lonelypianist-avp.md`，再下钻对应子页。
+- **要改 AR 引导光柱**：看 `modules/lonelypianist-avp-practice.md` 和 `PianoGuideOverlayController`。
 - **要改 Python 协议或采样逻辑**：看 `modules/piano-dialogue-server.md` 与 `modules/piano-dialogue-server-inference.md`。
+- **要理解 PR 上会跑哪些测试**：看 `testing.md` 和 `workflow.md`。
+- **要手动格式化 / lint**：看 `configuration.md` 中的 Swift Quality workflow。
 - **遇到运行异常**：从 `troubleshooting.md` 开始。
 
+## 当前自动化事实
+| 自动化 | 当前状态 | 备注 |
+| --- | --- | --- |
+| PR Tests | 已存在 | 只在 PR 上触发，按路径分流 macOS / AVP tests |
+| macOS tests | 已在 GitHub Actions 上跑通 | `macos-26` + `LonelyPianist` scheme |
+| AVP tests | 已在 GitHub Actions 上跑通 | `macos-26` + Apple Vision Pro simulator，耗时约数分钟级 |
+| Swift Quality | 已存在 | 只手动触发；不会因 PR 或 push 自动运行 |
+| Python CI | 未接入 | 仍依赖本地 smoke scripts |
+
 ## Coverage Gaps / Missing Assets
-- 仓库内没有 `.github/workflows/*`，CI 门禁仍只能依赖本地测试链路。
-- `LonelyPianist` 的 macOS 共享 scheme 已入库；`LonelyPianistAVP` 仍主要依赖本地 Xcode scheme 管理，跨机器的可用性不完全一致。
+- Python smoke tests 尚未纳入 GitHub Actions。
+- 尚无统一发布流水线，也没有三端 E2E 自动化门禁。
+- AVP simulator tests 已跑通，但仍不能替代 Vision Pro 真机上的手部追踪、空间感和光柱视觉舒适度验证。
 - `.github/deepwiki/assets/` 保留为资产位，但本次没有额外图片资产可复制。
+
+## 更新记录（Update Notes）
+- 2026-04-25: 更新索引以反映 PR-only split tests、manual-only Swift Quality、AVP simulator tests 跑通和光柱式 AR 引导。
