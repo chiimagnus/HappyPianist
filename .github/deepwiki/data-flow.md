@@ -8,7 +8,9 @@
 | Dialogue | 静默触发 | DialogueManager -> WS -> inference | AI 回放 + take |
 | AVP seed | App 启动 | SongLibrarySeeder | 默认谱面和音频 |
 | AVP import | fileImporter URLs | SongFileStore + IndexStore | `SongLibrary/index.json` |
-| AVP practice | 校准 + 曲库 + tracking | ARGuideViewModel + PracticeSessionViewModel | 高亮和步骤推进 |
+| AVP practice | 校准 + 曲库 + tracking | ARGuideViewModel + PracticeSessionViewModel + PianoGuideOverlayController | 光柱引导、反馈和步骤推进 |
+| PR validation | Pull request paths | paths-filter -> xcodebuild jobs | macOS / AVP tests |
+| Swift quality | 手动 workflow_dispatch | SwiftFormat + SwiftLint | 格式化 commit 或 lint 结果 |
 
 ## macOS 数据流
 ```mermaid
@@ -35,7 +37,8 @@ sequenceDiagram
 | Step 1 校准 | 左手 A0 / C8 + 右手捏合 | `CalibrationPointCaptureService` | `StoredWorldAnchorCalibration` |
 | Step 2 选曲 | MusicXML / mp3 / m4a | `SongLibraryViewModel` | `SongLibraryIndex` |
 | MusicXML 处理 | score XML | `MusicXMLParser`, `PracticeStepBuilder` | `PracticeStep[]` + timelines |
-| Step 3 练习 | finger tips + steps | `ARGuideViewModel`, `PracticeSessionViewModel` | 反馈和 autoplay |
+| Step 3 练习 | finger tips + steps | `ARGuideViewModel`, `PracticeSessionViewModel` | 匹配、反馈、autoplay |
+| 空间提示 | `PracticeStep.notes`, key regions, feedback state | `PianoGuideOverlayController` | RealityKit cylinder light beams |
 
 ## AVP 练习内部
 | 子流 | 说明 | 关键状态 |
@@ -43,7 +46,19 @@ sequenceDiagram
 | 定位 | 恢复世界锚点并生成 calibration | `PracticeLocalizationState` |
 | 按键检测 | 指尖落点映射到 key regions | `pressedNotes` |
 | 匹配 | 当前 step 的和弦/音符匹配 | `VisualFeedbackState` |
+| 光柱提示 | 当前 step 的 MIDI notes 映射到 keyboard-local center | `activeMarkersByMIDINote` |
 | 自动演奏 | 根据 note spans / pedal / fermata 推进 | `autoplayState` |
+
+```mermaid
+flowchart TD
+  A[PracticeStep.notes] --> B[Build desired MIDI note set]
+  C[PianoKeyRegion.center / size] --> D[Convert world center to keyboard-local]
+  B --> E[Create/update cylinder ModelEntity]
+  D --> E
+  F[VisualFeedbackState] --> G[Select tint material]
+  G --> E
+  E --> H[RealityKit light beams above key centers]
+```
 
 ## Python 数据流
 | 步骤 | 输入 | 处理 | 输出 |
@@ -62,13 +77,23 @@ sequenceDiagram
 | `ResultResponse.type` | `"result"` | `server/protocol.py` |
 | `ErrorResponse.type` | `"error"` | `server/protocol.py` |
 
+## CI 数据流
+| 阶段 | 输入 | 处理 | 输出 |
+| --- | --- | --- | --- |
+| PR path filter | PR changed files | `dorny/paths-filter@v3` | `macos=true/false`, `avp=true/false` |
+| macOS tests | `LonelyPianist/**`, `LonelyPianistTests/**`, project/workflow files | `xcodebuild test` on `macos-26` | macOS test result |
+| AVP tests | `LonelyPianistAVP/**`, `LonelyPianistAVPTests/**`, `Packages/RealityKitContent/**`, project/workflow files | `xcodebuild test` on `macos-26` with Apple Vision Pro simulator | AVP test result |
+| Swift Quality | Manual dispatch | SwiftFormat, SwiftLint --fix, commit if dirty, lint | Formatting commit or no-op |
+
 ## 状态机边界
 | 组件 | 状态 |
 | --- | --- |
 | DialogueManager | `idle -> listening -> thinking -> playing` |
 | PracticeLocalizationState | `idle -> blocked/openingImmersive/waitingForProviders/locating -> ready/failed` |
 | PracticeState | `idle -> ready -> guiding -> completed` |
+| PianoGuideOverlayController | no root -> attached root -> active markers -> cleared markers |
 | SongAudio playback | `nil / playing / paused` 由当前条目驱动 |
+| PR Tests | path filter -> selected jobs -> xcodebuild test -> checks |
 
 ## 失败与恢复
 | 失败 | 表现 | 恢复 |
@@ -78,11 +103,19 @@ sequenceDiagram
 | 校准丢失 | Step 3 不能定位 | 回 Step 1 重新保存 |
 | 曲库索引和文件漂移 | 选曲后无法开始练习 | 重新导入或清理残留文件 |
 | 音频绑定失败 | 试听按钮失效 | 重新导入 mp3/m4a |
+| AVP simulator test 变慢 | PR Tests 的 AVP job 数分钟级运行 | 保留完整 test，必要时改为 build-for-testing + 手动完整 test |
+| Swift tools mismatch | Package graph resolve 失败 | 使用 `macos-26` / Xcode 26.2+ runner |
 
 ## 调试抓手
 - macOS：`statusMessage`、`recentLogs`、`previewText`
-- AVP：`practiceLocalizationStatusText`、`calibrationStatusMessage`、`currentListeningEntryID`
+- AVP：`practiceLocalizationStatusText`、`calibrationStatusMessage`、`currentListeningEntryID`、`autoplayHighlightedMIDINotes`
+- RealityKit 光柱：`activeMarkersByMIDINote`、`PianoKeyRegion.center`、`keyboardFrame.keyboardFromWorld`
 - Python：`/health`、`test_client.py`、`out/dialogue_debug/index.jsonl`
+- CI：Actions job logs、`xcodebuild -list`、`.xcresult` 路径、combined checks
 
 ## Coverage Gaps
-- 没有自动化 E2E 去验证三端全链路；现状仍需要多处单元测试组合覆盖。
+- 没有自动化 E2E 去验证 macOS -> Python -> AVP 三端全链路；现状仍需要多处单元测试和人工冒烟组合覆盖。
+- Python smoke tests 尚未纳入 PR workflow。
+
+## 更新记录（Update Notes）
+- 2026-04-25: 增补 PR Tests / Swift Quality 数据流、AVP 光柱提示数据流和 simulator test 失败恢复路径。
