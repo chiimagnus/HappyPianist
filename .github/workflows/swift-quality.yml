@@ -1,0 +1,57 @@
+name: Swift Quality
+
+on:
+  push:
+    paths:
+      - "**/*.swift"
+      - ".swiftformat"
+      - ".swiftlint.yml"
+      - ".github/workflows/swift-quality.yml"
+  pull_request:
+    paths:
+      - "**/*.swift"
+      - ".swiftformat"
+      - ".swiftlint.yml"
+      - ".github/workflows/swift-quality.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  format-and-lint:
+    name: SwiftFormat and SwiftLint
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install tools
+        run: |
+          brew update
+          brew list swiftformat >/dev/null 2>&1 || brew install swiftformat
+          brew list swiftlint >/dev/null 2>&1 || brew install swiftlint
+
+      - name: Format Swift files
+        run: swiftformat --config .swiftformat LonelyPianist LonelyPianistAVP LonelyPianistTests LonelyPianistAVPTests
+
+      - name: Fix SwiftLint issues
+        run: swiftlint --fix --config .swiftlint.yml
+
+      - name: Commit formatter updates
+        run: |
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No formatter changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .
+          git commit -m "Apply SwiftFormat and SwiftLint autocorrect"
+          git push
+
+      - name: Lint Swift files
+        run: swiftlint lint --config .swiftlint.yml
