@@ -22,6 +22,7 @@ struct ImmersiveView: View {
             )
             overlayController.updateHighlights(
                 currentStep: viewModel.practiceSessionViewModel.currentStep,
+                keyboardFrame: viewModel.practiceSessionViewModel.calibration?.keyboardFrame,
                 keyRegions: viewModel.practiceSessionViewModel.keyRegions,
                 feedbackState: viewModel.practiceSessionViewModel.feedbackState,
                 content: content
@@ -40,6 +41,7 @@ struct ImmersiveView: View {
             )
             overlayController.updateHighlights(
                 currentStep: viewModel.practiceSessionViewModel.currentStep,
+                keyboardFrame: viewModel.practiceSessionViewModel.calibration?.keyboardFrame,
                 keyRegions: viewModel.practiceSessionViewModel.keyRegions,
                 feedbackState: viewModel.practiceSessionViewModel.feedbackState,
                 content: content
