@@ -18,13 +18,17 @@
 
 ## 关键限制
 
-- 当前只接受外部准备好的 `MusicXML`
 - 当前 MVP 依赖 **A0 / C8 两点校准**
+- App 启动时会尝试自动导入内置 seed（Opus 的 MusicXML）以便快速进入 Step 3；你也可以在 Step 2 导入外部 `MusicXML`。
 - `SalC5Light2.sf2` 默认需要放在：
 
 ```text
 LonelyPianistAVP/Resources/Audio/SoundFonts/SalC5Light2.sf2
 ```
+
+## 调试
+
+- 练习设置中可以开启 **调试：显示键盘坐标轴（X/Y/Z）**，用于确认键盘 frame 的原点与轴向。
 
 ## 运行说明
 
