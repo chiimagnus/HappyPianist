@@ -11,13 +11,15 @@ struct PianoRollView: View {
 
     var body: some View {
         if let take {
+            let noteRange = noteRange(for: take)
+
             ScrollView([.horizontal, .vertical]) {
                 Canvas { context, size in
-                    drawGrid(in: &context, size: size, take: take)
-                    drawNotes(in: &context, take: take)
+                    drawGrid(in: &context, size: size, take: take, noteRange: noteRange)
+                    drawNotes(in: &context, take: take, noteRange: noteRange)
                     drawPlayhead(in: &context, size: size, take: take)
                 }
-                .frame(width: canvasWidth(for: take), height: canvasHeight(for: take))
+                .frame(width: canvasWidth(for: take), height: canvasHeight(for: noteRange))
             }
             .background(Color(nsColor: .textBackgroundColor))
         } else {
@@ -52,8 +54,12 @@ struct PianoRollView: View {
         )
     }
 
-    private func drawGrid(in context: inout GraphicsContext, size: CGSize, take: RecordingTake) {
-        let range = noteRange(for: take)
+    private func drawGrid(
+        in context: inout GraphicsContext,
+        size: CGSize,
+        take: RecordingTake,
+        noteRange: ClosedRange<Int>
+    ) {
         let background = Path(CGRect(origin: .zero, size: size))
         context.fill(background, with: .color(Color(nsColor: .textBackgroundColor)))
 
@@ -65,8 +71,8 @@ struct PianoRollView: View {
             context.stroke(line, with: .color(.gray.opacity(second % 4 == 0 ? 0.35 : 0.18)))
         }
 
-        for note in range.lowerBound ... range.upperBound {
-            let y = yPosition(for: note, range: range)
+        for note in noteRange {
+            let y = yPosition(for: note, range: noteRange)
             var line = Path()
             line.move(to: CGPoint(x: leftInset, y: y))
             line.addLine(to: CGPoint(x: size.width - 8, y: y))
@@ -83,10 +89,9 @@ struct PianoRollView: View {
         }
     }
 
-    private func drawNotes(in context: inout GraphicsContext, take: RecordingTake) {
-        let range = noteRange(for: take)
+    private func drawNotes(in context: inout GraphicsContext, take: RecordingTake, noteRange: ClosedRange<Int>) {
         for recordedNote in take.notes {
-            let y = yPosition(for: recordedNote.note, range: range) + 1
+            let y = yPosition(for: recordedNote.note, range: noteRange) + 1
             let x = leftInset + (CGFloat(recordedNote.startOffsetSec) * secondWidth)
             let width = max(2, CGFloat(recordedNote.durationSec) * secondWidth)
             let rect = CGRect(x: x, y: y, width: width, height: rowHeight - 2)
@@ -97,9 +102,15 @@ struct PianoRollView: View {
     }
 
     private func noteRange(for take: RecordingTake) -> ClosedRange<Int> {
-        guard let minNote = take.notes.map(\.note).min(),
-              let maxNote = take.notes.map(\.note).max()
-        else {
+        var minNote: Int?
+        var maxNote: Int?
+
+        for recordedNote in take.notes {
+            minNote = min(minNote ?? recordedNote.note, recordedNote.note)
+            maxNote = max(maxNote ?? recordedNote.note, recordedNote.note)
+        }
+
+        guard let minNote, let maxNote else {
             return 48 ... 72
         }
 
@@ -112,9 +123,8 @@ struct PianoRollView: View {
         max(860, leftInset + (CGFloat(max(1, take.durationSec)) * secondWidth) + 40)
     }
 
-    private func canvasHeight(for take: RecordingTake) -> CGFloat {
-        let range = noteRange(for: take)
-        let rows = CGFloat((range.upperBound - range.lowerBound) + 1)
+    private func canvasHeight(for noteRange: ClosedRange<Int>) -> CGFloat {
+        let rows = CGFloat((noteRange.upperBound - noteRange.lowerBound) + 1)
         return max(420, topInset + (rows * rowHeight) + 28)
     }
 

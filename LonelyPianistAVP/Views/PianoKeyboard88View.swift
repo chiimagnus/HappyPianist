@@ -6,58 +6,29 @@ struct PianoKeyboard88View: View {
     let highlightedMIDINotes: Set<Int>
     let fingeringByMIDINote: [Int: String]
 
-    private let playableRange = 21 ... 108
-    private let blackPitchClasses: Set<Int> = [1, 3, 6, 8, 10]
-
     init(highlightedMIDINotes: Set<Int>, fingeringByMIDINote: [Int: String] = [:]) {
         self.highlightedMIDINotes = highlightedMIDINotes
         self.fingeringByMIDINote = fingeringByMIDINote
     }
 
-    private var highlightedInRange: Set<Int> {
-        Set(highlightedMIDINotes.filter { playableRange.contains($0) })
-    }
-
-    private var whiteKeys: [WhiteKey] {
-        var keys: [WhiteKey] = []
-        var whiteIndex = 0
-
-        for midiNote in playableRange {
-            guard isBlackKey(midiNote) == false else { continue }
-            keys.append(WhiteKey(midiNote: midiNote, whiteIndex: whiteIndex))
-            whiteIndex += 1
-        }
-
-        return keys
-    }
-
-    private var blackKeys: [BlackKey] {
-        let whiteIndexByMIDINote = Dictionary(uniqueKeysWithValues: whiteKeys.map { ($0.midiNote, $0.whiteIndex) })
-
-        return playableRange.compactMap { midiNote in
-            guard isBlackKey(midiNote) else { return nil }
-            guard let leftWhiteIndex = whiteIndexByMIDINote[midiNote - 1] else { return nil }
-            return BlackKey(midiNote: midiNote, leftWhiteIndex: leftWhiteIndex)
-        }
-    }
-
     var body: some View {
         GeometryReader { proxy in
-            let whiteKeyWidth = proxy.size.width / CGFloat(max(1, whiteKeys.count))
+            let whiteKeyWidth = proxy.size.width / CGFloat(max(1, Self.whiteKeys.count))
             let whiteKeyHeight = proxy.size.height
             let blackKeyWidth = whiteKeyWidth * 0.62
             let blackKeyHeight = whiteKeyHeight * 0.62
 
             ZStack(alignment: .topLeading) {
-                ForEach(whiteKeys) { key in
+                ForEach(Self.whiteKeys) { key in
+                    let isHighlighted = isHighlighted(key.midiNote)
                     Rectangle()
-                        .fill(highlightedInRange.contains(key.midiNote) ? .yellow.opacity(0.48) : .white)
+                        .fill(isHighlighted ? .yellow.opacity(0.48) : .white)
                         .overlay {
                             Rectangle()
                                 .stroke(.black.opacity(0.22), lineWidth: 0.6)
                         }
                         .overlay(alignment: .bottom) {
-                            if highlightedInRange.contains(key.midiNote),
+                            if isHighlighted,
                                let fingering = fingeringByMIDINote[key.midiNote]
                             {
                                 Text(fingering)
@@ -70,15 +41,16 @@ struct PianoKeyboard88View: View {
                         .offset(x: CGFloat(key.whiteIndex) * whiteKeyWidth)
                 }
 
-                ForEach(blackKeys) { key in
+                ForEach(Self.blackKeys) { key in
+                    let isHighlighted = isHighlighted(key.midiNote)
                     Rectangle()
-                        .fill(highlightedInRange.contains(key.midiNote) ? .orange.opacity(0.95) : .black.opacity(0.88))
+                        .fill(isHighlighted ? .orange.opacity(0.95) : .black.opacity(0.88))
                         .overlay {
                             Rectangle()
                                 .stroke(.white.opacity(0.28), lineWidth: 0.5)
                         }
                         .overlay(alignment: .bottom) {
-                            if highlightedInRange.contains(key.midiNote),
+                            if isHighlighted,
                                let fingering = fingeringByMIDINote[key.midiNote]
                             {
                                 Text(fingering)
@@ -99,7 +71,37 @@ struct PianoKeyboard88View: View {
         .accessibilityLabel("88 键钢琴")
     }
 
-    private func isBlackKey(_ midiNote: Int) -> Bool {
+    private func isHighlighted(_ midiNote: Int) -> Bool {
+        highlightedMIDINotes.contains(midiNote)
+    }
+
+    private static let playableRange = 21 ... 108
+    private static let blackPitchClasses: Set<Int> = [1, 3, 6, 8, 10]
+
+    private static let whiteKeys: [WhiteKey] = {
+        var keys: [WhiteKey] = []
+        var whiteIndex = 0
+
+        for midiNote in playableRange {
+            guard isBlackKey(midiNote) == false else { continue }
+            keys.append(WhiteKey(midiNote: midiNote, whiteIndex: whiteIndex))
+            whiteIndex += 1
+        }
+
+        return keys
+    }()
+
+    private static let blackKeys: [BlackKey] = {
+        let whiteIndexByMIDINote = Dictionary(uniqueKeysWithValues: whiteKeys.map { ($0.midiNote, $0.whiteIndex) })
+
+        return playableRange.compactMap { midiNote in
+            guard isBlackKey(midiNote) else { return nil }
+            guard let leftWhiteIndex = whiteIndexByMIDINote[midiNote - 1] else { return nil }
+            return BlackKey(midiNote: midiNote, leftWhiteIndex: leftWhiteIndex)
+        }
+    }()
+
+    private static func isBlackKey(_ midiNote: Int) -> Bool {
         blackPitchClasses.contains(midiNote % 12)
     }
 }
