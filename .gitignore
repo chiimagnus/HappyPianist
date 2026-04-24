@@ -14,3 +14,5 @@ xcuserdata/
 
 # Large local audio assets (SoundFonts)
 LonelyPianistAVP/Resources/Audio/SoundFonts/*.sf2
+
+.codex/
