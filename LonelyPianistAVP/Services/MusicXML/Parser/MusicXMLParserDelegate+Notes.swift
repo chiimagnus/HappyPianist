@@ -80,8 +80,7 @@ extension MusicXMLParserDelegate {
         if let actual = state.noteTimeModificationActualNotes,
            let normal = state.noteTimeModificationNormalNotes,
            actual > 0,
-           normal > 0
-        {
+           normal > 0 {
             durationTicks *= Double(normal) / Double(actual)
         }
 
@@ -188,7 +187,7 @@ extension MusicXMLParserDelegate {
     static func makeMIDINote(step: String?, alter: Int, octave: Int?) -> Int? {
         guard let step, let octave else { return nil }
         let stepBase: [String: Int] = [
-            "C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11,
+            "C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11
         ]
         guard let base = stepBase[step] else { return nil }
         return (octave + 1) * 12 + base + alter

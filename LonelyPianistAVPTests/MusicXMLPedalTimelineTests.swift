@@ -20,7 +20,7 @@ func pedalTimelineComputesIsDownAndNextChange() {
                 kind: .stop,
                 isDown: false,
                 timeOnlyPasses: nil
-            ),
+            )
         ]
     )
 
@@ -71,7 +71,7 @@ func pedalTimelineIgnoresContinueAndCoalescesSameTickChanges() {
                 kind: .change,
                 isDown: true,
                 timeOnlyPasses: nil
-            ),
+            )
         ]
     )
 

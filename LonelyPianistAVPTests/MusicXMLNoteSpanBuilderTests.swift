@@ -43,7 +43,7 @@ func noteSpanBuilderMergesTieChainIntoSingleSpan() {
             tieStop: true,
             staff: 1,
             voice: 1
-        ),
+        )
     ]
 
     let spans = builder.buildSpans(from: notes)
@@ -82,7 +82,7 @@ func noteSpanBuilderSkipsRestsAndBuildsNormalSpans() {
             tieStop: false,
             staff: 1,
             voice: 1
-        ),
+        )
     ]
 
     let spans = builder.buildSpans(from: notes)
@@ -110,7 +110,7 @@ func noteSpanBuilderAppliesAttackAndReleaseWhenEnabled() {
             voice: 1,
             attackTicks: 120,
             releaseTicks: 120
-        ),
+        )
     ]
 
     let normal = builder.buildSpans(from: notes)
@@ -139,7 +139,7 @@ func noteSpanBuilderShortensDurationForStaccato() {
             staff: 1,
             voice: 1,
             articulations: [.staccato]
-        ),
+        )
     ]
 
     let spans = builder.buildSpans(from: notes)
@@ -181,7 +181,7 @@ func noteSpanBuilderEmitsGraceSpansAndStealsFromFollowingWhenEnabled() {
             tieStop: false,
             staff: 1,
             voice: 1
-        ),
+        )
     ]
 
     let spans = builder.buildSpans(from: notes, expressivity: MusicXMLExpressivityOptions(graceEnabled: true))
@@ -225,7 +225,7 @@ func noteSpanBuilderOffsetsArpeggiateChordOnsetsWhenEnabled() {
             tieStop: false,
             staff: 1,
             voice: 1
-        ),
+        )
     ]
 
     let spans = builder.buildSpans(from: notes, expressivity: MusicXMLExpressivityOptions(arpeggiateEnabled: true))
@@ -253,14 +253,14 @@ func noteSpanBuilderExtendsFermataNoteOffTicksWhenEnabled() {
             tieStop: false,
             staff: 1,
             voice: 1
-        ),
+        )
     ]
     let fermataEvents: [MusicXMLFermataEvent] = [
         MusicXMLFermataEvent(
             tick: 480,
             scope: MusicXMLEventScope(partID: "P1", staff: 1, voice: 1),
             source: .noteNotations
-        ),
+        )
     ]
     let fermataTimeline = MusicXMLFermataTimeline(fermataEvents: fermataEvents, notes: notes)
 

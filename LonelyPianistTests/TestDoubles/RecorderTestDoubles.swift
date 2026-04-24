@@ -144,7 +144,7 @@ final class MIDIPlaybackServiceMock: RoutableMIDIPlaybackServiceProtocol {
             id: MIDIPlaybackOutputOption.builtInSamplerID,
             title: "Built-in Sampler",
             kind: .builtInSampler
-        ),
+        )
     ]
     var selectedOutputID: String = MIDIPlaybackOutputOption.builtInSamplerID
 

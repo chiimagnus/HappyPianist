@@ -40,8 +40,7 @@ struct MusicXMLVelocityResolver {
                                          partID: note.partID,
                                          tick: note.tick,
                                          staff: noteStaff
-                                     )
-        {
+                                     ) {
             velocity
         } else {
             resolvedVelocityFromDynamics(partID: note.partID, tick: note.tick, staff: noteStaff) ?? defaultVelocity
@@ -79,8 +78,7 @@ struct MusicXMLVelocityResolver {
                     event.scope.partID == partID &&
                     event.tick <= tick &&
                     event.scope.staff == staff
-            })
-        {
+            }) {
             return staffSpecific.velocity
         }
 
@@ -91,8 +89,7 @@ struct MusicXMLVelocityResolver {
                     event.scope.partID == partID &&
                     event.tick <= tick &&
                     event.scope.staff == nil
-            })
-        {
+            }) {
             return global.velocity
         }
 
