@@ -13,7 +13,7 @@ struct RecentEventSectionView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 VStack(alignment: .leading, spacing: 8) {
-                    ForEach(Array(viewModel.recentLogs.prefix(12))) { item in
+                    ForEach(viewModel.recentLogs.prefix(12)) { item in
                         HStack(alignment: .top, spacing: 8) {
                             Text(timeString(item.timestamp))
                                 .font(.caption2.monospacedDigit())
@@ -38,8 +38,11 @@ struct RecentEventSectionView: View {
     }
 
     private func timeString(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm:ss"
-        return formatter.string(from: date)
+        date.formatted(Self.eventTimeStyle)
     }
+
+    private static let eventTimeStyle = Date.FormatStyle()
+        .hour(.twoDigits(amPM: .omitted))
+        .minute(.twoDigits)
+        .second(.twoDigits)
 }
