@@ -57,7 +57,7 @@
 | --- | --- |
 | CI | Replaced outdated “no CI” statements with current PR Tests / Swift Quality workflow facts. |
 | Testing | Documented `macos-26`, Xcode 26.2 / Swift 6.2 requirements, macOS tests, AVP simulator tests, and `build-for-testing` vs `test`. |
-| AVP practice | Replaced old key-highlight wording with RealityKit cylinder light-beam guide details. |
+| AVP practice | Updated practice guide to `PianoKeyboardGeometry` + warm-gold prism beams (four-side atlas), replacing legacy key regions + cylinder wording. |
 | Configuration | Added PR path filters, workflow permissions, SwiftFormat/SwiftLint config, and AVP simulator destination notes. |
 | Troubleshooting | Added package graph, simulator destination, AVP runtime latency, Swift Quality, and light-beam diagnostics. |
 | Index | Added `ci-first` reading path and current automation facts. |

@@ -47,21 +47,3 @@ struct PianoCalibration: Codable, Equatable {
         self.generatedAt = generatedAt
     }
 }
-
-struct PianoKeyRegion: Equatable, Identifiable {
-    var id: Int {
-        midiNote
-    }
-
-    let midiNote: Int
-    let center: SIMD3<Float>
-    let size: SIMD3<Float>
-
-    var min: SIMD3<Float> {
-        center - size / 2
-    }
-
-    var max: SIMD3<Float> {
-        center + size / 2
-    }
-}

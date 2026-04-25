@@ -27,7 +27,7 @@ final class PracticeSessionViewModel {
     private(set) var steps: [PracticeStep] = []
     private(set) var autoplayState: AutoplayState = .off
     private(set) var calibration: PianoCalibration?
-    private(set) var keyRegions: [PianoKeyRegion] = []
+    private(set) var keyboardGeometry: PianoKeyboardGeometry?
     private(set) var pressedNotes: Set<Int> = []
     private(set) var feedbackState: VisualFeedbackState = .none
     private(set) var isSustainPedalDown = false
@@ -199,9 +199,9 @@ final class PracticeSessionViewModel {
         }
     }
 
-    func applyCalibration(_ calibration: PianoCalibration, keyRegions: [PianoKeyRegion]) {
+    func applyKeyboardGeometry(_ keyboardGeometry: PianoKeyboardGeometry, calibration: PianoCalibration) {
         self.calibration = calibration
-        self.keyRegions = keyRegions
+        self.keyboardGeometry = keyboardGeometry
         if steps.isEmpty == false, state != .completed, state != .guiding(stepIndex: currentStepIndex) {
             state = .ready
         }
@@ -209,7 +209,7 @@ final class PracticeSessionViewModel {
 
     func clearCalibration() {
         calibration = nil
-        keyRegions = []
+        keyboardGeometry = nil
         pressedNotes.removeAll()
     }
 
@@ -227,7 +227,7 @@ final class PracticeSessionViewModel {
         slurTimeline = nil
         noteSpanOffTickByOnsetKey = [:]
         calibration = nil
-        keyRegions = []
+        keyboardGeometry = nil
         pressedNotes.removeAll()
         feedbackState = .none
         isSustainPedalDown = false
@@ -287,11 +287,10 @@ final class PracticeSessionViewModel {
     }
 
     func handleFingerTipPositions(_ fingerTips: [String: SIMD3<Float>], at timestamp: Date = .now) -> Set<Int> {
-        guard keyRegions.isEmpty == false else { return [] }
+        guard let keyboardGeometry else { return [] }
         let detected = pressDetectionService.detectPressedNotes(
             fingerTips: fingerTips,
-            keyRegions: keyRegions,
-            keyboardFrame: calibration?.keyboardFrame,
+            keyboardGeometry: keyboardGeometry,
             at: timestamp
         )
         if detected.isEmpty == false {
