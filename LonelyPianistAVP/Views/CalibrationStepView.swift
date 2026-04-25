@@ -352,36 +352,3 @@ private struct KeyboardMovingGlowOverlay: View {
         .allowsHitTesting(false)
     }
 }
-
-#Preview("Step 1 - A0") {
-    let appModel = AppModel()
-    let viewModel = ARGuideViewModel(appModel: appModel)
-    viewModel.setCalibrationPhaseForPreview(.capturingA0)
-    return CalibrationStepView(viewModel: viewModel)
-}
-
-#Preview("Step 1 - C8") {
-    let appModel = AppModel()
-    let viewModel = ARGuideViewModel(appModel: appModel)
-    viewModel.setCalibrationPhaseForPreview(.capturingC8)
-    return CalibrationStepView(viewModel: viewModel)
-}
-
-#Preview("Step 1 - 完成") {
-    let appModel = AppModel()
-    appModel.storedCalibration = StoredWorldAnchorCalibration(
-        a0AnchorID: UUID(),
-        c8AnchorID: UUID(),
-        whiteKeyWidth: 0.0235
-    )
-    let viewModel = ARGuideViewModel(appModel: appModel)
-    viewModel.setCalibrationPhaseForPreview(.completed)
-    return CalibrationStepView(viewModel: viewModel)
-}
-
-#Preview("Step 1 - 错误") {
-    let appModel = AppModel()
-    let viewModel = ARGuideViewModel(appModel: appModel)
-    viewModel.setCalibrationPhaseForPreview(.error(message: "手部追踪不可用：此设备不支持手部追踪。"))
-    return CalibrationStepView(viewModel: viewModel)
-}
