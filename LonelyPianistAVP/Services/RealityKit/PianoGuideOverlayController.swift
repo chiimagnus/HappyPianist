@@ -52,14 +52,13 @@ final class PianoGuideOverlayController {
             if let existing = activeBeamEntitiesByMIDINote[descriptor.midiNote] {
                 beam = existing
             } else {
-                beam = ModelEntity(mesh: .generateCylinder(height: 1, radius: 1), materials: [])
+                beam = ModelEntity(mesh: PianoGuideBeamMeshFactory.unitPrismShellMesh, materials: [])
                 activeBeamEntitiesByMIDINote[descriptor.midiNote] = beam
                 keyboardRootEntity.addChild(beam)
             }
 
             beam.model?.materials = [beamMaterial(for: descriptor)]
-            let radius = min(descriptor.sizeLocal.x, descriptor.sizeLocal.z) / 2
-            beam.scale = SIMD3<Float>(radius, descriptor.sizeLocal.y, radius)
+            beam.scale = descriptor.sizeLocal
             beam.position = descriptor.positionLocal
         }
     }
