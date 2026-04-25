@@ -246,11 +246,6 @@ private struct CalibrationStageCard: View {
                     )
 
                     Spacer()
-
-                    KeyboardEdgeLabels(
-                        isA0Locked: isA0Locked,
-                        currentStep: step
-                    )
                 }
 
             case .completed:
@@ -438,40 +433,6 @@ private struct CalibrationProgressIndicator: View {
             return .green
         }
         return isC8Current ? .primary : .secondary
-    }
-}
-
-private struct KeyboardEdgeLabels: View {
-    let isA0Locked: Bool
-    let currentStep: CalibrationAnchorPoint
-
-    var body: some View {
-        HStack(spacing: 10) {
-            HStack(spacing: 4) {
-                Text("A0")
-                if isA0Locked {
-                    Image(systemName: "checkmark")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.green)
-                } else if currentStep == .a0 {
-                    Image(systemName: "arrow.up")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .font(.callout.weight(.semibold))
-
-            HStack(spacing: 4) {
-                Text("C8")
-                if currentStep == .c8 {
-                    Image(systemName: "arrow.up")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .font(.callout.weight(.semibold))
-        }
-        .foregroundStyle(.secondary)
     }
 }
 
