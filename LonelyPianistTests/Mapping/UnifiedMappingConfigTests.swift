@@ -28,7 +28,7 @@ func mappingEngineAppliesVelocityShiftDerivation() {
         velocityEnabled: true,
         defaultVelocityThreshold: 100,
         singleKeyRules: [
-            SingleKeyMappingRule(note: 60, output: KeyStroke(keyCode: 40), velocityThreshold: 100),
+            SingleKeyMappingRule(note: 60, output: KeyStroke(keyCode: 40), velocityThreshold: 100)
         ],
         chordRules: []
     )
@@ -61,7 +61,7 @@ func mappingEngineUsesNormalOutputWhenVelocityDisabled() {
         velocityEnabled: false,
         defaultVelocityThreshold: 20,
         singleKeyRules: [
-            SingleKeyMappingRule(note: 60, output: KeyStroke(keyCode: 40), velocityThreshold: 1),
+            SingleKeyMappingRule(note: 60, output: KeyStroke(keyCode: 40), velocityThreshold: 1)
         ],
         chordRules: []
     )
@@ -84,7 +84,7 @@ func mappingEngineChordUsesStrictEquality() {
         defaultVelocityThreshold: 100,
         singleKeyRules: [],
         chordRules: [
-            ChordMappingRule(notes: [60, 64, 67], output: KeyStroke(keyCode: 8, modifiers: [.command])),
+            ChordMappingRule(notes: [60, 64, 67], output: KeyStroke(keyCode: 8, modifiers: [.command]))
         ]
     )
 
@@ -120,10 +120,10 @@ func mappingConfigPayloadCodableRoundTrip() throws {
         velocityEnabled: true,
         defaultVelocityThreshold: 77,
         singleKeyRules: [
-            SingleKeyMappingRule(note: 60, output: KeyStroke(keyCode: 0), velocityThreshold: 77),
+            SingleKeyMappingRule(note: 60, output: KeyStroke(keyCode: 0), velocityThreshold: 77)
         ],
         chordRules: [
-            ChordMappingRule(notes: [60, 64, 67], output: KeyStroke(keyCode: 8, modifiers: [.command])),
+            ChordMappingRule(notes: [60, 64, 67], output: KeyStroke(keyCode: 8, modifiers: [.command]))
         ]
     )
 
@@ -166,7 +166,7 @@ func setSingleKeyMappingKeepsOnlyOneRulePerNote() {
             note: 60,
             output: KeyStroke(keyCode: 8),
             velocityThreshold: 111
-        ),
+        )
     ]
 
     let payload = MappingConfigPayload(

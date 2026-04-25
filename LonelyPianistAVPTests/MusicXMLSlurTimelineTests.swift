@@ -16,7 +16,7 @@ func slurTimelineDetectsActiveSpanBetweenStartAndStop() {
                 kind: .stop,
                 numberToken: "1",
                 scope: MusicXMLEventScope(partID: "P1", staff: 1, voice: 1)
-            ),
+            )
         ]
     )
 

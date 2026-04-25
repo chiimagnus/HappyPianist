@@ -37,7 +37,7 @@ enum PianoGuideBeamMeshFactory {
             uvs.append(contentsOf: [uv0, uv1, uv2, uv3])
             indices.append(contentsOf: [
                 baseIndex, baseIndex + 1, baseIndex + 2,
-                baseIndex, baseIndex + 2, baseIndex + 3,
+                baseIndex, baseIndex + 2, baseIndex + 3
             ])
         }
 

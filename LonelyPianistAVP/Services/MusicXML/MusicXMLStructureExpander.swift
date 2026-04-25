@@ -53,8 +53,7 @@ struct MusicXMLStructureExpander {
         if let ending1,
            ending1.endIndex == backwardIndex,
            let ending2,
-           ending2.startIndex == backwardIndex + 1
-        {
+           ending2.startIndex == backwardIndex + 1 {
             if ending1.startIndex > forwardIndex {
                 sequence.append(contentsOf: forwardIndex ..< ending1.startIndex)
             }

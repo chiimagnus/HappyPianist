@@ -57,7 +57,7 @@ final class ARTrackingService: ARTrackingServiceProtocol {
     private(set) var authorizationStatusByType: [ARKitSession.AuthorizationType: ARKitSession.AuthorizationStatus] = [:]
     private(set) var providerStateByName: [String: DataProviderState] = [
         "hand": .idle,
-        "world": .idle,
+        "world": .idle
     ]
 
     var isWorldTrackingSupported: Bool {
@@ -302,7 +302,7 @@ final class ARTrackingService: ARTrackingServiceProtocol {
             .indexFingerTip,
             .middleFingerTip,
             .ringFingerTip,
-            .littleFingerTip,
+            .littleFingerTip
         ]
 
         var tips: [String: SIMD3<Float>] = [:]

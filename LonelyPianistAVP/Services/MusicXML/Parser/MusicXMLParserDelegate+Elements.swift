@@ -81,8 +81,7 @@ extension MusicXMLParserDelegate {
             case "repeat":
                 if state.isInBarline,
                    let rawDirection = attributeDict["direction"],
-                   let direction = MusicXMLRepeatDirection(rawValue: rawDirection)
-                {
+                   let direction = MusicXMLRepeatDirection(rawValue: rawDirection) {
                     state.repeatDirectives.append(
                         MusicXMLRepeatDirective(
                             partID: state.currentPartID,
@@ -95,8 +94,7 @@ extension MusicXMLParserDelegate {
                 if state.isInBarline,
                    let number = attributeDict["number"],
                    let rawType = attributeDict["type"],
-                   let type = MusicXMLEndingType(rawValue: rawType)
-                {
+                   let type = MusicXMLEndingType(rawValue: rawType) {
                     state.endingDirectives.append(
                         MusicXMLEndingDirective(
                             partID: state.currentPartID,
@@ -228,8 +226,7 @@ extension MusicXMLParserDelegate {
             case "slur":
                 if state.isInNote {
                     let kind: MusicXMLSlurEventKind? = switch attributeDict["type"]?
-                        .trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                    {
+                        .trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
                         case "start":
                             .start
                         case "stop":
@@ -396,11 +393,9 @@ extension MusicXMLParserDelegate {
             case "staff" where state.isInDirection:
                 state.currentDirectionStaff = Int(text)
                 if let staff = state.currentDirectionStaff,
-                   state.currentDirectionDynamicStartIndex < state.dynamicEvents.count
-                {
+                   state.currentDirectionDynamicStartIndex < state.dynamicEvents.count {
                     for i in state.currentDirectionDynamicStartIndex ..< state.dynamicEvents.count
-                        where state.dynamicEvents[i].scope.staff == nil
-                    {
+                        where state.dynamicEvents[i].scope.staff == nil {
                         state.dynamicEvents[i] = MusicXMLDynamicEvent(
                             tick: state.dynamicEvents[i].tick,
                             velocity: state.dynamicEvents[i].velocity,
@@ -414,11 +409,9 @@ extension MusicXMLParserDelegate {
                     }
                 }
                 if let staff = state.currentDirectionStaff,
-                   state.currentDirectionWedgeStartIndex < state.wedgeEvents.count
-                {
+                   state.currentDirectionWedgeStartIndex < state.wedgeEvents.count {
                     for i in state.currentDirectionWedgeStartIndex ..< state.wedgeEvents.count
-                        where state.wedgeEvents[i].scope.staff == nil
-                    {
+                        where state.wedgeEvents[i].scope.staff == nil {
                         state.wedgeEvents[i] = MusicXMLWedgeEvent(
                             tick: state.wedgeEvents[i].tick,
                             kind: state.wedgeEvents[i].kind,
@@ -432,11 +425,9 @@ extension MusicXMLParserDelegate {
                     }
                 }
                 if let staff = state.currentDirectionStaff,
-                   state.currentDirectionFermataStartIndex < state.fermataEvents.count
-                {
+                   state.currentDirectionFermataStartIndex < state.fermataEvents.count {
                     for i in state.currentDirectionFermataStartIndex ..< state.fermataEvents.count
-                        where state.fermataEvents[i].scope.staff == nil
-                    {
+                        where state.fermataEvents[i].scope.staff == nil {
                         state.fermataEvents[i] = MusicXMLFermataEvent(
                             tick: state.fermataEvents[i].tick,
                             scope: MusicXMLEventScope(
@@ -449,11 +440,9 @@ extension MusicXMLParserDelegate {
                     }
                 }
                 if let staff = state.currentDirectionStaff,
-                   state.currentDirectionWordsStartIndex < state.wordsEvents.count
-                {
+                   state.currentDirectionWordsStartIndex < state.wordsEvents.count {
                     for i in state.currentDirectionWordsStartIndex ..< state.wordsEvents.count
-                        where state.wordsEvents[i].scope.staff == nil
-                    {
+                        where state.wordsEvents[i].scope.staff == nil {
                         state.wordsEvents[i] = MusicXMLWordsEvent(
                             tick: state.wordsEvents[i].tick,
                             text: state.wordsEvents[i].text,

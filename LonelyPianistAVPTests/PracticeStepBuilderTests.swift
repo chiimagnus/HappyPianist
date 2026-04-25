@@ -55,7 +55,7 @@ func buildStepsGroupsNotesByTickAndMergesHands() {
             tieStop: false,
             staff: 1,
             voice: 1
-        ),
+        )
     ])
 
     let result = PracticeStepBuilder().buildSteps(from: score)
@@ -120,7 +120,7 @@ func buildStepsFiltersRestAndOutOfRangeNotes() {
             tieStop: false,
             staff: 1,
             voice: 1
-        ),
+        )
     ])
 
     let result = PracticeStepBuilder().buildSteps(from: score)
@@ -158,7 +158,7 @@ func buildStepsSkipsTieStopEvents() {
             tieStop: true,
             staff: 1,
             voice: 1
-        ),
+        )
     ])
 
     let result = PracticeStepBuilder().buildSteps(from: score)
@@ -199,7 +199,7 @@ func buildStepsIncludesGraceNotesWhenEnabled() {
             tieStop: false,
             staff: 1,
             voice: 1
-        ),
+        )
     ])
 
     let result = PracticeStepBuilder().buildSteps(
@@ -240,7 +240,7 @@ func buildStepsSetsOnTickOffsetsForArpeggiateChordWhenEnabled() {
             tieStop: false,
             staff: 1,
             voice: 1
-        ),
+        )
     ])
 
     let result = PracticeStepBuilder().buildSteps(
@@ -270,7 +270,7 @@ func buildStepsCarriesFingeringTextIntoStepNotes() {
             staff: 1,
             voice: 1,
             fingeringText: "1"
-        ),
+        )
     ])
 
     let result = PracticeStepBuilder().buildSteps(from: score)

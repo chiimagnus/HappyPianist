@@ -441,7 +441,7 @@ struct PianoMappingsEditorView: View {
         57, // caps lock
         58, 61, // option
         59, 62, // control
-        63, // function
+        63 // function
     ]
 }
 

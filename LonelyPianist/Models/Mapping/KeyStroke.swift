@@ -143,7 +143,7 @@ struct KeyStroke: Codable, Hashable {
         123: "\u{2190}",
         124: "\u{2192}",
         125: "\u{2193}",
-        126: "\u{2191}",
+        126: "\u{2191}"
     ]
 
     private static let keyCodeByCharacter: [Character: UInt16] = [
@@ -193,6 +193,6 @@ struct KeyStroke: Codable, Hashable {
         "n": 45,
         "m": 46,
         ".": 47,
-        "`": 50,
+        "`": 50
     ]
 }
