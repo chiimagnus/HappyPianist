@@ -177,9 +177,7 @@ private struct CalibrationCardContainer: View {
     let onSimulatorDemoAdvance: () -> Void
 
     var body: some View {
-        VStack(spacing: 18) {
-            Spacer(minLength: 12)
-
+        VStack {
             switch stage {
                 case .capturingA0:
                     wrapInSimulatorDemoButton(CalibrationCaptureCard(
@@ -235,8 +233,6 @@ private struct CalibrationCardContainer: View {
                         )
                     )
             }
-
-            Spacer(minLength: 12)
         }
         .animation(.easeInOut(duration: 0.5), value: stage)
     }
@@ -305,13 +301,6 @@ private struct CalibrationCaptureCard: View {
             }
             #endif
         }
-        .padding(18)
-        .frame(maxWidth: 560)
-        .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(.primary.opacity(0.12))
-        }
     }
 
     private var highlightedMIDINotes: Set<Int> {
@@ -366,7 +355,7 @@ private struct CalibrationCompletionCard: View {
             .hoverEffect()
         }
         .padding(18)
-        .frame(maxWidth: 560)
+        .frame(maxWidth: 720)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -408,7 +397,7 @@ private struct CalibrationErrorCard: View {
             .hoverEffect()
         }
         .padding(18)
-        .frame(maxWidth: 560)
+        .frame(maxWidth: 720)
         .background(.thinMaterial, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 18, style: .continuous)
