@@ -286,9 +286,9 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
+				D85596A82F83FF72005BE7FE /* LonelyPianistAVP */,
 				D8D4280C2F4DFD3800EC9C9B /* LonelyPianist */,
 				E10000012A9B000100000006 /* LonelyPianistTests */,
-				D85596A82F83FF72005BE7FE /* LonelyPianistAVP */,
 				D85596BB2F83FF74005BE7FE /* LonelyPianistAVPTests */,
 			);
 		};
@@ -397,7 +397,7 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 7;
-				XROS_DEPLOYMENT_TARGET = 26.4;
+				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Debug;
 		};
@@ -429,7 +429,7 @@
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = 7;
 				VALIDATE_PRODUCT = YES;
-				XROS_DEPLOYMENT_TARGET = 26.4;
+				XROS_DEPLOYMENT_TARGET = 26.0;
 			};
 			name = Release;
 		};
