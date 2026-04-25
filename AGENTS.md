@@ -23,18 +23,7 @@
 
 - 测试框架：Swift Testing（`import Testing` + `@Test` + `#expect`）。
 - 新增测试文件放在对应目录：`LonelyPianistTests/` 或 `LonelyPianistAVPTests/`，命名 `*Tests.swift`。
-- 除非项目中已有明确先例，否则不要新增 XCTest 测试文件。
 
-## 开发规范（详细）
-
-对齐说明（与下方“真源规范全文”冲突时，以本仓库为准）：
-- 本仓库使用 SwiftUI + MVVM + Services 分层；状态管理优先 Observation（`@Observable` / `@Bindable`）。
-- 本仓库的单元测试使用 Swift Testing（不是 XCTest）。
-- visionOS / RealityKit 补充规范全文位于 `LonelyPianistAVP/AGENTS.md`，并仅对该目录树生效。
-
-### Apple / Swift 规范（真源全文）
-
-```md
 # Apple App 开发规范 for AI（Swift/SwiftUI 基线，唯一源）
 
 本文件是本机 Apple/Swift “开发规范”的**唯一真源**（single source of truth）。
@@ -121,7 +110,6 @@
 
 调试与日志：
 - 日志用 `os.Logger`，明确 `subsystem` 与 `category`，便于过滤与定位
-```
 
 ## 参考资料
 
