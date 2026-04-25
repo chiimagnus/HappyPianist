@@ -58,7 +58,7 @@ func playSelectedTakeDoesNotTriggerKeyboardInjection() {
         updatedAt: Date(),
         durationSec: 1.0,
         notes: [
-            RecordedNote(id: UUID(), note: 67, velocity: 88, channel: 1, startOffsetSec: 0.0, durationSec: 0.5)
+            RecordedNote(id: UUID(), note: 67, velocity: 88, channel: 1, startOffsetSec: 0.0, durationSec: 0.5),
         ]
     )
     context.viewModel.takes = [take]

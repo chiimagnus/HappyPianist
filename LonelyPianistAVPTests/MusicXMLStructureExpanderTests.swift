@@ -200,7 +200,7 @@ func structureExpanderFallsBackWhenJumpLimitsAreHit() {
                 voice: 1,
                 attackTicks: nil,
                 releaseTicks: nil
-            )
+            ),
         ],
         tempoEvents: [],
         soundDirectives: [
@@ -214,10 +214,10 @@ func structureExpanderFallsBackWhenJumpLimitsAreHit() {
                 dalsegno: "S1",
                 dacapo: nil,
                 timeOnlyPasses: nil
-            )
+            ),
         ],
         measures: [
-            MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, startTick: 0, endTick: 480)
+            MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, startTick: 0, endTick: 480),
         ],
         repeatDirectives: [],
         endingDirectives: []

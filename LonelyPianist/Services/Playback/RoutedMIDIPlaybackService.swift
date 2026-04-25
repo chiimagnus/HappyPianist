@@ -43,7 +43,7 @@ final class RoutedMIDIPlaybackService: RoutableMIDIPlaybackServiceProtocol {
                 id: MIDIPlaybackOutputOption.builtInSamplerID,
                 title: "Built-in Sampler",
                 kind: .builtInSampler
-            )
+            ),
         ]
 
         outputs.append(

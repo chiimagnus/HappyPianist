@@ -153,7 +153,8 @@ final class ARGuideViewModel {
             for _ in 0 ..< 40 {
                 guard Task.isCancelled == false else { return }
                 if calibrationCaptureService.a0AnchorID == nil,
-                   calibrationCaptureService.c8AnchorID == nil {
+                   calibrationCaptureService.c8AnchorID == nil
+                {
                     break
                 }
                 try? await Task.sleep(for: .milliseconds(50))
@@ -408,23 +409,21 @@ final class ARGuideViewModel {
 
         let handState = arTrackingService.providerStateByName["hand"] ?? .idle
         let worldState = arTrackingService.providerStateByName["world"] ?? .idle
-        let failureMessage: String?
-
-        switch (handState, worldState) {
+        let failureMessage: String? = switch (handState, worldState) {
             case (.unsupported, _):
-                failureMessage = "手部追踪不可用：此设备不支持手部追踪。"
+                "手部追踪不可用：此设备不支持手部追踪。"
             case (.unauthorized, _):
-                failureMessage = "手部追踪未授权：请在系统设置中允许本 App 使用 Hand Tracking。"
+                "手部追踪未授权：请在系统设置中允许本 App 使用 Hand Tracking。"
             case let (.failed(reason), _):
-                failureMessage = "手部追踪启动失败：\(reason)"
+                "手部追踪启动失败：\(reason)"
             case (_, .unsupported):
-                failureMessage = "世界追踪不可用：此环境不支持 World Tracking。"
+                "世界追踪不可用：此环境不支持 World Tracking。"
             case (_, .unauthorized):
-                failureMessage = "世界追踪不可用：WorldTrackingProvider 未能启动（请稍后重试）。"
+                "世界追踪不可用：WorldTrackingProvider 未能启动（请稍后重试）。"
             case let (_, .failed(reason)):
-                failureMessage = "世界追踪启动失败：\(reason)"
+                "世界追踪启动失败：\(reason)"
             default:
-                failureMessage = nil
+                nil
         }
 
         guard let failureMessage else { return }
@@ -454,7 +453,8 @@ final class ARGuideViewModel {
 
             if let oldAnchorID,
                oldAnchorID != worldAnchor.id,
-               let oldAnchor = arTrackingService.worldAnchorsByID[oldAnchorID] {
+               let oldAnchor = arTrackingService.worldAnchorsByID[oldAnchorID]
+            {
                 try? await arTrackingService.worldTrackingProvider.removeAnchor(oldAnchor)
             }
         } catch {
@@ -648,7 +648,8 @@ final class ARGuideViewModel {
         }
 
         if let handAuthorizationStatus = arTrackingService.authorizationStatusByType[.handTracking],
-           handAuthorizationStatus != .allowed {
+           handAuthorizationStatus != .allowed
+        {
             return .handTrackingDenied
         }
 
@@ -744,7 +745,8 @@ final class ARGuideViewModel {
                     if didSave,
                        let storedCalibration,
                        storedCalibration.a0AnchorID == capturedA0,
-                       storedCalibration.c8AnchorID == capturedC8 {
+                       storedCalibration.c8AnchorID == capturedC8
+                    {
                         calibrationStatusMessage = nil
                         calibrationPhase = .completed
                     } else {
@@ -783,8 +785,8 @@ final class ARGuideViewModel {
     }
 
     #if DEBUG
-    func setCalibrationPhaseForPreview(_ phase: CalibrationPhase) {
-        calibrationPhase = phase
-    }
+        func setCalibrationPhaseForPreview(_ phase: CalibrationPhase) {
+            calibrationPhase = phase
+        }
     #endif
 }

@@ -37,7 +37,8 @@ struct PianoKeyboard88View: View {
                         }
                         .overlay(alignment: .bottom) {
                             if isHighlighted,
-                               let fingering = fingeringByMIDINote[key.midiNote] {
+                               let fingering = fingeringByMIDINote[key.midiNote]
+                            {
                                 Text(fingering)
                                     .font(.caption2.weight(.semibold))
                                     .foregroundStyle(.black.opacity(0.78))
@@ -58,7 +59,8 @@ struct PianoKeyboard88View: View {
                         }
                         .overlay(alignment: .bottom) {
                             if isHighlighted,
-                               let fingering = fingeringByMIDINote[key.midiNote] {
+                               let fingering = fingeringByMIDINote[key.midiNote]
+                            {
                                 Text(fingering)
                                     .font(.caption2.weight(.semibold))
                                     .foregroundStyle(.white.opacity(0.92))
@@ -127,13 +129,11 @@ struct PianoKeyboard88View: View {
         uniqueKeysWithValues: whiteKeys.map { ($0.midiNote, $0.whiteIndex) }
     )
 
-    private static let blackKeys: [BlackKey] = {
-        return playableRange.compactMap { midiNote in
-            guard isBlackKey(midiNote) else { return nil }
-            guard let leftWhiteIndex = whiteIndexByMIDINote[midiNote - 1] else { return nil }
-            return BlackKey(midiNote: midiNote, leftWhiteIndex: leftWhiteIndex)
-        }
-    }()
+    private static let blackKeys: [BlackKey] = playableRange.compactMap { midiNote in
+        guard isBlackKey(midiNote) else { return nil }
+        guard let leftWhiteIndex = whiteIndexByMIDINote[midiNote - 1] else { return nil }
+        return BlackKey(midiNote: midiNote, leftWhiteIndex: leftWhiteIndex)
+    }
 
     private static let blackKeyCenterFractionByMIDINote: [Int: CGFloat] = Dictionary(
         uniqueKeysWithValues: blackKeys.map { key in

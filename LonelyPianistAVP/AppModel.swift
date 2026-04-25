@@ -78,11 +78,11 @@ class AppModel {
     func beginCalibrationRecapture() {
         let persistedAnchorIDs = Set([
             storedCalibration?.a0AnchorID,
-            storedCalibration?.c8AnchorID
+            storedCalibration?.c8AnchorID,
         ].compactMap(\.self))
         let capturedAnchorIDs = Set([
             calibrationCaptureService.a0AnchorID,
-            calibrationCaptureService.c8AnchorID
+            calibrationCaptureService.c8AnchorID,
         ].compactMap(\.self)).subtracting(persistedAnchorIDs)
 
         guard capturedAnchorIDs.isEmpty == false else {

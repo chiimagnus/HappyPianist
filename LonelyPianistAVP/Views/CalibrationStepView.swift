@@ -11,8 +11,8 @@ struct CalibrationStepView: View {
     @State private var isStepVisible = false
 
     #if DEBUG && targetEnvironment(simulator)
-    @State private var simulatorDemoEnabled = true
-    @State private var simulatorDemoTask: Task<Void, Never>?
+        @State private var simulatorDemoEnabled = true
+        @State private var simulatorDemoTask: Task<Void, Never>?
     #endif
 
     var body: some View {
@@ -40,7 +40,7 @@ struct CalibrationStepView: View {
             if isSimulatorDemoActive {
                 viewModel.endCalibrationGuidedFlow()
                 #if DEBUG
-                viewModel.setCalibrationPhaseForPreview(.capturingA0)
+                    viewModel.setCalibrationPhaseForPreview(.capturingA0)
                 #endif
                 return
             }
@@ -68,8 +68,8 @@ struct CalibrationStepView: View {
             isStepVisible = false
             hasRequestedImmersiveOpen = false
             #if DEBUG && targetEnvironment(simulator)
-            simulatorDemoTask?.cancel()
-            simulatorDemoTask = nil
+                simulatorDemoTask?.cancel()
+                simulatorDemoTask = nil
             #endif
             viewModel.endCalibrationGuidedFlow()
 
@@ -84,56 +84,56 @@ struct CalibrationStepView: View {
 
     private var isReticleReadyToConfirm: Bool {
         #if DEBUG && targetEnvironment(simulator)
-        if isSimulatorDemoActive { return true }
+            if isSimulatorDemoActive { return true }
         #endif
         return viewModel.calibrationCaptureService.isReticleReadyToConfirm
     }
 
     private var isSimulatorDemoActive: Bool {
         #if DEBUG && targetEnvironment(simulator)
-        return simulatorDemoEnabled
+            return simulatorDemoEnabled
         #else
-        return false
+            return false
         #endif
     }
 
     private var simulatorDemoState: CalibrationSimulatorDemoState? {
         #if DEBUG && targetEnvironment(simulator)
-        return isSimulatorDemoActive ? .enabled : nil
+            return isSimulatorDemoActive ? .enabled : nil
         #else
-        return nil
+            return nil
         #endif
     }
 
     private func handleSimulatorDemoAdvance() {
         #if DEBUG && targetEnvironment(simulator)
-        guard isSimulatorDemoActive else { return }
+            guard isSimulatorDemoActive else { return }
 
-        simulatorDemoTask?.cancel()
-        simulatorDemoTask = Task { @MainActor in
-            switch viewModel.calibrationPhase {
-                case .capturingA0:
-                    viewModel.setCalibrationPhaseForPreview(.transitionA0)
-                    try? await Task.sleep(for: .seconds(1.25))
-                    guard Task.isCancelled == false else { return }
-                    viewModel.setCalibrationPhaseForPreview(.capturingC8)
+            simulatorDemoTask?.cancel()
+            simulatorDemoTask = Task { @MainActor in
+                switch viewModel.calibrationPhase {
+                    case .capturingA0:
+                        viewModel.setCalibrationPhaseForPreview(.transitionA0)
+                        try? await Task.sleep(for: .seconds(1.25))
+                        guard Task.isCancelled == false else { return }
+                        viewModel.setCalibrationPhaseForPreview(.capturingC8)
 
-                case .capturingC8:
-                    viewModel.setCalibrationPhaseForPreview(.transitionC8)
-                    try? await Task.sleep(for: .seconds(0.3))
-                    guard Task.isCancelled == false else { return }
-                    viewModel.setCalibrationPhaseForPreview(.completed)
+                    case .capturingC8:
+                        viewModel.setCalibrationPhaseForPreview(.transitionC8)
+                        try? await Task.sleep(for: .seconds(0.3))
+                        guard Task.isCancelled == false else { return }
+                        viewModel.setCalibrationPhaseForPreview(.completed)
 
-                case .completed:
-                    dismiss()
+                    case .completed:
+                        dismiss()
 
-                case .error:
-                    viewModel.setCalibrationPhaseForPreview(.capturingA0)
+                    case .error:
+                        viewModel.setCalibrationPhaseForPreview(.capturingA0)
 
-                default:
-                    break
+                    default:
+                        break
+                }
             }
-        }
         #endif
     }
 }
@@ -184,8 +184,10 @@ private struct CalibrationStageCard: View {
                 .overlay {
                     KeyboardMovingGlowOverlay(
                         isActive: showsMovingGlow,
-                        startFraction: PianoKeyboard88View.keyCenterFraction(midiNote: PianoKeyboard88View.minPlayableMIDINote) ?? 0,
-                        endFraction: PianoKeyboard88View.keyCenterFraction(midiNote: PianoKeyboard88View.maxPlayableMIDINote) ?? 1
+                        startFraction: PianoKeyboard88View
+                            .keyCenterFraction(midiNote: PianoKeyboard88View.minPlayableMIDINote) ?? 0,
+                        endFraction: PianoKeyboard88View
+                            .keyCenterFraction(midiNote: PianoKeyboard88View.maxPlayableMIDINote) ?? 1
                     )
                 }
 
@@ -197,19 +199,19 @@ private struct CalibrationStageCard: View {
                     .foregroundStyle(.secondary)
 
                 #if DEBUG && targetEnvironment(simulator)
-                if simulatorDemoState == .enabled, let onSimulatorDemoAdvance {
-                    HStack {
-                        Text("模拟器演示")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Button("下一步") {
-                            onSimulatorDemoAdvance()
+                    if simulatorDemoState == .enabled, let onSimulatorDemoAdvance {
+                        HStack {
+                            Text("模拟器演示")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Button("下一步") {
+                                onSimulatorDemoAdvance()
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .hoverEffect()
                         }
-                        .buttonStyle(.borderedProminent)
-                        .hoverEffect()
                     }
-                }
                 #endif
             } else if stage == .completed {
                 completionBody
@@ -322,7 +324,7 @@ private struct KeyboardMovingGlowOverlay: View {
                         colors: [
                             .clear,
                             Color.blue.opacity(0.32),
-                            .clear
+                            .clear,
                         ],
                         startPoint: .leading,
                         endPoint: .trailing

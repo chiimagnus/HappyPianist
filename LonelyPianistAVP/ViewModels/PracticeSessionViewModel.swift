@@ -588,7 +588,8 @@ final class PracticeSessionViewModel {
         guard audioErrorMessage == nil else { return }
 
         if let localized = error as? LocalizedError, let description = localized.errorDescription,
-           description.isEmpty == false {
+           description.isEmpty == false
+        {
             audioErrorMessage = description
         } else {
             audioErrorMessage = String(describing: error)

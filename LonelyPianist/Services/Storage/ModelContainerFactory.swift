@@ -6,7 +6,7 @@ enum ModelContainerFactory {
         let schema = Schema([
             MappingConfigEntity.self,
             RecordingTakeEntity.self,
-            RecordedNoteEntity.self
+            RecordedNoteEntity.self,
         ])
         let storeURL = try makeStoreURL()
         let configuration = ModelConfiguration(schema: schema, url: storeURL)
@@ -39,7 +39,7 @@ enum ModelContainerFactory {
             storeURL,
             URL(fileURLWithPath: storeURL.path + "-wal"),
             URL(fileURLWithPath: storeURL.path + "-shm"),
-            URL(fileURLWithPath: storeURL.path + "-journal")
+            URL(fileURLWithPath: storeURL.path + "-journal"),
         ]
 
         for url in candidates where fileManager.fileExists(atPath: url.path) {

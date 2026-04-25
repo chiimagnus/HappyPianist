@@ -102,7 +102,8 @@ final class CoreMIDIOutputService: MIDIOutputServiceProtocol {
         // Slow-path resolve: enumerate destinations again.
         let destinations = listDestinations()
         if let match = destinations.first(where: { $0.id == destinationID }),
-           let endpoint = destinationCache[match.id] {
+           let endpoint = destinationCache[match.id]
+        {
             return endpoint
         }
 

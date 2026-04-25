@@ -104,7 +104,7 @@ final class AVSamplerMIDIPlaybackService: MIDIPlaybackServiceProtocol {
     private func loadPianoSoundBank() throws {
         let candidatePaths = [
             "/System/Library/Components/CoreAudio.component/Contents/Resources/gs_instruments.dls",
-            "/System/Library/Components/DLSMusicDevice.component/Contents/Resources/DefaultBankGS.sf2"
+            "/System/Library/Components/DLSMusicDevice.component/Contents/Resources/DefaultBankGS.sf2",
         ]
 
         for path in candidatePaths {

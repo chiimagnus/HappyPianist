@@ -28,7 +28,8 @@ struct SongLibraryIndexStore: SongLibraryIndexStoreProtocol {
         }
 
         if let text = String(data: data, encoding: .utf8),
-           text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+           text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
             return .empty
         }
 
