@@ -8,6 +8,8 @@ final class PianoGuideOverlayController {
     private var keyboardRootEntity = Entity()
     private var hasAttachedRoot = false
     private var activeBeamEntitiesByMIDINote: [Int: ModelEntity] = [:]
+    private var didAttemptAtlasTextureLoad = false
+    private var atlasTexture: TextureResource?
 
     func updateHighlights(
         currentStep: PracticeStep?,
@@ -63,7 +65,7 @@ final class PianoGuideOverlayController {
         }
     }
 
-    private func beamMaterial(for descriptor: PianoGuideBeamDescriptor) -> SimpleMaterial {
+    private func beamMaterial(for descriptor: PianoGuideBeamDescriptor) -> UnlitMaterial {
         let tintColor: UIColor = switch descriptor.baseColor {
             case .guide:
                 AVPOverlayPalette.feedbackNoneColor
@@ -72,7 +74,16 @@ final class PianoGuideOverlayController {
             case .wrong:
                 AVPOverlayPalette.feedbackWrongColor
         }
-        return SimpleMaterial(color: tintColor.withAlphaComponent(CGFloat(descriptor.alpha)), isMetallic: false)
+        let tinted = tintColor.withAlphaComponent(CGFloat(descriptor.alpha))
+        let texture = loadAtlasTextureIfNeeded()
+
+        var material = UnlitMaterial()
+        if let texture {
+            material.color = .init(tint: tinted, texture: .init(texture))
+        } else {
+            material.color = .init(tint: tinted)
+        }
+        return material
     }
 
     private func clearBeams() {
@@ -80,5 +91,15 @@ final class PianoGuideOverlayController {
             beam.removeFromParent()
         }
         activeBeamEntitiesByMIDINote.removeAll()
+    }
+
+    private func loadAtlasTextureIfNeeded() -> TextureResource? {
+        if didAttemptAtlasTextureLoad {
+            return atlasTexture
+        }
+
+        didAttemptAtlasTextureLoad = true
+        atlasTexture = try? TextureResource.load(named: "KeyBeamFourSideAtlas")
+        return atlasTexture
     }
 }

@@ -11,7 +11,7 @@ enum AVPOverlayPalette {
     static let handTipColor: UIColor = .systemGreen.withAlphaComponent(0.9)
 
     // Practice feedback
-    static let feedbackNoneColor: UIColor = .systemTeal.withAlphaComponent(0.65)
-    static let feedbackCorrectColor: UIColor = .systemGreen.withAlphaComponent(0.75)
-    static let feedbackWrongColor: UIColor = .systemRed.withAlphaComponent(0.75)
+    static let feedbackNoneColor: UIColor = UIColor(red: 1.00, green: 0.93, blue: 0.78, alpha: 1.0)
+    static let feedbackCorrectColor: UIColor = UIColor(red: 1.00, green: 0.95, blue: 0.82, alpha: 1.0)
+    static let feedbackWrongColor: UIColor = UIColor(red: 1.00, green: 0.88, blue: 0.78, alpha: 1.0)
 }
