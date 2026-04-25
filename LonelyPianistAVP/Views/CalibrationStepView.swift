@@ -178,8 +178,6 @@ private struct CalibrationStageCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            header
-
             if stage == .capturingA0 || stage == .capturingC8 {
                 PianoKeyboard88View(
                     highlightedMIDINotes: highlightedMIDINotes,
@@ -232,28 +230,6 @@ private struct CalibrationStageCard: View {
         }
         .transition(.opacity)
         .animation(.easeInOut(duration: 0.35), value: stage)
-    }
-
-    @ViewBuilder
-    private var header: some View {
-        switch stage {
-            case .capturingA0, .capturingC8:
-                HStack(alignment: .center) {
-                    CalibrationProgressIndicator(
-                        isA0Complete: isA0Locked,
-                        isC8Current: step == .c8,
-                        isC8Complete: false
-                    )
-
-                    Spacer()
-                }
-
-            case .completed:
-                CalibrationProgressIndicator(isA0Complete: true, isC8Current: false, isC8Complete: true)
-
-            case .error:
-                EmptyView()
-        }
     }
 
     private var completionBody: some View {
@@ -402,37 +378,6 @@ private struct KeyboardMovingGlowOverlay: View {
         }
         .clipShape(.rect(cornerRadius: 12))
         .allowsHitTesting(false)
-    }
-}
-
-private struct CalibrationProgressIndicator: View {
-    let isA0Complete: Bool
-    let isC8Current: Bool
-    let isC8Complete: Bool
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: isA0Complete ? "checkmark.circle" : "circle.inset.filled")
-                .foregroundStyle(isA0Complete ? .green : .primary)
-            Image(systemName: c8SymbolName)
-                .foregroundStyle(c8ForegroundStyle)
-        }
-        .font(.title3.weight(.semibold))
-        .symbolRenderingMode(.hierarchical)
-    }
-
-    private var c8SymbolName: String {
-        if isC8Complete {
-            return "checkmark.circle"
-        }
-        return isC8Current ? "circle.inset.filled" : "circle"
-    }
-
-    private var c8ForegroundStyle: Color {
-        if isC8Complete {
-            return .green
-        }
-        return isC8Current ? .primary : .secondary
     }
 }
 
