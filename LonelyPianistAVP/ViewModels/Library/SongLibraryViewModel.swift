@@ -9,6 +9,8 @@ final class SongLibraryViewModel {
     private let fileStore: SongFileStoreProtocol
     private let audioImportService: AudioImportServiceProtocol
     private let paths: SongLibraryPaths
+    private let bundledProvider: BundledSongLibraryProviderProtocol
+    private let bundledEntries: [SongLibraryEntry]
     private let parser: MusicXMLParserProtocol
     private let stepBuilder: PracticeStepBuilderProtocol
     private let audioPlaybackController: SongAudioPlaybackStateController
@@ -25,6 +27,7 @@ final class SongLibraryViewModel {
         fileStore: SongFileStoreProtocol? = nil,
         audioImportService: AudioImportServiceProtocol? = nil,
         paths: SongLibraryPaths? = nil,
+        bundledProvider: BundledSongLibraryProviderProtocol? = nil,
         parser: MusicXMLParserProtocol? = nil,
         stepBuilder: PracticeStepBuilderProtocol? = nil,
         audioPlayer: SongAudioPlayerProtocol? = nil
@@ -34,6 +37,9 @@ final class SongLibraryViewModel {
         self.fileStore = fileStore ?? SongFileStore()
         self.audioImportService = audioImportService ?? AudioImportService()
         self.paths = paths ?? SongLibraryPaths()
+        let resolvedBundledProvider = bundledProvider ?? BundledSongLibraryProvider()
+        self.bundledProvider = resolvedBundledProvider
+        bundledEntries = resolvedBundledProvider.bundledEntries()
         self.parser = parser ?? MusicXMLParser()
         self.stepBuilder = stepBuilder ?? PracticeStepBuilder()
         audioPlaybackController = SongAudioPlaybackStateController(player: audioPlayer ?? SongAudioPlayer())
@@ -49,7 +55,17 @@ final class SongLibraryViewModel {
     }
 
     var entries: [SongLibraryEntry] {
-        index.entries
+        var merged: [SongLibraryEntry] = []
+        merged.reserveCapacity(bundledEntries.count + index.entries.count)
+
+        var bundledNames = Set(bundledEntries.map(\.displayName))
+        merged.append(contentsOf: bundledEntries)
+
+        for entry in index.entries where bundledNames.contains(entry.displayName) == false {
+            merged.append(entry)
+        }
+
+        return merged
     }
 
     func reload() {
@@ -104,12 +120,21 @@ final class SongLibraryViewModel {
     }
 
     func preparePractice(entryID: UUID) -> Bool {
-        guard let entry = index.entries.first(where: { $0.id == entryID }) else {
+        guard let entry = entries.first(where: { $0.id == entryID }) else {
             return false
         }
 
         do {
-            let scoreURL = try paths.scoresDirectoryURL().appendingPathComponent(entry.musicXMLFileName)
+            let scoreURL: URL
+            if entry.isBundled == true {
+                guard let bundledURL = bundledProvider.musicXMLURL(fileName: entry.musicXMLFileName) else {
+                    errorMessage = "未在应用资源中找到该曲谱文件。"
+                    return false
+                }
+                scoreURL = bundledURL
+            } else {
+                scoreURL = try paths.scoresDirectoryURL().appendingPathComponent(entry.musicXMLFileName)
+            }
             let score = try parser.parse(fileURL: scoreURL)
             let shouldExpandStructure = UserDefaults.standard.bool(forKey: "practiceMusicXMLStructureEnabled")
             let primaryPartIDForExpansion = score.preferredPrimaryPartID()
@@ -191,6 +216,10 @@ final class SongLibraryViewModel {
     }
 
     func deleteEntry(entryID: UUID) {
+        if bundledEntries.contains(where: { $0.id == entryID }) {
+            errorMessage = "内置曲目无法删除。"
+            return
+        }
         guard let entryIndex = index.entries.firstIndex(where: { $0.id == entryID }) else {
             return
         }
@@ -225,6 +254,10 @@ final class SongLibraryViewModel {
     }
 
     func bindAudio(entryID: UUID, from sourceURL: URL) {
+        if bundledEntries.contains(where: { $0.id == entryID }) {
+            errorMessage = "内置曲目不支持绑定外部音频文件。"
+            return
+        }
         guard let entryIndex = index.entries.firstIndex(where: { $0.id == entryID }) else {
             return
         }
@@ -252,7 +285,7 @@ final class SongLibraryViewModel {
     }
 
     func didTapListen(entryID: UUID) {
-        guard let entry = index.entries.first(where: { $0.id == entryID }) else {
+        guard let entry = entries.first(where: { $0.id == entryID }) else {
             return
         }
         guard let audioFileName = entry.audioFileName else {
@@ -261,7 +294,16 @@ final class SongLibraryViewModel {
         }
 
         do {
-            let audioURL = try fileStore.audioFileURL(fileName: audioFileName)
+            let audioURL: URL
+            if entry.isBundled == true {
+                guard let bundledURL = bundledProvider.audioURL(fileName: audioFileName) else {
+                    errorMessage = "未在应用资源中找到该音频文件。"
+                    return
+                }
+                audioURL = bundledURL
+            } else {
+                audioURL = try fileStore.audioFileURL(fileName: audioFileName)
+            }
             try audioPlaybackController.toggle(entryID: entryID, url: audioURL)
             syncListeningState()
         } catch {

@@ -6,4 +6,5 @@ struct SongLibraryEntry: Codable, Equatable, Identifiable {
     var musicXMLFileName: String
     var importedAt: Date
     var audioFileName: String?
+    var isBundled: Bool? = nil
 }
