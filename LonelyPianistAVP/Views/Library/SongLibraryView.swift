@@ -4,7 +4,6 @@ import UniformTypeIdentifiers
 struct SongLibraryView: View {
     @Bindable var viewModel: SongLibraryViewModel
     let navigationPath: Binding<[MainFlowRoute]>
-    @State private var isImporterPresented = false
     @State private var isAudioImporterPresented = false
     @State private var pendingAudioBindingEntryID: UUID?
     @State private var pendingDeletionEntryID: UUID?
@@ -41,20 +40,7 @@ struct SongLibraryView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("导入 MusicXML") {
                     viewModel.didTapImportMusicXML()
-                    isImporterPresented = true
                 }
-            }
-        }
-        .fileImporter(
-            isPresented: $isImporterPresented,
-            allowedContentTypes: [.xml, .musicXML],
-            allowsMultipleSelection: true
-        ) { result in
-            do {
-                let urls = try result.get()
-                viewModel.importMusicXML(from: urls)
-            } catch {
-                viewModel.errorMessage = "导入失败：\(error.localizedDescription)"
             }
         }
         .fileImporter(
@@ -141,7 +127,6 @@ struct SongLibraryView: View {
         } actions: {
             Button("导入 MusicXML") {
                 viewModel.didTapImportMusicXML()
-                isImporterPresented = true
             }
             .buttonStyle(.borderedProminent)
         }

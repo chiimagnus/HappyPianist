@@ -20,6 +20,7 @@ final class SongLibraryViewModel {
     var errorMessage: String?
     var currentListeningEntryID: UUID?
     var isCurrentListeningPlaying = false
+    var isMusicXMLImporterPresented = false
 
     init(
         appModel: AppModel,
@@ -81,7 +82,7 @@ final class SongLibraryViewModel {
     }
 
     func didTapImportMusicXML() {
-        // 由 View 层触发 fileImporter
+        isMusicXMLImporterPresented = true
     }
 
     func importMusicXML(from selectedURLs: [URL]) {
