@@ -4,8 +4,7 @@ import simd
 protocol PressDetectionServiceProtocol {
     func detectPressedNotes(
         fingerTips: [String: SIMD3<Float>],
-        keyRegions: [PianoKeyRegion],
-        keyboardFrame: KeyboardFrame?,
+        keyboardGeometry: PianoKeyboardGeometry?,
         at timestamp: Date
     ) -> Set<Int>
 }

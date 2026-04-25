@@ -19,9 +19,9 @@ func markCorrectSchedulesFeedbackResetWithExpectedDuration() async {
         PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)])
     ])
     viewModel.startGuidingIfReady()
-    viewModel.applyCalibration(
-        PianoCalibration(a0: .zero, c8: SIMD3<Float>(1, 0, 0), planeHeight: 0),
-        keyRegions: [PianoKeyRegion(midiNote: 60, center: .zero, size: SIMD3<Float>(repeating: 1))]
+    viewModel.applyKeyboardGeometry(
+        makeDummyKeyboardGeometry(),
+        calibration: PianoCalibration(a0: .zero, c8: SIMD3<Float>(1, 0, 0), planeHeight: 0)
     )
 
     _ = viewModel.handleFingerTipPositions(["dummy": .zero])
@@ -49,9 +49,9 @@ func secondFeedbackCancelsPreviousResetTaskDeterministically() async {
         PracticeStep(tick: 1, notes: [PracticeStepNote(midiNote: 60, staff: nil)])
     ])
     viewModel.startGuidingIfReady()
-    viewModel.applyCalibration(
-        PianoCalibration(a0: .zero, c8: SIMD3<Float>(1, 0, 0), planeHeight: 0),
-        keyRegions: [PianoKeyRegion(midiNote: 60, center: .zero, size: SIMD3<Float>(repeating: 1))]
+    viewModel.applyKeyboardGeometry(
+        makeDummyKeyboardGeometry(),
+        calibration: PianoCalibration(a0: .zero, c8: SIMD3<Float>(1, 0, 0), planeHeight: 0)
     )
 
     _ = viewModel.handleFingerTipPositions(["dummy": .zero])
@@ -83,9 +83,9 @@ func feedbackResetsToNoneAfterSleeperResumes() async {
         PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)])
     ])
     viewModel.startGuidingIfReady()
-    viewModel.applyCalibration(
-        PianoCalibration(a0: .zero, c8: SIMD3<Float>(1, 0, 0), planeHeight: 0),
-        keyRegions: [PianoKeyRegion(midiNote: 60, center: .zero, size: SIMD3<Float>(repeating: 1))]
+    viewModel.applyKeyboardGeometry(
+        makeDummyKeyboardGeometry(),
+        calibration: PianoCalibration(a0: .zero, c8: SIMD3<Float>(1, 0, 0), planeHeight: 0)
     )
 
     _ = viewModel.handleFingerTipPositions(["dummy": .zero])
@@ -141,7 +141,7 @@ func skipAdvancesAndCompletesInStepsOnlyMode() {
 
 @Test
 @MainActor
-func handleFingerTipPositionsIsNoopWithoutKeyRegions() {
+func handleFingerTipPositionsIsNoopWithoutKeyboardGeometry() {
     let viewModel = makePracticeSessionViewModel(
         pressDetectionService: ConstantPressDetectionService(pressedNotes: [60]),
         chordAttemptAccumulator: AlwaysMatchChordAttemptAccumulator(),
@@ -176,9 +176,9 @@ func applyingCalibrationDoesNotResetProgress() {
     viewModel.skip()
     #expect(viewModel.currentStepIndex == 1)
 
-    viewModel.applyCalibration(
-        PianoCalibration(a0: .zero, c8: SIMD3<Float>(1, 0, 0), planeHeight: 0),
-        keyRegions: [PianoKeyRegion(midiNote: 60, center: .zero, size: SIMD3<Float>(repeating: 1))]
+    viewModel.applyKeyboardGeometry(
+        makeDummyKeyboardGeometry(),
+        calibration: PianoCalibration(a0: .zero, c8: SIMD3<Float>(1, 0, 0), planeHeight: 0)
     )
 
     #expect(viewModel.currentStepIndex == 1)
@@ -517,9 +517,9 @@ func autoplayDoesNotAdvanceOnMatch() async {
         PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: nil)])
     ])
     viewModel.setAutoplayEnabled(true)
-    viewModel.applyCalibration(
-        PianoCalibration(a0: .zero, c8: SIMD3<Float>(1, 0, 0), planeHeight: 0),
-        keyRegions: [PianoKeyRegion(midiNote: 60, center: .zero, size: SIMD3<Float>(repeating: 1))]
+    viewModel.applyKeyboardGeometry(
+        makeDummyKeyboardGeometry(),
+        calibration: PianoCalibration(a0: .zero, c8: SIMD3<Float>(1, 0, 0), planeHeight: 0)
     )
 
     _ = viewModel.handleFingerTipPositions(["dummy": .zero])
@@ -798,11 +798,19 @@ private func settleTaskQueue(iterations: Int = 4) async {
     }
 }
 
+private func makeDummyKeyboardGeometry() -> PianoKeyboardGeometry {
+    let frame = KeyboardFrame(
+        a0World: SIMD3<Float>(0.0, 0.0, 0.0),
+        c8World: SIMD3<Float>(1.0, 0.0, 0.0),
+        planeHeight: 0.0
+    )!
+    return PianoKeyboardGeometry(frame: frame, keys: [])
+}
+
 private struct NoopPressDetectionService: PressDetectionServiceProtocol {
     func detectPressedNotes(
         fingerTips _: [String: SIMD3<Float>],
-        keyRegions _: [PianoKeyRegion],
-        keyboardFrame _: KeyboardFrame?,
+        keyboardGeometry _: PianoKeyboardGeometry?,
         at _: Date
     ) -> Set<Int> {
         []
@@ -822,8 +830,7 @@ private struct ConstantPressDetectionService: PressDetectionServiceProtocol {
 
     func detectPressedNotes(
         fingerTips _: [String: SIMD3<Float>],
-        keyRegions _: [PianoKeyRegion],
-        keyboardFrame _: KeyboardFrame?,
+        keyboardGeometry _: PianoKeyboardGeometry?,
         at _: Date
     ) -> Set<Int> {
         pressedNotes

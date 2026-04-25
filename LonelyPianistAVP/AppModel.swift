@@ -371,8 +371,8 @@ class AppModel {
 
     private func applySessionIfPossible() {
         guard let calibration else { return }
-        let keyRegions = keyGeometryService.generateKeyRegions(from: calibration)
-        practiceSessionViewModel.applyCalibration(calibration, keyRegions: keyRegions)
+        guard let keyboardGeometry = keyGeometryService.generateKeyboardGeometry(from: calibration) else { return }
+        practiceSessionViewModel.applyKeyboardGeometry(keyboardGeometry, calibration: calibration)
     }
 
     private func worldAnchorPoint(from anchor: WorldAnchor) -> SIMD3<Float> {
