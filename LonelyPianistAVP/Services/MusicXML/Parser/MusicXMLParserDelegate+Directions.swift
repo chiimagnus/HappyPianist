@@ -275,7 +275,8 @@ extension MusicXMLParserDelegate {
         guard delta != 0 else { return }
 
         if var tempoEvents = state.rawTempoEventsByPart[state.currentPartID],
-           state.currentDirectionTempoStartIndex < tempoEvents.count {
+           state.currentDirectionTempoStartIndex < tempoEvents.count
+        {
             for i in state.currentDirectionTempoStartIndex ..< tempoEvents.count {
                 let shifted = max(state.currentDirectionMeasureStartTick, tempoEvents[i].tick + delta)
                 tempoEvents[i] = RawTempoEvent(
@@ -288,7 +289,8 @@ extension MusicXMLParserDelegate {
             }
             if state.currentDirectionSoundOffsetTempoOverrideTicksByIndex.isEmpty == false {
                 for (i, overrideTick) in state.currentDirectionSoundOffsetTempoOverrideTicksByIndex
-                    where i >= state.currentDirectionTempoStartIndex && i < tempoEvents.count {
+                    where i >= state.currentDirectionTempoStartIndex && i < tempoEvents.count
+                {
                     tempoEvents[i] = RawTempoEvent(
                         partID: tempoEvents[i].partID,
                         tick: overrideTick,
@@ -318,7 +320,8 @@ extension MusicXMLParserDelegate {
             }
             if state.currentDirectionSoundOffsetSoundOverrideTicksByIndex.isEmpty == false {
                 for (i, overrideTick) in state.currentDirectionSoundOffsetSoundOverrideTicksByIndex
-                    where i >= state.currentDirectionSoundStartIndex && i < state.soundDirectives.count {
+                    where i >= state.currentDirectionSoundStartIndex && i < state.soundDirectives.count
+                {
                     state.soundDirectives[i] = MusicXMLSoundDirective(
                         partID: state.soundDirectives[i].partID,
                         measureNumber: state.soundDirectives[i].measureNumber,
@@ -348,7 +351,8 @@ extension MusicXMLParserDelegate {
             }
             if state.currentDirectionSoundOffsetPedalOverrideTicksByIndex.isEmpty == false {
                 for (i, overrideTick) in state.currentDirectionSoundOffsetPedalOverrideTicksByIndex
-                    where i >= state.currentDirectionPedalStartIndex && i < state.pedalEvents.count {
+                    where i >= state.currentDirectionPedalStartIndex && i < state.pedalEvents.count
+                {
                     state.pedalEvents[i] = MusicXMLPedalEvent(
                         partID: state.pedalEvents[i].partID,
                         measureNumber: state.pedalEvents[i].measureNumber,
@@ -369,7 +373,8 @@ extension MusicXMLParserDelegate {
         let tick = max(state.currentSoundMeasureStartTick, state.currentSoundBaseTick + offsetTicks)
 
         if var tempoEvents = state.rawTempoEventsByPart[state.currentPartID],
-           state.currentSoundTempoStartIndex < tempoEvents.count {
+           state.currentSoundTempoStartIndex < tempoEvents.count
+        {
             for i in state.currentSoundTempoStartIndex ..< tempoEvents.count {
                 tempoEvents[i] = RawTempoEvent(
                     partID: tempoEvents[i].partID,

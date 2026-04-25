@@ -16,7 +16,7 @@ func attributeTimelineResolvesLastEventsAtOrBeforeTick() {
                 beats: 3,
                 beatType: 4,
                 scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
-            )
+            ),
         ],
         keySignatureEvents: [
             MusicXMLKeySignatureEvent(
@@ -24,7 +24,7 @@ func attributeTimelineResolvesLastEventsAtOrBeforeTick() {
                 fifths: -3,
                 modeToken: "minor",
                 scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
-            )
+            ),
         ],
         clefEvents: [
             MusicXMLClefEvent(
@@ -42,7 +42,7 @@ func attributeTimelineResolvesLastEventsAtOrBeforeTick() {
                 octaveChange: nil,
                 numberToken: "2",
                 scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
-            )
+            ),
         ]
     )
 

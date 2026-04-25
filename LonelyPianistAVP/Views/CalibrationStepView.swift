@@ -3,77 +3,60 @@ import SwiftUI
 struct CalibrationStepView: View {
     @Bindable var viewModel: ARGuideViewModel
 
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
 
     @State private var hasRequestedImmersiveOpen = false
     @State private var isStepVisible = false
-    @State private var immersiveLifecycleMessage: String?
+
+    #if DEBUG && targetEnvironment(simulator)
+        @State private var simulatorDemoEnabled = true
+        @State private var simulatorDemoTask: Task<Void, Never>?
+    #endif
 
     var body: some View {
-        Form {
-            Section("说明") {
-                Text("在沉浸空间中依次捕获 A0 / C8 后保存校准。")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
+        let phase = viewModel.calibrationPhase
+        let errorMessage: String? = {
+            if case let .error(message) = phase {
+                return message
             }
+            return nil
+        }()
 
-            Section("校准") {
-                Text(captureHintText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                ViewThatFits {
-                    AnyLayout(HStackLayout(spacing: 10)) {
-                        calibrationButtons
-                    }
-                    AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) {
-                        calibrationButtons
-                    }
-                }
-            }
-
-            if viewModel.storedCalibration != nil {
-                Section("当前校准") {
-                    Text("当前校准已保存（待定位）。若键位高亮存在偏差，可重新校准。")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    Button("重新校准") {
-                        viewModel.beginCalibrationRecapture()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .hoverEffect()
-                }
-            }
-
-            if let message = viewModel.calibrationStatusMessage {
-                Section("状态") {
-                    Text(message)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            if let immersiveLifecycleMessage {
-                Section("沉浸空间") {
-                    Text(immersiveLifecycleMessage)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-        }
-        .buttonBorderShape(.roundedRectangle)
+        return CalibrationStageCard(
+            stage: CalibrationCardStage(phase: phase),
+            phase: phase,
+            storedCalibration: viewModel.storedCalibration,
+            isReticleReadyToConfirm: isReticleReadyToConfirm,
+            errorMessage: errorMessage,
+            onReturnHome: { dismiss() },
+            simulatorDemoState: simulatorDemoState,
+            onSimulatorDemoAdvance: simulatorDemoState == nil ? nil : { handleSimulatorDemoAdvance() }
+        )
         .onAppear {
             isStepVisible = true
+
+            if isSimulatorDemoActive {
+                viewModel.endCalibrationGuidedFlow()
+                #if DEBUG
+                    viewModel.setCalibrationPhaseForPreview(.capturingA0)
+                #endif
+                return
+            }
+
+            viewModel.beginCalibrationGuidedFlow()
             guard hasRequestedImmersiveOpen == false else { return }
             hasRequestedImmersiveOpen = true
 
             Task { @MainActor in
-                immersiveLifecycleMessage = await viewModel.openImmersiveForStep(
+                let openError = await viewModel.openImmersiveForStep(
                     mode: .calibration,
                     using: openImmersiveSpace
                 )
+                if let openError {
+                    viewModel.presentCalibrationError(message: openError)
+                }
 
                 if isStepVisible == false {
                     await viewModel.closeImmersiveForStep(using: dismissImmersiveSpace)
@@ -84,51 +67,290 @@ struct CalibrationStepView: View {
         .onDisappear {
             isStepVisible = false
             hasRequestedImmersiveOpen = false
-            Task { @MainActor in
-                await viewModel.closeImmersiveForStep(using: dismissImmersiveSpace)
-                await viewModel.recoverImmersiveStateIfStuck()
+            #if DEBUG && targetEnvironment(simulator)
+                simulatorDemoTask?.cancel()
+                simulatorDemoTask = nil
+            #endif
+            viewModel.endCalibrationGuidedFlow()
+
+            if isSimulatorDemoActive == false {
+                Task { @MainActor in
+                    await viewModel.closeImmersiveForStep(using: dismissImmersiveSpace)
+                    await viewModel.recoverImmersiveStateIfStuck()
+                }
             }
         }
     }
 
-    @ViewBuilder
-    private var calibrationButtons: some View {
-        Button("设置 A0") { viewModel.pendingCalibrationCaptureAnchor = .a0 }
-            .buttonStyle(.bordered)
-            .hoverEffect()
-        Button("设置 C8") { viewModel.pendingCalibrationCaptureAnchor = .c8 }
-            .buttonStyle(.bordered)
-            .hoverEffect()
-        Button("保存") { viewModel.saveCalibration() }
-            .buttonStyle(.borderedProminent)
-            .disabled(
-                viewModel.calibrationCaptureService.a0AnchorID == nil ||
-                    viewModel.calibrationCaptureService.c8AnchorID == nil
-            )
-            .hoverEffect()
+    private var isReticleReadyToConfirm: Bool {
+        #if DEBUG && targetEnvironment(simulator)
+            if isSimulatorDemoActive { return true }
+        #endif
+        return viewModel.calibrationCaptureService.isReticleReadyToConfirm
     }
 
-    private var captureHintText: String {
-        guard let pending = viewModel.pendingCalibrationCaptureAnchor else {
-            return "提示：先点“设置 A0 / 设置 C8”。把左手食指按在对应琴键上，等待准星变绿（稳定）后，用右手捏合一次确认。"
+    private var isSimulatorDemoActive: Bool {
+        #if DEBUG && targetEnvironment(simulator)
+            return simulatorDemoEnabled
+        #else
+            return false
+        #endif
+    }
+
+    private var simulatorDemoState: CalibrationSimulatorDemoState? {
+        #if DEBUG && targetEnvironment(simulator)
+            return isSimulatorDemoActive ? .enabled : nil
+        #else
+            return nil
+        #endif
+    }
+
+    private func handleSimulatorDemoAdvance() {
+        #if DEBUG && targetEnvironment(simulator)
+            guard isSimulatorDemoActive else { return }
+
+            simulatorDemoTask?.cancel()
+            simulatorDemoTask = Task { @MainActor in
+                switch viewModel.calibrationPhase {
+                    case .capturingA0:
+                        viewModel.setCalibrationPhaseForPreview(.transitionA0)
+                        try? await Task.sleep(for: .seconds(1.25))
+                        guard Task.isCancelled == false else { return }
+                        viewModel.setCalibrationPhaseForPreview(.capturingC8)
+
+                    case .capturingC8:
+                        viewModel.setCalibrationPhaseForPreview(.transitionC8)
+                        try? await Task.sleep(for: .seconds(0.3))
+                        guard Task.isCancelled == false else { return }
+                        viewModel.setCalibrationPhaseForPreview(.completed)
+
+                    case .completed:
+                        dismiss()
+
+                    case .error:
+                        viewModel.setCalibrationPhaseForPreview(.capturingA0)
+
+                    default:
+                        break
+                }
+            }
+        #endif
+    }
+}
+
+private enum CalibrationSimulatorDemoState: Hashable {
+    case enabled
+}
+
+private enum CalibrationCardStage: Hashable {
+    case capturingA0
+    case capturingC8
+    case completed
+    case error
+
+    init(phase: ARGuideViewModel.CalibrationPhase) {
+        switch phase {
+            case .capturingA0, .transitionA0:
+                self = .capturingA0
+            case .capturingC8, .transitionC8:
+                self = .capturingC8
+            case .completed:
+                self = .completed
+            case .error:
+                self = .error
         }
-        return "待锁定：\(pending == .a0 ? "A0" : "C8")（左手食指放稳，准星变绿后右手捏合确认）"
     }
 }
 
-#Preview("Step 1 - 初始") {
-    let appModel = AppModel()
-    appModel.calibrationStatusMessage = "请重新校准"
-    return CalibrationStepView(viewModel: ARGuideViewModel(appModel: appModel))
+private struct CalibrationStageCard: View {
+    let stage: CalibrationCardStage
+    let phase: ARGuideViewModel.CalibrationPhase
+    let storedCalibration: StoredWorldAnchorCalibration?
+    let isReticleReadyToConfirm: Bool
+    let errorMessage: String?
+    let onReturnHome: () -> Void
+    let simulatorDemoState: CalibrationSimulatorDemoState?
+    let onSimulatorDemoAdvance: (() -> Void)?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if stage == .capturingA0 || stage == .capturingC8 {
+                PianoKeyboard88View(
+                    highlightedMIDINotes: highlightedMIDINotes,
+                    highlightColorByMIDINote: highlightColorByMIDINote
+                )
+                .aspectRatio(PianoKeyboard88View.aspectRatio, contentMode: .fit)
+                .frame(maxWidth: .infinity)
+                .overlay {
+                    KeyboardMovingGlowOverlay(
+                        isActive: showsMovingGlow,
+                        startFraction: PianoKeyboard88View
+                            .keyCenterFraction(midiNote: PianoKeyboard88View.minPlayableMIDINote) ?? 0,
+                        endFraction: PianoKeyboard88View
+                            .keyCenterFraction(midiNote: PianoKeyboard88View.maxPlayableMIDINote) ?? 1
+                    )
+                }
+
+                Text(step == .a0 ? "左手食指放在 A0 键，准星变绿后捏合确认。" : "左手食指移到 C8 键，准星变绿后捏合确认。")
+                    .font(.callout)
+
+                Text(isReticleReadyToConfirm ? "已就绪：现在可捏合确认" : "等待稳定：准星变绿后再捏合确认")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                #if DEBUG && targetEnvironment(simulator)
+                    if simulatorDemoState == .enabled, let onSimulatorDemoAdvance {
+                        HStack {
+                            Text("模拟器演示")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                            Button("下一步") {
+                                onSimulatorDemoAdvance()
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .hoverEffect()
+                        }
+                    }
+                #endif
+            } else if stage == .completed {
+                completionBody
+            } else if stage == .error {
+                errorBody
+            }
+        }
+        .padding()
+    }
+
+    private var completionBody: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "checkmark.circle")
+                .font(.system(size: 72, weight: .semibold))
+                .foregroundStyle(.green)
+
+            Text("校准完成")
+                .font(.title2.weight(.semibold))
+
+            Button("返回首页") {
+                onReturnHome()
+            }
+            .buttonStyle(.borderedProminent)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var errorBody: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "xmark.circle.fill")
+                .font(.system(size: 72, weight: .semibold))
+                .foregroundStyle(.red)
+
+            VStack(spacing: 6) {
+                Text("无法校准")
+                    .font(.title2.weight(.semibold))
+                Text(errorMessage ?? "手部追踪不可用，无法进入校准流程。")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+
+            Button("返回首页") {
+                onReturnHome()
+            }
+            .buttonStyle(.borderedProminent)
+            .hoverEffect()
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var step: CalibrationAnchorPoint {
+        stage == .capturingC8 ? .c8 : .a0
+    }
+
+    private var isA0Locked: Bool {
+        phase == .transitionA0 || stage == .capturingC8 || stage == .completed
+    }
+
+    private var showsMovingGlow: Bool {
+        phase == .transitionA0
+    }
+
+    private var highlightedMIDINotes: Set<Int> {
+        switch step {
+            case .a0:
+                [21]
+            case .c8:
+                isA0Locked ? [21, 108] : [108]
+        }
+    }
+
+    private var highlightColorByMIDINote: [Int: Color] {
+        switch step {
+            case .a0:
+                return [21: Color.blue]
+            case .c8:
+                if isA0Locked {
+                    return [21: Color.green, 108: Color.blue]
+                }
+                return [108: Color.blue]
+        }
+    }
 }
 
-#Preview("Step 1 - 已校准") {
-    let appModel = AppModel()
-    appModel.storedCalibration = StoredWorldAnchorCalibration(
-        a0AnchorID: UUID(),
-        c8AnchorID: UUID(),
-        whiteKeyWidth: 0.0235
-    )
-    appModel.calibrationStatusMessage = "已保存校准（待定位）"
-    return CalibrationStepView(viewModel: ARGuideViewModel(appModel: appModel))
+private struct KeyboardMovingGlowOverlay: View {
+    let isActive: Bool
+    let startFraction: CGFloat
+    let endFraction: CGFloat
+
+    @State private var progress: CGFloat = 0
+    private let animationDurationSeconds: Double = 1.25
+
+    var body: some View {
+        GeometryReader { proxy in
+            let width = proxy.size.width
+            let height = proxy.size.height
+            let glowWidth = max(60, width * 0.18)
+            let clampedStart = max(0, min(1, startFraction))
+            let clampedEnd = max(0, min(1, endFraction))
+
+            let startCenterX = clampedStart * width
+            let endCenterX = clampedEnd * width
+            let centerX = startCenterX + (progress * (endCenterX - startCenterX))
+            let x = centerX - (glowWidth / 2)
+
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            .clear,
+                            Color.blue.opacity(0.32),
+                            .clear,
+                        ],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(width: glowWidth, height: height)
+                .blur(radius: 10)
+                .offset(x: x, y: 0)
+                .opacity(isActive ? 1 : 0)
+                .allowsHitTesting(false)
+                .task(id: isActive) {
+                    if isActive {
+                        withTransaction(Transaction(animation: nil)) {
+                            progress = 0
+                        }
+                        withAnimation(.easeInOut(duration: animationDurationSeconds)) {
+                            progress = 1
+                        }
+                    } else {
+                        withTransaction(Transaction(animation: nil)) {
+                            progress = 0
+                        }
+                    }
+                }
+        }
+        .clipShape(.rect(cornerRadius: 12))
+        .allowsHitTesting(false)
+    }
 }

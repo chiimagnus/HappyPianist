@@ -16,7 +16,7 @@ struct MusicXMLVelocityResolverTests {
                 velocity: 80,
                 scope: MusicXMLEventScope(partID: "P1", staff: 1, voice: nil),
                 source: .soundDynamicsAttribute
-            )
+            ),
         ]
         let resolver = MusicXMLVelocityResolver(dynamicEvents: events, defaultVelocity: 96)
 
@@ -81,7 +81,7 @@ struct MusicXMLVelocityResolverTests {
                 velocity: 100,
                 scope: MusicXMLEventScope(partID: "P1", staff: 1, voice: nil),
                 source: .directionDynamics
-            )
+            ),
         ]
         let wedgeEvents: [MusicXMLWedgeEvent] = [
             MusicXMLWedgeEvent(
@@ -95,7 +95,7 @@ struct MusicXMLVelocityResolverTests {
                 kind: .stop,
                 numberToken: "1",
                 scope: MusicXMLEventScope(partID: "P1", staff: 1, voice: nil)
-            )
+            ),
         ]
 
         let resolver = MusicXMLVelocityResolver(

@@ -35,7 +35,7 @@ func songLibraryIndexStoreSaveAndLoadRoundTrip() throws {
                 musicXMLFileName: "2026-04-21T21-00-00Z-Opus.musicxml",
                 importedAt: importedAt,
                 audioFileName: "2026-04-21T21-00-00Z-Opus.m4a"
-            )
+            ),
         ],
         lastSelectedEntryID: entryID
     )

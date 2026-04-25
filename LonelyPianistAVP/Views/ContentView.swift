@@ -165,7 +165,7 @@ private struct StepOrbLink: View {
     appModel.setImportedSteps(
         [
             PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 64, staff: nil)])
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
         ],
         file: nil
     )

@@ -27,7 +27,7 @@ func descriptorsAreEmptyWhenKeyboardGeometryIsNil() {
 func descriptorsDeduplicateNotesAndAlignToSurface() {
     let step = PracticeStep(tick: 0, notes: [
         PracticeStepNote(midiNote: 60, staff: nil),
-        PracticeStepNote(midiNote: 60, staff: nil)
+        PracticeStepNote(midiNote: 60, staff: nil),
     ])
     let geometry = makeGeometry()
 

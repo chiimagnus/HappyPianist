@@ -78,11 +78,11 @@ class AppModel {
     func beginCalibrationRecapture() {
         let persistedAnchorIDs = Set([
             storedCalibration?.a0AnchorID,
-            storedCalibration?.c8AnchorID
+            storedCalibration?.c8AnchorID,
         ].compactMap(\.self))
         let capturedAnchorIDs = Set([
             calibrationCaptureService.a0AnchorID,
-            calibrationCaptureService.c8AnchorID
+            calibrationCaptureService.c8AnchorID,
         ].compactMap(\.self)).subtracting(persistedAnchorIDs)
 
         guard capturedAnchorIDs.isEmpty == false else {
@@ -202,14 +202,15 @@ class AppModel {
         }
     }
 
-    func saveCalibrationIfPossible() {
+    @discardableResult
+    func saveCalibrationIfPossible() -> Bool {
         guard
             let a0AnchorID = calibrationCaptureService.a0AnchorID,
             let c8AnchorID = calibrationCaptureService.c8AnchorID,
             a0AnchorID != c8AnchorID
         else {
             calibrationStatusMessage = "校准信息不完整"
-            return
+            return false
         }
 
         let savedCalibration = StoredWorldAnchorCalibration(
@@ -235,8 +236,10 @@ class AppModel {
                     )
                 }
             }
+            return true
         } catch {
             calibrationStatusMessage = "保存校准失败：\(error.localizedDescription)"
+            return false
         }
     }
 

@@ -103,9 +103,9 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
         let sourceNames = connectedSources.map(endpointName)
         onSourceNamesChange?(sourceNames)
 
-	        onConnectionStateChange?(.connected(sourceCount: connectedSources.count))
-	        logger.info("MIDI connected source count: \(self.connectedSources.count, privacy: .public)")
-	    }
+        onConnectionStateChange?(.connected(sourceCount: connectedSources.count))
+        logger.info("MIDI connected source count: \(connectedSources.count, privacy: .public)")
+    }
 
     private func createClientIfNeeded() throws {
         guard clientRef == 0 else { return }

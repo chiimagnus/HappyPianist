@@ -7,6 +7,15 @@ import SwiftUI
 @MainActor
 @Observable
 final class ARGuideViewModel {
+    enum CalibrationPhase: Equatable {
+        case capturingA0
+        case transitionA0
+        case capturingC8
+        case transitionC8
+        case completed
+        case error(message: String)
+    }
+
     enum PracticeLocalizationFailure: Equatable {
         case missingImportedSteps
         case missingStoredCalibration
@@ -58,6 +67,9 @@ final class ARGuideViewModel {
     private let appModel: AppModel
     private var handTrackingConsumerTask: Task<Void, Never>?
     private var calibrationAnchorCaptureTask: Task<Void, Never>?
+    private var calibrationFlowBootstrapTask: Task<Void, Never>?
+    private var calibrationGuidedFlowTask: Task<Void, Never>?
+    private var calibrationSupportPollTask: Task<Void, Never>?
     private var practiceLocalizationTask: Task<Void, Never>?
     private var wasRightHandPinching = false
     private let providerStartupTimeoutSeconds = 5
@@ -65,6 +77,7 @@ final class ARGuideViewModel {
     private let practiceLocalizationPollingIntervalNanoseconds: UInt64 = 250_000_000
 
     private(set) var practiceLocalizationState: PracticeLocalizationState = .idle
+    private(set) var calibrationPhase: CalibrationPhase = .capturingA0
 
     init(appModel: AppModel) {
         self.appModel = appModel
@@ -123,11 +136,46 @@ final class ARGuideViewModel {
     }
 
     func saveCalibration() {
-        appModel.saveCalibrationIfPossible()
+        _ = appModel.saveCalibrationIfPossible()
     }
 
     func beginCalibrationRecapture() {
         appModel.beginCalibrationRecapture()
+    }
+
+    func beginCalibrationGuidedFlow() {
+        cancelCalibrationGuidedFlowTasks()
+        calibrationPhase = .capturingA0
+        calibrationFlowBootstrapTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            beginCalibrationRecapture()
+
+            for _ in 0 ..< 40 {
+                guard Task.isCancelled == false else { return }
+                if calibrationCaptureService.a0AnchorID == nil,
+                   calibrationCaptureService.c8AnchorID == nil
+                {
+                    break
+                }
+                try? await Task.sleep(for: .milliseconds(50))
+            }
+
+            calibrationStatusMessage = nil
+            pendingCalibrationCaptureAnchor = .a0
+            calibrationPhase = .capturingA0
+            calibrationFlowBootstrapTask = nil
+        }
+    }
+
+    func presentCalibrationError(message: String) {
+        cancelCalibrationGuidedFlowTasks()
+        calibrationStatusMessage = message
+        pendingCalibrationCaptureAnchor = nil
+        calibrationPhase = .error(message: message)
+    }
+
+    func endCalibrationGuidedFlow() {
+        cancelCalibrationGuidedFlowTasks()
     }
 
     func skipStep() {
@@ -293,6 +341,7 @@ final class ARGuideViewModel {
             case .calibration:
                 wasRightHandPinching = false
                 startHandTrackingIfNeeded()
+                startCalibrationSupportPollingIfNeeded()
                 updateCalibrationTrackingStatusIfNeeded()
 
             case .practice:
@@ -301,6 +350,7 @@ final class ARGuideViewModel {
     }
 
     func onImmersiveDisappear() {
+        cancelCalibrationGuidedFlowTasks()
         cancelPracticeLocalizationTask()
         stopHandTracking()
     }
@@ -355,27 +405,29 @@ final class ARGuideViewModel {
 
     private func updateCalibrationTrackingStatusIfNeeded() {
         guard appModel.immersiveMode == .calibration else { return }
-        guard calibrationStatusMessage == nil else { return }
+        guard calibrationPhase != .completed else { return }
 
         let handState = arTrackingService.providerStateByName["hand"] ?? .idle
         let worldState = arTrackingService.providerStateByName["world"] ?? .idle
-
-        switch (handState, worldState) {
+        let failureMessage: String? = switch (handState, worldState) {
             case (.unsupported, _):
-                calibrationStatusMessage = "手部追踪不可用：此设备不支持手部追踪。"
+                "手部追踪不可用：此设备不支持手部追踪。"
             case (.unauthorized, _):
-                calibrationStatusMessage = "手部追踪未授权：请在系统设置中允许本 App 使用 Hand Tracking。"
+                "手部追踪未授权：请在系统设置中允许本 App 使用 Hand Tracking。"
             case let (.failed(reason), _):
-                calibrationStatusMessage = "手部追踪启动失败：\(reason)"
+                "手部追踪启动失败：\(reason)"
             case (_, .unsupported):
-                calibrationStatusMessage = "世界追踪不可用：此环境不支持 World Tracking。"
+                "世界追踪不可用：此环境不支持 World Tracking。"
             case (_, .unauthorized):
-                calibrationStatusMessage = "世界追踪不可用：WorldTrackingProvider 未能启动（请稍后重试）。"
+                "世界追踪不可用：WorldTrackingProvider 未能启动（请稍后重试）。"
             case let (_, .failed(reason)):
-                calibrationStatusMessage = "世界追踪启动失败：\(reason)"
+                "世界追踪启动失败：\(reason)"
             default:
-                break
+                nil
         }
+
+        guard let failureMessage else { return }
+        presentCalibrationError(message: failureMessage)
     }
 
     private func confirmPendingCalibrationAnchorIfReady() async {
@@ -397,14 +449,17 @@ final class ARGuideViewModel {
             calibrationCaptureService.setAnchorID(worldAnchor.id, for: pendingAnchor)
             calibrationStatusMessage = "已锁定 \(pendingAnchor == .a0 ? "A0" : "C8")"
             pendingCalibrationCaptureAnchor = nil
+            onCalibrationAnchorConfirmed(pendingAnchor)
 
             if let oldAnchorID,
                oldAnchorID != worldAnchor.id,
-               let oldAnchor = arTrackingService.worldAnchorsByID[oldAnchorID] {
+               let oldAnchor = arTrackingService.worldAnchorsByID[oldAnchorID]
+            {
                 try? await arTrackingService.worldTrackingProvider.removeAnchor(oldAnchor)
             }
         } catch {
             calibrationStatusMessage = "锁定失败：\(error.localizedDescription)"
+            presentCalibrationError(message: calibrationStatusMessage ?? "锁定失败")
         }
     }
 
@@ -413,6 +468,8 @@ final class ARGuideViewModel {
         calibrationAnchorCaptureTask = nil
         handTrackingConsumerTask?.cancel()
         handTrackingConsumerTask = nil
+        calibrationSupportPollTask?.cancel()
+        calibrationSupportPollTask = nil
         arTrackingService.stop()
     }
 
@@ -591,7 +648,8 @@ final class ARGuideViewModel {
         }
 
         if let handAuthorizationStatus = arTrackingService.authorizationStatusByType[.handTracking],
-           handAuthorizationStatus != .allowed {
+           handAuthorizationStatus != .allowed
+        {
             return .handTrackingDenied
         }
 
@@ -658,4 +716,77 @@ final class ARGuideViewModel {
             transform.columns.3.z
         )
     }
+
+    private func onCalibrationAnchorConfirmed(_ anchor: CalibrationAnchorPoint) {
+        guard calibrationPhase != .completed else { return }
+        if case .error = calibrationPhase { return }
+
+        calibrationGuidedFlowTask?.cancel()
+        calibrationGuidedFlowTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            switch anchor {
+                case .a0:
+                    calibrationPhase = .transitionA0
+                    calibrationStatusMessage = nil
+                    try? await Task.sleep(for: .seconds(1.25))
+                    guard Task.isCancelled == false else { return }
+                    pendingCalibrationCaptureAnchor = .c8
+                    calibrationPhase = .capturingC8
+
+                case .c8:
+                    calibrationPhase = .transitionC8
+                    let capturedA0 = calibrationCaptureService.a0AnchorID
+                    let capturedC8 = calibrationCaptureService.c8AnchorID
+                    calibrationStatusMessage = nil
+                    try? await Task.sleep(for: .seconds(0.3))
+                    guard Task.isCancelled == false else { return }
+
+                    let didSave = appModel.saveCalibrationIfPossible()
+                    if didSave,
+                       let storedCalibration,
+                       storedCalibration.a0AnchorID == capturedA0,
+                       storedCalibration.c8AnchorID == capturedC8
+                    {
+                        calibrationStatusMessage = nil
+                        calibrationPhase = .completed
+                    } else {
+                        let message = calibrationStatusMessage ?? "保存校准失败，请重试。"
+                        presentCalibrationError(message: message)
+                    }
+            }
+
+            calibrationGuidedFlowTask = nil
+        }
+    }
+
+    private func startCalibrationSupportPollingIfNeeded() {
+        guard appModel.immersiveMode == .calibration else { return }
+        guard calibrationSupportPollTask == nil else { return }
+
+        calibrationSupportPollTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for _ in 0 ..< 40 {
+                guard Task.isCancelled == false else { return }
+                updateCalibrationTrackingStatusIfNeeded()
+                if case .error = calibrationPhase { break }
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+            calibrationSupportPollTask = nil
+        }
+    }
+
+    private func cancelCalibrationGuidedFlowTasks() {
+        calibrationFlowBootstrapTask?.cancel()
+        calibrationFlowBootstrapTask = nil
+        calibrationGuidedFlowTask?.cancel()
+        calibrationGuidedFlowTask = nil
+        calibrationSupportPollTask?.cancel()
+        calibrationSupportPollTask = nil
+    }
+
+    #if DEBUG
+        func setCalibrationPhaseForPreview(_ phase: CalibrationPhase) {
+            calibrationPhase = phase
+        }
+    #endif
 }

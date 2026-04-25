@@ -17,7 +17,7 @@ enum DefaultConfigFactory {
         let chordRules: [ChordMappingRule] = [
             ChordMappingRule(notes: [60, 64, 67], output: keyStroke("c", modifiers: [.command])),
             ChordMappingRule(notes: [62, 65, 69], output: keyStroke("v", modifiers: [.command])),
-            ChordMappingRule(notes: [59, 62, 65], output: keyStroke("z", modifiers: [.command]))
+            ChordMappingRule(notes: [59, 62, 65], output: keyStroke("z", modifiers: [.command])),
         ]
 
         return MappingConfig(
