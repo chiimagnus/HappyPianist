@@ -727,7 +727,7 @@ final class ARGuideViewModel {
                 case .a0:
                     calibrationPhase = .transitionA0
                     calibrationStatusMessage = nil
-                    try? await Task.sleep(for: .seconds(0.3))
+                    try? await Task.sleep(for: .seconds(1.25))
                     guard Task.isCancelled == false else { return }
                     pendingCalibrationCaptureAnchor = .c8
                     calibrationPhase = .capturingC8

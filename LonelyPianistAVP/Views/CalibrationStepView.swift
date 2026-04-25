@@ -118,7 +118,7 @@ struct CalibrationStepView: View {
             switch viewModel.calibrationPhase {
                 case .capturingA0:
                     viewModel.setCalibrationPhaseForPreview(.transitionA0)
-                    try? await Task.sleep(for: .seconds(0.3))
+                    try? await Task.sleep(for: .seconds(1.25))
                     guard Task.isCancelled == false else { return }
                     viewModel.setCalibrationPhaseForPreview(.capturingC8)
 
@@ -352,6 +352,7 @@ private struct KeyboardMovingGlowOverlay: View {
     let isActive: Bool
 
     @State private var progress: CGFloat = 0
+    private let animationDurationSeconds: Double = 1.25
 
     var body: some View {
         GeometryReader { proxy in
@@ -377,28 +378,23 @@ private struct KeyboardMovingGlowOverlay: View {
                 .offset(x: x, y: 0)
                 .opacity(isActive ? 1 : 0)
                 .allowsHitTesting(false)
-                .onChange(of: isActive) {
-                    updateAnimation(width: width)
-                }
-                .onAppear {
-                    updateAnimation(width: width)
+                .task(id: isActive) {
+                    if isActive {
+                        withTransaction(Transaction(animation: nil)) {
+                            progress = 0
+                        }
+                        withAnimation(.easeInOut(duration: animationDurationSeconds)) {
+                            progress = 1
+                        }
+                    } else {
+                        withTransaction(Transaction(animation: nil)) {
+                            progress = 0
+                        }
+                    }
                 }
         }
         .clipShape(.rect(cornerRadius: 12))
         .allowsHitTesting(false)
-    }
-
-    private func updateAnimation(width: CGFloat) {
-        guard width > 1 else { return }
-
-        if isActive {
-            progress = 0
-            withAnimation(.easeInOut(duration: 0.55)) {
-                progress = 1
-            }
-        } else {
-            progress = 0
-        }
     }
 }
 
