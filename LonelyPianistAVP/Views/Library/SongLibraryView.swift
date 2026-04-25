@@ -4,7 +4,6 @@ import UniformTypeIdentifiers
 struct SongLibraryView: View {
     @Bindable var viewModel: SongLibraryViewModel
     let navigationPath: Binding<[MainFlowRoute]>
-    @State private var isImporterPresented = false
     @State private var isAudioImporterPresented = false
     @State private var pendingAudioBindingEntryID: UUID?
     @State private var pendingDeletionEntryID: UUID?
@@ -41,20 +40,7 @@ struct SongLibraryView: View {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("导入 MusicXML") {
                     viewModel.didTapImportMusicXML()
-                    isImporterPresented = true
                 }
-            }
-        }
-        .fileImporter(
-            isPresented: $isImporterPresented,
-            allowedContentTypes: [.xml, .musicXML],
-            allowsMultipleSelection: true
-        ) { result in
-            do {
-                let urls = try result.get()
-                viewModel.importMusicXML(from: urls)
-            } catch {
-                viewModel.errorMessage = "导入失败：\(error.localizedDescription)"
             }
         }
         .fileImporter(
@@ -141,7 +127,6 @@ struct SongLibraryView: View {
         } actions: {
             Button("导入 MusicXML") {
                 viewModel.didTapImportMusicXML()
-                isImporterPresented = true
             }
             .buttonStyle(.borderedProminent)
         }
@@ -154,9 +139,15 @@ struct SongLibraryView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(entry.displayName)
                             .font(.headline)
-                        Text(entry.importedAt, style: .date)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+                        if entry.isBundled == true {
+                            Text("内置曲目")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Text(entry.importedAt, style: .date)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
 
                     Spacer()
@@ -175,11 +166,13 @@ struct SongLibraryView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
 
-                        Button("导入音频") {
-                            pendingAudioBindingEntryID = entry.id
-                            isAudioImporterPresented = true
+                        if entry.isBundled != true {
+                            Button("导入音频") {
+                                pendingAudioBindingEntryID = entry.id
+                                isAudioImporterPresented = true
+                            }
+                            .buttonStyle(.bordered)
                         }
-                        .buttonStyle(.bordered)
                     } else {
                         Button(viewModel.isListeningPlaying(entryID: entry.id) ? "暂停" : "聆听") {
                             viewModel.didTapListen(entryID: entry.id)
@@ -190,8 +183,10 @@ struct SongLibraryView: View {
             }
             .padding(.vertical, 2)
             .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                Button("删除", role: .destructive) {
-                    pendingDeletionEntryID = entry.id
+                if entry.isBundled != true {
+                    Button("删除", role: .destructive) {
+                        pendingDeletionEntryID = entry.id
+                    }
                 }
             }
         }

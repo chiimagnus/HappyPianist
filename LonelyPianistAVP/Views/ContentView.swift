@@ -1,5 +1,6 @@
 import simd
 import SwiftUI
+import UniformTypeIdentifiers
 
 enum MainFlowRoute: Hashable {
     case calibration
@@ -50,6 +51,18 @@ struct ContentView: View {
                                 .toolbar(.hidden, for: .navigationBar)
                     }
                 }
+        }
+        .fileImporter(
+            isPresented: $songLibraryViewModel.isMusicXMLImporterPresented,
+            allowedContentTypes: [.xml, .musicXML],
+            allowsMultipleSelection: true
+        ) { result in
+            do {
+                let urls = try result.get()
+                songLibraryViewModel.importMusicXML(from: urls)
+            } catch {
+                songLibraryViewModel.errorMessage = "导入失败：\(error.localizedDescription)"
+            }
         }
     }
 
