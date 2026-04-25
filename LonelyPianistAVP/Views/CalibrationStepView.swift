@@ -180,12 +180,13 @@ private struct CalibrationCardContainer: View {
         VStack {
             switch stage {
                 case .capturingA0:
-                    wrapInSimulatorDemoButton(CalibrationCaptureCard(
+                    CalibrationCaptureCard(
                         step: .a0,
                         isA0Locked: false,
                         isReticleReadyToConfirm: isReticleReadyToConfirm,
-                        simulatorDemoState: simulatorDemoState
-                    ))
+                        simulatorDemoState: simulatorDemoState,
+                        onSimulatorDemoAdvance: simulatorDemoState == .enabled ? onSimulatorDemoAdvance : nil
+                    )
                     .transition(
                         .asymmetric(
                             insertion: .move(edge: .trailing).combined(with: .opacity),
@@ -194,12 +195,13 @@ private struct CalibrationCardContainer: View {
                     )
 
                 case .capturingC8:
-                    wrapInSimulatorDemoButton(CalibrationCaptureCard(
+                    CalibrationCaptureCard(
                         step: .c8,
                         isA0Locked: true,
                         isReticleReadyToConfirm: isReticleReadyToConfirm,
-                        simulatorDemoState: simulatorDemoState
-                    ))
+                        simulatorDemoState: simulatorDemoState,
+                        onSimulatorDemoAdvance: simulatorDemoState == .enabled ? onSimulatorDemoAdvance : nil
+                    )
                     .transition(
                         .asymmetric(
                             insertion: .move(edge: .trailing).combined(with: .opacity),
@@ -236,24 +238,6 @@ private struct CalibrationCardContainer: View {
         }
         .animation(.easeInOut(duration: 0.5), value: stage)
     }
-
-    @ViewBuilder
-    private func wrapInSimulatorDemoButton<Content: View>(_ content: Content) -> some View {
-        #if DEBUG && targetEnvironment(simulator)
-        if simulatorDemoState == .enabled {
-            Button {
-                onSimulatorDemoAdvance()
-            } label: {
-                content
-            }
-            .buttonStyle(.plain)
-        } else {
-            content
-        }
-        #else
-        content
-        #endif
-    }
 }
 
 private struct CalibrationCaptureCard: View {
@@ -261,6 +245,7 @@ private struct CalibrationCaptureCard: View {
     let isA0Locked: Bool
     let isReticleReadyToConfirm: Bool
     let simulatorDemoState: CalibrationSimulatorDemoState?
+    let onSimulatorDemoAdvance: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -294,10 +279,18 @@ private struct CalibrationCaptureCard: View {
                 .foregroundStyle(.secondary)
 
             #if DEBUG && targetEnvironment(simulator)
-            if simulatorDemoState == .enabled {
-                Text("模拟器演示：点击卡片模拟“捏合确认”。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            if simulatorDemoState == .enabled, let onSimulatorDemoAdvance {
+                HStack {
+                    Text("模拟器演示")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Button("下一步") {
+                        onSimulatorDemoAdvance()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .hoverEffect()
+                }
             }
             #endif
         }
