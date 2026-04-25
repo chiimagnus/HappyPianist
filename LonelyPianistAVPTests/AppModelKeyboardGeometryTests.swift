@@ -75,10 +75,4 @@ private final class CapturingKeyGeometryService: PianoKeyGeometryServiceProtocol
         callCount += 1
         return result
     }
-
-    func generateKeyRegions(from calibration: PianoCalibration) -> [PianoKeyRegion] {
-        _ = calibration
-        return []
-    }
 }
-

@@ -3,7 +3,6 @@ import simd
 
 protocol PianoKeyGeometryServiceProtocol {
     func generateKeyboardGeometry(from calibration: PianoCalibration) -> PianoKeyboardGeometry?
-    func generateKeyRegions(from calibration: PianoCalibration) -> [PianoKeyRegion]
 }
 
 struct PianoKeyGeometryService: PianoKeyGeometryServiceProtocol {
@@ -14,7 +13,6 @@ struct PianoKeyGeometryService: PianoKeyGeometryServiceProtocol {
 
     static let whiteKeyDepthMeters: Float = 0.14
     static let whiteKeyThicknessMeters: Float = 0.03
-    static let keyDepthMeters: Float = whiteKeyDepthMeters // Temporary source-compatible alias. Remove in P2.
 
     private static let blackKeyWidthScale: Float = 0.62
     private static let blackKeyDepthScale: Float = 0.62
@@ -122,20 +120,6 @@ struct PianoKeyGeometryService: PianoKeyGeometryServiceProtocol {
         return PianoKeyboardGeometry(frame: frame, keys: keys)
     }
 
-    func generateKeyRegions(from calibration: PianoCalibration) -> [PianoKeyRegion] {
-        // Temporary migration bridge. Remove in P2-T4.
-        guard let geometry = generateKeyboardGeometry(from: calibration) else { return [] }
-
-        return geometry.keys.map { key in
-            // Keep legacy region-center semantics for existing callers/tests:
-            // - keyboard-local y = 0 (plane height)
-            // - keyboard-local z = frontEdgeToKeyCenterLocalZ (may be 0)
-            let legacyCenterLocal = SIMD3<Float>(key.localCenter.x, 0, calibration.frontEdgeToKeyCenterLocalZ)
-            let centerWorld4 = simd_mul(geometry.frame.worldFromKeyboard, SIMD4<Float>(legacyCenterLocal, 1))
-            let centerWorld = SIMD3<Float>(centerWorld4.x, centerWorld4.y, centerWorld4.z)
-            return PianoKeyRegion(midiNote: key.midiNote, center: centerWorld, size: key.localSize)
-        }
-    }
 }
 
 extension PianoKeyGeometryService {

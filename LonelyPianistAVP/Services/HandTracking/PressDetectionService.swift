@@ -20,59 +20,6 @@ final class PressDetectionService: PressDetectionServiceProtocol {
 
     func detectPressedNotes(
         fingerTips: [String: SIMD3<Float>],
-        keyRegions: [PianoKeyRegion],
-        keyboardFrame: KeyboardFrame?,
-        at timestamp: Date
-    ) -> Set<Int> {
-        var pressed: Set<Int> = []
-
-        for (fingerID, currentPosition) in fingerTips {
-            defer { lastFingerTipPositions[fingerID] = currentPosition }
-            guard let previousPosition = lastFingerTipPositions[fingerID] else { continue }
-
-            for region in keyRegions {
-                let previousPoint: SIMD3<Float>
-                let currentPoint: SIMD3<Float>
-                let regionCenter: SIMD3<Float>
-                let minPoint: SIMD3<Float>
-                let maxPoint: SIMD3<Float>
-
-                if let keyboardFrame {
-                    previousPoint = Self.transformPoint(keyboardFrame.keyboardFromWorld, previousPosition)
-                    currentPoint = Self.transformPoint(keyboardFrame.keyboardFromWorld, currentPosition)
-                    regionCenter = Self.transformPoint(keyboardFrame.keyboardFromWorld, region.center)
-                    minPoint = regionCenter - region.size / 2
-                    maxPoint = regionCenter + region.size / 2
-                } else {
-                    previousPoint = previousPosition
-                    currentPoint = currentPosition
-                    regionCenter = region.center
-                    minPoint = region.min
-                    maxPoint = region.max
-                }
-
-                let keyPlaneY = regionCenter.y + region.size.y * 0.5
-                let crossedPlane = previousPoint.y > keyPlaneY && currentPoint.y <= keyPlaneY
-                guard crossedPlane else { continue }
-
-                let insideKeyBounds = currentPoint.x >= minPoint.x && currentPoint.x <= maxPoint.x
-                    && currentPoint.z >= minPoint.z && currentPoint.z <= maxPoint.z
-                guard insideKeyBounds else { continue }
-
-                let lastTriggerTime = lastTriggerTimeByNote[region.midiNote]
-                let isCoolingDown = lastTriggerTime.map { timestamp.timeIntervalSince($0) < cooldownSeconds } ?? false
-                guard isCoolingDown == false else { continue }
-
-                pressed.insert(region.midiNote)
-                lastTriggerTimeByNote[region.midiNote] = timestamp
-            }
-        }
-
-        return pressed
-    }
-
-    func detectPressedNotes(
-        fingerTips: [String: SIMD3<Float>],
         keyboardGeometry: PianoKeyboardGeometry?,
         at timestamp: Date
     ) -> Set<Int> {
