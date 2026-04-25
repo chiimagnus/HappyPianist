@@ -24,18 +24,16 @@ struct CalibrationStepView: View {
             return nil
         }()
 
-        return ZStack {
-            CalibrationStageCard(
-                stage: CalibrationCardStage(phase: phase),
-                phase: phase,
-                storedCalibration: viewModel.storedCalibration,
-                isReticleReadyToConfirm: isReticleReadyToConfirm,
-                errorMessage: errorMessage,
-                onReturnHome: { dismiss() },
-                simulatorDemoState: simulatorDemoState,
-                onSimulatorDemoAdvance: simulatorDemoState == nil ? nil : { handleSimulatorDemoAdvance() }
-            )
-        }
+        return CalibrationStageCard(
+            stage: CalibrationCardStage(phase: phase),
+            phase: phase,
+            storedCalibration: viewModel.storedCalibration,
+            isReticleReadyToConfirm: isReticleReadyToConfirm,
+            errorMessage: errorMessage,
+            onReturnHome: { dismiss() },
+            simulatorDemoState: simulatorDemoState,
+            onSimulatorDemoAdvance: simulatorDemoState == nil ? nil : { handleSimulatorDemoAdvance() }
+        )
         .onAppear {
             isStepVisible = true
 
