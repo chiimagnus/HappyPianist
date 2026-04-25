@@ -22,7 +22,7 @@ LonelyPianist 由三条运行面和两条自动化路径组成：macOS 负责 MI
 | `SongLibraryViewModel` | fileImporter URLs | index + score/audio 存储 | 导入 / 删除 / 试听 |
 | `ARGuideViewModel` | immersive state + providers | localization state | open / locate / retry |
 | `PracticeSessionViewModel` | finger tips + steps | matching / autoplay / feedback | `handleFingerTipPositions` |
-| `PianoGuideOverlayController` | `PracticeStep`, key regions, feedback | RealityKit 光柱 marker | beam geometry、tint、keyboard-local transform |
+| `PianoGuideOverlayController` | `PracticeStep`, `PianoKeyboardGeometry`, feedback | RealityKit 光束实体 | four-side atlas、单几何体、keyboard-local transform |
 
 ## 依赖方向
 ```mermaid
@@ -95,7 +95,7 @@ PR Tests 是门禁型工作流；Swift Quality 是维护型工作流。两者故
 | `AppModel.resolveRuntimeCalibrationFromTrackedAnchors` | Step 3 定位失败 | AVP tests + 手工校准 |
 | `SongLibraryViewModel.importMusicXML / deleteEntry / bindAudio` | 曲库 index 和文件副本漂移 | AVP library tests |
 | `PracticeSessionViewModel.startAutoplayTaskIfNeeded` | 自动演奏、feedback、step 推进联动 | AVP practice tests |
-| `PianoGuideOverlayController.updateHighlights` | 光柱位置、大小、颜色、生命周期 | AVP tests + Vision Pro 手工观察 |
+| `PianoGuideOverlayController.updateHighlights` | 光束位置、大小、材质、生命周期 | AVP tests + Vision Pro 手工观察 |
 | `piano_dialogue_server/server/inference.py::_patch_safe_logits` | 推理结果和异常恢复 | Python smoke scripts |
 
 ## Coverage Gaps

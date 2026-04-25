@@ -38,26 +38,26 @@ sequenceDiagram
 | Step 2 选曲 | MusicXML / mp3 / m4a | `SongLibraryViewModel` | `SongLibraryIndex` |
 | MusicXML 处理 | score XML | `MusicXMLParser`, `PracticeStepBuilder` | `PracticeStep[]` + timelines |
 | Step 3 练习 | finger tips + steps | `ARGuideViewModel`, `PracticeSessionViewModel` | 匹配、反馈、autoplay |
-| 空间提示 | `PracticeStep.notes`, key regions, feedback state | `PianoGuideOverlayController` | RealityKit cylinder light beams |
+| 空间提示 | `PracticeStep.notes`, `PianoKeyboardGeometry`, feedback state | `PianoGuideOverlayController` | RealityKit warm-gold prism beams (four-side atlas) |
 
 ## AVP 练习内部
 | 子流 | 说明 | 关键状态 |
 | --- | --- | --- |
 | 定位 | 恢复世界锚点并生成 calibration | `PracticeLocalizationState` |
-| 按键检测 | 指尖落点映射到 key regions | `pressedNotes` |
+| 按键检测 | 指尖落点映射到 keyboard geometry | `pressedNotes` |
 | 匹配 | 当前 step 的和弦/音符匹配 | `VisualFeedbackState` |
-| 光柱提示 | 当前 step 的 MIDI notes 映射到 keyboard-local center | `activeMarkersByMIDINote` |
+| 光柱提示 | 当前 step 的 MIDI notes 映射到 keyboard-local footprint + surface | `activeBeamEntitiesByMIDINote` |
 | 自动演奏 | 根据 note spans / pedal / fermata 推进 | `autoplayState` |
 
 ```mermaid
 flowchart TD
   A[PracticeStep.notes] --> B[Build desired MIDI note set]
-  C[PianoKeyRegion.center / size] --> D[Convert world center to keyboard-local]
-  B --> E[Create/update cylinder ModelEntity]
+  C[PianoKeyboardGeometry] --> D[key lookup + footprint/surface]
+  B --> E[PianoGuideBeamDescriptor.makeDescriptors]
   D --> E
-  F[VisualFeedbackState] --> G[Select tint material]
-  G --> E
-  E --> H[RealityKit light beams above key centers]
+  F[VisualFeedbackState] --> E
+  E --> G[Create/update prism ModelEntity]
+  G --> H[KeyBeamFourSideAtlas + warm tint]
 ```
 
 ## Python 数据流
@@ -91,7 +91,7 @@ flowchart TD
 | DialogueManager | `idle -> listening -> thinking -> playing` |
 | PracticeLocalizationState | `idle -> blocked/openingImmersive/waitingForProviders/locating -> ready/failed` |
 | PracticeState | `idle -> ready -> guiding -> completed` |
-| PianoGuideOverlayController | no root -> attached root -> active markers -> cleared markers |
+| PianoGuideOverlayController | no root -> attached root -> active beams -> cleared beams |
 | SongAudio playback | `nil / playing / paused` 由当前条目驱动 |
 | PR Tests | path filter -> selected jobs -> xcodebuild test -> checks |
 
@@ -109,7 +109,7 @@ flowchart TD
 ## 调试抓手
 - macOS：`statusMessage`、`recentLogs`、`previewText`
 - AVP：`practiceLocalizationStatusText`、`calibrationStatusMessage`、`currentListeningEntryID`、`autoplayHighlightedMIDINotes`
-- RealityKit 光柱：`activeMarkersByMIDINote`、`PianoKeyRegion.center`、`keyboardFrame.keyboardFromWorld`
+- RealityKit 光束：`activeBeamEntitiesByMIDINote`、`PianoGuideBeamDescriptor`、`PianoKeyboardGeometry.frame.keyboardFromWorld`
 - Python：`/health`、`test_client.py`、`out/dialogue_debug/index.jsonl`
 - CI：Actions job logs、`xcodebuild -list`、`.xcresult` 路径、combined checks
 
@@ -118,4 +118,4 @@ flowchart TD
 - Python smoke tests 尚未纳入 PR workflow。
 
 ## 更新记录（Update Notes）
-- 2026-04-25: 增补 PR Tests / Swift Quality 数据流、AVP 光柱提示数据流和 simulator test 失败恢复路径。
+- 2026-04-25: 增补 PR Tests / Swift Quality 数据流，并将 AVP 空间提示从 key regions + cylinder 光柱更新为 keyboard geometry + four-side atlas prism beams。

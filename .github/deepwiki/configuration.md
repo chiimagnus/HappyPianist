@@ -20,8 +20,9 @@
 | Press cooldown | `0.15s` | 手部按键去抖 |
 | Chord window | `0.6s` | 和弦累积 |
 | Practice note tolerance | `±1` 半音 | 练习匹配 |
-| Light beam height | `0.22` meter-ish RealityKit local units | 当前 step 的空间光柱高度 |
-| Light beam alpha | `0.42` | 光柱透明度 |
+| Guide beam height | `0.18` meter | 当前 step 的空间丁达尔光束高度（从 key surface 起） |
+| Guide beam alpha | `0.32` | 光束整体 alpha（叠乘贴图透明度） |
+| Guide beam atlas | `KeyBeamFourSideAtlas` | 四侧面 warm-gold 透明贴图 |
 
 ## 构建与工程配置
 | 项目 | 位置 | 说明 |

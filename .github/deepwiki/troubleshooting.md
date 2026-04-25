@@ -23,7 +23,7 @@
 1. 确认 Step 1 已保存，而不是只捕获。
 2. 确认已导入 MusicXML 且 `importedSteps` 非空。
 3. 若定位失败，优先看 provider state / anchor 状态。
-4. 若光柱位置异常，检查 `PianoKeyRegion.center`、`keyboardFrame.keyboardFromWorld` 和 debug axes。
+4. 若光束位置/高度异常，检查 `PianoGuideBeamDescriptor`、`PianoKeyboardGeometry.frame.keyboardFromWorld` 和 debug axes。
 5. 若 CI 找不到 simulator destination，先在日志或本地跑 `xcodebuild -showdestinations -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP`。
 
 ## Python 排查
@@ -57,4 +57,4 @@
 - Python smoke tests 尚未接入 Actions；Python 相关问题仍需本地复现。
 
 ## 更新记录（Update Notes）
-- 2026-04-25: 增补 PR Tests、AVP simulator、Swift tools 6.2、Swift Quality 和光柱位置排查路径。
+- 2026-04-25: 增补 PR Tests、AVP simulator、Swift tools 6.2、Swift Quality，并将光柱排查更新为丁达尔光束（keyboard geometry + atlas）。
