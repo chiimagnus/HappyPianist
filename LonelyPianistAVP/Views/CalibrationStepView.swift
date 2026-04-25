@@ -16,20 +16,24 @@ struct CalibrationStepView: View {
     #endif
 
     var body: some View {
-        ZStack {
-            CalibrationCardContainer(
-                phase: viewModel.calibrationPhase,
+        let phase = viewModel.calibrationPhase
+        let errorMessage: String? = {
+            if case let .error(message) = phase {
+                return message
+            }
+            return nil
+        }()
+
+        return ZStack {
+            CalibrationStageCard(
+                stage: CalibrationCardStage(phase: phase),
+                phase: phase,
                 storedCalibration: viewModel.storedCalibration,
                 isReticleReadyToConfirm: isReticleReadyToConfirm,
-                errorMessage: {
-                    if case let .error(message) = viewModel.calibrationPhase {
-                        return message
-                    }
-                    return nil
-                }(),
+                errorMessage: errorMessage,
                 onReturnHome: { dismiss() },
                 simulatorDemoState: simulatorDemoState,
-                onSimulatorDemoAdvance: handleSimulatorDemoAdvance
+                onSimulatorDemoAdvance: simulatorDemoState == nil ? nil : { handleSimulatorDemoAdvance() }
             )
         }
         .padding(18)
@@ -159,29 +163,6 @@ private enum CalibrationCardStage: Hashable {
             case .error:
                 self = .error
         }
-    }
-}
-
-private struct CalibrationCardContainer: View {
-    let phase: ARGuideViewModel.CalibrationPhase
-    let storedCalibration: StoredWorldAnchorCalibration?
-    let isReticleReadyToConfirm: Bool
-    let errorMessage: String?
-    let onReturnHome: () -> Void
-    let simulatorDemoState: CalibrationSimulatorDemoState?
-    let onSimulatorDemoAdvance: () -> Void
-
-    var body: some View {
-        CalibrationStageCard(
-            stage: CalibrationCardStage(phase: phase),
-            phase: phase,
-            storedCalibration: storedCalibration,
-            isReticleReadyToConfirm: isReticleReadyToConfirm,
-            errorMessage: errorMessage,
-            onReturnHome: onReturnHome,
-            simulatorDemoState: simulatorDemoState,
-            onSimulatorDemoAdvance: simulatorDemoState == .enabled ? onSimulatorDemoAdvance : nil
-        )
     }
 }
 
