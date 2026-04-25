@@ -226,22 +226,13 @@ private struct CalibrationStageCard: View {
                 .font(.system(size: 72, weight: .semibold))
                 .foregroundStyle(.green)
 
-            VStack(spacing: 6) {
-                Text("校准完成")
-                    .font(.title2.weight(.semibold))
-
-                if let estimatedKeyboardWidthText {
-                    Text(estimatedKeyboardWidthText)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-            }
+            Text("校准完成")
+                .font(.title2.weight(.semibold))
 
             Button("返回首页") {
                 onReturnHome()
             }
             .buttonStyle(.borderedProminent)
-            .hoverEffect()
         }
         .frame(maxWidth: .infinity)
     }
@@ -301,13 +292,6 @@ private struct CalibrationStageCard: View {
                 }
                 return [108: Color.blue]
         }
-    }
-
-    private var estimatedKeyboardWidthText: String? {
-        guard let storedCalibration else { return nil }
-        let estimatedMeters = storedCalibration.whiteKeyWidth * 52
-        let estimatedCentimeters = Int((estimatedMeters * 100).rounded())
-        return "键盘宽度 · ~\(estimatedCentimeters) cm"
     }
 }
 
