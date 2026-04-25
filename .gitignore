@@ -13,6 +13,6 @@ xcuserdata/
 .xcodebuildmcp/
 
 # Large local audio assets (SoundFonts)
-LonelyPianistAVP/Resources/Audio/SoundFonts/*.sf2
+*.sf2
 
 .codex/
