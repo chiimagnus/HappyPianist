@@ -179,6 +179,16 @@ final class ARGuideViewModel {
         cancelCalibrationGuidedFlowTasks()
     }
 
+    @discardableResult
+    func showCalibrationCompletedIfStoredCalibrationExists() -> Bool {
+        guard storedCalibration != nil else { return false }
+        endCalibrationGuidedFlow()
+        calibrationStatusMessage = nil
+        pendingCalibrationCaptureAnchor = nil
+        calibrationPhase = .completed
+        return true
+    }
+
     func skipStep() {
         practiceSessionViewModel.skip()
     }
