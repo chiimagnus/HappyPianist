@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 enum Step3AudioRecognitionMode: String, CaseIterable, Sendable {
     case lowLatency
@@ -47,6 +48,10 @@ struct AudioStepAttemptAccumulatorConfiguration: Sendable, Equatable {
 }
 
 final class AudioStepAttemptAccumulator {
+    private static let decisionLogger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
+        category: "Step3AudioDecision"
+    )
     private(set) var configuration: AudioStepAttemptAccumulatorConfiguration
 
     private var recentEvents: [DetectedNoteEvent] = []
@@ -70,6 +75,7 @@ final class AudioStepAttemptAccumulator {
     func setMode(_ mode: Step3AudioRecognitionMode) {
         recognitionMode = mode
         configuration = .configuration(for: mode)
+        Self.decisionLogger.debug("accumulator mode changed to \(mode.rawValue, privacy: .public)")
     }
 
     func evaluate(
@@ -112,14 +118,17 @@ final class AudioStepAttemptAccumulator {
             strongestWrong >= max(strongestExpected, 0.01) * configuration.wrongDominanceRatio
         {
             if let lastMatchedAt, timestamp.timeIntervalSince(lastMatchedAt) <= configuration.wrongNoteGraceWindow {
+                Self.decisionLogger.debug("audio wrong in grace window generation=\(generation, privacy: .public)")
                 return .insufficient(progress: "wrong note grace")
             }
+            Self.decisionLogger.debug("audio wrong generation=\(generation, privacy: .public)")
             return .wrong(reason: "wrong note dominates window")
         }
 
         if expectedSet.count == 1 {
             if strongestExpected >= threshold {
                 lastMatchedAt = timestamp
+                Self.decisionLogger.debug("audio single matched generation=\(generation, privacy: .public)")
                 return .matched(reason: "single note matched")
             }
             return .insufficient(progress: "single note pending")
@@ -133,6 +142,7 @@ final class AudioStepAttemptAccumulator {
         let requiredMatches = requiredMatchCount(expectedCount: expectedSet.count)
         if matchedExpectedCount >= requiredMatches {
             lastMatchedAt = timestamp
+            Self.decisionLogger.debug("audio chord matched generation=\(generation, privacy: .public)")
             return .matched(reason: "chord majority matched")
         }
         return .insufficient(progress: "chord \(matchedExpectedCount)/\(requiredMatches)")

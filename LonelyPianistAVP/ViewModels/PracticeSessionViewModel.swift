@@ -1,10 +1,16 @@
 import Foundation
 import Observation
+import os
 import simd
 
 @MainActor
 @Observable
 final class PracticeSessionViewModel {
+    private let decisionLogger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
+        category: "Step3AudioDecision"
+    )
+
     enum VisualFeedbackState: Equatable {
         case none
         case correct
@@ -736,6 +742,7 @@ final class PracticeSessionViewModel {
                 wrongCandidateMIDINotes: wrongMIDINotes,
                 generation: audioRecognitionGeneration
             )
+            decisionLogger.debug("audio generation update=\(self.audioRecognitionGeneration, privacy: .public)")
             return
         }
 
@@ -748,8 +755,10 @@ final class PracticeSessionViewModel {
                     wrongCandidateMIDINotes: wrongMIDINotes,
                     generation: audioRecognitionGeneration
                 )
+                decisionLogger.info("audio service started generation=\(audioRecognitionGeneration, privacy: .public)")
             } catch {
                 isAudioRecognitionRunning = false
+                decisionLogger.error("audio service failed start generation=\(audioRecognitionGeneration, privacy: .public)")
                 recordAudioError(error)
             }
         }
@@ -760,12 +769,14 @@ final class PracticeSessionViewModel {
         audioRecognitionService.stop()
         isAudioRecognitionRunning = false
         audioRecognitionStatus = .stopped
+        decisionLogger.debug("audio service stopped by lifecycle")
     }
 
     private func handleAudioRecognitionEvent(_ event: DetectedNoteEvent) {
         guard autoplayState == .off else { return }
         guard event.generation == audioRecognitionGeneration else { return }
         if let audioRecognitionSuppressUntil, event.timestamp <= audioRecognitionSuppressUntil {
+            decisionLogger.debug("audio event suppressed generation=\(event.generation, privacy: .public)")
             return
         }
         guard let currentStep else { return }
@@ -790,8 +801,10 @@ final class PracticeSessionViewModel {
                 )
                 setFeedback(.correct)
                 advanceToNextStep()
+                decisionLogger.debug("audio matched advanced generation=\(event.generation, privacy: .public)")
             case .wrong:
                 setFeedback(.wrong)
+                decisionLogger.debug("audio wrong feedback generation=\(event.generation, privacy: .public)")
             case .insufficient:
                 break
         }

@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import os
 
 final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProtocol {
     private enum ServiceError: LocalizedError {
@@ -34,6 +35,14 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
     private let audioEngine: AVAudioEngine
     private let processingQueue = DispatchQueue(label: "com.lonelypianist.audio.recognition.processing", qos: .userInitiated)
     private let lock = NSLock()
+    private let recognitionLogger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
+        category: "Step3AudioRecognition"
+    )
+    private let performanceLogger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
+        category: "Step3AudioPerformance"
+    )
 
     private let eventsStream: AsyncStream<DetectedNoteEvent>
     private let statusStream: AsyncStream<PracticeAudioRecognitionStatus>
@@ -75,9 +84,11 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
     func start(expectedMIDINotes: [Int], wrongCandidateMIDINotes: [Int], generation: Int) async throws {
         stop()
         statusContinuation.yield(.requestingPermission)
+        recognitionLogger.info("step3 audio start requested")
         let granted = await requestMicrophonePermission()
         guard granted else {
             statusContinuation.yield(.permissionDenied)
+            recognitionLogger.error("step3 audio permission denied")
             throw ServiceError.permissionDenied
         }
 
@@ -85,17 +96,15 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
         let inputFormat = inputNode.inputFormat(forBus: 0)
         guard inputFormat.sampleRate > 0, inputFormat.channelCount > 0 else {
             statusContinuation.yield(.engineFailed(reason: "invalid input format"))
+            recognitionLogger.error("step3 audio invalid input format")
             throw ServiceError.invalidInputFormat
         }
 
-        lock.lock()
-        self.expectedMIDINotes = expectedMIDINotes
-        self.wrongCandidateMIDINotes = wrongCandidateMIDINotes
-        currentGeneration = generation
-        detector = GoertzelNoteDetector()
-        suppressUntil = nil
-        recentDetectedNotes.removeAll()
-        lock.unlock()
+        replaceRecognitionTargets(
+            expectedMIDINotes: expectedMIDINotes,
+            wrongCandidateMIDINotes: wrongCandidateMIDINotes,
+            generation: generation
+        )
 
         inputNode.installTap(onBus: 0, bufferSize: 2_048, format: inputFormat) { [weak self] buffer, _ in
             guard let self else { return }
@@ -109,9 +118,11 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
             audioEngine.prepare()
             try audioEngine.start()
             statusContinuation.yield(.running)
+            recognitionLogger.info("step3 audio engine running generation=\(generation, privacy: .public)")
         } catch {
             stop()
             statusContinuation.yield(.engineFailed(reason: error.localizedDescription))
+            recognitionLogger.error("step3 audio engine failed \(error.localizedDescription, privacy: .public)")
             throw ServiceError.engineStartFailed(error.localizedDescription)
         }
     }
@@ -122,6 +133,9 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
         self.wrongCandidateMIDINotes = wrongCandidateMIDINotes
         currentGeneration = generation
         lock.unlock()
+        recognitionLogger.debug(
+            "step3 audio update expected=\(expectedMIDINotes.count, privacy: .public) wrong=\(wrongCandidateMIDINotes.count, privacy: .public) generation=\(generation, privacy: .public)"
+        )
     }
 
     func suppressRecognition(until date: Date, generation: Int) {
@@ -132,6 +146,7 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
         }
         suppressUntil = date
         lock.unlock()
+        recognitionLogger.debug("step3 audio suppress generation=\(generation, privacy: .public)")
     }
 
     func stop() {
@@ -147,6 +162,7 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
         recentDetectedNotes.removeAll()
         lock.unlock()
         statusContinuation.yield(.stopped)
+        recognitionLogger.info("step3 audio stopped")
     }
 
     private func processAudioBuffer(_ buffer: AVAudioPCMBuffer) {
@@ -160,11 +176,19 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
         lock.unlock()
 
         let sampleRate = buffer.format.sampleRate
+        let startedAt = CFAbsoluteTimeGetCurrent()
+        let debugLoggingEnabled = UserDefaults.standard.bool(forKey: "practiceAudioRecognitionDebugOverlayEnabled")
         let detections = detector.detect(
             samples: samples,
             sampleRate: sampleRate,
-            candidateMIDINotes: expectedMIDINotes + wrongCandidateMIDINotes
+            candidateMIDINotes: expectedMIDINotes + wrongCandidateMIDINotes,
+            debugLoggingEnabled: debugLoggingEnabled
         )
+        if debugLoggingEnabled {
+            performanceLogger.debug(
+                "step3 audio process ms=\((CFAbsoluteTimeGetCurrent() - startedAt) * 1_000, privacy: .public) detections=\(detections.count, privacy: .public)"
+            )
+        }
 
         let now = Date()
         let inputLevel = rms(samples)
@@ -209,6 +233,21 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
                 lastDecisionReason: suppressing ? "suppressed" : "live"
             )
         )
+    }
+
+    private func replaceRecognitionTargets(
+        expectedMIDINotes: [Int],
+        wrongCandidateMIDINotes: [Int],
+        generation: Int
+    ) {
+        lock.lock()
+        self.expectedMIDINotes = expectedMIDINotes
+        self.wrongCandidateMIDINotes = wrongCandidateMIDINotes
+        currentGeneration = generation
+        detector = GoertzelNoteDetector()
+        suppressUntil = nil
+        recentDetectedNotes.removeAll()
+        lock.unlock()
     }
 
     private func monoSamples(from buffer: AVAudioPCMBuffer) -> [Float]? {

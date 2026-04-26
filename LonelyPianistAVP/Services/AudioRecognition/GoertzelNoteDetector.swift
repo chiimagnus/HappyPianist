@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 struct GoertzelNoteDetection: Sendable, Equatable {
     let midiNote: Int
@@ -14,13 +15,23 @@ struct GoertzelNoteDetector {
 
     private static let detuneOffsetsInCents: [Double] = [-25, -12, 0, 12, 25]
     private static let harmonicWeights: [Double] = [1.0, 0.65, 0.45, 0.30]
+    private static let performanceLogger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
+        category: "Step3AudioPerformance"
+    )
 
     private var previousEnergyByMIDINote: [Int: Double] = [:]
 
-    mutating func detect(samples: [Float], sampleRate: Double, candidateMIDINotes: [Int]) -> [GoertzelNoteDetection] {
+    mutating func detect(
+        samples: [Float],
+        sampleRate: Double,
+        candidateMIDINotes: [Int],
+        debugLoggingEnabled: Bool = false
+    ) -> [GoertzelNoteDetection] {
         guard samples.isEmpty == false else { return [] }
         guard sampleRate > 0 else { return [] }
         guard candidateMIDINotes.isEmpty == false else { return [] }
+        let startedAt = CFAbsoluteTimeGetCurrent()
 
         var energiesByMIDINote: [Int: Double] = [:]
         for midiNote in Set(candidateMIDINotes) {
@@ -30,7 +41,7 @@ struct GoertzelNoteDetector {
         let maxEnergy = energiesByMIDINote.values.max() ?? 0
         let denominator = max(maxEnergy, 1e-9)
 
-        return energiesByMIDINote
+        let results = energiesByMIDINote
             .map { midiNote, rawEnergy in
                 let previousEnergy = previousEnergyByMIDINote[midiNote] ?? 0
                 let onsetScore = max(0, (rawEnergy - previousEnergy) / max(previousEnergy, 1e-9))
@@ -47,6 +58,16 @@ struct GoertzelNoteDetector {
             .sorted { lhs, rhs in
                 lhs.rawEnergy > rhs.rawEnergy
             }
+
+        if debugLoggingEnabled {
+            let elapsedMs = (CFAbsoluteTimeGetCurrent() - startedAt) * 1_000
+            let top = results.first
+            Self.performanceLogger.debug(
+                "goertzel candidates=\(candidateMIDINotes.count, privacy: .public) ms=\(elapsedMs, privacy: .public) top=\(top?.midiNote ?? -1, privacy: .public) conf=\(top?.confidence ?? 0, privacy: .public)"
+            )
+        }
+
+        return results
     }
 
     private func energyForMIDINote(_ midiNote: Int, samples: [Float], sampleRate: Double) -> Double {
