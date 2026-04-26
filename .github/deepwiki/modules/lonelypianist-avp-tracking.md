@@ -15,6 +15,7 @@
 - hand / world provider 各自独立记录状态。
 - finger tip 更新通过 `AsyncStream` 分发。
 - world anchors 会按 id 维护字典。
+- 手部关键点在服务层会拆出便于业务使用的属性（例如 `leftIndexFingerTipPosition` / `leftThumbTipPosition` / `rightIndexFingerTipPosition` / `rightThumbTipPosition`），用于校准 reticle 输入与捏合判定。
 
 ## 状态
 | 状态 | 含义 |
@@ -36,3 +37,5 @@
 ## Coverage Gaps
 - 没有设备级自动化验证 hand/world provider 的实际运行差异。
 
+## 更新记录（Update Notes）
+- 2026-04-26: 补充左手拇指 tip 追踪点（用于 C8 校准的左手捏合确认），并同步 tracking 页对外暴露点位说明。

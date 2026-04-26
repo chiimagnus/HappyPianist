@@ -34,7 +34,7 @@ sequenceDiagram
 ## AVP 数据流
 | 阶段 | 输入 | 关键对象 | 输出 |
 | --- | --- | --- | --- |
-| Step 1 校准 | 左手 A0 / C8 + 右手捏合 | `CalibrationPointCaptureService` | `StoredWorldAnchorCalibration` |
+| Step 1 校准 | A0：左手食指输入 + 右手捏合；C8：右手食指输入 + 左手捏合 | `CalibrationPointCaptureService` | `StoredWorldAnchorCalibration` |
 | Step 2 选曲 | MusicXML / mp3 / m4a | `SongLibraryViewModel` | `SongLibraryIndex` |
 | MusicXML 处理 | score XML | `MusicXMLParser`, `PracticeStepBuilder` | `PracticeStep[]` + timelines |
 | Step 3 练习 | finger tips + steps | `ARGuideViewModel`, `PracticeSessionViewModel` | 匹配、反馈、autoplay |
@@ -119,3 +119,4 @@ flowchart TD
 
 ## 更新记录（Update Notes）
 - 2026-04-25: 增补 PR Tests / Swift Quality 数据流，并将 AVP 空间提示从 key regions + cylinder 光柱更新为 keyboard geometry + four-side atlas prism beams。
+- 2026-04-26: 同步 Step 1 校准的 A0/C8 手势分工（左右手输入与捏合确认切换）。

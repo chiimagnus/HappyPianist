@@ -112,3 +112,4 @@
 ## 更新记录（Update Notes）
 - 2026-04-25: 更新索引以反映 PR-only split tests、manual-only Swift Quality、AVP simulator tests 跑通和光柱式 AR 引导。
 - 2026-04-26: 修复模块页内部链接断链；补齐 `.github/deepwiki/assets/` 占位；刷新 `GENERATION.md` 的 commit/branch/时间；同步 Step 1 校准引导式流程文档。
+- 2026-04-26: 同步 Step 1 校准的 A0/C8 手势分工、reticle 稳定阈值（5mm）、完成页“重新校准”入口与沉浸空间 overlay 精简。
