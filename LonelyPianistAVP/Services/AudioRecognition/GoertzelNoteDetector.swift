@@ -12,6 +12,7 @@ struct GoertzelNoteDetection: Sendable, Equatable {
 struct GoertzelNoteDetector {
     var centTolerance: Double = 25
     var onsetThreshold: Double = 0.25
+    var minimumInputRMS: Double = 0.01
 
     private static let detuneOffsetsInCents: [Double] = [-25, -12, 0, 12, 25]
     private static let harmonicWeights: [Double] = [1.0, 0.65, 0.45, 0.30]
@@ -32,10 +33,28 @@ struct GoertzelNoteDetector {
         guard sampleRate > 0 else { return [] }
         guard candidateMIDINotes.isEmpty == false else { return [] }
         let startedAt = CFAbsoluteTimeGetCurrent()
+        let inputRMS = rms(samples)
 
         var energiesByMIDINote: [Int: Double] = [:]
         for midiNote in Set(candidateMIDINotes) {
             energiesByMIDINote[midiNote] = energyForMIDINote(midiNote, samples: samples, sampleRate: sampleRate)
+        }
+
+        if inputRMS < minimumInputRMS {
+            previousEnergyByMIDINote = energiesByMIDINote
+            return energiesByMIDINote
+                .map { midiNote, rawEnergy in
+                    GoertzelNoteDetection(
+                        midiNote: midiNote,
+                        confidence: 0,
+                        rawEnergy: rawEnergy,
+                        onsetScore: 0,
+                        isOnset: false
+                    )
+                }
+                .sorted { lhs, rhs in
+                    lhs.rawEnergy > rhs.rawEnergy
+                }
         }
 
         let maxEnergy = energiesByMIDINote.values.max() ?? 0
@@ -114,6 +133,13 @@ struct GoertzelNoteDetector {
         }
 
         return q1 * q1 + q2 * q2 - coefficient * q1 * q2
+    }
+
+    private func rms(_ samples: [Float]) -> Double {
+        let squared = samples.reduce(0.0) { partialResult, sample in
+            partialResult + Double(sample * sample)
+        }
+        return sqrt(squared / Double(max(samples.count, 1)))
     }
 
     private func midiFrequency(midiNote: Int) -> Double {
