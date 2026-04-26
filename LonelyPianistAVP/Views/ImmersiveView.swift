@@ -7,11 +7,21 @@ struct ImmersiveView: View {
     @State private var calibrationOverlayController = CalibrationOverlayController()
     @State private var keyboardAxesDebugOverlayController = KeyboardAxesDebugOverlayController()
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
+    
+    private var shouldShowCalibrationReticle: Bool {
+        guard viewModel.immersiveMode == .calibration else { return false }
+        switch viewModel.calibrationPhase {
+            case .completed, .error:
+                return false
+            default:
+                return true
+        }
+    }
 
     var body: some View {
         RealityView { content in
             calibrationOverlayController.update(
-                showsReticle: viewModel.immersiveMode == .calibration,
+                showsReticle: shouldShowCalibrationReticle,
                 reticlePoint: viewModel.calibrationCaptureService.reticlePoint,
                 isReticleReadyToConfirm: viewModel.calibrationCaptureService.isReticleReadyToConfirm,
                 a0TrackedAnchorPoint: viewModel.a0OverlayPoint,
@@ -31,7 +41,7 @@ struct ImmersiveView: View {
             )
         } update: { content in
             calibrationOverlayController.update(
-                showsReticle: viewModel.immersiveMode == .calibration,
+                showsReticle: shouldShowCalibrationReticle,
                 reticlePoint: viewModel.calibrationCaptureService.reticlePoint,
                 isReticleReadyToConfirm: viewModel.calibrationCaptureService.isReticleReadyToConfirm,
                 a0TrackedAnchorPoint: viewModel.a0OverlayPoint,
