@@ -5,21 +5,17 @@ struct ImmersiveView: View {
     @Bindable var viewModel: ARGuideViewModel
     @State private var overlayController = PianoGuideOverlayController()
     @State private var calibrationOverlayController = CalibrationOverlayController()
-    @State private var handDebugOverlayController = HandDebugOverlayController()
     @State private var keyboardAxesDebugOverlayController = KeyboardAxesDebugOverlayController()
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
 
     var body: some View {
         RealityView { content in
             calibrationOverlayController.update(
+                showsReticle: viewModel.immersiveMode == .calibration,
                 reticlePoint: viewModel.calibrationCaptureService.reticlePoint,
                 isReticleReadyToConfirm: viewModel.calibrationCaptureService.isReticleReadyToConfirm,
                 a0TrackedAnchorPoint: viewModel.a0OverlayPoint,
                 c8TrackedAnchorPoint: viewModel.c8OverlayPoint,
-                content: content
-            )
-            handDebugOverlayController.update(
-                fingerTipPositions: viewModel.arTrackingService.fingerTipPositions,
                 content: content
             )
             keyboardAxesDebugOverlayController.update(
@@ -35,14 +31,11 @@ struct ImmersiveView: View {
             )
         } update: { content in
             calibrationOverlayController.update(
+                showsReticle: viewModel.immersiveMode == .calibration,
                 reticlePoint: viewModel.calibrationCaptureService.reticlePoint,
                 isReticleReadyToConfirm: viewModel.calibrationCaptureService.isReticleReadyToConfirm,
                 a0TrackedAnchorPoint: viewModel.a0OverlayPoint,
                 c8TrackedAnchorPoint: viewModel.c8OverlayPoint,
-                content: content
-            )
-            handDebugOverlayController.update(
-                fingerTipPositions: viewModel.arTrackingService.fingerTipPositions,
                 content: content
             )
             keyboardAxesDebugOverlayController.update(
