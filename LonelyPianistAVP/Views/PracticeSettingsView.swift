@@ -10,6 +10,9 @@ struct PracticeSettingsView: View {
     @AppStorage("practiceMusicXMLWordsSemanticsEnabled") private var isMusicXMLWordsSemanticsEnabled = false
     @AppStorage("practiceAudioRecognitionEnabled") private var practiceAudioRecognitionEnabled = true
     @AppStorage("practiceAudioRecognitionDebugOverlayEnabled") private var practiceAudioRecognitionDebugOverlayEnabled = false
+    @AppStorage("practiceStep3AudioRecognitionMode") private var practiceStep3AudioRecognitionMode = Step3AudioRecognitionMode
+        .lowLatency
+        .rawValue
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
 
     var body: some View {
@@ -43,6 +46,14 @@ struct PracticeSettingsView: View {
             Divider()
 
             Toggle("启用 Step3 音频识别", isOn: $practiceAudioRecognitionEnabled)
+            Picker(
+                "Step3 音频识别模式",
+                selection: $practiceStep3AudioRecognitionMode
+            ) {
+                Text("低延迟").tag(Step3AudioRecognitionMode.lowLatency.rawValue)
+                Text("更严格").tag(Step3AudioRecognitionMode.stricter.rawValue)
+            }
+            .pickerStyle(.segmented)
             Toggle("调试：显示音频识别 overlay", isOn: $practiceAudioRecognitionDebugOverlayEnabled)
 
             Divider()

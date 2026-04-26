@@ -220,6 +220,71 @@ func repeatedSameNoteNeedsRearmOrNewOnset() {
     #expect(second == .matched(reason: "single note matched"))
 }
 
+@Test
+@MainActor
+func recognitionModesUseDifferentThresholds() {
+    let lowLatency = AudioStepAttemptAccumulator()
+    lowLatency.setMode(.lowLatency)
+    let stricter = AudioStepAttemptAccumulator()
+    stricter.setMode(.stricter)
+    let now = Date(timeIntervalSince1970: 2_500)
+
+    lowLatency.resetForNewStep(generation: 11)
+    lowLatency.register(event: makeEvent(midiNote: 60, confidence: 0.56, isOnset: true, timestamp: now, generation: 11))
+    let lowLatencyResult = lowLatency.evaluate(
+        expectedMIDINotes: [60],
+        wrongCandidateMIDINotes: [],
+        generation: 11,
+        at: now
+    )
+    #expect(lowLatencyResult == .matched(reason: "single note matched"))
+
+    stricter.resetForNewStep(generation: 11)
+    stricter.register(event: makeEvent(midiNote: 60, confidence: 0.56, isOnset: true, timestamp: now, generation: 11))
+    let stricterResult = stricter.evaluate(
+        expectedMIDINotes: [60],
+        wrongCandidateMIDINotes: [],
+        generation: 11,
+        at: now
+    )
+    #expect(stricterResult == .insufficient(progress: "single note pending"))
+}
+
+@Test
+@MainActor
+func wrongNoteGraceWindowDoesNotRollbackImmediateMatch() {
+    let accumulator = AudioStepAttemptAccumulator()
+    accumulator.setMode(.lowLatency)
+    let now = Date(timeIntervalSince1970: 2_600)
+    accumulator.resetForNewStep(generation: 12)
+    accumulator.register(event: makeEvent(midiNote: 60, confidence: 0.9, isOnset: true, timestamp: now, generation: 12))
+
+    let matched = accumulator.evaluate(
+        expectedMIDINotes: [60],
+        wrongCandidateMIDINotes: [61],
+        generation: 12,
+        at: now
+    )
+    #expect(matched == .matched(reason: "single note matched"))
+
+    accumulator.register(event: makeEvent(midiNote: 61, confidence: 0.95, isOnset: true, timestamp: now.addingTimeInterval(0.08), generation: 12))
+    let graceResult = accumulator.evaluate(
+        expectedMIDINotes: [60],
+        wrongCandidateMIDINotes: [61],
+        generation: 12,
+        at: now.addingTimeInterval(0.08)
+    )
+    #expect(graceResult == .insufficient(progress: "wrong note grace"))
+
+    let lateWrong = accumulator.evaluate(
+        expectedMIDINotes: [60],
+        wrongCandidateMIDINotes: [61],
+        generation: 12,
+        at: now.addingTimeInterval(0.30)
+    )
+    #expect(lateWrong == .wrong(reason: "wrong note dominates window"))
+}
+
 private func makeEvent(
     midiNote: Int,
     confidence: Double,

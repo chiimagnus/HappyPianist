@@ -1,5 +1,10 @@
 import Foundation
 
+enum Step3AudioRecognitionMode: String, CaseIterable, Sendable {
+    case lowLatency
+    case stricter
+}
+
 struct AudioStepAttemptAccumulatorConfiguration: Sendable, Equatable {
     var singleNoteThreshold: Double = 0.60
     var handBoostedThreshold: Double = 0.50
@@ -9,6 +14,36 @@ struct AudioStepAttemptAccumulatorConfiguration: Sendable, Equatable {
     var aggregationWindow: TimeInterval = 0.25
     var eventTTL: TimeInterval = 0.35
     var rearmSilenceWindow: TimeInterval = 0.12
+    var wrongNoteGraceWindow: TimeInterval = 0.16
+
+    static func configuration(for mode: Step3AudioRecognitionMode) -> AudioStepAttemptAccumulatorConfiguration {
+        switch mode {
+            case .lowLatency:
+                return AudioStepAttemptAccumulatorConfiguration(
+                    singleNoteThreshold: 0.55,
+                    handBoostedThreshold: 0.46,
+                    wrongNoteThreshold: 0.70,
+                    wrongDominanceRatio: 1.20,
+                    onsetThreshold: 0.32,
+                    aggregationWindow: 0.20,
+                    eventTTL: 0.30,
+                    rearmSilenceWindow: 0.10,
+                    wrongNoteGraceWindow: 0.18
+                )
+            case .stricter:
+                return AudioStepAttemptAccumulatorConfiguration(
+                    singleNoteThreshold: 0.70,
+                    handBoostedThreshold: 0.62,
+                    wrongNoteThreshold: 0.72,
+                    wrongDominanceRatio: 1.40,
+                    onsetThreshold: 0.40,
+                    aggregationWindow: 0.28,
+                    eventTTL: 0.40,
+                    rearmSilenceWindow: 0.12,
+                    wrongNoteGraceWindow: 0.18
+                )
+        }
+    }
 }
 
 final class AudioStepAttemptAccumulator {
@@ -17,6 +52,8 @@ final class AudioStepAttemptAccumulator {
     private var recentEvents: [DetectedNoteEvent] = []
     private var rearmBlockedSince: [Int: Date] = [:]
     private var currentGeneration: Int = 0
+    private var recognitionMode: Step3AudioRecognitionMode = .lowLatency
+    private var lastMatchedAt: Date?
 
     init(configuration: AudioStepAttemptAccumulatorConfiguration = .init()) {
         self.configuration = configuration
@@ -28,6 +65,11 @@ final class AudioStepAttemptAccumulator {
             rearmBlockedSince[event.midiNote] = nil
         }
         recentEvents.append(event)
+    }
+
+    func setMode(_ mode: Step3AudioRecognitionMode) {
+        recognitionMode = mode
+        configuration = .configuration(for: mode)
     }
 
     func evaluate(
@@ -69,11 +111,15 @@ final class AudioStepAttemptAccumulator {
         if strongestWrong >= configuration.wrongNoteThreshold &&
             strongestWrong >= max(strongestExpected, 0.01) * configuration.wrongDominanceRatio
         {
+            if let lastMatchedAt, timestamp.timeIntervalSince(lastMatchedAt) <= configuration.wrongNoteGraceWindow {
+                return .insufficient(progress: "wrong note grace")
+            }
             return .wrong(reason: "wrong note dominates window")
         }
 
         if expectedSet.count == 1 {
             if strongestExpected >= threshold {
+                lastMatchedAt = timestamp
                 return .matched(reason: "single note matched")
             }
             return .insufficient(progress: "single note pending")
@@ -86,6 +132,7 @@ final class AudioStepAttemptAccumulator {
         ).count
         let requiredMatches = requiredMatchCount(expectedCount: expectedSet.count)
         if matchedExpectedCount >= requiredMatches {
+            lastMatchedAt = timestamp
             return .matched(reason: "chord majority matched")
         }
         return .insufficient(progress: "chord \(matchedExpectedCount)/\(requiredMatches)")
@@ -94,6 +141,7 @@ final class AudioStepAttemptAccumulator {
     func resetForNewStep(generation: Int) {
         currentGeneration = generation
         recentEvents.removeAll()
+        lastMatchedAt = nil
     }
 
     func markMatchedAndRequireRearm(expectedMIDINotes: [Int], at timestamp: Date) {

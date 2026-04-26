@@ -726,6 +726,7 @@ final class PracticeSessionViewModel {
 
         let expectedMIDINotes = currentStep.notes.map(\.midiNote)
         let wrongMIDINotes = makeWrongCandidateMIDINotes(expectedMIDINotes)
+        audioStepAttemptAccumulator.setMode(step3AudioRecognitionMode)
         audioRecognitionGeneration += 1
         audioStepAttemptAccumulator.resetForNewStep(generation: audioRecognitionGeneration)
 
@@ -818,5 +819,14 @@ final class PracticeSessionViewModel {
     var audioRecognitionSuppressRemainingSeconds: TimeInterval {
         guard let audioRecognitionSuppressUntil else { return 0 }
         return max(0, audioRecognitionSuppressUntil.timeIntervalSinceNow)
+    }
+
+    private var step3AudioRecognitionMode: Step3AudioRecognitionMode {
+        if let rawValue = UserDefaults.standard.string(forKey: "practiceStep3AudioRecognitionMode"),
+           let mode = Step3AudioRecognitionMode(rawValue: rawValue)
+        {
+            return mode
+        }
+        return .lowLatency
     }
 }
