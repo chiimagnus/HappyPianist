@@ -43,6 +43,7 @@ final class FakePracticeAudioRecognitionService: PracticeAudioRecognitionService
     private(set) var updateCalls: [UpdateCall] = []
     private(set) var suppressCalls: [SuppressCall] = []
     private(set) var stopCallCount = 0
+    private var currentGeneration = 0
 
     init() {
         var eventsContinuation: AsyncStream<DetectedNoteEvent>.Continuation?
@@ -66,6 +67,7 @@ final class FakePracticeAudioRecognitionService: PracticeAudioRecognitionService
     }
 
     func start(expectedMIDINotes: [Int], wrongCandidateMIDINotes: [Int], generation: Int) async throws {
+        currentGeneration = generation
         startCalls.append(
             StartCall(
                 expectedMIDINotes: expectedMIDINotes,
@@ -76,6 +78,7 @@ final class FakePracticeAudioRecognitionService: PracticeAudioRecognitionService
     }
 
     func updateExpectedNotes(_ expectedMIDINotes: [Int], wrongCandidateMIDINotes: [Int], generation: Int) {
+        currentGeneration = generation
         updateCalls.append(
             UpdateCall(
                 expectedMIDINotes: expectedMIDINotes,
@@ -86,6 +89,7 @@ final class FakePracticeAudioRecognitionService: PracticeAudioRecognitionService
     }
 
     func suppressRecognition(until date: Date, generation: Int) {
+        guard generation == currentGeneration else { return }
         suppressCalls.append(SuppressCall(until: date, generation: generation))
     }
 

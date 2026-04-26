@@ -257,7 +257,7 @@ func wrongNoteGraceWindowDoesNotRollbackImmediateMatch() {
     accumulator.setMode(.lowLatency)
     let now = Date(timeIntervalSince1970: 2_600)
     accumulator.resetForNewStep(generation: 12)
-    accumulator.register(event: makeEvent(midiNote: 60, confidence: 0.9, isOnset: true, timestamp: now, generation: 12))
+    accumulator.register(event: makeEvent(midiNote: 60, confidence: 0.6, isOnset: true, timestamp: now, generation: 12))
 
     let matched = accumulator.evaluate(
         expectedMIDINotes: [60],
@@ -266,6 +266,7 @@ func wrongNoteGraceWindowDoesNotRollbackImmediateMatch() {
         at: now
     )
     #expect(matched == .matched(reason: "single note matched"))
+    accumulator.markMatchedAndRequireRearm(expectedMIDINotes: [60], at: now)
 
     accumulator.register(event: makeEvent(midiNote: 61, confidence: 0.95, isOnset: true, timestamp: now.addingTimeInterval(0.08), generation: 12))
     let graceResult = accumulator.evaluate(
@@ -276,11 +277,12 @@ func wrongNoteGraceWindowDoesNotRollbackImmediateMatch() {
     )
     #expect(graceResult == .insufficient(progress: "wrong note grace"))
 
+    accumulator.register(event: makeEvent(midiNote: 61, confidence: 0.95, isOnset: true, timestamp: now.addingTimeInterval(0.39), generation: 12))
     let lateWrong = accumulator.evaluate(
         expectedMIDINotes: [60],
         wrongCandidateMIDINotes: [61],
         generation: 12,
-        at: now.addingTimeInterval(0.30)
+        at: now.addingTimeInterval(0.40)
     )
     #expect(lateWrong == .wrong(reason: "wrong note dominates window"))
 }

@@ -51,6 +51,19 @@ func reportsWrongCandidateWhenItsEnergyDominates() {
     #expect((results.first { $0.midiNote == 70 }?.rawEnergy ?? 0) > (results.first { $0.midiNote == 69 }?.rawEnergy ?? 0))
 }
 
+@Test
+func lowInputNoiseDoesNotProduceMatchConfidence() {
+    var detector = GoertzelNoteDetector()
+    let samples = (0 ..< 3_528).map { index in
+        Float(sin(Double(index) * 0.37)) * 0.0001
+    }
+
+    let results = detector.detect(samples: samples, sampleRate: 44_100, candidateMIDINotes: [60, 61, 62])
+
+    #expect(results.allSatisfy { $0.confidence == 0 })
+    #expect(results.allSatisfy { $0.isOnset == false })
+}
+
 private func makeSineWave(
     frequency: Double,
     sampleRate: Double,
