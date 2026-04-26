@@ -8,6 +8,8 @@ struct PracticeSettingsView: View {
     @AppStorage("practiceMusicXMLFermataEnabled") private var isMusicXMLFermataEnabled = false
     @AppStorage("practiceMusicXMLArpeggiateEnabled") private var isMusicXMLArpeggiateEnabled = false
     @AppStorage("practiceMusicXMLWordsSemanticsEnabled") private var isMusicXMLWordsSemanticsEnabled = false
+    @AppStorage("practiceAudioRecognitionEnabled") private var practiceAudioRecognitionEnabled = true
+    @AppStorage("practiceAudioRecognitionDebugOverlayEnabled") private var practiceAudioRecognitionDebugOverlayEnabled = false
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
 
     var body: some View {
@@ -37,6 +39,11 @@ struct PracticeSettingsView: View {
             Text("默认关闭。仅在自动播放时生效，用于更贴合谱面的听感与提示。")
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
+            Divider()
+
+            Toggle("启用 Step3 音频识别", isOn: $practiceAudioRecognitionEnabled)
+            Toggle("调试：显示音频识别 overlay", isOn: $practiceAudioRecognitionDebugOverlayEnabled)
 
             Divider()
 
