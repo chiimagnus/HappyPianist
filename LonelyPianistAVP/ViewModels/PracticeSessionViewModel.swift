@@ -747,18 +747,30 @@ final class PracticeSessionViewModel {
         }
 
         isAudioRecognitionRunning = true
+        let startGeneration = audioRecognitionGeneration
+        let startExpectedMIDINotes = expectedMIDINotes
+        let startWrongMIDINotes = wrongMIDINotes
         Task { @MainActor [weak self] in
             guard let self else { return }
             do {
                 try await audioRecognitionService.start(
-                    expectedMIDINotes: expectedMIDINotes,
-                    wrongCandidateMIDINotes: wrongMIDINotes,
-                    generation: audioRecognitionGeneration
+                    expectedMIDINotes: startExpectedMIDINotes,
+                    wrongCandidateMIDINotes: startWrongMIDINotes,
+                    generation: startGeneration
                 )
-                decisionLogger.info("audio service started generation=\(audioRecognitionGeneration, privacy: .public)")
+                guard audioRecognitionGeneration == startGeneration,
+                      autoplayState == .off,
+                      isPracticeAudioRecognitionEnabled,
+                      case .guiding = state
+                else {
+                    stopAudioRecognition()
+                    return
+                }
+                applyPendingAudioRecognitionSuppressIfNeeded(generation: startGeneration)
+                decisionLogger.info("audio service started generation=\(startGeneration, privacy: .public)")
             } catch {
                 isAudioRecognitionRunning = false
-                decisionLogger.error("audio service failed start generation=\(audioRecognitionGeneration, privacy: .public)")
+                decisionLogger.error("audio service failed start generation=\(startGeneration, privacy: .public)")
                 recordAudioError(error)
             }
         }
@@ -770,6 +782,16 @@ final class PracticeSessionViewModel {
         isAudioRecognitionRunning = false
         audioRecognitionStatus = .stopped
         decisionLogger.debug("audio service stopped by lifecycle")
+    }
+
+    private func applyPendingAudioRecognitionSuppressIfNeeded(generation: Int) {
+        guard let audioRecognitionService else { return }
+        guard let audioRecognitionSuppressUntil else { return }
+        guard audioRecognitionSuppressUntil > Date() else { return }
+        audioRecognitionService.suppressRecognition(
+            until: audioRecognitionSuppressUntil,
+            generation: generation
+        )
     }
 
     private func handleAudioRecognitionEvent(_ event: DetectedNoteEvent) {
