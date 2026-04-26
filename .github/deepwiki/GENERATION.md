@@ -5,7 +5,7 @@
 | --- | --- |
 | Commit hash | 2ea5ca9155e928f22fec8dac248cc642b456e7fe |
 | Branch name | crh1 |
-| Generated at | 2026-04-26T15:28:01+08:00 |
+| Generated at | 2026-04-26T15:36:53+08:00 |
 | Output language | Chinese |
 | Generation mode | Incremental update via `deepwiki` skill |
 
@@ -14,6 +14,7 @@
 - `GENERATION.md`
 - `modules/lonelypianist-macos.md`
 - `modules/lonelypianist-avp.md`
+- `modules/lonelypianist-avp-calibration.md`
 - `modules/piano-dialogue-server.md`
 - `assets/.gitkeep`
 
@@ -48,11 +49,15 @@
 ## Evidence used
 - `LonelyPianist.xcodeproj/xcshareddata/xcschemes/LonelyPianistAVP.xcscheme` for shared scheme availability.
 - Existing deepwiki pages and module boundaries (to locate broken links).
+- `LonelyPianistAVP/ViewModels/ARGuideViewModel.swift` for `CalibrationPhase`, pinch-confirm capture, and guided-flow transitions.
+- `LonelyPianistAVP/Services/Calibration/CalibrationPointCaptureService.swift` for reticle stability thresholds and readiness.
+- `LonelyPianistAVP/Views/CalibrationStepView.swift` for Step 1 UI flow and immersive open/close behavior.
 
 ## Key updates in this generation
 | Area | Update |
 | --- | --- |
 | Deepwiki hygiene | Fixed broken intra-module links, added `.github/deepwiki/assets/` placeholder, and refreshed generation metadata. |
+| AVP Step 1 calibration | Updated calibration module page to match current guided-flow state machine, reticle stability, and simulator demo behavior. |
 
 ## Current Coverage Gaps
 - Python smoke tests are not yet part of GitHub Actions.
