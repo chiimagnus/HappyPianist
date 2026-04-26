@@ -1,13 +1,13 @@
 import Foundation
 
-struct PracticeAudioRecognitionDebugSnapshot: Sendable, Equatable {
-    enum PermissionState: String, Sendable, Equatable {
+struct PracticeAudioRecognitionDebugSnapshot: Equatable {
+    enum PermissionState: String, Equatable {
         case unknown
         case granted
         case denied
     }
 
-    enum EngineState: String, Sendable, Equatable {
+    enum EngineState: String, Equatable {
         case idle
         case starting
         case running

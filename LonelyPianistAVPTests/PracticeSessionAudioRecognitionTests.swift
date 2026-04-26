@@ -11,7 +11,7 @@ func fakeAudioRecognitionServiceEmitsEventToConsumer() async {
         confidence: 0.9,
         onsetScore: 0.8,
         isOnset: true,
-        timestamp: Date(timeIntervalSince1970: 1_000),
+        timestamp: Date(timeIntervalSince1970: 1000),
         generation: 1,
         source: .audio
     )
@@ -32,13 +32,23 @@ func fakeAudioRecognitionServiceEmitsEventToConsumer() async {
 @Test
 func fakeAudioRecognitionServiceRecordsLifecycleCalls() async throws {
     let service = FakePracticeAudioRecognitionService()
-    let now = Date(timeIntervalSince1970: 2_000)
-    try await service.start(expectedMIDINotes: [60], wrongCandidateMIDINotes: [61, 62], generation: 3, suppressUntil: nil)
+    let now = Date(timeIntervalSince1970: 2000)
+    try await service.start(
+        expectedMIDINotes: [60],
+        wrongCandidateMIDINotes: [61, 62],
+        generation: 3,
+        suppressUntil: nil
+    )
     service.updateExpectedNotes([64], wrongCandidateMIDINotes: [63], generation: 4)
     service.suppressRecognition(until: now, generation: 4)
     service.stop()
 
-    #expect(service.startCalls == [.init(expectedMIDINotes: [60], wrongCandidateMIDINotes: [61, 62], generation: 3, suppressUntil: nil)])
+    #expect(service.startCalls == [.init(
+        expectedMIDINotes: [60],
+        wrongCandidateMIDINotes: [61, 62],
+        generation: 3,
+        suppressUntil: nil
+    )])
     #expect(service.updateCalls == [.init(expectedMIDINotes: [64], wrongCandidateMIDINotes: [63], generation: 4)])
     #expect(service.suppressCalls == [.init(until: now, generation: 4)])
     #expect(service.stopCallCount == 1)

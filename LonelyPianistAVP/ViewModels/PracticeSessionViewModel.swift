@@ -43,6 +43,7 @@ final class PracticeSessionViewModel {
     var audioErrorMessage: String? {
         audioRecognitionErrorMessage ?? audioPlaybackErrorMessage
     }
+
     private(set) var audioRecognitionStatus: PracticeAudioRecognitionStatus = .idle
     private(set) var audioRecognitionDebugSnapshot: PracticeAudioRecognitionDebugSnapshot = .empty
     private(set) var handGateState = HandGateState(
@@ -760,7 +761,7 @@ final class PracticeSessionViewModel {
                 generation: audioRecognitionGeneration
             )
             applyPendingAudioRecognitionSuppressIfNeeded(generation: audioRecognitionGeneration)
-            decisionLogger.debug("audio generation update=\(self.audioRecognitionGeneration, privacy: .public)")
+            decisionLogger.debug("audio generation update=\(audioRecognitionGeneration, privacy: .public)")
             return
         }
 
@@ -810,7 +811,6 @@ final class PracticeSessionViewModel {
         decisionLogger.debug("audio service stopped by lifecycle")
     }
 
-    
     private func prepareAudioRecognitionSuppressWindowForPlayback() -> Date {
         let suppressUntil = Date().addingTimeInterval(audioRecognitionSuppressDuration)
         audioRecognitionSuppressUntil = suppressUntil

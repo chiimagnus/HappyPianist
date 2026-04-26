@@ -1,12 +1,12 @@
 import Foundation
 import os
 
-enum Step3AudioRecognitionMode: String, CaseIterable, Sendable {
+enum Step3AudioRecognitionMode: String, CaseIterable {
     case lowLatency
     case stricter
 }
 
-struct AudioStepAttemptAccumulatorConfiguration: Sendable, Equatable {
+struct AudioStepAttemptAccumulatorConfiguration: Equatable {
     var singleNoteThreshold: Double = 0.60
     var handBoostedThreshold: Double = 0.50
     var wrongNoteThreshold: Double = 0.72
@@ -20,7 +20,7 @@ struct AudioStepAttemptAccumulatorConfiguration: Sendable, Equatable {
     static func configuration(for mode: Step3AudioRecognitionMode) -> AudioStepAttemptAccumulatorConfiguration {
         switch mode {
             case .lowLatency:
-                return AudioStepAttemptAccumulatorConfiguration(
+                AudioStepAttemptAccumulatorConfiguration(
                     singleNoteThreshold: 0.55,
                     handBoostedThreshold: 0.46,
                     wrongNoteThreshold: 0.70,
@@ -32,7 +32,7 @@ struct AudioStepAttemptAccumulatorConfiguration: Sendable, Equatable {
                     wrongNoteGraceWindow: 0.18
                 )
             case .stricter:
-                return AudioStepAttemptAccumulatorConfiguration(
+                AudioStepAttemptAccumulatorConfiguration(
                     singleNoteThreshold: 0.70,
                     handBoostedThreshold: 0.62,
                     wrongNoteThreshold: 0.72,
@@ -114,8 +114,8 @@ final class AudioStepAttemptAccumulator {
             .map(\.confidence)
             .max() ?? 0
 
-        if strongestWrong >= configuration.wrongNoteThreshold &&
-            strongestWrong >= max(strongestExpected, 0.01) * configuration.wrongDominanceRatio
+        if strongestWrong >= configuration.wrongNoteThreshold,
+           strongestWrong >= max(strongestExpected, 0.01) * configuration.wrongDominanceRatio
         {
             if let lastMatchedAt, timestamp.timeIntervalSince(lastMatchedAt) <= configuration.wrongNoteGraceWindow {
                 Self.decisionLogger.debug("audio wrong in grace window generation=\(generation, privacy: .public)")
@@ -181,13 +181,13 @@ final class AudioStepAttemptAccumulator {
     private func requiredMatchCount(expectedCount: Int) -> Int {
         switch expectedCount {
             case ...0:
-                return 0
+                0
             case 1:
-                return 1
+                1
             case 2:
-                return 2
+                2
             default:
-                return Int(ceil(Double(expectedCount) * 2.0 / 3.0))
+                Int(ceil(Double(expectedCount) * 2.0 / 3.0))
         }
     }
 }

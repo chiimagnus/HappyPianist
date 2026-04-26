@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-struct GoertzelNoteDetection: Sendable, Equatable {
+struct GoertzelNoteDetection: Equatable {
     let midiNote: Int
     let confidence: Double
     let rawEnergy: Double
@@ -14,7 +14,6 @@ struct GoertzelNoteDetector {
     var onsetThreshold: Double = 0.25
     var minimumInputRMS: Double = 0.01
     var minimumTonalStrength: Double = 0.04
-
 
     private static let detuneOffsetsInCents: [Double] = [-25, -12, 0, 12, 25]
     private static let harmonicWeights: [Double] = [1.0, 0.65, 0.45, 0.30]
@@ -70,11 +69,10 @@ struct GoertzelNoteDetector {
                 let onsetScore = max(0, (rawEnergy - previousEnergy) / max(previousEnergy, 1e-9))
                 let relativeCandidateEnergy = rawEnergy / denominator
                 let tonalStrength = rawEnergy / max(inputEnergy * sampleCount, 1e-9)
-                let tonalScore: Double
-                if tonalStrength >= minimumTonalStrength {
-                    tonalScore = min(1.0, tonalStrength / 0.25)
+                let tonalScore: Double = if tonalStrength >= minimumTonalStrength {
+                    min(1.0, tonalStrength / 0.25)
                 } else {
-                    tonalScore = 0
+                    0
                 }
                 let confidence = min(1.0, relativeCandidateEnergy * tonalScore)
                 previousEnergyByMIDINote[midiNote] = rawEnergy
@@ -91,7 +89,7 @@ struct GoertzelNoteDetector {
             }
 
         if debugLoggingEnabled {
-            let elapsedMs = (CFAbsoluteTimeGetCurrent() - startedAt) * 1_000
+            let elapsedMs = (CFAbsoluteTimeGetCurrent() - startedAt) * 1000
             let top = results.first
             Self.performanceLogger.debug(
                 "goertzel candidates=\(candidateMIDINotes.count, privacy: .public) ms=\(elapsedMs, privacy: .public) top=\(top?.midiNote ?? -1, privacy: .public) conf=\(top?.confidence ?? 0, privacy: .public)"
@@ -108,7 +106,11 @@ struct GoertzelNoteDetector {
 
         for offset in offsetCandidates {
             let offsetFrequency = baseFrequency * pow(2.0, offset / 1200.0)
-            let weightedEnergy = harmonicEnergy(baseFrequency: offsetFrequency, samples: samples, sampleRate: sampleRate)
+            let weightedEnergy = harmonicEnergy(
+                baseFrequency: offsetFrequency,
+                samples: samples,
+                sampleRate: sampleRate
+            )
             if weightedEnergy > bestEnergy {
                 bestEnergy = weightedEnergy
             }
@@ -123,7 +125,11 @@ struct GoertzelNoteDetector {
         for (index, weight) in Self.harmonicWeights.enumerated() {
             let harmonicFrequency = baseFrequency * Double(index + 1)
             guard harmonicFrequency < nyquist else { continue }
-            result += goertzelMagnitudeSquared(samples: samples, sampleRate: sampleRate, targetFrequency: harmonicFrequency) * weight
+            result += goertzelMagnitudeSquared(
+                samples: samples,
+                sampleRate: sampleRate,
+                targetFrequency: harmonicFrequency
+            ) * weight
         }
         return result
     }

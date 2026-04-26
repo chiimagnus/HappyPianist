@@ -67,7 +67,12 @@ final class FakePracticeAudioRecognitionService: PracticeAudioRecognitionService
         self.debugContinuation = debugContinuation!
     }
 
-    func start(expectedMIDINotes: [Int], wrongCandidateMIDINotes: [Int], generation: Int, suppressUntil: Date?) async throws {
+    func start(
+        expectedMIDINotes: [Int],
+        wrongCandidateMIDINotes: [Int],
+        generation: Int,
+        suppressUntil: Date?
+    ) async throws {
         currentGeneration = generation
         startCalls.append(
             StartCall(

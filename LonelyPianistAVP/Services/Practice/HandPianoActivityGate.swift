@@ -1,7 +1,7 @@
 import Foundation
 import simd
 
-struct HandGateState: Sendable, Equatable {
+struct HandGateState: Equatable {
     let isNearKeyboard: Bool
     let hasDownwardMotion: Bool
     let exactPressedNotes: Set<Int>
@@ -43,12 +43,12 @@ final class HandPianoActivityGate {
 
         for (fingerID, worldPoint) in fingerTips {
             let localPoint = PressDetectionService.transformPoint(keyboardFromWorld, worldPoint)
-            if localPoint.y <= yBounds.upperBound + nearDistance &&
-                localPoint.y >= yBounds.lowerBound - nearDistance &&
-                localPoint.x >= xBounds.lowerBound &&
-                localPoint.x <= xBounds.upperBound &&
-                localPoint.z >= zBounds.lowerBound &&
-                localPoint.z <= zBounds.upperBound
+            if localPoint.y <= yBounds.upperBound + nearDistance,
+               localPoint.y >= yBounds.lowerBound - nearDistance,
+               localPoint.x >= xBounds.lowerBound,
+               localPoint.x <= xBounds.upperBound,
+               localPoint.z >= zBounds.lowerBound,
+               localPoint.z <= zBounds.upperBound
             {
                 isNearKeyboard = true
             }
@@ -63,15 +63,14 @@ final class HandPianoActivityGate {
 
         lastFingerTipPositions = fingerTips
 
-        let confidenceBoost: Double
-        if exactPressedNotes.isEmpty == false {
-            confidenceBoost = 0.10
-        } else if isNearKeyboard && hasDownwardMotion {
-            confidenceBoost = 0.12
+        let confidenceBoost: Double = if exactPressedNotes.isEmpty == false {
+            0.10
+        } else if isNearKeyboard, hasDownwardMotion {
+            0.12
         } else if isNearKeyboard {
-            confidenceBoost = 0.06
+            0.06
         } else {
-            confidenceBoost = 0
+            0
         }
 
         return HandGateState(

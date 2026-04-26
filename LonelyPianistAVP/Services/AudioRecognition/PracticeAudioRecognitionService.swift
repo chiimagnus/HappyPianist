@@ -11,11 +11,11 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
         var errorDescription: String? {
             switch self {
                 case .permissionDenied:
-                    return "Microphone permission denied."
+                    "Microphone permission denied."
                 case .invalidInputFormat:
-                    return "Invalid microphone input format."
+                    "Invalid microphone input format."
                 case let .engineStartFailed(reason):
-                    return reason
+                    reason
             }
         }
     }
@@ -33,7 +33,10 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
     }
 
     private let audioEngine: AVAudioEngine
-    private let processingQueue = DispatchQueue(label: "com.lonelypianist.audio.recognition.processing", qos: .userInitiated)
+    private let processingQueue = DispatchQueue(
+        label: "com.lonelypianist.audio.recognition.processing",
+        qos: .userInitiated
+    )
     private let lock = NSLock()
     private let detectorLock = NSLock()
     private let recognitionLogger = Logger(
@@ -82,7 +85,12 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
         self.debugContinuation = debugContinuation!
     }
 
-    func start(expectedMIDINotes: [Int], wrongCandidateMIDINotes: [Int], generation: Int, suppressUntil: Date?) async throws {
+    func start(
+        expectedMIDINotes: [Int],
+        wrongCandidateMIDINotes: [Int],
+        generation: Int,
+        suppressUntil: Date?
+    ) async throws {
         stop()
         statusContinuation.yield(.requestingPermission)
         recognitionLogger.info("step3 audio start requested")
@@ -108,11 +116,11 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
             suppressUntil: suppressUntil
         )
 
-        inputNode.installTap(onBus: 0, bufferSize: 2_048, format: inputFormat) { [weak self] buffer, _ in
+        inputNode.installTap(onBus: 0, bufferSize: 2048, format: inputFormat) { [weak self] buffer, _ in
             guard let self else { return }
             guard let samples = Self.monoSamples(from: buffer), samples.isEmpty == false else { return }
             let sampleRate = buffer.format.sampleRate
-            self.processingQueue.async {
+            processingQueue.async {
                 self.processAudioSamples(samples, sampleRate: sampleRate)
             }
         }
@@ -162,7 +170,7 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
         lock.lock()
         expectedMIDINotes.removeAll()
         wrongCandidateMIDINotes.removeAll()
-        self.suppressUntil = nil
+        suppressUntil = nil
         recentDetectedNotes.removeAll()
         lock.unlock()
         statusContinuation.yield(.stopped)
@@ -174,10 +182,10 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
         guard sampleRate > 0 else { return }
 
         lock.lock()
-        let expectedMIDINotes = self.expectedMIDINotes
-        let wrongCandidateMIDINotes = self.wrongCandidateMIDINotes
+        let expectedMIDINotes = expectedMIDINotes
+        let wrongCandidateMIDINotes = wrongCandidateMIDINotes
         let generation = currentGeneration
-        let suppressUntil = self.suppressUntil
+        let suppressUntil = suppressUntil
         lock.unlock()
 
         let startedAt = CFAbsoluteTimeGetCurrent()
@@ -192,7 +200,7 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
         detectorLock.unlock()
         if debugLoggingEnabled {
             performanceLogger.debug(
-                "step3 audio process ms=\((CFAbsoluteTimeGetCurrent() - startedAt) * 1_000, privacy: .public) detections=\(detections.count, privacy: .public)"
+                "step3 audio process ms=\((CFAbsoluteTimeGetCurrent() - startedAt) * 1000, privacy: .public) detections=\(detections.count, privacy: .public)"
             )
         }
 

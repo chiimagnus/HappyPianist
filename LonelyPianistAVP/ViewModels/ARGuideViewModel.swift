@@ -273,17 +273,17 @@ final class ARGuideViewModel {
     var step3AudioStatusText: String {
         switch practiceSessionViewModel.audioRecognitionStatus {
             case .idle:
-                return "音频识别：空闲"
+                "音频识别：空闲"
             case .requestingPermission:
-                return "音频识别：请求麦克风权限"
+                "音频识别：请求麦克风权限"
             case .permissionDenied:
-                return "音频识别：权限被拒绝"
+                "音频识别：权限被拒绝"
             case .running:
-                return "音频识别：运行中"
+                "音频识别：运行中"
             case let .engineFailed(reason):
-                return "音频识别：引擎失败（\(reason)）"
+                "音频识别：引擎失败（\(reason)）"
             case .stopped:
-                return "音频识别：已停止"
+                "音频识别：已停止"
         }
     }
 

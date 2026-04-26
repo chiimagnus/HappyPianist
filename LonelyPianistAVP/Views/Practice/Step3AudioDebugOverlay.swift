@@ -17,7 +17,10 @@ struct Step3AudioDebugOverlay: View {
 
             if sessionViewModel.audioRecognitionDebugSnapshot.recentDetectedNotes.isEmpty == false {
                 Divider()
-                ForEach(Array(sessionViewModel.audioRecognitionDebugSnapshot.recentDetectedNotes.suffix(4).enumerated()), id: \.offset) { _, note in
+                ForEach(
+                    Array(sessionViewModel.audioRecognitionDebugSnapshot.recentDetectedNotes.suffix(4).enumerated()),
+                    id: \.offset
+                ) { _, note in
                     row(
                         "N\(note.midiNote)",
                         text: String(

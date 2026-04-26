@@ -9,10 +9,12 @@ struct PracticeSettingsView: View {
     @AppStorage("practiceMusicXMLArpeggiateEnabled") private var isMusicXMLArpeggiateEnabled = false
     @AppStorage("practiceMusicXMLWordsSemanticsEnabled") private var isMusicXMLWordsSemanticsEnabled = false
     @AppStorage("practiceAudioRecognitionEnabled") private var practiceAudioRecognitionEnabled = true
-    @AppStorage("practiceAudioRecognitionDebugOverlayEnabled") private var practiceAudioRecognitionDebugOverlayEnabled = false
-    @AppStorage("practiceStep3AudioRecognitionMode") private var practiceStep3AudioRecognitionMode = Step3AudioRecognitionMode
-        .lowLatency
-        .rawValue
+    @AppStorage("practiceAudioRecognitionDebugOverlayEnabled") private var practiceAudioRecognitionDebugOverlayEnabled =
+        false
+    @AppStorage("practiceStep3AudioRecognitionMode") private var practiceStep3AudioRecognitionMode =
+        Step3AudioRecognitionMode
+            .lowLatency
+            .rawValue
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
 
     var body: some View {
