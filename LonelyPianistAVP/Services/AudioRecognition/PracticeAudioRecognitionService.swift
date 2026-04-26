@@ -82,7 +82,7 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
         self.debugContinuation = debugContinuation!
     }
 
-    func start(expectedMIDINotes: [Int], wrongCandidateMIDINotes: [Int], generation: Int) async throws {
+    func start(expectedMIDINotes: [Int], wrongCandidateMIDINotes: [Int], generation: Int, suppressUntil: Date?) async throws {
         stop()
         statusContinuation.yield(.requestingPermission)
         recognitionLogger.info("step3 audio start requested")
@@ -104,13 +104,16 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
         replaceRecognitionTargets(
             expectedMIDINotes: expectedMIDINotes,
             wrongCandidateMIDINotes: wrongCandidateMIDINotes,
-            generation: generation
+            generation: generation,
+            suppressUntil: suppressUntil
         )
 
         inputNode.installTap(onBus: 0, bufferSize: 2_048, format: inputFormat) { [weak self] buffer, _ in
             guard let self else { return }
+            guard let samples = Self.monoSamples(from: buffer), samples.isEmpty == false else { return }
+            let sampleRate = buffer.format.sampleRate
             self.processingQueue.async {
-                self.processAudioBuffer(buffer)
+                self.processAudioSamples(samples, sampleRate: sampleRate)
             }
         }
         isTapInstalled = true
@@ -159,24 +162,24 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
         lock.lock()
         expectedMIDINotes.removeAll()
         wrongCandidateMIDINotes.removeAll()
-        suppressUntil = nil
+        self.suppressUntil = nil
         recentDetectedNotes.removeAll()
         lock.unlock()
         statusContinuation.yield(.stopped)
         recognitionLogger.info("step3 audio stopped")
     }
 
-    private func processAudioBuffer(_ buffer: AVAudioPCMBuffer) {
-        guard let samples = monoSamples(from: buffer), samples.isEmpty == false else { return }
+    private func processAudioSamples(_ samples: [Float], sampleRate: Double) {
+        guard samples.isEmpty == false else { return }
+        guard sampleRate > 0 else { return }
 
         lock.lock()
-        let expectedMIDINotes = expectedMIDINotes
-        let wrongCandidateMIDINotes = wrongCandidateMIDINotes
+        let expectedMIDINotes = self.expectedMIDINotes
+        let wrongCandidateMIDINotes = self.wrongCandidateMIDINotes
         let generation = currentGeneration
-        let suppressUntil = suppressUntil
+        let suppressUntil = self.suppressUntil
         lock.unlock()
 
-        let sampleRate = buffer.format.sampleRate
         let startedAt = CFAbsoluteTimeGetCurrent()
         let debugLoggingEnabled = UserDefaults.standard.bool(forKey: "practiceAudioRecognitionDebugOverlayEnabled")
         detectorLock.lock()
@@ -241,7 +244,8 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
     private func replaceRecognitionTargets(
         expectedMIDINotes: [Int],
         wrongCandidateMIDINotes: [Int],
-        generation: Int
+        generation: Int,
+        suppressUntil: Date?
     ) {
         lock.lock()
         self.expectedMIDINotes = expectedMIDINotes
@@ -250,12 +254,12 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
         detectorLock.lock()
         detector = GoertzelNoteDetector()
         detectorLock.unlock()
-        suppressUntil = nil
+        self.suppressUntil = suppressUntil
         recentDetectedNotes.removeAll()
         lock.unlock()
     }
 
-    private func monoSamples(from buffer: AVAudioPCMBuffer) -> [Float]? {
+    private static func monoSamples(from buffer: AVAudioPCMBuffer) -> [Float]? {
         guard let channelData = buffer.floatChannelData else { return nil }
         let frameLength = Int(buffer.frameLength)
         guard frameLength > 0 else { return [] }

@@ -76,3 +76,17 @@ private func makeSineWave(
         return amplitude * Float(sin(2 * .pi * frequency * t))
     }
 }
+
+@Test
+func broadbandNoiseDoesNotProduceHighConfidenceDetection() {
+    var detector = GoertzelNoteDetector()
+    let samples = (0 ..< 4_096).map { index in
+        let value = sin(Double(index) * 1.37) + sin(Double(index) * 2.91) + sin(Double(index) * 4.73)
+        return Float(value * 0.08)
+    }
+
+    let results = detector.detect(samples: samples, sampleRate: 44_100, candidateMIDINotes: [60, 61, 62, 63])
+
+    #expect(results.allSatisfy { $0.confidence < 0.2 })
+    #expect(results.allSatisfy { $0.isOnset == false })
+}

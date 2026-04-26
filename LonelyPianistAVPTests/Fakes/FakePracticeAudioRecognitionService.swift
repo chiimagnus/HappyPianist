@@ -6,6 +6,7 @@ final class FakePracticeAudioRecognitionService: PracticeAudioRecognitionService
         let expectedMIDINotes: [Int]
         let wrongCandidateMIDINotes: [Int]
         let generation: Int
+        let suppressUntil: Date?
     }
 
     struct UpdateCall: Equatable {
@@ -66,13 +67,14 @@ final class FakePracticeAudioRecognitionService: PracticeAudioRecognitionService
         self.debugContinuation = debugContinuation!
     }
 
-    func start(expectedMIDINotes: [Int], wrongCandidateMIDINotes: [Int], generation: Int) async throws {
+    func start(expectedMIDINotes: [Int], wrongCandidateMIDINotes: [Int], generation: Int, suppressUntil: Date?) async throws {
         currentGeneration = generation
         startCalls.append(
             StartCall(
                 expectedMIDINotes: expectedMIDINotes,
                 wrongCandidateMIDINotes: wrongCandidateMIDINotes,
-                generation: generation
+                generation: generation,
+                suppressUntil: suppressUntil
             )
         )
     }

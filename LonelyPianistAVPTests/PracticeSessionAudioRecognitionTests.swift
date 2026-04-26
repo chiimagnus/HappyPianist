@@ -33,12 +33,12 @@ func fakeAudioRecognitionServiceEmitsEventToConsumer() async {
 func fakeAudioRecognitionServiceRecordsLifecycleCalls() async throws {
     let service = FakePracticeAudioRecognitionService()
     let now = Date(timeIntervalSince1970: 2_000)
-    try await service.start(expectedMIDINotes: [60], wrongCandidateMIDINotes: [61, 62], generation: 3)
+    try await service.start(expectedMIDINotes: [60], wrongCandidateMIDINotes: [61, 62], generation: 3, suppressUntil: nil)
     service.updateExpectedNotes([64], wrongCandidateMIDINotes: [63], generation: 4)
     service.suppressRecognition(until: now, generation: 4)
     service.stop()
 
-    #expect(service.startCalls == [.init(expectedMIDINotes: [60], wrongCandidateMIDINotes: [61, 62], generation: 3)])
+    #expect(service.startCalls == [.init(expectedMIDINotes: [60], wrongCandidateMIDINotes: [61, 62], generation: 3, suppressUntil: nil)])
     #expect(service.updateCalls == [.init(expectedMIDINotes: [64], wrongCandidateMIDINotes: [63], generation: 4)])
     #expect(service.suppressCalls == [.init(until: now, generation: 4)])
     #expect(service.stopCallCount == 1)
@@ -306,5 +306,110 @@ private final class NoopChordAttemptAccumulator: ChordAttemptAccumulatorProtocol
 }
 
 private final class CapturingAudioPlayer: PracticeNoteAudioPlayerProtocol {
-    func play(midiNotes _: [Int]) throws {}
+    private(set) var playCalls: [[Int]] = []
+
+    func play(midiNotes: [Int]) throws {
+        playCalls.append(midiNotes)
+    }
+}
+
+@Test
+@MainActor
+func startGuidingPassesPlaybackSuppressDeadlineIntoAudioServiceStart() async {
+    UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
+    let fakeService = FakePracticeAudioRecognitionService()
+    let audioPlayer = CapturingAudioPlayer()
+    let viewModel = PracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: TaskSleeper(),
+        noteAudioPlayer: audioPlayer,
+        audioRecognitionService: fakeService
+    )
+    viewModel.setSteps([
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+    ])
+
+    viewModel.startGuidingIfReady()
+    await settleTaskQueue()
+
+    #expect(fakeService.startCalls.first?.suppressUntil != nil)
+    #expect(audioPlayer.playCalls == [[60]])
+}
+
+@Test
+@MainActor
+func microphonePermissionFailureDoesNotBlockPlaybackFallback() async {
+    UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
+    let fakeService = FakePracticeAudioRecognitionService()
+    let audioPlayer = CapturingAudioPlayer()
+    let viewModel = PracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: TaskSleeper(),
+        noteAudioPlayer: audioPlayer,
+        audioRecognitionService: fakeService
+    )
+    viewModel.setSteps([
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+    ])
+
+    viewModel.startGuidingIfReady()
+    await settleTaskQueue()
+    fakeService.emitStatus(.permissionDenied)
+    await settleTaskQueue()
+    viewModel.playCurrentStepSound()
+
+    #expect(viewModel.audioRecognitionErrorMessage == "未授予麦克风权限")
+    #expect(audioPlayer.playCalls.count >= 2)
+}
+
+@Test
+@MainActor
+func disablingAudioRecognitionSettingStopsRunningService() async {
+    UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
+    let fakeService = FakePracticeAudioRecognitionService()
+    let viewModel = makeViewModel(audioRecognitionService: fakeService)
+    viewModel.setSteps([
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+    ])
+    viewModel.startGuidingIfReady()
+    await settleTaskQueue()
+
+    UserDefaults.standard.set(false, forKey: "practiceAudioRecognitionEnabled")
+    viewModel.refreshAudioRecognitionFromSettings()
+
+    #expect(fakeService.stopCallCount >= 1)
+}
+
+@Test
+@MainActor
+func disablingAudioRecognitionSettingIgnoresQueuedEvents() async {
+    UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
+    let fakeService = FakePracticeAudioRecognitionService()
+    let viewModel = makeViewModel(audioRecognitionService: fakeService)
+    viewModel.setSteps([
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+        PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
+    ])
+    viewModel.startGuidingIfReady()
+    await settleTaskQueue()
+    let generation = fakeService.startCalls.first?.generation ?? 0
+
+    UserDefaults.standard.set(false, forKey: "practiceAudioRecognitionEnabled")
+    viewModel.refreshAudioRecognitionFromSettings()
+    fakeService.emitEvent(
+        DetectedNoteEvent(
+            midiNote: 60,
+            confidence: 0.95,
+            onsetScore: 0.9,
+            isOnset: true,
+            timestamp: Date().addingTimeInterval(0.8),
+            generation: generation,
+            source: .audio
+        )
+    )
+    await settleTaskQueue()
+
+    #expect(viewModel.currentStepIndex == 0)
 }

@@ -305,3 +305,49 @@ private func makeEvent(
         source: .audio
     )
 }
+
+@Test
+@MainActor
+func chordDoesNotCountLowConfidenceOnsetsTowardMajority() {
+    let accumulator = AudioStepAttemptAccumulator()
+    let now = Date(timeIntervalSince1970: 2_700)
+    accumulator.resetForNewStep(generation: 13)
+    accumulator.register(event: makeEvent(midiNote: 60, confidence: 0.9, isOnset: true, timestamp: now, generation: 13))
+    accumulator.register(event: makeEvent(midiNote: 64, confidence: 0.1, isOnset: true, timestamp: now.addingTimeInterval(0.02), generation: 13))
+
+    let result = accumulator.evaluate(
+        expectedMIDINotes: [60, 64, 67],
+        wrongCandidateMIDINotes: [],
+        generation: 13,
+        at: now.addingTimeInterval(0.03)
+    )
+
+    #expect(result == .insufficient(progress: "chord 1/2"))
+}
+
+@Test
+@MainActor
+func fourNoteChordRequiresCeilTwoThirdsMatches() {
+    let accumulator = AudioStepAttemptAccumulator()
+    let now = Date(timeIntervalSince1970: 2_800)
+    accumulator.resetForNewStep(generation: 14)
+    accumulator.register(event: makeEvent(midiNote: 60, confidence: 0.9, isOnset: true, timestamp: now, generation: 14))
+    accumulator.register(event: makeEvent(midiNote: 64, confidence: 0.9, isOnset: true, timestamp: now.addingTimeInterval(0.01), generation: 14))
+
+    let twoOfFour = accumulator.evaluate(
+        expectedMIDINotes: [60, 64, 67, 71],
+        wrongCandidateMIDINotes: [],
+        generation: 14,
+        at: now.addingTimeInterval(0.02)
+    )
+    #expect(twoOfFour == .insufficient(progress: "chord 2/3"))
+
+    accumulator.register(event: makeEvent(midiNote: 67, confidence: 0.9, isOnset: true, timestamp: now.addingTimeInterval(0.03), generation: 14))
+    let threeOfFour = accumulator.evaluate(
+        expectedMIDINotes: [60, 64, 67, 71],
+        wrongCandidateMIDINotes: [],
+        generation: 14,
+        at: now.addingTimeInterval(0.04)
+    )
+    #expect(threeOfFour == .matched(reason: "chord majority matched"))
+}

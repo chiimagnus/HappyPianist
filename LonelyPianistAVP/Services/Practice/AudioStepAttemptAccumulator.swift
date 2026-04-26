@@ -169,8 +169,8 @@ final class AudioStepAttemptAccumulator {
         }
     }
 
-    private func isEventQualified(_ event: DetectedNoteEvent, threshold _: Double) -> Bool {
-        event.isOnset || event.onsetScore >= configuration.onsetThreshold
+    private func isEventQualified(_ event: DetectedNoteEvent, threshold: Double) -> Bool {
+        event.confidence >= threshold && (event.isOnset || event.onsetScore >= configuration.onsetThreshold)
     }
 
     private func isRearmSatisfied(for midiNote: Int, at timestamp: Date) -> Bool {
@@ -187,7 +187,7 @@ final class AudioStepAttemptAccumulator {
             case 2:
                 return 2
             default:
-                return (expectedCount / 2) + 1
+                return Int(ceil(Double(expectedCount) * 2.0 / 3.0))
         }
     }
 }

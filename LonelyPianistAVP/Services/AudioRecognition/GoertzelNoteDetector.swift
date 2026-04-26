@@ -13,6 +13,8 @@ struct GoertzelNoteDetector {
     var centTolerance: Double = 25
     var onsetThreshold: Double = 0.25
     var minimumInputRMS: Double = 0.01
+    var minimumTonalStrength: Double = 0.04
+
 
     private static let detuneOffsetsInCents: [Double] = [-25, -12, 0, 12, 25]
     private static let harmonicWeights: [Double] = [1.0, 0.65, 0.45, 0.30]
@@ -59,19 +61,29 @@ struct GoertzelNoteDetector {
 
         let maxEnergy = energiesByMIDINote.values.max() ?? 0
         let denominator = max(maxEnergy, 1e-9)
+        let inputEnergy = max(sumSquares(samples), 1e-9)
+        let sampleCount = Double(max(samples.count, 1))
 
         let results = energiesByMIDINote
             .map { midiNote, rawEnergy in
                 let previousEnergy = previousEnergyByMIDINote[midiNote] ?? 0
                 let onsetScore = max(0, (rawEnergy - previousEnergy) / max(previousEnergy, 1e-9))
-                let confidence = min(1.0, rawEnergy / denominator)
+                let relativeCandidateEnergy = rawEnergy / denominator
+                let tonalStrength = rawEnergy / max(inputEnergy * sampleCount, 1e-9)
+                let tonalScore: Double
+                if tonalStrength >= minimumTonalStrength {
+                    tonalScore = min(1.0, tonalStrength / 0.25)
+                } else {
+                    tonalScore = 0
+                }
+                let confidence = min(1.0, relativeCandidateEnergy * tonalScore)
                 previousEnergyByMIDINote[midiNote] = rawEnergy
                 return GoertzelNoteDetection(
                     midiNote: midiNote,
                     confidence: confidence,
                     rawEnergy: rawEnergy,
                     onsetScore: onsetScore,
-                    isOnset: onsetScore >= onsetThreshold
+                    isOnset: onsetScore >= onsetThreshold && confidence > 0
                 )
             }
             .sorted { lhs, rhs in
@@ -136,10 +148,13 @@ struct GoertzelNoteDetector {
     }
 
     private func rms(_ samples: [Float]) -> Double {
-        let squared = samples.reduce(0.0) { partialResult, sample in
+        sqrt(sumSquares(samples) / Double(max(samples.count, 1)))
+    }
+
+    private func sumSquares(_ samples: [Float]) -> Double {
+        samples.reduce(0.0) { partialResult, sample in
             partialResult + Double(sample * sample)
         }
-        return sqrt(squared / Double(max(samples.count, 1)))
     }
 
     private func midiFrequency(midiNote: Int) -> Double {
