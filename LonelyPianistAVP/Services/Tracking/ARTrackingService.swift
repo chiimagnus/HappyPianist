@@ -7,6 +7,7 @@ import simd
 protocol ARTrackingServiceProtocol: AnyObject {
     var fingerTipPositions: [String: SIMD3<Float>] { get }
     var leftIndexFingerTipPosition: SIMD3<Float>? { get }
+    var leftThumbTipPosition: SIMD3<Float>? { get }
     var rightIndexFingerTipPosition: SIMD3<Float>? { get }
     var rightThumbTipPosition: SIMD3<Float>? { get }
     var worldAnchorsByID: [UUID: WorldAnchor] { get }
@@ -51,6 +52,7 @@ enum DataProviderState: Equatable {
 final class ARTrackingService: ARTrackingServiceProtocol {
     private(set) var fingerTipPositions: [String: SIMD3<Float>] = [:]
     private(set) var leftIndexFingerTipPosition: SIMD3<Float>?
+    private(set) var leftThumbTipPosition: SIMD3<Float>?
     private(set) var rightIndexFingerTipPosition: SIMD3<Float>?
     private(set) var rightThumbTipPosition: SIMD3<Float>?
     private(set) var worldAnchorsByID: [UUID: WorldAnchor] = [:]
@@ -210,6 +212,7 @@ final class ARTrackingService: ARTrackingServiceProtocol {
                         switch update.anchor.chirality {
                             case .left:
                                 leftIndexFingerTipPosition = nil
+                                leftThumbTipPosition = nil
                             case .right:
                                 rightIndexFingerTipPosition = nil
                                 rightThumbTipPosition = nil
@@ -229,6 +232,7 @@ final class ARTrackingService: ARTrackingServiceProtocol {
                     switch update.anchor.chirality {
                         case .left:
                             leftIndexFingerTipPosition = extracted.indexFingerTip
+                            leftThumbTipPosition = extracted.thumbTip
                         case .right:
                             rightIndexFingerTipPosition = extracted.indexFingerTip
                             rightThumbTipPosition = extracted.thumbTip
