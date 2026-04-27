@@ -37,7 +37,6 @@ final class PracticeSessionViewModel {
     private(set) var pressedNotes: Set<Int> = []
     private(set) var feedbackState: VisualFeedbackState = .none
     private(set) var isSustainPedalDown = false
-    private(set) var autoplayHighlightedMIDINotes: Set<Int> = []
     private(set) var audioRecognitionErrorMessage: String?
     private(set) var audioPlaybackErrorMessage: String?
     var audioErrorMessage: String? {
@@ -540,7 +539,6 @@ final class PracticeSessionViewModel {
         pendingReleaseOffTickByMIDI = [:]
         pendingAutoplayOnsetsByTick = [:]
         noteOutput?.allNotesOff()
-        refreshAutoplayHighlightedMIDINotes()
     }
 
     private func prepareAutoplayOnsetsForCurrentStep() {
@@ -567,8 +565,6 @@ final class PracticeSessionViewModel {
         }
 
         playPendingAutoplayOnsetsIfDue(atTick: currentStep.tick)
-
-        refreshAutoplayHighlightedMIDINotes()
     }
 
     private func playPendingAutoplayOnsetsIfDue(atTick tick: Int) {
@@ -587,8 +583,6 @@ final class PracticeSessionViewModel {
                 break
             }
         }
-
-        refreshAutoplayHighlightedMIDINotes()
     }
 
     private func handleDueNoteOffs(atTick tick: Int) {
@@ -605,10 +599,6 @@ final class PracticeSessionViewModel {
                 scheduleNoteOff(midi: midi)
             }
         }
-
-        if due.isEmpty == false {
-            refreshAutoplayHighlightedMIDINotes()
-        }
     }
 
     private func releasePendingNotesIfNeeded(atTick tick: Int) {
@@ -619,10 +609,6 @@ final class PracticeSessionViewModel {
         for (midi, _) in releasable {
             pendingReleaseOffTickByMIDI[midi] = nil
             scheduleNoteOff(midi: midi)
-        }
-
-        if releasable.isEmpty == false {
-            refreshAutoplayHighlightedMIDINotes()
         }
     }
 
@@ -636,15 +622,7 @@ final class PracticeSessionViewModel {
             guard Task.isCancelled == false else { return }
             noteOutput.noteOff(midi: midi)
             noteOffTasksByMIDI[midi] = nil
-            refreshAutoplayHighlightedMIDINotes()
         }
-        refreshAutoplayHighlightedMIDINotes()
-    }
-
-    private func refreshAutoplayHighlightedMIDINotes() {
-        autoplayHighlightedMIDINotes = Set(activeNoteOffTickByMIDI.keys)
-            .union(pendingReleaseOffTickByMIDI.keys)
-            .union(noteOffTasksByMIDI.keys)
     }
 
     private func resolveOffTick(midi: Int, staff: Int?, onTick: Int) -> Int {
