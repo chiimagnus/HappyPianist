@@ -105,7 +105,8 @@ class AppModel {
         fermataTimeline: MusicXMLFermataTimeline? = nil,
         attributeTimeline: MusicXMLAttributeTimeline? = nil,
         slurTimeline: MusicXMLSlurTimeline? = nil,
-        noteSpans: [MusicXMLNoteSpan] = []
+        noteSpans: [MusicXMLNoteSpan] = [],
+        highlightGuides: [PianoHighlightGuide] = []
     ) {
         importedSteps = steps
         importedFile = file
@@ -117,7 +118,8 @@ class AppModel {
             fermataTimeline: fermataTimeline,
             attributeTimeline: attributeTimeline,
             slurTimeline: slurTimeline,
-            noteSpans: noteSpans
+            noteSpans: noteSpans,
+            highlightGuides: highlightGuides
         )
         applySessionIfPossible()
     }
@@ -172,6 +174,14 @@ class AppModel {
                 expressivity: expressivityOptions,
                 fermataTimeline: fermataTimeline
             )
+            let highlightGuides = PianoHighlightGuideBuilderService().buildGuides(
+                input: PianoHighlightGuideBuildInput(
+                    score: practiceScore,
+                    steps: buildResult.steps,
+                    noteSpans: noteSpans,
+                    expressivity: expressivityOptions
+                )
+            )
             if buildResult.unsupportedNoteCount > 0 {
                 importErrorMessage = "已导入（忽略了 \(buildResult.unsupportedNoteCount) 个不支持的音符）。"
             } else {
@@ -185,7 +195,8 @@ class AppModel {
                 fermataTimeline: fermataTimeline,
                 attributeTimeline: attributeTimeline,
                 slurTimeline: slurTimeline,
-                noteSpans: noteSpans
+                noteSpans: noteSpans,
+                highlightGuides: highlightGuides
             )
         } catch {
             importErrorMessage = "导入失败：\(error.localizedDescription)"

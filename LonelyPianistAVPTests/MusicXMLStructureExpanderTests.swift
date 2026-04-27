@@ -229,3 +229,87 @@ func structureExpanderFallsBackWhenJumpLimitsAreHit() {
     #expect(expanded.soundDirectives == score.soundDirectives)
     #expect(expanded.measures == score.measures)
 }
+
+@Test
+func structureExpanderPreservesParsedNoteAndScoreFieldsWhenMaterializing() {
+    let scope = MusicXMLEventScope(partID: "P1", staff: 1, voice: 1)
+    let score = MusicXMLScore(
+        notes: [
+            MusicXMLNoteEvent(
+                partID: "P1",
+                measureNumber: 1,
+                tick: 0,
+                durationTicks: 480,
+                midiNote: 60,
+                isRest: false,
+                isChord: false,
+                isGrace: true,
+                graceSlash: true,
+                graceStealTimePrevious: 0.2,
+                graceStealTimeFollowing: 0.3,
+                tieStart: false,
+                tieStop: false,
+                staff: 1,
+                voice: 1,
+                attackTicks: -10,
+                releaseTicks: 20,
+                dynamicsOverrideVelocity: 88,
+                articulations: [.staccato],
+                arpeggiate: MusicXMLArpeggiate(numberToken: "1", directionToken: "up"),
+                fingeringText: "3"
+            ),
+            MusicXMLNoteEvent(
+                partID: "P1",
+                measureNumber: 2,
+                tick: 480,
+                durationTicks: 480,
+                midiNote: 62,
+                isRest: false,
+                isChord: false,
+                tieStart: false,
+                tieStop: false,
+                staff: 1,
+                voice: 1
+            ),
+        ],
+        tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 100, scope: scope)],
+        dynamicEvents: [MusicXMLDynamicEvent(tick: 0, velocity: 70, scope: scope, source: .directionDynamics)],
+        wedgeEvents: [MusicXMLWedgeEvent(tick: 0, kind: .crescendoStart, numberToken: "1", scope: scope)],
+        fermataEvents: [MusicXMLFermataEvent(tick: 0, scope: scope, source: .noteNotations)],
+        slurEvents: [MusicXMLSlurEvent(tick: 0, kind: .start, numberToken: "1", scope: scope)],
+        timeSignatureEvents: [MusicXMLTimeSignatureEvent(tick: 0, beats: 4, beatType: 4, scope: scope)],
+        keySignatureEvents: [MusicXMLKeySignatureEvent(tick: 0, fifths: 1, modeToken: "major", scope: scope)],
+        clefEvents: [MusicXMLClefEvent(tick: 0, signToken: "G", line: 2, octaveChange: nil, numberToken: "1", scope: scope)],
+        wordsEvents: [MusicXMLWordsEvent(tick: 0, text: "Allegro", scope: scope)],
+        measures: [
+            MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, startTick: 0, endTick: 480),
+            MusicXMLMeasureSpan(partID: "P1", measureNumber: 2, startTick: 480, endTick: 960),
+        ],
+        repeatDirectives: [
+            MusicXMLRepeatDirective(partID: "P1", measureNumber: 1, direction: .forward),
+            MusicXMLRepeatDirective(partID: "P1", measureNumber: 2, direction: .backward),
+        ]
+    )
+
+    let expanded = MusicXMLStructureExpander().expandRepeatAndEndingIfPossible(score: score)
+
+    let preserved = expanded.notes.first
+    #expect(preserved?.isGrace == true)
+    #expect(preserved?.graceSlash == true)
+    #expect(preserved?.graceStealTimePrevious == 0.2)
+    #expect(preserved?.graceStealTimeFollowing == 0.3)
+    #expect(preserved?.attackTicks == -10)
+    #expect(preserved?.releaseTicks == 20)
+    #expect(preserved?.dynamicsOverrideVelocity == 88)
+    #expect(preserved?.articulations == [.staccato])
+    #expect(preserved?.arpeggiate == MusicXMLArpeggiate(numberToken: "1", directionToken: "up"))
+    #expect(preserved?.fingeringText == "3")
+    #expect(expanded.dynamicEvents.isEmpty == false)
+    #expect(expanded.wedgeEvents.isEmpty == false)
+    #expect(expanded.fermataEvents.isEmpty == false)
+    #expect(expanded.slurEvents.isEmpty == false)
+    #expect(expanded.timeSignatureEvents.isEmpty == false)
+    #expect(expanded.keySignatureEvents.isEmpty == false)
+    #expect(expanded.clefEvents.isEmpty == false)
+    #expect(expanded.wordsEvents.isEmpty == false)
+}

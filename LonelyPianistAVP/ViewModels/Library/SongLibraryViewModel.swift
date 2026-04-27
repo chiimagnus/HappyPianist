@@ -183,6 +183,14 @@ final class SongLibraryViewModel {
                 expressivity: expressivityOptions,
                 fermataTimeline: fermataTimeline
             )
+            let highlightGuides = PianoHighlightGuideBuilderService().buildGuides(
+                input: PianoHighlightGuideBuildInput(
+                    score: practiceScore,
+                    steps: buildResult.steps,
+                    noteSpans: noteSpans,
+                    expressivity: expressivityOptions
+                )
+            )
 
             guard buildResult.steps.isEmpty == false else {
                 errorMessage = "该曲目未生成可练习步骤。"
@@ -201,7 +209,8 @@ final class SongLibraryViewModel {
                 fermataTimeline: fermataTimeline,
                 attributeTimeline: attributeTimeline,
                 slurTimeline: slurTimeline,
-                noteSpans: noteSpans
+                noteSpans: noteSpans,
+                highlightGuides: highlightGuides
             )
 
             var updatedIndex = index

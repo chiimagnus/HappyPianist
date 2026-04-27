@@ -7,11 +7,12 @@ enum BeamColorToken: Equatable {
 }
 
 struct PianoGuideBeamDescriptor: Equatable, Identifiable {
-    var id: Int {
-        midiNote
+    var id: String {
+        "\(midiNote)-\(guideID)"
     }
 
     let midiNote: Int
+    let guideID: Int
     let positionLocal: SIMD3<Float>
     let sizeLocal: SIMD3<Float>
     let surfaceLocalY: Float
@@ -26,13 +27,13 @@ extension PianoGuideBeamDescriptor {
     private static let minimumBeamDepthMeters: Float = 0.018
 
     static func makeDescriptors(
-        currentStep: PracticeStep?,
+        highlightGuide: PianoHighlightGuide?,
         keyboardGeometry: PianoKeyboardGeometry?,
         feedbackState: PracticeSessionViewModel.VisualFeedbackState
     ) -> [PianoGuideBeamDescriptor] {
-        guard let currentStep, let keyboardGeometry else { return [] }
+        guard let highlightGuide, let keyboardGeometry else { return [] }
 
-        let desiredNotes = Set(currentStep.notes.map(\.midiNote)).sorted()
+        let desiredNotes = highlightGuide.highlightedMIDINotes.sorted()
         guard desiredNotes.isEmpty == false else { return [] }
 
         let baseColor: BeamColorToken = switch feedbackState {
@@ -59,6 +60,7 @@ extension PianoGuideBeamDescriptor {
 
             return PianoGuideBeamDescriptor(
                 midiNote: midiNote,
+                guideID: highlightGuide.id,
                 positionLocal: positionLocal,
                 sizeLocal: SIMD3<Float>(width, height, depth),
                 surfaceLocalY: key.surfaceLocalY,

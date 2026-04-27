@@ -6,15 +6,18 @@ struct PianoKeyboard88View: View {
     static let maxPlayableMIDINote = 108
 
     let highlightedMIDINotes: Set<Int>
+    let highlightOccurrenceID: Int?
     let fingeringByMIDINote: [Int: String]
     let highlightColorByMIDINote: [Int: Color]
 
     init(
         highlightedMIDINotes: Set<Int>,
+        highlightOccurrenceID: Int? = nil,
         fingeringByMIDINote: [Int: String] = [:],
         highlightColorByMIDINote: [Int: Color] = [:]
     ) {
         self.highlightedMIDINotes = highlightedMIDINotes
+        self.highlightOccurrenceID = highlightOccurrenceID
         self.fingeringByMIDINote = fingeringByMIDINote
         self.highlightColorByMIDINote = highlightColorByMIDINote
     }
@@ -46,6 +49,7 @@ struct PianoKeyboard88View: View {
                             }
                         }
                         .frame(width: whiteKeyWidth, height: whiteKeyHeight)
+                        .id("white-\(key.midiNote)-\(highlightOccurrenceID ?? 0)-\(isHighlighted)")
                         .offset(x: CGFloat(key.whiteIndex) * whiteKeyWidth)
                 }
 
@@ -68,6 +72,7 @@ struct PianoKeyboard88View: View {
                             }
                         }
                         .frame(width: blackKeyWidth, height: blackKeyHeight)
+                        .id("black-\(key.midiNote)-\(highlightOccurrenceID ?? 0)-\(isHighlighted)")
                         .offset(
                             x: (CGFloat(key.leftWhiteIndex + 1) * whiteKeyWidth) - (blackKeyWidth / 2)
                         )

@@ -76,6 +76,9 @@ final class PracticeSessionViewModel {
     private var activeNoteOffTickByMIDI: [Int: Int] = [:]
     private var pendingReleaseOffTickByMIDI: [Int: Int] = [:]
     private var pendingAutoplayOnsetsByTick: [Int: [PracticeStepNote]] = [:]
+    private(set) var highlightGuides: [PianoHighlightGuide] = []
+    private var currentHighlightGuideIndex: Int?
+    private var manualHighlightTransitionTask: Task<Void, Never>?
     private var audioRecognitionGeneration = 0
     private var isAudioRecognitionRunning = false
     private var audioRecognitionSuppressUntil: Date?
@@ -129,6 +132,12 @@ final class PracticeSessionViewModel {
         guard state != .completed else { return nil }
         guard steps.indices.contains(currentStepIndex) else { return nil }
         return steps[currentStepIndex]
+    }
+
+    var currentPianoHighlightGuide: PianoHighlightGuide? {
+        guard let currentHighlightGuideIndex else { return nil }
+        guard highlightGuides.indices.contains(currentHighlightGuideIndex) else { return nil }
+        return highlightGuides[currentHighlightGuideIndex]
     }
 
     var currentMusicXMLAttributeSummaryText: String? {
@@ -200,7 +209,8 @@ final class PracticeSessionViewModel {
         fermataTimeline: MusicXMLFermataTimeline? = nil,
         attributeTimeline: MusicXMLAttributeTimeline? = nil,
         slurTimeline: MusicXMLSlurTimeline? = nil,
-        noteSpans: [MusicXMLNoteSpan] = []
+        noteSpans: [MusicXMLNoteSpan] = [],
+        highlightGuides: [PianoHighlightGuide] = []
     ) {
         if state == .completed, self.steps == steps, steps.isEmpty == false {
             return
@@ -213,6 +223,8 @@ final class PracticeSessionViewModel {
         stopAutoplayTask()
         stopAutoplayAudio()
         stopAudioRecognition()
+        manualHighlightTransitionTask?.cancel()
+        manualHighlightTransitionTask = nil
         chordAttemptAccumulator.reset()
         self.steps = steps
         self.tempoMap = tempoMap
@@ -221,10 +233,13 @@ final class PracticeSessionViewModel {
         self.attributeTimeline = attributeTimeline
         self.slurTimeline = slurTimeline
         noteSpanOffTickByOnsetKey = Self.makeNoteSpanOffTickByOnsetKey(noteSpans)
+        self.highlightGuides = highlightGuides.isEmpty ? PianoHighlightGuideBuilderService.makeFallbackGuides(from: steps) : highlightGuides
+        currentHighlightGuideIndex = nil
         pendingAutoplayOnsetsByTick = [:]
 
         if shouldResetProgress {
             currentStepIndex = 0
+            currentHighlightGuideIndex = nil
             pressedNotes.removeAll()
             feedbackState = .none
         }
@@ -276,6 +291,10 @@ final class PracticeSessionViewModel {
         attributeTimeline = nil
         slurTimeline = nil
         noteSpanOffTickByOnsetKey = [:]
+        highlightGuides = []
+        currentHighlightGuideIndex = nil
+        manualHighlightTransitionTask?.cancel()
+        manualHighlightTransitionTask = nil
         calibration = nil
         keyboardGeometry = nil
         pressedNotes.removeAll()
@@ -303,6 +322,7 @@ final class PracticeSessionViewModel {
     func startGuidingIfReady() {
         guard state == .ready, steps.isEmpty == false else { return }
         currentStepIndex = 0
+        setCurrentHighlightGuideForStepIndex(currentStepIndex)
         state = .guiding(stepIndex: currentStepIndex)
         if autoplayState == .playing {
             refreshAudioRecognitionForCurrentState()
@@ -370,7 +390,7 @@ final class PracticeSessionViewModel {
                 keyboardGeometry: keyboardGeometry,
                 exactPressedNotes: detected
             )
-            if let currentStep {
+            if autoplayState == .off, let currentStep {
                 let expected = currentStep.notes.map(\.midiNote)
                 let isMatched = chordAttemptAccumulator.register(
                     pressedNotes: detected,
@@ -409,8 +429,10 @@ final class PracticeSessionViewModel {
         }
         chordAttemptAccumulator.reset()
         if currentStepIndex + 1 < steps.count {
+            let previousTick = steps[currentStepIndex].tick
             currentStepIndex += 1
             state = .guiding(stepIndex: currentStepIndex)
+            updateHighlightGuideAfterStepAdvance(previousTick: previousTick, nextStepIndex: currentStepIndex)
             if autoplayState == .playing {
                 refreshAudioRecognitionForCurrentState()
                 prepareAutoplayOnsetsForCurrentStep()
@@ -421,6 +443,7 @@ final class PracticeSessionViewModel {
             }
         } else {
             currentStepIndex = steps.count
+            currentHighlightGuideIndex = nil
             pressedNotes.removeAll()
             state = .completed
             stopAutoplayTask()
@@ -479,6 +502,7 @@ final class PracticeSessionViewModel {
                 guard case .guiding = state else { break }
 
                 currentTick = nextEventTick
+                advanceAutoplayHighlightGuides(upToTick: currentTick)
 
                 if nextPedalTick == nextEventTick, let change = nextPedalChange {
                     isSustainPedalDown = change.isDown
@@ -521,6 +545,56 @@ final class PracticeSessionViewModel {
         }
     }
 
+    private func setCurrentHighlightGuideForStepIndex(_ stepIndex: Int) {
+        guard steps.indices.contains(stepIndex) else {
+            currentHighlightGuideIndex = nil
+            return
+        }
+        let tick = steps[stepIndex].tick
+        currentHighlightGuideIndex = highlightGuides.firstIndex { guide in
+            guide.practiceStepIndex == stepIndex && guide.kind == .trigger
+        } ?? highlightGuides.firstIndex { guide in
+            guide.tick >= tick && guide.kind == .trigger
+        } ?? highlightGuides.firstIndex { guide in
+            guide.tick >= tick
+        }
+    }
+
+    private func updateHighlightGuideAfterStepAdvance(previousTick: Int, nextStepIndex: Int) {
+        guard autoplayState == .off else {
+            setCurrentHighlightGuideForStepIndex(nextStepIndex)
+            return
+        }
+        manualHighlightTransitionTask?.cancel()
+        guard steps.indices.contains(nextStepIndex) else {
+            currentHighlightGuideIndex = nil
+            return
+        }
+        let nextTick = steps[nextStepIndex].tick
+        let transitionIndex = highlightGuides.firstIndex { guide in
+            guide.tick > previousTick && guide.tick < nextTick && (guide.kind == .release || guide.kind == .gap)
+        }
+        guard let transitionIndex else {
+            setCurrentHighlightGuideForStepIndex(nextStepIndex)
+            return
+        }
+        currentHighlightGuideIndex = transitionIndex
+        manualHighlightTransitionTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            try? await sleeper.sleep(for: .seconds(0.12))
+            guard Task.isCancelled == false else { return }
+            setCurrentHighlightGuideForStepIndex(nextStepIndex)
+            manualHighlightTransitionTask = nil
+        }
+    }
+
+    private func advanceAutoplayHighlightGuides(upToTick tick: Int) {
+        guard highlightGuides.isEmpty == false else { return }
+        let index = highlightGuides.lastIndex { guide in
+            guide.tick <= tick
+        }
+        currentHighlightGuideIndex = index
+    }
     private func resolvedTempoMap() -> MusicXMLTempoMap {
         tempoMap ?? MusicXMLTempoMap(tempoEvents: [])
     }

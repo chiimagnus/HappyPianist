@@ -18,7 +18,11 @@ struct PracticeStepView: View {
     @AppStorage("practiceAudioRecognitionEnabled") private var isAudioRecognitionEnabled = true
 
     var body: some View {
-        PianoKeyboard88View(highlightedMIDINotes: highlightedMIDINotes, fingeringByMIDINote: fingeringByMIDINote)
+        PianoKeyboard88View(
+            highlightedMIDINotes: highlightedMIDINotes,
+            highlightOccurrenceID: viewModel.practiceSessionViewModel.currentPianoHighlightGuide?.id,
+            fingeringByMIDINote: fingeringByMIDINote
+        )
             .aspectRatio(PianoKeyboard88View.aspectRatio, contentMode: .fit)
             .containerRelativeFrame(.horizontal, count: 10, span: 9, spacing: 0)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -151,20 +155,12 @@ struct PracticeStepView: View {
     }
 
     private var highlightedMIDINotes: Set<Int> {
-        guard let currentStep = viewModel.practiceSessionViewModel.currentStep else {
-            return []
-        }
-        return Set(currentStep.notes.map(\.midiNote))
+        viewModel.practiceSessionViewModel.currentPianoHighlightGuide?.highlightedMIDINotes ?? []
     }
 
     private var fingeringByMIDINote: [Int: String] {
         guard isAutoplayEnabled else { return [:] }
-        guard let currentStep = viewModel.practiceSessionViewModel.currentStep else { return [:] }
-        let items = currentStep.notes.compactMap { note -> (Int, String)? in
-            guard let text = note.fingeringText, text.isEmpty == false else { return nil }
-            return (note.midiNote, text)
-        }
-        return Dictionary(uniqueKeysWithValues: items)
+        return viewModel.practiceSessionViewModel.currentPianoHighlightGuide?.fingeringByMIDINote ?? [:]
     }
 
     private var localizationPopover: some View {

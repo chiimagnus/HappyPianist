@@ -5,7 +5,7 @@ import Testing
 @Test
 func descriptorsAreEmptyWhenCurrentStepIsNil() {
     let result = PianoGuideBeamDescriptor.makeDescriptors(
-        currentStep: nil,
+        highlightGuide: nil,
         keyboardGeometry: makeGeometry(),
         feedbackState: .none
     )
@@ -16,7 +16,7 @@ func descriptorsAreEmptyWhenCurrentStepIsNil() {
 func descriptorsAreEmptyWhenKeyboardGeometryIsNil() {
     let step = PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)])
     let result = PianoGuideBeamDescriptor.makeDescriptors(
-        currentStep: step,
+        highlightGuide: makeGuide(from: step),
         keyboardGeometry: nil,
         feedbackState: .none
     )
@@ -32,7 +32,7 @@ func descriptorsDeduplicateNotesAndAlignToSurface() {
     let geometry = makeGeometry()
 
     let result = PianoGuideBeamDescriptor.makeDescriptors(
-        currentStep: step,
+        highlightGuide: makeGuide(from: step),
         keyboardGeometry: geometry,
         feedbackState: .none
     )
@@ -52,7 +52,7 @@ func descriptorUsesFootprintAndMinimumSizes() {
     let geometry = makeGeometry(beamWidth: 0.002, beamDepth: 0.006)
 
     let result = PianoGuideBeamDescriptor.makeDescriptors(
-        currentStep: step,
+        highlightGuide: makeGuide(from: step),
         keyboardGeometry: geometry,
         feedbackState: .none
     )
@@ -68,17 +68,17 @@ func descriptorBaseColorReflectsFeedbackState() {
     let geometry = makeGeometry()
 
     let none = PianoGuideBeamDescriptor.makeDescriptors(
-        currentStep: step,
+        highlightGuide: makeGuide(from: step),
         keyboardGeometry: geometry,
         feedbackState: .none
     ).first
     let correct = PianoGuideBeamDescriptor.makeDescriptors(
-        currentStep: step,
+        highlightGuide: makeGuide(from: step),
         keyboardGeometry: geometry,
         feedbackState: .correct
     ).first
     let wrong = PianoGuideBeamDescriptor.makeDescriptors(
-        currentStep: step,
+        highlightGuide: makeGuide(from: step),
         keyboardGeometry: geometry,
         feedbackState: .wrong
     ).first
@@ -126,4 +126,30 @@ private func makeGeometry(beamWidth: Float = 0.04, beamDepth: Float = 0.06) -> P
     )
 
     return PianoKeyboardGeometry(frame: frame, keys: [key])
+}
+
+
+private func makeGuide(from step: PracticeStep) -> PianoHighlightGuide {
+    let notes = step.notes.enumerated().map { index, note in
+        PianoHighlightNote(
+            occurrenceID: "test-\(step.tick)-\(index)-\(note.midiNote)",
+            midiNote: note.midiNote,
+            staff: note.staff,
+            voice: nil,
+            velocity: note.velocity,
+            onTick: step.tick + note.onTickOffset,
+            offTick: step.tick + note.onTickOffset + 1,
+            fingeringText: note.fingeringText
+        )
+    }
+    return PianoHighlightGuide(
+        id: step.tick + 1,
+        kind: .trigger,
+        tick: step.tick,
+        durationTicks: nil,
+        practiceStepIndex: nil,
+        activeNotes: notes,
+        triggeredNotes: notes,
+        releasedMIDINotes: []
+    )
 }

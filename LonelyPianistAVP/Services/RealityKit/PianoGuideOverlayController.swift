@@ -8,11 +8,12 @@ final class PianoGuideOverlayController {
     private var keyboardRootEntity = Entity()
     private var hasAttachedRoot = false
     private var activeBeamEntitiesByMIDINote: [Int: ModelEntity] = [:]
+    private var lastGuideIDByMIDINote: [Int: Int] = [:]
     private var didAttemptAtlasTextureLoad = false
     private var atlasTexture: TextureResource?
 
     func updateHighlights(
-        currentStep: PracticeStep?,
+        highlightGuide: PianoHighlightGuide?,
         keyboardGeometry: PianoKeyboardGeometry?,
         feedbackState: PracticeSessionViewModel.VisualFeedbackState,
         content: RealityViewContent
@@ -31,7 +32,7 @@ final class PianoGuideOverlayController {
         keyboardRootEntity.transform = Transform(matrix: keyboardGeometry.frame.worldFromKeyboard)
 
         let descriptors = PianoGuideBeamDescriptor.makeDescriptors(
-            currentStep: currentStep,
+            highlightGuide: highlightGuide,
             keyboardGeometry: keyboardGeometry,
             feedbackState: feedbackState
         )
@@ -46,16 +47,21 @@ final class PianoGuideOverlayController {
             if desiredNotes.contains(midiNote) == false {
                 beam.removeFromParent()
                 activeBeamEntitiesByMIDINote[midiNote] = nil
+                lastGuideIDByMIDINote[midiNote] = nil
             }
         }
 
         for descriptor in descriptors {
             let beam: ModelEntity
-            if let existing = activeBeamEntitiesByMIDINote[descriptor.midiNote] {
+            if let existing = activeBeamEntitiesByMIDINote[descriptor.midiNote],
+               lastGuideIDByMIDINote[descriptor.midiNote] == descriptor.guideID
+            {
                 beam = existing
             } else {
+                activeBeamEntitiesByMIDINote[descriptor.midiNote]?.removeFromParent()
                 beam = ModelEntity(mesh: PianoGuideBeamMeshFactory.unitPrismShellMesh, materials: [])
                 activeBeamEntitiesByMIDINote[descriptor.midiNote] = beam
+                lastGuideIDByMIDINote[descriptor.midiNote] = descriptor.guideID
                 keyboardRootEntity.addChild(beam)
             }
 
@@ -91,6 +97,7 @@ final class PianoGuideOverlayController {
             beam.removeFromParent()
         }
         activeBeamEntitiesByMIDINote.removeAll()
+        lastGuideIDByMIDINote.removeAll()
     }
 
     private func loadAtlasTextureIfNeeded() -> TextureResource? {
