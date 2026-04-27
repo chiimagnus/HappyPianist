@@ -49,7 +49,12 @@ struct PianoKeyboard88View: View {
                             }
                         }
                         .frame(width: whiteKeyWidth, height: whiteKeyHeight)
-                        .id("white-\(key.midiNote)-\(highlightOccurrenceID ?? 0)-\(isHighlighted)")
+                        .id(Self.highlightKeyViewID(
+                            isBlackKey: false,
+                            midiNote: key.midiNote,
+                            highlightOccurrenceID: highlightOccurrenceID,
+                            isHighlighted: isHighlighted
+                        ))
                         .offset(x: CGFloat(key.whiteIndex) * whiteKeyWidth)
                 }
 
@@ -72,7 +77,12 @@ struct PianoKeyboard88View: View {
                             }
                         }
                         .frame(width: blackKeyWidth, height: blackKeyHeight)
-                        .id("black-\(key.midiNote)-\(highlightOccurrenceID ?? 0)-\(isHighlighted)")
+                        .id(Self.highlightKeyViewID(
+                            isBlackKey: true,
+                            midiNote: key.midiNote,
+                            highlightOccurrenceID: highlightOccurrenceID,
+                            isHighlighted: isHighlighted
+                        ))
                         .offset(
                             x: (CGFloat(key.leftWhiteIndex + 1) * whiteKeyWidth) - (blackKeyWidth / 2)
                         )
@@ -149,6 +159,16 @@ struct PianoKeyboard88View: View {
 
     private static func isBlackKey(_ midiNote: Int) -> Bool {
         blackPitchClasses.contains(midiNote % 12)
+    }
+
+    static func highlightKeyViewID(
+        isBlackKey: Bool,
+        midiNote: Int,
+        highlightOccurrenceID: Int?,
+        isHighlighted: Bool
+    ) -> String {
+        let prefix = isBlackKey ? "black" : "white"
+        return "\(prefix)-\(midiNote)-\(highlightOccurrenceID ?? 0)-\(isHighlighted)"
     }
 }
 

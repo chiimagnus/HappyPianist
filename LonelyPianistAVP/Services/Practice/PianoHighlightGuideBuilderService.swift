@@ -41,25 +41,35 @@ struct PianoHighlightGuideBuilderService {
 
         let sourceNotesByKey = makeSourceNotesByKey(score: input.score, expressivity: input.expressivity)
         let spanByKey = makeSpanByKey(input.noteSpans)
-        let practiceStepIndexByTick = Dictionary(uniqueKeysWithValues: input.steps.enumerated().map { index, step in
-            (step.tick, index)
-        })
         let restTicks = Set(input.score.notes.filter(\.isRest).map(\.tick))
 
         var occurrenceCounter = 0
         var triggersByTick: [Int: [PianoHighlightNote]] = [:]
         var releasesByTick: [Int: [PianoHighlightNote]] = [:]
+        var practiceStepIndexByTriggerTick: [Int: Int] = [:]
+        practiceStepIndexByTriggerTick.reserveCapacity(input.steps.count)
 
-        for step in input.steps {
+        for (stepIndex, step) in input.steps.enumerated() {
             for stepNote in step.notes {
-                let onTick = step.tick + stepNote.onTickOffset
+                let baseOnTick = step.tick + stepNote.onTickOffset
                 let staff = stepNote.staff ?? 1
                 let voice = stepNote.voice ?? 1
-                let source = sourceNotesByKey[SourceNoteKey(midiNote: stepNote.midiNote, staff: staff, voice: voice, tick: onTick)]
+                let source = sourceNotesByKey[SourceNoteKey(midiNote: stepNote.midiNote, staff: staff, voice: voice, tick: baseOnTick)]
                     ?? sourceNotesByKey[SourceNoteKey(midiNote: stepNote.midiNote, staff: staff, voice: voice, tick: step.tick)]
-                let span = spanByKey[SpanKey(midiNote: stepNote.midiNote, staff: staff, voice: voice, onTick: onTick)]
-                    ?? spanByKey[SpanKey(midiNote: stepNote.midiNote, staff: staff, voice: voice, onTick: step.tick)]
+                let attackTicks = source?.attackTicks ?? 0
+                let spanOnTickCandidates = [
+                    baseOnTick,
+                    baseOnTick + attackTicks,
+                    step.tick,
+                    step.tick + attackTicks,
+                ]
+                var span: MusicXMLNoteSpan?
+                for candidateTick in spanOnTickCandidates {
+                    if span != nil { break }
+                    span = spanByKey[SpanKey(midiNote: stepNote.midiNote, staff: staff, voice: voice, onTick: candidateTick)]
+                }
                 let resolvedVoice = source?.voice ?? voice
+                let onTick = span?.onTick ?? baseOnTick
                 let offTick = max(onTick, span?.offTick ?? (onTick + max(1, source?.durationTicks ?? 1)))
                 occurrenceCounter += 1
                 let note = PianoHighlightNote(
@@ -73,6 +83,9 @@ struct PianoHighlightGuideBuilderService {
                     fingeringText: stepNote.fingeringText
                 )
                 triggersByTick[onTick, default: []].append(note)
+                if practiceStepIndexByTriggerTick[onTick] == nil {
+                    practiceStepIndexByTriggerTick[onTick] = stepIndex
+                }
                 if offTick > onTick {
                     releasesByTick[offTick, default: []].append(note)
                 }
@@ -119,7 +132,7 @@ struct PianoHighlightGuideBuilderService {
 
             let nextTick = sortedTicks.indices.contains(tickIndex + 1) ? sortedTicks[tickIndex + 1] : nil
             let durationTicks = nextTick.map { max(0, $0 - tick) }
-            let practiceStepIndex = practiceStepIndexByTick[tick]
+            let practiceStepIndex = (kind == .trigger) ? practiceStepIndexByTriggerTick[tick] : nil
             let releasedMIDINotes = Set(releases.map(\.midiNote))
 
             guides.append(PianoHighlightGuide(
