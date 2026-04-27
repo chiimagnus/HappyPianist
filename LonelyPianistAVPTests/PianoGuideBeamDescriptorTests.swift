@@ -88,6 +88,37 @@ func descriptorBaseColorReflectsFeedbackState() {
     #expect(isWrong(wrong?.baseColor))
 }
 
+@Test
+func descriptorIDIncludesGuideIDToSupportRepeatedOccurrences() {
+    let step = PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)])
+    let geometry = makeGeometry()
+
+    let guide = makeGuide(from: step)
+    let next = PianoHighlightGuide(
+        id: guide.id + 1,
+        kind: guide.kind,
+        tick: guide.tick,
+        durationTicks: guide.durationTicks,
+        practiceStepIndex: guide.practiceStepIndex,
+        activeNotes: guide.activeNotes,
+        triggeredNotes: guide.triggeredNotes,
+        releasedMIDINotes: guide.releasedMIDINotes
+    )
+
+    let first = PianoGuideBeamDescriptor.makeDescriptors(
+        highlightGuide: guide,
+        keyboardGeometry: geometry,
+        feedbackState: .none
+    ).first
+    let second = PianoGuideBeamDescriptor.makeDescriptors(
+        highlightGuide: next,
+        keyboardGeometry: geometry,
+        feedbackState: .none
+    ).first
+
+    #expect(first?.id != second?.id)
+}
+
 private func isGuide(_ token: BeamColorToken?) -> Bool {
     guard let token else { return false }
     if case .guide = token { return true }

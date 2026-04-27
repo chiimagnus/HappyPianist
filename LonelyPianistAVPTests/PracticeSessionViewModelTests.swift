@@ -534,6 +534,194 @@ func autoplayDoesNotAdvanceOnMatch() async {
 
 @Test
 @MainActor
+func highlightGuideStartsAtFirstTriggerAfterStartGuiding() async {
+    let viewModel = makePracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: TaskSleeper()
+    )
+
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, voice: 1)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, voice: 1)]),
+        ],
+        tempoMap: nil,
+        pedalTimeline: nil,
+        noteSpans: [],
+        highlightGuides: [
+            makeHighlightGuide(id: 1, kind: .trigger, tick: 0, practiceStepIndex: 0, midiNotes: [60]),
+            makeHighlightGuide(id: 2, kind: .gap, tick: 240, practiceStepIndex: nil, midiNotes: [], released: [60]),
+            makeHighlightGuide(id: 3, kind: .trigger, tick: 480, practiceStepIndex: 1, midiNotes: [62]),
+        ]
+    )
+    viewModel.startGuidingIfReady()
+    await settleTaskQueue()
+
+    #expect(viewModel.currentPianoHighlightGuide?.kind == .trigger)
+    #expect(viewModel.currentPianoHighlightGuide?.tick == 0)
+    #expect(viewModel.currentPianoHighlightGuide?.practiceStepIndex == 0)
+    #expect(viewModel.currentPianoHighlightGuide?.highlightedMIDINotes == [60])
+}
+
+@Test
+@MainActor
+func resetSessionClearsCurrentHighlightGuide() async {
+    let viewModel = makePracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: TaskSleeper()
+    )
+
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, voice: 1)]),
+        ],
+        tempoMap: nil,
+        pedalTimeline: nil,
+        noteSpans: [],
+        highlightGuides: [
+            makeHighlightGuide(id: 1, kind: .trigger, tick: 0, practiceStepIndex: 0, midiNotes: [60]),
+        ]
+    )
+    viewModel.startGuidingIfReady()
+    await settleTaskQueue()
+
+    #expect(viewModel.currentPianoHighlightGuide != nil)
+
+    viewModel.resetSession()
+    await settleTaskQueue()
+
+    #expect(viewModel.currentPianoHighlightGuide == nil)
+}
+
+@Test
+@MainActor
+func manualAdvanceShowsReleaseOrGapGuideBeforeNextTrigger() async {
+    let sleeper = ControllableSleeper()
+    let viewModel = makePracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: sleeper
+    )
+
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, voice: 1)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, voice: 1)]),
+        ],
+        tempoMap: nil,
+        pedalTimeline: nil,
+        noteSpans: [],
+        highlightGuides: [
+            makeHighlightGuide(id: 1, kind: .trigger, tick: 0, practiceStepIndex: 0, midiNotes: [60]),
+            makeHighlightGuide(id: 2, kind: .release, tick: 240, practiceStepIndex: nil, midiNotes: [60], released: [60]),
+            makeHighlightGuide(id: 3, kind: .trigger, tick: 480, practiceStepIndex: 1, midiNotes: [62]),
+        ]
+    )
+    viewModel.startGuidingIfReady()
+    await settleTaskQueue()
+    #expect(viewModel.currentPianoHighlightGuide?.kind == .trigger)
+
+    viewModel.skip()
+    await settleTaskQueue()
+
+    #expect(viewModel.currentPianoHighlightGuide?.kind == .release)
+    #expect(await sleeper.callCount() == 1)
+
+    await sleeper.resumeOldestPending()
+    await settleTaskQueue()
+
+    #expect(viewModel.currentPianoHighlightGuide?.kind == .trigger)
+    #expect(viewModel.currentPianoHighlightGuide?.practiceStepIndex == 1)
+}
+
+@Test
+@MainActor
+func resetCancelsPendingManualHighlightTransition() async {
+    let sleeper = ControllableSleeper()
+    let viewModel = makePracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: sleeper
+    )
+
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, voice: 1)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, voice: 1)]),
+        ],
+        tempoMap: nil,
+        pedalTimeline: nil,
+        noteSpans: [],
+        highlightGuides: [
+            makeHighlightGuide(id: 1, kind: .trigger, tick: 0, practiceStepIndex: 0, midiNotes: [60]),
+            makeHighlightGuide(id: 2, kind: .gap, tick: 240, practiceStepIndex: nil, midiNotes: [], released: [60]),
+            makeHighlightGuide(id: 3, kind: .trigger, tick: 480, practiceStepIndex: 1, midiNotes: [62]),
+        ]
+    )
+    viewModel.startGuidingIfReady()
+    await settleTaskQueue()
+
+    viewModel.skip()
+    await settleTaskQueue()
+
+    #expect(await sleeper.callCount() == 1)
+    viewModel.resetSession()
+    await settleTaskQueue()
+
+    #expect(await sleeper.cancellationCount() == 1)
+    #expect(viewModel.currentPianoHighlightGuide == nil)
+}
+
+@Test
+@MainActor
+func autoplayAdvancesHighlightGuidesByTick() async {
+    let sleeper = ControllableSleeper()
+    let tempoMap = MusicXMLTempoMap(
+        tempoEvents: [
+            MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope),
+        ]
+    )
+    let viewModel = makePracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: sleeper
+    )
+
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, voice: 1)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, voice: 1)]),
+        ],
+        tempoMap: tempoMap,
+        pedalTimeline: nil,
+        noteSpans: [],
+        highlightGuides: [
+            makeHighlightGuide(id: 1, kind: .trigger, tick: 0, practiceStepIndex: 0, midiNotes: [60]),
+            makeHighlightGuide(id: 2, kind: .gap, tick: 120, practiceStepIndex: nil, midiNotes: [], released: [60]),
+            makeHighlightGuide(id: 3, kind: .trigger, tick: 480, practiceStepIndex: 1, midiNotes: [62]),
+        ]
+    )
+    viewModel.setAutoplayEnabled(true)
+    viewModel.startGuidingIfReady()
+    await settleTaskQueue()
+
+    #expect(viewModel.currentPianoHighlightGuide?.tick == 0)
+    #expect(await sleeper.callCount() >= 1)
+
+    await sleeper.resumeOldestPending()
+    await settleTaskQueue()
+
+    #expect(viewModel.currentPianoHighlightGuide?.tick == 120)
+    #expect(viewModel.currentPianoHighlightGuide?.kind == .gap)
+
+    viewModel.resetSession()
+    await settleTaskQueue()
+}
+
+@Test
+@MainActor
 func autoplaySchedulesNoteOffUsingNoteSpans() async {
     let sleeper = ControllableSleeper()
     let tempoMap = MusicXMLTempoMap(
@@ -791,6 +979,40 @@ private func settleTaskQueue(iterations: Int = 4) async {
     for _ in 0 ..< iterations {
         await Task.yield()
     }
+}
+
+private func makeHighlightGuide(
+    id: Int,
+    kind: PianoHighlightGuideKind,
+    tick: Int,
+    practiceStepIndex: Int?,
+    midiNotes: Set<Int>,
+    released: Set<Int> = []
+) -> PianoHighlightGuide {
+    let notes = midiNotes.sorted().enumerated().map { index, midi in
+        PianoHighlightNote(
+            occurrenceID: "test-\(id)-\(tick)-\(index)-\(midi)",
+            midiNote: midi,
+            staff: 1,
+            voice: 1,
+            velocity: 96,
+            onTick: tick,
+            offTick: tick + 1,
+            fingeringText: nil
+        )
+    }
+    let activeNotes = (kind == .trigger || kind == .sustain || kind == .release) ? notes : []
+    let triggeredNotes = (kind == .trigger) ? notes : []
+    return PianoHighlightGuide(
+        id: id,
+        kind: kind,
+        tick: tick,
+        durationTicks: nil,
+        practiceStepIndex: practiceStepIndex,
+        activeNotes: activeNotes,
+        triggeredNotes: triggeredNotes,
+        releasedMIDINotes: released
+    )
 }
 
 private func makeDummyKeyboardGeometry() -> PianoKeyboardGeometry {

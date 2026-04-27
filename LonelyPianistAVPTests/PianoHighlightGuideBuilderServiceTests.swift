@@ -88,7 +88,15 @@ private func makeNote(
     tieStart: Bool = false,
     tieStop: Bool = false,
     staff: Int = 1,
-    voice: Int = 1
+    voice: Int = 1,
+    isGrace: Bool = false,
+    graceSlash: Bool = false,
+    graceStealTimePrevious: Double? = nil,
+    graceStealTimeFollowing: Double? = nil,
+    attackTicks: Int? = nil,
+    releaseTicks: Int? = nil,
+    articulations: Set<MusicXMLArticulation> = [],
+    arpeggiate: MusicXMLArpeggiate? = nil
 ) -> MusicXMLNoteEvent {
     MusicXMLNoteEvent(
         partID: "P1",
@@ -98,10 +106,18 @@ private func makeNote(
         midiNote: midi,
         isRest: false,
         isChord: isChord,
+        isGrace: isGrace,
+        graceSlash: graceSlash,
+        graceStealTimePrevious: graceStealTimePrevious,
+        graceStealTimeFollowing: graceStealTimeFollowing,
         tieStart: tieStart,
         tieStop: tieStop,
         staff: staff,
-        voice: voice
+        voice: voice,
+        attackTicks: attackTicks,
+        releaseTicks: releaseTicks,
+        articulations: articulations,
+        arpeggiate: arpeggiate
     )
 }
 
@@ -138,4 +154,128 @@ func highlightGuideBuilderPreservesSameMidiSameStaffDifferentVoices() {
     #expect(trigger?.triggeredNotes.count == 2)
     #expect(Set(trigger?.triggeredNotes.compactMap(\.voice) ?? []) == [1, 2])
     #expect(Set(trigger?.triggeredNotes.map(\.offTick) ?? []) == [2, 3])
+}
+
+@Test
+func highlightGuideBuilderUsesArticulatedOffTickFromNoteSpans() {
+    let score = MusicXMLScore(notes: [
+        makeNote(tick: 0, duration: 480, midi: 60, articulations: [.staccato]),
+    ])
+    let steps = PracticeStepBuilder().buildSteps(from: score).steps
+    let spans = MusicXMLNoteSpanBuilder().buildSpans(from: score.notes)
+
+    let guides = PianoHighlightGuideBuilderService().buildGuides(
+        input: PianoHighlightGuideBuildInput(score: score, steps: steps, noteSpans: spans)
+    )
+
+    let trigger = guides.first { $0.kind == .trigger }
+    #expect(spans.count == 1)
+    #expect(spans.first?.offTick == 240)
+    #expect(trigger?.triggeredNotes.first?.offTick == spans.first?.offTick)
+}
+
+@Test
+func highlightGuideBuilderUsesPerformanceTimingOnOffTicksWhenEnabled() {
+    let score = MusicXMLScore(notes: [
+        makeNote(tick: 0, duration: 480, midi: 60, attackTicks: 12, releaseTicks: 8),
+    ])
+    let steps = PracticeStepBuilder().buildSteps(from: score).steps
+    let spans = MusicXMLNoteSpanBuilder().buildSpans(from: score.notes, performanceTimingEnabled: true)
+
+    let guides = PianoHighlightGuideBuilderService().buildGuides(
+        input: PianoHighlightGuideBuildInput(score: score, steps: steps, noteSpans: spans)
+    )
+
+    let trigger = guides.first { $0.kind == .trigger && $0.practiceStepIndex == 0 }
+    #expect(spans.count == 1)
+    #expect(trigger?.tick == spans.first?.onTick)
+    #expect(trigger?.triggeredNotes.first?.onTick == spans.first?.onTick)
+    #expect(trigger?.triggeredNotes.first?.offTick == spans.first?.offTick)
+}
+
+@Test
+func highlightGuideBuilderUsesGraceScheduleWhenGraceEnabled() {
+    var expressivity = MusicXMLExpressivityOptions()
+    expressivity.graceEnabled = true
+    let score = MusicXMLScore(notes: [
+        makeNote(
+            tick: 480,
+            duration: 0,
+            midi: 62,
+            isGrace: true,
+            graceStealTimeFollowing: 0.25
+        ),
+        makeNote(tick: 480, duration: 480, midi: 60),
+    ])
+    let steps = PracticeStepBuilder().buildSteps(from: score, expressivity: expressivity).steps
+    let spans = MusicXMLNoteSpanBuilder().buildSpans(from: score.notes, expressivity: expressivity)
+
+    let guides = PianoHighlightGuideBuilderService().buildGuides(
+        input: PianoHighlightGuideBuildInput(score: score, steps: steps, noteSpans: spans, expressivity: expressivity)
+    )
+
+    let graceSpan = spans.first(where: { $0.midiNote == 62 })
+    let mainSpan = spans.first(where: { $0.midiNote == 60 })
+    let graceTrigger = guides.first { $0.kind == .trigger && $0.triggeredNotes.contains(where: { $0.midiNote == 62 }) }
+    let mainTrigger = guides.first { $0.kind == .trigger && $0.triggeredNotes.contains(where: { $0.midiNote == 60 }) }
+
+    #expect(spans.count == 2)
+    #expect(graceTrigger?.tick == graceSpan?.onTick)
+    #expect(graceTrigger?.triggeredNotes.first(where: { $0.midiNote == 62 })?.offTick == graceSpan?.offTick)
+    #expect(mainTrigger?.tick == mainSpan?.onTick)
+    #expect(mainTrigger?.triggeredNotes.first(where: { $0.midiNote == 60 })?.offTick == mainSpan?.offTick)
+}
+
+@Test
+func highlightGuideBuilderUsesArpeggiateOffsetWhenEnabled() {
+    var expressivity = MusicXMLExpressivityOptions()
+    expressivity.arpeggiateEnabled = true
+    let arp = MusicXMLArpeggiate(numberToken: nil, directionToken: nil)
+    let score = MusicXMLScore(notes: [
+        makeNote(tick: 0, duration: 480, midi: 60, arpeggiate: arp),
+        makeNote(tick: 0, duration: 480, midi: 64, isChord: true, arpeggiate: arp),
+    ])
+    let steps = PracticeStepBuilder().buildSteps(from: score, expressivity: expressivity).steps
+    let spans = MusicXMLNoteSpanBuilder().buildSpans(from: score.notes, expressivity: expressivity)
+
+    let guides = PianoHighlightGuideBuilderService().buildGuides(
+        input: PianoHighlightGuideBuildInput(score: score, steps: steps, noteSpans: spans, expressivity: expressivity)
+    )
+
+    let triggerTicks = Set(guides.filter { $0.kind == .trigger }.map(\.tick))
+    let spanTicks = Set(spans.map(\.onTick))
+    #expect(triggerTicks == spanTicks)
+    #expect(triggerTicks.count == 2)
+}
+
+@Test
+func highlightGuideBuilderUsesFermataExtraTicksWhenEnabled() {
+    var expressivity = MusicXMLExpressivityOptions()
+    expressivity.fermataEnabled = true
+    let score = MusicXMLScore(notes: [
+        makeNote(tick: 0, duration: 480, midi: 60),
+    ], fermataEvents: [
+        MusicXMLFermataEvent(
+            tick: 0,
+            scope: MusicXMLEventScope(partID: "P1", staff: 1, voice: nil),
+            source: .noteNotations
+        ),
+    ])
+    let fermataTimeline = MusicXMLFermataTimeline(fermataEvents: score.fermataEvents, notes: score.notes)
+    let steps = PracticeStepBuilder().buildSteps(from: score, expressivity: expressivity).steps
+    let spans = MusicXMLNoteSpanBuilder().buildSpans(
+        from: score.notes,
+        performanceTimingEnabled: false,
+        expressivity: expressivity,
+        fermataTimeline: fermataTimeline
+    )
+
+    let guides = PianoHighlightGuideBuilderService().buildGuides(
+        input: PianoHighlightGuideBuildInput(score: score, steps: steps, noteSpans: spans, expressivity: expressivity)
+    )
+
+    let trigger = guides.first { $0.kind == .trigger }
+    #expect(spans.count == 1)
+    #expect(spans.first?.offTick == 720)
+    #expect(trigger?.triggeredNotes.first?.offTick == spans.first?.offTick)
 }
