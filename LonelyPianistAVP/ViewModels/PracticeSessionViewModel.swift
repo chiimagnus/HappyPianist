@@ -761,7 +761,7 @@ final class PracticeSessionViewModel {
                 generation: audioRecognitionGeneration
             )
             applyPendingAudioRecognitionSuppressIfNeeded(generation: audioRecognitionGeneration)
-            decisionLogger.debug("audio generation update=\(audioRecognitionGeneration, privacy: .public)")
+            decisionLogger.debug("audio generation update=\(self.audioRecognitionGeneration, privacy: .public)")
             return
         }
 
