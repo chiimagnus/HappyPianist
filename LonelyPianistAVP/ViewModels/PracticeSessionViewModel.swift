@@ -328,7 +328,7 @@ final class PracticeSessionViewModel {
             refreshAudioRecognitionForCurrentState()
             prepareAutoplayOnsetsForCurrentStep()
         } else {
-            prepareAudioRecognitionSuppressWindowForPlayback()
+            _ = prepareAudioRecognitionSuppressWindowForPlayback()
             refreshAudioRecognitionForCurrentState()
             playCurrentStepSound(applyRecognitionSuppress: false)
         }
@@ -350,7 +350,7 @@ final class PracticeSessionViewModel {
         guard let currentStep else { return }
         guard audioPlaybackErrorMessage == nil else { return }
         if applyRecognitionSuppress {
-            prepareAudioRecognitionSuppressWindowForPlayback()
+            _ = prepareAudioRecognitionSuppressWindowForPlayback()
         }
         do {
             try noteAudioPlayer?.play(midiNotes: uniqueMIDINotes(in: currentStep))
@@ -437,7 +437,7 @@ final class PracticeSessionViewModel {
                 refreshAudioRecognitionForCurrentState()
                 prepareAutoplayOnsetsForCurrentStep()
             } else {
-                prepareAudioRecognitionSuppressWindowForPlayback()
+                _ = prepareAudioRecognitionSuppressWindowForPlayback()
                 refreshAudioRecognitionForCurrentState()
                 playCurrentStepSound(applyRecognitionSuppress: false)
             }
@@ -661,7 +661,7 @@ final class PracticeSessionViewModel {
             notesByTickAndMIDI[tick, default: [:]][note.midiNote] = note
         }
         return notesByTickAndMIDI.mapValues { notesByMIDI in
-            notesByMIDI.keys.sorted().compactMap { notesByMIDI[-e] }
+            notesByMIDI.keys.sorted().compactMap { notesByMIDI[$0] }
         }
     }
 
