@@ -30,7 +30,10 @@ struct HarmonicTemplateScorer: Sendable {
             let harmonicBandEnergy = partials.reduce(0.0) { $0 + $1.bandEnergy }
             let surroundingEnergy = partials.reduce(0.0) { $0 + $1.surroundingEnergy }
             let tonalRatio = harmonicBandEnergy / max(surroundingEnergy, epsilon)
-            return (template: template, partials: partials, harmonicScore: harmonicScore, tonalRatio: tonalRatio)
+            let activePartialCount = partials.filter { partial in
+                partial.bandEnergy > max(partial.surroundingEnergy * profile.minimumTonalRatio, epsilon)
+            }.count
+            return (template: template, partials: partials, harmonicScore: harmonicScore, tonalRatio: tonalRatio, activePartialCount: activePartialCount)
         }
 
         let maxWrongScore = partialSummaries
@@ -56,8 +59,11 @@ struct HarmonicTemplateScorer: Sendable {
             let normalizedHarmonic = min(1.0, summary.harmonicScore / globalMax)
             let tonalFactor = min(1.0, summary.tonalRatio / max(profile.minimumTonalRatio, epsilon))
             let dominanceFactor = min(1.0, dominance / max(profile.minimumDominance, epsilon))
+            let requiredActivePartials = min(2, max(1, summary.template.partials.count))
+            let completenessFactor = min(1.0, Double(summary.activePartialCount) / Double(requiredActivePartials))
+            let noiseGateFactor = min(1.0, energyProvider.rms / max(profile.minimumRMS, epsilon))
             let roleFactor = summary.template.role == .octaveDebug ? 0.75 : 1.0
-            let confidence = max(0, min(1.0, normalizedHarmonic * tonalFactor * dominanceFactor * roleFactor))
+            let confidence = max(0, min(1.0, normalizedHarmonic * tonalFactor * dominanceFactor * completenessFactor * noiseGateFactor * roleFactor))
             return TemplateMatchResult(
                 midiNote: summary.template.midiNote,
                 role: summary.template.role,

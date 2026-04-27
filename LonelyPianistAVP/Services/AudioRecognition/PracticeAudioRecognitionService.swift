@@ -221,7 +221,7 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
             if elapsed > profile.slowProcessingThresholdMs {
                 performanceLogger.debug("harmonic detector slow ms=\(elapsed, privacy: .public)")
             }
-            frame = TargetedHarmonicDetectionFrame(events: frame.events, templateMatchResults: frame.templateMatchResults, processingDurationMs: elapsed, suppressing: suppressing, fallbackReason: lastFallbackReason, activeDetectorMode: activeDetectorMode, rollingWindowSize: spectrum.windowSize)
+            frame = TargetedHarmonicDetectionFrame(events: frame.events, templateMatchResults: frame.templateMatchResults, processingDurationMs: elapsed, suppressing: suppressing, fallbackReason: lastFallbackReason, activeDetectorMode: .harmonicTemplate, rollingWindowSize: spectrum.windowSize)
             return frame
         } catch {
             updateFallbackCounters(elapsedMs: 0, error: error, profile: profile)
@@ -281,6 +281,7 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
         recentDetectedNotes.append(contentsOf: frame.events)
         if recentDetectedNotes.count > 12 { recentDetectedNotes.removeFirst(recentDetectedNotes.count - 12) }
         let snapshotNotes = recentDetectedNotes
+        let snapshotRequestedDetectorMode = requestedDetectorMode
         lock.unlock()
         debugContinuation.yield(
             PracticeAudioRecognitionDebugSnapshot(
@@ -294,7 +295,7 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
                 suppress: suppressing,
                 generation: generation,
                 lastDecisionReason: frame.fallbackReason ?? (suppressing ? "suppressed" : "live"),
-                requestedDetectorMode: requestedDetectorMode,
+                requestedDetectorMode: snapshotRequestedDetectorMode,
                 activeDetectorMode: frame.activeDetectorMode,
                 fallbackReason: frame.fallbackReason,
                 rollingWindowSize: frame.rollingWindowSize,

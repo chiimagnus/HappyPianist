@@ -26,3 +26,21 @@ struct HarmonicTemplateScorerTests {
         #expect(templates.filter { $0.role == .octaveDebug }.isEmpty == false)
     }
 }
+
+
+extension HarmonicTemplateScorerTests {
+    @Test func incompleteBroadbandLikeEnergyReducesConfidence() {
+        let profile = HarmonicTemplateTuningProfile.lowLatencyDefault
+        let templates = HarmonicTemplateFactory().makeTemplates(expectedMIDINotes: [60], wrongCandidateMIDINotes: [61], profile: profile)
+        var provider = FakeHarmonicBandEnergyProvider(rms: 0.05, noiseFloor: 0.02)
+        for template in templates {
+            for partial in template.partials {
+                let key = FakeHarmonicBandEnergyProvider.key(partial.centerFrequency)
+                provider.bandEnergies[key] = 4
+                provider.surroundingEnergies[key] = 4
+            }
+        }
+        let results = HarmonicTemplateScorer().score(templates: templates, energyProvider: provider, profile: profile)
+        #expect(results.allSatisfy { $0.confidence < profile.minimumConfidence })
+    }
+}

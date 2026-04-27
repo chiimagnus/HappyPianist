@@ -423,3 +423,31 @@ func disablingAudioRecognitionSettingIgnoresQueuedEvents() async {
 
     #expect(viewModel.currentStepIndex == 0)
 }
+
+
+@Test
+@MainActor
+func detectorModeSettingRefreshConfiguresServiceWithoutEventTimeUserDefaultsRead() async {
+    UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
+    UserDefaults.standard.set(PracticeAudioRecognitionDetectorMode.harmonicTemplate.rawValue, forKey: "practiceStep3AudioRecognitionMode")
+    let fakeService = FakePracticeAudioRecognitionService()
+    let viewModel = makeViewModel(audioRecognitionService: fakeService)
+    viewModel.refreshAudioRecognitionFromSettings()
+
+    #expect(fakeService.configuredDetectorMode == .harmonicTemplate)
+
+    UserDefaults.standard.set(false, forKey: "practiceAudioRecognitionEnabled")
+    fakeService.emitEvent(
+        DetectedNoteEvent(
+            midiNote: 60,
+            confidence: 0.95,
+            onsetScore: 0.9,
+            isOnset: true,
+            timestamp: Date().addingTimeInterval(1.0),
+            generation: 999,
+            source: .audio
+        )
+    )
+    await settleTaskQueue()
+    #expect(fakeService.configuredDetectorMode == .harmonicTemplate)
+}

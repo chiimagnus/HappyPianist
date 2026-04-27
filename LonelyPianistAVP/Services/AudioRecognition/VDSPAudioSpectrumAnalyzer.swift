@@ -18,13 +18,13 @@ struct VDSPAudioSpectrumAnalyzer: AudioSpectrumAnalyzing {
     func analyze(samples: [Float], sampleRate: Double, timestamp: Date) throws -> AudioSpectrumFrame {
         guard samples.isEmpty == false, sampleRate > 0 else { throw AnalyzerError.invalidInput }
         let rms = Self.rms(samples)
-        let onsetScore = rms > 0 ? 1.0 : 0.0
+        let onsetScore = Self.localOnsetScore(samples)
         let spectrum = Self.magnitudeSpectrum(samples: samples, sampleRate: sampleRate)
         return AudioSpectrumFrame(
             sampleRate: sampleRate,
             windowSize: samples.count,
             rms: rms,
-            noiseFloor: 1e-9,
+            noiseFloor: Self.noiseFloorEstimate(samples),
             onsetScore: onsetScore,
             isOnset: onsetScore >= 0.25,
             timestamp: timestamp,
@@ -36,6 +36,24 @@ struct VDSPAudioSpectrumAnalyzer: AudioSpectrumAnalyzing {
     private static func rms(_ samples: [Float]) -> Double {
         let sum = samples.reduce(0.0) { $0 + Double($1 * $1) }
         return sqrt(sum / Double(max(samples.count, 1)))
+    }
+
+    private static func localOnsetScore(_ samples: [Float]) -> Double {
+        guard samples.count >= 16 else { return 0 }
+        let segmentSize = max(8, min(512, samples.count / 4))
+        let head = Array(samples.prefix(segmentSize))
+        let tail = Array(samples.suffix(segmentSize))
+        let headRMS = rms(head)
+        let tailRMS = rms(tail)
+        let denominator = max(headRMS, tailRMS, 1e-9)
+        return max(0.0, min(1.0, (tailRMS - headRMS) / denominator))
+    }
+
+    private static func noiseFloorEstimate(_ samples: [Float]) -> Double {
+        guard samples.isEmpty == false else { return 0 }
+        let absoluteValues = samples.map { abs(Double($0)) }.sorted()
+        let index = max(0, min(absoluteValues.count - 1, absoluteValues.count / 10))
+        return absoluteValues[index]
     }
 
     private static func magnitudeSpectrum(samples: [Float], sampleRate: Double) -> (frequencies: [Double], magnitudes: [Double]) {

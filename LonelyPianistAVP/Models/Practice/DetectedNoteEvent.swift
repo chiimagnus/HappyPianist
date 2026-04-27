@@ -1,12 +1,12 @@
 import Foundation
 
-enum DetectedNoteSource: Equatable {
+enum DetectedNoteSource: Sendable, Equatable {
     case audio
     case handExactHit
     case handGateBoost
 }
 
-struct DetectedNoteEvent: Equatable {
+struct DetectedNoteEvent: Sendable, Equatable {
     let midiNote: Int
     let confidence: Double
     let onsetScore: Double

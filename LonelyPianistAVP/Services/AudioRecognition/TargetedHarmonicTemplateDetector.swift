@@ -74,9 +74,15 @@ struct TargetedHarmonicTemplateDetector: HarmonicTemplateDetecting {
         return results.compactMap { result in
             guard result.role != .octaveDebug else { return nil }
             guard result.confidence >= profile.minimumConfidence else { return nil }
-            if result.role == .expected {
-                guard result.tonalRatio >= profile.minimumTonalRatio else { return nil }
-                guard result.dominanceOverWrong >= profile.minimumDominance else { return nil }
+            switch result.role {
+                case .expected:
+                    guard result.tonalRatio >= profile.minimumTonalRatio else { return nil }
+                    guard result.dominanceOverWrong >= profile.minimumDominance else { return nil }
+                case .wrongCandidate:
+                    guard result.tonalRatio >= profile.minimumTonalRatio else { return nil }
+                    guard result.dominanceOverWrong >= profile.minimumDominance else { return nil }
+                case .octaveDebug:
+                    return nil
             }
             return DetectedNoteEvent(
                 midiNote: result.midiNote,
