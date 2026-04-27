@@ -71,6 +71,7 @@ struct TargetedHarmonicTemplateDetector: HarmonicTemplateDetecting {
     ) -> [DetectedNoteEvent] {
         guard suppressing == false else { return [] }
         guard spectrumFrame.rms >= profile.minimumRMS else { return [] }
+        guard spectrumFrame.isOnset || spectrumFrame.onsetScore >= profile.onsetThreshold else { return [] }
         return results.compactMap { result in
             guard result.role != .octaveDebug else { return nil }
             guard result.confidence >= profile.minimumConfidence else { return nil }
