@@ -25,6 +25,8 @@ func manualReplayBlocksGestureAdvance() async {
 
     #expect(viewModel.isManualReplayPlaying)
     #expect(viewModel.currentStepIndex == before)
+
+    viewModel.resetSession()
 }
 
 @Test
@@ -62,6 +64,8 @@ func manualReplayBlocksAudioRecognitionAdvance() async {
 
     #expect(viewModel.isManualReplayPlaying)
     #expect(viewModel.currentStepIndex == before)
+
+    viewModel.resetSession()
 }
 
 
@@ -81,12 +85,17 @@ func completedManualReplayReturnsProgressToMeasureStart() async {
     #expect(viewModel.currentStepIndex == 1)
 
     viewModel.replayCurrentUnit()
-    await Task.yield()
-    await Task.yield()
-    await Task.yield()
+    for _ in 0 ..< 32 {
+        if viewModel.isManualReplayPlaying == false {
+            break
+        }
+        await Task.yield()
+    }
 
     #expect(viewModel.isManualReplayPlaying == false)
     #expect(viewModel.currentStepIndex == 0)
+
+    viewModel.resetSession()
 }
 
 
@@ -116,6 +125,8 @@ func restartingManualReplayDoesNotResumeAudioRecognitionBetweenGenerations() asy
 
     #expect(viewModel.isManualReplayPlaying)
     #expect(audioRecognitionService.startCalls.count == startCallCountBeforeReplay)
+
+    viewModel.resetSession()
 }
 
 private struct ImmediateManualReplaySleeper: SleeperProtocol {
