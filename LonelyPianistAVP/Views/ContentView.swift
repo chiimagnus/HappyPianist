@@ -167,7 +167,8 @@ private struct StepOrbLink: View {
             PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
             PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
         ],
-        file: nil
+        file: nil,
+        tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
     return ContentView(
         homeViewModel: HomeViewModel(appModel: appModel),

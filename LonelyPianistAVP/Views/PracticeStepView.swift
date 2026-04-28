@@ -15,6 +15,7 @@ struct PracticeStepView: View {
     @State private var isAutoplayErrorAlertPresented = false
 
     @AppStorage("practiceStep3AutoplayEnabled") private var isAutoplayEnabled = false
+    @AppStorage("practiceManualAdvanceMode") private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
     @AppStorage("practiceAudioRecognitionDebugOverlayEnabled") private var isAudioDebugOverlayEnabled = false
 
     var body: some View {
@@ -50,7 +51,7 @@ struct PracticeStepView: View {
                     .hoverEffect()
 
                     if isAutoplayEnabled == false {
-                        Button("下一步", systemImage: "forward.fill") {
+                        Button(manualAdvanceMode.nextButtonTitle, systemImage: "forward.fill") {
                             viewModel.skipStep()
                         }
                         .buttonStyle(.bordered)
@@ -59,8 +60,12 @@ struct PracticeStepView: View {
                         .disabled(viewModel.hasImportedSteps == false || viewModel.practiceSessionViewModel
                             .state == .completed)
 
-                        Button("播放琴声", systemImage: "speaker.wave.2.fill") {
-                            viewModel.playCurrentPracticeStepSound()
+                        Button(manualAdvanceMode.replayButtonTitle, systemImage: "speaker.wave.2.fill") {
+                            if manualAdvanceMode == .measure {
+                                viewModel.replayCurrentPracticeUnit()
+                            } else {
+                                viewModel.playCurrentPracticeStepSound()
+                            }
                         }
                         .buttonStyle(.bordered)
                         .buttonBorderShape(.roundedRectangle)
@@ -159,6 +164,10 @@ struct PracticeStepView: View {
                     await viewModel.recoverImmersiveStateIfStuck()
                 }
             }
+    }
+
+    private var manualAdvanceMode: ManualAdvanceMode {
+        ManualAdvanceMode.storageValue(from: manualAdvanceModeRawValue)
     }
 
     private var highlightedMIDINotes: Set<Int> {
