@@ -154,36 +154,6 @@ struct PianoHighlightGuideBuilderService {
         return guides
     }
 
-    static func makeFallbackGuides(from steps: [PracticeStep]) -> [PianoHighlightGuide] {
-        steps.enumerated().map { index, step in
-            let nextStepTick = steps.indices.contains(index + 1) ? steps[index + 1].tick : nil
-            let notes = step.notes.enumerated().map { noteIndex, stepNote in
-                let onTick = step.tick + stepNote.onTickOffset
-                let offTick = max(onTick + 1, nextStepTick ?? (onTick + 1))
-                return PianoHighlightNote(
-                    occurrenceID: "fallback-\(index)-\(noteIndex)-\(stepNote.midiNote)",
-                    midiNote: stepNote.midiNote,
-                    staff: stepNote.staff,
-                    voice: stepNote.voice,
-                    velocity: stepNote.velocity,
-                    onTick: onTick,
-                    offTick: offTick,
-                    fingeringText: stepNote.fingeringText
-                )
-            }
-            return PianoHighlightGuide(
-                id: index + 1,
-                kind: .trigger,
-                tick: step.tick,
-                durationTicks: nil,
-                practiceStepIndex: index,
-                activeNotes: notes,
-                triggeredNotes: notes,
-                releasedMIDINotes: []
-            )
-        }
-    }
-
     private func makeSourceNotesByKey(
         score: MusicXMLScore,
         expressivity: MusicXMLExpressivityOptions

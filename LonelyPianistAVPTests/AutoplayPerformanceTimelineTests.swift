@@ -14,8 +14,8 @@ func autoplayTimelineUsesGuidesForNoteOnOffAndGuideAdvance() {
     let timeline = AutoplayPerformanceTimeline.build(
         guides: [guide],
         steps: [PracticeStep(tick: 120, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
-        pedalTimeline: nil,
-        fermataTimeline: nil,
+        pedalTimeline: MusicXMLPedalTimeline(events: []),
+        fermataTimeline: MusicXMLFermataTimeline(fermataEvents: [], notes: []),
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
 
@@ -48,8 +48,8 @@ func autoplayTimelineDeduplicatesSameTickMIDINotesWithMaxVelocityAndOffTick() {
     let timeline = AutoplayPerformanceTimeline.build(
         guides: [guide],
         steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
-        pedalTimeline: nil,
-        fermataTimeline: nil,
+        pedalTimeline: MusicXMLPedalTimeline(events: []),
+        fermataTimeline: MusicXMLFermataTimeline(fermataEvents: [], notes: []),
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
 
@@ -87,8 +87,8 @@ func autoplayTimelineRearticulatesOverlappingSameMIDINoteAtNextOnTick() {
             PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
             PracticeStep(tick: 240, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
         ],
-        pedalTimeline: nil,
-        fermataTimeline: nil,
+        pedalTimeline: MusicXMLPedalTimeline(events: []),
+        fermataTimeline: MusicXMLFermataTimeline(fermataEvents: [], notes: []),
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
 
@@ -115,8 +115,8 @@ func autoplayTimelineKeepsZeroDurationGuideNotesReleasable() {
     let timeline = AutoplayPerformanceTimeline.build(
         guides: [guide],
         steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
-        pedalTimeline: nil,
-        fermataTimeline: nil,
+        pedalTimeline: MusicXMLPedalTimeline(events: []),
+        fermataTimeline: MusicXMLFermataTimeline(fermataEvents: [], notes: []),
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
 
@@ -171,7 +171,7 @@ func autoplayTimelineEmitsReleaseAndRedownForSameTickPedalChange() {
         guides: [guide],
         steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
         pedalTimeline: pedalTimeline,
-        fermataTimeline: nil,
+        fermataTimeline: MusicXMLFermataTimeline(fermataEvents: [], notes: []),
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
 

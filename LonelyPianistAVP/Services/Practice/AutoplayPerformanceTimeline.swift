@@ -55,8 +55,8 @@ struct AutoplayPerformanceTimeline: Equatable {
     static func build(
         guides: [PianoHighlightGuide],
         steps: [PracticeStep],
-        pedalTimeline: MusicXMLPedalTimeline?,
-        fermataTimeline: MusicXMLFermataTimeline?,
+        pedalTimeline: MusicXMLPedalTimeline,
+        fermataTimeline: MusicXMLFermataTimeline,
         tempoMap: MusicXMLTempoMap
     ) -> AutoplayPerformanceTimeline {
         var rawEvents: [(tick: Int, priority: Int, kind: EventKind)] = []
@@ -75,42 +75,38 @@ struct AutoplayPerformanceTimeline: Equatable {
             rawEvents.append((tick: interval.offTick, priority: 1, kind: .noteOff(midi: interval.midi)))
         }
 
-        if let pedalTimeline {
-            var pedalEventsByTick: [Int: Set<PedalEventKind>] = [:]
-            var cursor = -1
-            while let change = pedalTimeline.nextChange(afterTick: cursor) {
-                pedalEventsByTick[change.tick, default: []].insert(change.isDown ? .down : .up)
-                cursor = change.tick
+        var pedalEventsByTick: [Int: Set<PedalEventKind>] = [:]
+        var cursor = -1
+        while let change = pedalTimeline.nextChange(afterTick: cursor) {
+            pedalEventsByTick[change.tick, default: []].insert(change.isDown ? .down : .up)
+            cursor = change.tick
+        }
+        for releaseTick in pedalTimeline.releaseEdges() {
+            pedalEventsByTick[releaseTick, default: []].insert(.up)
+            if pedalTimeline.isDown(atTick: releaseTick) {
+                pedalEventsByTick[releaseTick, default: []].insert(.down)
             }
-            for releaseTick in pedalTimeline.releaseEdges() {
-                pedalEventsByTick[releaseTick, default: []].insert(.up)
-                if pedalTimeline.isDown(atTick: releaseTick) {
-                    pedalEventsByTick[releaseTick, default: []].insert(.down)
-                }
+        }
+        for (tick, events) in pedalEventsByTick {
+            if events.contains(.up) {
+                rawEvents.append((tick: tick, priority: 2, kind: .pedalUp))
             }
-            for (tick, events) in pedalEventsByTick {
-                if events.contains(.up) {
-                    rawEvents.append((tick: tick, priority: 2, kind: .pedalUp))
-                }
-                if events.contains(.down) {
-                    rawEvents.append((tick: tick, priority: 2, kind: .pedalDown))
-                }
+            if events.contains(.down) {
+                rawEvents.append((tick: tick, priority: 2, kind: .pedalDown))
             }
         }
 
-        if let fermataTimeline {
-            for pair in zip(steps, steps.dropFirst()) {
-                let current = pair.0
-                let next = pair.1
-                let staffs = Set(current.notes.map { $0.staff ?? 1 })
-                let extraSeconds = fermataTimeline.extraHoldSeconds(
-                    atTick: current.tick,
-                    staffs: staffs,
-                    tempoMap: tempoMap
-                )
-                if extraSeconds > 0 {
-                    rawEvents.append((tick: next.tick, priority: 0, kind: .pauseSeconds(extraSeconds)))
-                }
+        for pair in zip(steps, steps.dropFirst()) {
+            let current = pair.0
+            let next = pair.1
+            let staffs = Set(current.notes.map { $0.staff ?? 1 })
+            let extraSeconds = fermataTimeline.extraHoldSeconds(
+                atTick: current.tick,
+                staffs: staffs,
+                tempoMap: tempoMap
+            )
+            if extraSeconds > 0 {
+                rawEvents.append((tick: next.tick, priority: 0, kind: .pauseSeconds(extraSeconds)))
             }
         }
 

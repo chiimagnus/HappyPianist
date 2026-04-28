@@ -39,6 +39,7 @@ final class PracticeSessionViewModel {
     private(set) var isSustainPedalDown = false
     private(set) var audioRecognitionErrorMessage: String?
     private(set) var audioPlaybackErrorMessage: String?
+    private(set) var autoplayErrorMessage: String?
     var audioErrorMessage: String? {
         audioRecognitionErrorMessage ?? audioPlaybackErrorMessage
     }
@@ -101,7 +102,7 @@ final class PracticeSessionViewModel {
         self.chordAttemptAccumulator = chordAttemptAccumulator
         self.sleeper = sleeper
         self.noteAudioPlayer = noteAudioPlayer
-        self.noteOutput = noteOutput ?? (noteAudioPlayer as? PracticeMIDINoteOutputProtocol)
+        self.noteOutput = noteOutput
         self.audioRecognitionService = audioRecognitionService
         self.audioStepAttemptAccumulator = audioStepAttemptAccumulator ?? AudioStepAttemptAccumulator()
         self.handPianoActivityGate = handPianoActivityGate ?? HandPianoActivityGate()
@@ -109,11 +110,13 @@ final class PracticeSessionViewModel {
     }
 
     convenience init() {
+        let player = SoundFontPracticeNoteAudioPlayer(soundFontResourceName: "SalC5Light2")
         self.init(
             pressDetectionService: PressDetectionService(),
             chordAttemptAccumulator: ChordAttemptAccumulator(),
             sleeper: TaskSleeper(),
-            noteAudioPlayer: SoundFontPracticeNoteAudioPlayer(soundFontResourceName: "SalC5Light2"),
+            noteAudioPlayer: player,
+            noteOutput: player,
             audioRecognitionService: PracticeAudioRecognitionService()
         )
     }
@@ -232,7 +235,7 @@ final class PracticeSessionViewModel {
         self.fermataTimeline = fermataTimeline
         self.attributeTimeline = attributeTimeline
         self.slurTimeline = slurTimeline
-        self.highlightGuides = highlightGuides.isEmpty ? PianoHighlightGuideBuilderService.makeFallbackGuides(from: steps) : highlightGuides
+        self.highlightGuides = highlightGuides
         rebuildAutoplayTimeline()
         currentHighlightGuideIndex = nil
         resetAutoplayCursorForCurrentStep()
@@ -301,6 +304,7 @@ final class PracticeSessionViewModel {
         isSustainPedalDown = false
         audioRecognitionErrorMessage = nil
         audioPlaybackErrorMessage = nil
+        autoplayErrorMessage = nil
         currentStepIndex = 0
         state = .idle
         autoplayTimeline = .empty
@@ -319,6 +323,10 @@ final class PracticeSessionViewModel {
     func clearAudioError() {
         audioRecognitionErrorMessage = nil
         audioPlaybackErrorMessage = nil
+    }
+
+    func clearAutoplayError() {
+        autoplayErrorMessage = nil
     }
 
     func startGuidingIfReady() {
@@ -365,6 +373,7 @@ final class PracticeSessionViewModel {
             autoplayState = .playing
             let tick = currentStep?.tick ?? 0
             isSustainPedalDown = pedalTimeline?.isDown(atTick: tick) ?? false
+            autoplayErrorMessage = nil
             startAutoplayTaskIfNeeded()
         } else {
             autoplayState = .off
@@ -453,16 +462,20 @@ final class PracticeSessionViewModel {
         guard autoplayState == .playing else { return }
         guard case .guiding = state else { return }
         guard steps.isEmpty == false else { return }
-        guard noteOutput != nil else { return }
-
-        if autoplayTask != nil {
+        if let error = autoplayStartErrorMessage() {
+            stopAutoplayWithError(error)
             return
         }
+
+        guard autoplayTask == nil else { return }
 
         autoplayTaskGeneration += 1
         let generation = autoplayTaskGeneration
         resetAutoplayCursorForCurrentStep()
-        let tempoMap = resolvedTempoMap()
+        guard let tempoMapSnapshot = tempoMap else {
+            stopAutoplayWithError("无法自动播放：缺少速度信息（tempo）。请重新导入这份 MusicXML。")
+            return
+        }
 
         autoplayTask = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -476,7 +489,7 @@ final class PracticeSessionViewModel {
                 guard currentAutoplayEventIndex < autoplayTimeline.events.count else { break }
 
                 let nextTick = autoplayTimeline.events[currentAutoplayEventIndex].tick
-                let waitSeconds = tempoMap.durationSeconds(fromTick: currentTick, toTick: nextTick)
+                let waitSeconds = tempoMapSnapshot.durationSeconds(fromTick: currentTick, toTick: nextTick)
 
                 if waitSeconds > 0 {
                     try? await sleeper.sleep(for: .seconds(waitSeconds))
@@ -497,19 +510,48 @@ final class PracticeSessionViewModel {
         }
     }
 
+    private func autoplayStartErrorMessage() -> String? {
+        guard noteOutput != nil else {
+            return "无法自动播放：音频输出未就绪。请重启 App 或重新打开曲目。"
+        }
+        guard tempoMap != nil else {
+            return "无法自动播放：缺少速度信息（tempo）。请重新导入这份 MusicXML。"
+        }
+        guard pedalTimeline != nil else {
+            return "无法自动播放：缺少踏板信息。请重新导入这份 MusicXML。"
+        }
+        guard fermataTimeline != nil else {
+            return "无法自动播放：缺少延长停顿（fermata）信息。请重新导入这份 MusicXML。"
+        }
+        guard highlightGuides.isEmpty == false else {
+            return "无法自动播放：缺少键盘高亮引导数据。请重新导入这份 MusicXML。"
+        }
+        guard strictTriggerGuideIndex(forStepIndex: currentStepIndex) != nil else {
+            return "无法自动播放：引导数据不一致（找不到当前步骤的触发点）。请重新导入这份 MusicXML。"
+        }
+        return nil
+    }
+
+    private func stopAutoplayWithError(_ message: String) {
+        autoplayState = .off
+        stopAutoplayTask()
+        stopAutoplayAudio()
+        autoplayErrorMessage = message
+        refreshAudioRecognitionForCurrentState()
+    }
+
+    private func strictTriggerGuideIndex(forStepIndex stepIndex: Int) -> Int? {
+        highlightGuides.firstIndex { guide in
+            guide.practiceStepIndex == stepIndex && guide.kind == .trigger
+        }
+    }
+
     private func setCurrentHighlightGuideForStepIndex(_ stepIndex: Int) {
         guard steps.indices.contains(stepIndex) else {
             currentHighlightGuideIndex = nil
             return
         }
-        let tick = steps[stepIndex].tick
-        currentHighlightGuideIndex = highlightGuides.firstIndex { guide in
-            guide.practiceStepIndex == stepIndex && guide.kind == .trigger
-        } ?? highlightGuides.firstIndex { guide in
-            guide.tick >= tick && guide.kind == .trigger
-        } ?? highlightGuides.firstIndex { guide in
-            guide.tick >= tick
-        }
+        currentHighlightGuideIndex = strictTriggerGuideIndex(forStepIndex: stepIndex)
     }
 
     private func updateHighlightGuideAfterStepAdvance(previousTick: Int, nextStepIndex: Int) {
@@ -542,12 +584,23 @@ final class PracticeSessionViewModel {
 
 
     private func rebuildAutoplayTimeline() {
+        guard
+            let tempoMap,
+            let pedalTimeline,
+            let fermataTimeline,
+            highlightGuides.isEmpty == false
+        else {
+            autoplayTimeline = .empty
+            resetAutoplayCursorForCurrentStep()
+            return
+        }
+
         autoplayTimeline = AutoplayPerformanceTimeline.build(
             guides: highlightGuides,
             steps: steps,
             pedalTimeline: pedalTimeline,
             fermataTimeline: fermataTimeline,
-            tempoMap: resolvedTempoMap()
+            tempoMap: tempoMap
         )
         resetAutoplayCursorForCurrentStep()
     }
@@ -650,10 +703,6 @@ final class PracticeSessionViewModel {
         refreshAudioRecognitionForCurrentState()
     }
 
-
-    private func resolvedTempoMap() -> MusicXMLTempoMap {
-        tempoMap ?? MusicXMLTempoMap(tempoEvents: [])
-    }
 
     private func stopAutoplayTask() {
         autoplayTaskGeneration += 1

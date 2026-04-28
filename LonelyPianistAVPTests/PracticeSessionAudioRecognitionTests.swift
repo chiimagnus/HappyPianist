@@ -211,10 +211,64 @@ func autoplayIsolationBlocksAudioAdvanceUntilAutoplayOff() async {
     UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
     let fakeService = FakePracticeAudioRecognitionService()
     let viewModel = makeViewModel(audioRecognitionService: fakeService)
-    viewModel.setSteps([
+    let tempoMap = MusicXMLTempoMap(tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil))])
+    let pedalTimeline = MusicXMLPedalTimeline(events: [])
+    let fermataTimeline = MusicXMLFermataTimeline(fermataEvents: [], notes: [])
+    let steps = [
         PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-        PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
-    ])
+        PracticeStep(tick: 4800, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
+    ]
+    let guides = [
+        PianoHighlightGuide(
+            id: 1,
+            kind: .trigger,
+            tick: 0,
+            durationTicks: nil,
+            practiceStepIndex: 0,
+            activeNotes: [],
+            triggeredNotes: [
+                PianoHighlightNote(
+                    occurrenceID: "t0-60",
+                    midiNote: 60,
+                    staff: nil,
+                    voice: nil,
+                    velocity: 96,
+                    onTick: 0,
+                    offTick: 1,
+                    fingeringText: nil
+                ),
+            ],
+            releasedMIDINotes: []
+        ),
+        PianoHighlightGuide(
+            id: 2,
+            kind: .trigger,
+            tick: 4800,
+            durationTicks: nil,
+            practiceStepIndex: 1,
+            activeNotes: [],
+            triggeredNotes: [
+                PianoHighlightNote(
+                    occurrenceID: "t4800-64",
+                    midiNote: 64,
+                    staff: nil,
+                    voice: nil,
+                    velocity: 96,
+                    onTick: 4800,
+                    offTick: 4801,
+                    fingeringText: nil
+                ),
+            ],
+            releasedMIDINotes: []
+        ),
+    ]
+    viewModel.setSteps(
+        steps,
+        tempoMap: tempoMap,
+        pedalTimeline: pedalTimeline,
+        fermataTimeline: fermataTimeline,
+        highlightGuides: guides
+    )
     viewModel.startGuidingIfReady()
     await settleTaskQueue()
     let generation = fakeService.startCalls.first?.generation ?? 0
@@ -282,6 +336,7 @@ private func makeViewModel(
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         noteAudioPlayer: nil,
+        noteOutput: NoopMIDINoteOutput(),
         audioRecognitionService: audioRecognitionService
     )
 }
@@ -313,6 +368,12 @@ private final class NoopChordAttemptAccumulator: ChordAttemptAccumulatorProtocol
     }
 
     func reset() {}
+}
+
+private final class NoopMIDINoteOutput: PracticeMIDINoteOutputProtocol {
+    func noteOn(midi _: Int, velocity _: UInt8) throws {}
+    func noteOff(midi _: Int) {}
+    func allNotesOff() {}
 }
 
 private final class CapturingAudioPlayer: PracticeNoteAudioPlayerProtocol {
