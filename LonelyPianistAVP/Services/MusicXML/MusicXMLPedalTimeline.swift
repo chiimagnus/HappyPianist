@@ -102,4 +102,8 @@ struct MusicXMLPedalTimeline: Equatable {
         guard low < releaseEdgeTicks.count else { return nil }
         return releaseEdgeTicks[low]
     }
+
+    func releaseEdges() -> [Int] {
+        releaseEdgeTicks
+    }
 }

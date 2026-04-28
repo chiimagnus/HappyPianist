@@ -12,10 +12,10 @@ struct PracticeStepView: View {
     @State private var isLocalizationPopoverPresented = false
     @State private var isSettingsPopoverPresented = false
     @State private var isAudioErrorAlertPresented = false
+    @State private var isAutoplayErrorAlertPresented = false
 
     @AppStorage("practiceStep3AutoplayEnabled") private var isAutoplayEnabled = false
     @AppStorage("practiceAudioRecognitionDebugOverlayEnabled") private var isAudioDebugOverlayEnabled = false
-    @AppStorage("practiceAudioRecognitionEnabled") private var isAudioRecognitionEnabled = true
 
     var body: some View {
         PianoKeyboard88View(
@@ -129,9 +129,6 @@ struct PracticeStepView: View {
             .onChange(of: isAutoplayEnabled) {
                 viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
             }
-            .onChange(of: isAudioRecognitionEnabled) {
-                viewModel.practiceSessionViewModel.refreshAudioRecognitionFromSettings()
-            }
             .onChange(of: viewModel.practiceSessionViewModel.audioErrorMessage) {
                 isAudioErrorAlertPresented = viewModel.practiceSessionViewModel.audioErrorMessage != nil
             }
@@ -141,6 +138,16 @@ struct PracticeStepView: View {
                 }
             } message: {
                 Text(viewModel.practiceSessionViewModel.audioErrorMessage ?? "")
+            }
+            .onChange(of: viewModel.practiceSessionViewModel.autoplayErrorMessage) {
+                isAutoplayErrorAlertPresented = viewModel.practiceSessionViewModel.autoplayErrorMessage != nil
+            }
+            .alert("无法自动播放", isPresented: $isAutoplayErrorAlertPresented) {
+                Button("知道了") {
+                    viewModel.practiceSessionViewModel.clearAutoplayError()
+                }
+            } message: {
+                Text(viewModel.practiceSessionViewModel.autoplayErrorMessage ?? "")
             }
             .onDisappear {
                 isStepVisible = false

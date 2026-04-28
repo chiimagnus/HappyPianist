@@ -7,6 +7,159 @@ private let defaultTempoScope = MusicXMLEventScope(partID: "P1", staff: nil, voi
 
 @Test
 @MainActor
+func autoplayTimelineKeepsGuideAndNoteOnOnSameTick() async {
+    let sleeper = ControllableSleeper()
+    let tempoMap = MusicXMLTempoMap(
+        tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope)]
+    )
+    let pedalTimeline = MusicXMLPedalTimeline(events: [])
+    let fermataTimeline = MusicXMLFermataTimeline(fermataEvents: [], notes: [])
+    let output = CapturingMIDINoteOutput()
+    let viewModel = PracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: sleeper,
+        noteAudioPlayer: nil,
+        noteOutput: output
+    )
+    let firstGuide = makeHighlightGuide(
+        id: 1,
+        kind: .trigger,
+        tick: 0,
+        practiceStepIndex: 0,
+        midiNotes: [60]
+    )
+    let secondGuide = makeHighlightGuide(
+        id: 2,
+        kind: .trigger,
+        tick: 480,
+        practiceStepIndex: 1,
+        midiNotes: [62]
+    )
+
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
+        ],
+        tempoMap: tempoMap,
+        pedalTimeline: pedalTimeline,
+        fermataTimeline: fermataTimeline,
+        highlightGuides: [firstGuide, secondGuide]
+    )
+    viewModel.setAutoplayEnabled(true)
+    viewModel.startGuidingIfReady()
+    await settleTaskQueue()
+
+    #expect(output.recordedNoteOns.map(\.midi) == [60])
+    #expect(viewModel.currentPianoHighlightGuide?.id == 1)
+
+    await sleeper.resumeOldestPending()
+    await settleTaskQueue()
+    await sleeper.resumeOldestPending()
+    await settleTaskQueue()
+
+    #expect(output.recordedNoteOns.map(\.midi).contains(62))
+    #expect(viewModel.currentPianoHighlightGuide?.id == 2)
+}
+
+@Test
+@MainActor
+func skipDuringAutoplayCancelsPendingEventsAndRestartsAtNextStep() async {
+    let sleeper = ControllableSleeper()
+    let tempoMap = MusicXMLTempoMap(
+        tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope)]
+    )
+    let pedalTimeline = MusicXMLPedalTimeline(events: [])
+    let fermataTimeline = MusicXMLFermataTimeline(fermataEvents: [], notes: [])
+    let output = CapturingMIDINoteOutput()
+    let viewModel = PracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: sleeper,
+        noteAudioPlayer: nil,
+        noteOutput: output
+    )
+
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
+        ],
+        tempoMap: tempoMap,
+        pedalTimeline: pedalTimeline,
+        fermataTimeline: fermataTimeline,
+        highlightGuides: [
+            makeHighlightGuide(id: 1, kind: .trigger, tick: 0, practiceStepIndex: 0, midiNotes: [60]),
+            makeHighlightGuide(id: 2, kind: .trigger, tick: 480, practiceStepIndex: 1, midiNotes: [62]),
+        ]
+    )
+    viewModel.setAutoplayEnabled(true)
+    viewModel.startGuidingIfReady()
+    await settleTaskQueue()
+
+    let allNotesOffBeforeSkip = output.allNotesOffCount
+    viewModel.skip()
+    await settleTaskQueue()
+
+    #expect(output.allNotesOffCount == allNotesOffBeforeSkip + 1)
+    #expect(viewModel.currentStepIndex == 1)
+    #expect(output.recordedNoteOns.map(\.midi).contains(62))
+}
+
+@Test
+@MainActor
+func skipDoesNotLetCancelledAutoplayTaskClearNewTaskReference() async {
+    let sleeper = ControllableSleeper()
+    let tempoMap = MusicXMLTempoMap(
+        tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope)]
+    )
+    let pedalTimeline = MusicXMLPedalTimeline(events: [])
+    let fermataTimeline = MusicXMLFermataTimeline(fermataEvents: [], notes: [])
+    let output = CapturingMIDINoteOutput()
+    let viewModel = PracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: sleeper,
+        noteAudioPlayer: nil,
+        noteOutput: output
+    )
+
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
+        ],
+        tempoMap: tempoMap,
+        pedalTimeline: pedalTimeline,
+        fermataTimeline: fermataTimeline,
+        highlightGuides: [
+            makeHighlightGuide(id: 1, kind: .trigger, tick: 0, practiceStepIndex: 0, midiNotes: [60], noteDurationTicks: 480),
+            makeHighlightGuide(id: 2, kind: .trigger, tick: 480, practiceStepIndex: 1, midiNotes: [62], noteDurationTicks: 480),
+        ]
+    )
+    viewModel.setAutoplayEnabled(true)
+    viewModel.startGuidingIfReady()
+    await settleTaskQueue()
+
+    #expect(await sleeper.callCount() == 1)
+
+    viewModel.skip()
+    await settleTaskQueue()
+
+    #expect(await sleeper.cancellationCount() == 1)
+    #expect(await sleeper.callCount() == 2)
+
+    viewModel.setAutoplayEnabled(true)
+    await settleTaskQueue()
+
+    #expect(await sleeper.callCount() == 2)
+    #expect(viewModel.autoplayState == .playing)
+}
+
+
+@Test
+@MainActor
 func markCorrectSchedulesFeedbackResetWithExpectedDuration() async {
     let sleeper = ControllableSleeper()
     let viewModel = makePracticeSessionViewModel(
@@ -256,6 +409,13 @@ func autoplaySchedulesAndAdvancesStepsUsingTempoMap() async {
             MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope),
         ]
     )
+    let pedalTimeline = MusicXMLPedalTimeline(events: [])
+    let fermataTimeline = MusicXMLFermataTimeline(fermataEvents: [], notes: [])
+    let guides = [
+        PianoHighlightGuide(id: 1, kind: .trigger, tick: 0, durationTicks: nil, practiceStepIndex: 0, activeNotes: [], triggeredNotes: [], releasedMIDINotes: []),
+        PianoHighlightGuide(id: 2, kind: .trigger, tick: 480, durationTicks: nil, practiceStepIndex: 1, activeNotes: [], triggeredNotes: [], releasedMIDINotes: []),
+        PianoHighlightGuide(id: 3, kind: .trigger, tick: 960, durationTicks: nil, practiceStepIndex: 2, activeNotes: [], triggeredNotes: [], releasedMIDINotes: []),
+    ]
 
     let viewModel = makePracticeSessionViewModel(
         pressDetectionService: NoopPressDetectionService(),
@@ -269,7 +429,10 @@ func autoplaySchedulesAndAdvancesStepsUsingTempoMap() async {
             PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: nil)]),
             PracticeStep(tick: 960, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
         ],
-        tempoMap: tempoMap
+        tempoMap: tempoMap,
+        pedalTimeline: pedalTimeline,
+        fermataTimeline: fermataTimeline,
+        highlightGuides: guides
     )
     viewModel.setAutoplayEnabled(true)
     viewModel.startGuidingIfReady()
@@ -298,6 +461,8 @@ func autoplaySchedulesPendingOnsetsInsideCurrentStep() async {
             MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope),
         ]
     )
+    let pedalTimeline = MusicXMLPedalTimeline(events: [])
+    let fermataTimeline = MusicXMLFermataTimeline(fermataEvents: [], notes: [])
     let output = CapturingMIDINoteOutput()
 
     let viewModel = PracticeSessionViewModel(
@@ -317,11 +482,54 @@ func autoplaySchedulesPendingOnsetsInsideCurrentStep() async {
             PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 67, staff: 1)]),
         ],
         tempoMap: tempoMap,
-        pedalTimeline: nil,
-        fermataTimeline: nil,
+        pedalTimeline: pedalTimeline,
+        fermataTimeline: fermataTimeline,
         noteSpans: [
             MusicXMLNoteSpan(midiNote: 60, staff: 1, voice: 1, onTick: 0, offTick: 480),
             MusicXMLNoteSpan(midiNote: 64, staff: 1, voice: 1, onTick: 30, offTick: 510),
+        ],
+        highlightGuides: [
+            PianoHighlightGuide(
+                id: 1,
+                kind: .trigger,
+                tick: 0,
+                durationTicks: nil,
+                practiceStepIndex: 0,
+                activeNotes: [],
+                triggeredNotes: [
+                    PianoHighlightNote(
+                        occurrenceID: "t0-60",
+                        midiNote: 60,
+                        staff: 1,
+                        voice: 1,
+                        velocity: 96,
+                        onTick: 0,
+                        offTick: 480,
+                        fingeringText: nil
+                    ),
+                    PianoHighlightNote(
+                        occurrenceID: "t30-64",
+                        midiNote: 64,
+                        staff: 1,
+                        voice: 1,
+                        velocity: 96,
+                        onTick: 30,
+                        offTick: 510,
+                        fingeringText: nil
+                    ),
+                ],
+                releasedMIDINotes: []
+            ),
+            PianoHighlightGuide(
+                id: 2,
+                kind: .trigger,
+                tick: 480,
+                durationTicks: nil,
+                practiceStepIndex: 1,
+                activeNotes: [],
+                triggeredNotes: [],
+                releasedMIDINotes: []
+            ),
         ]
     )
 
@@ -348,6 +556,7 @@ func autoplayInsertsFermataHoldBeforeAdvancingWhenTimelineProvided() async {
             MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope),
         ]
     )
+    let pedalTimeline = MusicXMLPedalTimeline(events: [])
     let fermataTimeline = MusicXMLFermataTimeline(
         fermataEvents: [
             MusicXMLFermataEvent(
@@ -372,6 +581,10 @@ func autoplayInsertsFermataHoldBeforeAdvancingWhenTimelineProvided() async {
             ),
         ]
     )
+    let guides = [
+        PianoHighlightGuide(id: 1, kind: .trigger, tick: 0, durationTicks: nil, practiceStepIndex: 0, activeNotes: [], triggeredNotes: [], releasedMIDINotes: []),
+        PianoHighlightGuide(id: 2, kind: .trigger, tick: 480, durationTicks: nil, practiceStepIndex: 1, activeNotes: [], triggeredNotes: [], releasedMIDINotes: []),
+    ]
 
     let viewModel = makePracticeSessionViewModel(
         pressDetectionService: NoopPressDetectionService(),
@@ -385,8 +598,9 @@ func autoplayInsertsFermataHoldBeforeAdvancingWhenTimelineProvided() async {
             PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
         ],
         tempoMap: tempoMap,
-        pedalTimeline: nil,
-        fermataTimeline: fermataTimeline
+        pedalTimeline: pedalTimeline,
+        fermataTimeline: fermataTimeline,
+        highlightGuides: guides
     )
 
     viewModel.setAutoplayEnabled(true)
@@ -426,6 +640,11 @@ func autoplaySchedulesPedalChangesBetweenSteps() async {
             ),
         ]
     )
+    let fermataTimeline = MusicXMLFermataTimeline(fermataEvents: [], notes: [])
+    let guides = [
+        PianoHighlightGuide(id: 1, kind: .trigger, tick: 0, durationTicks: nil, practiceStepIndex: 0, activeNotes: [], triggeredNotes: [], releasedMIDINotes: []),
+        PianoHighlightGuide(id: 2, kind: .trigger, tick: 960, durationTicks: nil, practiceStepIndex: 1, activeNotes: [], triggeredNotes: [], releasedMIDINotes: []),
+    ]
 
     let viewModel = makePracticeSessionViewModel(
         pressDetectionService: NoopPressDetectionService(),
@@ -439,7 +658,9 @@ func autoplaySchedulesPedalChangesBetweenSteps() async {
             PracticeStep(tick: 960, notes: [PracticeStepNote(midiNote: 62, staff: nil)]),
         ],
         tempoMap: tempoMap,
-        pedalTimeline: pedalTimeline
+        pedalTimeline: pedalTimeline,
+        fermataTimeline: fermataTimeline,
+        highlightGuides: guides
     )
     viewModel.setAutoplayEnabled(true)
     viewModel.startGuidingIfReady()
@@ -469,6 +690,13 @@ func autoplaySkipCancelsPendingSleepAndRestartsScheduling() async {
             MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope),
         ]
     )
+    let pedalTimeline = MusicXMLPedalTimeline(events: [])
+    let fermataTimeline = MusicXMLFermataTimeline(fermataEvents: [], notes: [])
+    let guides = [
+        PianoHighlightGuide(id: 1, kind: .trigger, tick: 0, durationTicks: nil, practiceStepIndex: 0, activeNotes: [], triggeredNotes: [], releasedMIDINotes: []),
+        PianoHighlightGuide(id: 2, kind: .trigger, tick: 480, durationTicks: nil, practiceStepIndex: 1, activeNotes: [], triggeredNotes: [], releasedMIDINotes: []),
+        PianoHighlightGuide(id: 3, kind: .trigger, tick: 960, durationTicks: nil, practiceStepIndex: 2, activeNotes: [], triggeredNotes: [], releasedMIDINotes: []),
+    ]
 
     let viewModel = makePracticeSessionViewModel(
         pressDetectionService: NoopPressDetectionService(),
@@ -482,7 +710,10 @@ func autoplaySkipCancelsPendingSleepAndRestartsScheduling() async {
             PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: nil)]),
             PracticeStep(tick: 960, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
         ],
-        tempoMap: tempoMap
+        tempoMap: tempoMap,
+        pedalTimeline: pedalTimeline,
+        fermataTimeline: fermataTimeline,
+        highlightGuides: guides
     )
     viewModel.setAutoplayEnabled(true)
     viewModel.startGuidingIfReady()
@@ -683,6 +914,8 @@ func autoplayAdvancesHighlightGuidesByTick() async {
             MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope),
         ]
     )
+    let pedalTimeline = MusicXMLPedalTimeline(events: [])
+    let fermataTimeline = MusicXMLFermataTimeline(fermataEvents: [], notes: [])
     let viewModel = makePracticeSessionViewModel(
         pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
@@ -695,10 +928,18 @@ func autoplayAdvancesHighlightGuidesByTick() async {
             PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, voice: 1)]),
         ],
         tempoMap: tempoMap,
-        pedalTimeline: nil,
+        pedalTimeline: pedalTimeline,
+        fermataTimeline: fermataTimeline,
         noteSpans: [],
         highlightGuides: [
-            makeHighlightGuide(id: 1, kind: .trigger, tick: 0, practiceStepIndex: 0, midiNotes: [60]),
+            makeHighlightGuide(
+                id: 1,
+                kind: .trigger,
+                tick: 0,
+                practiceStepIndex: 0,
+                midiNotes: [60],
+                noteDurationTicks: 480
+            ),
             makeHighlightGuide(id: 2, kind: .gap, tick: 120, practiceStepIndex: nil, midiNotes: [], released: [60]),
             makeHighlightGuide(id: 3, kind: .trigger, tick: 480, practiceStepIndex: 1, midiNotes: [62]),
         ]
@@ -729,6 +970,8 @@ func autoplaySchedulesNoteOffUsingNoteSpans() async {
             MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope),
         ]
     )
+    let pedalTimeline = MusicXMLPedalTimeline(events: [])
+    let fermataTimeline = MusicXMLFermataTimeline(fermataEvents: [], notes: [])
     let output = CapturingMIDINoteOutput()
     let viewModel = PracticeSessionViewModel(
         pressDetectionService: NoopPressDetectionService(),
@@ -744,9 +987,43 @@ func autoplaySchedulesNoteOffUsingNoteSpans() async {
             PracticeStep(tick: 1440, notes: [PracticeStepNote(midiNote: 62, staff: nil)]),
         ],
         tempoMap: tempoMap,
-        pedalTimeline: nil,
+        pedalTimeline: pedalTimeline,
+        fermataTimeline: fermataTimeline,
         noteSpans: [
             MusicXMLNoteSpan(midiNote: 60, staff: 1, voice: 1, onTick: 0, offTick: 480),
+        ],
+        highlightGuides: [
+            PianoHighlightGuide(
+                id: 1,
+                kind: .trigger,
+                tick: 0,
+                durationTicks: nil,
+                practiceStepIndex: 0,
+                activeNotes: [],
+                triggeredNotes: [
+                    PianoHighlightNote(
+                        occurrenceID: "t0-60",
+                        midiNote: 60,
+                        staff: 1,
+                        voice: 1,
+                        velocity: 96,
+                        onTick: 0,
+                        offTick: 480,
+                        fingeringText: nil
+                    ),
+                ],
+                releasedMIDINotes: []
+            ),
+            PianoHighlightGuide(
+                id: 2,
+                kind: .trigger,
+                tick: 1440,
+                durationTicks: nil,
+                practiceStepIndex: 1,
+                activeNotes: [],
+                triggeredNotes: [],
+                releasedMIDINotes: []
+            ),
         ]
     )
     viewModel.setAutoplayEnabled(true)
@@ -813,29 +1090,34 @@ func autoplayDefersNoteOffWhilePedalIsDownAndReleasesOnPedalUp() async {
         ],
         tempoMap: tempoMap,
         pedalTimeline: pedalTimeline,
-        noteSpans: [
-            MusicXMLNoteSpan(midiNote: 60, staff: 1, voice: 1, onTick: 0, offTick: 480),
+        fermataTimeline: MusicXMLFermataTimeline(fermataEvents: [], notes: []),
+        noteSpans: [],
+        highlightGuides: [
+            makeHighlightGuide(
+                id: 1,
+                kind: .trigger,
+                tick: 0,
+                practiceStepIndex: 0,
+                midiNotes: [60],
+                noteDurationTicks: 480
+            ),
+            PianoHighlightGuide(id: 2, kind: .trigger, tick: 1440, durationTicks: nil, practiceStepIndex: 1, activeNotes: [], triggeredNotes: [], releasedMIDINotes: []),
         ]
     )
     viewModel.setAutoplayEnabled(true)
     viewModel.startGuidingIfReady()
     await settleTaskQueue()
 
+    #expect(output.recordedNoteOns.map(\.midi) == [60])
+    #expect(output.recordedNoteOffs.contains(60) == false)
 
-    for _ in 0 ..< 2 {
-        await sleeper.resumeOldestPending()
-        await settleTaskQueue()
-    }
+    await sleeper.resumeOldestPending()
+    await settleTaskQueue()
 
     #expect(output.recordedNoteOffs.contains(60) == false)
 
-    for _ in 0 ..< 6 {
-        await sleeper.resumeOldestPending()
-        await settleTaskQueue()
-        if output.recordedNoteOffs.contains(60) {
-            break
-        }
-    }
+    await sleeper.resumeOldestPending()
+    await settleTaskQueue()
 
     #expect(output.recordedNoteOffs.contains(60) == true)
 }
@@ -894,8 +1176,18 @@ func autoplayReleasesPendingNotesOnPedalChangeTickEvenIfPedalStaysDown() async {
         ],
         tempoMap: tempoMap,
         pedalTimeline: pedalTimeline,
-        noteSpans: [
-            MusicXMLNoteSpan(midiNote: 60, staff: 1, voice: 1, onTick: 0, offTick: 480),
+        fermataTimeline: MusicXMLFermataTimeline(fermataEvents: [], notes: []),
+        noteSpans: [],
+        highlightGuides: [
+            makeHighlightGuide(
+                id: 1,
+                kind: .trigger,
+                tick: 0,
+                practiceStepIndex: 0,
+                midiNotes: [60],
+                noteDurationTicks: 480
+            ),
+            PianoHighlightGuide(id: 2, kind: .trigger, tick: 1440, durationTicks: nil, practiceStepIndex: 1, activeNotes: [], triggeredNotes: [], releasedMIDINotes: []),
         ]
     )
     viewModel.setAutoplayEnabled(true)
@@ -908,15 +1200,8 @@ func autoplayReleasesPendingNotesOnPedalChangeTickEvenIfPedalStaysDown() async {
     await sleeper.resumeOldestPending()
     await settleTaskQueue()
 
-    for _ in 0 ..< 10 {
-        await sleeper.resumeOldestPending()
-        await settleTaskQueue()
-        if output.recordedNoteOffs.contains(60) {
-            break
-        }
-    }
-
     #expect(output.recordedNoteOffs.contains(60) == true)
+    #expect(viewModel.isSustainPedalDown == true)
 }
 
 @Test
@@ -943,9 +1228,34 @@ func disablingAutoplayStopsAudioAndClearsPendingScheduling() async {
             PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: nil)]),
         ],
         tempoMap: tempoMap,
-        pedalTimeline: nil,
+        pedalTimeline: MusicXMLPedalTimeline(events: []),
+        fermataTimeline: MusicXMLFermataTimeline(fermataEvents: [], notes: []),
         noteSpans: [
             MusicXMLNoteSpan(midiNote: 60, staff: 1, voice: 1, onTick: 0, offTick: 480),
+        ],
+        highlightGuides: [
+            PianoHighlightGuide(
+                id: 1,
+                kind: .trigger,
+                tick: 0,
+                durationTicks: nil,
+                practiceStepIndex: 0,
+                activeNotes: [],
+                triggeredNotes: [
+                    PianoHighlightNote(
+                        occurrenceID: "t0-60",
+                        midiNote: 60,
+                        staff: 1,
+                        voice: 1,
+                        velocity: 96,
+                        onTick: 0,
+                        offTick: 480,
+                        fingeringText: nil
+                    ),
+                ],
+                releasedMIDINotes: []
+            ),
+            PianoHighlightGuide(id: 2, kind: .trigger, tick: 480, durationTicks: nil, practiceStepIndex: 1, activeNotes: [], triggeredNotes: [], releasedMIDINotes: []),
         ]
     )
     viewModel.setAutoplayEnabled(true)
@@ -965,13 +1275,15 @@ private func makePracticeSessionViewModel(
     pressDetectionService: PressDetectionServiceProtocol,
     chordAttemptAccumulator: ChordAttemptAccumulatorProtocol,
     sleeper: SleeperProtocol,
-    noteAudioPlayer: PracticeNoteAudioPlayerProtocol? = nil
+    noteAudioPlayer: PracticeNoteAudioPlayerProtocol? = nil,
+    noteOutput: PracticeMIDINoteOutputProtocol? = nil
 ) -> PracticeSessionViewModel {
     PracticeSessionViewModel(
         pressDetectionService: pressDetectionService,
         chordAttemptAccumulator: chordAttemptAccumulator,
         sleeper: sleeper,
-        noteAudioPlayer: noteAudioPlayer
+        noteAudioPlayer: noteAudioPlayer,
+        noteOutput: noteOutput ?? CapturingMIDINoteOutput()
     )
 }
 
@@ -989,6 +1301,26 @@ private func makeHighlightGuide(
     midiNotes: Set<Int>,
     released: Set<Int> = []
 ) -> PianoHighlightGuide {
+    makeHighlightGuide(
+        id: id,
+        kind: kind,
+        tick: tick,
+        practiceStepIndex: practiceStepIndex,
+        midiNotes: midiNotes,
+        released: released,
+        noteDurationTicks: 1
+    )
+}
+
+private func makeHighlightGuide(
+    id: Int,
+    kind: PianoHighlightGuideKind,
+    tick: Int,
+    practiceStepIndex: Int?,
+    midiNotes: Set<Int>,
+    released: Set<Int> = [],
+    noteDurationTicks: Int
+) -> PianoHighlightGuide {
     let notes = midiNotes.sorted().enumerated().map { index, midi in
         PianoHighlightNote(
             occurrenceID: "test-\(id)-\(tick)-\(index)-\(midi)",
@@ -997,7 +1329,7 @@ private func makeHighlightGuide(
             voice: 1,
             velocity: 96,
             onTick: tick,
-            offTick: tick + 1,
+            offTick: tick + max(1, noteDurationTicks),
             fingeringText: nil
         )
     }
@@ -1094,7 +1426,6 @@ private final class ThrowingPracticeNoteAudioPlayer: PracticeNoteAudioPlayerProt
     }
 }
 
-@MainActor
 private final class CapturingMIDINoteOutput: PracticeMIDINoteOutputProtocol {
     private(set) var recordedNoteOns: [(midi: Int, velocity: UInt8)] = []
     private(set) var recordedNoteOffs: [Int] = []

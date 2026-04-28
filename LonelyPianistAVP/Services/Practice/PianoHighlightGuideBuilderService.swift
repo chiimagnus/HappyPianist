@@ -70,7 +70,7 @@ struct PianoHighlightGuideBuilderService {
                 }
                 let resolvedVoice = source?.voice ?? voice
                 let onTick = span?.onTick ?? baseOnTick
-                let offTick = max(onTick, span?.offTick ?? (onTick + max(1, source?.durationTicks ?? 1)))
+                let offTick = max(onTick + 1, span?.offTick ?? (onTick + max(1, source?.durationTicks ?? 1)))
                 occurrenceCounter += 1
                 let note = PianoHighlightNote(
                     occurrenceID: "h-\(occurrenceCounter)-\(stepNote.midiNote)-\(onTick)-\(staff)-\(resolvedVoice)",
@@ -152,33 +152,6 @@ struct PianoHighlightGuideBuilderService {
         }
 
         return guides
-    }
-
-    static func makeFallbackGuides(from steps: [PracticeStep]) -> [PianoHighlightGuide] {
-        steps.enumerated().map { index, step in
-            let notes = step.notes.enumerated().map { noteIndex, stepNote in
-                PianoHighlightNote(
-                    occurrenceID: "fallback-\(index)-\(noteIndex)-\(stepNote.midiNote)",
-                    midiNote: stepNote.midiNote,
-                    staff: stepNote.staff,
-                    voice: stepNote.voice,
-                    velocity: stepNote.velocity,
-                    onTick: step.tick + stepNote.onTickOffset,
-                    offTick: step.tick + stepNote.onTickOffset,
-                    fingeringText: stepNote.fingeringText
-                )
-            }
-            return PianoHighlightGuide(
-                id: index + 1,
-                kind: .trigger,
-                tick: step.tick,
-                durationTicks: nil,
-                practiceStepIndex: index,
-                activeNotes: notes,
-                triggeredNotes: notes,
-                releasedMIDINotes: []
-            )
-        }
     }
 
     private func makeSourceNotesByKey(

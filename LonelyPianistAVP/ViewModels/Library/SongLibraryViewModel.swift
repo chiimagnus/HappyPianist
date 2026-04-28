@@ -137,7 +137,7 @@ final class SongLibraryViewModel {
                 scoreURL = try paths.scoresDirectoryURL().appendingPathComponent(entry.musicXMLFileName)
             }
             let score = try parser.parse(fileURL: scoreURL)
-            let shouldExpandStructure = UserDefaults.standard.bool(forKey: "practiceMusicXMLStructureEnabled")
+            let shouldExpandStructure = MusicXMLRealisticPlaybackDefaults.shouldExpandStructure
             let primaryPartIDForExpansion = score.preferredPrimaryPartID()
             let effectiveScore = shouldExpandStructure
                 ? structureExpander.expandStructureIfPossible(score: score, primaryPartID: primaryPartIDForExpansion)
@@ -145,13 +145,7 @@ final class SongLibraryViewModel {
             let primaryPartID = effectiveScore.preferredPrimaryPartID(preferredPartID: primaryPartIDForExpansion)
             let practiceScore = effectiveScore.filtering(toPartID: primaryPartID)
 
-            let expressivityOptions = MusicXMLExpressivityOptions(
-                wedgeEnabled: UserDefaults.standard.bool(forKey: "practiceMusicXMLWedgeEnabled"),
-                graceEnabled: UserDefaults.standard.bool(forKey: "practiceMusicXMLGraceEnabled"),
-                fermataEnabled: UserDefaults.standard.bool(forKey: "practiceMusicXMLFermataEnabled"),
-                arpeggiateEnabled: UserDefaults.standard.bool(forKey: "practiceMusicXMLArpeggiateEnabled"),
-                wordsSemanticsEnabled: UserDefaults.standard.bool(forKey: "practiceMusicXMLWordsSemanticsEnabled")
-            )
+            let expressivityOptions = MusicXMLRealisticPlaybackDefaults.expressivityOptions
             let buildResult = stepBuilder.buildSteps(from: practiceScore, expressivity: expressivityOptions)
             let wordsSemantics = expressivityOptions.wordsSemanticsEnabled
                 ? MusicXMLWordsSemanticsInterpreter().interpret(
@@ -175,8 +169,7 @@ final class SongLibraryViewModel {
                 clefEvents: practiceScore.clefEvents
             )
             let slurTimeline = MusicXMLSlurTimeline(events: practiceScore.slurEvents)
-            let shouldUsePerformanceTiming = UserDefaults.standard
-                .bool(forKey: "practiceMusicXMLPerformanceTimingEnabled")
+            let shouldUsePerformanceTiming = MusicXMLRealisticPlaybackDefaults.performanceTimingEnabled
             let noteSpans = MusicXMLNoteSpanBuilder().buildSpans(
                 from: practiceScore.notes,
                 performanceTimingEnabled: shouldUsePerformanceTiming,

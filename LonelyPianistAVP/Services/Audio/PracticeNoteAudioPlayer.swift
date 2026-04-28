@@ -26,10 +26,6 @@ protocol PracticeMIDINoteOutputProtocol: AnyObject {
     func allNotesOff()
 }
 
-enum PracticeMIDINoteOutputConstants {
-    static let releaseSeconds: TimeInterval = 0.12
-}
-
 final class SoundFontPracticeNoteAudioPlayer: PracticeNoteAudioPlayerProtocol, PracticeMIDINoteOutputProtocol {
     private let engine: AVAudioEngine
     private let sampler: AVAudioUnitSampler
@@ -78,7 +74,7 @@ final class SoundFontPracticeNoteAudioPlayer: PracticeNoteAudioPlayerProtocol, P
 
         stopTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            try? await Task.sleep(nanoseconds: 350_000_000)
+            try? await Task.sleep(for: .milliseconds(350))
             guard Task.isCancelled == false else { return }
             allNotesOff()
         }
