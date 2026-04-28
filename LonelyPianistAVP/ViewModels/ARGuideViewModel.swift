@@ -197,6 +197,10 @@ final class ARGuideViewModel {
         practiceSessionViewModel.playCurrentStepSound()
     }
 
+    func replayCurrentPracticeUnit() {
+        practiceSessionViewModel.replayCurrentUnit()
+    }
+
     func setPracticeAutoplayEnabled(_ isEnabled: Bool) {
         practiceSessionViewModel.setAutoplayEnabled(isEnabled)
     }

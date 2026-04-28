@@ -203,7 +203,8 @@ final class SongLibraryViewModel {
                 attributeTimeline: attributeTimeline,
                 slurTimeline: slurTimeline,
                 noteSpans: noteSpans,
-                highlightGuides: highlightGuides
+                highlightGuides: highlightGuides,
+                measureSpans: practiceScore.measures
             )
 
             var updatedIndex = index

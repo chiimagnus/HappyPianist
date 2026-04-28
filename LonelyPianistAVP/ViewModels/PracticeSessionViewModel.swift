@@ -62,13 +62,19 @@ final class PracticeSessionViewModel {
     private let audioRecognitionService: PracticeAudioRecognitionServiceProtocol?
     private let audioStepAttemptAccumulator: AudioStepAttemptAccumulator
     private let handPianoActivityGate: HandPianoActivityGate
+    private let manualAdvanceModeProvider: () -> ManualAdvanceMode
     private var feedbackResetTask: Task<Void, Never>?
     private var autoplayTask: Task<Void, Never>?
     private var autoplayTaskGeneration = 0
     private var audioRecognitionEventsTask: Task<Void, Never>?
     private var audioRecognitionStatusTask: Task<Void, Never>?
     private var audioRecognitionDebugTask: Task<Void, Never>?
-    private var tempoMap: MusicXMLTempoMap?
+    private var tempoMap = MusicXMLTempoMap(tempoEvents: [])
+    private var measureSpans: [MusicXMLMeasureSpan] = []
+    private var manualReplayTask: Task<Void, Never>?
+    private var manualReplayGeneration = 0
+    private(set) var isManualReplayPlaying = false
+    private var shouldResumeAudioRecognitionAfterManualReplay = false
     private var pedalTimeline: MusicXMLPedalTimeline?
     private var fermataTimeline: MusicXMLFermataTimeline?
     private var attributeTimeline: MusicXMLAttributeTimeline?
@@ -96,7 +102,10 @@ final class PracticeSessionViewModel {
         noteOutput: PracticeMIDINoteOutputProtocol? = nil,
         audioRecognitionService: PracticeAudioRecognitionServiceProtocol? = nil,
         audioStepAttemptAccumulator: AudioStepAttemptAccumulator? = nil,
-        handPianoActivityGate: HandPianoActivityGate? = nil
+        handPianoActivityGate: HandPianoActivityGate? = nil,
+        manualAdvanceModeProvider: @escaping () -> ManualAdvanceMode = {
+            ManualAdvanceMode.storageValue(from: UserDefaults.standard.string(forKey: "practiceManualAdvanceMode"))
+        }
     ) {
         self.pressDetectionService = pressDetectionService
         self.chordAttemptAccumulator = chordAttemptAccumulator
@@ -106,6 +115,7 @@ final class PracticeSessionViewModel {
         self.audioRecognitionService = audioRecognitionService
         self.audioStepAttemptAccumulator = audioStepAttemptAccumulator ?? AudioStepAttemptAccumulator()
         self.handPianoActivityGate = handPianoActivityGate ?? HandPianoActivityGate()
+        self.manualAdvanceModeProvider = manualAdvanceModeProvider
         bindAudioRecognitionStreamsIfNeeded()
     }
 
@@ -189,31 +199,41 @@ final class PracticeSessionViewModel {
         return slurTimeline.isActive(atTick: currentStep.tick)
     }
 
-    func setSteps(_ steps: [PracticeStep]) {
-        setSteps(steps, tempoMap: nil, pedalTimeline: nil)
+    var manualAdvanceMode: ManualAdvanceMode {
+        manualAdvanceModeProvider()
     }
 
-    func setSteps(_ steps: [PracticeStep], tempoMap: MusicXMLTempoMap?, pedalTimeline: MusicXMLPedalTimeline? = nil) {
-        setSteps(
-            steps,
-            tempoMap: tempoMap,
-            pedalTimeline: pedalTimeline,
-            fermataTimeline: nil,
-            attributeTimeline: nil,
-            slurTimeline: nil,
-            noteSpans: []
+    var canReplayCurrentManualUnit: Bool {
+        currentStep != nil
+    }
+
+    private var manualAdvanceContext: ManualAdvanceContext {
+        ManualAdvanceContext(
+            currentStepIndex: currentStepIndex,
+            steps: steps,
+            measureSpans: measureSpans
         )
+    }
+
+    private var manualAdvanceStrategy: ManualAdvanceStrategyProtocol {
+        switch manualAdvanceMode {
+            case .step:
+                StepManualAdvanceStrategy()
+            case .measure:
+                MeasureManualAdvanceStrategy()
+        }
     }
 
     func setSteps(
         _ steps: [PracticeStep],
-        tempoMap: MusicXMLTempoMap?,
+        tempoMap: MusicXMLTempoMap,
         pedalTimeline: MusicXMLPedalTimeline? = nil,
         fermataTimeline: MusicXMLFermataTimeline? = nil,
         attributeTimeline: MusicXMLAttributeTimeline? = nil,
         slurTimeline: MusicXMLSlurTimeline? = nil,
         noteSpans: [MusicXMLNoteSpan] = [],
-        highlightGuides: [PianoHighlightGuide] = []
+        highlightGuides: [PianoHighlightGuide] = [],
+        measureSpans: [MusicXMLMeasureSpan] = []
     ) {
         if state == .completed, self.steps == steps, steps.isEmpty == false {
             return
@@ -223,6 +243,7 @@ final class PracticeSessionViewModel {
 
         feedbackResetTask?.cancel()
         feedbackResetTask = nil
+        stopManualReplayTask()
         stopAutoplayTask()
         stopAutoplayAudio()
         stopAudioRecognition()
@@ -231,6 +252,7 @@ final class PracticeSessionViewModel {
         chordAttemptAccumulator.reset()
         self.steps = steps
         self.tempoMap = tempoMap
+        self.measureSpans = measureSpans
         self.pedalTimeline = pedalTimeline
         self.fermataTimeline = fermataTimeline
         self.attributeTimeline = attributeTimeline
@@ -283,12 +305,14 @@ final class PracticeSessionViewModel {
     func resetSession() {
         feedbackResetTask?.cancel()
         feedbackResetTask = nil
+        stopManualReplayTask()
         stopAutoplayTask()
         stopAutoplayAudio()
         stopAudioRecognition()
         chordAttemptAccumulator.reset()
         steps = []
-        tempoMap = nil
+        tempoMap = MusicXMLTempoMap(tempoEvents: [])
+        measureSpans = []
         pedalTimeline = nil
         fermataTimeline = nil
         attributeTimeline = nil
@@ -345,10 +369,17 @@ final class PracticeSessionViewModel {
     }
 
     func skip() {
+        stopManualReplayTask()
         stopAutoplayTask()
         stopAutoplayAudio()
-        advanceToNextStep()
+        advanceToNextManualUnit()
         startAutoplayTaskIfNeeded()
+    }
+
+    func replayCurrentUnit() {
+        guard autoplayState == .off else { return }
+        guard let plan = manualAdvanceStrategy.replayPlan(in: manualAdvanceContext) else { return }
+        startManualReplay(with: plan)
     }
 
     func playCurrentStepSound() {
@@ -370,6 +401,7 @@ final class PracticeSessionViewModel {
 
     func setAutoplayEnabled(_ isEnabled: Bool) {
         if isEnabled {
+            stopManualReplayTask()
             autoplayState = .playing
             let tick = currentStep?.tick ?? 0
             isSustainPedalDown = pedalTimeline?.isDown(atTick: tick) ?? false
@@ -397,7 +429,7 @@ final class PracticeSessionViewModel {
                 keyboardGeometry: keyboardGeometry,
                 exactPressedNotes: detected
             )
-            if autoplayState == .off, let currentStep {
+            if autoplayState == .off, isManualReplayPlaying == false, let currentStep {
                 let expected = uniqueMIDINotes(in: currentStep)
                 let isMatched = chordAttemptAccumulator.register(
                     pressedNotes: detected,
@@ -429,6 +461,18 @@ final class PracticeSessionViewModel {
         return detected
     }
 
+    private func advanceToNextManualUnit() {
+        guard steps.isEmpty == false else {
+            state = .idle
+            return
+        }
+        guard let nextIndex = manualAdvanceStrategy.nextStepIndex(in: manualAdvanceContext) else {
+            completeManualAdvance()
+            return
+        }
+        moveToStep(nextIndex, shouldPlaySound: autoplayState == .off)
+    }
+
     private func advanceToNextStep() {
         guard steps.isEmpty == false else {
             state = .idle
@@ -458,6 +502,34 @@ final class PracticeSessionViewModel {
         }
     }
 
+    private func moveToStep(_ nextStepIndex: Int, shouldPlaySound: Bool) {
+        guard steps.indices.contains(nextStepIndex) else {
+            completeManualAdvance()
+            return
+        }
+        let previousTick = steps.indices.contains(currentStepIndex) ? steps[currentStepIndex].tick : steps[nextStepIndex].tick
+        chordAttemptAccumulator.reset()
+        currentStepIndex = nextStepIndex
+        state = .guiding(stepIndex: nextStepIndex)
+        updateHighlightGuideAfterStepAdvance(previousTick: previousTick, nextStepIndex: nextStepIndex)
+        refreshAudioRecognitionForCurrentState()
+        if shouldPlaySound {
+            _ = prepareAudioRecognitionSuppressWindowForPlayback()
+            playCurrentStepSound(applyRecognitionSuppress: false)
+        }
+    }
+
+    private func completeManualAdvance() {
+        currentStepIndex = steps.count
+        currentHighlightGuideIndex = nil
+        pressedNotes.removeAll()
+        state = .completed
+        stopManualReplayTask()
+        stopAutoplayTask()
+        stopAutoplayAudio()
+        stopAudioRecognition()
+    }
+
     private func startAutoplayTaskIfNeeded() {
         guard autoplayState == .playing else { return }
         guard case .guiding = state else { return }
@@ -472,10 +544,7 @@ final class PracticeSessionViewModel {
         autoplayTaskGeneration += 1
         let generation = autoplayTaskGeneration
         resetAutoplayCursorForCurrentStep()
-        guard let tempoMapSnapshot = tempoMap else {
-            stopAutoplayWithError("无法自动播放：缺少速度信息（tempo）。请重新导入这份 MusicXML。")
-            return
-        }
+        let tempoMapSnapshot = tempoMap
 
         autoplayTask = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -513,9 +582,6 @@ final class PracticeSessionViewModel {
     private func autoplayStartErrorMessage() -> String? {
         guard noteOutput != nil else {
             return "无法自动播放：音频输出未就绪。请重启 App 或重新打开曲目。"
-        }
-        guard tempoMap != nil else {
-            return "无法自动播放：缺少速度信息（tempo）。请重新导入这份 MusicXML。"
         }
         guard pedalTimeline != nil else {
             return "无法自动播放：缺少踏板信息。请重新导入这份 MusicXML。"
@@ -585,7 +651,6 @@ final class PracticeSessionViewModel {
 
     private func rebuildAutoplayTimeline() {
         guard
-            let tempoMap,
             let pedalTimeline,
             let fermataTimeline,
             highlightGuides.isEmpty == false
@@ -718,6 +783,82 @@ final class PracticeSessionViewModel {
     }
 
 
+    private func startManualReplay(with plan: ManualReplayPlan) {
+        let shouldResumeRecognitionWhenReplayEnds = isManualReplayPlaying
+            ? shouldResumeAudioRecognitionAfterManualReplay
+            : isAudioRecognitionRunning
+        stopManualReplayTask(restoreAudioRecognition: false)
+        guard plan.stepRange.isEmpty == false else { return }
+        guard steps.indices.contains(plan.stepRange.lowerBound) else { return }
+
+        shouldResumeAudioRecognitionAfterManualReplay = shouldResumeRecognitionWhenReplayEnds
+        stopAudioRecognition()
+        feedbackResetTask?.cancel()
+        feedbackResetTask = nil
+        feedbackState = .none
+        manualReplayGeneration += 1
+        let generation = manualReplayGeneration
+        let startIndex = plan.stepRange.lowerBound
+        isManualReplayPlaying = true
+        moveToStep(startIndex, shouldPlaySound: false)
+
+        let tempoMapSnapshot = tempoMap
+        manualReplayTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            var completedReplay = false
+            defer {
+                if self.manualReplayGeneration == generation {
+                    if completedReplay, self.steps.indices.contains(startIndex) {
+                        self.currentStepIndex = startIndex
+                        self.state = .guiding(stepIndex: startIndex)
+                        self.setCurrentHighlightGuideForStepIndex(startIndex)
+                    }
+                    self.manualReplayTask = nil
+                    self.isManualReplayPlaying = false
+                    if self.shouldResumeAudioRecognitionAfterManualReplay {
+                        self.refreshAudioRecognitionForCurrentState()
+                    }
+                    self.shouldResumeAudioRecognitionAfterManualReplay = false
+                }
+            }
+
+            for index in plan.stepRange {
+                guard Task.isCancelled == false else { return }
+                guard self.steps.indices.contains(index) else { return }
+                self.currentStepIndex = index
+                self.state = .guiding(stepIndex: index)
+                self.setCurrentHighlightGuideForStepIndex(index)
+                self.playCurrentStepSound(applyRecognitionSuppress: false)
+
+                let nextIndex = index + 1
+                guard plan.stepRange.contains(nextIndex), self.steps.indices.contains(nextIndex) else { continue }
+                let waitSeconds = tempoMapSnapshot.durationSeconds(
+                    fromTick: self.steps[index].tick,
+                    toTick: self.steps[nextIndex].tick
+                )
+                if waitSeconds > 0 {
+                    try? await self.sleeper.sleep(for: .seconds(waitSeconds))
+                } else {
+                    await Task.yield()
+                }
+            }
+            completedReplay = true
+        }
+    }
+
+    private func stopManualReplayTask(restoreAudioRecognition: Bool = true) {
+        manualReplayGeneration += 1
+        manualReplayTask?.cancel()
+        manualReplayTask = nil
+        if isManualReplayPlaying {
+            isManualReplayPlaying = false
+            if restoreAudioRecognition, shouldResumeAudioRecognitionAfterManualReplay {
+                refreshAudioRecognitionForCurrentState()
+            }
+        }
+        shouldResumeAudioRecognitionAfterManualReplay = false
+    }
+
     private func uniqueMIDINotes(in step: PracticeStep) -> [Int] {
         Set(step.notes.map(\.midiNote)).sorted()
     }
@@ -794,6 +935,10 @@ final class PracticeSessionViewModel {
             return
         }
         guard autoplayState == .off else {
+            stopAudioRecognition()
+            return
+        }
+        guard isManualReplayPlaying == false else {
             stopAudioRecognition()
             return
         }
@@ -897,6 +1042,7 @@ final class PracticeSessionViewModel {
     private func handleAudioRecognitionEvent(_ event: DetectedNoteEvent) {
         guard isPracticeAudioRecognitionEnabled else { return }
         guard autoplayState == .off else { return }
+        guard isManualReplayPlaying == false else { return }
         guard event.generation == audioRecognitionGeneration else { return }
         if let audioRecognitionSuppressUntil, event.timestamp <= audioRecognitionSuppressUntil {
             decisionLogger.debug("audio event suppressed generation=\(event.generation, privacy: .public)")
@@ -949,6 +1095,10 @@ final class PracticeSessionViewModel {
         audioRecognitionEnabledSnapshot
     }
 
+
+    var audioRecognitionGenerationForTesting: Int {
+        audioRecognitionGeneration
+    }
 
     var audioRecognitionSuppressRemainingSeconds: TimeInterval {
         guard let audioRecognitionSuppressUntil else { return 0 }
