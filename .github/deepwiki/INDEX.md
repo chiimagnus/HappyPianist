@@ -1,6 +1,6 @@
 # Deepwiki 索引（LonelyPianist）
 
-本索引是 `.github/deepwiki/` 的入口。目标是让读者先看业务，再看实现；或者先看工程，再落到模块。当前 wiki 已覆盖 macOS、visionOS、Python Dialogue 服务、PR-only Xcode tests、manual-only Swift Quality workflow，以及 AVP 光柱式 AR 练习引导。
+本索引是 `.github/deepwiki/` 的入口。目标是让读者先看业务，再看实现；或者先看工程，再落到模块。当前 wiki 已覆盖 macOS、visionOS、Python Dialogue 服务、manual-only Swift Quality workflow，以及 AVP 光柱式 AR 练习引导。
 
 ## 推荐阅读路径
 
@@ -77,11 +77,11 @@
 - [testing.md](testing.md)
 - [workflow.md](workflow.md)
 - [configuration.md](configuration.md)
-- `.github/workflows/pr-tests.yml`：PR-only macOS / AVP split Xcode tests
 - `.github/workflows/swift-quality.yml`：manual-only SwiftFormat / SwiftLint autocorrect
 
 ### 术语与元数据
 - [glossary.md](glossary.md)
+- [Fallbacks.md](Fallbacks.md)
 - [GENERATION.md](GENERATION.md)
 
 ## 按问题导航
@@ -90,20 +90,21 @@
 - **要改 AVP 导入 / 校准 / 练习 / MusicXML**：看 `modules/lonelypianist-avp.md`，再下钻对应子页。
 - **要改 AR 引导光柱**：看 `modules/lonelypianist-avp-practice.md` 和 `PianoGuideOverlayController`。
 - **要改 Python 协议或采样逻辑**：看 `modules/piano-dialogue-server.md` 与 `modules/piano-dialogue-server-inference.md`。
-- **要理解 PR 上会跑哪些测试**：看 `testing.md` 和 `workflow.md`。
+- **要运行测试**：看 `testing.md` 和 `workflow.md`，所有测试需要手动在本地运行。
 - **要手动格式化 / lint**：看 `configuration.md` 中的 Swift Quality workflow。
 - **遇到运行异常**：从 `troubleshooting.md` 开始。
 
 ## 当前自动化事实
 | 自动化 | 当前状态 | 备注 |
 | --- | --- | --- |
-| PR Tests | 已存在 | 只在 PR 上触发，按路径分流 macOS / AVP tests |
-| macOS tests | 已在 GitHub Actions 上跑通 | `macos-26` + `LonelyPianist` scheme |
-| AVP tests | 已在 GitHub Actions 上跑通 | `macos-26` + Apple Vision Pro simulator，耗时约数分钟级 |
+| PR Tests | 已移除 | 原 `pr-tests.yml` workflow 已删除 |
+| macOS tests | 本地运行 | 需要手动通过 Xcode 运行 `LonelyPianist` scheme 测试 |
+| AVP tests | 本地运行 | 需要手动通过 Xcode 运行 `LonelyPianistAVP` scheme 测试 |
 | Swift Quality | 已存在 | 只手动触发；不会因 PR 或 push 自动运行 |
 | Python CI | 未接入 | 仍依赖本地 smoke scripts |
 
 ## Coverage Gaps / Missing Assets
+- PR Tests workflow 已删除，macOS 和 AVP 测试需手动在本地运行。
 - Python smoke tests 尚未纳入 GitHub Actions。
 - 尚无统一发布流水线，也没有三端 E2E 自动化门禁。
 - AVP simulator tests 已跑通，但仍不能替代 Vision Pro 真机上的手部追踪、空间感和光柱视觉舒适度验证。
@@ -112,4 +113,5 @@
 ## 更新记录（Update Notes）
 - 2026-04-25: 更新索引以反映 PR-only split tests、manual-only Swift Quality、AVP simulator tests 跑通和光柱式 AR 引导。
 - 2026-04-26: 修复模块页内部链接断链；补齐 `.github/deepwiki/assets/` 占位；刷新 `GENERATION.md` 的 commit/branch/时间；同步 Step 1 校准引导式流程文档。
-- 2026-04-26: 同步 Step 1 校准的 A0/C8 手势分工、reticle 稳定阈值（5mm）、完成页“重新校准”入口与沉浸空间 overlay 精简。
+- 2026-04-26: 同步 Step 1 校准的 A0/C8 手势分工、reticle 稳定阈值（5mm）、完成页”重新校准”入口与沉浸空间 overlay 精简。
+- 2026-04-28: 反映 pr-tests.yml workflow 已删除；新增 Fallbacks.md 专题页面；更新自动化事实和 Coverage Gaps。

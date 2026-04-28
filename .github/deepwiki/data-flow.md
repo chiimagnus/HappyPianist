@@ -8,8 +8,8 @@
 | Dialogue | 静默触发 | DialogueManager -> WS -> inference | AI 回放 + take |
 | AVP seed | App 启动 | SongLibrarySeeder | 默认谱面和音频 |
 | AVP import | fileImporter URLs | SongFileStore + IndexStore | `SongLibrary/index.json` |
-| AVP practice | 校准 + 曲库 + tracking | ARGuideViewModel + PracticeSessionViewModel + PianoGuideOverlayController | 光柱引导、反馈和步骤推进 |
-| PR validation | Pull request paths | paths-filter -> xcodebuild jobs | macOS / AVP tests |
+| AVP practice | 校准 + 曲库 + tracking | ARGuideViewModel + PracticeSessionViewModel + AutoplayPerformanceTimeline + PianoGuideOverlayController | 光柱引导、反馈和步骤推进 |
+| PR validation | 手动测试 | 本地 xcodebuild | macOS / AVP tests |
 | Swift quality | 手动 workflow_dispatch | SwiftFormat + SwiftLint | 格式化 commit 或 lint 结果 |
 
 ## macOS 数据流
@@ -36,8 +36,9 @@ sequenceDiagram
 | --- | --- | --- | --- |
 | Step 1 校准 | A0：左手食指输入 + 右手捏合；C8：右手食指输入 + 左手捏合 | `CalibrationPointCaptureService` | `StoredWorldAnchorCalibration` |
 | Step 2 选曲 | MusicXML / mp3 / m4a | `SongLibraryViewModel` | `SongLibraryIndex` |
-| MusicXML 处理 | score XML | `MusicXMLParser`, `PracticeStepBuilder` | `PracticeStep[]` + timelines |
-| Step 3 练习 | finger tips + steps | `ARGuideViewModel`, `PracticeSessionViewModel` | 匹配、反馈、autoplay |
+| MusicXML 处理 | score XML | `MusicXMLParser`, `PracticeStepBuilder`, `MusicXMLRealisticPlaybackDefaults` | `PracticeStep[]` + timelines + expressivity options |
+| Guide 构建 | score, steps, spans, expressivity | `PianoHighlightGuideBuilderService` | `PianoHighlightGuide[]` |
+| Step 3 练习 | finger tips + steps + guides | `ARGuideViewModel`, `PracticeSessionViewModel`, `AutoplayPerformanceTimeline` | 匹配、反馈、autoplay |
 | 空间提示 | `PracticeStep.notes`, `PianoKeyboardGeometry`, feedback state | `PianoGuideOverlayController` | RealityKit warm-gold prism beams (four-side atlas) |
 
 ## AVP 练习内部
@@ -47,7 +48,31 @@ sequenceDiagram
 | 按键检测 | 指尖落点映射到 keyboard geometry | `pressedNotes` |
 | 匹配 | 当前 step 的和弦/音符匹配 | `VisualFeedbackState` |
 | 光柱提示 | 当前 step 的 MIDI notes 映射到 keyboard-local footprint + surface | `activeBeamEntitiesByMIDINote` |
-| 自动演奏 | 根据 note spans / pedal / fermata 推进 | `autoplayState` |
+| Guide 构建 | 从 MusicXML 生成高亮引导 | `PianoHighlightGuide[]` |
+| 自动演奏 | 由 `AutoplayPerformanceTimeline` 统一调度 note on/off、踏板、guide、step 和 fermata pause | `autoplayState` |
+| 前置检查 | autoplay 启动前严格检查 tempoMap、highlightGuides、pedalTimeline、fermataTimeline | `autoplayErrorMessage` |
+
+### AutoplayPerformanceTimeline 数据流
+
+```mermaid
+flowchart TD
+    A[PianoHighlightGuide[]] --> E[提取 noteOn/off 事件]
+    B[PracticeStep[]] --> F[提取 step 推进事件]
+    C[MusicXMLPedalTimeline] --> G[提取踏板事件 + release edges]
+    D[MusicXMLFermataTimeline] --> H[计算 fermata 停顿时间]
+    I[MusicXMLTempoMap] --> J[提供 tick→秒转换]
+    E --> K[合并原始事件]
+    F --> K
+    G --> K
+    H --> K
+    J --> K
+    K --> L[按 tick 排序]
+    L --> M[按优先级和 tie-breaker 排序]
+    M --> N[生成 AutoplayPerformanceTimeline]
+    N --> O[PracticeSessionViewModel 逐事件调度]
+```
+
+### 光柱提示数据流
 
 ```mermaid
 flowchart TD
@@ -80,10 +105,11 @@ flowchart TD
 ## CI 数据流
 | 阶段 | 输入 | 处理 | 输出 |
 | --- | --- | --- | --- |
-| PR path filter | PR changed files | `dorny/paths-filter@v3` | `macos=true/false`, `avp=true/false` |
-| macOS tests | `LonelyPianist/**`, `LonelyPianistTests/**`, project/workflow files | `xcodebuild test` on `macos-26` | macOS test result |
-| AVP tests | `LonelyPianistAVP/**`, `LonelyPianistAVPTests/**`, `Packages/RealityKitContent/**`, project/workflow files | `xcodebuild test` on `macos-26` with Apple Vision Pro simulator | AVP test result |
+| macOS tests | `LonelyPianist/**`, `LonelyPianistTests/**` | 本地 `xcodebuild test` on macOS | macOS test result |
+| AVP tests | `LonelyPianistAVP/**`, `LonelyPianistAVPTests/**`, `Packages/RealityKitContent/**` | 本地 `xcodebuild test` with Apple Vision Pro simulator | AVP test result |
 | Swift Quality | Manual dispatch | SwiftFormat, SwiftLint --fix, commit if dirty, lint | Formatting commit or no-op |
+
+> 注意：PR Tests workflow (`pr-tests.yml`) 已删除，所有测试需要手动在本地运行。
 
 ## 状态机边界
 | 组件 | 状态 |
@@ -93,7 +119,6 @@ flowchart TD
 | PracticeState | `idle -> ready -> guiding -> completed` |
 | PianoGuideOverlayController | no root -> attached root -> active beams -> cleared beams |
 | SongAudio playback | `nil / playing / paused` 由当前条目驱动 |
-| PR Tests | path filter -> selected jobs -> xcodebuild test -> checks |
 
 ## 失败与恢复
 | 失败 | 表现 | 恢复 |
@@ -103,20 +128,27 @@ flowchart TD
 | 校准丢失 | Step 3 不能定位 | 回 Step 1 重新保存 |
 | 曲库索引和文件漂移 | 选曲后无法开始练习 | 重新导入或清理残留文件 |
 | 音频绑定失败 | 试听按钮失效 | 重新导入 mp3/m4a |
-| AVP simulator test 变慢 | PR Tests 的 AVP job 数分钟级运行 | 保留完整 test，必要时改为 build-for-testing + 手动完整 test |
-| Swift tools mismatch | Package graph resolve 失败 | 使用 `macos-26` / Xcode 26.2+ runner |
+| Autoplay 无法启动 | 显示"无法自动播放：缺少XXX信息" | 检查 tempoMap、highlightGuides、pedalTimeline、fermataTimeline 是否完整 |
+| Guide 构建失败 | 没有高亮引导数据 | 检查 `PianoHighlightGuideBuilderService.buildGuides` 输入和逻辑 |
+| 音频识别性能下降 | 检测变慢或频繁出错 | 调整 `HarmonicTemplateTuningProfile` 或检查 `fallbackReason` |
+| Swift tools mismatch | Package graph resolve 失败 | 使用支持 Swift 6.2 的 Xcode 版本 |
 
 ## 调试抓手
 - macOS：`statusMessage`、`recentLogs`、`previewText`
-- AVP：`practiceLocalizationStatusText`、`calibrationStatusMessage`、`currentListeningEntryID`、`autoplayHighlightedMIDINotes`
+- AVP：`practiceLocalizationStatusText`、`calibrationStatusMessage`、`currentListeningEntryID`、`autoplayHighlightedMIDINotes`、`autoplayErrorMessage`
 - RealityKit 光束：`activeBeamEntitiesByMIDINote`、`PianoGuideBeamDescriptor`、`PianoKeyboardGeometry.frame.keyboardFromWorld`
+- Guide 构建：`PianoHighlightGuideBuilderService.buildGuides` 输入和输出、`PianoHighlightParsedElementCoverageService.allCoverages()`
+- AutoplayPerformanceTimeline：事件序列、tick 排序、优先级处理
+- 音频识别：`fallbackReason`、`activeDetectorMode`、`processingDurationMs`、`templateMatchResults`
 - Python：`/health`、`test_client.py`、`out/dialogue_debug/index.jsonl`
-- CI：Actions job logs、`xcodebuild -list`、`.xcresult` 路径、combined checks
 
 ## Coverage Gaps
 - 没有自动化 E2E 去验证 macOS -> Python -> AVP 三端全链路；现状仍需要多处单元测试和人工冒烟组合覆盖。
 - Python smoke tests 尚未纳入 PR workflow。
+- PR Tests workflow 已删除，需要手动运行测试。
+- 音频识别的 fallback 行为和性能优化需要真机验证。
 
 ## 更新记录（Update Notes）
 - 2026-04-25: 增补 PR Tests / Swift Quality 数据流，并将 AVP 空间提示从 key regions + cylinder 光柱更新为 keyboard geometry + four-side atlas prism beams。
 - 2026-04-26: 同步 Step 1 校准的 A0/C8 手势分工（左右手输入与捏合确认切换）。
+- 2026-04-28: 反映 pr-tests.yml workflow 已删除；新增 `AutoplayPerformanceTimeline` 数据流；新增 Guide 构建流程；更新 autoplay 前置检查和失败恢复；添加音频识别调试抓手。
