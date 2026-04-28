@@ -26,6 +26,10 @@ protocol PracticeMIDINoteOutputProtocol: AnyObject {
     func allNotesOff()
 }
 
+protocol PracticeMIDINoteOutputWarmupProtocol: AnyObject {
+    func warmUp() throws
+}
+
 final class SoundFontPracticeNoteAudioPlayer: PracticeNoteAudioPlayerProtocol, PracticeMIDINoteOutputProtocol {
     private let engine: AVAudioEngine
     private let sampler: AVAudioUnitSampler
@@ -131,5 +135,11 @@ final class SoundFontPracticeNoteAudioPlayer: PracticeNoteAudioPlayerProtocol, P
                 detail: error.localizedDescription
             )
         }
+    }
+}
+
+extension SoundFontPracticeNoteAudioPlayer: PracticeMIDINoteOutputWarmupProtocol {
+    func warmUp() throws {
+        try ensureReady()
     }
 }
