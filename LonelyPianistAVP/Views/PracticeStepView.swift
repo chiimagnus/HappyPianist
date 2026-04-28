@@ -15,7 +15,6 @@ struct PracticeStepView: View {
 
     @AppStorage("practiceStep3AutoplayEnabled") private var isAutoplayEnabled = false
     @AppStorage("practiceAudioRecognitionDebugOverlayEnabled") private var isAudioDebugOverlayEnabled = false
-    @AppStorage("practiceAudioRecognitionEnabled") private var isAudioRecognitionEnabled = true
 
     var body: some View {
         PianoKeyboard88View(
@@ -128,9 +127,6 @@ struct PracticeStepView: View {
             }
             .onChange(of: isAutoplayEnabled) {
                 viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
-            }
-            .onChange(of: isAudioRecognitionEnabled) {
-                viewModel.practiceSessionViewModel.refreshAudioRecognitionFromSettings()
             }
             .onChange(of: viewModel.practiceSessionViewModel.audioErrorMessage) {
                 isAudioErrorAlertPresented = viewModel.practiceSessionViewModel.audioErrorMessage != nil
