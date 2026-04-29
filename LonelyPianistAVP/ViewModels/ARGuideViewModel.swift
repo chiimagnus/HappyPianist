@@ -307,7 +307,6 @@ final class ARGuideViewModel {
         using openImmersiveSpace: OpenImmersiveSpaceAction,
         dismissImmersiveSpace: DismissImmersiveSpaceAction
     ) async {
-        practiceSessionViewModel.startGuidingIfReady()
         await beginPracticeLocalization(
             using: openImmersiveSpace,
             dismissImmersiveSpace: dismissImmersiveSpace
@@ -578,8 +577,14 @@ final class ARGuideViewModel {
     var practiceProgressText: String {
         guard appModel.importedSteps.isEmpty == false else { return "0 / 0" }
         let total = appModel.importedSteps.count
-        let completedCount = min(practiceSessionViewModel.currentStepIndex, total)
-        return "\(completedCount) / \(total)"
+        switch practiceSessionViewModel.state {
+            case .idle, .ready:
+                return "0 / \(total)"
+            case let .guiding(index):
+                return "\(min(index + 1, total)) / \(total)"
+            case .completed:
+                return "\(total) / \(total)"
+        }
     }
 
     private func beginPracticeLocalization(
@@ -637,7 +642,6 @@ final class ARGuideViewModel {
             switch appModel.resolveRuntimeCalibrationFromTrackedAnchors() {
                 case .resolved:
                     practiceLocalizationState = .ready
-                    practiceSessionViewModel.startGuidingIfReady()
                     return
 
                 case .missingStoredCalibration:

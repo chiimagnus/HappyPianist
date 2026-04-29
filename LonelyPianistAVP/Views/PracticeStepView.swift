@@ -70,7 +70,10 @@ struct PracticeStepView: View {
                         .buttonStyle(.bordered)
                         .buttonBorderShape(.roundedRectangle)
                         .hoverEffect()
-                        .disabled(viewModel.practiceSessionViewModel.currentStep == nil)
+                        .disabled(
+                            viewModel.practiceSessionViewModel.state == .ready ||
+                                viewModel.practiceSessionViewModel.currentStep == nil
+                        )
                     }
 
                     Toggle("自动播放", isOn: $isAutoplayEnabled)

@@ -365,6 +365,10 @@ final class PracticeSessionViewModel {
     }
 
     func skip() {
+        if state == .ready {
+            startGuidingIfReady()
+            return
+        }
         stopManualReplayTask()
         stopAutoplayTask()
         if autoplayState == .playing || isManualReplayPlaying {
