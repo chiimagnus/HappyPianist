@@ -2,19 +2,19 @@ import SwiftUI
 
 @main
 struct LonelyPianistAVPApp: App {
-    @State private var appModel: AppModel
+    @State private var appState: AppState
     @State private var homeViewModel: HomeViewModel
     @State private var arGuideViewModel: ARGuideViewModel
     @State private var songLibraryViewModel: SongLibraryViewModel
 
     init() {
-        let appModel = AppModel()
-        appModel.loadStoredCalibrationIfPossible()
+        let appState = AppState()
+        appState.loadStoredCalibrationIfPossible()
 
-        _appModel = State(initialValue: appModel)
-        _homeViewModel = State(initialValue: HomeViewModel(appModel: appModel))
-        _arGuideViewModel = State(initialValue: ARGuideViewModel(appModel: appModel))
-        _songLibraryViewModel = State(initialValue: SongLibraryViewModel(appModel: appModel))
+        _appState = State(initialValue: appState)
+        _homeViewModel = State(initialValue: HomeViewModel(appState: appState))
+        _arGuideViewModel = State(initialValue: ARGuideViewModel(appState: appState))
+        _songLibraryViewModel = State(initialValue: SongLibraryViewModel(appState: appState))
     }
 
     var body: some Scene {
@@ -28,13 +28,13 @@ struct LonelyPianistAVPApp: App {
         .windowStyle(.automatic)
         .windowResizability(.contentSize)
 
-        ImmersiveSpace(id: appModel.immersiveSpaceID) {
+        ImmersiveSpace(id: appState.immersiveSpaceID) {
             ImmersiveView(viewModel: arGuideViewModel)
                 .onAppear {
-                    appModel.immersiveSpaceState = .open
+                    appState.immersiveSpaceState = .open
                 }
                 .onDisappear {
-                    appModel.immersiveSpaceState = .closed
+                    appState.immersiveSpaceState = .closed
                 }
         }
         .immersionStyle(selection: .constant(.mixed), in: .mixed)

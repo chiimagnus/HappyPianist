@@ -4,7 +4,7 @@ import Observation
 @MainActor
 @Observable
 final class SongLibraryViewModel {
-    private let appModel: AppModel
+    private let appState: AppState
     private let indexStore: SongLibraryIndexStoreProtocol
     private let fileStore: SongFileStoreProtocol
     private let audioImportService: AudioImportServiceProtocol
@@ -23,7 +23,7 @@ final class SongLibraryViewModel {
     var isMusicXMLImporterPresented = false
 
     init(
-        appModel: AppModel,
+        appState: AppState,
         indexStore: SongLibraryIndexStoreProtocol? = nil,
         fileStore: SongFileStoreProtocol? = nil,
         audioImportService: AudioImportServiceProtocol? = nil,
@@ -33,7 +33,7 @@ final class SongLibraryViewModel {
         stepBuilder: PracticeStepBuilderProtocol? = nil,
         audioPlayer: SongAudioPlayerProtocol? = nil
     ) {
-        self.appModel = appModel
+        self.appState = appState
         self.indexStore = indexStore ?? SongLibraryIndexStore()
         self.fileStore = fileStore ?? SongFileStore()
         self.audioImportService = audioImportService ?? AudioImportService()
@@ -190,7 +190,7 @@ final class SongLibraryViewModel {
                 return false
             }
 
-            appModel.setImportedSteps(
+            appState.setImportedSteps(
                 buildResult.steps,
                 file: ImportedMusicXMLFile(
                     fileName: entry.displayName,

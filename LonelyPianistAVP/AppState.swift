@@ -5,7 +5,7 @@ import SwiftUI
 /// Maintains app-wide state
 @MainActor
 @Observable
-class AppModel {
+class AppState {
     enum PracticeCalibrationResolutionResult: Equatable {
         case resolved
         case missingStoredCalibration

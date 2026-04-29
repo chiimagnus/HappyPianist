@@ -4,57 +4,57 @@ import Observation
 @MainActor
 @Observable
 final class HomeViewModel {
-    private let appModel: AppModel
+    private let appState: AppState
 
     var isImporterPresented = false
 
-    init(appModel: AppModel) {
-        self.appModel = appModel
+    init(appState: AppState) {
+        self.appState = appState
     }
 
-    var immersiveSpaceState: AppModel.ImmersiveSpaceState {
-        appModel.immersiveSpaceState
+    var immersiveSpaceState: AppState.ImmersiveSpaceState {
+        appState.immersiveSpaceState
     }
 
     var calibrationStatusText: String {
-        if appModel.calibration != nil {
+        if appState.calibration != nil {
             return "已定位"
         }
-        return appModel.storedCalibration == nil ? "未设置" : "已保存（待定位）"
+        return appState.storedCalibration == nil ? "未设置" : "已保存（待定位）"
     }
 
     var scoreStatusText: String {
-        appModel.importedFile?.fileName ?? "未导入"
+        appState.importedFile?.fileName ?? "未导入"
     }
 
     var stepCountText: String? {
-        guard appModel.importedSteps.isEmpty == false else { return nil }
-        return "\(appModel.importedSteps.count)"
+        guard appState.importedSteps.isEmpty == false else { return nil }
+        return "\(appState.importedSteps.count)"
     }
 
     var nextActionHint: String {
-        if appModel.storedCalibration == nil {
+        if appState.storedCalibration == nil {
             return "下一步：进入 Step 1 完成校准（设置 A0 / C8 后保存）。"
         }
-        if appModel.importedSteps.isEmpty {
+        if appState.importedSteps.isEmpty {
             return "下一步：进入 Step 2 选曲页并导入 MusicXML（.musicxml 或 .xml）。"
         }
-        if appModel.calibration == nil {
+        if appState.calibration == nil {
             return "下一步：进入 Step 3 完成定位后开始练习。"
         }
         return "下一步：进入 Step 3 开始练习。"
     }
 
     var importErrorMessage: String? {
-        appModel.importErrorMessage
+        appState.importErrorMessage
     }
 
     var calibrationStatusMessage: String? {
-        appModel.calibrationStatusMessage
+        appState.calibrationStatusMessage
     }
 
     func clearImportError() {
-        appModel.importErrorMessage = nil
+        appState.importErrorMessage = nil
     }
 
     var canImportScore: Bool {
@@ -66,8 +66,8 @@ final class HomeViewModel {
     }
 
     var practiceEntryHelpText: String? {
-        let hasImportedSteps = appModel.importedSteps.isEmpty == false
-        let hasStoredCalibration = appModel.storedCalibration != nil
+        let hasImportedSteps = appState.importedSteps.isEmpty == false
+        let hasStoredCalibration = appState.storedCalibration != nil
 
         if hasImportedSteps == false, hasStoredCalibration == false {
             return "可进入 Step 2 选曲；开始练习前需先完成 Step 1 校准并导入 MusicXML。"
@@ -78,7 +78,7 @@ final class HomeViewModel {
         if hasStoredCalibration == false {
             return "可进入 Step 2 选曲；开始练习前需先完成 Step 1 校准。"
         }
-        if appModel.calibration == nil {
+        if appState.calibration == nil {
             return "可进入 Step 2 选曲；进入练习后会先定位钢琴。"
         }
         return nil
@@ -87,9 +87,9 @@ final class HomeViewModel {
     func handleImportResult(_ result: Result<[URL], Error>) {
         do {
             guard let selectedURL = try result.get().first else { return }
-            appModel.importMusicXML(from: selectedURL)
+            appState.importMusicXML(from: selectedURL)
         } catch {
-            appModel.importErrorMessage = "导入失败：\(error.localizedDescription)"
+            appState.importErrorMessage = "导入失败：\(error.localizedDescription)"
         }
     }
 }

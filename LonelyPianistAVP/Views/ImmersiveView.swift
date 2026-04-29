@@ -70,6 +70,6 @@ struct ImmersiveView: View {
 }
 
 #Preview(immersionStyle: .mixed) {
-    let appModel = AppModel()
-    ImmersiveView(viewModel: ARGuideViewModel(appModel: appModel))
+    let appState = AppState()
+    ImmersiveView(viewModel: ARGuideViewModel(appState: appState))
 }
