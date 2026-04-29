@@ -105,7 +105,6 @@ final class AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackSe
         oneShotStopTask?.cancel()
         oneShotStopTask = nil
 
-        allNotesOff()
         stopOneShotNotes()
 
         for note in notes {
@@ -160,4 +159,3 @@ final class AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackSe
         }
     }
 }
-
