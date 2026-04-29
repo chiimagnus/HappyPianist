@@ -52,16 +52,13 @@ class AppState {
     private let worldAnchorCalibrationStore: WorldAnchorCalibrationStoreProtocol
     private let keyGeometryService: PianoKeyGeometryServiceProtocol
     private let importService: MusicXMLImportServiceProtocol
-    private let parser: MusicXMLParserProtocol
-    private let stepBuilder: PracticeStepBuilderProtocol
-    private let structureExpander = MusicXMLStructureExpander()
+    private let practicePreparationService: PracticePreparationServiceProtocol
 
     init(
         worldAnchorCalibrationStore: WorldAnchorCalibrationStoreProtocol? = nil,
         keyGeometryService: PianoKeyGeometryServiceProtocol? = nil,
         importService: MusicXMLImportServiceProtocol? = nil,
-        parser: MusicXMLParserProtocol? = nil,
-        stepBuilder: PracticeStepBuilderProtocol? = nil,
+        practicePreparationService: PracticePreparationServiceProtocol? = nil,
         practiceSessionViewModel: PracticeSessionViewModel? = nil,
         arTrackingService: ARTrackingServiceProtocol? = nil,
         calibrationCaptureService: CalibrationPointCaptureService? = nil
@@ -69,8 +66,7 @@ class AppState {
         self.worldAnchorCalibrationStore = worldAnchorCalibrationStore ?? WorldAnchorCalibrationStore()
         self.keyGeometryService = keyGeometryService ?? PianoKeyGeometryService()
         self.importService = importService ?? MusicXMLImportService()
-        self.parser = parser ?? MusicXMLParser()
-        self.stepBuilder = stepBuilder ?? PracticeStepBuilder()
+        self.practicePreparationService = practicePreparationService ?? PracticePreparationService()
         self.practiceSessionViewModel = practiceSessionViewModel ?? PracticeSessionViewModel()
         self.arTrackingService = arTrackingService ?? ARTrackingService()
         self.calibrationCaptureService = calibrationCaptureService ?? CalibrationPointCaptureService()
@@ -131,70 +127,23 @@ class AppState {
     func importMusicXML(from selectedURL: URL) {
         do {
             let importedFile = try importService.importFile(from: selectedURL)
-            let score = try parser.parse(fileURL: importedFile.storedURL)
-            let shouldExpandStructure = MusicXMLRealisticPlaybackDefaults.shouldExpandStructure
-            let primaryPartIDForExpansion = score.preferredPrimaryPartID()
-            let effectiveScore = shouldExpandStructure
-                ? structureExpander.expandStructureIfPossible(score: score, primaryPartID: primaryPartIDForExpansion)
-                : score
-            let primaryPartID = effectiveScore.preferredPrimaryPartID(preferredPartID: primaryPartIDForExpansion)
-            let practiceScore = effectiveScore.filtering(toPartID: primaryPartID)
-
-            let expressivityOptions = MusicXMLRealisticPlaybackDefaults.expressivityOptions
-            let buildResult = stepBuilder.buildSteps(from: practiceScore, expressivity: expressivityOptions)
-            let wordsSemantics = expressivityOptions.wordsSemanticsEnabled
-                ? MusicXMLWordsSemanticsInterpreter().interpret(
-                    wordsEvents: practiceScore.wordsEvents,
-                    tempoEvents: practiceScore.tempoEvents
-                )
-                : nil
-            let tempoMap = MusicXMLTempoMap(
-                tempoEvents: practiceScore.tempoEvents + (wordsSemantics?.derivedTempoEvents ?? []),
-                tempoRamps: wordsSemantics?.derivedTempoRamps ?? [],
-                partID: primaryPartID
-            )
-            let pedalTimeline = MusicXMLPedalTimeline(events: practiceScore
-                .pedalEvents + (wordsSemantics?.derivedPedalEvents ?? []))
-            let fermataTimeline = expressivityOptions.fermataEnabled
-                ? MusicXMLFermataTimeline(fermataEvents: practiceScore.fermataEvents, notes: practiceScore.notes)
-                : nil
-            let attributeTimeline = MusicXMLAttributeTimeline(
-                timeSignatureEvents: practiceScore.timeSignatureEvents,
-                keySignatureEvents: practiceScore.keySignatureEvents,
-                clefEvents: practiceScore.clefEvents
-            )
-            let slurTimeline = MusicXMLSlurTimeline(events: practiceScore.slurEvents)
-            let shouldUsePerformanceTiming = MusicXMLRealisticPlaybackDefaults.performanceTimingEnabled
-            let noteSpans = MusicXMLNoteSpanBuilder().buildSpans(
-                from: practiceScore.notes,
-                performanceTimingEnabled: shouldUsePerformanceTiming,
-                expressivity: expressivityOptions,
-                fermataTimeline: fermataTimeline
-            )
-            let highlightGuides = PianoHighlightGuideBuilderService().buildGuides(
-                input: PianoHighlightGuideBuildInput(
-                    score: practiceScore,
-                    steps: buildResult.steps,
-                    noteSpans: noteSpans,
-                    expressivity: expressivityOptions
-                )
-            )
-            if buildResult.unsupportedNoteCount > 0 {
-                importErrorMessage = "已导入（忽略了 \(buildResult.unsupportedNoteCount) 个不支持的音符）。"
+            let prepared = try practicePreparationService.prepare(from: importedFile.storedURL, file: importedFile)
+            if prepared.unsupportedNoteCount > 0 {
+                importErrorMessage = "已导入（忽略了 \(prepared.unsupportedNoteCount) 个不支持的音符）。"
             } else {
                 importErrorMessage = nil
             }
             setImportedSteps(
-                buildResult.steps,
-                file: importedFile,
-                tempoMap: tempoMap,
-                pedalTimeline: pedalTimeline,
-                fermataTimeline: fermataTimeline,
-                attributeTimeline: attributeTimeline,
-                slurTimeline: slurTimeline,
-                noteSpans: noteSpans,
-                highlightGuides: highlightGuides,
-                measureSpans: practiceScore.measures
+                prepared.steps,
+                file: prepared.file,
+                tempoMap: prepared.tempoMap,
+                pedalTimeline: prepared.pedalTimeline,
+                fermataTimeline: prepared.fermataTimeline,
+                attributeTimeline: prepared.attributeTimeline,
+                slurTimeline: prepared.slurTimeline,
+                noteSpans: prepared.noteSpans,
+                highlightGuides: prepared.highlightGuides,
+                measureSpans: prepared.measureSpans
             )
         } catch {
             importErrorMessage = "导入失败：\(error.localizedDescription)"
