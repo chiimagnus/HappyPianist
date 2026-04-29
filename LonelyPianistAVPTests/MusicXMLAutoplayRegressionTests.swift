@@ -169,24 +169,6 @@ private final class RegressionNoopChordAttemptAccumulator: ChordAttemptAccumulat
     func reset() {}
 }
 
-private final class RegressionCapturingMIDINoteOutput: PracticeMIDINoteOutputProtocol {
-    private(set) var recordedNoteOns: [(midi: Int, velocity: UInt8)] = []
-    private(set) var recordedNoteOffs: [Int] = []
-    private(set) var allNotesOffCount = 0
-
-    func noteOn(midi: Int, velocity: UInt8) throws {
-        recordedNoteOns.append((midi: midi, velocity: velocity))
-    }
-
-    func noteOff(midi: Int) {
-        recordedNoteOffs.append(midi)
-    }
-
-    func allNotesOff() {
-        allNotesOffCount += 1
-    }
-}
-
 private actor RegressionControllableSleeper: SleeperProtocol {
     private var requests: [UUID] = []
     private var continuationsByID: [UUID: CheckedContinuation<Void, Error>] = [:]

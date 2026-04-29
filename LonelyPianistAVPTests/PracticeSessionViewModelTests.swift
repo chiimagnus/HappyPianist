@@ -1339,38 +1339,6 @@ private final class AlwaysMatchChordAttemptAccumulator: ChordAttemptAccumulatorP
     func reset() {}
 }
 
-private final class CapturingPracticeNoteAudioPlayer: PracticeNoteAudioPlayerProtocol {
-    private(set) var recordedPlays: [[Int]] = []
-
-    func play(midiNotes: [Int]) throws {
-        recordedPlays.append(midiNotes)
-    }
-}
-
-private final class ThrowingPracticeNoteAudioPlayer: PracticeNoteAudioPlayerProtocol {
-    func play(midiNotes _: [Int]) throws {
-        throw PracticeAudioError.soundFontMissing(resourceName: "TestSoundFont")
-    }
-}
-
-private final class CapturingMIDINoteOutput: PracticeMIDINoteOutputProtocol {
-    private(set) var recordedNoteOns: [(midi: Int, velocity: UInt8)] = []
-    private(set) var recordedNoteOffs: [Int] = []
-    private(set) var allNotesOffCount = 0
-
-    func noteOn(midi: Int, velocity: UInt8) throws {
-        recordedNoteOns.append((midi: midi, velocity: velocity))
-    }
-
-    func noteOff(midi: Int) {
-        recordedNoteOffs.append(midi)
-    }
-
-    func allNotesOff() {
-        allNotesOffCount += 1
-    }
-}
-
 private final class CapturingSequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol {
     struct OneShot: Equatable {
         let midiNotes: [Int]
@@ -1466,61 +1434,6 @@ private actor ControllableSleeper: SleeperProtocol {
             let continuation = continuationsByID.removeValue(forKey: requestID)
         else {
             return
-        }
-        continuation.resume()
-    }
-
-    private func handleCancellation(for requestID: UUID) {
-        cancelledRequestIDs.insert(requestID)
-        if let continuation = continuationsByID.removeValue(forKey: requestID) {
-            continuation.resume(throwing: CancellationError())
-        }
-    }
-}
-
-private final class ControllableTimingSleeper: SleeperProtocol, PracticeTimingClockProtocol, @unchecked Sendable {
-    private var requests: [UUID] = []
-    private var durationsByID: [UUID: Duration] = [:]
-    private var continuationsByID: [UUID: CheckedContinuation<Void, Error>] = [:]
-    private var cancelledRequestIDs: Set<UUID> = []
-    private var elapsedSeconds: TimeInterval = 0
-
-    func nowSeconds() -> TimeInterval {
-        elapsedSeconds
-    }
-
-    func sleep(for duration: Duration) async throws {
-        let requestID = UUID()
-        requests.append(requestID)
-        durationsByID[requestID] = duration
-
-        try await withTaskCancellationHandler(operation: {
-            try await withCheckedThrowingContinuation { continuation in
-                continuationsByID[requestID] = continuation
-            }
-        }, onCancel: {
-            self.handleCancellation(for: requestID)
-        })
-    }
-
-    func recordedDurations() -> [Duration] {
-        requests.compactMap { durationsByID[$0] }
-    }
-
-    func cancellationCount() -> Int {
-        cancelledRequestIDs.count
-    }
-
-    func resumeOldestPending() {
-        guard
-            let requestID = requests.first(where: { continuationsByID[$0] != nil }),
-            let continuation = continuationsByID.removeValue(forKey: requestID)
-        else {
-            return
-        }
-        if let duration = durationsByID[requestID] {
-            let components = duration.components
-            elapsedSeconds += TimeInterval(components.seconds) + TimeInterval(components.attoseconds) / 1_000_000_000_000_000_000
         }
         continuation.resume()
     }
