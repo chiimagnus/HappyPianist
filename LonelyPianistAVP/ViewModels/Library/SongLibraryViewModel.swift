@@ -11,10 +11,8 @@ final class SongLibraryViewModel {
     private let paths: SongLibraryPaths
     private let bundledProvider: BundledSongLibraryProviderProtocol
     private let bundledEntries: [SongLibraryEntry]
-    private let parser: MusicXMLParserProtocol
-    private let stepBuilder: PracticeStepBuilderProtocol
+    private let practicePreparationService: PracticePreparationServiceProtocol
     private let audioPlaybackController: SongAudioPlaybackStateController
-    private let structureExpander = MusicXMLStructureExpander()
 
     var index: SongLibraryIndex = .empty
     var errorMessage: String?
@@ -24,16 +22,16 @@ final class SongLibraryViewModel {
 
     init(
         appState: AppState,
+        practicePreparationService: PracticePreparationServiceProtocol? = nil,
         indexStore: SongLibraryIndexStoreProtocol? = nil,
         fileStore: SongFileStoreProtocol? = nil,
         audioImportService: AudioImportServiceProtocol? = nil,
         paths: SongLibraryPaths? = nil,
         bundledProvider: BundledSongLibraryProviderProtocol? = nil,
-        parser: MusicXMLParserProtocol? = nil,
-        stepBuilder: PracticeStepBuilderProtocol? = nil,
         audioPlayer: SongAudioPlayerProtocol? = nil
     ) {
         self.appState = appState
+        self.practicePreparationService = practicePreparationService ?? PracticePreparationService()
         self.indexStore = indexStore ?? SongLibraryIndexStore()
         self.fileStore = fileStore ?? SongFileStore()
         self.audioImportService = audioImportService ?? AudioImportService()
@@ -41,8 +39,6 @@ final class SongLibraryViewModel {
         let resolvedBundledProvider = bundledProvider ?? BundledSongLibraryProvider()
         self.bundledProvider = resolvedBundledProvider
         bundledEntries = resolvedBundledProvider.bundledEntries()
-        self.parser = parser ?? MusicXMLParser()
-        self.stepBuilder = stepBuilder ?? PracticeStepBuilder()
         audioPlaybackController = SongAudioPlaybackStateController(player: audioPlayer ?? SongAudioPlayer())
 
         audioPlaybackController.onStateChanged = { [weak self] _ in
@@ -136,75 +132,30 @@ final class SongLibraryViewModel {
             } else {
                 scoreURL = try paths.scoresDirectoryURL().appendingPathComponent(entry.musicXMLFileName)
             }
-            let score = try parser.parse(fileURL: scoreURL)
-            let shouldExpandStructure = MusicXMLRealisticPlaybackDefaults.shouldExpandStructure
-            let primaryPartIDForExpansion = score.preferredPrimaryPartID()
-            let effectiveScore = shouldExpandStructure
-                ? structureExpander.expandStructureIfPossible(score: score, primaryPartID: primaryPartIDForExpansion)
-                : score
-            let primaryPartID = effectiveScore.preferredPrimaryPartID(preferredPartID: primaryPartIDForExpansion)
-            let practiceScore = effectiveScore.filtering(toPartID: primaryPartID)
 
-            let expressivityOptions = MusicXMLRealisticPlaybackDefaults.expressivityOptions
-            let buildResult = stepBuilder.buildSteps(from: practiceScore, expressivity: expressivityOptions)
-            let wordsSemantics = expressivityOptions.wordsSemanticsEnabled
-                ? MusicXMLWordsSemanticsInterpreter().interpret(
-                    wordsEvents: practiceScore.wordsEvents,
-                    tempoEvents: practiceScore.tempoEvents
-                )
-                : nil
-            let tempoMap = MusicXMLTempoMap(
-                tempoEvents: practiceScore.tempoEvents + (wordsSemantics?.derivedTempoEvents ?? []),
-                tempoRamps: wordsSemantics?.derivedTempoRamps ?? [],
-                partID: primaryPartID
+            let file = ImportedMusicXMLFile(
+                fileName: entry.displayName,
+                storedURL: scoreURL,
+                importedAt: entry.importedAt
             )
-            let pedalTimeline = MusicXMLPedalTimeline(events: practiceScore
-                .pedalEvents + (wordsSemantics?.derivedPedalEvents ?? []))
-            let fermataTimeline = expressivityOptions.fermataEnabled
-                ? MusicXMLFermataTimeline(fermataEvents: practiceScore.fermataEvents, notes: practiceScore.notes)
-                : nil
-            let attributeTimeline = MusicXMLAttributeTimeline(
-                timeSignatureEvents: practiceScore.timeSignatureEvents,
-                keySignatureEvents: practiceScore.keySignatureEvents,
-                clefEvents: practiceScore.clefEvents
-            )
-            let slurTimeline = MusicXMLSlurTimeline(events: practiceScore.slurEvents)
-            let shouldUsePerformanceTiming = MusicXMLRealisticPlaybackDefaults.performanceTimingEnabled
-            let noteSpans = MusicXMLNoteSpanBuilder().buildSpans(
-                from: practiceScore.notes,
-                performanceTimingEnabled: shouldUsePerformanceTiming,
-                expressivity: expressivityOptions,
-                fermataTimeline: fermataTimeline
-            )
-            let highlightGuides = PianoHighlightGuideBuilderService().buildGuides(
-                input: PianoHighlightGuideBuildInput(
-                    score: practiceScore,
-                    steps: buildResult.steps,
-                    noteSpans: noteSpans,
-                    expressivity: expressivityOptions
-                )
-            )
+            let prepared = try practicePreparationService.prepare(from: scoreURL, file: file)
 
-            guard buildResult.steps.isEmpty == false else {
+            guard prepared.steps.isEmpty == false else {
                 errorMessage = "该曲目未生成可练习步骤。"
                 return false
             }
 
             appState.setImportedSteps(
-                buildResult.steps,
-                file: ImportedMusicXMLFile(
-                    fileName: entry.displayName,
-                    storedURL: scoreURL,
-                    importedAt: entry.importedAt
-                ),
-                tempoMap: tempoMap,
-                pedalTimeline: pedalTimeline,
-                fermataTimeline: fermataTimeline,
-                attributeTimeline: attributeTimeline,
-                slurTimeline: slurTimeline,
-                noteSpans: noteSpans,
-                highlightGuides: highlightGuides,
-                measureSpans: practiceScore.measures
+                prepared.steps,
+                file: prepared.file,
+                tempoMap: prepared.tempoMap,
+                pedalTimeline: prepared.pedalTimeline,
+                fermataTimeline: prepared.fermataTimeline,
+                attributeTimeline: prepared.attributeTimeline,
+                slurTimeline: prepared.slurTimeline,
+                noteSpans: prepared.noteSpans,
+                highlightGuides: prepared.highlightGuides,
+                measureSpans: prepared.measureSpans
             )
 
             var updatedIndex = index

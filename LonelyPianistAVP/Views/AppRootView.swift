@@ -10,7 +10,10 @@ struct AppRootView: View {
         _appState = Bindable(wrappedValue: appState)
         _arGuideViewModel = Bindable(wrappedValue: arGuideViewModel)
         _homeViewModel = State(initialValue: HomeViewModel(appState: appState))
-        _songLibraryViewModel = State(initialValue: SongLibraryViewModel(appState: appState))
+        _songLibraryViewModel = State(initialValue: SongLibraryViewModel(
+            appState: appState,
+            practicePreparationService: services.practicePreparationService
+        ))
     }
 
     var body: some View {
