@@ -86,12 +86,15 @@ extension PracticeSessionViewModel {
 
     func stopAudioRecognition() {
         guard let audioRecognitionService else { return }
+        let wasRunning = isAudioRecognitionRunning
         audioRecognitionGeneration += 1
         audioStepAttemptAccumulator.resetForNewStep(generation: audioRecognitionGeneration)
         audioRecognitionService.stop()
         isAudioRecognitionRunning = false
         audioRecognitionStatus = .stopped
-        decisionLogger.debug("audio service stopped by lifecycle")
+        if wasRunning {
+            decisionLogger.debug("audio service stopped")
+        }
     }
 
     @discardableResult
