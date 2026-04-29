@@ -194,8 +194,8 @@ struct SongLibraryView: View {
 }
 
 #Preview {
-    let appModel = AppModel()
-    let viewModel = SongLibraryViewModel(appModel: appModel)
+    let appState = AppState()
+    let viewModel = SongLibraryViewModel(appState: appState)
     return NavigationStack {
         SongLibraryView(viewModel: viewModel)
     }

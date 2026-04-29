@@ -6,13 +6,13 @@ import Testing
 @Test
 @MainActor
 func canEnterPracticeIsTrueWhenMissingCalibration() {
-    let appModel = makeAppModel(
+    let appState = makeAppState(
         calibration: nil,
         hasImportedSteps: true,
         hasStoredCalibration: false,
         immersiveState: .closed
     )
-    let viewModel = HomeViewModel(appModel: appModel)
+    let viewModel = HomeViewModel(appState: appState)
 
     #expect(viewModel.canEnterPractice)
     #expect(viewModel.practiceEntryHelpText?.contains("Step 1 校准") == true)
@@ -21,13 +21,13 @@ func canEnterPracticeIsTrueWhenMissingCalibration() {
 @Test
 @MainActor
 func canEnterPracticeIsTrueWhenMissingImportedSteps() {
-    let appModel = makeAppModel(
+    let appState = makeAppState(
         calibration: sampleCalibration(),
         hasImportedSteps: false,
         hasStoredCalibration: true,
         immersiveState: .closed
     )
-    let viewModel = HomeViewModel(appModel: appModel)
+    let viewModel = HomeViewModel(appState: appState)
 
     #expect(viewModel.canEnterPractice)
     #expect(viewModel.practiceEntryHelpText?.contains("导入 MusicXML") == true)
@@ -36,13 +36,13 @@ func canEnterPracticeIsTrueWhenMissingImportedSteps() {
 @Test
 @MainActor
 func canEnterPracticeIsTrueWhenCalibrationAndImportedStepsExist() {
-    let appModel = makeAppModel(
+    let appState = makeAppState(
         calibration: sampleCalibration(),
         hasImportedSteps: true,
         hasStoredCalibration: true,
         immersiveState: .closed
     )
-    let viewModel = HomeViewModel(appModel: appModel)
+    let viewModel = HomeViewModel(appState: appState)
 
     #expect(viewModel.canEnterPractice)
     #expect(viewModel.practiceEntryHelpText == nil)
@@ -51,13 +51,13 @@ func canEnterPracticeIsTrueWhenCalibrationAndImportedStepsExist() {
 @Test
 @MainActor
 func practiceEntryShowsLocatingHintWhenStoredCalibrationExistsButRuntimeCalibrationMissing() {
-    let appModel = makeAppModel(
+    let appState = makeAppState(
         calibration: nil,
         hasImportedSteps: true,
         hasStoredCalibration: true,
         immersiveState: .closed
     )
-    let viewModel = HomeViewModel(appModel: appModel)
+    let viewModel = HomeViewModel(appState: appState)
 
     #expect(viewModel.practiceEntryHelpText?.contains("定位钢琴") == true)
 }
@@ -66,7 +66,7 @@ func practiceEntryShowsLocatingHintWhenStoredCalibrationExistsButRuntimeCalibrat
 @MainActor
 func canImportScoreDependsOnImmersiveState() {
     let closedModel = HomeViewModel(
-        appModel: makeAppModel(
+        appState: makeAppState(
             calibration: nil,
             hasImportedSteps: false,
             hasStoredCalibration: false,
@@ -76,7 +76,7 @@ func canImportScoreDependsOnImmersiveState() {
     #expect(closedModel.canImportScore)
 
     let openModel = HomeViewModel(
-        appModel: makeAppModel(
+        appState: makeAppState(
             calibration: nil,
             hasImportedSteps: false,
             hasStoredCalibration: false,
@@ -86,7 +86,7 @@ func canImportScoreDependsOnImmersiveState() {
     #expect(openModel.canImportScore == false)
 
     let transitionModel = HomeViewModel(
-        appModel: makeAppModel(
+        appState: makeAppState(
             calibration: nil,
             hasImportedSteps: false,
             hasStoredCalibration: false,
@@ -97,18 +97,18 @@ func canImportScoreDependsOnImmersiveState() {
 }
 
 @MainActor
-private func makeAppModel(
+private func makeAppState(
     calibration: PianoCalibration?,
     hasImportedSteps: Bool,
     hasStoredCalibration: Bool,
-    immersiveState: AppModel.ImmersiveSpaceState
-) -> AppModel {
-    let appModel = AppModel()
-    appModel.immersiveSpaceState = immersiveState
-    appModel.calibration = calibration
+    immersiveState: AppState.ImmersiveSpaceState
+) -> AppState {
+    let appState = AppState()
+    appState.immersiveSpaceState = immersiveState
+    appState.calibration = calibration
 
     if hasStoredCalibration {
-        appModel.storedCalibration = StoredWorldAnchorCalibration(
+        appState.storedCalibration = StoredWorldAnchorCalibration(
             a0AnchorID: UUID(),
             c8AnchorID: UUID(),
             whiteKeyWidth: 0.0235
@@ -116,14 +116,22 @@ private func makeAppModel(
     }
 
     if hasImportedSteps {
-        appModel.setImportedSteps(
-            [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
-            file: nil,
-            tempoMap: MusicXMLTempoMap(tempoEvents: [])
-        )
+        appState.setImportedSteps(from: PreparedPractice(
+            steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+            file: ImportedMusicXMLFile(fileName: "Test", storedURL: URL(fileURLWithPath: "/dev/null"), importedAt: Date()),
+            tempoMap: MusicXMLTempoMap(tempoEvents: []),
+            pedalTimeline: nil,
+            fermataTimeline: nil,
+            attributeTimeline: nil,
+            slurTimeline: nil,
+            noteSpans: [],
+            highlightGuides: [],
+            measureSpans: [],
+            unsupportedNoteCount: 0
+        ))
     }
 
-    return appModel
+    return appState
 }
 
 private func sampleCalibration() -> PianoCalibration {

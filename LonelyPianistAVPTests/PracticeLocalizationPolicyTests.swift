@@ -5,55 +5,71 @@ import Testing
 @Test
 @MainActor
 func practiceEntryBlockingReasonIsMissingImportedStepsFirst() {
-    let appModel = AppModel()
-    appModel.storedCalibration = StoredWorldAnchorCalibration(
+    let appState = AppState()
+    appState.storedCalibration = StoredWorldAnchorCalibration(
         a0AnchorID: UUID(),
         c8AnchorID: UUID(),
         whiteKeyWidth: 0.0235
     )
 
-    let viewModel = ARGuideViewModel(appModel: appModel)
+    let viewModel = ARGuideViewModel(appState: appState)
     #expect(viewModel.practiceEntryBlockingReason() == .missingImportedSteps)
 }
 
 @Test
 @MainActor
 func practiceEntryBlockingReasonIsMissingStoredCalibrationWhenStepsExist() {
-    let appModel = AppModel()
-    appModel.setImportedSteps(
-        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
-        file: nil,
-        tempoMap: MusicXMLTempoMap(tempoEvents: [])
-    )
+    let appState = AppState()
+    appState.setImportedSteps(from: PreparedPractice(
+        steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        file: ImportedMusicXMLFile(fileName: "Test", storedURL: URL(fileURLWithPath: "/dev/null"), importedAt: Date()),
+        tempoMap: MusicXMLTempoMap(tempoEvents: []),
+        pedalTimeline: nil,
+        fermataTimeline: nil,
+        attributeTimeline: nil,
+        slurTimeline: nil,
+        noteSpans: [],
+        highlightGuides: [],
+        measureSpans: [],
+        unsupportedNoteCount: 0
+    ))
 
-    let viewModel = ARGuideViewModel(appModel: appModel)
+    let viewModel = ARGuideViewModel(appState: appState)
     #expect(viewModel.practiceEntryBlockingReason() == .missingStoredCalibration)
 }
 
 @Test
 @MainActor
 func practiceEntryBlockingReasonIsNilWhenPreconditionsAreReady() {
-    let appModel = AppModel()
-    appModel.storedCalibration = StoredWorldAnchorCalibration(
+    let appState = AppState()
+    appState.storedCalibration = StoredWorldAnchorCalibration(
         a0AnchorID: UUID(),
         c8AnchorID: UUID(),
         whiteKeyWidth: 0.0235
     )
-    appModel.setImportedSteps(
-        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
-        file: nil,
-        tempoMap: MusicXMLTempoMap(tempoEvents: [])
-    )
+    appState.setImportedSteps(from: PreparedPractice(
+        steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        file: ImportedMusicXMLFile(fileName: "Test", storedURL: URL(fileURLWithPath: "/dev/null"), importedAt: Date()),
+        tempoMap: MusicXMLTempoMap(tempoEvents: []),
+        pedalTimeline: nil,
+        fermataTimeline: nil,
+        attributeTimeline: nil,
+        slurTimeline: nil,
+        noteSpans: [],
+        highlightGuides: [],
+        measureSpans: [],
+        unsupportedNoteCount: 0
+    ))
 
-    let viewModel = ARGuideViewModel(appModel: appModel)
+    let viewModel = ARGuideViewModel(appState: appState)
     #expect(viewModel.practiceEntryBlockingReason() == nil)
 }
 
 @Test
 @MainActor
 func timeoutFailureMapsAnchorNotTrackedWithFiveSeconds() {
-    let appModel = AppModel()
-    let viewModel = ARGuideViewModel(appModel: appModel)
+    let appState = AppState()
+    let viewModel = ARGuideViewModel(appState: appState)
     let anchorID = UUID()
 
     let failure = viewModel.practiceLocalizationTimeoutFailure(
@@ -66,8 +82,8 @@ func timeoutFailureMapsAnchorNotTrackedWithFiveSeconds() {
 @Test
 @MainActor
 func timeoutFailureMapsAnchorMissing() {
-    let appModel = AppModel()
-    let viewModel = ARGuideViewModel(appModel: appModel)
+    let appState = AppState()
+    let viewModel = ARGuideViewModel(appState: appState)
     let anchorID = UUID()
 
     let failure = viewModel.practiceLocalizationTimeoutFailure(
@@ -80,8 +96,8 @@ func timeoutFailureMapsAnchorMissing() {
 @Test
 @MainActor
 func timeoutFailureFallsBackToProviderStateSummary() {
-    let appModel = AppModel()
-    let viewModel = ARGuideViewModel(appModel: appModel)
+    let appState = AppState()
+    let viewModel = ARGuideViewModel(appState: appState)
 
     let failure = viewModel.practiceLocalizationTimeoutFailure(lastRecoverableResolution: nil)
 

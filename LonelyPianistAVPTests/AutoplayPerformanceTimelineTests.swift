@@ -2,6 +2,7 @@
 import Testing
 
 @Test
+@MainActor
 func autoplayTimelineUsesGuidesForNoteOnOffAndGuideAdvance() {
     let guide = makeTimelineGuide(
         id: 1,
@@ -35,6 +36,7 @@ func autoplayTimelineUsesGuidesForNoteOnOffAndGuideAdvance() {
 }
 
 @Test
+@MainActor
 func autoplayTimelineDeduplicatesSameTickMIDINotesWithMaxVelocityAndOffTick() {
     let guide = makeTimelineGuide(
         id: 1,
@@ -69,6 +71,7 @@ func autoplayTimelineDeduplicatesSameTickMIDINotesWithMaxVelocityAndOffTick() {
 }
 
 @Test
+@MainActor
 func autoplayTimelineRearticulatesOverlappingSameMIDINoteAtNextOnTick() {
     let first = makeTimelineGuide(
         id: 1,
@@ -104,6 +107,7 @@ func autoplayTimelineRearticulatesOverlappingSameMIDINoteAtNextOnTick() {
 }
 
 @Test
+@MainActor
 func autoplayTimelineKeepsZeroDurationGuideNotesReleasable() {
     let guide = makeTimelineGuide(
         id: 1,
@@ -131,6 +135,7 @@ func autoplayTimelineKeepsZeroDurationGuideNotesReleasable() {
 }
 
 @Test
+@MainActor
 func autoplayTimelineEmitsReleaseAndRedownForSameTickPedalChange() {
     let guide = makeTimelineGuide(
         id: 1,

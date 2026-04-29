@@ -5,7 +5,7 @@ import Testing
 
 @Test
 @MainActor
-func appModelAppliesKeyboardGeometryWhenAvailable() throws {
+func appStateAppliesKeyboardGeometryWhenAvailable() throws {
     let calibration = PianoCalibration(
         a0: SIMD3<Float>(0.0, 0.5, 0.0),
         c8: SIMD3<Float>(1.0, 0.5, 0.0),
@@ -22,20 +22,18 @@ func appModelAppliesKeyboardGeometryWhenAvailable() throws {
         sleeper: TaskSleeper()
     )
 
-    let appModel = AppModel(
-        keyGeometryService: service,
-        practiceSessionViewModel: practiceSessionViewModel
-    )
+    let appState = AppState(keyGeometryService: service)
+    let guideViewModel = ARGuideViewModel(appState: appState, practiceSessionViewModel: practiceSessionViewModel)
 
-    appModel.calibration = calibration
+    appState.calibration = calibration
 
     #expect(service.callCount == 1)
-    #expect(appModel.practiceSessionViewModel.keyboardGeometry != nil)
+    #expect(practiceSessionViewModel.keyboardGeometry != nil)
 }
 
 @Test
 @MainActor
-func appModelDoesNotApplyKeyboardGeometryWhenGenerationFails() {
+func appStateDoesNotApplyKeyboardGeometryWhenGenerationFails() {
     let calibration = PianoCalibration(
         a0: SIMD3<Float>(0.0, 0.5, 0.0),
         c8: SIMD3<Float>(1.0, 0.5, 0.0),
@@ -50,15 +48,13 @@ func appModelDoesNotApplyKeyboardGeometryWhenGenerationFails() {
         sleeper: TaskSleeper()
     )
 
-    let appModel = AppModel(
-        keyGeometryService: service,
-        practiceSessionViewModel: practiceSessionViewModel
-    )
+    let appState = AppState(keyGeometryService: service)
+    let guideViewModel = ARGuideViewModel(appState: appState, practiceSessionViewModel: practiceSessionViewModel)
 
-    appModel.calibration = calibration
+    appState.calibration = calibration
 
     #expect(service.callCount == 1)
-    #expect(appModel.practiceSessionViewModel.keyboardGeometry == nil)
+    #expect(practiceSessionViewModel.keyboardGeometry == nil)
 }
 
 private final class CapturingKeyGeometryService: PianoKeyGeometryServiceProtocol {

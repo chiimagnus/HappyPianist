@@ -50,7 +50,7 @@ private func makeManualAdvanceContext(currentStepIndex: Int) -> ManualAdvanceCon
 
 @Test
 @MainActor
-func appModelPassesMeasureSpansToPracticeSession() {
+func appStatePassesMeasureSpansToPracticeSession() {
     let playbackService = ManualAdvanceNoopPlaybackService()
     let sessionViewModel = PracticeSessionViewModel(
         pressDetectionService: ManualAdvanceNoopPressDetectionService(),
@@ -59,20 +59,28 @@ func appModelPassesMeasureSpansToPracticeSession() {
         sequencerPlaybackService: playbackService,
         manualAdvanceModeProvider: { .measure }
     )
-    let appModel = AppModel(practiceSessionViewModel: sessionViewModel)
-    appModel.setImportedSteps(
-        [
+    let appState = AppState()
+    let guideViewModel = ARGuideViewModel(appState: appState, practiceSessionViewModel: sessionViewModel)
+    appState.setImportedSteps(from: PreparedPractice(
+        steps: [
             PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
             PracticeStep(tick: 240, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
             PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 64, staff: 1)]),
         ],
-        file: nil,
+        file: ImportedMusicXMLFile(fileName: "Test", storedURL: URL(fileURLWithPath: "/dev/null"), importedAt: Date()),
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
+        pedalTimeline: nil,
+        fermataTimeline: nil,
+        attributeTimeline: nil,
+        slurTimeline: nil,
+        noteSpans: [],
+        highlightGuides: [],
         measureSpans: [
             MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, startTick: 0, endTick: 480),
             MusicXMLMeasureSpan(partID: "P1", measureNumber: 2, startTick: 480, endTick: 960),
-        ]
-    )
+        ],
+        unsupportedNoteCount: 0
+    ))
 
     // First "next" begins the practice session at step 1.
     sessionViewModel.skip()

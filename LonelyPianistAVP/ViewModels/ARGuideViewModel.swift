@@ -64,7 +64,8 @@ final class ARGuideViewModel {
         case ready
     }
 
-    private let appModel: AppModel
+    private let appState: AppState
+    let practiceSessionViewModel: PracticeSessionViewModel
     private var handTrackingConsumerTask: Task<Void, Never>?
     private var calibrationAnchorCaptureTask: Task<Void, Never>?
     private var calibrationFlowBootstrapTask: Task<Void, Never>?
@@ -80,16 +81,45 @@ final class ARGuideViewModel {
     private(set) var practiceLocalizationState: PracticeLocalizationState = .idle
     private(set) var calibrationPhase: CalibrationPhase = .capturingA0
 
-    init(appModel: AppModel) {
-        self.appModel = appModel
+    init(appState: AppState, practiceSessionViewModel: PracticeSessionViewModel? = nil) {
+        self.appState = appState
+        self.practiceSessionViewModel = practiceSessionViewModel ?? PracticeSessionViewModel()
+        setupAppStateCallbacks()
+    }
+
+    private func setupAppStateCallbacks() {
+        appState.onStepsImported = { [weak self] prepared in
+            guard let self else { return }
+            self.practiceSessionViewModel.setSteps(
+                prepared.steps,
+                tempoMap: prepared.tempoMap,
+                pedalTimeline: prepared.pedalTimeline,
+                fermataTimeline: prepared.fermataTimeline,
+                attributeTimeline: prepared.attributeTimeline,
+                slurTimeline: prepared.slurTimeline,
+                noteSpans: prepared.noteSpans,
+                highlightGuides: prepared.highlightGuides,
+                measureSpans: prepared.measureSpans
+            )
+            self.appState.applySessionIfPossible()
+        }
+        appState.onCalibrationCleared = { [weak self] in
+            self?.practiceSessionViewModel.clearCalibration()
+        }
+        appState.onSessionReset = { [weak self] in
+            self?.practiceSessionViewModel.resetSession()
+        }
+        appState.onApplyKeyboardGeometry = { [weak self] geometry, calibration in
+            self?.practiceSessionViewModel.applyKeyboardGeometry(geometry, calibration: calibration)
+        }
     }
 
     var calibration: PianoCalibration? {
-        appModel.calibration
+        appState.calibration
     }
 
     var storedCalibration: StoredWorldAnchorCalibration? {
-        appModel.storedCalibration
+        appState.storedCalibration
     }
 
     var a0OverlayPoint: SIMD3<Float>? {
@@ -103,45 +133,41 @@ final class ARGuideViewModel {
     }
 
     var pendingCalibrationCaptureAnchor: CalibrationAnchorPoint? {
-        get { appModel.pendingCalibrationCaptureAnchor }
-        set { appModel.pendingCalibrationCaptureAnchor = newValue }
+        get { appState.pendingCalibrationCaptureAnchor }
+        set { appState.pendingCalibrationCaptureAnchor = newValue }
     }
 
     var calibrationStatusMessage: String? {
-        get { appModel.calibrationStatusMessage }
-        set { appModel.calibrationStatusMessage = newValue }
+        get { appState.calibrationStatusMessage }
+        set { appState.calibrationStatusMessage = newValue }
     }
 
     var calibrationCaptureService: CalibrationPointCaptureService {
-        appModel.calibrationCaptureService
-    }
-
-    var practiceSessionViewModel: PracticeSessionViewModel {
-        appModel.practiceSessionViewModel
+        appState.calibrationCaptureService
     }
 
     var arTrackingService: ARTrackingServiceProtocol {
-        appModel.arTrackingService
+        appState.arTrackingService
     }
 
     var hasImportedSteps: Bool {
-        appModel.importedSteps.isEmpty == false
+        appState.importedSteps.isEmpty == false
     }
 
-    var immersiveMode: AppModel.ImmersiveMode {
-        appModel.immersiveMode
+    var immersiveMode: AppState.ImmersiveMode {
+        appState.immersiveMode
     }
 
-    var immersiveSpaceState: AppModel.ImmersiveSpaceState {
-        appModel.immersiveSpaceState
+    var immersiveSpaceState: AppState.ImmersiveSpaceState {
+        appState.immersiveSpaceState
     }
 
     func saveCalibration() {
-        _ = appModel.saveCalibrationIfPossible()
+        _ = appState.saveCalibrationIfPossible()
     }
 
     func beginCalibrationRecapture() {
-        appModel.beginCalibrationRecapture()
+        appState.beginCalibrationRecapture()
     }
 
     func beginCalibrationGuidedFlow() {
@@ -329,55 +355,55 @@ final class ARGuideViewModel {
     }
 
     func openImmersiveForStep(
-        mode: AppModel.ImmersiveMode,
+        mode: AppState.ImmersiveMode,
         using openImmersiveSpace: OpenImmersiveSpaceAction
     ) async -> String? {
-        appModel.immersiveMode = mode
+        appState.immersiveMode = mode
 
-        switch appModel.immersiveSpaceState {
+        switch appState.immersiveSpaceState {
             case .open:
                 return nil
 
             case .inTransition:
                 for _ in 0 ..< 40 {
                     await Task.yield()
-                    if appModel.immersiveSpaceState != .inTransition {
+                    if appState.immersiveSpaceState != .inTransition {
                         break
                     }
                 }
 
-                if appModel.immersiveSpaceState == .closed {
+                if appState.immersiveSpaceState == .closed {
                     return await openImmersiveForStep(mode: mode, using: openImmersiveSpace)
                 }
                 return nil
 
             case .closed:
-                appModel.immersiveSpaceState = .inTransition
-                switch await openImmersiveSpace(id: appModel.immersiveSpaceID) {
+                appState.immersiveSpaceState = .inTransition
+                switch await openImmersiveSpace(id: appState.immersiveSpaceID) {
                     case .opened:
                         // Don't set immersiveSpaceState to .open here.
                         // ImmersiveView.onAppear is the single source of truth.
                         return nil
 
                     case .userCancelled:
-                        appModel.immersiveSpaceState = .closed
+                        appState.immersiveSpaceState = .closed
                         return "已取消打开沉浸空间。"
 
                     case .error:
-                        appModel.immersiveSpaceState = .closed
+                        appState.immersiveSpaceState = .closed
                         return "打开沉浸空间失败，请重试。"
 
                     @unknown default:
-                        appModel.immersiveSpaceState = .closed
+                        appState.immersiveSpaceState = .closed
                         return "沉浸空间返回未知状态，请重试。"
                 }
         }
     }
 
     func closeImmersiveForStep(using dismissImmersiveSpace: DismissImmersiveSpaceAction) async {
-        guard appModel.immersiveSpaceState != .closed else { return }
-        if appModel.immersiveSpaceState == .open {
-            appModel.immersiveSpaceState = .inTransition
+        guard appState.immersiveSpaceState != .closed else { return }
+        if appState.immersiveSpaceState == .open {
+            appState.immersiveSpaceState = .inTransition
         }
         await dismissImmersiveSpace()
         // Don't set immersiveSpaceState to .closed here.
@@ -385,18 +411,18 @@ final class ARGuideViewModel {
     }
 
     func recoverImmersiveStateIfStuck() async {
-        guard appModel.immersiveSpaceState == .inTransition else { return }
+        guard appState.immersiveSpaceState == .inTransition else { return }
         for _ in 0 ..< 40 {
             await Task.yield()
-            if appModel.immersiveSpaceState != .inTransition {
+            if appState.immersiveSpaceState != .inTransition {
                 return
             }
         }
-        appModel.immersiveSpaceState = .closed
+        appState.immersiveSpaceState = .closed
     }
 
     func onImmersiveAppear() {
-        switch appModel.immersiveMode {
+        switch appState.immersiveMode {
             case .calibration:
                 wasRightHandPinching = false
                 wasLeftHandPinching = false
@@ -423,7 +449,7 @@ final class ARGuideViewModel {
             guard let self else { return }
             for await fingerTips in updates {
                 guard Task.isCancelled == false else { return }
-                switch appModel.immersiveMode {
+                switch appState.immersiveMode {
                     case .calibration:
                         handleCalibrationHandUpdates()
                     case .practice:
@@ -489,7 +515,7 @@ final class ARGuideViewModel {
     }
 
     private func updateCalibrationTrackingStatusIfNeeded() {
-        guard appModel.immersiveMode == .calibration else { return }
+        guard appState.immersiveMode == .calibration else { return }
         guard calibrationPhase != .completed else { return }
 
         let handState = arTrackingService.providerStateByName["hand"] ?? .idle
@@ -561,22 +587,9 @@ final class ARGuideViewModel {
         arTrackingService.stop()
     }
 
-    var practiceStatusText: String {
-        switch practiceSessionViewModel.state {
-            case .idle:
-                "练习：空闲"
-            case .ready:
-                "练习：就绪"
-            case let .guiding(index):
-                "练习：引导中（第 \(index + 1) 步）"
-            case .completed:
-                "练习：已完成"
-        }
-    }
-
     var practiceProgressText: String {
-        guard appModel.importedSteps.isEmpty == false else { return "0 / 0" }
-        let total = appModel.importedSteps.count
+        guard appState.importedSteps.isEmpty == false else { return "0 / 0" }
+        let total = appState.importedSteps.count
         switch practiceSessionViewModel.state {
             case .idle, .ready:
                 return "0 / \(total)"
@@ -592,7 +605,7 @@ final class ARGuideViewModel {
         dismissImmersiveSpace: DismissImmersiveSpaceAction
     ) async {
         cancelPracticeLocalizationTask()
-        appModel.clearRuntimeCalibrationForPracticeRelocation()
+        appState.clearRuntimeCalibrationForPracticeRelocation()
 
         guard let blockingReason = practiceEntryBlockingReason() else {
             practiceLocalizationState = .openingImmersive
@@ -624,7 +637,7 @@ final class ARGuideViewModel {
         }
 
         let startedAt = ProcessInfo.processInfo.systemUptime
-        var lastRecoverableResolution: AppModel.PracticeCalibrationResolutionResult?
+        var lastRecoverableResolution: AppState.PracticeCalibrationResolutionResult?
 
         while Task.isCancelled == false {
             if let hardFailure = immediatePracticeFailureReason() {
@@ -639,7 +652,7 @@ final class ARGuideViewModel {
                 totalSeconds: practiceLocalizationTimeoutSeconds
             )
 
-            switch appModel.resolveRuntimeCalibrationFromTrackedAnchors() {
+            switch appState.resolveRuntimeCalibrationFromTrackedAnchors() {
                 case .resolved:
                     practiceLocalizationState = .ready
                     return
@@ -685,7 +698,7 @@ final class ARGuideViewModel {
     }
 
     func practiceLocalizationTimeoutFailure(
-        lastRecoverableResolution: AppModel.PracticeCalibrationResolutionResult?
+        lastRecoverableResolution: AppState.PracticeCalibrationResolutionResult?
     ) -> PracticeLocalizationFailure {
         guard let lastRecoverableResolution else {
             return .providerNotRunning(state: currentProviderStateSummary())
@@ -767,7 +780,7 @@ final class ARGuideViewModel {
         guard Task.isCancelled == false else { return }
 
         practiceLocalizationState = .failed(reason: failure)
-        appModel.clearRuntimeCalibrationForPracticeRelocation()
+        appState.clearRuntimeCalibrationForPracticeRelocation()
 
         await closeImmersiveForStep(using: dismissImmersiveSpace)
         await recoverImmersiveStateIfStuck()
@@ -815,7 +828,7 @@ final class ARGuideViewModel {
                     try? await Task.sleep(for: .seconds(0.3))
                     guard Task.isCancelled == false else { return }
 
-                    let didSave = appModel.saveCalibrationIfPossible()
+                    let didSave = appState.saveCalibrationIfPossible()
                     if didSave,
                        let storedCalibration,
                        storedCalibration.a0AnchorID == capturedA0,
@@ -834,7 +847,7 @@ final class ARGuideViewModel {
     }
 
     private func startCalibrationSupportPollingIfNeeded() {
-        guard appModel.immersiveMode == .calibration else { return }
+        guard appState.immersiveMode == .calibration else { return }
         guard calibrationSupportPollTask == nil else { return }
 
         calibrationSupportPollTask = Task { @MainActor [weak self] in

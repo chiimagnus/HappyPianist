@@ -4,6 +4,7 @@ import simd
 import Testing
 
 @Test
+@MainActor
 func realScoreAutoplayTimelineKeepsNoteOnAndGuideAdvanceSynchronized() throws {
     let model = try makeAutoplayRegressionModel()
     let firstTrigger = try #require(model.guides.first { $0.kind == .trigger })
@@ -91,6 +92,7 @@ private struct AutoplayRegressionModel {
     let timeline: AutoplayPerformanceTimeline
 }
 
+@MainActor
 private func makeAutoplayRegressionModel() throws -> AutoplayRegressionModel {
     let fixtureURL = URL(filePath: #filePath)
         .deletingLastPathComponent()

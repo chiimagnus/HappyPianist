@@ -2,39 +2,49 @@ import SwiftUI
 
 @main
 struct LonelyPianistAVPApp: App {
-    @State private var appModel: AppModel
-    @State private var homeViewModel: HomeViewModel
+    @State private var appState: AppState
+    @State private var services: AppServices
     @State private var arGuideViewModel: ARGuideViewModel
-    @State private var songLibraryViewModel: SongLibraryViewModel
 
     init() {
-        let appModel = AppModel()
-        appModel.loadStoredCalibrationIfPossible()
+        let services = AppServices()
+        let appState = AppState(
+            arTrackingService: services.arTrackingService,
+            calibrationCaptureService: services.calibrationCaptureService,
+            calibrationRepository: services.calibrationRepository,
+            keyGeometryService: services.keyGeometryService,
+            importService: services.importService,
+            practicePreparationService: services.practicePreparationService
+        )
+        appState.loadStoredCalibrationIfPossible()
 
-        _appModel = State(initialValue: appModel)
-        _homeViewModel = State(initialValue: HomeViewModel(appModel: appModel))
-        _arGuideViewModel = State(initialValue: ARGuideViewModel(appModel: appModel))
-        _songLibraryViewModel = State(initialValue: SongLibraryViewModel(appModel: appModel))
+        _appState = State(initialValue: appState)
+        _services = State(initialValue: services)
+        _arGuideViewModel = State(initialValue: ARGuideViewModel(appState: appState))
     }
 
     var body: some Scene {
         WindowGroup {
-            ContentView(
-                homeViewModel: homeViewModel,
-                arGuideViewModel: arGuideViewModel,
-                songLibraryViewModel: songLibraryViewModel
+            AppRootView(
+                appState: appState,
+                services: services,
+                arGuideViewModel: arGuideViewModel
             )
+            .environment(appState)
+            .environment(services)
         }
         .windowStyle(.automatic)
         .windowResizability(.contentSize)
 
-        ImmersiveSpace(id: appModel.immersiveSpaceID) {
+        ImmersiveSpace(id: appState.immersiveSpaceID) {
             ImmersiveView(viewModel: arGuideViewModel)
+                .environment(appState)
+                .environment(services)
                 .onAppear {
-                    appModel.immersiveSpaceState = .open
+                    appState.immersiveSpaceState = .open
                 }
                 .onDisappear {
-                    appModel.immersiveSpaceState = .closed
+                    appState.immersiveSpaceState = .closed
                 }
         }
         .immersionStyle(selection: .constant(.mixed), in: .mixed)
