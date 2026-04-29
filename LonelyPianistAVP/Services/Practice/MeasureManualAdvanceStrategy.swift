@@ -24,7 +24,7 @@ struct MeasureManualAdvanceStrategy: ManualAdvanceStrategyProtocol {
             return tick >= span.startTick && tick < span.endTick
         }
         guard let lowerBound = indices.first, let upperBoundIndex = indices.last else { return nil }
-        return ManualReplayPlan(stepRange: lowerBound..<(upperBoundIndex + 1))
+        return ManualReplayPlan(stepRange: lowerBound ..< (upperBoundIndex + 1))
     }
 
     private func currentMeasureIndex(in context: ManualAdvanceContext) -> Int? {

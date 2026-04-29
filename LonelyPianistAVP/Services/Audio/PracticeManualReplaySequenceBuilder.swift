@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated struct PracticeManualReplaySequenceBuilder: Sendable {
+nonisolated struct PracticeManualReplaySequenceBuilder {
     private let chordDurationSeconds: TimeInterval
     private let velocity: UInt8
     private let leadInSeconds: TimeInterval

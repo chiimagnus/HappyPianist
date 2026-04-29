@@ -36,7 +36,7 @@ func highlightGuideBuilderDoesNotRetriggerTieStopContinuation() {
         input: PianoHighlightGuideBuildInput(score: score, steps: steps, noteSpans: spans)
     )
 
-    #expect(guides.filter { $0.kind == .trigger }.count == 1)
+    #expect(guides.count(where: { $0.kind == .trigger }) == 1)
     #expect(guides.first?.highlightedMIDINotes == [60])
 }
 

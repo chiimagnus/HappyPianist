@@ -124,6 +124,7 @@ struct MusicXMLStructureExpander {
 
         return spans
     }
+
     private func materializeExpandedScore(
         original: MusicXMLScore,
         primaryPartID: String,
@@ -204,7 +205,9 @@ struct MusicXMLStructureExpander {
                 )
             }
 
-            for event in original.tempoEvents where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick {
+            for event in original.tempoEvents
+                where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick
+            {
                 outputTempoEvents.append(MusicXMLTempoEvent(
                     tick: currentMeasureStartTick + (event.tick - span.startTick),
                     quarterBPM: event.quarterBPM,
@@ -251,32 +254,93 @@ struct MusicXMLStructureExpander {
                 ))
             }
 
-            for event in original.dynamicEvents where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick {
-                outputDynamicEvents.append(MusicXMLDynamicEvent(tick: currentMeasureStartTick + (event.tick - span.startTick), velocity: event.velocity, scope: shiftedScope(event.scope, primaryPartID: primaryPartID), source: event.source))
+            for event in original.dynamicEvents
+                where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick
+            {
+                outputDynamicEvents.append(MusicXMLDynamicEvent(
+                    tick: currentMeasureStartTick + (event.tick - span.startTick),
+                    velocity: event.velocity,
+                    scope: shiftedScope(event.scope, primaryPartID: primaryPartID),
+                    source: event.source
+                ))
             }
-            for event in original.wedgeEvents where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick {
-                outputWedgeEvents.append(MusicXMLWedgeEvent(tick: currentMeasureStartTick + (event.tick - span.startTick), kind: event.kind, numberToken: event.numberToken, scope: shiftedScope(event.scope, primaryPartID: primaryPartID)))
+            for event in original.wedgeEvents
+                where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick
+            {
+                outputWedgeEvents.append(MusicXMLWedgeEvent(
+                    tick: currentMeasureStartTick + (event.tick - span.startTick),
+                    kind: event.kind,
+                    numberToken: event.numberToken,
+                    scope: shiftedScope(event.scope, primaryPartID: primaryPartID)
+                ))
             }
-            for event in original.fermataEvents where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick {
-                outputFermataEvents.append(MusicXMLFermataEvent(tick: currentMeasureStartTick + (event.tick - span.startTick), scope: shiftedScope(event.scope, primaryPartID: primaryPartID), source: event.source))
+            for event in original.fermataEvents
+                where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick
+            {
+                outputFermataEvents.append(MusicXMLFermataEvent(
+                    tick: currentMeasureStartTick + (event.tick - span.startTick),
+                    scope: shiftedScope(event.scope, primaryPartID: primaryPartID),
+                    source: event.source
+                ))
             }
-            for event in original.slurEvents where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick {
-                outputSlurEvents.append(MusicXMLSlurEvent(tick: currentMeasureStartTick + (event.tick - span.startTick), kind: event.kind, numberToken: event.numberToken, scope: shiftedScope(event.scope, primaryPartID: primaryPartID)))
+            for event in original.slurEvents
+                where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick
+            {
+                outputSlurEvents.append(MusicXMLSlurEvent(
+                    tick: currentMeasureStartTick + (event.tick - span.startTick),
+                    kind: event.kind,
+                    numberToken: event.numberToken,
+                    scope: shiftedScope(event.scope, primaryPartID: primaryPartID)
+                ))
             }
-            for event in original.timeSignatureEvents where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick {
-                outputTimeSignatureEvents.append(MusicXMLTimeSignatureEvent(tick: currentMeasureStartTick + (event.tick - span.startTick), beats: event.beats, beatType: event.beatType, scope: shiftedScope(event.scope, primaryPartID: primaryPartID)))
+            for event in original.timeSignatureEvents
+                where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick
+            {
+                outputTimeSignatureEvents.append(MusicXMLTimeSignatureEvent(
+                    tick: currentMeasureStartTick + (event.tick - span.startTick),
+                    beats: event.beats,
+                    beatType: event.beatType,
+                    scope: shiftedScope(event.scope, primaryPartID: primaryPartID)
+                ))
             }
-            for event in original.keySignatureEvents where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick {
-                outputKeySignatureEvents.append(MusicXMLKeySignatureEvent(tick: currentMeasureStartTick + (event.tick - span.startTick), fifths: event.fifths, modeToken: event.modeToken, scope: shiftedScope(event.scope, primaryPartID: primaryPartID)))
+            for event in original.keySignatureEvents
+                where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick
+            {
+                outputKeySignatureEvents.append(MusicXMLKeySignatureEvent(
+                    tick: currentMeasureStartTick + (event.tick - span.startTick),
+                    fifths: event.fifths,
+                    modeToken: event.modeToken,
+                    scope: shiftedScope(event.scope, primaryPartID: primaryPartID)
+                ))
             }
-            for event in original.clefEvents where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick {
-                outputClefEvents.append(MusicXMLClefEvent(tick: currentMeasureStartTick + (event.tick - span.startTick), signToken: event.signToken, line: event.line, octaveChange: event.octaveChange, numberToken: event.numberToken, scope: shiftedScope(event.scope, primaryPartID: primaryPartID)))
+            for event in original.clefEvents
+                where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick
+            {
+                outputClefEvents.append(MusicXMLClefEvent(
+                    tick: currentMeasureStartTick + (event.tick - span.startTick),
+                    signToken: event.signToken,
+                    line: event.line,
+                    octaveChange: event.octaveChange,
+                    numberToken: event.numberToken,
+                    scope: shiftedScope(event.scope, primaryPartID: primaryPartID)
+                ))
             }
-            for event in original.wordsEvents where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick {
-                outputWordsEvents.append(MusicXMLWordsEvent(tick: currentMeasureStartTick + (event.tick - span.startTick), text: event.text, scope: shiftedScope(event.scope, primaryPartID: primaryPartID)))
+            for event in original.wordsEvents
+                where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick
+            {
+                outputWordsEvents.append(MusicXMLWordsEvent(
+                    tick: currentMeasureStartTick + (event.tick - span.startTick),
+                    text: event.text,
+                    scope: shiftedScope(event.scope, primaryPartID: primaryPartID)
+                ))
             }
 
-            outputMeasures.append(MusicXMLMeasureSpan(partID: primaryPartID, measureNumber: outputMeasureNumber, startTick: currentMeasureStartTick, endTick: currentMeasureStartTick + duration))
+            outputMeasures.append(MusicXMLMeasureSpan(
+                partID: primaryPartID,
+                measureNumber: outputMeasureNumber,
+                startTick: currentMeasureStartTick,
+                endTick: currentMeasureStartTick + duration
+            ))
 
             outputTick += duration
             outputMeasureNumber += 1
@@ -326,7 +390,6 @@ struct MusicXMLStructureExpander {
     private func shiftedScope(_ scope: MusicXMLEventScope, primaryPartID: String) -> MusicXMLEventScope {
         MusicXMLEventScope(partID: primaryPartID, staff: scope.staff, voice: scope.voice)
     }
-
 }
 
 extension MusicXMLStructureExpander {

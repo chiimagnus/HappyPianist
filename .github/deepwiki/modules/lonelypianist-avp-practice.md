@@ -12,8 +12,8 @@
 | `PianoHighlightParsedElementCoverageService` | 钢琴高亮解析元素覆盖服务，记录 MusicXML 各元素在 highlight 引导中的使用情况 | 影响 fallback 诊断和语义完整性 |
 | `PressDetectionService` | 指尖到键位的按键检测 | 影响手部输入准确性 |
 | `ChordAttemptAccumulator` | 和弦尝试匹配 | 影响多音 step 判定 |
-| `SoundFontPracticeNoteAudioPlayer` | 练习音色播放 | 影响试听 / autoplay |
-| `PracticeMIDINoteOutputProtocol` | note on/off 输出 | 影响可替换输出后端 |
+| `PracticeSequencerPlaybackServiceProtocol` | 练习音色播放（one-shot + sequencer） | 影响试听 / autoplay / manual replay |
+| `AVAudioSequencerPracticePlaybackService` | `AVAudioEngine + AVAudioUnitSampler + AVAudioSequencer` 的默认实现 | stop 行为与短促音风险点 |
 | `PianoGuideOverlayController` | RealityKit 空间光柱提示 | 影响当前 step 的可见 AR 引导 |
 
 ## 光柱引导实现
@@ -51,7 +51,10 @@ flowchart TD
 - 匹配成功会进入 correct feedback，并在 autoplay 关闭时推进下一步。
 - autoplay 由 `AutoplayPerformanceTimeline` 驱动，统一调度 note on/off、踏板、guide、step 和 fermata pause，基于 MusicXML 的真实播放时间线。
 - autoplay 强制检查前置条件：tempoMap、highlightGuides、pedalTimeline、fermataTimeline 均必须存在，否则显示 UI 错误提示并禁用自动播放。
-- `skip()` 可手动跳步。
+- Step 3 进入练习页后默认停在 `PracticeState.ready`（进度显示为 `0 / total`），不会自动播放第一声。
+- **第一次点击「下一步 / 下一节」才会开始练习**：`PracticeSessionViewModel.skip()` 在 `.ready` 时会调用 `startGuidingIfReady()`，把当前 step 置为第 1 步并播放该 step 音色。
+- 在 `.ready` 状态下会禁用「播放琴声 / 重播」按钮，避免“还没开始就重播当前步”的语义歧义。
+- `skip()` 在已开始后用于手动跳步（step 或 measure，取决于 `ManualAdvanceMode`）。
 - 当前 step 的每个 MIDI note 会被映射到对应 `PianoKeyGeometry.beamFootprintCenterLocal` / `surfaceLocalY`。
 - 光束位置/尺寸由 `PianoGuideBeamDescriptor` 统一描述，RealityKit 只负责按 descriptor diff 更新实体。
 - 光束材质颜色由 `VisualFeedbackState` 决定：none / correct / wrong 只允许轻微整体 tint 变化。
@@ -175,7 +178,7 @@ struct PianoHighlightGuideBuildInput {
 ## 调试抓手
 - `pressedNotes`
 - `feedbackState`
-- `autoplayHighlightedMIDINotes`
+- `currentPianoHighlightGuide?.highlightedMIDINotes`
 - `autoplayErrorMessage`：自动播放错误提示（如缺少 tempo、guide、pedal、fermata 等）
 - `audioErrorMessage`
 - `currentMusicXMLAttributeSummaryText`
@@ -194,7 +197,9 @@ struct PianoHighlightGuideBuildInput {
 | pedalTimeline | 无法自动播放：缺少踏板信息。请重新导入这份 MusicXML。 | pedal nil 时不允许播放 |
 | fermataTimeline | 无法自动播放：缺少延长停顿（fermata）信息。请重新导入这份 MusicXML。 | fermata nil 时不允许播放 |
 | 找不到 trigger guide | 无法自动播放：引导数据不一致（找不到当前步骤的触发点）。请重新导入这份 MusicXML。 | stepIndex 定位失败时 |
-| noteOutput | 无法自动播放：音频输出未就绪。请重启 App 或重新打开曲目。 | 输出能力缺失时 |
+| 播放服务 warm-up 失败 | 无法自动播放：音频服务初始化失败。 | sound font / engine 启动失败等 |
+| 构建 MIDI 序列失败 | 无法自动播放：构建 MIDI 序列失败。 | schedule/sequence builder 抛错 |
+| 播放服务启动失败 | 无法自动播放：播放服务启动失败。 | sequencer load/start 失败 |
 
 这些严格的前置条件确保了"宁可播不出来也不要播错"的原则，避免了 fallback 继续播放导致的语义错误。
 
@@ -240,3 +245,4 @@ struct PianoHighlightGuideBuildInput {
 ## 更新记录（Update Notes）
 - 2026-04-25: 引入 `PianoKeyboardGeometry` 作为统一几何真源，并将 RealityKit 引导从 cylinder 光柱迁移为单几何体四侧面 atlas 的暖金丁达尔光束。
 - 2026-04-28: 新增 `AutoplayPerformanceTimeline` 统一自动播放调度；新增 `PianoHighlightGuideBuilderService` 优化高亮引导构建；新增 `PianoHighlightParsedElementCoverageService` 用于诊断；实现 strict autoplay prerequisites 和 UI 错误提示；修复音频识别相关问题；新增 `Fallbacks.md` 专题页面。
+- 2026-04-29: 同步 Step 3 练习页进入不自动开始（`ready` -> 点击下一步才开始）与进度显示语义；更正练习音频后端对象名为 `PracticeSequencerPlaybackServiceProtocol` / `AVAudioSequencerPracticePlaybackService`。

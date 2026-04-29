@@ -135,7 +135,7 @@ flowchart TD
 
 ## 调试抓手
 - macOS：`statusMessage`、`recentLogs`、`previewText`
-- AVP：`practiceLocalizationStatusText`、`calibrationStatusMessage`、`currentListeningEntryID`、`autoplayHighlightedMIDINotes`、`autoplayErrorMessage`
+- AVP：`practiceLocalizationStatusText`、`calibrationStatusMessage`、`currentListeningEntryID`、`currentPianoHighlightGuide?.highlightedMIDINotes`、`autoplayErrorMessage`
 - RealityKit 光束：`activeBeamEntitiesByMIDINote`、`PianoGuideBeamDescriptor`、`PianoKeyboardGeometry.frame.keyboardFromWorld`
 - Guide 构建：`PianoHighlightGuideBuilderService.buildGuides` 输入和输出、`PianoHighlightParsedElementCoverageService.allCoverages()`
 - AutoplayPerformanceTimeline：事件序列、tick 排序、优先级处理
@@ -152,3 +152,4 @@ flowchart TD
 - 2026-04-25: 增补 PR Tests / Swift Quality 数据流，并将 AVP 空间提示从 key regions + cylinder 光柱更新为 keyboard geometry + four-side atlas prism beams。
 - 2026-04-26: 同步 Step 1 校准的 A0/C8 手势分工（左右手输入与捏合确认切换）。
 - 2026-04-28: 反映 pr-tests.yml workflow 已删除；新增 `AutoplayPerformanceTimeline` 数据流；新增 Guide 构建流程；更新 autoplay 前置检查和失败恢复；添加音频识别调试抓手。
+- 2026-04-29: 修正 AVP 调试抓手中高亮 note 集合的真实来源为 `currentPianoHighlightGuide?.highlightedMIDINotes`（移除过期字段名）。

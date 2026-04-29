@@ -4,7 +4,9 @@ enum ManualAdvanceMode: String, CaseIterable, Identifiable {
     case step
     case measure
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var title: String {
         switch self {

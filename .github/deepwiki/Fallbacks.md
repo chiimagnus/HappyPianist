@@ -69,8 +69,8 @@
   - UI 提示（示例文案）：`无法自动播放：引导数据不一致（找不到当前步骤的触发点）。请重新导入这份 MusicXML。`
 
 - **F-Audio-01：`noteOutput` 未显式注入时，尝试从 `noteAudioPlayer` 推断**  
-  这条不一定会“播错”，但会掩盖依赖注入/组装遗漏。策略 A 下更推荐：自动播放必须显式具备输出能力（缺就提示），而不是“猜一个出来继续跑”。
-  - UI 提示（示例文案）：`无法自动播放：音频输出未就绪。请重启 App 或重新打开曲目。`
+  这条不一定会“播错”，但会掩盖依赖注入/组装遗漏。策略 A 下更推荐：自动播放的播放后端必须显式可用（初始化失败就直接报错），而不是“猜一个出来继续跑”。
+  - UI 提示（示例文案）：`无法自动播放：音频服务初始化失败。`
 
 ### ⚠️ 不算“内部链路缺数据”，一般不建议消灭
 
@@ -184,11 +184,13 @@
 
 ### F-Audio-01：`noteOutput` 未显式注入时，尝试从 `noteAudioPlayer` 推断
 
-- 状态：**已完全消灭（策略 A）**。不再从 `noteAudioPlayer` “猜”出 `noteOutput`（推断分支已删除）。
+- 状态：**已完全消灭（策略 A）**。不再存在从某个播放器“推断音频输出后端”的分支；练习音频后端固定由 `PracticeSequencerPlaybackServiceProtocol` 提供（默认实现为 `AVAudioSequencerPracticePlaybackService`）。
 - 现在的行为（用户视角）：
   - 自动播放不会启动；
-  - 会弹出提示：`无法自动播放：音频输出未就绪。请重启 App 或重新打开曲目。`
-- 工程位置（给工程师核对用）：`LonelyPianistAVP/ViewModels/PracticeSessionViewModel.swift`
+  - 会弹出提示：`无法自动播放：音频服务初始化失败。`（或更具体的 sound font / engine 错误信息）
+- 工程位置（给工程师核对用）：
+  - `LonelyPianistAVP/Services/Audio/PracticeSequencerPlaybackService.swift`
+  - `LonelyPianistAVP/ViewModels/PracticeSession/PracticeSessionViewModel+Autoplay.swift`
 
 ### F-Step3-01：音频识别性能/错误触发的“fallbackReason”
 
@@ -206,3 +208,6 @@
 
 如果你希望把这类风险进一步压低，最直接的策略是：
 - 尽量保证生产路径总是传入由 `PianoHighlightGuideBuilderService.buildGuides(...)` 生成的 guides（而不是空数组触发 fallback）。
+
+## 更新记录（Update Notes）
+- 2026-04-29: 更新音频输出相关条目（F-Audio-01）以匹配当前 sequencer 播放后端与实际错误提示（移除过期的“音频输出未就绪”文案）。

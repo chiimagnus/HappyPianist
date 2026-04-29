@@ -153,4 +153,3 @@ private func makeGeometry(for midiNotes: [Int]) -> PianoKeyboardGeometry {
 
     return PianoKeyboardGeometry(frame: frame, keys: keys)
 }
-

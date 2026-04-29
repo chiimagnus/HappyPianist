@@ -54,8 +54,18 @@ struct PianoHighlightGuideBuilderService {
                 let baseOnTick = step.tick + stepNote.onTickOffset
                 let staff = stepNote.staff ?? 1
                 let voice = stepNote.voice ?? 1
-                let source = sourceNotesByKey[SourceNoteKey(midiNote: stepNote.midiNote, staff: staff, voice: voice, tick: baseOnTick)]
-                    ?? sourceNotesByKey[SourceNoteKey(midiNote: stepNote.midiNote, staff: staff, voice: voice, tick: step.tick)]
+                let source = sourceNotesByKey[SourceNoteKey(
+                    midiNote: stepNote.midiNote,
+                    staff: staff,
+                    voice: voice,
+                    tick: baseOnTick
+                )]
+                    ?? sourceNotesByKey[SourceNoteKey(
+                        midiNote: stepNote.midiNote,
+                        staff: staff,
+                        voice: voice,
+                        tick: step.tick
+                    )]
                 let attackTicks = source?.attackTicks ?? 0
                 let spanOnTickCandidates = [
                     baseOnTick,
@@ -66,7 +76,12 @@ struct PianoHighlightGuideBuilderService {
                 var span: MusicXMLNoteSpan?
                 for candidateTick in spanOnTickCandidates {
                     if span != nil { break }
-                    span = spanByKey[SpanKey(midiNote: stepNote.midiNote, staff: staff, voice: voice, onTick: candidateTick)]
+                    span = spanByKey[SpanKey(
+                        midiNote: stepNote.midiNote,
+                        staff: staff,
+                        voice: voice,
+                        onTick: candidateTick
+                    )]
                 }
                 let resolvedVoice = source?.voice ?? voice
                 let onTick = span?.onTick ?? baseOnTick
@@ -121,13 +136,12 @@ struct PianoHighlightGuideBuilderService {
                 return lhs.occurrenceID < rhs.occurrenceID
             }
 
-            let kind: PianoHighlightGuideKind
-            if triggers.isEmpty == false {
-                kind = .trigger
+            let kind: PianoHighlightGuideKind = if triggers.isEmpty == false {
+                .trigger
             } else if releases.isEmpty == false {
-                kind = activeNotes.isEmpty ? .gap : .release
+                activeNotes.isEmpty ? .gap : .release
             } else {
-                kind = .gap
+                .gap
             }
 
             let nextTick = sortedTicks.indices.contains(tickIndex + 1) ? sortedTicks[tickIndex + 1] : nil

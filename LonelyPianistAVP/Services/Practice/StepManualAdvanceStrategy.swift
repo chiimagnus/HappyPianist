@@ -9,6 +9,6 @@ struct StepManualAdvanceStrategy: ManualAdvanceStrategyProtocol {
 
     func replayPlan(in context: ManualAdvanceContext) -> ManualReplayPlan? {
         guard context.steps.indices.contains(context.currentStepIndex) else { return nil }
-        return ManualReplayPlan(stepRange: context.currentStepIndex..<(context.currentStepIndex + 1))
+        return ManualReplayPlan(stepRange: context.currentStepIndex ..< (context.currentStepIndex + 1))
     }
 }

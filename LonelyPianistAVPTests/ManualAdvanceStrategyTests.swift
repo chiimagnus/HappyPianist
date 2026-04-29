@@ -83,11 +83,20 @@ func appModelPassesMeasureSpansToPracticeSession() {
 }
 
 private struct ManualAdvanceNoopPressDetectionService: PressDetectionServiceProtocol {
-    func detectPressedNotes(fingerTips _: [String: SIMD3<Float>], keyboardGeometry _: PianoKeyboardGeometry?, at _: Date) -> Set<Int> { [] }
+    func detectPressedNotes(
+        fingerTips _: [String: SIMD3<Float>],
+        keyboardGeometry _: PianoKeyboardGeometry?,
+        at _: Date
+    ) -> Set<Int> {
+        []
+    }
 }
 
 private final class ManualAdvanceNoopChordAttemptAccumulator: ChordAttemptAccumulatorProtocol {
-    func register(pressedNotes _: Set<Int>, expectedNotes _: [Int], tolerance _: Int, at _: Date) -> Bool { false }
+    func register(pressedNotes _: Set<Int>, expectedNotes _: [Int], tolerance _: Int, at _: Date) -> Bool {
+        false
+    }
+
     func reset() {}
 }
 
@@ -96,7 +105,9 @@ private final class ManualAdvanceNoopPlaybackService: PracticeSequencerPlaybackS
     func stop() {}
     func load(sequence _: PracticeSequencerSequence) throws {}
     func play(fromSeconds _: TimeInterval) throws {}
-    func currentSeconds() -> TimeInterval { 0 }
+    func currentSeconds() -> TimeInterval {
+        0
+    }
 
     func playOneShot(midiNotes _: [Int], durationSeconds _: TimeInterval) throws {}
 }

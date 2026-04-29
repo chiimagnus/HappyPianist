@@ -4,7 +4,7 @@ import Testing
 @Test
 func parsedElementCoverageClassifiesAllKnownNoteEventFields() {
     let fields = Set(PianoHighlightParsedElementCoverageService().noteEventCoverages().map(\.field))
-    let expected: Set<String> = [
+    let expected: Set = [
         "MusicXMLNoteEvent.partID",
         "MusicXMLNoteEvent.measureNumber",
         "MusicXMLNoteEvent.tick",
@@ -35,7 +35,7 @@ func parsedElementCoverageClassifiesScoreAndSpanFields() {
     let service = PianoHighlightParsedElementCoverageService()
     let coverages = service.scoreCoverages() + service.noteSpanCoverages()
     let fields = Set(coverages.map(\.field))
-    let expected: Set<String> = [
+    let expected: Set = [
         "MusicXMLScore.notes",
         "MusicXMLScore.tempoEvents",
         "MusicXMLScore.soundDirectives",

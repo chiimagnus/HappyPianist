@@ -14,6 +14,7 @@
 | `MIDIEvent` | macOS 统一输入模型 |
 | `DialogueNote` | Swift 和 Python 共享的音符契约 |
 | `PracticeStep` | AVP 练习推进单元 |
+| `PracticeState` | AVP Step 3 练习状态机：`idle`（无 steps）、`ready`（已就绪但未开始）、`guiding`（引导中）、`completed`（完成） |
 | `DataProviderState` | AR tracking provider 的运行状态 |
 | `KeyboardFrame` | 从 A0/C8 推导的键盘局部坐标系（A0 为原点，+X 指向 C8） |
 | `frontEdgeToKeyCenterLocalZ` | 在 keyboard-local 中，前沿线（z=0）到按键中心线的 Z 偏移（通常为 ±keyDepth/2） |

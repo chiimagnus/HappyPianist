@@ -1,7 +1,7 @@
 import Foundation
 
-nonisolated struct AutoplayPerformanceTimeline: Equatable, Sendable {
-    enum EventKind: Equatable, Sendable {
+nonisolated struct AutoplayPerformanceTimeline: Equatable {
+    enum EventKind: Equatable {
         case pauseSeconds(TimeInterval)
         case noteOff(midi: Int)
         case pedalDown
@@ -11,7 +11,7 @@ nonisolated struct AutoplayPerformanceTimeline: Equatable, Sendable {
         case advanceGuide(index: Int, guideID: Int)
     }
 
-    struct Event: Equatable, Identifiable, Sendable {
+    struct Event: Equatable, Identifiable {
         let id: Int
         let tick: Int
         let kind: EventKind
@@ -19,17 +19,17 @@ nonisolated struct AutoplayPerformanceTimeline: Equatable, Sendable {
         var sortPriority: Int {
             switch kind {
                 case .pauseSeconds:
-                    return 0
+                    0
                 case .noteOff:
-                    return 1
+                    1
                 case .pedalDown, .pedalUp:
-                    return 2
+                    2
                 case .noteOn:
-                    return 3
+                    3
                 case .advanceStep:
-                    return 4
+                    4
                 case .advanceGuide:
-                    return 5
+                    5
             }
         }
     }
@@ -52,7 +52,7 @@ nonisolated struct AutoplayPerformanceTimeline: Equatable, Sendable {
         return low
     }
 
-    static func build(
+    @MainActor static func build(
         guides: [PianoHighlightGuide],
         steps: [PracticeStep],
         pedalTimeline: MusicXMLPedalTimeline,
@@ -71,7 +71,11 @@ nonisolated struct AutoplayPerformanceTimeline: Equatable, Sendable {
         }
 
         for interval in normalizedNoteIntervals(from: guides) {
-            rawEvents.append((tick: interval.onTick, priority: 3, kind: .noteOn(midi: interval.midi, velocity: interval.velocity)))
+            rawEvents.append((
+                tick: interval.onTick,
+                priority: 3,
+                kind: .noteOn(midi: interval.midi, velocity: interval.velocity)
+            ))
             rawEvents.append((tick: interval.offTick, priority: 1, kind: .noteOff(midi: interval.midi)))
         }
 
@@ -183,19 +187,19 @@ nonisolated struct AutoplayPerformanceTimeline: Equatable, Sendable {
     private static func eventTieBreaker(_ kind: EventKind) -> String {
         switch kind {
             case let .noteOff(midi):
-                return "noteOff-\(midi)"
+                "noteOff-\(midi)"
             case let .noteOn(midi, velocity):
-                return "noteOn-\(midi)-\(velocity)"
+                "noteOn-\(midi)-\(velocity)"
             case let .advanceStep(index):
-                return "advanceStep-\(index)"
+                "advanceStep-\(index)"
             case let .advanceGuide(index, guideID):
-                return "advanceGuide-\(index)-\(guideID)"
+                "advanceGuide-\(index)-\(guideID)"
             case .pedalDown:
-                return "pedal-1-down"
+                "pedal-1-down"
             case .pedalUp:
-                return "pedal-0-up"
+                "pedal-0-up"
             case let .pauseSeconds(seconds):
-                return "pause-\(seconds)"
+                "pause-\(seconds)"
         }
     }
 }

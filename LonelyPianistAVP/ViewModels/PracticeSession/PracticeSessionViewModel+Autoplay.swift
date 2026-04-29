@@ -47,7 +47,7 @@ extension PracticeSessionViewModel {
                                 initialSustainPedalDown: initialSustainPedalDown,
                                 leadInSeconds: leadInSeconds
                             )
-                            continuation.resume(returning: try builder.buildSequence(from: schedule))
+                            try continuation.resume(returning: builder.buildSequence(from: schedule))
                         } catch {
                             continuation.resume(throwing: error)
                         }
@@ -118,8 +118,8 @@ extension PracticeSessionViewModel {
                 sequencerPlaybackService.stop()
             }
 
-            guard self.autoplayTaskGeneration == generation else { return }
-            self.autoplayTask = nil
+            guard autoplayTaskGeneration == generation else { return }
+            autoplayTask = nil
         }
     }
 
@@ -166,8 +166,8 @@ extension PracticeSessionViewModel {
         )
     }
 
-    private struct AutoplayTimelinePedalTimeCursor: Equatable, Sendable {
-        private struct TimedPedal: Equatable, Sendable {
+    private struct AutoplayTimelinePedalTimeCursor: Equatable {
+        private struct TimedPedal: Equatable {
             let timeSeconds: TimeInterval
             let isDown: Bool
         }
@@ -200,7 +200,8 @@ extension PracticeSessionViewModel {
                     case .pedalDown:
                         scheduled.append(
                             TimedPedal(
-                                timeSeconds: tickToSeconds(event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
+                                timeSeconds: tickToSeconds(event.tick) - baseSeconds + pausePrefixSeconds +
+                                    leadInSeconds,
                                 isDown: true
                             )
                         )
@@ -208,7 +209,8 @@ extension PracticeSessionViewModel {
                     case .pedalUp:
                         scheduled.append(
                             TimedPedal(
-                                timeSeconds: tickToSeconds(event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
+                                timeSeconds: tickToSeconds(event.tick) - baseSeconds + pausePrefixSeconds +
+                                    leadInSeconds,
                                 isDown: false
                             )
                         )

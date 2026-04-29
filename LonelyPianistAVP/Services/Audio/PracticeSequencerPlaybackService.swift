@@ -2,14 +2,9 @@ import AudioToolbox
 import AVFAudio
 import Foundation
 
-nonisolated struct PracticeSequencerSequence: Sendable {
+nonisolated struct PracticeSequencerSequence {
     let midiData: Data
     let durationSeconds: TimeInterval
-
-    init(midiData: Data, durationSeconds: TimeInterval) {
-        self.midiData = midiData
-        self.durationSeconds = durationSeconds
-    }
 }
 
 @MainActor
@@ -116,7 +111,7 @@ final class AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackSe
             guard let self else { return }
             try? await Task.sleep(for: .seconds(max(0, durationSeconds)))
             guard Task.isCancelled == false else { return }
-            self.stopOneShotNotes()
+            stopOneShotNotes()
         }
     }
 

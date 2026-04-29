@@ -1,11 +1,11 @@
-@testable import LonelyPianistAVP
 import Foundation
+@testable import LonelyPianistAVP
 import Testing
 
 private let defaultTempoScope = MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
 
 @Test
-func manualReplayBuilderInsertsAllNotesOffAtEachStepStart() async {
+func manualReplayBuilderInsertsAllNotesOffAtEachStepStart() {
     let tempoMap = MusicXMLTempoMap(
         tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope)]
     )
@@ -28,4 +28,3 @@ func manualReplayBuilderInsertsAllNotesOffAtEachStepStart() async {
     #expect(abs(allNotesOffEvents[0].timeSeconds - 0.0) < 1e-9)
     #expect(abs(allNotesOffEvents[1].timeSeconds - 0.125) < 1e-9)
 }
-

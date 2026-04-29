@@ -46,9 +46,9 @@
 
 排查过程中出现大量：
 
-- `audio service stopped by lifecycle`
+- `audio service stopped`
 
-这是 `PracticeSessionViewModel.stopAudioRecognition()` 的 debug log（音频识别服务 stop），在状态切换（autoplay / manual replay / 不满足 guiding 条件）时会频繁触发，**不等价于音频播放 stop**，容易造成误判。
+这是 `PracticeSessionViewModel.stopAudioRecognition()` 的 debug log（音频识别服务 stop），在状态切换（autoplay / manual replay / 不满足 guiding 条件）时可能触发，**不等价于音频播放 stop**，容易造成误判。自 2026-04-29 起该日志只会在识别服务确实处于 running 时才打印，以降低噪声。
 
 另一个常见噪声是 RemoteIO 相关错误（例如 `AURemoteIO ... -10851 ... 0 Hz`），这表示音频识别引擎启动失败（输入格式/会话状态异常等），可能导致识别侧反复启停，但与本次“下一步短促音”的最终根因不同。
 
@@ -57,3 +57,5 @@
 - “跳步时先 stop 一下”这类保护逻辑要非常克制：**stop 往往不仅仅是停止 transport，还会隐含发送 all-notes-off / reset**。
 - 当同一个声音在两个按钮上表现不同，优先对比两条路径里“额外的 stop / reset / 清音”步骤。
 
+## 更新记录（Update Notes）
+- 2026-04-29: 同步 `stopAudioRecognition()` 的日志降噪：只在 running→stopped 时记录 `audio service stopped`，避免把“识别服务 stop”误读为“播放 stop”。

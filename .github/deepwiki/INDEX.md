@@ -116,3 +116,4 @@
 - 2026-04-26: 修复模块页内部链接断链；补齐 `.github/deepwiki/assets/` 占位；刷新 `GENERATION.md` 的 commit/branch/时间；同步 Step 1 校准引导式流程文档。
 - 2026-04-26: 同步 Step 1 校准的 A0/C8 手势分工、reticle 稳定阈值（5mm）、完成页”重新校准”入口与沉浸空间 overlay 精简。
 - 2026-04-28: 反映 pr-tests.yml workflow 已删除；新增 Fallbacks.md 专题页面；更新自动化事实和 Coverage Gaps。
+- 2026-04-29: 同步 Step 3 进入不自动开始（`ready` -> 点击下一步才开始）与音频识别 stop 日志降噪；扩充 AVP 音频排障入口。

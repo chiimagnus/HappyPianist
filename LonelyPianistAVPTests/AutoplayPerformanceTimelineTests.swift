@@ -1,5 +1,5 @@
-import Testing
 @testable import LonelyPianistAVP
+import Testing
 
 @Test
 func autoplayTimelineUsesGuidesForNoteOnOffAndGuideAdvance() {
@@ -103,7 +103,6 @@ func autoplayTimelineRearticulatesOverlappingSameMIDINoteAtNextOnTick() {
     #expect(midiEvents == ["on:60@0", "off:60@240", "on:60@240", "off:60@720"])
 }
 
-
 @Test
 func autoplayTimelineKeepsZeroDurationGuideNotesReleasable() {
     let guide = makeTimelineGuide(
@@ -186,6 +185,7 @@ func autoplayTimelineEmitsReleaseAndRedownForSameTickPedalChange() {
 
     #expect(pedalEventsAtReleaseTick == ["up", "down"])
 }
+
 private func makeTimelineGuide(id: Int, tick: Int, notes: [PianoHighlightNote]) -> PianoHighlightGuide {
     PianoHighlightGuide(
         id: id,

@@ -8,6 +8,7 @@
 | Step 3 定位失败 | `practiceLocalizationStatusText` | 校准缺失 / provider 未运行 |
 | 曲库能看到但不能练习 | 曲库与步骤生成 | MusicXML 没生成 steps |
 | 试听没声音 | 曲库音频绑定 / 播放器 | 音频文件缺失或不可播 |
+| Step 3 点击「下一步」声音短促 | `modules/lonelypianist-avp-practice-audio.md` | 多余 stop + all-notes-off 竞态截断 note |
 | PR Tests 没触发 | PR changed files / path filters | 改动路径未匹配 `pr-tests.yml` |
 | macOS tests package graph 失败 | Actions log 的 `Resolve Package Graph` | runner 不是 `macos-26`，Swift tools 6.2 不匹配 |
 | AVP tests 很久才结束 | `Run AVP tests` step | visionOS simulator 启动和测试会比 macOS 慢 |
@@ -25,6 +26,15 @@
 3. 若定位失败，优先看 provider state / anchor 状态。
 4. 若光束位置/高度异常，检查 `PianoGuideBeamDescriptor`、`PianoKeyboardGeometry.frame.keyboardFromWorld` 和 debug axes。
 5. 若 CI 找不到 simulator destination，先在日志或本地跑 `xcodebuild -showdestinations -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP`。
+6. 若看到大量音频相关 stop/start 日志，先区分“识别服务”与“播放服务”（见下方常见音频日志）。
+
+### 常见音频日志（AVP）
+
+| 日志片段 | 来自哪里 | 含义 | 优先动作 |
+| --- | --- | --- | --- |
+| `audio service stopped` | `PracticeSessionViewModel.stopAudioRecognition()` | 练习音频识别服务 stop（不是播放 stop） | 观察触发时机：是否切换 autoplay、manual replay、或离开 guiding |
+| `audio service failed start generation=...` | `PracticeSessionViewModel.refreshAudioRecognitionForCurrentState()` | 识别引擎启动失败（麦克风/会话/格式问题） | 先检查系统麦克风权限，再看 `audioRecognitionStatus` / error message |
+| `AURemoteIO ... -10851 ... 0 Hz` | iOS/visionOS 音频底层 | 输入/输出格式或会话状态异常导致 RemoteIO 启动失败 | 先按“识别引擎启动失败”路径排查；必要时重启 App/Simulator |
 
 ## Python 排查
 1. `curl -s http://127.0.0.1:8765/health`
@@ -58,3 +68,4 @@
 
 ## 更新记录（Update Notes）
 - 2026-04-25: 增补 PR Tests、AVP simulator、Swift tools 6.2、Swift Quality，并将光柱排查更新为丁达尔光束（keyboard geometry + atlas）。
+- 2026-04-29: 增补 AVP 常见音频日志释义；新增「下一步短促音」症状入口并路由到排查记录页。

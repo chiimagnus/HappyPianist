@@ -1,8 +1,8 @@
 import AudioToolbox
 import Foundation
 
-nonisolated struct PracticeSequencerMIDIEvent: Equatable, Sendable {
-    enum Kind: Equatable, Sendable {
+nonisolated struct PracticeSequencerMIDIEvent: Equatable {
+    enum Kind: Equatable {
         case noteOn(midi: Int, velocity: UInt8)
         case noteOff(midi: Int)
         case controlChange(controller: UInt8, value: UInt8)
@@ -12,7 +12,7 @@ nonisolated struct PracticeSequencerMIDIEvent: Equatable, Sendable {
     let kind: Kind
 }
 
-nonisolated enum PracticeSequencerSequenceBuilderError: LocalizedError, Equatable, Sendable {
+nonisolated enum PracticeSequencerSequenceBuilderError: LocalizedError, Equatable {
     case musicSequenceCreateFailed
     case musicTrackCreateFailed(status: OSStatus)
     case tempoTrackMissing
@@ -35,7 +35,7 @@ nonisolated enum PracticeSequencerSequenceBuilderError: LocalizedError, Equatabl
     }
 }
 
-nonisolated struct PracticeSequencerSequenceBuilder: Sendable {
+nonisolated struct PracticeSequencerSequenceBuilder {
     private let midiChannel: UInt8
 
     init(midiChannel: UInt8 = 0) {
@@ -78,7 +78,8 @@ nonisolated struct PracticeSequencerSequenceBuilder: Sendable {
                 case let .noteOff(midi):
                     schedule.append(
                         PracticeSequencerMIDIEvent(
-                            timeSeconds: tempoMap.timeSeconds(atTick: event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
+                            timeSeconds: tempoMap
+                                .timeSeconds(atTick: event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
                             kind: .noteOff(midi: midi)
                         )
                     )
@@ -86,7 +87,8 @@ nonisolated struct PracticeSequencerSequenceBuilder: Sendable {
                 case .pedalDown:
                     schedule.append(
                         PracticeSequencerMIDIEvent(
-                            timeSeconds: tempoMap.timeSeconds(atTick: event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
+                            timeSeconds: tempoMap
+                                .timeSeconds(atTick: event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
                             kind: .controlChange(controller: 64, value: 127)
                         )
                     )
@@ -94,7 +96,8 @@ nonisolated struct PracticeSequencerSequenceBuilder: Sendable {
                 case .pedalUp:
                     schedule.append(
                         PracticeSequencerMIDIEvent(
-                            timeSeconds: tempoMap.timeSeconds(atTick: event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
+                            timeSeconds: tempoMap
+                                .timeSeconds(atTick: event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
                             kind: .controlChange(controller: 64, value: 0)
                         )
                     )
@@ -102,7 +105,8 @@ nonisolated struct PracticeSequencerSequenceBuilder: Sendable {
                 case let .noteOn(midi, velocity):
                     schedule.append(
                         PracticeSequencerMIDIEvent(
-                            timeSeconds: tempoMap.timeSeconds(atTick: event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
+                            timeSeconds: tempoMap
+                                .timeSeconds(atTick: event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
                             kind: .noteOn(midi: midi, velocity: velocity)
                         )
                     )
@@ -179,7 +183,7 @@ nonisolated struct PracticeSequencerSequenceBuilder: Sendable {
     private func midiChannelMessage(for kind: PracticeSequencerMIDIEvent.Kind) -> MIDIChannelMessage {
         switch kind {
             case let .noteOn(midi, velocity):
-                return MIDIChannelMessage(
+                MIDIChannelMessage(
                     status: UInt8(0x90 | midiChannel),
                     data1: UInt8(clamping: midi),
                     data2: velocity,
@@ -187,7 +191,7 @@ nonisolated struct PracticeSequencerSequenceBuilder: Sendable {
                 )
 
             case let .noteOff(midi):
-                return MIDIChannelMessage(
+                MIDIChannelMessage(
                     status: UInt8(0x80 | midiChannel),
                     data1: UInt8(clamping: midi),
                     data2: 0,
@@ -195,7 +199,7 @@ nonisolated struct PracticeSequencerSequenceBuilder: Sendable {
                 )
 
             case let .controlChange(controller, value):
-                return MIDIChannelMessage(
+                MIDIChannelMessage(
                     status: UInt8(0xB0 | midiChannel),
                     data1: controller,
                     data2: value,
@@ -218,11 +222,11 @@ nonisolated struct PracticeSequencerSequenceBuilder: Sendable {
     private func tieBreaker(_ kind: PracticeSequencerMIDIEvent.Kind) -> String {
         switch kind {
             case let .noteOn(midi, velocity):
-                return "on-\(midi)-\(velocity)"
+                "on-\(midi)-\(velocity)"
             case let .noteOff(midi):
-                return "off-\(midi)"
+                "off-\(midi)"
             case let .controlChange(controller, value):
-                return "cc-\(controller)-\(value)"
+                "cc-\(controller)-\(value)"
         }
     }
 }
