@@ -10,6 +10,7 @@ final class AppServices {
     let stepBuilder: PracticeStepBuilderProtocol
     let arTrackingService: ARTrackingServiceProtocol
     let calibrationCaptureService: CalibrationPointCaptureService
+    let practicePreparationService: PracticePreparationServiceProtocol
 
     init(
         worldAnchorCalibrationStore: WorldAnchorCalibrationStoreProtocol? = nil,
@@ -18,7 +19,8 @@ final class AppServices {
         parser: MusicXMLParserProtocol? = nil,
         stepBuilder: PracticeStepBuilderProtocol? = nil,
         arTrackingService: ARTrackingServiceProtocol? = nil,
-        calibrationCaptureService: CalibrationPointCaptureService? = nil
+        calibrationCaptureService: CalibrationPointCaptureService? = nil,
+        practicePreparationService: PracticePreparationServiceProtocol? = nil
     ) {
         self.worldAnchorCalibrationStore = worldAnchorCalibrationStore ?? WorldAnchorCalibrationStore()
         self.keyGeometryService = keyGeometryService ?? PianoKeyGeometryService()
@@ -27,5 +29,7 @@ final class AppServices {
         self.stepBuilder = stepBuilder ?? PracticeStepBuilder()
         self.arTrackingService = arTrackingService ?? ARTrackingService()
         self.calibrationCaptureService = calibrationCaptureService ?? CalibrationPointCaptureService()
+        self.practicePreparationService = practicePreparationService
+            ?? PracticePreparationService(parser: self.parser, stepBuilder: self.stepBuilder)
     }
 }
