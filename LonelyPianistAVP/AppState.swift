@@ -35,7 +35,6 @@ class AppState {
 
     var importedFile: ImportedMusicXMLFile?
     var importedSteps: [PracticeStep] = []
-    var importedMeasureSpans: [MusicXMLMeasureSpan] = []
     var importErrorMessage: String?
 
     var storedCalibration: StoredWorldAnchorCalibration?
@@ -96,7 +95,6 @@ class AppState {
 
     func setImportedSteps(from prepared: PreparedPractice) {
         importedSteps = prepared.steps
-        importedMeasureSpans = prepared.measureSpans
         importedFile = prepared.file
         importErrorMessage = nil
         onStepsImported?(prepared)
