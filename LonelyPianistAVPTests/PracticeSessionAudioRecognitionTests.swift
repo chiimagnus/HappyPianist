@@ -184,7 +184,15 @@ func suppressWindowBlocksThenAllowsAdvance() async {
     )
     viewModel.startGuidingIfReady()
     await settleTaskQueue()
-    let generation = fakeService.startCalls.first?.generation ?? 0
+    guard let startCall = fakeService.startCalls.first else {
+        #expect(Bool(false), "Expected audio recognition to start")
+        return
+    }
+    guard let suppressUntil = startCall.suppressUntil else {
+        #expect(Bool(false), "Expected suppressUntil to be set")
+        return
+    }
+    let generation = startCall.generation
 
     fakeService.emitEvent(
         DetectedNoteEvent(
@@ -192,7 +200,7 @@ func suppressWindowBlocksThenAllowsAdvance() async {
             confidence: 0.9,
             onsetScore: 0.8,
             isOnset: true,
-            timestamp: Date(),
+            timestamp: suppressUntil.addingTimeInterval(-0.1),
             generation: generation,
             source: .audio
         )
@@ -206,7 +214,7 @@ func suppressWindowBlocksThenAllowsAdvance() async {
             confidence: 0.9,
             onsetScore: 0.8,
             isOnset: true,
-            timestamp: Date().addingTimeInterval(0.8),
+            timestamp: suppressUntil.addingTimeInterval(0.2),
             generation: generation,
             source: .audio
         )
