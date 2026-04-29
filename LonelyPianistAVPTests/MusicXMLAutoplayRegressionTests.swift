@@ -3,7 +3,6 @@ import Foundation
 import simd
 import Testing
 
-
 @Test
 func realScoreAutoplayTimelineKeepsNoteOnAndGuideAdvanceSynchronized() throws {
     let model = try makeAutoplayRegressionModel()
@@ -68,10 +67,16 @@ private final class RegressionCapturingSequencerPlaybackService: PracticeSequenc
     private(set) var stopCount = 0
 
     func warmUp() throws {}
-    func stop() { stopCount += 1 }
+    func stop() {
+        stopCount += 1
+    }
+
     func load(sequence _: PracticeSequencerSequence) throws {}
     func play(fromSeconds _: TimeInterval) throws {}
-    func currentSeconds() -> TimeInterval { 0 }
+    func currentSeconds() -> TimeInterval {
+        0
+    }
+
     func playOneShot(midiNotes _: [Int], durationSeconds _: TimeInterval) throws {}
 }
 

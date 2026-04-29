@@ -60,9 +60,10 @@ func guidingStartsAudioRecognitionService() async {
     UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
     let fakeService = FakePracticeAudioRecognitionService()
     let viewModel = makeViewModel(audioRecognitionService: fakeService)
-    viewModel.setSteps([
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-    ],
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+        ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
 
@@ -79,10 +80,11 @@ func switchingStepUpdatesGenerationAndExpectedNotes() async {
     UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
     let fakeService = FakePracticeAudioRecognitionService()
     let viewModel = makeViewModel(audioRecognitionService: fakeService)
-    viewModel.setSteps([
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-        PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
-    ],
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+            PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
+        ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
 
@@ -103,10 +105,11 @@ func staleGenerationEventDoesNotAdvanceStep() async {
     UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
     let fakeService = FakePracticeAudioRecognitionService()
     let viewModel = makeViewModel(audioRecognitionService: fakeService)
-    viewModel.setSteps([
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-        PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
-    ],
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+            PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
+        ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
 
@@ -136,10 +139,11 @@ func matchingAudioEventAdvancesStep() async {
     UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
     let fakeService = FakePracticeAudioRecognitionService()
     let viewModel = makeViewModel(audioRecognitionService: fakeService)
-    viewModel.setSteps([
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-        PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
-    ],
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+            PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
+        ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
 
@@ -176,10 +180,11 @@ func suppressWindowBlocksThenAllowsAdvance() async {
         sequencerPlaybackService: playbackService,
         audioRecognitionService: fakeService
     )
-    viewModel.setSteps([
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-        PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
-    ],
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+            PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
+        ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
     viewModel.startGuidingIfReady()
@@ -229,7 +234,11 @@ func autoplayIsolationBlocksAudioAdvanceUntilAutoplayOff() async {
     UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
     let fakeService = FakePracticeAudioRecognitionService()
     let viewModel = makeViewModel(audioRecognitionService: fakeService)
-    let tempoMap = MusicXMLTempoMap(tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil))])
+    let tempoMap = MusicXMLTempoMap(tempoEvents: [MusicXMLTempoEvent(
+        tick: 0,
+        quarterBPM: 120,
+        scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
+    )])
     let pedalTimeline = MusicXMLPedalTimeline(events: [])
     let fermataTimeline = MusicXMLFermataTimeline(fermataEvents: [], notes: [])
     let steps = [
@@ -331,10 +340,11 @@ func permissionFailureStatusDoesNotAdvanceAndSetsError() async {
     UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
     let fakeService = FakePracticeAudioRecognitionService()
     let viewModel = makeViewModel(audioRecognitionService: fakeService)
-    viewModel.setSteps([
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-        PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
-    ],
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+            PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
+        ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
 
@@ -397,7 +407,9 @@ private final class CapturingSequencerPlaybackService: PracticeSequencerPlayback
     func stop() {}
     func load(sequence _: PracticeSequencerSequence) throws {}
     func play(fromSeconds _: TimeInterval) throws {}
-    func currentSeconds() -> TimeInterval { 0 }
+    func currentSeconds() -> TimeInterval {
+        0
+    }
 
     func playOneShot(midiNotes: [Int], durationSeconds _: TimeInterval) throws {
         oneShots.append(midiNotes)
@@ -417,9 +429,10 @@ func startGuidingPassesPlaybackSuppressDeadlineIntoAudioServiceStart() async {
         sequencerPlaybackService: playbackService,
         audioRecognitionService: fakeService
     )
-    viewModel.setSteps([
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-    ],
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+        ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
 
@@ -443,9 +456,10 @@ func microphonePermissionFailureDoesNotBlockPlaybackFallback() async {
         sequencerPlaybackService: playbackService,
         audioRecognitionService: fakeService
     )
-    viewModel.setSteps([
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-    ],
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+        ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
 
@@ -465,9 +479,10 @@ func disablingAudioRecognitionSettingStopsRunningService() async {
     UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
     let fakeService = FakePracticeAudioRecognitionService()
     let viewModel = makeViewModel(audioRecognitionService: fakeService)
-    viewModel.setSteps([
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-    ],
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+        ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
     viewModel.startGuidingIfReady()
@@ -485,10 +500,11 @@ func disablingAudioRecognitionSettingIgnoresQueuedEvents() async {
     UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
     let fakeService = FakePracticeAudioRecognitionService()
     let viewModel = makeViewModel(audioRecognitionService: fakeService)
-    viewModel.setSteps([
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-        PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
-    ],
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+            PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
+        ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
     viewModel.startGuidingIfReady()

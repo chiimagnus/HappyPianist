@@ -40,4 +40,3 @@ func despacitoFixtureBuildsGuidesWithGapAndRetrigger() throws {
     }
     #expect(g4Triggers.count == 1)
 }
-

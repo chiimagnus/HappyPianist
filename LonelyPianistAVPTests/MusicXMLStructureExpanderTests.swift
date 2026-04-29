@@ -279,7 +279,14 @@ func structureExpanderPreservesParsedNoteAndScoreFieldsWhenMaterializing() {
         slurEvents: [MusicXMLSlurEvent(tick: 0, kind: .start, numberToken: "1", scope: scope)],
         timeSignatureEvents: [MusicXMLTimeSignatureEvent(tick: 0, beats: 4, beatType: 4, scope: scope)],
         keySignatureEvents: [MusicXMLKeySignatureEvent(tick: 0, fifths: 1, modeToken: "major", scope: scope)],
-        clefEvents: [MusicXMLClefEvent(tick: 0, signToken: "G", line: 2, octaveChange: nil, numberToken: "1", scope: scope)],
+        clefEvents: [MusicXMLClefEvent(
+            tick: 0,
+            signToken: "G",
+            line: 2,
+            octaveChange: nil,
+            numberToken: "1",
+            scope: scope
+        )],
         wordsEvents: [MusicXMLWordsEvent(tick: 0, text: "Allegro", scope: scope)],
         measures: [
             MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, startTick: 0, endTick: 480),

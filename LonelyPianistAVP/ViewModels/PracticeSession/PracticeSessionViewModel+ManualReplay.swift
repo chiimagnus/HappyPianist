@@ -57,7 +57,7 @@ extension PracticeSessionViewModel {
                     DispatchQueue.global(qos: .userInitiated).async {
                         do {
                             let builder = PracticeManualReplaySequenceBuilder(leadInSeconds: leadInSeconds)
-                            continuation.resume(returning: try builder.buildSequence(
+                            try continuation.resume(returning: builder.buildSequence(
                                 steps: stepsSnapshot,
                                 tempoMap: tempoMapSnapshot,
                                 stepRange: stepRangeSnapshot
@@ -133,7 +133,7 @@ extension PracticeSessionViewModel {
     }
 }
 
-private struct ManualReplayTimeCursor: Equatable, Sendable {
+private struct ManualReplayTimeCursor: Equatable {
     private let scheduledStepIndices: [Int]
     private let scheduledSeconds: [TimeInterval]
     private var nextIndex: Int

@@ -1,5 +1,5 @@
-import Testing
 @testable import LonelyPianistAVP
+import Testing
 
 @Test
 func musicXMLRealisticPlaybackDefaultsAreHardcodedForNoSettingsSwitches() {
@@ -16,4 +16,5 @@ func musicXMLRealisticPlaybackDefaultsAreHardcodedForNoSettingsSwitches() {
 }
 
 // Grep gate for local/CI regression checks:
-// rg -n 'UserDefaults\.standard\.bool\(forKey: "practiceMusicXML|@AppStorage\("practiceMusicXML|practiceAudioRecognitionEnabled\b' LonelyPianistAVP || true
+// rg -n 'UserDefaults\.standard\.bool\(forKey:
+// "practiceMusicXML|@AppStorage\("practiceMusicXML|practiceAudioRecognitionEnabled\b' LonelyPianistAVP || true

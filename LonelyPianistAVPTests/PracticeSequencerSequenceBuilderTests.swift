@@ -1,11 +1,11 @@
-@testable import LonelyPianistAVP
 import Foundation
+@testable import LonelyPianistAVP
 import Testing
 
 private let defaultTempoScope = MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
 
 @Test
-func sequenceBuilderAppliesPauseBeforeSameTickAudioEvents() async throws {
+func sequenceBuilderAppliesPauseBeforeSameTickAudioEvents() {
     let tempoMap = MusicXMLTempoMap(
         tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope)]
     )
@@ -44,7 +44,7 @@ func sequenceBuilderAppliesPauseBeforeSameTickAudioEvents() async throws {
 }
 
 @Test
-func sequenceBuilderExportsMIDISMFData() async throws {
+func sequenceBuilderExportsMIDISMFData() throws {
     let tempoMap = MusicXMLTempoMap(
         tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope)]
     )
@@ -64,7 +64,7 @@ func sequenceBuilderExportsMIDISMFData() async throws {
 }
 
 @Test
-func sequenceBuilderInjectsInitialSustainPedalStateWhenStartingMidSong() async {
+func sequenceBuilderInjectsInitialSustainPedalStateWhenStartingMidSong() {
     let tempoMap = MusicXMLTempoMap(
         tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope)]
     )

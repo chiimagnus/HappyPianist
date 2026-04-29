@@ -159,7 +159,6 @@ private func makeGeometry(beamWidth: Float = 0.04, beamDepth: Float = 0.06) -> P
     return PianoKeyboardGeometry(frame: frame, keys: [key])
 }
 
-
 private func makeGuide(from step: PracticeStep) -> PianoHighlightGuide {
     let notes = step.notes.enumerated().map { index, note in
         PianoHighlightNote(

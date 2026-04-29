@@ -1,11 +1,11 @@
-@testable import LonelyPianistAVP
 import Foundation
+@testable import LonelyPianistAVP
 import Testing
 
 private let defaultTempoScope = MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
 
 @Test
-func timeCursorAdvancesStepsAndGuidesBySecondsWithoutDuplicates() async {
+func timeCursorAdvancesStepsAndGuidesBySecondsWithoutDuplicates() {
     let tempoMap = MusicXMLTempoMap(
         tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope)]
     )
@@ -32,4 +32,3 @@ func timeCursorAdvancesStepsAndGuidesBySecondsWithoutDuplicates() async {
     #expect(cursor.advance(toSeconds: 1.5) == [.step(index: 1), .guide(index: 1, guideID: 200)])
     #expect(cursor.advance(toSeconds: 2.0) == [])
 }
-

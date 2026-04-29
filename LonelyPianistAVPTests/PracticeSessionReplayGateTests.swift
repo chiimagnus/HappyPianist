@@ -70,7 +70,6 @@ func manualReplayBlocksAudioRecognitionAdvance() async {
     viewModel.resetSession()
 }
 
-
 @Test
 @MainActor
 func completedManualReplayReturnsProgressToMeasureStart() async {
@@ -100,8 +99,6 @@ func completedManualReplayReturnsProgressToMeasureStart() async {
 
     viewModel.resetSession()
 }
-
-
 
 @Test
 @MainActor
@@ -138,6 +135,7 @@ private struct ImmediateManualReplaySleeper: SleeperProtocol {
         await Task.yield()
     }
 }
+
 private func makeReplaySteps() -> [PracticeStep] {
     [
         PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
@@ -150,7 +148,11 @@ private func makeReplayMeasures() -> [MusicXMLMeasureSpan] {
 }
 
 private func makeReplayTempoMap() -> MusicXMLTempoMap {
-    MusicXMLTempoMap(tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil))])
+    MusicXMLTempoMap(tempoEvents: [MusicXMLTempoEvent(
+        tick: 0,
+        quarterBPM: 120,
+        scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
+    )])
 }
 
 private func makeReplayCalibration() -> PianoCalibration {
@@ -158,7 +160,10 @@ private func makeReplayCalibration() -> PianoCalibration {
 }
 
 private func makeReplayKeyboardGeometry() -> PianoKeyboardGeometry {
-    PianoKeyboardGeometry(frame: KeyboardFrame(a0World: SIMD3<Float>(0, 0, 0), c8World: SIMD3<Float>(1, 0, 0), planeHeight: 0)!, keys: [])
+    PianoKeyboardGeometry(
+        frame: KeyboardFrame(a0World: SIMD3<Float>(0, 0, 0), c8World: SIMD3<Float>(1, 0, 0), planeHeight: 0)!,
+        keys: []
+    )
 }
 
 private struct PendingManualReplaySleeper: SleeperProtocol {
@@ -202,15 +207,30 @@ private final class ManualReplaySequencerPlaybackService: PracticeSequencerPlayb
 }
 
 private struct ManualReplayNoopPressDetectionService: PressDetectionServiceProtocol {
-    func detectPressedNotes(fingerTips _: [String: SIMD3<Float>], keyboardGeometry _: PianoKeyboardGeometry?, at _: Date) -> Set<Int> { [] }
+    func detectPressedNotes(
+        fingerTips _: [String: SIMD3<Float>],
+        keyboardGeometry _: PianoKeyboardGeometry?,
+        at _: Date
+    ) -> Set<Int> {
+        []
+    }
 }
 
 private struct ManualReplayConstantPressDetectionService: PressDetectionServiceProtocol {
     let pressedNotes: Set<Int>
-    func detectPressedNotes(fingerTips _: [String: SIMD3<Float>], keyboardGeometry _: PianoKeyboardGeometry?, at _: Date) -> Set<Int> { pressedNotes }
+    func detectPressedNotes(
+        fingerTips _: [String: SIMD3<Float>],
+        keyboardGeometry _: PianoKeyboardGeometry?,
+        at _: Date
+    ) -> Set<Int> {
+        pressedNotes
+    }
 }
 
 private final class ManualReplayAlwaysMatchAccumulator: ChordAttemptAccumulatorProtocol {
-    func register(pressedNotes _: Set<Int>, expectedNotes _: [Int], tolerance _: Int, at _: Date) -> Bool { true }
+    func register(pressedNotes _: Set<Int>, expectedNotes _: [Int], tolerance _: Int, at _: Date) -> Bool {
+        true
+    }
+
     func reset() {}
 }

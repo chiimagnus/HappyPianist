@@ -231,7 +231,7 @@ final class PracticeSessionViewModel {
         fermataTimeline: MusicXMLFermataTimeline? = nil,
         attributeTimeline: MusicXMLAttributeTimeline? = nil,
         slurTimeline: MusicXMLSlurTimeline? = nil,
-        noteSpans: [MusicXMLNoteSpan] = [],
+        noteSpans _: [MusicXMLNoteSpan] = [],
         highlightGuides: [PianoHighlightGuide] = [],
         measureSpans: [MusicXMLMeasureSpan] = []
     ) {
@@ -472,7 +472,8 @@ final class PracticeSessionViewModel {
             completeManualAdvance()
             return
         }
-        let previousTick = steps.indices.contains(currentStepIndex) ? steps[currentStepIndex].tick : steps[nextStepIndex].tick
+        let previousTick = steps.indices.contains(currentStepIndex) ? steps[currentStepIndex]
+            .tick : steps[nextStepIndex].tick
         chordAttemptAccumulator.reset()
         currentStepIndex = nextStepIndex
         state = .guiding(stepIndex: nextStepIndex)

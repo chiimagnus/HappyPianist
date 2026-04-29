@@ -282,8 +282,32 @@ func buildStepsCarriesFingeringTextIntoStepNotes() {
 @Test
 func buildStepsPreservesSameMidiAcrossStaffAndVoiceIdentities() {
     let score = MusicXMLScore(notes: [
-        MusicXMLNoteEvent(partID: "P1", measureNumber: 1, tick: 0, durationTicks: 2, midiNote: 60, isRest: false, isChord: false, tieStart: false, tieStop: false, staff: 1, voice: 1),
-        MusicXMLNoteEvent(partID: "P1", measureNumber: 1, tick: 0, durationTicks: 3, midiNote: 60, isRest: false, isChord: true, tieStart: false, tieStop: false, staff: 2, voice: 2),
+        MusicXMLNoteEvent(
+            partID: "P1",
+            measureNumber: 1,
+            tick: 0,
+            durationTicks: 2,
+            midiNote: 60,
+            isRest: false,
+            isChord: false,
+            tieStart: false,
+            tieStop: false,
+            staff: 1,
+            voice: 1
+        ),
+        MusicXMLNoteEvent(
+            partID: "P1",
+            measureNumber: 1,
+            tick: 0,
+            durationTicks: 3,
+            midiNote: 60,
+            isRest: false,
+            isChord: true,
+            tieStart: false,
+            tieStop: false,
+            staff: 2,
+            voice: 2
+        ),
     ])
 
     let result = PracticeStepBuilder().buildSteps(from: score)
