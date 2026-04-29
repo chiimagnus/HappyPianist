@@ -1,7 +1,7 @@
 import Foundation
 
-struct AutoplayPerformanceTimeline: Equatable {
-    enum EventKind: Equatable {
+nonisolated struct AutoplayPerformanceTimeline: Equatable, Sendable {
+    enum EventKind: Equatable, Sendable {
         case pauseSeconds(TimeInterval)
         case noteOff(midi: Int)
         case pedalDown
@@ -11,7 +11,7 @@ struct AutoplayPerformanceTimeline: Equatable {
         case advanceGuide(index: Int, guideID: Int)
     }
 
-    struct Event: Equatable, Identifiable {
+    struct Event: Equatable, Identifiable, Sendable {
         let id: Int
         let tick: Int
         let kind: EventKind

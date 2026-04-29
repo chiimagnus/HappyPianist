@@ -63,3 +63,27 @@ func sequenceBuilderExportsMIDISMFData() async throws {
     #expect(sequence.durationSeconds > 0)
 }
 
+@Test
+func sequenceBuilderInjectsInitialSustainPedalStateWhenStartingMidSong() async {
+    let tempoMap = MusicXMLTempoMap(
+        tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope)]
+    )
+    let timeline = AutoplayPerformanceTimeline(
+        events: [
+            AutoplayPerformanceTimeline.Event(id: 0, tick: 0, kind: .pedalDown),
+            AutoplayPerformanceTimeline.Event(id: 1, tick: 480, kind: .noteOn(midi: 60, velocity: 96)),
+            AutoplayPerformanceTimeline.Event(id: 2, tick: 960, kind: .noteOff(midi: 60)),
+        ]
+    )
+
+    let builder = PracticeSequencerSequenceBuilder(midiChannel: 0)
+    let schedule = builder.buildAudioEventSchedule(
+        timeline: timeline,
+        tempoMap: tempoMap,
+        startTick: 480,
+        initialSustainPedalDown: true
+    )
+
+    #expect(schedule.first?.kind == .controlChange(controller: 64, value: 127))
+    #expect(abs((schedule.first?.timeSeconds ?? -1) - 0.0) < 1e-9)
+}

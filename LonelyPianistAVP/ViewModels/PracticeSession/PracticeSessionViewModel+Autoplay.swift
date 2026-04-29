@@ -1,3 +1,4 @@
+import Dispatch
 import Foundation
 
 extension PracticeSessionViewModel {
@@ -20,7 +21,8 @@ extension PracticeSessionViewModel {
 
         autoplayTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            isSustainPedalDown = pedalTimeline?.isDown(atTick: timingBaseTick) ?? false
+            let initialSustainPedalDown = pedalTimeline?.isDown(atTick: timingBaseTick) ?? false
+            isSustainPedalDown = initialSustainPedalDown
 
             do {
                 try sequencerPlaybackService.warmUp()
@@ -32,13 +34,22 @@ extension PracticeSessionViewModel {
 
             let sequence: PracticeSequencerSequence
             do {
-                let builder = PracticeSequencerSequenceBuilder()
-                let schedule = builder.buildAudioEventSchedule(
-                    timeline: timelineSnapshot,
-                    tempoMap: tempoMapSnapshot,
-                    startTick: timingBaseTick
-                )
-                sequence = try builder.buildSequence(from: schedule)
+                sequence = try await withCheckedThrowingContinuation { continuation in
+                    DispatchQueue.global(qos: .userInitiated).async {
+                        do {
+                            let builder = PracticeSequencerSequenceBuilder()
+                            let schedule = builder.buildAudioEventSchedule(
+                                timeline: timelineSnapshot,
+                                tempoMap: tempoMapSnapshot,
+                                startTick: timingBaseTick,
+                                initialSustainPedalDown: initialSustainPedalDown
+                            )
+                            continuation.resume(returning: try builder.buildSequence(from: schedule))
+                        } catch {
+                            continuation.resume(throwing: error)
+                        }
+                    }
+                }
             } catch {
                 recordPlaybackError(error)
                 stopAutoplayWithError(audioPlaybackErrorMessage ?? "无法自动播放：构建 MIDI 序列失败。")

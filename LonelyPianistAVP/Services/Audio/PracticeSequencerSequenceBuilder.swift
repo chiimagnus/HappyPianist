@@ -1,7 +1,7 @@
 import AudioToolbox
 import Foundation
 
-struct PracticeSequencerMIDIEvent: Equatable, Sendable {
+nonisolated struct PracticeSequencerMIDIEvent: Equatable, Sendable {
     enum Kind: Equatable, Sendable {
         case noteOn(midi: Int, velocity: UInt8)
         case noteOff(midi: Int)
@@ -12,7 +12,7 @@ struct PracticeSequencerMIDIEvent: Equatable, Sendable {
     let kind: Kind
 }
 
-enum PracticeSequencerSequenceBuilderError: LocalizedError, Equatable {
+nonisolated enum PracticeSequencerSequenceBuilderError: LocalizedError, Equatable, Sendable {
     case musicSequenceCreateFailed
     case musicTrackCreateFailed(status: OSStatus)
     case tempoTrackMissing
@@ -35,7 +35,7 @@ enum PracticeSequencerSequenceBuilderError: LocalizedError, Equatable {
     }
 }
 
-struct PracticeSequencerSequenceBuilder {
+nonisolated struct PracticeSequencerSequenceBuilder: Sendable {
     private let midiChannel: UInt8
 
     init(midiChannel: UInt8 = 0) {
@@ -46,6 +46,7 @@ struct PracticeSequencerSequenceBuilder {
         timeline: AutoplayPerformanceTimeline,
         tempoMap: MusicXMLTempoMap,
         startTick: Int,
+        initialSustainPedalDown: Bool = false,
         endTick: Int? = nil
     ) -> [PracticeSequencerMIDIEvent] {
         let baseTick = max(0, startTick)
@@ -56,6 +57,15 @@ struct PracticeSequencerSequenceBuilder {
 
         var schedule: [PracticeSequencerMIDIEvent] = []
         schedule.reserveCapacity(128)
+
+        if initialSustainPedalDown {
+            schedule.append(
+                PracticeSequencerMIDIEvent(
+                    timeSeconds: 0,
+                    kind: .controlChange(controller: 64, value: 127)
+                )
+            )
+        }
 
         for event in timeline.events[startIndex...] {
             if let endTick, event.tick >= endTick { break }

@@ -1,6 +1,6 @@
 import Foundation
 
-struct PracticeStepNote: Equatable, Hashable, Identifiable {
+nonisolated struct PracticeStepNote: Equatable, Hashable, Identifiable, Sendable {
     var id: String {
         "\(midiNote)-\(staff ?? -1)-\(voice ?? -1)-\(onTickOffset)"
     }
@@ -29,7 +29,7 @@ struct PracticeStepNote: Equatable, Hashable, Identifiable {
     }
 }
 
-struct PracticeStep: Equatable, Identifiable {
+nonisolated struct PracticeStep: Equatable, Identifiable, Sendable {
     var id: Int {
         tick
     }
@@ -38,7 +38,7 @@ struct PracticeStep: Equatable, Identifiable {
     let notes: [PracticeStepNote]
 }
 
-struct PracticeStepBuildResult: Equatable {
+nonisolated struct PracticeStepBuildResult: Equatable, Sendable {
     let steps: [PracticeStep]
     let unsupportedNoteCount: Int
 }

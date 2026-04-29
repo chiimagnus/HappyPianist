@@ -1214,7 +1214,7 @@ private func makePracticeSessionViewModel(
     )
 }
 
-private func settleTaskQueue(iterations: Int = 4) async {
+private func settleTaskQueue(iterations: Int = 12) async {
     for _ in 0 ..< iterations {
         await Task.yield()
     }
