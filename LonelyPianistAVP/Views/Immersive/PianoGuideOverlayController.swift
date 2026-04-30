@@ -9,8 +9,14 @@ final class PianoGuideOverlayController {
     private var hasAttachedRoot = false
     private var activeBeamEntitiesByMIDINote: [Int: ModelEntity] = [:]
     private var lastGuideIDByMIDINote: [Int: Int] = [:]
+    private var lastTriggerTimestampByMIDINote: [Int: TimeInterval] = [:]
+    private var lastTriggerGuideIDByMIDINote: [Int: Int] = [:]
     private var didAttemptAtlasTextureLoad = false
     private var atlasTexture: TextureResource?
+
+    private let pulseDurationSeconds: TimeInterval = 0.22
+    private let pulseScaleBoost: Float = 0.22
+    private let pulseAlphaBoost: Float = 0.55
 
     func updateHighlights(
         highlightGuide: PianoHighlightGuide?,
@@ -31,6 +37,16 @@ final class PianoGuideOverlayController {
 
         keyboardRootEntity.transform = Transform(matrix: keyboardGeometry.frame.worldFromKeyboard)
 
+        if let highlightGuide, highlightGuide.triggeredNotes.isEmpty == false {
+            let now = ProcessInfo.processInfo.systemUptime
+            for note in highlightGuide.triggeredNotes {
+                if lastTriggerGuideIDByMIDINote[note.midiNote] != highlightGuide.id {
+                    lastTriggerGuideIDByMIDINote[note.midiNote] = highlightGuide.id
+                    lastTriggerTimestampByMIDINote[note.midiNote] = now
+                }
+            }
+        }
+
         let descriptors = PianoGuideBeamDescriptor.makeDescriptors(
             highlightGuide: highlightGuide,
             keyboardGeometry: keyboardGeometry,
@@ -42,12 +58,15 @@ final class PianoGuideOverlayController {
         }
 
         let desiredNotes = Set(descriptors.map(\.midiNote))
+        let now = ProcessInfo.processInfo.systemUptime
 
         for (midiNote, beam) in activeBeamEntitiesByMIDINote {
             if desiredNotes.contains(midiNote) == false {
                 beam.removeFromParent()
                 activeBeamEntitiesByMIDINote[midiNote] = nil
                 lastGuideIDByMIDINote[midiNote] = nil
+                lastTriggerTimestampByMIDINote[midiNote] = nil
+                lastTriggerGuideIDByMIDINote[midiNote] = nil
             }
         }
 
@@ -65,13 +84,27 @@ final class PianoGuideOverlayController {
                 keyboardRootEntity.addChild(beam)
             }
 
-            beam.model?.materials = [beamMaterial(for: descriptor)]
-            beam.scale = descriptor.sizeLocal
+            let pulse = pulseIntensity(for: descriptor.midiNote, now: now)
+            beam.model?.materials = [beamMaterial(for: descriptor, pulse: pulse)]
+            var scale = descriptor.sizeLocal
+            let boost = max(0, min(1, pulse)) * pulseScaleBoost
+            scale.x *= (1 + boost)
+            scale.z *= (1 + boost)
+            beam.scale = scale
             beam.position = descriptor.positionLocal
         }
     }
 
-    private func beamMaterial(for descriptor: PianoGuideBeamDescriptor) -> UnlitMaterial {
+    private func pulseIntensity(for midiNote: Int, now: TimeInterval) -> Float {
+        guard let triggeredAt = lastTriggerTimestampByMIDINote[midiNote] else { return 0 }
+        let elapsed = now - triggeredAt
+        guard elapsed >= 0, elapsed < pulseDurationSeconds else { return 0 }
+        let t = Float(elapsed / pulseDurationSeconds)
+        let remaining = 1 - t
+        return remaining * remaining
+    }
+
+    private func beamMaterial(for descriptor: PianoGuideBeamDescriptor, pulse: Float) -> UnlitMaterial {
         let tintColor: UIColor = switch descriptor.baseColor {
             case .guide:
                 AVPOverlayPalette.feedbackNoneColor
@@ -80,7 +113,8 @@ final class PianoGuideOverlayController {
             case .wrong:
                 AVPOverlayPalette.feedbackWrongColor
         }
-        let tinted = tintColor.withAlphaComponent(CGFloat(descriptor.alpha))
+        let pulsedAlpha = max(0, min(1, descriptor.alpha + max(0, min(1, pulse)) * pulseAlphaBoost))
+        let tinted = tintColor.withAlphaComponent(CGFloat(pulsedAlpha))
         let texture = loadAtlasTextureIfNeeded()
 
         var material = UnlitMaterial()
@@ -98,6 +132,8 @@ final class PianoGuideOverlayController {
         }
         activeBeamEntitiesByMIDINote.removeAll()
         lastGuideIDByMIDINote.removeAll()
+        lastTriggerTimestampByMIDINote.removeAll()
+        lastTriggerGuideIDByMIDINote.removeAll()
     }
 
     private func loadAtlasTextureIfNeeded() -> TextureResource? {
