@@ -293,6 +293,13 @@ final class PracticeSessionViewModel {
         }
     }
 
+    func applyVirtualKeyboardGeometry(_ keyboardGeometry: PianoKeyboardGeometry) {
+        self.keyboardGeometry = keyboardGeometry
+        if steps.isEmpty == false, state != .completed, state != .guiding(stepIndex: currentStepIndex) {
+            state = .ready
+        }
+    }
+
     func clearCalibration() {
         calibration = nil
         keyboardGeometry = nil

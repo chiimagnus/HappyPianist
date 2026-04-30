@@ -467,10 +467,14 @@ final class ARGuideViewModel {
                         handleCalibrationHandUpdates()
                     case .practice:
                         if isVirtualPianoEnabled {
+                            let wasPlaced = virtualPianoPlacement.isPlaced
                             virtualPianoPlacement.update(
                                 fingerTips: fingerTips,
                                 nowUptime: ProcessInfo.processInfo.systemUptime
                             )
+                            if wasPlaced == false, virtualPianoPlacement.isPlaced {
+                                applyVirtualPianoGeometry()
+                            }
                             if virtualPianoPlacement.isPlaced {
                                 _ = practiceSessionViewModel.handleFingerTipPositions(fingerTips)
                             }
@@ -479,6 +483,15 @@ final class ARGuideViewModel {
                         }
                 }
             }
+        }
+    }
+
+    private func applyVirtualPianoGeometry() {
+        guard let worldFromKeyboard = virtualPianoPlacement.worldFromKeyboard else { return }
+        let frame = KeyboardFrame(worldFromKeyboard: worldFromKeyboard)
+        let service = VirtualPianoKeyGeometryService()
+        if let geometry = service.generateKeyboardGeometry(from: frame) {
+            practiceSessionViewModel.applyVirtualKeyboardGeometry(geometry)
         }
     }
 

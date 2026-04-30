@@ -6,6 +6,7 @@ struct ImmersiveView: View {
     @State private var overlayController = PianoGuideOverlayController()
     @State private var calibrationOverlayController = CalibrationOverlayController()
     @State private var keyboardAxesDebugOverlayController = KeyboardAxesDebugOverlayController()
+    @State private var virtualPianoOverlayController = VirtualPianoOverlayController()
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
 
     private var shouldShowCalibrationReticle: Bool {
@@ -40,6 +41,11 @@ struct ImmersiveView: View {
                 isAutoplayEnabled: viewModel.practiceSessionViewModel.autoplayState == .playing,
                 content: content
             )
+            virtualPianoOverlayController.update(
+                placementState: viewModel.virtualPianoPlacement.state,
+                keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
+                content: content
+            )
         } update: { content in
             calibrationOverlayController.update(
                 showsReticle: shouldShowCalibrationReticle,
@@ -59,6 +65,11 @@ struct ImmersiveView: View {
                 keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
                 feedbackState: viewModel.practiceSessionViewModel.feedbackState,
                 isAutoplayEnabled: viewModel.practiceSessionViewModel.autoplayState == .playing,
+                content: content
+            )
+            virtualPianoOverlayController.update(
+                placementState: viewModel.virtualPianoPlacement.state,
+                keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
                 content: content
             )
         }
