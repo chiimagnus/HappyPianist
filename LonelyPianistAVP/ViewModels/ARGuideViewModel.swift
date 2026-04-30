@@ -476,7 +476,10 @@ final class ARGuideViewModel {
                                 applyVirtualPianoGeometry()
                             }
                             if virtualPianoPlacement.isPlaced {
-                                _ = practiceSessionViewModel.handleFingerTipPositions(fingerTips)
+                                _ = practiceSessionViewModel.handleFingerTipPositions(
+                                    fingerTips,
+                                    isVirtualPiano: true
+                                )
                             }
                         } else {
                             _ = practiceSessionViewModel.handleFingerTipPositions(fingerTips)

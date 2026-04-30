@@ -63,6 +63,7 @@ final class PracticeSessionViewModel {
     let chordAttemptAccumulator: ChordAttemptAccumulatorProtocol
     let sleeper: SleeperProtocol
     let sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol
+    let keyContactDetectionService = KeyContactDetectionService()
     let audioRecognitionService: PracticeAudioRecognitionServiceProtocol?
     let audioStepAttemptAccumulator: AudioStepAttemptAccumulator
     let handPianoActivityGate: HandPianoActivityGate
