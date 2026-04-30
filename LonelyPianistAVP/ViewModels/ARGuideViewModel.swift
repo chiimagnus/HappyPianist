@@ -80,6 +80,7 @@ final class ARGuideViewModel {
 
     private(set) var practiceLocalizationState: PracticeLocalizationState = .idle
     private(set) var calibrationPhase: CalibrationPhase = .capturingA0
+    private(set) var isVirtualPianoEnabled = false
 
     init(appState: AppState, practiceSessionViewModel: PracticeSessionViewModel? = nil) {
         self.appState = appState
@@ -232,7 +233,11 @@ final class ARGuideViewModel {
     }
 
     func setPracticeVirtualPianoEnabled(_ isEnabled: Bool) {
-        // Full implementation in P1-T2
+        isVirtualPianoEnabled = isEnabled
+        if isEnabled {
+            cancelPracticeLocalizationTask()
+            practiceLocalizationState = .idle
+        }
     }
 
     var practiceLocalizationStatusText: String? {
@@ -326,7 +331,7 @@ final class ARGuideViewModel {
             return .missingImportedSteps
         }
 
-        if storedCalibration == nil {
+        if isVirtualPianoEnabled == false, storedCalibration == nil {
             return .missingStoredCalibration
         }
 
@@ -615,6 +620,11 @@ final class ARGuideViewModel {
             practiceLocalizationState = .openingImmersive
             if let openError = await openImmersiveForStep(mode: .practice, using: openImmersiveSpace) {
                 practiceLocalizationState = .failed(reason: .immersiveOpenFailed(message: openError))
+                return
+            }
+
+            if isVirtualPianoEnabled {
+                practiceLocalizationState = .ready
                 return
             }
 

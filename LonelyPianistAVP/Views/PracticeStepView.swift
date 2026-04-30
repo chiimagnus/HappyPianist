@@ -103,7 +103,7 @@ struct PracticeStepView: View {
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
 
-                if isAutoplayEnabled == false {
+                if isAutoplayEnabled == false, isVirtualPianoEnabled == false {
                     Button("定位", systemImage: "scope") {
                         isLocalizationPopoverPresented.toggle()
                     }
