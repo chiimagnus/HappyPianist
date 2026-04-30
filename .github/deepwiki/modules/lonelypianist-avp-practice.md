@@ -368,4 +368,4 @@ struct PianoHighlightGuideBuildInput {
 - 2026-04-28: 新增 `AutoplayPerformanceTimeline` 统一自动播放调度；新增 `PianoHighlightGuideBuilderService` 优化高亮引导构建；新增 `PianoHighlightParsedElementCoverageService` 用于诊断；实现 strict autoplay prerequisites 和 UI 错误提示；修复音频识别相关问题；新增 `Fallbacks.md` 专题页面。
 - 2026-04-29: 同步 Step 3 练习页进入不自动开始（`ready` -> 点击下一步才开始）与进度显示语义；更正练习音频后端对象名为 `PracticeSequencerPlaybackServiceProtocol` / `AVAudioSequencerPracticePlaybackService`。
 - 2026-04-30: 新增虚拟钢琴模式：放置状态机、88 键几何生成、迟滞按键检测、live note on/off 实时发声、3D 键盘渲染、安全清音机制。新增 `VirtualPianoTests.swift` 测试覆盖。
-- 2026-04-30: Simulator 中虚拟钢琴自动放置（`#if DEBUG && targetEnvironment(simulator)`），跳过手势放置直接以默认位置渲染键盘，便于 Simulator 调试光柱引导和 step 推进。
+- 2026-04-30: Simulator 中虚拟钢琴自动放置（`#if DEBUG && targetEnvironment(simulator)`），跳过手势放置直接以默认位置渲染键盘，便于 Simulator 调试光柱引导和 step 推进。修复 `RealityView` update closure 对嵌套 `@Observable` 属性变化追踪不可靠的问题：添加 `.onChange` 显式触发 `VirtualPianoOverlayController` 更新，`KeyboardFrame`/`PianoKeyboardGeometry` 标记为 `Equatable`。
