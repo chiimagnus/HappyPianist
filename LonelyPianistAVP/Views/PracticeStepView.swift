@@ -14,6 +14,7 @@ struct PracticeStepView: View {
     @State private var isAudioErrorAlertPresented = false
     @State private var isAutoplayErrorAlertPresented = false
 
+    @State private var isVirtualPianoEnabled = false
     @State private var isAutoplayEnabled = false
     @AppStorage("practiceManualAdvanceMode") private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
     @AppStorage("practiceAudioRecognitionDebugOverlayEnabled") private var isAudioDebugOverlayEnabled = false
@@ -90,7 +91,7 @@ struct PracticeStepView: View {
                 .buttonBorderShape(.roundedRectangle)
                 .hoverEffect()
                 .popover(isPresented: $isSettingsPopoverPresented) {
-                    PracticeSettingsView()
+                    PracticeSettingsView(virtualPianoEnabled: $isVirtualPianoEnabled)
                 }
 
                 if isAutoplayEnabled {
@@ -118,6 +119,7 @@ struct PracticeStepView: View {
         .buttonBorderShape(.roundedRectangle)
         .onAppear {
             isStepVisible = true
+            isVirtualPianoEnabled = false
             guard hasRequestedImmersiveOpen == false else { return }
             hasRequestedImmersiveOpen = true
 
@@ -134,6 +136,9 @@ struct PracticeStepView: View {
                     await viewModel.recoverImmersiveStateIfStuck()
                 }
             }
+        }
+        .onChange(of: isVirtualPianoEnabled) {
+            viewModel.setPracticeVirtualPianoEnabled(isVirtualPianoEnabled)
         }
         .onChange(of: isAutoplayEnabled) {
             viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
@@ -160,8 +165,10 @@ struct PracticeStepView: View {
         }
         .onDisappear {
             isStepVisible = false
+            isVirtualPianoEnabled = false
             hasRequestedImmersiveOpen = false
             viewModel.setPracticeAutoplayEnabled(false)
+            viewModel.setPracticeVirtualPianoEnabled(false)
             viewModel.resetPracticeLocalizationState()
             Task { @MainActor in
                 await viewModel.closeImmersiveForStep(using: dismissImmersiveSpace)

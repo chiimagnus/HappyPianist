@@ -231,6 +231,10 @@ final class ARGuideViewModel {
         practiceSessionViewModel.setAutoplayEnabled(isEnabled)
     }
 
+    func setPracticeVirtualPianoEnabled(_ isEnabled: Bool) {
+        // Full implementation in P1-T2
+    }
+
     var practiceLocalizationStatusText: String? {
         switch practiceLocalizationState {
             case .idle:
