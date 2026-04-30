@@ -37,6 +37,7 @@ struct ImmersiveView: View {
                 highlightGuide: viewModel.practiceSessionViewModel.currentPianoHighlightGuide,
                 keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
                 feedbackState: viewModel.practiceSessionViewModel.feedbackState,
+                isAutoplayEnabled: viewModel.practiceSessionViewModel.autoplayState == .playing,
                 content: content
             )
         } update: { content in
@@ -57,6 +58,7 @@ struct ImmersiveView: View {
                 highlightGuide: viewModel.practiceSessionViewModel.currentPianoHighlightGuide,
                 keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
                 feedbackState: viewModel.practiceSessionViewModel.feedbackState,
+                isAutoplayEnabled: viewModel.practiceSessionViewModel.autoplayState == .playing,
                 content: content
             )
         }

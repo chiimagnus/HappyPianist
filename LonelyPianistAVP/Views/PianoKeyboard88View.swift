@@ -7,17 +7,20 @@ struct PianoKeyboard88View: View {
 
     let highlightedMIDINotes: Set<Int>
     let highlightOccurrenceID: Int?
+    let triggeredMIDINotes: Set<Int>
     let fingeringByMIDINote: [Int: String]
     let highlightColorByMIDINote: [Int: Color]
 
     init(
         highlightedMIDINotes: Set<Int>,
         highlightOccurrenceID: Int? = nil,
+        triggeredMIDINotes: Set<Int> = [],
         fingeringByMIDINote: [Int: String] = [:],
         highlightColorByMIDINote: [Int: Color] = [:]
     ) {
         self.highlightedMIDINotes = highlightedMIDINotes
         self.highlightOccurrenceID = highlightOccurrenceID
+        self.triggeredMIDINotes = triggeredMIDINotes
         self.fingeringByMIDINote = fingeringByMIDINote
         self.highlightColorByMIDINote = highlightColorByMIDINote
     }
@@ -37,6 +40,11 @@ struct PianoKeyboard88View: View {
                         .overlay {
                             Rectangle()
                                 .stroke(.black.opacity(0.22), lineWidth: 0.6)
+                        }
+                        .overlay {
+                            if triggeredMIDINotes.contains(key.midiNote) {
+                                KeyTriggerPulseOverlay(isBlackKey: false)
+                            }
                         }
                         .overlay(alignment: .bottom) {
                             if isHighlighted,
@@ -65,6 +73,11 @@ struct PianoKeyboard88View: View {
                         .overlay {
                             Rectangle()
                                 .stroke(.white.opacity(0.28), lineWidth: 0.5)
+                        }
+                        .overlay {
+                            if triggeredMIDINotes.contains(key.midiNote) {
+                                KeyTriggerPulseOverlay(isBlackKey: true)
+                            }
                         }
                         .overlay(alignment: .bottom) {
                             if isHighlighted,
@@ -169,6 +182,25 @@ struct PianoKeyboard88View: View {
     ) -> String {
         let prefix = isBlackKey ? "black" : "white"
         return "\(prefix)-\(midiNote)-\(highlightOccurrenceID ?? 0)-\(isHighlighted)"
+    }
+}
+
+private struct KeyTriggerPulseOverlay: View {
+    let isBlackKey: Bool
+
+    @State private var opacity: Double = 0.0
+
+    var body: some View {
+        Rectangle()
+            .fill(isBlackKey ? Color.orange : Color.yellow)
+            .opacity(opacity)
+            .allowsHitTesting(false)
+            .onAppear {
+                opacity = isBlackKey ? 0.95 : 0.75
+                withAnimation(.easeOut(duration: 0.22)) {
+                    opacity = 0.0
+                }
+            }
     }
 }
 

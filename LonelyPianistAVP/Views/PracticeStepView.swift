@@ -22,6 +22,7 @@ struct PracticeStepView: View {
         PianoKeyboard88View(
             highlightedMIDINotes: highlightedMIDINotes,
             highlightOccurrenceID: viewModel.practiceSessionViewModel.currentPianoHighlightGuide?.id,
+            triggeredMIDINotes: triggeredMIDINotes,
             fingeringByMIDINote: fingeringByMIDINote
         )
         .aspectRatio(PianoKeyboard88View.aspectRatio, contentMode: .fit)
@@ -180,6 +181,12 @@ struct PracticeStepView: View {
     private var fingeringByMIDINote: [Int: String] {
         guard isAutoplayEnabled else { return [:] }
         return viewModel.practiceSessionViewModel.currentPianoHighlightGuide?.fingeringByMIDINote ?? [:]
+    }
+
+    private var triggeredMIDINotes: Set<Int> {
+        guard isAutoplayEnabled else { return [] }
+        let notes = viewModel.practiceSessionViewModel.currentPianoHighlightGuide?.triggeredNotes ?? []
+        return Set(notes.map(\.midiNote))
     }
 
     private var localizationPopover: some View {
