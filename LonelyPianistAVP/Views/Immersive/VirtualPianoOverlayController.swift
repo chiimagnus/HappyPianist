@@ -14,9 +14,9 @@ final class VirtualPianoOverlayController {
     func update(
         placementState: VirtualPianoPlacementViewModel.PlacementState,
         keyboardGeometry: PianoKeyboardGeometry?,
-        content: RealityViewContent
+        content: RealityViewContent?
     ) {
-        if hasAttachedRoot == false {
+        if hasAttachedRoot == false, let content {
             content.add(rootEntity)
             hasAttachedRoot = true
         }

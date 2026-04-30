@@ -79,6 +79,20 @@ struct ImmersiveView: View {
         .onDisappear {
             viewModel.onImmersiveDisappear()
         }
+        .onChange(of: viewModel.virtualPianoPlacement.state) {
+            virtualPianoOverlayController.update(
+                placementState: viewModel.virtualPianoPlacement.state,
+                keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
+                content: nil
+            )
+        }
+        .onChange(of: viewModel.practiceSessionViewModel.keyboardGeometry) {
+            virtualPianoOverlayController.update(
+                placementState: viewModel.virtualPianoPlacement.state,
+                keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
+                content: nil
+            )
+        }
     }
 }
 
