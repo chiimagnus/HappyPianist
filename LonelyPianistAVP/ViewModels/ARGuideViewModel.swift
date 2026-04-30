@@ -81,6 +81,7 @@ final class ARGuideViewModel {
     private(set) var practiceLocalizationState: PracticeLocalizationState = .idle
     private(set) var calibrationPhase: CalibrationPhase = .capturingA0
     private(set) var isVirtualPianoEnabled = false
+    let virtualPianoPlacement = VirtualPianoPlacementViewModel()
 
     init(appState: AppState, practiceSessionViewModel: PracticeSessionViewModel? = nil) {
         self.appState = appState
@@ -237,6 +238,9 @@ final class ARGuideViewModel {
         if isEnabled {
             cancelPracticeLocalizationTask()
             practiceLocalizationState = .idle
+            virtualPianoPlacement.startPlacing()
+        } else {
+            virtualPianoPlacement.reset()
         }
     }
 
@@ -462,7 +466,17 @@ final class ARGuideViewModel {
                     case .calibration:
                         handleCalibrationHandUpdates()
                     case .practice:
-                        _ = practiceSessionViewModel.handleFingerTipPositions(fingerTips)
+                        if isVirtualPianoEnabled {
+                            virtualPianoPlacement.update(
+                                fingerTips: fingerTips,
+                                nowUptime: ProcessInfo.processInfo.systemUptime
+                            )
+                            if virtualPianoPlacement.isPlaced {
+                                _ = practiceSessionViewModel.handleFingerTipPositions(fingerTips)
+                            }
+                        } else {
+                            _ = practiceSessionViewModel.handleFingerTipPositions(fingerTips)
+                        }
                 }
             }
         }
