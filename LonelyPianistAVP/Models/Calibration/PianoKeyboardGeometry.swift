@@ -29,7 +29,7 @@ struct PianoKeyGeometry: Equatable, Identifiable {
     let beamFootprintSizeLocal: SIMD2<Float>
 }
 
-struct PianoKeyboardGeometry {
+struct PianoKeyboardGeometry: Equatable {
     let frame: KeyboardFrame
     let keys: [PianoKeyGeometry]
 

@@ -1,7 +1,7 @@
 # AVP Practice
 
 ## 范围
-练习页覆盖 Step 3 的定位后练习体验：step 推进、按键匹配、视觉反馈、autoplay、pedal / fermata / timing，以及当前 step 的 RealityKit 光柱式琴键引导。
+练习页覆盖 Step 3 的定位后练习体验：step 推进、按键匹配、视觉反馈、autoplay、pedal / fermata / timing，以及当前 step 的 RealityKit 光柱式琴键引导。同时支持**虚拟钢琴模式**：无需实体钢琴，通过手势放置 3D 88 键键盘并实时发声。
 
 ## 关键对象
 | 对象 | 职责 | 修改风险 |
@@ -15,6 +15,10 @@
 | `PracticeSequencerPlaybackServiceProtocol` | 练习音色播放（one-shot + sequencer） | 影响试听 / autoplay / manual replay |
 | `AVAudioSequencerPracticePlaybackService` | `AVAudioEngine + AVAudioUnitSampler + AVAudioSequencer` 的默认实现 | stop 行为与短促音风险点 |
 | `PianoGuideOverlayController` | RealityKit 空间光柱提示 | 影响当前 step 的可见 AR 引导 |
+| `VirtualPianoPlacementViewModel` | 虚拟钢琴放置状态机（disabled → placing → placed） | 影响虚拟钢琴入口和 3D 键盘定位 |
+| `VirtualPianoKeyGeometryService` | 虚拟钢琴 88 键几何生成 | 影响虚拟键盘尺寸和按键布局 |
+| `KeyContactDetectionService` | 虚拟钢琴按键接触检测（带迟滞） | 影响虚拟钢琴发声准确性 |
+| `VirtualPianoOverlayController` | 虚拟钢琴 3D 键盘渲染（RealityKit） | 影响虚拟键盘可见性和交互 |
 
 ## 光柱引导实现
 `PianoGuideOverlayController` 为当前 step 的每个 MIDI note 创建一束独立的「丁达尔式」暖金光束：
@@ -59,6 +63,110 @@ flowchart TD
 - 光束位置/尺寸由 `PianoGuideBeamDescriptor` 统一描述，RealityKit 只负责按 descriptor diff 更新实体。
 - 光束材质颜色由 `VisualFeedbackState` 决定：none / correct / wrong 只允许轻微整体 tint 变化。
 - `activeBeamEntitiesByMIDINote` 只保留当前 step 所需光束；离开当前 step 的光束会被移除。
+
+## 虚拟钢琴模式
+
+虚拟钢琴模式允许用户无需实体钢琴即可练习。用户通过手势在空间中放置一把 3D 88 键虚拟键盘，手指接触虚拟琴键即可发声。
+
+### 入口与切换
+
+1. 在 Step 3 练习设置页打开「虚拟钢琴（无需真实钢琴）」开关。
+2. `ARGuideViewModel.setPracticeVirtualPianoEnabled(true)` 取消正在进行的定位，启动放置状态机。
+3. 关闭开关或离开练习页时自动停止所有 live notes 并重置放置状态。
+
+#### Simulator 自动放置
+
+在 `#if DEBUG && targetEnvironment(simulator)` 环境下，打开虚拟钢琴开关时跳过手势放置流程，直接以默认位置 `(0, 1.0, -1.0)`（键盘中心）放置 3D 键盘并立即生成几何数据。这使得 Simulator 中可以调试光柱引导、step 推进和 autoplay 功能。
+
+Simulator 限制：`HandTrackingProvider.isSupported` 为 `false`，手部追踪循环不启动，因此**无法通过手势弹奏虚拟琴键**。键盘渲染和光柱引导正常工作。
+
+### 虚拟钢琴数据流
+
+```mermaid
+flowchart TD
+    A[PracticeSettingsView toggle] --> B[ARGuideViewModel.setPracticeVirtualPianoEnabled]
+    B --> C[VirtualPianoPlacementViewModel.startPlacing]
+    C --> D{用户手势}
+    D -->|捏合| E[confirmPlacement → worldFromKeyboard]
+    E --> F[VirtualPianoKeyGeometryService.generateKeyboardGeometry]
+    F --> G[PianoKeyboardGeometry 88 keys]
+    G --> H[VirtualPianoOverlayController 渲染 3D 键盘]
+    D -->|手指移动| I[update reticle position]
+    H --> J[PracticeSessionViewModel.applyVirtualKeyboardGeometry]
+    J --> K[handleFingerTipPositions isVirtualPiano:true]
+    K --> L[KeyContactDetectionService.detect]
+    L -->|started| M[startLiveNotes → AVAudioUnitSampler]
+    L -->|ended| N[stopLiveNotes → AVAudioUnitSampler]
+    L --> O[ChordAttemptAccumulator 匹配 step]
+```
+
+### 放置状态机
+
+`VirtualPianoPlacementViewModel` 管理三个状态：
+
+| 状态 | 含义 | 触发条件 |
+| --- | --- | --- |
+| `disabled` | 未启用 | 初始状态或 `reset()` |
+| `placing(reticlePoint:)` | 正在放置，显示准星 | `startPlacing()` |
+| `placed(worldFromKeyboard:, scale:)` | 已确认放置 | 捏合手势（右手食指+拇指距离 < 0.018m） |
+
+放置确认时，键盘原点位于用户指定位置左侧半个键盘长度处（`reticlePoint - xAxis * totalKeyboardLength/2`），确保键盘向 +X 方向延伸。
+
+### 虚拟键盘几何
+
+`VirtualPianoKeyGeometryService` 生成 88 键（A0-C8）的几何布局：
+
+| 常量 | 值 | 说明 |
+| --- | --- | --- |
+| `whiteKeyWidthMeters` | `0.0235` | 白键宽度 |
+| `whiteKeySpacingMeters` | `0.02474` | 白键间距 |
+| `totalKeyboardLengthMeters` | `1.262` | 总键盘长度 |
+
+布局逻辑与实体钢琴的 `PianoKeyGeometryService` 保持一致，包括黑键偏移和 hit/beam footprint 计算。
+
+### 按键接触检测（迟滞）
+
+`KeyContactDetectionService` 使用迟滞检测避免误触：
+
+| 参数 | 值 | 说明 |
+| --- | --- | --- |
+| `pressThresholdMeters` | `0.002` | 手指尖低于 key surface 多少时判定为按下 |
+| `releaseThresholdMeters` | `0.008` | 手指尖高于 key surface 多少时判定为松开 |
+
+检测流程：
+1. 黑键优先检测（避免白键边缘误触黑键上方区域）。
+2. 输出 `started`（新按下）、`ended`（新松开）、`down`（当前持续按下）三个集合。
+3. `PracticeSessionViewModel` 只用 `started` 集合做 chord 匹配，避免持续按下时重复触发。
+
+### 实时发声
+
+`PracticeSequencerPlaybackServiceProtocol` 新增三个 live note API：
+
+| 方法 | 说明 |
+| --- | --- |
+| `startLiveNotes(midiNotes:)` | 启动持续发声（`AVAudioUnitSampler.startNote`） |
+| `stopLiveNotes(midiNotes:)` | 停止指定音符发声（`AVAudioUnitSampler.stopNote`） |
+| `stopAllLiveNotes()` | 停止所有 live notes（切换/退出时安全清音） |
+
+实现特点：
+- 幂等：同一 note 重复 start/stop 不会产生额外效果。
+- 内部跟踪 `liveNotes: Set<UInt8>`，`stop()` 也会调用 `stopAllLiveNotes()`。
+
+### 安全清音
+
+`stopVirtualPianoInput()` 在以下场景调用：
+- 虚拟钢琴开关关闭
+- 离开练习页（`onDisappear`）
+- 开启 autoplay（避免 live note 与 autoplay 冲突）
+- `resetSession()` 中重置 `keyContactDetectionService`
+
+### 3D 渲染
+
+`VirtualPianoOverlayController` 负责在 RealityKit 中渲染：
+
+- **放置阶段**：显示一个半透明准星球体，跟随用户手指移动。
+- **确认后**：渲染 88 个 `ModelEntity`（白键白色、黑键深灰），挂载 `CollisionComponent` + `InputTargetComponent` + `ManipulationComponent`，支持空间拖拽和缩放。
+- 使用 transform hash 判断是否需要重建（避免每帧重建）。
 
 ## AutoplayPerformanceTimeline 详解
 
@@ -187,6 +295,11 @@ struct PianoHighlightGuideBuildInput {
 - `PianoKeyGeometry.surfaceLocalY`
 - `PianoKeyGeometry.hitCenterLocal` / `hitSizeLocal`
 - `PianoKeyGeometry.beamFootprintCenterLocal` / `beamFootprintSizeLocal`
+- `ARGuideViewModel.isVirtualPianoEnabled`：虚拟钢琴模式是否开启
+- `ARGuideViewModel.virtualPianoPlacement.state`：放置状态机当前状态
+- `ARGuideViewModel.virtualPianoPlacement.worldFromKeyboard`：已确认的键盘姿态
+- `KeyContactDetectionService.previousDownNotes`：上一帧持续按下的音符集合（迟滞状态）
+- `PracticeSequencerPlaybackServiceProtocol.liveNotes`：当前持续发声的音符集合
 
 ## Autoplay 强制错误提示
 
@@ -219,6 +332,10 @@ struct PianoHighlightGuideBuildInput {
 | autoplay 与视觉提示 | AVP practice tests + 手工播放一段 MusicXML |
 | PianoHighlightGuideBuilderService | `PianoHighlightGuideBuilderServiceTests.swift` |
 | strict autoplay prerequisites | `PracticeSessionViewModelTests.swift` 中的错误提示测试 |
+| 虚拟钢琴 live notes | `VirtualPianoTests.swift`：toggle off 停止所有 live notes、autoplay 启用时停止 live notes、虚拟按键触发 live start |
+| KeyContactDetectionService | `VirtualPianoTests.swift`：迟滞检测、黑键优先、无手指无 down |
+| VirtualPianoPlacementViewModel | `VirtualPianoTests.swift`：状态转换、重置、原点计算 |
+| 虚拟钢琴 vs 实体钢琴路径隔离 | `VirtualPianoTests.swift`：实体钢琴路径不受虚拟钢琴影响 |
 
 ### 关键测试用例
 
@@ -227,6 +344,7 @@ struct PianoHighlightGuideBuildInput {
 | `AutoplayPerformanceTimelineTests` | note interval 归一化、重叠音符处理、同 tick 踏板事件、fermata 停顿 |
 | `PracticeSessionViewModelTests` | 前置条件检查、错误提示、autoplay 任务清理竞态、反馈状态重置 |
 | `MusicXMLAutoplayRegressionTests` | 真实 MusicXML 的 autoplay 回归测试，覆盖 zero-duration note、pedal release edge |
+| `VirtualPianoTests` | 虚拟钢琴 toggle off 停止 live notes、autoplay 停止 live notes、虚拟按键触发 live start/stop、实体钢琴路径隔离、迟滞检测、黑键优先、放置状态机转换 |
 
 ## 真机验证清单（Vision Pro）
 - 白键光束底部覆盖目标白键大部分宽度和纵深。
@@ -241,8 +359,13 @@ struct PianoHighlightGuideBuildInput {
 - 光柱的可见高度、透明度和空间感仍主要依赖 Vision Pro 手工体验；逻辑测试只能覆盖数据和状态流，不能完全证明视觉舒适度。
 - 当前没有 PR 自动测试，需要手动在本地运行 macOS 和 AVP 测试。
 - 音频识别的调试快照和 fallback 状态仍需要在真机上验证其有效性。
+- 虚拟钢琴的 3D 渲染效果（琴键大小、间距、材质）和交互体验（ManipulationComponent 拖拽/缩放）需要 Vision Pro 真机验证。
+- `KeyContactDetectionService` 的迟滞阈值（press 2mm / release 8mm）需要真机调优，simulator 无法验证手势精度。
+- Simulator 中虚拟钢琴可渲染和显示光柱引导，但因 `HandTrackingProvider.isSupported` 为 `false`，无法通过手势弹奏。
 
 ## 更新记录（Update Notes）
 - 2026-04-25: 引入 `PianoKeyboardGeometry` 作为统一几何真源，并将 RealityKit 引导从 cylinder 光柱迁移为单几何体四侧面 atlas 的暖金丁达尔光束。
 - 2026-04-28: 新增 `AutoplayPerformanceTimeline` 统一自动播放调度；新增 `PianoHighlightGuideBuilderService` 优化高亮引导构建；新增 `PianoHighlightParsedElementCoverageService` 用于诊断；实现 strict autoplay prerequisites 和 UI 错误提示；修复音频识别相关问题；新增 `Fallbacks.md` 专题页面。
 - 2026-04-29: 同步 Step 3 练习页进入不自动开始（`ready` -> 点击下一步才开始）与进度显示语义；更正练习音频后端对象名为 `PracticeSequencerPlaybackServiceProtocol` / `AVAudioSequencerPracticePlaybackService`。
+- 2026-04-30: 新增虚拟钢琴模式：放置状态机、88 键几何生成、迟滞按键检测、live note on/off 实时发声、3D 键盘渲染、安全清音机制。新增 `VirtualPianoTests.swift` 测试覆盖。
+- 2026-04-30: Simulator 中虚拟钢琴自动放置（`#if DEBUG && targetEnvironment(simulator)`），跳过手势放置直接以默认位置渲染键盘，便于 Simulator 调试光柱引导和 step 推进。修复 `RealityView` update closure 对嵌套 `@Observable` 属性变化追踪不可靠的问题：添加 `.onChange` 显式触发 `VirtualPianoOverlayController` 更新，`KeyboardFrame`/`PianoKeyboardGeometry` 标记为 `Equatable`。

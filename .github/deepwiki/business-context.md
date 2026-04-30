@@ -12,13 +12,14 @@ LonelyPianist 是一个本地优先的钢琴交互系统，围绕三条产品线
 | MIDI 快捷控制 | MIDI 键盘事件 | 目标 App 收到系统按键/文本 | [modules/lonelypianist-macos-mapping.md](modules/lonelypianist-macos-mapping.md) |
 | Piano Dialogue | 静默窗口内的演奏片段 | AI 回放并落盘为 take | [modules/lonelypianist-macos-dialogue.md](modules/lonelypianist-macos-dialogue.md) |
 | AR Guide | MusicXML + A0/C8 校准 + 手势 | 键位高亮与步骤推进 | [modules/lonelypianist-avp-practice.md](modules/lonelypianist-avp-practice.md) |
+| AR Guide（虚拟钢琴） | MusicXML + 虚拟钢琴开关 + 手势放置 | 3D 88 键键盘 + 实时发声 + 步骤推进 | [modules/lonelypianist-avp-practice.md](modules/lonelypianist-avp-practice.md) |
 
 ## 业务规则
 | 规则 | 含义 | 影响面 |
 | --- | --- | --- |
 | 权限先于动作 | macOS 需要 Accessibility；AVP 需要 Hand/World tracking 权限 | 启动和排障 |
 | 对话是 turn-based | 静默触发后再生成回复，回放策略可配置 | macOS + Python |
-| Step 3 前置条件明确 | 必须先导入谱面并有可用校准 | AVP 进入练习 |
+| Step 3 前置条件明确 | 必须先导入谱面并有可用校准（虚拟钢琴模式仅需导入谱面） | AVP 进入练习 |
 | 曲库索引与文件必须一致 | 导入 / 删除 / 音频绑定都先后写盘 | AVP 存储和恢复 |
 
 ## 核心产物

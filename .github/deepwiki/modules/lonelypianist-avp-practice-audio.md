@@ -57,5 +57,42 @@
 - “跳步时先 stop 一下”这类保护逻辑要非常克制：**stop 往往不仅仅是停止 transport，还会隐含发送 all-notes-off / reset**。
 - 当同一个声音在两个按钮上表现不同，优先对比两条路径里“额外的 stop / reset / 清音”步骤。
 
+## Live Note On/Off（虚拟钢琴实时发声）
+
+虚拟钢琴模式使用 `AVAudioUnitSampler` 的 `startNote`/`stopNote` 实现持续发声，而非 one-shot `playOneShot`。
+
+### API 扩展
+
+`PracticeSequencerPlaybackServiceProtocol` 新增三个方法：
+
+| 方法 | 说明 |
+| --- | --- |
+| `startLiveNotes(midiNotes:)` | 启动持续发声（idempotent：重复 start 同一 note 无副作用） |
+| `stopLiveNotes(midiNotes:)` | 停止指定音符发声（idempotent：重复 stop 同一 note 无副作用） |
+| `stopAllLiveNotes()` | 停止所有 live notes（切换/退出时安全清音） |
+
+### 实现细节
+
+- `AVAudioSequencerPracticePlaybackService` 内部维护 `liveNotes: Set<UInt8>` 跟踪当前持续发声的音符。
+- `stop()` 会调用 `stopAllLiveNotes()`，确保 transport 停止时 live notes 也被清音。
+- `startLiveNotes` 在 `isPrepared == false` 时会自动调用 `prepare()`。
+
+### 安全清音场景
+
+`stopVirtualPianoInput()` 在以下场景调用：
+1. 虚拟钢琴开关关闭
+2. 离开练习页（`onDisappear`）
+3. 开启 autoplay（避免 live note 与 autoplay 冲突）
+4. `resetSession()` 重置
+
+### 与 one-shot 的区别
+
+| 场景 | one-shot (`playOneShot`) | live note (`startLiveNotes`) |
+| --- | --- | --- |
+| 持续时间 | 固定 duration（如 0.35s） | 持续到 `stopLiveNotes` 被调用 |
+| 用途 | 手动播放当前 step 音色、autoplay | 虚拟钢琴手指接触发声 |
+| 停止方式 | 自动停止或 `stopOneShotNotes` | 必须显式 `stopLiveNotes` |
+
 ## 更新记录（Update Notes）
-- 2026-04-29: 同步 `stopAudioRecognition()` 的日志降噪：只在 running→stopped 时记录 `audio service stopped`，避免把“识别服务 stop”误读为“播放 stop”。
+- 2026-04-29: 同步 `stopAudioRecognition()` 的日志降噪：只在 running→stopped 时记录 `audio service stopped`，避免把”识别服务 stop”误读为”播放 stop”。
+- 2026-04-30: 新增 Live Note On/Off 章节，记录虚拟钢琴实时发声的 API、实现细节和安全清音机制。

@@ -9,6 +9,7 @@
 | AVP seed | App 启动 | SongLibrarySeeder | 默认谱面和音频 |
 | AVP import | fileImporter URLs | SongFileStore + IndexStore | `SongLibrary/index.json` |
 | AVP practice | 校准 + 曲库 + tracking | ARGuideViewModel + PracticeSessionViewModel + AutoplayPerformanceTimeline + PianoGuideOverlayController | 光柱引导、反馈和步骤推进 |
+| AVP virtual piano | 虚拟钢琴开关 + 手势放置 + 手指追踪 | VirtualPianoPlacementViewModel + VirtualPianoKeyGeometryService + KeyContactDetectionService + VirtualPianoOverlayController | 3D 88 键键盘 + 实时发声 + 步骤推进 |
 | PR validation | 手动测试 | 本地 xcodebuild | macOS / AVP tests |
 | Swift quality | 手动 workflow_dispatch | SwiftFormat + SwiftLint | 格式化 commit 或 lint 结果 |
 
@@ -40,6 +41,11 @@ sequenceDiagram
 | Guide 构建 | score, steps, spans, expressivity | `PianoHighlightGuideBuilderService` | `PianoHighlightGuide[]` |
 | Step 3 练习 | finger tips + steps + guides | `ARGuideViewModel`, `PracticeSessionViewModel`, `AutoplayPerformanceTimeline` | 匹配、反馈、autoplay |
 | 空间提示 | `PracticeStep.notes`, `PianoKeyboardGeometry`, feedback state | `PianoGuideOverlayController` | RealityKit warm-gold prism beams (four-side atlas) |
+| 虚拟钢琴放置 | finger tips | `VirtualPianoPlacementViewModel` | `worldFromKeyboard` transform |
+| 虚拟键盘生成 | `KeyboardFrame` | `VirtualPianoKeyGeometryService` | 88 键 `PianoKeyboardGeometry` |
+| 虚拟键盘渲染 | placement state + geometry | `VirtualPianoOverlayController` | RealityKit 3D 键盘 + 准星 |
+| 虚拟按键检测 | finger tips + geometry | `KeyContactDetectionService` | started/ended/down (hysteresis) |
+| 虚拟发声 | started/ended MIDI notes | `PracticeSequencerPlaybackServiceProtocol` | `AVAudioUnitSampler` startNote/stopNote |
 
 ## AVP 练习内部
 | 子流 | 说明 | 关键状态 |
@@ -117,6 +123,7 @@ flowchart TD
 | DialogueManager | `idle -> listening -> thinking -> playing` |
 | PracticeLocalizationState | `idle -> blocked/openingImmersive/waitingForProviders/locating -> ready/failed` |
 | PracticeState | `idle -> ready -> guiding -> completed` |
+| VirtualPianoPlacementViewModel | `disabled -> placing -> placed` |
 | PianoGuideOverlayController | no root -> attached root -> active beams -> cleared beams |
 | SongAudio playback | `nil / playing / paused` 由当前条目驱动 |
 
@@ -131,12 +138,15 @@ flowchart TD
 | Autoplay 无法启动 | 显示"无法自动播放：缺少XXX信息" | 检查 tempoMap、highlightGuides、pedalTimeline、fermataTimeline 是否完整 |
 | Guide 构建失败 | 没有高亮引导数据 | 检查 `PianoHighlightGuideBuilderService.buildGuides` 输入和逻辑 |
 | 音频识别性能下降 | 检测变慢或频繁出错 | 调整 `HarmonicTemplateTuningProfile` 或检查 `fallbackReason` |
+| 虚拟钢琴放置失败 | 准星不出现或键盘位置错误 | 检查 `VirtualPianoPlacementViewModel.state` 和 `worldFromKeyboard` |
+| 虚拟按键无声音 | 手指接触琴键但无发声 | 检查 `KeyContactDetectionService.detect` 输出和 `liveNotes` 集合 |
 | Swift tools mismatch | Package graph resolve 失败 | 使用支持 Swift 6.2 的 Xcode 版本 |
 
 ## 调试抓手
 - macOS：`statusMessage`、`recentLogs`、`previewText`
 - AVP：`practiceLocalizationStatusText`、`calibrationStatusMessage`、`currentListeningEntryID`、`currentPianoHighlightGuide?.highlightedMIDINotes`、`autoplayErrorMessage`
 - RealityKit 光束：`activeBeamEntitiesByMIDINote`、`PianoGuideBeamDescriptor`、`PianoKeyboardGeometry.frame.keyboardFromWorld`
+- 虚拟钢琴：`ARGuideViewModel.isVirtualPianoEnabled`、`VirtualPianoPlacementViewModel.state`、`worldFromKeyboard`、`KeyContactDetectionService.previousDownNotes`、`PracticeSequencerPlaybackServiceProtocol.liveNotes``
 - Guide 构建：`PianoHighlightGuideBuilderService.buildGuides` 输入和输出、`PianoHighlightParsedElementCoverageService.allCoverages()`
 - AutoplayPerformanceTimeline：事件序列、tick 排序、优先级处理
 - 音频识别：`fallbackReason`、`activeDetectorMode`、`processingDurationMs`、`templateMatchResults`
@@ -153,3 +163,4 @@ flowchart TD
 - 2026-04-26: 同步 Step 1 校准的 A0/C8 手势分工（左右手输入与捏合确认切换）。
 - 2026-04-28: 反映 pr-tests.yml workflow 已删除；新增 `AutoplayPerformanceTimeline` 数据流；新增 Guide 构建流程；更新 autoplay 前置检查和失败恢复；添加音频识别调试抓手。
 - 2026-04-29: 修正 AVP 调试抓手中高亮 note 集合的真实来源为 `currentPianoHighlightGuide?.highlightedMIDINotes`（移除过期字段名）。
+- 2026-04-30: 新增虚拟钢琴数据流（放置、键盘生成、渲染、按键检测、实时发声）；新增 `VirtualPianoPlacementViewModel` 状态机；新增虚拟钢琴故障恢复和调试抓手。

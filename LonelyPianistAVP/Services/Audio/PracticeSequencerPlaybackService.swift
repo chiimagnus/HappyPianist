@@ -15,6 +15,9 @@ protocol PracticeSequencerPlaybackServiceProtocol: AnyObject {
     func play(fromSeconds start: TimeInterval) throws
     func currentSeconds() -> TimeInterval
     func playOneShot(midiNotes: [Int], durationSeconds: TimeInterval) throws
+    func startLiveNotes(midiNotes: Set<Int>) throws
+    func stopLiveNotes(midiNotes: Set<Int>)
+    func stopAllLiveNotes()
 }
 
 @MainActor
@@ -31,6 +34,7 @@ final class AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackSe
     private var isReady = false
     private var playingOneShotNotes: Set<UInt8> = []
     private var oneShotStopTask: Task<Void, Never>?
+    private var liveNotes: Set<UInt8> = []
 
     init(
         soundFontResourceName: String,
@@ -62,6 +66,7 @@ final class AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackSe
         sequencer.stop()
         allNotesOff()
         stopOneShotNotes()
+        stopAllLiveNotes()
     }
 
     func load(sequence: PracticeSequencerSequence) throws {
@@ -113,6 +118,32 @@ final class AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackSe
             guard Task.isCancelled == false else { return }
             stopOneShotNotes()
         }
+    }
+
+    func startLiveNotes(midiNotes: Set<Int>) throws {
+        try ensureReady()
+        for midiNote in midiNotes {
+            guard let note = UInt8(exactly: midiNote), liveNotes.contains(note) == false else { continue }
+            sampler.startNote(note, withVelocity: velocity, onChannel: channel)
+            liveNotes.insert(note)
+        }
+    }
+
+    func stopLiveNotes(midiNotes: Set<Int>) {
+        guard isReady else { return }
+        for midiNote in midiNotes {
+            guard let note = UInt8(exactly: midiNote), liveNotes.contains(note) else { continue }
+            sampler.stopNote(note, onChannel: channel)
+            liveNotes.remove(note)
+        }
+    }
+
+    func stopAllLiveNotes() {
+        guard isReady else { return }
+        for note in liveNotes {
+            sampler.stopNote(note, onChannel: channel)
+        }
+        liveNotes.removeAll()
     }
 
     private func stopOneShotNotes() {

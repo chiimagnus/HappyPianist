@@ -80,6 +80,8 @@ final class ARGuideViewModel {
 
     private(set) var practiceLocalizationState: PracticeLocalizationState = .idle
     private(set) var calibrationPhase: CalibrationPhase = .capturingA0
+    private(set) var isVirtualPianoEnabled = false
+    let virtualPianoPlacement = VirtualPianoPlacementViewModel()
 
     init(appState: AppState, practiceSessionViewModel: PracticeSessionViewModel? = nil) {
         self.appState = appState
@@ -231,6 +233,26 @@ final class ARGuideViewModel {
         practiceSessionViewModel.setAutoplayEnabled(isEnabled)
     }
 
+    func setPracticeVirtualPianoEnabled(_ isEnabled: Bool) {
+        isVirtualPianoEnabled = isEnabled
+        if isEnabled {
+            cancelPracticeLocalizationTask()
+            #if DEBUG && targetEnvironment(simulator)
+            practiceLocalizationState = .ready
+            virtualPianoPlacement.placeAtDefaultPosition()
+            applyVirtualPianoGeometry()
+            #else
+            practiceLocalizationState = .idle
+            virtualPianoPlacement.startPlacing()
+            #endif
+        } else {
+            practiceSessionViewModel.stopVirtualPianoInput()
+            practiceSessionViewModel.clearCalibration()
+            practiceLocalizationState = .idle
+            virtualPianoPlacement.reset()
+        }
+    }
+
     var practiceLocalizationStatusText: String? {
         switch practiceLocalizationState {
             case .idle:
@@ -322,7 +344,7 @@ final class ARGuideViewModel {
             return .missingImportedSteps
         }
 
-        if storedCalibration == nil {
+        if isVirtualPianoEnabled == false, storedCalibration == nil {
             return .missingStoredCalibration
         }
 
@@ -438,6 +460,7 @@ final class ARGuideViewModel {
     func onImmersiveDisappear() {
         cancelCalibrationGuidedFlowTasks()
         cancelPracticeLocalizationTask()
+        practiceSessionViewModel.stopVirtualPianoInput()
         stopHandTracking()
     }
 
@@ -453,9 +476,50 @@ final class ARGuideViewModel {
                     case .calibration:
                         handleCalibrationHandUpdates()
                     case .practice:
-                        _ = practiceSessionViewModel.handleFingerTipPositions(fingerTips)
+                        if isVirtualPianoEnabled {
+                            let wasPlaced = virtualPianoPlacement.isPlaced
+                            virtualPianoPlacement.update(fingerTips: fingerTips)
+                            if wasPlaced == false, virtualPianoPlacement.isPlaced {
+                                applyVirtualPianoGeometry()
+                            }
+                            if virtualPianoPlacement.isPlaced {
+                                _ = practiceSessionViewModel.handleFingerTipPositions(
+                                    fingerTips,
+                                    isVirtualPiano: true
+                                )
+                            }
+                        } else {
+                            _ = practiceSessionViewModel.handleFingerTipPositions(fingerTips)
+                        }
                 }
             }
+        }
+    }
+
+    private func applyVirtualPianoGeometry() {
+        guard let worldFromKeyboard = virtualPianoPlacement.worldFromKeyboard else { return }
+        let frame = KeyboardFrame(worldFromKeyboard: worldFromKeyboard)
+        let service = VirtualPianoKeyGeometryService()
+        if let geometry = service.generateKeyboardGeometry(from: frame) {
+            practiceSessionViewModel.applyVirtualKeyboardGeometry(geometry)
+        }
+    }
+
+    func syncVirtualPianoTransformFromOverlay(_ worldFromKeyboard: simd_float4x4?) {
+        guard isVirtualPianoEnabled else { return }
+        guard let worldFromKeyboard else { return }
+        guard virtualPianoPlacement.updatePlacedTransformIfNeeded(worldFromKeyboard) else { return }
+
+        let frame = KeyboardFrame(worldFromKeyboard: worldFromKeyboard)
+
+        if let existing = practiceSessionViewModel.keyboardGeometry, practiceSessionViewModel.calibration == nil {
+            practiceSessionViewModel.applyVirtualKeyboardGeometry(PianoKeyboardGeometry(frame: frame, keys: existing.keys))
+            return
+        }
+
+        let service = VirtualPianoKeyGeometryService()
+        if let geometry = service.generateKeyboardGeometry(from: frame) {
+            practiceSessionViewModel.applyVirtualKeyboardGeometry(geometry)
         }
     }
 
@@ -605,12 +669,19 @@ final class ARGuideViewModel {
         dismissImmersiveSpace: DismissImmersiveSpaceAction
     ) async {
         cancelPracticeLocalizationTask()
-        appState.clearRuntimeCalibrationForPracticeRelocation()
+        if isVirtualPianoEnabled == false {
+            appState.clearRuntimeCalibrationForPracticeRelocation()
+        }
 
         guard let blockingReason = practiceEntryBlockingReason() else {
             practiceLocalizationState = .openingImmersive
             if let openError = await openImmersiveForStep(mode: .practice, using: openImmersiveSpace) {
                 practiceLocalizationState = .failed(reason: .immersiveOpenFailed(message: openError))
+                return
+            }
+
+            if isVirtualPianoEnabled {
+                practiceLocalizationState = .ready
                 return
             }
 

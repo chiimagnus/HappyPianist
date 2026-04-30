@@ -90,6 +90,7 @@
 - **要改 macOS 监听 / 映射 / 录音 / 对话**：看 `modules/lonelypianist-macos.md`，再下钻对应子页。
 - **要改 AVP 导入 / 校准 / 练习 / MusicXML**：看 `modules/lonelypianist-avp.md`，再下钻对应子页。
 - **要改 AR 引导光柱**：看 `modules/lonelypianist-avp-practice.md` 和 `PianoGuideOverlayController`。
+- **要改虚拟钢琴**：看 `modules/lonelypianist-avp-practice.md` 的「虚拟钢琴模式」章节，涉及放置状态机、按键检测、3D 渲染和实时发声。
 - **要改 Python 协议或采样逻辑**：看 `modules/piano-dialogue-server.md` 与 `modules/piano-dialogue-server-inference.md`。
 - **要运行测试**：看 `testing.md` 和 `workflow.md`，所有测试需要手动在本地运行。
 - **要手动格式化 / lint**：看 `configuration.md` 中的 Swift Quality workflow。
@@ -108,7 +109,7 @@
 - PR Tests workflow 已删除，macOS 和 AVP 测试需手动在本地运行。
 - Python smoke tests 尚未纳入 GitHub Actions。
 - 尚无统一发布流水线，也没有三端 E2E 自动化门禁。
-- AVP simulator tests 已跑通，但仍不能替代 Vision Pro 真机上的手部追踪、空间感和光柱视觉舒适度验证。
+- AVP simulator tests 已跑通，但仍不能替代 Vision Pro 真机上的手部追踪、空间感、光柱视觉舒适度和虚拟钢琴交互体验验证。
 - `.github/deepwiki/assets/` 保留为资产位，但本次没有额外图片资产可复制。
 
 ## 更新记录（Update Notes）
@@ -117,3 +118,4 @@
 - 2026-04-26: 同步 Step 1 校准的 A0/C8 手势分工、reticle 稳定阈值（5mm）、完成页”重新校准”入口与沉浸空间 overlay 精简。
 - 2026-04-28: 反映 pr-tests.yml workflow 已删除；新增 Fallbacks.md 专题页面；更新自动化事实和 Coverage Gaps。
 - 2026-04-29: 同步 Step 3 进入不自动开始（`ready` -> 点击下一步才开始）与音频识别 stop 日志降噪；扩充 AVP 音频排障入口。
+- 2026-04-30: 新增虚拟钢琴导航入口；更新 Coverage Gaps 以反映虚拟钢琴真机验证需求。

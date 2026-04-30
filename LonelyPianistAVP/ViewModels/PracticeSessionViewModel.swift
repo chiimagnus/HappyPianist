@@ -63,6 +63,7 @@ final class PracticeSessionViewModel {
     let chordAttemptAccumulator: ChordAttemptAccumulatorProtocol
     let sleeper: SleeperProtocol
     let sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol
+    let keyContactDetectionService = KeyContactDetectionService()
     let audioRecognitionService: PracticeAudioRecognitionServiceProtocol?
     let audioStepAttemptAccumulator: AudioStepAttemptAccumulator
     let handPianoActivityGate: HandPianoActivityGate
@@ -293,6 +294,13 @@ final class PracticeSessionViewModel {
         }
     }
 
+    func applyVirtualKeyboardGeometry(_ keyboardGeometry: PianoKeyboardGeometry) {
+        self.keyboardGeometry = keyboardGeometry
+        if steps.isEmpty == false, state != .completed, state != .guiding(stepIndex: currentStepIndex) {
+            state = .ready
+        }
+    }
+
     func clearCalibration() {
         calibration = nil
         keyboardGeometry = nil
@@ -328,6 +336,7 @@ final class PracticeSessionViewModel {
         calibration = nil
         keyboardGeometry = nil
         pressedNotes.removeAll()
+        keyContactDetectionService.reset()
         feedbackState = .none
         isSustainPedalDown = false
         audioRecognitionErrorMessage = nil
@@ -348,6 +357,12 @@ final class PracticeSessionViewModel {
     func clearAudioError() {
         audioRecognitionErrorMessage = nil
         audioPlaybackErrorMessage = nil
+    }
+
+    func stopVirtualPianoInput() {
+        sequencerPlaybackService.stopAllLiveNotes()
+        keyContactDetectionService.reset()
+        pressedNotes.removeAll()
     }
 
     func clearAutoplayError() {
@@ -413,6 +428,7 @@ final class PracticeSessionViewModel {
     func setAutoplayEnabled(_ isEnabled: Bool) {
         if isEnabled {
             stopManualReplayTask()
+            stopVirtualPianoInput()
             do {
                 try sequencerPlaybackService.warmUp()
             } catch {

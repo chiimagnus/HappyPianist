@@ -21,6 +21,10 @@
 | `AutoplayPerformanceTimeline` | 统一调度 note on/off、踏板、guide、step 和 fermata pause 的播放时间线 |
 | `PianoHighlightGuide` | 钢琴高亮引导元素，包含 trigger/release/gap 三种类型 |
 | `PianoHighlightGuideKind` | 引导类型：trigger（按下）、release（松开）、gap（空闲） |
+| `VirtualPianoPlacementViewModel` | 虚拟钢琴放置状态机（disabled → placing → placed） |
+| `KeyContactDetectionService` | 虚拟钢琴按键接触检测服务，使用迟滞避免误触 |
+| `VirtualPianoKeyGeometryService` | 虚拟钢琴 88 键几何生成服务 |
+| `VirtualPianoOverlayController` | 虚拟钢琴 3D 键盘 RealityKit 渲染控制器 |
 | `MusicXMLExpressivityOptions` | MusicXML 表现力选项，控制 wedge、grace、fermata、arpeggiate、words semantics 的启用 |
 
 ## 音频识别术语
@@ -44,9 +48,11 @@
 ## 易混淆概念
 - **stored calibration**：持久化的 anchor ID。
 - **runtime calibration**：当前场景里根据 tracked anchors 解析出来的几何结果。
-- **导入成功** 不等于 **可开始练习**：还要能生成有效 steps，并成功定位。
+- **导入成功** 不等于 **可开始练习**：还要能生成有效 steps，并成功定位（虚拟钢琴模式仅需导入谱面）。
 - **fallback（兜底）** 不等于 **error handling（错误处理）**：fallback 是主动选择替代行为继续运行，error handling 是捕获错误并恢复。
+- **虚拟钢琴模式** vs **实体钢琴模式**：虚拟钢琴无需校准和定位，通过手势放置 3D 键盘后直接进入练习；实体钢琴需要 Step 1 校准 + AR 定位。两者共享 `PracticeSessionViewModel` 的匹配和反馈逻辑，但按键检测路径不同（`KeyContactDetectionService` vs `PressDetectionService`）。
 
 ## Coverage Gaps
 - 发布和版本语义仍散落在 README 和流程中，没有独立页面。
 - 音频识别的各种 fallback 状态和模式切换仍在演进中。
+- 虚拟钢琴的迟滞阈值和交互细节可能随真机调优而变化。

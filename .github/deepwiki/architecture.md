@@ -23,6 +23,10 @@ LonelyPianist 由三条运行面和两条自动化路径组成：macOS 负责 MI
 | `ARGuideViewModel` | immersive state + providers | localization state | open / locate / retry |
 | `PracticeSessionViewModel` | finger tips + steps | matching / autoplay / feedback | `handleFingerTipPositions` |
 | `PianoGuideOverlayController` | `PracticeStep`, `PianoKeyboardGeometry`, feedback | RealityKit 光束实体 | four-side atlas、单几何体、keyboard-local transform |
+| `VirtualPianoPlacementViewModel` | finger tips | 放置状态机（disabled/placing/placed） | `update(fingerTips:)` |
+| `VirtualPianoKeyGeometryService` | `KeyboardFrame` | 88 键 `PianoKeyboardGeometry` | `generateKeyboardGeometry` |
+| `KeyContactDetectionService` | finger tips + geometry | 按键 started/ended/down（迟滞） | `detect` |
+| `VirtualPianoOverlayController` | placement state + geometry | RealityKit 3D 键盘 + 准星 | `update` |
 
 ## 依赖方向
 ```mermaid
@@ -42,7 +46,11 @@ flowchart LR
     H --> K[ARGuideViewModel]
     K --> L[ARTrackingService]
     K --> M[PracticeSessionViewModel]
+    K --> V[VirtualPianoPlacementViewModel]
     M --> N[PianoGuideOverlayController]
+    M --> W[KeyContactDetectionService]
+    M --> X[VirtualPianoOverlayController]
+    V --> Y[VirtualPianoKeyGeometryService]
     J --> O[SongLibraryIndexStore]
     J --> P[SongFileStore]
   end
@@ -82,7 +90,7 @@ PR Tests 是门禁型工作流；Swift Quality 是维护型工作流。两者故
 
 ## 扩展点
 - macOS：可在 `RoutedMIDIPlaybackService` 下扩展回放后端。
-- AVP：可扩展曲库索引字段、校准算法、练习匹配策略和 RealityKit 光柱表现。
+- AVP：可扩展曲库索引字段、校准算法、练习匹配策略、RealityKit 光柱表现和虚拟钢琴交互模式。
 - Python：可扩展请求参数、采样策略和调试包字段。
 - CI：可把 Python smoke tests 加入 workflow，或把 AVP simulator test 拆成 `build-for-testing` + 手动完整 test。
 
@@ -96,6 +104,8 @@ PR Tests 是门禁型工作流；Swift Quality 是维护型工作流。两者故
 | `SongLibraryViewModel.importMusicXML / deleteEntry / bindAudio` | 曲库 index 和文件副本漂移 | AVP library tests |
 | `PracticeSessionViewModel.startAutoplayTaskIfNeeded` | 自动演奏、feedback、step 推进联动 | AVP practice tests |
 | `PianoGuideOverlayController.updateHighlights` | 光束位置、大小、材质、生命周期 | AVP tests + Vision Pro 手工观察 |
+| `KeyContactDetectionService.detect` | 迟滞阈值、黑键优先、started/ended delta | VirtualPianoTests + Vision Pro 手工验证 |
+| `VirtualPianoPlacementViewModel.confirmPlacement` | 键盘原点计算、transform 传递 | VirtualPianoTests + 手工放置验证 |
 | `piano_dialogue_server/server/inference.py::_patch_safe_logits` | 推理结果和异常恢复 | Python smoke scripts |
 
 ## Coverage Gaps
@@ -105,3 +115,4 @@ PR Tests 是门禁型工作流；Swift Quality 是维护型工作流。两者故
 
 ## 更新记录（Update Notes）
 - 2026-04-25: 补入 PR Tests、Swift Quality、`macos-26`、AVP simulator test 和 RealityKit 光柱架构事实。
+- 2026-04-30: 新增虚拟钢琴组件（VirtualPianoPlacementViewModel、VirtualPianoKeyGeometryService、KeyContactDetectionService、VirtualPianoOverlayController）到组件边界表和依赖图。

@@ -4,6 +4,7 @@ import os
 
 extension PracticeSessionViewModel {
     func startManualReplay(with plan: ManualReplayPlan) {
+        stopVirtualPianoInput()
         let shouldResumeRecognitionWhenReplayEnds = isManualReplayPlaying
             ? shouldResumeAudioRecognitionAfterManualReplay
             : isAudioRecognitionRunning

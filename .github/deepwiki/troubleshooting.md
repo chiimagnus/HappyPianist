@@ -9,6 +9,9 @@
 | 曲库能看到但不能练习 | 曲库与步骤生成 | MusicXML 没生成 steps |
 | 试听没声音 | 曲库音频绑定 / 播放器 | 音频文件缺失或不可播 |
 | Step 3 点击「下一步」声音短促 | `modules/lonelypianist-avp-practice-audio.md` | 多余 stop + all-notes-off 竞态截断 note |
+| 虚拟钢琴手指接触无声音 | `KeyContactDetectionService.detect` 输出 / `liveNotes` 集合 | 迟滞阈值未命中或 geometry 未生成 |
+| 虚拟钢琴放置后键盘位置偏移 | `VirtualPianoPlacementViewModel.worldFromKeyboard` | 原点计算逻辑或 reticle 位置异常 |
+| 虚拟钢琴开启后无法进入练习 | `ARGuideViewModel.practiceEntryBlockingReason` | 检查是否正确跳过校准检查 |
 | PR Tests 没触发 | PR changed files / path filters | 改动路径未匹配 `pr-tests.yml` |
 | macOS tests package graph 失败 | Actions log 的 `Resolve Package Graph` | runner 不是 `macos-26`，Swift tools 6.2 不匹配 |
 | AVP tests 很久才结束 | `Run AVP tests` step | visionOS simulator 启动和测试会比 macOS 慢 |
@@ -26,7 +29,9 @@
 3. 若定位失败，优先看 provider state / anchor 状态。
 4. 若光束位置/高度异常，检查 `PianoGuideBeamDescriptor`、`PianoKeyboardGeometry.frame.keyboardFromWorld` 和 debug axes。
 5. 若 CI 找不到 simulator destination，先在日志或本地跑 `xcodebuild -showdestinations -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP`。
-6. 若看到大量音频相关 stop/start 日志，先区分“识别服务”与“播放服务”（见下方常见音频日志）。
+6. 若看到大量音频相关 stop/start 日志，先区分”识别服务”与”播放服务”（见下方常见音频日志）。
+7. 若虚拟钢琴模式下手指接触琴键无声音，检查 `KeyContactDetectionService.detect` 的 `started` 输出和 `PracticeSequencerPlaybackServiceProtocol.liveNotes`。
+8. 若虚拟钢琴放置后键盘位置偏移，检查 `VirtualPianoPlacementViewModel.worldFromKeyboard` 的 transform 和 `VirtualPianoKeyGeometryService.totalKeyboardLengthMeters`。
 
 ### 常见音频日志（AVP）
 
@@ -61,6 +66,7 @@
 | 试听状态乱掉 | 停止播放并重新绑定音频 |
 | AVP CI 不稳定 | 先改为 `build-for-testing` 作为 PR gate，再保留手动完整 `test` |
 | Swift Quality 大量改动 | 拆小 PR 或先本地运行 SwiftFormat/SwiftLint 审查 |
+| 虚拟钢琴无声音 | 检查 `KeyContactDetectionService` 迟滞阈值和 `liveNotes` 集合 |
 
 ## Coverage Gaps
 - 目前没有统一日志聚合，因此排障页仍依赖本地状态、Actions job logs 和调试目录。
@@ -69,3 +75,4 @@
 ## 更新记录（Update Notes）
 - 2026-04-25: 增补 PR Tests、AVP simulator、Swift tools 6.2、Swift Quality，并将光柱排查更新为丁达尔光束（keyboard geometry + atlas）。
 - 2026-04-29: 增补 AVP 常见音频日志释义；新增「下一步短促音」症状入口并路由到排查记录页。
+- 2026-04-30: 新增虚拟钢琴故障排查条目（放置偏移、按键无声音、进入练习失败）；增补 AVP 虚拟钢琴排查步骤。

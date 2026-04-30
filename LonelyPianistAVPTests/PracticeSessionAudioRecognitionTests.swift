@@ -17,7 +17,7 @@ func fakeAudioRecognitionServiceEmitsEventToConsumer() async {
     )
 
     let consumeTask = Task<DetectedNoteEvent?, Never> {
-        for await next in service.events {
+        for await next in await service.events {
             return next
         }
         return nil
@@ -39,9 +39,9 @@ func fakeAudioRecognitionServiceRecordsLifecycleCalls() async throws {
         generation: 3,
         suppressUntil: nil
     )
-    service.updateExpectedNotes([64], wrongCandidateMIDINotes: [63], generation: 4)
-    service.suppressRecognition(until: now, generation: 4)
-    service.stop()
+    await service.updateExpectedNotes([64], wrongCandidateMIDINotes: [63], generation: 4)
+    await service.suppressRecognition(until: now, generation: 4)
+    await service.stop()
 
     #expect(service.startCalls == [.init(
         expectedMIDINotes: [60],
@@ -414,6 +414,9 @@ private final class CapturingSequencerPlaybackService: PracticeSequencerPlayback
     func playOneShot(midiNotes: [Int], durationSeconds _: TimeInterval) throws {
         oneShots.append(midiNotes)
     }
+    func startLiveNotes(midiNotes _: Set<Int>) throws {}
+    func stopLiveNotes(midiNotes _: Set<Int>) {}
+    func stopAllLiveNotes() {}
 }
 
 @Test

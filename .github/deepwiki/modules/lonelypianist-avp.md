@@ -9,18 +9,22 @@
 | --- | --- |
 | `AppModel.swift` | 全局状态枢纽 |
 | `ViewModels/` | 业务编排 |
+| `ViewModels/VirtualPianoPlacementViewModel.swift` | 虚拟钢琴放置状态机 |
 | `Services/Library/` | 曲库与 seed |
 | `Services/MusicXML/` | 解析和时间线 |
 | `Services/Tracking/` | AR tracking |
 | `Services/Calibration/` | 校准捕获 |
+| `Services/VirtualPiano/` | 虚拟钢琴几何与接触检测 |
 | `Views/` | Step 1/2/3 UI |
+| `Views/Immersive/VirtualPianoOverlayController.swift` | 虚拟钢琴 3D 渲染 |
 
 ## 入口与生命周期
 | 入口 | 行为 |
 | --- | --- |
 | `LonelyPianistAVPApp.swift` | 加载校准、seed 曲库 |
 | `ContentView` | Step 1/2/3 路由 |
-| `ARGuideViewModel.enterPracticeStep()` | 开启练习定位 |
+| `ARGuideViewModel.enterPracticeStep()` | 开启练习定位（虚拟钢琴模式跳过实体定位） |
+| `ARGuideViewModel.setPracticeVirtualPianoEnabled()` | 切换虚拟钢琴模式 |
 | `SongLibraryViewModel.preparePractice()` | 解析谱面并注入 steps |
 
 ## 重要子页

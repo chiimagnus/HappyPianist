@@ -7,9 +7,14 @@ import simd
 /// - +X points from A0 towards C8, projected onto the XZ plane (y = 0).
 /// - +Y is world up (0,1,0).
 /// - +Z is derived deterministically to form a right-handed basis; it is a convention (not "towards the user").
-struct KeyboardFrame {
+struct KeyboardFrame: Equatable {
     let worldFromKeyboard: simd_float4x4
     let keyboardFromWorld: simd_float4x4
+
+    init(worldFromKeyboard: simd_float4x4) {
+        self.worldFromKeyboard = worldFromKeyboard
+        self.keyboardFromWorld = simd_inverse(worldFromKeyboard)
+    }
 
     init?(a0World: SIMD3<Float>, c8World: SIMD3<Float>, planeHeight: Float) {
         let xCandidate = SIMD3<Float>(c8World.x - a0World.x, 0, c8World.z - a0World.z)
