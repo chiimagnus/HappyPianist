@@ -6,13 +6,11 @@ import simd
 final class VirtualPianoPlacementViewModel {
     enum PlacementState: Equatable {
         case disabled
-        case placing(reticlePoint: SIMD3<Float>)
-        case placed(worldFromKeyboard: simd_float4x4, scale: Float)
+        case placing(reticlePoint: SIMD3<Float>?)
+        case placed(worldFromKeyboard: simd_float4x4)
     }
 
-    private static let whiteKeyWidthMeters: Float = 0.0235
-    private static let whiteKeySpacingMeters: Float = whiteKeyWidthMeters / 0.95
-    private static let totalKeyboardLengthMeters: Float = whiteKeySpacingMeters * Float(52 - 1)
+    private static let totalKeyboardLengthMeters: Float = VirtualPianoKeyGeometryService.totalKeyboardLengthMeters
     private static let pressThresholdMeters: Float = 0.018
 
     private(set) var state: PlacementState = .disabled
@@ -24,7 +22,7 @@ final class VirtualPianoPlacementViewModel {
     }
 
     var worldFromKeyboard: simd_float4x4? {
-        if case let .placed(transform, _) = state { return transform }
+        if case let .placed(transform) = state { return transform }
         return nil
     }
 
@@ -34,7 +32,7 @@ final class VirtualPianoPlacementViewModel {
     }
 
     func startPlacing() {
-        state = .placing(reticlePoint: .zero)
+        state = .placing(reticlePoint: nil)
     }
 
     #if DEBUG && targetEnvironment(simulator)
@@ -56,14 +54,14 @@ final class VirtualPianoPlacementViewModel {
             SIMD4<Float>(originWorld, 1)
         ))
 
-        state = .placed(worldFromKeyboard: transform, scale: 1.0)
+        state = .placed(worldFromKeyboard: transform)
     }
     #endif
 
     func update(fingerTips: [String: SIMD3<Float>]) {
         guard case .placing = state else { return }
 
-        guard let reticlePoint = fingerTips["right_indexFinger_tip"] ?? fingerTips["left_indexFinger_tip"] else {
+        guard let reticlePoint = fingerTips["right-indexFingerTip"] ?? fingerTips["left-indexFingerTip"] else {
             return
         }
 
@@ -80,8 +78,8 @@ final class VirtualPianoPlacementViewModel {
 
     private func checkPinch(fingerTips: [String: SIMD3<Float>]) -> Bool {
         guard
-            let index = fingerTips["right_indexFinger_tip"],
-            let thumb = fingerTips["right_thumb_tip"]
+            let index = fingerTips["right-indexFingerTip"],
+            let thumb = fingerTips["right-thumbTip"]
         else {
             return false
         }
@@ -103,6 +101,13 @@ final class VirtualPianoPlacementViewModel {
             SIMD4<Float>(originWorld, 1)
         ))
 
-        state = .placed(worldFromKeyboard: transform, scale: 1.0)
+        state = .placed(worldFromKeyboard: transform)
+    }
+
+    func updatePlacedTransformIfNeeded(_ worldFromKeyboard: simd_float4x4) -> Bool {
+        guard case let .placed(existing) = state else { return false }
+        guard existing != worldFromKeyboard else { return false }
+        state = .placed(worldFromKeyboard: worldFromKeyboard)
+        return true
     }
 }

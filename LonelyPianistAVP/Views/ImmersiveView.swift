@@ -46,6 +46,9 @@ struct ImmersiveView: View {
                 keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
                 content: content
             )
+            viewModel.syncVirtualPianoTransformFromOverlay(
+                virtualPianoOverlayController.currentKeyboardWorldFromKeyboard()
+            )
         } update: { content in
             calibrationOverlayController.update(
                 showsReticle: shouldShowCalibrationReticle,
@@ -71,6 +74,9 @@ struct ImmersiveView: View {
                 placementState: viewModel.virtualPianoPlacement.state,
                 keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
                 content: content
+            )
+            viewModel.syncVirtualPianoTransformFromOverlay(
+                virtualPianoOverlayController.currentKeyboardWorldFromKeyboard()
             )
         }
         .onAppear {

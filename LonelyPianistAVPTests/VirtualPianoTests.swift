@@ -70,7 +70,7 @@ func virtualPianoNoteOnTriggersLiveStart() {
 
     let c4Key = geometry.key(for: 60)!
     let fingerTips: [String: SIMD3<Float>] = [
-        "right_indexFinger_tip": SIMD3<Float>(c4Key.hitCenterLocal.x, -0.001, c4Key.hitCenterLocal.z),
+        "right-indexFingerTip": SIMD3<Float>(c4Key.hitCenterLocal.x, -0.001, c4Key.hitCenterLocal.z),
     ]
     let detected = viewModel.handleFingerTipPositions(fingerTips, isVirtualPiano: true)
 
@@ -102,7 +102,7 @@ func physicalPianoPathUnaffectedByVirtualPiano() {
     viewModel.applyKeyboardGeometry(geometry, calibration: calibration)
 
     let fingerTips: [String: SIMD3<Float>] = [
-        "right_indexFinger_tip": SIMD3<Float>(0.5, 0, 0),
+        "right-indexFingerTip": SIMD3<Float>(0.5, 0, 0),
     ]
     let detected = viewModel.handleFingerTipPositions(fingerTips, isVirtualPiano: false)
 
@@ -121,14 +121,14 @@ func keyContactDetectionStartedEndedHysteresis() {
     let c4Key = geometry.key(for: 60)!
 
     let atSurface: [String: SIMD3<Float>] = [
-        "right_indexFinger_tip": SIMD3<Float>(c4Key.hitCenterLocal.x, c4Key.surfaceLocalY, c4Key.hitCenterLocal.z),
+        "right-indexFingerTip": SIMD3<Float>(c4Key.hitCenterLocal.x, c4Key.surfaceLocalY, c4Key.hitCenterLocal.z),
     ]
     let result1 = service.detect(fingerTips: atSurface, keyboardGeometry: geometry)
     #expect(result1.started.contains(60))
     #expect(result1.down.contains(60))
 
     let betweenThresholds: [String: SIMD3<Float>] = [
-        "right_indexFinger_tip": SIMD3<Float>(
+        "right-indexFingerTip": SIMD3<Float>(
             c4Key.hitCenterLocal.x,
             c4Key.surfaceLocalY + (KeyContactDetectionService.pressThresholdMeters + KeyContactDetectionService.releaseThresholdMeters) / 2,
             c4Key.hitCenterLocal.z
@@ -140,7 +140,7 @@ func keyContactDetectionStartedEndedHysteresis() {
     #expect(result2.ended.isEmpty)
 
     let aboveRelease: [String: SIMD3<Float>] = [
-        "right_indexFinger_tip": SIMD3<Float>(
+        "right-indexFingerTip": SIMD3<Float>(
             c4Key.hitCenterLocal.x,
             c4Key.surfaceLocalY + KeyContactDetectionService.releaseThresholdMeters + 0.001,
             c4Key.hitCenterLocal.z
@@ -158,11 +158,29 @@ func keyContactDetectionBlackKeyPriority() {
     let geometry = makeTestKeyboardGeometry()
 
     let blackKey = geometry.keys.first { $0.kind == .black }!
+    let blackMin = blackKey.hitCenterLocal - blackKey.hitSizeLocal / 2
+    let blackMax = blackKey.hitCenterLocal + blackKey.hitSizeLocal / 2
+    let whiteKeys = geometry.keys.filter { $0.kind == .white }
+    let overlappingWhite = whiteKeys.first { whiteKey in
+        let whiteMin = whiteKey.hitCenterLocal - whiteKey.hitSizeLocal / 2
+        let whiteMax = whiteKey.hitCenterLocal + whiteKey.hitSizeLocal / 2
+        return max(blackMin.x, whiteMin.x) < min(blackMax.x, whiteMax.x)
+            && max(blackMin.z, whiteMin.z) < min(blackMax.z, whiteMax.z)
+    }
+    #expect(overlappingWhite != nil, "Test setup: expected at least one white key overlap with a black key footprint")
+
+    let overlapPointX: Float = {
+        guard let overlappingWhite else { return blackKey.hitCenterLocal.x }
+        let whiteMin = overlappingWhite.hitCenterLocal - overlappingWhite.hitSizeLocal / 2
+        let whiteMax = overlappingWhite.hitCenterLocal + overlappingWhite.hitSizeLocal / 2
+        return (max(blackMin.x, whiteMin.x) + min(blackMax.x, whiteMax.x)) / 2
+    }()
+
     let fingerTips: [String: SIMD3<Float>] = [
-        "right_indexFinger_tip": SIMD3<Float>(blackKey.hitCenterLocal.x, -0.001, blackKey.hitCenterLocal.z),
+        "right-indexFingerTip": SIMD3<Float>(overlapPointX, -0.001, blackKey.hitCenterLocal.z),
     ]
     let result = service.detect(fingerTips: fingerTips, keyboardGeometry: geometry)
-    #expect(result.down.contains(blackKey.midiNote))
+    #expect(result.down == [blackKey.midiNote])
 }
 
 @MainActor
@@ -189,14 +207,14 @@ func placementStateTransitions() {
 
     vm.startPlacing()
     if case let .placing(reticlePoint) = vm.state {
-        #expect(reticlePoint == .zero)
+        #expect(reticlePoint == nil)
     } else {
         Issue.record("Expected .placing state")
     }
 
     vm.update(fingerTips: [
-        "right_indexFinger_tip": SIMD3<Float>(0.5, 0, 0),
-        "right_thumb_tip": SIMD3<Float>(0.5, 0, 0),
+        "right-indexFingerTip": SIMD3<Float>(0.5, 0, 0),
+        "right-thumbTip": SIMD3<Float>(0.5, 0, 0),
     ])
     #expect(vm.isPlaced)
     #expect(vm.worldFromKeyboard != nil)
@@ -208,8 +226,8 @@ func placementResetGoesToDisabled() {
     let vm = VirtualPianoPlacementViewModel()
     vm.startPlacing()
     vm.update(fingerTips: [
-        "right_indexFinger_tip": SIMD3<Float>(0, 0, 0),
-        "right_thumb_tip": SIMD3<Float>(0, 0, 0),
+        "right-indexFingerTip": SIMD3<Float>(0, 0, 0),
+        "right-thumbTip": SIMD3<Float>(0, 0, 0),
     ])
     #expect(vm.isPlaced)
 
@@ -226,8 +244,8 @@ func placementConfirmSetsOriginAtKeyboardLeftEnd() {
 
     let reticlePoint = SIMD3<Float>(1.0, 0, 0)
     vm.update(fingerTips: [
-        "right_indexFinger_tip": reticlePoint,
-        "right_thumb_tip": reticlePoint,
+        "right-indexFingerTip": reticlePoint,
+        "right-thumbTip": reticlePoint,
     ])
 
     guard let transform = vm.worldFromKeyboard else {
@@ -237,6 +255,79 @@ func placementConfirmSetsOriginAtKeyboardLeftEnd() {
     let origin = SIMD3<Float>(transform.columns.3.x, transform.columns.3.y, transform.columns.3.z)
     let halfLength = VirtualPianoKeyGeometryService.totalKeyboardLengthMeters / 2
     #expect(abs(origin.x - (reticlePoint.x - halfLength)) < 0.001)
+}
+
+@MainActor
+@Test
+func virtualPianoDoesNotTriggerLiveNotesDuringAutoplay() {
+    let playbackService = LiveNoteCapturingPlaybackService()
+    let viewModel = PracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: TaskSleeper(),
+        sequencerPlaybackService: playbackService
+    )
+
+    let tempoMap = MusicXMLTempoMap(
+        tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: .init(partID: "P1", staff: nil, voice: nil))]
+    )
+    viewModel.setSteps(
+        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        tempoMap: tempoMap
+    )
+
+    let geometry = makeTestKeyboardGeometry()
+    viewModel.applyVirtualKeyboardGeometry(geometry)
+    viewModel.setAutoplayEnabled(true)
+
+    let c4Key = geometry.key(for: 60)!
+    _ = viewModel.handleFingerTipPositions(
+        [
+            "right-indexFingerTip": SIMD3<Float>(c4Key.hitCenterLocal.x, -0.001, c4Key.hitCenterLocal.z),
+        ],
+        isVirtualPiano: true
+    )
+
+    #expect(playbackService.startedLiveNotes.isEmpty)
+}
+
+@MainActor
+@Test
+func arGuideViewModelToggleOffClearsVirtualKeyboardAndStopsLiveNotes() {
+    let playbackService = LiveNoteCapturingPlaybackService()
+    let session = PracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: TaskSleeper(),
+        sequencerPlaybackService: playbackService
+    )
+    let appState = AppState()
+    let viewModel = ARGuideViewModel(appState: appState, practiceSessionViewModel: session)
+
+    viewModel.setPracticeVirtualPianoEnabled(true)
+    #expect(viewModel.virtualPianoPlacement.isPlaced)
+    #expect(session.keyboardGeometry != nil)
+
+    let geometry = session.keyboardGeometry!
+    let c4Key = geometry.key(for: 60)!
+    let keyLocalPoint = SIMD3<Float>(c4Key.hitCenterLocal.x, -0.001, c4Key.hitCenterLocal.z)
+    let keyWorldPoint = transformPoint(geometry.frame.worldFromKeyboard, keyLocalPoint)
+    _ = session.handleFingerTipPositions(
+        [
+            "right-indexFingerTip": keyWorldPoint,
+        ],
+        isVirtualPiano: true
+    )
+    #expect(playbackService.startedLiveNotes.contains(60))
+
+    viewModel.setPracticeVirtualPianoEnabled(false)
+    #expect(playbackService.stopAllLiveNotesCount >= 1)
+    #expect(session.keyboardGeometry == nil)
+}
+
+private func transformPoint(_ matrix: simd_float4x4, _ point: SIMD3<Float>) -> SIMD3<Float> {
+    let v4 = simd_mul(matrix, SIMD4<Float>(point, 1))
+    return SIMD3<Float>(v4.x, v4.y, v4.z)
 }
 
 // MARK: - Helpers

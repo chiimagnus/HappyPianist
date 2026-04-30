@@ -247,6 +247,8 @@ final class ARGuideViewModel {
             #endif
         } else {
             practiceSessionViewModel.stopVirtualPianoInput()
+            practiceSessionViewModel.clearCalibration()
+            practiceLocalizationState = .idle
             virtualPianoPlacement.reset()
         }
     }
@@ -458,6 +460,7 @@ final class ARGuideViewModel {
     func onImmersiveDisappear() {
         cancelCalibrationGuidedFlowTasks()
         cancelPracticeLocalizationTask()
+        practiceSessionViewModel.stopVirtualPianoInput()
         stopHandTracking()
     }
 
@@ -496,6 +499,24 @@ final class ARGuideViewModel {
     private func applyVirtualPianoGeometry() {
         guard let worldFromKeyboard = virtualPianoPlacement.worldFromKeyboard else { return }
         let frame = KeyboardFrame(worldFromKeyboard: worldFromKeyboard)
+        let service = VirtualPianoKeyGeometryService()
+        if let geometry = service.generateKeyboardGeometry(from: frame) {
+            practiceSessionViewModel.applyVirtualKeyboardGeometry(geometry)
+        }
+    }
+
+    func syncVirtualPianoTransformFromOverlay(_ worldFromKeyboard: simd_float4x4?) {
+        guard isVirtualPianoEnabled else { return }
+        guard let worldFromKeyboard else { return }
+        guard virtualPianoPlacement.updatePlacedTransformIfNeeded(worldFromKeyboard) else { return }
+
+        let frame = KeyboardFrame(worldFromKeyboard: worldFromKeyboard)
+
+        if let existing = practiceSessionViewModel.keyboardGeometry, practiceSessionViewModel.calibration == nil {
+            practiceSessionViewModel.applyVirtualKeyboardGeometry(PianoKeyboardGeometry(frame: frame, keys: existing.keys))
+            return
+        }
+
         let service = VirtualPianoKeyGeometryService()
         if let geometry = service.generateKeyboardGeometry(from: frame) {
             practiceSessionViewModel.applyVirtualKeyboardGeometry(geometry)

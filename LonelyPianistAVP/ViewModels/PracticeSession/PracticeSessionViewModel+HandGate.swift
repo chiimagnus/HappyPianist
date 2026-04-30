@@ -71,7 +71,9 @@ extension PracticeSessionViewModel {
             keyboardGeometry: keyboardGeometry
         )
 
-        if result.started.isEmpty == false {
+        let shouldPlayLiveNotes = autoplayState == .off && isManualReplayPlaying == false
+
+        if shouldPlayLiveNotes, result.started.isEmpty == false {
             try? sequencerPlaybackService.startLiveNotes(midiNotes: result.started)
         }
         if result.ended.isEmpty == false {

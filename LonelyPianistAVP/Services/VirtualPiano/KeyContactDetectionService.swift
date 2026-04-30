@@ -33,31 +33,18 @@ final class KeyContactDetectionService {
                 whiteKeys.append(key)
             }
         }
-        let keysForHitTesting = blackKeys + whiteKeys
-
         let keyboardFromWorld = keyboardGeometry.frame.keyboardFromWorld
         var currentDownNotes: Set<Int> = []
 
         for (_, worldPosition) in fingerTips {
             let localPoint = Self.transformPoint(keyboardFromWorld, worldPosition)
 
-            for key in keysForHitTesting {
-                let minPoint = key.hitCenterLocal - key.hitSizeLocal / 2
-                let maxPoint = key.hitCenterLocal + key.hitSizeLocal / 2
-                let insideBounds = localPoint.x >= minPoint.x && localPoint.x <= maxPoint.x
-                    && localPoint.z >= minPoint.z && localPoint.z <= maxPoint.z
-                guard insideBounds else { continue }
-
-                let wasDown = previousDownNotes.contains(key.midiNote)
-                if wasDown {
-                    if localPoint.y <= key.surfaceLocalY + Self.releaseThresholdMeters {
-                        currentDownNotes.insert(key.midiNote)
-                    }
-                } else {
-                    if localPoint.y <= key.surfaceLocalY + Self.pressThresholdMeters {
-                        currentDownNotes.insert(key.midiNote)
-                    }
-                }
+            if let downNote = firstDownNote(in: blackKeys, localPoint: localPoint) {
+                currentDownNotes.insert(downNote)
+                continue
+            }
+            if let downNote = firstDownNote(in: whiteKeys, localPoint: localPoint) {
+                currentDownNotes.insert(downNote)
             }
         }
 
@@ -66,6 +53,32 @@ final class KeyContactDetectionService {
         previousDownNotes = currentDownNotes
 
         return KeyContactResult(down: currentDownNotes, started: started, ended: ended)
+    }
+
+    private func firstDownNote(
+        in keys: [PianoKeyGeometry],
+        localPoint: SIMD3<Float>
+    ) -> Int? {
+        for key in keys {
+            let minPoint = key.hitCenterLocal - key.hitSizeLocal / 2
+            let maxPoint = key.hitCenterLocal + key.hitSizeLocal / 2
+            let insideBounds = localPoint.x >= minPoint.x && localPoint.x <= maxPoint.x
+                && localPoint.z >= minPoint.z && localPoint.z <= maxPoint.z
+            guard insideBounds else { continue }
+
+            let wasDown = previousDownNotes.contains(key.midiNote)
+            if wasDown {
+                if localPoint.y <= key.surfaceLocalY + Self.releaseThresholdMeters {
+                    return key.midiNote
+                }
+            } else {
+                if localPoint.y <= key.surfaceLocalY + Self.pressThresholdMeters {
+                    return key.midiNote
+                }
+            }
+        }
+
+        return nil
     }
 
     @inline(__always)

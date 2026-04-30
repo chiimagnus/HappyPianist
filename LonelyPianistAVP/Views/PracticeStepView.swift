@@ -139,6 +139,13 @@ struct PracticeStepView: View {
         }
         .onChange(of: isVirtualPianoEnabled) {
             viewModel.setPracticeVirtualPianoEnabled(isVirtualPianoEnabled)
+            guard isVirtualPianoEnabled else { return }
+            Task { @MainActor in
+                await viewModel.enterPracticeStep(
+                    using: openImmersiveSpace,
+                    dismissImmersiveSpace: dismissImmersiveSpace
+                )
+            }
         }
         .onChange(of: isAutoplayEnabled) {
             viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
