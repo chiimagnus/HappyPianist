@@ -1,6 +1,6 @@
 # 🎹 LonelyPianist
 
-**把你的 MIDI 键盘变成一台本地优先的快捷控制台、AI 即兴伙伴，以及 Vision Pro 练习教练。**
+一款 XR空间设备上的 AI 钢琴伙伴，戴上眼镜，它会引导你一步步弹奏；并且你可以享受与 ta 的接力即兴演奏。
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20visionOS-lightgrey)
