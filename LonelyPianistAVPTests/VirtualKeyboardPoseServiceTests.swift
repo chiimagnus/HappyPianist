@@ -70,3 +70,33 @@ func virtualKeyboardPoseWithoutDeviceTransformFallsBackToPlaneForward() {
     #expect(simd_dot(z, SIMD3<Float>(1, 0, 0)) > 0.99)
 }
 
+@Test
+func virtualKeyboardPoseFlipsDownwardPlaneNormalToUpward() {
+    let service = VirtualKeyboardPoseService()
+
+    let planeWorldFromAnchor = simd_float4x4(columns: (
+        SIMD4<Float>(1, 0, 0, 0),
+        SIMD4<Float>(0, -1, 0, 0),
+        SIMD4<Float>(0, 0, 1, 0),
+        SIMD4<Float>(0, 0, 0, 1)
+    ))
+
+    let handCenterOnPlaneWorld = SIMD3<Float>(0, 0, -1)
+    let deviceWorldTransform = simd_float4x4(columns: (
+        SIMD4<Float>(1, 0, 0, 0),
+        SIMD4<Float>(0, 1, 0, 0),
+        SIMD4<Float>(0, 0, 1, 0),
+        SIMD4<Float>(0, 1, 0, 1)
+    ))
+
+    let worldFromKeyboard = service.computeWorldFromKeyboard(
+        planeWorldFromAnchor: planeWorldFromAnchor,
+        handCenterOnPlaneWorld: handCenterOnPlaneWorld,
+        deviceWorldTransform: deviceWorldTransform
+    )
+
+    #expect(worldFromKeyboard != nil)
+
+    let y = SIMD3<Float>(worldFromKeyboard!.columns.1.x, worldFromKeyboard!.columns.1.y, worldFromKeyboard!.columns.1.z)
+    #expect(simd_dot(y, SIMD3<Float>(0, 1, 0)) > 0.99)
+}

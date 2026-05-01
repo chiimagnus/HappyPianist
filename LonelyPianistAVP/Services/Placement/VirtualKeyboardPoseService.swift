@@ -7,11 +7,14 @@ struct VirtualKeyboardPoseService {
         handCenterOnPlaneWorld: SIMD3<Float>,
         deviceWorldTransform: simd_float4x4?
     ) -> simd_float4x4? {
-        let yAxisWorld = simd_normalize(SIMD3<Float>(
+        var yAxisWorld = simd_normalize(SIMD3<Float>(
             planeWorldFromAnchor.columns.1.x,
             planeWorldFromAnchor.columns.1.y,
             planeWorldFromAnchor.columns.1.z
         ))
+        if simd_dot(yAxisWorld, SIMD3<Float>(0, 1, 0)) < 0 {
+            yAxisWorld = -yAxisWorld
+        }
 
         let zAxisWorld: SIMD3<Float> = {
             if let deviceWorldTransform {
@@ -60,4 +63,3 @@ struct VirtualKeyboardPoseService {
         ))
     }
 }
-
