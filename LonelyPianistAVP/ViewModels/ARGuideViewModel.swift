@@ -67,6 +67,7 @@ final class ARGuideViewModel {
     private let appState: AppState
     let practiceSessionViewModel: PracticeSessionViewModel
     private var handTrackingConsumerTask: Task<Void, Never>?
+    private var virtualPianoGuidanceUpdateTask: Task<Void, Never>?
     private var calibrationAnchorCaptureTask: Task<Void, Never>?
     private var calibrationFlowBootstrapTask: Task<Void, Never>?
     private var calibrationGuidedFlowTask: Task<Void, Never>?
@@ -82,8 +83,11 @@ final class ARGuideViewModel {
     private(set) var calibrationPhase: CalibrationPhase = .capturingA0
     private(set) var isVirtualPianoEnabled = false
     let virtualPianoTablePlacement = VirtualPianoTablePlacementViewModel()
+    let gazePlaneDiskConfirmation = GazePlaneDiskConfirmationViewModel()
+    private let gazePlaneHitTestService = GazePlaneHitTestService()
     private var virtualPianoTableWorldFromAnchor: simd_float4x4?
     private var virtualPianoTableWorldFromAnchorLastSeenUptime: TimeInterval?
+    private var latestGazePlaneHit: PlaneHit?
 
     init(appState: AppState, practiceSessionViewModel: PracticeSessionViewModel? = nil) {
         self.appState = appState
@@ -244,6 +248,9 @@ final class ARGuideViewModel {
             virtualPianoTableWorldFromAnchor = nil
             virtualPianoTableWorldFromAnchorLastSeenUptime = nil
             virtualPianoTablePlacement.start()
+            gazePlaneDiskConfirmation.reset()
+            latestGazePlaneHit = nil
+            startVirtualPianoGuidanceIfNeeded()
             #if DEBUG && targetEnvironment(simulator)
             practiceLocalizationState = .ready
             virtualPianoTablePlacement.placeAtDefaultPosition()
@@ -260,7 +267,48 @@ final class ARGuideViewModel {
             virtualPianoTablePlacement.reset()
             virtualPianoTableWorldFromAnchor = nil
             virtualPianoTableWorldFromAnchorLastSeenUptime = nil
+            gazePlaneDiskConfirmation.reset()
+            latestGazePlaneHit = nil
+            stopVirtualPianoGuidance()
         }
+    }
+
+    var gazePlaneDiskStatusText: String? {
+        guard isVirtualPianoEnabled else { return nil }
+
+        let planeState = arTrackingService.providerStateByName["plane"] ?? .idle
+        switch planeState {
+            case .unsupported:
+                return "虚拟钢琴不可用：此设备/环境不支持平面检测。"
+            case .unauthorized:
+                return "虚拟钢琴不可用：请在系统设置中允许本 App 使用“周围环境/世界感知”（worldSensing）。"
+            case let .failed(reason):
+                return "虚拟钢琴不可用：平面检测启动失败（\(reason)）。"
+            default:
+                break
+        }
+
+        let handState = arTrackingService.providerStateByName["hand"] ?? .idle
+        switch handState {
+            case .unsupported:
+                return "虚拟钢琴不可用：此设备不支持手部追踪。"
+            case .unauthorized:
+                return "虚拟钢琴：已检测到平面，但需要 Hand Tracking 才能确认放好双手。"
+            case let .failed(reason):
+                return "虚拟钢琴不可用：手部追踪启动失败（\(reason)）。"
+            default:
+                break
+        }
+
+        return gazePlaneDiskConfirmation.statusText
+    }
+
+    var isGazePlaneDiskVisible: Bool {
+        isVirtualPianoEnabled && gazePlaneDiskConfirmation.isDiskVisible
+    }
+
+    var gazePlaneDiskWorldTransform: simd_float4x4? {
+        gazePlaneDiskConfirmation.diskWorldTransform
     }
 
     var practiceLocalizationStatusText: String? {
@@ -526,6 +574,7 @@ final class ARGuideViewModel {
     func startHandTrackingIfNeeded() {
         guard handTrackingConsumerTask == nil else { return }
         arTrackingService.start()
+        startVirtualPianoGuidanceIfNeeded()
         let updates = arTrackingService.fingerTipUpdatesStream()
         handTrackingConsumerTask = Task { @MainActor [weak self] in
             guard let self else { return }
@@ -537,6 +586,7 @@ final class ARGuideViewModel {
                     case .practice:
                         if isVirtualPianoEnabled {
                             let nowUptime = ProcessInfo.processInfo.systemUptime
+                            updateGazePlaneDiskGuidance(fingerTips: fingerTips, nowUptime: nowUptime)
                             let wasReady: Bool = if case .ready = virtualPianoTablePlacement.state { true } else { false }
                             let deviceWorldTransform: simd_float4x4?
                             if
@@ -724,9 +774,68 @@ final class ARGuideViewModel {
         calibrationAnchorCaptureTask = nil
         handTrackingConsumerTask?.cancel()
         handTrackingConsumerTask = nil
+        stopVirtualPianoGuidance()
         calibrationSupportPollTask?.cancel()
         calibrationSupportPollTask = nil
         arTrackingService.stop()
+    }
+
+    private func startVirtualPianoGuidanceIfNeeded() {
+        guard appState.immersiveMode == .practice else { return }
+        guard isVirtualPianoEnabled else { return }
+        guard virtualPianoGuidanceUpdateTask == nil else { return }
+
+        virtualPianoGuidanceUpdateTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            while Task.isCancelled == false {
+                let nowUptime = ProcessInfo.processInfo.systemUptime
+                updateGazePlaneDiskGuidance(fingerTips: arTrackingService.fingerTipPositions, nowUptime: nowUptime)
+                try? await Task.sleep(for: .milliseconds(33))
+            }
+        }
+    }
+
+    private func stopVirtualPianoGuidance() {
+        virtualPianoGuidanceUpdateTask?.cancel()
+        virtualPianoGuidanceUpdateTask = nil
+    }
+
+    private func updateGazePlaneDiskGuidance(
+        fingerTips: [String: SIMD3<Float>],
+        nowUptime: TimeInterval
+    ) {
+        guard isVirtualPianoEnabled else { return }
+
+        let deviceWorldTransform: simd_float4x4?
+        if
+            let deviceAnchor = arTrackingService.worldTrackingProvider.queryDeviceAnchor(atTimestamp: nowUptime),
+            deviceAnchor.isTracked
+        {
+            deviceWorldTransform = deviceAnchor.originFromAnchorTransform
+        } else {
+            deviceWorldTransform = nil
+        }
+
+        let ray: GazeRay? = {
+            guard let deviceWorldTransform else { return nil }
+            let origin = SIMD3<Float>(deviceWorldTransform.columns.3.x, deviceWorldTransform.columns.3.y, deviceWorldTransform.columns.3.z)
+            let forward = -SIMD3<Float>(deviceWorldTransform.columns.2.x, deviceWorldTransform.columns.2.y, deviceWorldTransform.columns.2.z)
+            return GazeRay(originWorld: origin, directionWorld: forward)
+        }()
+
+        let planes: [DetectedPlane] = arTrackingService.planeAnchorsByID.values.map { anchor in
+            DetectedPlane(id: anchor.id, worldFromPlane: anchor.originFromAnchorTransform)
+        }
+
+        let hit = ray.flatMap { gazePlaneHitTestService.hitTest(ray: $0, planes: planes) }
+        latestGazePlaneHit = hit
+
+        gazePlaneDiskConfirmation.update(
+            planeHit: hit,
+            leftPalmWorld: fingerTips["left-palmCenter"],
+            rightPalmWorld: fingerTips["right-palmCenter"],
+            nowUptime: nowUptime
+        )
     }
 
     var practiceProgressText: String {
