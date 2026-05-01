@@ -237,6 +237,8 @@ final class ARGuideViewModel {
     func setPracticeVirtualPianoEnabled(_ isEnabled: Bool) {
         isVirtualPianoEnabled = isEnabled
         if isEnabled {
+            practiceSessionViewModel.stopVirtualPianoInput()
+            practiceSessionViewModel.clearCalibration()
             cancelPracticeLocalizationTask()
             virtualPianoTableWorldFromAnchor = nil
             virtualPianoTablePlacement.start()
@@ -308,6 +310,9 @@ final class ARGuideViewModel {
 
     func retryVirtualPianoPlacement() {
         guard isVirtualPianoEnabled else { return }
+
+        practiceSessionViewModel.stopVirtualPianoInput()
+        practiceSessionViewModel.clearCalibration()
 
         virtualPianoTableWorldFromAnchor = nil
         virtualPianoTablePlacement.start()
