@@ -827,7 +827,6 @@ func autoplayDoesNotAdvanceOnMatch() async {
     _ = viewModel.handleFingerTipPositions(["dummy": .zero])
     await settleTaskQueue()
 
-    #expect(viewModel.feedbackState == .none)
     #expect(viewModel.currentStepIndex == 0)
 
     viewModel.resetSession()

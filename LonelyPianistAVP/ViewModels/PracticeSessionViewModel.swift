@@ -16,12 +16,6 @@ final class PracticeSessionViewModel {
         return TimeInterval(components.seconds) + TimeInterval(components.attoseconds) / 1_000_000_000_000_000_000
     }
 
-    enum VisualFeedbackState: Equatable {
-        case none
-        case correct
-        case wrong
-    }
-
     enum PracticeState: Equatable {
         case idle
         case ready
@@ -40,7 +34,6 @@ final class PracticeSessionViewModel {
     private(set) var calibration: PianoCalibration?
     private(set) var keyboardGeometry: PianoKeyboardGeometry?
     var pressedNotes: Set<Int> = []
-    var feedbackState: VisualFeedbackState = .none
     var isSustainPedalDown = false
     var audioRecognitionErrorMessage: String?
     private(set) var audioPlaybackErrorMessage: String?

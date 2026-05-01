@@ -58,8 +58,7 @@ func highlightGuide2DAnd3DUseSameMIDINoteSet() {
     let geometry = makeGeometry(for: [60, 64])
     let descriptors = PianoGuideBeamDescriptor.makeDescriptors(
         highlightGuide: guide,
-        keyboardGeometry: geometry,
-        feedbackState: .none
+        keyboardGeometry: geometry
     )
 
     #expect(Set(descriptors.map(\.midiNote)) == guide.highlightedMIDINotes)
@@ -116,13 +115,11 @@ func repeatedOccurrenceChangesBoth2DKeyViewIDAnd3DDescriptorID() {
 
     let first = PianoGuideBeamDescriptor.makeDescriptors(
         highlightGuide: guide1,
-        keyboardGeometry: geometry,
-        feedbackState: .none
+        keyboardGeometry: geometry
     )
     let second = PianoGuideBeamDescriptor.makeDescriptors(
         highlightGuide: guide2,
-        keyboardGeometry: geometry,
-        feedbackState: .none
+        keyboardGeometry: geometry
     )
 
     #expect(first.count == 1)
