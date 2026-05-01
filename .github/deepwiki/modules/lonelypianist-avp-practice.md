@@ -1,12 +1,12 @@
 # AVP Practice
 
 ## 范围
-练习页覆盖 Step 3 的定位后练习体验：step 推进、按键匹配、视觉反馈、autoplay、pedal / fermata / timing，以及当前 step 的 RealityKit 光柱式琴键引导。同时支持**虚拟钢琴模式**：无需实体钢琴，通过手势放置 3D 88 键键盘并实时发声。
+练习页覆盖 Step 3 的定位后练习体验：step 推进、按键匹配、autoplay、pedal / fermata / timing，以及当前 step 的 RealityKit 琴键贴皮高亮引导（decal）。同时支持**虚拟钢琴模式**：无需实体钢琴，通过手势放置 3D 88 键键盘并实时发声。
 
 ## 关键对象
 | 对象 | 职责 | 修改风险 |
 | --- | --- | --- |
-| `PracticeSessionViewModel` | 练习状态机、匹配、feedback、autoplay | 影响 step 推进和测试覆盖 |
+| `PracticeSessionViewModel` | 练习状态机、匹配、autoplay | 影响 step 推进和测试覆盖 |
 | `AutoplayPerformanceTimeline` | MusicXML 真实播放时间线，统一调度 note on/off、踏板、guide、step 和 fermata pause | 影响 autoplay 时序语义和准确性 |
 | `PianoHighlightGuideBuilderService` | 钢琴高亮引导构建服务，负责从 MusicXML 数据生成 guide | 影响 highlight 引导的覆盖范围和准确性 |
 | `PianoHighlightParsedElementCoverageService` | 钢琴高亮解析元素覆盖服务，记录 MusicXML 各元素在 highlight 引导中的使用情况 | 影响 fallback 诊断和语义完整性 |
@@ -14,55 +14,52 @@
 | `ChordAttemptAccumulator` | 和弦尝试匹配 | 影响多音 step 判定 |
 | `PracticeSequencerPlaybackServiceProtocol` | 练习音色播放（one-shot + sequencer） | 影响试听 / autoplay / manual replay |
 | `AVAudioSequencerPracticePlaybackService` | `AVAudioEngine + AVAudioUnitSampler + AVAudioSequencer` 的默认实现 | stop 行为与短促音风险点 |
-| `PianoGuideOverlayController` | RealityKit 空间光柱提示 | 影响当前 step 的可见 AR 引导 |
+| `PianoGuideOverlayController` | RealityKit 空间贴皮高亮提示 | 影响当前 step 的可见 AR 引导 |
 | `VirtualPianoPlacementViewModel` | 虚拟钢琴放置状态机（disabled → placing → placed） | 影响虚拟钢琴入口和 3D 键盘定位 |
 | `VirtualPianoKeyGeometryService` | 虚拟钢琴 88 键几何生成 | 影响虚拟键盘尺寸和按键布局 |
 | `KeyContactDetectionService` | 虚拟钢琴按键接触检测（带迟滞） | 影响虚拟钢琴发声准确性 |
 | `VirtualPianoOverlayController` | 虚拟钢琴 3D 键盘渲染（RealityKit） | 影响虚拟键盘可见性和交互 |
 
-## 光柱引导实现
-`PianoGuideOverlayController` 为当前 step 的每个 MIDI note 创建一束独立的「丁达尔式」暖金光束：
+## 贴皮高亮实现
+`PianoGuideOverlayController` 为当前 step 的每个 MIDI note 创建一片独立的琴键表面贴皮高亮（warm-gold decal）：
 
-- 一键一束（和弦时多束并存），每束对应一个 `ModelEntity`。
-- 光束 mesh 为单几何体四侧面 rectangular prism shell（无顶/底面），由 `PianoGuideBeamMeshFactory.unitPrismShellMesh` 生成，并使用四侧面 atlas UV：`FRONT | RIGHT | BACK | LEFT`。
-- 材质为 `UnlitMaterial` + `KeyBeamFourSideAtlas` 贴图，整体以 warm-gold tint 表达 none/correct/wrong 的轻微差异。
-- 光束挂在 `keyboardRootEntity` 下，并继承 `PianoKeyboardGeometry.frame.worldFromKeyboard` 的键盘姿态。
+- 一键一片（和弦时多片并存），每片对应一个 `ModelEntity`。
+- decal mesh 为单位四边形（位于 key-top 平面，含 UV），由 `PianoGuideDecalMeshFactory.unitTopDecalMesh` 生成并按 key 尺寸缩放。
+- 材质为 `UnlitMaterial`（best-effort 加载 `KeyDecalSoftRect` 贴图；失败则退化为纯色 tint）。
+- decal 挂在 `keyboardRootEntity` 下，并继承 `PianoKeyboardGeometry.frame.worldFromKeyboard` 的键盘姿态。
 
 | 参数 | 当前值 | 作用 |
 | --- | --- | --- |
-| `beamHeightMeters` | `0.18` | 光束高度（从 key surface 起） |
-| `beamAlpha` | `0.32` | 光束整体 alpha（同时叠乘贴图透明度） |
-| `minimumBeamWidthMeters` | `0.010` | 防止黑键光束过窄不可见 |
-| `minimumBeamDepthMeters` | `0.018` | 防止光束纵深过浅不可见 |
-| atlas asset | `KeyBeamFourSideAtlas` | 四侧面 warm-gold 透明贴图 |
+| `decalAlpha` | `0.32` | 贴皮整体 alpha（叠乘贴图透明度） |
+| `decalInsetScale` | `0.98` | 贴皮相对按键略微缩进，避免贴边硬边 |
+| `decalEpsilonMeters` | `0.0015` | 贴皮离开 key surface 的最小抬升，避免 z-fighting |
+| texture asset | `KeyDecalSoftRect` | 柔边矩形贴图（warm-gold） |
 
-## 光柱数据流
+## 贴皮高亮数据流
 ```mermaid
 flowchart TD
   A[PracticeStep.notes] --> B[desired MIDI note set]
-  C[PianoKeyboardGeometry] --> D[key lookup + footprint/surface]
+  C[PianoKeyboardGeometry] --> D[key lookup + surface]
   B --> E[PianoGuideBeamDescriptor.makeDescriptors]
   D --> E
-  I[VisualFeedbackState] --> E
   E --> F[diff by MIDI note]
-  F --> G[create/update ModelEntity prism shell]
-  G --> H[apply KeyBeamFourSideAtlas + warm tint]
+  F --> G[create/update ModelEntity top decal]
+  G --> H[apply KeyDecalSoftRect + warm tint]
   G --> K[keyboardRootEntity]
 ```
 
 ## 行为
 - `handleFingerTipPositions` 根据 `PianoKeyboardGeometry` 检测按键（black keys 优先）。
-- 匹配成功会进入 correct feedback，并在 autoplay 关闭时推进下一步。
+- 匹配成功会在 autoplay 关闭时推进下一步；错误输入不会触发视觉反馈，只是不会推进。
 - autoplay 由 `AutoplayPerformanceTimeline` 驱动，统一调度 note on/off、踏板、guide、step 和 fermata pause，基于 MusicXML 的真实播放时间线。
 - autoplay 强制检查前置条件：tempoMap、highlightGuides、pedalTimeline、fermataTimeline 均必须存在，否则显示 UI 错误提示并禁用自动播放。
 - Step 3 进入练习页后默认停在 `PracticeState.ready`（进度显示为 `0 / total`），不会自动播放第一声。
 - **第一次点击「下一步 / 下一节」才会开始练习**：`PracticeSessionViewModel.skip()` 在 `.ready` 时会调用 `startGuidingIfReady()`，把当前 step 置为第 1 步并播放该 step 音色。
 - 在 `.ready` 状态下会禁用「播放琴声 / 重播」按钮，避免“还没开始就重播当前步”的语义歧义。
 - `skip()` 在已开始后用于手动跳步（step 或 measure，取决于 `ManualAdvanceMode`）。
-- 当前 step 的每个 MIDI note 会被映射到对应 `PianoKeyGeometry.beamFootprintCenterLocal` / `surfaceLocalY`。
-- 光束位置/尺寸由 `PianoGuideBeamDescriptor` 统一描述，RealityKit 只负责按 descriptor diff 更新实体。
-- 光束材质颜色由 `VisualFeedbackState` 决定：none / correct / wrong 只允许轻微整体 tint 变化。
-- `activeBeamEntitiesByMIDINote` 只保留当前 step 所需光束；离开当前 step 的光束会被移除。
+- 当前 step 的每个 MIDI note 会被映射到对应 `PianoKeyGeometry.localCenter` / `localSize` / `surfaceLocalY`。
+- 贴皮位置/尺寸由 `PianoGuideBeamDescriptor` 统一描述（命名仍为 Beam，但语义为 decal），RealityKit 只负责按 descriptor diff 更新实体。
+- `activeBeamEntitiesByMIDINote` 只保留当前 step 所需贴皮高亮；离开当前 step 的贴皮会被移除。
 
 ## 虚拟钢琴模式
 
@@ -76,9 +73,9 @@ flowchart TD
 
 #### Simulator 自动放置
 
-在 `#if DEBUG && targetEnvironment(simulator)` 环境下，打开虚拟钢琴开关时跳过手势放置流程，直接以默认位置 `(0, 1.0, -1.0)`（键盘中心）放置 3D 键盘并立即生成几何数据。这使得 Simulator 中可以调试光柱引导、step 推进和 autoplay 功能。
+在 `#if DEBUG && targetEnvironment(simulator)` 环境下，打开虚拟钢琴开关时跳过手势放置流程，直接以默认位置 `(0, 1.0, -1.0)`（键盘中心）放置 3D 键盘并立即生成几何数据。这使得 Simulator 中可以调试贴皮高亮引导、step 推进和 autoplay 功能。
 
-Simulator 限制：`HandTrackingProvider.isSupported` 为 `false`，手部追踪循环不启动，因此**无法通过手势弹奏虚拟琴键**。键盘渲染和光柱引导正常工作。
+Simulator 限制：`HandTrackingProvider.isSupported` 为 `false`，手部追踪循环不启动，因此**无法通过手势弹奏虚拟琴键**。键盘渲染和贴皮高亮引导正常工作。
 
 ### 虚拟钢琴数据流
 
@@ -269,23 +266,20 @@ struct PianoHighlightGuideBuildInput {
 ## 状态
 | 状态 | 含义 | 视觉表现 |
 | --- | --- | --- |
-| `idle` | 尚未开始 | 无光柱 |
+| `idle` | 尚未开始 | 无贴皮高亮 |
 | `ready` | 已准备好 | 等待当前 step |
-| `guiding(stepIndex:)` | 正在引导 | 当前 step notes 上方显示光柱 |
+| `guiding(stepIndex:)` | 正在引导 | 当前 step notes 对应琴键表面显示贴皮高亮 |
 | `completed` | 完成 | 清理或停止 step marker |
 
-## 反馈颜色与生命周期
-| 事件 | `VisualFeedbackState` | 光柱处理 |
-| --- | --- | --- |
-| 等待输入 | `.none` | 使用默认提示色 |
-| 命中正确 | `.correct` | 更新全部 active marker 材质 |
-| 命中错误 | `.wrong` | 更新全部 active marker 材质 |
-| step 改变 | 由 ViewModel 决定 | 删除旧 note marker，创建或更新新 note marker |
-| 离开练习 / 无 keyboardGeometry | N/A | `clearBeams()` |
+## 贴皮生命周期
+| 事件 | 贴皮处理 |
+| --- | --- |
+| 等待输入 / guiding | 为当前 step notes 显示 warm-gold 贴皮高亮 |
+| step 或 guide 改变 | diff descriptors，删除旧贴皮，创建或更新新贴皮 |
+| 离开练习 / 无 keyboardGeometry | `clearBeams()` 清理全部贴皮实体 |
 
 ## 调试抓手
 - `pressedNotes`
-- `feedbackState`
 - `currentPianoHighlightGuide?.highlightedMIDINotes`
 - `autoplayErrorMessage`：自动播放错误提示（如缺少 tempo、guide、pedal、fermata 等）
 - `audioErrorMessage`
@@ -294,7 +288,7 @@ struct PianoHighlightGuideBuildInput {
 - `PianoKeyboardGeometry.frame.keyboardFromWorld`
 - `PianoKeyGeometry.surfaceLocalY`
 - `PianoKeyGeometry.hitCenterLocal` / `hitSizeLocal`
-- `PianoKeyGeometry.beamFootprintCenterLocal` / `beamFootprintSizeLocal`
+- `PianoKeyGeometry.localCenter` / `localSize`（贴皮使用）
 - `ARGuideViewModel.isVirtualPianoEnabled`：虚拟钢琴模式是否开启
 - `ARGuideViewModel.virtualPianoPlacement.state`：放置状态机当前状态
 - `ARGuideViewModel.virtualPianoPlacement.worldFromKeyboard`：已确认的键盘姿态
@@ -324,10 +318,10 @@ struct PianoHighlightGuideBuildInput {
 ## 测试与验证
 | 变更 | 推荐验证 |
 | --- | --- |
-| step matching / feedback | `PracticeSessionViewModelTests.swift`、`StepMatcherTests.swift` |
+| step matching | `PracticeSessionViewModelTests.swift`、`StepMatcherTests.swift` |
 | MusicXML 到 step | `MusicXML*TimelineTests.swift`、parser tests |
 | AutoplayPerformanceTimeline | `AutoplayPerformanceTimelineTests.swift` |
-| 光柱空间表现 | AVP simulator tests + Vision Pro 手工观察 |
+| 贴皮空间表现 | AVP simulator tests + Vision Pro 手工观察 |
 | keyboard frame / center 转换 | 开启 debug axes，并观察 A0/C8 和当前 step marker 是否对齐 |
 | autoplay 与视觉提示 | AVP practice tests + 手工播放一段 MusicXML |
 | PianoHighlightGuideBuilderService | `PianoHighlightGuideBuilderServiceTests.swift` |
@@ -342,30 +336,29 @@ struct PianoHighlightGuideBuildInput {
 | 测试类型 | 覆盖场景 |
 | --- | --- |
 | `AutoplayPerformanceTimelineTests` | note interval 归一化、重叠音符处理、同 tick 踏板事件、fermata 停顿 |
-| `PracticeSessionViewModelTests` | 前置条件检查、错误提示、autoplay 任务清理竞态、反馈状态重置 |
+| `PracticeSessionViewModelTests` | 前置条件检查、错误提示、autoplay 任务清理竞态 |
 | `MusicXMLAutoplayRegressionTests` | 真实 MusicXML 的 autoplay 回归测试，覆盖 zero-duration note、pedal release edge |
 | `VirtualPianoTests` | 虚拟钢琴 toggle off 停止 live notes、autoplay 停止 live notes、虚拟按键触发 live start/stop、实体钢琴路径隔离、迟滞检测、黑键优先、放置状态机转换 |
 
 ## 真机验证清单（Vision Pro）
-- 白键光束底部覆盖目标白键大部分宽度和纵深。
-- 黑键光束从黑键表面开始（不从白键表面“穿模”抬起）。
-- 光束高度低矮，不明显遮挡手部操作。
-- 和弦时多个光束独立显示，不连成一堵墙。
-- correct/wrong feedback 不应把整束光强烈染红/染绿。
-- 四侧面都能看到 warm-gold 纹理（不是单面 billboard）。
-- atlas 底部没有硬边矩形框（只有柔和渐变/光晕）。
+- 白键贴皮覆盖目标白键大部分宽度和纵深（不贴边、不溢出）。
+- 黑键贴皮从黑键表面开始（不从白键表面“穿模”抬起）。
+- 贴皮足够扁平，不明显遮挡手部操作。
+- 和弦时多个贴皮独立显示，不连成一整片大面。
+- 边缘是柔和渐变/光晕，不是硬边矩形框。
 
 ## Coverage Gaps
-- 光柱的可见高度、透明度和空间感仍主要依赖 Vision Pro 手工体验；逻辑测试只能覆盖数据和状态流，不能完全证明视觉舒适度。
+- 贴皮高亮的对齐、透明度、z-fighting 与视觉舒适度仍主要依赖 Vision Pro 手工体验；逻辑测试只能覆盖数据和状态流，不能完全证明视觉体验。
 - 当前没有 PR 自动测试，需要手动在本地运行 macOS 和 AVP 测试。
 - 音频识别的调试快照和 fallback 状态仍需要在真机上验证其有效性。
 - 虚拟钢琴的 3D 渲染效果（琴键大小、间距、材质）和交互体验（ManipulationComponent 拖拽/缩放）需要 Vision Pro 真机验证。
 - `KeyContactDetectionService` 的迟滞阈值（press 2mm / release 8mm）需要真机调优，simulator 无法验证手势精度。
-- Simulator 中虚拟钢琴可渲染和显示光柱引导，但因 `HandTrackingProvider.isSupported` 为 `false`，无法通过手势弹奏。
+- Simulator 中虚拟钢琴可渲染和显示贴皮高亮引导，但因 `HandTrackingProvider.isSupported` 为 `false`，无法通过手势弹奏。
 
 ## 更新记录（Update Notes）
 - 2026-04-25: 引入 `PianoKeyboardGeometry` 作为统一几何真源，并将 RealityKit 引导从 cylinder 光柱迁移为单几何体四侧面 atlas 的暖金丁达尔光束。
 - 2026-04-28: 新增 `AutoplayPerformanceTimeline` 统一自动播放调度；新增 `PianoHighlightGuideBuilderService` 优化高亮引导构建；新增 `PianoHighlightParsedElementCoverageService` 用于诊断；实现 strict autoplay prerequisites 和 UI 错误提示；修复音频识别相关问题；新增 `Fallbacks.md` 专题页面。
 - 2026-04-29: 同步 Step 3 练习页进入不自动开始（`ready` -> 点击下一步才开始）与进度显示语义；更正练习音频后端对象名为 `PracticeSequencerPlaybackServiceProtocol` / `AVAudioSequencerPracticePlaybackService`。
 - 2026-04-30: 新增虚拟钢琴模式：放置状态机、88 键几何生成、迟滞按键检测、live note on/off 实时发声、3D 键盘渲染、安全清音机制。新增 `VirtualPianoTests.swift` 测试覆盖。
-- 2026-04-30: Simulator 中虚拟钢琴自动放置（`#if DEBUG && targetEnvironment(simulator)`），跳过手势放置直接以默认位置渲染键盘，便于 Simulator 调试光柱引导和 step 推进。修复 `RealityView` update closure 对嵌套 `@Observable` 属性变化追踪不可靠的问题：添加 `.onChange` 显式触发 `VirtualPianoOverlayController` 更新，`KeyboardFrame`/`PianoKeyboardGeometry` 标记为 `Equatable`。
+- 2026-04-30: Simulator 中虚拟钢琴自动放置（`#if DEBUG && targetEnvironment(simulator)`），跳过手势放置直接以默认位置渲染键盘，便于 Simulator 调试贴皮高亮引导和 step 推进。修复 `RealityView` update closure 对嵌套 `@Observable` 属性变化追踪不可靠的问题：添加 `.onChange` 显式触发 `VirtualPianoOverlayController` 更新，`KeyboardFrame`/`PianoKeyboardGeometry` 标记为 `Equatable`。
+- 2026-05-01: AVP 练习引导从光柱改为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。

@@ -1,6 +1,6 @@
 # Deepwiki 索引（LonelyPianist）
 
-本索引是 `.github/deepwiki/` 的入口。目标是让读者先看业务，再看实现；或者先看工程，再落到模块。当前 wiki 已覆盖 macOS、visionOS、Python Dialogue 服务、manual-only Swift Quality workflow，以及 AVP 光柱式 AR 练习引导。
+本索引是 `.github/deepwiki/` 的入口。目标是让读者先看业务，再看实现；或者先看工程，再落到模块。当前 wiki 已覆盖 macOS、visionOS、Python Dialogue 服务、manual-only Swift Quality workflow，以及 AVP 琴键贴皮式 AR 练习引导。
 
 ## 推荐阅读路径
 
@@ -89,7 +89,7 @@
 - **想先理解产品在做什么**：先看 `business-context.md`。
 - **要改 macOS 监听 / 映射 / 录音 / 对话**：看 `modules/lonelypianist-macos.md`，再下钻对应子页。
 - **要改 AVP 导入 / 校准 / 练习 / MusicXML**：看 `modules/lonelypianist-avp.md`，再下钻对应子页。
-- **要改 AR 引导光柱**：看 `modules/lonelypianist-avp-practice.md` 和 `PianoGuideOverlayController`。
+- **要改 AR 引导贴皮高亮**：看 `modules/lonelypianist-avp-practice.md` 和 `PianoGuideOverlayController`。
 - **要改虚拟钢琴**：看 `modules/lonelypianist-avp-practice.md` 的「虚拟钢琴模式」章节，涉及放置状态机、按键检测、3D 渲染和实时发声。
 - **要改 Python 协议或采样逻辑**：看 `modules/piano-dialogue-server.md` 与 `modules/piano-dialogue-server-inference.md`。
 - **要运行测试**：看 `testing.md` 和 `workflow.md`，所有测试需要手动在本地运行。
@@ -109,7 +109,7 @@
 - PR Tests workflow 已删除，macOS 和 AVP 测试需手动在本地运行。
 - Python smoke tests 尚未纳入 GitHub Actions。
 - 尚无统一发布流水线，也没有三端 E2E 自动化门禁。
-- AVP simulator tests 已跑通，但仍不能替代 Vision Pro 真机上的手部追踪、空间感、光柱视觉舒适度和虚拟钢琴交互体验验证。
+- AVP simulator tests 已跑通，但仍不能替代 Vision Pro 真机上的手部追踪、空间感、贴皮高亮视觉舒适度和虚拟钢琴交互体验验证。
 - `.github/deepwiki/assets/` 保留为资产位，但本次没有额外图片资产可复制。
 
 ## 更新记录（Update Notes）
@@ -119,3 +119,4 @@
 - 2026-04-28: 反映 pr-tests.yml workflow 已删除；新增 Fallbacks.md 专题页面；更新自动化事实和 Coverage Gaps。
 - 2026-04-29: 同步 Step 3 进入不自动开始（`ready` -> 点击下一步才开始）与音频识别 stop 日志降噪；扩充 AVP 音频排障入口。
 - 2026-04-30: 新增虚拟钢琴导航入口；更新 Coverage Gaps 以反映虚拟钢琴真机验证需求。
+- 2026-05-01: AVP AR 引导从光柱迁移为琴键贴皮高亮（decal）；移除 correct/wrong feedback 与 immersive pulse。

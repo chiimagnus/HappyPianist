@@ -27,7 +27,7 @@
 1. 确认 Step 1 已保存，而不是只捕获。
 2. 确认已导入 MusicXML 且 `importedSteps` 非空。
 3. 若定位失败，优先看 provider state / anchor 状态。
-4. 若光束位置/高度异常，检查 `PianoGuideBeamDescriptor`、`PianoKeyboardGeometry.frame.keyboardFromWorld` 和 debug axes。
+4. 若贴皮高亮位置/尺寸/闪烁异常，检查 `PianoGuideBeamDescriptor`、`KeyDecalSoftRect`、`PianoKeyboardGeometry.frame.keyboardFromWorld` 和 debug axes。
 5. 若 CI 找不到 simulator destination，先在日志或本地跑 `xcodebuild -showdestinations -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP`。
 6. 若看到大量音频相关 stop/start 日志，先区分”识别服务”与”播放服务”（见下方常见音频日志）。
 7. 若虚拟钢琴模式下手指接触琴键无声音，检查 `KeyContactDetectionService.detect` 的 `started` 输出和 `PracticeSequencerPlaybackServiceProtocol.liveNotes`。
@@ -76,3 +76,4 @@
 - 2026-04-25: 增补 PR Tests、AVP simulator、Swift tools 6.2、Swift Quality，并将光柱排查更新为丁达尔光束（keyboard geometry + atlas）。
 - 2026-04-29: 增补 AVP 常见音频日志释义；新增「下一步短促音」症状入口并路由到排查记录页。
 - 2026-04-30: 新增虚拟钢琴故障排查条目（放置偏移、按键无声音、进入练习失败）；增补 AVP 虚拟钢琴排查步骤。
+- 2026-05-01: AVP 练习引导从光柱改为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。

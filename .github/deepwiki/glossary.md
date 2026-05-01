@@ -50,7 +50,7 @@
 - **runtime calibration**：当前场景里根据 tracked anchors 解析出来的几何结果。
 - **导入成功** 不等于 **可开始练习**：还要能生成有效 steps，并成功定位（虚拟钢琴模式仅需导入谱面）。
 - **fallback（兜底）** 不等于 **error handling（错误处理）**：fallback 是主动选择替代行为继续运行，error handling 是捕获错误并恢复。
-- **虚拟钢琴模式** vs **实体钢琴模式**：虚拟钢琴无需校准和定位，通过手势放置 3D 键盘后直接进入练习；实体钢琴需要 Step 1 校准 + AR 定位。两者共享 `PracticeSessionViewModel` 的匹配和反馈逻辑，但按键检测路径不同（`KeyContactDetectionService` vs `PressDetectionService`）。
+- **虚拟钢琴模式** vs **实体钢琴模式**：虚拟钢琴无需校准和定位，通过手势放置 3D 键盘后直接进入练习；实体钢琴需要 Step 1 校准 + AR 定位。两者共享 `PracticeSessionViewModel` 的匹配与 step 推进逻辑（无 correct/wrong 反馈态），但按键检测路径不同（`KeyContactDetectionService` vs `PressDetectionService`）。
 
 ## Coverage Gaps
 - 发布和版本语义仍散落在 README 和流程中，没有独立页面。

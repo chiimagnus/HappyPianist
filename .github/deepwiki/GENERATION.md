@@ -3,20 +3,18 @@
 ## Run info
 | Item | Value |
 | --- | --- |
-| Commit hash | 4c7b18c6576a75f4dd7d11144a3cf0f2998d42eb |
+| Commit hash | b3aace5e35769ca54b8d942ae1e9f7d1b485967b |
 | Branch name | crh |
-| Generated at | 2026-04-30T12:00:00+08:00 |
+| Generated at | 2026-05-01T22:11:31+08:00 |
 | Output language | Chinese |
 | Generation mode | Incremental update via `deepwiki` skill |
 
 ## Key updates in this generation
 | Area | Update |
 | --- | --- |
-| 虚拟钢琴模式 | 新增完整的虚拟钢琴功能文档：放置状态机、88 键几何生成、迟滞按键检测、live note on/off 实时发声、3D 键盘渲染、安全清音机制。 |
-| 练习模块 | 更新 practice 模块页的范围、关键对象表、测试覆盖和调试抓手，新增虚拟钢琴专属章节。 |
-| 架构 | 在组件边界表和依赖图中新增 VirtualPianoPlacementViewModel、VirtualPianoKeyGeometryService、KeyContactDetectionService、VirtualPianoOverlayController。 |
-| 数据流 | 新增虚拟钢琴数据流（放置、键盘生成、渲染、按键检测、实时发声）和故障恢复条目。 |
-| 术语表 | 新增虚拟钢琴相关术语和易混淆概念说明。 |
+| AR 引导 | Step 3 的 RealityKit 引导从光柱迁移为琴键贴皮高亮（decal），贴图资源为 `KeyDecalSoftRect`。 |
+| 练习模块 | 移除 correct/wrong feedback state 描述，匹配成功直接推进下一步（错误输入无视觉反馈）。 |
+| 数据流与排障 | 更新空间提示数据流与排障入口，改为贴皮高亮（不再依赖 `KeyBeamFourSideAtlas`）。 |
 
 ## Current Coverage Gaps
 - Python smoke tests are not yet part of GitHub Actions.
@@ -28,3 +26,4 @@
 - AutoplayPerformanceTimeline complex edge cases (e.g., simultaneous pedal up/down) may need more test coverage.
 - Virtual piano 3D rendering (key size, spacing, material) and interaction (ManipulationComponent drag/scale) need Vision Pro real-device verification.
 - KeyContactDetectionService hysteresis thresholds (press 2mm / release 8mm) need real-device tuning.
+- Decal highlight alignment, z-fighting, and visual comfort need Vision Pro real-device verification.

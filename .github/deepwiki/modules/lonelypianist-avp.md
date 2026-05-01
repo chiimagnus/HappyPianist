@@ -42,7 +42,8 @@
 
 
 ## Coverage Gaps
-- AVP simulator tests 已可在 GitHub Actions 上跑通，但仍不能替代 Vision Pro 真机对手部追踪与光柱视觉舒适度的验证。
+- AVP simulator tests 已可在 GitHub Actions 上跑通，但仍不能替代 Vision Pro 真机对手部追踪与贴皮高亮视觉舒适度的验证。
 
 ## 更新记录（Update Notes）
 - 2026-04-26: 修复模块页内部链接；更新 AVP 验证链路描述（shared scheme 已存在且在 CI 使用）。
+- 2026-05-01: Step 3 练习的 RealityKit 引导从光柱迁移为琴键贴皮高亮（decal）。

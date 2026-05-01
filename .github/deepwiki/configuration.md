@@ -20,9 +20,9 @@
 | Press cooldown | `0.15s` | 手部按键去抖 |
 | Chord window | `0.6s` | 和弦累积 |
 | Practice note tolerance | `±1` 半音 | 练习匹配 |
-| Guide beam height | `0.18` meter | 当前 step 的空间丁达尔光束高度（从 key surface 起） |
-| Guide beam alpha | `0.32` | 光束整体 alpha（叠乘贴图透明度） |
-| Guide beam atlas | `KeyBeamFourSideAtlas` | 四侧面 warm-gold 透明贴图 |
+| Guide decal alpha | `0.32` | 当前 step 的琴键贴皮高亮整体 alpha |
+| Guide decal texture | `KeyDecalSoftRect` | 柔边矩形贴图（key-top decal） |
+| Guide decal epsilon | `0.0015` meter | 贴皮与琴键表面的最小抬升，避免 z-fighting（见 `PianoGuideBeamDescriptor`） |
 
 ## 构建与工程配置
 | 项目 | 位置 | 说明 |
@@ -86,3 +86,4 @@
 
 ## 更新记录（Update Notes）
 - 2026-04-25: 更新 PR-only split tests、manual-only Swift Quality、`macos-26`、Swift tools 6.2 和 AVP light beam 参数。
+- 2026-05-01: AVP 练习引导从光柱改为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。

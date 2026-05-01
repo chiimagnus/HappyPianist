@@ -62,12 +62,12 @@
 | 曲库索引 / 文件一致性 | 影响 Step 2 / Step 3 | AVP library tests |
 | 校准和定位失败分支 | 影响沉浸式流程 | AVP calibration / localization tests |
 | MusicXML expressivity | 影响练习步骤和 autoplay | MusicXML parser/timeline tests |
-| RealityKit 光柱引导 | 影响 Step 3 可见反馈 | AVP tests + Vision Pro 手工观察 |
+| RealityKit 贴皮高亮引导 | 影响 Step 3 可见引导与对齐 | AVP tests + Vision Pro 手工观察 |
 
 ## 手工冒烟
 1. macOS 授权 Accessibility，验证 Start Listening、Mapping、Recorder、Dialogue。
 2. Python 先跑 `/health`，再跑 `test_client.py`。
-3. AVP 导入 MusicXML，完成校准，进入练习并验证光柱、跳步、自动播放。
+3. AVP 导入 MusicXML，完成校准，进入练习并验证贴皮高亮、跳步、自动播放。
 4. 手动触发 `Swift Quality` 后检查 bot commit diff，确认只有格式化/lint 修复。
 
 ## build-for-testing 与 test
@@ -93,3 +93,4 @@
 ## 更新记录（Update Notes）
 - 2026-04-25: 记录 PR-only split Xcode tests、AVP simulator test 跑通、manual Swift Quality、build-for-testing 与 test 的 CI 取舍。
 - 2026-04-28: 反映 pr-tests.yml workflow 已删除，更新测试策略为本地手动运行；移除 PR Tests 路径分流内容；更新手工冒烟和现状说明。
+- 2026-05-01: 同步 AVP Practice 的 RealityKit 引导从光柱迁移为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。

@@ -8,7 +8,7 @@
 | Dialogue | 静默触发 | DialogueManager -> WS -> inference | AI 回放 + take |
 | AVP seed | App 启动 | SongLibrarySeeder | 默认谱面和音频 |
 | AVP import | fileImporter URLs | SongFileStore + IndexStore | `SongLibrary/index.json` |
-| AVP practice | 校准 + 曲库 + tracking | ARGuideViewModel + PracticeSessionViewModel + AutoplayPerformanceTimeline + PianoGuideOverlayController | 光柱引导、反馈和步骤推进 |
+| AVP practice | 校准 + 曲库 + tracking | ARGuideViewModel + PracticeSessionViewModel + AutoplayPerformanceTimeline + PianoGuideOverlayController | 贴皮高亮引导（decal）与步骤推进 |
 | AVP virtual piano | 虚拟钢琴开关 + 手势放置 + 手指追踪 | VirtualPianoPlacementViewModel + VirtualPianoKeyGeometryService + KeyContactDetectionService + VirtualPianoOverlayController | 3D 88 键键盘 + 实时发声 + 步骤推进 |
 | PR validation | 手动测试 | 本地 xcodebuild | macOS / AVP tests |
 | Swift quality | 手动 workflow_dispatch | SwiftFormat + SwiftLint | 格式化 commit 或 lint 结果 |
@@ -39,8 +39,8 @@ sequenceDiagram
 | Step 2 选曲 | MusicXML / mp3 / m4a | `SongLibraryViewModel` | `SongLibraryIndex` |
 | MusicXML 处理 | score XML | `MusicXMLParser`, `PracticeStepBuilder`, `MusicXMLRealisticPlaybackDefaults` | `PracticeStep[]` + timelines + expressivity options |
 | Guide 构建 | score, steps, spans, expressivity | `PianoHighlightGuideBuilderService` | `PianoHighlightGuide[]` |
-| Step 3 练习 | finger tips + steps + guides | `ARGuideViewModel`, `PracticeSessionViewModel`, `AutoplayPerformanceTimeline` | 匹配、反馈、autoplay |
-| 空间提示 | `PracticeStep.notes`, `PianoKeyboardGeometry`, feedback state | `PianoGuideOverlayController` | RealityKit warm-gold prism beams (four-side atlas) |
+| Step 3 练习 | finger tips + steps + guides | `ARGuideViewModel`, `PracticeSessionViewModel`, `AutoplayPerformanceTimeline` | 匹配、autoplay |
+| 空间提示 | `PracticeStep.notes`, `PianoKeyboardGeometry` | `PianoGuideOverlayController` | RealityKit warm-gold key-top decals (`KeyDecalSoftRect`) |
 | 虚拟钢琴放置 | finger tips | `VirtualPianoPlacementViewModel` | `worldFromKeyboard` transform |
 | 虚拟键盘生成 | `KeyboardFrame` | `VirtualPianoKeyGeometryService` | 88 键 `PianoKeyboardGeometry` |
 | 虚拟键盘渲染 | placement state + geometry | `VirtualPianoOverlayController` | RealityKit 3D 键盘 + 准星 |
@@ -52,8 +52,8 @@ sequenceDiagram
 | --- | --- | --- |
 | 定位 | 恢复世界锚点并生成 calibration | `PracticeLocalizationState` |
 | 按键检测 | 指尖落点映射到 keyboard geometry | `pressedNotes` |
-| 匹配 | 当前 step 的和弦/音符匹配 | `VisualFeedbackState` |
-| 光柱提示 | 当前 step 的 MIDI notes 映射到 keyboard-local footprint + surface | `activeBeamEntitiesByMIDINote` |
+| 匹配 | 当前 step 的和弦/音符匹配 | `currentStepIndex`, `ChordAttemptAccumulator` |
+| 贴皮高亮提示 | 当前 step 的 MIDI notes 映射到 keyboard-local footprint + key surface | `activeBeamEntitiesByMIDINote` |
 | Guide 构建 | 从 MusicXML 生成高亮引导 | `PianoHighlightGuide[]` |
 | 自动演奏 | 由 `AutoplayPerformanceTimeline` 统一调度 note on/off、踏板、guide、step 和 fermata pause | `autoplayState` |
 | 前置检查 | autoplay 启动前严格检查 tempoMap、highlightGuides、pedalTimeline、fermataTimeline | `autoplayErrorMessage` |
@@ -78,17 +78,16 @@ flowchart TD
     N --> O[PracticeSessionViewModel 逐事件调度]
 ```
 
-### 光柱提示数据流
+### 贴皮高亮提示数据流
 
 ```mermaid
 flowchart TD
   A[PracticeStep.notes] --> B[Build desired MIDI note set]
-  C[PianoKeyboardGeometry] --> D[key lookup + footprint/surface]
+  C[PianoKeyboardGeometry] --> D[key lookup + surface]
   B --> E[PianoGuideBeamDescriptor.makeDescriptors]
   D --> E
-  F[VisualFeedbackState] --> E
-  E --> G[Create/update prism ModelEntity]
-  G --> H[KeyBeamFourSideAtlas + warm tint]
+  E --> G[Create/update top-surface decal ModelEntity]
+  G --> H[KeyDecalSoftRect + warm tint]
 ```
 
 ## Python 数据流
@@ -145,7 +144,7 @@ flowchart TD
 ## 调试抓手
 - macOS：`statusMessage`、`recentLogs`、`previewText`
 - AVP：`practiceLocalizationStatusText`、`calibrationStatusMessage`、`currentListeningEntryID`、`currentPianoHighlightGuide?.highlightedMIDINotes`、`autoplayErrorMessage`
-- RealityKit 光束：`activeBeamEntitiesByMIDINote`、`PianoGuideBeamDescriptor`、`PianoKeyboardGeometry.frame.keyboardFromWorld`
+- RealityKit 贴皮高亮：`activeBeamEntitiesByMIDINote`、`PianoGuideBeamDescriptor`、`KeyDecalSoftRect`、`PianoKeyboardGeometry.frame.keyboardFromWorld`
 - 虚拟钢琴：`ARGuideViewModel.isVirtualPianoEnabled`、`VirtualPianoPlacementViewModel.state`、`worldFromKeyboard`、`KeyContactDetectionService.previousDownNotes`、`PracticeSequencerPlaybackServiceProtocol.liveNotes``
 - Guide 构建：`PianoHighlightGuideBuilderService.buildGuides` 输入和输出、`PianoHighlightParsedElementCoverageService.allCoverages()`
 - AutoplayPerformanceTimeline：事件序列、tick 排序、优先级处理
@@ -164,3 +163,4 @@ flowchart TD
 - 2026-04-28: 反映 pr-tests.yml workflow 已删除；新增 `AutoplayPerformanceTimeline` 数据流；新增 Guide 构建流程；更新 autoplay 前置检查和失败恢复；添加音频识别调试抓手。
 - 2026-04-29: 修正 AVP 调试抓手中高亮 note 集合的真实来源为 `currentPianoHighlightGuide?.highlightedMIDINotes`（移除过期字段名）。
 - 2026-04-30: 新增虚拟钢琴数据流（放置、键盘生成、渲染、按键检测、实时发声）；新增 `VirtualPianoPlacementViewModel` 状态机；新增虚拟钢琴故障恢复和调试抓手。
+- 2026-05-01: AVP 练习空间提示从光柱改为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。
