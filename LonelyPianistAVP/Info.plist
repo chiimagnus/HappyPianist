@@ -4,6 +4,8 @@
 <dict>
 	<key>NSHandsTrackingUsageDescription</key>
 	<string>LonelyPianist uses hand tracking to detect which piano keys you press and to advance practice steps.</string>
+	<key>NSWorldSensingUsageDescription</key>
+	<string>用于在 Step3 虚拟钢琴模式中检测平面位置，并在平面上显示放双手引导与虚拟键盘。</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>用于在 Step3 练习中识别你弹奏的真实钢琴音符，并判断是否匹配当前高亮音符。</string>
 	<key>UTImportedTypeDeclarations</key>
