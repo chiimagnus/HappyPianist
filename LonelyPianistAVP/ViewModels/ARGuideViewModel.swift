@@ -82,6 +82,8 @@ final class ARGuideViewModel {
     private(set) var calibrationPhase: CalibrationPhase = .capturingA0
     private(set) var isVirtualPianoEnabled = false
     let virtualPianoPlacement = VirtualPianoPlacementViewModel()
+    let virtualPianoTablePlacement = VirtualPianoTablePlacementViewModel()
+    private var virtualPianoTableWorldFromAnchor: simd_float4x4?
 
     init(appState: AppState, practiceSessionViewModel: PracticeSessionViewModel? = nil) {
         self.appState = appState
@@ -237,6 +239,8 @@ final class ARGuideViewModel {
         isVirtualPianoEnabled = isEnabled
         if isEnabled {
             cancelPracticeLocalizationTask()
+            virtualPianoTableWorldFromAnchor = nil
+            virtualPianoTablePlacement.start()
             #if DEBUG && targetEnvironment(simulator)
             practiceLocalizationState = .ready
             virtualPianoPlacement.placeAtDefaultPosition()
@@ -250,6 +254,8 @@ final class ARGuideViewModel {
             practiceSessionViewModel.clearCalibration()
             practiceLocalizationState = .idle
             virtualPianoPlacement.reset()
+            virtualPianoTablePlacement.reset()
+            virtualPianoTableWorldFromAnchor = nil
         }
     }
 
@@ -477,6 +483,27 @@ final class ARGuideViewModel {
                         handleCalibrationHandUpdates()
                     case .practice:
                         if isVirtualPianoEnabled {
+                            let nowUptime = ProcessInfo.processInfo.systemUptime
+                            let wasReady: Bool = if case .ready = virtualPianoTablePlacement.state { true } else { false }
+                            let deviceWorldTransform: simd_float4x4?
+                            if
+                                let deviceAnchor = arTrackingService.worldTrackingProvider.queryDeviceAnchor(atTimestamp: nowUptime),
+                                deviceAnchor.isTracked
+                            {
+                                deviceWorldTransform = deviceAnchor.originFromAnchorTransform
+                            } else {
+                                deviceWorldTransform = nil
+                            }
+                            virtualPianoTablePlacement.update(
+                                tableWorldFromAnchor: virtualPianoTableWorldFromAnchor,
+                                fingerTips: fingerTips,
+                                deviceWorldTransform: deviceWorldTransform,
+                                nowUptime: nowUptime
+                            )
+                            if wasReady == false, case let .ready(worldFromKeyboard) = virtualPianoTablePlacement.state {
+                                applyVirtualPianoGeometry(worldFromKeyboard: worldFromKeyboard)
+                            }
+
                             let wasPlaced = virtualPianoPlacement.isPlaced
                             virtualPianoPlacement.update(fingerTips: fingerTips)
                             if wasPlaced == false, virtualPianoPlacement.isPlaced {
@@ -498,6 +525,10 @@ final class ARGuideViewModel {
 
     private func applyVirtualPianoGeometry() {
         guard let worldFromKeyboard = virtualPianoPlacement.worldFromKeyboard else { return }
+        applyVirtualPianoGeometry(worldFromKeyboard: worldFromKeyboard)
+    }
+
+    private func applyVirtualPianoGeometry(worldFromKeyboard: simd_float4x4) {
         let frame = KeyboardFrame(worldFromKeyboard: worldFromKeyboard)
         let service = VirtualPianoKeyGeometryService()
         if let geometry = service.generateKeyboardGeometry(from: frame) {
@@ -521,6 +552,10 @@ final class ARGuideViewModel {
         if let geometry = service.generateKeyboardGeometry(from: frame) {
             practiceSessionViewModel.applyVirtualKeyboardGeometry(geometry)
         }
+    }
+
+    func syncVirtualPianoTableWorldFromAnchor(_ tableWorldFromAnchor: simd_float4x4?) {
+        virtualPianoTableWorldFromAnchor = tableWorldFromAnchor
     }
 
     private func handleCalibrationHandUpdates() {
