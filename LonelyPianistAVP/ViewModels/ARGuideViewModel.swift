@@ -587,26 +587,7 @@ final class ARGuideViewModel {
                         if isVirtualPianoEnabled {
                             let nowUptime = ProcessInfo.processInfo.systemUptime
                             updateGazePlaneDiskGuidance(fingerTips: fingerTips, nowUptime: nowUptime)
-                            let wasReady: Bool = if case .ready = virtualPianoTablePlacement.state { true } else { false }
-                            let deviceWorldTransform: simd_float4x4?
-                            if
-                                let deviceAnchor = arTrackingService.worldTrackingProvider.queryDeviceAnchor(atTimestamp: nowUptime),
-                                deviceAnchor.isTracked
-                            {
-                                deviceWorldTransform = deviceAnchor.originFromAnchorTransform
-                            } else {
-                                deviceWorldTransform = nil
-                            }
-                            virtualPianoTablePlacement.update(
-                                tableWorldFromAnchor: virtualPianoTableWorldFromAnchor,
-                                fingerTips: fingerTips,
-                                deviceWorldTransform: deviceWorldTransform,
-                                nowUptime: nowUptime
-                            )
-                            if wasReady == false, case let .ready(worldFromKeyboard) = virtualPianoTablePlacement.state {
-                                applyVirtualPianoGeometry(worldFromKeyboard: worldFromKeyboard)
-                            }
-                            if case .ready = virtualPianoTablePlacement.state {
+                            if practiceSessionViewModel.keyboardGeometry != nil {
                                 _ = practiceSessionViewModel.handleFingerTipPositions(
                                     fingerTips,
                                     isVirtualPiano: true
@@ -836,6 +817,25 @@ final class ARGuideViewModel {
             rightPalmWorld: fingerTips["right-palmCenter"],
             nowUptime: nowUptime
         )
+
+        guard gazePlaneDiskConfirmation.isConfirmed else { return }
+        guard practiceSessionViewModel.keyboardGeometry == nil else { return }
+        guard let hit else { return }
+        guard let planeWorldFromAnchor = arTrackingService.planeAnchorsByID[hit.id]?.originFromAnchorTransform else { return }
+        guard let leftPalm = fingerTips["left-palmCenter"], let rightPalm = fingerTips["right-palmCenter"] else { return }
+
+        let handCenterWorld = (leftPalm + rightPalm) / 2
+        let n = simd_normalize(hit.planeNormalWorld)
+        let handCenterOnPlaneWorld = handCenterWorld - n * simd_dot(handCenterWorld - hit.hitPointWorld, n)
+
+        let poseService = VirtualKeyboardPoseService()
+        guard let worldFromKeyboard = poseService.computeWorldFromKeyboard(
+            planeWorldFromAnchor: planeWorldFromAnchor,
+            handCenterOnPlaneWorld: handCenterOnPlaneWorld,
+            deviceWorldTransform: deviceWorldTransform
+        ) else { return }
+
+        applyVirtualPianoGeometry(worldFromKeyboard: worldFromKeyboard)
     }
 
     var practiceProgressText: String {
