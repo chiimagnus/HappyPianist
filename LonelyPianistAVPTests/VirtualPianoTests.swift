@@ -195,66 +195,143 @@ func keyContactDetectionNoFingerNoDown() {
     #expect(result.ended.isEmpty)
 }
 
-// MARK: - VirtualPianoPlacementViewModel Tests
+// MARK: - VirtualPianoTablePlacementViewModel Tests
 
 @Test
 @MainActor
-func placementStateTransitions() {
-    let vm = VirtualPianoPlacementViewModel()
-    #expect(vm.state == .disabled)
-    #expect(vm.isPlaced == false)
-    #expect(vm.worldFromKeyboard == nil)
+func tablePlacementNotReadyWithoutTableAnchor() {
+    let vm = VirtualPianoTablePlacementViewModel()
+    vm.start()
 
-    vm.startPlacing()
-    if case let .placing(reticlePoint) = vm.state {
-        #expect(reticlePoint == nil)
+    vm.update(
+        tableWorldFromAnchor: nil,
+        fingerTips: [
+            "left-indexFingerTip": SIMD3<Float>(0, 0, 0),
+            "right-indexFingerTip": SIMD3<Float>(0, 0, 0),
+        ],
+        deviceWorldTransform: nil,
+        nowUptime: 0
+    )
+
+    #expect(vm.state == .waitingForTableAnchor)
+}
+
+@Test
+@MainActor
+func tablePlacementMissingHandsKeepsProgressZero() {
+    let vm = VirtualPianoTablePlacementViewModel()
+    vm.start()
+
+    vm.update(
+        tableWorldFromAnchor: matrix_identity_float4x4,
+        fingerTips: [:],
+        deviceWorldTransform: nil,
+        nowUptime: 0
+    )
+
+    if case let .waitingForHandsStable(progress) = vm.state {
+        #expect(progress == 0)
     } else {
-        Issue.record("Expected .placing state")
+        Issue.record("Expected waitingForHandsStable(progress:)")
     }
-
-    vm.update(fingerTips: [
-        "right-indexFingerTip": SIMD3<Float>(0.5, 0, 0),
-        "right-thumbTip": SIMD3<Float>(0.5, 0, 0),
-    ])
-    #expect(vm.isPlaced)
-    #expect(vm.worldFromKeyboard != nil)
 }
 
 @Test
 @MainActor
-func placementResetGoesToDisabled() {
-    let vm = VirtualPianoPlacementViewModel()
-    vm.startPlacing()
-    vm.update(fingerTips: [
-        "right-indexFingerTip": SIMD3<Float>(0, 0, 0),
-        "right-thumbTip": SIMD3<Float>(0, 0, 0),
-    ])
-    #expect(vm.isPlaced)
+func tablePlacementStableForThreeSecondsBecomesReady() {
+    let vm = VirtualPianoTablePlacementViewModel()
+    vm.start()
 
-    vm.reset()
-    #expect(vm.state == .disabled)
-    #expect(vm.isPlaced == false)
+    let tableWorldFromAnchor = matrix_identity_float4x4
+    let fingerTips: [String: SIMD3<Float>] = [
+        "left-indexFingerTip": SIMD3<Float>(0.2, 0, 0.1),
+        "right-indexFingerTip": SIMD3<Float>(0.2, 0, 0.1),
+    ]
+
+    vm.update(
+        tableWorldFromAnchor: tableWorldFromAnchor,
+        fingerTips: fingerTips,
+        deviceWorldTransform: nil,
+        nowUptime: 0
+    )
+    if case let .waitingForHandsStable(progress) = vm.state {
+        #expect(progress == 0)
+    } else {
+        Issue.record("Expected waitingForHandsStable(progress:)")
+    }
+
+    vm.update(
+        tableWorldFromAnchor: tableWorldFromAnchor,
+        fingerTips: fingerTips,
+        deviceWorldTransform: nil,
+        nowUptime: 1.5
+    )
+    if case let .waitingForHandsStable(progress) = vm.state {
+        #expect(abs(progress - 0.5) < 0.001)
+    } else {
+        Issue.record("Expected waitingForHandsStable(progress:)")
+    }
+
+    vm.update(
+        tableWorldFromAnchor: tableWorldFromAnchor,
+        fingerTips: fingerTips,
+        deviceWorldTransform: nil,
+        nowUptime: 3.0
+    )
+    if case .ready = vm.state {
+        #expect(true)
+    } else {
+        Issue.record("Expected ready(worldFromKeyboard:)")
+    }
 }
 
 @Test
 @MainActor
-func placementConfirmSetsOriginAtKeyboardLeftEnd() {
-    let vm = VirtualPianoPlacementViewModel()
-    vm.startPlacing()
+func tablePlacementMovementResetsProgress() {
+    let vm = VirtualPianoTablePlacementViewModel()
+    vm.start()
 
-    let reticlePoint = SIMD3<Float>(1.0, 0, 0)
-    vm.update(fingerTips: [
-        "right-indexFingerTip": reticlePoint,
-        "right-thumbTip": reticlePoint,
-    ])
+    let tableWorldFromAnchor = matrix_identity_float4x4
+    let fingerTipsStable: [String: SIMD3<Float>] = [
+        "left-indexFingerTip": SIMD3<Float>(0.2, 0, 0.1),
+        "right-indexFingerTip": SIMD3<Float>(0.2, 0, 0.1),
+    ]
 
-    guard let transform = vm.worldFromKeyboard else {
-        Issue.record("Expected placement to succeed")
-        return
+    vm.update(
+        tableWorldFromAnchor: tableWorldFromAnchor,
+        fingerTips: fingerTipsStable,
+        deviceWorldTransform: nil,
+        nowUptime: 0
+    )
+
+    vm.update(
+        tableWorldFromAnchor: tableWorldFromAnchor,
+        fingerTips: fingerTipsStable,
+        deviceWorldTransform: nil,
+        nowUptime: 2.0
+    )
+    if case let .waitingForHandsStable(progress) = vm.state {
+        #expect(progress > 0.6)
+    } else {
+        Issue.record("Expected waitingForHandsStable(progress:)")
     }
-    let origin = SIMD3<Float>(transform.columns.3.x, transform.columns.3.y, transform.columns.3.z)
-    let halfLength = VirtualPianoKeyGeometryService.totalKeyboardLengthMeters / 2
-    #expect(abs(origin.x - (reticlePoint.x - halfLength)) < 0.001)
+
+    let fingerTipsMoved: [String: SIMD3<Float>] = [
+        "left-indexFingerTip": SIMD3<Float>(0.25, 0, 0.1),
+        "right-indexFingerTip": SIMD3<Float>(0.25, 0, 0.1),
+    ]
+
+    vm.update(
+        tableWorldFromAnchor: tableWorldFromAnchor,
+        fingerTips: fingerTipsMoved,
+        deviceWorldTransform: nil,
+        nowUptime: 2.1
+    )
+    if case let .waitingForHandsStable(progress) = vm.state {
+        #expect(progress == 0)
+    } else {
+        Issue.record("Expected waitingForHandsStable(progress:)")
+    }
 }
 
 @MainActor
@@ -304,11 +381,9 @@ func arGuideViewModelToggleOffClearsVirtualKeyboardAndStopsLiveNotes() {
     let appState = AppState()
     let viewModel = ARGuideViewModel(appState: appState, practiceSessionViewModel: session)
 
-    viewModel.setPracticeVirtualPianoEnabled(true)
-    #expect(viewModel.virtualPianoPlacement.isPlaced)
-    #expect(session.keyboardGeometry != nil)
+    let geometry = makeTestKeyboardGeometry()
+    session.applyVirtualKeyboardGeometry(geometry)
 
-    let geometry = session.keyboardGeometry!
     let c4Key = geometry.key(for: 60)!
     let keyLocalPoint = SIMD3<Float>(c4Key.hitCenterLocal.x, -0.001, c4Key.hitCenterLocal.z)
     let keyWorldPoint = transformPoint(geometry.frame.worldFromKeyboard, keyLocalPoint)
