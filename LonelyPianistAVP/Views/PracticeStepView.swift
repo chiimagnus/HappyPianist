@@ -103,7 +103,7 @@ struct PracticeStepView: View {
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
 
-                if isAutoplayEnabled == false, isVirtualPianoEnabled, let status = viewModel.gazePlaneDiskStatusText {
+                if isVirtualPianoEnabled, let status = viewModel.gazePlaneDiskStatusText {
                     Text(status)
                         .font(.caption)
                         .foregroundStyle(.secondary)
