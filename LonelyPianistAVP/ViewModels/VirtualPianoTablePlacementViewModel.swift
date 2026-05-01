@@ -33,6 +33,30 @@ final class VirtualPianoTablePlacementViewModel {
         stableReferenceHandPointOnPlaneWorld = nil
     }
 
+    #if DEBUG && targetEnvironment(simulator)
+    func placeAtDefaultPosition() {
+        let xAxisWorld = SIMD3<Float>(1, 0, 0)
+        let yAxisWorld = SIMD3<Float>(0, 1, 0)
+        let zAxis = simd_normalize(simd_cross(xAxisWorld, yAxisWorld))
+        let xAxis = simd_normalize(simd_cross(yAxisWorld, zAxis))
+
+        // 默认位置：在用户面前约 1m 处，键盘水平放置
+        let centerPoint = SIMD3<Float>(0, 1.0, -1.0)
+        let originWorld = centerPoint - xAxis * (VirtualPianoKeyGeometryService.totalKeyboardLengthMeters / 2)
+
+        let transform = simd_float4x4(columns: (
+            SIMD4<Float>(xAxis, 0),
+            SIMD4<Float>(yAxisWorld, 0),
+            SIMD4<Float>(zAxis, 0),
+            SIMD4<Float>(originWorld, 1)
+        ))
+
+        stableStartUptime = nil
+        stableReferenceHandPointOnPlaneWorld = nil
+        state = .ready(worldFromKeyboard: transform)
+    }
+    #endif
+
     func update(
         tableWorldFromAnchor: simd_float4x4?,
         fingerTips: [String: SIMD3<Float>],

@@ -242,6 +242,10 @@ final class ARGuideViewModel {
             virtualPianoTablePlacement.start()
             #if DEBUG && targetEnvironment(simulator)
             practiceLocalizationState = .ready
+            virtualPianoTablePlacement.placeAtDefaultPosition()
+            if case let .ready(worldFromKeyboard) = virtualPianoTablePlacement.state {
+                applyVirtualPianoGeometry(worldFromKeyboard: worldFromKeyboard)
+            }
             #else
             practiceLocalizationState = .idle
             #endif
