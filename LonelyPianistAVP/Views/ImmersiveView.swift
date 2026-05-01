@@ -40,12 +40,12 @@ struct ImmersiveView: View {
                 content: content
             )
             virtualPianoOverlayController.update(
-                placementState: viewModel.virtualPianoPlacement.state,
+                placementState: viewModel.virtualPianoTablePlacement.state,
                 keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
                 content: content
             )
-            viewModel.syncVirtualPianoTransformFromOverlay(
-                virtualPianoOverlayController.currentKeyboardWorldFromKeyboard()
+            viewModel.syncVirtualPianoTableWorldFromAnchor(
+                virtualPianoOverlayController.currentTableWorldFromAnchor()
             )
         } update: { content in
             calibrationOverlayController.update(
@@ -67,12 +67,12 @@ struct ImmersiveView: View {
                 content: content
             )
             virtualPianoOverlayController.update(
-                placementState: viewModel.virtualPianoPlacement.state,
+                placementState: viewModel.virtualPianoTablePlacement.state,
                 keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
                 content: content
             )
-            viewModel.syncVirtualPianoTransformFromOverlay(
-                virtualPianoOverlayController.currentKeyboardWorldFromKeyboard()
+            viewModel.syncVirtualPianoTableWorldFromAnchor(
+                virtualPianoOverlayController.currentTableWorldFromAnchor()
             )
         }
         .onAppear {
@@ -81,16 +81,16 @@ struct ImmersiveView: View {
         .onDisappear {
             viewModel.onImmersiveDisappear()
         }
-        .onChange(of: viewModel.virtualPianoPlacement.state) {
+        .onChange(of: viewModel.virtualPianoTablePlacement.state) {
             virtualPianoOverlayController.update(
-                placementState: viewModel.virtualPianoPlacement.state,
+                placementState: viewModel.virtualPianoTablePlacement.state,
                 keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
                 content: nil
             )
         }
         .onChange(of: viewModel.practiceSessionViewModel.keyboardGeometry) {
             virtualPianoOverlayController.update(
-                placementState: viewModel.virtualPianoPlacement.state,
+                placementState: viewModel.virtualPianoTablePlacement.state,
                 keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
                 content: nil
             )
