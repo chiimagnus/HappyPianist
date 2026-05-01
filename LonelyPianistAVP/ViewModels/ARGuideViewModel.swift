@@ -764,6 +764,7 @@ final class ARGuideViewModel {
     private func startVirtualPianoGuidanceIfNeeded() {
         guard appState.immersiveMode == .practice else { return }
         guard isVirtualPianoEnabled else { return }
+        guard appState.immersiveSpaceState == .open else { return }
         guard virtualPianoGuidanceUpdateTask == nil else { return }
 
         virtualPianoGuidanceUpdateTask = Task { @MainActor [weak self] in
