@@ -91,7 +91,7 @@ struct PracticeStepView: View {
                 .buttonBorderShape(.roundedRectangle)
                 .hoverEffect()
                 .popover(isPresented: $isSettingsPopoverPresented) {
-                    PracticeSettingsView(virtualPianoEnabled: $isVirtualPianoEnabled)
+                    settingsPopover
                 }
 
                 if isAutoplayEnabled {
@@ -102,6 +102,12 @@ struct PracticeStepView: View {
                 Text("进度 \(viewModel.practiceProgressText)")
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
+
+                if isAutoplayEnabled == false, isVirtualPianoEnabled, let status = viewModel.virtualPianoPlacementStatusText {
+                    Text(status)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
 
                 if isAutoplayEnabled == false, isVirtualPianoEnabled == false {
                     Button("定位", systemImage: "scope") {
@@ -253,6 +259,33 @@ struct PracticeStepView: View {
             }
         }
         .padding(16)
+        .frame(minWidth: 320)
+    }
+
+    private var settingsPopover: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            PracticeSettingsView(virtualPianoEnabled: $isVirtualPianoEnabled)
+
+            if isVirtualPianoEnabled {
+                Divider()
+                    .padding(.horizontal, 16)
+
+                if let status = viewModel.virtualPianoPlacementStatusText {
+                    Text(status)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 16)
+                }
+
+                Button("重试找桌面", systemImage: "arrow.clockwise") {
+                    viewModel.retryVirtualPianoPlacement()
+                }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.roundedRectangle)
+                .hoverEffect()
+                .padding(.horizontal, 16)
+            }
+        }
         .frame(minWidth: 320)
     }
 }
