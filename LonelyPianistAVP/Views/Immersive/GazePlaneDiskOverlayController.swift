@@ -119,7 +119,7 @@ final class GazePlaneDiskOverlayController {
     }
 
     private func updateTextMesh(statusText: String) {
-        let font = UIFont.systemFont(ofSize: 22, weight: .semibold)
+        let font = UIFont.systemFont(ofSize: 0.07, weight: .semibold)
         let mesh = MeshResource.generateText(
             statusText,
             extrusionDepth: 0.001,
