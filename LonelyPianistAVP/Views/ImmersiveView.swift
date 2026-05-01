@@ -8,6 +8,7 @@ struct ImmersiveView: View {
     @State private var keyboardAxesDebugOverlayController = KeyboardAxesDebugOverlayController()
     @State private var virtualPianoOverlayController = VirtualPianoOverlayController()
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
+    @State private var panoramaBackgroundEntity: ModelEntity?
 
     private var shouldShowCalibrationReticle: Bool {
         guard viewModel.immersiveMode == .calibration else { return false }
@@ -21,6 +22,29 @@ struct ImmersiveView: View {
 
     var body: some View {
         RealityView { content in
+            if panoramaBackgroundEntity == nil {
+                let sphereMesh = MeshResource.generateSphere(radius: 100.0)
+                var material = UnlitMaterial(color: UIColor.white)
+                material.faceCulling = .front
+
+                let entity = ModelEntity(mesh: sphereMesh, materials: [material])
+                content.add(entity)
+                panoramaBackgroundEntity = entity
+
+                Task {
+                    let texture = try? await TextureResource(named: "full-immersive1.jpg", in: .main)
+                    guard let texture else { return }
+
+                    var texturedMaterial = UnlitMaterial()
+                    texturedMaterial.color = .init(tint: UIColor.white, texture: .init(texture))
+                    texturedMaterial.faceCulling = .front
+
+                    await MainActor.run {
+                        panoramaBackgroundEntity?.model?.materials = [texturedMaterial]
+                    }
+                }
+            }
+
             calibrationOverlayController.update(
                 showsReticle: shouldShowCalibrationReticle,
                 reticlePoint: viewModel.calibrationCaptureService.reticlePoint,
