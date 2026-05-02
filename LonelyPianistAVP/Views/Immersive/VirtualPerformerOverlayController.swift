@@ -189,7 +189,8 @@ final class VirtualPerformerOverlayController {
         leftArmRestTransform = leftArmRoot.transform
 
         let leftArmGeometry = makeCapsuleEntity(height: armLength, radius: armRadius, material: bodyColor)
-        leftArmGeometry.position = [0, -armLength / 2, 0]
+        leftArmGeometry.transform.rotation = simd_quatf(angle: -.pi / 2, axis: [1, 0, 0])
+        leftArmGeometry.position = [0, 0, armLength / 2]
         leftArmRoot.addChild(leftArmGeometry)
 
         let rightArmRoot = Entity()
@@ -199,7 +200,8 @@ final class VirtualPerformerOverlayController {
         rightArmRestTransform = rightArmRoot.transform
 
         let rightArmGeometry = makeCapsuleEntity(height: armLength, radius: armRadius, material: bodyColor)
-        rightArmGeometry.position = [0, -armLength / 2, 0]
+        rightArmGeometry.transform.rotation = simd_quatf(angle: -.pi / 2, axis: [1, 0, 0])
+        rightArmGeometry.position = [0, 0, armLength / 2]
         rightArmRoot.addChild(rightArmGeometry)
 
         let leftLeg = makeCapsuleEntity(height: 0.30, radius: 0.037, material: bodyColor)
