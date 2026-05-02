@@ -245,12 +245,21 @@ final class ARGuideViewModel {
             cancelPracticeLocalizationTask()
             gazePlaneDiskConfirmation.reset()
             latestGazePlaneHit = nil
-            startVirtualPianoGuidanceIfNeeded()
+            if let cached = appState.cachedVirtualPianoWorldFromKeyboard {
+                practiceLocalizationState = .ready
+                applyVirtualPianoGeometry(worldFromKeyboard: cached)
+            } else {
+                startVirtualPianoGuidanceIfNeeded()
+            }
             #if DEBUG && targetEnvironment(simulator)
             practiceLocalizationState = .ready
-            applyVirtualPianoGeometryAtDefaultPositionForSimulator()
+            if appState.cachedVirtualPianoWorldFromKeyboard == nil {
+                applyVirtualPianoGeometryAtDefaultPositionForSimulator()
+            }
             #else
-            practiceLocalizationState = .idle
+            if appState.cachedVirtualPianoWorldFromKeyboard == nil {
+                practiceLocalizationState = .idle
+            }
             #endif
         } else {
             practiceSessionViewModel.stopVirtualPianoInput()
@@ -338,6 +347,7 @@ final class ARGuideViewModel {
 
         practiceSessionViewModel.stopVirtualPianoInput()
         practiceSessionViewModel.clearCalibration()
+        appState.cachedVirtualPianoWorldFromKeyboard = nil
 
         gazePlaneDiskConfirmation.reset()
         latestGazePlaneHit = nil
@@ -576,6 +586,7 @@ final class ARGuideViewModel {
         let service = VirtualPianoKeyGeometryService()
         if let geometry = service.generateKeyboardGeometry(from: frame) {
             practiceSessionViewModel.applyVirtualKeyboardGeometry(geometry)
+            appState.cachedVirtualPianoWorldFromKeyboard = worldFromKeyboard
         }
     }
 
@@ -732,6 +743,7 @@ final class ARGuideViewModel {
     private func startVirtualPianoGuidanceIfNeeded() {
         guard appState.immersiveMode == .practice else { return }
         guard isVirtualPianoEnabled else { return }
+        guard practiceSessionViewModel.keyboardGeometry == nil else { return }
         guard appState.immersiveSpaceState == .open else { return }
         guard virtualPianoGuidanceUpdateTask == nil else { return }
 
