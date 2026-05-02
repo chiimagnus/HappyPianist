@@ -614,7 +614,7 @@ final class VirtualPerformerOverlayController {
         let performerPianoScale: Float = 1.0
 
         let root = Entity()
-        root.position = [0, 0.42, 0.34]
+        root.position = [0, 0.35, 0.15]
         root.scale = SIMD3<Float>(repeating: performerPianoScale)
         root.transform.rotation = simd_quatf(angle: .pi, axis: [0, 1, 0])
 
