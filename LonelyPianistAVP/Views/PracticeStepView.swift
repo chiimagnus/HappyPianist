@@ -14,7 +14,7 @@ struct PracticeStepView: View {
     @State private var isAudioErrorAlertPresented = false
     @State private var isAutoplayErrorAlertPresented = false
 
-    @AppStorage("practiceVirtualPianoEnabled") private var isVirtualPianoEnabled = false
+    @State private var isVirtualPianoEnabled = false
     @State private var isVirtualPerformerEnabled = false
     @State private var isAutoplayEnabled = false
     @AppStorage("practiceManualAdvanceMode") private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
