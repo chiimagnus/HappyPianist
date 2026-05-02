@@ -406,6 +406,7 @@ final class VirtualPerformerOverlayController {
         let root = Entity()
         root.position = [0, 0.42, 0.48]
         root.scale = SIMD3<Float>(repeating: performerPianoScale)
+        root.transform.rotation = simd_quatf(angle: .pi, axis: [0, 1, 0])
 
         let totalLength = VirtualPianoKeyGeometryService.totalKeyboardLengthMeters
         let keyDepth = VirtualPianoKeyGeometryService.whiteKeyDepthMeters
