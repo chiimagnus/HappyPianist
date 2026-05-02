@@ -7,6 +7,7 @@ final class VirtualPerformerOverlayController {
     private var rootEntity = Entity()
     private var hasAttachedRoot = false
     private var performerRootEntity: Entity?
+    private var performerVisualRootEntity: Entity?
     private var headEntity: Entity?
     private var headRestTransform: Transform?
     private var leftHandEntity: Entity?
@@ -97,15 +98,14 @@ final class VirtualPerformerOverlayController {
             guard simd_length(rightOnPlane) > 0.0001 else { return SIMD3<Float>(1, 0, 0) }
             return simd_normalize(rightOnPlane)
         }()
-        var forwardOnPlaneWorld = simd_normalize(simd_cross(rightOnPlaneWorld, upAxisWorld))
-
-        if let cameraWorldPosition {
+        let forwardOnPlaneWorld = simd_normalize(simd_cross(rightOnPlaneWorld, upAxisWorld))
+        let shouldFlipFacing: Bool = {
+            guard let cameraWorldPosition else { return false }
             let toCameraWorld = cameraWorldPosition - keyboardCenterWorld
             let toCameraOnPlane = toCameraWorld - upAxisWorld * simd_dot(toCameraWorld, upAxisWorld)
-            if simd_length(toCameraOnPlane) > 0.0001, simd_dot(forwardOnPlaneWorld, toCameraOnPlane) < 0 {
-                forwardOnPlaneWorld = -forwardOnPlaneWorld
-            }
-        }
+            guard simd_length(toCameraOnPlane) > 0.0001 else { return false }
+            return simd_dot(forwardOnPlaneWorld, toCameraOnPlane) < 0
+        }()
 
         let offsetRightMeters: Float = totalLength * 0.6
         let offsetForwardMeters: Float = keyDepth * 0.8
@@ -124,12 +124,17 @@ final class VirtualPerformerOverlayController {
         ))
 
         performerRootEntity.transform = Transform(matrix: performerWorldFromRoot)
+        performerVisualRootEntity?.orientation = simd_quatf(
+            angle: shouldFlipFacing ? .pi : 0,
+            axis: [0, 1, 0]
+        )
     }
 
     private func clearPerformer() {
         stopHandAnimation()
         performerRootEntity?.removeFromParent()
         performerRootEntity = nil
+        performerVisualRootEntity = nil
         headEntity = nil
         headRestTransform = nil
         leftHandEntity = nil
@@ -142,8 +147,11 @@ final class VirtualPerformerOverlayController {
 
     private func makePerformerRootEntity() -> Entity {
         let root = Entity()
-        root.addChild(makeTinyPianoEntity())
-        root.addChild(makePerformerEntity())
+        let visualRoot = Entity()
+        root.addChild(visualRoot)
+        performerVisualRootEntity = visualRoot
+        visualRoot.addChild(makeTinyPianoEntity())
+        visualRoot.addChild(makePerformerEntity())
         return root
     }
 
