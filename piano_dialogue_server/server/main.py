@@ -299,9 +299,12 @@ async def ws_endpoint(websocket: WebSocket) -> None:
                 continue
 
             try:
-                t_engine0 = time.perf_counter()
-                engine = get_inference_engine()
-                t_engine_ms = int((time.perf_counter() - t_engine0) * 1000)
+                engine = None
+                t_engine_ms = 0
+                if request.params.strategy != "deterministic":
+                    t_engine0 = time.perf_counter()
+                    engine = get_inference_engine()
+                    t_engine_ms = int((time.perf_counter() - t_engine0) * 1000)
 
                 t_generate0 = time.perf_counter()
                 inference_debug: dict[str, Any] | None = None
@@ -310,10 +313,12 @@ async def ws_endpoint(websocket: WebSocket) -> None:
                         request.notes, request.params, request.session_id
                     )
                 elif debug_on:
+                    assert engine is not None
                     reply_notes, inference_debug = engine.generate_response_with_debug(
                         request.notes, request.params, request.session_id
                     )
                 else:
+                    assert engine is not None
                     reply_notes = engine.generate_response(request.notes, request.params, request.session_id)
                 t_generate_ms = int((time.perf_counter() - t_generate0) * 1000)
 
@@ -356,11 +361,11 @@ async def ws_endpoint(websocket: WebSocket) -> None:
                             "req_id": req_id,
                             "session_id": request.session_id,
                             "client": client_host,
-                            "model_ref": engine.model_ref,
-                            "device": engine.device,
+                            "model_ref": engine.model_ref if engine is not None else None,
+                            "device": engine.device if engine is not None else None,
                             "torch_version": torch_version,
                             "transformers_version": transformers_version,
-                            "engine_load_ms": engine.load_ms,
+                            "engine_load_ms": engine.load_ms if engine is not None else None,
                             "protocol_version": request.protocol_version,
                             "params": request.params.model_dump(),
                             "prompt_note_count": len(prompt_notes),

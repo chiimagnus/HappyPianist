@@ -29,6 +29,18 @@ func improvScheduleBuilderClampsDuration() {
 }
 
 @Test
+func improvScheduleBuilderNegativeTimeStillProducesDuration() {
+    let notes = [
+        ImprovDialogueNote(note: 60, velocity: 90, time: -1.0, duration: 0.2),
+    ]
+    let builder = ImprovScheduleBuilder()
+    let schedule = builder.buildSchedule(from: notes, leadInSeconds: 0)
+    #expect(schedule.count == 2)
+    #expect(schedule[0].timeSeconds == 0.0)
+    #expect(schedule[1].timeSeconds >= 0.2)
+}
+
+@Test
 func improvScheduleBuilderEmptyNotesIsEmptySchedule() {
     let builder = ImprovScheduleBuilder()
     #expect(builder.buildSchedule(from: [], leadInSeconds: 0).isEmpty)

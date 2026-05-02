@@ -13,7 +13,7 @@ nonisolated struct ImprovScheduleBuilder {
         for note in notes {
             let start = max(0, note.time + leadInSeconds)
             let duration = max(0.05, note.duration)
-            let end = max(start, note.time + duration + leadInSeconds)
+            let end = start + duration
 
             schedule.append(
                 PracticeSequencerMIDIEvent(

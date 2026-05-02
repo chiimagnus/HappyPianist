@@ -91,7 +91,7 @@ final class BonjourBackendDiscoveryService {
             if let resolved {
                 self.state = .resolved(host: resolved.host, port: resolved.port)
             } else if case .discovering = self.state {
-                self.state = .failed(message: "resolve host/port failed")
+                // Keep discovering. A transient resolve failure should not permanently lock the service in `.failed`.
             }
         }
     }
