@@ -99,8 +99,8 @@ final class VirtualPerformerOverlayController {
             return simd_normalize(rightOnPlane)
         }()
         let forwardOnPlaneWorld = simd_normalize(simd_cross(rightOnPlaneWorld, upAxisWorld))
-        let offsetRightMeters: Float = totalLength * 0.6
-        let offsetForwardMeters: Float = keyDepth * 0.8
+        let offsetRightMeters: Float = totalLength * 0.9
+        let offsetForwardMeters: Float = keyDepth * 1.8
         let offsetUpMeters: Float = 0.0
 
         let performerPositionWorld = keyboardCenterWorld
@@ -150,7 +150,6 @@ final class VirtualPerformerOverlayController {
         let visualRoot = Entity()
         root.addChild(visualRoot)
         performerVisualRootEntity = visualRoot
-        visualRoot.addChild(makeTinyPianoEntity())
         visualRoot.addChild(makePerformerEntity())
         return root
     }
@@ -321,10 +320,10 @@ final class VirtualPerformerOverlayController {
     private func makeHeadEntity(bodyColor: SimpleMaterial) -> Entity {
         let root = Entity()
 
-        let segmentCount = 16
+        let segmentCount = 64
         let ringRadius: Float = 0.095
         let segmentHeight: Float = 0.015
-        let segmentRadius: Float = 0.01
+        let segmentRadius: Float = 0.006
 
         for index in 0 ..< segmentCount {
             let angle = (Float(index) / Float(segmentCount)) * (2 * .pi)
