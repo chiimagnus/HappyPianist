@@ -182,7 +182,7 @@ final class VirtualPerformerOverlayController {
         let armLength: Float = 0.28
         let armRadius: Float = 0.03
         let shoulderY: Float = 0.40
-        let shoulderX: Float = 0.13
+        let shoulderX: Float = 0.08
 
         let leftArmRoot = Entity()
         leftArmRoot.position = [-shoulderX, shoulderY, 0]
