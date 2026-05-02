@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+from contextlib import asynccontextmanager
 import json
 import os
 import tempfile
@@ -29,7 +30,35 @@ from .midi_generation import (
 )
 from .protocol import DialogueNote, ErrorResponse, GenerateParams, GenerateRequest, ResultResponse
 
-app = FastAPI(title="Piano Dialogue Server", version="0.1.0")
+
+@asynccontextmanager
+async def _lifespan(_: FastAPI):
+    broadcaster = None
+    try:
+        from .bonjour import BonjourServiceBroadcaster
+
+        broadcaster = BonjourServiceBroadcaster(
+            instance_name="LonelyPianist Dialogue Server",
+            port=8765,
+            properties={
+                b"path": b"/generate",
+                b"protocol_version": b"1",
+                b"supports_deterministic": b"1",
+            },
+        )
+        await broadcaster.start()
+    except Exception as error:  # noqa: BLE001
+        # Best-effort: never break the happy path.
+        print(f"[Bonjour] failed to start: {error}")
+
+    try:
+        yield
+    finally:
+        if broadcaster is not None:
+            await broadcaster.stop()
+
+
+app = FastAPI(title="Piano Dialogue Server", version="0.1.0", lifespan=_lifespan)
 
 app.add_middleware(
     CORSMiddleware,
