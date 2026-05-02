@@ -178,6 +178,28 @@ def _generate_deterministic_response(
     return _note_events_to_dialogue_notes(melody)
 
 
+def generate_deterministic_response(
+    notes: list[DialogueNote], params: GenerateParams, session_id: str | None
+) -> list[DialogueNote]:
+    reply_notes = _generate_deterministic_response(notes, params, session_id)
+    if not reply_notes:
+        return reply_notes
+
+    min_time = min(float(note.time) for note in reply_notes)
+    if min_time <= 0:
+        return reply_notes
+
+    return [
+        DialogueNote(
+            note=int(note.note),
+            velocity=int(note.velocity),
+            time=max(0.0, float(note.time) - min_time),
+            duration=float(note.duration),
+        )
+        for note in reply_notes
+    ]
+
+
 def _max_phrase_end_sec(notes: list[DialogueNote]) -> float:
     if not notes:
         return 0.0
