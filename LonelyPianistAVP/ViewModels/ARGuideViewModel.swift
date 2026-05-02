@@ -87,6 +87,7 @@ final class ARGuideViewModel {
     private(set) var isVirtualPerformerEnabled = false
     private(set) var isAIPerformanceActive = false
     private(set) var latestAIPerformanceSchedule: [PracticeSequencerMIDIEvent] = []
+    private(set) var latestDeviceWorldPosition: SIMD3<Float>?
     private var silenceTrigger = NoteOnSilenceTrigger()
     let gazePlaneDiskConfirmation = GazePlaneDiskConfirmationViewModel()
     private let gazePlaneHitTestService = GazePlaneHitTestService()
@@ -683,11 +684,12 @@ final class ARGuideViewModel {
                     case .calibration:
                         handleCalibrationHandUpdates()
                     case .practice:
+                        let nowUptime = ProcessInfo.processInfo.systemUptime
+                        updateLatestDeviceWorldPosition(nowUptime: nowUptime)
                         if isAIPerformanceActive {
                             continue
                         }
                         if isVirtualPianoEnabled {
-                            let nowUptime = ProcessInfo.processInfo.systemUptime
                             updateGazePlaneDiskGuidance(fingerTips: fingerTips, nowUptime: nowUptime)
                             if practiceSessionViewModel.keyboardGeometry != nil {
                                 _ = practiceSessionViewModel.handleFingerTipPositions(
@@ -699,7 +701,6 @@ final class ARGuideViewModel {
                                 }
                             }
                         } else {
-                            let nowUptime = ProcessInfo.processInfo.systemUptime
                             _ = practiceSessionViewModel.handleFingerTipPositions(fingerTips)
                             if practiceSessionViewModel.latestNoteOnMIDINotes.isEmpty == false {
                                 silenceTrigger.recordNoteOn(atUptime: nowUptime)
@@ -708,6 +709,19 @@ final class ARGuideViewModel {
                 }
             }
         }
+    }
+
+    private func updateLatestDeviceWorldPosition(nowUptime: TimeInterval) {
+        guard
+            let deviceAnchor = arTrackingService.worldTrackingProvider.queryDeviceAnchor(atTimestamp: nowUptime),
+            deviceAnchor.isTracked
+        else { return }
+        let deviceWorldTransform = deviceAnchor.originFromAnchorTransform
+        latestDeviceWorldPosition = SIMD3<Float>(
+            deviceWorldTransform.columns.3.x,
+            deviceWorldTransform.columns.3.y,
+            deviceWorldTransform.columns.3.z
+        )
     }
 
     private func applyVirtualPianoGeometry(worldFromKeyboard: simd_float4x4) {

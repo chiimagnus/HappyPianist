@@ -8,6 +8,7 @@ struct ImmersiveView: View {
     @State private var keyboardAxesDebugOverlayController = KeyboardAxesDebugOverlayController()
     @State private var virtualPianoOverlayController = VirtualPianoOverlayController()
     @State private var gazePlaneDiskOverlayController = GazePlaneDiskOverlayController()
+    @State private var virtualPerformerOverlayController = VirtualPerformerOverlayController()
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
     @State private var panoramaBackgroundEntity: ModelEntity?
     @State private var panoramaLoadedFileName: String?
@@ -121,6 +122,14 @@ struct ImmersiveView: View {
                 keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
                 content: content
             )
+            virtualPerformerOverlayController.update(
+                isEnabled: viewModel.isVirtualPerformerEnabled,
+                isPerforming: viewModel.isAIPerformanceActive,
+                keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
+                cameraWorldPosition: viewModel.latestDeviceWorldPosition,
+                performanceSchedule: viewModel.latestAIPerformanceSchedule,
+                content: content
+            )
         } update: { content in
             loadPanoramaIfNeeded()
 
@@ -152,6 +161,14 @@ struct ImmersiveView: View {
             virtualPianoOverlayController.update(
                 isEnabled: viewModel.isVirtualPianoEnabled,
                 keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
+                content: content
+            )
+            virtualPerformerOverlayController.update(
+                isEnabled: viewModel.isVirtualPerformerEnabled,
+                isPerforming: viewModel.isAIPerformanceActive,
+                keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
+                cameraWorldPosition: viewModel.latestDeviceWorldPosition,
+                performanceSchedule: viewModel.latestAIPerformanceSchedule,
                 content: content
             )
         }
