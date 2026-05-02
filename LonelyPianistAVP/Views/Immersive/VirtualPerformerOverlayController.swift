@@ -1,6 +1,7 @@
 import RealityKit
 import simd
 import SwiftUI
+import UIKit
 
 @MainActor
 final class VirtualPerformerOverlayController {
@@ -320,42 +321,19 @@ final class VirtualPerformerOverlayController {
     private func makeHeadEntity(bodyColor: SimpleMaterial) -> Entity {
         let root = Entity()
 
-        let segmentCount = 64
-        let ringRadius: Float = 0.095
-        let segmentHeight: Float = 0.015
-        let segmentRadius: Float = 0.006
-
-        for index in 0 ..< segmentCount {
-            let angle = (Float(index) / Float(segmentCount)) * (2 * .pi)
-            let x = cos(angle) * ringRadius
-            let z = sin(angle) * ringRadius
-
-            let segment = ModelEntity(
-                mesh: .generateCylinder(height: segmentHeight, radius: segmentRadius),
-                materials: [bodyColor]
-            )
-            segment.position = [x, 0, z]
-            segment.transform.rotation = simd_quatf(angle: angle, axis: [0, 1, 0])
-            root.addChild(segment)
-        }
+        let mesh = MeshResource.generateText(
+            "O",
+            extrusionDepth: 0.018,
+            font: UIFont.systemFont(ofSize: 0.22, weight: .heavy),
+            containerFrame: .zero,
+            alignment: .center,
+            lineBreakMode: .byClipping
+        )
+        let ring = ModelEntity(mesh: mesh, materials: [bodyColor])
+        let bounds = ring.visualBounds(relativeTo: nil)
+        ring.position = -bounds.center
+        root.addChild(ring)
 
         return root
-    }
-
-    private func makeTinyPianoEntity() -> Entity {
-        let piano = Entity()
-
-        let caseMaterial = SimpleMaterial(color: UIColor.darkGray, isMetallic: false)
-        let keyMaterial = SimpleMaterial(color: UIColor.lightGray, isMetallic: false)
-
-        let body = ModelEntity(mesh: .generateBox(size: [0.55, 0.08, 0.26]), materials: [caseMaterial])
-        body.position = [0, 0.40, 0.12]
-        piano.addChild(body)
-
-        let keys = ModelEntity(mesh: .generateBox(size: [0.52, 0.02, 0.18]), materials: [keyMaterial])
-        keys.position = [0, 0.45, 0.05]
-        piano.addChild(keys)
-
-        return piano
     }
 }
