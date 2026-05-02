@@ -35,6 +35,7 @@ final class PracticeSessionViewModel {
     private(set) var keyboardGeometry: PianoKeyboardGeometry?
     var pressedNotes: Set<Int> = []
     private(set) var latestNoteOnMIDINotes: Set<Int> = []
+    var latestKeyContactResult = KeyContactResult(down: [], started: [], ended: [])
     var isSustainPedalDown = false
     var audioRecognitionErrorMessage: String?
     private(set) var audioPlaybackErrorMessage: String?
@@ -58,6 +59,7 @@ final class PracticeSessionViewModel {
     let sleeper: SleeperProtocol
     let sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol
     let keyContactDetectionService = KeyContactDetectionService()
+    let realPianoContactDetectionService = RealPianoContactDetectionService()
     let audioRecognitionService: PracticeAudioRecognitionServiceProtocol?
     let audioStepAttemptAccumulator: AudioStepAttemptAccumulator
     let handPianoActivityGate: HandPianoActivityGate
@@ -376,6 +378,9 @@ final class PracticeSessionViewModel {
         keyboardGeometry = nil
         pressedNotes.removeAll()
         latestNoteOnMIDINotes.removeAll()
+        latestKeyContactResult = KeyContactResult(down: [], started: [], ended: [])
+        keyContactDetectionService.reset()
+        realPianoContactDetectionService.reset()
         handPianoActivityGate.reset()
         handGateState = HandGateState(
             isNearKeyboard: false,
@@ -406,7 +411,9 @@ final class PracticeSessionViewModel {
         keyboardGeometry = nil
         pressedNotes.removeAll()
         latestNoteOnMIDINotes.removeAll()
+        latestKeyContactResult = KeyContactResult(down: [], started: [], ended: [])
         keyContactDetectionService.reset()
+        realPianoContactDetectionService.reset()
         isSustainPedalDown = false
         audioRecognitionErrorMessage = nil
         audioPlaybackErrorMessage = nil
@@ -431,6 +438,7 @@ final class PracticeSessionViewModel {
     func stopVirtualPianoInput() {
         sequencerPlaybackService.stopAllLiveNotes()
         keyContactDetectionService.reset()
+        latestKeyContactResult = KeyContactResult(down: [], started: [], ended: [])
         pressedNotes.removeAll()
         latestNoteOnMIDINotes.removeAll()
     }

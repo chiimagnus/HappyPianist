@@ -10,65 +10,14 @@ struct ImmersiveView: View {
     @State private var gazePlaneDiskOverlayController = GazePlaneDiskOverlayController()
     @State private var virtualPerformerOverlayController = VirtualPerformerOverlayController()
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
-    @State private var panoramaBackgroundEntity: ModelEntity?
-    @State private var panoramaLoadedFileName: String?
-    @State private var panoramaLoadTask: Task<Void, Never>?
+    @AppStorage("immersivePanoramaEnabled") private var immersivePanoramaEnabled = false
+    @State private var panoramaController = PanoramaBackgroundController()
 
     private var desiredPanoramaBaseName: String? {
         guard let songName = viewModel.importedSongDisplayName, songName.isEmpty == false else {
             return nil
         }
         return songName
-    }
-
-    private func loadPanoramaIfNeeded() {
-        let desiredBaseName = desiredPanoramaBaseName
-
-        if panoramaLoadedFileName == desiredBaseName {
-            return
-        }
-
-        panoramaLoadTask?.cancel()
-        panoramaLoadTask = nil
-
-        let url: URL?
-        if let desiredBaseName {
-            url = Bundle.main.url(forResource: desiredBaseName, withExtension: "jpg", subdirectory: "fullspace")
-                ?? Bundle.main.url(forResource: desiredBaseName, withExtension: "jpg")
-                ?? Bundle.main.url(forResource: desiredBaseName, withExtension: "jpeg", subdirectory: "fullspace")
-                ?? Bundle.main.url(forResource: desiredBaseName, withExtension: "jpeg")
-                ?? Bundle.main.url(forResource: desiredBaseName, withExtension: "png", subdirectory: "fullspace")
-                ?? Bundle.main.url(forResource: desiredBaseName, withExtension: "png")
-        } else {
-            url = nil
-        }
-
-        panoramaLoadedFileName = desiredBaseName
-        guard let url else {
-            if let panoramaBackgroundEntity {
-                var material = UnlitMaterial(color: UIColor.white)
-                material.faceCulling = .front
-                panoramaBackgroundEntity.model?.materials = [material]
-            }
-            return
-        }
-
-        let requestedBaseName = desiredBaseName
-        panoramaLoadTask = Task { [weak panoramaBackgroundEntity] in
-            let texture = try? await TextureResource(contentsOf: url)
-            guard let texture else { return }
-            guard Task.isCancelled == false else { return }
-
-            var texturedMaterial = UnlitMaterial()
-            texturedMaterial.color = .init(tint: UIColor.white, texture: .init(texture))
-            texturedMaterial.faceCulling = .front
-
-            await MainActor.run {
-                guard panoramaLoadedFileName == requestedBaseName else { return }
-                panoramaBackgroundEntity?.model?.materials = [texturedMaterial]
-                panoramaLoadTask = nil
-            }
-        }
     }
 
     private var shouldShowCalibrationReticle: Bool {
@@ -83,18 +32,11 @@ struct ImmersiveView: View {
 
     var body: some View {
         RealityView { content in
-            if panoramaBackgroundEntity == nil {
-                let sphereMesh = MeshResource.generateSphere(radius: 100.0)
-                var material = UnlitMaterial(color: UIColor.white)
-                material.faceCulling = .front
-
-                let entity = ModelEntity(mesh: sphereMesh, materials: [material])
-                entity.orientation = simd_quatf(angle: Float.pi, axis: SIMD3<Float>(0, 1, 0))
-                content.add(entity)
-                panoramaBackgroundEntity = entity
-            }
-
-            loadPanoramaIfNeeded()
+            panoramaController.update(
+                isEnabled: immersivePanoramaEnabled,
+                desiredBaseName: desiredPanoramaBaseName,
+                content: content
+            )
 
             calibrationOverlayController.update(
                 showsReticle: shouldShowCalibrationReticle,
@@ -135,7 +77,11 @@ struct ImmersiveView: View {
                 content: content
             )
         } update: { content in
-            loadPanoramaIfNeeded()
+            panoramaController.update(
+                isEnabled: immersivePanoramaEnabled,
+                desiredBaseName: desiredPanoramaBaseName,
+                content: content
+            )
 
             calibrationOverlayController.update(
                 showsReticle: shouldShowCalibrationReticle,
@@ -180,8 +126,7 @@ struct ImmersiveView: View {
             viewModel.onImmersiveAppear()
         }
         .onDisappear {
-            panoramaLoadTask?.cancel()
-            panoramaLoadTask = nil
+            panoramaController.shutdown()
             viewModel.onImmersiveDisappear()
         }
     }

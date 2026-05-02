@@ -23,6 +23,10 @@ extension PracticeSessionViewModel {
             at: timestamp
         )
         updateLatestNoteOnMIDINotes(detected)
+        latestKeyContactResult = realPianoContactDetectionService.detect(
+            fingerTips: fingerTips,
+            keyboardGeometry: keyboardGeometry
+        )
         if detected.isEmpty == false {
             pressedNotes = detected
             handGateState = handPianoActivityGate.evaluate(
@@ -69,7 +73,8 @@ extension PracticeSessionViewModel {
             fingerTips: fingerTips,
             keyboardGeometry: keyboardGeometry
         )
-        updateLatestNoteOnMIDINotes(result.down)
+        latestKeyContactResult = result
+        updateLatestNoteOnMIDINotes(result.started)
 
         let shouldPlayLiveNotes = autoplayState == .off && isManualReplayPlaying == false
 
