@@ -1,6 +1,6 @@
 # Deepwiki 索引（LonelyPianist）
 
-本索引是 `.github/deepwiki/` 的入口。目标是让读者先看业务，再看实现；或者先看工程，再落到模块。当前 wiki 已覆盖 macOS、visionOS、Python Dialogue 服务、manual-only Swift Quality workflow，以及 AVP 琴键贴皮式 AR 练习引导。
+本索引是 `.github/deepwiki/` 的入口。目标是让读者先看业务，再看实现；或者先看工程，再落到模块。当前 wiki 已覆盖 macOS、visionOS、Python Dialogue 服务，以及 AVP 琴键贴皮式 AR 练习引导与虚拟钢琴（gaze-plane 放置）。
 
 ## 推荐阅读路径
 
@@ -33,7 +33,7 @@
 1. [testing.md](testing.md)
 2. [workflow.md](workflow.md)
 3. [configuration.md](configuration.md)
-4. [architecture.md](architecture.md#github-actions-架构)
+4. [architecture.md](architecture.md)
 5. [troubleshooting.md](troubleshooting.md)
 
 ## 页面分组
@@ -78,7 +78,7 @@
 - [testing.md](testing.md)
 - [workflow.md](workflow.md)
 - [configuration.md](configuration.md)
-- `.github/workflows/swift-quality.yml`：manual-only SwiftFormat / SwiftLint autocorrect
+- 当前仓库不包含 `.github/workflows/`；测试与格式化均为本地手动运行
 
 ### 术语与元数据
 - [glossary.md](glossary.md)
@@ -93,17 +93,17 @@
 - **要改虚拟钢琴**：看 `modules/lonelypianist-avp-practice.md` 的「虚拟钢琴模式」章节，涉及放置状态机、按键检测、3D 渲染和实时发声。
 - **要改 Python 协议或采样逻辑**：看 `modules/piano-dialogue-server.md` 与 `modules/piano-dialogue-server-inference.md`。
 - **要运行测试**：看 `testing.md` 和 `workflow.md`，所有测试需要手动在本地运行。
-- **要手动格式化 / lint**：看 `configuration.md` 中的 Swift Quality workflow。
+- **要手动格式化**：看 `configuration.md`（`.swiftformat`）。
 - **遇到运行异常**：从 `troubleshooting.md` 开始。
 
 ## 当前自动化事实
 | 自动化 | 当前状态 | 备注 |
 | --- | --- | --- |
-| PR Tests | 已移除 | 原 `pr-tests.yml` workflow 已删除 |
-| macOS tests | 本地运行 | 需要手动通过 Xcode 运行 `LonelyPianist` scheme 测试 |
-| AVP tests | 本地运行 | 需要手动通过 Xcode 运行 `LonelyPianistAVP` scheme 测试 |
-| Swift Quality | 已存在 | 只手动触发；不会因 PR 或 push 自动运行 |
-| Python CI | 未接入 | 仍依赖本地 smoke scripts |
+| GitHub Actions workflows | 无 | `.github/workflows/` 不存在 |
+| macOS tests | 本地运行 | 需要手动运行 `xcodebuild test -scheme LonelyPianist` |
+| AVP tests | 本地运行 | 需要手动运行 `xcodebuild test -scheme LonelyPianistAVP`（visionOS simulator） |
+| SwiftFormat | 可选本地运行 | 仓库包含 `.swiftformat` 配置 |
+| Python smoke | 本地运行 | 仍依赖本地脚本与 WS client |
 
 ## Coverage Gaps / Missing Assets
 - PR Tests workflow 已删除，macOS 和 AVP 测试需手动在本地运行。
@@ -120,3 +120,4 @@
 - 2026-04-29: 同步 Step 3 进入不自动开始（`ready` -> 点击下一步才开始）与音频识别 stop 日志降噪；扩充 AVP 音频排障入口。
 - 2026-04-30: 新增虚拟钢琴导航入口；更新 Coverage Gaps 以反映虚拟钢琴真机验证需求。
 - 2026-05-01: AVP AR 引导从光柱迁移为琴键贴皮高亮（decal）；移除 correct/wrong feedback 与 immersive pulse。
+- 2026-05-02: 同步虚拟钢琴放置迁移为 gaze-plane + 双手确认；并修正自动化事实（仓库当前不含 `.github/workflows/`）。
