@@ -11,6 +11,10 @@ final class VirtualPerformerOverlayController {
     private var performerVisualRootEntity: Entity?
     private var headEntity: Entity?
     private var headRestTransform: Transform?
+    private var leftArmRootEntity: Entity?
+    private var leftArmRestTransform: Transform?
+    private var rightArmRootEntity: Entity?
+    private var rightArmRestTransform: Transform?
     private var leftHandEntity: Entity?
     private var leftHandRestTransform: Transform?
     private var rightHandEntity: Entity?
@@ -44,7 +48,7 @@ final class VirtualPerformerOverlayController {
             animateHead(isPerforming: isPerforming)
             if isPerforming == false {
                 stopHandAnimation()
-                resetHandsToRest(animated: true)
+                resetArmsToRest(animated: true)
             }
             wasPerforming = isPerforming
         }
@@ -138,6 +142,10 @@ final class VirtualPerformerOverlayController {
         performerVisualRootEntity = nil
         headEntity = nil
         headRestTransform = nil
+        leftArmRootEntity = nil
+        leftArmRestTransform = nil
+        rightArmRootEntity = nil
+        rightArmRestTransform = nil
         leftHandEntity = nil
         leftHandRestTransform = nil
         rightHandEntity = nil
@@ -159,7 +167,6 @@ final class VirtualPerformerOverlayController {
         let performer = Entity()
 
         let bodyColor = SimpleMaterial(color: UIColor.orange, isMetallic: false)
-        let accentColor = SimpleMaterial(color: UIColor.white, isMetallic: false)
 
         let head = makeHeadEntity(bodyColor: bodyColor)
         head.position = [0, 0.52, 0]
@@ -167,41 +174,62 @@ final class VirtualPerformerOverlayController {
         headEntity = head
         headRestTransform = head.transform
 
-        let torso = ModelEntity(mesh: .generateCylinder(height: 0.32, radius: 0.07), materials: [bodyColor])
+        let torso = makeCapsuleEntity(height: 0.34, radius: 0.075, material: bodyColor)
         torso.position = [0, 0.32, 0]
         performer.addChild(torso)
 
-        let leftArm = ModelEntity(mesh: .generateCylinder(height: 0.24, radius: 0.03), materials: [bodyColor])
-        leftArm.position = [-0.14, 0.34, 0]
-        leftArm.transform.rotation = simd_quatf(angle: .pi / 2.6, axis: [0, 0, 1])
-        performer.addChild(leftArm)
+        let armLength: Float = 0.28
+        let armRadius: Float = 0.03
+        let shoulderY: Float = 0.40
+        let shoulderX: Float = 0.13
 
-        let rightArm = ModelEntity(mesh: .generateCylinder(height: 0.24, radius: 0.03), materials: [bodyColor])
-        rightArm.position = [0.14, 0.34, 0]
-        rightArm.transform.rotation = simd_quatf(angle: -.pi / 2.6, axis: [0, 0, 1])
-        performer.addChild(rightArm)
+        let leftArmRoot = Entity()
+        leftArmRoot.position = [-shoulderX, shoulderY, 0]
+        performer.addChild(leftArmRoot)
+        leftArmRootEntity = leftArmRoot
+        leftArmRestTransform = leftArmRoot.transform
 
-        let leftHand = ModelEntity(mesh: .generateSphere(radius: 0.035), materials: [accentColor])
-        leftHand.position = [-0.24, 0.26, 0.03]
-        performer.addChild(leftHand)
-        leftHandEntity = leftHand
-        leftHandRestTransform = leftHand.transform
+        let leftArmGeometry = makeCapsuleEntity(height: armLength, radius: armRadius, material: bodyColor)
+        leftArmGeometry.position = [0, -armLength / 2, 0]
+        leftArmRoot.addChild(leftArmGeometry)
 
-        let rightHand = ModelEntity(mesh: .generateSphere(radius: 0.035), materials: [accentColor])
-        rightHand.position = [0.24, 0.26, 0.03]
-        performer.addChild(rightHand)
-        rightHandEntity = rightHand
-        rightHandRestTransform = rightHand.transform
+        let rightArmRoot = Entity()
+        rightArmRoot.position = [shoulderX, shoulderY, 0]
+        performer.addChild(rightArmRoot)
+        rightArmRootEntity = rightArmRoot
+        rightArmRestTransform = rightArmRoot.transform
 
-        let leftLeg = ModelEntity(mesh: .generateCylinder(height: 0.28, radius: 0.035), materials: [bodyColor])
+        let rightArmGeometry = makeCapsuleEntity(height: armLength, radius: armRadius, material: bodyColor)
+        rightArmGeometry.position = [0, -armLength / 2, 0]
+        rightArmRoot.addChild(rightArmGeometry)
+
+        let leftLeg = makeCapsuleEntity(height: 0.30, radius: 0.037, material: bodyColor)
         leftLeg.position = [-0.06, 0.12, 0]
         performer.addChild(leftLeg)
 
-        let rightLeg = ModelEntity(mesh: .generateCylinder(height: 0.28, radius: 0.035), materials: [bodyColor])
+        let rightLeg = makeCapsuleEntity(height: 0.30, radius: 0.037, material: bodyColor)
         rightLeg.position = [0.06, 0.12, 0]
         performer.addChild(rightLeg)
 
         return performer
+    }
+
+    private func makeCapsuleEntity(height: Float, radius: Float, material: SimpleMaterial) -> Entity {
+        let root = Entity()
+        let cylinderHeight = max(0.001, height - radius * 2)
+        let cylinder = ModelEntity(mesh: .generateCylinder(height: cylinderHeight, radius: radius), materials: [material])
+        root.addChild(cylinder)
+
+        let capMesh = MeshResource.generateSphere(radius: radius)
+        let top = ModelEntity(mesh: capMesh, materials: [material])
+        top.position.y = cylinderHeight / 2
+        root.addChild(top)
+
+        let bottom = ModelEntity(mesh: capMesh, materials: [material])
+        bottom.position.y = -cylinderHeight / 2
+        root.addChild(bottom)
+
+        return root
     }
 
     private func animateHead(isPerforming: Bool) {
@@ -225,7 +253,7 @@ final class VirtualPerformerOverlayController {
 
     private func startHandAnimation(schedule: [PracticeSequencerMIDIEvent]) {
         stopHandAnimation()
-        resetHandsToRest(animated: false)
+        resetArmsToRest(animated: false)
         nextNoteUsesLeftHand = true
 
         let sortedSchedule = schedule.sorted { lhs, rhs in
@@ -246,9 +274,9 @@ final class VirtualPerformerOverlayController {
 
                 switch event.kind {
                     case let .noteOn(_, velocity):
-                        self.animateHandDown(velocity: velocity)
+                        self.animateArmSwing(velocity: velocity)
                     case .noteOff:
-                        self.resetHandsToRest(animated: true)
+                        self.resetArmsToRest(animated: true)
                     case .controlChange:
                         break
                 }
@@ -262,46 +290,46 @@ final class VirtualPerformerOverlayController {
         handAnimationTask = nil
     }
 
-    private func animateHandDown(velocity: UInt8) {
-        let handEntity = nextNoteUsesLeftHand ? leftHandEntity : rightHandEntity
-        let baseTransform = nextNoteUsesLeftHand ? leftHandRestTransform : rightHandRestTransform
+    private func animateArmSwing(velocity: UInt8) {
+        let armEntity = nextNoteUsesLeftHand ? leftArmRootEntity : rightArmRootEntity
+        let baseTransform = nextNoteUsesLeftHand ? leftArmRestTransform : rightArmRestTransform
         nextNoteUsesLeftHand.toggle()
 
-        guard let handEntity, let baseTransform else { return }
+        guard let armEntity, let baseTransform else { return }
 
         var targetTransform = baseTransform
         let normalizedVelocity = min(1, max(0, Float(velocity) / 127))
-        let depthMeters: Float = 0.06 + normalizedVelocity * 0.02
-        targetTransform.translation.y = baseTransform.translation.y - depthMeters
+        let angleRadians: Float = -0.5 - normalizedVelocity * 0.6
+        targetTransform.rotation = simd_quatf(angle: angleRadians, axis: [1, 0, 0])
 
-        _ = handEntity.move(
+        _ = armEntity.move(
             to: targetTransform,
-            relativeTo: handEntity.parent,
-            duration: 0.06,
+            relativeTo: armEntity.parent,
+            duration: 0.08,
             timingFunction: .easeInOut
         )
     }
 
-    private func resetHandsToRest(animated: Bool) {
-        guard let leftHandEntity, let leftHandRestTransform,
-              let rightHandEntity, let rightHandRestTransform
+    private func resetArmsToRest(animated: Bool) {
+        guard let leftArmRootEntity, let leftArmRestTransform,
+              let rightArmRootEntity, let rightArmRestTransform
         else { return }
 
         if animated == false {
-            leftHandEntity.transform = leftHandRestTransform
-            rightHandEntity.transform = rightHandRestTransform
+            leftArmRootEntity.transform = leftArmRestTransform
+            rightArmRootEntity.transform = rightArmRestTransform
             return
         }
 
-        _ = leftHandEntity.move(
-            to: leftHandRestTransform,
-            relativeTo: leftHandEntity.parent,
+        _ = leftArmRootEntity.move(
+            to: leftArmRestTransform,
+            relativeTo: leftArmRootEntity.parent,
             duration: 0.08,
             timingFunction: .easeInOut
         )
-        _ = rightHandEntity.move(
-            to: rightHandRestTransform,
-            relativeTo: rightHandEntity.parent,
+        _ = rightArmRootEntity.move(
+            to: rightArmRestTransform,
+            relativeTo: rightArmRootEntity.parent,
             duration: 0.08,
             timingFunction: .easeInOut
         )
