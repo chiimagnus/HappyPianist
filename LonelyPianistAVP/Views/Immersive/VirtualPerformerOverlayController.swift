@@ -351,8 +351,8 @@ final class VirtualPerformerOverlayController {
 
         let mesh = MeshResource.generateText(
             "O",
-            extrusionDepth: 0.018,
-            font: UIFont.systemFont(ofSize: 0.22, weight: .heavy),
+            extrusionDepth: 0.02,
+            font: UIFont.systemFont(ofSize: 0.30, weight: .heavy),
             containerFrame: .zero,
             alignment: .center,
             lineBreakMode: .byClipping
