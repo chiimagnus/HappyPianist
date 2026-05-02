@@ -7,12 +7,23 @@ final class VirtualPerformerOverlayController {
     private var rootEntity = Entity()
     private var hasAttachedRoot = false
     private var performerRootEntity: Entity?
+    private var headEntity: Entity?
+    private var headRestTransform: Transform?
+    private var leftHandEntity: Entity?
+    private var leftHandRestTransform: Transform?
+    private var rightHandEntity: Entity?
+    private var rightHandRestTransform: Transform?
+    private var handAnimationTask: Task<Void, Never>?
+    private var latestSchedule: [PracticeSequencerMIDIEvent] = []
+    private var wasPerforming = false
+    private var nextNoteUsesLeftHand = true
 
     func update(
         isEnabled: Bool,
-        isPerforming _: Bool,
+        isPerforming: Bool,
         keyboardGeometry: PianoKeyboardGeometry?,
         cameraWorldPosition: SIMD3<Float>? = nil,
+        performanceSchedule: [PracticeSequencerMIDIEvent] = [],
         content: RealityViewContent?
     ) {
         if hasAttachedRoot == false, let content {
@@ -26,6 +37,19 @@ final class VirtualPerformerOverlayController {
         }
 
         showPerformer(geometry: keyboardGeometry, cameraWorldPosition: cameraWorldPosition)
+
+        if wasPerforming != isPerforming {
+            animateHead(isPerforming: isPerforming)
+            if isPerforming == false {
+                stopHandAnimation()
+                resetHandsToRest(animated: true)
+            }
+            wasPerforming = isPerforming
+        }
+
+        if isPerforming {
+            updateHandAnimationIfNeeded(schedule: performanceSchedule)
+        }
     }
 
     private func showPerformer(geometry: PianoKeyboardGeometry, cameraWorldPosition: SIMD3<Float>?) {
@@ -97,8 +121,17 @@ final class VirtualPerformerOverlayController {
     }
 
     private func clearPerformer() {
+        stopHandAnimation()
         performerRootEntity?.removeFromParent()
         performerRootEntity = nil
+        headEntity = nil
+        headRestTransform = nil
+        leftHandEntity = nil
+        leftHandRestTransform = nil
+        rightHandEntity = nil
+        rightHandRestTransform = nil
+        latestSchedule = []
+        wasPerforming = false
     }
 
     private func makePerformerRootEntity() -> Entity {
@@ -117,6 +150,8 @@ final class VirtualPerformerOverlayController {
         let head = makeHeadEntity(bodyColor: bodyColor)
         head.position = [0, 0.52, 0]
         performer.addChild(head)
+        headEntity = head
+        headRestTransform = head.transform
 
         let torso = ModelEntity(mesh: .generateCylinder(height: 0.32, radius: 0.07), materials: [bodyColor])
         torso.position = [0, 0.32, 0]
@@ -135,10 +170,14 @@ final class VirtualPerformerOverlayController {
         let leftHand = ModelEntity(mesh: .generateSphere(radius: 0.035), materials: [accentColor])
         leftHand.position = [-0.24, 0.26, 0.03]
         performer.addChild(leftHand)
+        leftHandEntity = leftHand
+        leftHandRestTransform = leftHand.transform
 
         let rightHand = ModelEntity(mesh: .generateSphere(radius: 0.035), materials: [accentColor])
         rightHand.position = [0.24, 0.26, 0.03]
         performer.addChild(rightHand)
+        rightHandEntity = rightHand
+        rightHandRestTransform = rightHand.transform
 
         let leftLeg = ModelEntity(mesh: .generateCylinder(height: 0.28, radius: 0.035), materials: [bodyColor])
         leftLeg.position = [-0.06, 0.12, 0]
@@ -149,6 +188,120 @@ final class VirtualPerformerOverlayController {
         performer.addChild(rightLeg)
 
         return performer
+    }
+
+    private func animateHead(isPerforming: Bool) {
+        guard let headEntity else { return }
+        let baseTransform = headRestTransform ?? headEntity.transform
+        var targetTransform = baseTransform
+        targetTransform.rotation = simd_quatf(angle: isPerforming ? 0.6 : 0.0, axis: [1, 0, 0])
+        _ = headEntity.move(
+            to: targetTransform,
+            relativeTo: headEntity.parent,
+            duration: 0.25,
+            timingFunction: .easeInOut
+        )
+    }
+
+    private func updateHandAnimationIfNeeded(schedule: [PracticeSequencerMIDIEvent]) {
+        guard schedule != latestSchedule else { return }
+        latestSchedule = schedule
+        startHandAnimation(schedule: schedule)
+    }
+
+    private func startHandAnimation(schedule: [PracticeSequencerMIDIEvent]) {
+        stopHandAnimation()
+        resetHandsToRest(animated: false)
+        nextNoteUsesLeftHand = true
+
+        let sortedSchedule = schedule.sorted { lhs, rhs in
+            if lhs.timeSeconds != rhs.timeSeconds { return lhs.timeSeconds < rhs.timeSeconds }
+            return eventPriority(lhs.kind) < eventPriority(rhs.kind)
+        }
+
+        handAnimationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            var previousTimeSeconds: TimeInterval = 0
+            for event in sortedSchedule {
+                guard Task.isCancelled == false else { return }
+                let delaySeconds = max(0, event.timeSeconds - previousTimeSeconds)
+                if delaySeconds > 0 {
+                    try? await Task.sleep(for: .seconds(delaySeconds))
+                }
+                guard Task.isCancelled == false else { return }
+
+                switch event.kind {
+                    case let .noteOn(_, velocity):
+                        self.animateHandDown(velocity: velocity)
+                    case .noteOff:
+                        self.resetHandsToRest(animated: true)
+                    case .controlChange:
+                        break
+                }
+                previousTimeSeconds = event.timeSeconds
+            }
+        }
+    }
+
+    private func stopHandAnimation() {
+        handAnimationTask?.cancel()
+        handAnimationTask = nil
+    }
+
+    private func animateHandDown(velocity: UInt8) {
+        let handEntity = nextNoteUsesLeftHand ? leftHandEntity : rightHandEntity
+        let baseTransform = nextNoteUsesLeftHand ? leftHandRestTransform : rightHandRestTransform
+        nextNoteUsesLeftHand.toggle()
+
+        guard let handEntity, let baseTransform else { return }
+
+        var targetTransform = baseTransform
+        let normalizedVelocity = min(1, max(0, Float(velocity) / 127))
+        let depthMeters: Float = 0.06 + normalizedVelocity * 0.02
+        targetTransform.translation.y = baseTransform.translation.y - depthMeters
+
+        _ = handEntity.move(
+            to: targetTransform,
+            relativeTo: handEntity.parent,
+            duration: 0.06,
+            timingFunction: .easeInOut
+        )
+    }
+
+    private func resetHandsToRest(animated: Bool) {
+        guard let leftHandEntity, let leftHandRestTransform,
+              let rightHandEntity, let rightHandRestTransform
+        else { return }
+
+        if animated == false {
+            leftHandEntity.transform = leftHandRestTransform
+            rightHandEntity.transform = rightHandRestTransform
+            return
+        }
+
+        _ = leftHandEntity.move(
+            to: leftHandRestTransform,
+            relativeTo: leftHandEntity.parent,
+            duration: 0.08,
+            timingFunction: .easeInOut
+        )
+        _ = rightHandEntity.move(
+            to: rightHandRestTransform,
+            relativeTo: rightHandEntity.parent,
+            duration: 0.08,
+            timingFunction: .easeInOut
+        )
+    }
+
+    private func eventPriority(_ kind: PracticeSequencerMIDIEvent.Kind) -> Int {
+        switch kind {
+            case .controlChange:
+                0
+            case .noteOff:
+                1
+            case .noteOn:
+                2
+        }
     }
 
     private func makeHeadEntity(bodyColor: SimpleMaterial) -> Entity {
