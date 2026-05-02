@@ -294,6 +294,15 @@ final class PracticeSessionViewModel {
         latestNoteOnMIDINotes = midiNotes
     }
 
+    func aiPerformanceTickRange(maxMeasures: Int = 2) -> (startTick: Int, endTick: Int)? {
+        guard let currentStep else { return nil }
+        return AIPerformanceClipSelector().tickRange(
+            currentTick: currentStep.tick,
+            measureSpans: measureSpans,
+            maxMeasures: maxMeasures
+        )
+    }
+
     func clearCalibration() {
         calibration = nil
         keyboardGeometry = nil

@@ -69,7 +69,7 @@ extension PracticeSessionViewModel {
             fingerTips: fingerTips,
             keyboardGeometry: keyboardGeometry
         )
-        updateLatestNoteOnMIDINotes(result.started)
+        updateLatestNoteOnMIDINotes(result.down)
 
         let shouldPlayLiveNotes = autoplayState == .off && isManualReplayPlaying == false
 

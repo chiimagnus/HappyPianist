@@ -1,4 +1,5 @@
 import ARKit
+import Dispatch
 import Foundation
 import Observation
 import simd
@@ -85,6 +86,7 @@ final class ARGuideViewModel {
     private(set) var isVirtualPianoEnabled = false
     private(set) var isVirtualPerformerEnabled = false
     private(set) var isAIPerformanceActive = false
+    private(set) var latestAIPerformanceSchedule: [PracticeSequencerMIDIEvent] = []
     private var silenceTrigger = NoteOnSilenceTrigger()
     let gazePlaneDiskConfirmation = GazePlaneDiskConfirmationViewModel()
     private let gazePlaneHitTestService = GazePlaneHitTestService()
@@ -112,6 +114,9 @@ final class ARGuideViewModel {
                 measureSpans: prepared.measureSpans
             )
             self.appState.applySessionIfPossible()
+            if self.isVirtualPerformerEnabled {
+                self.setPracticeVirtualPerformerEnabled(true)
+            }
         }
         appState.onCalibrationCleared = { [weak self] in
             self?.practiceSessionViewModel.clearCalibration()
@@ -281,6 +286,7 @@ final class ARGuideViewModel {
             aiSilencePollingTask = nil
             isAIPerformanceActive = false
             silenceTrigger.reset()
+            latestAIPerformanceSchedule = []
         } else {
             guard practiceSessionViewModel.currentStep != nil else { return }
             aiSilencePollingTask?.cancel()
@@ -288,10 +294,94 @@ final class ARGuideViewModel {
                 guard let self else { return }
                 while Task.isCancelled == false {
                     guard self.isVirtualPerformerEnabled else { return }
+                    await self.pollAndPlayAIPerformanceIfNeeded()
                     try? await Task.sleep(nanoseconds: 100_000_000)
                 }
             }
         }
+    }
+
+    private func pollAndPlayAIPerformanceIfNeeded() async {
+        guard isAIPerformanceActive == false else { return }
+        guard practiceSessionViewModel.autoplayState == .off else { return }
+        guard practiceSessionViewModel.isManualReplayPlaying == false else { return }
+
+        let nowUptime = ProcessInfo.processInfo.systemUptime
+        guard silenceTrigger.pollShouldTrigger(atUptime: nowUptime, timeoutSeconds: 2.0) else { return }
+
+        isAIPerformanceActive = true
+
+        guard let tickRange = practiceSessionViewModel.aiPerformanceTickRange(maxMeasures: 2) else {
+            isAIPerformanceActive = false
+            silenceTrigger.reset()
+            return
+        }
+
+        await playAIPerformanceTickRange(tickRange)
+        isAIPerformanceActive = false
+        silenceTrigger.reset()
+    }
+
+    private func playAIPerformanceTickRange(_ tickRange: (startTick: Int, endTick: Int)) async {
+        practiceSessionViewModel.stopVirtualPianoInput()
+        practiceSessionViewModel.sequencerPlaybackService.stop()
+
+        let timelineSnapshot = practiceSessionViewModel.autoplayTimeline
+        let tempoMapSnapshot = practiceSessionViewModel.tempoMap
+        let initialSustainPedalDown = practiceSessionViewModel.pedalTimeline?.isDown(atTick: tickRange.startTick) ?? false
+        let leadInSeconds: TimeInterval = 0.05
+
+        do {
+            try practiceSessionViewModel.sequencerPlaybackService.warmUp()
+        } catch {
+            return
+        }
+
+        let scheduleAndSequence: (schedule: [PracticeSequencerMIDIEvent], sequence: PracticeSequencerSequence)
+        do {
+            scheduleAndSequence = try await withCheckedThrowingContinuation { continuation in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    do {
+                        let builder = PracticeSequencerSequenceBuilder()
+                        let schedule = builder.buildAudioEventSchedule(
+                            timeline: timelineSnapshot,
+                            tempoMap: tempoMapSnapshot,
+                            startTick: tickRange.startTick,
+                            initialSustainPedalDown: initialSustainPedalDown,
+                            leadInSeconds: leadInSeconds,
+                            endTick: tickRange.endTick
+                        )
+                        let sequence = try builder.buildSequence(from: schedule)
+                        continuation.resume(returning: (schedule, sequence))
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
+        } catch {
+            return
+        }
+        latestAIPerformanceSchedule = scheduleAndSequence.schedule
+
+        do {
+            try practiceSessionViewModel.sequencerPlaybackService.load(sequence: scheduleAndSequence.sequence)
+            try practiceSessionViewModel.sequencerPlaybackService.play(fromSeconds: 0)
+        } catch {
+            return
+        }
+
+        let sequenceEndSeconds = max(0, scheduleAndSequence.sequence.durationSeconds)
+
+        while Task.isCancelled == false {
+            guard isVirtualPerformerEnabled else { break }
+            let nowSeconds = practiceSessionViewModel.sequencerPlaybackService.currentSeconds()
+            if nowSeconds >= sequenceEndSeconds {
+                break
+            }
+            try? await Task.sleep(for: .milliseconds(33))
+        }
+
+        practiceSessionViewModel.sequencerPlaybackService.stop()
     }
 
     var gazePlaneDiskStatusText: String? {
