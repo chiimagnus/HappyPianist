@@ -160,6 +160,10 @@ final class ARGuideViewModel {
         appState.importedSteps.isEmpty == false
     }
 
+    var importedSongDisplayName: String? {
+        appState.importedFile?.fileName
+    }
+
     var immersiveMode: AppState.ImmersiveMode {
         appState.immersiveMode
     }

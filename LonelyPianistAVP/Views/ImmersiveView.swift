@@ -10,6 +10,57 @@ struct ImmersiveView: View {
     @State private var gazePlaneDiskOverlayController = GazePlaneDiskOverlayController()
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
     @State private var panoramaBackgroundEntity: ModelEntity?
+    @State private var panoramaLoadedFileName: String?
+    @State private var panoramaLoadTask: Task<Void, Never>?
+
+    private var desiredPanoramaFileName: String? {
+        guard let songName = viewModel.importedSongDisplayName, songName.isEmpty == false else {
+            return nil
+        }
+        return "\(songName).jpg"
+    }
+
+    private func loadPanoramaIfNeeded() {
+        let desiredFileName = desiredPanoramaFileName
+
+        if panoramaLoadedFileName == desiredFileName, panoramaLoadTask == nil {
+            return
+        }
+
+        panoramaLoadTask?.cancel()
+        panoramaLoadTask = nil
+
+        let url: URL?
+        if let desiredFileName {
+            url = Bundle.main.url(forResource: desiredFileName, withExtension: nil, subdirectory: "fullspace") ??
+                Bundle.main.url(forResource: desiredFileName, withExtension: nil)
+        } else {
+            url = nil
+        }
+
+        panoramaLoadedFileName = desiredFileName
+        guard let url else {
+            if let panoramaBackgroundEntity {
+                var material = UnlitMaterial(color: UIColor.white)
+                material.faceCulling = .front
+                panoramaBackgroundEntity.model?.materials = [material]
+            }
+            return
+        }
+
+        panoramaLoadTask = Task { [weak panoramaBackgroundEntity] in
+            let texture = try? await TextureResource(contentsOf: url)
+            guard let texture else { return }
+
+            var texturedMaterial = UnlitMaterial()
+            texturedMaterial.color = .init(tint: UIColor.white, texture: .init(texture))
+            texturedMaterial.faceCulling = .front
+
+            await MainActor.run {
+                panoramaBackgroundEntity?.model?.materials = [texturedMaterial]
+            }
+        }
+    }
 
     private var shouldShowCalibrationReticle: Bool {
         guard viewModel.immersiveMode == .calibration else { return false }
@@ -32,20 +83,9 @@ struct ImmersiveView: View {
                 entity.orientation = simd_quatf(angle: Float.pi, axis: SIMD3<Float>(0, 1, 0))
                 content.add(entity)
                 panoramaBackgroundEntity = entity
-
-                Task {
-                    let texture = try? await TextureResource(named: "full-immersive1.jpg", in: .main)
-                    guard let texture else { return }
-
-                    var texturedMaterial = UnlitMaterial()
-                    texturedMaterial.color = .init(tint: UIColor.white, texture: .init(texture))
-                    texturedMaterial.faceCulling = .front
-
-                    await MainActor.run {
-                        panoramaBackgroundEntity?.model?.materials = [texturedMaterial]
-                    }
-                }
             }
+
+            loadPanoramaIfNeeded()
 
             calibrationOverlayController.update(
                 showsReticle: shouldShowCalibrationReticle,
@@ -78,6 +118,8 @@ struct ImmersiveView: View {
                 content: content
             )
         } update: { content in
+            loadPanoramaIfNeeded()
+
             calibrationOverlayController.update(
                 showsReticle: shouldShowCalibrationReticle,
                 reticlePoint: viewModel.calibrationCaptureService.reticlePoint,
@@ -113,6 +155,8 @@ struct ImmersiveView: View {
             viewModel.onImmersiveAppear()
         }
         .onDisappear {
+            panoramaLoadTask?.cancel()
+            panoramaLoadTask = nil
             viewModel.onImmersiveDisappear()
         }
         .onChange(of: viewModel.isVirtualPianoEnabled) {
