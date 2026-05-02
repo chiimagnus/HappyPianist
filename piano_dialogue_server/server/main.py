@@ -49,7 +49,7 @@ async def _lifespan(_: FastAPI):
         await broadcaster.start()
     except Exception as error:  # noqa: BLE001
         # Best-effort: never break the happy path.
-        print(f"[Bonjour] failed to start: {error}")
+        print(f"[Bonjour] failed to start: {type(error).__name__}: {error!r}")
 
     try:
         yield

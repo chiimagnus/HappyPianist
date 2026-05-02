@@ -16,8 +16,7 @@ fi
 # shellcheck disable=SC1091
 source .venv/bin/activate
 
-python -m pip install -U pip >/dev/null
-pip install -r requirements.txt >/dev/null
+PIP_PROGRESS_BAR=off python -m pip install -q -U pip
+PIP_PROGRESS_BAR=off pip install -q -r requirements.txt
 
 exec python -m uvicorn server.main:app --host 0.0.0.0 --port 8765
-
