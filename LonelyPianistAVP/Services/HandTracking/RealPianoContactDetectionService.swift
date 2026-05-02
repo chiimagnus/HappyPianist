@@ -1,0 +1,85 @@
+import Foundation
+import simd
+
+@MainActor
+final class RealPianoContactDetectionService {
+    static let pressThresholdMeters: Float = 0.004
+    static let releaseThresholdMeters: Float = 0.016
+
+    private var previousDownNotes: Set<Int> = []
+
+    func reset() {
+        previousDownNotes = []
+    }
+
+    func detect(
+        fingerTips: [String: SIMD3<Float>],
+        keyboardGeometry: PianoKeyboardGeometry
+    ) -> KeyContactResult {
+        var blackKeys: [PianoKeyGeometry] = []
+        var whiteKeys: [PianoKeyGeometry] = []
+        blackKeys.reserveCapacity(36)
+        whiteKeys.reserveCapacity(52)
+        for key in keyboardGeometry.keys {
+            if case .black = key.kind {
+                blackKeys.append(key)
+            } else {
+                whiteKeys.append(key)
+            }
+        }
+
+        let keyboardFromWorld = keyboardGeometry.frame.keyboardFromWorld
+        var currentDownNotes: Set<Int> = []
+
+        for (_, worldPosition) in fingerTips {
+            let localPoint = Self.transformPoint(keyboardFromWorld, worldPosition)
+
+            if let downNote = firstDownNote(in: blackKeys, localPoint: localPoint) {
+                currentDownNotes.insert(downNote)
+                continue
+            }
+            if let downNote = firstDownNote(in: whiteKeys, localPoint: localPoint) {
+                currentDownNotes.insert(downNote)
+            }
+        }
+
+        let started = currentDownNotes.subtracting(previousDownNotes)
+        let ended = previousDownNotes.subtracting(currentDownNotes)
+        previousDownNotes = currentDownNotes
+
+        return KeyContactResult(down: currentDownNotes, started: started, ended: ended)
+    }
+
+    private func firstDownNote(
+        in keys: [PianoKeyGeometry],
+        localPoint: SIMD3<Float>
+    ) -> Int? {
+        for key in keys {
+            let minPoint = key.hitCenterLocal - key.hitSizeLocal / 2
+            let maxPoint = key.hitCenterLocal + key.hitSizeLocal / 2
+            let insideBounds = localPoint.x >= minPoint.x && localPoint.x <= maxPoint.x
+                && localPoint.z >= minPoint.z && localPoint.z <= maxPoint.z
+            guard insideBounds else { continue }
+
+            let wasDown = previousDownNotes.contains(key.midiNote)
+            if wasDown {
+                if localPoint.y <= key.surfaceLocalY + Self.releaseThresholdMeters {
+                    return key.midiNote
+                }
+            } else {
+                if localPoint.y <= key.surfaceLocalY + Self.pressThresholdMeters {
+                    return key.midiNote
+                }
+            }
+        }
+
+        return nil
+    }
+
+    @inline(__always)
+    private static func transformPoint(_ matrix: simd_float4x4, _ point: SIMD3<Float>) -> SIMD3<Float> {
+        let v4 = simd_mul(matrix, SIMD4<Float>(point, 1))
+        return SIMD3<Float>(v4.x, v4.y, v4.z)
+    }
+}
+
