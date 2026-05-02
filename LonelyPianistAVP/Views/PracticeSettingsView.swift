@@ -2,6 +2,7 @@ import SwiftUI
 
 struct PracticeSettingsView: View {
     @Binding var virtualPianoEnabled: Bool
+    @Binding var virtualPerformerEnabled: Bool
 
     @AppStorage("practiceAudioRecognitionDebugOverlayEnabled") private var practiceAudioRecognitionDebugOverlayEnabled =
         false
@@ -11,6 +12,7 @@ struct PracticeSettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Toggle("虚拟钢琴（无需真实钢琴）", isOn: $virtualPianoEnabled)
+            Toggle("AI 即兴演奏（虚拟演奏家）", isOn: $virtualPerformerEnabled)
 
             Divider()
 
@@ -30,5 +32,5 @@ struct PracticeSettingsView: View {
 }
 
 #Preview("练习设置") {
-    PracticeSettingsView(virtualPianoEnabled: .constant(false))
+    PracticeSettingsView(virtualPianoEnabled: .constant(false), virtualPerformerEnabled: .constant(false))
 }

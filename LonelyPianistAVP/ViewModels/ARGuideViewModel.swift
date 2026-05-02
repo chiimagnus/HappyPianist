@@ -82,6 +82,7 @@ final class ARGuideViewModel {
     private(set) var practiceLocalizationState: PracticeLocalizationState = .idle
     private(set) var calibrationPhase: CalibrationPhase = .capturingA0
     private(set) var isVirtualPianoEnabled = false
+    private(set) var isVirtualPerformerEnabled = false
     let gazePlaneDiskConfirmation = GazePlaneDiskConfirmationViewModel()
     private let gazePlaneHitTestService = GazePlaneHitTestService()
     private var latestGazePlaneHit: PlaneHit?
@@ -268,6 +269,10 @@ final class ARGuideViewModel {
             latestGazePlaneHit = nil
             stopVirtualPianoGuidance()
         }
+    }
+
+    func setPracticeVirtualPerformerEnabled(_ isEnabled: Bool) {
+        isVirtualPerformerEnabled = isEnabled
     }
 
     var gazePlaneDiskStatusText: String? {

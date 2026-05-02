@@ -15,6 +15,7 @@ struct PracticeStepView: View {
     @State private var isAutoplayErrorAlertPresented = false
 
     @AppStorage("practiceVirtualPianoEnabled") private var isVirtualPianoEnabled = false
+    @State private var isVirtualPerformerEnabled = false
     @State private var isAutoplayEnabled = false
     @AppStorage("practiceManualAdvanceMode") private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
     @AppStorage("practiceAudioRecognitionDebugOverlayEnabled") private var isAudioDebugOverlayEnabled = false
@@ -153,6 +154,9 @@ struct PracticeStepView: View {
                 )
             }
         }
+        .onChange(of: isVirtualPerformerEnabled) {
+            viewModel.setPracticeVirtualPerformerEnabled(isVirtualPerformerEnabled)
+        }
         .onChange(of: isAutoplayEnabled) {
             viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
         }
@@ -179,8 +183,10 @@ struct PracticeStepView: View {
         .onDisappear {
             isStepVisible = false
             hasRequestedImmersiveOpen = false
+            isVirtualPerformerEnabled = false
             viewModel.setPracticeAutoplayEnabled(false)
             viewModel.setPracticeVirtualPianoEnabled(false)
+            viewModel.setPracticeVirtualPerformerEnabled(false)
             viewModel.resetPracticeLocalizationState()
             Task { @MainActor in
                 await viewModel.closeImmersiveForStep(using: dismissImmersiveSpace)
@@ -263,7 +269,10 @@ struct PracticeStepView: View {
 
     private var settingsPopover: some View {
         VStack(alignment: .leading, spacing: 12) {
-            PracticeSettingsView(virtualPianoEnabled: $isVirtualPianoEnabled)
+            PracticeSettingsView(
+                virtualPianoEnabled: $isVirtualPianoEnabled,
+                virtualPerformerEnabled: $isVirtualPerformerEnabled
+            )
 
             if isVirtualPianoEnabled {
                 Divider()
