@@ -178,6 +178,40 @@ final class PracticeSessionViewModel {
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 
+    var notationMeasureSpans: [MusicXMLMeasureSpan] {
+        measureSpans
+    }
+
+    var currentNotationContext: ScrollingStaffNotationContext? {
+        guard let attributeTimeline else { return nil }
+        let tick = currentPianoHighlightGuide?.tick ?? currentStep?.tick ?? 0
+        let staffNumber = currentNotationStaffNumber
+        let clefSymbol = attributeTimeline.clef(atTick: tick, staffNumber: staffNumber)
+            .flatMap { Self.notationClefSymbol(for: $0) } ?? (staffNumber == 2 ? "𝄢" : "𝄞")
+        let keySignatureEvent = attributeTimeline.keySignature(atTick: tick)
+        let keySignatureText = keySignatureEvent
+            .flatMap { Self.notationKeySignatureText(fifths: $0.fifths) }
+        let keySignatureFifths = keySignatureEvent?.fifths
+        let timeSignatureText = attributeTimeline.timeSignature(atTick: tick).map { "\($0.beats)/\($0.beatType)" }
+
+        return ScrollingStaffNotationContext(
+            clefSymbol: clefSymbol,
+            keySignatureText: keySignatureText,
+            keySignatureFifths: keySignatureFifths,
+            timeSignatureText: timeSignatureText
+        )
+    }
+
+    private var currentNotationStaffNumber: Int {
+        guard let currentPianoHighlightGuide else { return 1 }
+        let notes = currentPianoHighlightGuide.triggeredNotes + currentPianoHighlightGuide.activeNotes
+        let staffNumbers = Set(notes.compactMap(\.staff))
+        if staffNumbers.count == 1, let staffNumber = staffNumbers.first {
+            return staffNumber
+        }
+        return 1
+    }
+
     private static func clefToken(for event: MusicXMLClefEvent) -> String? {
         guard let sign = event.signToken, sign.isEmpty == false else { return nil }
         switch sign.uppercased() {
@@ -190,6 +224,30 @@ final class PracticeSessionViewModel {
             default:
                 return sign
         }
+    }
+
+    private static func notationClefSymbol(for event: MusicXMLClefEvent) -> String? {
+        guard let sign = event.signToken, sign.isEmpty == false else { return nil }
+        switch sign.uppercased() {
+            case "G":
+                return "𝄞"
+            case "F":
+                return "𝄢"
+            case "C":
+                return "𝄡"
+            default:
+                return nil
+        }
+    }
+
+    private static func notationKeySignatureText(fifths: Int) -> String? {
+        if fifths == 0 {
+            return nil
+        }
+        if fifths > 0 {
+            return String(repeating: "♯", count: min(fifths, 7))
+        }
+        return String(repeating: "♭", count: min(abs(fifths), 7))
     }
 
     var isMusicXMLSlurActive: Bool {

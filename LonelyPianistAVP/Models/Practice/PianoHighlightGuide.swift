@@ -20,6 +20,44 @@ struct PianoHighlightNote: Equatable, Hashable, Identifiable {
     let onTick: Int
     let offTick: Int
     let fingeringText: String?
+    let isGrace: Bool
+    let tieStart: Bool
+    let tieStop: Bool
+    let articulations: Set<MusicXMLArticulation>
+    let arpeggiate: MusicXMLArpeggiate?
+    let dotCount: Int
+
+    init(
+        occurrenceID: String,
+        midiNote: Int,
+        staff: Int?,
+        voice: Int?,
+        velocity: UInt8,
+        onTick: Int,
+        offTick: Int,
+        fingeringText: String?,
+        isGrace: Bool = false,
+        tieStart: Bool = false,
+        tieStop: Bool = false,
+        articulations: Set<MusicXMLArticulation> = [],
+        arpeggiate: MusicXMLArpeggiate? = nil,
+        dotCount: Int = 0
+    ) {
+        self.occurrenceID = occurrenceID
+        self.midiNote = midiNote
+        self.staff = staff
+        self.voice = voice
+        self.velocity = velocity
+        self.onTick = onTick
+        self.offTick = offTick
+        self.fingeringText = fingeringText
+        self.isGrace = isGrace
+        self.tieStart = tieStart
+        self.tieStop = tieStop
+        self.articulations = articulations
+        self.arpeggiate = arpeggiate
+        self.dotCount = dotCount
+    }
 }
 
 struct PianoHighlightGuide: Equatable, Identifiable {

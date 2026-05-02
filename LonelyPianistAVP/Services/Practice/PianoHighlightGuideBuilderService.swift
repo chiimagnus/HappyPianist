@@ -95,7 +95,13 @@ struct PianoHighlightGuideBuilderService {
                     velocity: stepNote.velocity,
                     onTick: onTick,
                     offTick: offTick,
-                    fingeringText: stepNote.fingeringText
+                    fingeringText: stepNote.fingeringText,
+                    isGrace: source?.isGrace ?? false,
+                    tieStart: source?.tieStart ?? false,
+                    tieStop: source?.tieStop ?? false,
+                    articulations: source?.articulations ?? [],
+                    arpeggiate: source?.arpeggiate,
+                    dotCount: source?.dotCount ?? 0
                 )
                 triggersByTick[onTick, default: []].append(note)
                 if practiceStepIndexByTriggerTick[onTick] == nil {

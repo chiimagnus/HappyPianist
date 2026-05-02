@@ -11,11 +11,13 @@ xcuserdata/
 .github/archived_features/
 
 .xcodebuildmcp/
+.superpowers/
 
 # Large local audio assets (SoundFonts)
 *.sf2
 
 .codex/
 
+不提交/
 LonelyPianistAVP/Resources/fullspace/*.png
 LonelyPianistAVP/Resources/fullspace/*.jpg

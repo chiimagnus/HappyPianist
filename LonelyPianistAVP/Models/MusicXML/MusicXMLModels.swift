@@ -73,7 +73,7 @@ struct MusicXMLFermataEvent: Equatable, Identifiable {
     let source: MusicXMLFermataEventSource
 }
 
-struct MusicXMLArpeggiate: Equatable {
+struct MusicXMLArpeggiate: Equatable, Hashable {
     let numberToken: String?
     let directionToken: String?
 }
@@ -282,6 +282,7 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
     let articulations: Set<MusicXMLArticulation>
     let arpeggiate: MusicXMLArpeggiate?
     let fingeringText: String?
+    let dotCount: Int
 
     init(
         partID: String,
@@ -304,7 +305,8 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         dynamicsOverrideVelocity: UInt8? = nil,
         articulations: Set<MusicXMLArticulation> = [],
         arpeggiate: MusicXMLArpeggiate? = nil,
-        fingeringText: String? = nil
+        fingeringText: String? = nil,
+        dotCount: Int = 0
     ) {
         self.partID = partID
         self.measureNumber = measureNumber
@@ -327,6 +329,7 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         self.articulations = articulations
         self.arpeggiate = arpeggiate
         self.fingeringText = fingeringText
+        self.dotCount = dotCount
     }
 }
 

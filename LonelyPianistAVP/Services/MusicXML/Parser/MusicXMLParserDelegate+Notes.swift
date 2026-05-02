@@ -141,7 +141,8 @@ extension MusicXMLParserDelegate {
                 dynamicsOverrideVelocity: state.noteDynamicsOverrideVelocity,
                 articulations: state.noteArticulations,
                 arpeggiate: state.noteArpeggiate,
-                fingeringText: state.noteFingeringText
+                fingeringText: state.noteFingeringText,
+                dotCount: state.noteDotCount
             )
         )
 
