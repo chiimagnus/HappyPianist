@@ -124,8 +124,9 @@ final class VirtualPerformerOverlayController {
         ))
 
         performerRootEntity.transform = Transform(matrix: performerWorldFromRoot)
+        let baselineFacingAngle: Float = .pi
         performerVisualRootEntity?.orientation = simd_quatf(
-            angle: shouldFlipFacing ? .pi : 0,
+            angle: baselineFacingAngle + (shouldFlipFacing ? .pi : 0),
             axis: [0, 1, 0]
         )
     }
