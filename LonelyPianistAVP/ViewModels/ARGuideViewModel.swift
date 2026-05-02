@@ -93,6 +93,7 @@ final class ARGuideViewModel {
     private let gazePlaneHitTestService = GazePlaneHitTestService()
     private var latestGazePlaneHit: PlaneHit?
     private var latestGazeRayOriginWorld: SIMD3<Float>?
+    private let backendDiscoveryService = BonjourBackendDiscoveryService()
 
     init(appState: AppState, practiceSessionViewModel: PracticeSessionViewModel? = nil) {
         self.appState = appState
@@ -283,6 +284,7 @@ final class ARGuideViewModel {
     func setPracticeVirtualPerformerEnabled(_ isEnabled: Bool) {
         isVirtualPerformerEnabled = isEnabled
         if isEnabled == false {
+            backendDiscoveryService.stop()
             aiSilencePollingTask?.cancel()
             aiSilencePollingTask = nil
             isAIPerformanceActive = false
@@ -293,6 +295,7 @@ final class ARGuideViewModel {
             practiceSessionViewModel.refreshAudioRecognitionForCurrentState()
         } else {
             silenceTrigger.reset()
+            backendDiscoveryService.start()
             guard practiceSessionViewModel.currentStep != nil else { return }
             aiSilencePollingTask?.cancel()
             aiSilencePollingTask = Task { @MainActor [weak self] in
@@ -336,11 +339,121 @@ final class ARGuideViewModel {
         guard let tickRange = practiceSessionViewModel.aiPerformanceTickRange(maxMeasures: 2) else { return }
 
         isAIPerformanceActive = true
-        await playAIPerformanceTickRange(tickRange)
+        let didPlayBackend = await attemptBackendImprov(promptNotes: debugBackendPromptNotes())
+        if didPlayBackend == false {
+            await playAIPerformanceTickRange(tickRange)
+        }
         isAIPerformanceActive = false
         silenceTrigger.reset()
     }
     #endif
+
+    private func debugBackendPromptNotes() -> [ImprovDialogueNote] {
+        let velocity = 90
+        let duration = 0.15
+        return [
+            ImprovDialogueNote(note: 60, velocity: velocity, time: 0.00, duration: duration),
+            ImprovDialogueNote(note: 64, velocity: velocity, time: 0.15, duration: duration),
+            ImprovDialogueNote(note: 67, velocity: velocity, time: 0.30, duration: duration),
+            ImprovDialogueNote(note: 72, velocity: velocity, time: 0.45, duration: duration),
+            ImprovDialogueNote(note: 67, velocity: velocity, time: 0.60, duration: duration),
+            ImprovDialogueNote(note: 64, velocity: velocity, time: 0.75, duration: duration),
+            ImprovDialogueNote(note: 60, velocity: velocity, time: 0.90, duration: duration),
+        ]
+    }
+
+    private func attemptBackendImprov(promptNotes: [ImprovDialogueNote]) async -> Bool {
+        guard let resolved = backendDiscoveryService.resolvedEndpoint else { return false }
+
+        let client = ImprovBackendClient()
+        let params = ImprovGenerateParams(topP: 0.95, maxTokens: 256, strategy: "deterministic")
+        let request = ImprovGenerateRequest(notes: promptNotes, params: params, sessionID: nil)
+
+        let response: ImprovResultResponse
+        do {
+            response = try await client.generate(
+                host: resolved.host,
+                port: resolved.port,
+                request: request,
+                timeoutSeconds: 2
+            )
+        } catch {
+            return false
+        }
+
+        let scheduleBuilder = ImprovScheduleBuilder()
+        let schedule = scheduleBuilder.buildSchedule(from: response.notes)
+        guard schedule.isEmpty == false else { return false }
+
+        await playAIPerformanceSchedule(schedule)
+        return true
+    }
+
+    private func playAIPerformanceSchedule(_ schedule: [PracticeSequencerMIDIEvent]) async {
+        practiceSessionViewModel.stopVirtualPianoInput()
+        practiceSessionViewModel.sequencerPlaybackService.stop()
+        practiceSessionViewModel.stopAudioRecognition()
+        latestAIPerformanceSchedule = []
+
+        var didStartPlayback = false
+        defer {
+            if didStartPlayback == false {
+                practiceSessionViewModel.sequencerPlaybackService.stop()
+                if isVirtualPerformerEnabled {
+                    practiceSessionViewModel.refreshAudioRecognitionForCurrentState()
+                }
+            }
+        }
+
+        do {
+            try practiceSessionViewModel.sequencerPlaybackService.warmUp()
+        } catch {
+            return
+        }
+
+        let sequence: PracticeSequencerSequence
+        do {
+            sequence = try await withCheckedThrowingContinuation { continuation in
+                DispatchQueue.global(qos: .userInitiated).async {
+                    do {
+                        let builder = PracticeSequencerSequenceBuilder()
+                        let sequence = try builder.buildSequence(from: schedule)
+                        continuation.resume(returning: sequence)
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
+                }
+            }
+        } catch {
+            return
+        }
+
+        latestAIPerformanceSchedule = schedule
+
+        do {
+            try practiceSessionViewModel.sequencerPlaybackService.load(sequence: sequence)
+            try practiceSessionViewModel.sequencerPlaybackService.play(fromSeconds: 0)
+        } catch {
+            return
+        }
+        didStartPlayback = true
+
+        let sequenceEndSeconds = max(0, sequence.durationSeconds)
+        while Task.isCancelled == false {
+            guard isVirtualPerformerEnabled else { break }
+            let nowSeconds = practiceSessionViewModel.sequencerPlaybackService.currentSeconds()
+            if nowSeconds >= sequenceEndSeconds {
+                break
+            }
+            try? await Task.sleep(for: .milliseconds(33))
+        }
+
+        practiceSessionViewModel.sequencerPlaybackService.stop()
+        if isVirtualPerformerEnabled {
+            _ = practiceSessionViewModel.prepareAudioRecognitionSuppressWindowForPlayback()
+            practiceSessionViewModel.refreshAudioRecognitionForCurrentState()
+        }
+    }
 
     private func playAIPerformanceTickRange(_ tickRange: (startTick: Int, endTick: Int)) async {
         practiceSessionViewModel.stopVirtualPianoInput()
