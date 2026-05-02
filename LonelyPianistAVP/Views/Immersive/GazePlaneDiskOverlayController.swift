@@ -16,6 +16,7 @@ final class GazePlaneDiskOverlayController {
         isVisible: Bool,
         diskWorldTransform: simd_float4x4?,
         statusText: String?,
+        cameraWorldPosition: SIMD3<Float>?,
         content: RealityViewContent?
     ) {
         if hasAttachedRoot == false, let content {
@@ -50,7 +51,8 @@ final class GazePlaneDiskOverlayController {
 
         updateText(
             statusText: statusText,
-            diskWorldTransform: diskWorldTransform
+            diskWorldTransform: diskWorldTransform,
+            cameraWorldPosition: cameraWorldPosition
         )
     }
 
@@ -86,7 +88,8 @@ final class GazePlaneDiskOverlayController {
 
     private func updateText(
         statusText: String?,
-        diskWorldTransform: simd_float4x4
+        diskWorldTransform: simd_float4x4,
+        cameraWorldPosition: SIMD3<Float>?
     ) {
         guard let statusText, statusText.isEmpty == false else {
             clearText()
@@ -112,7 +115,33 @@ final class GazePlaneDiskOverlayController {
         )
 
         let liftMeters: Float = 0.08
-        let worldPosition = diskOrigin + normal * liftMeters
+
+        let awayFromCameraOnPlane: SIMD3<Float> = {
+            guard let cameraWorldPosition else {
+                return simd_normalize(SIMD3<Float>(
+                    diskWorldTransform.columns.2.x,
+                    diskWorldTransform.columns.2.y,
+                    diskWorldTransform.columns.2.z
+                ))
+            }
+
+            let toCamera = cameraWorldPosition - diskOrigin
+            let toCameraOnPlane = toCamera - normal * simd_dot(toCamera, normal)
+            if simd_length(toCameraOnPlane) < 1e-4 {
+                return simd_normalize(SIMD3<Float>(
+                    diskWorldTransform.columns.2.x,
+                    diskWorldTransform.columns.2.y,
+                    diskWorldTransform.columns.2.z
+                ))
+            }
+            return -simd_normalize(toCameraOnPlane)
+        }()
+
+        let insetMeters: Float = 0.10
+        let radiusMeters: Float = 0.23
+        let alongPlaneMeters = max(0, radiusMeters - insetMeters)
+
+        let worldPosition = diskOrigin + awayFromCameraOnPlane * alongPlaneMeters + normal * liftMeters
         textRootEntity.position = worldPosition
         textRootEntity.isEnabled = true
         textEntity?.isEnabled = true

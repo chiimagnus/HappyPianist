@@ -85,6 +85,7 @@ final class ARGuideViewModel {
     let gazePlaneDiskConfirmation = GazePlaneDiskConfirmationViewModel()
     private let gazePlaneHitTestService = GazePlaneHitTestService()
     private var latestGazePlaneHit: PlaneHit?
+    private var latestGazeRayOriginWorld: SIMD3<Float>?
 
     init(appState: AppState, practiceSessionViewModel: PracticeSessionViewModel? = nil) {
         self.appState = appState
@@ -308,6 +309,11 @@ final class ARGuideViewModel {
     var gazePlaneDiskOverlayText: String? {
         guard isGazePlaneDiskVisible else { return nil }
         return gazePlaneDiskConfirmation.statusText
+    }
+
+    var gazePlaneDiskCameraWorldPosition: SIMD3<Float>? {
+        guard isGazePlaneDiskVisible else { return nil }
+        return latestGazeRayOriginWorld
     }
 
     var practiceLocalizationStatusText: String? {
@@ -766,6 +772,7 @@ final class ARGuideViewModel {
             let forward = -SIMD3<Float>(deviceWorldTransform.columns.2.x, deviceWorldTransform.columns.2.y, deviceWorldTransform.columns.2.z)
             return GazeRay(originWorld: origin, directionWorld: forward)
         }()
+        latestGazeRayOriginWorld = ray?.originWorld
 
         let planes: [DetectedPlane] = arTrackingService.planeAnchorsByID.values.map { anchor in
             DetectedPlane(id: anchor.id, worldFromPlane: anchor.originFromAnchorTransform)

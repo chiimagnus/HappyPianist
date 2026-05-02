@@ -44,6 +44,7 @@ struct ImmersiveView: View {
                 isVisible: viewModel.isGazePlaneDiskVisible,
                 diskWorldTransform: viewModel.gazePlaneDiskWorldTransform,
                 statusText: viewModel.gazePlaneDiskOverlayText,
+                cameraWorldPosition: viewModel.gazePlaneDiskCameraWorldPosition,
                 content: content
             )
             virtualPianoOverlayController.update(
@@ -74,6 +75,7 @@ struct ImmersiveView: View {
                 isVisible: viewModel.isGazePlaneDiskVisible,
                 diskWorldTransform: viewModel.gazePlaneDiskWorldTransform,
                 statusText: viewModel.gazePlaneDiskOverlayText,
+                cameraWorldPosition: viewModel.gazePlaneDiskCameraWorldPosition,
                 content: content
             )
             virtualPianoOverlayController.update(
