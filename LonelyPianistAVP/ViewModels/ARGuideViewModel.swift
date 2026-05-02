@@ -87,6 +87,7 @@ final class ARGuideViewModel {
     private(set) var isVirtualPerformerEnabled = false
     private(set) var isAIPerformanceActive = false
     private(set) var latestAIPerformanceSchedule: [PracticeSequencerMIDIEvent] = []
+    private(set) var lastImprovStatusText: String?
     private(set) var latestDeviceWorldPosition: SIMD3<Float>?
     private var silenceTrigger = NoteOnSilenceTrigger()
     let gazePlaneDiskConfirmation = GazePlaneDiskConfirmationViewModel()
@@ -291,6 +292,7 @@ final class ARGuideViewModel {
             isAIPerformanceActive = false
             silenceTrigger.reset()
             phraseRecorder.reset()
+            lastImprovStatusText = nil
             latestAIPerformanceSchedule = []
             practiceSessionViewModel.stopVirtualPianoInput()
             practiceSessionViewModel.sequencerPlaybackService.stop()
@@ -312,6 +314,21 @@ final class ARGuideViewModel {
         }
     }
 
+    var backendStatusText: String? {
+        switch backendDiscoveryService.state {
+            case .idle:
+                "Backend: idle"
+            case .discovering:
+                "Backend: discovering"
+            case let .resolved(host, port):
+                "Backend: resolved \(host):\(port)"
+            case let .failed(message):
+                "Backend: unavailable (\(message))"
+            case .denied:
+                "Backend: denied (Local Network)"
+        }
+    }
+
     private func pollAndPlayAIPerformanceIfNeeded() async {
         guard isAIPerformanceActive == false else { return }
         guard practiceSessionViewModel.autoplayState == .off else { return }
@@ -329,6 +346,8 @@ final class ARGuideViewModel {
                 silenceTrigger.reset()
                 return
             }
+        } else {
+            lastImprovStatusText = "Last improv: fallback(emptyPhrase)"
         }
 
         if let tickRange = practiceSessionViewModel.aiPerformanceTickRange(maxMeasures: 2) {
@@ -371,7 +390,10 @@ final class ARGuideViewModel {
     }
 
     private func attemptBackendImprov(promptNotes: [ImprovDialogueNote]) async -> Bool {
-        guard let resolved = backendDiscoveryService.resolvedEndpoint else { return false }
+        guard let resolved = backendDiscoveryService.resolvedEndpoint else {
+            lastImprovStatusText = "Last improv: fallback(backendNotFound)"
+            return false
+        }
 
         let client = ImprovBackendClient()
         let params = ImprovGenerateParams(topP: 0.95, maxTokens: 256, strategy: "deterministic")
@@ -385,15 +407,23 @@ final class ARGuideViewModel {
                 request: request,
                 timeoutSeconds: 2
             )
+        } catch let error as URLError where error.code == .timedOut {
+            lastImprovStatusText = "Last improv: fallback(timeout)"
+            return false
         } catch {
+            lastImprovStatusText = "Last improv: fallback(error)"
             return false
         }
 
         let scheduleBuilder = ImprovScheduleBuilder()
         let schedule = scheduleBuilder.buildSchedule(from: response.notes)
-        guard schedule.isEmpty == false else { return false }
+        guard schedule.isEmpty == false else {
+            lastImprovStatusText = "Last improv: fallback(emptyReply)"
+            return false
+        }
 
         await playAIPerformanceSchedule(schedule)
+        lastImprovStatusText = "Last improv: backend"
         return true
     }
 

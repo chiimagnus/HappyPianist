@@ -293,7 +293,9 @@ struct PracticeStepView: View {
         VStack(alignment: .leading, spacing: 12) {
             PracticeSettingsView(
                 virtualPianoEnabled: $isVirtualPianoEnabled,
-                virtualPerformerEnabled: $isVirtualPerformerEnabled
+                virtualPerformerEnabled: $isVirtualPerformerEnabled,
+                backendStatusText: viewModel.backendStatusText,
+                lastImprovStatusText: viewModel.lastImprovStatusText
             )
             .disabled(viewModel.isAIPerformanceActive)
 
