@@ -184,20 +184,6 @@ struct ImmersiveView: View {
             panoramaLoadTask = nil
             viewModel.onImmersiveDisappear()
         }
-        .onChange(of: viewModel.isVirtualPianoEnabled) {
-            virtualPianoOverlayController.update(
-                isEnabled: viewModel.isVirtualPianoEnabled,
-                keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
-                content: nil
-            )
-        }
-        .onChange(of: viewModel.practiceSessionViewModel.keyboardGeometry) {
-            virtualPianoOverlayController.update(
-                isEnabled: viewModel.isVirtualPianoEnabled,
-                keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
-                content: nil
-            )
-        }
     }
 }
 
