@@ -13,17 +13,17 @@ struct ImmersiveView: View {
     @State private var panoramaLoadedFileName: String?
     @State private var panoramaLoadTask: Task<Void, Never>?
 
-    private var desiredPanoramaFileName: String? {
+    private var desiredPanoramaBaseName: String? {
         guard let songName = viewModel.importedSongDisplayName, songName.isEmpty == false else {
             return nil
         }
-        return "\(songName).jpg"
+        return songName
     }
 
     private func loadPanoramaIfNeeded() {
-        let desiredFileName = desiredPanoramaFileName
+        let desiredBaseName = desiredPanoramaBaseName
 
-        if panoramaLoadedFileName == desiredFileName, panoramaLoadTask == nil {
+        if panoramaLoadedFileName == desiredBaseName, panoramaLoadTask == nil {
             return
         }
 
@@ -31,14 +31,18 @@ struct ImmersiveView: View {
         panoramaLoadTask = nil
 
         let url: URL?
-        if let desiredFileName {
-            url = Bundle.main.url(forResource: desiredFileName, withExtension: nil, subdirectory: "fullspace") ??
-                Bundle.main.url(forResource: desiredFileName, withExtension: nil)
+        if let desiredBaseName {
+            url = Bundle.main.url(forResource: desiredBaseName, withExtension: "jpg", subdirectory: "fullspace")
+                ?? Bundle.main.url(forResource: desiredBaseName, withExtension: "jpg")
+                ?? Bundle.main.url(forResource: desiredBaseName, withExtension: "jpeg", subdirectory: "fullspace")
+                ?? Bundle.main.url(forResource: desiredBaseName, withExtension: "jpeg")
+                ?? Bundle.main.url(forResource: desiredBaseName, withExtension: "png", subdirectory: "fullspace")
+                ?? Bundle.main.url(forResource: desiredBaseName, withExtension: "png")
         } else {
             url = nil
         }
 
-        panoramaLoadedFileName = desiredFileName
+        panoramaLoadedFileName = desiredBaseName
         guard let url else {
             if let panoramaBackgroundEntity {
                 var material = UnlitMaterial(color: UIColor.white)
