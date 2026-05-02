@@ -73,6 +73,7 @@ final class ARGuideViewModel {
     private var calibrationGuidedFlowTask: Task<Void, Never>?
     private var calibrationSupportPollTask: Task<Void, Never>?
     private var practiceLocalizationTask: Task<Void, Never>?
+    private var aiSilencePollingTask: Task<Void, Never>?
     private var wasRightHandPinching = false
     private var wasLeftHandPinching = false
     private let providerStartupTimeoutSeconds = 5
@@ -83,6 +84,7 @@ final class ARGuideViewModel {
     private(set) var calibrationPhase: CalibrationPhase = .capturingA0
     private(set) var isVirtualPianoEnabled = false
     private(set) var isVirtualPerformerEnabled = false
+    private(set) var isAIPerformanceActive = false
     private var silenceTrigger = NoteOnSilenceTrigger()
     let gazePlaneDiskConfirmation = GazePlaneDiskConfirmationViewModel()
     private let gazePlaneHitTestService = GazePlaneHitTestService()
@@ -274,6 +276,22 @@ final class ARGuideViewModel {
 
     func setPracticeVirtualPerformerEnabled(_ isEnabled: Bool) {
         isVirtualPerformerEnabled = isEnabled
+        if isEnabled == false {
+            aiSilencePollingTask?.cancel()
+            aiSilencePollingTask = nil
+            isAIPerformanceActive = false
+            silenceTrigger.reset()
+        } else {
+            guard practiceSessionViewModel.currentStep != nil else { return }
+            aiSilencePollingTask?.cancel()
+            aiSilencePollingTask = Task { @MainActor [weak self] in
+                guard let self else { return }
+                while Task.isCancelled == false {
+                    guard self.isVirtualPerformerEnabled else { return }
+                    try? await Task.sleep(nanoseconds: 100_000_000)
+                }
+            }
+        }
     }
 
     var gazePlaneDiskStatusText: String? {
@@ -575,6 +593,9 @@ final class ARGuideViewModel {
                     case .calibration:
                         handleCalibrationHandUpdates()
                     case .practice:
+                        if isAIPerformanceActive {
+                            continue
+                        }
                         if isVirtualPianoEnabled {
                             let nowUptime = ProcessInfo.processInfo.systemUptime
                             updateGazePlaneDiskGuidance(fingerTips: fingerTips, nowUptime: nowUptime)

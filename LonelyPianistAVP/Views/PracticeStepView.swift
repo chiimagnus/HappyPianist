@@ -60,7 +60,8 @@ struct PracticeStepView: View {
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.roundedRectangle)
                     .hoverEffect()
-                    .disabled(viewModel.hasImportedSteps == false || viewModel.practiceSessionViewModel
+                    .disabled(viewModel.isAIPerformanceActive || viewModel.hasImportedSteps == false || viewModel
+                        .practiceSessionViewModel
                         .state == .completed)
 
                     Button(manualAdvanceMode.replayButtonTitle, systemImage: "speaker.wave.2.fill") {
@@ -74,7 +75,8 @@ struct PracticeStepView: View {
                     .buttonBorderShape(.roundedRectangle)
                     .hoverEffect()
                     .disabled(
-                        viewModel.practiceSessionViewModel.state == .ready ||
+                        viewModel.isAIPerformanceActive ||
+                            viewModel.practiceSessionViewModel.state == .ready ||
                             viewModel.practiceSessionViewModel.currentStep == nil
                     )
                 }
@@ -84,6 +86,7 @@ struct PracticeStepView: View {
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.roundedRectangle)
                     .hoverEffect()
+                    .disabled(viewModel.isAIPerformanceActive)
 
                 Button("设置", systemImage: "gearshape") {
                     isSettingsPopoverPresented.toggle()
@@ -91,6 +94,7 @@ struct PracticeStepView: View {
                 .buttonStyle(.bordered)
                 .buttonBorderShape(.roundedRectangle)
                 .hoverEffect()
+                .disabled(viewModel.isAIPerformanceActive)
                 .popover(isPresented: $isSettingsPopoverPresented) {
                     settingsPopover
                 }
@@ -117,6 +121,7 @@ struct PracticeStepView: View {
                     .buttonStyle(.borderedProminent)
                     .buttonBorderShape(.roundedRectangle)
                     .hoverEffect()
+                    .disabled(viewModel.isAIPerformanceActive)
                     .popover(isPresented: $isLocalizationPopoverPresented) {
                         localizationPopover
                     }
@@ -273,6 +278,7 @@ struct PracticeStepView: View {
                 virtualPianoEnabled: $isVirtualPianoEnabled,
                 virtualPerformerEnabled: $isVirtualPerformerEnabled
             )
+            .disabled(viewModel.isAIPerformanceActive)
 
             if isVirtualPianoEnabled {
                 Divider()
