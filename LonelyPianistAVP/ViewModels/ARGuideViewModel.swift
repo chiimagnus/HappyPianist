@@ -321,14 +321,19 @@ final class ARGuideViewModel {
         guard silenceTrigger.pollShouldTrigger(atUptime: nowUptime, timeoutSeconds: 2.0) else { return }
 
         isAIPerformanceActive = true
-
-        guard let tickRange = practiceSessionViewModel.aiPerformanceTickRange(maxMeasures: 2) else {
-            isAIPerformanceActive = false
-            silenceTrigger.reset()
-            return
+        let phrase = phraseRecorder.flushPhrase(endTimestamp: nowUptime)
+        if phrase.isEmpty == false {
+            let didPlayBackend = await attemptBackendImprov(promptNotes: phrase)
+            if didPlayBackend {
+                isAIPerformanceActive = false
+                silenceTrigger.reset()
+                return
+            }
         }
 
-        await playAIPerformanceTickRange(tickRange)
+        if let tickRange = practiceSessionViewModel.aiPerformanceTickRange(maxMeasures: 2) {
+            await playAIPerformanceTickRange(tickRange)
+        }
         isAIPerformanceActive = false
         silenceTrigger.reset()
     }
