@@ -331,6 +331,17 @@ final class ARGuideViewModel {
         practiceSessionViewModel.stopVirtualPianoInput()
         practiceSessionViewModel.sequencerPlaybackService.stop()
         practiceSessionViewModel.stopAudioRecognition()
+        latestAIPerformanceSchedule = []
+
+        var didStartPlayback = false
+        defer {
+            if didStartPlayback == false {
+                practiceSessionViewModel.sequencerPlaybackService.stop()
+                if isVirtualPerformerEnabled {
+                    practiceSessionViewModel.refreshAudioRecognitionForCurrentState()
+                }
+            }
+        }
 
         let timelineSnapshot = practiceSessionViewModel.autoplayTimeline
         let tempoMapSnapshot = practiceSessionViewModel.tempoMap
@@ -375,6 +386,7 @@ final class ARGuideViewModel {
         } catch {
             return
         }
+        didStartPlayback = true
 
         let sequenceEndSeconds = max(0, scheduleAndSequence.sequence.durationSeconds)
 
@@ -388,8 +400,10 @@ final class ARGuideViewModel {
         }
 
         practiceSessionViewModel.sequencerPlaybackService.stop()
-        _ = practiceSessionViewModel.prepareAudioRecognitionSuppressWindowForPlayback()
-        practiceSessionViewModel.refreshAudioRecognitionForCurrentState()
+        if isVirtualPerformerEnabled {
+            _ = practiceSessionViewModel.prepareAudioRecognitionSuppressWindowForPlayback()
+            practiceSessionViewModel.refreshAudioRecognitionForCurrentState()
+        }
     }
 
     var gazePlaneDiskStatusText: String? {
