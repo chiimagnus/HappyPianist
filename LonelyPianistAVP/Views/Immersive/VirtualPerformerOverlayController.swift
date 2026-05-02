@@ -20,6 +20,7 @@ final class VirtualPerformerOverlayController {
     private var rightHandEntity: Entity?
     private var rightHandRestTransform: Transform?
     private var handAnimationTask: Task<Void, Never>?
+    private var pendingArmReturnTask: Task<Void, Never>?
     private var latestSchedule: [PracticeSequencerMIDIEvent] = []
     private var wasPerforming = false
     private var nextNoteUsesLeftHand = true
@@ -276,7 +277,7 @@ final class VirtualPerformerOverlayController {
                     case let .noteOn(_, velocity):
                         self.animateArmSwing(velocity: velocity)
                     case .noteOff:
-                        self.resetArmsToRest(animated: true)
+                        break
                     case .controlChange:
                         break
                 }
@@ -288,6 +289,8 @@ final class VirtualPerformerOverlayController {
     private func stopHandAnimation() {
         handAnimationTask?.cancel()
         handAnimationTask = nil
+        pendingArmReturnTask?.cancel()
+        pendingArmReturnTask = nil
     }
 
     private func animateArmSwing(velocity: UInt8) {
@@ -308,6 +311,13 @@ final class VirtualPerformerOverlayController {
             duration: 0.08,
             timingFunction: .easeInOut
         )
+
+        pendingArmReturnTask?.cancel()
+        pendingArmReturnTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            try? await Task.sleep(for: .milliseconds(140))
+            self.resetArmsToRest(animated: true)
+        }
     }
 
     private func resetArmsToRest(animated: Bool) {
