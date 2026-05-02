@@ -521,7 +521,7 @@ final class VirtualPerformerOverlayController {
                     }
                 }
                 if rightAngle != 0, rig.rightArmJointIndices.isEmpty == false {
-                    let delta = simd_quatf(angle: rightAngle, axis: [-1, 0, 0])
+                    let delta = simd_quatf(angle: -rightAngle, axis: [-1, 0, 0])
                     for index in rig.rightArmJointIndices where index < transforms.count {
                         transforms[index].rotation = transforms[index].rotation * delta
                     }
