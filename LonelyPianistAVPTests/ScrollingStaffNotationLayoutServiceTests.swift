@@ -299,6 +299,7 @@ func practiceSessionExposesNotationMeasureSpansAndContextForCurrentGuide() {
     #expect(viewModel.currentNotationContext == ScrollingStaffNotationContext(
         clefSymbol: "𝄞",
         keySignatureText: "♭♭",
+        keySignatureFifths: -2,
         timeSignatureText: "3/4"
     ))
 }
