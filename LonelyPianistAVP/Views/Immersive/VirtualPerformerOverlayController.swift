@@ -234,12 +234,49 @@ final class VirtualPerformerOverlayController {
         let rightIndices = [index(endsWith: "RightShoulder"), index(endsWith: "RightArm"), index(endsWith: "RightForeArm")].compactMap { $0 }
         guard leftIndices.isEmpty == false || rightIndices.isEmpty == false else { return nil }
 
+        var restTransforms = modelEntity.jointTransforms
+        applyForwardRaisedArmsPose(jointNames: jointNames, jointTransforms: &restTransforms)
+        modelEntity.jointTransforms = restTransforms
+
         return XiaochengRig(
             modelEntity: modelEntity,
-            restJointTransforms: modelEntity.jointTransforms,
+            restJointTransforms: restTransforms,
             leftArmJointIndices: leftIndices,
             rightArmJointIndices: rightIndices
         )
+    }
+
+    private func applyForwardRaisedArmsPose(
+        jointNames: [String],
+        jointTransforms: inout [Transform]
+    ) {
+        func index(endsWith component: String) -> Int? {
+            jointNames.firstIndex { $0 == component || $0.hasSuffix("/\(component)") }
+        }
+
+        func apply(arm: String, foreArm: String) {
+            guard let armIndex = index(endsWith: arm),
+                  let foreArmIndex = index(endsWith: foreArm),
+                  armIndex < jointTransforms.count,
+                  foreArmIndex < jointTransforms.count
+            else {
+                return
+            }
+
+            let foreArmTranslation = jointTransforms[foreArmIndex].translation
+            let foreArmLength = simd_length(foreArmTranslation)
+            guard foreArmLength > 0.0001 else { return }
+
+            let localArmDirection = foreArmTranslation / foreArmLength
+            let currentArmDirection = jointTransforms[armIndex].rotation.act(localArmDirection)
+
+            let desiredArmDirection = simd_normalize(SIMD3<Float>(0, 0, -1))
+            let delta = simd_quatf(from: currentArmDirection, to: desiredArmDirection)
+            jointTransforms[armIndex].rotation = delta * jointTransforms[armIndex].rotation
+        }
+
+        apply(arm: "LeftArm", foreArm: "LeftForeArm")
+        apply(arm: "RightArm", foreArm: "RightForeArm")
     }
 
     private func animateHead(isPerforming: Bool) {
