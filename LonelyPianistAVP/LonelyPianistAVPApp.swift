@@ -24,7 +24,7 @@ struct LonelyPianistAVPApp: App {
     }
 
     var body: some Scene {
-        let immersionStyle: ImmersionStyle = .progressive(0.0...1.0, initialAmount: nil, aspectRatio: nil)
+        let immersionStyle: ImmersionStyle = .progressive(0.0...1.0, initialAmount: 0.7, aspectRatio: nil)
 
         WindowGroup {
             AppRootView(

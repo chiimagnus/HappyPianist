@@ -132,7 +132,7 @@ struct ImmersiveView: View {
     }
 }
 
-#Preview(immersionStyle: .progressive(0.0...1.0, initialAmount: nil, aspectRatio: nil)) {
+#Preview(immersionStyle: .progressive(0.0...1.0, initialAmount: 0.7, aspectRatio: nil)) {
     let appState = AppState()
     ImmersiveView(viewModel: ARGuideViewModel(appState: appState))
 }
