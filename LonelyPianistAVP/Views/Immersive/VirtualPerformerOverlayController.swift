@@ -17,7 +17,6 @@ final class VirtualPerformerOverlayController {
     private var headNodTask: Task<Void, Never>?
     private var latestSchedule: [PracticeSequencerMIDIEvent] = []
     private var wasPerforming = false
-    private var nextNoteUsesLeftHand = true
     private var performerEntity: Entity?
     private var performerLoadTask: Task<Void, Never>?
     private var xiaochengRig: XiaochengRig?
@@ -365,7 +364,6 @@ final class VirtualPerformerOverlayController {
     private func startHandAnimation(schedule: [PracticeSequencerMIDIEvent]) {
         stopHandAnimation()
         resetArmsToRest(animated: false)
-        nextNoteUsesLeftHand = true
 
         let sortedSchedule = schedule.sorted { lhs, rhs in
             if lhs.timeSeconds != rhs.timeSeconds { return lhs.timeSeconds < rhs.timeSeconds }
@@ -384,8 +382,8 @@ final class VirtualPerformerOverlayController {
                 guard Task.isCancelled == false else { return }
 
                 switch event.kind {
-                    case let .noteOn(_, velocity):
-                        self.animateArmSwing(velocity: velocity)
+                    case let .noteOn(midi, velocity):
+                        self.animateArmSwing(midi: midi, velocity: velocity)
                     case .noteOff:
                         break
                     case .controlChange:
@@ -405,14 +403,14 @@ final class VirtualPerformerOverlayController {
         rightArmPulseTask = nil
     }
 
-    private func animateArmSwing(velocity: UInt8) {
+    private func animateArmSwing(midi: Int, velocity: UInt8) {
         guard let xiaochengRig else { return }
-        animateXiaochengArmSwing(velocity: velocity, rig: xiaochengRig)
+        animateXiaochengArmSwing(midi: midi, velocity: velocity, rig: xiaochengRig)
     }
 
-    private func animateXiaochengArmSwing(velocity: UInt8, rig: XiaochengRig) {
-        let isLeftArm = nextNoteUsesLeftHand
-        nextNoteUsesLeftHand.toggle()
+    private func animateXiaochengArmSwing(midi: Int, velocity: UInt8, rig: XiaochengRig) {
+        let splitMidi: Int = 60
+        let isLeftArm = midi < splitMidi
 
         let jointIndices = isLeftArm ? rig.leftArmJointIndices : rig.rightArmJointIndices
         guard jointIndices.isEmpty == false else { return }
