@@ -245,19 +245,14 @@ final class ARGuideViewModel {
             cancelPracticeLocalizationTask()
             gazePlaneDiskConfirmation.reset()
             latestGazePlaneHit = nil
-            if let cached = appState.cachedVirtualPianoWorldFromKeyboard {
-                practiceLocalizationState = .ready
-                applyVirtualPianoGeometry(worldFromKeyboard: cached)
-            } else {
-                startVirtualPianoGuidanceIfNeeded()
-            }
+            startVirtualPianoGuidanceIfNeeded()
             #if DEBUG && targetEnvironment(simulator)
             practiceLocalizationState = .ready
-            if appState.cachedVirtualPianoWorldFromKeyboard == nil {
+            if appState.cachedVirtualPianoWorldAnchorID == nil {
                 applyVirtualPianoGeometryAtDefaultPositionForSimulator()
             }
             #else
-            if appState.cachedVirtualPianoWorldFromKeyboard == nil {
+            if appState.cachedVirtualPianoWorldAnchorID == nil {
                 practiceLocalizationState = .idle
             }
             #endif
@@ -347,7 +342,13 @@ final class ARGuideViewModel {
 
         practiceSessionViewModel.stopVirtualPianoInput()
         practiceSessionViewModel.clearCalibration()
-        appState.cachedVirtualPianoWorldFromKeyboard = nil
+        if let anchorID = appState.cachedVirtualPianoWorldAnchorID {
+            appState.cachedVirtualPianoWorldAnchorID = nil
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                try? await self.arTrackingService.worldTrackingProvider.removeAnchor(forID: anchorID)
+            }
+        }
 
         gazePlaneDiskConfirmation.reset()
         latestGazePlaneHit = nil
@@ -586,7 +587,18 @@ final class ARGuideViewModel {
         let service = VirtualPianoKeyGeometryService()
         if let geometry = service.generateKeyboardGeometry(from: frame) {
             practiceSessionViewModel.applyVirtualKeyboardGeometry(geometry)
-            appState.cachedVirtualPianoWorldFromKeyboard = worldFromKeyboard
+            if appState.cachedVirtualPianoWorldAnchorID == nil {
+                let anchor = WorldAnchor(originFromAnchorTransform: worldFromKeyboard)
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    do {
+                        try await self.arTrackingService.worldTrackingProvider.addAnchor(anchor)
+                        self.appState.cachedVirtualPianoWorldAnchorID = anchor.id
+                    } catch {
+                        // If we can't persist the anchor, the user can still play in this session.
+                    }
+                }
+            }
         }
     }
 
@@ -767,6 +779,16 @@ final class ARGuideViewModel {
         nowUptime: TimeInterval
     ) {
         guard isVirtualPianoEnabled else { return }
+
+        if
+            practiceSessionViewModel.keyboardGeometry == nil,
+            let anchorID = appState.cachedVirtualPianoWorldAnchorID,
+            let anchor = arTrackingService.worldAnchorsByID[anchorID],
+            anchor.isTracked
+        {
+            applyVirtualPianoGeometry(worldFromKeyboard: anchor.originFromAnchorTransform)
+            return
+        }
 
         let deviceWorldTransform: simd_float4x4?
         if

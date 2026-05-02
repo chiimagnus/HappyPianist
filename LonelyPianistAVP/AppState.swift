@@ -40,8 +40,8 @@ class AppState {
     var storedCalibration: StoredWorldAnchorCalibration?
 
     /// Cached placement for the "virtual piano" mode (not the real-piano calibration flow).
-    /// This is kept app-wide so users don't need to re-place it for each song's Step 3.
-    var cachedVirtualPianoWorldFromKeyboard: simd_float4x4?
+    /// Uses a persisted `WorldAnchor` ID so ARKit can restore it across sessions/spaces.
+    var cachedVirtualPianoWorldAnchorID: UUID?
 
     var calibration: PianoCalibration? {
         didSet { applySessionIfPossible() }
