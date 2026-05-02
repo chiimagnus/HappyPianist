@@ -15,6 +15,8 @@ final class VirtualPerformerOverlayController {
     private var leftArmPulseTask: Task<Void, Never>?
     private var rightArmPulseTask: Task<Void, Never>?
     private var headNodTask: Task<Void, Never>?
+    private var leftArmPendingVelocities: [UInt8] = []
+    private var rightArmPendingVelocities: [UInt8] = []
     private var latestSchedule: [PracticeSequencerMIDIEvent] = []
     private var wasPerforming = false
     private var performerEntity: Entity?
@@ -401,6 +403,8 @@ final class VirtualPerformerOverlayController {
         leftArmPulseTask = nil
         rightArmPulseTask?.cancel()
         rightArmPulseTask = nil
+        leftArmPendingVelocities.removeAll(keepingCapacity: true)
+        rightArmPendingVelocities.removeAll(keepingCapacity: true)
     }
 
     private func animateArmSwing(midi: Int, velocity: UInt8) {
@@ -415,32 +419,64 @@ final class VirtualPerformerOverlayController {
         let jointIndices = isLeftArm ? rig.leftArmJointIndices : rig.rightArmJointIndices
         guard jointIndices.isEmpty == false else { return }
 
+        if isLeftArm {
+            leftArmPendingVelocities.append(velocity)
+            startXiaochengArmSwingRunner(isLeftArm: true, jointIndices: jointIndices, rig: rig)
+        } else {
+            rightArmPendingVelocities.append(velocity)
+            startXiaochengArmSwingRunner(isLeftArm: false, jointIndices: jointIndices, rig: rig)
+        }
+    }
+
+    private func startXiaochengArmSwingRunner(
+        isLeftArm: Bool,
+        jointIndices: [Int],
+        rig: XiaochengRig
+    ) {
+        if isLeftArm {
+            guard leftArmPulseTask == nil else { return }
+            leftArmPulseTask = Task { @MainActor [weak self] in
+                guard let self else { return }
+                defer { self.leftArmPulseTask = nil }
+                while self.leftArmPendingVelocities.isEmpty == false {
+                    let velocity = self.leftArmPendingVelocities.removeFirst()
+                    self.applyXiaochengArmSwingOnce(velocity: velocity, jointIndices: jointIndices, rig: rig)
+                    try? await Task.sleep(for: .milliseconds(90))
+                    rig.modelEntity.jointTransforms = self.makeXiaochengBaseTransforms(rig: rig)
+                    try? await Task.sleep(for: .milliseconds(20))
+                }
+            }
+        } else {
+            guard rightArmPulseTask == nil else { return }
+            rightArmPulseTask = Task { @MainActor [weak self] in
+                guard let self else { return }
+                defer { self.rightArmPulseTask = nil }
+                while self.rightArmPendingVelocities.isEmpty == false {
+                    let velocity = self.rightArmPendingVelocities.removeFirst()
+                    self.applyXiaochengArmSwingOnce(velocity: velocity, jointIndices: jointIndices, rig: rig)
+                    try? await Task.sleep(for: .milliseconds(90))
+                    rig.modelEntity.jointTransforms = self.makeXiaochengBaseTransforms(rig: rig)
+                    try? await Task.sleep(for: .milliseconds(20))
+                }
+            }
+        }
+    }
+
+    private func applyXiaochengArmSwingOnce(
+        velocity: UInt8,
+        jointIndices: [Int],
+        rig: XiaochengRig
+    ) {
         let normalizedVelocity = min(1, max(0, Float(velocity) / 127))
         let angleRadians: Float = -0.35 - normalizedVelocity * 0.5
         let deltaRotation = simd_quatf(angle: angleRadians, axis: [1, 0, 0])
 
-        let task = Task { @MainActor [weak self] in
-            guard let self else { return }
-            let baseTransforms = self.makeXiaochengBaseTransforms(rig: rig)
-            rig.modelEntity.jointTransforms = baseTransforms
-
-            var transforms = baseTransforms
-            for index in jointIndices where index < transforms.count {
-                transforms[index].rotation = transforms[index].rotation * deltaRotation
-            }
-            rig.modelEntity.jointTransforms = transforms
-
-            try? await Task.sleep(for: .milliseconds(90))
-            rig.modelEntity.jointTransforms = baseTransforms
+        let baseTransforms = makeXiaochengBaseTransforms(rig: rig)
+        var transforms = baseTransforms
+        for index in jointIndices where index < transforms.count {
+            transforms[index].rotation = transforms[index].rotation * deltaRotation
         }
-
-        if isLeftArm {
-            leftArmPulseTask?.cancel()
-            leftArmPulseTask = task
-        } else {
-            rightArmPulseTask?.cancel()
-            rightArmPulseTask = task
-        }
+        rig.modelEntity.jointTransforms = transforms
     }
 
     private func resetArmsToRest(animated: Bool) {
