@@ -130,7 +130,8 @@ final class VirtualPerformerOverlayController {
         let xLocal = simd_dot(toCameraDir, rightOnPlaneWorld)
         let zLocal = simd_dot(toCameraDir, forwardOnPlaneWorld)
         let yawLocalRadians = atan2(xLocal, zLocal)
-        performerVisualRootEntity.orientation = simd_quatf(angle: yawLocalRadians, axis: [0, 1, 0])
+        // RealityKit entities face -Z by default; add π so the model "front" looks at the user.
+        performerVisualRootEntity.orientation = simd_quatf(angle: yawLocalRadians + .pi, axis: [0, 1, 0])
     }
 
     private func clearPerformer() {
