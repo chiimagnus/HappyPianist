@@ -288,7 +288,11 @@ final class ARGuideViewModel {
             isAIPerformanceActive = false
             silenceTrigger.reset()
             latestAIPerformanceSchedule = []
+            practiceSessionViewModel.stopVirtualPianoInput()
+            practiceSessionViewModel.sequencerPlaybackService.stop()
+            practiceSessionViewModel.refreshAudioRecognitionForCurrentState()
         } else {
+            silenceTrigger.reset()
             guard practiceSessionViewModel.currentStep != nil else { return }
             aiSilencePollingTask?.cancel()
             aiSilencePollingTask = Task { @MainActor [weak self] in
@@ -326,6 +330,7 @@ final class ARGuideViewModel {
     private func playAIPerformanceTickRange(_ tickRange: (startTick: Int, endTick: Int)) async {
         practiceSessionViewModel.stopVirtualPianoInput()
         practiceSessionViewModel.sequencerPlaybackService.stop()
+        practiceSessionViewModel.stopAudioRecognition()
 
         let timelineSnapshot = practiceSessionViewModel.autoplayTimeline
         let tempoMapSnapshot = practiceSessionViewModel.tempoMap
@@ -383,6 +388,8 @@ final class ARGuideViewModel {
         }
 
         practiceSessionViewModel.sequencerPlaybackService.stop()
+        _ = practiceSessionViewModel.prepareAudioRecognitionSuppressWindowForPlayback()
+        practiceSessionViewModel.refreshAudioRecognitionForCurrentState()
     }
 
     var gazePlaneDiskStatusText: String? {

@@ -253,6 +253,7 @@ struct PracticeStepView: View {
                 .buttonStyle(.borderedProminent)
                 .buttonBorderShape(.roundedRectangle)
                 .hoverEffect()
+                .disabled(viewModel.isAIPerformanceActive)
             }
 
             if viewModel.shouldSuggestCalibrationStep {
@@ -297,6 +298,7 @@ struct PracticeStepView: View {
                 .buttonStyle(.borderedProminent)
                 .buttonBorderShape(.roundedRectangle)
                 .hoverEffect()
+                .disabled(viewModel.isAIPerformanceActive)
                 .padding(.horizontal, 16)
             }
         }
