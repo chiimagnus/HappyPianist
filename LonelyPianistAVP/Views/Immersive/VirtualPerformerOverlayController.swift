@@ -292,7 +292,7 @@ final class VirtualPerformerOverlayController {
     private func animateHead(isPerforming: Bool) {
         guard let xiaochengRig else { return }
 
-        let targetAngleRadians: Float = isPerforming ? -0.6 : 0.0
+        let targetAngleRadians: Float = isPerforming ? -0.35 : 0.0
         headNodTask?.cancel()
         headNodTask = Task { @MainActor [weak self] in
             guard let self else { return }
