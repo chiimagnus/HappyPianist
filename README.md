@@ -91,6 +91,7 @@ piano_dialogue_server/        # 本地 Python 服务
 - [stanford-crfm/music-large-800k](https://huggingface.co/stanford-crfm/music-large-800k)
 - Apple CoreMIDI / RealityKit / ARKit
 - Salamander Grand Piano 音色采样
+- 感谢南客松S2，感谢njuer勇闯天涯、罗恩、大宝哥，让这个项目，我们这个团队荣获此次黑客松的金奖～
 
 ## License
 
