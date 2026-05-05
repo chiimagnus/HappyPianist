@@ -1,6 +1,6 @@
 # Deepwiki 索引（LonelyPianist）
 
-本索引是 `.github/deepwiki/` 的入口。目标是让读者先看业务，再看实现；或者先看工程，再落到模块。当前 wiki 已覆盖 macOS、visionOS、Python Dialogue 服务，以及 AVP 琴键贴皮式 AR 练习引导与虚拟钢琴（gaze-plane 放置）。
+本索引是 `.github/deepwiki/` 的入口。目标是让读者先看业务，再看实现；或者先看工程，再落到模块。当前 wiki 已覆盖 macOS、visionOS、Python Dialogue 服务，以及 AVP 琴键贴皮式 AR 练习引导、虚拟钢琴（gaze-plane 放置）与 Bonjour 自动发现后端的 AI 即兴回放。
 
 ## 推荐阅读路径
 
@@ -118,6 +118,7 @@
 - 2026-04-26: 同步 Step 1 校准的 A0/C8 手势分工、reticle 稳定阈值（5mm）、完成页”重新校准”入口与沉浸空间 overlay 精简。
 - 2026-04-28: 反映 pr-tests.yml workflow 已删除；新增 Fallbacks.md 专题页面；更新自动化事实和 Coverage Gaps。
 - 2026-04-29: 同步 Step 3 进入不自动开始（`ready` -> 点击下一步才开始）与音频识别 stop 日志降噪；扩充 AVP 音频排障入口。
+- 2026-05-05: 同步 AVP Bonjour 自动发现 + HTTP `/generate` 与 Python `/upload-expand` 的文档入口与导航表述。
 - 2026-04-30: 新增虚拟钢琴导航入口；更新 Coverage Gaps 以反映虚拟钢琴真机验证需求。
 - 2026-05-01: AVP AR 引导从光柱迁移为琴键贴皮高亮（decal）；移除 correct/wrong feedback 与 immersive pulse。
 - 2026-05-02: 同步虚拟钢琴放置迁移为 gaze-plane + 双手确认；并修正自动化事实（仓库当前不含 `.github/workflows/`）。

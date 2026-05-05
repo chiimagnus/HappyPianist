@@ -18,7 +18,9 @@
 | `cd piano_dialogue_server && python scripts/test_generate.py` | 离线推理 sanity check |
 | `cd piano_dialogue_server/server && ../.venv/bin/python test_client.py` | WS 回环 |
 | `curl -s http://127.0.0.1:8765/health` | 服务健康检查 |
+| `curl -X POST http://127.0.0.1:8765/generate -H "Content-Type: application/json" -d '{"type":"generate","protocol_version":1,"notes":[],"params":{"strategy":"deterministic"}}'` | HTTP 生成接口最小验证 |
 | `swiftformat --config .swiftformat LonelyPianist LonelyPianistAVP LonelyPianistTests LonelyPianistAVPTests` | 手动格式化 |
+| `cd piano_dialogue_server && ./scripts/run_server.sh` | 一键启动 Python 服务（包含依赖安装） |
 
 ## 测试运行方式
 | 改动路径 | 本地运行测试 | 说明 |
@@ -41,6 +43,7 @@
 | AVP library | `SongLibraryIndexStoreTests.swift`, `SongFileStoreTests.swift`, `AudioImportServiceTests.swift` |
 | AVP calibration | `WorldAnchorCalibrationStoreTests.swift`, `CalibrationPointCaptureServiceTests.swift` |
 | AVP practice | `PracticeSessionViewModelTests.swift`, `PracticeLocalizationPolicyTests.swift`, `StepMatcherTests.swift` |
+| AVP improv | `ImprovBackendClientCodingTests.swift`, `PhraseRecorderTests.swift`, `ImprovScheduleBuilderTests.swift` |
 | MusicXML parser | `MusicXMLParser*.swift`, `MXLReaderTests.swift`, `MusicXML*TimelineTests.swift` |
 | Python | `scripts/test_generate.py`, `scripts/test_infilling.py`, `server/test_client.py` |
 

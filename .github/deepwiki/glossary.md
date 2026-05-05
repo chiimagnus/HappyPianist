@@ -27,6 +27,10 @@
 | `VirtualPianoOverlayController` | 虚拟钢琴 3D 键盘 RealityKit 渲染控制器 |
 | `PlaneDetectionProvider` | ARKit 平面检测 provider（本项目用于 horizontal planes） |
 | `MusicXMLExpressivityOptions` | MusicXML 表现力选项，控制 wedge、grace、fermata、arpeggiate、words semantics 的启用 |
+| Bonjour（mDNS/DNS-SD） | 局域网服务发现机制；本项目用 `_lonelypianist._tcp.local.` 广播/浏览后端 |
+| Local Network 权限 | visionOS 的局域网访问授权；被拒绝时 Bonjour 浏览会进入 `.denied` |
+| `GenerateParams.strategy` | 后端生成策略：`model`（加载大模型）或 `deterministic`（轻量规则生成） |
+| `PhraseRecorder` | AVP 侧把真实/虚拟按键事件录成短句片段，用作后端生成的输入 |
 
 ## 音频识别术语
 | 术语 | 定义 |
