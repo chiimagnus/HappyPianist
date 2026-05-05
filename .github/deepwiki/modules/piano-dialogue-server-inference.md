@@ -6,11 +6,13 @@
 ## 关键逻辑
 | 逻辑 | 行为 |
 | --- | --- |
-| `resolve_model_ref()` | 本地目录优先，其次 `AMT_MODEL_ID` |
-| `resolve_device()` | `AMT_DEVICE` > mps > cuda > cpu |
+| `_resolve_model_ref()` | `AMT_MODEL_DIR` 优先，其次仓库内 `models/music-large-800k`，最后 `AMT_MODEL_ID` |
+| `_resolve_device()` | `AMT_DEVICE` > mps > cuda > cpu |
 | `_patch_safe_logits()` | 屏蔽非法 REST token 组合 |
-| `generate_response()` | 生成 reply notes |
-| `generate_response_with_debug()` | 生成 + debug 统计 |
+| `InferenceEngine.generate_response()` | 模型生成 reply notes |
+| `InferenceEngine.generate_response_with_debug()` | 模型生成 + debug 统计 |
+| `generate_deterministic_response()` | 基于 `midi_generation.generate_expanded_midi` 做轻量 deterministic 续写，并把返回时间轴平移到从 0 开始 |
+| `_derive_response_length_sec()` | 将协议 `max_tokens` 映射为 “续写时长（秒）” 的启发式窗口 |
 
 ## 输出约束
 - 只接受 piano instrument。
@@ -30,4 +32,4 @@
 
 ## Coverage Gaps
 - 没有高并发或长时间运行的压力测试证据。
-
+- deterministic 分支的音乐质量与参数选择更多依赖手工体验（同一 prompt 的可预期性优先于多样性）。

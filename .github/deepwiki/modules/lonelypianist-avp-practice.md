@@ -14,6 +14,10 @@
 | `ChordAttemptAccumulator` | 和弦尝试匹配 | 影响多音 step 判定 |
 | `PracticeSequencerPlaybackServiceProtocol` | 练习音色播放（one-shot + sequencer） | 影响试听 / autoplay / manual replay |
 | `AVAudioSequencerPracticePlaybackService` | `AVAudioEngine + AVAudioUnitSampler + AVAudioSequencer` 的默认实现 | stop 行为与短促音风险点 |
+| `BonjourBackendDiscoveryService` | Bonjour 自动发现局域网后端（`_lonelypianist._tcp.local.`）并解析 host/port | 影响 AVP 后端接入与降级策略 |
+| `ImprovBackendClient` | HTTP `POST /generate` 客户端：发送 prompt notes 并解析回复 | 影响错误处理、超时与协议兼容 |
+| `PhraseRecorder` | 把真实/虚拟按键事件录成短句 prompt（用于后端生成） | 影响触发时机与边界条件（抖动/空短句） |
+| `ScrollingStaffNotationView` | 五线谱滚动渲染（Canvas），与当前 guide/measure spans 同步 | 影响可读性、性能与 autoplay/手动推进联动 |
 | `PianoGuideOverlayController` | RealityKit 空间贴皮高亮提示 | 影响当前 step 的可见 AR 引导 |
 | `GazePlaneHitTestService` | 视线（device forward ray）命中近水平平面，选择最接近偏好距离的 hit | 影响圆盘出现与放置位置 |
 | `GazePlaneDiskConfirmationViewModel` | 绿色圆盘显示与“放好双手/倒计时 3 秒”确认（掌心中心点） | 影响放置稳定性与抗抖动 |
@@ -63,6 +67,31 @@ flowchart TD
 - 当前 step 的每个 MIDI note 会被映射到对应 `PianoKeyGeometry.localCenter` / `localSize` / `surfaceLocalY`。
 - 贴皮位置/尺寸由 `PianoGuideBeamDescriptor` 统一描述（命名仍为 Beam，但语义为 decal），RealityKit 只负责按 descriptor diff 更新实体。
 - `activeBeamEntitiesByMIDINote` 只保留当前 step 所需贴皮高亮；离开当前 step 的贴皮会被移除。
+
+## AI 即兴（后端生成）
+
+当开启“虚拟表演者 / AI 即兴”相关能力时，Step 3 会在检测到一段静默后，尝试把最近录制的短句片段发送到局域网内的后端，让后端生成一段续写并在沉浸空间中回放。
+
+### 关键行为
+- 触发：`NoteOnSilenceTrigger` 以 `2.0s` 静默窗口轮询触发；触发时从 `PhraseRecorder.flushPhrase(endTimestamp:)` 取出 prompt notes。
+- 自动发现：`BonjourBackendDiscoveryService` 浏览 `_lonelypianist._tcp.local.`，解析出可用的 `host:port`；Local Network 被拒绝时进入 `.denied` 并直接降级。
+- 生成请求：`ImprovBackendClient.generate(host:port:request:timeoutSeconds:)` 调用 HTTP `POST /generate`（默认短超时），失败/超时/空回包均降级。
+- 回放：后端回包 notes 经 `ImprovScheduleBuilder.buildSchedule(from:)` 转成 `PracticeSequencerMIDIEvent[]`，由 `PracticeSequencerPlaybackServiceProtocol` 以 sequencer 回放；回放期间会暂停虚拟钢琴输入与音频识别，结束后恢复。
+- 降级路径：当后端不可用时，会从本地 `autoplayTimeline` 选取一小段 tick range（例如 1–2 小节）作为 fallback 回放。
+
+### 数据流（AVP → Python）
+```mermaid
+flowchart TD
+  A[Practice input events] --> B[PhraseRecorder]
+  B --> C[NoteOnSilenceTrigger poll]
+  C -->|silence hit| D[flushPhrase]
+  D --> E[BonjourBackendDiscoveryService]
+  E -->|resolved host:port| F[ImprovBackendClient]
+  F -->|HTTP POST /generate| G[piano_dialogue_server]
+  G --> H[ResultResponse.notes]
+  H --> I[ImprovScheduleBuilder]
+  I --> J[PracticeSequencerPlaybackService]
+```
 
 ## 虚拟钢琴模式
 
@@ -368,6 +397,7 @@ struct PianoHighlightGuideBuildInput {
 - 虚拟钢琴的 3D 渲染效果（琴键大小、间距、材质）和放置体验（平面检测稳定性、圆盘出现时机、双手确认阈值）需要 Vision Pro 真机验证。
 - `KeyContactDetectionService` 的迟滞阈值（press 2mm / release 8mm）需要真机调优，simulator 无法验证手势精度。
 - Simulator 中虚拟钢琴可渲染和显示贴皮高亮引导，但因 `HandTrackingProvider.isSupported` 为 `false`，无法通过手势弹奏。
+- Bonjour 自动发现与 Local Network 授权的行为强依赖真实网络环境；simulator 只能覆盖部分逻辑路径。
 
 ## 更新记录（Update Notes）
 - 2026-04-25: 引入 `PianoKeyboardGeometry` 作为统一几何真源，并将 RealityKit 引导从 cylinder 光柱迁移为单几何体四侧面 atlas 的暖金丁达尔光束。
@@ -377,3 +407,4 @@ struct PianoHighlightGuideBuildInput {
 - 2026-04-30: Simulator 中虚拟钢琴自动放置（`#if DEBUG && targetEnvironment(simulator)`），跳过手势放置直接以默认位置渲染键盘，便于 Simulator 调试贴皮高亮引导和 step 推进。修复 `RealityView` update closure 对嵌套 `@Observable` 属性变化追踪不可靠的问题：添加 `.onChange` 显式触发 `VirtualPianoOverlayController` 更新，`KeyboardFrame`/`PianoKeyboardGeometry` 标记为 `Equatable`。
 - 2026-05-01: AVP 练习引导从光柱改为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。
 - 2026-05-02: 虚拟钢琴放置从“手指准星 + 捏合确认”迁移为“视野中心平面 + 绿色圆盘 + 双手掌心稳定确认（3s/3cm）”；放置结果通过 `WorldAnchor` 在 Step 3 内复用；键盘出现改为从中间向两边延伸。
+- 2026-05-05: 补充 AVP Bonjour 自动发现 + HTTP `/generate` 的 AI 即兴数据流与关键对象，并同步 staff notation/phrase recorder 等新增对象入口。

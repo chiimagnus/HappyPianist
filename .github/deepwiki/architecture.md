@@ -8,7 +8,7 @@ LonelyPianist 由三条运行面组成：macOS 负责 MIDI 输入采集、映射
 | --- | --- | --- | --- | --- |
 | macOS app | `LonelyPianist/` | App 启动到关闭 | MIDI、映射、录音、对话、SwiftData | 本地 `xcodebuild test`（macOS） |
 | visionOS app | `LonelyPianistAVP/` | WindowGroup + ImmersiveSpace | 校准、曲库、追踪、练习、贴皮高亮提示 | 本地 `xcodebuild test`（visionOS simulator） |
-| Dialogue server | `piano_dialogue_server/server/` | uvicorn 进程 | WS 协议与采样推理 | Python smoke scripts |
+| Dialogue server | `piano_dialogue_server/server/` | uvicorn 进程 | HTTP `/generate` + WS `/ws` 协议、Bonjour 广播、推理、调试包、MIDI 上传扩展 | Python smoke scripts + curl |
 | 本地验证 | 本机 `xcodebuild` / python scripts | 手动触发 | 回归测试与 smoke | `testing.md` |
 
 ## 组件边界
@@ -20,6 +20,9 @@ LonelyPianist 由三条运行面组成：macOS 负责 MIDI 输入采集、映射
 | `AppModel` | calibration / imports / tracking | 练习状态机 | `resolveRuntimeCalibrationFromTrackedAnchors` |
 | `SongLibraryViewModel` | fileImporter URLs | index + score/audio 存储 | 导入 / 删除 / 试听 |
 | `ARGuideViewModel` | immersive state + providers | localization state | open / locate / retry |
+| `BonjourBackendDiscoveryService` | mDNS browse results | resolved host/port 或 denied/failed | `start`, `resolveHostPort` |
+| `ImprovBackendClient` | HTTP `GenerateRequest` | `ResultResponse` / error | URL 构造、解码与错误映射 |
+| `PhraseRecorder` | note on/off + 时间 | phrase notes（用于后端输入） | 录制窗口与边界条件 |
 | `PracticeSessionViewModel` | finger tips + steps | matching / autoplay | `handleFingerTipPositions` |
 | `PianoGuideOverlayController` | `PracticeStep`, `PianoKeyboardGeometry` | RealityKit 贴皮高亮实体 | key-top decal、`KeyDecalSoftRect`、keyboard-local transform |
 | `GazePlaneHitTestService` | gaze ray + planes | `PlaneHit?` | 命中选择策略与阈值 |
@@ -47,6 +50,8 @@ flowchart LR
     H --> K[ARGuideViewModel]
     K --> L[ARTrackingService]
     K --> M[PracticeSessionViewModel]
+    K --> BD[BonjourBackendDiscoveryService]
+    K --> IC[ImprovBackendClient]
     M --> N[PianoGuideOverlayController]
     M --> W[KeyContactDetectionService]
     M --> X[VirtualPianoOverlayController]
@@ -56,10 +61,13 @@ flowchart LR
   end
 
   subgraph Python
-    Q[FastAPI /ws] --> R[InferenceEngine]
+    QB[Bonjour broadcaster] --> Q[FastAPI /generate + /ws]
+    Q --> R[InferenceEngine]
   end
 
-  D <-->|WS generate| Q
+  D <-->|WS /ws generate| Q
+  BD <-->|mDNS browse| QB
+  IC -->|HTTP /generate| Q
   K --> M
 ```
 
@@ -106,3 +114,4 @@ flowchart LR
 - 2026-04-30: 新增虚拟钢琴组件（VirtualPianoPlacementViewModel、VirtualPianoKeyGeometryService、KeyContactDetectionService、VirtualPianoOverlayController）到组件边界表和依赖图。
 - 2026-05-01: AVP 练习引导从光柱改为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。
 - 2026-05-02: 虚拟钢琴放置引导改为 gaze-plane + palm confirmation；移除对 `.github/workflows/` 的假设（当前仓库不含 GitHub Actions workflows）。
+- 2026-05-05: 补充 AVP Bonjour 自动发现与 HTTP `/generate` 后端接入的组件边界与依赖方向。
