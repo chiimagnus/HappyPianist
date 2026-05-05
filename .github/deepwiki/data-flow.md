@@ -10,6 +10,7 @@
 | AVP import | fileImporter URLs | SongFileStore + IndexStore | `SongLibrary/index.json` |
 | AVP practice | 校准 + 曲库 + tracking | ARGuideViewModel + PracticeSessionViewModel + AutoplayPerformanceTimeline + PianoGuideOverlayController | 贴皮高亮引导（decal）与步骤推进 |
 | AVP virtual piano | 虚拟钢琴开关 + gaze-plane 放置 + 手指追踪 | ARGuideViewModel + PlaneDetectionProvider + GazePlaneDiskConfirmationViewModel + VirtualPianoKeyGeometryService + KeyContactDetectionService + VirtualPianoOverlayController | 3D 88 键键盘 + 实时发声 + 步骤推进 |
+| AVP improv | 录制短句片段 | PhraseRecorder + BonjourBackendDiscoveryService + ImprovBackendClient | `POST /generate` 生成续写并回放（可降级 deterministic） |
 | PR validation | 手动测试 | 本地 xcodebuild | macOS / AVP tests |
 | Swift quality | 手动格式化（可选） | SwiftFormat | 格式化 diff 或 no-op |
 
@@ -93,9 +94,11 @@ flowchart TD
 ## Python 数据流
 | 步骤 | 输入 | 处理 | 输出 |
 | --- | --- | --- | --- |
-| 接收 | WS JSON | JSON + Pydantic 校验 | `GenerateRequest` |
+| 接收 | HTTP `/generate` JSON 或 WS `/ws` JSON | JSON + Pydantic 校验 | `GenerateRequest` |
+| 策略分流 | `params.strategy` | deterministic 或 model engine | reply notes |
 | 推理 | notes + params | `InferenceEngine.generate_response` | reply notes |
 | 调试 | `DIALOGUE_DEBUG=1` | write request/response/midi/summary | `out/dialogue_debug/*` |
+| MIDI 上传扩展 | `POST /upload-expand` (multipart) | parse/analyze + algorithm/model generate | base64 MIDI + analysis |
 
 ## 对话协议骨架
 | 对象 | 默认值 / 约束 | 位置 |
@@ -104,6 +107,7 @@ flowchart TD
 | `GenerateRequest.protocol_version` | `1` | `server/protocol.py` |
 | `GenerateParams.top_p` | `0.95` | `server/protocol.py` |
 | `GenerateParams.max_tokens` | `256` | `server/protocol.py` |
+| `GenerateParams.strategy` | `"model"` / `"deterministic"` | `server/protocol.py` |
 | `ResultResponse.type` | `"result"` | `server/protocol.py` |
 | `ErrorResponse.type` | `"error"` | `server/protocol.py` |
 
@@ -161,3 +165,4 @@ flowchart TD
 - 2026-04-30: 新增虚拟钢琴数据流（放置、键盘生成、渲染、按键检测、实时发声）；新增 `VirtualPianoPlacementViewModel` 状态机；新增虚拟钢琴故障恢复和调试抓手。
 - 2026-05-01: AVP 练习空间提示从光柱改为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。
 - 2026-05-02: 虚拟钢琴放置从 VirtualPianoPlacementViewModel 迁移为 gaze-plane + palm confirmation，并修正文档中的 CI/workflows 假设。
+- 2026-05-05: 同步 AVP Bonjour 自动发现 + HTTP `/generate` 与 Python `/upload-expand` 的数据流与协议骨架。

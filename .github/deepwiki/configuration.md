@@ -13,6 +13,8 @@
 | 配置项 | 默认值 | 影响 |
 | --- | --- | --- |
 | Dialogue WS | `ws://127.0.0.1:8765/ws` | 对话连接 |
+| AVP 后端发现 | `_lonelypianist._tcp.local.` | Bonjour 自动发现与解析 host/port |
+| AVP 后端生成 | `POST http://<host>:8765/generate` | 即兴生成请求 |
 | Silence window | `2.0s` | phrase 触发 |
 | Provider timeout | `5s` | AVP 启动等待 |
 | Localization timeout | `5s` | Step 3 失败门槛 |
@@ -40,7 +42,7 @@
 | 文件 | 说明 |
 | --- | --- |
 | `LonelyPianist/LonelyPianist.entitlements` | sandbox、network client、user-selected files |
-| `LonelyPianistAVP/Info.plist` | `NSHandsTrackingUsageDescription`、`NSWorldSensingUsageDescription`（平面检测）+ MusicXML 导入类型 |
+| `LonelyPianistAVP/Info.plist` | `NSHandsTrackingUsageDescription`、`NSWorldSensingUsageDescription`（平面检测）、`NSLocalNetworkUsageDescription`（后端发现/连接）、`NSBonjourServices`（`_lonelypianist._tcp`）+ ATS local networking + MusicXML 导入类型 |
 | `LonelyPianist/Info.plist` | macOS app 基本信息 |
 
 ## Python 环境变量
@@ -58,6 +60,7 @@
 | 未授权 Accessibility | macOS 不能注入按键 | 重新授权 |
 | 未启动 Python 服务 | Dialogue 无回复 | 启动 uvicorn |
 | 模型目录无权重 | 服务启动或首个 generate 失败 | 补齐权重文件 |
+| AVP Local Network denied | Bonjour 发现为 `.denied`，无法自动连接后端 | 重新允许本 app 的 Local Network 权限 |
 | 没有 stored calibration | AVP Step 3 无法定位 | 回 Step 1 |
 | 曲库索引和文件不一致 | 选曲失败 / 试听失败 | 重新导入或清理残留 |
 | AVP test destination 变更 | `xcodebuild` 找不到 Apple Vision Pro simulator | 先跑 `xcodebuild -showdestinations` 再调整 destination |
@@ -71,3 +74,4 @@
 - 2026-04-25: 更新 PR-only split tests、manual-only Swift Quality、`macos-26`、Swift tools 6.2 和 AVP light beam 参数。
 - 2026-05-01: AVP 练习引导从光柱改为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。
 - 2026-05-02: 移除 GitHub Actions workflow 配置假设（当前仓库不含 `.github/workflows/`）；补充 AVP `NSWorldSensingUsageDescription`（平面检测）。
+- 2026-05-05: 同步 AVP Local Network/Bonjour 与后端 HTTP `/generate` 相关默认值与误配后果。

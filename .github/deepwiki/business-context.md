@@ -4,7 +4,7 @@
 LonelyPianist 是一个本地优先的钢琴交互系统，围绕三条产品线展开：
 1. macOS 把 MIDI 变成控制、录音和对话；
 2. visionOS 把导入的 MusicXML 变成空间引导练习；
-3. Python 把短句钢琴输入变成 AI 回复。
+3. Python 把短句钢琴输入变成 AI 回复（并提供 MIDI 上传扩展工具与最小 Web UI）。
 
 ## 三条用户旅程
 | 旅程 | 输入 | 可见结果 | 下一跳 |
@@ -13,11 +13,13 @@ LonelyPianist 是一个本地优先的钢琴交互系统，围绕三条产品线
 | Piano Dialogue | 静默窗口内的演奏片段 | AI 回放并落盘为 take | [modules/lonelypianist-macos-dialogue.md](modules/lonelypianist-macos-dialogue.md) |
 | AR Guide | MusicXML + A0/C8 校准 + 手势 | 键位高亮与步骤推进 | [modules/lonelypianist-avp-practice.md](modules/lonelypianist-avp-practice.md) |
 | AR Guide（虚拟钢琴） | MusicXML + 虚拟钢琴开关 + 手势放置 | 3D 88 键键盘 + 实时发声 + 步骤推进 | [modules/lonelypianist-avp-practice.md](modules/lonelypianist-avp-practice.md) |
+| AVP AI 即兴（后端生成） | 练习中的短句片段（真实/虚拟输入） | 自动发现后端、生成续写并在沉浸空间中回放 | [modules/lonelypianist-avp-practice.md](modules/lonelypianist-avp-practice.md) + [modules/piano-dialogue-server.md](modules/piano-dialogue-server.md) |
 
 ## 业务规则
 | 规则 | 含义 | 影响面 |
 | --- | --- | --- |
 | 权限先于动作 | macOS 需要 Accessibility；AVP 需要 Hand/World tracking 权限 | 启动和排障 |
+| 网络先于后端 | AVP 需要 Local Network 权限才能 Bonjour 发现后端并调用 `POST /generate` | AVP 后端接入与排障 |
 | 对话是 turn-based | 静默触发后再生成回复，回放策略可配置 | macOS + Python |
 | Step 3 前置条件明确 | 必须先导入谱面并有可用校准（虚拟钢琴模式仅需导入谱面） | AVP 进入练习 |
 | 曲库索引与文件必须一致 | 导入 / 删除 / 音频绑定都先后写盘 | AVP 存储和恢复 |
@@ -38,7 +40,7 @@ LonelyPianist 是一个本地优先的钢琴交互系统，围绕三条产品线
 | Mappings | 单键/和弦映射编辑器 | [modules/lonelypianist-macos-mapping.md](modules/lonelypianist-macos-mapping.md) |
 | Recorder | take 录制、导入与播放 | [modules/lonelypianist-macos-recording.md](modules/lonelypianist-macos-recording.md) |
 | Step 1 / 2 / 3 | 校准、选曲、练习 | [modules/lonelypianist-avp.md](modules/lonelypianist-avp.md) |
-| `/ws` | 对话协议入口 | [modules/piano-dialogue-server-protocol.md](modules/piano-dialogue-server-protocol.md) |
+| `/generate` / `/ws` | 后端生成接口（HTTP / WebSocket） | [modules/piano-dialogue-server-protocol.md](modules/piano-dialogue-server-protocol.md) |
 
 ## 继续阅读
 - 全局目录与入口：`overview.md`

@@ -21,7 +21,7 @@
 | --- | --- | --- | --- |
 | macOS | `LonelyPianist/ViewModels/LonelyPianistViewModel.swift` | MIDI service、storage、Dialogue | macOS tests |
 | visionOS | `LonelyPianistAVP/ViewModels/ARGuideViewModel.swift` + `ViewModels/Library/SongLibraryViewModel.swift` | tracking、musicxml、playback、RealityKit overlay | AVP tests |
-| Python | `piano_dialogue_server/server/main.py` + `inference.py` | protocol、debug artifacts | 本地 smoke，暂未自动 CI |
+| Python | `piano_dialogue_server/server/main.py` + `inference.py` | protocol、bonjour、debug artifacts、upload-expand | 本地 smoke（curl/WS），暂未自动 CI |
 | CI | （无） | 当前仓库不含 `.github/workflows/` | — |
 
 ## 自动化现状
@@ -39,6 +39,7 @@
 | 变更 | 需要同步 | 推荐验证 |
 | --- | --- | --- |
 | Dialogue 协议字段 | Swift model + WebSocket service + Python protocol | macOS tests + Python WS smoke |
+| AVP 后端发现/HTTP 生成 | AVP discovery/client + Python `/generate` + Info.plist 权限 | AVP tests + 同网段真机冒烟 |
 | 曲库字段 | SongLibrary models + store + seeder | AVP library tests |
 | 校准字段 | StoredWorldAnchorCalibration + store + localization | AVP calibration tests |
 | MusicXML 规则 | parser + step builder + practice view model | MusicXML parser/timeline tests |
@@ -81,3 +82,4 @@
 - 2026-04-25: 更新 PR-only split tests、manual-only Swift Quality、CI 调试流程和 AVP 光柱变更清单。
 - 2026-04-28: 反映 pr-tests.yml workflow 已删除，测试需要手动在本地运行。
 - 2026-05-01: 同步 AVP Practice 的 RealityKit 引导从光柱迁移为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。
+- 2026-05-05: 补充 AVP Bonjour 自动发现 + HTTP `/generate` 的开发/验证注意事项，并同步 Python 一键启动脚本入口。
