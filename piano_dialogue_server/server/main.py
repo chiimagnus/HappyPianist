@@ -245,9 +245,14 @@ async def upload_expand(
 
 def _handle_generate_request(request: GenerateRequest) -> ResultResponse:
     from .inference import generate_deterministic_response, get_inference_engine
+    from .rule_inference import generate_rule_response
 
     if request.params.strategy == "deterministic":
         reply_notes = generate_deterministic_response(request.notes, request.params, request.session_id)
+        return ResultResponse(notes=reply_notes, latency_ms=None)
+
+    if request.params.strategy == "rule":
+        reply_notes = generate_rule_response(request.notes, request.params, request.session_id)
         return ResultResponse(notes=reply_notes, latency_ms=None)
 
     engine = get_inference_engine()
@@ -263,6 +268,7 @@ async def generate(request: GenerateRequest) -> ResultResponse:
 @app.websocket("/ws")
 async def ws_endpoint(websocket: WebSocket) -> None:
     from .inference import generate_deterministic_response, get_inference_engine
+    from .rule_inference import generate_rule_response, generate_rule_response_with_debug
 
     await websocket.accept()
     try:
@@ -301,7 +307,7 @@ async def ws_endpoint(websocket: WebSocket) -> None:
             try:
                 engine = None
                 t_engine_ms = 0
-                if request.params.strategy != "deterministic":
+                if request.params.strategy == "model":
                     t_engine0 = time.perf_counter()
                     engine = get_inference_engine()
                     t_engine_ms = int((time.perf_counter() - t_engine0) * 1000)
@@ -312,6 +318,13 @@ async def ws_endpoint(websocket: WebSocket) -> None:
                     reply_notes = generate_deterministic_response(
                         request.notes, request.params, request.session_id
                     )
+                elif request.params.strategy == "rule":
+                    if debug_on:
+                        reply_notes, inference_debug = generate_rule_response_with_debug(
+                            request.notes, request.params, request.session_id
+                        )
+                    else:
+                        reply_notes = generate_rule_response(request.notes, request.params, request.session_id)
                 elif debug_on:
                     assert engine is not None
                     reply_notes, inference_debug = engine.generate_response_with_debug(
@@ -347,14 +360,6 @@ async def ws_endpoint(websocket: WebSocket) -> None:
 
                         torch_version = None
                         transformers_version = None
-                        try:
-                            import torch  # type: ignore
-                            import transformers  # type: ignore
-
-                            torch_version = getattr(torch, "__version__", None)
-                            transformers_version = getattr(transformers, "__version__", None)
-                        except Exception:
-                            pass
 
                         summary: dict[str, Any] = {
                             "timestamp": time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime()),
