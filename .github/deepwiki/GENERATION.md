@@ -3,18 +3,18 @@
 ## Run info
 | Item | Value |
 | --- | --- |
-| Commit hash | 721de5b592895dfc3cb7752401eb6b157b1796e8 |
+| Commit hash | 4a47f54392950c7b84755ecb2b2ba49a54cc652f |
 | Branch name | crh1 |
-| Generated at | 2026-05-05T17:50:58+08:00 |
+| Generated at | 2026-05-06T12:24:00+08:00 |
 | Output language | Chinese |
 | Generation mode | Incremental update via `deepwiki` skill |
 
 ## Key updates in this generation
 | Area | Update |
 | --- | --- |
-| AVP 即兴后端接入 | AVP 通过 Bonjour 自动发现局域网内的 Dialogue Server（`_lonelypianist._tcp.local.`），并用 HTTP `POST /generate` 请求后端生成；不可用时可降级为 deterministic。 |
-| Python 服务能力扩展 | Python 侧提供 `/generate`（HTTP）与 `/upload-expand`（MIDI 上传扩展）并提供 `static/index.html` 前端；服务启动时 best-effort 广播 Bonjour TXT（`path=/generate` 等）。 |
-| 配置与排障同步 | 更新 AVP Local Network/Bonjour 配置点（`NSLocalNetworkUsageDescription` / `NSBonjourServices` / ATS local networking）以及常见 denied/resolve 失败的排障路径。 |
+| Python server 目录重组 | 反映 `piano_dialogue_server/server/` 拆分为 `api/`（入口与协议）、`engines/`（model/deterministic/rule）、`media/`（bonjour/debug/midi）。 |
+| 第三策略 `rule` | 协议与数据流更新为 `strategy=model/deterministic/rule`，并记录 `rule` 的实现位置与分流。 |
+| Smoke & 工具更新 | 更新 WS 回环入口为 `python -m server.api.test_client`，并同步 `uvicorn server.api.main:app` 启动命令。 |
 
 ## Generated page list
 ### Core pages
