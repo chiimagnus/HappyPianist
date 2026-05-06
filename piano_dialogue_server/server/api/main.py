@@ -17,8 +17,8 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 from starlette.websockets import WebSocketDisconnect
 
-from .debug_artifacts import debug_enabled, new_request_id, write_debug_bundle
-from .midi_generation import (
+from ..media.debug_artifacts import debug_enabled, new_request_id, write_debug_bundle
+from ..media.midi_generation import (
     NoteEvent,
     _generate_accompaniment,
     _quantize_to_scale,
@@ -35,7 +35,7 @@ from .protocol import DialogueNote, ErrorResponse, GenerateParams, GenerateReque
 async def _lifespan(_: FastAPI):
     broadcaster = None
     try:
-        from .bonjour import BonjourServiceBroadcaster
+        from ..media.bonjour import BonjourServiceBroadcaster
 
         broadcaster = BonjourServiceBroadcaster(
             instance_name="LonelyPianist Dialogue Server",
@@ -163,7 +163,7 @@ async def upload_expand(
             )
 
         if strategy == "model":
-            from .inference import (
+            from ..engines.model_inference import (
                 _dialogue_notes_to_note_events,
                 _note_events_to_dialogue_notes,
                 get_inference_engine,
@@ -244,8 +244,8 @@ async def upload_expand(
 
 
 def _handle_generate_request(request: GenerateRequest) -> ResultResponse:
-    from .inference import generate_deterministic_response, get_inference_engine
-    from .rule_inference import generate_rule_response
+    from ..engines.model_inference import generate_deterministic_response, get_inference_engine
+    from ..engines.rule_inference import generate_rule_response
 
     if request.params.strategy == "deterministic":
         reply_notes = generate_deterministic_response(request.notes, request.params, request.session_id)
@@ -267,8 +267,8 @@ async def generate(request: GenerateRequest) -> ResultResponse:
 
 @app.websocket("/ws")
 async def ws_endpoint(websocket: WebSocket) -> None:
-    from .inference import generate_deterministic_response, get_inference_engine
-    from .rule_inference import generate_rule_response, generate_rule_response_with_debug
+    from ..engines.model_inference import generate_deterministic_response, get_inference_engine
+    from ..engines.rule_inference import generate_rule_response, generate_rule_response_with_debug
 
     await websocket.accept()
     try:

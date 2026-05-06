@@ -3,8 +3,8 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from .midi_utils import NoteEvent
-from .protocol import DialogueNote, GenerateParams
+from ..api.protocol import DialogueNote, GenerateParams
+from ..media.midi_utils import NoteEvent
 from .rule_backend import run_rule_improviser
 
 
@@ -81,4 +81,3 @@ def generate_rule_response_with_debug(
         debug["rule_debug"] = result.debug
 
     return reply_notes, debug
-

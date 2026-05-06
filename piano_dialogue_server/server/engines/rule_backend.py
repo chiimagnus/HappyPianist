@@ -6,7 +6,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from .midi_utils import NoteEvent
+from ..media.midi_utils import NoteEvent
 
 
 # ---------------------------------------------------------------------------

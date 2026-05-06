@@ -65,7 +65,7 @@ AMT_MODEL_DIR=models/music-large-800k \
 ```bash
 cd piano_dialogue_server
 source .venv/bin/activate
-python -m uvicorn server.main:app --host 0.0.0.0 --port 8765
+python -m uvicorn server.api.main:app --host 0.0.0.0 --port 8765
 ```
 
 备注：`--host 0.0.0.0` 便于同一局域网内的设备访问（例如 AVP）。若你只在本机测试，也可用 `--host 127.0.0.1`。
@@ -165,8 +165,8 @@ python scripts/expand_midi.py path/to/input.mid path/to/output.mid --mode variat
 ## 端到端回环
 
 ```bash
-cd piano_dialogue_server/server
-../.venv/bin/python test_client.py
+cd piano_dialogue_server
+../.venv/bin/python -m server.api.test_client
 ```
 
 ## 备注

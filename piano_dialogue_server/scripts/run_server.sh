@@ -19,4 +19,4 @@ source .venv/bin/activate
 PIP_PROGRESS_BAR=off python -m pip install -q -U pip
 PIP_PROGRESS_BAR=off pip install -q -r requirements.txt
 
-exec python -m uvicorn server.main:app --host 0.0.0.0 --port 8765
+exec python -m uvicorn server.api.main:app --host 0.0.0.0 --port 8765

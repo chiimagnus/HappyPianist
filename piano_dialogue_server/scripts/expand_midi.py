@@ -7,7 +7,7 @@ import json
 
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
-from server.midi_generation import (
+from server.media.midi_generation import (
     MidiAnalysis,
     NoteEvent,
     generate_expanded_midi,
@@ -16,7 +16,7 @@ from server.midi_generation import (
     write_midi,
     write_continuation_midi,
 )
-from server.musicxml_generation import write_musicxml
+from server.media.musicxml_generation import write_musicxml
 
 
 def main() -> None:

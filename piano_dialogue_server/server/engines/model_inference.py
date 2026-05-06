@@ -13,8 +13,8 @@ from anticipation.config import TIME_RESOLUTION
 from anticipation.vocab import DUR_OFFSET, MAX_PITCH, NOTE_OFFSET, REST, TIME_OFFSET
 import anticipation.sample as sample
 
-from .midi_generation import NoteEvent, analyze_dialogue_notes, generate_expanded_midi
-from .protocol import DialogueNote, GenerateParams
+from ..api.protocol import DialogueNote, GenerateParams
+from ..media.midi_generation import NoteEvent, analyze_dialogue_notes, generate_expanded_midi
 
 
 def _ensure_hf_mirror_env() -> None:
@@ -39,7 +39,7 @@ def _resolve_model_ref() -> str:
     if explicit_dir:
         return explicit_dir
 
-    default_dir = Path(__file__).resolve().parents[1] / "models" / "music-large-800k"
+    default_dir = Path(__file__).resolve().parents[2] / "models" / "music-large-800k"
     if default_dir.exists():
         return str(default_dir)
 

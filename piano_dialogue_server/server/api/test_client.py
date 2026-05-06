@@ -81,7 +81,7 @@ async def main() -> None:
     print(f"Inference latency_ms: {latency_ms}")
     print(f"Reply notes: {len(notes)}")
 
-    out_path = Path(__file__).resolve().parents[1] / "out" / "server_reply.mid"
+    out_path = Path(__file__).resolve().parents[2] / "out" / "server_reply.mid"
     notes_to_midi(notes, out_path)
     print(f"Wrote: {out_path}")
 

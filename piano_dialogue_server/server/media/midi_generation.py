@@ -9,7 +9,7 @@ from typing import Iterable, TYPE_CHECKING
 import mido
 
 if TYPE_CHECKING:
-    from .protocol import DialogueNote, GenerateParams
+    from ..api.protocol import DialogueNote, GenerateParams
 
 MAJOR_SCALE = {0, 2, 4, 5, 7, 9, 11}
 MINOR_SCALE = {0, 2, 3, 5, 7, 8, 10}
