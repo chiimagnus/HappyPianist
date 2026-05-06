@@ -34,7 +34,7 @@ pip install -r requirements.txt
 export AMT_MODEL_DIR=/path/to/music-large-800k
 export AMT_DEVICE=mps   # 或 cuda / cpu
 
-python -m uvicorn server.main:app --host 127.0.0.1 --port 8765
+python -m uvicorn server.api.main:app --host 127.0.0.1 --port 8765
 ```
 
 健康检查：
