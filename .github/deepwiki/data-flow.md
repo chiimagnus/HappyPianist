@@ -95,21 +95,21 @@ flowchart TD
 | 步骤 | 输入 | 处理 | 输出 |
 | --- | --- | --- | --- |
 | 接收 | HTTP `/generate` JSON 或 WS `/ws` JSON | JSON + Pydantic 校验 | `GenerateRequest` |
-| 策略分流 | `params.strategy` | deterministic 或 model engine | reply notes |
-| 推理 | notes + params | `InferenceEngine.generate_response` | reply notes |
+| 策略分流 | `params.strategy` | deterministic / rule / model engine | reply notes |
+| 推理 | notes + params | `deterministic` / `rule` / `InferenceEngine.generate_response` | reply notes |
 | 调试 | `DIALOGUE_DEBUG=1` | write request/response/midi/summary | `out/dialogue_debug/*` |
 | MIDI 上传扩展 | `POST /upload-expand` (multipart) | parse/analyze + algorithm/model generate | base64 MIDI + analysis |
 
 ## 对话协议骨架
 | 对象 | 默认值 / 约束 | 位置 |
 | --- | --- | --- |
-| `GenerateRequest.type` | `"generate"` | `server/protocol.py` |
-| `GenerateRequest.protocol_version` | `1` | `server/protocol.py` |
-| `GenerateParams.top_p` | `0.95` | `server/protocol.py` |
-| `GenerateParams.max_tokens` | `256` | `server/protocol.py` |
-| `GenerateParams.strategy` | `"model"` / `"deterministic"` | `server/protocol.py` |
-| `ResultResponse.type` | `"result"` | `server/protocol.py` |
-| `ErrorResponse.type` | `"error"` | `server/protocol.py` |
+| `GenerateRequest.type` | `"generate"` | `server/api/protocol.py` |
+| `GenerateRequest.protocol_version` | `1` | `server/api/protocol.py` |
+| `GenerateParams.top_p` | `0.95` | `server/api/protocol.py` |
+| `GenerateParams.max_tokens` | `256` | `server/api/protocol.py` |
+| `GenerateParams.strategy` | `"model"` / `"deterministic"` / `"rule"` | `server/api/protocol.py` |
+| `ResultResponse.type` | `"result"` | `server/api/protocol.py` |
+| `ErrorResponse.type` | `"error"` | `server/api/protocol.py` |
 
 ## CI 数据流
 | 阶段 | 输入 | 处理 | 输出 |
@@ -150,7 +150,7 @@ flowchart TD
 - Guide 构建：`PianoHighlightGuideBuilderService.buildGuides` 输入和输出、`PianoHighlightParsedElementCoverageService.allCoverages()`
 - AutoplayPerformanceTimeline：事件序列、tick 排序、优先级处理
 - 音频识别：`fallbackReason`、`activeDetectorMode`、`processingDurationMs`、`templateMatchResults`
-- Python：`/health`、`test_client.py`、`out/dialogue_debug/index.jsonl`
+- Python：`/health`、`python -m server.api.test_client`、`out/dialogue_debug/index.jsonl`
 
 ## Coverage Gaps
 - 没有自动化 E2E 去验证 macOS -> Python -> AVP 三端全链路；现状仍需要多处单元测试和人工冒烟组合覆盖。
@@ -158,6 +158,7 @@ flowchart TD
 - 音频识别的 fallback 行为和性能优化需要真机验证。
 
 ## 更新记录（Update Notes）
+- 2026-05-06: Python 协议位置迁移到 `server/api/protocol.py`，并补充 `strategy=rule` 第三策略的数据流描述。
 - 2026-04-25: 增补 PR Tests / Swift Quality 数据流，并将 AVP 空间提示从 key regions + cylinder 光柱更新为 keyboard geometry + four-side atlas prism beams。
 - 2026-04-26: 同步 Step 1 校准的 A0/C8 手势分工（左右手输入与捏合确认切换）。
 - 2026-04-28: 反映 pr-tests.yml workflow 已删除；新增 `AutoplayPerformanceTimeline` 数据流；新增 Guide 构建流程；更新 autoplay 前置检查和失败恢复；添加音频识别调试抓手。

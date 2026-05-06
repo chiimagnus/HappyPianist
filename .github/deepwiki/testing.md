@@ -16,7 +16,7 @@
 | `xcodebuild -list -project LonelyPianist.xcodeproj` | 检查 scheme 列表 |
 | `xcodebuild -showdestinations -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP` | AVP destination 诊断 |
 | `cd piano_dialogue_server && python scripts/test_generate.py` | 离线推理 sanity check |
-| `cd piano_dialogue_server/server && ../.venv/bin/python test_client.py` | WS 回环 |
+| `cd piano_dialogue_server && ../.venv/bin/python -m server.api.test_client` | WS 回环 |
 | `curl -s http://127.0.0.1:8765/health` | 服务健康检查 |
 | `curl -X POST http://127.0.0.1:8765/generate -H "Content-Type: application/json" -d '{"type":"generate","protocol_version":1,"notes":[],"params":{"strategy":"deterministic"}}'` | HTTP 生成接口最小验证 |
 | `swiftformat --config .swiftformat LonelyPianist LonelyPianistAVP LonelyPianistTests LonelyPianistAVPTests` | 手动格式化 |
@@ -45,7 +45,7 @@
 | AVP practice | `PracticeSessionViewModelTests.swift`, `PracticeLocalizationPolicyTests.swift`, `StepMatcherTests.swift` |
 | AVP improv | `ImprovBackendClientCodingTests.swift`, `PhraseRecorderTests.swift`, `ImprovScheduleBuilderTests.swift` |
 | MusicXML parser | `MusicXMLParser*.swift`, `MXLReaderTests.swift`, `MusicXML*TimelineTests.swift` |
-| Python | `scripts/test_generate.py`, `scripts/test_infilling.py`, `server/test_client.py` |
+| Python | `scripts/test_generate.py`, `scripts/test_infilling.py`, `server/api/test_client.py` |
 
 ## 覆盖重点
 | 风险区 | 为什么要测 | 推荐验证 |
@@ -88,3 +88,4 @@
 - 2026-04-25: 记录 PR-only split Xcode tests、AVP simulator test 跑通、manual Swift Quality、build-for-testing 与 test 的 CI 取舍。
 - 2026-04-28: 反映 pr-tests.yml workflow 已删除，更新测试策略为本地手动运行；移除 PR Tests 路径分流内容；更新手工冒烟和现状说明。
 - 2026-05-01: 同步 AVP Practice 的 RealityKit 引导从光柱迁移为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。
+- 2026-05-06: 同步 Python `server/` 目录重组后 WS 回环测试入口（`python -m server.api.test_client`）与相关路径。

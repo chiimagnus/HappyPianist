@@ -28,10 +28,12 @@
 | 值 | 行为 | 成本 |
 | --- | --- | --- |
 | `deterministic` | 走本地规则/分析生成（不初始化大模型） | 更轻、更稳定 |
+| `rule` | 走规则即兴器生成（不初始化大模型） | 更轻，更可控 |
 | `model` | 初始化并使用模型生成 | 更重，受权重/设备影响 |
 
 ## 更新记录（Update Notes）
 - 2026-05-05: 同步 `GenerateParams.strategy` 字段与 HTTP `/generate` 调用方向。
+- 2026-05-06: 增加 `rule` 策略；协议实现移动到 `server/api/protocol.py`。
 
 
 ## Coverage Gaps

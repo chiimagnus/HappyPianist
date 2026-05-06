@@ -29,7 +29,7 @@
 | --- | --- | --- |
 | macOS app | `LonelyPianist/` | 主业务面 |
 | AVP app | `LonelyPianistAVP/` | 三步练习面 |
-| Dialogue service | `piano_dialogue_server/server/` | Python 对话服务 |
+| Dialogue service | `piano_dialogue_server/server/` | Python 对话服务（`api/` + `engines/` + `media/`） |
 | RealityKitContent | `Packages/RealityKitContent/` | visionOS 内容包 |
 
 ## 外部服务与平台
@@ -46,20 +46,23 @@
 | 工具 | 用途 | 约束 |
 | --- | --- | --- |
 | `xcodebuild` | macOS / visionOS build & test | 仓库级默认命令 |
-| `python -m uvicorn` | 启动服务 | 建议 `--host 0.0.0.0 --port 8765`（局域网可见） |
+| `python -m uvicorn server.api.main:app` | 启动服务 | 建议 `--host 0.0.0.0 --port 8765`（局域网可见） |
 | `./scripts/run_server.sh` | 一键启动服务 | 自动创建 venv + 安装依赖 + 启动 uvicorn |
 | `python scripts/test_generate.py` | 离线生成 sanity check | 改动 inference 时用 |
-| `python server/test_client.py` | WS 回环测试 | 需要先启动服务 |
+| `python -m server.api.test_client` | WS 回环测试 | 需要先启动服务（在 `piano_dialogue_server/` 下运行） |
 
 ## 配置耦合
 | 配置 | 关联代码 | 影响 |
 | --- | --- | --- |
-| `AMT_MODEL_DIR` / `AMT_MODEL_ID` | `server/inference.py` | 模型定位 |
-| `AMT_DEVICE` | `server/inference.py` | 执行设备 |
-| `DIALOGUE_DEBUG` | `server/debug_artifacts.py` | 调试包写盘 |
+| `AMT_MODEL_DIR` / `AMT_MODEL_ID` | `server/engines/model_inference.py` | 模型定位 |
+| `AMT_DEVICE` | `server/engines/model_inference.py` | 执行设备 |
+| `DIALOGUE_DEBUG` | `server/media/debug_artifacts.py` | 调试包写盘 |
 | `practiceMusicXML*` defaults | AVP ViewModels | MusicXML 解析和步骤生成 |
 | `DialoguePlaybackInterruptionBehavior` | macOS ViewModel | AI 回放期间输入策略 |
 | `XROS_DEPLOYMENT_TARGET` / `MACOSX_DEPLOYMENT_TARGET` | `project.pbxproj` | 当前工程目标为 26.0 |
 
 ## Coverage Gaps
 - 没有统一 lockfile；Python 依赖和模型权重都依赖本地环境管理。
+
+## 更新记录（Update Notes）
+- 2026-05-06: 同步 Python `server/` 目录重组与 `test_client` 入口变更；更新配置耦合对应代码位置。

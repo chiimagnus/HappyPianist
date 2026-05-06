@@ -48,11 +48,11 @@
 ## Python 环境变量
 | 变量 | 含义 | 来源 |
 | --- | --- | --- |
-| `AMT_MODEL_DIR` | 本地模型目录 | `server/inference.py` |
-| `AMT_MODEL_ID` | HuggingFace 模型 ID | `server/inference.py` |
-| `AMT_DEVICE` | `mps` / `cuda` / `cpu` | `server/inference.py` |
-| `DIALOGUE_DEBUG` | 是否落盘调试包 | `server/debug_artifacts.py` |
-| `HF_ENDPOINT` | HF 镜像地址 | `server/inference.py` |
+| `AMT_MODEL_DIR` | 本地模型目录 | `server/engines/model_inference.py` |
+| `AMT_MODEL_ID` | HuggingFace 模型 ID | `server/engines/model_inference.py` |
+| `AMT_DEVICE` | `mps` / `cuda` / `cpu` | `server/engines/model_inference.py` |
+| `DIALOGUE_DEBUG` | 是否落盘调试包 | `server/media/debug_artifacts.py` |
+| `HF_ENDPOINT` | HF 镜像地址 | `server/engines/model_inference.py` |
 
 ## 误配和后果
 | 误配 | 后果 | 修复 |
@@ -75,3 +75,4 @@
 - 2026-05-01: AVP 练习引导从光柱改为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。
 - 2026-05-02: 移除 GitHub Actions workflow 配置假设（当前仓库不含 `.github/workflows/`）；补充 AVP `NSWorldSensingUsageDescription`（平面检测）。
 - 2026-05-05: 同步 AVP Local Network/Bonjour 与后端 HTTP `/generate` 相关默认值与误配后果。
+- 2026-05-06: 同步 Python `server/` 目录重组（`api/`、`engines/`、`media/`）后的环境变量来源位置。

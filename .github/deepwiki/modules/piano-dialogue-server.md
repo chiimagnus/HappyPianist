@@ -7,17 +7,22 @@
 ## 目录地图
 | 路径 | 角色 |
 | --- | --- |
-| `server/main.py` | FastAPI / WS 入口 |
-| `server/bonjour.py` | Bonjour（mDNS/DNS-SD）广播 |
-| `server/protocol.py` | Pydantic 契约 |
-| `server/inference.py` | 模型加载和生成 |
-| `server/debug_artifacts.py` | 调试落盘 |
-| `server/midi_generation.py` | MIDI 解析、分析与扩展生成（含 deterministic 续写） |
-| `server/musicxml_generation.py` | 从 MIDI/分析生成最小 MusicXML（用于上传扩展工具链） |
-| `server/test_client.py` | WS 回环测试 |
+| `server/api/main.py` | FastAPI / WS 入口（挂载 static、协议校验、策略分流） |
+| `server/api/protocol.py` | Pydantic 契约（`strategy=model/deterministic/rule`） |
+| `server/api/test_client.py` | WS 回环测试（`python -m server.api.test_client`） |
+| `server/engines/model_inference.py` | 模型策略（`model`）+ deterministic 策略（`deterministic`） |
+| `server/engines/rule_inference.py` | 规则策略（`rule`）的 API 适配层 |
+| `server/engines/rule_backend.py` | 规则即兴器核心（harmonic/rhythm/motif rules） |
+| `server/media/bonjour.py` | Bonjour（mDNS/DNS-SD）广播 |
+| `server/media/debug_artifacts.py` | 调试落盘（request/response/midi/summary） |
+| `server/media/midi_generation.py` | MIDI 解析、分析与扩展生成（含 deterministic 的素材生成） |
+| `server/media/midi_utils.py` | MIDI 读写/切窗/合并/（可选）WAV 合成工具 |
+| `server/media/musicxml_generation.py` | 从 MIDI/分析生成最小 MusicXML（用于上传扩展工具链） |
 | `scripts/run_server.sh` | 一键启动（venv + install + uvicorn） |
 | `scripts/expand_midi.py` | 离线扩展 MIDI 脚本入口 |
-| `static/index.html` | `GET /` 对应的最小前端页面（可选） |
+| `static/index.html` | `GET /` 对应的最小前端页面（Playground） |
+| `static/app.js` | `/generate` + `/upload-expand` 的浏览器侧测试逻辑 |
+| `static/styles.css` | Playground 样式 |
 
 ## 入口与生命周期
 | 入口 | 行为 |
@@ -50,3 +55,4 @@
 ## 更新记录（Update Notes）
 - 2026-04-26: 修复模块页内部链接（从 `modules/` 前缀改为同目录相对路径）。
 - 2026-05-05: 同步 `/generate`、`/upload-expand`、Bonjour 广播与 `static/` 前端目录地图与生命周期说明。
+- 2026-05-06: 反映 `server/` 目录重组为 `api/`、`engines/`、`media/`，并新增 `rule` 第三策略与 Playground 静态资源拆分。

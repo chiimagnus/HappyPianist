@@ -62,7 +62,10 @@ flowchart LR
 
   subgraph Python
     QB[Bonjour broadcaster] --> Q[FastAPI /generate + /ws]
-    Q --> R[InferenceEngine]
+    Q --> R[Strategy router]
+    R --> E1[model engine]
+    R --> E2[deterministic engine]
+    R --> E3[rule engine]
   end
 
   D <-->|WS /ws generate| Q
@@ -102,7 +105,7 @@ flowchart LR
 | `PianoGuideOverlayController.updateHighlights` | 贴皮位置、大小、材质、生命周期 | AVP tests + Vision Pro 手工观察 |
 | `KeyContactDetectionService.detect` | 迟滞阈值、黑键优先、started/ended delta | VirtualPianoTests + Vision Pro 手工验证 |
 | `ARGuideViewModel.updateGazePlaneDiskGuidance` | 平面命中/确认阈值/WorldAnchor 复用导致键盘漂移 | AVP tests + 真机放置验证 |
-| `piano_dialogue_server/server/inference.py::_patch_safe_logits` | 推理结果和异常恢复 | Python smoke scripts |
+| `piano_dialogue_server/server/engines/model_inference.py::_patch_safe_logits` | 推理结果和异常恢复 | Python smoke scripts |
 
 ## Coverage Gaps
 - 没有三端端到端自动化门禁；当前依赖单元测试 + 手工冒烟组合覆盖。
@@ -115,3 +118,4 @@ flowchart LR
 - 2026-05-01: AVP 练习引导从光柱改为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。
 - 2026-05-02: 虚拟钢琴放置引导改为 gaze-plane + palm confirmation；移除对 `.github/workflows/` 的假设（当前仓库不含 GitHub Actions workflows）。
 - 2026-05-05: 补充 AVP Bonjour 自动发现与 HTTP `/generate` 后端接入的组件边界与依赖方向。
+- 2026-05-06: 同步 Python 生成侧引入第三策略（`rule`）后的架构图表达（FastAPI -> strategy router -> engines）。
