@@ -19,6 +19,7 @@ struct TakeLibraryView: View {
     @State private var exportDocument: MIDIFileDocument?
     @State private var exportFileName: String = ""
     @State private var exportError: String?
+    @State private var isClearAllConfirmationPresented = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -43,6 +44,34 @@ struct TakeLibraryView: View {
         }
         .onAppear { startTimer() }
         .onDisappear { stopTimer() }
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Button("清空全部录制", systemImage: "trash", role: .destructive) {
+                        isClearAllConfirmationPresented = true
+                    }
+                    .disabled(takes.isEmpty)
+                } label: {
+                    Image(systemName: "ellipsis.circle")
+                }
+                .buttonBorderShape(.roundedRectangle)
+                .hoverEffect()
+                .disabled(isRecording)
+            }
+        }
+        .confirmationDialog(
+            "清空全部录制？",
+            isPresented: $isClearAllConfirmationPresented,
+            titleVisibility: .visible
+        ) {
+            Button("清空", role: .destructive) {
+                playbackController.stop()
+                sliderValue = 0
+                onClearAll()
+            }
+        } message: {
+            Text("此操作会删除所有录制，且不可恢复。")
+        }
         .fileExporter(
             isPresented: .init(
                 get: { exportDocument != nil },
@@ -108,6 +137,10 @@ struct TakeLibraryView: View {
                     exportMIDI(take)
                 }
                 Button("删除", systemImage: "trash", role: .destructive) {
+                    if playbackController.currentTakeID == take.id {
+                        playbackController.stop()
+                        sliderValue = 0
+                    }
                     onDelete(take.id)
                 }
             } label: {
@@ -147,15 +180,19 @@ struct TakeLibraryView: View {
             .hoverEffect()
             .disabled(playbackController.currentTakeID == nil || isRecording)
 
-            Slider(value: $sliderValue, in: 0...max(1, totalDuration)) { editing in
+            Slider(value: $sliderValue, in: 0...max(0.001, totalDuration)) { editing in
                 isDraggingSlider = editing
                 if editing == false {
-                    try? playbackController.seek(toSeconds: sliderValue)
+                    if playbackController.isPlaying {
+                        try? playbackController.seek(toSeconds: sliderValue)
+                    } else {
+                        playbackController.pausePositionSeconds = max(0, sliderValue)
+                    }
                 }
             }
-            .disabled(playbackController.currentTakeID == nil)
+            .disabled(playbackController.currentTakeID == nil || isRecording)
 
-            Text(formatDuration(playbackController.currentSeconds()))
+            Text(formatDuration(isDraggingSlider ? sliderValue : playbackController.currentSeconds()))
                 .monospacedDigit()
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -194,8 +231,10 @@ struct TakeLibraryView: View {
 
     private func startTimer() {
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-            guard isDraggingSlider == false else { return }
-            sliderValue = playbackController.currentSeconds()
+            Task { @MainActor in
+                guard isDraggingSlider == false else { return }
+                sliderValue = playbackController.currentSeconds()
+            }
         }
     }
 

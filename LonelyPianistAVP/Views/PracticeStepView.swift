@@ -110,7 +110,8 @@ struct PracticeStepView: View {
                         Button("开始录制", systemImage: "circle.fill") {
                             viewModel.startRecording()
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.borderedProminent)
+                        .tint(.red)
                         .buttonBorderShape(.roundedRectangle)
                         .hoverEffect()
                         .disabled(viewModel.canRecord == false || viewModel.isAIPerformanceActive || viewModel.takePlaybackController.isPlaying)
