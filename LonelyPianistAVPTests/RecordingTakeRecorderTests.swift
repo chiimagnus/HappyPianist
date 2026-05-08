@@ -81,6 +81,19 @@ func recorderClampsNoteAndVelocity() {
 }
 
 @Test
+func recorderClampsNoteOff() {
+    var recorder = RecordingTakeRecorder()
+    recorder.start(now: 0.0)
+    recorder.recordNoteOn(note: 200, velocity: 90, now: 0.1)
+    recorder.recordNoteOff(note: 200, now: 0.3)
+    let take = recorder.stop(now: 0.5)
+
+    #expect(take.events.count == 2)
+    #expect(take.events[0].kind == .noteOn(midi: 127, velocity: 90))
+    #expect(take.events[1].kind == .noteOff(midi: 127))
+}
+
+@Test
 func recorderDurationBasedOnMaxEventTime() {
     var recorder = RecordingTakeRecorder()
     recorder.start(now: 0.0)

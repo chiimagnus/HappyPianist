@@ -40,17 +40,17 @@ nonisolated struct RecordingTakeRecorder {
     mutating func recordNoteOn(note: Int, velocity: Int, now: TimeInterval) {
         guard isRecording else { return }
         let relativeTime = max(0, now - takeStart)
+        let clampedNote = max(0, min(127, note))
+        let clampedVelocity = max(0, min(127, velocity))
 
-        if let existing = openNotes[note] {
+        if let existing = openNotes[clampedNote] {
             let endTime = max(relativeTime, existing.startTime)
             events.append(
-                RecordingTakeEvent(time: endTime, kind: .noteOff(midi: note))
+                RecordingTakeEvent(time: endTime, kind: .noteOff(midi: clampedNote))
             )
         }
 
-        let clampedNote = max(0, min(127, note))
-        let clampedVelocity = max(0, min(127, velocity))
-        openNotes[note] = OpenNote(startTime: relativeTime, velocity: clampedVelocity)
+        openNotes[clampedNote] = OpenNote(startTime: relativeTime, velocity: clampedVelocity)
         events.append(
             RecordingTakeEvent(time: relativeTime, kind: .noteOn(midi: clampedNote, velocity: clampedVelocity))
         )
@@ -58,11 +58,12 @@ nonisolated struct RecordingTakeRecorder {
 
     mutating func recordNoteOff(note: Int, now: TimeInterval) {
         guard isRecording else { return }
-        guard let open = openNotes.removeValue(forKey: note) else { return }
+        let clampedNote = max(0, min(127, note))
+        guard let open = openNotes.removeValue(forKey: clampedNote) else { return }
         let relativeTime = max(0, now - takeStart)
         let endTime = max(relativeTime, open.startTime)
         events.append(
-            RecordingTakeEvent(time: endTime, kind: .noteOff(midi: note))
+            RecordingTakeEvent(time: endTime, kind: .noteOff(midi: clampedNote))
         )
     }
 
