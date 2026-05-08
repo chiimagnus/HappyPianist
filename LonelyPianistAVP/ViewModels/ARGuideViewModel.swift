@@ -1232,6 +1232,7 @@ final class ARGuideViewModel {
 
     func startRecording() {
         guard canRecord else { return }
+        takePlaybackController.stop()
         let now = ProcessInfo.processInfo.systemUptime
         takeRecorder.start(now: now)
         isRecording = true

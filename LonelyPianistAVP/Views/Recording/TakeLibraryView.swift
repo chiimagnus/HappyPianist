@@ -3,6 +3,7 @@ import SwiftUI
 struct TakeLibraryView: View {
     let takes: [RecordingTake]
     let playbackController: TakePlaybackController
+    var isRecording: Bool = false
     let onRename: (UUID, String) -> Void
     let onDelete: (UUID) -> Void
     let onClearAll: () -> Void
@@ -73,6 +74,7 @@ struct TakeLibraryView: View {
             }
             .buttonBorderShape(.roundedRectangle)
             .hoverEffect()
+            .disabled(isRecording)
 
             Menu {
                 Button("重命名", systemImage: "pencil") {
@@ -106,7 +108,7 @@ struct TakeLibraryView: View {
             }
             .buttonBorderShape(.roundedRectangle)
             .hoverEffect()
-            .disabled(playbackController.currentTakeID == nil)
+            .disabled(playbackController.currentTakeID == nil || isRecording)
 
             Button {
                 playbackController.stop()
@@ -117,7 +119,7 @@ struct TakeLibraryView: View {
             }
             .buttonBorderShape(.roundedRectangle)
             .hoverEffect()
-            .disabled(playbackController.currentTakeID == nil)
+            .disabled(playbackController.currentTakeID == nil || isRecording)
 
             Slider(value: $sliderValue, in: 0...max(1, totalDuration)) { editing in
                 isDraggingSlider = editing

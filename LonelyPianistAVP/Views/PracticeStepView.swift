@@ -113,7 +113,7 @@ struct PracticeStepView: View {
                         .buttonStyle(.bordered)
                         .buttonBorderShape(.roundedRectangle)
                         .hoverEffect()
-                        .disabled(viewModel.canRecord == false || viewModel.isAIPerformanceActive)
+                        .disabled(viewModel.canRecord == false || viewModel.isAIPerformanceActive || viewModel.takePlaybackController.isPlaying)
                     }
 
                     if isAutoplayEnabled {
@@ -221,6 +221,7 @@ struct PracticeStepView: View {
                     TakeLibraryView(
                         takes: viewModel.takeLibraryTakes,
                         playbackController: viewModel.takePlaybackController,
+                        isRecording: viewModel.isRecording,
                         onRename: { id, name in viewModel.renameTake(id: id, name: name) },
                         onDelete: { id in viewModel.deleteTake(id: id) },
                         onClearAll: { viewModel.clearAllTakes() }
