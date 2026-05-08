@@ -97,7 +97,6 @@ final class ARGuideViewModel {
     private let backendDiscoveryService = BonjourBackendDiscoveryService()
     private var phraseRecorder = PhraseRecorder()
     private var takeRecorder = RecordingTakeRecorder()
-    private let takeStore = RecordingTakeStore()
     private let takeLibraryViewModel = TakeLibraryViewModel()
     let takePlaybackController = TakePlaybackController(
         playbackService: AVAudioSequencerPracticePlaybackService(soundFontResourceName: "Piano")
