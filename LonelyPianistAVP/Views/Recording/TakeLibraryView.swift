@@ -18,6 +18,7 @@ struct TakeLibraryView: View {
     @State private var timer: Timer?
     @State private var exportDocument: MIDIFileDocument?
     @State private var exportFileName: String = ""
+    @State private var exportError: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -52,12 +53,12 @@ struct TakeLibraryView: View {
             defaultFilename: exportFileName
         ) { _ in }
         .alert("错误", isPresented: .init(
-            get: { errorMessage != nil },
-            set: { if !$0 { onErrorDismiss() } }
+            get: { errorMessage != nil || exportError != nil },
+            set: { if !$0 { onErrorDismiss(); exportError = nil } }
         )) {
-            Button("知道了") { onErrorDismiss() }
+            Button("知道了") { onErrorDismiss(); exportError = nil }
         } message: {
-            Text(errorMessage ?? "")
+            Text(errorMessage ?? exportError ?? "")
         }
         .alert("重命名", isPresented: .init(
             get: { renameTarget != nil },
@@ -218,10 +219,14 @@ struct TakeLibraryView: View {
 
     private func exportMIDI(_ take: RecordingTake) {
         let adapter = RecordingTakeSequenceAdapter()
-        guard let sequence = try? adapter.buildSequence(from: take) else { return }
-        exportDocument = MIDIFileDocument(data: sequence.midiData)
-        let sanitizedName = take.name.replacingOccurrences(of: "/", with: "-")
-            .replacingOccurrences(of: ":", with: "-")
-        exportFileName = "\(sanitizedName).mid"
+        do {
+            let sequence = try adapter.buildSequence(from: take)
+            exportDocument = MIDIFileDocument(data: sequence.midiData)
+            let sanitizedName = take.name.replacingOccurrences(of: "/", with: "-")
+                .replacingOccurrences(of: ":", with: "-")
+            exportFileName = "\(sanitizedName).mid"
+        } catch {
+            exportError = "导出失败：\(error.localizedDescription)"
+        }
     }
 }
