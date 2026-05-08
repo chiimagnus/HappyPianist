@@ -205,6 +205,8 @@ struct PracticeStepView: View {
                 isStepVisible = false
                 hasRequestedImmersiveOpen = false
                 isVirtualPerformerEnabled = false
+                viewModel.stopRecording()
+                viewModel.takePlaybackController.stop()
                 viewModel.setPracticeAutoplayEnabled(false)
                 viewModel.setPracticeVirtualPianoEnabled(false)
                 viewModel.setPracticeVirtualPerformerEnabled(false)
