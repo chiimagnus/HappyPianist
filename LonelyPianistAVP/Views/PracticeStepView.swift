@@ -93,6 +93,28 @@ struct PracticeStepView: View {
                         settingsPopover
                     }
 
+                    if viewModel.isRecording {
+                        Button("结束录制", systemImage: "stop.circle.fill") {
+                            viewModel.stopRecording()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.red)
+                        .buttonBorderShape(.roundedRectangle)
+                        .hoverEffect()
+
+                        Text(viewModel.recordingElapsedText)
+                            .monospacedDigit()
+                            .foregroundStyle(.red)
+                    } else {
+                        Button("开始录制", systemImage: "circle.fill") {
+                            viewModel.startRecording()
+                        }
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.roundedRectangle)
+                        .hoverEffect()
+                        .disabled(viewModel.canRecord == false || viewModel.isAIPerformanceActive)
+                    }
+
                     if isAutoplayEnabled {
                         Text(viewModel.practiceSessionViewModel.isSustainPedalDown ? "Pedal ↓" : "Pedal ↑")
                             .foregroundStyle(.secondary)

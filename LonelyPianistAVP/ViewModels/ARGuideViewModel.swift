@@ -96,6 +96,10 @@ final class ARGuideViewModel {
     private var latestGazeRayOriginWorld: SIMD3<Float>?
     private let backendDiscoveryService = BonjourBackendDiscoveryService()
     private var phraseRecorder = PhraseRecorder()
+    private var takeRecorder = RecordingTakeRecorder()
+    private let takeStore = RecordingTakeStore()
+    private(set) var isRecording = false
+    private var recordingStartDate: Date?
 
     init(appState: AppState, practiceSessionViewModel: PracticeSessionViewModel? = nil) {
         self.appState = appState
@@ -1194,6 +1198,43 @@ final class ARGuideViewModel {
                 return "\(min(index + 1, total)) / \(total)"
             case .completed:
                 return "\(total) / \(total)"
+        }
+    }
+
+    var recordingElapsedText: String {
+        guard let startDate = recordingStartDate else { return "00:00" }
+        let elapsed = Date().timeIntervalSince(startDate)
+        let minutes = Int(elapsed) / 60
+        let seconds = Int(elapsed) % 60
+        return String(format: "%02d:%02d", minutes, seconds)
+    }
+
+    var canRecord: Bool {
+        isVirtualPianoEnabled == false
+    }
+
+    func startRecording() {
+        guard canRecord else { return }
+        let now = ProcessInfo.processInfo.systemUptime
+        takeRecorder.start(now: now)
+        isRecording = true
+        recordingStartDate = Date()
+    }
+
+    func stopRecording() {
+        guard isRecording else { return }
+        let now = ProcessInfo.processInfo.systemUptime
+        let take = takeRecorder.stop(now: now)
+        isRecording = false
+        recordingStartDate = nil
+
+        guard take.events.isEmpty == false else { return }
+        do {
+            var takes = try takeStore.load()
+            takes.insert(take, at: 0)
+            try takeStore.save(takes)
+        } catch {
+            // Recording save failure is non-critical
         }
     }
 
