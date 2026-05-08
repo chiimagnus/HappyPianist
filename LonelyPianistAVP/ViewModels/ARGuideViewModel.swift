@@ -896,6 +896,7 @@ final class ARGuideViewModel {
                         } else {
                             _ = practiceSessionViewModel.handleFingerTipPositions(fingerTips)
                             recordPhraseIfNeeded(nowUptime: nowUptime)
+                            recordTakeIfNeeded(nowUptime: nowUptime)
                         }
                 }
             }
@@ -916,6 +917,18 @@ final class ARGuideViewModel {
             for note in contact.ended {
                 phraseRecorder.recordNoteOff(midi: note, timestamp: nowUptime)
             }
+        }
+    }
+
+    private func recordTakeIfNeeded(nowUptime: TimeInterval) {
+        guard isRecording, isVirtualPianoEnabled == false else { return }
+
+        let contact = practiceSessionViewModel.latestKeyContactResult
+        for note in contact.started {
+            takeRecorder.recordNoteOn(note: note, velocity: 90, now: nowUptime)
+        }
+        for note in contact.ended {
+            takeRecorder.recordNoteOff(note: note, now: nowUptime)
         }
     }
 
