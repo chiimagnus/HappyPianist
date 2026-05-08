@@ -13,6 +13,7 @@ struct PracticeStepView: View {
     @State private var isSettingsPopoverPresented = false
     @State private var isAudioErrorAlertPresented = false
     @State private var isAutoplayErrorAlertPresented = false
+    @State private var isTakeLibraryPresented = false
 
     @State private var isVirtualPianoEnabled = false
     @State private var isVirtualPerformerEnabled = false
@@ -91,6 +92,29 @@ struct PracticeStepView: View {
                     .disabled(viewModel.isAIPerformanceActive)
                     .popover(isPresented: $isSettingsPopoverPresented) {
                         settingsPopover
+                    }
+
+                    if viewModel.isRecording {
+                        Button("结束录制", systemImage: "stop.circle.fill") {
+                            viewModel.stopRecording()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.red)
+                        .buttonBorderShape(.roundedRectangle)
+                        .hoverEffect()
+
+                        Text(viewModel.recordingElapsedText)
+                            .monospacedDigit()
+                            .foregroundStyle(.red)
+                    } else {
+                        Button("开始录制", systemImage: "circle.fill") {
+                            viewModel.startRecording()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.red)
+                        .buttonBorderShape(.roundedRectangle)
+                        .hoverEffect()
+                        .disabled(viewModel.canRecord == false || viewModel.isAIPerformanceActive || viewModel.takePlaybackController.isPlaying)
                     }
 
                     if isAutoplayEnabled {
@@ -182,6 +206,8 @@ struct PracticeStepView: View {
                 isStepVisible = false
                 hasRequestedImmersiveOpen = false
                 isVirtualPerformerEnabled = false
+                viewModel.stopRecording()
+                viewModel.takePlaybackController.stop()
                 viewModel.setPracticeAutoplayEnabled(false)
                 viewModel.setPracticeVirtualPianoEnabled(false)
                 viewModel.setPracticeVirtualPerformerEnabled(false)
@@ -190,6 +216,29 @@ struct PracticeStepView: View {
                     await viewModel.closeImmersiveForStep(using: dismissImmersiveSpace)
                     await viewModel.recoverImmersiveStateIfStuck()
                 }
+            }
+            .sheet(isPresented: $isTakeLibraryPresented) {
+                NavigationStack {
+                    TakeLibraryView(
+                        takes: viewModel.takeLibraryTakes,
+                        playbackController: viewModel.takePlaybackController,
+                        isRecording: viewModel.isRecording,
+                        errorMessage: viewModel.takeLibraryErrorMessage,
+                        onErrorDismiss: { viewModel.dismissTakeLibraryError() },
+                        onRename: { id, name in viewModel.renameTake(id: id, name: name) },
+                        onDelete: { id in viewModel.deleteTake(id: id) },
+                        onClearAll: { viewModel.clearAllTakes() }
+                    )
+                    .navigationTitle("录制库")
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("关闭") {
+                                isTakeLibraryPresented = false
+                            }
+                        }
+                    }
+                }
+                .frame(minWidth: 400, minHeight: 500)
             }
     }
 
@@ -295,7 +344,11 @@ struct PracticeStepView: View {
                 virtualPianoEnabled: $isVirtualPianoEnabled,
                 virtualPerformerEnabled: $isVirtualPerformerEnabled,
                 backendStatusText: viewModel.backendStatusText,
-                lastImprovStatusText: viewModel.lastImprovStatusText
+                lastImprovStatusText: viewModel.lastImprovStatusText,
+                onOpenTakeLibrary: {
+                    isSettingsPopoverPresented = false
+                    isTakeLibraryPresented = true
+                }
             )
             .disabled(viewModel.isAIPerformanceActive)
 

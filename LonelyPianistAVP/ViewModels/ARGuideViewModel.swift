@@ -96,6 +96,13 @@ final class ARGuideViewModel {
     private var latestGazeRayOriginWorld: SIMD3<Float>?
     private let backendDiscoveryService = BonjourBackendDiscoveryService()
     private var phraseRecorder = PhraseRecorder()
+    private var takeRecorder = RecordingTakeRecorder()
+    private let takeLibraryViewModel = TakeLibraryViewModel()
+    let takePlaybackController = TakePlaybackController(
+        playbackService: AVAudioSequencerPracticePlaybackService(soundFontResourceName: "Piano")
+    )
+    private(set) var isRecording = false
+    private var recordingStartDate: Date?
 
     init(appState: AppState, practiceSessionViewModel: PracticeSessionViewModel? = nil) {
         self.appState = appState
@@ -888,6 +895,7 @@ final class ARGuideViewModel {
                         } else {
                             _ = practiceSessionViewModel.handleFingerTipPositions(fingerTips)
                             recordPhraseIfNeeded(nowUptime: nowUptime)
+                            recordTakeIfNeeded(nowUptime: nowUptime)
                         }
                 }
             }
@@ -908,6 +916,18 @@ final class ARGuideViewModel {
             for note in contact.ended {
                 phraseRecorder.recordNoteOff(midi: note, timestamp: nowUptime)
             }
+        }
+    }
+
+    private func recordTakeIfNeeded(nowUptime: TimeInterval) {
+        guard isRecording, isVirtualPianoEnabled == false else { return }
+
+        let contact = practiceSessionViewModel.latestKeyContactResult
+        for note in contact.started {
+            takeRecorder.recordNoteOn(note: note, velocity: 90, now: nowUptime)
+        }
+        for note in contact.ended {
+            takeRecorder.recordNoteOff(note: note, now: nowUptime)
         }
     }
 
@@ -1195,6 +1215,62 @@ final class ARGuideViewModel {
             case .completed:
                 return "\(total) / \(total)"
         }
+    }
+
+    var recordingElapsedText: String {
+        guard let startDate = recordingStartDate else { return "00:00" }
+        let elapsed = Date().timeIntervalSince(startDate)
+        let minutes = Int(elapsed) / 60
+        let seconds = Int(elapsed) % 60
+        return String(format: "%02d:%02d", minutes, seconds)
+    }
+
+    var canRecord: Bool {
+        isVirtualPianoEnabled == false
+    }
+
+    func startRecording() {
+        guard canRecord else { return }
+        takePlaybackController.stop()
+        let now = ProcessInfo.processInfo.systemUptime
+        takeRecorder.start(now: now)
+        isRecording = true
+        recordingStartDate = Date()
+    }
+
+    func stopRecording() {
+        guard isRecording else { return }
+        let now = ProcessInfo.processInfo.systemUptime
+        let take = takeRecorder.stop(now: now)
+        isRecording = false
+        recordingStartDate = nil
+
+        guard take.events.isEmpty == false else { return }
+        takeLibraryViewModel.addTake(take)
+    }
+
+    var takeLibraryTakes: [RecordingTake] {
+        takeLibraryViewModel.takes
+    }
+
+    var takeLibraryErrorMessage: String? {
+        takeLibraryViewModel.errorMessage
+    }
+
+    func dismissTakeLibraryError() {
+        takeLibraryViewModel.dismissError()
+    }
+
+    func renameTake(id: UUID, name: String) {
+        takeLibraryViewModel.rename(takeID: id, to: name)
+    }
+
+    func deleteTake(id: UUID) {
+        takeLibraryViewModel.delete(takeID: id)
+    }
+
+    func clearAllTakes() {
+        takeLibraryViewModel.clearAll()
     }
 
     private func beginPracticeLocalization(
