@@ -98,6 +98,10 @@ final class ARGuideViewModel {
     private var phraseRecorder = PhraseRecorder()
     private var takeRecorder = RecordingTakeRecorder()
     private let takeStore = RecordingTakeStore()
+    private let takeLibraryViewModel = TakeLibraryViewModel()
+    let takePlaybackController = TakePlaybackController(
+        playbackService: AVAudioSequencerPracticePlaybackService(soundFontResourceName: "Piano")
+    )
     private(set) var isRecording = false
     private var recordingStartDate: Date?
 
@@ -1229,13 +1233,23 @@ final class ARGuideViewModel {
         recordingStartDate = nil
 
         guard take.events.isEmpty == false else { return }
-        do {
-            var takes = try takeStore.load()
-            takes.insert(take, at: 0)
-            try takeStore.save(takes)
-        } catch {
-            // Recording save failure is non-critical
-        }
+        takeLibraryViewModel.addTake(take)
+    }
+
+    var takeLibraryTakes: [RecordingTake] {
+        takeLibraryViewModel.takes
+    }
+
+    func renameTake(id: UUID, name: String) {
+        takeLibraryViewModel.rename(takeID: id, to: name)
+    }
+
+    func deleteTake(id: UUID) {
+        takeLibraryViewModel.delete(takeID: id)
+    }
+
+    func clearAllTakes() {
+        takeLibraryViewModel.clearAll()
     }
 
     private func beginPracticeLocalization(

@@ -13,6 +13,7 @@ struct PracticeStepView: View {
     @State private var isSettingsPopoverPresented = false
     @State private var isAudioErrorAlertPresented = false
     @State private var isAutoplayErrorAlertPresented = false
+    @State private var isTakeLibraryPresented = false
 
     @State private var isVirtualPianoEnabled = false
     @State private var isVirtualPerformerEnabled = false
@@ -213,6 +214,26 @@ struct PracticeStepView: View {
                     await viewModel.recoverImmersiveStateIfStuck()
                 }
             }
+            .sheet(isPresented: $isTakeLibraryPresented) {
+                NavigationStack {
+                    TakeLibraryView(
+                        takes: viewModel.takeLibraryTakes,
+                        playbackController: viewModel.takePlaybackController,
+                        onRename: { id, name in viewModel.renameTake(id: id, name: name) },
+                        onDelete: { id in viewModel.deleteTake(id: id) },
+                        onClearAll: { viewModel.clearAllTakes() }
+                    )
+                    .navigationTitle("录制库")
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("关闭") {
+                                isTakeLibraryPresented = false
+                            }
+                        }
+                    }
+                }
+                .frame(minWidth: 400, minHeight: 500)
+            }
     }
 
     private var practiceSurface: some View {
@@ -317,7 +338,11 @@ struct PracticeStepView: View {
                 virtualPianoEnabled: $isVirtualPianoEnabled,
                 virtualPerformerEnabled: $isVirtualPerformerEnabled,
                 backendStatusText: viewModel.backendStatusText,
-                lastImprovStatusText: viewModel.lastImprovStatusText
+                lastImprovStatusText: viewModel.lastImprovStatusText,
+                onOpenTakeLibrary: {
+                    isSettingsPopoverPresented = false
+                    isTakeLibraryPresented = true
+                }
             )
             .disabled(viewModel.isAIPerformanceActive)
 

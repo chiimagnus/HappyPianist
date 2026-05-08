@@ -5,6 +5,7 @@ struct PracticeSettingsView: View {
     @Binding var virtualPerformerEnabled: Bool
     let backendStatusText: String?
     let lastImprovStatusText: String?
+    var onOpenTakeLibrary: (() -> Void)?
 
     @AppStorage("practiceAudioRecognitionDebugOverlayEnabled") private var practiceAudioRecognitionDebugOverlayEnabled =
         false
@@ -29,6 +30,15 @@ struct PracticeSettingsView: View {
                 }
             }
             Toggle("沉浸式：360° 全景背景", isOn: $immersivePanoramaEnabled)
+
+            Divider()
+
+            Button("打开录制库", systemImage: "list.bullet") {
+                onOpenTakeLibrary?()
+            }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.roundedRectangle)
+            .hoverEffect()
 
             Divider()
 
