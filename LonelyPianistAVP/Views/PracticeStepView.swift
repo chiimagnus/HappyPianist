@@ -222,6 +222,8 @@ struct PracticeStepView: View {
                         takes: viewModel.takeLibraryTakes,
                         playbackController: viewModel.takePlaybackController,
                         isRecording: viewModel.isRecording,
+                        errorMessage: viewModel.takeLibraryErrorMessage,
+                        onErrorDismiss: { viewModel.dismissTakeLibraryError() },
                         onRename: { id, name in viewModel.renameTake(id: id, name: name) },
                         onDelete: { id in viewModel.deleteTake(id: id) },
                         onClearAll: { viewModel.clearAllTakes() }

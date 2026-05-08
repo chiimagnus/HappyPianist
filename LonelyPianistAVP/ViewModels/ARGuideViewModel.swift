@@ -1254,6 +1254,14 @@ final class ARGuideViewModel {
         takeLibraryViewModel.takes
     }
 
+    var takeLibraryErrorMessage: String? {
+        takeLibraryViewModel.errorMessage
+    }
+
+    func dismissTakeLibraryError() {
+        takeLibraryViewModel.dismissError()
+    }
+
     func renameTake(id: UUID, name: String) {
         takeLibraryViewModel.rename(takeID: id, to: name)
     }
