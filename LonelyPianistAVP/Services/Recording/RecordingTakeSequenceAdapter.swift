@@ -11,14 +11,17 @@ nonisolated struct RecordingTakeSequenceAdapter {
         take.events.map { event in
             switch event.kind {
             case let .noteOn(midi, velocity):
-                PracticeSequencerMIDIEvent(
+                let clampedMIDINote = max(0, min(127, midi))
+                let clampedVelocity = max(0, min(127, velocity))
+                return PracticeSequencerMIDIEvent(
                     timeSeconds: event.time,
-                    kind: .noteOn(midi: midi, velocity: UInt8(clamping: velocity))
+                    kind: .noteOn(midi: clampedMIDINote, velocity: UInt8(clampedVelocity))
                 )
             case let .noteOff(midi):
-                PracticeSequencerMIDIEvent(
+                let clampedMIDINote = max(0, min(127, midi))
+                return PracticeSequencerMIDIEvent(
                     timeSeconds: event.time,
-                    kind: .noteOff(midi: midi)
+                    kind: .noteOff(midi: clampedMIDINote)
                 )
             }
         }
