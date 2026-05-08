@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct TakeLibraryView: View {
     let takes: [RecordingTake]
@@ -13,6 +14,8 @@ struct TakeLibraryView: View {
     @State private var renameTarget: RecordingTake?
     @State private var renameText = ""
     @State private var timer: Timer?
+    @State private var exportDocument: MIDIFileDocument?
+    @State private var exportFileName: String = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -37,6 +40,15 @@ struct TakeLibraryView: View {
         }
         .onAppear { startTimer() }
         .onDisappear { stopTimer() }
+        .fileExporter(
+            isPresented: .init(
+                get: { exportDocument != nil },
+                set: { if !$0 { exportDocument = nil } }
+            ),
+            document: exportDocument,
+            contentType: .midi,
+            defaultFilename: exportFileName
+        ) { _ in }
         .alert("重命名", isPresented: .init(
             get: { renameTarget != nil },
             set: { if !$0 { renameTarget = nil } }
@@ -80,6 +92,9 @@ struct TakeLibraryView: View {
                 Button("重命名", systemImage: "pencil") {
                     renameText = take.name
                     renameTarget = take
+                }
+                Button("导出 MIDI...", systemImage: "square.and.arrow.up") {
+                    exportMIDI(take)
                 }
                 Button("删除", systemImage: "trash", role: .destructive) {
                     onDelete(take.id)
@@ -189,5 +204,14 @@ struct TakeLibraryView: View {
         formatter.dateStyle = .medium
         formatter.timeStyle = .short
         return formatter.string(from: date)
+    }
+
+    private func exportMIDI(_ take: RecordingTake) {
+        let adapter = RecordingTakeSequenceAdapter()
+        guard let sequence = try? adapter.buildSequence(from: take) else { return }
+        exportDocument = MIDIFileDocument(data: sequence.midiData)
+        let sanitizedName = take.name.replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-")
+        exportFileName = "\(sanitizedName).mid"
     }
 }
