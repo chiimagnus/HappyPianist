@@ -5,6 +5,8 @@ struct TakeLibraryView: View {
     let takes: [RecordingTake]
     let playbackController: TakePlaybackController
     var isRecording: Bool = false
+    var errorMessage: String?
+    let onErrorDismiss: () -> Void
     let onRename: (UUID, String) -> Void
     let onDelete: (UUID) -> Void
     let onClearAll: () -> Void
@@ -49,6 +51,14 @@ struct TakeLibraryView: View {
             contentType: .midi,
             defaultFilename: exportFileName
         ) { _ in }
+        .alert("错误", isPresented: .init(
+            get: { errorMessage != nil },
+            set: { if !$0 { onErrorDismiss() } }
+        )) {
+            Button("知道了") { onErrorDismiss() }
+        } message: {
+            Text(errorMessage ?? "")
+        }
         .alert("重命名", isPresented: .init(
             get: { renameTarget != nil },
             set: { if !$0 { renameTarget = nil } }
