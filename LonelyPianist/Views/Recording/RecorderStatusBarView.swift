@@ -4,25 +4,51 @@ import SwiftUI
 struct RecorderStatusBarView: View {
     @Bindable var viewModel: LonelyPianistViewModel
 
+    @State private var isScrubbing = false
+
     var body: some View {
         let take = viewModel.displayedTake
 
-        HStack(spacing: 14) {
-            Text(viewModel.recorderStatusMessage)
-                .foregroundStyle(.secondary)
+        VStack(spacing: 6) {
+            Slider(
+                value: playheadBinding,
+                in: 0 ... (take?.durationSec ?? 0)
+            ) { isEditing in
+                isScrubbing = isEditing
+            }
+            .disabled(take == nil || viewModel.recorderMode == .recording)
 
-            Spacer(minLength: 0)
+            HStack(spacing: 14) {
+                Text(viewModel.recorderStatusMessage)
+                    .foregroundStyle(.secondary)
 
-            Text("Notes: \(take?.notes.count ?? 0)")
+                Spacer(minLength: 0)
 
-            Text(statusTimeText(for: take))
-                .font(.system(.caption, design: .monospaced))
-                .foregroundStyle(.secondary)
+                Text("Notes: \(take?.notes.count ?? 0)")
+
+                Text(statusTimeText(for: take))
+                    .font(.system(.caption, design: .monospaced))
+                    .foregroundStyle(.secondary)
+            }
         }
         .font(.caption)
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
         .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var playheadBinding: Binding<Double> {
+        Binding(
+            get: { viewModel.playheadSec },
+            set: { newValue in
+                let seconds = TimeInterval(newValue)
+                if isScrubbing {
+                    viewModel.seekPlayback(to: seconds)
+                } else {
+                    viewModel.playheadSec = seconds
+                }
+            }
+        )
     }
 
     private func statusTimeText(for take: RecordingTake?) -> String {
