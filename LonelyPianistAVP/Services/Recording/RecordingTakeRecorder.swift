@@ -19,7 +19,7 @@ nonisolated struct RecordingTakeRecorder {
         takeStart = now
     }
 
-    mutating func stop(now: TimeInterval) -> RecordingTake {
+    mutating func stop(now: TimeInterval, createdAt: Date = .now) -> RecordingTake {
         let relativeNow = max(0, now - takeStart)
 
         for (midi, open) in openNotes {
@@ -33,8 +33,8 @@ nonisolated struct RecordingTakeRecorder {
         isRecording = false
 
         let sortedEvents = events.sorted { $0.time < $1.time }
-        let name = "Take \(formattedDate(now))"
-        return RecordingTake(name: name, events: sortedEvents)
+        let name = "Take \(formattedDate(createdAt))"
+        return RecordingTake(name: name, createdAt: createdAt, events: sortedEvents)
     }
 
     mutating func recordNoteOn(note: Int, velocity: Int, now: TimeInterval) {
@@ -73,8 +73,7 @@ nonisolated struct RecordingTakeRecorder {
         takeStart = 0
     }
 
-    private func formattedDate(_ timeInterval: TimeInterval) -> String {
-        let date = Date(timeIntervalSince1970: timeInterval)
+    private func formattedDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         formatter.locale = Locale(identifier: "en_US_POSIX")
