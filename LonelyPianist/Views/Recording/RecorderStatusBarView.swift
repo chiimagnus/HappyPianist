@@ -14,7 +14,10 @@ struct RecorderStatusBarView: View {
             Spacer(minLength: 0)
 
             Text("Notes: \(take?.notes.count ?? 0)")
-            Text("Duration: \(durationText(for: take))")
+
+            Text(statusTimeText(for: take))
+                .font(.system(.caption, design: .monospaced))
+                .foregroundStyle(.secondary)
         }
         .font(.caption)
         .padding(.horizontal, 12)
@@ -22,10 +25,26 @@ struct RecorderStatusBarView: View {
         .background(Color(nsColor: .windowBackgroundColor))
     }
 
-    private func durationText(for take: RecordingTake?) -> String {
-        let duration = Int(take?.durationSec ?? 0)
-        let minutes = duration / 60
-        let seconds = duration % 60
-        return String(format: "%02d:%02d", minutes, seconds)
+    private func statusTimeText(for take: RecordingTake?) -> String {
+        let total = Int(take?.durationSec ?? 0)
+        let current = Int(viewModel.playheadSec)
+        return "\(modeText) \(format(seconds: current)) / \(format(seconds: total))"
+    }
+
+    private var modeText: String {
+        switch viewModel.recorderMode {
+            case .idle:
+                "Idle"
+            case .recording:
+                "Recording"
+            case .playing:
+                "Playing"
+        }
+    }
+
+    private func format(seconds: Int) -> String {
+        let minutes = max(0, seconds) / 60
+        let remainder = max(0, seconds) % 60
+        return String(format: "%02d:%02d", minutes, remainder)
     }
 }
