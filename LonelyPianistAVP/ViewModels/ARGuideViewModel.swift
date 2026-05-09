@@ -1241,7 +1241,8 @@ final class ARGuideViewModel {
     func stopRecording() {
         guard isRecording else { return }
         let now = ProcessInfo.processInfo.systemUptime
-        let take = takeRecorder.stop(now: now)
+        let createdAt = Date()
+        let take = takeRecorder.stop(now: now, createdAt: createdAt)
         isRecording = false
         recordingStartDate = nil
 
