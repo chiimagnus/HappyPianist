@@ -77,6 +77,19 @@ final class RecordingServiceMock: RecordingServiceProtocol {
         return nil
     }
 
+    func makeLivePreview(at date: Date, takeID: UUID, name: String) -> RecordingTake? {
+        guard isRecording, let startedAt else { return nil }
+        let duration = max(0, date.timeIntervalSince(startedAt))
+        return RecordingTake(
+            id: takeID,
+            name: name,
+            createdAt: startedAt,
+            updatedAt: date,
+            durationSec: duration,
+            notes: []
+        )
+    }
+
     func cancelRecording() {
         isRecording = false
     }

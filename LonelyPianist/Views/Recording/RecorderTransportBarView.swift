@@ -126,11 +126,11 @@ struct RecorderTransportBarView: View {
 
             Slider(
                 value: playheadBinding,
-                in: 0 ... (viewModel.selectedTake?.durationSec ?? 0)
+                in: 0 ... (viewModel.displayedTake?.durationSec ?? 0)
             ) { isEditing in
                 isScrubbing = isEditing
             }
-            .disabled(viewModel.selectedTake == nil)
+            .disabled(viewModel.displayedTake == nil || viewModel.recorderMode == .recording)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -214,7 +214,7 @@ struct RecorderTransportBarView: View {
     }
 
     private var durationText: String {
-        let total = Int(viewModel.selectedTake?.durationSec ?? 0)
+        let total = Int(viewModel.displayedTake?.durationSec ?? 0)
         let current = Int(viewModel.playheadSec)
         return "\(format(seconds: current)) / \(format(seconds: total))"
     }

@@ -9,7 +9,7 @@ struct RecorderPanelView: View {
             RecorderTransportBarView(viewModel: viewModel)
             Divider()
 
-            PianoRollView(take: viewModel.selectedTake, playheadSec: viewModel.playheadSec)
+            PianoRollView(take: viewModel.displayedTake, playheadSec: viewModel.playheadSec)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
 
             Divider()

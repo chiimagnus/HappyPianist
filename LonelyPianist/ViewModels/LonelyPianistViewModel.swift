@@ -32,6 +32,9 @@ final class LonelyPianistViewModel {
     var selectedPlaybackOutputID: String = MIDIPlaybackOutputOption.builtInSamplerID
     var pressedNotes: [Int] = []
     var recentLogs: [EventLogItem] = []
+    var liveRecordingTake: RecordingTake?
+    private var liveRecordingTakeID: UUID?
+    private var recordingClockTask: Task<Void, Never>?
 
     private let logger = Logger(subsystem: "com.chiimagnus.LonelyPianist", category: "ViewModel")
 
@@ -61,6 +64,10 @@ final class LonelyPianistViewModel {
     var selectedTake: RecordingTake? {
         guard let selectedTakeID else { return nil }
         return takes.first(where: { $0.id == selectedTakeID })
+    }
+
+    var displayedTake: RecordingTake? {
+        recorderMode == .recording ? liveRecordingTake : selectedTake
     }
 
     var canRecord: Bool {
@@ -167,12 +174,16 @@ final class LonelyPianistViewModel {
         guard recorderMode == .idle else { return }
 
         let now = Date()
+        liveRecordingTakeID = UUID()
         recordingService.startRecording(at: now)
         recorderMode = .recording
         playheadSec = 0
         recorderStatusMessage = "Recording..."
         statusMessage = "Recording take"
         log(title: "Recorder", detail: "Recording started")
+
+        updateLiveRecordingPreview(now: now)
+        startRecordingClock()
     }
 
     func selectTake(_ id: UUID) {
@@ -319,12 +330,17 @@ final class LonelyPianistViewModel {
                 return
 
             case .recording:
+                recordingClockTask?.cancel()
+                recordingClockTask = nil
+
                 let now = Date()
                 let take = recordingService.stopRecording(
                     at: now,
-                    takeID: UUID(),
+                    takeID: liveRecordingTakeID ?? UUID(),
                     name: defaultTakeName(at: now)
                 )
+                liveRecordingTake = nil
+                liveRecordingTakeID = nil
 
                 do {
                     if let take {
@@ -358,6 +374,31 @@ final class LonelyPianistViewModel {
                 statusMessage = "Playback stopped"
                 log(title: "Recorder", detail: "Playback stopped")
         }
+    }
+
+    private func startRecordingClock() {
+        recordingClockTask?.cancel()
+        recordingClockTask = Task { [weak self] in
+            guard let self else { return }
+            while !Task.isCancelled {
+                guard recorderMode == .recording else { return }
+                let now = Date()
+                updateLiveRecordingPreview(now: now)
+
+                if let startedAt = recordingService.startedAt {
+                    playheadSec = max(0, now.timeIntervalSince(startedAt))
+                }
+
+                try? await Task.sleep(for: .milliseconds(33))
+            }
+        }
+    }
+
+    private func updateLiveRecordingPreview(now: Date) {
+        guard recorderMode == .recording else { return }
+        let takeID = liveRecordingTakeID ?? UUID()
+        liveRecordingTakeID = takeID
+        liveRecordingTake = recordingService.makeLivePreview(at: now, takeID: takeID, name: "Recording…")
     }
 
     private func bindServiceCallbacks() {
@@ -406,6 +447,7 @@ final class LonelyPianistViewModel {
 
         if recorderMode == .recording {
             recordingService.append(event: event)
+            updateLiveRecordingPreview(now: Date())
         }
     }
 
