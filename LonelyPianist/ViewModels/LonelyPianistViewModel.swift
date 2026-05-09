@@ -1,4 +1,3 @@
-import AppKit
 import Foundation
 import Observation
 import OSLog
@@ -6,30 +5,6 @@ import OSLog
 @MainActor
 @Observable
 final class LonelyPianistViewModel {
-    enum MainWindowSection: String, CaseIterable, Identifiable {
-        case runtime = "Runtime"
-        case mappings = "Mappings"
-        case recorder = "Recorder"
-        case dialogue = "Dialogue"
-
-        var id: String {
-            rawValue
-        }
-
-        var systemImage: String {
-            switch self {
-                case .runtime:
-                    "gauge"
-                case .mappings:
-                    "slider.horizontal.3"
-                case .recorder:
-                    "waveform"
-                case .dialogue:
-                    "bubble.left.and.bubble.right"
-            }
-        }
-    }
-
     enum RecorderMode: Equatable {
         case idle
         case recording
@@ -47,12 +22,7 @@ final class LonelyPianistViewModel {
     var connectionState: MIDIInputConnectionState = .idle
     var connectedSourceNames: [String] = []
     var midiEventCount = 0
-    var hasAccessibilityPermission = false
     var statusMessage = "Ready"
-
-    var activeConfig: MappingConfig?
-
-    var selectedMainWindowSection: MainWindowSection = .runtime
     var recorderMode: RecorderMode = .idle
     var takes: [RecordingTake] = []
     var selectedTakeID: UUID?
@@ -60,36 +30,15 @@ final class LonelyPianistViewModel {
     var recorderStatusMessage = "Recorder ready"
     var playbackOutputs: [MIDIPlaybackOutputOption] = []
     var selectedPlaybackOutputID: String = MIDIPlaybackOutputOption.builtInSamplerID
-    var previewText = ""
     var pressedNotes: [Int] = []
     var recentLogs: [EventLogItem] = []
-
-    var dialogueStatus: DialogueManager.Status = .idle
-    var dialogueLatencyMs: Int?
-    var dialoguePlaybackInterruptionBehavior: DialoguePlaybackInterruptionBehavior = .interrupt {
-        didSet {
-            UserDefaults.standard.set(
-                dialoguePlaybackInterruptionBehavior.rawValue,
-                forKey: DialoguePlaybackInterruptionBehavior.userDefaultsKey
-            )
-            dialogueManager.playbackInterruptionBehavior = dialoguePlaybackInterruptionBehavior
-        }
-    }
 
     private let logger = Logger(subsystem: "com.chiimagnus.LonelyPianist", category: "ViewModel")
 
     private let midiInputService: MIDIInputServiceProtocol
-    private let keyboardEventService: KeyboardEventServiceProtocol
-    private let permissionService: PermissionServiceProtocol
-    private let repository: MappingConfigRepositoryProtocol
     private let recordingRepository: RecordingTakeRepositoryProtocol
     private let recordingService: RecordingServiceProtocol
     private let playbackService: RoutableMIDIPlaybackServiceProtocol
-    private let mappingEngine: MappingEngineProtocol
-    private let shortcutService: ShortcutServiceProtocol
-    private let dialogueManager: DialogueManager
-    private var permissionPollingTask: Task<Void, Never>?
-    private var appDidBecomeActiveObserver: NSObjectProtocol?
     private var playbackClockTask: Task<Void, Never>?
     private var pendingSeekTask: Task<Void, Never>?
     private var playbackStartedAt: Date?
@@ -97,57 +46,16 @@ final class LonelyPianistViewModel {
 
     init(
         midiInputService: MIDIInputServiceProtocol,
-        keyboardEventService: KeyboardEventServiceProtocol,
-        permissionService: PermissionServiceProtocol,
-        repository: MappingConfigRepositoryProtocol,
         recordingRepository: RecordingTakeRepositoryProtocol,
         recordingService: RecordingServiceProtocol,
-        playbackService: RoutableMIDIPlaybackServiceProtocol,
-        mappingEngine: MappingEngineProtocol,
-        shortcutService: ShortcutServiceProtocol,
-        dialogueManager: DialogueManager
+        playbackService: RoutableMIDIPlaybackServiceProtocol
     ) {
         self.midiInputService = midiInputService
-        self.keyboardEventService = keyboardEventService
-        self.permissionService = permissionService
-        self.repository = repository
         self.recordingRepository = recordingRepository
         self.recordingService = recordingService
         self.playbackService = playbackService
-        self.mappingEngine = mappingEngine
-        self.shortcutService = shortcutService
-        self.dialogueManager = dialogueManager
 
         bindServiceCallbacks()
-        bindAppLifecycleCallbacks()
-
-        let behaviorRaw = UserDefaults.standard.string(forKey: DialoguePlaybackInterruptionBehavior.userDefaultsKey)
-        dialoguePlaybackInterruptionBehavior = DialoguePlaybackInterruptionBehavior(rawValue: behaviorRaw ?? "") ??
-            .interrupt
-
-        dialogueStatus = dialogueManager.status
-        dialogueManager.onStatusChange = { [weak self] status in
-            Task { @MainActor [weak self] in
-                self?.dialogueStatus = status
-            }
-        }
-        dialogueManager.onLatencyChange = { [weak self] latencyMs in
-            Task { @MainActor [weak self] in
-                self?.dialogueLatencyMs = latencyMs
-            }
-        }
-
-        dialogueManager.onSessionTakeSaved = { [weak self] takeID in
-            Task { @MainActor [weak self] in
-                guard let self else { return }
-                do {
-                    let preserveID = selectedTakeID ?? takeID
-                    try reloadTakes(preserveSelectedID: preserveID)
-                } catch {
-                    log(title: "Dialogue Save", detail: error.localizedDescription)
-                }
-            }
-        }
     }
 
     var selectedTake: RecordingTake? {
@@ -179,11 +87,7 @@ final class LonelyPianistViewModel {
     }
 
     func bootstrap() {
-        hasAccessibilityPermission = permissionService.hasAccessibilityPermission()
-
         do {
-            try repository.ensureSeedConfigIfNeeded()
-            try reloadConfig()
             try reloadTakes(preserveSelectedID: nil)
             refreshPlaybackOutputs()
         } catch {
@@ -224,14 +128,6 @@ final class LonelyPianistViewModel {
     }
 
     func startListening() {
-        hasAccessibilityPermission = permissionService.hasAccessibilityPermission()
-
-        guard hasAccessibilityPermission else {
-            statusMessage = "Accessibility permission is required"
-            log(title: "Permission", detail: "Accessibility permission missing")
-            return
-        }
-
         do {
             try midiInputService.start()
             isListening = true
@@ -244,93 +140,11 @@ final class LonelyPianistViewModel {
     }
 
     func stopListening() {
-        if dialogueManager.isActive {
-            dialogueManager.stop()
-        }
         midiInputService.stop()
-        mappingEngine.reset()
         isListening = false
         midiEventCount = 0
         pressedNotes.removeAll(keepingCapacity: false)
         statusMessage = "Stopped"
-    }
-
-    func startDialogue() {
-        guard isListening else {
-            statusMessage = "Start listening before Dialogue"
-            return
-        }
-
-        guard recorderMode == .idle else {
-            statusMessage = "Stop Recorder before Dialogue"
-            return
-        }
-
-        guard !playbackService.isPlaying else {
-            statusMessage = "Stop playback before Dialogue"
-            return
-        }
-
-        dialogueManager.playbackInterruptionBehavior = dialoguePlaybackInterruptionBehavior
-        dialogueManager.start()
-        statusMessage = "Dialogue started"
-    }
-
-    func stopDialogue() {
-        dialogueManager.stop()
-        statusMessage = "Dialogue stopped"
-    }
-
-    func requestAccessibilityPermission() {
-        permissionPollingTask?.cancel()
-        permissionPollingTask = nil
-
-        hasAccessibilityPermission = permissionService.requestAccessibilityPermission()
-
-        if hasAccessibilityPermission {
-            statusMessage = "Accessibility enabled"
-            log(title: "Permission", detail: "Accessibility granted")
-            return
-        }
-
-        statusMessage = "Waiting for Accessibility authorization..."
-        log(title: "Permission", detail: "Authorization requested")
-
-        // Poll for up to 60s so granting in System Settings updates immediately without app restart.
-        permissionPollingTask = Task { [weak self] in
-            guard let self else { return }
-            var openedSettings = false
-
-            for attempt in 0 ..< 120 {
-                try? await Task.sleep(for: .milliseconds(500))
-                guard !Task.isCancelled else { return }
-
-                let granted = permissionService.hasAccessibilityPermission()
-                hasAccessibilityPermission = granted
-
-                if granted {
-                    statusMessage = "Accessibility enabled"
-                    log(title: "Permission", detail: "Accessibility granted")
-                    permissionPollingTask = nil
-                    return
-                }
-
-                if !openedSettings, attempt == 11 {
-                    statusMessage = "Open System Settings > Privacy & Security > Accessibility and enable LonelyPianist"
-                    log(title: "Permission", detail: "No grant detected, opening System Settings")
-                    permissionService.openAccessibilitySettings()
-                    openedSettings = true
-                }
-            }
-
-            if !openedSettings {
-                statusMessage = "Open System Settings > Privacy & Security > Accessibility and enable LonelyPianist"
-                log(title: "Permission", detail: "No grant detected, opening System Settings")
-                permissionService.openAccessibilitySettings()
-            }
-
-            permissionPollingTask = nil
-        }
     }
 
     func refreshMIDISources() {
@@ -546,80 +360,6 @@ final class LonelyPianistViewModel {
         }
     }
 
-    func setVelocityEnabled(_ enabled: Bool) {
-        mutateActiveConfig { config in
-            config.payload.velocityEnabled = enabled
-        }
-    }
-
-    func setVelocityThreshold(_ value: Int) {
-        mutateActiveConfig { config in
-            config.payload.defaultVelocityThreshold = max(1, min(127, value))
-        }
-    }
-
-    func setSingleKeyMapping(note: Int, keyCode: UInt16) {
-        let clampedNote = max(0, min(127, note))
-
-        mutateActiveConfig { config in
-            let existingForNote = config.payload.singleKeyRules.filter { $0.note == clampedNote }
-            let selectedExisting = existingForNote.last
-
-            config.payload.singleKeyRules.removeAll { $0.note == clampedNote }
-
-            if var selectedExisting {
-                selectedExisting.note = clampedNote
-                selectedExisting.output = KeyStroke(keyCode: keyCode)
-                config.payload.singleKeyRules.append(selectedExisting)
-            } else {
-                config.payload.singleKeyRules.append(
-                    SingleKeyMappingRule(
-                        note: clampedNote,
-                        output: KeyStroke(keyCode: keyCode),
-                        velocityThreshold: config.payload.defaultVelocityThreshold
-                    )
-                )
-            }
-        }
-    }
-
-    func clearSingleKeyMapping(note: Int) {
-        let clampedNote = max(0, min(127, note))
-        mutateActiveConfig { config in
-            config.payload.singleKeyRules.removeAll { $0.note == clampedNote }
-        }
-    }
-
-    func createChordRule(notes: [Int], output: KeyStroke) {
-        let normalizedNotes = Self.normalizeRuleNotes(notes)
-        guard !normalizedNotes.isEmpty else { return }
-
-        mutateActiveConfig { config in
-            config.payload.chordRules.append(
-                ChordMappingRule(notes: normalizedNotes, output: output)
-            )
-        }
-    }
-
-    func updateChordRule(_ rule: ChordMappingRule) {
-        mutateActiveConfig { config in
-            guard let index = config.payload.chordRules.firstIndex(where: { $0.id == rule.id }) else { return }
-            var normalizedRule = rule
-            normalizedRule.notes = Self.normalizeRuleNotes(rule.notes)
-            config.payload.chordRules[index] = normalizedRule
-        }
-    }
-
-    private func removeChordRule(_ ruleID: UUID) {
-        mutateActiveConfig { config in
-            config.payload.chordRules.removeAll { $0.id == ruleID }
-        }
-    }
-
-    func deleteChordRule(id: UUID) {
-        removeChordRule(id)
-    }
-
     private func bindServiceCallbacks() {
         playbackService.onPlaybackFinished = { [weak self] in
             Task { @MainActor [weak self] in
@@ -638,8 +378,6 @@ final class LonelyPianistViewModel {
                     recorderStatusMessage = "Playback finished"
                     statusMessage = "Playback finished"
                 }
-
-                dialogueManager.notifyPlaybackFinished()
             }
         }
 
@@ -662,79 +400,13 @@ final class LonelyPianistViewModel {
         }
     }
 
-    private func bindAppLifecycleCallbacks() {
-        appDidBecomeActiveObserver = NotificationCenter.default.addObserver(
-            forName: NSApplication.didBecomeActiveNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] _ in
-            Task { @MainActor [weak self] in
-                self?.refreshAccessibilityPermissionAfterAppActivation()
-            }
-        }
-    }
-
-    private func refreshAccessibilityPermissionAfterAppActivation() {
-        let granted = permissionService.hasAccessibilityPermission()
-        let hadPermission = hasAccessibilityPermission
-        hasAccessibilityPermission = granted
-
-        guard granted, !hadPermission else { return }
-
-        permissionPollingTask?.cancel()
-        permissionPollingTask = nil
-        statusMessage = "Accessibility enabled"
-        log(title: "Permission", detail: "Accessibility granted")
-    }
-
     private func handleMIDIEvent(_ event: MIDIEvent) {
         midiEventCount += 1
         updatePressedNotes(for: event)
 
-        if dialogueManager.isActive {
-            dialogueManager.handle(event: event)
-            return
-        }
-
         if recorderMode == .recording {
             recordingService.append(event: event)
         }
-
-        guard let activeConfig else { return }
-
-        let resolvedActions = mappingEngine.process(event: event, payload: activeConfig.payload)
-
-        for resolvedAction in resolvedActions {
-            do {
-                try execute(resolvedAction.keyStroke)
-                appendPreview("[\(resolvedAction.keyStroke.displayLabel)]")
-
-                log(
-                    title: "\(resolvedAction.triggerType)",
-                    detail: "\(resolvedAction.sourceDescription) -> \(resolvedAction.keyStroke.displayLabel)"
-                )
-            } catch {
-                statusMessage = "Action failed: \(error.localizedDescription)"
-                log(title: "Action Failed", detail: error.localizedDescription)
-            }
-        }
-
-        if resolvedActions.isEmpty {
-            switch event.type {
-                case let .noteOn(note, velocity):
-                    let noteName = MIDINote(note).name
-                    log(title: "MIDI", detail: "noteOn \(noteName) velocity \(velocity)")
-                case let .noteOff(note, velocity):
-                    let noteName = MIDINote(note).name
-                    log(title: "MIDI", detail: "noteOff \(noteName) velocity \(velocity)")
-                case let .controlChange(controller, value):
-                    log(title: "MIDI", detail: "cc \(controller) value \(value)")
-            }
-        }
-    }
-
-    private func execute(_ keyStroke: KeyStroke) throws {
-        try keyboardEventService.sendKeyStroke(keyStroke)
     }
 
     private func updatePressedNotes(for event: MIDIEvent) {
@@ -751,32 +423,6 @@ final class LonelyPianistViewModel {
             case .controlChange:
                 return
         }
-    }
-
-    private func appendPreview(_ text: String) {
-        previewText += text
-        if previewText.count > 120 {
-            previewText = String(previewText.suffix(120))
-        }
-    }
-
-    private func mutateActiveConfig(_ mutation: (inout MappingConfig) -> Void) {
-        guard var config = activeConfig else { return }
-
-        mutation(&config)
-        config.updatedAt = .now
-
-        do {
-            try repository.saveConfig(config)
-            activeConfig = try repository.fetchConfig()
-        } catch {
-            statusMessage = "Update failed: \(error.localizedDescription)"
-            log(title: "Update Failed", detail: error.localizedDescription)
-        }
-    }
-
-    private func reloadConfig() throws {
-        activeConfig = try repository.fetchConfig()
     }
 
     private func reloadTakes(preserveSelectedID: UUID?) throws {
@@ -834,9 +480,5 @@ final class LonelyPianistViewModel {
         return "Take \(formatter.string(from: date))"
     }
 
-    private nonisolated static func normalizeRuleNotes(_ notes: [Int]) -> [Int] {
-        Array(
-            Set(notes.map { max(0, min(127, $0)) })
-        ).sorted()
-    }
+    // Rule normalization removed (mappings are no longer supported).
 }

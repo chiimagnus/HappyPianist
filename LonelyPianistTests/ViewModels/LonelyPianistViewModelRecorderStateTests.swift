@@ -48,7 +48,7 @@ func stopTransportWhileRecordingSavesTakeAndReturnsToIdle() {
 
 @MainActor
 @Test
-func playSelectedTakeDoesNotTriggerKeyboardInjection() {
+func playSelectedTakeStartsPlayback() {
     let context = makeContext()
 
     let take = RecordingTake(
@@ -67,8 +67,6 @@ func playSelectedTakeDoesNotTriggerKeyboardInjection() {
     context.viewModel.playSelectedTake()
 
     #expect(context.playback.playedTakes.count == 1)
-    #expect(context.keyboard.typedTexts.isEmpty)
-    #expect(context.keyboard.keyCombos.isEmpty)
 }
 
 @MainActor
@@ -92,18 +90,6 @@ func playSelectedTakeFailureUpdatesStatusMessage() {
 
     #expect(context.viewModel.recorderMode == .idle)
     #expect(context.viewModel.recorderStatusMessage.contains("Playback failed"))
-}
-
-@MainActor
-@Test
-func requestAccessibilityPermissionUpdatesStateWhenGranted() {
-    let context = makeContext()
-    context.permission.permissionGranted = true
-
-    context.viewModel.requestAccessibilityPermission()
-
-    #expect(context.viewModel.hasAccessibilityPermission == true)
-    #expect(context.viewModel.statusMessage == "Accessibility enabled")
 }
 
 @MainActor
@@ -150,42 +136,19 @@ private func makeContext() -> (
     repository: RecordingTakeRepositoryMock,
     recordingService: RecordingServiceMock,
     playback: MIDIPlaybackServiceMock,
-    keyboard: KeyboardEventServiceMock,
-    midi: MIDIInputServiceMock,
-    permission: PermissionServiceMock
+    midi: MIDIInputServiceMock
 ) {
     let midi = MIDIInputServiceMock()
-    let keyboard = KeyboardEventServiceMock()
-    let permission = PermissionServiceMock()
-    let configRepository = MappingConfigRepositoryMock()
     let recordingRepository = RecordingTakeRepositoryMock()
     let recordingService = RecordingServiceMock()
     let playback = MIDIPlaybackServiceMock()
-    let mapping = MappingEngineMock()
-    let shortcut = ShortcutServiceMock()
-    let clock = ClockMock(nowValue: Date(timeIntervalSince1970: 0))
-    let silenceDetectionService = DefaultSilenceDetectionService(clock: clock)
-    let dialogueService = DialogueServiceMock()
-    let dialogueManager = DialogueManager(
-        clock: clock,
-        silenceDetectionService: silenceDetectionService,
-        dialogueService: dialogueService,
-        recordingRepository: recordingRepository,
-        playbackService: playback
-    )
 
     let viewModel = LonelyPianistViewModel(
         midiInputService: midi,
-        keyboardEventService: keyboard,
-        permissionService: permission,
-        repository: configRepository,
         recordingRepository: recordingRepository,
         recordingService: recordingService,
-        playbackService: playback,
-        mappingEngine: mapping,
-        shortcutService: shortcut,
-        dialogueManager: dialogueManager
+        playbackService: playback
     )
 
-    return (viewModel, recordingRepository, recordingService, playback, keyboard, midi, permission)
+    return (viewModel, recordingRepository, recordingService, playback, midi)
 }

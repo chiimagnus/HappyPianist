@@ -4,7 +4,6 @@ import SwiftData
 enum ModelContainerFactory {
     static func makeMainContainer() throws -> ModelContainer {
         let schema = Schema([
-            MappingConfigEntity.self,
             RecordingTakeEntity.self,
             RecordedNoteEntity.self,
         ])

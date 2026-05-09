@@ -9,18 +9,12 @@ struct LonelyPianistApp: App {
     @State private var viewModel: LonelyPianistViewModel
 
     init() {
-        UserDefaults.standard.register(defaults: [
-            DialoguePlaybackInterruptionBehavior.userDefaultsKey: DialoguePlaybackInterruptionBehavior.interrupt
-                .rawValue,
-        ])
-
         do {
             modelContainer = try ModelContainerFactory.makeMainContainer()
         } catch {
             fatalError("Failed to initialize ModelContainer: \(error)")
         }
 
-        let repository = SwiftDataMappingConfigRepository(context: modelContainer.mainContext)
         let recordingRepository = SwiftDataRecordingTakeRepository(context: modelContainer.mainContext)
         let midiOutputService = CoreMIDIOutputService()
         let playbackService = RoutedMIDIPlaybackService(
@@ -30,30 +24,16 @@ struct LonelyPianistApp: App {
         )
 
         let clock = SystemClock()
-        let silenceDetectionService = DefaultSilenceDetectionService(clock: clock)
-        let dialogueService = WebSocketDialogueService()
-        let dialogueManager = DialogueManager(
-            clock: clock,
-            silenceDetectionService: silenceDetectionService,
-            dialogueService: dialogueService,
-            recordingRepository: recordingRepository,
-            playbackService: playbackService
-        )
 
         let viewModel = LonelyPianistViewModel(
             midiInputService: CoreMIDIInputService(),
-            keyboardEventService: KeyboardEventService(),
-            permissionService: AccessibilityPermissionService(),
-            repository: repository,
             recordingRepository: recordingRepository,
             recordingService: DefaultRecordingService(clock: clock),
-            playbackService: playbackService,
-            mappingEngine: DefaultMappingEngine(),
-            shortcutService: ShortcutExecutionService(),
-            dialogueManager: dialogueManager
+            playbackService: playbackService
         )
 
         viewModel.bootstrap()
+        viewModel.startListening()
         AppContext.shared.viewModel = viewModel
 
         _viewModel = State(initialValue: viewModel)

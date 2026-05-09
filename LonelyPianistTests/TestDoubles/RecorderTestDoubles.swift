@@ -1,4 +1,3 @@
-import CoreGraphics
 import Foundation
 @testable import LonelyPianist
 
@@ -11,56 +10,6 @@ final class MIDIInputServiceMock: MIDIInputServiceProtocol {
     func start() throws {}
     func stop() {}
     func refreshSources() throws {}
-}
-
-@MainActor
-final class KeyboardEventServiceMock: KeyboardEventServiceProtocol {
-    private(set) var typedTexts: [String] = []
-    private(set) var keyCombos: [(CGKeyCode, CGEventFlags)] = []
-    private(set) var keyStrokes: [KeyStroke] = []
-
-    func typeText(_ text: String) throws {
-        typedTexts.append(text)
-    }
-
-    func sendKeyStroke(_ keyStroke: KeyStroke) throws {
-        keyStrokes.append(keyStroke)
-        keyCombos.append((CGKeyCode(keyStroke.keyCode), keyStroke.modifiers.cgEventFlags))
-    }
-}
-
-@MainActor
-final class PermissionServiceMock: PermissionServiceProtocol {
-    var permissionGranted = true
-
-    func hasAccessibilityPermission() -> Bool {
-        permissionGranted
-    }
-
-    func requestAccessibilityPermission() -> Bool {
-        permissionGranted
-    }
-
-    func openAccessibilitySettings() {}
-}
-
-@MainActor
-final class MappingConfigRepositoryMock: MappingConfigRepositoryProtocol {
-    var config: MappingConfig = .init(
-        id: UUID(),
-        updatedAt: .now,
-        payload: .empty
-    )
-
-    func ensureSeedConfigIfNeeded() throws {}
-
-    func fetchConfig() throws -> MappingConfig {
-        config
-    }
-
-    func saveConfig(_ config: MappingConfig) throws {
-        self.config = config
-    }
 }
 
 @MainActor
@@ -166,45 +115,6 @@ final class MIDIPlaybackServiceMock: RoutableMIDIPlaybackServiceProtocol {
 
     func stop() {
         isPlaying = false
-    }
-}
-
-@MainActor
-final class MappingEngineMock: MappingEngineProtocol {
-    func process(event _: MIDIEvent, payload _: MappingConfigPayload) -> [ResolvedKeyStroke] {
-        []
-    }
-
-    func reset() {}
-}
-
-@MainActor
-final class ShortcutServiceMock: ShortcutServiceProtocol {
-    func runShortcut(named _: String) throws {}
-}
-
-@MainActor
-final class DialogueServiceMock: DialogueServiceProtocol {
-    var connectionState: DialogueServiceConnectionState = .disconnected {
-        didSet { onConnectionStateChange?(connectionState) }
-    }
-
-    var onConnectionStateChange: (@Sendable (DialogueServiceConnectionState) -> Void)?
-
-    func connect(url _: URL) {
-        connectionState = .connected
-    }
-
-    func disconnect() {
-        connectionState = .disconnected
-    }
-
-    func generate(
-        notes _: [DialogueNote],
-        params _: DialogueGenerateParams,
-        sessionID _: String?
-    ) async throws -> (notes: [DialogueNote], latencyMs: Int?) {
-        ([], nil)
     }
 }
 
