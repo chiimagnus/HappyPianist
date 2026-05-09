@@ -7,6 +7,7 @@ final class DefaultRecordingService: RecordingServiceProtocol {
     }
 
     private struct OpenNote {
+        let id: UUID
         let startedAt: Date
         let velocity: Int
     }
@@ -42,6 +43,7 @@ final class DefaultRecordingService: RecordingServiceProtocol {
                 let key = NoteKey(note: clampedNote, channel: channel)
                 if let openNote = openNotes[key] {
                     appendRecordedNote(
+                        id: openNote.id,
                         note: clampedNote,
                         velocity: openNote.velocity,
                         channel: channel,
@@ -50,13 +52,14 @@ final class DefaultRecordingService: RecordingServiceProtocol {
                         recordingStartedAt: startedAt
                     )
                 }
-                openNotes[key] = OpenNote(startedAt: eventTimestamp, velocity: clampedVelocity)
+                openNotes[key] = OpenNote(id: UUID(), startedAt: eventTimestamp, velocity: clampedVelocity)
 
             case let .noteOff(note, _):
                 let clampedNote = max(0, min(127, note))
                 let key = NoteKey(note: clampedNote, channel: channel)
                 guard let openNote = openNotes.removeValue(forKey: key) else { return }
                 appendRecordedNote(
+                    id: openNote.id,
                     note: clampedNote,
                     velocity: openNote.velocity,
                     channel: channel,
@@ -76,6 +79,7 @@ final class DefaultRecordingService: RecordingServiceProtocol {
 
         for (key, openNote) in openNotes {
             appendRecordedNote(
+                id: openNote.id,
                 note: key.note,
                 velocity: openNote.velocity,
                 channel: key.channel,
@@ -108,6 +112,49 @@ final class DefaultRecordingService: RecordingServiceProtocol {
         return take
     }
 
+    func makeLivePreview(at date: Date, takeID: UUID, name: String) -> RecordingTake? {
+        guard isRecording, let startedAt else { return nil }
+        let now = date < startedAt ? clock.now() : date
+
+        var notes = recordedNotes
+        notes.reserveCapacity(recordedNotes.count + openNotes.count)
+
+        for (key, openNote) in openNotes {
+            let startOffset = max(0, openNote.startedAt.timeIntervalSince(startedAt))
+            let duration = max(0.01, now.timeIntervalSince(openNote.startedAt))
+            notes.append(
+                RecordedNote(
+                    id: openNote.id,
+                    note: key.note,
+                    velocity: openNote.velocity,
+                    channel: key.channel,
+                    startOffsetSec: startOffset,
+                    durationSec: duration
+                )
+            )
+        }
+
+        notes.sort { lhs, rhs in
+            if lhs.startOffsetSec != rhs.startOffsetSec {
+                return lhs.startOffsetSec < rhs.startOffsetSec
+            }
+            return lhs.note < rhs.note
+        }
+
+        let sanitizedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let takeName = sanitizedName.isEmpty ? "Take \(formatted(date: now))" : sanitizedName
+        let duration = max(0, now.timeIntervalSince(startedAt))
+
+        return RecordingTake(
+            id: takeID,
+            name: takeName,
+            createdAt: startedAt,
+            updatedAt: now,
+            durationSec: duration,
+            notes: notes
+        )
+    }
+
     func cancelRecording() {
         isRecording = false
         startedAt = nil
@@ -116,6 +163,7 @@ final class DefaultRecordingService: RecordingServiceProtocol {
     }
 
     private func appendRecordedNote(
+        id: UUID,
         note: Int,
         velocity: Int,
         channel: Int,
@@ -128,7 +176,7 @@ final class DefaultRecordingService: RecordingServiceProtocol {
 
         recordedNotes.append(
             RecordedNote(
-                id: UUID(),
+                id: id,
                 note: note,
                 velocity: velocity,
                 channel: channel,

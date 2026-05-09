@@ -99,7 +99,7 @@ final class ARGuideViewModel {
     private var takeRecorder = RecordingTakeRecorder()
     private let takeLibraryViewModel = TakeLibraryViewModel()
     let takePlaybackController = TakePlaybackController(
-        playbackService: AVAudioSequencerPracticePlaybackService(soundFontResourceName: "Piano")
+        playbackService: AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2")
     )
     private(set) var isRecording = false
     private var recordingStartDate: Date?
@@ -1241,7 +1241,8 @@ final class ARGuideViewModel {
     func stopRecording() {
         guard isRecording else { return }
         let now = ProcessInfo.processInfo.systemUptime
-        let take = takeRecorder.stop(now: now)
+        let createdAt = Date()
+        let take = takeRecorder.stop(now: now, createdAt: createdAt)
         isRecording = false
         recordingStartDate = nil
 
