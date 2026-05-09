@@ -19,6 +19,7 @@ struct TakeLibraryView: View {
     @State private var exportDocument: MIDIFileDocument?
     @State private var exportFileName: String = ""
     @State private var exportError: String?
+    @State private var playbackError: String?
     @State private var isClearAllConfirmationPresented = false
 
     var body: some View {
@@ -82,12 +83,12 @@ struct TakeLibraryView: View {
             defaultFilename: exportFileName
         ) { _ in }
         .alert("错误", isPresented: .init(
-            get: { errorMessage != nil || exportError != nil },
-            set: { if !$0 { onErrorDismiss(); exportError = nil } }
+            get: { errorMessage != nil || exportError != nil || playbackError != nil },
+            set: { if !$0 { onErrorDismiss(); exportError = nil; playbackError = nil } }
         )) {
-            Button("知道了") { onErrorDismiss(); exportError = nil }
+            Button("知道了") { onErrorDismiss(); exportError = nil; playbackError = nil }
         } message: {
-            Text(errorMessage ?? exportError ?? "")
+            Text(errorMessage ?? exportError ?? playbackError ?? "")
         }
         .alert("重命名", isPresented: .init(
             get: { renameTarget != nil },
@@ -124,9 +125,10 @@ struct TakeLibraryView: View {
                 Image(systemName: isPlayingTake(take) ? "pause.circle.fill" : "play.circle.fill")
                     .font(.title2)
             }
+            .buttonStyle(.borderless)
             .buttonBorderShape(.roundedRectangle)
             .hoverEffect()
-            .disabled(isRecording)
+            .disabled(isRecording || take.events.isEmpty)
 
             Menu {
                 Button("重命名", systemImage: "pencil") {
@@ -147,6 +149,7 @@ struct TakeLibraryView: View {
                 Image(systemName: "ellipsis.circle")
                     .font(.title3)
             }
+            .buttonStyle(.borderless)
             .buttonBorderShape(.roundedRectangle)
             .hoverEffect()
         }
@@ -218,14 +221,23 @@ struct TakeLibraryView: View {
     }
 
     private func playOrPause(_ take: RecordingTake) {
-        if playbackController.currentTakeID == take.id {
-            if playbackController.isPlaying {
-                playbackController.pause()
+        guard take.events.isEmpty == false else {
+            playbackError = "该录制为空，无法播放。"
+            return
+        }
+
+        do {
+            if playbackController.currentTakeID == take.id {
+                if playbackController.isPlaying {
+                    playbackController.pause()
+                } else {
+                    try playbackController.resume()
+                }
             } else {
-                try? playbackController.resume()
+                try playbackController.play(take: take)
             }
-        } else {
-            try? playbackController.play(take: take)
+        } catch {
+            playbackError = "播放失败：\(error.localizedDescription)"
         }
     }
 
