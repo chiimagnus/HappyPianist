@@ -116,12 +116,6 @@ struct RecorderTransportBarView: View {
                 }
                 .menuStyle(.borderlessButton)
                 .disabled(viewModel.selectedTake == nil)
-
-                Text(modeText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text(durationText)
-                    .font(.system(.body, design: .monospaced))
             }
 
             Slider(
@@ -200,23 +194,6 @@ struct RecorderTransportBarView: View {
                 viewModel.setPlaybackOutput(id: newValue)
             }
         )
-    }
-
-    private var modeText: String {
-        switch viewModel.recorderMode {
-            case .idle:
-                "Idle"
-            case .recording:
-                "Recording"
-            case .playing:
-                "Playing"
-        }
-    }
-
-    private var durationText: String {
-        let total = Int(viewModel.displayedTake?.durationSec ?? 0)
-        let current = Int(viewModel.playheadSec)
-        return "\(format(seconds: current)) / \(format(seconds: total))"
     }
 
     private func format(seconds: Int) -> String {
