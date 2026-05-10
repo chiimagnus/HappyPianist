@@ -1,8 +1,11 @@
-import Foundation
+import Observation
+import os
 
 @MainActor
 @Observable
 final class AppRouter {
+    private static let logger = Logger(subsystem: "LonelyPianistAVP", category: "AppRouter")
+
     enum Route: Hashable {
         case typePicker
         case realPreparation
@@ -37,6 +40,7 @@ final class AppRouter {
     }
 
     func exitToTypePicker(reason: String) {
+        Self.logger.info("exitToTypePicker: \(reason)")
         flowState.pianoKind = nil
         route = .typePicker
     }
