@@ -3,18 +3,18 @@
 ## Run info
 | Item | Value |
 | --- | --- |
-| Commit hash | 4a47f54392950c7b84755ecb2b2ba49a54cc652f |
-| Branch name | crh1 |
-| Generated at | 2026-05-06T12:24:00+08:00 |
+| Commit hash | 46074dd235aead139efcb36d8586eeac5bfc766c |
+| Branch name | crh |
+| Generated at | 2026-05-10T12:45:51+08:00 |
 | Output language | Chinese |
 | Generation mode | Incremental update via `deepwiki` skill |
 
 ## Key updates in this generation
 | Area | Update |
 | --- | --- |
-| Python server 目录重组 | 反映 `piano_dialogue_server/server/` 拆分为 `api/`（入口与协议）、`engines/`（model/deterministic/rule）、`media/`（bonjour/debug/midi）。 |
-| 第三策略 `rule` | 协议与数据流更新为 `strategy=model/deterministic/rule`，并记录 `rule` 的实现位置与分流。 |
-| Smoke & 工具更新 | 更新 WS 回环入口为 `python -m server.api.test_client`，并同步 `uvicorn server.api.main:app` 启动命令。 |
+| AVP 主流程重构同步 | 更新 deepwiki 以反映 `AppRouter.route` root 切换、`FlowState` 持有钢琴类型与曲目/steps、`AppState` 聚合 tracking/runtime calibration，并移除旧的 `ContentView/HomeViewModel/AppModel` 表述。 |
+| 曲库 seed/seeder 清理 | 曲库改为“内置条目（bundle）+ 用户导入索引”合并展示；移除 `SongLibrarySeeder` 相关过期描述。 |
+| README 对齐 | 更新仓库根 `README.md` 与 `LonelyPianistAVP/README.md` 的 AVP 主流程说明（类型选择 → 准备 → 曲库 → 练习）。 |
 
 ## Generated page list
 ### Core pages
