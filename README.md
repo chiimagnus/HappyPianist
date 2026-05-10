@@ -57,6 +57,8 @@ open LonelyPianist.xcodeproj
 # 打开工程后，在本地 Xcode 里选择 / 创建 LonelyPianistAVP scheme
 ```
 
+主流程提示：先在 2D Window 选择钢琴类型（真实/虚拟），完成准备（校准/放置）后进入选曲库导入或选择曲目，再开始练习。
+
 ## 项目结构
 
 ```text
