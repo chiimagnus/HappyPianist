@@ -20,7 +20,6 @@ struct LibraryFlowView: View {
                     }
                 }
                 .buttonStyle(.bordered)
-                .buttonStyle(.bordered)
 
                 Spacer()
             }
