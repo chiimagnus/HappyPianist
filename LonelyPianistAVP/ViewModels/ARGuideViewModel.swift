@@ -84,6 +84,7 @@ final class ARGuideViewModel {
     private(set) var practiceLocalizationState: PracticeLocalizationState = .idle
     private(set) var calibrationPhase: CalibrationPhase = .capturingA0
     private(set) var isVirtualPianoEnabled = false
+    private(set) var isVirtualPianoPlaced = false
     private(set) var isVirtualPerformerEnabled = false
     private(set) var isAIPerformanceActive = false
     private(set) var latestAIPerformanceSchedule: [PracticeSequencerMIDIEvent] = []
@@ -772,6 +773,23 @@ final class ARGuideViewModel {
         )
     }
 
+    func enterVirtualPianoPlacement(
+        using openImmersiveSpace: OpenImmersiveSpaceAction,
+        dismissImmersiveSpace: DismissImmersiveSpaceAction
+    ) async {
+        guard isVirtualPianoEnabled == false else { return }
+        setPracticeVirtualPianoEnabled(true)
+        isVirtualPianoPlaced = false
+
+        practiceLocalizationState = .openingImmersive
+        if let openError = await openImmersiveForStep(mode: .practice, using: openImmersiveSpace) {
+            practiceLocalizationState = .failed(reason: .immersiveOpenFailed(message: openError))
+            return
+        }
+
+        practiceLocalizationState = .ready
+    }
+
     func resetPracticeLocalizationState() {
         cancelPracticeLocalizationTask()
         practiceLocalizationState = .idle
@@ -949,6 +967,7 @@ final class ARGuideViewModel {
         let service = VirtualPianoKeyGeometryService()
         if let geometry = service.generateKeyboardGeometry(from: frame) {
             practiceSessionViewModel.applyVirtualKeyboardGeometry(geometry)
+            isVirtualPianoPlaced = true
             if appState.cachedVirtualPianoWorldAnchorID == nil {
                 let anchor = WorldAnchor(originFromAnchorTransform: worldFromKeyboard)
                 Task { @MainActor [weak self] in

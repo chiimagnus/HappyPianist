@@ -2,6 +2,8 @@ import SwiftUI
 
 struct VirtualPianoPreparationView: View {
     @Environment(AppRouter.self) private var router
+    @Environment(\.openImmersiveSpace) private var openImmersiveSpace
+    @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
     @Bindable var viewModel: ARGuideViewModel
 
     var body: some View {
@@ -12,6 +14,12 @@ struct VirtualPianoPreparationView: View {
             Text("放置虚拟钢琴到空间中")
                 .font(.title3)
                 .foregroundStyle(.secondary)
+
+            if viewModel.isVirtualPianoPlaced {
+                Label("虚拟钢琴已放置", systemImage: "checkmark.circle.fill")
+                    .foregroundStyle(.green)
+                    .font(.title3)
+            }
 
             Spacer()
 
@@ -27,10 +35,23 @@ struct VirtualPianoPreparationView: View {
                     router.goToLibrary()
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(viewModel.practiceLocalizationState != .ready)
+                .disabled(!router.canProceedToLibrary)
             }
         }
         .padding(24)
         .frame(minWidth: 560, idealWidth: 700)
+        .task {
+            if viewModel.isVirtualPianoEnabled == false {
+                await viewModel.enterVirtualPianoPlacement(
+                    using: openImmersiveSpace,
+                    dismissImmersiveSpace: dismissImmersiveSpace
+                )
+            }
+        }
+        .onChange(of: viewModel.isVirtualPianoPlaced) {
+            if viewModel.isVirtualPianoPlaced {
+                router.flowState.isVirtualPianoPlaced = true
+            }
+        }
     }
 }
