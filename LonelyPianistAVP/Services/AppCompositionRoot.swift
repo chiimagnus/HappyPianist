@@ -14,9 +14,7 @@ final class AppCompositionRoot {
             arTrackingService: services.arTrackingService,
             calibrationCaptureService: services.calibrationCaptureService,
             calibrationRepository: services.calibrationRepository,
-            keyGeometryService: services.keyGeometryService,
-            importService: services.importService,
-            practicePreparationService: services.practicePreparationService
+            keyGeometryService: services.keyGeometryService
         )
         appState.loadStoredCalibrationIfPossible()
 
@@ -25,7 +23,7 @@ final class AppCompositionRoot {
 
         self.services = services
         self.appState = appState
-        self.arGuideViewModel = ARGuideViewModel(appState: appState)
+        self.arGuideViewModel = ARGuideViewModel(appState: appState, flowState: flowState)
         self.flowState = flowState
         self.router = router
     }
