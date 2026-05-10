@@ -17,4 +17,27 @@ final class AppRouter {
     init(flowState: FlowState) {
         self.flowState = flowState
     }
+
+    func selectPianoKind(_ kind: PianoKind) {
+        flowState.pianoKind = kind
+        switch kind {
+        case .real:
+            route = .realPreparation
+        case .virtual:
+            route = .virtualPreparation
+        }
+    }
+
+    func goToLibrary() {
+        route = .library
+    }
+
+    func goToPractice() {
+        route = .practice
+    }
+
+    func exitToTypePicker(reason: String) {
+        flowState.pianoKind = nil
+        route = .typePicker
+    }
 }
