@@ -2,7 +2,8 @@ import SwiftUI
 
 struct PracticeStepView: View {
     @Bindable var viewModel: ARGuideViewModel
-    let onExit: () -> Void
+    let onBackToLibrary: () -> Void
+    let onRestartFromTypePicker: () -> Void
     @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
 
@@ -40,8 +41,8 @@ struct PracticeStepView: View {
             }
             .toolbar {
                 ToolbarItemGroup(placement: .bottomOrnament) {
-                    Button("回到钢琴类型选择", systemImage: "chevron.backward") {
-                        onExit()
+                    Button("回到选曲库", systemImage: "chevron.backward") {
+                        onBackToLibrary()
                     }
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.roundedRectangle)
@@ -326,7 +327,7 @@ struct PracticeStepView: View {
                     .foregroundStyle(.secondary)
 
                 Button("回到钢琴类型选择", systemImage: "house") {
-                    onExit()
+                    onRestartFromTypePicker()
                 }
                 .buttonStyle(.bordered)
                 .buttonBorderShape(.roundedRectangle)
@@ -475,6 +476,7 @@ private final class WindowGeometryHintViewController: UIViewController {
 #Preview("Step 3") {
     PracticeStepView(
         viewModel: ARGuideViewModel(appState: AppState(), flowState: FlowState()),
-        onExit: {}
+        onBackToLibrary: {},
+        onRestartFromTypePicker: {}
     )
 }

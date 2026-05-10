@@ -8,7 +8,8 @@ struct PracticeFlowView: View {
         VStack(spacing: 0) {
             PracticeStepView(
                 viewModel: viewModel,
-                onExit: { router.exitToTypePicker(reason: "user exited from practice") }
+                onBackToLibrary: { router.goToLibrary() },
+                onRestartFromTypePicker: { router.exitToTypePicker(reason: "user restarted from practice") }
             )
         }
         .frame(minWidth: 920, idealWidth: 1200, minHeight: 320, idealHeight: 360)
