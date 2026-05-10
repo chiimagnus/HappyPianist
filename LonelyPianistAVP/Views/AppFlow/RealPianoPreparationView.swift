@@ -9,7 +9,10 @@ struct RealPianoPreparationView: View {
             Text("真实钢琴准备")
                 .font(.largeTitle.weight(.bold))
 
-            CalibrationStepView(viewModel: viewModel)
+            CalibrationStepView(
+                viewModel: viewModel,
+                onExit: { router.exitToTypePicker(reason: "user exited from real preparation") }
+            )
 
             HStack {
                 Button("返回钢琴类型选择") {
@@ -23,9 +26,15 @@ struct RealPianoPreparationView: View {
                     router.goToLibrary()
                 }
                 .buttonStyle(.borderedProminent)
+                .disabled(!router.canProceedToLibrary)
             }
         }
         .padding(24)
         .frame(minWidth: 560, idealWidth: 700)
+        .onChange(of: viewModel.calibrationPhase) {
+            if viewModel.calibrationPhase == .completed {
+                router.flowState.isCalibrationCompleted = true
+            }
+        }
     }
 }

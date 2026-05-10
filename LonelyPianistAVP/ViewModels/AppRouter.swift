@@ -39,6 +39,17 @@ final class AppRouter {
         route = .practice
     }
 
+    var canProceedToLibrary: Bool {
+        switch flowState.pianoKind {
+        case .real:
+            return flowState.isCalibrationCompleted
+        case .virtual:
+            return flowState.isVirtualPianoPlaced
+        case .none:
+            return false
+        }
+    }
+
     func exitToTypePicker(reason: String) {
         Self.logger.info("exitToTypePicker: \(reason)")
         flowState.pianoKind = nil

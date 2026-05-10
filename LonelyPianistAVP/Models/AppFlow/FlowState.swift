@@ -9,4 +9,6 @@ enum PianoKind: Hashable {
 @Observable
 final class FlowState {
     var pianoKind: PianoKind?
+    var isCalibrationCompleted = false
+    var isVirtualPianoPlaced = false
 }
