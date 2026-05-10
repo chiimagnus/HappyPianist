@@ -336,7 +336,7 @@ var body: some View {
 ### Volumetric Window 定义
 ```swift
 WindowGroup(id: "VolumetricWindow") {
-    ContentView()
+    RootView()
 }
 .windowStyle(.volumetric)
 .defaultSize(width: 1.0, height: 1.0, depth: 1.0, in: .meters)
@@ -367,7 +367,7 @@ struct VisionApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            RootView()
                 .environment(appState)
         }
     }
