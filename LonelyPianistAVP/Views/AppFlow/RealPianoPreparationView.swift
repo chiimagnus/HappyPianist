@@ -32,9 +32,7 @@ struct RealPianoPreparationView: View {
         .padding(24)
         .frame(minWidth: 560, idealWidth: 700)
         .onChange(of: viewModel.calibrationPhase) {
-            if viewModel.calibrationPhase == .completed {
-                router.flowState.isCalibrationCompleted = true
-            }
+            router.flowState.isCalibrationCompleted = (viewModel.calibrationPhase == .completed)
         }
     }
 }

@@ -49,9 +49,7 @@ struct VirtualPianoPreparationView: View {
             }
         }
         .onChange(of: viewModel.isVirtualPianoPlaced) {
-            if viewModel.isVirtualPianoPlaced {
-                router.flowState.isVirtualPianoPlaced = true
-            }
+            router.flowState.isVirtualPianoPlaced = viewModel.isVirtualPianoPlaced
         }
     }
 }
