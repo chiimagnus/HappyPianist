@@ -1,4 +1,4 @@
-import Foundation
+import Observation
 
 enum PianoKind: Hashable {
     case real
