@@ -2,9 +2,7 @@ import SwiftUI
 
 struct CalibrationStepView: View {
     @Bindable var viewModel: ARGuideViewModel
-    var onExit: (() -> Void)?
-
-    @Environment(\.dismiss) private var dismiss
+    let onExit: () -> Void
     @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
 
@@ -31,7 +29,7 @@ struct CalibrationStepView: View {
             storedCalibration: viewModel.storedCalibration,
             isReticleReadyToConfirm: isReticleReadyToConfirm,
             errorMessage: errorMessage,
-            onReturnHome: { if let onExit { onExit() } else { dismiss() } },
+            onReturnHome: { onExit() },
             onRecalibrate: { beginRecalibration() },
             simulatorDemoState: simulatorDemoState,
             onSimulatorDemoAdvance: simulatorDemoState == nil ? nil : { handleSimulatorDemoAdvance() }
@@ -153,7 +151,7 @@ struct CalibrationStepView: View {
                         viewModel.setCalibrationPhaseForPreview(.completed)
 
                     case .completed:
-                        if let onExit { onExit() } else { dismiss() }
+                        onExit()
 
                     case .error:
                         viewModel.setCalibrationPhaseForPreview(.capturingA0)

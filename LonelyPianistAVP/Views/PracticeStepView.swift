@@ -2,9 +2,7 @@ import SwiftUI
 
 struct PracticeStepView: View {
     @Bindable var viewModel: ARGuideViewModel
-    var onExit: (() -> Void)?
-
-    @Environment(\.dismiss) private var dismiss
+    let onExit: () -> Void
     @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
 
@@ -42,8 +40,8 @@ struct PracticeStepView: View {
             }
             .toolbar {
                 ToolbarItemGroup(placement: .bottomOrnament) {
-                    Button("返回", systemImage: "chevron.backward") {
-                        if let onExit { onExit() } else { dismiss() }
+                    Button("回到钢琴类型选择", systemImage: "chevron.backward") {
+                        onExit()
                     }
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.roundedRectangle)
@@ -323,12 +321,12 @@ struct PracticeStepView: View {
             }
 
             if viewModel.shouldSuggestCalibrationStep {
-                Text("若持续失败，请返回主页进入 Step 1 重新校准。")
+                Text("若持续失败，请回到“钢琴类型选择”重新开始准备。")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Button("返回主页", systemImage: "house") {
-                    if let onExit { onExit() } else { dismiss() }
+                Button("回到钢琴类型选择", systemImage: "house") {
+                    onExit()
                 }
                 .buttonStyle(.bordered)
                 .buttonBorderShape(.roundedRectangle)
@@ -475,5 +473,8 @@ private final class WindowGeometryHintViewController: UIViewController {
 }
 
 #Preview("Step 3") {
-    PracticeStepView(viewModel: ARGuideViewModel(appState: AppState(), flowState: FlowState()))
+    PracticeStepView(
+        viewModel: ARGuideViewModel(appState: AppState(), flowState: FlowState()),
+        onExit: {}
+    )
 }
