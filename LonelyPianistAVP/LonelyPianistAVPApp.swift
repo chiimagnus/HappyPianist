@@ -8,20 +8,10 @@ struct LonelyPianistAVPApp: App {
     @AppStorage("immersivePanoramaEnabled") private var immersivePanoramaEnabled = false
 
     init() {
-        let services = AppServices()
-        let appState = AppState(
-            arTrackingService: services.arTrackingService,
-            calibrationCaptureService: services.calibrationCaptureService,
-            calibrationRepository: services.calibrationRepository,
-            keyGeometryService: services.keyGeometryService,
-            importService: services.importService,
-            practicePreparationService: services.practicePreparationService
-        )
-        appState.loadStoredCalibrationIfPossible()
-
-        _appState = State(initialValue: appState)
-        _services = State(initialValue: services)
-        _arGuideViewModel = State(initialValue: ARGuideViewModel(appState: appState))
+        let root = AppCompositionRoot()
+        _appState = State(initialValue: root.appState)
+        _services = State(initialValue: root.services)
+        _arGuideViewModel = State(initialValue: root.arGuideViewModel)
     }
 
     var body: some Scene {
