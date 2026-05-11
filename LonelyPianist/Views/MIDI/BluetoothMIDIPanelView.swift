@@ -35,7 +35,11 @@ struct BluetoothMIDIPanelView: View {
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
-            Text("MIDI sources: \(viewModel.connectedSourceNames.count)")
+            Text("CoreMIDI: sources \(snapshot.coreMIDISourceCount), destinations \(snapshot.coreMIDIDestinationCount)")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+
+            Text("App connected MIDI input sources: \(viewModel.connectedSourceNames.count)")
                 .font(.callout)
                 .foregroundStyle(.secondary)
 
@@ -120,13 +124,23 @@ struct BluetoothMIDIPanelView: View {
     }
 
     private var debugPanel: some View {
-        let snapshot = viewModel.bluetoothMIDIDebugSnapshot()
-
         return VStack(alignment: .leading, spacing: 8) {
             Text("Debug")
                 .font(.headline)
 
             Grid(alignment: .leading, horizontalSpacing: 10, verticalSpacing: 4) {
+                GridRow {
+                    Text("CoreMIDI devices").foregroundStyle(.secondary)
+                    Text("\(snapshot.coreMIDIDeviceCount)")
+                }
+                GridRow {
+                    Text("CoreMIDI sources").foregroundStyle(.secondary)
+                    Text("\(snapshot.coreMIDISourceCount)")
+                }
+                GridRow {
+                    Text("CoreMIDI destinations").foregroundStyle(.secondary)
+                    Text("\(snapshot.coreMIDIDestinationCount)")
+                }
                 GridRow {
                     Text("Central state").foregroundStyle(.secondary)
                     Text("\(snapshot.centralStateRawValue)")
@@ -170,6 +184,10 @@ struct BluetoothMIDIPanelView: View {
                 Spacer()
             }
         }
+    }
+
+    private var snapshot: BluetoothMIDIDebugSnapshot {
+        viewModel.bluetoothMIDIDebugSnapshot()
     }
 
     private func copyToClipboard(_ text: String) {

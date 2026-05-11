@@ -17,6 +17,9 @@ final class BluetoothMIDIConnectionServiceMock: BluetoothMIDIConnectionServicePr
 
     var mockCentralStateRawValue: Int = 0
     var mockAuthorization: String?
+    var mockCoreMIDIDeviceCount: Int = 0
+    var mockCoreMIDISourceCount: Int = 0
+    var mockCoreMIDIDestinationCount: Int = 0
     var mockLastError: String?
     var mockLastActivationStatus: Int32?
     var mockLastDisconnectStatus: Int32?
@@ -28,6 +31,9 @@ final class BluetoothMIDIConnectionServiceMock: BluetoothMIDIConnectionServicePr
             authorization: mockAuthorization,
             isScanning: connectionState == .scanning(mode: scanMode),
             scanMode: scanMode == .midiServiceFiltered ? "midiServiceFiltered" : "allDevices",
+            coreMIDIDeviceCount: mockCoreMIDIDeviceCount,
+            coreMIDISourceCount: mockCoreMIDISourceCount,
+            coreMIDIDestinationCount: mockCoreMIDIDestinationCount,
             lastError: mockLastError,
             discoveredPeripherals: discoveredPeripherals,
             targetPeripheralID: mockTargetPeripheralID,

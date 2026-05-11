@@ -59,6 +59,9 @@ final class CoreBluetoothMIDIConnectionService: NSObject, BluetoothMIDIConnectio
             authorization: String(describing: CBManager.authorization),
             isScanning: central.isScanning,
             scanMode: scanMode == .midiServiceFiltered ? "midiServiceFiltered" : "allDevices",
+            coreMIDIDeviceCount: MIDIGetNumberOfDevices(),
+            coreMIDISourceCount: MIDIGetNumberOfSources(),
+            coreMIDIDestinationCount: MIDIGetNumberOfDestinations(),
             lastError: lastError,
             discoveredPeripherals: discoveredPeripherals,
             targetPeripheralID: targetPeripheralID,
@@ -314,6 +317,21 @@ final class CoreBluetoothMIDIConnectionService: NSObject, BluetoothMIDIConnectio
 
         let sourcesAfter = MIDIGetNumberOfSources()
         logger.info("Activate ok. sources before=\(sourcesBefore, privacy: .public) after=\(sourcesAfter, privacy: .public)")
+        Task { [weak self] in
+            await self?.awaitCoreMIDIRegistrationAndFinalize(peripheral: peripheral)
+        }
+    }
+
+    private func awaitCoreMIDIRegistrationAndFinalize(peripheral: CBPeripheral) async {
+        let id = peripheral.identifier.uuidString
+        let name = peripheral.name
+
+        let didRegister = await waitForCoreMIDIRegistration(peripheralID: id, peripheralName: name, timeoutSeconds: 2)
+        if !didRegister {
+            lastError = "CoreMIDI has not registered endpoints yet. Try connecting via Audio MIDI Setup → MIDI Studio → Bluetooth."
+            logger.warning("CoreMIDI registration timeout for \(id, privacy: .public) name=\(name ?? "(nil)", privacy: .public)")
+        }
+
         connectionState = .activated(id: id)
 
         if settings.rememberLastBluetoothMIDIDevice {
@@ -323,6 +341,122 @@ final class CoreBluetoothMIDIConnectionService: NSObject, BluetoothMIDIConnectio
         logger.info("Disconnect CoreBluetooth connection for \(id, privacy: .public) (CoreMIDI takes over)")
         central.cancelPeripheralConnection(peripheral)
         activePeripheral = nil
+    }
+
+    private func waitForCoreMIDIRegistration(
+        peripheralID: String,
+        peripheralName: String?,
+        timeoutSeconds: Int
+    ) async -> Bool {
+        let deadline = Date().addingTimeInterval(TimeInterval(timeoutSeconds))
+
+        while Date() < deadline {
+            if isCoreMIDIRegistered(peripheralID: peripheralID, peripheralName: peripheralName) {
+                logger.info("CoreMIDI registration confirmed for \(peripheralID, privacy: .public)")
+                return true
+            }
+
+            try? await Task.sleep(for: .milliseconds(200))
+        }
+
+        return false
+    }
+
+    private func isCoreMIDIRegistered(peripheralID: String, peripheralName: String?) -> Bool {
+        if MIDIGetNumberOfSources() > 0 || MIDIGetNumberOfDestinations() > 0 {
+            // Fast-path: if we can directly match the peripheral in the device list, treat as confirmed.
+            if coreMIDIDeviceListContains(peripheralID: peripheralID, peripheralName: peripheralName) {
+                return true
+            }
+            // If there are endpoints but we can't confidently match, still consider this "registered"
+            // because the Bluetooth driver has created visible CoreMIDI endpoints.
+            return true
+        }
+
+        return coreMIDIDeviceListContains(peripheralID: peripheralID, peripheralName: peripheralName)
+    }
+
+    private func coreMIDIDeviceListContains(peripheralID: String, peripheralName: String?) -> Bool {
+        let deviceCount = MIDIGetNumberOfDevices()
+        guard deviceCount > 0 else { return false }
+
+        for index in 0 ..< deviceCount {
+            let device = MIDIGetDevice(index)
+            guard device != 0 else { continue }
+
+            if coreMIDIObjectPropertiesContain(device: device, peripheralID: peripheralID, peripheralName: peripheralName) {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    private func coreMIDIObjectPropertiesContain(
+        device: MIDIDeviceRef,
+        peripheralID: String,
+        peripheralName: String?
+    ) -> Bool {
+        var props: Unmanaged<CFPropertyList>?
+        let status = MIDIObjectGetProperties(device, &props, true)
+        if status == noErr, let propertyList = props?.takeUnretainedValue() {
+            if Self.propertyListContainsString(propertyList, needle: peripheralID) {
+                return true
+            }
+            if let peripheralName, !peripheralName.isEmpty,
+               Self.propertyListContainsString(propertyList, needle: peripheralName)
+            {
+                return true
+            }
+        }
+
+        // Also check common string properties.
+        if let name = coreMIDIStringProperty(device, property: kMIDIPropertyName),
+           name.localizedCaseInsensitiveContains(peripheralID) || (peripheralName.map { name.localizedCaseInsensitiveContains($0) } ?? false)
+        {
+            return true
+        }
+
+        if let displayName = coreMIDIStringProperty(device, property: kMIDIPropertyDisplayName),
+           displayName.localizedCaseInsensitiveContains(peripheralID) || (peripheralName.map { displayName.localizedCaseInsensitiveContains($0) } ?? false)
+        {
+            return true
+        }
+
+        return false
+    }
+
+    private func coreMIDIStringProperty(_ object: MIDIObjectRef, property: CFString) -> String? {
+        var value: Unmanaged<CFString>?
+        let status = MIDIObjectGetStringProperty(object, property, &value)
+        guard status == noErr, let value else { return nil }
+        return value.takeUnretainedValue() as String
+    }
+
+    private static func propertyListContainsString(_ propertyList: Any, needle: String) -> Bool {
+        if let stringValue = propertyList as? String {
+            return stringValue.range(of: needle, options: [.caseInsensitive, .diacriticInsensitive]) != nil
+        }
+
+        if let dictValue = propertyList as? [AnyHashable: Any] {
+            for (_, value) in dictValue {
+                if propertyListContainsString(value, needle: needle) {
+                    return true
+                }
+            }
+            return false
+        }
+
+        if let arrayValue = propertyList as? [Any] {
+            for value in arrayValue {
+                if propertyListContainsString(value, needle: needle) {
+                    return true
+                }
+            }
+            return false
+        }
+
+        return false
     }
 
     private func disconnect(id: String, setIdleWhenDone: Bool) {

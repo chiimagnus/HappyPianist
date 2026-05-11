@@ -8,7 +8,11 @@ func startScanPublishesStateChange() {
     let service = BluetoothMIDIConnectionServiceMock()
 
     var received: [BluetoothMIDIConnectionState] = []
-    service.onConnectionStateChange = { received.append($0) }
+    service.onConnectionStateChange = { state in
+        MainActor.assumeIsolated {
+            received.append(state)
+        }
+    }
 
     service.startScan(mode: .midiServiceFiltered)
 
@@ -23,7 +27,11 @@ func setPeripheralsPublishesListChange() {
     let service = BluetoothMIDIConnectionServiceMock()
 
     var received: [[BluetoothMIDIPeripheral]] = []
-    service.onPeripheralsChange = { received.append($0) }
+    service.onPeripheralsChange = { peripherals in
+        MainActor.assumeIsolated {
+            received.append(peripherals)
+        }
+    }
 
     let peripheral = BluetoothMIDIPeripheral(id: "A", name: "Piano", rssi: -42, lastSeen: Date(timeIntervalSince1970: 1))
     service.setPeripherals([peripheral])
@@ -66,6 +74,9 @@ func debugSnapshotIsCodable() {
         authorization: "denied",
         isScanning: false,
         scanMode: "midiServiceFiltered",
+        coreMIDIDeviceCount: 0,
+        coreMIDISourceCount: 0,
+        coreMIDIDestinationCount: 0,
         lastError: "x",
         discoveredPeripherals: [],
         targetPeripheralID: nil,

@@ -25,6 +25,9 @@ struct BluetoothMIDIDebugSnapshot: Equatable, Codable, Sendable {
     var authorization: String?
     var isScanning: Bool
     var scanMode: String
+    var coreMIDIDeviceCount: Int
+    var coreMIDISourceCount: Int
+    var coreMIDIDestinationCount: Int
     var lastError: String?
     var discoveredPeripherals: [BluetoothMIDIPeripheral]
     var targetPeripheralID: String?
