@@ -78,7 +78,6 @@ piano_dialogue_server/        # 本地 Python 服务
 - 想看 macOS 用法：[`LonelyPianist/README.md`](LonelyPianist/README.md)
 - 想看 visionOS 用法：[`LonelyPianistAVP/README.md`](LonelyPianistAVP/README.md)
 - 想看 Python 服务：[`piano_dialogue_server/README.md`](piano_dialogue_server/README.md)
-- 想连接蓝牙 MIDI：[`LonelyPianist/Docs/macos-bluetooth-midi-setup.md`](LonelyPianist/Docs/macos-bluetooth-midi-setup.md)
 
 ## 当前技术栈
 
