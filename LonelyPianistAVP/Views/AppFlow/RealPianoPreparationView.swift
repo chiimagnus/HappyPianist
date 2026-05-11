@@ -7,6 +7,7 @@ struct RealPianoPreparationView: View {
     @State private var isBluetoothMIDIPanelPresented = false
     @State private var bluetoothAccessPreflight = BluetoothAccessPreflight()
     @State private var bluetoothMIDIAlert: BluetoothMIDIAlert?
+    @State private var midiDebugViewModel = BluetoothMIDIDebugViewModel()
 
     var body: some View {
         VStack(spacing: 20) {
@@ -26,6 +27,53 @@ struct RealPianoPreparationView: View {
             .buttonStyle(.bordered)
             .buttonBorderShape(.roundedRectangle)
             .hoverEffect()
+
+            GroupBox("MIDI 调试") {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack {
+                        Text("状态：\(midiDebugViewModel.statusText)")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+
+                        Spacer()
+
+                        Button("刷新 Sources", systemImage: "arrow.clockwise") {
+                            midiDebugViewModel.refreshSources()
+                        }
+                        .buttonStyle(.bordered)
+                        .buttonBorderShape(.roundedRectangle)
+                        .hoverEffect()
+                    }
+
+                    Text("Sources: \(midiDebugViewModel.sourceNames.count)")
+                        .font(.headline)
+
+                    if midiDebugViewModel.sourceNames.isEmpty {
+                        Text("未发现 MIDI sources。连接蓝牙 MIDI 后可在这里确认是否已出现在系统 MIDI 列表中。")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        VStack(alignment: .leading, spacing: 6) {
+                            ForEach(midiDebugViewModel.sourceNames, id: \.self) { name in
+                                Text("• \(name)")
+                                    .font(.callout)
+                            }
+                        }
+                    }
+
+                    HStack(spacing: 12) {
+                        Text("noteOn \(midiDebugViewModel.noteOnCount) / noteOff \(midiDebugViewModel.noteOffCount)")
+                            .font(.callout)
+
+                        if let last = midiDebugViewModel.lastNoteText {
+                            Text("last: \(last)")
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             HStack {
                 Button("返回钢琴类型选择") {
@@ -78,6 +126,12 @@ struct RealPianoPreparationView: View {
         }
         .onChange(of: viewModel.calibrationPhase) {
             router.flowState.isCalibrationCompleted = (viewModel.calibrationPhase == .completed)
+        }
+        .onAppear {
+            midiDebugViewModel.start()
+        }
+        .onDisappear {
+            midiDebugViewModel.stop()
         }
     }
 
