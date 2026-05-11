@@ -4,6 +4,7 @@
 | 症状 | 首查位置 | 典型原因 |
 | --- | --- | --- |
 | Start Listening 后无按键输出 | Accessibility / `statusMessage` | 权限没开 |
+| 点击 `Bluetooth MIDI…` 弹 “not supported / unknown error” | macOS Bluetooth 权限 / 蓝牙开关 | Bluetooth 权限被拒绝 / 系统蓝牙关闭 |
 | Dialogue 没回复 | `/health` / 模型目录 | Python 服务没起或权重缺失 |
 | AVP 后端发现 denied / unavailable | `backendDiscoveryStatusText` / Local Network 权限 | Local Network 被拒绝 / 不在同一局域网 / Bonjour 广播失败 |
 | Step 3 定位失败 | `practiceLocalizationStatusText` | 校准缺失 / provider 未运行 |
@@ -19,7 +20,11 @@
 1. 检查 `hasAccessibilityPermission`。
 2. 看 `connectionState` 和 `connectedSourceNames`。
 3. 若无响应，先确认 MIDI 来源刷新成功。
-4. 若 CI 编译失败，优先看第一条 `SwiftCompile` error；不要先改 workflow。
+4. 若 BLE MIDI 无法连接或提示 “not supported / unknown error”：
+   - System Settings → Privacy & Security → Bluetooth → 允许 `LonelyPianist`
+   - System Settings → Bluetooth → 确认蓝牙已开启
+   - 重启 App 后再点 `Bluetooth MIDI…`
+5. 若 CI 编译失败，优先看第一条 `SwiftCompile` error；不要先改 workflow。
 
 ## AVP 排查
 1. 确认 Step 1 已保存，而不是只捕获。
@@ -78,3 +83,4 @@
 - 2026-05-01: AVP 练习引导从光柱改为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。
 - 2026-05-02: 虚拟钢琴放置改为 gaze-plane + palm confirmation；移除 GitHub Actions 排障假设（当前仓库不含 `.github/workflows/`）。
 - 2026-05-05: 新增 AVP Local Network/Bonjour 后端发现相关症状入口与排查步骤，并补齐 `/generate` 的最小 curl 验证。
+- 2026-05-12: 新增 macOS `Bluetooth MIDI…` 权限被拒绝/蓝牙关闭导致的 “not supported / unknown error” 排查入口。
