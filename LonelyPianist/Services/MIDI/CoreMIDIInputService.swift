@@ -1,4 +1,5 @@
 import CoreMIDI
+import Dispatch
 import Foundation
 import OSLog
 
@@ -31,6 +32,7 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
     private var connectedSources: [MIDIEndpointRef] = []
     private var isRunning = false
     private var didLogNonNoteMessage = false
+    private let refreshScheduler = DebouncedActionScheduler(queue: .main, debounceSec: 0.2)
 
     deinit {
         stop()
@@ -48,6 +50,9 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
     }
 
     func stop() {
+        isRunning = false
+        refreshScheduler.cancel()
+
         disconnectAllSources()
 
         if inputPortRef != 0 {
@@ -60,7 +65,6 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
             clientRef = 0
         }
 
-        isRunning = false
         onConnectionStateChange?(.idle)
         logger.info("MIDI listening stopped")
     }
@@ -110,16 +114,42 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
     private func createClientIfNeeded() throws {
         guard clientRef == 0 else { return }
 
-        let status = MIDIClientCreate(
+        let status = MIDIClientCreateWithBlock(
             "LonelyPianistMIDIClient" as CFString,
-            nil,
-            nil,
             &clientRef
-        )
+        ) { [weak self] message in
+            let notification = message.pointee
+            Task { @MainActor [weak self] in
+                self?.handleMIDINotification(notification)
+            }
+        }
 
         guard status == noErr else {
             onConnectionStateChange?(.failed("Create MIDI client failed: \(status)"))
             throw MIDIInputServiceError.clientCreate(status)
+        }
+    }
+
+    private func handleMIDINotification(_ notification: MIDINotification) {
+        switch notification.messageID {
+            case .msgObjectAdded, .msgObjectRemoved, .msgSetupChanged:
+                scheduleRefreshSources()
+            default:
+                return
+        }
+    }
+
+    private func scheduleRefreshSources() {
+        guard isRunning else { return }
+        refreshScheduler.schedule { [weak self] in
+            guard let self else { return }
+            guard self.isRunning, self.inputPortRef != 0 else { return }
+
+            do {
+                try self.refreshSources()
+            } catch {
+                self.logger.error("Auto refresh MIDI sources failed: \(error.localizedDescription, privacy: .public)")
+            }
         }
     }
 

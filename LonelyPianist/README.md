@@ -16,9 +16,17 @@
 ## 没有实体 MIDI 键盘？
 
 可以用虚拟 MIDI 键盘测试，例如 [MidiKeys](https://github.com/flit/MidiKeys)。
-打开后，在 App 中点 `Refresh MIDI Sources` 即可识别。
+打开后，App 会自动识别为一个 MIDI source（若没有出现，重启 App 再试）。
 
 > 不建议用 GarageBand 做外部广播测试，它的 MIDI 事件不会稳定广播给外部应用。
+
+## 使用蓝牙 MIDI（BLE MIDI）
+
+在 App 工具栏点击 `Bluetooth MIDI…`，在系统窗口里 Connect 你的钢琴/键盘即可。
+
+如果系统弹出蓝牙权限提示，请选择允许；否则在：
+
+System Settings → Privacy & Security → Bluetooth 中允许 `LonelyPianist`。
 
 ## 关联文档
 

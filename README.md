@@ -51,6 +51,8 @@ open LonelyPianist.xcodeproj
 
 在 Xcode 里选择 `LonelyPianist` scheme 并运行。首次使用前，请在**系统设置 → 隐私与安全性 → 辅助功能**中授权，否则按键注入不会生效。
 
+如果你使用的是 **蓝牙 MIDI（BLE MIDI）** 钢琴/键盘：运行后点击工具栏 `Bluetooth MIDI…`，在系统窗口里 Connect 设备；若系统弹出蓝牙权限提示，请选择允许。
+
 ### 3. 体验 Vision Pro 练习
 
 ```bash

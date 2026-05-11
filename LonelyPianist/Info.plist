@@ -24,5 +24,7 @@
 			</dict>
 		</dict>
 	</array>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>LonelyPianist 需要访问蓝牙以连接蓝牙 MIDI 设备。</string>
 </dict>
 </plist>

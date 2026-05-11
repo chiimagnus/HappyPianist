@@ -9,6 +9,7 @@
 | --- | --- |
 | `ViewModels/` | 业务编排 |
 | `Services/MIDI/` | MIDI 输入 / 输出 |
+| `Services/Bluetooth/` | BLE MIDI 连接前置检查（权限/开关），用于在 App 内打开系统 Bluetooth MIDI 连接窗口 |
 | `Services/Mapping/` | mapping engine |
 | `Services/Dialogue/` | turn-based 对话 |
 | `Services/Recording/` | take 构建 |
@@ -35,6 +36,7 @@
 - `setSingleKeyMapping`
 - `stopTransport`
 - `DialogueManager.start()`
+- `RecorderPanelView.openBluetoothMIDIWindow()`（蓝牙权限/系统窗口行为受环境影响）
 
 
 ## Coverage Gaps
@@ -42,3 +44,4 @@
 
 ## 更新记录（Update Notes）
 - 2026-04-26: 修复模块页内部链接（从 `modules/` 前缀改为同目录相对路径）。
+- 2026-05-12: 同步 macOS BLE MIDI 连接入口迁移为 App 内 `Bluetooth MIDI…`（系统窗口 + 权限预检）。

@@ -41,9 +41,9 @@
 ## 权限与 entitlements
 | 文件 | 说明 |
 | --- | --- |
-| `LonelyPianist/LonelyPianist.entitlements` | sandbox、network client、user-selected files |
+| `LonelyPianist/LonelyPianist.entitlements` | sandbox、network client、user-selected files、Bluetooth（用于在 App 内打开系统 Bluetooth MIDI 连接窗口） |
 | `LonelyPianistAVP/Info.plist` | `NSHandsTrackingUsageDescription`、`NSWorldSensingUsageDescription`（平面检测）、`NSLocalNetworkUsageDescription`（后端发现/连接）、`NSBonjourServices`（`_lonelypianist._tcp`）+ ATS local networking + MusicXML 导入类型 |
-| `LonelyPianist/Info.plist` | macOS app 基本信息 |
+| `LonelyPianist/Info.plist` | macOS app 基本信息、`NSBluetoothAlwaysUsageDescription`（蓝牙 MIDI 连接） |
 
 ## Python 环境变量
 | 变量 | 含义 | 来源 |
@@ -58,6 +58,8 @@
 | 误配 | 后果 | 修复 |
 | --- | --- | --- |
 | 未授权 Accessibility | macOS 不能注入按键 | 重新授权 |
+| Bluetooth 权限被拒绝 | App 内 `Bluetooth MIDI…` 无法连接 BLE MIDI / 可能出现 “not supported / unknown error” | System Settings → Privacy & Security → Bluetooth → 允许 `LonelyPianist` |
+| 系统蓝牙关闭 | BLE MIDI 无法发现/连接 | 打开系统蓝牙后重试 |
 | 未启动 Python 服务 | Dialogue 无回复 | 启动 uvicorn |
 | 模型目录无权重 | 服务启动或首个 generate 失败 | 补齐权重文件 |
 | AVP Local Network denied | Bonjour 发现为 `.denied`，无法自动连接后端 | 重新允许本 app 的 Local Network 权限 |
@@ -76,3 +78,4 @@
 - 2026-05-02: 移除 GitHub Actions workflow 配置假设（当前仓库不含 `.github/workflows/`）；补充 AVP `NSWorldSensingUsageDescription`（平面检测）。
 - 2026-05-05: 同步 AVP Local Network/Bonjour 与后端 HTTP `/generate` 相关默认值与误配后果。
 - 2026-05-06: 同步 Python `server/` 目录重组（`api/`、`engines/`、`media/`）后的环境变量来源位置。
+- 2026-05-12: 补充 macOS BLE MIDI 的蓝牙权限与误配后果（`Bluetooth MIDI…` 入口）。
