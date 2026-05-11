@@ -24,3 +24,4 @@
 
 - visionOS 端：[`../LonelyPianistAVP/README.md`](../LonelyPianistAVP/README.md)
 - 仓库知识库：[`../.github/deepwiki/INDEX.md`](../.github/deepwiki/INDEX.md)
+- 蓝牙 MIDI（系统连接方式）：[`Docs/macos-bluetooth-midi-setup.md`](Docs/macos-bluetooth-midi-setup.md)
