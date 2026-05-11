@@ -117,7 +117,9 @@ final class CoreMIDIDebugInputService {
             &clientRef
         ) { [weak self] message in
             let notification = message.pointee
-            self?.handleMIDINotification(notification)
+            Task { @MainActor [weak self] in
+                self?.handleMIDINotification(notification)
+            }
         }
 
         guard status == noErr else {
@@ -135,7 +137,9 @@ final class CoreMIDIDebugInputService {
             MIDIProtocolID._1_0,
             &inputPortRef
         ) { [weak self] eventList, _ in
-            self?.handleEventList(eventList)
+            Task { @MainActor [weak self] in
+                self?.handleEventList(eventList)
+            }
         }
 
         guard status == noErr else {
