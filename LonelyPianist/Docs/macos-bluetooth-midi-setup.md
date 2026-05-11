@@ -34,10 +34,10 @@
 ## 在 LonelyPianist 中验证
 
 1. 启动 App（或确保 App 正在运行）
-2. 打开 MIDI 连接面板（若你已经实现该面板），或执行一次 **Refresh MIDI Sources**
-3. 期望结果：
-   - sources 列表出现钢琴名称（或类似 `FP-30X MIDI`）
-   - 弹奏键盘时，App 的 MIDI 事件计数增加 / 能录到 notes
+2. 点击工具栏 `Bluetooth MIDI…`，在系统窗口里 Connect 你的钢琴
+   - 如果系统弹出“允许访问蓝牙”的提示，请选择允许
+3. 连接成功后回到 App，弹奏键盘进行验证
+   - 期望结果：弹奏时 App 的 MIDI 事件计数增加 / 能录到 notes
 
 ## 常见问题与排障
 
@@ -47,6 +47,7 @@
 
 1. 系统层是否真的连上了 BLE MIDI
    - 回到 Audio MIDI Setup → Bluetooth 面板，看是否处于 Connected
+   - 或在 App 里再次打开 `Bluetooth MIDI…`，确认设备处于 Connected
 2. 断开再重连
    - Disconnect → Connect
 3. 重启 App
@@ -54,6 +55,8 @@
 4. 重启蓝牙 / 重启钢琴
 5. 确认钢琴的蓝牙模式
    - 部分型号需要切到 “MIDI over Bluetooth” 而不是音频蓝牙
+6. 检查蓝牙权限是否被拒绝
+   - System Settings → Privacy & Security → Bluetooth → 允许 `LonelyPianist`
 
 ### 2) 已连接，但 App 仍收不到 note on/off
 
@@ -61,7 +64,8 @@
 2. 先用一个 MIDI 监视工具验证（任选其一）
    - DAW（Logic/GarageBand）或 MIDI monitor 工具
 3. 如果监视工具有数据但 App 没有：
-   - 在 App 里执行一次 Refresh MIDI Sources
+   - 等待 1–2 秒（系统可能正在创建 CoreMIDI endpoints）
+   - 断开再重连 BLE MIDI（在 App 的 `Bluetooth MIDI…` 窗口中操作）
    - 确认 App 的 CoreMIDI 输入实现连接到了该 source
 
 ### 3) 蓝牙面板能看到设备，但连接失败
@@ -69,6 +73,14 @@
 1. 把钢琴从 macOS 蓝牙设备列表里 “忘记设备”，再重新配对/连接
 2. 尽量靠近设备、避免同时连接到其它主机（例如 iPad/iPhone）
 3. 如果设备同时支持音频蓝牙，先关闭音频连接再尝试 MIDI
+
+### 4) 点击 `Bluetooth MIDI…` 提示 “MIDI over Bluetooth is not supported / An unknown error has occurred”
+
+这通常不是“设备不支持”，而是系统蓝牙状态或权限导致：
+
+1. 打开 System Settings → Privacy & Security → Bluetooth，允许 `LonelyPianist`
+2. 确认系统蓝牙已开启（System Settings → Bluetooth）
+3. 重启 App 再试（第一次授权后需要重新触发连接流程）
 
 ## 给开发者的提示（为什么要走系统连接）
 

@@ -51,6 +51,8 @@ open LonelyPianist.xcodeproj
 
 在 Xcode 里选择 `LonelyPianist` scheme 并运行。首次使用前，请在**系统设置 → 隐私与安全性 → 辅助功能**中授权，否则按键注入不会生效。
 
+如果你使用的是 **蓝牙 MIDI（BLE MIDI）** 钢琴/键盘：运行后点击工具栏 `Bluetooth MIDI…`，在系统窗口里 Connect 设备；若系统弹出蓝牙权限提示，请选择允许。
+
 ### 3. 体验 Vision Pro 练习
 
 ```bash
@@ -76,6 +78,7 @@ piano_dialogue_server/        # 本地 Python 服务
 - 想看 macOS 用法：[`LonelyPianist/README.md`](LonelyPianist/README.md)
 - 想看 visionOS 用法：[`LonelyPianistAVP/README.md`](LonelyPianistAVP/README.md)
 - 想看 Python 服务：[`piano_dialogue_server/README.md`](piano_dialogue_server/README.md)
+- 想连接蓝牙 MIDI：[`LonelyPianist/Docs/macos-bluetooth-midi-setup.md`](LonelyPianist/Docs/macos-bluetooth-midi-setup.md)
 
 ## 当前技术栈
 
