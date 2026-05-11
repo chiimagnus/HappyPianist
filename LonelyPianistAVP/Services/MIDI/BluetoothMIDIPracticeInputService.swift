@@ -2,6 +2,14 @@ import CoreMIDI
 import Foundation
 import OSLog
 
+protocol BluetoothMIDIPracticeInputServiceProtocol: AnyObject {
+    var events: AsyncStream<DetectedNoteEvent> { get }
+
+    func start(generation: Int) throws -> Int
+    func updateGeneration(_ generation: Int)
+    func stop()
+}
+
 enum BluetoothMIDIPracticeInputServiceError: LocalizedError {
     case clientCreate(OSStatus)
     case portCreate(OSStatus)
@@ -19,7 +27,7 @@ enum BluetoothMIDIPracticeInputServiceError: LocalizedError {
     }
 }
 
-final class BluetoothMIDIPracticeInputService {
+final class BluetoothMIDIPracticeInputService: BluetoothMIDIPracticeInputServiceProtocol {
     var events: AsyncStream<DetectedNoteEvent> {
         eventsStream
     }

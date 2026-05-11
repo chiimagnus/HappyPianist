@@ -61,7 +61,7 @@ final class PracticeSessionViewModel {
     let keyContactDetectionService = KeyContactDetectionService()
     let realPianoContactDetectionService = RealPianoContactDetectionService()
     let audioRecognitionService: PracticeAudioRecognitionServiceProtocol?
-    let bluetoothMIDIInputService: BluetoothMIDIPracticeInputService?
+    let bluetoothMIDIInputService: BluetoothMIDIPracticeInputServiceProtocol?
     let audioStepAttemptAccumulator: AudioStepAttemptAccumulator
     let handPianoActivityGate: HandPianoActivityGate
     private let manualAdvanceModeProvider: () -> ManualAdvanceMode
@@ -113,7 +113,7 @@ final class PracticeSessionViewModel {
         sleeper: SleeperProtocol,
         sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol? = nil,
         audioRecognitionService: PracticeAudioRecognitionServiceProtocol? = nil,
-        bluetoothMIDIInputService: BluetoothMIDIPracticeInputService? = nil,
+        bluetoothMIDIInputService: BluetoothMIDIPracticeInputServiceProtocol? = nil,
         audioStepAttemptAccumulator: AudioStepAttemptAccumulator? = nil,
         handPianoActivityGate: HandPianoActivityGate? = nil,
         manualAdvanceModeProvider: @escaping () -> ManualAdvanceMode = {
@@ -140,10 +140,10 @@ final class PracticeSessionViewModel {
         let playbackService = AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2")
 #if targetEnvironment(simulator)
         let audioRecognitionService: PracticeAudioRecognitionServiceProtocol? = nil
-        let bluetoothMIDIInputService: BluetoothMIDIPracticeInputService? = nil
+        let bluetoothMIDIInputService: BluetoothMIDIPracticeInputServiceProtocol? = nil
 #else
         let audioRecognitionService: PracticeAudioRecognitionServiceProtocol? = PracticeAudioRecognitionService()
-        let bluetoothMIDIInputService: BluetoothMIDIPracticeInputService? = BluetoothMIDIPracticeInputService()
+        let bluetoothMIDIInputService: BluetoothMIDIPracticeInputServiceProtocol? = BluetoothMIDIPracticeInputService()
 #endif
         self.init(
             pressDetectionService: PressDetectionService(),
