@@ -32,7 +32,7 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
     private var connectedSources: [MIDIEndpointRef] = []
     private var isRunning = false
     private var didLogNonNoteMessage = false
-    private var refreshDebounceWorkItem: DispatchWorkItem?
+    private let refreshScheduler = DebouncedActionScheduler(queue: .main, debounceSec: 0.2)
 
     deinit {
         stop()
@@ -51,8 +51,7 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
 
     func stop() {
         isRunning = false
-        refreshDebounceWorkItem?.cancel()
-        refreshDebounceWorkItem = nil
+        refreshScheduler.cancel()
 
         disconnectAllSources()
 
@@ -119,7 +118,10 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
             "LonelyPianistMIDIClient" as CFString,
             &clientRef
         ) { [weak self] message in
-            self?.handleMIDINotification(message.pointee)
+            let notification = message.pointee
+            Task { @MainActor [weak self] in
+                self?.handleMIDINotification(notification)
+            }
         }
 
         guard status == noErr else {
@@ -139,10 +141,7 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
 
     private func scheduleRefreshSources() {
         guard isRunning else { return }
-
-        refreshDebounceWorkItem?.cancel()
-
-        let workItem = DispatchWorkItem { [weak self] in
+        refreshScheduler.schedule { [weak self] in
             guard let self else { return }
             guard self.isRunning, self.inputPortRef != 0 else { return }
 
@@ -152,9 +151,6 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
                 self.logger.error("Auto refresh MIDI sources failed: \(error.localizedDescription, privacy: .public)")
             }
         }
-
-        refreshDebounceWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: workItem)
     }
 
     private func createInputPortIfNeeded() throws {
