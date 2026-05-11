@@ -42,7 +42,7 @@
 | 文件 | 说明 |
 | --- | --- |
 | `LonelyPianist/LonelyPianist.entitlements` | sandbox、network client、user-selected files、Bluetooth（用于在 App 内打开系统 Bluetooth MIDI 连接窗口） |
-| `LonelyPianistAVP/Info.plist` | `NSHandsTrackingUsageDescription`、`NSWorldSensingUsageDescription`（平面检测）、`NSLocalNetworkUsageDescription`（后端发现/连接）、`NSBonjourServices`（`_lonelypianist._tcp`）+ ATS local networking + MusicXML 导入类型 |
+| `LonelyPianistAVP/Info.plist` | `NSHandsTrackingUsageDescription`、`NSWorldSensingUsageDescription`（平面检测）、`NSBluetoothAlwaysUsageDescription`（蓝牙 MIDI 连接与 sources 可见性）、`NSLocalNetworkUsageDescription`（后端发现/连接）、`NSBonjourServices`（`_lonelypianist._tcp`）+ ATS local networking + MusicXML 导入类型 |
 | `LonelyPianist/Info.plist` | macOS app 基本信息、`NSBluetoothAlwaysUsageDescription`（蓝牙 MIDI 连接） |
 
 ## Python 环境变量
@@ -58,7 +58,7 @@
 | 误配 | 后果 | 修复 |
 | --- | --- | --- |
 | 未授权 Accessibility | macOS 不能注入按键 | 重新授权 |
-| Bluetooth 权限被拒绝 | App 内 `Bluetooth MIDI…` 无法连接 BLE MIDI / 可能出现 “not supported / unknown error” | System Settings → Privacy & Security → Bluetooth → 允许 `LonelyPianist` |
+| Bluetooth 权限被拒绝（macOS / AVP） | App 内 `Bluetooth MIDI…` 无法连接 BLE MIDI / 可能出现 “not supported / unknown error” | System Settings → Privacy & Security → Bluetooth → 允许 `LonelyPianist`（AVP 侧可从 App 内弹窗“打开设置”进入） |
 | 系统蓝牙关闭 | BLE MIDI 无法发现/连接 | 打开系统蓝牙后重试 |
 | 未启动 Python 服务 | Dialogue 无回复 | 启动 uvicorn |
 | 模型目录无权重 | 服务启动或首个 generate 失败 | 补齐权重文件 |

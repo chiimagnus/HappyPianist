@@ -5,6 +5,7 @@
 | --- | --- | --- |
 | Start Listening 后无按键输出 | Accessibility / `statusMessage` | 权限没开 |
 | 点击 `Bluetooth MIDI…` 弹 “not supported / unknown error” | macOS Bluetooth 权限 / 蓝牙开关 | Bluetooth 权限被拒绝 / 系统蓝牙关闭 |
+| AVP 点击 `Bluetooth MIDI…` 无法连接 / 提示需要蓝牙权限 | AVP 蓝牙权限 / 蓝牙开关 | Bluetooth 权限被拒绝 / 系统蓝牙关闭 / simulator 无法验证 BLE MIDI |
 | Dialogue 没回复 | `/health` / 模型目录 | Python 服务没起或权重缺失 |
 | AVP 后端发现 denied / unavailable | `backendDiscoveryStatusText` / Local Network 权限 | Local Network 被拒绝 / 不在同一局域网 / Bonjour 广播失败 |
 | Step 3 定位失败 | `practiceLocalizationStatusText` | 校准缺失 / provider 未运行 |
@@ -30,14 +31,19 @@
 1. 确认 Step 1 已保存，而不是只捕获。
 2. 确认已导入 MusicXML 且 `importedSteps` 非空。
 3. 若定位失败，优先看 provider state / anchor 状态。
-4. 若后端发现显示 `denied` / `unavailable` / `discovering` 很久不变：
+4. 若点击 `Bluetooth MIDI…` 后无法连接或提示需要权限：
+   - System Settings → Privacy & Security → Bluetooth → 允许 `LonelyPianist`
+   - System Settings → Bluetooth → 确认蓝牙已开启
+   - 连接后回到「真实钢琴准备」页，观察 “MIDI 调试” 的 sources 是否增长、是否有 noteOn/noteOff 计数
+   - 注意：visionOS Simulator 无法可靠验证 BLE MIDI；验收以真机为准
+5. 若后端发现显示 `denied` / `unavailable` / `discovering` 很久不变：
    - 先确认已允许本 app 的 Local Network 权限（`NSLocalNetworkUsageDescription`）
    - 再确认 Python 服务使用 `--host 0.0.0.0 --port 8765` 启动并在同一局域网内可达
-5. 若贴皮高亮位置/尺寸/闪烁异常，检查 `PianoGuideBeamDescriptor`、`KeyDecalSoftRect`、`PianoKeyboardGeometry.frame.keyboardFromWorld` 和 debug axes。
-6. 若找不到 simulator destination，先本地跑 `xcodebuild -showdestinations -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP`。
-7. 若看到大量音频相关 stop/start 日志，先区分”识别服务”与”播放服务”（见下方常见音频日志）。
-8. 若虚拟钢琴模式下手指接触琴键无声音，检查 `KeyContactDetectionService.detect` 的 `started` 输出和 `PracticeSequencerPlaybackServiceProtocol.liveNotes`。
-9. 若虚拟钢琴放置后键盘位置偏移，检查：
+6. 若贴皮高亮位置/尺寸/闪烁异常，检查 `PianoGuideBeamDescriptor`、`KeyDecalSoftRect`、`PianoKeyboardGeometry.frame.keyboardFromWorld` 和 debug axes。
+7. 若找不到 simulator destination，先本地跑 `xcodebuild -showdestinations -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP`。
+8. 若看到大量音频相关 stop/start 日志，先区分”识别服务”与”播放服务”（见下方常见音频日志）。
+9. 若虚拟钢琴模式下手指接触琴键无声音，检查 `KeyContactDetectionService.detect` 的 `started` 输出和 `PracticeSequencerPlaybackServiceProtocol.liveNotes`。
+10. 若虚拟钢琴放置后键盘位置偏移，检查：
    - `AppState.cachedVirtualPianoWorldAnchorID` 对应的 `WorldAnchor.isTracked` 是否稳定恢复
    - `ARGuideViewModel.latestGazePlaneHit` 是否频繁变为 `nil`（会导致确认立即 reset）
    - `VirtualKeyboardPoseService.computeWorldFromKeyboard` 的输入（plane pose / hand center / device pose）
@@ -84,3 +90,4 @@
 - 2026-05-02: 虚拟钢琴放置改为 gaze-plane + palm confirmation；移除 GitHub Actions 排障假设（当前仓库不含 `.github/workflows/`）。
 - 2026-05-05: 新增 AVP Local Network/Bonjour 后端发现相关症状入口与排查步骤，并补齐 `/generate` 的最小 curl 验证。
 - 2026-05-12: 新增 macOS `Bluetooth MIDI…` 权限被拒绝/蓝牙关闭导致的 “not supported / unknown error” 排查入口。
+- 2026-05-12: 新增 AVP `Bluetooth MIDI…` 权限与真机冒烟排查入口（simulator 不覆盖 BLE MIDI）。

@@ -30,6 +30,13 @@
 | `ARGuideViewModel.enterVirtualPianoPlacement()` | 虚拟钢琴准备阶段：打开沉浸空间并进入放置引导 |
 | `SongLibraryViewModel.preparePractice()` | 解析谱面并写入 `FlowState`（触发 session 注入） |
 
+## Bluetooth MIDI（BLE）
+- 入口：`Views/AppFlow/RealPianoPreparationView.swift` 的 `Bluetooth MIDI…` 按钮（仅 2D Window）。
+- 系统连接 UI：`Views/MIDI/BluetoothMIDICentralView.swift` 包装 `CoreAudioKit.CABTMIDICentralViewController`（不做 app 私有扫描/连接）。
+- 权限预检与引导：`Services/Bluetooth/BluetoothAccessPreflight.swift` + `NSBluetoothAlwaysUsageDescription`（见 `LonelyPianistAVP/Info.plist`）。
+- 连接确认抓手：`ViewModels/MIDI/BluetoothMIDIDebugViewModel.swift` + `Services/MIDI/CoreMIDIDebugInputService.swift` 在准备页展示 sources / noteOn/noteOff 计数。
+- 验收要点：visionOS Simulator 无法可靠验证 BLE MIDI；以 Vision Pro 真机冒烟为准。
+
 ## 重要子页
 - [Library](lonelypianist-avp-library.md)
 - [Calibration](lonelypianist-avp-calibration.md)
@@ -52,3 +59,4 @@
 - 2026-05-01: Step 3 练习的 RealityKit 引导从光柱迁移为琴键贴皮高亮（decal）。
 - 2026-05-02: 虚拟钢琴放置改为“视野中心平面 + 双手确认”，新增 placement 模型与服务，并增加圆盘 overlay。
 - 2026-05-10: 主流程重构：以 `AppRouter.route` 做 root 切换，引入 `FlowState` 聚合“钢琴类型 + 曲目/steps”，练习页返回回到曲库；移除“练习页虚拟钢琴开关”的产品入口。
+- 2026-05-12: 新增 AVP app 内系统 `Bluetooth MIDI…` 入口、权限预检与 CoreMIDI debug 抓手。
