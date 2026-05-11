@@ -1,3 +1,4 @@
+import CoreAudioKit
 import Observation
 import SwiftUI
 import UniformTypeIdentifiers
@@ -9,7 +10,7 @@ struct RecorderPanelView: View {
     @State private var renameDraft = ""
     @State private var isImportingMIDI = false
     @State private var importMode: LonelyPianistViewModel.MIDIImportMode = .all
-    @State private var isShowingMIDIConnection = false
+    @State private var bluetoothMIDIWindowController: CABTLEMIDIWindowController?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -103,9 +104,9 @@ struct RecorderPanelView: View {
                 .disabled(viewModel.selectedTake == nil)
 
                 Button {
-                    isShowingMIDIConnection = true
+                    openBluetoothMIDIWindow()
                 } label: {
-                    Label("MIDI", systemImage: "cable.connector")
+                    Label("Bluetooth MIDI…", systemImage: "dot.radiowaves.left.and.right")
                 }
             }
         }
@@ -130,9 +131,6 @@ struct RecorderPanelView: View {
                 case .failure:
                     break
             }
-        }
-        .sheet(isPresented: $isShowingMIDIConnection) {
-            MIDIConnectionPanelView(viewModel: viewModel)
         }
     }
 
@@ -164,5 +162,12 @@ struct RecorderPanelView: View {
                 viewModel.setPlaybackOutput(id: newValue)
             }
         )
+    }
+
+    private func openBluetoothMIDIWindow() {
+        let controller = bluetoothMIDIWindowController ?? CABTLEMIDIWindowController()
+        bluetoothMIDIWindowController = controller
+        controller.showWindow(nil)
+        controller.window?.makeKeyAndOrderFront(nil)
     }
 }
