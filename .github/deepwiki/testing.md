@@ -89,3 +89,4 @@
 - 2026-04-28: 反映 pr-tests.yml workflow 已删除，更新测试策略为本地手动运行；移除 PR Tests 路径分流内容；更新手工冒烟和现状说明。
 - 2026-05-01: 同步 AVP Practice 的 RealityKit 引导从光柱迁移为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。
 - 2026-05-06: 同步 Python `server/` 目录重组后 WS 回环测试入口（`python -m server.api.test_client`）与相关路径。
+- 2026-05-12: 增加 AVP BLE MIDI 模式回归点：MIDI-only 注入与录制（take/phrase）事件模型的单测覆盖（见 `LonelyPianistAVPTests/RecordingMIDIInputTests.swift`、`LonelyPianistAVPTests/PhraseRecorderMIDIInputTests.swift`、`LonelyPianistAVPTests/PracticeSessionMIDIOnlyModeTests.swift`）。

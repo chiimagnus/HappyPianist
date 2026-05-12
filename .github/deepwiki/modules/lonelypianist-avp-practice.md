@@ -68,21 +68,30 @@ flowchart TD
 - 贴皮位置/尺寸由 `PianoGuideBeamDescriptor` 统一描述（命名仍为 Beam，但语义为 decal），RealityKit 只负责按 descriptor diff 更新实体。
 - `activeBeamEntitiesByMIDINote` 只保留当前 step 所需贴皮高亮；离开当前 step 的贴皮会被移除。
 
-## 真实钢琴输入源（Audio / Bluetooth MIDI）
+## 钢琴模式（Audio / Bluetooth MIDI / Virtual）
 
-Step 3 的“按键匹配/推进”输入源支持两种模式：
+AVP 端把 Step 3 “练习输入/推进/录制/AI”按钢琴模式做硬边界拆分（不做回退、也不在 Step 3 设置里切换）：
 
-| 输入源 | 适用场景 | 入口 |
-| --- | --- | --- |
-| `音频识别` | 无 BLE MIDI 设备或暂时不想配对 | `PracticeSettingsView` → 「真实钢琴输入源」 |
-| `Bluetooth MIDI` | 已通过系统 `Bluetooth MIDI…` 连接钢琴，希望更稳定的 note-on 事件 | `RealPianoPreparationView` 先连接 → `PracticeSettingsView` 选择 |
+| `PianoKind` | 模式语义 | 典型入口（准备页） | Step 3 输入/推进 |
+| --- | --- | --- | --- |
+| `.realAudio` | 真实钢琴（音频识别 + 手势辅助） | `Views/AppFlow/RealPianoPreparationView.swift` | `PracticeAudioRecognitionService` + 手势 gating |
+| `.realBluetoothMIDI` | 真实钢琴（BLE MIDI，MIDI-only） | `Views/AppFlow/BluetoothMIDIPreparationView.swift` | `PracticeInputEventSourceProtocol`（CoreMIDI events） |
+| `.virtual` | 虚拟钢琴（手势触键） | `Views/AppFlow/VirtualPianoPreparationView.swift` | 虚拟触键 + sequencer |
 
-实现要点（AVP）：
-- 用户偏好存储：`UserDefaults` / `@AppStorage("practiceStep3InputSource")`（见 `Views/PracticeSettingsView.swift`、`Views/PracticeStepView.swift`）。
-- 输入切换逻辑集中在 `PracticeSessionViewModel.refreshAudioRecognitionForCurrentState()`：
-  - 当选择 `Bluetooth MIDI` 时，优先启动 `BluetoothMIDIPracticeInputService` 并监听 `CoreMIDI` sources；
-  - 若没有 sources / 启动失败 / simulator 不可用，则设置 `practiceInputWarningMessage` 并自动回退到 `音频识别`。
-- BLE MIDI 模式只消费 note-on（velocity>0）并转成 `DetectedNoteEvent(source: .bluetoothMIDI)`，复用现有的 `AudioStepAttemptAccumulator` 作为 matcher（不引入额外 step 推进逻辑分支）。
+模式状态保存在 `Models/AppFlow/FlowState.swift` 的 `pianoKind`，路由由 `AppRouter` 统一编排。
+
+### Bluetooth MIDI 模式（MIDI-only）
+
+关键链路：
+- 系统连接面板：`Views/MIDI/BluetoothMIDICentralView.swift`（系统 UI，不做 app 私有 BLE 扫描/连接）。
+- Gate：准备页展示 `sources`，并把 `sourceCount` 写入 `FlowState.bluetoothMIDISourceCount`；`AppRouter.canProceedToLibrary` 以此作为进入后续流程的硬条件。
+- 事件模型：`Models/Practice/PracticeInputEvent.swift`（G1 channel voice）。
+- 事件源：`Services/MIDI/BluetoothMIDIInputEventSourceService.swift`（CoreMIDI UMP → `PracticeInputEventSourceProtocol.events`）。
+- 注入：`Services/Practice/PracticeSessionViewModelFactoryService.swift` 在进入 Step 3 前按 `PianoKind` 创建 `PracticeSessionViewModel`：
+  - BLE 模式：注入 `practiceInputEventSource`，**不注入** `audioRecognitionService`；
+  - 事件消费：`PracticeSessionViewModel+PracticeInput.swift` 只消费 note-on 推进 step（复用 `AudioStepAttemptAccumulator` matcher）。
+- Tracking：BLE 模式练习阶段使用 `ARTrackingMode.practiceBluetoothMIDI`（不启 hand tracking consumer；仍保留 world/plane 用于定位与高亮引导）。
+- 录制/AI：BLE 模式下 take/phrase 由 MIDI events 驱动（`Services/Recording/MIDIRecordingAdapter.swift` + `RecordingTakeRecorder` / `PhraseRecorder`），不依赖 contact。
 
 ## AI 即兴（后端生成）
 

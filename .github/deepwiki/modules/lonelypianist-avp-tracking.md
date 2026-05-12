@@ -11,7 +11,7 @@
 | `ARGuideViewModel` | 读取追踪数据并驱动校准 / 练习 |
 
 ## 行为
-- `start()` 会请求必要授权。
+- `start(mode:)` 会根据 `ARTrackingMode` 选择要 run 的 provider 集合，并请求必要授权。
 - hand / world / plane provider 各自独立记录状态（`providerStateByName["hand"|"world"|"plane"]`）。
 - finger tip 更新通过 `AsyncStream` 分发。
 - world anchors 会按 id 维护字典。
@@ -26,8 +26,16 @@
 | `running` | 正在运行 |
 | `unsupported` | 设备不支持 |
 | `unauthorized` | 未授权 |
+| `disabled` | 按当前运行模式显式关闭（例如 BLE MIDI 练习阶段不启 hand tracking） |
 | `stopped` | 已停止 |
 | `failed` | 启动失败 |
+
+## 模式（ARTrackingMode）
+| 模式 | Hand | World | Plane | 典型使用场景 |
+| --- | --- | --- | --- | --- |
+| `calibration` | ✅ | ✅ | ✅ | Step 1 校准（需要手势确认 + world/plane） |
+| `practiceVirtualOrAudio` | ✅ | ✅ | ✅ | 虚拟钢琴/音频模式练习（需要手势触键与引导） |
+| `practiceBluetoothMIDI` | ❌ | ✅ | ✅ | BLE MIDI 模式练习（输入完全来自 MIDI；不请求 hand tracking 权限） |
 
 ## 调试抓手
 - `providerStateByName`
