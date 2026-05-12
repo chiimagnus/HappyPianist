@@ -194,9 +194,25 @@ final class ARGuideViewModel {
             guard let self else { return }
             for await event in eventSource.events {
                 guard Task.isCancelled == false else { return }
-                guard isRecording else { continue }
-                midiRecordingAdapter.record(event: event, into: &takeRecorder)
+                if isRecording {
+                    midiRecordingAdapter.record(event: event, into: &takeRecorder)
+                }
+                recordPhraseFromMIDIEventIfNeeded(event)
             }
+        }
+    }
+
+    private func recordPhraseFromMIDIEventIfNeeded(_ event: PracticeInputEvent) {
+        guard isVirtualPerformerEnabled else { return }
+
+        switch event.kind {
+        case let .noteOn(note, velocity):
+            silenceTrigger.recordNoteOn(atUptime: event.receivedAtUptimeSeconds)
+            phraseRecorder.recordNoteOn(midi: note, velocity: velocity, timestamp: event.receivedAtUptimeSeconds)
+        case let .noteOff(note, _):
+            phraseRecorder.recordNoteOff(midi: note, timestamp: event.receivedAtUptimeSeconds)
+        default:
+            return
         }
     }
 
@@ -1001,6 +1017,7 @@ final class ARGuideViewModel {
     }
 
     private func recordPhraseIfNeeded(nowUptime: TimeInterval) {
+        guard flowState.pianoKind != .realBluetoothMIDI else { return }
         guard isVirtualPerformerEnabled else { return }
 
         let contact = practiceSessionViewModel.latestKeyContactResult
