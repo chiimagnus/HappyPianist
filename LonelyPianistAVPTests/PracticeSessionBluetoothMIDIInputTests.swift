@@ -68,6 +68,50 @@ func matchingBluetoothMIDIEventAdvancesStep() async {
 
 @Test
 @MainActor
+func bluetoothMIDIDoesNotRestartServiceOnStepAdvance() async {
+    UserDefaults.standard.set(Step3PracticeInputSource.bluetoothMIDI.rawValue, forKey: "practiceStep3InputSource")
+
+    let fakeAudio = FakePracticeAudioRecognitionService()
+    let fakeBluetooth = FakeBluetoothMIDIPracticeInputService()
+    fakeBluetooth.startReturnSourceCount = 1
+
+    let viewModel = makeViewModel(audioRecognitionService: fakeAudio, bluetoothMIDIService: fakeBluetooth)
+    viewModel.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+            PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
+        ],
+        tempoMap: MusicXMLTempoMap(tempoEvents: [])
+    )
+
+    viewModel.startGuidingIfReady()
+    await settleTaskQueue()
+
+    let startGeneration = fakeBluetooth.startCalls.first?.generation ?? 0
+    #expect(fakeBluetooth.startCalls.count == 1)
+    #expect(fakeBluetooth.updateGenerations.isEmpty)
+
+    fakeBluetooth.emitEvent(
+        DetectedNoteEvent(
+            midiNote: 60,
+            confidence: 1.0,
+            onsetScore: 1.0,
+            isOnset: true,
+            timestamp: Date().addingTimeInterval(0.6),
+            generation: startGeneration,
+            source: .bluetoothMIDI
+        )
+    )
+    await settleTaskQueue()
+
+    #expect(viewModel.currentStepIndex == 1)
+    #expect(fakeBluetooth.startCalls.count == 1)
+    #expect(fakeBluetooth.updateGenerations.count == 1)
+    #expect(fakeBluetooth.updateGenerations.first != startGeneration)
+}
+
+@Test
+@MainActor
 func bluetoothMIDIFallsBackToAudioWhenNoSources() async {
     UserDefaults.standard.set(Step3PracticeInputSource.bluetoothMIDI.rawValue, forKey: "practiceStep3InputSource")
 
@@ -148,4 +192,3 @@ private final class CapturingSequencerPlaybackService: PracticeSequencerPlayback
     func stopLiveNotes(midiNotes _: Set<Int>) {}
     func stopAllLiveNotes() {}
 }
-

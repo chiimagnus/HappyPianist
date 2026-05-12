@@ -89,16 +89,21 @@ extension PracticeSessionViewModel {
 
     func stopAudioRecognition() {
         stopBluetoothMIDIIfNeeded()
-        guard let audioRecognitionService else { return }
+        guard audioRecognitionService != nil else { return }
         let wasRunning = isAudioRecognitionRunning
         audioRecognitionGeneration += 1
         audioStepAttemptAccumulator.resetForNewStep(generation: audioRecognitionGeneration)
-        audioRecognitionService.stop()
-        isAudioRecognitionRunning = false
-        audioRecognitionStatus = .stopped
+        stopAudioRecognitionServiceOnly()
         if wasRunning {
             decisionLogger.debug("audio service stopped")
         }
+    }
+
+    func stopAudioRecognitionServiceOnly() {
+        guard let audioRecognitionService else { return }
+        audioRecognitionService.stop()
+        isAudioRecognitionRunning = false
+        audioRecognitionStatus = .stopped
     }
 
     @discardableResult
