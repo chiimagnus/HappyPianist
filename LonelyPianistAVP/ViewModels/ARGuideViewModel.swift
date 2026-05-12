@@ -66,7 +66,9 @@ final class ARGuideViewModel {
     }
 
     private let appState: AppState
-    let practiceSessionViewModel: PracticeSessionViewModel
+    private let practiceSessionViewModelFactory: PracticeSessionViewModelFactoryProtocol
+    private(set) var practiceSessionViewModel: PracticeSessionViewModel
+    private var latestPreparedPractice: PreparedPractice?
     private var handTrackingConsumerTask: Task<Void, Never>?
     private var virtualPianoGuidanceUpdateTask: Task<Void, Never>?
     private var calibrationAnchorCaptureTask: Task<Void, Never>?
@@ -107,16 +109,22 @@ final class ARGuideViewModel {
 
     let flowState: FlowState
 
-    init(appState: AppState, flowState: FlowState, practiceSessionViewModel: PracticeSessionViewModel? = nil) {
+    init(
+        appState: AppState,
+        flowState: FlowState,
+        practiceSessionViewModelFactory: PracticeSessionViewModelFactoryProtocol = PracticeSessionViewModelFactoryService()
+    ) {
         self.appState = appState
         self.flowState = flowState
-        self.practiceSessionViewModel = practiceSessionViewModel ?? PracticeSessionViewModel()
+        self.practiceSessionViewModelFactory = practiceSessionViewModelFactory
+        self.practiceSessionViewModel = practiceSessionViewModelFactory.makePracticeSessionViewModel(for: flowState.pianoKind)
         setupAppStateCallbacks()
     }
 
     private func setupAppStateCallbacks() {
         flowState.onStepsImported = { [weak self] prepared in
             guard let self else { return }
+            self.latestPreparedPractice = prepared
             self.practiceSessionViewModel.setSteps(
                 prepared.steps,
                 tempoMap: prepared.tempoMap,
@@ -141,6 +149,32 @@ final class ARGuideViewModel {
         }
         appState.onApplyKeyboardGeometry = { [weak self] geometry, calibration in
             self?.practiceSessionViewModel.applyKeyboardGeometry(geometry, calibration: calibration)
+        }
+    }
+
+    private func replacePracticeSessionViewModel() {
+        let next = practiceSessionViewModelFactory.makePracticeSessionViewModel(for: flowState.pianoKind)
+
+        practiceSessionViewModel.shutdown()
+        practiceSessionViewModel = next
+
+        if let prepared = latestPreparedPractice {
+            practiceSessionViewModel.setSteps(
+                prepared.steps,
+                tempoMap: prepared.tempoMap,
+                pedalTimeline: prepared.pedalTimeline,
+                fermataTimeline: prepared.fermataTimeline,
+                attributeTimeline: prepared.attributeTimeline,
+                slurTimeline: prepared.slurTimeline,
+                noteSpans: prepared.noteSpans,
+                highlightGuides: prepared.highlightGuides,
+                measureSpans: prepared.measureSpans
+            )
+        }
+
+        appState.applySessionIfPossible()
+        if isVirtualPerformerEnabled {
+            setPracticeVirtualPerformerEnabled(true)
         }
     }
 
@@ -760,6 +794,7 @@ final class ARGuideViewModel {
         using openImmersiveSpace: OpenImmersiveSpaceAction,
         dismissImmersiveSpace: DismissImmersiveSpaceAction
     ) async {
+        replacePracticeSessionViewModel()
         await beginPracticeLocalization(
             using: openImmersiveSpace,
             dismissImmersiveSpace: dismissImmersiveSpace
@@ -770,6 +805,7 @@ final class ARGuideViewModel {
         using openImmersiveSpace: OpenImmersiveSpaceAction,
         dismissImmersiveSpace: DismissImmersiveSpaceAction
     ) async {
+        replacePracticeSessionViewModel()
         await beginPracticeLocalization(
             using: openImmersiveSpace,
             dismissImmersiveSpace: dismissImmersiveSpace

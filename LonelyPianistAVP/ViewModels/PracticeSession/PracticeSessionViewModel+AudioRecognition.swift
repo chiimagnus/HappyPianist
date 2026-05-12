@@ -3,6 +3,7 @@ import os
 
 extension PracticeSessionViewModel {
     func refreshAudioRecognitionForCurrentState() {
+        refreshPracticeInputForCurrentState()
         guard let audioRecognitionService else { return }
         guard isPracticeAudioRecognitionEnabled else {
             stopAudioRecognition()
@@ -85,6 +86,7 @@ extension PracticeSessionViewModel {
     }
 
     func stopAudioRecognition() {
+        stopPracticeInput()
         guard audioRecognitionService != nil else { return }
         let wasRunning = isAudioRecognitionRunning
         audioRecognitionGeneration += 1

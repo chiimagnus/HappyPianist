@@ -61,6 +61,7 @@ final class PracticeSessionViewModel {
     let keyContactDetectionService = KeyContactDetectionService()
     let realPianoContactDetectionService = RealPianoContactDetectionService()
     let audioRecognitionService: PracticeAudioRecognitionServiceProtocol?
+    let practiceInputEventSource: PracticeInputEventSourceProtocol?
     let audioStepAttemptAccumulator: AudioStepAttemptAccumulator
     let handPianoActivityGate: HandPianoActivityGate
     private let manualAdvanceModeProvider: () -> ManualAdvanceMode
@@ -69,6 +70,7 @@ final class PracticeSessionViewModel {
     var audioRecognitionEventsTask: Task<Void, Never>?
     var audioRecognitionStatusTask: Task<Void, Never>?
     var audioRecognitionDebugTask: Task<Void, Never>?
+    var practiceInputEventsTask: Task<Void, Never>?
     private(set) var tempoMap = MusicXMLTempoMap(tempoEvents: [])
     private var measureSpans: [MusicXMLMeasureSpan] = []
     var manualReplayTask: Task<Void, Never>?
@@ -95,6 +97,9 @@ final class PracticeSessionViewModel {
     var manualHighlightTransitionTask: Task<Void, Never>?
     var audioRecognitionGeneration = 0
     var isAudioRecognitionRunning = false
+    var practiceInputGeneration = 0
+    var isPracticeInputRunning = false
+    var practiceInputActiveSinceUptimeSeconds: TimeInterval?
     var audioRecognitionSuppressUntil: Date?
     let audioRecognitionSuppressDuration: TimeInterval = 0.6
     let audioRecognitionEnabledSnapshot = MusicXMLRealisticPlaybackDefaults.audioRecognitionEnabled
@@ -107,6 +112,7 @@ final class PracticeSessionViewModel {
         sleeper: SleeperProtocol,
         sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol? = nil,
         audioRecognitionService: PracticeAudioRecognitionServiceProtocol? = nil,
+        practiceInputEventSource: PracticeInputEventSourceProtocol? = nil,
         audioStepAttemptAccumulator: AudioStepAttemptAccumulator? = nil,
         handPianoActivityGate: HandPianoActivityGate? = nil,
         manualAdvanceModeProvider: @escaping () -> ManualAdvanceMode = {
@@ -120,10 +126,12 @@ final class PracticeSessionViewModel {
             soundFontResourceName: "SalC5Light2"
         )
         self.audioRecognitionService = audioRecognitionService
+        self.practiceInputEventSource = practiceInputEventSource
         self.audioStepAttemptAccumulator = audioStepAttemptAccumulator ?? AudioStepAttemptAccumulator()
         self.handPianoActivityGate = handPianoActivityGate ?? HandPianoActivityGate()
         self.manualAdvanceModeProvider = manualAdvanceModeProvider
         bindAudioRecognitionStreamsIfNeeded()
+        bindPracticeInputStreamsIfNeeded()
     }
 
     convenience init() {
@@ -140,6 +148,27 @@ final class PracticeSessionViewModel {
             sequencerPlaybackService: playbackService,
             audioRecognitionService: audioRecognitionService
         )
+    }
+
+    func shutdown() {
+        stopManualReplayTask(restoreAudioRecognition: false)
+        stopAutoplayTask()
+        stopAutoplayAudio()
+        stopAudioRecognition()
+        stopPracticeInput()
+
+        audioRecognitionEventsTask?.cancel()
+        audioRecognitionEventsTask = nil
+        audioRecognitionStatusTask?.cancel()
+        audioRecognitionStatusTask = nil
+        audioRecognitionDebugTask?.cancel()
+        audioRecognitionDebugTask = nil
+
+        practiceInputEventsTask?.cancel()
+        practiceInputEventsTask = nil
+
+        audioRecognitionService?.stop()
+        practiceInputEventSource?.stop()
     }
 
     var currentStepIndex: Int = 0 {

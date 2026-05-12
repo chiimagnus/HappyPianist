@@ -24,7 +24,12 @@ func appStateAppliesKeyboardGeometryWhenAvailable() throws {
 
     let appState = AppState(keyGeometryService: service)
     let flowState = FlowState()
-    let guideViewModel = ARGuideViewModel(appState: appState, flowState: flowState, practiceSessionViewModel: practiceSessionViewModel)
+    let guideViewModel = ARGuideViewModel(
+        appState: appState,
+        flowState: flowState,
+        practiceSessionViewModelFactory: SinglePracticeSessionViewModelFactory(session: practiceSessionViewModel)
+    )
+    _ = guideViewModel
 
     appState.calibration = calibration
 
@@ -51,7 +56,12 @@ func appStateDoesNotApplyKeyboardGeometryWhenGenerationFails() {
 
     let appState = AppState(keyGeometryService: service)
     let flowState = FlowState()
-    let guideViewModel = ARGuideViewModel(appState: appState, flowState: flowState, practiceSessionViewModel: practiceSessionViewModel)
+    let guideViewModel = ARGuideViewModel(
+        appState: appState,
+        flowState: flowState,
+        practiceSessionViewModelFactory: SinglePracticeSessionViewModelFactory(session: practiceSessionViewModel)
+    )
+    _ = guideViewModel
 
     appState.calibration = calibration
 
@@ -70,5 +80,18 @@ private final class CapturingKeyGeometryService: PianoKeyGeometryServiceProtocol
     func generateKeyboardGeometry(from _: PianoCalibration) -> PianoKeyboardGeometry? {
         callCount += 1
         return result
+    }
+}
+
+private final class SinglePracticeSessionViewModelFactory: PracticeSessionViewModelFactoryProtocol {
+    private let session: PracticeSessionViewModel
+
+    init(session: PracticeSessionViewModel) {
+        self.session = session
+    }
+
+    @MainActor
+    func makePracticeSessionViewModel(for pianoKind: PianoKind?) -> PracticeSessionViewModel {
+        session
     }
 }

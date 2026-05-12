@@ -23,7 +23,11 @@ final class AppCompositionRoot {
 
         self.services = services
         self.appState = appState
-        self.arGuideViewModel = ARGuideViewModel(appState: appState, flowState: flowState)
+        self.arGuideViewModel = ARGuideViewModel(
+            appState: appState,
+            flowState: flowState,
+            practiceSessionViewModelFactory: services.practiceSessionViewModelFactory
+        )
         self.flowState = flowState
         self.router = router
     }

@@ -241,7 +241,11 @@ func arGuideViewModelToggleOffClearsVirtualKeyboardAndStopsLiveNotes() {
     )
     let appState = AppState()
     let flowState = FlowState()
-    let viewModel = ARGuideViewModel(appState: appState, flowState: flowState, practiceSessionViewModel: session)
+    let viewModel = ARGuideViewModel(
+        appState: appState,
+        flowState: flowState,
+        practiceSessionViewModelFactory: SinglePracticeSessionViewModelFactory(session: session)
+    )
 
     let geometry = makeTestKeyboardGeometry()
     session.applyVirtualKeyboardGeometry(geometry)
@@ -260,6 +264,19 @@ func arGuideViewModelToggleOffClearsVirtualKeyboardAndStopsLiveNotes() {
     viewModel.setPracticeVirtualPianoEnabled(false)
     #expect(playbackService.stopAllLiveNotesCount >= 1)
     #expect(session.keyboardGeometry == nil)
+}
+
+private final class SinglePracticeSessionViewModelFactory: PracticeSessionViewModelFactoryProtocol {
+    private let session: PracticeSessionViewModel
+
+    init(session: PracticeSessionViewModel) {
+        self.session = session
+    }
+
+    @MainActor
+    func makePracticeSessionViewModel(for pianoKind: PianoKind?) -> PracticeSessionViewModel {
+        session
+    }
 }
 
 private func transformPoint(_ matrix: simd_float4x4, _ point: SIMD3<Float>) -> SIMD3<Float> {

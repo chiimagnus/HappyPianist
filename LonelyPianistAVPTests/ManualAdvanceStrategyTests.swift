@@ -61,7 +61,11 @@ func appStatePassesMeasureSpansToPracticeSession() {
     )
     let appState = AppState()
     let flowState = FlowState()
-    let guideViewModel = ARGuideViewModel(appState: appState, flowState: flowState, practiceSessionViewModel: sessionViewModel)
+    let guideViewModel = ARGuideViewModel(
+        appState: appState,
+        flowState: flowState,
+        practiceSessionViewModelFactory: SinglePracticeSessionViewModelFactory(session: sessionViewModel)
+    )
     #expect(guideViewModel.practiceSessionViewModel === sessionViewModel)
     flowState.setImportedSteps(from: PreparedPractice(
         steps: [
@@ -90,6 +94,19 @@ func appStatePassesMeasureSpansToPracticeSession() {
     sessionViewModel.skip()
 
     #expect(sessionViewModel.currentStepIndex == 2)
+}
+
+private final class SinglePracticeSessionViewModelFactory: PracticeSessionViewModelFactoryProtocol {
+    private let session: PracticeSessionViewModel
+
+    init(session: PracticeSessionViewModel) {
+        self.session = session
+    }
+
+    @MainActor
+    func makePracticeSessionViewModel(for pianoKind: PianoKind?) -> PracticeSessionViewModel {
+        session
+    }
 }
 
 private struct ManualAdvanceNoopPressDetectionService: PressDetectionServiceProtocol {
