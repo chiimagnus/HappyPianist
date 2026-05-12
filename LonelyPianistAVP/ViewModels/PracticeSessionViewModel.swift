@@ -61,7 +61,6 @@ final class PracticeSessionViewModel {
     let keyContactDetectionService = KeyContactDetectionService()
     let realPianoContactDetectionService = RealPianoContactDetectionService()
     let audioRecognitionService: PracticeAudioRecognitionServiceProtocol?
-    let bluetoothMIDIInputService: BluetoothMIDIPracticeInputServiceProtocol?
     let audioStepAttemptAccumulator: AudioStepAttemptAccumulator
     let handPianoActivityGate: HandPianoActivityGate
     private let manualAdvanceModeProvider: () -> ManualAdvanceMode
@@ -70,9 +69,6 @@ final class PracticeSessionViewModel {
     var audioRecognitionEventsTask: Task<Void, Never>?
     var audioRecognitionStatusTask: Task<Void, Never>?
     var audioRecognitionDebugTask: Task<Void, Never>?
-    var bluetoothMIDIEventsTask: Task<Void, Never>?
-    var isBluetoothMIDIListening = false
-    var practiceInputWarningMessage: String?
     private(set) var tempoMap = MusicXMLTempoMap(tempoEvents: [])
     private var measureSpans: [MusicXMLMeasureSpan] = []
     var manualReplayTask: Task<Void, Never>?
@@ -104,8 +100,6 @@ final class PracticeSessionViewModel {
     let audioRecognitionEnabledSnapshot = MusicXMLRealisticPlaybackDefaults.audioRecognitionEnabled
     var practiceAudioRecognitionDetectorModeSnapshot: PracticeAudioRecognitionDetectorMode = .harmonicTemplate
     var harmonicTemplateTuningProfileSnapshot: HarmonicTemplateTuningProfile = .lowLatencyDefault
-    var preferredPracticeInputSourceSnapshot: Step3PracticeInputSource = .audio
-    var activePracticeInputSource: Step3PracticeInputSource = .audio
 
     init(
         pressDetectionService: PressDetectionServiceProtocol,
@@ -113,7 +107,6 @@ final class PracticeSessionViewModel {
         sleeper: SleeperProtocol,
         sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol? = nil,
         audioRecognitionService: PracticeAudioRecognitionServiceProtocol? = nil,
-        bluetoothMIDIInputService: BluetoothMIDIPracticeInputServiceProtocol? = nil,
         audioStepAttemptAccumulator: AudioStepAttemptAccumulator? = nil,
         handPianoActivityGate: HandPianoActivityGate? = nil,
         manualAdvanceModeProvider: @escaping () -> ManualAdvanceMode = {
@@ -127,31 +120,25 @@ final class PracticeSessionViewModel {
             soundFontResourceName: "SalC5Light2"
         )
         self.audioRecognitionService = audioRecognitionService
-        self.bluetoothMIDIInputService = bluetoothMIDIInputService
         self.audioStepAttemptAccumulator = audioStepAttemptAccumulator ?? AudioStepAttemptAccumulator()
         self.handPianoActivityGate = handPianoActivityGate ?? HandPianoActivityGate()
         self.manualAdvanceModeProvider = manualAdvanceModeProvider
-        preferredPracticeInputSourceSnapshot = Self.readPracticeInputSource()
         bindAudioRecognitionStreamsIfNeeded()
-        bindBluetoothMIDIStreamsIfNeeded()
     }
 
     convenience init() {
         let playbackService = AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2")
 #if targetEnvironment(simulator)
         let audioRecognitionService: PracticeAudioRecognitionServiceProtocol? = nil
-        let bluetoothMIDIInputService: BluetoothMIDIPracticeInputServiceProtocol? = nil
 #else
         let audioRecognitionService: PracticeAudioRecognitionServiceProtocol? = PracticeAudioRecognitionService()
-        let bluetoothMIDIInputService: BluetoothMIDIPracticeInputServiceProtocol? = BluetoothMIDIPracticeInputService()
 #endif
         self.init(
             pressDetectionService: PressDetectionService(),
             chordAttemptAccumulator: ChordAttemptAccumulator(),
             sleeper: TaskSleeper(),
             sequencerPlaybackService: playbackService,
-            audioRecognitionService: audioRecognitionService,
-            bluetoothMIDIInputService: bluetoothMIDIInputService
+            audioRecognitionService: audioRecognitionService
         )
     }
 
