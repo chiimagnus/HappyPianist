@@ -11,6 +11,8 @@ struct PracticeSettingsView: View {
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
     @AppStorage("immersivePanoramaEnabled") private var immersivePanoramaEnabled = false
     @AppStorage("practiceManualAdvanceMode") private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
+    @AppStorage("practiceStep3InputSource") private var practiceStep3InputSourceRawValue =
+        Step3PracticeInputSource.audio.rawValue
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -42,6 +44,13 @@ struct PracticeSettingsView: View {
 
             Toggle("调试：显示音频识别 overlay", isOn: $practiceAudioRecognitionDebugOverlayEnabled)
             Toggle("调试：显示键盘坐标轴（X/Y/Z）", isOn: $debugKeyboardAxesOverlayEnabled)
+
+            Picker("真实钢琴输入源", selection: $practiceStep3InputSourceRawValue) {
+                ForEach(Step3PracticeInputSource.allCases) { source in
+                    Text(source.title).tag(source.rawValue)
+                }
+            }
+            .pickerStyle(.segmented)
 
             Picker("手动前进方式", selection: $manualAdvanceModeRawValue) {
                 ForEach(ManualAdvanceMode.allCases) { mode in

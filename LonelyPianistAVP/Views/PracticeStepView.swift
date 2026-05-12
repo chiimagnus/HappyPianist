@@ -13,12 +13,15 @@ struct PracticeStepView: View {
     @State private var isSettingsPopoverPresented = false
     @State private var isAudioErrorAlertPresented = false
     @State private var isAutoplayErrorAlertPresented = false
+    @State private var isPracticeInputWarningAlertPresented = false
     @State private var isTakeLibraryPresented = false
 
     @State private var isVirtualPerformerEnabled = false
     @State private var isAutoplayEnabled = false
     @AppStorage("practiceManualAdvanceMode") private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
     @AppStorage("practiceAudioRecognitionDebugOverlayEnabled") private var isAudioDebugOverlayEnabled = false
+    @AppStorage("practiceStep3InputSource") private var practiceInputSourceRawValue =
+        Step3PracticeInputSource.audio.rawValue
 
     var body: some View {
         practiceSurface
@@ -153,6 +156,7 @@ struct PracticeStepView: View {
 
                 Task { @MainActor in
                     viewModel.practiceSessionViewModel.refreshAudioRecognitionFromSettings()
+                    viewModel.practiceSessionViewModel.refreshPracticeInputFromSettings()
                     viewModel.setPracticeVirtualPianoEnabled(isVirtualPianoMode)
                     viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
                     await viewModel.enterPracticeStep(
@@ -171,6 +175,19 @@ struct PracticeStepView: View {
             }
             .onChange(of: isAutoplayEnabled) {
                 viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
+            }
+            .onChange(of: practiceInputSourceRawValue) {
+                viewModel.practiceSessionViewModel.refreshPracticeInputFromSettings()
+            }
+            .onChange(of: viewModel.practiceSessionViewModel.practiceInputWarningMessage) {
+                isPracticeInputWarningAlertPresented = viewModel.practiceSessionViewModel.practiceInputWarningMessage != nil
+            }
+            .alert("输入源不可用", isPresented: $isPracticeInputWarningAlertPresented) {
+                Button("知道了") {
+                    viewModel.practiceSessionViewModel.clearPracticeInputWarning()
+                }
+            } message: {
+                Text(viewModel.practiceSessionViewModel.practiceInputWarningMessage ?? "")
             }
             .onChange(of: viewModel.practiceSessionViewModel.audioErrorMessage) {
                 isAudioErrorAlertPresented = viewModel.practiceSessionViewModel.audioErrorMessage != nil
