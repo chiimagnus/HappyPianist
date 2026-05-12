@@ -26,7 +26,7 @@ struct AppRootView: View {
         case .realPreparation:
             RealPianoPreparationView(viewModel: arGuideViewModel)
         case .bluetoothMIDIPreparation:
-            Text("Bluetooth MIDI 准备中…")
+            BluetoothMIDIPreparationView(viewModel: arGuideViewModel)
         case .virtualPreparation:
             VirtualPianoPreparationView(viewModel: arGuideViewModel)
         case .library:
