@@ -67,6 +67,53 @@ nonisolated struct RecordingTakeRecorder {
         )
     }
 
+    mutating func recordControlChange(controller: Int, value: Int, now: TimeInterval) {
+        guard isRecording else { return }
+        let relativeTime = max(0, now - takeStart)
+        let clampedController = max(0, min(127, controller))
+        let clampedValue = max(0, min(127, value))
+        events.append(
+            RecordingTakeEvent(time: relativeTime, kind: .controlChange(controller: clampedController, value: clampedValue))
+        )
+    }
+
+    mutating func recordPitchBend(value: Int, now: TimeInterval) {
+        guard isRecording else { return }
+        let relativeTime = max(0, now - takeStart)
+        let clampedValue = max(0, min(16_383, value))
+        events.append(
+            RecordingTakeEvent(time: relativeTime, kind: .pitchBend(value: clampedValue))
+        )
+    }
+
+    mutating func recordProgramChange(program: Int, now: TimeInterval) {
+        guard isRecording else { return }
+        let relativeTime = max(0, now - takeStart)
+        let clampedProgram = max(0, min(127, program))
+        events.append(
+            RecordingTakeEvent(time: relativeTime, kind: .programChange(program: clampedProgram))
+        )
+    }
+
+    mutating func recordChannelPressure(value: Int, now: TimeInterval) {
+        guard isRecording else { return }
+        let relativeTime = max(0, now - takeStart)
+        let clampedValue = max(0, min(127, value))
+        events.append(
+            RecordingTakeEvent(time: relativeTime, kind: .channelPressure(value: clampedValue))
+        )
+    }
+
+    mutating func recordPolyPressure(note: Int, value: Int, now: TimeInterval) {
+        guard isRecording else { return }
+        let relativeTime = max(0, now - takeStart)
+        let clampedNote = max(0, min(127, note))
+        let clampedValue = max(0, min(127, value))
+        events.append(
+            RecordingTakeEvent(time: relativeTime, kind: .polyPressure(midi: clampedNote, value: clampedValue))
+        )
+    }
+
     private mutating func reset() {
         openNotes.removeAll(keepingCapacity: true)
         events.removeAll(keepingCapacity: true)

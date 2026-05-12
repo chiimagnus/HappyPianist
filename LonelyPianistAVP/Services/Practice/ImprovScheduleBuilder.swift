@@ -40,12 +40,14 @@ nonisolated struct ImprovScheduleBuilder {
 
     private func eventPriority(_ kind: PracticeSequencerMIDIEvent.Kind) -> Int {
         switch kind {
-            case .controlChange:
-                0
-            case .noteOff:
-                1
-            case .noteOn:
-                2
+        case .controlChange:
+            0
+        case .programChange, .pitchBend, .channelPressure, .polyPressure:
+            1
+        case .noteOff:
+            2
+        case .noteOn:
+            3
         }
     }
 
@@ -57,6 +59,14 @@ nonisolated struct ImprovScheduleBuilder {
                 midi
             case let .noteOn(midi, velocity):
                 midi * 256 + Int(velocity)
+            case let .pitchBend(value):
+                1_000_000 + Int(value)
+            case let .programChange(program):
+                2_000_000 + Int(program)
+            case let .channelPressure(value):
+                3_000_000 + Int(value)
+            case let .polyPressure(midi, value):
+                4_000_000 + midi * 256 + Int(value)
         }
     }
 }

@@ -101,12 +101,14 @@ final class ARGuideViewModel {
     private let backendDiscoveryService = BonjourBackendDiscoveryService()
     private var phraseRecorder = PhraseRecorder()
     private var takeRecorder = RecordingTakeRecorder()
+    private let midiRecordingAdapter = MIDIRecordingAdapter()
     private let takeLibraryViewModel = TakeLibraryViewModel()
     let takePlaybackController = TakePlaybackController(
         playbackService: AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2")
     )
     private(set) var isRecording = false
     private var recordingStartDate: Date?
+    private var midiTakeRecordingTask: Task<Void, Never>?
 
     let flowState: FlowState
 
@@ -176,6 +178,25 @@ final class ARGuideViewModel {
         appState.applySessionIfPossible()
         if isVirtualPerformerEnabled {
             setPracticeVirtualPerformerEnabled(true)
+        }
+
+        restartMIDITakeRecordingSubscriptionIfNeeded()
+    }
+
+    private func restartMIDITakeRecordingSubscriptionIfNeeded() {
+        midiTakeRecordingTask?.cancel()
+        midiTakeRecordingTask = nil
+
+        guard flowState.pianoKind == .realBluetoothMIDI else { return }
+        guard let eventSource = practiceSessionViewModel.practiceInputEventSource else { return }
+
+        midiTakeRecordingTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await event in eventSource.events {
+                guard Task.isCancelled == false else { return }
+                guard isRecording else { continue }
+                midiRecordingAdapter.record(event: event, into: &takeRecorder)
+            }
         }
     }
 
@@ -922,6 +943,8 @@ final class ARGuideViewModel {
         cancelCalibrationGuidedFlowTasks()
         cancelPracticeLocalizationTask()
         practiceSessionViewModel.stopVirtualPianoInput()
+        midiTakeRecordingTask?.cancel()
+        midiTakeRecordingTask = nil
         stopHandTracking()
     }
 
@@ -995,6 +1018,7 @@ final class ARGuideViewModel {
     }
 
     private func recordTakeIfNeeded(nowUptime: TimeInterval) {
+        guard flowState.pianoKind != .realBluetoothMIDI else { return }
         guard isRecording, isVirtualPianoEnabled == false else { return }
 
         let contact = practiceSessionViewModel.latestKeyContactResult

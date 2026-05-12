@@ -6,6 +6,10 @@ nonisolated struct PracticeSequencerMIDIEvent: Equatable {
         case noteOn(midi: Int, velocity: UInt8)
         case noteOff(midi: Int)
         case controlChange(controller: UInt8, value: UInt8)
+        case pitchBend(value: UInt16)
+        case programChange(program: UInt8)
+        case channelPressure(value: UInt8)
+        case polyPressure(midi: Int, value: UInt8)
     }
 
     let timeSeconds: TimeInterval
@@ -183,7 +187,7 @@ nonisolated struct PracticeSequencerSequenceBuilder {
     private func midiChannelMessage(for kind: PracticeSequencerMIDIEvent.Kind) -> MIDIChannelMessage {
         switch kind {
             case let .noteOn(midi, velocity):
-                MIDIChannelMessage(
+                return MIDIChannelMessage(
                     status: UInt8(0x90 | midiChannel),
                     data1: UInt8(clamping: midi),
                     data2: velocity,
@@ -191,7 +195,7 @@ nonisolated struct PracticeSequencerSequenceBuilder {
                 )
 
             case let .noteOff(midi):
-                MIDIChannelMessage(
+                return MIDIChannelMessage(
                     status: UInt8(0x80 | midiChannel),
                     data1: UInt8(clamping: midi),
                     data2: 0,
@@ -199,9 +203,44 @@ nonisolated struct PracticeSequencerSequenceBuilder {
                 )
 
             case let .controlChange(controller, value):
-                MIDIChannelMessage(
+                return MIDIChannelMessage(
                     status: UInt8(0xB0 | midiChannel),
                     data1: controller,
+                    data2: value,
+                    reserved: 0
+                )
+
+            case let .pitchBend(value):
+                let clamped = UInt16(clamping: value)
+                let lsb = UInt8(clamped & 0x7F)
+                let msb = UInt8((clamped >> 7) & 0x7F)
+                return MIDIChannelMessage(
+                    status: UInt8(0xE0 | midiChannel),
+                    data1: lsb,
+                    data2: msb,
+                    reserved: 0
+                )
+
+            case let .programChange(program):
+                return MIDIChannelMessage(
+                    status: UInt8(0xC0 | midiChannel),
+                    data1: program,
+                    data2: 0,
+                    reserved: 0
+                )
+
+            case let .channelPressure(value):
+                return MIDIChannelMessage(
+                    status: UInt8(0xD0 | midiChannel),
+                    data1: value,
+                    data2: 0,
+                    reserved: 0
+                )
+
+            case let .polyPressure(midi, value):
+                return MIDIChannelMessage(
+                    status: UInt8(0xA0 | midiChannel),
+                    data1: UInt8(clamping: midi),
                     data2: value,
                     reserved: 0
                 )
@@ -212,10 +251,12 @@ nonisolated struct PracticeSequencerSequenceBuilder {
         switch kind {
             case .controlChange:
                 0
-            case .noteOff:
+            case .programChange, .pitchBend, .channelPressure, .polyPressure:
                 1
-            case .noteOn:
+            case .noteOff:
                 2
+            case .noteOn:
+                3
         }
     }
 
@@ -227,6 +268,14 @@ nonisolated struct PracticeSequencerSequenceBuilder {
                 "off-\(midi)"
             case let .controlChange(controller, value):
                 "cc-\(controller)-\(value)"
+            case let .pitchBend(value):
+                "pb-\(value)"
+            case let .programChange(program):
+                "pc-\(program)"
+            case let .channelPressure(value):
+                "cp-\(value)"
+            case let .polyPressure(midi, value):
+                "pp-\(midi)-\(value)"
         }
     }
 }
