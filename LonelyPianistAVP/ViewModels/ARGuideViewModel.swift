@@ -1347,6 +1347,19 @@ final class ARGuideViewModel {
         isVirtualPianoEnabled == false
     }
 
+    var recordingSourceText: String? {
+        switch flowState.pianoKind {
+        case .realBluetoothMIDI:
+            "录制来源：Bluetooth MIDI（弹奏琴键即可录制）"
+        case .realAudio:
+            "录制来源：手势触键（用于推断按键接触）"
+        case .virtual:
+            "录制来源：虚拟钢琴触键"
+        case .none:
+            nil
+        }
+    }
+
     func startRecording() {
         guard canRecord else { return }
         takePlaybackController.stop()
