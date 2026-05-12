@@ -55,7 +55,7 @@ extension PracticeSessionViewModel {
             return false
         }
 
-        stopAudioRecognition()
+        stopAudioRecognitionServiceOnly()
         activePracticeInputSource = .bluetoothMIDI
 
         audioStepAttemptAccumulator.setMode(.lowLatency)
