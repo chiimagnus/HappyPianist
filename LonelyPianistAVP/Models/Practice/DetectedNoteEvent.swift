@@ -2,6 +2,7 @@ import Foundation
 
 enum DetectedNoteSource: Equatable {
     case audio
+    case bluetoothMIDI
     case handExactHit
     case handGateBoost
 }

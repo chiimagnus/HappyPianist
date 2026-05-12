@@ -35,7 +35,7 @@ enum ManualAdvanceMode: String, CaseIterable, Identifiable {
         }
     }
 
-    static func storageValue(from rawValue: String?) -> ManualAdvanceMode {
+    nonisolated static func storageValue(from rawValue: String?) -> ManualAdvanceMode {
         guard let rawValue else { return .step }
         return ManualAdvanceMode(rawValue: rawValue) ?? .step
     }

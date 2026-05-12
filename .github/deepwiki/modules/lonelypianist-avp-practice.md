@@ -68,6 +68,22 @@ flowchart TD
 - 贴皮位置/尺寸由 `PianoGuideBeamDescriptor` 统一描述（命名仍为 Beam，但语义为 decal），RealityKit 只负责按 descriptor diff 更新实体。
 - `activeBeamEntitiesByMIDINote` 只保留当前 step 所需贴皮高亮；离开当前 step 的贴皮会被移除。
 
+## 真实钢琴输入源（Audio / Bluetooth MIDI）
+
+Step 3 的“按键匹配/推进”输入源支持两种模式：
+
+| 输入源 | 适用场景 | 入口 |
+| --- | --- | --- |
+| `音频识别` | 无 BLE MIDI 设备或暂时不想配对 | `PracticeSettingsView` → 「真实钢琴输入源」 |
+| `Bluetooth MIDI` | 已通过系统 `Bluetooth MIDI…` 连接钢琴，希望更稳定的 note-on 事件 | `RealPianoPreparationView` 先连接 → `PracticeSettingsView` 选择 |
+
+实现要点（AVP）：
+- 用户偏好存储：`UserDefaults` / `@AppStorage("practiceStep3InputSource")`（见 `Views/PracticeSettingsView.swift`、`Views/PracticeStepView.swift`）。
+- 输入切换逻辑集中在 `PracticeSessionViewModel.refreshAudioRecognitionForCurrentState()`：
+  - 当选择 `Bluetooth MIDI` 时，优先启动 `BluetoothMIDIPracticeInputService` 并监听 `CoreMIDI` sources；
+  - 若没有 sources / 启动失败 / simulator 不可用，则设置 `practiceInputWarningMessage` 并自动回退到 `音频识别`。
+- BLE MIDI 模式只消费 note-on（velocity>0）并转成 `DetectedNoteEvent(source: .bluetoothMIDI)`，复用现有的 `AudioStepAttemptAccumulator` 作为 matcher（不引入额外 step 推进逻辑分支）。
+
 ## AI 即兴（后端生成）
 
 当开启“虚拟表演者 / AI 即兴”相关能力时，Step 3 会在检测到一段静默后，尝试把最近录制的短句片段发送到局域网内的后端，让后端生成一段续写并在沉浸空间中回放。
