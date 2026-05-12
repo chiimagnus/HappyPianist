@@ -1,7 +1,8 @@
 import Observation
 
 enum PianoKind: Hashable {
-    case real
+    case realAudio
+    case realBluetoothMIDI
     case virtual
 }
 
@@ -11,6 +12,7 @@ final class FlowState {
     var pianoKind: PianoKind?
     var isCalibrationCompleted = false
     var isVirtualPianoPlaced = false
+    var bluetoothMIDISourceCount = 0
 
     var importedFile: ImportedMusicXMLFile?
     var importedSteps: [PracticeStep] = []

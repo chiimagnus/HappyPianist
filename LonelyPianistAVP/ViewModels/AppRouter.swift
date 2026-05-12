@@ -9,6 +9,7 @@ final class AppRouter {
     enum Route: Hashable {
         case typePicker
         case realPreparation
+        case bluetoothMIDIPreparation
         case virtualPreparation
         case library
         case practice
@@ -24,8 +25,10 @@ final class AppRouter {
     func selectPianoKind(_ kind: PianoKind) {
         flowState.pianoKind = kind
         switch kind {
-        case .real:
+        case .realAudio:
             route = .realPreparation
+        case .realBluetoothMIDI:
+            route = .bluetoothMIDIPreparation
         case .virtual:
             route = .virtualPreparation
         }
@@ -41,8 +44,10 @@ final class AppRouter {
 
     var canProceedToLibrary: Bool {
         switch flowState.pianoKind {
-        case .real:
+        case .realAudio:
             return flowState.isCalibrationCompleted
+        case .realBluetoothMIDI:
+            return flowState.isCalibrationCompleted && flowState.bluetoothMIDISourceCount > 0
         case .virtual:
             return flowState.isVirtualPianoPlaced
         case .none:
@@ -55,6 +60,7 @@ final class AppRouter {
         flowState.clearSongAndSteps()
         flowState.isCalibrationCompleted = false
         flowState.isVirtualPianoPlaced = false
+        flowState.bluetoothMIDISourceCount = 0
         flowState.pianoKind = nil
         route = .typePicker
     }

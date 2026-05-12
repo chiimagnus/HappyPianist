@@ -13,7 +13,7 @@ struct PianoTypePickerView: View {
                     title: "真实钢琴",
                     subtitle: "使用实体钢琴练习",
                     icon: "pianokeys",
-                    kind: .real
+                    kind: .realAudio
                 )
 
                 typeCard(
