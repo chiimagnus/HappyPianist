@@ -37,9 +37,8 @@ final class CoreMIDISourceMonitoringService: MIDISourceMonitoringServiceProtocol
 
         try createClientIfNeeded()
         try createInputPortIfNeeded()
-        try refreshSources()
-
         isRunning = true
+        try refreshSources()
     }
 
     func stop() {
