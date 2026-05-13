@@ -61,6 +61,7 @@
 
 ### visionOS 原型
 - [modules/lonelypianist-avp.md](modules/lonelypianist-avp.md)
+- [modules/lonelypianist-avp-piano-modes.md](modules/lonelypianist-avp-piano-modes.md)
 - [modules/lonelypianist-avp-library.md](modules/lonelypianist-avp-library.md)
 - [modules/lonelypianist-avp-calibration.md](modules/lonelypianist-avp-calibration.md)
 - [modules/lonelypianist-avp-musicxml.md](modules/lonelypianist-avp-musicxml.md)
