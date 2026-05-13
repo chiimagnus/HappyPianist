@@ -6,10 +6,16 @@ import simd
 @MainActor
 @Observable
 final class PracticeSessionViewModel {
+    nonisolated static let practiceHandSeparatedStepMatchingEnabledKey = "practiceHandSeparatedStepMatchingEnabled"
+
     let decisionLogger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
         category: "Step3AudioDecision"
     )
+
+    var isHandSeparatedStepMatchingEnabled: Bool {
+        UserDefaults.standard.bool(forKey: Self.practiceHandSeparatedStepMatchingEnabledKey)
+    }
 
     static func durationSeconds(_ duration: Duration) -> TimeInterval {
         let components = duration.components
