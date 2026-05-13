@@ -19,13 +19,14 @@ final class AppCompositionRoot {
         appState.loadStoredCalibrationIfPossible()
 
         let flowState = FlowState()
-        let router = AppRouter(flowState: flowState)
+        let router = AppRouter(flowState: flowState, pianoModeRegistry: services.pianoModeRegistry)
 
         self.services = services
         self.appState = appState
         self.arGuideViewModel = ARGuideViewModel(
             appState: appState,
             flowState: flowState,
+            pianoModeRegistry: services.pianoModeRegistry,
             practiceSessionViewModelFactory: services.practiceSessionViewModelFactory
         )
         self.flowState = flowState

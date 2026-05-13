@@ -11,29 +11,32 @@ func defaultRouteIsTypePicker() {
 
 @Test
 @MainActor
-func selectPianoKindSetsRouteToRealPreparation() {
+func selectPianoModeSetsRouteToPreparationForRealAudio() {
     let router = AppRouter(flowState: FlowState())
-    router.selectPianoKind(.realAudio)
-    #expect(router.route == .realPreparation)
-    #expect(router.flowState.pianoKind == .realAudio)
+    let mode = RealAudioPianoMode()
+    router.selectPianoMode(mode)
+    #expect(router.route == .preparation)
+    #expect(router.flowState.selectedPianoModeID == mode.id)
 }
 
 @Test
 @MainActor
-func selectPianoKindSetsRouteToBluetoothMIDIPreparation() {
+func selectPianoModeSetsRouteToPreparationForBluetoothMIDI() {
     let router = AppRouter(flowState: FlowState())
-    router.selectPianoKind(.realBluetoothMIDI)
-    #expect(router.route == .bluetoothMIDIPreparation)
-    #expect(router.flowState.pianoKind == .realBluetoothMIDI)
+    let mode = BluetoothMIDIPianoMode()
+    router.selectPianoMode(mode)
+    #expect(router.route == .preparation)
+    #expect(router.flowState.selectedPianoModeID == mode.id)
 }
 
 @Test
 @MainActor
-func selectPianoKindSetsRouteToVirtualPreparation() {
+func selectPianoModeSetsRouteToPreparationForVirtualPiano() {
     let router = AppRouter(flowState: FlowState())
-    router.selectPianoKind(.virtual)
-    #expect(router.route == .virtualPreparation)
-    #expect(router.flowState.pianoKind == .virtual)
+    let mode = VirtualPianoMode()
+    router.selectPianoMode(mode)
+    #expect(router.route == .preparation)
+    #expect(router.flowState.selectedPianoModeID == mode.id)
 }
 
 @Test
@@ -58,7 +61,7 @@ func exitToTypePickerResetsRouteAndFlowState() {
     let flowState = FlowState()
     let router = AppRouter(flowState: flowState)
 
-    router.selectPianoKind(.realAudio)
+    router.selectPianoMode(RealAudioPianoMode())
     flowState.isCalibrationCompleted = true
     flowState.bluetoothMIDISourceCount = 2
     flowState.setImportedSteps(from: PreparedPractice(
@@ -78,7 +81,7 @@ func exitToTypePickerResetsRouteAndFlowState() {
     router.exitToTypePicker(reason: "test")
 
     #expect(router.route == .typePicker)
-    #expect(flowState.pianoKind == nil)
+    #expect(flowState.selectedPianoModeID == nil)
     #expect(flowState.isCalibrationCompleted == false)
     #expect(flowState.isVirtualPianoPlaced == false)
     #expect(flowState.bluetoothMIDISourceCount == 0)
@@ -88,7 +91,7 @@ func exitToTypePickerResetsRouteAndFlowState() {
 
 @Test
 @MainActor
-func canProceedToLibraryIsFalseWhenNoPianoKindSelected() {
+func canProceedToLibraryIsFalseWhenNoPianoModeSelected() {
     let router = AppRouter(flowState: FlowState())
     #expect(router.canProceedToLibrary == false)
 }
@@ -97,7 +100,7 @@ func canProceedToLibraryIsFalseWhenNoPianoKindSelected() {
 @MainActor
 func canProceedToLibraryIsFalseForRealAudioWhenNotCalibrated() {
     let router = AppRouter(flowState: FlowState())
-    router.selectPianoKind(.realAudio)
+    router.selectPianoMode(RealAudioPianoMode())
     #expect(router.canProceedToLibrary == false)
 }
 
@@ -106,7 +109,7 @@ func canProceedToLibraryIsFalseForRealAudioWhenNotCalibrated() {
 func canProceedToLibraryIsTrueForRealAudioWhenCalibrated() {
     let flowState = FlowState()
     let router = AppRouter(flowState: flowState)
-    router.selectPianoKind(.realAudio)
+    router.selectPianoMode(RealAudioPianoMode())
     flowState.isCalibrationCompleted = true
     #expect(router.canProceedToLibrary == true)
 }
@@ -116,7 +119,7 @@ func canProceedToLibraryIsTrueForRealAudioWhenCalibrated() {
 func canProceedToLibraryIsFalseForBluetoothMIDIWhenNoSources() {
     let flowState = FlowState()
     let router = AppRouter(flowState: flowState)
-    router.selectPianoKind(.realBluetoothMIDI)
+    router.selectPianoMode(BluetoothMIDIPianoMode())
     flowState.isCalibrationCompleted = true
     flowState.bluetoothMIDISourceCount = 0
     #expect(router.canProceedToLibrary == false)
@@ -127,7 +130,7 @@ func canProceedToLibraryIsFalseForBluetoothMIDIWhenNoSources() {
 func canProceedToLibraryIsTrueForBluetoothMIDIWhenCalibratedAndHasSources() {
     let flowState = FlowState()
     let router = AppRouter(flowState: flowState)
-    router.selectPianoKind(.realBluetoothMIDI)
+    router.selectPianoMode(BluetoothMIDIPianoMode())
     flowState.isCalibrationCompleted = true
     flowState.bluetoothMIDISourceCount = 1
     #expect(router.canProceedToLibrary == true)
@@ -137,7 +140,7 @@ func canProceedToLibraryIsTrueForBluetoothMIDIWhenCalibratedAndHasSources() {
 @MainActor
 func canProceedToLibraryIsFalseForVirtualWhenNotPlaced() {
     let router = AppRouter(flowState: FlowState())
-    router.selectPianoKind(.virtual)
+    router.selectPianoMode(VirtualPianoMode())
     #expect(router.canProceedToLibrary == false)
 }
 
@@ -146,7 +149,7 @@ func canProceedToLibraryIsFalseForVirtualWhenNotPlaced() {
 func canProceedToLibraryIsTrueForVirtualWhenPlaced() {
     let flowState = FlowState()
     let router = AppRouter(flowState: flowState)
-    router.selectPianoKind(.virtual)
+    router.selectPianoMode(VirtualPianoMode())
     flowState.isVirtualPianoPlaced = true
     #expect(router.canProceedToLibrary == true)
 }

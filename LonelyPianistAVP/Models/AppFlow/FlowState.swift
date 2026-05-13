@@ -1,15 +1,9 @@
 import Observation
 
-enum PianoKind: Hashable {
-    case realAudio
-    case realBluetoothMIDI
-    case virtual
-}
-
 @MainActor
 @Observable
 final class FlowState {
-    var pianoKind: PianoKind?
+    var selectedPianoModeID: String?
     var isCalibrationCompleted = false
     var isVirtualPianoPlaced = false
     var bluetoothMIDISourceCount = 0

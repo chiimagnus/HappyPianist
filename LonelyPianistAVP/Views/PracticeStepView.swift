@@ -260,7 +260,7 @@ struct PracticeStepView: View {
     }
 
     private var isVirtualPianoMode: Bool {
-        viewModel.flowState.pianoKind == .virtual
+        viewModel.isVirtualPianoMode
     }
 
     private var highlightedMIDINotes: Set<Int> {

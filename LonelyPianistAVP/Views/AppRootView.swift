@@ -23,12 +23,12 @@ struct AppRootView: View {
         switch router.route {
         case .typePicker:
             PianoTypePickerView()
-        case .realPreparation:
-            RealPianoPreparationView(viewModel: arGuideViewModel)
-        case .bluetoothMIDIPreparation:
-            BluetoothMIDIPreparationView(viewModel: arGuideViewModel)
-        case .virtualPreparation:
-            VirtualPianoPreparationView(viewModel: arGuideViewModel)
+        case .preparation:
+            if let mode = router.selectedPianoMode {
+                mode.makePreparationView(arGuideViewModel: arGuideViewModel)
+            } else {
+                PianoTypePickerView()
+            }
         case .library:
             LibraryFlowView(songLibraryViewModel: songLibraryViewModel)
         case .practice:

@@ -1,22 +1,16 @@
 import Foundation
 
 final class PracticeSessionViewModelFactoryService: PracticeSessionViewModelFactoryProtocol {
-    nonisolated init() {}
+    private let pianoModeRegistry: PianoModeRegistryProtocol
 
-    func makePracticeSessionViewModel(for pianoKind: PianoKind?) -> PracticeSessionViewModel {
-        switch pianoKind {
-        case .realBluetoothMIDI:
-            PracticeSessionViewModel(
-                pressDetectionService: PressDetectionService(),
-                chordAttemptAccumulator: ChordAttemptAccumulator(),
-                sleeper: TaskSleeper(),
-                sequencerPlaybackService: AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2"),
-                audioRecognitionService: nil,
-                practiceInputEventSource: BluetoothMIDIInputEventSourceService()
-            )
+    init(pianoModeRegistry: PianoModeRegistryProtocol = PianoModeRegistryService()) {
+        self.pianoModeRegistry = pianoModeRegistry
+    }
 
-        case .realAudio, .virtual, .none:
-            PracticeSessionViewModel()
+    func makePracticeSessionViewModel(for pianoModeID: String?) -> PracticeSessionViewModel {
+        guard let mode = pianoModeRegistry.mode(for: pianoModeID) else {
+            return PracticeSessionViewModel()
         }
+        return mode.makePracticeSessionViewModel()
     }
 }

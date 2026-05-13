@@ -13,8 +13,8 @@ struct LibraryFlowView: View {
                 } label: {
                     HStack(spacing: 4) {
                         Text("重新选择钢琴类型")
-                        if let kind = router.flowState.pianoKind {
-                            Text("｜\(pianoKindTitle(kind))")
+                        if let mode = router.selectedPianoMode {
+                            Text("｜\(mode.pickerCard.title)")
                                 .foregroundStyle(.secondary)
                         }
                     }
@@ -50,17 +50,6 @@ struct LibraryFlowView: View {
             } catch {
                 songLibraryViewModel.errorMessage = "导入失败：\(error.localizedDescription)"
             }
-        }
-    }
-
-    private func pianoKindTitle(_ kind: PianoKind) -> String {
-        switch kind {
-        case .realAudio:
-            return "真实钢琴（音频）"
-        case .realBluetoothMIDI:
-            return "真实钢琴（蓝牙 MIDI）"
-        case .virtual:
-            return "虚拟钢琴"
         }
     }
 }

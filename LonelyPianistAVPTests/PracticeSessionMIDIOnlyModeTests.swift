@@ -7,7 +7,7 @@ import Testing
 @MainActor
 func bluetoothMIDIFactoryDoesNotInjectAudioRecognition() {
     let factory = PracticeSessionViewModelFactoryService()
-    let session = factory.makePracticeSessionViewModel(for: .realBluetoothMIDI)
+    let session = factory.makePracticeSessionViewModel(for: BluetoothMIDIPianoMode().id)
 
     #expect(session.audioRecognitionService == nil)
     #expect(session.practiceInputEventSource != nil)

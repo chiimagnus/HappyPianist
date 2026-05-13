@@ -91,7 +91,7 @@ private final class SinglePracticeSessionViewModelFactory: PracticeSessionViewMo
     }
 
     @MainActor
-    func makePracticeSessionViewModel(for pianoKind: PianoKind?) -> PracticeSessionViewModel {
+    func makePracticeSessionViewModel(for pianoModeID: String?) -> PracticeSessionViewModel {
         session
     }
 }

@@ -9,42 +9,27 @@ struct PianoTypePickerView: View {
                 .font(.largeTitle.weight(.bold))
 
             HStack(spacing: 24) {
-                typeCard(
-                    title: "真实钢琴（音频）",
-                    subtitle: "通过麦克风识别弹奏",
-                    icon: "pianokeys",
-                    kind: .realAudio
-                )
-
-                typeCard(
-                    title: "真实钢琴（蓝牙 MIDI）",
-                    subtitle: "通过系统 Bluetooth MIDI 连接",
-                    icon: "dot.radiowaves.left.and.right",
-                    kind: .realBluetoothMIDI
-                )
-
-                typeCard(
-                    title: "虚拟钢琴",
-                    subtitle: "在空间中放置虚拟钢琴",
-                    icon: "arkit",
-                    kind: .virtual
-                )
+                ForEach(router.pianoModes.indices, id: \.self) { index in
+                    let mode = router.pianoModes[index]
+                    typeCard(mode: mode)
+                }
             }
         }
         .padding(40)
         .frame(minWidth: 760, idealWidth: 860)
     }
 
-    private func typeCard(title: String, subtitle: String, icon: String, kind: PianoKind) -> some View {
+    private func typeCard(mode: any PianoModeProtocol) -> some View {
         Button {
-            router.selectPianoKind(kind)
+            router.selectPianoMode(mode)
         } label: {
+            let card = mode.pickerCard
             VStack(spacing: 16) {
-                Image(systemName: icon)
+                Image(systemName: card.iconSystemName)
                     .font(.system(size: 48))
-                Text(title)
+                Text(card.title)
                     .font(.title2.weight(.semibold))
-                Text(subtitle)
+                Text(card.subtitle)
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }

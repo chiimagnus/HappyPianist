@@ -8,30 +8,31 @@ final class AppRouter {
 
     enum Route: Hashable {
         case typePicker
-        case realPreparation
-        case bluetoothMIDIPreparation
-        case virtualPreparation
+        case preparation
         case library
         case practice
     }
 
     let flowState: FlowState
+    let pianoModeRegistry: PianoModeRegistryProtocol
     var route: Route = .typePicker
 
-    init(flowState: FlowState) {
+    init(flowState: FlowState, pianoModeRegistry: PianoModeRegistryProtocol = PianoModeRegistryService()) {
         self.flowState = flowState
+        self.pianoModeRegistry = pianoModeRegistry
     }
 
-    func selectPianoKind(_ kind: PianoKind) {
-        flowState.pianoKind = kind
-        switch kind {
-        case .realAudio:
-            route = .realPreparation
-        case .realBluetoothMIDI:
-            route = .bluetoothMIDIPreparation
-        case .virtual:
-            route = .virtualPreparation
-        }
+    var pianoModes: [any PianoModeProtocol] {
+        pianoModeRegistry.modes
+    }
+
+    var selectedPianoMode: (any PianoModeProtocol)? {
+        pianoModeRegistry.mode(for: flowState.selectedPianoModeID)
+    }
+
+    func selectPianoMode(_ mode: any PianoModeProtocol) {
+        flowState.selectedPianoModeID = mode.id
+        route = .preparation
     }
 
     func goToLibrary() {
@@ -43,16 +44,7 @@ final class AppRouter {
     }
 
     var canProceedToLibrary: Bool {
-        switch flowState.pianoKind {
-        case .realAudio:
-            return flowState.isCalibrationCompleted
-        case .realBluetoothMIDI:
-            return flowState.isCalibrationCompleted && flowState.bluetoothMIDISourceCount > 0
-        case .virtual:
-            return flowState.isVirtualPianoPlaced
-        case .none:
-            return false
-        }
+        selectedPianoMode?.canProceedToLibrary(flowState: flowState) ?? false
     }
 
     func exitToTypePicker(reason: String) {
@@ -61,7 +53,7 @@ final class AppRouter {
         flowState.isCalibrationCompleted = false
         flowState.isVirtualPianoPlaced = false
         flowState.bluetoothMIDISourceCount = 0
-        flowState.pianoKind = nil
+        flowState.selectedPianoModeID = nil
         route = .typePicker
     }
 }

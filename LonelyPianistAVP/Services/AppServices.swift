@@ -12,6 +12,7 @@ final class AppServices {
     let calibrationCaptureService: CalibrationPointCaptureService
     let practicePreparationService: PracticePreparationServiceProtocol
     let calibrationRepository: CalibrationRepositoryProtocol
+    let pianoModeRegistry: PianoModeRegistryProtocol
     let practiceSessionViewModelFactory: PracticeSessionViewModelFactoryProtocol
 
     init(
@@ -24,6 +25,7 @@ final class AppServices {
         calibrationCaptureService: CalibrationPointCaptureService? = nil,
         practicePreparationService: PracticePreparationServiceProtocol? = nil,
         calibrationRepository: CalibrationRepositoryProtocol? = nil,
+        pianoModeRegistry: PianoModeRegistryProtocol? = nil,
         practiceSessionViewModelFactory: PracticeSessionViewModelFactoryProtocol? = nil
     ) {
         self.worldAnchorCalibrationStore = worldAnchorCalibrationStore ?? WorldAnchorCalibrationStore()
@@ -37,6 +39,8 @@ final class AppServices {
             ?? PracticePreparationService(parser: self.parser, stepBuilder: self.stepBuilder)
         self.calibrationRepository = calibrationRepository
             ?? CalibrationRepository(worldAnchorCalibrationStore: self.worldAnchorCalibrationStore)
-        self.practiceSessionViewModelFactory = practiceSessionViewModelFactory ?? PracticeSessionViewModelFactoryService()
+        self.pianoModeRegistry = pianoModeRegistry ?? PianoModeRegistryService()
+        self.practiceSessionViewModelFactory = practiceSessionViewModelFactory
+            ?? PracticeSessionViewModelFactoryService(pianoModeRegistry: self.pianoModeRegistry)
     }
 }

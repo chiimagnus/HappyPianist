@@ -111,17 +111,28 @@ final class ARGuideViewModel {
     private var midiTakeRecordingTask: Task<Void, Never>?
 
     let flowState: FlowState
+    private let pianoModeRegistry: PianoModeRegistryProtocol
 
     init(
         appState: AppState,
         flowState: FlowState,
+        pianoModeRegistry: PianoModeRegistryProtocol = PianoModeRegistryService(),
         practiceSessionViewModelFactory: PracticeSessionViewModelFactoryProtocol = PracticeSessionViewModelFactoryService()
     ) {
         self.appState = appState
         self.flowState = flowState
+        self.pianoModeRegistry = pianoModeRegistry
         self.practiceSessionViewModelFactory = practiceSessionViewModelFactory
-        self.practiceSessionViewModel = practiceSessionViewModelFactory.makePracticeSessionViewModel(for: flowState.pianoKind)
+        self.practiceSessionViewModel = practiceSessionViewModelFactory.makePracticeSessionViewModel(for: flowState.selectedPianoModeID)
         setupAppStateCallbacks()
+    }
+
+    private var selectedPianoMode: (any PianoModeProtocol)? {
+        pianoModeRegistry.mode(for: flowState.selectedPianoModeID)
+    }
+
+    var isVirtualPianoMode: Bool {
+        selectedPianoMode?.isVirtualPianoMode == true
     }
 
     private func setupAppStateCallbacks() {
@@ -156,7 +167,7 @@ final class ARGuideViewModel {
     }
 
     private func replacePracticeSessionViewModel() {
-        let next = practiceSessionViewModelFactory.makePracticeSessionViewModel(for: flowState.pianoKind)
+        let next = practiceSessionViewModelFactory.makePracticeSessionViewModel(for: flowState.selectedPianoModeID)
 
         practiceSessionViewModel.shutdown()
         practiceSessionViewModel = next
@@ -187,7 +198,7 @@ final class ARGuideViewModel {
         midiTakeRecordingTask?.cancel()
         midiTakeRecordingTask = nil
 
-        guard flowState.pianoKind == .realBluetoothMIDI else { return }
+        guard selectedPianoMode?.usesBluetoothMIDIInput == true else { return }
         guard let eventSource = practiceSessionViewModel.practiceInputEventSource else { return }
 
         midiTakeRecordingTask = Task { @MainActor [weak self] in
@@ -969,7 +980,7 @@ final class ARGuideViewModel {
         case .calibration:
             .calibration
         case .practice:
-            flowState.pianoKind == .realBluetoothMIDI && isVirtualPianoEnabled == false ? .practiceBluetoothMIDI : .practiceVirtualOrAudio
+            selectedPianoMode?.practiceTrackingMode(isVirtualPianoEnabled: isVirtualPianoEnabled) ?? .practiceVirtualOrAudio
         }
 
         if desiredMode != currentTrackingMode {
@@ -1017,7 +1028,7 @@ final class ARGuideViewModel {
     }
 
     private func recordPhraseIfNeeded(nowUptime: TimeInterval) {
-        guard flowState.pianoKind != .realBluetoothMIDI else { return }
+        guard selectedPianoMode?.usesBluetoothMIDIInput != true else { return }
         guard isVirtualPerformerEnabled else { return }
 
         let contact = practiceSessionViewModel.latestKeyContactResult
@@ -1035,7 +1046,7 @@ final class ARGuideViewModel {
     }
 
     private func recordTakeIfNeeded(nowUptime: TimeInterval) {
-        guard flowState.pianoKind != .realBluetoothMIDI else { return }
+        guard selectedPianoMode?.usesBluetoothMIDIInput != true else { return }
         guard isRecording, isVirtualPianoEnabled == false else { return }
 
         let contact = practiceSessionViewModel.latestKeyContactResult
@@ -1348,16 +1359,7 @@ final class ARGuideViewModel {
     }
 
     var recordingSourceText: String? {
-        switch flowState.pianoKind {
-        case .realBluetoothMIDI:
-            "录制来源：Bluetooth MIDI（弹奏琴键即可录制）"
-        case .realAudio:
-            "录制来源：手势触键（用于推断按键接触）"
-        case .virtual:
-            "录制来源：虚拟钢琴触键"
-        case .none:
-            nil
-        }
+        selectedPianoMode?.recordingSourceText()
     }
 
     func startRecording() {
