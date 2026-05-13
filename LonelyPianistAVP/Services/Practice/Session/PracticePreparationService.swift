@@ -26,41 +26,42 @@ struct PracticePreparationService: PracticePreparationServiceProtocol {
             : score
         let primaryPartID = effectiveScore.preferredPrimaryPartID(preferredPartID: primaryPartIDForExpansion)
         let practiceScore = effectiveScore.filtering(toPartID: primaryPartID)
+        let routedPracticeScore = MusicXMLHandRouter().routeIfNeeded(score: practiceScore).routedScore
 
         let expressivityOptions = MusicXMLRealisticPlaybackDefaults.expressivityOptions
-        let buildResult = stepBuilder.buildSteps(from: practiceScore, expressivity: expressivityOptions)
+        let buildResult = stepBuilder.buildSteps(from: routedPracticeScore, expressivity: expressivityOptions)
         let wordsSemantics = expressivityOptions.wordsSemanticsEnabled
             ? MusicXMLWordsSemanticsInterpreter().interpret(
-                wordsEvents: practiceScore.wordsEvents,
-                tempoEvents: practiceScore.tempoEvents
+                wordsEvents: routedPracticeScore.wordsEvents,
+                tempoEvents: routedPracticeScore.tempoEvents
             )
             : nil
         let tempoMap = MusicXMLTempoMap(
-            tempoEvents: practiceScore.tempoEvents + (wordsSemantics?.derivedTempoEvents ?? []),
+            tempoEvents: routedPracticeScore.tempoEvents + (wordsSemantics?.derivedTempoEvents ?? []),
             tempoRamps: wordsSemantics?.derivedTempoRamps ?? [],
             partID: primaryPartID
         )
-        let pedalTimeline = MusicXMLPedalTimeline(events: practiceScore
+        let pedalTimeline = MusicXMLPedalTimeline(events: routedPracticeScore
             .pedalEvents + (wordsSemantics?.derivedPedalEvents ?? []))
         let fermataTimeline = expressivityOptions.fermataEnabled
-            ? MusicXMLFermataTimeline(fermataEvents: practiceScore.fermataEvents, notes: practiceScore.notes)
+            ? MusicXMLFermataTimeline(fermataEvents: routedPracticeScore.fermataEvents, notes: routedPracticeScore.notes)
             : nil
         let attributeTimeline = MusicXMLAttributeTimeline(
-            timeSignatureEvents: practiceScore.timeSignatureEvents,
-            keySignatureEvents: practiceScore.keySignatureEvents,
-            clefEvents: practiceScore.clefEvents
+            timeSignatureEvents: routedPracticeScore.timeSignatureEvents,
+            keySignatureEvents: routedPracticeScore.keySignatureEvents,
+            clefEvents: routedPracticeScore.clefEvents
         )
-        let slurTimeline = MusicXMLSlurTimeline(events: practiceScore.slurEvents)
+        let slurTimeline = MusicXMLSlurTimeline(events: routedPracticeScore.slurEvents)
         let shouldUsePerformanceTiming = MusicXMLRealisticPlaybackDefaults.performanceTimingEnabled
         let noteSpans = MusicXMLNoteSpanBuilder().buildSpans(
-            from: practiceScore.notes,
+            from: routedPracticeScore.notes,
             performanceTimingEnabled: shouldUsePerformanceTiming,
             expressivity: expressivityOptions,
             fermataTimeline: fermataTimeline
         )
         let highlightGuides = PianoHighlightGuideBuilderService().buildGuides(
             input: PianoHighlightGuideBuildInput(
-                score: practiceScore,
+                score: routedPracticeScore,
                 steps: buildResult.steps,
                 noteSpans: noteSpans,
                 expressivity: expressivityOptions
@@ -77,7 +78,7 @@ struct PracticePreparationService: PracticePreparationServiceProtocol {
             slurTimeline: slurTimeline,
             noteSpans: noteSpans,
             highlightGuides: highlightGuides,
-            measureSpans: practiceScore.measures,
+            measureSpans: routedPracticeScore.measures,
             unsupportedNoteCount: buildResult.unsupportedNoteCount
         )
     }
