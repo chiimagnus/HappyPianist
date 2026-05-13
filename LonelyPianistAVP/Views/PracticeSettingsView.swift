@@ -4,6 +4,7 @@ struct PracticeSettingsView: View {
     @Binding var virtualPerformerEnabled: Bool
     let backendStatusText: String?
     let lastImprovStatusText: String?
+    let recordingSourceText: String?
     var onOpenTakeLibrary: (() -> Void)?
 
     @AppStorage("practiceAudioRecognitionDebugOverlayEnabled") private var practiceAudioRecognitionDebugOverlayEnabled =
@@ -30,6 +31,12 @@ struct PracticeSettingsView: View {
             Toggle("沉浸式：360° 全景背景", isOn: $immersivePanoramaEnabled)
 
             Divider()
+
+            if let recordingSourceText {
+                Text(recordingSourceText)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+            }
 
             Button("打开录制库", systemImage: "list.bullet") {
                 onOpenTakeLibrary?()
@@ -59,6 +66,7 @@ struct PracticeSettingsView: View {
     PracticeSettingsView(
         virtualPerformerEnabled: .constant(false),
         backendStatusText: nil,
-        lastImprovStatusText: nil
+        lastImprovStatusText: nil,
+        recordingSourceText: "录制来源：Bluetooth MIDI（弹奏琴键即可录制）"
     )
 }

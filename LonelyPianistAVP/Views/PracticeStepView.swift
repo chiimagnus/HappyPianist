@@ -116,12 +116,6 @@ struct PracticeStepView: View {
                         .disabled(viewModel.canRecord == false || viewModel.isAIPerformanceActive || viewModel.takePlaybackController.isPlaying)
                     }
 
-                    if let recordingSourceText = viewModel.recordingSourceText {
-                        Text(recordingSourceText)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
                     if isAutoplayEnabled {
                         Text(viewModel.practiceSessionViewModel.isSustainPedalDown ? "Pedal ↓" : "Pedal ↑")
                             .foregroundStyle(.secondary)
@@ -344,6 +338,7 @@ struct PracticeStepView: View {
                 virtualPerformerEnabled: $isVirtualPerformerEnabled,
                 backendStatusText: viewModel.backendStatusText,
                 lastImprovStatusText: viewModel.lastImprovStatusText,
+                recordingSourceText: viewModel.recordingSourceText,
                 onOpenTakeLibrary: {
                     isSettingsPopoverPresented = false
                     isTakeLibraryPresented = true
