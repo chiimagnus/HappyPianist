@@ -44,6 +44,8 @@
 | 校准字段 | StoredWorldAnchorCalibration + store + localization | AVP calibration tests |
 | MusicXML 规则 | parser + step builder + practice view model | MusicXML parser/timeline tests |
 | AR 贴皮高亮样式 | `PianoGuideOverlayController` + practice docs | AVP tests + Vision Pro 手工观察 |
+| BLE MIDI 录制/回放 | `BluetoothMIDIInputEventSourceService` + `MIDIRecordingAdapter` + `RecordingTakeStore` + `TakePlaybackController` | AVP tests + Vision Pro 真机冒烟 |
+| 钢琴模式增删改 | `PianoModeProtocol` 实现 + `PianoModeRegistryService` 注册 + `PianoTypePickerView` + `FlowState.pianoKind` | AVP tests + 类型选择 UI 验证 |
 | Xcode target / package | project + scheme | macOS + AVP tests |
 | SwiftFormat 规则 | `.swiftformat` | 手动 SwiftFormat（可选） |
 
@@ -84,3 +86,4 @@
 - 2026-05-01: 同步 AVP Practice 的 RealityKit 引导从光柱迁移为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。
 - 2026-05-05: 补充 AVP Bonjour 自动发现 + HTTP `/generate` 的开发/验证注意事项，并同步 Python 一键启动脚本入口。
 - 2026-05-06: 同步 Python `server/` 目录重组（`api/`、`engines/`、`media/`）与 `rule` 第三策略；更新默认入口与本地 smoke 方式。
+- 2026-05-13: 常见变更清单新增 BLE MIDI 录制/回放与钢琴模式增删改两行。

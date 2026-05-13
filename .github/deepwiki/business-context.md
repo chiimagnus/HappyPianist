@@ -13,7 +13,8 @@ LonelyPianist 是一个本地优先的钢琴交互系统，围绕三条产品线
 | Piano Dialogue | 静默窗口内的演奏片段 | AI 回放并落盘为 take | [modules/lonelypianist-macos-dialogue.md](modules/lonelypianist-macos-dialogue.md) |
 | AR Guide | MusicXML + A0/C8 校准 + 手势 | 键位高亮与步骤推进 | [modules/lonelypianist-avp-practice.md](modules/lonelypianist-avp-practice.md) |
 | AR Guide（虚拟钢琴） | MusicXML + 钢琴类型=虚拟钢琴 + 手势放置（准备阶段） | 3D 88 键键盘 + 实时发声 + 步骤推进 | [modules/lonelypianist-avp-practice.md](modules/lonelypianist-avp-practice.md) |
-| AVP AI 即兴（后端生成） | 练习中的短句片段（真实/虚拟输入） | 自动发现后端、生成续写并在沉浸空间中回放 | [modules/lonelypianist-avp-practice.md](modules/lonelypianist-avp-practice.md) + [modules/piano-dialogue-server.md](modules/piano-dialogue-server.md) |
+| AR Guide（蓝牙 MIDI） | MusicXML + 蓝牙 MIDI 连接 + 校准 | 键位高亮与步骤推进 + Take 录制/回放 | [modules/lonelypianist-avp-practice.md](modules/lonelypianist-avp-practice.md) |
+| AVP AI 即兴（后端生成） | 练习中的短句片段（真实/虚拟/BLE MIDI 输入） | 自动发现后端、生成续写并在沉浸空间中回放 | [modules/lonelypianist-avp-practice.md](modules/lonelypianist-avp-practice.md) + [modules/piano-dialogue-server.md](modules/piano-dialogue-server.md) |
 
 ## 业务规则
 | 规则 | 含义 | 影响面 |
@@ -31,6 +32,7 @@ LonelyPianist 是一个本地优先的钢琴交互系统，围绕三条产品线
 | `Dialogue take` | macOS DialogueManager | SwiftData store |
 | `piano-worldanchor-calibration.json` | AVP Step 1 | Documents |
 | `SongLibrary/index.json` + scores/audio | AVP 曲库 | Documents/SongLibrary |
+| AVP Take 录制 | AVP `RecordingTakeStore` | `Documents/TakeLibrary/takes.json` |
 | `out/dialogue_debug/*` | Python server | 本地调试目录 |
 
 ## 术语路由

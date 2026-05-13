@@ -9,17 +9,36 @@
 | --- | --- |
 | `AppState.swift` | tracking/runtime calibration/沉浸空间状态枢纽 |
 | `Models/AppFlow/FlowState.swift` | 流程状态：钢琴类型、导入曲目与 steps |
-| `ViewModels/` | 业务编排 |
-| `Models/Placement/` | 平面命中与放置数据结构（ray / plane / hit） |
-| `Services/Placement/` | 虚拟钢琴放置相关服务（视线平面命中、键盘姿态推导） |
-| `Services/Library/` | 曲库：用户导入索引 + app bundle 内置曲目提供 |
-| `Services/MusicXML/` | 解析和时间线 |
-| `Services/Tracking/` | AR tracking |
-| `Services/Calibration/` | 校准捕获 |
-| `Services/VirtualPiano/` | 虚拟钢琴几何与接触检测 |
-| `Views/` | Step 1/2/3 UI |
-| `Views/Immersive/VirtualPianoOverlayController.swift` | 虚拟钢琴 3D 渲染 |
-| `Views/Immersive/GazePlaneDiskOverlayController.swift` | 虚拟钢琴放置引导：绿色圆盘 + 3D 文案 |
+| `Models/Calibration/` | KeyboardFrame、PianoCalibration、PianoKeyboardGeometry、StoredWorldAnchorCalibration |
+| `Models/Practice/` | PracticeStep、PracticeInputEvent、PianoHighlightGuide、DetectedNoteEvent 等 |
+| `Models/Recording/` | RecordingTake、RecordingTakeEvent |
+| `ViewModels/ARGuideViewModel.swift` | 练习定位、provider 状态、沉浸空间运行时 |
+| `ViewModels/AppRouter.swift` | 路由编排（类型选择 → 准备 → 曲库 → 练习） |
+| `ViewModels/PracticeSession/` | PracticeSessionViewModel 拆分的 6 个 extension（AudioRecognition / Autoplay / HandGate / HighlightGuides / ManualReplay / PracticeInput） |
+| `ViewModels/Library/SongLibraryViewModel.swift` | 曲库导入/删除/试听 |
+| `ViewModels/MIDI/MIDISourceConnectionViewModel.swift` | BLE MIDI 连接状态监控 |
+| `ViewModels/Recording/TakeLibraryViewModel.swift` | Take 库管理 |
+| `Services/AppFlow/` | PianoModeProtocol、PianoModeRegistryService、DefaultPianoModes（三种钢琴模式） |
+| `Services/Audio/` | PracticeSequencer playback/sequence builder、PracticeAudioError |
+| `Services/AudioRecognition/` | 谐波模板检测（16 文件）：HarmonicTemplateScorer、TargetedHarmonicTemplateDetector、VDSPAudioSpectrumAnalyzer 等 |
+| `Services/Bluetooth/` | BluetoothAccessPreflight（BLE 权限预检） |
+| `Services/Calibration/` | CalibrationPointCaptureService、CalibrationRepository |
+| `Services/HandTracking/` | PressDetectionService、RealPianoContactDetectionService |
+| `Services/Library/` | SongFileStore、SongLibraryIndexStore、BundledSongLibraryProvider、AudioImportService 等 |
+| `Services/MIDI/` | BluetoothMIDIInputEventSourceService（CoreMIDI UMP → events）、CoreMIDISourceMonitoringService |
+| `Services/MusicXML/` | 解析和时间线（Parser/ 子目录 + 13 个 timeline/expander/velocity 文件） |
+| `Services/Networking/` | BonjourBackendDiscoveryService、ImprovBackendClient |
+| `Services/Placement/` | GazePlaneHitTestService、VirtualKeyboardPoseService |
+| `Services/Practice/` | PracticeStepBuilder + 按用途拆分的子目录：AI/（PhraseRecorder、ImprovScheduleBuilder）、Autoplay/、Guides/、ManualAdvance/、Matching/、Session/ |
+| `Services/Recording/` | MIDIRecordingAdapter、RecordingTakeRecorder、RecordingTakeStore、TakePlaybackController |
+| `Services/Tracking/` | ARTrackingService |
+| `Services/VirtualPiano/` | KeyContactDetectionService、VirtualPianoKeyGeometryService |
+| `Views/AppFlow/` | PianoTypePickerView、RealPianoPreparationView、BluetoothMIDIPreparationView、VirtualPianoPreparationView、LibraryFlowView、PracticeFlowView |
+| `Views/Immersive/` | 11 个 RealityKit overlay controllers（校准、贴皮高亮、虚拟钢琴、全景、五线谱等） |
+| `Views/MIDI/BluetoothMIDICentralView.swift` | 系统 Bluetooth MIDI 配对 UI 包装 |
+| `Views/Library/SongLibraryView.swift` | 曲库列表 UI |
+| `Views/Practice/` | ScrollingStaffNotationView、Step3AudioDebugOverlay |
+| `Views/Recording/TakeLibraryView.swift` | Take 库 UI |
 
 ## 入口与生命周期
 | 入口 | 行为 |
@@ -36,7 +55,7 @@
 - 权限预检与引导：`Services/Bluetooth/BluetoothAccessPreflight.swift` + `NSBluetoothAlwaysUsageDescription`（见 `LonelyPianistAVP/Info.plist`）。
 - 连接确认抓手：`ViewModels/MIDI/MIDISourceConnectionViewModel.swift`（sources 列表 + sourceCount）+ `Services/MIDI/CoreMIDISourceMonitoringService.swift`。
 - Gate（是否允许进入曲库/练习）：`FlowState.bluetoothMIDISourceCount > 0` 且校准完成（见 `AppRouter.canProceedToLibrary`）。
-- Step 3 输入源：不再通过设置页切换；而是由 `FlowState.pianoKind`（`.realBluetoothMIDI`）决定，进入练习前由 `PracticeSessionViewModelFactoryService` 注入 **MIDI-only** session（不启音频识别，且 practice 阶段不启 hand tracking consumer）。
+- Step 3 输入源：不再通过设置页切换；而是由 `FlowState.pianoKind`（模式 id 字符串，由 `PianoModeRegistryService` 解析为 `BluetoothMIDIPianoMode`）决定，进入练习前由 `PracticeSessionViewModelFactoryService` 注入 **MIDI-only** session（不启音频识别，且 practice 阶段不启 hand tracking consumer）。
 - 练习输入事件模型：`Models/Practice/PracticeInputEvent.swift`（G1 channel voice），BLE 事件源：`Services/MIDI/BluetoothMIDIInputEventSourceService.swift`（CoreMIDI UMP → events）。
 - 录制：BLE 模式下 take/phrase 从 MIDI events 录制（`Services/Recording/MIDIRecordingAdapter.swift` + `Services/Recording/RecordingTakeRecorder.swift` + `Services/Practice/AI/PhraseRecorder.swift`）。
 - 验收要点：visionOS Simulator 无法可靠验证 BLE MIDI；以 Vision Pro 真机冒烟为准。
@@ -73,3 +92,4 @@
 - 2026-05-10: 主流程重构：以 `AppRouter.route` 做 root 切换，引入 `FlowState` 聚合“钢琴类型 + 曲目/steps”，练习页返回回到曲库；移除“练习页虚拟钢琴开关”的产品入口。
 - 2026-05-12: 新增 AVP app 内系统 `Bluetooth MIDI…` 入口、权限预检与 sources gate；并将 BLE 模式确立为独立钢琴模式（MIDI-only 输入、practice 阶段不启 hand tracking，take/phrase 从 MIDI 录制）。
 - 2026-05-13: 准备页改为**内嵌**系统 Bluetooth MIDI 面板，移除 sheet 弹窗与 sources 刷新/列表 UI；BLE 模式入口保持不变。
+- 2026-05-13: 目录地图全面扩充（补全 AppFlow/、AudioRecognition/、MIDI/、Recording/、Practice/ 子目录等）；BLE 模式入口从 `PianoKind` 枚举改为 `PianoModeRegistryService` 解析。

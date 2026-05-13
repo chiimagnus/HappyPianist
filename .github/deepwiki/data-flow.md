@@ -10,6 +10,7 @@
 | AVP import | fileImporter URLs | SongFileStore + IndexStore | `SongLibrary/index.json` |
 | AVP practice | 校准 + 曲库 + tracking | ARGuideViewModel + PracticeSessionViewModel + AutoplayPerformanceTimeline + PianoGuideOverlayController | 贴皮高亮引导（decal）与步骤推进 |
 | AVP virtual piano | 钢琴类型=虚拟钢琴 + gaze-plane 放置（准备阶段） + 手指追踪 | ARGuideViewModel + PlaneDetectionProvider + GazePlaneDiskConfirmationViewModel + VirtualPianoKeyGeometryService + KeyContactDetectionService + VirtualPianoOverlayController | 3D 88 键键盘 + 实时发声 + 步骤推进 |
+| AVP BLE MIDI | CoreMIDI UMP → events → take/phrase 录制 | BluetoothMIDIInputEventSourceService + MIDIRecordingAdapter + RecordingTakeRecorder + PhraseRecorder | Take 落盘 + phrase 用于后端生成 |
 | AVP improv | 录制短句片段 | PhraseRecorder + BonjourBackendDiscoveryService + ImprovBackendClient | `POST /generate` 生成续写并回放（可降级 deterministic） |
 | PR validation | 手动测试 | 本地 xcodebuild | macOS / AVP tests |
 | Swift quality | 手动格式化（可选） | SwiftFormat | 格式化 diff 或 no-op |
@@ -47,6 +48,11 @@ sequenceDiagram
 | 虚拟键盘渲染 | `PianoKeyboardGeometry` | `VirtualPianoOverlayController` | RealityKit 3D 键盘（中心向两侧展开动画） |
 | 虚拟按键检测 | finger tips + geometry | `KeyContactDetectionService` | started/ended/down (hysteresis) |
 | 虚拟发声 | started/ended MIDI notes | `PracticeSequencerPlaybackServiceProtocol` | `AVAudioUnitSampler` startNote/stopNote |
+| BLE MIDI 输入 | CoreMIDI UMP（MIDI 1.0/2.0） | `BluetoothMIDIInputEventSourceService` | `AsyncStream<PracticeInputEvent>` |
+| BLE MIDI 练习推进 | `PracticeInputEvent` noteOn | `PracticeSessionViewModel+PracticeInput` | `DetectedNoteEvent` → step advance |
+| BLE MIDI Take 录制 | `PracticeInputEvent` | `MIDIRecordingAdapter` → `RecordingTakeRecorder` | `RecordingTake`（JSON 持久化到 `Documents/TakeLibrary/takes.json`） |
+| BLE MIDI Take 回放 | `RecordingTake` | `TakePlaybackController` → `RecordingTakeSequenceAdapter` | `PracticeSequencerSequence` → sequencer playback |
+| BLE MIDI Phrase 录制 | `PracticeInputEvent` noteOn/Off | `PhraseRecorder` | `[ImprovDialogueNote]`（rebase 到 t=0，用于后端生成） |
 
 ## AVP 练习内部
 | 子流 | 说明 | 关键状态 |
@@ -140,6 +146,8 @@ flowchart TD
 | 音频识别性能下降 | 检测变慢或频繁出错 | 调整 `HarmonicTemplateTuningProfile` 或检查 `fallbackReason` |
 | 虚拟钢琴放置失败 | 圆盘不出现/倒计时闪烁/键盘位置不对 | 先看 `providerStateByName["plane"|"hand"]`，再看 `latestGazePlaneHit`、`gazePlaneDiskConfirmation.confirmationProgress`、`cachedVirtualPianoWorldAnchorID`（anchor 是否 tracked） |
 | 虚拟按键无声音 | 手指接触琴键但无发声 | 检查 `KeyContactDetectionService.detect` 输出和 `liveNotes` 集合 |
+| BLE MIDI 无法连接 | 系统面板 Connect 无响应 / sourceCount 不增长 | 检查蓝牙权限、系统蓝牙开关、真机验证（simulator 不覆盖） |
+| BLE MIDI Take 回放无声 | Take 落盘成功但回放无声音 | 检查 `RecordingTakeSequenceAdapter.buildSequence` 输出和 sequencer 状态 |
 | Swift tools mismatch | Package graph resolve 失败 | 使用支持 Swift 6.2 的 Xcode 版本 |
 
 ## 调试抓手
@@ -150,6 +158,8 @@ flowchart TD
 - Guide 构建：`PianoHighlightGuideBuilderService.buildGuides` 输入和输出、`PianoHighlightParsedElementCoverageService.allCoverages()`
 - AutoplayPerformanceTimeline：事件序列、tick 排序、优先级处理
 - 音频识别：`fallbackReason`、`activeDetectorMode`、`processingDurationMs`、`templateMatchResults`
+- BLE MIDI：`FlowState.bluetoothMIDISourceCount`、`MIDISourceConnectionViewModel.sourceCount`、`BluetoothMIDIInputEventSourceService.events`、`PracticeSessionViewModel.practiceInputEventSource`
+- BLE MIDI 录制：`RecordingTakeStore.load()`、`RecordingTakeRecorder.openNotes`、`PhraseRecorder.flushPhrase`
 - Python：`/health`、`python -m server.api.test_client`、`out/dialogue_debug/index.jsonl`
 
 ## Coverage Gaps
@@ -167,4 +177,5 @@ flowchart TD
 - 2026-05-01: AVP 练习空间提示从光柱改为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。
 - 2026-05-02: 虚拟钢琴放置从 VirtualPianoPlacementViewModel 迁移为 gaze-plane + palm confirmation，并修正文档中的 CI/workflows 假设。
 - 2026-05-05: 同步 AVP Bonjour 自动发现 + HTTP `/generate` 与 Python `/upload-expand` 的数据流与协议骨架。
-- 2026-05-10: 同步 AVP 曲库与流程重构：移除 `SongLibrarySeeder`（内置曲目改为运行时合并展示），虚拟钢琴入口从“练习页开关”改为“钢琴类型选择 + 准备阶段放置”。
+- 2026-05-10: 同步 AVP 曲库与流程重构：移除 `SongLibrarySeeder`（内置曲目改为运行时合并展示），虚拟钢琴入口从”练习页开关”改为”钢琴类型选择 + 准备阶段放置”。
+- 2026-05-13: 新增 BLE MIDI 数据流（输入、练习推进、Take 录制/回放、Phrase 录制）；新增 BLE MIDI 故障恢复与调试抓手。

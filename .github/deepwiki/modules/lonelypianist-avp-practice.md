@@ -72,13 +72,13 @@ flowchart TD
 
 AVP 端把 Step 3 “练习输入/推进/录制/AI”按钢琴模式做硬边界拆分（不做回退、也不在 Step 3 设置里切换）：
 
-| `PianoKind` | 模式语义 | 典型入口（准备页） | Step 3 输入/推进 |
+| `PianoModeProtocol` 实现 | 模式语义 | 典型入口（准备页） | Step 3 输入/推进 |
 | --- | --- | --- | --- |
-| `.realAudio` | 真实钢琴（音频识别 + 手势辅助） | `Views/AppFlow/RealPianoPreparationView.swift` | `PracticeAudioRecognitionService` + 手势 gating |
-| `.realBluetoothMIDI` | 真实钢琴（BLE MIDI，MIDI-only） | `Views/AppFlow/BluetoothMIDIPreparationView.swift` | `PracticeInputEventSourceProtocol`（CoreMIDI events） |
-| `.virtual` | 虚拟钢琴（手势触键） | `Views/AppFlow/VirtualPianoPreparationView.swift` | 虚拟触键 + sequencer |
+| `RealAudioPianoMode` | 真实钢琴（音频识别 + 手势辅助） | `Views/AppFlow/RealPianoPreparationView.swift` | `PracticeAudioRecognitionService` + 手势 gating |
+| `BluetoothMIDIPianoMode` | 真实钢琴（BLE MIDI，MIDI-only） | `Views/AppFlow/BluetoothMIDIPreparationView.swift` | `PracticeInputEventSourceProtocol`（CoreMIDI events） |
+| `VirtualPianoMode` | 虚拟钢琴（手势触键） | `Views/AppFlow/VirtualPianoPreparationView.swift` | 虚拟触键 + sequencer |
 
-模式状态保存在 `Models/AppFlow/FlowState.swift` 的 `pianoKind`，路由由 `AppRouter` 统一编排。
+模式由 `PianoModeRegistryService` 注册（`Services/AppFlow/PianoModeRegistryService.swift`），注入到 `AppRouter` 与 `ARGuideViewModel`。`FlowState` 中的 `pianoKind` 字段存储模式 id 字符串，由注册表解析为具体 `PianoModeProtocol` 实现。路由由 `AppRouter` 统一编排。
 
 ### Bluetooth MIDI 模式（MIDI-only）
 
@@ -87,7 +87,7 @@ AVP 端把 Step 3 “练习输入/推进/录制/AI”按钢琴模式做硬边界
 - Gate：准备页通过 `MIDISourceConnectionViewModel` 监控 `sourceCount` 并写入 `FlowState.bluetoothMIDISourceCount`；`AppRouter.canProceedToLibrary` 以此作为进入后续流程的硬条件。
 - 事件模型：`Models/Practice/PracticeInputEvent.swift`（G1 channel voice）。
 - 事件源：`Services/MIDI/BluetoothMIDIInputEventSourceService.swift`（CoreMIDI UMP → `PracticeInputEventSourceProtocol.events`）。
-- 注入：`Services/Practice/Session/PracticeSessionViewModelFactoryService.swift` 在进入 Step 3 前按 `PianoKind` 创建 `PracticeSessionViewModel`：
+- 注入：`Services/Practice/Session/PracticeSessionViewModelFactoryService.swift` 在进入 Step 3 前按 `PianoModeProtocol` 实现创建 `PracticeSessionViewModel`：
   - BLE 模式：注入 `practiceInputEventSource`，**不注入** `audioRecognitionService`；
   - 事件消费：`PracticeSessionViewModel+PracticeInput.swift` 只消费 note-on 推进 step（复用 `AudioStepAttemptAccumulator`）。
 - Tracking：BLE 模式练习阶段使用 `ARTrackingMode.practiceBluetoothMIDI`（不启 hand tracking consumer；仍保留 world/plane 用于定位与高亮引导）。
@@ -443,3 +443,4 @@ struct PianoHighlightGuideBuildInput {
 - 2026-05-01: AVP 练习引导从光柱改为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。
 - 2026-05-02: 虚拟钢琴放置从“手指准星 + 捏合确认”迁移为“视野中心平面 + 绿色圆盘 + 双手掌心稳定确认（3s/3cm）”；放置结果通过 `WorldAnchor` 在 Step 3 内复用；键盘出现改为从中间向两边延伸。
 - 2026-05-05: 补充 AVP Bonjour 自动发现 + HTTP `/generate` 的 AI 即兴数据流与关键对象，并同步 staff notation/phrase recorder 等新增对象入口。
+- 2026-05-13: 钢琴模式表从 `PianoKind` 枚举更新为 `PianoModeProtocol` 实现名（`RealAudioPianoMode` / `BluetoothMIDIPianoMode` / `VirtualPianoMode`），同步 `PianoModeRegistryService` 注册模式。

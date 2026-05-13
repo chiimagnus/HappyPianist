@@ -3,19 +3,21 @@
 ## Run info
 | Item | Value |
 | --- | --- |
-| Commit hash | 453d6366041d31542035769f671565a0d9d27c6f |
+| Commit hash | 93903598c6fe8b1ed2836e5b8791493d8cdb1b1b |
 | Branch name | crh2 |
-| Generated at | 2026-05-13T11:50:18+08:00 |
+| Generated at | 2026-05-13T20:00:00+08:00 |
 | Output language | Chinese |
 | Generation mode | Incremental update via `deepwiki` skill |
 
 ## Key updates in this generation
 | Area | Update |
 | --- | --- |
-| AVP BLE MIDI：准备页与系统面板 | 更新 deepwiki 以反映 `BluetoothMIDIPreparationView` 改为**内嵌**系统 Bluetooth MIDI 面板（不再 sheet 弹窗），并移除 sources 刷新/列表 UI；保留 `sourceCount` gate。 |
-| AVP BLE MIDI：Step 推进判定 | 记录 BLE MIDI 的 step 推进为“note-on 事件聚合判定”，并补充多音/和弦的聚合窗口与多数命中规则（当前配置更宽松以降低卡步）。 |
-| Services/Practice 目录整理 | 更新 deepwiki 中引用的 Practice 相关源码路径，反映 `Services/Practice/` 按用途拆分子目录（AI/Autoplay/Guides/ManualAdvance/Matching/Session）。 |
-| 虚拟钢琴入口表述修正 | 修正 deepwiki 中“Step 3 设置页切换虚拟钢琴”的过期表述，改为以 `PianoKind`（类型选择/准备页）驱动。 |
+| PianoKind → PianoModeProtocol 全面迁移 | 将 deepwiki 中所有 `PianoKind` 枚举引用替换为 `PianoModeProtocol` 协议 + `PianoModeRegistryService` 注册表；三种模式（RealAudio / BluetoothMIDI / Virtual）通过协议实现注册。 |
+| AVP BLE MIDI 录制链路 | 新增 BLE MIDI 数据流文档：`BluetoothMIDIInputEventSourceService` → `MIDIRecordingAdapter` → `RecordingTakeRecorder` → `RecordingTakeStore`（takes.json）；补充 Take 录制/回放/Phrase 录制的存储与数据流描述。 |
+| AVP 目录地图扩充 | `modules/lonelypianist-avp.md` 目录地图从 12 项扩充至 ~30 项，覆盖全部 Services 子目录（AppFlow/、Audio/、AudioRecognition/、Bluetooth/、MIDI/、Recording/、Networking/、Practice/ 等）。 |
+| architecture.md 组件边界 | 新增 5 个组件边界条目（PianoModeRegistryService、BluetoothMIDIInputEventSourceService、MIDIRecordingAdapter、RecordingTakeStore、TakePlaybackController）和 3 个关键契约（PracticeInputEvent、RecordingTake/RecordingTakeEvent、PianoModeProtocol）。 |
+| storage.md Take 存储 | 新增 AVP Take 录制存储段落：路径、JSON 格式、编码、写入时机、事件类型、回放链路。 |
+| glossary.md 术语更新 | 替换 PianoKind 为 PianoModeProtocol/PianoModeRegistryService；补充 `RecordingTake` 存储术语；修正 `GenerateParams.strategy` 遗漏 `rule` 第三策略。 |
 
 ## Generated page list
 ### Core pages

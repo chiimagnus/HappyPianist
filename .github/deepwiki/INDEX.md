@@ -1,6 +1,6 @@
 # Deepwiki 索引（LonelyPianist）
 
-本索引是 `.github/deepwiki/` 的入口。目标是让读者先看业务，再看实现；或者先看工程，再落到模块。当前 wiki 已覆盖 macOS、visionOS、Python Dialogue 服务，以及 AVP 琴键贴皮式 AR 练习引导、虚拟钢琴（gaze-plane 放置）与 Bonjour 自动发现后端的 AI 即兴回放。
+本索引是 `.github/deepwiki/` 的入口。目标是让读者先看业务，再看实现；或者先看工程，再落到模块。当前 wiki 已覆盖 macOS、visionOS、Python Dialogue 服务，以及 AVP 琴键贴皮式 AR 练习引导、虚拟钢琴（gaze-plane 放置）、蓝牙 MIDI 模式（Take 录制/回放）与 Bonjour 自动发现后端的 AI 即兴回放。
 
 ## 推荐阅读路径
 
@@ -92,6 +92,7 @@
 - **要改 AVP 导入 / 校准 / 练习 / MusicXML**：看 `modules/lonelypianist-avp.md`，再下钻对应子页。
 - **要改 AR 引导贴皮高亮**：看 `modules/lonelypianist-avp-practice.md` 和 `PianoGuideOverlayController`。
 - **要改虚拟钢琴**：看 `modules/lonelypianist-avp-practice.md` 的「虚拟钢琴模式」章节，涉及放置状态机、按键检测、3D 渲染和实时发声。
+- **要改蓝牙 MIDI 模式 / Take 录制**：看 `modules/lonelypianist-avp.md` 的「Bluetooth MIDI（BLE）」章节和 `modules/lonelypianist-avp-practice.md` 的三种钢琴模式表。
 - **要改 Python 协议或采样逻辑**：看 `modules/piano-dialogue-server.md` 与 `modules/piano-dialogue-server-inference.md`。
 - **要运行测试**：看 `testing.md` 和 `workflow.md`，所有测试需要手动在本地运行。
 - **要手动格式化**：看 `configuration.md`（`.swiftformat`）。
@@ -124,4 +125,5 @@
 - 2026-05-01: AVP AR 引导从光柱迁移为琴键贴皮高亮（decal）；移除 correct/wrong feedback 与 immersive pulse。
 - 2026-05-02: 同步虚拟钢琴放置迁移为 gaze-plane + 双手确认；并修正自动化事实（仓库当前不含 `.github/workflows/`）。
 - 2026-05-10: 同步 AVP 主流程重构（`AppRouter` + `FlowState` root 切换、练习页返回回到曲库、虚拟钢琴入口前移到钢琴类型选择 + 准备阶段放置），并清理曲库 seed/seeder 相关过期表述。
-- 2026-05-13: 同步 AVP BLE MIDI 准备页“内嵌系统面板”改动与 Step3 BLE MIDI 和弦判定窗口放宽；更新 Practice services 目录拆分后的源码路径引用。
+- 2026-05-13: 同步 AVP BLE MIDI 准备页”内嵌系统面板”改动与 Step3 BLE MIDI 和弦判定窗口放宽；更新 Practice services 目录拆分后的源码路径引用。
+- 2026-05-13: PianoKind → PianoModeProtocol 全面迁移；新增 BLE MIDI 录制链路与 Take 存储文档；AVP 目录地图扩充；架构/数据流/存储/术语页同步更新。

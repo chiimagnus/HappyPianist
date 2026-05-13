@@ -14,7 +14,8 @@
 | `MIDIEvent` | macOS 统一输入模型 |
 | `DialogueNote` | Swift 和 Python 共享的音符契约 |
 | `PracticeStep` | AVP 练习推进单元 |
-| `PianoKind` | AVP 钢琴模式枚举：`.realAudio` / `.realBluetoothMIDI` / `.virtual`；决定准备页、注入链路与 Step 3 输入边界 |
+| `PianoModeProtocol` | AVP 钢琴模式协议：定义模式 id、pickerCard、准入条件、tracking 选择、准备页工厂与练习会话工厂；通过 `PianoModeRegistryService` 注册三种默认模式（RealAudio / BluetoothMIDI / Virtual） |
+| `PianoModeRegistryService` | 钢琴模式注册表：持有 `[any PianoModeProtocol]`，按 id 查找模式；注入到 `AppRouter` 与 `ARGuideViewModel`，驱动类型选择与流程路由 |
 | `PracticeInputEvent` | AVP BLE MIDI 练习输入事件模型（G1 channel voice）：note on/off、CC、pitch bend、program change、pressure 等 |
 | `PracticeState` | AVP Step 3 练习状态机：`idle`（无 steps）、`ready`（已就绪但未开始）、`guiding`（引导中）、`completed`（完成） |
 | `DataProviderState` | AR tracking provider 的运行状态 |
@@ -32,7 +33,7 @@
 | `MusicXMLExpressivityOptions` | MusicXML 表现力选项，控制 wedge、grace、fermata、arpeggiate、words semantics 的启用 |
 | Bonjour（mDNS/DNS-SD） | 局域网服务发现机制；本项目用 `_lonelypianist._tcp.local.` 广播/浏览后端 |
 | Local Network 权限 | visionOS 的局域网访问授权；被拒绝时 Bonjour 浏览会进入 `.denied` |
-| `GenerateParams.strategy` | 后端生成策略：`model`（加载大模型）或 `deterministic`（轻量规则生成） |
+| `GenerateParams.strategy` | 后端生成策略：`model`（加载大模型）、`deterministic`（轻量规则生成）、`rule`（规则引擎：和声/节奏/动机） |
 | `PhraseRecorder` | AVP 侧把真实/虚拟按键事件录成短句片段，用作后端生成的输入 |
 
 ## 音频识别术语
@@ -51,6 +52,7 @@
 | `StoredWorldAnchorCalibration` | A0/C8 世界锚点校准 |
 | `SongLibraryIndex` | 曲库索引（entries + lastSelectedEntryID） |
 | `SongLibraryEntry` | 单条曲目元数据 |
+| `RecordingTake` | AVP 录制产物：包含 id、name、createdAt 与 events 列表；由 `RecordingTakeRecorder` 生成，`RecordingTakeStore` 持久化到 `Documents/TakeLibrary/takes.json` |
 | `dialogue_debug bundle` | Python 调试落盘目录 |
 
 ## 易混淆概念
@@ -59,6 +61,7 @@
 - **导入成功** 不等于 **可开始练习**：还要能生成有效 steps，并成功定位（虚拟钢琴模式仅需导入谱面）。
 - **fallback（兜底）** 不等于 **error handling（错误处理）**：fallback 是主动选择替代行为继续运行，error handling 是捕获错误并恢复。
 - **虚拟钢琴模式** vs **实体钢琴模式**：虚拟钢琴无需校准和定位，通过 gaze-plane + 双手掌心确认放置 3D 键盘后直接进入练习；实体钢琴需要 Step 1 校准 + AR 定位。两者共享 `PracticeSessionViewModel` 的匹配与 step 推进逻辑（无 correct/wrong 反馈态），但按键检测路径不同（`KeyContactDetectionService` vs `PressDetectionService`）。
+- **PianoModeProtocol** vs **旧 PianoKind 枚举**：旧版用 `PianoKind` 枚举做 switch 分支；新版用 `PianoModeProtocol` 协议 + `PianoModeRegistryService` 注册表，每种模式自包含准备页工厂、练习会话工厂和准入逻辑，无需在调用方做 switch。`FlowState` 中的 `pianoKind` 字段存储的是模式 id 字符串，由注册表解析为具体模式。
 
 ## Coverage Gaps
 - 发布和版本语义仍散落在 README 和流程中，没有独立页面。

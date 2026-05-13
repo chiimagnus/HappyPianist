@@ -20,6 +20,11 @@ LonelyPianist 由三条运行面组成：macOS 负责 MIDI 输入采集、映射
 | `AppState` | tracking runtime、校准存取、沉浸空间状态 | providers 状态 + runtime calibration | `resolveRuntimeCalibrationFromTrackedAnchors` |
 | `FlowState` | 钢琴类型与曲目/steps | 当前流程状态 | `setImportedSteps`, `clearSongAndSteps` |
 | `AppRouter` | 用户动作（选择类型/下一步/退出） | root route 切换 | `exitToTypePicker`, `goToLibrary`, `goToPractice` |
+| `PianoModeRegistryService` | `[any PianoModeProtocol]` + id 查找 | 模式列表与查找 | 新增模式时需注册；修改 `PianoModeProtocol` 影响所有模式实现 |
+| `BluetoothMIDIInputEventSourceService` | CoreMIDI UMP（MIDI 1.0/2.0） | `AsyncStream<PracticeInputEvent>` | MIDI 1.0/2.0 解码、source 刷新、事件过滤 |
+| `MIDIRecordingAdapter` | `PracticeInputEvent` + `RecordingTakeRecorder` | take 事件落盘 | 桥接事件类型、CC/pitch bend 映射 |
+| `RecordingTakeStore` | `RecordingTake` JSON | `Documents/TakeLibrary/takes.json` | JSON 编解码、原子写入 |
+| `TakePlaybackController` | `RecordingTake` + sequencer | take 回放控制 | seek/cache/pause 语义 |
 | `SongLibraryViewModel` | fileImporter URLs | index + score/audio 存储 | 导入 / 删除 / 试听 |
 | `ARGuideViewModel` | immersive state + providers | localization state | open / locate / retry |
 | `BonjourBackendDiscoveryService` | mDNS browse results | resolved host/port 或 denied/failed | `start`, `resolveHostPort` |
@@ -49,6 +54,7 @@ flowchart LR
   subgraph visionOS
     RV[AppRootView] --> RT[AppRouter]
     RT --> FS[FlowState]
+    RT --> PMR[PianoModeRegistryService]
     RV --> J[SongLibraryViewModel]
     RV --> K[ARGuideViewModel]
     K --> AS[AppState]
@@ -59,6 +65,8 @@ flowchart LR
     M --> N[PianoGuideOverlayController]
     M --> W[KeyContactDetectionService]
     M --> X[VirtualPianoOverlayController]
+    M --> BLE[BluetoothMIDIInputEventSourceService]
+    M --> RA[RecordingTakeRecorder]
     K --> Y[VirtualPianoKeyGeometryService]
     J --> O[SongLibraryIndexStore]
     J --> P[SongFileStore]
@@ -89,6 +97,9 @@ flowchart LR
 | `SongLibraryIndex` / `SongLibraryEntry` | AVP models | 曲库索引 |
 | `StoredWorldAnchorCalibration` | AVP models | 校准持久化 |
 | `PracticeStep` / `PracticeStepNote` | AVP models | 练习数据 |
+| `PracticeInputEvent` | AVP models | BLE MIDI 练习输入事件（G1 channel voice） |
+| `RecordingTake` / `RecordingTakeEvent` | AVP models | Take 录制产物（事件列表 + 元数据） |
+| `PianoModeProtocol` | AVP services | 钢琴模式能力契约（id、卡片、准入、工厂） |
 | `DataProviderState` | AR tracking | provider 可用性 |
 
 ## 扩展点
@@ -124,3 +135,4 @@ flowchart LR
 - 2026-05-05: 补充 AVP Bonjour 自动发现与 HTTP `/generate` 后端接入的组件边界与依赖方向。
 - 2026-05-06: 同步 Python 生成侧引入第三策略（`rule`）后的架构图表达（FastAPI -> strategy router -> engines）。
 - 2026-05-10: 同步 AVP 主流程重构：以 `AppRouter.route` 做 root 切换，引入 `FlowState` 持有曲目/steps 与钢琴类型，`AppState` 聚合 tracking/runtime calibration；移除旧的 `ContentView/HomeViewModel/AppModel` 主流程表达。
+- 2026-05-13: 组件边界表新增 `PianoModeRegistryService`、`BluetoothMIDIInputEventSourceService`、`MIDIRecordingAdapter`、`RecordingTakeStore`、`TakePlaybackController`；依赖图新增 PianoMode 注册表与 BLE MIDI 录制链路。
