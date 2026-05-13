@@ -70,7 +70,7 @@ final class PianoGuideOverlayController {
     }
 
     private func beamMaterial(for descriptor: PianoGuideBeamDescriptor) -> UnlitMaterial {
-        let tintColor = AVPOverlayPalette.guideColor
+        let tintColor = (descriptor.hand == .left) ? AVPOverlayPalette.leftHandGuideColor : AVPOverlayPalette.rightHandGuideColor
         let tinted = tintColor.withAlphaComponent(CGFloat(max(0, min(1, descriptor.alpha))))
         let texture = loadDecalTextureIfNeeded()
 
