@@ -19,7 +19,7 @@ struct PianoTypePickerView: View {
                 typeCard(
                     title: "真实钢琴（蓝牙 MIDI）",
                     subtitle: "通过系统 Bluetooth MIDI 连接",
-                    icon: "bluetooth",
+                    icon: "dot.radiowaves.left.and.right",
                     kind: .realBluetoothMIDI
                 )
 
