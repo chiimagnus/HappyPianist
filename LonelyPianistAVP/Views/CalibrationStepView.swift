@@ -270,11 +270,6 @@ private struct CalibrationStageCard: View {
                 onRecalibrate()
             }
             .buttonStyle(.borderedProminent)
-
-            Button("返回首页") {
-                onReturnHome()
-            }
-            .buttonStyle(.bordered)
         }
         .frame(maxWidth: .infinity)
     }
