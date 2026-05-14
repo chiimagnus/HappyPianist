@@ -37,7 +37,7 @@
 | `Views/Immersive/` | 11 个 RealityKit overlay controllers（校准、贴皮高亮、虚拟钢琴、全景、五线谱等） |
 | `Views/MIDI/BluetoothMIDICentralView.swift` | 系统 Bluetooth MIDI 配对 UI 包装 |
 | `Views/Library/SongLibraryView.swift` | 曲库列表 UI |
-| `Views/Practice/` | ScrollingStaffNotationView、Step3AudioDebugOverlay |
+| `Views/Practice/` | `GrandStaffNotationView`（双谱表五线谱）、Step3AudioDebugOverlay |
 | `Views/Recording/TakeLibraryView.swift` | Take 库 UI |
 
 ## 入口与生命周期
@@ -93,3 +93,4 @@
 - 2026-05-12: 新增 AVP app 内系统 `Bluetooth MIDI…` 入口、权限预检与 sources gate；并将 BLE 模式确立为独立钢琴模式（MIDI-only 输入、practice 阶段不启 hand tracking，take/phrase 从 MIDI 录制）。
 - 2026-05-13: 准备页改为**内嵌**系统 Bluetooth MIDI 面板，移除 sheet 弹窗与 sources 刷新/列表 UI；BLE 模式入口保持不变。
 - 2026-05-13: 目录地图全面扩充（补全 AppFlow/、AudioRecognition/、MIDI/、Recording/、Practice/ 子目录等）；BLE 模式入口从 `PianoKind` 枚举改为 `PianoModeRegistryService` 解析。
+- 2026-05-14: 同步 Step 3 五线谱迁移为 `GrandStaffNotationView`（双谱表）；左右手语义以 `ScoreHand` 贯穿 step/guide/高亮/判定。

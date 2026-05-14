@@ -31,7 +31,7 @@
 | 改动类型 | 本地运行测试 | CI 验证 |
 | --- | --- | --- |
 | macOS app/test | `xcodebuild test -scheme LonelyPianist -destination 'platform=macOS'` | 无 |
-| AVP app/test | `xcodebuild test -scheme LonelyPianistAVP -destination 'platform=visionOS Simulator,name=Apple Vision Pro'` | 无 |
+| AVP app/test | 先 `xcodebuild -showdestinations -scheme LonelyPianistAVP`，再 `xcodebuild test -scheme LonelyPianistAVP -destination 'platform=visionOS Simulator,id=<device-id>'` | 无 |
 | RealityKitContent | AVP tests | 无 |
 | Xcode project | macOS + AVP tests | 无 |
 
@@ -54,7 +54,7 @@
 | --- | --- | --- |
 | Package graph resolve 失败 | Xcode build 日志 | 确认依赖版本和 Swift tools 版本 |
 | 找不到 scheme | `xcodebuild -list` | 检查 shared scheme / project 文件 |
-| 找不到 AVP destination | `xcodebuild -showdestinations` | 调整 `platform=visionOS Simulator,name=Apple Vision Pro` |
+| 找不到 AVP destination | `xcodebuild -showdestinations` | 使用 concrete device id：`platform=visionOS Simulator,id=<device-id>` |
 | macOS compile failed | `SwiftCompile` 第一条 error | 修源码 |
 | AVP test 运行很久 | 本地测试输出 | visionOS simulator 启动慢属预期 |
 | SwiftFormat 产生大 diff | formatter diff | 审查格式化改动后再继续集成 |
@@ -87,3 +87,4 @@
 - 2026-05-05: 补充 AVP Bonjour 自动发现 + HTTP `/generate` 的开发/验证注意事项，并同步 Python 一键启动脚本入口。
 - 2026-05-06: 同步 Python `server/` 目录重组（`api/`、`engines/`、`media/`）与 `rule` 第三策略；更新默认入口与本地 smoke 方式。
 - 2026-05-13: 常见变更清单新增 BLE MIDI 录制/回放与钢琴模式增删改两行。
+- 2026-05-14: 同步 visionOS 测试命令事实：AVP tests 必须跑在 concrete simulator destination（按 id 指定），并更新本页相关示例与排障条目。

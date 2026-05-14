@@ -12,9 +12,9 @@
 | 命令 | 适用场景 |
 | --- | --- |
 | `xcodebuild test -project LonelyPianist.xcodeproj -scheme LonelyPianist -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO` | macOS 回归 |
-| `xcodebuild test -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP -destination 'platform=visionOS Simulator,name=Apple Vision Pro' CODE_SIGNING_ALLOWED=NO` | AVP 回归（visionOS simulator） |
+| `xcodebuild -showdestinations -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP` | 获取可用 visionOS simulator destinations（需要 concrete device id） |
+| `xcodebuild test -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP -destination 'platform=visionOS Simulator,id=<device-id>' CODE_SIGNING_ALLOWED=NO` | AVP 回归（visionOS simulator；避免使用 placeholder destination） |
 | `xcodebuild -list -project LonelyPianist.xcodeproj` | 检查 scheme 列表 |
-| `xcodebuild -showdestinations -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP` | AVP destination 诊断 |
 | `cd piano_dialogue_server && python scripts/test_generate.py` | 离线推理 sanity check |
 | `cd piano_dialogue_server && ../.venv/bin/python -m server.api.test_client` | WS 回环 |
 | `curl -s http://127.0.0.1:8765/health` | 服务健康检查 |
@@ -42,7 +42,10 @@
 | macOS silence | `LonelyPianistTests/SilenceDetectionServiceTests.swift` |
 | AVP library | `SongLibraryIndexStoreTests.swift`, `SongFileStoreTests.swift`, `AudioImportServiceTests.swift` |
 | AVP calibration | `WorldAnchorCalibrationStoreTests.swift`, `CalibrationPointCaptureServiceTests.swift` |
-| AVP practice | `PracticeSessionViewModelTests.swift`, `PracticeLocalizationPolicyTests.swift`, `StepMatcherTests.swift` |
+| AVP practice | `PracticeSessionViewModelTests.swift`, `PracticeLocalizationPolicyTests.swift`, `StepMatcherTests.swift`, `PracticeSessionHandSeparatedMatchingTests.swift` |
+| AVP notation | `GrandStaffNotationLayoutServiceTests.swift` |
+| AVP hand semantics | `ScoreHandTests.swift`, `PracticeStepBuilderTests.swift`, `PianoHighlightGuideBuilderServiceTests.swift` |
+| AVP single-staff routing | `MusicXMLHandRouterTests.swift` |
 | AVP improv | `ImprovBackendClientCodingTests.swift`, `PhraseRecorderTests.swift`, `ImprovScheduleBuilderTests.swift` |
 | MusicXML parser | `MusicXMLParser*.swift`, `MXLReaderTests.swift`, `MusicXML*TimelineTests.swift` |
 | Python | `scripts/test_generate.py`, `scripts/test_infilling.py`, `server/api/test_client.py` |
@@ -77,7 +80,7 @@
 ## 现状
 - 当前仓库未提交 `.github/workflows/`，所有测试需要手动在本地运行。
 - macOS tests 使用本地 macOS 运行 `xcodebuild test -scheme LonelyPianist -destination 'platform=macOS'`。
-- AVP tests 使用本地 visionOS simulator 运行 `xcodebuild test -scheme LonelyPianistAVP -destination 'platform=visionOS Simulator,name=Apple Vision Pro'`。
+- AVP tests 使用本地 visionOS simulator 运行：先 `xcodebuild -showdestinations -scheme LonelyPianistAVP` 获取 concrete device id，再跑 `xcodebuild test -scheme LonelyPianistAVP -destination 'platform=visionOS Simulator,id=<device-id>'`。
 - Python tests 以本地 smoke scripts 为主。
 
 ## Coverage Gaps
@@ -90,3 +93,4 @@
 - 2026-05-01: 同步 AVP Practice 的 RealityKit 引导从光柱迁移为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。
 - 2026-05-06: 同步 Python `server/` 目录重组后 WS 回环测试入口（`python -m server.api.test_client`）与相关路径。
 - 2026-05-12: 增加 AVP BLE MIDI 模式回归点：MIDI-only 注入与录制（take/phrase）事件模型的单测覆盖（见 `LonelyPianistAVPTests/RecordingMIDIInputTests.swift`、`LonelyPianistAVPTests/PhraseRecorderMIDIInputTests.swift`、`LonelyPianistAVPTests/PracticeSessionMIDIOnlyModeTests.swift`）。
+- 2026-05-14: 同步 AVP 左右手链路与五线谱重构后的测试入口：`ScoreHandTests`、`MusicXMLHandRouterTests`、`GrandStaffNotationLayoutServiceTests`、`PracticeSessionHandSeparatedMatchingTests`。

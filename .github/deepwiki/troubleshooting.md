@@ -11,6 +11,9 @@
 | Step 3 定位失败 | `practiceLocalizationStatusText` | 校准缺失 / provider 未运行 |
 | 曲库能看到但不能练习 | 曲库与步骤生成 | MusicXML 没生成 steps |
 | 试听没声音 | 曲库音频绑定 / 播放器 | 音频文件缺失或不可播 |
+| 五线谱仍是单谱表 / 看不到上下谱表 | `GrandStaffNotationView` / guides/context | 仍在用旧 view（已移除）或 context/layout 未生成 |
+| 左右手高亮颜色不对（左手未变青色） | `ScoreHand.fromStaff` / `MusicXMLHandRouter` / 当前 guide.notes | staff 缺失导致全部视为右手；或单谱表未触发自动补 staff |
+| 打开“左右手分别满足”后 step 不前进 | 设置开关 / expected notes by hand | 只弹了其中一只手；或判定窗口过短导致分手输入没聚合到同一窗口 |
 | Step 3 点击「下一步」声音短促 | `modules/lonelypianist-avp-practice-audio.md` | 多余 stop + all-notes-off 竞态截断 note |
 | 虚拟钢琴手指接触无声音 | `KeyContactDetectionService.detect` 输出 / `liveNotes` 集合 | 迟滞阈值未命中或 geometry 未生成 |
 | 虚拟钢琴放置后键盘位置偏移 | `cachedVirtualPianoWorldAnchorID` / `latestGazePlaneHit` | anchor 未被正确追踪恢复或平面命中不稳定 |
@@ -40,10 +43,18 @@
    - 先确认已允许本 app 的 Local Network 权限（`NSLocalNetworkUsageDescription`）
    - 再确认 Python 服务使用 `--host 0.0.0.0 --port 8765` 启动并在同一局域网内可达
 6. 若贴皮高亮位置/尺寸/闪烁异常，检查 `PianoGuideBeamDescriptor`、`KeyDecalSoftRect`、`PianoKeyboardGeometry.frame.keyboardFromWorld` 和 debug axes。
-7. 若找不到 simulator destination，先本地跑 `xcodebuild -showdestinations -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP`。
-8. 若看到大量音频相关 stop/start 日志，先区分”识别服务”与”播放服务”（见下方常见音频日志）。
-9. 若虚拟钢琴模式下手指接触琴键无声音，检查 `KeyContactDetectionService.detect` 的 `started` 输出和 `PracticeSequencerPlaybackServiceProtocol.liveNotes`。
-10. 若虚拟钢琴放置后键盘位置偏移，检查：
+7. 若左右手颜色不对（左手未变青色 / 低音仍按右手色）：
+   - 先确认导入 score 是否含 `staff>=2`；若是单谱表，检查 `MusicXMLHandRouter.routeIfNeeded` 是否触发（音域过窄 `<12 semitones` 会跳过补 staff）。
+   - 检查 `ScoreHand.fromStaff`：`staff == nil` 会被视为右手。
+   - 检查当前 guide 的 `triggeredNotes/activeNotes` 是否带 `hand`（来自 staff 推导）。
+8. 若打开“练习判定：左右手分别满足”后无法推进：
+   - 确认设置 key `practiceHandSeparatedStepMatchingEnabled` 为 true（练习页设置 popover）。
+   - 同一 step 需要右手 expected 与左手 expected **分别满足**；只弹一只手会一直 pending。
+   - press/虚拟触键路径使用 `ChordAttemptAccumulator`（窗口默认 `0.6s`）；音频与 BLE MIDI 路径使用 `AudioStepAttemptAccumulator`（窗口与阈值取决于 mode）。
+9. 若找不到 simulator destination，先本地跑 `xcodebuild -showdestinations -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP`。
+10. 若看到大量音频相关 stop/start 日志，先区分”识别服务”与”播放服务”（见下方常见音频日志）。
+11. 若虚拟钢琴模式下手指接触琴键无声音，检查 `KeyContactDetectionService.detect` 的 `started` 输出和 `PracticeSequencerPlaybackServiceProtocol.liveNotes`。
+12. 若虚拟钢琴放置后键盘位置偏移，检查：
    - `AppState.cachedVirtualPianoWorldAnchorID` 对应的 `WorldAnchor.isTracked` 是否稳定恢复
    - `ARGuideViewModel.latestGazePlaneHit` 是否频繁变为 `nil`（会导致确认立即 reset）
    - `VirtualKeyboardPoseService.computeWorldFromKeyboard` 的输入（plane pose / hand center / device pose）
@@ -91,3 +102,4 @@
 - 2026-05-05: 新增 AVP Local Network/Bonjour 后端发现相关症状入口与排查步骤，并补齐 `/generate` 的最小 curl 验证。
 - 2026-05-12: 新增 macOS `Bluetooth MIDI…` 权限被拒绝/蓝牙关闭导致的 “not supported / unknown error” 排查入口。
 - 2026-05-12: 新增 AVP `Bluetooth MIDI…` 权限与真机冒烟排查入口（simulator 不覆盖 BLE MIDI）。
+- 2026-05-14: 新增左右手语义与双谱表五线谱相关排查入口；补充“左右手分别满足”判定 gate 的排查步骤。

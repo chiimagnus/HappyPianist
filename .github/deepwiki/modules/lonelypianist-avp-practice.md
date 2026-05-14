@@ -17,7 +17,8 @@
 | `BonjourBackendDiscoveryService` | Bonjour 自动发现局域网后端（`_lonelypianist._tcp.local.`）并解析 host/port | 影响 AVP 后端接入与降级策略 |
 | `ImprovBackendClient` | HTTP `POST /generate` 客户端：发送 prompt notes 并解析回复 | 影响错误处理、超时与协议兼容 |
 | `PhraseRecorder` | 把真实/虚拟按键事件录成短句 prompt（用于后端生成） | 影响触发时机与边界条件（抖动/空短句） |
-| `ScrollingStaffNotationView` | 五线谱滚动渲染（Canvas），与当前 guide/measure spans 同步 | 影响可读性、性能与 autoplay/手动推进联动 |
+| `GrandStaffNotationView` | 双谱表五线谱渲染（Canvas），与当前 guide/measure spans 同步 | 影响可读性、性能与 autoplay/手动推进联动 |
+| `GrandStaffNotationLayoutService` | 从 guides/measure spans/context 生成 `GrandStaffNotationLayout`（items + barlines） | 影响 staff routing、坐标映射与性能 |
 | `PianoGuideOverlayController` | RealityKit 空间贴皮高亮提示 | 影响当前 step 的可见 AR 引导 |
 | `GazePlaneHitTestService` | 视线（device forward ray）命中近水平平面，选择最接近偏好距离的 hit | 影响圆盘出现与放置位置 |
 | `GazePlaneDiskConfirmationViewModel` | 绿色圆盘显示与“放好双手/倒计时 3 秒”确认（掌心中心点） | 影响放置稳定性与抗抖动 |
@@ -27,8 +28,66 @@
 | `KeyContactDetectionService` | 虚拟钢琴按键接触检测（带迟滞） | 影响虚拟钢琴发声准确性 |
 | `VirtualPianoOverlayController` | 虚拟钢琴 3D 键盘渲染（RealityKit） | 影响虚拟键盘可见性和交互 |
 
+## 双谱表五线谱（Grand Staff Notation）
+
+练习页使用 `GrandStaffNotationView` 绘制双谱表五线谱（treble/bass 两条 staff），并把当前 guide 的 notes 按 staff 渲染到上/下谱表。
+
+### 输入与输出
+| 输入 | 来自哪里 | 输出 |
+| --- | --- | --- |
+| `PianoHighlightGuide[]` / current guide | `PianoHighlightGuideBuilderService` | `GrandStaffNotationLayout.items`（noteheads） |
+| measure spans | `PreparedPractice.measureSpans` | `GrandStaffNotationLayout.barlines` |
+| context（clef/key/time） | `PracticeSessionViewModel.currentGrandStaffNotationContext`（由 attribute timeline 在当前 tick 推导） | staff 左侧上下文文本 |
+
+### 当前渲染能力边界
+| 能力 | 当前状态 | 备注 |
+| --- | --- | --- |
+| staff lines | ✅ | 上/下各 5 条线 |
+| clef/key/time | ✅ | 取当前 tick 的 attribute timeline（缺失则使用默认符号） |
+| barlines | ✅ | 贯穿上下谱表 |
+| noteheads + ledger lines | ✅ | 以 guide-triggered notes 为主（不是完整 engraving） |
+| rests / beams / stems / flags | ⚠️ 未完整实现 | 模型层已预留，但当前 view 只绘制 notehead/ledger/accidental |
+
+> 说明：该五线谱视图的定位是“练习引导 UI”，而不是通用乐谱排版引擎；它服务于 Step 3 的可读性与进度提示。
+
+## 左右手语义（ScoreHand）
+
+左右手语义通过 `ScoreHand` 贯穿 step/guide/高亮/判定，并以 staff 作为唯一真源：
+
+| 字段 | 数据源 | 规则 |
+| --- | --- | --- |
+| `PracticeStepNote.staff` / `PianoHighlightNote.staff` | MusicXML note.staff（单谱表时由 `MusicXMLHandRouter` 自动补全） | `staff<=1` 视为上谱表，`staff>=2` 视为下谱表 |
+| `PracticeStepNote.hand` / `PianoHighlightNote.hand` | `ScoreHand.fromStaff(staff)` | `staff<=1` 右手；`staff>=2` 左手；`nil` 视为右手 |
+
+### 2D 键盘高亮配色
+| 手 | 颜色来源 | 视觉效果 |
+| --- | --- | --- |
+| 右手 | 默认配色（白键偏黄、黑键偏橙） | 作为基准高亮 |
+| 左手 | `PracticeHandPalette.leftHandKeyColor`（cyan） | 明确区分左右手 |
+
+### 3D/AR decal 高亮配色
+| 手 | 颜色来源 |
+| --- | --- |
+| 右手 | `AVPOverlayPalette.rightHandGuideColor` |
+| 左手 | `AVPOverlayPalette.leftHandGuideColor`（cyan） |
+
+> hand 的计算是 per MIDI note 的：`PianoGuideBeamDescriptor.makeDescriptors` 会从 triggered/active notes 中推断该 MIDI note 的 hand（若包含任意左手 note，则该 MIDI note 视为左手）。
+
+## 练习判定：左右手分别满足（默认关闭）
+
+练习设置提供开关：**练习判定：左右手分别满足**（UserDefaults key: `practiceHandSeparatedStepMatchingEnabled`）。
+
+| 开关 | 通过判定语义 |
+| --- | --- |
+| 关闭（默认） | 当前 step 的 expected notes 以 union 集合判定（兼容旧行为） |
+| 开启 | 当前 step 的右手 expected 与左手 expected 需要分别满足才通过（缺失某只手 expected 视为已满足） |
+
+三条输入路径保持一致：
+- press/虚拟触键：`ChordAttemptAccumulator.registerHandSeparated`
+- 音频识别 / BLE MIDI：`AudioStepAttemptAccumulator.evaluateHandSeparated`
+
 ## 贴皮高亮实现
-`PianoGuideOverlayController` 为当前 step 的每个 MIDI note 创建一片独立的琴键表面贴皮高亮（warm-gold decal）：
+`PianoGuideOverlayController` 为当前 step 的每个 MIDI note 创建一片独立的琴键表面贴皮高亮（decal）。贴皮 tint 按左右手区分（右手 warm-gold，左手 cyan）：
 
 - 一键一片（和弦时多片并存），每片对应一个 `ModelEntity`。
 - decal mesh 为单位四边形（位于 key-top 平面，含 UV），由 `PianoGuideDecalMeshFactory.unitTopDecalMesh` 生成并按 key 尺寸缩放。
@@ -40,7 +99,7 @@
 | `decalAlpha` | `0.32` | 贴皮整体 alpha（叠乘贴图透明度） |
 | `decalInsetScale` | `0.98` | 贴皮相对按键略微缩进，避免贴边硬边 |
 | `decalEpsilonMeters` | `0.0015` | 贴皮离开 key surface 的最小抬升，避免 z-fighting |
-| texture asset | `KeyDecalSoftRect` | 柔边矩形贴图（warm-gold） |
+| texture asset | `KeyDecalSoftRect` | 柔边矩形贴图（tint 会按左右手变化） |
 
 ## 贴皮高亮数据流
 ```mermaid
@@ -51,7 +110,7 @@ flowchart TD
   D --> E
   E --> F[diff by MIDI note]
   F --> G[create/update ModelEntity top decal]
-  G --> H[apply KeyDecalSoftRect + warm tint]
+  G --> H[apply KeyDecalSoftRect + per-hand tint]
   G --> K[keyboardRootEntity]
 ```
 
@@ -442,5 +501,6 @@ struct PianoHighlightGuideBuildInput {
 - 2026-04-30: Simulator 中虚拟钢琴自动放置（`#if DEBUG && targetEnvironment(simulator)`），跳过手势放置直接以默认位置渲染键盘，便于 Simulator 调试贴皮高亮引导和 step 推进。修复 `RealityView` update closure 对嵌套 `@Observable` 属性变化追踪不可靠的问题：添加 `.onChange` 显式触发 `VirtualPianoOverlayController` 更新，`KeyboardFrame`/`PianoKeyboardGeometry` 标记为 `Equatable`。
 - 2026-05-01: AVP 练习引导从光柱改为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。
 - 2026-05-02: 虚拟钢琴放置从“手指准星 + 捏合确认”迁移为“视野中心平面 + 绿色圆盘 + 双手掌心稳定确认（3s/3cm）”；放置结果通过 `WorldAnchor` 在 Step 3 内复用；键盘出现改为从中间向两边延伸。
-- 2026-05-05: 补充 AVP Bonjour 自动发现 + HTTP `/generate` 的 AI 即兴数据流与关键对象，并同步 staff notation/phrase recorder 等新增对象入口。
+- 2026-05-05: 补充 AVP Bonjour 自动发现 + HTTP `/generate` 的 AI 即兴数据流与关键对象，并同步 phrase recorder 等新增对象入口。
 - 2026-05-13: 钢琴模式表从 `PianoKind` 枚举更新为 `PianoModeProtocol` 实现名（`RealAudioPianoMode` / `BluetoothMIDIPianoMode` / `VirtualPianoMode`），同步 `PianoModeRegistryService` 注册模式。
+- 2026-05-14: 五线谱迁移为双谱表 `GrandStaffNotationView`；引入 `ScoreHand` 贯穿 step/guide/高亮；新增（默认关闭的）“左右手分别满足”判定 gate，并让 2D/3D 高亮按左右手区分颜色。
