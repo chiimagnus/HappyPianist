@@ -243,7 +243,7 @@ struct PracticeStepView: View {
                     viewModel.practiceSessionViewModel.smoothNotationScrollTick()
                 } : nil
             )
-            .frame(height: 180)
+            .frame(height: 260)
 
             PianoKeyboard88View(
                 highlightedMIDINotes: highlightedMIDINotes,

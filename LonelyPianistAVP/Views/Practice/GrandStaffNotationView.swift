@@ -399,6 +399,6 @@ struct GrandStaffNotationView: View {
         measureSpans: [],
         context: GrandStaffNotationContext()
     )
-    .frame(width: 800, height: 180)
+    .frame(width: 800, height: 260)
     .padding()
 }

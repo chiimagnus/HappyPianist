@@ -47,7 +47,7 @@ private struct ImmersiveNotationPanelView: View {
                     sessionViewModel.smoothNotationScrollTick()
                 } : nil
             )
-            .frame(width: 760, height: 190)
+            .frame(width: 760, height: 260)
         }
         .padding(18)
         .frame(width: 820)
