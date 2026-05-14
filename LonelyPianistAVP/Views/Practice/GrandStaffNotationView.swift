@@ -9,6 +9,7 @@ struct GrandStaffNotationView: View {
 
     private let layoutService = GrandStaffNotationLayoutService()
     private let viewportLayoutService = GrandStaffNotationViewportLayoutService()
+    private let fixedLineSpacing: CGFloat = 14
 
     var body: some View {
         GeometryReader { proxy in
@@ -20,23 +21,29 @@ struct GrandStaffNotationView: View {
                 scrollTick: scrollTickProvider?() ?? nil
             )
 
-            Canvas { context, size in
-                let viewLayout = viewportLayoutService.makeLayout(
-                    size: size,
-                    items: layout.items,
-                    context: layout.context
-                )
-                let chordsByID = Dictionary(uniqueKeysWithValues: layout.chords.map { ($0.id, $0) })
-                let itemsByChordID = Dictionary(grouping: layout.items, by: { $0.chordID ?? "" })
+            let viewLayout = viewportLayoutService.makeLayout(
+                size: proxy.size,
+                lineSpacing: fixedLineSpacing,
+                items: layout.items,
+                chords: layout.chords,
+                beams: layout.beams,
+                context: layout.context
+            )
+            let chordsByID = Dictionary(uniqueKeysWithValues: layout.chords.map { ($0.id, $0) })
+            let itemsByChordID = Dictionary(grouping: layout.items, by: { $0.chordID ?? "" })
 
-                drawGrandStaffLines(in: context, layout: viewLayout)
-                drawContext(in: context, layout: viewLayout)
-                drawBarlines(layout.barlines, in: context, layout: viewLayout)
-                drawBeams(layout.beams, chordsByID: chordsByID, itemsByChordID: itemsByChordID, in: context, layout: viewLayout)
-                drawStems(layout.chords, beamedChordIDs: Set(layout.beams.flatMap(\.chordIDs)), itemsByChordID: itemsByChordID, in: context, layout: viewLayout)
-                drawItems(layout.items, in: context, layout: viewLayout)
+            ScrollView(.vertical) {
+                Canvas { context, _ in
+                    drawGrandStaffLines(in: context, layout: viewLayout)
+                    drawContext(in: context, layout: viewLayout)
+                    drawBarlines(layout.barlines, in: context, layout: viewLayout)
+                    drawBeams(layout.beams, chordsByID: chordsByID, itemsByChordID: itemsByChordID, in: context, layout: viewLayout)
+                    drawStems(layout.chords, beamedChordIDs: Set(layout.beams.flatMap(\.chordIDs)), itemsByChordID: itemsByChordID, in: context, layout: viewLayout)
+                    drawItems(layout.items, in: context, layout: viewLayout)
+                }
+                .frame(width: proxy.size.width, height: viewLayout.requiredHeight)
             }
-            .frame(width: proxy.size.width, height: proxy.size.height)
+            .scrollIndicators(.hidden)
         }
         .accessibilityLabel("Grand Staff 五线谱")
     }

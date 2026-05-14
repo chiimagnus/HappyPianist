@@ -49,12 +49,12 @@ func viewportLayoutKeepsExtremeNotesWithinCanvasBounds() {
         context: GrandStaffNotationContext()
     )
 
-    #expect(layout.lineSpacing >= 4)
+    #expect(layout.lineSpacing >= 8)
 
     for item in items {
         let y = layout.yPosition(staffStep: item.staffStep, staffNumber: item.staffNumber)
         #expect(y >= layout.noteHeight / 2)
-        #expect(y <= size.height - layout.noteHeight / 2)
+        #expect(y <= layout.requiredHeight - layout.noteHeight / 2)
     }
 }
 
