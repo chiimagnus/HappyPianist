@@ -1,130 +1,33 @@
 import Foundation
 
-enum MusicXMLHandRoutingStrategy: Equatable {
-    case staffBased
-    case heuristic
-}
-
-enum MusicXMLHandRoutingOverride: Codable, Equatable {
-    case disableHeuristic
-    case splitThresholdMIDINote(Int)
-
-    private enum CodingKeys: String, CodingKey {
-        case kind
-        case threshold
-    }
-
-    private enum Kind: String, Codable {
-        case disableHeuristic
-        case splitThresholdMIDINote
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        let kind = try container.decode(Kind.self, forKey: .kind)
-        switch kind {
-            case .disableHeuristic:
-                self = .disableHeuristic
-            case .splitThresholdMIDINote:
-                self = .splitThresholdMIDINote(try container.decode(Int.self, forKey: .threshold))
-        }
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        switch self {
-            case .disableHeuristic:
-                try container.encode(Kind.disableHeuristic, forKey: .kind)
-            case let .splitThresholdMIDINote(threshold):
-                try container.encode(Kind.splitThresholdMIDINote, forKey: .kind)
-                try container.encode(threshold, forKey: .threshold)
-        }
-    }
-}
-
-struct MusicXMLHandRoutingOverrideStore {
-    private let userDefaults: UserDefaults
-
-    init(userDefaults: UserDefaults = .standard) {
-        self.userDefaults = userDefaults
-    }
-
-    func loadOverride(for file: ImportedMusicXMLFile) -> MusicXMLHandRoutingOverride? {
-        guard let data = userDefaults.data(forKey: storageKey(for: file)) else { return nil }
-        return try? JSONDecoder().decode(MusicXMLHandRoutingOverride.self, from: data)
-    }
-
-    func saveOverride(_ override: MusicXMLHandRoutingOverride?, for file: ImportedMusicXMLFile) {
-        let key = storageKey(for: file)
-        guard let override else {
-            userDefaults.removeObject(forKey: key)
-            return
-        }
-        if let data = try? JSONEncoder().encode(override) {
-            userDefaults.set(data, forKey: key)
-        }
-    }
-
-    private func storageKey(for file: ImportedMusicXMLFile) -> String {
-        "practiceHeuristicHandRoutingOverride.\(file.storedURL.lastPathComponent)"
-    }
-}
-
 struct MusicXMLHandRouter {
-    nonisolated static let heuristicEnabledKey = "practiceHeuristicHandRoutingEnabled"
-    private let overrideStore: MusicXMLHandRoutingOverrideStore
-
-    init(overrideStore: MusicXMLHandRoutingOverrideStore = MusicXMLHandRoutingOverrideStore()) {
-        self.overrideStore = overrideStore
-    }
-
-    func routeIfNeeded(
-        score: MusicXMLScore,
-        file: ImportedMusicXMLFile
-    ) -> (routedScore: MusicXMLScore, strategy: MusicXMLHandRoutingStrategy) {
-        let override = overrideStore.loadOverride(for: file)
-        if override == .disableHeuristic {
-            return (score, .staffBased)
-        }
-
-        guard Self.isHeuristicEnabled else { return (score, .staffBased) }
-
+    func routeIfNeeded(score: MusicXMLScore) -> MusicXMLScore {
         let hasAnyStaffTwoOrGreater = score.notes.contains { note in
             guard note.isRest == false else { return false }
             return (note.staff ?? 1) >= 2
         }
-        guard hasAnyStaffTwoOrGreater == false else { return (score, .staffBased) }
+        guard hasAnyStaffTwoOrGreater == false else { return score }
 
         let pitchedNotes = score.notes.compactMap { note -> Int? in
             guard note.isRest == false else { return nil }
             return note.midiNote
         }
-        guard pitchedNotes.isEmpty == false else { return (score, .staffBased) }
+        guard pitchedNotes.isEmpty == false else { return score }
 
         let minNote = pitchedNotes.min() ?? 0
         let maxNote = pitchedNotes.max() ?? 0
         if maxNote - minNote < 12 {
-            return (score, .staffBased)
+            return score
         }
 
-        let threshold = {
-            if case let .splitThresholdMIDINote(value) = override { return value }
-            return splitThresholdMIDINote(pitchedNotes: pitchedNotes)
-        }()
+        let threshold = splitThresholdMIDINote(pitchedNotes: pitchedNotes)
         let routedNotes = score.notes.map { note in
             routeNote(note, threshold: threshold)
         }
 
         var copy = score
         copy.notes = routedNotes
-        return (copy, .heuristic)
-    }
-
-    private static var isHeuristicEnabled: Bool {
-        if let stored = UserDefaults.standard.object(forKey: heuristicEnabledKey) as? Bool {
-            return stored
-        }
-        return true
+        return copy
     }
 
     private func splitThresholdMIDINote(pitchedNotes: [Int]) -> Int {

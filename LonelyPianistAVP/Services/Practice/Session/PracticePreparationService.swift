@@ -26,7 +26,7 @@ struct PracticePreparationService: PracticePreparationServiceProtocol {
             : score
         let primaryPartID = effectiveScore.preferredPrimaryPartID(preferredPartID: primaryPartIDForExpansion)
         let practiceScore = effectiveScore.filtering(toPartID: primaryPartID)
-        let routedPracticeScore = MusicXMLHandRouter().routeIfNeeded(score: practiceScore, file: file).routedScore
+        let routedPracticeScore = MusicXMLHandRouter().routeIfNeeded(score: practiceScore)
 
         let expressivityOptions = MusicXMLRealisticPlaybackDefaults.expressivityOptions
         let buildResult = stepBuilder.buildSteps(from: routedPracticeScore, expressivity: expressivityOptions)
