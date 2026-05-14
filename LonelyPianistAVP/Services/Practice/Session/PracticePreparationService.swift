@@ -18,7 +18,8 @@ struct PracticePreparationService: PracticePreparationServiceProtocol {
     }
 
     func prepare(from scoreURL: URL, file: ImportedMusicXMLFile) throws -> PreparedPractice {
-        let score = try parser.parse(fileURL: scoreURL)
+        let rawScore = try parser.parse(fileURL: scoreURL)
+        let score = MusicXMLPianoGrandStaffNormalizer().normalize(score: rawScore)
         let shouldExpandStructure = MusicXMLRealisticPlaybackDefaults.shouldExpandStructure
         let primaryPartIDForExpansion = score.preferredPrimaryPartID()
         let effectiveScore = shouldExpandStructure
