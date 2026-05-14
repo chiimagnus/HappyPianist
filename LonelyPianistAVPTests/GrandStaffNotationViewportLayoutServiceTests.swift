@@ -11,6 +11,7 @@ func viewportLayoutKeepsExtremeNotesWithinCanvasBounds() {
             occurrenceID: id,
             staffNumber: staffNumber,
             voice: 1,
+            hand: staffNumber >= 2 ? .left : .right,
             midiNote: 60,
             guideID: 1,
             tick: 0,

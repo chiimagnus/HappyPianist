@@ -58,6 +58,7 @@ struct GrandStaffNotationLayoutService {
                     occurrenceID: note.occurrenceID,
                     staffNumber: staffNumber,
                     voice: voice,
+                    hand: note.hand,
                     midiNote: note.midiNote,
                     guideID: guide.id,
                     tick: guide.tick,
@@ -198,7 +199,7 @@ struct GrandStaffNotationLayoutService {
 
             let chordID = "chord-\(key.tick)-\(key.staffNumber)-\(key.voice)"
             let xPosition = chordItems.map(\.xPosition).reduce(0.0, +) / Double(chordItems.count)
-            let stemDirection = resolvedStemDirection(staffSteps: chordItems.map(\.staffStep), staffNumber: key.staffNumber)
+            let stemDirection = resolvedStemDirection(chordItems: chordItems)
             let noteValue = resolvedChordNoteValue(items: chordItems)
 
             chords.append(GrandStaffNotationChord(
@@ -215,6 +216,7 @@ struct GrandStaffNotationLayoutService {
                     occurrenceID: item.occurrenceID,
                     staffNumber: item.staffNumber,
                     voice: item.voice,
+                    hand: item.hand,
                     midiNote: item.midiNote,
                     guideID: item.guideID,
                     tick: item.tick,
@@ -257,6 +259,7 @@ struct GrandStaffNotationLayoutService {
                             occurrenceID: existing.occurrenceID,
                             staffNumber: existing.staffNumber,
                             voice: existing.voice,
+                            hand: existing.hand,
                             midiNote: existing.midiNote,
                             guideID: existing.guideID,
                             tick: existing.tick,
@@ -286,15 +289,58 @@ struct GrandStaffNotationLayoutService {
 
         let finalItems = items.compactMap { beamedItemsByOccurrenceID[$0.occurrenceID] }
 
-        return (finalItems, chords, beamsBuild.beams)
+        let finalChords = enforceBeamGroupStemDirections(
+            chords: chords,
+            itemsByOccurrenceID: beamedItemsByOccurrenceID,
+            beamChordIDsByBeamID: beamsBuild.beamChordIDsByBeamID
+        )
+
+        let finalChordByID = Dictionary(uniqueKeysWithValues: finalChords.map { ($0.id, $0) })
+        var finalItemsByOccurrenceID = beamedItemsByOccurrenceID
+        for chord in finalChords {
+            for itemID in chord.itemIDs {
+                if let existing = finalItemsByOccurrenceID[itemID] {
+                    finalItemsByOccurrenceID[itemID] = GrandStaffNotationItem(
+                        occurrenceID: existing.occurrenceID,
+                        staffNumber: existing.staffNumber,
+                        voice: existing.voice,
+                        hand: existing.hand,
+                        midiNote: existing.midiNote,
+                        guideID: existing.guideID,
+                        tick: existing.tick,
+                        xPosition: existing.xPosition,
+                        staffStep: existing.staffStep,
+                        showsSharpAccidental: existing.showsSharpAccidental,
+                        isHighlighted: existing.isHighlighted,
+                        fingeringText: existing.fingeringText,
+                        noteValue: existing.noteValue,
+                        chordID: existing.chordID,
+                        noteHeadXOffset: existing.noteHeadXOffset,
+                        stemDirection: chord.stemDirection,
+                        beamID: existing.beamID,
+                        durationTicks: existing.durationTicks,
+                        isGrace: existing.isGrace,
+                        tieStart: existing.tieStart,
+                        tieStop: existing.tieStop,
+                        tieEndXPosition: existing.tieEndXPosition,
+                        articulations: existing.articulations,
+                        arpeggiate: existing.arpeggiate,
+                        dotCount: existing.dotCount
+                    )
+                }
+            }
+        }
+
+        let normalizedItems = items.compactMap { finalItemsByOccurrenceID[$0.occurrenceID] }
+
+        _ = finalChordByID // keep symmetry with other build steps
+        return (normalizedItems, finalChords, beamsBuild.beams)
     }
 
-    private func resolvedStemDirection(staffSteps: [Int], staffNumber: Int) -> GrandStaffStemDirection {
-        guard staffSteps.isEmpty == false else { return .up }
-        let sorted = staffSteps.sorted()
-        let median = sorted[sorted.count / 2]
-        let middleLineStep = 4
-        if median >= middleLineStep { return .down }
+    private func resolvedStemDirection(chordItems: [GrandStaffNotationItem]) -> GrandStaffStemDirection {
+        if chordItems.contains(where: { $0.hand == .left }) {
+            return .down
+        }
         return .up
     }
 
@@ -381,6 +427,62 @@ struct GrandStaffNotationLayoutService {
         }
 
         return (beams, beamChordIDsByBeamID)
+    }
+
+    private func enforceBeamGroupStemDirections(
+        chords: [GrandStaffNotationChord],
+        itemsByOccurrenceID: [String: GrandStaffNotationItem],
+        beamChordIDsByBeamID: [String: [String]]
+    ) -> [GrandStaffNotationChord] {
+        guard beamChordIDsByBeamID.isEmpty == false else { return chords }
+
+        var overrideByChordID: [String: GrandStaffStemDirection] = [:]
+
+        for chordIDs in beamChordIDsByBeamID.values {
+            var hasLeftHand = false
+            var hasRightHand = false
+
+            for chordID in chordIDs {
+                guard let chord = chords.first(where: { $0.id == chordID }) else { continue }
+                for itemID in chord.itemIDs {
+                    guard let item = itemsByOccurrenceID[itemID] else { continue }
+                    if item.hand == .left { hasLeftHand = true } else { hasRightHand = true }
+                }
+            }
+
+            let direction: GrandStaffStemDirection
+            if hasLeftHand, hasRightHand == false {
+                direction = .down
+            } else if hasRightHand, hasLeftHand == false {
+                direction = .up
+            } else {
+                // Mixed fallback: prefer staff number encoded in chordID (chord-<tick>-<staff>-<voice>)
+                let staffToken = chordIDs.first?.split(separator: "-").dropFirst(2).first
+                if let staffToken, let staff = Int(staffToken), staff >= 2 {
+                    direction = .down
+                } else {
+                    direction = .up
+                }
+            }
+
+            for chordID in chordIDs {
+                overrideByChordID[chordID] = direction
+            }
+        }
+
+        return chords.map { chord in
+            if let forced = overrideByChordID[chord.id], forced != chord.stemDirection {
+                return GrandStaffNotationChord(
+                    id: chord.id,
+                    tick: chord.tick,
+                    xPosition: chord.xPosition,
+                    itemIDs: chord.itemIDs,
+                    stemDirection: forced,
+                    noteValue: chord.noteValue
+                )
+            }
+            return chord
+        }
     }
 
     private func beamCount(for noteValue: GrandStaffNoteValue) -> Int {
