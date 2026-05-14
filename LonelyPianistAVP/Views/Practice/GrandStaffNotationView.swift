@@ -211,16 +211,6 @@ struct GrandStaffNotationView: View {
             return
         }
 
-        if top == 4, bottom == 4 {
-            // Common time glyph.
-            context.draw(
-                Text("\u{E08A}").font(font),
-                at: CGPoint(x: xStart, y: centerY),
-                anchor: .leading
-            )
-            return
-        }
-
         func digitGlyph(_ digit: Int) -> String? {
             guard (0...9).contains(digit) else { return nil }
             let scalar = UnicodeScalar(0xE080 + digit)!
