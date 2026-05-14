@@ -178,6 +178,7 @@ struct GrandStaffNotationView: View {
         let defaultStemLength = layout.lineSpacing * 3.2
         let beamGap = max(1.2, layout.lineSpacing * 0.28)
         let beamStackStride = beamStroke.lineWidth + beamGap
+        let minStemLength = layout.lineSpacing * 2.6
 
         for beam in beams {
             let chords = beam.chordIDs.compactMap { chordsByID[$0] }.sorted { $0.xPosition < $1.xPosition }
@@ -199,22 +200,59 @@ struct GrandStaffNotationView: View {
                 stemByChordID[chord.id] = (start: stem.start, end: stem.end)
             }
 
-            let stemEnds = stemByChordID.values.map(\.end)
-            guard stemEnds.isEmpty == false else { continue }
+            guard let firstChord = chords.first, let lastChord = chords.last else { continue }
+            guard let firstStem = stemByChordID[firstChord.id], let lastStem = stemByChordID[lastChord.id] else { continue }
 
-            let baselineY: CGFloat = if direction == .up {
-                stemEnds.map(\.y).min() ?? 0
-            } else {
-                stemEnds.map(\.y).max() ?? 0
+            let x1 = firstStem.end.x
+            let xN = lastStem.end.x
+            let span = max(1, abs(xN - x1))
+
+            let rawDeltaY = lastStem.end.y - firstStem.end.y
+            let maxDeltaY = layout.lineSpacing * 1.5
+            let clampedDeltaY = max(-maxDeltaY, min(maxDeltaY, rawDeltaY))
+            let slope = clampedDeltaY / span
+
+            func yOnBeam(at x: CGFloat, offset: CGFloat) -> CGFloat {
+                firstStem.end.y + slope * (x - x1) + offset
             }
 
-            let firstX = layout.xPosition(chords.first?.xPosition ?? 0)
-            let lastX = layout.xPosition(chords.last?.xPosition ?? 0)
+            // Shift the beam so every stem is at least `minStemLength`,
+            // and maintain a small clearance from the nearest notehead.
+            let noteheadClearance = layout.lineSpacing * 0.8
+            var requiredOffset: CGFloat = 0
+
+            for chord in chords {
+                guard let stem = stemByChordID[chord.id] else { continue }
+                let chordBeamY = yOnBeam(at: stem.end.x, offset: 0)
+
+                if direction == .up {
+                    let allowedMaxY = stem.start.y - minStemLength
+                    if chordBeamY > allowedMaxY {
+                        requiredOffset = min(requiredOffset, allowedMaxY - chordBeamY)
+                    }
+                    let clearanceMaxY = stem.start.y - noteheadClearance
+                    if chordBeamY > clearanceMaxY {
+                        requiredOffset = min(requiredOffset, clearanceMaxY - chordBeamY)
+                    }
+                } else {
+                    let allowedMinY = stem.start.y + minStemLength
+                    if chordBeamY < allowedMinY {
+                        requiredOffset = max(requiredOffset, allowedMinY - chordBeamY)
+                    }
+                    let clearanceMinY = stem.start.y + noteheadClearance
+                    if chordBeamY < clearanceMinY {
+                        requiredOffset = max(requiredOffset, clearanceMinY - chordBeamY)
+                    }
+                }
+            }
+
+            let firstX = x1
+            let lastX = xN
 
             // Primary beam: the one furthest from the noteheads.
             var primaryPath = Path()
-            primaryPath.move(to: CGPoint(x: firstX, y: baselineY))
-            primaryPath.addLine(to: CGPoint(x: lastX, y: baselineY))
+            primaryPath.move(to: CGPoint(x: firstX, y: yOnBeam(at: firstX, offset: requiredOffset)))
+            primaryPath.addLine(to: CGPoint(x: lastX, y: yOnBeam(at: lastX, offset: requiredOffset)))
             context.stroke(primaryPath, with: .color(Color.primary.opacity(0.42)), style: beamStroke)
 
             // Secondary / tertiary beams: segmented based on each chord's rhythmic value.
@@ -222,7 +260,7 @@ struct GrandStaffNotationView: View {
                 let levels = 2...beam.beamCount
                 for level in levels {
                     let stride = CGFloat(level - 1) * beamStackStride
-                    let y = (direction == .up) ? (baselineY + stride) : (baselineY - stride)
+                    let secondaryOffset = (direction == .up) ? (requiredOffset + stride) : (requiredOffset - stride)
 
                     var activeSegment: [GrandStaffNotationChord] = []
 
@@ -234,8 +272,8 @@ struct GrandStaffNotationView: View {
                         let startX = layout.xPosition(activeSegment.first?.xPosition ?? 0)
                         let endX = layout.xPosition(activeSegment.last?.xPosition ?? 0)
                         var path = Path()
-                        path.move(to: CGPoint(x: startX, y: y))
-                        path.addLine(to: CGPoint(x: endX, y: y))
+                        path.move(to: CGPoint(x: startX, y: yOnBeam(at: startX, offset: secondaryOffset)))
+                        path.addLine(to: CGPoint(x: endX, y: yOnBeam(at: endX, offset: secondaryOffset)))
                         context.stroke(path, with: .color(Color.primary.opacity(0.42)), style: beamStroke)
                         activeSegment.removeAll(keepingCapacity: true)
                     }
@@ -253,7 +291,7 @@ struct GrandStaffNotationView: View {
 
             for chord in chords {
                 guard let stem = stemByChordID[chord.id] else { continue }
-                let adjustedEnd = CGPoint(x: stem.end.x, y: baselineY)
+                let adjustedEnd = CGPoint(x: stem.end.x, y: yOnBeam(at: stem.end.x, offset: requiredOffset))
                 var path = Path()
                 path.move(to: stem.start)
                 path.addLine(to: adjustedEnd)
