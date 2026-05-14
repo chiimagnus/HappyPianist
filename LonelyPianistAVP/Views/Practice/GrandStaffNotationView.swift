@@ -73,24 +73,28 @@ struct GrandStaffNotationView: View {
 
         context.draw(
             Text(staffContext.trebleClefSymbol).font(.system(size: layout.trebleClefFontSize)),
-            at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 1.0, y: layout.trebleClefY)
+            at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 0.6, y: layout.trebleClefY),
+            anchor: .leading
         )
         context.draw(
             Text(staffContext.bassClefSymbol).font(.system(size: layout.bassClefFontSize)),
-            at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 1.0, y: layout.bassClefY)
+            at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 0.6, y: layout.bassClefY),
+            anchor: .leading
         )
 
         if let keySignatureText = staffContext.keySignatureText, keySignatureText.isEmpty == false {
             context.draw(
                 Text(keySignatureText).font(.system(size: layout.keySignatureFontSize)),
-                at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 3.2, y: trebleKeyCenterY)
+                at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 3.2, y: trebleKeyCenterY),
+                anchor: .leading
             )
         }
 
         if let timeSignatureText = staffContext.timeSignatureText, timeSignatureText.isEmpty == false {
             context.draw(
                 Text(timeSignatureText).font(.system(size: layout.timeSignatureFontSize, weight: .semibold)),
-                at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 5.6, y: trebleKeyCenterY)
+                at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 5.6, y: trebleKeyCenterY),
+                anchor: .leading
             )
         }
     }
