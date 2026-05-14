@@ -176,6 +176,8 @@ struct GrandStaffNotationView: View {
         let stemStroke = StrokeStyle(lineWidth: max(1, layout.lineSpacing * 0.14), lineCap: .round)
         let beamStroke = StrokeStyle(lineWidth: max(2, layout.lineSpacing * 0.42), lineCap: .butt)
         let defaultStemLength = layout.lineSpacing * 3.2
+        let beamGap = max(1.2, layout.lineSpacing * 0.28)
+        let beamStackStride = beamStroke.lineWidth + beamGap
 
         for beam in beams {
             let chords = beam.chordIDs.compactMap { chordsByID[$0] }.sorted { $0.xPosition < $1.xPosition }
@@ -209,10 +211,45 @@ struct GrandStaffNotationView: View {
             let firstX = layout.xPosition(chords.first?.xPosition ?? 0)
             let lastX = layout.xPosition(chords.last?.xPosition ?? 0)
 
-            var beamPath = Path()
-            beamPath.move(to: CGPoint(x: firstX, y: baselineY))
-            beamPath.addLine(to: CGPoint(x: lastX, y: baselineY))
-            context.stroke(beamPath, with: .color(Color.primary.opacity(0.42)), style: beamStroke)
+            // Primary beam: the one furthest from the noteheads.
+            var primaryPath = Path()
+            primaryPath.move(to: CGPoint(x: firstX, y: baselineY))
+            primaryPath.addLine(to: CGPoint(x: lastX, y: baselineY))
+            context.stroke(primaryPath, with: .color(Color.primary.opacity(0.42)), style: beamStroke)
+
+            // Secondary / tertiary beams: segmented based on each chord's rhythmic value.
+            if beam.beamCount >= 2 {
+                let levels = 2...beam.beamCount
+                for level in levels {
+                    let stride = CGFloat(level - 1) * beamStackStride
+                    let y = (direction == .up) ? (baselineY + stride) : (baselineY - stride)
+
+                    var activeSegment: [GrandStaffNotationChord] = []
+
+                    func flushSegment() {
+                        guard activeSegment.count >= 2 else {
+                            activeSegment.removeAll(keepingCapacity: true)
+                            return
+                        }
+                        let startX = layout.xPosition(activeSegment.first?.xPosition ?? 0)
+                        let endX = layout.xPosition(activeSegment.last?.xPosition ?? 0)
+                        var path = Path()
+                        path.move(to: CGPoint(x: startX, y: y))
+                        path.addLine(to: CGPoint(x: endX, y: y))
+                        context.stroke(path, with: .color(Color.primary.opacity(0.42)), style: beamStroke)
+                        activeSegment.removeAll(keepingCapacity: true)
+                    }
+
+                    for chord in chords {
+                        if chordBeamCount(for: chord.noteValue) >= level {
+                            activeSegment.append(chord)
+                        } else {
+                            flushSegment()
+                        }
+                    }
+                    flushSegment()
+                }
+            }
 
             for chord in chords {
                 guard let stem = stemByChordID[chord.id] else { continue }
@@ -222,6 +259,19 @@ struct GrandStaffNotationView: View {
                 path.addLine(to: adjustedEnd)
                 context.stroke(path, with: .color(Color.primary.opacity(0.45)), style: stemStroke)
             }
+        }
+    }
+
+    private func chordBeamCount(for noteValue: GrandStaffNoteValue) -> Int {
+        switch noteValue {
+            case .eighth:
+                return 1
+            case .sixteenth:
+                return 2
+            case .thirtySecond:
+                return 3
+            default:
+                return 0
         }
     }
 

@@ -356,7 +356,8 @@ struct GrandStaffNotationLayoutService {
                 let beamID = "beam-\(beamCounter)"
                 let chordIDs = currentGroup.map(\.id)
                 beamChordIDsByBeamID[beamID] = chordIDs
-                beams.append(GrandStaffNotationBeam(id: beamID, chordIDs: chordIDs, beamCount: 1))
+                let maxBeamCount = currentGroup.map(\.noteValue).map(beamCount(for:)).max() ?? 1
+                beams.append(GrandStaffNotationBeam(id: beamID, chordIDs: chordIDs, beamCount: max(1, maxBeamCount)))
                 currentGroup.removeAll(keepingCapacity: true)
                 lastTick = nil
             }
@@ -380,6 +381,19 @@ struct GrandStaffNotationLayoutService {
         }
 
         return (beams, beamChordIDsByBeamID)
+    }
+
+    private func beamCount(for noteValue: GrandStaffNoteValue) -> Int {
+        switch noteValue {
+            case .eighth:
+                return 1
+            case .sixteenth:
+                return 2
+            case .thirtySecond:
+                return 3
+            default:
+                return 0
+        }
     }
 
     private func chordTrackKey(chordID: String) -> String {
