@@ -12,6 +12,8 @@ struct PracticeSettingsView: View {
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
     @AppStorage("immersivePanoramaEnabled") private var immersivePanoramaEnabled = false
     @AppStorage("practiceManualAdvanceMode") private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
+    @AppStorage(PracticeSessionViewModel.practiceHandSeparatedStepMatchingEnabledKey)
+    private var practiceHandSeparatedStepMatchingEnabled = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -49,6 +51,10 @@ struct PracticeSettingsView: View {
 
             Toggle("调试：显示音频识别 overlay", isOn: $practiceAudioRecognitionDebugOverlayEnabled)
             Toggle("调试：显示键盘坐标轴（X/Y/Z）", isOn: $debugKeyboardAxesOverlayEnabled)
+
+            Divider()
+
+            Toggle("练习判定：左右手分别满足", isOn: $practiceHandSeparatedStepMatchingEnabled)
 
             Picker("手动前进方式", selection: $manualAdvanceModeRawValue) {
                 ForEach(ManualAdvanceMode.allCases) { mode in

@@ -1,6 +1,6 @@
 import Foundation
 
-enum ScrollingStaffNoteValue: Equatable {
+enum GrandStaffNoteValue: Equatable {
     case whole
     case half
     case quarter
@@ -9,89 +9,92 @@ enum ScrollingStaffNoteValue: Equatable {
     case thirtySecond
 }
 
-enum ScrollingStaffStemDirection: Equatable {
+enum GrandStaffStemDirection: Equatable {
     case up
     case down
 }
 
-struct ScrollingStaffNotationLayout: Equatable {
-    let items: [ScrollingStaffNotationItem]
-    let chords: [ScrollingStaffNotationChord]
-    let rests: [ScrollingStaffNotationRest]
-    let barlines: [ScrollingStaffNotationBarline]
-    let beams: [ScrollingStaffNotationBeam]
-    let context: ScrollingStaffNotationContext?
+struct GrandStaffNotationLayout: Equatable {
+    let items: [GrandStaffNotationItem]
+    let chords: [GrandStaffNotationChord]
+    let rests: [GrandStaffNotationRest]
+    let barlines: [GrandStaffNotationBarline]
+    let beams: [GrandStaffNotationBeam]
+    let context: GrandStaffNotationContext?
 }
 
-struct ScrollingStaffNotationChord: Equatable, Identifiable {
+struct GrandStaffNotationChord: Equatable, Identifiable {
     let id: String
     let tick: Int
     let xPosition: Double
     let itemIDs: [String]
-    let stemDirection: ScrollingStaffStemDirection
-    let noteValue: ScrollingStaffNoteValue
+    let stemDirection: GrandStaffStemDirection
+    let noteValue: GrandStaffNoteValue
 }
 
-struct ScrollingStaffNotationRest: Equatable, Identifiable {
+struct GrandStaffNotationRest: Equatable, Identifiable {
     let id: String
+    let staffNumber: Int
     let guideID: Int
     let tick: Int
     let xPosition: Double
-    let noteValue: ScrollingStaffNoteValue
+    let noteValue: GrandStaffNoteValue
     let isHighlighted: Bool
 }
 
-struct ScrollingStaffNotationBarline: Equatable, Identifiable {
+struct GrandStaffNotationBarline: Equatable, Identifiable {
     let id: String
     let tick: Int
     let xPosition: Double
 }
 
-struct ScrollingStaffNotationBeam: Equatable, Identifiable {
+struct GrandStaffNotationBeam: Equatable, Identifiable {
     let id: String
     let chordIDs: [String]
     let beamCount: Int
 }
 
-struct ScrollingStaffNotationContext: Equatable {
-    let clefSymbol: String
+struct GrandStaffNotationContext: Equatable {
+    let trebleClefSymbol: String
+    let bassClefSymbol: String
     let keySignatureText: String?
     let keySignatureFifths: Int?
     let timeSignatureText: String?
 
     init(
-        clefSymbol: String = "𝄞",
+        trebleClefSymbol: String = "𝄞",
+        bassClefSymbol: String = "𝄢",
         keySignatureText: String? = nil,
         keySignatureFifths: Int? = nil,
         timeSignatureText: String? = nil
     ) {
-        self.clefSymbol = clefSymbol
+        self.trebleClefSymbol = trebleClefSymbol
+        self.bassClefSymbol = bassClefSymbol
         self.keySignatureText = keySignatureText
         self.keySignatureFifths = keySignatureFifths
         self.timeSignatureText = timeSignatureText
     }
 }
 
-struct ScrollingStaffNotationItem: Equatable, Identifiable {
+struct GrandStaffNotationItem: Equatable, Identifiable {
     var id: String {
         occurrenceID
     }
 
     let occurrenceID: String
+    let staffNumber: Int
     let midiNote: Int
     let guideID: Int
     let tick: Int
     let xPosition: Double
-    let staff: Int?
-    let voice: Int?
     let staffStep: Int
     let showsSharpAccidental: Bool
     let isHighlighted: Bool
     let fingeringText: String?
-    let noteValue: ScrollingStaffNoteValue
+    let noteValue: GrandStaffNoteValue
     let chordID: String?
     let noteHeadXOffset: Double
-    let stemDirection: ScrollingStaffStemDirection
+    let stemDirection: GrandStaffStemDirection
     let beamID: String?
     let durationTicks: Int
     let isGrace: Bool
@@ -114,3 +117,4 @@ struct ScrollingStaffNotationItem: Equatable, Identifiable {
         (noteValue == .eighth || noteValue == .sixteenth || noteValue == .thirtySecond) && beamID == nil
     }
 }
+

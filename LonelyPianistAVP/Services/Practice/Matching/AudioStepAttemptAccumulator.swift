@@ -109,14 +109,8 @@ final class AudioStepAttemptAccumulator {
             return .insufficient(progress: "no expected notes")
         }
 
-        let threshold = handGateBoost ? configuration.handBoostedThreshold : configuration.singleNoteThreshold
-        let activeEvents = recentEvents.filter { event in
-            event.timestamp <= timestamp &&
-                timestamp.timeIntervalSince(event.timestamp) <= configuration.aggregationWindow &&
-                event.generation == generation &&
-                isEventQualified(event, threshold: threshold) &&
-                isRearmSatisfied(for: event.midiNote, at: timestamp)
-        }
+        let threshold = threshold(for: handGateBoost)
+        let activeEvents = makeActiveEvents(generation: generation, at: timestamp, threshold: threshold)
 
         let strongestExpected = activeEvents
             .filter { expectedSet.contains($0.midiNote) }
@@ -161,6 +155,95 @@ final class AudioStepAttemptAccumulator {
         return .insufficient(progress: "chord \(matchedExpectedCount)/\(requiredMatches)")
     }
 
+    func evaluateHandSeparated(
+        expectedRightMIDINotes: [Int],
+        expectedLeftMIDINotes: [Int],
+        wrongCandidateMIDINotes: Set<Int>,
+        generation: Int,
+        at timestamp: Date,
+        handGateBoost: Bool = false
+    ) -> StepAttemptMatchResult {
+        if generation != currentGeneration {
+            currentGeneration = generation
+            resetForNewStep(generation: generation)
+        }
+        pruneExpiredEvents(now: timestamp)
+
+        let expectedRightSet = Set(expectedRightMIDINotes)
+        let expectedLeftSet = Set(expectedLeftMIDINotes)
+        let expectedUnion = expectedRightSet.union(expectedLeftSet)
+        guard expectedUnion.isEmpty == false else {
+            return .insufficient(progress: "no expected notes")
+        }
+
+        let threshold = threshold(for: handGateBoost)
+        let activeEvents = makeActiveEvents(generation: generation, at: timestamp, threshold: threshold)
+
+        let strongestExpected = activeEvents
+            .filter { expectedUnion.contains($0.midiNote) }
+            .map(\.confidence)
+            .max() ?? 0
+        let strongestWrong = activeEvents
+            .filter { wrongCandidateMIDINotes.contains($0.midiNote) }
+            .map(\.confidence)
+            .max() ?? 0
+
+        if strongestWrong >= configuration.wrongNoteThreshold,
+           strongestWrong >= max(strongestExpected, 0.01) * configuration.wrongDominanceRatio
+        {
+            if let lastMatchedAt, timestamp.timeIntervalSince(lastMatchedAt) <= configuration.wrongNoteGraceWindow {
+                Self.decisionLogger.debug("audio wrong in grace window generation=\(generation, privacy: .public)")
+                return .insufficient(progress: "wrong note grace")
+            }
+            Self.decisionLogger.debug("audio wrong generation=\(generation, privacy: .public)")
+            return .wrong(reason: "wrong note dominates window")
+        }
+
+        func isHandSatisfied(expectedSet: Set<Int>) -> (isSatisfied: Bool, progress: String?) {
+            guard expectedSet.isEmpty == false else { return (true, nil) }
+
+            if expectedSet.count == 1 {
+                let strongest = activeEvents
+                    .filter { expectedSet.contains($0.midiNote) }
+                    .map(\.confidence)
+                    .max() ?? 0
+                if strongest >= threshold {
+                    return (true, nil)
+                }
+                return (false, "single pending")
+            }
+
+            let matchedCount = Set(
+                activeEvents
+                    .filter { expectedSet.contains($0.midiNote) }
+                    .map(\.midiNote)
+            ).count
+            let requiredMatches = requiredMatchCount(expectedCount: expectedSet.count)
+            if matchedCount >= requiredMatches {
+                return (true, nil)
+            }
+            return (false, "\(matchedCount)/\(requiredMatches)")
+        }
+
+        let right = isHandSatisfied(expectedSet: expectedRightSet)
+        let left = isHandSatisfied(expectedSet: expectedLeftSet)
+
+        if right.isSatisfied, left.isSatisfied {
+            lastMatchedAt = timestamp
+            Self.decisionLogger.debug("audio hand-separated matched generation=\(generation, privacy: .public)")
+            return .matched(reason: "hand-separated matched")
+        }
+
+        var progressItems: [String] = []
+        if right.isSatisfied == false, let rightProgress = right.progress {
+            progressItems.append("R \(rightProgress)")
+        }
+        if left.isSatisfied == false, let leftProgress = left.progress {
+            progressItems.append("L \(leftProgress)")
+        }
+        return .insufficient(progress: progressItems.joined(separator: " "))
+    }
+
     func resetForNewStep(generation: Int) {
         currentGeneration = generation
         recentEvents.removeAll()
@@ -184,6 +267,20 @@ final class AudioStepAttemptAccumulator {
 
     private func isEventQualified(_ event: DetectedNoteEvent, threshold: Double) -> Bool {
         event.confidence >= threshold && (event.isOnset || event.onsetScore >= configuration.onsetThreshold)
+    }
+
+    private func threshold(for handGateBoost: Bool) -> Double {
+        handGateBoost ? configuration.handBoostedThreshold : configuration.singleNoteThreshold
+    }
+
+    private func makeActiveEvents(generation: Int, at timestamp: Date, threshold: Double) -> [DetectedNoteEvent] {
+        recentEvents.filter { event in
+            event.timestamp <= timestamp &&
+                timestamp.timeIntervalSince(event.timestamp) <= configuration.aggregationWindow &&
+                event.generation == generation &&
+                isEventQualified(event, threshold: threshold) &&
+                isRearmSatisfied(for: event.midiNote, at: timestamp)
+        }
     }
 
     private func isRearmSatisfied(for midiNote: Int, at timestamp: Date) -> Bool {

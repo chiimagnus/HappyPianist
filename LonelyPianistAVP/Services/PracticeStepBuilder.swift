@@ -20,7 +20,8 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
     private let playableRange = 21 ... 108
 
     func buildSteps(from score: MusicXMLScore, expressivity: MusicXMLExpressivityOptions) -> PracticeStepBuildResult {
-        var grouped: [Int: [StepNoteKey: (velocity: UInt8, onTickOffset: Int, fingeringText: String?)]] = [:]
+        var grouped: [Int: [StepNoteKey: (hand: ScoreHand, velocity: UInt8, onTickOffset: Int, fingeringText: String?)]] =
+            [:]
         var unsupportedNoteCount = 0
         let velocityResolver = MusicXMLVelocityResolver(
             dynamicEvents: score.dynamicEvents,
@@ -44,12 +45,18 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
             let velocity = velocityResolver.velocity(for: noteEvent)
             let effectiveTick = graceOnTickByNoteIndex[index] ?? noteEvent.tick
             let onTickOffset = max(0, arpeggiateOffsetByNoteIndex[index] ?? 0)
+            let hand = ScoreHand.fromStaff(noteEvent.staff)
             let staff = noteEvent.staff ?? 1
             let voice = noteEvent.voice ?? 1
             let key = StepNoteKey(midiNote: midiNote, staff: staff, voice: voice)
             var map = grouped[effectiveTick] ?? [:]
             if map[key] == nil {
-                map[key] = (velocity: velocity, onTickOffset: onTickOffset, fingeringText: noteEvent.fingeringText)
+                map[key] = (
+                    hand: hand,
+                    velocity: velocity,
+                    onTickOffset: onTickOffset,
+                    fingeringText: noteEvent.fingeringText
+                )
             }
             grouped[effectiveTick] = map
         }
@@ -68,7 +75,8 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
                     voice: key.voice,
                     velocity: entry?.velocity ?? 96,
                     onTickOffset: entry?.onTickOffset ?? 0,
-                    fingeringText: entry?.fingeringText
+                    fingeringText: entry?.fingeringText,
+                    hand: entry?.hand
                 )
             }
             return PracticeStep(tick: tick, notes: notes)

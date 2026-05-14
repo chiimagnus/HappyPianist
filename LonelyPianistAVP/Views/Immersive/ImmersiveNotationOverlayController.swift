@@ -27,7 +27,7 @@ private struct ImmersiveNotationPanelView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("滚动五线谱")
+                Text("Grand Staff 五线谱")
                     .font(.headline)
                 Spacer()
                 if let currentGuide = sessionViewModel.currentPianoHighlightGuide {
@@ -38,11 +38,11 @@ private struct ImmersiveNotationPanelView: View {
                 }
             }
 
-            ScrollingStaffNotationView(
+            GrandStaffNotationView(
                 guides: sessionViewModel.highlightGuides,
                 currentGuide: sessionViewModel.currentPianoHighlightGuide,
                 measureSpans: sessionViewModel.notationMeasureSpans,
-                context: sessionViewModel.currentNotationContext,
+                context: sessionViewModel.currentGrandStaffNotationContext,
                 scrollTickProvider: sessionViewModel.autoplayState == .playing ? {
                     sessionViewModel.smoothNotationScrollTick()
                 } : nil

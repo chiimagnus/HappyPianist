@@ -78,6 +78,7 @@ func highlightGuideBuilderPreservesStaffAndVoiceOccurrences() {
     let trigger = guides.first { $0.kind == .trigger }
     #expect(trigger?.triggeredNotes.count == 2)
     #expect(Set(trigger?.triggeredNotes.compactMap(\.staff) ?? []) == [1, 2])
+    #expect(Set(trigger?.triggeredNotes.map(\.hand) ?? []) == [.right, .left])
 }
 
 private func makeNote(

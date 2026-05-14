@@ -14,6 +14,9 @@
 | `MIDIEvent` | macOS 统一输入模型 |
 | `DialogueNote` | Swift 和 Python 共享的音符契约 |
 | `PracticeStep` | AVP 练习推进单元 |
+| `PracticeStepNote` | step 内单个音符的期望值（含 `midiNote`、`staff/voice`、以及由 staff 推导的 `hand`） |
+| `ScoreHand` | 谱面左右手语义：`right/left`；当前由 staff 推导（`staff <= 1` 为右手，`staff >= 2` 为左手；缺失 staff 视为右手） |
+| `MusicXMLHandRouter` | 单谱表导入兜底路由器：当 score 未出现 `staff>=2` 且音域足够宽时，按 pitch 阈值把 notes 自动补成 staff=1/2，以驱动左右手与双谱表渲染 |
 | `PianoModeProtocol` | AVP 钢琴模式协议：定义模式 id、pickerCard、准入条件、tracking 选择、准备页工厂与练习会话工厂；通过 `PianoModeRegistryService` 注册三种默认模式（RealAudio / BluetoothMIDI / Virtual） |
 | `PianoModeRegistryService` | 钢琴模式注册表：持有 `[any PianoModeProtocol]`，按 id 查找模式；注入到 `AppRouter` 与 `ARGuideViewModel`，驱动类型选择与流程路由 |
 | `PracticeInputEvent` | AVP BLE MIDI 练习输入事件模型（G1 channel voice）：note on/off、CC、pitch bend、program change、pressure 等 |
@@ -25,6 +28,9 @@
 | `AutoplayPerformanceTimeline` | 统一调度 note on/off、踏板、guide、step 和 fermata pause 的播放时间线 |
 | `PianoHighlightGuide` | 钢琴高亮引导元素，包含 trigger/release/gap 三种类型 |
 | `PianoHighlightGuideKind` | 引导类型：trigger（按下）、release（松开）、gap（空闲） |
+| `GrandStaffNotationView` | AVP 练习页的双谱表五线谱视图（Canvas 绘制 staff lines、clef/key/time、barlines 与 noteheads） |
+| `GrandStaffNotationContext` | 五线谱左侧上下文（谱号/调号/拍号）契约 |
+| `Hand-separated step matching` | 练习判定开关：当开启时，当前 step 的右手 expected 与左手 expected 需要分别满足才算通过（缺失某只手 expected 视为已满足） |
 | `GazePlaneDiskConfirmationViewModel` | 虚拟钢琴放置确认状态：圆盘可见、双手掌心稳定倒计时、确认完成 |
 | `KeyContactDetectionService` | 虚拟钢琴按键接触检测服务，使用迟滞避免误触 |
 | `VirtualPianoKeyGeometryService` | 虚拟钢琴 88 键几何生成服务 |
@@ -61,6 +67,7 @@
 - **导入成功** 不等于 **可开始练习**：还要能生成有效 steps，并成功定位（虚拟钢琴模式仅需导入谱面）。
 - **fallback（兜底）** 不等于 **error handling（错误处理）**：fallback 是主动选择替代行为继续运行，error handling 是捕获错误并恢复。
 - **虚拟钢琴模式** vs **实体钢琴模式**：虚拟钢琴无需校准和定位，通过 gaze-plane + 双手掌心确认放置 3D 键盘后直接进入练习；实体钢琴需要 Step 1 校准 + AR 定位。两者共享 `PracticeSessionViewModel` 的匹配与 step 推进逻辑（无 correct/wrong 反馈态），但按键检测路径不同（`KeyContactDetectionService` vs `PressDetectionService`）。
+- **staff（谱表号）** vs **左右手（ScoreHand）**：当前系统把 `staff <= 1` 解释为右手、`staff >= 2` 解释为左手；对缺失 staff 的单谱表曲谱，会在导入阶段用 `MusicXMLHandRouter` 补全 staff，之后所有下游（step、guide、五线谱、键盘高亮、按手判定）都只看 staff→hand 推导结果。
 - **PianoModeProtocol** vs **旧 PianoKind 枚举**：旧版用 `PianoKind` 枚举做 switch 分支；新版用 `PianoModeProtocol` 协议 + `PianoModeRegistryService` 注册表，每种模式自包含准备页工厂、练习会话工厂和准入逻辑，无需在调用方做 switch。`FlowState` 中的 `pianoKind` 字段存储的是模式 id 字符串，由注册表解析为具体模式。
 
 ## Coverage Gaps
