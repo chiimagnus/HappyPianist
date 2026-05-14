@@ -8,6 +8,8 @@ struct GrandStaffNotationView: View {
     var scrollTickProvider: (() -> Double?)?
 
     private let layoutService = GrandStaffNotationLayoutService()
+    private let viewportLayoutService = GrandStaffNotationViewportLayoutService()
+    private let fixedLineSpacing: CGFloat = 14
 
     var body: some View {
         GeometryReader { proxy in
@@ -19,19 +21,34 @@ struct GrandStaffNotationView: View {
                 scrollTick: scrollTickProvider?() ?? nil
             )
 
-            Canvas { context, size in
-                let viewLayout = GrandStaffViewLayout(size: size, context: layout.context)
-                drawGrandStaffLines(in: context, layout: viewLayout)
-                drawContext(in: context, layout: viewLayout)
-                drawBarlines(layout.barlines, in: context, layout: viewLayout)
-                drawItems(layout.items, in: context, layout: viewLayout)
+            let viewLayout = viewportLayoutService.makeLayout(
+                size: proxy.size,
+                lineSpacing: fixedLineSpacing,
+                items: layout.items,
+                chords: layout.chords,
+                beams: layout.beams,
+                context: layout.context
+            )
+            let chordsByID = Dictionary(uniqueKeysWithValues: layout.chords.map { ($0.id, $0) })
+            let itemsByChordID = Dictionary(grouping: layout.items, by: { $0.chordID ?? "" })
+
+            ScrollView(.vertical) {
+                Canvas { context, _ in
+                    drawGrandStaffLines(in: context, layout: viewLayout)
+                    drawContext(in: context, layout: viewLayout)
+                    drawBarlines(layout.barlines, in: context, layout: viewLayout)
+                    drawBeams(layout.beams, chordsByID: chordsByID, itemsByChordID: itemsByChordID, in: context, layout: viewLayout)
+                    drawStems(layout.chords, beamedChordIDs: Set(layout.beams.flatMap(\.chordIDs)), itemsByChordID: itemsByChordID, in: context, layout: viewLayout)
+                    drawItems(layout.items, in: context, layout: viewLayout)
+                }
+                .frame(width: proxy.size.width, height: viewLayout.requiredHeight)
             }
-            .frame(width: proxy.size.width, height: proxy.size.height)
+            .scrollIndicators(.hidden)
         }
         .accessibilityLabel("Grand Staff 五线谱")
     }
 
-    private func drawGrandStaffLines(in context: GraphicsContext, layout: GrandStaffViewLayout) {
+    private func drawGrandStaffLines(in context: GraphicsContext, layout: GrandStaffNotationViewportLayoutService.Layout) {
         let lineColor = Color.primary.opacity(0.22)
         let stroke = StrokeStyle(lineWidth: 1.0)
 
@@ -49,40 +66,179 @@ struct GrandStaffNotationView: View {
         drawStaff(topLineY: layout.bassTopLineY)
     }
 
-    private func drawContext(in context: GraphicsContext, layout: GrandStaffViewLayout) {
+    private func drawContext(in context: GraphicsContext, layout: GrandStaffNotationViewportLayoutService.Layout) {
         guard let staffContext = layout.context else { return }
 
-        let trebleCenterY = layout.yPosition(staffStep: 4, staffNumber: 1)
-        let bassCenterY = layout.yPosition(staffStep: 4, staffNumber: 2)
+        let trebleKeyCenterY = layout.yPosition(staffStep: 4, staffNumber: 1)
+        let bassKeyCenterY = layout.yPosition(staffStep: 4, staffNumber: 2)
+        let trebleClefFont = Font.custom("Bravura", size: layout.trebleClefFontSize)
+        let bassClefFont = Font.custom("Bravura", size: layout.bassClefFontSize)
+        let keySignatureFont = Font.custom("Bravura", size: layout.keySignatureFontSize)
+        let timeSignatureFont = Font.custom("Bravura", size: layout.timeSignatureFontSize)
 
         context.draw(
-            Text(staffContext.trebleClefSymbol).font(.system(size: layout.lineSpacing * 2.2)),
-            at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 1.0, y: trebleCenterY)
+            Text(staffContext.trebleClefSymbol).font(trebleClefFont),
+            at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 0.6, y: layout.trebleClefY),
+            anchor: .leading
         )
         context.draw(
-            Text(staffContext.bassClefSymbol).font(.system(size: layout.lineSpacing * 2.0)),
-            at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 1.0, y: bassCenterY)
+            Text(staffContext.bassClefSymbol).font(bassClefFont),
+            at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 0.6, y: layout.bassClefY),
+            anchor: .leading
         )
 
-        if let keySignatureText = staffContext.keySignatureText, keySignatureText.isEmpty == false {
-            context.draw(
-                Text(keySignatureText).font(.system(size: layout.lineSpacing * 1.2)),
-                at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 3.2, y: trebleCenterY)
+        // Key signature and time signature are drawn on both staves for grand staff.
+        let keyMinX = layout.contextMinX + layout.lineSpacing * 3.1
+        let timeMinXBase = layout.contextMinX + layout.lineSpacing * 5.8
+
+        if let fifths = staffContext.keySignatureFifths, fifths != 0 {
+            let keyAdvanceTreble = drawKeySignature(
+                fifths: fifths,
+                staffNumber: 1,
+                xStart: keyMinX,
+                font: keySignatureFont,
+                in: context,
+                layout: layout
             )
+            _ = drawKeySignature(
+                fifths: fifths,
+                staffNumber: 2,
+                xStart: keyMinX,
+                font: keySignatureFont,
+                in: context,
+                layout: layout
+            )
+
+            let timeMinX = max(timeMinXBase, keyMinX + keyAdvanceTreble + layout.lineSpacing * 0.8)
+            drawTimeSignature(
+                text: staffContext.timeSignatureText,
+                staffNumber: 1,
+                xStart: timeMinX,
+                centerY: trebleKeyCenterY,
+                font: timeSignatureFont,
+                in: context,
+                layout: layout
+            )
+            drawTimeSignature(
+                text: staffContext.timeSignatureText,
+                staffNumber: 2,
+                xStart: timeMinX,
+                centerY: bassKeyCenterY,
+                font: timeSignatureFont,
+                in: context,
+                layout: layout
+            )
+        } else {
+            drawTimeSignature(
+                text: staffContext.timeSignatureText,
+                staffNumber: 1,
+                xStart: timeMinXBase,
+                centerY: trebleKeyCenterY,
+                font: timeSignatureFont,
+                in: context,
+                layout: layout
+            )
+            drawTimeSignature(
+                text: staffContext.timeSignatureText,
+                staffNumber: 2,
+                xStart: timeMinXBase,
+                centerY: bassKeyCenterY,
+                font: timeSignatureFont,
+                in: context,
+                layout: layout
+            )
+        }
+    }
+
+    private func drawKeySignature(
+        fifths: Int,
+        staffNumber: Int,
+        xStart: CGFloat,
+        font: Font,
+        in context: GraphicsContext,
+        layout: GrandStaffNotationViewportLayoutService.Layout
+    ) -> CGFloat {
+        let clamped = max(-7, min(7, fifths))
+        guard clamped != 0 else { return 0 }
+
+        let stepsTrebleSharps: [Int] = [8, 5, 2, 6, 3, 7, 4]
+        let stepsTrebleFlats: [Int] = [4, 7, 3, 6, 2, 5, 8]
+
+        // Bass clef is shifted down by a fifth relative to treble for key signature placement.
+        // Using common engraving placements: sharps -> [6, 3, 7, 4, 8, 5, 9], flats -> [2, 5, 1, 4, 0, 3, -1]
+        let stepsBassSharps: [Int] = [6, 3, 7, 4, 8, 5, 9]
+        let stepsBassFlats: [Int] = [2, 5, 1, 4, 0, 3, -1]
+
+        let isSharp = clamped > 0
+        let count = abs(clamped)
+        let glyph = isSharp ? "\u{E262}" : "\u{E260}"
+
+        let steps: [Int]
+        if staffNumber >= 2 {
+            steps = isSharp ? stepsBassSharps : stepsBassFlats
+        } else {
+            steps = isSharp ? stepsTrebleSharps : stepsTrebleFlats
         }
 
-        if let timeSignatureText = staffContext.timeSignatureText, timeSignatureText.isEmpty == false {
+        let xStride = layout.lineSpacing * 0.78
+        for i in 0..<min(count, steps.count) {
+            let y = layout.yPosition(staffStep: steps[i], staffNumber: staffNumber)
             context.draw(
-                Text(timeSignatureText).font(.system(size: layout.lineSpacing * 1.2, weight: .semibold)),
-                at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 5.6, y: trebleCenterY)
+                Text(glyph).font(font),
+                at: CGPoint(x: xStart + CGFloat(i) * xStride, y: y),
+                anchor: .leading
             )
         }
+        return CGFloat(min(count, steps.count)) * xStride
+    }
+
+    private func drawTimeSignature(
+        text: String?,
+        staffNumber: Int,
+        xStart: CGFloat,
+        centerY: CGFloat,
+        font: Font,
+        in context: GraphicsContext,
+        layout: GrandStaffNotationViewportLayoutService.Layout
+    ) {
+        guard let text, text.isEmpty == false else { return }
+
+        // Prefer professional, stacked SMuFL time signature digits.
+        // Supports common forms like "4/4", "3/4", "6/8". Falls back to raw text.
+        let parts = text.split(separator: "/")
+        guard parts.count == 2, let top = Int(parts[0]), let bottom = Int(parts[1]) else {
+            context.draw(Text(text).font(font), at: CGPoint(x: xStart, y: centerY), anchor: .leading)
+            return
+        }
+
+        func digitGlyph(_ digit: Int) -> String? {
+            guard (0...9).contains(digit) else { return nil }
+            let scalar = UnicodeScalar(0xE080 + digit)!
+            return String(scalar)
+        }
+
+        func glyphString(for number: Int) -> String? {
+            let digits = String(number).compactMap { Int(String($0)) }
+            guard digits.isEmpty == false else { return nil }
+            let glyphs = digits.compactMap(digitGlyph)
+            guard glyphs.count == digits.count else { return nil }
+            return glyphs.joined()
+        }
+
+        guard let topGlyphs = glyphString(for: top), let bottomGlyphs = glyphString(for: bottom) else {
+            context.draw(Text(text).font(font), at: CGPoint(x: xStart, y: centerY), anchor: .leading)
+            return
+        }
+
+        let vOffset = layout.lineSpacing * 0.78
+        context.draw(Text(topGlyphs).font(font), at: CGPoint(x: xStart, y: centerY - vOffset), anchor: .leading)
+        context.draw(Text(bottomGlyphs).font(font), at: CGPoint(x: xStart, y: centerY + vOffset), anchor: .leading)
     }
 
     private func drawBarlines(
         _ barlines: [GrandStaffNotationBarline],
         in context: GraphicsContext,
-        layout: GrandStaffViewLayout
+        layout: GrandStaffNotationViewportLayoutService.Layout
     ) {
         guard barlines.isEmpty == false else { return }
 
@@ -102,7 +258,7 @@ struct GrandStaffNotationView: View {
     private func drawItems(
         _ items: [GrandStaffNotationItem],
         in context: GraphicsContext,
-        layout: GrandStaffViewLayout
+        layout: GrandStaffNotationViewportLayoutService.Layout
     ) {
         guard items.isEmpty == false else { return }
 
@@ -122,12 +278,242 @@ struct GrandStaffNotationView: View {
         }
     }
 
+    private func drawStems(
+        _ chords: [GrandStaffNotationChord],
+        beamedChordIDs: Set<String>,
+        itemsByChordID: [String: [GrandStaffNotationItem]],
+        in context: GraphicsContext,
+        layout: GrandStaffNotationViewportLayoutService.Layout
+    ) {
+        let stemStroke = StrokeStyle(lineWidth: max(1, layout.lineSpacing * 0.14), lineCap: .round)
+        let defaultStemLength = layout.lineSpacing * 3.2
+
+        for chord in chords {
+            if beamedChordIDs.contains(chord.id) { continue }
+            guard chord.noteValue != .whole else { continue }
+            guard let chordItems = itemsByChordID[chord.id], chordItems.isEmpty == false else { continue }
+
+            let stem = resolvedStemGeometry(
+                chord: chord,
+                chordItems: chordItems,
+                stemLength: defaultStemLength,
+                layout: layout
+            )
+
+            var path = Path()
+            path.move(to: stem.start)
+            path.addLine(to: stem.end)
+            context.stroke(path, with: .color(Color.primary.opacity(0.45)), style: stemStroke)
+
+            if chord.noteValue == .eighth || chord.noteValue == .sixteenth || chord.noteValue == .thirtySecond {
+                drawFlag(stemEnd: stem.end, direction: chord.stemDirection, in: context, layout: layout)
+            }
+        }
+    }
+
+    private func drawBeams(
+        _ beams: [GrandStaffNotationBeam],
+        chordsByID: [String: GrandStaffNotationChord],
+        itemsByChordID: [String: [GrandStaffNotationItem]],
+        in context: GraphicsContext,
+        layout: GrandStaffNotationViewportLayoutService.Layout
+    ) {
+        guard beams.isEmpty == false else { return }
+
+        let stemStroke = StrokeStyle(lineWidth: max(1, layout.lineSpacing * 0.14), lineCap: .round)
+        let beamStroke = StrokeStyle(lineWidth: max(2, layout.lineSpacing * 0.42), lineCap: .butt)
+        let defaultStemLength = layout.lineSpacing * 3.2
+        let beamGap = max(1.2, layout.lineSpacing * 0.28)
+        let beamStackStride = beamStroke.lineWidth + beamGap
+        let minStemLength = layout.lineSpacing * 2.6
+
+        for beam in beams {
+            let chords = beam.chordIDs.compactMap { chordsByID[$0] }.sorted { $0.xPosition < $1.xPosition }
+            guard chords.count >= 2 else { continue }
+
+            let direction = chords.first?.stemDirection ?? .up
+
+            var stemByChordID: [String: (start: CGPoint, end: CGPoint)] = [:]
+            stemByChordID.reserveCapacity(chords.count)
+
+            for chord in chords {
+                guard let chordItems = itemsByChordID[chord.id], chordItems.isEmpty == false else { continue }
+                let stem = resolvedStemGeometry(
+                    chord: chord,
+                    chordItems: chordItems,
+                    stemLength: defaultStemLength,
+                    layout: layout
+                )
+                stemByChordID[chord.id] = (start: stem.start, end: stem.end)
+            }
+
+            guard let firstChord = chords.first, let lastChord = chords.last else { continue }
+            guard let firstStem = stemByChordID[firstChord.id], let lastStem = stemByChordID[lastChord.id] else { continue }
+
+            let x1 = firstStem.end.x
+            let xN = lastStem.end.x
+            let span = max(1, abs(xN - x1))
+
+            let rawDeltaY = lastStem.end.y - firstStem.end.y
+            let maxDeltaY = layout.lineSpacing * 1.5
+            let clampedDeltaY = max(-maxDeltaY, min(maxDeltaY, rawDeltaY))
+            let slope = clampedDeltaY / span
+
+            func yOnBeam(at x: CGFloat, offset: CGFloat) -> CGFloat {
+                firstStem.end.y + slope * (x - x1) + offset
+            }
+
+            // Shift the beam so every stem is at least `minStemLength`,
+            // and maintain a small clearance from the nearest notehead.
+            let noteheadClearance = layout.lineSpacing * 0.8
+            var requiredOffset: CGFloat = 0
+
+            for chord in chords {
+                guard let stem = stemByChordID[chord.id] else { continue }
+                let chordBeamY = yOnBeam(at: stem.end.x, offset: 0)
+
+                if direction == .up {
+                    let allowedMaxY = stem.start.y - minStemLength
+                    if chordBeamY > allowedMaxY {
+                        requiredOffset = min(requiredOffset, allowedMaxY - chordBeamY)
+                    }
+                    let clearanceMaxY = stem.start.y - noteheadClearance
+                    if chordBeamY > clearanceMaxY {
+                        requiredOffset = min(requiredOffset, clearanceMaxY - chordBeamY)
+                    }
+                } else {
+                    let allowedMinY = stem.start.y + minStemLength
+                    if chordBeamY < allowedMinY {
+                        requiredOffset = max(requiredOffset, allowedMinY - chordBeamY)
+                    }
+                    let clearanceMinY = stem.start.y + noteheadClearance
+                    if chordBeamY < clearanceMinY {
+                        requiredOffset = max(requiredOffset, clearanceMinY - chordBeamY)
+                    }
+                }
+            }
+
+            let firstX = x1
+            let lastX = xN
+
+            // Primary beam: the one furthest from the noteheads.
+            var primaryPath = Path()
+            primaryPath.move(to: CGPoint(x: firstX, y: yOnBeam(at: firstX, offset: requiredOffset)))
+            primaryPath.addLine(to: CGPoint(x: lastX, y: yOnBeam(at: lastX, offset: requiredOffset)))
+            context.stroke(primaryPath, with: .color(Color.primary.opacity(0.42)), style: beamStroke)
+
+            // Secondary / tertiary beams: segmented based on each chord's rhythmic value.
+            if beam.beamCount >= 2 {
+                let levels = 2...beam.beamCount
+                for level in levels {
+                    let stride = CGFloat(level - 1) * beamStackStride
+                    let secondaryOffset = (direction == .up) ? (requiredOffset + stride) : (requiredOffset - stride)
+
+                    var activeSegment: [GrandStaffNotationChord] = []
+
+                    func flushSegment() {
+                        guard activeSegment.count >= 2 else {
+                            activeSegment.removeAll(keepingCapacity: true)
+                            return
+                        }
+                        let firstChord = activeSegment.first
+                        let lastChord = activeSegment.last
+                        let startX = firstChord.flatMap { stemByChordID[$0.id]?.end.x } ?? layout.xPosition(firstChord?.xPosition ?? 0)
+                        let endX = lastChord.flatMap { stemByChordID[$0.id]?.end.x } ?? layout.xPosition(lastChord?.xPosition ?? 0)
+                        var path = Path()
+                        path.move(to: CGPoint(x: startX, y: yOnBeam(at: startX, offset: secondaryOffset)))
+                        path.addLine(to: CGPoint(x: endX, y: yOnBeam(at: endX, offset: secondaryOffset)))
+                        context.stroke(path, with: .color(Color.primary.opacity(0.42)), style: beamStroke)
+                        activeSegment.removeAll(keepingCapacity: true)
+                    }
+
+                    for chord in chords {
+                        if chordBeamCount(for: chord.noteValue) >= level {
+                            activeSegment.append(chord)
+                        } else {
+                            flushSegment()
+                        }
+                    }
+                    flushSegment()
+                }
+            }
+
+            for chord in chords {
+                guard let stem = stemByChordID[chord.id] else { continue }
+                let adjustedEnd = CGPoint(x: stem.end.x, y: yOnBeam(at: stem.end.x, offset: requiredOffset))
+                var path = Path()
+                path.move(to: stem.start)
+                path.addLine(to: adjustedEnd)
+                context.stroke(path, with: .color(Color.primary.opacity(0.45)), style: stemStroke)
+            }
+        }
+    }
+
+    private func chordBeamCount(for noteValue: GrandStaffNoteValue) -> Int {
+        switch noteValue {
+            case .eighth:
+                return 1
+            case .sixteenth:
+                return 2
+            case .thirtySecond:
+                return 3
+            default:
+                return 0
+        }
+    }
+
+    private func drawFlag(
+        stemEnd: CGPoint,
+        direction: GrandStaffStemDirection,
+        in context: GraphicsContext,
+        layout: GrandStaffNotationViewportLayoutService.Layout
+    ) {
+        let dx = layout.noteWidth * 0.55
+        let dy = layout.noteHeight * 0.85
+        let stroke = StrokeStyle(lineWidth: max(1, layout.lineSpacing * 0.14), lineCap: .round)
+
+        var path = Path()
+        if direction == .up {
+            path.move(to: stemEnd)
+            path.addLine(to: CGPoint(x: stemEnd.x + dx, y: stemEnd.y + dy))
+        } else {
+            path.move(to: stemEnd)
+            path.addLine(to: CGPoint(x: stemEnd.x + dx, y: stemEnd.y - dy))
+        }
+        context.stroke(path, with: .color(Color.primary.opacity(0.45)), style: stroke)
+    }
+
+    private func resolvedStemGeometry(
+        chord: GrandStaffNotationChord,
+        chordItems: [GrandStaffNotationItem],
+        stemLength: CGFloat,
+        layout: GrandStaffNotationViewportLayoutService.Layout
+    ) -> (start: CGPoint, end: CGPoint) {
+        let x = layout.xPosition(chord.xPosition)
+        let steps = chordItems.map(\.staffStep)
+        let staffNumber = chordItems.first?.staffNumber ?? 1
+
+        if chord.stemDirection == .up {
+            let topStep = steps.max() ?? 4
+            let startY = layout.yPosition(staffStep: topStep, staffNumber: staffNumber)
+            let startX = x + layout.noteWidth * 0.46
+            let end = CGPoint(x: startX, y: startY - stemLength)
+            return (CGPoint(x: startX, y: startY), end)
+        } else {
+            let bottomStep = steps.min() ?? 4
+            let startY = layout.yPosition(staffStep: bottomStep, staffNumber: staffNumber)
+            let startX = x - layout.noteWidth * 0.46
+            let end = CGPoint(x: startX, y: startY + stemLength)
+            return (CGPoint(x: startX, y: startY), end)
+        }
+    }
+
     private func drawNoteHead(
         item: GrandStaffNotationItem,
         x: CGFloat,
         y: CGFloat,
         in context: GraphicsContext,
-        layout: GrandStaffViewLayout
+        layout: GrandStaffNotationViewportLayoutService.Layout
     ) {
         let rect = CGRect(
             x: x - layout.noteWidth / 2,
@@ -142,73 +528,9 @@ struct GrandStaffNotationView: View {
         context.fill(path, with: .color(fillColor))
 
         if item.showsSharpAccidental {
-            let accidental = Text("♯").font(.system(size: layout.lineSpacing * 1.0))
+            let accidental = Text("\u{E262}").font(.custom("Bravura", size: layout.lineSpacing * 1.05))
             context.draw(accidental, at: CGPoint(x: x - layout.noteWidth * 1.0, y: y))
         }
-    }
-}
-
-private struct GrandStaffViewLayout {
-    let size: CGSize
-    let context: GrandStaffNotationContext?
-
-    init(size: CGSize, context: GrandStaffNotationContext?) {
-        self.size = size
-        self.context = context
-    }
-
-    var lineSpacing: CGFloat {
-        max(10, min(18, size.height * 0.085))
-    }
-
-    var noteWidth: CGFloat {
-        lineSpacing * 1.05
-    }
-
-    var noteHeight: CGFloat {
-        lineSpacing * 0.70
-    }
-
-    var contextMinX: CGFloat {
-        4
-    }
-
-    var contextWidth: CGFloat {
-        lineSpacing * 7.0
-    }
-
-    var contentMinX: CGFloat {
-        contextMinX + contextWidth
-    }
-
-    var contentMaxX: CGFloat {
-        min(size.width - 18, size.width * 0.96)
-    }
-
-    var trebleTopLineY: CGFloat {
-        size.height * 0.10
-    }
-
-    var trebleBottomLineY: CGFloat {
-        trebleTopLineY + lineSpacing * 4
-    }
-
-    var bassTopLineY: CGFloat {
-        trebleBottomLineY + lineSpacing * 2.8
-    }
-
-    var bassBottomLineY: CGFloat {
-        bassTopLineY + lineSpacing * 4
-    }
-
-    func xPosition(_ normalized: Double) -> CGFloat {
-        let clamped = max(-0.2, min(1.2, normalized))
-        return contentMinX + CGFloat(clamped) * (contentMaxX - contentMinX)
-    }
-
-    func yPosition(staffStep: Int, staffNumber: Int) -> CGFloat {
-        let bottomLineY = (staffNumber >= 2) ? bassBottomLineY : trebleBottomLineY
-        return bottomLineY - CGFloat(staffStep) * lineSpacing / 2
     }
 }
 
@@ -219,6 +541,6 @@ private struct GrandStaffViewLayout {
         measureSpans: [],
         context: GrandStaffNotationContext()
     )
-    .frame(width: 800, height: 180)
+    .frame(width: 800, height: 260)
     .padding()
 }
