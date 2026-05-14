@@ -70,9 +70,11 @@ struct GrandStaffNotationView: View {
         guard let staffContext = layout.context else { return }
 
         let trebleKeyCenterY = layout.yPosition(staffStep: 4, staffNumber: 1)
+        let bassKeyCenterY = layout.yPosition(staffStep: 4, staffNumber: 2)
         let trebleClefFont = Font.custom("Bravura", size: layout.trebleClefFontSize)
         let bassClefFont = Font.custom("Bravura", size: layout.bassClefFontSize)
         let keySignatureFont = Font.custom("Bravura", size: layout.keySignatureFontSize)
+        let timeSignatureFont = Font.custom("Bravura", size: layout.timeSignatureFontSize)
 
         context.draw(
             Text(staffContext.trebleClefSymbol).font(trebleClefFont),
@@ -85,21 +87,162 @@ struct GrandStaffNotationView: View {
             anchor: .leading
         )
 
-        if let keySignatureText = staffContext.keySignatureText, keySignatureText.isEmpty == false {
-            context.draw(
-                Text(keySignatureText).font(keySignatureFont),
-                at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 3.2, y: trebleKeyCenterY),
-                anchor: .leading
+        // Key signature and time signature are drawn on both staves for grand staff.
+        let keyMinX = layout.contextMinX + layout.lineSpacing * 3.1
+        let timeMinXBase = layout.contextMinX + layout.lineSpacing * 5.8
+
+        if let fifths = staffContext.keySignatureFifths, fifths != 0 {
+            let keyAdvanceTreble = drawKeySignature(
+                fifths: fifths,
+                staffNumber: 1,
+                xStart: keyMinX,
+                font: keySignatureFont,
+                in: context,
+                layout: layout
             )
+            _ = drawKeySignature(
+                fifths: fifths,
+                staffNumber: 2,
+                xStart: keyMinX,
+                font: keySignatureFont,
+                in: context,
+                layout: layout
+            )
+
+            let timeMinX = max(timeMinXBase, keyMinX + keyAdvanceTreble + layout.lineSpacing * 0.8)
+            drawTimeSignature(
+                text: staffContext.timeSignatureText,
+                staffNumber: 1,
+                xStart: timeMinX,
+                centerY: trebleKeyCenterY,
+                font: timeSignatureFont,
+                in: context,
+                layout: layout
+            )
+            drawTimeSignature(
+                text: staffContext.timeSignatureText,
+                staffNumber: 2,
+                xStart: timeMinX,
+                centerY: bassKeyCenterY,
+                font: timeSignatureFont,
+                in: context,
+                layout: layout
+            )
+        } else {
+            drawTimeSignature(
+                text: staffContext.timeSignatureText,
+                staffNumber: 1,
+                xStart: timeMinXBase,
+                centerY: trebleKeyCenterY,
+                font: timeSignatureFont,
+                in: context,
+                layout: layout
+            )
+            drawTimeSignature(
+                text: staffContext.timeSignatureText,
+                staffNumber: 2,
+                xStart: timeMinXBase,
+                centerY: bassKeyCenterY,
+                font: timeSignatureFont,
+                in: context,
+                layout: layout
+            )
+        }
+    }
+
+    private func drawKeySignature(
+        fifths: Int,
+        staffNumber: Int,
+        xStart: CGFloat,
+        font: Font,
+        in context: GraphicsContext,
+        layout: GrandStaffNotationViewportLayoutService.Layout
+    ) -> CGFloat {
+        let clamped = max(-7, min(7, fifths))
+        guard clamped != 0 else { return 0 }
+
+        let stepsTrebleSharps: [Int] = [8, 5, 2, 6, 3, 7, 4]
+        let stepsTrebleFlats: [Int] = [4, 7, 3, 6, 2, 5, 8]
+
+        // Bass clef is shifted down by a fifth relative to treble for key signature placement.
+        // Using common engraving placements: sharps -> [6, 3, 7, 4, 8, 5, 9], flats -> [2, 5, 1, 4, 0, 3, -1]
+        let stepsBassSharps: [Int] = [6, 3, 7, 4, 8, 5, 9]
+        let stepsBassFlats: [Int] = [2, 5, 1, 4, 0, 3, -1]
+
+        let isSharp = clamped > 0
+        let count = abs(clamped)
+        let glyph = isSharp ? "\u{E262}" : "\u{E260}"
+
+        let steps: [Int]
+        if staffNumber >= 2 {
+            steps = isSharp ? stepsBassSharps : stepsBassFlats
+        } else {
+            steps = isSharp ? stepsTrebleSharps : stepsTrebleFlats
         }
 
-        if let timeSignatureText = staffContext.timeSignatureText, timeSignatureText.isEmpty == false {
+        let xStride = layout.lineSpacing * 0.78
+        for i in 0..<min(count, steps.count) {
+            let y = layout.yPosition(staffStep: steps[i], staffNumber: staffNumber)
             context.draw(
-                Text(timeSignatureText).font(.system(size: layout.timeSignatureFontSize, weight: .semibold)),
-                at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 5.6, y: trebleKeyCenterY),
+                Text(glyph).font(font),
+                at: CGPoint(x: xStart + CGFloat(i) * xStride, y: y),
                 anchor: .leading
             )
         }
+        return CGFloat(min(count, steps.count)) * xStride
+    }
+
+    private func drawTimeSignature(
+        text: String?,
+        staffNumber: Int,
+        xStart: CGFloat,
+        centerY: CGFloat,
+        font: Font,
+        in context: GraphicsContext,
+        layout: GrandStaffNotationViewportLayoutService.Layout
+    ) {
+        guard let text, text.isEmpty == false else { return }
+
+        // Prefer professional, stacked SMuFL time signature digits.
+        // Supports common forms like "4/4", "3/4", "6/8". Falls back to raw text.
+        let parts = text.split(separator: "/")
+        guard parts.count == 2, let top = Int(parts[0]), let bottom = Int(parts[1]) else {
+            context.draw(Text(text).font(font), at: CGPoint(x: xStart, y: centerY), anchor: .leading)
+            return
+        }
+
+        if top == 4, bottom == 4 {
+            // Common time glyph.
+            context.draw(
+                Text("\u{E08A}").font(font),
+                at: CGPoint(x: xStart, y: centerY),
+                anchor: .leading
+            )
+            return
+        }
+
+        func digitGlyph(_ digit: Int) -> String? {
+            guard (0...9).contains(digit) else { return nil }
+            let scalar = UnicodeScalar(0xE080 + digit)!
+            return String(scalar)
+        }
+
+        func glyphString(for number: Int) -> String? {
+            let digits = String(number).compactMap { Int(String($0)) }
+            guard digits.isEmpty == false else { return nil }
+            let glyphs = digits.compactMap(digitGlyph)
+            guard glyphs.count == digits.count else { return nil }
+            return glyphs.joined()
+        }
+
+        guard let topGlyphs = glyphString(for: top), let bottomGlyphs = glyphString(for: bottom) else {
+            context.draw(Text(text).font(font), at: CGPoint(x: xStart, y: centerY), anchor: .leading)
+            return
+        }
+
+        let vOffset = layout.lineSpacing * 0.78
+        context.draw(Text(topGlyphs).font(font), at: CGPoint(x: xStart, y: centerY - vOffset), anchor: .leading)
+        context.draw(Text(bottomGlyphs).font(font), at: CGPoint(x: xStart, y: centerY + vOffset), anchor: .leading)
     }
 
     private func drawBarlines(
@@ -395,7 +538,7 @@ struct GrandStaffNotationView: View {
         context.fill(path, with: .color(fillColor))
 
         if item.showsSharpAccidental {
-            let accidental = Text("♯").font(.system(size: layout.lineSpacing * 1.0))
+            let accidental = Text("\u{E262}").font(.custom("Bravura", size: layout.lineSpacing * 1.05))
             context.draw(accidental, at: CGPoint(x: x - layout.noteWidth * 1.0, y: y))
         }
     }
