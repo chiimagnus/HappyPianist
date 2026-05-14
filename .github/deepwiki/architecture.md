@@ -30,8 +30,10 @@ LonelyPianist 由三条运行面组成：macOS 负责 MIDI 输入采集、映射
 | `BonjourBackendDiscoveryService` | mDNS browse results | resolved host/port 或 denied/failed | `start`, `resolveHostPort` |
 | `ImprovBackendClient` | HTTP `GenerateRequest` | `ResultResponse` / error | URL 构造、解码与错误映射 |
 | `PhraseRecorder` | note on/off + 时间 | phrase notes（用于后端输入） | 录制窗口与边界条件 |
-| `PracticeSessionViewModel` | finger tips + steps | matching / autoplay | `handleFingerTipPositions` |
+| `MusicXMLHandRouter` | `MusicXMLScore`（可能缺失 staff） | routed `MusicXMLScore`（单谱表自动补 staff=1/2） | 阈值策略、只对单谱表生效的边界 |
+| `PracticeSessionViewModel` | finger tips / MIDI events + steps（含左右手） | matching / autoplay / notation context | `handleFingerTipPositions`、按手分别匹配的 gate |
 | `PianoGuideOverlayController` | `PracticeStep`, `PianoKeyboardGeometry` | RealityKit 贴皮高亮实体 | key-top decal、`KeyDecalSoftRect`、keyboard-local transform |
+| `GrandStaffNotationLayoutService` | `PianoHighlightGuide[]` + measure spans + context | `GrandStaffNotationLayout`（双谱表 items + barlines） | staff routing、x/y 坐标映射、可读性与性能 |
 | `GazePlaneHitTestService` | gaze ray + planes | `PlaneHit?` | 命中选择策略与阈值 |
 | `GazePlaneDiskConfirmationViewModel` | `PlaneHit` + palm centers | progress + confirmed | 抗抖动阈值、确认时序 |
 | `VirtualKeyboardPoseService` | plane pose + hand center + device pose | `worldFromKeyboard` | 键盘朝向与中心对齐 |
@@ -97,10 +99,12 @@ flowchart LR
 | `SongLibraryIndex` / `SongLibraryEntry` | AVP models | 曲库索引 |
 | `StoredWorldAnchorCalibration` | AVP models | 校准持久化 |
 | `PracticeStep` / `PracticeStepNote` | AVP models | 练习数据 |
+| `ScoreHand` | AVP models | 左右手语义（由 staff 推导；贯穿 step/guide/高亮/判定） |
 | `PracticeInputEvent` | AVP models | BLE MIDI 练习输入事件（G1 channel voice） |
 | `RecordingTake` / `RecordingTakeEvent` | AVP models | Take 录制产物（事件列表 + 元数据） |
 | `PianoModeProtocol` | AVP services | 钢琴模式能力契约（id、卡片、准入、工厂） |
 | `DataProviderState` | AR tracking | provider 可用性 |
+| `GrandStaffNotationLayout` / `GrandStaffNotationContext` | AVP models | 双谱表五线谱渲染契约（上下谱表 + barline + context） |
 
 ## 扩展点
 - macOS：可在 `RoutedMIDIPlaybackService` 下扩展回放后端。
@@ -116,8 +120,11 @@ flowchart LR
 | `CoreMIDIInputService` | Swift 6.2 捕获规则、CoreMIDI source 生命周期 | macOS tests |
 | `AppState.resolveRuntimeCalibrationFromTrackedAnchors` | Step 3 定位失败 | AVP tests + 手工校准 |
 | `SongLibraryViewModel.importMusicXML / deleteEntry / bindAudio` | 曲库 index 和文件副本漂移 | AVP library tests |
+| `MusicXMLHandRouter.routeIfNeeded` | 单谱表 staff/左右手路由漂移，影响五线谱/高亮/判定 | AVP tests + 手工导入验证 |
 | `PracticeSessionViewModel.startAutoplayTaskIfNeeded` | 自动演奏、step 推进联动 | AVP practice tests |
+| `AudioStepAttemptAccumulator.evaluateHandSeparated` / `ChordAttemptAccumulator.registerHandSeparated` | “按手分别满足”语义漂移（音频/MIDI/press 三输入必须一致） | AVP practice tests |
 | `PianoGuideOverlayController.updateHighlights` | 贴皮位置、大小、材质、生命周期 | AVP tests + Vision Pro 手工观察 |
+| `GrandStaffNotationLayoutService.makeLayout` | 五线谱渲染错位、staff 分配错误、性能退化 | AVP tests + 手工观察 |
 | `KeyContactDetectionService.detect` | 迟滞阈值、黑键优先、started/ended delta | VirtualPianoTests + Vision Pro 手工验证 |
 | `ARGuideViewModel.updateGazePlaneDiskGuidance` | 平面命中/确认阈值/WorldAnchor 复用导致键盘漂移 | AVP tests + 真机放置验证 |
 | `piano_dialogue_server/server/engines/model_inference.py::_patch_safe_logits` | 推理结果和异常恢复 | Python smoke scripts |
@@ -136,3 +143,4 @@ flowchart LR
 - 2026-05-06: 同步 Python 生成侧引入第三策略（`rule`）后的架构图表达（FastAPI -> strategy router -> engines）。
 - 2026-05-10: 同步 AVP 主流程重构：以 `AppRouter.route` 做 root 切换，引入 `FlowState` 持有曲目/steps 与钢琴类型，`AppState` 聚合 tracking/runtime calibration；移除旧的 `ContentView/HomeViewModel/AppModel` 主流程表达。
 - 2026-05-13: 组件边界表新增 `PianoModeRegistryService`、`BluetoothMIDIInputEventSourceService`、`MIDIRecordingAdapter`、`RecordingTakeStore`、`TakePlaybackController`；依赖图新增 PianoMode 注册表与 BLE MIDI 录制链路。
+- 2026-05-14: 同步 AVP “左右手”能力：MusicXML 单谱表自动补 staff、`ScoreHand` 贯穿 step/guide/高亮；五线谱迁移为 `GrandStaffNotationView`；新增“练习判定：左右手分别满足”可选 gate（默认关闭）。

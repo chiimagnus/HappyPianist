@@ -6,10 +6,16 @@ import simd
 @MainActor
 @Observable
 final class PracticeSessionViewModel {
+    nonisolated static let practiceHandSeparatedStepMatchingEnabledKey = "practiceHandSeparatedStepMatchingEnabled"
+
     let decisionLogger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
         category: "Step3AudioDecision"
     )
+
+    var isHandSeparatedStepMatchingEnabled: Bool {
+        UserDefaults.standard.bool(forKey: Self.practiceHandSeparatedStepMatchingEnabledKey)
+    }
 
     static func durationSeconds(_ duration: Duration) -> TimeInterval {
         let components = duration.components
@@ -223,34 +229,29 @@ final class PracticeSessionViewModel {
         measureSpans
     }
 
-    var currentNotationContext: ScrollingStaffNotationContext? {
+    var currentGrandStaffNotationContext: GrandStaffNotationContext? {
         guard let attributeTimeline else { return nil }
+
         let tick = currentPianoHighlightGuide?.tick ?? currentStep?.tick ?? 0
-        let staffNumber = currentNotationStaffNumber
-        let clefSymbol = attributeTimeline.clef(atTick: tick, staffNumber: staffNumber)
-            .flatMap { Self.notationClefSymbol(for: $0) } ?? (staffNumber == 2 ? "𝄢" : "𝄞")
+
+        let trebleClef = attributeTimeline.clef(atTick: tick, staffNumber: 1)
+            .flatMap { Self.notationClefSymbol(for: $0) } ?? "𝄞"
+        let bassClef = attributeTimeline.clef(atTick: tick, staffNumber: 2)
+            .flatMap { Self.notationClefSymbol(for: $0) } ?? "𝄢"
+
         let keySignatureEvent = attributeTimeline.keySignature(atTick: tick)
         let keySignatureText = keySignatureEvent
             .flatMap { Self.notationKeySignatureText(fifths: $0.fifths) }
         let keySignatureFifths = keySignatureEvent?.fifths
         let timeSignatureText = attributeTimeline.timeSignature(atTick: tick).map { "\($0.beats)/\($0.beatType)" }
 
-        return ScrollingStaffNotationContext(
-            clefSymbol: clefSymbol,
+        return GrandStaffNotationContext(
+            trebleClefSymbol: trebleClef,
+            bassClefSymbol: bassClef,
             keySignatureText: keySignatureText,
             keySignatureFifths: keySignatureFifths,
             timeSignatureText: timeSignatureText
         )
-    }
-
-    private var currentNotationStaffNumber: Int {
-        guard let currentPianoHighlightGuide else { return 1 }
-        let notes = currentPianoHighlightGuide.triggeredNotes + currentPianoHighlightGuide.activeNotes
-        let staffNumbers = Set(notes.compactMap(\.staff))
-        if staffNumbers.count == 1, let staffNumber = staffNumbers.first {
-            return staffNumber
-        }
-        return 1
     }
 
     private static func clefToken(for event: MusicXMLClefEvent) -> String? {
@@ -626,6 +627,21 @@ final class PracticeSessionViewModel {
 
     func uniqueMIDINotes(in step: PracticeStep) -> [Int] {
         Set(step.notes.map(\.midiNote)).sorted()
+    }
+
+    func uniqueMIDINotesByHand(in step: PracticeStep) -> (right: [Int], left: [Int]) {
+        var right: Set<Int> = []
+        var left: Set<Int> = []
+
+        for note in step.notes {
+            if note.hand == .left {
+                left.insert(note.midiNote)
+            } else {
+                right.insert(note.midiNote)
+            }
+        }
+
+        return (right: right.sorted(), left: left.sorted())
     }
 
     func recordPlaybackError(_ error: Error) {

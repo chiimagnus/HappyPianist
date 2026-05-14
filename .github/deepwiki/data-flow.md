@@ -39,8 +39,9 @@ sequenceDiagram
 | --- | --- | --- | --- |
 | Step 1 校准 | A0：左手食指输入 + 右手捏合；C8：右手食指输入 + 左手捏合 | `CalibrationPointCaptureService` | `StoredWorldAnchorCalibration` |
 | Step 2 选曲 | MusicXML / mp3 / m4a | `SongLibraryViewModel` | `SongLibraryIndex` |
-| MusicXML 处理 | score XML | `MusicXMLParser`, `PracticeStepBuilder`, `MusicXMLRealisticPlaybackDefaults` | `PracticeStep[]` + timelines + expressivity options |
+| MusicXML 处理 | score XML | `MusicXMLParser` → `MusicXMLHandRouter` → `PracticeStepBuilder` + `MusicXMLRealisticPlaybackDefaults` | `PracticeStep[]`（含左右手）+ timelines + expressivity options |
 | Guide 构建 | score, steps, spans, expressivity | `PianoHighlightGuideBuilderService` | `PianoHighlightGuide[]` |
+| 五线谱渲染 | guides + measure spans + context | `GrandStaffNotationLayoutService` → `GrandStaffNotationView` | Grand staff（上下谱表 + barline + noteheads） |
 | Step 3 练习 | finger tips + steps + guides | `ARGuideViewModel`, `PracticeSessionViewModel`, `AutoplayPerformanceTimeline` | 匹配、autoplay |
 | 空间提示 | `PracticeStep.notes`, `PianoKeyboardGeometry` | `PianoGuideOverlayController` | RealityKit warm-gold key-top decals (`KeyDecalSoftRect`) |
 | 虚拟钢琴放置 | device gaze ray + horizontal planes + palm centers | `ARGuideViewModel`, `GazePlaneHitTestService`, `GazePlaneDiskConfirmationViewModel`, `VirtualKeyboardPoseService` | `worldFromKeyboard` transform |
@@ -62,6 +63,7 @@ sequenceDiagram
 | 匹配 | 当前 step 的和弦/音符匹配 | `currentStepIndex`, `ChordAttemptAccumulator` |
 | 贴皮高亮提示 | 当前 step 的 MIDI notes 映射到 keyboard-local footprint + key surface | `activeBeamEntitiesByMIDINote` |
 | Guide 构建 | 从 MusicXML 生成高亮引导 | `PianoHighlightGuide[]` |
+| 五线谱渲染 | 从 guides 生成双谱表 layout，并绘制 clef/key/time + barlines + noteheads | `currentGrandStaffNotationContext`, `GrandStaffNotationLayout.items` |
 | 自动演奏 | 由 `AutoplayPerformanceTimeline` 统一调度 note on/off、踏板、guide、step 和 fermata pause | `autoplayState` |
 | 前置检查 | autoplay 启动前严格检查 tempoMap、highlightGuides、pedalTimeline、fermataTimeline | `autoplayErrorMessage` |
 
@@ -96,6 +98,34 @@ flowchart TD
   E --> G[Create/update top-surface decal ModelEntity]
   G --> H[KeyDecalSoftRect + warm tint]
 ```
+
+### 左右手语义（ScoreHand）数据流
+
+左/右手语义当前由 staff 推导，并在“导入→steps→guides→高亮→匹配”全链路保持一致：
+
+```mermaid
+flowchart TD
+  A[MusicXML note.staff] -->|缺失且单谱表| B[MusicXMLHandRouter routeIfNeeded]
+  B --> C[score.notes staff=1/2]
+  C --> D[PracticeStepBuilder]
+  D --> E[PracticeStepNote.hand = ScoreHand.fromStaff]
+  C --> F[PianoHighlightGuideBuilderService]
+  F --> G[PianoHighlightNote.hand = ScoreHand.fromStaff]
+  G --> H[2D keyboard highlightColorByMIDINote]
+  G --> I[RealityKit overlay palette (left/right)]
+  E --> J[Practice matching expected notes by hand]
+```
+
+### “左右手分别满足”判定 gate 数据流
+
+当设置开关开启时，Step 通过判定要求 **右手 expected** 与 **左手 expected** 都分别满足（缺失某只手的 expected 视为已满足）。
+
+| 输入路径 | gate 入口 | 关键实现 |
+| --- | --- | --- |
+| press（实体钢琴手势） | `PracticeSessionViewModel.handleFingerTipPositions` | `ChordAttemptAccumulator.registerHandSeparated` |
+| press（虚拟钢琴触键） | `PracticeSessionViewModel.handleFingerTipPositions(isVirtualPiano: true)` | `ChordAttemptAccumulator.registerHandSeparated` |
+| 音频识别（RealAudio 模式） | `PracticeSessionViewModel+AudioRecognition` | `AudioStepAttemptAccumulator.evaluateHandSeparated` |
+| BLE MIDI（MIDI-only 模式） | `PracticeSessionViewModel+PracticeInput` | `AudioStepAttemptAccumulator.evaluateHandSeparated`（以 MIDI 事件构造 DetectedNoteEvent） |
 
 ## Python 数据流
 | 步骤 | 输入 | 处理 | 输出 |
@@ -179,3 +209,4 @@ flowchart TD
 - 2026-05-05: 同步 AVP Bonjour 自动发现 + HTTP `/generate` 与 Python `/upload-expand` 的数据流与协议骨架。
 - 2026-05-10: 同步 AVP 曲库与流程重构：移除 `SongLibrarySeeder`（内置曲目改为运行时合并展示），虚拟钢琴入口从”练习页开关”改为”钢琴类型选择 + 准备阶段放置”。
 - 2026-05-13: 新增 BLE MIDI 数据流（输入、练习推进、Take 录制/回放、Phrase 录制）；新增 BLE MIDI 故障恢复与调试抓手。
+- 2026-05-14: 同步 AVP 左右手语义数据流：单谱表 MusicXML 自动补 staff、`ScoreHand` 贯穿 step/guide/高亮；五线谱迁移为 `GrandStaffNotationView`；新增可选“左右手分别满足”判定 gate。

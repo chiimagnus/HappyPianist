@@ -83,13 +83,26 @@ extension PracticeSessionViewModel {
         let wrongMIDINotes = Set(makeWrongCandidateMIDINotesForPracticeInput(expectedMIDINotes))
 
         audioStepAttemptAccumulator.register(event: detected)
-        let matchResult = audioStepAttemptAccumulator.evaluate(
-            expectedMIDINotes: expectedMIDINotes,
-            wrongCandidateMIDINotes: wrongMIDINotes,
-            generation: practiceInputGeneration,
-            at: detected.timestamp,
-            handGateBoost: handGateState.isNearKeyboard || handGateState.hasDownwardMotion
-        )
+        let matchResult: StepAttemptMatchResult
+        if isHandSeparatedStepMatchingEnabled {
+            let expectedByHand = uniqueMIDINotesByHand(in: currentStep)
+            matchResult = audioStepAttemptAccumulator.evaluateHandSeparated(
+                expectedRightMIDINotes: expectedByHand.right,
+                expectedLeftMIDINotes: expectedByHand.left,
+                wrongCandidateMIDINotes: wrongMIDINotes,
+                generation: practiceInputGeneration,
+                at: detected.timestamp,
+                handGateBoost: handGateState.isNearKeyboard || handGateState.hasDownwardMotion
+            )
+        } else {
+            matchResult = audioStepAttemptAccumulator.evaluate(
+                expectedMIDINotes: expectedMIDINotes,
+                wrongCandidateMIDINotes: wrongMIDINotes,
+                generation: practiceInputGeneration,
+                at: detected.timestamp,
+                handGateBoost: handGateState.isNearKeyboard || handGateState.hasDownwardMotion
+            )
+        }
 
         switch matchResult {
         case .matched:

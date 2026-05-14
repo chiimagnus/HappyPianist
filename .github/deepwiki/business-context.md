@@ -11,7 +11,7 @@ LonelyPianist 是一个本地优先的钢琴交互系统，围绕三条产品线
 | --- | --- | --- | --- |
 | MIDI 快捷控制 | MIDI 键盘事件 | 目标 App 收到系统按键/文本 | [modules/lonelypianist-macos-mapping.md](modules/lonelypianist-macos-mapping.md) |
 | Piano Dialogue | 静默窗口内的演奏片段 | AI 回放并落盘为 take | [modules/lonelypianist-macos-dialogue.md](modules/lonelypianist-macos-dialogue.md) |
-| AR Guide | MusicXML + A0/C8 校准 + 手势 | 键位高亮与步骤推进 | [modules/lonelypianist-avp-practice.md](modules/lonelypianist-avp-practice.md) |
+| AR Guide | MusicXML + A0/C8 校准 + 手势 | 双谱表五线谱 + 左右手键位高亮 + 步骤推进（可选按手分别判定） | [modules/lonelypianist-avp-practice.md](modules/lonelypianist-avp-practice.md) |
 | AR Guide（虚拟钢琴） | MusicXML + 钢琴类型=虚拟钢琴 + 手势放置（准备阶段） | 3D 88 键键盘 + 实时发声 + 步骤推进 | [modules/lonelypianist-avp-practice.md](modules/lonelypianist-avp-practice.md) |
 | AR Guide（蓝牙 MIDI） | MusicXML + 蓝牙 MIDI 连接 + 校准 | 键位高亮与步骤推进 + Take 录制/回放 | [modules/lonelypianist-avp-practice.md](modules/lonelypianist-avp-practice.md) |
 | AVP AI 即兴（后端生成） | 练习中的短句片段（真实/虚拟/BLE MIDI 输入） | 自动发现后端、生成续写并在沉浸空间中回放 | [modules/lonelypianist-avp-practice.md](modules/lonelypianist-avp-practice.md) + [modules/piano-dialogue-server.md](modules/piano-dialogue-server.md) |
@@ -23,6 +23,7 @@ LonelyPianist 是一个本地优先的钢琴交互系统，围绕三条产品线
 | 网络先于后端 | AVP 需要 Local Network 权限才能 Bonjour 发现后端并调用 `POST /generate` | AVP 后端接入与排障 |
 | 对话是 turn-based | 静默触发后再生成回复，回放策略可配置 | macOS + Python |
 | Step 3 前置条件明确 | 必须先导入谱面；真实钢琴需要已完成校准；虚拟钢琴需要已完成放置（准备阶段） | AVP 进入练习 |
+| 左右手语义统一 | staff→hand 推导结果贯穿 step/guide/五线谱/键盘高亮/判定 | AVP 练习体验一致性 |
 | 曲库索引与文件必须一致 | 导入 / 删除 / 音频绑定都先后写盘 | AVP 存储和恢复 |
 
 ## 核心产物

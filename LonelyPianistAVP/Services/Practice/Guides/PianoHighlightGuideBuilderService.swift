@@ -88,7 +88,7 @@ struct PianoHighlightGuideBuilderService {
                 let offTick = max(onTick + 1, span?.offTick ?? (onTick + max(1, source?.durationTicks ?? 1)))
                 occurrenceCounter += 1
                 let note = PianoHighlightNote(
-                    occurrenceID: "h-\(occurrenceCounter)-\(stepNote.midiNote)-\(onTick)-\(staff)-\(resolvedVoice)",
+                    occurrenceID: "h-\(occurrenceCounter)-\(stepNote.midiNote)-\(onTick)-\(staff)-\(resolvedVoice)-\(stepNote.hand.rawValue)",
                     midiNote: stepNote.midiNote,
                     staff: stepNote.staff,
                     voice: resolvedVoice,
@@ -101,7 +101,8 @@ struct PianoHighlightGuideBuilderService {
                     tieStop: source?.tieStop ?? false,
                     articulations: source?.articulations ?? [],
                     arpeggiate: source?.arpeggiate,
-                    dotCount: source?.dotCount ?? 0
+                    dotCount: source?.dotCount ?? 0,
+                    hand: stepNote.hand
                 )
                 triggersByTick[onTick, default: []].append(note)
                 if practiceStepIndexByTriggerTick[onTick] == nil {

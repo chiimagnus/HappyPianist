@@ -2,10 +2,11 @@ import Foundation
 
 nonisolated struct PracticeStepNote: Equatable, Hashable, Identifiable {
     var id: String {
-        "\(midiNote)-\(staff ?? -1)-\(voice ?? -1)-\(onTickOffset)"
+        "\(midiNote)-\(hand.rawValue)-\(staff ?? -1)-\(voice ?? -1)-\(onTickOffset)"
     }
 
     let midiNote: Int
+    let hand: ScoreHand
     let staff: Int?
     let voice: Int?
     let velocity: UInt8
@@ -18,7 +19,8 @@ nonisolated struct PracticeStepNote: Equatable, Hashable, Identifiable {
         voice: Int? = nil,
         velocity: UInt8 = 96,
         onTickOffset: Int = 0,
-        fingeringText: String? = nil
+        fingeringText: String? = nil,
+        hand: ScoreHand? = nil
     ) {
         self.midiNote = midiNote
         self.staff = staff
@@ -26,6 +28,7 @@ nonisolated struct PracticeStepNote: Equatable, Hashable, Identifiable {
         self.velocity = velocity
         self.onTickOffset = onTickOffset
         self.fingeringText = fingeringText
+        self.hand = hand ?? ScoreHand.fromStaff(staff)
     }
 }
 

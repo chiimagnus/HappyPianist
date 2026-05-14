@@ -234,11 +234,11 @@ struct PracticeStepView: View {
 
     private var practiceSurface: some View {
         VStack(spacing: 21) {
-            ScrollingStaffNotationView(
+            GrandStaffNotationView(
                 guides: viewModel.practiceSessionViewModel.highlightGuides,
                 currentGuide: viewModel.practiceSessionViewModel.currentPianoHighlightGuide,
                 measureSpans: viewModel.practiceSessionViewModel.notationMeasureSpans,
-                context: viewModel.practiceSessionViewModel.currentNotationContext,
+                context: viewModel.practiceSessionViewModel.currentGrandStaffNotationContext,
                 scrollTickProvider: viewModel.practiceSessionViewModel.autoplayState == .playing ? {
                     viewModel.practiceSessionViewModel.smoothNotationScrollTick()
                 } : nil
@@ -249,7 +249,8 @@ struct PracticeStepView: View {
                 highlightedMIDINotes: highlightedMIDINotes,
                 highlightOccurrenceID: viewModel.practiceSessionViewModel.currentPianoHighlightGuide?.id,
                 triggeredMIDINotes: triggeredMIDINotes,
-                fingeringByMIDINote: fingeringByMIDINote
+                fingeringByMIDINote: fingeringByMIDINote,
+                highlightColorByMIDINote: highlightColorByMIDINote
             )
             .aspectRatio(PianoKeyboard88View.aspectRatio, contentMode: .fit)
         }
@@ -276,6 +277,37 @@ struct PracticeStepView: View {
         guard isAutoplayEnabled else { return [] }
         let notes = viewModel.practiceSessionViewModel.currentPianoHighlightGuide?.triggeredNotes ?? []
         return Set(notes.map(\.midiNote))
+    }
+
+    private var highlightColorByMIDINote: [Int: Color] {
+        guard let guide = viewModel.practiceSessionViewModel.currentPianoHighlightGuide else { return [:] }
+
+        func resolvedHand(notes: [PianoHighlightNote]) -> ScoreHand? {
+            guard notes.isEmpty == false else { return nil }
+            if notes.contains(where: { $0.hand == .left }) { return .left }
+            return .right
+        }
+
+        var triggeredNotesByMidi: [Int: [PianoHighlightNote]] = [:]
+        for note in guide.triggeredNotes {
+            triggeredNotesByMidi[note.midiNote, default: []].append(note)
+        }
+
+        var activeNotesByMidi: [Int: [PianoHighlightNote]] = [:]
+        for note in guide.activeNotes {
+            activeNotesByMidi[note.midiNote, default: []].append(note)
+        }
+
+        var result: [Int: Color] = [:]
+        for midiNote in guide.highlightedMIDINotes {
+            let preferred = triggeredNotesByMidi[midiNote].flatMap(resolvedHand)
+                ?? activeNotesByMidi[midiNote].flatMap(resolvedHand)
+
+            if preferred == .left {
+                result[midiNote] = PracticeHandPalette.leftHandKeyColor
+            }
+        }
+        return result
     }
 
     private var localizationPopover: some View {

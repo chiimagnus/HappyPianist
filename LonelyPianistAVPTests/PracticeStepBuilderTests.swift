@@ -62,8 +62,10 @@ func buildStepsGroupsNotesByTickAndMergesHands() {
     #expect(result.steps.count == 2)
     #expect(result.steps[0].tick == 0)
     #expect(result.steps[0].notes.map(\.midiNote) == [48, 60, 64])
+    #expect(result.steps[0].notes.map(\.hand) == [.left, .right, .right])
     #expect(result.steps[1].tick == 2)
     #expect(result.steps[1].notes.map(\.midiNote) == [67])
+    #expect(result.steps[1].notes.map(\.hand) == [.right])
 }
 
 @Test

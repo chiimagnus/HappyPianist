@@ -103,7 +103,7 @@
 | --- | --- | --- |
 | GitHub Actions workflows | 无 | `.github/workflows/` 不存在 |
 | macOS tests | 本地运行 | 需要手动运行 `xcodebuild test -scheme LonelyPianist` |
-| AVP tests | 本地运行 | 需要手动运行 `xcodebuild test -scheme LonelyPianistAVP`（visionOS simulator） |
+| AVP tests | 本地运行 | 需要先跑 `xcodebuild -showdestinations -scheme LonelyPianistAVP` 拿到 concrete simulator id，再运行 `xcodebuild test -scheme LonelyPianistAVP -destination 'platform=visionOS Simulator,id=<device-id>'` |
 | SwiftFormat | 可选本地运行 | 仓库包含 `.swiftformat` 配置 |
 | Python smoke | 本地运行 | 仍依赖本地脚本与 WS client |
 
@@ -127,3 +127,4 @@
 - 2026-05-10: 同步 AVP 主流程重构（`AppRouter` + `FlowState` root 切换、练习页返回回到曲库、虚拟钢琴入口前移到钢琴类型选择 + 准备阶段放置），并清理曲库 seed/seeder 相关过期表述。
 - 2026-05-13: 同步 AVP BLE MIDI 准备页”内嵌系统面板”改动与 Step3 BLE MIDI 和弦判定窗口放宽；更新 Practice services 目录拆分后的源码路径引用。
 - 2026-05-13: PianoKind → PianoModeProtocol 全面迁移；新增 BLE MIDI 录制链路与 Take 存储文档；AVP 目录地图扩充；架构/数据流/存储/术语页同步更新。
+- 2026-05-14: 同步 AVP “左右手”能力与五线谱重构：`ScoreHand` 贯穿 step/guide/高亮/判定，单谱表导入自动补 staff，五线谱迁移为 `GrandStaffNotationView`，并新增（默认关闭的）左右手分别匹配开关；同时修正 AVP tests 需要 concrete destination id 的事实。

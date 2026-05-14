@@ -36,12 +36,24 @@ extension PracticeSessionViewModel {
             )
             if autoplayState == .off, isManualReplayPlaying == false, let currentStep {
                 let expected = uniqueMIDINotes(in: currentStep)
-                let isMatched = chordAttemptAccumulator.register(
-                    pressedNotes: detected,
-                    expectedNotes: expected,
-                    tolerance: noteMatchTolerance,
-                    at: timestamp
-                )
+                let isMatched: Bool
+                if isHandSeparatedStepMatchingEnabled {
+                    let expectedByHand = uniqueMIDINotesByHand(in: currentStep)
+                    isMatched = chordAttemptAccumulator.registerHandSeparated(
+                        pressedNotes: detected,
+                        expectedRightNotes: expectedByHand.right,
+                        expectedLeftNotes: expectedByHand.left,
+                        tolerance: noteMatchTolerance,
+                        at: timestamp
+                    )
+                } else {
+                    isMatched = chordAttemptAccumulator.register(
+                        pressedNotes: detected,
+                        expectedNotes: expected,
+                        tolerance: noteMatchTolerance,
+                        at: timestamp
+                    )
+                }
                 if isMatched {
                     if autoplayState == .off {
                         advanceToNextStep()
@@ -100,12 +112,24 @@ extension PracticeSessionViewModel {
            let currentStep
         {
             let expected = uniqueMIDINotes(in: currentStep)
-            let isMatched = chordAttemptAccumulator.register(
-                pressedNotes: result.started,
-                expectedNotes: expected,
-                tolerance: noteMatchTolerance,
-                at: timestamp
-            )
+            let isMatched: Bool
+            if isHandSeparatedStepMatchingEnabled {
+                let expectedByHand = uniqueMIDINotesByHand(in: currentStep)
+                isMatched = chordAttemptAccumulator.registerHandSeparated(
+                    pressedNotes: result.started,
+                    expectedRightNotes: expectedByHand.right,
+                    expectedLeftNotes: expectedByHand.left,
+                    tolerance: noteMatchTolerance,
+                    at: timestamp
+                )
+            } else {
+                isMatched = chordAttemptAccumulator.register(
+                    pressedNotes: result.started,
+                    expectedNotes: expected,
+                    tolerance: noteMatchTolerance,
+                    at: timestamp
+                )
+            }
             if isMatched {
                 advanceToNextStep()
             } else {

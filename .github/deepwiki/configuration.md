@@ -21,9 +21,12 @@
 | Press cooldown | `0.15s` | 手部按键去抖 |
 | Chord window | `0.6s` | 和弦累积 |
 | Practice note tolerance | `±1` 半音 | 练习匹配 |
+| Hand-separated step matching | `false`（UserDefaults key: `practiceHandSeparatedStepMatchingEnabled`） | 开启后 step 通过判定要求左右手分别满足（默认关闭） |
 | Guide decal alpha | `0.32` | 当前 step 的琴键贴皮高亮整体 alpha |
 | Guide decal texture | `KeyDecalSoftRect` | 柔边矩形贴图（key-top decal） |
 | Guide decal epsilon | `0.0015` meter | 贴皮与琴键表面的最小抬升，避免 z-fighting（见 `PianoGuideBeamDescriptor`） |
+
+> 说明：单谱表 MusicXML 的自动分手（补 staff=1/2）当前**不提供回退开关**；行为属于导入管线固定逻辑（见 `MusicXMLHandRouter`）。
 
 ## 构建与工程配置
 | 项目 | 位置 | 说明 |
@@ -79,3 +82,4 @@
 - 2026-05-05: 同步 AVP Local Network/Bonjour 与后端 HTTP `/generate` 相关默认值与误配后果。
 - 2026-05-06: 同步 Python `server/` 目录重组（`api/`、`engines/`、`media/`）后的环境变量来源位置。
 - 2026-05-12: 补充 macOS BLE MIDI 的蓝牙权限与误配后果（`Bluetooth MIDI…` 入口）。
+- 2026-05-14: 新增 AVP 练习判定开关 `practiceHandSeparatedStepMatchingEnabled`；同步单谱表 MusicXML 自动分手为固定导入逻辑（无回退开关）。

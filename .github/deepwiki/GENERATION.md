@@ -3,21 +3,20 @@
 ## Run info
 | Item | Value |
 | --- | --- |
-| Commit hash | 93903598c6fe8b1ed2836e5b8791493d8cdb1b1b |
+| Commit hash | 71f8bc0fbc6a330e7a7a3e9696da7238c3b2bc5c |
 | Branch name | crh2 |
-| Generated at | 2026-05-13T20:00:00+08:00 |
+| Generated at | 2026-05-14T11:17:03+08:00 |
 | Output language | Chinese |
 | Generation mode | Incremental update via `deepwiki` skill |
 
 ## Key updates in this generation
 | Area | Update |
 | --- | --- |
-| PianoKind → PianoModeProtocol 全面迁移 | 将 deepwiki 中所有 `PianoKind` 枚举引用替换为 `PianoModeProtocol` 协议 + `PianoModeRegistryService` 注册表；三种模式（RealAudio / BluetoothMIDI / Virtual）通过协议实现注册。 |
-| AVP BLE MIDI 录制链路 | 新增 BLE MIDI 数据流文档：`BluetoothMIDIInputEventSourceService` → `MIDIRecordingAdapter` → `RecordingTakeRecorder` → `RecordingTakeStore`（takes.json）；补充 Take 录制/回放/Phrase 录制的存储与数据流描述。 |
-| AVP 目录地图扩充 | `modules/lonelypianist-avp.md` 目录地图从 12 项扩充至 ~30 项，覆盖全部 Services 子目录（AppFlow/、Audio/、AudioRecognition/、Bluetooth/、MIDI/、Recording/、Networking/、Practice/ 等）。 |
-| architecture.md 组件边界 | 新增 5 个组件边界条目（PianoModeRegistryService、BluetoothMIDIInputEventSourceService、MIDIRecordingAdapter、RecordingTakeStore、TakePlaybackController）和 3 个关键契约（PracticeInputEvent、RecordingTake/RecordingTakeEvent、PianoModeProtocol）。 |
-| storage.md Take 存储 | 新增 AVP Take 录制存储段落：路径、JSON 格式、编码、写入时机、事件类型、回放链路。 |
-| glossary.md 术语更新 | 替换 PianoKind 为 PianoModeProtocol/PianoModeRegistryService；补充 `RecordingTake` 存储术语；修正 `GenerateParams.strategy` 遗漏 `rule` 第三策略。 |
+| 左右手语义（ScoreHand）贯穿链路 | 补齐 `ScoreHand` 从 staff 推导的语义，并在 deepwiki 中明确其贯穿 steps / guides / 2D 键盘 / 3D decal / 判定 gate 的数据流与排障抓手。 |
+| 单谱表 MusicXML 自动分手 | 更新 MusicXML 导入管线文档：通过 `MusicXMLHandRouter` 对缺失 staff 的单谱表 score deterministic 补 `staff=1/2`，并明确触发条件与阈值策略；同时注明当前不提供回退/override。 |
+| 五线谱迁移为 Grand Staff | 更新 Practice 模块文档：五线谱视图从旧滚动单谱表迁移为 `GrandStaffNotationView`（上下双谱表），并补充 layout 输入/输出与能力边界。 |
+| 练习判定开关：左右手分别满足 | 文档化 `practiceHandSeparatedStepMatchingEnabled` 开关（默认关闭），说明开启后左右手 expected 需分别满足，并指出 press/音频/BLE MIDI 三路径的一致实现。 |
+| 测试与命令事实刷新 | 修正 visionOS 测试必须使用 concrete simulator destination id，并更新 testing/config/index 等页面的命令与说明。 |
 
 ## Generated page list
 ### Core pages
@@ -68,3 +67,4 @@
 - KeyContactDetectionService hysteresis thresholds (press 2mm / release 8mm) need real-device tuning.
 - Decal highlight alignment, z-fighting, and visual comfort need Vision Pro real-device verification.
 - AVP Bonjour 发现与 `/generate` 请求强依赖同一局域网与 Local Network 授权；denied/解析失败仍需真机验证与网络环境排查。
+- 单谱表自动分手是工程启发式：对交错声部/极端音域分配的曲谱，可能与人类分手不一致；目前不提供 per-score override。

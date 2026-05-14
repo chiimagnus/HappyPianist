@@ -14,7 +14,7 @@ LonelyPianist 把钢琴输入拆成三条清晰的体验线：
 | --- | --- | --- |
 | 🎛 MIDI → 控制台 | 把单音 / 和弦映射成文本、快捷键和系统动作 | macOS |
 | 🎭 Piano Dialogue | 弹一句、停一下、AI 回一句，并落成 take | macOS + 本地 Python |
-| 🥽 AR Guide | 导入 MusicXML，在 Vision Pro 上做空间练习引导 | visionOS |
+| 🥽 AR Guide | 导入 MusicXML，在 Vision Pro 上做空间练习引导（双谱表五线谱 + 左右手键位高亮） | visionOS |
 
 ## 为什么值得试
 
@@ -60,6 +60,8 @@ open LonelyPianist.xcodeproj
 ```
 
 主流程提示：先在 2D Window 选择钢琴类型（真实/虚拟），完成准备（校准/放置）后进入选曲库导入或选择曲目，再开始练习。
+
+练习页设置（齿轮）里有一个可选开关：**练习判定：左右手分别满足**（默认关闭）。开启后，同一 step 的左右手音符需要分别满足才会推进。
 
 ## 项目结构
 

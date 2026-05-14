@@ -43,7 +43,10 @@ struct PianoKeyboard88View: View {
                         }
                         .overlay {
                             if triggeredMIDINotes.contains(key.midiNote) {
-                                KeyTriggerPulseOverlay(isBlackKey: false)
+                                KeyTriggerPulseOverlay(
+                                    color: triggerPulseColor(midiNote: key.midiNote, isBlackKey: false),
+                                    maxOpacity: 0.75
+                                )
                             }
                         }
                         .overlay(alignment: .bottom) {
@@ -76,7 +79,10 @@ struct PianoKeyboard88View: View {
                         }
                         .overlay {
                             if triggeredMIDINotes.contains(key.midiNote) {
-                                KeyTriggerPulseOverlay(isBlackKey: true)
+                                KeyTriggerPulseOverlay(
+                                    color: triggerPulseColor(midiNote: key.midiNote, isBlackKey: true),
+                                    maxOpacity: 0.95
+                                )
                             }
                         }
                         .overlay(alignment: .bottom) {
@@ -125,6 +131,13 @@ struct PianoKeyboard88View: View {
             return custom.opacity(0.92)
         }
         return .orange.opacity(0.95)
+    }
+
+    private func triggerPulseColor(midiNote: Int, isBlackKey: Bool) -> Color {
+        if let custom = highlightColorByMIDINote[midiNote] {
+            return custom
+        }
+        return isBlackKey ? .orange : .yellow
     }
 
     static func keyCenterFraction(midiNote: Int) -> CGFloat? {
@@ -186,17 +199,18 @@ struct PianoKeyboard88View: View {
 }
 
 private struct KeyTriggerPulseOverlay: View {
-    let isBlackKey: Bool
+    let color: Color
+    let maxOpacity: Double
 
     @State private var opacity: Double = 0.0
 
     var body: some View {
         Rectangle()
-            .fill(isBlackKey ? Color.orange : Color.yellow)
+            .fill(color)
             .opacity(opacity)
             .allowsHitTesting(false)
             .onAppear {
-                opacity = isBlackKey ? 0.95 : 0.75
+                opacity = maxOpacity
                 withAnimation(.easeOut(duration: 0.22)) {
                     opacity = 0.0
                 }
