@@ -294,8 +294,6 @@ struct GrandStaffNotationLayoutService {
             itemsByOccurrenceID: beamedItemsByOccurrenceID,
             beamChordIDsByBeamID: beamsBuild.beamChordIDsByBeamID
         )
-
-        let finalChordByID = Dictionary(uniqueKeysWithValues: finalChords.map { ($0.id, $0) })
         var finalItemsByOccurrenceID = beamedItemsByOccurrenceID
         for chord in finalChords {
             for itemID in chord.itemIDs {
@@ -333,7 +331,6 @@ struct GrandStaffNotationLayoutService {
 
         let normalizedItems = items.compactMap { finalItemsByOccurrenceID[$0.occurrenceID] }
 
-        _ = finalChordByID // keep symmetry with other build steps
         return (normalizedItems, finalChords, beamsBuild.beams)
     }
 
