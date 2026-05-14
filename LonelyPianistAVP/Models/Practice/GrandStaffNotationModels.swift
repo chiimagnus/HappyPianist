@@ -66,8 +66,8 @@ struct GrandStaffNotationContext: Equatable {
     let timeSignatureText: String?
 
     init(
-        trebleClefSymbol: String = "𝄞",
-        bassClefSymbol: String = "𝄢",
+        trebleClefSymbol: String = "\u{E050}",
+        bassClefSymbol: String = "\u{E062}",
         trebleClefSignToken: String? = "G",
         trebleClefLine: Int? = 2,
         bassClefSignToken: String? = "F",

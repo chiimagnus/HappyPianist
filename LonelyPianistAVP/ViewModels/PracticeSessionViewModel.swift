@@ -235,12 +235,12 @@ final class PracticeSessionViewModel {
         let tick = currentPianoHighlightGuide?.tick ?? currentStep?.tick ?? 0
 
         let trebleClefEvent = attributeTimeline.clef(atTick: tick, staffNumber: 1)
-        let trebleClef = trebleClefEvent.flatMap { Self.notationClefSymbol(for: $0) } ?? "𝄞"
+        let trebleClef = trebleClefEvent.flatMap { Self.notationClefSymbol(for: $0) } ?? "\u{E050}"
         let trebleClefSignToken = trebleClefEvent?.signToken
         let trebleClefLine = trebleClefEvent?.line
 
         let bassClefEvent = attributeTimeline.clef(atTick: tick, staffNumber: 2)
-        let bassClef = bassClefEvent.flatMap { Self.notationClefSymbol(for: $0) } ?? "𝄢"
+        let bassClef = bassClefEvent.flatMap { Self.notationClefSymbol(for: $0) } ?? "\u{E062}"
         let bassClefSignToken = bassClefEvent?.signToken
         let bassClefLine = bassClefEvent?.line
 
@@ -281,11 +281,11 @@ final class PracticeSessionViewModel {
         guard let sign = event.signToken, sign.isEmpty == false else { return nil }
         switch sign.uppercased() {
             case "G":
-                return "𝄞"
+                return "\u{E050}" // SMuFL gClef
             case "F":
-                return "𝄢"
+                return "\u{E062}" // SMuFL fClef
             case "C":
-                return "𝄡"
+                return "\u{E05C}" // SMuFL cClef
             default:
                 return nil
         }
@@ -296,9 +296,9 @@ final class PracticeSessionViewModel {
             return nil
         }
         if fifths > 0 {
-            return String(repeating: "♯", count: min(fifths, 7))
+            return String(repeating: "\u{E262}", count: min(fifths, 7)) // SMuFL accidentalSharp
         }
-        return String(repeating: "♭", count: min(abs(fifths), 7))
+        return String(repeating: "\u{E260}", count: min(abs(fifths), 7)) // SMuFL accidentalFlat
     }
 
     var isMusicXMLSlurActive: Bool {

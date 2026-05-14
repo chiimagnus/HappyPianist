@@ -62,7 +62,7 @@ struct GrandStaffNotationViewportLayoutService {
         let trebleExtraBelowUnits = CGFloat(max(0, -minTrebleStep)) * 0.5
         let bassExtraAboveUnits = CGFloat(max(0, maxBassStep - 8)) * 0.5
 
-        let topPaddingUnits: CGFloat = 2.2
+        let topPaddingUnits: CGFloat = 2.6
         let bottomPaddingUnits: CGFloat = 1.8
         let staffHeightUnits: CGFloat = 4.0
         let baseInterStaffGapUnits: CGFloat = 2.8
@@ -128,8 +128,8 @@ struct GrandStaffNotationViewportLayoutService {
         // Clef glyphs are drawn via Unicode music symbols and can appear optically smaller than staff height
         // when rendered by the system fallback font. Scale them based on staff spacing rather than keeping
         // them close to the notehead size.
-        let trebleClefFontSize = resolvedLineSpacing * 3.35
-        let bassClefFontSize = resolvedLineSpacing * 2.95
+        let trebleClefFontSize = resolvedLineSpacing * 3.8
+        let bassClefFontSize = resolvedLineSpacing * 3.3
         let keySignatureFontSize = resolvedLineSpacing * 1.25
         let timeSignatureFontSize = resolvedLineSpacing * 1.35
 

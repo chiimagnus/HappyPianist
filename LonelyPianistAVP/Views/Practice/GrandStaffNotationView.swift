@@ -70,21 +70,24 @@ struct GrandStaffNotationView: View {
         guard let staffContext = layout.context else { return }
 
         let trebleKeyCenterY = layout.yPosition(staffStep: 4, staffNumber: 1)
+        let trebleClefFont = Font.custom("Bravura", size: layout.trebleClefFontSize)
+        let bassClefFont = Font.custom("Bravura", size: layout.bassClefFontSize)
+        let keySignatureFont = Font.custom("Bravura", size: layout.keySignatureFontSize)
 
         context.draw(
-            Text(staffContext.trebleClefSymbol).font(.system(size: layout.trebleClefFontSize)),
+            Text(staffContext.trebleClefSymbol).font(trebleClefFont),
             at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 0.6, y: layout.trebleClefY),
             anchor: .leading
         )
         context.draw(
-            Text(staffContext.bassClefSymbol).font(.system(size: layout.bassClefFontSize)),
+            Text(staffContext.bassClefSymbol).font(bassClefFont),
             at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 0.6, y: layout.bassClefY),
             anchor: .leading
         )
 
         if let keySignatureText = staffContext.keySignatureText, keySignatureText.isEmpty == false {
             context.draw(
-                Text(keySignatureText).font(.system(size: layout.keySignatureFontSize)),
+                Text(keySignatureText).font(keySignatureFont),
                 at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 3.2, y: trebleKeyCenterY),
                 anchor: .leading
             )
