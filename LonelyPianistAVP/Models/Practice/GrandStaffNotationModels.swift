@@ -57,6 +57,10 @@ struct GrandStaffNotationBeam: Equatable, Identifiable {
 struct GrandStaffNotationContext: Equatable {
     let trebleClefSymbol: String
     let bassClefSymbol: String
+    let trebleClefSignToken: String?
+    let trebleClefLine: Int?
+    let bassClefSignToken: String?
+    let bassClefLine: Int?
     let keySignatureText: String?
     let keySignatureFifths: Int?
     let timeSignatureText: String?
@@ -64,12 +68,20 @@ struct GrandStaffNotationContext: Equatable {
     init(
         trebleClefSymbol: String = "𝄞",
         bassClefSymbol: String = "𝄢",
+        trebleClefSignToken: String? = "G",
+        trebleClefLine: Int? = 2,
+        bassClefSignToken: String? = "F",
+        bassClefLine: Int? = 4,
         keySignatureText: String? = nil,
         keySignatureFifths: Int? = nil,
         timeSignatureText: String? = nil
     ) {
         self.trebleClefSymbol = trebleClefSymbol
         self.bassClefSymbol = bassClefSymbol
+        self.trebleClefSignToken = trebleClefSignToken
+        self.trebleClefLine = trebleClefLine
+        self.bassClefSignToken = bassClefSignToken
+        self.bassClefLine = bassClefLine
         self.keySignatureText = keySignatureText
         self.keySignatureFifths = keySignatureFifths
         self.timeSignatureText = timeSignatureText
@@ -117,4 +129,3 @@ struct GrandStaffNotationItem: Equatable, Identifiable {
         (noteValue == .eighth || noteValue == .sixteenth || noteValue == .thirtySecond) && beamID == nil
     }
 }
-

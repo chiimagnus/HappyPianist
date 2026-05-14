@@ -234,10 +234,15 @@ final class PracticeSessionViewModel {
 
         let tick = currentPianoHighlightGuide?.tick ?? currentStep?.tick ?? 0
 
-        let trebleClef = attributeTimeline.clef(atTick: tick, staffNumber: 1)
-            .flatMap { Self.notationClefSymbol(for: $0) } ?? "𝄞"
-        let bassClef = attributeTimeline.clef(atTick: tick, staffNumber: 2)
-            .flatMap { Self.notationClefSymbol(for: $0) } ?? "𝄢"
+        let trebleClefEvent = attributeTimeline.clef(atTick: tick, staffNumber: 1)
+        let trebleClef = trebleClefEvent.flatMap { Self.notationClefSymbol(for: $0) } ?? "𝄞"
+        let trebleClefSignToken = trebleClefEvent?.signToken
+        let trebleClefLine = trebleClefEvent?.line
+
+        let bassClefEvent = attributeTimeline.clef(atTick: tick, staffNumber: 2)
+        let bassClef = bassClefEvent.flatMap { Self.notationClefSymbol(for: $0) } ?? "𝄢"
+        let bassClefSignToken = bassClefEvent?.signToken
+        let bassClefLine = bassClefEvent?.line
 
         let keySignatureEvent = attributeTimeline.keySignature(atTick: tick)
         let keySignatureText = keySignatureEvent
@@ -248,6 +253,10 @@ final class PracticeSessionViewModel {
         return GrandStaffNotationContext(
             trebleClefSymbol: trebleClef,
             bassClefSymbol: bassClef,
+            trebleClefSignToken: trebleClefSignToken,
+            trebleClefLine: trebleClefLine,
+            bassClefSignToken: bassClefSignToken,
+            bassClefLine: bassClefLine,
             keySignatureText: keySignatureText,
             keySignatureFifths: keySignatureFifths,
             timeSignatureText: timeSignatureText

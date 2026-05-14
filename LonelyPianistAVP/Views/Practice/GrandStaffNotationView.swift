@@ -8,6 +8,7 @@ struct GrandStaffNotationView: View {
     var scrollTickProvider: (() -> Double?)?
 
     private let layoutService = GrandStaffNotationLayoutService()
+    private let viewportLayoutService = GrandStaffNotationViewportLayoutService()
 
     var body: some View {
         GeometryReader { proxy in
@@ -20,7 +21,11 @@ struct GrandStaffNotationView: View {
             )
 
             Canvas { context, size in
-                let viewLayout = GrandStaffViewLayout(size: size, context: layout.context)
+                let viewLayout = viewportLayoutService.makeLayout(
+                    size: size,
+                    items: layout.items,
+                    context: layout.context
+                )
                 drawGrandStaffLines(in: context, layout: viewLayout)
                 drawContext(in: context, layout: viewLayout)
                 drawBarlines(layout.barlines, in: context, layout: viewLayout)
@@ -31,7 +36,7 @@ struct GrandStaffNotationView: View {
         .accessibilityLabel("Grand Staff 五线谱")
     }
 
-    private func drawGrandStaffLines(in context: GraphicsContext, layout: GrandStaffViewLayout) {
+    private func drawGrandStaffLines(in context: GraphicsContext, layout: GrandStaffNotationViewportLayoutService.Layout) {
         let lineColor = Color.primary.opacity(0.22)
         let stroke = StrokeStyle(lineWidth: 1.0)
 
@@ -49,32 +54,31 @@ struct GrandStaffNotationView: View {
         drawStaff(topLineY: layout.bassTopLineY)
     }
 
-    private func drawContext(in context: GraphicsContext, layout: GrandStaffViewLayout) {
+    private func drawContext(in context: GraphicsContext, layout: GrandStaffNotationViewportLayoutService.Layout) {
         guard let staffContext = layout.context else { return }
 
-        let trebleCenterY = layout.yPosition(staffStep: 4, staffNumber: 1)
-        let bassCenterY = layout.yPosition(staffStep: 4, staffNumber: 2)
+        let trebleKeyCenterY = layout.yPosition(staffStep: 4, staffNumber: 1)
 
         context.draw(
-            Text(staffContext.trebleClefSymbol).font(.system(size: layout.lineSpacing * 2.2)),
-            at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 1.0, y: trebleCenterY)
+            Text(staffContext.trebleClefSymbol).font(.system(size: layout.trebleClefFontSize)),
+            at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 1.0, y: layout.trebleClefY)
         )
         context.draw(
-            Text(staffContext.bassClefSymbol).font(.system(size: layout.lineSpacing * 2.0)),
-            at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 1.0, y: bassCenterY)
+            Text(staffContext.bassClefSymbol).font(.system(size: layout.bassClefFontSize)),
+            at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 1.0, y: layout.bassClefY)
         )
 
         if let keySignatureText = staffContext.keySignatureText, keySignatureText.isEmpty == false {
             context.draw(
-                Text(keySignatureText).font(.system(size: layout.lineSpacing * 1.2)),
-                at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 3.2, y: trebleCenterY)
+                Text(keySignatureText).font(.system(size: layout.keySignatureFontSize)),
+                at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 3.2, y: trebleKeyCenterY)
             )
         }
 
         if let timeSignatureText = staffContext.timeSignatureText, timeSignatureText.isEmpty == false {
             context.draw(
-                Text(timeSignatureText).font(.system(size: layout.lineSpacing * 1.2, weight: .semibold)),
-                at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 5.6, y: trebleCenterY)
+                Text(timeSignatureText).font(.system(size: layout.timeSignatureFontSize, weight: .semibold)),
+                at: CGPoint(x: layout.contextMinX + layout.lineSpacing * 5.6, y: trebleKeyCenterY)
             )
         }
     }
@@ -82,7 +86,7 @@ struct GrandStaffNotationView: View {
     private func drawBarlines(
         _ barlines: [GrandStaffNotationBarline],
         in context: GraphicsContext,
-        layout: GrandStaffViewLayout
+        layout: GrandStaffNotationViewportLayoutService.Layout
     ) {
         guard barlines.isEmpty == false else { return }
 
@@ -102,7 +106,7 @@ struct GrandStaffNotationView: View {
     private func drawItems(
         _ items: [GrandStaffNotationItem],
         in context: GraphicsContext,
-        layout: GrandStaffViewLayout
+        layout: GrandStaffNotationViewportLayoutService.Layout
     ) {
         guard items.isEmpty == false else { return }
 
@@ -127,7 +131,7 @@ struct GrandStaffNotationView: View {
         x: CGFloat,
         y: CGFloat,
         in context: GraphicsContext,
-        layout: GrandStaffViewLayout
+        layout: GrandStaffNotationViewportLayoutService.Layout
     ) {
         let rect = CGRect(
             x: x - layout.noteWidth / 2,
@@ -145,70 +149,6 @@ struct GrandStaffNotationView: View {
             let accidental = Text("♯").font(.system(size: layout.lineSpacing * 1.0))
             context.draw(accidental, at: CGPoint(x: x - layout.noteWidth * 1.0, y: y))
         }
-    }
-}
-
-private struct GrandStaffViewLayout {
-    let size: CGSize
-    let context: GrandStaffNotationContext?
-
-    init(size: CGSize, context: GrandStaffNotationContext?) {
-        self.size = size
-        self.context = context
-    }
-
-    var lineSpacing: CGFloat {
-        max(10, min(18, size.height * 0.085))
-    }
-
-    var noteWidth: CGFloat {
-        lineSpacing * 1.05
-    }
-
-    var noteHeight: CGFloat {
-        lineSpacing * 0.70
-    }
-
-    var contextMinX: CGFloat {
-        4
-    }
-
-    var contextWidth: CGFloat {
-        lineSpacing * 7.0
-    }
-
-    var contentMinX: CGFloat {
-        contextMinX + contextWidth
-    }
-
-    var contentMaxX: CGFloat {
-        min(size.width - 18, size.width * 0.96)
-    }
-
-    var trebleTopLineY: CGFloat {
-        size.height * 0.10
-    }
-
-    var trebleBottomLineY: CGFloat {
-        trebleTopLineY + lineSpacing * 4
-    }
-
-    var bassTopLineY: CGFloat {
-        trebleBottomLineY + lineSpacing * 2.8
-    }
-
-    var bassBottomLineY: CGFloat {
-        bassTopLineY + lineSpacing * 4
-    }
-
-    func xPosition(_ normalized: Double) -> CGFloat {
-        let clamped = max(-0.2, min(1.2, normalized))
-        return contentMinX + CGFloat(clamped) * (contentMaxX - contentMinX)
-    }
-
-    func yPosition(staffStep: Int, staffNumber: Int) -> CGFloat {
-        let bottomLineY = (staffNumber >= 2) ? bassBottomLineY : trebleBottomLineY
-        return bottomLineY - CGFloat(staffStep) * lineSpacing / 2
     }
 }
 
