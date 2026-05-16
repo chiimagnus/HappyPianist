@@ -35,21 +35,32 @@ struct BluetoothMIDIPreparationView: View {
                                 Spacer()
 
                                 Button("刷新", systemImage: "arrow.clockwise") {
-                                    refreshConnectionDiagnostics()
+                                    sourceConnectionViewModel.refreshSources()
                                 }
                                 .buttonStyle(.bordered)
                                 .buttonBorderShape(.roundedRectangle)
                                 .hoverEffect()
                             }
 
-                            if let message = sourceConnectionViewModel.lastErrorMessage {
-                                Text(message)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-
                             DisclosureGroup("诊断信息", isExpanded: $isDiagnosticsExpanded) {
                                 VStack(alignment: .leading, spacing: 8) {
+                                    if let message = sourceConnectionViewModel.lastErrorMessage {
+                                        Text(message)
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+
+                                    HStack(spacing: 10) {
+                                        Button("重载设备列表", systemImage: "arrow.clockwise") {
+                                            centralViewReloadID = UUID()
+                                        }
+                                        .buttonStyle(.bordered)
+                                        .buttonBorderShape(.roundedRectangle)
+                                        .hoverEffect()
+
+                                        Spacer()
+                                    }
+
                                     LabeledContent("状态") {
                                         Text(sourceConnectionViewModel.statusText)
                                             .monospaced()
@@ -153,11 +164,6 @@ struct BluetoothMIDIPreparationView: View {
 
     private func refreshBluetoothAccessStatus() async {
         bluetoothAccessStatus = await bluetoothAccessPreflight.checkOrRequestAccess()
-    }
-
-    private func refreshConnectionDiagnostics() {
-        centralViewReloadID = UUID()
-        sourceConnectionViewModel.refreshSources()
     }
 
     private func openAppSettings() {
