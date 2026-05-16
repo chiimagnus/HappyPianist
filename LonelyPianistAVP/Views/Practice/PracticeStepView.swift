@@ -45,6 +45,13 @@ struct PracticeStepView: View {
                     .buttonBorderShape(.roundedRectangle)
                     .hoverEffect()
 
+                    Button("重新选择钢琴类型", systemImage: "arrow.uturn.backward") {
+                        onRestartFromTypePicker()
+                    }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.roundedRectangle)
+                    .hoverEffect()
+
                     if isAutoplayEnabled == false {
                         Button(manualAdvanceMode.nextButtonTitle, systemImage: "forward.fill") {
                             viewModel.skipStep()
