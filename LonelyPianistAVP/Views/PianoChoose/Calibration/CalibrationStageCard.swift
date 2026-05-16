@@ -21,7 +21,7 @@ struct CalibrationStageCard: View {
                     highlightColorByMIDINote: highlightColorByMIDINote
                 )
                 .aspectRatio(PianoKeyboard88View.aspectRatio, contentMode: .fit)
-                .frame(maxWidth: .infinity, minHeight: 120)
+                .frame(minWidth: 520, maxWidth: .infinity, minHeight: 120)
                 .overlay {
                     KeyboardMovingGlowOverlay(
                         isActive: showsMovingGlow,
