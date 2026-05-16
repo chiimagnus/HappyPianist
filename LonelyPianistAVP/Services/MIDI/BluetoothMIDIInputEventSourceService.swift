@@ -9,12 +9,12 @@ enum BluetoothMIDIInputEventSourceServiceError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-            case let .clientCreate(status):
-                "Failed to create MIDI client: \(status)"
-            case let .portCreate(status):
-                "Failed to create MIDI input port: \(status)"
-            case let .sourceRefresh(status):
-                "Failed to refresh MIDI sources: \(status)"
+        case let .clientCreate(status):
+            "Failed to create MIDI client: \(status)"
+        case let .portCreate(status):
+            "Failed to create MIDI input port: \(status)"
+        case let .sourceRefresh(status):
+            "Failed to refresh MIDI sources: \(status)"
         }
     }
 }
@@ -24,10 +24,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
         eventsStream
     }
 
-    private let logger = Logger(
-        subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
-        category: "BluetoothMIDI-Events"
-    )
+    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP", category: "BluetoothMIDI-Events")
     private let refreshScheduler = DebouncedActionScheduler(queue: .main, debounceSec: 0.2)
 
     private var clientRef: MIDIClientRef = 0
@@ -125,7 +122,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
             &inputPortRef
         ) { [weak self] eventList, _ in
             guard let self else { return }
-            handleEventList(eventList)
+            self.handleEventList(eventList)
         }
 
         guard status == noErr else {
@@ -142,12 +139,12 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
         guard isRunning else { return }
         refreshScheduler.schedule { [weak self] in
             guard let self else { return }
-            guard isRunning, inputPortRef != 0 else { return }
+            guard self.isRunning, self.inputPortRef != 0 else { return }
 
             do {
-                try refreshSources()
+                try self.refreshSources()
             } catch {
-                logger.error("Auto refresh MIDI sources failed: \(error.localizedDescription, privacy: .public)")
+                self.logger.error("Auto refresh MIDI sources failed: \(error.localizedDescription, privacy: .public)")
             }
         }
     }
@@ -172,177 +169,99 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
         let receivedAtUptimeSeconds = ProcessInfo.processInfo.systemUptime
 
         switch message.type {
-            case .channelVoice1:
-                let voice = message.channelVoice1
-                let channel = Int(voice.channel) + 1
+        case .channelVoice1:
+            let voice = message.channelVoice1
+            let channel = Int(voice.channel) + 1
 
-                switch voice.status {
-                    case .noteOn:
-                        let note = Int(voice.note.number)
-                        let velocity = Int(voice.note.velocity)
-                        let kind: PracticeInputEvent
-                            .Kind = velocity > 0 ? .noteOn(note: note, velocity: velocity) : .noteOff(
-                                note: note,
-                                velocity: 0
-                            )
-                        eventsContinuation.yield(PracticeInputEvent(
-                            kind: kind,
-                            channel: channel,
-                            receivedAt: receivedAt,
-                            receivedAtUptimeSeconds: receivedAtUptimeSeconds
-                        ))
+            switch voice.status {
+            case .noteOn:
+                let note = Int(voice.note.number)
+                let velocity = Int(voice.note.velocity)
+                let kind: PracticeInputEvent.Kind = velocity > 0 ? .noteOn(note: note, velocity: velocity) : .noteOff(note: note, velocity: 0)
+                eventsContinuation.yield(PracticeInputEvent(kind: kind, channel: channel, receivedAt: receivedAt, receivedAtUptimeSeconds: receivedAtUptimeSeconds))
 
-                    case .noteOff:
-                        let note = Int(voice.note.number)
-                        let velocity = Int(voice.note.velocity)
-                        eventsContinuation.yield(PracticeInputEvent(
-                            kind: .noteOff(note: note, velocity: velocity),
-                            channel: channel,
-                            receivedAt: receivedAt,
-                            receivedAtUptimeSeconds: receivedAtUptimeSeconds
-                        ))
+            case .noteOff:
+                let note = Int(voice.note.number)
+                let velocity = Int(voice.note.velocity)
+                eventsContinuation.yield(PracticeInputEvent(kind: .noteOff(note: note, velocity: velocity), channel: channel, receivedAt: receivedAt, receivedAtUptimeSeconds: receivedAtUptimeSeconds))
 
-                    case .controlChange:
-                        let controller = Int(voice.controlChange.index)
-                        let value = Int(voice.controlChange.data)
-                        eventsContinuation.yield(PracticeInputEvent(
-                            kind: .controlChange(controller: controller, value: value),
-                            channel: channel,
-                            receivedAt: receivedAt,
-                            receivedAtUptimeSeconds: receivedAtUptimeSeconds
-                        ))
+            case .controlChange:
+                let controller = Int(voice.controlChange.index)
+                let value = Int(voice.controlChange.data)
+                eventsContinuation.yield(PracticeInputEvent(kind: .controlChange(controller: controller, value: value), channel: channel, receivedAt: receivedAt, receivedAtUptimeSeconds: receivedAtUptimeSeconds))
 
-                    case .programChange:
-                        let program = Int(voice.program)
-                        eventsContinuation.yield(PracticeInputEvent(
-                            kind: .programChange(program: program),
-                            channel: channel,
-                            receivedAt: receivedAt,
-                            receivedAtUptimeSeconds: receivedAtUptimeSeconds
-                        ))
+            case .programChange:
+                let program = Int(voice.program)
+                eventsContinuation.yield(PracticeInputEvent(kind: .programChange(program: program), channel: channel, receivedAt: receivedAt, receivedAtUptimeSeconds: receivedAtUptimeSeconds))
 
-                    case .channelPressure:
-                        let value = Int(voice.channelPressure)
-                        eventsContinuation.yield(PracticeInputEvent(
-                            kind: .channelPressure(value: value),
-                            channel: channel,
-                            receivedAt: receivedAt,
-                            receivedAtUptimeSeconds: receivedAtUptimeSeconds
-                        ))
+            case .channelPressure:
+                let value = Int(voice.channelPressure)
+                eventsContinuation.yield(PracticeInputEvent(kind: .channelPressure(value: value), channel: channel, receivedAt: receivedAt, receivedAtUptimeSeconds: receivedAtUptimeSeconds))
 
-                    case .polyPressure:
-                        let note = Int(voice.polyPressure.noteNumber)
-                        let value = Int(voice.polyPressure.pressure)
-                        eventsContinuation.yield(PracticeInputEvent(
-                            kind: .polyPressure(note: note, value: value),
-                            channel: channel,
-                            receivedAt: receivedAt,
-                            receivedAtUptimeSeconds: receivedAtUptimeSeconds
-                        ))
+            case .polyPressure:
+                let note = Int(voice.polyPressure.noteNumber)
+                let value = Int(voice.polyPressure.pressure)
+                eventsContinuation.yield(PracticeInputEvent(kind: .polyPressure(note: note, value: value), channel: channel, receivedAt: receivedAt, receivedAtUptimeSeconds: receivedAtUptimeSeconds))
 
-                    case .pitchBend:
-                        let value = Int(voice.pitchBend)
-                        eventsContinuation.yield(PracticeInputEvent(
-                            kind: .pitchBend(value: value),
-                            channel: channel,
-                            receivedAt: receivedAt,
-                            receivedAtUptimeSeconds: receivedAtUptimeSeconds
-                        ))
-
-                    default:
-                        break
-                }
-
-            case .channelVoice2:
-                let voice = message.channelVoice2
-                let channel = Int(voice.channel) + 1
-
-                switch voice.status {
-                    case .noteOn:
-                        let note = Int(voice.note.number)
-                        let velocity16 = voice.note.velocity
-                        let velocity = scaleMIDI2Value16To127(velocity16)
-                        let kind: PracticeInputEvent
-                            .Kind = velocity16 > 0 ? .noteOn(note: note, velocity: velocity) : .noteOff(
-                                note: note,
-                                velocity: 0
-                            )
-                        eventsContinuation.yield(PracticeInputEvent(
-                            kind: kind,
-                            channel: channel,
-                            receivedAt: receivedAt,
-                            receivedAtUptimeSeconds: receivedAtUptimeSeconds
-                        ))
-
-                    case .noteOff:
-                        let note = Int(voice.note.number)
-                        let velocity16 = voice.note.velocity
-                        let velocity = scaleMIDI2Value16To127(velocity16)
-                        eventsContinuation.yield(PracticeInputEvent(
-                            kind: .noteOff(note: note, velocity: velocity),
-                            channel: channel,
-                            receivedAt: receivedAt,
-                            receivedAtUptimeSeconds: receivedAtUptimeSeconds
-                        ))
-
-                    case .controlChange:
-                        let controller = Int(voice.controlChange.index)
-                        let value = scaleMIDI2Value32To127(UInt32(voice.controlChange.data))
-                        eventsContinuation.yield(PracticeInputEvent(
-                            kind: .controlChange(controller: controller, value: value),
-                            channel: channel,
-                            receivedAt: receivedAt,
-                            receivedAtUptimeSeconds: receivedAtUptimeSeconds
-                        ))
-
-                    case .programChange:
-                        let program = Int(voice.programChange.program)
-                        eventsContinuation.yield(PracticeInputEvent(
-                            kind: .programChange(program: program),
-                            channel: channel,
-                            receivedAt: receivedAt,
-                            receivedAtUptimeSeconds: receivedAtUptimeSeconds
-                        ))
-
-                    case .channelPressure:
-                        let value = scaleMIDI2Value32To127(UInt32(voice.channelPressure.data))
-                        eventsContinuation.yield(PracticeInputEvent(
-                            kind: .channelPressure(value: value),
-                            channel: channel,
-                            receivedAt: receivedAt,
-                            receivedAtUptimeSeconds: receivedAtUptimeSeconds
-                        ))
-
-                    case .polyPressure:
-                        let note = Int(voice.polyPressure.noteNumber)
-                        let value = scaleMIDI2Value32To127(UInt32(voice.polyPressure.pressure))
-                        eventsContinuation.yield(PracticeInputEvent(
-                            kind: .polyPressure(note: note, value: value),
-                            channel: channel,
-                            receivedAt: receivedAt,
-                            receivedAtUptimeSeconds: receivedAtUptimeSeconds
-                        ))
-
-                    case .pitchBend:
-                        let value = scaleMIDI2PitchBendTo14Bit(UInt32(voice.pitchBend.data))
-                        eventsContinuation.yield(PracticeInputEvent(
-                            kind: .pitchBend(value: value),
-                            channel: channel,
-                            receivedAt: receivedAt,
-                            receivedAtUptimeSeconds: receivedAtUptimeSeconds
-                        ))
-
-                    default:
-                        break
-                }
+            case .pitchBend:
+                let value = Int(voice.pitchBend)
+                eventsContinuation.yield(PracticeInputEvent(kind: .pitchBend(value: value), channel: channel, receivedAt: receivedAt, receivedAtUptimeSeconds: receivedAtUptimeSeconds))
 
             default:
                 break
+            }
+
+        case .channelVoice2:
+            let voice = message.channelVoice2
+            let channel = Int(voice.channel) + 1
+
+            switch voice.status {
+            case .noteOn:
+                let note = Int(voice.note.number)
+                let velocity16 = voice.note.velocity
+                let velocity = scaleMIDI2Value16To127(velocity16)
+                let kind: PracticeInputEvent.Kind = velocity16 > 0 ? .noteOn(note: note, velocity: velocity) : .noteOff(note: note, velocity: 0)
+                eventsContinuation.yield(PracticeInputEvent(kind: kind, channel: channel, receivedAt: receivedAt, receivedAtUptimeSeconds: receivedAtUptimeSeconds))
+
+            case .noteOff:
+                let note = Int(voice.note.number)
+                let velocity16 = voice.note.velocity
+                let velocity = scaleMIDI2Value16To127(velocity16)
+                eventsContinuation.yield(PracticeInputEvent(kind: .noteOff(note: note, velocity: velocity), channel: channel, receivedAt: receivedAt, receivedAtUptimeSeconds: receivedAtUptimeSeconds))
+
+            case .controlChange:
+                let controller = Int(voice.controlChange.index)
+                let value = scaleMIDI2Value32To127(UInt32(voice.controlChange.data))
+                eventsContinuation.yield(PracticeInputEvent(kind: .controlChange(controller: controller, value: value), channel: channel, receivedAt: receivedAt, receivedAtUptimeSeconds: receivedAtUptimeSeconds))
+
+            case .programChange:
+                let program = Int(voice.programChange.program)
+                eventsContinuation.yield(PracticeInputEvent(kind: .programChange(program: program), channel: channel, receivedAt: receivedAt, receivedAtUptimeSeconds: receivedAtUptimeSeconds))
+
+            case .channelPressure:
+                let value = scaleMIDI2Value32To127(UInt32(voice.channelPressure.data))
+                eventsContinuation.yield(PracticeInputEvent(kind: .channelPressure(value: value), channel: channel, receivedAt: receivedAt, receivedAtUptimeSeconds: receivedAtUptimeSeconds))
+
+            case .polyPressure:
+                let note = Int(voice.polyPressure.noteNumber)
+                let value = scaleMIDI2Value32To127(UInt32(voice.polyPressure.pressure))
+                eventsContinuation.yield(PracticeInputEvent(kind: .polyPressure(note: note, value: value), channel: channel, receivedAt: receivedAt, receivedAtUptimeSeconds: receivedAtUptimeSeconds))
+
+            case .pitchBend:
+                let value = scaleMIDI2PitchBendTo14Bit(UInt32(voice.pitchBend.data))
+                eventsContinuation.yield(PracticeInputEvent(kind: .pitchBend(value: value), channel: channel, receivedAt: receivedAt, receivedAtUptimeSeconds: receivedAtUptimeSeconds))
+
+            default:
+                break
+            }
+
+        default:
+            break
         }
     }
 
     private func scaleMIDI2Value16To127(_ value: UInt16) -> Int {
-        Int((Double(value) / 65535.0) * 127.0)
+        Int((Double(value) / 65_535.0) * 127.0)
     }
 
     private func scaleMIDI2Value32To127(_ value: UInt32) -> Int {
@@ -350,7 +269,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
     }
 
     private func scaleMIDI2PitchBendTo14Bit(_ value: UInt32) -> Int {
-        Int((Double(value) / Double(UInt32.max)) * 16383.0)
+        Int((Double(value) / Double(UInt32.max)) * 16_383.0)
     }
 }
 

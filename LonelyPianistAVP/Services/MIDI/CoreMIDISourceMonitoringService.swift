@@ -9,12 +9,12 @@ enum CoreMIDISourceMonitoringServiceError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-            case let .clientCreate(status):
-                "Failed to create MIDI client: \(status)"
-            case let .portCreate(status):
-                "Failed to create MIDI input port: \(status)"
-            case let .sourceRefresh(status):
-                "Failed to refresh MIDI sources: \(status)"
+        case let .clientCreate(status):
+            "Failed to create MIDI client: \(status)"
+        case let .portCreate(status):
+            "Failed to create MIDI input port: \(status)"
+        case let .sourceRefresh(status):
+            "Failed to refresh MIDI sources: \(status)"
         }
     }
 }
@@ -142,14 +142,14 @@ final class CoreMIDISourceMonitoringService: MIDISourceMonitoringServiceProtocol
         guard isRunning else { return }
         refreshScheduler.schedule { [weak self] in
             guard let self else { return }
-            guard isRunning, inputPortRef != 0 else { return }
+            guard self.isRunning, self.inputPortRef != 0 else { return }
 
             do {
-                try refreshSources()
+                try self.refreshSources()
             } catch {
-                logger.error("Auto refresh MIDI sources failed: \(error.localizedDescription, privacy: .public)")
-                onLastErrorMessageChange?(error.localizedDescription)
-                onConnectionStateChange?(.connected(sourceCount: connectedSources.count))
+                self.logger.error("Auto refresh MIDI sources failed: \(error.localizedDescription, privacy: .public)")
+                self.onLastErrorMessageChange?(error.localizedDescription)
+                self.onConnectionStateChange?(.connected(sourceCount: self.connectedSources.count))
             }
         }
     }
