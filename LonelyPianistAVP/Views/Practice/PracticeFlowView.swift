@@ -12,6 +12,6 @@ struct PracticeFlowView: View {
                 onRestartFromTypePicker: { router.exitToTypePicker(reason: "user restarted from practice") }
             )
         }
-        .frame(minWidth: 920, idealWidth: 1200, minHeight: 320, idealHeight: 360)
+        .frame(minWidth: 1200, idealWidth: 1600, minHeight: 520, idealHeight: 620)
     }
 }
