@@ -6,90 +6,31 @@
 ![Platform](https://img.shields.io/badge/platform-macOS%20%7C%20visionOS-lightgrey)
 ![Swift](https://img.shields.io/badge/Swift-6-orange)
 
-## 这是什么
+## 你可以用它做什么
 
-LonelyPianist 把钢琴输入拆成三条清晰的体验线：
-
-| 体验 | 你得到什么 | 运行面 |
-| --- | --- | --- |
-| 🎛 MIDI → 控制台 | 把单音 / 和弦映射成文本、快捷键和系统动作 | macOS |
-| 🎭 Piano Dialogue | 弹一句、停一下、AI 回一句，并落成 take | macOS + 本地 Python |
 | 🥽 AR Guide | 导入 MusicXML，在 Vision Pro 上做空间练习引导（双谱表五线谱 + 左右手键位高亮） | visionOS |
 
-## 为什么值得试
+## 发布物（当前现状）
 
-- **本地优先**：核心体验尽量在你的机器上完成，不依赖云端对话服务。
-- **三端连贯**：macOS 负责输入、录音和对话，visionOS 负责练习引导，Python 负责生成。
-- **可验证**：每个主要功能都有对应的 Swift Testing / Python 冒烟入口。
+- 当前仓库主要以“源码运行”为主：**需要 Xcode 本地构建**，暂未提供可直接下载运行的 notarized app。
+- GitHub Releases 里可能会放置**资源文件**（例如音色文件、示例谱面），用于补齐体积较大的素材（见路线 C）。
 
-## 快速开始
+## 我想“先跑起来”该选哪条路
 
-### 1. 启动 Python Dialogue 服务
+### 路线 C：在 Apple Vision Pro 上练习（visionOS）
 
-```bash
-cd piano_dialogue_server
-python3.12 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
+你需要：
+- Xcode 26+
+- visionOS Simulator（可用）或 Vision Pro 真机（推荐）
 
-export AMT_MODEL_DIR=/path/to/music-large-800k
-export AMT_DEVICE=mps   # 或 cuda / cpu
+步骤：
+1. 打开工程后，在本地 Xcode 中选择或创建 `LonelyPianistAVP` scheme 并运行
+2. 在 2D Window 选择钢琴类型（真实 / 虚拟 / 蓝牙 MIDI）
+3. 完成准备阶段（校准或放置）后进入曲库并导入 MusicXML，然后开始练习
 
-python -m uvicorn server.api.main:app --host 127.0.0.1 --port 8765
-```
-
-健康检查：
-
-```bash
-curl -s http://127.0.0.1:8765/health
-```
-
-### 2. 打开 macOS App
-
-```bash
-open LonelyPianist.xcodeproj
-```
-
-在 Xcode 里选择 `LonelyPianist` scheme 并运行。首次使用前，请在**系统设置 → 隐私与安全性 → 辅助功能**中授权，否则按键注入不会生效。
-
-如果你使用的是 **蓝牙 MIDI（BLE MIDI）** 钢琴/键盘：运行后点击工具栏 `Bluetooth MIDI…`，在系统窗口里 Connect 设备；若系统弹出蓝牙权限提示，请选择允许。
-
-### 3. 体验 Vision Pro 练习
-
-```bash
-# 打开工程后，在本地 Xcode 里选择 / 创建 LonelyPianistAVP scheme
-```
-
-主流程提示：先在 2D Window 选择钢琴类型（真实/虚拟），完成准备（校准/放置）后进入选曲库导入或选择曲目，再开始练习。
-
-练习页设置（齿轮）里有一个可选开关：**练习判定：左右手分别满足**（默认关闭）。开启后，同一 step 的左右手音符需要分别满足才会推进。
-
-## 项目结构
-
-```text
-LonelyPianist.xcodeproj/      # Xcode 工程
-LonelyPianist/                # macOS App
-LonelyPianistAVP/             # visionOS 原型
-piano_dialogue_server/        # 本地 Python 服务
-```
-
-## 文档入口
-
-- 想先理解产品：[`business-context.md`](.github/deepwiki/business-context.md)
-- 想先看工程：[`overview.md`](.github/deepwiki/overview.md)
-- 想看模块分解：[`INDEX.md`](.github/deepwiki/INDEX.md)
-- 想看 macOS 用法：[`LonelyPianist/README.md`](LonelyPianist/README.md)
-- 想看 visionOS 用法：[`LonelyPianistAVP/README.md`](LonelyPianistAVP/README.md)
-- 想看 Python 服务：[`piano_dialogue_server/README.md`](piano_dialogue_server/README.md)
-
-## 当前技术栈
-
-| 层 | 技术 |
-| --- | --- |
-| macOS UI | SwiftUI · `@Observable` · CoreMIDI · SwiftData |
-| visionOS | RealityKit · ARKit HandTracking · MusicXML |
-| 服务端 | FastAPI · WebSocket · Uvicorn |
-| 推理 | PyTorch · Transformers · Anticipation |
-| 测试 | Swift Testing + Python 脚本 |
+可选资源（推荐）：
+- `LonelyPianistAVP` 的音色文件 `SalC5Light2.sf2` 体积较大，仓库默认不内置；可以从 GitHub Releases 的“资源文件”里下载并放到：
+  - `LonelyPianistAVP/Resources/Audio/SoundFonts/SalC5Light2.sf2`
 
 ## Acknowledgements
 
