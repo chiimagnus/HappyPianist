@@ -5,7 +5,7 @@ struct HarmonicTemplateScorer {
 
     func score(
         templates: [HarmonicTemplate],
-        energyProvider: any HarmonicBandEnergyProviding,
+        energyProvider: any HarmonicBandEnergyProvidingProtocol,
         profile: HarmonicTemplateTuningProfile
     ) -> [TemplateMatchResult] {
         let partialSummaries = templates.map { template in

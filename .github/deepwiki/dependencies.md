@@ -11,6 +11,7 @@
 | 资源包 | RealityKitContent | visionOS 场景内容 |
 | Python 服务 | FastAPI + websockets + Uvicorn + zeroconf | HTTP/WS 生成 + Bonjour 广播 + MIDI 上传扩展 |
 | 推理 | torch + transformers + anticipation | 回复生成 |
+| 音乐符号字体 | Bravura（SMuFL） | 五线谱渲染（谱号/调号/拍号/升降号） |
 | 压缩解包 | ZIPFoundation | MusicXML `.mxl` 解包 |
 
 ## 第三方依赖
@@ -66,3 +67,4 @@
 
 ## 更新记录（Update Notes）
 - 2026-05-06: 同步 Python `server/` 目录重组与 `test_client` 入口变更；更新配置耦合对应代码位置。
+- 2026-05-16: 新增 Bravura（SMuFL）音乐符号字体依赖。

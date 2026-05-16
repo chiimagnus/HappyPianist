@@ -3,11 +3,11 @@ import Foundation
     import Accelerate
 #endif
 
-protocol AudioSpectrumAnalyzing: Sendable {
+protocol AudioSpectrumAnalyzingProtocol: Sendable {
     func analyze(samples: [Float], sampleRate: Double, timestamp: Date) throws -> AudioSpectrumFrame
 }
 
-struct VDSPAudioSpectrumAnalyzer: AudioSpectrumAnalyzing {
+struct VDSPAudioSpectrumAnalyzer: AudioSpectrumAnalyzingProtocol {
     enum AnalyzerError: LocalizedError {
         case invalidInput
         var errorDescription: String? {

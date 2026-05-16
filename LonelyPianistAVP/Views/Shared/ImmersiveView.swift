@@ -133,7 +133,19 @@ struct ImmersiveView: View {
 }
 
 #Preview(immersionStyle: .progressive(0.0...1.0, initialAmount: 0.7, aspectRatio: nil)) {
-    let appState = AppState()
+    let services = AppServices()
     let flowState = FlowState()
-    ImmersiveView(viewModel: ARGuideViewModel(appState: appState, flowState: flowState))
+    let appState = AppState(
+        arTrackingService: services.arTrackingService,
+        calibrationCaptureService: services.calibrationCaptureService,
+        calibrationRepository: services.calibrationRepository,
+        keyGeometryService: services.keyGeometryService
+    )
+    let viewModel = ARGuideViewModel(
+        appState: appState,
+        flowState: flowState,
+        pianoModeRegistry: services.pianoModeRegistry,
+        practiceSessionViewModelFactory: services.practiceSessionViewModelFactory
+    )
+    ImmersiveView(viewModel: viewModel)
 }

@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 
 @MainActor
 @Observable
@@ -11,6 +12,12 @@ final class AppServices {
     let arTrackingService: ARTrackingServiceProtocol
     let calibrationCaptureService: CalibrationPointCaptureService
     let practicePreparationService: PracticePreparationServiceProtocol
+    let songLibraryIndexStore: SongLibraryIndexStoreProtocol
+    let songFileStore: SongFileStoreProtocol
+    let audioImportService: AudioImportServiceProtocol
+    let songLibraryPaths: SongLibraryPaths
+    let bundledSongLibraryProvider: BundledSongLibraryProviderProtocol
+    let songAudioPlayer: SongAudioPlayerProtocol
     let calibrationRepository: CalibrationRepositoryProtocol
     let pianoModeRegistry: PianoModeRegistryProtocol
     let practiceSessionViewModelFactory: PracticeSessionViewModelFactoryProtocol
@@ -35,12 +42,101 @@ final class AppServices {
         self.stepBuilder = stepBuilder ?? PracticeStepBuilder()
         self.arTrackingService = arTrackingService ?? ARTrackingService()
         self.calibrationCaptureService = calibrationCaptureService ?? CalibrationPointCaptureService()
+        self.songLibraryIndexStore = SongLibraryIndexStore()
+        self.songFileStore = SongFileStore()
+        self.audioImportService = AudioImportService()
+        self.songLibraryPaths = SongLibraryPaths()
+        self.bundledSongLibraryProvider = BundledSongLibraryProvider()
+        self.songAudioPlayer = SongAudioPlayer()
         self.practicePreparationService = practicePreparationService
             ?? PracticePreparationService(parser: self.parser, stepBuilder: self.stepBuilder)
         self.calibrationRepository = calibrationRepository
             ?? CalibrationRepository(worldAnchorCalibrationStore: self.worldAnchorCalibrationStore)
-        self.pianoModeRegistry = pianoModeRegistry ?? PianoModeRegistryService()
+
+        let makePressDetectionService: () -> PressDetectionServiceProtocol = {
+            PressDetectionService()
+        }
+        let makeChordAttemptAccumulator: () -> ChordAttemptAccumulatorProtocol = {
+            ChordAttemptAccumulator()
+        }
+        let makeSleeper: () -> SleeperProtocol = {
+            TaskSleeper()
+        }
+        let makeSequencerPlaybackService: () -> PracticeSequencerPlaybackServiceProtocol = {
+            AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2")
+        }
+        let makeAudioStepAttemptAccumulator: () -> AudioStepAttemptAccumulator = {
+            AudioStepAttemptAccumulator()
+        }
+        let makeHandPianoActivityGate: () -> HandPianoActivityGate = {
+            HandPianoActivityGate()
+        }
+        let makeAudioRecognitionService: () -> PracticeAudioRecognitionServiceProtocol? = {
+#if targetEnvironment(simulator)
+            nil
+#else
+            PracticeAudioRecognitionService()
+#endif
+        }
+        let makeBluetoothMIDIEventSource: () -> PracticeInputEventSourceProtocol = {
+            BluetoothMIDIInputEventSourceService()
+        }
+
+        let resolvedPianoModeRegistry: PianoModeRegistryProtocol = pianoModeRegistry ?? PianoModeRegistryService(modes: [
+            RealAudioPianoMode(makePracticeSessionViewModel: {
+                PracticeSessionViewModel(
+                    pressDetectionService: makePressDetectionService(),
+                    chordAttemptAccumulator: makeChordAttemptAccumulator(),
+                    sleeper: makeSleeper(),
+                    sequencerPlaybackService: makeSequencerPlaybackService(),
+                    audioRecognitionService: makeAudioRecognitionService(),
+                    practiceInputEventSource: nil,
+                    audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
+                    handPianoActivityGate: makeHandPianoActivityGate()
+                )
+            }),
+            BluetoothMIDIPianoMode(makePracticeSessionViewModel: {
+                PracticeSessionViewModel(
+                    pressDetectionService: makePressDetectionService(),
+                    chordAttemptAccumulator: makeChordAttemptAccumulator(),
+                    sleeper: makeSleeper(),
+                    sequencerPlaybackService: makeSequencerPlaybackService(),
+                    audioRecognitionService: nil,
+                    practiceInputEventSource: makeBluetoothMIDIEventSource(),
+                    audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
+                    handPianoActivityGate: makeHandPianoActivityGate()
+                )
+            }),
+            VirtualPianoMode(makePracticeSessionViewModel: {
+                PracticeSessionViewModel(
+                    pressDetectionService: makePressDetectionService(),
+                    chordAttemptAccumulator: makeChordAttemptAccumulator(),
+                    sleeper: makeSleeper(),
+                    sequencerPlaybackService: makeSequencerPlaybackService(),
+                    audioRecognitionService: nil,
+                    practiceInputEventSource: nil,
+                    audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
+                    handPianoActivityGate: makeHandPianoActivityGate()
+                )
+            }),
+        ])
+        self.pianoModeRegistry = resolvedPianoModeRegistry
+
         self.practiceSessionViewModelFactory = practiceSessionViewModelFactory
-            ?? PracticeSessionViewModelFactoryService(pianoModeRegistry: self.pianoModeRegistry)
+            ?? PracticeSessionViewModelFactoryService(
+                pianoModeRegistry: resolvedPianoModeRegistry,
+                makeFallbackPracticeSessionViewModel: {
+                    PracticeSessionViewModel(
+                        pressDetectionService: makePressDetectionService(),
+                        chordAttemptAccumulator: makeChordAttemptAccumulator(),
+                        sleeper: makeSleeper(),
+                        sequencerPlaybackService: makeSequencerPlaybackService(),
+                        audioRecognitionService: makeAudioRecognitionService(),
+                        practiceInputEventSource: nil,
+                        audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
+                        handPianoActivityGate: makeHandPianoActivityGate()
+                    )
+                }
+            )
     }
 }

@@ -1,7 +1,7 @@
 import Foundation
 @testable import LonelyPianistAVP
 
-struct FakeHarmonicBandEnergyProvider: HarmonicBandEnergyProviding {
+struct FakeHarmonicBandEnergyProvider: HarmonicBandEnergyProvidingProtocol {
     var rms: Double = 0.03
     var noiseFloor: Double = 0.001
     var bandEnergies: [Int: Double] = [:]

@@ -2,6 +2,7 @@ import SwiftUI
 
 struct RealAudioPianoMode: PianoModeProtocol {
     let id = "real_audio"
+    private let makePracticeSessionViewModelClosure: @MainActor () -> PracticeSessionViewModel
 
     let pickerCard = PianoModePickerCard(
         title: "真实钢琴（音频）",
@@ -11,6 +12,10 @@ struct RealAudioPianoMode: PianoModeProtocol {
 
     let usesBluetoothMIDIInput = false
     let isVirtualPianoMode = false
+
+    init(makePracticeSessionViewModel: @escaping @MainActor () -> PracticeSessionViewModel) {
+        makePracticeSessionViewModelClosure = makePracticeSessionViewModel
+    }
 
     func canProceedToLibrary(flowState: FlowState) -> Bool {
         flowState.isCalibrationCompleted
@@ -29,12 +34,13 @@ struct RealAudioPianoMode: PianoModeProtocol {
     }
 
     func makePracticeSessionViewModel() -> PracticeSessionViewModel {
-        PracticeSessionViewModel()
+        makePracticeSessionViewModelClosure()
     }
 }
 
 struct BluetoothMIDIPianoMode: PianoModeProtocol {
     let id = "bluetooth_midi"
+    private let makePracticeSessionViewModelClosure: @MainActor () -> PracticeSessionViewModel
 
     let pickerCard = PianoModePickerCard(
         title: "真实钢琴（蓝牙 MIDI）",
@@ -44,6 +50,10 @@ struct BluetoothMIDIPianoMode: PianoModeProtocol {
 
     let usesBluetoothMIDIInput = true
     let isVirtualPianoMode = false
+
+    init(makePracticeSessionViewModel: @escaping @MainActor () -> PracticeSessionViewModel) {
+        makePracticeSessionViewModelClosure = makePracticeSessionViewModel
+    }
 
     func canProceedToLibrary(flowState: FlowState) -> Bool {
         flowState.isCalibrationCompleted && flowState.bluetoothMIDISourceCount > 0
@@ -62,19 +72,13 @@ struct BluetoothMIDIPianoMode: PianoModeProtocol {
     }
 
     func makePracticeSessionViewModel() -> PracticeSessionViewModel {
-        PracticeSessionViewModel(
-            pressDetectionService: PressDetectionService(),
-            chordAttemptAccumulator: ChordAttemptAccumulator(),
-            sleeper: TaskSleeper(),
-            sequencerPlaybackService: AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2"),
-            audioRecognitionService: nil,
-            practiceInputEventSource: BluetoothMIDIInputEventSourceService()
-        )
+        makePracticeSessionViewModelClosure()
     }
 }
 
 struct VirtualPianoMode: PianoModeProtocol {
     let id = "virtual_piano"
+    private let makePracticeSessionViewModelClosure: @MainActor () -> PracticeSessionViewModel
 
     let pickerCard = PianoModePickerCard(
         title: "虚拟钢琴",
@@ -84,6 +88,10 @@ struct VirtualPianoMode: PianoModeProtocol {
 
     let usesBluetoothMIDIInput = false
     let isVirtualPianoMode = true
+
+    init(makePracticeSessionViewModel: @escaping @MainActor () -> PracticeSessionViewModel) {
+        makePracticeSessionViewModelClosure = makePracticeSessionViewModel
+    }
 
     func canProceedToLibrary(flowState: FlowState) -> Bool {
         flowState.isVirtualPianoPlaced
@@ -102,7 +110,6 @@ struct VirtualPianoMode: PianoModeProtocol {
     }
 
     func makePracticeSessionViewModel() -> PracticeSessionViewModel {
-        PracticeSessionViewModel()
+        makePracticeSessionViewModelClosure()
     }
 }
-

@@ -90,7 +90,29 @@ struct PracticeStepView: View {
                     .hoverEffect()
                     .disabled(viewModel.isAIPerformanceActive)
                     .popover(isPresented: $isSettingsPopoverPresented) {
-                        settingsPopover
+                        PracticeStepSettingsPopover(
+                            virtualPerformerEnabled: $isVirtualPerformerEnabled,
+                            backendStatusText: viewModel.backendStatusText,
+                            lastImprovStatusText: viewModel.lastImprovStatusText,
+                            recordingSourceText: viewModel.recordingSourceText,
+                            isAIPerformanceActive: viewModel.isAIPerformanceActive,
+                            isVirtualPianoMode: isVirtualPianoMode,
+                            gazePlaneDiskStatusText: viewModel.gazePlaneDiskStatusText,
+                            onOpenTakeLibrary: {
+                                isSettingsPopoverPresented = false
+                                isTakeLibraryPresented = true
+                            },
+                            onRetryVirtualPianoPlacement: {
+                                viewModel.retryVirtualPianoPlacement()
+                            },
+                            onDebugTriggerAIPerformance: {
+                                #if DEBUG && targetEnvironment(simulator)
+                                Task { @MainActor in
+                                    await viewModel.debugTriggerAIPerformance()
+                                }
+                                #endif
+                            }
+                        )
                     }
 
                     if viewModel.isRecording {
@@ -140,7 +162,26 @@ struct PracticeStepView: View {
                         .hoverEffect()
                         .disabled(viewModel.isAIPerformanceActive)
                         .popover(isPresented: $isLocalizationPopoverPresented) {
-                            localizationPopover
+                            PracticeStepLocalizationPopover(
+                                practiceLocalizationStatusText: viewModel.practiceLocalizationStatusText,
+                                step3ARStatusText: viewModel.step3ARStatusText,
+                                step3HandAssistStatusText: viewModel.step3HandAssistStatusText,
+                                step3AudioStatusText: viewModel.step3AudioStatusText,
+                                canRetryPracticeLocalization: viewModel.canRetryPracticeLocalization,
+                                shouldSuggestCalibrationStep: viewModel.shouldSuggestCalibrationStep,
+                                isAIPerformanceActive: viewModel.isAIPerformanceActive,
+                                onRetryLocalization: {
+                                    Task { @MainActor in
+                                        await viewModel.retryPracticeLocalization(
+                                            using: openImmersiveSpace,
+                                            dismissImmersiveSpace: dismissImmersiveSpace
+                                        )
+                                    }
+                                },
+                                onRestartFromTypePicker: {
+                                    onRestartFromTypePicker()
+                                }
+                            )
                         }
                     }
                 }
@@ -310,198 +351,25 @@ struct PracticeStepView: View {
         return result
     }
 
-    private var localizationPopover: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(viewModel.practiceLocalizationStatusText ?? "进入后会自动定位钢琴。")
-                .font(.callout)
-                .foregroundStyle(.secondary)
-
-            Divider()
-
-            Text(viewModel.step3ARStatusText)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text(viewModel.step3HandAssistStatusText)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Text(viewModel.step3AudioStatusText)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            Text("提示：即使定位失败或环境不支持，你也可以直接使用下方 2D 键盘的“下一步”继续练习。")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            if viewModel.canRetryPracticeLocalization {
-                Button("重试定位", systemImage: "arrow.clockwise") {
-                    Task { @MainActor in
-                        await viewModel.retryPracticeLocalization(
-                            using: openImmersiveSpace,
-                            dismissImmersiveSpace: dismissImmersiveSpace
-                        )
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.roundedRectangle)
-                .hoverEffect()
-                .disabled(viewModel.isAIPerformanceActive)
-            }
-
-            if viewModel.shouldSuggestCalibrationStep {
-                Text("若持续失败，请回到“钢琴类型选择”重新开始准备。")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Button("回到钢琴类型选择", systemImage: "house") {
-                    onRestartFromTypePicker()
-                }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.roundedRectangle)
-                .hoverEffect()
-            }
-        }
-        .padding(16)
-        .frame(minWidth: 320)
-    }
-
-    private var settingsPopover: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            PracticeSettingsView(
-                virtualPerformerEnabled: $isVirtualPerformerEnabled,
-                backendStatusText: viewModel.backendStatusText,
-                lastImprovStatusText: viewModel.lastImprovStatusText,
-                recordingSourceText: viewModel.recordingSourceText,
-                onOpenTakeLibrary: {
-                    isSettingsPopoverPresented = false
-                    isTakeLibraryPresented = true
-                }
-            )
-            .disabled(viewModel.isAIPerformanceActive)
-
-            #if DEBUG && targetEnvironment(simulator)
-            if isVirtualPerformerEnabled {
-                Divider()
-                Button("调试：触发 AI 演奏", systemImage: "play.fill") {
-                    Task { @MainActor in
-                        await viewModel.debugTriggerAIPerformance()
-                    }
-                }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.roundedRectangle)
-                .hoverEffect()
-                .disabled(viewModel.isAIPerformanceActive)
-            }
-            #endif
-
-            if isVirtualPianoMode {
-                Divider()
-                    .padding(.horizontal, 16)
-
-                if let status = viewModel.gazePlaneDiskStatusText {
-                    Text(status)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .padding(.horizontal, 16)
-                }
-
-                Button("重试放置", systemImage: "arrow.clockwise") {
-                    viewModel.retryVirtualPianoPlacement()
-                }
-                .buttonStyle(.borderedProminent)
-                .buttonBorderShape(.roundedRectangle)
-                .hoverEffect()
-                .disabled(viewModel.isAIPerformanceActive)
-                .padding(.horizontal, 16)
-            }
-        }
-        .frame(minWidth: 320)
-    }
-}
-
-private struct Step3WindowGeometryHint: UIViewControllerRepresentable {
-    func makeUIViewController(context _: Context) -> UIViewController {
-        WindowGeometryHintViewController()
-    }
-
-    func updateUIViewController(_: UIViewController, context _: Context) {}
-}
-
-private final class WindowGeometryHintViewController: UIViewController {
-    private var hasRequestedGeometryUpdate = false
-    private var hasRequestedRestoreGeometryUpdate = false
-    private var previousWindowSize: CGSize?
-
-    override func viewDidLoad() {
-        super.viewDidLoad()
-        view.isUserInteractionEnabled = false
-        view.backgroundColor = .clear
-    }
-
-    override func viewWillAppear(_ animated: Bool) {
-        super.viewWillAppear(animated)
-        capturePreviousWindowSizeIfNeeded()
-    }
-
-    override func viewDidAppear(_ animated: Bool) {
-        super.viewDidAppear(animated)
-        requestGeometryUpdateIfNeeded()
-    }
-
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
-        requestRestoreGeometryUpdateIfNeeded()
-    }
-
-    private func requestGeometryUpdateIfNeeded() {
-        guard hasRequestedGeometryUpdate == false else { return }
-        guard let windowScene = view.window?.windowScene else { return }
-
-        hasRequestedGeometryUpdate = true
-        capturePreviousWindowSizeIfNeeded()
-
-        let preferences = UIWindowScene.GeometryPreferences.Vision(
-            size: CGSize(width: 1600, height: 620),
-            minimumSize: CGSize(width: 1200, height: 520),
-            maximumSize: nil,
-            resizingRestrictions: nil
-        )
-
-        windowScene.requestGeometryUpdate(preferences) { error in
-            print("Step 3 requestGeometryUpdate failed: \(error.localizedDescription)")
-        }
-    }
-
-    private func requestRestoreGeometryUpdateIfNeeded() {
-        guard hasRequestedRestoreGeometryUpdate == false else { return }
-        guard let windowScene = view.window?.windowScene else { return }
-
-        hasRequestedRestoreGeometryUpdate = true
-        let restoreSize = previousWindowSize ?? CGSize(width: 700, height: 700)
-
-        let preferences = UIWindowScene.GeometryPreferences.Vision(
-            size: restoreSize,
-            minimumSize: CGSize(width: 560, height: 560),
-            maximumSize: nil,
-            resizingRestrictions: nil
-        )
-
-        windowScene.requestGeometryUpdate(preferences) { error in
-            print("Step 3 restore requestGeometryUpdate failed: \(error.localizedDescription)")
-        }
-    }
-
-    private func capturePreviousWindowSizeIfNeeded() {
-        guard previousWindowSize == nil else { return }
-        guard let window = view.window else { return }
-        let size = window.bounds.size
-        guard size.width > 0, size.height > 0 else { return }
-        previousWindowSize = size
-    }
 }
 
 #Preview("Step 3") {
+    let services = AppServices()
+    let flowState = FlowState()
+    let appState = AppState(
+        arTrackingService: services.arTrackingService,
+        calibrationCaptureService: services.calibrationCaptureService,
+        calibrationRepository: services.calibrationRepository,
+        keyGeometryService: services.keyGeometryService
+    )
+    let viewModel = ARGuideViewModel(
+        appState: appState,
+        flowState: flowState,
+        pianoModeRegistry: services.pianoModeRegistry,
+        practiceSessionViewModelFactory: services.practiceSessionViewModelFactory
+    )
     PracticeStepView(
-        viewModel: ARGuideViewModel(appState: AppState(), flowState: FlowState()),
+        viewModel: viewModel,
         onBackToLibrary: {},
         onRestartFromTypePicker: {}
     )

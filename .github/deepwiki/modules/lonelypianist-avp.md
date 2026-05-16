@@ -94,3 +94,4 @@
 - 2026-05-13: 准备页改为**内嵌**系统 Bluetooth MIDI 面板，移除 sheet 弹窗与 sources 刷新/列表 UI；BLE 模式入口保持不变。
 - 2026-05-13: 目录地图全面扩充（补全 AppFlow/、AudioRecognition/、MIDI/、Recording/、Practice/ 子目录等）；BLE 模式入口从 `PianoKind` 枚举改为 `PianoModeRegistryService` 解析。
 - 2026-05-14: 同步 Step 3 五线谱迁移为 `GrandStaffNotationView`（双谱表）；左右手语义以 `ScoreHand` 贯穿 step/guide/高亮/判定。
+- 2026-05-16: 新增 `MusicXMLPianoGrandStaffNormalizer`（双 part 归一化修复左手音符丢失）；Grand Staff 渲染扩充（stems/beams/flags/Bravura SMuFL/垂直滚动）。
