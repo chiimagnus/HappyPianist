@@ -21,13 +21,24 @@ struct LonelyPianistAVPApp: App {
         let selectedImmersionStyle: any ImmersionStyle = immersivePanoramaEnabled ? progressiveImmersionStyle : .mixed
 
         WindowGroup {
-            AppRootView(
+            PreparationWindowRootView(
                 appState: appState,
                 services: services,
                 arGuideViewModel: arGuideViewModel,
                 router: router
             )
-            .environment(router)
+        }
+        .windowStyle(.automatic)
+        .windowResizability(.contentSize)
+
+        WindowGroup(id: WindowIDs.library) {
+            LibraryWindowRootView()
+        }
+        .windowStyle(.automatic)
+        .windowResizability(.contentSize)
+
+        WindowGroup(id: WindowIDs.practice) {
+            PracticeWindowRootView()
         }
         .windowStyle(.automatic)
         .windowResizability(.contentSize)
