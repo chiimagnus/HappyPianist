@@ -38,16 +38,31 @@ final class WindowCoordinator {
         openWindow: OpenWindowAction,
         dismissWindow: DismissWindowAction
     ) {
+        transition(
+            from: currentWindow,
+            to: targetWindow,
+            open: { id in openWindow(id: id) },
+            dismiss: { id in
+                if let id {
+                    dismissWindow(id: id)
+                } else {
+                    dismissWindow()
+                }
+            }
+        )
+    }
+
+    func transition(
+        from currentWindow: Window?,
+        to targetWindow: Window,
+        open: (String) -> Void,
+        dismiss: (String?) -> Void
+    ) {
         guard currentWindow != targetWindow else { return }
 
         Self.logger.info("transition: \(String(describing: currentWindow?.id)) -> \(targetWindow.id)")
-        openWindow(id: targetWindow.id)
-
-        if let currentWindow {
-            dismissWindow(id: currentWindow.id)
-        } else {
-            dismissWindow()
-        }
+        open(targetWindow.id)
+        dismiss(currentWindow?.id)
     }
 
     func resetToPreparation(reason: String) {
