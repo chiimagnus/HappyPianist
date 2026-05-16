@@ -39,3 +39,11 @@ struct PianoTypePickerView: View {
         .buttonBorderShape(.roundedRectangle(radius: 20))
     }
 }
+
+#Preview("Piano Type Picker") {
+    let services = AppServices()
+    let flowState = FlowState()
+    let router = AppRouter(flowState: flowState, pianoModeRegistry: services.pianoModeRegistry)
+    return PianoTypePickerView()
+        .environment(router)
+}
