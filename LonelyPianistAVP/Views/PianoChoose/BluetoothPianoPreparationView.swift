@@ -8,6 +8,7 @@ struct BluetoothMIDIPreparationView: View {
     @State private var sourceConnectionViewModel = MIDISourceConnectionViewModel()
     @State private var bluetoothAccessStatus: BluetoothAccessPreflight.Status = .unknown
     @State private var didCheckBluetoothAccess = false
+    @State private var centralViewReloadID = UUID()
 
     var body: some View {
         VStack(spacing: 20) {
@@ -27,40 +28,72 @@ struct BluetoothMIDIPreparationView: View {
                     }
 
                     switch bluetoothAccessStatus {
-                    case .ready:
-                        BluetoothMIDICentralEmbeddedView()
-                            .frame(height: 320)
-                            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                        case .ready:
+                            HStack(spacing: 10) {
+                                Button("重载设备列表", systemImage: "arrow.clockwise") {
+                                    centralViewReloadID = UUID()
+                                }
+                                .buttonStyle(.bordered)
+                                .buttonBorderShape(.roundedRectangle)
+                                .hoverEffect()
 
-                        Text("已连接 Sources: \(sourceConnectionViewModel.sourceCount)")
-                            .font(.callout)
-                            .foregroundStyle(.secondary)
+                                Button("刷新 Sources", systemImage: "arrow.triangle.2.circlepath") {
+                                    sourceConnectionViewModel.refreshSources()
+                                }
+                                .buttonStyle(.bordered)
+                                .buttonBorderShape(.roundedRectangle)
+                                .hoverEffect()
 
-                    case .bluetoothPoweredOff:
-                        accessStatusCard(
-                            title: "蓝牙已关闭",
-                            message: "请在系统设置中打开蓝牙后重试。"
-                        )
+                                Spacer()
+                            }
 
-                    case .unauthorized:
-                        accessStatusCard(
-                            title: "需要蓝牙权限",
-                            message: "请在系统设置中允许 LonelyPianist 使用蓝牙，以便连接蓝牙 MIDI 钢琴。",
-                            showsOpenSettingsButton: true
-                        )
+                            BluetoothMIDICentralEmbeddedView()
+                                .id(centralViewReloadID)
+                                .frame(height: 320)
+                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
-                    case .unsupported:
-                        accessStatusCard(
-                            title: "不支持蓝牙 MIDI",
-                            message: "当前设备或系统不支持 MIDI over Bluetooth。"
-                        )
+                            Text("已连接 Sources: \(sourceConnectionViewModel.sourceCount)")
+                                .font(.callout)
+                                .foregroundStyle(.secondary)
 
-                    case .unknown:
-                        accessStatusCard(
-                            title: "正在检查蓝牙状态…",
-                            message: "若长时间无响应，请重试；若仍失败，请检查蓝牙开关与权限设置。",
-                            showsRetryButton: true
-                        )
+                            if sourceConnectionViewModel.sourceNames.isEmpty == false {
+                                VStack(alignment: .leading, spacing: 6) {
+                                    Text("Sources:")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.secondary)
+                                    ForEach(sourceConnectionViewModel.sourceNames, id: \.self) { name in
+                                        Text("• \(name)")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+
+                        case .bluetoothPoweredOff:
+                            accessStatusCard(
+                                title: "蓝牙已关闭",
+                                message: "请在系统设置中打开蓝牙后重试。"
+                            )
+
+                        case .unauthorized:
+                            accessStatusCard(
+                                title: "需要蓝牙权限",
+                                message: "请在系统设置中允许 LonelyPianist 使用蓝牙，以便连接蓝牙 MIDI 钢琴。",
+                                showsOpenSettingsButton: true
+                            )
+
+                        case .unsupported:
+                            accessStatusCard(
+                                title: "不支持蓝牙 MIDI",
+                                message: "当前设备或系统不支持 MIDI over Bluetooth。"
+                            )
+
+                        case .unknown:
+                            accessStatusCard(
+                                title: "正在检查蓝牙状态…",
+                                message: "若长时间无响应，请重试；若仍失败，请检查蓝牙开关与权限设置。",
+                                showsRetryButton: true
+                            )
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -118,7 +151,6 @@ struct BluetoothMIDIPreparationView: View {
         UIApplication.shared.open(url)
     }
 
-    @ViewBuilder
     private func accessStatusCard(
         title: String,
         message: String,
