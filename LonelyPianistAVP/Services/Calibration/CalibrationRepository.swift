@@ -1,6 +1,12 @@
 import ARKit
 import Foundation
+import os
 import simd
+
+private let calibrationRepositoryLogger = Logger(
+    subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
+    category: "CalibrationRepository"
+)
 
 protocol CalibrationRepositoryProtocol {
     func loadStoredCalibration() throws -> StoredWorldAnchorCalibration?
@@ -55,14 +61,18 @@ struct CalibrationRepository: CalibrationRepositoryProtocol {
 
         for oldID in oldIDs where currentIDs.contains(oldID) == false {
             guard let oldAnchor = arTrackingService.worldAnchorsByID[oldID] else {
-                print("未在当前环境恢复该锚点，无法删除（UUID=\(oldID.uuidString)）")
+                calibrationRepositoryLogger.warning(
+                    "未在当前环境恢复该锚点，无法删除（UUID=\(oldID.uuidString, privacy: .public)）"
+                )
                 continue
             }
 
             do {
                 try await arTrackingService.worldTrackingProvider.removeAnchor(oldAnchor)
             } catch {
-                print("删除旧锚点失败（UUID=\(oldID.uuidString)）：\(error.localizedDescription)")
+                calibrationRepositoryLogger.error(
+                    "删除旧锚点失败（UUID=\(oldID.uuidString, privacy: .public)）：\(error.localizedDescription, privacy: .public)"
+                )
             }
         }
     }
@@ -79,7 +89,9 @@ struct CalibrationRepository: CalibrationRepositoryProtocol {
             do {
                 try await arTrackingService.worldTrackingProvider.removeAnchor(anchor)
             } catch {
-                print("删除临时校准锚点失败（UUID=\(anchorID.uuidString)）：\(error.localizedDescription)")
+                calibrationRepositoryLogger.error(
+                    "删除临时校准锚点失败（UUID=\(anchorID.uuidString, privacy: .public)）：\(error.localizedDescription, privacy: .public)"
+                )
             }
         }
     }

@@ -1,4 +1,10 @@
 import SwiftUI
+import os
+
+private let step3WindowGeometryLogger = Logger(
+    subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
+    category: "Step3WindowGeometry"
+)
 
 struct Step3WindowGeometryHint: UIViewControllerRepresentable {
     func makeUIViewController(context _: Context) -> UIViewController {
@@ -49,7 +55,9 @@ final class WindowGeometryHintViewController: UIViewController {
         )
 
         windowScene.requestGeometryUpdate(preferences) { error in
-            print("Step 3 requestGeometryUpdate failed: \(error.localizedDescription)")
+            step3WindowGeometryLogger.error(
+                "Step 3 requestGeometryUpdate failed: \(error.localizedDescription, privacy: .public)"
+            )
         }
     }
 
@@ -68,7 +76,9 @@ final class WindowGeometryHintViewController: UIViewController {
         )
 
         windowScene.requestGeometryUpdate(preferences) { error in
-            print("Step 3 restore requestGeometryUpdate failed: \(error.localizedDescription)")
+            step3WindowGeometryLogger.error(
+                "Step 3 restore requestGeometryUpdate failed: \(error.localizedDescription, privacy: .public)"
+            )
         }
     }
 
