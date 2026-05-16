@@ -36,7 +36,7 @@ struct BluetoothMIDIConnectionSection: View {
             VStack(alignment: .leading, spacing: 12) {
                 switch bluetoothAccessStatus {
                     case .ready:
-                        BluetoothMIDICentralEmbeddedView()
+                        centralViewController()
                             .id(centralViewReloadID)
                             .frame(height: 320)
                             .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -242,15 +242,18 @@ struct BluetoothMIDIConnectionSection: View {
         .background(.thinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
-}
 
-private struct BluetoothMIDICentralEmbeddedView: UIViewControllerRepresentable {
-    func makeUIViewController(context _: Context) -> UINavigationController {
-        let controller = CABTMIDICentralViewController()
-        return UINavigationController(rootViewController: controller)
+    private func centralViewController() -> some View {
+        struct Representable: UIViewControllerRepresentable {
+            func makeUIViewController(context _: Context) -> UINavigationController {
+                UINavigationController(rootViewController: CABTMIDICentralViewController())
+            }
+
+            func updateUIViewController(_: UINavigationController, context _: Context) {}
+        }
+
+        return Representable()
     }
-
-    func updateUIViewController(_: UINavigationController, context _: Context) {}
 }
 
 #Preview("连接：已连接") {
