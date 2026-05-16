@@ -6,7 +6,6 @@ final class AppCompositionRoot {
     let appState: AppState
     let arGuideViewModel: ARGuideViewModel
     let flowState: FlowState
-    let router: AppRouter
 
     init() {
         let services = AppServices()
@@ -19,7 +18,6 @@ final class AppCompositionRoot {
         appState.loadStoredCalibrationIfPossible()
 
         let flowState = FlowState()
-        let router = AppRouter(flowState: flowState, pianoModeRegistry: services.pianoModeRegistry)
 
         self.services = services
         self.appState = appState
@@ -30,6 +28,5 @@ final class AppCompositionRoot {
             practiceSessionViewModelFactory: services.practiceSessionViewModelFactory
         )
         self.flowState = flowState
-        self.router = router
     }
 }

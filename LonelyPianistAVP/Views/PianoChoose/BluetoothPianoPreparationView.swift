@@ -3,14 +3,16 @@ import SwiftUI
 import UIKit
 
 struct BluetoothMIDIPreparationView: View {
-    @Environment(AppRouter.self) private var router
+    @Environment(WindowCoordinator.self) private var coordinator
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
     @Bindable var viewModel: ARGuideViewModel
 
     var body: some View {
         VStack(spacing: 20) {
             HStack {
                 Button("返回钢琴类型选择") {
-                    router.exitToTypePicker(reason: "user tapped back from bluetooth midi preparation")
+                    coordinator.resetToPreparation(reason: "user tapped back from bluetooth midi preparation")
                 }
                 .buttonStyle(.bordered)
 
@@ -22,26 +24,32 @@ struct BluetoothMIDIPreparationView: View {
                 Spacer()
 
                 Button("下一步：去选曲") {
-                    router.goToLibrary()
+                    coordinator.openLibrary(dismissCurrent: .preparation, openWindow: openWindow, dismissWindow: dismissWindow)
                 }
                 .buttonStyle(.borderedProminent)
-                .disabled(!router.canProceedToLibrary)
+                .disabled(!canProceedToLibrary)
             }
 
             BluetoothMIDIConnectionSection { sourceCount in
-                router.flowState.bluetoothMIDISourceCount = sourceCount
+                coordinator.flowState.bluetoothMIDISourceCount = sourceCount
             }
 
             CalibrationStepView(
                 viewModel: viewModel,
-                onExit: { router.exitToTypePicker(reason: "user exited from bluetooth midi preparation") }
+                onExit: { coordinator.resetToPreparation(reason: "user exited from bluetooth midi preparation") }
             )
         }
         .padding(24)
         .frame(minWidth: 600, idealWidth: 700)
         .onChange(of: viewModel.calibrationPhase) {
-            router.flowState.isCalibrationCompleted = (viewModel.calibrationPhase == .completed)
+            coordinator.flowState.isCalibrationCompleted = (viewModel.calibrationPhase == .completed)
         }
+    }
+
+    private var canProceedToLibrary: Bool {
+        coordinator.pianoModeRegistry
+            .mode(for: coordinator.flowState.selectedPianoModeID)?
+            .canProceedToLibrary(flowState: coordinator.flowState) ?? false
     }
 }
 
