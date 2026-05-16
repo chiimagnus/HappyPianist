@@ -1,32 +1,30 @@
 import SwiftUI
 
 struct PreparationWindowRootView: View {
-    @Bindable var appState: AppState
     @Bindable var arGuideViewModel: ARGuideViewModel
+    @Environment(WindowCoordinator.self) private var coordinator
 
     let services: AppServices
     let router: AppRouter
 
     init(
-        appState: AppState,
         services: AppServices,
         arGuideViewModel: ARGuideViewModel,
         router: AppRouter
     ) {
-        _appState = Bindable(wrappedValue: appState)
         _arGuideViewModel = Bindable(wrappedValue: arGuideViewModel)
         self.services = services
         self.router = router
     }
 
     var body: some View {
-        AppRootView(
-            appState: appState,
-            services: services,
-            arGuideViewModel: arGuideViewModel,
-            router: router
-        )
+        Group {
+            if let selectedMode = coordinator.pianoModeRegistry.mode(for: coordinator.flowState.selectedPianoModeID) {
+                selectedMode.makePreparationView(arGuideViewModel: arGuideViewModel)
+            } else {
+                PianoTypePickerView()
+            }
+        }
         .environment(router)
     }
 }
-

@@ -24,7 +24,6 @@ struct LonelyPianistAVPApp: App {
 
         WindowGroup(id: WindowIDs.preparation) {
             PreparationWindowRootView(
-                appState: appState,
                 services: services,
                 arGuideViewModel: arGuideViewModel,
                 router: router

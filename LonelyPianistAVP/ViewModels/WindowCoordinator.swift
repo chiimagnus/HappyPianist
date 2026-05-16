@@ -49,4 +49,16 @@ final class WindowCoordinator {
         flowState.bluetoothMIDISourceCount = 0
         flowState.selectedPianoModeID = nil
     }
+
+    func openLibrary(dismissCurrent: Window?, openWindow: OpenWindowAction, dismissWindow: DismissWindowAction) {
+        transition(from: dismissCurrent, to: .library, openWindow: openWindow, dismissWindow: dismissWindow)
+    }
+
+    func openPractice(dismissCurrent: Window?, openWindow: OpenWindowAction, dismissWindow: DismissWindowAction) {
+        transition(from: dismissCurrent, to: .practice, openWindow: openWindow, dismissWindow: dismissWindow)
+    }
+
+    func openPreparation(dismissCurrent: Window?, openWindow: OpenWindowAction, dismissWindow: DismissWindowAction) {
+        transition(from: dismissCurrent, to: .preparation, openWindow: openWindow, dismissWindow: dismissWindow)
+    }
 }
