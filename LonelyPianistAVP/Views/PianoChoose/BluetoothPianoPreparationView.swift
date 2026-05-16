@@ -38,7 +38,7 @@ struct BluetoothMIDIPreparationView: View {
             )
         }
         .padding(24)
-        .frame(minWidth: 560, idealWidth: 700)
+        .frame(minWidth: 600, idealWidth: 700)
         .onChange(of: viewModel.calibrationPhase) {
             router.flowState.isCalibrationCompleted = (viewModel.calibrationPhase == .completed)
         }
