@@ -5,6 +5,7 @@ struct LonelyPianistAVPApp: App {
     @State private var appState: AppState
     @State private var services: AppServices
     @State private var arGuideViewModel: ARGuideViewModel
+    @State private var flowState: FlowState
     @State private var router: AppRouter
     @State private var coordinator: WindowCoordinator
     @AppStorage("immersivePanoramaEnabled") private var immersivePanoramaEnabled = false
@@ -14,6 +15,7 @@ struct LonelyPianistAVPApp: App {
         _appState = State(initialValue: root.appState)
         _services = State(initialValue: root.services)
         _arGuideViewModel = State(initialValue: root.arGuideViewModel)
+        _flowState = State(initialValue: root.flowState)
         _router = State(initialValue: root.router)
         _coordinator = State(initialValue: WindowCoordinator(flowState: root.flowState, pianoModeRegistry: root.services.pianoModeRegistry))
     }
@@ -34,7 +36,7 @@ struct LonelyPianistAVPApp: App {
         .windowResizability(.contentSize)
 
         WindowGroup(id: WindowIDs.library) {
-            LibraryWindowRootView()
+            LibraryWindowRootView(appState: appState, services: services, flowState: flowState)
                 .environment(coordinator)
         }
         .windowStyle(.automatic)

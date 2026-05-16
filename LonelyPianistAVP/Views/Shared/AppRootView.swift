@@ -36,7 +36,16 @@ struct AppRootView: View {
                 PianoTypePickerView()
             }
         case .library:
-            LibraryFlowView(songLibraryViewModel: songLibraryViewModel)
+            LibraryFlowView(
+                songLibraryViewModel: songLibraryViewModel,
+                selectedPianoModeTitle: router.selectedPianoMode?.pickerCard.title,
+                onBackToPreparation: {
+                    router.exitToTypePicker(reason: "user tapped back from library (legacy AppRootView)")
+                },
+                onStartPractice: {
+                    router.goToPractice()
+                }
+            )
         case .practice:
             PracticeFlowView(viewModel: arGuideViewModel)
         }
