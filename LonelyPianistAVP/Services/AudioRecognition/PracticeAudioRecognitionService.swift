@@ -33,8 +33,8 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
     }
 
     private let audioEngine: AVAudioEngine
-    private let spectrumAnalyzer: any AudioSpectrumAnalyzing
-    private let harmonicDetector: any HarmonicTemplateDetecting
+    private let spectrumAnalyzer: any AudioSpectrumAnalyzingProtocol
+    private let harmonicDetector: any HarmonicTemplateDetectingProtocol
     private let processingQueue = DispatchQueue(
         label: "com.lonelypianist.audio.recognition.processing",
         qos: .userInitiated
@@ -72,8 +72,8 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
 
     init(
         audioEngine: AVAudioEngine = AVAudioEngine(),
-        spectrumAnalyzer: any AudioSpectrumAnalyzing = VDSPAudioSpectrumAnalyzer(),
-        harmonicDetector: any HarmonicTemplateDetecting = TargetedHarmonicTemplateDetector()
+        spectrumAnalyzer: any AudioSpectrumAnalyzingProtocol = VDSPAudioSpectrumAnalyzer(),
+        harmonicDetector: any HarmonicTemplateDetectingProtocol = TargetedHarmonicTemplateDetector()
     ) {
         self.audioEngine = audioEngine
         self.spectrumAnalyzer = spectrumAnalyzer

@@ -1,6 +1,6 @@
 import Foundation
 
-protocol HarmonicBandEnergyProviding: Sendable {
+protocol HarmonicBandEnergyProvidingProtocol: Sendable {
     var rms: Double { get }
     var noiseFloor: Double { get }
 
@@ -8,7 +8,7 @@ protocol HarmonicBandEnergyProviding: Sendable {
     func surroundingEnergy(centerFrequency: Double, toleranceCents: Double) -> Double
 }
 
-extension HarmonicBandEnergyProviding {
+extension HarmonicBandEnergyProvidingProtocol {
     var rms: Double {
         0
     }
