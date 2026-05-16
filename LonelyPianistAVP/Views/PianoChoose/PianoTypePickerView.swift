@@ -33,7 +33,7 @@ struct PianoTypePickerView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
-            .frame(width: 220, height: 200)
+            .frame(width: 220, height: 220)
         }
         .buttonStyle(.bordered)
         .buttonBorderShape(.roundedRectangle(radius: 20))
