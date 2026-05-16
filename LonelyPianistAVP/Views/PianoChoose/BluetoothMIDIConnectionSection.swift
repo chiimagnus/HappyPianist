@@ -72,11 +72,6 @@ struct BluetoothMIDIConnectionSection: View {
                         .font(.callout)
 
                         Spacer()
-
-                        Button("刷新", systemImage: "arrow.clockwise") {
-                            sourceConnectionViewModel.refreshSources()
-                        }
-                            .buttonBorderShape(.roundedRectangle)
                     }
 
                     DisclosureGroup("诊断信息", isExpanded: $isDiagnosticsExpanded) {
@@ -93,6 +88,11 @@ struct BluetoothMIDIConnectionSection: View {
                                 }
                                     .buttonBorderShape(.roundedRectangle)
 
+                                Button("刷新 MIDI 输入", systemImage: "arrow.clockwise") {
+                                    sourceConnectionViewModel.refreshSources()
+                                }
+                                .buttonBorderShape(.roundedRectangle)
+
                                 Spacer()
                             }
 
@@ -104,7 +104,7 @@ struct BluetoothMIDIConnectionSection: View {
                             .foregroundStyle(.secondary)
 
                             if sourceConnectionViewModel.sourceNames.isEmpty {
-                                Text("未发现任何 MIDI 输入。若你已在上方列表点了连接但这里仍为 0，可多点几次「刷新」。")
+                                Text("未发现任何 MIDI 输入。若你已在上方列表点了连接但这里仍为 0，可展开「诊断信息」点「刷新 MIDI 输入」，或点「重载设备列表」。")
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             } else {
@@ -153,6 +153,10 @@ struct BluetoothMIDIConnectionSection: View {
         }
         .onChange(of: sourceConnectionViewModel.connectionState) {
             onSourceCountChange(sourceConnectionViewModel.sourceCount)
+        }
+        .onChange(of: isDevicePickerPresented) {
+            guard isDevicePickerPresented == false else { return }
+            sourceConnectionViewModel.refreshSources()
         }
         .onAppear {
             if isRunningInPreviews {
