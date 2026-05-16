@@ -236,7 +236,12 @@ struct BluetoothMIDIConnectionSection: View {
 
     private struct CentralViewControllerRepresentable: UIViewControllerRepresentable {
         func makeUIViewController(context _: Context) -> UINavigationController {
-            UINavigationController(rootViewController: CABTMIDICentralViewController())
+            let centralViewController = CABTMIDICentralViewController()
+            centralViewController.title = nil
+
+            let navigationController = UINavigationController(rootViewController: centralViewController)
+            navigationController.setNavigationBarHidden(true, animated: false)
+            return navigationController
         }
 
         func updateUIViewController(_: UINavigationController, context _: Context) {}
