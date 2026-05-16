@@ -10,6 +10,7 @@ struct BluetoothMIDIPreparationView: View {
     @State private var didCheckBluetoothAccess = false
     @State private var centralViewReloadID = UUID()
     @State private var isDiagnosticsExpanded = false
+    private let isRunningInPreviews = ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
 
     var body: some View {
         VStack(spacing: 20) {
@@ -148,6 +149,14 @@ struct BluetoothMIDIPreparationView: View {
             router.flowState.bluetoothMIDISourceCount = sourceConnectionViewModel.sourceCount
         }
         .onAppear {
+            if isRunningInPreviews {
+                bluetoothAccessStatus = .ready
+                sourceConnectionViewModel.connectionState = .connected(sourceCount: 1)
+                sourceConnectionViewModel.sourceNames = ["FP-30X MIDI"]
+                router.flowState.bluetoothMIDISourceCount = sourceConnectionViewModel.sourceCount
+                return
+            }
+
             sourceConnectionViewModel.start()
             router.flowState.bluetoothMIDISourceCount = sourceConnectionViewModel.sourceCount
 
@@ -158,6 +167,7 @@ struct BluetoothMIDIPreparationView: View {
             }
         }
         .onDisappear {
+            guard isRunningInPreviews == false else { return }
             sourceConnectionViewModel.stop()
         }
     }
@@ -211,5 +221,49 @@ struct BluetoothMIDIPreparationView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.thinMaterial)
         .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+    }
+}
+
+#Preview("蓝牙 MIDI 准备") {
+    BluetoothMIDIPreparationViewPreviewHarness()
+}
+
+@MainActor
+private struct BluetoothMIDIPreparationViewPreviewHarness: View {
+    @State private var services = AppServices()
+    @State private var flowState = FlowState()
+    @State private var router: AppRouter
+    @State private var viewModel: ARGuideViewModel
+
+    init() {
+        let services = AppServices()
+        let flowState = FlowState()
+
+        flowState.selectedPianoModeID = "bluetooth_midi"
+        flowState.isCalibrationCompleted = true
+
+        let router = AppRouter(flowState: flowState, pianoModeRegistry: services.pianoModeRegistry)
+        let appState = AppState(
+            arTrackingService: services.arTrackingService,
+            calibrationCaptureService: services.calibrationCaptureService,
+            calibrationRepository: services.calibrationRepository,
+            keyGeometryService: services.keyGeometryService
+        )
+
+        _services = State(initialValue: services)
+        _flowState = State(initialValue: flowState)
+        _router = State(initialValue: router)
+        _viewModel = State(initialValue: ARGuideViewModel(
+            appState: appState,
+            flowState: flowState,
+            pianoModeRegistry: services.pianoModeRegistry,
+            practiceSessionViewModelFactory: services.practiceSessionViewModelFactory
+        ))
+    }
+
+    var body: some View {
+        BluetoothMIDIPreparationView(viewModel: viewModel)
+            .environment(router)
+            .padding()
     }
 }
