@@ -9,7 +9,7 @@ final class GazePlaneDiskOverlayController {
     private var hasAttachedRoot = false
     private var diskEntity: ModelEntity?
     private var textRootEntity: Entity?
-    private var textEntity: ModelEntity?
+    private var textAttachmentEntity: Entity?
     private var lastStatusText: String?
 
     func update(
@@ -84,6 +84,11 @@ final class GazePlaneDiskOverlayController {
         root.isEnabled = false
         rootEntity.addChild(root)
         textRootEntity = root
+
+        let attachmentEntity = Entity()
+        attachmentEntity.isEnabled = false
+        root.addChild(attachmentEntity)
+        textAttachmentEntity = attachmentEntity
     }
 
     private func updateText(
@@ -98,7 +103,7 @@ final class GazePlaneDiskOverlayController {
 
         if lastStatusText != statusText {
             lastStatusText = statusText
-            updateTextMesh(statusText: statusText)
+            updateTextAttachment(statusText: statusText)
         }
 
         guard let textRootEntity else { return }
@@ -144,35 +149,27 @@ final class GazePlaneDiskOverlayController {
         let worldPosition = diskOrigin + awayFromCameraOnPlane * alongPlaneMeters + normal * liftMeters
         textRootEntity.position = worldPosition
         textRootEntity.isEnabled = true
-        textEntity?.isEnabled = true
+        textAttachmentEntity?.isEnabled = true
     }
 
-    private func updateTextMesh(statusText: String) {
-        let font = UIFont.systemFont(ofSize: 0.07, weight: .semibold)
-        let mesh = MeshResource.generateText(
-            statusText,
-            extrusionDepth: 0.001,
-            font: font,
-            containerFrame: .zero,
-            alignment: .center,
-            lineBreakMode: .byClipping
-        )
-
-        let entity: ModelEntity
-        if let existing = textEntity {
-            entity = existing
-            entity.model?.mesh = mesh
-        } else {
-            entity = ModelEntity(mesh: mesh, materials: [UnlitMaterial(color: UIColor.white)])
-            entity.position = .zero
-            textRootEntity?.addChild(entity)
-            textEntity = entity
-        }
+    private func updateTextAttachment(statusText: String) {
+        guard let textAttachmentEntity else { return }
+        textAttachmentEntity.components.set(ViewAttachmentComponent(
+            rootView: Text(statusText)
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(.thinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        ))
+        textAttachmentEntity.scale = SIMD3<Float>(repeating: 0.55)
     }
 
     private func clearText() {
         textRootEntity?.isEnabled = false
-        textEntity?.isEnabled = false
+        textAttachmentEntity?.isEnabled = false
         lastStatusText = nil
     }
 }

@@ -30,6 +30,7 @@ LonelyPianist 由三条运行面组成：macOS 负责 MIDI 输入采集、映射
 | `BonjourBackendDiscoveryService` | mDNS browse results | resolved host/port 或 denied/failed | `start`, `resolveHostPort` |
 | `ImprovBackendClient` | HTTP `GenerateRequest` | `ResultResponse` / error | URL 构造、解码与错误映射 |
 | `PhraseRecorder` | note on/off + 时间 | phrase notes（用于后端输入） | 录制窗口与边界条件 |
+| `MusicXMLPianoGrandStaffNormalizer` | `MusicXMLScore`（双 part 钢琴谱） | normalized `MusicXMLScore`（合并为单 part + staff=1/2） | 仅处理恰好 2 part 且各自单谱号的情况 |
 | `MusicXMLHandRouter` | `MusicXMLScore`（可能缺失 staff） | routed `MusicXMLScore`（单谱表自动补 staff=1/2） | 阈值策略、只对单谱表生效的边界 |
 | `PracticeSessionViewModel` | finger tips / MIDI events + steps（含左右手） | matching / autoplay / notation context | `handleFingerTipPositions`、按手分别匹配的 gate |
 | `PianoGuideOverlayController` | `PracticeStep`, `PianoKeyboardGeometry` | RealityKit 贴皮高亮实体 | key-top decal、`KeyDecalSoftRect`、keyboard-local transform |
@@ -72,6 +73,8 @@ flowchart LR
     K --> Y[VirtualPianoKeyGeometryService]
     J --> O[SongLibraryIndexStore]
     J --> P[SongFileStore]
+    J --> NORM[MusicXMLPianoGrandStaffNormalizer]
+    NORM --> MHR[MusicXMLHandRouter]
   end
 
   subgraph Python

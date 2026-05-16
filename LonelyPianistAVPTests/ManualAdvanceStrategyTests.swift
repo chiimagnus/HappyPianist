@@ -64,6 +64,7 @@ func appStatePassesMeasureSpansToPracticeSession() {
     let guideViewModel = ARGuideViewModel(
         appState: appState,
         flowState: flowState,
+        pianoModeRegistry: PianoModeRegistryService(modes: []),
         practiceSessionViewModelFactory: SinglePracticeSessionViewModelFactory(session: sessionViewModel)
     )
     #expect(guideViewModel.practiceSessionViewModel === sessionViewModel)

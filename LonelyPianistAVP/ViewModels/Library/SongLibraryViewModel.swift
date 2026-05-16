@@ -24,25 +24,24 @@ final class SongLibraryViewModel {
     init(
         appState: AppState,
         flowState: FlowState,
-        practicePreparationService: PracticePreparationServiceProtocol? = nil,
-        indexStore: SongLibraryIndexStoreProtocol? = nil,
-        fileStore: SongFileStoreProtocol? = nil,
-        audioImportService: AudioImportServiceProtocol? = nil,
-        paths: SongLibraryPaths? = nil,
-        bundledProvider: BundledSongLibraryProviderProtocol? = nil,
-        audioPlayer: SongAudioPlayerProtocol? = nil
+        practicePreparationService: PracticePreparationServiceProtocol,
+        indexStore: SongLibraryIndexStoreProtocol,
+        fileStore: SongFileStoreProtocol,
+        audioImportService: AudioImportServiceProtocol,
+        paths: SongLibraryPaths,
+        bundledProvider: BundledSongLibraryProviderProtocol,
+        audioPlayer: SongAudioPlayerProtocol
     ) {
         self.appState = appState
         self.flowState = flowState
-        self.practicePreparationService = practicePreparationService ?? PracticePreparationService()
-        self.indexStore = indexStore ?? SongLibraryIndexStore()
-        self.fileStore = fileStore ?? SongFileStore()
-        self.audioImportService = audioImportService ?? AudioImportService()
-        self.paths = paths ?? SongLibraryPaths()
-        let resolvedBundledProvider = bundledProvider ?? BundledSongLibraryProvider()
-        self.bundledProvider = resolvedBundledProvider
-        bundledEntries = resolvedBundledProvider.bundledEntries()
-        audioPlaybackController = SongAudioPlaybackStateController(player: audioPlayer ?? SongAudioPlayer())
+        self.practicePreparationService = practicePreparationService
+        self.indexStore = indexStore
+        self.fileStore = fileStore
+        self.audioImportService = audioImportService
+        self.paths = paths
+        self.bundledProvider = bundledProvider
+        bundledEntries = bundledProvider.bundledEntries()
+        audioPlaybackController = SongAudioPlaybackStateController(player: audioPlayer)
 
         audioPlaybackController.onStateChanged = { [weak self] _ in
             guard let self else { return }
@@ -52,6 +51,21 @@ final class SongLibraryViewModel {
         }
 
         reload()
+    }
+
+    @available(*, deprecated, message: "Inject dependencies via AppServices/CompositionRoot.")
+    convenience init(appState: AppState, flowState: FlowState) {
+        self.init(
+            appState: appState,
+            flowState: flowState,
+            practicePreparationService: PracticePreparationService(),
+            indexStore: SongLibraryIndexStore(),
+            fileStore: SongFileStore(),
+            audioImportService: AudioImportService(),
+            paths: SongLibraryPaths(),
+            bundledProvider: BundledSongLibraryProvider(),
+            audioPlayer: SongAudioPlayer()
+        )
     }
 
     var entries: [SongLibraryEntry] {

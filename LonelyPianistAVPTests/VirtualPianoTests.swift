@@ -244,6 +244,7 @@ func arGuideViewModelToggleOffClearsVirtualKeyboardAndStopsLiveNotes() {
     let viewModel = ARGuideViewModel(
         appState: appState,
         flowState: flowState,
+        pianoModeRegistry: PianoModeRegistryService(modes: []),
         practiceSessionViewModelFactory: SinglePracticeSessionViewModelFactory(session: session)
     )
 

@@ -17,7 +17,7 @@
 | `BonjourBackendDiscoveryService` | Bonjour 自动发现局域网后端（`_lonelypianist._tcp.local.`）并解析 host/port | 影响 AVP 后端接入与降级策略 |
 | `ImprovBackendClient` | HTTP `POST /generate` 客户端：发送 prompt notes 并解析回复 | 影响错误处理、超时与协议兼容 |
 | `PhraseRecorder` | 把真实/虚拟按键事件录成短句 prompt（用于后端生成） | 影响触发时机与边界条件（抖动/空短句） |
-| `GrandStaffNotationView` | 双谱表五线谱渲染（Canvas），与当前 guide/measure spans 同步 | 影响可读性、性能与 autoplay/手动推进联动 |
+| `GrandStaffNotationView` | 双谱表五线谱渲染（Canvas + Bravura SMuFL），含 staff lines、clef/key/time、barlines、noteheads、stems、beams、flags、垂直滚动 | 影响可读性、性能与 autoplay/手动推进联动 |
 | `GrandStaffNotationLayoutService` | 从 guides/measure spans/context 生成 `GrandStaffNotationLayout`（items + barlines） | 影响 staff routing、坐标映射与性能 |
 | `PianoGuideOverlayController` | RealityKit 空间贴皮高亮提示 | 影响当前 step 的可见 AR 引导 |
 | `GazePlaneHitTestService` | 视线（device forward ray）命中近水平平面，选择最接近偏好距离的 hit | 影响圆盘出现与放置位置 |
@@ -43,12 +43,15 @@
 | 能力 | 当前状态 | 备注 |
 | --- | --- | --- |
 | staff lines | ✅ | 上/下各 5 条线 |
-| clef/key/time | ✅ | 取当前 tick 的 attribute timeline（缺失则使用默认符号） |
+| clef/key/time | ✅ | 使用 Bravura（SMuFL）字体渲染谱号（𝄞/𝄢）、调号（♯/♭）和拍号（专业上下堆叠数字） |
 | barlines | ✅ | 贯穿上下谱表 |
-| noteheads + ledger lines | ✅ | 以 guide-triggered notes 为主（不是完整 engraving） |
-| rests / beams / stems / flags | ⚠️ 未完整实现 | 模型层已预留，但当前 view 只绘制 notehead/ledger/accidental |
+| noteheads + ledger lines | ✅ | 以 guide-triggered notes 为主（椭圆 notehead + ledger line），升号用 Bravura U+E262 |
+| stems | ✅ | 按左右手强制方向（右手 up、左手 down），避免碰撞 |
+| beams | ✅ | 主 beam + 二级/三级 beam，使用 notehead-driven baseline 倾斜；支持八分/十六分/三十二分音符 |
+| flags | ✅ | 未 beam 的八分及以上音符绘制 flag |
+| 垂直滚动 | ✅ | `ScrollView(.vertical)` 支持长曲谱无缩放滚动 |
 
-> 说明：该五线谱视图的定位是“练习引导 UI”，而不是通用乐谱排版引擎；它服务于 Step 3 的可读性与进度提示。
+> 说明：该五线谱视图的定位是”练习引导 UI”，而不是通用乐谱排版引擎；它服务于 Step 3 的可读性与进度提示。Bravura 是 SMuFL 标准的开源音乐符号字体（501 KB，位于 `Resources/Fonts/Bravura.otf`），用于渲染所有音乐符号。
 
 ## 左右手语义（ScoreHand）
 
@@ -503,4 +506,5 @@ struct PianoHighlightGuideBuildInput {
 - 2026-05-02: 虚拟钢琴放置从“手指准星 + 捏合确认”迁移为“视野中心平面 + 绿色圆盘 + 双手掌心稳定确认（3s/3cm）”；放置结果通过 `WorldAnchor` 在 Step 3 内复用；键盘出现改为从中间向两边延伸。
 - 2026-05-05: 补充 AVP Bonjour 自动发现 + HTTP `/generate` 的 AI 即兴数据流与关键对象，并同步 phrase recorder 等新增对象入口。
 - 2026-05-13: 钢琴模式表从 `PianoKind` 枚举更新为 `PianoModeProtocol` 实现名（`RealAudioPianoMode` / `BluetoothMIDIPianoMode` / `VirtualPianoMode`），同步 `PianoModeRegistryService` 注册模式。
-- 2026-05-14: 五线谱迁移为双谱表 `GrandStaffNotationView`；引入 `ScoreHand` 贯穿 step/guide/高亮；新增（默认关闭的）“左右手分别满足”判定 gate，并让 2D/3D 高亮按左右手区分颜色。
+- 2026-05-14: 五线谱迁移为双谱表 `GrandStaffNotationView`；引入 `ScoreHand` 贯穿 step/guide/高亮；新增（默认关闭的）”左右手分别满足”判定 gate，并让 2D/3D 高亮按左右手区分颜色。
+- 2026-05-16: Grand staff 渲染能力扩充：引入 Bravura（SMuFL）字体渲染谱号/调号/拍号/升降号；实现 stems（按左右手强制方向）、beams（主/二级/三级 beam + notehead-driven baseline）、flags；支持垂直滚动；拍号改为专业上下堆叠数字。

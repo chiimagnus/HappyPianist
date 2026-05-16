@@ -3,20 +3,19 @@
 ## Run info
 | Item | Value |
 | --- | --- |
-| Commit hash | 71f8bc0fbc6a330e7a7a3e9696da7238c3b2bc5c |
-| Branch name | crh2 |
-| Generated at | 2026-05-14T11:17:03+08:00 |
+| Commit hash | d95765b (merge) / b7db572 (MusicXML dual-part fix) |
+| Branch name | crh |
+| Generated at | 2026-05-16T00:00:00+08:00 |
 | Output language | Chinese |
 | Generation mode | Incremental update via `deepwiki` skill |
 
 ## Key updates in this generation
 | Area | Update |
 | --- | --- |
-| 左右手语义（ScoreHand）贯穿链路 | 补齐 `ScoreHand` 从 staff 推导的语义，并在 deepwiki 中明确其贯穿 steps / guides / 2D 键盘 / 3D decal / 判定 gate 的数据流与排障抓手。 |
-| 单谱表 MusicXML 自动分手 | 更新 MusicXML 导入管线文档：通过 `MusicXMLHandRouter` 对缺失 staff 的单谱表 score deterministic 补 `staff=1/2`，并明确触发条件与阈值策略；同时注明当前不提供回退/override。 |
-| 五线谱迁移为 Grand Staff | 更新 Practice 模块文档：五线谱视图从旧滚动单谱表迁移为 `GrandStaffNotationView`（上下双谱表），并补充 layout 输入/输出与能力边界。 |
-| 练习判定开关：左右手分别满足 | 文档化 `practiceHandSeparatedStepMatchingEnabled` 开关（默认关闭），说明开启后左右手 expected 需分别满足，并指出 press/音频/BLE MIDI 三路径的一致实现。 |
-| 测试与命令事实刷新 | 修正 visionOS 测试必须使用 concrete simulator destination id，并更新 testing/config/index 等页面的命令与说明。 |
+| 钢琴双 part 归一化 | 新增 `MusicXMLPianoGrandStaffNormalizer` 文档：将 MusicXML 中两个独立 `<part>`（高/低音谱号）合并为单 part + staff=1/2，修复左手音符丢失。更新 MusicXML 管线顺序与架构组件表。 |
+| Grand Staff 渲染能力扩充 | 更新 Practice 模块：五线谱从仅 notehead/ledger 扩展为完整 stems（按左右手方向）、beams（主/二级/三级 + notehead-driven baseline）、flags、垂直滚动；引入 Bravura（SMuFL）字体渲染谱号/调号/拍号/升降号。 |
+| Bravura（SMuFL）字体 | 更新依赖页与术语表：新增 501 KB 的 Bravura OTF 字体，用于高质量音乐符号渲染。 |
+| 架构组件更新 | 架构 mermaid 图与组件边界表新增 `MusicXMLPianoGrandStaffNormalizer`。 |
 
 ## Generated page list
 ### Core pages
@@ -68,3 +67,4 @@
 - Decal highlight alignment, z-fighting, and visual comfort need Vision Pro real-device verification.
 - AVP Bonjour 发现与 `/generate` 请求强依赖同一局域网与 Local Network 授权；denied/解析失败仍需真机验证与网络环境排查。
 - 单谱表自动分手是工程启发式：对交错声部/极端音域分配的曲谱，可能与人类分手不一致；目前不提供 per-score override。
+- 双 part 归一化仅处理恰好 2 个 part 且各自单谱号的情况；三声部或更复杂的拆分模式不在覆盖范围内。

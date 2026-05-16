@@ -19,7 +19,12 @@ func appStateAppliesKeyboardGeometryWhenAvailable() throws {
     let practiceSessionViewModel = PracticeSessionViewModel(
         pressDetectionService: PressDetectionService(),
         chordAttemptAccumulator: ChordAttemptAccumulator(),
-        sleeper: TaskSleeper()
+        sleeper: TaskSleeper(),
+        sequencerPlaybackService: NoopSequencerPlaybackService(),
+        audioRecognitionService: nil,
+        practiceInputEventSource: nil,
+        audioStepAttemptAccumulator: AudioStepAttemptAccumulator(),
+        handPianoActivityGate: HandPianoActivityGate()
     )
 
     let appState = AppState(keyGeometryService: service)
@@ -27,6 +32,7 @@ func appStateAppliesKeyboardGeometryWhenAvailable() throws {
     let guideViewModel = ARGuideViewModel(
         appState: appState,
         flowState: flowState,
+        pianoModeRegistry: EmptyPianoModeRegistry(),
         practiceSessionViewModelFactory: SinglePracticeSessionViewModelFactory(session: practiceSessionViewModel)
     )
     _ = guideViewModel
@@ -51,7 +57,12 @@ func appStateDoesNotApplyKeyboardGeometryWhenGenerationFails() {
     let practiceSessionViewModel = PracticeSessionViewModel(
         pressDetectionService: PressDetectionService(),
         chordAttemptAccumulator: ChordAttemptAccumulator(),
-        sleeper: TaskSleeper()
+        sleeper: TaskSleeper(),
+        sequencerPlaybackService: NoopSequencerPlaybackService(),
+        audioRecognitionService: nil,
+        practiceInputEventSource: nil,
+        audioStepAttemptAccumulator: AudioStepAttemptAccumulator(),
+        handPianoActivityGate: HandPianoActivityGate()
     )
 
     let appState = AppState(keyGeometryService: service)
@@ -59,6 +70,7 @@ func appStateDoesNotApplyKeyboardGeometryWhenGenerationFails() {
     let guideViewModel = ARGuideViewModel(
         appState: appState,
         flowState: flowState,
+        pianoModeRegistry: EmptyPianoModeRegistry(),
         practiceSessionViewModelFactory: SinglePracticeSessionViewModelFactory(session: practiceSessionViewModel)
     )
     _ = guideViewModel
@@ -94,4 +106,25 @@ private final class SinglePracticeSessionViewModelFactory: PracticeSessionViewMo
     func makePracticeSessionViewModel(for pianoModeID: String?) -> PracticeSessionViewModel {
         session
     }
+}
+
+private struct EmptyPianoModeRegistry: PianoModeRegistryProtocol {
+    let modes: [any PianoModeProtocol] = []
+
+    func mode(for _: String?) -> (any PianoModeProtocol)? {
+        nil
+    }
+}
+
+@MainActor
+private final class NoopSequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol {
+    func warmUp() throws {}
+    func stop() {}
+    func load(sequence _: PracticeSequencerSequence) throws {}
+    func play(fromSeconds _: TimeInterval) throws {}
+    func currentSeconds() -> TimeInterval { 0 }
+    func playOneShot(midiNotes _: [Int], durationSeconds _: TimeInterval) throws {}
+    func startLiveNotes(midiNotes _: Set<Int>) throws {}
+    func stopLiveNotes(midiNotes _: Set<Int>) {}
+    func stopAllLiveNotes() {}
 }

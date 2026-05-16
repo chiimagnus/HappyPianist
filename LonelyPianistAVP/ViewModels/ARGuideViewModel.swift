@@ -116,8 +116,8 @@ final class ARGuideViewModel {
     init(
         appState: AppState,
         flowState: FlowState,
-        pianoModeRegistry: PianoModeRegistryProtocol = PianoModeRegistryService(),
-        practiceSessionViewModelFactory: PracticeSessionViewModelFactoryProtocol = PracticeSessionViewModelFactoryService()
+        pianoModeRegistry: PianoModeRegistryProtocol,
+        practiceSessionViewModelFactory: PracticeSessionViewModelFactoryProtocol
     ) {
         self.appState = appState
         self.flowState = flowState

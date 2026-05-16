@@ -6,8 +6,35 @@ import Testing
 @Test
 @MainActor
 func bluetoothMIDIFactoryDoesNotInjectAudioRecognition() {
-    let factory = PracticeSessionViewModelFactoryService()
-    let session = factory.makePracticeSessionViewModel(for: BluetoothMIDIPianoMode().id)
+    let mode = BluetoothMIDIPianoMode(makePracticeSessionViewModel: {
+        PracticeSessionViewModel(
+            pressDetectionService: NoopPressDetectionService(),
+            chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+            sleeper: TaskSleeper(),
+            sequencerPlaybackService: NoopPracticeSequencerPlaybackService(),
+            audioRecognitionService: nil,
+            practiceInputEventSource: FakePracticeInputEventSource(),
+            audioStepAttemptAccumulator: AudioStepAttemptAccumulator(),
+            handPianoActivityGate: HandPianoActivityGate()
+        )
+    })
+    let registry = PianoModeRegistryService(modes: [mode])
+    let factory = PracticeSessionViewModelFactoryService(
+        pianoModeRegistry: registry,
+        makeFallbackPracticeSessionViewModel: {
+            PracticeSessionViewModel(
+                pressDetectionService: NoopPressDetectionService(),
+                chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+                sleeper: TaskSleeper(),
+                sequencerPlaybackService: NoopPracticeSequencerPlaybackService(),
+                audioRecognitionService: nil,
+                practiceInputEventSource: nil,
+                audioStepAttemptAccumulator: AudioStepAttemptAccumulator(),
+                handPianoActivityGate: HandPianoActivityGate()
+            )
+        }
+    )
+    let session = factory.makePracticeSessionViewModel(for: mode.id)
 
     #expect(session.audioRecognitionService == nil)
     #expect(session.practiceInputEventSource != nil)
@@ -23,7 +50,9 @@ func midiOnlyPracticeInputNoteOnAdvancesStep() async throws {
         sleeper: TaskSleeper(),
         sequencerPlaybackService: NoopPracticeSequencerPlaybackService(),
         audioRecognitionService: nil,
-        practiceInputEventSource: inputSource
+        practiceInputEventSource: inputSource,
+        audioStepAttemptAccumulator: AudioStepAttemptAccumulator(),
+        handPianoActivityGate: HandPianoActivityGate()
     )
 
     let steps = [

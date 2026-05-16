@@ -116,11 +116,11 @@ final class PracticeSessionViewModel {
         pressDetectionService: PressDetectionServiceProtocol,
         chordAttemptAccumulator: ChordAttemptAccumulatorProtocol,
         sleeper: SleeperProtocol,
-        sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol? = nil,
+        sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol,
         audioRecognitionService: PracticeAudioRecognitionServiceProtocol? = nil,
         practiceInputEventSource: PracticeInputEventSourceProtocol? = nil,
-        audioStepAttemptAccumulator: AudioStepAttemptAccumulator? = nil,
-        handPianoActivityGate: HandPianoActivityGate? = nil,
+        audioStepAttemptAccumulator: AudioStepAttemptAccumulator,
+        handPianoActivityGate: HandPianoActivityGate,
         manualAdvanceModeProvider: @escaping () -> ManualAdvanceMode = {
             ManualAdvanceMode.storageValue(from: UserDefaults.standard.string(forKey: "practiceManualAdvanceMode"))
         }
@@ -128,31 +128,27 @@ final class PracticeSessionViewModel {
         self.pressDetectionService = pressDetectionService
         self.chordAttemptAccumulator = chordAttemptAccumulator
         self.sleeper = sleeper
-        self.sequencerPlaybackService = sequencerPlaybackService ?? AVAudioSequencerPracticePlaybackService(
-            soundFontResourceName: "SalC5Light2"
-        )
+        self.sequencerPlaybackService = sequencerPlaybackService
         self.audioRecognitionService = audioRecognitionService
         self.practiceInputEventSource = practiceInputEventSource
-        self.audioStepAttemptAccumulator = audioStepAttemptAccumulator ?? AudioStepAttemptAccumulator()
-        self.handPianoActivityGate = handPianoActivityGate ?? HandPianoActivityGate()
+        self.audioStepAttemptAccumulator = audioStepAttemptAccumulator
+        self.handPianoActivityGate = handPianoActivityGate
         self.manualAdvanceModeProvider = manualAdvanceModeProvider
         bindAudioRecognitionStreamsIfNeeded()
         bindPracticeInputStreamsIfNeeded()
     }
 
+    @available(*, deprecated, message: "Inject dependencies via AppServices/CompositionRoot.")
     convenience init() {
-        let playbackService = AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2")
-#if targetEnvironment(simulator)
-        let audioRecognitionService: PracticeAudioRecognitionServiceProtocol? = nil
-#else
-        let audioRecognitionService: PracticeAudioRecognitionServiceProtocol? = PracticeAudioRecognitionService()
-#endif
         self.init(
             pressDetectionService: PressDetectionService(),
             chordAttemptAccumulator: ChordAttemptAccumulator(),
             sleeper: TaskSleeper(),
-            sequencerPlaybackService: playbackService,
-            audioRecognitionService: audioRecognitionService
+            sequencerPlaybackService: AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2"),
+            audioRecognitionService: nil,
+            practiceInputEventSource: nil,
+            audioStepAttemptAccumulator: AudioStepAttemptAccumulator(),
+            handPianoActivityGate: HandPianoActivityGate()
         )
     }
 

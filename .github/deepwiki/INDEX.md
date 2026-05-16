@@ -90,6 +90,8 @@
 - **想先理解产品在做什么**：先看 `business-context.md`。
 - **要改 macOS 监听 / 映射 / 录音 / 对话**：看 `modules/lonelypianist-macos.md`，再下钻对应子页。
 - **要改 AVP 导入 / 校准 / 练习 / MusicXML**：看 `modules/lonelypianist-avp.md`，再下钻对应子页。
+- **要改 MusicXML 双 part 归一化（左手音符丢失）**：看 `modules/lonelypianist-avp-musicxml.md` 的「钢琴双 part 归一化」章节。
+- **要改五线谱渲染（stems/beams/flags/SMuFL）**：看 `modules/lonelypianist-avp-practice.md` 的「双谱表五线谱」章节。
 - **要改 AR 引导贴皮高亮**：看 `modules/lonelypianist-avp-practice.md` 和 `PianoGuideOverlayController`。
 - **要改虚拟钢琴**：看 `modules/lonelypianist-avp-practice.md` 的「虚拟钢琴模式」章节，涉及放置状态机、按键检测、3D 渲染和实时发声。
 - **要改蓝牙 MIDI 模式 / Take 录制**：看 `modules/lonelypianist-avp.md` 的「Bluetooth MIDI（BLE）」章节和 `modules/lonelypianist-avp-practice.md` 的三种钢琴模式表。
@@ -128,3 +130,4 @@
 - 2026-05-13: 同步 AVP BLE MIDI 准备页”内嵌系统面板”改动与 Step3 BLE MIDI 和弦判定窗口放宽；更新 Practice services 目录拆分后的源码路径引用。
 - 2026-05-13: PianoKind → PianoModeProtocol 全面迁移；新增 BLE MIDI 录制链路与 Take 存储文档；AVP 目录地图扩充；架构/数据流/存储/术语页同步更新。
 - 2026-05-14: 同步 AVP “左右手”能力与五线谱重构：`ScoreHand` 贯穿 step/guide/高亮/判定，单谱表导入自动补 staff，五线谱迁移为 `GrandStaffNotationView`，并新增（默认关闭的）左右手分别匹配开关；同时修正 AVP tests 需要 concrete destination id 的事实。
+- 2026-05-16: 同步 MusicXML 钢琴双 part 归一化（`MusicXMLPianoGrandStaffNormalizer` 修复左手音符丢失）、Grand Staff 渲染能力扩充（stems/beams/flags/SMuFL/垂直滚动）、Bravura 字体引入；更新架构组件、依赖、术语与 GENERATION。

@@ -1,11 +1,7 @@
 final class PianoModeRegistryService: PianoModeRegistryProtocol {
     let modes: [any PianoModeProtocol]
 
-    init(modes: [any PianoModeProtocol] = [
-        RealAudioPianoMode(),
-        BluetoothMIDIPianoMode(),
-        VirtualPianoMode(),
-    ]) {
+    init(modes: [any PianoModeProtocol]) {
         self.modes = modes
     }
 

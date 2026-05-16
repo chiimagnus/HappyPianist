@@ -1,4 +1,10 @@
 import Foundation
+import os
+
+private let musicXMLNoteSpanLogger = Logger(
+    subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
+    category: "MusicXMLNoteSpanBuilder"
+)
 
 struct MusicXMLNoteSpanBuilder {
     private struct Key: Hashable {
@@ -55,7 +61,7 @@ struct MusicXMLNoteSpanBuilder {
                 case .start:
                     if activeSpanIndexByKey[key] != nil {
                         #if DEBUG
-                            print(
+                            musicXMLNoteSpanLogger.debug(
                                 "MusicXMLNoteSpanBuilder: duplicate tie-start; replacing active span for \(key.partID) midi=\(midiNote) staff=\(staff) voice=\(voice)"
                             )
                         #endif
@@ -87,7 +93,7 @@ struct MusicXMLNoteSpanBuilder {
                         )
                     } else {
                         #if DEBUG
-                            print(
+                            musicXMLNoteSpanLogger.debug(
                                 "MusicXMLNoteSpanBuilder: tie-middle without active; starting new active span for \(key.partID) midi=\(midiNote) staff=\(staff) voice=\(voice)"
                             )
                         #endif
@@ -122,7 +128,7 @@ struct MusicXMLNoteSpanBuilder {
                         activeSpanIndexByKey[key] = nil
                     } else {
                         #if DEBUG
-                            print(
+                            musicXMLNoteSpanLogger.debug(
                                 "MusicXMLNoteSpanBuilder: tie-end without active; creating standalone span for \(key.partID) midi=\(midiNote) staff=\(staff) voice=\(voice)"
                             )
                         #endif
