@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct CalibrationStageCard: View {
+    @ScaledMetric private var statusIconSize: CGFloat = 72
+
     let stage: CalibrationCardStage
     let phase: ARGuideViewModel.CalibrationPhase
     let storedCalibration: StoredWorldAnchorCalibration?
@@ -12,7 +14,7 @@ struct CalibrationStageCard: View {
     let onSimulatorDemoAdvance: (() -> Void)?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading) {
             if stage == .capturingA0 || stage == .capturingC8 {
                 PianoKeyboard88View(
                     highlightedMIDINotes: highlightedMIDINotes,
@@ -56,6 +58,7 @@ struct CalibrationStageCard: View {
                                 onSimulatorDemoAdvance()
                             }
                             .buttonStyle(.borderedProminent)
+                            .buttonBorderShape(.roundedRectangle)
                             .hoverEffect()
                         }
                     }
@@ -70,9 +73,9 @@ struct CalibrationStageCard: View {
     }
 
     private var completionBody: some View {
-        VStack(spacing: 16) {
+        VStack {
             Image(systemName: "checkmark.circle")
-                .font(.system(size: 72, weight: .semibold))
+                .font(.system(size: statusIconSize, weight: .semibold))
                 .foregroundStyle(.green)
 
             Text("校准完成")
@@ -82,17 +85,18 @@ struct CalibrationStageCard: View {
                 onRecalibrate()
             }
             .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.roundedRectangle)
         }
         .frame(maxWidth: .infinity)
     }
 
     private var errorBody: some View {
-        VStack(spacing: 16) {
+        VStack {
             Image(systemName: "xmark.circle.fill")
-                .font(.system(size: 72, weight: .semibold))
+                .font(.system(size: statusIconSize, weight: .semibold))
                 .foregroundStyle(.red)
 
-            VStack(spacing: 6) {
+            VStack {
                 Text("无法校准")
                     .font(.title2.weight(.semibold))
                 Text(errorMessage ?? "手部追踪不可用，无法进入校准流程。")
@@ -105,6 +109,7 @@ struct CalibrationStageCard: View {
                 onReturnHome()
             }
             .buttonStyle(.borderedProminent)
+            .buttonBorderShape(.roundedRectangle)
             .hoverEffect()
         }
         .frame(maxWidth: .infinity)
