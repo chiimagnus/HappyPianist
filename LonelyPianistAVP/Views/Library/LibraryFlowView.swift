@@ -38,7 +38,7 @@ struct LibraryFlowView: View {
                 }
             )
         }
-        .frame(minWidth: 560, idealWidth: 700)
+        .frame(minWidth: 700, idealWidth: 900, minHeight: 520, idealHeight: 700)
         .fileImporter(
             isPresented: $songLibraryViewModel.isMusicXMLImporterPresented,
             allowedContentTypes: [.xml, .musicXML],
