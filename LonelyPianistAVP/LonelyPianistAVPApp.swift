@@ -6,6 +6,7 @@ struct LonelyPianistAVPApp: App {
     @State private var services: AppServices
     @State private var arGuideViewModel: ARGuideViewModel
     @State private var router: AppRouter
+    @State private var coordinator: WindowCoordinator
     @AppStorage("immersivePanoramaEnabled") private var immersivePanoramaEnabled = false
 
     init() {
@@ -14,31 +15,35 @@ struct LonelyPianistAVPApp: App {
         _services = State(initialValue: root.services)
         _arGuideViewModel = State(initialValue: root.arGuideViewModel)
         _router = State(initialValue: root.router)
+        _coordinator = State(initialValue: WindowCoordinator(flowState: root.flowState, pianoModeRegistry: root.services.pianoModeRegistry))
     }
 
     var body: some Scene {
         let progressiveImmersionStyle: ImmersionStyle = .progressive(0.0...1.0, initialAmount: 0.7, aspectRatio: nil)
         let selectedImmersionStyle: any ImmersionStyle = immersivePanoramaEnabled ? progressiveImmersionStyle : .mixed
 
-        WindowGroup {
+        WindowGroup(id: WindowIDs.preparation) {
             PreparationWindowRootView(
                 appState: appState,
                 services: services,
                 arGuideViewModel: arGuideViewModel,
                 router: router
             )
+            .environment(coordinator)
         }
         .windowStyle(.automatic)
         .windowResizability(.contentSize)
 
         WindowGroup(id: WindowIDs.library) {
             LibraryWindowRootView()
+                .environment(coordinator)
         }
         .windowStyle(.automatic)
         .windowResizability(.contentSize)
 
         WindowGroup(id: WindowIDs.practice) {
             PracticeWindowRootView()
+                .environment(coordinator)
         }
         .windowStyle(.automatic)
         .windowResizability(.contentSize)
