@@ -22,5 +22,6 @@ struct PracticeWindowRootView: View {
                 coordinator.openPreparation(dismissCurrent: .practice, openWindow: openWindow, dismissWindow: dismissWindow)
             }
         )
+        .frame(minWidth: 1200, idealWidth: 1600, minHeight: 520, idealHeight: 620)
     }
 }

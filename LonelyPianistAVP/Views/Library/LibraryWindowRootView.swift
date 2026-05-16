@@ -44,5 +44,6 @@ struct LibraryWindowRootView: View {
                 coordinator.openPractice(dismissCurrent: .library, openWindow: openWindow, dismissWindow: dismissWindow)
             }
         )
+        .frame(minWidth: 700, idealWidth: 900, minHeight: 520, idealHeight: 700)
     }
 }

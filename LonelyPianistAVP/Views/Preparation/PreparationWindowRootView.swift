@@ -11,10 +11,13 @@ struct PreparationWindowRootView: View {
     }
 
     var body: some View {
-        if let selectedMode = coordinator.pianoModeRegistry.mode(for: coordinator.flowState.selectedPianoModeID) {
-            selectedMode.makePreparationView(arGuideViewModel: arGuideViewModel)
-        } else {
-            PianoTypePickerView()
+        Group {
+            if let selectedMode = coordinator.pianoModeRegistry.mode(for: coordinator.flowState.selectedPianoModeID) {
+                selectedMode.makePreparationView(arGuideViewModel: arGuideViewModel)
+            } else {
+                PianoTypePickerView()
+            }
         }
+        .frame(minWidth: 860, idealWidth: 900, minHeight: 520, idealHeight: 650)
     }
 }
