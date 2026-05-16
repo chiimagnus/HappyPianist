@@ -8,23 +8,16 @@ struct BluetoothMIDIPreparationView: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            Text("真实钢琴（蓝牙 MIDI）")
-                .font(.largeTitle.weight(.bold))
-
-            BluetoothMIDIConnectionSection { sourceCount in
-                router.flowState.bluetoothMIDISourceCount = sourceCount
-            }
-
-            CalibrationStepView(
-                viewModel: viewModel,
-                onExit: { router.exitToTypePicker(reason: "user exited from bluetooth midi preparation") }
-            )
-
             HStack {
                 Button("返回钢琴类型选择") {
                     router.exitToTypePicker(reason: "user tapped back from bluetooth midi preparation")
                 }
                 .buttonStyle(.bordered)
+
+                Spacer()
+
+                Text("真实钢琴（蓝牙 MIDI）")
+                    .font(.largeTitle.weight(.bold))
 
                 Spacer()
 
@@ -34,6 +27,15 @@ struct BluetoothMIDIPreparationView: View {
                 .buttonStyle(.borderedProminent)
                 .disabled(!router.canProceedToLibrary)
             }
+
+            BluetoothMIDIConnectionSection { sourceCount in
+                router.flowState.bluetoothMIDISourceCount = sourceCount
+            }
+
+            CalibrationStepView(
+                viewModel: viewModel,
+                onExit: { router.exitToTypePicker(reason: "user exited from bluetooth midi preparation") }
+            )
         }
         .padding(24)
         .frame(minWidth: 560, idealWidth: 700)

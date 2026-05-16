@@ -8,8 +8,25 @@ struct VirtualPianoPreparationView: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            Text("虚拟钢琴准备")
-                .font(.largeTitle.weight(.bold))
+            HStack {
+                Button("返回钢琴类型选择") {
+                    router.exitToTypePicker(reason: "user tapped back from virtual preparation")
+                }
+                .buttonStyle(.bordered)
+
+                Spacer()
+
+                Text("虚拟钢琴准备")
+                    .font(.largeTitle.weight(.bold))
+
+                Spacer()
+
+                Button("下一步：去选曲") {
+                    router.goToLibrary()
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(!router.canProceedToLibrary)
+            }
 
             Text("放置虚拟钢琴到空间中")
                 .font(.title3)
@@ -22,21 +39,6 @@ struct VirtualPianoPreparationView: View {
             }
 
             Spacer()
-
-            HStack {
-                Button("返回钢琴类型选择") {
-                    router.exitToTypePicker(reason: "user tapped back from virtual preparation")
-                }
-                .buttonStyle(.bordered)
-
-                Spacer()
-
-                Button("下一步：去选曲") {
-                    router.goToLibrary()
-                }
-                .buttonStyle(.borderedProminent)
-                .disabled(!router.canProceedToLibrary)
-            }
         }
         .padding(24)
         .frame(minWidth: 560, idealWidth: 700)
