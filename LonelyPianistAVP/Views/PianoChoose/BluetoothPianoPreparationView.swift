@@ -9,65 +9,74 @@ struct BluetoothMIDIPreparationView: View {
     @State private var bluetoothAccessStatus: BluetoothAccessPreflight.Status = .unknown
     @State private var didCheckBluetoothAccess = false
     @State private var centralViewReloadID = UUID()
+    @State private var isDiagnosticsExpanded = false
 
     var body: some View {
         VStack(spacing: 20) {
-            Text("真实钢琴（蓝牙 MIDI）准备")
+            Text("真实钢琴（蓝牙 MIDI）")
                 .font(.largeTitle.weight(.bold))
 
-            GroupBox("第 0 步：连接蓝牙 MIDI") {
-                VStack(alignment: .leading, spacing: 10) {
-                    Text("状态：\(sourceConnectionViewModel.statusText)")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-
-                    if let message = sourceConnectionViewModel.lastErrorMessage {
-                        Text(message)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-
+            GroupBox("连接蓝牙 MIDI") {
+                VStack(alignment: .leading, spacing: 12) {
                     switch bluetoothAccessStatus {
                         case .ready:
-                            HStack(spacing: 10) {
-                                Button("重载设备列表", systemImage: "arrow.clockwise") {
-                                    centralViewReloadID = UUID()
-                                }
-                                .buttonStyle(.bordered)
-                                .buttonBorderShape(.roundedRectangle)
-                                .hoverEffect()
-
-                                Button("刷新 Sources", systemImage: "arrow.triangle.2.circlepath") {
-                                    sourceConnectionViewModel.refreshSources()
-                                }
-                                .buttonStyle(.bordered)
-                                .buttonBorderShape(.roundedRectangle)
-                                .hoverEffect()
-
-                                Spacer()
-                            }
-
                             BluetoothMIDICentralEmbeddedView()
                                 .id(centralViewReloadID)
                                 .frame(height: 320)
                                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
 
-                            Text("已连接 Sources: \(sourceConnectionViewModel.sourceCount)")
+                            HStack(spacing: 12) {
+                                LabeledContent("MIDI 输入（CoreMIDI）") {
+                                    Text("\(sourceConnectionViewModel.sourceCount)")
+                                        .monospacedDigit()
+                                }
                                 .font(.callout)
-                                .foregroundStyle(.secondary)
 
-                            if sourceConnectionViewModel.sourceNames.isEmpty == false {
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text("Sources:")
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(.secondary)
-                                    ForEach(sourceConnectionViewModel.sourceNames, id: \.self) { name in
-                                        Text("• \(name)")
+                                Spacer()
+
+                                Button("刷新", systemImage: "arrow.clockwise") {
+                                    refreshConnectionDiagnostics()
+                                }
+                                .buttonStyle(.bordered)
+                                .buttonBorderShape(.roundedRectangle)
+                                .hoverEffect()
+                            }
+
+                            if let message = sourceConnectionViewModel.lastErrorMessage {
+                                Text(message)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            DisclosureGroup("诊断信息", isExpanded: $isDiagnosticsExpanded) {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    LabeledContent("状态") {
+                                        Text(sourceConnectionViewModel.statusText)
+                                            .monospaced()
+                                    }
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+
+                                    if sourceConnectionViewModel.sourceNames.isEmpty {
+                                        Text("未发现任何 MIDI 输入。若你已在上方列表点了连接但这里仍为 0，可多点几次「刷新」。")
                                             .font(.caption)
                                             .foregroundStyle(.secondary)
+                                    } else {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text("Sources:")
+                                                .font(.caption.weight(.semibold))
+                                                .foregroundStyle(.secondary)
+                                            ForEach(sourceConnectionViewModel.sourceNames, id: \.self) { name in
+                                                Text("• \(name)")
+                                                    .font(.caption)
+                                                    .foregroundStyle(.secondary)
+                                            }
+                                        }
                                     }
                                 }
+                                .padding(.top, 4)
                             }
+                            .font(.callout)
 
                         case .bluetoothPoweredOff:
                             accessStatusCard(
@@ -144,6 +153,11 @@ struct BluetoothMIDIPreparationView: View {
 
     private func refreshBluetoothAccessStatus() async {
         bluetoothAccessStatus = await bluetoothAccessPreflight.checkOrRequestAccess()
+    }
+
+    private func refreshConnectionDiagnostics() {
+        centralViewReloadID = UUID()
+        sourceConnectionViewModel.refreshSources()
     }
 
     private func openAppSettings() {
