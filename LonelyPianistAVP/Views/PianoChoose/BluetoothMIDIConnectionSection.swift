@@ -3,32 +3,18 @@ import SwiftUI
 import UIKit
 
 struct BluetoothMIDIConnectionSection: View {
-    enum PreviewScenario: Equatable {
-        case readyConnected
-        case readyNoSources
-        case bluetoothPoweredOff
-        case unauthorized
-        case checking
-    }
-
     let onSourceCountChange: @MainActor (Int) -> Void
-    let previewScenario: PreviewScenario?
 
     @State private var bluetoothAccessPreflight = BluetoothAccessPreflight()
     @State private var sourceConnectionViewModel = MIDISourceConnectionViewModel()
     @State private var bluetoothAccessStatus: BluetoothAccessPreflight.Status = .unknown
-    @State private var didCheckBluetoothAccess = false
     @State private var centralViewReloadID = UUID()
     @State private var isDiagnosticsExpanded = false
     @State private var isDevicePickerPresented = false
 
-    private let isRunningInPreviews = ProcessInfo.processInfo.environment["XCODE_RUNNING_FOR_PREVIEWS"] == "1"
-
     init(
-        previewScenario: PreviewScenario? = nil,
         onSourceCountChange: @escaping @MainActor (Int) -> Void
     ) {
-        self.previewScenario = previewScenario
         self.onSourceCountChange = onSourceCountChange
     }
 
@@ -159,57 +145,15 @@ struct BluetoothMIDIConnectionSection: View {
             sourceConnectionViewModel.refreshSources()
         }
         .onAppear {
-            if isRunningInPreviews {
-                applyPreviewScenario(previewScenario ?? .readyConnected)
-                onSourceCountChange(sourceConnectionViewModel.sourceCount)
-                return
-            }
-
             sourceConnectionViewModel.start()
             onSourceCountChange(sourceConnectionViewModel.sourceCount)
 
-            guard didCheckBluetoothAccess == false else { return }
-            didCheckBluetoothAccess = true
             Task { @MainActor in
                 await refreshBluetoothAccessStatus()
             }
         }
         .onDisappear {
-            guard isRunningInPreviews == false else { return }
             sourceConnectionViewModel.stop()
-        }
-    }
-
-    private func applyPreviewScenario(_ scenario: PreviewScenario) {
-        didCheckBluetoothAccess = true
-
-        switch scenario {
-            case .readyConnected:
-                bluetoothAccessStatus = .ready
-                sourceConnectionViewModel.connectionState = .connected(sourceCount: 1)
-                sourceConnectionViewModel.sourceNames = ["FP-30X MIDI"]
-
-            case .readyNoSources:
-                bluetoothAccessStatus = .ready
-                sourceConnectionViewModel.connectionState = .connected(sourceCount: 0)
-                sourceConnectionViewModel.sourceNames = []
-                sourceConnectionViewModel.lastErrorMessage = "Connect sources failed: -1"
-                isDiagnosticsExpanded = true
-
-            case .bluetoothPoweredOff:
-                bluetoothAccessStatus = .bluetoothPoweredOff
-                sourceConnectionViewModel.connectionState = .idle
-                sourceConnectionViewModel.sourceNames = []
-
-            case .unauthorized:
-                bluetoothAccessStatus = .unauthorized
-                sourceConnectionViewModel.connectionState = .idle
-                sourceConnectionViewModel.sourceNames = []
-
-            case .checking:
-                bluetoothAccessStatus = .unknown
-                sourceConnectionViewModel.connectionState = .idle
-                sourceConnectionViewModel.sourceNames = []
         }
     }
 
@@ -276,34 +220,4 @@ struct BluetoothMIDIConnectionSection: View {
 
         func updateUIViewController(_: UINavigationController, context _: Context) {}
     }
-}
-
-#Preview("连接：已连接") {
-    BluetoothMIDIConnectionSection(previewScenario: .readyConnected) { _ in }
-        .padding()
-        .frame(width: 720)
-}
-
-#Preview("连接：无 Sources") {
-    BluetoothMIDIConnectionSection(previewScenario: .readyNoSources) { _ in }
-        .padding()
-        .frame(width: 720)
-}
-
-#Preview("连接：蓝牙关闭") {
-    BluetoothMIDIConnectionSection(previewScenario: .bluetoothPoweredOff) { _ in }
-        .padding()
-        .frame(width: 720)
-}
-
-#Preview("连接：未授权") {
-    BluetoothMIDIConnectionSection(previewScenario: .unauthorized) { _ in }
-        .padding()
-        .frame(width: 720)
-}
-
-#Preview("连接：检查中") {
-    BluetoothMIDIConnectionSection(previewScenario: .checking) { _ in }
-        .padding()
-        .frame(width: 720)
 }
