@@ -12,7 +12,13 @@ struct AppRootView: View {
         _songLibraryViewModel = State(initialValue: SongLibraryViewModel(
             appState: appState,
             flowState: router.flowState,
-            practicePreparationService: services.practicePreparationService
+            practicePreparationService: services.practicePreparationService,
+            indexStore: services.songLibraryIndexStore,
+            fileStore: services.songFileStore,
+            audioImportService: services.audioImportService,
+            paths: services.songLibraryPaths,
+            bundledProvider: services.bundledSongLibraryProvider,
+            audioPlayer: services.songAudioPlayer
         ))
         self.router = router
     }

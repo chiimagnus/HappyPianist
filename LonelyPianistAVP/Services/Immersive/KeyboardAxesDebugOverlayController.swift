@@ -1,6 +1,5 @@
 import RealityKit
 import SwiftUI
-import UIKit
 
 @MainActor
 final class KeyboardAxesDebugOverlayController {
@@ -44,25 +43,23 @@ final class KeyboardAxesDebugOverlayController {
         let xLen: Float = 0.30
         let yLen: Float = 0.18
         let zLen: Float = 0.20
-        let labelFontSize: CGFloat = 0.08
-        let labelExtrusion: Float = 0.004
         let labelOffset: Float = 0.02
 
         let xAxis = ModelEntity(
             mesh: .generateBox(size: SIMD3<Float>(xLen, thickness, thickness)),
-            materials: [SimpleMaterial(color: .systemRed, isMetallic: false)]
+            materials: [SimpleMaterial(color: .red, isMetallic: false)]
         )
         xAxis.position = SIMD3<Float>(xLen / 2, 0, 0)
 
         let yAxis = ModelEntity(
             mesh: .generateBox(size: SIMD3<Float>(thickness, yLen, thickness)),
-            materials: [SimpleMaterial(color: .systemGreen, isMetallic: false)]
+            materials: [SimpleMaterial(color: .green, isMetallic: false)]
         )
         yAxis.position = SIMD3<Float>(0, yLen / 2, 0)
 
         let zAxis = ModelEntity(
             mesh: .generateBox(size: SIMD3<Float>(thickness, thickness, zLen)),
-            materials: [SimpleMaterial(color: .systemBlue, isMetallic: false)]
+            materials: [SimpleMaterial(color: .blue, isMetallic: false)]
         )
         zAxis.position = SIMD3<Float>(0, 0, zLen / 2)
 
@@ -71,29 +68,31 @@ final class KeyboardAxesDebugOverlayController {
         axesRootEntity.addChild(zAxis)
 
         // Axis labels (X/Y/Z) near the positive ends.
-        let xLabel = axisLabelEntity(text: "X", color: .systemRed, fontSize: labelFontSize, extrusion: labelExtrusion)
+        let xLabel = axisLabelEntity(text: "X", color: .red)
         xLabel.position = SIMD3<Float>(xLen + labelOffset, 0, 0)
         axesRootEntity.addChild(xLabel)
 
-        let yLabel = axisLabelEntity(text: "Y", color: .systemGreen, fontSize: labelFontSize, extrusion: labelExtrusion)
+        let yLabel = axisLabelEntity(text: "Y", color: .green)
         yLabel.position = SIMD3<Float>(0, yLen + labelOffset, 0)
         axesRootEntity.addChild(yLabel)
 
-        let zLabel = axisLabelEntity(text: "Z", color: .systemBlue, fontSize: labelFontSize, extrusion: labelExtrusion)
+        let zLabel = axisLabelEntity(text: "Z", color: .blue)
         zLabel.position = SIMD3<Float>(0, 0, zLen + labelOffset)
         axesRootEntity.addChild(zLabel)
     }
 
-    private func axisLabelEntity(text: String, color: UIColor, fontSize: CGFloat, extrusion: Float) -> ModelEntity {
-        let font = UIFont.systemFont(ofSize: fontSize, weight: .semibold)
-        let mesh = MeshResource.generateText(
-            text,
-            extrusionDepth: extrusion,
-            font: font,
-            containerFrame: .zero,
-            alignment: .center,
-            lineBreakMode: .byClipping
-        )
-        return ModelEntity(mesh: mesh, materials: [SimpleMaterial(color: color, isMetallic: false)])
+    private func axisLabelEntity(text: String, color: Color) -> Entity {
+        let entity = Entity()
+        entity.components.set(ViewAttachmentComponent(
+            rootView: Text(text)
+                .font(.system(size: 48, weight: .semibold))
+                .foregroundStyle(color)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(.thinMaterial)
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+        ))
+        entity.scale = SIMD3<Float>(repeating: 0.15)
+        return entity
     }
 }

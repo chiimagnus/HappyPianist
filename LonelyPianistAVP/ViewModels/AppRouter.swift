@@ -17,7 +17,7 @@ final class AppRouter {
     let pianoModeRegistry: PianoModeRegistryProtocol
     var route: Route = .typePicker
 
-    init(flowState: FlowState, pianoModeRegistry: PianoModeRegistryProtocol = PianoModeRegistryService()) {
+    init(flowState: FlowState, pianoModeRegistry: PianoModeRegistryProtocol) {
         self.flowState = flowState
         self.pianoModeRegistry = pianoModeRegistry
     }

@@ -179,9 +179,25 @@ struct SongLibraryView: View {
 }
 
 #Preview {
-    let appState = AppState()
+    let services = AppServices()
     let flowState = FlowState()
-    let viewModel = SongLibraryViewModel(appState: appState, flowState: flowState)
+    let appState = AppState(
+        arTrackingService: services.arTrackingService,
+        calibrationCaptureService: services.calibrationCaptureService,
+        calibrationRepository: services.calibrationRepository,
+        keyGeometryService: services.keyGeometryService
+    )
+    let viewModel = SongLibraryViewModel(
+        appState: appState,
+        flowState: flowState,
+        practicePreparationService: services.practicePreparationService,
+        indexStore: services.songLibraryIndexStore,
+        fileStore: services.songFileStore,
+        audioImportService: services.audioImportService,
+        paths: services.songLibraryPaths,
+        bundledProvider: services.bundledSongLibraryProvider,
+        audioPlayer: services.songAudioPlayer
+    )
     return NavigationStack {
         SongLibraryView(viewModel: viewModel)
     }

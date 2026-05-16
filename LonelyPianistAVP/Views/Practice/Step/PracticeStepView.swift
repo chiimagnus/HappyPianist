@@ -354,8 +354,22 @@ struct PracticeStepView: View {
 }
 
 #Preview("Step 3") {
+    let services = AppServices()
+    let flowState = FlowState()
+    let appState = AppState(
+        arTrackingService: services.arTrackingService,
+        calibrationCaptureService: services.calibrationCaptureService,
+        calibrationRepository: services.calibrationRepository,
+        keyGeometryService: services.keyGeometryService
+    )
+    let viewModel = ARGuideViewModel(
+        appState: appState,
+        flowState: flowState,
+        pianoModeRegistry: services.pianoModeRegistry,
+        practiceSessionViewModelFactory: services.practiceSessionViewModelFactory
+    )
     PracticeStepView(
-        viewModel: ARGuideViewModel(appState: AppState(), flowState: FlowState()),
+        viewModel: viewModel,
         onBackToLibrary: {},
         onRestartFromTypePicker: {}
     )
