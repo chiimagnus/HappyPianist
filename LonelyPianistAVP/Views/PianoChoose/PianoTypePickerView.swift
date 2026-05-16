@@ -16,7 +16,7 @@ struct PianoTypePickerView: View {
             }
         }
         .padding(40)
-        .frame(minWidth: 760, idealWidth: 860)
+        .frame(minWidth: 760, idealWidth: 860, minHeight: 420)
     }
 
     private func typeCard(mode: any PianoModeProtocol) -> some View {
