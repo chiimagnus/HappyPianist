@@ -10,15 +10,6 @@ struct ImmersiveView: View {
     @State private var gazePlaneDiskOverlayController = GazePlaneDiskOverlayController()
     @State private var virtualPerformerOverlayController = VirtualPerformerOverlayController()
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
-    @AppStorage("immersivePanoramaEnabled") private var immersivePanoramaEnabled = false
-    @State private var panoramaController = PanoramaBackgroundController()
-
-    private var desiredPanoramaBaseName: String? {
-        guard let songName = viewModel.importedSongDisplayName, songName.isEmpty == false else {
-            return nil
-        }
-        return songName
-    }
 
     private var shouldShowCalibrationReticle: Bool {
         guard viewModel.immersiveMode == .calibration else { return false }
@@ -32,12 +23,6 @@ struct ImmersiveView: View {
 
     var body: some View {
         RealityView { content in
-            panoramaController.update(
-                isEnabled: immersivePanoramaEnabled,
-                desiredBaseName: desiredPanoramaBaseName,
-                content: content
-            )
-
             calibrationOverlayController.update(
                 showsReticle: shouldShowCalibrationReticle,
                 reticlePoint: viewModel.calibrationCaptureService.reticlePoint,
@@ -77,12 +62,6 @@ struct ImmersiveView: View {
                 content: content
             )
         } update: { content in
-            panoramaController.update(
-                isEnabled: immersivePanoramaEnabled,
-                desiredBaseName: desiredPanoramaBaseName,
-                content: content
-            )
-
             calibrationOverlayController.update(
                 showsReticle: shouldShowCalibrationReticle,
                 reticlePoint: viewModel.calibrationCaptureService.reticlePoint,
@@ -126,7 +105,6 @@ struct ImmersiveView: View {
             viewModel.onImmersiveAppear()
         }
         .onDisappear {
-            panoramaController.shutdown()
             viewModel.onImmersiveDisappear()
         }
     }
