@@ -17,7 +17,6 @@ struct PracticeStepView: View {
     @State private var isVirtualPerformerEnabled = false
     @State private var isAutoplayEnabled = false
     @AppStorage("practiceManualAdvanceMode") private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
-    @AppStorage("practiceAudioRecognitionDebugOverlayEnabled") private var isAudioDebugOverlayEnabled = false
 
     var body: some View {
         VStack(spacing: 21) {
@@ -44,17 +43,6 @@ struct PracticeStepView: View {
         .containerRelativeFrame(.horizontal, count: 10, span: 9, spacing: 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.vertical, 18)
-        .overlay {
-            ZStack(alignment: .topTrailing) {
-                if isAudioDebugOverlayEnabled {
-                    Step3AudioDebugOverlay(
-                        sessionViewModel: viewModel.practiceSessionViewModel,
-                        isAutoplayEnabled: isAutoplayEnabled
-                    )
-                    .padding(12)
-                }
-            }
-        }
         .toolbar {
             ToolbarItemGroup(placement: .bottomOrnament) {
                 Button("回到选曲库", systemImage: "chevron.backward") {
