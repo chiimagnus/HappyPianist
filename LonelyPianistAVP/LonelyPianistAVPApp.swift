@@ -23,10 +23,8 @@ struct LonelyPianistAVPApp: App {
         let selectedImmersionStyle: any ImmersionStyle = immersivePanoramaEnabled ? progressiveImmersionStyle : .mixed
 
         Window("Preparation", id: WindowIDs.preparation) {
-            PreparationWindowRootView(
-                arGuideViewModel: arGuideViewModel
-            )
-            .environment(coordinator)
+            PreparationWindowRootView(arGuideViewModel: arGuideViewModel)
+                .environment(coordinator)
         }
         .windowStyle(.automatic)
         .windowResizability(.contentSize)
