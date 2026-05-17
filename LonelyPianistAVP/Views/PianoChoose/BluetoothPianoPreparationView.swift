@@ -1,6 +1,5 @@
 import CoreAudioKit
 import SwiftUI
-import UIKit
 
 struct BluetoothMIDIPreparationView: View {
     @Environment(WindowCoordinator.self) private var coordinator
@@ -55,9 +54,8 @@ struct BluetoothMIDIPreparationView: View {
 struct BluetoothMIDIConnectionSection: View {
     let onSourceCountChange: @MainActor (Int) -> Void
 
-    @State private var bluetoothAccessPreflight = BluetoothAccessPreflight()
+    @State private var bluetoothAccessViewModel = BluetoothAccessViewModel()
     @State private var sourceConnectionViewModel = MIDISourceConnectionViewModel()
-    @State private var bluetoothAccessStatus: BluetoothAccessPreflight.Status = .unknown
     @State private var centralViewReloadID = UUID()
     @State private var isDiagnosticsExpanded = false
     @State private var isDevicePickerPresented = false
@@ -70,7 +68,7 @@ struct BluetoothMIDIConnectionSection: View {
 
     var body: some View {
         VStack {
-            switch bluetoothAccessStatus {
+            switch bluetoothAccessViewModel.status {
                 case .ready:
                     HStack(spacing: 12) {
                         Text("蓝牙 MIDI 设备")
@@ -199,21 +197,12 @@ struct BluetoothMIDIConnectionSection: View {
             onSourceCountChange(sourceConnectionViewModel.sourceCount)
 
             Task { @MainActor in
-                await refreshBluetoothAccessStatus()
+                await bluetoothAccessViewModel.refreshStatus()
             }
         }
         .onDisappear {
             sourceConnectionViewModel.stop()
         }
-    }
-
-    private func refreshBluetoothAccessStatus() async {
-        bluetoothAccessStatus = await bluetoothAccessPreflight.checkOrRequestAccess()
-    }
-
-    private func openAppSettings() {
-        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-        UIApplication.shared.open(url)
     }
 
     private func accessStatusCard(
@@ -234,7 +223,7 @@ struct BluetoothMIDIConnectionSection: View {
                 if showsRetryButton {
                     Button("重试", systemImage: "arrow.clockwise") {
                         Task { @MainActor in
-                            await refreshBluetoothAccessStatus()
+                            await bluetoothAccessViewModel.refreshStatus()
                         }
                     }
                     .buttonStyle(.bordered)
@@ -244,7 +233,7 @@ struct BluetoothMIDIConnectionSection: View {
 
                 if showsOpenSettingsButton {
                     Button("打开设置", systemImage: "gear") {
-                        openAppSettings()
+                        bluetoothAccessViewModel.openAppSettings()
                     }
                     .buttonStyle(.borderedProminent)
                     .buttonBorderShape(.roundedRectangle)

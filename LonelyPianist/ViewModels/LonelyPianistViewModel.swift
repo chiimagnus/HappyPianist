@@ -35,6 +35,7 @@ final class LonelyPianistViewModel {
     var liveRecordingTake: RecordingTake?
     private var liveRecordingTakeID: UUID?
     private var recordingClockTask: Task<Void, Never>?
+    var bluetoothMIDI = BluetoothMIDIViewModel()
 
     private let logger = Logger(subsystem: "com.chiimagnus.LonelyPianist", category: "ViewModel")
 
