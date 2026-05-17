@@ -208,6 +208,3 @@
 
 如果你希望把这类风险进一步压低，最直接的策略是：
 - 尽量保证生产路径总是传入由 `PianoHighlightGuideBuilderService.buildGuides(...)` 生成的 guides（而不是空数组触发 fallback）。
-
-## 更新记录（Update Notes）
-- 2026-04-29: 更新音频输出相关条目（F-Audio-01）以匹配当前 sequencer 播放后端与实际错误提示（移除过期的“音频输出未就绪”文案）。

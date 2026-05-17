@@ -92,7 +92,3 @@
 | 持续时间 | 固定 duration（如 0.35s） | 持续到 `stopLiveNotes` 被调用 |
 | 用途 | 手动播放当前 step 音色、autoplay | 虚拟钢琴手指接触发声 |
 | 停止方式 | 自动停止或 `stopOneShotNotes` | 必须显式 `stopLiveNotes` |
-
-## 更新记录（Update Notes）
-- 2026-04-29: 同步 `stopAudioRecognition()` 的日志降噪：只在 running→stopped 时记录 `audio service stopped`，避免把”识别服务 stop”误读为”播放 stop”。
-- 2026-04-30: 新增 Live Note On/Off 章节，记录虚拟钢琴实时发声的 API、实现细节和安全清音机制。

@@ -7,7 +7,7 @@ LonelyPianist 由三条运行面组成：macOS 负责 MIDI 输入采集、映射
 | 运行单元 | 位置 | 生命周期 | 核心职责 | 验证入口 |
 | --- | --- | --- | --- | --- |
 | macOS app | `LonelyPianist/` | App 启动到关闭 | MIDI、映射、录音、对话、SwiftData | 本地 `xcodebuild test`（macOS） |
-| visionOS app | `LonelyPianistAVP/` | WindowGroup + ImmersiveSpace | 校准、曲库、追踪、练习、贴皮高亮提示 | 本地 `xcodebuild test`（visionOS simulator） |
+| visionOS app | `LonelyPianistAVP/` | 3×Window + ImmersiveSpace | 校准、曲库、追踪、练习、贴皮高亮提示 | 本地 `xcodebuild test`（visionOS simulator） |
 | Dialogue server | `piano_dialogue_server/server/` | uvicorn 进程 | HTTP `/generate` + WS `/ws` 协议、Bonjour 广播、推理、调试包、MIDI 上传扩展 | Python smoke scripts + curl |
 | 本地验证 | 本机 `xcodebuild` / python scripts | 手动触发 | 回归测试与 smoke | `testing.md` |
 
@@ -19,7 +19,7 @@ LonelyPianist 由三条运行面组成：macOS 负责 MIDI 输入采集、映射
 | `DialogueManager` | phrase notes / silence | WS 请求、AI take、状态 | `start`, `handle`, `playAIReply` |
 | `AppState` | tracking runtime、校准存取、沉浸空间状态 | providers 状态 + runtime calibration | `resolveRuntimeCalibrationFromTrackedAnchors` |
 | `FlowState` | 钢琴类型与曲目/steps | 当前流程状态 | `setImportedSteps`, `clearSongAndSteps` |
-| `AppRouter` | 用户动作（选择类型/下一步/退出） | root route 切换 | `exitToTypePicker`, `goToLibrary`, `goToPractice` |
+| `WindowCoordinator` | 窗口导航意图（去曲库/去练习/回到类型选择） | 记录 `pendingTransition(from,to)`，并承载 `resetToPreparation` 的 flow 清理策略 | `beginTransition`, `consumePendingTransition`, `resetToPreparation` |
 | `PianoModeRegistryService` | `[any PianoModeProtocol]` + id 查找 | 模式列表与查找 | 新增模式时需注册；修改 `PianoModeProtocol` 影响所有模式实现 |
 | `BluetoothMIDIInputEventSourceService` | CoreMIDI UMP（MIDI 1.0/2.0） | `AsyncStream<PracticeInputEvent>` | MIDI 1.0/2.0 解码、source 刷新、事件过滤 |
 | `MIDIRecordingAdapter` | `PracticeInputEvent` + `RecordingTakeRecorder` | take 事件落盘 | 桥接事件类型、CC/pitch bend 映射 |
@@ -55,11 +55,14 @@ flowchart LR
   end
 
   subgraph visionOS
-    RV[AppRootView] --> RT[AppRouter]
-    RT --> FS[FlowState]
-    RT --> PMR[PianoModeRegistryService]
-    RV --> J[SongLibraryViewModel]
-    RV --> K[ARGuideViewModel]
+    APP[LonelyPianistAVPApp] --> CO[WindowCoordinator]
+    CO --> FS[FlowState]
+    CO --> PMR[PianoModeRegistryService]
+    APP --> PW[PreparationWindowRootView]
+    APP --> LW[LibraryWindowRootView]
+    APP --> PRW[PracticeWindowRootView]
+    LW --> J[SongLibraryViewModel]
+    PRW --> K[ARGuideViewModel]
     K --> AS[AppState]
     AS --> L[ARTrackingService]
     K --> M[PracticeSessionViewModel]
@@ -136,14 +139,3 @@ flowchart LR
 - 没有三端端到端自动化门禁；当前依赖单元测试 + 手工冒烟组合覆盖。
 - Python 服务仍需本地启动与脚本验证。
 - AVP 的手部追踪/平面检测/视觉舒适度必须真机验证。
-
-## 更新记录（Update Notes）
-- 2026-04-25: 补入 PR Tests、Swift Quality、`macos-26`、AVP simulator test 和 RealityKit 光柱架构事实。
-- 2026-04-30: 新增虚拟钢琴组件（VirtualPianoPlacementViewModel、VirtualPianoKeyGeometryService、KeyContactDetectionService、VirtualPianoOverlayController）到组件边界表和依赖图。
-- 2026-05-01: AVP 练习引导从光柱改为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。
-- 2026-05-02: 虚拟钢琴放置引导改为 gaze-plane + palm confirmation；移除对 `.github/workflows/` 的假设（当前仓库不含 GitHub Actions workflows）。
-- 2026-05-05: 补充 AVP Bonjour 自动发现与 HTTP `/generate` 后端接入的组件边界与依赖方向。
-- 2026-05-06: 同步 Python 生成侧引入第三策略（`rule`）后的架构图表达（FastAPI -> strategy router -> engines）。
-- 2026-05-10: 同步 AVP 主流程重构：以 `AppRouter.route` 做 root 切换，引入 `FlowState` 持有曲目/steps 与钢琴类型，`AppState` 聚合 tracking/runtime calibration；移除旧的 `ContentView/HomeViewModel/AppModel` 主流程表达。
-- 2026-05-13: 组件边界表新增 `PianoModeRegistryService`、`BluetoothMIDIInputEventSourceService`、`MIDIRecordingAdapter`、`RecordingTakeStore`、`TakePlaybackController`；依赖图新增 PianoMode 注册表与 BLE MIDI 录制链路。
-- 2026-05-14: 同步 AVP “左右手”能力：MusicXML 单谱表自动补 staff、`ScoreHand` 贯穿 step/guide/高亮；五线谱迁移为 `GrandStaffNotationView`；新增“练习判定：左右手分别满足”可选 gate（默认关闭）。

@@ -51,8 +51,3 @@
 ## Coverage Gaps
 - 没有并发压测和高负载稳定性数据。
 - `/upload-expand` 的行为（生成质量/参数）主要面向手工使用与前端自测，缺少系统性回归基线。
-
-## 更新记录（Update Notes）
-- 2026-04-26: 修复模块页内部链接（从 `modules/` 前缀改为同目录相对路径）。
-- 2026-05-05: 同步 `/generate`、`/upload-expand`、Bonjour 广播与 `static/` 前端目录地图与生命周期说明。
-- 2026-05-06: 反映 `server/` 目录重组为 `api/`、`engines/`、`media/`，并新增 `rule` 第三策略与 Playground 静态资源拆分。

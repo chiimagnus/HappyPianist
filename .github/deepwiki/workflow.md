@@ -45,7 +45,7 @@
 | MusicXML 规则 | parser + step builder + practice view model | MusicXML parser/timeline tests |
 | AR 贴皮高亮样式 | `PianoGuideOverlayController` + practice docs | AVP tests + Vision Pro 手工观察 |
 | BLE MIDI 录制/回放 | `BluetoothMIDIInputEventSourceService` + `MIDIRecordingAdapter` + `RecordingTakeStore` + `TakePlaybackController` | AVP tests + Vision Pro 真机冒烟 |
-| 钢琴模式增删改 | `PianoModeProtocol` 实现 + `PianoModeRegistryService` 注册 + `PianoTypePickerView` + `FlowState.pianoKind` | AVP tests + 类型选择 UI 验证 |
+| 钢琴模式增删改 | `PianoModeProtocol` 实现 + `PianoModeRegistryService` 注册 + `PianoTypePickerView` + `FlowState.selectedPianoModeID` | AVP tests + 类型选择 UI 验证 |
 | Xcode target / package | project + scheme | macOS + AVP tests |
 | SwiftFormat 规则 | `.swiftformat` | 手动 SwiftFormat（可选） |
 
@@ -79,12 +79,3 @@
 - 没有统一发布流水线；因此本页只记录开发、验证和文档同步路径。
 - Python smoke tests 尚无自动化门禁。
 - 当前仓库未提交 CI workflows，自动化测试需要在本地手动运行。
-
-## 更新记录（Update Notes）
-- 2026-04-25: 更新 PR-only split tests、manual-only Swift Quality、CI 调试流程和 AVP 光柱变更清单。
-- 2026-04-28: 反映 pr-tests.yml workflow 已删除，测试需要手动在本地运行。
-- 2026-05-01: 同步 AVP Practice 的 RealityKit 引导从光柱迁移为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。
-- 2026-05-05: 补充 AVP Bonjour 自动发现 + HTTP `/generate` 的开发/验证注意事项，并同步 Python 一键启动脚本入口。
-- 2026-05-06: 同步 Python `server/` 目录重组（`api/`、`engines/`、`media/`）与 `rule` 第三策略；更新默认入口与本地 smoke 方式。
-- 2026-05-13: 常见变更清单新增 BLE MIDI 录制/回放与钢琴模式增删改两行。
-- 2026-05-14: 同步 visionOS 测试命令事实：AVP tests 必须跑在 concrete simulator destination（按 id 指定），并更新本页相关示例与排障条目。

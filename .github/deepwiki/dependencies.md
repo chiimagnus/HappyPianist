@@ -64,7 +64,3 @@
 
 ## Coverage Gaps
 - 没有统一 lockfile；Python 依赖和模型权重都依赖本地环境管理。
-
-## 更新记录（Update Notes）
-- 2026-05-06: 同步 Python `server/` 目录重组与 `test_client` 入口变更；更新配置耦合对应代码位置。
-- 2026-05-16: 新增 Bravura（SMuFL）音乐符号字体依赖。

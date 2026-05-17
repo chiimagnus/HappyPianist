@@ -39,6 +39,3 @@
 - 没有高并发或长时间运行的压力测试证据。
 - deterministic 分支的音乐质量与参数选择更多依赖手工体验（同一 prompt 的可预期性优先于多样性）。
 - rule 分支的风格/参数目前固定（例如 style=pop, mode=motif），缺少面向产品的配置面板与回归基线。
-
-## 更新记录（Update Notes）
-- 2026-05-06: 反映 `server/` 目录重组为 `api/`、`engines/`、`media/`，并补充 `rule` 第三策略的实现位置与分流关系。
