@@ -37,7 +37,7 @@
 | `Views/Preparation/` | PreparationWindowRootView（preparation 窗口 root，模式选择/准备页派发） |
 | `Views/Library/` | LibraryWindowRootView、LibraryFlowView、SongLibraryView |
 | `Views/Practice/` | PracticeWindowRootView、PracticeFlowView、PracticeStepView、GrandStaffNotationView 等 |
-| `Services/Immersive/` | RealityKit overlay controllers（校准、贴皮高亮、虚拟钢琴、全景、沉浸式五线谱等）；由 `Views/Shared/ImmersiveView.swift` 统一驱动 update |
+| `Services/Immersive/` | RealityKit overlay controllers（校准、贴皮高亮、虚拟钢琴、沉浸式五线谱等）；由 `Views/Shared/ImmersiveView.swift` 统一驱动 update |
 | `Views/MIDI/BluetoothMIDICentralView.swift` | 系统 Bluetooth MIDI 配对 UI 包装 |
 | `Views/Library/SongLibraryView.swift` | 曲库列表 UI |
 | `Views/Practice/` | `GrandStaffNotationView`（双谱表五线谱）、Step3AudioDebugOverlay |

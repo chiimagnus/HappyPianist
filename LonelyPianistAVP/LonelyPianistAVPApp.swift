@@ -7,7 +7,6 @@ struct LonelyPianistAVPApp: App {
     @State private var arGuideViewModel: ARGuideViewModel
     @State private var flowState: FlowState
     @State private var coordinator: WindowCoordinator
-    @AppStorage("immersivePanoramaEnabled") private var immersivePanoramaEnabled = false
 
     init() {
         let root = AppCompositionRoot()
@@ -22,9 +21,6 @@ struct LonelyPianistAVPApp: App {
     }
 
     var body: some Scene {
-        let progressiveImmersionStyle: ImmersionStyle = .progressive(0.0 ... 1.0, initialAmount: 0.7, aspectRatio: nil)
-        let selectedImmersionStyle: any ImmersionStyle = immersivePanoramaEnabled ? progressiveImmersionStyle : .mixed
-
         Window("Preparation", id: WindowIDs.preparation) {
             PreparationWindowRootView(arGuideViewModel: arGuideViewModel)
                 .environment(coordinator)
@@ -55,6 +51,6 @@ struct LonelyPianistAVPApp: App {
                     appState.immersiveSpaceState = .closed
                 }
         }
-        .immersionStyle(selection: .constant(selectedImmersionStyle), in: .mixed, progressiveImmersionStyle)
+        .immersionStyle(selection: .constant(.mixed), in: .mixed)
     }
 }

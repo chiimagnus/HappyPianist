@@ -8,7 +8,6 @@ struct PracticeSettingsView: View {
     var onOpenTakeLibrary: (() -> Void)?
 
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
-    @AppStorage("immersivePanoramaEnabled") private var immersivePanoramaEnabled = false
     @AppStorage("practiceManualAdvanceMode") private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
     @AppStorage(PracticeSessionViewModel.practiceHandSeparatedStepMatchingEnabledKey)
     private var practiceHandSeparatedStepMatchingEnabled = false
@@ -28,7 +27,6 @@ struct PracticeSettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            Toggle("沉浸式：360° 全景背景", isOn: $immersivePanoramaEnabled)
 
             Divider()
 
