@@ -44,7 +44,7 @@ struct PracticeStepView: View {
             .aspectRatio(PianoKeyboard88View.aspectRatio, contentMode: .fit)
         }
         .containerRelativeFrame(.horizontal, count: 10, span: 9, spacing: 0)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .frame(maxWidth: .infinity)
         .padding(.vertical, 18)
         .toolbar {
             ToolbarItemGroup(placement: .bottomOrnament) {
