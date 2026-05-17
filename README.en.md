@@ -24,10 +24,8 @@ Optional: Enable AI Duet (local backend)
 ## Releases
 
 - The repo is primarily source-code based: **requires local Xcode build** — no pre-built notarized app is provided.
-- GitHub Releases may contain **resource files** (e.g. soundfonts, sample scores) for assets too large to include in the repo.
 
-Optional resources (recommended):
-- The soundfont `SalC5Light2.sf2` for `LonelyPianistAVP` is large and not included in the repo by default. You can download it from GitHub Releases and place it at:
+- The soundfont `SalC5Light2.sf2` for `LonelyPianistAVP` is large and not included in the repo by default. You can download it from [GitHub Releases](https://github.com/chiimagnus/LonelyPianist/releases/tag/v0.1.6-beta2) and place it at:
   - `LonelyPianistAVP/Resources/Audio/SoundFonts/SalC5Light2.sf2`
 
 ## Acknowledgements
