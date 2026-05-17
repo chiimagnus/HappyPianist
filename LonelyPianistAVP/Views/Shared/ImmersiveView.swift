@@ -110,7 +110,7 @@ struct ImmersiveView: View {
     }
 }
 
-#Preview(immersionStyle: .progressive(0.0 ... 1.0, initialAmount: 0.7, aspectRatio: nil)) {
+#Preview(immersionStyle: .mixed) {
     let services = AppServices()
     let flowState = FlowState()
     let appState = AppState(
