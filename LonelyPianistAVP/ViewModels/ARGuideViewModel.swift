@@ -103,9 +103,10 @@ final class ARGuideViewModel {
     private var takeRecorder = RecordingTakeRecorder()
     private let midiRecordingAdapter = MIDIRecordingAdapter()
     private let takeLibraryViewModel = TakeLibraryViewModel()
-    let takePlaybackController = TakePlaybackController(
+    private let takePlaybackController = TakePlaybackController(
         playbackService: AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2")
     )
+    let takePlaybackViewModel: TakePlaybackViewModel
     private(set) var isRecording = false
     private var recordingStartDate: Date?
     private var midiTakeRecordingTask: Task<Void, Never>?
@@ -123,6 +124,7 @@ final class ARGuideViewModel {
         self.flowState = flowState
         self.pianoModeRegistry = pianoModeRegistry
         self.practiceSessionViewModelFactory = practiceSessionViewModelFactory
+        takePlaybackViewModel = TakePlaybackViewModel(controller: takePlaybackController)
         practiceSessionViewModel = practiceSessionViewModelFactory
             .makePracticeSessionViewModel(for: flowState.selectedPianoModeID)
         setupAppStateCallbacks()
@@ -1372,7 +1374,7 @@ final class ARGuideViewModel {
 
     func startRecording() {
         guard canRecord else { return }
-        takePlaybackController.stop()
+        takePlaybackViewModel.stop()
         let now = ProcessInfo.processInfo.systemUptime
         takeRecorder.start(now: now)
         isRecording = true

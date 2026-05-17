@@ -136,7 +136,7 @@ struct PracticeStepView: View {
                     .buttonBorderShape(.roundedRectangle)
                     .hoverEffect()
                     .disabled(viewModel.canRecord == false || viewModel.isAIPerformanceActive || viewModel
-                        .takePlaybackController.isPlaying)
+                        .takePlaybackViewModel.isPlaying)
                 }
 
                 if isAutoplayEnabled {
@@ -207,7 +207,7 @@ struct PracticeStepView: View {
             hasRequestedImmersiveOpen = false
             isVirtualPerformerEnabled = false
             viewModel.stopRecording()
-            viewModel.takePlaybackController.stop()
+            viewModel.takePlaybackViewModel.stop()
             viewModel.setPracticeAutoplayEnabled(false)
             viewModel.setPracticeVirtualPianoEnabled(false)
             viewModel.setPracticeVirtualPerformerEnabled(false)
@@ -221,7 +221,7 @@ struct PracticeStepView: View {
             NavigationStack {
                 TakeLibraryView(
                     takes: viewModel.takeLibraryTakes,
-                    playbackController: viewModel.takePlaybackController,
+                    playbackViewModel: viewModel.takePlaybackViewModel,
                     isRecording: viewModel.isRecording,
                     errorMessage: viewModel.takeLibraryErrorMessage,
                     onErrorDismiss: { viewModel.dismissTakeLibraryError() },

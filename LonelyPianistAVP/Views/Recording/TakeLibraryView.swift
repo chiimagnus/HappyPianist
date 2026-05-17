@@ -3,7 +3,7 @@ import UniformTypeIdentifiers
 
 struct TakeLibraryView: View {
     let takes: [RecordingTake]
-    let playbackController: TakePlaybackController
+    @Bindable var playbackViewModel: TakePlaybackViewModel
     var isRecording: Bool = false
     var errorMessage: String?
     let onErrorDismiss: () -> Void
@@ -66,7 +66,7 @@ struct TakeLibraryView: View {
             titleVisibility: .visible
         ) {
             Button("清空", role: .destructive) {
-                playbackController.stop()
+                playbackViewModel.stop()
                 sliderValue = 0
                 onClearAll()
             }
@@ -139,8 +139,8 @@ struct TakeLibraryView: View {
                     exportMIDI(take)
                 }
                 Button("删除", systemImage: "trash", role: .destructive) {
-                    if playbackController.currentTakeID == take.id {
-                        playbackController.stop()
+                    if playbackViewModel.currentTakeID == take.id {
+                        playbackViewModel.stop()
                         sliderValue = 0
                     }
                     onDelete(take.id)
@@ -159,21 +159,21 @@ struct TakeLibraryView: View {
     private var nowPlayingBar: some View {
         HStack(spacing: 12) {
             Button {
-                if playbackController.isPlaying {
-                    playbackController.pause()
+                if playbackViewModel.isPlaying {
+                    playbackViewModel.pause()
                 } else {
-                    try? playbackController.resume()
+                    try? playbackViewModel.resume()
                 }
             } label: {
-                Image(systemName: playbackController.isPlaying ? "pause.fill" : "play.fill")
+                Image(systemName: playbackViewModel.isPlaying ? "pause.fill" : "play.fill")
                     .font(.title3)
             }
             .buttonBorderShape(.roundedRectangle)
             .hoverEffect()
-            .disabled(playbackController.currentTakeID == nil || isRecording)
+            .disabled(playbackViewModel.currentTakeID == nil || isRecording)
 
             Button {
-                playbackController.stop()
+                playbackViewModel.stop()
                 sliderValue = 0
             } label: {
                 Image(systemName: "stop.fill")
@@ -181,21 +181,21 @@ struct TakeLibraryView: View {
             }
             .buttonBorderShape(.roundedRectangle)
             .hoverEffect()
-            .disabled(playbackController.currentTakeID == nil || isRecording)
+            .disabled(playbackViewModel.currentTakeID == nil || isRecording)
 
             Slider(value: $sliderValue, in: 0 ... max(0.001, totalDuration)) { editing in
                 isDraggingSlider = editing
                 if editing == false {
-                    if playbackController.isPlaying {
-                        try? playbackController.seek(toSeconds: sliderValue)
+                    if playbackViewModel.isPlaying {
+                        try? playbackViewModel.seek(toSeconds: sliderValue)
                     } else {
-                        playbackController.pausePositionSeconds = max(0, sliderValue)
+                        playbackViewModel.setPausePositionSeconds(max(0, sliderValue))
                     }
                 }
             }
-            .disabled(playbackController.currentTakeID == nil || isRecording)
+            .disabled(playbackViewModel.currentTakeID == nil || isRecording)
 
-            Text(formatDuration(isDraggingSlider ? sliderValue : playbackController.currentSeconds()))
+            Text(formatDuration(isDraggingSlider ? sliderValue : playbackViewModel.currentSeconds()))
                 .monospacedDigit()
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -212,12 +212,12 @@ struct TakeLibraryView: View {
     }
 
     private var totalDuration: TimeInterval {
-        guard let takeID = playbackController.currentTakeID else { return 0 }
+        guard let takeID = playbackViewModel.currentTakeID else { return 0 }
         return takes.first(where: { $0.id == takeID })?.durationSeconds ?? 0
     }
 
     private func isPlayingTake(_ take: RecordingTake) -> Bool {
-        playbackController.currentTakeID == take.id && playbackController.isPlaying
+        playbackViewModel.currentTakeID == take.id && playbackViewModel.isPlaying
     }
 
     private func playOrPause(_ take: RecordingTake) {
@@ -227,14 +227,14 @@ struct TakeLibraryView: View {
         }
 
         do {
-            if playbackController.currentTakeID == take.id {
-                if playbackController.isPlaying {
-                    playbackController.pause()
+            if playbackViewModel.currentTakeID == take.id {
+                if playbackViewModel.isPlaying {
+                    playbackViewModel.pause()
                 } else {
-                    try playbackController.resume()
+                    try playbackViewModel.resume()
                 }
             } else {
-                try playbackController.play(take: take)
+                try playbackViewModel.play(take: take)
             }
         } catch {
             playbackError = "播放失败：\(error.localizedDescription)"
@@ -245,7 +245,7 @@ struct TakeLibraryView: View {
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
             Task { @MainActor in
                 guard isDraggingSlider == false else { return }
-                sliderValue = playbackController.currentSeconds()
+                sliderValue = playbackViewModel.currentSeconds()
             }
         }
     }
