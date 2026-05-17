@@ -47,7 +47,7 @@ struct LibraryWindowRootView: View {
                 openWindow(id: WindowIDs.practice)
             }
         )
-        .frame(minWidth: 700, idealWidth: 900, minHeight: 520, idealHeight: 700)
+        // .frame(minWidth: 700, idealWidth: 900, minHeight: 520, idealHeight: 700)
         .onChange(of: scenePhase) {
             guard scenePhase == .active else { return }
             dismissPendingSourceIfNeeded()
