@@ -88,10 +88,11 @@ struct GrandStaffNotationViewportLayoutService {
         // noticeably larger than the intra-staff line spacing, leaving room for
         // middle-C ledger lines and shared dynamics.
         let baseInterStaffGapUnits: CGFloat = 4.0
+        let maxInterStaffGapUnits: CGFloat = 6.0
         let interStaffCollisionPadUnits: CGFloat = 1.4
 
         let requiredInterStaffGapUnits = trebleExtraBelowUnits + bassExtraAboveUnits + interStaffCollisionPadUnits
-        let interStaffGapUnits = max(baseInterStaffGapUnits, requiredInterStaffGapUnits)
+        let interStaffGapUnits = min(maxInterStaffGapUnits, max(baseInterStaffGapUnits, requiredInterStaffGapUnits))
 
         let totalHeightUnits =
             topPaddingUnits
