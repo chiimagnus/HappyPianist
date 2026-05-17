@@ -3,12 +3,10 @@ import SwiftUI
 struct PreparationNavigationActions {
     var backToTypePicker: @MainActor () -> Void
     var nextToLibrary: @MainActor () -> Void
-    var pushPractice: @MainActor () -> Void
 
     static let noop = PreparationNavigationActions(
         backToTypePicker: {},
-        nextToLibrary: {},
-        pushPractice: {}
+        nextToLibrary: {}
     )
 }
 

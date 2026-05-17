@@ -25,16 +25,28 @@ final class WindowCoordinator {
 
     let flowState: FlowState
     let pianoModeRegistry: PianoModeRegistryProtocol
-    var pendingPushTarget: Window?
+    struct PendingTransition: Equatable {
+        var fromWindowID: String
+        var toWindowID: String
+    }
+
+    var pendingTransition: PendingTransition?
 
     init(flowState: FlowState, pianoModeRegistry: PianoModeRegistryProtocol) {
         self.flowState = flowState
         self.pianoModeRegistry = pianoModeRegistry
     }
 
-    func consumePendingPushTarget() -> Window? {
-        defer { pendingPushTarget = nil }
-        return pendingPushTarget
+    func beginTransition(from fromWindow: Window, to toWindow: Window) {
+        Self.logger.info("beginTransition: \(fromWindow.id) -> \(toWindow.id)")
+        pendingTransition = PendingTransition(fromWindowID: fromWindow.id, toWindowID: toWindow.id)
+    }
+
+    func consumePendingTransition(to toWindow: Window) -> PendingTransition? {
+        guard let pendingTransition else { return nil }
+        guard pendingTransition.toWindowID == toWindow.id else { return nil }
+        self.pendingTransition = nil
+        return pendingTransition
     }
 
     func resetToPreparation(reason: String) {

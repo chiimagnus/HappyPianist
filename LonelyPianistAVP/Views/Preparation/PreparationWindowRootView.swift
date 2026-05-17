@@ -3,7 +3,8 @@ import SwiftUI
 struct PreparationWindowRootView: View {
     @Bindable var arGuideViewModel: ARGuideViewModel
     @Environment(WindowCoordinator.self) private var coordinator
-    @Environment(\.pushWindow) private var pushWindow
+    @Environment(\.openWindow) private var openWindow
+    @Environment(\.dismissWindow) private var dismissWindow
     @Environment(\.scenePhase) private var scenePhase
 
     init(
@@ -18,11 +19,8 @@ struct PreparationWindowRootView: View {
                 coordinator.resetToPreparation(reason: "user tapped back from preparation")
             },
             nextToLibrary: {
-                pushWindow(id: WindowIDs.library)
-            }
-            ,
-            pushPractice: {
-                pushWindow(id: WindowIDs.practice)
+                coordinator.beginTransition(from: .preparation, to: .library)
+                openWindow(id: WindowIDs.library)
             }
         )
 
@@ -37,12 +35,17 @@ struct PreparationWindowRootView: View {
         .frame(minWidth: 860, idealWidth: 900, minHeight: 520, idealHeight: 650)
         .onChange(of: scenePhase) {
             guard scenePhase == .active else { return }
-            guard let target = coordinator.consumePendingPushTarget() else { return }
-            pushWindow(id: target.id)
+            dismissPendingSourceIfNeeded()
         }
         .onAppear {
-            guard let target = coordinator.consumePendingPushTarget() else { return }
-            pushWindow(id: target.id)
+            dismissPendingSourceIfNeeded()
+        }
+    }
+
+    private func dismissPendingSourceIfNeeded() {
+        guard let transition = coordinator.consumePendingTransition(to: .preparation) else { return }
+        withTransaction(\.dismissBehavior, .destructive) {
+            dismissWindow(id: transition.fromWindowID)
         }
     }
 }

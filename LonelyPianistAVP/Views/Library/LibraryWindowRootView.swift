@@ -2,6 +2,7 @@ import SwiftUI
 
 struct LibraryWindowRootView: View {
     @Environment(WindowCoordinator.self) private var coordinator
+    @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
     @Environment(\.scenePhase) private var scenePhase
 
@@ -38,19 +39,28 @@ struct LibraryWindowRootView: View {
             selectedPianoModeTitle: selectedTitle,
             onBackToPreparation: {
                 coordinator.resetToPreparation(reason: "user tapped back from library window")
-                dismissWindow()
+                coordinator.beginTransition(from: .library, to: .preparation)
+                openWindow(id: WindowIDs.preparation)
             },
             onStartPractice: {
-                coordinator.pendingPushTarget = .practice
-                dismissWindow()
+                coordinator.beginTransition(from: .library, to: .practice)
+                openWindow(id: WindowIDs.practice)
             }
         )
         .frame(minWidth: 700, idealWidth: 900, minHeight: 520, idealHeight: 700)
         .onChange(of: scenePhase) {
             guard scenePhase == .active else { return }
-            if coordinator.pendingPushTarget == .practice {
-                coordinator.pendingPushTarget = nil
-            }
+            dismissPendingSourceIfNeeded()
+        }
+        .onAppear {
+            dismissPendingSourceIfNeeded()
+        }
+    }
+
+    private func dismissPendingSourceIfNeeded() {
+        guard let transition = coordinator.consumePendingTransition(to: .library) else { return }
+        withTransaction(\.dismissBehavior, .destructive) {
+            dismissWindow(id: transition.fromWindowID)
         }
     }
 }

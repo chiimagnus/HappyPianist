@@ -40,10 +40,13 @@ func resetToPreparationClearsFlowState() {
 
 @Test
 @MainActor
-func consumePendingPushTargetReturnsAndClears() {
+func consumePendingTransitionReturnsAndClears() {
     let coordinator = WindowCoordinator(flowState: FlowState(), pianoModeRegistry: PianoModeRegistryService(modes: []))
 
-    coordinator.pendingPushTarget = .practice
-    #expect(coordinator.consumePendingPushTarget() == .practice)
-    #expect(coordinator.consumePendingPushTarget() == nil)
+    coordinator.beginTransition(from: .library, to: .practice)
+
+    let transition = coordinator.consumePendingTransition(to: .practice)
+    #expect(transition?.fromWindowID == WindowIDs.library)
+    #expect(transition?.toWindowID == WindowIDs.practice)
+    #expect(coordinator.consumePendingTransition(to: .practice) == nil)
 }
