@@ -10,20 +10,26 @@ struct GrandStaffNotationView: View {
     private let layoutService = GrandStaffNotationLayoutService()
     private let viewportLayoutService = GrandStaffNotationViewportLayoutService()
     private let fixedLineSpacing: CGFloat = 14
+    @Environment(\.displayScale) private var displayScale
 
     var body: some View {
         GeometryReader { proxy in
+            let lineSpacing = fixedLineSpacing
+            let contentWidth = resolvedContentWidth(for: proxy.size, lineSpacing: lineSpacing)
+            let halfWindowTicks = resolvedHalfWindowTicks(contentWidth: contentWidth, lineSpacing: lineSpacing)
+
             let layout = layoutService.makeLayout(
                 guides: guides,
                 currentGuide: currentGuide,
                 measureSpans: measureSpans,
                 context: context,
+                halfWindowTicks: halfWindowTicks,
                 scrollTick: scrollTickProvider?() ?? nil
             )
 
             let viewLayout = viewportLayoutService.makeLayout(
                 size: proxy.size,
-                lineSpacing: fixedLineSpacing,
+                lineSpacing: lineSpacing,
                 items: layout.items,
                 chords: layout.chords,
                 beams: layout.beams,
@@ -69,10 +75,10 @@ struct GrandStaffNotationView: View {
 
         func drawStaff(topLineY: CGFloat) {
             for i in 0 ..< 5 {
-                let y = topLineY + CGFloat(i) * layout.lineSpacing
+                let y = alignedToPixel(topLineY + CGFloat(i) * layout.lineSpacing)
                 var path = Path()
                 path.move(to: CGPoint(x: 0, y: y))
-                path.addLine(to: CGPoint(x: layout.size.width, y: y))
+                path.addLine(to: CGPoint(x: alignedToPixel(layout.size.width), y: y))
                 context.stroke(path, with: .color(lineColor), style: stroke)
             }
         }
@@ -261,10 +267,10 @@ struct GrandStaffNotationView: View {
         let bottomY = layout.bassBottomLineY
 
         for barline in barlines {
-            let x = layout.xPosition(barline.xPosition)
+            let x = alignedToPixel(layout.xPosition(barline.xPosition))
             var path = Path()
-            path.move(to: CGPoint(x: x, y: topY))
-            path.addLine(to: CGPoint(x: x, y: bottomY))
+            path.move(to: CGPoint(x: x, y: alignedToPixel(topY)))
+            path.addLine(to: CGPoint(x: x, y: alignedToPixel(bottomY)))
             context.stroke(path, with: .color(Color.primary.opacity(0.25)), style: stroke)
         }
     }
@@ -283,13 +289,35 @@ struct GrandStaffNotationView: View {
 
             let ledgerSteps = layoutService.ledgerStaffSteps(for: item.staffStep)
             for step in ledgerSteps {
-                let ledgerY = layout.yPosition(staffStep: step, staffNumber: item.staffNumber)
+                let ledgerY = alignedToPixel(layout.yPosition(staffStep: step, staffNumber: item.staffNumber))
                 var path = Path()
                 path.move(to: CGPoint(x: x - layout.noteWidth * 0.65, y: ledgerY))
                 path.addLine(to: CGPoint(x: x + layout.noteWidth * 0.65, y: ledgerY))
                 context.stroke(path, with: .color(Color.primary.opacity(0.22)), style: .init(lineWidth: 1))
             }
         }
+    }
+
+    private func alignedToPixel(_ value: CGFloat) -> CGFloat {
+        guard displayScale.isFinite, displayScale > 0 else { return value }
+        return (value * displayScale).rounded() / displayScale
+    }
+
+    private func resolvedContentWidth(for size: CGSize, lineSpacing: CGFloat) -> CGFloat {
+        let contextMinX: CGFloat = 4
+        let contextWidth: CGFloat = lineSpacing * 7.0
+        let contentMinX = contextMinX + contextWidth
+        let contentMaxX = min(size.width - 18, size.width * 0.96)
+        return max(1, contentMaxX - contentMinX)
+    }
+
+    private func resolvedHalfWindowTicks(contentWidth: CGFloat, lineSpacing: CGFloat) -> Int {
+        // Keep horizontal density stable: don't stretch/compress music when the window resizes.
+        // Wider window => show more ticks (more measures), instead of spreading notes out.
+        let pointsPerQuarter = max(1, lineSpacing * 6.0)
+        let ticksPerPoint = Double(MusicXMLTempoMap.ticksPerQuarter) / Double(pointsPerQuarter)
+        let half = Int((Double(contentWidth) * ticksPerPoint) / 2.0)
+        return max(MusicXMLTempoMap.ticksPerQuarter, half)
     }
 
     private func drawStems(
