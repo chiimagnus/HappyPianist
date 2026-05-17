@@ -19,7 +19,8 @@
 | `MusicXMLPianoGrandStaffNormalizer` | 钢琴双 part 归一化器：将 MusicXML 中两个独立 `<part>`（高/低音谱号）合并为单 part + staff=1/2，修复左手音符丢失问题 |
 | `MusicXMLHandRouter` | 单谱表导入兜底路由器：当 score 未出现 `staff>=2` 且音域足够宽时，按 pitch 阈值把 notes 自动补成 staff=1/2，以驱动左右手与双谱表渲染 |
 | `PianoModeProtocol` | AVP 钢琴模式协议：定义模式 id、pickerCard、准入条件、tracking 选择、准备页工厂与练习会话工厂；通过 `PianoModeRegistryService` 注册三种默认模式（RealAudio / BluetoothMIDI / Virtual） |
-| `PianoModeRegistryService` | 钢琴模式注册表：持有 `[any PianoModeProtocol]`，按 id 查找模式；注入到 `AppRouter` 与 `ARGuideViewModel`，驱动类型选择与流程路由 |
+| `PianoModeRegistryService` | 钢琴模式注册表：持有 `[any PianoModeProtocol]`，按 id 查找模式；注入到 `WindowCoordinator` 与 `ARGuideViewModel`，驱动类型选择、准备页工厂与练习会话注入 |
+| `WindowCoordinator` | AVP 窗口导航协调器：持有 `FlowState` 与 `PianoModeRegistryProtocol`，并通过 `pendingTransition(from,to)` 让目标窗口在激活后关闭来源窗口，实现“单窗口可见”的多窗口导航 |
 | `PracticeInputEvent` | AVP BLE MIDI 练习输入事件模型（G1 channel voice）：note on/off、CC、pitch bend、program change、pressure 等 |
 | `PracticeState` | AVP Step 3 练习状态机：`idle`（无 steps）、`ready`（已就绪但未开始）、`guiding`（引导中）、`completed`（完成） |
 | `DataProviderState` | AR tracking provider 的运行状态 |
@@ -71,7 +72,7 @@
 - **虚拟钢琴模式** vs **实体钢琴模式**：虚拟钢琴无需校准和定位，通过 gaze-plane + 双手掌心确认放置 3D 键盘后直接进入练习；实体钢琴需要 Step 1 校准 + AR 定位。两者共享 `PracticeSessionViewModel` 的匹配与 step 推进逻辑（无 correct/wrong 反馈态），但按键检测路径不同（`KeyContactDetectionService` vs `PressDetectionService`）。
 - **staff（谱表号）** vs **左右手（ScoreHand）**：当前系统把 `staff <= 1` 解释为右手、`staff >= 2` 解释为左手；对缺失 staff 的单谱表曲谱，会在导入阶段用 `MusicXMLHandRouter` 补全 staff，之后所有下游（step、guide、五线谱、键盘高亮、按手判定）都只看 staff→hand 推导结果。
 - **双 part 归一化** vs **单谱表自动分手**：前者处理"钢琴大谱表被拆成两个独立 `<part>`"的非标准导出（`MusicXMLPianoGrandStaffNormalizer`），后者处理"单谱表内缺失 staff 信息"的简化导出（`MusicXMLHandRouter`）。两者都发生在导入管线早期，且都为下游提供 staff=1/2 的一致数据。
-- **PianoModeProtocol** vs **旧 PianoKind 枚举**：旧版用 `PianoKind` 枚举做 switch 分支；新版用 `PianoModeProtocol` 协议 + `PianoModeRegistryService` 注册表，每种模式自包含准备页工厂、练习会话工厂和准入逻辑，无需在调用方做 switch。`FlowState` 中的 `pianoKind` 字段存储的是模式 id 字符串，由注册表解析为具体模式。
+- **PianoModeProtocol** vs **旧 PianoKind 枚举**：旧版用 `PianoKind` 枚举做 switch 分支；新版用 `PianoModeProtocol` 协议 + `PianoModeRegistryService` 注册表，每种模式自包含准备页工厂、练习会话工厂和准入逻辑，无需在调用方做 switch。`FlowState.selectedPianoModeID` 存储模式 id 字符串，由注册表解析为具体模式。
 
 ## Coverage Gaps
 - 发布和版本语义仍散落在 README 和流程中，没有独立页面。

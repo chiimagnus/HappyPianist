@@ -47,9 +47,9 @@
 - 默认三模式实现：`LonelyPianistAVP/Services/AppFlow/DefaultPianoModes.swift`
 
 ### 模式如何驱动用户体验主流程
-- 选择模式（卡片列表）：`LonelyPianistAVP/Views/AppFlow/PianoTypePickerView.swift`
-- 路由到准备页（统一 `preparation` route）：`LonelyPianistAVP/Views/AppRootView.swift`
-- “能否进入曲库/练习”的 gating：`LonelyPianistAVP/ViewModels/AppRouter.swift`
+- 选择模式（卡片列表）：`LonelyPianistAVP/Views/PianoChoose/PianoTypePickerView.swift`
+- preparation 窗口派发准备页：`LonelyPianistAVP/Views/Preparation/PreparationWindowRootView.swift`
+- “能否进入曲库/练习”的 gating：由各模式实现 `PianoModeProtocol.canProceedToLibrary(flowState:)`（准备页按钮禁用/启用）
 
 ### 模式如何影响 Step3（练习会话注入 + tracking + 录制）
 - 注入练习会话（为不同模式组合不同依赖）：`LonelyPianistAVP/Services/Practice/Session/PracticeSessionViewModelFactoryService.swift`
@@ -60,4 +60,3 @@
 
 - “可组合”指：**主流程 UI 不需要分叉成三套**。模式只负责把自己需要的准备页/准入条件/输入链路注入进去。
 - “可替换”指：输入源、tracking、匹配、推进等能力**各自都有协议边界**；未来想做“更慢按也能过的和弦识别”，可以只替换/新增一个匹配组件，而不是把整个练习流程推倒重来。
-

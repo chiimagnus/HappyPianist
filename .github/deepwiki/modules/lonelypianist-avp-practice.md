@@ -136,17 +136,17 @@ AVP 端把 Step 3 “练习输入/推进/录制/AI”按钢琴模式做硬边界
 
 | `PianoModeProtocol` 实现 | 模式语义 | 典型入口（准备页） | Step 3 输入/推进 |
 | --- | --- | --- | --- |
-| `RealAudioPianoMode` | 真实钢琴（音频识别 + 手势辅助） | `Views/AppFlow/RealPianoPreparationView.swift` | `PracticeAudioRecognitionService` + 手势 gating |
-| `BluetoothMIDIPianoMode` | 真实钢琴（BLE MIDI，MIDI-only） | `Views/AppFlow/BluetoothMIDIPreparationView.swift` | `PracticeInputEventSourceProtocol`（CoreMIDI events） |
-| `VirtualPianoMode` | 虚拟钢琴（手势触键） | `Views/AppFlow/VirtualPianoPreparationView.swift` | 虚拟触键 + sequencer |
+| `RealAudioPianoMode` | 真实钢琴（音频识别 + 手势辅助） | `Views/PianoChoose/MicrophonePianoPreparationView.swift`（`RealPianoPreparationView`） | `PracticeAudioRecognitionService` + 手势 gating |
+| `BluetoothMIDIPianoMode` | 真实钢琴（BLE MIDI，MIDI-only） | `Views/PianoChoose/BluetoothPianoPreparationView.swift`（`BluetoothMIDIPreparationView`） | `PracticeInputEventSourceProtocol`（CoreMIDI events） |
+| `VirtualPianoMode` | 虚拟钢琴（手势触键） | `Views/PianoChoose/VirtualPianoPreparationView.swift` | 虚拟触键 + sequencer |
 
-模式由 `PianoModeRegistryService` 注册（`Services/AppFlow/PianoModeRegistryService.swift`），注入到 `AppRouter` 与 `ARGuideViewModel`。`FlowState` 中的 `pianoKind` 字段存储模式 id 字符串，由注册表解析为具体 `PianoModeProtocol` 实现。路由由 `AppRouter` 统一编排。
+模式由 `PianoModeRegistryService` 注册（`Services/AppFlow/PianoModeRegistryService.swift`），注入到 `WindowCoordinator` 与 `ARGuideViewModel`。`FlowState.selectedPianoModeID` 存储模式 id 字符串，由注册表解析为具体 `PianoModeProtocol` 实现；窗口导航由 `WindowCoordinator` 编排。
 
 ### Bluetooth MIDI 模式（MIDI-only）
 
 关键链路：
 - 系统连接面板：`Views/MIDI/BluetoothMIDICentralView.swift`（系统 UI）；准备页用 `BluetoothMIDICentralEmbeddedView` 内嵌展示（不做 app 私有 BLE 扫描/连接）。
-- Gate：准备页通过 `MIDISourceConnectionViewModel` 监控 `sourceCount` 并写入 `FlowState.bluetoothMIDISourceCount`；`AppRouter.canProceedToLibrary` 以此作为进入后续流程的硬条件。
+- Gate：准备页通过 `MIDISourceConnectionViewModel` 监控 `sourceCount` 并写入 `FlowState.bluetoothMIDISourceCount`；BLE 模式的 `canProceedToLibrary(flowState:)` 以此作为进入后续流程的硬条件。
 - 事件模型：`Models/Practice/PracticeInputEvent.swift`（G1 channel voice）。
 - 事件源：`Services/MIDI/BluetoothMIDIInputEventSourceService.swift`（CoreMIDI UMP → `PracticeInputEventSourceProtocol.events`）。
 - 注入：`Services/Practice/Session/PracticeSessionViewModelFactoryService.swift` 在进入 Step 3 前按 `PianoModeProtocol` 实现创建 `PracticeSessionViewModel`：
@@ -196,8 +196,8 @@ flowchart TD
 
 ### 入口与切换
 
-1. 在「钢琴类型选择」中选择 `.virtual`，进入 `Views/AppFlow/VirtualPianoPreparationView.swift` 完成放置后进入曲库/练习。
-2. Step 3 内 `PracticeStepView` 依据 `FlowState.pianoKind == .virtual` 启用虚拟钢琴输入与沉浸空间 overlay。
+1. 在「钢琴类型选择」中选择 `.virtual`，进入 `Views/PianoChoose/VirtualPianoPreparationView.swift` 完成放置后进入曲库/练习。
+2. Step 3 内 `PracticeStepView` 依据 `ARGuideViewModel.isVirtualPianoEnabled`（由当前 `PianoModeProtocol` 决定）启用虚拟钢琴输入与沉浸空间 overlay。
 3. 离开练习页或切换到非虚拟钢琴模式时，会停止所有 live notes 并重置放置/接触检测状态。
 
 #### Simulator 自动放置
@@ -495,16 +495,3 @@ struct PianoHighlightGuideBuildInput {
 - `KeyContactDetectionService` 的迟滞阈值（press 2mm / release 8mm）需要真机调优，simulator 无法验证手势精度。
 - Simulator 中虚拟钢琴可渲染和显示贴皮高亮引导，但因 `HandTrackingProvider.isSupported` 为 `false`，无法通过手势弹奏。
 - Bonjour 自动发现与 Local Network 授权的行为强依赖真实网络环境；simulator 只能覆盖部分逻辑路径。
-
-## 更新记录（Update Notes）
-- 2026-04-25: 引入 `PianoKeyboardGeometry` 作为统一几何真源，并将 RealityKit 引导从 cylinder 光柱迁移为单几何体四侧面 atlas 的暖金丁达尔光束。
-- 2026-04-28: 新增 `AutoplayPerformanceTimeline` 统一自动播放调度；新增 `PianoHighlightGuideBuilderService` 优化高亮引导构建；新增 `PianoHighlightParsedElementCoverageService` 用于诊断；实现 strict autoplay prerequisites 和 UI 错误提示；修复音频识别相关问题；新增 `Fallbacks.md` 专题页面。
-- 2026-04-29: 同步 Step 3 练习页进入不自动开始（`ready` -> 点击下一步才开始）与进度显示语义；更正练习音频后端对象名为 `PracticeSequencerPlaybackServiceProtocol` / `AVAudioSequencerPracticePlaybackService`。
-- 2026-04-30: 新增虚拟钢琴模式：放置状态机、88 键几何生成、迟滞按键检测、live note on/off 实时发声、3D 键盘渲染、安全清音机制。新增 `VirtualPianoTests.swift` 测试覆盖。
-- 2026-04-30: Simulator 中虚拟钢琴自动放置（`#if DEBUG && targetEnvironment(simulator)`），跳过手势放置直接以默认位置渲染键盘，便于 Simulator 调试贴皮高亮引导和 step 推进。修复 `RealityView` update closure 对嵌套 `@Observable` 属性变化追踪不可靠的问题：添加 `.onChange` 显式触发 `VirtualPianoOverlayController` 更新，`KeyboardFrame`/`PianoKeyboardGeometry` 标记为 `Equatable`。
-- 2026-05-01: AVP 练习引导从光柱改为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。
-- 2026-05-02: 虚拟钢琴放置从“手指准星 + 捏合确认”迁移为“视野中心平面 + 绿色圆盘 + 双手掌心稳定确认（3s/3cm）”；放置结果通过 `WorldAnchor` 在 Step 3 内复用；键盘出现改为从中间向两边延伸。
-- 2026-05-05: 补充 AVP Bonjour 自动发现 + HTTP `/generate` 的 AI 即兴数据流与关键对象，并同步 phrase recorder 等新增对象入口。
-- 2026-05-13: 钢琴模式表从 `PianoKind` 枚举更新为 `PianoModeProtocol` 实现名（`RealAudioPianoMode` / `BluetoothMIDIPianoMode` / `VirtualPianoMode`），同步 `PianoModeRegistryService` 注册模式。
-- 2026-05-14: 五线谱迁移为双谱表 `GrandStaffNotationView`；引入 `ScoreHand` 贯穿 step/guide/高亮；新增（默认关闭的）”左右手分别满足”判定 gate，并让 2D/3D 高亮按左右手区分颜色。
-- 2026-05-16: Grand staff 渲染能力扩充：引入 Bravura（SMuFL）字体渲染谱号/调号/拍号/升降号；实现 stems（按左右手强制方向）、beams（主/二级/三级 beam + notehead-driven baseline）、flags；支持垂直滚动；拍号改为专业上下堆叠数字。

@@ -92,14 +92,3 @@
 ## Coverage Gaps
 - 目前没有统一日志聚合，因此排障页仍依赖本地状态与调试目录。
 - 目前无 CI workflows；Python 相关问题仍需本地复现。
-
-## 更新记录（Update Notes）
-- 2026-04-25: 增补 PR Tests、AVP simulator、Swift tools 6.2、Swift Quality，并将光柱排查更新为丁达尔光束（keyboard geometry + atlas）。
-- 2026-04-29: 增补 AVP 常见音频日志释义；新增「下一步短促音」症状入口并路由到排查记录页。
-- 2026-04-30: 新增虚拟钢琴故障排查条目（放置偏移、按键无声音、进入练习失败）；增补 AVP 虚拟钢琴排查步骤。
-- 2026-05-01: AVP 练习引导从光柱改为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。
-- 2026-05-02: 虚拟钢琴放置改为 gaze-plane + palm confirmation；移除 GitHub Actions 排障假设（当前仓库不含 `.github/workflows/`）。
-- 2026-05-05: 新增 AVP Local Network/Bonjour 后端发现相关症状入口与排查步骤，并补齐 `/generate` 的最小 curl 验证。
-- 2026-05-12: 新增 macOS `Bluetooth MIDI…` 权限被拒绝/蓝牙关闭导致的 “not supported / unknown error” 排查入口。
-- 2026-05-12: 新增 AVP `Bluetooth MIDI…` 权限与真机冒烟排查入口（simulator 不覆盖 BLE MIDI）。
-- 2026-05-14: 新增左右手语义与双谱表五线谱相关排查入口；补充“左右手分别满足”判定 gate 的排查步骤。

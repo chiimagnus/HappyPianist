@@ -47,7 +47,3 @@
 
 ## Coverage Gaps
 - 没有设备级自动化验证 hand/world/plane provider 的实际运行差异（尤其是 plane detection 的稳定性和延迟）。
-
-## 更新记录（Update Notes）
-- 2026-04-26: 补充左手拇指 tip 追踪点（用于 C8 校准的左手捏合确认），并同步 tracking 页对外暴露点位说明。
-- 2026-05-02: 新增 `PlaneDetectionProvider`（horizontal planes）与 `planeAnchorsByID`；在 `fingerTipPositions` 中补充 `*-palmCenter` 用于虚拟钢琴放置确认。

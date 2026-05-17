@@ -42,7 +42,7 @@
 | macOS silence | `LonelyPianistTests/SilenceDetectionServiceTests.swift` |
 | AVP library | `SongLibraryIndexStoreTests.swift`, `SongFileStoreTests.swift`, `AudioImportServiceTests.swift` |
 | AVP calibration | `WorldAnchorCalibrationStoreTests.swift`, `CalibrationPointCaptureServiceTests.swift` |
-| AVP app flow / router | `AppRouterTests.swift` |
+| AVP window navigation | `WindowCoordinatorTests.swift` |
 | AVP keyboard geometry | `AppModelKeyboardGeometryTests.swift` |
 | AVP practice | `PracticeSessionViewModelTests.swift`, `PracticeLocalizationPolicyTests.swift`, `StepMatcherTests.swift`, `PracticeSessionHandSeparatedMatchingTests.swift` |
 | AVP manual advance | `ManualAdvanceStrategyTests.swift` |
@@ -86,7 +86,7 @@ visionOS 侧逐步从“在 ViewModel 内部创建依赖”迁移到“由 compo
 
 | 场景 | 推荐做法 | 目的 |
 | --- | --- | --- |
-| 需要验证路由/准入 gate | 直接构建 `AppRouter(flowState:pianoModeRegistry:)`，为 registry 注入最小 `PianoModeProtocol` 实现 | 不依赖 UI 生命周期，避免引入 tracking/networking |
+| 需要验证窗口切换编排 | 直接构建 `WindowCoordinator(flowState:pianoModeRegistry:)`，验证 `beginTransition/consumePendingTransition/resetToPreparation` 的纯逻辑 | 不依赖 UI 生命周期，避免引入 tracking/networking |
 | 需要验证 session 注入 | 显式构建 `PianoModeRegistryService` + `PracticeSessionViewModelFactoryService`，并提供 `makeFallbackPracticeSessionViewModel` | 让“mode -> session”链路可控、可单测 |
 | 需要隔离音频/回放 | 注入 fake/noop `PracticeAudioRecognitionServiceProtocol` / `PracticeSequencerPlaybackServiceProtocol` | 避免 simulator 音频/时序不稳定影响断言 |
 | 需要验证 ARGuideViewModel 联动 | 用测试侧 convenience init 或自定义 `PracticeSessionViewModelFactoryProtocol`（例如返回固定 session） | 把 focus 放在 flowState/appState 的数据传递 |
@@ -112,12 +112,3 @@ let guide = ARGuideViewModel(appState: AppState(), flowState: FlowState(), piano
 ## Coverage Gaps
 - 三端端到端自动化仍缺失；当前覆盖依赖单测、本地 Xcode tests、Python smoke 和人工冒烟组合。
 - Python server 的模型权重、设备选择和外部依赖没有稳定 CI 环境。
-
-## 更新记录（Update Notes）
-- 2026-04-25: 记录 PR-only split Xcode tests、AVP simulator test 跑通、manual Swift Quality、build-for-testing 与 test 的 CI 取舍。
-- 2026-04-28: 反映 pr-tests.yml workflow 已删除，更新测试策略为本地手动运行；移除 PR Tests 路径分流内容；更新手工冒烟和现状说明。
-- 2026-05-01: 同步 AVP Practice 的 RealityKit 引导从光柱迁移为琴键贴皮高亮（decal），并移除 correct/wrong feedback 与 immersive pulse。
-- 2026-05-06: 同步 Python `server/` 目录重组后 WS 回环测试入口（`python -m server.api.test_client`）与相关路径。
-- 2026-05-12: 增加 AVP BLE MIDI 模式回归点：MIDI-only 注入与录制（take/phrase）事件模型的单测覆盖（见 `LonelyPianistAVPTests/RecordingMIDIInputTests.swift`、`LonelyPianistAVPTests/PhraseRecorderMIDIInputTests.swift`、`LonelyPianistAVPTests/PracticeSessionMIDIOnlyModeTests.swift`）。
-- 2026-05-14: 同步 AVP 左右手链路与五线谱重构后的测试入口：`ScoreHandTests`、`MusicXMLHandRouterTests`、`GrandStaffNotationLayoutServiceTests`、`PracticeSessionHandSeparatedMatchingTests`。
-- 2026-05-16: 同步 AVP tests 以适配新的 DI/composition：补齐 router/virtual piano/manual advance 等测试中的显式依赖构建，并在本文增加 AVP tests 的 DI 约定说明。
