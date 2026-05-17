@@ -24,10 +24,8 @@
 ## 发布物
 
 - 当前仓库主要以“源码运行”为主：**需要 Xcode 本地构建**，暂未提供可直接下载运行的 notarized app。
-- GitHub Releases 里可能会放置**资源文件**（例如音色文件、示例谱面），用于补齐体积较大的素材（见路线 C）。
 
-可选资源（推荐）：
-- `LonelyPianistAVP` 的音色文件 `SalC5Light2.sf2` 体积较大，仓库默认不内置；可以从 GitHub Releases 的“资源文件”里下载并放到：
+- `LonelyPianistAVP` 的音色文件 `SalC5Light2.sf2` 体积较大，仓库默认不内置；可以从 [GitHub Releases 的“资源文件”](https://github.com/chiimagnus/LonelyPianist/releases/tag/v0.1.6-beta2)里下载并放到：
   - `LonelyPianistAVP/Resources/Audio/SoundFonts/SalC5Light2.sf2`
 
 ## Acknowledgements
