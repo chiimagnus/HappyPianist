@@ -2,7 +2,7 @@
 
 一款 Apple Vision Pro 上的 AI 钢琴伙伴，它会引导你一步步弹奏；并且你可以享受与 ta 的接力即兴演奏。
 
-[**English**](./README.en.md) | 中文
+中文 | [**English**](./README.en.md)
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 ![Platform](https://img.shields.io/badge/visionOS-lightgrey)
