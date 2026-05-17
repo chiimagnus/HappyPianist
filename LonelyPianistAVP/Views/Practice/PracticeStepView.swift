@@ -45,7 +45,7 @@ struct PracticeStepView: View {
         }
         .containerRelativeFrame(.horizontal, count: 100, span: 95, spacing: 0)
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 18)
+        .padding(.vertical, 30)
         .toolbar {
             ToolbarItemGroup(placement: .bottomOrnament) {
                 Button("回到选曲库", systemImage: "chevron.backward") {
