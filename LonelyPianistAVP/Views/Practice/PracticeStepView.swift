@@ -358,6 +358,10 @@ struct PracticeStepView: View {
 
 }
 
+private enum PracticeHandPalette {
+    static let leftHandKeyColor = Color.cyan
+}
+
 #Preview("Step 3") {
     let services = AppServices()
     let flowState = FlowState()
