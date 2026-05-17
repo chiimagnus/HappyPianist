@@ -13,7 +13,7 @@ struct PracticeWindowRootView: View {
     }
 
     var body: some View {
-        PracticeFlowView(
+        PracticeStepView(
             viewModel: viewModel,
             onBackToLibrary: {
                 coordinator.beginTransition(from: .practice, to: .library)
