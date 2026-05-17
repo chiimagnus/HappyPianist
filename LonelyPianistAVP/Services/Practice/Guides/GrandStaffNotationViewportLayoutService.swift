@@ -5,6 +5,7 @@ struct GrandStaffNotationViewportLayoutService {
         let size: CGSize
         let context: GrandStaffNotationContext?
         let requiredHeight: CGFloat
+        let canvasYOffset: CGFloat
 
         let lineSpacing: CGFloat
         let noteWidth: CGFloat
@@ -97,7 +98,7 @@ struct GrandStaffNotationViewportLayoutService {
         let bassTopLineY = trebleBottomLineY + interStaffGapUnits * resolvedLineSpacing
         let bassBottomLineY = bassTopLineY + resolvedLineSpacing * 4
 
-        let requiredHeight = requiredCanvasHeight(
+        let canvasMetrics = canvasMetrics(
             lineSpacing: resolvedLineSpacing,
             noteWidth: noteWidth,
             noteHeight: noteHeight,
@@ -137,9 +138,10 @@ struct GrandStaffNotationViewportLayoutService {
         let timeSignatureFontSize = resolvedLineSpacing * 1.35
 
         return Layout(
-            size: CGSize(width: size.width, height: requiredHeight),
+            size: CGSize(width: size.width, height: canvasMetrics.requiredHeight),
             context: context,
-            requiredHeight: requiredHeight,
+            requiredHeight: canvasMetrics.requiredHeight,
+            canvasYOffset: canvasMetrics.contentYOffset,
             lineSpacing: resolvedLineSpacing,
             noteWidth: noteWidth,
             noteHeight: noteHeight,
@@ -160,7 +162,12 @@ struct GrandStaffNotationViewportLayoutService {
         )
     }
 
-    private func requiredCanvasHeight(
+    private struct CanvasMetrics: Equatable {
+        let requiredHeight: CGFloat
+        let contentYOffset: CGFloat
+    }
+
+    private func canvasMetrics(
         lineSpacing: CGFloat,
         noteWidth: CGFloat,
         noteHeight: CGFloat,
@@ -172,7 +179,7 @@ struct GrandStaffNotationViewportLayoutService {
         bassBottomLineY: CGFloat,
         contextMinY: CGFloat,
         contextMaxY: CGFloat
-    ) -> CGFloat {
+    ) -> CanvasMetrics {
         var minY: CGFloat = contextMinY
         var maxY: CGFloat = contextMaxY
 
@@ -309,7 +316,9 @@ struct GrandStaffNotationViewportLayoutService {
         }
 
         let padding: CGFloat = lineSpacing * 0.8
-        return max(1, (maxY - minY) + padding * 2)
+        let requiredHeight = max(1, (maxY - minY) + padding * 2)
+        let contentYOffset = -minY + padding
+        return CanvasMetrics(requiredHeight: requiredHeight, contentYOffset: contentYOffset)
     }
 
     private func beamCountFor(noteValue: GrandStaffNoteValue) -> Int {
