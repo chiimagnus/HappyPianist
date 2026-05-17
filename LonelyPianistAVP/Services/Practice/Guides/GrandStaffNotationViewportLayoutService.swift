@@ -65,7 +65,10 @@ struct GrandStaffNotationViewportLayoutService {
         let topPaddingUnits: CGFloat = 2.6
         let bottomPaddingUnits: CGFloat = 1.8
         let staffHeightUnits: CGFloat = 4.0
-        let baseInterStaffGapUnits: CGFloat = 2.8
+        // In engraved piano music, the gap between treble/bass staves is typically
+        // noticeably larger than the intra-staff line spacing, leaving room for
+        // middle-C ledger lines and shared dynamics.
+        let baseInterStaffGapUnits: CGFloat = 4.0
         let interStaffCollisionPadUnits: CGFloat = 1.4
 
         let requiredInterStaffGapUnits = trebleExtraBelowUnits + bassExtraAboveUnits + interStaffCollisionPadUnits
