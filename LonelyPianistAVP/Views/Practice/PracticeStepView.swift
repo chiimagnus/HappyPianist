@@ -97,7 +97,7 @@ struct PracticeStepView: View {
                 .hoverEffect()
                 .disabled(viewModel.isAIPerformanceActive)
                 .popover(isPresented: $isSettingsPopoverPresented) {
-                    PracticeStepSettingsPopover(
+                    PracticeSettingsView(
                         virtualPerformerEnabled: $isVirtualPerformerEnabled,
                         backendStatusText: viewModel.backendStatusText,
                         lastImprovStatusText: viewModel.lastImprovStatusText,
@@ -111,13 +111,6 @@ struct PracticeStepView: View {
                         },
                         onRetryVirtualPianoPlacement: {
                             viewModel.retryVirtualPianoPlacement()
-                        },
-                        onDebugTriggerAIPerformance: {
-                            #if DEBUG && targetEnvironment(simulator)
-                                Task { @MainActor in
-                                    await viewModel.debugTriggerAIPerformance()
-                                }
-                            #endif
                         }
                     )
                 }

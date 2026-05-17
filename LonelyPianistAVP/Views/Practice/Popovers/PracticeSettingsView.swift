@@ -5,7 +5,11 @@ struct PracticeSettingsView: View {
     let backendStatusText: String?
     let lastImprovStatusText: String?
     let recordingSourceText: String?
-    var onOpenTakeLibrary: (() -> Void)?
+    let isAIPerformanceActive: Bool
+    let isVirtualPianoMode: Bool
+    let gazePlaneDiskStatusText: String?
+    let onOpenTakeLibrary: () -> Void
+    let onRetryVirtualPianoPlacement: () -> Void
 
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
     @AppStorage("practiceManualAdvanceMode") private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
@@ -37,7 +41,7 @@ struct PracticeSettingsView: View {
             }
 
             Button("打开录制库", systemImage: "list.bullet") {
-                onOpenTakeLibrary?()
+                onOpenTakeLibrary()
             }
             .buttonStyle(.bordered)
             .buttonBorderShape(.roundedRectangle)
@@ -57,9 +61,27 @@ struct PracticeSettingsView: View {
                 }
             }
             .pickerStyle(.segmented)
+
+            if isVirtualPianoMode {
+                Divider()
+
+                if let gazePlaneDiskStatusText {
+                    Text(gazePlaneDiskStatusText)
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+
+                Button("重试放置", systemImage: "arrow.clockwise") {
+                    onRetryVirtualPianoPlacement()
+                }
+                .buttonStyle(.borderedProminent)
+                .buttonBorderShape(.roundedRectangle)
+                .hoverEffect()
+            }
         }
         .padding(16)
         .frame(minWidth: 320)
+        .disabled(isAIPerformanceActive)
     }
 }
 
@@ -68,6 +90,11 @@ struct PracticeSettingsView: View {
         virtualPerformerEnabled: .constant(false),
         backendStatusText: nil,
         lastImprovStatusText: nil,
-        recordingSourceText: "录制来源：Bluetooth MIDI（弹奏琴键即可录制）"
+        recordingSourceText: "录制来源：Bluetooth MIDI（弹奏琴键即可录制）",
+        isAIPerformanceActive: false,
+        isVirtualPianoMode: true,
+        gazePlaneDiskStatusText: "GazePlaneDisk: OK",
+        onOpenTakeLibrary: {},
+        onRetryVirtualPianoPlacement: {}
     )
 }
