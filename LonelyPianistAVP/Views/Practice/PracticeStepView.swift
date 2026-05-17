@@ -9,7 +9,6 @@ struct PracticeStepView: View {
 
     @State private var hasRequestedImmersiveOpen = false
     @State private var isStepVisible = false
-    @State private var isLocalizationPopoverPresented = false
     @State private var isSettingsPopoverPresented = false
     @State private var isAudioErrorAlertPresented = false
     @State private var isAutoplayErrorAlertPresented = false
@@ -170,38 +169,6 @@ struct PracticeStepView: View {
                     Text(status)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                }
-
-                if isAutoplayEnabled == false, isVirtualPianoMode == false {
-                    Button("定位", systemImage: "scope") {
-                        isLocalizationPopoverPresented.toggle()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .buttonBorderShape(.roundedRectangle)
-                    .hoverEffect()
-                    .disabled(viewModel.isAIPerformanceActive)
-                    .popover(isPresented: $isLocalizationPopoverPresented) {
-                        PracticeStepLocalizationPopover(
-                            practiceLocalizationStatusText: viewModel.practiceLocalizationStatusText,
-                            step3ARStatusText: viewModel.step3ARStatusText,
-                            step3HandAssistStatusText: viewModel.step3HandAssistStatusText,
-                            step3AudioStatusText: viewModel.step3AudioStatusText,
-                            canRetryPracticeLocalization: viewModel.canRetryPracticeLocalization,
-                            shouldSuggestCalibrationStep: viewModel.shouldSuggestCalibrationStep,
-                            isAIPerformanceActive: viewModel.isAIPerformanceActive,
-                            onRetryLocalization: {
-                                Task { @MainActor in
-                                    await viewModel.retryPracticeLocalization(
-                                        using: openImmersiveSpace,
-                                        dismissImmersiveSpace: dismissImmersiveSpace
-                                    )
-                                }
-                            },
-                            onRestartFromTypePicker: {
-                                onRestartFromTypePicker()
-                            }
-                        )
-                    }
                 }
             }
         }
