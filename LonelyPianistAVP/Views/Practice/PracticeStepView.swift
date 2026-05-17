@@ -36,29 +36,22 @@ struct PracticeStepView: View {
                     }
                 }
             }
-            .toolbar {
-                ToolbarItemGroup(placement: .bottomOrnament) {
-                    Button("回到选曲库", systemImage: "chevron.backward") {
-                        onBackToLibrary()
-                    }
-                    .buttonStyle(.bordered)
-                    .buttonBorderShape(.roundedRectangle)
-                    .hoverEffect()
+	            .toolbar {
+	                ToolbarItemGroup(placement: .bottomOrnament) {
+	                    Button("回到选曲库", systemImage: "chevron.backward") {
+	                        onBackToLibrary()
+	                    }
+	                    .buttonStyle(.bordered)
+	                    .buttonBorderShape(.roundedRectangle)
+	                    // .hoverEffect()
 
-                    Button("重新选择钢琴类型", systemImage: "arrow.uturn.backward") {
-                        onRestartFromTypePicker()
-                    }
-                    .buttonStyle(.bordered)
-                    .buttonBorderShape(.roundedRectangle)
-                    .hoverEffect()
-
-                    if isAutoplayEnabled == false {
-                        Button(manualAdvanceMode.nextButtonTitle, systemImage: "forward.fill") {
-                            viewModel.skipStep()
-                        }
+	                    if isAutoplayEnabled == false {
+	                        Button(manualAdvanceMode.nextButtonTitle, systemImage: "forward.fill") {
+	                            viewModel.skipStep()
+	                        }
                         .buttonStyle(.bordered)
                         .buttonBorderShape(.roundedRectangle)
-                        .hoverEffect()
+                        // .hoverEffect()
                         .disabled(viewModel.isAIPerformanceActive || viewModel.hasImportedSteps == false || viewModel
                             .practiceSessionViewModel
                             .state == .completed)
@@ -72,7 +65,7 @@ struct PracticeStepView: View {
                         }
                         .buttonStyle(.bordered)
                         .buttonBorderShape(.roundedRectangle)
-                        .hoverEffect()
+                        // .hoverEffect()
                         .disabled(
                             viewModel.isAIPerformanceActive ||
                                 viewModel.practiceSessionViewModel.state == .ready ||
@@ -84,7 +77,7 @@ struct PracticeStepView: View {
                         .toggleStyle(.button)
                         .buttonStyle(.bordered)
                         .buttonBorderShape(.roundedRectangle)
-                        .hoverEffect()
+                        // .hoverEffect()
                         .disabled(viewModel.isAIPerformanceActive)
 
                     Button("设置", systemImage: "gearshape") {
@@ -356,6 +349,10 @@ struct PracticeStepView: View {
         return result
     }
 
+}
+
+private enum PracticeHandPalette {
+    static let leftHandKeyColor = Color.cyan
 }
 
 #Preview("Step 3") {
