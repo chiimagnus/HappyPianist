@@ -25,7 +25,7 @@ struct PracticeWindowRootView: View {
                 openWindow(id: WindowIDs.preparation)
             }
         )
-        .frame(minWidth: 1200, idealWidth: 1600, minHeight: 520, idealHeight: 620)
+        // .frame(minWidth: 1200, idealWidth: 1600, minHeight: 520, idealHeight: 620)
         .onChange(of: scenePhase) {
             guard scenePhase == .active else { return }
             dismissPendingSourceIfNeeded()
