@@ -38,11 +38,17 @@ final class WindowCoordinator {
         openWindow: OpenWindowAction,
         dismissWindow: DismissWindowAction
     ) {
+        // In visionOS, dismissing the current window immediately after `openWindow(id:)`
+        // can be ignored in some cases (notably when transitioning from the initial window).
+        // Yield one runloop tick to let the system register the opened window first.
         transition(from: currentWindow, to: targetWindow) { id in
             openWindow(id: id)
         } dismiss: { shouldDismissCurrent in
             guard shouldDismissCurrent else { return }
-            dismissWindow()
+            Task { @MainActor in
+                await Task.yield()
+                dismissWindow()
+            }
         }
     }
 
