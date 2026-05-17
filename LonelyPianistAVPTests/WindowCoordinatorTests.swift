@@ -48,18 +48,17 @@ func transitionCallsOpenThenDismiss() {
         from: .library,
         to: .practice,
         open: { id in events.append("open:\(id)") },
-        dismiss: { id in
-            let idText = id ?? "nil"
-            events.append("dismiss:\(idText)")
+        dismiss: { shouldDismiss in
+            events.append("dismiss:\(shouldDismiss)")
         }
     )
 
-    #expect(events == ["open:\(WindowIDs.practice)", "dismiss:\(WindowIDs.library)"])
+    #expect(events == ["open:\(WindowIDs.practice)", "dismiss:true"])
 }
 
 @Test
 @MainActor
-func transitionDismissesNilWhenCurrentUnknown() {
+func transitionDoesNotDismissWhenCurrentUnknown() {
     let coordinator = WindowCoordinator(flowState: FlowState(), pianoModeRegistry: PianoModeRegistryService(modes: []))
 
     var events: [String] = []
@@ -67,13 +66,12 @@ func transitionDismissesNilWhenCurrentUnknown() {
         from: nil,
         to: .library,
         open: { id in events.append("open:\(id)") },
-        dismiss: { id in
-            let idText = id ?? "nil"
-            events.append("dismiss:\(idText)")
+        dismiss: { shouldDismiss in
+            events.append("dismiss:\(shouldDismiss)")
         }
     )
 
-    #expect(events == ["open:\(WindowIDs.library)", "dismiss:nil"])
+    #expect(events == ["open:\(WindowIDs.library)", "dismiss:false"])
 }
 
 @Test
@@ -86,9 +84,8 @@ func transitionNoopsWhenTargetEqualsCurrent() {
         from: .practice,
         to: .practice,
         open: { id in events.append("open:\(id)") },
-        dismiss: { id in
-            let idText = id ?? "nil"
-            events.append("dismiss:\(idText)")
+        dismiss: { shouldDismiss in
+            events.append("dismiss:\(shouldDismiss)")
         }
     )
 
