@@ -19,21 +19,24 @@ struct PracticeStepView: View {
     @AppStorage("practiceManualAdvanceMode") private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
 
     var body: some View {
+        let session = viewModel.practiceSessionViewModel
+        let currentGuide = session.currentPianoHighlightGuide
+
         VStack(spacing: 21) {
             GrandStaffNotationView(
-                guides: viewModel.practiceSessionViewModel.highlightGuides,
-                currentGuide: viewModel.practiceSessionViewModel.currentPianoHighlightGuide,
-                measureSpans: viewModel.practiceSessionViewModel.notationMeasureSpans,
-                context: viewModel.practiceSessionViewModel.currentGrandStaffNotationContext,
-                scrollTickProvider: viewModel.practiceSessionViewModel.autoplayState == .playing ? {
-                    viewModel.practiceSessionViewModel.smoothNotationScrollTick()
+                guides: session.highlightGuides,
+                currentGuide: currentGuide,
+                measureSpans: session.notationMeasureSpans,
+                context: session.currentGrandStaffNotationContext,
+                scrollTickProvider: session.autoplayState == .playing ? {
+                    session.smoothNotationScrollTick()
                 } : nil
             )
             .frame(height: 260)
 
             PianoKeyboard88View(
                 highlightedMIDINotes: highlightedMIDINotes,
-                highlightOccurrenceID: viewModel.practiceSessionViewModel.currentPianoHighlightGuide?.id,
+                highlightOccurrenceID: currentGuide?.id,
                 triggeredMIDINotes: triggeredMIDINotes,
                 fingeringByMIDINote: fingeringByMIDINote,
                 highlightColorByMIDINote: highlightColorByMIDINote
@@ -60,8 +63,7 @@ struct PracticeStepView: View {
                     .buttonBorderShape(.roundedRectangle)
                     // .hoverEffect()
                     .disabled(viewModel.isAIPerformanceActive || viewModel.hasImportedSteps == false || viewModel
-                        .practiceSessionViewModel
-                        .state == .completed)
+                        .practiceSessionViewModel.state == .completed)
 
                     Button(manualAdvanceMode.replayButtonTitle, systemImage: "speaker.wave.2.fill") {
                         if manualAdvanceMode == .measure {
@@ -75,8 +77,8 @@ struct PracticeStepView: View {
                     // .hoverEffect()
                     .disabled(
                         viewModel.isAIPerformanceActive ||
-                            viewModel.practiceSessionViewModel.state == .ready ||
-                            viewModel.practiceSessionViewModel.currentStep == nil
+                            session.state == .ready ||
+                            session.currentStep == nil
                     )
                 }
 
@@ -95,7 +97,7 @@ struct PracticeStepView: View {
                 .hoverEffect()
                 .disabled(viewModel.isAIPerformanceActive)
                 .popover(isPresented: $isSettingsPopoverPresented) {
-                    PracticeStepSettingsPopover(
+                    PracticeSettingsView(
                         virtualPerformerEnabled: $isVirtualPerformerEnabled,
                         backendStatusText: viewModel.backendStatusText,
                         lastImprovStatusText: viewModel.lastImprovStatusText,
@@ -109,13 +111,6 @@ struct PracticeStepView: View {
                         },
                         onRetryVirtualPianoPlacement: {
                             viewModel.retryVirtualPianoPlacement()
-                        },
-                        onDebugTriggerAIPerformance: {
-                            #if DEBUG && targetEnvironment(simulator)
-                                Task { @MainActor in
-                                    await viewModel.debugTriggerAIPerformance()
-                                }
-                            #endif
                         }
                     )
                 }
@@ -141,11 +136,11 @@ struct PracticeStepView: View {
                     .buttonBorderShape(.roundedRectangle)
                     .hoverEffect()
                     .disabled(viewModel.canRecord == false || viewModel.isAIPerformanceActive || viewModel
-                        .takePlaybackController.isPlaying)
+                        .takePlaybackViewModel.isPlaying)
                 }
 
                 if isAutoplayEnabled {
-                    Text(viewModel.practiceSessionViewModel.isSustainPedalDown ? "Pedal ↓" : "Pedal ↑")
+                    Text(session.isSustainPedalDown ? "Pedal ↓" : "Pedal ↑")
                         .foregroundStyle(.secondary)
                 }
 
@@ -167,7 +162,7 @@ struct PracticeStepView: View {
             hasRequestedImmersiveOpen = true
 
             Task { @MainActor in
-                viewModel.practiceSessionViewModel.refreshAudioRecognitionFromSettings()
+                session.refreshAudioRecognitionFromSettings()
                 viewModel.setPracticeVirtualPianoEnabled(isVirtualPianoMode)
                 viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
                 await viewModel.enterPracticeStep(
@@ -187,32 +182,32 @@ struct PracticeStepView: View {
         .onChange(of: isAutoplayEnabled) {
             viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
         }
-        .onChange(of: viewModel.practiceSessionViewModel.audioErrorMessage) {
-            isAudioErrorAlertPresented = viewModel.practiceSessionViewModel.audioErrorMessage != nil
+        .onChange(of: session.audioErrorMessage) {
+            isAudioErrorAlertPresented = session.audioErrorMessage != nil
         }
         .alert("音频不可用", isPresented: $isAudioErrorAlertPresented) {
             Button("知道了") {
-                viewModel.practiceSessionViewModel.clearAudioError()
+                session.clearAudioError()
             }
         } message: {
-            Text(viewModel.practiceSessionViewModel.audioErrorMessage ?? "")
+            Text(session.audioErrorMessage ?? "")
         }
-        .onChange(of: viewModel.practiceSessionViewModel.autoplayErrorMessage) {
-            isAutoplayErrorAlertPresented = viewModel.practiceSessionViewModel.autoplayErrorMessage != nil
+        .onChange(of: session.autoplayErrorMessage) {
+            isAutoplayErrorAlertPresented = session.autoplayErrorMessage != nil
         }
         .alert("无法自动播放", isPresented: $isAutoplayErrorAlertPresented) {
             Button("知道了") {
-                viewModel.practiceSessionViewModel.clearAutoplayError()
+                session.clearAutoplayError()
             }
         } message: {
-            Text(viewModel.practiceSessionViewModel.autoplayErrorMessage ?? "")
+            Text(session.autoplayErrorMessage ?? "")
         }
         .onDisappear {
             isStepVisible = false
             hasRequestedImmersiveOpen = false
             isVirtualPerformerEnabled = false
             viewModel.stopRecording()
-            viewModel.takePlaybackController.stop()
+            viewModel.takePlaybackViewModel.stop()
             viewModel.setPracticeAutoplayEnabled(false)
             viewModel.setPracticeVirtualPianoEnabled(false)
             viewModel.setPracticeVirtualPerformerEnabled(false)
@@ -226,7 +221,7 @@ struct PracticeStepView: View {
             NavigationStack {
                 TakeLibraryView(
                     takes: viewModel.takeLibraryTakes,
-                    playbackController: viewModel.takePlaybackController,
+                    playbackViewModel: viewModel.takePlaybackViewModel,
                     isRecording: viewModel.isRecording,
                     errorMessage: viewModel.takeLibraryErrorMessage,
                     onErrorDismiss: { viewModel.dismissTakeLibraryError() },
@@ -256,22 +251,26 @@ struct PracticeStepView: View {
     }
 
     private var highlightedMIDINotes: Set<Int> {
-        viewModel.practiceSessionViewModel.currentPianoHighlightGuide?.highlightedMIDINotes ?? []
+        let session = viewModel.practiceSessionViewModel
+        return session.currentPianoHighlightGuide?.highlightedMIDINotes ?? []
     }
 
     private var fingeringByMIDINote: [Int: String] {
         guard isAutoplayEnabled else { return [:] }
-        return viewModel.practiceSessionViewModel.currentPianoHighlightGuide?.fingeringByMIDINote ?? [:]
+        let session = viewModel.practiceSessionViewModel
+        return session.currentPianoHighlightGuide?.fingeringByMIDINote ?? [:]
     }
 
     private var triggeredMIDINotes: Set<Int> {
         guard isAutoplayEnabled else { return [] }
-        let notes = viewModel.practiceSessionViewModel.currentPianoHighlightGuide?.triggeredNotes ?? []
+        let session = viewModel.practiceSessionViewModel
+        let notes = session.currentPianoHighlightGuide?.triggeredNotes ?? []
         return Set(notes.map(\.midiNote))
     }
 
     private var highlightColorByMIDINote: [Int: Color] {
-        guard let guide = viewModel.practiceSessionViewModel.currentPianoHighlightGuide else { return [:] }
+        let session = viewModel.practiceSessionViewModel
+        guard let guide = session.currentPianoHighlightGuide else { return [:] }
 
         func resolvedHand(notes: [PianoHighlightNote]) -> ScoreHand? {
             guard notes.isEmpty == false else { return nil }

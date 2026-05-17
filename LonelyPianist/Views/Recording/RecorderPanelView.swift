@@ -1,5 +1,3 @@
-import AppKit
-import CoreAudioKit
 import Observation
 import SwiftUI
 import UniformTypeIdentifiers
@@ -11,9 +9,6 @@ struct RecorderPanelView: View {
     @State private var renameDraft = ""
     @State private var isImportingMIDI = false
     @State private var importMode: LonelyPianistViewModel.MIDIImportMode = .all
-    @State private var bluetoothMIDIWindowController: CABTLEMIDIWindowController?
-    @State private var bluetoothPreflight = BluetoothAccessPreflight()
-    @State private var bluetoothAlert: BluetoothAlert?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -107,7 +102,9 @@ struct RecorderPanelView: View {
                 .disabled(viewModel.selectedTake == nil)
 
                 Button {
-                    openBluetoothMIDIWindow()
+                    Task { @MainActor in
+                        await viewModel.bluetoothMIDI.openBluetoothMIDIWindow()
+                    }
                 } label: {
                     Label("Bluetooth MIDI…", systemImage: "dot.radiowaves.left.and.right")
                 }
@@ -135,14 +132,27 @@ struct RecorderPanelView: View {
                     break
             }
         }
-        .alert(item: $bluetoothAlert) { alert in
+        .alert(item: bluetoothAlertBinding) { alert in
             Alert(
                 title: Text(alert.title),
                 message: Text(alert.message),
-                primaryButton: alert.primaryButton,
+                primaryButton: .default(Text(alert.primaryButtonTitle)) {
+                    viewModel.bluetoothMIDI.performPrimaryAction(alert.primaryAction)
+                },
                 secondaryButton: .cancel()
             )
         }
+    }
+
+    private var bluetoothAlertBinding: Binding<BluetoothMIDIViewModel.AlertInfo?> {
+        Binding(
+            get: { viewModel.bluetoothMIDI.alert },
+            set: { newValue in
+                if newValue == nil {
+                    viewModel.bluetoothMIDI.dismissAlert()
+                }
+            }
+        )
     }
 
     private var renameAlertBinding: Binding<Bool> {
@@ -173,102 +183,5 @@ struct RecorderPanelView: View {
                 viewModel.setPlaybackOutput(id: newValue)
             }
         )
-    }
-
-    private func openBluetoothMIDIWindow() {
-        Task { @MainActor in
-            let status = await bluetoothPreflight.checkOrRequestAccess()
-            switch status {
-                case .ready:
-                    let controller = bluetoothMIDIWindowController ?? CABTLEMIDIWindowController()
-                    bluetoothMIDIWindowController = controller
-                    controller.showWindow(nil)
-                    controller.window?.makeKeyAndOrderFront(nil)
-
-                case .bluetoothPoweredOff:
-                    bluetoothAlert = .bluetoothOff
-
-                case .unauthorized:
-                    bluetoothAlert = .unauthorized
-
-                case .unsupported:
-                    bluetoothAlert = .unsupported
-
-                case .unknown:
-                    bluetoothAlert = .unknown
-            }
-        }
-    }
-}
-
-private struct BluetoothAlert: Identifiable {
-    enum Kind {
-        case unauthorized
-        case bluetoothOff
-        case unsupported
-        case unknown
-    }
-
-    let id = UUID()
-    let kind: Kind
-
-    var title: String {
-        switch kind {
-            case .unauthorized:
-                "Bluetooth Permission Needed"
-            case .bluetoothOff:
-                "Bluetooth Is Off"
-            case .unsupported:
-                "Bluetooth Not Supported"
-            case .unknown:
-                "Bluetooth Unavailable"
-        }
-    }
-
-    var message: String {
-        switch kind {
-            case .unauthorized:
-                "请在 System Settings → Privacy & Security → Bluetooth 中允许 LonelyPianist 访问蓝牙，然后再重试。"
-            case .bluetoothOff:
-                "请先在系统中打开蓝牙，然后再连接 Bluetooth MIDI。"
-            case .unsupported:
-                "当前设备不支持蓝牙，无法使用 Bluetooth MIDI。"
-            case .unknown:
-                "系统蓝牙状态暂不可用。请稍后重试，或重启蓝牙后再试。"
-        }
-    }
-
-    var primaryButton: Alert.Button {
-        switch kind {
-            case .unauthorized:
-                .default(Text("Open Settings")) {
-                    openBluetoothPrivacySettings()
-                }
-            case .bluetoothOff:
-                .default(Text("Open Bluetooth Settings")) {
-                    openBluetoothSettings()
-                }
-            case .unsupported, .unknown:
-                .default(Text("OK")) {}
-        }
-    }
-
-    static let unauthorized = BluetoothAlert(kind: .unauthorized)
-    static let bluetoothOff = BluetoothAlert(kind: .bluetoothOff)
-    static let unsupported = BluetoothAlert(kind: .unsupported)
-    static let unknown = BluetoothAlert(kind: .unknown)
-}
-
-private func openBluetoothPrivacySettings() {
-    guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Bluetooth")
-    else { return }
-    NSWorkspace.shared.open(url)
-}
-
-private func openBluetoothSettings() {
-    if let url = URL(string: "x-apple.systempreferences:com.apple.Bluetooth") {
-        NSWorkspace.shared.open(url)
-    } else if let url = URL(string: "x-apple.systempreferences:") {
-        NSWorkspace.shared.open(url)
     }
 }

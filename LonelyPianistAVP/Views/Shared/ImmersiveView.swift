@@ -22,6 +22,11 @@ struct ImmersiveView: View {
     }
 
     var body: some View {
+        let session = viewModel.practiceSessionViewModel
+        let highlightGuide = session.currentPianoHighlightGuide
+        let keyboardGeometry = session.keyboardGeometry
+        let keyboardFrame = session.calibration?.keyboardFrame
+
         RealityView { content in
             calibrationOverlayController.update(
                 showsReticle: shouldShowCalibrationReticle,
@@ -33,12 +38,12 @@ struct ImmersiveView: View {
             )
             keyboardAxesDebugOverlayController.update(
                 isEnabled: debugKeyboardAxesOverlayEnabled,
-                keyboardFrame: viewModel.practiceSessionViewModel.calibration?.keyboardFrame,
+                keyboardFrame: keyboardFrame,
                 content: content
             )
             overlayController.updateHighlights(
-                highlightGuide: viewModel.practiceSessionViewModel.currentPianoHighlightGuide,
-                keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
+                highlightGuide: highlightGuide,
+                keyboardGeometry: keyboardGeometry,
                 content: content
             )
             gazePlaneDiskOverlayController.update(
@@ -50,13 +55,13 @@ struct ImmersiveView: View {
             )
             virtualPianoOverlayController.update(
                 isEnabled: viewModel.isVirtualPianoEnabled,
-                keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
+                keyboardGeometry: keyboardGeometry,
                 content: content
             )
             virtualPerformerOverlayController.update(
                 isEnabled: viewModel.isVirtualPerformerEnabled,
                 isPerforming: viewModel.isAIPerformanceActive,
-                keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
+                keyboardGeometry: keyboardGeometry,
                 cameraWorldPosition: viewModel.latestDeviceWorldPosition,
                 performanceSchedule: viewModel.latestAIPerformanceSchedule,
                 content: content
@@ -72,12 +77,12 @@ struct ImmersiveView: View {
             )
             keyboardAxesDebugOverlayController.update(
                 isEnabled: debugKeyboardAxesOverlayEnabled,
-                keyboardFrame: viewModel.practiceSessionViewModel.calibration?.keyboardFrame,
+                keyboardFrame: keyboardFrame,
                 content: content
             )
             overlayController.updateHighlights(
-                highlightGuide: viewModel.practiceSessionViewModel.currentPianoHighlightGuide,
-                keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
+                highlightGuide: highlightGuide,
+                keyboardGeometry: keyboardGeometry,
                 content: content
             )
             gazePlaneDiskOverlayController.update(
@@ -89,13 +94,13 @@ struct ImmersiveView: View {
             )
             virtualPianoOverlayController.update(
                 isEnabled: viewModel.isVirtualPianoEnabled,
-                keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
+                keyboardGeometry: keyboardGeometry,
                 content: content
             )
             virtualPerformerOverlayController.update(
                 isEnabled: viewModel.isVirtualPerformerEnabled,
                 isPerforming: viewModel.isAIPerformanceActive,
-                keyboardGeometry: viewModel.practiceSessionViewModel.keyboardGeometry,
+                keyboardGeometry: keyboardGeometry,
                 cameraWorldPosition: viewModel.latestDeviceWorldPosition,
                 performanceSchedule: viewModel.latestAIPerformanceSchedule,
                 content: content
