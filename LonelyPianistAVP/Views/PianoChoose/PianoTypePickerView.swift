@@ -16,8 +16,8 @@ struct PianoTypePickerView: View {
                 }
             }
         }
-        .padding(40)
-        .frame(minWidth: 860, idealWidth: 860, minHeight: 420)
+        .padding(32)
+        // .frame(minWidth: 860, idealWidth: 860, minHeight: 420)
     }
 
     private func typeCard(mode: any PianoModeProtocol) -> some View {
@@ -28,15 +28,17 @@ struct PianoTypePickerView: View {
             VStack(spacing: 16) {
                 Image(systemName: card.iconSystemName)
                     .font(.system(size: 48))
+
                 Text(card.title)
                     .font(.title2.weight(.semibold))
+
                 Text(card.subtitle)
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
             .frame(width: 220, height: 220)
         }
-        .buttonStyle(.bordered)
+        // .buttonStyle(.bordered)
         .buttonBorderShape(.roundedRectangle(radius: 20))
     }
 }
