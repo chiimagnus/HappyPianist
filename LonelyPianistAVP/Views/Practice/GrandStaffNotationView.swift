@@ -40,6 +40,7 @@ struct GrandStaffNotationView: View {
 
             ScrollView(.vertical) {
                 Canvas { context, _ in
+                    context.translateBy(x: 0, y: alignedToPixel(viewLayout.canvasYOffset))
                     drawGrandStaffLines(in: context, layout: viewLayout)
                     drawContext(in: context, layout: viewLayout)
                     drawBarlines(layout.barlines, in: context, layout: viewLayout)
