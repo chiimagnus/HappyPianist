@@ -3,6 +3,7 @@ import SwiftUI
 struct LibraryWindowRootView: View {
     @Environment(WindowCoordinator.self) private var coordinator
     @Environment(\.dismissWindow) private var dismissWindow
+    @Environment(\.scenePhase) private var scenePhase
 
     @Bindable var appState: AppState
     let services: AppServices
@@ -45,5 +46,11 @@ struct LibraryWindowRootView: View {
             }
         )
         .frame(minWidth: 700, idealWidth: 900, minHeight: 520, idealHeight: 700)
+        .onChange(of: scenePhase) {
+            guard scenePhase == .active else { return }
+            if coordinator.pendingPushTarget == .practice {
+                coordinator.pendingPushTarget = nil
+            }
+        }
     }
 }
