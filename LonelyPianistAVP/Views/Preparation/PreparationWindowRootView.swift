@@ -4,6 +4,7 @@ struct PreparationWindowRootView: View {
     @Bindable var arGuideViewModel: ARGuideViewModel
     @Environment(WindowCoordinator.self) private var coordinator
     @Environment(\.pushWindow) private var pushWindow
+    @Environment(\.scenePhase) private var scenePhase
 
     init(
         arGuideViewModel: ARGuideViewModel
@@ -34,6 +35,11 @@ struct PreparationWindowRootView: View {
         }
         .environment(\.preparationNavigationActions, actions)
         .frame(minWidth: 860, idealWidth: 900, minHeight: 520, idealHeight: 650)
+        .onChange(of: scenePhase) {
+            guard scenePhase == .active else { return }
+            guard let target = coordinator.consumePendingPushTarget() else { return }
+            pushWindow(id: target.id)
+        }
         .onAppear {
             guard let target = coordinator.consumePendingPushTarget() else { return }
             pushWindow(id: target.id)
