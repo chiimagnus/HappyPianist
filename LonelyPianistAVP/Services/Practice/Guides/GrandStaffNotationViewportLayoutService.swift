@@ -1,6 +1,20 @@
 import CoreGraphics
 
 struct GrandStaffNotationViewportLayoutService {
+    struct StaffStepBounds: Equatable {
+        let minTrebleStep: Int
+        let maxTrebleStep: Int
+        let minBassStep: Int
+        let maxBassStep: Int
+
+        static let `default` = StaffStepBounds(
+            minTrebleStep: 0,
+            maxTrebleStep: 8,
+            minBassStep: 0,
+            maxBassStep: 8
+        )
+    }
+
     struct Layout: Equatable {
         let size: CGSize
         let context: GrandStaffNotationContext?
@@ -45,23 +59,27 @@ struct GrandStaffNotationViewportLayoutService {
         items: [GrandStaffNotationItem],
         chords: [GrandStaffNotationChord] = [],
         beams: [GrandStaffNotationBeam] = [],
-        context: GrandStaffNotationContext?
+        context: GrandStaffNotationContext?,
+        staffStepBounds: StaffStepBounds? = nil
     ) -> Layout {
         let resolvedLineSpacing = max(8, min(22, lineSpacing))
 
-        let trebleSteps = items.filter { $0.staffNumber <= 1 }.map(\.staffStep)
-        let bassSteps = items.filter { $0.staffNumber >= 2 }.map(\.staffStep)
+        let bounds = staffStepBounds ?? {
+            let trebleSteps = items.filter { $0.staffNumber <= 1 }.map(\.staffStep)
+            let bassSteps = items.filter { $0.staffNumber >= 2 }.map(\.staffStep)
+            return StaffStepBounds(
+                minTrebleStep: trebleSteps.min() ?? 0,
+                maxTrebleStep: trebleSteps.max() ?? 8,
+                minBassStep: bassSteps.min() ?? 0,
+                maxBassStep: bassSteps.max() ?? 8
+            )
+        }()
 
-        let minTrebleStep = trebleSteps.min() ?? 0
-        let maxTrebleStep = trebleSteps.max() ?? 8
-        let minBassStep = bassSteps.min() ?? 0
-        let maxBassStep = bassSteps.max() ?? 8
+        let trebleExtraAboveUnits = CGFloat(max(0, bounds.maxTrebleStep - 8)) * 0.5
+        let bassExtraBelowUnits = CGFloat(max(0, -bounds.minBassStep)) * 0.5
 
-        let trebleExtraAboveUnits = CGFloat(max(0, maxTrebleStep - 8)) * 0.5
-        let bassExtraBelowUnits = CGFloat(max(0, -minBassStep)) * 0.5
-
-        let trebleExtraBelowUnits = CGFloat(max(0, -minTrebleStep)) * 0.5
-        let bassExtraAboveUnits = CGFloat(max(0, maxBassStep - 8)) * 0.5
+        let trebleExtraBelowUnits = CGFloat(max(0, -bounds.minTrebleStep)) * 0.5
+        let bassExtraAboveUnits = CGFloat(max(0, bounds.maxBassStep - 8)) * 0.5
 
         let topPaddingUnits: CGFloat = 2.6
         let bottomPaddingUnits: CGFloat = 1.8
@@ -109,7 +127,8 @@ struct GrandStaffNotationViewportLayoutService {
             trebleBottomLineY: trebleBottomLineY,
             bassBottomLineY: bassBottomLineY,
             contextMinY: 0,
-            contextMaxY: totalHeightUnits * resolvedLineSpacing
+            contextMaxY: totalHeightUnits * resolvedLineSpacing,
+            staffStepBounds: bounds
         )
 
         let trebleClefStep = clefAnchorStaffStep(
@@ -178,7 +197,8 @@ struct GrandStaffNotationViewportLayoutService {
         trebleBottomLineY: CGFloat,
         bassBottomLineY: CGFloat,
         contextMinY: CGFloat,
-        contextMaxY: CGFloat
+        contextMaxY: CGFloat,
+        staffStepBounds: StaffStepBounds
     ) -> CanvasMetrics {
         var minY: CGFloat = contextMinY
         var maxY: CGFloat = contextMaxY
@@ -188,132 +208,29 @@ struct GrandStaffNotationViewportLayoutService {
             return bottomLineY - CGFloat(staffStep) * lineSpacing / 2
         }
 
-        func xPosition(_ normalized: Double, contentMinX: CGFloat, contentMaxX: CGFloat) -> CGFloat {
-            let clamped = max(-0.2, min(1.2, normalized))
-            return contentMinX + CGFloat(clamped) * (contentMaxX - contentMinX)
-        }
+        // Keep the scrollable vertical extents stable so the staff doesn't "jump"
+        // when a high/low note enters or leaves the horizontal window.
+        let trebleTopY = yPosition(staffStep: staffStepBounds.maxTrebleStep, staffNumber: 1)
+        let trebleBottomY = yPosition(staffStep: staffStepBounds.minTrebleStep, staffNumber: 1)
+        let bassTopY = yPosition(staffStep: staffStepBounds.maxBassStep, staffNumber: 2)
+        let bassBottomY = yPosition(staffStep: staffStepBounds.minBassStep, staffNumber: 2)
 
-        let contextWidth = lineSpacing * 7.0
-        let contentMinX = 4 + contextWidth
-        let contentMaxX = min(size.width - 18, size.width * 0.96)
+        minY = min(minY, trebleTopY - noteHeight * 0.9)
+        minY = min(minY, bassTopY - noteHeight * 0.9)
+        maxY = max(maxY, trebleBottomY + noteHeight * 0.9)
+        maxY = max(maxY, bassBottomY + noteHeight * 0.9)
 
-        for item in items {
-            let y = yPosition(staffStep: item.staffStep, staffNumber: item.staffNumber)
-            minY = min(minY, y - noteHeight * 0.6)
-            maxY = max(maxY, y + noteHeight * 0.6)
-        }
-
-        // Stem + beam extents: mirror current render rules closely enough to avoid clipping.
-        let stemLength = lineSpacing * 3.2
-        let minStemLength = lineSpacing * 2.6
-        let noteheadClearance = lineSpacing * 0.8
+        // Add deterministic headroom/footroom so stems and beams won't clip,
+        // while keeping the scroll extents stable (no vertical jumping).
         let beamStrokeWidth = max(2, lineSpacing * 0.42)
+        let maxBeamCount = 3
+        let stemLength = lineSpacing * 3.2
         let beamGap = max(1.2, lineSpacing * 0.28)
         let beamStackStride = beamStrokeWidth + beamGap
+        let headroom = stemLength + CGFloat(max(0, maxBeamCount - 1)) * beamStackStride + beamStrokeWidth
 
-        let chordsByID = Dictionary(uniqueKeysWithValues: chords.map { ($0.id, $0) })
-        let itemsByChordID = Dictionary(grouping: items, by: { $0.chordID ?? "" })
-
-        func stemForChord(
-            _ chord: GrandStaffNotationChord,
-            chordItems: [GrandStaffNotationItem]
-        ) -> (start: CGPoint, end: CGPoint) {
-            let x = xPosition(chord.xPosition, contentMinX: contentMinX, contentMaxX: contentMaxX)
-            let steps = chordItems.map(\.staffStep)
-            let staffNumber = chordItems.first?.staffNumber ?? 1
-            if chord.stemDirection == .up {
-                let topStep = steps.max() ?? 4
-                let startY = yPosition(staffStep: topStep, staffNumber: staffNumber)
-                let startX = x + noteWidth * 0.46
-                return (CGPoint(x: startX, y: startY), CGPoint(x: startX, y: startY - stemLength))
-            } else {
-                let bottomStep = steps.min() ?? 4
-                let startY = yPosition(staffStep: bottomStep, staffNumber: staffNumber)
-                let startX = x - noteWidth * 0.46
-                return (CGPoint(x: startX, y: startY), CGPoint(x: startX, y: startY + stemLength))
-            }
-        }
-
-        // Non-beamed chord stems
-        let beamedChordIDs = Set(beams.flatMap(\.chordIDs))
-        for chord in chords {
-            if beamedChordIDs.contains(chord.id) { continue }
-            guard chord.noteValue != .whole else { continue }
-            guard let chordItems = itemsByChordID[chord.id], chordItems.isEmpty == false else { continue }
-            let stem = stemForChord(chord, chordItems: chordItems)
-            minY = min(minY, min(stem.start.y, stem.end.y) - beamStrokeWidth)
-            maxY = max(maxY, max(stem.start.y, stem.end.y) + beamStrokeWidth)
-        }
-
-        // Beamed groups: compute primary + secondary beam y at chord x positions.
-        for beam in beams {
-            let beamChords = beam.chordIDs.compactMap { chordsByID[$0] }.sorted { $0.xPosition < $1.xPosition }
-            guard beamChords.count >= 2 else { continue }
-
-            let direction = beamChords.first?.stemDirection ?? .up
-            var stemByChordID: [String: (start: CGPoint, end: CGPoint)] = [:]
-            for chord in beamChords {
-                guard let chordItems = itemsByChordID[chord.id], chordItems.isEmpty == false else { continue }
-                stemByChordID[chord.id] = stemForChord(chord, chordItems: chordItems)
-            }
-            guard
-                let firstChord = beamChords.first,
-                let lastChord = beamChords.last,
-                let firstStem = stemByChordID[firstChord.id],
-                let lastStem = stemByChordID[lastChord.id]
-            else { continue }
-
-            let x1 = firstStem.end.x
-            let xN = lastStem.end.x
-            let span = max(1, abs(xN - x1))
-            let rawDeltaY = lastStem.end.y - firstStem.end.y
-            let maxDeltaY = lineSpacing * 1.5
-            let clampedDeltaY = max(-maxDeltaY, min(maxDeltaY, rawDeltaY))
-            let slope = clampedDeltaY / span
-
-            func yOnBeam(at x: CGFloat, offset: CGFloat) -> CGFloat {
-                firstStem.end.y + slope * (x - x1) + offset
-            }
-
-            var requiredOffset: CGFloat = 0
-            for chord in beamChords {
-                guard let stem = stemByChordID[chord.id] else { continue }
-                let chordBeamY = yOnBeam(at: stem.end.x, offset: 0)
-                if direction == .up {
-                    let allowedMaxY = stem.start.y - minStemLength
-                    if chordBeamY > allowedMaxY { requiredOffset = min(requiredOffset, allowedMaxY - chordBeamY) }
-                    let clearanceMaxY = stem.start.y - noteheadClearance
-                    if chordBeamY > clearanceMaxY { requiredOffset = min(requiredOffset, clearanceMaxY - chordBeamY) }
-                } else {
-                    let allowedMinY = stem.start.y + minStemLength
-                    if chordBeamY < allowedMinY { requiredOffset = max(requiredOffset, allowedMinY - chordBeamY) }
-                    let clearanceMinY = stem.start.y + noteheadClearance
-                    if chordBeamY < clearanceMinY { requiredOffset = max(requiredOffset, clearanceMinY - chordBeamY) }
-                }
-            }
-
-            let primaryY1 = yOnBeam(at: x1, offset: requiredOffset)
-            let primaryYN = yOnBeam(at: xN, offset: requiredOffset)
-            minY = min(minY, min(primaryY1, primaryYN) - beamStrokeWidth)
-            maxY = max(maxY, max(primaryY1, primaryYN) + beamStrokeWidth)
-
-            if beam.beamCount >= 2 {
-                for level in 2 ... beam.beamCount {
-                    let stride = CGFloat(level - 1) * beamStackStride
-                    let secondaryOffset = (direction == .up) ? (requiredOffset + stride) : (requiredOffset - stride)
-                    let y1 = yOnBeam(at: x1, offset: secondaryOffset)
-                    let yN = yOnBeam(at: xN, offset: secondaryOffset)
-                    minY = min(minY, min(y1, yN) - beamStrokeWidth)
-                    maxY = max(maxY, max(y1, yN) + beamStrokeWidth)
-                }
-            }
-
-            for stem in stemByChordID.values {
-                let adjustedEndY = yOnBeam(at: stem.end.x, offset: requiredOffset)
-                minY = min(minY, min(stem.start.y, adjustedEndY) - beamStrokeWidth)
-                maxY = max(maxY, max(stem.start.y, adjustedEndY) + beamStrokeWidth)
-            }
-        }
+        minY -= headroom
+        maxY += headroom * 0.65
 
         let padding: CGFloat = lineSpacing * 0.8
         let requiredHeight = max(1, (maxY - minY) + padding * 2)

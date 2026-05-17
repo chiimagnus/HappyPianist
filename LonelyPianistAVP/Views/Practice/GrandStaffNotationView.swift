@@ -11,12 +11,14 @@ struct GrandStaffNotationView: View {
     private let viewportLayoutService = GrandStaffNotationViewportLayoutService()
     private let fixedLineSpacing: CGFloat = 14
     @Environment(\.displayScale) private var displayScale
+    @State private var centeredForFirstGuideID: Int?
 
     var body: some View {
         GeometryReader { proxy in
             let lineSpacing = fixedLineSpacing
             let contentWidth = resolvedContentWidth(for: proxy.size, lineSpacing: lineSpacing)
             let halfWindowTicks = resolvedHalfWindowTicks(contentWidth: contentWidth, lineSpacing: lineSpacing)
+            let staffStepBounds = resolvedStaffStepBounds(guides: guides)
 
             let layout = layoutService.makeLayout(
                 guides: guides,
@@ -33,38 +35,81 @@ struct GrandStaffNotationView: View {
                 items: layout.items,
                 chords: layout.chords,
                 beams: layout.beams,
-                context: layout.context
+                context: layout.context,
+                staffStepBounds: staffStepBounds
             )
             let chordsByID = Dictionary(uniqueKeysWithValues: layout.chords.map { ($0.id, $0) })
             let itemsByChordID = Dictionary(grouping: layout.items, by: { $0.chordID ?? "" })
+            let defaultScrollAnchorY = resolvedDefaultScrollAnchorY(layout: viewLayout)
 
-            ScrollView(.vertical) {
-                Canvas { context, _ in
-                    context.translateBy(x: 0, y: alignedToPixel(viewLayout.canvasYOffset))
-                    drawGrandStaffLines(in: context, layout: viewLayout)
-                    drawContext(in: context, layout: viewLayout)
-                    drawBarlines(layout.barlines, in: context, layout: viewLayout)
-                    drawBeams(
-                        layout.beams,
-                        chordsByID: chordsByID,
-                        itemsByChordID: itemsByChordID,
-                        in: context,
-                        layout: viewLayout
-                    )
-                    drawStems(
-                        layout.chords,
-                        beamedChordIDs: Set(layout.beams.flatMap(\.chordIDs)),
-                        itemsByChordID: itemsByChordID,
-                        in: context,
-                        layout: viewLayout
-                    )
-                    drawItems(layout.items, in: context, layout: viewLayout)
+            ScrollViewReader { scrollProxy in
+                ScrollView(.vertical) {
+                    ZStack(alignment: .topLeading) {
+                        Canvas { context, _ in
+                            context.translateBy(x: 0, y: alignedToPixel(viewLayout.canvasYOffset))
+                            drawGrandStaffLines(in: context, layout: viewLayout)
+                            drawContext(in: context, layout: viewLayout)
+                            drawBarlines(layout.barlines, in: context, layout: viewLayout)
+                            drawBeams(
+                                layout.beams,
+                                chordsByID: chordsByID,
+                                itemsByChordID: itemsByChordID,
+                                in: context,
+                                layout: viewLayout
+                            )
+                            drawStems(
+                                layout.chords,
+                                beamedChordIDs: Set(layout.beams.flatMap(\.chordIDs)),
+                                itemsByChordID: itemsByChordID,
+                                in: context,
+                                layout: viewLayout
+                            )
+                            drawItems(layout.items, in: context, layout: viewLayout)
+                        }
+                        .frame(width: proxy.size.width, height: viewLayout.requiredHeight)
+
+                        VStack(spacing: 0) {
+                            Color.clear.frame(height: defaultScrollAnchorY)
+                            Color.clear
+                                .frame(width: 1, height: 1)
+                                .id(DefaultScrollAnchorID.value)
+                            Spacer(minLength: 0)
+                        }
+                        .frame(width: 1, height: viewLayout.requiredHeight, alignment: .top)
+                    }
                 }
-                .frame(width: proxy.size.width, height: viewLayout.requiredHeight)
+                .scrollIndicators(.hidden)
+                .onAppear {
+                    centerIfNeeded(firstGuideID: guides.first?.id, scrollProxy: scrollProxy)
+                }
+                .onChange(of: guides.first?.id) {
+                    centerIfNeeded(firstGuideID: guides.first?.id, scrollProxy: scrollProxy)
+                }
             }
-            .scrollIndicators(.hidden)
         }
         .accessibilityLabel("Grand Staff 五线谱")
+    }
+
+    private enum DefaultScrollAnchorID {
+        static let value = "grandstaff-default-anchor"
+    }
+
+    private func resolvedDefaultScrollAnchorY(
+        layout: GrandStaffNotationViewportLayoutService.Layout
+    ) -> CGFloat {
+        let trebleTop = layout.trebleTopLineY + layout.canvasYOffset
+        let bassBottom = layout.bassBottomLineY + layout.canvasYOffset
+        let center = (trebleTop + bassBottom) / 2
+        return min(max(0, center), layout.requiredHeight)
+    }
+
+    private func centerIfNeeded(firstGuideID: Int?, scrollProxy: ScrollViewProxy) {
+        guard centeredForFirstGuideID != firstGuideID else { return }
+        centeredForFirstGuideID = firstGuideID
+        Task { @MainActor in
+            await Task.yield()
+            scrollProxy.scrollTo(DefaultScrollAnchorID.value, anchor: .center)
+        }
     }
 
     private func drawGrandStaffLines(
@@ -319,6 +364,43 @@ struct GrandStaffNotationView: View {
         let ticksPerPoint = Double(MusicXMLTempoMap.ticksPerQuarter) / Double(pointsPerQuarter)
         let half = Int((Double(contentWidth) * ticksPerPoint) / 2.0)
         return max(MusicXMLTempoMap.ticksPerQuarter, half)
+    }
+
+    private func resolvedStaffStepBounds(
+        guides: [PianoHighlightGuide]
+    ) -> GrandStaffNotationViewportLayoutService.StaffStepBounds {
+        guard guides.isEmpty == false else { return .default }
+
+        var minTrebleStep = 0
+        var maxTrebleStep = 8
+        var minBassStep = 0
+        var maxBassStep = 8
+
+        for guide in guides {
+            for note in guide.activeNotes + guide.triggeredNotes {
+                let staffNumber = resolvedStaffNumber(note.staff)
+                let step = layoutService.staffStep(for: note.midiNote, staffNumber: staffNumber)
+                if staffNumber >= 2 {
+                    minBassStep = min(minBassStep, step)
+                    maxBassStep = max(maxBassStep, step)
+                } else {
+                    minTrebleStep = min(minTrebleStep, step)
+                    maxTrebleStep = max(maxTrebleStep, step)
+                }
+            }
+        }
+
+        return GrandStaffNotationViewportLayoutService.StaffStepBounds(
+            minTrebleStep: minTrebleStep,
+            maxTrebleStep: maxTrebleStep,
+            minBassStep: minBassStep,
+            maxBassStep: maxBassStep
+        )
+    }
+
+    private func resolvedStaffNumber(_ staff: Int?) -> Int {
+        guard let staff else { return 1 }
+        return (staff >= 2) ? 2 : 1
     }
 
     private func drawStems(
