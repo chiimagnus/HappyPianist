@@ -140,7 +140,7 @@
 - **AnyView:** 除非绝对必要，否则避免 `AnyView`。
 - **硬编码:** 未被要求时，不要硬编码 padding 与 stack spacing。
 - **UIKit Colors:** SwiftUI 代码中避免使用 UIKit 的颜色。
-- **导航:** App 主流程用 `AppRouter.route` 做 root 切换，不使用全局 `NavigationStack`；仅在局部子流程（例如 sheet 内列表）使用 `NavigationStack`。
+- **导航:** App 主流程使用 `WindowCoordinator` 编排跨窗口的互斥切换；窗口内部仅在局部子流程（例如 sheet 内列表）使用 `NavigationStack`。
 
 ### 9. Swift 6+ 迁移指南
 
