@@ -32,7 +32,7 @@ struct PracticeStepView: View {
                     session.smoothNotationScrollTick()
                 } : nil
             )
-            .frame(height: 300)
+            .frame(height: 350)
 
             PianoKeyboard88View(
                 highlightedMIDINotes: highlightedMIDINotes,
