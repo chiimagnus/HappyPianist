@@ -336,7 +336,7 @@ final class ARGuideViewModel {
             silenceTrigger.recordNoteOn(atUptime: event.receivedAtUptimeSeconds)
             phraseRecorder.recordNoteOn(
                 midi: note,
-                velocity: scaleMIDI2Value16To127(velocity16),
+                velocity: mapMIDI2Value16To7Bit(velocity16),
                 timestamp: event.receivedAtUptimeSeconds
             )
         case let .noteOff(note, _):
@@ -346,7 +346,7 @@ final class ARGuideViewModel {
         }
     }
 
-    private func scaleMIDI2Value16To127(_ value: UInt16) -> Int {
+    private func mapMIDI2Value16To7Bit(_ value: UInt16) -> Int {
         let scaled = (Double(value) / 65535.0 * 127.0).rounded()
         return max(0, min(127, Int(scaled)))
     }

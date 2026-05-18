@@ -333,26 +333,6 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
         }
     }
 
-    private func scaleMIDI2Value16To127(_ value: UInt16) -> Int {
-        // Preserve MIDI semantics: velocity 0 indicates note-off, so a non-zero MIDI 2.0 velocity
-        // should never downscale to 0 in the 7-bit domain.
-        guard value > 0 else { return 0 }
-
-        // Round-to-nearest while mapping [0, 65535] -> [0, 127].
-        let scaled = (Int(value) * 127 + 32767) / 65535
-        return max(1, min(127, scaled))
-    }
-
-    private func scaleMIDI2Value32To127(_ value: UInt32) -> Int {
-        let scaled = (Double(value) / Double(UInt32.max) * 127.0).rounded()
-        return max(0, min(127, Int(scaled)))
-    }
-
-    private func scaleMIDI2PitchBendTo14Bit(_ value: UInt32) -> Int {
-        let scaled = (Double(value) / Double(UInt32.max) * 16383.0).rounded()
-        return max(0, min(16383, Int(scaled)))
-    }
-
     private func publish(
         _ kind: PracticeInputEvent.Kind,
         channel: Int,
