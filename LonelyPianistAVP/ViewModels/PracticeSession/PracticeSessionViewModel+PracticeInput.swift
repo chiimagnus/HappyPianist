@@ -36,8 +36,11 @@ extension PracticeSessionViewModel {
         if practiceInputLastResetStepIndex != currentStepIndex {
             practiceInputGeneration += 1
             practiceInputActiveSinceUptimeSeconds = ProcessInfo.processInfo.systemUptime
-            audioStepAttemptAccumulator.setMode(.midiInput)
-            audioStepAttemptAccumulator.resetForNewStep(generation: practiceInputGeneration)
+            midiPracticeStepMatcher.reset(
+                stepIndex: currentStepIndex,
+                expectedNotes: currentStep?.notes ?? [],
+                configuredAt: Date()
+            )
             practiceInputLastResetStepIndex = currentStepIndex
         }
 
@@ -76,51 +79,17 @@ extension PracticeSessionViewModel {
             return
         }
 
-        guard case let .noteOn(note, velocity) = event.kind, velocity > 0 else { return }
+        switch event.kind {
+        case let .noteOn(note, velocity):
+            guard velocity > 0 else { return }
 
-        let detected = DetectedNoteEvent(
-            midiNote: note,
-            confidence: 1.0,
-            onsetScore: 1.0,
-            isOnset: true,
-            timestamp: event.receivedAt,
-            generation: practiceInputGeneration,
-            source: .bluetoothMIDI
-        )
+            let expectedMIDINotes = uniqueMIDINotes(in: currentStep)
+            let matchResult = midiPracticeStepMatcher.registerNoteOn(note: note, at: event.receivedAt)
 
-        let expectedMIDINotes = uniqueMIDINotes(in: currentStep)
-        let wrongMIDINotes = Set(makeWrongCandidateMIDINotesForPracticeInput(expectedMIDINotes))
-
-        audioStepAttemptAccumulator.register(event: detected)
-        let matchResult: StepAttemptMatchResult
-        if isHandSeparatedStepMatchingEnabled {
-            let expectedByHand = uniqueMIDINotesByHand(in: currentStep)
-            matchResult = audioStepAttemptAccumulator.evaluateHandSeparated(
-                expectedRightMIDINotes: expectedByHand.right,
-                expectedLeftMIDINotes: expectedByHand.left,
-                wrongCandidateMIDINotes: wrongMIDINotes,
-                generation: practiceInputGeneration,
-                at: detected.timestamp,
-                handGateBoost: handGateState.isNearKeyboard || handGateState.hasDownwardMotion
-            )
-        } else {
-            matchResult = audioStepAttemptAccumulator.evaluate(
-                expectedMIDINotes: expectedMIDINotes,
-                wrongCandidateMIDINotes: wrongMIDINotes,
-                generation: practiceInputGeneration,
-                at: detected.timestamp,
-                handGateBoost: handGateState.isNearKeyboard || handGateState.hasDownwardMotion
-            )
-        }
-
-        switch matchResult {
+            switch matchResult {
             case .matched:
                 Self.practiceInputLogger.info(
-                    "midi matched step=\(self.currentStepIndex, privacy: .public) expected=\(expectedMIDINotes, privacy: .public) noteOn=\(note, privacy: .public) vel=\(velocity, privacy: .public)"
-                )
-                audioStepAttemptAccumulator.markMatchedAndRequireRearm(
-                    expectedMIDINotes: expectedMIDINotes,
-                    at: detected.timestamp
+                    "midi matched id=\(event.debugEventID ?? 0, privacy: .public) step=\(self.currentStepIndex, privacy: .public) expected=\(expectedMIDINotes, privacy: .public) noteOn=\(note, privacy: .public) vel=\(velocity, privacy: .public)"
                 )
                 advanceToNextStep()
             case let .wrong(reason):
@@ -130,6 +99,7 @@ extension PracticeSessionViewModel {
                     note: note,
                     velocity: velocity,
                     expectedMIDINotes: expectedMIDINotes,
+                    eventID: event.debugEventID,
                     receivedAtUptimeSeconds: event.receivedAtUptimeSeconds
                 )
             case let .insufficient(progress):
@@ -139,8 +109,15 @@ extension PracticeSessionViewModel {
                     note: note,
                     velocity: velocity,
                     expectedMIDINotes: expectedMIDINotes,
+                    eventID: event.debugEventID,
                     receivedAtUptimeSeconds: event.receivedAtUptimeSeconds
                 )
+            }
+        case let .noteOff(note, _):
+            midiPracticeStepMatcher.registerNoteOff(note: note, at: event.receivedAt)
+            return
+        default:
+            return
         }
     }
 
@@ -150,6 +127,7 @@ extension PracticeSessionViewModel {
         note: Int,
         velocity: Int,
         expectedMIDINotes: [Int],
+        eventID: Int64?,
         receivedAtUptimeSeconds: TimeInterval
     ) {
         // Rate-limit + de-dup to avoid flooding logs when the user repeats key presses.
@@ -157,7 +135,7 @@ extension PracticeSessionViewModel {
             return
         }
 
-        let message = "midi \(kind) step=\(currentStepIndex) expected=\(expectedMIDINotes) noteOn=\(note) vel=\(velocity) detail=\(detail)"
+        let message = "midi \(kind) id=\(eventID ?? 0) step=\(currentStepIndex) expected=\(expectedMIDINotes) noteOn=\(note) vel=\(velocity) detail=\(detail)"
         if message == practiceInputDebugLastMessage {
             return
         }
@@ -167,15 +145,4 @@ extension PracticeSessionViewModel {
         Self.practiceInputLogger.info("\(message, privacy: .public)")
     }
 
-    private func makeWrongCandidateMIDINotesForPracticeInput(_ expectedMIDINotes: [Int]) -> [Int] {
-        var result: Set<Int> = []
-        for note in expectedMIDINotes {
-            result.insert(note - 2)
-            result.insert(note - 1)
-            result.insert(note + 1)
-            result.insert(note + 2)
-        }
-        result.subtract(expectedMIDINotes)
-        return result.sorted()
-    }
 }
