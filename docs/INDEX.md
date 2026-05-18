@@ -3,7 +3,6 @@
 `docs/` 的唯一入口：按主题导航，下钻到模块页。
 
 ## 全局页面
-- [business-context.md](business-context.md)
 - [overview.md](overview.md)
 - [architecture.md](architecture.md)
 - [data-flow.md](data-flow.md)
@@ -42,7 +41,7 @@
 - [modules/piano-dialogue-server-debug.md](modules/piano-dialogue-server-debug.md)
 
 ## 按问题导航
-- **想先理解产品在做什么**：先看 `business-context.md`。
+- **想先理解产品在做什么**：先看 `overview.md`。
 - **要改 macOS 监听 / 映射 / 录音 / 对话**：看 `modules/lonelypianist-macos.md`，再下钻对应子页。
 - **要改 AVP 导入 / 校准 / 练习 / MusicXML**：看 `modules/lonelypianist-avp.md`，再下钻对应子页。
 - **要改 MusicXML 双 part 归一化（左手音符丢失）**：看 `modules/lonelypianist-avp-musicxml.md` 的「钢琴双 part 归一化」章节。

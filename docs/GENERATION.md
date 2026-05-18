@@ -5,7 +5,7 @@
 | --- | --- |
 | Commit hash | 61a1000 |
 | Branch name | crh1 |
-| Generated at | 2026-05-18T12:31:54+08:00 |
+| Generated at | 2026-05-18T12:39:37+08:00 |
 | Output language | Chinese |
 | Generation mode | Incremental update via `neat-freak` (docs-as-canonical) |
 
@@ -13,7 +13,7 @@
 | Area | Update |
 | --- | --- |
 | INDEX 去重 | `docs/INDEX.md` 收敛为“导航入口”，移除命令/自动化事实/coverage 叙述，避免与 `workflow.md` 重复。 |
-| Overview 去重 | `docs/overview.md` 移除构建命令与持久化表格，分别收敛到 `workflow.md` 与 `storage.md`。 |
+| Overview 合并 | 把 `docs/business-context.md` 的剩余有效信息合并进 `docs/overview.md`，并删除 `docs/business-context.md`。 |
 | Architecture 去重 | `docs/architecture.md` 用“按模块入口”替代组件长表，并移除重复的 CI/Actions 段落。 |
 | Testing 移除 | 删除 `docs/testing.md`，把“本地验证命令”收敛进 `docs/workflow.md`。 |
 

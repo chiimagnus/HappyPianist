@@ -62,7 +62,7 @@
 | SwiftFormat 产生大 diff | formatter diff | 审查格式化改动后再继续集成 |
 
 ## 维护 docs
-- 业务变化先改 `business-context.md`。
+- 业务语义变化先改 `overview.md`。
 - 技术边界变化再改 `architecture.md`、`data-flow.md`。
 - 配置变化改 `configuration.md`。
 - 本地验证命令变化改本页。
