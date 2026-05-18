@@ -2,6 +2,11 @@ import Foundation
 import os
 
 extension PracticeSessionViewModel {
+    private static let practiceInputLogger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
+        category: "PracticeInput-StepAdvance"
+    )
+
     func bindPracticeInputStreamsIfNeeded() {
         guard let practiceInputEventSource else { return }
         guard practiceInputEventsTask == nil else { return }
@@ -106,14 +111,56 @@ extension PracticeSessionViewModel {
 
         switch matchResult {
             case .matched:
+                Self.practiceInputLogger.info(
+                    "midi matched step=\(self.currentStepIndex, privacy: .public) expected=\(expectedMIDINotes, privacy: .public) noteOn=\(note, privacy: .public) vel=\(velocity, privacy: .public)"
+                )
                 audioStepAttemptAccumulator.markMatchedAndRequireRearm(
                     expectedMIDINotes: expectedMIDINotes,
                     at: detected.timestamp
                 )
                 advanceToNextStep()
-            case .wrong, .insufficient:
-                break
+            case let .wrong(reason):
+                debugLogPracticeInputProgressIfNeeded(
+                    kind: "wrong",
+                    detail: reason,
+                    note: note,
+                    velocity: velocity,
+                    expectedMIDINotes: expectedMIDINotes,
+                    receivedAtUptimeSeconds: event.receivedAtUptimeSeconds
+                )
+            case let .insufficient(progress):
+                debugLogPracticeInputProgressIfNeeded(
+                    kind: "insufficient",
+                    detail: progress,
+                    note: note,
+                    velocity: velocity,
+                    expectedMIDINotes: expectedMIDINotes,
+                    receivedAtUptimeSeconds: event.receivedAtUptimeSeconds
+                )
         }
+    }
+
+    private func debugLogPracticeInputProgressIfNeeded(
+        kind: String,
+        detail: String,
+        note: Int,
+        velocity: Int,
+        expectedMIDINotes: [Int],
+        receivedAtUptimeSeconds: TimeInterval
+    ) {
+        // Rate-limit + de-dup to avoid flooding logs when the user repeats key presses.
+        if receivedAtUptimeSeconds - practiceInputDebugLastLoggedAtUptimeSeconds < 0.25 {
+            return
+        }
+
+        let message = "midi \(kind) step=\(currentStepIndex) expected=\(expectedMIDINotes) noteOn=\(note) vel=\(velocity) detail=\(detail)"
+        if message == practiceInputDebugLastMessage {
+            return
+        }
+
+        practiceInputDebugLastLoggedAtUptimeSeconds = receivedAtUptimeSeconds
+        practiceInputDebugLastMessage = message
+        Self.practiceInputLogger.info("\(message, privacy: .public)")
     }
 
     private func makeWrongCandidateMIDINotesForPracticeInput(_ expectedMIDINotes: [Int]) -> [Int] {

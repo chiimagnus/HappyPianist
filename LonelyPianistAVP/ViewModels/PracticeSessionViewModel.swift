@@ -107,6 +107,8 @@ final class PracticeSessionViewModel {
     var practiceInputGeneration = 0
     var isPracticeInputRunning = false
     var practiceInputActiveSinceUptimeSeconds: TimeInterval?
+    var practiceInputDebugLastLoggedAtUptimeSeconds: TimeInterval = 0
+    var practiceInputDebugLastMessage: String?
     var audioRecognitionSuppressUntil: Date?
     let audioRecognitionSuppressDuration: TimeInterval = 0.6
     let audioRecognitionEnabledSnapshot = MusicXMLRealisticPlaybackDefaults.audioRecognitionEnabled
