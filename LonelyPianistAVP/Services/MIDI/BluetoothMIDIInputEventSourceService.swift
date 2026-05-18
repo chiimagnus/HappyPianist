@@ -34,6 +34,11 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
     private var inputPortRef: MIDIPortRef = 0
     private var connectedSources: [MIDIEndpointRef] = []
     private var isRunning = false
+    private var connectedSourceDescriptions: [String] = []
+
+    private var eventListProtocolCounts: [Int32: Int] = [:]
+    private var messageTypeCounts: [String: Int] = [:]
+    private var lastEventListDebugLoggedAtUptimeSeconds: TimeInterval = 0
 
     private let eventsStream: AsyncStream<PracticeInputEvent>
     private let eventsContinuation: AsyncStream<PracticeInputEvent>.Continuation
@@ -51,6 +56,9 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
         try createInputPortIfNeeded()
 
         isRunning = true
+        eventListProtocolCounts.removeAll(keepingCapacity: true)
+        messageTypeCounts.removeAll(keepingCapacity: true)
+        lastEventListDebugLoggedAtUptimeSeconds = 0
         try refreshSources()
     }
 
@@ -59,6 +67,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
         refreshScheduler.cancel()
 
         disconnectAllSources()
+        logEventDeliveryDebugSummary(reason: "stop")
 
         if inputPortRef != 0 {
             MIDIPortDispose(inputPortRef)
@@ -75,6 +84,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
         guard inputPortRef != 0 else { return }
 
         disconnectAllSources()
+        connectedSourceDescriptions.removeAll(keepingCapacity: false)
 
         var failedStatus: OSStatus?
         let sourceCount = MIDIGetNumberOfSources()
@@ -86,10 +96,16 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
             let status = MIDIPortConnectSource(inputPortRef, source, nil)
             if status == noErr {
                 connectedSources.append(source)
+                let description = describeEndpoint(source) ?? "sourceIndex=\(index)"
+                connectedSourceDescriptions.append(description)
             } else {
                 failedStatus = status
                 logger.error("Failed to connect source \(index, privacy: .public): \(status, privacy: .public)")
             }
+        }
+
+        if connectedSourceDescriptions.isEmpty == false {
+            logger.info("Connected MIDI sources: \(self.connectedSourceDescriptions.joined(separator: " | "), privacy: .public)")
         }
 
         if connectedSources.isEmpty, let failedStatus {
@@ -157,9 +173,11 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
             MIDIPortDisconnectSource(inputPortRef, source)
         }
         connectedSources.removeAll(keepingCapacity: false)
+        connectedSourceDescriptions.removeAll(keepingCapacity: false)
     }
 
     private func handleEventList(_ eventList: UnsafePointer<MIDIEventList>) {
+        recordEventListProtocolAndMessageTypes(eventList: eventList)
         let context = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
         MIDIEventListForEachEvent(eventList, midiEventVisitor, context)
     }
@@ -173,6 +191,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
 
         switch message.type {
         case .channelVoice1:
+            messageTypeCounts["channelVoice1", default: 0] += 1
             let voice = message.channelVoice1
             let channel = Int(voice.channel) + 1
 
@@ -215,6 +234,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
             }
 
         case .channelVoice2:
+            messageTypeCounts["channelVoice2", default: 0] += 1
             let voice = message.channelVoice2
             let channel = Int(voice.channel) + 1
 
@@ -259,20 +279,81 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
             }
 
         default:
+            messageTypeCounts["other", default: 0] += 1
             break
         }
     }
 
     private func scaleMIDI2Value16To127(_ value: UInt16) -> Int {
-        Int((Double(value) / 65535.0) * 127.0)
+        // Preserve MIDI semantics: velocity 0 indicates note-off, so a non-zero MIDI 2.0 velocity
+        // should never downscale to 0 in the 7-bit domain.
+        guard value > 0 else { return 0 }
+
+        // Round-to-nearest while mapping [0, 65535] -> [0, 127].
+        let scaled = (Int(value) * 127 + 32767) / 65535
+        return max(1, min(127, scaled))
     }
 
     private func scaleMIDI2Value32To127(_ value: UInt32) -> Int {
-        Int((Double(value) / Double(UInt32.max)) * 127.0)
+        let scaled = (Double(value) / Double(UInt32.max) * 127.0).rounded()
+        return max(0, min(127, Int(scaled)))
     }
 
     private func scaleMIDI2PitchBendTo14Bit(_ value: UInt32) -> Int {
-        Int((Double(value) / Double(UInt32.max)) * 16383.0)
+        let scaled = (Double(value) / Double(UInt32.max) * 16383.0).rounded()
+        return max(0, min(16383, Int(scaled)))
+    }
+
+    private func describeEndpoint(_ endpoint: MIDIEndpointRef) -> String? {
+        let name = endpointStringProperty(endpoint, kMIDIPropertyName) ?? "unknown"
+        let manufacturer = endpointStringProperty(endpoint, kMIDIPropertyManufacturer)
+        let model = endpointStringProperty(endpoint, kMIDIPropertyModel)
+        let protocolID = endpointIntProperty(endpoint, kMIDIPropertyProtocolID)
+
+        var parts: [String] = ["name=\(name)"]
+        if let manufacturer { parts.append("manufacturer=\(manufacturer)") }
+        if let model { parts.append("model=\(model)") }
+        if let protocolID { parts.append("protocolID=\(protocolID)") }
+        return parts.joined(separator: ",")
+    }
+
+    private func endpointStringProperty(_ endpoint: MIDIEndpointRef, _ property: CFString) -> String? {
+        var unmanagedValue: Unmanaged<CFString>?
+        let status = MIDIObjectGetStringProperty(endpoint, property, &unmanagedValue)
+        guard status == noErr, let unmanagedValue else { return nil }
+        return unmanagedValue.takeRetainedValue() as String
+    }
+
+    private func endpointIntProperty(_ endpoint: MIDIEndpointRef, _ property: CFString) -> Int32? {
+        var value: Int32 = 0
+        let status = MIDIObjectGetIntegerProperty(endpoint, property, &value)
+        guard status == noErr else { return nil }
+        return value
+    }
+
+    private func recordEventListProtocolAndMessageTypes(eventList: UnsafePointer<MIDIEventList>) {
+        let uptimeSeconds = ProcessInfo.processInfo.systemUptime
+        let protocolID = eventList.pointee.`protocol`.rawValue
+        eventListProtocolCounts[protocolID, default: 0] += 1
+
+        if uptimeSeconds - lastEventListDebugLoggedAtUptimeSeconds >= 2 {
+            lastEventListDebugLoggedAtUptimeSeconds = uptimeSeconds
+            logEventDeliveryDebugSummary(reason: "periodic")
+        }
+    }
+
+    private func logEventDeliveryDebugSummary(reason: String) {
+        guard eventListProtocolCounts.isEmpty == false || messageTypeCounts.isEmpty == false else { return }
+
+        let protocols = eventListProtocolCounts
+            .sorted(by: { $0.key < $1.key })
+            .map { "\($0.key)=\($0.value)" }
+            .joined(separator: ",")
+        let types = messageTypeCounts
+            .sorted(by: { $0.key < $1.key })
+            .map { "\($0.key)=\($0.value)" }
+            .joined(separator: ",")
+        logger.info("MIDI delivery summary (\(reason, privacy: .public)): eventListProtocols{\(protocols, privacy: .public)} messageTypes{\(types, privacy: .public)}")
     }
 }
 
