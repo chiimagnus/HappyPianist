@@ -48,11 +48,11 @@ sequenceDiagram
 | 虚拟键盘渲染 | `PianoKeyboardGeometry` | `VirtualPianoOverlayController` | RealityKit 3D 键盘（中心向两侧展开动画） |
 | 虚拟按键检测 | finger tips + geometry | `KeyContactDetectionService` | started/ended/down (hysteresis) |
 | 虚拟发声 | started/ended MIDI notes | `PracticeSequencerPlaybackServiceProtocol` | `AVAudioUnitSampler` startNote/stopNote |
-| BLE MIDI 输入 | CoreMIDI UMP（MIDI 1.0/2.0） | `BluetoothMIDIInputEventSourceService` | `AsyncStream<PracticeInputEvent>`（multicast；每次订阅拿到完整事件流） |
-| BLE MIDI 练习推进 | `PracticeInputEvent` noteOn | `PracticeSessionViewModel+PracticeInput` | `MIDIPracticeStepMatcher` → step advance |
-| BLE MIDI Take 录制 | `PracticeInputEvent` | `MIDIRecordingAdapter` → `RecordingTakeRecorder` | `RecordingTake`（JSON 持久化到 `Documents/TakeLibrary/takes.json`） |
+| BLE MIDI 输入 | CoreMIDI UMP（MIDI 1.0/2.0） | `BluetoothMIDIInputEventSourceService` | `AsyncStream<MIDI1InputEvent>` + `AsyncStream<MIDI2InputEvent>`（multicast；按端点协议选择订阅端口；事件带 `debugEventID` + source 归因） |
+| BLE MIDI 练习推进 | `MIDI1InputEvent` / `MIDI2InputEvent` noteOn | `PracticeSessionViewModel+PracticeInput` | `MIDIPracticeStepMatcher` → step advance（不依赖 velocity 门槛） |
+| BLE MIDI Take 录制 | `MIDI1InputEvent` / `MIDI2InputEvent` | `MIDIRecordingAdapter` → `RecordingTakeRecorder` | `RecordingTake`（对 MIDI2 在 recording 边界做显式降精度映射） |
 | BLE MIDI Take 回放 | `RecordingTake` | `TakePlaybackController` → `RecordingTakeSequenceAdapter` | `PracticeSequencerSequence` → sequencer playback |
-| BLE MIDI Phrase 录制 | `PracticeInputEvent` noteOn/Off | `PhraseRecorder` | `[ImprovDialogueNote]`（rebase 到 t=0，用于后端生成） |
+| BLE MIDI Phrase 录制 | `MIDI1InputEvent` / `MIDI2InputEvent` noteOn/Off | `PhraseRecorder` | `[ImprovDialogueNote]`（对 MIDI2 在 phrase 边界做显式 velocity 映射；rebase 到 t=0，用于后端生成） |
 
 ## AVP 练习内部
 | 子流 | 说明 | 关键状态 |
@@ -187,7 +187,7 @@ flowchart TD
 - Guide 构建：`PianoHighlightGuideBuilderService.buildGuides` 输入和输出、`PianoHighlightParsedElementCoverageService.allCoverages()`
 - AutoplayPerformanceTimeline：事件序列、tick 排序、优先级处理
 - 音频识别：`fallbackReason`、`activeDetectorMode`、`processingDurationMs`、`templateMatchResults`
-- BLE MIDI：`FlowState.bluetoothMIDISourceCount`、`MIDISourceConnectionViewModel.sourceCount`、`BluetoothMIDIInputEventSourceService.eventsStream()`、`PracticeSessionViewModel.practiceInputEventSource`
+- BLE MIDI：`FlowState.bluetoothMIDISourceCount`、`MIDISourceConnectionViewModel.sourceCount`、`BluetoothMIDIInputEventSourceService.midi1EventsStream()` / `midi2EventsStream()`、日志 category（`BluetoothMIDI*` / `PracticeInput-*`）
 - BLE MIDI 录制：`RecordingTakeStore.load()`、`RecordingTakeRecorder.openNotes`、`PhraseRecorder.flushPhrase`
 - Python：`/health`、`python -m server.api.test_client`、`out/dialogue_debug/index.jsonl`
 

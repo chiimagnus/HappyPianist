@@ -137,7 +137,7 @@ AVP 端把 Step 3 “练习输入/推进/录制/AI”按钢琴模式做硬边界
 | `PianoModeProtocol` 实现 | 模式语义 | 典型入口（准备页） | Step 3 输入/推进 |
 | --- | --- | --- | --- |
 | `RealAudioPianoMode` | 真实钢琴（音频识别 + 手势辅助） | `Views/PianoChoose/MicrophonePianoPreparationView.swift`（`RealPianoPreparationView`） | `PracticeAudioRecognitionService` + 手势 gating |
-| `BluetoothMIDIPianoMode` | 真实钢琴（BLE MIDI，MIDI-only） | `Views/PianoChoose/BluetoothPianoPreparationView.swift`（`BluetoothMIDIPreparationView`） | `PracticeInputEventSourceProtocol`（CoreMIDI events） |
+| `BluetoothMIDIPianoMode` | 真实钢琴（BLE MIDI，MIDI-only） | `Views/PianoChoose/BluetoothPianoPreparationView.swift`（`BluetoothMIDIPreparationView`） | `ProtocolSeparatedPracticeInputEventSourceProtocol`（CoreMIDI UMP → MIDI1/MIDI2 streams） |
 | `VirtualPianoMode` | 虚拟钢琴（手势触键） | `Views/PianoChoose/VirtualPianoPreparationView.swift` | 虚拟触键 + sequencer |
 
 模式由 `PianoModeRegistryService` 注册（`Services/AppFlow/PianoModeRegistryService.swift`），注入到 `WindowCoordinator` 与 `ARGuideViewModel`。`FlowState.selectedPianoModeID` 存储模式 id 字符串，由注册表解析为具体 `PianoModeProtocol` 实现；窗口导航由 `WindowCoordinator` 编排。
@@ -147,11 +147,11 @@ AVP 端把 Step 3 “练习输入/推进/录制/AI”按钢琴模式做硬边界
 关键链路：
 - 系统连接面板：`Views/MIDI/BluetoothMIDICentralView.swift`（系统 UI）；准备页用 `BluetoothMIDICentralEmbeddedView` 内嵌展示（不做 app 私有 BLE 扫描/连接）。
 - Gate：准备页通过 `MIDISourceConnectionViewModel` 监控 `sourceCount` 并写入 `FlowState.bluetoothMIDISourceCount`；BLE 模式的 `canProceedToLibrary(flowState:)` 以此作为进入后续流程的硬条件。
-- 事件模型：`Models/Practice/PracticeInputEvent.swift`（G1 channel voice）。
-- 事件源：`Services/MIDI/BluetoothMIDIInputEventSourceService.swift`（CoreMIDI UMP → `PracticeInputEventSourceProtocol.eventsStream()`；每次订阅返回一个新的 stream，事件对订阅者广播）。
+- 事件模型：`Models/MIDI/MIDI1InputEvent.swift` / `Models/MIDI/MIDI2InputEvent.swift`（协议分离；不在输入侧做隐式缩放）。
+- 事件源：`Services/MIDI/BluetoothMIDIInputEventSourceService.swift`（CoreMIDI UMP → `midi1EventsStream()` / `midi2EventsStream()`；每次订阅返回一个新的 stream，事件对订阅者广播）。
 - 注入：`Services/Practice/Session/PracticeSessionViewModelFactoryService.swift` 在进入 Step 3 前按 `PianoModeProtocol` 实现创建 `PracticeSessionViewModel`：
   - BLE 模式：注入 `practiceInputEventSource`，**不注入** `audioRecognitionService`；
-  - 事件消费：`PracticeSessionViewModel+PracticeInput.swift` 只消费 note-on 推进 step（使用 `MIDIPracticeStepMatcher`，不复用音频 accumulator）。
+  - 事件消费：`PracticeSessionViewModel+PracticeInput.swift` 分别消费 MIDI1/MIDI2 的 note-on 推进 step（使用 `MIDIPracticeStepMatcher`，不复用音频 accumulator）。
 - Tracking：BLE 模式练习阶段使用 `ARTrackingMode.practiceBluetoothMIDI`（不启 hand tracking consumer；仍保留 world/plane 用于定位与高亮引导）。
 - 录制/AI：BLE 模式下 take/phrase 由 MIDI events 驱动（`Services/Recording/MIDIRecordingAdapter.swift` + `RecordingTakeRecorder` / `Services/Practice/AI/PhraseRecorder.swift`），不依赖 contact。
 
@@ -159,15 +159,17 @@ AVP 端把 Step 3 “练习输入/推进/录制/AI”按钢琴模式做硬边界
 
 BLE MIDI 模式的“进入下一步”是**事件判定**（不追求节拍、时值和持续按键的音长）：
 
-- 仅消费 `noteOn(velocity > 0)`（`velocity == 0` 视为 `noteOff`）。
+- 仅消费 `noteOn` 到达（**不依赖 velocity 门槛**）。
+  - MIDI 1.0：`noteOn velocity == 0` 的约定仅在解码器内部折叠为 `noteOff`，上层不做该语义判断。
 - `expectedMIDINotes` 来自当前 step 的 note 集合（去重后按 MIDI note 排序）。
 - 多音/和弦 step 使用“短窗口聚合”判定：把短时间窗内的 note-on 视为一次尝试；**要求命中当前 step 的所有 expected notes** 才推进（deterministic）。
   - 窗口：`MIDIPracticeStepMatcher.Configuration.chordWindow`（当前默认 `0.55s`）。
 
 #### 调试与验证（BLE MIDI）
 
-- 事件分流验证：同一次按键会生成 `PracticeInputEvent.debugEventID`，应同时出现在：
-  - `BluetoothMIDI-Events`（source 层统计）
+- 事件追踪验证：同一次按键会生成 `debugEventID`，应同时出现在：
+  - `BluetoothMIDI`（source 层统计 / summary）
+  - `BluetoothMIDI-MIDI1` / `BluetoothMIDI-MIDI2`（协议侧告警与归因信息）
   - `PracticeInput-StepAdvance`（练习推进消费）
   - `PracticeInput-Recording`（录制/phrase 消费）
 
