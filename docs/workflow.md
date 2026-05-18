@@ -25,15 +25,17 @@
 | CI | （无） | 当前仓库不含 `.github/workflows/` | — |
 
 ## 自动化现状
-当前仓库未提交 GitHub Actions workflows，因此没有 PR 自动测试或自动格式化；所有验证以本地运行命令为准（见 `testing.md`）。
+当前仓库未提交 GitHub Actions workflows，因此没有 PR 自动测试或自动格式化；所有验证以本地运行命令为准（见下文「本地验证命令」）。
 
-## 测试运行方式
-| 改动类型 | 本地运行测试 | CI 验证 |
-| --- | --- | --- |
-| macOS app/test | `xcodebuild test -scheme LonelyPianist -destination 'platform=macOS'` | 无 |
-| AVP app/test | 先 `xcodebuild -showdestinations -scheme LonelyPianistAVP`，再 `xcodebuild test -scheme LonelyPianistAVP -destination 'platform=visionOS Simulator,id=<device-id>'` | 无 |
-| RealityKitContent | AVP tests | 无 |
-| Xcode project | macOS + AVP tests | 无 |
+## 本地验证命令
+| 场景 | 命令 |
+| --- | --- |
+| macOS tests | `xcodebuild test -project LonelyPianist.xcodeproj -scheme LonelyPianist -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO` |
+| 获取 visionOS simulator id | `xcodebuild -showdestinations -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP` |
+| AVP tests（visionOS simulator） | `xcodebuild test -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP -destination 'platform=visionOS Simulator,id=<device-id>' CODE_SIGNING_ALLOWED=NO` |
+| SwiftFormat（可选） | `swiftformat --config .swiftformat LonelyPianist LonelyPianistAVP LonelyPianistTests LonelyPianistAVPTests` |
+| Python server（本地启动） | `cd piano_dialogue_server && ./scripts/run_server.sh` |
+| Python health check | `curl -s http://127.0.0.1:8765/health` |
 
 ## 常见变更清单
 | 变更 | 需要同步 | 推荐验证 |
@@ -63,7 +65,7 @@
 - 业务变化先改 `business-context.md`。
 - 技术边界变化再改 `architecture.md`、`data-flow.md`。
 - 配置变化改 `configuration.md`。
-- 测试命中面变化改 `testing.md`。
+- 本地验证命令变化改本页。
 - CI/协作流程变化改本页。
 - 新增运行面时新增 module page，并补 `INDEX.md`。
 - 更新 `GENERATION.md` 记录 commit、branch、页面清单和 Coverage Gaps。

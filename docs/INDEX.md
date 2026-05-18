@@ -1,10 +1,6 @@
 # Docs 索引（LonelyPianist）
 
-`docs/` 的唯一入口：先选阅读路径，再下钻到模块页。
-
-## 阅读路径
-- **业务优先**：`business-context.md` → `overview.md` → `modules/*`
-- **工程优先**：`overview.md` → `architecture.md` → `data-flow.md` → `workflow.md` / `testing.md` → `modules/*`
+`docs/` 的唯一入口：按主题导航，下钻到模块页。
 
 ## 全局页面
 - [business-context.md](business-context.md)
@@ -14,7 +10,6 @@
 - [dependencies.md](dependencies.md)
 - [configuration.md](configuration.md)
 - [storage.md](storage.md)
-- [testing.md](testing.md)
 - [workflow.md](workflow.md)
 - [troubleshooting.md](troubleshooting.md)
 - [glossary.md](glossary.md)
@@ -56,6 +51,6 @@
 - **要改虚拟钢琴**：看 `modules/lonelypianist-avp-practice.md` 的「虚拟钢琴模式」章节，涉及放置状态机、按键检测、3D 渲染和实时发声。
 - **要改蓝牙 MIDI 模式 / Take 录制**：看 `modules/lonelypianist-avp.md` 的「Bluetooth MIDI（BLE）」章节和 `modules/lonelypianist-avp-practice.md` 的三种钢琴模式表。
 - **要改 Python 协议或采样逻辑**：看 `modules/piano-dialogue-server.md` 与 `modules/piano-dialogue-server-inference.md`。
-- **要运行测试 / 本地验证**：命令在 `testing.md`，策略在 `workflow.md`。
+- **要运行测试 / 本地验证**：见 `workflow.md`。
 - **要手动格式化**：见 `configuration.md`（`.swiftformat`）。
 - **遇到运行异常**：从 `troubleshooting.md` 开始。
