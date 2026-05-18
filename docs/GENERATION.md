@@ -15,44 +15,6 @@
 | AVP tests（DI / composition） | 同步 visionOS 测试到新的依赖注入/组合方式：测试更倾向于显式构建 `PianoModeRegistryService` / `PracticeSessionViewModelFactoryService`，并用测试侧 convenience init 或 fake/noop services 隔离外部依赖。 |
 | Testing 文档刷新 | `testing.md` 增补 AVP tests 的 DI 约定与代表测试入口（router/virtual piano/manual advance 等），避免文档与测试实现漂移。 |
 
-## Generated page list
-### Core pages
-- `INDEX.md`
-- `business-context.md`
-- `overview.md`
-- `architecture.md`
-- `dependencies.md`
-- `data-flow.md`
-- `configuration.md`
-- `storage.md`
-- `testing.md`
-- `workflow.md`
-- `troubleshooting.md`
-- `glossary.md`
-- `Fallbacks.md`
-- `GENERATION.md`
-
-### Module pages (`modules/`)
-- `modules/lonelypianist-macos.md`
-- `modules/lonelypianist-macos-runtime.md`
-- `modules/lonelypianist-macos-mapping.md`
-- `modules/lonelypianist-macos-recording.md`
-- `modules/lonelypianist-macos-dialogue.md`
-- `modules/lonelypianist-avp.md`
-- `modules/lonelypianist-avp-library.md`
-- `modules/lonelypianist-avp-calibration.md`
-- `modules/lonelypianist-avp-musicxml.md`
-- `modules/lonelypianist-avp-tracking.md`
-- `modules/lonelypianist-avp-practice.md`
-- `modules/lonelypianist-avp-practice-audio.md`
-- `modules/piano-dialogue-server.md`
-- `modules/piano-dialogue-server-protocol.md`
-- `modules/piano-dialogue-server-inference.md`
-- `modules/piano-dialogue-server-debug.md`
-
-## Copied asset list
-- None (no files under `assets/`).
-
 ## Current Coverage Gaps
 - The repo currently has no GitHub Actions workflows; all tests are manual/local.
 - There is no unified release workflow.
