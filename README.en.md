@@ -7,6 +7,7 @@ An AI piano companion for Apple Vision Pro that guides you step-by-step through 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 ![Platform](https://img.shields.io/badge/visionOS-lightgrey)
 ![Swift](https://img.shields.io/badge/Swift-6-orange)
+[![Last Update](https://img.shields.io/github/last-commit/chiimagnus/lonelypianist?label=Last%20update&style=classic)](https://github.com/chiimagnus/lonelypianist)
 
 ## What You Can Do
 
