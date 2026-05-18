@@ -9,7 +9,7 @@ LonelyPianist 由三条运行面组成：macOS 负责 MIDI 输入采集、映射
 | macOS app | `LonelyPianist/` | App 启动到关闭 | MIDI、映射、录音、对话、SwiftData | 本地 `xcodebuild test`（macOS） |
 | visionOS app | `LonelyPianistAVP/` | 3×Window + ImmersiveSpace | 校准、曲库、追踪、练习、贴皮高亮提示 | 本地 `xcodebuild test`（visionOS simulator） |
 | Dialogue server | `piano_dialogue_server/server/` | uvicorn 进程 | HTTP `/generate` + WS `/ws` 协议、Bonjour 广播、推理、调试包、MIDI 上传扩展 | Python smoke scripts + curl |
-| 本地验证 | 本机 `xcodebuild` / python scripts | 手动触发 | 回归测试与 smoke | `workflow.md` |
+| 本地验证 | 本机 `xcodebuild` / python scripts | 手动触发 | 回归测试与 smoke | `overview.md` |
 
 ## 组件入口（按模块）
 - macOS：`modules/lonelypianist-macos.md`（Runtime / Mapping / Recording / Dialogue 的入口与联动）

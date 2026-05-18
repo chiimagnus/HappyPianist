@@ -5,7 +5,7 @@
 | --- | --- |
 | Commit hash | 61a1000 |
 | Branch name | crh1 |
-| Generated at | 2026-05-18T12:39:37+08:00 |
+| Generated at | 2026-05-18T12:50:21+08:00 |
 | Output language | Chinese |
 | Generation mode | Incremental update via `neat-freak` (docs-as-canonical) |
 
@@ -15,7 +15,9 @@
 | INDEX 移除 | 删除 `docs/INDEX.md`，把「按问题导航」迁移到 `docs/overview.md`。 |
 | Overview 合并 | 把 `docs/business-context.md` 的剩余有效信息合并进 `docs/overview.md`，并删除 `docs/business-context.md`。 |
 | Architecture 去重 | `docs/architecture.md` 用“按模块入口”替代组件长表，并移除重复的 CI/Actions 段落。 |
-| Testing 移除 | 删除 `docs/testing.md`，把“本地验证命令”收敛进 `docs/workflow.md`。 |
+| Testing 移除 | 删除 `docs/testing.md`，把“本地验证命令”收敛进 `docs/overview.md`。 |
+| Troubleshooting 移除 | 删除 `docs/troubleshooting.md`（故障定位按模块页/README 自行下钻）。 |
+| Workflow 移除 | 删除 `docs/workflow.md`，把“本地验证命令”收敛进 `docs/overview.md`。 |
 
 ## Current Coverage Gaps
 - The repo currently has no GitHub Actions workflows; all tests are manual/local.

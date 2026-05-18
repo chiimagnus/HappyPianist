@@ -4,8 +4,18 @@
 LonelyPianist 是一个 macOS + visionOS + 本地 Python 组成的本机优先钢琴系统。当前产品把钢琴输入拆成三条体验线：macOS MIDI 控制台、Piano Dialogue 对话伙伴、Vision Pro AR 练习教练。工程目标对齐 macOS 26.0、visionOS 26.0，以及本地 Python 3.12 服务。
 
 ## 构建与运行
-- 本地命令与验证入口统一收敛在 `workflow.md`，避免多处重复。
+- 当前仓库未提交 GitHub Actions workflows；验证以本地命令为准。
 - 持久化与生成物位置统一收敛在 `storage.md`。
+
+## 本地验证命令
+| 场景 | 命令 |
+| --- | --- |
+| macOS tests | `xcodebuild test -project LonelyPianist.xcodeproj -scheme LonelyPianist -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO` |
+| 获取 visionOS simulator id | `xcodebuild -showdestinations -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP` |
+| AVP tests（visionOS simulator） | `xcodebuild test -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP -destination 'platform=visionOS Simulator,id=<device-id>' CODE_SIGNING_ALLOWED=NO` |
+| SwiftFormat（可选） | `swiftformat --config .swiftformat LonelyPianist LonelyPianistAVP LonelyPianistTests LonelyPianistAVPTests` |
+| Python server（本地启动） | `cd piano_dialogue_server && ./scripts/run_server.sh` |
+| Python health check | `curl -s http://127.0.0.1:8765/health` |
 
 ## 产品定位
 LonelyPianist 是一个本地优先的钢琴交互系统，围绕三条产品线展开：
@@ -46,6 +56,5 @@ LonelyPianist 是一个本地优先的钢琴交互系统，围绕三条产品线
 - **要改虚拟钢琴**：看 `modules/lonelypianist-avp-practice.md` 的「虚拟钢琴模式」章节，涉及放置状态机、按键检测、3D 渲染和实时发声。
 - **要改蓝牙 MIDI 模式 / Take 录制**：看 `modules/lonelypianist-avp.md` 的「Bluetooth MIDI（BLE）」章节和 `modules/lonelypianist-avp-practice.md` 的三种钢琴模式表。
 - **要改 Python 协议或采样逻辑**：看 `modules/piano-dialogue-server.md` 与 `modules/piano-dialogue-server-inference.md`。
-- **要运行测试 / 本地验证**：见 `workflow.md`。
+- **要运行测试 / 本地验证**：见本页「本地验证命令」。
 - **要手动格式化**：见 `configuration.md`（`.swiftformat`）。
-- **遇到运行异常**：从 `troubleshooting.md` 开始。
