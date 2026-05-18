@@ -40,6 +40,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
     private var eventListProtocolCounts: [Int32: Int] = [:]
     private var messageTypeCounts: [String: Int] = [:]
     private var lastEventListDebugLoggedAtUptimeSeconds: TimeInterval = 0
+    private let stateLock = OSAllocatedUnfairLock(initialState: BluetoothMIDIInputEventSourceState())
 
     private let eventsBroadcaster = PracticeInputEventBroadcaster()
 
@@ -52,9 +53,12 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
         try createInputPortIfNeeded()
 
         isRunning = true
-        eventListProtocolCounts.removeAll(keepingCapacity: true)
-        messageTypeCounts.removeAll(keepingCapacity: true)
-        lastEventListDebugLoggedAtUptimeSeconds = 0
+        stateLock.withLock { state in
+            state.eventListProtocolCounts.removeAll(keepingCapacity: true)
+            state.messageTypeCounts.removeAll(keepingCapacity: true)
+            state.lastEventListDebugLoggedAtUptimeSeconds = 0
+            state.nextDebugEventID = 1
+        }
         try refreshSources()
     }
 
@@ -107,6 +111,9 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
         if connectedSources.isEmpty, let failedStatus {
             throw BluetoothMIDIInputEventSourceServiceError.sourceRefresh(failedStatus)
         }
+
+        // Log initial delivery summary after refresh to help spot protocol switching early.
+        logEventDeliveryDebugSummary(reason: "refreshSources")
     }
 
     private func createClientIfNeeded() throws {
@@ -187,7 +194,9 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
 
         switch message.type {
         case .channelVoice1:
-            messageTypeCounts["channelVoice1", default: 0] += 1
+            stateLock.withLock { state in
+                state.messageTypeCounts["channelVoice1", default: 0] += 1
+            }
             let voice = message.channelVoice1
             let channel = Int(voice.channel) + 1
 
@@ -230,7 +239,9 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
             }
 
         case .channelVoice2:
-            messageTypeCounts["channelVoice2", default: 0] += 1
+            stateLock.withLock { state in
+                state.messageTypeCounts["channelVoice2", default: 0] += 1
+            }
             let voice = message.channelVoice2
             let channel = Int(voice.channel) + 1
 
@@ -275,7 +286,9 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
             }
 
         default:
-            messageTypeCounts["other", default: 0] += 1
+            stateLock.withLock { state in
+                state.messageTypeCounts["other", default: 0] += 1
+            }
             break
         }
     }
@@ -306,11 +319,16 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
         receivedAt: Date,
         receivedAtUptimeSeconds: TimeInterval
     ) {
+        let debugEventID = stateLock.withLock { state in
+            defer { state.nextDebugEventID += 1 }
+            return state.nextDebugEventID
+        }
         eventsBroadcaster.yield(PracticeInputEvent(
             kind: kind,
             channel: channel,
             receivedAt: receivedAt,
-            receivedAtUptimeSeconds: receivedAtUptimeSeconds
+            receivedAtUptimeSeconds: receivedAtUptimeSeconds,
+            debugEventID: debugEventID
         ))
     }
 
@@ -344,15 +362,26 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
     private func recordEventListProtocolAndMessageTypes(eventList: UnsafePointer<MIDIEventList>) {
         let uptimeSeconds = ProcessInfo.processInfo.systemUptime
         let protocolID = eventList.pointee.`protocol`.rawValue
-        eventListProtocolCounts[protocolID, default: 0] += 1
+        let shouldLog = stateLock.withLock { state in
+            state.eventListProtocolCounts[protocolID, default: 0] += 1
+            if uptimeSeconds - state.lastEventListDebugLoggedAtUptimeSeconds >= 2 {
+                state.lastEventListDebugLoggedAtUptimeSeconds = uptimeSeconds
+                return true
+            }
+            return false
+        }
 
-        if uptimeSeconds - lastEventListDebugLoggedAtUptimeSeconds >= 2 {
-            lastEventListDebugLoggedAtUptimeSeconds = uptimeSeconds
+        if shouldLog {
             logEventDeliveryDebugSummary(reason: "periodic")
         }
     }
 
     private func logEventDeliveryDebugSummary(reason: String) {
+        let snapshot = stateLock.withLock { state in
+            (state.eventListProtocolCounts, state.messageTypeCounts)
+        }
+        let eventListProtocolCounts = snapshot.0
+        let messageTypeCounts = snapshot.1
         guard eventListProtocolCounts.isEmpty == false || messageTypeCounts.isEmpty == false else { return }
 
         let protocols = eventListProtocolCounts
@@ -365,6 +394,13 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
             .joined(separator: ",")
         logger.info("MIDI delivery summary (\(reason, privacy: .public)): eventListProtocols{\(protocols, privacy: .public)} messageTypes{\(types, privacy: .public)}")
     }
+}
+
+private struct BluetoothMIDIInputEventSourceState {
+    var eventListProtocolCounts: [Int32: Int] = [:]
+    var messageTypeCounts: [String: Int] = [:]
+    var lastEventListDebugLoggedAtUptimeSeconds: TimeInterval = 0
+    var nextDebugEventID: Int64 = 1
 }
 
 private final class PracticeInputEventBroadcaster {
