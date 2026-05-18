@@ -104,7 +104,7 @@ flowchart LR
 | `SongLibraryViewModel.importMusicXML / deleteEntry / bindAudio` | 曲库 index 和文件副本漂移 | AVP library tests |
 | `MusicXMLHandRouter.routeIfNeeded` | 单谱表 staff/左右手路由漂移，影响五线谱/高亮/判定 | AVP tests + 手工导入验证 |
 | `PracticeSessionViewModel.startAutoplayTaskIfNeeded` | 自动演奏、step 推进联动 | AVP practice tests |
-| `AudioStepAttemptAccumulator.evaluateHandSeparated` / `ChordAttemptAccumulator.registerHandSeparated` | “按手分别满足”语义漂移（音频/MIDI/press 三输入必须一致） | AVP practice tests |
+| `AudioStepAttemptAccumulator.evaluateHandSeparated` / `MIDIPracticeStepMatcher` / `ChordAttemptAccumulator.registerHandSeparated` | “按手分别满足”语义漂移（音频/BLE MIDI/press 三输入必须一致） | AVP practice tests |
 | `PianoGuideOverlayController.updateHighlights` | 贴皮位置、大小、材质、生命周期 | AVP tests + Vision Pro 手工观察 |
 | `GrandStaffNotationLayoutService.makeLayout` | 五线谱渲染错位、staff 分配错误、性能退化 | AVP tests + 手工观察 |
 | `KeyContactDetectionService.detect` | 迟滞阈值、黑键优先、started/ended delta | VirtualPianoTests + Vision Pro 手工验证 |
