@@ -36,7 +36,6 @@
 | AVP scheme | `LonelyPianistAVP` | 本地 `xcodebuild test`（visionOS simulator）使用入口 |
 | RealityKitContent 平台 | `Packages/RealityKitContent/Package.swift` | Swift tools 6.2，需 Xcode 26.2+ / Swift 6.2+ |
 | Deployment targets | `LonelyPianist.xcodeproj/project.pbxproj` | macOS 26.0 / visionOS 26.0 |
-| SwiftFormat config | `.swiftformat` | 可选手动格式化（仓库当前未配置自动化工作流） |
 
 ## 自动化现状
 当前仓库未提交 GitHub Actions workflows（`.github/workflows/` 不存在），因此没有 PR 自动测试/格式化；验证以本地 `xcodebuild test` 为准。
