@@ -187,7 +187,7 @@ flowchart TD
 - Guide 构建：`PianoHighlightGuideBuilderService.buildGuides` 输入和输出、`PianoHighlightParsedElementCoverageService.allCoverages()`
 - AutoplayPerformanceTimeline：事件序列、tick 排序、优先级处理
 - 音频识别：`fallbackReason`、`activeDetectorMode`、`processingDurationMs`、`templateMatchResults`
-- BLE MIDI：`FlowState.bluetoothMIDISourceCount`、`MIDISourceConnectionViewModel.sourceCount`、`BluetoothMIDIInputEventSourceService.events`、`PracticeSessionViewModel.practiceInputEventSource`
+- BLE MIDI：`FlowState.bluetoothMIDISourceCount`、`MIDISourceConnectionViewModel.sourceCount`、`BluetoothMIDIInputEventSourceService.eventsStream()`、`PracticeSessionViewModel.practiceInputEventSource`
 - BLE MIDI 录制：`RecordingTakeStore.load()`、`RecordingTakeRecorder.openNotes`、`PhraseRecorder.flushPhrase`
 - Python：`/health`、`python -m server.api.test_client`、`out/dialogue_debug/index.jsonl`
 

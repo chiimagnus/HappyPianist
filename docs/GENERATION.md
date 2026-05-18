@@ -3,9 +3,9 @@
 ## Run info
 | Item | Value |
 | --- | --- |
-| Commit hash | 14739e6 |
+| Commit hash | 44e8eb0 |
 | Branch name | crh1 |
-| Generated at | 2026-05-18T22:43:35+08:00 |
+| Generated at | 2026-05-18T22:53:50+08:00 |
 | Output language | Chinese |
 | Generation mode | Incremental update via `neat-freak` (docs-as-canonical) |
 

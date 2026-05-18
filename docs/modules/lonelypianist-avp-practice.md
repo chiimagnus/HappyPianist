@@ -148,7 +148,7 @@ AVP 端把 Step 3 “练习输入/推进/录制/AI”按钢琴模式做硬边界
 - 系统连接面板：`Views/MIDI/BluetoothMIDICentralView.swift`（系统 UI）；准备页用 `BluetoothMIDICentralEmbeddedView` 内嵌展示（不做 app 私有 BLE 扫描/连接）。
 - Gate：准备页通过 `MIDISourceConnectionViewModel` 监控 `sourceCount` 并写入 `FlowState.bluetoothMIDISourceCount`；BLE 模式的 `canProceedToLibrary(flowState:)` 以此作为进入后续流程的硬条件。
 - 事件模型：`Models/Practice/PracticeInputEvent.swift`（G1 channel voice）。
-- 事件源：`Services/MIDI/BluetoothMIDIInputEventSourceService.swift`（CoreMIDI UMP → `PracticeInputEventSourceProtocol.events`；每次访问返回新的订阅 stream，事件对订阅者广播）。
+- 事件源：`Services/MIDI/BluetoothMIDIInputEventSourceService.swift`（CoreMIDI UMP → `PracticeInputEventSourceProtocol.eventsStream()`；每次订阅返回一个新的 stream，事件对订阅者广播）。
 - 注入：`Services/Practice/Session/PracticeSessionViewModelFactoryService.swift` 在进入 Step 3 前按 `PianoModeProtocol` 实现创建 `PracticeSessionViewModel`：
   - BLE 模式：注入 `practiceInputEventSource`，**不注入** `audioRecognitionService`；
   - 事件消费：`PracticeSessionViewModel+PracticeInput.swift` 只消费 note-on 推进 step（使用 `MIDIPracticeStepMatcher`，不复用音频 accumulator）。
