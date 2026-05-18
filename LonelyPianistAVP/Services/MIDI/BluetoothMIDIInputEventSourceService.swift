@@ -34,7 +34,6 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
     private var clientRef: MIDIClientRef = 0
     private var inputPortRef: MIDIPortRef = 0
     private var connectedSources: [MIDIEndpointRef] = []
-    private var isRunning = false
     private var connectedSourceDescriptions: [String] = []
 
     private var eventListProtocolCounts: [Int32: Int] = [:]
@@ -47,23 +46,26 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
     init() {}
 
     func start() throws {
-        guard !isRunning else { return }
-
-        try createClientIfNeeded()
-        try createInputPortIfNeeded()
-
-        isRunning = true
-        stateLock.withLock { state in
+        let shouldStart = stateLock.withLock { state in
+            if state.isRunning { return false }
+            state.isRunning = true
             state.eventListProtocolCounts.removeAll(keepingCapacity: true)
             state.messageTypeCounts.removeAll(keepingCapacity: true)
             state.lastEventListDebugLoggedAtUptimeSeconds = 0
             state.nextDebugEventID = 1
+            return true
         }
+        guard shouldStart else { return }
+
+        try createClientIfNeeded()
+        try createInputPortIfNeeded()
         try refreshSources()
     }
 
     func stop() {
-        isRunning = false
+        stateLock.withLock { state in
+            state.isRunning = false
+        }
         refreshScheduler.cancel()
 
         disconnectAllSources()
@@ -158,10 +160,10 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
     }
 
     private func scheduleRefreshSources() {
-        guard isRunning else { return }
+        guard stateLock.withLock({ $0.isRunning }) else { return }
         refreshScheduler.schedule { [weak self] in
             guard let self else { return }
-            guard self.isRunning, self.inputPortRef != 0 else { return }
+            guard self.stateLock.withLock({ $0.isRunning }), self.inputPortRef != 0 else { return }
 
             do {
                 try self.refreshSources()
@@ -180,6 +182,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
     }
 
     private func handleEventList(_ eventList: UnsafePointer<MIDIEventList>) {
+        guard stateLock.withLock({ $0.isRunning }) else { return }
         recordEventListProtocolAndMessageTypes(eventList: eventList)
         let context = UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque())
         MIDIEventListForEachEvent(eventList, midiEventVisitor, context)
@@ -189,6 +192,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
         _ message: MIDIUniversalMessage,
         timeStamp _: MIDITimeStamp
     ) {
+        guard stateLock.withLock({ $0.isRunning }) else { return }
         let receivedAt = Date()
         let receivedAtUptimeSeconds = ProcessInfo.processInfo.systemUptime
 
@@ -397,6 +401,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
 }
 
 private struct BluetoothMIDIInputEventSourceState {
+    var isRunning: Bool = false
     var eventListProtocolCounts: [Int32: Int] = [:]
     var messageTypeCounts: [String: Int] = [:]
     var lastEventListDebugLoggedAtUptimeSeconds: TimeInterval = 0
