@@ -2,40 +2,6 @@
 
 本索引是 `docs/` 的入口。目标是让读者先看业务，再看实现；或者先看工程，再落到模块。当前文档已覆盖 macOS、visionOS、Python Dialogue 服务，以及 AVP 琴键贴皮式 AR 练习引导、虚拟钢琴（gaze-plane 放置）、蓝牙 MIDI 模式（Take 录制/回放）与 Bonjour 自动发现后端的 AI 即兴回放。
 
-## 推荐阅读路径
-
-### business-first
-1. [business-context.md](business-context.md)
-2. [overview.md](overview.md)
-3. [architecture.md](architecture.md)
-4. [data-flow.md](data-flow.md)
-5. [modules/lonelypianist-avp.md](modules/lonelypianist-avp.md)
-6. [modules/lonelypianist-avp-practice.md](modules/lonelypianist-avp-practice.md)
-7. [modules/lonelypianist-macos.md](modules/lonelypianist-macos.md)
-8. [modules/piano-dialogue-server.md](modules/piano-dialogue-server.md)
-9. [testing.md](testing.md)
-10. [troubleshooting.md](troubleshooting.md)
-
-### engineering-first
-1. [overview.md](overview.md)
-2. [architecture.md](architecture.md)
-3. [dependencies.md](dependencies.md)
-4. [configuration.md](configuration.md)
-5. [data-flow.md](data-flow.md)
-6. [testing.md](testing.md)
-7. [workflow.md](workflow.md)
-8. [modules/lonelypianist-macos-runtime.md](modules/lonelypianist-macos-runtime.md)
-9. [modules/lonelypianist-avp-musicxml.md](modules/lonelypianist-avp-musicxml.md)
-10. [modules/lonelypianist-avp-practice.md](modules/lonelypianist-avp-practice.md)
-11. [modules/piano-dialogue-server-inference.md](modules/piano-dialogue-server-inference.md)
-
-### ci-first
-1. [testing.md](testing.md)
-2. [workflow.md](workflow.md)
-3. [configuration.md](configuration.md)
-4. [architecture.md](architecture.md)
-5. [troubleshooting.md](troubleshooting.md)
-
 ## 页面分组
 
 ### 业务入口与全局认知
