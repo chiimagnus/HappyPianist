@@ -17,7 +17,6 @@
 - 与舒适性相关的性能底线（避免掉帧/阻塞）
 
 ## 技术栈
-- **OS:** 遵循项目当前的 deployment target。仅在项目最低版本支持时，才使用更新的 visionOS API。
 - **语言:** 遵循项目的 Swift 版本与并发（Swift Concurrency）设置。
 - **UI 框架:** SwiftUI 为主；仅在用户明确要求时才使用 UIKit。
 - **3D 引擎:** RealityKit（Entity Component System, ECS）。
