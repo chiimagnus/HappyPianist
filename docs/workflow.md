@@ -67,7 +67,7 @@
 - 配置变化改 `configuration.md`。
 - 本地验证命令变化改本页。
 - CI/协作流程变化改本页。
-- 新增运行面时新增 module page，并补 `INDEX.md`。
+- 新增运行面时新增 module page，并在 `overview.md` 的「按问题导航」里补入口。
 - 更新 `GENERATION.md` 记录 commit、branch、页面清单和 Coverage Gaps。
 
 ## 发布与分支

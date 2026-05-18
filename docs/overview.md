@@ -36,3 +36,16 @@ LonelyPianist 是一个本地优先的钢琴交互系统，围绕三条产品线
 | visionOS BLE MIDI | 蓝牙 MIDI 连接、Take 录制/回放、Phrase 录制 | [modules/lonelypianist-avp.md](modules/lonelypianist-avp.md) |
 | visionOS AI Improv | 自动发现后端、上传短句请求生成、沉浸式回放 | [modules/lonelypianist-avp-practice.md](modules/lonelypianist-avp-practice.md) + [modules/piano-dialogue-server.md](modules/piano-dialogue-server.md) |
 | Python Server | 接收 generate 请求、返回回复 notes；提供 MIDI 上传扩展与最小前端 | [modules/piano-dialogue-server.md](modules/piano-dialogue-server.md) |
+
+## 按问题导航
+- **要改 macOS 监听 / 映射 / 录音 / 对话**：看 `modules/lonelypianist-macos.md`，再下钻对应子页。
+- **要改 AVP 导入 / 校准 / 练习 / MusicXML**：看 `modules/lonelypianist-avp.md`，再下钻对应子页。
+- **要改 MusicXML 双 part 归一化（左手音符丢失）**：看 `modules/lonelypianist-avp-musicxml.md` 的「钢琴双 part 归一化」章节。
+- **要改五线谱渲染（stems/beams/flags/SMuFL）**：看 `modules/lonelypianist-avp-practice.md` 的「双谱表五线谱」章节。
+- **要改 AR 引导贴皮高亮**：看 `modules/lonelypianist-avp-practice.md` 和 `PianoGuideOverlayController`。
+- **要改虚拟钢琴**：看 `modules/lonelypianist-avp-practice.md` 的「虚拟钢琴模式」章节，涉及放置状态机、按键检测、3D 渲染和实时发声。
+- **要改蓝牙 MIDI 模式 / Take 录制**：看 `modules/lonelypianist-avp.md` 的「Bluetooth MIDI（BLE）」章节和 `modules/lonelypianist-avp-practice.md` 的三种钢琴模式表。
+- **要改 Python 协议或采样逻辑**：看 `modules/piano-dialogue-server.md` 与 `modules/piano-dialogue-server-inference.md`。
+- **要运行测试 / 本地验证**：见 `workflow.md`。
+- **要手动格式化**：见 `configuration.md`（`.swiftformat`）。
+- **遇到运行异常**：从 `troubleshooting.md` 开始。
