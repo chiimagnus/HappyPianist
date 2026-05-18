@@ -11,7 +11,7 @@
 - visionOS 测试：`LonelyPianistAVPTests/`（Swift Testing）
 - SwiftPM 包：`Packages/RealityKitContent/`
 - Python 后端：`piano_dialogue_server/`
-- 规划/知识库：`.github/features/`、`.github/deepwiki/`
+- 规划/知识库：`.github/features/`、`docs/`
 
 ## 代码风格与命名规范
 

@@ -7,13 +7,13 @@
 | Branch name | crh |
 | Generated at | 2026-05-16T15:52:16+08:00 |
 | Output language | Chinese |
-| Generation mode | Incremental update via `deepwiki` skill |
+| Generation mode | Incremental update via `neat-freak` (docs-as-canonical) |
 
 ## Key updates in this generation
 | Area | Update |
 | --- | --- |
 | AVP tests（DI / composition） | 同步 visionOS 测试到新的依赖注入/组合方式：测试更倾向于显式构建 `PianoModeRegistryService` / `PracticeSessionViewModelFactoryService`，并用测试侧 convenience init 或 fake/noop services 隔离外部依赖。 |
-| Testing 文档刷新 | `testing.md` 增补 AVP tests 的 DI 约定与代表测试入口（router/virtual piano/manual advance 等），避免 deepwiki 与测试实现漂移。 |
+| Testing 文档刷新 | `testing.md` 增补 AVP tests 的 DI 约定与代表测试入口（router/virtual piano/manual advance 等），避免文档与测试实现漂移。 |
 
 ## Generated page list
 ### Core pages

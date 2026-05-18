@@ -10,10 +10,10 @@
 ## 开发循环
 | 阶段 | 做什么 | 产物 | 验证 |
 | --- | --- | --- | --- |
-| 定位 | 锁定业务和模块边界 | 变更范围 | 阅读 deepwiki + 搜索代码 |
+| 定位 | 锁定业务和模块边界 | 变更范围 | 阅读 docs + 搜索代码 |
 | 实现 | 按 MVVM + Services 改代码 | 代码变更 | 本地 build/test |
 | 验证 | 跑对应用例和脚本 | 测试结果 | 本地 macOS/AVP tests + Python smoke |
-| 同步 | 更新 deepwiki / README | 知识层 | INDEX 和 Coverage Gaps 同步 |
+| 同步 | 更新 docs / README | 知识层 | INDEX 和 Coverage Gaps 同步 |
 | 质量维护 | 手动运行 formatter | 格式化 diff 或 no-op | 本地 SwiftFormat（可选） |
 
 ## 按运行面修改
@@ -59,7 +59,7 @@
 | AVP test 运行很久 | 本地测试输出 | visionOS simulator 启动慢属预期 |
 | SwiftFormat 产生大 diff | formatter diff | 审查格式化改动后再继续集成 |
 
-## 维护 deepwiki
+## 维护 docs
 - 业务变化先改 `business-context.md`。
 - 技术边界变化再改 `architecture.md`、`data-flow.md`。
 - 配置变化改 `configuration.md`。
@@ -73,7 +73,7 @@
 | --- | --- | --- |
 | `main` | 默认分支 | 建议合并前本地跑完 macOS/AVP tests |
 | feature branches | 功能开发 | PR 到 `main` 后需要手动运行本地测试 |
-| deepwiki update commits | 文档更新 | 只改 `.github/deepwiki/**` 时仍建议做最小链接/命令自检 |
+| docs update commits | 文档更新 | 只改 `docs/**` 时仍建议做最小链接/命令自检 |
 
 ## Coverage Gaps
 - 没有统一发布流水线；因此本页只记录开发、验证和文档同步路径。

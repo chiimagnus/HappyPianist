@@ -51,8 +51,8 @@ LonelyPianistAVP/Resources/Audio/SoundFonts/SalC5Light2.sf2
 ## 相关页面
 
 - [`../README.md`](../README.md)
-- [`../.github/deepwiki/modules/lonelypianist-avp.md`](../.github/deepwiki/modules/lonelypianist-avp.md)
-- [`../.github/deepwiki/modules/lonelypianist-avp-practice.md`](../.github/deepwiki/modules/lonelypianist-avp-practice.md)
+- [`../docs/modules/lonelypianist-avp.md`](../docs/modules/lonelypianist-avp.md)
+- [`../docs/modules/lonelypianist-avp-practice.md`](../docs/modules/lonelypianist-avp-practice.md)
 
 ## Step3 Targeted Harmonic Template Matching
 
