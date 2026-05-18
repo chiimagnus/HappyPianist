@@ -17,33 +17,26 @@
 
 - 命名：类型 `PascalCase`；变量/函数 `camelCase`；协议以 `Protocol` 结尾；实现类型以 `Service` 结尾。
 - 分层：View 只负责展示与交互绑定；状态与业务编排放 `ViewModels/`；副作用与基础设施放 `Services/`；依赖通过注入传递。
-- SwiftUI 事件：不需要旧/新值时优先 `.onChange(of:) { ... }` 的无参数重载，避免 `(_, _)` 形式的冗余闭包签名。
 
 ## 测试指南
 
 - 测试框架：Swift Testing（`import Testing` + `@Test` + `#expect`）。
 - 新增测试文件放在对应目录：`LonelyPianistTests/` 或 `LonelyPianistAVPTests/`，命名 `*Tests.swift`。
 
-# Apple App 开发规范 for AI（Swift/SwiftUI 基线，唯一源）
-
-本文件是本机 Apple/Swift “开发规范”的**唯一真源**（single source of truth）。
-
-使用方式：
-- **先看 repo 自己的规范**（例如 `AGENTS.md` / `CONTRIBUTING.md` / `README` 中的架构约定）；项目内规范优先级更高。
-- 本文用于补齐“默认假设”和“常见决策边界”（尤其是 MVVM、依赖注入、Observation、测试策略与日志规范）。
-- 若项目涉及 visionOS / RealityKit / spatial computing，另参考 `/Users/chii_magnus/.codex/skills/init/references/visionos-dev.md`。该文件是平台补充规范，不覆盖本文的架构、测试与工具约束。
+# Apple App 开发规范 for AI（Swift/SwiftUI 基线）
 
 ## 核心技术栈
 
 - 架构模式：MVVM (Model-View-ViewModel)
 - 编程范式：Protocol-Oriented Programming（面向协议）
-- UI：SwiftUI、RealityKit（按需）
+- UI：SwiftUI
 - 状态管理：Observation（`@Observable` / `@Bindable`）；必要时使用 Swift Concurrency；仅在需要 Publisher 管道时引入 Combine
 - 持久化：SwiftData（按需）
-- Swift：Swift 6.2+（以当前 Xcode 26 工具链为准）
+- Swift：Swift 6.0+
 
 平台支持（按项目选择）：
-- macOS 26.0+、visionOS 26.0+
+- iOS 17.0+、iPadOS 17.0+、macOS 14.0+
+- VisionOS开发需要参考[visionos-dev.md](visionos-dev.md)
 
 ## 设计原则
 
@@ -82,7 +75,7 @@
 
 ### ViewModel 规范（Observation 优先）
 
-- macOS 26+ / visionOS 26+：优先 `@Observable` / `@Bindable`
+- iOS 17+ / macOS 14+：优先 `@Observable` / `@Bindable`
 - 避免单例：不要用 `static let shared`
 - 依赖注入优先：初始化参数或 `.environment(...)`
 - 不使用 `ObservableObject` / `@Published` / `@StateObject` / `@ObservedObject` / `@EnvironmentObject`（统一用 Observation 体系）。
@@ -90,7 +83,8 @@
 ### SwiftUI 事件处理
 
 - 优先使用 `.onChange(of:) {}` 的无参数重载。
-- 只有确实需要 `oldValue` / `newValue` 时，才使用带两个参数的重载；不要默认写 `.onChange(of:) { _, _ in }`。
+- 只有确实需要 `oldValue` / `newValue` 时，才使用带两个参数的重载。
+- 避免使用 `onChange` 的 1 参数变体。
 
 ## 协议驱动开发
 
@@ -106,14 +100,68 @@
 - 涉及 Simulator/Device 与日志相关的操作，按需使用原生 `xcrun simctl` / `log stream` 等系统工具。
 
 单元测试优先级建议：
-- **逻辑层 / ViewModel / UI 层**：统一用 Swift Testing（通过 `xcodebuild test` 跑）
+- **逻辑层 / ViewModel / UI 层**：统一用 XCTest（通过 `xcodebuild test` 跑）
 
 调试与日志：
 - 日志用 `os.Logger`，明确 `subsystem` 与 `category`，便于过滤与定位
 
-## 参考资料
+## Swift 语言规范
 
-- visionOS 目录规范：`LonelyPianistAVP/AGENTS.md`
-- macOS App 目录说明：`LonelyPianist/README.md`
-- visionOS App 目录说明：`LonelyPianistAVP/README.md`
-- Python 后端说明：`piano_dialogue_server/README.md`
+- **严格并发:** 默认假设项目可能启用 Swift 6 严格并发检查；以编译器诊断为准，避免 `nonisolated(unsafe)` 之类逃生舱。
+- **Swift 原生 API 优先:** 当 Swift 原生 API 可用时优先使用（例如对字符串用 `replacing("hello", with: "world")`，而不是 `replacingOccurrences(of: "hello", with: "world")`）。
+- **现代 Foundation API:** 优先使用现代 Foundation API，例如用 `URL.documentsDirectory` 获取 documents 目录，用 `appending(path:)` 拼接 URL。
+- **数字格式化:** 不要用 C 风格格式化（例如 `Text(String(format: "%.2f", abs(myNumber)))`）；应使用 `Text(abs(change), format: .number.precision(.fractionLength(2)))`。
+- **静态成员查找:** 能用静态成员就用静态成员（例如 `.circle` 而不是 `Circle()`，`.borderedProminent` 而不是 `BorderedProminentButtonStyle()`）。
+- **现代并发:** 不要使用旧式 GCD（例如 `DispatchQueue.main.async()`）。需要类似行为时使用 Swift Concurrency。
+- **文本过滤:** 基于用户输入进行文本过滤时，使用 `localizedStandardContains()`，不要用 `contains()`。
+- **强解包:** 避免强制解包与 `try!`，除非它确实不可恢复。
+
+## SwiftUI 规范
+
+- **Foreground Style:** 使用 `foregroundStyle()`，不要用 `foregroundColor()`。
+- **Clip Shape:** 使用 `clipShape(.rect(cornerRadius:))`，不要用 `cornerRadius()`。
+- **Tab API:** 使用新的 `Tab` API，不要用 `tabItem()`。
+- **Observable:** 不要使用 `ObservableObject`；优先使用 `@Observable`。
+- **onTapGesture:** 除非确实需要 tap 的位置或 tap 次数，否则不要用 `onTapGesture()`；其他情况用 `Button`。
+- **Task.sleep:** 不要用 `Task.sleep(nanoseconds:)`；用 `Task.sleep(for:)`。
+- **视图拆分:** 不要用 computed properties 拆分视图；应创建新的 `View` struct。
+- **动态字体:** 不要强制指定字体大小；使用 Dynamic Type。
+- **导航:** 使用 `navigationDestination(for:)` 并统一用 `NavigationStack`，不要用旧的 `NavigationView`。
+- **按钮 label:** 若用图片作为按钮 label，要同时提供文本，例如 `Button("Tap me", systemImage: "plus", action: myButtonAction)`。
+- **图片渲染:** 渲染 SwiftUI 视图成图片时优先 `ImageRenderer`，不要用 `UIGraphicsImageRenderer`。
+- **字重:** 没有充分理由不要用 `fontWeight()`；要加粗用 `bold()`，不要用 `fontWeight(.bold)`。
+- **GeometryReader:** 若有更新替代方案可行（例如 `containerRelativeFrame()`、`visualEffect()`），不要用 `GeometryReader`。
+- **ForEach + enumerated:** 用 `ForEach(x.enumerated(), id: \.element.id)`，不要先转 `Array` 再 ForEach。
+- **滚动条:** 隐藏滚动条用 `.scrollIndicators(.hidden)`，不要在初始化时用 `showsIndicators: false`。
+- **视图逻辑:** 把视图逻辑放进 view models 或类似层，确保可测试性。
+- **AnyView:** 除非绝对必要，否则避免 `AnyView`。
+- **硬编码:** 未被要求时，不要硬编码 padding 与 stack spacing。
+- **UIKit Colors:** SwiftUI 代码中避免使用 UIKit 的颜色。
+
+## Swift 6+ 迁移指南
+
+### ⚠️ 破坏性变更（Swift 6）
+| 问题 | Swift 5 | Swift 6 |
+|------|---------|---------|
+| 数据竞争 | Warnings | **Compile errors** |
+| 缺少 `await` | Warning | **Error** |
+| 非 Sendable 跨 actor | Allowed | **Error** |
+| 全局可变状态 | Allowed | **必须隔离或 Sendable** |
+
+### 🚨 常见坑
+- **Sendable:** 跨 actor 传递的 class 需要 `@unchecked Sendable`，或改成 struct/actor。
+- **闭包:** escaping 闭包会捕获隔离上下文，注意 `@Sendable` 约束。
+- **Actor 可重入:** `await` 之后的代码可能看到被其他任务修改过的状态，不要假设连续性。
+- **全局状态:** `nonisolated(unsafe)` 仅作为兼容遗留代码的最后手段。
+
+## 交付物（AI 输出规范）
+
+- 一份简洁计划（<= 8 条要点），并且每条都能对应到具体实现步骤。
+- **假设:** 如有任何歧义，做最合理的假设，并在最后列出。
+- **实现:** 输出完整、可编译的 Swift 代码，并遵守本文与项目内规范。
+- **输出格式:**
+  - 文件树
+  - 完整文件内容（用 fenced code blocks），并标注：`// FILE: <path>`
+  - Xcode 的 build/run 备注（targets、capabilities/entitlements 如有）
+  - 验证总结（关键 API/能力点是否正确）
+  - 列出所有合理假设

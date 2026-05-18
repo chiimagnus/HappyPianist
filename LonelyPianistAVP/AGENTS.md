@@ -1,7 +1,5 @@
 # 项目开发规范与指南
 
-## 项目结构与模块组织
-
 本目录是 visionOS（Apple Vision Pro）端原型工程。
 
 - App 代码：`LonelyPianistAVP/`（RealityKit / ImmersiveSpace）
@@ -9,39 +7,21 @@
 - 资源包/内容包：`Packages/RealityKitContent/`
 - 当前工程目标随项目设置为 visionOS 26.0。
 
-## 代码风格与命名规范
-
-- 命名：类型 `PascalCase`；变量/函数 `camelCase`；协议以 `Protocol` 结尾；实现类型以 `Service` 结尾。
-- 分层：View 只负责展示与交互绑定；状态与业务编排放 `ViewModels/`；副作用与基础设施放 `Services/`；依赖通过注入传递。
-
-## 测试指南
-
-- 测试框架：Swift Testing（`import Testing` + `@Test` + `#expect`）。
-- 新增测试文件放在 `LonelyPianistAVPTests/`，命名 `*Tests.swift`。
-
-## 开发规范（详细）
-
-对齐说明（与下方“真源规范全文”冲突时，以本仓库为准）：
-- 本仓库在 visionOS 端使用 `RealityView` / `ImmersiveSpace`。
-- 本仓库单元测试使用 Swift Testing（不是 XCTest）。
-- 通用 Apple/Swift 基线规范全文在仓库根目录 `AGENTS.md`。
-
-### visionOS / RealityKit 补充规范（真源全文）
-
 # visionOS 开发补充规范
 
-优先级：
-- 项目内 `AGENTS.md` / `CONTRIBUTING.md` / README 中的约束优先。
-- Apple/Swift 基线规范优先于本文的通用建议。
-- 本文只补充 visionOS 平台细则；不要用它覆盖项目既有架构、测试框架、最低系统版本或多平台策略。
+本文件专注 visionOS 平台本身（空间 UI / RealityKit / ARKit 世界感知等）的差异与增量规则：
 
-## 项目知识
+- SwiftUI 的 visionOS 窗口/空间 UI 约定（Window / Volumetric / Ornament 等）
+- RealityKit / RealityView / ECS 的使用边界与常见模式
+- visionOS 上 ARKit 世界感知能力的可用性/授权/Provider 选择
+- 与舒适性相关的性能底线（避免掉帧/阻塞）
 
-### 技术栈
+## 技术栈
 - **OS:** 遵循项目当前的 deployment target。仅在项目最低版本支持时，才使用更新的 visionOS API。
 - **语言:** 遵循项目的 Swift 版本与并发（Swift Concurrency）设置。
 - **UI 框架:** SwiftUI 为主；仅在用户明确要求时才使用 UIKit。
 - **3D 引擎:** RealityKit（Entity Component System, ECS）。
+- 务必多加调用 Apple-docs skill，如果本规范存在问题，以apple-docs skill调研得到的内容为准，并且需要更新本文档。
 
 ## 编码规范
 
@@ -51,6 +31,7 @@
 - **玻璃背景:** 优先使用系统默认玻璃背景；需要时使用 `.glassBackgroundEffect()`。
 - **Hover Effects:** 自定义交互控件必须加 `.hoverEffect()`，以支持眼动注视的 hover 高亮反馈。
 - **按钮样式:** 为按钮设置 `.buttonBorderShape()` 以符合 visionOS 的空间风格（例如 `.roundedRectangle`、`.capsule`、`.circle`）。
+- **“屏幕”幻觉:** 不要用 `UIScreen.main.bounds`。visionOS 没有“屏幕”。用 `GeometryReader` 或 `GeometryReader3D`。
 
 ### 2. RealityKit 与 ECS（Entity Component System）
 - **RealityView:** 所有 3D 内容集成都使用 `RealityView`。
@@ -80,9 +61,7 @@
   - **3D:** 使用面向实体的 `.gesture(...)`（targeted to entities）。
 
 ### 4. 并发与线程
-- **严格并发:** Swift 6.2 默认对 View 与 UI 逻辑采用 `@MainActor` 隔离。假设严格隔离检查开启，并且一切默认在 `@MainActor` 上运行。
-- **Main Actor:** UI 更新与 RealityKit 的变更默认都在 `@MainActor` 上。只有在需要增强可读性或覆盖默认行为时，才显式标注 `@MainActor`。
-- **后台任务:** 重型物理/数据处理要明确移出主 actor，使用 detached tasks 或 non-isolated actors。
+- **主线程/主 Actor:** 严禁在主线程做阻塞操作；掉帧会引发眩晕不适。重型物理/数据处理要明确移出主 actor。
 - **Task 管理:** 不要滥用 `Task.detached`。在 teardown 时取消长生命周期任务。
 
 ### 5. 进阶空间架构
@@ -104,82 +83,7 @@
   - `SceneReconstructionProvider`: 用于环境网格与遮挡（meshing/occlusion）。
   - `HandTrackingProvider`: 用于手部追踪（可能需要特定 entitlements）。
 - **Anchors:** 使用 ARKit anchor 的 `UUID` 来关联 RealityKit entities。
-
-### 7. Swift 语言规范
-- **Observable 类:** `@Observable` 类默认就是 `@MainActor`，通常不需要再额外标注 `@MainActor`。
-- **严格并发:** 假设严格 Swift 并发规则开启，并且一切默认在 `@MainActor` 上运行。
-- **Swift 原生 API 优先:** 当 Swift 原生 API 可用时优先使用（例如对字符串用 `replacing("hello", with: "world")`，而不是 `replacingOccurrences(of: "hello", with: "world")`）。
-- **现代 Foundation API:** 优先使用现代 Foundation API，例如用 `URL.documentsDirectory` 获取 documents 目录，用 `appending(path:)` 拼接 URL。
-- **数字格式化:** 不要用 C 风格格式化（例如 `Text(String(format: "%.2f", abs(myNumber)))`）；应使用 `Text(abs(change), format: .number.precision(.fractionLength(2)))`。
-- **静态成员查找:** 能用静态成员就用静态成员（例如 `.circle` 而不是 `Circle()`，`.borderedProminent` 而不是 `BorderedProminentButtonStyle()`）。
-- **现代并发:** 不要使用旧式 GCD（例如 `DispatchQueue.main.async()`）。需要类似行为时使用 Swift Concurrency。
-- **文本过滤:** 基于用户输入进行文本过滤时，使用 `localizedStandardContains()`，不要用 `contains()`。
-- **强解包:** 避免强制解包与 `try!`，除非它确实不可恢复。
-
-### 8. SwiftUI 规范
-- **Foreground Style:** 使用 `foregroundStyle()`，不要用 `foregroundColor()`。
-- **Clip Shape:** 使用 `clipShape(.rect(cornerRadius:))`，不要用 `cornerRadius()`。
-- **Tab API:** 使用新的 `Tab` API，不要用 `tabItem()`。
-- **Observable:** 不要使用 `ObservableObject`；优先使用 `@Observable`。
-- **onChange:** 不要使用 `onChange()` 的 1 参数变体；应使用 2 参数变体或无参数变体。
-- **onTapGesture:** 除非你确实需要 tap 的位置或 tap 次数，否则不要用 `onTapGesture()`；其他情况用 `Button`。
-- **Task.sleep:** 不要用 `Task.sleep(nanoseconds:)`；用 `Task.sleep(for:)`。
-- **UIScreen:** 不要用 `UIScreen.main.bounds` 来读取可用空间大小。使用 `GeometryReader` 或 `GeometryReader3D`。
-- **视图拆分:** 不要用 computed properties 拆分视图；应创建新的 `View` struct。
-- **动态字体:** 不要强制指定字体大小；使用 Dynamic Type。
-- **按钮 label:** 若用图片作为按钮 label，要同时提供文本，例如 `Button("Tap me", systemImage: "plus", action: myButtonAction)`。
-- **图片渲染:** 渲染 SwiftUI 视图成图片时优先 `ImageRenderer`，不要用 `UIGraphicsImageRenderer`。
-- **字重:** 没有充分理由不要用 `fontWeight()`；要加粗用 `bold()`，不要用 `fontWeight(.bold)`。
-- **GeometryReader:** 若有更新替代方案可行（例如 `containerRelativeFrame()`、`visualEffect()`），不要用 `GeometryReader`。
-- **ForEach + enumerated:** 用 `ForEach(x.enumerated(), id: \.element.id)`，不要先转 `Array` 再 ForEach。
-- **滚动条:** 隐藏滚动条用 `.scrollIndicators(.hidden)`，不要在初始化时用 `showsIndicators: false`。
-- **视图逻辑:** 把视图逻辑放进 view models 或类似层，确保可测试性。
-- **AnyView:** 除非绝对必要，否则避免 `AnyView`。
-- **硬编码:** 未被要求时，不要硬编码 padding 与 stack spacing。
-- **UIKit Colors:** SwiftUI 代码中避免使用 UIKit 的颜色。
-- **导航:** App 主流程使用 `WindowCoordinator` 编排跨窗口的互斥切换；窗口内部仅在局部子流程（例如 sheet 内列表）使用 `NavigationStack`。
-
-### 9. Swift 6+ 迁移指南
-
-#### ⚠️ 破坏性变更（Swift 6）
-| 问题 | Swift 5 | Swift 6 |
-|------|---------|---------|
-| 数据竞争 | Warnings | **Compile errors** |
-| 缺少 `await` | Warning | **Error** |
-| 非 Sendable 跨 actor | Allowed | **Error** |
-| 全局可变状态 | Allowed | **必须隔离或 Sendable** |
-
-#### 🚨 常见坑
-- **Sendable:** 跨 actor 传递的 class 需要 `@unchecked Sendable`，或改成 struct/actor。
-- **闭包:** escaping 闭包会捕获隔离上下文，注意 `@Sendable` 约束。
-- **Actor 可重入:** `await` 之后的代码可能看到被其他任务修改过的状态，不要假设连续性。
-- **全局状态:** `nonisolated(unsafe)` 仅作为兼容遗留代码的最后手段。
-
-#### Swift 6.2 改进
-- **`defaultIsolation(MainActor.self)`** — 为 UI targets 消除大量 `@MainActor` 样板。
-- **`NonisolatedNonsendingByDefault`** — nonisolated async 默认继承调用方 actor；需要后台并发用 `@concurrent`。
-- **Typed Throws** — `throws(MyError)` 用于更可穷举的错误处理。
-
-#### 推荐的 Package.swift
-```swift
-swiftSettings: [
-    .defaultIsolation(MainActor.self),
-    .enableExperimentalFeature("NonisolatedNonsendingByDefault")
-]
-```
-
-#### 快速模式
-```swift
-// Swift 6.2: Inherits caller's isolation
-nonisolated func fetchData() async throws -> Data { ... }
-
-// Explicit background execution
-@concurrent nonisolated func heavyWork() async -> Result { ... }
-
-// Typed throws
-func load() throws(LoadError) { ... }
-```
-
+ 
 ## RealityKit 组件参考
 
 ### 渲染与外观
@@ -305,13 +209,6 @@ func load() throws(LoadError) { ... }
 - **Documentation:** public API 使用清晰命名并写必要的 doc comments。
 - **交付格式:** 遵循下方约定的输出格式。
 
-### 坐标系与校准语义（本仓库约定）
-
-- **A0/C8 的语义是“琴键前沿线”**（keyboard-local `z = 0`），不是按键中心线。
-- 按键中心线通过 `frontEdgeToKeyCenterLocalZ` 表达（通常为 `± keyDepth/2`）；偏移正负需要用 `DeviceAnchor`（`WorldTrackingProvider.queryDeviceAnchor(atTimestamp:)`）判定“用户在键盘哪一侧”。
-- **KeyboardFrame 坐标轴约定**：A0 为原点，+X 指向 C8（水平投影），+Y 向上，+Z 右手系推导（满足 `cross(x, y) == z`）。
-- 练习设置里可开启 `debugKeyboardAxesOverlayEnabled` 显示键盘坐标轴（含 X/Y/Z 标注），用于排查“方向反了/整体偏移”等问题。
-
 ## 推荐代码模式
 
 ### 带错误处理的 Model 加载
@@ -333,7 +230,7 @@ var body: some View {
 ### Volumetric Window 定义
 ```swift
 WindowGroup(id: "VolumetricWindow") {
-    RootView()
+    ContentView()
 }
 .windowStyle(.volumetric)
 .defaultSize(width: 1.0, height: 1.0, depth: 1.0, in: .meters)
@@ -364,7 +261,7 @@ struct VisionApp: App {
 
     var body: some Scene {
         WindowGroup {
-            RootView()
+            ContentView()
                 .environment(appState)
         }
     }
@@ -393,14 +290,3 @@ Button(action: {
 .buttonBorderShape(.roundedRectangle)
 ```
 可用形状：`.roundedRectangle`、`.roundedRectangle(radius:)`、`.capsule`、`.circle`。
-
-## 交付物
-- 一份简洁计划（<= 8 条要点），并且每条都能对应到具体实现步骤。
-- **假设:** 如有任何歧义，做最合理的假设，并在最后列出。
-- **实现:** 输出完整、可编译的 Swift/RealityKit 代码，并遵守本文所有规则。
-- **输出格式:**
-  - 文件树
-  - 完整文件内容（用 fenced code blocks），并标注：`// FILE: <path>`
-  - Xcode 的 build/run 备注（targets、capabilities/entitlements 如有）。
-  - 验证总结（RealityView 用法、组件是否正确等）。
-  - 列出所有合理假设。
