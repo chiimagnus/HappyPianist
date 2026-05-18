@@ -13,7 +13,6 @@
 | AVP BLE MIDI | CoreMIDI UMP → events → take/phrase 录制 | BluetoothMIDIInputEventSourceService + MIDIRecordingAdapter + RecordingTakeRecorder + PhraseRecorder | Take 落盘 + phrase 用于后端生成 |
 | AVP improv | 录制短句片段 | PhraseRecorder + BonjourBackendDiscoveryService + ImprovBackendClient | `POST /generate` 生成续写并回放（可降级 deterministic） |
 | PR validation | 手动测试 | 本地 xcodebuild | macOS / AVP tests |
-| Swift quality | 手动格式化（可选） | SwiftFormat | 格式化 diff 或 no-op |
 
 ## macOS 数据流
 ```mermaid
