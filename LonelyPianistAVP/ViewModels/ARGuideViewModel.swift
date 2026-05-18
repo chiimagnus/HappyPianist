@@ -209,9 +209,11 @@ final class ARGuideViewModel {
         guard selectedPianoMode?.usesBluetoothMIDIInput == true else { return }
         guard let eventSource = practiceSessionViewModel.practiceInputEventSource else { return }
 
+        // Create the stream eagerly so the broadcaster registers this subscriber immediately.
+        let stream = eventSource.eventsStream()
         midiTakeRecordingTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            for await event in eventSource.events {
+            for await event in stream {
                 guard Task.isCancelled == false else { return }
                 if let id = event.debugEventID {
                     switch event.kind {

@@ -11,8 +11,11 @@ extension PracticeSessionViewModel {
         guard let practiceInputEventSource else { return }
         guard practiceInputEventsTask == nil else { return }
 
+        // Create the stream eagerly so the broadcaster registers this subscriber immediately.
+        // This avoids dropping early events that might arrive before the consumer task starts running.
+        let stream = practiceInputEventSource.eventsStream()
         practiceInputEventsTask = Task { [weak self] in
-            for await event in practiceInputEventSource.events {
+            for await event in stream {
                 await MainActor.run {
                     self?.handlePracticeInputEvent(event)
                 }
