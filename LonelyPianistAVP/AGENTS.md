@@ -28,10 +28,7 @@
 
 ### visionOS / RealityKit 补充规范（真源全文）
 
-```md
 # visionOS 开发补充规范
-
-本文件是 `/Users/chii_magnus/.codex/skills/init/references/apple-app-dev-standards.md` 的 visionOS / RealityKit / spatial computing 补充规范。
 
 优先级：
 - 项目内 `AGENTS.md` / `CONTRIBUTING.md` / README 中的约束优先。
@@ -407,4 +404,3 @@ Button(action: {
   - Xcode 的 build/run 备注（targets、capabilities/entitlements 如有）。
   - 验证总结（RealityView 用法、组件是否正确等）。
   - 列出所有合理假设。
-```
