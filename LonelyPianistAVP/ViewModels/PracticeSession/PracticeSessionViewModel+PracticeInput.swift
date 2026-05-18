@@ -2,12 +2,20 @@ import Foundation
 import os
 
 extension PracticeSessionViewModel {
+    private static let practiceInputLogger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
+        category: "PracticeInput-StepAdvance"
+    )
+
     func bindPracticeInputStreamsIfNeeded() {
         guard let practiceInputEventSource else { return }
         guard practiceInputEventsTask == nil else { return }
 
+        // Create the stream eagerly so the broadcaster registers this subscriber immediately.
+        // This avoids dropping early events that might arrive before the consumer task starts running.
+        let stream = practiceInputEventSource.eventsStream()
         practiceInputEventsTask = Task { [weak self] in
-            for await event in practiceInputEventSource.events {
+            for await event in stream {
                 await MainActor.run {
                     self?.handlePracticeInputEvent(event)
                 }
@@ -28,12 +36,18 @@ extension PracticeSessionViewModel {
             return
         }
 
-        guard isPracticeInputRunning == false else { return }
+        if practiceInputLastResetStepIndex != currentStepIndex {
+            practiceInputGeneration += 1
+            practiceInputActiveSinceUptimeSeconds = ProcessInfo.processInfo.systemUptime
+            midiPracticeStepMatcher.reset(
+                stepIndex: currentStepIndex,
+                expectedNotes: currentStep?.notes ?? [],
+                configuredAt: Date()
+            )
+            practiceInputLastResetStepIndex = currentStepIndex
+        }
 
-        practiceInputGeneration += 1
-        practiceInputActiveSinceUptimeSeconds = ProcessInfo.processInfo.systemUptime
-        audioStepAttemptAccumulator.setMode(.midiInput)
-        audioStepAttemptAccumulator.resetForNewStep(generation: practiceInputGeneration)
+        guard isPracticeInputRunning == false else { return }
 
         do {
             try practiceInputEventSource.start()
@@ -52,8 +66,9 @@ extension PracticeSessionViewModel {
         practiceInputEventSource.stop()
         isPracticeInputRunning = false
         practiceInputActiveSinceUptimeSeconds = nil
+        practiceInputLastResetStepIndex = nil
         practiceInputGeneration += 1
-        audioStepAttemptAccumulator.resetForNewStep(generation: practiceInputGeneration)
+        midiPracticeStepMatcher.reset(stepIndex: -1, expectedNotes: [], configuredAt: .now)
     }
 
     private func handlePracticeInputEvent(_ event: PracticeInputEvent) {
@@ -67,64 +82,70 @@ extension PracticeSessionViewModel {
             return
         }
 
-        guard case let .noteOn(note, velocity) = event.kind, velocity > 0 else { return }
+        switch event.kind {
+        case let .noteOn(note, velocity):
+            guard velocity > 0 else { return }
 
-        let detected = DetectedNoteEvent(
-            midiNote: note,
-            confidence: 1.0,
-            onsetScore: 1.0,
-            isOnset: true,
-            timestamp: event.receivedAt,
-            generation: practiceInputGeneration,
-            source: .bluetoothMIDI
-        )
+            let expectedMIDINotes = uniqueMIDINotes(in: currentStep)
+            let matchResult = midiPracticeStepMatcher.registerNoteOn(note: note, at: event.receivedAt)
 
-        let expectedMIDINotes = uniqueMIDINotes(in: currentStep)
-        let wrongMIDINotes = Set(makeWrongCandidateMIDINotesForPracticeInput(expectedMIDINotes))
-
-        audioStepAttemptAccumulator.register(event: detected)
-        let matchResult: StepAttemptMatchResult
-        if isHandSeparatedStepMatchingEnabled {
-            let expectedByHand = uniqueMIDINotesByHand(in: currentStep)
-            matchResult = audioStepAttemptAccumulator.evaluateHandSeparated(
-                expectedRightMIDINotes: expectedByHand.right,
-                expectedLeftMIDINotes: expectedByHand.left,
-                wrongCandidateMIDINotes: wrongMIDINotes,
-                generation: practiceInputGeneration,
-                at: detected.timestamp,
-                handGateBoost: handGateState.isNearKeyboard || handGateState.hasDownwardMotion
-            )
-        } else {
-            matchResult = audioStepAttemptAccumulator.evaluate(
-                expectedMIDINotes: expectedMIDINotes,
-                wrongCandidateMIDINotes: wrongMIDINotes,
-                generation: practiceInputGeneration,
-                at: detected.timestamp,
-                handGateBoost: handGateState.isNearKeyboard || handGateState.hasDownwardMotion
-            )
-        }
-
-        switch matchResult {
+            switch matchResult {
             case .matched:
-                audioStepAttemptAccumulator.markMatchedAndRequireRearm(
-                    expectedMIDINotes: expectedMIDINotes,
-                    at: detected.timestamp
+                Self.practiceInputLogger.info(
+                    "midi matched id=\(event.debugEventID ?? 0, privacy: .public) step=\(self.currentStepIndex, privacy: .public) expected=\(expectedMIDINotes, privacy: .public) noteOn=\(note, privacy: .public) vel=\(velocity, privacy: .public)"
                 )
                 advanceToNextStep()
-            case .wrong, .insufficient:
-                break
+            case let .wrong(reason):
+                debugLogPracticeInputProgressIfNeeded(
+                    kind: "wrong",
+                    detail: reason,
+                    note: note,
+                    velocity: velocity,
+                    expectedMIDINotes: expectedMIDINotes,
+                    eventID: event.debugEventID,
+                    receivedAtUptimeSeconds: event.receivedAtUptimeSeconds
+                )
+            case let .insufficient(progress):
+                debugLogPracticeInputProgressIfNeeded(
+                    kind: "insufficient",
+                    detail: progress,
+                    note: note,
+                    velocity: velocity,
+                    expectedMIDINotes: expectedMIDINotes,
+                    eventID: event.debugEventID,
+                    receivedAtUptimeSeconds: event.receivedAtUptimeSeconds
+                )
+            }
+        case let .noteOff(note, _):
+            midiPracticeStepMatcher.registerNoteOff(note: note, at: event.receivedAt)
+            return
+        default:
+            return
         }
     }
 
-    private func makeWrongCandidateMIDINotesForPracticeInput(_ expectedMIDINotes: [Int]) -> [Int] {
-        var result: Set<Int> = []
-        for note in expectedMIDINotes {
-            result.insert(note - 2)
-            result.insert(note - 1)
-            result.insert(note + 1)
-            result.insert(note + 2)
+    private func debugLogPracticeInputProgressIfNeeded(
+        kind: String,
+        detail: String,
+        note: Int,
+        velocity: Int,
+        expectedMIDINotes: [Int],
+        eventID: Int64?,
+        receivedAtUptimeSeconds: TimeInterval
+    ) {
+        // Rate-limit + de-dup to avoid flooding logs when the user repeats key presses.
+        if receivedAtUptimeSeconds - practiceInputDebugLastLoggedAtUptimeSeconds < 0.25 {
+            return
         }
-        result.subtract(expectedMIDINotes)
-        return result.sorted()
+
+        let message = "midi \(kind) id=\(eventID ?? 0) step=\(currentStepIndex) expected=\(expectedMIDINotes) noteOn=\(note) vel=\(velocity) detail=\(detail)"
+        if message == practiceInputDebugLastMessage {
+            return
+        }
+
+        practiceInputDebugLastLoggedAtUptimeSeconds = receivedAtUptimeSeconds
+        practiceInputDebugLastMessage = message
+        Self.practiceInputLogger.info("\(message, privacy: .public)")
     }
+
 }

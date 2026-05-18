@@ -60,6 +60,7 @@
 - Gate（是否允许进入曲库/练习）：由当前 `PianoModeProtocol.canProceedToLibrary(flowState:)` 决定；BLE MIDI 模式要求 `FlowState.bluetoothMIDISourceCount > 0` 且校准完成。
 - Step 3 输入源：由 `FlowState.selectedPianoModeID`（模式 id 字符串）经 `PianoModeRegistryService` 解析为具体 `PianoModeProtocol` 决定，进入练习前由 `PracticeSessionViewModelFactoryService` 注入对应 session（BLE 模式为 **MIDI-only**：不启音频识别，且 practice 阶段不启 hand tracking consumer）。
 - 练习输入事件模型：`Models/Practice/PracticeInputEvent.swift`（G1 channel voice），BLE 事件源：`Services/MIDI/BluetoothMIDIInputEventSourceService.swift`（CoreMIDI UMP → events）。
+- 练习推进：BLE MIDI 模式用 `MIDIPracticeStepMatcher` 做 deterministic step 判定（不复用音频识别 accumulator）。
 - 录制：BLE 模式下 take/phrase 从 MIDI events 录制（`Services/Recording/MIDIRecordingAdapter.swift` + `Services/Recording/RecordingTakeRecorder.swift` + `Services/Practice/AI/PhraseRecorder.swift`）。
 - 验收要点：visionOS Simulator 无法可靠验证 BLE MIDI；以 Vision Pro 真机冒烟为准。
 

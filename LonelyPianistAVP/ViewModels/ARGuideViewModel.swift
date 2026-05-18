@@ -2,12 +2,17 @@ import ARKit
 import Dispatch
 import Foundation
 import Observation
+import os
 import simd
 import SwiftUI
 
 @MainActor
 @Observable
 final class ARGuideViewModel {
+    private let practiceInputLogger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
+        category: "PracticeInput-Recording"
+    )
     enum CalibrationPhase: Equatable {
         case capturingA0
         case transitionA0
@@ -204,10 +209,22 @@ final class ARGuideViewModel {
         guard selectedPianoMode?.usesBluetoothMIDIInput == true else { return }
         guard let eventSource = practiceSessionViewModel.practiceInputEventSource else { return }
 
+        // Create the stream eagerly so the broadcaster registers this subscriber immediately.
+        let stream = eventSource.eventsStream()
         midiTakeRecordingTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            for await event in eventSource.events {
+            for await event in stream {
                 guard Task.isCancelled == false else { return }
+                if let id = event.debugEventID {
+                    switch event.kind {
+                    case let .noteOn(note, velocity):
+                        practiceInputLogger.info("recording saw id=\(id, privacy: .public) noteOn=\(note, privacy: .public) vel=\(velocity, privacy: .public)")
+                    case let .noteOff(note, velocity):
+                        practiceInputLogger.info("recording saw id=\(id, privacy: .public) noteOff=\(note, privacy: .public) vel=\(velocity, privacy: .public)")
+                    default:
+                        break
+                    }
+                }
                 if isRecording {
                     midiRecordingAdapter.record(event: event, into: &takeRecorder)
                 }

@@ -15,17 +15,20 @@ struct PracticeInputEvent: Equatable {
     let channel: Int
     let receivedAt: Date
     let receivedAtUptimeSeconds: TimeInterval
+    let debugEventID: Int64?
 
     init(
         kind: Kind,
         channel: Int,
         receivedAt: Date,
-        receivedAtUptimeSeconds: TimeInterval
+        receivedAtUptimeSeconds: TimeInterval,
+        debugEventID: Int64? = nil
     ) {
         self.kind = Self.clamp(kind)
         self.channel = Self.clamp(channel, min: 1, max: 16)
         self.receivedAt = receivedAt
         self.receivedAtUptimeSeconds = max(0, receivedAtUptimeSeconds)
+        self.debugEventID = debugEventID
     }
 
     private static func clamp(_ kind: Kind) -> Kind {

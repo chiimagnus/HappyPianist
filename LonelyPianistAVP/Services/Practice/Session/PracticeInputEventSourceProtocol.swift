@@ -1,7 +1,7 @@
 import Foundation
 
 protocol PracticeInputEventSourceProtocol: AnyObject {
-    var events: AsyncStream<PracticeInputEvent> { get }
+    func eventsStream() -> AsyncStream<PracticeInputEvent>
 
     func start() throws
     func stop()
