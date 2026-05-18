@@ -48,8 +48,8 @@ sequenceDiagram
 | 虚拟键盘渲染 | `PianoKeyboardGeometry` | `VirtualPianoOverlayController` | RealityKit 3D 键盘（中心向两侧展开动画） |
 | 虚拟按键检测 | finger tips + geometry | `KeyContactDetectionService` | started/ended/down (hysteresis) |
 | 虚拟发声 | started/ended MIDI notes | `PracticeSequencerPlaybackServiceProtocol` | `AVAudioUnitSampler` startNote/stopNote |
-| BLE MIDI 输入 | CoreMIDI UMP（MIDI 1.0/2.0） | `BluetoothMIDIInputEventSourceService` | `AsyncStream<PracticeInputEvent>` |
-| BLE MIDI 练习推进 | `PracticeInputEvent` noteOn | `PracticeSessionViewModel+PracticeInput` | `DetectedNoteEvent` → step advance |
+| BLE MIDI 输入 | CoreMIDI UMP（MIDI 1.0/2.0） | `BluetoothMIDIInputEventSourceService` | `AsyncStream<PracticeInputEvent>`（multicast；每次订阅拿到完整事件流） |
+| BLE MIDI 练习推进 | `PracticeInputEvent` noteOn | `PracticeSessionViewModel+PracticeInput` | `MIDIPracticeStepMatcher` → step advance |
 | BLE MIDI Take 录制 | `PracticeInputEvent` | `MIDIRecordingAdapter` → `RecordingTakeRecorder` | `RecordingTake`（JSON 持久化到 `Documents/TakeLibrary/takes.json`） |
 | BLE MIDI Take 回放 | `RecordingTake` | `TakePlaybackController` → `RecordingTakeSequenceAdapter` | `PracticeSequencerSequence` → sequencer playback |
 | BLE MIDI Phrase 录制 | `PracticeInputEvent` noteOn/Off | `PhraseRecorder` | `[ImprovDialogueNote]`（rebase 到 t=0，用于后端生成） |
@@ -124,7 +124,7 @@ flowchart TD
 | press（实体钢琴手势） | `PracticeSessionViewModel.handleFingerTipPositions` | `ChordAttemptAccumulator.registerHandSeparated` |
 | press（虚拟钢琴触键） | `PracticeSessionViewModel.handleFingerTipPositions(isVirtualPiano: true)` | `ChordAttemptAccumulator.registerHandSeparated` |
 | 音频识别（RealAudio 模式） | `PracticeSessionViewModel+AudioRecognition` | `AudioStepAttemptAccumulator.evaluateHandSeparated` |
-| BLE MIDI（MIDI-only 模式） | `PracticeSessionViewModel+PracticeInput` | `AudioStepAttemptAccumulator.evaluateHandSeparated`（以 MIDI 事件构造 DetectedNoteEvent） |
+| BLE MIDI（MIDI-only 模式） | `PracticeSessionViewModel+PracticeInput` | `MIDIPracticeStepMatcher`（deterministic） |
 
 ## Python 数据流
 | 步骤 | 输入 | 处理 | 输出 |

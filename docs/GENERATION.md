@@ -3,15 +3,16 @@
 ## Run info
 | Item | Value |
 | --- | --- |
-| Commit hash | 61a1000 |
+| Commit hash | 14739e6 |
 | Branch name | crh1 |
-| Generated at | 2026-05-18T12:57:38+08:00 |
+| Generated at | 2026-05-18T22:43:35+08:00 |
 | Output language | Chinese |
 | Generation mode | Incremental update via `neat-freak` (docs-as-canonical) |
 
 ## Key updates in this generation
 | Area | Update |
 | --- | --- |
+| BLE MIDI step 判定 | BLE MIDI 输入改为 multicast，并在 Step 3 使用 `MIDIPracticeStepMatcher` 做 deterministic step advance；为排查事件分流加入 `debugEventID` 日志链路。 |
 | INDEX 移除 | 删除 `docs/INDEX.md`，把「按问题导航」迁移到 `docs/overview.md`。 |
 | Overview 合并 | 把 `docs/business-context.md` 的剩余有效信息合并进 `docs/overview.md`，并删除 `docs/business-context.md`。 |
 | Architecture 去重 | `docs/architecture.md` 用“按模块入口”替代组件长表，并移除重复的 CI/Actions 段落。 |
