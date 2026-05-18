@@ -68,7 +68,7 @@ extension PracticeSessionViewModel {
         practiceInputActiveSinceUptimeSeconds = nil
         practiceInputLastResetStepIndex = nil
         practiceInputGeneration += 1
-        audioStepAttemptAccumulator.resetForNewStep(generation: practiceInputGeneration)
+        midiPracticeStepMatcher.reset(stepIndex: -1, expectedNotes: [], configuredAt: .now)
     }
 
     private func handlePracticeInputEvent(_ event: PracticeInputEvent) {

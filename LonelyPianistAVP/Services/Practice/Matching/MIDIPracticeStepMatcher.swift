@@ -2,7 +2,7 @@ import Foundation
 
 final class MIDIPracticeStepMatcher {
     struct Configuration: Equatable {
-        var chordWindow: TimeInterval = 0.18
+        var chordWindow: TimeInterval = 0.55
         var rearmSilenceWindow: TimeInterval = 0.08
         var noteOffRequired: Bool = false
     }
@@ -121,4 +121,3 @@ final class MIDIPracticeStepMatcher {
         }
     }
 }
-
