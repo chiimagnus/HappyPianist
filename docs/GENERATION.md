@@ -5,7 +5,7 @@
 | --- | --- |
 | Commit hash | 61a1000 |
 | Branch name | crh1 |
-| Generated at | 2026-05-18T12:25:34+08:00 |
+| Generated at | 2026-05-18T12:31:54+08:00 |
 | Output language | Chinese |
 | Generation mode | Incremental update via `neat-freak` (docs-as-canonical) |
 
