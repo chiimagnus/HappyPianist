@@ -27,6 +27,9 @@ struct LonelyPianistAVPApp: App {
         }
         .windowStyle(.automatic)
         .windowResizability(.contentSize)
+        .defaultWindowPlacement { _, context in
+            makeReplacementPlacementIfPossible(targetWindowID: WindowIDs.preparation, context: context)
+        }
 
         Window("Library", id: WindowIDs.library) {
             LibraryWindowRootView(appState: appState, services: services, flowState: flowState)
@@ -34,6 +37,9 @@ struct LonelyPianistAVPApp: App {
         }
         .windowStyle(.automatic)
         .windowResizability(.contentSize)
+        .defaultWindowPlacement { _, context in
+            makeReplacementPlacementIfPossible(targetWindowID: WindowIDs.library, context: context)
+        }
 
         Window("Practice", id: WindowIDs.practice) {
             PracticeWindowRootView(viewModel: arGuideViewModel)
@@ -41,6 +47,9 @@ struct LonelyPianistAVPApp: App {
         }
         .windowStyle(.automatic)
         .windowResizability(.contentSize)
+        .defaultWindowPlacement { _, context in
+            makeReplacementPlacementIfPossible(targetWindowID: WindowIDs.practice, context: context)
+        }
 
         ImmersiveSpace(id: appState.immersiveSpaceID) {
             ImmersiveView(viewModel: arGuideViewModel)
@@ -52,5 +61,19 @@ struct LonelyPianistAVPApp: App {
                 }
         }
         .immersionStyle(selection: .constant(.mixed), in: .mixed)
+    }
+
+    private func makeReplacementPlacementIfPossible(
+        targetWindowID: String,
+        context: WindowPlacementContext
+    ) -> WindowPlacement {
+        guard let pendingTransition = coordinator.pendingTransition else { return WindowPlacement() }
+        guard pendingTransition.toWindowID == targetWindowID else { return WindowPlacement() }
+
+        guard let sourceWindow = context.windows.first(where: { $0.id == pendingTransition.fromWindowID }) else {
+            return WindowPlacement()
+        }
+
+        return WindowPlacement(.replacing(sourceWindow))
     }
 }
