@@ -125,10 +125,9 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
     let midiPracticeStepMatcher = MIDIPracticeStepMatcher()
     private(set) var practiceMIDIInputCoordinator: PracticeMIDIInputCoordinator?
     private(set) var audioRecognitionCoordinator: PracticeAudioRecognitionCoordinator?
+    private(set) var playbackCoordinator: PracticePlaybackCoordinator?
     let handPianoActivityGate: HandPianoActivityGate
     private let manualAdvanceModeProvider: () -> ManualAdvanceMode
-    var autoplayTask: Task<Void, Never>?
-    var autoplayTaskGeneration = 0
     private var hasShutdown = false
     private(set) var tempoMap: MusicXMLTempoMap {
         get { stateStore.tempoMap }
@@ -310,6 +309,18 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
             effectHandler: self,
             consumeStreams: true
         )
+
+        self.playbackCoordinator = PracticePlaybackCoordinator(
+            sleeper: sleeper,
+            sequencerPlaybackService: sequencerPlaybackService,
+            playbackSequenceBuilder: playbackSequenceBuilder,
+            chordAttemptAccumulator: chordAttemptAccumulator,
+            stateStore: stateStore,
+            audioRecognitionService: audioRecognitionService,
+            effectHandler: self,
+            audioRecognitionSuppressDuration: audioRecognitionSuppressDuration,
+            leadInSeconds: autoplayTimingLeadInSeconds
+        )
     }
 
     @available(*, deprecated, message: "Inject dependencies via AppServices/CompositionRoot.")
@@ -331,8 +342,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
         hasShutdown = true
 
         stopManualReplayTask(restoreAudioRecognition: false)
-        stopAutoplayTask()
-        stopAutoplayAudio()
+        playbackCoordinator?.shutdown()
         handle(effect: .stopAudioRecognition)
         handle(effect: .stopPracticeInput)
 
@@ -352,8 +362,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
             playCurrentStepSound(applyRecognitionSuppress: applyRecognitionSuppress)
         case .stopTransientWork:
             stopManualReplayTask()
-            stopAutoplayTask()
-            stopAutoplayAudio()
+            playbackCoordinator?.stopTransientWork()
         case .stopAudioRecognition:
             stopAudioRecognition()
         case .stopPracticeInput:
@@ -707,40 +716,16 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
     }
 
     func playCurrentStepSound(applyRecognitionSuppress: Bool) {
-        guard let currentStep else { return }
-        guard audioPlaybackErrorMessage == nil else { return }
-        if applyRecognitionSuppress {
-            _ = prepareAudioRecognitionSuppressWindowForPlayback()
-        }
-
-        do {
-            try sequencerPlaybackService.playOneShot(
-                midiNotes: uniqueMIDINotes(in: currentStep),
-                durationSeconds: 0.35
-            )
-        } catch {
-            recordPlaybackError(error)
-        }
+        playbackCoordinator?.playCurrentStepSound(applyRecognitionSuppress: applyRecognitionSuppress)
     }
 
     func setAutoplayEnabled(_ isEnabled: Bool) {
         if isEnabled {
             stopManualReplayTask()
             stopVirtualPianoInput()
-            do {
-                try sequencerPlaybackService.warmUp()
-            } catch {
-                recordPlaybackError(error)
-            }
-            autoplayState = .playing
-            let tick = currentStep?.tick ?? 0
-            isSustainPedalDown = pedalTimeline?.isDown(atTick: tick) ?? false
-            autoplayErrorMessage = nil
-            startAutoplayTaskIfNeeded()
+            playbackCoordinator?.setAutoplayEnabled(true)
         } else {
-            autoplayState = .off
-            stopAutoplayTask()
-            stopAutoplayAudio()
+            playbackCoordinator?.setAutoplayEnabled(false)
         }
         refreshAudioRecognitionForCurrentState()
     }
