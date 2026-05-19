@@ -49,7 +49,7 @@ sequenceDiagram
 | 虚拟按键检测 | finger tips + geometry | `KeyContactDetectionService` | started/ended/down (hysteresis) |
 | 虚拟发声 | started/ended MIDI notes | `PracticeSequencerPlaybackServiceProtocol` | `AVAudioUnitSampler` startNote/stopNote |
 | BLE MIDI 输入 | CoreMIDI UMP（MIDI 1.0/2.0） | `BluetoothMIDIInputEventSourceService` | `AsyncStream<MIDI1InputEvent>` + `AsyncStream<MIDI2InputEvent>`（multicast；按端点协议选择订阅端口；事件带 `debugEventID` + source 归因） |
-| BLE MIDI 练习推进 | `MIDI1InputEvent` / `MIDI2InputEvent` noteOn | `PracticeSessionViewModel+PracticeInput` | `MIDIPracticeStepMatcher` → step advance（不依赖 velocity 门槛） |
+| BLE MIDI 练习推进 | `MIDI1InputEvent` / `MIDI2InputEvent` noteOn | `PracticeMIDIInputCoordinator` | `MIDIPracticeStepMatcher` → step advance（不依赖 velocity 门槛） |
 | BLE MIDI Take 录制 | `MIDI1InputEvent` / `MIDI2InputEvent` | `MIDIRecordingAdapter` → `RecordingTakeRecorder` | `RecordingTake`（对 MIDI2 在 recording 边界做显式降精度映射） |
 | BLE MIDI Take 回放 | `RecordingTake` | `TakePlaybackController` → `RecordingTakeSequenceAdapter` | `PracticeSequencerSequence` → sequencer playback |
 | BLE MIDI Phrase 录制 | `MIDI1InputEvent` / `MIDI2InputEvent` noteOn/Off | `PhraseRecorder` | `[ImprovDialogueNote]`（对 MIDI2 在 phrase 边界做显式 velocity 映射；rebase 到 t=0，用于后端生成） |
@@ -123,8 +123,8 @@ flowchart TD
 | --- | --- | --- |
 | press（实体钢琴手势） | `PracticeSessionViewModel.handleFingerTipPositions` | `ChordAttemptAccumulator.registerHandSeparated` |
 | press（虚拟钢琴触键） | `PracticeSessionViewModel.handleFingerTipPositions(isVirtualPiano: true)` | `ChordAttemptAccumulator.registerHandSeparated` |
-| 音频识别（RealAudio 模式） | `PracticeSessionViewModel+AudioRecognition` | `AudioStepAttemptAccumulator.evaluateHandSeparated` |
-| BLE MIDI（MIDI-only 模式） | `PracticeSessionViewModel+PracticeInput` | `MIDIPracticeStepMatcher`（deterministic） |
+| 音频识别（RealAudio 模式） | `PracticeAudioRecognitionCoordinator` | `AudioStepAttemptAccumulator.evaluateHandSeparated` |
+| BLE MIDI（MIDI-only 模式） | `PracticeMIDIInputCoordinator` | `MIDIPracticeStepMatcher`（deterministic） |
 
 ## Python 数据流
 | 步骤 | 输入 | 处理 | 输出 |

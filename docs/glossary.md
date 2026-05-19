@@ -18,7 +18,22 @@
 | `ScoreHand` | 谱面左右手语义：`right/left`；当前由 staff 推导（`staff <= 1` 为右手，`staff >= 2` 为左手；缺失 staff 视为右手） |
 | `MusicXMLPianoGrandStaffNormalizer` | 钢琴双 part 归一化器：将 MusicXML 中两个独立 `<part>`（高/低音谱号）合并为单 part + staff=1/2，修复左手音符丢失问题 |
 | `MusicXMLHandRouter` | 单谱表导入兜底路由器：当 score 未出现 `staff>=2` 且音域足够宽时，按 pitch 阈值把 notes 自动补成 staff=1/2，以驱动左右手与双谱表渲染 |
-| `PianoModeProtocol` | AVP 钢琴模式协议：定义模式 id、pickerCard、准入条件、tracking 选择、准备页工厂与练习会话工厂；通过 `PianoModeRegistryService` 注册三种默认模式（RealAudio / BluetoothMIDI / Virtual） |
+| `PianoModeProtocol` | AVP 钢琴模式协议：定义模式 id、pickerCard、准入条件、tracking 选择、准备页工厂与练习会话工厂；通过 `PianoModeRegistryService` 注册三种默认模式（RealAudio / BluetoothMIDI / Virtual） || `PracticeSessionViewModelFactoryService` | 按 `PianoModeProtocol` 实现创建 `PracticeSessionViewModel` 并注入对应模式的依赖（替代旧 extension 拆分方式） |
+| `PracticeMIDIInputCoordinator` | BLE MIDI 练习输入协调器：消费 MIDI1/MIDI2 note-on 推进 step（使用 `MIDIPracticeStepMatcher`） |
+| `PracticeAudioRecognitionCoordinator` | 音频识别练习输入协调器：RealAudio 模式下消费音频识别结果推进 step |
+| `PracticePlaybackCoordinator` | 练习回放协调器：管理 autoplay、manual replay 与 sequencer 生命周期 |
+| `PracticeHighlightGuideController` | 练习高亮引导控制器：管理当前 step 的 highlight guide 数据 |
+| `CalibrationFlowViewModel` | Step 1 校准流程 ViewModel：从 ARGuideViewModel 拆分出的校准编排逻辑 |
+| `PracticeLocalizationViewModel` | 练习定位 ViewModel：从 ARGuideViewModel 拆分出的定位编排逻辑 |
+| `PracticeFlowCoordinator` | 练习流程协调器：编排 Step 3 的进入/退出与窗口切换 |
+| `PianoModePreparationRoute` | 钢琴模式准备页路由：替代旧 AnyView factory 的类型安全路由方案 |
+| `AsyncStreamBroadcaster` | 多播 AsyncStream 工具：允许多个订阅者消费同一事件流（用于 BLE MIDI 事件广播） |
+| `MIDIPracticeStepMatcher` | BLE MIDI 模式下的确定性 step 判定器：不依赖 velocity 门槛，按 note-on 推进 |
+| `AudioStepAttemptAccumulator` | 音频模式下的 step 匹配累积器：按音频识别结果判定 step 通过 |
+| `PracticeHandGateController` | 练习手部门控控制器：管理 hand-separated step matching 的左右手分别满足逻辑 |
+| `StepMatcher` | step 匹配协议：定义 step 通过判定的抽象接口 |
+| `AIPerformanceCoordinator` | AI 表演协调器：管理虚拟表演者的生成、回放与交互 |
+
 | `PianoModeRegistryService` | 钢琴模式注册表：持有 `[any PianoModeProtocol]`，按 id 查找模式；注入到 `WindowCoordinator` 与 `ARGuideViewModel`，驱动类型选择、准备页工厂与练习会话注入 |
 | `WindowCoordinator` | AVP 窗口导航协调器：持有 `FlowState` 与 `PianoModeRegistryProtocol`，并通过 `pendingTransition(from,to)` 让目标窗口在激活后关闭来源窗口，实现“单窗口可见”的多窗口导航 |
 | `MIDI1InputEvent` | AVP BLE MIDI 输入事件模型（MIDI 1.0 channel voice）：note on/off、CC、pitch bend、program change、pressure 等 |

@@ -13,9 +13,9 @@
 | `Models/Practice/` | PracticeStep、PianoHighlightGuide、DetectedNoteEvent 等 |
 | `Models/MIDI/` | MIDI1InputEvent、MIDI2InputEvent（BLE MIDI 输入事件模型） |
 | `Models/Recording/` | RecordingTake、RecordingTakeEvent |
-| `ViewModels/ARGuideViewModel.swift` | 练习定位、provider 状态、沉浸空间运行时 |
+| `ViewModels/ARGuide/` | ARGuideViewModel（练习定位、provider 状态、沉浸空间运行时）、CalibrationFlowViewModel、PracticeLocalizationViewModel |
 | `ViewModels/WindowCoordinator.swift` | 窗口导航编排（preparation/library/practice 单窗口可见）+ `FlowState` 清理 |
-| `ViewModels/PracticeSession/` | PracticeSessionViewModel 拆分的 6 个 extension（AudioRecognition / Autoplay / HandGate / HighlightGuides / ManualReplay / PracticeInput） |
+| `ViewModels/PracticeSession/` | PracticeSessionViewModel + extension 文件（Commands / HandInput / HighlightGuides / Orchestration / Playback）+ PracticeSessionStateStore |
 | `ViewModels/Library/SongLibraryViewModel.swift` | 曲库导入/删除/试听 |
 | `ViewModels/MIDI/MIDISourceConnectionViewModel.swift` | BLE MIDI 连接状态监控 |
 | `ViewModels/Recording/TakeLibraryViewModel.swift` | Take 库管理 |
@@ -30,7 +30,7 @@
 | `Services/MusicXML/` | 解析和时间线（Parser/ 子目录 + 13 个 timeline/expander/velocity 文件） |
 | `Services/Networking/` | BonjourBackendDiscoveryService、ImprovBackendClient |
 | `Services/Placement/` | GazePlaneHitTestService、VirtualKeyboardPoseService |
-| `Services/Practice/` | PracticeStepBuilder + 按用途拆分的子目录：AI/（PhraseRecorder、ImprovScheduleBuilder）、Autoplay/、Guides/、ManualAdvance/、Matching/、Session/ |
+| `Services/Practice/` | PracticeStepBuilder + 按用途拆分的子目录：AI/（PhraseRecorder、ImprovScheduleBuilder、AIPerformanceCoordinator）、Autoplay/（AutoplayPerformanceTimeline）、Guides/（GrandStaffNotationLayoutService、PianoHighlightGuideBuilderService、PracticeHighlightGuideController）、Input/（PracticeAudioRecognitionCoordinator、PracticeMIDIInputCoordinator、VirtualPianoInputController）、ManualAdvance/、Matching/（AudioStepAttemptAccumulator、ChordAttemptAccumulator、MIDIPracticeStepMatcher、PracticeHandGateController、StepMatcher）、Navigation/（PracticeStepNavigator）、Playback/（PlaybackSequenceBuilder、PracticeManualReplayCoordinator、PracticePlaybackCoordinator）、Session/（PracticeSessionCoordinatorProtocols、PracticeSessionViewModelFactoryService、PracticePreparationService） |
 | `Services/Recording/` | MIDIRecordingAdapter、RecordingTakeRecorder、RecordingTakeStore、TakePlaybackController |
 | `Services/Tracking/` | ARTrackingService |
 | `Services/VirtualPiano/` | KeyContactDetectionService、VirtualPianoKeyGeometryService |
@@ -38,11 +38,18 @@
 | `Views/Preparation/` | PreparationWindowRootView（preparation 窗口 root，模式选择/准备页派发） |
 | `Views/Library/` | LibraryWindowRootView、LibraryFlowView、SongLibraryView |
 | `Views/Practice/` | PracticeWindowRootView、PracticeFlowView、PracticeStepView、GrandStaffNotationView 等 |
-| `Services/Immersive/` | RealityKit overlay controllers（校准、贴皮高亮、虚拟钢琴、沉浸式五线谱等）；由 `Views/Shared/ImmersiveView.swift` 统一驱动 update |
+| `Services/Immersive/` | RealityKit overlay controllers（校准、贴皮高亮、虚拟钢琴、沉浸式五线谱、虚拟表演者等）+ XiaochengRig；由 `Views/Shared/ImmersiveView.swift` 统一驱动 update |
 | `Views/MIDI/BluetoothMIDICentralView.swift` | 系统 Bluetooth MIDI 配对 UI 包装 |
 | `Views/Library/SongLibraryView.swift` | 曲库列表 UI |
 | `Views/Practice/` | `GrandStaffNotationView`（双谱表五线谱）、Step3AudioDebugOverlay |
 | `Views/Recording/TakeLibraryView.swift` | Take 库 UI |
+| `Views/AppFlow/` | PianoModePreparationRoute、PianoModePreparationRouterView、PracticeFlowCoordinator |
+| `Services/AppCompositionRoot.swift` | 应用级依赖组装根 |
+| `Services/AppServices.swift` | 服务容器 |
+| `Services/Concurrency/` | AsyncStreamBroadcaster |
+| `Services/Diagnostics/` | MIDIDiagnosticsConfiguration |
+| `Services/Time/` | Sleeper |
+| `Services/PianoKeyGeometryService.swift` | 琴键几何协议与实现 |
 
 ## 入口与生命周期
 | 入口 | 行为 |
@@ -94,7 +101,8 @@
 校准页覆盖 A0/C8 捕获、世界锚点存储、恢复、重新校准和定位前置条件。
 
 关键对象：
-- `ARGuideViewModel`：Step 1 / Step 3 编排
+- `ARGuideViewModel`：Step 3 编排
+- `CalibrationFlowViewModel`：Step 1 校准流程编排
 - `CalibrationPointCaptureService`：准星稳定判定与 anchor id 记录
 - `WorldAnchorCalibrationStore`：JSON 持久化
 - `KeyboardFrame`：从 A0/C8 推导键盘局部坐标系（用于渲染与按键检测）
