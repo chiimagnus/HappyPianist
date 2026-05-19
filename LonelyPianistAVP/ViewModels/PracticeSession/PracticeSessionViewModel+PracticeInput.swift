@@ -61,17 +61,24 @@ extension PracticeSessionViewModel {
             isPracticeInputRunning = true
         } catch {
             isPracticeInputRunning = false
-            practiceInputActiveSinceUptimeSeconds = nil
+            resetPracticeInputMatchingState()
             decisionLogger.error("practice input start failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 
     func stopPracticeInput() {
         guard let practiceInputEventSource else { return }
-        guard isPracticeInputRunning else { return }
+        stopPracticeInputSourceIfNeeded(practiceInputEventSource)
+        resetPracticeInputMatchingState()
+    }
 
+    private func stopPracticeInputSourceIfNeeded(_ practiceInputEventSource: PracticeInputEventSourceProtocol) {
+        guard isPracticeInputRunning else { return }
         practiceInputEventSource.stop()
         isPracticeInputRunning = false
+    }
+
+    private func resetPracticeInputMatchingState() {
         practiceInputActiveSinceUptimeSeconds = nil
         practiceInputLastResetStepIndex = nil
         practiceInputGeneration += 1
