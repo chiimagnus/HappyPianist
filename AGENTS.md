@@ -35,7 +35,7 @@
 - Swift：Swift 6.0+
 
 平台支持（按项目选择）：
-- iOS 17.0+、iPadOS 17.0+、macOS 14.0+
+- macOS 14.0+、visionOS26+
 - VisionOS开发需要参考[visionos-dev.md](visionos-dev.md)
 
 ## 设计原则
