@@ -52,6 +52,8 @@ struct BluetoothMIDIPreparationView: View {
 }
 
 struct BluetoothMIDIConnectionSection: View {
+    @Environment(\.openURL) private var openURL
+
     let onSourceCountChange: @MainActor (Int) -> Void
 
     @State private var bluetoothAccessViewModel = BluetoothAccessViewModel()
@@ -233,7 +235,9 @@ struct BluetoothMIDIConnectionSection: View {
 
                 if showsOpenSettingsButton {
                     Button("打开设置", systemImage: "gear") {
-                        bluetoothAccessViewModel.openAppSettings()
+                        if let settingsURL = bluetoothAccessViewModel.appSettingsURL {
+                            openURL(settingsURL)
+                        }
                     }
                     .buttonStyle(.borderedProminent)
                     .buttonBorderShape(.roundedRectangle)
