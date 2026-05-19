@@ -26,10 +26,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol {
 
     typealias PracticeState = PracticeSessionState
 
-    enum AutoplayState: Equatable {
-        case off
-        case playing
-    }
+    typealias AutoplayState = PracticeSessionAutoplayState
 
     var state: PracticeState {
         get { stateStore.state }
@@ -40,29 +37,79 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol {
         get { stateStore.steps }
         set { stateStore.steps = newValue }
     }
-    var autoplayState: AutoplayState = .off
-    private(set) var calibration: PianoCalibration?
-    private(set) var keyboardGeometry: PianoKeyboardGeometry?
-    var pressedNotes: Set<Int> = []
-    private(set) var latestNoteOnMIDINotes: Set<Int> = []
-    var latestKeyContactResult = KeyContactResult(down: [], started: [], ended: [])
-    var isSustainPedalDown = false
-    var audioRecognitionErrorMessage: String?
-    private(set) var audioPlaybackErrorMessage: String?
-    var autoplayErrorMessage: String?
+
+    var autoplayState: AutoplayState {
+        get { stateStore.autoplayState }
+        set { stateStore.autoplayState = newValue }
+    }
+
+    private(set) var calibration: PianoCalibration? {
+        get { stateStore.calibration }
+        set { stateStore.calibration = newValue }
+    }
+
+    private(set) var keyboardGeometry: PianoKeyboardGeometry? {
+        get { stateStore.keyboardGeometry }
+        set { stateStore.keyboardGeometry = newValue }
+    }
+
+    var pressedNotes: Set<Int> {
+        get { stateStore.pressedNotes }
+        set { stateStore.pressedNotes = newValue }
+    }
+
+    private(set) var latestNoteOnMIDINotes: Set<Int> {
+        get { stateStore.latestNoteOnMIDINotes }
+        set { stateStore.latestNoteOnMIDINotes = newValue }
+    }
+
+    var latestKeyContactResult: KeyContactResult {
+        get { stateStore.latestKeyContactResult }
+        set { stateStore.latestKeyContactResult = newValue }
+    }
+
+    var isSustainPedalDown: Bool {
+        get { stateStore.isSustainPedalDown }
+        set { stateStore.isSustainPedalDown = newValue }
+    }
+
+    var audioRecognitionErrorMessage: String? {
+        get { stateStore.audioRecognitionErrorMessage }
+        set { stateStore.audioRecognitionErrorMessage = newValue }
+    }
+
+    private(set) var audioPlaybackErrorMessage: String? {
+        get { stateStore.audioPlaybackErrorMessage }
+        set { stateStore.audioPlaybackErrorMessage = newValue }
+    }
+
+    var autoplayErrorMessage: String? {
+        get { stateStore.autoplayErrorMessage }
+        set { stateStore.autoplayErrorMessage = newValue }
+    }
     var audioErrorMessage: String? {
         audioRecognitionErrorMessage ?? audioPlaybackErrorMessage
     }
 
-    var audioRecognitionStatus: PracticeAudioRecognitionStatus = .idle
-    var audioRecognitionDebugSnapshot: PracticeAudioRecognitionDebugSnapshot = .empty
-    var handGateState = HandGateState(
-        isNearKeyboard: false,
-        hasDownwardMotion: false,
-        exactPressedNotes: [],
-        confidenceBoost: 0
-    )
-    var noteMatchTolerance: Int = 1
+    var audioRecognitionStatus: PracticeAudioRecognitionStatus {
+        get { stateStore.audioRecognitionStatus }
+        set { stateStore.audioRecognitionStatus = newValue }
+    }
+
+    var audioRecognitionDebugSnapshot: PracticeAudioRecognitionDebugSnapshot {
+        get { stateStore.audioRecognitionDebugSnapshot }
+        set { stateStore.audioRecognitionDebugSnapshot = newValue }
+    }
+
+    var handGateState: HandGateState {
+        get { stateStore.handGateState }
+        set { stateStore.handGateState = newValue }
+    }
+
+    var noteMatchTolerance: Int {
+        get { stateStore.noteMatchTolerance }
+        set { stateStore.noteMatchTolerance = newValue }
+    }
 
     let pressDetectionService: PressDetectionServiceProtocol
     let chordAttemptAccumulator: ChordAttemptAccumulatorProtocol
@@ -84,44 +131,148 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol {
     var practiceInputMIDI1EventsTask: Task<Void, Never>?
     var practiceInputMIDI2EventsTask: Task<Void, Never>?
     private var hasShutdown = false
-    private(set) var tempoMap = MusicXMLTempoMap(tempoEvents: [])
-    private var measureSpans: [MusicXMLMeasureSpan] = []
-    var manualReplayTask: Task<Void, Never>?
-    var manualReplayGeneration = 0
-    var isManualReplayPlaying = false
-    var shouldResumeAudioRecognitionAfterManualReplay = false
-    var pedalTimeline: MusicXMLPedalTimeline?
-    var fermataTimeline: MusicXMLFermataTimeline?
-    private var attributeTimeline: MusicXMLAttributeTimeline?
-    private var slurTimeline: MusicXMLSlurTimeline?
-    var autoplayTimeline: AutoplayPerformanceTimeline = .empty
-    private(set) var highlightGuides: [PianoHighlightGuide] = []
-    var currentHighlightGuideIndex: Int?
-    var autoplayTimingBaseTick: Int?
-    let autoplayTimingLeadInSeconds: TimeInterval = 0.05
-    struct NotationGuideScrollPoint: Equatable {
-        let timeSeconds: TimeInterval
-        let tick: Int
+    private(set) var tempoMap: MusicXMLTempoMap {
+        get { stateStore.tempoMap }
+        set { stateStore.tempoMap = newValue }
     }
 
-    var notationGuideScrollSchedule: [NotationGuideScrollPoint] = []
-    var notationGuideScrollScheduleBaseTick: Int = 0
-    var notationGuideScrollScheduleTaskGeneration: Int = -1
-    var notationGuideScrollScheduleTimelineEventCount: Int = 0
+    private var measureSpans: [MusicXMLMeasureSpan] {
+        get { stateStore.measureSpans }
+        set { stateStore.measureSpans = newValue }
+    }
+    var manualReplayTask: Task<Void, Never>?
+    var manualReplayGeneration: Int {
+        get { stateStore.manualReplayGeneration }
+        set { stateStore.manualReplayGeneration = newValue }
+    }
+
+    var isManualReplayPlaying: Bool {
+        get { stateStore.isManualReplayPlaying }
+        set { stateStore.isManualReplayPlaying = newValue }
+    }
+
+    var shouldResumeAudioRecognitionAfterManualReplay: Bool {
+        get { stateStore.shouldResumeAudioRecognitionAfterManualReplay }
+        set { stateStore.shouldResumeAudioRecognitionAfterManualReplay = newValue }
+    }
+
+    var pedalTimeline: MusicXMLPedalTimeline? {
+        get { stateStore.pedalTimeline }
+        set { stateStore.pedalTimeline = newValue }
+    }
+
+    var fermataTimeline: MusicXMLFermataTimeline? {
+        get { stateStore.fermataTimeline }
+        set { stateStore.fermataTimeline = newValue }
+    }
+
+    private var attributeTimeline: MusicXMLAttributeTimeline? {
+        get { stateStore.attributeTimeline }
+        set { stateStore.attributeTimeline = newValue }
+    }
+
+    private var slurTimeline: MusicXMLSlurTimeline? {
+        get { stateStore.slurTimeline }
+        set { stateStore.slurTimeline = newValue }
+    }
+
+    var autoplayTimeline: AutoplayPerformanceTimeline {
+        get { stateStore.autoplayTimeline }
+        set { stateStore.autoplayTimeline = newValue }
+    }
+
+    private(set) var highlightGuides: [PianoHighlightGuide] {
+        get { stateStore.highlightGuides }
+        set { stateStore.highlightGuides = newValue }
+    }
+
+    var currentHighlightGuideIndex: Int? {
+        get { stateStore.currentHighlightGuideIndex }
+        set { stateStore.currentHighlightGuideIndex = newValue }
+    }
+
+    var autoplayTimingBaseTick: Int? {
+        get { stateStore.autoplayTimingBaseTick }
+        set { stateStore.autoplayTimingBaseTick = newValue }
+    }
+    let autoplayTimingLeadInSeconds: TimeInterval = 0.05
+    typealias NotationGuideScrollPoint = PracticeSessionNotationGuideScrollPoint
+
+    var notationGuideScrollSchedule: [NotationGuideScrollPoint] {
+        get { stateStore.notationGuideScrollSchedule }
+        set { stateStore.notationGuideScrollSchedule = newValue }
+    }
+
+    var notationGuideScrollScheduleBaseTick: Int {
+        get { stateStore.notationGuideScrollScheduleBaseTick }
+        set { stateStore.notationGuideScrollScheduleBaseTick = newValue }
+    }
+
+    var notationGuideScrollScheduleTaskGeneration: Int {
+        get { stateStore.notationGuideScrollScheduleTaskGeneration }
+        set { stateStore.notationGuideScrollScheduleTaskGeneration = newValue }
+    }
+
+    var notationGuideScrollScheduleTimelineEventCount: Int {
+        get { stateStore.notationGuideScrollScheduleTimelineEventCount }
+        set { stateStore.notationGuideScrollScheduleTimelineEventCount = newValue }
+    }
     var manualHighlightTransitionTask: Task<Void, Never>?
-    var audioRecognitionGeneration = 0
-    var isAudioRecognitionRunning = false
-    var practiceInputGeneration = 0
-    var isPracticeInputRunning = false
-    var practiceInputActiveSinceUptimeSeconds: TimeInterval?
-    var practiceInputLastResetStepIndex: Int?
-    var practiceInputDebugLastLoggedAtUptimeSeconds: TimeInterval = 0
-    var practiceInputDebugLastMessage: String?
-    var audioRecognitionSuppressUntil: Date?
+    var audioRecognitionGeneration: Int {
+        get { stateStore.audioRecognitionGeneration }
+        set { stateStore.audioRecognitionGeneration = newValue }
+    }
+
+    var isAudioRecognitionRunning: Bool {
+        get { stateStore.isAudioRecognitionRunning }
+        set { stateStore.isAudioRecognitionRunning = newValue }
+    }
+
+    var practiceInputGeneration: Int {
+        get { stateStore.practiceInputGeneration }
+        set { stateStore.practiceInputGeneration = newValue }
+    }
+
+    var isPracticeInputRunning: Bool {
+        get { stateStore.isPracticeInputRunning }
+        set { stateStore.isPracticeInputRunning = newValue }
+    }
+
+    var practiceInputActiveSinceUptimeSeconds: TimeInterval? {
+        get { stateStore.practiceInputActiveSinceUptimeSeconds }
+        set { stateStore.practiceInputActiveSinceUptimeSeconds = newValue }
+    }
+
+    var practiceInputLastResetStepIndex: Int? {
+        get { stateStore.practiceInputLastResetStepIndex }
+        set { stateStore.practiceInputLastResetStepIndex = newValue }
+    }
+
+    var practiceInputDebugLastLoggedAtUptimeSeconds: TimeInterval {
+        get { stateStore.practiceInputDebugLastLoggedAtUptimeSeconds }
+        set { stateStore.practiceInputDebugLastLoggedAtUptimeSeconds = newValue }
+    }
+
+    var practiceInputDebugLastMessage: String? {
+        get { stateStore.practiceInputDebugLastMessage }
+        set { stateStore.practiceInputDebugLastMessage = newValue }
+    }
+
+    var audioRecognitionSuppressUntil: Date? {
+        get { stateStore.audioRecognitionSuppressUntil }
+        set { stateStore.audioRecognitionSuppressUntil = newValue }
+    }
     let audioRecognitionSuppressDuration: TimeInterval = 0.6
     let audioRecognitionEnabledSnapshot = MusicXMLRealisticPlaybackDefaults.audioRecognitionEnabled
-    var practiceAudioRecognitionDetectorModeSnapshot: PracticeAudioRecognitionDetectorMode = .harmonicTemplate
-    var harmonicTemplateTuningProfileSnapshot: HarmonicTemplateTuningProfile = .lowLatencyDefault
+    var practiceAudioRecognitionDetectorModeSnapshot: PracticeAudioRecognitionDetectorMode {
+        get { stateStore.practiceAudioRecognitionDetectorModeSnapshot }
+        set { stateStore.practiceAudioRecognitionDetectorModeSnapshot = newValue }
+    }
+
+    var harmonicTemplateTuningProfileSnapshot: HarmonicTemplateTuningProfile {
+        get { stateStore.harmonicTemplateTuningProfileSnapshot }
+        set { stateStore.harmonicTemplateTuningProfileSnapshot = newValue }
+    }
 
     init(
         pressDetectionService: PressDetectionServiceProtocol,
