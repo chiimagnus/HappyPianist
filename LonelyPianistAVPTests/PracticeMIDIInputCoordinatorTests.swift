@@ -41,7 +41,7 @@ func refreshInNonGuidingStateStopsInput() {
 
 @Test
 @MainActor
-func shutdownIsIdempotent() {
+func practiceMIDIInputCoordinator_shutdownIsIdempotent() {
     let source = FakeProtocolSeparatedPracticeInputEventSource()
     let stateStore = PracticeSessionStateStore()
     let effectHandler = CapturingPracticeSessionEffectHandler()

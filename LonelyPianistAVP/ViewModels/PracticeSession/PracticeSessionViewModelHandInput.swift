@@ -7,7 +7,7 @@ extension PracticeSessionViewModel {
         isVirtualPiano: Bool = false,
         at timestamp: Date = .now
     ) -> Set<Int> {
-        guard let keyboardGeometry else { return [] }
+        guard let keyboardGeometry = self.keyboardGeometry else { return [] }
 
         if isVirtualPiano {
             return virtualPianoInputController?.handleFingerTips(
@@ -24,13 +24,13 @@ extension PracticeSessionViewModel {
             at: timestamp
         )
         updateLatestNoteOnMIDINotes(detected)
-        latestKeyContactResult = realPianoContactDetectionService.detect(
+        self.latestKeyContactResult = realPianoContactDetectionService.detect(
             fingerTips: fingerTips,
             keyboardGeometry: keyboardGeometry
         )
 
         if detected.isEmpty == false {
-            pressedNotes = detected
+            self.pressedNotes = detected
             handGateController?.updateHandGateState(
                 fingerTips: fingerTips,
                 keyboardGeometry: keyboardGeometry,
@@ -52,4 +52,3 @@ extension PracticeSessionViewModel {
         return detected
     }
 }
-

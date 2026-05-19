@@ -113,7 +113,7 @@ func manualReplayStopsAudioRecognitionAndRestoresAfterCompletion() async {
 
 @Test
 @MainActor
-func shutdownIsIdempotent() async {
+func practiceManualReplayCoordinator_shutdownIsIdempotent() async {
     let sequencer = FakeSequencerPlaybackService()
     sequencer.currentSecondsValue = 0
 
@@ -147,4 +147,3 @@ func shutdownIsIdempotent() async {
     #expect(stateStore.isManualReplayPlaying == false)
     #expect(sequencer.stopCallCount >= 1)
 }
-

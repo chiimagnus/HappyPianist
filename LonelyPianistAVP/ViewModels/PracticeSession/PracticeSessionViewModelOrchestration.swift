@@ -1,41 +1,57 @@
 import Foundation
 
 extension PracticeSessionViewModel {
+    func refreshPracticeInputForCurrentState() {
+        practiceMIDIInputCoordinator?.refresh(
+            for: .init(
+                practiceState: self.state,
+                autoplayState: self.autoplayState,
+                isManualReplayPlaying: self.isManualReplayPlaying,
+                currentStepIndex: self.currentStepIndex,
+                expectedNotes: self.currentStep?.notes ?? []
+            )
+        )
+    }
+
+    func stopPracticeInput() {
+        practiceMIDIInputCoordinator?.stop()
+    }
+
     func refreshAudioRecognitionForCurrentState() {
         refreshPracticeInputForCurrentState()
-        guard let currentStep else {
+        guard let currentStep = self.currentStep else {
             audioRecognitionCoordinator?.stop()
             return
         }
 
         let expectedMIDINotes = uniqueMIDINotes(in: currentStep)
         let expectedByHand = uniqueMIDINotesByHand(in: currentStep)
-        let suppressUntil = audioRecognitionSuppressUntil.flatMap { $0 > .now ? $0 : nil }
-        let handGateBoost = handGateState.isNearKeyboard || handGateState.hasDownwardMotion
+        let suppressUntil = self.audioRecognitionSuppressUntil.flatMap { $0 > .now ? $0 : nil }
+        let handGateBoost = self.handGateState.isNearKeyboard || self.handGateState.hasDownwardMotion
 
         audioRecognitionCoordinator?.refresh(
             for: .init(
-                practiceState: state,
-                autoplayState: autoplayState,
-                isManualReplayPlaying: isManualReplayPlaying,
+                practiceState: self.state,
+                autoplayState: self.autoplayState,
+                isManualReplayPlaying: self.isManualReplayPlaying,
                 isAudioRecognitionEnabled: isPracticeAudioRecognitionEnabled,
                 expectedMIDINotes: expectedMIDINotes,
                 expectedRightMIDINotes: expectedByHand.right,
                 expectedLeftMIDINotes: expectedByHand.left,
                 wrongCandidateMIDINotes: makeWrongCandidateMIDINotes(expectedMIDINotes),
                 handGateBoost: handGateBoost,
-                isHandSeparatedStepMatchingEnabled: isHandSeparatedStepMatchingEnabled,
+                isHandSeparatedStepMatchingEnabled: self.isHandSeparatedStepMatchingEnabled,
                 suppressUntil: suppressUntil
             )
         )
     }
 
     func refreshAudioRecognitionFromSettings() {
-        practiceAudioRecognitionDetectorModeSnapshot = Self.readPracticeAudioRecognitionDetectorMode()
-        harmonicTemplateTuningProfileSnapshot = Self.profile(for: practiceAudioRecognitionDetectorModeSnapshot)
+        self.practiceAudioRecognitionDetectorModeSnapshot = Self.readPracticeAudioRecognitionDetectorMode()
+        self.harmonicTemplateTuningProfileSnapshot = Self.profile(for: self.practiceAudioRecognitionDetectorModeSnapshot)
         audioRecognitionService?.configureDetectorMode(
-            practiceAudioRecognitionDetectorModeSnapshot,
-            profile: harmonicTemplateTuningProfileSnapshot
+            self.practiceAudioRecognitionDetectorModeSnapshot,
+            profile: self.harmonicTemplateTuningProfileSnapshot
         )
         refreshAudioRecognitionForCurrentState()
     }
@@ -48,10 +64,10 @@ extension PracticeSessionViewModel {
     @discardableResult
     func prepareAudioRecognitionSuppressWindowForPlayback() -> Date {
         let suppressUntil = Date().addingTimeInterval(audioRecognitionSuppressDuration)
-        audioRecognitionSuppressUntil = suppressUntil
+        self.audioRecognitionSuppressUntil = suppressUntil
         audioRecognitionService?.suppressRecognition(
             until: suppressUntil,
-            generation: audioRecognitionGeneration
+            generation: self.audioRecognitionGeneration
         )
         return suppressUntil
     }
@@ -73,12 +89,12 @@ extension PracticeSessionViewModel {
     }
 
     var audioRecognitionGenerationForTesting: Int {
-        audioRecognitionGeneration
+        self.audioRecognitionGeneration
     }
 
     var audioRecognitionSuppressRemainingSeconds: TimeInterval {
-        guard let audioRecognitionSuppressUntil else { return 0 }
-        return max(0, audioRecognitionSuppressUntil.timeIntervalSinceNow)
+        guard let suppressUntil = self.audioRecognitionSuppressUntil else { return 0 }
+        return max(0, suppressUntil.timeIntervalSinceNow)
     }
 
     private static func readPracticeAudioRecognitionDetectorMode() -> PracticeAudioRecognitionDetectorMode {
@@ -94,4 +110,3 @@ extension PracticeSessionViewModel {
         .lowLatencyDefault
     }
 }
-
