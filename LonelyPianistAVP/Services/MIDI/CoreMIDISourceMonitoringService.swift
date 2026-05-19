@@ -28,15 +28,16 @@ final class CoreMIDISourceMonitoringService: MIDISourceMonitoringServiceProtocol
     private let refreshScheduler = DebouncedActionScheduler(queue: .main, debounceSec: 0.2)
 
     private var clientRef: MIDIClientRef = 0
-    private var inputPortRef: MIDIPortRef = 0
-    private var connectedSources: [MIDIEndpointRef] = []
+    private var midi1InputPortRef: MIDIPortRef = 0
+    private var midi2InputPortRef: MIDIPortRef = 0
+    private var connectedSources: [ConnectedSource] = []
     private var isRunning = false
 
     func start() throws {
         guard !isRunning else { return }
 
         try createClientIfNeeded()
-        try createInputPortIfNeeded()
+        try createInputPortsIfNeeded()
         isRunning = true
         try refreshSources()
     }
@@ -47,9 +48,14 @@ final class CoreMIDISourceMonitoringService: MIDISourceMonitoringServiceProtocol
 
         disconnectAllSources()
 
-        if inputPortRef != 0 {
-            MIDIPortDispose(inputPortRef)
-            inputPortRef = 0
+        if midi1InputPortRef != 0 {
+            MIDIPortDispose(midi1InputPortRef)
+            midi1InputPortRef = 0
+        }
+
+        if midi2InputPortRef != 0 {
+            MIDIPortDispose(midi2InputPortRef)
+            midi2InputPortRef = 0
         }
 
         if clientRef != 0 {
@@ -62,7 +68,7 @@ final class CoreMIDISourceMonitoringService: MIDISourceMonitoringServiceProtocol
     }
 
     func refreshSources() throws {
-        guard inputPortRef != 0 else {
+        guard midi1InputPortRef != 0 || midi2InputPortRef != 0 else {
             onLastErrorMessageChange?("MIDI input port is unavailable")
             onSourceNamesChange?([])
             onConnectionStateChange?(.connected(sourceCount: 0))
@@ -78,16 +84,24 @@ final class CoreMIDISourceMonitoringService: MIDISourceMonitoringServiceProtocol
             let source = MIDIGetSource(index)
             guard source != 0 else { continue }
 
-            let status = MIDIPortConnectSource(inputPortRef, source, nil)
+            let endpointProtocolID = MIDIEndpointPropertyReader.int32Property(source, kMIDIPropertyProtocolID)
+                .flatMap(MIDIProtocolID.init(rawValue:))
+            let targetProtocol = MIDIEndpointConnectionPolicy.subscribedProtocol(
+                endpointProtocolID: endpointProtocolID,
+                midi2PortAvailable: midi2InputPortRef != 0
+            )
+            let targetPortRef = targetProtocol == ._2_0 ? midi2InputPortRef : midi1InputPortRef
+
+            let status = MIDIPortConnectSource(targetPortRef, source, nil)
             if status == noErr {
-                connectedSources.append(source)
+                connectedSources.append(ConnectedSource(portRef: targetPortRef, endpoint: source))
             } else {
                 failedStatus = status
                 logger.error("Failed to connect source \(index, privacy: .public): \(status, privacy: .public)")
             }
         }
 
-        let names = connectedSources.map(endpointName)
+        let names = connectedSources.map { endpointName($0.endpoint) }
         onSourceNamesChange?(names)
         onConnectionStateChange?(.connected(sourceCount: connectedSources.count))
 
@@ -116,20 +130,34 @@ final class CoreMIDISourceMonitoringService: MIDISourceMonitoringServiceProtocol
         }
     }
 
-    private func createInputPortIfNeeded() throws {
-        guard inputPortRef == 0 else { return }
+    private func createInputPortsIfNeeded() throws {
+        if midi1InputPortRef == 0 {
+            let status = MIDIInputPortCreateWithProtocol(
+                clientRef,
+                "LonelyPianistAVPSourcesInput-MIDI1" as CFString,
+                MIDIProtocolID._1_0,
+                &midi1InputPortRef
+            ) { _, _ in
+                // Source monitoring does not need to parse events.
+            }
 
+            guard status == noErr else {
+                throw CoreMIDISourceMonitoringServiceError.portCreate(status)
+            }
+        }
+
+        guard midi2InputPortRef == 0 else { return }
         let status = MIDIInputPortCreateWithProtocol(
             clientRef,
-            "LonelyPianistAVPSourcesInput" as CFString,
-            MIDIProtocolID._1_0,
-            &inputPortRef
+            "LonelyPianistAVPSourcesInput-MIDI2" as CFString,
+            MIDIProtocolID._2_0,
+            &midi2InputPortRef
         ) { _, _ in
             // Source monitoring does not need to parse events.
         }
 
-        guard status == noErr else {
-            throw CoreMIDISourceMonitoringServiceError.portCreate(status)
+        if status != noErr {
+            midi2InputPortRef = 0
         }
     }
 
@@ -142,7 +170,7 @@ final class CoreMIDISourceMonitoringService: MIDISourceMonitoringServiceProtocol
         guard isRunning else { return }
         refreshScheduler.schedule { [weak self] in
             guard let self else { return }
-            guard self.isRunning, self.inputPortRef != 0 else { return }
+            guard self.isRunning, (self.midi1InputPortRef != 0 || self.midi2InputPortRef != 0) else { return }
 
             do {
                 try self.refreshSources()
@@ -155,32 +183,31 @@ final class CoreMIDISourceMonitoringService: MIDISourceMonitoringServiceProtocol
     }
 
     private func disconnectAllSources() {
-        guard inputPortRef != 0 else {
+        guard midi1InputPortRef != 0 || midi2InputPortRef != 0 else {
             connectedSources.removeAll(keepingCapacity: false)
             onSourceNamesChange?([])
             return
         }
 
         for source in connectedSources {
-            MIDIPortDisconnectSource(inputPortRef, source)
+            MIDIPortDisconnectSource(source.portRef, source.endpoint)
         }
         connectedSources.removeAll(keepingCapacity: false)
         onSourceNamesChange?([])
     }
 
     private func endpointName(_ endpoint: MIDIEndpointRef) -> String {
-        var displayName: Unmanaged<CFString>?
-        let displayStatus = MIDIObjectGetStringProperty(endpoint, kMIDIPropertyDisplayName, &displayName)
-        if displayStatus == noErr, let displayName {
-            return displayName.takeUnretainedValue() as String
+        if let displayName = MIDIEndpointPropertyReader.stringProperty(endpoint, kMIDIPropertyDisplayName) {
+            return displayName
         }
-
-        var name: Unmanaged<CFString>?
-        let nameStatus = MIDIObjectGetStringProperty(endpoint, kMIDIPropertyName, &name)
-        if nameStatus == noErr, let name {
-            return name.takeUnretainedValue() as String
+        if let name = MIDIEndpointPropertyReader.stringProperty(endpoint, kMIDIPropertyName) {
+            return name
         }
-
         return "Unknown MIDI Source"
     }
+}
+
+private struct ConnectedSource {
+    let portRef: MIDIPortRef
+    let endpoint: MIDIEndpointRef
 }
