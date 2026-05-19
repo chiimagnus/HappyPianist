@@ -19,25 +19,25 @@ final class PracticeMIDIInputCoordinator: PracticeMIDIInputCoordinating, Practic
 
     private let practiceInputEventSource: PracticeInputEventSourceProtocol?
     private let matcher: MIDIPracticeStepMatcher
+    private let stateStore: PracticeSessionStateStore
+    private weak var effectHandler: (any PracticeSessionEffectHandling)?
 
     private var midi1EventsTask: Task<Void, Never>?
     private var midi2EventsTask: Task<Void, Never>?
     private var hasShutdown = false
 
-    private var isRunning = false
-    private var activeSinceUptimeSeconds: TimeInterval?
-    private var lastResetStepIndex: Int?
-
     init(
         practiceInputEventSource: PracticeInputEventSourceProtocol?,
         matcher: MIDIPracticeStepMatcher,
-        consumeEvents: Bool = false
+        stateStore: PracticeSessionStateStore,
+        effectHandler: any PracticeSessionEffectHandling,
+        consumeEvents: Bool
     ) {
         self.practiceInputEventSource = practiceInputEventSource
         self.matcher = matcher
-        if consumeEvents {
-            bindStreamsIfNeeded()
-        }
+        self.stateStore = stateStore
+        self.effectHandler = effectHandler
+        if consumeEvents { bindStreamsIfNeeded() }
     }
 
     func shutdown() {
@@ -61,7 +61,7 @@ final class PracticeMIDIInputCoordinator: PracticeMIDIInputCoordinating, Practic
     func stop() {
         guard let practiceInputEventSource else { return }
         stopSourceIfNeeded(practiceInputEventSource)
-        resetMatchingState()
+        resetMatchingStateIfNeeded()
     }
 
     private var latestSnapshot: Snapshot?
@@ -80,23 +80,24 @@ final class PracticeMIDIInputCoordinator: PracticeMIDIInputCoordinating, Practic
             return
         }
 
-        if lastResetStepIndex != snapshot.currentStepIndex {
-            activeSinceUptimeSeconds = ProcessInfo.processInfo.systemUptime
+        if stateStore.practiceInputLastResetStepIndex != snapshot.currentStepIndex {
+            stateStore.practiceInputGeneration += 1
+            stateStore.practiceInputActiveSinceUptimeSeconds = ProcessInfo.processInfo.systemUptime
             matcher.reset(
                 stepIndex: snapshot.currentStepIndex,
                 expectedNotes: snapshot.expectedNotes,
                 configuredAt: .now
             )
-            lastResetStepIndex = snapshot.currentStepIndex
+            stateStore.practiceInputLastResetStepIndex = snapshot.currentStepIndex
         }
 
-        guard isRunning == false else { return }
+        guard stateStore.isPracticeInputRunning == false else { return }
         do {
             try practiceInputEventSource.start()
-            isRunning = true
+            stateStore.isPracticeInputRunning = true
         } catch {
-            isRunning = false
-            resetMatchingState()
+            stateStore.isPracticeInputRunning = false
+            resetMatchingStateIfNeeded()
             logger.error("practice input start failed: \(error.localizedDescription, privacy: .public)")
         }
     }
@@ -107,32 +108,89 @@ final class PracticeMIDIInputCoordinator: PracticeMIDIInputCoordinating, Practic
 
         let midi1Stream = practiceInputEventSource.midi1EventsStream()
         midi1EventsTask = Task { [weak self] in
-            for await _ in midi1Stream {
+            for await event in midi1Stream {
                 await MainActor.run {
-                    _ = self?.activeSinceUptimeSeconds
+                    self?.handleMIDI1(event)
                 }
             }
         }
 
         let midi2Stream = practiceInputEventSource.midi2EventsStream()
         midi2EventsTask = Task { [weak self] in
-            for await _ in midi2Stream {
+            for await event in midi2Stream {
                 await MainActor.run {
-                    _ = self?.activeSinceUptimeSeconds
+                    self?.handleMIDI2(event)
                 }
             }
         }
     }
 
     private func stopSourceIfNeeded(_ practiceInputEventSource: PracticeInputEventSourceProtocol) {
-        guard isRunning else { return }
+        guard stateStore.isPracticeInputRunning else { return }
         practiceInputEventSource.stop()
-        isRunning = false
+        stateStore.isPracticeInputRunning = false
     }
 
-    private func resetMatchingState() {
-        activeSinceUptimeSeconds = nil
-        lastResetStepIndex = nil
+    private func resetMatchingStateIfNeeded() {
+        guard stateStore.practiceInputActiveSinceUptimeSeconds != nil ||
+            stateStore.practiceInputLastResetStepIndex != nil ||
+            stateStore.isPracticeInputRunning
+        else {
+            return
+        }
+        stateStore.practiceInputActiveSinceUptimeSeconds = nil
+        stateStore.practiceInputLastResetStepIndex = nil
+        stateStore.practiceInputGeneration += 1
         matcher.reset(stepIndex: -1, expectedNotes: [], configuredAt: .now)
+    }
+
+    private func handleMIDI1(_ event: MIDI1InputEvent) {
+        guard stateStore.isPracticeInputRunning else { return }
+        guard let snapshot = latestSnapshot else { return }
+        guard snapshot.autoplayState == .off else { return }
+        guard snapshot.isManualReplayPlaying == false else { return }
+        guard case .guiding = snapshot.practiceState else { return }
+        guard snapshot.expectedNotes.isEmpty == false else { return }
+
+        if let since = stateStore.practiceInputActiveSinceUptimeSeconds, event.receivedAtUptimeSeconds < since {
+            return
+        }
+
+        switch event.kind {
+        case let .noteOn(note, _):
+            let matchResult = matcher.registerNoteOn(note: note, at: event.receivedAt)
+            if case .matched = matchResult {
+                effectHandler?.handle(effect: .advanceToNextStep)
+            }
+        case let .noteOff(note, _):
+            matcher.registerNoteOff(note: note, at: event.receivedAt)
+        default:
+            break
+        }
+    }
+
+    private func handleMIDI2(_ event: MIDI2InputEvent) {
+        guard stateStore.isPracticeInputRunning else { return }
+        guard let snapshot = latestSnapshot else { return }
+        guard snapshot.autoplayState == .off else { return }
+        guard snapshot.isManualReplayPlaying == false else { return }
+        guard case .guiding = snapshot.practiceState else { return }
+        guard snapshot.expectedNotes.isEmpty == false else { return }
+
+        if let since = stateStore.practiceInputActiveSinceUptimeSeconds, event.receivedAtUptimeSeconds < since {
+            return
+        }
+
+        switch event.kind {
+        case let .noteOn(note, _):
+            let matchResult = matcher.registerNoteOn(note: note, at: event.receivedAt)
+            if case .matched = matchResult {
+                effectHandler?.handle(effect: .advanceToNextStep)
+            }
+        case let .noteOff(note, _):
+            matcher.registerNoteOff(note: note, at: event.receivedAt)
+        default:
+            break
+        }
     }
 }
