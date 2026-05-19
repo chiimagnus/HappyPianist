@@ -70,10 +70,16 @@ final class ARGuideViewModel {
         case ready
     }
 
+    // MARK: - Dependencies
     private let appState: AppState
+    let flowState: FlowState
+
+    // MARK: - Practice Session (P3: split target)
     private let practiceSessionViewModelFactory: PracticeSessionViewModelFactoryProtocol
     private(set) var practiceSessionViewModel: PracticeSessionViewModel
     private var latestPreparedPractice: PreparedPractice?
+
+    // MARK: - Tracking & Long-Lived Tasks (P3: split target)
     private var handTrackingConsumerTask: Task<Void, Never>?
     private var currentTrackingMode: ARTrackingMode?
     private var virtualPianoGuidanceUpdateTask: Task<Void, Never>?
@@ -89,6 +95,7 @@ final class ARGuideViewModel {
     private let practiceLocalizationTimeoutSeconds = 5
     private let practiceLocalizationPollingIntervalNanoseconds: UInt64 = 250_000_000
 
+    // MARK: - UI/Flow State (P3: split target)
     private(set) var practiceLocalizationState: PracticeLocalizationState = .idle
     private(set) var calibrationPhase: CalibrationPhase = .capturingA0
     private(set) var isVirtualPianoEnabled = false
@@ -98,12 +105,18 @@ final class ARGuideViewModel {
     private(set) var latestAIPerformanceSchedule: [PracticeSequencerMIDIEvent] = []
     private(set) var lastImprovStatusText: String?
     private(set) var latestDeviceWorldPosition: SIMD3<Float>?
+
+    // MARK: - Gaze & Placement (P3: split target)
     private var silenceTrigger = NoteOnSilenceTrigger()
     let gazePlaneDiskConfirmation = GazePlaneDiskConfirmationViewModel()
     private let gazePlaneHitTestService = GazePlaneHitTestService()
     private var latestGazePlaneHit: PlaneHit?
     private var latestGazeRayOriginWorld: SIMD3<Float>?
+
+    // MARK: - Backend / Improv (P3: split target)
     private let backendDiscoveryService = BonjourBackendDiscoveryService()
+
+    // MARK: - Recording (P3: split target)
     private var phraseRecorder = PhraseRecorder()
     private var takeRecorder = RecordingTakeRecorder()
     private let midiRecordingAdapter = MIDIRecordingAdapter()
@@ -116,8 +129,6 @@ final class ARGuideViewModel {
     private var recordingStartDate: Date?
     private var midiTakeRecordingMIDI1Task: Task<Void, Never>?
     private var midiTakeRecordingMIDI2Task: Task<Void, Never>?
-
-    let flowState: FlowState
     private let pianoModeRegistry: PianoModeRegistryProtocol
 
     init(
