@@ -7,7 +7,7 @@ protocol AudioSpectrumAnalyzingProtocol: Sendable {
     func analyze(samples: [Float], sampleRate: Double, timestamp: Date) throws -> AudioSpectrumFrame
 }
 
-struct VDSPAudioSpectrumAnalyzer: AudioSpectrumAnalyzingProtocol {
+nonisolated struct VDSPAudioSpectrumAnalyzer: AudioSpectrumAnalyzingProtocol {
     enum AnalyzerError: LocalizedError {
         case invalidInput
         var errorDescription: String? {
@@ -139,7 +139,7 @@ struct VDSPAudioSpectrumAnalyzer: AudioSpectrumAnalyzingProtocol {
     }
 }
 
-private extension Int {
+private nonisolated extension Int {
     var isPowerOfTwo: Bool {
         self > 0 && (self & (self - 1)) == 0
     }

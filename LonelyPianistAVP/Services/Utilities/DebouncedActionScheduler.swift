@@ -1,27 +1,34 @@
-import Dispatch
 import Foundation
+import os
 
 final class DebouncedActionScheduler: @unchecked Sendable {
-    private let queue: DispatchQueue
-    private let debounceSec: TimeInterval
-    private var workItem: DispatchWorkItem?
-
-    init(queue: DispatchQueue, debounceSec: TimeInterval) {
-        self.queue = queue
-        self.debounceSec = max(0, debounceSec)
+    private struct State {
+        var task: Task<Void, Never>?
     }
 
-    func schedule(_ action: @escaping @Sendable () -> Void) {
-        workItem?.cancel()
+    private let debounce: Duration
+    private let stateLock = OSAllocatedUnfairLock(initialState: State())
 
-        let item = DispatchWorkItem(block: action)
-        workItem = item
+    init(debounce: Duration) {
+        self.debounce = debounce
+    }
 
-        queue.asyncAfter(deadline: .now() + debounceSec, execute: item)
+    func schedule(_ action: @escaping @Sendable @MainActor () -> Void) {
+        let debounce = debounce
+        stateLock.withLock { state in
+            state.task?.cancel()
+            state.task = Task {
+                try? await Task.sleep(for: debounce)
+                guard Task.isCancelled == false else { return }
+                await MainActor.run { action() }
+            }
+        }
     }
 
     func cancel() {
-        workItem?.cancel()
-        workItem = nil
+        stateLock.withLock { state in
+            state.task?.cancel()
+            state.task = nil
+        }
     }
 }

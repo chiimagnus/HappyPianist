@@ -1,6 +1,6 @@
 import Foundation
 
-struct PracticeAudioRecognitionDebugSnapshot: Equatable {
+nonisolated struct PracticeAudioRecognitionDebugSnapshot: Equatable, Sendable {
     enum PermissionState: String, Equatable {
         case unknown
         case granted

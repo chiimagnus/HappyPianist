@@ -33,7 +33,7 @@ final class PracticeLocalizationViewModel {
                 case let .anchorNotTracked(id, waitedSeconds):
                     "无法定位：锚点存在但尚未追踪（id=\(id.uuidString)，已等待 \(waitedSeconds) 秒）。"
                 case let .anchorsTooClose(distanceMeters):
-                    "校准数据异常：A0 与 C8 距离过近（\(String(format: "%.3f", distanceMeters))m）。请返回 Step 1 重新校准。"
+                    "校准数据异常：A0 与 C8 距离过近（\(distanceMeters.formatted(.number.precision(.fractionLength(3))))m）。请返回 Step 1 重新校准。"
                 case let .devicePoseUnavailable(waitedSeconds):
                     "无法定位：设备位姿尚不可用（已等待 \(waitedSeconds) 秒）。"
                 case let .immersiveOpenFailed(message):
