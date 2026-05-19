@@ -324,8 +324,8 @@ final class VirtualPerformerOverlayController {
                 let angle = start + (targetAngleRadians - start) * t
                 xiaochengNodAngleRadians = angle
                 applyXiaochengHeadNodPose(rig: xiaochengRig)
-                let nanos = UInt64((durationSeconds / Float(steps)) * 1_000_000_000)
-                try? await Task.sleep(nanoseconds: nanos)
+                let stepSeconds = Double(durationSeconds / Float(steps))
+                try? await Task.sleep(for: .seconds(stepSeconds))
             }
         }
     }

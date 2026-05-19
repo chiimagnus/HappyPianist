@@ -1,6 +1,6 @@
 import Foundation
 
-struct HarmonicTemplateScorer {
+nonisolated struct HarmonicTemplateScorer: Sendable {
     private let epsilon = 1e-9
 
     func score(

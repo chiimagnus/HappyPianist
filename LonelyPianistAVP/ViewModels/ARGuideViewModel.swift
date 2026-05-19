@@ -919,7 +919,9 @@ final class ARGuideViewModel {
         let elapsed = Date().timeIntervalSince(startDate)
         let minutes = Int(elapsed) / 60
         let seconds = Int(elapsed) % 60
-        return String(format: "%02d:%02d", minutes, seconds)
+        let minutesText = minutes.formatted(.number.precision(.integerLength(2)))
+        let secondsText = seconds.formatted(.number.precision(.integerLength(2)))
+        return "\(minutesText):\(secondsText)"
     }
 
     var canRecord: Bool {

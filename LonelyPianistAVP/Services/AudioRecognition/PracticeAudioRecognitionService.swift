@@ -2,7 +2,7 @@ import AVFoundation
 import Foundation
 import os
 
-final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProtocol {
+nonisolated final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProtocol {
     private enum ServiceError: LocalizedError {
         case permissionDenied
         case invalidInputFormat
@@ -35,10 +35,32 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
     private let audioEngine: AVAudioEngine
     private let spectrumAnalyzer: any AudioSpectrumAnalyzingProtocol
     private let harmonicDetector: any HarmonicTemplateDetectingProtocol
-    private let processingQueue = DispatchQueue(
-        label: "com.lonelypianist.audio.recognition.processing",
-        qos: .userInitiated
-    )
+    private struct ProcessingChainState {
+        var tailTask: Task<Void, Never>?
+    }
+
+    private nonisolated final class ProcessingProxy: @unchecked Sendable {
+        private weak var service: PracticeAudioRecognitionService?
+
+        init(service: PracticeAudioRecognitionService) {
+            self.service = service
+        }
+
+        func process(samples: [Float], sampleRate: Double) {
+            service?.processAudioSamples(samples, sampleRate: sampleRate)
+        }
+
+        func cancelPendingWork() {
+            service?.processingChainLock.withLock { state in
+                state.tailTask?.cancel()
+                state.tailTask = nil
+            }
+        }
+    }
+
+    private let processingChainLock = OSAllocatedUnfairLock(initialState: ProcessingChainState())
+    private lazy var processingProxy = ProcessingProxy(service: self)
+
     private let lock = NSLock()
     private let recognitionLogger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
@@ -130,9 +152,7 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
             guard let self else { return }
             guard let samples = Self.monoSamples(from: buffer), samples.isEmpty == false else { return }
             let sampleRate = buffer.format.sampleRate
-            processingQueue.async {
-                self.processAudioSamples(samples, sampleRate: sampleRate)
-            }
+            scheduleProcessing(samples: samples, sampleRate: sampleRate)
         }
         isTapInstalled = true
         do {
@@ -170,6 +190,7 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
             isTapInstalled = false
         }
         audioEngine.stop()
+        processingProxy.cancelPendingWork()
         lock.lock()
         expectedMIDINotes.removeAll()
         wrongCandidateMIDINotes.removeAll()
@@ -178,6 +199,17 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
         rollingBuffer.reset()
         lock.unlock()
         statusContinuation.yield(.stopped)
+    }
+
+    private func scheduleProcessing(samples: [Float], sampleRate: Double) {
+        let proxy = processingProxy
+        processingChainLock.withLock { state in
+            let previous = state.tailTask
+            state.tailTask = Task.detached(priority: .userInitiated) {
+                if let previous { await previous.value }
+                proxy.process(samples: samples, sampleRate: sampleRate)
+            }
+        }
     }
 
     private func processAudioSamples(_ samples: [Float], sampleRate: Double) {
@@ -381,6 +413,11 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
     }
 
     private func makeMatchProgress(results: [TemplateMatchResult]) -> String {
-        results.prefix(3).map { "\($0.midiNote):\(String(format: "%.2f", $0.confidence))" }.joined(separator: " ")
+        results.prefix(3)
+            .map { result in
+                let confidenceText = result.confidence.formatted(.number.precision(.fractionLength(2)))
+                return "\(result.midiNote):\(confidenceText)"
+            }
+            .joined(separator: " ")
     }
 }

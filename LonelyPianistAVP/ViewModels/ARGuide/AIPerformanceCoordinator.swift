@@ -1,4 +1,3 @@
-import Dispatch
 import Foundation
 import os
 
@@ -342,16 +341,9 @@ final class AIPerformanceCoordinator {
 
         let sequence: PracticeSequencerSequence
         do {
-            sequence = try await withCheckedThrowingContinuation { continuation in
-                DispatchQueue.global(qos: .userInitiated).async {
-                    do {
-                        let sequence = try PracticeSequencerSequenceBuilder().buildSequence(from: schedule)
-                        continuation.resume(returning: sequence)
-                    } catch {
-                        continuation.resume(throwing: error)
-                    }
-                }
-            }
+            sequence = try await Task.detached(priority: .userInitiated) {
+                try PracticeSequencerSequenceBuilder().buildSequence(from: schedule)
+            }.value
         } catch {
             return
         }
@@ -416,25 +408,19 @@ final class AIPerformanceCoordinator {
 
         let scheduleAndSequence: (schedule: [PracticeSequencerMIDIEvent], sequence: PracticeSequencerSequence)
         do {
-            scheduleAndSequence = try await withCheckedThrowingContinuation { continuation in
-                DispatchQueue.global(qos: .userInitiated).async {
-                    do {
-                        let builder = PracticeSequencerSequenceBuilder()
-                        let schedule = builder.buildAudioEventSchedule(
-                            timeline: timelineSnapshot,
-                            tempoMap: tempoMapSnapshot,
-                            startTick: tickRange.startTick,
-                            initialSustainPedalDown: initialSustainPedalDown,
-                            leadInSeconds: leadInSeconds,
-                            endTick: tickRange.endTick
-                        )
-                        let sequence = try builder.buildSequence(from: schedule)
-                        continuation.resume(returning: (schedule, sequence))
-                    } catch {
-                        continuation.resume(throwing: error)
-                    }
-                }
-            }
+            scheduleAndSequence = try await Task.detached(priority: .userInitiated) {
+                let builder = PracticeSequencerSequenceBuilder()
+                let schedule = builder.buildAudioEventSchedule(
+                    timeline: timelineSnapshot,
+                    tempoMap: tempoMapSnapshot,
+                    startTick: tickRange.startTick,
+                    initialSustainPedalDown: initialSustainPedalDown,
+                    leadInSeconds: leadInSeconds,
+                    endTick: tickRange.endTick
+                )
+                let sequence = try builder.buildSequence(from: schedule)
+                return (schedule, sequence)
+            }.value
         } catch {
             return
         }

@@ -1,5 +1,4 @@
 import CoreMIDI
-import Dispatch
 import Foundation
 import OSLog
 
@@ -32,7 +31,7 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
     private var connectedSources: [MIDIEndpointRef] = []
     private var isRunning = false
     private var didLogNonNoteMessage = false
-    private let refreshScheduler = DebouncedActionScheduler(queue: .main, debounceSec: 0.2)
+    private let refreshScheduler = DebouncedActionScheduler(debounce: .milliseconds(200))
 
     deinit {
         stop()

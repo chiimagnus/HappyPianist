@@ -25,7 +25,7 @@ final class CoreMIDISourceMonitoringService: MIDISourceMonitoringServiceProtocol
     var onLastErrorMessageChange: (@Sendable (String?) -> Void)?
 
     private let logger = Logger(subsystem: "com.chiimagnus.LonelyPianist", category: "CoreMIDI-AVP-Sources")
-    private let refreshScheduler = DebouncedActionScheduler(queue: .main, debounceSec: 0.2)
+    private let refreshScheduler = DebouncedActionScheduler(debounce: .milliseconds(200))
 
     private var clientRef: MIDIClientRef = 0
     private var midi1InputPortRef: MIDIPortRef = 0

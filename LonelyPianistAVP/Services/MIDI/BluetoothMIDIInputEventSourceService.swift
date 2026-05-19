@@ -41,7 +41,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
         subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
         category: "BluetoothMIDI-MIDI2"
     )
-    private let refreshScheduler = DebouncedActionScheduler(queue: .main, debounceSec: 0.2)
+    private let refreshScheduler = DebouncedActionScheduler(debounce: .milliseconds(200))
 
     private var clientRef: MIDIClientRef = 0
     private var midi1InputPortRef: MIDIPortRef = 0
