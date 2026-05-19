@@ -35,7 +35,7 @@
 - Swift：Swift 6.0+
 
 平台支持（按项目选择）：
-- iOS 17.0+、iPadOS 17.0+、macOS 14.0+
+- macOS 14.0+、visionOS26+
 - VisionOS开发需要参考[visionos-dev.md](visionos-dev.md)
 
 ## 设计原则
@@ -58,11 +58,7 @@
 - **View**：渲染与交互绑定；不写业务逻辑；不直接访问数据库/网络
 - **Service/Repository**：网络、持久化、文件 IO 等副作用；优先协议抽象 + 注入
 
-### 模块化建议（可选，不是硬性要求）
-
-当项目允许时，可把“逻辑层”下沉到 SwiftPM，以便：
-- 更快的单元测试（测试执行方式按项目工具链约束选择）
-- 更强的可复用性与跨平台能力
+### 模块化规范
 
 建议依赖方向保持单向：
 `SwiftUI 层 → ViewModel → Services → Models`
@@ -79,12 +75,6 @@
 - 避免单例：不要用 `static let shared`
 - 依赖注入优先：初始化参数或 `.environment(...)`
 - 不使用 `ObservableObject` / `@Published` / `@StateObject` / `@ObservedObject` / `@EnvironmentObject`（统一用 Observation 体系）。
-
-### SwiftUI 事件处理
-
-- 优先使用 `.onChange(of:) {}` 的无参数重载。
-- 只有确实需要 `oldValue` / `newValue` 时，才使用带两个参数的重载。
-- 避免使用 `onChange` 的 1 参数变体。
 
 ## 协议驱动开发
 
