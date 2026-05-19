@@ -13,7 +13,7 @@ extension PracticeSessionViewModel {
     }
 
     func strictTriggerGuideIndex(forStepIndex stepIndex: Int) -> Int? {
-        highlightGuideController?.strictTriggerGuideIndex(forStepIndex: stepIndex)
+        stateStore.strictTriggerGuideIndex(forStepIndex: stepIndex)
     }
 }
 

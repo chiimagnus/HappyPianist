@@ -34,7 +34,7 @@ final class PracticeHighlightGuideController: PracticeSessionLifecycleProtocol {
             stateStore.currentHighlightGuideIndex = nil
             return
         }
-        stateStore.currentHighlightGuideIndex = strictTriggerGuideIndex(forStepIndex: stepIndex)
+        stateStore.currentHighlightGuideIndex = stateStore.strictTriggerGuideIndex(forStepIndex: stepIndex)
     }
 
     func updateHighlightGuideAfterStepAdvance(previousTick: Int, nextStepIndex: Int) {
@@ -69,12 +69,6 @@ final class PracticeHighlightGuideController: PracticeSessionLifecycleProtocol {
             guard Task.isCancelled == false else { return }
             setCurrentHighlightGuideForStepIndex(nextStepIndex)
             transitionTask = nil
-        }
-    }
-
-    func strictTriggerGuideIndex(forStepIndex stepIndex: Int) -> Int? {
-        stateStore.highlightGuides.firstIndex { guide in
-            guide.practiceStepIndex == stepIndex && guide.kind == .trigger
         }
     }
 }

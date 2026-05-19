@@ -63,7 +63,7 @@ final class PracticePlaybackCoordinator: PracticePlaybackCoordinating, PracticeS
             do {
                 try sequencerPlaybackService.warmUp()
             } catch {
-                recordPlaybackError(error)
+                stateStore.recordPlaybackError(error)
             }
 
             stateStore.autoplayState = .playing
@@ -93,7 +93,7 @@ final class PracticePlaybackCoordinator: PracticePlaybackCoordinating, PracticeS
                 durationSeconds: 0.35
             )
         } catch {
-            recordPlaybackError(error)
+            stateStore.recordPlaybackError(error)
         }
     }
 
@@ -129,7 +129,7 @@ final class PracticePlaybackCoordinator: PracticePlaybackCoordinating, PracticeS
                     timingBaseTick: timingBaseTick
                 )
             } catch {
-                recordPlaybackError(error)
+                stateStore.recordPlaybackError(error)
                 stopAutoplayWithError(stateStore.audioPlaybackErrorMessage ?? "无法自动播放：播放任务异常。")
             }
         }
@@ -213,7 +213,7 @@ final class PracticePlaybackCoordinator: PracticePlaybackCoordinating, PracticeS
         guard stateStore.highlightGuides.isEmpty == false else {
             return "无法自动播放：缺少键盘高亮引导数据。请重新导入这份 MusicXML。"
         }
-        guard strictTriggerGuideIndex(forStepIndex: stateStore.currentStepIndex) != nil else {
+        guard stateStore.strictTriggerGuideIndex(forStepIndex: stateStore.currentStepIndex) != nil else {
             return "无法自动播放：引导数据不一致（找不到当前步骤的触发点）。请重新导入这份 MusicXML。"
         }
         return nil
@@ -227,12 +227,6 @@ final class PracticePlaybackCoordinator: PracticePlaybackCoordinating, PracticeS
         effectHandler?.handle(effect: .refreshAudioRecognition)
     }
 
-    private func strictTriggerGuideIndex(forStepIndex stepIndex: Int) -> Int? {
-        stateStore.highlightGuides.firstIndex { guide in
-            guide.practiceStepIndex == stepIndex && guide.kind == .trigger
-        }
-    }
-
     @discardableResult
     private func prepareAudioRecognitionSuppressWindowForPlayback() -> Date {
         let suppressUntil = Date().addingTimeInterval(audioRecognitionSuppressDuration)
@@ -242,20 +236,6 @@ final class PracticePlaybackCoordinator: PracticePlaybackCoordinating, PracticeS
             generation: stateStore.audioRecognitionGeneration
         )
         return suppressUntil
-    }
-
-    private func recordPlaybackError(_ error: Error) {
-        guard stateStore.audioPlaybackErrorMessage == nil else { return }
-        stateStore.audioPlaybackErrorMessage = audioErrorText(for: error)
-    }
-
-    private func audioErrorText(for error: Error) -> String {
-        if let localized = error as? LocalizedError, let description = localized.errorDescription,
-           description.isEmpty == false
-        {
-            return description
-        }
-        return String(describing: error)
     }
 
     private func runAutoplayTask(
@@ -271,7 +251,7 @@ final class PracticePlaybackCoordinator: PracticePlaybackCoordinating, PracticeS
         do {
             try sequencerPlaybackService.warmUp()
         } catch {
-            recordPlaybackError(error)
+            stateStore.recordPlaybackError(error)
             stopAutoplayWithError(stateStore.audioPlaybackErrorMessage ?? "无法自动播放：音频服务初始化失败。")
             return
         }
@@ -288,7 +268,7 @@ final class PracticePlaybackCoordinator: PracticePlaybackCoordinating, PracticeS
                 leadInSeconds: leadInSeconds
             )
         } catch {
-            recordPlaybackError(error)
+            stateStore.recordPlaybackError(error)
             stopAutoplayWithError(stateStore.audioPlaybackErrorMessage ?? "无法自动播放：构建 MIDI 序列失败。")
             return
         }
@@ -299,7 +279,7 @@ final class PracticePlaybackCoordinator: PracticePlaybackCoordinating, PracticeS
             try sequencerPlaybackService.load(sequence: sequence)
             try sequencerPlaybackService.play(fromSeconds: 0)
         } catch {
-            recordPlaybackError(error)
+            stateStore.recordPlaybackError(error)
             stopAutoplayWithError(stateStore.audioPlaybackErrorMessage ?? "无法自动播放：播放服务启动失败。")
             return
         }

@@ -86,7 +86,7 @@ final class PracticeManualReplayCoordinator: PracticeSessionLifecycleProtocol {
             do {
                 try sequencerPlaybackService.warmUp()
             } catch {
-                recordPlaybackError(error)
+                stateStore.recordPlaybackError(error)
                 return
             }
 
@@ -101,7 +101,7 @@ final class PracticeManualReplayCoordinator: PracticeSessionLifecycleProtocol {
                     leadInSeconds: leadInSeconds
                 )
             } catch {
-                recordPlaybackError(error)
+                stateStore.recordPlaybackError(error)
                 return
             }
 
@@ -112,7 +112,7 @@ final class PracticeManualReplayCoordinator: PracticeSessionLifecycleProtocol {
                 try sequencerPlaybackService.load(sequence: sequence)
                 try sequencerPlaybackService.play(fromSeconds: 0)
             } catch {
-                recordPlaybackError(error)
+                stateStore.recordPlaybackError(error)
                 return
             }
 
@@ -174,28 +174,9 @@ final class PracticeManualReplayCoordinator: PracticeSessionLifecycleProtocol {
             stateStore.currentHighlightGuideIndex = nil
             return
         }
-        stateStore.currentHighlightGuideIndex = strictTriggerGuideIndex(forStepIndex: stepIndex)
+        stateStore.currentHighlightGuideIndex = stateStore.strictTriggerGuideIndex(forStepIndex: stepIndex)
     }
 
-    private func strictTriggerGuideIndex(forStepIndex stepIndex: Int) -> Int? {
-        stateStore.highlightGuides.firstIndex { guide in
-            guide.practiceStepIndex == stepIndex && guide.kind == .trigger
-        }
-    }
-
-    private func recordPlaybackError(_ error: Error) {
-        guard stateStore.audioPlaybackErrorMessage == nil else { return }
-        stateStore.audioPlaybackErrorMessage = audioErrorText(for: error)
-    }
-
-    private func audioErrorText(for error: Error) -> String {
-        if let localized = error as? LocalizedError, let description = localized.errorDescription,
-           description.isEmpty == false
-        {
-            return description
-        }
-        return String(describing: error)
-    }
 }
 
 private struct ManualReplayTimeCursor: Equatable {
