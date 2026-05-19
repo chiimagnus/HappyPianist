@@ -1,14 +1,13 @@
 import Foundation
 @testable import LonelyPianistAVP
-import os
 
 final class FakeProtocolSeparatedPracticeInputEventSource: PracticeInputEventSourceProtocol {
     enum StartError: Error {
         case simulatedFailure
     }
 
-    private let midi1Broadcaster = Broadcaster<MIDI1InputEvent>()
-    private let midi2Broadcaster = Broadcaster<MIDI2InputEvent>()
+    private let midi1Broadcaster = AsyncStreamBroadcaster<MIDI1InputEvent>()
+    private let midi2Broadcaster = AsyncStreamBroadcaster<MIDI2InputEvent>()
 
     private(set) var midi1StreamCallCount = 0
     private(set) var midi2StreamCallCount = 0
@@ -56,32 +55,5 @@ final class FakeProtocolSeparatedPracticeInputEventSource: PracticeInputEventSou
             eventsAfterStopCount += 1
         }
         midi2Broadcaster.yield(event)
-    }
-}
-
-private final class Broadcaster<Element: Sendable> {
-    private let continuations = OSAllocatedUnfairLock(initialState: [UUID: AsyncStream<Element>.Continuation]())
-
-    func makeStream() -> AsyncStream<Element> {
-        let id = UUID()
-        return AsyncStream { continuation in
-            continuations.withLock { state in
-                state[id] = continuation
-            }
-            continuation.onTermination = { @Sendable _ in
-                self.continuations.withLock { state in
-                    state[id] = nil
-                }
-            }
-        }
-    }
-
-    func yield(_ event: Element) {
-        let snapshot = continuations.withLock { state in
-            Array(state.values)
-        }
-        for continuation in snapshot {
-            continuation.yield(event)
-        }
     }
 }
