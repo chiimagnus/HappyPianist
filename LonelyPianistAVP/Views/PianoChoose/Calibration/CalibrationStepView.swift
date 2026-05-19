@@ -54,16 +54,17 @@ struct CalibrationStepView: View {
             hasRequestedImmersiveOpen = true
 
             Task { @MainActor in
-                let openError = await viewModel.openImmersiveForStep(
-                    mode: .calibration,
-                    using: openImmersiveSpace
+                let flowCoordinator = PracticeFlowCoordinator.live(
+                    openImmersiveSpace: openImmersiveSpace,
+                    dismissImmersiveSpace: dismissImmersiveSpace
                 )
+                let openError = await flowCoordinator.openImmersiveForStep(viewModel: viewModel, mode: .calibration)
                 if let openError {
                     viewModel.presentCalibrationError(message: openError)
                 }
 
                 if isStepVisible == false {
-                    await viewModel.closeImmersiveForStep(using: dismissImmersiveSpace)
+                    await flowCoordinator.closeImmersiveForStep(viewModel: viewModel)
                     await viewModel.recoverImmersiveStateIfStuck()
                 }
             }
@@ -80,7 +81,11 @@ struct CalibrationStepView: View {
 
             if isSimulatorDemoActive == false, shouldCloseImmersive {
                 Task { @MainActor in
-                    await viewModel.closeImmersiveForStep(using: dismissImmersiveSpace)
+                    let flowCoordinator = PracticeFlowCoordinator.live(
+                        openImmersiveSpace: openImmersiveSpace,
+                        dismissImmersiveSpace: dismissImmersiveSpace
+                    )
+                    await flowCoordinator.closeImmersiveForStep(viewModel: viewModel)
                     await viewModel.recoverImmersiveStateIfStuck()
                 }
             }
@@ -93,16 +98,17 @@ struct CalibrationStepView: View {
         hasRequestedImmersiveOpen = true
 
         Task { @MainActor in
-            let openError = await viewModel.openImmersiveForStep(
-                mode: .calibration,
-                using: openImmersiveSpace
+            let flowCoordinator = PracticeFlowCoordinator.live(
+                openImmersiveSpace: openImmersiveSpace,
+                dismissImmersiveSpace: dismissImmersiveSpace
             )
+            let openError = await flowCoordinator.openImmersiveForStep(viewModel: viewModel, mode: .calibration)
             if let openError {
                 viewModel.presentCalibrationError(message: openError)
             }
 
             if isStepVisible == false {
-                await viewModel.closeImmersiveForStep(using: dismissImmersiveSpace)
+                await flowCoordinator.closeImmersiveForStep(viewModel: viewModel)
                 await viewModel.recoverImmersiveStateIfStuck()
             }
         }

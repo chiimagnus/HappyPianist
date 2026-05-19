@@ -4,7 +4,6 @@ import Foundation
 import Observation
 import os
 import simd
-import SwiftUI
 
 @MainActor
 @Observable
@@ -875,37 +874,36 @@ final class ARGuideViewModel {
     }
 
     func enterPracticeStep(
-        using openImmersiveSpace: OpenImmersiveSpaceAction,
-        dismissImmersiveSpace: DismissImmersiveSpaceAction
+        openImmersiveSpace: PracticeFlowOpenImmersiveSpaceHandler,
+        dismissImmersiveSpace: @escaping PracticeFlowDismissImmersiveSpaceHandler
     ) async {
         replacePracticeSessionViewModel()
         await beginPracticeLocalization(
-            using: openImmersiveSpace,
+            openImmersiveSpace: openImmersiveSpace,
             dismissImmersiveSpace: dismissImmersiveSpace
         )
     }
 
     func retryPracticeLocalization(
-        using openImmersiveSpace: OpenImmersiveSpaceAction,
-        dismissImmersiveSpace: DismissImmersiveSpaceAction
+        openImmersiveSpace: PracticeFlowOpenImmersiveSpaceHandler,
+        dismissImmersiveSpace: @escaping PracticeFlowDismissImmersiveSpaceHandler
     ) async {
         replacePracticeSessionViewModel()
         await beginPracticeLocalization(
-            using: openImmersiveSpace,
+            openImmersiveSpace: openImmersiveSpace,
             dismissImmersiveSpace: dismissImmersiveSpace
         )
     }
 
     func enterVirtualPianoPlacement(
-        using openImmersiveSpace: OpenImmersiveSpaceAction,
-        dismissImmersiveSpace _: DismissImmersiveSpaceAction
+        openImmersiveSpace: PracticeFlowOpenImmersiveSpaceHandler
     ) async {
         guard isVirtualPianoEnabled == false else { return }
         setPracticeVirtualPianoEnabled(true)
         isVirtualPianoPlaced = false
 
         practiceLocalizationState = .openingImmersive
-        if let openError = await openImmersiveForStep(mode: .practice, using: openImmersiveSpace) {
+        if let openError = await openImmersiveForStep(mode: .practice, openImmersiveSpace: openImmersiveSpace) {
             practiceLocalizationState = .failed(reason: .immersiveOpenFailed(message: openError))
             return
         }
@@ -920,7 +918,7 @@ final class ARGuideViewModel {
 
     func openImmersiveForStep(
         mode: AppState.ImmersiveMode,
-        using openImmersiveSpace: OpenImmersiveSpaceAction
+        openImmersiveSpace: PracticeFlowOpenImmersiveSpaceHandler
     ) async -> String? {
         appState.immersiveMode = mode
 
@@ -937,13 +935,13 @@ final class ARGuideViewModel {
                 }
 
                 if appState.immersiveSpaceState == .closed {
-                    return await openImmersiveForStep(mode: mode, using: openImmersiveSpace)
+                    return await openImmersiveForStep(mode: mode, openImmersiveSpace: openImmersiveSpace)
                 }
                 return nil
 
             case .closed:
                 appState.immersiveSpaceState = .inTransition
-                switch await openImmersiveSpace(id: appState.immersiveSpaceID) {
+                switch await openImmersiveSpace(appState.immersiveSpaceID) {
                     case .opened:
                         // Don't set immersiveSpaceState to .open here.
                         // ImmersiveView.onAppear is the single source of truth.
@@ -957,14 +955,14 @@ final class ARGuideViewModel {
                         appState.immersiveSpaceState = .closed
                         return "打开沉浸空间失败，请重试。"
 
-                    @unknown default:
+                    case .unknown:
                         appState.immersiveSpaceState = .closed
                         return "沉浸空间返回未知状态，请重试。"
                 }
         }
     }
 
-    func closeImmersiveForStep(using dismissImmersiveSpace: DismissImmersiveSpaceAction) async {
+    func closeImmersiveForStep(dismissImmersiveSpace: PracticeFlowDismissImmersiveSpaceHandler) async {
         guard appState.immersiveSpaceState != .closed else { return }
         if appState.immersiveSpaceState == .open {
             appState.immersiveSpaceState = .inTransition
@@ -1436,8 +1434,8 @@ final class ARGuideViewModel {
     }
 
     private func beginPracticeLocalization(
-        using openImmersiveSpace: OpenImmersiveSpaceAction,
-        dismissImmersiveSpace: DismissImmersiveSpaceAction
+        openImmersiveSpace: PracticeFlowOpenImmersiveSpaceHandler,
+        dismissImmersiveSpace: @escaping PracticeFlowDismissImmersiveSpaceHandler
     ) async {
         cancelPracticeLocalizationTask()
         if isVirtualPianoEnabled == false {
@@ -1446,7 +1444,7 @@ final class ARGuideViewModel {
 
         guard let blockingReason = practiceEntryBlockingReason() else {
             practiceLocalizationState = .openingImmersive
-            if let openError = await openImmersiveForStep(mode: .practice, using: openImmersiveSpace) {
+            if let openError = await openImmersiveForStep(mode: .practice, openImmersiveSpace: openImmersiveSpace) {
                 practiceLocalizationState = .failed(reason: .immersiveOpenFailed(message: openError))
                 return
             }
@@ -1468,7 +1466,7 @@ final class ARGuideViewModel {
     }
 
     private func runPracticeLocalization(
-        dismissImmersiveSpace: DismissImmersiveSpaceAction
+        dismissImmersiveSpace: PracticeFlowDismissImmersiveSpaceHandler
     ) async {
         practiceLocalizationState = .waitingForProviders
 
@@ -1617,14 +1615,14 @@ final class ARGuideViewModel {
 
     private func handlePracticeLocalizationFailure(
         _ failure: PracticeLocalizationFailure,
-        dismissImmersiveSpace: DismissImmersiveSpaceAction
+        dismissImmersiveSpace: PracticeFlowDismissImmersiveSpaceHandler
     ) async {
         guard Task.isCancelled == false else { return }
 
         practiceLocalizationState = .failed(reason: failure)
         appState.clearRuntimeCalibrationForPracticeRelocation()
 
-        await closeImmersiveForStep(using: dismissImmersiveSpace)
+        await closeImmersiveForStep(dismissImmersiveSpace: dismissImmersiveSpace)
         await recoverImmersiveStateIfStuck()
     }
 

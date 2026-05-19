@@ -163,16 +163,17 @@ struct PracticeStepView: View {
             hasRequestedImmersiveOpen = true
 
             Task { @MainActor in
+                let flowCoordinator = PracticeFlowCoordinator.live(
+                    openImmersiveSpace: openImmersiveSpace,
+                    dismissImmersiveSpace: dismissImmersiveSpace
+                )
                 session.refreshAudioRecognitionFromSettings()
                 viewModel.setPracticeVirtualPianoEnabled(isVirtualPianoMode)
                 viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
-                await viewModel.enterPracticeStep(
-                    using: openImmersiveSpace,
-                    dismissImmersiveSpace: dismissImmersiveSpace
-                )
+                await flowCoordinator.enterPracticeStep(viewModel: viewModel)
 
                 if isStepVisible == false {
-                    await viewModel.closeImmersiveForStep(using: dismissImmersiveSpace)
+                    await flowCoordinator.closeImmersiveForStep(viewModel: viewModel)
                     await viewModel.recoverImmersiveStateIfStuck()
                 }
             }
@@ -215,7 +216,11 @@ struct PracticeStepView: View {
             viewModel.setPracticeVirtualPerformerEnabled(false)
             viewModel.resetPracticeLocalizationState()
             Task { @MainActor in
-                await viewModel.closeImmersiveForStep(using: dismissImmersiveSpace)
+                let flowCoordinator = PracticeFlowCoordinator.live(
+                    openImmersiveSpace: openImmersiveSpace,
+                    dismissImmersiveSpace: dismissImmersiveSpace
+                )
+                await flowCoordinator.closeImmersiveForStep(viewModel: viewModel)
                 await viewModel.recoverImmersiveStateIfStuck()
             }
         }

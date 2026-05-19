@@ -45,10 +45,11 @@ struct VirtualPianoPreparationView: View {
         .frame(minWidth: 560, idealWidth: 700)
         .task {
             if viewModel.isVirtualPianoEnabled == false {
-                await viewModel.enterVirtualPianoPlacement(
-                    using: openImmersiveSpace,
+                let flowCoordinator = PracticeFlowCoordinator.live(
+                    openImmersiveSpace: openImmersiveSpace,
                     dismissImmersiveSpace: dismissImmersiveSpace
                 )
+                await flowCoordinator.enterVirtualPianoPlacement(viewModel: viewModel)
             }
         }
         .onChange(of: viewModel.isVirtualPianoPlaced) {
