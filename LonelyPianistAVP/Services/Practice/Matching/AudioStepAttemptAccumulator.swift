@@ -4,7 +4,6 @@ import os
 enum Step3AudioRecognitionMode: String, CaseIterable {
     case lowLatency
     case stricter
-    case midiInput
 }
 
 struct AudioStepAttemptAccumulatorConfiguration: Equatable {
@@ -43,18 +42,6 @@ struct AudioStepAttemptAccumulatorConfiguration: Equatable {
                     eventTTL: 0.40,
                     rearmSilenceWindow: 0.12,
                     wrongNoteGraceWindow: 0.18
-                )
-            case .midiInput:
-                AudioStepAttemptAccumulatorConfiguration(
-                    singleNoteThreshold: 0.75,
-                    handBoostedThreshold: 0.70,
-                    wrongNoteThreshold: 0.80,
-                    wrongDominanceRatio: 1.35,
-                    onsetThreshold: 0.40,
-                    aggregationWindow: 0.55,
-                    eventTTL: 0.90,
-                    rearmSilenceWindow: 0.10,
-                    wrongNoteGraceWindow: 0.24
                 )
         }
     }

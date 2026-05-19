@@ -258,7 +258,8 @@ struct TakeLibraryView: View {
     private func formatDuration(_ seconds: TimeInterval) -> String {
         let mins = Int(seconds) / 60
         let secs = Int(seconds) % 60
-        return String(format: "%d:%02d", mins, secs)
+        let secsText = secs.formatted(.number.precision(.integerLength(2)))
+        return "\(mins):\(secsText)"
     }
 
     private func formatDate(_ date: Date) -> String {

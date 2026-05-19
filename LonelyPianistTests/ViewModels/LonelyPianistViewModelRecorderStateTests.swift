@@ -124,7 +124,7 @@ private func waitForCondition(
             return true
         }
 
-        try? await Task.sleep(nanoseconds: effectivePoll * 1_000_000)
+        try? await Task.sleep(for: .milliseconds(effectivePoll))
     }
 
     return condition()

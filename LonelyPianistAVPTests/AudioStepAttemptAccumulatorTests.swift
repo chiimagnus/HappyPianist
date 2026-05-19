@@ -3,6 +3,11 @@ import Foundation
 import Testing
 
 @Test
+func step3AudioRecognitionModeDoesNotContainMidiInput() {
+    #expect(Step3AudioRecognitionMode.allCases == [.lowLatency, .stricter])
+}
+
+@Test
 @MainActor
 func singleNoteMatchesWhenExactMIDIWithOnset() {
     let accumulator = AudioStepAttemptAccumulator()

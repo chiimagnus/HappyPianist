@@ -71,6 +71,8 @@ struct RecorderStatusBarView: View {
     private func format(seconds: Int) -> String {
         let minutes = max(0, seconds) / 60
         let remainder = max(0, seconds) % 60
-        return String(format: "%02d:%02d", minutes, remainder)
+        let minutesText = minutes.formatted(.number.precision(.integerLength(2)))
+        let secondsText = remainder.formatted(.number.precision(.integerLength(2)))
+        return "\(minutesText):\(secondsText)"
     }
 }

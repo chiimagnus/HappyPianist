@@ -1,4 +1,3 @@
-import Dispatch
 @testable import LonelyPianist
 import Testing
 
@@ -14,8 +13,7 @@ struct DebouncedActionSchedulerTests {
 
     @Test("Coalesces multiple schedules into one action")
     func coalesces() async throws {
-        let queue = DispatchQueue(label: "DebouncedActionSchedulerTests.queue")
-        let scheduler = DebouncedActionScheduler(queue: queue, debounceSec: 0.05)
+        let scheduler = DebouncedActionScheduler(debounce: .milliseconds(50))
         let counter = Counter()
 
         scheduler.schedule { Task { await counter.increment() } }
@@ -28,8 +26,7 @@ struct DebouncedActionSchedulerTests {
 
     @Test("Cancel prevents scheduled action from firing")
     func cancelStopsAction() async throws {
-        let queue = DispatchQueue(label: "DebouncedActionSchedulerTests.queue.cancel")
-        let scheduler = DebouncedActionScheduler(queue: queue, debounceSec: 0.05)
+        let scheduler = DebouncedActionScheduler(debounce: .milliseconds(50))
         let counter = Counter()
 
         scheduler.schedule { Task { await counter.increment() } }

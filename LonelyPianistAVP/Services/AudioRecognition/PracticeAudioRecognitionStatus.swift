@@ -1,6 +1,6 @@
 import Foundation
 
-enum PracticeAudioRecognitionStatus: Equatable {
+nonisolated enum PracticeAudioRecognitionStatus: Equatable, Sendable {
     case idle
     case requestingPermission
     case permissionDenied

@@ -49,11 +49,12 @@ struct PracticeStepView: View {
         .toolbar {
             ToolbarItemGroup(placement: .bottomOrnament) {
                 Button("回到选曲库", systemImage: "chevron.backward") {
+                    viewModel.practiceSessionViewModel.shutdown()
                     onBackToLibrary()
                 }
                 .buttonStyle(.bordered)
                 .buttonBorderShape(.roundedRectangle)
-                // .hoverEffect()
+                .hoverEffect()
 
                 if isAutoplayEnabled == false {
                     Button(manualAdvanceMode.nextButtonTitle, systemImage: "forward.fill") {
@@ -61,7 +62,7 @@ struct PracticeStepView: View {
                     }
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.roundedRectangle)
-                    // .hoverEffect()
+                    .hoverEffect()
                     .disabled(viewModel.isAIPerformanceActive || viewModel.hasImportedSteps == false || viewModel
                         .practiceSessionViewModel.state == .completed)
 
@@ -74,7 +75,7 @@ struct PracticeStepView: View {
                     }
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.roundedRectangle)
-                    // .hoverEffect()
+                    .hoverEffect()
                     .disabled(
                         viewModel.isAIPerformanceActive ||
                             session.state == .ready ||
@@ -86,7 +87,7 @@ struct PracticeStepView: View {
                     .toggleStyle(.button)
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.roundedRectangle)
-                    // .hoverEffect()
+                    .hoverEffect()
                     .disabled(viewModel.isAIPerformanceActive)
 
                 Button("设置", systemImage: "gearshape") {
@@ -162,16 +163,17 @@ struct PracticeStepView: View {
             hasRequestedImmersiveOpen = true
 
             Task { @MainActor in
+                let flowCoordinator = PracticeFlowCoordinator.live(
+                    openImmersiveSpace: openImmersiveSpace,
+                    dismissImmersiveSpace: dismissImmersiveSpace
+                )
                 session.refreshAudioRecognitionFromSettings()
                 viewModel.setPracticeVirtualPianoEnabled(isVirtualPianoMode)
                 viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
-                await viewModel.enterPracticeStep(
-                    using: openImmersiveSpace,
-                    dismissImmersiveSpace: dismissImmersiveSpace
-                )
+                await flowCoordinator.enterPracticeStep(viewModel: viewModel)
 
                 if isStepVisible == false {
-                    await viewModel.closeImmersiveForStep(using: dismissImmersiveSpace)
+                    await flowCoordinator.closeImmersiveForStep(viewModel: viewModel)
                     await viewModel.recoverImmersiveStateIfStuck()
                 }
             }
@@ -206,6 +208,7 @@ struct PracticeStepView: View {
             isStepVisible = false
             hasRequestedImmersiveOpen = false
             isVirtualPerformerEnabled = false
+            viewModel.practiceSessionViewModel.shutdown()
             viewModel.stopRecording()
             viewModel.takePlaybackViewModel.stop()
             viewModel.setPracticeAutoplayEnabled(false)
@@ -213,7 +216,11 @@ struct PracticeStepView: View {
             viewModel.setPracticeVirtualPerformerEnabled(false)
             viewModel.resetPracticeLocalizationState()
             Task { @MainActor in
-                await viewModel.closeImmersiveForStep(using: dismissImmersiveSpace)
+                let flowCoordinator = PracticeFlowCoordinator.live(
+                    openImmersiveSpace: openImmersiveSpace,
+                    dismissImmersiveSpace: dismissImmersiveSpace
+                )
+                await flowCoordinator.closeImmersiveForStep(viewModel: viewModel)
                 await viewModel.recoverImmersiveStateIfStuck()
             }
         }

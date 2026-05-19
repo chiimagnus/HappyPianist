@@ -1,6 +1,6 @@
 import Foundation
 
-struct TargetedHarmonicDetectionFrame: Equatable {
+nonisolated struct TargetedHarmonicDetectionFrame: Equatable, Sendable {
     let events: [DetectedNoteEvent]
     let templateMatchResults: [TemplateMatchResult]
     let processingDurationMs: Double

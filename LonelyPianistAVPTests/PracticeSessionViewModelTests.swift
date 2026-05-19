@@ -155,13 +155,13 @@ func skipDoesNotLetCancelledAutoplayTaskClearNewTaskReference() async {
     viewModel.startGuidingIfReady()
     await settleTaskQueue()
 
-    #expect(viewModel.autoplayTask != nil)
+    #expect(viewModel.autoplayTimingBaseTick != nil)
 
     viewModel.skip()
     await settleTaskQueue()
 
     #expect(viewModel.autoplayState == .playing)
-    #expect(viewModel.autoplayTask != nil)
+    #expect(viewModel.autoplayTimingBaseTick != nil)
 }
 
 @Test

@@ -9,6 +9,7 @@ struct KeyboardMovingGlowOverlay: View {
     private let animationDurationSeconds: Double = 1.25
 
     var body: some View {
+        // KEEP_GEOMETRYREADER: needs live size to compute glow travel and clipping correctly.
         GeometryReader { proxy in
             let width = proxy.size.width
             let height = proxy.size.height

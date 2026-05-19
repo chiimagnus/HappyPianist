@@ -1,5 +1,3 @@
-import SwiftUI
-
 struct PianoModePickerCard: Equatable {
     let title: String
     let subtitle: String
@@ -9,6 +7,7 @@ struct PianoModePickerCard: Equatable {
 protocol PianoModeProtocol {
     var id: String { get }
     var pickerCard: PianoModePickerCard { get }
+    var preparationRoute: PianoModePreparationRoute { get }
 
     var usesBluetoothMIDIInput: Bool { get }
     var isVirtualPianoMode: Bool { get }
@@ -20,8 +19,6 @@ protocol PianoModeProtocol {
     @MainActor
     func recordingSourceText() -> String?
 
-    @MainActor
-    func makePreparationView(arGuideViewModel: ARGuideViewModel) -> AnyView
     @MainActor
     func makePracticeSessionViewModel() -> PracticeSessionViewModel
 }

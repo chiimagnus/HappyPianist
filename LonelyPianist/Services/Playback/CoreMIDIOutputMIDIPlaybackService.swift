@@ -83,8 +83,7 @@ final class CoreMIDIOutputMIDIPlaybackService: MIDIPlaybackServiceProtocol {
             let elapsed = Date().timeIntervalSince(playbackStartedAt)
             let delta = max(0, event.time - elapsed)
             if delta > 0 {
-                let ns = UInt64(delta * 1_000_000_000)
-                try? await Task.sleep(nanoseconds: ns)
+                try? await Task.sleep(for: .seconds(delta))
             }
 
             guard !Task.isCancelled else { return }

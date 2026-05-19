@@ -26,7 +26,10 @@ struct PreparationWindowRootView: View {
 
         Group {
             if let selectedMode = coordinator.pianoModeRegistry.mode(for: coordinator.flowState.selectedPianoModeID) {
-                selectedMode.makePreparationView(arGuideViewModel: arGuideViewModel)
+                PianoModePreparationRouterView(
+                    route: selectedMode.preparationRoute,
+                    arGuideViewModel: arGuideViewModel
+                )
             } else {
                 PianoTypePickerView()
             }

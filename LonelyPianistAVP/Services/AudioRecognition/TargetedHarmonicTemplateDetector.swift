@@ -12,7 +12,7 @@ protocol HarmonicTemplateDetectingProtocol: Sendable {
     ) -> TargetedHarmonicDetectionFrame
 }
 
-struct TargetedHarmonicTemplateDetector: HarmonicTemplateDetectingProtocol {
+nonisolated struct TargetedHarmonicTemplateDetector: HarmonicTemplateDetectingProtocol {
     private let templateFactory: HarmonicTemplateFactory
     private let scorer: HarmonicTemplateScorer
 

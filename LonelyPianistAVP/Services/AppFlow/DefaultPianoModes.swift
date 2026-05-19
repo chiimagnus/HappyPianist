@@ -1,7 +1,6 @@
-import SwiftUI
-
 struct RealAudioPianoMode: PianoModeProtocol {
     let id = "real_audio"
+    let preparationRoute: PianoModePreparationRoute = .realPiano
     private let makePracticeSessionViewModelClosure: @MainActor () -> PracticeSessionViewModel
 
     let pickerCard = PianoModePickerCard(
@@ -29,10 +28,6 @@ struct RealAudioPianoMode: PianoModeProtocol {
         "录制来源：手势触键（用于推断按键接触）"
     }
 
-    func makePreparationView(arGuideViewModel: ARGuideViewModel) -> AnyView {
-        AnyView(RealPianoPreparationView(viewModel: arGuideViewModel))
-    }
-
     func makePracticeSessionViewModel() -> PracticeSessionViewModel {
         makePracticeSessionViewModelClosure()
     }
@@ -40,6 +35,7 @@ struct RealAudioPianoMode: PianoModeProtocol {
 
 struct BluetoothMIDIPianoMode: PianoModeProtocol {
     let id = "bluetooth_midi"
+    let preparationRoute: PianoModePreparationRoute = .bluetoothMIDI
     private let makePracticeSessionViewModelClosure: @MainActor () -> PracticeSessionViewModel
 
     let pickerCard = PianoModePickerCard(
@@ -67,10 +63,6 @@ struct BluetoothMIDIPianoMode: PianoModeProtocol {
         "录制来源：Bluetooth MIDI（弹奏琴键即可录制）"
     }
 
-    func makePreparationView(arGuideViewModel: ARGuideViewModel) -> AnyView {
-        AnyView(BluetoothMIDIPreparationView(viewModel: arGuideViewModel))
-    }
-
     func makePracticeSessionViewModel() -> PracticeSessionViewModel {
         makePracticeSessionViewModelClosure()
     }
@@ -78,6 +70,7 @@ struct BluetoothMIDIPianoMode: PianoModeProtocol {
 
 struct VirtualPianoMode: PianoModeProtocol {
     let id = "virtual_piano"
+    let preparationRoute: PianoModePreparationRoute = .virtualPiano
     private let makePracticeSessionViewModelClosure: @MainActor () -> PracticeSessionViewModel
 
     let pickerCard = PianoModePickerCard(
@@ -103,10 +96,6 @@ struct VirtualPianoMode: PianoModeProtocol {
 
     func recordingSourceText() -> String? {
         "录制来源：虚拟钢琴触键"
-    }
-
-    func makePreparationView(arGuideViewModel: ARGuideViewModel) -> AnyView {
-        AnyView(VirtualPianoPreparationView(viewModel: arGuideViewModel))
     }
 
     func makePracticeSessionViewModel() -> PracticeSessionViewModel {

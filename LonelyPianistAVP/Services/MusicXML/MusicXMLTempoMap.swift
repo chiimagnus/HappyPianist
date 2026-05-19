@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated struct MusicXMLTempoMap {
+nonisolated struct MusicXMLTempoMap: Sendable {
     static let ticksPerQuarter = 480
 
     struct TempoRamp: Equatable {

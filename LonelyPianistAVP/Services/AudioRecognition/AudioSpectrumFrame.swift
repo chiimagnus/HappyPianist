@@ -1,6 +1,6 @@
 import Foundation
 
-struct AudioSpectrumFrame: Equatable, HarmonicBandEnergyProvidingProtocol {
+nonisolated struct AudioSpectrumFrame: Equatable, HarmonicBandEnergyProvidingProtocol, Sendable {
     let sampleRate: Double
     let windowSize: Int
     let rms: Double
