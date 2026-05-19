@@ -284,19 +284,29 @@ private enum PracticeHandPalette {
 }
 
 #Preview("Step 3") {
-    let services = AppServices()
+    let worldAnchorCalibrationStore = WorldAnchorCalibrationStore()
+    let keyGeometryService = PianoKeyGeometryService()
+    let arTrackingService = ARTrackingService()
+    let calibrationCaptureService = CalibrationPointCaptureService()
+    let calibrationRepository = CalibrationRepository(worldAnchorCalibrationStore: worldAnchorCalibrationStore)
+    let pianoModeRegistry: PianoModeRegistryProtocol = PianoModeRegistryService(modes: [])
+    let practiceSessionViewModelFactory: PracticeSessionViewModelFactoryProtocol =
+        PracticeSessionViewModelFactoryService(
+            pianoModeRegistry: pianoModeRegistry,
+            makeFallbackPracticeSessionViewModel: { fatalError("preview only") }
+        )
     let flowState = FlowState()
     let appState = AppState(
-        arTrackingService: services.arTrackingService,
-        calibrationCaptureService: services.calibrationCaptureService,
-        calibrationRepository: services.calibrationRepository,
-        keyGeometryService: services.keyGeometryService
+        arTrackingService: arTrackingService,
+        calibrationCaptureService: calibrationCaptureService,
+        calibrationRepository: calibrationRepository,
+        keyGeometryService: keyGeometryService
     )
     let viewModel = ARGuideViewModel(
         appState: appState,
         flowState: flowState,
-        pianoModeRegistry: services.pianoModeRegistry,
-        practiceSessionViewModelFactory: services.practiceSessionViewModelFactory
+        pianoModeRegistry: pianoModeRegistry,
+        practiceSessionViewModelFactory: practiceSessionViewModelFactory
     )
     PracticeStepView(
         viewModel: viewModel,

@@ -7,26 +7,11 @@ struct LibraryWindowRootView: View {
     @Environment(\.scenePhase) private var scenePhase
 
     @Bindable var appState: AppState
-    let services: AppServices
-    let flowState: FlowState
-
     @State private var songLibraryViewModel: SongLibraryViewModel
 
-    init(appState: AppState, services: AppServices, flowState: FlowState) {
+    init(appState: AppState, songLibraryViewModel: SongLibraryViewModel) {
         _appState = Bindable(wrappedValue: appState)
-        self.services = services
-        self.flowState = flowState
-        _songLibraryViewModel = State(initialValue: SongLibraryViewModel(
-            appState: appState,
-            flowState: flowState,
-            practicePreparationService: services.practicePreparationService,
-            indexStore: services.songLibraryIndexStore,
-            fileStore: services.songFileStore,
-            audioImportService: services.audioImportService,
-            paths: services.songLibraryPaths,
-            bundledProvider: services.bundledSongLibraryProvider,
-            audioPlayer: services.songAudioPlayer
-        ))
+        _songLibraryViewModel = State(initialValue: songLibraryViewModel)
     }
 
     var body: some View {

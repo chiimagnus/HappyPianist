@@ -166,24 +166,38 @@ struct SongLibraryView: View {
 }
 
 #Preview {
-    let services = AppServices()
+    let worldAnchorCalibrationStore = WorldAnchorCalibrationStore()
+    let keyGeometryService = PianoKeyGeometryService()
+    let parser: MusicXMLParserProtocol = MusicXMLParser()
+    let stepBuilder: PracticeStepBuilderProtocol = PracticeStepBuilder()
+    let arTrackingService = ARTrackingService()
+    let calibrationCaptureService = CalibrationPointCaptureService()
+    let calibrationRepository = CalibrationRepository(worldAnchorCalibrationStore: worldAnchorCalibrationStore)
+    let practicePreparationService: PracticePreparationServiceProtocol =
+        PracticePreparationService(parser: parser, stepBuilder: stepBuilder)
+    let songLibraryIndexStore: SongLibraryIndexStoreProtocol = SongLibraryIndexStore()
+    let songFileStore: SongFileStoreProtocol = SongFileStore()
+    let audioImportService: AudioImportServiceProtocol = AudioImportService()
+    let songLibraryPaths = SongLibraryPaths()
+    let bundledSongLibraryProvider: BundledSongLibraryProviderProtocol = BundledSongLibraryProvider()
+    let songAudioPlayer: SongAudioPlayerProtocol = SongAudioPlayer()
     let flowState = FlowState()
     let appState = AppState(
-        arTrackingService: services.arTrackingService,
-        calibrationCaptureService: services.calibrationCaptureService,
-        calibrationRepository: services.calibrationRepository,
-        keyGeometryService: services.keyGeometryService
+        arTrackingService: arTrackingService,
+        calibrationCaptureService: calibrationCaptureService,
+        calibrationRepository: calibrationRepository,
+        keyGeometryService: keyGeometryService
     )
     let viewModel = SongLibraryViewModel(
         appState: appState,
         flowState: flowState,
-        practicePreparationService: services.practicePreparationService,
-        indexStore: services.songLibraryIndexStore,
-        fileStore: services.songFileStore,
-        audioImportService: services.audioImportService,
-        paths: services.songLibraryPaths,
-        bundledProvider: services.bundledSongLibraryProvider,
-        audioPlayer: services.songAudioPlayer
+        practicePreparationService: practicePreparationService,
+        indexStore: songLibraryIndexStore,
+        fileStore: songFileStore,
+        audioImportService: audioImportService,
+        paths: songLibraryPaths,
+        bundledProvider: bundledSongLibraryProvider,
+        audioPlayer: songAudioPlayer
     )
     return NavigationStack {
         SongLibraryView(viewModel: viewModel)
