@@ -1,4 +1,3 @@
-import Dispatch
 import Foundation
 import os
 
@@ -38,23 +37,13 @@ extension PracticeSessionViewModel {
 
             let sequence: PracticeSequencerSequence
             do {
-                sequence = try await withCheckedThrowingContinuation { continuation in
-                    DispatchQueue.global(qos: .userInitiated).async {
-                        do {
-                            let builder = PracticeSequencerSequenceBuilder()
-                            let schedule = builder.buildAudioEventSchedule(
-                                timeline: timelineSnapshot,
-                                tempoMap: tempoMapSnapshot,
-                                startTick: timingBaseTick,
-                                initialSustainPedalDown: initialSustainPedalDown,
-                                leadInSeconds: leadInSeconds
-                            )
-                            try continuation.resume(returning: builder.buildSequence(from: schedule))
-                        } catch {
-                            continuation.resume(throwing: error)
-                        }
-                    }
-                }
+                sequence = try await playbackSequenceBuilder.buildAutoplaySequence(
+                    timeline: timelineSnapshot,
+                    tempoMap: tempoMapSnapshot,
+                    startTick: timingBaseTick,
+                    initialSustainPedalDown: initialSustainPedalDown,
+                    leadInSeconds: leadInSeconds
+                )
             } catch {
                 recordPlaybackError(error)
                 stopAutoplayWithError(audioPlaybackErrorMessage ?? "无法自动播放：构建 MIDI 序列失败。")

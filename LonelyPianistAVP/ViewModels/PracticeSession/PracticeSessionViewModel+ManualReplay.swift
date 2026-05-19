@@ -1,4 +1,3 @@
-import Dispatch
 import Foundation
 import os
 
@@ -51,20 +50,12 @@ extension PracticeSessionViewModel {
 
             let sequence: PracticeSequencerSequence
             do {
-                sequence = try await withCheckedThrowingContinuation { continuation in
-                    DispatchQueue.global(qos: .userInitiated).async {
-                        do {
-                            let builder = PracticeManualReplaySequenceBuilder(leadInSeconds: leadInSeconds)
-                            try continuation.resume(returning: builder.buildSequence(
-                                steps: stepsSnapshot,
-                                tempoMap: tempoMapSnapshot,
-                                stepRange: stepRangeSnapshot
-                            ))
-                        } catch {
-                            continuation.resume(throwing: error)
-                        }
-                    }
-                }
+                sequence = try await playbackSequenceBuilder.buildManualReplaySequence(
+                    steps: stepsSnapshot,
+                    tempoMap: tempoMapSnapshot,
+                    stepRange: stepRangeSnapshot,
+                    leadInSeconds: leadInSeconds
+                )
             } catch {
                 recordPlaybackError(error)
                 return

@@ -116,6 +116,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
     let chordAttemptAccumulator: ChordAttemptAccumulatorProtocol
     let sleeper: SleeperProtocol
     let sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol
+    let playbackSequenceBuilder = PlaybackSequenceBuilder()
     let keyContactDetectionService = KeyContactDetectionService()
     let realPianoContactDetectionService = RealPianoContactDetectionService()
     let audioRecognitionService: PracticeAudioRecognitionServiceProtocol?
