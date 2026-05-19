@@ -127,6 +127,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
     private(set) var audioRecognitionCoordinator: PracticeAudioRecognitionCoordinator?
     private(set) var playbackCoordinator: PracticePlaybackCoordinator?
     private(set) var manualReplayCoordinator: PracticeManualReplayCoordinator?
+    private(set) var highlightGuideController: PracticeHighlightGuideController?
     let handPianoActivityGate: HandPianoActivityGate
     private let manualAdvanceModeProvider: () -> ManualAdvanceMode
     private var hasShutdown = false
@@ -216,7 +217,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
         get { stateStore.notationGuideScrollScheduleTimelineEventCount }
         set { stateStore.notationGuideScrollScheduleTimelineEventCount = newValue }
     }
-    var manualHighlightTransitionTask: Task<Void, Never>?
+
     var audioRecognitionGeneration: Int {
         get { stateStore.audioRecognitionGeneration }
         set { stateStore.audioRecognitionGeneration = newValue }
@@ -329,6 +330,11 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
             playbackSequenceBuilder: playbackSequenceBuilder,
             stateStore: stateStore,
             effectHandler: self
+        )
+
+        self.highlightGuideController = PracticeHighlightGuideController(
+            sleeper: sleeper,
+            stateStore: stateStore
         )
     }
 
@@ -549,8 +555,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
         stopAutoplayTask()
         stopAutoplayAudio()
         stopAudioRecognition()
-        manualHighlightTransitionTask?.cancel()
-        manualHighlightTransitionTask = nil
+        highlightGuideController?.stopTransition()
         chordAttemptAccumulator.reset()
         self.steps = steps
         self.tempoMap = tempoMap
@@ -641,8 +646,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
         slurTimeline = nil
         highlightGuides = []
         currentHighlightGuideIndex = nil
-        manualHighlightTransitionTask?.cancel()
-        manualHighlightTransitionTask = nil
+        highlightGuideController?.stopTransition()
         calibration = nil
         keyboardGeometry = nil
         pressedNotes.removeAll()
