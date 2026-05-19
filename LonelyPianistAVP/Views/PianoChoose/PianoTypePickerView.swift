@@ -44,8 +44,9 @@ struct PianoTypePickerView: View {
 }
 
 #Preview("Piano Type Picker") {
-    let root = AppCompositionRoot()
-    let coordinator = WindowCoordinator(flowState: root.flowState, pianoModeRegistry: root.services.pianoModeRegistry)
+    let pianoModeRegistry: PianoModeRegistryProtocol = PianoModeRegistryService(modes: [])
+    let flowState = FlowState()
+    let coordinator = WindowCoordinator(flowState: flowState, pianoModeRegistry: pianoModeRegistry)
 
     return PianoTypePickerView()
         .environment(coordinator)

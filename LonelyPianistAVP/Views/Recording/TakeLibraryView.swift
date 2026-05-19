@@ -12,16 +12,41 @@ struct TakeLibraryView: View {
     let onClearAll: () -> Void
     let makeMIDIExport: (RecordingTake) throws -> RecordingMIDIExport
 
-    @State private var sliderValue: Double = 0
-    @State private var isDraggingSlider = false
+    private let presentationViewModel: any TakeLibraryPresentationViewModelProtocol
+
     @State private var renameTarget: RecordingTake?
     @State private var renameText = ""
-    @State private var timer: Timer?
+    @State private var isRenamePresented = false
     @State private var exportDocument: MIDIFileDocument?
     @State private var exportFileName: String = ""
-    @State private var exportError: String?
-    @State private var playbackError: String?
+    @State private var isMIDIExportPresented = false
+    @State private var presentedErrorMessage = ""
+    @State private var isErrorPresented = false
     @State private var isClearAllConfirmationPresented = false
+
+    init(
+        takes: [RecordingTake],
+        playbackViewModel: TakePlaybackViewModel,
+        isRecording: Bool = false,
+        errorMessage: String? = nil,
+        onErrorDismiss: @escaping () -> Void,
+        onRename: @escaping (UUID, String) -> Void,
+        onDelete: @escaping (UUID) -> Void,
+        onClearAll: @escaping () -> Void,
+        makeMIDIExport: @escaping (RecordingTake) throws -> RecordingMIDIExport,
+        presentationViewModel: any TakeLibraryPresentationViewModelProtocol = TakeLibraryPresentationViewModel()
+    ) {
+        self.takes = takes
+        self.playbackViewModel = playbackViewModel
+        self.isRecording = isRecording
+        self.errorMessage = errorMessage
+        self.onErrorDismiss = onErrorDismiss
+        self.onRename = onRename
+        self.onDelete = onDelete
+        self.onClearAll = onClearAll
+        self.makeMIDIExport = makeMIDIExport
+        self.presentationViewModel = presentationViewModel
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -34,7 +59,16 @@ struct TakeLibraryView: View {
             } else {
                 List {
                     ForEach(takes) { take in
-                        takeRow(take)
+                        TakeLibraryRowView(
+                            take: take,
+                            metadataText: presentationViewModel.metadataText(for: take),
+                            isPlaying: playbackViewModel.isPlaying(takeID: take.id),
+                            isDisabled: isRecording,
+                            onPlayPause: { playOrPause(take) },
+                            onRename: { beginRenaming(take) },
+                            onExport: { exportMIDI(take) },
+                            onDelete: { onDelete(take.id) }
+                        )
                     }
                 }
                 .listStyle(.plain)
@@ -42,10 +76,26 @@ struct TakeLibraryView: View {
 
             Divider()
 
-            nowPlayingBar
+            TakeNowPlayingBarView(
+                playbackViewModel: playbackViewModel,
+                isRecording: isRecording,
+                totalDuration: totalDuration,
+                presentationViewModel: presentationViewModel,
+                onTogglePlayback: toggleCurrentPlayback,
+                onStopPlayback: { playbackViewModel.stop() },
+                onCommitScrubbing: commitScrubbing
+            )
         }
-        .onAppear { startTimer() }
-        .onDisappear { stopTimer() }
+        .onAppear {
+            playbackViewModel.startProgressUpdates()
+            presentExternalErrorIfNeeded()
+        }
+        .onDisappear {
+            playbackViewModel.stopProgressUpdates()
+        }
+        .onChange(of: errorMessage) {
+            presentExternalErrorIfNeeded()
+        }
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Menu {
@@ -54,7 +104,8 @@ struct TakeLibraryView: View {
                     }
                     .disabled(takes.isEmpty)
                 } label: {
-                    Image(systemName: "ellipsis.circle")
+                    Label("更多录制操作", systemImage: "ellipsis.circle")
+                        .labelStyle(.iconOnly)
                 }
                 .buttonBorderShape(.roundedRectangle)
                 .hoverEffect()
@@ -68,206 +119,77 @@ struct TakeLibraryView: View {
         ) {
             Button("清空", role: .destructive) {
                 playbackViewModel.stop()
-                sliderValue = 0
                 onClearAll()
             }
         } message: {
             Text("此操作会删除所有录制，且不可恢复。")
         }
         .fileExporter(
-            isPresented: .init(
-                get: { exportDocument != nil },
-                set: { if !$0 { exportDocument = nil } }
-            ),
+            isPresented: $isMIDIExportPresented,
             document: exportDocument,
             contentType: .midi,
             defaultFilename: exportFileName
-        ) { _ in }
-        .alert("错误", isPresented: .init(
-            get: { errorMessage != nil || exportError != nil || playbackError != nil },
-            set: { if !$0 { onErrorDismiss(); exportError = nil; playbackError = nil } }
-        )) {
-            Button("知道了") { onErrorDismiss(); exportError = nil; playbackError = nil }
+        ) { _ in
+            exportDocument = nil
+        }
+        .alert("错误", isPresented: $isErrorPresented) {
+            Button("知道了", action: dismissPresentedError)
         } message: {
-            Text(errorMessage ?? exportError ?? playbackError ?? "")
+            Text(presentedErrorMessage)
         }
-        .alert("重命名", isPresented: .init(
-            get: { renameTarget != nil },
-            set: { if !$0 { renameTarget = nil } }
-        )) {
+        .alert("重命名", isPresented: $isRenamePresented) {
             TextField("名称", text: $renameText)
-            Button("确定") {
-                if let target = renameTarget, renameText.isEmpty == false {
-                    onRename(target.id, renameText)
-                }
-                renameTarget = nil
-            }
-            Button("取消", role: .cancel) {
-                renameTarget = nil
-            }
+            Button("确定", action: confirmRename)
+            Button("取消", role: .cancel, action: cancelRename)
         }
-    }
-
-    private func takeRow(_ take: RecordingTake) -> some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(take.name)
-                    .font(.body)
-                Text("\(formatDuration(take.durationSeconds)) · \(formatDate(take.createdAt))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-
-            Button {
-                playOrPause(take)
-            } label: {
-                Image(systemName: isPlayingTake(take) ? "pause.circle.fill" : "play.circle.fill")
-                    .font(.title2)
-            }
-            .buttonStyle(.borderless)
-            .buttonBorderShape(.roundedRectangle)
-            .hoverEffect()
-            .disabled(isRecording || take.events.isEmpty)
-
-            Menu {
-                Button("重命名", systemImage: "pencil") {
-                    renameText = take.name
-                    renameTarget = take
-                }
-                Button("导出 MIDI...", systemImage: "square.and.arrow.up") {
-                    exportMIDI(take)
-                }
-                Button("删除", systemImage: "trash", role: .destructive) {
-                    if playbackViewModel.currentTakeID == take.id {
-                        playbackViewModel.stop()
-                        sliderValue = 0
-                    }
-                    onDelete(take.id)
-                }
-            } label: {
-                Image(systemName: "ellipsis.circle")
-                    .font(.title3)
-            }
-            .buttonStyle(.borderless)
-            .buttonBorderShape(.roundedRectangle)
-            .hoverEffect()
-        }
-        .padding(.vertical, 4)
-    }
-
-    private var nowPlayingBar: some View {
-        HStack(spacing: 12) {
-            Button {
-                if playbackViewModel.isPlaying {
-                    playbackViewModel.pause()
-                } else {
-                    try? playbackViewModel.resume()
-                }
-            } label: {
-                Image(systemName: playbackViewModel.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.title3)
-            }
-            .buttonBorderShape(.roundedRectangle)
-            .hoverEffect()
-            .disabled(playbackViewModel.currentTakeID == nil || isRecording)
-
-            Button {
-                playbackViewModel.stop()
-                sliderValue = 0
-            } label: {
-                Image(systemName: "stop.fill")
-                    .font(.title3)
-            }
-            .buttonBorderShape(.roundedRectangle)
-            .hoverEffect()
-            .disabled(playbackViewModel.currentTakeID == nil || isRecording)
-
-            Slider(value: $sliderValue, in: 0 ... max(0.001, totalDuration)) { editing in
-                isDraggingSlider = editing
-                if editing == false {
-                    if playbackViewModel.isPlaying {
-                        try? playbackViewModel.seek(toSeconds: sliderValue)
-                    } else {
-                        playbackViewModel.setPausePositionSeconds(max(0, sliderValue))
-                    }
-                }
-            }
-            .disabled(playbackViewModel.currentTakeID == nil || isRecording)
-
-            Text(formatDuration(isDraggingSlider ? sliderValue : playbackViewModel.currentSeconds()))
-                .monospacedDigit()
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(width: 45, alignment: .trailing)
-
-            Text("/ \(formatDuration(totalDuration))")
-                .monospacedDigit()
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .frame(width: 45, alignment: .leading)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
     }
 
     private var totalDuration: TimeInterval {
-        guard let takeID = playbackViewModel.currentTakeID else { return 0 }
-        return takes.first(where: { $0.id == takeID })?.durationSeconds ?? 0
+        guard playbackViewModel.currentTakeID != nil else { return 0 }
+        return playbackViewModel.currentDurationSeconds
     }
 
-    private func isPlayingTake(_ take: RecordingTake) -> Bool {
-        playbackViewModel.currentTakeID == take.id && playbackViewModel.isPlaying
+    private func beginRenaming(_ take: RecordingTake) {
+        renameText = take.name
+        renameTarget = take
+        isRenamePresented = true
+    }
+
+    private func confirmRename() {
+        if let target = renameTarget, renameText.isEmpty == false {
+            onRename(target.id, renameText)
+        }
+        cancelRename()
+    }
+
+    private func cancelRename() {
+        renameTarget = nil
+        renameText = ""
+        isRenamePresented = false
     }
 
     private func playOrPause(_ take: RecordingTake) {
-        guard take.events.isEmpty == false else {
-            playbackError = "该录制为空，无法播放。"
-            return
-        }
-
         do {
-            if playbackViewModel.currentTakeID == take.id {
-                if playbackViewModel.isPlaying {
-                    playbackViewModel.pause()
-                } else {
-                    try playbackViewModel.resume()
-                }
-            } else {
-                try playbackViewModel.play(take: take)
-            }
+            try playbackViewModel.playOrPause(take: take)
         } catch {
-            playbackError = "播放失败：\(error.localizedDescription)"
+            presentError("播放失败：\(error.localizedDescription)")
         }
     }
 
-    private func startTimer() {
-        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-            Task { @MainActor in
-                guard isDraggingSlider == false else { return }
-                sliderValue = playbackViewModel.currentSeconds()
-            }
+    private func toggleCurrentPlayback() {
+        do {
+            try playbackViewModel.toggleCurrentPlayback()
+        } catch {
+            presentError("播放失败：\(error.localizedDescription)")
         }
     }
 
-    private func stopTimer() {
-        timer?.invalidate()
-        timer = nil
-    }
-
-    private func formatDuration(_ seconds: TimeInterval) -> String {
-        let mins = Int(seconds) / 60
-        let secs = Int(seconds) % 60
-        let secsText = secs.formatted(.number.precision(.integerLength(2)))
-        return "\(mins):\(secsText)"
-    }
-
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .medium
-        formatter.timeStyle = .short
-        return formatter.string(from: date)
+    private func commitScrubbing() {
+        do {
+            try playbackViewModel.commitScrubbing()
+        } catch {
+            presentError("定位播放位置失败：\(error.localizedDescription)")
+        }
     }
 
     private func exportMIDI(_ take: RecordingTake) {
@@ -275,8 +197,25 @@ struct TakeLibraryView: View {
             let export = try makeMIDIExport(take)
             exportDocument = MIDIFileDocument(data: export.data)
             exportFileName = export.fileName
+            isMIDIExportPresented = true
         } catch {
-            exportError = "导出失败：\(error.localizedDescription)"
+            presentError("导出失败：\(error.localizedDescription)")
         }
+    }
+
+    private func presentExternalErrorIfNeeded() {
+        guard let errorMessage else { return }
+        presentError(errorMessage)
+    }
+
+    private func presentError(_ message: String) {
+        presentedErrorMessage = message
+        isErrorPresented = true
+    }
+
+    private func dismissPresentedError() {
+        isErrorPresented = false
+        presentedErrorMessage = ""
+        onErrorDismiss()
     }
 }
