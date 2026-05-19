@@ -79,6 +79,7 @@ final class PracticeSessionViewModel {
     var audioRecognitionDebugTask: Task<Void, Never>?
     var practiceInputMIDI1EventsTask: Task<Void, Never>?
     var practiceInputMIDI2EventsTask: Task<Void, Never>?
+    private var hasShutdown = false
     private(set) var tempoMap = MusicXMLTempoMap(tempoEvents: [])
     private var measureSpans: [MusicXMLMeasureSpan] = []
     var manualReplayTask: Task<Void, Never>?
@@ -159,6 +160,9 @@ final class PracticeSessionViewModel {
     }
 
     func shutdown() {
+        guard hasShutdown == false else { return }
+        hasShutdown = true
+
         stopManualReplayTask(restoreAudioRecognition: false)
         stopAutoplayTask()
         stopAutoplayAudio()
@@ -176,9 +180,6 @@ final class PracticeSessionViewModel {
         practiceInputMIDI1EventsTask = nil
         practiceInputMIDI2EventsTask?.cancel()
         practiceInputMIDI2EventsTask = nil
-
-        audioRecognitionService?.stop()
-        practiceInputEventSource?.stop()
     }
 
     var currentStepIndex: Int = 0 {

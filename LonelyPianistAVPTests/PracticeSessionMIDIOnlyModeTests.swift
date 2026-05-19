@@ -153,7 +153,7 @@ func midiOnlyPracticeExitStopsInputAndDoesNotAdvanceStepAfterTeardown() async {
 
     session.shutdown()
 
-    #expect(inputSource.stopCallCount == 2)
+    #expect(inputSource.stopCallCount == 1)
     #expect(inputSource.isRunning == false)
     #expect(session.currentStepIndex == 0)
 
