@@ -29,7 +29,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
         midi2EventsBroadcaster.makeStream()
     }
 
-    private let logger = Logger(
+    private let lifecycleLogger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
         category: "BluetoothMIDI"
     )
@@ -131,7 +131,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
 
             let endpointProtocolID = endpointIntProperty(source, kMIDIPropertyProtocolID).flatMap(MIDIProtocolID.init(rawValue:))
             if endpointProtocolID == ._2_0, midi2InputPortRef == 0 {
-                logger.warning("Endpoint reports MIDI 2.0 but MIDI 2.0 port is unavailable; subscribing via MIDI 1.0 port: \(self.describeEndpoint(source) ?? "unknown", privacy: .public)")
+                lifecycleLogger.warning("Endpoint reports MIDI 2.0 but MIDI 2.0 port is unavailable; subscribing via MIDI 1.0 port: \(self.describeEndpoint(source) ?? "unknown", privacy: .public)")
             }
             let targetProtocol = MIDICanonicalProtocolSelection.subscribedProtocol(
                 endpointProtocolID: endpointProtocolID,
@@ -148,12 +148,12 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
             } else {
                 Unmanaged<EndpointConnectionContext>.fromOpaque(connRefCon).release()
                 failedStatus = status
-                logger.error("Failed to connect source \(index, privacy: .public): \(status, privacy: .public)")
+                lifecycleLogger.error("Failed to connect source \(index, privacy: .public): \(status, privacy: .public)")
             }
         }
 
         if connectedSourceDescriptions.isEmpty == false {
-            logger.info("Connected MIDI sources: \(self.connectedSourceDescriptions.joined(separator: " | "), privacy: .public)")
+            lifecycleLogger.info("Connected MIDI sources: \(self.connectedSourceDescriptions.joined(separator: " | "), privacy: .public)")
         }
 
         if connectedSources.isEmpty, let failedStatus {
@@ -214,7 +214,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
         }
 
         if status != noErr {
-            logger.warning("Failed to create MIDI 2.0 input port, falling back to MIDI 1.0 only: \(status, privacy: .public)")
+            lifecycleLogger.warning("Failed to create MIDI 2.0 input port, falling back to MIDI 1.0 only: \(status, privacy: .public)")
             midi2InputPortRef = 0
         }
     }
@@ -233,7 +233,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
             do {
                 try self.refreshSources()
             } catch {
-                self.logger.error("Auto refresh MIDI sources failed: \(error.localizedDescription, privacy: .public)")
+                self.lifecycleLogger.error("Auto refresh MIDI sources failed: \(error.localizedDescription, privacy: .public)")
             }
         }
     }
@@ -447,7 +447,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
         }
         guard shouldLog else { return }
 
-        logger.warning(
+        lifecycleLogger.warning(
             "Observed protocol mismatch for \(messageType, privacy: .public): expected=\(expected.rawValue, privacy: .public) actual=\(actual.rawValue, privacy: .public)"
         )
     }
@@ -504,7 +504,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
             .map { "\($0.key)=\($0.value)" }
             .joined(separator: ",")
 
-        logger.info(
+        lifecycleLogger.info(
             "MIDI delivery summary (\(reason, privacy: .public)): eventListProtocols{\(protocols, privacy: .public)} midi1Types{\(format(midi1Types), privacy: .public)} midi1Sources{\(format(midi1Sources), privacy: .public)} midi2Types{\(format(midi2Types), privacy: .public)} midi2Sources{\(format(midi2Sources), privacy: .public)} drops{\(format(drops), privacy: .public)}"
         )
     }

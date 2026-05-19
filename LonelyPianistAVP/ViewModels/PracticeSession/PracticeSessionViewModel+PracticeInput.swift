@@ -103,8 +103,8 @@ extension PracticeSessionViewModel {
 
             switch matchResult {
             case .matched:
-                Self.practiceInputLogger.info(
-                    "midi1 matched id=\(event.debugEventID ?? 0, privacy: .public) step=\(self.currentStepIndex, privacy: .public) src=\(self.describe(event.source), privacy: .public) expected=\(expectedMIDINotes, privacy: .public) noteOn=\(note, privacy: .public) vel=\(velocity, privacy: .public)"
+                logPerNoteIfEnabled(
+                    "midi1 matched id=\(event.debugEventID ?? 0) step=\(currentStepIndex) src=\(describe(event.source)) expected=\(expectedMIDINotes) noteOn=\(note) vel=\(velocity)"
                 )
                 advanceToNextStep()
             case let .wrong(reason):
@@ -156,8 +156,8 @@ extension PracticeSessionViewModel {
 
             switch matchResult {
             case .matched:
-                Self.practiceInputLogger.info(
-                    "midi2 matched id=\(event.debugEventID ?? 0, privacy: .public) step=\(self.currentStepIndex, privacy: .public) src=\(self.describe(event.source), privacy: .public) expected=\(expectedMIDINotes, privacy: .public) noteOn=\(note, privacy: .public) vel16=\(Int(velocity16), privacy: .public)"
+                logPerNoteIfEnabled(
+                    "midi2 matched id=\(event.debugEventID ?? 0) step=\(currentStepIndex) src=\(describe(event.source)) expected=\(expectedMIDINotes) noteOn=\(note) vel16=\(Int(velocity16))"
                 )
                 advanceToNextStep()
             case let .wrong(reason):
@@ -202,6 +202,7 @@ extension PracticeSessionViewModel {
         receivedAtUptimeSeconds: TimeInterval
     ) {
         // Rate-limit + de-dup to avoid flooding logs when the user repeats key presses.
+        guard isPerNoteDiagnosticsEnabled else { return }
         if receivedAtUptimeSeconds - practiceInputDebugLastLoggedAtUptimeSeconds < 0.25 {
             return
         }
@@ -214,7 +215,23 @@ extension PracticeSessionViewModel {
 
         practiceInputDebugLastLoggedAtUptimeSeconds = receivedAtUptimeSeconds
         practiceInputDebugLastMessage = message
-        Self.practiceInputLogger.info("\(message, privacy: .public)")
+        logPerNoteIfEnabled(message)
+    }
+
+    private var isPerNoteDiagnosticsEnabled: Bool {
+        let config = MIDIDiagnosticsConfiguration.live()
+        return config.isPerNoteInfoLoggingEnabled || config.isPerNoteDebugLoggingEnabled
+    }
+
+    private func logPerNoteIfEnabled(_ message: String) {
+        let config = MIDIDiagnosticsConfiguration.live()
+        if config.isPerNoteInfoLoggingEnabled {
+            Self.practiceInputLogger.info("\(message, privacy: .public)")
+            return
+        }
+        if config.isPerNoteDebugLoggingEnabled {
+            Self.practiceInputLogger.debug("\(message, privacy: .public)")
+        }
     }
 
     private func describe(_ source: MIDI1InputEvent.Source) -> String {

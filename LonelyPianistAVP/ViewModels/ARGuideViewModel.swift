@@ -231,15 +231,26 @@ final class ARGuideViewModel {
         }
     }
 
+    private func logMIDIPerNoteIfEnabled(_ message: String) {
+        let config = MIDIDiagnosticsConfiguration.live()
+        if config.isPerNoteInfoLoggingEnabled {
+            practiceInputLogger.info("\(message, privacy: .public)")
+            return
+        }
+        if config.isPerNoteDebugLoggingEnabled {
+            practiceInputLogger.debug("\(message, privacy: .public)")
+        }
+    }
+
     private func handleMIDI1TakeRecordingEvent(_ event: MIDI1InputEvent) {
         guard Task.isCancelled == false else { return }
 
         if let id = event.debugEventID {
             switch event.kind {
             case let .noteOn(note, velocity):
-                practiceInputLogger.info("recording saw midi1 id=\(id, privacy: .public) src=\(self.describe(event.source), privacy: .public) noteOn=\(note, privacy: .public) vel=\(velocity, privacy: .public)")
+                logMIDIPerNoteIfEnabled("recording saw midi1 id=\(id) src=\(describe(event.source)) noteOn=\(note) vel=\(velocity)")
             case let .noteOff(note, velocity):
-                practiceInputLogger.info("recording saw midi1 id=\(id, privacy: .public) src=\(self.describe(event.source), privacy: .public) noteOff=\(note, privacy: .public) vel=\(velocity, privacy: .public)")
+                logMIDIPerNoteIfEnabled("recording saw midi1 id=\(id) src=\(describe(event.source)) noteOff=\(note) vel=\(velocity)")
             default:
                 break
             }
@@ -257,9 +268,9 @@ final class ARGuideViewModel {
         if let id = event.debugEventID {
             switch event.kind {
             case let .noteOn(note, velocity16):
-                practiceInputLogger.info("recording saw midi2 id=\(id, privacy: .public) src=\(self.describe(event.source), privacy: .public) noteOn=\(note, privacy: .public) vel16=\(Int(velocity16), privacy: .public)")
+                logMIDIPerNoteIfEnabled("recording saw midi2 id=\(id) src=\(describe(event.source)) noteOn=\(note) vel16=\(Int(velocity16))")
             case let .noteOff(note, velocity16):
-                practiceInputLogger.info("recording saw midi2 id=\(id, privacy: .public) src=\(self.describe(event.source), privacy: .public) noteOff=\(note, privacy: .public) vel16=\(Int(velocity16), privacy: .public)")
+                logMIDIPerNoteIfEnabled("recording saw midi2 id=\(id) src=\(describe(event.source)) noteOff=\(note) vel16=\(Int(velocity16))")
             default:
                 break
             }
