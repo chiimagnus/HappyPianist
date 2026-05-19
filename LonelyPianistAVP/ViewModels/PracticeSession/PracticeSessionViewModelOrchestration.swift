@@ -47,7 +47,7 @@ extension PracticeSessionViewModel {
     }
 
     func refreshAudioRecognitionFromSettings() {
-        self.practiceAudioRecognitionDetectorModeSnapshot = Self.readPracticeAudioRecognitionDetectorMode()
+        self.practiceAudioRecognitionDetectorModeSnapshot = settingsProvider.audioRecognitionDetectorMode
         self.harmonicTemplateTuningProfileSnapshot = Self.profile(for: self.practiceAudioRecognitionDetectorModeSnapshot)
         audioRecognitionService?.configureDetectorMode(
             self.practiceAudioRecognitionDetectorModeSnapshot,
@@ -63,7 +63,7 @@ extension PracticeSessionViewModel {
 
     @discardableResult
     func prepareAudioRecognitionSuppressWindowForPlayback() -> Date {
-        let suppressUntil = Date().addingTimeInterval(audioRecognitionSuppressDuration)
+        let suppressUntil = Date.now.addingTimeInterval(audioRecognitionSuppressDuration)
         self.audioRecognitionSuppressUntil = suppressUntil
         audioRecognitionService?.suppressRecognition(
             until: suppressUntil,
@@ -95,15 +95,6 @@ extension PracticeSessionViewModel {
     var audioRecognitionSuppressRemainingSeconds: TimeInterval {
         guard let suppressUntil = self.audioRecognitionSuppressUntil else { return 0 }
         return max(0, suppressUntil.timeIntervalSinceNow)
-    }
-
-    private static func readPracticeAudioRecognitionDetectorMode() -> PracticeAudioRecognitionDetectorMode {
-        if let rawValue = UserDefaults.standard.string(forKey: "practiceStep3AudioRecognitionMode"),
-           let mode = PracticeAudioRecognitionDetectorMode(rawValue: rawValue)
-        {
-            return mode
-        }
-        return .harmonicTemplate
     }
 
     private static func profile(for _: PracticeAudioRecognitionDetectorMode) -> HarmonicTemplateTuningProfile {

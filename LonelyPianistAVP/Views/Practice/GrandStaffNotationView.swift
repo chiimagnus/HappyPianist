@@ -7,11 +7,29 @@ struct GrandStaffNotationView: View {
     let context: GrandStaffNotationContext?
     var scrollTickProvider: (() -> Double?)?
 
-    private let layoutService = GrandStaffNotationLayoutService()
-    private let viewportLayoutService = GrandStaffNotationViewportLayoutService()
+    private let layoutService: any GrandStaffNotationLayoutServiceProtocol
+    private let viewportLayoutService: any GrandStaffNotationViewportLayoutServiceProtocol
     private let fixedLineSpacing: CGFloat = 14
     @Environment(\.displayScale) private var displayScale
     @State private var centeredForFirstGuideID: Int?
+
+    init(
+        guides: [PianoHighlightGuide],
+        currentGuide: PianoHighlightGuide?,
+        measureSpans: [MusicXMLMeasureSpan],
+        context: GrandStaffNotationContext?,
+        scrollTickProvider: (() -> Double?)? = nil,
+        layoutService: any GrandStaffNotationLayoutServiceProtocol = GrandStaffNotationLayoutService(),
+        viewportLayoutService: any GrandStaffNotationViewportLayoutServiceProtocol = GrandStaffNotationViewportLayoutService()
+    ) {
+        self.guides = guides
+        self.currentGuide = currentGuide
+        self.measureSpans = measureSpans
+        self.context = context
+        self.scrollTickProvider = scrollTickProvider
+        self.layoutService = layoutService
+        self.viewportLayoutService = viewportLayoutService
+    }
 
     var body: some View {
         // KEEP_GEOMETRYREADER: needs exact viewport size for notation layout + scroll anchoring.
