@@ -118,17 +118,31 @@ final class ARGuideViewModel {
 
     // MARK: - Recording (P3: split target)
     private var phraseRecorder = PhraseRecorder()
-    private var takeRecorder = RecordingTakeRecorder()
-    private let midiRecordingAdapter = MIDIRecordingAdapter()
     private let takeLibraryViewModel = TakeLibraryViewModel()
+    @ObservationIgnored
+    private lazy var midiRecordingCoordinator: MIDIRecordingCoordinator = MIDIRecordingCoordinator(
+        logger: practiceInputLogger,
+        onStateChanged: { [weak self] state in
+            guard let self else { return }
+            self.isRecording = state.isRecording
+            self.recordingStartDate = state.recordingStartDate
+        },
+        onTakeRecorded: { [weak self] take in
+            self?.takeLibraryViewModel.addTake(take)
+        },
+        onMIDI1Event: { [weak self] event in
+            self?.recordPhraseFromMIDI1EventIfNeeded(event)
+        },
+        onMIDI2Event: { [weak self] event in
+            self?.recordPhraseFromMIDI2EventIfNeeded(event)
+        }
+    )
     private let takePlaybackController = TakePlaybackController(
         playbackService: AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2")
     )
     let takePlaybackViewModel: TakePlaybackViewModel
     private(set) var isRecording = false
     private var recordingStartDate: Date?
-    private var midiTakeRecordingMIDI1Task: Task<Void, Never>?
-    private var midiTakeRecordingMIDI2Task: Task<Void, Never>?
     private let pianoModeRegistry: PianoModeRegistryProtocol
 
     init(
@@ -211,86 +225,10 @@ final class ARGuideViewModel {
             setPracticeVirtualPerformerEnabled(true)
         }
 
-        restartMIDITakeRecordingSubscriptionIfNeeded()
-    }
-
-    private func restartMIDITakeRecordingSubscriptionIfNeeded() {
-        midiTakeRecordingMIDI1Task?.cancel()
-        midiTakeRecordingMIDI1Task = nil
-        midiTakeRecordingMIDI2Task?.cancel()
-        midiTakeRecordingMIDI2Task = nil
-
-        guard selectedPianoMode?.usesBluetoothMIDIInput == true else { return }
-        guard let eventSource = practiceSessionViewModel.practiceInputEventSource else { return }
-
-        let midi1Stream = eventSource.midi1EventsStream()
-        midiTakeRecordingMIDI1Task = Task { [weak self] in
-            for await event in midi1Stream {
-                await MainActor.run {
-                    self?.handleMIDI1TakeRecordingEvent(event)
-                }
-            }
-        }
-
-        let midi2Stream = eventSource.midi2EventsStream()
-        midiTakeRecordingMIDI2Task = Task { [weak self] in
-            for await event in midi2Stream {
-                await MainActor.run {
-                    self?.handleMIDI2TakeRecordingEvent(event)
-                }
-            }
-        }
-    }
-
-    private func logMIDIPerNoteIfEnabled(_ message: String) {
-        let config = MIDIDiagnosticsConfiguration.live()
-        if config.isPerNoteInfoLoggingEnabled {
-            practiceInputLogger.info("\(message, privacy: .public)")
-            return
-        }
-        if config.isPerNoteDebugLoggingEnabled {
-            practiceInputLogger.debug("\(message, privacy: .public)")
-        }
-    }
-
-    private func handleMIDI1TakeRecordingEvent(_ event: MIDI1InputEvent) {
-        guard Task.isCancelled == false else { return }
-
-        if let id = event.debugEventID {
-            switch event.kind {
-            case let .noteOn(note, velocity):
-                logMIDIPerNoteIfEnabled("recording saw midi1 id=\(id) src=\(describe(event.source)) noteOn=\(note) vel=\(velocity)")
-            case let .noteOff(note, velocity):
-                logMIDIPerNoteIfEnabled("recording saw midi1 id=\(id) src=\(describe(event.source)) noteOff=\(note) vel=\(velocity)")
-            default:
-                break
-            }
-        }
-
-        if isRecording {
-            midiRecordingAdapter.record(event: event, into: &takeRecorder)
-        }
-        recordPhraseFromMIDI1EventIfNeeded(event)
-    }
-
-    private func handleMIDI2TakeRecordingEvent(_ event: MIDI2InputEvent) {
-        guard Task.isCancelled == false else { return }
-
-        if let id = event.debugEventID {
-            switch event.kind {
-            case let .noteOn(note, velocity16):
-                logMIDIPerNoteIfEnabled("recording saw midi2 id=\(id) src=\(describe(event.source)) noteOn=\(note) vel16=\(Int(velocity16))")
-            case let .noteOff(note, velocity16):
-                logMIDIPerNoteIfEnabled("recording saw midi2 id=\(id) src=\(describe(event.source)) noteOff=\(note) vel16=\(Int(velocity16))")
-            default:
-                break
-            }
-        }
-
-        if isRecording {
-            midiRecordingAdapter.record(event: event, into: &takeRecorder)
-        }
-        recordPhraseFromMIDI2EventIfNeeded(event)
+        midiRecordingCoordinator.refreshMIDISubscriptionIfNeeded(
+            usesBluetoothMIDIInput: selectedPianoMode?.usesBluetoothMIDIInput == true,
+            eventSource: practiceSessionViewModel.practiceInputEventSource
+        )
     }
 
     private func recordPhraseFromMIDI1EventIfNeeded(_ event: MIDI1InputEvent) {
@@ -322,36 +260,6 @@ final class ARGuideViewModel {
             phraseRecorder.recordNoteOff(midi: note, timestamp: event.receivedAtUptimeSeconds)
         default:
             return
-        }
-    }
-
-    private func describe(_ source: MIDI1InputEvent.Source) -> String {
-        switch source.identifier {
-        case let .endpointUniqueID(uniqueID):
-            if let name = source.endpointName, name.isEmpty == false {
-                return "uid=\(uniqueID)(\(name))"
-            }
-            return "uid=\(uniqueID)"
-        case let .sourceIndex(index):
-            if let name = source.endpointName, name.isEmpty == false {
-                return "idx=\(index)(\(name))"
-            }
-            return "idx=\(index)"
-        }
-    }
-
-    private func describe(_ source: MIDI2InputEvent.Source) -> String {
-        switch source.identifier {
-        case let .endpointUniqueID(uniqueID):
-            if let name = source.endpointName, name.isEmpty == false {
-                return "uid=\(uniqueID)(\(name))"
-            }
-            return "uid=\(uniqueID)"
-        case let .sourceIndex(index):
-            if let name = source.endpointName, name.isEmpty == false {
-                return "idx=\(index)(\(name))"
-            }
-            return "idx=\(index)"
         }
     }
 
@@ -1096,10 +1004,7 @@ final class ARGuideViewModel {
         cancelPracticeLocalizationTask()
         practiceSessionViewModel.shutdown()
         practiceSessionViewModel.stopVirtualPianoInput()
-        midiTakeRecordingMIDI1Task?.cancel()
-        midiTakeRecordingMIDI1Task = nil
-        midiTakeRecordingMIDI2Task?.cancel()
-        midiTakeRecordingMIDI2Task = nil
+        midiRecordingCoordinator.stop()
         stopHandTracking()
     }
 
@@ -1175,16 +1080,12 @@ final class ARGuideViewModel {
     }
 
     private func recordTakeIfNeeded(nowUptime: TimeInterval) {
-        guard selectedPianoMode?.usesBluetoothMIDIInput != true else { return }
-        guard isRecording, isVirtualPianoEnabled == false else { return }
-
-        let contact = practiceSessionViewModel.latestKeyContactResult
-        for note in contact.started {
-            takeRecorder.recordNoteOn(note: note, velocity: 90, now: nowUptime)
-        }
-        for note in contact.ended {
-            takeRecorder.recordNoteOff(note: note, now: nowUptime)
-        }
+        midiRecordingCoordinator.recordTakeFromKeyContactIfNeeded(
+            usesBluetoothMIDIInput: selectedPianoMode?.usesBluetoothMIDIInput == true,
+            isVirtualPianoEnabled: isVirtualPianoEnabled,
+            keyContact: practiceSessionViewModel.latestKeyContactResult,
+            nowUptimeSeconds: nowUptime
+        )
     }
 
     private func updateLatestDeviceWorldPosition(nowUptime: TimeInterval) {
@@ -1503,22 +1404,11 @@ final class ARGuideViewModel {
     func startRecording() {
         guard canRecord else { return }
         takePlaybackViewModel.stop()
-        let now = ProcessInfo.processInfo.systemUptime
-        takeRecorder.start(now: now)
-        isRecording = true
-        recordingStartDate = Date()
+        midiRecordingCoordinator.startRecordingIfPossible(canRecord: canRecord)
     }
 
     func stopRecording() {
-        guard isRecording else { return }
-        let now = ProcessInfo.processInfo.systemUptime
-        let createdAt = Date()
-        let take = takeRecorder.stop(now: now, createdAt: createdAt)
-        isRecording = false
-        recordingStartDate = nil
-
-        guard take.events.isEmpty == false else { return }
-        takeLibraryViewModel.addTake(take)
+        midiRecordingCoordinator.stopRecordingIfNeeded()
     }
 
     var takeLibraryTakes: [RecordingTake] {
