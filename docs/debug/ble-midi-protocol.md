@@ -19,7 +19,7 @@
   - `LonelyPianistAVP/Models/MIDI/MIDI1InputEvent.swift`
   - `LonelyPianistAVP/Models/MIDI/MIDI2InputEvent.swift`
 - step advance 消费侧：
-  - `LonelyPianistAVP/ViewModels/PracticeSession/PracticeSessionViewModel+PracticeInput.swift`
+  - `LonelyPianistAVP/Services/Practice/Input/PracticeMIDIInputCoordinator.swift`
   - **只要 noteOn 到达即可**（不再做 `velocity > 0` 过滤）；MIDI 1.0 的 `noteOn velocity==0 == noteOff` 仅在解码器内部处理。
 
 ## 实机验证（FP-30X BLE）

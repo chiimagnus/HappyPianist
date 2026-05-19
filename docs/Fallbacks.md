@@ -190,7 +190,7 @@
   - 会弹出提示：`无法自动播放：音频服务初始化失败。`（或更具体的 sound font / engine 错误信息）
 - 工程位置（给工程师核对用）：
   - `LonelyPianistAVP/Services/Audio/PracticeSequencerPlaybackService.swift`
-  - `LonelyPianistAVP/ViewModels/PracticeSession/PracticeSessionViewModel+Autoplay.swift`
+  - `LonelyPianistAVP/ViewModels/PracticeSession/PracticeSessionViewModelPlayback.swift`（委托给 `Services/Practice/Playback/PracticePlaybackCoordinator.swift`）
 
 ### F-Step3-01：音频识别性能/错误触发的“fallbackReason”
 
