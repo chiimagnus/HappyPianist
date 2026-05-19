@@ -49,6 +49,7 @@ struct PracticeStepView: View {
         .toolbar {
             ToolbarItemGroup(placement: .bottomOrnament) {
                 Button("回到选曲库", systemImage: "chevron.backward") {
+                    viewModel.practiceSessionViewModel.shutdown()
                     onBackToLibrary()
                 }
                 .buttonStyle(.bordered)
@@ -206,6 +207,7 @@ struct PracticeStepView: View {
             isStepVisible = false
             hasRequestedImmersiveOpen = false
             isVirtualPerformerEnabled = false
+            viewModel.practiceSessionViewModel.shutdown()
             viewModel.stopRecording()
             viewModel.takePlaybackViewModel.stop()
             viewModel.setPracticeAutoplayEnabled(false)

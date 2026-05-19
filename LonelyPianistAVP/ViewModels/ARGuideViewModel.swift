@@ -1072,6 +1072,7 @@ final class ARGuideViewModel {
     func onImmersiveDisappear() {
         cancelCalibrationGuidedFlowTasks()
         cancelPracticeLocalizationTask()
+        practiceSessionViewModel.shutdown()
         practiceSessionViewModel.stopVirtualPianoInput()
         midiTakeRecordingMIDI1Task?.cancel()
         midiTakeRecordingMIDI1Task = nil
