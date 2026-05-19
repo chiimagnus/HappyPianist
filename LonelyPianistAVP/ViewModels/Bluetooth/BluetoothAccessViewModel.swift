@@ -1,28 +1,27 @@
 import Foundation
 import Observation
-import UIKit
 
 @MainActor
 @Observable
 final class BluetoothAccessViewModel {
     var status: BluetoothAccessPreflight.Status = .unknown
 
-    private let preflight: BluetoothAccessPreflight
+    private let preflight: any BluetoothAccessPreflightProtocol
+    private let settingsURLProvider: any AppSettingsURLProviderProtocol
 
-    init() {
-        preflight = BluetoothAccessPreflight()
+    init(
+        preflight: (any BluetoothAccessPreflightProtocol)? = nil,
+        settingsURLProvider: (any AppSettingsURLProviderProtocol)? = nil
+    ) {
+        self.preflight = preflight ?? BluetoothAccessPreflight()
+        self.settingsURLProvider = settingsURLProvider ?? AppSettingsURLProvider()
     }
 
-    init(preflight: BluetoothAccessPreflight) {
-        self.preflight = preflight
+    var appSettingsURL: URL? {
+        settingsURLProvider.appSettingsURL
     }
 
     func refreshStatus() async {
         status = await preflight.checkOrRequestAccess()
-    }
-
-    func openAppSettings() {
-        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
-        UIApplication.shared.open(url)
     }
 }
