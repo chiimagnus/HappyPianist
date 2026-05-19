@@ -133,7 +133,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
             if endpointProtocolID == ._2_0, midi2InputPortRef == 0 {
                 lifecycleLogger.warning("Endpoint reports MIDI 2.0 but MIDI 2.0 port is unavailable; subscribing via MIDI 1.0 port: \(self.describeEndpoint(source) ?? "unknown", privacy: .public)")
             }
-            let targetProtocol = MIDICanonicalProtocolSelection.subscribedProtocol(
+            let targetProtocol = MIDIEndpointConnectionPolicy.subscribedProtocol(
                 endpointProtocolID: endpointProtocolID,
                 midi2PortAvailable: midi2InputPortRef != 0
             )
