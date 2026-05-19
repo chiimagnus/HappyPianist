@@ -31,7 +31,6 @@ final class ARGuideViewModel {
     private var handTrackingConsumerTask: Task<Void, Never>?
     private var currentTrackingMode: ARTrackingMode?
     private var virtualPianoGuidanceUpdateTask: Task<Void, Never>?
-    private var aiSilencePollingTask: Task<Void, Never>?
 
     // MARK: - UI/Flow State (P3: split target)
     private(set) var isVirtualPianoEnabled = false
@@ -43,7 +42,6 @@ final class ARGuideViewModel {
     private(set) var latestDeviceWorldPosition: SIMD3<Float>?
 
     // MARK: - Gaze & Placement (P3: split target)
-    private var silenceTrigger = NoteOnSilenceTrigger()
     let gazePlaneDiskConfirmation = GazePlaneDiskConfirmationViewModel()
     private let gazePlaneHitTestService = GazePlaneHitTestService()
     private var latestGazePlaneHit: PlaneHit?
@@ -53,7 +51,6 @@ final class ARGuideViewModel {
     private let backendDiscoveryService = BonjourBackendDiscoveryService()
 
     // MARK: - Recording (P3: split target)
-    private var phraseRecorder = PhraseRecorder()
     private let takeLibraryViewModel = TakeLibraryViewModel()
     @ObservationIgnored
     private lazy var midiRecordingCoordinator: MIDIRecordingCoordinator = MIDIRecordingCoordinator(
@@ -67,10 +64,24 @@ final class ARGuideViewModel {
             self?.takeLibraryViewModel.addTake(take)
         },
         onMIDI1Event: { [weak self] event in
-            self?.recordPhraseFromMIDI1EventIfNeeded(event)
+            self?.aiPerformanceCoordinator.recordMIDI1EventForPhraseRecordingIfNeeded(event)
         },
         onMIDI2Event: { [weak self] event in
-            self?.recordPhraseFromMIDI2EventIfNeeded(event)
+            self?.aiPerformanceCoordinator.recordMIDI2EventForPhraseRecordingIfNeeded(event)
+        }
+    )
+    @ObservationIgnored
+    private lazy var aiPerformanceCoordinator: AIPerformanceCoordinator = AIPerformanceCoordinator(
+        logger: Logger(
+            subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
+            category: "AIPerformanceCoordinator"
+        ),
+        backendDiscoveryService: backendDiscoveryService,
+        onStateChanged: { [weak self] state in
+            guard let self else { return }
+            self.isAIPerformanceActive = state.isAIPerformanceActive
+            self.latestAIPerformanceSchedule = state.latestSchedule
+            self.lastImprovStatusText = state.lastImprovStatusText
         }
     )
     private let takePlaybackController = TakePlaybackController(
@@ -143,6 +154,7 @@ final class ARGuideViewModel {
 
         practiceSessionViewModel.shutdown()
         practiceSessionViewModel = next
+        aiPerformanceCoordinator.updatePracticeSession(next)
 
         if let prepared = latestPreparedPractice {
             practiceSessionViewModel.setSteps(
@@ -167,38 +179,6 @@ final class ARGuideViewModel {
             usesBluetoothMIDIInput: selectedPianoMode?.usesBluetoothMIDIInput == true,
             eventSource: practiceSessionViewModel.practiceInputEventSource
         )
-    }
-
-    private func recordPhraseFromMIDI1EventIfNeeded(_ event: MIDI1InputEvent) {
-        guard isVirtualPerformerEnabled else { return }
-
-        switch event.kind {
-        case let .noteOn(note, velocity):
-            silenceTrigger.recordNoteOn(atUptime: event.receivedAtUptimeSeconds)
-            phraseRecorder.recordNoteOn(midi: note, velocity: velocity, timestamp: event.receivedAtUptimeSeconds)
-        case let .noteOff(note, _):
-            phraseRecorder.recordNoteOff(midi: note, timestamp: event.receivedAtUptimeSeconds)
-        default:
-            return
-        }
-    }
-
-    private func recordPhraseFromMIDI2EventIfNeeded(_ event: MIDI2InputEvent) {
-        guard isVirtualPerformerEnabled else { return }
-
-        switch event.kind {
-        case let .noteOn(note, velocity16):
-            silenceTrigger.recordNoteOn(atUptime: event.receivedAtUptimeSeconds)
-            phraseRecorder.recordNoteOn(
-                midi: note,
-                velocity: MIDI2ValueMapping.value16To7Bit(velocity16),
-                timestamp: event.receivedAtUptimeSeconds
-            )
-        case let .noteOff(note, _):
-            phraseRecorder.recordNoteOff(midi: note, timestamp: event.receivedAtUptimeSeconds)
-        default:
-            return
-        }
     }
 
     var calibration: PianoCalibration? {
@@ -325,33 +305,8 @@ final class ARGuideViewModel {
 
     func setPracticeVirtualPerformerEnabled(_ isEnabled: Bool) {
         isVirtualPerformerEnabled = isEnabled
-        if isEnabled == false {
-            backendDiscoveryService.stop()
-            aiSilencePollingTask?.cancel()
-            aiSilencePollingTask = nil
-            isAIPerformanceActive = false
-            silenceTrigger.reset()
-            phraseRecorder.reset()
-            lastImprovStatusText = nil
-            latestAIPerformanceSchedule = []
-            practiceSessionViewModel.stopVirtualPianoInput()
-            practiceSessionViewModel.sequencerPlaybackService.stop()
-            practiceSessionViewModel.refreshAudioRecognitionForCurrentState()
-        } else {
-            silenceTrigger.reset()
-            phraseRecorder.reset()
-            backendDiscoveryService.start()
-            guard practiceSessionViewModel.currentStep != nil else { return }
-            aiSilencePollingTask?.cancel()
-            aiSilencePollingTask = Task { @MainActor [weak self] in
-                guard let self else { return }
-                while Task.isCancelled == false {
-                    guard isVirtualPerformerEnabled else { return }
-                    await pollAndPlayAIPerformanceIfNeeded()
-                    try? await Task.sleep(nanoseconds: 100_000_000)
-                }
-            }
-        }
+        aiPerformanceCoordinator.updatePracticeSession(practiceSessionViewModel)
+        aiPerformanceCoordinator.setEnabled(isEnabled)
     }
 
     var backendStatusText: String? {
@@ -366,250 +321,6 @@ final class ARGuideViewModel {
                 "Backend: unavailable (\(message))"
             case .denied:
                 "Backend: denied (Local Network)"
-        }
-    }
-
-    private func pollAndPlayAIPerformanceIfNeeded() async {
-        guard isAIPerformanceActive == false else { return }
-        guard practiceSessionViewModel.autoplayState == .off else { return }
-        guard practiceSessionViewModel.isManualReplayPlaying == false else { return }
-
-        let nowUptime = ProcessInfo.processInfo.systemUptime
-        guard silenceTrigger.pollShouldTrigger(atUptime: nowUptime, timeoutSeconds: 2.0) else { return }
-
-        isAIPerformanceActive = true
-        let phrase = phraseRecorder.flushPhrase(endTimestamp: nowUptime)
-        if phrase.isEmpty == false {
-            let didPlayBackend = await attemptBackendImprov(promptNotes: phrase)
-            if didPlayBackend {
-                isAIPerformanceActive = false
-                silenceTrigger.reset()
-                return
-            }
-        } else {
-            lastImprovStatusText = "Last improv: fallback(emptyPhrase)"
-        }
-
-        if let tickRange = practiceSessionViewModel.aiPerformanceTickRange(maxMeasures: 2) {
-            await playAIPerformanceTickRange(tickRange)
-        }
-        isAIPerformanceActive = false
-        silenceTrigger.reset()
-    }
-
-    #if DEBUG && targetEnvironment(simulator)
-        func debugTriggerAIPerformance() async {
-            guard isVirtualPerformerEnabled else { return }
-            guard isAIPerformanceActive == false else { return }
-            guard practiceSessionViewModel.autoplayState == .off else { return }
-            guard practiceSessionViewModel.isManualReplayPlaying == false else { return }
-            guard let tickRange = practiceSessionViewModel.aiPerformanceTickRange(maxMeasures: 2) else { return }
-
-            isAIPerformanceActive = true
-            let didPlayBackend = await attemptBackendImprov(promptNotes: debugBackendPromptNotes())
-            if didPlayBackend == false {
-                await playAIPerformanceTickRange(tickRange)
-            }
-            isAIPerformanceActive = false
-            silenceTrigger.reset()
-        }
-    #endif
-
-    private func debugBackendPromptNotes() -> [ImprovDialogueNote] {
-        let velocity = 90
-        let duration = 0.15
-        return [
-            ImprovDialogueNote(note: 60, velocity: velocity, time: 0.00, duration: duration),
-            ImprovDialogueNote(note: 64, velocity: velocity, time: 0.15, duration: duration),
-            ImprovDialogueNote(note: 67, velocity: velocity, time: 0.30, duration: duration),
-            ImprovDialogueNote(note: 72, velocity: velocity, time: 0.45, duration: duration),
-            ImprovDialogueNote(note: 67, velocity: velocity, time: 0.60, duration: duration),
-            ImprovDialogueNote(note: 64, velocity: velocity, time: 0.75, duration: duration),
-            ImprovDialogueNote(note: 60, velocity: velocity, time: 0.90, duration: duration),
-        ]
-    }
-
-    private func attemptBackendImprov(promptNotes: [ImprovDialogueNote]) async -> Bool {
-        guard let resolved = backendDiscoveryService.resolvedEndpoint else {
-            lastImprovStatusText = "Last improv: fallback(backendNotFound)"
-            return false
-        }
-
-        let client = ImprovBackendClient()
-        let params = ImprovGenerateParams(topP: 0.95, maxTokens: 256, strategy: "deterministic")
-        let request = ImprovGenerateRequest(notes: promptNotes, params: params, sessionID: nil)
-
-        let response: ImprovResultResponse
-        do {
-            response = try await client.generate(
-                host: resolved.host,
-                port: resolved.port,
-                request: request,
-                timeoutSeconds: 2
-            )
-        } catch let error as URLError where error.code == .timedOut {
-            lastImprovStatusText = "Last improv: fallback(timeout)"
-            return false
-        } catch {
-            lastImprovStatusText = "Last improv: fallback(error)"
-            return false
-        }
-
-        let scheduleBuilder = ImprovScheduleBuilder()
-        let schedule = scheduleBuilder.buildSchedule(from: response.notes)
-        guard schedule.isEmpty == false else {
-            lastImprovStatusText = "Last improv: fallback(emptyReply)"
-            return false
-        }
-
-        await playAIPerformanceSchedule(schedule)
-        lastImprovStatusText = "Last improv: backend"
-        return true
-    }
-
-    private func playAIPerformanceSchedule(_ schedule: [PracticeSequencerMIDIEvent]) async {
-        practiceSessionViewModel.stopVirtualPianoInput()
-        practiceSessionViewModel.sequencerPlaybackService.stop()
-        practiceSessionViewModel.stopAudioRecognition()
-        latestAIPerformanceSchedule = []
-
-        var didStartPlayback = false
-        defer {
-            if didStartPlayback == false {
-                practiceSessionViewModel.sequencerPlaybackService.stop()
-                if isVirtualPerformerEnabled {
-                    practiceSessionViewModel.refreshAudioRecognitionForCurrentState()
-                }
-            }
-        }
-
-        do {
-            try practiceSessionViewModel.sequencerPlaybackService.warmUp()
-        } catch {
-            return
-        }
-
-        let sequence: PracticeSequencerSequence
-        do {
-            sequence = try await withCheckedThrowingContinuation { continuation in
-                DispatchQueue.global(qos: .userInitiated).async {
-                    do {
-                        let builder = PracticeSequencerSequenceBuilder()
-                        let sequence = try builder.buildSequence(from: schedule)
-                        continuation.resume(returning: sequence)
-                    } catch {
-                        continuation.resume(throwing: error)
-                    }
-                }
-            }
-        } catch {
-            return
-        }
-
-        latestAIPerformanceSchedule = schedule
-
-        do {
-            try practiceSessionViewModel.sequencerPlaybackService.load(sequence: sequence)
-            try practiceSessionViewModel.sequencerPlaybackService.play(fromSeconds: 0)
-        } catch {
-            return
-        }
-        didStartPlayback = true
-
-        let sequenceEndSeconds = max(0, sequence.durationSeconds)
-        while Task.isCancelled == false {
-            guard isVirtualPerformerEnabled else { break }
-            let nowSeconds = practiceSessionViewModel.sequencerPlaybackService.currentSeconds()
-            if nowSeconds >= sequenceEndSeconds {
-                break
-            }
-            try? await Task.sleep(for: .milliseconds(33))
-        }
-
-        practiceSessionViewModel.sequencerPlaybackService.stop()
-        if isVirtualPerformerEnabled {
-            _ = practiceSessionViewModel.prepareAudioRecognitionSuppressWindowForPlayback()
-            practiceSessionViewModel.refreshAudioRecognitionForCurrentState()
-        }
-    }
-
-    private func playAIPerformanceTickRange(_ tickRange: (startTick: Int, endTick: Int)) async {
-        practiceSessionViewModel.stopVirtualPianoInput()
-        practiceSessionViewModel.sequencerPlaybackService.stop()
-        practiceSessionViewModel.stopAudioRecognition()
-        latestAIPerformanceSchedule = []
-
-        var didStartPlayback = false
-        defer {
-            if didStartPlayback == false {
-                practiceSessionViewModel.sequencerPlaybackService.stop()
-                if isVirtualPerformerEnabled {
-                    practiceSessionViewModel.refreshAudioRecognitionForCurrentState()
-                }
-            }
-        }
-
-        let timelineSnapshot = practiceSessionViewModel.autoplayTimeline
-        let tempoMapSnapshot = practiceSessionViewModel.tempoMap
-        let initialSustainPedalDown = practiceSessionViewModel.pedalTimeline?
-            .isDown(atTick: tickRange.startTick) ?? false
-        let leadInSeconds: TimeInterval = 0.05
-
-        do {
-            try practiceSessionViewModel.sequencerPlaybackService.warmUp()
-        } catch {
-            return
-        }
-
-        let scheduleAndSequence: (schedule: [PracticeSequencerMIDIEvent], sequence: PracticeSequencerSequence)
-        do {
-            scheduleAndSequence = try await withCheckedThrowingContinuation { continuation in
-                DispatchQueue.global(qos: .userInitiated).async {
-                    do {
-                        let builder = PracticeSequencerSequenceBuilder()
-                        let schedule = builder.buildAudioEventSchedule(
-                            timeline: timelineSnapshot,
-                            tempoMap: tempoMapSnapshot,
-                            startTick: tickRange.startTick,
-                            initialSustainPedalDown: initialSustainPedalDown,
-                            leadInSeconds: leadInSeconds,
-                            endTick: tickRange.endTick
-                        )
-                        let sequence = try builder.buildSequence(from: schedule)
-                        continuation.resume(returning: (schedule, sequence))
-                    } catch {
-                        continuation.resume(throwing: error)
-                    }
-                }
-            }
-        } catch {
-            return
-        }
-        latestAIPerformanceSchedule = scheduleAndSequence.schedule
-
-        do {
-            try practiceSessionViewModel.sequencerPlaybackService.load(sequence: scheduleAndSequence.sequence)
-            try practiceSessionViewModel.sequencerPlaybackService.play(fromSeconds: 0)
-        } catch {
-            return
-        }
-        didStartPlayback = true
-
-        let sequenceEndSeconds = max(0, scheduleAndSequence.sequence.durationSeconds)
-
-        while Task.isCancelled == false {
-            guard isVirtualPerformerEnabled else { break }
-            let nowSeconds = practiceSessionViewModel.sequencerPlaybackService.currentSeconds()
-            if nowSeconds >= sequenceEndSeconds {
-                break
-            }
-            try? await Task.sleep(for: .milliseconds(33))
-        }
-
-        practiceSessionViewModel.sequencerPlaybackService.stop()
-        if isVirtualPerformerEnabled {
-            _ = practiceSessionViewModel.prepareAudioRecognitionSuppressWindowForPlayback()
-            practiceSessionViewModel.refreshAudioRecognitionForCurrentState()
         }
     }
 
@@ -1011,21 +722,11 @@ final class ARGuideViewModel {
     }
 
     private func recordPhraseIfNeeded(nowUptime: TimeInterval) {
-        guard selectedPianoMode?.usesBluetoothMIDIInput != true else { return }
-        guard isVirtualPerformerEnabled else { return }
-
-        let contact = practiceSessionViewModel.latestKeyContactResult
-        if contact.started.isEmpty == false {
-            silenceTrigger.recordNoteOn(atUptime: nowUptime)
-            for note in contact.started {
-                phraseRecorder.recordNoteOn(midi: note, velocity: 90, timestamp: nowUptime)
-            }
-        }
-        if contact.ended.isEmpty == false {
-            for note in contact.ended {
-                phraseRecorder.recordNoteOff(midi: note, timestamp: nowUptime)
-            }
-        }
+        aiPerformanceCoordinator.recordKeyContactForPhraseRecordingIfNeeded(
+            usesBluetoothMIDIInput: selectedPianoMode?.usesBluetoothMIDIInput == true,
+            keyContact: practiceSessionViewModel.latestKeyContactResult,
+            nowUptimeSeconds: nowUptime
+        )
     }
 
     private func recordTakeIfNeeded(nowUptime: TimeInterval) {
