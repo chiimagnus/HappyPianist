@@ -2,7 +2,7 @@ import Foundation
 import os
 
 @MainActor
-final class PracticeMIDIInputCoordinator: PracticeMIDIInputCoordinating, PracticeSessionLifecycleProtocol {
+final class PracticeMIDIInputCoordinator: PracticeMIDIInputCoordinatorProtocol, PracticeSessionLifecycleProtocol {
     struct Snapshot: Equatable {
         var practiceState: PracticeSessionState
         var autoplayState: PracticeSessionAutoplayState
@@ -17,9 +17,9 @@ final class PracticeMIDIInputCoordinator: PracticeMIDIInputCoordinating, Practic
     )
 
     private let practiceInputEventSource: PracticeInputEventSourceProtocol?
-    private let matcher: MIDIPracticeStepMatcher
+    private let matcher: any MIDIPracticeStepMatchingProtocol
     private let stateStore: PracticeSessionStateStore
-    private weak var effectHandler: (any PracticeSessionEffectHandling)?
+    private weak var effectHandler: (any PracticeSessionEffectHandlerProtocol)?
 
     private var midi1EventsTask: Task<Void, Never>?
     private var midi2EventsTask: Task<Void, Never>?
@@ -27,9 +27,9 @@ final class PracticeMIDIInputCoordinator: PracticeMIDIInputCoordinating, Practic
 
     init(
         practiceInputEventSource: PracticeInputEventSourceProtocol?,
-        matcher: MIDIPracticeStepMatcher,
+        matcher: any MIDIPracticeStepMatchingProtocol,
         stateStore: PracticeSessionStateStore,
-        effectHandler: any PracticeSessionEffectHandling,
+        effectHandler: any PracticeSessionEffectHandlerProtocol,
         consumeEvents: Bool
     ) {
         self.practiceInputEventSource = practiceInputEventSource

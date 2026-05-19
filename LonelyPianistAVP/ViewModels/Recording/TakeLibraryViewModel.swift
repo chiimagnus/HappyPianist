@@ -5,13 +5,18 @@ import Observation
 @Observable
 final class TakeLibraryViewModel {
     private let store: RecordingTakeStoreProtocol
+    private let midiExportService: RecordingMIDIExportServiceProtocol
 
     var takes: [RecordingTake] = []
     var selectedTakeID: UUID?
     var errorMessage: String?
 
-    init(store: RecordingTakeStoreProtocol? = nil) {
+    init(
+        store: RecordingTakeStoreProtocol? = nil,
+        midiExportService: RecordingMIDIExportServiceProtocol? = nil
+    ) {
         self.store = store ?? RecordingTakeStore()
+        self.midiExportService = midiExportService ?? RecordingMIDIExportService()
         reload()
     }
 
@@ -69,6 +74,10 @@ final class TakeLibraryViewModel {
         } catch {
             errorMessage = "清空失败：\(error.localizedDescription)"
         }
+    }
+
+    func makeMIDIExport(for take: RecordingTake) throws -> RecordingMIDIExport {
+        try midiExportService.makeMIDIExport(from: take)
     }
 
     func dismissError() {

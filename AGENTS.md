@@ -2,7 +2,7 @@
 
 ## 项目结构与模块组织
 
-本仓库包含一个 macOS 主应用与一个 visionOS（Apple Vision Pro）原型应用，并带有本机 Python 后端工作区。
+本仓库包含一个 macOS 主应用与一个 visionOS（Apple Vision Pro）应用，并带有本机 Python 后端工作区。
 
 - Xcode 工程：`LonelyPianist.xcodeproj`
 - macOS App：`LonelyPianist/`（`Models/`、`Services/`、`ViewModels/`、`Views/`、`Utilities/`）
@@ -12,16 +12,6 @@
 - SwiftPM 包：`Packages/RealityKitContent/`
 - Python 后端：`piano_dialogue_server/`
 - 规划/知识库：`.github/features/`、`docs/`
-
-## 代码风格与命名规范
-
-- 命名：类型 `PascalCase`；变量/函数 `camelCase`；协议以 `Protocol` 结尾；实现类型以 `Service` 结尾。
-- 分层：View 只负责展示与交互绑定；状态与业务编排放 `ViewModels/`；副作用与基础设施放 `Services/`；依赖通过注入传递。
-
-## 测试指南
-
-- 测试框架：Swift Testing（`import Testing` + `@Test` + `#expect`）。
-- 新增测试文件放在对应目录：`LonelyPianistTests/` 或 `LonelyPianistAVPTests/`，命名 `*Tests.swift`。
 
 # Apple App 开发规范 for AI（Swift/SwiftUI 基线）
 

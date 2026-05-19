@@ -2,7 +2,7 @@ import Foundation
 import os
 
 @MainActor
-final class PracticePlaybackCoordinator: PracticePlaybackCoordinating, PracticeSessionLifecycleProtocol {
+final class PracticePlaybackCoordinator: PracticePlaybackCoordinatorProtocol, PracticeSessionLifecycleProtocol {
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
         category: "PracticePlaybackCoordinator"
@@ -10,11 +10,11 @@ final class PracticePlaybackCoordinator: PracticePlaybackCoordinating, PracticeS
 
     private let sleeper: SleeperProtocol
     private let sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol
-    private let playbackSequenceBuilder: PlaybackSequenceBuilder
+    private let playbackSequenceBuilder: any PlaybackSequenceBuildingProtocol
     private let chordAttemptAccumulator: ChordAttemptAccumulatorProtocol
     private let stateStore: PracticeSessionStateStore
     private let audioRecognitionService: PracticeAudioRecognitionServiceProtocol?
-    private weak var effectHandler: (any PracticeSessionEffectHandling)?
+    private weak var effectHandler: (any PracticeSessionEffectHandlerProtocol)?
     private let audioRecognitionSuppressDuration: TimeInterval
     private let leadInSeconds: TimeInterval
 
@@ -25,11 +25,11 @@ final class PracticePlaybackCoordinator: PracticePlaybackCoordinating, PracticeS
     init(
         sleeper: SleeperProtocol,
         sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol,
-        playbackSequenceBuilder: PlaybackSequenceBuilder,
+        playbackSequenceBuilder: any PlaybackSequenceBuildingProtocol,
         chordAttemptAccumulator: ChordAttemptAccumulatorProtocol,
         stateStore: PracticeSessionStateStore,
         audioRecognitionService: PracticeAudioRecognitionServiceProtocol?,
-        effectHandler: any PracticeSessionEffectHandling,
+        effectHandler: any PracticeSessionEffectHandlerProtocol,
         audioRecognitionSuppressDuration: TimeInterval,
         leadInSeconds: TimeInterval
     ) {
@@ -229,7 +229,7 @@ final class PracticePlaybackCoordinator: PracticePlaybackCoordinating, PracticeS
 
     @discardableResult
     private func prepareAudioRecognitionSuppressWindowForPlayback() -> Date {
-        let suppressUntil = Date().addingTimeInterval(audioRecognitionSuppressDuration)
+        let suppressUntil = Date.now.addingTimeInterval(audioRecognitionSuppressDuration)
         stateStore.audioRecognitionSuppressUntil = suppressUntil
         audioRecognitionService?.suppressRecognition(
             until: suppressUntil,

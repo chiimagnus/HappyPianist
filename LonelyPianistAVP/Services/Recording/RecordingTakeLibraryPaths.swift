@@ -18,12 +18,12 @@ struct RecordingTakeLibraryPaths {
 
     func rootDirectoryURL() throws -> URL {
         try documentsDirectoryURL()
-            .appendingPathComponent(RecordingTakeLibraryLayout.rootDirectoryName, isDirectory: true)
+            .appending(path: RecordingTakeLibraryLayout.rootDirectoryName, directoryHint: .isDirectory)
     }
 
     func takesFileURL() throws -> URL {
         try rootDirectoryURL()
-            .appendingPathComponent(RecordingTakeLibraryLayout.takesFileName)
+            .appending(path: RecordingTakeLibraryLayout.takesFileName)
     }
 
     func ensureDirectoriesExist() throws {

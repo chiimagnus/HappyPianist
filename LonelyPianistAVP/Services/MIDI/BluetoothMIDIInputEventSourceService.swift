@@ -272,7 +272,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
         srcConnRefCon: UnsafeMutableRawPointer?
     ) {
         guard stateLock.withLock({ $0.isRunning }) else { return }
-        let receivedAt = Date()
+        let receivedAt = Date.now
         let receivedAtUptimeSeconds = ProcessInfo.processInfo.systemUptime
         let source = sourceIdentity(from: srcConnRefCon)
         let group = Int(message.group)

@@ -33,7 +33,7 @@ nonisolated struct TargetedHarmonicTemplateDetector: HarmonicTemplateDetectingPr
         requestedMode: PracticeAudioRecognitionDetectorMode,
         profile: HarmonicTemplateTuningProfile
     ) -> TargetedHarmonicDetectionFrame {
-        let startedAt = Date().timeIntervalSinceReferenceDate
+        let startedAt = Date.now.timeIntervalSinceReferenceDate
         let templates = templateFactory.makeTemplates(
             expectedMIDINotes: expectedMIDINotes,
             wrongCandidateMIDINotes: wrongCandidateMIDINotes,
@@ -54,7 +54,7 @@ nonisolated struct TargetedHarmonicTemplateDetector: HarmonicTemplateDetectingPr
         return TargetedHarmonicDetectionFrame(
             events: events,
             templateMatchResults: results,
-            processingDurationMs: ((Date().timeIntervalSinceReferenceDate) - startedAt) * 1000,
+            processingDurationMs: ((Date.now.timeIntervalSinceReferenceDate) - startedAt) * 1000,
             suppressing: suppressing,
             fallbackReason: nil,
             activeDetectorMode: requestedMode,

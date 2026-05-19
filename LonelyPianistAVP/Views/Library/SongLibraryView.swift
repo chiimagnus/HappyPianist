@@ -9,13 +9,7 @@ struct SongLibraryView: View {
     @State private var pendingDeletionEntryID: UUID?
 
     private var audioImporterTypes: [UTType] {
-        var types: [UTType] = []
-        if let mp3Type = UTType(filenameExtension: "mp3") {
-            types.append(mp3Type)
-        }
-        if let m4aType = UTType(filenameExtension: "m4a") {
-            types.append(m4aType)
-        }
+        let types = SongLibraryViewModel.supportedAudioFileExtensions.compactMap { UTType(filenameExtension: $0) }
         return types.isEmpty ? [.audio] : types
     }
 
@@ -39,13 +33,6 @@ struct SongLibraryView: View {
                     let entryID = pendingAudioBindingEntryID,
                     let audioURL = urls.first
                 else {
-                    return
-                }
-
-                let ext = audioURL.pathExtension.lowercased()
-                guard ext == "mp3" || ext == "m4a" else {
-                    viewModel.errorMessage = "仅支持导入 mp3 或 m4a 音频文件。"
-                    pendingAudioBindingEntryID = nil
                     return
                 }
 

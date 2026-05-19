@@ -56,11 +56,11 @@ struct SongFileStore: SongFileStoreProtocol {
     }
 
     func scoreFileURL(fileName: String) throws -> URL {
-        try paths.scoresDirectoryURL().appendingPathComponent(safeFileName(fileName))
+        try paths.scoresDirectoryURL().appending(path: safeFileName(fileName))
     }
 
     func audioFileURL(fileName: String) throws -> URL {
-        try paths.audioDirectoryURL().appendingPathComponent(safeFileName(fileName))
+        try paths.audioDirectoryURL().appending(path: safeFileName(fileName))
     }
 
     func deleteScoreFile(named fileName: String) throws {
@@ -81,7 +81,7 @@ struct SongFileStore: SongFileStoreProtocol {
 
     private func uniqueScoreDestinationURL(fileName: String) throws -> URL {
         let scoresDirectory = try paths.scoresDirectoryURL()
-        var candidateURL = scoresDirectory.appendingPathComponent(fileName)
+        var candidateURL = scoresDirectory.appending(path: fileName)
 
         if fileManager.fileExists(atPath: candidateURL.path()) == false {
             return candidateURL
@@ -89,7 +89,7 @@ struct SongFileStore: SongFileStoreProtocol {
 
         let extensionName = candidateURL.pathExtension
         let baseName = candidateURL.deletingPathExtension().lastPathComponent
-        candidateURL = scoresDirectory.appendingPathComponent("\(baseName)-\(UUID().uuidString)")
+        candidateURL = scoresDirectory.appending(path: "\(baseName)-\(UUID().uuidString)")
 
         if extensionName.isEmpty == false {
             candidateURL.appendPathExtension(extensionName)
@@ -101,7 +101,7 @@ struct SongFileStore: SongFileStoreProtocol {
     private func makeDestinationFileName(sourceFileName: String, importedAt: Date) -> String {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let timestamp = formatter.string(from: importedAt).replacingOccurrences(of: ":", with: "-")
+        let timestamp = formatter.string(from: importedAt).replacing(":", with: "-")
         return "\(timestamp)-\(safeFileName(sourceFileName))"
     }
 

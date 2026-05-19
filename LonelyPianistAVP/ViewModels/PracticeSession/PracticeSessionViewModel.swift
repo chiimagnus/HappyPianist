@@ -5,8 +5,8 @@ import os
 @dynamicMemberLookup
 @MainActor
 @Observable
-final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, PracticeSessionEffectHandling {
-    nonisolated static let practiceHandSeparatedStepMatchingEnabledKey = "practiceHandSeparatedStepMatchingEnabled"
+final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, PracticeSessionEffectHandlerProtocol {
+    nonisolated static let practiceHandSeparatedStepMatchingEnabledKey = PracticeSessionSettingsKeys.handSeparatedStepMatchingEnabled
 
     let stateStore: PracticeSessionStateStore
     let stepNavigator: PracticeStepNavigator
@@ -15,13 +15,14 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
     let chordAttemptAccumulator: ChordAttemptAccumulatorProtocol
     let sleeper: SleeperProtocol
     let sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol
-    let playbackSequenceBuilder: PlaybackSequenceBuilder
-    let keyContactDetectionService: KeyContactDetectionService
-    let realPianoContactDetectionService: RealPianoContactDetectionService
+    let playbackSequenceBuilder: any PlaybackSequenceBuildingProtocol
+    let keyContactDetectionService: any KeyContactDetectingProtocol
+    let realPianoContactDetectionService: any KeyContactDetectingProtocol
     let audioRecognitionService: PracticeAudioRecognitionServiceProtocol?
     let practiceInputEventSource: PracticeInputEventSourceProtocol?
     let audioStepAttemptAccumulator: AudioStepAttemptAccumulator
-    let midiPracticeStepMatcher: MIDIPracticeStepMatcher
+    let midiPracticeStepMatcher: any MIDIPracticeStepMatchingProtocol
+    let settingsProvider: any PracticeSessionSettingsProviderProtocol
 
     var practiceMIDIInputCoordinator: PracticeMIDIInputCoordinator?
     var audioRecognitionCoordinator: PracticeAudioRecognitionCoordinator?
@@ -41,7 +42,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
     private var hasShutdown = false
 
     var isHandSeparatedStepMatchingEnabled: Bool {
-        UserDefaults.standard.bool(forKey: Self.practiceHandSeparatedStepMatchingEnabledKey)
+        settingsProvider.isHandSeparatedStepMatchingEnabled
     }
 
     subscript<Value>(dynamicMember keyPath: ReferenceWritableKeyPath<PracticeSessionStateStore, Value>) -> Value {
@@ -54,13 +55,16 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
         chordAttemptAccumulator: ChordAttemptAccumulatorProtocol,
         sleeper: SleeperProtocol,
         sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol,
+        playbackSequenceBuilder: (any PlaybackSequenceBuildingProtocol)? = nil,
+        keyContactDetectionService: (any KeyContactDetectingProtocol)? = nil,
+        realPianoContactDetectionService: (any KeyContactDetectingProtocol)? = nil,
+        midiPracticeStepMatcher: (any MIDIPracticeStepMatchingProtocol)? = nil,
         audioRecognitionService: PracticeAudioRecognitionServiceProtocol? = nil,
         practiceInputEventSource: PracticeInputEventSourceProtocol? = nil,
         audioStepAttemptAccumulator: AudioStepAttemptAccumulator,
         handPianoActivityGate: HandPianoActivityGate,
-        manualAdvanceModeProvider: @escaping () -> ManualAdvanceMode = {
-            ManualAdvanceMode.storageValue(from: UserDefaults.standard.string(forKey: "practiceManualAdvanceMode"))
-        }
+        settingsProvider: (any PracticeSessionSettingsProviderProtocol)? = nil,
+        manualAdvanceModeProvider: (() -> ManualAdvanceMode)? = nil
     ) {
         stateStore = PracticeSessionStateStore()
         stepNavigator = PracticeStepNavigator()
@@ -69,19 +73,21 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
         self.chordAttemptAccumulator = chordAttemptAccumulator
         self.sleeper = sleeper
         self.sequencerPlaybackService = sequencerPlaybackService
-        playbackSequenceBuilder = PlaybackSequenceBuilder()
-        keyContactDetectionService = KeyContactDetectionService()
-        realPianoContactDetectionService = RealPianoContactDetectionService()
+        self.playbackSequenceBuilder = playbackSequenceBuilder ?? PlaybackSequenceBuilder()
+        self.keyContactDetectionService = keyContactDetectionService ?? KeyContactDetectionService()
+        self.realPianoContactDetectionService = realPianoContactDetectionService ?? RealPianoContactDetectionService()
         self.audioRecognitionService = audioRecognitionService
         self.practiceInputEventSource = practiceInputEventSource
         self.audioStepAttemptAccumulator = audioStepAttemptAccumulator
-        midiPracticeStepMatcher = MIDIPracticeStepMatcher()
+        self.midiPracticeStepMatcher = midiPracticeStepMatcher ?? MIDIPracticeStepMatcher()
         self.handPianoActivityGate = handPianoActivityGate
-        self.manualAdvanceModeProvider = manualAdvanceModeProvider
+        let resolvedSettingsProvider = settingsProvider ?? UserDefaultsPracticeSessionSettingsProvider()
+        self.settingsProvider = resolvedSettingsProvider
+        self.manualAdvanceModeProvider = manualAdvanceModeProvider ?? { resolvedSettingsProvider.manualAdvanceMode }
 
         practiceMIDIInputCoordinator = PracticeMIDIInputCoordinator(
             practiceInputEventSource: practiceInputEventSource,
-            matcher: midiPracticeStepMatcher,
+            matcher: self.midiPracticeStepMatcher,
             stateStore: stateStore,
             effectHandler: self,
             consumeEvents: true
@@ -97,7 +103,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
         playbackCoordinator = PracticePlaybackCoordinator(
             sleeper: sleeper,
             sequencerPlaybackService: sequencerPlaybackService,
-            playbackSequenceBuilder: playbackSequenceBuilder,
+            playbackSequenceBuilder: self.playbackSequenceBuilder,
             chordAttemptAccumulator: chordAttemptAccumulator,
             stateStore: stateStore,
             audioRecognitionService: audioRecognitionService,
@@ -109,7 +115,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
         manualReplayCoordinator = PracticeManualReplayCoordinator(
             sleeper: sleeper,
             sequencerPlaybackService: sequencerPlaybackService,
-            playbackSequenceBuilder: playbackSequenceBuilder,
+            playbackSequenceBuilder: self.playbackSequenceBuilder,
             stateStore: stateStore,
             effectHandler: self
         )
@@ -127,7 +133,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
         )
         self.handGateController = handGateController
         virtualPianoInputController = VirtualPianoInputController(
-            detector: keyContactDetectionService,
+            detector: self.keyContactDetectionService,
             sequencerPlaybackService: sequencerPlaybackService,
             stateStore: stateStore,
             handGateController: handGateController

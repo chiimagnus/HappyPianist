@@ -3,7 +3,7 @@ import Foundation
 import Testing
 
 @MainActor
-private final class CapturingPracticeAudioRecognitionEffectHandler: PracticeSessionEffectHandling {
+private final class CapturingPracticeAudioRecognitionEffectHandler: PracticeSessionEffectHandlerProtocol {
     private(set) var effects: [PracticeSessionEffect] = []
 
     func handle(effect: PracticeSessionEffect) {

@@ -1,6 +1,14 @@
 import Foundation
 
-final class MIDIPracticeStepMatcher {
+@MainActor
+protocol MIDIPracticeStepMatchingProtocol: AnyObject {
+    func reset(stepIndex: Int, expectedNotes: [PracticeStepNote], configuredAt now: Date)
+    func registerNoteOn(note: Int, at timestamp: Date) -> StepAttemptMatchResult
+    func registerNoteOff(note: Int, at timestamp: Date)
+}
+
+@MainActor
+final class MIDIPracticeStepMatcher: MIDIPracticeStepMatchingProtocol {
     struct Configuration: Equatable {
         var chordWindow: TimeInterval = 0.55
         var rearmSilenceWindow: TimeInterval = 0.08

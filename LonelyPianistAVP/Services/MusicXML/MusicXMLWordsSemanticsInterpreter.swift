@@ -153,8 +153,8 @@ struct MusicXMLWordsSemanticsInterpreter {
 
     private static func normalizeWords(_ text: String) -> String {
         text
-            .replacingOccurrences(of: "\n", with: " ")
-            .replacingOccurrences(of: "\t", with: " ")
+            .replacing("\n", with: " ")
+            .replacing("\t", with: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
     }

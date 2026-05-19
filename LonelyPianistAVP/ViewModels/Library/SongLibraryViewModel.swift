@@ -15,6 +15,9 @@ final class SongLibraryViewModel {
     private let practicePreparationService: PracticePreparationServiceProtocol
     private let audioPlaybackController: SongAudioPlaybackStateController
 
+    static let supportedAudioFileExtensions = ["mp3", "m4a"]
+    private static let supportedAudioFileExtensionSet = Set(supportedAudioFileExtensions)
+
     var index: SongLibraryIndex = .empty
     var errorMessage: String?
     var currentListeningEntryID: UUID?
@@ -132,7 +135,7 @@ final class SongLibraryViewModel {
                 }
                 scoreURL = bundledURL
             } else {
-                scoreURL = try paths.scoresDirectoryURL().appendingPathComponent(entry.musicXMLFileName)
+                scoreURL = try paths.scoresDirectoryURL().appending(path: entry.musicXMLFileName)
             }
 
             let file = ImportedMusicXMLFile(
@@ -205,6 +208,12 @@ final class SongLibraryViewModel {
             return
         }
         guard let entryIndex = index.entries.firstIndex(where: { $0.id == entryID }) else {
+            return
+        }
+
+        let fileExtension = sourceURL.pathExtension.lowercased()
+        guard Self.supportedAudioFileExtensionSet.contains(fileExtension) else {
+            errorMessage = "仅支持导入 mp3 或 m4a 音频文件。"
             return
         }
 

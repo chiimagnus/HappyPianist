@@ -2,7 +2,12 @@ import CoreBluetooth
 import Foundation
 
 @MainActor
-final class BluetoothAccessPreflight: NSObject, CBCentralManagerDelegate {
+protocol BluetoothAccessPreflightProtocol: AnyObject {
+    func checkOrRequestAccess() async -> BluetoothAccessPreflight.Status
+}
+
+@MainActor
+final class BluetoothAccessPreflight: NSObject, BluetoothAccessPreflightProtocol, CBCentralManagerDelegate {
     enum Status: Equatable {
         case ready
         case bluetoothPoweredOff

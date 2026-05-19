@@ -10,6 +10,7 @@ struct TakeLibraryView: View {
     let onRename: (UUID, String) -> Void
     let onDelete: (UUID) -> Void
     let onClearAll: () -> Void
+    let makeMIDIExport: (RecordingTake) throws -> RecordingMIDIExport
 
     @State private var sliderValue: Double = 0
     @State private var isDraggingSlider = false
@@ -270,13 +271,10 @@ struct TakeLibraryView: View {
     }
 
     private func exportMIDI(_ take: RecordingTake) {
-        let adapter = RecordingTakeSequenceAdapter()
         do {
-            let sequence = try adapter.buildSequence(from: take)
-            exportDocument = MIDIFileDocument(data: sequence.midiData)
-            let sanitizedName = take.name.replacingOccurrences(of: "/", with: "-")
-                .replacingOccurrences(of: ":", with: "-")
-            exportFileName = "\(sanitizedName).mid"
+            let export = try makeMIDIExport(take)
+            exportDocument = MIDIFileDocument(data: export.data)
+            exportFileName = export.fileName
         } catch {
             exportError = "导出失败：\(error.localizedDescription)"
         }

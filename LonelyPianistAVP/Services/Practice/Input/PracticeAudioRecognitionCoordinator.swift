@@ -2,7 +2,7 @@ import Foundation
 import os
 
 @MainActor
-final class PracticeAudioRecognitionCoordinator: PracticeAudioRecognitionCoordinating, PracticeSessionLifecycleProtocol {
+final class PracticeAudioRecognitionCoordinator: PracticeAudioRecognitionCoordinatorProtocol, PracticeSessionLifecycleProtocol {
     struct Snapshot: Equatable {
         var practiceState: PracticeSessionState
         var autoplayState: PracticeSessionAutoplayState
@@ -25,7 +25,7 @@ final class PracticeAudioRecognitionCoordinator: PracticeAudioRecognitionCoordin
     private let service: PracticeAudioRecognitionServiceProtocol?
     private let accumulator: AudioStepAttemptAccumulator
     private let stateStore: PracticeSessionStateStore
-    private weak var effectHandler: (any PracticeSessionEffectHandling)?
+    private weak var effectHandler: (any PracticeSessionEffectHandlerProtocol)?
 
     private var hasShutdown = false
     private var eventsTask: Task<Void, Never>?
@@ -36,7 +36,7 @@ final class PracticeAudioRecognitionCoordinator: PracticeAudioRecognitionCoordin
         service: PracticeAudioRecognitionServiceProtocol?,
         accumulator: AudioStepAttemptAccumulator,
         stateStore: PracticeSessionStateStore,
-        effectHandler: any PracticeSessionEffectHandling,
+        effectHandler: any PracticeSessionEffectHandlerProtocol,
         consumeStreams: Bool
     ) {
         self.service = service

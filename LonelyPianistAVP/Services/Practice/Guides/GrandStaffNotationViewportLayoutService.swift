@@ -1,6 +1,18 @@
 import CoreGraphics
 
-struct GrandStaffNotationViewportLayoutService {
+protocol GrandStaffNotationViewportLayoutServiceProtocol {
+    func makeLayout(
+        size: CGSize,
+        lineSpacing: CGFloat,
+        items: [GrandStaffNotationItem],
+        chords: [GrandStaffNotationChord],
+        beams: [GrandStaffNotationBeam],
+        context: GrandStaffNotationContext?,
+        staffStepBounds: GrandStaffNotationViewportLayoutService.StaffStepBounds?
+    ) -> GrandStaffNotationViewportLayoutService.Layout
+}
+
+struct GrandStaffNotationViewportLayoutService: GrandStaffNotationViewportLayoutServiceProtocol {
     struct StaffStepBounds: Equatable {
         let minTrebleStep: Int
         let maxTrebleStep: Int

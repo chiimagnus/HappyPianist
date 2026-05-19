@@ -1,7 +1,11 @@
 import Foundation
 import simd
 
-struct GazePlaneHitTestService {
+protocol GazePlaneHitTestingProtocol {
+    func hitTest(ray: GazeRay, planes: [DetectedPlane]) -> PlaneHit?
+}
+
+struct GazePlaneHitTestService: GazePlaneHitTestingProtocol {
     struct Configuration: Equatable {
         var maxAngleFromUpDegrees: Float = 10
         // Allow a near hit so the user only needs a slight head tilt.

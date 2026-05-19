@@ -2,7 +2,7 @@ import Foundation
 import simd
 
 @MainActor
-protocol KeyContactDetecting: AnyObject {
+protocol KeyContactDetectingProtocol: AnyObject {
     func reset()
     func detect(
         fingerTips: [String: SIMD3<Float>],
@@ -10,18 +10,19 @@ protocol KeyContactDetecting: AnyObject {
     ) -> KeyContactResult
 }
 
-extension KeyContactDetectionService: KeyContactDetecting {}
+extension KeyContactDetectionService: KeyContactDetectingProtocol {}
+extension RealPianoContactDetectionService: KeyContactDetectingProtocol {}
 
 @MainActor
 final class VirtualPianoInputController: PracticeSessionLifecycleProtocol {
-    private let detector: any KeyContactDetecting
+    private let detector: any KeyContactDetectingProtocol
     private let sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol
     private let stateStore: PracticeSessionStateStore
     private let handGateController: PracticeHandGateController
     private var hasShutdown = false
 
     init(
-        detector: any KeyContactDetecting,
+        detector: any KeyContactDetectingProtocol,
         sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol,
         stateStore: PracticeSessionStateStore,
         handGateController: PracticeHandGateController

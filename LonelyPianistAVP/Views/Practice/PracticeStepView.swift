@@ -16,7 +16,7 @@ struct PracticeStepView: View {
 
     @State private var isVirtualPerformerEnabled = false
     @State private var isAutoplayEnabled = false
-    @AppStorage("practiceManualAdvanceMode") private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
+    @AppStorage(PracticeSessionSettingsKeys.manualAdvanceMode) private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
 
     var body: some View {
         let session = viewModel.practiceSessionViewModel
@@ -234,7 +234,8 @@ struct PracticeStepView: View {
                     onErrorDismiss: { viewModel.dismissTakeLibraryError() },
                     onRename: { id, name in viewModel.renameTake(id: id, name: name) },
                     onDelete: { id in viewModel.deleteTake(id: id) },
-                    onClearAll: { viewModel.clearAllTakes() }
+                    onClearAll: { viewModel.clearAllTakes() },
+                    makeMIDIExport: { take in try viewModel.makeMIDIExport(for: take) }
                 )
                 .navigationTitle("录制库")
                 .toolbar {
@@ -258,53 +259,23 @@ struct PracticeStepView: View {
     }
 
     private var highlightedMIDINotes: Set<Int> {
-        let session = viewModel.practiceSessionViewModel
-        return session.currentPianoHighlightGuide?.highlightedMIDINotes ?? []
+        viewModel.practiceSessionViewModel.currentHighlightedMIDINotes
     }
 
     private var fingeringByMIDINote: [Int: String] {
-        guard isAutoplayEnabled else { return [:] }
-        let session = viewModel.practiceSessionViewModel
-        return session.currentPianoHighlightGuide?.fingeringByMIDINote ?? [:]
+        viewModel.practiceSessionViewModel.currentFingeringByMIDINote(isAutoplayEnabled: isAutoplayEnabled)
     }
 
     private var triggeredMIDINotes: Set<Int> {
-        guard isAutoplayEnabled else { return [] }
-        let session = viewModel.practiceSessionViewModel
-        let notes = session.currentPianoHighlightGuide?.triggeredNotes ?? []
-        return Set(notes.map(\.midiNote))
+        viewModel.practiceSessionViewModel.currentTriggeredMIDINotes(isAutoplayEnabled: isAutoplayEnabled)
     }
 
     private var highlightColorByMIDINote: [Int: Color] {
-        let session = viewModel.practiceSessionViewModel
-        guard let guide = session.currentPianoHighlightGuide else { return [:] }
-
-        func resolvedHand(notes: [PianoHighlightNote]) -> ScoreHand? {
-            guard notes.isEmpty == false else { return nil }
-            if notes.contains(where: { $0.hand == .left }) { return .left }
-            return .right
-        }
-
-        var triggeredNotesByMidi: [Int: [PianoHighlightNote]] = [:]
-        for note in guide.triggeredNotes {
-            triggeredNotesByMidi[note.midiNote, default: []].append(note)
-        }
-
-        var activeNotesByMidi: [Int: [PianoHighlightNote]] = [:]
-        for note in guide.activeNotes {
-            activeNotesByMidi[note.midiNote, default: []].append(note)
-        }
-
-        var result: [Int: Color] = [:]
-        for midiNote in guide.highlightedMIDINotes {
-            let preferred = triggeredNotesByMidi[midiNote].flatMap(resolvedHand)
-                ?? activeNotesByMidi[midiNote].flatMap(resolvedHand)
-
-            if preferred == .left {
-                result[midiNote] = PracticeHandPalette.leftHandKeyColor
+        Dictionary(
+            uniqueKeysWithValues: viewModel.practiceSessionViewModel.currentLeftHandHighlightedMIDINotes.map {
+                ($0, PracticeHandPalette.leftHandKeyColor)
             }
-        }
-        return result
+        )
     }
 }
 

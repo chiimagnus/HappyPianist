@@ -12,8 +12,8 @@ struct PracticeSettingsView: View {
     let onRetryVirtualPianoPlacement: () -> Void
 
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
-    @AppStorage("practiceManualAdvanceMode") private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
-    @AppStorage(PracticeSessionViewModel.practiceHandSeparatedStepMatchingEnabledKey)
+    @AppStorage(PracticeSessionSettingsKeys.manualAdvanceMode) private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
+    @AppStorage(PracticeSessionSettingsKeys.handSeparatedStepMatchingEnabled)
     private var practiceHandSeparatedStepMatchingEnabled = false
 
     var body: some View {

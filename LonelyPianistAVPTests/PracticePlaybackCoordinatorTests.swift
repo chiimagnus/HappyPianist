@@ -3,7 +3,7 @@ import Foundation
 import Testing
 
 @MainActor
-private final class CapturingPracticeSessionEffectHandler: PracticeSessionEffectHandling {
+private final class CapturingPracticeSessionEffectHandler: PracticeSessionEffectHandlerProtocol {
     private(set) var effects: [PracticeSessionEffect] = []
 
     func handle(effect: PracticeSessionEffect) {
