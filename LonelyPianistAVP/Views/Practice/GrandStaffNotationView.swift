@@ -14,6 +14,7 @@ struct GrandStaffNotationView: View {
     @State private var centeredForFirstGuideID: Int?
 
     var body: some View {
+        // KEEP_GEOMETRYREADER: needs exact viewport size for notation layout + scroll anchoring.
         GeometryReader { proxy in
             let lineSpacing = fixedLineSpacing
             let contentWidth = resolvedContentWidth(for: proxy.size, lineSpacing: lineSpacing)
