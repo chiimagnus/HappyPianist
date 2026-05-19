@@ -524,33 +524,6 @@ private struct BluetoothMIDIInputEventSourceState {
     var lastProtocolMismatchLoggedAtUptimeSeconds: TimeInterval = 0
 }
 
-private final class AsyncStreamBroadcaster<Element: Sendable> {
-    private let continuations = OSAllocatedUnfairLock(initialState: [UUID: AsyncStream<Element>.Continuation]())
-
-    func makeStream() -> AsyncStream<Element> {
-        let id = UUID()
-        return AsyncStream { continuation in
-            continuations.withLock { state in
-                state[id] = continuation
-            }
-            continuation.onTermination = { @Sendable _ in
-                self.continuations.withLock { state in
-                    state[id] = nil
-                }
-            }
-        }
-    }
-
-    func yield(_ event: Element) {
-        let snapshot = continuations.withLock { state in
-            Array(state.values)
-        }
-        for continuation in snapshot {
-            continuation.yield(event)
-        }
-    }
-}
-
 private final class EndpointConnectionContext {
     let sourceIndex: Int
     let endpointUniqueID: Int32?

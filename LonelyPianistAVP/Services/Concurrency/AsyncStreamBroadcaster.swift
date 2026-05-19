@@ -3,7 +3,7 @@ import Foundation
 actor AsyncStreamBroadcaster<Element: Sendable> {
     private var continuations: [UUID: AsyncStream<Element>.Continuation] = [:]
 
-    func makeStream(
+    nonisolated func makeStream(
         bufferingPolicy: AsyncStream<Element>.Continuation.BufferingPolicy = .unbounded
     ) -> AsyncStream<Element> {
         AsyncStream(Element.self, bufferingPolicy: bufferingPolicy) { continuation in
@@ -54,4 +54,3 @@ actor AsyncStreamBroadcaster<Element: Sendable> {
         }
     }
 }
-
