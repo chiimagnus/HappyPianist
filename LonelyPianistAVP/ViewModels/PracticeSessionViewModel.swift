@@ -14,6 +14,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol {
     )
 
     private let stateStore = PracticeSessionStateStore()
+    private let stepNavigator = PracticeStepNavigator()
 
     var isHandSeparatedStepMatchingEnabled: Bool {
         UserDefaults.standard.bool(forKey: Self.practiceHandSeparatedStepMatchingEnabledKey)
@@ -662,9 +663,11 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol {
 
     func startGuidingIfReady() {
         guard state == .ready, steps.isEmpty == false else { return }
-        currentStepIndex = 0
+
+        let navigation = stepNavigator.restart(steps: steps)
+        currentStepIndex = navigation.currentStepIndex
         setCurrentHighlightGuideForStepIndex(currentStepIndex)
-        state = .guiding(stepIndex: currentStepIndex)
+        state = navigation.state
         if autoplayState == .playing {
             refreshAudioRecognitionForCurrentState()
         } else {
@@ -751,45 +754,49 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol {
     }
 
     func advanceToNextStep() {
-        guard steps.isEmpty == false else {
-            state = .idle
-            return
-        }
-        chordAttemptAccumulator.reset()
-        if currentStepIndex + 1 < steps.count {
-            let previousTick = steps[currentStepIndex].tick
-            currentStepIndex += 1
-            state = .guiding(stepIndex: currentStepIndex)
-            updateHighlightGuideAfterStepAdvance(previousTick: previousTick, nextStepIndex: currentStepIndex)
-            if autoplayState == .playing {
-                refreshAudioRecognitionForCurrentState()
-            } else {
-                _ = prepareAudioRecognitionSuppressWindowForPlayback()
-                refreshAudioRecognitionForCurrentState()
-                playCurrentStepSound(applyRecognitionSuppress: false)
+        let navigation = stepNavigator.advance(steps: steps, currentStepIndex: currentStepIndex)
+        guard case let .guiding(stepIndex: nextIndex) = navigation.state else {
+            if navigation.state == .idle {
+                state = .idle
+                return
             }
-        } else {
-            currentStepIndex = steps.count
+
+            currentStepIndex = navigation.currentStepIndex
             currentHighlightGuideIndex = nil
             pressedNotes.removeAll()
-            state = .completed
+            state = navigation.state
             stopAutoplayTask()
             stopAutoplayAudio()
             stopAudioRecognition()
+            return
+        }
+
+        chordAttemptAccumulator.reset()
+        let previousTick = steps.indices.contains(currentStepIndex) ? steps[currentStepIndex].tick : 0
+        currentStepIndex = navigation.currentStepIndex
+        state = navigation.state
+        updateHighlightGuideAfterStepAdvance(previousTick: previousTick, nextStepIndex: nextIndex)
+        if autoplayState == .playing {
+            refreshAudioRecognitionForCurrentState()
+        } else {
+            _ = prepareAudioRecognitionSuppressWindowForPlayback()
+            refreshAudioRecognitionForCurrentState()
+            playCurrentStepSound(applyRecognitionSuppress: false)
         }
     }
 
     func moveToStep(_ nextStepIndex: Int, shouldPlaySound: Bool) {
-        guard steps.indices.contains(nextStepIndex) else {
+        let navigation = stepNavigator.move(to: nextStepIndex, steps: steps)
+        guard case let .guiding(stepIndex: targetIndex) = navigation.state else {
             completeManualAdvance()
             return
         }
         let previousTick = steps.indices.contains(currentStepIndex) ? steps[currentStepIndex]
             .tick : steps[nextStepIndex].tick
         chordAttemptAccumulator.reset()
-        currentStepIndex = nextStepIndex
-        state = .guiding(stepIndex: nextStepIndex)
-        updateHighlightGuideAfterStepAdvance(previousTick: previousTick, nextStepIndex: nextStepIndex)
+        currentStepIndex = navigation.currentStepIndex
+        state = navigation.state
+        updateHighlightGuideAfterStepAdvance(previousTick: previousTick, nextStepIndex: targetIndex)
         refreshAudioRecognitionForCurrentState()
         if shouldPlaySound {
             _ = prepareAudioRecognitionSuppressWindowForPlayback()
