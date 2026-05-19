@@ -26,6 +26,7 @@ struct PianoKeyboard88View: View {
     }
 
     var body: some View {
+        // KEEP_GEOMETRYREADER: requires container size to compute key widths/heights for accurate rendering.
         GeometryReader { proxy in
             let whiteKeyWidth = proxy.size.width / CGFloat(max(1, Self.whiteKeys.count))
             let whiteKeyHeight = proxy.size.height
