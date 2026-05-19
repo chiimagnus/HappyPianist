@@ -5,7 +5,7 @@ import simd
 
 @MainActor
 @Observable
-final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol {
+final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, PracticeSessionEffectHandling {
     nonisolated static let practiceHandSeparatedStepMatchingEnabledKey = "practiceHandSeparatedStepMatchingEnabled"
 
     let decisionLogger = Logger(
@@ -122,7 +122,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol {
     let practiceInputEventSource: PracticeInputEventSourceProtocol?
     let audioStepAttemptAccumulator: AudioStepAttemptAccumulator
     let midiPracticeStepMatcher = MIDIPracticeStepMatcher()
-    let midiInputCoordinator: PracticeMIDIInputCoordinator
+    private(set) var midiInputCoordinator: PracticeMIDIInputCoordinator?
     let handPianoActivityGate: HandPianoActivityGate
     private let manualAdvanceModeProvider: () -> ManualAdvanceMode
     var autoplayTask: Task<Void, Never>?
@@ -130,8 +130,6 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol {
     var audioRecognitionEventsTask: Task<Void, Never>?
     var audioRecognitionStatusTask: Task<Void, Never>?
     var audioRecognitionDebugTask: Task<Void, Never>?
-    var practiceInputMIDI1EventsTask: Task<Void, Never>?
-    var practiceInputMIDI2EventsTask: Task<Void, Never>?
     private var hasShutdown = false
     private(set) var tempoMap: MusicXMLTempoMap {
         get { stateStore.tempoMap }
@@ -296,14 +294,18 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol {
         self.audioRecognitionService = audioRecognitionService
         self.practiceInputEventSource = practiceInputEventSource
         self.audioStepAttemptAccumulator = audioStepAttemptAccumulator
-        self.midiInputCoordinator = PracticeMIDIInputCoordinator(
-            practiceInputEventSource: practiceInputEventSource,
-            matcher: midiPracticeStepMatcher
-        )
         self.handPianoActivityGate = handPianoActivityGate
         self.manualAdvanceModeProvider = manualAdvanceModeProvider
+
+        self.midiInputCoordinator = PracticeMIDIInputCoordinator(
+            practiceInputEventSource: practiceInputEventSource,
+            matcher: midiPracticeStepMatcher,
+            stateStore: stateStore,
+            effectHandler: self,
+            consumeEvents: true
+        )
+
         bindAudioRecognitionStreamsIfNeeded()
-        bindPracticeInputStreamsIfNeeded()
     }
 
     @available(*, deprecated, message: "Inject dependencies via AppServices/CompositionRoot.")
@@ -337,14 +339,13 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol {
         audioRecognitionDebugTask?.cancel()
         audioRecognitionDebugTask = nil
 
-        practiceInputMIDI1EventsTask?.cancel()
-        practiceInputMIDI1EventsTask = nil
-        practiceInputMIDI2EventsTask?.cancel()
-        practiceInputMIDI2EventsTask = nil
+        midiInputCoordinator?.shutdown()
     }
 
-    private func handle(effect: PracticeSessionEffect) {
+    func handle(effect: PracticeSessionEffect) {
         switch effect {
+        case .advanceToNextStep:
+            advanceToNextStep()
         case .refreshPracticeInput:
             refreshPracticeInputForCurrentState()
         case .refreshAudioRecognition:

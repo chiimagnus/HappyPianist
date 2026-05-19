@@ -2,13 +2,26 @@ import Foundation
 @testable import LonelyPianistAVP
 import Testing
 
+@MainActor
+private final class CapturingPracticeSessionEffectHandler: PracticeSessionEffectHandling {
+    private(set) var effects: [PracticeSessionEffect] = []
+
+    func handle(effect: PracticeSessionEffect) {
+        effects.append(effect)
+    }
+}
+
 @Test
 @MainActor
 func refreshInNonGuidingStateStopsInput() {
     let source = FakeProtocolSeparatedPracticeInputEventSource()
+    let stateStore = PracticeSessionStateStore()
+    let effectHandler = CapturingPracticeSessionEffectHandler()
     let coordinator = PracticeMIDIInputCoordinator(
         practiceInputEventSource: source,
         matcher: MIDIPracticeStepMatcher(),
+        stateStore: stateStore,
+        effectHandler: effectHandler,
         consumeEvents: true
     )
 
@@ -22,7 +35,7 @@ func refreshInNonGuidingStateStopsInput() {
         )
     )
 
-    #expect(source.stopCallCount == 1)
+    #expect(source.stopCallCount == 0)
     #expect(source.isRunning == false)
 }
 
@@ -30,9 +43,14 @@ func refreshInNonGuidingStateStopsInput() {
 @MainActor
 func shutdownIsIdempotent() {
     let source = FakeProtocolSeparatedPracticeInputEventSource()
+    let stateStore = PracticeSessionStateStore()
+    let effectHandler = CapturingPracticeSessionEffectHandler()
     let coordinator = PracticeMIDIInputCoordinator(
         practiceInputEventSource: source,
-        matcher: MIDIPracticeStepMatcher()
+        matcher: MIDIPracticeStepMatcher(),
+        stateStore: stateStore,
+        effectHandler: effectHandler,
+        consumeEvents: true
     )
 
     coordinator.refresh(
@@ -57,9 +75,14 @@ func shutdownIsIdempotent() {
 @MainActor
 func shutdownDoesNotCancelOtherConsumers() async {
     let source = FakeProtocolSeparatedPracticeInputEventSource()
+    let stateStore = PracticeSessionStateStore()
+    let effectHandler = CapturingPracticeSessionEffectHandler()
     let coordinator = PracticeMIDIInputCoordinator(
         practiceInputEventSource: source,
-        matcher: MIDIPracticeStepMatcher()
+        matcher: MIDIPracticeStepMatcher(),
+        stateStore: stateStore,
+        effectHandler: effectHandler,
+        consumeEvents: true
     )
 
     coordinator.refresh(
