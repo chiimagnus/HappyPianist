@@ -53,21 +53,6 @@ final class SongLibraryViewModel {
         reload()
     }
 
-    @available(*, deprecated, message: "Inject dependencies via AppServices/CompositionRoot.")
-    convenience init(appState: AppState, flowState: FlowState) {
-        self.init(
-            appState: appState,
-            flowState: flowState,
-            practicePreparationService: PracticePreparationService(),
-            indexStore: SongLibraryIndexStore(),
-            fileStore: SongFileStore(),
-            audioImportService: AudioImportService(),
-            paths: SongLibraryPaths(),
-            bundledProvider: BundledSongLibraryProvider(),
-            audioPlayer: SongAudioPlayer()
-        )
-    }
-
     var entries: [SongLibraryEntry] {
         var merged: [SongLibraryEntry] = []
         merged.reserveCapacity(bundledEntries.count + index.entries.count)
