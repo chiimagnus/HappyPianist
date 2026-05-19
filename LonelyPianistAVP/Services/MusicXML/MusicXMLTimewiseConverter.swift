@@ -69,10 +69,10 @@ struct MusicXMLTimewiseConverter {
 
     private func escapeAttribute(_ value: String) -> String {
         value
-            .replacingOccurrences(of: "&", with: "&amp;")
-            .replacingOccurrences(of: "\"", with: "&quot;")
-            .replacingOccurrences(of: "<", with: "&lt;")
-            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacing("&", with: "&amp;")
+            .replacing("\"", with: "&quot;")
+            .replacing("<", with: "&lt;")
+            .replacing(">", with: "&gt;")
     }
 }
 
@@ -236,16 +236,16 @@ private struct XMLStringBuilder {
 
     private func escapeText(_ text: String) -> String {
         text
-            .replacingOccurrences(of: "&", with: "&amp;")
-            .replacingOccurrences(of: "<", with: "&lt;")
-            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacing("&", with: "&amp;")
+            .replacing("<", with: "&lt;")
+            .replacing(">", with: "&gt;")
     }
 
     private func escapeAttribute(_ value: String) -> String {
         value
-            .replacingOccurrences(of: "&", with: "&amp;")
-            .replacingOccurrences(of: "\"", with: "&quot;")
-            .replacingOccurrences(of: "<", with: "&lt;")
-            .replacingOccurrences(of: ">", with: "&gt;")
+            .replacing("&", with: "&amp;")
+            .replacing("\"", with: "&quot;")
+            .replacing("<", with: "&lt;")
+            .replacing(">", with: "&gt;")
     }
 }

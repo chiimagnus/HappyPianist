@@ -31,7 +31,7 @@ struct AudioImportService: AudioImportServiceProtocol {
 
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let timestamp = formatter.string(from: now()).replacingOccurrences(of: ":", with: "-")
+        let timestamp = formatter.string(from: now()).replacing(":", with: "-")
 
         let sourceFileName = URL(fileURLWithPath: sourceURL.lastPathComponent).lastPathComponent
         let targetFileName = "\(timestamp)-\(sourceFileName)"
@@ -43,7 +43,7 @@ struct AudioImportService: AudioImportServiceProtocol {
 
     private func uniqueDestinationURL(fileName: String) throws -> URL {
         let audioDirectoryURL = try paths.audioDirectoryURL()
-        var destinationURL = audioDirectoryURL.appendingPathComponent(fileName)
+        var destinationURL = audioDirectoryURL.appending(path: fileName)
 
         if fileManager.fileExists(atPath: destinationURL.path()) == false {
             return destinationURL
@@ -51,7 +51,7 @@ struct AudioImportService: AudioImportServiceProtocol {
 
         let ext = destinationURL.pathExtension
         let base = destinationURL.deletingPathExtension().lastPathComponent
-        destinationURL = audioDirectoryURL.appendingPathComponent("\(base)-\(UUID().uuidString)")
+        destinationURL = audioDirectoryURL.appending(path: "\(base)-\(UUID().uuidString)")
         if ext.isEmpty == false {
             destinationURL.appendPathExtension(ext)
         }

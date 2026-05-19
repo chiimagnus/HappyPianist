@@ -228,9 +228,9 @@ nonisolated final class PracticeAudioRecognitionService: PracticeAudioRecognitio
         lock.unlock()
         guard let analysisWindow else { return }
 
-        let now = Date()
+        let now = Date.now
         let suppressing = suppressUntil.map { now < $0 } ?? false
-        let startedAt = Date().timeIntervalSinceReferenceDate
+        let startedAt = Date.now.timeIntervalSinceReferenceDate
         let frame = processHarmonicFrame(
             samples: analysisWindow,
             sampleRate: sampleRate,
@@ -263,7 +263,7 @@ nonisolated final class PracticeAudioRecognitionService: PracticeAudioRecognitio
         startedAt: TimeInterval
     ) -> TargetedHarmonicDetectionFrame {
         do {
-            let spectrum = try spectrumAnalyzer.analyze(samples: samples, sampleRate: sampleRate, timestamp: Date())
+            let spectrum = try spectrumAnalyzer.analyze(samples: samples, sampleRate: sampleRate, timestamp: Date.now)
             var frame = harmonicDetector.detect(
                 spectrumFrame: spectrum,
                 expectedMIDINotes: expectedMIDINotes,
@@ -273,7 +273,7 @@ nonisolated final class PracticeAudioRecognitionService: PracticeAudioRecognitio
                 requestedMode: requestedMode,
                 profile: profile
             )
-            let elapsed = ((Date().timeIntervalSinceReferenceDate) - startedAt) * 1000
+            let elapsed = ((Date.now.timeIntervalSinceReferenceDate) - startedAt) * 1000
             updateFallbackCounters(elapsedMs: elapsed, error: nil, profile: profile)
             if elapsed > profile.slowProcessingThresholdMs {
                 performanceLogger.debug("harmonic detector slow ms=\(elapsed, privacy: .public)")
@@ -293,7 +293,7 @@ nonisolated final class PracticeAudioRecognitionService: PracticeAudioRecognitio
             return TargetedHarmonicDetectionFrame(
                 events: [],
                 templateMatchResults: [],
-                processingDurationMs: ((Date().timeIntervalSinceReferenceDate) - startedAt) * 1000,
+                processingDurationMs: ((Date.now.timeIntervalSinceReferenceDate) - startedAt) * 1000,
                 suppressing: suppressing,
                 fallbackReason: lastFallbackReason ?? error.localizedDescription,
                 activeDetectorMode: .harmonicTemplate,

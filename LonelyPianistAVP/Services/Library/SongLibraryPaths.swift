@@ -12,19 +12,19 @@ struct SongLibraryPaths {
     }
 
     func rootDirectoryURL() throws -> URL {
-        try documentsDirectoryURL().appendingPathComponent(SongLibraryLayout.rootDirectoryName, isDirectory: true)
+        try documentsDirectoryURL().appending(path: SongLibraryLayout.rootDirectoryName, directoryHint: .isDirectory)
     }
 
     func scoresDirectoryURL() throws -> URL {
-        try rootDirectoryURL().appendingPathComponent(SongLibraryLayout.scoresDirectoryName, isDirectory: true)
+        try rootDirectoryURL().appending(path: SongLibraryLayout.scoresDirectoryName, directoryHint: .isDirectory)
     }
 
     func audioDirectoryURL() throws -> URL {
-        try rootDirectoryURL().appendingPathComponent(SongLibraryLayout.audioDirectoryName, isDirectory: true)
+        try rootDirectoryURL().appending(path: SongLibraryLayout.audioDirectoryName, directoryHint: .isDirectory)
     }
 
     func indexFileURL() throws -> URL {
-        try rootDirectoryURL().appendingPathComponent(SongLibraryLayout.indexFileName)
+        try rootDirectoryURL().appending(path: SongLibraryLayout.indexFileName)
     }
 
     func ensureDirectoriesExist() throws {

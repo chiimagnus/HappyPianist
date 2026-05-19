@@ -1,7 +1,15 @@
 import Foundation
 import simd
 
-struct VirtualKeyboardPoseService {
+protocol VirtualKeyboardPoseServiceProtocol {
+    func computeWorldFromKeyboard(
+        planeWorldFromAnchor: simd_float4x4,
+        handCenterOnPlaneWorld: SIMD3<Float>,
+        deviceWorldTransform: simd_float4x4?
+    ) -> simd_float4x4?
+}
+
+struct VirtualKeyboardPoseService: VirtualKeyboardPoseServiceProtocol {
     func computeWorldFromKeyboard(
         planeWorldFromAnchor: simd_float4x4,
         handCenterOnPlaneWorld: SIMD3<Float>,

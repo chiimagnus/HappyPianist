@@ -37,6 +37,6 @@ struct WorldAnchorCalibrationStore: WorldAnchorCalibrationStoreProtocol {
         guard let documents = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
             throw WorldAnchorCalibrationStoreError.documentsUnavailable
         }
-        return documents.appendingPathComponent(fileName)
+        return documents.appending(path: fileName)
     }
 }

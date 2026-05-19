@@ -1,7 +1,11 @@
 import Foundation
 import simd
 
-struct VirtualPianoKeyGeometryService {
+protocol VirtualPianoKeyGeometryServiceProtocol {
+    func generateKeyboardGeometry(from frame: KeyboardFrame) -> PianoKeyboardGeometry?
+}
+
+struct VirtualPianoKeyGeometryService: VirtualPianoKeyGeometryServiceProtocol {
     private static let keyCount = 88
     private static let whiteKeyCount = 52
     private static let firstMIDINote = 21 // A0

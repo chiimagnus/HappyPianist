@@ -41,16 +41,18 @@ final class ARGuideViewModel {
     var latestDeviceWorldPosition: SIMD3<Float>?
 
     // MARK: - Gaze & Placement (P3: split target)
-    let gazePlaneDiskConfirmation = GazePlaneDiskConfirmationViewModel()
-    let gazePlaneHitTestService = GazePlaneHitTestService()
+    let gazePlaneDiskConfirmation: GazePlaneDiskConfirmationViewModel
+    private let gazePlaneHitTestService: any GazePlaneHitTestingProtocol
+    private let virtualKeyboardPoseService: any VirtualKeyboardPoseServiceProtocol
+    private let virtualPianoKeyGeometryService: any VirtualPianoKeyGeometryServiceProtocol
     var latestGazePlaneHit: PlaneHit?
     var latestGazeRayOriginWorld: SIMD3<Float>?
 
     // MARK: - Backend / Improv (P3: split target)
-    let backendDiscoveryService = BonjourBackendDiscoveryService()
+    let backendDiscoveryService: BonjourBackendDiscoveryService
 
     // MARK: - Recording (P3: split target)
-    let takeLibraryViewModel = TakeLibraryViewModel()
+    let takeLibraryViewModel: TakeLibraryViewModel
     @ObservationIgnored
     lazy var midiRecordingCoordinator: MIDIRecordingCoordinator = MIDIRecordingCoordinator(
         logger: practiceInputLogger,
@@ -83,9 +85,6 @@ final class ARGuideViewModel {
             self.lastImprovStatusText = state.lastImprovStatusText
         }
     )
-    let takePlaybackController = TakePlaybackController(
-        playbackService: AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2")
-    )
     let takePlaybackViewModel: TakePlaybackViewModel
     var isRecording = false
     var recordingStartDate: Date?
@@ -95,7 +94,14 @@ final class ARGuideViewModel {
         appState: AppState,
         flowState: FlowState,
         pianoModeRegistry: PianoModeRegistryProtocol,
-        practiceSessionViewModelFactory: PracticeSessionViewModelFactoryProtocol
+        practiceSessionViewModelFactory: PracticeSessionViewModelFactoryProtocol,
+        gazePlaneDiskConfirmation: GazePlaneDiskConfirmationViewModel? = nil,
+        gazePlaneHitTestService: (any GazePlaneHitTestingProtocol)? = nil,
+        virtualKeyboardPoseService: (any VirtualKeyboardPoseServiceProtocol)? = nil,
+        virtualPianoKeyGeometryService: (any VirtualPianoKeyGeometryServiceProtocol)? = nil,
+        backendDiscoveryService: BonjourBackendDiscoveryService? = nil,
+        takeLibraryViewModel: TakeLibraryViewModel? = nil,
+        takePlaybackViewModel: TakePlaybackViewModel? = nil
     ) {
         self.appState = appState
         self.flowState = flowState
@@ -103,7 +109,17 @@ final class ARGuideViewModel {
         practiceLocalizationViewModel = PracticeLocalizationViewModel(appState: appState)
         self.pianoModeRegistry = pianoModeRegistry
         self.practiceSessionViewModelFactory = practiceSessionViewModelFactory
-        takePlaybackViewModel = TakePlaybackViewModel(controller: takePlaybackController)
+        self.gazePlaneDiskConfirmation = gazePlaneDiskConfirmation ?? GazePlaneDiskConfirmationViewModel()
+        self.gazePlaneHitTestService = gazePlaneHitTestService ?? GazePlaneHitTestService()
+        self.virtualKeyboardPoseService = virtualKeyboardPoseService ?? VirtualKeyboardPoseService()
+        self.virtualPianoKeyGeometryService = virtualPianoKeyGeometryService ?? VirtualPianoKeyGeometryService()
+        self.backendDiscoveryService = backendDiscoveryService ?? BonjourBackendDiscoveryService()
+        self.takeLibraryViewModel = takeLibraryViewModel ?? TakeLibraryViewModel()
+        self.takePlaybackViewModel = takePlaybackViewModel ?? TakePlaybackViewModel(
+            controller: TakePlaybackController(
+                playbackService: AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2")
+            )
+        )
         practiceSessionViewModel = practiceSessionViewModelFactory
             .makePracticeSessionViewModel(for: flowState.selectedPianoModeID)
         setupAppStateCallbacks()
@@ -753,8 +769,7 @@ final class ARGuideViewModel {
 
     private func applyVirtualPianoGeometry(worldFromKeyboard: simd_float4x4) {
         let frame = KeyboardFrame(worldFromKeyboard: worldFromKeyboard)
-        let service = VirtualPianoKeyGeometryService()
-        if let geometry = service.generateKeyboardGeometry(from: frame) {
+        if let geometry = virtualPianoKeyGeometryService.generateKeyboardGeometry(from: frame) {
             practiceSessionViewModel.applyVirtualKeyboardGeometry(geometry)
             isVirtualPianoPlaced = true
             if appState.cachedVirtualPianoWorldAnchorID == nil {
@@ -891,8 +906,7 @@ final class ARGuideViewModel {
         let n = simd_normalize(hit.planeNormalWorld)
         let handCenterOnPlaneWorld = handCenterWorld - n * simd_dot(handCenterWorld - hit.hitPointWorld, n)
 
-        let poseService = VirtualKeyboardPoseService()
-        guard let worldFromKeyboard = poseService.computeWorldFromKeyboard(
+        guard let worldFromKeyboard = virtualKeyboardPoseService.computeWorldFromKeyboard(
             planeWorldFromAnchor: planeWorldFromAnchor,
             handCenterOnPlaneWorld: handCenterOnPlaneWorld,
             deviceWorldTransform: deviceWorldTransform
@@ -916,7 +930,7 @@ final class ARGuideViewModel {
 
     var recordingElapsedText: String {
         guard let startDate = recordingStartDate else { return "00:00" }
-        let elapsed = Date().timeIntervalSince(startDate)
+        let elapsed = Date.now.timeIntervalSince(startDate)
         let minutes = Int(elapsed) / 60
         let seconds = Int(elapsed) % 60
         let minutesText = minutes.formatted(.number.precision(.integerLength(2)))
@@ -964,6 +978,10 @@ final class ARGuideViewModel {
 
     func clearAllTakes() {
         takeLibraryViewModel.clearAll()
+    }
+
+    func makeMIDIExport(for take: RecordingTake) throws -> RecordingMIDIExport {
+        try takeLibraryViewModel.makeMIDIExport(for: take)
     }
 
     func resolvedTrackedWorldAnchorPoint(anchorID: UUID?) -> SIMD3<Float>? {

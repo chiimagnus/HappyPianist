@@ -1,21 +1,21 @@
 import Foundation
 
-protocol PracticeMIDIInputCoordinating: AnyObject {
+protocol PracticeMIDIInputCoordinatorProtocol: AnyObject {
     func refreshForCurrentState()
     func stop()
 }
 
-protocol PracticeAudioRecognitionCoordinating: AnyObject {
+protocol PracticeAudioRecognitionCoordinatorProtocol: AnyObject {
     func refreshForCurrentState()
     func stop()
 }
 
-protocol PracticePlaybackCoordinating: AnyObject {
+protocol PracticePlaybackCoordinatorProtocol: AnyObject {
     func stopTransientWork()
     func playCurrentStepSound(applyRecognitionSuppress: Bool)
 }
 
 @MainActor
-protocol PracticeSessionEffectHandling: AnyObject {
+protocol PracticeSessionEffectHandlerProtocol: AnyObject {
     func handle(effect: PracticeSessionEffect)
 }
