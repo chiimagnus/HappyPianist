@@ -134,20 +134,6 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
         )
     }
 
-    @available(*, deprecated, message: "Inject dependencies via AppServices/CompositionRoot.")
-    convenience init() {
-        self.init(
-            pressDetectionService: PressDetectionService(),
-            chordAttemptAccumulator: ChordAttemptAccumulator(),
-            sleeper: TaskSleeper(),
-            sequencerPlaybackService: AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2"),
-            audioRecognitionService: nil,
-            practiceInputEventSource: nil,
-            audioStepAttemptAccumulator: AudioStepAttemptAccumulator(),
-            handPianoActivityGate: HandPianoActivityGate()
-        )
-    }
-
     func shutdown() {
         guard hasShutdown == false else { return }
         hasShutdown = true
