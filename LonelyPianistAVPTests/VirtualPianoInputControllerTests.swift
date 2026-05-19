@@ -4,7 +4,7 @@ import simd
 import Testing
 
 @MainActor
-private final class CapturingEffectHandler: PracticeSessionEffectHandling {
+private final class CapturingEffectHandler: PracticeSessionEffectHandlerProtocol {
     private(set) var effects: [PracticeSessionEffect] = []
 
     func handle(effect: PracticeSessionEffect) {
@@ -36,7 +36,7 @@ private final class AlwaysMatchChordAttemptAccumulator: ChordAttemptAccumulatorP
 }
 
 @MainActor
-private final class FakeKeyContactDetector: KeyContactDetecting {
+private final class FakeKeyContactDetector: KeyContactDetectingProtocol {
     var resultToReturn: KeyContactResult
 
     init(resultToReturn: KeyContactResult) {
