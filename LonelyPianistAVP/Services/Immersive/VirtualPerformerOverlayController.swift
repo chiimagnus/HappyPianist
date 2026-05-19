@@ -36,15 +36,6 @@ final class VirtualPerformerOverlayController {
         let amplitudeRadians: Float
     }
 
-    private struct XiaochengRig {
-        let modelEntity: ModelEntity
-        let restJointTransforms: [Transform]
-        let leftArmJointIndices: [Int]
-        let rightArmJointIndices: [Int]
-        let neckJointIndex: Int?
-        let headJointIndex: Int?
-    }
-
     func update(
         isEnabled: Bool,
         isPerforming: Bool,
@@ -200,7 +191,7 @@ final class VirtualPerformerOverlayController {
                 fitXiaochengToPlaceholder(entity: entity)
 
                 guard let modelEntity = findFirstSkinnedModelEntity(in: entity),
-                      let rig = makeXiaochengRig(modelEntity: modelEntity)
+                      let rig = XiaochengRigBuilder.makeRig(modelEntity: modelEntity)
                 else {
                     return
                 }
@@ -240,73 +231,6 @@ final class VirtualPerformerOverlayController {
         return nil
     }
 
-    private func makeXiaochengRig(modelEntity: ModelEntity) -> XiaochengRig? {
-        let jointNames = modelEntity.jointNames
-        guard jointNames.isEmpty == false else { return nil }
-
-        func index(endsWith component: String) -> Int? {
-            jointNames.firstIndex { $0 == component || $0.hasSuffix("/\(component)") }
-        }
-
-        let leftIndices = [index(endsWith: "LeftShoulder"), index(endsWith: "LeftArm"), index(endsWith: "LeftForeArm")]
-            .compactMap(\.self)
-        let rightIndices = [
-            index(endsWith: "RightShoulder"),
-            index(endsWith: "RightArm"),
-            index(endsWith: "RightForeArm"),
-        ].compactMap(\.self)
-        guard leftIndices.isEmpty == false || rightIndices.isEmpty == false else { return nil }
-
-        let neckIndex = index(endsWith: "Neck")
-        let headIndex = index(endsWith: "Head")
-
-        var restTransforms = modelEntity.jointTransforms
-        applyForwardRaisedArmsPose(jointNames: jointNames, jointTransforms: &restTransforms)
-        modelEntity.jointTransforms = restTransforms
-
-        return XiaochengRig(
-            modelEntity: modelEntity,
-            restJointTransforms: restTransforms,
-            leftArmJointIndices: leftIndices,
-            rightArmJointIndices: rightIndices,
-            neckJointIndex: neckIndex,
-            headJointIndex: headIndex
-        )
-    }
-
-    private func applyForwardRaisedArmsPose(
-        jointNames: [String],
-        jointTransforms: inout [Transform]
-    ) {
-        func index(endsWith component: String) -> Int? {
-            jointNames.firstIndex { $0 == component || $0.hasSuffix("/\(component)") }
-        }
-
-        func apply(arm: String, foreArm: String) {
-            guard let armIndex = index(endsWith: arm),
-                  let foreArmIndex = index(endsWith: foreArm),
-                  armIndex < jointTransforms.count,
-                  foreArmIndex < jointTransforms.count
-            else {
-                return
-            }
-
-            let foreArmTranslation = jointTransforms[foreArmIndex].translation
-            let foreArmLength = simd_length(foreArmTranslation)
-            guard foreArmLength > 0.0001 else { return }
-
-            let localArmDirection = foreArmTranslation / foreArmLength
-            let currentArmDirection = jointTransforms[armIndex].rotation.act(localArmDirection)
-
-            let desiredArmDirection = simd_normalize(SIMD3<Float>(0, 0, -1))
-            let delta = simd_quatf(from: currentArmDirection, to: desiredArmDirection)
-            jointTransforms[armIndex].rotation = delta * jointTransforms[armIndex].rotation
-        }
-
-        apply(arm: "LeftArm", foreArm: "LeftForeArm")
-        apply(arm: "RightArm", foreArm: "RightForeArm")
-    }
-
     private func animateHead(isPerforming: Bool) {
         guard let xiaochengRig else { return }
 
@@ -323,58 +247,11 @@ final class VirtualPerformerOverlayController {
                 let t = Float(step) / Float(steps)
                 let angle = start + (targetAngleRadians - start) * t
                 xiaochengNodAngleRadians = angle
-                applyXiaochengHeadNodPose(rig: xiaochengRig)
+                XiaochengPoseService.applyHeadNodPose(rig: xiaochengRig, headNodAngleRadians: angle)
                 let stepSeconds = Double(durationSeconds / Float(steps))
                 try? await Task.sleep(for: .seconds(stepSeconds))
             }
         }
-    }
-
-    private func applyXiaochengHeadNodPose(rig: XiaochengRig) {
-        guard xiaochengNodAngleRadians != 0 else {
-            rig.modelEntity.jointTransforms = makeXiaochengBaseTransforms(rig: rig)
-            return
-        }
-
-        var transforms = rig.modelEntity.jointTransforms
-        let rest = rig.restJointTransforms
-
-        let headRotation = simd_quatf(angle: xiaochengNodAngleRadians, axis: [1, 0, 0])
-        let neckRotation = simd_quatf(angle: xiaochengNodAngleRadians * 0.35, axis: [1, 0, 0])
-
-        if let neckIndex = rig.neckJointIndex, neckIndex < transforms.count, neckIndex < rest.count {
-            transforms[neckIndex].rotation = rest[neckIndex].rotation * neckRotation
-        }
-        if let headIndex = rig.headJointIndex, headIndex < transforms.count, headIndex < rest.count {
-            transforms[headIndex].rotation = rest[headIndex].rotation * headRotation
-        }
-
-        rig.modelEntity.jointTransforms = transforms
-    }
-
-    private func applyHeadNodToBaseTransforms(
-        angleRadians: Float,
-        rig: XiaochengRig,
-        jointTransforms: inout [Transform]
-    ) {
-        guard angleRadians != 0 else { return }
-
-        let headRotation = simd_quatf(angle: angleRadians, axis: [1, 0, 0])
-        if let neckIndex = rig.neckJointIndex, neckIndex < jointTransforms.count {
-            jointTransforms[neckIndex].rotation = jointTransforms[neckIndex].rotation * simd_quatf(
-                angle: angleRadians * 0.35,
-                axis: [1, 0, 0]
-            )
-        }
-        if let headIndex = rig.headJointIndex, headIndex < jointTransforms.count {
-            jointTransforms[headIndex].rotation = jointTransforms[headIndex].rotation * headRotation
-        }
-    }
-
-    private func makeXiaochengBaseTransforms(rig: XiaochengRig) -> [Transform] {
-        var transforms = rig.restJointTransforms
-        applyHeadNodToBaseTransforms(angleRadians: xiaochengNodAngleRadians, rig: rig, jointTransforms: &transforms)
-        return transforms
     }
 
     private func updateHandAnimationIfNeeded(schedule: [PracticeSequencerMIDIEvent]) {
@@ -517,7 +394,10 @@ final class VirtualPerformerOverlayController {
                     || leftArmPulses.isEmpty == false
                     || rightArmPulses.isEmpty == false
                 if hasPendingWork == false {
-                    rig.modelEntity.jointTransforms = makeXiaochengBaseTransforms(rig: rig)
+                    rig.modelEntity.jointTransforms = XiaochengPoseService.baseTransforms(
+                        rig: rig,
+                        headNodAngleRadians: xiaochengNodAngleRadians
+                    )
                     return
                 }
 
@@ -532,7 +412,10 @@ final class VirtualPerformerOverlayController {
                     pulseDurationSeconds: pulseDurationSeconds
                 )
 
-                var transforms = makeXiaochengBaseTransforms(rig: rig)
+                var transforms = XiaochengPoseService.baseTransforms(
+                    rig: rig,
+                    headNodAngleRadians: xiaochengNodAngleRadians
+                )
                 if leftAngle != 0, rig.leftArmJointIndices.isEmpty == false {
                     let delta = simd_quatf(angle: leftAngle, axis: [1, 0, 0])
                     for index in rig.leftArmJointIndices where index < transforms.count {
@@ -615,7 +498,10 @@ final class VirtualPerformerOverlayController {
 
     private func resetArmsToRest(animated _: Bool) {
         guard let xiaochengRig else { return }
-        xiaochengRig.modelEntity.jointTransforms = makeXiaochengBaseTransforms(rig: xiaochengRig)
+        xiaochengRig.modelEntity.jointTransforms = XiaochengPoseService.baseTransforms(
+            rig: xiaochengRig,
+            headNodAngleRadians: xiaochengNodAngleRadians
+        )
     }
 
     private func eventPriority(_ kind: PracticeSequencerMIDIEvent.Kind) -> Int {
