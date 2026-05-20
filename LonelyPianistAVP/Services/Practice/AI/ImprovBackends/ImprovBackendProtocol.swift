@@ -1,4 +1,5 @@
 import Foundation
+import ImprovProtocol
 
 protocol ImprovBackendProtocol: Sendable {
     var kind: ImprovBackendKind { get }
@@ -9,4 +10,3 @@ protocol ImprovBackendProtocol: Sendable {
         timeout: Duration
     ) async throws -> ImprovBackendPlaybackPlan
 }
-

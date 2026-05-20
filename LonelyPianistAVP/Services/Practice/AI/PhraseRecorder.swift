@@ -1,4 +1,5 @@
 import Foundation
+import ImprovProtocol
 
 struct PhraseRecorder {
     struct OpenNote: Equatable {

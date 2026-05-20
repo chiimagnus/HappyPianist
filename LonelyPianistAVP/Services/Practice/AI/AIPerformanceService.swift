@@ -1,4 +1,5 @@
 import Foundation
+import ImprovProtocol
 import os
 
 @MainActor
