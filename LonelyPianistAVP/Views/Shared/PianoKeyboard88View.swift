@@ -117,18 +117,18 @@ struct PianoKeyboard88View: View {
     private func whiteKeyHighlightOpacity(phase: PianoGuideHighlightPhase) -> Double {
         switch phase {
         case .triggered:
-            0.55
+            0.68
         case .active:
-            0.35
+            0.26
         }
     }
 
     private func blackKeyHighlightOpacity(phase: PianoGuideHighlightPhase) -> Double {
         switch phase {
         case .triggered:
-            0.92
+            0.96
         case .active:
-            0.65
+            0.52
         }
     }
 
