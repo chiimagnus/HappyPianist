@@ -1,5 +1,55 @@
 import Foundation
 
+enum PracticeAudioRecognitionDetectorMode: String, CaseIterable, Equatable, Sendable {
+    case harmonicTemplate
+}
+
+enum PracticeAudioRecognitionStatus: Equatable, Sendable {
+    case idle
+    case requestingPermission
+    case permissionDenied
+    case running
+    case engineFailed(reason: String)
+    case stopped
+}
+
+protocol PracticeAudioRecognitionServiceProtocol: AnyObject {
+    var events: AsyncStream<DetectedNoteEvent> { get }
+    var statusUpdates: AsyncStream<PracticeAudioRecognitionStatus> { get }
+    var debugSnapshots: AsyncStream<PracticeAudioRecognitionDebugSnapshot> { get }
+
+    func start(
+        expectedMIDINotes: [Int],
+        wrongCandidateMIDINotes: [Int],
+        generation: Int,
+        suppressUntil: Date?
+    ) async throws
+    func updateExpectedNotes(_ expectedMIDINotes: [Int], wrongCandidateMIDINotes: [Int], generation: Int)
+    func configureDetectorMode(_ mode: PracticeAudioRecognitionDetectorMode, profile: HarmonicTemplateTuningProfile)
+    func suppressRecognition(until date: Date, generation: Int)
+    func stop()
+}
+
+struct TemplateMatchResult: Equatable, Sendable {
+    let midiNote: Int
+    let role: HarmonicTemplateCandidateRole
+    let confidence: Double
+    let harmonicScore: Double
+    let tonalRatio: Double
+    let dominanceOverWrong: Double
+    let strongestPartials: [HarmonicPartialDebugValue]
+}
+
+struct TargetedHarmonicDetectionFrame: Equatable, Sendable {
+    let events: [DetectedNoteEvent]
+    let templateMatchResults: [TemplateMatchResult]
+    let processingDurationMs: Double
+    let suppressing: Bool
+    let fallbackReason: String?
+    let activeDetectorMode: PracticeAudioRecognitionDetectorMode
+    let rollingWindowSize: Int
+}
+
 struct PracticeAudioRecognitionDebugSnapshot: Equatable, Sendable {
     enum PermissionState: String, Equatable {
         case unknown
