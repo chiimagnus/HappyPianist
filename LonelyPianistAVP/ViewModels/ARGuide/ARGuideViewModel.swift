@@ -6,21 +6,21 @@ import ARKit
 @MainActor
 @Observable
 final class ARGuideViewModel {
-    typealias CalibrationPhase = CalibrationFlowViewModel.CalibrationPhase
+    typealias CalibrationPhase = CalibrationGuideViewModel.CalibrationPhase
     typealias PracticeLocalizationFailure = PracticeLocalizationViewModel.PracticeLocalizationFailure
     typealias PracticeLocalizationState = PracticeLocalizationViewModel.PracticeLocalizationState
 
-    // MARK: - Composition root dependencies
+    // MARK: - App-level dependencies
     let appState: AppState
-    let flowState: FlowState
+    let practiceSetupState: PracticeSetupState
     let pianoModeRegistry: PianoModeRegistryProtocol
-    let practiceSessionViewModelFactory: PracticeSessionViewModelFactoryProtocol
+    private let makePracticeSessionViewModel: @MainActor (String?) -> PracticeSessionViewModel
 
     // MARK: - Child view models
-    let calibrationFlowViewModel: CalibrationFlowViewModel
+    let calibrationGuideViewModel: CalibrationGuideViewModel
     let practiceLocalizationViewModel: PracticeLocalizationViewModel
     let placementViewModel: VirtualPianoPlacementViewModel
-    let practiceFlowViewModel: ARGuidePracticeFlowViewModel
+    let practiceViewModel: ARGuidePracticeViewModel
     let recordingViewModel: ARGuideRecordingViewModel
     let aiPerformanceViewModel: ARGuideAIPerformanceViewModel
 
@@ -33,9 +33,9 @@ final class ARGuideViewModel {
 
     init(
         appState: AppState,
-        flowState: FlowState,
+        practiceSetupState: PracticeSetupState,
         pianoModeRegistry: PianoModeRegistryProtocol,
-        practiceSessionViewModelFactory: PracticeSessionViewModelFactoryProtocol,
+        makePracticeSessionViewModel: @escaping @MainActor (String?) -> PracticeSessionViewModel,
         gazePlaneDiskConfirmation: GazePlaneDiskConfirmationViewModel? = nil,
         gazePlaneHitTestService: (any GazePlaneHitTestingProtocol)? = nil,
         virtualKeyboardPoseService: (any VirtualKeyboardPoseServiceProtocol)? = nil,
@@ -45,14 +45,14 @@ final class ARGuideViewModel {
         takePlaybackViewModel: TakePlaybackViewModel? = nil
     ) {
         self.appState = appState
-        self.flowState = flowState
+        self.practiceSetupState = practiceSetupState
         self.pianoModeRegistry = pianoModeRegistry
-        self.practiceSessionViewModelFactory = practiceSessionViewModelFactory
+        self.makePracticeSessionViewModel = makePracticeSessionViewModel
 
-        let initialSession = practiceSessionViewModelFactory.makePracticeSessionViewModel(for: flowState.selectedPianoModeID)
+        let initialSession = makePracticeSessionViewModel(practiceSetupState.selectedPianoModeID)
         practiceSessionViewModel = initialSession
 
-        let calibration = CalibrationFlowViewModel(appState: appState)
+        let calibration = CalibrationGuideViewModel(appState: appState)
         let localization = PracticeLocalizationViewModel(appState: appState)
         let placement = VirtualPianoPlacementViewModel(
             appState: appState,
@@ -65,7 +65,7 @@ final class ARGuideViewModel {
         )
         let ai = ARGuideAIPerformanceViewModel(backendDiscoveryService: backendDiscoveryService)
 
-        calibrationFlowViewModel = calibration
+        calibrationGuideViewModel = calibration
         practiceLocalizationViewModel = localization
         placementViewModel = placement
         aiPerformanceViewModel = ai
@@ -79,9 +79,9 @@ final class ARGuideViewModel {
                 ai?.recordMIDI2EventForPhraseRecordingIfNeeded(event)
             }
         )
-        practiceFlowViewModel = ARGuidePracticeFlowViewModel(
+        practiceViewModel = ARGuidePracticeViewModel(
             appState: appState,
-            flowState: flowState,
+            practiceSetupState: practiceSetupState,
             practiceSessionViewModel: initialSession,
             practiceLocalizationViewModel: localization,
             placementViewModel: placement
@@ -91,7 +91,7 @@ final class ARGuideViewModel {
     }
 
     var selectedPianoMode: (any PianoModeProtocol)? {
-        pianoModeRegistry.mode(for: flowState.selectedPianoModeID)
+        pianoModeRegistry.mode(for: practiceSetupState.selectedPianoModeID)
     }
 
     var isVirtualPianoMode: Bool {
@@ -115,15 +115,6 @@ final class ARGuideViewModel {
     }
 
     private func setupAppStateCallbacks() {
-        flowState.onStepsImported = { [weak self] prepared in
-            guard let self else { return }
-            latestPreparedPractice = prepared
-            applyPreparedPractice(prepared, to: practiceSessionViewModel)
-            appState.applySessionIfPossible()
-            if isVirtualPerformerEnabled {
-                setPracticeVirtualPerformerEnabled(true)
-            }
-        }
         appState.onCalibrationCleared = { [weak self] in
             self?.practiceSessionViewModel.clearCalibration()
         }
@@ -132,6 +123,14 @@ final class ARGuideViewModel {
         }
         appState.onApplyKeyboardGeometry = { [weak self] geometry, calibration in
             self?.practiceSessionViewModel.applyKeyboardGeometry(geometry, calibration: calibration)
+        }
+    }
+
+    func applyPreparedPractice(_ prepared: PreparedPractice) {
+        latestPreparedPractice = prepared
+        applyPreparedPractice(prepared, to: practiceSessionViewModel)
+        if isVirtualPerformerEnabled {
+            setPracticeVirtualPerformerEnabled(true)
         }
     }
 
@@ -150,12 +149,12 @@ final class ARGuideViewModel {
     }
 
     func replacePracticeSessionViewModel() {
-        let next = practiceSessionViewModelFactory.makePracticeSessionViewModel(for: flowState.selectedPianoModeID)
+        let next = makePracticeSessionViewModel(practiceSetupState.selectedPianoModeID)
 
         practiceSessionViewModel.shutdown()
         practiceSessionViewModel = next
         placementViewModel.updatePracticeSession(next)
-        practiceFlowViewModel.updatePracticeSession(next)
+        practiceViewModel.updatePracticeSession(next)
         aiPerformanceViewModel.updatePracticeSession(next)
 
         if let prepared = latestPreparedPractice {
@@ -178,10 +177,10 @@ final class ARGuideViewModel {
 
     var calibration: PianoCalibration? { appState.calibration }
     var storedCalibration: StoredWorldAnchorCalibration? { appState.storedCalibration }
-    var calibrationPhase: CalibrationPhase { calibrationFlowViewModel.calibrationPhase }
+    var calibrationPhase: CalibrationPhase { calibrationGuideViewModel.calibrationPhase }
     var calibrationCaptureService: CalibrationPointCaptureService { appState.calibrationCaptureService }
     var arTrackingService: ARTrackingServiceProtocol { appState.arTrackingService }
-    var hasImportedSteps: Bool { flowState.importedSteps.isEmpty == false }
+    var hasImportedSteps: Bool { practiceSetupState.importedSteps.isEmpty == false }
     var immersiveMode: AppState.ImmersiveMode { appState.immersiveMode }
     var immersiveSpaceState: AppState.ImmersiveSpaceState { appState.immersiveSpaceState }
 
@@ -207,13 +206,13 @@ final class ARGuideViewModel {
 
     func saveCalibration() { _ = appState.saveCalibrationIfPossible() }
     func beginCalibrationRecapture() { appState.beginCalibrationRecapture() }
-    func beginCalibrationGuidedFlow() { calibrationFlowViewModel.beginCalibrationGuidedFlow() }
-    func presentCalibrationError(message: String) { calibrationFlowViewModel.presentCalibrationError(message: message) }
-    func endCalibrationGuidedFlow() { calibrationFlowViewModel.endCalibrationGuidedFlow() }
+    func beginGuidedCalibration() { calibrationGuideViewModel.beginGuidedCalibration() }
+    func presentCalibrationError(message: String) { calibrationGuideViewModel.presentCalibrationError(message: message) }
+    func endGuidedCalibration() { calibrationGuideViewModel.endGuidedCalibration() }
 
     @discardableResult
     func showCalibrationCompletedIfStoredCalibrationExists() -> Bool {
-        calibrationFlowViewModel.showCalibrationCompletedIfStoredCalibrationExists()
+        calibrationGuideViewModel.showCalibrationCompletedIfStoredCalibrationExists()
     }
 
     func skipStep() { practiceSessionViewModel.skip() }
@@ -265,24 +264,24 @@ final class ARGuideViewModel {
         )
     }
 
-    var practiceLocalizationState: PracticeLocalizationState { practiceFlowViewModel.practiceLocalizationState }
-    var practiceLocalizationStatusText: String? { practiceFlowViewModel.practiceLocalizationStatusText }
-    var canRetryPracticeLocalization: Bool { practiceFlowViewModel.canRetryPracticeLocalization }
-    var shouldSuggestCalibrationStep: Bool { practiceFlowViewModel.shouldSuggestCalibrationStep }
-    var step3ARStatusText: String { practiceFlowViewModel.step3ARStatusText }
-    var step3HandAssistStatusText: String { practiceFlowViewModel.step3HandAssistStatusText }
-    var step3AudioStatusText: String { practiceFlowViewModel.step3AudioStatusText }
-    var practiceProgressText: String { practiceFlowViewModel.practiceProgressText }
+    var practiceLocalizationState: PracticeLocalizationState { practiceViewModel.practiceLocalizationState }
+    var practiceLocalizationStatusText: String? { practiceViewModel.practiceLocalizationStatusText }
+    var canRetryPracticeLocalization: Bool { practiceViewModel.canRetryPracticeLocalization }
+    var shouldSuggestCalibrationStep: Bool { practiceViewModel.shouldSuggestCalibrationStep }
+    var step3ARStatusText: String { practiceViewModel.step3ARStatusText }
+    var step3HandAssistStatusText: String { practiceViewModel.step3HandAssistStatusText }
+    var step3AudioStatusText: String { practiceViewModel.step3AudioStatusText }
+    var practiceProgressText: String { practiceViewModel.practiceProgressText }
 
     func practiceEntryBlockingReason() -> PracticeLocalizationFailure? {
-        practiceFlowViewModel.practiceEntryBlockingReason()
+        practiceViewModel.practiceEntryBlockingReason()
     }
 
     func enterPracticeStep(
-        openImmersiveSpace: PracticeFlowOpenImmersiveSpaceHandler,
-        dismissImmersiveSpace: @escaping PracticeFlowDismissImmersiveSpaceHandler
+        openImmersiveSpace: PracticeImmersiveOpenHandler,
+        dismissImmersiveSpace: @escaping PracticeImmersiveDismissHandler
     ) async {
-        await practiceFlowViewModel.enterPracticeStep(
+        await practiceViewModel.enterPracticeStep(
             replacePracticeSessionViewModel: { self.replacePracticeSessionViewModel() },
             openImmersiveSpace: openImmersiveSpace,
             dismissImmersiveSpace: dismissImmersiveSpace
@@ -290,41 +289,41 @@ final class ARGuideViewModel {
     }
 
     func retryPracticeLocalization(
-        openImmersiveSpace: PracticeFlowOpenImmersiveSpaceHandler,
-        dismissImmersiveSpace: @escaping PracticeFlowDismissImmersiveSpaceHandler
+        openImmersiveSpace: PracticeImmersiveOpenHandler,
+        dismissImmersiveSpace: @escaping PracticeImmersiveDismissHandler
     ) async {
-        await practiceFlowViewModel.retryPracticeLocalization(
+        await practiceViewModel.retryPracticeLocalization(
             replacePracticeSessionViewModel: { self.replacePracticeSessionViewModel() },
             openImmersiveSpace: openImmersiveSpace,
             dismissImmersiveSpace: dismissImmersiveSpace
         )
     }
 
-    func enterVirtualPianoPlacement(openImmersiveSpace: PracticeFlowOpenImmersiveSpaceHandler) async {
-        await practiceFlowViewModel.enterVirtualPianoPlacement(openImmersiveSpace: openImmersiveSpace)
+    func enterVirtualPianoPlacement(openImmersiveSpace: PracticeImmersiveOpenHandler) async {
+        await practiceViewModel.enterVirtualPianoPlacement(openImmersiveSpace: openImmersiveSpace)
     }
 
-    func resetPracticeLocalizationState() { practiceFlowViewModel.resetPracticeLocalizationState() }
+    func resetPracticeLocalizationState() { practiceViewModel.resetPracticeLocalizationState() }
 
     func practiceLocalizationTimeoutFailure(
         lastRecoverableResolution: AppState.PracticeCalibrationResolutionResult?
     ) -> PracticeLocalizationFailure {
-        practiceFlowViewModel.practiceLocalizationTimeoutFailure(lastRecoverableResolution: lastRecoverableResolution)
+        practiceViewModel.practiceLocalizationTimeoutFailure(lastRecoverableResolution: lastRecoverableResolution)
     }
 
     func openImmersiveForStep(
         mode: AppState.ImmersiveMode,
-        openImmersiveSpace: PracticeFlowOpenImmersiveSpaceHandler
+        openImmersiveSpace: PracticeImmersiveOpenHandler
     ) async -> String? {
-        await practiceFlowViewModel.openImmersiveForStep(mode: mode, openImmersiveSpace: openImmersiveSpace)
+        await practiceViewModel.openImmersiveForStep(mode: mode, openImmersiveSpace: openImmersiveSpace)
     }
 
-    func closeImmersiveForStep(dismissImmersiveSpace: PracticeFlowDismissImmersiveSpaceHandler) async {
-        await practiceFlowViewModel.closeImmersiveForStep(dismissImmersiveSpace: dismissImmersiveSpace)
+    func closeImmersiveForStep(dismissImmersiveSpace: PracticeImmersiveDismissHandler) async {
+        await practiceViewModel.closeImmersiveForStep(dismissImmersiveSpace: dismissImmersiveSpace)
     }
 
     func recoverImmersiveStateIfStuck() async {
-        await practiceFlowViewModel.recoverImmersiveStateIfStuck()
+        await practiceViewModel.recoverImmersiveStateIfStuck()
     }
 
     var recordingElapsedText: String { recordingViewModel.recordingElapsedText }
@@ -346,14 +345,14 @@ final class ARGuideViewModel {
         switch appState.immersiveMode {
             case .calibration:
                 startTrackingIfNeeded()
-                calibrationFlowViewModel.onImmersiveAppear()
+                calibrationGuideViewModel.onImmersiveAppear()
             case .practice:
                 startTrackingIfNeeded()
         }
     }
 
     func onImmersiveDisappear() {
-        calibrationFlowViewModel.shutdown()
+        calibrationGuideViewModel.shutdown()
         practiceLocalizationViewModel.shutdown()
         practiceSessionViewModel.shutdown()
         practiceSessionViewModel.stopVirtualPianoInput()
@@ -395,14 +394,14 @@ final class ARGuideViewModel {
         handTrackingConsumerTask = nil
         currentTrackingMode = nil
         stopVirtualPianoGuidance()
-        calibrationFlowViewModel.stopHandTracking()
+        calibrationGuideViewModel.stopHandTracking()
         arTrackingService.stop()
     }
 
     private func handleHandTrackingUpdate(_ fingerTips: [String: SIMD3<Float>]) {
         switch appState.immersiveMode {
             case .calibration:
-                calibrationFlowViewModel.handleHandUpdates()
+                calibrationGuideViewModel.handleHandUpdates()
 
             case .practice:
                 let nowUptime = ProcessInfo.processInfo.systemUptime
@@ -455,7 +454,7 @@ final class ARGuideViewModel {
 
     #if DEBUG
         func setCalibrationPhaseForPreview(_ phase: CalibrationPhase) {
-            calibrationFlowViewModel.setCalibrationPhaseForPreview(phase)
+            calibrationGuideViewModel.setCalibrationPhaseForPreview(phase)
         }
     #endif
 }
