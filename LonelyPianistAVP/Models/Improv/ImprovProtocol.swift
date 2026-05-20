@@ -11,11 +11,13 @@ struct ImprovGenerateParams: Codable, Equatable {
     var topP: Double
     var maxTokens: Int
     var strategy: String
+    var seed: UInt64?
 
     enum CodingKeys: String, CodingKey {
         case topP = "top_p"
         case maxTokens = "max_tokens"
         case strategy
+        case seed
     }
 }
 
