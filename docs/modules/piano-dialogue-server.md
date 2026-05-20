@@ -1,6 +1,6 @@
 # Module: piano_dialogue_server
 
-`piano_dialogue_server/` 是本地 FastAPI 服务，为 AVP AI 即兴和浏览器 MIDI 扩展工具提供接口。
+`piano_dialogue_server/` 是本地 FastAPI 服务，为 AVP 的 **可选网络后端**（以及浏览器 MIDI playground / upload 工具）提供接口。AVP 在 practice 设置中选择 `网络本地连接` 时才会通过它生成；`本地 deterministic` / `本地规则生成` 在 AVP 端直接运行（无需电脑端服务）。
 
 ## 入口与目录
 
@@ -24,6 +24,8 @@
 | `POST /upload-expand` | multipart MIDI + strategy/mode | base64 MIDI + analysis | 浏览器上传 MIDI 扩展。 |
 
 `protocol_version` 当前为 `1`。`GenerateParams.strategy` 只接受 `model`、`deterministic`、`rule`。
+
+AVP 的 Swift 协议额外支持可选 `seed` 字段；server 侧目前会忽略未知字段（兼容旧协议，不保证使用 seed）。
 
 ## 策略
 
