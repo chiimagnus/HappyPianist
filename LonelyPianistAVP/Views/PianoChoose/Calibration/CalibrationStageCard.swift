@@ -17,8 +17,7 @@ struct CalibrationStageCard: View {
         VStack(alignment: .leading) {
             if stage == .capturingA0 || stage == .capturingC8 {
                 PianoKeyboard88View(
-                    highlightedMIDINotes: highlightedMIDINotes,
-                    highlightColorByMIDINote: highlightColorByMIDINote
+                    highlightByMIDINote: highlightByMIDINote
                 )
                 .aspectRatio(PianoKeyboard88View.aspectRatio, contentMode: .fit)
                 .frame(minWidth: 520, maxWidth: .infinity, minHeight: 120)
@@ -127,24 +126,18 @@ struct CalibrationStageCard: View {
         phase == .transitionA0
     }
 
-    private var highlightedMIDINotes: Set<Int> {
+    private var highlightByMIDINote: [Int: PianoKeyboard88Highlight] {
         switch step {
             case .a0:
-                [21]
-            case .c8:
-                isA0Locked ? [21, 108] : [108]
-        }
-    }
-
-    private var highlightColorByMIDINote: [Int: Color] {
-        switch step {
-            case .a0:
-                return [21: Color.blue]
+                return [21: PianoKeyboard88Highlight(phase: .triggered, tint: Color.blue)]
             case .c8:
                 if isA0Locked {
-                    return [21: Color.green, 108: Color.blue]
+                    return [
+                        21: PianoKeyboard88Highlight(phase: .active, tint: Color.green),
+                        108: PianoKeyboard88Highlight(phase: .triggered, tint: Color.blue),
+                    ]
                 }
-                return [108: Color.blue]
+                return [108: PianoKeyboard88Highlight(phase: .triggered, tint: Color.blue)]
         }
     }
 }

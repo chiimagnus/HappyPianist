@@ -35,11 +35,9 @@ struct PracticeStepView: View {
             .frame(height: 350)
 
             PianoKeyboard88View(
-                highlightedMIDINotes: highlightedMIDINotes,
+                highlightByMIDINote: highlightByMIDINote,
                 highlightOccurrenceID: currentGuide?.id,
-                triggeredMIDINotes: triggeredMIDINotes,
-                fingeringByMIDINote: fingeringByMIDINote,
-                highlightColorByMIDINote: highlightColorByMIDINote
+                fingeringByMIDINote: fingeringByMIDINote
             )
             .aspectRatio(PianoKeyboard88View.aspectRatio, contentMode: .fit)
         }
@@ -256,24 +254,22 @@ struct PracticeStepView: View {
         viewModel.isVirtualPianoMode
     }
 
-    private var highlightedMIDINotes: Set<Int> {
-        viewModel.practiceSessionViewModel.currentHighlightedMIDINotes
-    }
-
     private var fingeringByMIDINote: [Int: String] {
         viewModel.practiceSessionViewModel.currentFingeringByMIDINote(isAutoplayEnabled: isAutoplayEnabled)
     }
 
-    private var triggeredMIDINotes: Set<Int> {
-        viewModel.practiceSessionViewModel.currentTriggeredMIDINotes(isAutoplayEnabled: isAutoplayEnabled)
-    }
+    private var highlightByMIDINote: [Int: PianoKeyboard88Highlight] {
+        let session = viewModel.practiceSessionViewModel
+        guard let guide = session.currentPianoHighlightGuide else { return [:] }
 
-    private var highlightColorByMIDINote: [Int: Color] {
-        Dictionary(
-            uniqueKeysWithValues: viewModel.practiceSessionViewModel.currentLeftHandHighlightedMIDINotes.map {
-                ($0, PracticeHandPalette.leftHandKeyColor)
-            }
-        )
+        let triggeredMIDINotes = Set(guide.triggeredNotes.map(\.midiNote))
+        let leftHandMIDINotes = session.currentLeftHandHighlightedMIDINotes
+
+        return Dictionary(uniqueKeysWithValues: guide.highlightedMIDINotes.map { midiNote in
+            let phase: PianoGuideHighlightPhase = triggeredMIDINotes.contains(midiNote) ? .triggered : .active
+            let tint: Color? = leftHandMIDINotes.contains(midiNote) ? PracticeHandPalette.leftHandKeyColor : nil
+            return (midiNote, PianoKeyboard88Highlight(phase: phase, tint: tint))
+        })
     }
 }
 

@@ -1,28 +1,32 @@
 import SwiftUI
 
+struct PianoKeyboard88Highlight: Equatable, Sendable {
+    let phase: PianoGuideHighlightPhase
+    let tint: Color?
+
+    init(phase: PianoGuideHighlightPhase, tint: Color? = nil) {
+        self.phase = phase
+        self.tint = tint
+    }
+}
+
 struct PianoKeyboard88View: View {
     static let aspectRatio: CGFloat = 52.0 / 8.0
     static let minPlayableMIDINote = 21
     static let maxPlayableMIDINote = 108
 
-    let highlightedMIDINotes: Set<Int>
+    let highlightByMIDINote: [Int: PianoKeyboard88Highlight]
     let highlightOccurrenceID: Int?
-    let triggeredMIDINotes: Set<Int>
     let fingeringByMIDINote: [Int: String]
-    let highlightColorByMIDINote: [Int: Color]
 
     init(
-        highlightedMIDINotes: Set<Int>,
+        highlightByMIDINote: [Int: PianoKeyboard88Highlight],
         highlightOccurrenceID: Int? = nil,
-        triggeredMIDINotes: Set<Int> = [],
-        fingeringByMIDINote: [Int: String] = [:],
-        highlightColorByMIDINote: [Int: Color] = [:]
+        fingeringByMIDINote: [Int: String] = [:]
     ) {
-        self.highlightedMIDINotes = highlightedMIDINotes
+        self.highlightByMIDINote = highlightByMIDINote
         self.highlightOccurrenceID = highlightOccurrenceID
-        self.triggeredMIDINotes = triggeredMIDINotes
         self.fingeringByMIDINote = fingeringByMIDINote
-        self.highlightColorByMIDINote = highlightColorByMIDINote
     }
 
     var body: some View {
@@ -35,23 +39,15 @@ struct PianoKeyboard88View: View {
 
             ZStack(alignment: .topLeading) {
                 ForEach(Self.whiteKeys) { key in
-                    let isHighlighted = isHighlighted(key.midiNote)
+                    let highlight = highlightByMIDINote[key.midiNote]
                     Rectangle()
-                        .fill(whiteKeyFillColor(midiNote: key.midiNote, isHighlighted: isHighlighted))
+                        .fill(whiteKeyFillColor(midiNote: key.midiNote, highlight: highlight))
                         .overlay {
                             Rectangle()
                                 .stroke(.black.opacity(0.22), lineWidth: 0.6)
                         }
-                        .overlay {
-                            if triggeredMIDINotes.contains(key.midiNote) {
-                                KeyTriggerPulseOverlay(
-                                    color: triggerPulseColor(midiNote: key.midiNote, isBlackKey: false),
-                                    maxOpacity: 0.75
-                                )
-                            }
-                        }
                         .overlay(alignment: .bottom) {
-                            if isHighlighted,
+                            if highlight != nil,
                                let fingering = fingeringByMIDINote[key.midiNote]
                             {
                                 Text(fingering)
@@ -65,29 +61,21 @@ struct PianoKeyboard88View: View {
                             isBlackKey: false,
                             midiNote: key.midiNote,
                             highlightOccurrenceID: highlightOccurrenceID,
-                            isHighlighted: isHighlighted
+                            isHighlighted: highlight != nil
                         ))
                         .offset(x: CGFloat(key.whiteIndex) * whiteKeyWidth)
                 }
 
                 ForEach(Self.blackKeys) { key in
-                    let isHighlighted = isHighlighted(key.midiNote)
+                    let highlight = highlightByMIDINote[key.midiNote]
                     Rectangle()
-                        .fill(blackKeyFillColor(midiNote: key.midiNote, isHighlighted: isHighlighted))
+                        .fill(blackKeyFillColor(midiNote: key.midiNote, highlight: highlight))
                         .overlay {
                             Rectangle()
                                 .stroke(.white.opacity(0.28), lineWidth: 0.5)
                         }
-                        .overlay {
-                            if triggeredMIDINotes.contains(key.midiNote) {
-                                KeyTriggerPulseOverlay(
-                                    color: triggerPulseColor(midiNote: key.midiNote, isBlackKey: true),
-                                    maxOpacity: 0.95
-                                )
-                            }
-                        }
                         .overlay(alignment: .bottom) {
-                            if isHighlighted,
+                            if highlight != nil,
                                let fingering = fingeringByMIDINote[key.midiNote]
                             {
                                 Text(fingering)
@@ -101,7 +89,7 @@ struct PianoKeyboard88View: View {
                             isBlackKey: true,
                             midiNote: key.midiNote,
                             highlightOccurrenceID: highlightOccurrenceID,
-                            isHighlighted: isHighlighted
+                            isHighlighted: highlight != nil
                         ))
                         .offset(
                             x: (CGFloat(key.leftWhiteIndex + 1) * whiteKeyWidth) - (blackKeyWidth / 2)
@@ -114,31 +102,34 @@ struct PianoKeyboard88View: View {
         .accessibilityLabel("88 键钢琴")
     }
 
-    private func isHighlighted(_ midiNote: Int) -> Bool {
-        highlightedMIDINotes.contains(midiNote)
+    private func whiteKeyFillColor(midiNote: Int, highlight: PianoKeyboard88Highlight?) -> Color {
+        guard let highlight else { return .white }
+        let tint = highlight.tint ?? .yellow
+        return tint.opacity(whiteKeyHighlightOpacity(phase: highlight.phase))
     }
 
-    private func whiteKeyFillColor(midiNote: Int, isHighlighted: Bool) -> Color {
-        guard isHighlighted else { return .white }
-        if let custom = highlightColorByMIDINote[midiNote] {
-            return custom.opacity(0.55)
-        }
-        return .yellow.opacity(0.48)
+    private func blackKeyFillColor(midiNote: Int, highlight: PianoKeyboard88Highlight?) -> Color {
+        guard let highlight else { return .black.opacity(0.88) }
+        let tint = highlight.tint ?? .orange
+        return tint.opacity(blackKeyHighlightOpacity(phase: highlight.phase))
     }
 
-    private func blackKeyFillColor(midiNote: Int, isHighlighted: Bool) -> Color {
-        guard isHighlighted else { return .black.opacity(0.88) }
-        if let custom = highlightColorByMIDINote[midiNote] {
-            return custom.opacity(0.92)
+    private func whiteKeyHighlightOpacity(phase: PianoGuideHighlightPhase) -> Double {
+        switch phase {
+        case .triggered:
+            0.55
+        case .active:
+            0.35
         }
-        return .orange.opacity(0.95)
     }
 
-    private func triggerPulseColor(midiNote: Int, isBlackKey: Bool) -> Color {
-        if let custom = highlightColorByMIDINote[midiNote] {
-            return custom
+    private func blackKeyHighlightOpacity(phase: PianoGuideHighlightPhase) -> Double {
+        switch phase {
+        case .triggered:
+            0.92
+        case .active:
+            0.65
         }
-        return isBlackKey ? .orange : .yellow
     }
 
     static func keyCenterFraction(midiNote: Int) -> CGFloat? {
@@ -199,26 +190,6 @@ struct PianoKeyboard88View: View {
     }
 }
 
-private struct KeyTriggerPulseOverlay: View {
-    let color: Color
-    let maxOpacity: Double
-
-    @State private var opacity: Double = 0.0
-
-    var body: some View {
-        Rectangle()
-            .fill(color)
-            .opacity(opacity)
-            .allowsHitTesting(false)
-            .onAppear {
-                opacity = maxOpacity
-                withAnimation(.easeOut(duration: 0.22)) {
-                    opacity = 0.0
-                }
-            }
-    }
-}
-
 private struct WhiteKey: Identifiable {
     let midiNote: Int
     let whiteIndex: Int
@@ -238,7 +209,11 @@ private struct BlackKey: Identifiable {
 }
 
 #Preview {
-    PianoKeyboard88View(highlightedMIDINotes: [21, 60, 61, 72, 108, 130])
+    let notes: Set<Int> = [21, 60, 61, 72, 108, 130]
+    let highlightByMIDINote = Dictionary(uniqueKeysWithValues: notes.map { midiNote in
+        (midiNote, PianoKeyboard88Highlight(phase: .active))
+    })
+    PianoKeyboard88View(highlightByMIDINote: highlightByMIDINote)
         .aspectRatio(PianoKeyboard88View.aspectRatio, contentMode: .fit)
         .padding()
 }

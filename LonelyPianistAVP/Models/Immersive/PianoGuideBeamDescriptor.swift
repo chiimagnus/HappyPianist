@@ -1,10 +1,5 @@
 import simd
 
-enum PianoGuideHighlightPhase: String, Equatable, Hashable, Sendable {
-    case active
-    case triggered
-}
-
 struct PianoGuideBeamDescriptor: Equatable, Identifiable {
     var id: String {
         "\(midiNote)-\(guideID)-\(hand.rawValue)"
