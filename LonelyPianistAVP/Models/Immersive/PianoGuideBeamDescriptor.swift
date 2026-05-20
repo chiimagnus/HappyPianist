@@ -8,6 +8,7 @@ struct PianoGuideBeamDescriptor: Equatable, Identifiable {
     let midiNote: Int
     let guideID: Int
     let hand: ScoreHand
+    let phase: PianoGuideHighlightPhase
     let positionLocal: SIMD3<Float>
     let sizeLocal: SIMD3<Float>
     let surfaceLocalY: Float
@@ -18,7 +19,8 @@ extension PianoGuideBeamDescriptor {
     private static let decalEpsilonMeters: Float = 0.0015
     private static let decalThicknessMeters: Float = 0.001
     private static let decalInsetScale: Float = 0.98
-    private static let decalAlpha: Float = 0.32
+    private static let activeDecalAlpha: Float = 0.32
+    private static let triggeredDecalAlpha: Float = 0.52
 
     static func makeDescriptors(
         highlightGuide: PianoHighlightGuide?,
@@ -39,6 +41,7 @@ extension PianoGuideBeamDescriptor {
         for note in highlightGuide.triggeredNotes {
             triggeredNotesByMidi[note.midiNote, default: []].append(note)
         }
+        let triggeredMIDINotes = Set(triggeredNotesByMidi.keys)
 
         var activeNotesByMidi: [Int: [PianoHighlightNote]] = [:]
         for note in highlightGuide.activeNotes {
@@ -51,6 +54,8 @@ extension PianoGuideBeamDescriptor {
             let hand = triggeredNotesByMidi[midiNote].flatMap(resolvedHand)
                 ?? activeNotesByMidi[midiNote].flatMap(resolvedHand)
                 ?? .right
+            let phase: PianoGuideHighlightPhase = triggeredMIDINotes.contains(midiNote) ? .triggered : .active
+            let alpha: Float = (phase == .triggered) ? triggeredDecalAlpha : activeDecalAlpha
 
             let positionLocal = SIMD3<Float>(
                 key.localCenter.x,
@@ -62,6 +67,7 @@ extension PianoGuideBeamDescriptor {
                 midiNote: midiNote,
                 guideID: highlightGuide.id,
                 hand: hand,
+                phase: phase,
                 positionLocal: positionLocal,
                 sizeLocal: SIMD3<Float>(
                     key.localSize.x * decalInsetScale,
@@ -69,7 +75,7 @@ extension PianoGuideBeamDescriptor {
                     key.localSize.z * decalInsetScale
                 ),
                 surfaceLocalY: key.surfaceLocalY,
-                alpha: decalAlpha
+                alpha: alpha
             )
         }
     }

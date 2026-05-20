@@ -1,19 +1,9 @@
 import Foundation
 
 extension PracticeSessionViewModel {
-    var currentHighlightedMIDINotes: Set<Int> {
-        currentPianoHighlightGuide?.highlightedMIDINotes ?? []
-    }
-
     func currentFingeringByMIDINote(isAutoplayEnabled: Bool) -> [Int: String] {
         guard isAutoplayEnabled else { return [:] }
         return currentPianoHighlightGuide?.fingeringByMIDINote ?? [:]
-    }
-
-    func currentTriggeredMIDINotes(isAutoplayEnabled: Bool) -> Set<Int> {
-        guard isAutoplayEnabled else { return [] }
-        let notes = currentPianoHighlightGuide?.triggeredNotes ?? []
-        return Set(notes.map(\.midiNote))
     }
 
     var currentLeftHandHighlightedMIDINotes: Set<Int> {
