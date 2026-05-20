@@ -36,10 +36,10 @@
 /* Begin PBXFileReference section */
 		1B62407901B3CFC1E2FBC10D /* ImprovEngines */ = {isa = PBXFileReference; lastKnownFileType = text; path = ImprovEngines; sourceTree = "<group>"; };
 		D85596AC2F83FF72005BE7FE /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = text; path = RealityKitContent; sourceTree = "<group>"; };
-		D8EA41B62F978A340059B709 /* LonelyPianistAVP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LonelyPianistAVP.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		D8EA41B72F978A340059B709 /* LonelyPianist.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LonelyPianist.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		D8EA41B82F978A340059B709 /* LonelyPianistTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LonelyPianistTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		D8EA41B92F978A340059B709 /* LonelyPianistAVPTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LonelyPianistAVPTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D8EA41B62F978A340059B709 /* LonelyPianistAVP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = LonelyPianistAVP.app; path = "/Users/chii_magnus/Github_OpenSource/LonelyPianist/build/Debug-xros/LonelyPianistAVP.app"; sourceTree = "<absolute>"; };
+		D8EA41B72F978A340059B709 /* LonelyPianist.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = LonelyPianist.app; path = /Users/chii_magnus/Github_OpenSource/LonelyPianist/build/Debug/LonelyPianist.app; sourceTree = "<absolute>"; };
+		D8EA41B82F978A340059B709 /* LonelyPianistTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = LonelyPianistTests.xctest; path = /Users/chii_magnus/Github_OpenSource/LonelyPianist/build/Debug/LonelyPianistTests.xctest; sourceTree = "<absolute>"; };
+		D8EA41B92F978A340059B709 /* LonelyPianistAVPTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = LonelyPianistAVPTests.xctest; path = "/Users/chii_magnus/Github_OpenSource/LonelyPianist/build/Debug-xros/LonelyPianistAVP.app/PlugIns/LonelyPianistAVPTests.xctest"; sourceTree = "<absolute>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -71,11 +71,6 @@
 		D85596BF2F83FF74005BE7FE /* LonelyPianistAVPTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = LonelyPianistAVPTests;
-			sourceTree = "<group>";
-		};
-		D8993AFC2F98C94500C2FDFC /* .github */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = .github;
 			sourceTree = "<group>";
 		};
 		D8D4280F2F4DFD3800EC9C9B /* LonelyPianist */ = {
@@ -149,11 +144,6 @@
 				D85596AA2F83FF72005BE7FE /* LonelyPianistAVP */,
 				D85596AB2F83FF72005BE7FE /* Packages */,
 				D85596BF2F83FF74005BE7FE /* LonelyPianistAVPTests */,
-				D8EA41B62F978A340059B709 /* LonelyPianistAVP.app */,
-				D8EA41B72F978A340059B709 /* LonelyPianist.app */,
-				D8EA41B82F978A340059B709 /* LonelyPianistTests.xctest */,
-				D8EA41B92F978A340059B709 /* LonelyPianistAVPTests.xctest */,
-				D8993AFC2F98C94500C2FDFC /* .github */,
 			);
 			sourceTree = "<group>";
 		};
