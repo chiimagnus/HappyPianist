@@ -19,7 +19,7 @@ enum MIDIInputServiceError: LocalizedError {
     }
 }
 
-final class CoreMIDIInputService: MIDIInputServiceProtocol {
+nonisolated final class CoreMIDIInputService: MIDIInputServiceProtocol, @unchecked Sendable {
     var onEvent: (@Sendable (MIDIEvent) -> Void)?
     var onConnectionStateChange: (@Sendable (MIDIInputConnectionState) -> Void)?
     var onSourceNamesChange: (@Sendable ([String]) -> Void)?
@@ -302,7 +302,7 @@ final class CoreMIDIInputService: MIDIInputServiceProtocol {
     }
 }
 
-private func midiEventVisitor(
+nonisolated private func midiEventVisitor(
     context: UnsafeMutableRawPointer?,
     timeStamp: MIDITimeStamp,
     message: MIDIUniversalMessage
