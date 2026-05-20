@@ -24,17 +24,6 @@ LonelyPianist 是一个本地优先的钢琴交互系统。当前仓库包含 ma
 | Python health check | `curl -s http://127.0.0.1:8765/health` |
 | Python WS smoke | `cd piano_dialogue_server && python -m server.api.test_client` |
 
-## 按问题导航
-
-- **了解整体边界**：读 [architecture.md](architecture.md)。
-- **追踪一次输入如何变成练习推进/回放**：读 [data-flow.md](data-flow.md)。
-- **查权限、环境变量、端口、部署目标**：读 [configuration.md](configuration.md)。
-- **查 SwiftData、曲库、校准、take、debug bundle 的落盘位置**：读 [storage.md](storage.md)。
-- **查依赖和工具链**：读 [dependencies.md](dependencies.md)。
-- **查 MusicXML/tempo/autoplay fallback 边界**：读 [Fallbacks.md](Fallbacks.md)。
-- **查 BLE MIDI 协议分流和排障**：读 [debug/ble-midi-protocol.md](debug/ble-midi-protocol.md)。
-- **查术语**：读 [glossary.md](glossary.md)。
-
 ## 关键事实
 
 - macOS app 当前不是映射器，也不包含 Piano Dialogue WebSocket client；它是 recorder/playback 面。
