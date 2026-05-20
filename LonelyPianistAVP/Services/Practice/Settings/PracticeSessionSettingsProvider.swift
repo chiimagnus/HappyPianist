@@ -4,6 +4,7 @@ enum PracticeSessionSettingsKeys {
     static let handSeparatedStepMatchingEnabled = "practiceHandSeparatedStepMatchingEnabled"
     static let manualAdvanceMode = "practiceManualAdvanceMode"
     static let audioRecognitionDetectorMode = "practiceStep3AudioRecognitionMode"
+    static let improvBackendKind = "practiceImprovBackendKind"
 }
 
 protocol PracticeSessionSettingsProviderProtocol {

@@ -15,11 +15,20 @@ struct PracticeSettingsView: View {
     @AppStorage(PracticeSessionSettingsKeys.manualAdvanceMode) private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
     @AppStorage(PracticeSessionSettingsKeys.handSeparatedStepMatchingEnabled)
     private var practiceHandSeparatedStepMatchingEnabled = false
+    @AppStorage(PracticeSessionSettingsKeys.improvBackendKind)
+    private var improvBackendKindRawValue = ImprovBackendKind.networkBonjourHTTP.rawValue
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Toggle("AI 即兴演奏（虚拟演奏家）", isOn: $virtualPerformerEnabled)
             if virtualPerformerEnabled {
+                Picker("即兴后端", selection: $improvBackendKindRawValue) {
+                    ForEach(ImprovBackendKind.allCases) { kind in
+                        Text(backendTitle(kind)).tag(kind.rawValue)
+                    }
+                }
+                .pickerStyle(.menu)
+
                 if let backendStatusText {
                     Text(backendStatusText)
                         .font(.footnote)
@@ -82,6 +91,19 @@ struct PracticeSettingsView: View {
         .padding(16)
         .frame(minWidth: 320)
         .disabled(isAIPerformanceActive)
+    }
+
+    private func backendTitle(_ kind: ImprovBackendKind) -> String {
+        switch kind {
+        case .networkBonjourHTTP:
+            "网络本地连接（电脑端 Python）"
+        case .localDeterministic:
+            "本地 deterministic（AVP）"
+        case .localRule:
+            "本地 rule（AVP）"
+        case .tickRangeReplay:
+            "按谱片段回放（tick-range replay）"
+        }
     }
 }
 
