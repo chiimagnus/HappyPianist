@@ -1,0 +1,157 @@
+{
+  "expected_notes": [
+    {
+      "duration": 0.22,
+      "note": 67,
+      "time": 0.0,
+      "velocity": 95
+    },
+    {
+      "duration": 0.18,
+      "note": 69,
+      "time": 0.256,
+      "velocity": 93
+    },
+    {
+      "duration": 0.2,
+      "note": 67,
+      "time": 0.5,
+      "velocity": 91
+    },
+    {
+      "duration": 0.2,
+      "note": 69,
+      "time": 0.742,
+      "velocity": 94
+    },
+    {
+      "duration": 0.2,
+      "note": 71,
+      "time": 1.006,
+      "velocity": 97
+    },
+    {
+      "duration": 0.22,
+      "note": 72,
+      "time": 1.25,
+      "velocity": 90
+    },
+    {
+      "duration": 0.18,
+      "note": 72,
+      "time": 1.492,
+      "velocity": 93
+    },
+    {
+      "duration": 0.25,
+      "note": 72,
+      "time": 1.756,
+      "velocity": 91
+    },
+    {
+      "duration": 0.22,
+      "note": 67,
+      "time": 2.0,
+      "velocity": 99
+    },
+    {
+      "duration": 0.18,
+      "note": 67,
+      "time": 2.242,
+      "velocity": 92
+    },
+    {
+      "duration": 0.2,
+      "note": 67,
+      "time": 2.506,
+      "velocity": 90
+    },
+    {
+      "duration": 0.2,
+      "note": 67,
+      "time": 2.75,
+      "velocity": 93
+    },
+    {
+      "duration": 0.2,
+      "note": 67,
+      "time": 2.992,
+      "velocity": 96
+    },
+    {
+      "duration": 0.22,
+      "note": 67,
+      "time": 3.256,
+      "velocity": 94
+    },
+    {
+      "duration": 0.18,
+      "note": 71,
+      "time": 3.5,
+      "velocity": 97
+    },
+    {
+      "duration": 0.258,
+      "note": 67,
+      "time": 3.742,
+      "velocity": 95
+    }
+  ],
+  "notes": [
+    {
+      "duration": 0.22,
+      "note": 60,
+      "time": 0.0,
+      "velocity": 92
+    },
+    {
+      "duration": 0.18,
+      "note": 62,
+      "time": 0.25,
+      "velocity": 92
+    },
+    {
+      "duration": 0.2,
+      "note": 64,
+      "time": 0.5,
+      "velocity": 92
+    },
+    {
+      "duration": 0.2,
+      "note": 65,
+      "time": 0.75,
+      "velocity": 92
+    },
+    {
+      "duration": 0.2,
+      "note": 67,
+      "time": 1.0,
+      "velocity": 92
+    },
+    {
+      "duration": 0.22,
+      "note": 69,
+      "time": 1.25,
+      "velocity": 92
+    },
+    {
+      "duration": 0.18,
+      "note": 71,
+      "time": 1.5,
+      "velocity": 92
+    },
+    {
+      "duration": 0.25,
+      "note": 72,
+      "time": 1.75,
+      "velocity": 92
+    }
+  ],
+  "params": {
+    "max_tokens": 256,
+    "seed": 1234,
+    "strategy": "deterministic",
+    "top_p": 0.95
+  },
+  "session_id": "fixture-1"
+}
