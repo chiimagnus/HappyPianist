@@ -19,15 +19,6 @@ protocol AIPerformancePracticeSessionProtocol: AnyObject {
 }
 
 @MainActor
-protocol AIPerformanceBackendDiscoveryServiceProtocol: AnyObject {
-    var resolvedEndpoint: (host: String, port: Int)? { get }
-    func start()
-    func stop()
-}
-
-extension BonjourBackendDiscoveryService: AIPerformanceBackendDiscoveryServiceProtocol {}
-
-@MainActor
 final class AIPerformanceService {
     struct State: Equatable {
         var isAIPerformanceActive: Bool
@@ -37,8 +28,10 @@ final class AIPerformanceService {
 
     private let logger: Logger
     private let nowUptimeSeconds: () -> TimeInterval
-    private let backendDiscoveryService: any AIPerformanceBackendDiscoveryServiceProtocol
-    private let backendClient: any ImprovBackendClientProtocol
+    private let backendDiscoveryService: BonjourBackendDiscoveryService
+    private let backendRegistry: ImprovBackendRegistry
+    private let selectedBackendKind: @MainActor () -> ImprovBackendKind
+    private let backendTimeout: Duration
     private let pollInterval: Duration
     private let silenceTimeoutSeconds: TimeInterval
     private let onStateChanged: @MainActor (State) -> Void
@@ -47,6 +40,7 @@ final class AIPerformanceService {
 
     private var hasShutdown = false
     private var isEnabled = false
+    private var lastKnownBackendKind: ImprovBackendKind?
 
     private var silenceTrigger = NoteOnSilenceTrigger()
     private var phraseRecorder = PhraseRecorder()
@@ -60,8 +54,10 @@ final class AIPerformanceService {
     init(
         logger: Logger,
         nowUptimeSeconds: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
-        backendDiscoveryService: any AIPerformanceBackendDiscoveryServiceProtocol,
-        backendClient: (any ImprovBackendClientProtocol)? = nil,
+        backendDiscoveryService: BonjourBackendDiscoveryService,
+        backendRegistry: ImprovBackendRegistry,
+        selectedBackendKind: @escaping @MainActor () -> ImprovBackendKind,
+        backendTimeout: Duration = .seconds(2),
         pollInterval: Duration = .milliseconds(100),
         silenceTimeoutSeconds: TimeInterval = 2.0,
         onStateChanged: @escaping @MainActor (State) -> Void
@@ -69,7 +65,9 @@ final class AIPerformanceService {
         self.logger = logger
         self.nowUptimeSeconds = nowUptimeSeconds
         self.backendDiscoveryService = backendDiscoveryService
-        self.backendClient = backendClient ?? ImprovBackendClient()
+        self.backendRegistry = backendRegistry
+        self.selectedBackendKind = selectedBackendKind
+        self.backendTimeout = backendTimeout
         self.pollInterval = pollInterval
         self.silenceTimeoutSeconds = silenceTimeoutSeconds
         self.onStateChanged = onStateChanged
@@ -92,6 +90,7 @@ final class AIPerformanceService {
 
             isEnabled = false
             backendDiscoveryService.stop()
+            lastKnownBackendKind = nil
             pollTask?.cancel()
             pollTask = nil
 
@@ -113,7 +112,7 @@ final class AIPerformanceService {
         let wasEnabled = isEnabled
         isEnabled = true
 
-        backendDiscoveryService.start()
+        syncBackendDiscoveryIfNeeded()
 
         if wasEnabled == false {
             silenceTrigger.reset()
@@ -127,6 +126,7 @@ final class AIPerformanceService {
             guard let self else { return }
             while Task.isCancelled == false {
                 guard isEnabled else { return }
+                syncBackendDiscoveryIfNeeded()
                 await pollAndPlayAIPerformanceIfNeeded()
                 do {
                     try await Task.sleep(for: pollInterval)
@@ -226,63 +226,59 @@ final class AIPerformanceService {
             notifyStateChanged()
         }
 
-        let phrase = phraseRecorder.flushPhrase(endTimestamp: nowUptime)
-        if phrase.isEmpty == false {
-            let didPlayBackend = await attemptBackendImprov(promptNotes: phrase)
-            if didPlayBackend {
-                return
-            }
-        } else {
-            lastImprovStatusText = "Last improv: fallback(emptyPhrase)"
-            notifyStateChanged()
-        }
+        let promptNotes = phraseRecorder.flushPhrase(endTimestamp: nowUptime)
+        let kind = selectedBackendKind()
+        await attemptSelectedBackendImprov(kind: kind, promptNotes: promptNotes)
+    }
 
-        if let tickRange = practiceSession.aiPerformanceTickRange(maxMeasures: 2) {
-            await playAIPerformanceTickRange(tickRange)
+    private func syncBackendDiscoveryIfNeeded() {
+        let kind = selectedBackendKind()
+        guard kind != lastKnownBackendKind else { return }
+        lastKnownBackendKind = kind
+
+        if kind == .networkBonjourHTTP {
+            backendDiscoveryService.start()
+        } else {
+            backendDiscoveryService.stop()
         }
     }
 
-    private func attemptBackendImprov(promptNotes: [ImprovDialogueNote]) async -> Bool {
-        guard practiceSession != nil else { return false }
-        guard let resolved = backendDiscoveryService.resolvedEndpoint else {
-            lastImprovStatusText = "Last improv: fallback(backendNotFound)"
+    private func attemptSelectedBackendImprov(kind: ImprovBackendKind, promptNotes: [ImprovDialogueNote]) async {
+        guard practiceSession != nil else { return }
+        guard let backend = backendRegistry.backend(for: kind) else {
+            lastImprovStatusText = "Last improv: error(backendUnavailable \(kind.rawValue))"
             notifyStateChanged()
-            return false
+            return
         }
 
-        let params = ImprovGenerateParams(topP: 0.95, maxTokens: 256, strategy: "deterministic")
+        let params = ImprovGenerateParams(topP: 0.95, maxTokens: 256, strategy: "deterministic", seed: nil)
         let request = ImprovGenerateRequest(notes: promptNotes, params: params, sessionID: nil)
 
-        let response: ImprovResultResponse
+        let playbackPlan: ImprovBackendPlaybackPlan
         do {
-            response = try await backendClient.generate(
-                host: resolved.host,
-                port: resolved.port,
-                request: request,
-                timeoutSeconds: 2
-            )
-        } catch let error as URLError where error.code == .timedOut {
-            lastImprovStatusText = "Last improv: fallback(timeout)"
-            notifyStateChanged()
-            return false
+            playbackPlan = try await backend.generatePlaybackPlan(request: request, timeout: backendTimeout)
         } catch {
             logger.warning("improv backend failed: \(String(describing: error), privacy: .public)")
-            lastImprovStatusText = "Last improv: fallback(error)"
+            lastImprovStatusText = "Last improv: error(\(kind.rawValue) \(error.localizedDescription))"
             notifyStateChanged()
-            return false
+            return
         }
 
-        let schedule = ImprovScheduleBuilder().buildSchedule(from: response.notes)
-        guard schedule.isEmpty == false else {
-            lastImprovStatusText = "Last improv: fallback(emptyReply)"
+        switch playbackPlan {
+        case let .schedule(schedule):
+            await playAIPerformanceSchedule(schedule)
+            lastImprovStatusText = "Last improv: \(kind.rawValue)"
             notifyStateChanged()
-            return false
+        case let .tickRange(maxMeasures):
+            guard let tickRange = practiceSession?.aiPerformanceTickRange(maxMeasures: maxMeasures) else {
+                lastImprovStatusText = "Last improv: error(\(kind.rawValue) noTickRange)"
+                notifyStateChanged()
+                return
+            }
+            await playAIPerformanceTickRange(tickRange)
+            lastImprovStatusText = "Last improv: \(kind.rawValue)"
+            notifyStateChanged()
         }
-
-        await playAIPerformanceSchedule(schedule)
-        lastImprovStatusText = "Last improv: backend"
-        notifyStateChanged()
-        return true
     }
 
     private func playAIPerformanceSchedule(_ schedule: [PracticeSequencerMIDIEvent]) async {

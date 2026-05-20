@@ -6,6 +6,7 @@ import os
 @Observable
 final class ARGuideAIPerformanceViewModel {
     let backendDiscoveryService: BonjourBackendDiscoveryService
+    private let backendSelection = ImprovBackendSelection()
 
     var isVirtualPerformerEnabled = false
     var isAIPerformanceActive = false
@@ -19,6 +20,10 @@ final class ARGuideAIPerformanceViewModel {
             category: "AIPerformanceService"
         ),
         backendDiscoveryService: backendDiscoveryService,
+        backendRegistry: makeBackendRegistry(),
+        selectedBackendKind: { [backendSelection] in
+            backendSelection.selectedKind()
+        },
         onStateChanged: { [weak self] state in
             guard let self else { return }
             isAIPerformanceActive = state.isAIPerformanceActive
@@ -32,17 +37,26 @@ final class ARGuideAIPerformanceViewModel {
     }
 
     var backendStatusText: String? {
-        switch backendDiscoveryService.state {
+        switch backendSelection.selectedKind() {
+        case .networkBonjourHTTP:
+            switch backendDiscoveryService.state {
             case .idle:
-                "Backend: idle"
+                "Backend: network (idle)"
             case .discovering:
-                "Backend: discovering"
+                "Backend: network (discovering)"
             case let .resolved(host, port):
-                "Backend: resolved \(host):\(port)"
+                "Backend: network (resolved \(host):\(port))"
             case let .failed(message):
-                "Backend: unavailable (\(message))"
+                "Backend: network (unavailable: \(message))"
             case .denied:
-                "Backend: denied (Local Network)"
+                "Backend: network (denied: Local Network)"
+            }
+        case .localDeterministic:
+            "Backend: local deterministic"
+        case .localRule:
+            "Backend: local rule"
+        case .tickRangeReplay:
+            "Backend: tick-range replay"
         }
     }
 
@@ -78,5 +92,14 @@ final class ARGuideAIPerformanceViewModel {
 
     func shutdown() {
         aiPerformanceService.shutdown()
+    }
+
+    private func makeBackendRegistry() -> ImprovBackendRegistry {
+        ImprovBackendRegistry(
+            backends: [
+                NetworkBonjourHTTPImprovBackend(discoveryService: backendDiscoveryService),
+                TickRangeReplayImprovBackend(),
+            ]
+        )
     }
 }
