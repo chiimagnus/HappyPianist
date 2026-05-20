@@ -1,37 +1,47 @@
 import Foundation
 @testable import LonelyPianistAVP
+import ImprovProtocol
 import Testing
 import os
 
 @MainActor
-private final class FakeBackendDiscoveryService: AIPerformanceBackendDiscoveryServiceProtocol {
-    var resolvedEndpoint: (host: String, port: Int)?
+private final class FakeBackendDiscoveryService: BonjourBackendDiscoveryServiceProtocol {
+    var state: BonjourBackendDiscoveryService.State = .idle
     private(set) var startCallCount = 0
     private(set) var stopCallCount = 0
 
-    init(resolvedEndpoint: (host: String, port: Int)? = nil) {
-        self.resolvedEndpoint = resolvedEndpoint
-    }
-
     func start() {
         startCallCount += 1
+        if case .idle = state {
+            state = .discovering
+        }
     }
 
     func stop() {
         stopCallCount += 1
+        if case .discovering = state {
+            state = .idle
+        }
     }
 }
 
-private struct FakeBackendClient: ImprovBackendClientProtocol {
-    var result: Result<ImprovResultResponse, Error>
+private actor FakeScheduleBackend: ImprovBackendProtocol {
+    nonisolated let kind: ImprovBackendKind
+    nonisolated let displayName: String
 
-    func generate(
-        host _: String,
-        port _: Int,
+    private let playbackPlan: ImprovBackendPlaybackPlan
+
+    init(kind: ImprovBackendKind, displayName: String = "Fake", playbackPlan: ImprovBackendPlaybackPlan) {
+        self.kind = kind
+        self.displayName = displayName
+        self.playbackPlan = playbackPlan
+    }
+
+    func generatePlaybackPlan(
         request _: ImprovGenerateRequest,
-        timeoutSeconds _: TimeInterval
-    ) async throws -> ImprovResultResponse {
-        try result.get()
+        timeout _: Duration
+    ) async throws -> ImprovBackendPlaybackPlan {
+        playbackPlan
     }
 }
 
@@ -122,13 +132,15 @@ func enableDisableAreIdempotent() async {
     var states: [AIPerformanceService.State] = []
 
     let backend = FakeBackendDiscoveryService()
+    let selectedKind: ImprovBackendKind = .networkBonjourHTTP
     let service = AIPerformanceService(
         logger: Logger(subsystem: "test", category: "ai-perf"),
         nowUptimeSeconds: { nowUptime },
         backendDiscoveryService: backend,
-        backendClient: FakeBackendClient(result: .success(.init(type: "result", protocolVersion: 1, notes: [], latencyMS: nil))),
+        backendRegistry: ImprovBackendRegistry(backends: []),
+        selectedBackendKind: { selectedKind },
         pollInterval: .milliseconds(1),
-        silenceTimeoutSeconds: 0.01,
+        silenceTimeoutSeconds: 999,
         onStateChanged: { states.append($0) }
     )
 
@@ -141,6 +153,10 @@ func enableDisableAreIdempotent() async {
 
     service.setEnabled(true)
     service.setEnabled(true)
+
+    for _ in 0 ..< 50 {
+        await Task.yield()
+    }
     #expect(backend.startCallCount == 1)
 
     service.setEnabled(false)
@@ -156,21 +172,20 @@ func disableCancelsPendingPlaybackAndStopsSequencer() async {
     var nowUptime: TimeInterval = 0
     var states: [AIPerformanceService.State] = []
 
-    let backend = FakeBackendDiscoveryService(resolvedEndpoint: (host: "127.0.0.1", port: 1234))
-    let response = ImprovResultResponse(
-        type: "result",
-        protocolVersion: 1,
-        notes: [
-            ImprovDialogueNote(note: 60, velocity: 90, time: 0.0, duration: 10.0),
-        ],
-        latencyMS: nil
-    )
+    let backend = FakeBackendDiscoveryService()
+    let selectedKind: ImprovBackendKind = .localDeterministic
+    let schedule = [
+        PracticeSequencerMIDIEvent(timeSeconds: 0.0, kind: .noteOn(midi: 60, velocity: 90)),
+        PracticeSequencerMIDIEvent(timeSeconds: 10.0, kind: .noteOff(midi: 60)),
+    ]
+    let fakeBackend = FakeScheduleBackend(kind: selectedKind, playbackPlan: .schedule(schedule))
 
     let service = AIPerformanceService(
         logger: Logger(subsystem: "test", category: "ai-perf"),
         nowUptimeSeconds: { nowUptime },
         backendDiscoveryService: backend,
-        backendClient: FakeBackendClient(result: .success(response)),
+        backendRegistry: ImprovBackendRegistry(backends: [fakeBackend]),
+        selectedBackendKind: { selectedKind },
         pollInterval: .milliseconds(1),
         silenceTimeoutSeconds: 0.01,
         onStateChanged: { states.append($0) }
@@ -227,11 +242,13 @@ func shutdownPreventsFurtherEnable() async {
     var nowUptime: TimeInterval = 0
 
     let backend = FakeBackendDiscoveryService()
+    let selectedKind: ImprovBackendKind = .networkBonjourHTTP
     let service = AIPerformanceService(
         logger: Logger(subsystem: "test", category: "ai-perf"),
         nowUptimeSeconds: { nowUptime },
         backendDiscoveryService: backend,
-        backendClient: FakeBackendClient(result: .success(.init(type: "result", protocolVersion: 1, notes: [], latencyMS: nil))),
+        backendRegistry: ImprovBackendRegistry(backends: []),
+        selectedBackendKind: { selectedKind },
         pollInterval: .milliseconds(1),
         silenceTimeoutSeconds: 0.01,
         onStateChanged: { _ in }
@@ -254,4 +271,3 @@ func shutdownPreventsFurtherEnable() async {
 
     #expect(backend.startCallCount == 0)
 }
-

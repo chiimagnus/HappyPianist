@@ -1,6 +1,6 @@
 # 数据流
 
-本文只描述当前代码存在的运行链路。macOS 端不再包含 MIDI mapping、键盘注入或 Dialogue client；AI 即兴链路由 visionOS 端通过本地 Python 后端完成。
+本文只描述当前代码存在的运行链路。macOS 端不再包含 MIDI mapping、键盘注入或 Dialogue client；visionOS 端（AVP）的 AI 即兴链路支持 **本地生成后端**（Swift）与 **可选网络后端**（本机 Python 服务），并且严格只使用用户在 practice 设置中选择的后端（不会自动降级/切换）。
 
 ## 主流程
 
@@ -13,8 +13,8 @@
 | AVP 准备 | 钢琴类型选择 | `PracticeSetupState` + `WindowTransitionState` | 进入曲库前的 readiness gate |
 | AVP 曲库 | bundled MusicXML / 用户导入 MusicXML | `SongLibraryViewModel` + `PracticePreparationService` | `PreparedPractice` |
 | AVP 练习 | `PreparedPractice` + selected piano mode | `ARGuideViewModel` + `PracticeSessionViewModel` | 步骤推进、谱面、高亮、录制与回放 |
-| AVP AI 即兴 | recorded phrase / selected clip | `AIPerformanceService` + `ImprovBackendClient` | 生成片段并排程回放 |
-| Python 生成 | HTTP / WebSocket request | FastAPI + rule / deterministic / model engine | `ResultResponse` 或错误消息 |
+| AVP AI 即兴 | recorded phrase / selected clip | `AIPerformanceService` + `ImprovBackendRegistry` | 生成片段并排程回放（严格按所选后端） |
+| Python 生成（可选） | HTTP / WebSocket request | FastAPI + rule / deterministic / model engine | 仅当选择 `网络本地连接` 后端时触发 |
 
 ## macOS recorder
 
@@ -98,22 +98,37 @@ flowchart TD
 
 ## AI 即兴链路
 
+practice 窗口的 settings popover 中可选择后端：
+
+- `网络本地连接`：通过 Bonjour 发现 + HTTP 请求调用本机 `piano_dialogue_server`（电脑端运行）。
+- `本地 deterministic（Local deterministic）`：AVP 端直接调用 SwiftPM `ImprovEngines`（seed 可复现）。
+- `本地规则生成（Local rule）`：AVP 端直接调用 SwiftPM `ImprovEngines`（seed 可复现）。
+- `按谱片段回放（tick-range replay）`：不做生成，回放当前谱面片段；它不是自动 fallback，只会在用户选择时使用。
+
 ```mermaid
 sequenceDiagram
   participant AVP as AVP app
+  participant Settings as Practice Settings
+  participant Backend as ImprovBackendProtocol
+  participant Engines as ImprovEngines (SwiftPM)
   participant Bonjour as BonjourBackendDiscoveryService
-  participant Client as ImprovBackendClient
   participant API as piano_dialogue_server
-  participant Engine as rule/deterministic/model engine
 
-  AVP->>Bonjour: discover _lonelypianist._tcp.local.
-  Bonjour-->>AVP: host, port, path=/generate
-  AVP->>Client: POST GenerateRequest
-  Client->>API: /generate
-  API->>Engine: strategy dispatch
-  Engine-->>API: generated notes
-  API-->>Client: ResultResponse
-  Client-->>AVP: schedule generated performance
+  Settings-->>AVP: selected ImprovBackendKind
+  AVP->>Backend: generatePlaybackPlan(request)
+  alt local deterministic / local rule
+    Backend->>Engines: generate(notes, params, seed)
+    Engines-->>Backend: generated notes
+    Backend-->>AVP: schedule
+  else network bonjour http
+    Backend->>Bonjour: discover _lonelypianist._tcp.local.
+    Bonjour-->>Backend: host, port, path=/generate
+    Backend->>API: POST /generate
+    API-->>Backend: ResultResponse
+    Backend-->>AVP: schedule
+  else tick-range replay
+    Backend-->>AVP: tickRange(maxMeasures)
+  end
 ```
 
 `strategy=deterministic` 与 `strategy=rule` 是轻量路径；`strategy=model` 会加载 torch/transformers/anticipation 模型依赖。

@@ -23,3 +23,5 @@ LonelyPianistAVP/Resources/SeedScores/
 
 Packages/RealityKitContent/Sources/RealityKitContent/RealityKitContent.rkassets/xiaocheng.usdz
 *.zip
+
+.venv-fixtures

@@ -3,7 +3,7 @@ import Network
 import os
 
 @MainActor
-final class BonjourBackendDiscoveryService {
+final class BonjourBackendDiscoveryService: Sendable {
     enum State: Equatable {
         case idle
         case discovering
@@ -149,3 +149,12 @@ final class BonjourBackendDiscoveryService {
         return host
     }
 }
+
+@MainActor
+protocol BonjourBackendDiscoveryServiceProtocol: AnyObject, Sendable {
+    var state: BonjourBackendDiscoveryService.State { get }
+    func start()
+    func stop()
+}
+
+extension BonjourBackendDiscoveryService: BonjourBackendDiscoveryServiceProtocol {}

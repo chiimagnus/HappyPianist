@@ -1,4 +1,5 @@
 import Foundation
+import ImprovProtocol
 
 struct ImprovScheduleBuilder {
     func buildSchedule(
