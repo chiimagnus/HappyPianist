@@ -11,6 +11,7 @@ struct XiaochengRig {
 }
 
 enum XiaochengRigBuilder {
+    @MainActor
     static func makeRig(modelEntity: ModelEntity) -> XiaochengRig? {
         let jointNames = modelEntity.jointNames
         guard jointNames.isEmpty == false else { return nil }
@@ -83,6 +84,7 @@ enum XiaochengRigBuilder {
 }
 
 enum XiaochengPoseService {
+    @MainActor
     static func applyHeadNodPose(rig: XiaochengRig, headNodAngleRadians: Float) {
         guard headNodAngleRadians != 0 else {
             rig.modelEntity.jointTransforms = baseTransforms(rig: rig, headNodAngleRadians: 0)
