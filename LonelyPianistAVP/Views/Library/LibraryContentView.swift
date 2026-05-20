@@ -1,7 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-struct LibraryFlowView: View {
+struct LibraryContentView: View {
     @Bindable var songLibraryViewModel: SongLibraryViewModel
     let selectedPianoModeTitle: String?
     let onBackToPreparation: @MainActor () -> Void
