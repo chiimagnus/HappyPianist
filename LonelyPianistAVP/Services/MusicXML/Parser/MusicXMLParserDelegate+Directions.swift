@@ -6,7 +6,7 @@ private let musicXMLParserLogger = Logger(
     category: "MusicXMLParser"
 )
 
-extension MusicXMLParserDelegate {
+nonisolated extension MusicXMLParserDelegate {
     func parseMIDIVelocity(_ raw: String?) -> UInt8? {
         guard let raw = raw?.trimmingCharacters(in: .whitespacesAndNewlines),
               raw.isEmpty == false,

@@ -1,6 +1,6 @@
 import Foundation
 
-extension MusicXMLParserDelegate {
+nonisolated extension MusicXMLParserDelegate {
     func parseGraceStealFraction(_ rawValue: String?) -> Double? {
         guard let rawValue = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines),
               rawValue.isEmpty == false,

@@ -1,6 +1,6 @@
 import Foundation
 
-extension MusicXMLParserDelegate {
+nonisolated extension MusicXMLParserDelegate {
     func moveCurrentTick(by delta: Int) {
         let current = state.partTick[state.currentPartID] ?? state.currentMeasureStartTick
         let moved = max(state.currentMeasureStartTick, current + delta)
