@@ -163,17 +163,18 @@ struct PracticeStepView: View {
             hasRequestedImmersiveOpen = true
 
             Task { @MainActor in
-                let flowCoordinator = PracticeFlowCoordinator.live(
-                    openImmersiveSpace: openImmersiveSpace,
-                    dismissImmersiveSpace: dismissImmersiveSpace
-                )
+                let openHandler = makePracticeImmersiveOpenHandler(openImmersiveSpace)
+                let dismissHandler = makePracticeImmersiveDismissHandler(dismissImmersiveSpace)
                 session.refreshAudioRecognitionFromSettings()
                 viewModel.setPracticeVirtualPianoEnabled(isVirtualPianoMode)
                 viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
-                await flowCoordinator.enterPracticeStep(viewModel: viewModel)
+                await viewModel.enterPracticeStep(
+                    openImmersiveSpace: openHandler,
+                    dismissImmersiveSpace: dismissHandler
+                )
 
                 if isStepVisible == false {
-                    await flowCoordinator.closeImmersiveForStep(viewModel: viewModel)
+                    await viewModel.closeImmersiveForStep(dismissImmersiveSpace: dismissHandler)
                     await viewModel.recoverImmersiveStateIfStuck()
                 }
             }
@@ -216,11 +217,8 @@ struct PracticeStepView: View {
             viewModel.setPracticeVirtualPerformerEnabled(false)
             viewModel.resetPracticeLocalizationState()
             Task { @MainActor in
-                let flowCoordinator = PracticeFlowCoordinator.live(
-                    openImmersiveSpace: openImmersiveSpace,
-                    dismissImmersiveSpace: dismissImmersiveSpace
-                )
-                await flowCoordinator.closeImmersiveForStep(viewModel: viewModel)
+                let dismissHandler = makePracticeImmersiveDismissHandler(dismissImmersiveSpace)
+                await viewModel.closeImmersiveForStep(dismissImmersiveSpace: dismissHandler)
                 await viewModel.recoverImmersiveStateIfStuck()
             }
         }
@@ -290,12 +288,8 @@ private enum PracticeHandPalette {
     let calibrationCaptureService = CalibrationPointCaptureService()
     let calibrationRepository = CalibrationRepository(worldAnchorCalibrationStore: worldAnchorCalibrationStore)
     let pianoModeRegistry: PianoModeRegistryProtocol = PianoModeRegistryService(modes: [])
-    let practiceSessionViewModelFactory: PracticeSessionViewModelFactoryProtocol =
-        PracticeSessionViewModelFactoryService(
-            pianoModeRegistry: pianoModeRegistry,
-            makeFallbackPracticeSessionViewModel: { fatalError("preview only") }
-        )
-    let flowState = FlowState()
+    let makePracticeSessionViewModel: @MainActor (String?) -> PracticeSessionViewModel = { _ in fatalError("preview only") }
+    let practiceSetupState = PracticeSetupState()
     let appState = AppState(
         arTrackingService: arTrackingService,
         calibrationCaptureService: calibrationCaptureService,
@@ -304,9 +298,9 @@ private enum PracticeHandPalette {
     )
     let viewModel = ARGuideViewModel(
         appState: appState,
-        flowState: flowState,
+        practiceSetupState: practiceSetupState,
         pianoModeRegistry: pianoModeRegistry,
-        practiceSessionViewModelFactory: practiceSessionViewModelFactory
+        makePracticeSessionViewModel: makePracticeSessionViewModel
     )
     PracticeStepView(
         viewModel: viewModel,
