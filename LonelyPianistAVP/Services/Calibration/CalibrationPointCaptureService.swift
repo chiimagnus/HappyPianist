@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import simd
 
 enum CalibrationAnchorPoint {
@@ -7,6 +8,7 @@ enum CalibrationAnchorPoint {
 }
 
 @MainActor
+@Observable
 final class CalibrationPointCaptureService {
     var reticlePoint: SIMD3<Float> = .init(0, 0.8, -1.0)
     var a0AnchorID: UUID?
