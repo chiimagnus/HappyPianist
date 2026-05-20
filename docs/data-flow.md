@@ -110,7 +110,7 @@ flowchart TD
   D --> E[PracticeStepNote.hand = ScoreHand.fromStaff]
   C --> F[PianoHighlightGuideBuilderService]
   F --> G[PianoHighlightNote.hand = ScoreHand.fromStaff]
-  G --> H[2D keyboard highlightColorByMIDINote]
+  G --> H[2D keyboard highlightByMIDINote (phase+tint)]
   G --> I[RealityKit overlay palette (left/right)]
   E --> J[Practice matching expected notes by hand]
 ```

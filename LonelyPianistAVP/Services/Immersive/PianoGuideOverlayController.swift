@@ -39,10 +39,10 @@ final class PianoGuideOverlayController {
             return
         }
 
-        let desiredNotes = Set(descriptors.map(\.midiNote))
+        let desiredMIDINotes = Set(descriptors.map(\.midiNote))
 
         for (midiNote, beam) in activeBeamEntitiesByMIDINote {
-            if desiredNotes.contains(midiNote) == false {
+            if desiredMIDINotes.contains(midiNote) == false {
                 beam.removeFromParent()
                 activeBeamEntitiesByMIDINote[midiNote] = nil
                 lastGuideIDByMIDINote[midiNote] = nil
