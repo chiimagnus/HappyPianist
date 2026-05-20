@@ -19,8 +19,8 @@ extension PianoGuideBeamDescriptor {
     private static let decalEpsilonMeters: Float = 0.0015
     private static let decalThicknessMeters: Float = 0.001
     private static let decalInsetScale: Float = 0.98
-    private static let activeDecalAlpha: Float = 0.16
-    private static let triggeredDecalAlpha: Float = 0.46
+    private static let activeDecalAlpha: Float = 0.32
+    private static let triggeredDecalAlpha: Float = 0.52
 
     static func makeDescriptors(
         highlightGuide: PianoHighlightGuide?,

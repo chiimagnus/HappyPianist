@@ -102,33 +102,37 @@ struct PianoKeyboard88View: View {
         .accessibilityLabel("88 键钢琴")
     }
 
-    private func whiteKeyFillColor(midiNote: Int, highlight: PianoKeyboard88Highlight?) -> Color {
+    private func whiteKeyFillColor(midiNote _: Int, highlight: PianoKeyboard88Highlight?) -> Color {
         guard let highlight else { return .white }
         let tint = highlight.tint ?? .yellow
-        return tint.opacity(whiteKeyHighlightOpacity(phase: highlight.phase))
+        return tint.opacity(whiteKeyHighlightOpacity(highlight: highlight))
     }
 
-    private func blackKeyFillColor(midiNote: Int, highlight: PianoKeyboard88Highlight?) -> Color {
+    private func blackKeyFillColor(midiNote _: Int, highlight: PianoKeyboard88Highlight?) -> Color {
         guard let highlight else { return .black.opacity(0.88) }
         let tint = highlight.tint ?? .orange
-        return tint.opacity(blackKeyHighlightOpacity(phase: highlight.phase))
+        return tint.opacity(blackKeyHighlightOpacity(highlight: highlight))
     }
 
-    private func whiteKeyHighlightOpacity(phase: PianoGuideHighlightPhase) -> Double {
-        switch phase {
+    private func whiteKeyHighlightOpacity(highlight: PianoKeyboard88Highlight) -> Double {
+        switch highlight.phase {
         case .triggered:
-            0.68
+            // Match the legacy "pulse" max opacity.
+            0.75
         case .active:
-            0.26
+            // Match the legacy base highlight opacity (custom tint is slightly stronger).
+            highlight.tint == nil ? 0.48 : 0.55
         }
     }
 
-    private func blackKeyHighlightOpacity(phase: PianoGuideHighlightPhase) -> Double {
-        switch phase {
+    private func blackKeyHighlightOpacity(highlight: PianoKeyboard88Highlight) -> Double {
+        switch highlight.phase {
         case .triggered:
-            0.96
+            // Match the legacy "pulse" max opacity.
+            0.95
         case .active:
-            0.52
+            // Match the legacy base highlight opacity (custom tint is slightly softer).
+            highlight.tint == nil ? 0.95 : 0.92
         }
     }
 
