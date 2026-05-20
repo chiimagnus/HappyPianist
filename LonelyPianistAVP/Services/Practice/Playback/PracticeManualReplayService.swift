@@ -117,7 +117,7 @@ final class PracticeManualReplayService: PracticeSessionLifecycleProtocol {
             }
 
             logger.debug(
-                "manual replay sequencer started leadIn=\(leadInSeconds, privacy: .public)s now=\(sequencerPlaybackService.currentSeconds(), privacy: .public)s"
+                "manual replay sequencer started leadIn=\(leadInSeconds, privacy: .public)s now=\(self.sequencerPlaybackService.currentSeconds(), privacy: .public)s"
             )
 
             var cursor = ManualReplayTimeCursor(

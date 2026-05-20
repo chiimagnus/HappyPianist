@@ -1,4 +1,5 @@
 protocol PracticeAudioRecognitionInputServiceProtocol: AnyObject {
-    func refresh(context: PracticeInputRefreshContext)
+    func refreshForCurrentState()
     func stop()
+    func shutdown()
 }

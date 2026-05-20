@@ -48,7 +48,7 @@
 		D85596C62F83FF74005BE7FE /* Exceptions for "LonelyPianistAVP" folder in "LonelyPianistAVP" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				Info.plist,
+				Resources/Info.plist,
 			);
 			target = D85596A82F83FF72005BE7FE /* LonelyPianistAVP */;
 		};
