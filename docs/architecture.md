@@ -1,117 +1,136 @@
 # 架构
 
 ## 系统上下文
-LonelyPianist 由三条运行面组成：macOS 负责 MIDI 输入采集、映射、录音和 Dialogue 编排；visionOS 负责曲库、校准、空间追踪和 AR 练习引导；Python 负责本地 Piano Dialogue 推理。
 
-## 运行时边界
-| 运行单元 | 位置 | 生命周期 | 核心职责 | 验证入口 |
-| --- | --- | --- | --- | --- |
-| macOS app | `LonelyPianist/` | App 启动到关闭 | MIDI、映射、录音、对话、SwiftData | 本地 `xcodebuild test`（macOS） |
-| visionOS app | `LonelyPianistAVP/` | 3×Window + ImmersiveSpace | 校准、曲库、追踪、练习、贴皮高亮提示 | 本地 `xcodebuild test`（visionOS simulator） |
-| Dialogue server | `piano_dialogue_server/server/` | uvicorn 进程 | HTTP `/generate` + WS `/ws` 协议、Bonjour 广播、推理、调试包、MIDI 上传扩展 | Python smoke scripts + curl |
-| 本地验证 | 本机 `xcodebuild` / python scripts | 手动触发 | 回归测试与 smoke | `overview.md` |
-
-## 组件入口（按模块）
-- macOS：`modules/lonelypianist-macos.md`（Runtime / Mapping / Recording / Dialogue 的入口与联动）
-- visionOS：`modules/lonelypianist-avp.md`（Step 1/2/3、沉浸空间、Tracking、Practice、BLE MIDI、Virtual Piano）
-- Python：`modules/piano-dialogue-server.md`（HTTP/WS 协议、推理引擎、调试包）
-
-跨端常用入口（只列“经常跨模块联动”的少数点）：
-- macOS：`LonelyPianistViewModel`、`CoreMIDIInputService`、`DialogueManager`
-- visionOS：`ARGuideViewModel`、`PracticeSessionViewModel`、`SongLibraryViewModel`、`WindowCoordinator`、`FlowState` / `AppState`
-- Python：`server/api/main.py`（FastAPI + WebSocket）与 `server/engines/*`
-
-## 依赖方向
 ```mermaid
 flowchart LR
-  subgraph macOS
-    A[CoreMIDIInputService] --> B[LonelyPianistViewModel]
-    B --> C[DefaultMappingEngine]
-    B --> D[DialogueManager]
-    B --> E[DefaultRecordingService]
-    D --> F[WebSocketDialogueService]
-    D --> G[RoutedMIDIPlaybackService]
-  end
+  MIDI[MIDI devices / MIDI files] --> MAC[macOS recorder]
+  MAC --> STORE[(SwiftData takes)]
+  MAC --> OUT[Built-in sampler / CoreMIDI destination]
 
-  subgraph visionOS
-    APP[LonelyPianistAVPApp] --> CO[WindowCoordinator]
-    CO --> FS[FlowState]
-    CO --> PMR[PianoModeRegistryService]
-    APP --> PW[PreparationWindowRootView]
-    APP --> LW[LibraryWindowRootView]
-    APP --> PRW[PracticeWindowRootView]
-    LW --> J[SongLibraryViewModel]
-    PRW --> K[ARGuideViewModel]
-    K --> AS[AppState]
-    AS --> L[ARTrackingService]
-    K --> M[PracticeSessionViewModel]
-    K --> BD[BonjourBackendDiscoveryService]
-    K --> IC[ImprovBackendClient]
-    M --> N[PianoGuideOverlayController]
-    M --> W[KeyContactDetectionService]
-    M --> X[VirtualPianoOverlayController]
-    M --> BLE[BluetoothMIDIInputEventSourceService]
-    M --> RA[RecordingTakeRecorder]
-    K --> Y[VirtualPianoKeyGeometryService]
-    J --> O[SongLibraryIndexStore]
-    J --> P[SongFileStore]
-    J --> NORM[MusicXMLPianoGrandStaffNormalizer]
-    NORM --> MHR[MusicXMLHandRouter]
-  end
+  XML[MusicXML / MXL] --> LIB[AVP Song Library]
+  LIB --> PREP[PracticePreparationService]
+  PREP --> SESSION[PracticeSessionViewModel]
 
-  subgraph Python
-    QB[Bonjour broadcaster] --> Q[FastAPI /generate + /ws]
-    Q --> R[Strategy router]
-    R --> E1[model engine]
-    R --> E2[deterministic engine]
-    R --> E3[rule engine]
-  end
+  SESSION --> AR[RealityKit overlays]
+  SESSION --> AUDIO[AVAudioSequencerPracticePlaybackService]
+  SESSION --> BLE[BluetoothMIDIInputEventSourceService]
+  SESSION --> MIC[PracticeAudioRecognitionService]
 
-  D <-->|WS /ws generate| Q
-  BD <-->|mDNS browse| QB
-  IC -->|HTTP /generate| Q
-  K --> M
+  SESSION --> IM[ImprovBackendClient]
+  PY[Python FastAPI backend] --> BJ[Bonjour _lonelypianist._tcp.local.]
+  BJ --> IM
+  IM -->|POST /generate| PY
+```
+
+## 运行时边界
+
+| 运行单元 | 位置 | 生命周期 | 核心职责 |
+| --- | --- | --- | --- |
+| macOS app | `LonelyPianist/` | 单窗口 app | CoreMIDI 输入、take 录制、MIDI 导入、回放输出选择、SwiftData 持久化 |
+| visionOS app | `LonelyPianistAVP/` | 3 个 Window + 1 个 mixed `ImmersiveSpace` | 钢琴准备、曲库、校准、练习、虚拟钢琴、BLE MIDI、AI 即兴 |
+| Python server | `piano_dialogue_server/server/` | uvicorn 进程 | HTTP/WS 生成、MIDI 上传扩展、Bonjour 广播、debug bundle |
+
+## macOS 架构
+
+```mermaid
+flowchart TD
+  APP[LonelyPianistApp] --> VM[LonelyPianistViewModel]
+  VM --> IN[CoreMIDIInputService]
+  VM --> REC[DefaultRecordingService]
+  VM --> REPO[SwiftDataRecordingTakeRepository]
+  VM --> ROUTE[RoutedMIDIPlaybackService]
+  ROUTE --> SAMPLER[AVSamplerMIDIPlaybackService]
+  ROUTE --> MIDI_OUT[CoreMIDIOutputMIDIPlaybackService]
+  MIDI_OUT --> OUT[CoreMIDIOutputService]
+  REPO --> DATA[(LonelyPianist.store)]
+```
+
+当前 macOS app 的核心对象：
+
+- `LonelyPianistViewModel`：状态、take 列表、录制/回放命令、MIDI import。
+- `CoreMIDIInputService`：MIDI 1.0/2.0 note/control 事件输入。
+- `RoutedMIDIPlaybackService`：内建 sampler 与外部 destination 的输出路由。
+- `SwiftDataRecordingTakeRepository`：`RecordingTakeEntity` / `RecordedNoteEntity` 持久化。
+
+## visionOS 架构
+
+```mermaid
+flowchart TD
+  APP[LonelyPianistAVPApp] --> STATE[AppState]
+  STATE --> SETUP[PracticeSetupState]
+  STATE --> WIN[WindowTransitionState]
+  STATE --> ARVM[ARGuideViewModel]
+  STATE --> LIBVM[SongLibraryViewModel]
+  STATE --> REG[PianoModeRegistryService]
+
+  REG --> REAL[RealAudioPianoMode]
+  REG --> BMIDI[BluetoothMIDIPianoMode]
+  REG --> VIRT[VirtualPianoMode]
+
+  LIBVM --> PREP[PracticePreparationService]
+  PREP --> PARSER[MusicXMLParser]
+  PREP --> ROUTER[MusicXMLHandRouter]
+  PREP --> STEPS[PracticeStepBuilder]
+  PREP --> GUIDES[PianoHighlightGuideBuilderService]
+
+  ARVM --> PSESSION[PracticeSessionViewModel]
+  PSESSION --> PLAY[PracticePlaybackControlService]
+  PSESSION --> MIDI[PracticeMIDIInputService]
+  PSESSION --> AIN[PracticeAudioRecognitionInputService]
+  PSESSION --> VINPUT[VirtualPianoInputController]
+  PSESSION --> HG[PracticeHighlightGuideController]
+```
+
+关键约束：
+
+- `AppState.configureLiveAppGraphIfNeeded()` 是 live app 的依赖组装点。
+- `PracticeSetupState` 保存当前钢琴模式、校准完成状态、虚拟钢琴放置状态、BLE MIDI source 数和已准备的 MusicXML steps。
+- `WindowTransitionState` 只负责 preparation/library/practice 三窗口的替换式导航。
+- `PianoModeProtocol` 决定准备页 route、进入曲库 gate、练习追踪模式和录制来源文案。
+
+## Python 架构
+
+```mermaid
+flowchart TD
+  API[server/api/main.py] --> PROTO[server/api/protocol.py]
+  API --> MODEL[server/engines/model_inference.py]
+  API --> RULE[server/engines/rule_inference.py]
+  RULE --> RB[server/engines/rule_backend.py]
+  API --> MIDI[server/media/midi_generation.py]
+  API --> DBG[server/media/debug_artifacts.py]
+  API --> BONJOUR[server/media/bonjour.py]
+  API --> STATIC[static/index.html + app.js]
 ```
 
 ## 关键契约
+
 | 契约 | 位置 | 作用 |
 | --- | --- | --- |
-| `DialogueNote` / `GenerateRequest` / `ResultResponse` | Swift + Python | 对话请求和结果 |
-| `MappingConfigPayload` | macOS models | 映射编辑和执行 |
-| `SongLibraryIndex` / `SongLibraryEntry` | AVP models | 曲库索引 |
-| `StoredWorldAnchorCalibration` | AVP models | 校准持久化 |
-| `PracticeStep` / `PracticeStepNote` | AVP models | 练习数据 |
-| `ScoreHand` | AVP models | 左右手语义（由 staff 推导；贯穿 step/guide/高亮/判定） |
-| `MIDI1InputEvent` / `MIDI2InputEvent` | AVP models | BLE MIDI 练习输入事件（按 MIDI 1.0 / MIDI 2.0 分流） |
-| `RecordingTake` / `RecordingTakeEvent` | AVP models | Take 录制产物（事件列表 + 元数据） |
-| `PianoModeProtocol` | AVP services | 钢琴模式能力契约（id、卡片、准入、工厂） |
-| `DataProviderState` | AR tracking | provider 可用性 |
-| `GrandStaffNotationLayout` / `GrandStaffNotationContext` | AVP models | 双谱表五线谱渲染契约（上下谱表 + barline + context） |
-
-## 扩展点
-- macOS：可在 `RoutedMIDIPlaybackService` 下扩展回放后端。
-- AVP：可扩展曲库索引字段、校准算法、练习匹配策略、RealityKit 贴皮高亮表现和虚拟钢琴交互模式。
-- Python：可扩展请求参数、采样策略和调试包字段。
-- 自动化（未来若引入）：可把 Python smoke tests 接入 CI，并按需拆分 AVP 测试为 `build-for-testing` + 完整 `test`。
+| `RecordingTake` / `RecordedNote` | macOS models | macOS recorder 的 take 与 note 数据 |
+| `SongLibraryIndex` / `SongLibraryEntry` | AVP library models | 用户导入曲库索引 |
+| `StoredWorldAnchorCalibration` | AVP calibration models | A0/C8 world anchor 持久化 |
+| `PracticeStep` / `PracticeStepNote` | AVP practice models | 练习 step 与 expected notes |
+| `PianoHighlightGuide` / `PianoHighlightNote` | AVP practice models | 自动播放、高亮、五线谱布局输入 |
+| `MIDI1InputEvent` / `MIDI2InputEvent` | AVP MIDI models | BLE MIDI 协议分流后的练习输入 |
+| `ImprovGenerateRequest` / `ImprovResultResponse` | AVP improv models | AVP 调用 Python `/generate` 的 JSON 契约 |
+| `GenerateRequest` / `ResultResponse` | Python protocol | HTTP/WS 生成协议 |
 
 ## 危险修改区
-| 区域 | 风险 | 必跑验证 |
+
+| 区域 | 风险 | 建议验证 |
 | --- | --- | --- |
-| `LonelyPianistViewModel.handleMIDIEvent` | 映射、录音、Dialogue 同时受影响 | macOS tests |
-| `DialogueManager.startGeneration / playAIReply` | 本地服务协议和回放状态可能漂移 | macOS tests + Python smoke |
-| `CoreMIDIInputService` | Swift 6.2 捕获规则、CoreMIDI source 生命周期 | macOS tests |
-| `AppState.resolveRuntimeCalibrationFromTrackedAnchors` | Step 3 定位失败 | AVP tests + 手工校准 |
-| `SongLibraryViewModel.importMusicXML / deleteEntry / bindAudio` | 曲库 index 和文件副本漂移 | AVP library tests |
-| `MusicXMLHandRouter.routeIfNeeded` | 单谱表 staff/左右手路由漂移，影响五线谱/高亮/判定 | AVP tests + 手工导入验证 |
-| `PracticeSessionViewModel.startAutoplayTaskIfNeeded` | 自动演奏、step 推进联动 | AVP practice tests |
-| `AudioStepAttemptAccumulator.evaluateHandSeparated` / `MIDIPracticeStepMatcher` / `ChordAttemptAccumulator.registerHandSeparated` | “按手分别满足”语义漂移（音频/BLE MIDI/press 三输入必须一致） | AVP practice tests |
-| `PianoGuideOverlayController.updateHighlights` | 贴皮位置、大小、材质、生命周期 | AVP tests + Vision Pro 手工观察 |
-| `GrandStaffNotationLayoutService.makeLayout` | 五线谱渲染错位、staff 分配错误、性能退化 | AVP tests + 手工观察 |
-| `KeyContactDetectionService.detect` | 迟滞阈值、黑键优先、started/ended delta | VirtualPianoTests + Vision Pro 手工验证 |
-| `ARGuideViewModel.updateGazePlaneDiskGuidance` | 平面命中/确认阈值/WorldAnchor 复用导致键盘漂移 | AVP tests + 真机放置验证 |
-| `piano_dialogue_server/server/engines/model_inference.py::_patch_safe_logits` | 推理结果和异常恢复 | Python smoke scripts |
+| `LonelyPianistViewModel.handleMIDIEvent` | 影响 macOS pressed notes、录制 preview 与 take 内容 | macOS tests + 手工录制/回放 |
+| `CoreMIDIInputService.handleUniversalMessage` | MIDI 1.0/2.0 velocity 与 noteOff 语义漂移 | macOS tests + MIDI 设备冒烟 |
+| `PracticePreparationService.prepare` | 影响 MusicXML parsing、分手、tempo、pedal、guide 与 step 全链路 | AVP MusicXML tests |
+| `PracticePlaybackControlService` | 影响 autoplay、manual replay、audio recognition suppress 与错误提示 | AVP practice tests |
+| `BluetoothMIDIInputEventSourceService` | BLE MIDI source 生命周期、协议解码、广播 stream | BLE MIDI tests + 真机 |
+| `VirtualPianoInputController` / `KeyContactDetectionService` | 虚拟键触发、黑键优先、迟滞阈值 | VirtualPiano tests + 真机 |
+| `ARTrackingService.start(mode:)` | provider 权限和沉浸空间可用性 | AVP tests + 真机 |
+| `server/api/main.py` | `/generate`、`/ws`、`/upload-expand` 行为 | Python smoke + curl |
 
 ## Coverage Gaps
-- 没有三端端到端自动化门禁；当前依赖单元测试 + 手工冒烟组合覆盖。
-- Python 服务仍需本地启动与脚本验证。
-- AVP 的手部追踪/平面检测/视觉舒适度必须真机验证。
+
+- 没有跨 macOS、AVP、Python 的端到端自动化门禁。
+- AVP sensor-dependent 行为需要真机验证。
+- Python 模型路径、设备选择和下载镜像没有统一 lock/fixture。

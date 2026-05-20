@@ -1,50 +1,37 @@
 # 存储
 
-## 存储面总览
-| 存储 | 路径 | 写入方 | 读取方 |
-| --- | --- | --- | --- |
-| SwiftData store | `Application Support/<bundle>/LonelyPianist.store` | macOS repositories | macOS ViewModel |
-| 世界锚点校准 | `Documents/piano-worldanchor-calibration.json` | `WorldAnchorCalibrationStore` | `AppState` / `ARGuideViewModel` |
-| 曲库索引 | `Documents/SongLibrary/index.json` | `SongLibraryIndexStore` | `SongLibraryViewModel` |
-| 曲谱文件 | `Documents/SongLibrary/scores/` | `SongFileStore` | 曲库 / parser |
-| 音频文件 | `Documents/SongLibrary/audio/` | `AudioImportService` | 曲库播放 |
-| AVP Take 库 | `Documents/TakeLibrary/takes.json` | `RecordingTakeStore` | `TakeLibraryViewModel` / `TakePlaybackController` |
-| Python debug | `piano_dialogue_server/out/dialogue_debug/*` | `write_debug_bundle()` | 本地排障 |
+## macOS recorder
 
-## macOS SwiftData
-| 实体 | 作用 |
-| --- | --- |
-| `MappingConfigEntity` | mapping payload 持久化 |
-| `RecordingTakeEntity` | take 元数据 |
-| `RecordedNoteEntity` | take 音符明细 |
+| 数据 | 代码位置 | 落盘位置 |
+| --- | --- | --- |
+| take 列表 | `SwiftDataRecordingTakeRepository` | SwiftData store。 |
+| take 实体 | `RecordingTakeEntity`、`RecordedNoteEntity` | `LonelyPianist.store`。 |
+| MIDI 导入结果 | `MIDIFileImporter` -> repository | 转成 `RecordingTake` 后进入同一 store。 |
 
-## AVP 曲库写入顺序
-1. 内置曲目来自 app bundle（`Resources/SeedScores`），由 `BundledSongLibraryProvider` 在运行时提供；不写入 `index.json`。
-2. 导入时 `SongFileStore` 复制 MusicXML 到 `scores/`。
-3. `SongLibraryIndexStore` 原子写入 `index.json`（只记录用户导入条目）。
-4. 绑定音频时 `AudioImportService` 复制音频到 `audio/` 并更新索引条目。
-5. 删除用户导入曲目时先删索引，再删文件；文件删除失败会显式提示“索引已移除但文件删除失败”。
+`ModelContainerFactory` 创建 SwiftData container。当前 schema 只包含录制 take 与 note 实体；不要写入 mapping、Dialogue session 或 keyboard injection 相关 store 描述。
 
-## AVP Take 录制存储
-- 路径：`Documents/TakeLibrary/takes.json`（由 `RecordingTakeLibraryPaths` 定义）。
-- 格式：JSON 数组，每个元素为 `RecordingTake`（id、name、createdAt、events）。
-- 编码：`JSONEncoder`/`JSONDecoder`，日期用 ISO 8601。
-- 写入时机：用户点击「停止录制」后，`RecordingTakeRecorder.stop()` 生成 `RecordingTake`，`RecordingTakeStore.save()` 原子写入。
-- 事件类型：`RecordingTakeEvent` 支持 noteOn、noteOff、controlChange、pitchBend、programChange、channelPressure、polyPressure。
-- 回放：`TakePlaybackController` 加载 take → `RecordingTakeSequenceAdapter` 转为 `PracticeSequencerSequence` → sequencer 播放。
+## visionOS app
 
-## 一致性和恢复
-| 场景 | 策略 |
-| --- | --- |
-| SwiftData 容器损坏 | `ModelContainerFactory` 删除 store/wal/shm/journal 后重建 |
-| 校准文件不存在 | 返回 `nil`，视为未设置 |
-| 内置曲目缺失 | 退化为“只显示用户导入索引” |
-| 索引和文件漂移 | 通过重新导入或手工清理恢复 |
+| 数据 | 代码位置 | 默认目录/文件 |
+| --- | --- | --- |
+| 世界锚点校准 | `WorldAnchorCalibrationStore` | Documents 下 `piano-worldanchor-calibration.json`。 |
+| 曲库索引 | `SongLibraryIndexStore` | Documents 下 `SongLibrary/index.json`。 |
+| 用户导入曲谱 | `SongFileStore` | Documents 下 `SongLibrary/scores/`。 |
+| 用户绑定音频 | `AudioImportService` | Documents 下 `SongLibrary/audio/`。 |
+| 练习录制 take | `RecordingTakeStore` | Documents 下 `TakeLibrary/takes.json`。 |
 
-## 命名和安全
-- 导入文件统一加时间戳前缀避免覆盖。
-- 文件名都走 `lastPathComponent` 过滤。
-- index 用 ISO8601 日期编码和原子写入。
+`BundledSongLibraryProvider` 提供 bundle 内置曲目；用户导入曲目通过 `SongLibraryIndex` 与 bundled entries 合并展示。
 
-## Coverage Gaps
-- 没有独立的 schema migration 页面；目前迁移逻辑分散在服务实现中。
+## Python 服务
+
+| 数据 | 位置 | 说明 |
+| --- | --- | --- |
+| 调试包 | `piano_dialogue_server/out/dialogue_debug/` | `DIALOGUE_DEBUG=1` 时由 `piano_dialogue_server/server/media/debug_artifacts.py` 写入。 |
+| 模型权重 | `AMT_MODEL_DIR` 或本地 `models/` | 不应提交到 git。 |
+| 静态前端 | `piano_dialogue_server/static/` | `GET /` 返回 playground。 |
+
+## 清理建议
+
+- 删除 AVP 用户数据时，优先清理 Documents 中的 `SongLibrary/`、`TakeLibrary/` 与 `piano-worldanchor-calibration.json`。
+- 删除 Python 调试输出时，只清理 `piano_dialogue_server/out/`；不要删除 `server/` 或 `static/`。
+- 删除 macOS recorder 数据时，通过 app 功能删除 take，或清理 app container 中的 SwiftData store。
