@@ -60,15 +60,15 @@ func appStatePassesMeasureSpansToPracticeSession() {
         manualAdvanceModeProvider: { .measure }
     )
     let appState = AppState()
-    let flowState = FlowState()
+    let practiceSetupState = PracticeSetupState()
     let guideViewModel = ARGuideViewModel(
         appState: appState,
-        flowState: flowState,
+        practiceSetupState: practiceSetupState,
         pianoModeRegistry: PianoModeRegistryService(modes: []),
-        practiceSessionViewModelFactory: SinglePracticeSessionViewModelFactory(session: sessionViewModel)
+        makePracticeSessionViewModel: SinglePracticeSessionViewModelProvider(session: sessionViewModel).callAsFunction
     )
     #expect(guideViewModel.practiceSessionViewModel === sessionViewModel)
-    flowState.setImportedSteps(from: PreparedPractice(
+    let prepared = PreparedPractice(
         steps: [
             PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
             PracticeStep(tick: 240, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
@@ -87,7 +87,9 @@ func appStatePassesMeasureSpansToPracticeSession() {
             MusicXMLMeasureSpan(partID: "P1", measureNumber: 2, startTick: 480, endTick: 960),
         ],
         unsupportedNoteCount: 0
-    ))
+    )
+    practiceSetupState.setImportedSteps(from: prepared)
+    guideViewModel.applyPreparedPractice(prepared)
 
     // First "next" begins the practice session at step 1.
     sessionViewModel.skip()
@@ -97,7 +99,8 @@ func appStatePassesMeasureSpansToPracticeSession() {
     #expect(sessionViewModel.currentStepIndex == 2)
 }
 
-private final class SinglePracticeSessionViewModelFactory: PracticeSessionViewModelFactoryProtocol {
+@MainActor
+private final class SinglePracticeSessionViewModelProvider: @unchecked Sendable {
     private let session: PracticeSessionViewModel
 
     init(session: PracticeSessionViewModel) {
@@ -105,7 +108,7 @@ private final class SinglePracticeSessionViewModelFactory: PracticeSessionViewMo
     }
 
     @MainActor
-    func makePracticeSessionViewModel(for _: String?) -> PracticeSessionViewModel {
+    func callAsFunction(_: String?) -> PracticeSessionViewModel {
         session
     }
 }

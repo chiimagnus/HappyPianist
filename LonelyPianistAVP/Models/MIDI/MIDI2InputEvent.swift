@@ -82,4 +82,3 @@ struct MIDI2InputEvent: Equatable, Sendable {
         Swift.max(min, Swift.min(max, value))
     }
 }
-

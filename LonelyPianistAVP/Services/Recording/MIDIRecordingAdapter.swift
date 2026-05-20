@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated struct MIDIRecordingAdapter {
+struct MIDIRecordingAdapter {
     init() {}
 
     func record(event: MIDI1InputEvent, into recorder: inout RecordingTakeRecorder) {

@@ -7,9 +7,9 @@ import os
 @MainActor
 func shutdownIsIdempotentAndEmitsAtMostOneTake() async {
     var recordedTakes: [RecordingTake] = []
-    var states: [MIDIRecordingCoordinator.State] = []
+    var states: [MIDIRecordingState.State] = []
 
-    let coordinator = MIDIRecordingCoordinator(
+    let service = MIDIRecordingState(
         logger: Logger(subsystem: "test", category: "midi-recording"),
         nowUptimeSeconds: { 100 },
         nowDate: { Date(timeIntervalSince1970: 0) },
@@ -17,10 +17,10 @@ func shutdownIsIdempotentAndEmitsAtMostOneTake() async {
         onTakeRecorded: { recordedTakes.append($0) }
     )
 
-    coordinator.startRecordingIfPossible(canRecord: true)
+    service.startRecordingIfPossible(canRecord: true)
 
-    coordinator.shutdown()
-    coordinator.shutdown()
+    service.shutdown()
+    service.shutdown()
 
     #expect(states.contains(where: { $0.isRecording }))
     #expect(states.last?.isRecording == false)
@@ -32,7 +32,7 @@ func shutdownIsIdempotentAndEmitsAtMostOneTake() async {
 func recordTakeFromKeyContactRequiresRecordingAndNonBluetooth() {
     var recordedTakes: [RecordingTake] = []
 
-    let coordinator = MIDIRecordingCoordinator(
+    let service = MIDIRecordingState(
         logger: Logger(subsystem: "test", category: "midi-recording"),
         nowUptimeSeconds: { 0 },
         nowDate: { Date(timeIntervalSince1970: 0) },
@@ -40,34 +40,33 @@ func recordTakeFromKeyContactRequiresRecordingAndNonBluetooth() {
         onTakeRecorded: { recordedTakes.append($0) }
     )
 
-    coordinator.recordTakeFromKeyContactIfNeeded(
+    service.recordTakeFromKeyContactIfNeeded(
         usesBluetoothMIDIInput: false,
         isVirtualPianoEnabled: false,
         keyContact: KeyContactResult(down: [], started: [60], ended: [60]),
         nowUptimeSeconds: 1
     )
-    coordinator.stopRecordingIfNeeded()
+    service.stopRecordingIfNeeded()
     #expect(recordedTakes.isEmpty)
 
-    coordinator.startRecordingIfPossible(canRecord: true)
-    coordinator.recordTakeFromKeyContactIfNeeded(
+    service.startRecordingIfPossible(canRecord: true)
+    service.recordTakeFromKeyContactIfNeeded(
         usesBluetoothMIDIInput: true,
         isVirtualPianoEnabled: false,
         keyContact: KeyContactResult(down: [], started: [60], ended: [60]),
         nowUptimeSeconds: 1
     )
-    coordinator.stopRecordingIfNeeded()
+    service.stopRecordingIfNeeded()
     #expect(recordedTakes.isEmpty)
 
-    coordinator.startRecordingIfPossible(canRecord: true)
-    coordinator.recordTakeFromKeyContactIfNeeded(
+    service.startRecordingIfPossible(canRecord: true)
+    service.recordTakeFromKeyContactIfNeeded(
         usesBluetoothMIDIInput: false,
         isVirtualPianoEnabled: false,
         keyContact: KeyContactResult(down: [], started: [60], ended: [60]),
         nowUptimeSeconds: 1
     )
-    coordinator.stopRecordingIfNeeded()
+    service.stopRecordingIfNeeded()
     #expect(recordedTakes.count == 1)
     #expect(recordedTakes[0].events.isEmpty == false)
 }
-

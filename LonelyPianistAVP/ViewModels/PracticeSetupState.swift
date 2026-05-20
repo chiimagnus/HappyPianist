@@ -2,7 +2,7 @@ import Observation
 
 @MainActor
 @Observable
-final class FlowState {
+final class PracticeSetupState {
     var selectedPianoModeID: String?
     var isCalibrationCompleted = false
     var isVirtualPianoPlaced = false
@@ -12,13 +12,11 @@ final class FlowState {
     var importedSteps: [PracticeStep] = []
     var importErrorMessage: String?
 
-    var onStepsImported: ((PreparedPractice) -> Void)?
 
     func setImportedSteps(from prepared: PreparedPractice) {
         importedSteps = prepared.steps
         importedFile = prepared.file
         importErrorMessage = nil
-        onStepsImported?(prepared)
     }
 
     func clearSongAndSteps() {

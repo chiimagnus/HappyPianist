@@ -2,7 +2,7 @@ import Foundation
 import os
 
 @MainActor
-final class PracticeMIDIInputCoordinator: PracticeMIDIInputCoordinatorProtocol, PracticeSessionLifecycleProtocol {
+final class PracticeMIDIInputService: PracticeMIDIInputServiceProtocol, PracticeSessionLifecycleProtocol {
     struct Snapshot: Equatable {
         var practiceState: PracticeSessionState
         var autoplayState: PracticeSessionAutoplayState
@@ -13,7 +13,7 @@ final class PracticeMIDIInputCoordinator: PracticeMIDIInputCoordinatorProtocol, 
 
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
-        category: "PracticeMIDIInputCoordinator"
+        category: "PracticeMIDIInputService"
     )
 
     private let practiceInputEventSource: PracticeInputEventSourceProtocol?

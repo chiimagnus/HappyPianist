@@ -45,4 +45,3 @@ struct MIDI1MessageDecoder: Sendable {
         }
     }
 }
-

@@ -17,7 +17,7 @@ func refreshInNonGuidingStateStopsInput() {
     let source = FakeProtocolSeparatedPracticeInputEventSource()
     let stateStore = PracticeSessionStateStore()
     let effectHandler = CapturingPracticeSessionEffectHandler()
-    let coordinator = PracticeMIDIInputCoordinator(
+    let service = PracticeMIDIInputService(
         practiceInputEventSource: source,
         matcher: MIDIPracticeStepMatcher(),
         stateStore: stateStore,
@@ -25,7 +25,7 @@ func refreshInNonGuidingStateStopsInput() {
         consumeEvents: true
     )
 
-    coordinator.refresh(
+    service.refresh(
         for: .init(
             practiceState: .ready,
             autoplayState: .off,
@@ -41,11 +41,11 @@ func refreshInNonGuidingStateStopsInput() {
 
 @Test
 @MainActor
-func practiceMIDIInputCoordinator_shutdownIsIdempotent() {
+func practiceMIDIInputService_shutdownIsIdempotent() {
     let source = FakeProtocolSeparatedPracticeInputEventSource()
     let stateStore = PracticeSessionStateStore()
     let effectHandler = CapturingPracticeSessionEffectHandler()
-    let coordinator = PracticeMIDIInputCoordinator(
+    let service = PracticeMIDIInputService(
         practiceInputEventSource: source,
         matcher: MIDIPracticeStepMatcher(),
         stateStore: stateStore,
@@ -53,7 +53,7 @@ func practiceMIDIInputCoordinator_shutdownIsIdempotent() {
         consumeEvents: true
     )
 
-    coordinator.refresh(
+    service.refresh(
         for: .init(
             practiceState: .guiding(stepIndex: 0),
             autoplayState: .off,
@@ -65,8 +65,8 @@ func practiceMIDIInputCoordinator_shutdownIsIdempotent() {
     #expect(source.startCallCount == 1)
     #expect(source.isRunning == true)
 
-    coordinator.shutdown()
-    coordinator.shutdown()
+    service.shutdown()
+    service.shutdown()
 
     #expect(source.stopCallCount == 1)
 }
@@ -77,7 +77,7 @@ func shutdownDoesNotCancelOtherConsumers() async {
     let source = FakeProtocolSeparatedPracticeInputEventSource()
     let stateStore = PracticeSessionStateStore()
     let effectHandler = CapturingPracticeSessionEffectHandler()
-    let coordinator = PracticeMIDIInputCoordinator(
+    let service = PracticeMIDIInputService(
         practiceInputEventSource: source,
         matcher: MIDIPracticeStepMatcher(),
         stateStore: stateStore,
@@ -85,7 +85,7 @@ func shutdownDoesNotCancelOtherConsumers() async {
         consumeEvents: true
     )
 
-    coordinator.refresh(
+    service.refresh(
         for: .init(
             practiceState: .guiding(stepIndex: 0),
             autoplayState: .off,
@@ -115,7 +115,7 @@ func shutdownDoesNotCancelOtherConsumers() async {
         )
     )
 
-    coordinator.shutdown()
+    service.shutdown()
     let received = await otherTask.value
 
     #expect(received == true)

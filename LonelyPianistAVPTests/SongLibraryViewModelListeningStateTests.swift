@@ -6,8 +6,8 @@ import Testing
 @MainActor
 func listenButtonStateReflectsObservablePlaybackState() {
     let appState = AppState()
-    let flowState = FlowState()
-    let viewModel = SongLibraryViewModelTestHarness.make(appState: appState, flowState: flowState)
+    let practiceSetupState = PracticeSetupState()
+    let viewModel = SongLibraryViewModelTestHarness.make(appState: appState, practiceSetupState: practiceSetupState)
 
     let entryID = UUID()
     viewModel.currentListeningEntryID = entryID

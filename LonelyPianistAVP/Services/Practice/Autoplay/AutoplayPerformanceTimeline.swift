@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated struct AutoplayPerformanceTimeline: Equatable, Sendable {
+struct AutoplayPerformanceTimeline: Equatable, Sendable {
     enum EventKind: Equatable {
         case pauseSeconds(TimeInterval)
         case noteOff(midi: Int)

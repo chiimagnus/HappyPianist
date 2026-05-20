@@ -122,12 +122,8 @@ struct ImmersiveView: View {
     let calibrationCaptureService = CalibrationPointCaptureService()
     let calibrationRepository = CalibrationRepository(worldAnchorCalibrationStore: worldAnchorCalibrationStore)
     let pianoModeRegistry: PianoModeRegistryProtocol = PianoModeRegistryService(modes: [])
-    let practiceSessionViewModelFactory: PracticeSessionViewModelFactoryProtocol =
-        PracticeSessionViewModelFactoryService(
-            pianoModeRegistry: pianoModeRegistry,
-            makeFallbackPracticeSessionViewModel: { fatalError("preview only") }
-        )
-    let flowState = FlowState()
+    let makePracticeSessionViewModel: @MainActor (String?) -> PracticeSessionViewModel = { _ in fatalError("preview only") }
+    let practiceSetupState = PracticeSetupState()
     let appState = AppState(
         arTrackingService: arTrackingService,
         calibrationCaptureService: calibrationCaptureService,
@@ -136,9 +132,9 @@ struct ImmersiveView: View {
     )
     let viewModel = ARGuideViewModel(
         appState: appState,
-        flowState: flowState,
+        practiceSetupState: practiceSetupState,
         pianoModeRegistry: pianoModeRegistry,
-        practiceSessionViewModelFactory: practiceSessionViewModelFactory
+        makePracticeSessionViewModel: makePracticeSessionViewModel
     )
     ImmersiveView(viewModel: viewModel)
 }

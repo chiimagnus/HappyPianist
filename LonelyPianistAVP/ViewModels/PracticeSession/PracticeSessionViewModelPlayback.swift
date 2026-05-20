@@ -2,19 +2,19 @@ import Foundation
 
 extension PracticeSessionViewModel {
     func startAutoplayTaskIfNeeded() {
-        playbackCoordinator?.startAutoplayTaskIfNeeded()
+        playbackControlService?.startAutoplayTaskIfNeeded()
     }
 
     func stopAutoplayTask() {
-        playbackCoordinator?.stopAutoplayTask()
+        playbackControlService?.stopAutoplayTask()
     }
 
     func stopAutoplayAudio() {
-        playbackCoordinator?.stopAutoplayAudio()
+        playbackControlService?.stopAutoplayAudio()
     }
 
     func smoothNotationScrollTick() -> Double? {
-        playbackCoordinator?.smoothNotationScrollTick()
+        playbackControlService?.smoothNotationScrollTick()
     }
 
     func rebuildAutoplayTimeline() {
@@ -38,10 +38,10 @@ extension PracticeSessionViewModel {
 
     func startManualReplay(with plan: ManualReplayPlan) {
         stopVirtualPianoInput()
-        manualReplayCoordinator?.startManualReplay(with: plan)
+        manualReplayService?.startManualReplay(with: plan)
     }
 
     func stopManualReplayTask(restoreAudioRecognition: Bool = true) {
-        manualReplayCoordinator?.stopManualReplayTask(restoreAudioRecognition: restoreAudioRecognition)
+        manualReplayService?.stopManualReplayTask(restoreAudioRecognition: restoreAudioRecognition)
     }
 }

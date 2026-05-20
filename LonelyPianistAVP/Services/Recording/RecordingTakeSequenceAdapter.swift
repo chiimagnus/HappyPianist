@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated struct RecordingTakeSequenceAdapter {
+struct RecordingTakeSequenceAdapter {
     private let builder: PracticeSequencerSequenceBuilder
 
     init(builder: PracticeSequencerSequenceBuilder = PracticeSequencerSequenceBuilder()) {

@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated struct ImprovScheduleBuilder {
+struct ImprovScheduleBuilder {
     func buildSchedule(
         from notes: [ImprovDialogueNote],
         leadInSeconds: TimeInterval = 0.05

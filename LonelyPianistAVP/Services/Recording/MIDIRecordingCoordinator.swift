@@ -2,7 +2,7 @@ import Foundation
 import os
 
 @MainActor
-final class MIDIRecordingCoordinator {
+final class MIDIRecordingState {
     struct State: Equatable {
         var isRecording: Bool
         var recordingStartDate: Date?

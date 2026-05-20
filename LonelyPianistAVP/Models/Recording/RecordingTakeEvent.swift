@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated struct RecordingTakeEvent: Codable, Equatable, Identifiable {
+struct RecordingTakeEvent: Codable, Equatable, Identifiable {
     let id: UUID
     let time: TimeInterval
     let kind: Kind

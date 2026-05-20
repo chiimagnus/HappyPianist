@@ -8,4 +8,3 @@ struct MIDIEndpointConnectionPolicy: Sendable {
         return ._2_0
     }
 }
-

@@ -38,7 +38,7 @@ struct CalibrationStepView: View {
             isStepVisible = true
 
             if isSimulatorDemoActive {
-                viewModel.endCalibrationGuidedFlow()
+                viewModel.endGuidedCalibration()
                 #if DEBUG
                     viewModel.setCalibrationPhaseForPreview(.capturingA0)
                 #endif
@@ -49,22 +49,20 @@ struct CalibrationStepView: View {
                 return
             }
 
-            viewModel.beginCalibrationGuidedFlow()
+            viewModel.beginGuidedCalibration()
             guard hasRequestedImmersiveOpen == false else { return }
             hasRequestedImmersiveOpen = true
 
             Task { @MainActor in
-                let flowCoordinator = PracticeFlowCoordinator.live(
-                    openImmersiveSpace: openImmersiveSpace,
-                    dismissImmersiveSpace: dismissImmersiveSpace
-                )
-                let openError = await flowCoordinator.openImmersiveForStep(viewModel: viewModel, mode: .calibration)
+                let openHandler = makePracticeImmersiveOpenHandler(openImmersiveSpace)
+                let openError = await viewModel.openImmersiveForStep(mode: .calibration, openImmersiveSpace: openHandler)
                 if let openError {
                     viewModel.presentCalibrationError(message: openError)
                 }
 
                 if isStepVisible == false {
-                    await flowCoordinator.closeImmersiveForStep(viewModel: viewModel)
+                    let dismissHandler = makePracticeImmersiveDismissHandler(dismissImmersiveSpace)
+                    await viewModel.closeImmersiveForStep(dismissImmersiveSpace: dismissHandler)
                     await viewModel.recoverImmersiveStateIfStuck()
                 }
             }
@@ -77,15 +75,12 @@ struct CalibrationStepView: View {
                 simulatorDemoTask?.cancel()
                 simulatorDemoTask = nil
             #endif
-            viewModel.endCalibrationGuidedFlow()
+            viewModel.endGuidedCalibration()
 
             if isSimulatorDemoActive == false, shouldCloseImmersive {
                 Task { @MainActor in
-                    let flowCoordinator = PracticeFlowCoordinator.live(
-                        openImmersiveSpace: openImmersiveSpace,
-                        dismissImmersiveSpace: dismissImmersiveSpace
-                    )
-                    await flowCoordinator.closeImmersiveForStep(viewModel: viewModel)
+                    let dismissHandler = makePracticeImmersiveDismissHandler(dismissImmersiveSpace)
+                    await viewModel.closeImmersiveForStep(dismissImmersiveSpace: dismissHandler)
                     await viewModel.recoverImmersiveStateIfStuck()
                 }
             }
@@ -93,22 +88,20 @@ struct CalibrationStepView: View {
     }
 
     private func beginRecalibration() {
-        viewModel.beginCalibrationGuidedFlow()
+        viewModel.beginGuidedCalibration()
         guard hasRequestedImmersiveOpen == false else { return }
         hasRequestedImmersiveOpen = true
 
         Task { @MainActor in
-            let flowCoordinator = PracticeFlowCoordinator.live(
-                openImmersiveSpace: openImmersiveSpace,
-                dismissImmersiveSpace: dismissImmersiveSpace
-            )
-            let openError = await flowCoordinator.openImmersiveForStep(viewModel: viewModel, mode: .calibration)
+            let openHandler = makePracticeImmersiveOpenHandler(openImmersiveSpace)
+            let openError = await viewModel.openImmersiveForStep(mode: .calibration, openImmersiveSpace: openHandler)
             if let openError {
                 viewModel.presentCalibrationError(message: openError)
             }
 
             if isStepVisible == false {
-                await flowCoordinator.closeImmersiveForStep(viewModel: viewModel)
+                let dismissHandler = makePracticeImmersiveDismissHandler(dismissImmersiveSpace)
+                await viewModel.closeImmersiveForStep(dismissImmersiveSpace: dismissHandler)
                 await viewModel.recoverImmersiveStateIfStuck()
             }
         }

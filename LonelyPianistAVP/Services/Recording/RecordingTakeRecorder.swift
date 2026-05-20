@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated struct RecordingTakeRecorder {
+struct RecordingTakeRecorder {
     struct OpenNote: Equatable {
         let startTime: TimeInterval
         let velocity: Int

@@ -5,16 +5,16 @@ import Foundation
 enum SongLibraryViewModelTestHarness {
     static func make(
         appState: AppState? = nil,
-        flowState: FlowState? = nil,
+        practiceSetupState: PracticeSetupState? = nil,
         index: SongLibraryIndex? = nil,
         bundledEntries: [SongLibraryEntry] = []
     ) -> SongLibraryViewModel {
         let resolvedAppState = appState ?? AppState()
-        let resolvedFlowState = flowState ?? FlowState()
+        let resolvedPracticeSetupState = practiceSetupState ?? PracticeSetupState()
         let resolvedIndex = index ?? .empty
         return SongLibraryViewModel(
             appState: resolvedAppState,
-            flowState: resolvedFlowState,
+            practiceSetupState: resolvedPracticeSetupState,
             practicePreparationService: NoopPracticePreparationService(),
             indexStore: InMemorySongLibraryIndexStore(index: resolvedIndex),
             fileStore: InMemorySongFileStore(),
@@ -100,6 +100,8 @@ private struct NoopPracticePreparationService: PracticePreparationServiceProtoco
 private final class NoopSongAudioPlayer: SongAudioPlayerProtocol {
     var onPlaybackFinished: ((UUID?) -> Void)?
     private(set) var currentEntryID: UUID?
+
+    init() {}
 
     func play(entryID: UUID, url _: URL) throws {
         currentEntryID = entryID

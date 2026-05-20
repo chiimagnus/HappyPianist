@@ -350,16 +350,16 @@ extension PracticeSessionViewModel {
     }
 
     func playCurrentStepSound(applyRecognitionSuppress: Bool) {
-        playbackCoordinator?.playCurrentStepSound(applyRecognitionSuppress: applyRecognitionSuppress)
+        playbackControlService?.playCurrentStepSound(applyRecognitionSuppress: applyRecognitionSuppress)
     }
 
     func setAutoplayEnabled(_ isEnabled: Bool) {
         if isEnabled {
             stopManualReplayTask()
             stopVirtualPianoInput()
-            playbackCoordinator?.setAutoplayEnabled(true)
+            playbackControlService?.setAutoplayEnabled(true)
         } else {
-            playbackCoordinator?.setAutoplayEnabled(false)
+            playbackControlService?.setAutoplayEnabled(false)
         }
         refreshAudioRecognitionForCurrentState()
     }

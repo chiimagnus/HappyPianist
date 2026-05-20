@@ -62,6 +62,8 @@ final class BluetoothAccessPreflight: NSObject, CBCentralManagerDelegate {
                 return .ready
             case .poweredOff:
                 return .bluetoothPoweredOff
+            case .unauthorized:
+                return .unauthorized
             case .unsupported:
                 return .unsupported
             case .unknown, .resetting:

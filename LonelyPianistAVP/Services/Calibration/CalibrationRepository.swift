@@ -15,11 +15,13 @@ protocol CalibrationRepositoryProtocol {
         c8AnchorID: UUID,
         whiteKeyWidth: Float
     ) throws -> StoredWorldAnchorCalibration
+    @MainActor
     func removeOldAnchorsIfPossible(
         previous: StoredWorldAnchorCalibration,
         current: StoredWorldAnchorCalibration,
         arTrackingService: ARTrackingServiceProtocol
     ) async
+    @MainActor
     func removeCapturedAnchorsIfPossible(
         _ anchorIDs: Set<UUID>,
         arTrackingService: ARTrackingServiceProtocol
@@ -51,6 +53,7 @@ struct CalibrationRepository: CalibrationRepositoryProtocol {
         return calibration
     }
 
+    @MainActor
     func removeOldAnchorsIfPossible(
         previous: StoredWorldAnchorCalibration,
         current: StoredWorldAnchorCalibration,
@@ -77,6 +80,7 @@ struct CalibrationRepository: CalibrationRepositoryProtocol {
         }
     }
 
+    @MainActor
     func removeCapturedAnchorsIfPossible(
         _ anchorIDs: Set<UUID>,
         arTrackingService: ARTrackingServiceProtocol

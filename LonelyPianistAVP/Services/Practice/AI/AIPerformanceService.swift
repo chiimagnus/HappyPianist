@@ -28,7 +28,7 @@ protocol AIPerformanceBackendDiscoveryServiceProtocol: AnyObject {
 extension BonjourBackendDiscoveryService: AIPerformanceBackendDiscoveryServiceProtocol {}
 
 @MainActor
-final class AIPerformanceCoordinator {
+final class AIPerformanceService {
     struct State: Equatable {
         var isAIPerformanceActive: Bool
         var latestSchedule: [PracticeSequencerMIDIEvent]

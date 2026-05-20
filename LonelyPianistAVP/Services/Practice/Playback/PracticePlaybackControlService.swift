@@ -2,10 +2,10 @@ import Foundation
 import os
 
 @MainActor
-final class PracticePlaybackCoordinator: PracticePlaybackCoordinatorProtocol, PracticeSessionLifecycleProtocol {
+final class PracticePlaybackControlService: PracticePlaybackControlServiceProtocol, PracticeSessionLifecycleProtocol {
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
-        category: "PracticePlaybackCoordinator"
+        category: "PracticePlaybackControlService"
     )
 
     private let sleeper: SleeperProtocol

@@ -2,7 +2,7 @@ import Foundation
 
 extension PracticeSessionViewModel {
     func refreshPracticeInputForCurrentState() {
-        practiceMIDIInputCoordinator?.refresh(
+        practiceMIDIInputService?.refresh(
             for: .init(
                 practiceState: self.state,
                 autoplayState: self.autoplayState,
@@ -14,13 +14,13 @@ extension PracticeSessionViewModel {
     }
 
     func stopPracticeInput() {
-        practiceMIDIInputCoordinator?.stop()
+        practiceMIDIInputService?.stop()
     }
 
     func refreshAudioRecognitionForCurrentState() {
         refreshPracticeInputForCurrentState()
         guard let currentStep = self.currentStep else {
-            audioRecognitionCoordinator?.stop()
+            audioRecognitionInputService?.stop()
             return
         }
 
@@ -29,7 +29,7 @@ extension PracticeSessionViewModel {
         let suppressUntil = self.audioRecognitionSuppressUntil.flatMap { $0 > .now ? $0 : nil }
         let handGateBoost = self.handGateState.isNearKeyboard || self.handGateState.hasDownwardMotion
 
-        audioRecognitionCoordinator?.refresh(
+        audioRecognitionInputService?.refresh(
             for: .init(
                 practiceState: self.state,
                 autoplayState: self.autoplayState,
@@ -58,7 +58,7 @@ extension PracticeSessionViewModel {
 
     func stopAudioRecognition() {
         stopPracticeInput()
-        audioRecognitionCoordinator?.stop()
+        audioRecognitionInputService?.stop()
     }
 
     @discardableResult

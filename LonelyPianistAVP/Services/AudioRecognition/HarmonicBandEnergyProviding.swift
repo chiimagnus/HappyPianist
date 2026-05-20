@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated protocol HarmonicBandEnergyProvidingProtocol: Sendable {
+protocol HarmonicBandEnergyProvidingProtocol: Sendable {
     var rms: Double { get }
     var noiseFloor: Double { get }
 

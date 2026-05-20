@@ -6,8 +6,8 @@ import Testing
 @MainActor
 func routerRendersAllPreparationRoutes() {
     let appState = AppState()
-    let flowState = FlowState()
-    let arGuideViewModel = ARGuideViewModel(appState: appState, flowState: flowState)
+    let practiceSetupState = PracticeSetupState()
+    let arGuideViewModel = ARGuideViewModel(appState: appState, practiceSetupState: practiceSetupState)
 
     for route in [PianoModePreparationRoute.realPiano, .bluetoothMIDI, .virtualPiano] {
         let router = PianoModePreparationRouterView(route: route, arGuideViewModel: arGuideViewModel)
@@ -28,8 +28,8 @@ func defaultPianoModesExposeExpectedPreparationRoutes() {
         )
     }
 
-    #expect(RealAudioPianoMode(makePracticeSessionViewModel: makeViewModel).preparationRoute == .realPiano)
-    #expect(BluetoothMIDIPianoMode(makePracticeSessionViewModel: makeViewModel).preparationRoute == .bluetoothMIDI)
-    #expect(VirtualPianoMode(makePracticeSessionViewModel: makeViewModel).preparationRoute == .virtualPiano)
+    #expect(RealAudioPianoMode().preparationRoute == .realPiano)
+    #expect(BluetoothMIDIPianoMode().preparationRoute == .bluetoothMIDI)
+    #expect(VirtualPianoMode().preparationRoute == .virtualPiano)
 }
 

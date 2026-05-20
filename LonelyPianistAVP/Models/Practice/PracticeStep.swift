@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated struct PracticeStepNote: Equatable, Hashable, Identifiable {
+struct PracticeStepNote: Equatable, Hashable, Identifiable {
     var id: String {
         "\(midiNote)-\(hand.rawValue)-\(staff ?? -1)-\(voice ?? -1)-\(onTickOffset)"
     }
@@ -32,7 +32,7 @@ nonisolated struct PracticeStepNote: Equatable, Hashable, Identifiable {
     }
 }
 
-nonisolated struct PracticeStep: Equatable, Identifiable {
+struct PracticeStep: Equatable, Identifiable {
     var id: Int {
         tick
     }
@@ -41,7 +41,7 @@ nonisolated struct PracticeStep: Equatable, Identifiable {
     let notes: [PracticeStepNote]
 }
 
-nonisolated struct PracticeStepBuildResult: Equatable {
+struct PracticeStepBuildResult: Equatable {
     let steps: [PracticeStep]
     let unsupportedNoteCount: Int
 }

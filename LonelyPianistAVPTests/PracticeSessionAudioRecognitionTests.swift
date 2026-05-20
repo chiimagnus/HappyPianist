@@ -16,8 +16,9 @@ func fakeAudioRecognitionServiceEmitsEventToConsumer() async {
         source: .audio
     )
 
+    let stream = service.events
     let consumeTask = Task<DetectedNoteEvent?, Never> {
-        for await next in await service.events {
+        for await next in stream {
             return next
         }
         return nil

@@ -3,8 +3,8 @@ import os
 
 @MainActor
 @Observable
-final class WindowCoordinator {
-    private static let logger = Logger(subsystem: "LonelyPianistAVP", category: "WindowCoordinator")
+final class WindowTransitionState {
+    private static let logger = Logger(subsystem: "LonelyPianistAVP", category: "WindowTransitionState")
 
     enum Window: Hashable {
         case preparation
@@ -14,16 +14,16 @@ final class WindowCoordinator {
         var id: String {
             switch self {
                 case .preparation:
-                    WindowIDs.preparation
+                    WindowID.preparation
                 case .library:
-                    WindowIDs.library
+                    WindowID.library
                 case .practice:
-                    WindowIDs.practice
+                    WindowID.practice
             }
         }
     }
 
-    let flowState: FlowState
+    let practiceSetupState: PracticeSetupState
     let pianoModeRegistry: PianoModeRegistryProtocol
     struct PendingTransition: Equatable {
         var fromWindowID: String
@@ -32,8 +32,8 @@ final class WindowCoordinator {
 
     var pendingTransition: PendingTransition?
 
-    init(flowState: FlowState, pianoModeRegistry: PianoModeRegistryProtocol) {
-        self.flowState = flowState
+    init(practiceSetupState: PracticeSetupState, pianoModeRegistry: PianoModeRegistryProtocol) {
+        self.practiceSetupState = practiceSetupState
         self.pianoModeRegistry = pianoModeRegistry
     }
 
@@ -51,10 +51,10 @@ final class WindowCoordinator {
 
     func resetToPreparation(reason: String) {
         Self.logger.info("resetToPreparation: \(reason)")
-        flowState.clearSongAndSteps()
-        flowState.isCalibrationCompleted = false
-        flowState.isVirtualPianoPlaced = false
-        flowState.bluetoothMIDISourceCount = 0
-        flowState.selectedPianoModeID = nil
+        practiceSetupState.clearSongAndSteps()
+        practiceSetupState.isCalibrationCompleted = false
+        practiceSetupState.isVirtualPianoPlaced = false
+        practiceSetupState.bluetoothMIDISourceCount = 0
+        practiceSetupState.selectedPianoModeID = nil
     }
 }

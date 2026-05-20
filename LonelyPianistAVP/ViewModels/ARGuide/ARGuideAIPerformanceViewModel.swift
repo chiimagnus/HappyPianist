@@ -13,10 +13,10 @@ final class ARGuideAIPerformanceViewModel {
     var lastImprovStatusText: String?
 
     @ObservationIgnored
-    private lazy var aiPerformanceCoordinator: AIPerformanceCoordinator = AIPerformanceCoordinator(
+    private lazy var aiPerformanceService: AIPerformanceService = AIPerformanceService(
         logger: Logger(
             subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
-            category: "AIPerformanceCoordinator"
+            category: "AIPerformanceService"
         ),
         backendDiscoveryService: backendDiscoveryService,
         onStateChanged: { [weak self] state in
@@ -47,21 +47,21 @@ final class ARGuideAIPerformanceViewModel {
     }
 
     func updatePracticeSession(_ practiceSessionViewModel: PracticeSessionViewModel) {
-        aiPerformanceCoordinator.updatePracticeSession(practiceSessionViewModel)
+        aiPerformanceService.updatePracticeSession(practiceSessionViewModel)
     }
 
     func setVirtualPerformerEnabled(_ isEnabled: Bool, practiceSessionViewModel: PracticeSessionViewModel) {
         isVirtualPerformerEnabled = isEnabled
-        aiPerformanceCoordinator.updatePracticeSession(practiceSessionViewModel)
-        aiPerformanceCoordinator.setEnabled(isEnabled)
+        aiPerformanceService.updatePracticeSession(practiceSessionViewModel)
+        aiPerformanceService.setEnabled(isEnabled)
     }
 
     func recordMIDI1EventForPhraseRecordingIfNeeded(_ event: MIDI1InputEvent) {
-        aiPerformanceCoordinator.recordMIDI1EventForPhraseRecordingIfNeeded(event)
+        aiPerformanceService.recordMIDI1EventForPhraseRecordingIfNeeded(event)
     }
 
     func recordMIDI2EventForPhraseRecordingIfNeeded(_ event: MIDI2InputEvent) {
-        aiPerformanceCoordinator.recordMIDI2EventForPhraseRecordingIfNeeded(event)
+        aiPerformanceService.recordMIDI2EventForPhraseRecordingIfNeeded(event)
     }
 
     func recordKeyContactForPhraseRecordingIfNeeded(
@@ -69,7 +69,7 @@ final class ARGuideAIPerformanceViewModel {
         keyContact: KeyContactResult,
         nowUptimeSeconds: TimeInterval
     ) {
-        aiPerformanceCoordinator.recordKeyContactForPhraseRecordingIfNeeded(
+        aiPerformanceService.recordKeyContactForPhraseRecordingIfNeeded(
             usesBluetoothMIDIInput: usesBluetoothMIDIInput,
             keyContact: keyContact,
             nowUptimeSeconds: nowUptimeSeconds
@@ -77,6 +77,6 @@ final class ARGuideAIPerformanceViewModel {
     }
 
     func shutdown() {
-        aiPerformanceCoordinator.shutdown()
+        aiPerformanceService.shutdown()
     }
 }

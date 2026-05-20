@@ -50,6 +50,12 @@ class AppState {
     private let calibrationRepository: CalibrationRepositoryProtocol
     private let keyGeometryService: PianoKeyGeometryServiceProtocol
 
+    var practiceSetupState = PracticeSetupState()
+    var pianoModeRegistry: PianoModeRegistryProtocol!
+    var windowState: WindowTransitionState!
+    var arGuideViewModel: ARGuideViewModel!
+    var songLibraryViewModel: SongLibraryViewModel!
+
     init(
         arTrackingService: ARTrackingServiceProtocol,
         calibrationCaptureService: CalibrationPointCaptureService,
@@ -257,6 +263,118 @@ class AppState {
     }
 
     var onApplyKeyboardGeometry: ((PianoKeyboardGeometry, PianoCalibration) -> Void)?
+
+    func applyPreparedPractice(_ prepared: PreparedPractice) {
+        practiceSetupState.setImportedSteps(from: prepared)
+        arGuideViewModel?.applyPreparedPractice(prepared)
+        applySessionIfPossible()
+    }
+
+    func configureLiveAppGraphIfNeeded() {
+        guard arGuideViewModel == nil else { return }
+
+        let parser: MusicXMLParserProtocol = MusicXMLParser()
+        let stepBuilder: PracticeStepBuilderProtocol = PracticeStepBuilder()
+        let practicePreparationService: PracticePreparationServiceProtocol =
+            PracticePreparationService(parser: parser, stepBuilder: stepBuilder)
+        let songLibraryIndexStore: SongLibraryIndexStoreProtocol = SongLibraryIndexStore()
+        let songFileStore: SongFileStoreProtocol = SongFileStore()
+        let audioImportService: AudioImportServiceProtocol = AudioImportService()
+        let songLibraryPaths = SongLibraryPaths()
+        let bundledSongLibraryProvider: BundledSongLibraryProviderProtocol = BundledSongLibraryProvider()
+        let songAudioPlayer: SongAudioPlayerProtocol = SongAudioPlayer()
+
+        let makePressDetectionService: () -> PressDetectionServiceProtocol = { PressDetectionService() }
+        let makeChordAttemptAccumulator: () -> ChordAttemptAccumulatorProtocol = { ChordAttemptAccumulator() }
+        let makeSleeper: () -> SleeperProtocol = { TaskSleeper() }
+        let makeSequencerPlaybackService: () -> PracticeSequencerPlaybackServiceProtocol = {
+            AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2")
+        }
+        let makeAudioStepAttemptAccumulator: () -> AudioStepAttemptAccumulator = {
+            AudioStepAttemptAccumulator()
+        }
+        let makeHandPianoActivityGate: () -> HandPianoActivityGate = {
+            HandPianoActivityGate()
+        }
+        let makeAudioRecognitionService: () -> PracticeAudioRecognitionServiceProtocol? = {
+            #if targetEnvironment(simulator)
+                nil
+            #else
+                PracticeAudioRecognitionService()
+            #endif
+        }
+        let makeBluetoothMIDIEventSource: () -> PracticeInputEventSourceProtocol = {
+            BluetoothMIDIInputEventSourceService()
+        }
+
+        let registry: PianoModeRegistryProtocol = PianoModeRegistryService(modes: PianoModeCatalogService.makeDefaultModes())
+        pianoModeRegistry = registry
+
+        let makePracticeSessionViewModel: @MainActor (String?) -> PracticeSessionViewModel = { pianoModeID in
+                switch PianoModeID(rawValue: pianoModeID ?? "") {
+                    case .bluetoothMIDI:
+                        PracticeSessionViewModel(
+                            pressDetectionService: makePressDetectionService(),
+                            chordAttemptAccumulator: makeChordAttemptAccumulator(),
+                            sleeper: makeSleeper(),
+                            sequencerPlaybackService: makeSequencerPlaybackService(),
+                            audioRecognitionService: nil,
+                            practiceInputEventSource: makeBluetoothMIDIEventSource(),
+                            audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
+                            handPianoActivityGate: makeHandPianoActivityGate()
+                        )
+
+                    case .virtualPiano:
+                        PracticeSessionViewModel(
+                            pressDetectionService: makePressDetectionService(),
+                            chordAttemptAccumulator: makeChordAttemptAccumulator(),
+                            sleeper: makeSleeper(),
+                            sequencerPlaybackService: makeSequencerPlaybackService(),
+                            audioRecognitionService: nil,
+                            practiceInputEventSource: nil,
+                            audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
+                            handPianoActivityGate: makeHandPianoActivityGate()
+                        )
+
+                    default:
+                        PracticeSessionViewModel(
+                            pressDetectionService: makePressDetectionService(),
+                            chordAttemptAccumulator: makeChordAttemptAccumulator(),
+                            sleeper: makeSleeper(),
+                            sequencerPlaybackService: makeSequencerPlaybackService(),
+                            audioRecognitionService: makeAudioRecognitionService(),
+                            practiceInputEventSource: nil,
+                            audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
+                            handPianoActivityGate: makeHandPianoActivityGate()
+                        )
+                }
+            }
+
+        loadStoredCalibrationIfPossible()
+
+        let guideViewModel = ARGuideViewModel(
+            appState: self,
+            practiceSetupState: practiceSetupState,
+            pianoModeRegistry: registry,
+            makePracticeSessionViewModel: makePracticeSessionViewModel
+        )
+
+        let libraryViewModel = SongLibraryViewModel(
+            appState: self,
+            practiceSetupState: practiceSetupState,
+            practicePreparationService: practicePreparationService,
+            indexStore: songLibraryIndexStore,
+            fileStore: songFileStore,
+            audioImportService: audioImportService,
+            paths: songLibraryPaths,
+            bundledProvider: bundledSongLibraryProvider,
+            audioPlayer: songAudioPlayer
+        )
+
+        arGuideViewModel = guideViewModel
+        songLibraryViewModel = libraryViewModel
+        windowState = WindowTransitionState(practiceSetupState: practiceSetupState, pianoModeRegistry: registry)
+    }
 
     private func worldAnchorPoint(from anchor: WorldAnchor) -> SIMD3<Float> {
         let transform = anchor.originFromAnchorTransform

@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated struct RecordingTake: Codable, Equatable, Identifiable {
+struct RecordingTake: Codable, Equatable, Identifiable {
     let id: UUID
     var name: String
     let createdAt: Date

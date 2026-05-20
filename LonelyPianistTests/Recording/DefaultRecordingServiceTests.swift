@@ -3,6 +3,7 @@ import Foundation
 import Testing
 
 @Test
+@MainActor
 func noteOnOffProducesSingleRecordedNote() {
     let base = Date(timeIntervalSince1970: 1000)
     let service = DefaultRecordingService(clock: ClockMock(nowValue: base))
@@ -29,6 +30,7 @@ func noteOnOffProducesSingleRecordedNote() {
 }
 
 @Test
+@MainActor
 func stopRecordingClosesOpenNote() {
     let base = Date(timeIntervalSince1970: 2000)
     let service = DefaultRecordingService(clock: ClockMock(nowValue: base.addingTimeInterval(2.0)))

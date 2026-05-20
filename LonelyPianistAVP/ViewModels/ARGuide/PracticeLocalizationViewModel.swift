@@ -91,10 +91,10 @@ final class PracticeLocalizationViewModel {
     func beginPracticeLocalization(
         isVirtualPianoEnabled: Bool,
         blockingReason: PracticeLocalizationFailure?,
-        openImmersiveSpace: PracticeFlowOpenImmersiveSpaceHandler,
-        dismissImmersiveSpace: @escaping PracticeFlowDismissImmersiveSpaceHandler,
-        openImmersiveForStep: @escaping (PracticeFlowOpenImmersiveSpaceHandler) async -> String?,
-        closeImmersiveForStep: @escaping (PracticeFlowDismissImmersiveSpaceHandler) async -> Void,
+        openImmersiveSpace: PracticeImmersiveOpenHandler,
+        dismissImmersiveSpace: @escaping PracticeImmersiveDismissHandler,
+        openImmersiveForStep: @escaping (PracticeImmersiveOpenHandler) async -> String?,
+        closeImmersiveForStep: @escaping (PracticeImmersiveDismissHandler) async -> Void,
         recoverImmersiveStateIfStuck: @escaping () async -> Void
     ) async {
         cancelPracticeLocalizationTask()
@@ -130,8 +130,8 @@ final class PracticeLocalizationViewModel {
     }
 
     private func runPracticeLocalization(
-        closeImmersiveForStep: @escaping (PracticeFlowDismissImmersiveSpaceHandler) async -> Void,
-        dismissImmersiveSpace: @escaping PracticeFlowDismissImmersiveSpaceHandler,
+        closeImmersiveForStep: @escaping (PracticeImmersiveDismissHandler) async -> Void,
+        dismissImmersiveSpace: @escaping PracticeImmersiveDismissHandler,
         recoverImmersiveStateIfStuck: @escaping () async -> Void
     ) async {
         practiceLocalizationState = .waitingForProviders
@@ -300,8 +300,8 @@ final class PracticeLocalizationViewModel {
 
     private func handlePracticeLocalizationFailure(
         _ failure: PracticeLocalizationFailure,
-        closeImmersiveForStep: (PracticeFlowDismissImmersiveSpaceHandler) async -> Void,
-        dismissImmersiveSpace: @escaping PracticeFlowDismissImmersiveSpaceHandler,
+        closeImmersiveForStep: (PracticeImmersiveDismissHandler) async -> Void,
+        dismissImmersiveSpace: @escaping PracticeImmersiveDismissHandler,
         recoverImmersiveStateIfStuck: () async -> Void
     ) async {
         guard Task.isCancelled == false else { return }

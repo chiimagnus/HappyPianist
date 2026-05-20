@@ -1,6 +1,6 @@
 import Foundation
 
-// MARK: - Pure helpers shared across PracticeSession coordinators & ViewModel
+// MARK: - Pure helpers shared across PracticeSession services & ViewModel
 
 func audioErrorText(for error: Error) -> String {
     if let localized = error as? LocalizedError, let description = localized.errorDescription,

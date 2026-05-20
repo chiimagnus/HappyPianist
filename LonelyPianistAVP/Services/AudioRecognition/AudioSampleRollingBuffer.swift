@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated struct AudioSampleRollingBuffer: Equatable, Sendable {
+struct AudioSampleRollingBuffer: Equatable, Sendable {
     private(set) var capacity: Int
     private var samples: [Float] = []
 

@@ -1,7 +1,7 @@
 import AudioToolbox
 import Foundation
 
-nonisolated struct PracticeSequencerMIDIEvent: Equatable, Sendable {
+struct PracticeSequencerMIDIEvent: Equatable, Sendable {
     enum Kind: Equatable {
         case noteOn(midi: Int, velocity: UInt8)
         case noteOff(midi: Int)
@@ -16,7 +16,7 @@ nonisolated struct PracticeSequencerMIDIEvent: Equatable, Sendable {
     let kind: Kind
 }
 
-nonisolated enum PracticeSequencerSequenceBuilderError: LocalizedError, Equatable {
+enum PracticeSequencerSequenceBuilderError: LocalizedError, Equatable {
     case musicSequenceCreateFailed
     case musicTrackCreateFailed(status: OSStatus)
     case tempoTrackMissing
@@ -39,7 +39,7 @@ nonisolated enum PracticeSequencerSequenceBuilderError: LocalizedError, Equatabl
     }
 }
 
-nonisolated struct PracticeSequencerSequenceBuilder {
+struct PracticeSequencerSequenceBuilder {
     private let midiChannel: UInt8
 
     init(midiChannel: UInt8 = 0) {

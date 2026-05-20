@@ -4,87 +4,47 @@ import Testing
 
 @Test
 @MainActor
-func enterPracticeStepForwardsImmersiveHandlers() async {
-    var openedIDs: [String] = []
-    var dismissCount = 0
+func enterPracticeStepCallsOpenImmersive() async {
+    let appState = AppState()
+    let practiceSetupState = PracticeSetupState()
+    let viewModel = ARGuideViewModel(appState: appState, practiceSetupState: practiceSetupState)
 
-    let coordinator = PracticeFlowCoordinator(
+    viewModel.setPracticeVirtualPianoEnabled(true)
+    practiceSetupState.setImportedSteps(from: PreparedPractice(
+        steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        file: ImportedMusicXMLFile(fileName: "Test", storedURL: URL(fileURLWithPath: "/dev/null"), importedAt: Date()),
+        tempoMap: MusicXMLTempoMap(tempoEvents: []),
+        pedalTimeline: nil,
+        fermataTimeline: nil,
+        attributeTimeline: nil,
+        slurTimeline: nil,
+        noteSpans: [],
+        highlightGuides: [],
+        measureSpans: [],
+        unsupportedNoteCount: 0
+    ))
+
+    var openedIDs: [String] = []
+    await viewModel.enterPracticeStep(
         openImmersiveSpace: { id in
             openedIDs.append(id)
             return .opened
         },
-        dismissImmersiveSpace: {
-            dismissCount += 1
-        }
+        dismissImmersiveSpace: {}
     )
 
-    let viewModel = CapturingPracticeFlowViewModel()
-    await coordinator.enterPracticeStep(viewModel: viewModel)
-
-    #expect(viewModel.enterPracticeStepCallCount == 1)
-    #expect(openedIDs == ["enterPracticeStep"])
-    #expect(dismissCount == 1)
+    #expect(openedIDs.count == 1)
 }
 
 @Test
 @MainActor
-func closeImmersiveForStepForwardsDismissHandler() async {
+func closeImmersiveForStepCallsDismissWhenNotClosed() async {
+    let appState = AppState()
+    let practiceSetupState = PracticeSetupState()
+    let viewModel = ARGuideViewModel(appState: appState, practiceSetupState: practiceSetupState)
+    appState.immersiveSpaceState = .open
+
     var dismissCount = 0
-    let coordinator = PracticeFlowCoordinator(
-        openImmersiveSpace: { _ in .opened },
-        dismissImmersiveSpace: { dismissCount += 1 }
-    )
-
-    let viewModel = CapturingPracticeFlowViewModel()
-    await coordinator.closeImmersiveForStep(viewModel: viewModel)
-
-    #expect(viewModel.closeImmersiveCallCount == 1)
+    await viewModel.closeImmersiveForStep(dismissImmersiveSpace: { dismissCount += 1 })
     #expect(dismissCount == 1)
 }
-
-@MainActor
-private final class CapturingPracticeFlowViewModel: PracticeFlowViewModelProtocol {
-    private(set) var enterPracticeStepCallCount = 0
-    private(set) var retryPracticeLocalizationCallCount = 0
-    private(set) var enterVirtualPianoPlacementCallCount = 0
-    private(set) var openImmersiveForStepCallCount = 0
-    private(set) var closeImmersiveCallCount = 0
-
-    func enterPracticeStep(
-        openImmersiveSpace: PracticeFlowOpenImmersiveSpaceHandler,
-        dismissImmersiveSpace: PracticeFlowDismissImmersiveSpaceHandler
-    ) async {
-        enterPracticeStepCallCount += 1
-        _ = await openImmersiveSpace("enterPracticeStep")
-        await dismissImmersiveSpace()
-    }
-
-    func retryPracticeLocalization(
-        openImmersiveSpace: PracticeFlowOpenImmersiveSpaceHandler,
-        dismissImmersiveSpace: PracticeFlowDismissImmersiveSpaceHandler
-    ) async {
-        retryPracticeLocalizationCallCount += 1
-        _ = await openImmersiveSpace("retryPracticeLocalization")
-        await dismissImmersiveSpace()
-    }
-
-    func enterVirtualPianoPlacement(openImmersiveSpace: PracticeFlowOpenImmersiveSpaceHandler) async {
-        enterVirtualPianoPlacementCallCount += 1
-        _ = await openImmersiveSpace("enterVirtualPianoPlacement")
-    }
-
-    func openImmersiveForStep(
-        mode _: AppState.ImmersiveMode,
-        openImmersiveSpace: PracticeFlowOpenImmersiveSpaceHandler
-    ) async -> String? {
-        openImmersiveForStepCallCount += 1
-        _ = await openImmersiveSpace("openImmersiveForStep")
-        return nil
-    }
-
-    func closeImmersiveForStep(dismissImmersiveSpace: PracticeFlowDismissImmersiveSpaceHandler) async {
-        closeImmersiveCallCount += 1
-        await dismissImmersiveSpace()
-    }
-}
-

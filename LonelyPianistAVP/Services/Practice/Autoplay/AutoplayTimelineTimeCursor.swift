@@ -1,11 +1,11 @@
 import Foundation
 
-nonisolated enum AutoplayCursorEvent: Equatable {
+enum AutoplayCursorEvent: Equatable {
     case step(index: Int)
     case guide(index: Int, guideID: Int)
 }
 
-nonisolated struct AutoplayTimelineTimeCursor: Equatable {
+struct AutoplayTimelineTimeCursor: Equatable {
     private struct TimedEvent: Equatable {
         let timeSeconds: TimeInterval
         let event: AutoplayCursorEvent

@@ -2,7 +2,7 @@ import AVFoundation
 import Foundation
 import os
 
-nonisolated final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProtocol {
+final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProtocol {
     private enum ServiceError: LocalizedError {
         case permissionDenied
         case invalidInputFormat
@@ -39,7 +39,7 @@ nonisolated final class PracticeAudioRecognitionService: PracticeAudioRecognitio
         var tailTask: Task<Void, Never>?
     }
 
-    private nonisolated final class ProcessingProxy: @unchecked Sendable {
+    private final class ProcessingProxy: @unchecked Sendable {
         private weak var service: PracticeAudioRecognitionService?
 
         init(service: PracticeAudioRecognitionService) {

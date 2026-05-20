@@ -92,7 +92,7 @@ func manualReplayStopsAudioRecognitionAndRestoresAfterCompletion() async {
     ]
 
     let effectHandler = CapturingPracticeSessionEffectHandler()
-    let coordinator = PracticeManualReplayCoordinator(
+    let service = PracticeManualReplayService(
         sleeper: YieldingSleeper(),
         sequencerPlaybackService: sequencer,
         playbackSequenceBuilder: PlaybackSequenceBuilder(),
@@ -100,7 +100,7 @@ func manualReplayStopsAudioRecognitionAndRestoresAfterCompletion() async {
         effectHandler: effectHandler
     )
 
-    coordinator.startManualReplay(with: ManualReplayPlan(stepRange: 0..<2))
+    service.startManualReplay(with: ManualReplayPlan(stepRange: 0..<2))
     for _ in 0..<20 { await Task.yield() }
 
     #expect(effectHandler.effects.contains(.stopAudioRecognition))
@@ -113,7 +113,7 @@ func manualReplayStopsAudioRecognitionAndRestoresAfterCompletion() async {
 
 @Test
 @MainActor
-func practiceManualReplayCoordinator_shutdownIsIdempotent() async {
+func practiceManualReplayService_shutdownIsIdempotent() async {
     let sequencer = FakeSequencerPlaybackService()
     sequencer.currentSecondsValue = 0
 
@@ -128,7 +128,7 @@ func practiceManualReplayCoordinator_shutdownIsIdempotent() async {
     )
 
     let effectHandler = CapturingPracticeSessionEffectHandler()
-    let coordinator = PracticeManualReplayCoordinator(
+    let service = PracticeManualReplayService(
         sleeper: YieldingSleeper(),
         sequencerPlaybackService: sequencer,
         playbackSequenceBuilder: PlaybackSequenceBuilder(),
@@ -136,11 +136,11 @@ func practiceManualReplayCoordinator_shutdownIsIdempotent() async {
         effectHandler: effectHandler
     )
 
-    coordinator.startManualReplay(with: ManualReplayPlan(stepRange: 0..<2))
+    service.startManualReplay(with: ManualReplayPlan(stepRange: 0..<2))
     for _ in 0..<5 { await Task.yield() }
 
-    coordinator.shutdown()
-    coordinator.shutdown()
+    service.shutdown()
+    service.shutdown()
 
     for _ in 0..<10 { await Task.yield() }
 

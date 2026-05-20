@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated enum HarmonicTemplateCandidateRole: String, Equatable, CaseIterable, Sendable {
+enum HarmonicTemplateCandidateRole: String, Equatable, CaseIterable, Sendable {
     case expected
     case wrongCandidate
     case octaveDebug
@@ -14,20 +14,20 @@ nonisolated enum HarmonicTemplateCandidateRole: String, Equatable, CaseIterable,
     }
 }
 
-nonisolated struct HarmonicPartialTemplate: Equatable, Sendable {
+struct HarmonicPartialTemplate: Equatable, Sendable {
     let harmonicIndex: Int
     let centerFrequency: Double
     let toleranceCents: Double
     let weight: Double
 }
 
-nonisolated struct HarmonicTemplate: Equatable, Sendable {
+struct HarmonicTemplate: Equatable, Sendable {
     let midiNote: Int
     let role: HarmonicTemplateCandidateRole
     let partials: [HarmonicPartialTemplate]
 }
 
-nonisolated struct HarmonicPartialDebugValue: Equatable, Sendable {
+struct HarmonicPartialDebugValue: Equatable, Sendable {
     let harmonicIndex: Int
     let centerFrequency: Double
     let bandEnergy: Double

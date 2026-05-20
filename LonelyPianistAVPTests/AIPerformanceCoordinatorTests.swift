@@ -119,10 +119,10 @@ private final class FakePracticeSession: AIPerformancePracticeSessionProtocol {
 @MainActor
 func enableDisableAreIdempotent() async {
     var nowUptime: TimeInterval = 0
-    var states: [AIPerformanceCoordinator.State] = []
+    var states: [AIPerformanceService.State] = []
 
     let backend = FakeBackendDiscoveryService()
-    let coordinator = AIPerformanceCoordinator(
+    let service = AIPerformanceService(
         logger: Logger(subsystem: "test", category: "ai-perf"),
         nowUptimeSeconds: { nowUptime },
         backendDiscoveryService: backend,
@@ -137,14 +137,14 @@ func enableDisableAreIdempotent() async {
         currentStep: PracticeStep(tick: 0, notes: []),
         sequencerPlaybackService: playbackService
     )
-    coordinator.updatePracticeSession(session)
+    service.updatePracticeSession(session)
 
-    coordinator.setEnabled(true)
-    coordinator.setEnabled(true)
+    service.setEnabled(true)
+    service.setEnabled(true)
     #expect(backend.startCallCount == 1)
 
-    coordinator.setEnabled(false)
-    coordinator.setEnabled(false)
+    service.setEnabled(false)
+    service.setEnabled(false)
     #expect(backend.stopCallCount == 1)
 
     #expect(states.last?.isAIPerformanceActive == false)
@@ -154,7 +154,7 @@ func enableDisableAreIdempotent() async {
 @MainActor
 func disableCancelsPendingPlaybackAndStopsSequencer() async {
     var nowUptime: TimeInterval = 0
-    var states: [AIPerformanceCoordinator.State] = []
+    var states: [AIPerformanceService.State] = []
 
     let backend = FakeBackendDiscoveryService(resolvedEndpoint: (host: "127.0.0.1", port: 1234))
     let response = ImprovResultResponse(
@@ -166,7 +166,7 @@ func disableCancelsPendingPlaybackAndStopsSequencer() async {
         latencyMS: nil
     )
 
-    let coordinator = AIPerformanceCoordinator(
+    let service = AIPerformanceService(
         logger: Logger(subsystem: "test", category: "ai-perf"),
         nowUptimeSeconds: { nowUptime },
         backendDiscoveryService: backend,
@@ -181,11 +181,11 @@ func disableCancelsPendingPlaybackAndStopsSequencer() async {
         currentStep: PracticeStep(tick: 0, notes: []),
         sequencerPlaybackService: playbackService
     )
-    coordinator.updatePracticeSession(session)
+    service.updatePracticeSession(session)
 
-    coordinator.setEnabled(true)
+    service.setEnabled(true)
 
-    coordinator.recordMIDI1EventForPhraseRecordingIfNeeded(
+    service.recordMIDI1EventForPhraseRecordingIfNeeded(
         MIDI1InputEvent(
             kind: .noteOn(note: 60, velocity: 90),
             channel: 1,
@@ -208,7 +208,7 @@ func disableCancelsPendingPlaybackAndStopsSequencer() async {
     #expect(playbackService.playCallCount > 0)
     #expect(states.contains(where: { $0.isAIPerformanceActive }))
 
-    coordinator.setEnabled(false)
+    service.setEnabled(false)
 
     for _ in 0 ..< 500 {
         await Task.yield()
@@ -227,7 +227,7 @@ func shutdownPreventsFurtherEnable() async {
     var nowUptime: TimeInterval = 0
 
     let backend = FakeBackendDiscoveryService()
-    let coordinator = AIPerformanceCoordinator(
+    let service = AIPerformanceService(
         logger: Logger(subsystem: "test", category: "ai-perf"),
         nowUptimeSeconds: { nowUptime },
         backendDiscoveryService: backend,
@@ -238,15 +238,15 @@ func shutdownPreventsFurtherEnable() async {
     )
 
     let playbackService = FakeSequencerPlaybackService()
-    coordinator.updatePracticeSession(
+    service.updatePracticeSession(
         FakePracticeSession(
             currentStep: PracticeStep(tick: 0, notes: []),
             sequencerPlaybackService: playbackService
         )
     )
 
-    coordinator.shutdown()
-    coordinator.setEnabled(true)
+    service.shutdown()
+    service.setEnabled(true)
 
     for _ in 0 ..< 50 {
         await Task.yield()

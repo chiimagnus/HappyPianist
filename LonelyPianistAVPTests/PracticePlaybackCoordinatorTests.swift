@@ -123,7 +123,7 @@ func autoplayStartsAndAdvancesStep() async {
         tempoMap: stateStore.tempoMap
     )
 
-    let coordinator = PracticePlaybackCoordinator(
+    let service = PracticePlaybackControlService(
         sleeper: YieldingSleeper(),
         sequencerPlaybackService: sequencer,
         playbackSequenceBuilder: PlaybackSequenceBuilder(),
@@ -135,7 +135,7 @@ func autoplayStartsAndAdvancesStep() async {
         leadInSeconds: 0.05
     )
 
-    coordinator.startAutoplayTaskIfNeeded()
+    service.startAutoplayTaskIfNeeded()
     for _ in 0..<10 { await Task.yield() }
 
     #expect(sequencer.loadCallCount == 1)
@@ -207,7 +207,7 @@ func shutdownCancelsAutoplayAndPreventsFurtherAdvance() async {
         tempoMap: stateStore.tempoMap
     )
 
-    let coordinator = PracticePlaybackCoordinator(
+    let service = PracticePlaybackControlService(
         sleeper: YieldingSleeper(),
         sequencerPlaybackService: sequencer,
         playbackSequenceBuilder: PlaybackSequenceBuilder(),
@@ -219,11 +219,11 @@ func shutdownCancelsAutoplayAndPreventsFurtherAdvance() async {
         leadInSeconds: 0.05
     )
 
-    coordinator.startAutoplayTaskIfNeeded()
+    service.startAutoplayTaskIfNeeded()
     for _ in 0..<5 { await Task.yield() }
 
-    coordinator.shutdown()
-    coordinator.shutdown()
+    service.shutdown()
+    service.shutdown()
 
     sequencer.currentSecondsValue = 999
     for _ in 0..<10 { await Task.yield() }

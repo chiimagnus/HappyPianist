@@ -6,7 +6,7 @@ import Testing
 
 @Test
 @MainActor
-func beginCalibrationGuidedFlowSetsPendingAnchorToA0() async {
+func beginGuidedCalibrationSetsPendingAnchorToA0() async {
     let trackingService = FakeARTrackingService()
     let repository = InMemoryCalibrationRepository()
     let appState = AppState(
@@ -17,8 +17,8 @@ func beginCalibrationGuidedFlowSetsPendingAnchorToA0() async {
     )
     appState.immersiveMode = .calibration
 
-    let viewModel = CalibrationFlowViewModel(appState: appState)
-    viewModel.beginCalibrationGuidedFlow()
+    let viewModel = CalibrationGuideViewModel(appState: appState)
+    viewModel.beginGuidedCalibration()
 
     try? await Task.sleep(for: .milliseconds(10))
 
@@ -40,7 +40,7 @@ func presentCalibrationErrorClearsPendingAnchorAndUpdatesPhase() async {
     appState.immersiveMode = .calibration
     appState.pendingCalibrationCaptureAnchor = .a0
 
-    let viewModel = CalibrationFlowViewModel(appState: appState)
+    let viewModel = CalibrationGuideViewModel(appState: appState)
     viewModel.presentCalibrationError(message: "oops")
 
     #expect(appState.pendingCalibrationCaptureAnchor == nil)
@@ -65,13 +65,13 @@ func shutdownIsIdempotent() async {
     )
     appState.immersiveMode = .calibration
 
-    let viewModel = CalibrationFlowViewModel(appState: appState)
-    viewModel.beginCalibrationGuidedFlow()
+    let viewModel = CalibrationGuideViewModel(appState: appState)
+    viewModel.beginGuidedCalibration()
 
     viewModel.shutdown()
     viewModel.shutdown()
 
-    viewModel.beginCalibrationGuidedFlow()
+    viewModel.beginGuidedCalibration()
     try? await Task.sleep(for: .milliseconds(10))
     #expect(appState.pendingCalibrationCaptureAnchor == .a0)
 }

@@ -57,7 +57,7 @@ final class PianoGuideOverlayController {
                 beam = existing
             } else {
                 activeBeamEntitiesByMIDINote[descriptor.midiNote]?.removeFromParent()
-                beam = ModelEntity(mesh: PianoGuideDecalMeshFactory.unitTopDecalMesh, materials: [])
+                beam = ModelEntity(mesh: PianoGuideDecalMeshProvider.unitTopDecalMesh, materials: [])
                 activeBeamEntitiesByMIDINote[descriptor.midiNote] = beam
                 lastGuideIDByMIDINote[descriptor.midiNote] = descriptor.guideID
                 keyboardRootEntity.addChild(beam)

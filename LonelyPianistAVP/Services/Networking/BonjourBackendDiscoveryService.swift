@@ -1,10 +1,8 @@
 import Foundation
 import Network
-import Observation
 import os
 
 @MainActor
-@Observable
 final class BonjourBackendDiscoveryService {
     enum State: Equatable {
         case idle

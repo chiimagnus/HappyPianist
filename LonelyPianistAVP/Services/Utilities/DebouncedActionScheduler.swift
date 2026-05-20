@@ -13,14 +13,14 @@ final class DebouncedActionScheduler: @unchecked Sendable {
         self.debounce = debounce
     }
 
-    func schedule(_ action: @escaping @Sendable @MainActor () -> Void) {
+    func schedule(_ action: @escaping @Sendable () -> Void) {
         let debounce = debounce
         stateLock.withLock { state in
             state.task?.cancel()
             state.task = Task {
                 try? await Task.sleep(for: debounce)
                 guard Task.isCancelled == false else { return }
-                await MainActor.run { action() }
+                action()
             }
         }
     }

@@ -4,7 +4,7 @@ import Testing
 struct HarmonicTemplateScorerTests {
     @Test func expectedDominatesWrongCandidate() {
         let profile = HarmonicTemplateTuningProfile.lowLatencyDefault
-        let templates = HarmonicTemplateFactory().makeTemplates(
+        let templates = HarmonicTemplateProvider().makeTemplates(
             expectedMIDINotes: [60],
             wrongCandidateMIDINotes: [61],
             profile: profile
@@ -26,7 +26,7 @@ struct HarmonicTemplateScorerTests {
 
     @Test func octaveDebugTemplatesAreDebugOnly() {
         let profile = HarmonicTemplateTuningProfile.lowLatencyDefault
-        let templates = HarmonicTemplateFactory().makeTemplates(
+        let templates = HarmonicTemplateProvider().makeTemplates(
             expectedMIDINotes: [60],
             wrongCandidateMIDINotes: [],
             profile: profile
@@ -38,7 +38,7 @@ struct HarmonicTemplateScorerTests {
 extension HarmonicTemplateScorerTests {
     @Test func incompleteBroadbandLikeEnergyReducesConfidence() {
         let profile = HarmonicTemplateTuningProfile.lowLatencyDefault
-        let templates = HarmonicTemplateFactory().makeTemplates(
+        let templates = HarmonicTemplateProvider().makeTemplates(
             expectedMIDINotes: [60],
             wrongCandidateMIDINotes: [61],
             profile: profile

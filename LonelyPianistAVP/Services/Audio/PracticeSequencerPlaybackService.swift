@@ -2,7 +2,7 @@ import AudioToolbox
 import AVFAudio
 import Foundation
 
-nonisolated struct PracticeSequencerSequence: Sendable {
+struct PracticeSequencerSequence: Sendable {
     let midiData: Data
     let durationSeconds: TimeInterval
 }

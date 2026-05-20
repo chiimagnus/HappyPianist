@@ -4,14 +4,14 @@ import Testing
 
 @Test
 @MainActor
-func resetToPreparationClearsFlowState() {
-    let flowState = FlowState()
-    flowState.selectedPianoModeID = "dummy"
-    flowState.isCalibrationCompleted = true
-    flowState.isVirtualPianoPlaced = true
-    flowState.bluetoothMIDISourceCount = 2
-    flowState.importErrorMessage = "error"
-    flowState.setImportedSteps(from: PreparedPractice(
+func resetToPreparationClearsPracticeSetupState() {
+    let practiceSetupState = PracticeSetupState()
+    practiceSetupState.selectedPianoModeID = "dummy"
+    practiceSetupState.isCalibrationCompleted = true
+    practiceSetupState.isVirtualPianoPlaced = true
+    practiceSetupState.bluetoothMIDISourceCount = 2
+    practiceSetupState.importErrorMessage = "error"
+    practiceSetupState.setImportedSteps(from: PreparedPractice(
         steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)])],
         file: ImportedMusicXMLFile(fileName: "Test", storedURL: URL(fileURLWithPath: "/dev/null"), importedAt: Date()),
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
@@ -26,27 +26,30 @@ func resetToPreparationClearsFlowState() {
     ))
 
     let registry = PianoModeRegistryService(modes: [])
-    let coordinator = WindowCoordinator(flowState: flowState, pianoModeRegistry: registry)
-    coordinator.resetToPreparation(reason: "test")
+    let service = WindowTransitionState(practiceSetupState: practiceSetupState, pianoModeRegistry: registry)
+    service.resetToPreparation(reason: "test")
 
-    #expect(flowState.selectedPianoModeID == nil)
-    #expect(flowState.isCalibrationCompleted == false)
-    #expect(flowState.isVirtualPianoPlaced == false)
-    #expect(flowState.bluetoothMIDISourceCount == 0)
-    #expect(flowState.importedSteps.isEmpty)
-    #expect(flowState.importedFile == nil)
-    #expect(flowState.importErrorMessage == nil)
+    #expect(practiceSetupState.selectedPianoModeID == nil)
+    #expect(practiceSetupState.isCalibrationCompleted == false)
+    #expect(practiceSetupState.isVirtualPianoPlaced == false)
+    #expect(practiceSetupState.bluetoothMIDISourceCount == 0)
+    #expect(practiceSetupState.importedSteps.isEmpty)
+    #expect(practiceSetupState.importedFile == nil)
+    #expect(practiceSetupState.importErrorMessage == nil)
 }
 
 @Test
 @MainActor
 func consumePendingTransitionReturnsAndClears() {
-    let coordinator = WindowCoordinator(flowState: FlowState(), pianoModeRegistry: PianoModeRegistryService(modes: []))
+    let service = WindowTransitionState(
+        practiceSetupState: PracticeSetupState(),
+        pianoModeRegistry: PianoModeRegistryService(modes: [])
+    )
 
-    coordinator.beginTransition(from: .library, to: .practice)
+    service.beginTransition(from: .library, to: .practice)
 
-    let transition = coordinator.consumePendingTransition(to: .practice)
-    #expect(transition?.fromWindowID == WindowIDs.library)
-    #expect(transition?.toWindowID == WindowIDs.practice)
-    #expect(coordinator.consumePendingTransition(to: .practice) == nil)
+    let transition = service.consumePendingTransition(to: .practice)
+    #expect(transition?.fromWindowID == WindowID.library)
+    #expect(transition?.toWindowID == WindowID.practice)
+    #expect(service.consumePendingTransition(to: .practice) == nil)
 }

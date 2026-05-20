@@ -5,7 +5,7 @@ import simd
 
 @MainActor
 @Observable
-final class CalibrationFlowViewModel {
+final class CalibrationGuideViewModel {
     enum CalibrationPhase: Equatable {
         case capturingA0
         case transitionA0
@@ -19,8 +19,8 @@ final class CalibrationFlowViewModel {
     private let arTrackingService: ARTrackingServiceProtocol
 
     private var calibrationAnchorCaptureTask: Task<Void, Never>?
-    private var calibrationFlowBootstrapTask: Task<Void, Never>?
-    private var calibrationGuidedFlowTask: Task<Void, Never>?
+    private var calibrationGuideBootstrapTask: Task<Void, Never>?
+    private var calibrationGuidedCalibrationTask: Task<Void, Never>?
     private var calibrationSupportPollTask: Task<Void, Never>?
 
     private var wasRightHandPinching = false
@@ -52,7 +52,7 @@ final class CalibrationFlowViewModel {
     }
 
     func shutdown() {
-        cancelCalibrationGuidedFlowTasks()
+        cancelCalibrationGuidedCalibrationTasks()
         calibrationAnchorCaptureTask?.cancel()
         calibrationAnchorCaptureTask = nil
         wasRightHandPinching = false
@@ -76,10 +76,10 @@ final class CalibrationFlowViewModel {
         wasLeftHandPinching = false
     }
 
-    func beginCalibrationGuidedFlow() {
-        cancelCalibrationGuidedFlowTasks()
+    func beginGuidedCalibration() {
+        cancelCalibrationGuidedCalibrationTasks()
         calibrationPhase = .capturingA0
-        calibrationFlowBootstrapTask = Task { @MainActor [weak self] in
+        calibrationGuideBootstrapTask = Task { @MainActor [weak self] in
             guard let self else { return }
             appState.beginCalibrationRecapture()
 
@@ -96,25 +96,25 @@ final class CalibrationFlowViewModel {
             calibrationStatusMessage = nil
             pendingCalibrationCaptureAnchor = .a0
             calibrationPhase = .capturingA0
-            calibrationFlowBootstrapTask = nil
+            calibrationGuideBootstrapTask = nil
         }
     }
 
     func presentCalibrationError(message: String) {
-        cancelCalibrationGuidedFlowTasks()
+        cancelCalibrationGuidedCalibrationTasks()
         calibrationStatusMessage = message
         pendingCalibrationCaptureAnchor = nil
         calibrationPhase = .error(message: message)
     }
 
-    func endCalibrationGuidedFlow() {
-        cancelCalibrationGuidedFlowTasks()
+    func endGuidedCalibration() {
+        cancelCalibrationGuidedCalibrationTasks()
     }
 
     @discardableResult
     func showCalibrationCompletedIfStoredCalibrationExists() -> Bool {
         guard storedCalibration != nil else { return false }
-        endCalibrationGuidedFlow()
+        endGuidedCalibration()
         calibrationStatusMessage = nil
         pendingCalibrationCaptureAnchor = nil
         calibrationPhase = .completed
@@ -243,8 +243,8 @@ final class CalibrationFlowViewModel {
         guard calibrationPhase != .completed else { return }
         if case .error = calibrationPhase { return }
 
-        calibrationGuidedFlowTask?.cancel()
-        calibrationGuidedFlowTask = Task { @MainActor [weak self] in
+        calibrationGuidedCalibrationTask?.cancel()
+        calibrationGuidedCalibrationTask = Task { @MainActor [weak self] in
             guard let self else { return }
             switch anchor {
                 case .a0:
@@ -277,7 +277,7 @@ final class CalibrationFlowViewModel {
                     }
             }
 
-            calibrationGuidedFlowTask = nil
+            calibrationGuidedCalibrationTask = nil
         }
     }
 
@@ -297,11 +297,11 @@ final class CalibrationFlowViewModel {
         }
     }
 
-    private func cancelCalibrationGuidedFlowTasks() {
-        calibrationFlowBootstrapTask?.cancel()
-        calibrationFlowBootstrapTask = nil
-        calibrationGuidedFlowTask?.cancel()
-        calibrationGuidedFlowTask = nil
+    private func cancelCalibrationGuidedCalibrationTasks() {
+        calibrationGuideBootstrapTask?.cancel()
+        calibrationGuideBootstrapTask = nil
+        calibrationGuidedCalibrationTask?.cancel()
+        calibrationGuidedCalibrationTask = nil
         calibrationSupportPollTask?.cancel()
         calibrationSupportPollTask = nil
     }

@@ -16,7 +16,7 @@ final class ARGuideRecordingViewModel {
     private let onMIDI2Event: @MainActor (MIDI2InputEvent) -> Void
 
     @ObservationIgnored
-    private lazy var midiRecordingCoordinator: MIDIRecordingCoordinator = MIDIRecordingCoordinator(
+    private lazy var midiRecordingState: MIDIRecordingState = MIDIRecordingState(
         logger: logger,
         onStateChanged: { [weak self] state in
             guard let self else { return }
@@ -77,7 +77,7 @@ final class ARGuideRecordingViewModel {
         usesBluetoothMIDIInput: Bool,
         eventSource: (any PracticeInputEventSourceProtocol)?
     ) {
-        midiRecordingCoordinator.refreshMIDISubscriptionIfNeeded(
+        midiRecordingState.refreshMIDISubscriptionIfNeeded(
             usesBluetoothMIDIInput: usesBluetoothMIDIInput,
             eventSource: eventSource
         )
@@ -89,7 +89,7 @@ final class ARGuideRecordingViewModel {
         keyContact: KeyContactResult,
         nowUptimeSeconds: TimeInterval
     ) {
-        midiRecordingCoordinator.recordTakeFromKeyContactIfNeeded(
+        midiRecordingState.recordTakeFromKeyContactIfNeeded(
             usesBluetoothMIDIInput: usesBluetoothMIDIInput,
             isVirtualPianoEnabled: isVirtualPianoEnabled,
             keyContact: keyContact,
@@ -100,11 +100,11 @@ final class ARGuideRecordingViewModel {
     func startRecording(canRecord: Bool) {
         guard canRecord else { return }
         takePlaybackViewModel.stop()
-        midiRecordingCoordinator.startRecordingIfPossible(canRecord: canRecord)
+        midiRecordingState.startRecordingIfPossible(canRecord: canRecord)
     }
 
     func stopRecording() {
-        midiRecordingCoordinator.stopRecordingIfNeeded()
+        midiRecordingState.stopRecordingIfNeeded()
     }
 
     func dismissError() {
@@ -132,7 +132,7 @@ final class ARGuideRecordingViewModel {
     }
 
     func stop() {
-        midiRecordingCoordinator.stop()
+        midiRecordingState.stop()
         takePlaybackViewModel.stop()
     }
 }

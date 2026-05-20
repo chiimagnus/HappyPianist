@@ -2,6 +2,7 @@
 import Testing
 
 @Test
+@MainActor
 func selectorReturnsNextTwoMeasuresRange() {
     let spans = [
         MusicXMLMeasureSpan(partID: "P1", measureNumber: 0, startTick: 0, endTick: 100),
@@ -16,6 +17,7 @@ func selectorReturnsNextTwoMeasuresRange() {
 }
 
 @Test
+@MainActor
 func selectorPlaysWhateverRemainsWhenLessThanTwoMeasuresRemain() {
     let spans = [
         MusicXMLMeasureSpan(partID: "P1", measureNumber: 0, startTick: 0, endTick: 100),
@@ -29,6 +31,7 @@ func selectorPlaysWhateverRemainsWhenLessThanTwoMeasuresRemain() {
 }
 
 @Test
+@MainActor
 func selectorReturnsNilWhenThereIsNoNextMeasure() {
     let spans = [
         MusicXMLMeasureSpan(partID: "P1", measureNumber: 0, startTick: 0, endTick: 100),
@@ -39,6 +42,7 @@ func selectorReturnsNilWhenThereIsNoNextMeasure() {
 }
 
 @Test
+@MainActor
 func selectorReturnsNilWhenCurrentTickIsOutsideAllMeasures() {
     let spans = [
         MusicXMLMeasureSpan(partID: "P1", measureNumber: 0, startTick: 0, endTick: 100),
@@ -51,6 +55,7 @@ func selectorReturnsNilWhenCurrentTickIsOutsideAllMeasures() {
 }
 
 @Test
+@MainActor
 func selectorSortsMeasureSpansBeforeSelecting() {
     let spans = [
         MusicXMLMeasureSpan(partID: "P1", measureNumber: 2, startTick: 200, endTick: 300),
@@ -65,6 +70,7 @@ func selectorSortsMeasureSpansBeforeSelecting() {
 }
 
 @Test
+@MainActor
 func selectorReturnsNilForInvalidTickRange() {
     let spans = [
         MusicXMLMeasureSpan(partID: "P1", measureNumber: 0, startTick: 0, endTick: 100),

@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated struct HarmonicTemplateTuningProfile: Equatable, Sendable {
+struct HarmonicTemplateTuningProfile: Equatable, Sendable {
     let name: String
     let partialWeights: [Int: Double]
     let partialToleranceCents: [Int: Double]

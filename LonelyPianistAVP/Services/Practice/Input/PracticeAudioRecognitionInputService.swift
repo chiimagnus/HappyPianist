@@ -2,7 +2,7 @@ import Foundation
 import os
 
 @MainActor
-final class PracticeAudioRecognitionCoordinator: PracticeAudioRecognitionCoordinatorProtocol, PracticeSessionLifecycleProtocol {
+final class PracticeAudioRecognitionInputService: PracticeAudioRecognitionInputServiceProtocol, PracticeSessionLifecycleProtocol {
     struct Snapshot: Equatable {
         var practiceState: PracticeSessionState
         var autoplayState: PracticeSessionAutoplayState
@@ -19,7 +19,7 @@ final class PracticeAudioRecognitionCoordinator: PracticeAudioRecognitionCoordin
 
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
-        category: "PracticeAudioRecognitionCoordinator"
+        category: "PracticeAudioRecognitionInputService"
     )
 
     private let service: PracticeAudioRecognitionServiceProtocol?

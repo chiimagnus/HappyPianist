@@ -3,12 +3,12 @@ import Observation
 
 @MainActor
 @Observable
-final class ARGuidePracticeFlowViewModel {
+final class ARGuidePracticeViewModel {
     typealias PracticeLocalizationFailure = PracticeLocalizationViewModel.PracticeLocalizationFailure
     typealias PracticeLocalizationState = PracticeLocalizationViewModel.PracticeLocalizationState
 
     private let appState: AppState
-    private let flowState: FlowState
+    private let practiceSetupState: PracticeSetupState
     private let practiceLocalizationViewModel: PracticeLocalizationViewModel
     private let placementViewModel: VirtualPianoPlacementViewModel
 
@@ -16,13 +16,13 @@ final class ARGuidePracticeFlowViewModel {
 
     init(
         appState: AppState,
-        flowState: FlowState,
+        practiceSetupState: PracticeSetupState,
         practiceSessionViewModel: PracticeSessionViewModel,
         practiceLocalizationViewModel: PracticeLocalizationViewModel,
         placementViewModel: VirtualPianoPlacementViewModel
     ) {
         self.appState = appState
-        self.flowState = flowState
+        self.practiceSetupState = practiceSetupState
         self.practiceSessionViewModel = practiceSessionViewModel
         self.practiceLocalizationViewModel = practiceLocalizationViewModel
         self.placementViewModel = placementViewModel
@@ -121,8 +121,8 @@ final class ARGuidePracticeFlowViewModel {
     }
 
     var practiceProgressText: String {
-        guard flowState.importedSteps.isEmpty == false else { return "0 / 0" }
-        let total = flowState.importedSteps.count
+        guard practiceSetupState.importedSteps.isEmpty == false else { return "0 / 0" }
+        let total = practiceSetupState.importedSteps.count
         switch practiceSessionViewModel.state {
             case .idle, .ready:
                 return "0 / \(total)"
@@ -138,7 +138,7 @@ final class ARGuidePracticeFlowViewModel {
     }
 
     func practiceEntryBlockingReason() -> PracticeLocalizationFailure? {
-        if flowState.importedSteps.isEmpty {
+        if practiceSetupState.importedSteps.isEmpty {
             return .missingImportedSteps
         }
 
@@ -151,8 +151,8 @@ final class ARGuidePracticeFlowViewModel {
 
     func enterPracticeStep(
         replacePracticeSessionViewModel: () -> Void,
-        openImmersiveSpace: PracticeFlowOpenImmersiveSpaceHandler,
-        dismissImmersiveSpace: @escaping PracticeFlowDismissImmersiveSpaceHandler
+        openImmersiveSpace: PracticeImmersiveOpenHandler,
+        dismissImmersiveSpace: @escaping PracticeImmersiveDismissHandler
     ) async {
         replacePracticeSessionViewModel()
         await beginPracticeLocalization(
@@ -163,8 +163,8 @@ final class ARGuidePracticeFlowViewModel {
 
     func retryPracticeLocalization(
         replacePracticeSessionViewModel: () -> Void,
-        openImmersiveSpace: PracticeFlowOpenImmersiveSpaceHandler,
-        dismissImmersiveSpace: @escaping PracticeFlowDismissImmersiveSpaceHandler
+        openImmersiveSpace: PracticeImmersiveOpenHandler,
+        dismissImmersiveSpace: @escaping PracticeImmersiveDismissHandler
     ) async {
         replacePracticeSessionViewModel()
         await beginPracticeLocalization(
@@ -173,7 +173,7 @@ final class ARGuidePracticeFlowViewModel {
         )
     }
 
-    func enterVirtualPianoPlacement(openImmersiveSpace: PracticeFlowOpenImmersiveSpaceHandler) async {
+    func enterVirtualPianoPlacement(openImmersiveSpace: PracticeImmersiveOpenHandler) async {
         guard placementViewModel.isVirtualPianoEnabled == false else { return }
         placementViewModel.setPracticeVirtualPianoEnabled(true)
         placementViewModel.isVirtualPianoPlaced = false
@@ -201,7 +201,7 @@ final class ARGuidePracticeFlowViewModel {
 
     func openImmersiveForStep(
         mode: AppState.ImmersiveMode,
-        openImmersiveSpace: PracticeFlowOpenImmersiveSpaceHandler
+        openImmersiveSpace: PracticeImmersiveOpenHandler
     ) async -> String? {
         appState.immersiveMode = mode
 
@@ -244,7 +244,7 @@ final class ARGuidePracticeFlowViewModel {
         }
     }
 
-    func closeImmersiveForStep(dismissImmersiveSpace: PracticeFlowDismissImmersiveSpaceHandler) async {
+    func closeImmersiveForStep(dismissImmersiveSpace: PracticeImmersiveDismissHandler) async {
         guard appState.immersiveSpaceState != .closed else { return }
         if appState.immersiveSpaceState == .open {
             appState.immersiveSpaceState = .inTransition
@@ -265,8 +265,8 @@ final class ARGuidePracticeFlowViewModel {
     }
 
     private func beginPracticeLocalization(
-        openImmersiveSpace: PracticeFlowOpenImmersiveSpaceHandler,
-        dismissImmersiveSpace: @escaping PracticeFlowDismissImmersiveSpaceHandler
+        openImmersiveSpace: PracticeImmersiveOpenHandler,
+        dismissImmersiveSpace: @escaping PracticeImmersiveDismissHandler
     ) async {
         await practiceLocalizationViewModel.beginPracticeLocalization(
             isVirtualPianoEnabled: placementViewModel.isVirtualPianoEnabled,

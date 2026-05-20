@@ -2,10 +2,10 @@ import Foundation
 import os
 
 @MainActor
-final class PracticeManualReplayCoordinator: PracticeSessionLifecycleProtocol {
+final class PracticeManualReplayService: PracticeSessionLifecycleProtocol {
     private let logger = Logger(
         subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
-        category: "PracticeManualReplayCoordinator"
+        category: "PracticeManualReplayService"
     )
 
     private let sleeper: SleeperProtocol
@@ -117,7 +117,7 @@ final class PracticeManualReplayCoordinator: PracticeSessionLifecycleProtocol {
             }
 
             logger.debug(
-                "manual replay sequencer started leadIn=\(leadInSeconds, privacy: .public)s now=\(sequencerPlaybackService.currentSeconds(), privacy: .public)s"
+                "manual replay sequencer started leadIn=\(leadInSeconds, privacy: .public)s now=\(self.sequencerPlaybackService.currentSeconds(), privacy: .public)s"
             )
 
             var cursor = ManualReplayTimeCursor(

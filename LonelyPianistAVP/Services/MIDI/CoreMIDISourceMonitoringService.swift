@@ -19,7 +19,7 @@ enum CoreMIDISourceMonitoringServiceError: LocalizedError {
     }
 }
 
-final class CoreMIDISourceMonitoringService: MIDISourceMonitoringServiceProtocol {
+final class CoreMIDISourceMonitoringService: MIDISourceMonitoringServiceProtocol, @unchecked Sendable {
     var onConnectionStateChange: (@Sendable (MIDISourceMonitoringConnectionState) -> Void)?
     var onSourceNamesChange: (@Sendable ([String]) -> Void)?
     var onLastErrorMessageChange: (@Sendable (String?) -> Void)?

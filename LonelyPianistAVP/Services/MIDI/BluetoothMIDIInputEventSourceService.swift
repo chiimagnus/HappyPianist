@@ -20,7 +20,7 @@ enum BluetoothMIDIInputEventSourceServiceError: LocalizedError {
     }
 }
 
-final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtocol {
+final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtocol, @unchecked Sendable {
     func midi1EventsStream() -> AsyncStream<MIDI1InputEvent> {
         midi1EventsBroadcaster.makeStream()
     }

@@ -1,64 +1,8 @@
 import ARKit
 import Foundation
-import Observation
 import simd
 
 @MainActor
-protocol ARTrackingServiceProtocol: AnyObject {
-    var fingerTipPositions: [String: SIMD3<Float>] { get }
-    var leftIndexFingerTipPosition: SIMD3<Float>? { get }
-    var leftThumbTipPosition: SIMD3<Float>? { get }
-    var rightIndexFingerTipPosition: SIMD3<Float>? { get }
-    var rightThumbTipPosition: SIMD3<Float>? { get }
-    var worldAnchorsByID: [UUID: WorldAnchor] { get }
-    var planeAnchorsByID: [UUID: PlaneAnchor] { get }
-    var authorizationStatusByType: [ARKitSession.AuthorizationType: ARKitSession.AuthorizationStatus] { get }
-    var providerStateByName: [String: DataProviderState] { get }
-    var isWorldTrackingSupported: Bool { get }
-    var worldTrackingProvider: WorldTrackingProvider { get }
-
-    func fingerTipUpdatesStream() -> AsyncStream<[String: SIMD3<Float>]>
-    func start(mode: ARTrackingMode)
-    func stop()
-}
-
-enum ARTrackingMode: Equatable {
-    case calibration
-    case practiceBluetoothMIDI
-    case practiceVirtualOrAudio
-}
-
-enum DataProviderState: Equatable {
-    case idle
-    case running
-    case unsupported
-    case unauthorized
-    case disabled
-    case stopped
-    case failed(reason: String)
-
-    var description: String {
-        switch self {
-            case .idle:
-                "idle"
-            case .running:
-                "running"
-            case .unsupported:
-                "unsupported"
-            case .unauthorized:
-                "unauthorized"
-            case .disabled:
-                "disabled"
-            case .stopped:
-                "stopped"
-            case let .failed(reason):
-                "failed(\(reason))"
-        }
-    }
-}
-
-@MainActor
-@Observable
 final class ARTrackingService: ARTrackingServiceProtocol {
     private(set) var fingerTipPositions: [String: SIMD3<Float>] = [:]
     private(set) var leftIndexFingerTipPosition: SIMD3<Float>?

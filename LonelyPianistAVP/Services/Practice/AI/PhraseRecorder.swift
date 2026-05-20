@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated struct PhraseRecorder {
+struct PhraseRecorder {
     struct OpenNote: Equatable {
         let startTimestamp: TimeInterval
         let velocity: Int
