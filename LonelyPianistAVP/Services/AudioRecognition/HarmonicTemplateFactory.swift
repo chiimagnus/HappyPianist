@@ -1,6 +1,6 @@
 import Foundation
 
-nonisolated struct HarmonicTemplateFactory: Sendable {
+nonisolated struct HarmonicTemplateProvider: Sendable {
     func makeTemplates(
         expectedMIDINotes: [Int],
         wrongCandidateMIDINotes: [Int],

@@ -13,14 +13,14 @@ protocol HarmonicTemplateDetectingProtocol: Sendable {
 }
 
 nonisolated struct TargetedHarmonicTemplateDetector: HarmonicTemplateDetectingProtocol {
-    private let templateFactory: HarmonicTemplateFactory
+    private let templateProvider: HarmonicTemplateProvider
     private let scorer: HarmonicTemplateScorer
 
     init(
-        templateFactory: HarmonicTemplateFactory = HarmonicTemplateFactory(),
+        templateProvider: HarmonicTemplateProvider = HarmonicTemplateProvider(),
         scorer: HarmonicTemplateScorer = HarmonicTemplateScorer()
     ) {
-        self.templateFactory = templateFactory
+        self.templateProvider = templateProvider
         self.scorer = scorer
     }
 
@@ -34,7 +34,7 @@ nonisolated struct TargetedHarmonicTemplateDetector: HarmonicTemplateDetectingPr
         profile: HarmonicTemplateTuningProfile
     ) -> TargetedHarmonicDetectionFrame {
         let startedAt = Date.now.timeIntervalSinceReferenceDate
-        let templates = templateFactory.makeTemplates(
+        let templates = templateProvider.makeTemplates(
             expectedMIDINotes: expectedMIDINotes,
             wrongCandidateMIDINotes: wrongCandidateMIDINotes,
             profile: profile
