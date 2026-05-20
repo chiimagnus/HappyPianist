@@ -28,12 +28,12 @@ func appStateAppliesKeyboardGeometryWhenAvailable() throws {
     )
 
     let appState = AppState(keyGeometryService: service)
-    let flowState = FlowState()
+    let practiceSetupState = PracticeSetupState()
     let guideViewModel = ARGuideViewModel(
         appState: appState,
-        flowState: flowState,
+        practiceSetupState: practiceSetupState,
         pianoModeRegistry: EmptyPianoModeRegistry(),
-        practiceSessionViewModelFactory: SinglePracticeSessionViewModelFactory(session: practiceSessionViewModel)
+        makePracticeSessionViewModel: SinglePracticeSessionViewModelProvider(session: practiceSessionViewModel).callAsFunction
     )
     _ = guideViewModel
 
@@ -66,12 +66,12 @@ func appStateDoesNotApplyKeyboardGeometryWhenGenerationFails() {
     )
 
     let appState = AppState(keyGeometryService: service)
-    let flowState = FlowState()
+    let practiceSetupState = PracticeSetupState()
     let guideViewModel = ARGuideViewModel(
         appState: appState,
-        flowState: flowState,
+        practiceSetupState: practiceSetupState,
         pianoModeRegistry: EmptyPianoModeRegistry(),
-        practiceSessionViewModelFactory: SinglePracticeSessionViewModelFactory(session: practiceSessionViewModel)
+        makePracticeSessionViewModel: SinglePracticeSessionViewModelProvider(session: practiceSessionViewModel).callAsFunction
     )
     _ = guideViewModel
 
@@ -95,7 +95,7 @@ private final class CapturingKeyGeometryService: PianoKeyGeometryServiceProtocol
     }
 }
 
-private final class SinglePracticeSessionViewModelFactory: PracticeSessionViewModelFactoryProtocol {
+private final class SinglePracticeSessionViewModelProvider {
     private let session: PracticeSessionViewModel
 
     init(session: PracticeSessionViewModel) {
@@ -103,7 +103,7 @@ private final class SinglePracticeSessionViewModelFactory: PracticeSessionViewMo
     }
 
     @MainActor
-    func makePracticeSessionViewModel(for _: String?) -> PracticeSessionViewModel {
+    func callAsFunction(_: String?) -> PracticeSessionViewModel {
         session
     }
 }

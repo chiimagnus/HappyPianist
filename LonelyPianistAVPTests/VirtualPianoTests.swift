@@ -243,12 +243,12 @@ func arGuideViewModelToggleOffClearsVirtualKeyboardAndStopsLiveNotes() throws {
         sequencerPlaybackService: playbackService
     )
     let appState = AppState()
-    let flowState = FlowState()
+    let practiceSetupState = PracticeSetupState()
     let viewModel = ARGuideViewModel(
         appState: appState,
-        flowState: flowState,
+        practiceSetupState: practiceSetupState,
         pianoModeRegistry: PianoModeRegistryService(modes: []),
-        practiceSessionViewModelFactory: SinglePracticeSessionViewModelFactory(session: session)
+        makePracticeSessionViewModel: SinglePracticeSessionViewModelProvider(session: session).callAsFunction
     )
 
     let geometry = makeTestKeyboardGeometry()
@@ -270,7 +270,7 @@ func arGuideViewModelToggleOffClearsVirtualKeyboardAndStopsLiveNotes() throws {
     #expect(session.keyboardGeometry == nil)
 }
 
-private final class SinglePracticeSessionViewModelFactory: PracticeSessionViewModelFactoryProtocol {
+private final class SinglePracticeSessionViewModelProvider {
     private let session: PracticeSessionViewModel
 
     init(session: PracticeSessionViewModel) {
@@ -278,7 +278,7 @@ private final class SinglePracticeSessionViewModelFactory: PracticeSessionViewMo
     }
 
     @MainActor
-    func makePracticeSessionViewModel(for _: String?) -> PracticeSessionViewModel {
+    func callAsFunction(_: String?) -> PracticeSessionViewModel {
         session
     }
 }

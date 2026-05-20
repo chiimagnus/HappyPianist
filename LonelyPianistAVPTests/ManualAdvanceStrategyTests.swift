@@ -60,15 +60,15 @@ func appStatePassesMeasureSpansToPracticeSession() {
         manualAdvanceModeProvider: { .measure }
     )
     let appState = AppState()
-    let flowState = FlowState()
+    let practiceSetupState = PracticeSetupState()
     let guideViewModel = ARGuideViewModel(
         appState: appState,
-        flowState: flowState,
+        practiceSetupState: practiceSetupState,
         pianoModeRegistry: PianoModeRegistryService(modes: []),
-        practiceSessionViewModelFactory: SinglePracticeSessionViewModelFactory(session: sessionViewModel)
+        makePracticeSessionViewModel: SinglePracticeSessionViewModelProvider(session: sessionViewModel).callAsFunction
     )
     #expect(guideViewModel.practiceSessionViewModel === sessionViewModel)
-    flowState.setImportedSteps(from: PreparedPractice(
+    practiceSetupState.setImportedSteps(from: PreparedPractice(
         steps: [
             PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
             PracticeStep(tick: 240, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
@@ -97,7 +97,7 @@ func appStatePassesMeasureSpansToPracticeSession() {
     #expect(sessionViewModel.currentStepIndex == 2)
 }
 
-private final class SinglePracticeSessionViewModelFactory: PracticeSessionViewModelFactoryProtocol {
+private final class SinglePracticeSessionViewModelProvider {
     private let session: PracticeSessionViewModel
 
     init(session: PracticeSessionViewModel) {
@@ -105,7 +105,7 @@ private final class SinglePracticeSessionViewModelFactory: PracticeSessionViewMo
     }
 
     @MainActor
-    func makePracticeSessionViewModel(for _: String?) -> PracticeSessionViewModel {
+    func callAsFunction(_: String?) -> PracticeSessionViewModel {
         session
     }
 }

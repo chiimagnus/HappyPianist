@@ -5,36 +5,23 @@ import Testing
 
 @Test
 @MainActor
-func bluetoothMIDIFactoryDoesNotInjectAudioRecognition() {
-    let mode = BluetoothMIDIPianoMode(makePracticeSessionViewModel: {
+func bluetoothMIDISessionDoesNotInjectAudioRecognition() {
+    let makePracticeSessionViewModel: @MainActor (String?) -> PracticeSessionViewModel = { modeID in
         PracticeSessionViewModel(
             pressDetectionService: NoopPressDetectionService(),
             chordAttemptAccumulator: NoopChordAttemptAccumulator(),
             sleeper: TaskSleeper(),
             sequencerPlaybackService: NoopPracticeSequencerPlaybackService(),
             audioRecognitionService: nil,
-            practiceInputEventSource: FakeProtocolSeparatedPracticeInputEventSource(),
+            practiceInputEventSource: modeID == PianoModeID.bluetoothMIDI.rawValue
+                ? FakeProtocolSeparatedPracticeInputEventSource()
+                : nil,
             audioStepAttemptAccumulator: AudioStepAttemptAccumulator(),
             handPianoActivityGate: HandPianoActivityGate()
         )
-    })
-    let registry = PianoModeRegistryService(modes: [mode])
-    let factory = PracticeSessionViewModelFactoryService(
-        pianoModeRegistry: registry,
-        makeFallbackPracticeSessionViewModel: {
-            PracticeSessionViewModel(
-                pressDetectionService: NoopPressDetectionService(),
-                chordAttemptAccumulator: NoopChordAttemptAccumulator(),
-                sleeper: TaskSleeper(),
-                sequencerPlaybackService: NoopPracticeSequencerPlaybackService(),
-                audioRecognitionService: nil,
-                practiceInputEventSource: nil,
-                audioStepAttemptAccumulator: AudioStepAttemptAccumulator(),
-                handPianoActivityGate: HandPianoActivityGate()
-            )
-        }
-    )
-    let session = factory.makePracticeSessionViewModel(for: mode.id)
+    }
+
+    let session = makePracticeSessionViewModel(PianoModeID.bluetoothMIDI.rawValue)
 
     #expect(session.audioRecognitionService == nil)
     #expect(session.practiceInputEventSource != nil)

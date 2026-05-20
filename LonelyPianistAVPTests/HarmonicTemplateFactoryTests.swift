@@ -1,9 +1,9 @@
 @testable import LonelyPianistAVP
 import Testing
 
-struct HarmonicTemplateFactoryTests {
-    @Test func factoryBuildsExpectedWrongAndOctaveTemplates() {
-        let templates = HarmonicTemplateFactory().makeTemplates(
+struct HarmonicTemplateProviderTests {
+    @Test func sessionBuilderBuildsExpectedWrongAndOctaveTemplates() {
+        let templates = HarmonicTemplateProvider().makeTemplates(
             expectedMIDINotes: [60, 64, 67],
             wrongCandidateMIDINotes: [59, 61, 64],
             profile: .lowLatencyDefault
