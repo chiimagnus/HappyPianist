@@ -29,8 +29,8 @@ struct PracticeSettingsView: View {
                 }
                 .pickerStyle(.menu)
 
-                if let backendStatusText {
-                    Text(backendStatusText)
+                if let effectiveBackendStatusText {
+                    Text(effectiveBackendStatusText)
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
@@ -91,6 +91,23 @@ struct PracticeSettingsView: View {
         .padding(16)
         .frame(minWidth: 320)
         .disabled(isAIPerformanceActive)
+    }
+
+    private var effectiveBackendStatusText: String? {
+        guard let selectedKind = ImprovBackendKind(rawValue: improvBackendKindRawValue) else {
+            return "Backend: invalid kind"
+        }
+
+        switch selectedKind {
+        case .networkBonjourHTTP:
+            return backendStatusText ?? "Backend: network"
+        case .localDeterministic:
+            return "Backend: local deterministic"
+        case .localRule:
+            return "Backend: local rule"
+        case .tickRangeReplay:
+            return "Backend: tick-range replay"
+        }
     }
 
     private func backendTitle(_ kind: ImprovBackendKind) -> String {
