@@ -99,6 +99,7 @@ final class ARGuideAIPerformanceViewModel {
             backends: [
                 NetworkBonjourHTTPImprovBackend(discoveryService: backendDiscoveryService),
                 LocalDeterministicImprovBackend(),
+                LocalRuleImprovBackend(),
                 TickRangeReplayImprovBackend(),
             ]
         )
