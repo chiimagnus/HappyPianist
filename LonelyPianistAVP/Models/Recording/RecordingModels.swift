@@ -21,3 +21,22 @@ struct RecordingTakeEvent: Codable, Equatable, Identifiable {
         self.kind = kind
     }
 }
+
+struct RecordingTake: Codable, Equatable, Identifiable {
+    let id: UUID
+    var name: String
+    let createdAt: Date
+    let events: [RecordingTakeEvent]
+
+    init(id: UUID = UUID(), name: String, createdAt: Date = .now, events: [RecordingTakeEvent]) {
+        self.id = id
+        self.name = name
+        self.createdAt = createdAt
+        self.events = events
+    }
+
+    var durationSeconds: TimeInterval {
+        events.map(\.time).max() ?? 0
+    }
+}
+

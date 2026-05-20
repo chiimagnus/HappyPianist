@@ -1,3 +1,9 @@
+enum ARTrackingMode: Equatable {
+    case calibration
+    case practiceBluetoothMIDI
+    case practiceVirtualOrAudio
+}
+
 enum DataProviderState: Equatable {
     case idle
     case running
@@ -26,3 +32,4 @@ enum DataProviderState: Equatable {
         }
     }
 }
+

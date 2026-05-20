@@ -1,5 +1,14 @@
 import Foundation
 
+struct SongLibraryEntry: Codable, Equatable, Identifiable {
+    let id: UUID
+    var displayName: String
+    var musicXMLFileName: String
+    var importedAt: Date
+    var audioFileName: String?
+    var isBundled: Bool? = nil
+}
+
 struct SongLibraryIndex: Codable, Equatable {
     var entries: [SongLibraryEntry]
     var lastSelectedEntryID: UUID?
@@ -15,3 +24,4 @@ enum SongLibraryLayout {
     static let audioDirectoryName = "audio"
     static let indexFileName = "index.json"
 }
+
