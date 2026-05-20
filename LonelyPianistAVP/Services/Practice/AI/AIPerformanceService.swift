@@ -120,10 +120,12 @@ final class AIPerformanceService {
         if wasEnabled == false {
             silenceTrigger.reset()
             phraseRecorder.reset()
+            lastImprovStatusText = "AI 即兴：等待你弹奏一句（停 2 秒触发）"
+            latestSchedule = []
+            notifyStateChanged()
         }
 
         guard pollTask == nil else { return }
-        guard practiceSession?.currentStep != nil else { return }
 
         pollTask = Task { @MainActor [weak self] in
             guard let self else { return }

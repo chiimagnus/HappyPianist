@@ -91,7 +91,10 @@ final class ARGuideAIPerformanceViewModel {
     }
 
     func shutdown() {
-        aiPerformanceService.shutdown()
+        // NOTE: ARGuideViewModel lives for the app lifetime, and immersive spaces may disappear/re-appear.
+        // We must not permanently "shutdown" the AIPerformanceService here, otherwise it cannot be re-enabled
+        // after returning to practice. Treat this as a reversible teardown.
+        aiPerformanceService.setEnabled(false)
     }
 
     private func makeBackendRegistry() -> ImprovBackendRegistry {
