@@ -29,6 +29,7 @@ final class AIPerformanceService {
 
     private let logger: Logger
     private let nowUptimeSeconds: () -> TimeInterval
+    private let improvSessionID: String
     private let backendDiscoveryService: any BonjourBackendDiscoveryServiceProtocol
     private let backendRegistry: ImprovBackendRegistry
     private let selectedBackendKind: @MainActor () -> ImprovBackendKind
@@ -65,6 +66,7 @@ final class AIPerformanceService {
     ) {
         self.logger = logger
         self.nowUptimeSeconds = nowUptimeSeconds
+        improvSessionID = UUID().uuidString
         self.backendDiscoveryService = backendDiscoveryService
         self.backendRegistry = backendRegistry
         self.selectedBackendKind = selectedBackendKind
@@ -253,7 +255,7 @@ final class AIPerformanceService {
         }
 
         let params = ImprovGenerateParams(topP: 0.95, maxTokens: 256, strategy: "deterministic", seed: nil)
-        let request = ImprovGenerateRequest(notes: promptNotes, params: params, sessionID: nil)
+        let request = ImprovGenerateRequest(notes: promptNotes, params: params, sessionID: improvSessionID)
 
         let playbackPlan: ImprovBackendPlaybackPlan
         do {
