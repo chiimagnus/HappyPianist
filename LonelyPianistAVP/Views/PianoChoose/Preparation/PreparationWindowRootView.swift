@@ -2,7 +2,7 @@ import SwiftUI
 
 struct PreparationWindowRootView: View {
     @Bindable var arGuideViewModel: ARGuideViewModel
-    @Environment(WindowCoordinator.self) private var coordinator
+    @Environment(WindowTransitionState.self) private var windowState
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
     @Environment(\.scenePhase) private var scenePhase
@@ -16,16 +16,16 @@ struct PreparationWindowRootView: View {
     var body: some View {
         let actions = PreparationNavigationActions(
             backToTypePicker: {
-                coordinator.resetToPreparation(reason: "user tapped back from preparation")
+                windowState.resetToPreparation(reason: "user tapped back from preparation")
             },
             nextToLibrary: {
-                coordinator.beginTransition(from: .preparation, to: .library)
-                openWindow(id: WindowIDs.library)
+                windowState.beginTransition(from: .preparation, to: .library)
+                openWindow(id: WindowID.library)
             }
         )
 
         Group {
-            if let selectedMode = coordinator.pianoModeRegistry.mode(for: coordinator.flowState.selectedPianoModeID) {
+            if let selectedMode = windowState.pianoModeRegistry.mode(for: windowState.practiceSetupState.selectedPianoModeID) {
                 PianoModePreparationRouterView(
                     route: selectedMode.preparationRoute,
                     arGuideViewModel: arGuideViewModel
@@ -46,7 +46,7 @@ struct PreparationWindowRootView: View {
     }
 
     private func dismissPendingSourceIfNeeded() {
-        guard let transition = coordinator.consumePendingTransition(to: .preparation) else { return }
+        guard let transition = windowState.consumePendingTransition(to: .preparation) else { return }
         withTransaction(\.dismissBehavior, .destructive) {
             dismissWindow(id: transition.fromWindowID)
         }

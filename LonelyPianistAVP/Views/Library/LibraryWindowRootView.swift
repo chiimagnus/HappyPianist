@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct LibraryWindowRootView: View {
-    @Environment(WindowCoordinator.self) private var coordinator
+    @Environment(WindowTransitionState.self) private var windowState
     @Environment(\.openWindow) private var openWindow
     @Environment(\.dismissWindow) private var dismissWindow
     @Environment(\.scenePhase) private var scenePhase
@@ -15,21 +15,21 @@ struct LibraryWindowRootView: View {
     }
 
     var body: some View {
-        let selectedTitle = coordinator.pianoModeRegistry
-            .mode(for: coordinator.flowState.selectedPianoModeID)?
+        let selectedTitle = windowState.pianoModeRegistry
+            .mode(for: windowState.practiceSetupState.selectedPianoModeID)?
             .pickerCard.title
 
-        LibraryFlowView(
+        LibraryContentView(
             songLibraryViewModel: songLibraryViewModel,
             selectedPianoModeTitle: selectedTitle,
             onBackToPreparation: {
-                coordinator.resetToPreparation(reason: "user tapped back from library window")
-                coordinator.beginTransition(from: .library, to: .preparation)
-                openWindow(id: WindowIDs.preparation)
+                windowState.resetToPreparation(reason: "user tapped back from library window")
+                windowState.beginTransition(from: .library, to: .preparation)
+                openWindow(id: WindowID.preparation)
             },
             onStartPractice: {
-                coordinator.beginTransition(from: .library, to: .practice)
-                openWindow(id: WindowIDs.practice)
+                windowState.beginTransition(from: .library, to: .practice)
+                openWindow(id: WindowID.practice)
             }
         )
         // .frame(minWidth: 700, idealWidth: 900, minHeight: 520, idealHeight: 700)
@@ -43,7 +43,7 @@ struct LibraryWindowRootView: View {
     }
 
     private func dismissPendingSourceIfNeeded() {
-        guard let transition = coordinator.consumePendingTransition(to: .library) else { return }
+        guard let transition = windowState.consumePendingTransition(to: .library) else { return }
         withTransaction(\.dismissBehavior, .destructive) {
             dismissWindow(id: transition.fromWindowID)
         }
