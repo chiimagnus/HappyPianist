@@ -1,4 +1,5 @@
 import Foundation
+import ImprovProtocol
 
 struct TickRangeReplayImprovBackend: ImprovBackendProtocol {
     let kind: ImprovBackendKind = .tickRangeReplay
@@ -11,4 +12,3 @@ struct TickRangeReplayImprovBackend: ImprovBackendProtocol {
         .tickRange(maxMeasures: 2)
     }
 }
-
