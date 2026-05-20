@@ -7,13 +7,13 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		2D68D2A6F2F444DAB62E88DF /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 83545B10812945C78780DB2C /* ZIPFoundation */; };
-		D5BDD7D2BFC4449DACA31CD2 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 83545B10812945C78780DB2C /* ZIPFoundation */; };
-		2CB969334545819489571421 /* ImprovEngines in Frameworks */ = {isa = PBXBuildFile; productRef = A9D89AB87B62609858F415BC /* ImprovEngines */; };
-		2E09771D0D313C35B5AD3F5C /* ImprovProtocol in Frameworks */ = {isa = PBXBuildFile; productRef = 955C63A1CBE9F5564FA71073 /* ImprovProtocol */; };
-		D85596AE2F83FF72005BE7FE /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = D85596AD2F83FF72005BE7FE /* RealityKitContent */; };
 		2519B012CCDBE654105A3926 /* ImprovEngines in Frameworks */ = {isa = PBXBuildFile; productRef = A9D89AB87B62609858F415BC /* ImprovEngines */; };
+		2CB969334545819489571421 /* ImprovEngines in Frameworks */ = {isa = PBXBuildFile; productRef = A9D89AB87B62609858F415BC /* ImprovEngines */; };
+		2D68D2A6F2F444DAB62E88DF /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 83545B10812945C78780DB2C /* ZIPFoundation */; };
+		2E09771D0D313C35B5AD3F5C /* ImprovProtocol in Frameworks */ = {isa = PBXBuildFile; productRef = 955C63A1CBE9F5564FA71073 /* ImprovProtocol */; };
 		680D52C8DE8C468E0275EAFA /* ImprovProtocol in Frameworks */ = {isa = PBXBuildFile; productRef = 955C63A1CBE9F5564FA71073 /* ImprovProtocol */; };
+		D5BDD7D2BFC4449DACA31CD2 /* ZIPFoundation in Frameworks */ = {isa = PBXBuildFile; productRef = 83545B10812945C78780DB2C /* ZIPFoundation */; };
+		D85596AE2F83FF72005BE7FE /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = D85596AD2F83FF72005BE7FE /* RealityKitContent */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
