@@ -25,12 +25,12 @@ actor NetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
     nonisolated let kind: ImprovBackendKind = .networkBonjourHTTP
     nonisolated let displayName: String = "网络本地连接"
 
-    private let discoveryService: BonjourBackendDiscoveryService
+    private let discoveryService: any BonjourBackendDiscoveryServiceProtocol
     private let backendClient: any ImprovBackendClientProtocol
     private let scheduleBuilder: ImprovScheduleBuilder
 
     init(
-        discoveryService: BonjourBackendDiscoveryService,
+        discoveryService: any BonjourBackendDiscoveryServiceProtocol,
         backendClient: any ImprovBackendClientProtocol = ImprovBackendClient(),
         scheduleBuilder: ImprovScheduleBuilder = ImprovScheduleBuilder()
     ) {

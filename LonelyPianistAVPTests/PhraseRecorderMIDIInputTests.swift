@@ -1,5 +1,6 @@
 import Foundation
 @testable import LonelyPianistAVP
+import ImprovProtocol
 import Testing
 
 @Test

@@ -29,7 +29,7 @@ final class AIPerformanceService {
 
     private let logger: Logger
     private let nowUptimeSeconds: () -> TimeInterval
-    private let backendDiscoveryService: BonjourBackendDiscoveryService
+    private let backendDiscoveryService: any BonjourBackendDiscoveryServiceProtocol
     private let backendRegistry: ImprovBackendRegistry
     private let selectedBackendKind: @MainActor () -> ImprovBackendKind
     private let backendTimeout: Duration
@@ -55,7 +55,7 @@ final class AIPerformanceService {
     init(
         logger: Logger,
         nowUptimeSeconds: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
-        backendDiscoveryService: BonjourBackendDiscoveryService,
+        backendDiscoveryService: any BonjourBackendDiscoveryServiceProtocol,
         backendRegistry: ImprovBackendRegistry,
         selectedBackendKind: @escaping @MainActor () -> ImprovBackendKind,
         backendTimeout: Duration = .seconds(2),
