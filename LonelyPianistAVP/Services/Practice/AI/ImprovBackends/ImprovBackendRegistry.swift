@@ -1,6 +1,6 @@
 import Foundation
 
-struct ImprovBackendRegistry: Sendable {
+struct ImprovBackendRegistry {
     private var backendsByKind: [ImprovBackendKind: any ImprovBackendProtocol] = [:]
 
     init(backends: [any ImprovBackendProtocol] = []) {
@@ -17,4 +17,3 @@ struct ImprovBackendRegistry: Sendable {
         backendsByKind[kind]
     }
 }
-
