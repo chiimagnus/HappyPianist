@@ -24,10 +24,10 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
     let midiPracticeStepMatcher: any MIDIPracticeStepMatchingProtocol
     let settingsProvider: any PracticeSessionSettingsProviderProtocol
 
-    var practiceMIDIInputCoordinator: PracticeMIDIInputCoordinator?
-    var audioRecognitionCoordinator: PracticeAudioRecognitionCoordinator?
-    var playbackCoordinator: PracticePlaybackCoordinator?
-    var manualReplayCoordinator: PracticeManualReplayCoordinator?
+    var practiceMIDIInputService: PracticeMIDIInputService?
+    var audioRecognitionInputService: PracticeAudioRecognitionInputService?
+    var playbackControlService: PracticePlaybackControlService?
+    var manualReplayService: PracticeManualReplayService?
     var highlightGuideController: PracticeHighlightGuideController?
     var handGateController: PracticeHandGateController?
     var virtualPianoInputController: VirtualPianoInputController?
@@ -85,14 +85,14 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
         self.settingsProvider = resolvedSettingsProvider
         self.manualAdvanceModeProvider = manualAdvanceModeProvider ?? { resolvedSettingsProvider.manualAdvanceMode }
 
-        practiceMIDIInputCoordinator = PracticeMIDIInputCoordinator(
+        practiceMIDIInputService = PracticeMIDIInputService(
             practiceInputEventSource: practiceInputEventSource,
             matcher: self.midiPracticeStepMatcher,
             stateStore: stateStore,
             effectHandler: self,
             consumeEvents: true
         )
-        audioRecognitionCoordinator = PracticeAudioRecognitionCoordinator(
+        audioRecognitionInputService = PracticeAudioRecognitionInputService(
             service: audioRecognitionService,
             accumulator: audioStepAttemptAccumulator,
             stateStore: stateStore,
@@ -100,7 +100,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
             consumeStreams: true
         )
 
-        playbackCoordinator = PracticePlaybackCoordinator(
+        playbackControlService = PracticePlaybackControlService(
             sleeper: sleeper,
             sequencerPlaybackService: sequencerPlaybackService,
             playbackSequenceBuilder: self.playbackSequenceBuilder,
@@ -112,7 +112,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
             leadInSeconds: autoplayTimingLeadInSeconds
         )
 
-        manualReplayCoordinator = PracticeManualReplayCoordinator(
+        manualReplayService = PracticeManualReplayService(
             sleeper: sleeper,
             sequencerPlaybackService: sequencerPlaybackService,
             playbackSequenceBuilder: self.playbackSequenceBuilder,
@@ -145,14 +145,14 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
         hasShutdown = true
 
         stopManualReplayTask(restoreAudioRecognition: false)
-        playbackCoordinator?.shutdown()
+        playbackControlService?.shutdown()
         handle(effect: .stopAudioRecognition)
         handle(effect: .stopPracticeInput)
 
-        audioRecognitionCoordinator?.shutdown()
-        practiceMIDIInputCoordinator?.shutdown()
+        audioRecognitionInputService?.shutdown()
+        practiceMIDIInputService?.shutdown()
         highlightGuideController?.shutdown()
-        manualReplayCoordinator?.shutdown()
+        manualReplayService?.shutdown()
         handGateController?.shutdown()
         virtualPianoInputController?.shutdown()
     }
@@ -169,7 +169,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
             playCurrentStepSound(applyRecognitionSuppress: applyRecognitionSuppress)
         case .stopTransientWork:
             stopManualReplayTask()
-            playbackCoordinator?.stopTransientWork()
+            playbackControlService?.stopTransientWork()
         case .stopAudioRecognition:
             stopAudioRecognition()
         case .stopPracticeInput:

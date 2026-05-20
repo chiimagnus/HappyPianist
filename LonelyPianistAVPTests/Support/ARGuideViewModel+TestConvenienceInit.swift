@@ -2,23 +2,19 @@
 
 extension ARGuideViewModel {
     @MainActor
-    convenience init(appState: AppState, flowState: FlowState) {
+    convenience init(appState: AppState, practiceSetupState: PracticeSetupState) {
         let registry = PianoModeRegistryService(modes: [])
-        let factory = PracticeSessionViewModelFactoryService(
+        self.init(
+            appState: appState,
+            practiceSetupState: practiceSetupState,
             pianoModeRegistry: registry,
-            makeFallbackPracticeSessionViewModel: {
+            makePracticeSessionViewModel: { _ in
                 PracticeSessionViewModel(
                     pressDetectionService: PressDetectionService(),
                     chordAttemptAccumulator: ChordAttemptAccumulator(),
                     sleeper: TaskSleeper()
                 )
             }
-        )
-        self.init(
-            appState: appState,
-            flowState: flowState,
-            pianoModeRegistry: registry,
-            practiceSessionViewModelFactory: factory
         )
     }
 }
