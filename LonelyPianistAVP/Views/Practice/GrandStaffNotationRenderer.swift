@@ -536,14 +536,25 @@ struct GrandStaffNotationRenderer: GrandStaffNotationRendererProtocol {
         )
         let path = Path(ellipseIn: rect)
         let baseOpacity: Double = item.isHighlighted ? 1.0 : 0.55
-        context.fill(path, with: .color(Color.primary.opacity(baseOpacity * fadeScale)))
+        let noteColor = resolvedNoteColor(for: item)
+        context.fill(path, with: .color(noteColor.opacity(baseOpacity * fadeScale)))
 
         if item.showsSharpAccidental {
             let accidentalOpacity = min(1.0, 0.85 * fadeScale)
             let accidental = Text("\u{E262}")
                 .font(.custom("Bravura", size: layout.lineSpacing * 1.05))
-                .foregroundStyle(Color.primary.opacity(accidentalOpacity))
+                .foregroundStyle(noteColor.opacity(accidentalOpacity))
             context.draw(accidental, at: CGPoint(x: x - layout.noteWidth * 1.0, y: y))
+        }
+    }
+
+    private func resolvedNoteColor(for item: GrandStaffNotationItem) -> Color {
+        guard item.isHighlighted else { return .primary }
+        switch item.hand {
+        case .left:
+            return .cyan
+        case .right:
+            return .yellow
         }
     }
 
