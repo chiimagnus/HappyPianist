@@ -76,7 +76,8 @@ final class PianoGuideOverlayController {
             phase: descriptor.phase,
             keyKind: descriptor.keyKind
         )
-        let tinted = style.tintToken.uiColor.withAlphaComponent(CGFloat(max(0, min(1, style.opacity))))
+        let clampedOpacity = Float(max(0, min(1, style.opacity)))
+        let tinted = style.tintToken.uiColor
         let texture = loadDecalTextureIfNeeded()
 
         var material = UnlitMaterial()
@@ -85,6 +86,10 @@ final class PianoGuideOverlayController {
         } else {
             material.color = .init(tint: tinted)
         }
+        // Make phase opacity (triggered vs active) observable in 3D.
+        // For `UnlitMaterial.color` the tint alpha is not consistently honored when a texture is present,
+        // so drive transparency through the material blending configuration instead.
+        material.blending = .transparent(opacity: .init(floatLiteral: clampedOpacity))
         return material
     }
 
