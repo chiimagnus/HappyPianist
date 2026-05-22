@@ -12,6 +12,8 @@ struct PracticeSettingsView: View {
     let onRetryVirtualPianoPlacement: () -> Void
 
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
+    @AppStorage(AudioOutputVolumeSettings.userDefaultsKey)
+    private var audioOutputVolume = Double(AudioOutputVolumeSettings.defaultValue)
     @AppStorage(PracticeSessionSettingsKeys.manualAdvanceMode) private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
     @AppStorage(PracticeSessionSettingsKeys.handMode) private var practiceHandModeRawValue = PracticeHandMode.both.rawValue
     @AppStorage(PracticeSessionSettingsKeys.improvBackendKind)
@@ -19,82 +21,97 @@ struct PracticeSettingsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Toggle("AI 即兴演奏（虚拟演奏家）", isOn: $virtualPerformerEnabled)
-            if virtualPerformerEnabled {
-                Picker("即兴后端", selection: $improvBackendKindRawValue) {
-                    ForEach(ImprovBackendKind.allCases) { kind in
-                        Text(backendTitle(kind)).tag(kind.rawValue)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("输出音量")
+                HStack {
+                    Slider(value: $audioOutputVolume, in: 0...1)
+                    Text(audioOutputVolume, format: .percent)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 56, alignment: .trailing)
+                }
+            }
+
+            Divider()
+
+            VStack(alignment: .leading, spacing: 12) {
+                Toggle("AI 即兴演奏（虚拟演奏家）", isOn: $virtualPerformerEnabled)
+                if virtualPerformerEnabled {
+                    Picker("即兴后端", selection: $improvBackendKindRawValue) {
+                        ForEach(ImprovBackendKind.allCases) { kind in
+                            Text(backendTitle(kind)).tag(kind.rawValue)
+                        }
+                    }
+                    .pickerStyle(.menu)
+
+                    if let effectiveBackendStatusText {
+                        Text(effectiveBackendStatusText)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    if let lastImprovStatusText {
+                        Text(lastImprovStatusText)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
                 }
-                .pickerStyle(.menu)
 
-                if let effectiveBackendStatusText {
-                    Text(effectiveBackendStatusText)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-                if let lastImprovStatusText {
-                    Text(lastImprovStatusText)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
-            Divider()
-
-            if let recordingSourceText {
-                Text(recordingSourceText)
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-
-            Button("打开录制库", systemImage: "list.bullet") {
-                onOpenTakeLibrary()
-            }
-            .buttonStyle(.bordered)
-            .buttonBorderShape(.roundedRectangle)
-            .hoverEffect()
-
-            Divider()
-
-            Toggle("调试：显示键盘坐标轴（X/Y/Z）", isOn: $debugKeyboardAxesOverlayEnabled)
-
-            Divider()
-
-            Picker("练习手", selection: $practiceHandModeRawValue) {
-                ForEach(PracticeHandMode.allCases) { mode in
-                    Text(mode.title).tag(mode.rawValue)
-                }
-            }
-            .pickerStyle(.segmented)
-
-            Picker("手动前进方式", selection: $manualAdvanceModeRawValue) {
-                ForEach(ManualAdvanceMode.allCases) { mode in
-                    Text(mode.title).tag(mode.rawValue)
-                }
-            }
-            .pickerStyle(.segmented)
-
-            if isVirtualPianoMode {
                 Divider()
 
-                if let gazePlaneDiskStatusText {
-                    Text(gazePlaneDiskStatusText)
-                        .font(.callout)
+                if let recordingSourceText {
+                    Text(recordingSourceText)
+                        .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
 
-                Button("重试放置", systemImage: "arrow.clockwise") {
-                    onRetryVirtualPianoPlacement()
+                Button("打开录制库", systemImage: "list.bullet") {
+                    onOpenTakeLibrary()
                 }
-                .buttonStyle(.borderedProminent)
+                .buttonStyle(.bordered)
                 .buttonBorderShape(.roundedRectangle)
                 .hoverEffect()
+
+                Divider()
+
+                Toggle("调试：显示键盘坐标轴（X/Y/Z）", isOn: $debugKeyboardAxesOverlayEnabled)
+
+                Divider()
+
+                Picker("练习手", selection: $practiceHandModeRawValue) {
+                    ForEach(PracticeHandMode.allCases) { mode in
+                        Text(mode.title).tag(mode.rawValue)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                Picker("手动前进方式", selection: $manualAdvanceModeRawValue) {
+                    ForEach(ManualAdvanceMode.allCases) { mode in
+                        Text(mode.title).tag(mode.rawValue)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                if isVirtualPianoMode {
+                    Divider()
+
+                    if let gazePlaneDiskStatusText {
+                        Text(gazePlaneDiskStatusText)
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    Button("重试放置", systemImage: "arrow.clockwise") {
+                        onRetryVirtualPianoPlacement()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.roundedRectangle)
+                    .hoverEffect()
+                }
             }
+            .disabled(isAIPerformanceActive)
         }
         .padding(16)
         .frame(minWidth: 320)
-        .disabled(isAIPerformanceActive)
     }
 
     private var effectiveBackendStatusText: String? {
