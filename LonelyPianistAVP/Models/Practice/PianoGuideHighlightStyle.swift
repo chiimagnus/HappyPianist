@@ -20,7 +20,7 @@ struct PianoGuideHighlightStyle: Equatable, Hashable {
         let opacity: Double
         switch (keyKind, phase, hand) {
         case (.white, .triggered, _):
-            opacity = 0.75
+            opacity = 0.90
         case (.white, .active, .right):
             opacity = 0.48
         case (.white, .active, .left):
@@ -36,4 +36,3 @@ struct PianoGuideHighlightStyle: Equatable, Hashable {
         return PianoGuideHighlightStyle(tintToken: tintToken, opacity: opacity)
     }
 }
-
