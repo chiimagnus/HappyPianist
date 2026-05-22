@@ -287,7 +287,7 @@ class AppState {
         let makePressDetectionService: () -> PressDetectionServiceProtocol = { PressDetectionService() }
         let makeChordAttemptAccumulator: () -> ChordAttemptAccumulatorProtocol = { ChordAttemptAccumulator() }
         let makeSleeper: () -> SleeperProtocol = { TaskSleeper() }
-        let makeSequencerPlaybackService: () -> PracticeSequencerPlaybackServiceProtocol = {
+        let makeLocalSamplerPlaybackService: () -> PracticeSequencerPlaybackServiceProtocol = {
             AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2")
         }
         let makeAudioStepAttemptAccumulator: () -> AudioStepAttemptAccumulator = {
@@ -313,23 +313,38 @@ class AppState {
         let makePracticeSessionViewModel: @MainActor (String?) -> PracticeSessionViewModel = { pianoModeID in
                 switch PianoModeID(rawValue: pianoModeID ?? "") {
                     case .bluetoothMIDI:
-                        PracticeSessionViewModel(
+                        let settingsProvider = UserDefaultsPracticeSessionSettingsProvider()
+                        let routing = settingsProvider.soundRoutingSettings
+                        let sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol
+                        switch routing.outputRoute {
+                        case .localSampler:
+                            sequencerPlaybackService = makeLocalSamplerPlaybackService()
+                        case .externalMIDIDestination:
+                            if let destinationUniqueID = routing.midiDestinationUniqueID {
+                                sequencerPlaybackService = CoreMIDIPracticePlaybackService(destinationUniqueID: destinationUniqueID)
+                            } else {
+                                sequencerPlaybackService = makeLocalSamplerPlaybackService()
+                            }
+                        }
+
+                        return PracticeSessionViewModel(
                             pressDetectionService: makePressDetectionService(),
                             chordAttemptAccumulator: makeChordAttemptAccumulator(),
                             sleeper: makeSleeper(),
-                            sequencerPlaybackService: makeSequencerPlaybackService(),
+                            sequencerPlaybackService: sequencerPlaybackService,
                             audioRecognitionService: nil,
                             practiceInputEventSource: makeBluetoothMIDIEventSource(),
                             audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
-                            handPianoActivityGate: makeHandPianoActivityGate()
+                            handPianoActivityGate: makeHandPianoActivityGate(),
+                            settingsProvider: settingsProvider
                         )
 
                     case .virtualPiano:
-                        PracticeSessionViewModel(
+                        return PracticeSessionViewModel(
                             pressDetectionService: makePressDetectionService(),
                             chordAttemptAccumulator: makeChordAttemptAccumulator(),
                             sleeper: makeSleeper(),
-                            sequencerPlaybackService: makeSequencerPlaybackService(),
+                            sequencerPlaybackService: makeLocalSamplerPlaybackService(),
                             audioRecognitionService: nil,
                             practiceInputEventSource: nil,
                             audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
@@ -337,11 +352,11 @@ class AppState {
                         )
 
                     default:
-                        PracticeSessionViewModel(
+                        return PracticeSessionViewModel(
                             pressDetectionService: makePressDetectionService(),
                             chordAttemptAccumulator: makeChordAttemptAccumulator(),
                             sleeper: makeSleeper(),
-                            sequencerPlaybackService: makeSequencerPlaybackService(),
+                            sequencerPlaybackService: makeLocalSamplerPlaybackService(),
                             audioRecognitionService: makeAudioRecognitionService(),
                             practiceInputEventSource: nil,
                             audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
