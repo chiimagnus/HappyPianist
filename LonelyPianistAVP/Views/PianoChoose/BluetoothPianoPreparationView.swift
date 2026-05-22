@@ -58,9 +58,17 @@ struct BluetoothMIDIConnectionSection: View {
 
     @State private var bluetoothAccessViewModel = BluetoothAccessViewModel()
     @State private var sourceConnectionViewModel = MIDISourceConnectionViewModel()
+    @State private var destinationConnectionViewModel = MIDIDestinationConnectionViewModel()
     @State private var centralViewReloadID = UUID()
     @State private var isDiagnosticsExpanded = false
     @State private var isDevicePickerPresented = false
+
+    @AppStorage(PracticeSessionSettingsKeys.soundOutputRoute)
+    private var soundOutputRouteRawValue = PracticeSoundOutputRoute.localSampler.rawValue
+    @AppStorage(PracticeSessionSettingsKeys.midiDestinationUniqueID)
+    private var midiDestinationUniqueID = 0
+    @AppStorage(PracticeSessionSettingsKeys.sendLocalControlOff)
+    private var sendLocalControlOff = false
 
     init(
         onSourceCountChange: @escaping @MainActor (Int) -> Void
@@ -108,6 +116,44 @@ struct BluetoothMIDIConnectionSection: View {
                         .font(.callout)
 
                         Spacer()
+                    }
+
+                    Divider()
+
+                    VStack(alignment: .leading, spacing: 12) {
+                        Picker("发声路由", selection: $soundOutputRouteRawValue) {
+                            ForEach(PracticeSoundOutputRoute.allCases) { route in
+                                Text(route.title).tag(route.rawValue)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+
+                        HStack(spacing: 12) {
+                            Picker("MIDI 输出目的地", selection: $midiDestinationUniqueID) {
+                                Text("未选择").tag(0)
+                                ForEach(destinationConnectionViewModel.destinations) { destination in
+                                    Text(destination.name).tag(Int(destination.id))
+                                }
+                            }
+                            .pickerStyle(.menu)
+
+                            Button("刷新输出", systemImage: "arrow.clockwise") {
+                                destinationConnectionViewModel.refreshDestinations()
+                            }
+                            .buttonStyle(.bordered)
+                        }
+
+                        Toggle("Local Control Off（可选）", isOn: $sendLocalControlOff)
+
+                        Text("若选择“仅 AVP 发声”，你可以在钢琴上手动关闭本地音量；或勾选此项让 AVP best-effort 向钢琴发送 Local Control Off（兼容性不保证）。")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+
+                        if let message = destinationConnectionViewModel.lastErrorMessage {
+                            Text(message)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
 
                     DisclosureGroup("诊断信息", isExpanded: $isDiagnosticsExpanded) {
@@ -196,6 +242,7 @@ struct BluetoothMIDIConnectionSection: View {
         }
         .onAppear {
             sourceConnectionViewModel.start()
+            destinationConnectionViewModel.start()
             onSourceCountChange(sourceConnectionViewModel.sourceCount)
 
             Task { @MainActor in
@@ -204,7 +251,20 @@ struct BluetoothMIDIConnectionSection: View {
         }
         .onDisappear {
             sourceConnectionViewModel.stop()
+            destinationConnectionViewModel.stop()
         }
+        .onChange(of: sendLocalControlOff) {
+            applyLocalControlOffIfNeeded()
+        }
+        .onChange(of: midiDestinationUniqueID) {
+            applyLocalControlOffIfNeeded()
+        }
+    }
+
+    private func applyLocalControlOffIfNeeded() {
+        guard midiDestinationUniqueID > 0 else { return }
+        guard let destinationUniqueID = Int32(exactly: midiDestinationUniqueID) else { return }
+        destinationConnectionViewModel.sendLocalControlOff(sendLocalControlOff, destinationUniqueID: destinationUniqueID)
     }
 
     private func accessStatusCard(

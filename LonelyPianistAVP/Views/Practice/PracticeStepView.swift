@@ -106,6 +106,7 @@ struct PracticeStepView: View {
                         recordingSourceText: viewModel.recordingSourceText,
                         isAIPerformanceActive: viewModel.isAIPerformanceActive,
                         isVirtualPianoMode: isVirtualPianoMode,
+                        isBluetoothMIDIMode: viewModel.isBluetoothMIDIMode,
                         gazePlaneDiskStatusText: viewModel.gazePlaneDiskStatusText,
                         onOpenTakeLibrary: {
                             isSettingsPopoverPresented = false
@@ -113,6 +114,9 @@ struct PracticeStepView: View {
                         },
                         onRetryVirtualPianoPlacement: {
                             viewModel.retryVirtualPianoPlacement()
+                        },
+                        onRequestSessionRebuild: {
+                            viewModel.replacePracticeSessionViewModel()
                         }
                     )
                 }

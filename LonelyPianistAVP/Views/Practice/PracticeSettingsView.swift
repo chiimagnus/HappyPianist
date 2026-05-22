@@ -7,9 +7,11 @@ struct PracticeSettingsView: View {
     let recordingSourceText: String?
     let isAIPerformanceActive: Bool
     let isVirtualPianoMode: Bool
+    let isBluetoothMIDIMode: Bool
     let gazePlaneDiskStatusText: String?
     let onOpenTakeLibrary: () -> Void
     let onRetryVirtualPianoPlacement: () -> Void
+    let onRequestSessionRebuild: () -> Void
 
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
     @AppStorage(AudioOutputVolumeSettings.userDefaultsKey)
@@ -18,6 +20,14 @@ struct PracticeSettingsView: View {
     @AppStorage(PracticeSessionSettingsKeys.handMode) private var practiceHandModeRawValue = PracticeHandMode.both.rawValue
     @AppStorage(PracticeSessionSettingsKeys.improvBackendKind)
     private var improvBackendKindRawValue = ImprovBackendKind.networkBonjourHTTP.rawValue
+    @AppStorage(PracticeSessionSettingsKeys.soundOutputRoute)
+    private var soundOutputRouteRawValue = PracticeSoundOutputRoute.localSampler.rawValue
+    @AppStorage(PracticeSessionSettingsKeys.midiDestinationUniqueID)
+    private var midiDestinationUniqueID = 0
+    @AppStorage(PracticeSessionSettingsKeys.sendLocalControlOff)
+    private var sendLocalControlOff = false
+
+    @State private var destinationConnectionViewModel = MIDIDestinationConnectionViewModel()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -36,6 +46,65 @@ struct PracticeSettingsView: View {
             }
 
             Divider()
+
+            if isBluetoothMIDIMode {
+                VStack(alignment: .leading, spacing: 12) {
+                    Picker("发声路由", selection: $soundOutputRouteRawValue) {
+                        ForEach(PracticeSoundOutputRoute.allCases) { route in
+                            Text(route.title).tag(route.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    HStack(spacing: 12) {
+                        Picker("MIDI 输出目的地", selection: $midiDestinationUniqueID) {
+                            Text("未选择").tag(0)
+                            ForEach(destinationConnectionViewModel.destinations) { destination in
+                                Text(destination.name).tag(Int(destination.id))
+                            }
+                        }
+                        .pickerStyle(.menu)
+
+                        Button("刷新输出", systemImage: "arrow.clockwise") {
+                            destinationConnectionViewModel.refreshDestinations()
+                        }
+                        .buttonStyle(.bordered)
+                    }
+
+                    Toggle("Local Control Off（可选）", isOn: $sendLocalControlOff)
+
+                    Text("变更路由/目的地会重启当前练习会话（进度可能重置）。输出音量不会受影响。")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+
+                    Button("应用路由变更并重启会话", systemImage: "arrow.clockwise") {
+                        onRequestSessionRebuild()
+                    }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.roundedRectangle)
+                    .hoverEffect()
+
+                    if let message = destinationConnectionViewModel.lastErrorMessage {
+                        Text(message)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .onAppear {
+                    destinationConnectionViewModel.start()
+                }
+                .onDisappear {
+                    destinationConnectionViewModel.stop()
+                }
+                .onChange(of: sendLocalControlOff) {
+                    applyLocalControlOffIfNeeded()
+                }
+                .onChange(of: midiDestinationUniqueID) {
+                    applyLocalControlOffIfNeeded()
+                }
+
+                Divider()
+            }
 
             VStack(alignment: .leading, spacing: 12) {
                 Toggle("AI 即兴演奏（虚拟演奏家）", isOn: $virtualPerformerEnabled)
@@ -117,6 +186,12 @@ struct PracticeSettingsView: View {
         .frame(minWidth: 320)
     }
 
+    private func applyLocalControlOffIfNeeded() {
+        guard midiDestinationUniqueID > 0 else { return }
+        guard let destinationUniqueID = Int32(exactly: midiDestinationUniqueID) else { return }
+        destinationConnectionViewModel.sendLocalControlOff(sendLocalControlOff, destinationUniqueID: destinationUniqueID)
+    }
+
     private var effectiveBackendStatusText: String? {
         guard let selectedKind = ImprovBackendKind(rawValue: improvBackendKindRawValue) else {
             return "Backend: invalid kind"
@@ -156,8 +231,10 @@ struct PracticeSettingsView: View {
         recordingSourceText: "录制来源：Bluetooth MIDI（弹奏琴键即可录制）",
         isAIPerformanceActive: false,
         isVirtualPianoMode: true,
+        isBluetoothMIDIMode: true,
         gazePlaneDiskStatusText: "GazePlaneDisk: OK",
         onOpenTakeLibrary: {},
-        onRetryVirtualPianoPlacement: {}
+        onRetryVirtualPianoPlacement: {},
+        onRequestSessionRebuild: {}
     )
 }

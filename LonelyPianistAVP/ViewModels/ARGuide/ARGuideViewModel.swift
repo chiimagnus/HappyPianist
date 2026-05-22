@@ -98,6 +98,10 @@ final class ARGuideViewModel {
         selectedPianoMode?.isVirtualPianoMode == true
     }
 
+    var isBluetoothMIDIMode: Bool {
+        PianoModeID(rawValue: practiceSetupState.selectedPianoModeID ?? "") == .bluetoothMIDI
+    }
+
     var backendDiscoveryService: BonjourBackendDiscoveryService {
         aiPerformanceViewModel.backendDiscoveryService
     }
