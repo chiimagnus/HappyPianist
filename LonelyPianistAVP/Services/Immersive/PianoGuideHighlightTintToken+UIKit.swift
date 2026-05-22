@@ -1,15 +1,15 @@
+import SwiftUI
 import UIKit
 
 extension PianoGuideHighlightTintToken {
     var uiColor: UIColor {
         switch self {
         case .rightHandWhiteKey:
-            .systemYellow
+            UIColor(Color.yellow)
         case .rightHandBlackKey:
-            .systemOrange
+            UIColor(Color.orange)
         case .leftHandKey:
-            .systemCyan
+            UIColor(Color.cyan)
         }
     }
 }
-
