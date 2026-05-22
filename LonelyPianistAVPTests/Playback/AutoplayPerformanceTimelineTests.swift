@@ -17,7 +17,8 @@ func autoplayTimelineUsesGuidesForNoteOnOffAndGuideAdvance() {
         steps: [PracticeStep(tick: 120, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
         pedalTimeline: MusicXMLPedalTimeline(events: []),
         fermataTimeline: MusicXMLFermataTimeline(fermataEvents: [], notes: []),
-        tempoMap: MusicXMLTempoMap(tempoEvents: [])
+        tempoMap: MusicXMLTempoMap(tempoEvents: []),
+        practiceHandMode: .both
     )
 
     #expect(timeline.events.map(\.tick) == [120, 120, 120, 360])
@@ -52,7 +53,8 @@ func autoplayTimelineDeduplicatesSameTickMIDINotesWithMaxVelocityAndOffTick() {
         steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
         pedalTimeline: MusicXMLPedalTimeline(events: []),
         fermataTimeline: MusicXMLFermataTimeline(fermataEvents: [], notes: []),
-        tempoMap: MusicXMLTempoMap(tempoEvents: [])
+        tempoMap: MusicXMLTempoMap(tempoEvents: []),
+        practiceHandMode: .both
     )
 
     let noteOns = timeline.events.compactMap { event -> (Int, UInt8)? in
@@ -92,7 +94,8 @@ func autoplayTimelineRearticulatesOverlappingSameMIDINoteAtNextOnTick() {
         ],
         pedalTimeline: MusicXMLPedalTimeline(events: []),
         fermataTimeline: MusicXMLFermataTimeline(fermataEvents: [], notes: []),
-        tempoMap: MusicXMLTempoMap(tempoEvents: [])
+        tempoMap: MusicXMLTempoMap(tempoEvents: []),
+        practiceHandMode: .both
     )
 
     let midiEvents = timeline.events.compactMap { event -> String? in
@@ -120,7 +123,8 @@ func autoplayTimelineKeepsZeroDurationGuideNotesReleasable() {
         steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
         pedalTimeline: MusicXMLPedalTimeline(events: []),
         fermataTimeline: MusicXMLFermataTimeline(fermataEvents: [], notes: []),
-        tempoMap: MusicXMLTempoMap(tempoEvents: [])
+        tempoMap: MusicXMLTempoMap(tempoEvents: []),
+        practiceHandMode: .both
     )
 
     let midiEvents = timeline.events.compactMap { event -> String? in
@@ -176,7 +180,8 @@ func autoplayTimelineEmitsReleaseAndRedownForSameTickPedalChange() {
         steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
         pedalTimeline: pedalTimeline,
         fermataTimeline: MusicXMLFermataTimeline(fermataEvents: [], notes: []),
-        tempoMap: MusicXMLTempoMap(tempoEvents: [])
+        tempoMap: MusicXMLTempoMap(tempoEvents: []),
+        practiceHandMode: .both
     )
 
     let pedalEventsAtReleaseTick = timeline.events.compactMap { event -> String? in

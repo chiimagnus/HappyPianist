@@ -21,6 +21,7 @@ struct GrandStaffNotationRenderer: GrandStaffNotationRendererProtocol {
         in context: GraphicsContext
     ) {
         let layout = presentation.viewportLayout
+        let practiceHandMode = presentation.practiceHandMode
         var translatedContext = context
         translatedContext.translateBy(x: 0, y: alignedToPixel(layout.canvasYOffset))
         drawGrandStaffLines(in: translatedContext, layout: layout)
@@ -31,6 +32,7 @@ struct GrandStaffNotationRenderer: GrandStaffNotationRendererProtocol {
             chordsByID: presentation.chordsByID,
             itemsByChordID: presentation.itemsByChordID,
             in: translatedContext,
+            practiceHandMode: practiceHandMode,
             layout: layout
         )
         drawStems(
@@ -38,12 +40,14 @@ struct GrandStaffNotationRenderer: GrandStaffNotationRendererProtocol {
             beamedChordIDs: presentation.beamedChordIDs,
             itemsByChordID: presentation.itemsByChordID,
             in: translatedContext,
+            practiceHandMode: practiceHandMode,
             layout: layout
         )
         drawItems(
             presentation.notationLayout.items,
             ledgerStepsByItemID: presentation.ledgerStepsByItemID,
             in: translatedContext,
+            practiceHandMode: practiceHandMode,
             layout: layout
         )
     }
@@ -251,6 +255,7 @@ struct GrandStaffNotationRenderer: GrandStaffNotationRendererProtocol {
         _ items: [GrandStaffNotationItem],
         ledgerStepsByItemID: [String: [Int]],
         in context: GraphicsContext,
+        practiceHandMode: PracticeHandMode,
         layout: GrandStaffNotationViewportLayoutService.Layout
     ) {
         guard items.isEmpty == false else { return }
@@ -258,14 +263,19 @@ struct GrandStaffNotationRenderer: GrandStaffNotationRendererProtocol {
         for item in items {
             let x = layout.xPosition(item.xPosition) + CGFloat(item.noteHeadXOffset) * layout.noteWidth
             let y = layout.yPosition(staffStep: item.staffStep, staffNumber: item.staffNumber)
-            drawNoteHead(item: item, x: x, y: y, in: context, layout: layout)
+            let fadeScale = handFadeScale(for: item.hand, practiceHandMode: practiceHandMode)
+            drawNoteHead(item: item, x: x, y: y, in: context, fadeScale: fadeScale, layout: layout)
 
             for step in ledgerStepsByItemID[item.id] ?? [] {
                 let ledgerY = alignedToPixel(layout.yPosition(staffStep: step, staffNumber: item.staffNumber))
                 var path = Path()
                 path.move(to: CGPoint(x: x - layout.noteWidth * 0.65, y: ledgerY))
                 path.addLine(to: CGPoint(x: x + layout.noteWidth * 0.65, y: ledgerY))
-                context.stroke(path, with: .color(Color.primary.opacity(0.22)), style: .init(lineWidth: 1))
+                context.stroke(
+                    path,
+                    with: .color(Color.primary.opacity(0.22 * fadeScale)),
+                    style: .init(lineWidth: 1)
+                )
             }
         }
     }
@@ -275,6 +285,7 @@ struct GrandStaffNotationRenderer: GrandStaffNotationRendererProtocol {
         beamedChordIDs: Set<String>,
         itemsByChordID: [String: [GrandStaffNotationItem]],
         in context: GraphicsContext,
+        practiceHandMode: PracticeHandMode,
         layout: GrandStaffNotationViewportLayoutService.Layout
     ) {
         let stemStroke = StrokeStyle(lineWidth: max(1, layout.lineSpacing * 0.14), lineCap: .round)
@@ -285,6 +296,7 @@ struct GrandStaffNotationRenderer: GrandStaffNotationRendererProtocol {
             guard chord.noteValue != .whole else { continue }
             guard let chordItems = itemsByChordID[chord.id], chordItems.isEmpty == false else { continue }
 
+            let fadeScale = chordFadeScale(for: chordItems, practiceHandMode: practiceHandMode)
             let stem = resolvedStemGeometry(
                 chord: chord,
                 chordItems: chordItems,
@@ -295,10 +307,16 @@ struct GrandStaffNotationRenderer: GrandStaffNotationRendererProtocol {
             var path = Path()
             path.move(to: stem.start)
             path.addLine(to: stem.end)
-            context.stroke(path, with: .color(Color.primary.opacity(0.45)), style: stemStroke)
+            context.stroke(path, with: .color(Color.primary.opacity(0.45 * fadeScale)), style: stemStroke)
 
             if chord.noteValue == .eighth || chord.noteValue == .sixteenth || chord.noteValue == .thirtySecond {
-                drawFlag(stemEnd: stem.end, direction: chord.stemDirection, in: context, layout: layout)
+                drawFlag(
+                    stemEnd: stem.end,
+                    direction: chord.stemDirection,
+                    in: context,
+                    fadeScale: fadeScale,
+                    layout: layout
+                )
             }
         }
     }
@@ -308,6 +326,7 @@ struct GrandStaffNotationRenderer: GrandStaffNotationRendererProtocol {
         chordsByID: [String: GrandStaffNotationChord],
         itemsByChordID: [String: [GrandStaffNotationItem]],
         in context: GraphicsContext,
+        practiceHandMode: PracticeHandMode,
         layout: GrandStaffNotationViewportLayoutService.Layout
     ) {
         guard beams.isEmpty == false else { return }
@@ -322,6 +341,13 @@ struct GrandStaffNotationRenderer: GrandStaffNotationRendererProtocol {
         for beam in beams {
             let chords = beam.chordIDs.compactMap { chordsByID[$0] }.sorted { $0.xPosition < $1.xPosition }
             guard chords.count >= 2 else { continue }
+
+            let fadeScale = chords
+                .compactMap { chord -> Double? in
+                    guard let chordItems = itemsByChordID[chord.id], chordItems.isEmpty == false else { return nil }
+                    return chordFadeScale(for: chordItems, practiceHandMode: practiceHandMode)
+                }
+                .max() ?? 1.0
 
             let direction = chords.first?.stemDirection ?? .up
             var stemByChordID: [String: (start: CGPoint, end: CGPoint)] = [:]
@@ -385,7 +411,7 @@ struct GrandStaffNotationRenderer: GrandStaffNotationRendererProtocol {
             var primaryPath = Path()
             primaryPath.move(to: CGPoint(x: x1, y: yOnBeam(at: x1, offset: requiredOffset)))
             primaryPath.addLine(to: CGPoint(x: xN, y: yOnBeam(at: xN, offset: requiredOffset)))
-            context.stroke(primaryPath, with: .color(Color.primary.opacity(0.42)), style: beamStroke)
+            context.stroke(primaryPath, with: .color(Color.primary.opacity(0.42 * fadeScale)), style: beamStroke)
 
             if beam.beamCount >= 2 {
                 for level in 2 ... beam.beamCount {
@@ -407,7 +433,7 @@ struct GrandStaffNotationRenderer: GrandStaffNotationRendererProtocol {
                         var path = Path()
                         path.move(to: CGPoint(x: startX, y: yOnBeam(at: startX, offset: secondaryOffset)))
                         path.addLine(to: CGPoint(x: endX, y: yOnBeam(at: endX, offset: secondaryOffset)))
-                        context.stroke(path, with: .color(Color.primary.opacity(0.42)), style: beamStroke)
+                        context.stroke(path, with: .color(Color.primary.opacity(0.42 * fadeScale)), style: beamStroke)
                         activeSegment.removeAll(keepingCapacity: true)
                     }
 
@@ -428,7 +454,8 @@ struct GrandStaffNotationRenderer: GrandStaffNotationRendererProtocol {
                 var path = Path()
                 path.move(to: stem.start)
                 path.addLine(to: adjustedEnd)
-                context.stroke(path, with: .color(Color.primary.opacity(0.45)), style: stemStroke)
+                let chordScale = itemsByChordID[chord.id].map { chordFadeScale(for: $0, practiceHandMode: practiceHandMode) } ?? 1.0
+                context.stroke(path, with: .color(Color.primary.opacity(0.45 * chordScale)), style: stemStroke)
             }
         }
     }
@@ -450,6 +477,7 @@ struct GrandStaffNotationRenderer: GrandStaffNotationRendererProtocol {
         stemEnd: CGPoint,
         direction: GrandStaffStemDirection,
         in context: GraphicsContext,
+        fadeScale: Double,
         layout: GrandStaffNotationViewportLayoutService.Layout
     ) {
         let dx = layout.noteWidth * 0.55
@@ -464,7 +492,7 @@ struct GrandStaffNotationRenderer: GrandStaffNotationRendererProtocol {
             path.move(to: stemEnd)
             path.addLine(to: CGPoint(x: stemEnd.x + dx, y: stemEnd.y - dy))
         }
-        context.stroke(path, with: .color(Color.primary.opacity(0.45)), style: stroke)
+        context.stroke(path, with: .color(Color.primary.opacity(0.45 * fadeScale)), style: stroke)
     }
 
     private func resolvedStemGeometry(
@@ -497,6 +525,7 @@ struct GrandStaffNotationRenderer: GrandStaffNotationRendererProtocol {
         x: CGFloat,
         y: CGFloat,
         in context: GraphicsContext,
+        fadeScale: Double,
         layout: GrandStaffNotationViewportLayoutService.Layout
     ) {
         let rect = CGRect(
@@ -506,13 +535,25 @@ struct GrandStaffNotationRenderer: GrandStaffNotationRendererProtocol {
             height: layout.noteHeight
         )
         let path = Path(ellipseIn: rect)
-        let fillColor: Color = item.isHighlighted ? .primary : .primary.opacity(0.55)
-        context.fill(path, with: .color(fillColor))
+        let baseOpacity: Double = item.isHighlighted ? 1.0 : 0.55
+        context.fill(path, with: .color(Color.primary.opacity(baseOpacity * fadeScale)))
 
         if item.showsSharpAccidental {
-            let accidental = Text("\u{E262}").font(.custom("Bravura", size: layout.lineSpacing * 1.05))
+            let accidentalOpacity = min(1.0, 0.85 * fadeScale)
+            let accidental = Text("\u{E262}")
+                .font(.custom("Bravura", size: layout.lineSpacing * 1.05))
+                .foregroundStyle(Color.primary.opacity(accidentalOpacity))
             context.draw(accidental, at: CGPoint(x: x - layout.noteWidth * 1.0, y: y))
         }
+    }
+
+    private func handFadeScale(for hand: ScoreHand, practiceHandMode: PracticeHandMode) -> Double {
+        guard let focusedHand = practiceHandMode.focusedHand else { return 1.0 }
+        return hand == focusedHand ? 1.0 : 0.45
+    }
+
+    private func chordFadeScale(for chordItems: [GrandStaffNotationItem], practiceHandMode: PracticeHandMode) -> Double {
+        chordItems.map { handFadeScale(for: $0.hand, practiceHandMode: practiceHandMode) }.max() ?? 1.0
     }
 
     private func alignedToPixel(_ value: CGFloat) -> CGFloat {

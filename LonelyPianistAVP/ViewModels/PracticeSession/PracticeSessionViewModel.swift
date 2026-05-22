@@ -45,6 +45,10 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
         settingsProvider.isHandSeparatedStepMatchingEnabled
     }
 
+    var practiceHandMode: PracticeHandMode {
+        settingsProvider.practiceHandMode
+    }
+
     subscript<Value>(dynamicMember keyPath: ReferenceWritableKeyPath<PracticeSessionStateStore, Value>) -> Value {
         get { stateStore[keyPath: keyPath] }
         set { stateStore[keyPath: keyPath] = newValue }
@@ -109,7 +113,8 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
             audioRecognitionService: audioRecognitionService,
             effectHandler: self,
             audioRecognitionSuppressDuration: audioRecognitionSuppressDuration,
-            leadInSeconds: autoplayTimingLeadInSeconds
+            leadInSeconds: autoplayTimingLeadInSeconds,
+            handModeProvider: { resolvedSettingsProvider.practiceHandMode }
         )
 
         manualReplayService = PracticeManualReplayService(
@@ -117,7 +122,8 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
             sequencerPlaybackService: sequencerPlaybackService,
             playbackSequenceBuilder: self.playbackSequenceBuilder,
             stateStore: stateStore,
-            effectHandler: self
+            effectHandler: self,
+            handModeProvider: { resolvedSettingsProvider.practiceHandMode }
         )
 
         highlightGuideController = PracticeHighlightGuideController(

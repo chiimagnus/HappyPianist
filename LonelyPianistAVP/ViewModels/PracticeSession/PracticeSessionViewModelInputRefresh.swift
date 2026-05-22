@@ -2,13 +2,14 @@ import Foundation
 
 extension PracticeSessionViewModel {
     func refreshPracticeInputForCurrentState() {
+        let expectedNotes = currentStepNotesForPracticeHandMode()
         practiceMIDIInputService?.refresh(
             for: .init(
                 practiceState: self.state,
                 autoplayState: self.autoplayState,
                 isManualReplayPlaying: self.isManualReplayPlaying,
                 currentStepIndex: self.currentStepIndex,
-                expectedNotes: self.currentStep?.notes ?? []
+                expectedNotes: expectedNotes
             )
         )
     }
@@ -24,8 +25,10 @@ extension PracticeSessionViewModel {
             return
         }
 
-        let expectedMIDINotes = uniqueMIDINotes(in: currentStep)
-        let expectedByHand = uniqueMIDINotesByHand(in: currentStep)
+        let expectedStepNotes = currentStepNotesForPracticeHandMode(step: currentStep)
+        let ignoredMIDINotes = ignoredMIDINotesForPracticeHandMode(step: currentStep)
+        let expectedMIDINotes = Set(expectedStepNotes.map(\.midiNote)).sorted()
+        let expectedByHand = uniqueMIDINotesByHand(notes: expectedStepNotes)
         let suppressUntil = self.audioRecognitionSuppressUntil.flatMap { $0 > .now ? $0 : nil }
         let handGateBoost = self.handGateState.isNearKeyboard || self.handGateState.hasDownwardMotion
 
@@ -38,7 +41,10 @@ extension PracticeSessionViewModel {
                 expectedMIDINotes: expectedMIDINotes,
                 expectedRightMIDINotes: expectedByHand.right,
                 expectedLeftMIDINotes: expectedByHand.left,
-                wrongCandidateMIDINotes: makeWrongCandidateMIDINotes(expectedMIDINotes),
+                wrongCandidateMIDINotes: makeWrongCandidateMIDINotes(
+                    expectedMIDINotes,
+                    excluding: ignoredMIDINotes
+                ),
                 handGateBoost: handGateBoost,
                 isHandSeparatedStepMatchingEnabled: self.isHandSeparatedStepMatchingEnabled,
                 suppressUntil: suppressUntil
@@ -72,7 +78,10 @@ extension PracticeSessionViewModel {
         return suppressUntil
     }
 
-    private func makeWrongCandidateMIDINotes(_ expectedMIDINotes: [Int]) -> [Int] {
+    private func makeWrongCandidateMIDINotes(
+        _ expectedMIDINotes: [Int],
+        excluding excludedMIDINotes: Set<Int>
+    ) -> [Int] {
         var result: Set<Int> = []
         for note in expectedMIDINotes {
             result.insert(note - 2)
@@ -81,6 +90,9 @@ extension PracticeSessionViewModel {
             result.insert(note + 2)
         }
         result.subtract(expectedMIDINotes)
+        if excludedMIDINotes.isEmpty == false {
+            result.subtract(excludedMIDINotes)
+        }
         return result.sorted()
     }
 
@@ -99,5 +111,26 @@ extension PracticeSessionViewModel {
 
     private static func profile(for _: PracticeAudioRecognitionDetectorMode) -> HarmonicTemplateTuningProfile {
         .lowLatencyDefault
+    }
+
+    private func currentStepNotesForPracticeHandMode() -> [PracticeStepNote] {
+        guard let step = self.currentStep else { return [] }
+        return currentStepNotesForPracticeHandMode(step: step)
+    }
+
+    private func currentStepNotesForPracticeHandMode(step: PracticeStep) -> [PracticeStepNote] {
+        let mode = self.practiceHandMode
+        if mode == .both { return step.notes }
+        return step.notes.filter { note in
+            mode.allows(hand: note.hand)
+        }
+    }
+
+    private func ignoredMIDINotesForPracticeHandMode(step: PracticeStep) -> Set<Int> {
+        let mode = self.practiceHandMode
+        guard mode != .both else { return [] }
+        return Set(step.notes.filter { note in
+            mode.allows(hand: note.hand) == false
+        }.map(\.midiNote))
     }
 }

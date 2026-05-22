@@ -17,10 +17,12 @@ struct PracticeStepView: View {
     @State private var isVirtualPerformerEnabled = false
     @State private var isAutoplayEnabled = false
     @AppStorage(PracticeSessionSettingsKeys.manualAdvanceMode) private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
+    @AppStorage(PracticeSessionSettingsKeys.handMode) private var practiceHandModeRawValue = PracticeHandMode.both.rawValue
 
     var body: some View {
         let session = viewModel.practiceSessionViewModel
         let currentGuide = session.currentPianoHighlightGuide
+        let practiceHandMode = PracticeHandMode.storageValue(from: practiceHandModeRawValue)
 
         VStack(spacing: 30) {
             GrandStaffNotationView(
@@ -28,6 +30,7 @@ struct PracticeStepView: View {
                 currentGuide: currentGuide,
                 measureSpans: session.notationMeasureSpans,
                 context: session.currentGrandStaffNotationContext,
+                practiceHandMode: practiceHandMode,
                 scrollTickProvider: session.autoplayState == .playing ? {
                     session.smoothNotationScrollTick()
                 } : nil
@@ -182,6 +185,16 @@ struct PracticeStepView: View {
         }
         .onChange(of: isAutoplayEnabled) {
             viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
+        }
+        .onChange(of: practiceHandModeRawValue) {
+            session.rebuildAutoplayTimeline()
+            session.refreshAudioRecognitionForCurrentState()
+            session.refreshPracticeInputForCurrentState()
+            if session.autoplayState == .playing {
+                session.stopAutoplayAudio()
+                session.stopAutoplayTask()
+                session.startAutoplayTaskIfNeeded()
+            }
         }
         .onChange(of: session.audioErrorMessage) {
             isAudioErrorAlertPresented = session.audioErrorMessage != nil

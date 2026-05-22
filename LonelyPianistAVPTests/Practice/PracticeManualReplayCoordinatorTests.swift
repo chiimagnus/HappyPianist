@@ -97,7 +97,8 @@ func manualReplayStopsAudioRecognitionAndRestoresAfterCompletion() async {
         sequencerPlaybackService: sequencer,
         playbackSequenceBuilder: PlaybackSequenceBuilder(),
         stateStore: stateStore,
-        effectHandler: effectHandler
+        effectHandler: effectHandler,
+        handModeProvider: { .both }
     )
 
     service.startManualReplay(with: ManualReplayPlan(stepRange: 0..<2))
@@ -133,7 +134,8 @@ func practiceManualReplayService_shutdownIsIdempotent() async {
         sequencerPlaybackService: sequencer,
         playbackSequenceBuilder: PlaybackSequenceBuilder(),
         stateStore: stateStore,
-        effectHandler: effectHandler
+        effectHandler: effectHandler,
+        handModeProvider: { .both }
     )
 
     service.startManualReplay(with: ManualReplayPlan(stepRange: 0..<2))

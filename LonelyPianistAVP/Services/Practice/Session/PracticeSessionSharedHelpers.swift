@@ -11,11 +11,11 @@ func audioErrorText(for error: Error) -> String {
     return String(describing: error)
 }
 
-func uniqueMIDINotesByHand(in step: PracticeStep) -> (right: [Int], left: [Int]) {
+func uniqueMIDINotesByHand(notes: [PracticeStepNote]) -> (right: [Int], left: [Int]) {
     var right: Set<Int> = []
     var left: Set<Int> = []
 
-    for note in step.notes {
+    for note in notes {
         if note.hand == .left {
             left.insert(note.midiNote)
         } else {

@@ -57,7 +57,8 @@ struct AutoplayPerformanceTimeline: Equatable, Sendable {
         steps: [PracticeStep],
         pedalTimeline: MusicXMLPedalTimeline,
         fermataTimeline: MusicXMLFermataTimeline,
-        tempoMap: MusicXMLTempoMap
+        tempoMap: MusicXMLTempoMap,
+        practiceHandMode: PracticeHandMode
     ) -> AutoplayPerformanceTimeline {
         var rawEvents: [(tick: Int, priority: Int, kind: EventKind)] = []
         rawEvents.reserveCapacity(guides.count + steps.count + 16)
@@ -70,7 +71,7 @@ struct AutoplayPerformanceTimeline: Equatable, Sendable {
             rawEvents.append((tick: step.tick, priority: 4, kind: .advanceStep(index: index)))
         }
 
-        for interval in normalizedNoteIntervals(from: guides) {
+        for interval in normalizedNoteIntervals(from: guides, practiceHandMode: practiceHandMode) {
             rawEvents.append((
                 tick: interval.onTick,
                 priority: 3,
@@ -140,11 +141,14 @@ struct AutoplayPerformanceTimeline: Equatable, Sendable {
         var offTick: Int
     }
 
-    private static func normalizedNoteIntervals(from guides: [PianoHighlightGuide]) -> [NoteInterval] {
+    private static func normalizedNoteIntervals(
+        from guides: [PianoHighlightGuide],
+        practiceHandMode: PracticeHandMode
+    ) -> [NoteInterval] {
         var grouped: [String: NoteInterval] = [:]
 
         for guide in guides where guide.kind == .trigger {
-            for note in guide.triggeredNotes {
+            for note in guide.triggeredNotes where practiceHandMode.allows(hand: note.hand) {
                 let key = "\(note.onTick):\(note.midiNote)"
                 if var existing = grouped[key] {
                     existing.offTick = max(existing.offTick, note.offTick)

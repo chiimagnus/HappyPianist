@@ -16,6 +16,46 @@ enum ScoreHand: String, CaseIterable {
     }
 }
 
+enum PracticeHandMode: String, CaseIterable, Identifiable, Sendable {
+    case both
+    case right
+    case left
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .both:
+            "双手"
+        case .right:
+            "右手"
+        case .left:
+            "左手"
+        }
+    }
+
+    var focusedHand: ScoreHand? {
+        switch self {
+        case .both:
+            nil
+        case .right:
+            .right
+        case .left:
+            .left
+        }
+    }
+
+    func allows(hand: ScoreHand) -> Bool {
+        guard let focusedHand else { return true }
+        return hand == focusedHand
+    }
+
+    static func storageValue(from rawValue: String?) -> PracticeHandMode {
+        guard let rawValue else { return .both }
+        return PracticeHandMode(rawValue: rawValue) ?? .both
+    }
+}
+
 enum DetectedNoteSource: Equatable, Sendable {
     case audio
     case bluetoothMIDI
@@ -139,4 +179,3 @@ enum StepAttemptMatchResult: Equatable {
     case wrong(reason: String)
     case insufficient(progress: String)
 }
-
