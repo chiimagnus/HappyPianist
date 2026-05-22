@@ -178,9 +178,6 @@ actor MIDIEventScheduler {
     private let channel: UInt8
 
     private var playTask: Task<Void, Never>?
-    private var playStartedAtUptimeSeconds: TimeInterval?
-    private var playStartSeconds: TimeInterval = 0
-    private(set) var currentSeconds: TimeInterval = 0
 
     init(outputService: any MIDIOutputSendingProtocol, destinationUniqueID: Int32, channel: UInt8) {
         self.outputService = outputService
@@ -190,10 +187,6 @@ actor MIDIEventScheduler {
 
     func play(events: [PracticeSequencerMIDIEvent], fromSeconds startSeconds: TimeInterval) {
         stopInternal()
-
-        playStartSeconds = startSeconds
-        playStartedAtUptimeSeconds = ProcessInfo.processInfo.systemUptime
-        currentSeconds = startSeconds
 
         let eventsToPlay = events.filter { $0.timeSeconds >= startSeconds }
         playTask = Task.detached(priority: .userInitiated) { [outputService, destinationUniqueID, channel] in
@@ -224,14 +217,9 @@ actor MIDIEventScheduler {
         stopInternal()
     }
 
-    func setCurrentSeconds(_ seconds: TimeInterval) {
-        currentSeconds = seconds
-    }
-
     private func stopInternal() {
         playTask?.cancel()
         playTask = nil
-        playStartedAtUptimeSeconds = nil
     }
 
     private static func send(
