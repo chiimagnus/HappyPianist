@@ -10,6 +10,8 @@ final class PianoGuideOverlayController {
     private var hasAttachedRoot = false
     private var activeBeamEntitiesByMIDINote: [Int: ModelEntity] = [:]
     private var lastGuideIDByMIDINote: [Int: Int] = [:]
+    private var didAttemptDecalTextureLoad = false
+    private var decalTexture: TextureResource?
 
     func updateHighlights(
         highlightGuide: PianoHighlightGuide?,
@@ -74,13 +76,18 @@ final class PianoGuideOverlayController {
             phase: descriptor.phase,
             keyKind: descriptor.keyKind
         )
-        let clampedOpacity = max(0, min(1, style.opacity))
-        let tinted = style.tintToken.uiColor.withAlphaComponent(clampedOpacity)
+        let intensity = max(0, min(1, style.opacity))
+        let tinted = style.tintToken.uiColor.scaledRGB(intensity: intensity)
+        let texture = loadDecalTextureIfNeeded()
 
         var material = UnlitMaterial()
-        material.color = .init(tint: tinted)
-        // 2D uses alpha to convey phase brightness; do the same in 3D.
-        // For UnlitMaterial, alpha requires transparent blending to be enabled.
+        if let texture {
+            material.color = .init(tint: tinted, texture: .init(texture))
+        } else {
+            material.color = .init(tint: tinted)
+        }
+        // Keep a solid-looking decal like 2D (difference is driven by tint intensity),
+        // while still honoring the decal texture's soft edges.
         material.blending = .transparent(opacity: .init(floatLiteral: 1))
         return material
     }
@@ -91,5 +98,15 @@ final class PianoGuideOverlayController {
         }
         activeBeamEntitiesByMIDINote.removeAll()
         lastGuideIDByMIDINote.removeAll()
+    }
+
+    private func loadDecalTextureIfNeeded() -> TextureResource? {
+        if didAttemptDecalTextureLoad {
+            return decalTexture
+        }
+
+        didAttemptDecalTextureLoad = true
+        decalTexture = try? TextureResource.load(named: "KeyDecalSoftRect")
+        return decalTexture
     }
 }

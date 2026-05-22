@@ -5,7 +5,7 @@ import Testing
 func styleResolvesRightHandWhiteKeyTriggered() {
     let style = PianoGuideHighlightStyle.resolve(hand: .right, phase: .triggered, keyKind: .white)
     #expect(style.tintToken == .rightHandWhiteKey)
-    #expect(style.opacity == 0.90)
+    #expect(style.opacity == 0.75)
 }
 
 @Test
@@ -38,3 +38,4 @@ func styleResolvesLeftHandBlackKeyActive() {
     #expect(style.tintToken == .leftHandKey)
     #expect(style.opacity == 0.92)
 }
+
