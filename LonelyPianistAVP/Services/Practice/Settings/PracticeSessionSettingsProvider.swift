@@ -5,12 +5,17 @@ enum PracticeSessionSettingsKeys {
     static let handMode = "practiceHandMode"
     static let audioRecognitionDetectorMode = "practiceStep3AudioRecognitionMode"
     static let improvBackendKind = "practiceImprovBackendKind"
+
+    static let soundOutputRoute = "practiceSoundOutputRoute"
+    static let midiDestinationUniqueID = "practiceMIDIDestinationUniqueID"
+    static let sendLocalControlOff = "practiceSendLocalControlOff"
 }
 
 protocol PracticeSessionSettingsProviderProtocol {
     var manualAdvanceMode: ManualAdvanceMode { get }
     var practiceHandMode: PracticeHandMode { get }
     var audioRecognitionDetectorMode: PracticeAudioRecognitionDetectorMode { get }
+    var soundRoutingSettings: PracticeSoundRoutingSettings { get }
 }
 
 struct UserDefaultsPracticeSessionSettingsProvider: PracticeSessionSettingsProviderProtocol {
@@ -37,5 +42,29 @@ struct UserDefaultsPracticeSessionSettingsProvider: PracticeSessionSettingsProvi
             return .harmonicTemplate
         }
         return mode
+    }
+
+    var soundRoutingSettings: PracticeSoundRoutingSettings {
+        let outputRoute: PracticeSoundOutputRoute
+        if let rawValue = userDefaults.string(forKey: PracticeSessionSettingsKeys.soundOutputRoute),
+           let route = PracticeSoundOutputRoute(rawValue: rawValue)
+        {
+            outputRoute = route
+        } else {
+            outputRoute = .localSampler
+        }
+
+        let midiDestinationUniqueID: Int32?
+        if let number = userDefaults.object(forKey: PracticeSessionSettingsKeys.midiDestinationUniqueID) as? NSNumber {
+            midiDestinationUniqueID = number.int32Value
+        } else {
+            midiDestinationUniqueID = nil
+        }
+
+        return PracticeSoundRoutingSettings(
+            outputRoute: outputRoute,
+            midiDestinationUniqueID: midiDestinationUniqueID,
+            sendLocalControlOff: userDefaults.bool(forKey: PracticeSessionSettingsKeys.sendLocalControlOff)
+        )
     }
 }
