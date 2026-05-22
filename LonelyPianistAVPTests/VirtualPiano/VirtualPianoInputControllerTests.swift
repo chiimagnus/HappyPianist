@@ -124,7 +124,8 @@ func virtualPianoPlaysLiveNotesWhenNotSuppressed() {
         ["finger": .zero],
         keyboardGeometry: makeMinimalKeyboardGeometry(),
         at: .now,
-        isHandSeparatedStepMatchingEnabled: false
+        isHandSeparatedStepMatchingEnabled: false,
+        practiceHandMode: .both
     )
 
     #expect(sequencer.startedLiveNotes == [[60]])
@@ -162,10 +163,10 @@ func virtualPianoDoesNotPlayLiveNotesDuringAutoplay() {
         ["finger": .zero],
         keyboardGeometry: makeMinimalKeyboardGeometry(),
         at: .now,
-        isHandSeparatedStepMatchingEnabled: false
+        isHandSeparatedStepMatchingEnabled: false,
+        practiceHandMode: .both
     )
 
     #expect(sequencer.startedLiveNotes.isEmpty)
     #expect(sequencer.stoppedLiveNotes.isEmpty)
 }
-

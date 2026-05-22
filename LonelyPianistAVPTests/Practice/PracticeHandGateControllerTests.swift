@@ -57,9 +57,9 @@ func chordMatchAdvancesToNextStepViaEffect() {
     controller.registerChordAttemptIfNeeded(
         pressedNotes: [60],
         at: .now,
-        isHandSeparatedStepMatchingEnabled: false
+        isHandSeparatedStepMatchingEnabled: false,
+        practiceHandMode: .both
     )
 
     #expect(effectHandler.effects == [.advanceToNextStep])
 }
-

@@ -120,7 +120,8 @@ func autoplayStartsAndAdvancesStep() async {
         steps: stateStore.steps,
         pedalTimeline: stateStore.pedalTimeline!,
         fermataTimeline: stateStore.fermataTimeline!,
-        tempoMap: stateStore.tempoMap
+        tempoMap: stateStore.tempoMap,
+        practiceHandMode: .both
     )
 
     let service = PracticePlaybackControlService(
@@ -132,7 +133,8 @@ func autoplayStartsAndAdvancesStep() async {
         audioRecognitionService: nil,
         effectHandler: effectHandler,
         audioRecognitionSuppressDuration: 0.6,
-        leadInSeconds: 0.05
+        leadInSeconds: 0.05,
+        handModeProvider: { .both }
     )
 
     service.startAutoplayTaskIfNeeded()
@@ -204,7 +206,8 @@ func shutdownCancelsAutoplayAndPreventsFurtherAdvance() async {
         steps: stateStore.steps,
         pedalTimeline: stateStore.pedalTimeline!,
         fermataTimeline: stateStore.fermataTimeline!,
-        tempoMap: stateStore.tempoMap
+        tempoMap: stateStore.tempoMap,
+        practiceHandMode: .both
     )
 
     let service = PracticePlaybackControlService(
@@ -216,7 +219,8 @@ func shutdownCancelsAutoplayAndPreventsFurtherAdvance() async {
         audioRecognitionService: nil,
         effectHandler: effectHandler,
         audioRecognitionSuppressDuration: 0.6,
-        leadInSeconds: 0.05
+        leadInSeconds: 0.05,
+        handModeProvider: { .both }
     )
 
     service.startAutoplayTaskIfNeeded()
@@ -231,4 +235,3 @@ func shutdownCancelsAutoplayAndPreventsFurtherAdvance() async {
     #expect(stateStore.currentStepIndex == 0)
     #expect(sequencer.stopCallCount >= 1)
 }
-
