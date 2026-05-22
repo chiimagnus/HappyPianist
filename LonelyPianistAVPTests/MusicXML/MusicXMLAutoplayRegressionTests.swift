@@ -135,7 +135,8 @@ private func makeAutoplayRegressionModel() throws -> AutoplayRegressionModel {
         steps: buildResult.steps,
         pedalTimeline: pedalTimeline,
         fermataTimeline: fermataTimeline,
-        tempoMap: tempoMap
+        tempoMap: tempoMap,
+        practiceHandMode: .both
     )
 
     return AutoplayRegressionModel(

@@ -36,7 +36,8 @@ func autoplayTimelineKeepsGuideAndNoteOnOnSameTick() {
         ],
         pedalTimeline: pedalTimeline,
         fermataTimeline: fermataTimeline,
-        tempoMap: tempoMap
+        tempoMap: tempoMap,
+        practiceHandMode: .both
     )
 
     let tick0 = timeline.events.filter { $0.tick == 0 }.map(\.kind)
@@ -560,7 +561,8 @@ func autoplaySchedulesPendingOnsetsInsideCurrentStep() {
         ],
         pedalTimeline: pedalTimeline,
         fermataTimeline: fermataTimeline,
-        tempoMap: tempoMap
+        tempoMap: tempoMap,
+        practiceHandMode: .both
     )
 
     let builder = PracticeSequencerSequenceBuilder()
@@ -644,7 +646,8 @@ func autoplayInsertsFermataHoldBeforeAdvancingWhenTimelineProvided() {
         ],
         pedalTimeline: pedalTimeline,
         fermataTimeline: fermataTimeline,
-        tempoMap: tempoMap
+        tempoMap: tempoMap,
+        practiceHandMode: .both
     )
 
     let pauseAt480 = timeline.events.first { event in
@@ -712,7 +715,8 @@ func autoplaySchedulesPedalChangesBetweenSteps() {
         ],
         pedalTimeline: pedalTimeline,
         fermataTimeline: fermataTimeline,
-        tempoMap: tempoMap
+        tempoMap: tempoMap,
+        practiceHandMode: .both
     )
 
     let builder = PracticeSequencerSequenceBuilder()
@@ -1022,7 +1026,8 @@ func autoplayAdvancesHighlightGuidesByTick() {
         ],
         pedalTimeline: pedalTimeline,
         fermataTimeline: fermataTimeline,
-        tempoMap: tempoMap
+        tempoMap: tempoMap,
+        practiceHandMode: .both
     )
 
     var cursor = AutoplayTimelineTimeCursor(
@@ -1088,7 +1093,8 @@ func autoplaySchedulesNoteOffUsingNoteSpans() {
         ],
         pedalTimeline: pedalTimeline,
         fermataTimeline: fermataTimeline,
-        tempoMap: tempoMap
+        tempoMap: tempoMap,
+        practiceHandMode: .both
     )
 
     let builder = PracticeSequencerSequenceBuilder()
@@ -1163,7 +1169,8 @@ func autoplayDefersNoteOffWhilePedalIsDownAndReleasesOnPedalUp() {
         ],
         pedalTimeline: pedalTimeline,
         fermataTimeline: fermataTimeline,
-        tempoMap: tempoMap
+        tempoMap: tempoMap,
+        practiceHandMode: .both
     )
 
     let builder = PracticeSequencerSequenceBuilder()
@@ -1250,7 +1257,8 @@ func autoplayReleasesPendingNotesOnPedalChangeTickEvenIfPedalStaysDown() {
         ],
         pedalTimeline: pedalTimeline,
         fermataTimeline: fermataTimeline,
-        tempoMap: tempoMap
+        tempoMap: tempoMap,
+        practiceHandMode: .both
     )
 
     let builder = PracticeSequencerSequenceBuilder()
