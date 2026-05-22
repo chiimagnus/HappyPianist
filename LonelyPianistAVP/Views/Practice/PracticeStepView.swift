@@ -97,7 +97,6 @@ struct PracticeStepView: View {
                 .buttonStyle(.bordered)
                 .buttonBorderShape(.roundedRectangle)
                 .hoverEffect()
-                .disabled(viewModel.isAIPerformanceActive)
                 .popover(isPresented: $isSettingsPopoverPresented) {
                     PracticeSettingsView(
                         virtualPerformerEnabled: $isVirtualPerformerEnabled,
