@@ -5,6 +5,7 @@ import Foundation
 struct PracticeSequencerSequence: Sendable {
     let midiData: Data
     let durationSeconds: TimeInterval
+    let events: [PracticeSequencerMIDIEvent]
 }
 
 @MainActor

@@ -180,7 +180,8 @@ struct PracticeSequencerSequenceBuilder {
 
         return PracticeSequencerSequence(
             midiData: exportedData.takeRetainedValue() as Data,
-            durationSeconds: durationSeconds
+            durationSeconds: durationSeconds,
+            events: sortedSchedule
         )
     }
 
