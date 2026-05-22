@@ -76,8 +76,8 @@ final class PianoGuideOverlayController {
             phase: descriptor.phase,
             keyKind: descriptor.keyKind
         )
-        let clampedOpacity = Float(max(0, min(1, style.opacity)))
-        let tinted = style.tintToken.uiColor
+        let intensity = max(0, min(1, style.opacity))
+        let tinted = style.tintToken.uiColor.scaledRGB(intensity: intensity)
         let texture = loadDecalTextureIfNeeded()
 
         var material = UnlitMaterial()
@@ -86,10 +86,9 @@ final class PianoGuideOverlayController {
         } else {
             material.color = .init(tint: tinted)
         }
-        // Make phase opacity (triggered vs active) observable in 3D.
-        // For `UnlitMaterial.color` the tint alpha is not consistently honored when a texture is present,
-        // so drive transparency through the material blending configuration instead.
-        material.blending = .transparent(opacity: .init(floatLiteral: clampedOpacity))
+        // Keep a solid-looking decal like 2D (difference is driven by tint intensity),
+        // while still honoring the decal texture's soft edges.
+        material.blending = .transparent(opacity: .init(floatLiteral: 1))
         return material
     }
 
