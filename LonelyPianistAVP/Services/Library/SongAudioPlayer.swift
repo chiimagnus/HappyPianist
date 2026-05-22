@@ -19,7 +19,26 @@ final class SongAudioPlayer: NSObject, SongAudioPlayerProtocol, AVAudioPlayerDel
     var onPlaybackFinished: ((UUID?) -> Void)?
     private(set) var currentEntryID: UUID?
 
+    private let userDefaults: UserDefaults
     private var audioPlayer: AVAudioPlayer?
+    private var currentAudioOutputVolume: Float?
+
+    init(userDefaults: UserDefaults = .standard) {
+        self.userDefaults = userDefaults
+        super.init()
+
+        applyAudioOutputVolumeIfNeeded()
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleUserDefaultsDidChange),
+            name: UserDefaults.didChangeNotification,
+            object: nil
+        )
+    }
+
+    deinit {
+        NotificationCenter.default.removeObserver(self, name: UserDefaults.didChangeNotification, object: nil)
+    }
 
     func play(entryID: UUID, url: URL) throws {
         if currentEntryID != entryID {
@@ -39,6 +58,7 @@ final class SongAudioPlayer: NSObject, SongAudioPlayerProtocol, AVAudioPlayerDel
             throw SongAudioPlayerStateError.cannotCreatePlayer
         }
 
+        applyAudioOutputVolumeIfNeeded()
         audioPlayer.play()
     }
 
@@ -62,6 +82,18 @@ final class SongAudioPlayer: NSObject, SongAudioPlayerProtocol, AVAudioPlayerDel
         audioPlayer = nil
         currentEntryID = nil
         onPlaybackFinished?(finishedEntryID)
+    }
+
+    private func applyAudioOutputVolumeIfNeeded() {
+        let volume = AudioOutputVolumeSettings.readAudioOutputVolume(from: userDefaults)
+        let playerVolume = audioPlayer?.volume
+        guard currentAudioOutputVolume != volume || playerVolume != volume else { return }
+        currentAudioOutputVolume = volume
+        audioPlayer?.volume = volume
+    }
+
+    @objc private func handleUserDefaultsDidChange() {
+        applyAudioOutputVolumeIfNeeded()
     }
 }
 
