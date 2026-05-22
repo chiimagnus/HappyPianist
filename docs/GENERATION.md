@@ -4,9 +4,9 @@
 
 | Item | Value |
 | --- | --- |
-| Commit hash | 98198f8 |
-| Branch name | crh1 |
-| Generated at | 2026-05-22T21:52:09+08:00 |
+| Commit hash | e50d88b |
+| Branch name | crh2 |
+| Generated at | 2026-05-23T02:25:20+08:00 |
 | Output language | Chinese |
 | Generation mode | Full docs reconciliation via `neat-freak` against current working tree |
 
@@ -26,7 +26,6 @@
 - `docs/modules/lonelypianist-avp-practice.md`
 - `docs/modules/improv-engines.md`
 - `docs/modules/piano-dialogue-server.md`
-- `docs/dev/piano-highlight-regression-checklist.md`
 
 ## Current Coverage Gaps
 
