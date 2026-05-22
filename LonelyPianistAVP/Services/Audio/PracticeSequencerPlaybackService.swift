@@ -25,6 +25,7 @@ final class AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackSe
     private let engine: AVAudioEngine
     private let sampler: AVAudioUnitSampler
     private let sequencer: AVAudioSequencer
+    private let userDefaults: UserDefaults
 
     private let soundFontResourceName: String
     private let program: UInt8
@@ -32,12 +33,15 @@ final class AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackSe
     private let channel: UInt8
 
     private var isReady = false
+    private var currentAudioOutputVolume: Float?
+    private let volumeObserver = VolumeChangeObserver()
     private var playingOneShotNotes: Set<UInt8> = []
     private var oneShotStopTask: Task<Void, Never>?
     private var liveNotes: Set<UInt8> = []
 
     init(
         soundFontResourceName: String,
+        userDefaults: UserDefaults = .standard,
         program: UInt8 = 0,
         velocity: UInt8 = 96,
         channel: UInt8 = 0
@@ -45,6 +49,7 @@ final class AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackSe
         engine = AVAudioEngine()
         sampler = AVAudioUnitSampler()
         sequencer = AVAudioSequencer(audioEngine: engine)
+        self.userDefaults = userDefaults
 
         self.soundFontResourceName = soundFontResourceName
         self.program = program
@@ -53,6 +58,14 @@ final class AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackSe
 
         engine.attach(sampler)
         engine.connect(sampler, to: engine.mainMixerNode, format: nil)
+
+        applyAudioOutputVolumeIfNeeded()
+        volumeObserver.observeUserDefaultsDidChange { [weak self] in
+            guard let self else { return }
+            Task { @MainActor in
+                self.applyAudioOutputVolumeIfNeeded()
+            }
+        }
     }
 
     func warmUp() throws {
@@ -71,6 +84,7 @@ final class AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackSe
 
     func load(sequence: PracticeSequencerSequence) throws {
         try ensureReady()
+        applyAudioOutputVolumeIfNeeded()
 
         stop()
 
@@ -87,6 +101,7 @@ final class AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackSe
 
     func play(fromSeconds start: TimeInterval) throws {
         try ensureReady()
+        applyAudioOutputVolumeIfNeeded()
 
         sequencer.currentPositionInSeconds = max(0, start)
         try sequencer.start()
@@ -101,6 +116,7 @@ final class AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackSe
         guard notes.isEmpty == false else { return }
 
         try ensureReady()
+        applyAudioOutputVolumeIfNeeded()
 
         oneShotStopTask?.cancel()
         oneShotStopTask = nil
@@ -122,6 +138,7 @@ final class AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackSe
 
     func startLiveNotes(midiNotes: Set<Int>) throws {
         try ensureReady()
+        applyAudioOutputVolumeIfNeeded()
         for midiNote in midiNotes {
             guard let note = UInt8(exactly: midiNote), liveNotes.contains(note) == false else { continue }
             sampler.startNote(note, withVelocity: velocity, onChannel: channel)
@@ -171,6 +188,7 @@ final class AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackSe
             if engine.isRunning == false {
                 configureSessionBestEffort()
                 do {
+                    applyAudioOutputVolumeIfNeeded()
                     engine.prepare()
                     try engine.start()
                 } catch {
@@ -196,6 +214,7 @@ final class AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackSe
                 bankMSB: UInt8(kAUSampler_DefaultMelodicBankMSB),
                 bankLSB: 0
             )
+            applyAudioOutputVolumeIfNeeded()
             engine.prepare()
             try engine.start()
             isReady = true
@@ -204,6 +223,34 @@ final class AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackSe
                 resourceName: soundFontResourceName,
                 detail: error.localizedDescription
             )
+        }
+    }
+
+    private func applyAudioOutputVolumeIfNeeded() {
+        let volume = AudioOutputVolumeSettings.readAudioOutputVolume(from: userDefaults)
+        guard currentAudioOutputVolume != volume else { return }
+        currentAudioOutputVolume = volume
+        engine.mainMixerNode.outputVolume = volume
+    }
+}
+
+private final class VolumeChangeObserver: @unchecked Sendable {
+    private var token: NSObjectProtocol?
+
+    func observeUserDefaultsDidChange(_ onChange: @escaping @Sendable () -> Void) {
+        guard token == nil else { return }
+        token = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            onChange()
+        }
+    }
+
+    deinit {
+        if let token {
+            NotificationCenter.default.removeObserver(token)
         }
     }
 }
