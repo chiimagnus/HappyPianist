@@ -17,12 +17,12 @@ LonelyPianist 是一个本地优先的钢琴交互系统。当前仓库包含 ma
 
 | 场景 | 命令 |
 | --- | --- |
-| macOS tests | `xcodebuild test -project LonelyPianist.xcodeproj -scheme LonelyPianist -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO` |
-| 查看 AVP destinations | `xcodebuild -showdestinations -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP` |
-| AVP tests | `xcodebuild test -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP -destination 'platform=visionOS Simulator,id=<device-id>' CODE_SIGNING_ALLOWED=NO` |
-| Python server | `cd piano_dialogue_server && ./scripts/run_server.sh` |
-| Python health check | `curl -s http://127.0.0.1:8765/health` |
-| Python WS smoke | `cd piano_dialogue_server && python -m server.api.test_client` |
+| macOS tests | `rtk xcodebuild test -project LonelyPianist.xcodeproj -scheme LonelyPianist -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO` |
+| 查看 AVP destinations | `rtk xcodebuild -showdestinations -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP` |
+| AVP tests | `rtk xcodebuild test -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP -destination 'platform=visionOS Simulator,id=<device-id>' CODE_SIGNING_ALLOWED=NO` |
+| Python server | `rtk sh -lc 'cd piano_dialogue_server && ./scripts/run_server.sh'` |
+| Python health check | `rtk curl -s http://127.0.0.1:8765/health` |
+| Python WS smoke | `rtk sh -lc 'cd piano_dialogue_server && python -m server.api.test_client'` |
 
 ## 关键事实
 

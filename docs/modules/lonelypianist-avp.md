@@ -59,8 +59,8 @@ ARKit provider 只应在沉浸空间内运行；窗口 UI 不应假设 hand/worl
 ## 本地验证
 
 ```bash
-xcodebuild -showdestinations -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP
-xcodebuild test -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP -destination 'platform=visionOS Simulator,id=<device-id>' CODE_SIGNING_ALLOWED=NO
+rtk xcodebuild -showdestinations -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP
+rtk xcodebuild test -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP -destination 'platform=visionOS Simulator,id=<device-id>' CODE_SIGNING_ALLOWED=NO
 ```
 
 真机才可验证 hand tracking、plane detection、Bluetooth MIDI、Local Network/Bonjour、Microphone 与空间舒适度。

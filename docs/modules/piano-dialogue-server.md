@@ -59,9 +59,8 @@ piano_dialogue_server/out/dialogue_debug/
 ## 验证
 
 ```bash
-cd piano_dialogue_server
-./scripts/run_server.sh
-curl -s http://127.0.0.1:8765/health
+rtk sh -lc 'cd piano_dialogue_server && ./scripts/run_server.sh'
+rtk curl -s http://127.0.0.1:8765/health
 ```
 
 轻量生成示例使用 `strategy=rule` 或 `strategy=deterministic`，避免触发模型加载。
