@@ -97,10 +97,7 @@ private struct AutoplayRegressionModel {
 
 @MainActor
 private func makeAutoplayRegressionModel() throws -> AutoplayRegressionModel {
-    let fixtureURL = URL(filePath: #filePath)
-        .deletingLastPathComponent()
-        .appending(path: "Fixtures")
-        .appending(path: "MusicXMLAutoplayRegression.musicxml")
+    let fixtureURL = testFixtureURL("MusicXMLAutoplayRegression.musicxml")
 
     let score = try MusicXMLParser().parse(fileURL: fixtureURL)
     let expressivity = MusicXMLRealisticPlaybackDefaults.expressivityOptions

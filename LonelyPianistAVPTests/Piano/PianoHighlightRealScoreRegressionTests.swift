@@ -4,10 +4,7 @@ import Testing
 
 @Test
 func despacitoFixtureBuildsGuidesWithGapAndRetrigger() throws {
-    let fixtureURL = URL(filePath: #filePath)
-        .deletingLastPathComponent()
-        .appending(path: "Fixtures")
-        .appending(path: "DESPACITOHighlightRegression.musicxml")
+    let fixtureURL = testFixtureURL("DESPACITOHighlightRegression.musicxml")
 
     let score = try MusicXMLParser().parse(fileURL: fixtureURL)
     let expressivity = MusicXMLExpressivityOptions()

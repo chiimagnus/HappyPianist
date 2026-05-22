@@ -4,10 +4,7 @@ import Testing
 
 @Test
 func heuristicRoutingSplitsClearSingleStaffFixture() throws {
-    let fixtureURL = URL(filePath: #filePath)
-        .deletingLastPathComponent()
-        .appending(path: "Fixtures")
-        .appending(path: "SingleStaffHandRoutingClear.musicxml")
+    let fixtureURL = testFixtureURL("SingleStaffHandRoutingClear.musicxml")
 
     let score = try MusicXMLParser().parse(fileURL: fixtureURL)
     let routedScore = MusicXMLHandRouter().routeIfNeeded(score: score)
@@ -27,10 +24,7 @@ func heuristicRoutingSplitsClearSingleStaffFixture() throws {
 
 @Test
 func heuristicRoutingIsDeterministicForInterleavingFixture() throws {
-    let fixtureURL = URL(filePath: #filePath)
-        .deletingLastPathComponent()
-        .appending(path: "Fixtures")
-        .appending(path: "SingleStaffHandRoutingInterleaving.musicxml")
+    let fixtureURL = testFixtureURL("SingleStaffHandRoutingInterleaving.musicxml")
 
     let score = try MusicXMLParser().parse(fileURL: fixtureURL)
     let routedScore = MusicXMLHandRouter().routeIfNeeded(score: score)
