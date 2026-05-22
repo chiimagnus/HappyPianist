@@ -4,9 +4,9 @@
 
 | Item | Value |
 | --- | --- |
-| Commit hash | 153accc |
+| Commit hash | 98198f8 |
 | Branch name | crh1 |
-| Generated at | 2026-05-22T21:50:09+08:00 |
+| Generated at | 2026-05-22T21:52:09+08:00 |
 | Output language | Chinese |
 | Generation mode | Full docs reconciliation via `neat-freak` against current working tree |
 
