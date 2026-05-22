@@ -1,13 +1,12 @@
 import SwiftUI
 
 struct PianoKeyboard88Highlight: Equatable, Sendable {
-    let phase: PianoGuideHighlightPhase
-    let tint: Color?
-
-    init(phase: PianoGuideHighlightPhase, tint: Color? = nil) {
-        self.phase = phase
-        self.tint = tint
+    enum Fill: Equatable, Sendable {
+        case guide(PianoGuideHighlightStyle)
+        case custom(phase: PianoGuideHighlightPhase, tint: Color)
     }
+
+    let fill: Fill
 }
 
 struct PianoKeyboard88View: View {
@@ -104,35 +103,23 @@ struct PianoKeyboard88View: View {
 
     private func whiteKeyFillColor(midiNote _: Int, highlight: PianoKeyboard88Highlight?) -> Color {
         guard let highlight else { return .white }
-        let tint = highlight.tint ?? .yellow
-        return tint.opacity(whiteKeyHighlightOpacity(highlight: highlight))
+        switch highlight.fill {
+        case let .guide(style):
+            return style.tintToken.swiftUIColor.opacity(style.opacity)
+        case let .custom(phase, tint):
+            let style = PianoGuideHighlightStyle.resolve(hand: .left, phase: phase, keyKind: .white)
+            return tint.opacity(style.opacity)
+        }
     }
 
     private func blackKeyFillColor(midiNote _: Int, highlight: PianoKeyboard88Highlight?) -> Color {
         guard let highlight else { return .black.opacity(0.88) }
-        let tint = highlight.tint ?? .orange
-        return tint.opacity(blackKeyHighlightOpacity(highlight: highlight))
-    }
-
-    private func whiteKeyHighlightOpacity(highlight: PianoKeyboard88Highlight) -> Double {
-        switch highlight.phase {
-        case .triggered:
-            // Match the legacy "pulse" max opacity.
-            0.75
-        case .active:
-            // Match the legacy base highlight opacity (custom tint is slightly stronger).
-            highlight.tint == nil ? 0.48 : 0.55
-        }
-    }
-
-    private func blackKeyHighlightOpacity(highlight: PianoKeyboard88Highlight) -> Double {
-        switch highlight.phase {
-        case .triggered:
-            // Match the legacy "pulse" max opacity.
-            0.95
-        case .active:
-            // Match the legacy base highlight opacity (custom tint is slightly softer).
-            highlight.tint == nil ? 0.95 : 0.92
+        switch highlight.fill {
+        case let .guide(style):
+            return style.tintToken.swiftUIColor.opacity(style.opacity)
+        case let .custom(phase, tint):
+            let style = PianoGuideHighlightStyle.resolve(hand: .left, phase: phase, keyKind: .black)
+            return tint.opacity(style.opacity)
         }
     }
 
@@ -183,6 +170,10 @@ struct PianoKeyboard88View: View {
         blackPitchClasses.contains(midiNote % 12)
     }
 
+    static func keyKind(for midiNote: Int) -> PianoKeyKind {
+        isBlackKey(midiNote) ? .black : .white
+    }
+
     nonisolated static func highlightKeyViewID(
         isBlackKey: Bool,
         midiNote: Int,
@@ -215,7 +206,12 @@ private struct BlackKey: Identifiable {
 #Preview {
     let notes: Set<Int> = [21, 60, 61, 72, 108, 130]
     let highlightByMIDINote = Dictionary(uniqueKeysWithValues: notes.map { midiNote in
-        (midiNote, PianoKeyboard88Highlight(phase: .active))
+        let style = PianoGuideHighlightStyle.resolve(
+            hand: .right,
+            phase: .active,
+            keyKind: PianoKeyboard88View.keyKind(for: midiNote)
+        )
+        return (midiNote, PianoKeyboard88Highlight(fill: .guide(style)))
     })
     PianoKeyboard88View(highlightByMIDINote: highlightByMIDINote)
         .aspectRatio(PianoKeyboard88View.aspectRatio, contentMode: .fit)

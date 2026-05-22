@@ -262,19 +262,18 @@ struct PracticeStepView: View {
         let session = viewModel.practiceSessionViewModel
         guard let guide = session.currentPianoHighlightGuide else { return [:] }
 
-        let triggeredMIDINotes = Set(guide.triggeredNotes.map(\.midiNote))
-        let leftHandMIDINotes = session.currentLeftHandHighlightedMIDINotes
+        let resolver = PianoGuideKeyHighlightResolver()
+        let highlightTokenByMidi = resolver.resolveHighlights(guide: guide)
 
-        return Dictionary(uniqueKeysWithValues: guide.highlightedMIDINotes.map { midiNote in
-            let phase: PianoGuideHighlightPhase = triggeredMIDINotes.contains(midiNote) ? .triggered : .active
-            let tint: Color? = leftHandMIDINotes.contains(midiNote) ? PracticeHandPalette.leftHandKeyColor : nil
-            return (midiNote, PianoKeyboard88Highlight(phase: phase, tint: tint))
+        return Dictionary(uniqueKeysWithValues: highlightTokenByMidi.map { midiNote, token in
+            let style = PianoGuideHighlightStyle.resolve(
+                hand: token.hand,
+                phase: token.phase,
+                keyKind: PianoKeyboard88View.keyKind(for: midiNote)
+            )
+            return (midiNote, PianoKeyboard88Highlight(fill: .guide(style)))
         })
     }
-}
-
-private enum PracticeHandPalette {
-    static let leftHandKeyColor = Color.cyan
 }
 
 #Preview("Step 3") {
