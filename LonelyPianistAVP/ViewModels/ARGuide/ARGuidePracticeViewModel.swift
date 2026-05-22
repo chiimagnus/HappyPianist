@@ -174,9 +174,16 @@ final class ARGuidePracticeViewModel {
     }
 
     func enterVirtualPianoPlacement(openImmersiveSpace: PracticeImmersiveOpenHandler) async {
-        guard placementViewModel.isVirtualPianoEnabled == false else { return }
-        placementViewModel.setPracticeVirtualPianoEnabled(true)
-        placementViewModel.isVirtualPianoPlaced = false
+        if placementViewModel.isVirtualPianoEnabled == false {
+            placementViewModel.isVirtualPianoPlaced = false
+            placementViewModel.setPracticeVirtualPianoEnabled(true)
+        } else {
+            #if DEBUG && targetEnvironment(simulator)
+                if placementViewModel.practiceSessionViewModel.keyboardGeometry == nil {
+                    placementViewModel.applyVirtualPianoGeometryAtDefaultPositionForSimulator()
+                }
+            #endif
+        }
 
         practiceLocalizationViewModel.setPracticeLocalizationState(.openingImmersive)
         if let openError = await openImmersiveForStep(mode: .practice, openImmersiveSpace: openImmersiveSpace) {

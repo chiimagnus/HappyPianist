@@ -44,10 +44,8 @@ struct VirtualPianoPreparationView: View {
         .padding(24)
         .frame(minWidth: 560, idealWidth: 700)
         .task {
-            if viewModel.isVirtualPianoEnabled == false {
-                let openHandler = makePracticeImmersiveOpenHandler(openImmersiveSpace)
-                await viewModel.enterVirtualPianoPlacement(openImmersiveSpace: openHandler)
-            }
+            let openHandler = makePracticeImmersiveOpenHandler(openImmersiveSpace)
+            await viewModel.enterVirtualPianoPlacement(openImmersiveSpace: openHandler)
         }
         .onChange(of: viewModel.isVirtualPianoPlaced) {
             windowState.practiceSetupState.isVirtualPianoPlaced = viewModel.isVirtualPianoPlaced

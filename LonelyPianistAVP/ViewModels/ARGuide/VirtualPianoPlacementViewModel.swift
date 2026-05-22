@@ -114,7 +114,7 @@ final class VirtualPianoPlacementViewModel {
             startGuidanceIfNeeded()
             #if DEBUG && targetEnvironment(simulator)
                 practiceLocalizationViewModel.setPracticeLocalizationState(.ready)
-                if appState.cachedVirtualPianoWorldAnchorID == nil {
+                if practiceSessionViewModel.keyboardGeometry == nil {
                     applyVirtualPianoGeometryAtDefaultPositionForSimulator()
                 }
             #else
