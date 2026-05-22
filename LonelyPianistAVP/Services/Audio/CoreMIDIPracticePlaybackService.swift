@@ -2,7 +2,7 @@ import Foundation
 
 @MainActor
 final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServiceProtocol {
-    private let outputService: CoreMIDIOutputService
+    private let outputService: any MIDIOutputSendingProtocol
     private let destinationUniqueID: Int32
 
     private let velocity: UInt8
@@ -21,7 +21,7 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
 
     init(
         destinationUniqueID: Int32,
-        outputService: CoreMIDIOutputService = CoreMIDIOutputService(),
+        outputService: any MIDIOutputSendingProtocol = CoreMIDIOutputService(),
         velocity: UInt8 = 96,
         channel: UInt8 = 0
     ) {
@@ -173,7 +173,7 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
 }
 
 actor MIDIEventScheduler {
-    private let outputService: CoreMIDIOutputService
+    private let outputService: any MIDIOutputSendingProtocol
     private let destinationUniqueID: Int32
     private let channel: UInt8
 
@@ -182,7 +182,7 @@ actor MIDIEventScheduler {
     private var playStartSeconds: TimeInterval = 0
     private(set) var currentSeconds: TimeInterval = 0
 
-    init(outputService: CoreMIDIOutputService, destinationUniqueID: Int32, channel: UInt8) {
+    init(outputService: any MIDIOutputSendingProtocol, destinationUniqueID: Int32, channel: UInt8) {
         self.outputService = outputService
         self.destinationUniqueID = destinationUniqueID
         self.channel = channel
@@ -236,7 +236,7 @@ actor MIDIEventScheduler {
 
     private static func send(
         event: PracticeSequencerMIDIEvent,
-        outputService: CoreMIDIOutputService,
+        outputService: any MIDIOutputSendingProtocol,
         destinationUniqueID: Int32,
         channel: UInt8
     ) throws {

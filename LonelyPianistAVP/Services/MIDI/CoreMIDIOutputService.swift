@@ -3,6 +3,20 @@ import Foundation
 import OSLog
 import os
 
+protocol MIDIOutputSendingProtocol: AnyObject, Sendable {
+    func start() throws
+    func stop()
+    func listDestinations() -> [MIDIDestinationInfo]
+
+    func sendMIDI1Bytes(_ bytes: [UInt8], destinationUniqueID: Int32) throws
+    func sendNoteOn(note: UInt8, velocity: UInt8, channel: UInt8, destinationUniqueID: Int32) throws
+    func sendNoteOff(note: UInt8, channel: UInt8, destinationUniqueID: Int32) throws
+    func sendControlChange(controller: UInt8, value: UInt8, channel: UInt8, destinationUniqueID: Int32) throws
+    func sendProgramChange(program: UInt8, channel: UInt8, destinationUniqueID: Int32) throws
+    func sendAllNotesOff(channel: UInt8, destinationUniqueID: Int32) throws
+    func sendAllSoundOff(channel: UInt8, destinationUniqueID: Int32) throws
+}
+
 struct MIDIDestinationInfo: Identifiable, Equatable, Sendable {
     let id: Int32
     let name: String
@@ -28,7 +42,7 @@ enum CoreMIDIOutputServiceError: LocalizedError {
     }
 }
 
-final class CoreMIDIOutputService: @unchecked Sendable {
+final class CoreMIDIOutputService: MIDIOutputSendingProtocol, @unchecked Sendable {
     var onDestinationListChange: (@Sendable ([MIDIDestinationInfo]) -> Void)?
     var onLastErrorMessageChange: (@Sendable (String?) -> Void)?
 
