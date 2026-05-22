@@ -98,15 +98,21 @@ final class VirtualPianoOverlayController {
     }
 
     private func animateKeyboardIn(_ keyboardRoot: Entity) {
-        let endTransform = keyboardRoot.transform
-        var startTransform = endTransform
-        startTransform.scale = SIMD3<Float>(0.001, 1, 1)
-        keyboardRoot.transform = startTransform
-        _ = keyboardRoot.move(
-            to: endTransform,
-            relativeTo: keyboardRoot.parent,
-            duration: 0.35,
-            timingFunction: .easeOut
-        )
+        #if targetEnvironment(simulator)
+            // RealityKit's `move(to:)` animation does not reliably interpolate scale in the simulator.
+            // If we keep a near-zero X scale here, all 88 keys collapse into a single white+black stack.
+            keyboardRoot.transform.scale = .one
+        #else
+            let endTransform = keyboardRoot.transform
+            var startTransform = endTransform
+            startTransform.scale = SIMD3<Float>(0.001, 1, 1)
+            keyboardRoot.transform = startTransform
+            _ = keyboardRoot.move(
+                to: endTransform,
+                relativeTo: keyboardRoot.parent,
+                duration: 0.35,
+                timingFunction: .easeOut
+            )
+        #endif
     }
 }
