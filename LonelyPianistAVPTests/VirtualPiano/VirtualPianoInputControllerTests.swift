@@ -124,7 +124,6 @@ func virtualPianoPlaysLiveNotesWhenNotSuppressed() {
         ["finger": .zero],
         keyboardGeometry: makeMinimalKeyboardGeometry(),
         at: .now,
-        isHandSeparatedStepMatchingEnabled: false,
         practiceHandMode: .both
     )
 
@@ -163,7 +162,6 @@ func virtualPianoDoesNotPlayLiveNotesDuringAutoplay() {
         ["finger": .zero],
         keyboardGeometry: makeMinimalKeyboardGeometry(),
         at: .now,
-        isHandSeparatedStepMatchingEnabled: false,
         practiceHandMode: .both
     )
 

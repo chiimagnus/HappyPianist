@@ -53,7 +53,6 @@ final class PracticeHandGateController: PracticeSessionLifecycleProtocol {
     func registerChordAttemptIfNeeded(
         pressedNotes: Set<Int>,
         at timestamp: Date,
-        isHandSeparatedStepMatchingEnabled: Bool,
         practiceHandMode: PracticeHandMode
     ) {
         guard pressedNotes.isEmpty == false else { return }
@@ -70,24 +69,14 @@ final class PracticeHandGateController: PracticeSessionLifecycleProtocol {
         let expectedMIDINotes = Set(expectedNotes.map(\.midiNote)).sorted()
         guard expectedMIDINotes.isEmpty == false else { return }
 
-        let matched: Bool
-        if isHandSeparatedStepMatchingEnabled {
-            let expectedByHand = uniqueMIDINotesByHand(notes: expectedNotes)
-            matched = chordAttemptAccumulator.registerHandSeparated(
-                pressedNotes: pressedNotes,
-                expectedRightNotes: expectedByHand.right,
-                expectedLeftNotes: expectedByHand.left,
-                tolerance: stateStore.noteMatchTolerance,
-                at: timestamp
-            )
-        } else {
-            matched = chordAttemptAccumulator.register(
-                pressedNotes: pressedNotes,
-                expectedNotes: expectedMIDINotes,
-                tolerance: stateStore.noteMatchTolerance,
-                at: timestamp
-            )
-        }
+        let expectedByHand = uniqueMIDINotesByHand(notes: expectedNotes)
+        let matched = chordAttemptAccumulator.registerHandSeparated(
+            pressedNotes: pressedNotes,
+            expectedRightNotes: expectedByHand.right,
+            expectedLeftNotes: expectedByHand.left,
+            tolerance: stateStore.noteMatchTolerance,
+            at: timestamp
+        )
 
         if matched {
             effectHandler?.handle(effect: .advanceToNextStep)

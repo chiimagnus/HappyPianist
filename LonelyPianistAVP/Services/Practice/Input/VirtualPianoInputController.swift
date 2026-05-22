@@ -51,7 +51,6 @@ final class VirtualPianoInputController: PracticeSessionLifecycleProtocol {
         _ fingerTips: [String: SIMD3<Float>],
         keyboardGeometry: PianoKeyboardGeometry,
         at timestamp: Date,
-        isHandSeparatedStepMatchingEnabled: Bool,
         practiceHandMode: PracticeHandMode
     ) -> Set<Int> {
         let result = detector.detect(
@@ -82,7 +81,6 @@ final class VirtualPianoInputController: PracticeSessionLifecycleProtocol {
             handGateController.registerChordAttemptIfNeeded(
                 pressedNotes: result.started,
                 at: timestamp,
-                isHandSeparatedStepMatchingEnabled: isHandSeparatedStepMatchingEnabled,
                 practiceHandMode: practiceHandMode
             )
         }

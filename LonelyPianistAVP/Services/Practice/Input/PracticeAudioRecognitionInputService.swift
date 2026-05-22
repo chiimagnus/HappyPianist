@@ -13,7 +13,6 @@ final class PracticeAudioRecognitionInputService: PracticeAudioRecognitionInputS
         var expectedLeftMIDINotes: [Int]
         var wrongCandidateMIDINotes: [Int]
         var handGateBoost: Bool
-        var isHandSeparatedStepMatchingEnabled: Bool
         var suppressUntil: Date?
     }
 
@@ -200,25 +199,14 @@ final class PracticeAudioRecognitionInputService: PracticeAudioRecognitionInputS
 
         accumulator.register(event: event)
         let wrongCandidates = Set(snapshot.wrongCandidateMIDINotes)
-        let matchResult: StepAttemptMatchResult
-        if snapshot.isHandSeparatedStepMatchingEnabled {
-            matchResult = accumulator.evaluateHandSeparated(
-                expectedRightMIDINotes: snapshot.expectedRightMIDINotes,
-                expectedLeftMIDINotes: snapshot.expectedLeftMIDINotes,
-                wrongCandidateMIDINotes: wrongCandidates,
-                generation: stateStore.audioRecognitionGeneration,
-                at: event.timestamp,
-                handGateBoost: snapshot.handGateBoost
-            )
-        } else {
-            matchResult = accumulator.evaluate(
-                expectedMIDINotes: snapshot.expectedMIDINotes,
-                wrongCandidateMIDINotes: wrongCandidates,
-                generation: stateStore.audioRecognitionGeneration,
-                at: event.timestamp,
-                handGateBoost: snapshot.handGateBoost
-            )
-        }
+        let matchResult = accumulator.evaluateHandSeparated(
+            expectedRightMIDINotes: snapshot.expectedRightMIDINotes,
+            expectedLeftMIDINotes: snapshot.expectedLeftMIDINotes,
+            wrongCandidateMIDINotes: wrongCandidates,
+            generation: stateStore.audioRecognitionGeneration,
+            at: event.timestamp,
+            handGateBoost: snapshot.handGateBoost
+        )
 
         if case .matched = matchResult {
             accumulator.markMatchedAndRequireRearm(

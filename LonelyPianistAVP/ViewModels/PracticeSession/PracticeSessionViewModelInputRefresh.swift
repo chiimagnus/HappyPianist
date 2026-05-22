@@ -46,7 +46,6 @@ extension PracticeSessionViewModel {
                     excluding: ignoredMIDINotes
                 ),
                 handGateBoost: handGateBoost,
-                isHandSeparatedStepMatchingEnabled: self.isHandSeparatedStepMatchingEnabled,
                 suppressUntil: suppressUntil
             )
         )

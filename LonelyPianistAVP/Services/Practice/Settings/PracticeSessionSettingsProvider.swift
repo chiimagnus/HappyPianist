@@ -1,7 +1,6 @@
 import Foundation
 
 enum PracticeSessionSettingsKeys {
-    static let handSeparatedStepMatchingEnabled = "practiceHandSeparatedStepMatchingEnabled"
     static let manualAdvanceMode = "practiceManualAdvanceMode"
     static let handMode = "practiceHandMode"
     static let audioRecognitionDetectorMode = "practiceStep3AudioRecognitionMode"
@@ -9,7 +8,6 @@ enum PracticeSessionSettingsKeys {
 }
 
 protocol PracticeSessionSettingsProviderProtocol {
-    var isHandSeparatedStepMatchingEnabled: Bool { get }
     var manualAdvanceMode: ManualAdvanceMode { get }
     var practiceHandMode: PracticeHandMode { get }
     var audioRecognitionDetectorMode: PracticeAudioRecognitionDetectorMode { get }
@@ -20,10 +18,6 @@ struct UserDefaultsPracticeSessionSettingsProvider: PracticeSessionSettingsProvi
 
     init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
-    }
-
-    var isHandSeparatedStepMatchingEnabled: Bool {
-        userDefaults.bool(forKey: PracticeSessionSettingsKeys.handSeparatedStepMatchingEnabled)
     }
 
     var manualAdvanceMode: ManualAdvanceMode {

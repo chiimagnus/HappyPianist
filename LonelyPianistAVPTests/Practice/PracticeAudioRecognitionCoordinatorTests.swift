@@ -71,7 +71,6 @@ func practiceAudioRecognitionService_serviceNilHasNoSideEffects() async {
             expectedLeftMIDINotes: [],
             wrongCandidateMIDINotes: [],
             handGateBoost: false,
-            isHandSeparatedStepMatchingEnabled: false,
             suppressUntil: nil
         )
     )
@@ -128,7 +127,6 @@ func practiceAudioRecognitionService_refreshOutsideGuidingStopsService() {
             expectedLeftMIDINotes: [],
             wrongCandidateMIDINotes: [],
             handGateBoost: false,
-            isHandSeparatedStepMatchingEnabled: false,
             suppressUntil: nil
         )
     )

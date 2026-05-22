@@ -6,8 +6,6 @@ import os
 @MainActor
 @Observable
 final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, PracticeSessionEffectHandlerProtocol {
-    nonisolated static let practiceHandSeparatedStepMatchingEnabledKey = PracticeSessionSettingsKeys.handSeparatedStepMatchingEnabled
-
     let stateStore: PracticeSessionStateStore
     let stepNavigator: PracticeStepNavigator
 
@@ -40,10 +38,6 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
     let autoplayTimingLeadInSeconds: TimeInterval = 0.05
 
     private var hasShutdown = false
-
-    var isHandSeparatedStepMatchingEnabled: Bool {
-        settingsProvider.isHandSeparatedStepMatchingEnabled
-    }
 
     var practiceHandMode: PracticeHandMode {
         settingsProvider.practiceHandMode

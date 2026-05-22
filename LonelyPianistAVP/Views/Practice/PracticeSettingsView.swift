@@ -14,8 +14,6 @@ struct PracticeSettingsView: View {
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
     @AppStorage(PracticeSessionSettingsKeys.manualAdvanceMode) private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
     @AppStorage(PracticeSessionSettingsKeys.handMode) private var practiceHandModeRawValue = PracticeHandMode.both.rawValue
-    @AppStorage(PracticeSessionSettingsKeys.handSeparatedStepMatchingEnabled)
-    private var practiceHandSeparatedStepMatchingEnabled = false
     @AppStorage(PracticeSessionSettingsKeys.improvBackendKind)
     private var improvBackendKindRawValue = ImprovBackendKind.networkBonjourHTTP.rawValue
 
@@ -62,8 +60,6 @@ struct PracticeSettingsView: View {
             Toggle("调试：显示键盘坐标轴（X/Y/Z）", isOn: $debugKeyboardAxesOverlayEnabled)
 
             Divider()
-
-            Toggle("练习判定：左右手分别满足", isOn: $practiceHandSeparatedStepMatchingEnabled)
 
             Picker("练习手", selection: $practiceHandModeRawValue) {
                 ForEach(PracticeHandMode.allCases) { mode in
