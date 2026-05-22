@@ -14,7 +14,8 @@ extension PracticeSessionViewModel {
                 fingerTips,
                 keyboardGeometry: keyboardGeometry,
                 at: timestamp,
-                isHandSeparatedStepMatchingEnabled: isHandSeparatedStepMatchingEnabled
+                isHandSeparatedStepMatchingEnabled: isHandSeparatedStepMatchingEnabled,
+                practiceHandMode: practiceHandMode
             ) ?? []
         }
 
@@ -39,7 +40,8 @@ extension PracticeSessionViewModel {
             handGateController?.registerChordAttemptIfNeeded(
                 pressedNotes: detected,
                 at: timestamp,
-                isHandSeparatedStepMatchingEnabled: isHandSeparatedStepMatchingEnabled
+                isHandSeparatedStepMatchingEnabled: isHandSeparatedStepMatchingEnabled,
+                practiceHandMode: practiceHandMode
             )
         } else {
             handGateController?.updateHandGateState(

@@ -19,6 +19,7 @@ struct GrandStaffNotationPresentationViewModel: GrandStaffNotationPresentationVi
         currentGuide: PianoHighlightGuide?,
         measureSpans: [MusicXMLMeasureSpan],
         context: GrandStaffNotationContext?,
+        practiceHandMode: PracticeHandMode,
         scrollTick: Double?
     ) -> GrandStaffNotationPresentation {
         let contentWidth = resolvedContentWidth(for: size, lineSpacing: lineSpacing)
@@ -47,6 +48,7 @@ struct GrandStaffNotationPresentationViewModel: GrandStaffNotationPresentationVi
         return GrandStaffNotationPresentation(
             notationLayout: notationLayout,
             viewportLayout: viewportLayout,
+            practiceHandMode: practiceHandMode,
             chordsByID: Dictionary(uniqueKeysWithValues: notationLayout.chords.map { ($0.id, $0) }),
             itemsByChordID: Dictionary(grouping: notationLayout.items, by: { $0.chordID ?? "" }),
             beamedChordIDs: Set(notationLayout.beams.flatMap(\.chordIDs)),

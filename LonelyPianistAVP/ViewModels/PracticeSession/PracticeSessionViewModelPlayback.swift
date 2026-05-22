@@ -32,7 +32,8 @@ extension PracticeSessionViewModel {
             steps: self.steps,
             pedalTimeline: pedalTimeline,
             fermataTimeline: fermataTimeline,
-            tempoMap: self.tempoMap
+            tempoMap: self.tempoMap,
+            practiceHandMode: self.practiceHandMode
         )
     }
 

@@ -5,6 +5,7 @@ struct GrandStaffNotationView: View {
     let currentGuide: PianoHighlightGuide?
     let measureSpans: [MusicXMLMeasureSpan]
     let context: GrandStaffNotationContext?
+    let practiceHandMode: PracticeHandMode
     var scrollTickProvider: (() -> Double?)?
 
     private let fixedLineSpacing: CGFloat = 14
@@ -19,6 +20,7 @@ struct GrandStaffNotationView: View {
         currentGuide: PianoHighlightGuide?,
         measureSpans: [MusicXMLMeasureSpan],
         context: GrandStaffNotationContext?,
+        practiceHandMode: PracticeHandMode = .both,
         scrollTickProvider: (() -> Double?)? = nil,
         layoutService: any GrandStaffNotationLayoutServiceProtocol = GrandStaffNotationLayoutService(),
         viewportLayoutService: any GrandStaffNotationViewportLayoutServiceProtocol = GrandStaffNotationViewportLayoutService(),
@@ -28,6 +30,7 @@ struct GrandStaffNotationView: View {
         self.currentGuide = currentGuide
         self.measureSpans = measureSpans
         self.context = context
+        self.practiceHandMode = practiceHandMode
         self.scrollTickProvider = scrollTickProvider
         presentationViewModel = GrandStaffNotationPresentationViewModel(
             layoutService: layoutService,
@@ -46,6 +49,7 @@ struct GrandStaffNotationView: View {
                 currentGuide: currentGuide,
                 measureSpans: measureSpans,
                 context: context,
+                practiceHandMode: practiceHandMode,
                 scrollTick: scrollTickProvider?()
             )
             let viewportLayout = presentation.viewportLayout

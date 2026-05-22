@@ -13,6 +13,7 @@ final class PracticeManualReplayService: PracticeSessionLifecycleProtocol {
     private let playbackSequenceBuilder: any PlaybackSequenceBuildingProtocol
     private let stateStore: PracticeSessionStateStore
     private weak var effectHandler: (any PracticeSessionEffectHandlerProtocol)?
+    private let handModeProvider: () -> PracticeHandMode
 
     private var manualReplayTask: Task<Void, Never>?
     private var hasShutdown = false
@@ -22,13 +23,15 @@ final class PracticeManualReplayService: PracticeSessionLifecycleProtocol {
         sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol,
         playbackSequenceBuilder: any PlaybackSequenceBuildingProtocol,
         stateStore: PracticeSessionStateStore,
-        effectHandler: any PracticeSessionEffectHandlerProtocol
+        effectHandler: any PracticeSessionEffectHandlerProtocol,
+        handModeProvider: @escaping () -> PracticeHandMode
     ) {
         self.sleeper = sleeper
         self.sequencerPlaybackService = sequencerPlaybackService
         self.playbackSequenceBuilder = playbackSequenceBuilder
         self.stateStore = stateStore
         self.effectHandler = effectHandler
+        self.handModeProvider = handModeProvider
     }
 
     func shutdown() {
@@ -55,7 +58,10 @@ final class PracticeManualReplayService: PracticeSessionLifecycleProtocol {
         let generation = stateStore.manualReplayGeneration
         let startIndex = plan.stepRange.lowerBound
         let stepRangeSnapshot = plan.stepRange
-        let stepsSnapshot = stateStore.steps
+        let stepsSnapshot = filteredStepsForPracticeHandMode(
+            stateStore.steps,
+            mode: handModeProvider()
+        )
         let tempoMapSnapshot = stateStore.tempoMap
         let leadInSeconds: TimeInterval = 0.05
 
@@ -175,6 +181,16 @@ final class PracticeManualReplayService: PracticeSessionLifecycleProtocol {
             return
         }
         stateStore.currentHighlightGuideIndex = stateStore.strictTriggerGuideIndex(forStepIndex: stepIndex)
+    }
+
+    private func filteredStepsForPracticeHandMode(_ steps: [PracticeStep], mode: PracticeHandMode) -> [PracticeStep] {
+        guard mode != .both else { return steps }
+        return steps.map { step in
+            PracticeStep(
+                tick: step.tick,
+                notes: step.notes.filter { note in mode.allows(hand: note.hand) }
+            )
+        }
     }
 
 }

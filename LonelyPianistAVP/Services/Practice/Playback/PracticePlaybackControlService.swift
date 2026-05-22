@@ -17,6 +17,7 @@ final class PracticePlaybackControlService: PracticePlaybackControlServiceProtoc
     private weak var effectHandler: (any PracticeSessionEffectHandlerProtocol)?
     private let audioRecognitionSuppressDuration: TimeInterval
     private let leadInSeconds: TimeInterval
+    private let handModeProvider: () -> PracticeHandMode
 
     private var autoplayTask: Task<Void, Never>?
     private var autoplayTaskGeneration = 0
@@ -31,7 +32,8 @@ final class PracticePlaybackControlService: PracticePlaybackControlServiceProtoc
         audioRecognitionService: PracticeAudioRecognitionServiceProtocol?,
         effectHandler: any PracticeSessionEffectHandlerProtocol,
         audioRecognitionSuppressDuration: TimeInterval,
-        leadInSeconds: TimeInterval
+        leadInSeconds: TimeInterval,
+        handModeProvider: @escaping () -> PracticeHandMode
     ) {
         self.sleeper = sleeper
         self.sequencerPlaybackService = sequencerPlaybackService
@@ -42,6 +44,7 @@ final class PracticePlaybackControlService: PracticePlaybackControlServiceProtoc
         self.effectHandler = effectHandler
         self.audioRecognitionSuppressDuration = audioRecognitionSuppressDuration
         self.leadInSeconds = leadInSeconds
+        self.handModeProvider = handModeProvider
     }
 
     func shutdown() {
@@ -87,9 +90,14 @@ final class PracticePlaybackControlService: PracticePlaybackControlServiceProtoc
             _ = prepareAudioRecognitionSuppressWindowForPlayback()
         }
 
+        let mode = handModeProvider()
+        let expectedNotes = mode == .both ? currentStep.notes : currentStep.notes.filter { mode.allows(hand: $0.hand) }
+        let midiNotes = Set(expectedNotes.map(\.midiNote)).sorted()
+        guard midiNotes.isEmpty == false else { return }
+
         do {
             try sequencerPlaybackService.playOneShot(
-                midiNotes: Set(currentStep.notes.map(\.midiNote)).sorted(),
+                midiNotes: midiNotes,
                 durationSeconds: 0.35
             )
         } catch {
