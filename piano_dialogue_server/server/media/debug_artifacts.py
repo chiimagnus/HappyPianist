@@ -9,8 +9,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import mido
-
 
 def debug_enabled() -> bool:
     return os.environ.get("DIALOGUE_DEBUG", "").strip() == "1"
@@ -36,8 +34,8 @@ class DebugBundlePaths:
     summary_json: Path
     request_json: Path
     response_json: Path
-    prompt_midi: Path
-    reply_midi: Path
+    prompt_notes_json: Path
+    reply_notes_json: Path
     index_jsonl: Path
 
 
@@ -49,8 +47,8 @@ def resolve_debug_paths(req_id: str) -> DebugBundlePaths:
         summary_json=request_dir / "summary.json",
         request_json=request_dir / "request.json",
         response_json=request_dir / "response.json",
-        prompt_midi=request_dir / "prompt.mid",
-        reply_midi=request_dir / "reply.mid",
+        prompt_notes_json=request_dir / "prompt_notes.json",
+        reply_notes_json=request_dir / "reply_notes.json",
         index_jsonl=root / "index.jsonl",
     )
 
@@ -67,39 +65,6 @@ def _append_jsonl(path: Path, payload: Any) -> None:
         f.write("\n")
 
 
-def _notes_to_midi(notes: list[dict[str, Any]], out_path: Path) -> None:
-    midi = mido.MidiFile(ticks_per_beat=480)
-    track = mido.MidiTrack()
-    midi.tracks.append(track)
-
-    tempo = mido.bpm2tempo(120)
-    track.append(mido.MetaMessage("set_tempo", tempo=tempo, time=0))
-
-    events: list[tuple[float, mido.Message]] = []
-    for n in notes:
-        note = int(n["note"])
-        velocity = int(n.get("velocity", 80))
-        start = float(n["time"])
-        duration = float(n["duration"])
-        end = start + max(0.01, duration)
-
-        events.append((start, mido.Message("note_on", note=note, velocity=velocity, channel=0, time=0)))
-        events.append((end, mido.Message("note_off", note=note, velocity=0, channel=0, time=0)))
-
-    events.sort(key=lambda x: x[0])
-
-    last_time = 0.0
-    for event_time, message in events:
-        delta_sec = max(0.0, event_time - last_time)
-        delta_ticks = int(round(mido.second2tick(delta_sec, midi.ticks_per_beat, tempo)))
-        message.time = delta_ticks
-        track.append(message)
-        last_time = event_time
-
-    out_path.parent.mkdir(parents=True, exist_ok=True)
-    midi.save(str(out_path))
-
-
 def write_debug_bundle(
     *,
     req_id: str,
@@ -114,9 +79,8 @@ def write_debug_bundle(
 
     _write_json(paths.request_json, request_payload)
     _write_json(paths.response_json, response_payload)
-
-    _notes_to_midi(prompt_notes, paths.prompt_midi)
-    _notes_to_midi(reply_notes, paths.reply_midi)
+    _write_json(paths.prompt_notes_json, prompt_notes)
+    _write_json(paths.reply_notes_json, reply_notes)
 
     write_debug_ms = int((time.perf_counter() - t0) * 1000)
     if "latency_ms_breakdown" in summary and isinstance(summary["latency_ms_breakdown"], dict):
