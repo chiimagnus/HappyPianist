@@ -39,4 +39,4 @@
 
 ## License
 
-本项目基于 [AGPL-3.0](./LICENSE) 开源。
+本项目基于 [AGPL-3.0](./LICENSE.APGLv3) 开源。

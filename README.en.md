@@ -39,4 +39,4 @@ Optional: Enable AI Duet (local backend)
 
 ## License
 
-This project is licensed under [AGPL-3.0](./LICENSE).
+This project is licensed under [AGPL-3.0](./LICENSE.APGLv3).
