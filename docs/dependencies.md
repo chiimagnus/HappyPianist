@@ -16,14 +16,12 @@
 
 | 依赖 | 用途 |
 | --- | --- |
-| `fastapi`、`uvicorn[standard]`、`websockets`、`python-multipart` | HTTP、WebSocket、multipart MIDI 上传。 |
+| `fastapi`、`uvicorn[standard]`、`websockets` | HTTP、WebSocket。 |
 | `zeroconf` | Bonjour / mDNS 广播。 |
-| `mido` | MIDI 读取、写入和事件处理。 |
-| `numpy<2` | 规则/算法生成与 MIDI 处理。 |
+| `mido` | 供 `anticipation.convert` 的 MIDI 转换使用（离线脚本）。 |
+| `numpy<2` | 数值计算依赖（含模型推理链路依赖）。 |
 | `torch`、`transformers`、`accelerate`、`safetensors` | `strategy=model` 模型推理。 |
 | `anticipation` | Music Transformer 推理依赖。 |
-
-`strategy=rule` 与 `strategy=deterministic` 不应初始化大模型；它们仍需要服务端基础依赖可导入。
 
 ## 资源依赖
 

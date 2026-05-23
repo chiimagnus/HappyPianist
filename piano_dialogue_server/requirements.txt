@@ -17,5 +17,4 @@ anticipation @ git+https://github.com/jthickstun/anticipation.git
 fastapi>=0.110
 uvicorn[standard]>=0.27
 websockets>=10.4
-python-multipart>=0.0.9
 zeroconf>=0.132
