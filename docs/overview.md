@@ -29,7 +29,7 @@ LonelyPianist 是一个本地优先的钢琴交互系统。当前仓库包含 ma
 - macOS app 当前不是映射器，也不包含 Piano Dialogue WebSocket client；它是 recorder/playback 面。
 - visionOS app 的跨窗口流程由 `PracticeSetupState` 与 `WindowTransitionState` 维护，不存在 `FlowState` 或 `WindowCoordinator` 文件。
 - `LonelyPianistAVP` 的 app 资源里声明了 Bravura 字体和 MusicXML UTI；`SalC5Light2.sf2` 需要本地补齐后才有完整音色回放。
-- Python 后端仅支持 `model`；`deterministic` / `rule` 已迁移到 SwiftPM：`Packages/ImprovEngines/`。
+- Python 后端仅支持 `model`；本地规则生成已迁移到 SwiftPM：`Packages/ImprovEngines/`。
 
 ## Coverage Gaps
 

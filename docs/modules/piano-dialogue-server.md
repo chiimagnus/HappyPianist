@@ -1,6 +1,6 @@
 # Module: piano_dialogue_server
 
-`piano_dialogue_server/` 是本地 FastAPI 服务，为 AVP 的 **可选网络后端** 提供 `/generate` / `/ws` 推理接口。规则/确定性路径已迁移到 SwiftPM（`Packages/ImprovEngines/`），服务端仅保留模型推理。
+`piano_dialogue_server/` 是本地 FastAPI 服务，为 AVP 的 **可选网络后端** 提供 `/generate` / `/ws` 推理接口。本地规则生成已迁移到 SwiftPM（`Packages/ImprovEngines/`），服务端仅保留模型推理。
 
 ## 入口与目录
 
