@@ -5,6 +5,9 @@ xcuserdata/
 **/build/
 .swiftpm/
 
+__pycache__/
+*.pyc
+
 .derivedData
 .derivedData-avp
 .github/钢琴谱/
@@ -25,5 +28,7 @@ Packages/RealityKitContent/Sources/RealityKitContent/RealityKitContent.rkassets/
 *.zip
 
 .venv-fixtures
+.venv/
+piano_dialogue_server/out/
 
 .codegraph
