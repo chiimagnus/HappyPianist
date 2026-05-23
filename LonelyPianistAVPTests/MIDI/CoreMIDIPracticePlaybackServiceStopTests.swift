@@ -13,7 +13,7 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
 
         try await MainActor.run {
             try playback.warmUp()
-            try playback.playOneShot(midiNotes: [60], durationSeconds: 10)
+            try playback.playOneShot(noteOns: [PracticeOneShotNoteOn(midiNote: 60, velocity: 96)], durationSeconds: 10)
             playback.stop()
         }
 
@@ -78,4 +78,3 @@ private final class FakeMIDIOutputService: MIDIOutputSendingProtocol, @unchecked
         try sendControlChange(controller: 120, value: 0, channel: channel, destinationUniqueID: destinationUniqueID)
     }
 }
-

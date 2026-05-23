@@ -63,7 +63,7 @@ private final class FakeSequencerPlaybackService: PracticeSequencerPlaybackServi
     func load(sequence _: PracticeSequencerSequence) throws {}
     func play(fromSeconds _: TimeInterval) throws {}
     func currentSeconds() -> TimeInterval { 0 }
-    func playOneShot(midiNotes _: [Int], durationSeconds _: TimeInterval) throws {}
+    func playOneShot(noteOns _: [PracticeOneShotNoteOn], durationSeconds _: TimeInterval) throws {}
 
     func startLiveNotes(midiNotes: Set<Int>) throws {
         startedLiveNotes.append(midiNotes)
