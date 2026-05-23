@@ -1,90 +1,139 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Lonely Pianist - Dialogue Server Playground</title>
-  <link rel="stylesheet" href="/static/styles.css">
-</head>
-<body>
-  <h1>LONELY PIANIST</h1>
-  <p class="subtitle">统一测试入口：/generate（对话音符）</p>
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Lonely Pianist - Dialogue Server Playground</title>
+        <link rel="stylesheet" href="/static/styles.css" />
+    </head>
+    <body>
+        <h1>LONELY PIANIST</h1>
+        <p class="subtitle">统一测试入口：/generate（对话音符）</p>
 
-  <div class="container">
-    <!-- Generate (Dialogue notes) -->
-    <div class="card">
-      <h2 style="font-size:1.05rem; font-weight:600; margin-bottom:14px; letter-spacing:0.5px;">/generate（对话音符）</h2>
+        <div class="container">
+            <!-- Generate (Dialogue notes) -->
+            <div class="card">
+                <h2
+                    style="
+                        font-size: 1.05rem;
+                        font-weight: 600;
+                        margin-bottom: 14px;
+                        letter-spacing: 0.5px;
+                    "
+                >
+                    /generate（对话音符）
+                </h2>
 
-      <div class="control-group">
-        <label>生成策略（params.strategy）</label>
-        <select id="genStrategy" disabled>
-          <option value="model" selected>model（神经网络，首次较慢）</option>
-        </select>
-      </div>
+                <div class="control-group">
+                    <label>生成策略（params.strategy）</label>
+                    <select id="genStrategy" disabled>
+                        <option value="model" selected>
+                            model（神经网络，首次较慢）
+                        </option>
+                    </select>
+                </div>
 
-      <div class="control-group" id="genTopPGroup">
-        <label>创造性 (top-p)</label>
-        <div class="range-wrap">
-          <input type="range" id="genTopP" min="0.70" max="1.00" value="0.95" step="0.01">
-          <span class="range-value" id="genTopPValue">0.95</span>
-        </div>
-      </div>
+                <div class="control-group" id="genTopPGroup">
+                    <label>创造性 (top-p)</label>
+                    <div class="range-wrap">
+                        <input
+                            type="range"
+                            id="genTopP"
+                            min="0.70"
+                            max="1.00"
+                            value="0.95"
+                            step="0.01"
+                        />
+                        <span class="range-value" id="genTopPValue">0.95</span>
+                    </div>
+                </div>
 
-      <div class="control-group">
-        <label>max_tokens</label>
-        <div class="range-wrap">
-          <input type="range" id="genMaxTokens" min="64" max="2048" value="256" step="64">
-          <span class="range-value" id="genMaxTokensValue">256</span>
-        </div>
-        <p style="font-size:0.75rem; color:var(--text-dim); margin-top:4px;">
-          约 64 tokens ≈ 1 秒
-        </p>
-      </div>
+                <div class="control-group">
+                    <label>max_tokens</label>
+                    <div class="range-wrap">
+                        <input
+                            type="range"
+                            id="genMaxTokens"
+                            min="64"
+                            max="2048"
+                            value="256"
+                            step="64"
+                        />
+                        <span class="range-value" id="genMaxTokensValue"
+                            >256</span
+                        >
+                    </div>
+                    <p
+                        style="
+                            font-size: 0.75rem;
+                            color: var(--text-dim);
+                            margin-top: 4px;
+                        "
+                    >
+                        约 64 tokens ≈ 1 秒
+                    </p>
+                </div>
 
-      <div class="control-group">
-        <label>notes（JSON 数组）</label>
-        <textarea id="genNotes" spellcheck="false" style="
-          width:100%;
-          min-height: 140px;
-          padding: 12px;
-          border-radius: 10px;
-          border: 1px solid var(--border);
-          background: var(--bg);
-          color: var(--text);
-          font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
-          font-size: 0.85rem;
-          line-height: 1.35;
-          outline: none;
-          resize: vertical;
-        ">[
+                <div class="control-group">
+                    <label>notes（JSON 数组）</label>
+                    <textarea
+                        id="genNotes"
+                        spellcheck="false"
+                        style="
+                            width: 100%;
+                            min-height: 140px;
+                            padding: 12px;
+                            border-radius: 10px;
+                            border: 1px solid var(--border);
+                            background: var(--bg);
+                            color: var(--text);
+                            font-family:
+                                ui-monospace, SFMono-Regular, Menlo, Monaco,
+                                Consolas, &quot;Liberation Mono&quot;,
+                                &quot;Courier New&quot;, monospace;
+                            font-size: 0.85rem;
+                            line-height: 1.35;
+                            outline: none;
+                            resize: vertical;
+                        "
+                    >
+[
   {"note": 60, "velocity": 90, "time": 0.0, "duration": 0.25},
   {"note": 64, "velocity": 90, "time": 0.25, "duration": 0.25},
   {"note": 67, "velocity": 90, "time": 0.5, "duration": 0.25}
-]</textarea>
-      </div>
+]</textarea
+                    >
+                </div>
 
-      <button class="btn" id="genBtn">
-        <span>发送 /generate</span>
-      </button>
+                <button class="btn" id="genBtn">
+                    <span>发送 /generate</span>
+                </button>
 
-      <div class="message" id="genMessage" style="margin-top:12px;"></div>
-      <pre id="genResult" style="
-        display:none;
-        margin-top: 12px;
-        padding: 12px;
-        border-radius: 12px;
-        border: 1px solid var(--border);
-        background: rgba(255,255,255,0.03);
-        overflow: auto;
-        max-height: 260px;
-        font-size: 0.8rem;
-        line-height: 1.4;
-      "></pre>
-    </div>
-  </div>
+                <div
+                    class="message"
+                    id="genMessage"
+                    style="margin-top: 12px"
+                ></div>
+                <pre
+                    id="genResult"
+                    style="
+                        display: none;
+                        margin-top: 12px;
+                        padding: 12px;
+                        border-radius: 12px;
+                        border: 1px solid var(--border);
+                        background: rgba(255, 255, 255, 0.03);
+                        overflow: auto;
+                        max-height: 260px;
+                        font-size: 0.8rem;
+                        line-height: 1.4;
+                    "
+                ></pre>
+            </div>
+        </div>
 
-  <footer>Lonely Pianist &middot; Dialogue Server Playground</footer>
+        <footer>Lonely Pianist &middot; Dialogue Server Playground</footer>
 
-  <script src="/static/app.js" defer></script>
-</body>
+        <script src="/static/app.js" defer></script>
+    </body>
 </html>
