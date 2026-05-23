@@ -10,14 +10,14 @@ enum MIDIOutputServiceError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-            case let .clientCreate(status):
-                "Failed to create MIDI client: \(status)"
-            case let .outputPortCreate(status):
-                "Failed to create MIDI output port: \(status)"
-            case let .destinationNotFound(id):
-                "MIDI destination not found: \(id)"
-            case let .send(status):
-                "Failed to send MIDI message: \(status)"
+        case let .clientCreate(status):
+            "Failed to create MIDI client: \(status)"
+        case let .outputPortCreate(status):
+            "Failed to create MIDI output port: \(status)"
+        case let .destinationNotFound(id):
+            "MIDI destination not found: \(id)"
+        case let .send(status):
+            "Failed to send MIDI message: \(status)"
         }
     }
 }

@@ -32,4 +32,3 @@ func defaultPianoModesExposeExpectedPreparationRoutes() {
     #expect(BluetoothMIDIPianoMode().preparationRoute == .bluetoothMIDI)
     #expect(VirtualPianoMode().preparationRoute == .virtualPiano)
 }
-

@@ -70,7 +70,7 @@ actor LocalRuleImprovBackend: ImprovBackendProtocol {
         let digest = SHA256.hash(data: Data(sessionID.utf8))
         let bytes = Array(digest)
         var seed: UInt64 = 0
-        for i in 0..<min(8, bytes.count) {
+        for i in 0 ..< min(8, bytes.count) {
             seed = (seed << 8) | UInt64(bytes[i])
         }
         return seed
@@ -99,4 +99,3 @@ actor LocalRuleImprovBackend: ImprovBackendProtocol {
         }
     }
 }
-

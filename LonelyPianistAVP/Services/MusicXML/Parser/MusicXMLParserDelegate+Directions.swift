@@ -20,26 +20,26 @@ extension MusicXMLParserDelegate {
 
     func velocityForDynamicsMark(_ markElementName: String) -> UInt8? {
         switch markElementName.lowercased() {
-            case "ppp":
-                30
-            case "pp":
-                40
-            case "p":
-                50
-            case "mp":
-                60
-            case "mf":
-                75
-            case "f":
-                90
-            case "ff":
-                105
-            case "fff":
-                115
-            case "ffff":
-                120
-            default:
-                nil
+        case "ppp":
+            30
+        case "pp":
+            40
+        case "p":
+            50
+        case "mp":
+            60
+        case "mf":
+            75
+        case "f":
+            90
+        case "ff":
+            105
+        case "fff":
+            115
+        case "ffff":
+            120
+        default:
+            nil
         }
     }
 
@@ -96,14 +96,14 @@ extension MusicXMLParserDelegate {
         }
 
         let kind: MusicXMLWedgeKind? = switch rawType.lowercased() {
-            case "crescendo":
-                .crescendoStart
-            case "diminuendo":
-                .diminuendoStart
-            case "stop":
-                .stop
-            default:
-                nil
+        case "crescendo":
+            .crescendoStart
+        case "diminuendo":
+            .diminuendoStart
+        case "stop":
+            .stop
+        default:
+            nil
         }
 
         guard let kind else { return }
@@ -163,16 +163,16 @@ extension MusicXMLParserDelegate {
 
         let lowered = rawValue.lowercased()
         let isDown: Bool? = switch lowered {
-            case "yes":
-                true
-            case "no":
-                false
-            default:
-                if let value = Int(lowered) {
-                    value > 0
-                } else {
-                    nil
-                }
+        case "yes":
+            true
+        case "no":
+            false
+        default:
+            if let value = Int(lowered) {
+                value > 0
+            } else {
+                nil
+            }
         }
 
         guard let isDown else {
@@ -212,66 +212,66 @@ extension MusicXMLParserDelegate {
         )
 
         switch rawType {
-            case "start":
-                state.pedalEvents.append(
-                    MusicXMLPedalEvent(
-                        partID: base.partID,
-                        measureNumber: base.measureNumber,
-                        tick: base.tick,
-                        kind: .start,
-                        isDown: true,
-                        timeOnlyPasses: timeOnlyPasses
-                    )
+        case "start":
+            state.pedalEvents.append(
+                MusicXMLPedalEvent(
+                    partID: base.partID,
+                    measureNumber: base.measureNumber,
+                    tick: base.tick,
+                    kind: .start,
+                    isDown: true,
+                    timeOnlyPasses: timeOnlyPasses
                 )
-            case "stop":
-                state.pedalEvents.append(
-                    MusicXMLPedalEvent(
-                        partID: base.partID,
-                        measureNumber: base.measureNumber,
-                        tick: base.tick,
-                        kind: .stop,
-                        isDown: false,
-                        timeOnlyPasses: timeOnlyPasses
-                    )
+            )
+        case "stop":
+            state.pedalEvents.append(
+                MusicXMLPedalEvent(
+                    partID: base.partID,
+                    measureNumber: base.measureNumber,
+                    tick: base.tick,
+                    kind: .stop,
+                    isDown: false,
+                    timeOnlyPasses: timeOnlyPasses
                 )
-            case "change":
-                state.pedalEvents.append(
-                    MusicXMLPedalEvent(
-                        partID: base.partID,
-                        measureNumber: base.measureNumber,
-                        tick: base.tick,
-                        kind: .change,
-                        isDown: false,
-                        timeOnlyPasses: timeOnlyPasses
-                    )
+            )
+        case "change":
+            state.pedalEvents.append(
+                MusicXMLPedalEvent(
+                    partID: base.partID,
+                    measureNumber: base.measureNumber,
+                    tick: base.tick,
+                    kind: .change,
+                    isDown: false,
+                    timeOnlyPasses: timeOnlyPasses
                 )
-                state.pedalEvents.append(
-                    MusicXMLPedalEvent(
-                        partID: base.partID,
-                        measureNumber: base.measureNumber,
-                        tick: base.tick,
-                        kind: .change,
-                        isDown: true,
-                        timeOnlyPasses: timeOnlyPasses
-                    )
+            )
+            state.pedalEvents.append(
+                MusicXMLPedalEvent(
+                    partID: base.partID,
+                    measureNumber: base.measureNumber,
+                    tick: base.tick,
+                    kind: .change,
+                    isDown: true,
+                    timeOnlyPasses: timeOnlyPasses
                 )
-            case "continue":
-                state.pedalEvents.append(
-                    MusicXMLPedalEvent(
-                        partID: base.partID,
-                        measureNumber: base.measureNumber,
-                        tick: base.tick,
-                        kind: .continue,
-                        isDown: nil,
-                        timeOnlyPasses: timeOnlyPasses
-                    )
+            )
+        case "continue":
+            state.pedalEvents.append(
+                MusicXMLPedalEvent(
+                    partID: base.partID,
+                    measureNumber: base.measureNumber,
+                    tick: base.tick,
+                    kind: .continue,
+                    isDown: nil,
+                    timeOnlyPasses: timeOnlyPasses
                 )
-            default:
-                #if DEBUG
-                    musicXMLParserLogger.debug(
-                        "MusicXMLParser: ignored pedal type '\(rawType)' at \(base.partID) measure \(base.measureNumber) tick \(base.tick)"
-                    )
-                #endif
+            )
+        default:
+            #if DEBUG
+                musicXMLParserLogger.debug(
+                    "MusicXMLParser: ignored pedal type '\(rawType)' at \(base.partID) measure \(base.measureNumber) tick \(base.tick)"
+                )
+            #endif
         }
     }
 
@@ -491,16 +491,16 @@ extension MusicXMLParserDelegate {
         }
 
         let beatUnitInQuarters: Double? = switch beatUnit {
-            case "whole":
-                4
-            case "half":
-                2
-            case "quarter":
-                1
-            case "eighth":
-                0.5
-            default:
-                nil
+        case "whole":
+            4
+        case "half":
+            2
+        case "quarter":
+            1
+        case "eighth":
+            0.5
+        default:
+            nil
         }
 
         guard let beatUnitInQuarters else {

@@ -1,7 +1,7 @@
 import Foundation
 @testable import LonelyPianistAVP
-import Testing
 import os
+import Testing
 
 struct CoreMIDIPracticePlaybackServiceStopTests {
     @Test func stopSendsAllNotesOffAndAllSoundOff() async throws {
@@ -24,7 +24,7 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
 }
 
 private final class FakeMIDIOutputService: MIDIOutputSendingProtocol, @unchecked Sendable {
-    enum Call: Equatable, Sendable {
+    enum Call: Equatable {
         case start
         case stop
         case noteOn(note: UInt8, velocity: UInt8, channel: UInt8, destination: Int32)
@@ -48,7 +48,9 @@ private final class FakeMIDIOutputService: MIDIOutputSendingProtocol, @unchecked
         lock.withLock { $0.append(.stop) }
     }
 
-    func listDestinations() -> [MIDIDestinationInfo] { [] }
+    func listDestinations() -> [MIDIDestinationInfo] {
+        []
+    }
 
     func sendMIDI1Bytes(_ bytes: [UInt8], destinationUniqueID: Int32) throws {
         lock.withLock { $0.append(.bytes(bytes, destination: destinationUniqueID)) }

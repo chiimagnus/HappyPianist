@@ -1,5 +1,5 @@
-@testable import LonelyPianistAVP
 import ImprovProtocol
+@testable import LonelyPianistAVP
 import Testing
 
 @Test

@@ -1,7 +1,7 @@
 import CoreMIDI
 import Foundation
-import OSLog
 import os
+import OSLog
 
 enum BluetoothMIDIInputEventSourceServiceError: LocalizedError {
     case clientCreate(OSStatus)
@@ -10,12 +10,12 @@ enum BluetoothMIDIInputEventSourceServiceError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-            case let .clientCreate(status):
-                "Failed to create MIDI client: \(status)"
-            case let .portCreate(status):
-                "Failed to create MIDI input port: \(status)"
-            case let .sourceRefresh(status):
-                "Failed to refresh MIDI sources: \(status)"
+        case let .clientCreate(status):
+            "Failed to create MIDI client: \(status)"
+        case let .portCreate(status):
+            "Failed to create MIDI input port: \(status)"
+        case let .sourceRefresh(status):
+            "Failed to refresh MIDI sources: \(status)"
         }
     }
 }
@@ -232,7 +232,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
         guard stateLock.withLock({ $0.isRunning }) else { return }
         refreshScheduler.schedule { [weak self] in
             guard let self else { return }
-            guard self.stateLock.withLock({ $0.isRunning }), (self.midi1InputPortRef != 0 || self.midi2InputPortRef != 0) else { return }
+            guard self.stateLock.withLock({ $0.isRunning }), self.midi1InputPortRef != 0 || self.midi2InputPortRef != 0 else { return }
 
             do {
                 try self.refreshSources()
@@ -254,7 +254,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
     private func handleEventList(_ eventList: UnsafePointer<MIDIEventList>, srcConnRefCon: UnsafeMutableRawPointer?) {
         guard stateLock.withLock({ $0.isRunning }) else { return }
         recordEventListProtocolAndMessageTypes(eventList: eventList)
-        let protocolID = eventList.pointee.`protocol`
+        let protocolID = eventList.pointee.protocol
         var context = MIDIEventListVisitorContext(
             service: self,
             protocolID: protocolID,
@@ -339,7 +339,6 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
             stateLock.withLock { state in
                 state.otherMessageTypeCounts["other", default: 0] += 1
             }
-            break
         }
     }
 
@@ -350,7 +349,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
         let protocolID = MIDIEndpointPropertyReader.int32Property(endpoint, kMIDIPropertyProtocolID)
         let uniqueID = MIDIEndpointPropertyReader.int32Property(endpoint, kMIDIPropertyUniqueID)
 
-        var parts: [String] = ["name=\(name)"]
+        var parts = ["name=\(name)"]
         if let manufacturer { parts.append("manufacturer=\(manufacturer)") }
         if let model { parts.append("model=\(model)") }
         if let protocolID { parts.append("protocolID=\(protocolID)") }
@@ -401,7 +400,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
     }
 
     private func sourceKey(for source: MIDI1InputEvent.Source) -> String {
-        let base: String = switch source.identifier {
+        let base = switch source.identifier {
         case let .endpointUniqueID(uniqueID):
             "uid=\(uniqueID)"
         case let .sourceIndex(index):
@@ -444,7 +443,7 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
 
     private func recordEventListProtocolAndMessageTypes(eventList: UnsafePointer<MIDIEventList>) {
         let uptimeSeconds = ProcessInfo.processInfo.systemUptime
-        let protocolID = eventList.pointee.`protocol`.rawValue
+        let protocolID = eventList.pointee.protocol.rawValue
         let shouldLog = stateLock.withLock { state in
             state.eventListProtocolCounts[protocolID, default: 0] += 1
             if uptimeSeconds - state.lastEventListDebugLoggedAtUptimeSeconds >= 2 {

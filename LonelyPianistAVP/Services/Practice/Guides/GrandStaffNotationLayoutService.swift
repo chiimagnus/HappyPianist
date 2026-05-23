@@ -366,18 +366,18 @@ struct GrandStaffNotationLayoutService: GrandStaffNotationLayoutServiceProtocol 
 
     private func beamRank(for noteValue: GrandStaffNoteValue) -> Int {
         switch noteValue {
-            case .thirtySecond:
-                0
-            case .sixteenth:
-                1
-            case .eighth:
-                2
-            case .quarter:
-                3
-            case .half:
-                4
-            case .whole:
-                5
+        case .thirtySecond:
+            0
+        case .sixteenth:
+            1
+        case .eighth:
+            2
+        case .quarter:
+            3
+        case .half:
+            4
+        case .whole:
+            5
         }
     }
 
@@ -502,14 +502,14 @@ struct GrandStaffNotationLayoutService: GrandStaffNotationLayoutServiceProtocol 
 
     private func beamCount(for noteValue: GrandStaffNoteValue) -> Int {
         switch noteValue {
-            case .eighth:
-                1
-            case .sixteenth:
-                2
-            case .thirtySecond:
-                3
-            default:
-                0
+        case .eighth:
+            1
+        case .sixteenth:
+            2
+        case .thirtySecond:
+            3
+        default:
+            0
         }
     }
 

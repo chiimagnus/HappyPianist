@@ -18,4 +18,3 @@ public struct RuleNoteEvent: Equatable, Sendable {
         ImprovDialogueNote(note: note, velocity: velocity, time: time, duration: duration)
     }
 }
-

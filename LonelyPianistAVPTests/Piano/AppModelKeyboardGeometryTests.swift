@@ -111,8 +111,6 @@ private final class SinglePracticeSessionViewModelProvider: @unchecked Sendable 
 private struct EmptyPianoModeRegistry: PianoModeRegistryProtocol {
     let modes: [any PianoModeProtocol] = []
 
-    init() {}
-
     func mode(for _: String?) -> (any PianoModeProtocol)? {
         nil
     }

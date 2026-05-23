@@ -37,20 +37,20 @@ enum MIDINoteParser {
 
         let baseSemitone: Int
         switch letter {
-            case "C": baseSemitone = 0
-            case "D": baseSemitone = 2
-            case "E": baseSemitone = 4
-            case "F": baseSemitone = 5
-            case "G": baseSemitone = 7
-            case "A": baseSemitone = 9
-            case "B": baseSemitone = 11
-            default: return nil
+        case "C": baseSemitone = 0
+        case "D": baseSemitone = 2
+        case "E": baseSemitone = 4
+        case "F": baseSemitone = 5
+        case "G": baseSemitone = 7
+        case "A": baseSemitone = 9
+        case "B": baseSemitone = 11
+        default: return nil
         }
 
         let accidentalOffset: Int = switch accidental {
-            case "#": 1
-            case "b": -1
-            default: 0
+        case "#": 1
+        case "b": -1
+        default: 0
         }
 
         let midi = (octave + 1) * 12 + baseSemitone + accidentalOffset

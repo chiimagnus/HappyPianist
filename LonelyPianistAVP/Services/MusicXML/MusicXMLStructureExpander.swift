@@ -503,22 +503,22 @@ extension MusicXMLStructureExpander {
 
             for instruction in sortedCandidates {
                 let instructionID = switch instruction.kind {
-                    case .dacapo:
-                        "\(instruction.tick)-\(instruction.atMeasureIndex)-dacapo"
-                    case let .dalsegno(value):
-                        "\(instruction.tick)-\(instruction.atMeasureIndex)-dalsegno-\(value)"
-                    case let .tocoda(value):
-                        "\(instruction.tick)-\(instruction.atMeasureIndex)-tocoda-\(value)"
+                case .dacapo:
+                    "\(instruction.tick)-\(instruction.atMeasureIndex)-dacapo"
+                case let .dalsegno(value):
+                    "\(instruction.tick)-\(instruction.atMeasureIndex)-dalsegno-\(value)"
+                case let .tocoda(value):
+                    "\(instruction.tick)-\(instruction.atMeasureIndex)-tocoda-\(value)"
                 }
                 guard executedInstructionIDs.contains(instructionID) == false else { continue }
 
                 let destinationIndex: Int? = switch instruction.kind {
-                    case .dacapo:
-                        0
-                    case let .dalsegno(value):
-                        segnoIndexByValue[value]
-                    case let .tocoda(value):
-                        codaIndexByValue[value]
+                case .dacapo:
+                    0
+                case let .dalsegno(value):
+                    segnoIndexByValue[value]
+                case let .tocoda(value):
+                    codaIndexByValue[value]
                 }
 
                 guard let destinationIndex else { continue }

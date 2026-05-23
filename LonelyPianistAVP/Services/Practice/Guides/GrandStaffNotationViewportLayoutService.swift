@@ -201,12 +201,12 @@ struct GrandStaffNotationViewportLayoutService: GrandStaffNotationViewportLayout
 
     private func canvasMetrics(
         lineSpacing: CGFloat,
-        noteWidth: CGFloat,
+        noteWidth _: CGFloat,
         noteHeight: CGFloat,
-        size: CGSize,
-        items: [GrandStaffNotationItem],
-        chords: [GrandStaffNotationChord],
-        beams: [GrandStaffNotationBeam],
+        size _: CGSize,
+        items _: [GrandStaffNotationItem],
+        chords _: [GrandStaffNotationChord],
+        beams _: [GrandStaffNotationBeam],
         trebleBottomLineY: CGFloat,
         bassBottomLineY: CGFloat,
         contextMinY: CGFloat,
@@ -253,14 +253,14 @@ struct GrandStaffNotationViewportLayoutService: GrandStaffNotationViewportLayout
 
     private func beamCountFor(noteValue: GrandStaffNoteValue) -> Int {
         switch noteValue {
-            case .eighth:
-                1
-            case .sixteenth:
-                2
-            case .thirtySecond:
-                3
-            default:
-                0
+        case .eighth:
+            1
+        case .sixteenth:
+            2
+        case .thirtySecond:
+            3
+        default:
+            0
         }
     }
 
@@ -271,14 +271,14 @@ struct GrandStaffNotationViewportLayoutService: GrandStaffNotationViewportLayout
 
         guard let token = signToken?.uppercased(), token.isEmpty == false else { return nil }
         switch token {
-            case "G":
-                return 2
-            case "F":
-                return 6
-            case "C":
-                return 4
-            default:
-                return nil
+        case "G":
+            return 2
+        case "F":
+            return 6
+        case "C":
+            return 4
+        default:
+            return nil
         }
     }
 }

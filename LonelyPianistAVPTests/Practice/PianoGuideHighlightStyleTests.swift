@@ -38,4 +38,3 @@ func styleResolvesLeftHandBlackKeyActive() {
     #expect(style.tintToken == .leftHandKey)
     #expect(style.opacity == 0.92)
 }
-

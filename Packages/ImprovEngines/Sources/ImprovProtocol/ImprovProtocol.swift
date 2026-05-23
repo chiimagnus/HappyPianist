@@ -102,4 +102,3 @@ public struct ImprovErrorResponse: Codable, Equatable, Sendable {
         self.message = message
     }
 }
-

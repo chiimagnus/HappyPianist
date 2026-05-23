@@ -1,7 +1,7 @@
 import CoreMIDI
 import Foundation
-import OSLog
 import os
+import OSLog
 
 protocol MIDIOutputSendingProtocol: AnyObject, Sendable {
     func start() throws
@@ -17,7 +17,7 @@ protocol MIDIOutputSendingProtocol: AnyObject, Sendable {
     func sendAllSoundOff(channel: UInt8, destinationUniqueID: Int32) throws
 }
 
-struct MIDIDestinationInfo: Identifiable, Equatable, Sendable {
+struct MIDIDestinationInfo: Identifiable, Equatable {
     let id: Int32
     let name: String
 }
@@ -81,8 +81,7 @@ final class CoreMIDIOutputService: MIDIOutputSendingProtocol, @unchecked Sendabl
     }
 
     func listDestinations() -> [MIDIDestinationInfo] {
-        let results = refreshDestinations()
-        return results
+        refreshDestinations()
     }
 
     @discardableResult

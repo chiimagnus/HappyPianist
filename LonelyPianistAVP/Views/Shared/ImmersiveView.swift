@@ -14,10 +14,10 @@ struct ImmersiveView: View {
     private var shouldShowCalibrationReticle: Bool {
         guard viewModel.immersiveMode == .calibration else { return false }
         switch viewModel.calibrationPhase {
-            case .completed, .error:
-                return false
-            default:
-                return true
+        case .completed, .error:
+            return false
+        default:
+            return true
         }
     }
 

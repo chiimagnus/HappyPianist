@@ -1,7 +1,7 @@
 import CoreMIDI
 import Foundation
 
-struct MIDICanonicalProtocolSelection: Sendable {
+enum MIDICanonicalProtocolSelection {
     static func subscribedProtocol(endpointProtocolID: MIDIProtocolID?, midi2PortAvailable: Bool) -> MIDIProtocolID {
         if endpointProtocolID == ._2_0, midi2PortAvailable {
             return ._2_0
@@ -10,7 +10,7 @@ struct MIDICanonicalProtocolSelection: Sendable {
     }
 }
 
-struct MIDIEndpointConnectionPolicy: Sendable {
+enum MIDIEndpointConnectionPolicy {
     static func subscribedProtocol(endpointProtocolID: MIDIProtocolID?, midi2PortAvailable: Bool) -> MIDIProtocolID {
         guard endpointProtocolID == ._2_0, midi2PortAvailable else {
             return ._1_0
@@ -56,7 +56,7 @@ enum MIDI2ValueMapping {
     }
 }
 
-struct MIDI1MessageDecoder: Sendable {
+struct MIDI1MessageDecoder {
     func decode(_ message: MIDIUniversalMessage) -> MIDI1InputEvent.Kind? {
         guard message.type == .channelVoice1 else { return nil }
 
@@ -101,7 +101,7 @@ struct MIDI1MessageDecoder: Sendable {
     }
 }
 
-struct MIDI2MessageDecoder: Sendable {
+struct MIDI2MessageDecoder {
     func decode(_ message: MIDIUniversalMessage) -> MIDI2InputEvent.Kind? {
         guard message.type == .channelVoice2 else { return nil }
 
@@ -141,7 +141,7 @@ struct MIDI2MessageDecoder: Sendable {
 }
 
 struct MIDIEndpointPropertyReader {
-    struct Adapter: Sendable {
+    struct Adapter {
         var getStringProperty: @Sendable (MIDIEndpointRef, CFString) -> (OSStatus, Unmanaged<CFString>?)
         var getIntegerProperty: @Sendable (MIDIEndpointRef, CFString) -> (OSStatus, Int32)
 

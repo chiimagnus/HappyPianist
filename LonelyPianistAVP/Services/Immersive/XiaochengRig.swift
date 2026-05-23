@@ -132,4 +132,3 @@ enum XiaochengPoseService {
         }
     }
 }
-

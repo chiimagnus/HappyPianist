@@ -1,7 +1,9 @@
 import Foundation
 
 struct ImprovBackendSelection {
-    static var userDefaultsKey: String { PracticeSessionSettingsKeys.improvBackendKind }
+    static var userDefaultsKey: String {
+        PracticeSessionSettingsKeys.improvBackendKind
+    }
 
     private let userDefaults: UserDefaults
 

@@ -10,16 +10,16 @@ enum MIDIFileImporterError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-            case let .openFailed(status):
-                "Failed to open MIDI sequence (OSStatus=\(status))."
-            case let .loadFailed(status):
-                "Failed to load MIDI file (OSStatus=\(status))."
-            case let .secondsConversionFailed(status):
-                "Failed to convert beats to seconds (OSStatus=\(status))."
-            case .empty:
-                "No notes found in MIDI file."
-            case .emptyAfterFiltering:
-                "No notes left after applying import filters."
+        case let .openFailed(status):
+            "Failed to open MIDI sequence (OSStatus=\(status))."
+        case let .loadFailed(status):
+            "Failed to load MIDI file (OSStatus=\(status))."
+        case let .secondsConversionFailed(status):
+            "Failed to convert beats to seconds (OSStatus=\(status))."
+        case .empty:
+            "No notes found in MIDI file."
+        case .emptyAfterFiltering:
+            "No notes left after applying import filters."
         }
     }
 }

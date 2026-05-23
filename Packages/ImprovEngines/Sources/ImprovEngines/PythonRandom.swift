@@ -4,9 +4,9 @@ public struct PythonRandom {
     private static let n = 624
     private static let m = 397
 
-    private static let matrixA: UInt32 = 0x9908B0DF
-    private static let upperMask: UInt32 = 0x80000000
-    private static let lowerMask: UInt32 = 0x7FFFFFFF
+    private static let matrixA: UInt32 = 0x9908_B0DF
+    private static let upperMask: UInt32 = 0x8000_0000
+    private static let lowerMask: UInt32 = 0x7FFF_FFFF
 
     private var state: [UInt32]
     private var index: Int
@@ -25,7 +25,7 @@ public struct PythonRandom {
 
         var key: [UInt32] = []
         key.reserveCapacity(keyUsed)
-        for i in 0..<keyUsed {
+        for i in 0 ..< keyUsed {
             let word = UInt32(truncatingIfNeeded: seed >> UInt64(i * 32))
             key.append(word)
         }
@@ -91,7 +91,7 @@ public struct PythonRandom {
             return
         }
 
-        for i in 1..<Self.n {
+        for i in 1 ..< Self.n {
             let prev = state[i - 1]
             let x = prev ^ (prev >> 30)
             state[i] = 1_812_433_253 &* x &+ UInt32(i)
@@ -156,12 +156,12 @@ public struct PythonRandom {
     private mutating func twist() {
         let mag01: [UInt32] = [0, Self.matrixA]
 
-        for kk in 0..<(Self.n - Self.m) {
+        for kk in 0 ..< (Self.n - Self.m) {
             let y = (state[kk] & Self.upperMask) | (state[kk + 1] & Self.lowerMask)
             state[kk] = state[kk + Self.m] ^ (y >> 1) ^ mag01[Int(y & 1)]
         }
 
-        for kk in (Self.n - Self.m)..<(Self.n - 1) {
+        for kk in (Self.n - Self.m) ..< (Self.n - 1) {
             let y = (state[kk] & Self.upperMask) | (state[kk + 1] & Self.lowerMask)
             state[kk] = state[kk + (Self.m - Self.n)] ^ (y >> 1) ^ mag01[Int(y & 1)]
         }
@@ -171,4 +171,3 @@ public struct PythonRandom {
         index = 0
     }
 }
-

@@ -1,6 +1,6 @@
 import Foundation
 
-enum PianoGuideHighlightPhase: String, Equatable, Hashable, Sendable {
+enum PianoGuideHighlightPhase: String, Equatable, Hashable {
     case active
     case triggered
 }
@@ -16,12 +16,14 @@ enum ScoreHand: String, CaseIterable {
     }
 }
 
-enum PracticeHandMode: String, CaseIterable, Identifiable, Sendable {
+enum PracticeHandMode: String, CaseIterable, Identifiable {
     case both
     case right
     case left
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var title: String {
         switch self {
@@ -56,14 +58,14 @@ enum PracticeHandMode: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-enum DetectedNoteSource: Equatable, Sendable {
+enum DetectedNoteSource: Equatable {
     case audio
     case bluetoothMIDI
     case handExactHit
     case handGateBoost
 }
 
-struct DetectedNoteEvent: Equatable, Sendable {
+struct DetectedNoteEvent: Equatable {
     let midiNote: Int
     let confidence: Double
     let onsetScore: Double
@@ -143,28 +145,28 @@ enum ManualAdvanceMode: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-            case .step:
-                "逐步"
-            case .measure:
-                "按小节"
+        case .step:
+            "逐步"
+        case .measure:
+            "按小节"
         }
     }
 
     var nextButtonTitle: String {
         switch self {
-            case .step:
-                "下一步"
-            case .measure:
-                "下一节"
+        case .step:
+            "下一步"
+        case .measure:
+            "下一节"
         }
     }
 
     var replayButtonTitle: String {
         switch self {
-            case .step:
-                "播放琴声"
-            case .measure:
-                "重播本节"
+        case .step:
+            "播放琴声"
+        case .measure:
+            "重播本节"
         }
     }
 

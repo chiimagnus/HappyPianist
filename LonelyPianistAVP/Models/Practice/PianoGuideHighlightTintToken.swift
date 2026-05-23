@@ -1,8 +1,7 @@
 import Foundation
 
-enum PianoGuideHighlightTintToken: String, Equatable, Hashable, Sendable {
+enum PianoGuideHighlightTintToken: String, Equatable, Hashable {
     case rightHandWhiteKey
     case rightHandBlackKey
     case leftHandKey
 }
-

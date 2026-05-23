@@ -101,8 +101,10 @@ func manualReplayStopsAudioRecognitionAndRestoresAfterCompletion() async {
         handModeProvider: { .both }
     )
 
-    service.startManualReplay(with: ManualReplayPlan(stepRange: 0..<2))
-    for _ in 0..<20 { await Task.yield() }
+    service.startManualReplay(with: ManualReplayPlan(stepRange: 0 ..< 2))
+    for _ in 0 ..< 20 {
+        await Task.yield()
+    }
 
     #expect(effectHandler.effects.contains(.stopAudioRecognition))
     #expect(effectHandler.effects.contains(.refreshAudioRecognition))
@@ -138,13 +140,17 @@ func practiceManualReplayService_shutdownIsIdempotent() async {
         handModeProvider: { .both }
     )
 
-    service.startManualReplay(with: ManualReplayPlan(stepRange: 0..<2))
-    for _ in 0..<5 { await Task.yield() }
+    service.startManualReplay(with: ManualReplayPlan(stepRange: 0 ..< 2))
+    for _ in 0 ..< 5 {
+        await Task.yield()
+    }
 
     service.shutdown()
     service.shutdown()
 
-    for _ in 0..<10 { await Task.yield() }
+    for _ in 0 ..< 10 {
+        await Task.yield()
+    }
 
     #expect(stateStore.isManualReplayPlaying == false)
     #expect(sequencer.stopCallCount >= 1)

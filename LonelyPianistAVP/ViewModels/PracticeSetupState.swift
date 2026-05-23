@@ -12,7 +12,6 @@ final class PracticeSetupState {
     var importedSteps: [PracticeStep] = []
     var importErrorMessage: String?
 
-
     func setImportedSteps(from prepared: PreparedPractice) {
         importedSteps = prepared.steps
         importedFile = prepared.file

@@ -19,30 +19,30 @@ struct AudioStepAttemptAccumulatorConfiguration: Equatable {
 
     static func configuration(for mode: Step3AudioRecognitionMode) -> AudioStepAttemptAccumulatorConfiguration {
         switch mode {
-            case .lowLatency:
-                AudioStepAttemptAccumulatorConfiguration(
-                    singleNoteThreshold: 0.55,
-                    handBoostedThreshold: 0.46,
-                    wrongNoteThreshold: 0.70,
-                    wrongDominanceRatio: 1.20,
-                    onsetThreshold: 0.32,
-                    aggregationWindow: 0.20,
-                    eventTTL: 0.30,
-                    rearmSilenceWindow: 0.10,
-                    wrongNoteGraceWindow: 0.18
-                )
-            case .stricter:
-                AudioStepAttemptAccumulatorConfiguration(
-                    singleNoteThreshold: 0.70,
-                    handBoostedThreshold: 0.62,
-                    wrongNoteThreshold: 0.72,
-                    wrongDominanceRatio: 1.40,
-                    onsetThreshold: 0.40,
-                    aggregationWindow: 0.28,
-                    eventTTL: 0.40,
-                    rearmSilenceWindow: 0.12,
-                    wrongNoteGraceWindow: 0.18
-                )
+        case .lowLatency:
+            AudioStepAttemptAccumulatorConfiguration(
+                singleNoteThreshold: 0.55,
+                handBoostedThreshold: 0.46,
+                wrongNoteThreshold: 0.70,
+                wrongDominanceRatio: 1.20,
+                onsetThreshold: 0.32,
+                aggregationWindow: 0.20,
+                eventTTL: 0.30,
+                rearmSilenceWindow: 0.10,
+                wrongNoteGraceWindow: 0.18
+            )
+        case .stricter:
+            AudioStepAttemptAccumulatorConfiguration(
+                singleNoteThreshold: 0.70,
+                handBoostedThreshold: 0.62,
+                wrongNoteThreshold: 0.72,
+                wrongDominanceRatio: 1.40,
+                onsetThreshold: 0.40,
+                aggregationWindow: 0.28,
+                eventTTL: 0.40,
+                rearmSilenceWindow: 0.12,
+                wrongNoteGraceWindow: 0.18
+            )
         }
     }
 }
@@ -277,14 +277,14 @@ final class AudioStepAttemptAccumulator {
 
     private func requiredMatchCount(expectedCount: Int) -> Int {
         switch expectedCount {
-            case ...0:
-                0
-            case 1:
-                1
-            case 2:
-                2
-            default:
-                Int(ceil(Double(expectedCount) * 2.0 / 3.0))
+        case ...0:
+            0
+        case 1:
+            1
+        case 2:
+            2
+        default:
+            Int(ceil(Double(expectedCount) * 2.0 / 3.0))
         }
     }
 }

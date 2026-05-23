@@ -9,14 +9,14 @@ struct MusicXMLTimewiseConverter {
     func convertToPartwiseIfNeeded(data: Data) throws -> Data {
         let root = detectRootElementName(in: data)
         switch root {
-            case "score-partwise":
-                return data
-            case "score-timewise":
-                return try convertTimewiseToPartwise(data: data)
-            case nil:
-                throw MusicXMLTimewiseConverterError.invalidXML
-            default:
-                throw MusicXMLTimewiseConverterError.unsupportedRootElement
+        case "score-partwise":
+            return data
+        case "score-timewise":
+            return try convertTimewiseToPartwise(data: data)
+        case nil:
+            throw MusicXMLTimewiseConverterError.invalidXML
+        default:
+            throw MusicXMLTimewiseConverterError.unsupportedRootElement
         }
     }
 

@@ -18,26 +18,26 @@ final class PracticeLocalizationViewModel {
 
         var message: String {
             switch self {
-                case .missingImportedSteps:
-                    "请先导入 MusicXML。"
-                case .missingStoredCalibration:
-                    "未发现校准数据，请先 Step 1 校准。"
-                case .handTrackingDenied:
-                    "无法定位：Hand Tracking 权限未授权（请在系统设置中允许本 App 访问）。"
-                case .worldTrackingUnsupported:
-                    "无法定位：此环境不支持 World Tracking。"
-                case let .providerNotRunning(state):
-                    "无法定位：WorldTrackingProvider 未运行（state=\(state)）。"
-                case let .anchorMissing(id):
-                    "无法定位：未在当前环境恢复已保存的锚点（id=\(id.uuidString)）。"
-                case let .anchorNotTracked(id, waitedSeconds):
-                    "无法定位：锚点存在但尚未追踪（id=\(id.uuidString)，已等待 \(waitedSeconds) 秒）。"
-                case let .anchorsTooClose(distanceMeters):
-                    "校准数据异常：A0 与 C8 距离过近（\(distanceMeters.formatted(.number.precision(.fractionLength(3))))m）。请返回 Step 1 重新校准。"
-                case let .devicePoseUnavailable(waitedSeconds):
-                    "无法定位：设备位姿尚不可用（已等待 \(waitedSeconds) 秒）。"
-                case let .immersiveOpenFailed(message):
-                    message
+            case .missingImportedSteps:
+                "请先导入 MusicXML。"
+            case .missingStoredCalibration:
+                "未发现校准数据，请先 Step 1 校准。"
+            case .handTrackingDenied:
+                "无法定位：Hand Tracking 权限未授权（请在系统设置中允许本 App 访问）。"
+            case .worldTrackingUnsupported:
+                "无法定位：此环境不支持 World Tracking。"
+            case let .providerNotRunning(state):
+                "无法定位：WorldTrackingProvider 未运行（state=\(state)）。"
+            case let .anchorMissing(id):
+                "无法定位：未在当前环境恢复已保存的锚点（id=\(id.uuidString)）。"
+            case let .anchorNotTracked(id, waitedSeconds):
+                "无法定位：锚点存在但尚未追踪（id=\(id.uuidString)，已等待 \(waitedSeconds) 秒）。"
+            case let .anchorsTooClose(distanceMeters):
+                "校准数据异常：A0 与 C8 距离过近（\(distanceMeters.formatted(.number.precision(.fractionLength(3))))m）。请返回 Step 1 重新校准。"
+            case let .devicePoseUnavailable(waitedSeconds):
+                "无法定位：设备位姿尚不可用（已等待 \(waitedSeconds) 秒）。"
+            case let .immersiveOpenFailed(message):
+                message
             }
         }
     }
@@ -169,36 +169,36 @@ final class PracticeLocalizationViewModel {
             )
 
             switch appState.resolveRuntimeCalibrationFromTrackedAnchors() {
-                case .resolved:
-                    practiceLocalizationState = .ready
-                    return
+            case .resolved:
+                practiceLocalizationState = .ready
+                return
 
-                case .missingStoredCalibration:
-                    await handlePracticeLocalizationFailure(
-                        .missingStoredCalibration,
-                        closeImmersiveForStep: closeImmersiveForStep,
-                        dismissImmersiveSpace: dismissImmersiveSpace,
-                        recoverImmersiveStateIfStuck: recoverImmersiveStateIfStuck
-                    )
-                    return
+            case .missingStoredCalibration:
+                await handlePracticeLocalizationFailure(
+                    .missingStoredCalibration,
+                    closeImmersiveForStep: closeImmersiveForStep,
+                    dismissImmersiveSpace: dismissImmersiveSpace,
+                    recoverImmersiveStateIfStuck: recoverImmersiveStateIfStuck
+                )
+                return
 
-                case let .anchorMissing(id):
-                    lastRecoverableResolution = .anchorMissing(id: id)
+            case let .anchorMissing(id):
+                lastRecoverableResolution = .anchorMissing(id: id)
 
-                case let .anchorNotTracked(id):
-                    lastRecoverableResolution = .anchorNotTracked(id: id)
+            case let .anchorNotTracked(id):
+                lastRecoverableResolution = .anchorNotTracked(id: id)
 
-                case let .anchorsTooClose(distanceMeters):
-                    await handlePracticeLocalizationFailure(
-                        .anchorsTooClose(distanceMeters: distanceMeters),
-                        closeImmersiveForStep: closeImmersiveForStep,
-                        dismissImmersiveSpace: dismissImmersiveSpace,
-                        recoverImmersiveStateIfStuck: recoverImmersiveStateIfStuck
-                    )
-                    return
+            case let .anchorsTooClose(distanceMeters):
+                await handlePracticeLocalizationFailure(
+                    .anchorsTooClose(distanceMeters: distanceMeters),
+                    closeImmersiveForStep: closeImmersiveForStep,
+                    dismissImmersiveSpace: dismissImmersiveSpace,
+                    recoverImmersiveStateIfStuck: recoverImmersiveStateIfStuck
+                )
+                return
 
-                case .devicePoseUnavailable:
-                    lastRecoverableResolution = .devicePoseUnavailable
+            case .devicePoseUnavailable:
+                lastRecoverableResolution = .devicePoseUnavailable
             }
 
             if elapsed >= Double(practiceLocalizationTimeoutSeconds) {
@@ -230,21 +230,21 @@ final class PracticeLocalizationViewModel {
         }
 
         switch lastRecoverableResolution {
-            case let .anchorMissing(id):
-                return .anchorMissing(id: id)
-            case let .anchorNotTracked(id):
-                return .anchorNotTracked(
-                    id: id,
-                    waitedSeconds: practiceLocalizationTimeoutSeconds
-                )
-            case let .anchorsTooClose(distanceMeters):
-                return .anchorsTooClose(distanceMeters: distanceMeters)
-            case .devicePoseUnavailable:
-                return .devicePoseUnavailable(waitedSeconds: practiceLocalizationTimeoutSeconds)
-            case .resolved:
-                return .providerNotRunning(state: currentProviderStateSummary())
-            case .missingStoredCalibration:
-                return .missingStoredCalibration
+        case let .anchorMissing(id):
+            return .anchorMissing(id: id)
+        case let .anchorNotTracked(id):
+            return .anchorNotTracked(
+                id: id,
+                waitedSeconds: practiceLocalizationTimeoutSeconds
+            )
+        case let .anchorsTooClose(distanceMeters):
+            return .anchorsTooClose(distanceMeters: distanceMeters)
+        case .devicePoseUnavailable:
+            return .devicePoseUnavailable(waitedSeconds: practiceLocalizationTimeoutSeconds)
+        case .resolved:
+            return .providerNotRunning(state: currentProviderStateSummary())
+        case .missingStoredCalibration:
+            return .missingStoredCalibration
         }
     }
 
@@ -278,14 +278,14 @@ final class PracticeLocalizationViewModel {
 
         if let worldState = arTrackingService.providerStateByName["world"] {
             switch worldState {
-                case .unsupported:
-                    return .worldTrackingUnsupported
-                case .unauthorized:
-                    return .providerNotRunning(state: currentProviderStateSummary())
-                case let .failed(reason):
-                    return .providerNotRunning(state: "world=failed(\(reason))")
-                default:
-                    break
+            case .unsupported:
+                return .worldTrackingUnsupported
+            case .unauthorized:
+                return .providerNotRunning(state: currentProviderStateSummary())
+            case let .failed(reason):
+                return .providerNotRunning(state: "world=failed(\(reason))")
+            default:
+                break
             }
         }
 

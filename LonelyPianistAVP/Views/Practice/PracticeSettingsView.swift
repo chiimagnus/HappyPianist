@@ -34,7 +34,7 @@ struct PracticeSettingsView: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("输出音量（AVP）")
                 HStack {
-                    Slider(value: $audioOutputVolume, in: 0...1)
+                    Slider(value: $audioOutputVolume, in: 0 ... 1)
                     Text(audioOutputVolume, format: .percent)
                         .font(.footnote)
                         .foregroundStyle(.secondary)

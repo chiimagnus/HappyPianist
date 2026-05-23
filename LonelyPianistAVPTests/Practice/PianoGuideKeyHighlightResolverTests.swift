@@ -109,4 +109,3 @@ func resolverUsesTriggeredNotesHandPreferenceBeforeActiveNotes() {
     let highlights = PianoGuideKeyHighlightResolver().resolveHighlights(guide: guide)
     #expect(highlights[60]?.hand == .right)
 }
-

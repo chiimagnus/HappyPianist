@@ -6,8 +6,8 @@ enum CoreMIDIPlaybackError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-            case .destinationNotSelected:
-                "No MIDI destination selected."
+        case .destinationNotSelected:
+            "No MIDI destination selected."
         }
     }
 }
@@ -110,23 +110,23 @@ final class CoreMIDIOutputMIDIPlaybackService: MIDIPlaybackServiceProtocol {
         let key = ActiveNoteKey(note: note, channel: channel)
 
         switch event.type {
-            case let .noteOn(velocity):
-                let clampedVelocity = UInt8(max(1, min(127, velocity)))
-                try outputService.sendNoteOn(
-                    note: note,
-                    velocity: clampedVelocity,
-                    channel: channel,
-                    destinationID: destinationUniqueID
-                )
-                activeNotes.insert(key)
+        case let .noteOn(velocity):
+            let clampedVelocity = UInt8(max(1, min(127, velocity)))
+            try outputService.sendNoteOn(
+                note: note,
+                velocity: clampedVelocity,
+                channel: channel,
+                destinationID: destinationUniqueID
+            )
+            activeNotes.insert(key)
 
-            case .noteOff:
-                try outputService.sendNoteOff(
-                    note: note,
-                    channel: channel,
-                    destinationID: destinationUniqueID
-                )
-                activeNotes.remove(key)
+        case .noteOff:
+            try outputService.sendNoteOff(
+                note: note,
+                channel: channel,
+                destinationID: destinationUniqueID
+            )
+            activeNotes.remove(key)
         }
     }
 
@@ -194,12 +194,12 @@ final class CoreMIDIOutputMIDIPlaybackService: MIDIPlaybackServiceProtocol {
             }
 
             switch (lhs.type, rhs.type) {
-                case (.noteOff, .noteOn):
-                    return true
-                case (.noteOn, .noteOff):
-                    return false
-                default:
-                    return lhs.note < rhs.note
+            case (.noteOff, .noteOn):
+                return true
+            case (.noteOn, .noteOff):
+                return false
+            default:
+                return lhs.note < rhs.note
             }
         }
     }

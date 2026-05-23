@@ -104,4 +104,3 @@ struct PianoKeyboardGeometry: Equatable {
         keys.first { $0.midiNote == midiNote }
     }
 }
-

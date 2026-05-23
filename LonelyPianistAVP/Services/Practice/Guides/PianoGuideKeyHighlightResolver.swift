@@ -28,4 +28,3 @@ struct PianoGuideKeyHighlightResolver {
         return .right
     }
 }
-

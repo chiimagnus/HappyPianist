@@ -50,4 +50,3 @@ func playbackSequenceBuilderBuildsManualReplaySequence() async throws {
     #expect(sequence.midiData.isEmpty == false)
     #expect(sequence.durationSeconds > 0)
 }
-

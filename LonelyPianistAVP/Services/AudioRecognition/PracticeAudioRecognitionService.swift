@@ -10,12 +10,12 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
 
         var errorDescription: String? {
             switch self {
-                case .permissionDenied:
-                    "Microphone permission denied."
-                case .invalidInputFormat:
-                    "Invalid microphone input format."
-                case let .engineStartFailed(reason):
-                    reason
+            case .permissionDenied:
+                "Microphone permission denied."
+            case .invalidInputFormat:
+                "Invalid microphone input format."
+            case let .engineStartFailed(reason):
+                reason
             }
         }
     }

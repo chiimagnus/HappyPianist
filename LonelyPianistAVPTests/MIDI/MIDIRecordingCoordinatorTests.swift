@@ -1,11 +1,11 @@
 import Foundation
 @testable import LonelyPianistAVP
-import Testing
 import os
+import Testing
 
 @Test
 @MainActor
-func shutdownIsIdempotentAndEmitsAtMostOneTake() async {
+func shutdownIsIdempotentAndEmitsAtMostOneTake() {
     var recordedTakes: [RecordingTake] = []
     var states: [MIDIRecordingState.State] = []
 
@@ -22,7 +22,7 @@ func shutdownIsIdempotentAndEmitsAtMostOneTake() async {
     service.shutdown()
     service.shutdown()
 
-    #expect(states.contains(where: { $0.isRecording }))
+    #expect(states.contains(where: \.isRecording))
     #expect(states.last?.isRecording == false)
     #expect(recordedTakes.count <= 1)
 }

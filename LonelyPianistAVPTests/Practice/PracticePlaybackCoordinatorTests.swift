@@ -62,7 +62,7 @@ private let defaultTempoScope = MusicXMLEventScope(partID: "P1", staff: nil, voi
 
 @Test
 @MainActor
-func autoplayStartsAndAdvancesStep() async {
+func autoplayStartsAndAdvancesStep() async throws {
     let sequencer = FakeSequencerPlaybackService()
     sequencer.currentSecondsValue = 999
 
@@ -115,11 +115,11 @@ func autoplayStartsAndAdvancesStep() async {
         ),
     ]
 
-    stateStore.autoplayTimeline = AutoplayPerformanceTimeline.build(
+    stateStore.autoplayTimeline = try AutoplayPerformanceTimeline.build(
         guides: stateStore.highlightGuides,
         steps: stateStore.steps,
-        pedalTimeline: stateStore.pedalTimeline!,
-        fermataTimeline: stateStore.fermataTimeline!,
+        pedalTimeline: #require(stateStore.pedalTimeline),
+        fermataTimeline: #require(stateStore.fermataTimeline),
         tempoMap: stateStore.tempoMap,
         practiceHandMode: .both
     )
@@ -138,7 +138,9 @@ func autoplayStartsAndAdvancesStep() async {
     )
 
     service.startAutoplayTaskIfNeeded()
-    for _ in 0..<10 { await Task.yield() }
+    for _ in 0 ..< 10 {
+        await Task.yield()
+    }
 
     #expect(sequencer.loadCallCount == 1)
     #expect(sequencer.playCallCount == 1)
@@ -148,7 +150,7 @@ func autoplayStartsAndAdvancesStep() async {
 
 @Test
 @MainActor
-func shutdownCancelsAutoplayAndPreventsFurtherAdvance() async {
+func shutdownCancelsAutoplayAndPreventsFurtherAdvance() async throws {
     let sequencer = FakeSequencerPlaybackService()
     sequencer.currentSecondsValue = 0
 
@@ -201,11 +203,11 @@ func shutdownCancelsAutoplayAndPreventsFurtherAdvance() async {
         ),
     ]
 
-    stateStore.autoplayTimeline = AutoplayPerformanceTimeline.build(
+    stateStore.autoplayTimeline = try AutoplayPerformanceTimeline.build(
         guides: stateStore.highlightGuides,
         steps: stateStore.steps,
-        pedalTimeline: stateStore.pedalTimeline!,
-        fermataTimeline: stateStore.fermataTimeline!,
+        pedalTimeline: #require(stateStore.pedalTimeline),
+        fermataTimeline: #require(stateStore.fermataTimeline),
         tempoMap: stateStore.tempoMap,
         practiceHandMode: .both
     )
@@ -224,13 +226,17 @@ func shutdownCancelsAutoplayAndPreventsFurtherAdvance() async {
     )
 
     service.startAutoplayTaskIfNeeded()
-    for _ in 0..<5 { await Task.yield() }
+    for _ in 0 ..< 5 {
+        await Task.yield()
+    }
 
     service.shutdown()
     service.shutdown()
 
     sequencer.currentSecondsValue = 999
-    for _ in 0..<10 { await Task.yield() }
+    for _ in 0 ..< 10 {
+        await Task.yield()
+    }
 
     #expect(stateStore.currentStepIndex == 0)
     #expect(sequencer.stopCallCount >= 1)

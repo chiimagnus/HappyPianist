@@ -1,6 +1,6 @@
 import Foundation
 
-struct AutoplayPerformanceTimeline: Equatable, Sendable {
+struct AutoplayPerformanceTimeline: Equatable {
     enum EventKind: Equatable {
         case pauseSeconds(TimeInterval)
         case noteOff(midi: Int)
@@ -18,18 +18,18 @@ struct AutoplayPerformanceTimeline: Equatable, Sendable {
 
         var sortPriority: Int {
             switch kind {
-                case .pauseSeconds:
-                    0
-                case .noteOff:
-                    1
-                case .pedalDown, .pedalUp:
-                    2
-                case .noteOn:
-                    3
-                case .advanceStep:
-                    4
-                case .advanceGuide:
-                    5
+            case .pauseSeconds:
+                0
+            case .noteOff:
+                1
+            case .pedalDown, .pedalUp:
+                2
+            case .noteOn:
+                3
+            case .advanceStep:
+                4
+            case .advanceGuide:
+                5
             }
         }
     }
@@ -190,20 +190,20 @@ struct AutoplayPerformanceTimeline: Equatable, Sendable {
 
     private static func eventTieBreaker(_ kind: EventKind) -> String {
         switch kind {
-            case let .noteOff(midi):
-                "noteOff-\(midi)"
-            case let .noteOn(midi, velocity):
-                "noteOn-\(midi)-\(velocity)"
-            case let .advanceStep(index):
-                "advanceStep-\(index)"
-            case let .advanceGuide(index, guideID):
-                "advanceGuide-\(index)-\(guideID)"
-            case .pedalDown:
-                "pedal-1-down"
-            case .pedalUp:
-                "pedal-0-up"
-            case let .pauseSeconds(seconds):
-                "pause-\(seconds)"
+        case let .noteOff(midi):
+            "noteOff-\(midi)"
+        case let .noteOn(midi, velocity):
+            "noteOn-\(midi)-\(velocity)"
+        case let .advanceStep(index):
+            "advanceStep-\(index)"
+        case let .advanceGuide(index, guideID):
+            "advanceGuide-\(index)-\(guideID)"
+        case .pedalDown:
+            "pedal-1-down"
+        case .pedalUp:
+            "pedal-0-up"
+        case let .pauseSeconds(seconds):
+            "pause-\(seconds)"
         }
     }
 }

@@ -35,7 +35,7 @@ protocol PracticeInputEventSourceProtocol: AnyObject {
     func stop()
 }
 
-enum PracticeSessionEffect: Equatable, Sendable {
+enum PracticeSessionEffect: Equatable {
     case advanceToNextStep
     case refreshPracticeInput
     case refreshAudioRecognition
@@ -45,7 +45,7 @@ enum PracticeSessionEffect: Equatable, Sendable {
     case stopPracticeInput
 }
 
-enum PracticeImmersiveOpenResult: Equatable, Sendable {
+enum PracticeImmersiveOpenResult: Equatable {
     case opened
     case userCancelled
     case error

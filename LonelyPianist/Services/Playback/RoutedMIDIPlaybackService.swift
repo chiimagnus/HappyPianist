@@ -71,10 +71,10 @@ final class RoutedMIDIPlaybackService: RoutableMIDIPlaybackServiceProtocol {
         stop()
 
         switch selectedOutputKind {
-            case .builtInSampler:
-                try samplerPlayback.play(take: take, fromOffsetSec: offsetSec)
-            case .midiDestination:
-                try midiOutPlayback.play(take: take, fromOffsetSec: offsetSec)
+        case .builtInSampler:
+            try samplerPlayback.play(take: take, fromOffsetSec: offsetSec)
+        case .midiDestination:
+            try midiOutPlayback.play(take: take, fromOffsetSec: offsetSec)
         }
     }
 
@@ -89,10 +89,10 @@ final class RoutedMIDIPlaybackService: RoutableMIDIPlaybackServiceProtocol {
 
     private func applySelectedOutput() {
         switch selectedOutputKind {
-            case .builtInSampler:
-                midiOutPlayback.destinationUniqueID = nil
-            case let .midiDestination(uniqueID):
-                midiOutPlayback.destinationUniqueID = uniqueID
+        case .builtInSampler:
+            midiOutPlayback.destinationUniqueID = nil
+        case let .midiDestination(uniqueID):
+            midiOutPlayback.destinationUniqueID = uniqueID
         }
     }
 }

@@ -126,10 +126,10 @@ struct RecorderPanelView: View {
             allowedContentTypes: [.midi]
         ) { result in
             switch result {
-                case let .success(url):
-                    viewModel.importMIDIFile(from: url, mode: importMode)
-                case .failure:
-                    break
+            case let .success(url):
+                viewModel.importMIDIFile(from: url, mode: importMode)
+            case .failure:
+                break
             }
         }
         .alert(item: bluetoothAlertBinding) { alert in

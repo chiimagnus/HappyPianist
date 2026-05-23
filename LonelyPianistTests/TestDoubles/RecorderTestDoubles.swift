@@ -1,7 +1,7 @@
 import Foundation
 @testable import LonelyPianist
 
-nonisolated final class MIDIInputServiceMock: MIDIInputServiceProtocol {
+final nonisolated class MIDIInputServiceMock: MIDIInputServiceProtocol {
     var onEvent: (@Sendable (MIDIEvent) -> Void)?
     var onConnectionStateChange: (@Sendable (MIDIInputConnectionState) -> Void)?
     var onSourceNamesChange: (@Sendable ([String]) -> Void)?

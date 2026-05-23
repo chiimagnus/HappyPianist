@@ -16,8 +16,13 @@ private final class FakePracticeAudioRecognitionInputServiceService: PracticeAud
     let statusUpdates: AsyncStream<PracticeAudioRecognitionStatus> = AsyncStream { _ in }
     let debugSnapshots: AsyncStream<PracticeAudioRecognitionDebugSnapshot> = AsyncStream { _ in }
 
-    var startCallCount: Int { withLock { _startCallCount } }
-    var stopCallCount: Int { withLock { _stopCallCount } }
+    var startCallCount: Int {
+        withLock { _startCallCount }
+    }
+
+    var stopCallCount: Int {
+        withLock { _stopCallCount }
+    }
 
     private let lock = NSLock()
     private var _startCallCount = 0

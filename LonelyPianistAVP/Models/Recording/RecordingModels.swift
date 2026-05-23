@@ -39,4 +39,3 @@ struct RecordingTake: Codable, Equatable, Identifiable {
         events.map(\.time).max() ?? 0
     }
 }
-

@@ -20,4 +20,3 @@ protocol ARTrackingServiceProtocol: AnyObject {
     func start(mode: ARTrackingMode)
     func stop()
 }
-

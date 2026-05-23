@@ -1,6 +1,6 @@
 import Foundation
-import simd
 @testable import LonelyPianistAVP
+import simd
 import Testing
 
 @MainActor
@@ -62,7 +62,10 @@ private final class FakeSequencerPlaybackService: PracticeSequencerPlaybackServi
     func stop() {}
     func load(sequence _: PracticeSequencerSequence) throws {}
     func play(fromSeconds _: TimeInterval) throws {}
-    func currentSeconds() -> TimeInterval { 0 }
+    func currentSeconds() -> TimeInterval {
+        0
+    }
+
     func playOneShot(noteOns _: [PracticeOneShotNoteOn], durationSeconds _: TimeInterval) throws {}
 
     func startLiveNotes(midiNotes: Set<Int>) throws {

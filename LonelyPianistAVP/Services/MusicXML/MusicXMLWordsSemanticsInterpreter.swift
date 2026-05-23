@@ -20,26 +20,26 @@ struct MusicXMLWordsSemanticsInterpreter {
 
         let pedalEvents = markers.compactMap { marker -> MusicXMLPedalEvent? in
             switch marker.kind {
-                case .pedalDown:
-                    MusicXMLPedalEvent(
-                        partID: marker.scope.partID,
-                        measureNumber: 0,
-                        tick: marker.tick,
-                        kind: .start,
-                        isDown: true,
-                        timeOnlyPasses: nil
-                    )
-                case .pedalUp:
-                    MusicXMLPedalEvent(
-                        partID: marker.scope.partID,
-                        measureNumber: 0,
-                        tick: marker.tick,
-                        kind: .stop,
-                        isDown: false,
-                        timeOnlyPasses: nil
-                    )
-                case .rit, .accel, .aTempo:
-                    nil
+            case .pedalDown:
+                MusicXMLPedalEvent(
+                    partID: marker.scope.partID,
+                    measureNumber: 0,
+                    tick: marker.tick,
+                    kind: .start,
+                    isDown: true,
+                    timeOnlyPasses: nil
+                )
+            case .pedalUp:
+                MusicXMLPedalEvent(
+                    partID: marker.scope.partID,
+                    measureNumber: 0,
+                    tick: marker.tick,
+                    kind: .stop,
+                    isDown: false,
+                    timeOnlyPasses: nil
+                )
+            case .rit, .accel, .aTempo:
+                nil
             }
         }
 
@@ -72,22 +72,22 @@ struct MusicXMLWordsSemanticsInterpreter {
         let ramps: [MusicXMLTempoMap.TempoRamp] = markers.compactMap { marker in
             let tempoScope = MusicXMLEventScope(partID: marker.scope.partID, staff: nil, voice: nil)
             return switch marker.kind {
-                case .rit:
-                    Self.tempoRampIfPossible(
-                        startTick: marker.tick,
-                        requiresSlowingDown: true,
-                        explicitTempoEvents: combinedTempoEvents,
-                        scope: tempoScope
-                    )
-                case .accel:
-                    Self.tempoRampIfPossible(
-                        startTick: marker.tick,
-                        requiresSlowingDown: false,
-                        explicitTempoEvents: combinedTempoEvents,
-                        scope: tempoScope
-                    )
-                case .aTempo, .pedalDown, .pedalUp:
-                    nil
+            case .rit:
+                Self.tempoRampIfPossible(
+                    startTick: marker.tick,
+                    requiresSlowingDown: true,
+                    explicitTempoEvents: combinedTempoEvents,
+                    scope: tempoScope
+                )
+            case .accel:
+                Self.tempoRampIfPossible(
+                    startTick: marker.tick,
+                    requiresSlowingDown: false,
+                    explicitTempoEvents: combinedTempoEvents,
+                    scope: tempoScope
+                )
+            case .aTempo, .pedalDown, .pedalUp:
+                nil
             }
         }
 
@@ -108,11 +108,11 @@ struct MusicXMLWordsSemanticsInterpreter {
 
             var sortPriority: Int {
                 switch self {
-                    case .pedalUp: 0
-                    case .pedalDown: 1
-                    case .aTempo: 2
-                    case .rit: 3
-                    case .accel: 4
+                case .pedalUp: 0
+                case .pedalDown: 1
+                case .aTempo: 2
+                case .rit: 3
+                case .accel: 4
                 }
             }
         }

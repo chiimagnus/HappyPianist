@@ -1,8 +1,8 @@
 import AudioToolbox
 import Foundation
 
-struct PracticeSequencerMIDIEvent: Equatable, Sendable {
-    enum Kind: Equatable, Sendable {
+struct PracticeSequencerMIDIEvent: Equatable {
+    enum Kind: Equatable {
         case noteOn(midi: Int, velocity: UInt8)
         case noteOff(midi: Int)
         case controlChange(controller: UInt8, value: UInt8)
@@ -25,16 +25,16 @@ enum PracticeSequencerSequenceBuilderError: LocalizedError, Equatable {
 
     var errorDescription: String? {
         switch self {
-            case .musicSequenceCreateFailed:
-                "MusicSequence 创建失败。"
-            case let .musicTrackCreateFailed(status):
-                "MusicTrack 创建失败：\(status)"
-            case .tempoTrackMissing:
-                "Tempo track 缺失。"
-            case let .trackEventInsertFailed(status):
-                "写入 MIDI event 失败：\(status)"
-            case let .midiExportFailed(status):
-                "导出 MIDI data 失败：\(status)"
+        case .musicSequenceCreateFailed:
+            "MusicSequence 创建失败。"
+        case let .musicTrackCreateFailed(status):
+            "MusicTrack 创建失败：\(status)"
+        case .tempoTrackMissing:
+            "Tempo track 缺失。"
+        case let .trackEventInsertFailed(status):
+            "写入 MIDI event 失败：\(status)"
+        case let .midiExportFailed(status):
+            "导出 MIDI data 失败：\(status)"
         }
     }
 }
@@ -76,47 +76,47 @@ struct PracticeSequencerSequenceBuilder {
             if let endTick, event.tick >= endTick { break }
 
             switch event.kind {
-                case let .pauseSeconds(seconds):
-                    pausePrefixSeconds += seconds
+            case let .pauseSeconds(seconds):
+                pausePrefixSeconds += seconds
 
-                case let .noteOff(midi):
-                    schedule.append(
-                        PracticeSequencerMIDIEvent(
-                            timeSeconds: tempoMap
-                                .timeSeconds(atTick: event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
-                            kind: .noteOff(midi: midi)
-                        )
+            case let .noteOff(midi):
+                schedule.append(
+                    PracticeSequencerMIDIEvent(
+                        timeSeconds: tempoMap
+                            .timeSeconds(atTick: event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
+                        kind: .noteOff(midi: midi)
                     )
+                )
 
-                case .pedalDown:
-                    schedule.append(
-                        PracticeSequencerMIDIEvent(
-                            timeSeconds: tempoMap
-                                .timeSeconds(atTick: event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
-                            kind: .controlChange(controller: 64, value: 127)
-                        )
+            case .pedalDown:
+                schedule.append(
+                    PracticeSequencerMIDIEvent(
+                        timeSeconds: tempoMap
+                            .timeSeconds(atTick: event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
+                        kind: .controlChange(controller: 64, value: 127)
                     )
+                )
 
-                case .pedalUp:
-                    schedule.append(
-                        PracticeSequencerMIDIEvent(
-                            timeSeconds: tempoMap
-                                .timeSeconds(atTick: event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
-                            kind: .controlChange(controller: 64, value: 0)
-                        )
+            case .pedalUp:
+                schedule.append(
+                    PracticeSequencerMIDIEvent(
+                        timeSeconds: tempoMap
+                            .timeSeconds(atTick: event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
+                        kind: .controlChange(controller: 64, value: 0)
                     )
+                )
 
-                case let .noteOn(midi, velocity):
-                    schedule.append(
-                        PracticeSequencerMIDIEvent(
-                            timeSeconds: tempoMap
-                                .timeSeconds(atTick: event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
-                            kind: .noteOn(midi: midi, velocity: velocity)
-                        )
+            case let .noteOn(midi, velocity):
+                schedule.append(
+                    PracticeSequencerMIDIEvent(
+                        timeSeconds: tempoMap
+                            .timeSeconds(atTick: event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
+                        kind: .noteOn(midi: midi, velocity: velocity)
                     )
+                )
 
-                case .advanceStep, .advanceGuide:
-                    continue
+            case .advanceStep, .advanceGuide:
+                continue
             }
         }
 
@@ -187,96 +187,96 @@ struct PracticeSequencerSequenceBuilder {
 
     private func midiChannelMessage(for kind: PracticeSequencerMIDIEvent.Kind) -> MIDIChannelMessage {
         switch kind {
-            case let .noteOn(midi, velocity):
-                return MIDIChannelMessage(
-                    status: UInt8(0x90 | midiChannel),
-                    data1: UInt8(clamping: midi),
-                    data2: velocity,
-                    reserved: 0
-                )
+        case let .noteOn(midi, velocity):
+            return MIDIChannelMessage(
+                status: UInt8(0x90 | midiChannel),
+                data1: UInt8(clamping: midi),
+                data2: velocity,
+                reserved: 0
+            )
 
-            case let .noteOff(midi):
-                return MIDIChannelMessage(
-                    status: UInt8(0x80 | midiChannel),
-                    data1: UInt8(clamping: midi),
-                    data2: 0,
-                    reserved: 0
-                )
+        case let .noteOff(midi):
+            return MIDIChannelMessage(
+                status: UInt8(0x80 | midiChannel),
+                data1: UInt8(clamping: midi),
+                data2: 0,
+                reserved: 0
+            )
 
-            case let .controlChange(controller, value):
-                return MIDIChannelMessage(
-                    status: UInt8(0xB0 | midiChannel),
-                    data1: controller,
-                    data2: value,
-                    reserved: 0
-                )
+        case let .controlChange(controller, value):
+            return MIDIChannelMessage(
+                status: UInt8(0xB0 | midiChannel),
+                data1: controller,
+                data2: value,
+                reserved: 0
+            )
 
-            case let .pitchBend(value):
-                let clamped = UInt16(clamping: value)
-                let lsb = UInt8(clamped & 0x7F)
-                let msb = UInt8((clamped >> 7) & 0x7F)
-                return MIDIChannelMessage(
-                    status: UInt8(0xE0 | midiChannel),
-                    data1: lsb,
-                    data2: msb,
-                    reserved: 0
-                )
+        case let .pitchBend(value):
+            let clamped = UInt16(clamping: value)
+            let lsb = UInt8(clamped & 0x7F)
+            let msb = UInt8((clamped >> 7) & 0x7F)
+            return MIDIChannelMessage(
+                status: UInt8(0xE0 | midiChannel),
+                data1: lsb,
+                data2: msb,
+                reserved: 0
+            )
 
-            case let .programChange(program):
-                return MIDIChannelMessage(
-                    status: UInt8(0xC0 | midiChannel),
-                    data1: program,
-                    data2: 0,
-                    reserved: 0
-                )
+        case let .programChange(program):
+            return MIDIChannelMessage(
+                status: UInt8(0xC0 | midiChannel),
+                data1: program,
+                data2: 0,
+                reserved: 0
+            )
 
-            case let .channelPressure(value):
-                return MIDIChannelMessage(
-                    status: UInt8(0xD0 | midiChannel),
-                    data1: value,
-                    data2: 0,
-                    reserved: 0
-                )
+        case let .channelPressure(value):
+            return MIDIChannelMessage(
+                status: UInt8(0xD0 | midiChannel),
+                data1: value,
+                data2: 0,
+                reserved: 0
+            )
 
-            case let .polyPressure(midi, value):
-                return MIDIChannelMessage(
-                    status: UInt8(0xA0 | midiChannel),
-                    data1: UInt8(clamping: midi),
-                    data2: value,
-                    reserved: 0
-                )
+        case let .polyPressure(midi, value):
+            return MIDIChannelMessage(
+                status: UInt8(0xA0 | midiChannel),
+                data1: UInt8(clamping: midi),
+                data2: value,
+                reserved: 0
+            )
         }
     }
 
     private func eventPriority(_ kind: PracticeSequencerMIDIEvent.Kind) -> Int {
         switch kind {
-            case .controlChange:
-                0
-            case .programChange, .pitchBend, .channelPressure, .polyPressure:
-                1
-            case .noteOff:
-                2
-            case .noteOn:
-                3
+        case .controlChange:
+            0
+        case .programChange, .pitchBend, .channelPressure, .polyPressure:
+            1
+        case .noteOff:
+            2
+        case .noteOn:
+            3
         }
     }
 
     private func tieBreaker(_ kind: PracticeSequencerMIDIEvent.Kind) -> String {
         switch kind {
-            case let .noteOn(midi, velocity):
-                "on-\(midi)-\(velocity)"
-            case let .noteOff(midi):
-                "off-\(midi)"
-            case let .controlChange(controller, value):
-                "cc-\(controller)-\(value)"
-            case let .pitchBend(value):
-                "pb-\(value)"
-            case let .programChange(program):
-                "pc-\(program)"
-            case let .channelPressure(value):
-                "cp-\(value)"
-            case let .polyPressure(midi, value):
-                "pp-\(midi)-\(value)"
+        case let .noteOn(midi, velocity):
+            "on-\(midi)-\(velocity)"
+        case let .noteOff(midi):
+            "off-\(midi)"
+        case let .controlChange(controller, value):
+            "cc-\(controller)-\(value)"
+        case let .pitchBend(value):
+            "pb-\(value)"
+        case let .programChange(program):
+            "pc-\(program)"
+        case let .channelPressure(value):
+            "cp-\(value)"
+        case let .polyPressure(midi, value):
+            "pp-\(midi)-\(value)"
         }
     }
 }

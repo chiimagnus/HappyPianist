@@ -100,9 +100,9 @@ func autoplayTimelineRearticulatesOverlappingSameMIDINoteAtNextOnTick() {
 
     let midiEvents = timeline.events.compactMap { event -> String? in
         switch event.kind {
-            case let .noteOn(midi, _): return "on:\(midi)@\(event.tick)"
-            case let .noteOff(midi): return "off:\(midi)@\(event.tick)"
-            default: return nil
+        case let .noteOn(midi, _): return "on:\(midi)@\(event.tick)"
+        case let .noteOff(midi): return "off:\(midi)@\(event.tick)"
+        default: return nil
         }
     }
 
@@ -129,9 +129,9 @@ func autoplayTimelineKeepsZeroDurationGuideNotesReleasable() {
 
     let midiEvents = timeline.events.compactMap { event -> String? in
         switch event.kind {
-            case let .noteOn(midi, _): return "on:\(midi)@\(event.tick)"
-            case let .noteOff(midi): return "off:\(midi)@\(event.tick)"
-            default: return nil
+        case let .noteOn(midi, _): return "on:\(midi)@\(event.tick)"
+        case let .noteOff(midi): return "off:\(midi)@\(event.tick)"
+        default: return nil
         }
     }
 
@@ -187,9 +187,9 @@ func autoplayTimelineEmitsReleaseAndRedownForSameTickPedalChange() {
     let pedalEventsAtReleaseTick = timeline.events.compactMap { event -> String? in
         guard event.tick == 480 else { return nil }
         switch event.kind {
-            case .pedalUp: return "up"
-            case .pedalDown: return "down"
-            default: return nil
+        case .pedalUp: return "up"
+        case .pedalDown: return "down"
+        default: return nil
         }
     }
 

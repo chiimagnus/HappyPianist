@@ -15,21 +15,20 @@ enum DataProviderState: Equatable {
 
     var description: String {
         switch self {
-            case .idle:
-                "idle"
-            case .running:
-                "running"
-            case .unsupported:
-                "unsupported"
-            case .unauthorized:
-                "unauthorized"
-            case .disabled:
-                "disabled"
-            case .stopped:
-                "stopped"
-            case let .failed(reason):
-                "failed(\(reason))"
+        case .idle:
+            "idle"
+        case .running:
+            "running"
+        case .unsupported:
+            "unsupported"
+        case .unauthorized:
+            "unauthorized"
+        case .disabled:
+            "disabled"
+        case .stopped:
+            "stopped"
+        case let .failed(reason):
+            "failed(\(reason))"
         }
     }
 }
-

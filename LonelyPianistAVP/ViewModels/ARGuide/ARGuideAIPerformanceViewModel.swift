@@ -14,7 +14,7 @@ final class ARGuideAIPerformanceViewModel {
     var lastImprovStatusText: String?
 
     @ObservationIgnored
-    private lazy var aiPerformanceService: AIPerformanceService = AIPerformanceService(
+    private lazy var aiPerformanceService: AIPerformanceService = .init(
         logger: Logger(
             subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
             category: "AIPerformanceService"

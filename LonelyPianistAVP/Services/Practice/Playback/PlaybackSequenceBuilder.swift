@@ -46,4 +46,3 @@ actor PlaybackSequenceBuilder: PlaybackSequenceBuildingProtocol {
         return try builder.buildSequence(steps: steps, tempoMap: tempoMap, stepRange: stepRange)
     }
 }
-

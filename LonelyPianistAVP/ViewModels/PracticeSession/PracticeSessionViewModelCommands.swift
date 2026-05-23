@@ -443,5 +443,4 @@ extension PracticeSessionViewModel {
     func uniqueMIDINotes(in step: PracticeStep) -> [Int] {
         Set(step.notes.map(\.midiNote)).sorted()
     }
-
 }

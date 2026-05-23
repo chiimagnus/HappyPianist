@@ -124,10 +124,10 @@ final class CalibrationGuideViewModel {
     func handleHandUpdates() {
         let nowUptime = ProcessInfo.processInfo.systemUptime
         let reticleSourcePoint: SIMD3<Float>? = switch pendingCalibrationCaptureAnchor {
-            case .c8:
-                arTrackingService.rightIndexFingerTipPosition
-            case .a0, .none:
-                arTrackingService.leftIndexFingerTipPosition
+        case .c8:
+            arTrackingService.rightIndexFingerTipPosition
+        case .a0, .none:
+            arTrackingService.leftIndexFingerTipPosition
         }
         calibrationCaptureService.updateReticleFromHandTracking(
             reticleSourcePoint,
@@ -158,10 +158,10 @@ final class CalibrationGuideViewModel {
         }()
 
         let shouldConfirmOnPinch: Bool = switch pendingCalibrationCaptureAnchor {
-            case .a0, .none:
-                isRightHandPinching && wasRightHandPinching == false
-            case .c8:
-                isLeftHandPinching && wasLeftHandPinching == false
+        case .a0, .none:
+            isRightHandPinching && wasRightHandPinching == false
+        case .c8:
+            isLeftHandPinching && wasLeftHandPinching == false
         }
 
         if shouldConfirmOnPinch {
@@ -183,20 +183,20 @@ final class CalibrationGuideViewModel {
         let handState = arTrackingService.providerStateByName["hand"] ?? .idle
         let worldState = arTrackingService.providerStateByName["world"] ?? .idle
         let failureMessage: String? = switch (handState, worldState) {
-            case (.unsupported, _):
-                "手部追踪不可用：此设备不支持手部追踪。"
-            case (.unauthorized, _):
-                "手部追踪未授权：请在系统设置中允许本 App 使用 Hand Tracking。"
-            case let (.failed(reason), _):
-                "手部追踪启动失败：\(reason)"
-            case (_, .unsupported):
-                "世界追踪不可用：此环境不支持 World Tracking。"
-            case (_, .unauthorized):
-                "世界追踪不可用：WorldTrackingProvider 未能启动（请稍后重试）。"
-            case let (_, .failed(reason)):
-                "世界追踪启动失败：\(reason)"
-            default:
-                nil
+        case (.unsupported, _):
+            "手部追踪不可用：此设备不支持手部追踪。"
+        case (.unauthorized, _):
+            "手部追踪未授权：请在系统设置中允许本 App 使用 Hand Tracking。"
+        case let (.failed(reason), _):
+            "手部追踪启动失败：\(reason)"
+        case (_, .unsupported):
+            "世界追踪不可用：此环境不支持 World Tracking。"
+        case (_, .unauthorized):
+            "世界追踪不可用：WorldTrackingProvider 未能启动（请稍后重试）。"
+        case let (_, .failed(reason)):
+            "世界追踪启动失败：\(reason)"
+        default:
+            nil
         }
 
         guard let failureMessage else { return }
@@ -247,34 +247,34 @@ final class CalibrationGuideViewModel {
         calibrationGuidedCalibrationTask = Task { @MainActor [weak self] in
             guard let self else { return }
             switch anchor {
-                case .a0:
-                    calibrationPhase = .transitionA0
-                    calibrationStatusMessage = nil
-                    try? await Task.sleep(for: .seconds(1.25))
-                    guard Task.isCancelled == false else { return }
-                    pendingCalibrationCaptureAnchor = .c8
-                    calibrationPhase = .capturingC8
+            case .a0:
+                calibrationPhase = .transitionA0
+                calibrationStatusMessage = nil
+                try? await Task.sleep(for: .seconds(1.25))
+                guard Task.isCancelled == false else { return }
+                pendingCalibrationCaptureAnchor = .c8
+                calibrationPhase = .capturingC8
 
-                case .c8:
-                    calibrationPhase = .transitionC8
-                    let capturedA0 = calibrationCaptureService.a0AnchorID
-                    let capturedC8 = calibrationCaptureService.c8AnchorID
-                    calibrationStatusMessage = nil
-                    try? await Task.sleep(for: .seconds(0.3))
-                    guard Task.isCancelled == false else { return }
+            case .c8:
+                calibrationPhase = .transitionC8
+                let capturedA0 = calibrationCaptureService.a0AnchorID
+                let capturedC8 = calibrationCaptureService.c8AnchorID
+                calibrationStatusMessage = nil
+                try? await Task.sleep(for: .seconds(0.3))
+                guard Task.isCancelled == false else { return }
 
-                    let didSave = appState.saveCalibrationIfPossible()
-                    if didSave,
-                       let storedCalibration,
-                       storedCalibration.a0AnchorID == capturedA0,
-                       storedCalibration.c8AnchorID == capturedC8
-                    {
-                        calibrationStatusMessage = nil
-                        calibrationPhase = .completed
-                    } else {
-                        let message = calibrationStatusMessage ?? "保存校准失败，请重试。"
-                        presentCalibrationError(message: message)
-                    }
+                let didSave = appState.saveCalibrationIfPossible()
+                if didSave,
+                   let storedCalibration,
+                   storedCalibration.a0AnchorID == capturedA0,
+                   storedCalibration.c8AnchorID == capturedC8
+                {
+                    calibrationStatusMessage = nil
+                    calibrationPhase = .completed
+                } else {
+                    let message = calibrationStatusMessage ?? "保存校准失败，请重试。"
+                    presentCalibrationError(message: message)
+                }
             }
 
             calibrationGuidedCalibrationTask = nil
@@ -312,4 +312,3 @@ final class CalibrationGuideViewModel {
         }
     #endif
 }
-

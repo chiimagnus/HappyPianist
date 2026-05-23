@@ -9,4 +9,3 @@ func testFixtureURL(_ name: String, filePath: StaticString = #filePath) -> URL {
         .appending(path: "Fixtures")
         .appending(path: name)
 }
-

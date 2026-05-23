@@ -285,14 +285,14 @@ final class VirtualPerformerOverlayController {
                 guard Task.isCancelled == false else { return }
 
                 switch event.kind {
-                    case let .noteOn(midi, velocity):
-                        animateArmSwing(midi: midi, velocity: velocity)
-                    case .noteOff:
-                        break
-                    case .controlChange:
-                        break
-                    case .pitchBend, .programChange, .channelPressure, .polyPressure:
-                        break
+                case let .noteOn(midi, velocity):
+                    animateArmSwing(midi: midi, velocity: velocity)
+                case .noteOff:
+                    break
+                case .controlChange:
+                    break
+                case .pitchBend, .programChange, .channelPressure, .polyPressure:
+                    break
                 }
                 previousTimeSeconds = event.timeSeconds
             }
@@ -505,14 +505,14 @@ final class VirtualPerformerOverlayController {
 
     private func eventPriority(_ kind: PracticeSequencerMIDIEvent.Kind) -> Int {
         switch kind {
-            case .controlChange:
-                0
-            case .programChange, .pitchBend, .channelPressure, .polyPressure:
-                1
-            case .noteOff:
-                2
-            case .noteOn:
-                3
+        case .controlChange:
+            0
+        case .programChange, .pitchBend, .channelPressure, .polyPressure:
+            1
+        case .noteOff:
+            2
+        case .noteOn:
+            3
         }
     }
 

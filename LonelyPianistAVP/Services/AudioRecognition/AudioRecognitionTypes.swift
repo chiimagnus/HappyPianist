@@ -1,10 +1,10 @@
 import Foundation
 
-enum PracticeAudioRecognitionDetectorMode: String, CaseIterable, Equatable, Sendable {
+enum PracticeAudioRecognitionDetectorMode: String, CaseIterable, Equatable {
     case harmonicTemplate
 }
 
-enum PracticeAudioRecognitionStatus: Equatable, Sendable {
+enum PracticeAudioRecognitionStatus: Equatable {
     case idle
     case requestingPermission
     case permissionDenied
@@ -30,7 +30,7 @@ protocol PracticeAudioRecognitionServiceProtocol: AnyObject {
     func stop()
 }
 
-struct TemplateMatchResult: Equatable, Sendable {
+struct TemplateMatchResult: Equatable {
     let midiNote: Int
     let role: HarmonicTemplateCandidateRole
     let confidence: Double
@@ -40,7 +40,7 @@ struct TemplateMatchResult: Equatable, Sendable {
     let strongestPartials: [HarmonicPartialDebugValue]
 }
 
-struct TargetedHarmonicDetectionFrame: Equatable, Sendable {
+struct TargetedHarmonicDetectionFrame: Equatable {
     let events: [DetectedNoteEvent]
     let templateMatchResults: [TemplateMatchResult]
     let processingDurationMs: Double
@@ -50,7 +50,7 @@ struct TargetedHarmonicDetectionFrame: Equatable, Sendable {
     let rollingWindowSize: Int
 }
 
-struct PracticeAudioRecognitionDebugSnapshot: Equatable, Sendable {
+struct PracticeAudioRecognitionDebugSnapshot: Equatable {
     enum PermissionState: String, Equatable {
         case unknown
         case granted

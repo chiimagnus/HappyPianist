@@ -1,10 +1,10 @@
-@testable import LonelyPianistAVP
 import Foundation
 import ImprovEngines
 import ImprovProtocol
+@testable import LonelyPianistAVP
 import Testing
 
-private struct DeterministicFixture: Codable, Sendable {
+private struct DeterministicFixture: Codable {
     var notes: [ImprovDialogueNote]
     var params: ImprovGenerateParams
     var sessionID: String?

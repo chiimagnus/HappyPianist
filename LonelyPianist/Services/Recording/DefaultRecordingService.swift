@@ -37,27 +37,11 @@ final class DefaultRecordingService: RecordingServiceProtocol {
         let channel = max(1, event.channel)
 
         switch event.type {
-            case let .noteOn(note, velocity):
-                let clampedNote = max(0, min(127, note))
-                let clampedVelocity = max(0, min(127, velocity))
-                let key = NoteKey(note: clampedNote, channel: channel)
-                if let openNote = openNotes[key] {
-                    appendRecordedNote(
-                        id: openNote.id,
-                        note: clampedNote,
-                        velocity: openNote.velocity,
-                        channel: channel,
-                        startAt: openNote.startedAt,
-                        endAt: eventTimestamp,
-                        recordingStartedAt: startedAt
-                    )
-                }
-                openNotes[key] = OpenNote(id: UUID(), startedAt: eventTimestamp, velocity: clampedVelocity)
-
-            case let .noteOff(note, _):
-                let clampedNote = max(0, min(127, note))
-                let key = NoteKey(note: clampedNote, channel: channel)
-                guard let openNote = openNotes.removeValue(forKey: key) else { return }
+        case let .noteOn(note, velocity):
+            let clampedNote = max(0, min(127, note))
+            let clampedVelocity = max(0, min(127, velocity))
+            let key = NoteKey(note: clampedNote, channel: channel)
+            if let openNote = openNotes[key] {
                 appendRecordedNote(
                     id: openNote.id,
                     note: clampedNote,
@@ -67,9 +51,25 @@ final class DefaultRecordingService: RecordingServiceProtocol {
                     endAt: eventTimestamp,
                     recordingStartedAt: startedAt
                 )
+            }
+            openNotes[key] = OpenNote(id: UUID(), startedAt: eventTimestamp, velocity: clampedVelocity)
 
-            case .controlChange:
-                return
+        case let .noteOff(note, _):
+            let clampedNote = max(0, min(127, note))
+            let key = NoteKey(note: clampedNote, channel: channel)
+            guard let openNote = openNotes.removeValue(forKey: key) else { return }
+            appendRecordedNote(
+                id: openNote.id,
+                note: clampedNote,
+                velocity: openNote.velocity,
+                channel: channel,
+                startAt: openNote.startedAt,
+                endAt: eventTimestamp,
+                recordingStartedAt: startedAt
+            )
+
+        case .controlChange:
+            return
         }
     }
 

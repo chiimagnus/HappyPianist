@@ -40,11 +40,25 @@ protocol PianoModeProtocol {
 }
 
 extension PianoModeProtocol {
-    var id: String { descriptor.id.rawValue }
-    var pickerCard: PianoModePickerCard { descriptor.pickerCard }
-    var preparationRoute: PianoModePreparationRoute { descriptor.preparationRoute }
-    var usesBluetoothMIDIInput: Bool { descriptor.usesBluetoothMIDIInput }
-    var isVirtualPianoMode: Bool { descriptor.isVirtualPianoMode }
+    var id: String {
+        descriptor.id.rawValue
+    }
+
+    var pickerCard: PianoModePickerCard {
+        descriptor.pickerCard
+    }
+
+    var preparationRoute: PianoModePreparationRoute {
+        descriptor.preparationRoute
+    }
+
+    var usesBluetoothMIDIInput: Bool {
+        descriptor.usesBluetoothMIDIInput
+    }
+
+    var isVirtualPianoMode: Bool {
+        descriptor.isVirtualPianoMode
+    }
 
     func recordingSourceText() -> String? {
         descriptor.recordingSourceText
@@ -55,4 +69,3 @@ protocol PianoModeRegistryProtocol {
     var modes: [any PianoModeProtocol] { get }
     func mode(for id: String?) -> (any PianoModeProtocol)?
 }
-

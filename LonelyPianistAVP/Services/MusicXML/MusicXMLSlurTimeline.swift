@@ -38,13 +38,13 @@ struct MusicXMLSlurTimeline: Equatable {
         for event in ordered {
             let k = key(for: event)
             switch event.kind {
-                case .start:
-                    openStartTickByKey[k] = event.tick
-                case .stop:
-                    if let start = openStartTickByKey.removeValue(forKey: k) {
-                        let end = max(start, event.tick)
-                        built.append(Span(startTick: start, endTick: end))
-                    }
+            case .start:
+                openStartTickByKey[k] = event.tick
+            case .stop:
+                if let start = openStartTickByKey.removeValue(forKey: k) {
+                    let end = max(start, event.tick)
+                    built.append(Span(startTick: start, endTick: end))
+                }
             }
         }
 

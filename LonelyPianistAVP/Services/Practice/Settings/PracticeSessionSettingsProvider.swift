@@ -45,13 +45,12 @@ struct UserDefaultsPracticeSessionSettingsProvider: PracticeSessionSettingsProvi
     }
 
     var soundRoutingSettings: PracticeSoundRoutingSettings {
-        let outputRoute: PracticeSoundOutputRoute
-        if let rawValue = userDefaults.string(forKey: PracticeSessionSettingsKeys.soundOutputRoute),
-           let route = PracticeSoundOutputRoute(rawValue: rawValue)
+        let outputRoute: PracticeSoundOutputRoute = if let rawValue = userDefaults.string(forKey: PracticeSessionSettingsKeys.soundOutputRoute),
+                                                       let route = PracticeSoundOutputRoute(rawValue: rawValue)
         {
-            outputRoute = route
+            route
         } else {
-            outputRoute = .localSampler
+            .localSampler
         }
 
         let midiDestinationUniqueID: Int32?

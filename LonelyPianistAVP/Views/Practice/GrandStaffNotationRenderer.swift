@@ -462,14 +462,14 @@ struct GrandStaffNotationRenderer: GrandStaffNotationRendererProtocol {
 
     private func chordBeamCount(for noteValue: GrandStaffNoteValue) -> Int {
         switch noteValue {
-            case .eighth:
-                1
-            case .sixteenth:
-                2
-            case .thirtySecond:
-                3
-            default:
-                0
+        case .eighth:
+            1
+        case .sixteenth:
+            2
+        case .thirtySecond:
+            3
+        default:
+            0
         }
     }
 

@@ -19,7 +19,7 @@ struct MusicXMLScore: Equatable {
     var endingDirectives: [MusicXMLEndingDirective] = []
 }
 
-struct MusicXMLEventScope: Equatable, Sendable {
+struct MusicXMLEventScope: Equatable {
     let partID: String
     let staff: Int?
     let voice: Int?

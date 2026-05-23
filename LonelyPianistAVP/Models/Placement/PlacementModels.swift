@@ -39,4 +39,3 @@ struct GazeRay: Equatable {
         return directionWorld / len
     }
 }
-

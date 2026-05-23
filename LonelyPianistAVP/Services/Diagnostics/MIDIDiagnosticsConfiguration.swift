@@ -1,6 +1,6 @@
 import Foundation
 
-struct MIDIDiagnosticsConfiguration: Equatable, Sendable {
+struct MIDIDiagnosticsConfiguration: Equatable {
     var isPerNoteInfoLoggingEnabled: Bool = false
     var isPerNoteDebugLoggingEnabled: Bool = false
 

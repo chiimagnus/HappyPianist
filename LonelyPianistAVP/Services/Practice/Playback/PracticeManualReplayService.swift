@@ -192,7 +192,6 @@ final class PracticeManualReplayService: PracticeSessionLifecycleProtocol {
             )
         }
     }
-
 }
 
 private struct ManualReplayTimeCursor: Equatable {

@@ -36,19 +36,19 @@ final class BonjourBackendDiscoveryService: Sendable {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 switch newState {
-                    case let .failed(error):
-                        if case let .posix(code) = error, code == .EPERM {
-                            state = .denied
-                        } else {
-                            state = .failed(message: String(describing: error))
-                        }
-                        stop()
-                    case .cancelled:
-                        if case .discovering = state {
-                            state = .idle
-                        }
-                    default:
-                        break
+                case let .failed(error):
+                    if case let .posix(code) = error, code == .EPERM {
+                        state = .denied
+                    } else {
+                        state = .failed(message: String(describing: error))
+                    }
+                    stop()
+                case .cancelled:
+                    if case .discovering = state {
+                        state = .idle
+                    }
+                default:
+                    break
                 }
             }
         }
@@ -114,17 +114,17 @@ final class BonjourBackendDiscoveryService: Sendable {
 
             connection.stateUpdateHandler = { state in
                 switch state {
-                    case .ready:
-                        if case let .hostPort(host, port) = connection.currentPath?.remoteEndpoint {
-                            let resolvedHost = self.normalizeResolvedHost(String(describing: host))
-                            finish((host: resolvedHost, port: Int(port.rawValue)))
-                        } else {
-                            finish(nil)
-                        }
-                    case .failed:
+                case .ready:
+                    if case let .hostPort(host, port) = connection.currentPath?.remoteEndpoint {
+                        let resolvedHost = self.normalizeResolvedHost(String(describing: host))
+                        finish((host: resolvedHost, port: Int(port.rawValue)))
+                    } else {
                         finish(nil)
-                    default:
-                        break
+                    }
+                case .failed:
+                    finish(nil)
+                default:
+                    break
                 }
             }
 

@@ -1,7 +1,7 @@
 import SwiftUI
 
-struct PianoKeyboard88Highlight: Equatable, Sendable {
-    enum Fill: Equatable, Sendable {
+struct PianoKeyboard88Highlight: Equatable {
+    enum Fill: Equatable {
         case guide(PianoGuideHighlightStyle)
         case solid(color: Color, opacity: Double)
     }
@@ -202,7 +202,7 @@ private struct BlackKey: Identifiable {
 }
 
 #Preview {
-    let notes: Set<Int> = [21, 60, 61, 72, 108, 130]
+    let notes: Set = [21, 60, 61, 72, 108, 130]
     let highlightByMIDINote = Dictionary(uniqueKeysWithValues: notes.map { midiNote in
         let style = PianoGuideHighlightStyle.resolve(
             hand: .right,

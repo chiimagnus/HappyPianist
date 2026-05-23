@@ -1,6 +1,6 @@
 import Foundation
 
-struct MusicXMLTempoMap: Sendable {
+struct MusicXMLTempoMap {
     static let ticksPerQuarter = 480
 
     struct TempoRamp: Equatable {
@@ -296,10 +296,10 @@ struct MusicXMLTempoMap: Sendable {
         let t = min(max(Double(tick), start), end)
         let fraction = (t - start) / max(1.0, end - start)
         let easedFraction: Double = switch ramp.curve {
-            case .linearBPM:
-                fraction
-            case .easeInOut:
-                fraction * fraction * (3 - 2 * fraction)
+        case .linearBPM:
+            fraction
+        case .easeInOut:
+            fraction * fraction * (3 - 2 * fraction)
         }
         return ramp.startQuarterBPM + (ramp.endQuarterBPM - ramp.startQuarterBPM) * easedFraction
     }

@@ -311,59 +311,58 @@ class AppState {
         pianoModeRegistry = registry
 
         let makePracticeSessionViewModel: @MainActor (String?) -> PracticeSessionViewModel = { pianoModeID in
-                switch PianoModeID(rawValue: pianoModeID ?? "") {
-                    case .bluetoothMIDI:
-                        let settingsProvider = UserDefaultsPracticeSessionSettingsProvider()
-                        let routing = settingsProvider.soundRoutingSettings
-                        let sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol
-                        switch routing.outputRoute {
-                        case .localSampler:
-                            sequencerPlaybackService = makeLocalSamplerPlaybackService()
-                        case .externalMIDIDestination:
-                            if let destinationUniqueID = routing.midiDestinationUniqueID {
-                                sequencerPlaybackService = CoreMIDIPracticePlaybackService(destinationUniqueID: destinationUniqueID)
-                            } else {
-                                sequencerPlaybackService = makeLocalSamplerPlaybackService()
-                            }
-                        }
-
-                        return PracticeSessionViewModel(
-                            pressDetectionService: makePressDetectionService(),
-                            chordAttemptAccumulator: makeChordAttemptAccumulator(),
-                            sleeper: makeSleeper(),
-                            sequencerPlaybackService: sequencerPlaybackService,
-                            audioRecognitionService: nil,
-                            practiceInputEventSource: makeBluetoothMIDIEventSource(),
-                            audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
-                            handPianoActivityGate: makeHandPianoActivityGate(),
-                            settingsProvider: settingsProvider
-                        )
-
-                    case .virtualPiano:
-                        return PracticeSessionViewModel(
-                            pressDetectionService: makePressDetectionService(),
-                            chordAttemptAccumulator: makeChordAttemptAccumulator(),
-                            sleeper: makeSleeper(),
-                            sequencerPlaybackService: makeLocalSamplerPlaybackService(),
-                            audioRecognitionService: nil,
-                            practiceInputEventSource: nil,
-                            audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
-                            handPianoActivityGate: makeHandPianoActivityGate()
-                        )
-
-                    default:
-                        return PracticeSessionViewModel(
-                            pressDetectionService: makePressDetectionService(),
-                            chordAttemptAccumulator: makeChordAttemptAccumulator(),
-                            sleeper: makeSleeper(),
-                            sequencerPlaybackService: makeLocalSamplerPlaybackService(),
-                            audioRecognitionService: makeAudioRecognitionService(),
-                            practiceInputEventSource: nil,
-                            audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
-                            handPianoActivityGate: makeHandPianoActivityGate()
-                        )
+            switch PianoModeID(rawValue: pianoModeID ?? "") {
+            case .bluetoothMIDI:
+                let settingsProvider = UserDefaultsPracticeSessionSettingsProvider()
+                let routing = settingsProvider.soundRoutingSettings
+                let sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol = switch routing.outputRoute {
+                case .localSampler:
+                    makeLocalSamplerPlaybackService()
+                case .externalMIDIDestination:
+                    if let destinationUniqueID = routing.midiDestinationUniqueID {
+                        CoreMIDIPracticePlaybackService(destinationUniqueID: destinationUniqueID)
+                    } else {
+                        makeLocalSamplerPlaybackService()
+                    }
                 }
+
+                return PracticeSessionViewModel(
+                    pressDetectionService: makePressDetectionService(),
+                    chordAttemptAccumulator: makeChordAttemptAccumulator(),
+                    sleeper: makeSleeper(),
+                    sequencerPlaybackService: sequencerPlaybackService,
+                    audioRecognitionService: nil,
+                    practiceInputEventSource: makeBluetoothMIDIEventSource(),
+                    audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
+                    handPianoActivityGate: makeHandPianoActivityGate(),
+                    settingsProvider: settingsProvider
+                )
+
+            case .virtualPiano:
+                return PracticeSessionViewModel(
+                    pressDetectionService: makePressDetectionService(),
+                    chordAttemptAccumulator: makeChordAttemptAccumulator(),
+                    sleeper: makeSleeper(),
+                    sequencerPlaybackService: makeLocalSamplerPlaybackService(),
+                    audioRecognitionService: nil,
+                    practiceInputEventSource: nil,
+                    audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
+                    handPianoActivityGate: makeHandPianoActivityGate()
+                )
+
+            default:
+                return PracticeSessionViewModel(
+                    pressDetectionService: makePressDetectionService(),
+                    chordAttemptAccumulator: makeChordAttemptAccumulator(),
+                    sleeper: makeSleeper(),
+                    sequencerPlaybackService: makeLocalSamplerPlaybackService(),
+                    audioRecognitionService: makeAudioRecognitionService(),
+                    practiceInputEventSource: nil,
+                    audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
+                    handPianoActivityGate: makeHandPianoActivityGate()
+                )
             }
+        }
 
         loadStoredCalibrationIfPossible()
 

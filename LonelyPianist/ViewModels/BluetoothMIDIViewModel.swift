@@ -25,49 +25,49 @@ final class BluetoothMIDIViewModel {
 
         var title: String {
             switch kind {
-                case .unauthorized:
-                    "Bluetooth Permission Needed"
-                case .bluetoothOff:
-                    "Bluetooth Is Off"
-                case .unsupported:
-                    "Bluetooth Not Supported"
-                case .unknown:
-                    "Bluetooth Unavailable"
+            case .unauthorized:
+                "Bluetooth Permission Needed"
+            case .bluetoothOff:
+                "Bluetooth Is Off"
+            case .unsupported:
+                "Bluetooth Not Supported"
+            case .unknown:
+                "Bluetooth Unavailable"
             }
         }
 
         var message: String {
             switch kind {
-                case .unauthorized:
-                    "请在 System Settings → Privacy & Security → Bluetooth 中允许 LonelyPianist 访问蓝牙，然后再重试。"
-                case .bluetoothOff:
-                    "请先在系统中打开蓝牙，然后再连接 Bluetooth MIDI。"
-                case .unsupported:
-                    "当前设备不支持蓝牙，无法使用 Bluetooth MIDI。"
-                case .unknown:
-                    "系统蓝牙状态暂不可用。请稍后重试，或重启蓝牙后再试。"
+            case .unauthorized:
+                "请在 System Settings → Privacy & Security → Bluetooth 中允许 LonelyPianist 访问蓝牙，然后再重试。"
+            case .bluetoothOff:
+                "请先在系统中打开蓝牙，然后再连接 Bluetooth MIDI。"
+            case .unsupported:
+                "当前设备不支持蓝牙，无法使用 Bluetooth MIDI。"
+            case .unknown:
+                "系统蓝牙状态暂不可用。请稍后重试，或重启蓝牙后再试。"
             }
         }
 
         var primaryButtonTitle: String {
             switch kind {
-                case .unauthorized:
-                    "Open Settings"
-                case .bluetoothOff:
-                    "Open Bluetooth Settings"
-                case .unsupported, .unknown:
-                    "OK"
+            case .unauthorized:
+                "Open Settings"
+            case .bluetoothOff:
+                "Open Bluetooth Settings"
+            case .unsupported, .unknown:
+                "OK"
             }
         }
 
         var primaryAction: PrimaryAction {
             switch kind {
-                case .unauthorized:
-                    .openPrivacySettings
-                case .bluetoothOff:
-                    .openBluetoothSettings
-                case .unsupported, .unknown:
-                    .ok
+            case .unauthorized:
+                .openPrivacySettings
+            case .bluetoothOff:
+                .openBluetoothSettings
+            case .unsupported, .unknown:
+                .ok
             }
         }
     }
@@ -88,16 +88,16 @@ final class BluetoothMIDIViewModel {
     func openBluetoothMIDIWindow() async {
         let status = await preflight.checkOrRequestAccess()
         switch status {
-            case .ready:
-                showBluetoothMIDIWindow()
-            case .bluetoothPoweredOff:
-                alert = AlertInfo(kind: .bluetoothOff)
-            case .unauthorized:
-                alert = AlertInfo(kind: .unauthorized)
-            case .unsupported:
-                alert = AlertInfo(kind: .unsupported)
-            case .unknown:
-                alert = AlertInfo(kind: .unknown)
+        case .ready:
+            showBluetoothMIDIWindow()
+        case .bluetoothPoweredOff:
+            alert = AlertInfo(kind: .bluetoothOff)
+        case .unauthorized:
+            alert = AlertInfo(kind: .unauthorized)
+        case .unsupported:
+            alert = AlertInfo(kind: .unsupported)
+        case .unknown:
+            alert = AlertInfo(kind: .unknown)
         }
     }
 
@@ -107,12 +107,12 @@ final class BluetoothMIDIViewModel {
 
     func performPrimaryAction(_ action: PrimaryAction) {
         switch action {
-            case .openPrivacySettings:
-                openBluetoothPrivacySettings()
-            case .openBluetoothSettings:
-                openBluetoothSettings()
-            case .ok:
-                break
+        case .openPrivacySettings:
+            openBluetoothPrivacySettings()
+        case .openBluetoothSettings:
+            openBluetoothSettings()
+        case .ok:
+            break
         }
     }
 

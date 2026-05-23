@@ -9,7 +9,6 @@ struct PianoModePreparationRouterView: View {
         _arGuideViewModel = Bindable(wrappedValue: arGuideViewModel)
     }
 
-    @ViewBuilder
     var body: some View {
         switch route {
         case .realPiano:
@@ -21,4 +20,3 @@ struct PianoModePreparationRouterView: View {
         }
     }
 }
-

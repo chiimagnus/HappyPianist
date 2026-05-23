@@ -1,7 +1,7 @@
 import ARKit
 import Foundation
-import simd
 @testable import LonelyPianistAVP
+import simd
 import Testing
 
 @Test
@@ -28,7 +28,7 @@ func beginGuidedCalibrationSetsPendingAnchorToA0() async {
 
 @Test
 @MainActor
-func presentCalibrationErrorClearsPendingAnchorAndUpdatesPhase() async {
+func presentCalibrationErrorClearsPendingAnchorAndUpdatesPhase() {
     let trackingService = FakeARTrackingService()
     let repository = InMemoryCalibrationRepository()
     let appState = AppState(
@@ -91,7 +91,10 @@ private final class FakeARTrackingService: ARTrackingServiceProtocol {
         "world": .idle,
     ]
 
-    var isWorldTrackingSupported: Bool { true }
+    var isWorldTrackingSupported: Bool {
+        true
+    }
+
     let worldTrackingProvider = WorldTrackingProvider()
 
     func fingerTipUpdatesStream() -> AsyncStream<[String: SIMD3<Float>]> {

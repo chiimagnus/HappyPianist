@@ -1,6 +1,6 @@
 import Foundation
 
-struct MusicXMLPedalTimeline: Equatable, Sendable {
+struct MusicXMLPedalTimeline: Equatable {
     struct Change: Equatable {
         let tick: Int
         let isDown: Bool

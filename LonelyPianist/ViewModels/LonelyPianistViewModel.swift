@@ -85,12 +85,12 @@ final class LonelyPianistViewModel {
 
     var connectionDescription: String {
         switch connectionState {
-            case .idle:
-                "Not Listening"
-            case let .connected(sourceCount):
-                sourceCount > 0 ? "Connected (\(sourceCount) source)" : "Listening (no source)"
-            case let .failed(message):
-                "Error: \(message)"
+        case .idle:
+            "Not Listening"
+        case let .connected(sourceCount):
+            sourceCount > 0 ? "Connected (\(sourceCount) source)" : "Listening (no source)"
+        case let .failed(message):
+            "Error: \(message)"
         }
     }
 
@@ -327,53 +327,53 @@ final class LonelyPianistViewModel {
 
     func stopTransport() {
         switch recorderMode {
-            case .idle:
-                return
+        case .idle:
+            return
 
-            case .recording:
-                recordingClockTask?.cancel()
-                recordingClockTask = nil
+        case .recording:
+            recordingClockTask?.cancel()
+            recordingClockTask = nil
 
-                let now = Date()
-                let take = recordingService.stopRecording(
-                    at: now,
-                    takeID: liveRecordingTakeID ?? UUID(),
-                    name: defaultTakeName(at: now)
-                )
-                liveRecordingTake = nil
-                liveRecordingTakeID = nil
+            let now = Date()
+            let take = recordingService.stopRecording(
+                at: now,
+                takeID: liveRecordingTakeID ?? UUID(),
+                name: defaultTakeName(at: now)
+            )
+            liveRecordingTake = nil
+            liveRecordingTakeID = nil
 
-                do {
-                    if let take {
-                        try recordingRepository.saveTake(take)
-                        try reloadTakes(preserveSelectedID: take.id)
-                        recorderStatusMessage = "Saved \(take.name)"
-                        statusMessage = "Recording saved"
-                        log(title: "Recorder", detail: "Recording saved: \(take.name)")
-                    } else {
-                        recorderStatusMessage = "Recording cancelled"
-                        statusMessage = "Recording cancelled"
-                        log(title: "Recorder", detail: "Recording cancelled")
-                    }
-                } catch {
-                    recorderStatusMessage = "Save failed: \(error.localizedDescription)"
-                    statusMessage = "Save failed"
-                    log(title: "Recorder Save Failed", detail: error.localizedDescription)
+            do {
+                if let take {
+                    try recordingRepository.saveTake(take)
+                    try reloadTakes(preserveSelectedID: take.id)
+                    recorderStatusMessage = "Saved \(take.name)"
+                    statusMessage = "Recording saved"
+                    log(title: "Recorder", detail: "Recording saved: \(take.name)")
+                } else {
+                    recorderStatusMessage = "Recording cancelled"
+                    statusMessage = "Recording cancelled"
+                    log(title: "Recorder", detail: "Recording cancelled")
                 }
+            } catch {
+                recorderStatusMessage = "Save failed: \(error.localizedDescription)"
+                statusMessage = "Save failed"
+                log(title: "Recorder Save Failed", detail: error.localizedDescription)
+            }
 
-                recorderMode = .idle
+            recorderMode = .idle
 
-            case .playing:
-                playbackService.stop()
-                pendingSeekTask?.cancel()
-                pendingSeekTask = nil
-                playbackClockTask?.cancel()
-                playbackClockTask = nil
-                playbackStartedAt = nil
-                recorderMode = .idle
-                recorderStatusMessage = "Playback stopped"
-                statusMessage = "Playback stopped"
-                log(title: "Recorder", detail: "Playback stopped")
+        case .playing:
+            playbackService.stop()
+            pendingSeekTask?.cancel()
+            pendingSeekTask = nil
+            playbackClockTask?.cancel()
+            playbackClockTask = nil
+            playbackStartedAt = nil
+            recorderMode = .idle
+            recorderStatusMessage = "Playback stopped"
+            statusMessage = "Playback stopped"
+            log(title: "Recorder", detail: "Playback stopped")
         }
     }
 
@@ -454,17 +454,17 @@ final class LonelyPianistViewModel {
 
     private func updatePressedNotes(for event: MIDIEvent) {
         switch event.type {
-            case let .noteOn(note, velocity):
-                if velocity == 0 {
-                    pressedNotes.removeAll { $0 == note }
-                } else if !pressedNotes.contains(note) {
-                    pressedNotes.append(note)
-                    pressedNotes.sort()
-                }
-            case let .noteOff(note, _):
+        case let .noteOn(note, velocity):
+            if velocity == 0 {
                 pressedNotes.removeAll { $0 == note }
-            case .controlChange:
-                return
+            } else if !pressedNotes.contains(note) {
+                pressedNotes.append(note)
+                pressedNotes.sort()
+            }
+        case let .noteOff(note, _):
+            pressedNotes.removeAll { $0 == note }
+        case .controlChange:
+            return
         }
     }
 

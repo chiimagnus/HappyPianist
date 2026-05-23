@@ -177,7 +177,7 @@ public struct DeterministicImprovGenerator: Sendable {
 
         var majorBest: (score: Int, root: Int) = (score: Int.min, root: 0)
         var minorBest: (score: Int, root: Int) = (score: Int.min, root: 0)
-        for root in 0..<12 {
+        for root in 0 ..< 12 {
             let majorScore = scoreRoot(root, scale: Self.majorScale)
             if majorScore > majorBest.score || (majorScore == majorBest.score && root > majorBest.root) {
                 majorBest = (majorScore, root)
@@ -199,9 +199,9 @@ public struct DeterministicImprovGenerator: Sendable {
 
     private func computeAnalysis(
         notes: [NoteEvent],
-        keySignature: String,
-        keyRoot: Int,
-        keyMode: String,
+        keySignature _: String,
+        keyRoot _: Int,
+        keyMode _: String,
         tempo: Int,
         timeSignature: (Int, Int)
     ) -> MidiAnalysis {
@@ -223,11 +223,10 @@ public struct DeterministicImprovGenerator: Sendable {
         let density = Double(notes.count) / max(1.0, durationSeconds)
         let (detectedKey, detectedRoot, detectedMode) = bestKeySignature(notes: notes)
 
-        let motif: [NoteEvent]
-        if notes.count >= 4 {
-            motif = Array(notes.suffix(4))
+        let motif: [NoteEvent] = if notes.count >= 4 {
+            Array(notes.suffix(4))
         } else {
-            motif = notes
+            notes
         }
 
         return MidiAnalysis(
@@ -265,7 +264,7 @@ public struct DeterministicImprovGenerator: Sendable {
         return Set(degrees.map { (rootPitch + $0).mod(12) })
     }
 
-    private func closestScaleNote(pitch: Int, scale: Set<Int>, root: Int) -> Int {
+    private func closestScaleNote(pitch: Int, scale: Set<Int>, root _: Int) -> Int {
         let base = pitch.mod(12)
         if scale.contains(base) {
             return pitch
@@ -273,7 +272,7 @@ public struct DeterministicImprovGenerator: Sendable {
 
         let candidates = [-2, -1, 1, 2, -3, 3].map { pitch + $0 }
         let valid = candidates.filter { candidate in
-            scale.contains(candidate.mod(12)) && (21...108).contains(candidate)
+            scale.contains(candidate.mod(12)) && (21 ... 108).contains(candidate)
         }
         return valid.first ?? pitch
     }
@@ -298,7 +297,7 @@ public struct DeterministicImprovGenerator: Sendable {
             for start in stride(from: startMin, to: startMax, by: step) {
                 let end = start + maxLen
                 guard end <= notes.count else { continue }
-                let phrase = Array(notes[start..<end])
+                let phrase = Array(notes[start ..< end])
                 if phrase.count >= minLen {
                     phrases.append(phrase)
                 }
@@ -328,7 +327,7 @@ public struct DeterministicImprovGenerator: Sendable {
     private func applyInversion(degrees: [Int]) -> [Int] {
         guard let first = degrees.first else { return degrees }
         var result: [Int] = [first]
-        for i in 1..<degrees.count {
+        for i in 1 ..< degrees.count {
             let interval = degrees[i] - degrees[i - 1]
             result.append((result.last ?? 0) - interval)
         }
@@ -342,14 +341,13 @@ public struct DeterministicImprovGenerator: Sendable {
     private func applyRhythmicVariation(phrase: [NoteEvent], densityFactor: Double = 1.0) -> [(dur: Double, gap: Double)] {
         var result: [(dur: Double, gap: Double)] = []
         result.reserveCapacity(phrase.count)
-        for i in 0..<phrase.count {
+        for i in 0 ..< phrase.count {
             let note = phrase[i]
             let dur = note.duration
-            let gap: Double
-            if i + 1 < phrase.count {
-                gap = phrase[i + 1].start - note.start
+            let gap: Double = if i + 1 < phrase.count {
+                phrase[i + 1].start - note.start
             } else {
-                gap = note.duration
+                note.duration
             }
 
             var effectiveGap = gap
@@ -371,7 +369,7 @@ public struct DeterministicImprovGenerator: Sendable {
 
         for offset in [1, -1, 2, -2, 3, -3, 4, -4] {
             let candidate = pitch + offset
-            if scale.contains(candidate.mod(12)), (21...108).contains(candidate) {
+            if scale.contains(candidate.mod(12)), (21 ... 108).contains(candidate) {
                 return candidate
             }
         }
@@ -429,7 +427,7 @@ public struct DeterministicImprovGenerator: Sendable {
                 if degrees.isEmpty { return degrees }
                 var result: [Int] = []
                 result.reserveCapacity(degrees.count * 2)
-                for i in 0..<degrees.count {
+                for i in 0 ..< degrees.count {
                     let d = degrees[i]
                     result.append(d)
                     if i + 1 < degrees.count {
@@ -444,7 +442,7 @@ public struct DeterministicImprovGenerator: Sendable {
                 guard degrees.isEmpty == false else { return degrees }
                 let fragLen = rng.randint(4, min(7, degrees.count))
                 let start = rng.randint(0, degrees.count - fragLen)
-                return Array(degrees[start..<(start + fragLen)])
+                return Array(degrees[start ..< (start + fragLen)])
             default:
                 return degrees
             }
@@ -472,7 +470,7 @@ public struct DeterministicImprovGenerator: Sendable {
             let variedDegrees = varyDegrees(degrees: degrees, strategy: strategy)
             let rhythm = applyRhythmicVariation(phrase: phrases[phraseIndex])
 
-            for i in 0..<variedDegrees.count {
+            for i in 0 ..< variedDegrees.count {
                 if currentTime >= startTime + continuationDuration {
                     break
                 }
@@ -525,7 +523,7 @@ private extension Int {
     }
 }
 
-private extension Array where Element == Double {
+private extension [Double] {
     func average() -> Double? {
         guard isEmpty == false else { return nil }
         return reduce(0.0, +) / Double(count)

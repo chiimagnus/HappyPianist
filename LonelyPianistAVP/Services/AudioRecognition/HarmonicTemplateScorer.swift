@@ -1,6 +1,6 @@
 import Foundation
 
-struct HarmonicTemplateScorer: Sendable {
+struct HarmonicTemplateScorer {
     private let epsilon = 1e-9
 
     func score(
@@ -54,12 +54,12 @@ struct HarmonicTemplateScorer: Sendable {
 
         return partialSummaries.map { summary in
             let dominance: Double = switch summary.template.role {
-                case .expected:
-                    summary.harmonicScore / max(maxWrongScore, epsilon)
-                case .wrongCandidate:
-                    summary.harmonicScore / max(maxExpectedScore, epsilon)
-                case .octaveDebug:
-                    summary.harmonicScore / globalMax
+            case .expected:
+                summary.harmonicScore / max(maxWrongScore, epsilon)
+            case .wrongCandidate:
+                summary.harmonicScore / max(maxExpectedScore, epsilon)
+            case .octaveDebug:
+                summary.harmonicScore / globalMax
             }
             let normalizedHarmonic = min(1.0, summary.harmonicScore / globalMax)
             let tonalFactor = min(1.0, summary.tonalRatio / max(profile.minimumTonalRatio, epsilon))

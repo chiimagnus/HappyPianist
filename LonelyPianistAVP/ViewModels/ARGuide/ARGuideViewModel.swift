@@ -1,7 +1,7 @@
+import ARKit
 import Foundation
 import Observation
 import simd
-import ARKit
 
 @MainActor
 @Observable
@@ -11,12 +11,14 @@ final class ARGuideViewModel {
     typealias PracticeLocalizationState = PracticeLocalizationViewModel.PracticeLocalizationState
 
     // MARK: - App-level dependencies
+
     let appState: AppState
     let practiceSetupState: PracticeSetupState
     let pianoModeRegistry: PianoModeRegistryProtocol
     private let makePracticeSessionViewModel: @MainActor (String?) -> PracticeSessionViewModel
 
     // MARK: - Child view models
+
     let calibrationGuideViewModel: CalibrationGuideViewModel
     let practiceLocalizationViewModel: PracticeLocalizationViewModel
     let placementViewModel: VirtualPianoPlacementViewModel
@@ -25,6 +27,7 @@ final class ARGuideViewModel {
     let aiPerformanceViewModel: ARGuideAIPerformanceViewModel
 
     // MARK: - Practice session facade state
+
     var practiceSessionViewModel: PracticeSessionViewModel
     var latestPreparedPractice: PreparedPractice?
 
@@ -179,14 +182,37 @@ final class ARGuideViewModel {
         )
     }
 
-    var calibration: PianoCalibration? { appState.calibration }
-    var storedCalibration: StoredWorldAnchorCalibration? { appState.storedCalibration }
-    var calibrationPhase: CalibrationPhase { calibrationGuideViewModel.calibrationPhase }
-    var calibrationCaptureService: CalibrationPointCaptureService { appState.calibrationCaptureService }
-    var arTrackingService: ARTrackingServiceProtocol { appState.arTrackingService }
-    var hasImportedSteps: Bool { practiceSetupState.importedSteps.isEmpty == false }
-    var immersiveMode: AppState.ImmersiveMode { appState.immersiveMode }
-    var immersiveSpaceState: AppState.ImmersiveSpaceState { appState.immersiveSpaceState }
+    var calibration: PianoCalibration? {
+        appState.calibration
+    }
+
+    var storedCalibration: StoredWorldAnchorCalibration? {
+        appState.storedCalibration
+    }
+
+    var calibrationPhase: CalibrationPhase {
+        calibrationGuideViewModel.calibrationPhase
+    }
+
+    var calibrationCaptureService: CalibrationPointCaptureService {
+        appState.calibrationCaptureService
+    }
+
+    var arTrackingService: ARTrackingServiceProtocol {
+        appState.arTrackingService
+    }
+
+    var hasImportedSteps: Bool {
+        practiceSetupState.importedSteps.isEmpty == false
+    }
+
+    var immersiveMode: AppState.ImmersiveMode {
+        appState.immersiveMode
+    }
+
+    var immersiveSpaceState: AppState.ImmersiveSpaceState {
+        appState.immersiveSpaceState
+    }
 
     var a0OverlayPoint: SIMD3<Float>? {
         let anchorID = calibrationCaptureService.a0AnchorID ?? storedCalibration?.a0AnchorID
@@ -208,30 +234,78 @@ final class ARGuideViewModel {
         set { appState.calibrationStatusMessage = newValue }
     }
 
-    func saveCalibration() { _ = appState.saveCalibrationIfPossible() }
-    func beginCalibrationRecapture() { appState.beginCalibrationRecapture() }
-    func beginGuidedCalibration() { calibrationGuideViewModel.beginGuidedCalibration() }
-    func presentCalibrationError(message: String) { calibrationGuideViewModel.presentCalibrationError(message: message) }
-    func endGuidedCalibration() { calibrationGuideViewModel.endGuidedCalibration() }
+    func saveCalibration() {
+        _ = appState.saveCalibrationIfPossible()
+    }
+
+    func beginCalibrationRecapture() {
+        appState.beginCalibrationRecapture()
+    }
+
+    func beginGuidedCalibration() {
+        calibrationGuideViewModel.beginGuidedCalibration()
+    }
+
+    func presentCalibrationError(message: String) {
+        calibrationGuideViewModel.presentCalibrationError(message: message)
+    }
+
+    func endGuidedCalibration() {
+        calibrationGuideViewModel.endGuidedCalibration()
+    }
 
     @discardableResult
     func showCalibrationCompletedIfStoredCalibrationExists() -> Bool {
         calibrationGuideViewModel.showCalibrationCompletedIfStoredCalibrationExists()
     }
 
-    func skipStep() { practiceSessionViewModel.skip() }
-    func playCurrentPracticeStepSound() { practiceSessionViewModel.playCurrentStepSound() }
-    func replayCurrentPracticeUnit() { practiceSessionViewModel.replayCurrentUnit() }
-    func setPracticeAutoplayEnabled(_ isEnabled: Bool) { practiceSessionViewModel.setAutoplayEnabled(isEnabled) }
+    func skipStep() {
+        practiceSessionViewModel.skip()
+    }
 
-    var isVirtualPianoEnabled: Bool { placementViewModel.isVirtualPianoEnabled }
-    var isVirtualPianoPlaced: Bool { placementViewModel.isVirtualPianoPlaced }
-    var latestDeviceWorldPosition: SIMD3<Float>? { placementViewModel.latestDeviceWorldPosition }
-    var gazePlaneDiskStatusText: String? { placementViewModel.gazePlaneDiskStatusText }
-    var isGazePlaneDiskVisible: Bool { placementViewModel.isGazePlaneDiskVisible }
-    var gazePlaneDiskWorldTransform: simd_float4x4? { placementViewModel.gazePlaneDiskWorldTransform }
-    var gazePlaneDiskOverlayText: String? { placementViewModel.gazePlaneDiskOverlayText }
-    var gazePlaneDiskCameraWorldPosition: SIMD3<Float>? { placementViewModel.gazePlaneDiskCameraWorldPosition }
+    func playCurrentPracticeStepSound() {
+        practiceSessionViewModel.playCurrentStepSound()
+    }
+
+    func replayCurrentPracticeUnit() {
+        practiceSessionViewModel.replayCurrentUnit()
+    }
+
+    func setPracticeAutoplayEnabled(_ isEnabled: Bool) {
+        practiceSessionViewModel.setAutoplayEnabled(isEnabled)
+    }
+
+    var isVirtualPianoEnabled: Bool {
+        placementViewModel.isVirtualPianoEnabled
+    }
+
+    var isVirtualPianoPlaced: Bool {
+        placementViewModel.isVirtualPianoPlaced
+    }
+
+    var latestDeviceWorldPosition: SIMD3<Float>? {
+        placementViewModel.latestDeviceWorldPosition
+    }
+
+    var gazePlaneDiskStatusText: String? {
+        placementViewModel.gazePlaneDiskStatusText
+    }
+
+    var isGazePlaneDiskVisible: Bool {
+        placementViewModel.isGazePlaneDiskVisible
+    }
+
+    var gazePlaneDiskWorldTransform: simd_float4x4? {
+        placementViewModel.gazePlaneDiskWorldTransform
+    }
+
+    var gazePlaneDiskOverlayText: String? {
+        placementViewModel.gazePlaneDiskOverlayText
+    }
+
+    var gazePlaneDiskCameraWorldPosition: SIMD3<Float>? {
+        placementViewModel.gazePlaneDiskCameraWorldPosition
+    }
 
     func setPracticeVirtualPianoEnabled(_ isEnabled: Bool) {
         placementViewModel.setPracticeVirtualPianoEnabled(isEnabled)
@@ -255,11 +329,25 @@ final class ARGuideViewModel {
         }
     #endif
 
-    var isVirtualPerformerEnabled: Bool { aiPerformanceViewModel.isVirtualPerformerEnabled }
-    var isAIPerformanceActive: Bool { aiPerformanceViewModel.isAIPerformanceActive }
-    var latestAIPerformanceSchedule: [PracticeSequencerMIDIEvent] { aiPerformanceViewModel.latestAIPerformanceSchedule }
-    var lastImprovStatusText: String? { aiPerformanceViewModel.lastImprovStatusText }
-    var backendStatusText: String? { aiPerformanceViewModel.backendStatusText }
+    var isVirtualPerformerEnabled: Bool {
+        aiPerformanceViewModel.isVirtualPerformerEnabled
+    }
+
+    var isAIPerformanceActive: Bool {
+        aiPerformanceViewModel.isAIPerformanceActive
+    }
+
+    var latestAIPerformanceSchedule: [PracticeSequencerMIDIEvent] {
+        aiPerformanceViewModel.latestAIPerformanceSchedule
+    }
+
+    var lastImprovStatusText: String? {
+        aiPerformanceViewModel.lastImprovStatusText
+    }
+
+    var backendStatusText: String? {
+        aiPerformanceViewModel.backendStatusText
+    }
 
     func setPracticeVirtualPerformerEnabled(_ isEnabled: Bool) {
         aiPerformanceViewModel.setVirtualPerformerEnabled(
@@ -268,14 +356,37 @@ final class ARGuideViewModel {
         )
     }
 
-    var practiceLocalizationState: PracticeLocalizationState { practiceViewModel.practiceLocalizationState }
-    var practiceLocalizationStatusText: String? { practiceViewModel.practiceLocalizationStatusText }
-    var canRetryPracticeLocalization: Bool { practiceViewModel.canRetryPracticeLocalization }
-    var shouldSuggestCalibrationStep: Bool { practiceViewModel.shouldSuggestCalibrationStep }
-    var step3ARStatusText: String { practiceViewModel.step3ARStatusText }
-    var step3HandAssistStatusText: String { practiceViewModel.step3HandAssistStatusText }
-    var step3AudioStatusText: String { practiceViewModel.step3AudioStatusText }
-    var practiceProgressText: String { practiceViewModel.practiceProgressText }
+    var practiceLocalizationState: PracticeLocalizationState {
+        practiceViewModel.practiceLocalizationState
+    }
+
+    var practiceLocalizationStatusText: String? {
+        practiceViewModel.practiceLocalizationStatusText
+    }
+
+    var canRetryPracticeLocalization: Bool {
+        practiceViewModel.canRetryPracticeLocalization
+    }
+
+    var shouldSuggestCalibrationStep: Bool {
+        practiceViewModel.shouldSuggestCalibrationStep
+    }
+
+    var step3ARStatusText: String {
+        practiceViewModel.step3ARStatusText
+    }
+
+    var step3HandAssistStatusText: String {
+        practiceViewModel.step3HandAssistStatusText
+    }
+
+    var step3AudioStatusText: String {
+        practiceViewModel.step3AudioStatusText
+    }
+
+    var practiceProgressText: String {
+        practiceViewModel.practiceProgressText
+    }
 
     func practiceEntryBlockingReason() -> PracticeLocalizationFailure? {
         practiceViewModel.practiceEntryBlockingReason()
@@ -307,7 +418,9 @@ final class ARGuideViewModel {
         await practiceViewModel.enterVirtualPianoPlacement(openImmersiveSpace: openImmersiveSpace)
     }
 
-    func resetPracticeLocalizationState() { practiceViewModel.resetPracticeLocalizationState() }
+    func resetPracticeLocalizationState() {
+        practiceViewModel.resetPracticeLocalizationState()
+    }
 
     func practiceLocalizationTimeoutFailure(
         lastRecoverableResolution: AppState.PracticeCalibrationResolutionResult?
@@ -330,28 +443,65 @@ final class ARGuideViewModel {
         await practiceViewModel.recoverImmersiveStateIfStuck()
     }
 
-    var recordingElapsedText: String { recordingViewModel.recordingElapsedText }
-    var canRecord: Bool { isVirtualPianoEnabled == false }
-    var recordingSourceText: String? { selectedPianoMode?.recordingSourceText() }
-    var isRecording: Bool { recordingViewModel.isRecording }
-    var takeLibraryTakes: [RecordingTake] { recordingViewModel.takes }
-    var takeLibraryErrorMessage: String? { recordingViewModel.errorMessage }
+    var recordingElapsedText: String {
+        recordingViewModel.recordingElapsedText
+    }
 
-    func startRecording() { recordingViewModel.startRecording(canRecord: canRecord) }
-    func stopRecording() { recordingViewModel.stopRecording() }
-    func dismissTakeLibraryError() { recordingViewModel.dismissError() }
-    func renameTake(id: UUID, name: String) { recordingViewModel.renameTake(id: id, name: name) }
-    func deleteTake(id: UUID) { recordingViewModel.deleteTake(id: id) }
-    func clearAllTakes() { recordingViewModel.clearAllTakes() }
-    func makeMIDIExport(for take: RecordingTake) throws -> RecordingMIDIExport { try recordingViewModel.makeMIDIExport(for: take) }
+    var canRecord: Bool {
+        isVirtualPianoEnabled == false
+    }
+
+    var recordingSourceText: String? {
+        selectedPianoMode?.recordingSourceText()
+    }
+
+    var isRecording: Bool {
+        recordingViewModel.isRecording
+    }
+
+    var takeLibraryTakes: [RecordingTake] {
+        recordingViewModel.takes
+    }
+
+    var takeLibraryErrorMessage: String? {
+        recordingViewModel.errorMessage
+    }
+
+    func startRecording() {
+        recordingViewModel.startRecording(canRecord: canRecord)
+    }
+
+    func stopRecording() {
+        recordingViewModel.stopRecording()
+    }
+
+    func dismissTakeLibraryError() {
+        recordingViewModel.dismissError()
+    }
+
+    func renameTake(id: UUID, name: String) {
+        recordingViewModel.renameTake(id: id, name: name)
+    }
+
+    func deleteTake(id: UUID) {
+        recordingViewModel.deleteTake(id: id)
+    }
+
+    func clearAllTakes() {
+        recordingViewModel.clearAllTakes()
+    }
+
+    func makeMIDIExport(for take: RecordingTake) throws -> RecordingMIDIExport {
+        try recordingViewModel.makeMIDIExport(for: take)
+    }
 
     func onImmersiveAppear() {
         switch appState.immersiveMode {
-            case .calibration:
-                startTrackingIfNeeded()
-                calibrationGuideViewModel.onImmersiveAppear()
-            case .practice:
-                startTrackingIfNeeded()
+        case .calibration:
+            startTrackingIfNeeded()
+            calibrationGuideViewModel.onImmersiveAppear()
+        case .practice:
+            startTrackingIfNeeded()
         }
     }
 
@@ -367,10 +517,10 @@ final class ARGuideViewModel {
 
     func startTrackingIfNeeded() {
         let desiredMode: ARTrackingMode = switch appState.immersiveMode {
-            case .calibration:
-                .calibration
-            case .practice:
-                selectedPianoMode?.practiceTrackingMode(isVirtualPianoEnabled: isVirtualPianoEnabled) ?? .practiceVirtualOrAudio
+        case .calibration:
+            .calibration
+        case .practice:
+            selectedPianoMode?.practiceTrackingMode(isVirtualPianoEnabled: isVirtualPianoEnabled) ?? .practiceVirtualOrAudio
         }
 
         if desiredMode != currentTrackingMode {
@@ -404,25 +554,25 @@ final class ARGuideViewModel {
 
     private func handleHandTrackingUpdate(_ fingerTips: [String: SIMD3<Float>]) {
         switch appState.immersiveMode {
-            case .calibration:
-                calibrationGuideViewModel.handleHandUpdates()
+        case .calibration:
+            calibrationGuideViewModel.handleHandUpdates()
 
-            case .practice:
-                let nowUptime = ProcessInfo.processInfo.systemUptime
-                placementViewModel.updateLatestDeviceWorldPosition(nowUptime: nowUptime)
-                guard isAIPerformanceActive == false else { return }
+        case .practice:
+            let nowUptime = ProcessInfo.processInfo.systemUptime
+            placementViewModel.updateLatestDeviceWorldPosition(nowUptime: nowUptime)
+            guard isAIPerformanceActive == false else { return }
 
-                if isVirtualPianoEnabled {
-                    placementViewModel.updateGuidance(fingerTips: fingerTips, nowUptime: nowUptime)
-                    if practiceSessionViewModel.keyboardGeometry != nil {
-                        _ = practiceSessionViewModel.handleFingerTipPositions(fingerTips, isVirtualPiano: true)
-                        recordPhraseIfNeeded(nowUptime: nowUptime)
-                    }
-                } else {
-                    _ = practiceSessionViewModel.handleFingerTipPositions(fingerTips)
+            if isVirtualPianoEnabled {
+                placementViewModel.updateGuidance(fingerTips: fingerTips, nowUptime: nowUptime)
+                if practiceSessionViewModel.keyboardGeometry != nil {
+                    _ = practiceSessionViewModel.handleFingerTipPositions(fingerTips, isVirtualPiano: true)
                     recordPhraseIfNeeded(nowUptime: nowUptime)
-                    recordTakeIfNeeded(nowUptime: nowUptime)
                 }
+            } else {
+                _ = practiceSessionViewModel.handleFingerTipPositions(fingerTips)
+                recordPhraseIfNeeded(nowUptime: nowUptime)
+                recordTakeIfNeeded(nowUptime: nowUptime)
+            }
         }
     }
 

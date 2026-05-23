@@ -13,12 +13,12 @@ final class WindowTransitionState {
 
         var id: String {
             switch self {
-                case .preparation:
-                    WindowID.preparation
-                case .library:
-                    WindowID.library
-                case .practice:
-                    WindowID.practice
+            case .preparation:
+                WindowID.preparation
+            case .library:
+                WindowID.library
+            case .practice:
+                WindowID.practice
             }
         }
     }

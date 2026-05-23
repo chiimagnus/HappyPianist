@@ -2,13 +2,13 @@ import AudioToolbox
 import AVFAudio
 import Foundation
 
-struct PracticeSequencerSequence: Sendable {
+struct PracticeSequencerSequence {
     let midiData: Data
     let durationSeconds: TimeInterval
     let events: [PracticeSequencerMIDIEvent]
 }
 
-struct PracticeOneShotNoteOn: Hashable, Sendable {
+struct PracticeOneShotNoteOn: Hashable {
     let midiNote: Int
     let velocity: UInt8
 }

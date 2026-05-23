@@ -5,4 +5,3 @@ struct PianoGuideKeyHighlight: Equatable, Hashable {
     let phase: PianoGuideHighlightPhase
     let hand: ScoreHand
 }
-

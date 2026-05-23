@@ -8,10 +8,10 @@ enum MIDIPlaybackError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-            case .soundBankNotFound:
-                "Piano sound bank is unavailable on this macOS installation."
-            case let .engineStartFailed(error):
-                "Audio engine failed to start: \(error.localizedDescription)"
+        case .soundBankNotFound:
+            "Piano sound bank is unavailable on this macOS installation."
+        case let .engineStartFailed(error):
+            "Audio engine failed to start: \(error.localizedDescription)"
         }
     }
 }
@@ -155,14 +155,14 @@ final class AVSamplerMIDIPlaybackService: MIDIPlaybackServiceProtocol {
         let key = ActiveNoteKey(note: note, channel: channel)
 
         switch event.type {
-            case let .noteOn(velocity):
-                let clampedVelocity = UInt8(max(1, min(127, velocity)))
-                sampler.startNote(note, withVelocity: clampedVelocity, onChannel: channel)
-                activeNotes.insert(key)
+        case let .noteOn(velocity):
+            let clampedVelocity = UInt8(max(1, min(127, velocity)))
+            sampler.startNote(note, withVelocity: clampedVelocity, onChannel: channel)
+            activeNotes.insert(key)
 
-            case .noteOff:
-                sampler.stopNote(note, onChannel: channel)
-                activeNotes.remove(key)
+        case .noteOff:
+            sampler.stopNote(note, onChannel: channel)
+            activeNotes.remove(key)
         }
     }
 
@@ -221,12 +221,12 @@ final class AVSamplerMIDIPlaybackService: MIDIPlaybackServiceProtocol {
             }
 
             switch (lhs.type, rhs.type) {
-                case (.noteOff, .noteOn):
-                    return true
-                case (.noteOn, .noteOff):
-                    return false
-                default:
-                    return lhs.note < rhs.note
+            case (.noteOff, .noteOn):
+                return true
+            case (.noteOn, .noteOff):
+                return false
+            default:
+                return lhs.note < rhs.note
             }
         }
     }

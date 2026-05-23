@@ -64,4 +64,3 @@ public struct RuleResult: Equatable, Sendable {
         self.debug = debug
     }
 }
-

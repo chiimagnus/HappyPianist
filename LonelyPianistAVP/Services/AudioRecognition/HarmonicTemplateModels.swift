@@ -18,34 +18,34 @@ extension HarmonicBandEnergyProvidingProtocol {
     }
 }
 
-enum HarmonicTemplateCandidateRole: String, Equatable, CaseIterable, Sendable {
+enum HarmonicTemplateCandidateRole: String, Equatable, CaseIterable {
     case expected
     case wrongCandidate
     case octaveDebug
 
     var priority: Int {
         switch self {
-            case .expected: 3
-            case .wrongCandidate: 2
-            case .octaveDebug: 1
+        case .expected: 3
+        case .wrongCandidate: 2
+        case .octaveDebug: 1
         }
     }
 }
 
-struct HarmonicPartialTemplate: Equatable, Sendable {
+struct HarmonicPartialTemplate: Equatable {
     let harmonicIndex: Int
     let centerFrequency: Double
     let toleranceCents: Double
     let weight: Double
 }
 
-struct HarmonicTemplate: Equatable, Sendable {
+struct HarmonicTemplate: Equatable {
     let midiNote: Int
     let role: HarmonicTemplateCandidateRole
     let partials: [HarmonicPartialTemplate]
 }
 
-struct HarmonicPartialDebugValue: Equatable, Sendable {
+struct HarmonicPartialDebugValue: Equatable {
     let harmonicIndex: Int
     let centerFrequency: Double
     let bandEnergy: Double
@@ -53,7 +53,7 @@ struct HarmonicPartialDebugValue: Equatable, Sendable {
     let weightedEnergy: Double
 }
 
-struct AudioSampleRollingBuffer: Equatable, Sendable {
+struct AudioSampleRollingBuffer: Equatable {
     private(set) var capacity: Int
     private var samples: [Float] = []
 
@@ -92,7 +92,7 @@ struct AudioSampleRollingBuffer: Equatable, Sendable {
     }
 }
 
-struct HarmonicTemplateTuningProfile: Equatable, Sendable {
+struct HarmonicTemplateTuningProfile: Equatable {
     let name: String
     let partialWeights: [Int: Double]
     let partialToleranceCents: [Int: Double]
@@ -177,7 +177,7 @@ struct HarmonicTemplateTuningProfile: Equatable, Sendable {
     }
 }
 
-struct HarmonicTemplateProvider: Sendable {
+struct HarmonicTemplateProvider {
     func makeTemplates(
         expectedMIDINotes: [Int],
         wrongCandidateMIDINotes: [Int],

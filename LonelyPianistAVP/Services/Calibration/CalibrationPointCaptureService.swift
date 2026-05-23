@@ -67,19 +67,19 @@ final class CalibrationPointCaptureService {
 
     func anchorID(for anchor: CalibrationAnchorPoint) -> UUID? {
         switch anchor {
-            case .a0:
-                a0AnchorID
-            case .c8:
-                c8AnchorID
+        case .a0:
+            a0AnchorID
+        case .c8:
+            c8AnchorID
         }
     }
 
     func setAnchorID(_ anchorID: UUID, for anchor: CalibrationAnchorPoint) {
         switch anchor {
-            case .a0:
-                a0AnchorID = anchorID
-            case .c8:
-                c8AnchorID = anchorID
+        case .a0:
+            a0AnchorID = anchorID
+        case .c8:
+            c8AnchorID = anchorID
         }
     }
 }

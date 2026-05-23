@@ -53,26 +53,26 @@ final class VirtualPianoPlacementViewModel {
 
         let planeState = arTrackingService.providerStateByName["plane"] ?? .idle
         switch planeState {
-            case .unsupported:
-                return "虚拟钢琴不可用：此设备/环境不支持平面检测。"
-            case .unauthorized:
-                return "虚拟钢琴不可用：请在系统设置中允许本 App 使用“周围环境/世界感知”（worldSensing）。"
-            case let .failed(reason):
-                return "虚拟钢琴不可用：平面检测启动失败（\(reason)）。"
-            default:
-                break
+        case .unsupported:
+            return "虚拟钢琴不可用：此设备/环境不支持平面检测。"
+        case .unauthorized:
+            return "虚拟钢琴不可用：请在系统设置中允许本 App 使用“周围环境/世界感知”（worldSensing）。"
+        case let .failed(reason):
+            return "虚拟钢琴不可用：平面检测启动失败（\(reason)）。"
+        default:
+            break
         }
 
         let handState = arTrackingService.providerStateByName["hand"] ?? .idle
         switch handState {
-            case .unsupported:
-                return "虚拟钢琴不可用：此设备不支持手部追踪。"
-            case .unauthorized:
-                return "虚拟钢琴：已检测到平面，但需要 Hand Tracking 才能确认放好双手。"
-            case let .failed(reason):
-                return "虚拟钢琴不可用：手部追踪启动失败（\(reason)）。"
-            default:
-                break
+        case .unsupported:
+            return "虚拟钢琴不可用：此设备不支持手部追踪。"
+        case .unauthorized:
+            return "虚拟钢琴：已检测到平面，但需要 Hand Tracking 才能确认放好双手。"
+        case let .failed(reason):
+            return "虚拟钢琴不可用：手部追踪启动失败（\(reason)）。"
+        default:
+            break
         }
 
         return gazePlaneDiskConfirmation.statusText

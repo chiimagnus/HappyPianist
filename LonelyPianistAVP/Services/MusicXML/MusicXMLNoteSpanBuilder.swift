@@ -58,16 +58,45 @@ struct MusicXMLNoteSpanBuilder {
             }
 
             switch category {
-                case .start:
-                    if activeSpanIndexByKey[key] != nil {
-                        #if DEBUG
-                            musicXMLNoteSpanLogger.debug(
-                                "MusicXMLNoteSpanBuilder: duplicate tie-start; replacing active span for \(key.partID) midi=\(midiNote) staff=\(staff) voice=\(voice)"
-                            )
-                        #endif
-                        activeSpanIndexByKey[key] = nil
-                    }
+            case .start:
+                if activeSpanIndexByKey[key] != nil {
+                    #if DEBUG
+                        musicXMLNoteSpanLogger.debug(
+                            "MusicXMLNoteSpanBuilder: duplicate tie-start; replacing active span for \(key.partID) midi=\(midiNote) staff=\(staff) voice=\(voice)"
+                        )
+                    #endif
+                    activeSpanIndexByKey[key] = nil
+                }
 
+                let arpeggiateOffset = note.isGrace ? 0 : (arpeggiatePlan?.offsetTicksByNoteID[note.id] ?? 0)
+                let baseTick = note.tick + max(0, arpeggiateOffset)
+                let onTick = baseTick + (performanceTimingEnabled ? (note.attackTicks ?? 0) : 0)
+                let offTick = max(onTick, baseTick + max(0, note.durationTicks))
+                let span = MusicXMLNoteSpan(
+                    midiNote: midiNote,
+                    staff: staff,
+                    voice: voice,
+                    onTick: onTick,
+                    offTick: offTick
+                )
+                output.append(span)
+                activeSpanIndexByKey[key] = output.count - 1
+            case .middle:
+                if let existingIndex = activeSpanIndexByKey[key] {
+                    let existing = output[existingIndex]
+                    output[existingIndex] = MusicXMLNoteSpan(
+                        midiNote: existing.midiNote,
+                        staff: existing.staff,
+                        voice: existing.voice,
+                        onTick: existing.onTick,
+                        offTick: existing.offTick + max(0, note.durationTicks)
+                    )
+                } else {
+                    #if DEBUG
+                        musicXMLNoteSpanLogger.debug(
+                            "MusicXMLNoteSpanBuilder: tie-middle without active; starting new active span for \(key.partID) midi=\(midiNote) staff=\(staff) voice=\(voice)"
+                        )
+                    #endif
                     let arpeggiateOffset = note.isGrace ? 0 : (arpeggiatePlan?.offsetTicksByNoteID[note.id] ?? 0)
                     let baseTick = note.tick + max(0, arpeggiateOffset)
                     let onTick = baseTick + (performanceTimingEnabled ? (note.attackTicks ?? 0) : 0)
@@ -81,107 +110,78 @@ struct MusicXMLNoteSpanBuilder {
                     )
                     output.append(span)
                     activeSpanIndexByKey[key] = output.count - 1
-                case .middle:
-                    if let existingIndex = activeSpanIndexByKey[key] {
-                        let existing = output[existingIndex]
-                        output[existingIndex] = MusicXMLNoteSpan(
-                            midiNote: existing.midiNote,
-                            staff: existing.staff,
-                            voice: existing.voice,
-                            onTick: existing.onTick,
-                            offTick: existing.offTick + max(0, note.durationTicks)
+                }
+            case .end:
+                let releaseTicks = performanceTimingEnabled ? (note.releaseTicks ?? 0) : 0
+                if let existingIndex = activeSpanIndexByKey[key] {
+                    let existing = output[existingIndex]
+                    output[existingIndex] = MusicXMLNoteSpan(
+                        midiNote: existing.midiNote,
+                        staff: existing.staff,
+                        voice: existing.voice,
+                        onTick: existing.onTick,
+                        offTick: max(
+                            existing.onTick,
+                            existing.offTick + max(0, note.durationTicks) + releaseTicks + fermataExtraTicks
                         )
-                    } else {
-                        #if DEBUG
-                            musicXMLNoteSpanLogger.debug(
-                                "MusicXMLNoteSpanBuilder: tie-middle without active; starting new active span for \(key.partID) midi=\(midiNote) staff=\(staff) voice=\(voice)"
-                            )
-                        #endif
-                        let arpeggiateOffset = note.isGrace ? 0 : (arpeggiatePlan?.offsetTicksByNoteID[note.id] ?? 0)
-                        let baseTick = note.tick + max(0, arpeggiateOffset)
-                        let onTick = baseTick + (performanceTimingEnabled ? (note.attackTicks ?? 0) : 0)
-                        let offTick = max(onTick, baseTick + max(0, note.durationTicks))
-                        let span = MusicXMLNoteSpan(
-                            midiNote: midiNote,
-                            staff: staff,
-                            voice: voice,
-                            onTick: onTick,
-                            offTick: offTick
-                        )
-                        output.append(span)
-                        activeSpanIndexByKey[key] = output.count - 1
-                    }
-                case .end:
-                    let releaseTicks = performanceTimingEnabled ? (note.releaseTicks ?? 0) : 0
-                    if let existingIndex = activeSpanIndexByKey[key] {
-                        let existing = output[existingIndex]
-                        output[existingIndex] = MusicXMLNoteSpan(
-                            midiNote: existing.midiNote,
-                            staff: existing.staff,
-                            voice: existing.voice,
-                            onTick: existing.onTick,
-                            offTick: max(
-                                existing.onTick,
-                                existing.offTick + max(0, note.durationTicks) + releaseTicks + fermataExtraTicks
-                            )
-                        )
-                        activeSpanIndexByKey[key] = nil
-                    } else {
-                        #if DEBUG
-                            musicXMLNoteSpanLogger.debug(
-                                "MusicXMLNoteSpanBuilder: tie-end without active; creating standalone span for \(key.partID) midi=\(midiNote) staff=\(staff) voice=\(voice)"
-                            )
-                        #endif
-                        let arpeggiateOffset = note.isGrace ? 0 : (arpeggiatePlan?.offsetTicksByNoteID[note.id] ?? 0)
-                        let baseTick = note.tick + max(0, arpeggiateOffset)
-                        let onTick = baseTick + (performanceTimingEnabled ? (note.attackTicks ?? 0) : 0)
-                        output.append(
-                            MusicXMLNoteSpan(
-                                midiNote: midiNote,
-                                staff: staff,
-                                voice: voice,
-                                onTick: onTick,
-                                offTick: max(
-                                    onTick,
-                                    baseTick + max(0, note.durationTicks) + releaseTicks + fermataExtraTicks
-                                )
-                            )
-                        )
-                    }
-                case .normal:
-                    let attackTicks = performanceTimingEnabled ? (note.attackTicks ?? 0) : 0
-                    let releaseTicks = performanceTimingEnabled ? (note.releaseTicks ?? 0) : 0
-                    let plannedGrace = note.isGrace ? gracePlan?.scheduleByNoteID[note.id] : nil
-                    let arpeggiateOffset = note.isGrace ? 0 : (arpeggiatePlan?.offsetTicksByNoteID[note.id] ?? 0)
-                    let baseTick = (plannedGrace?.onTick ?? note.tick) + max(0, arpeggiateOffset)
-                    let rawDurationTicks = if let plannedGrace {
-                        plannedGrace.durationTicks
-                    } else if let reduction = gracePlan?.durationReductionTicksByKey[GraceKey(
-                        partID: note.partID,
-                        staff: staff,
-                        voice: voice,
-                        tick: note.tick
-                    )] {
-                        max(1, note.durationTicks - reduction)
-                    } else {
-                        note.durationTicks
-                    }
-
-                    let onTick = baseTick + attackTicks
-                    let effectiveDurationTicks = articulatedDurationTicks(for: note, rawDurationTicks: rawDurationTicks)
-                    let offTick = max(
-                        onTick,
-                        baseTick + max(0, effectiveDurationTicks) + releaseTicks + fermataExtraTicks
                     )
+                    activeSpanIndexByKey[key] = nil
+                } else {
+                    #if DEBUG
+                        musicXMLNoteSpanLogger.debug(
+                            "MusicXMLNoteSpanBuilder: tie-end without active; creating standalone span for \(key.partID) midi=\(midiNote) staff=\(staff) voice=\(voice)"
+                        )
+                    #endif
+                    let arpeggiateOffset = note.isGrace ? 0 : (arpeggiatePlan?.offsetTicksByNoteID[note.id] ?? 0)
+                    let baseTick = note.tick + max(0, arpeggiateOffset)
+                    let onTick = baseTick + (performanceTimingEnabled ? (note.attackTicks ?? 0) : 0)
                     output.append(
                         MusicXMLNoteSpan(
                             midiNote: midiNote,
                             staff: staff,
                             voice: voice,
                             onTick: onTick,
-                            offTick: offTick
+                            offTick: max(
+                                onTick,
+                                baseTick + max(0, note.durationTicks) + releaseTicks + fermataExtraTicks
+                            )
                         )
                     )
+                }
+            case .normal:
+                let attackTicks = performanceTimingEnabled ? (note.attackTicks ?? 0) : 0
+                let releaseTicks = performanceTimingEnabled ? (note.releaseTicks ?? 0) : 0
+                let plannedGrace = note.isGrace ? gracePlan?.scheduleByNoteID[note.id] : nil
+                let arpeggiateOffset = note.isGrace ? 0 : (arpeggiatePlan?.offsetTicksByNoteID[note.id] ?? 0)
+                let baseTick = (plannedGrace?.onTick ?? note.tick) + max(0, arpeggiateOffset)
+                let rawDurationTicks = if let plannedGrace {
+                    plannedGrace.durationTicks
+                } else if let reduction = gracePlan?.durationReductionTicksByKey[GraceKey(
+                    partID: note.partID,
+                    staff: staff,
+                    voice: voice,
+                    tick: note.tick
+                )] {
+                    max(1, note.durationTicks - reduction)
+                } else {
+                    note.durationTicks
+                }
+
+                let onTick = baseTick + attackTicks
+                let effectiveDurationTicks = articulatedDurationTicks(for: note, rawDurationTicks: rawDurationTicks)
+                let offTick = max(
+                    onTick,
+                    baseTick + max(0, effectiveDurationTicks) + releaseTicks + fermataExtraTicks
+                )
+                output.append(
+                    MusicXMLNoteSpan(
+                        midiNote: midiNote,
+                        staff: staff,
+                        voice: voice,
+                        onTick: onTick,
+                        offTick: offTick
+                    )
+                )
             }
         }
 

@@ -59,12 +59,12 @@ struct RecorderStatusBarView: View {
 
     private var modeText: String {
         switch viewModel.recorderMode {
-            case .idle:
-                "Idle"
-            case .recording:
-                "Recording"
-            case .playing:
-                "Playing"
+        case .idle:
+            "Idle"
+        case .recording:
+            "Recording"
+        case .playing:
+            "Playing"
         }
     }
 

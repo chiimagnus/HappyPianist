@@ -79,158 +79,158 @@ struct BluetoothMIDIConnectionSection: View {
     var body: some View {
         VStack {
             switch bluetoothAccessViewModel.status {
-                case .ready:
+            case .ready:
+                HStack(spacing: 12) {
+                    Text("蓝牙 MIDI 设备")
+                        .font(.headline)
+
+                    Spacer()
+
+                    Button("选择/连接…", systemImage: "dot.radiowaves.left.and.right") {
+                        isDevicePickerPresented = true
+                    }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.roundedRectangle)
+                    .hoverEffect()
+                    .popover(isPresented: $isDevicePickerPresented) {
+                        VStack(alignment: .leading) {
+                            Button {
+                                isDevicePickerPresented = false
+                            } label: {
+                                Image(systemName: "xmark")
+                            }
+
+                            CentralViewControllerRepresentable()
+                                .id(centralViewReloadID)
+                        }
+                        .padding(16)
+                        .frame(minWidth: 400, minHeight: 320)
+                    }
+                }
+
+                HStack(spacing: 12) {
+                    LabeledContent("MIDI 输入（CoreMIDI）") {
+                        Text("\(sourceConnectionViewModel.sourceCount)")
+                            .monospacedDigit()
+                    }
+                    .font(.callout)
+
+                    Spacer()
+                }
+
+                Divider()
+
+                VStack(alignment: .leading, spacing: 12) {
+                    Picker("发声路由", selection: $soundOutputRouteRawValue) {
+                        ForEach(PracticeSoundOutputRoute.allCases) { route in
+                            Text(route.title).tag(route.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
                     HStack(spacing: 12) {
-                        Text("蓝牙 MIDI 设备")
-                            .font(.headline)
+                        Picker("MIDI 输出目的地", selection: $midiDestinationUniqueID) {
+                            Text("未选择").tag(0)
+                            ForEach(destinationConnectionViewModel.destinations) { destination in
+                                Text(destination.name).tag(Int(destination.id))
+                            }
+                        }
+                        .pickerStyle(.menu)
 
-                        Spacer()
-
-                        Button("选择/连接…", systemImage: "dot.radiowaves.left.and.right") {
-                            isDevicePickerPresented = true
+                        Button("刷新输出", systemImage: "arrow.clockwise") {
+                            destinationConnectionViewModel.refreshDestinations()
                         }
                         .buttonStyle(.bordered)
-                        .buttonBorderShape(.roundedRectangle)
-                        .hoverEffect()
-                        .popover(isPresented: $isDevicePickerPresented) {
-                            VStack(alignment: .leading) {
-                                Button {
-                                    isDevicePickerPresented = false
-                                } label: {
-                                    Image(systemName: "xmark")
-                                }
-
-                                CentralViewControllerRepresentable()
-                                    .id(centralViewReloadID)
-                            }
-                            .padding(16)
-                            .frame(minWidth: 400, minHeight: 320)
-                        }
                     }
 
-                    HStack(spacing: 12) {
-                        LabeledContent("MIDI 输入（CoreMIDI）") {
-                            Text("\(sourceConnectionViewModel.sourceCount)")
-                                .monospacedDigit()
-                        }
-                        .font(.callout)
+                    Toggle("Local Control Off（可选）", isOn: $sendLocalControlOff)
 
-                        Spacer()
-                    }
+                    Text("若选择“仅 AVP 发声”，你可以在钢琴上手动关闭本地音量；或勾选此项让 AVP best-effort 向钢琴发送 Local Control Off（兼容性不保证）。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
 
-                    Divider()
-
-                    VStack(alignment: .leading, spacing: 12) {
-                        Picker("发声路由", selection: $soundOutputRouteRawValue) {
-                            ForEach(PracticeSoundOutputRoute.allCases) { route in
-                                Text(route.title).tag(route.rawValue)
-                            }
-                        }
-                        .pickerStyle(.segmented)
-
-                        HStack(spacing: 12) {
-                            Picker("MIDI 输出目的地", selection: $midiDestinationUniqueID) {
-                                Text("未选择").tag(0)
-                                ForEach(destinationConnectionViewModel.destinations) { destination in
-                                    Text(destination.name).tag(Int(destination.id))
-                                }
-                            }
-                            .pickerStyle(.menu)
-
-                            Button("刷新输出", systemImage: "arrow.clockwise") {
-                                destinationConnectionViewModel.refreshDestinations()
-                            }
-                            .buttonStyle(.bordered)
-                        }
-
-                        Toggle("Local Control Off（可选）", isOn: $sendLocalControlOff)
-
-                        Text("若选择“仅 AVP 发声”，你可以在钢琴上手动关闭本地音量；或勾选此项让 AVP best-effort 向钢琴发送 Local Control Off（兼容性不保证）。")
+                    if let message = destinationConnectionViewModel.lastErrorMessage {
+                        Text(message)
                             .font(.caption)
                             .foregroundStyle(.secondary)
+                    }
+                }
 
-                        if let message = destinationConnectionViewModel.lastErrorMessage {
+                DisclosureGroup("诊断信息", isExpanded: $isDiagnosticsExpanded) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        if let message = sourceConnectionViewModel.lastErrorMessage {
                             Text(message)
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
-                    }
 
-                    DisclosureGroup("诊断信息", isExpanded: $isDiagnosticsExpanded) {
-                        VStack(alignment: .leading, spacing: 8) {
-                            if let message = sourceConnectionViewModel.lastErrorMessage {
-                                Text(message)
-                                    .font(.caption)
+                        HStack(spacing: 10) {
+                            Button("重载设备列表", systemImage: "arrow.clockwise") {
+                                centralViewReloadID = UUID()
+                            }
+                            .buttonBorderShape(.roundedRectangle)
+
+                            Button("刷新 MIDI 输入", systemImage: "arrow.clockwise") {
+                                sourceConnectionViewModel.refreshSources()
+                            }
+                            .buttonBorderShape(.roundedRectangle)
+
+                            Spacer()
+                        }
+
+                        LabeledContent("状态") {
+                            Text(sourceConnectionViewModel.statusText)
+                                .monospaced()
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                        if sourceConnectionViewModel.sourceNames.isEmpty {
+                            Text("未发现任何 MIDI 输入。若你已在上方列表点了连接但这里仍为 0，可展开「诊断信息」点「刷新 MIDI 输入」，或点「重载设备列表」。")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text("Sources:")
+                                    .font(.caption.weight(.semibold))
                                     .foregroundStyle(.secondary)
-                            }
-
-                            HStack(spacing: 10) {
-                                Button("重载设备列表", systemImage: "arrow.clockwise") {
-                                    centralViewReloadID = UUID()
-                                }
-                                .buttonBorderShape(.roundedRectangle)
-
-                                Button("刷新 MIDI 输入", systemImage: "arrow.clockwise") {
-                                    sourceConnectionViewModel.refreshSources()
-                                }
-                                .buttonBorderShape(.roundedRectangle)
-
-                                Spacer()
-                            }
-
-                            LabeledContent("状态") {
-                                Text(sourceConnectionViewModel.statusText)
-                                    .monospaced()
-                            }
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                            if sourceConnectionViewModel.sourceNames.isEmpty {
-                                Text("未发现任何 MIDI 输入。若你已在上方列表点了连接但这里仍为 0，可展开「诊断信息」点「刷新 MIDI 输入」，或点「重载设备列表」。")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            } else {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Sources:")
-                                        .font(.caption.weight(.semibold))
+                                ForEach(sourceConnectionViewModel.sourceNames, id: \.self) { name in
+                                    Text("• \(name)")
+                                        .font(.caption)
                                         .foregroundStyle(.secondary)
-                                    ForEach(sourceConnectionViewModel.sourceNames, id: \.self) { name in
-                                        Text("• \(name)")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
                                 }
                             }
                         }
-                        .padding(.top, 4)
                     }
-                    .font(.callout)
+                    .padding(.top, 4)
+                }
+                .font(.callout)
 
-                case .bluetoothPoweredOff:
-                    accessStatusCard(
-                        title: "蓝牙已关闭",
-                        message: "请在系统设置中打开蓝牙后重试。"
-                    )
+            case .bluetoothPoweredOff:
+                accessStatusCard(
+                    title: "蓝牙已关闭",
+                    message: "请在系统设置中打开蓝牙后重试。"
+                )
 
-                case .unauthorized:
-                    accessStatusCard(
-                        title: "需要蓝牙权限",
-                        message: "请在系统设置中允许 LonelyPianist 使用蓝牙，以便连接蓝牙 MIDI 钢琴。",
-                        showsOpenSettingsButton: true
-                    )
+            case .unauthorized:
+                accessStatusCard(
+                    title: "需要蓝牙权限",
+                    message: "请在系统设置中允许 LonelyPianist 使用蓝牙，以便连接蓝牙 MIDI 钢琴。",
+                    showsOpenSettingsButton: true
+                )
 
-                case .unsupported:
-                    accessStatusCard(
-                        title: "不支持蓝牙 MIDI",
-                        message: "当前设备或系统不支持 MIDI over Bluetooth。"
-                    )
+            case .unsupported:
+                accessStatusCard(
+                    title: "不支持蓝牙 MIDI",
+                    message: "当前设备或系统不支持 MIDI over Bluetooth。"
+                )
 
-                case .unknown:
-                    accessStatusCard(
-                        title: "正在检查蓝牙状态…",
-                        message: "若长时间无响应，请重试；若仍失败，请检查蓝牙开关与权限设置。",
-                        showsRetryButton: true
-                    )
+            case .unknown:
+                accessStatusCard(
+                    title: "正在检查蓝牙状态…",
+                    message: "若长时间无响应，请重试；若仍失败，请检查蓝牙开关与权限设置。",
+                    showsRetryButton: true
+                )
             }
         }
         .onChange(of: sourceConnectionViewModel.connectionState) {

@@ -1,5 +1,5 @@
-@testable import LonelyPianistAVP
 import CoreMIDI
+@testable import LonelyPianistAVP
 import Testing
 
 @Test
@@ -21,4 +21,3 @@ func endpointPolicyFallsBackToMIDI1WhenMIDI2PortUnavailable() {
 func endpointPolicyUsesMIDI2WhenEndpointReportsMIDI2AndPortAvailable() {
     #expect(MIDIEndpointConnectionPolicy.subscribedProtocol(endpointProtocolID: ._2_0, midi2PortAvailable: true) == ._2_0)
 }
-

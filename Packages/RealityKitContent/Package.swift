@@ -9,13 +9,14 @@ let package = Package(
         .visionOS(.v26),
         .macOS(.v26),
         .iOS(.v26),
-        .tvOS(.v26)
+        .tvOS(.v26),
     ],
     products: [
         // Products define the executables and libraries a package produces, and make them visible to other packages.
         .library(
             name: "RealityKitContent",
-            targets: ["RealityKitContent"]),
+            targets: ["RealityKitContent"]
+        ),
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
@@ -28,7 +29,8 @@ let package = Package(
             name: "RealityKitContent",
             dependencies: [],
             swiftSettings: [
-                .enableUpcomingFeature("MemberImportVisibility")
-            ]),
+                .enableUpcomingFeature("MemberImportVisibility"),
+            ]
+        ),
     ]
 )

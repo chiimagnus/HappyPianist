@@ -33,10 +33,10 @@ final class BluetoothAccessPreflight: NSObject, CBCentralManagerDelegate {
         // If we're already in a stable-ish state, return immediately.
         let immediate = mapStatus(central)
         switch immediate {
-            case .ready, .bluetoothPoweredOff, .unauthorized, .unsupported:
-                return immediate
-            case .unknown:
-                break
+        case .ready, .bluetoothPoweredOff, .unauthorized, .unsupported:
+            return immediate
+        case .unknown:
+            break
         }
 
         return await withCheckedContinuation { continuation in
@@ -47,29 +47,29 @@ final class BluetoothAccessPreflight: NSObject, CBCentralManagerDelegate {
 
     private func mapStatus(_ central: CBCentralManager) -> Status {
         switch CBManager.authorization {
-            case .allowedAlways:
-                break
-            case .denied, .restricted:
-                return .unauthorized
-            case .notDetermined:
-                return .unknown
-            @unknown default:
-                return .unknown
+        case .allowedAlways:
+            break
+        case .denied, .restricted:
+            return .unauthorized
+        case .notDetermined:
+            return .unknown
+        @unknown default:
+            return .unknown
         }
 
         switch central.state {
-            case .poweredOn:
-                return .ready
-            case .poweredOff:
-                return .bluetoothPoweredOff
-            case .unauthorized:
-                return .unauthorized
-            case .unsupported:
-                return .unsupported
-            case .unknown, .resetting:
-                return .unknown
-            @unknown default:
-                return .unknown
+        case .poweredOn:
+            return .ready
+        case .poweredOff:
+            return .bluetoothPoweredOff
+        case .unauthorized:
+            return .unauthorized
+        case .unsupported:
+            return .unsupported
+        case .unknown, .resetting:
+            return .unknown
+        @unknown default:
+            return .unknown
         }
     }
 }

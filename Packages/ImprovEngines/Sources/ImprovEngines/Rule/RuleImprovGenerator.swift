@@ -179,7 +179,7 @@ public struct RuleImprovGenerator: Sendable {
 
         let minOnsetGap: Double = {
             guard motif.count >= 2 else { return cycleLen }
-            let onsetGaps = (0..<(motif.count - 1))
+            let onsetGaps = (0 ..< (motif.count - 1))
                 .map { motif[$0 + 1].time - motif[$0].time }
                 .filter { $0 > 0 }
             return onsetGaps.min() ?? cycleLen
@@ -192,7 +192,7 @@ public struct RuleImprovGenerator: Sendable {
             let cycleStart = beatOffset + Double(cycleIndex) * cycleLen
             if cycleStart >= responseSeconds { break }
 
-            for motifIndex in 0..<motif.count {
+            for motifIndex in 0 ..< motif.count {
                 let motifOnset = motif[motifIndex].time
                 let motifDuration = motif[motifIndex].duration
                 let motifVelocity = motif[motifIndex].velocity
@@ -510,7 +510,7 @@ public struct RuleImprovGenerator: Sendable {
 
         if ["major_pentatonic", "minor_pentatonic", "major_add9"].contains(scaleName), fullScale.count > 6 {
             let root = fullScale.first ?? 0
-            let isMinorish = fullScale.contains { ((($0 - root).mod(12)) == 3) }
+            let isMinorish = fullScale.contains { (($0 - root).mod(12)) == 3 }
             let penta = Set(
                 pitchClassSet(
                     rootPC: root,
@@ -541,7 +541,7 @@ public struct RuleImprovGenerator: Sendable {
         var bestMode = "major"
         var bestScore = -Double.greatestFiniteMagnitude
 
-        for root in 0..<12 {
+        for root in 0 ..< 12 {
             for (mode, intervals) in [("major", RuleConstants.majorScale), ("minor", RuleConstants.naturalMinorScale)] {
                 let scale = Set(intervals.map { (root + $0).mod(12) })
                 let triad = Set((mode == "major" ? [0, 4, 7] : [0, 3, 7]).map { (root + $0).mod(12) })
@@ -591,7 +591,7 @@ public struct RuleImprovGenerator: Sendable {
             pitchClasses: chordPitchClasses(rootPC: tonal.rootPC, quality: tonal.mode == "minor" ? "minor" : "major")
         )
 
-        for root in 0..<12 {
+        for root in 0 ..< 12 {
             for (quality, intervals) in RuleConstants.chordQualityIntervals {
                 let pitchClasses = chordPitchClasses(rootPC: root, quality: quality)
                 let chordSet = Set(pitchClasses)
@@ -658,7 +658,7 @@ public struct RuleImprovGenerator: Sendable {
         var chords: [RuleChordGuess] = []
         chords.reserveCapacity(totalMeasures)
 
-        for measureIndex in 0..<totalMeasures {
+        for measureIndex in 0 ..< totalMeasures {
             let measureStart = Double(measureIndex) * secondsPerMeasure
             let measureEnd = Double(measureIndex + 1) * secondsPerMeasure
 
@@ -690,18 +690,18 @@ public struct RuleImprovGenerator: Sendable {
 
     private func degreeToChordQuality(degree: Int, mode: String) -> String {
         if mode == "major" {
-            let majorDegrees: Set<Int> = [0, 5, 7]
-            let minorDegrees: Set<Int> = [2, 4, 9]
-            let dimDegrees: Set<Int> = [11]
+            let majorDegrees: Set = [0, 5, 7]
+            let minorDegrees: Set = [2, 4, 9]
+            let dimDegrees: Set = [11]
             if majorDegrees.contains(degree) { return "major" }
             if minorDegrees.contains(degree) { return "minor" }
             if dimDegrees.contains(degree) { return "diminished" }
             return "major"
         }
 
-        let minorDegrees: Set<Int> = [0, 5, 7]
-        let majorDegrees: Set<Int> = [3, 8, 10]
-        let dimDegrees: Set<Int> = [2]
+        let minorDegrees: Set = [0, 5, 7]
+        let majorDegrees: Set = [3, 8, 10]
+        let dimDegrees: Set = [2]
         if minorDegrees.contains(degree) { return "minor" }
         if majorDegrees.contains(degree) { return "major" }
         if dimDegrees.contains(degree) { return "diminished" }
@@ -716,10 +716,10 @@ public struct RuleImprovGenerator: Sendable {
         if chords.count < 2 { return (false, 0) }
 
         if chords.count >= 2 {
-            for loopLen in 1...((chords.count / 2)) {
+            for loopLen in 1 ... (chords.count / 2) {
                 let pattern = Array(chords.prefix(loopLen))
                 var isLoop = true
-                for i in loopLen..<chords.count {
+                for i in loopLen ..< chords.count {
                     if chordsMatch(chords[i], pattern[i % loopLen]) == false {
                         isLoop = false
                         break
@@ -734,11 +734,11 @@ public struct RuleImprovGenerator: Sendable {
 
         let maxLoopLen = chords.count - 1
         if maxLoopLen >= 2 {
-            for loopLen in 2...maxLoopLen {
-                for start in 0..<(chords.count - loopLen) {
-                    let pattern = Array(chords[start..<(start + loopLen)])
+            for loopLen in 2 ... maxLoopLen {
+                for start in 0 ..< (chords.count - loopLen) {
+                    let pattern = Array(chords[start ..< (start + loopLen)])
                     var matchCount = 0
-                    for i in start..<chords.count {
+                    for i in start ..< chords.count {
                         if chordsMatch(chords[i], pattern[(i - start) % loopLen]) {
                             matchCount += 1
                         } else {
@@ -766,10 +766,10 @@ public struct RuleImprovGenerator: Sendable {
         var bestMatches = 0
 
         guard loopLength > 0, chords.count >= loopLength else { return chords }
-        for start in 0...(chords.count - loopLength) {
-            let pattern = Array(chords[start..<(start + loopLength)])
+        for start in 0 ... (chords.count - loopLength) {
+            let pattern = Array(chords[start ..< (start + loopLength)])
             var matches = 0
-            for i in start..<chords.count {
+            for i in start ..< chords.count {
                 if chordsMatch(chords[i], pattern[(i - start) % loopLength]) {
                     matches += 1
                 } else {
@@ -782,7 +782,7 @@ public struct RuleImprovGenerator: Sendable {
             }
         }
 
-        return Array(chords[bestStart..<(bestStart + loopLength)])
+        return Array(chords[bestStart ..< (bestStart + loopLength)])
     }
 
     private func predictNextChords(
@@ -803,13 +803,13 @@ public struct RuleImprovGenerator: Sendable {
             let lastRoot = inputChords.last!.rootPC
 
             var phase = 0
-            for i in 0..<loopLength {
+            for i in 0 ..< loopLength {
                 if pattern[i].rootPC == lastRoot {
                     phase = (i + 1) % loopLength
                 }
             }
 
-            return (0..<count).map { i in
+            return (0 ..< count).map { i in
                 pattern[(phase + i) % loopLength]
             }
         }
@@ -819,7 +819,7 @@ public struct RuleImprovGenerator: Sendable {
         result.reserveCapacity(count)
 
         var current = inputChords.last!
-        for _ in 0..<count {
+        for _ in 0 ..< count {
             let degree = chordToDegree(chord: current, tonal: tonal)
 
             let candidates: [(next: Int, weight: Double)] = {
@@ -949,7 +949,7 @@ public struct RuleImprovGenerator: Sendable {
     }
 
     private func nearestPitch(target: Int, allowedPitchClasses: [Int], low: Int, high: Int) -> Int {
-        let candidates = (low...high).filter { allowedPitchClasses.contains($0.mod(12)) }
+        let candidates = (low ... high).filter { allowedPitchClasses.contains($0.mod(12)) }
         guard candidates.isEmpty == false else { return max(low, min(high, target)) }
         return candidates.min(by: { a, b in
             let da = abs(a - target)
@@ -972,7 +972,7 @@ public struct RuleImprovGenerator: Sendable {
         return (low, high, center)
     }
 
-    private struct TextureProfile: Sendable {
+    private struct TextureProfile {
         var avgDensity: Double
         var bassLow: Int
         var bassHigh: Int
@@ -1186,7 +1186,7 @@ public struct RuleImprovGenerator: Sendable {
             }
         }
 
-        if cappedTargetDensity >= 3, (texture.hasChord || strong) {
+        if cappedTargetDensity >= 3, texture.hasChord || strong {
             let chordLow = texture.bassHigh + 1
             let chordHigh = max(chordLow + 6, texture.melodyLow - 1)
 
@@ -1196,7 +1196,7 @@ public struct RuleImprovGenerator: Sendable {
 
             let chordDur = secondsPerMeasure > 0 ? min(duration, secondsPerMeasure / 4) : duration
 
-            for i in 0..<max(0, notesToAdd) {
+            for i in 0 ..< max(0, notesToAdd) {
                 let offset = (i - notesToAdd / 2) * 4
                 let target = chordCenter + offset
                 let allowed = strong ? chordPCs : Array(Set(chordPCs).union(Set(scalePCs))).sorted()
@@ -1323,7 +1323,7 @@ public struct RuleImprovGenerator: Sendable {
         let fingerprint = PitchFingerprint(pitch: pitch, time: roundTo(startTime, decimals: 2), duration: roundTo(duration, decimals: 2))
         guard promptFingerprints.contains(fingerprint) else { return pitch }
 
-        let candidates = (low...high).filter { candidate in
+        let candidates = (low ... high).filter { candidate in
             allowedPitchClasses.contains(candidate.mod(12))
                 && promptFingerprints.contains(PitchFingerprint(pitch: candidate, time: fingerprint.time, duration: fingerprint.duration)) == false
         }
@@ -1336,7 +1336,7 @@ public struct RuleImprovGenerator: Sendable {
         })!
     }
 
-    private struct PitchFingerprint: Hashable, Sendable {
+    private struct PitchFingerprint: Hashable {
         var pitch: Int
         var time: Double
         var duration: Double
@@ -1346,7 +1346,7 @@ public struct RuleImprovGenerator: Sendable {
         guard motif.count >= 2 else { return 0.0 }
         var ratios: [Double] = []
         ratios.reserveCapacity(motif.count)
-        for i in 0..<(motif.count - 1) {
+        for i in 0 ..< (motif.count - 1) {
             let ioi = motif[i + 1].time - motif[i].time
             if ioi > 0.02 {
                 ratios.append(min(1.0, motif[i].duration / ioi))
@@ -1371,7 +1371,7 @@ public struct RuleImprovGenerator: Sendable {
 
         var melodyOnsets: [Int] = []
         var groupTime: Double = -1
-        var groupHigh: Int = 0
+        var groupHigh = 0
 
         for n in ctxSorted {
             if groupTime < 0 || abs(n.time - groupTime) < 0.03 {
@@ -1390,7 +1390,7 @@ public struct RuleImprovGenerator: Sendable {
         guard melodyOnsets.count >= 3 else { return fallback }
         var intervals: [Int] = []
         intervals.reserveCapacity(melodyOnsets.count)
-        for i in 0..<(melodyOnsets.count - 1) {
+        for i in 0 ..< (melodyOnsets.count - 1) {
             intervals.append(abs(melodyOnsets[i + 1] - melodyOnsets[i]))
         }
         intervals.sort()

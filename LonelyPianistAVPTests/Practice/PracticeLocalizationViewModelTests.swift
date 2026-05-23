@@ -1,7 +1,7 @@
 import ARKit
 import Foundation
-import simd
 @testable import LonelyPianistAVP
+import simd
 import Testing
 
 @Test
@@ -150,7 +150,10 @@ private final class FakeARTrackingService: ARTrackingServiceProtocol {
     ]
 
     var isWorldTrackingSupportedOverride = true
-    var isWorldTrackingSupported: Bool { isWorldTrackingSupportedOverride }
+    var isWorldTrackingSupported: Bool {
+        isWorldTrackingSupportedOverride
+    }
+
     let worldTrackingProvider = WorldTrackingProvider()
 
     func fingerTipUpdatesStream() -> AsyncStream<[String: SIMD3<Float>]> {
@@ -197,4 +200,3 @@ private final class InMemoryCalibrationRepository: CalibrationRepositoryProtocol
         arTrackingService _: ARTrackingServiceProtocol
     ) async {}
 }
-

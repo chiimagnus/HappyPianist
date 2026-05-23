@@ -1,8 +1,8 @@
 import Foundation
 
-struct MIDI1InputEvent: Equatable, Sendable {
-    struct Source: Equatable, Hashable, Sendable {
-        enum Identifier: Equatable, Hashable, Sendable {
+struct MIDI1InputEvent: Equatable {
+    struct Source: Equatable, Hashable {
+        enum Identifier: Equatable, Hashable {
             case endpointUniqueID(Int32)
             case sourceIndex(Int)
         }
@@ -11,7 +11,7 @@ struct MIDI1InputEvent: Equatable, Sendable {
         let endpointName: String?
     }
 
-    enum Kind: Equatable, Sendable {
+    enum Kind: Equatable {
         case noteOn(note: Int, velocity: Int)
         case noteOff(note: Int, velocity: Int)
         case controlChange(controller: Int, value: Int)

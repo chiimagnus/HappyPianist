@@ -137,26 +137,26 @@ struct CalibrationStepView: View {
             simulatorDemoTask?.cancel()
             simulatorDemoTask = Task { @MainActor in
                 switch viewModel.calibrationPhase {
-                    case .capturingA0:
-                        viewModel.setCalibrationPhaseForPreview(.transitionA0)
-                        try? await Task.sleep(for: .seconds(1.25))
-                        guard Task.isCancelled == false else { return }
-                        viewModel.setCalibrationPhaseForPreview(.capturingC8)
+                case .capturingA0:
+                    viewModel.setCalibrationPhaseForPreview(.transitionA0)
+                    try? await Task.sleep(for: .seconds(1.25))
+                    guard Task.isCancelled == false else { return }
+                    viewModel.setCalibrationPhaseForPreview(.capturingC8)
 
-                    case .capturingC8:
-                        viewModel.setCalibrationPhaseForPreview(.transitionC8)
-                        try? await Task.sleep(for: .seconds(0.3))
-                        guard Task.isCancelled == false else { return }
-                        viewModel.setCalibrationPhaseForPreview(.completed)
+                case .capturingC8:
+                    viewModel.setCalibrationPhaseForPreview(.transitionC8)
+                    try? await Task.sleep(for: .seconds(0.3))
+                    guard Task.isCancelled == false else { return }
+                    viewModel.setCalibrationPhaseForPreview(.completed)
 
-                    case .completed:
-                        onExit()
+                case .completed:
+                    onExit()
 
-                    case .error:
-                        viewModel.setCalibrationPhaseForPreview(.capturingA0)
+                case .error:
+                    viewModel.setCalibrationPhaseForPreview(.capturingA0)
 
-                    default:
-                        break
+                default:
+                    break
                 }
             }
         #endif

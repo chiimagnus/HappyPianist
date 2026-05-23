@@ -1,8 +1,8 @@
 import Foundation
-@testable import LonelyPianistAVP
 import ImprovProtocol
-import Testing
+@testable import LonelyPianistAVP
 import os
+import Testing
 
 @MainActor
 private final class FakeBackendDiscoveryService: BonjourBackendDiscoveryServiceProtocol {
@@ -86,7 +86,7 @@ private final class FakePracticeSession: AIPerformancePracticeSessionProtocol {
     var isManualReplayPlaying: Bool = false
     var currentStep: PracticeStep?
     var autoplayTimeline: AutoplayPerformanceTimeline = .empty
-    var tempoMap: MusicXMLTempoMap = MusicXMLTempoMap(tempoEvents: [])
+    var tempoMap: MusicXMLTempoMap = .init(tempoEvents: [])
     var pedalTimeline: MusicXMLPedalTimeline?
     let sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol
 
@@ -221,7 +221,7 @@ func disableCancelsPendingPlaybackAndStopsSequencer() async {
     }
 
     #expect(playbackService.playCallCount > 0)
-    #expect(states.contains(where: { $0.isAIPerformanceActive }))
+    #expect(states.contains(where: \.isAIPerformanceActive))
 
     service.setEnabled(false)
 

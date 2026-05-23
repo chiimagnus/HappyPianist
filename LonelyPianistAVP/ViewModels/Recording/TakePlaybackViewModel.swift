@@ -12,8 +12,8 @@ final class TakePlaybackViewModel {
 
         var errorDescription: String? {
             switch self {
-                case .emptyTake:
-                    "该录制为空，无法播放。"
+            case .emptyTake:
+                "该录制为空，无法播放。"
             }
         }
     }

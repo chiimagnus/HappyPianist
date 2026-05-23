@@ -3,9 +3,9 @@ import Foundation
 import Testing
 
 struct PracticeSoundRoutingSettingsTests {
-    @Test func defaultsToLocalSampler() {
+    @Test func defaultsToLocalSampler() throws {
         let suiteName = "PracticeSoundRoutingSettingsTests.\(UUID().uuidString)"
-        let userDefaults = UserDefaults(suiteName: suiteName)!
+        let userDefaults = try #require(UserDefaults(suiteName: suiteName))
         defer { userDefaults.removePersistentDomain(forName: suiteName) }
 
         let provider = UserDefaultsPracticeSessionSettingsProvider(userDefaults: userDefaults)
@@ -14,9 +14,9 @@ struct PracticeSoundRoutingSettingsTests {
         #expect(provider.soundRoutingSettings.sendLocalControlOff == false)
     }
 
-    @Test func parsesExternalRouteAndDestinationUniqueID() {
+    @Test func parsesExternalRouteAndDestinationUniqueID() throws {
         let suiteName = "PracticeSoundRoutingSettingsTests.\(UUID().uuidString)"
-        let userDefaults = UserDefaults(suiteName: suiteName)!
+        let userDefaults = try #require(UserDefaults(suiteName: suiteName))
         defer { userDefaults.removePersistentDomain(forName: suiteName) }
 
         userDefaults.set(PracticeSoundOutputRoute.externalMIDIDestination.rawValue, forKey: PracticeSessionSettingsKeys.soundOutputRoute)
@@ -29,9 +29,9 @@ struct PracticeSoundRoutingSettingsTests {
         #expect(provider.soundRoutingSettings.sendLocalControlOff)
     }
 
-    @Test func parsesNegativeDestinationUniqueID() {
+    @Test func parsesNegativeDestinationUniqueID() throws {
         let suiteName = "PracticeSoundRoutingSettingsTests.\(UUID().uuidString)"
-        let userDefaults = UserDefaults(suiteName: suiteName)!
+        let userDefaults = try #require(UserDefaults(suiteName: suiteName))
         defer { userDefaults.removePersistentDomain(forName: suiteName) }
 
         userDefaults.set(PracticeSoundOutputRoute.externalMIDIDestination.rawValue, forKey: PracticeSessionSettingsKeys.soundOutputRoute)
@@ -42,9 +42,9 @@ struct PracticeSoundRoutingSettingsTests {
         #expect(provider.soundRoutingSettings.midiDestinationUniqueID == -1234)
     }
 
-    @Test func ignoresZeroDestinationUniqueID() {
+    @Test func ignoresZeroDestinationUniqueID() throws {
         let suiteName = "PracticeSoundRoutingSettingsTests.\(UUID().uuidString)"
-        let userDefaults = UserDefaults(suiteName: suiteName)!
+        let userDefaults = try #require(UserDefaults(suiteName: suiteName))
         defer { userDefaults.removePersistentDomain(forName: suiteName) }
 
         userDefaults.set(PracticeSoundOutputRoute.externalMIDIDestination.rawValue, forKey: PracticeSessionSettingsKeys.soundOutputRoute)

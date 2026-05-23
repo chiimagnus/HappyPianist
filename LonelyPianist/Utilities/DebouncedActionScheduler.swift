@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-nonisolated final class DebouncedActionScheduler: @unchecked Sendable {
+final nonisolated class DebouncedActionScheduler: @unchecked Sendable {
     private struct State {
         var task: Task<Void, Never>?
     }

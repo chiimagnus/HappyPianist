@@ -106,10 +106,10 @@ final class MIDIPracticeStepMatcher: MIDIPracticeStepMatchingProtocol {
         var progressItems: [String] = []
         if right.0 == false, let p = right.1 { progressItems.append("R \(p)") }
         if left.0 == false, let p = left.1 { progressItems.append("L \(p)") }
-        if expectedRight.isEmpty && expectedLeft.isEmpty == false {
+        if expectedRight.isEmpty, expectedLeft.isEmpty == false {
             return .insufficient(progress: progressItems.joined(separator: " "))
         }
-        if expectedLeft.isEmpty && expectedRight.isEmpty == false {
+        if expectedLeft.isEmpty, expectedRight.isEmpty == false {
             return .insufficient(progress: progressItems.joined(separator: " "))
         }
 

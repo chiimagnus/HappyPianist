@@ -71,7 +71,7 @@ func transitionGuideSchedulesDelayedSwitchToTrigger() async {
     controller.updateHighlightGuideAfterStepAdvance(previousTick: 0, nextStepIndex: 1)
 
     #expect(store.currentHighlightGuideIndex == 1)
-    for _ in 0..<20 {
+    for _ in 0 ..< 20 {
         if await sleeper.recordedDurations().contains(.seconds(0.12)) {
             break
         }
@@ -80,7 +80,9 @@ func transitionGuideSchedulesDelayedSwitchToTrigger() async {
     #expect(await sleeper.recordedDurations().contains(.seconds(0.12)))
 
     await sleeper.resumeOldest()
-    for _ in 0..<20 { await Task.yield() }
+    for _ in 0 ..< 20 {
+        await Task.yield()
+    }
 
     #expect(store.currentHighlightGuideIndex == 2)
 }

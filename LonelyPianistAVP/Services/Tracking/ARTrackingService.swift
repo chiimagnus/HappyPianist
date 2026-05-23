@@ -56,10 +56,10 @@ final class ARTrackingService: ARTrackingServiceProtocol {
         let isPlaneSupported = PlaneDetectionProvider.isSupported
 
         let shouldIncludeHand = switch mode {
-            case .calibration, .practiceVirtualOrAudio:
-                true
-            case .practiceBluetoothMIDI:
-                false
+        case .calibration, .practiceVirtualOrAudio:
+            true
+        case .practiceBluetoothMIDI:
+            false
         }
 
         if shouldIncludeHand == false {
@@ -205,14 +205,14 @@ final class ARTrackingService: ARTrackingServiceProtocol {
                             key.hasPrefix(chiralityPrefix) == false
                         }
                         switch update.anchor.chirality {
-                            case .left:
-                                leftIndexFingerTipPosition = nil
-                                leftThumbTipPosition = nil
-                            case .right:
-                                rightIndexFingerTipPosition = nil
-                                rightThumbTipPosition = nil
-                            @unknown default:
-                                break
+                        case .left:
+                            leftIndexFingerTipPosition = nil
+                            leftThumbTipPosition = nil
+                        case .right:
+                            rightIndexFingerTipPosition = nil
+                            rightThumbTipPosition = nil
+                        @unknown default:
+                            break
                         }
                         fingerTipUpdatesContinuation?.yield(fingerTipPositions)
                         continue
@@ -225,14 +225,14 @@ final class ARTrackingService: ARTrackingServiceProtocol {
                     fingerTipPositions.merge(extracted.tips, uniquingKeysWith: { _, new in new })
 
                     switch update.anchor.chirality {
-                        case .left:
-                            leftIndexFingerTipPosition = extracted.indexFingerTip
-                            leftThumbTipPosition = extracted.thumbTip
-                        case .right:
-                            rightIndexFingerTipPosition = extracted.indexFingerTip
-                            rightThumbTipPosition = extracted.thumbTip
-                        @unknown default:
-                            break
+                    case .left:
+                        leftIndexFingerTipPosition = extracted.indexFingerTip
+                        leftThumbTipPosition = extracted.thumbTip
+                    case .right:
+                        rightIndexFingerTipPosition = extracted.indexFingerTip
+                        rightThumbTipPosition = extracted.thumbTip
+                    @unknown default:
+                        break
                     }
                     fingerTipUpdatesContinuation?.yield(fingerTipPositions)
                 }
@@ -245,12 +245,12 @@ final class ARTrackingService: ARTrackingServiceProtocol {
                 for await update in worldTrackingProvider.anchorUpdates {
                     guard Task.isCancelled == false else { return }
                     switch update.event {
-                        case .removed:
-                            worldAnchorsByID.removeValue(forKey: update.anchor.id)
-                        case .added, .updated:
-                            worldAnchorsByID[update.anchor.id] = update.anchor
-                        @unknown default:
-                            worldAnchorsByID[update.anchor.id] = update.anchor
+                    case .removed:
+                        worldAnchorsByID.removeValue(forKey: update.anchor.id)
+                    case .added, .updated:
+                        worldAnchorsByID[update.anchor.id] = update.anchor
+                    @unknown default:
+                        worldAnchorsByID[update.anchor.id] = update.anchor
                     }
                 }
             }
@@ -262,12 +262,12 @@ final class ARTrackingService: ARTrackingServiceProtocol {
                 for await update in planeDetectionProvider.anchorUpdates {
                     guard Task.isCancelled == false else { return }
                     switch update.event {
-                        case .removed:
-                            planeAnchorsByID.removeValue(forKey: update.anchor.id)
-                        case .added, .updated:
-                            planeAnchorsByID[update.anchor.id] = update.anchor
-                        @unknown default:
-                            planeAnchorsByID[update.anchor.id] = update.anchor
+                    case .removed:
+                        planeAnchorsByID.removeValue(forKey: update.anchor.id)
+                    case .added, .updated:
+                        planeAnchorsByID[update.anchor.id] = update.anchor
+                    @unknown default:
+                        planeAnchorsByID[update.anchor.id] = update.anchor
                     }
                 }
             }
@@ -341,12 +341,12 @@ final class ARTrackingService: ARTrackingServiceProtocol {
             guard let point = recordIfTracked(jointName) else { continue }
             tips["\(anchor.chirality)-\(jointName)"] = point
             switch jointName {
-                case .indexFingerTip:
-                    indexFingerTip = point
-                case .thumbTip:
-                    thumbTip = point
-                default:
-                    break
+            case .indexFingerTip:
+                indexFingerTip = point
+            case .thumbTip:
+                thumbTip = point
+            default:
+                break
             }
         }
 

@@ -31,27 +31,27 @@ struct AutoplayTimelineTimeCursor: Equatable {
 
         for event in timeline.events[startIndex...] {
             switch event.kind {
-                case let .pauseSeconds(seconds):
-                    pausePrefixSeconds += seconds
+            case let .pauseSeconds(seconds):
+                pausePrefixSeconds += seconds
 
-                case let .advanceStep(index):
-                    scheduled.append(
-                        TimedEvent(
-                            timeSeconds: tickToSeconds(event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
-                            event: .step(index: index)
-                        )
+            case let .advanceStep(index):
+                scheduled.append(
+                    TimedEvent(
+                        timeSeconds: tickToSeconds(event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
+                        event: .step(index: index)
                     )
+                )
 
-                case let .advanceGuide(index, guideID):
-                    scheduled.append(
-                        TimedEvent(
-                            timeSeconds: tickToSeconds(event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
-                            event: .guide(index: index, guideID: guideID)
-                        )
+            case let .advanceGuide(index, guideID):
+                scheduled.append(
+                    TimedEvent(
+                        timeSeconds: tickToSeconds(event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
+                        event: .guide(index: index, guideID: guideID)
                     )
+                )
 
-                case .noteOn, .noteOff, .pedalDown, .pedalUp:
-                    continue
+            case .noteOn, .noteOff, .pedalDown, .pedalUp:
+                continue
             }
         }
 

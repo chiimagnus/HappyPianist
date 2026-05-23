@@ -1,6 +1,6 @@
-@testable import LonelyPianistAVP
 import CoreMIDI
 import Foundation
+@testable import LonelyPianistAVP
 import Testing
 
 @Test
@@ -57,4 +57,3 @@ func int32PropertyReturnsValueWhenCoreMIDIReturnsValue() {
 
     #expect(reader.int32Property(0, kMIDIPropertyUniqueID) == 42)
 }
-

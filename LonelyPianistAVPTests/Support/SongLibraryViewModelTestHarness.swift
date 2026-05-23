@@ -74,10 +74,6 @@ private struct NoopAudioImportService: AudioImportServiceProtocol {
 private struct StubBundledSongLibraryProvider: BundledSongLibraryProviderProtocol {
     let entries: [SongLibraryEntry]
 
-    init(entries: [SongLibraryEntry]) {
-        self.entries = entries
-    }
-
     func bundledEntries() -> [SongLibraryEntry] {
         entries
     }

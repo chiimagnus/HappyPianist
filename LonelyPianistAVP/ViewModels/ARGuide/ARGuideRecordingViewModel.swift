@@ -16,7 +16,7 @@ final class ARGuideRecordingViewModel {
     private let onMIDI2Event: @MainActor (MIDI2InputEvent) -> Void
 
     @ObservationIgnored
-    private lazy var midiRecordingState: MIDIRecordingState = MIDIRecordingState(
+    private lazy var midiRecordingState: MIDIRecordingState = .init(
         logger: logger,
         onStateChanged: { [weak self] state in
             guard let self else { return }

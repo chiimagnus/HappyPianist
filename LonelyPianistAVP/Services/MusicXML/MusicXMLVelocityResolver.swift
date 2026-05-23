@@ -166,21 +166,21 @@ struct MusicXMLVelocityResolver {
             let key = "\(event.scope.partID)-\(staffKey)-\(number)"
 
             switch event.kind {
-                case .crescendoStart, .diminuendoStart:
-                    active[key] = (startTick: event.tick, kind: event.kind, scope: event.scope)
-                case .stop:
-                    if let start = active[key] {
-                        spans.append(
-                            WedgeSpan(
-                                startTick: start.startTick,
-                                endTick: event.tick,
-                                kind: start.kind,
-                                numberToken: event.numberToken,
-                                scope: start.scope
-                            )
+            case .crescendoStart, .diminuendoStart:
+                active[key] = (startTick: event.tick, kind: event.kind, scope: event.scope)
+            case .stop:
+                if let start = active[key] {
+                    spans.append(
+                        WedgeSpan(
+                            startTick: start.startTick,
+                            endTick: event.tick,
+                            kind: start.kind,
+                            numberToken: event.numberToken,
+                            scope: start.scope
                         )
-                        active[key] = nil
-                    }
+                    )
+                    active[key] = nil
+                }
             }
         }
 

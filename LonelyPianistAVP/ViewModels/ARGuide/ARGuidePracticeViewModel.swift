@@ -34,18 +34,18 @@ final class ARGuidePracticeViewModel {
 
     var practiceLocalizationStatusText: String? {
         switch practiceLocalizationState {
-            case .idle:
-                nil
-            case let .blocked(reason), let .failed(reason):
-                reason.message
-            case .openingImmersive:
-                "正在打开沉浸空间…"
-            case .waitingForProviders:
-                "正在启动追踪服务…"
-            case let .locating(elapsedSeconds, totalSeconds):
-                "正在定位钢琴…（\(elapsedSeconds)/\(totalSeconds)s）"
-            case .ready:
-                "定位成功，已开始引导。"
+        case .idle:
+            nil
+        case let .blocked(reason), let .failed(reason):
+            reason.message
+        case .openingImmersive:
+            "正在打开沉浸空间…"
+        case .waitingForProviders:
+            "正在启动追踪服务…"
+        case let .locating(elapsedSeconds, totalSeconds):
+            "正在定位钢琴…（\(elapsedSeconds)/\(totalSeconds)s）"
+        case .ready:
+            "定位成功，已开始引导。"
         }
     }
 
@@ -59,64 +59,64 @@ final class ARGuidePracticeViewModel {
     var shouldSuggestCalibrationStep: Bool {
         let reason: PracticeLocalizationFailure
         switch practiceLocalizationState {
-            case let .blocked(blockingReason), let .failed(blockingReason):
-                reason = blockingReason
-            default:
-                return false
+        case let .blocked(blockingReason), let .failed(blockingReason):
+            reason = blockingReason
+        default:
+            return false
         }
 
         switch reason {
-            case .missingStoredCalibration, .anchorMissing, .anchorNotTracked, .anchorsTooClose:
-                return true
-            default:
-                return false
+        case .missingStoredCalibration, .anchorMissing, .anchorNotTracked, .anchorsTooClose:
+            return true
+        default:
+            return false
         }
     }
 
     var step3ARStatusText: String {
         let worldState = appState.arTrackingService.providerStateByName["world"] ?? .idle
         switch worldState {
-            case .running:
-                return "AR 定位：可用"
-            case .unsupported:
-                return "AR 定位：不可用（设备/环境不支持）"
-            case let .failed(reason):
-                return "AR 定位：失败（\(reason)）"
-            default:
-                return "AR 定位：初始化中"
+        case .running:
+            return "AR 定位：可用"
+        case .unsupported:
+            return "AR 定位：不可用（设备/环境不支持）"
+        case let .failed(reason):
+            return "AR 定位：失败（\(reason)）"
+        default:
+            return "AR 定位：初始化中"
         }
     }
 
     var step3HandAssistStatusText: String {
         let handState = appState.arTrackingService.providerStateByName["hand"] ?? .idle
         switch handState {
-            case .running:
-                return "手势辅助：可用（boost + fallback）"
-            case .disabled:
-                return "手势辅助：已关闭（Bluetooth MIDI 模式）"
-            case .unauthorized:
-                return "手势辅助：不可用（未授权）"
-            case let .failed(reason):
-                return "手势辅助：不可用（\(reason)）"
-            default:
-                return "手势辅助：初始化中"
+        case .running:
+            return "手势辅助：可用（boost + fallback）"
+        case .disabled:
+            return "手势辅助：已关闭（Bluetooth MIDI 模式）"
+        case .unauthorized:
+            return "手势辅助：不可用（未授权）"
+        case let .failed(reason):
+            return "手势辅助：不可用（\(reason)）"
+        default:
+            return "手势辅助：初始化中"
         }
     }
 
     var step3AudioStatusText: String {
         switch practiceSessionViewModel.audioRecognitionStatus {
-            case .idle:
-                "音频识别：空闲"
-            case .requestingPermission:
-                "音频识别：请求麦克风权限"
-            case .permissionDenied:
-                "音频识别：权限被拒绝"
-            case .running:
-                "音频识别：运行中"
-            case let .engineFailed(reason):
-                "音频识别：引擎失败（\(reason)）"
-            case .stopped:
-                "音频识别：已停止"
+        case .idle:
+            "音频识别：空闲"
+        case .requestingPermission:
+            "音频识别：请求麦克风权限"
+        case .permissionDenied:
+            "音频识别：权限被拒绝"
+        case .running:
+            "音频识别：运行中"
+        case let .engineFailed(reason):
+            "音频识别：引擎失败（\(reason)）"
+        case .stopped:
+            "音频识别：已停止"
         }
     }
 
@@ -124,12 +124,12 @@ final class ARGuidePracticeViewModel {
         guard practiceSetupState.importedSteps.isEmpty == false else { return "0 / 0" }
         let total = practiceSetupState.importedSteps.count
         switch practiceSessionViewModel.state {
-            case .idle, .ready:
-                return "0 / \(total)"
-            case let .guiding(index):
-                return "\(min(index + 1, total)) / \(total)"
-            case .completed:
-                return "\(total) / \(total)"
+        case .idle, .ready:
+            return "0 / \(total)"
+        case let .guiding(index):
+            return "\(min(index + 1, total)) / \(total)"
+        case .completed:
+            return "\(total) / \(total)"
         }
     }
 
@@ -213,41 +213,41 @@ final class ARGuidePracticeViewModel {
         appState.immersiveMode = mode
 
         switch appState.immersiveSpaceState {
-            case .open:
+        case .open:
+            return nil
+
+        case .inTransition:
+            for _ in 0 ..< 40 {
+                await Task.yield()
+                if appState.immersiveSpaceState != .inTransition {
+                    break
+                }
+            }
+
+            if appState.immersiveSpaceState == .closed {
+                return await openImmersiveForStep(mode: mode, openImmersiveSpace: openImmersiveSpace)
+            }
+            return nil
+
+        case .closed:
+            appState.immersiveSpaceState = .inTransition
+            switch await openImmersiveSpace(appState.immersiveSpaceID) {
+            case .opened:
+                // ImmersiveView.onAppear is the single source of truth for `.open`.
                 return nil
 
-            case .inTransition:
-                for _ in 0 ..< 40 {
-                    await Task.yield()
-                    if appState.immersiveSpaceState != .inTransition {
-                        break
-                    }
-                }
+            case .userCancelled:
+                appState.immersiveSpaceState = .closed
+                return "已取消打开沉浸空间。"
 
-                if appState.immersiveSpaceState == .closed {
-                    return await openImmersiveForStep(mode: mode, openImmersiveSpace: openImmersiveSpace)
-                }
-                return nil
+            case .error:
+                appState.immersiveSpaceState = .closed
+                return "打开沉浸空间失败，请重试。"
 
-            case .closed:
-                appState.immersiveSpaceState = .inTransition
-                switch await openImmersiveSpace(appState.immersiveSpaceID) {
-                    case .opened:
-                        // ImmersiveView.onAppear is the single source of truth for `.open`.
-                        return nil
-
-                    case .userCancelled:
-                        appState.immersiveSpaceState = .closed
-                        return "已取消打开沉浸空间。"
-
-                    case .error:
-                        appState.immersiveSpaceState = .closed
-                        return "打开沉浸空间失败，请重试。"
-
-                    case .unknown:
-                        appState.immersiveSpaceState = .closed
-                        return "沉浸空间返回未知状态，请重试。"
-                }
+            case .unknown:
+                appState.immersiveSpaceState = .closed
+                return "沉浸空间返回未知状态，请重试。"
+            }
         }
     }
 
