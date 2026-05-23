@@ -70,7 +70,7 @@
 | BLE MIDI source 不显示 | Bluetooth 权限或系统连接未完成 | `CABTMIDICentralViewController` 面板、系统蓝牙、app Bluetooth 权限。 |
 | 真实音频模式无法推进 | Microphone 权限、输入源噪声、音频识别阈值 | `PracticeAudioRecognitionService` 状态与 debug snapshot。 |
 | 虚拟钢琴无法继续 | 平面检测或放置确认未完成 | `VirtualPianoPlacementViewModel`、`GazePlaneHitTestService`。 |
-| Python 首次生成很慢 | `model` 首次加载模型 | 用 AVP 的本地后端（deterministic/rule）做轻量验证，或先只验证 `/health` + Bonjour 发现链路。 |
+| Python 首次生成很慢 | `model` 首次加载模型 | 用 AVP 的本地后端（rule）做轻量验证，或先只验证 `/health` + Bonjour 发现链路。 |
 
 ## 代码格式化（SwiftFormat）
 

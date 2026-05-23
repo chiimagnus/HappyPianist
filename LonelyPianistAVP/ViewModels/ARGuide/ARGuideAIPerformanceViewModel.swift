@@ -51,8 +51,6 @@ final class ARGuideAIPerformanceViewModel {
             case .denied:
                 "Backend: network (denied: Local Network)"
             }
-        case .localDeterministic:
-            "Backend: local deterministic"
         case .localRule:
             "Backend: local rule"
         case .tickRangeReplay:
@@ -101,7 +99,6 @@ final class ARGuideAIPerformanceViewModel {
         ImprovBackendRegistry(
             backends: [
                 NetworkBonjourHTTPImprovBackend(discoveryService: backendDiscoveryService),
-                LocalDeterministicImprovBackend(),
                 LocalRuleImprovBackend(),
                 TickRangeReplayImprovBackend(),
             ]

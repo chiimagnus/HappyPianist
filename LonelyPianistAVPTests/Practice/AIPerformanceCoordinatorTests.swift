@@ -173,7 +173,7 @@ func disableCancelsPendingPlaybackAndStopsSequencer() async {
     var states: [AIPerformanceService.State] = []
 
     let backend = FakeBackendDiscoveryService()
-    let selectedKind: ImprovBackendKind = .localDeterministic
+    let selectedKind: ImprovBackendKind = .localRule
     let schedule = [
         PracticeSequencerMIDIEvent(timeSeconds: 0.0, kind: .noteOn(midi: 60, velocity: 90)),
         PracticeSequencerMIDIEvent(timeSeconds: 10.0, kind: .noteOff(midi: 60)),

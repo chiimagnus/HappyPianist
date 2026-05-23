@@ -200,8 +200,6 @@ struct PracticeSettingsView: View {
         switch selectedKind {
         case .networkBonjourHTTP:
             return backendStatusText ?? "Backend: network"
-        case .localDeterministic:
-            return "Backend: local deterministic"
         case .localRule:
             return "Backend: local rule"
         case .tickRangeReplay:
@@ -213,8 +211,6 @@ struct PracticeSettingsView: View {
         switch kind {
         case .networkBonjourHTTP:
             "网络本地连接（电脑端 Python）"
-        case .localDeterministic:
-            "本地 deterministic（AVP）"
         case .localRule:
             "本地 rule（AVP）"
         case .tickRangeReplay:

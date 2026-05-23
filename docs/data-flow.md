@@ -14,7 +14,7 @@
 | AVP 曲库 | bundled MusicXML / 用户导入 MusicXML | `SongLibraryViewModel` + `PracticePreparationService` | `PreparedPractice` |
 | AVP 练习 | `PreparedPractice` + selected piano mode | `ARGuideViewModel` + `PracticeSessionViewModel` | 步骤推进、谱面、高亮、录制与回放 |
 | AVP AI 即兴 | recorded phrase / selected clip | `AIPerformanceService` + `ImprovBackendRegistry` | 生成片段并排程回放（严格按所选后端） |
-| Python 生成（可选） | HTTP / WebSocket request | FastAPI + rule / deterministic / model engine | 仅当选择 `网络本地连接` 后端时触发 |
+| Python 生成（可选） | HTTP / WebSocket request | FastAPI + model engine | 仅当选择 `网络本地连接` 后端时触发 |
 
 ## macOS recorder
 
@@ -101,7 +101,6 @@ flowchart TD
 practice 窗口的 settings popover 中可选择后端：
 
 - `网络本地连接`：通过 Bonjour 发现 + HTTP 请求调用本机 `piano_dialogue_server`（电脑端运行）。
-- `本地 deterministic（Local deterministic）`：AVP 端直接调用 SwiftPM `ImprovEngines`（seed 可复现）。
 - `本地规则生成（Local rule）`：AVP 端直接调用 SwiftPM `ImprovEngines`（seed 可复现）。
 - `按谱片段回放（tick-range replay）`：不做生成，回放当前谱面片段；它不是自动 fallback，只会在用户选择时使用。
 
@@ -116,7 +115,7 @@ sequenceDiagram
 
   Settings-->>AVP: selected ImprovBackendKind
   AVP->>Backend: generatePlaybackPlan(request)
-  alt local deterministic / local rule
+  alt local rule
     Backend->>Engines: generate(notes, params, seed)
     Engines-->>Backend: generated notes
     Backend-->>AVP: schedule
@@ -131,4 +130,4 @@ sequenceDiagram
   end
 ```
 
-Python 后端的 `GenerateParams.strategy` 仅支持 `model`；`deterministic` / `rule` 已迁移到 SwiftPM（`Packages/ImprovEngines/`），仅用于 AVP 端的本地生成路径。
+Python 后端的 `GenerateParams.strategy` 仅支持 `model`；本地规则生成已迁移到 SwiftPM（`Packages/ImprovEngines/`），仅用于 AVP 端的本地生成路径。
