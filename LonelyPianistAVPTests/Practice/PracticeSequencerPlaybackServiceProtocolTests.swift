@@ -14,7 +14,7 @@ func sequencerPlaybackServiceProtocolSupportsDependencyInjection() {
             0
         }
 
-        func playOneShot(midiNotes _: [Int], durationSeconds _: TimeInterval) throws {}
+        func playOneShot(noteOns _: [PracticeOneShotNoteOn], durationSeconds _: TimeInterval) throws {}
         func startLiveNotes(midiNotes _: Set<Int>) throws {}
         func stopLiveNotes(midiNotes _: Set<Int>) {}
         func stopAllLiveNotes() {}
