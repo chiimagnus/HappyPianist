@@ -187,7 +187,7 @@ struct PracticeSettingsView: View {
     }
 
     private func applyLocalControlOffIfNeeded() {
-        guard midiDestinationUniqueID > 0 else { return }
+        guard midiDestinationUniqueID != 0 else { return }
         guard let destinationUniqueID = Int32(exactly: midiDestinationUniqueID) else { return }
         destinationConnectionViewModel.sendLocalControlOff(sendLocalControlOff, destinationUniqueID: destinationUniqueID)
     }

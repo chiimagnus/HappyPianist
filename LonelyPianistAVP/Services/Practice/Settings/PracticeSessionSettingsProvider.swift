@@ -57,7 +57,7 @@ struct UserDefaultsPracticeSessionSettingsProvider: PracticeSessionSettingsProvi
         let midiDestinationUniqueID: Int32?
         if let number = userDefaults.object(forKey: PracticeSessionSettingsKeys.midiDestinationUniqueID) as? NSNumber {
             let value = number.int32Value
-            midiDestinationUniqueID = value > 0 ? value : nil
+            midiDestinationUniqueID = value != 0 ? value : nil
         } else {
             midiDestinationUniqueID = nil
         }

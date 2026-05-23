@@ -29,7 +29,20 @@ struct PracticeSoundRoutingSettingsTests {
         #expect(provider.soundRoutingSettings.sendLocalControlOff)
     }
 
-    @Test func ignoresNonPositiveDestinationUniqueID() {
+    @Test func parsesNegativeDestinationUniqueID() {
+        let suiteName = "PracticeSoundRoutingSettingsTests.\(UUID().uuidString)"
+        let userDefaults = UserDefaults(suiteName: suiteName)!
+        defer { userDefaults.removePersistentDomain(forName: suiteName) }
+
+        userDefaults.set(PracticeSoundOutputRoute.externalMIDIDestination.rawValue, forKey: PracticeSessionSettingsKeys.soundOutputRoute)
+        userDefaults.set(-1234, forKey: PracticeSessionSettingsKeys.midiDestinationUniqueID)
+
+        let provider = UserDefaultsPracticeSessionSettingsProvider(userDefaults: userDefaults)
+        #expect(provider.soundRoutingSettings.outputRoute == .externalMIDIDestination)
+        #expect(provider.soundRoutingSettings.midiDestinationUniqueID == -1234)
+    }
+
+    @Test func ignoresZeroDestinationUniqueID() {
         let suiteName = "PracticeSoundRoutingSettingsTests.\(UUID().uuidString)"
         let userDefaults = UserDefaults(suiteName: suiteName)!
         defer { userDefaults.removePersistentDomain(forName: suiteName) }
@@ -41,4 +54,3 @@ struct PracticeSoundRoutingSettingsTests {
         #expect(provider.soundRoutingSettings.midiDestinationUniqueID == nil)
     }
 }
-
