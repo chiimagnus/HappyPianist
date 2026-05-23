@@ -8,7 +8,7 @@
 </head>
 <body>
   <h1>LONELY PIANIST</h1>
-  <p class="subtitle">统一测试入口：/generate（对话音符）与 /upload-expand（MIDI 续写）</p>
+  <p class="subtitle">统一测试入口：/generate（对话音符）</p>
 
   <div class="container">
     <!-- Generate (Dialogue notes) -->
@@ -17,14 +17,12 @@
 
       <div class="control-group">
         <label>生成策略（params.strategy）</label>
-        <select id="genStrategy">
-          <option value="rule" selected>rule（规则即兴器，不加载模型）</option>
-          <option value="deterministic">deterministic（现有算法，不加载模型）</option>
-          <option value="model">model（神经网络，首次较慢）</option>
+        <select id="genStrategy" disabled>
+          <option value="model" selected>model（神经网络，首次较慢）</option>
         </select>
       </div>
 
-      <div class="control-group" id="genTopPGroup" style="display:none;">
+      <div class="control-group" id="genTopPGroup">
         <label>创造性 (top-p)</label>
         <div class="range-wrap">
           <input type="range" id="genTopP" min="0.70" max="1.00" value="0.95" step="0.01">
@@ -39,7 +37,7 @@
           <span class="range-value" id="genMaxTokensValue">256</span>
         </div>
         <p style="font-size:0.75rem; color:var(--text-dim); margin-top:4px;">
-          约 64 tokens ≈ 1 秒（rule 会把时长限制在 12 秒以内）
+          约 64 tokens ≈ 1 秒
         </p>
       </div>
 
@@ -82,77 +80,6 @@
         font-size: 0.8rem;
         line-height: 1.4;
       "></pre>
-    </div>
-
-    <!-- Upload -->
-    <div class="card">
-      <div class="drop-zone" id="dropZone">
-        <div class="icon">🎹</div>
-        <p>点击或拖拽 MIDI 文件到此处</p>
-        <p style="font-size:0.8rem; margin-top:4px;">支持 .mid / .midi</p>
-        <input type="file" id="fileInput" accept=".mid,.midi,audio/midi,audio/x-midi">
-        <div class="file-name" id="fileName"></div>
-      </div>
-    </div>
-
-    <!-- Controls -->
-    <div class="card">
-      <div class="control-group">
-        <label>生成策略（upload-expand）</label>
-        <select id="strategy">
-          <option value="algorithm" selected>算法生成（规则变奏 + 自动伴奏）</option>
-          <option value="model">AI 模型生成（神经网络续写）</option>
-        </select>
-      </div>
-      <div class="control-group" id="modeGroup">
-        <label>生成模式</label>
-        <select id="mode">
-          <option value="variation" selected>变奏 (Variation)</option>
-          <option value="continue">续写 (Continue)</option>
-          <option value="accompaniment">仅伴奏 (Accompaniment)</option>
-          <option value="emotion">情感延展 (Emotion)</option>
-        </select>
-      </div>
-      <div class="control-group">
-        <label id="durationLabel">生成时长（秒）</label>
-        <div class="range-wrap">
-          <input type="range" id="duration" min="5" max="60" value="20" step="5">
-          <span class="range-value" id="durationValue">20</span>
-        </div>
-        <p id="modelHint" style="display:none; font-size:0.8rem; color:var(--text-dim); margin-top:6px;">
-          AI 模型最长支持约 20 秒续写
-        </p>
-      </div>
-      <div class="control-group" id="topPGroup" style="display:none;">
-        <label>创造性 (top-p)</label>
-        <div class="range-wrap">
-          <input type="range" id="topP" min="0.70" max="1.00" value="0.95" step="0.01">
-          <span class="range-value" id="topPValue">0.95</span>
-        </div>
-        <p style="font-size:0.75rem; color:var(--text-dim); margin-top:4px;">
-          越低越保守（更接近原曲风格），越高越有创意
-        </p>
-      </div>
-      <div class="control-group">
-        <label class="checkbox-wrap">
-          <input type="checkbox" id="includeSource">
-          <span>输出包含原曲 + 生成部分</span>
-        </label>
-      </div>
-    </div>
-
-    <!-- Generate -->
-    <button class="btn" id="generateBtn" disabled>
-      <span>开始生成</span>
-    </button>
-
-    <!-- Message -->
-    <div class="message" id="message"></div>
-
-    <!-- Results -->
-    <div class="card results" id="results">
-      <div class="result-grid" id="resultGrid"></div>
-      <a href="#" class="download-btn" id="downloadBtn" download>下载生成的 MIDI</a>
     </div>
   </div>
 

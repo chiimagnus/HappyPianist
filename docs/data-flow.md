@@ -131,4 +131,4 @@ sequenceDiagram
   end
 ```
 
-`strategy=deterministic` 与 `strategy=rule` 是轻量路径；`strategy=model` 会加载 torch/transformers/anticipation 模型依赖。
+Python 后端的 `GenerateParams.strategy` 仅支持 `model`；`deterministic` / `rule` 已迁移到 SwiftPM（`Packages/ImprovEngines/`），仅用于 AVP 端的本地生成路径。

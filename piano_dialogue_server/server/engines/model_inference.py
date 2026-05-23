@@ -14,7 +14,6 @@ from anticipation.vocab import DUR_OFFSET, MAX_PITCH, NOTE_OFFSET, REST, TIME_OF
 import anticipation.sample as sample
 
 from ..api.protocol import DialogueNote, GenerateParams
-from ..media.midi_generation import NoteEvent, analyze_dialogue_notes, generate_expanded_midi
 
 
 def _ensure_hf_mirror_env() -> None:
@@ -131,73 +130,6 @@ def _events_to_notes(
     if stats is not None:
         stats["emitted_notes"] = len(notes)
     return notes
-
-
-def _dialogue_notes_to_note_events(notes: list[DialogueNote]) -> list[NoteEvent]:
-    return [
-        NoteEvent(
-            note=int(note.note),
-            velocity=int(note.velocity),
-            start=float(note.time),
-            duration=float(note.duration),
-            channel=0,
-            track=0,
-        )
-        for note in notes
-    ]
-
-
-def _note_events_to_dialogue_notes(notes: list[NoteEvent]) -> list[DialogueNote]:
-    return [
-        DialogueNote(
-            note=note.note,
-            velocity=note.velocity,
-            time=note.start,
-            duration=note.duration,
-        )
-        for note in notes
-    ]
-
-
-def _generate_deterministic_response(
-    notes: list[DialogueNote], params: GenerateParams, session_id: str | None
-) -> list[DialogueNote]:
-    del session_id
-
-    source_notes = _dialogue_notes_to_note_events(notes)
-    analysis = analyze_dialogue_notes(notes)
-    continuation_length = _derive_response_length_sec(params)
-    melody, _accompaniment = generate_expanded_midi(
-        source_notes,
-        analysis,
-        mode="continue",
-        extra_duration=continuation_length,
-        include_source=False,
-        seed=None,
-    )
-    return _note_events_to_dialogue_notes(melody)
-
-
-def generate_deterministic_response(
-    notes: list[DialogueNote], params: GenerateParams, session_id: str | None
-) -> list[DialogueNote]:
-    reply_notes = _generate_deterministic_response(notes, params, session_id)
-    if not reply_notes:
-        return reply_notes
-
-    min_time = min(float(note.time) for note in reply_notes)
-    if min_time <= 0:
-        return reply_notes
-
-    return [
-        DialogueNote(
-            note=int(note.note),
-            velocity=int(note.velocity),
-            time=max(0.0, float(note.time) - min_time),
-            duration=float(note.duration),
-        )
-        for note in reply_notes
-    ]
 
 
 def _max_phrase_end_sec(notes: list[DialogueNote]) -> float:

@@ -19,7 +19,7 @@ class GenerateParams(BaseModel):
 
     top_p: float = Field(default=0.95, ge=0.0, le=1.0)
     max_tokens: int = Field(default=256, ge=1, le=8192)
-    strategy: Literal["model", "deterministic", "rule"] = "model"
+    strategy: Literal["model"] = "model"
 
 
 class GenerateRequest(BaseModel):

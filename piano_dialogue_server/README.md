@@ -1,6 +1,6 @@
 # piano_dialogue_server
 
-本目录是 LonelyPianist 的本地 Python 后端，提供 AI 即兴生成、Bonjour 广播和浏览器 MIDI 上传扩展工具。
+本目录是 LonelyPianist 的本地 Python 后端，提供 AI 即兴生成与 Bonjour 广播（仅保留模型推理路径）。
 
 ## API
 
@@ -10,7 +10,6 @@
 | `GET /` | 返回 `static/index.html` 或 fallback HTML。 |
 | `POST /generate` | 接收 `GenerateRequest`，返回 `ResultResponse`。 |
 | `WS /ws` | WebSocket 生成接口。 |
-| `POST /upload-expand` | 上传 MIDI，返回扩展后的 base64 MIDI 与 analysis。 |
 
 调试包由 `server/media/debug_artifacts.py` 写入，不是旧路径 `server/debug_artifacts.py`。
 
@@ -39,11 +38,8 @@ curl -s http://127.0.0.1:8765/health
 
 | strategy | 是否加载大模型 | 说明 |
 | --- | --- | --- |
-| `rule` | 否 | 规则即兴器。 |
-| `deterministic` | 否 | 确定性生成路径。 |
 | `model` | 是 | 加载 anticipation / transformers / torch 模型。 |
-
-`POST /upload-expand` 的 multipart `strategy` 是 `algorithm` 或 `model`。
+（`rule` / `deterministic` 已迁移到 SwiftPM：`Packages/ImprovEngines/`。）
 
 ## 环境变量
 
@@ -69,14 +65,14 @@ curl -X POST http://127.0.0.1:8765/generate \
     "params": {
       "top_p": 0.95,
       "max_tokens": 256,
-      "strategy": "rule"
+      "strategy": "model"
     }
   }'
 ```
 
 ## Bonjour
 
-服务启动时 best-effort 广播 `_lonelypianist._tcp.local.`，port `8765`，properties 包含 `path=/generate`、`protocol_version=1`、`supports_deterministic=1`。AVP 真机访问时，Mac 与 Apple Vision Pro 需要在同一局域网内，并允许 Local Network 权限。
+服务启动时 best-effort 广播 `_lonelypianist._tcp.local.`，port `8765`，properties 包含 `path=/generate`、`protocol_version=1`。AVP 真机访问时，Mac 与 Apple Vision Pro 需要在同一局域网内，并允许 Local Network 权限。
 
 ## 离线脚本
 
@@ -85,4 +81,4 @@ python scripts/test_generate.py
 python scripts/test_infilling.py
 ```
 
-这些脚本可能触发模型加载；只验证轻量链路时，优先启动服务并调用 `strategy=rule` 或 `strategy=deterministic`。
+这些脚本可能触发模型加载；只验证服务端链路时，直接调用 `strategy=model` 即可。

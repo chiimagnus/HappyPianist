@@ -95,9 +95,6 @@ flowchart TD
 flowchart TD
   API[server/api/main.py] --> PROTO[server/api/protocol.py]
   API --> MODEL[server/engines/model_inference.py]
-  API --> RULE[server/engines/rule_inference.py]
-  RULE --> RB[server/engines/rule_backend.py]
-  API --> MIDI[server/media/midi_generation.py]
   API --> DBG[server/media/debug_artifacts.py]
   API --> BONJOUR[server/media/bonjour.py]
   API --> STATIC[static/index.html + app.js]
@@ -127,7 +124,7 @@ flowchart TD
 | `BluetoothMIDIInputEventSourceService` | BLE MIDI source 生命周期、协议解码、广播 stream | BLE MIDI tests + 真机 |
 | `VirtualPianoInputController` / `KeyContactDetectionService` | 虚拟键触发、黑键优先、迟滞阈值 | VirtualPiano tests + 真机 |
 | `ARTrackingService.start(mode:)` | provider 权限和沉浸空间可用性 | AVP tests + 真机 |
-| `server/api/main.py` | `/generate`、`/ws`、`/upload-expand` 行为 | Python smoke + curl |
+| `server/api/main.py` | `/generate`、`/ws` 行为 | Python smoke + curl |
 
 ## Coverage Gaps
 

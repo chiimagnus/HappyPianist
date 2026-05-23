@@ -1,34 +1,21 @@
 from __future__ import annotations
 
-import base64
 from contextlib import asynccontextmanager
 import json
-import os
-import tempfile
 import time
 from typing import Any
 
 from pathlib import Path
 
-from fastapi import FastAPI, File, Form, UploadFile, WebSocket
+from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import ValidationError
 from starlette.websockets import WebSocketDisconnect
 
 from ..media.debug_artifacts import debug_enabled, new_request_id, write_debug_bundle
-from ..media.midi_generation import (
-    NoteEvent,
-    _generate_accompaniment,
-    _quantize_to_scale,
-    _scale_notes,
-    generate_expanded_midi,
-    parse_midi_file,
-    summarize_analysis,
-    write_midi,
-)
-from .protocol import DialogueNote, ErrorResponse, GenerateParams, GenerateRequest, ResultResponse
+from .protocol import ErrorResponse, GenerateRequest, ResultResponse
 
 
 @asynccontextmanager
@@ -43,7 +30,6 @@ async def _lifespan(_: FastAPI):
             properties={
                 b"path": b"/generate",
                 b"protocol_version": b"1",
-                b"supports_deterministic": b"1",
             },
         )
         await broadcaster.start()
@@ -86,174 +72,8 @@ async def index() -> str:
     return "<h1>Piano Dialogue Server</h1><p>Frontend not found. Place static/index.html to serve UI.</p>"
 
 
-def _quantize_notes_to_scale(notes: list[NoteEvent], key_root: int, key_mode: str) -> list[NoteEvent]:
-    """Snap generated notes to the key scale to improve harmony."""
-    scale = _scale_notes(key_root, key_mode)
-    return [
-        NoteEvent(
-            note=_quantize_to_scale(n.note, scale, key_root),
-            velocity=n.velocity,
-            start=n.start,
-            duration=n.duration,
-            channel=n.channel,
-            track=n.track,
-        )
-        for n in notes
-    ]
-
-
-def _quantize_timing(notes: list[NoteEvent], tempo_bpm: float, time_sig: tuple[int, int]) -> list[NoteEvent]:
-    """Align note starts to the beat grid for rhythmic consistency."""
-    if not notes:
-        return notes
-
-    beat_duration = 60.0 / tempo_bpm
-    grid = beat_duration / 8.0  # 1/8 beat grid
-
-    # Quantize the first note and shift all by the same offset to preserve intervals
-    first = notes[0]
-    offset = round(first.start / grid) * grid - first.start
-
-    return [
-        NoteEvent(
-            note=n.note,
-            velocity=n.velocity,
-            start=max(0.0, n.start + offset),
-            duration=n.duration,
-            channel=n.channel,
-            track=n.track,
-        )
-        for n in notes
-    ]
-
-
-@app.post("/upload-expand")
-async def upload_expand(
-    file: UploadFile = File(...),
-    strategy: str = Form("algorithm"),
-    mode: str = Form("variation"),
-    extra_duration: float = Form(20.0),
-    include_source: bool = Form(False),
-    seed: int | None = Form(None),
-    top_p: float = Form(0.95),
-) -> JSONResponse:
-    suffix = Path(file.filename or "input.mid").suffix
-    with tempfile.TemporaryDirectory() as tmpdir:
-        input_path = Path(tmpdir) / f"input{suffix}"
-        output_path = Path(tmpdir) / f"generated{suffix}"
-
-        # Save uploaded file
-        content = await file.read()
-        input_path.write_bytes(content)
-
-        # Validate MIDI header
-        if len(content) < 4 or content[:4] != b'MThd':
-            return JSONResponse(
-                {"error": "上传的文件不是有效的 MIDI 文件，请检查文件格式"},
-                status_code=400,
-            )
-
-        # Parse
-        try:
-            source_notes, analysis = parse_midi_file(input_path)
-        except OSError as e:
-            return JSONResponse(
-                {"error": f"无法解析 MIDI 文件: {str(e)}"},
-                status_code=400,
-            )
-
-        if strategy == "model":
-            from ..engines.model_inference import (
-                _dialogue_notes_to_note_events,
-                _note_events_to_dialogue_notes,
-                get_inference_engine,
-            )
-
-            # Convert source notes to DialogueNote for the model
-            dialogue_notes = _note_events_to_dialogue_notes(source_notes)
-
-            # Map extra_duration to max_tokens (~64 tokens per second)
-            max_tokens = int(extra_duration * 64)
-            max_tokens = max(64, min(max_tokens, 2048))
-
-            params = GenerateParams(top_p=top_p, max_tokens=max_tokens, strategy="model")
-            engine = get_inference_engine()
-            response_notes = engine.generate_response(dialogue_notes, params, session_id=None)
-
-            # Convert model response back to NoteEvent and shift times after source
-            prompt_end_sec = (
-                max(note.start + note.duration for note in source_notes) if source_notes else 0.0
-            )
-            continuation = _dialogue_notes_to_note_events(response_notes)
-            adjusted_continuation = [
-                NoteEvent(
-                    note=n.note,
-                    velocity=n.velocity,
-                    start=n.start + prompt_end_sec,
-                    duration=n.duration,
-                    channel=0,
-                    track=0,
-                )
-                for n in continuation
-            ]
-
-            # Tuning: snap to scale and quantize timing
-            adjusted_continuation = _quantize_notes_to_scale(
-                adjusted_continuation, analysis.key_root, analysis.key_mode
-            )
-            adjusted_continuation = _quantize_timing(
-                adjusted_continuation, analysis.tempo_bpm, analysis.time_signature
-            )
-
-            if include_source:
-                melody = list(source_notes) + adjusted_continuation
-            else:
-                melody = adjusted_continuation
-
-            accompaniment = _generate_accompaniment(melody, analysis, bar_length=4.0)
-        else:
-            # Algorithm-based generation
-            melody, accompaniment = generate_expanded_midi(
-                source_notes,
-                analysis,
-                mode=mode,
-                extra_duration=extra_duration,
-                include_source=include_source,
-                seed=seed,
-            )
-
-        write_midi(melody, accompaniment, analysis, output_path)
-
-        # Read generated MIDI as base64 for frontend download
-        midi_bytes = output_path.read_bytes()
-        midi_base64 = base64.b64encode(midi_bytes).decode("ascii")
-
-        return JSONResponse(
-            {
-                "analysis": summarize_analysis(analysis),
-                "source_note_count": len(source_notes),
-                "generated_melody_count": len(melody) - (len(source_notes) if include_source else 0),
-                "generated_accompaniment_count": len(accompaniment),
-                "strategy": strategy,
-                "mode": mode,
-                "extra_duration": extra_duration,
-                "filename": f"{Path(file.filename or 'output').stem}_generated.mid",
-                "midi_base64": midi_base64,
-            }
-        )
-
-
 def _handle_generate_request(request: GenerateRequest) -> ResultResponse:
-    from ..engines.model_inference import generate_deterministic_response, get_inference_engine
-    from ..engines.rule_inference import generate_rule_response
-
-    if request.params.strategy == "deterministic":
-        reply_notes = generate_deterministic_response(request.notes, request.params, request.session_id)
-        return ResultResponse(notes=reply_notes, latency_ms=None)
-
-    if request.params.strategy == "rule":
-        reply_notes = generate_rule_response(request.notes, request.params, request.session_id)
-        return ResultResponse(notes=reply_notes, latency_ms=None)
+    from ..engines.model_inference import get_inference_engine
 
     engine = get_inference_engine()
     reply_notes = engine.generate_response(request.notes, request.params, request.session_id)
@@ -267,8 +87,7 @@ async def generate(request: GenerateRequest) -> ResultResponse:
 
 @app.websocket("/ws")
 async def ws_endpoint(websocket: WebSocket) -> None:
-    from ..engines.model_inference import generate_deterministic_response, get_inference_engine
-    from ..engines.rule_inference import generate_rule_response, generate_rule_response_with_debug
+    from ..engines.model_inference import get_inference_engine
 
     await websocket.accept()
     try:
@@ -307,31 +126,17 @@ async def ws_endpoint(websocket: WebSocket) -> None:
             try:
                 engine = None
                 t_engine_ms = 0
-                if request.params.strategy == "model":
-                    t_engine0 = time.perf_counter()
-                    engine = get_inference_engine()
-                    t_engine_ms = int((time.perf_counter() - t_engine0) * 1000)
+                t_engine0 = time.perf_counter()
+                engine = get_inference_engine()
+                t_engine_ms = int((time.perf_counter() - t_engine0) * 1000)
 
                 t_generate0 = time.perf_counter()
                 inference_debug: dict[str, Any] | None = None
-                if request.params.strategy == "deterministic":
-                    reply_notes = generate_deterministic_response(
-                        request.notes, request.params, request.session_id
-                    )
-                elif request.params.strategy == "rule":
-                    if debug_on:
-                        reply_notes, inference_debug = generate_rule_response_with_debug(
-                            request.notes, request.params, request.session_id
-                        )
-                    else:
-                        reply_notes = generate_rule_response(request.notes, request.params, request.session_id)
-                elif debug_on:
-                    assert engine is not None
+                if debug_on:
                     reply_notes, inference_debug = engine.generate_response_with_debug(
                         request.notes, request.params, request.session_id
                     )
                 else:
-                    assert engine is not None
                     reply_notes = engine.generate_response(request.notes, request.params, request.session_id)
                 t_generate_ms = int((time.perf_counter() - t_generate0) * 1000)
 
@@ -366,11 +171,11 @@ async def ws_endpoint(websocket: WebSocket) -> None:
                             "req_id": req_id,
                             "session_id": request.session_id,
                             "client": client_host,
-                            "model_ref": engine.model_ref if engine is not None else None,
-                            "device": engine.device if engine is not None else None,
+                            "model_ref": engine.model_ref,
+                            "device": engine.device,
                             "torch_version": torch_version,
                             "transformers_version": transformers_version,
-                            "engine_load_ms": engine.load_ms if engine is not None else None,
+                            "engine_load_ms": engine.load_ms,
                             "protocol_version": request.protocol_version,
                             "params": request.params.model_dump(),
                             "prompt_note_count": len(prompt_notes),
