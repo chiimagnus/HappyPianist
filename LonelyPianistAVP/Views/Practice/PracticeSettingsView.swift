@@ -4,7 +4,6 @@ struct PracticeSettingsView: View {
     @Binding var virtualPerformerEnabled: Bool
     let backendStatusText: String?
     let lastImprovStatusText: String?
-    let duetServerStartCommand: String
     let recordingSourceText: String?
     let isAIPerformanceActive: Bool
     let isVirtualPianoMode: Bool
@@ -131,16 +130,6 @@ struct PracticeSettingsView: View {
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                         }
-
-                        if isNetworkDuetBackendSelected {
-                            LabeledContent("启动命令") {
-                                Text(duetServerStartCommand)
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
-                                    .textSelection(.enabled)
-                            }
-                            .font(.callout)
-                        }
                     }
                 }
                 .disabled(isAIPerformanceActive)
@@ -216,10 +205,6 @@ struct PracticeSettingsView: View {
         destinationConnectionViewModel.sendLocalControlOff(sendLocalControlOff, destinationUniqueID: destinationUniqueID)
     }
 
-    private var isNetworkDuetBackendSelected: Bool {
-        ImprovBackendKind(rawValue: improvBackendKindRawValue) == .networkBonjourHTTPDuet
-    }
-
     private var effectiveBackendStatusText: String? {
         guard let selectedKind = ImprovBackendKind(rawValue: improvBackendKindRawValue) else {
             return backendStatusText ?? "即兴后端设置已变更，请重新选择。"
@@ -275,7 +260,6 @@ private struct SettingsSection<Content: View>: View {
         virtualPerformerEnabled: .constant(false),
         backendStatusText: nil,
         lastImprovStatusText: nil,
-        duetServerStartCommand: "rtk ./python_backend/scripts/run_duet_server.sh",
         recordingSourceText: "录制来源：Bluetooth MIDI（弹奏琴键即可录制）",
         isAIPerformanceActive: false,
         isVirtualPianoMode: true,
