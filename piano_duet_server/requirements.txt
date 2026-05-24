@@ -1,0 +1,6 @@
+fastapi==0.115.0
+uvicorn[standard]==0.30.6
+pydantic==2.9.2
+zeroconf>=0.132,<0.133
+
+# Optional Magenta/TF pins: see `requirements-magenta.txt`

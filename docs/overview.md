@@ -11,7 +11,7 @@ LonelyPianist 是一个本地优先的钢琴交互系统。当前仓库包含 ma
 | macOS recorder | `LonelyPianist/` | MIDI 监听、take 录制、MIDI 导入、sampler/外部 MIDI 回放 | [modules/lonelypianist-macos.md](modules/lonelypianist-macos.md) |
 | visionOS app | `LonelyPianistAVP/` | MusicXML 曲库、三种钢琴模式、空间练习、虚拟钢琴、BLE MIDI、AI 即兴 | [modules/lonelypianist-avp.md](modules/lonelypianist-avp.md) |
 | AVP Practice | `LonelyPianistAVP/ViewModels/PracticeSession/` + `LonelyPianistAVP/Services/Practice/` | step 推进、五线谱、自动播放、输入匹配、贴皮高亮 | [modules/lonelypianist-avp-practice.md](modules/lonelypianist-avp-practice.md) |
-| Python backend | `piano_dialogue_server/` | `/generate`、`/ws`、Bonjour、调试包 | [modules/piano-dialogue-server.md](modules/piano-dialogue-server.md) |
+| Python backend | `piano_duet_server/` | `/generate`、Bonjour、调试包 | [ai-duet.md](ai-duet.md) |
 
 ## 本地验证命令
 
@@ -20,16 +20,15 @@ LonelyPianist 是一个本地优先的钢琴交互系统。当前仓库包含 ma
 | macOS tests | `rtk xcodebuild test -project LonelyPianist.xcodeproj -scheme LonelyPianist -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO` |
 | 查看 AVP destinations | `rtk xcodebuild -showdestinations -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP` |
 | AVP tests | `rtk xcodebuild test -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP -destination 'platform=visionOS Simulator,id=<device-id>' CODE_SIGNING_ALLOWED=NO` |
-| Python server | `rtk sh -lc 'cd piano_dialogue_server && ./scripts/run_server.sh'` |
-| Python health check | `rtk curl -s http://127.0.0.1:8765/health` |
-| Python WS smoke | `rtk sh -lc 'cd piano_dialogue_server && python -m server.api.ws_smoke'` |
+| Python server | `rtk ./piano_duet_server/scripts/run_server.sh` |
+| Python health check | `rtk curl -s http://127.0.0.1:8766/health` |
 
 ## 关键事实
 
-- macOS app 当前不是映射器，也不包含 Piano Dialogue WebSocket client；它是 recorder/playback 面。
+- macOS app 当前不是映射器，也不包含 AVP 的网络后端 client；它是 recorder/playback 面。
 - visionOS app 的跨窗口流程由 `PracticeSetupState` 与 `WindowTransitionState` 维护，不存在 `FlowState` 或 `WindowCoordinator` 文件。
 - `LonelyPianistAVP` 的 app 资源里声明了 Bravura 字体和 MusicXML UTI；`SalC5Light2.sf2` 需要本地补齐后才有完整音色回放。
-- Python 后端仅支持 `model`；本地规则生成已迁移到 SwiftPM：`Packages/ImprovEngines/`。
+- Python 后端为“对弹/即兴”的可选网络后端；本地规则生成已迁移到 SwiftPM：`Packages/ImprovEngines/`。
 
 ## Coverage Gaps
 

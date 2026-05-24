@@ -43,7 +43,7 @@ final class ARGuideViewModel {
         gazePlaneHitTestService: (any GazePlaneHitTestingProtocol)? = nil,
         virtualKeyboardPoseService: (any VirtualKeyboardPoseServiceProtocol)? = nil,
         virtualPianoKeyGeometryService: (any VirtualPianoKeyGeometryServiceProtocol)? = nil,
-        backendDiscoveryService: BonjourBackendDiscoveryService? = nil,
+        duetDiscoveryService: BonjourBackendDiscoveryService? = nil,
         takeLibraryViewModel: TakeLibraryViewModel? = nil,
         takePlaybackViewModel: TakePlaybackViewModel? = nil
     ) {
@@ -66,7 +66,7 @@ final class ARGuideViewModel {
             virtualKeyboardPoseService: virtualKeyboardPoseService,
             virtualPianoKeyGeometryService: virtualPianoKeyGeometryService
         )
-        let ai = ARGuideAIPerformanceViewModel(backendDiscoveryService: backendDiscoveryService)
+        let ai = ARGuideAIPerformanceViewModel(duetDiscoveryService: duetDiscoveryService)
 
         calibrationGuideViewModel = calibration
         practiceLocalizationViewModel = localization
@@ -91,6 +91,13 @@ final class ARGuideViewModel {
         )
 
         setupAppStateCallbacks()
+
+        // Ensure Bluetooth MIDI input events are subscribed immediately for the initial practice session.
+        // Otherwise, AI improv (and recording) won't receive any MIDI events until the session is rebuilt.
+        recordingViewModel.refreshMIDISubscriptionIfNeeded(
+            usesBluetoothMIDIInput: PianoModeID(rawValue: practiceSetupState.selectedPianoModeID ?? "") == .bluetoothMIDI,
+            eventSource: initialSession.practiceInputEventSource
+        )
     }
 
     var selectedPianoMode: (any PianoModeProtocol)? {
@@ -103,10 +110,6 @@ final class ARGuideViewModel {
 
     var isBluetoothMIDIMode: Bool {
         PianoModeID(rawValue: practiceSetupState.selectedPianoModeID ?? "") == .bluetoothMIDI
-    }
-
-    var backendDiscoveryService: BonjourBackendDiscoveryService {
-        aiPerformanceViewModel.backendDiscoveryService
     }
 
     var takeLibraryViewModel: TakeLibraryViewModel {
@@ -347,6 +350,14 @@ final class ARGuideViewModel {
 
     var backendStatusText: String? {
         aiPerformanceViewModel.backendStatusText
+    }
+
+    var duetServerStartCommand: String {
+        aiPerformanceViewModel.duetServerStartCommand
+    }
+
+    func restartBackendDiscoveryForSelectedBackend() {
+        aiPerformanceViewModel.restartDiscoveryForSelectedBackend()
     }
 
     func setPracticeVirtualPerformerEnabled(_ isEnabled: Bool) {

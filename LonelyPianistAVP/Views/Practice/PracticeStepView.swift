@@ -102,6 +102,7 @@ struct PracticeStepView: View {
                         virtualPerformerEnabled: $isVirtualPerformerEnabled,
                         backendStatusText: viewModel.backendStatusText,
                         lastImprovStatusText: viewModel.lastImprovStatusText,
+                        duetServerStartCommand: viewModel.duetServerStartCommand,
                         recordingSourceText: viewModel.recordingSourceText,
                         isAIPerformanceActive: viewModel.isAIPerformanceActive,
                         isVirtualPianoMode: isVirtualPianoMode,
@@ -116,7 +117,7 @@ struct PracticeStepView: View {
                         },
                         onRequestSessionRebuild: {
                             viewModel.replacePracticeSessionViewModel()
-                        }
+                        },
                     )
                 }
 
