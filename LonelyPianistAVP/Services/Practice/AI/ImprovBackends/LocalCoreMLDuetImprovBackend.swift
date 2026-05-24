@@ -1,82 +1,82 @@
 import Foundation
-import ImprovEngines
 import ImprovProtocol
 
-enum LocalRuleImprovBackendError: Error, LocalizedError, Equatable {
+enum LocalCoreMLDuetImprovBackendError: Error, LocalizedError, Equatable, Sendable {
     case timeout
     case emptyReply
 
     var errorDescription: String? {
         switch self {
         case .timeout:
-            "Local rule backend timed out."
+            "Local CoreML duet backend timed out."
         case .emptyReply:
-            "Local rule backend returned an empty reply."
+            "Local CoreML duet backend returned an empty reply."
         }
     }
 }
 
-actor LocalRuleImprovBackend: ImprovBackendProtocol {
-    nonisolated let kind: ImprovBackendKind = .localRule
-    nonisolated let displayName: String = "本地规则生成"
+actor LocalCoreMLDuetImprovBackend: ImprovBackendProtocol {
+    nonisolated let kind: ImprovBackendKind = .localCoreMLDuet
+    nonisolated let displayName: String = "本地 CoreML（A.I. Duet / Performance RNN）"
 
-    private let generator: RuleImprovGenerator
+    private let modelLoader: any PerformanceRNNCoreMLModelLoading
+    private let generator: PerformanceRNNImprovGenerator
     private let scheduleBuilder: ImprovScheduleBuilder
-    private let seedResolver: ImprovSeedResolver
 
     init(
-        generator: RuleImprovGenerator = RuleImprovGenerator(),
+        modelLoader: any PerformanceRNNCoreMLModelLoading = PerformanceRNNCoreMLModelLoader(),
+        generator: PerformanceRNNImprovGenerator = PerformanceRNNImprovGenerator(),
         scheduleBuilder: ImprovScheduleBuilder = ImprovScheduleBuilder()
     ) {
+        self.modelLoader = modelLoader
         self.generator = generator
         self.scheduleBuilder = scheduleBuilder
-        seedResolver = ImprovSeedResolver()
     }
 
     func generatePlaybackPlan(
         request: ImprovGenerateRequest,
         timeout: Duration
     ) async throws -> ImprovBackendPlaybackPlan {
-        let seed = seedResolver.resolveSeed(explicitSeed: request.params.seed, sessionID: request.sessionID)
+        let stepModel = try await modelLoader.loadStepModel()
         let generator = self.generator
 
         let replyNotes = try await runWithTimeout(timeout) {
-            generator.generateRuleResponse(
-                notes: request.notes,
+            try await generator.generateReplyNotes(
+                promptNotes: request.notes,
                 params: request.params,
                 sessionID: request.sessionID,
-                seed: seed
+                stepModel: stepModel
             )
         }
 
         let schedule = scheduleBuilder.buildSchedule(from: replyNotes)
         guard schedule.isEmpty == false else {
-            throw LocalRuleImprovBackendError.emptyReply
+            throw LocalCoreMLDuetImprovBackendError.emptyReply
         }
-
         return .schedule(schedule, backendLatencyMS: nil)
     }
 
     private func runWithTimeout<T: Sendable>(
         _ timeout: Duration,
-        operation: @Sendable @escaping () throws -> T
+        operation: @Sendable @escaping () async throws -> T
     ) async throws -> T {
         try await withThrowingTaskGroup(of: T.self) { group in
             group.addTask(priority: .userInitiated) {
-                try operation()
+                try await operation()
             }
             group.addTask {
                 try await Task.sleep(for: timeout)
-                throw LocalRuleImprovBackendError.timeout
+                throw LocalCoreMLDuetImprovBackendError.timeout
             }
 
             let result = try await group.next()
             group.cancelAll()
 
             guard let value = result else {
-                throw LocalRuleImprovBackendError.timeout
+                throw LocalCoreMLDuetImprovBackendError.timeout
             }
             return value
         }
     }
 }
+

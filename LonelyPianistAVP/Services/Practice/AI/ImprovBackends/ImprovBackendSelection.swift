@@ -6,7 +6,7 @@ struct ImprovBackendSelection {
     }
 
     static var defaultKind: ImprovBackendKind {
-        .networkBonjourHTTPDuet
+        .localCoreMLDuet
     }
 
     private let userDefaults: UserDefaults

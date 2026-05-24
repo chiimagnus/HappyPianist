@@ -100,6 +100,7 @@ flowchart TD
 
 practice 窗口的 settings popover 中可选择后端：
 
+- `本地 CoreML（A.I. Duet / Performance RNN）`：AVP 端使用 CoreML 运行 Performance RNN 单步模型做自回归采样；模型文件（`AIDuetPerformanceRNN.mlpackage` / `AIDuetPerformanceRNN.mlmodelc`）不入库，由开发者本地放置并加入 Xcode target。
 - `网络本地连接（A.I. Duet）`：通过 Bonjour 发现 + HTTP 请求调用本机 Duet Python 服务（电脑端运行）。
 - `本地规则生成（Local rule）`：AVP 端直接调用 SwiftPM `ImprovEngines`（seed 可复现）。
 - `按谱片段回放（tick-range replay）`：不做生成，回放当前谱面片段；它不是自动 fallback，只会在用户选择时使用。
@@ -115,7 +116,12 @@ sequenceDiagram
 
   Settings-->>AVP: selected ImprovBackendKind
   AVP->>Backend: generatePlaybackPlan(request)
-  alt local rule
+  alt local CoreML duet (Performance RNN)
+    Backend->>AVP: load step model from app bundle
+    AVP-->>Backend: step model handle
+    Backend-->>Backend: warmup + sampling loop (seeded)
+    Backend-->>AVP: schedule
+  else local rule
     Backend->>Engines: generate(notes, params, seed)
     Engines-->>Backend: generated notes
     Backend-->>AVP: schedule
@@ -130,4 +136,4 @@ sequenceDiagram
   end
 ```
 
-Python 后端是可选网络后端；本地规则生成已迁移到 SwiftPM（`Packages/ImprovEngines/`），仅用于 AVP 端的本地生成路径。
+Python 后端是可选网络后端；本地规则生成已迁移到 SwiftPM（`Packages/ImprovEngines/`）。当前默认后端为本地 CoreML（若未放置模型文件，UI 会提示缺失并可手动切换到网络/本地 rule）。

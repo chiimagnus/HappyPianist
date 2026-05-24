@@ -36,3 +36,5 @@ __pycache__/
 *.mag
 *.mlpackage
 *.mlmodel
+*.mlmodelc
+LonelyPianistAVP/Resources/Models/

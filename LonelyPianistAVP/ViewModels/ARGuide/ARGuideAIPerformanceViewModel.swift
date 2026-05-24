@@ -8,6 +8,10 @@ final class ARGuideAIPerformanceViewModel {
     let duetDiscoveryService: BonjourBackendDiscoveryService
     private let backendSelection = ImprovBackendSelection()
     private let aiPlaybackServiceFactory: @MainActor () -> DuetAIPlaybackServiceFactory
+    @ObservationIgnored
+    private let localCoreMLModelLoader = PerformanceRNNCoreMLModelLoader()
+
+    var localCoreMLDuetAvailability: LocalCoreMLDuetAvailability = .idle
 
     var isVirtualPerformerEnabled = false
     var isAIPerformanceActive = false
@@ -83,15 +87,18 @@ final class ARGuideAIPerformanceViewModel {
     var backendStatusText: String? {
         switch backendSelection.selectedKind() {
         case .networkBonjourHTTPDuet:
-            backendDiscoveryStatusText(
+            return backendDiscoveryStatusText(
                 backendName: "A.I. Duet",
                 state: duetDiscoveryService.state,
                 notFoundHint: "请先在电脑端启动 Duet Python 服务（默认端口 8766）。"
             )
+        case .localCoreMLDuet:
+            startLocalCoreMLDuetProbeIfNeeded()
+            return localCoreMLDuetAvailability.statusText()
         case .localRule:
-            "后端：本地规则生成（无需电脑端服务）"
+            return "后端：本地规则生成（无需电脑端服务）"
         case .tickRangeReplay:
-            "后端：按谱片段回放（无需电脑端服务）"
+            return "后端：按谱片段回放（无需电脑端服务）"
         }
     }
 
@@ -100,6 +107,8 @@ final class ARGuideAIPerformanceViewModel {
         case .networkBonjourHTTPDuet:
             duetDiscoveryService.stop()
             duetDiscoveryService.start()
+        case .localCoreMLDuet:
+            restartLocalCoreMLDuetProbe()
         case .localRule, .tickRangeReplay:
             break
         }
@@ -146,10 +155,76 @@ final class ARGuideAIPerformanceViewModel {
         ImprovBackendRegistry(
             backends: [
                 DuetNetworkBonjourHTTPImprovBackend(discoveryService: duetDiscoveryService),
+                LocalCoreMLDuetImprovBackend(modelLoader: localCoreMLModelLoader),
                 LocalRuleImprovBackend(),
                 TickRangeReplayImprovBackend(),
             ]
         )
+    }
+
+    @ObservationIgnored
+    private var localCoreMLDuetProbeTask: Task<Void, Never>?
+
+    private func restartLocalCoreMLDuetProbe() {
+        localCoreMLDuetProbeTask?.cancel()
+        localCoreMLDuetProbeTask = nil
+        localCoreMLDuetAvailability = .idle
+        startLocalCoreMLDuetProbeIfNeeded()
+    }
+
+    private func startLocalCoreMLDuetProbeIfNeeded() {
+        guard localCoreMLDuetProbeTask == nil else { return }
+
+        let expectedNames = [
+            "AIDuetPerformanceRNN.mlmodelc",
+            "AIDuetPerformanceRNN.mlpackage",
+        ]
+
+        let hasCompiledInBundle = Bundle.main.url(forResource: "AIDuetPerformanceRNN", withExtension: "mlmodelc") != nil
+        let hasPackageInBundle = Bundle.main.url(forResource: "AIDuetPerformanceRNN", withExtension: "mlpackage") != nil
+        guard hasCompiledInBundle || hasPackageInBundle else {
+            localCoreMLDuetAvailability = .missing(expectedNames: expectedNames)
+            return
+        }
+
+        localCoreMLDuetAvailability = .probing
+        let loader = localCoreMLModelLoader
+
+        localCoreMLDuetProbeTask = Task.detached(priority: .utility) { [weak self] in
+            let resolvedAvailability: LocalCoreMLDuetAvailability?
+            do {
+                _ = try await loader.loadStepModel()
+                resolvedAvailability = .available
+            } catch is CancellationError {
+                resolvedAvailability = nil
+            } catch let error as PerformanceRNNCoreMLModelLoaderError {
+                switch error {
+                case let .modelMissing(expectedNames):
+                    resolvedAvailability = .missing(expectedNames: expectedNames)
+                case let .compileFailed(_, message), let .loadFailed(_, message):
+                    resolvedAvailability = .failed(message: message)
+                }
+            } catch {
+                resolvedAvailability = .failed(message: "Unknown error.")
+            }
+
+            guard Task.isCancelled == false else {
+                await MainActor.run {
+                    self?.localCoreMLDuetProbeTask = nil
+                }
+                return
+            }
+
+            if let resolvedAvailability {
+                await MainActor.run {
+                    self?.localCoreMLDuetAvailability = resolvedAvailability
+                }
+            }
+
+            await MainActor.run {
+                self?.localCoreMLDuetProbeTask = nil
+            }
+        }
     }
 
     private func backendDiscoveryStatusText(
@@ -176,6 +251,27 @@ final class ARGuideAIPerformanceViewModel {
             return "后端：\(backendName)（发现失败：\(message)）"
         case .denied:
             return "后端：\(backendName)（Local Network 权限被拒）请到系统设置开启后重试。"
+        }
+    }
+}
+
+enum LocalCoreMLDuetAvailability: Sendable, Equatable {
+    case idle
+    case probing
+    case available
+    case missing(expectedNames: [String])
+    case failed(message: String)
+
+    func statusText() -> String {
+        switch self {
+        case .idle, .probing:
+            "后端：本地 CoreML（检测中…首次加载可能需要编译模型）"
+        case .available:
+            "后端：本地 CoreML（可用）"
+        case let .missing(expectedNames):
+            "后端：本地 CoreML（缺少模型文件：\(expectedNames.joined(separator: " / "))）请将模型添加到 App bundle 后重试。"
+        case let .failed(message):
+            "后端：本地 CoreML（加载失败：\(message)）可尝试重新放置模型文件或重启后端。"
         }
     }
 }

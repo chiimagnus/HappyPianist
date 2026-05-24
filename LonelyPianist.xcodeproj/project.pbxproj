@@ -36,10 +36,10 @@
 /* Begin PBXFileReference section */
 		1B62407901B3CFC1E2FBC10D /* ImprovEngines */ = {isa = PBXFileReference; lastKnownFileType = text; path = ImprovEngines; sourceTree = "<group>"; };
 		D85596AC2F83FF72005BE7FE /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = text; path = RealityKitContent; sourceTree = "<group>"; };
-		D8EA41B62F978A340059B709 /* LonelyPianistAVP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = LonelyPianistAVP.app; path = "/Users/chii_magnus/Github_OpenSource/LonelyPianist/build/Debug-xros/LonelyPianistAVP.app"; sourceTree = "<absolute>"; };
-		D8EA41B72F978A340059B709 /* LonelyPianist.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = LonelyPianist.app; path = /Users/chii_magnus/Github_OpenSource/LonelyPianist/build/Debug/LonelyPianist.app; sourceTree = "<absolute>"; };
-		D8EA41B82F978A340059B709 /* LonelyPianistTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = LonelyPianistTests.xctest; path = /Users/chii_magnus/Github_OpenSource/LonelyPianist/build/Debug/LonelyPianistTests.xctest; sourceTree = "<absolute>"; };
-		D8EA41B92F978A340059B709 /* LonelyPianistAVPTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = LonelyPianistAVPTests.xctest; path = "/Users/chii_magnus/Github_OpenSource/LonelyPianist/build/Debug-xros/LonelyPianistAVP.app/PlugIns/LonelyPianistAVPTests.xctest"; sourceTree = "<absolute>"; };
+		D8C8848C2FC3623C00F1D94F /* LonelyPianist.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LonelyPianist.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D8C8848D2FC3623C00F1D94F /* LonelyPianistAVP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LonelyPianistAVP.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D8C8848E2FC3623C00F1D94F /* LonelyPianistTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LonelyPianistTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D8C8848F2FC3623C00F1D94F /* LonelyPianistAVPTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LonelyPianistAVPTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -144,6 +144,10 @@
 				D85596AA2F83FF72005BE7FE /* LonelyPianistAVP */,
 				D85596AB2F83FF72005BE7FE /* Packages */,
 				D85596BF2F83FF74005BE7FE /* LonelyPianistAVPTests */,
+				D8C8848C2FC3623C00F1D94F /* LonelyPianist.app */,
+				D8C8848D2FC3623C00F1D94F /* LonelyPianistAVP.app */,
+				D8C8848E2FC3623C00F1D94F /* LonelyPianistTests.xctest */,
+				D8C8848F2FC3623C00F1D94F /* LonelyPianistAVPTests.xctest */,
 			);
 			sourceTree = "<group>";
 		};
@@ -173,7 +177,7 @@
 				83545B10812945C78780DB2C /* ZIPFoundation */,
 			);
 			productName = LonelyPianistAVP;
-			productReference = D8EA41B62F978A340059B709 /* LonelyPianistAVP.app */;
+			productReference = D8C8848D2FC3623C00F1D94F /* LonelyPianistAVP.app */;
 			productType = "com.apple.product-type.application";
 		};
 		D85596BB2F83FF74005BE7FE /* LonelyPianistAVPTests */ = {
@@ -199,7 +203,7 @@
 				83545B10812945C78780DB2C /* ZIPFoundation */,
 			);
 			productName = LonelyPianistAVPTests;
-			productReference = D8EA41B92F978A340059B709 /* LonelyPianistAVPTests.xctest */;
+			productReference = D8C8848F2FC3623C00F1D94F /* LonelyPianistAVPTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		D8D4280C2F4DFD3800EC9C9B /* LonelyPianist */ = {
@@ -221,7 +225,7 @@
 			packageProductDependencies = (
 			);
 			productName = LonelyPianist;
-			productReference = D8EA41B72F978A340059B709 /* LonelyPianist.app */;
+			productReference = D8C8848C2FC3623C00F1D94F /* LonelyPianist.app */;
 			productType = "com.apple.product-type.application";
 		};
 		E10000012A9B000100000006 /* LonelyPianistTests */ = {
@@ -244,7 +248,7 @@
 			packageProductDependencies = (
 			);
 			productName = LonelyPianistTests;
-			productReference = D8EA41B82F978A340059B709 /* LonelyPianistTests.xctest */;
+			productReference = D8C8848E2FC3623C00F1D94F /* LonelyPianistTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
