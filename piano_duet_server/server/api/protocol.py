@@ -3,6 +3,14 @@ from __future__ import annotations
 from pydantic import BaseModel, ConfigDict, Field
 
 
+def _clamp_int(value: int, lower: int, upper: int) -> int:
+    return max(lower, min(upper, value))
+
+
+def _clamp_float(value: float, lower: float, upper: float) -> float:
+    return max(lower, min(upper, value))
+
+
 class DialogueNote(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
@@ -46,3 +54,18 @@ class ErrorResponse(BaseModel):
     type: str = "error"
     protocol_version: int = 1
     message: str
+
+
+def legalize_notes(notes: list[DialogueNote]) -> list[DialogueNote]:
+    legalized: list[DialogueNote] = []
+    for note in notes:
+        legalized.append(
+            DialogueNote(
+                note=_clamp_int(int(note.note), 0, 127),
+                velocity=_clamp_int(int(note.velocity), 0, 127),
+                time=_clamp_float(float(note.time), 0.0, 1_000_000.0),
+                duration=_clamp_float(float(note.duration), 0.01, 1_000_000.0),
+            )
+        )
+    legalized.sort(key=lambda item: (item.time, item.note))
+    return legalized

@@ -69,7 +69,7 @@ payload='{
     {"note": 64, "velocity": 90, "time": 0.3, "duration": 0.3},
     {"note": 67, "velocity": 90, "time": 0.6, "duration": 0.3}
   ],
-  "params": {"top_p": 0.95, "max_tokens": 128, "strategy": "model"}
+  "params": {"top_p": 0.95, "max_tokens": 128, "strategy": "deterministic"}
 }'
 
 response="$(curl -fsS -H 'Content-Type: application/json' -d "$payload" "${BASE_URL}/generate")"
