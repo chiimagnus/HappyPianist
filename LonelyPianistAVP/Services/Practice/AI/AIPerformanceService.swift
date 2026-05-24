@@ -20,6 +20,12 @@ protocol AIPerformancePracticeSessionProtocol: AnyObject {
 }
 
 @MainActor
+protocol ImprovBackendDiscoveryOrchestrating: AnyObject, Sendable {
+    func start(for kind: ImprovBackendKind)
+    func stopAll()
+}
+
+@MainActor
 final class AIPerformanceService {
     struct State: Equatable {
         var isAIPerformanceActive: Bool
@@ -30,7 +36,7 @@ final class AIPerformanceService {
     private let logger: Logger
     private let nowUptimeSeconds: () -> TimeInterval
     private let improvSessionID: String
-    private let backendDiscoveryService: any BonjourBackendDiscoveryServiceProtocol
+    private let discoveryOrchestrator: any ImprovBackendDiscoveryOrchestrating
     private let backendRegistry: ImprovBackendRegistry
     private let selectedBackendKind: @MainActor () -> ImprovBackendKind
     private let backendTimeout: Duration
@@ -56,7 +62,7 @@ final class AIPerformanceService {
     init(
         logger: Logger,
         nowUptimeSeconds: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
-        backendDiscoveryService: any BonjourBackendDiscoveryServiceProtocol,
+        discoveryOrchestrator: any ImprovBackendDiscoveryOrchestrating,
         backendRegistry: ImprovBackendRegistry,
         selectedBackendKind: @escaping @MainActor () -> ImprovBackendKind,
         backendTimeout: Duration = .seconds(2),
@@ -67,7 +73,7 @@ final class AIPerformanceService {
         self.logger = logger
         self.nowUptimeSeconds = nowUptimeSeconds
         improvSessionID = UUID().uuidString
-        self.backendDiscoveryService = backendDiscoveryService
+        self.discoveryOrchestrator = discoveryOrchestrator
         self.backendRegistry = backendRegistry
         self.selectedBackendKind = selectedBackendKind
         self.backendTimeout = backendTimeout
@@ -92,7 +98,7 @@ final class AIPerformanceService {
             guard isEnabled || pollTask != nil else { return }
 
             isEnabled = false
-            backendDiscoveryService.stop()
+            discoveryOrchestrator.stopAll()
             lastKnownBackendKind = nil
             pollTask?.cancel()
             pollTask = nil
@@ -240,12 +246,7 @@ final class AIPerformanceService {
         let kind = selectedBackendKind()
         guard kind != lastKnownBackendKind else { return }
         lastKnownBackendKind = kind
-
-        if kind == .networkBonjourHTTP {
-            backendDiscoveryService.start()
-        } else {
-            backendDiscoveryService.stop()
-        }
+        discoveryOrchestrator.start(for: kind)
     }
 
     private func attemptSelectedBackendImprov(kind: ImprovBackendKind, promptNotes: [ImprovDialogueNote]) async {
