@@ -46,6 +46,7 @@ rtk env DUET_ENGINE=magenta PYTHON=python3.10 ./scripts/run_server.sh
 ```
 
 当 `DUET_ENGINE=magenta` 时，`run_server.sh` 会额外安装 `requirements-magenta.txt`。
+如果 Magenta 依赖或模型缺失，服务会明确报错（不会静默降级到占位引擎）。
 
 ### 参数影响（简化版）
 
@@ -64,7 +65,7 @@ rtk env DUET_ENGINE=magenta PYTHON=python3.10 ./scripts/run_server.sh
 服务会广播：
 
 - service type：`_lpduet._tcp.local.`
-- TXT record：`path=/generate`、`protocol_version=1`、`engine=magenta`
+- TXT record：`path=/generate`、`protocol_version=1`、`engine=magenta`、`engine_impl=<实际实现>`
 
 你可以在电脑端用系统工具确认是否广播成功：
 

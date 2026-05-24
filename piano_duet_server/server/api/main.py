@@ -13,33 +13,41 @@ from .protocol import GenerateRequest, ResultResponse, legalize_notes
 @asynccontextmanager
 async def _lifespan(_: FastAPI):
     broadcaster = None
-    try:
-        from ..media.bonjour import BonjourServiceBroadcaster
-
-        port = int(os.environ.get("PORT", "8766"))
-        broadcaster = BonjourServiceBroadcaster(
-            instance_name="LonelyPianist A.I. Duet Server",
-            port=port,
-            properties={
-                b"path": b"/generate",
-                b"protocol_version": b"1",
-                b"engine": b"magenta",
-            },
-        )
-        await broadcaster.start()
-        print(f"[Bonjour] started: type=_lpduet._tcp.local. port={port}")
-    except Exception as error:  # noqa: BLE001
-        # Best-effort: never break the happy path.
-        print(f"[Bonjour] failed to start: {type(error).__name__}: {error!r}")
-
+    engine = None
+    engine_impl = None
     try:
         from ..engines.inference_engine import get_inference_engine
 
         engine = get_inference_engine()
-        print(f"[DuetEngine] ready: {type(engine).__name__}")
+        engine_impl = type(engine).__name__
+        print(f"[DuetEngine] ready: {engine_impl}")
     except Exception as error:  # noqa: BLE001
         # Best-effort: keep server alive even if model init fails.
         print(f"[DuetEngine] failed to init: {type(error).__name__}: {error!r}")
+
+    try:
+        from ..media.bonjour import BonjourServiceBroadcaster
+
+        port = int(os.environ.get("PORT", "8766"))
+        properties: dict[bytes, bytes] = {
+            b"path": b"/generate",
+            b"protocol_version": b"1",
+            # NOTE: This is a product identifier used for client-side filtering.
+            b"engine": b"magenta",
+        }
+        if engine_impl:
+            properties[b"engine_impl"] = engine_impl.encode("utf-8")
+
+        broadcaster = BonjourServiceBroadcaster(
+            instance_name="LonelyPianist A.I. Duet Server",
+            port=port,
+            properties=properties,
+        )
+        await broadcaster.start()
+        print(f"[Bonjour] started: type=_lpduet._tcp.local. port={port} engine_impl={engine_impl or 'unknown'}")
+    except Exception as error:  # noqa: BLE001
+        # Best-effort: never break the happy path.
+        print(f"[Bonjour] failed to start: {type(error).__name__}: {error!r}")
 
     try:
         yield

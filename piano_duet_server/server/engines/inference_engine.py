@@ -20,15 +20,22 @@ def get_inference_engine() -> InferenceEngineProtocol:
         _ENGINE = PlaceholderInferenceEngine()
         return _ENGINE
 
-    if engine_name in ("auto", "magenta"):
+    if engine_name == "magenta":
+        # Strict mode: if the user asked for Magenta, never silently downgrade.
+        from .magenta_performance_rnn import MagentaPerformanceRNNEngine
+
+        _ENGINE = MagentaPerformanceRNNEngine()
+        return _ENGINE
+
+    if engine_name == "auto":
         try:
             from .magenta_performance_rnn import MagentaPerformanceRNNEngine
 
             _ENGINE = MagentaPerformanceRNNEngine()
             return _ENGINE
         except Exception as error:  # noqa: BLE001
-            # Best-effort: keep the server usable even if Magenta isn't installed.
-            print(f"[DuetEngine] magenta unavailable, fallback placeholder: {type(error).__name__}: {error!r}")
+            # Best-effort: keep the server usable without optional Magenta deps.
+            print(f"[DuetEngine] magenta unavailable (auto), fallback placeholder: {type(error).__name__}: {error!r}")
             from .placeholder_inference import PlaceholderInferenceEngine
 
             _ENGINE = PlaceholderInferenceEngine()
