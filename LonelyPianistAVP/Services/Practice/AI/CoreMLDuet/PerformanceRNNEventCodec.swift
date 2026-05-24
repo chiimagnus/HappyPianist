@@ -147,7 +147,7 @@ struct PerformanceRNNEventCodec: Sendable {
             let velocityBin = Self.velocityToBin(note.velocity)
 
             let startStep = Self.quantizedStep(seconds: note.time)
-            let endStep = Self.quantizedStep(seconds: note.time + note.duration)
+            let endStep = max(startStep + 1, Self.quantizedStep(seconds: note.time + note.duration))
 
             events.append(.init(step: startStep, pitch: pitch, kind: .noteOn(velocityBin: velocityBin)))
             events.append(.init(step: endStep, pitch: pitch, kind: .noteOff))
