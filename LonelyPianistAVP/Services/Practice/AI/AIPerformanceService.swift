@@ -33,6 +33,11 @@ final class AIPerformanceService {
         case longPhrase = "long"
     }
 
+    private enum ReplyPlan: Sendable {
+        case schedule([PracticeSequencerMIDIEvent])
+        case tickRange(startTick: Int, endTick: Int)
+    }
+
     struct State: Equatable {
         var isAIPerformanceActive: Bool
         var isAIGenerating: Bool
@@ -63,6 +68,9 @@ final class AIPerformanceService {
     private var pendingSendReason: TriggerReason?
     private var inFlightGenerateTasks: [Int: Task<Void, Never>] = [:]
     private var nextGenerateSequenceID = 0
+    private var nextPlaybackSequenceID = 0
+    private var pendingReplyPlans: [Int: ReplyPlan] = [:]
+    private var activationID = 0
 
     private var isGenerating = false
     private var isAIPlaybackActive = false
@@ -134,6 +142,9 @@ final class AIPerformanceService {
             inFlightGenerateTasks.removeAll(keepingCapacity: true)
             isGenerating = false
             isAIPlaybackActive = false
+            nextGenerateSequenceID = 0
+            nextPlaybackSequenceID = 0
+            pendingReplyPlans.removeAll(keepingCapacity: true)
 
             turnTakingCore.reset()
             lastImprovStatusText = nil
@@ -157,7 +168,11 @@ final class AIPerformanceService {
         syncBackendDiscoveryIfNeeded()
 
         if wasEnabled == false {
+            activationID += 1
             turnTakingCore.reset()
+            nextGenerateSequenceID = 0
+            nextPlaybackSequenceID = 0
+            pendingReplyPlans.removeAll(keepingCapacity: true)
             lastImprovStatusText = "AI 即兴：松手后约 0.6 秒触发（长句松手立即触发；播放期间也可继续触发）"
             latestSchedule = []
             notifyStateChanged()
@@ -297,6 +312,7 @@ final class AIPerformanceService {
 
         let kind = selectedBackendKind()
         let sequenceID = nextGenerateSequenceID
+        let activationAtSend = activationID
         nextGenerateSequenceID += 1
 
         let task = Task { @MainActor [weak self] in
@@ -310,7 +326,13 @@ final class AIPerformanceService {
             }
 
             logger.debug("improv generate start kind=\(kind.rawValue, privacy: .public) seq=\(sequenceID, privacy: .public)")
-            await attemptSelectedBackendImprov(kind: kind, promptNotes: policy.promptNotes, maxTokens: maxTokens)
+            await attemptSelectedBackendImprov(
+                activationID: activationAtSend,
+                sequenceID: sequenceID,
+                kind: kind,
+                promptNotes: policy.promptNotes,
+                maxTokens: maxTokens
+            )
         }
         inFlightGenerateTasks[sequenceID] = task
         isGenerating = true
@@ -325,10 +347,14 @@ final class AIPerformanceService {
     }
 
     private func attemptSelectedBackendImprov(
+        activationID: Int,
+        sequenceID: Int,
         kind: ImprovBackendKind,
         promptNotes: [ImprovDialogueNote],
         maxTokens: Int
     ) async {
+        guard isEnabled else { return }
+        guard activationID == self.activationID else { return }
         guard practiceSession != nil else { return }
         guard let backend = backendRegistry.backend(for: kind) else {
             lastImprovStatusText = "Last improv: error(backendUnavailable \(kind.rawValue))"
@@ -356,7 +382,7 @@ final class AIPerformanceService {
             } else {
                 logger.info("improv reply kind=\(kind.rawValue, privacy: .public)")
             }
-            await enqueueAIPlaybackSchedule(schedule)
+            await handleReplyPlan(.schedule(schedule), sequenceID: sequenceID, activationID: activationID)
             if kind == .networkBonjourHTTPDuet, let backendLatencyMS {
                 lastImprovStatusText = "上次生成耗时：\(backendLatencyMS)ms"
             } else {
@@ -369,9 +395,36 @@ final class AIPerformanceService {
                 notifyStateChanged()
                 return
             }
-            await enqueueAIPlaybackTickRange(tickRange)
+            await handleReplyPlan(
+                .tickRange(startTick: tickRange.startTick, endTick: tickRange.endTick),
+                sequenceID: sequenceID,
+                activationID: activationID
+            )
             lastImprovStatusText = "Last improv: \(kind.rawValue)"
             notifyStateChanged()
+        }
+    }
+
+    private func handleReplyPlan(_ plan: ReplyPlan, sequenceID: Int, activationID: Int) async {
+        guard isEnabled else { return }
+        guard activationID == self.activationID else {
+            logger.debug("drop late reply plan seq=\(sequenceID, privacy: .public)")
+            return
+        }
+
+        pendingReplyPlans[sequenceID] = plan
+        while let next = pendingReplyPlans.removeValue(forKey: nextPlaybackSequenceID) {
+            await enqueueReplyPlan(next)
+            nextPlaybackSequenceID += 1
+        }
+    }
+
+    private func enqueueReplyPlan(_ plan: ReplyPlan) async {
+        switch plan {
+        case let .schedule(schedule):
+            await enqueueAIPlaybackSchedule(schedule)
+        case let .tickRange(startTick, endTick):
+            await enqueueAIPlaybackTickRange((startTick: startTick, endTick: endTick))
         }
     }
 

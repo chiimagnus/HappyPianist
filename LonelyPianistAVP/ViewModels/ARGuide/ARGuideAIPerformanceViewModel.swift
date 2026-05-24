@@ -58,12 +58,21 @@ final class ARGuideAIPerformanceViewModel {
         if let aiPlaybackServiceFactory {
             self.aiPlaybackServiceFactory = aiPlaybackServiceFactory
         } else {
+            let isRunningUnitTests = ProcessInfo.processInfo.environment["XCTestSessionIdentifier"] != nil
             let factory = DuetAIPlaybackServiceFactory(
                 makeLocalSamplerPlaybackService: {
-                    AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2", channel: 1)
+                    let service: any PracticeSequencerPlaybackServiceProtocol =
+                        isRunningUnitTests
+                            ? NoopPracticeSequencerPlaybackService()
+                            : AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2", channel: 1)
+                    return service
                 },
                 makeExternalMIDIPlaybackService: { destinationUniqueID in
-                    CoreMIDIPracticePlaybackService(destinationUniqueID: destinationUniqueID, channel: 1)
+                    let service: any PracticeSequencerPlaybackServiceProtocol =
+                        isRunningUnitTests
+                            ? NoopPracticeSequencerPlaybackService()
+                            : CoreMIDIPracticePlaybackService(destinationUniqueID: destinationUniqueID, channel: 1)
+                    return service
                 }
             )
             self.aiPlaybackServiceFactory = { factory }
