@@ -91,6 +91,13 @@ final class ARGuideViewModel {
         )
 
         setupAppStateCallbacks()
+
+        // Ensure Bluetooth MIDI input events are subscribed immediately for the initial practice session.
+        // Otherwise, AI improv (and recording) won't receive any MIDI events until the session is rebuilt.
+        recordingViewModel.refreshMIDISubscriptionIfNeeded(
+            usesBluetoothMIDIInput: PianoModeID(rawValue: practiceSetupState.selectedPianoModeID ?? "") == .bluetoothMIDI,
+            eventSource: initialSession.practiceInputEventSource
+        )
     }
 
     var selectedPianoMode: (any PianoModeProtocol)? {
