@@ -44,7 +44,13 @@ final class ARGuideAIPerformanceViewModel {
 
     init(backendDiscoveryService: BonjourBackendDiscoveryService? = nil) {
         dialogueDiscoveryService = backendDiscoveryService ?? BonjourBackendDiscoveryService()
-        duetDiscoveryService = BonjourBackendDiscoveryService(serviceType: "_lpduet._tcp")
+        duetDiscoveryService = BonjourBackendDiscoveryService(
+            serviceType: "_lpduet._tcp",
+            requiredTXTRecord: [
+                "engine": "magenta",
+                "protocol_version": "1",
+            ]
+        )
     }
 
     var backendStatusText: String? {
