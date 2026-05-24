@@ -191,23 +191,33 @@ final class ARGuideAIPerformanceViewModel {
         let loader = localCoreMLModelLoader
 
         localCoreMLDuetProbeTask = Task.detached(priority: .utility) { [weak self] in
+            let resolvedAvailability: LocalCoreMLDuetAvailability?
             do {
                 _ = try await loader.loadStepModel()
-                await MainActor.run {
-                    self?.localCoreMLDuetAvailability = .available
-                }
+                resolvedAvailability = .available
+            } catch is CancellationError {
+                resolvedAvailability = nil
             } catch let error as PerformanceRNNCoreMLModelLoaderError {
-                await MainActor.run {
-                    switch error {
-                    case let .modelMissing(expectedNames):
-                        self?.localCoreMLDuetAvailability = .missing(expectedNames: expectedNames)
-                    case let .compileFailed(_, message), let .loadFailed(_, message):
-                        self?.localCoreMLDuetAvailability = .failed(message: message)
-                    }
+                switch error {
+                case let .modelMissing(expectedNames):
+                    resolvedAvailability = .missing(expectedNames: expectedNames)
+                case let .compileFailed(_, message), let .loadFailed(_, message):
+                    resolvedAvailability = .failed(message: message)
                 }
             } catch {
+                resolvedAvailability = .failed(message: "Unknown error.")
+            }
+
+            guard Task.isCancelled == false else {
                 await MainActor.run {
-                    self?.localCoreMLDuetAvailability = .failed(message: "Unknown error.")
+                    self?.localCoreMLDuetProbeTask = nil
+                }
+                return
+            }
+
+            if let resolvedAvailability {
+                await MainActor.run {
+                    self?.localCoreMLDuetAvailability = resolvedAvailability
                 }
             }
 
