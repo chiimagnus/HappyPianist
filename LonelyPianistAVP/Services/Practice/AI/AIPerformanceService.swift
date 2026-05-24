@@ -362,7 +362,11 @@ final class AIPerformanceService {
             return
         }
 
-        let params = ImprovGenerateParams(topP: 0.95, maxTokens: maxTokens, strategy: "model", seed: nil)
+        // NOTE: The Python duet placeholder engine uses a fixed seed (0) when `seed == nil`,
+        // which makes replies look "always the same melody" except for a global transposition.
+        // Sending a per-turn seed keeps placeholder mode non-deterministic without affecting Magenta.
+        let seed = UInt64(activationID) << 32 | UInt64(sequenceID)
+        let params = ImprovGenerateParams(topP: 0.95, maxTokens: maxTokens, strategy: "model", seed: seed)
         let request = ImprovGenerateRequest(notes: promptNotes, params: params, sessionID: improvSessionID)
 
         let playbackPlan: ImprovBackendPlaybackPlan
