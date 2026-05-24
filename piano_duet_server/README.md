@@ -7,13 +7,13 @@ P1 阶段只提供占位生成器（用于打通 AVP 端到端链路）；P2 才
 ## 启动
 
 ```bash
-rtk PYTHON=python3.10 ./scripts/run_server.sh
+rtk ./scripts/run_server.sh
 ```
 
 默认端口为 `8766`（避免与 `piano_dialogue_server` 默认 `8765` 冲突）。如需自定义：
 
 ```bash
-rtk PORT=8766 PYTHON=python3.10 ./scripts/run_server.sh
+rtk env PORT=8766 ./scripts/run_server.sh
 ```
 
 启动成功后，访问：
@@ -24,7 +24,7 @@ rtk PORT=8766 PYTHON=python3.10 ./scripts/run_server.sh
 ## 快速自检（推荐）
 
 ```bash
-rtk PYTHON=python3.10 ./scripts/smoke_generate.sh
+rtk ./scripts/smoke_generate.sh
 ```
 
 看到 `health ok` 与 `generate ok` 即表示服务可用。
@@ -44,6 +44,6 @@ rtk PYTHON=python3.10 ./scripts/smoke_generate.sh
 你可以在电脑端用系统工具确认是否广播成功：
 
 ```bash
-dns-sd -B _lpduet._tcp local.
+rtk dns-sd -B _lpduet._tcp local.
 ```
 Note: mDNS service type 的 service label 有 15 bytes 的限制，所以这里使用了较短的 `_lpduet._tcp`。
