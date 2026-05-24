@@ -352,10 +352,6 @@ final class ARGuideViewModel {
         aiPerformanceViewModel.backendStatusText
     }
 
-    var duetServerStartCommand: String {
-        aiPerformanceViewModel.duetServerStartCommand
-    }
-
     func restartBackendDiscoveryForSelectedBackend() {
         aiPerformanceViewModel.restartDiscoveryForSelectedBackend()
     }
