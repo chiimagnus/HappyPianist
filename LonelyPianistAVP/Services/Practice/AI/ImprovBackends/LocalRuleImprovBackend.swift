@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 import ImprovEngines
 import ImprovProtocol
@@ -23,6 +22,7 @@ actor LocalRuleImprovBackend: ImprovBackendProtocol {
 
     private let generator: RuleImprovGenerator
     private let scheduleBuilder: ImprovScheduleBuilder
+    private let seedResolver: ImprovSeedResolver
 
     init(
         generator: RuleImprovGenerator = RuleImprovGenerator(),
@@ -30,13 +30,14 @@ actor LocalRuleImprovBackend: ImprovBackendProtocol {
     ) {
         self.generator = generator
         self.scheduleBuilder = scheduleBuilder
+        seedResolver = ImprovSeedResolver()
     }
 
     func generatePlaybackPlan(
         request: ImprovGenerateRequest,
         timeout: Duration
     ) async throws -> ImprovBackendPlaybackPlan {
-        let seed = resolveSeed(for: request)
+        let seed = seedResolver.resolveSeed(explicitSeed: request.params.seed, sessionID: request.sessionID)
         let generator = self.generator
 
         let replyNotes = try await runWithTimeout(timeout) {
@@ -54,26 +55,6 @@ actor LocalRuleImprovBackend: ImprovBackendProtocol {
         }
 
         return .schedule(schedule, backendLatencyMS: nil)
-    }
-
-    private nonisolated func resolveSeed(for request: ImprovGenerateRequest) -> UInt64 {
-        if let seed = request.params.seed {
-            return seed
-        }
-        if let sessionID = request.sessionID {
-            return deriveSeed(fromSessionID: sessionID)
-        }
-        return 0
-    }
-
-    private nonisolated func deriveSeed(fromSessionID sessionID: String) -> UInt64 {
-        let digest = SHA256.hash(data: Data(sessionID.utf8))
-        let bytes = Array(digest)
-        var seed: UInt64 = 0
-        for i in 0 ..< min(8, bytes.count) {
-            seed = (seed << 8) | UInt64(bytes[i])
-        }
-        return seed
     }
 
     private func runWithTimeout<T: Sendable>(
