@@ -67,6 +67,12 @@ struct DuetTurnTakingCore: Sendable {
         return phraseBuffer.flushPhrase(endTimestampSeconds: endTimestampSeconds).trimmedNotes
     }
 
+    mutating func flushPhrase(endTimestampSeconds: TimeInterval) -> DuetPhraseBuffer.FlushResult {
+        pendingSendDeadlineTimestampSeconds = nil
+        phraseStartTimestampSeconds = nil
+        return phraseBuffer.flushPhrase(endTimestampSeconds: endTimestampSeconds)
+    }
+
     mutating func reset() {
         phraseBuffer.reset()
         phraseStartTimestampSeconds = nil

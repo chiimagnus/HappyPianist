@@ -29,19 +29,20 @@ protocol ImprovBackendDiscoveryOrchestrating: AnyObject, Sendable {
 final class AIPerformanceService {
     struct State: Equatable {
         var isAIPerformanceActive: Bool
+        var isAIGenerating: Bool
+        var isAIPlaybackActive: Bool
         var latestSchedule: [PracticeSequencerMIDIEvent]
         var lastImprovStatusText: String?
     }
 
     private let logger: Logger
     private let nowUptimeSeconds: () -> TimeInterval
+    private let sleepFor: @Sendable (Duration) async -> Void
     private let improvSessionID: String
     private let discoveryOrchestrator: any ImprovBackendDiscoveryOrchestrating
     private let backendRegistry: ImprovBackendRegistry
     private let selectedBackendKind: @MainActor () -> ImprovBackendKind
     private let backendTimeout: Duration
-    private let pollInterval: Duration
-    private let silenceTimeoutSeconds: TimeInterval
     private let onStateChanged: @MainActor (State) -> Void
 
     private weak var practiceSession: (any AIPerformancePracticeSessionProtocol)?
@@ -50,35 +51,34 @@ final class AIPerformanceService {
     private var isEnabled = false
     private var lastKnownBackendKind: ImprovBackendKind?
 
-    private var silenceTrigger = NoteOnSilenceTrigger()
-    private var phraseRecorder = PhraseRecorder()
+    private var turnTakingCore = DuetTurnTakingCore()
+    private var pendingSendTask: Task<Void, Never>?
+    private var inFlightGenerateTasks: [Int: Task<Void, Never>] = [:]
+    private var nextGenerateSequenceID = 0
 
-    private var pollTask: Task<Void, Never>?
-
-    private var isAIPerformanceActive = false
+    private var isGenerating = false
+    private var isAIPlaybackActive = false
     private var latestSchedule: [PracticeSequencerMIDIEvent] = []
     private var lastImprovStatusText: String?
 
     init(
         logger: Logger,
         nowUptimeSeconds: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
+        sleepFor: @escaping @Sendable (Duration) async -> Void = { duration in try? await Task.sleep(for: duration) },
         discoveryOrchestrator: any ImprovBackendDiscoveryOrchestrating,
         backendRegistry: ImprovBackendRegistry,
         selectedBackendKind: @escaping @MainActor () -> ImprovBackendKind,
         backendTimeout: Duration = .seconds(12),
-        pollInterval: Duration = .milliseconds(100),
-        silenceTimeoutSeconds: TimeInterval = 2.0,
         onStateChanged: @escaping @MainActor (State) -> Void
     ) {
         self.logger = logger
         self.nowUptimeSeconds = nowUptimeSeconds
+        self.sleepFor = sleepFor
         improvSessionID = UUID().uuidString
         self.discoveryOrchestrator = discoveryOrchestrator
         self.backendRegistry = backendRegistry
         self.selectedBackendKind = selectedBackendKind
         self.backendTimeout = backendTimeout
-        self.pollInterval = pollInterval
-        self.silenceTimeoutSeconds = silenceTimeoutSeconds
         self.onStateChanged = onStateChanged
     }
 
@@ -95,17 +95,23 @@ final class AIPerformanceService {
     func setEnabled(_ enabled: Bool) {
         guard hasShutdown == false else { return }
         if enabled == false {
-            guard isEnabled || pollTask != nil else { return }
+            guard isEnabled || pendingSendTask != nil || inFlightGenerateTasks.isEmpty == false else { return }
 
             isEnabled = false
             discoveryOrchestrator.stopAll()
             lastKnownBackendKind = nil
-            pollTask?.cancel()
-            pollTask = nil
 
-            isAIPerformanceActive = false
-            silenceTrigger.reset()
-            phraseRecorder.reset()
+            pendingSendTask?.cancel()
+            pendingSendTask = nil
+
+            for task in inFlightGenerateTasks.values {
+                task.cancel()
+            }
+            inFlightGenerateTasks.removeAll(keepingCapacity: true)
+            isGenerating = false
+            isAIPlaybackActive = false
+
+            turnTakingCore.reset()
             lastImprovStatusText = nil
             latestSchedule = []
             notifyStateChanged()
@@ -114,7 +120,7 @@ final class AIPerformanceService {
             return
         }
 
-        if isEnabled, pollTask != nil {
+        if isEnabled {
             return
         }
 
@@ -124,27 +130,10 @@ final class AIPerformanceService {
         syncBackendDiscoveryIfNeeded()
 
         if wasEnabled == false {
-            silenceTrigger.reset()
-            phraseRecorder.reset()
-            lastImprovStatusText = "AI 即兴：等待你弹奏一句（停 2 秒触发）"
+            turnTakingCore.reset()
+            lastImprovStatusText = "AI 即兴：松手后约 0.6 秒触发（长句松手立即触发）"
             latestSchedule = []
             notifyStateChanged()
-        }
-
-        guard pollTask == nil else { return }
-
-        pollTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-            while Task.isCancelled == false {
-                guard isEnabled else { return }
-                syncBackendDiscoveryIfNeeded()
-                await pollAndPlayAIPerformanceIfNeeded()
-                do {
-                    try await Task.sleep(for: pollInterval)
-                } catch {
-                    return
-                }
-            }
         }
     }
 
@@ -153,10 +142,9 @@ final class AIPerformanceService {
 
         switch event.kind {
         case let .noteOn(note, velocity):
-            silenceTrigger.recordNoteOn(atUptime: event.receivedAtUptimeSeconds)
-            phraseRecorder.recordNoteOn(midi: note, velocity: velocity, timestamp: event.receivedAtUptimeSeconds)
+            handleTurnTakingEvent(.noteOn(note: note, velocity: velocity, timestampSeconds: event.receivedAtUptimeSeconds))
         case let .noteOff(note, _):
-            phraseRecorder.recordNoteOff(midi: note, timestamp: event.receivedAtUptimeSeconds)
+            handleTurnTakingEvent(.noteOff(note: note, timestampSeconds: event.receivedAtUptimeSeconds))
         default:
             return
         }
@@ -167,14 +155,15 @@ final class AIPerformanceService {
 
         switch event.kind {
         case let .noteOn(note, velocity16):
-            silenceTrigger.recordNoteOn(atUptime: event.receivedAtUptimeSeconds)
-            phraseRecorder.recordNoteOn(
-                midi: note,
-                velocity: MIDI2ValueMapping.value16To7Bit(velocity16),
-                timestamp: event.receivedAtUptimeSeconds
+            handleTurnTakingEvent(
+                .noteOn(
+                    note: note,
+                    velocity: MIDI2ValueMapping.value16To7Bit(velocity16),
+                    timestampSeconds: event.receivedAtUptimeSeconds
+                )
             )
         case let .noteOff(note, _):
-            phraseRecorder.recordNoteOff(midi: note, timestamp: event.receivedAtUptimeSeconds)
+            handleTurnTakingEvent(.noteOff(note: note, timestampSeconds: event.receivedAtUptimeSeconds))
         default:
             return
         }
@@ -187,17 +176,15 @@ final class AIPerformanceService {
     ) {
         guard usesBluetoothMIDIInput == false else { return }
         guard isEnabled else { return }
-        guard isAIPerformanceActive == false else { return }
 
         if keyContact.started.isEmpty == false {
-            silenceTrigger.recordNoteOn(atUptime: nowUptimeSeconds)
             for note in keyContact.started {
-                phraseRecorder.recordNoteOn(midi: note, velocity: 90, timestamp: nowUptimeSeconds)
+                handleTurnTakingEvent(.noteOn(note: note, velocity: 90, timestampSeconds: nowUptimeSeconds))
             }
         }
         if keyContact.ended.isEmpty == false {
             for note in keyContact.ended {
-                phraseRecorder.recordNoteOff(midi: note, timestamp: nowUptimeSeconds)
+                handleTurnTakingEvent(.noteOff(note: note, timestampSeconds: nowUptimeSeconds))
             }
         }
     }
@@ -205,7 +192,9 @@ final class AIPerformanceService {
     private func notifyStateChanged() {
         onStateChanged(
             State(
-                isAIPerformanceActive: isAIPerformanceActive,
+                isAIPerformanceActive: isGenerating || isAIPlaybackActive,
+                isAIGenerating: isGenerating,
+                isAIPlaybackActive: isAIPlaybackActive,
                 latestSchedule: latestSchedule,
                 lastImprovStatusText: lastImprovStatusText
             )
@@ -219,27 +208,71 @@ final class AIPerformanceService {
         practiceSession.refreshAudioRecognitionForCurrentState()
     }
 
-    private func pollAndPlayAIPerformanceIfNeeded() async {
-        guard isAIPerformanceActive == false else { return }
+    private func handleTurnTakingEvent(_ event: DuetTurnTakingCore.Event) {
+        syncBackendDiscoveryIfNeeded()
+
+        let decision = turnTakingCore.handle(event)
+        switch decision {
+        case .none:
+            return
+        case .cancelPendingSend:
+            pendingSendTask?.cancel()
+            pendingSendTask = nil
+        case let .scheduleSend(deadlineTimestampSeconds):
+            pendingSendTask?.cancel()
+            pendingSendTask = Task { @MainActor [weak self] in
+                guard let self else { return }
+                let delaySeconds = max(0, deadlineTimestampSeconds - nowUptimeSeconds())
+                await sleepFor(.seconds(delaySeconds))
+                guard Task.isCancelled == false else { return }
+                await triggerSendNow()
+            }
+        case .sendNow:
+            pendingSendTask?.cancel()
+            pendingSendTask = nil
+            Task { @MainActor [weak self] in
+                await self?.triggerSendNow()
+            }
+        }
+    }
+
+    private func triggerSendNow() async {
+        guard isEnabled else { return }
         guard let practiceSession else { return }
         guard practiceSession.autoplayState == .off else { return }
         guard practiceSession.isManualReplayPlaying == false else { return }
 
         let nowUptime = nowUptimeSeconds()
-        guard silenceTrigger.pollShouldTrigger(atUptime: nowUptime, timeoutSeconds: silenceTimeoutSeconds) else { return }
+        let flushedPhrase = turnTakingCore.flushPhrase(endTimestampSeconds: nowUptime)
+        let policy = DuetPhrasePolicy.makeResult(from: flushedPhrase)
+        guard policy.promptNotes.isEmpty == false else { return }
 
-        isAIPerformanceActive = true
+        let maxTokens = max(1, Int((policy.desiredReplySeconds * 64.0).rounded()))
+        let estimatedReplySeconds = estimatedBackendReplySeconds(maxTokens: maxTokens)
+        lastImprovStatusText = "即兴：prompt=\(formatSeconds(policy.promptEndTimeSeconds))s " +
+            "replyWanted=\(formatSeconds(policy.desiredReplySeconds))s " +
+            "replyMapped≈\(formatSeconds(estimatedReplySeconds))s"
         notifyStateChanged()
 
-        defer {
-            isAIPerformanceActive = false
-            silenceTrigger.reset()
-            notifyStateChanged()
-        }
-
-        let promptNotes = phraseRecorder.flushPhrase(endTimestamp: nowUptime)
         let kind = selectedBackendKind()
-        await attemptSelectedBackendImprov(kind: kind, promptNotes: promptNotes)
+        let sequenceID = nextGenerateSequenceID
+        nextGenerateSequenceID += 1
+
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            isGenerating = true
+            notifyStateChanged()
+            defer {
+                inFlightGenerateTasks.removeValue(forKey: sequenceID)
+                isGenerating = inFlightGenerateTasks.isEmpty == false
+                notifyStateChanged()
+            }
+
+            await attemptSelectedBackendImprov(kind: kind, promptNotes: policy.promptNotes, maxTokens: maxTokens)
+        }
+        inFlightGenerateTasks[sequenceID] = task
+        isGenerating = true
+        notifyStateChanged()
     }
 
     private func syncBackendDiscoveryIfNeeded() {
@@ -249,7 +282,11 @@ final class AIPerformanceService {
         discoveryOrchestrator.start(for: kind)
     }
 
-    private func attemptSelectedBackendImprov(kind: ImprovBackendKind, promptNotes: [ImprovDialogueNote]) async {
+    private func attemptSelectedBackendImprov(
+        kind: ImprovBackendKind,
+        promptNotes: [ImprovDialogueNote],
+        maxTokens: Int
+    ) async {
         guard practiceSession != nil else { return }
         guard let backend = backendRegistry.backend(for: kind) else {
             lastImprovStatusText = "Last improv: error(backendUnavailable \(kind.rawValue))"
@@ -257,7 +294,7 @@ final class AIPerformanceService {
             return
         }
 
-        let params = ImprovGenerateParams(topP: 0.95, maxTokens: 256, strategy: "model", seed: nil)
+        let params = ImprovGenerateParams(topP: 0.95, maxTokens: maxTokens, strategy: "model", seed: nil)
         let request = ImprovGenerateRequest(notes: promptNotes, params: params, sessionID: improvSessionID)
 
         let playbackPlan: ImprovBackendPlaybackPlan
@@ -291,8 +328,19 @@ final class AIPerformanceService {
         }
     }
 
+    private func estimatedBackendReplySeconds(maxTokens: Int) -> TimeInterval {
+        max(2.0, min(12.0, Double(maxTokens) / 64.0))
+    }
+
+    private func formatSeconds(_ seconds: TimeInterval) -> String {
+        seconds.formatted(.number.precision(.fractionLength(2)))
+    }
+
     private func playAIPerformanceSchedule(_ schedule: [PracticeSequencerMIDIEvent]) async {
         guard let practiceSession else { return }
+
+        isAIPlaybackActive = true
+        notifyStateChanged()
 
         practiceSession.stopVirtualPianoInput()
         practiceSession.sequencerPlaybackService.stop()
@@ -302,12 +350,14 @@ final class AIPerformanceService {
 
         var didStartPlayback = false
         defer {
+            isAIPlaybackActive = false
             if didStartPlayback == false {
                 practiceSession.sequencerPlaybackService.stop()
                 if isEnabled {
                     practiceSession.refreshAudioRecognitionForCurrentState()
                 }
             }
+            notifyStateChanged()
         }
 
         do {
@@ -356,6 +406,9 @@ final class AIPerformanceService {
     private func playAIPerformanceTickRange(_ tickRange: (startTick: Int, endTick: Int)) async {
         guard let practiceSession else { return }
 
+        isAIPlaybackActive = true
+        notifyStateChanged()
+
         practiceSession.stopVirtualPianoInput()
         practiceSession.sequencerPlaybackService.stop()
         practiceSession.stopAudioRecognition()
@@ -364,12 +417,14 @@ final class AIPerformanceService {
 
         var didStartPlayback = false
         defer {
+            isAIPlaybackActive = false
             if didStartPlayback == false {
                 practiceSession.sequencerPlaybackService.stop()
                 if isEnabled {
                     practiceSession.refreshAudioRecognitionForCurrentState()
                 }
             }
+            notifyStateChanged()
         }
 
         let timelineSnapshot = practiceSession.autoplayTimeline

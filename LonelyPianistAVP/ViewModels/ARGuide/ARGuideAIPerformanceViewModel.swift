@@ -10,6 +10,8 @@ final class ARGuideAIPerformanceViewModel {
 
     var isVirtualPerformerEnabled = false
     var isAIPerformanceActive = false
+    var isAIGenerating = false
+    var isAIPlaybackActive = false
     var latestAIPerformanceSchedule: [PracticeSequencerMIDIEvent] = []
     var lastImprovStatusText: String?
 
@@ -31,6 +33,8 @@ final class ARGuideAIPerformanceViewModel {
         onStateChanged: { [weak self] state in
             guard let self else { return }
             isAIPerformanceActive = state.isAIPerformanceActive
+            isAIGenerating = state.isAIGenerating
+            isAIPlaybackActive = state.isAIPlaybackActive
             latestAIPerformanceSchedule = state.latestSchedule
             lastImprovStatusText = state.lastImprovStatusText
         }
