@@ -11,6 +11,7 @@ protocol AIPerformancePracticeSessionProtocol: AnyObject {
     var tempoMap: MusicXMLTempoMap { get }
     var pedalTimeline: MusicXMLPedalTimeline? { get }
     var sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol { get }
+    var settingsProvider: any PracticeSessionSettingsProviderProtocol { get }
 
     func aiPerformanceTickRange(maxMeasures: Int) -> (startTick: Int, endTick: Int)?
     func stopVirtualPianoInput()
@@ -42,6 +43,7 @@ final class AIPerformanceService {
     private let discoveryOrchestrator: any ImprovBackendDiscoveryOrchestrating
     private let backendRegistry: ImprovBackendRegistry
     private let selectedBackendKind: @MainActor () -> ImprovBackendKind
+    private let aiPlaybackServiceFactory: @MainActor () -> DuetAIPlaybackServiceFactory
     private let backendTimeout: Duration
     private let onStateChanged: @MainActor (State) -> Void
 
@@ -61,6 +63,19 @@ final class AIPerformanceService {
     private var latestSchedule: [PracticeSequencerMIDIEvent] = []
     private var lastImprovStatusText: String?
 
+    @MainActor
+    private lazy var aiPlaybackQueue: DuetAIPlaybackQueue = {
+        DuetAIPlaybackQueue(
+            logger: logger,
+            playbackServiceFactory: aiPlaybackServiceFactory,
+            onPlaybackActiveChanged: { [weak self] isActive in
+                guard let self else { return }
+                isAIPlaybackActive = isActive
+                notifyStateChanged()
+            }
+        )
+    }()
+
     init(
         logger: Logger,
         nowUptimeSeconds: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
@@ -68,6 +83,7 @@ final class AIPerformanceService {
         discoveryOrchestrator: any ImprovBackendDiscoveryOrchestrating,
         backendRegistry: ImprovBackendRegistry,
         selectedBackendKind: @escaping @MainActor () -> ImprovBackendKind,
+        aiPlaybackServiceFactory: @escaping @MainActor () -> DuetAIPlaybackServiceFactory,
         backendTimeout: Duration = .seconds(12),
         onStateChanged: @escaping @MainActor (State) -> Void
     ) {
@@ -78,6 +94,7 @@ final class AIPerformanceService {
         self.discoveryOrchestrator = discoveryOrchestrator
         self.backendRegistry = backendRegistry
         self.selectedBackendKind = selectedBackendKind
+        self.aiPlaybackServiceFactory = aiPlaybackServiceFactory
         self.backendTimeout = backendTimeout
         self.onStateChanged = onStateChanged
     }
@@ -116,6 +133,9 @@ final class AIPerformanceService {
             latestSchedule = []
             notifyStateChanged()
 
+            Task { [aiPlaybackQueue] in
+                await aiPlaybackQueue.stopAll()
+            }
             stopPlaybackAndRestoreAudioRecognitionIfNeeded()
             return
         }
@@ -203,8 +223,6 @@ final class AIPerformanceService {
 
     private func stopPlaybackAndRestoreAudioRecognitionIfNeeded() {
         guard let practiceSession else { return }
-        practiceSession.stopVirtualPianoInput()
-        practiceSession.sequencerPlaybackService.stop()
         practiceSession.refreshAudioRecognitionForCurrentState()
     }
 
@@ -309,7 +327,7 @@ final class AIPerformanceService {
 
         switch playbackPlan {
         case let .schedule(schedule, backendLatencyMS):
-            await playAIPerformanceSchedule(schedule)
+            await enqueueAIPlaybackSchedule(schedule)
             if kind == .networkBonjourHTTPDuet, let backendLatencyMS {
                 lastImprovStatusText = "上次生成耗时：\(backendLatencyMS)ms"
             } else {
@@ -322,10 +340,50 @@ final class AIPerformanceService {
                 notifyStateChanged()
                 return
             }
-            await playAIPerformanceTickRange(tickRange)
+            await enqueueAIPlaybackTickRange(tickRange)
             lastImprovStatusText = "Last improv: \(kind.rawValue)"
             notifyStateChanged()
         }
+    }
+
+    private func enqueueAIPlaybackSchedule(_ schedule: [PracticeSequencerMIDIEvent]) async {
+        guard let practiceSession else { return }
+        let routing = practiceSession.settingsProvider.soundRoutingSettings
+        let now = nowUptimeSeconds()
+        let result = await aiPlaybackQueue.enqueue(schedule: schedule, routing: routing, enqueuedAtUptimeSeconds: now)
+        latestSchedule = result.shiftedSchedule
+        notifyStateChanged()
+    }
+
+    private func enqueueAIPlaybackTickRange(_ tickRange: (startTick: Int, endTick: Int)) async {
+        guard let practiceSession else { return }
+
+        let timelineSnapshot = practiceSession.autoplayTimeline
+        let tempoMapSnapshot = practiceSession.tempoMap
+        let initialSustainPedalDown = practiceSession.pedalTimeline?.isDown(atTick: tickRange.startTick) ?? false
+        let leadInSeconds: TimeInterval = 0.05
+
+        let schedule: [PracticeSequencerMIDIEvent]
+        do {
+            schedule = try await Task.detached(priority: .userInitiated) {
+                PracticeSequencerSequenceBuilder().buildAudioEventSchedule(
+                    timeline: timelineSnapshot,
+                    tempoMap: tempoMapSnapshot,
+                    startTick: tickRange.startTick,
+                    initialSustainPedalDown: initialSustainPedalDown,
+                    leadInSeconds: leadInSeconds,
+                    endTick: tickRange.endTick
+                )
+            }.value
+        } catch {
+            return
+        }
+
+        let routing = practiceSession.settingsProvider.soundRoutingSettings
+        let now = nowUptimeSeconds()
+        let result = await aiPlaybackQueue.enqueue(schedule: schedule, routing: routing, enqueuedAtUptimeSeconds: now)
+        latestSchedule = result.shiftedSchedule
+        notifyStateChanged()
     }
 
     private func estimatedBackendReplySeconds(maxTokens: Int) -> TimeInterval {

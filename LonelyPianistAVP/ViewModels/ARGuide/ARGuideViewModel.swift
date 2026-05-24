@@ -44,6 +44,7 @@ final class ARGuideViewModel {
         virtualKeyboardPoseService: (any VirtualKeyboardPoseServiceProtocol)? = nil,
         virtualPianoKeyGeometryService: (any VirtualPianoKeyGeometryServiceProtocol)? = nil,
         duetDiscoveryService: BonjourBackendDiscoveryService? = nil,
+        aiPlaybackServiceFactory: (@MainActor () -> DuetAIPlaybackServiceFactory)? = nil,
         takeLibraryViewModel: TakeLibraryViewModel? = nil,
         takePlaybackViewModel: TakePlaybackViewModel? = nil
     ) {
@@ -66,7 +67,10 @@ final class ARGuideViewModel {
             virtualKeyboardPoseService: virtualKeyboardPoseService,
             virtualPianoKeyGeometryService: virtualPianoKeyGeometryService
         )
-        let ai = ARGuideAIPerformanceViewModel(duetDiscoveryService: duetDiscoveryService)
+        let ai = ARGuideAIPerformanceViewModel(
+            duetDiscoveryService: duetDiscoveryService,
+            aiPlaybackServiceFactory: aiPlaybackServiceFactory
+        )
 
         calibrationGuideViewModel = calibration
         practiceLocalizationViewModel = localization
