@@ -64,7 +64,7 @@ actor NetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
             throw NetworkBonjourHTTPImprovBackendError.emptyReply
         }
 
-        return .schedule(schedule)
+        return .schedule(schedule, backendLatencyMS: response.latencyMS)
     }
 
     private func waitForResolvedEndpoint(timeout: Duration) async throws -> (host: String, port: Int) {

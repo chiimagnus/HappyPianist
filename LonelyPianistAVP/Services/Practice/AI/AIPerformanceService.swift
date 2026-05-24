@@ -271,9 +271,13 @@ final class AIPerformanceService {
         }
 
         switch playbackPlan {
-        case let .schedule(schedule):
+        case let .schedule(schedule, backendLatencyMS):
             await playAIPerformanceSchedule(schedule)
-            lastImprovStatusText = "Last improv: \(kind.rawValue)"
+            if kind == .networkBonjourHTTPDuet, let backendLatencyMS {
+                lastImprovStatusText = "上次生成耗时：\(backendLatencyMS)ms"
+            } else {
+                lastImprovStatusText = "Last improv: \(kind.rawValue)"
+            }
             notifyStateChanged()
         case let .tickRange(maxMeasures):
             guard let tickRange = practiceSession?.aiPerformanceTickRange(maxMeasures: maxMeasures) else {
