@@ -49,14 +49,6 @@ struct PracticeStepView: View {
         .padding(.vertical, 30)
         .toolbar {
             ToolbarItemGroup(placement: .bottomOrnament) {
-                Button("回到选曲库", systemImage: "chevron.backward") {
-                    viewModel.practiceSessionViewModel.shutdown()
-                    onBackToLibrary()
-                }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.roundedRectangle)
-                .hoverEffect()
-
                 if isAutoplayEnabled == false {
                     Button(manualAdvanceMode.nextButtonTitle, systemImage: "forward.fill") {
                         viewModel.skipStep()
@@ -107,6 +99,23 @@ struct PracticeStepView: View {
                         isVirtualPianoMode: isVirtualPianoMode,
                         isBluetoothMIDIMode: viewModel.isBluetoothMIDIMode,
                         gazePlaneDiskStatusText: viewModel.gazePlaneDiskStatusText,
+                        isRecording: viewModel.isRecording,
+                        recordingElapsedText: viewModel.recordingElapsedText,
+                        canStartRecording: viewModel.canRecord && viewModel.isAIPerformanceActive == false && viewModel
+                            .takePlaybackViewModel.isPlaying == false,
+                        onBackToLibrary: {
+                            isSettingsPopoverPresented = false
+                            viewModel.practiceSessionViewModel.shutdown()
+                            onBackToLibrary()
+                        },
+                        onStartRecording: {
+                            isSettingsPopoverPresented = false
+                            viewModel.startRecording()
+                        },
+                        onStopRecording: {
+                            isSettingsPopoverPresented = false
+                            viewModel.stopRecording()
+                        },
                         onOpenTakeLibrary: {
                             isSettingsPopoverPresented = false
                             isTakeLibraryPresented = true
@@ -118,35 +127,6 @@ struct PracticeStepView: View {
                             viewModel.replacePracticeSessionViewModel()
                         },
                     )
-                }
-
-                if viewModel.isRecording {
-                    Button("结束录制", systemImage: "stop.circle.fill") {
-                        viewModel.stopRecording()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.red)
-                    .buttonBorderShape(.roundedRectangle)
-                    .hoverEffect()
-
-                    Text(viewModel.recordingElapsedText)
-                        .monospacedDigit()
-                        .foregroundStyle(.red)
-                } else {
-                    Button("开始录制", systemImage: "circle.fill") {
-                        viewModel.startRecording()
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .tint(.red)
-                    .buttonBorderShape(.roundedRectangle)
-                    .hoverEffect()
-                    .disabled(viewModel.canRecord == false || viewModel.isAIPerformanceActive || viewModel
-                        .takePlaybackViewModel.isPlaying)
-                }
-
-                if isAutoplayEnabled {
-                    Text(session.isSustainPedalDown ? "Pedal ↓" : "Pedal ↑")
-                        .foregroundStyle(.secondary)
                 }
 
                 Text("进度 \(viewModel.practiceProgressText)")

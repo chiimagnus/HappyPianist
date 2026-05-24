@@ -9,6 +9,12 @@ struct PracticeSettingsView: View {
     let isVirtualPianoMode: Bool
     let isBluetoothMIDIMode: Bool
     let gazePlaneDiskStatusText: String?
+    let isRecording: Bool
+    let recordingElapsedText: String
+    let canStartRecording: Bool
+    let onBackToLibrary: () -> Void
+    let onStartRecording: () -> Void
+    let onStopRecording: () -> Void
     let onOpenTakeLibrary: () -> Void
     let onRetryVirtualPianoPlacement: () -> Void
     let onRequestSessionRebuild: () -> Void
@@ -32,6 +38,42 @@ struct PracticeSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                SettingsSection(title: "操作", systemImage: "slider.horizontal.3") {
+                    Button("回到选曲库", systemImage: "chevron.backward") {
+                        onBackToLibrary()
+                    }
+                    .buttonStyle(.bordered)
+                    .buttonBorderShape(.roundedRectangle)
+                    .hoverEffect()
+
+                    Divider()
+
+                    HStack(spacing: 12) {
+                        if isRecording {
+                            Button("结束录制", systemImage: "stop.circle.fill") {
+                                onStopRecording()
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.red)
+                            .buttonBorderShape(.roundedRectangle)
+                            .hoverEffect()
+
+                            Text(recordingElapsedText)
+                                .monospacedDigit()
+                                .foregroundStyle(.red)
+                        } else {
+                            Button("开始录制", systemImage: "circle.fill") {
+                                onStartRecording()
+                            }
+                            .buttonStyle(.borderedProminent)
+                            .tint(.red)
+                            .buttonBorderShape(.roundedRectangle)
+                            .hoverEffect()
+                            .disabled(canStartRecording == false)
+                        }
+                    }
+                }
+
                 SettingsSection(title: "输出", systemImage: "speaker.wave.2") {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("输出音量（AVP）")
@@ -265,6 +307,12 @@ private struct SettingsSection<Content: View>: View {
         isVirtualPianoMode: true,
         isBluetoothMIDIMode: true,
         gazePlaneDiskStatusText: "GazePlaneDisk: OK",
+        isRecording: false,
+        recordingElapsedText: "00:00",
+        canStartRecording: true,
+        onBackToLibrary: {},
+        onStartRecording: {},
+        onStopRecording: {},
         onOpenTakeLibrary: {},
         onRetryVirtualPianoPlacement: {},
         onRequestSessionRebuild: {}
