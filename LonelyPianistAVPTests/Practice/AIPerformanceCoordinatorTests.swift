@@ -110,6 +110,7 @@ private final class FakePracticeSession: AIPerformancePracticeSessionProtocol {
     var tempoMap: MusicXMLTempoMap = .init(tempoEvents: [])
     var pedalTimeline: MusicXMLPedalTimeline?
     let sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol
+    let settingsProvider: any PracticeSessionSettingsProviderProtocol
 
     private(set) var stopVirtualPianoInputCallCount = 0
     private(set) var stopAudioRecognitionCallCount = 0
@@ -118,10 +119,12 @@ private final class FakePracticeSession: AIPerformancePracticeSessionProtocol {
 
     init(
         currentStep: PracticeStep?,
-        sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol
+        sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol,
+        settingsProvider: any PracticeSessionSettingsProviderProtocol = FakeSettingsProvider()
     ) {
         self.currentStep = currentStep
         self.sequencerPlaybackService = sequencerPlaybackService
+        self.settingsProvider = settingsProvider
     }
 
     func aiPerformanceTickRange(maxMeasures _: Int) -> (startTick: Int, endTick: Int)? {
@@ -146,6 +149,33 @@ private final class FakePracticeSession: AIPerformancePracticeSessionProtocol {
     }
 }
 
+private struct FakeSettingsProvider: PracticeSessionSettingsProviderProtocol {
+    var manualAdvanceMode: ManualAdvanceMode { .step }
+    var practiceHandMode: PracticeHandMode { .both }
+    var audioRecognitionDetectorMode: PracticeAudioRecognitionDetectorMode { .harmonicTemplate }
+    var soundRoutingSettings: PracticeSoundRoutingSettings { PracticeSoundRoutingSettings(outputRoute: .localSampler, midiDestinationUniqueID: nil, sendLocalControlOff: false) }
+}
+
+private actor TestSleeper {
+    private var pending: [CheckedContinuation<Void, Never>] = []
+    private(set) var requestedDurations: [Duration] = []
+
+    func sleep(for duration: Duration) async {
+        requestedDurations.append(duration)
+        await withCheckedContinuation { continuation in
+            pending.append(continuation)
+        }
+    }
+
+    func resumeAll() {
+        let current = pending
+        pending.removeAll(keepingCapacity: true)
+        for continuation in current {
+            continuation.resume()
+        }
+    }
+}
+
 @Test
 @MainActor
 func enableDisableAreIdempotent() async {
@@ -155,21 +185,26 @@ func enableDisableAreIdempotent() async {
     let backendService = FakeBackendDiscoveryService()
     let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
     let selectedKind: ImprovBackendKind = .networkBonjourHTTPDuet
+    let aiPlaybackService = FakeSequencerPlaybackService()
+    let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { aiPlaybackService },
+        makeExternalMIDIPlaybackService: { _ in aiPlaybackService }
+    )
     let service = AIPerformanceService(
         logger: Logger(subsystem: "test", category: "ai-perf"),
         nowUptimeSeconds: { nowUptime },
+        sleepFor: { _ in },
         discoveryOrchestrator: orchestrator,
         backendRegistry: ImprovBackendRegistry(backends: []),
         selectedBackendKind: { selectedKind },
-        pollInterval: .milliseconds(1),
-        silenceTimeoutSeconds: 999,
+        aiPlaybackServiceFactory: { aiPlaybackFactory },
         onStateChanged: { states.append($0) }
     )
 
-    let playbackService = FakeSequencerPlaybackService()
+    let practicePlaybackService = FakeSequencerPlaybackService()
     let session = FakePracticeSession(
         currentStep: PracticeStep(tick: 0, notes: []),
-        sequencerPlaybackService: playbackService
+        sequencerPlaybackService: practicePlaybackService
     )
     service.updatePracticeSession(session)
 
@@ -197,20 +232,25 @@ func disableCancelsPendingPlaybackAndStopsSequencer() async {
     let backendService = FakeBackendDiscoveryService()
     let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
     let selectedKind: ImprovBackendKind = .localRule
+    let aiPlaybackService = FakeSequencerPlaybackService()
+    let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { aiPlaybackService },
+        makeExternalMIDIPlaybackService: { _ in aiPlaybackService }
+    )
     let schedule = [
         PracticeSequencerMIDIEvent(timeSeconds: 0.0, kind: .noteOn(midi: 60, velocity: 90)),
         PracticeSequencerMIDIEvent(timeSeconds: 10.0, kind: .noteOff(midi: 60)),
     ]
-    let fakeBackend = FakeScheduleBackend(kind: selectedKind, playbackPlan: .schedule(schedule))
+    let fakeBackend = FakeScheduleBackend(kind: selectedKind, playbackPlan: .schedule(schedule, backendLatencyMS: nil))
 
     let service = AIPerformanceService(
         logger: Logger(subsystem: "test", category: "ai-perf"),
         nowUptimeSeconds: { nowUptime },
+        sleepFor: { _ in },
         discoveryOrchestrator: orchestrator,
         backendRegistry: ImprovBackendRegistry(backends: [fakeBackend]),
         selectedBackendKind: { selectedKind },
-        pollInterval: .milliseconds(1),
-        silenceTimeoutSeconds: 0.01,
+        aiPlaybackServiceFactory: { aiPlaybackFactory },
         onStateChanged: { states.append($0) }
     )
 
@@ -233,29 +273,40 @@ func disableCancelsPendingPlaybackAndStopsSequencer() async {
             receivedAtUptimeSeconds: 0
         )
     )
+    service.recordMIDI1EventForPhraseRecordingIfNeeded(
+        MIDI1InputEvent(
+            kind: .noteOff(note: 60, velocity: 0),
+            channel: 1,
+            group: 0,
+            source: MIDI1InputEvent.Source(identifier: .sourceIndex(0), endpointName: nil),
+            receivedAt: Date(timeIntervalSince1970: 0),
+            receivedAtUptimeSeconds: 0.1
+        )
+    )
 
     nowUptime = 1
 
     for _ in 0 ..< 500 {
         await Task.yield()
-        if playbackService.playCallCount > 0 {
+        if aiPlaybackService.playCallCount > 0 {
             break
         }
     }
 
-    #expect(playbackService.playCallCount > 0)
-    #expect(states.contains(where: \.isAIPerformanceActive))
+    #expect(aiPlaybackService.playCallCount > 0)
+    let didBecomeActive = states.contains { $0.isAIPerformanceActive }
+    #expect(didBecomeActive)
 
     service.setEnabled(false)
 
     for _ in 0 ..< 500 {
         await Task.yield()
-        if playbackService.stopCallCount > 0 {
+        if aiPlaybackService.stopCallCount > 0 {
             break
         }
     }
 
-    #expect(playbackService.stopCallCount > 0)
+    #expect(aiPlaybackService.stopCallCount > 0)
     #expect(states.last?.isAIPerformanceActive == false)
 }
 
@@ -267,14 +318,19 @@ func shutdownPreventsFurtherEnable() async {
     let backendService = FakeBackendDiscoveryService()
     let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
     let selectedKind: ImprovBackendKind = .networkBonjourHTTPDuet
+    let aiPlaybackService = FakeSequencerPlaybackService()
+    let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { aiPlaybackService },
+        makeExternalMIDIPlaybackService: { _ in aiPlaybackService }
+    )
     let service = AIPerformanceService(
         logger: Logger(subsystem: "test", category: "ai-perf"),
         nowUptimeSeconds: { nowUptime },
+        sleepFor: { _ in },
         discoveryOrchestrator: orchestrator,
         backendRegistry: ImprovBackendRegistry(backends: []),
         selectedBackendKind: { selectedKind },
-        pollInterval: .milliseconds(1),
-        silenceTimeoutSeconds: 0.01,
+        aiPlaybackServiceFactory: { aiPlaybackFactory },
         onStateChanged: { _ in }
     )
 
@@ -294,4 +350,141 @@ func shutdownPreventsFurtherEnable() async {
     }
 
     #expect(orchestrator.startCallCount == 0)
+}
+
+@Test
+@MainActor
+func shortPhraseTriggersAfterScheduledDelay() async {
+    var nowUptime: TimeInterval = 0
+
+    let sleeper = TestSleeper()
+    let backendService = FakeBackendDiscoveryService()
+    let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
+    let selectedKind: ImprovBackendKind = .localRule
+    let schedule = [
+        PracticeSequencerMIDIEvent(timeSeconds: 0.0, kind: .noteOn(midi: 60, velocity: 90)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 60)),
+    ]
+    let fakeBackend = FakeScheduleBackend(kind: selectedKind, playbackPlan: .schedule(schedule, backendLatencyMS: nil))
+
+    let playbackService = FakeSequencerPlaybackService()
+    let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { playbackService },
+        makeExternalMIDIPlaybackService: { _ in playbackService }
+    )
+    let service = AIPerformanceService(
+        logger: Logger(subsystem: "test", category: "ai-perf"),
+        nowUptimeSeconds: { nowUptime },
+        sleepFor: { duration in await sleeper.sleep(for: duration) },
+        discoveryOrchestrator: orchestrator,
+        backendRegistry: ImprovBackendRegistry(backends: [fakeBackend]),
+        selectedBackendKind: { selectedKind },
+        aiPlaybackServiceFactory: { aiPlaybackFactory },
+        onStateChanged: { _ in }
+    )
+    let session = FakePracticeSession(
+        currentStep: PracticeStep(tick: 0, notes: []),
+        sequencerPlaybackService: playbackService
+    )
+    service.updatePracticeSession(session)
+
+    service.setEnabled(true)
+    service.recordMIDI1EventForPhraseRecordingIfNeeded(
+        MIDI1InputEvent(
+            kind: .noteOn(note: 60, velocity: 90),
+            channel: 1,
+            group: 0,
+            source: MIDI1InputEvent.Source(identifier: .sourceIndex(0), endpointName: nil),
+            receivedAt: Date(timeIntervalSince1970: 0),
+            receivedAtUptimeSeconds: 0.0
+        )
+    )
+    service.recordMIDI1EventForPhraseRecordingIfNeeded(
+        MIDI1InputEvent(
+            kind: .noteOff(note: 60, velocity: 0),
+            channel: 1,
+            group: 0,
+            source: MIDI1InputEvent.Source(identifier: .sourceIndex(0), endpointName: nil),
+            receivedAt: Date(timeIntervalSince1970: 0),
+            receivedAtUptimeSeconds: 0.1
+        )
+    )
+
+    for _ in 0 ..< 50 { await Task.yield() }
+    #expect(playbackService.playCallCount == 0)
+
+    let durations = await sleeper.requestedDurations
+    #expect(durations.isEmpty == false)
+
+    await sleeper.resumeAll()
+
+    for _ in 0 ..< 500 {
+        await Task.yield()
+        if playbackService.playCallCount > 0 { break }
+    }
+    #expect(playbackService.playCallCount > 0)
+}
+
+@Test
+@MainActor
+func longPhraseTriggersImmediatelyOnReleaseAll() async {
+    var nowUptime: TimeInterval = 0
+
+    let backendService = FakeBackendDiscoveryService()
+    let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
+    let selectedKind: ImprovBackendKind = .localRule
+    let schedule = [
+        PracticeSequencerMIDIEvent(timeSeconds: 0.0, kind: .noteOn(midi: 60, velocity: 90)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 60)),
+    ]
+    let fakeBackend = FakeScheduleBackend(kind: selectedKind, playbackPlan: .schedule(schedule, backendLatencyMS: nil))
+
+    let playbackService = FakeSequencerPlaybackService()
+    let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { playbackService },
+        makeExternalMIDIPlaybackService: { _ in playbackService }
+    )
+    let service = AIPerformanceService(
+        logger: Logger(subsystem: "test", category: "ai-perf"),
+        nowUptimeSeconds: { nowUptime },
+        sleepFor: { _ in },
+        discoveryOrchestrator: orchestrator,
+        backendRegistry: ImprovBackendRegistry(backends: [fakeBackend]),
+        selectedBackendKind: { selectedKind },
+        aiPlaybackServiceFactory: { aiPlaybackFactory },
+        onStateChanged: { _ in }
+    )
+    let session = FakePracticeSession(
+        currentStep: PracticeStep(tick: 0, notes: []),
+        sequencerPlaybackService: playbackService
+    )
+    service.updatePracticeSession(session)
+
+    service.setEnabled(true)
+    service.recordMIDI1EventForPhraseRecordingIfNeeded(
+        MIDI1InputEvent(
+            kind: .noteOn(note: 60, velocity: 90),
+            channel: 1,
+            group: 0,
+            source: MIDI1InputEvent.Source(identifier: .sourceIndex(0), endpointName: nil),
+            receivedAt: Date(timeIntervalSince1970: 0),
+            receivedAtUptimeSeconds: 0.0
+        )
+    )
+    service.recordMIDI1EventForPhraseRecordingIfNeeded(
+        MIDI1InputEvent(
+            kind: .noteOff(note: 60, velocity: 0),
+            channel: 1,
+            group: 0,
+            source: MIDI1InputEvent.Source(identifier: .sourceIndex(0), endpointName: nil),
+            receivedAt: Date(timeIntervalSince1970: 0),
+            receivedAtUptimeSeconds: 3.2
+        )
+    )
+
+    for _ in 0 ..< 500 {
+        await Task.yield()
+        if playbackService.playCallCount > 0 { break }
+    }
+    #expect(playbackService.playCallCount > 0)
 }

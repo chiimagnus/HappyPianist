@@ -32,6 +32,10 @@ async def _lifespan(_: FastAPI):
 
         port = int(os.environ.get("PORT", str(DEFAULT_PORT)))
         properties: dict[bytes, bytes] = dict(TXT_RECORD)
+        engine_name = os.environ.get("DUET_ENGINE", "placeholder").strip().lower()
+        if engine_name in ("placeholder", "stub", "auto"):
+            engine_name = "placeholder"
+        properties[b"engine"] = engine_name.encode("utf-8")
         if engine_impl:
             properties[b"engine_impl"] = engine_impl.encode("utf-8")
 

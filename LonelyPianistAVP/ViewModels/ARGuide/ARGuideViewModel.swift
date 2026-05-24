@@ -44,6 +44,7 @@ final class ARGuideViewModel {
         virtualKeyboardPoseService: (any VirtualKeyboardPoseServiceProtocol)? = nil,
         virtualPianoKeyGeometryService: (any VirtualPianoKeyGeometryServiceProtocol)? = nil,
         duetDiscoveryService: BonjourBackendDiscoveryService? = nil,
+        aiPlaybackServiceFactory: (@MainActor () -> DuetAIPlaybackServiceFactory)? = nil,
         takeLibraryViewModel: TakeLibraryViewModel? = nil,
         takePlaybackViewModel: TakePlaybackViewModel? = nil
     ) {
@@ -66,7 +67,10 @@ final class ARGuideViewModel {
             virtualKeyboardPoseService: virtualKeyboardPoseService,
             virtualPianoKeyGeometryService: virtualPianoKeyGeometryService
         )
-        let ai = ARGuideAIPerformanceViewModel(duetDiscoveryService: duetDiscoveryService)
+        let ai = ARGuideAIPerformanceViewModel(
+            duetDiscoveryService: duetDiscoveryService,
+            aiPlaybackServiceFactory: aiPlaybackServiceFactory
+        )
 
         calibrationGuideViewModel = calibration
         practiceLocalizationViewModel = localization
@@ -567,7 +571,6 @@ final class ARGuideViewModel {
         case .practice:
             let nowUptime = ProcessInfo.processInfo.systemUptime
             placementViewModel.updateLatestDeviceWorldPosition(nowUptime: nowUptime)
-            guard isAIPerformanceActive == false else { return }
 
             if isVirtualPianoEnabled {
                 placementViewModel.updateGuidance(fingerTips: fingerTips, nowUptime: nowUptime)
