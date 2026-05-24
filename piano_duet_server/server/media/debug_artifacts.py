@@ -11,7 +11,7 @@ from typing import Any
 
 
 def debug_enabled() -> bool:
-    return os.environ.get("DIALOGUE_DEBUG", "").strip() == "1"
+    return os.environ.get("DUET_DEBUG", "").strip() == "1"
 
 
 def _now_timestamp() -> str:
@@ -24,7 +24,7 @@ def _random_suffix(length: int = 6) -> str:
 
 
 def new_request_id() -> str:
-    # Example: 20260406-174512-3f9k2a
+    # Example: 20260524-115233-3f9k2a
     return time.strftime("%Y%m%d-%H%M%S", time.localtime()) + "-" + _random_suffix()
 
 
@@ -40,7 +40,7 @@ class DebugBundlePaths:
 
 
 def resolve_debug_paths(req_id: str) -> DebugBundlePaths:
-    root = Path(__file__).resolve().parents[1] / "out" / "dialogue_debug"
+    root = Path(__file__).resolve().parents[2] / "out" / "debug"
     request_dir = root / "requests" / req_id
     return DebugBundlePaths(
         request_dir=request_dir,
@@ -83,11 +83,8 @@ def write_debug_bundle(
     _write_json(paths.reply_notes_json, reply_notes)
 
     write_debug_ms = int((time.perf_counter() - t0) * 1000)
-    if "latency_ms_breakdown" in summary and isinstance(summary["latency_ms_breakdown"], dict):
-        summary["latency_ms_breakdown"]["write_debug_files"] = write_debug_ms
-    else:
-        summary["write_debug_files_ms"] = write_debug_ms
-
+    summary["write_debug_files_ms"] = write_debug_ms
+    summary.setdefault("timestamp", _now_timestamp())
     _write_json(paths.summary_json, summary)
 
     index_entry = {
@@ -95,6 +92,8 @@ def write_debug_bundle(
         "timestamp": summary.get("timestamp") or _now_timestamp(),
         "request_dir": str(paths.request_dir),
         "session_id": summary.get("session_id"),
+        "engine": summary.get("engine"),
+        "model_ref": summary.get("model_ref"),
         "latency_ms_total": summary.get("latency_ms_total"),
         "prompt_note_count": summary.get("prompt_note_count"),
         "reply_note_count": summary.get("reply_note_count"),

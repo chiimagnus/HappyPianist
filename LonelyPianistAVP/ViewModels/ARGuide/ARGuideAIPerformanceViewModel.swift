@@ -5,7 +5,7 @@ import os
 @MainActor
 @Observable
 final class ARGuideAIPerformanceViewModel {
-    let backendDiscoveryService: BonjourBackendDiscoveryService
+    let duetDiscoveryService: BonjourBackendDiscoveryService
     private let backendSelection = ImprovBackendSelection()
 
     var isVirtualPerformerEnabled = false
@@ -19,7 +19,11 @@ final class ARGuideAIPerformanceViewModel {
             subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
             category: "AIPerformanceService"
         ),
-        backendDiscoveryService: backendDiscoveryService,
+        discoveryOrchestrator: ImprovBackendDiscoveryOrchestrator(
+            servicesByKind: [
+                .networkBonjourHTTPDuet: duetDiscoveryService,
+            ]
+        ),
         backendRegistry: makeBackendRegistry(),
         selectedBackendKind: { [backendSelection] in
             backendSelection.selectedKind()
@@ -32,29 +36,42 @@ final class ARGuideAIPerformanceViewModel {
         }
     )
 
-    init(backendDiscoveryService: BonjourBackendDiscoveryService? = nil) {
-        self.backendDiscoveryService = backendDiscoveryService ?? BonjourBackendDiscoveryService()
+    init(duetDiscoveryService: BonjourBackendDiscoveryService? = nil) {
+        self.duetDiscoveryService = duetDiscoveryService ?? BonjourBackendDiscoveryService(
+            serviceType: "_lpduet._tcp",
+            requiredTXTRecord: [
+                "path": "/generate",
+                "protocol_version": "1",
+            ]
+        )
     }
 
     var backendStatusText: String? {
         switch backendSelection.selectedKind() {
-        case .networkBonjourHTTP:
-            switch backendDiscoveryService.state {
-            case .idle:
-                "Backend: network (idle)"
-            case .discovering:
-                "Backend: network (discovering)"
-            case let .resolved(host, port):
-                "Backend: network (resolved \(host):\(port))"
-            case let .failed(message):
-                "Backend: network (unavailable: \(message))"
-            case .denied:
-                "Backend: network (denied: Local Network)"
-            }
+        case .networkBonjourHTTPDuet:
+            backendDiscoveryStatusText(
+                backendName: "A.I. Duet",
+                state: duetDiscoveryService.state,
+                notFoundHint: "请先在电脑端启动 piano_duet_server（默认端口 8766）。"
+            )
         case .localRule:
-            "Backend: local rule"
+            "后端：本地规则生成（无需电脑端服务）"
         case .tickRangeReplay:
-            "Backend: tick-range replay"
+            "后端：按谱片段回放（无需电脑端服务）"
+        }
+    }
+
+    var duetServerStartCommand: String {
+        "rtk ./piano_duet_server/scripts/run_server.sh"
+    }
+
+    func restartDiscoveryForSelectedBackend() {
+        switch backendSelection.selectedKind() {
+        case .networkBonjourHTTPDuet:
+            duetDiscoveryService.stop()
+            duetDiscoveryService.start()
+        case .localRule, .tickRangeReplay:
+            break
         }
     }
 
@@ -98,10 +115,60 @@ final class ARGuideAIPerformanceViewModel {
     private func makeBackendRegistry() -> ImprovBackendRegistry {
         ImprovBackendRegistry(
             backends: [
-                NetworkBonjourHTTPImprovBackend(discoveryService: backendDiscoveryService),
+                DuetNetworkBonjourHTTPImprovBackend(discoveryService: duetDiscoveryService),
                 LocalRuleImprovBackend(),
                 TickRangeReplayImprovBackend(),
             ]
         )
+    }
+
+    private func backendDiscoveryStatusText(
+        backendName: String,
+        state: BonjourBackendDiscoveryService.State,
+        notFoundHint: String
+    ) -> String {
+        switch state {
+        case .idle:
+            "后端：\(backendName)（未开始发现）"
+        case .discovering:
+            "后端：\(backendName)（正在发现…）若长时间找不到，\(notFoundHint)"
+        case let .resolved(host, port):
+            "后端：\(backendName)（已找到 \(host):\(port)）"
+        case let .failed(message):
+            "后端：\(backendName)（发现失败：\(message)）"
+        case .denied:
+            "后端：\(backendName)（Local Network 权限被拒）请到系统设置开启后重试。"
+        }
+    }
+}
+
+@MainActor
+private final class ImprovBackendDiscoveryOrchestrator: ImprovBackendDiscoveryOrchestrating {
+    private let servicesByKind: [ImprovBackendKind: any BonjourBackendDiscoveryServiceProtocol]
+
+    init(servicesByKind: [ImprovBackendKind: any BonjourBackendDiscoveryServiceProtocol]) {
+        self.servicesByKind = servicesByKind
+    }
+
+    func start(for kind: ImprovBackendKind) {
+        var didStart = false
+        for (mappedKind, service) in servicesByKind {
+            if mappedKind == kind {
+                service.start()
+                didStart = true
+            } else {
+                service.stop()
+            }
+        }
+
+        if didStart == false {
+            stopAll()
+        }
+    }
+
+    func stopAll() {
+        for service in servicesByKind.values {
+            service.stop()
+        }
     }
 }

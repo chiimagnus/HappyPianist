@@ -20,6 +20,12 @@ protocol AIPerformancePracticeSessionProtocol: AnyObject {
 }
 
 @MainActor
+protocol ImprovBackendDiscoveryOrchestrating: AnyObject, Sendable {
+    func start(for kind: ImprovBackendKind)
+    func stopAll()
+}
+
+@MainActor
 final class AIPerformanceService {
     struct State: Equatable {
         var isAIPerformanceActive: Bool
@@ -30,7 +36,7 @@ final class AIPerformanceService {
     private let logger: Logger
     private let nowUptimeSeconds: () -> TimeInterval
     private let improvSessionID: String
-    private let backendDiscoveryService: any BonjourBackendDiscoveryServiceProtocol
+    private let discoveryOrchestrator: any ImprovBackendDiscoveryOrchestrating
     private let backendRegistry: ImprovBackendRegistry
     private let selectedBackendKind: @MainActor () -> ImprovBackendKind
     private let backendTimeout: Duration
@@ -56,10 +62,10 @@ final class AIPerformanceService {
     init(
         logger: Logger,
         nowUptimeSeconds: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
-        backendDiscoveryService: any BonjourBackendDiscoveryServiceProtocol,
+        discoveryOrchestrator: any ImprovBackendDiscoveryOrchestrating,
         backendRegistry: ImprovBackendRegistry,
         selectedBackendKind: @escaping @MainActor () -> ImprovBackendKind,
-        backendTimeout: Duration = .seconds(2),
+        backendTimeout: Duration = .seconds(12),
         pollInterval: Duration = .milliseconds(100),
         silenceTimeoutSeconds: TimeInterval = 2.0,
         onStateChanged: @escaping @MainActor (State) -> Void
@@ -67,7 +73,7 @@ final class AIPerformanceService {
         self.logger = logger
         self.nowUptimeSeconds = nowUptimeSeconds
         improvSessionID = UUID().uuidString
-        self.backendDiscoveryService = backendDiscoveryService
+        self.discoveryOrchestrator = discoveryOrchestrator
         self.backendRegistry = backendRegistry
         self.selectedBackendKind = selectedBackendKind
         self.backendTimeout = backendTimeout
@@ -92,7 +98,7 @@ final class AIPerformanceService {
             guard isEnabled || pollTask != nil else { return }
 
             isEnabled = false
-            backendDiscoveryService.stop()
+            discoveryOrchestrator.stopAll()
             lastKnownBackendKind = nil
             pollTask?.cancel()
             pollTask = nil
@@ -240,12 +246,7 @@ final class AIPerformanceService {
         let kind = selectedBackendKind()
         guard kind != lastKnownBackendKind else { return }
         lastKnownBackendKind = kind
-
-        if kind == .networkBonjourHTTP {
-            backendDiscoveryService.start()
-        } else {
-            backendDiscoveryService.stop()
-        }
+        discoveryOrchestrator.start(for: kind)
     }
 
     private func attemptSelectedBackendImprov(kind: ImprovBackendKind, promptNotes: [ImprovDialogueNote]) async {
@@ -256,7 +257,7 @@ final class AIPerformanceService {
             return
         }
 
-        let params = ImprovGenerateParams(topP: 0.95, maxTokens: 256, strategy: "deterministic", seed: nil)
+        let params = ImprovGenerateParams(topP: 0.95, maxTokens: 256, strategy: "model", seed: nil)
         let request = ImprovGenerateRequest(notes: promptNotes, params: params, sessionID: improvSessionID)
 
         let playbackPlan: ImprovBackendPlaybackPlan
@@ -270,9 +271,13 @@ final class AIPerformanceService {
         }
 
         switch playbackPlan {
-        case let .schedule(schedule):
+        case let .schedule(schedule, backendLatencyMS):
             await playAIPerformanceSchedule(schedule)
-            lastImprovStatusText = "Last improv: \(kind.rawValue)"
+            if kind == .networkBonjourHTTPDuet, let backendLatencyMS {
+                lastImprovStatusText = "上次生成耗时：\(backendLatencyMS)ms"
+            } else {
+                lastImprovStatusText = "Last improv: \(kind.rawValue)"
+            }
             notifyStateChanged()
         case let .tickRange(maxMeasures):
             guard let tickRange = practiceSession?.aiPerformanceTickRange(maxMeasures: maxMeasures) else {

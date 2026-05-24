@@ -25,6 +25,27 @@ private final class FakeBackendDiscoveryService: BonjourBackendDiscoveryServiceP
     }
 }
 
+@MainActor
+private final class FakeDiscoveryOrchestrator: ImprovBackendDiscoveryOrchestrating {
+    private let service: FakeBackendDiscoveryService
+    private(set) var startCallCount = 0
+    private(set) var stopAllCallCount = 0
+
+    init(service: FakeBackendDiscoveryService) {
+        self.service = service
+    }
+
+    func start(for _: ImprovBackendKind) {
+        startCallCount += 1
+        service.start()
+    }
+
+    func stopAll() {
+        stopAllCallCount += 1
+        service.stop()
+    }
+}
+
 private actor FakeScheduleBackend: ImprovBackendProtocol {
     nonisolated let kind: ImprovBackendKind
     nonisolated let displayName: String
@@ -131,12 +152,13 @@ func enableDisableAreIdempotent() async {
     var nowUptime: TimeInterval = 0
     var states: [AIPerformanceService.State] = []
 
-    let backend = FakeBackendDiscoveryService()
-    let selectedKind: ImprovBackendKind = .networkBonjourHTTP
+    let backendService = FakeBackendDiscoveryService()
+    let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
+    let selectedKind: ImprovBackendKind = .networkBonjourHTTPDuet
     let service = AIPerformanceService(
         logger: Logger(subsystem: "test", category: "ai-perf"),
         nowUptimeSeconds: { nowUptime },
-        backendDiscoveryService: backend,
+        discoveryOrchestrator: orchestrator,
         backendRegistry: ImprovBackendRegistry(backends: []),
         selectedBackendKind: { selectedKind },
         pollInterval: .milliseconds(1),
@@ -157,11 +179,11 @@ func enableDisableAreIdempotent() async {
     for _ in 0 ..< 50 {
         await Task.yield()
     }
-    #expect(backend.startCallCount == 1)
+    #expect(orchestrator.startCallCount == 1)
 
     service.setEnabled(false)
     service.setEnabled(false)
-    #expect(backend.stopCallCount == 1)
+    #expect(orchestrator.stopAllCallCount == 1)
 
     #expect(states.last?.isAIPerformanceActive == false)
 }
@@ -172,7 +194,8 @@ func disableCancelsPendingPlaybackAndStopsSequencer() async {
     var nowUptime: TimeInterval = 0
     var states: [AIPerformanceService.State] = []
 
-    let backend = FakeBackendDiscoveryService()
+    let backendService = FakeBackendDiscoveryService()
+    let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
     let selectedKind: ImprovBackendKind = .localRule
     let schedule = [
         PracticeSequencerMIDIEvent(timeSeconds: 0.0, kind: .noteOn(midi: 60, velocity: 90)),
@@ -183,7 +206,7 @@ func disableCancelsPendingPlaybackAndStopsSequencer() async {
     let service = AIPerformanceService(
         logger: Logger(subsystem: "test", category: "ai-perf"),
         nowUptimeSeconds: { nowUptime },
-        backendDiscoveryService: backend,
+        discoveryOrchestrator: orchestrator,
         backendRegistry: ImprovBackendRegistry(backends: [fakeBackend]),
         selectedBackendKind: { selectedKind },
         pollInterval: .milliseconds(1),
@@ -241,12 +264,13 @@ func disableCancelsPendingPlaybackAndStopsSequencer() async {
 func shutdownPreventsFurtherEnable() async {
     var nowUptime: TimeInterval = 0
 
-    let backend = FakeBackendDiscoveryService()
-    let selectedKind: ImprovBackendKind = .networkBonjourHTTP
+    let backendService = FakeBackendDiscoveryService()
+    let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
+    let selectedKind: ImprovBackendKind = .networkBonjourHTTPDuet
     let service = AIPerformanceService(
         logger: Logger(subsystem: "test", category: "ai-perf"),
         nowUptimeSeconds: { nowUptime },
-        backendDiscoveryService: backend,
+        discoveryOrchestrator: orchestrator,
         backendRegistry: ImprovBackendRegistry(backends: []),
         selectedBackendKind: { selectedKind },
         pollInterval: .milliseconds(1),
@@ -269,5 +293,5 @@ func shutdownPreventsFurtherEnable() async {
         await Task.yield()
     }
 
-    #expect(backend.startCallCount == 0)
+    #expect(orchestrator.startCallCount == 0)
 }

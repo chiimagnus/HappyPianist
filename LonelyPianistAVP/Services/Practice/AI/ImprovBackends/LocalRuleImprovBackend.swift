@@ -53,7 +53,7 @@ actor LocalRuleImprovBackend: ImprovBackendProtocol {
             throw LocalRuleImprovBackendError.emptyReply
         }
 
-        return .schedule(schedule)
+        return .schedule(schedule, backendLatencyMS: nil)
     }
 
     private nonisolated func resolveSeed(for request: ImprovGenerateRequest) -> UInt64 {

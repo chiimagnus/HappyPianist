@@ -5,6 +5,10 @@ struct ImprovBackendSelection {
         PracticeSessionSettingsKeys.improvBackendKind
     }
 
+    static var defaultKind: ImprovBackendKind {
+        .networkBonjourHTTPDuet
+    }
+
     private let userDefaults: UserDefaults
 
     init(userDefaults: UserDefaults = .standard) {
@@ -12,11 +16,14 @@ struct ImprovBackendSelection {
     }
 
     func selectedKind() -> ImprovBackendKind {
-        guard let rawValue = userDefaults.string(forKey: Self.userDefaultsKey),
-              let kind = ImprovBackendKind(rawValue: rawValue)
-        else {
-            return .networkBonjourHTTP
+        guard let rawValue = userDefaults.string(forKey: Self.userDefaultsKey) else {
+            return Self.defaultKind
         }
-        return kind
+
+        if let kind = ImprovBackendKind(rawValue: rawValue) {
+            return kind
+        }
+        userDefaults.set(Self.defaultKind.rawValue, forKey: Self.userDefaultsKey)
+        return Self.defaultKind
     }
 }

@@ -1,6 +1,6 @@
 # Module: LonelyPianist macOS
 
-`LonelyPianist/` 是 macOS MIDI recorder。当前功能边界是监听、录制、导入与回放；它不包含 MIDI mapping、键盘注入或 Dialogue client。
+`LonelyPianist/` 是 macOS MIDI recorder。当前功能边界是监听、录制、导入与回放；它不包含 MIDI mapping、键盘注入或 AVP 的网络后端 client。
 
 ## 入口
 
@@ -52,7 +52,5 @@ rtk xcodebuild test -project LonelyPianist.xcodeproj -scheme LonelyPianist -dest
 以下路径和类型不在当前代码中，文档或新代码不要引用：
 
 - `Services/Mapping/`
-- `Services/Dialogue/`
 - `DefaultMappingEngine`
-- `DialogueManager`
 - keyboard injection / CGEvent mapping 流程

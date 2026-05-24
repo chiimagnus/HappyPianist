@@ -1,9 +1,13 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 struct PracticeSettingsView: View {
     @Binding var virtualPerformerEnabled: Bool
     let backendStatusText: String?
     let lastImprovStatusText: String?
+    let duetServerStartCommand: String
     let recordingSourceText: String?
     let isAIPerformanceActive: Bool
     let isVirtualPianoMode: Bool
@@ -19,7 +23,7 @@ struct PracticeSettingsView: View {
     @AppStorage(PracticeSessionSettingsKeys.manualAdvanceMode) private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
     @AppStorage(PracticeSessionSettingsKeys.handMode) private var practiceHandModeRawValue = PracticeHandMode.both.rawValue
     @AppStorage(PracticeSessionSettingsKeys.improvBackendKind)
-    private var improvBackendKindRawValue = ImprovBackendKind.networkBonjourHTTP.rawValue
+    private var improvBackendKindRawValue = ImprovBackendSelection.defaultKind.rawValue
     @AppStorage(PracticeSessionSettingsKeys.soundOutputRoute)
     private var soundOutputRouteRawValue = PracticeSoundOutputRoute.localSampler.rawValue
     @AppStorage(PracticeSessionSettingsKeys.midiDestinationUniqueID)
@@ -121,6 +125,7 @@ struct PracticeSettingsView: View {
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
+
                     if let lastImprovStatusText {
                         Text(lastImprovStatusText)
                             .font(.footnote)
@@ -182,6 +187,9 @@ struct PracticeSettingsView: View {
             }
             .disabled(isAIPerformanceActive)
         }
+        .onAppear {
+            migrateLegacyBackendKindIfNeeded()
+        }
         .padding(16)
         .frame(minWidth: 320)
     }
@@ -194,12 +202,12 @@ struct PracticeSettingsView: View {
 
     private var effectiveBackendStatusText: String? {
         guard let selectedKind = ImprovBackendKind(rawValue: improvBackendKindRawValue) else {
-            return "Backend: invalid kind"
+            return backendStatusText ?? "即兴后端设置已变更，请重新选择。"
         }
 
         switch selectedKind {
-        case .networkBonjourHTTP:
-            return backendStatusText ?? "Backend: network"
+        case .networkBonjourHTTPDuet:
+            return backendStatusText ?? "Backend: duet"
         case .localRule:
             return "Backend: local rule"
         case .tickRangeReplay:
@@ -209,13 +217,18 @@ struct PracticeSettingsView: View {
 
     private func backendTitle(_ kind: ImprovBackendKind) -> String {
         switch kind {
-        case .networkBonjourHTTP:
-            "网络本地连接（电脑端 Python）"
+        case .networkBonjourHTTPDuet:
+            "网络本地连接（A.I. Duet / Magenta）"
         case .localRule:
             "本地 rule（AVP）"
         case .tickRangeReplay:
             "按谱片段回放（tick-range replay）"
         }
+    }
+
+    private func migrateLegacyBackendKindIfNeeded() {
+        guard ImprovBackendKind(rawValue: improvBackendKindRawValue) == nil else { return }
+        improvBackendKindRawValue = ImprovBackendSelection.defaultKind.rawValue
     }
 }
 
@@ -224,6 +237,7 @@ struct PracticeSettingsView: View {
         virtualPerformerEnabled: .constant(false),
         backendStatusText: nil,
         lastImprovStatusText: nil,
+        duetServerStartCommand: "rtk ./piano_duet_server/scripts/run_server.sh",
         recordingSourceText: "录制来源：Bluetooth MIDI（弹奏琴键即可录制）",
         isAIPerformanceActive: false,
         isVirtualPianoMode: true,

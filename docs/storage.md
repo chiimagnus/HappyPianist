@@ -26,12 +26,11 @@
 
 | 数据 | 位置 | 说明 |
 | --- | --- | --- |
-| 调试包 | `piano_dialogue_server/out/dialogue_debug/` | `DIALOGUE_DEBUG=1` 时由 `piano_dialogue_server/server/media/debug_artifacts.py` 写入。 |
-| 模型权重 | `AMT_MODEL_DIR` 或本地 `models/` | 不应提交到 git。 |
-| 静态前端 | `piano_dialogue_server/static/` | `GET /` 返回 playground。 |
+| 调试包 | `piano_duet_server/out/debug/` | `DUET_DEBUG=1` 时由 `piano_duet_server/server/media/debug_artifacts.py` 写入。 |
+| 模型/素材 | `piano_duet_server/models/`（或 `DUET_BUNDLE_FILE`） | 不应提交到 git。 |
 
 ## 清理建议
 
 - 删除 AVP 用户数据时，优先清理 Documents 中的 `SongLibrary/`、`TakeLibrary/` 与 `piano-worldanchor-calibration.json`。
-- 删除 Python 调试输出时，只清理 `piano_dialogue_server/out/`；不要删除 `server/` 或 `static/`。
+- 删除 Python 调试输出时，只清理 `piano_duet_server/out/`；不要删除 `server/`。
 - 删除 macOS recorder 数据时，通过 app 功能删除 take，或清理 app container 中的 SwiftData store。

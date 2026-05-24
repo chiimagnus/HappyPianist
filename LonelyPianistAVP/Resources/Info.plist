@@ -11,10 +11,10 @@
 	<key>NSBluetoothAlwaysUsageDescription</key>
 	<string>用于在 App 内连接钢琴的蓝牙 MIDI，并接收你弹奏的音符用于练习引导。</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>用于在局域网中自动发现并连接本机运行的 Piano Dialogue 后端服务，以生成 AI 即兴演奏。</string>
+	<string>用于在局域网中自动发现并连接本机运行的 AI 即兴后端服务（A.I. Duet），以生成虚拟演奏家回应。</string>
 	<key>NSBonjourServices</key>
 	<array>
-		<string>_lonelypianist._tcp</string>
+		<string>_lpduet._tcp</string>
 	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>

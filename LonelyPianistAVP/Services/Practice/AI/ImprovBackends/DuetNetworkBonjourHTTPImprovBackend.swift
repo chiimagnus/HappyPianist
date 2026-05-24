@@ -1,7 +1,7 @@
 import Foundation
 import ImprovProtocol
 
-enum NetworkBonjourHTTPImprovBackendError: Error, LocalizedError, Equatable {
+enum DuetNetworkBonjourHTTPImprovBackendError: Error, LocalizedError, Equatable {
     case backendNotResolved
     case discoveryDenied
     case discoveryFailed(message: String)
@@ -10,7 +10,7 @@ enum NetworkBonjourHTTPImprovBackendError: Error, LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .backendNotResolved:
-            "Network backend not resolved."
+            "Duet network backend not resolved."
         case .discoveryDenied:
             "Local network discovery permission denied."
         case let .discoveryFailed(message):
@@ -21,9 +21,9 @@ enum NetworkBonjourHTTPImprovBackendError: Error, LocalizedError, Equatable {
     }
 }
 
-actor NetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
-    nonisolated let kind: ImprovBackendKind = .networkBonjourHTTP
-    nonisolated let displayName: String = "网络本地连接"
+actor DuetNetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
+    nonisolated let kind: ImprovBackendKind = .networkBonjourHTTPDuet
+    nonisolated let displayName: String = "网络本地连接（A.I. Duet / Magenta）"
 
     private let discoveryService: any BonjourBackendDiscoveryServiceProtocol
     private let backendClient: any ImprovBackendClientProtocol
@@ -61,10 +61,10 @@ actor NetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
 
         let schedule = scheduleBuilder.buildSchedule(from: response.notes)
         guard schedule.isEmpty == false else {
-            throw NetworkBonjourHTTPImprovBackendError.emptyReply
+            throw DuetNetworkBonjourHTTPImprovBackendError.emptyReply
         }
 
-        return .schedule(schedule)
+        return .schedule(schedule, backendLatencyMS: response.latencyMS)
     }
 
     private func waitForResolvedEndpoint(timeout: Duration) async throws -> (host: String, port: Int) {
@@ -78,9 +78,9 @@ actor NetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
             case let .resolved(host, port):
                 return (host, port)
             case .denied:
-                throw NetworkBonjourHTTPImprovBackendError.discoveryDenied
+                throw DuetNetworkBonjourHTTPImprovBackendError.discoveryDenied
             case let .failed(message):
-                throw NetworkBonjourHTTPImprovBackendError.discoveryFailed(message: message)
+                throw DuetNetworkBonjourHTTPImprovBackendError.discoveryFailed(message: message)
             case .idle, .discovering:
                 break
             }
@@ -88,7 +88,7 @@ actor NetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
             try await Task.sleep(for: .milliseconds(50))
         }
 
-        throw NetworkBonjourHTTPImprovBackendError.backendNotResolved
+        throw DuetNetworkBonjourHTTPImprovBackendError.backendNotResolved
     }
 
     private nonisolated func durationToTimeInterval(_ duration: Duration) -> TimeInterval {

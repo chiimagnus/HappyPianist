@@ -93,7 +93,7 @@ flowchart TD
 | `AIPerformanceService` | 调用后端并把结果转为可排程表现。 |
 | `ImprovScheduleBuilder` | 将生成 note 转成回放 schedule。 |
 | `ImprovBackendClient` | HTTP client。 |
-| `BonjourBackendDiscoveryService` | 发现 `_lonelypianist._tcp.local.` 后端。 |
+| `BonjourBackendDiscoveryService` | 发现 `_lpduet._tcp.local.` 后端。 |
 
 ## 调试边界
 
