@@ -47,7 +47,7 @@ rtk ./piano_duet_server/scripts/smoke_generate.sh
 3. Bonjour service type 是否能被系统看到（电脑端）：
 
 ```bash
-dns-sd -B _lpduet._tcp local.
+rtk dns-sd -B _lpduet._tcp local.
 ```
 
 > 说明：mDNS service type 的 service label 有 15 bytes 限制，因此这里使用较短的 `_lpduet._tcp`。
