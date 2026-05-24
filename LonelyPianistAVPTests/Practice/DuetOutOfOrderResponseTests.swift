@@ -189,6 +189,7 @@ func outOfOrderResponsesAreEnqueuedInSendOrder() async throws {
         nowUptimeSeconds: nowUptime
     )
 
+    for _ in 0 ..< 200 { await Task.yield() }
     try #require(await backend.waitForCallCount(2, maxYields: 10_000))
 
     // Resume out of order: second call returns before the first.
