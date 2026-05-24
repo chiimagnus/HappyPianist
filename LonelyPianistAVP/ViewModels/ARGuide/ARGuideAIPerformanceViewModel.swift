@@ -5,7 +5,8 @@ import os
 @MainActor
 @Observable
 final class ARGuideAIPerformanceViewModel {
-    let backendDiscoveryService: BonjourBackendDiscoveryService
+    let dialogueDiscoveryService: BonjourBackendDiscoveryService
+    let duetDiscoveryService: BonjourBackendDiscoveryService
     private let backendSelection = ImprovBackendSelection()
 
     var isVirtualPerformerEnabled = false
@@ -13,13 +14,21 @@ final class ARGuideAIPerformanceViewModel {
     var latestAIPerformanceSchedule: [PracticeSequencerMIDIEvent] = []
     var lastImprovStatusText: String?
 
+    var backendDiscoveryService: BonjourBackendDiscoveryService {
+        dialogueDiscoveryService
+    }
+
     @ObservationIgnored
     private lazy var aiPerformanceService: AIPerformanceService = .init(
         logger: Logger(
             subsystem: Bundle.main.bundleIdentifier ?? "LonelyPianistAVP",
             category: "AIPerformanceService"
         ),
-        backendDiscoveryService: backendDiscoveryService,
+        discoveryOrchestrator: ImprovBackendDiscoveryOrchestrator(
+            servicesByKind: [
+                .networkBonjourHTTP: dialogueDiscoveryService,
+            ]
+        ),
         backendRegistry: makeBackendRegistry(),
         selectedBackendKind: { [backendSelection] in
             backendSelection.selectedKind()
@@ -33,13 +42,14 @@ final class ARGuideAIPerformanceViewModel {
     )
 
     init(backendDiscoveryService: BonjourBackendDiscoveryService? = nil) {
-        self.backendDiscoveryService = backendDiscoveryService ?? BonjourBackendDiscoveryService()
+        dialogueDiscoveryService = backendDiscoveryService ?? BonjourBackendDiscoveryService()
+        duetDiscoveryService = BonjourBackendDiscoveryService(serviceType: "_lpduet._tcp")
     }
 
     var backendStatusText: String? {
         switch backendSelection.selectedKind() {
         case .networkBonjourHTTP:
-            switch backendDiscoveryService.state {
+            switch dialogueDiscoveryService.state {
             case .idle:
                 "Backend: network (idle)"
             case .discovering:
@@ -98,10 +108,41 @@ final class ARGuideAIPerformanceViewModel {
     private func makeBackendRegistry() -> ImprovBackendRegistry {
         ImprovBackendRegistry(
             backends: [
-                NetworkBonjourHTTPImprovBackend(discoveryService: backendDiscoveryService),
+                NetworkBonjourHTTPImprovBackend(discoveryService: dialogueDiscoveryService),
                 LocalRuleImprovBackend(),
                 TickRangeReplayImprovBackend(),
             ]
         )
+    }
+}
+
+@MainActor
+private final class ImprovBackendDiscoveryOrchestrator: ImprovBackendDiscoveryOrchestrating {
+    private let servicesByKind: [ImprovBackendKind: any BonjourBackendDiscoveryServiceProtocol]
+
+    init(servicesByKind: [ImprovBackendKind: any BonjourBackendDiscoveryServiceProtocol]) {
+        self.servicesByKind = servicesByKind
+    }
+
+    func start(for kind: ImprovBackendKind) {
+        var didStart = false
+        for (mappedKind, service) in servicesByKind {
+            if mappedKind == kind {
+                service.start()
+                didStart = true
+            } else {
+                service.stop()
+            }
+        }
+
+        if didStart == false {
+            stopAll()
+        }
+    }
+
+    func stopAll() {
+        for service in servicesByKind.values {
+            service.stop()
+        }
     }
 }
