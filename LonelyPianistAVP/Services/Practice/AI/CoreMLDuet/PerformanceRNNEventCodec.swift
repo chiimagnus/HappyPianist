@@ -44,6 +44,78 @@ struct PerformanceRNNEventCodec: Sendable {
         return eventIDs
     }
 
+    func decode(eventIDs: [Int], promptEndTimeSeconds: Double) -> [ImprovDialogueNote] {
+        var currentStep = 0
+        var currentVelocity = 90
+
+        struct OpenNote: Sendable {
+            let startStep: Int
+            let velocity: Int
+        }
+        var openNotes: [Int: OpenNote] = [:]
+
+        var decoded: [ImprovDialogueNote] = []
+        decoded.reserveCapacity(eventIDs.count / 2)
+
+        func closeNote(pitch: Int, endStep: Int) {
+            guard let open = openNotes.removeValue(forKey: pitch) else { return }
+            appendNote(pitch: pitch, velocity: open.velocity, startStep: open.startStep, endStep: endStep)
+        }
+
+        func appendNote(pitch: Int, velocity: Int, startStep: Int, endStep: Int) {
+            let clampedPitch = max(21, min(108, pitch))
+            let clampedVelocity = max(1, min(127, velocity))
+
+            let absStart = Double(startStep) / Double(Self.stepsPerSecond)
+            let absEnd = Double(max(endStep, startStep)) / Double(Self.stepsPerSecond)
+
+            let clippedStart = max(absStart, promptEndTimeSeconds)
+            let clippedEnd = absEnd
+            guard clippedEnd > clippedStart else { return }
+
+            let time = clippedStart - promptEndTimeSeconds
+            let duration = max(0.01, clippedEnd - clippedStart)
+            decoded.append(ImprovDialogueNote(note: clampedPitch, velocity: clampedVelocity, time: time, duration: duration))
+        }
+
+        for eventID in eventIDs {
+            switch eventID {
+            case 0 ... 127: // NOTE_ON
+                let pitch = eventID
+                if openNotes[pitch] != nil {
+                    closeNote(pitch: pitch, endStep: currentStep)
+                }
+                openNotes[pitch] = OpenNote(startStep: currentStep, velocity: currentVelocity)
+
+            case 128 ... 255: // NOTE_OFF
+                let pitch = eventID - 128
+                closeNote(pitch: pitch, endStep: currentStep)
+
+            case 256 ... 355: // TIME_SHIFT
+                currentStep += (eventID - 255)
+
+            case 356 ... 387: // VELOCITY
+                let bin = eventID - 355
+                currentVelocity = Self.binToVelocity(bin)
+
+            default:
+                continue
+            }
+        }
+
+        // Settle remaining open notes with a max duration cap to avoid infinite sustain.
+        let maxDurationSteps = 5 * Self.stepsPerSecond
+        for (pitch, open) in openNotes {
+            let endStep = max(open.startStep + 1, min(open.startStep + maxDurationSteps, currentStep))
+            appendNote(pitch: pitch, velocity: open.velocity, startStep: open.startStep, endStep: endStep)
+        }
+
+        return decoded.sorted { lhs, rhs in
+            if lhs.time != rhs.time { return lhs.time < rhs.time }
+            return lhs.note < rhs.note
+        }
+    }
+
     static func velocityToBin(_ velocity: Int) -> Int {
         let clampedVelocity = max(1, min(127, velocity))
         let zeroBased = (clampedVelocity - 1) / velocityBinSize
@@ -136,4 +208,3 @@ struct PerformanceRNNEventCodec: Sendable {
         355 + max(1, min(numVelocityBins, bin))
     }
 }
-
