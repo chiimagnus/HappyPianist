@@ -47,7 +47,7 @@ final class ARGuideAIPerformanceViewModel {
         duetDiscoveryService = BonjourBackendDiscoveryService(
             serviceType: "_lpduet._tcp",
             requiredTXTRecord: [
-                "engine": "magenta",
+                "path": "/generate",
                 "protocol_version": "1",
             ]
         )

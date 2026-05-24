@@ -65,7 +65,7 @@ final class AIPerformanceService {
         discoveryOrchestrator: any ImprovBackendDiscoveryOrchestrating,
         backendRegistry: ImprovBackendRegistry,
         selectedBackendKind: @escaping @MainActor () -> ImprovBackendKind,
-        backendTimeout: Duration = .seconds(2),
+        backendTimeout: Duration = .seconds(12),
         pollInterval: Duration = .milliseconds(100),
         silenceTimeoutSeconds: TimeInterval = 2.0,
         onStateChanged: @escaping @MainActor (State) -> Void
