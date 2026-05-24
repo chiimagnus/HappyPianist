@@ -254,11 +254,13 @@ struct PracticeSettingsView: View {
 
         switch selectedKind {
         case .networkBonjourHTTPDuet:
-            return backendStatusText ?? "Backend: duet"
+            return backendStatusText ?? "后端：网络本地连接（A.I. Duet / Magenta）"
+        case .localCoreMLDuet:
+            return backendStatusText ?? "后端：本地 CoreML（A.I. Duet / Performance RNN）缺少模型文件。可切换到网络或本地 rule。"
         case .localRule:
-            return "Backend: local rule"
+            return backendStatusText ?? "后端：本地规则生成（无需电脑端服务）"
         case .tickRangeReplay:
-            return "Backend: tick-range replay"
+            return backendStatusText ?? "后端：按谱片段回放（无需电脑端服务）"
         }
     }
 
@@ -266,8 +268,10 @@ struct PracticeSettingsView: View {
         switch kind {
         case .networkBonjourHTTPDuet:
             "网络本地连接（A.I. Duet / Magenta）"
+        case .localCoreMLDuet:
+            "本地 CoreML（A.I. Duet / Performance RNN）"
         case .localRule:
-            "本地 rule（AVP）"
+            "本地 rule（无需模型/无需电脑端）"
         case .tickRangeReplay:
             "按谱片段回放（tick-range replay）"
         }
