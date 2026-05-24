@@ -7,6 +7,7 @@ import os
 final class ARGuideAIPerformanceViewModel {
     let duetDiscoveryService: BonjourBackendDiscoveryService
     private let backendSelection = ImprovBackendSelection()
+    private let aiPlaybackServiceFactory: @MainActor () -> DuetAIPlaybackServiceFactory
 
     var isVirtualPerformerEnabled = false
     var isAIPerformanceActive = false
@@ -30,6 +31,9 @@ final class ARGuideAIPerformanceViewModel {
         selectedBackendKind: { [backendSelection] in
             backendSelection.selectedKind()
         },
+        aiPlaybackServiceFactory: { [aiPlaybackServiceFactory] in
+            aiPlaybackServiceFactory()
+        },
         onStateChanged: { [weak self] state in
             guard let self else { return }
             isAIPerformanceActive = state.isAIPerformanceActive
@@ -40,7 +44,10 @@ final class ARGuideAIPerformanceViewModel {
         }
     )
 
-    init(duetDiscoveryService: BonjourBackendDiscoveryService? = nil) {
+    init(
+        duetDiscoveryService: BonjourBackendDiscoveryService? = nil,
+        aiPlaybackServiceFactory: (@MainActor () -> DuetAIPlaybackServiceFactory)? = nil
+    ) {
         self.duetDiscoveryService = duetDiscoveryService ?? BonjourBackendDiscoveryService(
             serviceType: "_lpduet._tcp",
             requiredTXTRecord: [
@@ -48,6 +55,19 @@ final class ARGuideAIPerformanceViewModel {
                 "protocol_version": "1",
             ]
         )
+        if let aiPlaybackServiceFactory {
+            self.aiPlaybackServiceFactory = aiPlaybackServiceFactory
+        } else {
+            let factory = DuetAIPlaybackServiceFactory(
+                makeLocalSamplerPlaybackService: {
+                    AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2", channel: 1)
+                },
+                makeExternalMIDIPlaybackService: { destinationUniqueID in
+                    CoreMIDIPracticePlaybackService(destinationUniqueID: destinationUniqueID, channel: 1)
+                }
+            )
+            self.aiPlaybackServiceFactory = { factory }
+        }
     }
 
     var backendStatusText: String? {
