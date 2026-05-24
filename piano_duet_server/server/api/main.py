@@ -39,7 +39,7 @@ async def _lifespan(_: FastAPI):
             properties[b"engine_impl"] = engine_impl.encode("utf-8")
 
         broadcaster = BonjourServiceBroadcaster(
-            instance_name="LonelyPianist A.I. Duet Server",
+            instance_name="LonelyPianist AI Duet Server",
             port=port,
             properties=properties,
         )

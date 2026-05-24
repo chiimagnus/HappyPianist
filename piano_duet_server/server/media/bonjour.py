@@ -9,6 +9,12 @@ from zeroconf.asyncio import AsyncZeroconf
 
 SERVICE_TYPE = "_lpduet._tcp.local."
 
+def _local_hostname_fqdn() -> str:
+    raw = socket.gethostname().rstrip(".")
+    if raw.endswith(".local"):
+        return f"{raw}."
+    return f"{raw}.local."
+
 
 def _best_effort_local_ipv4() -> str | None:
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -52,10 +58,12 @@ class BonjourServiceBroadcaster:
             f"{self.instance_name}.{SERVICE_TYPE}",
             port=self.port,
             properties=self.properties,
-            server=f"{socket.gethostname()}.local.",
+            server=_local_hostname_fqdn(),
             parsed_addresses=parsed_addresses,
         )
-        await self._zc.async_register_service(self._info)
+        # Allow automatic suffixing the instance name to avoid failing the whole broadcast
+        # when the same service name already exists on the LAN.
+        await self._zc.async_register_service(self._info, allow_name_change=True)
 
     async def stop(self) -> None:
         if self._zc is None:
