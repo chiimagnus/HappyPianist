@@ -52,17 +52,13 @@ final class ARGuideAIPerformanceViewModel {
             backendDiscoveryStatusText(
                 backendName: "A.I. Duet",
                 state: duetDiscoveryService.state,
-                notFoundHint: "请先在电脑端启动 piano_duet_server（默认端口 8766）。"
+                notFoundHint: "请先在电脑端启动 Duet Python 服务（默认端口 8766）。"
             )
         case .localRule:
             "后端：本地规则生成（无需电脑端服务）"
         case .tickRangeReplay:
             "后端：按谱片段回放（无需电脑端服务）"
         }
-    }
-
-    var duetServerStartCommand: String {
-        "rtk ./piano_duet_server/scripts/run_server.sh"
     }
 
     func restartDiscoveryForSelectedBackend() {
