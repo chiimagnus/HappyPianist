@@ -16,6 +16,16 @@ enum PerformanceRNNCoreMLModelLoaderError: Error, LocalizedError, Equatable, Sen
             "CoreML load failed (\(modelName)): \(message)"
         }
     }
+
+    static func sanitizeMessage(_ message: String) -> String {
+        var sanitized = message
+        let home = NSHomeDirectory()
+        if home.isEmpty == false {
+            sanitized = sanitized.replacingOccurrences(of: home, with: "~")
+        }
+        sanitized = sanitized.replacingOccurrences(of: "file://", with: "")
+        return sanitized
+    }
 }
 
 protocol PerformanceRNNCoreMLModelLoading: Sendable {
@@ -57,7 +67,7 @@ actor PerformanceRNNCoreMLModelLoader: PerformanceRNNCoreMLModelLoading {
         } catch {
             throw PerformanceRNNCoreMLModelLoaderError.loadFailed(
                 modelName: "\(Self.modelBaseName).\(Self.compiledExtension)",
-                message: String(describing: error)
+                message: PerformanceRNNCoreMLModelLoaderError.sanitizeMessage(String(describing: error))
             )
         }
     }
@@ -82,7 +92,7 @@ actor PerformanceRNNCoreMLModelLoader: PerformanceRNNCoreMLModelLoading {
         } catch {
             throw PerformanceRNNCoreMLModelLoaderError.compileFailed(
                 modelName: "\(Self.modelBaseName).\(Self.packageExtension)",
-                message: String(describing: error)
+                message: PerformanceRNNCoreMLModelLoaderError.sanitizeMessage(String(describing: error))
             )
         }
     }
