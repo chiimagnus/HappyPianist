@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd "$(dirname "$0")/.."
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "${SCRIPT_DIR}/../duet"
 
 PRIMARY_NAME="performance_with_dynamics_and_modkey.mag"
 PRIMARY_URL="http://download.magenta.tensorflow.org/models/${PRIMARY_NAME}"
