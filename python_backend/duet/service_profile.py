@@ -10,6 +10,4 @@ DEBUG_ENV_KEY = "DUET_DEBUG"
 TXT_RECORD: dict[bytes, bytes] = {
     b"path": b"/generate",
     b"protocol_version": b"1",
-    # Product identifier used for client-side filtering.
-    b"engine": b"magenta",
 }
