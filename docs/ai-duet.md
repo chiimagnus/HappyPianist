@@ -71,3 +71,25 @@ rtk ./piano_duet_server/scripts/smoke_generate.sh
 
 - 检查设置页的「输出音量（AVP）」是否被调到 0；
 - 若你在 Bluetooth MIDI 模式，确认发声路由与输出目的地设置正确。
+
+## 验收清单（无需看代码）
+
+1) 电脑端：
+- 运行 `rtk ./piano_duet_server/scripts/run_server.sh`
+- `rtk ./piano_duet_server/scripts/smoke_generate.sh` 输出 `health ok` 与 `generate ok`
+
+2) AVP：
+- 打开设置 → 开启「AI 即兴演奏（虚拟演奏家）」
+- 在「即兴后端」选择「网络本地连接（A.I. Duet / Magenta）」
+- 状态文案出现“正在发现…”并最终出现“已找到 host:port”（或能解释清楚为何找不到）
+
+3) 交互：
+- 弹 1–8 秒 → 停顿约 2 秒 → 能听到 AI 回一句
+
+4) 排障能力：
+- 关闭电脑端服务时，AVP 文案能提示“请先启动 piano_duet_server”
+- 如果 Local Network 被拒，文案明确提示去系统设置开启
+
+5) 可观测性（可选）：
+- 运行 `rtk env DUET_DEBUG=1 ./piano_duet_server/scripts/run_server.sh`
+- 触发一次生成后，在 `piano_duet_server/out/debug/requests/` 下看到新的请求目录

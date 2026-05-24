@@ -104,7 +104,7 @@ flowchart TD
   API --> STATIC[static/index.html + app.js]
 ```
 
-注：Duet server 复用相同的 `/generate` “对话音符 JSON 协议”，但运行在独立目录 `piano_duet_server/`，并使用独立 Bonjour type：`_lpduet._tcp.local.`。
+注：Duet server 复用相同的 `/generate` “对话音符 JSON 协议”，但运行在独立目录 `piano_duet_server/`，默认端口 `8766`，并使用独立 Bonjour type：`_lpduet._tcp.local.`（TXT record：`path=/generate`、`protocol_version=1`、`engine=magenta`）。
 
 ## 关键契约
 
