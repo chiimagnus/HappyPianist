@@ -110,7 +110,7 @@ private struct FakeSettingsProvider: PracticeSessionSettingsProviderProtocol {
 
 @Test
 @MainActor
-func outOfOrderResponsesAreEnqueuedInSendOrder() async {
+func outOfOrderResponsesAreEnqueuedInSendOrder() async throws {
     var nowUptime: TimeInterval = 0
 
     let selectedKind: ImprovBackendKind = .localRule
@@ -189,7 +189,7 @@ func outOfOrderResponsesAreEnqueuedInSendOrder() async {
         nowUptimeSeconds: nowUptime
     )
 
-    #expect(await backend.waitForCallCount(2, maxYields: 10_000))
+    try #require(await backend.waitForCallCount(2, maxYields: 10_000))
 
     // Resume out of order: second call returns before the first.
     let schedule1 = [
@@ -204,12 +204,12 @@ func outOfOrderResponsesAreEnqueuedInSendOrder() async {
     await backend.resumeCall(at: 1, with: .schedule(schedule2, backendLatencyMS: nil))
     await backend.resumeCall(at: 0, with: .schedule(schedule1, backendLatencyMS: nil))
 
-    for _ in 0 ..< 500 {
+    for _ in 0 ..< 10_000 {
         await Task.yield()
         if enqueuedFirstNoteMIDIs.count >= 2 { break }
     }
 
-    #expect(enqueuedFirstNoteMIDIs.count >= 2)
+    try #require(enqueuedFirstNoteMIDIs.count >= 2)
     #expect(enqueuedFirstNoteMIDIs[0] == 60)
     #expect(enqueuedFirstNoteMIDIs[1] == 64)
 

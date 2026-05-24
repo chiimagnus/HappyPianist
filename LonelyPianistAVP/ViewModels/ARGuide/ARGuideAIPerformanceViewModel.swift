@@ -88,6 +88,8 @@ final class ARGuideAIPerformanceViewModel {
                 state: duetDiscoveryService.state,
                 notFoundHint: "请先在电脑端启动 Duet Python 服务（默认端口 8766）。"
             )
+        case .localCoreMLDuet:
+            "后端：本地 CoreML（A.I. Duet / Performance RNN）需要放置模型文件（AIDuetPerformanceRNN.mlpackage 或 AIDuetPerformanceRNN.mlmodelc）。缺失时生成会失败；可切换到网络或本地 rule。"
         case .localRule:
             "后端：本地规则生成（无需电脑端服务）"
         case .tickRangeReplay:
@@ -100,7 +102,7 @@ final class ARGuideAIPerformanceViewModel {
         case .networkBonjourHTTPDuet:
             duetDiscoveryService.stop()
             duetDiscoveryService.start()
-        case .localRule, .tickRangeReplay:
+        case .localCoreMLDuet, .localRule, .tickRangeReplay:
             break
         }
     }
