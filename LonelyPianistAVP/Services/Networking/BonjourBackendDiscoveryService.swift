@@ -4,6 +4,8 @@ import os
 
 @MainActor
 final class BonjourBackendDiscoveryService: Sendable {
+    static let defaultServiceType: String = "_lonelypianist._tcp"
+
     enum State: Equatable {
         case idle
         case discovering
@@ -12,10 +14,15 @@ final class BonjourBackendDiscoveryService: Sendable {
         case denied
     }
 
+    private let serviceType: String
     private(set) var state: State = .idle
 
     private var browser: NWBrowser?
     private var resolveTask: Task<Void, Never>?
+
+    init(serviceType: String = BonjourBackendDiscoveryService.defaultServiceType) {
+        self.serviceType = serviceType
+    }
 
     var resolvedEndpoint: (host: String, port: Int)? {
         if case let .resolved(host, port) = state {
@@ -28,7 +35,7 @@ final class BonjourBackendDiscoveryService: Sendable {
         guard browser == nil else { return }
         state = .discovering
 
-        let descriptor = NWBrowser.Descriptor.bonjourWithTXTRecord(type: "_lonelypianist._tcp", domain: "local.")
+        let descriptor = NWBrowser.Descriptor.bonjourWithTXTRecord(type: serviceType, domain: "local.")
         let browser = NWBrowser(for: descriptor, using: .tcp)
         self.browser = browser
 
