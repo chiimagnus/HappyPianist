@@ -52,6 +52,8 @@ func manualReplayBuilderUsesStepNoteVelocities() {
         return nil
     }
 
-    #expect(noteOnEvents.contains(where: { $0.midi == 60 && $0.velocity == 88 }))
-    #expect(noteOnEvents.contains(where: { $0.midi == 64 && $0.velocity == 40 }))
+    let has60Velocity88 = noteOnEvents.contains { $0.midi == 60 && $0.velocity == 88 }
+    #expect(has60Velocity88)
+    let has64Velocity40 = noteOnEvents.contains { $0.midi == 64 && $0.velocity == 40 }
+    #expect(has64Velocity40)
 }

@@ -201,7 +201,7 @@ func disableCancelsPendingPlaybackAndStopsSequencer() async {
         PracticeSequencerMIDIEvent(timeSeconds: 0.0, kind: .noteOn(midi: 60, velocity: 90)),
         PracticeSequencerMIDIEvent(timeSeconds: 10.0, kind: .noteOff(midi: 60)),
     ]
-    let fakeBackend = FakeScheduleBackend(kind: selectedKind, playbackPlan: .schedule(schedule))
+    let fakeBackend = FakeScheduleBackend(kind: selectedKind, playbackPlan: .schedule(schedule, backendLatencyMS: nil))
 
     let service = AIPerformanceService(
         logger: Logger(subsystem: "test", category: "ai-perf"),
@@ -244,7 +244,8 @@ func disableCancelsPendingPlaybackAndStopsSequencer() async {
     }
 
     #expect(playbackService.playCallCount > 0)
-    #expect(states.contains(where: \.isAIPerformanceActive))
+    let didBecomeActive = states.contains { $0.isAIPerformanceActive }
+    #expect(didBecomeActive)
 
     service.setEnabled(false)
 

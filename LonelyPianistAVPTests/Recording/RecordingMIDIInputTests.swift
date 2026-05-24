@@ -34,8 +34,10 @@ func midiRecordingAdapterRecordsNoteEventsAndClosesOpenNotes() {
 
     let take = recorder.stop(now: 1002.0, createdAt: Date(timeIntervalSince1970: 0))
 
-    #expect(take.events.contains(where: { $0.time == 1.0 && $0.kind == .noteOn(midi: 60, velocity: 100) }))
-    #expect(take.events.contains(where: { $0.time == 1.5 && $0.kind == .noteOff(midi: 60) }))
+    let hasNoteOn = take.events.contains { $0.time == 1.0 && $0.kind == .noteOn(midi: 60, velocity: 100) }
+    #expect(hasNoteOn)
+    let hasNoteOff = take.events.contains { $0.time == 1.5 && $0.kind == .noteOff(midi: 60) }
+    #expect(hasNoteOff)
 }
 
 @Test
@@ -81,14 +83,20 @@ func midiRecordingAdapterConvertsChannelVoiceEventsIntoTakeEvents() {
 
     let take = recorder.stop(now: 2001.0, createdAt: Date(timeIntervalSince1970: 0))
 
-    #expect(take.events.contains(where: { $0.kind == .controlChange(controller: 64, value: 127) }))
-    #expect(take.events.contains(where: { $0.kind == .pitchBend(value: 8192) }))
-    #expect(take.events.contains(where: { $0.kind == .programChange(program: 10) }))
+    let hasCC64 = take.events.contains { $0.kind == .controlChange(controller: 64, value: 127) }
+    #expect(hasCC64)
+    let hasPitchBend = take.events.contains { $0.kind == .pitchBend(value: 8192) }
+    #expect(hasPitchBend)
+    let hasProgram = take.events.contains { $0.kind == .programChange(program: 10) }
+    #expect(hasProgram)
 
     let schedule = RecordingTakeSequenceAdapter().makeMIDISchedule(from: take)
-    #expect(schedule.contains(where: { $0.kind == .controlChange(controller: 64, value: 127) }))
-    #expect(schedule.contains(where: { $0.kind == .pitchBend(value: 8192) }))
-    #expect(schedule.contains(where: { $0.kind == .programChange(program: 10) }))
+    let scheduleHasCC64 = schedule.contains { $0.kind == .controlChange(controller: 64, value: 127) }
+    #expect(scheduleHasCC64)
+    let scheduleHasPitchBend = schedule.contains { $0.kind == .pitchBend(value: 8192) }
+    #expect(scheduleHasPitchBend)
+    let scheduleHasProgram = schedule.contains { $0.kind == .programChange(program: 10) }
+    #expect(scheduleHasProgram)
 }
 
 @Test
@@ -124,6 +132,8 @@ func repeatedNoteOnForSamePitchGeneratesClosingNoteOff() {
     let take = recorder.stop(now: 3000.5, createdAt: Date(timeIntervalSince1970: 0))
     let eventsAt0_3 = take.events.filter { abs($0.time - 0.3) < 0.0001 }
 
-    #expect(eventsAt0_3.contains(where: { $0.kind == .noteOff(midi: 60) }))
-    #expect(eventsAt0_3.contains(where: { $0.kind == .noteOn(midi: 60, velocity: 100) }))
+    let has0_3NoteOff = eventsAt0_3.contains { $0.kind == .noteOff(midi: 60) }
+    #expect(has0_3NoteOff)
+    let has0_3NoteOn = eventsAt0_3.contains { $0.kind == .noteOn(midi: 60, velocity: 100) }
+    #expect(has0_3NoteOn)
 }

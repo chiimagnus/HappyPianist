@@ -22,7 +22,8 @@ func shutdownIsIdempotentAndEmitsAtMostOneTake() {
     service.shutdown()
     service.shutdown()
 
-    #expect(states.contains(where: \.isRecording))
+    let didRecord = states.contains { $0.isRecording }
+    #expect(didRecord)
     #expect(states.last?.isRecording == false)
     #expect(recordedTakes.count <= 1)
 }
