@@ -107,7 +107,7 @@ struct DuetPhraseBuffer: Sendable {
             return FlushResult(trimmedNotes: [], endTimeSeconds: 0)
         }
 
-        let windowBase = windowed.map(\.time).min() ?? 0
+        let windowBase = windowStartSeconds
         let rebasedWindow = windowed.map { note in
             ImprovDialogueNote(
                 note: note.note,

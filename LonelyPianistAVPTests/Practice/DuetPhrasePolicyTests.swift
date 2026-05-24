@@ -30,11 +30,11 @@ func duetPhraseBufferFlushTrimsLast15SecondsAndRebasesWhenOver10Seconds() {
     let flushed = buffer.flushPhrase(endTimestampSeconds: 120.2)
     #expect(flushed.trimmedNotes.count == 1)
     #expect(flushed.trimmedNotes[0].note == 64)
-    #expect(abs(flushed.trimmedNotes[0].time - 0.0) < 1e-9)
-    #expect(abs(flushed.endTimeSeconds - 0.2) < 1e-9)
+    #expect(abs(flushed.trimmedNotes[0].time - 14.8) < 1e-9)
+    #expect(abs(flushed.endTimeSeconds - 15.0) < 1e-9)
 
     let policy = DuetPhrasePolicy.makeResult(from: flushed)
-    #expect(abs(policy.desiredReplySeconds - 1.0) < 1e-9)
+    #expect(abs(policy.desiredReplySeconds - 8.0) < 1e-9)
 }
 
 @Test
