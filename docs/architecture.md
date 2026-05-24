@@ -18,9 +18,12 @@ flowchart LR
   SESSION --> MIC[PracticeAudioRecognitionService]
 
   SESSION --> IM[ImprovBackendClient]
-  PY[Python FastAPI backend] --> BJ[Bonjour _lonelypianist._tcp.local.]
-  BJ --> IM
-  IM -->|POST /generate| PY
+  PY1[piano_dialogue_server] --> BJ1[Bonjour _lonelypianist._tcp.local.]
+  PY2[piano_duet_server] --> BJ2[Bonjour _lpduet._tcp.local.]
+  BJ1 --> IM
+  BJ2 --> IM
+  IM -->|POST /generate| PY1
+  IM -->|POST /generate| PY2
 ```
 
 ## 运行时边界
@@ -29,7 +32,8 @@ flowchart LR
 | --- | --- | --- | --- |
 | macOS app | `LonelyPianist/` | 单窗口 app | CoreMIDI 输入、take 录制、MIDI 导入、回放输出选择、SwiftData 持久化 |
 | visionOS app | `LonelyPianistAVP/` | 3 个 Window + 1 个 mixed `ImmersiveSpace` | 钢琴准备、曲库、校准、练习、虚拟钢琴、BLE MIDI、AI 即兴 |
-| Python server | `piano_dialogue_server/server/` | uvicorn 进程 | HTTP/WS 生成、MIDI 上传扩展、Bonjour 广播、debug bundle |
+| Python server (Dialogue) | `piano_dialogue_server/server/` | uvicorn 进程 | HTTP/WS 生成、Bonjour 广播、debug bundle |
+| Python server (Duet) | `piano_duet_server/server/` | uvicorn 进程 | HTTP 生成（对话音符 JSON）、Bonjour 广播 |
 
 ## macOS 架构
 
@@ -99,6 +103,8 @@ flowchart TD
   API --> BONJOUR[server/media/bonjour.py]
   API --> STATIC[static/index.html + app.js]
 ```
+
+注：Duet server 复用相同的 `/generate` “对话音符 JSON 协议”，但运行在独立目录 `piano_duet_server/`，并使用独立 Bonjour type：`_lpduet._tcp.local.`。
 
 ## 关键契约
 
