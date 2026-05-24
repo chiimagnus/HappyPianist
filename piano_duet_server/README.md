@@ -72,3 +72,25 @@ rtk env DUET_ENGINE=magenta PYTHON=python3.10 ./scripts/run_server.sh
 rtk dns-sd -B _lpduet._tcp local.
 ```
 Note: mDNS service type 的 service label 有 15 bytes 的限制，所以这里使用了较短的 `_lpduet._tcp`。
+
+## Debug bundle（排障包）
+
+当你遇到“这次为什么生成慢/怪”的问题时，可以开启本地 debug bundle，把一次请求的输入/输出与摘要落盘到本机：
+
+```bash
+rtk env DUET_DEBUG=1 ./scripts/run_server.sh
+```
+
+输出目录：
+
+- `piano_duet_server/out/debug/requests/<req_id>/`
+
+包含（best-effort）：
+
+- `request.json` / `response.json`
+- `prompt_notes.json` / `reply_notes.json`
+- `summary.json`（耗时、note 数量、span、engine 等）
+
+隐私说明：
+
+- 不记录音频；不上传网络；仅写入本机文件。

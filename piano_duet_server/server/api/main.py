@@ -72,4 +72,55 @@ async def generate(request: GenerateRequest) -> ResultResponse:
     reply_notes = engine.generate_response(request.notes, request.params, request.session_id)
     reply_notes = legalize_notes(reply_notes)
     latency_ms = int((time.perf_counter() - t0) * 1000)
-    return ResultResponse(notes=reply_notes, latency_ms=latency_ms)
+    response = ResultResponse(notes=reply_notes, latency_ms=latency_ms)
+
+    try:
+        from ..media.debug_artifacts import debug_enabled, new_request_id, write_debug_bundle
+
+        if debug_enabled():
+            req_id = new_request_id()
+
+            def span(notes_dump: list[dict]) -> dict[str, float]:
+                if not notes_dump:
+                    return {"start": 0.0, "end": 0.0, "duration": 0.0}
+                start = min(float(n.get("time", 0.0)) for n in notes_dump)
+                end = max(float(n.get("time", 0.0)) + float(n.get("duration", 0.0)) for n in notes_dump)
+                return {"start": start, "end": end, "duration": max(0.0, end - start)}
+
+            prompt_notes = [note.model_dump() for note in request.notes]
+            reply_notes_dump = [note.model_dump() for note in reply_notes]
+
+            model_ref = None
+            if hasattr(engine, "model_name"):
+                try:
+                    model_ref = str(getattr(engine, "model_name"))
+                except Exception:
+                    model_ref = None
+
+            summary = {
+                "req_id": req_id,
+                "session_id": request.session_id,
+                "engine": type(engine).__name__,
+                "model_ref": model_ref,
+                "protocol_version": request.protocol_version,
+                "params": request.params.model_dump(),
+                "prompt_note_count": len(prompt_notes),
+                "reply_note_count": len(reply_notes_dump),
+                "prompt_span_sec": span(prompt_notes),
+                "reply_span_sec": span(reply_notes_dump),
+                "latency_ms_total": latency_ms,
+            }
+
+            write_debug_bundle(
+                req_id=req_id,
+                request_payload=request.model_dump(),
+                response_payload=response.model_dump(),
+                prompt_notes=prompt_notes,
+                reply_notes=reply_notes_dump,
+                summary=summary,
+            )
+    except Exception as error:  # noqa: BLE001
+        # Best-effort: never break the happy path.
+        print(f"[DuetDebug] failed to write debug bundle: {type(error).__name__}: {error!r}")
+
+    return response
