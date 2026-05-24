@@ -256,7 +256,7 @@ struct PracticeSettingsView: View {
         case .networkBonjourHTTPDuet:
             return backendStatusText ?? "后端：网络本地连接（A.I. Duet / Magenta）"
         case .localCoreMLDuet:
-            return backendStatusText ?? "后端：本地 CoreML（A.I. Duet / Performance RNN）缺少模型文件。可切换到网络或本地 rule。"
+            return backendStatusText ?? "后端：本地 CoreML（A.I. Duet / Performance RNN）"
         case .localRule:
             return backendStatusText ?? "后端：本地规则生成（无需电脑端服务）"
         case .tickRangeReplay:
