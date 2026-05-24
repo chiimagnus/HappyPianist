@@ -100,7 +100,7 @@ flowchart TD
 
 practice 窗口的 settings popover 中可选择后端：
 
-- `网络本地连接（A.I. Duet）`：通过 Bonjour 发现 + HTTP 请求调用本机 `piano_duet_server`（电脑端运行）。
+- `网络本地连接（A.I. Duet）`：通过 Bonjour 发现 + HTTP 请求调用本机 Duet Python 服务（电脑端运行）。
 - `本地规则生成（Local rule）`：AVP 端直接调用 SwiftPM `ImprovEngines`（seed 可复现）。
 - `按谱片段回放（tick-range replay）`：不做生成，回放当前谱面片段；它不是自动 fallback，只会在用户选择时使用。
 
@@ -111,7 +111,7 @@ sequenceDiagram
   participant Backend as ImprovBackendProtocol
   participant Engines as ImprovEngines (SwiftPM)
   participant Bonjour as BonjourBackendDiscoveryService
-  participant API as piano_duet_server
+  participant API as duet_python_service
 
   Settings-->>AVP: selected ImprovBackendKind
   AVP->>Backend: generatePlaybackPlan(request)

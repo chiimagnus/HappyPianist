@@ -1,13 +1,13 @@
 # A.I. Duet（本机后端）使用指南
 
-本项目提供一个独立的本机后端 `piano_duet_server/`：AVP 通过局域网 + Bonjour 自动发现它，并用 `/generate` 生成“你弹一句 → AI 回一句”的回应。
+本项目提供一个独立的本机后端（位于 `python_backend/duet/`）：AVP 通过局域网 + Bonjour 自动发现它，并用 `/generate` 生成“你弹一句 → AI 回一句”的回应。
 
-## 1) 启动电脑端 `piano_duet_server`
+## 1) 启动电脑端 Duet 服务
 
 在仓库根目录执行：
 
 ```bash
-rtk ./piano_duet_server/scripts/run_server.sh
+rtk ./python_backend/scripts/run_duet_server.sh
 ```
 
 默认端口是 `8766`。启动成功后，你应能访问：
@@ -17,7 +17,7 @@ rtk ./piano_duet_server/scripts/run_server.sh
 也可以先跑一次自检（会自动启动服务、请求 `/health` 与 `/generate`）：
 
 ```bash
-rtk ./piano_duet_server/scripts/smoke_generate.sh
+rtk ./python_backend/scripts/smoke_duet_generate.sh
 ```
 
 ## 2) 在 AVP 中选择后端
@@ -42,7 +42,7 @@ rtk ./piano_duet_server/scripts/smoke_generate.sh
 
 请依次检查：
 
-1. 电脑端是否已启动 `piano_duet_server`（推荐先跑 `smoke_generate.sh` 确认服务可用）；
+1. 电脑端是否已启动 Duet 服务（推荐先跑 `smoke_duet_generate.sh` 确认服务可用）；
 2. AVP 与电脑是否在同一 Wi‑Fi / 同一局域网；
 3. Bonjour service type 是否能被系统看到（电脑端）：
 
@@ -64,7 +64,7 @@ rtk dns-sd -B _lpduet._tcp local.
 建议先在电脑端确认后端可生成：
 
 ```bash
-rtk ./piano_duet_server/scripts/smoke_generate.sh
+rtk ./python_backend/scripts/smoke_duet_generate.sh
 ```
 
 如果后端正常但听不到声音：
@@ -75,8 +75,8 @@ rtk ./piano_duet_server/scripts/smoke_generate.sh
 ## 验收清单（无需看代码）
 
 1) 电脑端：
-- 运行 `rtk ./piano_duet_server/scripts/run_server.sh`
-- `rtk ./piano_duet_server/scripts/smoke_generate.sh` 输出 `health ok` 与 `generate ok`
+- 运行 `rtk ./python_backend/scripts/run_duet_server.sh`
+- `rtk ./python_backend/scripts/smoke_duet_generate.sh` 输出 `health ok` 与 `generate ok`
 
 2) AVP：
 - 打开设置 → 开启「AI 即兴演奏（虚拟演奏家）」
@@ -87,9 +87,9 @@ rtk ./piano_duet_server/scripts/smoke_generate.sh
 - 弹 1–8 秒 → 停顿约 2 秒 → 能听到 AI 回一句
 
 4) 排障能力：
-- 关闭电脑端服务时，AVP 文案能提示“请先启动 piano_duet_server”
+- 关闭电脑端服务时，AVP 文案能提示“请先启动 Duet Python 服务”
 - 如果 Local Network 被拒，文案明确提示去系统设置开启
 
 5) 可观测性（可选）：
-- 运行 `rtk env DUET_DEBUG=1 ./piano_duet_server/scripts/run_server.sh`
-- 触发一次生成后，在 `piano_duet_server/out/debug/requests/` 下看到新的请求目录
+- 运行 `rtk env DUET_DEBUG=1 ./python_backend/scripts/run_duet_server.sh`
+- 触发一次生成后，在 `python_backend/duet/out/debug/requests/` 下看到新的请求目录

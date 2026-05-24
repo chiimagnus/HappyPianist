@@ -3,6 +3,9 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+REPO_ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
+export PYTHONPATH="${REPO_ROOT}:${PYTHONPATH:-}"
+
 DUET_ENGINE="${DUET_ENGINE:-placeholder}"
 VENV_DIR=".venv"
 if [ "$DUET_ENGINE" = "magenta" ]; then
@@ -48,6 +51,16 @@ fi
 
 desired_py_ver="$("$PYTHON" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')"
 if [ -d "$VENV_DIR" ]; then
+  expected_venv_path="$(pwd)/${VENV_DIR}"
+  activate_path="${VENV_DIR}/bin/activate"
+  if [ -f "$activate_path" ]; then
+    declared_venv_path="$(rg -N '^VIRTUAL_ENV=' "$activate_path" | head -n 1 | sed -E 's/^VIRTUAL_ENV=//')"
+    if [ -n "$declared_venv_path" ] && [ "$declared_venv_path" != "$expected_venv_path" ]; then
+      echo "Existing ${VENV_DIR} was created at ${declared_venv_path}; recreating at ${expected_venv_path}..." >&2
+      rm -rf "$VENV_DIR"
+    fi
+  fi
+
   venv_py_ver=""
   if [ -x "$VENV_DIR/bin/python" ]; then
     venv_py_ver="$("$VENV_DIR/bin/python" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")' 2>/dev/null || true)"
@@ -84,7 +97,7 @@ if [ "$DUET_ENGINE" = "magenta" ]; then
   fi
 fi
 
-python -m uvicorn server.api.main:app --host 0.0.0.0 --port "$PORT" >/tmp/piano_duet_server_smoke.log 2>&1 &
+python -m uvicorn server.api.main:app --host 0.0.0.0 --port "$PORT" >/tmp/lonelypianist_duet_server_smoke.log 2>&1 &
 SERVER_PID=$!
 
 echo "waiting for server..."
@@ -99,7 +112,7 @@ health_json="$(curl -fsS "${BASE_URL}/health")"
 if ! echo "$health_json" | rg -q "\"status\"\\s*:\\s*\"ok\""; then
   echo "health failed: ${health_json}"
   echo "--- server log ---"
-  tail -n 200 /tmp/piano_duet_server_smoke.log || true
+  tail -n 200 /tmp/lonelypianist_duet_server_smoke.log || true
   exit 1
 fi
 echo "health ok"
@@ -124,7 +137,7 @@ if [ "${reply_notes_count}" -le 0 ]; then
   echo "generate failed: reply_notes_count<=0"
   echo "$response"
   echo "--- server log ---"
-  tail -n 200 /tmp/piano_duet_server_smoke.log || true
+  tail -n 200 /tmp/lonelypianist_duet_server_smoke.log || true
   exit 1
 fi
 

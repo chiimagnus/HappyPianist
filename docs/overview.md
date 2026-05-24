@@ -11,7 +11,7 @@ LonelyPianist 是一个本地优先的钢琴交互系统。当前仓库包含 ma
 | macOS recorder | `LonelyPianist/` | MIDI 监听、take 录制、MIDI 导入、sampler/外部 MIDI 回放 | [modules/lonelypianist-macos.md](modules/lonelypianist-macos.md) |
 | visionOS app | `LonelyPianistAVP/` | MusicXML 曲库、三种钢琴模式、空间练习、虚拟钢琴、BLE MIDI、AI 即兴 | [modules/lonelypianist-avp.md](modules/lonelypianist-avp.md) |
 | AVP Practice | `LonelyPianistAVP/ViewModels/PracticeSession/` + `LonelyPianistAVP/Services/Practice/` | step 推进、五线谱、自动播放、输入匹配、贴皮高亮 | [modules/lonelypianist-avp-practice.md](modules/lonelypianist-avp-practice.md) |
-| Python backend | `piano_duet_server/` | `/generate`、Bonjour、调试包 | [ai-duet.md](ai-duet.md) |
+| Python backend | `python_backend/` | `/generate`、Bonjour、调试包 | [ai-duet.md](ai-duet.md) |
 
 ## 本地验证命令
 
@@ -20,7 +20,7 @@ LonelyPianist 是一个本地优先的钢琴交互系统。当前仓库包含 ma
 | macOS tests | `rtk xcodebuild test -project LonelyPianist.xcodeproj -scheme LonelyPianist -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO` |
 | 查看 AVP destinations | `rtk xcodebuild -showdestinations -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP` |
 | AVP tests | `rtk xcodebuild test -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP -destination 'platform=visionOS Simulator,id=<device-id>' CODE_SIGNING_ALLOWED=NO` |
-| Python server | `rtk ./piano_duet_server/scripts/run_server.sh` |
+| Python server | `rtk ./python_backend/scripts/run_duet_server.sh` |
 | Python health check | `rtk curl -s http://127.0.0.1:8766/health` |
 
 ## 关键事实

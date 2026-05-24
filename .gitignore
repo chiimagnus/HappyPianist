@@ -29,7 +29,9 @@ Packages/RealityKitContent/Sources/RealityKitContent/RealityKitContent.rkassets/
 
 .venv-fixtures
 .venv/
-piano_dialogue_server/out/
-piano_duet_server/out/
 
 .codegraph
+
+# Python backend workspace
+python_backend/**/.venv*/
+python_backend/**/out/

@@ -18,7 +18,7 @@ flowchart LR
   SESSION --> MIC[PracticeAudioRecognitionService]
 
   SESSION --> IM[ImprovBackendClient]
-  PY2[piano_duet_server] --> BJ2[Bonjour _lpduet._tcp.local.]
+  PY2[python_backend/duet] --> BJ2[Bonjour _lpduet._tcp.local.]
   BJ2 --> IM
   IM -->|POST /generate| PY2
 ```
@@ -29,7 +29,7 @@ flowchart LR
 | --- | --- | --- | --- |
 | macOS app | `LonelyPianist/` | 单窗口 app | CoreMIDI 输入、take 录制、MIDI 导入、回放输出选择、SwiftData 持久化 |
 | visionOS app | `LonelyPianistAVP/` | 3 个 Window + 1 个 mixed `ImmersiveSpace` | 钢琴准备、曲库、校准、练习、虚拟钢琴、BLE MIDI、AI 即兴 |
-| Python server (Duet) | `piano_duet_server/server/` | uvicorn 进程 | HTTP 生成（对话音符 JSON）、Bonjour 广播 |
+| Python server (Duet) | `python_backend/duet/server/` | uvicorn 进程 | HTTP 生成（对话音符 JSON）、Bonjour 广播 |
 
 ## macOS 架构
 
@@ -99,7 +99,7 @@ flowchart TD
   API --> BONJOUR[server/media/bonjour.py]
 ```
 
-注：Duet server 复用相同的 `/generate` “对话音符 JSON 协议”，但运行在独立目录 `piano_duet_server/`，默认端口 `8766`，并使用独立 Bonjour type：`_lpduet._tcp.local.`（TXT record：`path=/generate`、`protocol_version=1`、`engine=magenta`）。
+注：Duet server 复用相同的 `/generate` “对话音符 JSON 协议”，运行在 `python_backend/duet/`，默认端口 `8766`，并使用 Bonjour type：`_lpduet._tcp.local.`（TXT record：`path=/generate`、`protocol_version=1`、`engine=magenta`）。
 
 ## 关键契约
 
@@ -125,7 +125,7 @@ flowchart TD
 | `BluetoothMIDIInputEventSourceService` | BLE MIDI source 生命周期、协议解码、广播 stream | BLE MIDI tests + 真机 |
 | `VirtualPianoInputController` / `KeyContactDetectionService` | 虚拟键触发、黑键优先、迟滞阈值 | VirtualPiano tests + 真机 |
 | `ARTrackingService.start(mode:)` | provider 权限和沉浸空间可用性 | AVP tests + 真机 |
-| `piano_duet_server/server/api/main.py` | `/generate` 行为 | Python smoke + curl |
+| `python_backend/duet/server/api/main.py` | `/generate` 行为 | Python smoke + curl |
 
 ## Coverage Gaps
 

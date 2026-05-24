@@ -3,11 +3,13 @@ from __future__ import annotations
 import os
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .protocol import GenerateRequest, ResultResponse, legalize_notes
+from ..service_profile import DEBUG_ENV_KEY, DEFAULT_PORT, INSTANCE_NAME, SERVICE_TYPE, TXT_RECORD
 
 
 @asynccontextmanager
@@ -26,25 +28,21 @@ async def _lifespan(_: FastAPI):
         print(f"[DuetEngine] failed to init: {type(error).__name__}: {error!r}")
 
     try:
-        from ..media.bonjour import BonjourServiceBroadcaster
+        from python_backend.shared.bonjour import BonjourServiceBroadcaster
 
-        port = int(os.environ.get("PORT", "8766"))
-        properties: dict[bytes, bytes] = {
-            b"path": b"/generate",
-            b"protocol_version": b"1",
-            # NOTE: This is a product identifier used for client-side filtering.
-            b"engine": b"magenta",
-        }
+        port = int(os.environ.get("PORT", str(DEFAULT_PORT)))
+        properties: dict[bytes, bytes] = dict(TXT_RECORD)
         if engine_impl:
             properties[b"engine_impl"] = engine_impl.encode("utf-8")
 
         broadcaster = BonjourServiceBroadcaster(
-            instance_name="LonelyPianist AI Duet Server",
+            service_type=SERVICE_TYPE,
+            instance_name=INSTANCE_NAME,
             port=port,
             properties=properties,
         )
         await broadcaster.start()
-        print(f"[Bonjour] started: type=_lpduet._tcp.local. port={port} engine_impl={engine_impl or 'unknown'}")
+        print(f"[Bonjour] started: type={SERVICE_TYPE} port={port} engine_impl={engine_impl or 'unknown'}")
     except Exception as error:  # noqa: BLE001
         # Best-effort: never break the happy path.
         print(f"[Bonjour] failed to start: {type(error).__name__}: {error!r}")
@@ -83,10 +81,11 @@ async def generate(request: GenerateRequest) -> ResultResponse:
     response = ResultResponse(notes=reply_notes, latency_ms=latency_ms)
 
     try:
-        from ..media.debug_artifacts import debug_enabled, new_request_id, write_debug_bundle
+        from python_backend.shared.debug_artifacts import debug_enabled, new_request_id, write_debug_bundle
 
-        if debug_enabled():
+        if debug_enabled(DEBUG_ENV_KEY):
             req_id = new_request_id()
+            service_root = Path(__file__).resolve().parents[3]
 
             def span(notes_dump: list[dict]) -> dict[str, float]:
                 if not notes_dump:
@@ -120,6 +119,7 @@ async def generate(request: GenerateRequest) -> ResultResponse:
             }
 
             write_debug_bundle(
+                service_root=service_root,
                 req_id=req_id,
                 request_payload=request.model_dump(),
                 response_payload=response.model_dump(),

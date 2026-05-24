@@ -10,22 +10,22 @@ from pathlib import Path
 from typing import Any
 
 
-def debug_enabled() -> bool:
-    return os.environ.get("DUET_DEBUG", "").strip() == "1"
+def debug_enabled(env_key: str) -> bool:
+    return os.environ.get(env_key, "").strip() == "1"
 
 
-def _now_timestamp() -> str:
+def now_timestamp() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%S%z", time.localtime())
 
 
-def _random_suffix(length: int = 6) -> str:
+def random_suffix(length: int = 6) -> str:
     alphabet = string.ascii_lowercase + string.digits
     return "".join(random.choice(alphabet) for _ in range(length))
 
 
 def new_request_id() -> str:
     # Example: 20260524-115233-3f9k2a
-    return time.strftime("%Y%m%d-%H%M%S", time.localtime()) + "-" + _random_suffix()
+    return time.strftime("%Y%m%d-%H%M%S", time.localtime()) + "-" + random_suffix()
 
 
 @dataclass(frozen=True)
@@ -39,8 +39,8 @@ class DebugBundlePaths:
     index_jsonl: Path
 
 
-def resolve_debug_paths(req_id: str) -> DebugBundlePaths:
-    root = Path(__file__).resolve().parents[2] / "out" / "debug"
+def resolve_debug_paths(service_root: Path, req_id: str) -> DebugBundlePaths:
+    root = service_root / "out" / "debug"
     request_dir = root / "requests" / req_id
     return DebugBundlePaths(
         request_dir=request_dir,
@@ -53,12 +53,12 @@ def resolve_debug_paths(req_id: str) -> DebugBundlePaths:
     )
 
 
-def _write_json(path: Path, payload: Any) -> None:
+def write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True), encoding="utf-8")
 
 
-def _append_jsonl(path: Path, payload: Any) -> None:
+def append_jsonl(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(payload, ensure_ascii=False))
@@ -67,6 +67,7 @@ def _append_jsonl(path: Path, payload: Any) -> None:
 
 def write_debug_bundle(
     *,
+    service_root: Path,
     req_id: str,
     request_payload: dict[str, Any],
     response_payload: dict[str, Any],
@@ -75,21 +76,21 @@ def write_debug_bundle(
     summary: dict[str, Any],
 ) -> None:
     t0 = time.perf_counter()
-    paths = resolve_debug_paths(req_id)
+    paths = resolve_debug_paths(service_root, req_id)
 
-    _write_json(paths.request_json, request_payload)
-    _write_json(paths.response_json, response_payload)
-    _write_json(paths.prompt_notes_json, prompt_notes)
-    _write_json(paths.reply_notes_json, reply_notes)
+    write_json(paths.request_json, request_payload)
+    write_json(paths.response_json, response_payload)
+    write_json(paths.prompt_notes_json, prompt_notes)
+    write_json(paths.reply_notes_json, reply_notes)
 
     write_debug_ms = int((time.perf_counter() - t0) * 1000)
     summary["write_debug_files_ms"] = write_debug_ms
-    summary.setdefault("timestamp", _now_timestamp())
-    _write_json(paths.summary_json, summary)
+    summary.setdefault("timestamp", now_timestamp())
+    write_json(paths.summary_json, summary)
 
     index_entry = {
         "req_id": req_id,
-        "timestamp": summary.get("timestamp") or _now_timestamp(),
+        "timestamp": summary.get("timestamp") or now_timestamp(),
         "request_dir": str(paths.request_dir),
         "session_id": summary.get("session_id"),
         "engine": summary.get("engine"),
@@ -98,4 +99,5 @@ def write_debug_bundle(
         "prompt_note_count": summary.get("prompt_note_count"),
         "reply_note_count": summary.get("reply_note_count"),
     }
-    _append_jsonl(paths.index_jsonl, index_entry)
+    append_jsonl(paths.index_jsonl, index_entry)
+

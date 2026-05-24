@@ -69,3 +69,4 @@ def legalize_notes(notes: list[DialogueNote]) -> list[DialogueNote]:
         )
     legalized.sort(key=lambda item: (item.time, item.note))
     return legalized
+

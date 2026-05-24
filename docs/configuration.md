@@ -7,7 +7,7 @@
 | Xcode 工程 | `LonelyPianist.xcodeproj` | 包含 macOS app、visionOS app 与测试 target。 |
 | macOS scheme | `LonelyPianist` | recorder app 与 `LonelyPianistTests`。 |
 | visionOS scheme | `LonelyPianistAVP` | AVP app 与 `LonelyPianistAVPTests`。 |
-| Python 服务（Duet） | `piano_duet_server/scripts/run_server.sh` | 创建 `.venv`、安装依赖并启动 uvicorn（可选 Magenta）。 |
+| Python 服务（Duet） | `python_backend/scripts/run_duet_server.sh` | 创建 `.venv`、安装依赖并启动 uvicorn（可选 Magenta）。 |
 
 当前仓库没有 `.github/workflows/`，自动化验证以本地命令为准。
 
@@ -53,13 +53,13 @@
 
 | 项 | 默认值 / 位置 | 说明 |
 | --- | --- | --- |
-| host | `0.0.0.0` in `piano_duet_server/scripts/run_server.sh` | 便于 AVP 真机访问。 |
+| host | `0.0.0.0` in `python_backend/duet/scripts/run_server.sh` | 便于 AVP 真机访问。 |
 | port | `8766` | HTTP 与 Bonjour 广播使用同一端口（可用 `PORT` 覆盖）。 |
-| Bonjour service type | `_lpduet._tcp.local.` | `piano_duet_server/server/media/bonjour.py` 与 AVP discovery 对齐。 |
+| Bonjour service type | `_lpduet._tcp.local.` | `python_backend/shared/bonjour.py`（服务端调用）与 AVP discovery 对齐。 |
 | TXT record | `path=/generate` `protocol_version=1` `engine=magenta` | AVP 用于筛选实例避免误连。 |
 | `DUET_ENGINE` | `auto` | `auto \| placeholder \| magenta`。 |
-| `DUET_DEBUG` | unset | 设为 `1` 时写 debug bundle 到 `piano_duet_server/out/debug/`。 |
-| `DUET_BUNDLE_FILE` | unset | 指定 `.mag` bundle 路径（默认从 `piano_duet_server/models/` 自动选择）。 |
+| `DUET_DEBUG` | unset | 设为 `1` 时写 debug bundle 到 `python_backend/duet/out/debug/`。 |
+| `DUET_BUNDLE_FILE` | unset | 指定 `.mag` bundle 路径（默认从 `python_backend/duet/models/` 自动选择）。 |
 | `DUET_MODEL_NAME` | unset | 覆盖 generator map 的模型名（通常不需要）。 |
 
 ## 常见误配

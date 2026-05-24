@@ -10,7 +10,7 @@
 - visionOS App：`LonelyPianistAVP/`
 - visionOS 测试：`LonelyPianistAVPTests/`（Swift Testing）
 - SwiftPM 包：`Packages/RealityKitContent/`
-- Python 后端：`piano_duet_server/`
+- Python 后端工作区：`python_backend/`（服务位于 `python_backend/services/`）
 - 规划/知识库：`.github/features/`、`docs/`
 
 # Apple App 开发规范 for AI（Swift/SwiftUI 基线）

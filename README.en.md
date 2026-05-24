@@ -18,7 +18,7 @@ Import MusicXML files and get spatial practice guidance on Vision Pro (dual-staf
 You play a phrase, the AI responds with its own, in an immersive space (supports automatic local backend discovery).
 
 Optional: Enable AI Duet (local backend)
-1. Start the local server: `rtk ./piano_duet_server/scripts/run_server.sh` (default `0.0.0.0:8766` for LAN access)
+1. Start the local server: `rtk ./python_backend/scripts/run_duet_server.sh` (default `0.0.0.0:8766` for LAN access)
 2. Make sure the AVP device and the backend are on the **same local network**
 3. Allow **Local Network** permission on the AVP device (otherwise Bonjour auto-discovery will show as denied)
 
