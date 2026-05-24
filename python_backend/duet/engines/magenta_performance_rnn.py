@@ -72,7 +72,7 @@ class MagentaPerformanceRNNEngine(InferenceEngineProtocol):
 
         raise FileNotFoundError(
             "Magenta bundle (.mag) not found.\n"
-            "Run: ./python_backend/scripts/download_model.sh\n"
+            "Run: ./python_backend/scripts/download_duet_model.sh\n"
             "Or set DUET_BUNDLE_FILE=/path/to/bundle.mag"
         )
 

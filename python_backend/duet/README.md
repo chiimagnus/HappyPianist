@@ -34,7 +34,7 @@ P1 阶段默认使用占位生成器；要启用 Magenta Performance RNN：
 1) 下载模型：
 
 ```bash
-rtk ./python_backend/scripts/download_model.sh
+rtk ./python_backend/scripts/download_duet_model.sh
 ```
 
 2) 用 Python 3.9 启动（并启用 `DUET_ENGINE=magenta`）：

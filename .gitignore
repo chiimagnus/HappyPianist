@@ -1,37 +1,36 @@
+# ===== swift =====
+
 xcuserdata/
-.DS_Store
 
 .build/
 **/build/
 .swiftpm/
 
-__pycache__/
-*.pyc
-
 .derivedData
 .derivedData-avp
-.github/钢琴谱/
-.github/features/
-.github/archived_features/
-
-.xcodebuildmcp/
-.superpowers/
-
-# Large local audio assets (SoundFonts)
 *.sf2
-
-.codex/
-
 LonelyPianistAVP/Resources/SeedScores/
-
 Packages/RealityKitContent/Sources/RealityKitContent/RealityKitContent.rkassets/xiaocheng.usdz
 *.zip
 
-.venv-fixtures
-.venv/
 
+# ===== General =====
+
+.github/钢琴谱/
+.github/features/
+.github/archived_features/
+.xcodebuildmcp/
+.codex/
 .codegraph
+.DS_Store
 
-# Python backend workspace
+
+# ===== Python =====
+
 python_backend/**/.venv*/
 python_backend/**/out/
+
+__pycache__/
+*.pyc
+
+*.mag
