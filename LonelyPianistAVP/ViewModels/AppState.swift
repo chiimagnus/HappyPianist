@@ -290,6 +290,15 @@ class AppState {
         let makeLocalSamplerPlaybackService: () -> PracticeSequencerPlaybackServiceProtocol = {
             AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2")
         }
+        let aiPlaybackServiceFactory = DuetAIPlaybackServiceFactory(
+            makeLocalSamplerPlaybackService: {
+                AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2", channel: 1)
+            },
+            makeExternalMIDIPlaybackService: { destinationUniqueID in
+                CoreMIDIPracticePlaybackService(destinationUniqueID: destinationUniqueID, channel: 1)
+            }
+        )
+        let makeAIPlaybackServiceFactory: @MainActor () -> DuetAIPlaybackServiceFactory = { aiPlaybackServiceFactory }
         let makeAudioStepAttemptAccumulator: () -> AudioStepAttemptAccumulator = {
             AudioStepAttemptAccumulator()
         }
@@ -370,7 +379,8 @@ class AppState {
             appState: self,
             practiceSetupState: practiceSetupState,
             pianoModeRegistry: registry,
-            makePracticeSessionViewModel: makePracticeSessionViewModel
+            makePracticeSessionViewModel: makePracticeSessionViewModel,
+            aiPlaybackServiceFactory: makeAIPlaybackServiceFactory
         )
 
         let libraryViewModel = SongLibraryViewModel(

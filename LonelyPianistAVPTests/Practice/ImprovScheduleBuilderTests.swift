@@ -14,7 +14,8 @@ func improvScheduleBuilderSortsAndGeneratesNoteOff() {
     let schedule = builder.buildSchedule(from: notes, leadInSeconds: 0)
     #expect(schedule.count == 6)
     #expect(abs(schedule[0].timeSeconds - 0.0) < 0.0001)
-    #expect(abs(schedule[5].timeSeconds - 0.6) < 0.0001)
+    // A.I. Duet: reply note durations are shortened to 90% (see `ImprovScheduleBuilder`).
+    #expect(abs(schedule[5].timeSeconds - 0.58) < 0.0001)
 }
 
 @Test
@@ -38,7 +39,7 @@ func improvScheduleBuilderNegativeTimeStillProducesDuration() {
     let schedule = builder.buildSchedule(from: notes, leadInSeconds: 0)
     #expect(schedule.count == 2)
     #expect(schedule[0].timeSeconds == 0.0)
-    #expect(schedule[1].timeSeconds >= 0.2)
+    #expect(schedule[1].timeSeconds >= 0.18)
 }
 
 @Test

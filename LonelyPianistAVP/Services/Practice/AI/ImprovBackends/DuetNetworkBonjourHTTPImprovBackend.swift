@@ -75,7 +75,7 @@ actor DuetNetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
             let state = await MainActor.run { discoveryService.state }
 
             switch state {
-            case let .resolved(host, port):
+            case let .resolved(host, port, _):
                 return (host, port)
             case .denied:
                 throw DuetNetworkBonjourHTTPImprovBackendError.discoveryDenied

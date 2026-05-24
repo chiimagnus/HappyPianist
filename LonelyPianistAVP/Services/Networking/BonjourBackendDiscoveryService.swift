@@ -9,7 +9,7 @@ final class BonjourBackendDiscoveryService: Sendable {
     enum State: Equatable {
         case idle
         case discovering
-        case resolved(host: String, port: Int)
+        case resolved(host: String, port: Int, txtRecord: [String: String])
         case failed(message: String)
         case denied
     }
@@ -30,7 +30,7 @@ final class BonjourBackendDiscoveryService: Sendable {
     }
 
     var resolvedEndpoint: (host: String, port: Int)? {
-        if case let .resolved(host, port) = state {
+        if case let .resolved(host, port, _) = state {
             return (host, port)
         }
         return nil
@@ -98,10 +98,11 @@ final class BonjourBackendDiscoveryService: Sendable {
 
         for result in candidates {
             let endpoint = result.endpoint
+            let txtRecord = extractTXTRecordStrings(from: result.metadata) ?? [:]
             let resolved = await resolveHostPort(from: endpoint)
             if let resolved {
                 await MainActor.run {
-                    self.state = .resolved(host: resolved.host, port: resolved.port)
+                    self.state = .resolved(host: resolved.host, port: resolved.port, txtRecord: txtRecord)
                 }
                 return
             }

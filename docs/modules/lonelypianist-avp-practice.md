@@ -88,7 +88,6 @@ flowchart TD
 
 | 代码 | 说明 |
 | --- | --- |
-| `PhraseRecorder` | 记录可发送给后端的 phrase。 |
 | `AIPerformanceClipSelector` | 选择生成输入片段。 |
 | `AIPerformanceService` | 调用后端并把结果转为可排程表现。 |
 | `ImprovScheduleBuilder` | 将生成 note 转成回放 schedule。 |

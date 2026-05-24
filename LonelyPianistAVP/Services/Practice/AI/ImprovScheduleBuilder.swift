@@ -13,7 +13,10 @@ struct ImprovScheduleBuilder {
 
         for note in notes {
             let start = max(0, note.time + leadInSeconds)
-            let duration = max(0.05, note.duration)
+            // A.I. Duet: shorten reply note durations and cap long holds.
+            // See: `.github/features/ai-duet-turn-taking/aiexperiments-ai-duet-master/static/src/ai/AI.js`
+            let duetDuration = min(4.0, note.duration * 0.9)
+            let duration = max(0.05, duetDuration)
             let end = start + duration
 
             schedule.append(

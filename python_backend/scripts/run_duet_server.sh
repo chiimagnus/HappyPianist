@@ -7,7 +7,14 @@ cd "${SCRIPT_DIR}/../duet"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 export PYTHONPATH="${REPO_ROOT}:${PYTHONPATH:-}"
 
-DUET_ENGINE="${DUET_ENGINE:-placeholder}"
+# Default to Magenta for best musical quality.
+# Users can override via `DUET_ENGINE=placeholder` etc.
+DUET_ENGINE="${DUET_ENGINE:-magenta}"
+
+# Default to writing debug bundles for quality tuning.
+# Disable via `DUET_DEBUG=0` (or unset and export explicitly).
+DUET_DEBUG="${DUET_DEBUG:-1}"
+export DUET_DEBUG
 
 VENV_DIR=".venv"
 if [ "$DUET_ENGINE" = "magenta" ]; then
@@ -16,12 +23,20 @@ fi
 
 PYTHON="${PYTHON:-}"
 if [ -z "$PYTHON" ]; then
-  if command -v python3.10 >/dev/null 2>&1; then
-    PYTHON="python3.10"
-  elif command -v python3.12 >/dev/null 2>&1; then
-    PYTHON="python3.12"
+  if [ "$DUET_ENGINE" = "magenta" ]; then
+    if command -v python3.9 >/dev/null 2>&1; then
+      PYTHON="python3.9"
+    else
+      PYTHON="python3"
+    fi
   else
-    PYTHON="python3"
+    if command -v python3.10 >/dev/null 2>&1; then
+      PYTHON="python3.10"
+    elif command -v python3.12 >/dev/null 2>&1; then
+      PYTHON="python3.12"
+    else
+      PYTHON="python3"
+    fi
   fi
 fi
 

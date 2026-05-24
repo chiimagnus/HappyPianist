@@ -46,11 +46,18 @@ final class ARGuideRecordingViewModel {
     ) {
         self.logger = logger
         self.takeLibraryViewModel = takeLibraryViewModel ?? TakeLibraryViewModel()
-        self.takePlaybackViewModel = takePlaybackViewModel ?? TakePlaybackViewModel(
-            controller: TakePlaybackController(
-                playbackService: AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2")
+        if let takePlaybackViewModel {
+            self.takePlaybackViewModel = takePlaybackViewModel
+        } else {
+            let isRunningUnitTests = ProcessInfo.processInfo.environment["XCTestSessionIdentifier"] != nil
+            let playbackService: PracticeSequencerPlaybackServiceProtocol =
+                isRunningUnitTests
+                    ? NoopPracticeSequencerPlaybackService()
+                    : AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2")
+            self.takePlaybackViewModel = TakePlaybackViewModel(
+                controller: TakePlaybackController(playbackService: playbackService)
             )
-        )
+        }
         self.onMIDI1Event = onMIDI1Event
         self.onMIDI2Event = onMIDI2Event
     }
