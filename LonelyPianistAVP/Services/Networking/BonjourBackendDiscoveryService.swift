@@ -4,7 +4,7 @@ import os
 
 @MainActor
 final class BonjourBackendDiscoveryService: Sendable {
-    static let defaultServiceType: String = "_lonelypianist._tcp"
+    static let defaultServiceType: String = "_lpduet._tcp"
 
     enum State: Equatable {
         case idle

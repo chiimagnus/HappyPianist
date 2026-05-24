@@ -5,7 +5,6 @@ import os
 @MainActor
 @Observable
 final class ARGuideAIPerformanceViewModel {
-    let dialogueDiscoveryService: BonjourBackendDiscoveryService
     let duetDiscoveryService: BonjourBackendDiscoveryService
     private let backendSelection = ImprovBackendSelection()
 
@@ -13,10 +12,6 @@ final class ARGuideAIPerformanceViewModel {
     var isAIPerformanceActive = false
     var latestAIPerformanceSchedule: [PracticeSequencerMIDIEvent] = []
     var lastImprovStatusText: String?
-
-    var backendDiscoveryService: BonjourBackendDiscoveryService {
-        dialogueDiscoveryService
-    }
 
     @ObservationIgnored
     private lazy var aiPerformanceService: AIPerformanceService = .init(
@@ -26,7 +21,6 @@ final class ARGuideAIPerformanceViewModel {
         ),
         discoveryOrchestrator: ImprovBackendDiscoveryOrchestrator(
             servicesByKind: [
-                .networkBonjourHTTP: dialogueDiscoveryService,
                 .networkBonjourHTTPDuet: duetDiscoveryService,
             ]
         ),
@@ -42,9 +36,8 @@ final class ARGuideAIPerformanceViewModel {
         }
     )
 
-    init(backendDiscoveryService: BonjourBackendDiscoveryService? = nil) {
-        dialogueDiscoveryService = backendDiscoveryService ?? BonjourBackendDiscoveryService()
-        duetDiscoveryService = BonjourBackendDiscoveryService(
+    init(duetDiscoveryService: BonjourBackendDiscoveryService? = nil) {
+        self.duetDiscoveryService = duetDiscoveryService ?? BonjourBackendDiscoveryService(
             serviceType: "_lpduet._tcp",
             requiredTXTRecord: [
                 "path": "/generate",
@@ -55,12 +48,6 @@ final class ARGuideAIPerformanceViewModel {
 
     var backendStatusText: String? {
         switch backendSelection.selectedKind() {
-        case .networkBonjourHTTP:
-            backendDiscoveryStatusText(
-                backendName: "Piano Dialogue",
-                state: dialogueDiscoveryService.state,
-                notFoundHint: "请先在电脑端启动 piano_dialogue_server（默认端口 8765）。"
-            )
         case .networkBonjourHTTPDuet:
             backendDiscoveryStatusText(
                 backendName: "A.I. Duet",
@@ -80,9 +67,6 @@ final class ARGuideAIPerformanceViewModel {
 
     func restartDiscoveryForSelectedBackend() {
         switch backendSelection.selectedKind() {
-        case .networkBonjourHTTP:
-            dialogueDiscoveryService.stop()
-            dialogueDiscoveryService.start()
         case .networkBonjourHTTPDuet:
             duetDiscoveryService.stop()
             duetDiscoveryService.start()
@@ -131,7 +115,6 @@ final class ARGuideAIPerformanceViewModel {
     private func makeBackendRegistry() -> ImprovBackendRegistry {
         ImprovBackendRegistry(
             backends: [
-                NetworkBonjourHTTPImprovBackend(discoveryService: dialogueDiscoveryService),
                 DuetNetworkBonjourHTTPImprovBackend(discoveryService: duetDiscoveryService),
                 LocalRuleImprovBackend(),
                 TickRangeReplayImprovBackend(),

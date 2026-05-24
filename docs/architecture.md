@@ -18,11 +18,8 @@ flowchart LR
   SESSION --> MIC[PracticeAudioRecognitionService]
 
   SESSION --> IM[ImprovBackendClient]
-  PY1[piano_dialogue_server] --> BJ1[Bonjour _lonelypianist._tcp.local.]
   PY2[piano_duet_server] --> BJ2[Bonjour _lpduet._tcp.local.]
-  BJ1 --> IM
   BJ2 --> IM
-  IM -->|POST /generate| PY1
   IM -->|POST /generate| PY2
 ```
 
@@ -32,7 +29,6 @@ flowchart LR
 | --- | --- | --- | --- |
 | macOS app | `LonelyPianist/` | 单窗口 app | CoreMIDI 输入、take 录制、MIDI 导入、回放输出选择、SwiftData 持久化 |
 | visionOS app | `LonelyPianistAVP/` | 3 个 Window + 1 个 mixed `ImmersiveSpace` | 钢琴准备、曲库、校准、练习、虚拟钢琴、BLE MIDI、AI 即兴 |
-| Python server (Dialogue) | `piano_dialogue_server/server/` | uvicorn 进程 | HTTP/WS 生成、Bonjour 广播、debug bundle |
 | Python server (Duet) | `piano_duet_server/server/` | uvicorn 进程 | HTTP 生成（对话音符 JSON）、Bonjour 广播 |
 
 ## macOS 架构
@@ -98,10 +94,9 @@ flowchart TD
 ```mermaid
 flowchart TD
   API[server/api/main.py] --> PROTO[server/api/protocol.py]
-  API --> MODEL[server/engines/model_inference.py]
+  API --> ENGINE[server/engines/inference_engine.py]
   API --> DBG[server/media/debug_artifacts.py]
   API --> BONJOUR[server/media/bonjour.py]
-  API --> STATIC[static/index.html + app.js]
 ```
 
 注：Duet server 复用相同的 `/generate` “对话音符 JSON 协议”，但运行在独立目录 `piano_duet_server/`，默认端口 `8766`，并使用独立 Bonjour type：`_lpduet._tcp.local.`（TXT record：`path=/generate`、`protocol_version=1`、`engine=magenta`）。
@@ -117,7 +112,7 @@ flowchart TD
 | `PianoHighlightGuide` / `PianoHighlightNote` | AVP practice models | 自动播放、高亮、五线谱布局输入 |
 | `MIDI1InputEvent` / `MIDI2InputEvent` | AVP MIDI models | BLE MIDI 协议分流后的练习输入 |
 | `ImprovGenerateRequest` / `ImprovResultResponse` | AVP improv models | AVP 调用 Python `/generate` 的 JSON 契约 |
-| `GenerateRequest` / `ResultResponse` | Python protocol | HTTP/WS 生成协议 |
+| `GenerateRequest` / `ResultResponse` | Python protocol | HTTP 生成协议 |
 
 ## 危险修改区
 
@@ -130,7 +125,7 @@ flowchart TD
 | `BluetoothMIDIInputEventSourceService` | BLE MIDI source 生命周期、协议解码、广播 stream | BLE MIDI tests + 真机 |
 | `VirtualPianoInputController` / `KeyContactDetectionService` | 虚拟键触发、黑键优先、迟滞阈值 | VirtualPiano tests + 真机 |
 | `ARTrackingService.start(mode:)` | provider 权限和沉浸空间可用性 | AVP tests + 真机 |
-| `server/api/main.py` | `/generate`、`/ws` 行为 | Python smoke + curl |
+| `piano_duet_server/server/api/main.py` | `/generate` 行为 | Python smoke + curl |
 
 ## Coverage Gaps
 

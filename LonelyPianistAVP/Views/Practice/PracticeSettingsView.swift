@@ -23,7 +23,7 @@ struct PracticeSettingsView: View {
     @AppStorage(PracticeSessionSettingsKeys.manualAdvanceMode) private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
     @AppStorage(PracticeSessionSettingsKeys.handMode) private var practiceHandModeRawValue = PracticeHandMode.both.rawValue
     @AppStorage(PracticeSessionSettingsKeys.improvBackendKind)
-    private var improvBackendKindRawValue = ImprovBackendKind.networkBonjourHTTP.rawValue
+    private var improvBackendKindRawValue = ImprovBackendSelection.defaultKind.rawValue
     @AppStorage(PracticeSessionSettingsKeys.soundOutputRoute)
     private var soundOutputRouteRawValue = PracticeSoundOutputRoute.localSampler.rawValue
     @AppStorage(PracticeSessionSettingsKeys.midiDestinationUniqueID)
@@ -187,6 +187,9 @@ struct PracticeSettingsView: View {
             }
             .disabled(isAIPerformanceActive)
         }
+        .onAppear {
+            migrateLegacyBackendKindIfNeeded()
+        }
         .padding(16)
         .frame(minWidth: 320)
     }
@@ -203,8 +206,6 @@ struct PracticeSettingsView: View {
         }
 
         switch selectedKind {
-        case .networkBonjourHTTP:
-            return backendStatusText ?? "Backend: network"
         case .networkBonjourHTTPDuet:
             return backendStatusText ?? "Backend: duet"
         case .localRule:
@@ -216,8 +217,6 @@ struct PracticeSettingsView: View {
 
     private func backendTitle(_ kind: ImprovBackendKind) -> String {
         switch kind {
-        case .networkBonjourHTTP:
-            "网络本地连接（电脑端 Python）"
         case .networkBonjourHTTPDuet:
             "网络本地连接（A.I. Duet / Magenta）"
         case .localRule:
@@ -225,6 +224,11 @@ struct PracticeSettingsView: View {
         case .tickRangeReplay:
             "按谱片段回放（tick-range replay）"
         }
+    }
+
+    private func migrateLegacyBackendKindIfNeeded() {
+        guard ImprovBackendKind(rawValue: improvBackendKindRawValue) == nil else { return }
+        improvBackendKindRawValue = ImprovBackendSelection.defaultKind.rawValue
     }
 }
 

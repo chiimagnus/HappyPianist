@@ -43,7 +43,7 @@ final class ARGuideViewModel {
         gazePlaneHitTestService: (any GazePlaneHitTestingProtocol)? = nil,
         virtualKeyboardPoseService: (any VirtualKeyboardPoseServiceProtocol)? = nil,
         virtualPianoKeyGeometryService: (any VirtualPianoKeyGeometryServiceProtocol)? = nil,
-        backendDiscoveryService: BonjourBackendDiscoveryService? = nil,
+        duetDiscoveryService: BonjourBackendDiscoveryService? = nil,
         takeLibraryViewModel: TakeLibraryViewModel? = nil,
         takePlaybackViewModel: TakePlaybackViewModel? = nil
     ) {
@@ -66,7 +66,7 @@ final class ARGuideViewModel {
             virtualKeyboardPoseService: virtualKeyboardPoseService,
             virtualPianoKeyGeometryService: virtualPianoKeyGeometryService
         )
-        let ai = ARGuideAIPerformanceViewModel(backendDiscoveryService: backendDiscoveryService)
+        let ai = ARGuideAIPerformanceViewModel(duetDiscoveryService: duetDiscoveryService)
 
         calibrationGuideViewModel = calibration
         practiceLocalizationViewModel = localization
@@ -110,10 +110,6 @@ final class ARGuideViewModel {
 
     var isBluetoothMIDIMode: Bool {
         PianoModeID(rawValue: practiceSetupState.selectedPianoModeID ?? "") == .bluetoothMIDI
-    }
-
-    var backendDiscoveryService: BonjourBackendDiscoveryService {
-        aiPerformanceViewModel.backendDiscoveryService
     }
 
     var takeLibraryViewModel: TakeLibraryViewModel {

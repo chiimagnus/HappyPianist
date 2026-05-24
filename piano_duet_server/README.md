@@ -8,7 +8,7 @@
 rtk ./scripts/run_server.sh
 ```
 
-默认端口为 `8766`（避免与 `piano_dialogue_server` 默认 `8765` 冲突）。如需自定义：
+默认端口为 `8766`。如需自定义：
 
 ```bash
 rtk env PORT=8766 ./scripts/run_server.sh
