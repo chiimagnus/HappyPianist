@@ -64,7 +64,7 @@ struct DuetTurnTakingCore: Sendable {
     mutating func flushPhraseIfAny(endTimestampSeconds: TimeInterval) -> [ImprovDialogueNote] {
         pendingSendDeadlineTimestampSeconds = nil
         phraseStartTimestampSeconds = nil
-        return phraseBuffer.flushPhrase(endTimestampSeconds: endTimestampSeconds)
+        return phraseBuffer.flushPhrase(endTimestampSeconds: endTimestampSeconds).trimmedNotes
     }
 
     mutating func reset() {
@@ -73,4 +73,3 @@ struct DuetTurnTakingCore: Sendable {
         pendingSendDeadlineTimestampSeconds = nil
     }
 }
-
