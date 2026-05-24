@@ -3,22 +3,11 @@ from __future__ import annotations
 from ..api.protocol import DialogueNote
 
 
-def _resolve_music_pb2():  # type: ignore[no-untyped-def]
-    try:
-        from note_seq.protobuf import music_pb2  # type: ignore[import-not-found]
-
-        return music_pb2
-    except Exception:
-        from magenta.protobuf import music_pb2  # type: ignore[import-not-found]
-
-        return music_pb2
-
-
 def dialogue_notes_to_note_sequence(
     notes: list[DialogueNote],
     qpm: float = 120.0,
 ):
-    music_pb2 = _resolve_music_pb2()
+    from note_seq.protobuf import music_pb2  # type: ignore[import-not-found]
 
     sequence = music_pb2.NoteSequence()
     if qpm > 0:
