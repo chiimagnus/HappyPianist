@@ -53,6 +53,7 @@ final class ARGuideAIPerformanceViewModel {
             requiredTXTRecord: [
                 "path": "/generate",
                 "protocol_version": "1",
+                "engine": "magenta",
             ]
         )
         if let aiPlaybackServiceFactory {
