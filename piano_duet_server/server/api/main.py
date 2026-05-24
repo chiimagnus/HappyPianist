@@ -7,7 +7,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .protocol import GenerateRequest, ResultResponse
+from .protocol import GenerateRequest, ResultResponse, legalize_notes
 
 
 @asynccontextmanager
@@ -61,5 +61,6 @@ async def generate(request: GenerateRequest) -> ResultResponse:
     t0 = time.perf_counter()
     engine = get_inference_engine()
     reply_notes = engine.generate_response(request.notes, request.params, request.session_id)
+    reply_notes = legalize_notes(reply_notes)
     latency_ms = int((time.perf_counter() - t0) * 1000)
     return ResultResponse(notes=reply_notes, latency_ms=latency_ms)

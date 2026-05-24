@@ -257,7 +257,7 @@ final class AIPerformanceService {
             return
         }
 
-        let params = ImprovGenerateParams(topP: 0.95, maxTokens: 256, strategy: "deterministic", seed: nil)
+        let params = ImprovGenerateParams(topP: 0.95, maxTokens: 256, strategy: "model", seed: nil)
         let request = ImprovGenerateRequest(notes: promptNotes, params: params, sessionID: improvSessionID)
 
         let playbackPlan: ImprovBackendPlaybackPlan
