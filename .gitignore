@@ -23,6 +23,7 @@ Packages/RealityKitContent/Sources/RealityKitContent/RealityKitContent.rkassets/
 .codex/
 .codegraph
 .DS_Store
+.asc/
 
 
 # ===== Python =====
