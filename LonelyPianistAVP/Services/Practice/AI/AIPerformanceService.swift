@@ -440,6 +440,18 @@ final class AIPerformanceService {
         latestSchedule = result.shiftedSchedule
         notifyStateChanged()
 
+        let shiftedScheduleSnapshot = latestSchedule
+        let noteOnCount = shiftedScheduleSnapshot.reduce(into: 0) { partialResult, event in
+            if case .noteOn = event.kind { partialResult += 1 }
+        }
+        let firstNoteOn = shiftedScheduleSnapshot.first { event in
+            if case .noteOn = event.kind { return true }
+            return false
+        }?.timeSeconds
+        logger.info(
+            "ai schedule shifted count=\(shiftedScheduleSnapshot.count, privacy: .public) noteOn=\(noteOnCount, privacy: .public) firstNoteOn=\(String(describing: firstNoteOn), privacy: .public) baseDelay=\(result.baseDelaySeconds, privacy: .public)"
+        )
+
         let enqueueLogMessage =
             "ai enqueue baseDelay=\(result.baseDelaySeconds)s " +
             "queueCount=\(result.queueCount) " +

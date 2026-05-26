@@ -5,6 +5,7 @@ import os
 @MainActor
 @Observable
 final class ARGuideAIPerformanceViewModel {
+    private let debugLogger = Logger(subsystem: "LonelyPianistAVP", category: "AIPerformanceDebug")
     let duetDiscoveryService: BonjourBackendDiscoveryService
     private let backendSelection = ImprovBackendSelection()
     private let aiPlaybackServiceFactory: @MainActor () -> DuetAIPlaybackServiceFactory
@@ -127,6 +128,8 @@ final class ARGuideAIPerformanceViewModel {
     #if DEBUG
         func debugInjectImprovTestPhraseIfPossible() {
             guard isVirtualPerformerEnabled else { return }
+
+            debugLogger.info("debug inject improv phrase requested")
 
             let baseUptime = ProcessInfo.processInfo.systemUptime
             let baseDate = Date.now
