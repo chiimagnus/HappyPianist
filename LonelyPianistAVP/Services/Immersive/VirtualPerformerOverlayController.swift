@@ -135,16 +135,15 @@ final class VirtualPerformerOverlayController {
 
         if wasPerforming != isPerforming {
             animateHead(isPerforming: isPerforming)
-            if isPerforming == false {
-                stopHandAnimation()
-                resetArmsToRest(animated: true)
-            }
             wasPerforming = isPerforming
         }
 
-        if isPerforming {
-            updateHandAnimationIfNeeded(schedule: performanceSchedule)
-        }
+        // Drive hand/pose animation from the schedule itself, not from `isPerforming`.
+        //
+        // On visionOS Simulator, audio playback timing can be flaky (or even no-op), which can make
+        // `isAIPerformanceActive` / `isAIPlaybackActive` transiently false while a schedule is still present.
+        // If we stop the animation in that case, the performer "freezes" and never appears to move.
+        updateHandAnimationIfNeeded(schedule: performanceSchedule)
     }
 
     private func showPerformer(geometry: PianoKeyboardGeometry, cameraWorldPosition _: SIMD3<Float>?) {
