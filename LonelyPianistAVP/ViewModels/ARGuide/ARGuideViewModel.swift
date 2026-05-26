@@ -367,6 +367,12 @@ final class ARGuideViewModel {
         )
     }
 
+    #if DEBUG
+        func debugInjectAIImprovPhrase() {
+            aiPerformanceViewModel.debugInjectImprovTestPhraseIfPossible()
+        }
+    #endif
+
     var practiceLocalizationState: PracticeLocalizationState {
         practiceViewModel.practiceLocalizationState
     }

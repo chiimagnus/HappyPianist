@@ -18,6 +18,7 @@ struct PracticeSettingsView: View {
     let onOpenTakeLibrary: () -> Void
     let onRetryVirtualPianoPlacement: () -> Void
     let onRequestSessionRebuild: () -> Void
+    let onDebugInjectAIImprovPhrase: () -> Void
 
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
     @AppStorage(AudioOutputVolumeSettings.userDefaultsKey)
@@ -172,6 +173,21 @@ struct PracticeSettingsView: View {
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
                         }
+
+                        #if DEBUG
+                            Divider()
+
+                            Button("调试：注入测试短句", systemImage: "hammer") {
+                                onDebugInjectAIImprovPhrase()
+                            }
+                            .buttonStyle(.bordered)
+                            .buttonBorderShape(.roundedRectangle)
+                            .hoverEffect()
+
+                            Text("用于 simulator：不依赖 Hand Tracking，直接触发 AI 生成/回放。")
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        #endif
                     }
                 }
                 .disabled(isAIPerformanceActive)
@@ -319,6 +335,7 @@ private struct SettingsSection<Content: View>: View {
         onStopRecording: {},
         onOpenTakeLibrary: {},
         onRetryVirtualPianoPlacement: {},
-        onRequestSessionRebuild: {}
+        onRequestSessionRebuild: {},
+        onDebugInjectAIImprovPhrase: {}
     )
 }

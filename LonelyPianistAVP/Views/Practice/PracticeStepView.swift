@@ -126,6 +126,9 @@ struct PracticeStepView: View {
                         onRequestSessionRebuild: {
                             viewModel.replacePracticeSessionViewModel()
                         },
+                        onDebugInjectAIImprovPhrase: {
+                            viewModel.debugInjectAIImprovPhrase()
+                        }
                     )
                 }
 

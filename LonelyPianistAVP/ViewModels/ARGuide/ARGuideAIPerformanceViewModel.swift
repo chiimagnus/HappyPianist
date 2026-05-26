@@ -124,6 +124,51 @@ final class ARGuideAIPerformanceViewModel {
         aiPerformanceService.setEnabled(isEnabled)
     }
 
+    #if DEBUG
+        func debugInjectImprovTestPhraseIfPossible() {
+            guard isVirtualPerformerEnabled else { return }
+
+            let baseUptime = ProcessInfo.processInfo.systemUptime
+            let baseDate = Date.now
+            let source = MIDI1InputEvent.Source(
+                identifier: .sourceIndex(-1),
+                endpointName: "DEBUG"
+            )
+
+            // A short phrase: C4-E4-G4, then release. This should trigger DuetTurnTakingCore's
+            // short-phrase send ~600ms after release.
+            let chord: [(note: Int, velocity: Int)] = [(60, 90), (64, 85), (67, 88)]
+
+            for (index, item) in chord.enumerated() {
+                recordMIDI1EventForPhraseRecordingIfNeeded(
+                    MIDI1InputEvent(
+                        kind: .noteOn(note: item.note, velocity: item.velocity),
+                        channel: 1,
+                        group: 0,
+                        source: source,
+                        receivedAt: baseDate,
+                        receivedAtUptimeSeconds: baseUptime + Double(index) * 0.04,
+                        debugEventID: Int64(10_000 + index)
+                    )
+                )
+            }
+
+            for (index, item) in chord.enumerated() {
+                recordMIDI1EventForPhraseRecordingIfNeeded(
+                    MIDI1InputEvent(
+                        kind: .noteOff(note: item.note, velocity: 0),
+                        channel: 1,
+                        group: 0,
+                        source: source,
+                        receivedAt: baseDate,
+                        receivedAtUptimeSeconds: baseUptime + 0.30 + Double(index) * 0.04,
+                        debugEventID: Int64(20_000 + index)
+                    )
+                )
+            }
+        }
+    #endif
+
     func recordMIDI1EventForPhraseRecordingIfNeeded(_ event: MIDI1InputEvent) {
         aiPerformanceService.recordMIDI1EventForPhraseRecordingIfNeeded(event)
     }
