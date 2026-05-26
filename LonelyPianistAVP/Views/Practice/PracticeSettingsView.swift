@@ -177,7 +177,7 @@ struct PracticeSettingsView: View {
                         #if DEBUG
                             Divider()
 
-                            Button("调试：注入测试短句", systemImage: "hammer") {
+                            Button("调试：注入测试短句（跨键盘）", systemImage: "hammer") {
                                 onDebugInjectAIImprovPhrase()
                             }
                             .buttonStyle(.bordered)

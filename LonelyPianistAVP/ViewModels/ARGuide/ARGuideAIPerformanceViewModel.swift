@@ -138,11 +138,17 @@ final class ARGuideAIPerformanceViewModel {
                 endpointName: "DEBUG"
             )
 
-            // A short phrase: C4-E4-G4, then release. This should trigger DuetTurnTakingCore's
-            // short-phrase send ~600ms after release.
-            let chord: [(note: Int, velocity: Int)] = [(60, 90), (64, 85), (67, 88)]
+            // A short phrase that spans the keyboard so we can visually verify lateral motion in simulator.
+            // We intentionally keep it "short phrase" so DuetTurnTakingCore triggers send ~600ms after release.
+            let notes: [(note: Int, velocity: Int, at: TimeInterval)] = [
+                (33, 92, 0.00),
+                (45, 90, 0.06),
+                (57, 88, 0.12),
+                (69, 90, 0.18),
+                (81, 92, 0.24),
+            ]
 
-            for (index, item) in chord.enumerated() {
+            for (index, item) in notes.enumerated() {
                 recordMIDI1EventForPhraseRecordingIfNeeded(
                     MIDI1InputEvent(
                         kind: .noteOn(note: item.note, velocity: item.velocity),
@@ -150,13 +156,13 @@ final class ARGuideAIPerformanceViewModel {
                         group: 0,
                         source: source,
                         receivedAt: baseDate,
-                        receivedAtUptimeSeconds: baseUptime + Double(index) * 0.04,
+                        receivedAtUptimeSeconds: baseUptime + item.at,
                         debugEventID: Int64(10_000 + index)
                     )
                 )
             }
 
-            for (index, item) in chord.enumerated() {
+            for (index, item) in notes.enumerated() {
                 recordMIDI1EventForPhraseRecordingIfNeeded(
                     MIDI1InputEvent(
                         kind: .noteOff(note: item.note, velocity: 0),
@@ -164,7 +170,7 @@ final class ARGuideAIPerformanceViewModel {
                         group: 0,
                         source: source,
                         receivedAt: baseDate,
-                        receivedAtUptimeSeconds: baseUptime + 0.30 + Double(index) * 0.04,
+                        receivedAtUptimeSeconds: baseUptime + 0.38 + item.at,
                         debugEventID: Int64(20_000 + index)
                     )
                 )
