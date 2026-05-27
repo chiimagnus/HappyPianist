@@ -17,9 +17,6 @@
 | grand staff | 双谱表显示模型，用于 AVP practice window。 |
 | autoplay | AVP 自动演奏功能，由 `PracticePlaybackControlService` 与 timeline 相关服务协调。 |
 | phrase | AI 即兴使用的短片段输入，通常从练习录制或 clip selector 得到。 |
-| `GenerateRequest` | Python 后端 `/generate` 的请求模型。 |
-| `ResultResponse` | Python 后端生成成功返回模型。 |
-| Bonjour | 局域网服务发现；后端广播 `_lpduet._tcp.local.`，AVP 端自动发现。 |
 | MIDI 1.0 / MIDI 2.0 | CoreMIDI 输入协议。AVP BLE MIDI 同时支持两类 event stream。 |
 | MusicXML | AVP 曲库导入的乐谱格式。当前 Info.plist 声明 `.musicxml` / `.xml`。 |
 | SoundFont | AVP sampler 回放所需音色文件。压缩包未包含 `SalC5Light2.sf2`。 |

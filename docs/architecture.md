@@ -17,10 +17,7 @@ flowchart LR
   SESSION --> BLE[BluetoothMIDIInputEventSourceService]
   SESSION --> MIC[PracticeAudioRecognitionService]
 
-  SESSION --> IM[ImprovBackendClient]
-  PY2[python_backend/duet] --> BJ2[Bonjour _lpduet._tcp.local.]
-  BJ2 --> IM
-  IM -->|POST /generate| PY2
+  SESSION --> IM[ImprovBackendRegistry]
 ```
 
 ## 运行时边界
@@ -29,7 +26,6 @@ flowchart LR
 | --- | --- | --- | --- |
 | macOS app | `LonelyPianist/` | 单窗口 app | CoreMIDI 输入、take 录制、MIDI 导入、回放输出选择、SwiftData 持久化 |
 | visionOS app | `LonelyPianistAVP/` | 3 个 Window + 1 个 mixed `ImmersiveSpace` | 钢琴准备、曲库、校准、练习、虚拟钢琴、BLE MIDI、AI 即兴 |
-| Python server (Duet) | `python_backend/duet/` | uvicorn 进程 | HTTP 生成（对话音符 JSON）、Bonjour 广播 |
 
 ## macOS 架构
 
@@ -89,18 +85,6 @@ flowchart TD
 - `WindowTransitionState` 只负责 preparation/library/practice 三窗口的替换式导航。
 - `PianoModeProtocol` 决定准备页 route、进入曲库 gate、练习追踪模式和录制来源文案。
 
-## Python 架构
-
-```mermaid
-flowchart TD
-  API[api/main.py] --> PROTO[api/protocol.py]
-  API --> ENGINE[engines/inference_engine.py]
-  API --> DBG[python_backend/shared/debug_artifacts.py]
-  API --> BONJOUR[python_backend/shared/bonjour.py]
-```
-
-注：Duet server 复用相同的 `/generate` “对话音符 JSON 协议”，运行在 `python_backend/duet/`，默认端口 `8766`，并使用 Bonjour type：`_lpduet._tcp.local.`（TXT record：`path=/generate`、`protocol_version=1`、`engine=magenta`）。
-
 ## 关键契约
 
 | 契约 | 位置 | 作用 |
@@ -111,8 +95,7 @@ flowchart TD
 | `PracticeStep` / `PracticeStepNote` | AVP practice models | 练习 step 与 expected notes |
 | `PianoHighlightGuide` / `PianoHighlightNote` | AVP practice models | 自动播放、高亮、五线谱布局输入 |
 | `MIDI1InputEvent` / `MIDI2InputEvent` | AVP MIDI models | BLE MIDI 协议分流后的练习输入 |
-| `ImprovGenerateRequest` / `ImprovResultResponse` | AVP improv models | AVP 调用 Python `/generate` 的 JSON 契约 |
-| `GenerateRequest` / `ResultResponse` | Python protocol | HTTP 生成协议 |
+| `ImprovGenerateRequest` / `ImprovResultResponse` | `ImprovProtocol` (SwiftPM) | AI 即兴后端的 request/response 数据结构 |
 
 ## 危险修改区
 
@@ -125,10 +108,8 @@ flowchart TD
 | `BluetoothMIDIInputEventSourceService` | BLE MIDI source 生命周期、协议解码、广播 stream | BLE MIDI tests + 真机 |
 | `VirtualPianoInputController` / `KeyContactDetectionService` | 虚拟键触发、黑键优先、迟滞阈值 | VirtualPiano tests + 真机 |
 | `ARTrackingService.start(mode:)` | provider 权限和沉浸空间可用性 | AVP tests + 真机 |
-| `python_backend/duet/api/main.py` | `/generate` 行为 | Python smoke + curl |
 
 ## Coverage Gaps
 
-- 没有跨 macOS、AVP、Python 的端到端自动化门禁。
+- 没有跨 macOS 与 AVP 的端到端自动化门禁。
 - AVP sensor-dependent 行为需要真机验证。
-- Python 模型路径、设备选择和下载镜像没有统一 lock/fixture。

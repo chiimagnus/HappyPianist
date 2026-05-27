@@ -1,6 +1,6 @@
 # 数据流
 
-本文只描述当前代码存在的运行链路。macOS 端不再包含 MIDI mapping、键盘注入或 AVP 的网络后端 client；visionOS 端（AVP）的 AI 即兴链路支持 **本地生成后端**（Swift）与 **可选网络后端**（本机 Python 服务），并且严格只使用用户在 practice 设置中选择的后端（不会自动降级/切换）。
+本文只描述当前代码存在的运行链路。macOS 端不再包含 MIDI mapping、键盘注入或 AVP 的网络后端 client；visionOS 端（AVP）的 AI 即兴链路只包含 **本地生成后端**（CoreML / SwiftPM rule / tick-range replay），并且严格只使用用户在 practice 设置中选择的后端（不会自动降级/切换）。
 
 ## 主流程
 
@@ -14,7 +14,6 @@
 | AVP 曲库 | bundled MusicXML / 用户导入 MusicXML | `SongLibraryViewModel` + `PracticePreparationService` | `PreparedPractice` |
 | AVP 练习 | `PreparedPractice` + selected piano mode | `ARGuideViewModel` + `PracticeSessionViewModel` | 步骤推进、谱面、高亮、录制与回放 |
 | AVP AI 即兴 | recorded phrase / selected clip | `AIPerformanceService` + `ImprovBackendRegistry` | 生成片段并排程回放（严格按所选后端） |
-| Python 生成（可选） | HTTP request | FastAPI + engine | 仅当选择 `网络本地连接（A.I. Duet）` 后端时触发 |
 
 ## macOS recorder
 
@@ -101,7 +100,6 @@ flowchart TD
 practice 窗口的 settings popover 中可选择后端：
 
 - `本地 CoreML（A.I. Duet / Performance RNN）`：AVP 端使用 CoreML 运行 Performance RNN 单步模型做自回归采样；模型文件（`AIDuetPerformanceRNN.mlpackage` / `AIDuetPerformanceRNN.mlmodelc`）不入库，由开发者本地放置并加入 Xcode target。
-- `网络本地连接（A.I. Duet）`：通过 Bonjour 发现 + HTTP 请求调用本机 Duet Python 服务（电脑端运行）。
 - `本地规则生成（Local rule）`：AVP 端直接调用 SwiftPM `ImprovEngines`（seed 可复现）。
 - `按谱片段回放（tick-range replay）`：不做生成，回放当前谱面片段；它不是自动 fallback，只会在用户选择时使用。
 
@@ -111,8 +109,6 @@ sequenceDiagram
   participant Settings as Practice Settings
   participant Backend as ImprovBackendProtocol
   participant Engines as ImprovEngines (SwiftPM)
-  participant Bonjour as BonjourBackendDiscoveryService
-  participant API as duet_python_service
 
   Settings-->>AVP: selected ImprovBackendKind
   AVP->>Backend: generatePlaybackPlan(request)
@@ -125,15 +121,9 @@ sequenceDiagram
     Backend->>Engines: generate(notes, params, seed)
     Engines-->>Backend: generated notes
     Backend-->>AVP: schedule
-  else network bonjour http
-    Backend->>Bonjour: discover _lpduet._tcp.local.
-    Bonjour-->>Backend: host, port, path=/generate
-    Backend->>API: POST /generate
-    API-->>Backend: ResultResponse
-    Backend-->>AVP: schedule
   else tick-range replay
     Backend-->>AVP: tickRange(maxMeasures)
   end
 ```
 
-Python 后端是可选网络后端；本地规则生成已迁移到 SwiftPM（`Packages/ImprovEngines/`）。当前默认后端为本地 CoreML（若未放置模型文件，UI 会提示缺失并可手动切换到网络/本地 rule）。
+本地规则生成由 SwiftPM（`Packages/ImprovEngines/`）提供。当前默认后端为本地 CoreML（若未放置模型文件，UI 会提示缺失并可手动切换到本地 rule / tick-range replay）。
