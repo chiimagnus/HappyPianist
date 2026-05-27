@@ -34,4 +34,4 @@
 - macOS recorder 不依赖 Python 服务。
 - AVP AI 即兴依赖 Python 服务，但基础曲库、校准、练习、BLE MIDI 与虚拟钢琴流程可在没有 Python 服务时运行。
 - Python 服务不依赖 Xcode 工程；可单独在 `python_backend/duet/` 下启动。
-- `Packages/RealityKitContent/` 是仓库内的 SwiftPM 包；若只关注主 app 逻辑，文档不应把它作为唯一入口。
+- `Packages/RealityKitContent/` 与 `Packages/ImprovEngines/` 是仓库内的 SwiftPM 包；若只关注主 app 逻辑，文档不应把它们作为唯一入口。

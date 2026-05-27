@@ -17,11 +17,11 @@ LonelyPianist 是一个本地优先的钢琴交互系统。当前仓库包含 ma
 
 | 场景 | 命令 |
 | --- | --- |
-| macOS tests | `rtk xcodebuild test -project LonelyPianist.xcodeproj -scheme LonelyPianist -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO` |
-| 查看 AVP destinations | `rtk xcodebuild -showdestinations -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP` |
-| AVP tests | `rtk xcodebuild test -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP -destination 'platform=visionOS Simulator,id=<device-id>' CODE_SIGNING_ALLOWED=NO` |
-| Python server | `rtk ./python_backend/scripts/run_duet_server.sh` |
-| Python health check | `rtk curl -s http://127.0.0.1:8766/health` |
+| macOS tests | `xcodebuild test -project LonelyPianist.xcodeproj -scheme LonelyPianist -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO` |
+| 查看 AVP destinations | `xcodebuild -showdestinations -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP` |
+| AVP tests | `xcodebuild test -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP -destination 'platform=visionOS Simulator,id=<device-id>' CODE_SIGNING_ALLOWED=NO` |
+| Python server | `./python_backend/scripts/run_duet_server.sh` |
+| Python health check | `curl -s http://127.0.0.1:8766/health` |
 
 ## 关键事实
 

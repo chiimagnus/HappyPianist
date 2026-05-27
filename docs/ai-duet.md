@@ -7,7 +7,7 @@
 在仓库根目录执行：
 
 ```bash
-rtk ./python_backend/scripts/run_duet_server.sh
+./python_backend/scripts/run_duet_server.sh
 ```
 
 默认端口是 `8766`。启动成功后，你应能访问：
@@ -17,7 +17,7 @@ rtk ./python_backend/scripts/run_duet_server.sh
 也可以先跑一次自检（会自动启动服务、请求 `/health` 与 `/generate`）：
 
 ```bash
-rtk ./python_backend/scripts/smoke_duet_generate.sh
+./python_backend/scripts/smoke_duet_generate.sh
 ```
 
 ## 2) 在 AVP 中选择后端
@@ -34,7 +34,7 @@ rtk ./python_backend/scripts/smoke_duet_generate.sh
 
 - 弹奏一段短句（建议 1–8 秒）；
 - 停顿约 2 秒；
-- 你会听到 AI 回一句（P1 阶段为占位生成；P2 才接入 Magenta Performance RNN）。
+- 你会听到 AI 回一句（`placeholder` 引擎结果更简单；`magenta` 引擎更“拟人”但更重）。
 
 ## 常见问题 / 排障
 
@@ -47,7 +47,7 @@ rtk ./python_backend/scripts/smoke_duet_generate.sh
 3. Bonjour service type 是否能被系统看到（电脑端）：
 
 ```bash
-rtk dns-sd -B _lpduet._tcp local.
+dns-sd -B _lpduet._tcp local.
 ```
 
 > 说明：mDNS service type 的 service label 有 15 bytes 限制，因此这里使用较短的 `_lpduet._tcp`。
@@ -64,7 +64,7 @@ rtk dns-sd -B _lpduet._tcp local.
 建议先在电脑端确认后端可生成：
 
 ```bash
-rtk ./python_backend/scripts/smoke_duet_generate.sh
+./python_backend/scripts/smoke_duet_generate.sh
 ```
 
 如果后端正常但听不到声音：
@@ -75,8 +75,8 @@ rtk ./python_backend/scripts/smoke_duet_generate.sh
 ## 验收清单（无需看代码）
 
 1) 电脑端：
-- 运行 `rtk ./python_backend/scripts/run_duet_server.sh`
-- `rtk ./python_backend/scripts/smoke_duet_generate.sh` 输出 `health ok` 与 `generate ok`
+- 运行 `./python_backend/scripts/run_duet_server.sh`
+- `./python_backend/scripts/smoke_duet_generate.sh` 输出 `health ok` 与 `generate ok`
 
 2) AVP：
 - 打开设置 → 开启「AI 即兴演奏（虚拟演奏家）」
@@ -91,5 +91,5 @@ rtk ./python_backend/scripts/smoke_duet_generate.sh
 - 如果 Local Network 被拒，文案明确提示去系统设置开启
 
 5) 可观测性（可选）：
-- 运行 `rtk env DUET_DEBUG=1 ./python_backend/scripts/run_duet_server.sh`
+- 运行 `env DUET_DEBUG=1 ./python_backend/scripts/run_duet_server.sh`
 - 触发一次生成后，在 `python_backend/duet/out/debug/requests/` 下看到新的请求目录

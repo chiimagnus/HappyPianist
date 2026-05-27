@@ -4,9 +4,9 @@
 
 | Item | Value |
 | --- | --- |
-| Commit hash | e07275f4 |
-| Branch name | crh2 |
-| Generated at | 2026-05-23T11:01:47+08:00 |
+| Commit hash | cb3ae387 |
+| Branch name | crh3 |
+| Generated at | 2026-05-27T15:36:05+08:00 |
 | Output language | Chinese |
 | Generation mode | Full docs reconciliation via `neat-freak` against current working tree |
 
@@ -15,6 +15,7 @@
 - `AGENTS.md`
 - `README.md`
 - `docs/overview.md`
+- `docs/ai-duet.md`
 - `docs/architecture.md`
 - `docs/data-flow.md`
 - `docs/configuration.md`
@@ -25,7 +26,6 @@
 - `docs/modules/lonelypianist-avp.md`
 - `docs/modules/lonelypianist-avp-practice.md`
 - `docs/modules/improv-engines.md`
-- `docs/modules/piano-dialogue-server.md`
 
 ## Current Coverage Gaps
 
