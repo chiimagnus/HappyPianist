@@ -9,8 +9,8 @@
 - macOS 测试：`LonelyPianistTests/`（Swift Testing）
 - visionOS App：`LonelyPianistAVP/`
 - visionOS 测试：`LonelyPianistAVPTests/`（Swift Testing）
-- SwiftPM 包：`Packages/RealityKitContent/`
-- Python 后端工作区：`python_backend/`（服务位于 `python_backend/services/`）
+- SwiftPM 包：`Packages/RealityKitContent/`、`Packages/ImprovEngines/`
+- Python 工作区：`python_backend/`（保留 shared 工具与脚本目录；当前仓库不再内置 Duet Python 服务）
 - 规划/知识库：`.github/features/`、`docs/`
 
 # Apple App 开发规范 for AI（Swift/SwiftUI 基线）
@@ -25,8 +25,8 @@
 - Swift：Swift 6.0+
 
 平台支持（按项目选择）：
-- macOS 14.0+、visionOS26+
-- VisionOS开发需要参考[visionos-dev.md](visionos-dev.md)
+- macOS 26.0+、visionOS 26.0+
+- VisionOS 开发以 `docs/overview.md` 与 `docs/modules/lonelypianist-avp.md` 为准
 
 ## 设计原则
 
@@ -78,7 +78,7 @@
 - 涉及 Simulator/Device 与日志相关的操作，按需使用原生 `xcrun simctl` / `log stream` 等系统工具。
 
 单元测试优先级建议：
-- **逻辑层 / ViewModel / UI 层**：统一用 XCTest（通过 `xcodebuild test` 跑）
+- **逻辑层 / ViewModel / UI 层**：优先用 Swift Testing（`import Testing`，通过 `xcodebuild test` 跑）；必要时再用 XCTest
 
 调试与日志：
 - 日志用 `os.Logger`，明确 `subsystem` 与 `category`，便于过滤与定位

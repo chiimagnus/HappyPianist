@@ -15,12 +15,9 @@
 导入 MusicXML，在 Vision Pro 上做空间练习引导（双谱表五线谱 + 左右手键位高亮）
 
 ### 🎹 AI 对弹（接力即兴）
-你弹一句、AI 回一句；在沉浸空间中回放（支持自动发现本地后端）
+你弹一句、AI 回一句；在沉浸空间中回放。
 
-可选：开启 AI 对弹（本地后端）
-1. 启动本地服务：`rtk ./python_backend/scripts/run_duet_server.sh`（默认 `0.0.0.0:8766`，便于同网段设备访问）
-2. 确保运行 AVP 的设备与后端在**同一局域网**
-3. 在 AVP 端允许 **Local Network** 权限（否则 Bonjour 自动发现会显示为 denied）
+AI 对弹当前使用 AVP 端的本地 CoreML / 本地规则后端，不再需要电脑端 Python 服务。
 
 ## 发布物
 

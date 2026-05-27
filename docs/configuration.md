@@ -7,7 +7,7 @@
 | Xcode 工程 | `LonelyPianist.xcodeproj` | 包含 macOS app、visionOS app 与测试 target。 |
 | macOS scheme | `LonelyPianist` | recorder app 与 `LonelyPianistTests`。 |
 | visionOS scheme | `LonelyPianistAVP` | AVP app 与 `LonelyPianistAVPTests`。 |
-| Python 服务（Duet） | `python_backend/scripts/run_duet_server.sh` | 创建 `.venv`、安装依赖并启动 uvicorn（可选 Magenta）。 |
+| Python 工作区 | `python_backend/` | 当前仓库只保留 shared 工具与脚手架，不包含可运行服务。 |
 
 当前仓库没有 `.github/workflows/`，自动化验证以本地命令为准。
 
@@ -25,9 +25,8 @@
 
 | 配置面 | 位置 | 说明 |
 | --- | --- | --- |
-| 权限说明 | `LonelyPianistAVP/Resources/Info.plist` | Hand Tracking、World Sensing、Microphone、Bluetooth、Local Network。 |
-| Bonjour | `NSBonjourServices` | `_lpduet._tcp`（Duet），用于发现本地 Python 后端。 |
-| ATS local networking | `NSAppTransportSecurity` | 允许局域网 HTTP 连接。 |
+| 权限说明 | `LonelyPianistAVP/Resources/Info.plist` | Hand Tracking、World Sensing、Microphone、Bluetooth。 |
+| 网络 | `LonelyPianistAVP/Resources/Info.plist` | 当前仓库不再内置 AI Duet 的网络后端，因此不依赖 Bonjour/Local Network。 |
 | MusicXML 文件类型 | `UTImportedTypeDeclarations` | 导入 `.musicxml` / `.xml`。 |
 | 字体 | `UIAppFonts` | `Bravura.otf`。 |
 | soundfont | `LonelyPianistAVP/Resources/Audio/SoundFonts/SalC5Light2.sf2` | 仓库默认不内置；需要本地 sampler 回放时手动放入。 |
@@ -49,28 +48,15 @@
 - “练习判定：左右手分别满足”已改为强制启用（不再作为可配置项，也不再暴露 UI 开关）。
 - 当前仍会通过 `UserDefaults` 保存练习手（左/右/双手）、手动推进方式与音频识别模式等设置项。
 
-## Python 服务配置（Duet）
-
-| 项 | 默认值 / 位置 | 说明 |
-| --- | --- | --- |
-| host | `0.0.0.0` in `python_backend/scripts/run_duet_server.sh` | 便于 AVP 真机访问。 |
-| port | `8766` | HTTP 与 Bonjour 广播使用同一端口（可用 `PORT` 覆盖）。 |
-| Bonjour service type | `_lpduet._tcp.local.` | `python_backend/shared/bonjour.py`（服务端调用）与 AVP discovery 对齐。 |
-| TXT record | `path=/generate` `protocol_version=1` `engine=magenta` | AVP 用于筛选实例避免误连。 |
-| `DUET_ENGINE` | `auto` | `auto \| placeholder \| magenta`。 |
-| `DUET_DEBUG` | unset | 设为 `1` 时写 debug bundle 到 `python_backend/duet/out/debug/`。 |
-| `DUET_BUNDLE_FILE` | unset | 指定 `.mag` bundle 路径（默认从 `python_backend/duet/models/` 自动选择）。 |
-| `DUET_MODEL_NAME` | unset | 覆盖 generator map 的模型名（通常不需要）。 |
-
 ## 常见误配
 
 | 现象 | 可能原因 | 检查点 |
 | --- | --- | --- |
-| AVP 找不到后端 | Python 服务未启动、Local Network 权限被拒、设备不在同一局域网 | `/health`、Bonjour 日志、visionOS 设置中的 Local Network 权限。 |
+| AI 对弹不可用 | CoreML 模型文件未加入 app bundle | 练习设置页的后端状态提示；检查 `AIDuetPerformanceRNN.mlpackage` / `AIDuetPerformanceRNN.mlmodelc`。 |
 | BLE MIDI source 不显示 | Bluetooth 权限或系统连接未完成 | `CABTMIDICentralViewController` 面板、系统蓝牙、app Bluetooth 权限。 |
 | 真实音频模式无法推进 | Microphone 权限、输入源噪声、音频识别阈值 | `PracticeAudioRecognitionService` 状态与 debug snapshot。 |
 | 虚拟钢琴无法继续 | 平面检测或放置确认未完成 | `VirtualPianoPlacementViewModel`、`GazePlaneHitTestService`。 |
-| Python 首次生成很慢 | `model` 首次加载模型 | 用 AVP 的本地后端（rule）做轻量验证，或先只验证 `/health` + Bonjour 发现链路。 |
+| CoreML 首次加载慢 | `.mlpackage` 首次运行会触发编译 | 属正常现象；建议提交 `.mlmodelc` 或预先编译。 |
 
 ## 代码格式化（SwiftFormat）
 

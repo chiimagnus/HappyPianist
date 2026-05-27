@@ -91,8 +91,8 @@ flowchart TD
 | `AIPerformanceClipSelector` | 选择生成输入片段。 |
 | `AIPerformanceService` | 调用后端并把结果转为可排程表现。 |
 | `ImprovScheduleBuilder` | 将生成 note 转成回放 schedule。 |
-| `ImprovBackendClient` | HTTP client。 |
-| `BonjourBackendDiscoveryService` | 发现 `_lpduet._tcp.local.` 后端。 |
+| `LocalCoreMLDuetImprovBackend` | 本地 CoreML 生成（Performance RNN 单步模型采样）。 |
+| `LocalRuleImprovBackend` | 本地 rule 生成（SwiftPM `ImprovEngines`）。 |
 
 ## 调试边界
 

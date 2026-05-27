@@ -22,15 +22,7 @@
 
 `BundledSongLibraryProvider` 提供 bundle 内置曲目；用户导入曲目通过 `SongLibraryIndex` 与 bundled entries 合并展示。
 
-## Python 服务
-
-| 数据 | 位置 | 说明 |
-| --- | --- | --- |
-| 调试包 | `python_backend/duet/out/debug/` | `DUET_DEBUG=1` 时由 `python_backend/shared/debug_artifacts.py` 写入（服务端调用）。 |
-| 模型/素材 | `python_backend/duet/models/`（或 `DUET_BUNDLE_FILE`） | 不应提交到 git。 |
-
 ## 清理建议
 
 - 删除 AVP 用户数据时，优先清理 Documents 中的 `SongLibrary/`、`TakeLibrary/` 与 `piano-worldanchor-calibration.json`。
-- 删除 Python 调试输出时，只清理 `python_backend/duet/out/`；不要删除 `server/`。
 - 删除 macOS recorder 数据时，通过 app 功能删除 take，或清理 app container 中的 SwiftData store。

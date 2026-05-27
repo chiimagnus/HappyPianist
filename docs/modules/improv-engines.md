@@ -26,17 +26,7 @@ AVP 侧通过后端实现接入：
 
 ### 1) 生成 CoreML 模型（.mlpackage）
 
-使用仓库内脚本把 Magenta `.mag` bundle 转成 `AIDuetPerformanceRNN.mlpackage`：
-
-```bash
-python3 python_backend/duet/convert_performance_rnn_to_coreml.py \
-  --out LonelyPianistAVP/Resources/Models/AIDuetPerformanceRNN.mlpackage
-```
-
-备注：
-
-- 脚本依赖 `tensorflow` / `note-seq` / `coremltools` / `numpy` 等 Python 包（按你的 Python 环境自行安装）。
-- 默认输入 bundle 是 `python_backend/duet/models/performance_with_dynamics.mag`（若你有其他 bundle，可用 `--bundle` 指定）。
+本仓库不再提供 Duet（A.I. Duet）的 Python 转换/校验脚本；CoreML 模型产物需要在仓库外生成，并以 `AIDuetPerformanceRNN.mlpackage` 或 `AIDuetPerformanceRNN.mlmodelc` 的形式加入 app bundle。
 
 ### 2) 放置并加入 Xcode target
 

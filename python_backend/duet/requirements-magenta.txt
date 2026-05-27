@@ -1,8 +1,0 @@
-# Magenta Performance RNN (CPU, Apple silicon friendly pins)
-#
-# See: .github/features/ai-duet/AIDuet资料.md
-tensorflow-macos==2.9.1
-magenta==2.1.4
-note-seq==0.0.3
-numpy==1.23.0
-protobuf<3.20
