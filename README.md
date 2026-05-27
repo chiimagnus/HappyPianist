@@ -18,7 +18,7 @@
 你弹一句、AI 回一句；在沉浸空间中回放（支持自动发现本地后端）
 
 可选：开启 AI 对弹（本地后端）
-1. 启动本地服务：`rtk ./python_backend/scripts/run_duet_server.sh`（默认 `0.0.0.0:8766`，便于同网段设备访问）
+1. 启动本地服务：`./python_backend/scripts/run_duet_server.sh`（默认 `0.0.0.0:8766`，便于同网段设备访问）
 2. 确保运行 AVP 的设备与后端在**同一局域网**
 3. 在 AVP 端允许 **Local Network** 权限（否则 Bonjour 自动发现会显示为 denied）
 
