@@ -6,7 +6,7 @@ struct TickRangeReplayImprovBackend: ImprovBackendProtocol {
     let displayName: String = "按谱片段回放"
 
     func generatePlaybackPlan(
-        request _: ImprovGenerateRequest,
+        request _: ImprovGenerateRequestV2,
         timeout _: Duration
     ) async throws -> ImprovBackendPlaybackPlan {
         .tickRange(maxMeasures: 2)

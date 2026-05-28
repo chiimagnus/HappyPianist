@@ -34,15 +34,16 @@ actor LocalRuleImprovBackend: ImprovBackendProtocol {
     }
 
     func generatePlaybackPlan(
-        request: ImprovGenerateRequest,
+        request: ImprovGenerateRequestV2,
         timeout: Duration
     ) async throws -> ImprovBackendPlaybackPlan {
         let seed = seedResolver.resolveSeed(explicitSeed: request.params.seed, sessionID: request.sessionID)
         let generator = self.generator
+        let promptNotes = request.extractDialogueNotes()
 
         let replyNotes = try await runWithTimeout(timeout) {
             generator.generateRuleResponse(
-                notes: request.notes,
+                notes: promptNotes,
                 params: request.params,
                 sessionID: request.sessionID,
                 seed: seed

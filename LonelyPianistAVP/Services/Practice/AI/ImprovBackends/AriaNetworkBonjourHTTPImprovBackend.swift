@@ -1,7 +1,7 @@
 import Foundation
 import ImprovProtocol
 
-enum DuetNetworkBonjourHTTPImprovBackendError: Error, LocalizedError, Equatable {
+enum AriaNetworkBonjourHTTPImprovBackendError: Error, LocalizedError, Equatable {
     case backendNotResolved
     case discoveryDenied
     case discoveryFailed(message: String)
@@ -10,7 +10,7 @@ enum DuetNetworkBonjourHTTPImprovBackendError: Error, LocalizedError, Equatable 
     var errorDescription: String? {
         switch self {
         case .backendNotResolved:
-            "Duet network backend not resolved."
+            "Aria network backend not resolved."
         case .discoveryDenied:
             "Local network discovery permission denied."
         case let .discoveryFailed(message):
@@ -21,9 +21,9 @@ enum DuetNetworkBonjourHTTPImprovBackendError: Error, LocalizedError, Equatable 
     }
 }
 
-actor DuetNetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
-    nonisolated let kind: ImprovBackendKind = .networkBonjourHTTPDuet
-    nonisolated let displayName: String = "网络本地连接（A.I. Duet / Magenta）"
+actor AriaNetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
+    nonisolated let kind: ImprovBackendKind = .networkBonjourHTTPAriaV2
+    nonisolated let displayName: String = "网络本地连接（Aria v2）"
 
     private let discoveryService: any BonjourBackendDiscoveryServiceProtocol
     private let backendClient: any ImprovBackendClientProtocol
@@ -40,7 +40,7 @@ actor DuetNetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
     }
 
     func generatePlaybackPlan(
-        request: ImprovGenerateRequest,
+        request: ImprovGenerateRequestV2,
         timeout: Duration
     ) async throws -> ImprovBackendPlaybackPlan {
         await MainActor.run {
@@ -52,16 +52,16 @@ actor DuetNetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
         let resolved = try await waitForResolvedEndpoint(timeout: timeout)
         let timeoutSeconds = durationToTimeInterval(timeout)
 
-        let response = try await backendClient.generate(
+        let response = try await backendClient.generateV2(
             host: resolved.host,
             port: resolved.port,
             request: request,
             timeoutSeconds: timeoutSeconds
         )
 
-        let schedule = scheduleBuilder.buildSchedule(from: response.notes)
+        let schedule = scheduleBuilder.buildSchedule(from: response.events)
         guard schedule.isEmpty == false else {
-            throw DuetNetworkBonjourHTTPImprovBackendError.emptyReply
+            throw AriaNetworkBonjourHTTPImprovBackendError.emptyReply
         }
 
         return .schedule(schedule, backendLatencyMS: response.latencyMS)
@@ -78,9 +78,9 @@ actor DuetNetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
             case let .resolved(host, port, _):
                 return (host, port)
             case .denied:
-                throw DuetNetworkBonjourHTTPImprovBackendError.discoveryDenied
+                throw AriaNetworkBonjourHTTPImprovBackendError.discoveryDenied
             case let .failed(message):
-                throw DuetNetworkBonjourHTTPImprovBackendError.discoveryFailed(message: message)
+                throw AriaNetworkBonjourHTTPImprovBackendError.discoveryFailed(message: message)
             case .idle, .discovering:
                 break
             }
@@ -88,7 +88,7 @@ actor DuetNetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
             try await Task.sleep(for: .milliseconds(50))
         }
 
-        throw DuetNetworkBonjourHTTPImprovBackendError.backendNotResolved
+        throw AriaNetworkBonjourHTTPImprovBackendError.backendNotResolved
     }
 
     private nonisolated func durationToTimeInterval(_ duration: Duration) -> TimeInterval {
@@ -96,3 +96,4 @@ actor DuetNetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
         return TimeInterval(components.seconds) + TimeInterval(components.attoseconds) / 1_000_000_000_000_000_000
     }
 }
+

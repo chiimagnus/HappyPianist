@@ -64,6 +64,7 @@ final class AIPerformanceService {
     private var lastKnownBackendKind: ImprovBackendKind?
 
     private var turnTakingCore = DuetTurnTakingCore()
+    private var phraseEventBuffer = DuetPhraseEventBuffer()
     private var pendingSendTask: Task<Void, Never>?
     private var pendingSendReason: TriggerReason?
     private var inFlightGenerateTasks: [Int: Task<Void, Never>] = [:]
@@ -147,6 +148,7 @@ final class AIPerformanceService {
             pendingReplyPlans.removeAll(keepingCapacity: true)
 
             turnTakingCore.reset()
+            phraseEventBuffer.reset()
             lastImprovStatusText = nil
             latestSchedule = []
             notifyStateChanged()
@@ -170,6 +172,7 @@ final class AIPerformanceService {
         if wasEnabled == false {
             activationID += 1
             turnTakingCore.reset()
+            phraseEventBuffer.reset()
             nextGenerateSequenceID = 0
             nextPlaybackSequenceID = 0
             pendingReplyPlans.removeAll(keepingCapacity: true)
@@ -187,6 +190,12 @@ final class AIPerformanceService {
             handleTurnTakingEvent(.noteOn(note: note, velocity: velocity, timestampSeconds: event.receivedAtUptimeSeconds))
         case let .noteOff(note, _):
             handleTurnTakingEvent(.noteOff(note: note, timestampSeconds: event.receivedAtUptimeSeconds))
+        case let .controlChange(controller, value):
+            phraseEventBuffer.recordControlChange(
+                controller: controller,
+                value: value,
+                timestampSeconds: event.receivedAtUptimeSeconds
+            )
         default:
             return
         }
@@ -206,6 +215,12 @@ final class AIPerformanceService {
             )
         case let .noteOff(note, _):
             handleTurnTakingEvent(.noteOff(note: note, timestampSeconds: event.receivedAtUptimeSeconds))
+        case let .controlChange(controller, value32):
+            phraseEventBuffer.recordControlChange(
+                controller: controller,
+                value: MIDI2ValueMapping.value32To7Bit(value32),
+                timestampSeconds: event.receivedAtUptimeSeconds
+            )
         default:
             return
         }
@@ -251,6 +266,10 @@ final class AIPerformanceService {
     private func handleTurnTakingEvent(_ event: DuetTurnTakingCore.Event) {
         syncBackendDiscoveryIfNeeded()
 
+        if case let .noteOn(_, _, timestampSeconds) = event {
+            phraseEventBuffer.recordPhraseStartIfNeeded(timestampSeconds: timestampSeconds)
+        }
+
         let decision = turnTakingCore.handle(event)
         switch decision {
         case .none:
@@ -290,8 +309,27 @@ final class AIPerformanceService {
 
         let nowUptime = nowUptimeSeconds()
         let flushedPhrase = turnTakingCore.flushPhrase(endTimestampSeconds: nowUptime)
+        let flushedCCEvents = phraseEventBuffer.flushPhrase(flushedPhrase: flushedPhrase)
         let policy = DuetPhrasePolicy.makeResult(from: flushedPhrase)
         guard policy.promptNotes.isEmpty == false else { return }
+
+        let noteEvents = policy.promptNotes.map { note in
+            ImprovEvent.note(note: note.note, velocity: note.velocity, time: note.time, duration: note.duration)
+        }
+        let promptEvents = (noteEvents + flushedCCEvents).sorted { lhs, rhs in
+            if lhs.time != rhs.time { return lhs.time < rhs.time }
+            if lhs.type != rhs.type { return lhs.type == .cc }
+            switch (lhs.type, rhs.type) {
+            case (.cc, .cc):
+                if (lhs.controller ?? 0) != (rhs.controller ?? 0) { return (lhs.controller ?? 0) < (rhs.controller ?? 0) }
+                return (lhs.value ?? 0) < (rhs.value ?? 0)
+            case (.note, .note):
+                if (lhs.note ?? 0) != (rhs.note ?? 0) { return (lhs.note ?? 0) < (rhs.note ?? 0) }
+                return (lhs.velocity ?? 0) < (rhs.velocity ?? 0)
+            default:
+                return false
+            }
+        }
 
         let maxTokens = max(1, Int((policy.desiredReplySeconds * 64.0).rounded()))
         let estimatedReplySeconds = estimatedBackendReplySeconds(maxTokens: maxTokens)
@@ -315,6 +353,15 @@ final class AIPerformanceService {
         let activationAtSend = activationID
         nextGenerateSequenceID += 1
 
+        if kind == .networkBonjourWebSocketAriaV2, inFlightGenerateTasks.isEmpty == false {
+            for task in inFlightGenerateTasks.values {
+                task.cancel()
+            }
+            inFlightGenerateTasks.removeAll(keepingCapacity: true)
+            pendingReplyPlans.removeAll(keepingCapacity: true)
+            nextPlaybackSequenceID = sequenceID
+        }
+
         let task = Task { @MainActor [weak self] in
             guard let self else { return }
             isGenerating = true
@@ -330,7 +377,7 @@ final class AIPerformanceService {
                 activationID: activationAtSend,
                 sequenceID: sequenceID,
                 kind: kind,
-                promptNotes: policy.promptNotes,
+                promptEvents: promptEvents,
                 maxTokens: maxTokens
             )
         }
@@ -350,7 +397,7 @@ final class AIPerformanceService {
         activationID: Int,
         sequenceID: Int,
         kind: ImprovBackendKind,
-        promptNotes: [ImprovDialogueNote],
+        promptEvents: [ImprovEvent],
         maxTokens: Int
     ) async {
         guard isEnabled else { return }
@@ -367,10 +414,21 @@ final class AIPerformanceService {
         // Sending a per-turn seed keeps placeholder mode non-deterministic without affecting Magenta.
         let seed = UInt64(activationID) << 32 | UInt64(sequenceID)
         let params = ImprovGenerateParams(topP: 0.95, maxTokens: maxTokens, strategy: "model", seed: seed)
-        let request = ImprovGenerateRequest(notes: promptNotes, params: params, sessionID: improvSessionID)
+        let request = ImprovGenerateRequestV2(events: promptEvents, params: params, sessionID: improvSessionID)
 
         let playbackPlan: ImprovBackendPlaybackPlan
         do {
+            if kind == .networkBonjourWebSocketAriaV2, let streamingBackend = backend as? any ImprovStreamingBackendProtocol {
+                try await attemptSelectedBackendImprovStreaming(
+                    activationID: activationID,
+                    sequenceID: sequenceID,
+                    kind: kind,
+                    backend: streamingBackend,
+                    request: request
+                )
+                return
+            }
+
             playbackPlan = try await backend.generatePlaybackPlan(request: request, timeout: backendTimeout)
         } catch {
             logger.warning("improv backend failed: \(String(describing: error), privacy: .public)")
@@ -387,7 +445,7 @@ final class AIPerformanceService {
                 logger.info("improv reply kind=\(kind.rawValue, privacy: .public)")
             }
             await handleReplyPlan(.schedule(schedule), sequenceID: sequenceID, activationID: activationID)
-            if kind == .networkBonjourHTTPDuet, let backendLatencyMS {
+            if kind == .networkBonjourHTTPAriaV2, let backendLatencyMS {
                 lastImprovStatusText = "上次生成耗时：\(backendLatencyMS)ms"
             } else {
                 lastImprovStatusText = "Last improv: \(kind.rawValue)"
@@ -406,6 +464,55 @@ final class AIPerformanceService {
             )
             lastImprovStatusText = "Last improv: \(kind.rawValue)"
             notifyStateChanged()
+        }
+    }
+
+    private func attemptSelectedBackendImprovStreaming(
+        activationID: Int,
+        sequenceID: Int,
+        kind: ImprovBackendKind,
+        backend: any ImprovStreamingBackendProtocol,
+        request: ImprovGenerateRequestV2
+    ) async throws {
+        let stream = try await backend.streamChunks(request: request, timeout: backendTimeout)
+
+        var assembler = ImprovStreamingChunkAssembler()
+
+        for try await chunk in stream {
+            guard isEnabled else { break }
+            guard activationID == self.activationID else {
+                logger.debug("drop late streaming chunk seq=\(sequenceID, privacy: .public)")
+                break
+            }
+            guard practiceSession != nil else { break }
+            if Task.isCancelled { break }
+
+            if chunk.seq <= assembler.lastSeq {
+                logger.warning("drop streaming chunk: non-monotonic seq=\(chunk.seq, privacy: .public) last=\(assembler.lastSeq, privacy: .public)")
+                continue
+            }
+            if chunk.timeRange.start + 1e-9 < assembler.lastTimeRangeEnd {
+                logger.warning(
+                    "drop streaming chunk: overlapping time_range start=\(chunk.timeRange.start, privacy: .public) lastEnd=\(assembler.lastTimeRangeEnd, privacy: .public)"
+                )
+                continue
+            }
+
+            guard let rebasedEvents = assembler.consume(chunk) else { continue }
+
+            let schedule = try await Task.detached(priority: .userInitiated) {
+                ImprovScheduleBuilder().buildSchedule(from: rebasedEvents)
+            }.value
+
+            if schedule.isEmpty == false {
+                await enqueueAIPlaybackSchedule(schedule)
+            }
+
+            if chunk.isFinal {
+                lastImprovStatusText = "Last improv: \(kind.rawValue) streaming"
+                notifyStateChanged()
+                break
+            }
         }
     }
 

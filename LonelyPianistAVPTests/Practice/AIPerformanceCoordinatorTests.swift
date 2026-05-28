@@ -59,7 +59,7 @@ private actor FakeScheduleBackend: ImprovBackendProtocol {
     }
 
     func generatePlaybackPlan(
-        request _: ImprovGenerateRequest,
+        request _: ImprovGenerateRequestV2,
         timeout _: Duration
     ) async throws -> ImprovBackendPlaybackPlan {
         playbackPlan
@@ -184,7 +184,7 @@ func enableDisableAreIdempotent() async {
 
     let backendService = FakeBackendDiscoveryService()
     let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
-    let selectedKind: ImprovBackendKind = .networkBonjourHTTPDuet
+    let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
     let aiPlaybackService = FakeSequencerPlaybackService()
     let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
         makeLocalSamplerPlaybackService: { aiPlaybackService },
@@ -317,7 +317,7 @@ func shutdownPreventsFurtherEnable() async {
 
     let backendService = FakeBackendDiscoveryService()
     let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
-    let selectedKind: ImprovBackendKind = .networkBonjourHTTPDuet
+    let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
     let aiPlaybackService = FakeSequencerPlaybackService()
     let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
         makeLocalSamplerPlaybackService: { aiPlaybackService },

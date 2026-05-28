@@ -4,3 +4,6 @@
 
 当前仓库没有内置可运行的 Duet（A.I. Duet）Python 服务；AI 即兴使用 AVP 端的本地 CoreML / 本地 rule 后端。
 
+## Aria v2
+
+- 启动：`uv run --project aria_server python scripts/aria_server.py --help`

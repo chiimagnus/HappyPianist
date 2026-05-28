@@ -45,5 +45,5 @@ func improvScheduleBuilderNegativeTimeStillProducesDuration() {
 @Test
 func improvScheduleBuilderEmptyNotesIsEmptySchedule() {
     let builder = ImprovScheduleBuilder()
-    #expect(builder.buildSchedule(from: [], leadInSeconds: 0).isEmpty)
+    #expect(builder.buildSchedule(from: [ImprovDialogueNote](), leadInSeconds: 0).isEmpty)
 }

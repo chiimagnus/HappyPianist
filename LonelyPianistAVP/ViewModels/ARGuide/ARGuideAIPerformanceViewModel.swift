@@ -6,7 +6,8 @@ import os
 @Observable
 final class ARGuideAIPerformanceViewModel {
     private let debugLogger = Logger(subsystem: "LonelyPianistAVP", category: "AIPerformanceDebug")
-    let duetDiscoveryService: BonjourBackendDiscoveryService
+    let ariaDiscoveryService: BonjourBackendDiscoveryService
+    let ariaWebSocketDiscoveryService: BonjourBackendDiscoveryService
     private let backendSelection = ImprovBackendSelection()
     private let aiPlaybackServiceFactory: @MainActor () -> DuetAIPlaybackServiceFactory
     @ObservationIgnored
@@ -29,7 +30,8 @@ final class ARGuideAIPerformanceViewModel {
         ),
         discoveryOrchestrator: ImprovBackendDiscoveryOrchestrator(
             servicesByKind: [
-                .networkBonjourHTTPDuet: duetDiscoveryService,
+                .networkBonjourHTTPAriaV2: ariaDiscoveryService,
+                .networkBonjourWebSocketAriaV2: ariaWebSocketDiscoveryService,
             ]
         ),
         backendRegistry: makeBackendRegistry(),
@@ -50,15 +52,24 @@ final class ARGuideAIPerformanceViewModel {
     )
 
     init(
-        duetDiscoveryService: BonjourBackendDiscoveryService? = nil,
+        ariaDiscoveryService: BonjourBackendDiscoveryService? = nil,
+        ariaWebSocketDiscoveryService: BonjourBackendDiscoveryService? = nil,
         aiPlaybackServiceFactory: (@MainActor () -> DuetAIPlaybackServiceFactory)? = nil
     ) {
-        self.duetDiscoveryService = duetDiscoveryService ?? BonjourBackendDiscoveryService(
+        self.ariaDiscoveryService = ariaDiscoveryService ?? BonjourBackendDiscoveryService(
             serviceType: "_lpduet._tcp",
             requiredTXTRecord: [
                 "path": "/generate",
-                "protocol_version": "1",
-                "engine": "magenta",
+                "protocol_version": "2",
+                "engine": "aria",
+            ]
+        )
+        self.ariaWebSocketDiscoveryService = ariaWebSocketDiscoveryService ?? BonjourBackendDiscoveryService(
+            serviceType: "_lpduet._tcp",
+            requiredTXTRecord: [
+                "ws_path": "/stream",
+                "protocol_version": "2",
+                "engine": "aria",
             ]
         )
         if let aiPlaybackServiceFactory {
@@ -87,11 +98,17 @@ final class ARGuideAIPerformanceViewModel {
 
     var backendStatusText: String? {
         switch backendSelection.selectedKind() {
-        case .networkBonjourHTTPDuet:
+        case .networkBonjourHTTPAriaV2:
             return backendDiscoveryStatusText(
-                backendName: "A.I. Duet",
-                state: duetDiscoveryService.state,
-                notFoundHint: "请先在电脑端启动 Duet Python 服务（默认端口 8766）。"
+                backendName: "Aria v2",
+                state: ariaDiscoveryService.state,
+                notFoundHint: "请先在电脑端启动 Aria v2 Python 服务。"
+            )
+        case .networkBonjourWebSocketAriaV2:
+            return backendDiscoveryStatusText(
+                backendName: "Aria v2 Streaming",
+                state: ariaWebSocketDiscoveryService.state,
+                notFoundHint: "请先在电脑端启动 Aria v2 Python 服务（需支持 ws_path=/stream）。"
             )
         case .localCoreMLDuet:
             startLocalCoreMLDuetProbeIfNeeded()
@@ -105,9 +122,12 @@ final class ARGuideAIPerformanceViewModel {
 
     func restartDiscoveryForSelectedBackend() {
         switch backendSelection.selectedKind() {
-        case .networkBonjourHTTPDuet:
-            duetDiscoveryService.stop()
-            duetDiscoveryService.start()
+        case .networkBonjourHTTPAriaV2:
+            ariaDiscoveryService.stop()
+            ariaDiscoveryService.start()
+        case .networkBonjourWebSocketAriaV2:
+            ariaWebSocketDiscoveryService.stop()
+            ariaWebSocketDiscoveryService.start()
         case .localCoreMLDuet:
             restartLocalCoreMLDuetProbe()
         case .localRule, .tickRangeReplay:
@@ -208,7 +228,8 @@ final class ARGuideAIPerformanceViewModel {
     private func makeBackendRegistry() -> ImprovBackendRegistry {
         ImprovBackendRegistry(
             backends: [
-                DuetNetworkBonjourHTTPImprovBackend(discoveryService: duetDiscoveryService),
+                AriaNetworkBonjourHTTPImprovBackend(discoveryService: ariaDiscoveryService),
+                AriaNetworkBonjourWebSocketImprovBackend(discoveryService: ariaWebSocketDiscoveryService),
                 LocalCoreMLDuetImprovBackend(modelLoader: localCoreMLModelLoader),
                 LocalRuleImprovBackend(),
                 TickRangeReplayImprovBackend(),

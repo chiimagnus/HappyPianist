@@ -74,9 +74,11 @@ class BonjourServiceBroadcaster:
             parsed_addresses = [ip]
 
         instance = sanitize_dns_sd_instance_name(self.instance_name)
-        service_type = self.service_type
-        if service_type.endswith(".") is False:
+        service_type = self.service_type.rstrip(".")
+        if service_type.endswith(".local"):
             service_type = f"{service_type}."
+        else:
+            service_type = f"{service_type}.local."
 
         self._zc = AsyncZeroconf()
         self._info = ServiceInfo(
@@ -107,4 +109,3 @@ class BonjourServiceBroadcaster:
 
             self._zc = None
             self._info = None
-

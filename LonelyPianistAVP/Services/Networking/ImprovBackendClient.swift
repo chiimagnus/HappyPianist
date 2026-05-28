@@ -9,12 +9,12 @@ enum ImprovBackendClientError: Error {
 }
 
 protocol ImprovBackendClientProtocol {
-    func generate(
+    func generateV2(
         host: String,
         port: Int,
-        request: ImprovGenerateRequest,
+        request: ImprovGenerateRequestV2,
         timeoutSeconds: TimeInterval
-    ) async throws -> ImprovResultResponse
+    ) async throws -> ImprovResultResponseV2
 }
 
 struct ImprovBackendClient: ImprovBackendClientProtocol {
@@ -24,12 +24,12 @@ struct ImprovBackendClient: ImprovBackendClientProtocol {
         self.urlSession = urlSession
     }
 
-    func generate(
+    func generateV2(
         host: String,
         port: Int,
-        request: ImprovGenerateRequest,
+        request: ImprovGenerateRequestV2,
         timeoutSeconds: TimeInterval = 2
-    ) async throws -> ImprovResultResponse {
+    ) async throws -> ImprovResultResponseV2 {
         var components = URLComponents()
         components.scheme = "http"
         components.host = host
@@ -59,7 +59,7 @@ struct ImprovBackendClient: ImprovBackendClientProtocol {
             throw ImprovBackendClientError.httpError(statusCode: httpResponse.statusCode, message: message)
         }
 
-        if let result = try? decoder.decode(ImprovResultResponse.self, from: data) {
+        if let result = try? decoder.decode(ImprovResultResponseV2.self, from: data) {
             return result
         }
         if let error = try? decoder.decode(ImprovErrorResponse.self, from: data) {
