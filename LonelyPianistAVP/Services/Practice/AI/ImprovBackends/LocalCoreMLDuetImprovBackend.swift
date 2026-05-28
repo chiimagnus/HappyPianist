@@ -34,15 +34,16 @@ actor LocalCoreMLDuetImprovBackend: ImprovBackendProtocol {
     }
 
     func generatePlaybackPlan(
-        request: ImprovGenerateRequest,
+        request: ImprovGenerateRequestV2,
         timeout: Duration
     ) async throws -> ImprovBackendPlaybackPlan {
         let stepModel = try await modelLoader.loadStepModel()
         let generator = self.generator
+        let promptNotes = request.extractDialogueNotes()
 
         let replyNotes = try await runWithTimeout(timeout) {
             try await generator.generateReplyNotes(
-                promptNotes: request.notes,
+                promptNotes: promptNotes,
                 params: request.params,
                 sessionID: request.sessionID,
                 stepModel: stepModel
@@ -79,4 +80,3 @@ actor LocalCoreMLDuetImprovBackend: ImprovBackendProtocol {
         }
     }
 }
-

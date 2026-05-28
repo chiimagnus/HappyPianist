@@ -59,7 +59,7 @@ private actor FakeScheduleBackend: ImprovBackendProtocol {
     }
 
     func generatePlaybackPlan(
-        request _: ImprovGenerateRequest,
+        request _: ImprovGenerateRequestV2,
         timeout _: Duration
     ) async throws -> ImprovBackendPlaybackPlan {
         playbackPlan

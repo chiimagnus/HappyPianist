@@ -294,3 +294,25 @@ public struct ImprovResultResponseV2: Codable, Equatable, Sendable {
         self.latencyMS = latencyMS
     }
 }
+
+public extension ImprovGenerateRequestV2 {
+    func extractDialogueNotes() -> [ImprovDialogueNote] {
+        events.compactMap { event in
+            guard event.type == .note else { return nil }
+            guard let note = event.note, let velocity = event.velocity, let duration = event.duration else { return nil }
+            return ImprovDialogueNote(note: note, velocity: velocity, time: event.time, duration: duration)
+        }
+        .sorted { $0.time < $1.time }
+    }
+}
+
+public extension ImprovResultResponseV2 {
+    func extractDialogueNotes() -> [ImprovDialogueNote] {
+        events.compactMap { event in
+            guard event.type == .note else { return nil }
+            guard let note = event.note, let velocity = event.velocity, let duration = event.duration else { return nil }
+            return ImprovDialogueNote(note: note, velocity: velocity, time: event.time, duration: duration)
+        }
+        .sorted { $0.time < $1.time }
+    }
+}

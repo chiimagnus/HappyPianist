@@ -6,7 +6,7 @@ protocol ImprovBackendProtocol: Sendable {
     var displayName: String { get }
 
     func generatePlaybackPlan(
-        request: ImprovGenerateRequest,
+        request: ImprovGenerateRequestV2,
         timeout: Duration
     ) async throws -> ImprovBackendPlaybackPlan
 }

@@ -367,7 +367,10 @@ final class AIPerformanceService {
         // Sending a per-turn seed keeps placeholder mode non-deterministic without affecting Magenta.
         let seed = UInt64(activationID) << 32 | UInt64(sequenceID)
         let params = ImprovGenerateParams(topP: 0.95, maxTokens: maxTokens, strategy: "model", seed: seed)
-        let request = ImprovGenerateRequest(notes: promptNotes, params: params, sessionID: improvSessionID)
+        let events = promptNotes.map { note in
+            ImprovEvent.note(note: note.note, velocity: note.velocity, time: note.time, duration: note.duration)
+        }
+        let request = ImprovGenerateRequestV2(events: events, params: params, sessionID: improvSessionID)
 
         let playbackPlan: ImprovBackendPlaybackPlan
         do {

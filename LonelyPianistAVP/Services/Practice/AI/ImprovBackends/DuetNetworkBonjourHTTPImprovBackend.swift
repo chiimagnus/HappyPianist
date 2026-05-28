@@ -40,7 +40,7 @@ actor DuetNetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
     }
 
     func generatePlaybackPlan(
-        request: ImprovGenerateRequest,
+        request: ImprovGenerateRequestV2,
         timeout: Duration
     ) async throws -> ImprovBackendPlaybackPlan {
         await MainActor.run {
@@ -52,10 +52,15 @@ actor DuetNetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
         let resolved = try await waitForResolvedEndpoint(timeout: timeout)
         let timeoutSeconds = durationToTimeInterval(timeout)
 
+        let legacyRequest = ImprovGenerateRequest(
+            notes: request.extractDialogueNotes(),
+            params: request.params,
+            sessionID: request.sessionID
+        )
         let response = try await backendClient.generate(
             host: resolved.host,
             port: resolved.port,
-            request: request,
+            request: legacyRequest,
             timeoutSeconds: timeoutSeconds
         )
 
