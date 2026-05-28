@@ -353,6 +353,15 @@ final class AIPerformanceService {
         let activationAtSend = activationID
         nextGenerateSequenceID += 1
 
+        if kind == .networkBonjourWebSocketAriaV2, inFlightGenerateTasks.isEmpty == false {
+            for task in inFlightGenerateTasks.values {
+                task.cancel()
+            }
+            inFlightGenerateTasks.removeAll(keepingCapacity: true)
+            pendingReplyPlans.removeAll(keepingCapacity: true)
+            nextPlaybackSequenceID = sequenceID
+        }
+
         let task = Task { @MainActor [weak self] in
             guard let self else { return }
             isGenerating = true
@@ -409,6 +418,17 @@ final class AIPerformanceService {
 
         let playbackPlan: ImprovBackendPlaybackPlan
         do {
+            if kind == .networkBonjourWebSocketAriaV2, let streamingBackend = backend as? any ImprovStreamingBackendProtocol {
+                try await attemptSelectedBackendImprovStreaming(
+                    activationID: activationID,
+                    sequenceID: sequenceID,
+                    kind: kind,
+                    backend: streamingBackend,
+                    request: request
+                )
+                return
+            }
+
             playbackPlan = try await backend.generatePlaybackPlan(request: request, timeout: backendTimeout)
         } catch {
             logger.warning("improv backend failed: \(String(describing: error), privacy: .public)")
@@ -444,6 +464,63 @@ final class AIPerformanceService {
             )
             lastImprovStatusText = "Last improv: \(kind.rawValue)"
             notifyStateChanged()
+        }
+    }
+
+    private func attemptSelectedBackendImprovStreaming(
+        activationID: Int,
+        sequenceID: Int,
+        kind: ImprovBackendKind,
+        backend: any ImprovStreamingBackendProtocol,
+        request: ImprovGenerateRequestV2
+    ) async throws {
+        let stream = try await backend.streamChunks(request: request, timeout: backendTimeout)
+
+        var lastSeq = -1
+        var lastRangeEnd: Double = 0
+
+        for try await chunk in stream {
+            guard isEnabled else { break }
+            guard activationID == self.activationID else {
+                logger.debug("drop late streaming chunk seq=\(sequenceID, privacy: .public)")
+                break
+            }
+            guard practiceSession != nil else { break }
+            if Task.isCancelled { break }
+
+            if chunk.seq <= lastSeq {
+                logger.warning("drop streaming chunk: non-monotonic seq=\(chunk.seq, privacy: .public) last=\(lastSeq, privacy: .public)")
+                continue
+            }
+            if chunk.timeRange.start + 1e-9 < lastRangeEnd {
+                logger.warning(
+                    "drop streaming chunk: overlapping time_range start=\(chunk.timeRange.start, privacy: .public) lastEnd=\(lastRangeEnd, privacy: .public)"
+                )
+                continue
+            }
+
+            lastSeq = chunk.seq
+            lastRangeEnd = max(lastRangeEnd, chunk.timeRange.end)
+
+            let rebasedEvents = chunk.events.map { event in
+                var rebased = event
+                rebased.time = max(0, rebased.time - chunk.timeRange.start)
+                return rebased
+            }
+
+            let schedule = try await Task.detached(priority: .userInitiated) {
+                ImprovScheduleBuilder().buildSchedule(from: rebasedEvents)
+            }.value
+
+            if schedule.isEmpty == false {
+                await enqueueAIPlaybackSchedule(schedule)
+            }
+
+            if chunk.isFinal {
+                lastImprovStatusText = "Last improv: \(kind.rawValue) streaming"
+                notifyStateChanged()
+                break
+            }
         }
     }
 

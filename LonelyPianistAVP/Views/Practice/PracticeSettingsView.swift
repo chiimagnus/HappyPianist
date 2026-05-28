@@ -273,6 +273,8 @@ struct PracticeSettingsView: View {
             return backendStatusText ?? "后端：网络本地连接（A.I. Duet / Magenta）"
         case .networkBonjourHTTPAriaV2:
             return backendStatusText ?? "后端：网络本地连接（Aria v2）"
+        case .networkBonjourWebSocketAriaV2:
+            return backendStatusText ?? "后端：网络本地连接（Aria v2 Streaming）"
         case .localCoreMLDuet:
             return backendStatusText ?? "后端：本地 CoreML（A.I. Duet / Performance RNN）"
         case .localRule:
@@ -288,6 +290,8 @@ struct PracticeSettingsView: View {
             "网络本地连接（A.I. Duet / Magenta）"
         case .networkBonjourHTTPAriaV2:
             "网络本地连接（Aria v2）"
+        case .networkBonjourWebSocketAriaV2:
+            "网络本地连接（Aria v2 Streaming）"
         case .localCoreMLDuet:
             "本地 CoreML（A.I. Duet / Performance RNN）"
         case .localRule:
