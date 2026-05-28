@@ -64,6 +64,7 @@ final class AIPerformanceService {
     private var lastKnownBackendKind: ImprovBackendKind?
 
     private var turnTakingCore = DuetTurnTakingCore()
+    private var phraseEventBuffer = DuetPhraseEventBuffer()
     private var pendingSendTask: Task<Void, Never>?
     private var pendingSendReason: TriggerReason?
     private var inFlightGenerateTasks: [Int: Task<Void, Never>] = [:]
@@ -147,6 +148,7 @@ final class AIPerformanceService {
             pendingReplyPlans.removeAll(keepingCapacity: true)
 
             turnTakingCore.reset()
+            phraseEventBuffer.reset()
             lastImprovStatusText = nil
             latestSchedule = []
             notifyStateChanged()
@@ -170,6 +172,7 @@ final class AIPerformanceService {
         if wasEnabled == false {
             activationID += 1
             turnTakingCore.reset()
+            phraseEventBuffer.reset()
             nextGenerateSequenceID = 0
             nextPlaybackSequenceID = 0
             pendingReplyPlans.removeAll(keepingCapacity: true)
@@ -187,6 +190,12 @@ final class AIPerformanceService {
             handleTurnTakingEvent(.noteOn(note: note, velocity: velocity, timestampSeconds: event.receivedAtUptimeSeconds))
         case let .noteOff(note, _):
             handleTurnTakingEvent(.noteOff(note: note, timestampSeconds: event.receivedAtUptimeSeconds))
+        case let .controlChange(controller, value):
+            phraseEventBuffer.recordControlChange(
+                controller: controller,
+                value: value,
+                timestampSeconds: event.receivedAtUptimeSeconds
+            )
         default:
             return
         }
@@ -206,6 +215,12 @@ final class AIPerformanceService {
             )
         case let .noteOff(note, _):
             handleTurnTakingEvent(.noteOff(note: note, timestampSeconds: event.receivedAtUptimeSeconds))
+        case let .controlChange(controller, value32):
+            phraseEventBuffer.recordControlChange(
+                controller: controller,
+                value: MIDI2ValueMapping.value32To7Bit(value32),
+                timestampSeconds: event.receivedAtUptimeSeconds
+            )
         default:
             return
         }
@@ -251,6 +266,10 @@ final class AIPerformanceService {
     private func handleTurnTakingEvent(_ event: DuetTurnTakingCore.Event) {
         syncBackendDiscoveryIfNeeded()
 
+        if case let .noteOn(_, _, timestampSeconds) = event {
+            phraseEventBuffer.recordPhraseStartIfNeeded(timestampSeconds: timestampSeconds)
+        }
+
         let decision = turnTakingCore.handle(event)
         switch decision {
         case .none:
@@ -290,8 +309,27 @@ final class AIPerformanceService {
 
         let nowUptime = nowUptimeSeconds()
         let flushedPhrase = turnTakingCore.flushPhrase(endTimestampSeconds: nowUptime)
+        let flushedCCEvents = phraseEventBuffer.flushPhrase(flushedPhrase: flushedPhrase)
         let policy = DuetPhrasePolicy.makeResult(from: flushedPhrase)
         guard policy.promptNotes.isEmpty == false else { return }
+
+        let noteEvents = policy.promptNotes.map { note in
+            ImprovEvent.note(note: note.note, velocity: note.velocity, time: note.time, duration: note.duration)
+        }
+        let promptEvents = (noteEvents + flushedCCEvents).sorted { lhs, rhs in
+            if lhs.time != rhs.time { return lhs.time < rhs.time }
+            if lhs.type != rhs.type { return lhs.type == .cc }
+            switch (lhs.type, rhs.type) {
+            case (.cc, .cc):
+                if (lhs.controller ?? 0) != (rhs.controller ?? 0) { return (lhs.controller ?? 0) < (rhs.controller ?? 0) }
+                return (lhs.value ?? 0) < (rhs.value ?? 0)
+            case (.note, .note):
+                if (lhs.note ?? 0) != (rhs.note ?? 0) { return (lhs.note ?? 0) < (rhs.note ?? 0) }
+                return (lhs.velocity ?? 0) < (rhs.velocity ?? 0)
+            default:
+                return false
+            }
+        }
 
         let maxTokens = max(1, Int((policy.desiredReplySeconds * 64.0).rounded()))
         let estimatedReplySeconds = estimatedBackendReplySeconds(maxTokens: maxTokens)
@@ -330,7 +368,7 @@ final class AIPerformanceService {
                 activationID: activationAtSend,
                 sequenceID: sequenceID,
                 kind: kind,
-                promptNotes: policy.promptNotes,
+                promptEvents: promptEvents,
                 maxTokens: maxTokens
             )
         }
@@ -350,7 +388,7 @@ final class AIPerformanceService {
         activationID: Int,
         sequenceID: Int,
         kind: ImprovBackendKind,
-        promptNotes: [ImprovDialogueNote],
+        promptEvents: [ImprovEvent],
         maxTokens: Int
     ) async {
         guard isEnabled else { return }
@@ -367,10 +405,7 @@ final class AIPerformanceService {
         // Sending a per-turn seed keeps placeholder mode non-deterministic without affecting Magenta.
         let seed = UInt64(activationID) << 32 | UInt64(sequenceID)
         let params = ImprovGenerateParams(topP: 0.95, maxTokens: maxTokens, strategy: "model", seed: seed)
-        let events = promptNotes.map { note in
-            ImprovEvent.note(note: note.note, velocity: note.velocity, time: note.time, duration: note.duration)
-        }
-        let request = ImprovGenerateRequestV2(events: events, params: params, sessionID: improvSessionID)
+        let request = ImprovGenerateRequestV2(events: promptEvents, params: params, sessionID: improvSessionID)
 
         let playbackPlan: ImprovBackendPlaybackPlan
         do {
