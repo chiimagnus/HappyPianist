@@ -48,7 +48,7 @@ class GenerateRequestV2(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     type: str = "generate"
-    protocol_version: int = 2
+    protocol_version: Literal[2] = 2
     events: list[ImprovEvent]
     params: GenerateParams = Field(default_factory=GenerateParams)
     session_id: str | None = None
@@ -58,7 +58,7 @@ class ResultResponseV2(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     type: str = "result"
-    protocol_version: int = 2
+    protocol_version: Literal[2] = 2
     events: list[ImprovEvent]
     latency_ms: int | None = None
 
@@ -67,7 +67,7 @@ class ErrorResponseV2(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     type: str = "error"
-    protocol_version: int = 2
+    protocol_version: Literal[2] = 2
     message: str
 
 
@@ -107,4 +107,3 @@ def legalize_events(events: list[ImprovEvent]) -> list[ImprovEvent]:
 
     legalized.sort(key=sort_key)
     return legalized
-

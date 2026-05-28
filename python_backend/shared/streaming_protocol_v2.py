@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 from shared.protocol_v2 import ImprovEvent, GenerateRequestV2, legalize_events
@@ -9,7 +11,7 @@ class StreamStartRequestV2(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     type: str = "start"
-    protocol_version: int = 2
+    protocol_version: Literal[2] = 2
     request: GenerateRequestV2
 
 
@@ -24,7 +26,7 @@ class StreamChunkV2(BaseModel):
     model_config = ConfigDict(extra="ignore")
 
     type: str = "chunk"
-    protocol_version: int = 2
+    protocol_version: Literal[2] = 2
     seq: int = Field(ge=0)
     is_final: bool = False
     time_range: StreamTimeRange
@@ -39,4 +41,3 @@ class StreamChunkV2(BaseModel):
             events=legalize_events(self.events),
             latency_ms=self.latency_ms,
         )
-
