@@ -1,0 +1,17 @@
+[project]
+name = "aria-server"
+version = "0.0.1"
+description = "LonelyPianist Aria v2 local HTTP+Bonjour server (scaffold)."
+requires-python = ">=3.11"
+
+dependencies = [
+    "aria",
+    "mido",
+    "safetensors",
+    "pydantic>=2",
+    "zeroconf",
+]
+
+[tool.uv.sources]
+aria = { path = "../aria", editable = true }
+
