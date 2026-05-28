@@ -20,9 +20,13 @@ def _bootstrap_import_path() -> None:
     aria_dir = python_backend_dir / "aria"
     shared_dir = python_backend_dir
 
+    # IMPORTANT: do not put `python_backend/` in front of `python_backend/aria/`.
+    # Otherwise `import aria` may be resolved as a namespace package rooted at
+    # `python_backend/aria/` (no `__init__.py` there), and imports like
+    # `aria.config` will fail.
+    sys.path.insert(0, str(shared_dir))
     sys.path.insert(0, str(aria_server_dir))
     sys.path.insert(0, str(aria_dir))
-    sys.path.insert(0, str(shared_dir))
 
 
 def main() -> None:

@@ -10,8 +10,8 @@ dependencies = [
     "safetensors",
     "pydantic>=2",
     "zeroconf",
+    "numpy",
 ]
 
 [tool.uv.sources]
 aria = { path = "../aria", editable = true }
-

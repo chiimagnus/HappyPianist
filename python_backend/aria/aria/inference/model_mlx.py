@@ -243,6 +243,9 @@ class TransformerLM(nn.Module):
         max_kv_pos: int | None = None,
         pad_idxs: mx.array | None = None,
     ):
+        if max_kv_pos is None:
+            max_kv_pos = int(input_pos[-1].item())
+
         hidden_states = self.model(
             idxs=idxs,
             input_pos=input_pos,
