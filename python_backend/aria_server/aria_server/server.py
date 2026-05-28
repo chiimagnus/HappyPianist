@@ -20,6 +20,7 @@ from shared.protocol_v2 import (
     ResultResponseV2,
     legalize_events,
 )
+from shared.midi_events_v2 import MidiBuildConfig, events_to_mididict, mididict_to_events
 
 from aria.run import _load_inference_model_mlx
 from ariautils.tokenizer import AbsTokenizer
@@ -69,11 +70,14 @@ class _Handler(http.server.BaseHTTPRequestHandler):
             return
 
         pipeline = getattr(self.server, "aria_pipeline", None)
+        reply_events: list[Any] | None = None
         if pipeline is not None:
-            pipeline.generate_best_effort(prompt_events=request.events, params=request.params.model_dump())
+            reply_midi = pipeline.generate_best_effort(prompt_events=request.events, params=request.params.model_dump())
+            if reply_midi is not None:
+                reply_events = mididict_to_events(reply_midi)
 
-        # Echo mode (P2-T2): legalize + filter unknown CC, and always include at least one CC64.
-        events = legalize_events(request.events)
+        # P2-T4: if generation fails, fall back to echo mode (still legalize + filter unknown CC).
+        events = legalize_events(reply_events if reply_events is not None else request.events)
         defaults: list[ControlChangeEvent] = []
         if not any(isinstance(e, ControlChangeEvent) and e.controller == 64 for e in events):
             defaults.append(ControlChangeEvent(controller=64, value=0, time=0.0))
@@ -180,8 +184,7 @@ class AriaPipeline:
         self._model = _load_inference_model_mlx(str(self._checkpoint), config_name="medium-emb", strict=False)
         print("[aria_server] model loaded", flush=True)
 
-    def generate_best_effort(self, prompt_events: list[Any], params: dict[str, Any]) -> None:
-        # P2-T3: best-effort pipeline skeleton; response still echoes events until P2-T4.
+    def generate_best_effort(self, prompt_events: list[Any], params: dict[str, Any]) -> MidiDict | None:
         try:
             with self._lock:
                 started = time.perf_counter()
@@ -189,7 +192,10 @@ class AriaPipeline:
                 assert self._tokenizer is not None
                 assert self._model is not None
 
-                midi_prompt = _events_to_mididict(prompt_events, ticks_per_beat=480, bpm=120)
+                midi_prompt = events_to_mididict(
+                    prompt_events,
+                    config=MidiBuildConfig(ticks_per_beat=480, bpm=120, channel=0),
+                )
                 self._last_prompt = midi_prompt
                 prompt = get_inference_prompt(midi_dict=midi_prompt, tokenizer=self._tokenizer, prompt_len_ms=15_000)
 
@@ -211,68 +217,13 @@ class AriaPipeline:
                     self._last_reply = self._tokenizer.detokenize(results[0])
                 elapsed_ms = int(round((time.perf_counter() - started) * 1000))
                 print(f"[aria_server] generation done in {elapsed_ms}ms", flush=True)
+                return self._last_reply
         except Exception as exc:
             import traceback
 
             print(f"[aria_server] generate_best_effort failed: {exc}", flush=True)
             print(traceback.format_exc(), flush=True)
-
-
-def _events_to_mididict(events: list[Any], *, ticks_per_beat: int, bpm: int) -> MidiDict:
-    tempo_us_per_beat = round(60_000_000 / max(1, bpm))
-    ticks_per_second = ticks_per_beat * bpm / 60.0
-
-    note_msgs = []
-    pedal_msgs = []
-
-    for raw in events:
-        if isinstance(raw, dict):
-            event_type = raw.get("type")
-        else:
-            event_type = getattr(raw, "type", None)
-
-        if event_type == "note":
-            note = int(raw.get("note")) if isinstance(raw, dict) else int(getattr(raw, "note"))
-            velocity = int(raw.get("velocity")) if isinstance(raw, dict) else int(getattr(raw, "velocity"))
-            time_s = float(raw.get("time")) if isinstance(raw, dict) else float(getattr(raw, "time"))
-            dur_s = float(raw.get("duration")) if isinstance(raw, dict) else float(getattr(raw, "duration"))
-
-            start_tick = max(0, round(time_s * ticks_per_second))
-            end_tick = max(start_tick, round((time_s + max(0.0, dur_s)) * ticks_per_second))
-            note_msgs.append(
-                {
-                    "type": "note",
-                    "data": {"pitch": note, "start": start_tick, "end": end_tick, "velocity": velocity},
-                    "tick": start_tick,
-                    "channel": 0,
-                }
-            )
-        elif event_type == "cc":
-            controller = int(raw.get("controller")) if isinstance(raw, dict) else int(getattr(raw, "controller"))
-            value = int(raw.get("value")) if isinstance(raw, dict) else int(getattr(raw, "value"))
-            time_s = float(raw.get("time")) if isinstance(raw, dict) else float(getattr(raw, "time"))
-            tick = max(0, round(time_s * ticks_per_second))
-
-            if controller == 64:
-                pedal_msgs.append(
-                    {
-                        "type": "pedal",
-                        "data": 1 if value >= 64 else 0,
-                        "value": value,
-                        "tick": tick,
-                        "channel": 0,
-                    }
-                )
-
-    return MidiDict(
-        meta_msgs=[],
-        tempo_msgs=[{"type": "tempo", "data": tempo_us_per_beat, "tick": 0}],
-        pedal_msgs=pedal_msgs,
-        instrument_msgs=[],
-        note_msgs=note_msgs,
-        ticks_per_beat=ticks_per_beat,
-        metadata={},
-    )
+            return None
 
 
 def main(argv: list[str] | None = None) -> None:
