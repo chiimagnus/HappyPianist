@@ -12,17 +12,30 @@ struct DuetPhraseEventBuffer: Sendable {
 
     private var phraseStartTimestampSeconds: TimeInterval?
     private var recordedControlChanges: [RecordedControlChange] = []
+    private var latestKnownControlValues: [Int: Int] = [:]
 
     init() {}
 
     mutating func recordPhraseStartIfNeeded(timestampSeconds: TimeInterval) {
         if phraseStartTimestampSeconds == nil {
             phraseStartTimestampSeconds = timestampSeconds
+
+            let injected = latestKnownControlValues
+                .filter { Self.allowedControllers.contains($0.key) }
+                .map { controller, value in
+                    RecordedControlChange(controller: controller, value: value, timestampSeconds: timestampSeconds)
+                }
+                .sorted { lhs, rhs in
+                    if lhs.controller != rhs.controller { return lhs.controller < rhs.controller }
+                    return lhs.value < rhs.value
+                }
+            recordedControlChanges.append(contentsOf: injected)
         }
     }
 
     mutating func recordControlChange(controller: Int, value: Int, timestampSeconds: TimeInterval) {
         guard Self.allowedControllers.contains(controller) else { return }
+        latestKnownControlValues[controller] = value
         guard phraseStartTimestampSeconds != nil else { return }
 
         recordedControlChanges.append(
@@ -59,7 +72,7 @@ struct DuetPhraseEventBuffer: Sendable {
         }
 
         let windowStartSeconds = max(0, phraseEndTimeSeconds - 15)
-        return rebased
+        let windowEvents = rebased
             .filter { $0.timestampSeconds >= windowStartSeconds }
             .map { change in
                 ImprovEvent.cc(
@@ -68,16 +81,23 @@ struct DuetPhraseEventBuffer: Sendable {
                     time: max(0, change.timestampSeconds - windowStartSeconds)
                 )
             }
-            .sorted { lhs, rhs in
-                if lhs.time != rhs.time { return lhs.time < rhs.time }
-                if lhs.type != rhs.type { return lhs.type == .cc }
-                return tieBreaker(lhs) < tieBreaker(rhs)
-            }
+        let initialAtWindowStart: [ImprovEvent] = Self.allowedControllers.compactMap { controller in
+            let lastChange = rebased.last(where: { $0.controller == controller && $0.timestampSeconds <= windowStartSeconds + 1e-9 })
+            guard let lastChange else { return nil }
+            return ImprovEvent.cc(controller: lastChange.controller, value: lastChange.value, time: 0)
+        }
+
+        return (initialAtWindowStart + windowEvents).sorted { lhs, rhs in
+            if lhs.time != rhs.time { return lhs.time < rhs.time }
+            if lhs.type != rhs.type { return lhs.type == .cc }
+            return tieBreaker(lhs) < tieBreaker(rhs)
+        }
     }
 
     mutating func reset() {
         phraseStartTimestampSeconds = nil
         recordedControlChanges.removeAll(keepingCapacity: true)
+        latestKnownControlValues.removeAll(keepingCapacity: true)
     }
 
     private static let allowedControllers: Set<Int> = [7, 11, 64]
@@ -91,4 +111,3 @@ struct DuetPhraseEventBuffer: Sendable {
         }
     }
 }
-
