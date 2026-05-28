@@ -47,7 +47,7 @@ private actor ControlledBackend: ImprovBackendProtocol {
         self.displayName = displayName
     }
 
-    func generatePlaybackPlan(request _: ImprovGenerateRequest, timeout _: Duration) async throws -> ImprovBackendPlaybackPlan {
+    func generatePlaybackPlan(request _: ImprovGenerateRequestV2, timeout _: Duration) async throws -> ImprovBackendPlaybackPlan {
         try Task.checkCancellation()
         return try await withCheckedThrowingContinuation { continuation in
             continuations.append(continuation)

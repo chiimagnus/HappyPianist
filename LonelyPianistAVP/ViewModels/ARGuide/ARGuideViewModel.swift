@@ -43,7 +43,6 @@ final class ARGuideViewModel {
         gazePlaneHitTestService: (any GazePlaneHitTestingProtocol)? = nil,
         virtualKeyboardPoseService: (any VirtualKeyboardPoseServiceProtocol)? = nil,
         virtualPianoKeyGeometryService: (any VirtualPianoKeyGeometryServiceProtocol)? = nil,
-        duetDiscoveryService: BonjourBackendDiscoveryService? = nil,
         aiPlaybackServiceFactory: (@MainActor () -> DuetAIPlaybackServiceFactory)? = nil,
         takeLibraryViewModel: TakeLibraryViewModel? = nil,
         takePlaybackViewModel: TakePlaybackViewModel? = nil
@@ -68,7 +67,6 @@ final class ARGuideViewModel {
             virtualPianoKeyGeometryService: virtualPianoKeyGeometryService
         )
         let ai = ARGuideAIPerformanceViewModel(
-            duetDiscoveryService: duetDiscoveryService,
             aiPlaybackServiceFactory: aiPlaybackServiceFactory
         )
 

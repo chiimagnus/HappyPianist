@@ -58,7 +58,7 @@ private actor CountingScheduleBackend: ImprovBackendProtocol {
         self.playbackPlan = playbackPlan
     }
 
-    func generatePlaybackPlan(request _: ImprovGenerateRequest, timeout _: Duration) async throws -> ImprovBackendPlaybackPlan {
+    func generatePlaybackPlan(request _: ImprovGenerateRequestV2, timeout _: Duration) async throws -> ImprovBackendPlaybackPlan {
         generateCallCountValue += 1
         return playbackPlan
     }
