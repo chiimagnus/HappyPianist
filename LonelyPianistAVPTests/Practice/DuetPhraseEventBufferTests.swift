@@ -28,12 +28,19 @@ func duetPhraseEventBufferFlushTrimsLast15SecondsWhenOver10Seconds() {
 
     let flushedNotes = DuetPhraseBuffer.FlushResult(trimmedNotes: [], untrimmedEndTimeSeconds: 20.2, endTimeSeconds: 15.0)
     let events = buffer.flushPhrase(flushedPhrase: flushedNotes)
-    #expect(events.count == 1)
+    #expect(events.count == 2)
+
+    // When trimming long phrases, the buffer injects the last-known CC state at windowStart as time=0.
     #expect(events[0].type == .cc)
-    #expect(events[0].controller == 7)
-    #expect(events[0].value == 80)
+    #expect(events[0].controller == 64)
+    #expect(events[0].value == 127)
+    #expect(abs(events[0].time - 0.0) < 1e-9)
+
+    #expect(events[1].type == .cc)
+    #expect(events[1].controller == 7)
+    #expect(events[1].value == 80)
     // windowStart = 20.2 - 15 = 5.2; (120 - 100) - 5.2 = 14.8
-    #expect(abs(events[0].time - 14.8) < 1e-9)
+    #expect(abs(events[1].time - 14.8) < 1e-9)
 }
 
 @Test
