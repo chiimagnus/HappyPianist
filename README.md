@@ -17,7 +17,9 @@
 ### 🎹 AI 对弹（接力即兴）
 你弹一句、AI 回一句；在沉浸空间中回放。
 
-AI 对弹当前使用 AVP 端的本地 CoreML / 本地规则后端，不再需要电脑端 Python 服务。
+AI 对弹默认使用 AVP 端的本地 CoreML / 本地规则后端，不需要电脑端 Python 服务。
+
+可选：你也可以在 Mac 上启动 `python_backend/aria_server/`，让 AVP 通过 Bonjour + HTTP/WS 连接 Aria v2 网络后端（适合真机联调与低延迟 streaming 验证）。
 
 ## 发布物
 

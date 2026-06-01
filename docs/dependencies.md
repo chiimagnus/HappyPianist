@@ -12,7 +12,18 @@
 
 ## Python
 
-当前仓库的 `python_backend/` 仅保留 shared 工具与脚手架，不内置可运行服务，因此没有强制 Python 依赖。
+`python_backend/` 是可选工作区：
+
+- 默认情况下（仅使用 AVP 本地后端）：不需要 Python。
+- 若要在 AVP 端使用 **网络后端（Aria v2）**：需要在 Mac 上运行 `python_backend/aria_server/`（Bonjour + HTTP/WS）。
+
+建议环境：
+
+- Apple silicon（MLX 推理）
+- Python 3.11+
+- `uv` 管理依赖
+
+注意：Aria demo checkpoint 体积较大（默认路径 `python_backend/aria/hf/model-demo.safetensors`），不会随仓库分发。
 
 ## 资源依赖
 

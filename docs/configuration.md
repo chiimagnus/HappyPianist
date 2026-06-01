@@ -7,7 +7,7 @@
 | Xcode 工程 | `LonelyPianist.xcodeproj` | 包含 macOS app、visionOS app 与测试 target。 |
 | macOS scheme | `LonelyPianist` | recorder app 与 `LonelyPianistTests`。 |
 | visionOS scheme | `LonelyPianistAVP` | AVP app 与 `LonelyPianistAVPTests`。 |
-| Python 工作区 | `python_backend/` | 当前仓库只保留 shared 工具与脚手架，不包含可运行服务。 |
+| Python 工作区（可选） | `python_backend/` | 包含 Aria 模型源码与可运行的本地服务 `python_backend/aria_server/`（用于 AVP 网络即兴后端）。 |
 
 当前仓库没有 `.github/workflows/`，自动化验证以本地命令为准。
 
@@ -26,12 +26,23 @@
 | 配置面 | 位置 | 说明 |
 | --- | --- | --- |
 | 权限说明 | `LonelyPianistAVP/Resources/Info.plist` | Hand Tracking、World Sensing、Microphone、Bluetooth。 |
-| 网络 | `LonelyPianistAVP/Resources/Info.plist` | 当前仓库不再内置 AI Duet 的网络后端，因此不依赖 Bonjour/Local Network。 |
+| 网络（可选） | `LonelyPianistAVP/Resources/Info.plist` | 为网络即兴后端（Aria v2）预留 Local Network + Bonjour：`NSLocalNetworkUsageDescription`、`NSBonjourServices = _lpduet._tcp`、`NSAllowsLocalNetworking = true`。仅当用户在练习设置中选择网络后端时才会使用。 |
 | MusicXML 文件类型 | `UTImportedTypeDeclarations` | 导入 `.musicxml` / `.xml`。 |
 | 字体 | `UIAppFonts` | `Bravura.otf`。 |
 | soundfont | `LonelyPianistAVP/Resources/Audio/SoundFonts/SalC5Light2.sf2` | 仓库默认不内置；需要本地 sampler 回放时手动放入。 |
 
 `PracticeSessionSettingsProvider` 使用 `UserDefaults` 保存练习相关设置；修改时优先从 provider 和对应 UI 查找真实 key。
+
+### 可选：启动 Aria v2 网络后端（Mac）
+
+用于 AVP 真机选择 `网络本地连接（Aria v2）` / `网络本地连接（Aria v2 Streaming）` 时连接：
+
+```bash
+cd python_backend/aria_server && uv sync
+cd .. && uv run --project aria_server python scripts/aria_server.py --host 0.0.0.0 --port 8766
+```
+
+更多说明见 `python_backend/README.md`。
 
 ### 练习发声路由与音量（AVP）
 
@@ -53,6 +64,7 @@
 | 现象 | 可能原因 | 检查点 |
 | --- | --- | --- |
 | AI 对弹不可用 | CoreML 模型文件未加入 app bundle | 练习设置页的后端状态提示；检查 `AIDuetPerformanceRNN.mlpackage` / `AIDuetPerformanceRNN.mlmodelc`。 |
+| 网络后端不可用/找不到 | Mac 未启动 Aria 服务或 Local Network 权限被拒绝 | Mac 先启动 `python_backend/aria_server/`；AVP 真机允许 Local Network；确认同一局域网与防火墙设置。 |
 | BLE MIDI source 不显示 | Bluetooth 权限或系统连接未完成 | `CABTMIDICentralViewController` 面板、系统蓝牙、app Bluetooth 权限。 |
 | 真实音频模式无法推进 | Microphone 权限、输入源噪声、音频识别阈值 | `PracticeAudioRecognitionService` 状态与 debug snapshot。 |
 | 虚拟钢琴无法继续 | 平面检测或放置确认未完成 | `VirtualPianoPlacementViewModel`、`GazePlaneHitTestService`。 |

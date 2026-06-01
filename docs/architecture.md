@@ -18,6 +18,7 @@ flowchart LR
   SESSION --> MIC[PracticeAudioRecognitionService]
 
   SESSION --> IM[ImprovBackendRegistry]
+  IM -->|optional: Bonjour + HTTP/WS| ARIA[Mac Aria v2 server]
 ```
 
 ## 运行时边界
