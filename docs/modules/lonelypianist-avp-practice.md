@@ -93,6 +93,13 @@ flowchart TD
 | `ImprovScheduleBuilder` | 将生成 note 转成回放 schedule。 |
 | `LocalCoreMLDuetImprovBackend` | 本地 CoreML 生成（Performance RNN 单步模型采样）。 |
 | `LocalRuleImprovBackend` | 本地 rule 生成（SwiftPM `ImprovEngines`）。 |
+| `AriaNetworkBonjourHTTPImprovBackend` | 可选网络后端：Bonjour + HTTP `/generate`（v2 events）。 |
+| `AriaNetworkBonjourWebSocketImprovBackend` | 可选网络后端：Bonjour + WebSocket `/stream`（v2 chunk events）。 |
+
+说明：
+
+- 网络后端需要 Mac 侧启动 `python_backend/aria_server/` 服务，并在 AVP 真机允许 Local Network 权限后通过 Bonjour 发现 `_lpduet._tcp`。
+- 网络后端以 v2 events 为协议真源（notes + CC64/7/11）；AVP 端用 `ImprovScheduleBuilder` 统一转成回放 schedule。
 
 ## 调试边界
 

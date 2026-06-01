@@ -1,6 +1,11 @@
 # 数据流
 
-本文只描述当前代码存在的运行链路。macOS 端不再包含 MIDI mapping、键盘注入或 AVP 的网络后端 client；visionOS 端（AVP）的 AI 即兴链路只包含 **本地生成后端**（CoreML / SwiftPM rule / tick-range replay），并且严格只使用用户在 practice 设置中选择的后端（不会自动降级/切换）。
+本文只描述当前代码存在的运行链路。macOS 端不再包含 MIDI mapping、键盘注入或 AVP 的网络后端 client；visionOS 端（AVP）的 AI 即兴链路包含：
+
+- 本地生成后端（CoreML / SwiftPM rule / tick-range replay）
+- 可选网络后端（Aria v2：Bonjour 发现 + HTTP `/generate` + WebSocket `/stream`，由 Mac 侧 `python_backend/aria_server/` 提供）
+
+无论本地/网络后端，AVP 都严格只使用用户在 practice 设置中选择的后端（失败只提示，不自动降级/切换）。
 
 ## 主流程
 
@@ -102,6 +107,8 @@ practice 窗口的 settings popover 中可选择后端：
 - `本地 CoreML（A.I. Duet / Performance RNN）`：AVP 端使用 CoreML 运行 Performance RNN 单步模型做自回归采样；模型文件（`AIDuetPerformanceRNN.mlpackage` / `AIDuetPerformanceRNN.mlmodelc`）不入库，由开发者本地放置并加入 Xcode target。
 - `本地规则生成（Local rule）`：AVP 端直接调用 SwiftPM `ImprovEngines`（seed 可复现）。
 - `按谱片段回放（tick-range replay）`：不做生成，回放当前谱面片段；它不是自动 fallback，只会在用户选择时使用。
+- `网络本地连接（Aria v2）`：AVP 通过 Bonjour 发现 `_lpduet._tcp` 服务并调用 HTTP `POST /generate` 获取 v2 events。
+- `网络本地连接（Aria v2 Streaming）`：AVP 通过 Bonjour 获取 `ws_path` 并用 WebSocket `GET /stream` 接收 v2 chunk events（更快开声）。
 
 ```mermaid
 sequenceDiagram
@@ -109,6 +116,7 @@ sequenceDiagram
   participant Settings as Practice Settings
   participant Backend as ImprovBackendProtocol
   participant Engines as ImprovEngines (SwiftPM)
+  participant Aria as Mac Aria v2 server
 
   Settings-->>AVP: selected ImprovBackendKind
   AVP->>Backend: generatePlaybackPlan(request)
@@ -121,6 +129,10 @@ sequenceDiagram
     Backend->>Engines: generate(notes, params, seed)
     Engines-->>Backend: generated notes
     Backend-->>AVP: schedule
+  else network Aria v2
+    Backend->>Aria: Bonjour resolve + HTTP/WS
+    Aria-->>Backend: v2 events (notes + CC)
+    Backend-->>AVP: schedule (built from events)
   else tick-range replay
     Backend-->>AVP: tickRange(maxMeasures)
   end

@@ -17,7 +17,9 @@ Import MusicXML files and get spatial practice guidance on Vision Pro (dual-staf
 ### 🎹 AI Duet (Relay Improvisation)
 You play a phrase, the AI responds with its own, in an immersive space.
 
-AI Duet currently uses on-device CoreML / local rule backends; no desktop Python service is required.
+AI Duet uses on-device CoreML / local rule backends by default; no desktop Python service is required.
+
+Optional: you can also run `python_backend/aria_server/` on a Mac and let AVP connect to an Aria v2 network backend via Bonjour + HTTP/WS (useful for on-device testing and low-latency streaming).
 
 ## Releases
 
