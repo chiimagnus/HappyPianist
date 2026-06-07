@@ -100,7 +100,7 @@
 - **Clip Shape:** 使用 `clipShape(.rect(cornerRadius:))`，不要用 `cornerRadius()`。
 - **Tab API:** 使用新的 `Tab` API，不要用 `tabItem()`。
 - **Observable:** 不要使用 `ObservableObject`；优先使用 `@Observable`。
-- - 不使用 `ObservableObject` / `@Published` / `@StateObject` / `@ObservedObject` / `@EnvironmentObject`（统一用 Observation 体系）。
+- 不使用 `ObservableObject` / `@Published` / `@StateObject` / `@ObservedObject` / `@EnvironmentObject`（统一用 Observation 体系）。
 - **onTapGesture:** 除非确实需要 tap 的位置或 tap 次数，否则不要用 `onTapGesture()`；其他情况用 `Button`。
 - **Task.sleep:** 不要用 `Task.sleep(nanoseconds:)`；用 `Task.sleep(for:)`。
 - **视图拆分:** 不要用 computed properties 拆分视图；应创建新的 `View` struct。
