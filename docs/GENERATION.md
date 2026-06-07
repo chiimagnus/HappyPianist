@@ -4,9 +4,9 @@
 
 | Item | Value |
 | --- | --- |
-| Commit hash | d79c229a |
+| Commit hash | 6a01443e |
 | Branch name | crh3 |
-| Generated at | 2026-06-01T12:26:42+08:00 |
+| Generated at | 2026-06-07T16:16:46+08:00 |
 | Output language | Chinese |
 | Generation mode | Full docs reconciliation via `neat-freak` against current working tree |
 
