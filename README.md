@@ -9,6 +9,8 @@
 ![Swift](https://img.shields.io/badge/Swift-6-orange)
 [![Last Update](https://img.shields.io/github/last-commit/chiimagnus/lonelypianist?label=Last%20update&style=classic)](https://github.com/chiimagnus/lonelypianist)
 
+![scene1](docs/assets/scene1.jpg)
+
 ## 你可以用它做什么
 
 ### 🥽 AR Guide 
