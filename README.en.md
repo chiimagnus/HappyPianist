@@ -9,6 +9,8 @@ An AI piano companion for Apple Vision Pro that guides you step-by-step through 
 ![Swift](https://img.shields.io/badge/Swift-6-orange)
 [![Last Update](https://img.shields.io/github/last-commit/chiimagnus/lonelypianist?label=Last%20update&style=classic)](https://github.com/chiimagnus/lonelypianist)
 
+![scene1](docs/assets/scene1.jpg)
+
 ## What You Can Do
 
 ### 🥽 AR Guide
