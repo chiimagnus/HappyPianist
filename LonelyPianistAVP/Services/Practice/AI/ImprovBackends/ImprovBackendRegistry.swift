@@ -9,10 +9,6 @@ struct ImprovBackendRegistry {
         }
     }
 
-    mutating func register(_ backend: any ImprovBackendProtocol) {
-        backendsByKind[backend.kind] = backend
-    }
-
     func backend(for kind: ImprovBackendKind) -> (any ImprovBackendProtocol)? {
         backendsByKind[kind]
     }
