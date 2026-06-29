@@ -70,18 +70,6 @@ CATEGORY_TAGS = {
 LEARNING_RATE = 3e-4
 
 
-def model_forward(
-    model: nn.Module,
-    idxs: torch.Tensor,
-):
-    return model(idxs)
-
-
-def write_entries(writer, entries):
-    for entry in entries:
-        writer.write(entry)
-
-
 def get_chunks(note_msgs: list, chunk_len: int):
     return [
         note_msgs[i : i + chunk_len]
@@ -298,7 +286,7 @@ class EvaluationDataset(torch.utils.data.Dataset):
         emb = json_data["emb"]
         metadata = json_data["metadata"]
         tag = metadata.get(self.metadata_category, "other")
-        tag = tag if tag in self.tag_to_id.keys() else "other"
+        tag = tag if tag in self.tag_to_id else "other"
 
         assert tag in self.tag_to_id, metadata
         tag_tensor = torch.tensor(self.tag_to_id[tag])
@@ -359,7 +347,7 @@ class EvaluationDataset(torch.utils.data.Dataset):
 
                 if per_file:
                     assert all(
-                        "abs_load_path" in r["metadata"].keys() for r in result
+                        "abs_load_path" in r["metadata"] for r in result
                     )
                     buffer.extend(result)
                     if len(buffer) > 2 * batch_size:
@@ -503,7 +491,7 @@ class EvaluationDataset(torch.utils.data.Dataset):
                                 }
                             )
 
-                    write_executor.submit(write_entries, writer, write_objs)
+                    write_executor.submit(writer.write_all, write_objs)
 
                 except queue.Empty:
                     continue
@@ -627,7 +615,7 @@ def train_classifier(
 
     model = ClassifierHead(
         d_emb=embedding_dimension,
-        num_class=len(tag_to_id.keys()),
+        num_class=len(tag_to_id),
     )
     optimizer, scheduler = _get_optim(
         model=model,
@@ -666,8 +654,8 @@ def evaluate_classifier(
     )
     model = model.cpu().eval()
 
-    dist = {k: {"correct": 0, "total": 0} for k in tag_to_id.keys()}
-    pred_dist = {k: 0 for k in tag_to_id.keys()}
+    dist = {k: {"correct": 0, "total": 0} for k in tag_to_id}
+    pred_dist = {k: 0 for k in tag_to_id}
 
     for midi_emb, tag_id in val_dataset:
         with torch.no_grad():
@@ -690,7 +678,7 @@ def evaluate_classifier(
 
     class_metrics = {}
     f1_scores = []
-    for tag in tag_to_id.keys():
+    for tag in tag_to_id:
         TP = dist[tag]["correct"]
         FN = dist[tag]["total"] - TP
         FP = pred_dist[tag] - TP
