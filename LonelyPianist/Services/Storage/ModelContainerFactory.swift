@@ -19,17 +19,11 @@ enum ModelContainerFactory {
     }
 
     private static func makeStoreURL() throws -> URL {
-        let fileManager = FileManager.default
-        let appSupport = try fileManager.url(
-            for: .applicationSupportDirectory,
-            in: .userDomainMask,
-            appropriateFor: nil,
-            create: true
-        )
         let bundleID = Bundle.main.bundleIdentifier ?? "com.chiimagnus.LonelyPianist"
-        let directory = appSupport.appendingPathComponent(bundleID, isDirectory: true)
+        let directory = URL.applicationSupportDirectory.appending(path: bundleID, directoryHint: .isDirectory)
+        let fileManager = FileManager.default
         try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-        return directory.appendingPathComponent("LonelyPianist.store")
+        return directory.appending(path: "LonelyPianist.store")
     }
 
     private static func deleteStoreFiles(at storeURL: URL) throws {
