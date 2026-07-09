@@ -49,7 +49,7 @@ final class RoutedMIDIPlaybackService: RoutableMIDIPlaybackServiceProtocol {
         outputs.append(
             contentsOf: destinations.map {
                 MIDIPlaybackOutputOption(
-                    id: MIDIPlaybackOutputOption.destinationID(uniqueID: $0.id),
+                    id: "destination:\($0.id)",
                     title: $0.name,
                     kind: .midiDestination(uniqueID: $0.id)
                 )

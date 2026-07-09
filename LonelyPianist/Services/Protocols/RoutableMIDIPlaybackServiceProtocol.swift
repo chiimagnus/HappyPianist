@@ -11,10 +11,6 @@ struct MIDIPlaybackOutputOption: Identifiable, Equatable {
     let kind: Kind
 
     static let builtInSamplerID = "sampler"
-
-    static func destinationID(uniqueID: Int32) -> String {
-        "destination:\(uniqueID)"
-    }
 }
 
 @MainActor
