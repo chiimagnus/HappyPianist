@@ -28,16 +28,6 @@ protocol ImprovBackendDiscoveryOrchestrating: AnyObject, Sendable {
 
 @MainActor
 final class AIPerformanceService {
-    private enum TriggerReason: String, Sendable {
-        case shortPhrase = "short"
-        case longPhrase = "long"
-    }
-
-    private enum ReplyPlan: Sendable {
-        case schedule([PracticeSequencerMIDIEvent])
-        case tickRange(startTick: Int, endTick: Int)
-    }
-
     struct State: Equatable {
         var isAIPerformanceActive: Bool
         var isAIGenerating: Bool
@@ -45,6 +35,11 @@ final class AIPerformanceService {
         var latestSchedule: [PracticeSequencerMIDIEvent]
         var lastImprovStatusText: String?
     }
+
+	private struct CandidateEvaluation {
+		let shapedSchedule: [PracticeSequencerMIDIEvent]
+		let assessment: DuetPhrasePolicy.QualityAssessment
+	}
 
     private let logger: Logger
     private let nowUptimeSeconds: () -> TimeInterval
@@ -63,15 +58,15 @@ final class AIPerformanceService {
     private var isEnabled = false
     private var lastKnownBackendKind: ImprovBackendKind?
 
-    private var turnTakingCore = DuetTurnTakingCore()
-    private var phraseEventBuffer = DuetPhraseEventBuffer()
-    private var pendingSendTask: Task<Void, Never>?
-    private var pendingSendReason: TriggerReason?
+    private var noteContext = DuetPhraseBuffer()
+    private var ccContext = DuetPhraseEventBuffer()
+    private var controlEstimator = DuetTurnTakingCore()
+
+    private var controlLoopTask: Task<Void, Never>?
     private var inFlightGenerateTasks: [Int: Task<Void, Never>] = [:]
-    private var nextGenerateSequenceID = 0
-    private var nextPlaybackSequenceID = 0
-    private var pendingReplyPlans: [Int: ReplyPlan] = [:]
+    private var nextRequestID = 0
     private var activationID = 0
+    private var lastWindowRequestTimestampSeconds: TimeInterval?
 
     private var isGenerating = false
     private var isAIPlaybackActive = false
@@ -126,31 +121,30 @@ final class AIPerformanceService {
 
     func setEnabled(_ enabled: Bool) {
         guard hasShutdown == false else { return }
+
         if enabled == false {
-            guard isEnabled || pendingSendTask != nil || inFlightGenerateTasks.isEmpty == false else { return }
+            guard isEnabled || controlLoopTask != nil || inFlightGenerateTasks.isEmpty == false else { return }
 
             isEnabled = false
+            activationID += 1
+            controlLoopTask?.cancel()
+            controlLoopTask = nil
             discoveryOrchestrator.stopAll()
             lastKnownBackendKind = nil
-
-            pendingSendTask?.cancel()
-            pendingSendTask = nil
-            pendingSendReason = nil
 
             for task in inFlightGenerateTasks.values {
                 task.cancel()
             }
             inFlightGenerateTasks.removeAll(keepingCapacity: true)
+            nextRequestID = 0
+            lastWindowRequestTimestampSeconds = nil
             isGenerating = false
             isAIPlaybackActive = false
-            nextGenerateSequenceID = 0
-            nextPlaybackSequenceID = 0
-            pendingReplyPlans.removeAll(keepingCapacity: true)
-
-            turnTakingCore.reset()
-            phraseEventBuffer.reset()
-            lastImprovStatusText = nil
+            noteContext.reset()
+            ccContext.reset()
+            controlEstimator.reset()
             latestSchedule = []
+            lastImprovStatusText = nil
             notifyStateChanged()
 
             Task { [aiPlaybackQueue] in
@@ -160,42 +154,32 @@ final class AIPerformanceService {
             return
         }
 
-        if isEnabled {
-            return
-        }
-
-        let wasEnabled = isEnabled
+        guard isEnabled == false else { return }
         isEnabled = true
-
+        activationID += 1
+        nextRequestID = 0
+        lastWindowRequestTimestampSeconds = nil
+        noteContext.reset()
+        ccContext.reset()
+        controlEstimator.reset()
+        latestSchedule = []
+        lastImprovStatusText = "AI 即兴：连续共演模式已启用"
+        notifyStateChanged()
         syncBackendDiscoveryIfNeeded()
-
-        if wasEnabled == false {
-            activationID += 1
-            turnTakingCore.reset()
-            phraseEventBuffer.reset()
-            nextGenerateSequenceID = 0
-            nextPlaybackSequenceID = 0
-            pendingReplyPlans.removeAll(keepingCapacity: true)
-            lastImprovStatusText = "AI 即兴：松手后约 0.6 秒触发（长句松手立即触发；播放期间也可继续触发）"
-            latestSchedule = []
-            notifyStateChanged()
-        }
+        startControlLoop()
     }
 
     func recordMIDI1EventForPhraseRecordingIfNeeded(_ event: MIDI1InputEvent) {
         guard isEnabled else { return }
+        syncBackendDiscoveryIfNeeded()
 
         switch event.kind {
         case let .noteOn(note, velocity):
-            handleTurnTakingEvent(.noteOn(note: note, velocity: velocity, timestampSeconds: event.receivedAtUptimeSeconds))
+            noteContext.recordNoteOn(midi: note, velocity: velocity, timestampSeconds: event.receivedAtUptimeSeconds)
         case let .noteOff(note, _):
-            handleTurnTakingEvent(.noteOff(note: note, timestampSeconds: event.receivedAtUptimeSeconds))
+            noteContext.recordNoteOff(midi: note, timestampSeconds: event.receivedAtUptimeSeconds)
         case let .controlChange(controller, value):
-            phraseEventBuffer.recordControlChange(
-                controller: controller,
-                value: value,
-                timestampSeconds: event.receivedAtUptimeSeconds
-            )
+            ccContext.recordControlChange(controller: controller, value: value, timestampSeconds: event.receivedAtUptimeSeconds)
         default:
             return
         }
@@ -203,20 +187,19 @@ final class AIPerformanceService {
 
     func recordMIDI2EventForPhraseRecordingIfNeeded(_ event: MIDI2InputEvent) {
         guard isEnabled else { return }
+        syncBackendDiscoveryIfNeeded()
 
         switch event.kind {
         case let .noteOn(note, velocity16):
-            handleTurnTakingEvent(
-                .noteOn(
-                    note: note,
-                    velocity: MIDI2ValueMapping.value16To7Bit(velocity16),
-                    timestampSeconds: event.receivedAtUptimeSeconds
-                )
+            noteContext.recordNoteOn(
+                midi: note,
+                velocity: MIDI2ValueMapping.value16To7Bit(velocity16),
+                timestampSeconds: event.receivedAtUptimeSeconds
             )
         case let .noteOff(note, _):
-            handleTurnTakingEvent(.noteOff(note: note, timestampSeconds: event.receivedAtUptimeSeconds))
+            noteContext.recordNoteOff(midi: note, timestampSeconds: event.receivedAtUptimeSeconds)
         case let .controlChange(controller, value32):
-            phraseEventBuffer.recordControlChange(
+            ccContext.recordControlChange(
                 controller: controller,
                 value: MIDI2ValueMapping.value32To7Bit(value32),
                 timestampSeconds: event.receivedAtUptimeSeconds
@@ -233,16 +216,13 @@ final class AIPerformanceService {
     ) {
         guard usesBluetoothMIDIInput == false else { return }
         guard isEnabled else { return }
+        syncBackendDiscoveryIfNeeded()
 
-        if keyContact.started.isEmpty == false {
-            for note in keyContact.started {
-                handleTurnTakingEvent(.noteOn(note: note, velocity: 90, timestampSeconds: nowUptimeSeconds))
-            }
+        for note in keyContact.started {
+            noteContext.recordNoteOn(midi: note, velocity: 90, timestampSeconds: nowUptimeSeconds)
         }
-        if keyContact.ended.isEmpty == false {
-            for note in keyContact.ended {
-                handleTurnTakingEvent(.noteOff(note: note, timestampSeconds: nowUptimeSeconds))
-            }
+        for note in keyContact.ended {
+            noteContext.recordNoteOff(midi: note, timestampSeconds: nowUptimeSeconds)
         }
     }
 
@@ -259,132 +239,364 @@ final class AIPerformanceService {
     }
 
     private func stopPlaybackAndRestoreAudioRecognitionIfNeeded() {
-        guard let practiceSession else { return }
-        practiceSession.refreshAudioRecognitionForCurrentState()
+        practiceSession?.refreshAudioRecognitionForCurrentState()
     }
 
-    private func handleTurnTakingEvent(_ event: DuetTurnTakingCore.Event) {
+    private func startControlLoop() {
+        controlLoopTask?.cancel()
+        controlLoopTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            while Task.isCancelled == false, isEnabled {
+                await runContinuousControlTick()
+                await sleepFor(.milliseconds(100))
+            }
+        }
+    }
+
+    private func runContinuousControlTick() async {
+        guard isEnabled else { return }
+        guard practiceSession != nil else { return }
+
         syncBackendDiscoveryIfNeeded()
 
-        if case let .noteOn(_, _, timestampSeconds) = event {
-            phraseEventBuffer.recordPhraseStartIfNeeded(timestampSeconds: timestampSeconds)
+        let now = nowUptimeSeconds()
+        let bootstrapPolicy = DuetPhrasePolicy.RequestPolicy(
+            lookbackSeconds: 4.0,
+            maxPromptSeconds: 3.0,
+            requestWindowSeconds: 0.6,
+            minRequestIntervalSeconds: 0.22,
+            maxTokens: 36
+        )
+        let noteSnapshot = noteContext.snapshot(
+            nowTimestampSeconds: now,
+            lookbackSeconds: bootstrapPolicy.lookbackSeconds,
+            maxPromptSeconds: bootstrapPolicy.maxPromptSeconds
+        )
+        let ccSnapshot = ccContext.snapshot(
+            nowTimestampSeconds: now,
+            lookbackSeconds: bootstrapPolicy.lookbackSeconds,
+            maxPromptSeconds: bootstrapPolicy.maxPromptSeconds
+        )
+        let decision = controlEstimator.evaluate(
+            .init(
+                nowTimestampSeconds: now,
+                heldNotesCount: noteSnapshot.heldNotes.count,
+                sustainValue: ccSnapshot.sustainValue,
+                recentIOIMedianSeconds: noteSnapshot.recentIOIMedianSeconds,
+                recentVelocityTrend: noteSnapshot.recentVelocityTrend,
+                recentNoteDensityPerSecond: noteSnapshot.recentNoteDensityPerSecond,
+                lastUserEventTimestampSeconds: noteSnapshot.lastUserEventTimestampSeconds,
+                lastNoteOnTimestampSeconds: noteSnapshot.lastNoteOnTimestampSeconds,
+                activePitchCenter: noteSnapshot.activePitchCenter
+            )
+        )
+
+        if decision.shouldClearFutureWindows {
+            await aiPlaybackQueue.clearPendingWindow()
+            if isAIPlaybackActive == false {
+                latestSchedule = []
+            }
         }
 
-        let decision = turnTakingCore.handle(event)
-        switch decision {
-        case .none:
-            return
-        case .cancelPendingSend:
-            pendingSendTask?.cancel()
-            pendingSendTask = nil
-            pendingSendReason = nil
-            logger.debug("turn-taking cancel pending send")
-        case let .scheduleSend(deadlineTimestampSeconds):
-            pendingSendTask?.cancel()
-            pendingSendReason = .shortPhrase
-            pendingSendTask = Task { @MainActor [weak self] in
-                guard let self else { return }
-                let delaySeconds = max(0, deadlineTimestampSeconds - nowUptimeSeconds())
-                logger.debug("turn-taking schedule send in \(delaySeconds, privacy: .public)s")
-                await sleepFor(.seconds(delaySeconds))
-                guard Task.isCancelled == false else { return }
-                await triggerSendNow(reason: pendingSendReason ?? .shortPhrase)
-            }
-        case .sendNow:
-            pendingSendTask?.cancel()
-            pendingSendTask = nil
-            pendingSendReason = .longPhrase
-            logger.debug("turn-taking send now (long phrase)")
-            Task { @MainActor [weak self] in
-                await self?.triggerSendNow(reason: .longPhrase)
+        if shouldRequestWindow(nowTimestampSeconds: now, decision: decision, noteSnapshot: noteSnapshot) {
+            let requestPolicy = DuetPhrasePolicy.requestPolicy(for: decision)
+            let promptEvents = DuetPhrasePolicy.buildPromptEvents(
+                noteSnapshot: noteSnapshot,
+                ccSnapshot: ccSnapshot,
+                policy: requestPolicy
+            )
+            if promptEvents.contains(where: { $0.type == .note }) {
+                await requestContinuousWindow(
+                    nowTimestampSeconds: now,
+                    promptEvents: promptEvents,
+                    requestPolicy: requestPolicy,
+                    mode: decision.mode
+                )
             }
         }
+
+        lastImprovStatusText = makeStatusText(mode: decision.mode, noteSnapshot: noteSnapshot)
+        notifyStateChanged()
     }
 
-    private func triggerSendNow(reason: TriggerReason) async {
-        guard isEnabled else { return }
-        guard let practiceSession else { return }
-        guard practiceSession.autoplayState == .off else { return }
-        guard practiceSession.isManualReplayPlaying == false else { return }
+    private func shouldRequestWindow(
+        nowTimestampSeconds: TimeInterval,
+        decision: DuetTurnTakingCore.Decision,
+        noteSnapshot: DuetPhraseBuffer.Snapshot
+    ) -> Bool {
+        guard decision.shouldRequestGeneration else { return false }
+        guard noteSnapshot.lastUserEventTimestampSeconds != nil else { return false }
+        guard inFlightGenerateTasks.isEmpty else { return false }
 
-        let nowUptime = nowUptimeSeconds()
-        let flushedPhrase = turnTakingCore.flushPhrase(endTimestampSeconds: nowUptime)
-        let flushedCCEvents = phraseEventBuffer.flushPhrase(flushedPhrase: flushedPhrase)
-        let policy = DuetPhrasePolicy.makeResult(from: flushedPhrase)
-        guard policy.promptNotes.isEmpty == false else { return }
-
-        let noteEvents = policy.promptNotes.map { note in
-            ImprovEvent.note(note: note.note, velocity: note.velocity, time: note.time, duration: note.duration)
+        if let lastWindowRequestTimestampSeconds,
+           nowTimestampSeconds - lastWindowRequestTimestampSeconds < decision.minRequestIntervalSeconds {
+            return false
         }
-        let promptEvents = (noteEvents + flushedCCEvents).sorted { lhs, rhs in
-            if lhs.time != rhs.time { return lhs.time < rhs.time }
-            if lhs.type != rhs.type { return lhs.type == .cc }
-            switch (lhs.type, rhs.type) {
-            case (.cc, .cc):
-                if (lhs.controller ?? 0) != (rhs.controller ?? 0) { return (lhs.controller ?? 0) < (rhs.controller ?? 0) }
-                return (lhs.value ?? 0) < (rhs.value ?? 0)
-            case (.note, .note):
-                if (lhs.note ?? 0) != (rhs.note ?? 0) { return (lhs.note ?? 0) < (rhs.note ?? 0) }
-                return (lhs.velocity ?? 0) < (rhs.velocity ?? 0)
-            default:
-                return false
-            }
-        }
+        return true
+    }
 
-        let maxTokens = max(1, Int((policy.desiredReplySeconds * 64.0).rounded()))
-        let estimatedReplySeconds = estimatedBackendReplySeconds(maxTokens: maxTokens)
-        let wasTrimmed = flushedPhrase.untrimmedEndTimeSeconds > 10 && abs(flushedPhrase.untrimmedEndTimeSeconds - flushedPhrase.endTimeSeconds) > 1e-9
-        lastImprovStatusText = "即兴：prompt=\(formatSeconds(policy.promptEndTimeSeconds))s " +
-            "replyWanted=\(formatSeconds(policy.desiredReplySeconds))s " +
-            "replyMapped≈\(formatSeconds(estimatedReplySeconds))s"
-        notifyStateChanged()
-
-        let triggerLogMessage =
-            "trigger send reason=\(reason.rawValue) " +
-            "prompt=\(policy.promptEndTimeSeconds)s " +
-            "untrimmed=\(flushedPhrase.untrimmedEndTimeSeconds)s " +
-            "trimmed=\(flushedPhrase.endTimeSeconds)s " +
-            "trim=\(wasTrimmed) " +
-            "maxTokens=\(maxTokens)"
-        logger.info("\(triggerLogMessage, privacy: .public)")
-
+    private func requestContinuousWindow(
+        nowTimestampSeconds: TimeInterval,
+        promptEvents: [ImprovEvent],
+        requestPolicy: DuetPhrasePolicy.RequestPolicy,
+        mode: DuetTurnTakingCore.Mode
+    ) async {
         let kind = selectedBackendKind()
-        let sequenceID = nextGenerateSequenceID
-        let activationAtSend = activationID
-        nextGenerateSequenceID += 1
-
-        if kind == .networkBonjourWebSocketAriaV2, inFlightGenerateTasks.isEmpty == false {
-            for task in inFlightGenerateTasks.values {
-                task.cancel()
-            }
-            inFlightGenerateTasks.removeAll(keepingCapacity: true)
-            pendingReplyPlans.removeAll(keepingCapacity: true)
-            nextPlaybackSequenceID = sequenceID
-        }
+        let requestID = nextRequestID
+        let activationAtRequest = activationID
+        nextRequestID += 1
+        lastWindowRequestTimestampSeconds = nowTimestampSeconds
 
         let task = Task { @MainActor [weak self] in
             guard let self else { return }
             isGenerating = true
             notifyStateChanged()
             defer {
-                inFlightGenerateTasks.removeValue(forKey: sequenceID)
+                inFlightGenerateTasks.removeValue(forKey: requestID)
                 isGenerating = inFlightGenerateTasks.isEmpty == false
                 notifyStateChanged()
             }
 
-            logger.debug("improv generate start kind=\(kind.rawValue, privacy: .public) seq=\(sequenceID, privacy: .public)")
-            await attemptSelectedBackendImprov(
-                activationID: activationAtSend,
-                sequenceID: sequenceID,
+            await generateContinuousWindow(
+                activationAtRequest: activationAtRequest,
                 kind: kind,
                 promptEvents: promptEvents,
-                maxTokens: maxTokens
+                requestPolicy: requestPolicy,
+                mode: mode
             )
         }
-        inFlightGenerateTasks[sequenceID] = task
+        inFlightGenerateTasks[requestID] = task
         isGenerating = true
         notifyStateChanged()
     }
+
+	private func generateContinuousWindow(
+		requestID: Int,
+		activationAtRequest: Int,
+		kind: ImprovBackendKind,
+		promptEvents: [ImprovEvent],
+        requestPolicy: DuetPhrasePolicy.RequestPolicy,
+        mode: DuetTurnTakingCore.Mode
+    ) async {
+        guard isEnabled else { return }
+        guard activationAtRequest == activationID else { return }
+        guard let practiceSession else { return }
+        guard let backend = backendRegistry.backend(for: kind) else {
+            lastImprovStatusText = "AI 即兴：后端不可用（\(kind.rawValue)）"
+            notifyStateChanged()
+            return
+        }
+
+		let seed = UInt64(activationAtRequest) << 32 | UInt64(requestID)
+
+		let rawCandidates: [[PracticeSequencerMIDIEvent]]
+		do {
+			rawCandidates = try await generatePlaybackCandidates(
+				backend: backend,
+				kind: kind,
+				activationAtRequest: activationAtRequest,
+				requestID: requestID,
+				promptEvents: promptEvents,
+				requestPolicy: requestPolicy,
+				practiceSession: practiceSession,
+				baseSeed: seed
+			)
+        } catch {
+            logger.warning("continuous duet backend failed: \(String(describing: error), privacy: .public)")
+            lastImprovStatusText = "AI 即兴：生成失败（\(kind.rawValue)）"
+            notifyStateChanged()
+            return
+        }
+
+        guard isEnabled else { return }
+        guard activationAtRequest == activationID else { return }
+
+        let now = nowUptimeSeconds()
+        let noteSnapshot = noteContext.snapshot(
+            nowTimestampSeconds: now,
+            lookbackSeconds: requestPolicy.lookbackSeconds,
+            maxPromptSeconds: requestPolicy.maxPromptSeconds
+        )
+		let evaluations = rawCandidates.map {
+			evaluateCandidate(
+				rawSchedule: $0,
+				noteSnapshot: noteSnapshot,
+				controlMode: mode,
+				horizonSeconds: requestPolicy.requestWindowSeconds
+			)
+		}
+		let topRejectReason = evaluations.flatMap(\.assessment.reasons).first
+		guard let bestCandidate = selectBestCandidate(from: evaluations) else {
+			lastImprovStatusText = makeCandidateStatusText(
+				mode: mode,
+				windowSeconds: requestPolicy.requestWindowSeconds,
+				candidateCount: evaluations.count,
+				band: .reject,
+				topRejectReason: topRejectReason
+			)
+			notifyStateChanged()
+			return
+		}
+		let shapedSchedule = bestCandidate.shapedSchedule
+        guard shapedSchedule.isEmpty == false else { return }
+
+        let result = await aiPlaybackQueue.submitWindow(
+            schedule: shapedSchedule,
+            routing: practiceSession.settingsProvider.soundRoutingSettings,
+            submittedAtUptimeSeconds: now
+        )
+        latestSchedule = result.shiftedSchedule
+		lastImprovStatusText = makeCandidateStatusText(
+			mode: mode,
+			windowSeconds: requestPolicy.requestWindowSeconds,
+			candidateCount: evaluations.count,
+			band: bestCandidate.assessment.band,
+			topRejectReason: topRejectReason
+		)
+        notifyStateChanged()
+    }
+
+	private func generatePlaybackCandidates(
+		backend: any ImprovBackendProtocol,
+		kind: ImprovBackendKind,
+		activationAtRequest: Int,
+		requestID: Int,
+		promptEvents: [ImprovEvent],
+		requestPolicy: DuetPhrasePolicy.RequestPolicy,
+		practiceSession: any AIPerformancePracticeSessionProtocol,
+		baseSeed: UInt64
+	) async throws -> [[PracticeSequencerMIDIEvent]] {
+		let candidateCount = preferredCandidateCount(for: kind)
+		var candidates: [[PracticeSequencerMIDIEvent]] = []
+		candidates.reserveCapacity(candidateCount)
+
+		for candidateIndex in 0 ..< candidateCount {
+			let request = makeGenerateRequest(
+				promptEvents: promptEvents,
+				requestPolicy: requestPolicy,
+				seed: candidateSeed(baseSeed: baseSeed, candidateIndex: candidateIndex)
+			)
+			let playbackPlan = try await backend.generatePlaybackPlan(request: request, timeout: backendTimeout)
+			switch playbackPlan {
+			case let .schedule(schedule, _):
+				candidates.append(schedule)
+			case let .tickRange(maxMeasures):
+				guard let tickRange = practiceSession.aiPerformanceTickRange(maxMeasures: maxMeasures) else { continue }
+				let autoplayTimeline = practiceSession.autoplayTimeline
+				let tempoMap = practiceSession.tempoMap
+				let pedalTimeline = practiceSession.pedalTimeline
+				let initialSustainPedalDown = pedalTimeline?.isDown(atTick: tickRange.startTick) ?? false
+				let schedule = try await Task.detached(priority: .userInitiated) {
+					PracticeSequencerSequenceBuilder().buildAudioEventSchedule(
+						timeline: autoplayTimeline,
+						tempoMap: tempoMap,
+						startTick: tickRange.startTick,
+						initialSustainPedalDown: initialSustainPedalDown,
+						leadInSeconds: 0.05,
+						endTick: tickRange.endTick
+					)
+				}.value
+				candidates.append(schedule)
+			}
+		}
+
+		return candidates
+	}
+
+	private func preferredCandidateCount(for kind: ImprovBackendKind) -> Int {
+		switch kind {
+		case .localRule:
+			return 3
+		case .networkBonjourHTTPAriaV2, .networkBonjourWebSocketAriaV2, .localCoreMLDuet, .tickRangeReplay:
+			return 1
+		}
+	}
+
+	private func makeGenerateRequest(
+		promptEvents: [ImprovEvent],
+		requestPolicy: DuetPhrasePolicy.RequestPolicy,
+		seed: UInt64
+	) -> ImprovGenerateRequestV2 {
+		ImprovGenerateRequestV2(
+			events: promptEvents,
+			params: ImprovGenerateParams(
+				topP: 0.95,
+				maxTokens: max(1, requestPolicy.maxTokens),
+				strategy: "continuous",
+				seed: seed
+			),
+			sessionID: improvSessionID
+		)
+	}
+
+	private func candidateSeed(baseSeed: UInt64, candidateIndex: Int) -> UInt64 {
+		guard candidateIndex > 0 else { return baseSeed }
+		return baseSeed &+ (UInt64(candidateIndex) &* 0x9E3779B97F4A7C15)
+	}
+
+	private func evaluateCandidate(
+		rawSchedule: [PracticeSequencerMIDIEvent],
+		noteSnapshot: DuetPhraseBuffer.Snapshot,
+		controlMode: DuetTurnTakingCore.Mode,
+		horizonSeconds: TimeInterval
+	) -> CandidateEvaluation {
+		let shapedSchedule = DuetPhrasePolicy.shapeSchedule(
+			rawSchedule,
+			noteSnapshot: noteSnapshot,
+			controlMode: controlMode,
+			horizonSeconds: horizonSeconds
+		)
+		let assessment = shapedSchedule.isEmpty
+			? DuetPhrasePolicy.QualityAssessment(
+				band: .reject,
+				score: 0,
+				reasons: [.fragmentedWindow],
+				noteOnCount: 0,
+				effectiveDurationSeconds: 0
+			)
+			: DuetPhrasePolicy.assessSchedule(
+				shapedSchedule,
+				noteSnapshot: noteSnapshot,
+				horizonSeconds: horizonSeconds
+			)
+		return CandidateEvaluation(shapedSchedule: shapedSchedule, assessment: assessment)
+	}
+
+	private func selectBestCandidate(from evaluations: [CandidateEvaluation]) -> CandidateEvaluation? {
+		evaluations
+			.filter { $0.shapedSchedule.isEmpty == false }
+			.max { lhs, rhs in
+				if bandRank(lhs.assessment.band) != bandRank(rhs.assessment.band) {
+					return bandRank(lhs.assessment.band) < bandRank(rhs.assessment.band)
+				}
+				if lhs.assessment.score != rhs.assessment.score {
+					return lhs.assessment.score < rhs.assessment.score
+				}
+				return lhs.assessment.noteOnCount < rhs.assessment.noteOnCount
+			}
+	}
+
+	private func bandRank(_ band: DuetPhrasePolicy.QualityAssessment.Band) -> Int {
+		switch band {
+		case .acceptable:
+			return 2
+		case .risky:
+			return 1
+		case .reject:
+			return 0
+		}
+	}
+
+	private func makeCandidateStatusText(
+		mode: DuetTurnTakingCore.Mode,
+		windowSeconds: TimeInterval,
+		candidateCount: Int,
+		band: DuetPhrasePolicy.QualityAssessment.Band,
+		topRejectReason: DuetPhrasePolicy.QualityAssessment.Reason?
+	) -> String {
+		let rejectText = topRejectReason.map { " · topReject=\($0.rawValue)" } ?? ""
+		return "AI 即兴：\(mode.rawValue) · q=\(band.rawValue) · candidates=\(candidateCount)\(rejectText) · window=\(formatSeconds(windowSeconds))s"
+	}
 
     private func syncBackendDiscoveryIfNeeded() {
         let kind = selectedBackendKind()
@@ -393,212 +605,11 @@ final class AIPerformanceService {
         discoveryOrchestrator.start(for: kind)
     }
 
-    private func attemptSelectedBackendImprov(
-        activationID: Int,
-        sequenceID: Int,
-        kind: ImprovBackendKind,
-        promptEvents: [ImprovEvent],
-        maxTokens: Int
-    ) async {
-        guard isEnabled else { return }
-        guard activationID == self.activationID else { return }
-        guard practiceSession != nil else { return }
-        guard let backend = backendRegistry.backend(for: kind) else {
-            lastImprovStatusText = "Last improv: error(backendUnavailable \(kind.rawValue))"
-            notifyStateChanged()
-            return
-        }
-
-        // NOTE: The Python duet placeholder engine uses a fixed seed (0) when `seed == nil`,
-        // which makes replies look "always the same melody" except for a global transposition.
-        // Sending a per-turn seed keeps placeholder mode non-deterministic without affecting Magenta.
-        let seed = UInt64(activationID) << 32 | UInt64(sequenceID)
-        let params = ImprovGenerateParams(topP: 0.95, maxTokens: maxTokens, strategy: "model", seed: seed)
-        let request = ImprovGenerateRequestV2(events: promptEvents, params: params, sessionID: improvSessionID)
-
-        let playbackPlan: ImprovBackendPlaybackPlan
-        do {
-            if kind == .networkBonjourWebSocketAriaV2, let streamingBackend = backend as? any ImprovStreamingBackendProtocol {
-                try await attemptSelectedBackendImprovStreaming(
-                    activationID: activationID,
-                    sequenceID: sequenceID,
-                    kind: kind,
-                    backend: streamingBackend,
-                    request: request
-                )
-                return
-            }
-
-            playbackPlan = try await backend.generatePlaybackPlan(request: request, timeout: backendTimeout)
-        } catch {
-            logger.warning("improv backend failed: \(String(describing: error), privacy: .public)")
-            lastImprovStatusText = "Last improv: error(\(kind.rawValue) \(error.localizedDescription))"
-            notifyStateChanged()
-            return
-        }
-
-        switch playbackPlan {
-        case let .schedule(schedule, backendLatencyMS):
-            if let backendLatencyMS {
-                logger.info("improv reply kind=\(kind.rawValue, privacy: .public) latencyMS=\(backendLatencyMS, privacy: .public)")
-            } else {
-                logger.info("improv reply kind=\(kind.rawValue, privacy: .public)")
-            }
-            await handleReplyPlan(.schedule(schedule), sequenceID: sequenceID, activationID: activationID)
-            if kind == .networkBonjourHTTPAriaV2, let backendLatencyMS {
-                lastImprovStatusText = "上次生成耗时：\(backendLatencyMS)ms"
-            } else {
-                lastImprovStatusText = "Last improv: \(kind.rawValue)"
-            }
-            notifyStateChanged()
-        case let .tickRange(maxMeasures):
-            guard let tickRange = practiceSession?.aiPerformanceTickRange(maxMeasures: maxMeasures) else {
-                lastImprovStatusText = "Last improv: error(\(kind.rawValue) noTickRange)"
-                notifyStateChanged()
-                return
-            }
-            await handleReplyPlan(
-                .tickRange(startTick: tickRange.startTick, endTick: tickRange.endTick),
-                sequenceID: sequenceID,
-                activationID: activationID
-            )
-            lastImprovStatusText = "Last improv: \(kind.rawValue)"
-            notifyStateChanged()
-        }
-    }
-
-    private func attemptSelectedBackendImprovStreaming(
-        activationID: Int,
-        sequenceID: Int,
-        kind: ImprovBackendKind,
-        backend: any ImprovStreamingBackendProtocol,
-        request: ImprovGenerateRequestV2
-    ) async throws {
-        let stream = try await backend.streamChunks(request: request, timeout: backendTimeout)
-
-        var assembler = ImprovStreamingChunkAssembler()
-
-        for try await chunk in stream {
-            guard isEnabled else { break }
-            guard activationID == self.activationID else {
-                logger.debug("drop late streaming chunk seq=\(sequenceID, privacy: .public)")
-                break
-            }
-            guard practiceSession != nil else { break }
-            if Task.isCancelled { break }
-
-            if chunk.seq <= assembler.lastSeq {
-                logger.warning("drop streaming chunk: non-monotonic seq=\(chunk.seq, privacy: .public) last=\(assembler.lastSeq, privacy: .public)")
-                continue
-            }
-            if chunk.timeRange.start + 1e-9 < assembler.lastTimeRangeEnd {
-                logger.warning(
-                    "drop streaming chunk: overlapping time_range start=\(chunk.timeRange.start, privacy: .public) lastEnd=\(assembler.lastTimeRangeEnd, privacy: .public)"
-                )
-                continue
-            }
-
-            guard let rebasedEvents = assembler.consume(chunk) else { continue }
-
-            let schedule = try await Task.detached(priority: .userInitiated) {
-                ImprovScheduleBuilder().buildSchedule(from: rebasedEvents)
-            }.value
-
-            if schedule.isEmpty == false {
-                await enqueueAIPlaybackSchedule(schedule)
-            }
-
-            if chunk.isFinal {
-                lastImprovStatusText = "Last improv: \(kind.rawValue) streaming"
-                notifyStateChanged()
-                break
-            }
-        }
-    }
-
-    private func handleReplyPlan(_ plan: ReplyPlan, sequenceID: Int, activationID: Int) async {
-        guard isEnabled else { return }
-        guard activationID == self.activationID else {
-            logger.debug("drop late reply plan seq=\(sequenceID, privacy: .public)")
-            return
-        }
-
-        pendingReplyPlans[sequenceID] = plan
-        while let next = pendingReplyPlans.removeValue(forKey: nextPlaybackSequenceID) {
-            await enqueueReplyPlan(next)
-            nextPlaybackSequenceID += 1
-        }
-    }
-
-    private func enqueueReplyPlan(_ plan: ReplyPlan) async {
-        switch plan {
-        case let .schedule(schedule):
-            await enqueueAIPlaybackSchedule(schedule)
-        case let .tickRange(startTick, endTick):
-            await enqueueAIPlaybackTickRange((startTick: startTick, endTick: endTick))
-        }
-    }
-
-    private func enqueueAIPlaybackSchedule(_ schedule: [PracticeSequencerMIDIEvent]) async {
-        guard let practiceSession else { return }
-        let routing = practiceSession.settingsProvider.soundRoutingSettings
-        let now = nowUptimeSeconds()
-        let result = await aiPlaybackQueue.enqueue(schedule: schedule, routing: routing, enqueuedAtUptimeSeconds: now)
-        latestSchedule = result.shiftedSchedule
-        notifyStateChanged()
-
-        let shiftedScheduleSnapshot = latestSchedule
-        let noteOnCount = shiftedScheduleSnapshot.reduce(into: 0) { partialResult, event in
-            if case .noteOn = event.kind { partialResult += 1 }
-        }
-        let firstNoteOn = shiftedScheduleSnapshot.first { event in
-            if case .noteOn = event.kind { return true }
-            return false
-        }?.timeSeconds
-        logger.info(
-            "ai schedule shifted count=\(shiftedScheduleSnapshot.count, privacy: .public) noteOn=\(noteOnCount, privacy: .public) firstNoteOn=\(String(describing: firstNoteOn), privacy: .public) baseDelay=\(result.baseDelaySeconds, privacy: .public)"
-        )
-
-        let enqueueLogMessage =
-            "ai enqueue baseDelay=\(result.baseDelaySeconds)s " +
-            "queueCount=\(result.queueCount) " +
-            "aiEnd=\(result.aiEndUptimeSeconds)"
-        logger.info("\(enqueueLogMessage, privacy: .public)")
-    }
-
-    private func enqueueAIPlaybackTickRange(_ tickRange: (startTick: Int, endTick: Int)) async {
-        guard let practiceSession else { return }
-
-        let timelineSnapshot = practiceSession.autoplayTimeline
-        let tempoMapSnapshot = practiceSession.tempoMap
-        let initialSustainPedalDown = practiceSession.pedalTimeline?.isDown(atTick: tickRange.startTick) ?? false
-        let leadInSeconds: TimeInterval = 0.05
-
-        let schedule: [PracticeSequencerMIDIEvent]
-        do {
-            schedule = try await Task.detached(priority: .userInitiated) {
-                PracticeSequencerSequenceBuilder().buildAudioEventSchedule(
-                    timeline: timelineSnapshot,
-                    tempoMap: tempoMapSnapshot,
-                    startTick: tickRange.startTick,
-                    initialSustainPedalDown: initialSustainPedalDown,
-                    leadInSeconds: leadInSeconds,
-                    endTick: tickRange.endTick
-                )
-            }.value
-        } catch {
-            return
-        }
-
-        let routing = practiceSession.settingsProvider.soundRoutingSettings
-        let now = nowUptimeSeconds()
-        let result = await aiPlaybackQueue.enqueue(schedule: schedule, routing: routing, enqueuedAtUptimeSeconds: now)
-        latestSchedule = result.shiftedSchedule
-        notifyStateChanged()
-    }
-
-    private func estimatedBackendReplySeconds(maxTokens: Int) -> TimeInterval {
-        max(2.0, min(12.0, Double(maxTokens) / 64.0))
+    private func makeStatusText(mode: DuetTurnTakingCore.Mode, noteSnapshot: DuetPhraseBuffer.Snapshot) -> String {
+        let density = noteSnapshot.recentNoteDensityPerSecond.formatted(.number.precision(.fractionLength(2)))
+        let ioiText = noteSnapshot.recentIOIMedianSeconds.map(formatSeconds) ?? "-"
+        let generationText = isGenerating ? "生成中" : "监听中"
+        return "AI 即兴：\(generationText) · mode=\(mode.rawValue) · held=\(noteSnapshot.heldNotes.count) · density=\(density)/s · ioi=\(ioiText)s"
     }
 
     private func formatSeconds(_ seconds: TimeInterval) -> String {
