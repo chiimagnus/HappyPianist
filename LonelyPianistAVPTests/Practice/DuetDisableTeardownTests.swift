@@ -71,16 +71,11 @@ private actor ControlledBackend: ImprovBackendProtocol {
 
 @MainActor
 private final class NonAdvancingPlaybackService: PracticeSequencerPlaybackServiceProtocol {
-    private var nowSeconds: TimeInterval = 0
-
     func warmUp() throws {}
     func stop() {}
     func load(sequence _: PracticeSequencerSequence) throws {}
     func play(fromSeconds _: TimeInterval) throws {}
-    func currentSeconds() -> TimeInterval {
-        nowSeconds += 1
-        return nowSeconds
-    }
+    func currentSeconds() -> TimeInterval { 0 }
     func playOneShot(noteOns _: [PracticeOneShotNoteOn], durationSeconds _: TimeInterval) throws {}
     func startLiveNotes(midiNotes _: Set<Int>) throws {}
     func stopLiveNotes(midiNotes _: Set<Int>) {}
@@ -133,23 +128,15 @@ func disablingServiceDropsLateBackendResponses() async {
     service.updatePracticeSession(session)
     service.setEnabled(true)
 
-    // Trigger one send (long phrase for immediate send).
-    nowUptime = 0.0
     service.recordKeyContactForPhraseRecordingIfNeeded(
         usesBluetoothMIDIInput: false,
-        keyContact: KeyContactResult(down: [], started: [60], ended: []),
+        keyContact: KeyContactResult(down: [60], started: [60], ended: []),
         nowUptimeSeconds: nowUptime
     )
-    nowUptime = 3.2
-    service.recordKeyContactForPhraseRecordingIfNeeded(
-        usesBluetoothMIDIInput: false,
-        keyContact: KeyContactResult(down: [], started: [], ended: [60]),
-        nowUptimeSeconds: nowUptime
-    )
+    nowUptime = 0.2
 
     #expect(await backend.waitForCall())
 
-    // Disable before the backend replies.
     service.setEnabled(false)
     service.setEnabled(true)
 
