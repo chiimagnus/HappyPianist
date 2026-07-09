@@ -93,11 +93,18 @@ struct DuetPhrasePolicy: Sendable {
 			)
 		}
 
-		let lastEventTime = schedule.map(\.timeSeconds).max() ?? 0
-		let effectiveDurationSeconds = min(max(0.05, lastEventTime), max(0.2, horizonSeconds))
+		let lastNoteEventTime = schedule.compactMap { event -> TimeInterval? in
+			switch event.kind {
+			case .noteOn, .noteOff:
+				event.timeSeconds
+			case .controlChange, .pitchBend, .programChange, .channelPressure, .polyPressure:
+				nil
+			}
+		}.max() ?? 0
+		let effectiveDurationSeconds = min(max(0.05, lastNoteEventTime), max(0.2, horizonSeconds))
 		let density = Double(noteOnEvents.count) / effectiveDurationSeconds
 		let repeatedRunLength = maxRepeatedRunLength(noteOnEvents.map(\.midi))
-		let maxLeap = zip(noteOnEvents.dropFirst(), noteOnEvents).map { abs($0.midi - $1.midi) }.max() ?? 0
+		let maxLeap = maxMelodicLeap(noteOnEvents)
 		let collisionCount = noteOnEvents.filter { event in
 			let nearHeldNote = noteSnapshot.heldNoteMIDIs.contains(where: { abs($0 - event.midi) <= 2 })
 			let nearPitchCenter = noteSnapshot.activePitchCenter.map { abs($0 - Double(event.midi)) <= 1.5 } ?? false
@@ -184,7 +191,6 @@ struct DuetPhrasePolicy: Sendable {
 
         var droppedNoteDepths: [Int: Int] = [:]
         var retainedNoteDepths: [Int: Int] = [:]
-        var retainedOpenNotes: [Int: Int] = [:]
         var noteOnIndex = 0
         var shaped: [PracticeSequencerMIDIEvent] = []
 
@@ -202,7 +208,6 @@ struct DuetPhrasePolicy: Sendable {
                 }
 
                 retainedNoteDepths[midi, default: 0] += 1
-                retainedOpenNotes[midi, default: 0] += 1
                 shaped.append(
                     PracticeSequencerMIDIEvent(
                         timeSeconds: max(0, event.timeSeconds),
@@ -217,7 +222,6 @@ struct DuetPhrasePolicy: Sendable {
                 }
                 guard (retainedNoteDepths[midi] ?? 0) > 0 else { continue }
                 retainedNoteDepths[midi, default: 0] -= 1
-                retainedOpenNotes[midi, default: 0] -= 1
                 shaped.append(
                     PracticeSequencerMIDIEvent(
                         timeSeconds: min(clippedHorizon, max(0, event.timeSeconds)),
@@ -272,25 +276,58 @@ struct DuetPhrasePolicy: Sendable {
             }
         }
 
-        for (midi, openDepth) in retainedOpenNotes where openDepth > 0 {
-            for _ in 0 ..< openDepth {
-                shaped.append(
-                    PracticeSequencerMIDIEvent(
-                        timeSeconds: clippedHorizon,
-                        kind: .noteOff(midi: midi)
-                    )
-                )
-            }
-        }
-
-		let sortedShaped = shaped.sorted(by: sortEvents)
-		return applyQualityGuardrails(
-			to: sortedShaped,
+		let guardedSchedule = applyQualityGuardrails(
+			to: shaped.sorted(by: sortEvents),
 			noteSnapshot: noteSnapshot,
 			horizonSeconds: clippedHorizon,
 			controlMode: controlMode
 		)
-    }
+		return closeOpenNotes(in: guardedSchedule, at: clippedHorizon)
+	}
+
+	private static func closeOpenNotes(
+		in schedule: [PracticeSequencerMIDIEvent],
+		at horizonSeconds: TimeInterval
+	) -> [PracticeSequencerMIDIEvent] {
+		guard schedule.isEmpty == false else { return [] }
+
+		var openDepths: [Int: Int] = [:]
+		for event in schedule.sorted(by: sortEvents) {
+			switch event.kind {
+			case let .noteOn(midi, _):
+				openDepths[midi, default: 0] += 1
+			case let .noteOff(midi):
+				guard (openDepths[midi] ?? 0) > 0 else { continue }
+				openDepths[midi, default: 0] -= 1
+			case .controlChange, .pitchBend, .programChange, .channelPressure, .polyPressure:
+				continue
+			}
+		}
+
+		var closed = schedule
+		for (midi, openDepth) in openDepths where openDepth > 0 {
+			for _ in 0 ..< openDepth {
+				closed.append(
+					PracticeSequencerMIDIEvent(
+						timeSeconds: horizonSeconds,
+						kind: .noteOff(midi: midi)
+					)
+				)
+			}
+		}
+		return closed.sorted(by: sortEvents)
+	}
+
+	private static func maxMelodicLeap(_ events: [(time: TimeInterval, midi: Int)]) -> Int {
+		let groups = Dictionary(grouping: events, by: { $0.time })
+		let onsetCenters = groups.keys.sorted().compactMap { onset -> Double? in
+			guard let group = groups[onset], group.isEmpty == false else { return nil }
+			return Double(group.map(\.midi).reduce(0, +)) / Double(group.count)
+		}
+		return zip(onsetCenters.dropFirst(), onsetCenters)
+			.map { Int(abs($0 - $1).rounded()) }
+			.max() ?? 0
+	}
 
     private static func adjustedVelocity(_ velocity: UInt8, mode: DuetTurnTakingCore.Mode) -> UInt8 {
         switch mode {

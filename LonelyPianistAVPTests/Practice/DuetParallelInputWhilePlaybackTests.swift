@@ -38,7 +38,6 @@ private final class FakePracticeSession: AIPerformancePracticeSessionProtocol {
         self.settingsProvider = settingsProvider
     }
 
-    func aiPerformanceTickRange(maxMeasures _: Int) -> (startTick: Int, endTick: Int)? { nil }
     func stopVirtualPianoInput() {}
     func stopAudioRecognition() {}
     func prepareAudioRecognitionSuppressWindowForPlayback() -> Date { .now }
@@ -145,9 +144,9 @@ func aiPlaybackDoesNotBlockSecondContinuousWindowRequest() async {
 
     for _ in 0 ..< 500 {
         await Task.yield()
-        if await backend.generateCallCount() >= 1 { break }
+        if await backend.generateCallCount() >= 3 { break }
     }
-    #expect(await backend.generateCallCount() == 1)
+    #expect(await backend.generateCallCount() == 3)
 
     service.recordKeyContactForPhraseRecordingIfNeeded(
         usesBluetoothMIDIInput: false,
@@ -158,9 +157,9 @@ func aiPlaybackDoesNotBlockSecondContinuousWindowRequest() async {
 
     for _ in 0 ..< 500 {
         await Task.yield()
-        if await backend.generateCallCount() >= 2 { break }
+        if await backend.generateCallCount() >= 6 { break }
     }
-    #expect(await backend.generateCallCount() == 2)
+    #expect(await backend.generateCallCount() == 6)
 
     service.setEnabled(false)
 }

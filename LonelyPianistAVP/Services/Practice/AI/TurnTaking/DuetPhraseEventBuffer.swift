@@ -17,9 +17,14 @@ struct DuetPhraseEventBuffer: Sendable {
 
     private var recordedControlChanges: [RecordedControlChange] = []
     private var latestKnownControlValues: [Int: Int] = [:]
+    private var latestKnownControlTimestamps: [Int: TimeInterval] = [:]
 
     private static let allowedControllers: Set<Int> = [7, 11, 64]
     private static let maxHistorySeconds: TimeInterval = 12.0
+
+    var sustainValue: Int {
+        latestKnownControlValues[64] ?? 0
+    }
 
     init() {}
 
@@ -27,6 +32,7 @@ struct DuetPhraseEventBuffer: Sendable {
         guard Self.allowedControllers.contains(controller) else { return }
         pruneHistory(nowTimestampSeconds: timestampSeconds)
         latestKnownControlValues[controller] = value
+        latestKnownControlTimestamps[controller] = timestampSeconds
         recordedControlChanges.append(
             RecordedControlChange(controller: controller, value: value, timestampSeconds: timestampSeconds)
         )
@@ -45,10 +51,12 @@ struct DuetPhraseEventBuffer: Sendable {
         let windowEnd = max(nowTimestampSeconds, latestEventTime)
 
         let initialEvents: [ImprovEvent] = Self.allowedControllers.compactMap { controller in
-            if let beforeWindow = recordedControlChanges.last(where: { $0.controller == controller && $0.timestampSeconds <= windowStart }) {
+            if let beforeWindow = recordedControlChanges.last(where: { $0.controller == controller && $0.timestampSeconds < windowStart }) {
                 return ImprovEvent.cc(controller: beforeWindow.controller, value: beforeWindow.value, time: 0)
             }
-            guard let currentValue = latestKnownControlValues[controller] else { return nil }
+            guard latestKnownControlTimestamps[controller].map({ $0 < windowStart }) == true,
+                  let currentValue = latestKnownControlValues[controller]
+            else { return nil }
             return ImprovEvent.cc(controller: controller, value: currentValue, time: 0)
         }
 
@@ -76,6 +84,7 @@ struct DuetPhraseEventBuffer: Sendable {
     mutating func reset() {
         recordedControlChanges.removeAll(keepingCapacity: true)
         latestKnownControlValues.removeAll(keepingCapacity: true)
+        latestKnownControlTimestamps.removeAll(keepingCapacity: true)
     }
 
     private mutating func pruneHistory(nowTimestampSeconds: TimeInterval) {

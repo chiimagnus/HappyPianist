@@ -25,6 +25,27 @@ func duetTurnTakingCoreReturnsYieldForDenseHeldTexture() {
 }
 
 @Test
+func duetTurnTakingCoreReturnsYieldForDenseStaccatoTexture() {
+    var core = DuetTurnTakingCore()
+    let decision = core.evaluate(
+        .init(
+            nowTimestampSeconds: 10,
+            heldNotesCount: 0,
+            sustainValue: 0,
+            recentIOIMedianSeconds: 0.12,
+            recentVelocityTrend: 0,
+            recentNoteDensityPerSecond: 3,
+            lastUserEventTimestampSeconds: 9.9,
+            lastNoteOnTimestampSeconds: 9.8,
+            activePitchCenter: 64
+        )
+    )
+
+    #expect(decision.mode == .yield)
+    #expect(decision.shouldClearFutureWindows)
+}
+
+@Test
 func duetTurnTakingCoreReturnsSparseForSustainLedHeldTexture() {
     var core = DuetTurnTakingCore()
     let decision = core.evaluate(

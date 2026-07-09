@@ -51,17 +51,18 @@ struct DuetTurnTakingCore: Sendable {
             )
         }
 
+        if isFastFigure || isDenseTexture {
+            return Decision(
+                mode: .yield,
+                shouldRequestGeneration: false,
+                shouldClearFutureWindows: true,
+                requestWindowSeconds: 0,
+                minRequestIntervalSeconds: 0.22,
+                maxTokens: 0
+            )
+        }
+
         if snapshot.heldNotesCount > 0 {
-            if isFastFigure || isDenseTexture {
-                return Decision(
-                    mode: .yield,
-                    shouldRequestGeneration: false,
-                    shouldClearFutureWindows: true,
-                    requestWindowSeconds: 0,
-                    minRequestIntervalSeconds: 0.22,
-                    maxTokens: 0
-                )
-            }
 
             if sustainIsDown || snapshot.recentVelocityTrend > 4 {
                 return Decision(

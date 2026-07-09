@@ -4,19 +4,8 @@ import os
 
 @MainActor
 protocol AIPerformancePracticeSessionProtocol: AnyObject {
-    var autoplayState: PracticeSessionAutoplayState { get }
-    var isManualReplayPlaying: Bool { get }
-    var currentStep: PracticeStep? { get }
-    var autoplayTimeline: AutoplayPerformanceTimeline { get }
-    var tempoMap: MusicXMLTempoMap { get }
-    var pedalTimeline: MusicXMLPedalTimeline? { get }
-    var sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol { get }
     var settingsProvider: any PracticeSessionSettingsProviderProtocol { get }
 
-    func aiPerformanceTickRange(maxMeasures: Int) -> (startTick: Int, endTick: Int)?
-    func stopVirtualPianoInput()
-    func stopAudioRecognition()
-    func prepareAudioRecognitionSuppressWindowForPlayback() -> Date
     func refreshAudioRecognitionForCurrentState()
 }
 
@@ -39,6 +28,12 @@ final class AIPerformanceService {
 	private struct CandidateEvaluation {
 		let shapedSchedule: [PracticeSequencerMIDIEvent]
 		let assessment: DuetPhrasePolicy.QualityAssessment
+	}
+
+	private struct CandidateDiagnostics {
+		let band: DuetPhrasePolicy.QualityAssessment.Band
+		let candidateCount: Int
+		let topRejectReason: DuetPhrasePolicy.QualityAssessment.Reason?
 	}
 
     private let logger: Logger
@@ -66,12 +61,14 @@ final class AIPerformanceService {
     private var inFlightGenerateTasks: [Int: Task<Void, Never>] = [:]
     private var nextRequestID = 0
     private var activationID = 0
+    private var inputRevision = 0
     private var lastWindowRequestTimestampSeconds: TimeInterval?
 
     private var isGenerating = false
     private var isAIPlaybackActive = false
     private var latestSchedule: [PracticeSequencerMIDIEvent] = []
     private var lastImprovStatusText: String?
+    private var latestCandidateDiagnostics: CandidateDiagnostics?
 
     @MainActor
     private lazy var aiPlaybackQueue: DuetAIPlaybackQueue = {
@@ -111,8 +108,8 @@ final class AIPerformanceService {
 
     func shutdown() {
         guard hasShutdown == false else { return }
-        hasShutdown = true
         setEnabled(false)
+        hasShutdown = true
     }
 
     func updatePracticeSession(_ session: any AIPerformancePracticeSessionProtocol) {
@@ -136,7 +133,7 @@ final class AIPerformanceService {
                 task.cancel()
             }
             inFlightGenerateTasks.removeAll(keepingCapacity: true)
-            nextRequestID = 0
+            inputRevision &+= 1
             lastWindowRequestTimestampSeconds = nil
             isGenerating = false
             isAIPlaybackActive = false
@@ -145,25 +142,27 @@ final class AIPerformanceService {
             controlEstimator.reset()
             latestSchedule = []
             lastImprovStatusText = nil
+            latestCandidateDiagnostics = nil
             notifyStateChanged()
 
-            Task { [aiPlaybackQueue] in
+            Task { @MainActor [weak self, aiPlaybackQueue] in
                 await aiPlaybackQueue.stopAll()
+                self?.stopPlaybackAndRestoreAudioRecognitionIfNeeded()
             }
-            stopPlaybackAndRestoreAudioRecognitionIfNeeded()
             return
         }
 
         guard isEnabled == false else { return }
         isEnabled = true
         activationID += 1
-        nextRequestID = 0
+        inputRevision &+= 1
         lastWindowRequestTimestampSeconds = nil
         noteContext.reset()
         ccContext.reset()
         controlEstimator.reset()
         latestSchedule = []
         lastImprovStatusText = "AI 即兴：连续共演模式已启用"
+        latestCandidateDiagnostics = nil
         notifyStateChanged()
         syncBackendDiscoveryIfNeeded()
         startControlLoop()
@@ -175,11 +174,22 @@ final class AIPerformanceService {
 
         switch event.kind {
         case let .noteOn(note, velocity):
+            inputRevision &+= 1
             noteContext.recordNoteOn(midi: note, velocity: velocity, timestampSeconds: event.receivedAtUptimeSeconds)
         case let .noteOff(note, _):
-            noteContext.recordNoteOff(midi: note, timestampSeconds: event.receivedAtUptimeSeconds)
+            inputRevision &+= 1
+            noteContext.recordNoteOff(
+                midi: note,
+                timestampSeconds: event.receivedAtUptimeSeconds,
+                sustainIsDown: ccContext.sustainValue >= 64
+            )
         case let .controlChange(controller, value):
+            inputRevision &+= 1
+            let wasSustainDown = ccContext.sustainValue >= 64
             ccContext.recordControlChange(controller: controller, value: value, timestampSeconds: event.receivedAtUptimeSeconds)
+            if controller == 64, wasSustainDown, value < 64 {
+                noteContext.releaseSustainedNotes(timestampSeconds: event.receivedAtUptimeSeconds)
+            }
         default:
             return
         }
@@ -191,19 +201,31 @@ final class AIPerformanceService {
 
         switch event.kind {
         case let .noteOn(note, velocity16):
+            inputRevision &+= 1
             noteContext.recordNoteOn(
                 midi: note,
                 velocity: MIDI2ValueMapping.value16To7Bit(velocity16),
                 timestampSeconds: event.receivedAtUptimeSeconds
             )
         case let .noteOff(note, _):
-            noteContext.recordNoteOff(midi: note, timestampSeconds: event.receivedAtUptimeSeconds)
+            inputRevision &+= 1
+            noteContext.recordNoteOff(
+                midi: note,
+                timestampSeconds: event.receivedAtUptimeSeconds,
+                sustainIsDown: ccContext.sustainValue >= 64
+            )
         case let .controlChange(controller, value32):
+            inputRevision &+= 1
+            let value = MIDI2ValueMapping.value32To7Bit(value32)
+            let wasSustainDown = ccContext.sustainValue >= 64
             ccContext.recordControlChange(
                 controller: controller,
-                value: MIDI2ValueMapping.value32To7Bit(value32),
+                value: value,
                 timestampSeconds: event.receivedAtUptimeSeconds
             )
+            if controller == 64, wasSustainDown, value < 64 {
+                noteContext.releaseSustainedNotes(timestampSeconds: event.receivedAtUptimeSeconds)
+            }
         default:
             return
         }
@@ -218,11 +240,14 @@ final class AIPerformanceService {
         guard isEnabled else { return }
         syncBackendDiscoveryIfNeeded()
 
+        guard keyContact.started.isEmpty == false || keyContact.ended.isEmpty == false else { return }
+        inputRevision &+= 1
+
         for note in keyContact.started {
             noteContext.recordNoteOn(midi: note, velocity: 90, timestampSeconds: nowUptimeSeconds)
         }
         for note in keyContact.ended {
-            noteContext.recordNoteOff(midi: note, timestampSeconds: nowUptimeSeconds)
+            noteContext.recordNoteOff(midi: note, timestampSeconds: nowUptimeSeconds, sustainIsDown: false)
         }
     }
 
@@ -242,6 +267,25 @@ final class AIPerformanceService {
         practiceSession?.refreshAudioRecognitionForCurrentState()
     }
 
+    private func controlDecision(
+        noteSnapshot: DuetPhraseBuffer.Snapshot,
+        ccSnapshot: DuetPhraseEventBuffer.Snapshot
+    ) -> DuetTurnTakingCore.Decision {
+        controlEstimator.evaluate(
+            .init(
+                nowTimestampSeconds: noteSnapshot.nowTimestampSeconds,
+                heldNotesCount: noteSnapshot.heldNotes.count,
+                sustainValue: ccSnapshot.sustainValue,
+                recentIOIMedianSeconds: noteSnapshot.recentIOIMedianSeconds,
+                recentVelocityTrend: noteSnapshot.recentVelocityTrend,
+                recentNoteDensityPerSecond: noteSnapshot.recentNoteDensityPerSecond,
+                lastUserEventTimestampSeconds: noteSnapshot.lastUserEventTimestampSeconds,
+                lastNoteOnTimestampSeconds: noteSnapshot.lastNoteOnTimestampSeconds,
+                activePitchCenter: noteSnapshot.activePitchCenter
+            )
+        )
+    }
+
     private func startControlLoop() {
         controlLoopTask?.cancel()
         controlLoopTask = Task { @MainActor [weak self] in
@@ -249,6 +293,7 @@ final class AIPerformanceService {
             while Task.isCancelled == false, isEnabled {
                 await runContinuousControlTick()
                 await sleepFor(.milliseconds(100))
+                await Task.yield()
             }
         }
     }
@@ -277,19 +322,7 @@ final class AIPerformanceService {
             lookbackSeconds: bootstrapPolicy.lookbackSeconds,
             maxPromptSeconds: bootstrapPolicy.maxPromptSeconds
         )
-        let decision = controlEstimator.evaluate(
-            .init(
-                nowTimestampSeconds: now,
-                heldNotesCount: noteSnapshot.heldNotes.count,
-                sustainValue: ccSnapshot.sustainValue,
-                recentIOIMedianSeconds: noteSnapshot.recentIOIMedianSeconds,
-                recentVelocityTrend: noteSnapshot.recentVelocityTrend,
-                recentNoteDensityPerSecond: noteSnapshot.recentNoteDensityPerSecond,
-                lastUserEventTimestampSeconds: noteSnapshot.lastUserEventTimestampSeconds,
-                lastNoteOnTimestampSeconds: noteSnapshot.lastNoteOnTimestampSeconds,
-                activePitchCenter: noteSnapshot.activePitchCenter
-            )
-        )
+        let decision = controlDecision(noteSnapshot: noteSnapshot, ccSnapshot: ccSnapshot)
 
         if decision.shouldClearFutureWindows {
             await aiPlaybackQueue.clearPendingWindow()
@@ -309,13 +342,12 @@ final class AIPerformanceService {
                 await requestContinuousWindow(
                     nowTimestampSeconds: now,
                     promptEvents: promptEvents,
-                    requestPolicy: requestPolicy,
-                    mode: decision.mode
+                    requestPolicy: requestPolicy
                 )
             }
         }
 
-        lastImprovStatusText = makeStatusText(mode: decision.mode, noteSnapshot: noteSnapshot)
+        lastImprovStatusText = makeStatusText(decision: decision, noteSnapshot: noteSnapshot)
         notifyStateChanged()
     }
 
@@ -338,12 +370,12 @@ final class AIPerformanceService {
     private func requestContinuousWindow(
         nowTimestampSeconds: TimeInterval,
         promptEvents: [ImprovEvent],
-        requestPolicy: DuetPhrasePolicy.RequestPolicy,
-        mode: DuetTurnTakingCore.Mode
+        requestPolicy: DuetPhrasePolicy.RequestPolicy
     ) async {
         let kind = selectedBackendKind()
         let requestID = nextRequestID
         let activationAtRequest = activationID
+        let inputRevisionAtRequest = inputRevision
         nextRequestID += 1
         lastWindowRequestTimestampSeconds = nowTimestampSeconds
 
@@ -358,11 +390,12 @@ final class AIPerformanceService {
             }
 
             await generateContinuousWindow(
+                requestID: requestID,
                 activationAtRequest: activationAtRequest,
+                inputRevisionAtRequest: inputRevisionAtRequest,
                 kind: kind,
                 promptEvents: promptEvents,
-                requestPolicy: requestPolicy,
-                mode: mode
+                requestPolicy: requestPolicy
             )
         }
         inFlightGenerateTasks[requestID] = task
@@ -373,13 +406,15 @@ final class AIPerformanceService {
 	private func generateContinuousWindow(
 		requestID: Int,
 		activationAtRequest: Int,
+		inputRevisionAtRequest: Int,
 		kind: ImprovBackendKind,
 		promptEvents: [ImprovEvent],
-        requestPolicy: DuetPhrasePolicy.RequestPolicy,
-        mode: DuetTurnTakingCore.Mode
+        requestPolicy: DuetPhrasePolicy.RequestPolicy
     ) async {
         guard isEnabled else { return }
         guard activationAtRequest == activationID else { return }
+        guard inputRevisionAtRequest == inputRevision else { return }
+        guard kind == selectedBackendKind() else { return }
         guard let practiceSession else { return }
         guard let backend = backendRegistry.backend(for: kind) else {
             lastImprovStatusText = "AI 即兴：后端不可用（\(kind.rawValue)）"
@@ -394,14 +429,12 @@ final class AIPerformanceService {
 			rawCandidates = try await generatePlaybackCandidates(
 				backend: backend,
 				kind: kind,
-				activationAtRequest: activationAtRequest,
-				requestID: requestID,
 				promptEvents: promptEvents,
 				requestPolicy: requestPolicy,
-				practiceSession: practiceSession,
 				baseSeed: seed
 			)
         } catch {
+			guard isEnabled, activationAtRequest == activationID, inputRevisionAtRequest == inputRevision, kind == selectedBackendKind() else { return }
             logger.warning("continuous duet backend failed: \(String(describing: error), privacy: .public)")
             lastImprovStatusText = "AI 即兴：生成失败（\(kind.rawValue)）"
             notifyStateChanged()
@@ -410,6 +443,8 @@ final class AIPerformanceService {
 
         guard isEnabled else { return }
         guard activationAtRequest == activationID else { return }
+		guard inputRevisionAtRequest == inputRevision else { return }
+		guard kind == selectedBackendKind() else { return }
 
         let now = nowUptimeSeconds()
         let noteSnapshot = noteContext.snapshot(
@@ -417,23 +452,29 @@ final class AIPerformanceService {
             lookbackSeconds: requestPolicy.lookbackSeconds,
             maxPromptSeconds: requestPolicy.maxPromptSeconds
         )
+		let ccSnapshot = ccContext.snapshot(
+			nowTimestampSeconds: now,
+			lookbackSeconds: requestPolicy.lookbackSeconds,
+			maxPromptSeconds: requestPolicy.maxPromptSeconds
+		)
+		let decision = controlDecision(noteSnapshot: noteSnapshot, ccSnapshot: ccSnapshot)
+		guard decision.shouldRequestGeneration else { return }
+		let responsePolicy = DuetPhrasePolicy.requestPolicy(for: decision)
 		let evaluations = rawCandidates.map {
 			evaluateCandidate(
 				rawSchedule: $0,
 				noteSnapshot: noteSnapshot,
-				controlMode: mode,
-				horizonSeconds: requestPolicy.requestWindowSeconds
+				controlMode: decision.mode,
+				horizonSeconds: responsePolicy.requestWindowSeconds
 			)
 		}
-		let topRejectReason = evaluations.flatMap(\.assessment.reasons).first
+		let topRejectReason = evaluations
+			.filter { $0.assessment.band == .reject }
+			.compactMap(\.assessment.primaryReason)
+			.first
 		guard let bestCandidate = selectBestCandidate(from: evaluations) else {
-			lastImprovStatusText = makeCandidateStatusText(
-				mode: mode,
-				windowSeconds: requestPolicy.requestWindowSeconds,
-				candidateCount: evaluations.count,
-				band: .reject,
-				topRejectReason: topRejectReason
-			)
+			latestCandidateDiagnostics = CandidateDiagnostics(band: .reject, candidateCount: evaluations.count, topRejectReason: topRejectReason)
+			lastImprovStatusText = makeStatusText(decision: decision, noteSnapshot: noteSnapshot)
 			notifyStateChanged()
 			return
 		}
@@ -446,28 +487,25 @@ final class AIPerformanceService {
             submittedAtUptimeSeconds: now
         )
         latestSchedule = result.shiftedSchedule
-		lastImprovStatusText = makeCandidateStatusText(
-			mode: mode,
-			windowSeconds: requestPolicy.requestWindowSeconds,
-			candidateCount: evaluations.count,
+		latestCandidateDiagnostics = CandidateDiagnostics(
 			band: bestCandidate.assessment.band,
+			candidateCount: evaluations.count,
 			topRejectReason: topRejectReason
 		)
+		lastImprovStatusText = makeStatusText(decision: decision, noteSnapshot: noteSnapshot)
         notifyStateChanged()
     }
 
 	private func generatePlaybackCandidates(
 		backend: any ImprovBackendProtocol,
 		kind: ImprovBackendKind,
-		activationAtRequest: Int,
-		requestID: Int,
 		promptEvents: [ImprovEvent],
 		requestPolicy: DuetPhrasePolicy.RequestPolicy,
-		practiceSession: any AIPerformancePracticeSessionProtocol,
 		baseSeed: UInt64
 	) async throws -> [[PracticeSequencerMIDIEvent]] {
 		let candidateCount = preferredCandidateCount(for: kind)
 		var candidates: [[PracticeSequencerMIDIEvent]] = []
+		var firstError: (any Error)?
 		candidates.reserveCapacity(candidateCount)
 
 		for candidateIndex in 0 ..< candidateCount {
@@ -476,30 +514,18 @@ final class AIPerformanceService {
 				requestPolicy: requestPolicy,
 				seed: candidateSeed(baseSeed: baseSeed, candidateIndex: candidateIndex)
 			)
-			let playbackPlan = try await backend.generatePlaybackPlan(request: request, timeout: backendTimeout)
-			switch playbackPlan {
-			case let .schedule(schedule, _):
-				candidates.append(schedule)
-			case let .tickRange(maxMeasures):
-				guard let tickRange = practiceSession.aiPerformanceTickRange(maxMeasures: maxMeasures) else { continue }
-				let autoplayTimeline = practiceSession.autoplayTimeline
-				let tempoMap = practiceSession.tempoMap
-				let pedalTimeline = practiceSession.pedalTimeline
-				let initialSustainPedalDown = pedalTimeline?.isDown(atTick: tickRange.startTick) ?? false
-				let schedule = try await Task.detached(priority: .userInitiated) {
-					PracticeSequencerSequenceBuilder().buildAudioEventSchedule(
-						timeline: autoplayTimeline,
-						tempoMap: tempoMap,
-						startTick: tickRange.startTick,
-						initialSustainPedalDown: initialSustainPedalDown,
-						leadInSeconds: 0.05,
-						endTick: tickRange.endTick
-					)
-				}.value
-				candidates.append(schedule)
+			do {
+				let playbackPlan = try await backend.generatePlaybackPlan(request: request, timeout: backendTimeout)
+				if case let .schedule(schedule, _) = playbackPlan {
+					candidates.append(schedule)
+				}
+			} catch {
+				if candidateCount == 1 { throw error }
+				if firstError == nil { firstError = error }
 			}
 		}
 
+		if candidates.isEmpty, let firstError { throw firstError }
 		return candidates
 	}
 
@@ -507,7 +533,7 @@ final class AIPerformanceService {
 		switch kind {
 		case .localRule:
 			return 3
-		case .networkBonjourHTTPAriaV2, .networkBonjourWebSocketAriaV2, .localCoreMLDuet, .tickRangeReplay:
+		case .networkBonjourHTTPAriaV2, .networkBonjourWebSocketAriaV2, .localCoreMLDuet:
 			return 1
 		}
 	}
@@ -540,31 +566,41 @@ final class AIPerformanceService {
 		controlMode: DuetTurnTakingCore.Mode,
 		horizonSeconds: TimeInterval
 	) -> CandidateEvaluation {
+		let rawAssessment = DuetPhrasePolicy.assessSchedule(
+			rawSchedule,
+			noteSnapshot: noteSnapshot,
+			horizonSeconds: horizonSeconds
+		)
 		let shapedSchedule = DuetPhrasePolicy.shapeSchedule(
 			rawSchedule,
 			noteSnapshot: noteSnapshot,
 			controlMode: controlMode,
 			horizonSeconds: horizonSeconds
 		)
-		let assessment = shapedSchedule.isEmpty
-			? DuetPhrasePolicy.QualityAssessment(
-				band: .reject,
-				score: 0,
-				reasons: [.fragmentedWindow],
-				noteOnCount: 0,
-				effectiveDurationSeconds: 0
-			)
-			: DuetPhrasePolicy.assessSchedule(
+		let assessment: DuetPhrasePolicy.QualityAssessment
+		if shapedSchedule.isEmpty {
+			assessment = rawAssessment.band == .reject
+				? rawAssessment
+				: .init(
+					band: .reject,
+					score: rawAssessment.score,
+					reasons: rawAssessment.reasons.isEmpty ? [.fragmentedWindow] : rawAssessment.reasons,
+					noteOnCount: rawAssessment.noteOnCount,
+					effectiveDurationSeconds: rawAssessment.effectiveDurationSeconds
+				)
+		} else {
+			assessment = DuetPhrasePolicy.assessSchedule(
 				shapedSchedule,
 				noteSnapshot: noteSnapshot,
 				horizonSeconds: horizonSeconds
 			)
+		}
 		return CandidateEvaluation(shapedSchedule: shapedSchedule, assessment: assessment)
 	}
 
 	private func selectBestCandidate(from evaluations: [CandidateEvaluation]) -> CandidateEvaluation? {
 		evaluations
-			.filter { $0.shapedSchedule.isEmpty == false }
+			.filter { $0.shapedSchedule.isEmpty == false && $0.assessment.band != .reject }
 			.max { lhs, rhs in
 				if bandRank(lhs.assessment.band) != bandRank(rhs.assessment.band) {
 					return bandRank(lhs.assessment.band) < bandRank(rhs.assessment.band)
@@ -587,17 +623,6 @@ final class AIPerformanceService {
 		}
 	}
 
-	private func makeCandidateStatusText(
-		mode: DuetTurnTakingCore.Mode,
-		windowSeconds: TimeInterval,
-		candidateCount: Int,
-		band: DuetPhrasePolicy.QualityAssessment.Band,
-		topRejectReason: DuetPhrasePolicy.QualityAssessment.Reason?
-	) -> String {
-		let rejectText = topRejectReason.map { " · topReject=\($0.rawValue)" } ?? ""
-		return "AI 即兴：\(mode.rawValue) · q=\(band.rawValue) · candidates=\(candidateCount)\(rejectText) · window=\(formatSeconds(windowSeconds))s"
-	}
-
     private func syncBackendDiscoveryIfNeeded() {
         let kind = selectedBackendKind()
         guard kind != lastKnownBackendKind else { return }
@@ -605,11 +630,20 @@ final class AIPerformanceService {
         discoveryOrchestrator.start(for: kind)
     }
 
-    private func makeStatusText(mode: DuetTurnTakingCore.Mode, noteSnapshot: DuetPhraseBuffer.Snapshot) -> String {
+    private func makeStatusText(
+        decision: DuetTurnTakingCore.Decision,
+        noteSnapshot: DuetPhraseBuffer.Snapshot
+    ) -> String {
         let density = noteSnapshot.recentNoteDensityPerSecond.formatted(.number.precision(.fractionLength(2)))
         let ioiText = noteSnapshot.recentIOIMedianSeconds.map(formatSeconds) ?? "-"
         let generationText = isGenerating ? "生成中" : "监听中"
-        return "AI 即兴：\(generationText) · mode=\(mode.rawValue) · held=\(noteSnapshot.heldNotes.count) · density=\(density)/s · ioi=\(ioiText)s"
+        let cadence = formatSeconds(decision.minRequestIntervalSeconds)
+        let horizon = formatSeconds(decision.requestWindowSeconds)
+        let diagnostics = latestCandidateDiagnostics.map { diagnostics in
+            let reason = diagnostics.topRejectReason.map { " · topReject=\($0.rawValue)" } ?? ""
+            return " · q=\(diagnostics.band.rawValue) · candidates=\(diagnostics.candidateCount)\(reason)"
+        } ?? ""
+        return "AI 即兴：\(generationText) · mode=\(decision.mode.rawValue) · held=\(noteSnapshot.heldNotes.count) · density=\(density)/s · ioi=\(ioiText)s · cadence=\(cadence)s · window=\(horizon)s\(diagnostics)"
     }
 
     private func formatSeconds(_ seconds: TimeInterval) -> String {

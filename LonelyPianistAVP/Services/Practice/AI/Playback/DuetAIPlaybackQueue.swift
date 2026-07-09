@@ -12,7 +12,6 @@ actor DuetAIPlaybackQueue {
     private struct WindowItem: Sendable {
         let schedule: [PracticeSequencerMIDIEvent]
         let routing: PracticeSoundRoutingSettings
-        let startUptimeSeconds: TimeInterval
         let endUptimeSeconds: TimeInterval
     }
 
@@ -26,6 +25,7 @@ actor DuetAIPlaybackQueue {
     private var pendingWindow: WindowItem?
     private var playbackLoopTask: Task<Void, Never>?
     private var currentSegmentEndUptimeSeconds: TimeInterval = 0
+    private var playbackGeneration = 0
 
     init(
         logger: Logger,
@@ -48,6 +48,7 @@ actor DuetAIPlaybackQueue {
     }
 
     func stopAll() async {
+        playbackGeneration &+= 1
         playbackLoopTask?.cancel()
         playbackLoopTask = nil
         pendingWindow = nil
@@ -70,7 +71,7 @@ actor DuetAIPlaybackQueue {
     ) async -> SubmitResult {
         let now = submittedAtUptimeSeconds ?? nowUptimeSeconds()
         let replacedPendingWindow = pendingWindow != nil
-        let (shiftedSchedule, baseDelaySeconds, startUptimeSeconds, endUptimeSeconds) = computeShiftedSchedule(
+        let (shiftedSchedule, baseDelaySeconds, endUptimeSeconds) = computeShiftedSchedule(
             schedule: schedule,
             nowUptimeSeconds: now
         )
@@ -78,10 +79,8 @@ actor DuetAIPlaybackQueue {
         pendingWindow = WindowItem(
             schedule: shiftedSchedule,
             routing: routing,
-            startUptimeSeconds: startUptimeSeconds,
             endUptimeSeconds: endUptimeSeconds
         )
-        currentSegmentEndUptimeSeconds = max(currentSegmentEndUptimeSeconds, endUptimeSeconds)
         ensurePlaybackLoop()
 
         return SubmitResult(
@@ -94,22 +93,25 @@ actor DuetAIPlaybackQueue {
 
     private func ensurePlaybackLoop() {
         guard playbackLoopTask == nil else { return }
+        let generation = playbackGeneration
         playbackLoopTask = Task { [weak self] in
             guard let self else { return }
-            await self.playbackLoop()
+            await self.playbackLoop(generation: generation)
         }
     }
 
-    private func playbackLoop() async {
+    private func playbackLoop(generation: Int) async {
         defer {
-            playbackLoopTask = nil
-            currentSegmentEndUptimeSeconds = 0
-            Task { @MainActor [onPlaybackActiveChanged] in
-                onPlaybackActiveChanged(false)
+            if generation == playbackGeneration {
+                playbackLoopTask = nil
+                currentSegmentEndUptimeSeconds = 0
+                Task { @MainActor [onPlaybackActiveChanged] in
+                    onPlaybackActiveChanged(false)
+                }
             }
         }
 
-        while Task.isCancelled == false {
+        while Task.isCancelled == false, generation == playbackGeneration {
             guard let item = pendingWindow else { break }
             pendingWindow = nil
             currentSegmentEndUptimeSeconds = item.endUptimeSeconds
@@ -117,11 +119,12 @@ actor DuetAIPlaybackQueue {
             await MainActor.run {
                 onPlaybackActiveChanged(true)
             }
-            await play(item)
+            guard Task.isCancelled == false, generation == playbackGeneration else { break }
+            await play(item, generation: generation)
         }
     }
 
-    private func play(_ item: WindowItem) async {
+    private func play(_ item: WindowItem, generation: Int) async {
         let sequence: PracticeSequencerSequence
         do {
             sequence = try await buildSequence(item.schedule)
@@ -130,7 +133,10 @@ actor DuetAIPlaybackQueue {
             return
         }
 
+        guard Task.isCancelled == false, generation == playbackGeneration else { return }
+
         let playbackTask = Task { @MainActor [logger, playbackServiceFactory, sleepFor] in
+            guard Task.isCancelled == false else { return }
             let service = playbackServiceFactory().playbackService(for: item.routing)
             do {
                 try service.warmUp()
@@ -145,6 +151,7 @@ actor DuetAIPlaybackQueue {
             while Task.isCancelled == false {
                 if service.currentSeconds() >= endSeconds { break }
                 await sleepFor(.milliseconds(16))
+                await Task.yield()
             }
             service.stop()
         }
@@ -159,9 +166,9 @@ actor DuetAIPlaybackQueue {
     private func computeShiftedSchedule(
         schedule: [PracticeSequencerMIDIEvent],
         nowUptimeSeconds: TimeInterval
-    ) -> (shifted: [PracticeSequencerMIDIEvent], baseDelaySeconds: TimeInterval, startUptimeSeconds: TimeInterval, endUptimeSeconds: TimeInterval) {
+    ) -> (shifted: [PracticeSequencerMIDIEvent], baseDelaySeconds: TimeInterval, endUptimeSeconds: TimeInterval) {
         guard schedule.isEmpty == false else {
-            return ([], 0, nowUptimeSeconds, nowUptimeSeconds)
+            return ([], 0, nowUptimeSeconds)
         }
 
         let firstEventSeconds = schedule.map(\.timeSeconds).min() ?? 0
@@ -180,7 +187,6 @@ actor DuetAIPlaybackQueue {
         return (
             shifted,
             delta,
-            desiredStartUptimeSeconds,
             nowUptimeSeconds + lastEventSeconds + delta
         )
     }

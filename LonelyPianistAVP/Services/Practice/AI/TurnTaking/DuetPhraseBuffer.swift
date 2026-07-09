@@ -29,6 +29,7 @@ struct DuetPhraseBuffer: Sendable {
     }
 
     private var openNotes: [Int: OpenNote] = [:]
+    private var sustainedNotes: [Int: OpenNote] = [:]
     private var completedNotes: [ImprovDialogueNote] = []
     private var lastUserEventTimestampSeconds: TimeInterval?
     private var lastNoteOnTimestampSeconds: TimeInterval?
@@ -42,27 +43,43 @@ struct DuetPhraseBuffer: Sendable {
         lastUserEventTimestampSeconds = timestampSeconds
         lastNoteOnTimestampSeconds = timestampSeconds
 
-        if let existing = openNotes[midi] {
-            let endTimestampSeconds = max(timestampSeconds, existing.startedAtTimestampSeconds)
-            completedNotes.append(
-                ImprovDialogueNote(
-                    note: midi,
-                    velocity: existing.velocity,
-                    time: existing.startedAtTimestampSeconds,
-                    duration: max(0.05, endTimestampSeconds - existing.startedAtTimestampSeconds)
-                )
-            )
+        if let existing = openNotes.removeValue(forKey: midi) ?? sustainedNotes.removeValue(forKey: midi) {
+            appendCompletedNote(midi: midi, open: existing, endedAtTimestampSeconds: timestampSeconds)
         }
 
         openNotes[midi] = OpenNote(startedAtTimestampSeconds: timestampSeconds, velocity: velocity)
     }
 
-    mutating func recordNoteOff(midi: Int, timestampSeconds: TimeInterval) {
+    mutating func recordNoteOff(
+        midi: Int,
+        timestampSeconds: TimeInterval,
+        sustainIsDown: Bool
+    ) {
         pruneHistory(nowTimestampSeconds: timestampSeconds)
         lastUserEventTimestampSeconds = timestampSeconds
 
         guard let open = openNotes.removeValue(forKey: midi) else { return }
-        let endTimestampSeconds = max(timestampSeconds, open.startedAtTimestampSeconds)
+        if sustainIsDown {
+            sustainedNotes[midi] = open
+            return
+        }
+        appendCompletedNote(midi: midi, open: open, endedAtTimestampSeconds: timestampSeconds)
+    }
+
+    mutating func releaseSustainedNotes(timestampSeconds: TimeInterval) {
+        pruneHistory(nowTimestampSeconds: timestampSeconds)
+        for (midi, open) in sustainedNotes {
+            appendCompletedNote(midi: midi, open: open, endedAtTimestampSeconds: timestampSeconds)
+        }
+        sustainedNotes.removeAll(keepingCapacity: true)
+    }
+
+    private mutating func appendCompletedNote(
+        midi: Int,
+        open: OpenNote,
+        endedAtTimestampSeconds: TimeInterval
+    ) {
+        let endTimestampSeconds = max(endedAtTimestampSeconds, open.startedAtTimestampSeconds)
         completedNotes.append(
             ImprovDialogueNote(
                 note: midi,
@@ -80,7 +97,8 @@ struct DuetPhraseBuffer: Sendable {
     ) -> Snapshot {
         pruneHistory(nowTimestampSeconds: nowTimestampSeconds)
 
-        let heldStates = openNotes
+        let soundingNotes = openNotes.merging(sustainedNotes) { _, sustained in sustained }
+        let heldStates = soundingNotes
             .map { midi, open in
                 HeldNoteState(midi: midi, velocity: open.velocity, startedAtTimestampSeconds: open.startedAtTimestampSeconds)
             }
@@ -147,6 +165,7 @@ struct DuetPhraseBuffer: Sendable {
 
     mutating func reset() {
         openNotes.removeAll(keepingCapacity: true)
+        sustainedNotes.removeAll(keepingCapacity: true)
         completedNotes.removeAll(keepingCapacity: true)
         lastUserEventTimestampSeconds = nil
         lastNoteOnTimestampSeconds = nil
@@ -160,7 +179,7 @@ struct DuetPhraseBuffer: Sendable {
     }
 
     private func projectedOpenNotes(at nowTimestampSeconds: TimeInterval) -> [ImprovDialogueNote] {
-        openNotes.map { midi, open in
+        openNotes.merging(sustainedNotes) { _, sustained in sustained }.map { midi, open in
             ImprovDialogueNote(
                 note: midi,
                 velocity: open.velocity,
