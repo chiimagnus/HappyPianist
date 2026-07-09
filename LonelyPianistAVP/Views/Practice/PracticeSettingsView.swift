@@ -277,8 +277,6 @@ struct PracticeSettingsView: View {
             return backendStatusText ?? "后端：本地 CoreML（A.I. Duet / Performance RNN）"
         case .localRule:
             return backendStatusText ?? "后端：本地规则生成（无需电脑端服务）"
-        case .tickRangeReplay:
-            return backendStatusText ?? "后端：按谱片段回放（无需电脑端服务）"
         }
     }
 
@@ -292,8 +290,6 @@ struct PracticeSettingsView: View {
             "本地 CoreML（A.I. Duet / Performance RNN）"
         case .localRule:
             "本地 rule（无需模型/无需电脑端）"
-        case .tickRangeReplay:
-            "按谱片段回放（tick-range replay）"
         }
     }
 

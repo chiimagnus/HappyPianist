@@ -88,7 +88,6 @@ flowchart TD
 
 | 代码 | 说明 |
 | --- | --- |
-| `AIPerformanceClipSelector` | 选择生成输入片段。 |
 | `AIPerformanceService` | 运行连续控制回路，按短窗请求后端并把整形结果送入可替换调度器。 |
 | `ImprovScheduleBuilder` | 将生成 note 转成回放 schedule。 |
 | `LocalCoreMLDuetImprovBackend` | 本地 CoreML 生成（Performance RNN 单步模型采样）。 |

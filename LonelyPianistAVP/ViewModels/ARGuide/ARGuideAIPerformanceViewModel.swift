@@ -115,8 +115,6 @@ final class ARGuideAIPerformanceViewModel {
             return localCoreMLDuetAvailability.statusText()
         case .localRule:
             return "后端：本地规则生成（无需电脑端服务）"
-        case .tickRangeReplay:
-            return "后端：按谱片段回放（无需电脑端服务）"
         }
     }
 
@@ -130,7 +128,7 @@ final class ARGuideAIPerformanceViewModel {
             ariaWebSocketDiscoveryService.start()
         case .localCoreMLDuet:
             restartLocalCoreMLDuetProbe()
-        case .localRule, .tickRangeReplay:
+        case .localRule:
             break
         }
     }
@@ -232,7 +230,6 @@ final class ARGuideAIPerformanceViewModel {
                 AriaNetworkBonjourWebSocketImprovBackend(discoveryService: ariaWebSocketDiscoveryService),
                 LocalCoreMLDuetImprovBackend(modelLoader: localCoreMLModelLoader),
                 LocalRuleImprovBackend(),
-                TickRangeReplayImprovBackend(),
             ]
         )
     }
