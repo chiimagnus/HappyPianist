@@ -1,81 +1,120 @@
 import Foundation
-import ImprovProtocol
 
-/// A pure-logic state machine which mirrors A.I. Duet's turn-taking behavior (`AI.js`):
-/// - held-notes gate: only considers sending when all held notes are released
-/// - phrase start tracking: first note-on starts a phrase timer
-/// - long phrase: if phrase wall-clock duration > 3s at release-all, send immediately
-/// - short phrase: otherwise schedule send at (releaseAll + 600ms)
-/// - any new note-on cancels a pending scheduled send
+/// Pure overlap-control estimator for the continuous duet engine.
 struct DuetTurnTakingCore: Sendable {
-    enum Event: Equatable, Sendable {
-        case noteOn(note: Int, velocity: Int, timestampSeconds: TimeInterval)
-        case noteOff(note: Int, timestampSeconds: TimeInterval)
+    enum Mode: String, Equatable, Sendable {
+        case support
+        case sparse
+        case yield
+        case silent
     }
 
-    enum Decision: Equatable, Sendable {
-        case none
-        case cancelPendingSend
-        case scheduleSend(deadlineTimestampSeconds: TimeInterval)
-        case sendNow
+    struct ControlSnapshot: Equatable, Sendable {
+        let nowTimestampSeconds: TimeInterval
+        let heldNotesCount: Int
+        let sustainValue: Int
+        let recentIOIMedianSeconds: TimeInterval?
+        let recentVelocityTrend: Double
+        let recentNoteDensityPerSecond: Double
+        let lastUserEventTimestampSeconds: TimeInterval?
+        let lastNoteOnTimestampSeconds: TimeInterval?
+        let activePitchCenter: Double?
     }
 
-    private(set) var phraseBuffer = DuetPhraseBuffer()
-    private var phraseStartTimestampSeconds: TimeInterval?
-    private var pendingSendDeadlineTimestampSeconds: TimeInterval?
+    struct Decision: Equatable, Sendable {
+        let mode: Mode
+        let shouldRequestGeneration: Bool
+        let shouldClearFutureWindows: Bool
+        let requestWindowSeconds: TimeInterval
+        let minRequestIntervalSeconds: TimeInterval
+        let maxTokens: Int
+    }
 
     init() {}
 
-    var hasPendingSend: Bool { pendingSendDeadlineTimestampSeconds != nil }
+    mutating func evaluate(_ snapshot: ControlSnapshot) -> Decision {
+        let timeSinceLastEvent = snapshot.lastUserEventTimestampSeconds.map { max(0, snapshot.nowTimestampSeconds - $0) }
+        let timeSinceLastNoteOn = snapshot.lastNoteOnTimestampSeconds.map { max(0, snapshot.nowTimestampSeconds - $0) }
+        let sustainIsDown = snapshot.sustainValue >= 64
+        let isFastFigure = (snapshot.recentIOIMedianSeconds ?? 0.4) < 0.18
+        let isDenseTexture = snapshot.recentNoteDensityPerSecond >= 2.2
+        let hasRecentActivity = (timeSinceLastEvent ?? 10) <= 1.2
 
-    mutating func handle(_ event: Event) -> Decision {
-        switch event {
-        case let .noteOn(note, velocity, timestampSeconds):
-            phraseBuffer.recordNoteOn(midi: note, velocity: velocity, timestampSeconds: timestampSeconds)
-            if phraseStartTimestampSeconds == nil {
-                phraseStartTimestampSeconds = timestampSeconds
-            }
-
-            if pendingSendDeadlineTimestampSeconds != nil {
-                pendingSendDeadlineTimestampSeconds = nil
-                return .cancelPendingSend
-            }
-            return .none
-
-        case let .noteOff(note, timestampSeconds):
-            phraseBuffer.recordNoteOff(midi: note, timestampSeconds: timestampSeconds)
-
-            guard phraseBuffer.heldNotesCount == 0 else { return .none }
-            guard let phraseStartTimestampSeconds else { return .none }
-
-            let phraseDurationSeconds = max(0, timestampSeconds - phraseStartTimestampSeconds)
-            if phraseDurationSeconds > 3.0 {
-                pendingSendDeadlineTimestampSeconds = nil
-                self.phraseStartTimestampSeconds = nil
-                return .sendNow
-            }
-
-            let deadline = timestampSeconds + 0.6
-            pendingSendDeadlineTimestampSeconds = deadline
-            return .scheduleSend(deadlineTimestampSeconds: deadline)
+        if hasRecentActivity == false {
+            return Decision(
+                mode: .silent,
+                shouldRequestGeneration: false,
+                shouldClearFutureWindows: true,
+                requestWindowSeconds: 0,
+                minRequestIntervalSeconds: 0.30,
+                maxTokens: 0
+            )
         }
+
+        if snapshot.heldNotesCount > 0 {
+            if isFastFigure || isDenseTexture {
+                return Decision(
+                    mode: .yield,
+                    shouldRequestGeneration: false,
+                    shouldClearFutureWindows: true,
+                    requestWindowSeconds: 0,
+                    minRequestIntervalSeconds: 0.22,
+                    maxTokens: 0
+                )
+            }
+
+            if sustainIsDown || snapshot.recentVelocityTrend > 4 {
+                return Decision(
+                    mode: .sparse,
+                    shouldRequestGeneration: true,
+                    shouldClearFutureWindows: false,
+                    requestWindowSeconds: 0.45,
+                    minRequestIntervalSeconds: 0.18,
+                    maxTokens: 28
+                )
+            }
+
+            return Decision(
+                mode: .support,
+                shouldRequestGeneration: true,
+                shouldClearFutureWindows: false,
+                requestWindowSeconds: 0.70,
+                minRequestIntervalSeconds: 0.24,
+                maxTokens: 40
+            )
+        }
+
+        if (timeSinceLastNoteOn ?? 10) <= 0.35 {
+            return Decision(
+                mode: .sparse,
+                shouldRequestGeneration: true,
+                shouldClearFutureWindows: false,
+                requestWindowSeconds: 0.45,
+                minRequestIntervalSeconds: 0.18,
+                maxTokens: 24
+            )
+        }
+
+        if (timeSinceLastEvent ?? 10) <= 0.9 {
+            return Decision(
+                mode: .support,
+                shouldRequestGeneration: true,
+                shouldClearFutureWindows: false,
+                requestWindowSeconds: 0.60,
+                minRequestIntervalSeconds: 0.22,
+                maxTokens: 36
+            )
+        }
+
+        return Decision(
+            mode: .silent,
+            shouldRequestGeneration: false,
+            shouldClearFutureWindows: true,
+            requestWindowSeconds: 0,
+            minRequestIntervalSeconds: 0.30,
+            maxTokens: 0
+        )
     }
 
-    mutating func flushPhraseIfAny(endTimestampSeconds: TimeInterval) -> [ImprovDialogueNote] {
-        pendingSendDeadlineTimestampSeconds = nil
-        phraseStartTimestampSeconds = nil
-        return phraseBuffer.flushPhrase(endTimestampSeconds: endTimestampSeconds).trimmedNotes
-    }
-
-    mutating func flushPhrase(endTimestampSeconds: TimeInterval) -> DuetPhraseBuffer.FlushResult {
-        pendingSendDeadlineTimestampSeconds = nil
-        phraseStartTimestampSeconds = nil
-        return phraseBuffer.flushPhrase(endTimestampSeconds: endTimestampSeconds)
-    }
-
-    mutating func reset() {
-        phraseBuffer.reset()
-        phraseStartTimestampSeconds = nil
-        pendingSendDeadlineTimestampSeconds = nil
-    }
+    mutating func reset() {}
 }

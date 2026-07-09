@@ -158,8 +158,8 @@ final class ARGuideAIPerformanceViewModel {
                 endpointName: "DEBUG"
             )
 
-            // A short phrase that spans the keyboard so we can visually verify lateral motion in simulator.
-            // We intentionally keep it "short phrase" so DuetTurnTakingCore triggers send ~600ms after release.
+            // A compact cross-keyboard gesture used to validate lateral motion and continuous duet reactions in simulator.
+            // The continuous control loop should react while notes are still active; this debug pattern is no longer phrase-end driven.
             let notes: [(note: Int, velocity: Int, at: TimeInterval)] = [
                 (33, 92, 0.00),
                 (45, 90, 0.06),
