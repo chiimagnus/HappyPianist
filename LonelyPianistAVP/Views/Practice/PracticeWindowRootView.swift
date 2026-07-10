@@ -33,6 +33,10 @@ struct PracticeWindowRootView: View {
         .onAppear {
             dismissPendingSourceIfNeeded()
         }
+        .onDisappear {
+            guard windowState.pendingTransition == nil else { return }
+            openWindow(id: WindowID.library)
+        }
     }
 
     private func dismissPendingSourceIfNeeded() {

@@ -31,7 +31,6 @@ struct TakeLibraryRowView: View {
             .labelStyle(.iconOnly)
             .buttonStyle(.borderless)
             .buttonBorderShape(.roundedRectangle)
-            .hoverEffect()
             .disabled(isDisabled || take.events.isEmpty)
 
             Menu {
@@ -45,7 +44,6 @@ struct TakeLibraryRowView: View {
             }
             .buttonStyle(.borderless)
             .buttonBorderShape(.roundedRectangle)
-            .hoverEffect()
         }
         .padding(.vertical, 4)
     }

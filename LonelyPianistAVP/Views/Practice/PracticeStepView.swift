@@ -9,12 +9,12 @@ struct PracticeStepView: View {
 
     @State private var hasRequestedImmersiveOpen = false
     @State private var isStepVisible = false
-    @State private var isSettingsPopoverPresented = false
     @State private var isAudioErrorAlertPresented = false
     @State private var isAutoplayErrorAlertPresented = false
     @State private var isTakeLibraryPresented = false
+    @State private var isSettingsPresented = false
+    @State private var practiceViewHeight: CGFloat = 640
 
-    @State private var isVirtualPerformerEnabled = false
     @State private var isAutoplayEnabled = false
     @AppStorage(PracticeSessionSettingsKeys.manualAdvanceMode) private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
     @AppStorage(PracticeSessionSettingsKeys.handMode) private var practiceHandModeRawValue = PracticeHandMode.both.rawValue
@@ -45,17 +45,67 @@ struct PracticeStepView: View {
             .aspectRatio(PianoKeyboard88View.aspectRatio, contentMode: .fit)
         }
         .containerRelativeFrame(.horizontal, count: 100, span: 95, spacing: 0)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.vertical, 30)
+        .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { height in
+            practiceViewHeight = height
+        }
+        .ornament(
+            visibility: isSettingsPresented ? .visible : .hidden,
+            attachmentAnchor: .scene(.trailing),
+            contentAlignment: .leading
+        ) {
+            PracticeSettingsView(
+                virtualPerformerEnabled: virtualPerformerEnabled,
+                backendStatusText: viewModel.backendStatusText,
+                lastImprovStatusText: viewModel.lastImprovStatusText,
+                recordingSourceText: viewModel.recordingSourceText,
+                isAIPerformanceActive: viewModel.isAIPerformanceActive,
+                isVirtualPianoMode: isVirtualPianoMode,
+                isBluetoothMIDIMode: viewModel.isBluetoothMIDIMode,
+                gazePlaneDiskStatusText: viewModel.gazePlaneDiskStatusText,
+                isRecording: viewModel.isRecording,
+                recordingElapsedText: viewModel.recordingElapsedText,
+                canStartRecording: viewModel.canRecord && viewModel.isAIPerformanceActive == false && viewModel.takePlaybackViewModel.isPlaying == false,
+                onStartRecording: {
+                    viewModel.startRecording()
+                },
+                onStopRecording: {
+                    viewModel.stopRecording()
+                },
+                onOpenTakeLibrary: {
+                    isTakeLibraryPresented = true
+                },
+                onRetryVirtualPianoPlacement: {
+                    viewModel.retryVirtualPianoPlacement()
+                },
+                onRequestSessionRebuild: {
+                    viewModel.replacePracticeSessionViewModel()
+                },
+                onDebugInjectAIImprovPhrase: {
+                    #if DEBUG
+                        viewModel.debugInjectAIImprovPhrase()
+                    #endif
+                }
+            )
+            .frame(width: 400, height: practiceViewHeight)
+            .glassBackgroundEffect(in: .rect(cornerRadius: 40))
+        }
         .toolbar {
             ToolbarItemGroup(placement: .bottomOrnament) {
+                Button("返回选曲库", systemImage: "chevron.backward") {
+                    viewModel.practiceSessionViewModel.shutdown()
+                    onBackToLibrary()
+                }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.roundedRectangle)
+
                 if isAutoplayEnabled == false {
                     Button(manualAdvanceMode.nextButtonTitle, systemImage: "forward.fill") {
                         viewModel.skipStep()
                     }
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.roundedRectangle)
-                    .hoverEffect()
                     .disabled(viewModel.isAIPerformanceActive || viewModel.hasImportedSteps == false || viewModel
                         .practiceSessionViewModel.state == .completed)
 
@@ -68,7 +118,6 @@ struct PracticeStepView: View {
                     }
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.roundedRectangle)
-                    .hoverEffect()
                     .disabled(
                         viewModel.isAIPerformanceActive ||
                             session.state == .ready ||
@@ -80,59 +129,13 @@ struct PracticeStepView: View {
                     .toggleStyle(.button)
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.roundedRectangle)
-                    .hoverEffect()
-                    .disabled(viewModel.isAIPerformanceActive)
+                .disabled(viewModel.isAIPerformanceActive)
 
                 Button("设置", systemImage: "gearshape") {
-                    isSettingsPopoverPresented.toggle()
+                    isSettingsPresented.toggle()
                 }
                 .buttonStyle(.bordered)
                 .buttonBorderShape(.roundedRectangle)
-                .hoverEffect()
-                .popover(isPresented: $isSettingsPopoverPresented) {
-                    PracticeSettingsView(
-                        virtualPerformerEnabled: $isVirtualPerformerEnabled,
-                        backendStatusText: viewModel.backendStatusText,
-                        lastImprovStatusText: viewModel.lastImprovStatusText,
-                        recordingSourceText: viewModel.recordingSourceText,
-                        isAIPerformanceActive: viewModel.isAIPerformanceActive,
-                        isVirtualPianoMode: isVirtualPianoMode,
-                        isBluetoothMIDIMode: viewModel.isBluetoothMIDIMode,
-                        gazePlaneDiskStatusText: viewModel.gazePlaneDiskStatusText,
-                        isRecording: viewModel.isRecording,
-                        recordingElapsedText: viewModel.recordingElapsedText,
-                        canStartRecording: viewModel.canRecord && viewModel.isAIPerformanceActive == false && viewModel
-                            .takePlaybackViewModel.isPlaying == false,
-                        onBackToLibrary: {
-                            isSettingsPopoverPresented = false
-                            viewModel.practiceSessionViewModel.shutdown()
-                            onBackToLibrary()
-                        },
-                        onStartRecording: {
-                            isSettingsPopoverPresented = false
-                            viewModel.startRecording()
-                        },
-                        onStopRecording: {
-                            isSettingsPopoverPresented = false
-                            viewModel.stopRecording()
-                        },
-                        onOpenTakeLibrary: {
-                            isSettingsPopoverPresented = false
-                            isTakeLibraryPresented = true
-                        },
-                        onRetryVirtualPianoPlacement: {
-                            viewModel.retryVirtualPianoPlacement()
-                        },
-                        onRequestSessionRebuild: {
-                            viewModel.replacePracticeSessionViewModel()
-                        },
-                        onDebugInjectAIImprovPhrase: {
-                            #if DEBUG
-                            viewModel.debugInjectAIImprovPhrase()
-                            #endif
-                        }
-                    )
-                }
 
                 Text("进度 \(viewModel.practiceProgressText)")
                     .monospacedDigit()
@@ -167,9 +170,6 @@ struct PracticeStepView: View {
                     await viewModel.recoverImmersiveStateIfStuck()
                 }
             }
-        }
-        .onChange(of: isVirtualPerformerEnabled) {
-            viewModel.setPracticeVirtualPerformerEnabled(isVirtualPerformerEnabled)
         }
         .onChange(of: isAutoplayEnabled) {
             viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
@@ -207,7 +207,6 @@ struct PracticeStepView: View {
         .onDisappear {
             isStepVisible = false
             hasRequestedImmersiveOpen = false
-            isVirtualPerformerEnabled = false
             viewModel.practiceSessionViewModel.shutdown()
             viewModel.stopRecording()
             viewModel.takePlaybackViewModel.stop()
@@ -253,6 +252,13 @@ struct PracticeStepView: View {
 
     private var isVirtualPianoMode: Bool {
         viewModel.isVirtualPianoMode
+    }
+
+    private var virtualPerformerEnabled: Binding<Bool> {
+        Binding(
+            get: { viewModel.aiPerformanceViewModel.isVirtualPerformerEnabled },
+            set: { viewModel.setPracticeVirtualPerformerEnabled($0) }
+        )
     }
 
     private var fingeringByMIDINote: [Int: String] {

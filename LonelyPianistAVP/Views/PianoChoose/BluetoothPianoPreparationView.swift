@@ -91,7 +91,6 @@ struct BluetoothMIDIConnectionSection: View {
                     }
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.roundedRectangle)
-                    .hoverEffect()
                     .popover(isPresented: $isDevicePickerPresented) {
                         VStack(alignment: .leading) {
                             Button {
@@ -290,7 +289,6 @@ struct BluetoothMIDIConnectionSection: View {
                     }
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.roundedRectangle)
-                    .hoverEffect()
                 }
 
                 if showsOpenSettingsButton {
@@ -301,7 +299,6 @@ struct BluetoothMIDIConnectionSection: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .buttonBorderShape(.roundedRectangle)
-                    .hoverEffect()
                 }
             }
         }

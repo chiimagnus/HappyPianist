@@ -7,8 +7,6 @@ struct LibraryContentView: View {
     let onBackToPreparation: @MainActor () -> Void
     let onStartPractice: @MainActor () -> Void
 
-    @State private var isAudioOutputVolumePresented = false
-
     var body: some View {
         VStack(spacing: 0) {
             HStack {
@@ -26,16 +24,6 @@ struct LibraryContentView: View {
                 .buttonStyle(.bordered)
 
                 Spacer()
-
-                Button("音量", systemImage: "speaker.wave.2") {
-                    isAudioOutputVolumePresented = true
-                }
-                .buttonStyle(.bordered)
-                .popover(isPresented: $isAudioOutputVolumePresented) {
-                    AudioOutputVolumeRow()
-                        .padding(16)
-                        .frame(minWidth: 360)
-                }
 
                 Button("导入 MusicXML") {
                     songLibraryViewModel.didTapImportMusicXML()

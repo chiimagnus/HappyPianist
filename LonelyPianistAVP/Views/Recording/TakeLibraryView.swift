@@ -108,7 +108,6 @@ struct TakeLibraryView: View {
                         .labelStyle(.iconOnly)
                 }
                 .buttonBorderShape(.roundedRectangle)
-                .hoverEffect()
                 .disabled(isRecording)
             }
         }
