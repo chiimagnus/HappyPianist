@@ -58,7 +58,6 @@ struct CalibrationStageCard: View {
                             }
                             .buttonStyle(.borderedProminent)
                             .buttonBorderShape(.roundedRectangle)
-                            .hoverEffect()
                         }
                     }
                 #endif
@@ -109,7 +108,6 @@ struct CalibrationStageCard: View {
             }
             .buttonStyle(.borderedProminent)
             .buttonBorderShape(.roundedRectangle)
-            .hoverEffect()
         }
         .frame(maxWidth: .infinity)
     }

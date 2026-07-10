@@ -28,7 +28,7 @@
 - **WindowGroups:** 在 `App` struct 里为每个 `WindowGroup` 明确且互不冲突地定义 `id`。
 - **Ornaments:** 使用 `.ornament()` 来承载附着在窗口上的工具条与控制组件。若按钮属于“窗口 chrome/外壳”，不要把标准悬浮按钮直接塞进 window content 区域。
 - **玻璃背景:** 优先使用系统默认玻璃背景；需要时使用 `.glassBackgroundEffect()`。
-- **Hover Effects:** 自定义交互控件必须加 `.hoverEffect()`，以支持眼动注视的 hover 高亮反馈。
+- **Hover Effects:** 标准 SwiftUI `Button` 使用系统样式时已有默认 hover，无需重复添加 `.hoverEffect()`；自定义交互控件必须确保有 hover 反馈，仅在系统未提供时显式添加。
 - **按钮样式:** 为按钮设置 `.buttonBorderShape()` 以符合 visionOS 的空间风格（例如 `.roundedRectangle`、`.capsule`、`.circle`）。
 - **“屏幕”幻觉:** 不要用 `UIScreen.main.bounds`。visionOS 没有“屏幕”。用 `GeometryReader` 或 `GeometryReader3D`。
 
@@ -202,7 +202,7 @@
 - **跨平台判断:** visionOS-only target 中避免不必要的 `#if`。共享 target 中仅用非常窄的 `#if os(...)` 隔离 visionOS 不可用 API，并遵循仓库的平台布局。
 
 ### ✅ 必做事项
-- **Hover Effects:** 交互元素必须有 hover 状态。
+- **Hover Effects:** 交互元素必须有 hover 状态；系统控件的默认效果即可满足此要求。
 - **Validation:** 以最新 Apple 文档校验函数与 API 可用性。
 - **错误处理:** 对 model 加载等关键路径做合理错误处理。
 - **Documentation:** public API 使用清晰命名并写必要的 doc comments。

@@ -19,14 +19,12 @@ struct TakeNowPlayingBarView: View {
             .font(.title3)
             .labelStyle(.iconOnly)
             .buttonBorderShape(.roundedRectangle)
-            .hoverEffect()
             .disabled(playbackViewModel.currentTakeID == nil || isRecording)
 
             Button("停止回放", systemImage: "stop.fill", action: onStopPlayback)
                 .font(.title3)
                 .labelStyle(.iconOnly)
                 .buttonBorderShape(.roundedRectangle)
-                .hoverEffect()
                 .disabled(playbackViewModel.currentTakeID == nil || isRecording)
 
             Slider(value: $playbackViewModel.scrubPositionSeconds, in: 0 ... max(0.001, totalDuration)) { editing in
