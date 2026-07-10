@@ -13,6 +13,7 @@ struct PracticeStepView: View {
     @State private var isAutoplayErrorAlertPresented = false
     @State private var isTakeLibraryPresented = false
     @State private var isSettingsPresented = false
+    @State private var practiceViewHeight: CGFloat = 640
 
     @State private var isAutoplayEnabled = false
     @AppStorage(PracticeSessionSettingsKeys.manualAdvanceMode) private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
@@ -44,8 +45,11 @@ struct PracticeStepView: View {
             .aspectRatio(PianoKeyboard88View.aspectRatio, contentMode: .fit)
         }
         .containerRelativeFrame(.horizontal, count: 100, span: 95, spacing: 0)
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.vertical, 30)
+        .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { height in
+            practiceViewHeight = height
+        }
         .ornament(
             visibility: isSettingsPresented ? .visible : .hidden,
             attachmentAnchor: .scene(.trailing),
@@ -88,7 +92,7 @@ struct PracticeStepView: View {
                     #endif
                 }
             )
-            .frame(width: 400, height: 640)
+            .frame(width: 400, height: practiceViewHeight)
             .glassBackgroundEffect(in: .rect(cornerRadius: 32))
         }
         .toolbar {
