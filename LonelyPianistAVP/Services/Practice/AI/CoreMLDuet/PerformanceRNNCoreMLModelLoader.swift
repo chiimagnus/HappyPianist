@@ -46,11 +46,17 @@ actor PerformanceRNNCoreMLModelLoader: PerformanceRNNCoreMLModelLoading {
     init(
         bundle: Bundle = .main,
         fileManager: FileManager = .default,
-        configuration: MLModelConfiguration = MLModelConfiguration()
+        configuration: MLModelConfiguration = PerformanceRNNCoreMLModelLoader.defaultConfiguration()
     ) {
         self.bundle = bundle
         self.fileManager = fileManager
         self.configuration = configuration
+    }
+
+    static func defaultConfiguration() -> MLModelConfiguration {
+        let configuration = MLModelConfiguration()
+        configuration.computeUnits = .cpuAndNeuralEngine
+        return configuration
     }
 
     func loadStepModel() async throws -> any PerformanceRNNStepModeling {
