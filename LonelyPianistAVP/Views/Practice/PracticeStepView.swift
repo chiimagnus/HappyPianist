@@ -13,7 +13,6 @@ struct PracticeStepView: View {
     @State private var isAutoplayErrorAlertPresented = false
     @State private var isTakeLibraryPresented = false
     @State private var isSettingsPresented = false
-    @State private var practiceViewHeight: CGFloat = 640
 
     @State private var isAutoplayEnabled = false
     @AppStorage(PracticeSessionSettingsKeys.manualAdvanceMode) private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
@@ -24,6 +23,7 @@ struct PracticeStepView: View {
         let currentGuide = session.currentPianoHighlightGuide
         let practiceHandMode = PracticeHandMode.storageValue(from: practiceHandModeRawValue)
 
+        GeometryReader { proxy in
         VStack(spacing: 30) {
             GrandStaffNotationView(
                 guides: session.highlightGuides,
@@ -47,9 +47,6 @@ struct PracticeStepView: View {
         .containerRelativeFrame(.horizontal, count: 100, span: 95, spacing: 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.vertical, 30)
-        .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { height in
-            practiceViewHeight = height
-        }
         .ornament(
             visibility: isSettingsPresented ? .visible : .hidden,
             attachmentAnchor: .scene(.trailing),
@@ -88,8 +85,8 @@ struct PracticeStepView: View {
                     #endif
                 }
             )
-            .frame(width: 400, height: practiceViewHeight)
-            .glassBackgroundEffect(in: .rect(cornerRadius: 40))
+            .frame(width: 400, height: proxy.size.height)
+            .glassBackgroundEffect()
         }
         .toolbar {
             ToolbarItemGroup(placement: .bottomOrnament) {
@@ -243,6 +240,7 @@ struct PracticeStepView: View {
                 }
             }
             .frame(minWidth: 400, minHeight: 500)
+        }
         }
     }
 
