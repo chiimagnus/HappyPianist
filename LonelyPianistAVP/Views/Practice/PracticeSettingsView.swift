@@ -107,6 +107,10 @@ struct PracticeSettingsView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 12) {
+                    Label("练习", systemImage: "music.note")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
+
                     Picker("练习手", selection: $practiceHandModeRawValue) {
                         ForEach(PracticeHandMode.allCases) { mode in
                             Text(mode.title).tag(mode.rawValue)
