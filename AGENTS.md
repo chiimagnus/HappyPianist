@@ -116,3 +116,8 @@
 - **AnyView:** 除非绝对必要，否则避免 `AnyView`。
 - **硬编码:** 未被要求时，不要硬编码 padding 与 stack spacing。
 - **UIKit Colors:** SwiftUI 代码中避免使用 UIKit 的颜色。
+
+### visionOS 窗口与附属面板
+
+- 使用 `pushWindow` 前必须核对完整窗口流：它会后台保留来源窗口、让目标窗口继承来源窗口尺寸；关闭目标才恢复来源，且不能从已 pushed 的窗口再次 push。仅用于真正的单层“前进／返回”窗口栈，不能拿它修补关闭窗口导致 app 退出的问题。
+- 需要始终贴附在主窗口旁、随主窗口移动的面板，使用 `.ornament`（例如 `.scene(.trailing)`）；独立 `Window` 加 `defaultWindowPlacement(.trailing(...))` 只决定首次位置，之后系统允许用户移动和调整，不能作为持久贴附行为。
