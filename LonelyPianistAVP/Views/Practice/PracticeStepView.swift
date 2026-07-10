@@ -89,10 +89,18 @@ struct PracticeStepView: View {
                 }
             )
             .frame(width: 400, height: practiceViewHeight)
-            .glassBackgroundEffect(in: .rect(cornerRadius: 32))
+            .glassBackgroundEffect(in: .rect(cornerRadius: 40))
         }
         .toolbar {
             ToolbarItemGroup(placement: .bottomOrnament) {
+                Button("返回选曲库", systemImage: "chevron.backward") {
+                    viewModel.practiceSessionViewModel.shutdown()
+                    onBackToLibrary()
+                }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.roundedRectangle)
+                .hoverEffect()
+
                 if isAutoplayEnabled == false {
                     Button(manualAdvanceMode.nextButtonTitle, systemImage: "forward.fill") {
                         viewModel.skipStep()
@@ -126,14 +134,6 @@ struct PracticeStepView: View {
                     .buttonBorderShape(.roundedRectangle)
                 .hoverEffect()
                 .disabled(viewModel.isAIPerformanceActive)
-
-                Button("返回选曲库", systemImage: "chevron.backward") {
-                    viewModel.practiceSessionViewModel.shutdown()
-                    onBackToLibrary()
-                }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.roundedRectangle)
-                .hoverEffect()
 
                 Button("设置", systemImage: "gearshape") {
                     isSettingsPresented.toggle()
