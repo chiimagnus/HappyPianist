@@ -108,6 +108,23 @@ struct PracticeSettingsView: View {
                     }
                 }
 
+                SettingsSection(title: "练习", systemImage: "music.note") {
+                    Picker("练习手", selection: $practiceHandModeRawValue) {
+                        ForEach(PracticeHandMode.allCases) { mode in
+                            Text(mode.title).tag(mode.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+
+                    Picker("手动前进方式", selection: $manualAdvanceModeRawValue) {
+                        ForEach(ManualAdvanceMode.allCases) { mode in
+                            Text(mode.title).tag(mode.rawValue)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                }
+                .disabled(isAIPerformanceActive)
+
                 DisclosureGroup(isExpanded: $isAdvancedFeaturesExpanded) {
                     VStack(alignment: .leading, spacing: 16) {
                         SettingsSection(title: "输出", systemImage: "speaker.wave.2") {
@@ -216,23 +233,6 @@ struct PracticeSettingsView: View {
                         .font(.headline)
                         .foregroundStyle(.secondary)
                 }
-
-                SettingsSection(title: "练习", systemImage: "music.note") {
-                    Picker("练习手", selection: $practiceHandModeRawValue) {
-                        ForEach(PracticeHandMode.allCases) { mode in
-                            Text(mode.title).tag(mode.rawValue)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-
-                    Picker("手动前进方式", selection: $manualAdvanceModeRawValue) {
-                        ForEach(ManualAdvanceMode.allCases) { mode in
-                            Text(mode.title).tag(mode.rawValue)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                }
-                .disabled(isAIPerformanceActive)
 
                 if isVirtualPianoMode {
                     SettingsSection(title: "虚拟钢琴", systemImage: "viewfinder") {
