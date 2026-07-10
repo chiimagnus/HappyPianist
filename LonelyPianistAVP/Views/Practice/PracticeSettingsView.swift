@@ -12,7 +12,6 @@ struct PracticeSettingsView: View {
     let isRecording: Bool
     let recordingElapsedText: String
     let canStartRecording: Bool
-    let onBackToLibrary: () -> Void
     let onStartRecording: () -> Void
     let onStopRecording: () -> Void
     let onOpenTakeLibrary: () -> Void
@@ -40,13 +39,6 @@ struct PracticeSettingsView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Button("回到选曲库", systemImage: "chevron.backward") {
-                    onBackToLibrary()
-                }
-                .buttonStyle(.bordered)
-                .buttonBorderShape(.roundedRectangle)
-                .hoverEffect()
-
                 if isBluetoothMIDIMode {
                     VStack(alignment: .leading, spacing: 12) {
                         Picker("发声路由", selection: $soundOutputRouteRawValue) {
@@ -309,7 +301,6 @@ struct PracticeSettingsView: View {
         isRecording: false,
         recordingElapsedText: "00:00",
         canStartRecording: true,
-        onBackToLibrary: {},
         onStartRecording: {},
         onStopRecording: {},
         onOpenTakeLibrary: {},

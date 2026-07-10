@@ -67,10 +67,6 @@ struct PracticeStepView: View {
                 isRecording: viewModel.isRecording,
                 recordingElapsedText: viewModel.recordingElapsedText,
                 canStartRecording: viewModel.canRecord && viewModel.isAIPerformanceActive == false && viewModel.takePlaybackViewModel.isPlaying == false,
-                onBackToLibrary: {
-                    viewModel.practiceSessionViewModel.shutdown()
-                    onBackToLibrary()
-                },
                 onStartRecording: {
                     viewModel.startRecording()
                 },
@@ -128,8 +124,16 @@ struct PracticeStepView: View {
                     .toggleStyle(.button)
                     .buttonStyle(.bordered)
                     .buttonBorderShape(.roundedRectangle)
-                    .hoverEffect()
-                    .disabled(viewModel.isAIPerformanceActive)
+                .hoverEffect()
+                .disabled(viewModel.isAIPerformanceActive)
+
+                Button("返回选曲库", systemImage: "chevron.backward") {
+                    viewModel.practiceSessionViewModel.shutdown()
+                    onBackToLibrary()
+                }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.roundedRectangle)
+                .hoverEffect()
 
                 Button("设置", systemImage: "gearshape") {
                     isSettingsPresented.toggle()
