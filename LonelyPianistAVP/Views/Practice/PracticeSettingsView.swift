@@ -47,49 +47,6 @@ struct PracticeSettingsView: View {
                     .buttonBorderShape(.roundedRectangle)
                     .hoverEffect()
 
-                    Divider()
-
-                    HStack(spacing: 12) {
-                        if isRecording {
-                            Button("结束录制", systemImage: "stop.circle.fill") {
-                                onStopRecording()
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.red)
-                            .buttonBorderShape(.roundedRectangle)
-                            .hoverEffect()
-
-                            Text(recordingElapsedText)
-                                .monospacedDigit()
-                                .foregroundStyle(.red)
-                        } else {
-                            Button("开始录制", systemImage: "circle.fill") {
-                                onStartRecording()
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .tint(.red)
-                            .buttonBorderShape(.roundedRectangle)
-                            .hoverEffect()
-                            .disabled(canStartRecording == false)
-                        }
-                    }
-                }
-
-                SettingsSection(title: "输出", systemImage: "speaker.wave.2") {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("输出音量（AVP）")
-                            .font(.callout)
-                        HStack {
-                            Slider(value: $audioOutputVolume, in: 0 ... 1)
-                            Text(audioOutputVolume, format: .percent)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                                .frame(width: 56, alignment: .trailing)
-                        }
-                        Text("调到 0 可避免与真实钢琴叠音。")
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
                 }
 
                 if isBluetoothMIDIMode {
@@ -151,62 +108,114 @@ struct PracticeSettingsView: View {
                     }
                 }
 
-                SettingsSection(title: "AI 即兴", systemImage: "sparkles") {
-                    Toggle("AI 即兴演奏（虚拟演奏家）", isOn: $virtualPerformerEnabled)
-
-                    if virtualPerformerEnabled {
-                        Picker("即兴后端", selection: $improvBackendKindRawValue) {
-                            ForEach(ImprovBackendKind.allCases) { kind in
-                                Text(backendTitle(kind)).tag(kind.rawValue)
+                DisclosureGroup(isExpanded: $isAdvancedFeaturesExpanded) {
+                    VStack(alignment: .leading, spacing: 16) {
+                        SettingsSection(title: "输出", systemImage: "speaker.wave.2") {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text("输出音量（AVP）")
+                                    .font(.callout)
+                                HStack {
+                                    Slider(value: $audioOutputVolume, in: 0 ... 1)
+                                    Text(audioOutputVolume, format: .percent)
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                        .frame(width: 56, alignment: .trailing)
+                                }
+                                Text("调到 0 可避免与真实钢琴叠音。")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
                             }
                         }
-                        .pickerStyle(.menu)
 
-                        if let effectiveBackendStatusText {
-                            Text(effectiveBackendStatusText)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
+                        SettingsSection(title: "AI 即兴", systemImage: "sparkles") {
+                            Toggle("AI 即兴演奏（虚拟演奏家）", isOn: $virtualPerformerEnabled)
+
+                            if virtualPerformerEnabled {
+                                Picker("即兴后端", selection: $improvBackendKindRawValue) {
+                                    ForEach(ImprovBackendKind.allCases) { kind in
+                                        Text(backendTitle(kind)).tag(kind.rawValue)
+                                    }
+                                }
+                                .pickerStyle(.menu)
+
+                                if let effectiveBackendStatusText {
+                                    Text(effectiveBackendStatusText)
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                if let lastImprovStatusText {
+                                    Text(lastImprovStatusText)
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                }
+
+                                #if DEBUG
+                                    Button("调试：注入测试短句（跨键盘）", systemImage: "hammer") {
+                                        onDebugInjectAIImprovPhrase()
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .buttonBorderShape(.roundedRectangle)
+                                    .hoverEffect()
+
+                                    Text("用于 simulator：不依赖 Hand Tracking，直接触发 AI 生成/回放。")
+                                        .font(.footnote)
+                                        .foregroundStyle(.secondary)
+                                #endif
+                            }
                         }
+                        .disabled(isAIPerformanceActive)
 
-                        if let lastImprovStatusText {
-                            Text(lastImprovStatusText)
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        }
+                        SettingsSection(title: "录制", systemImage: "record.circle") {
+                            if isRecording {
+                                Button("结束录制", systemImage: "stop.circle.fill") {
+                                    onStopRecording()
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(.red)
+                                .buttonBorderShape(.roundedRectangle)
+                                .hoverEffect()
 
-                        #if DEBUG
-                            Divider()
+                                Text(recordingElapsedText)
+                                    .monospacedDigit()
+                                    .foregroundStyle(.red)
+                            } else {
+                                Button("开始录制", systemImage: "circle.fill") {
+                                    onStartRecording()
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .tint(.red)
+                                .buttonBorderShape(.roundedRectangle)
+                                .hoverEffect()
+                                .disabled(canStartRecording == false)
+                            }
 
-                            Button("调试：注入测试短句（跨键盘）", systemImage: "hammer") {
-                                onDebugInjectAIImprovPhrase()
+                            if let recordingSourceText {
+                                Text(recordingSourceText)
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+
+                            Button("打开录制库", systemImage: "list.bullet") {
+                                onOpenTakeLibrary()
                             }
                             .buttonStyle(.bordered)
                             .buttonBorderShape(.roundedRectangle)
                             .hoverEffect()
+                        }
+                        .disabled(isAIPerformanceActive)
 
-                            Text("用于 simulator：不依赖 Hand Tracking，直接触发 AI 生成/回放。")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
-                        #endif
+                        SettingsSection(title: "调试", systemImage: "ladybug") {
+                            Toggle("显示键盘坐标轴（X/Y/Z）", isOn: $debugKeyboardAxesOverlayEnabled)
+                        }
+                        .disabled(isAIPerformanceActive)
                     }
+                    .padding(.top, 12)
+                } label: {
+                    Label("高级功能", systemImage: "slider.horizontal.3")
+                        .font(.headline)
+                        .foregroundStyle(.secondary)
                 }
-                .disabled(isAIPerformanceActive)
-
-                SettingsSection(title: "录制", systemImage: "record.circle") {
-                    if let recordingSourceText {
-                        Text(recordingSourceText)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-
-                    Button("打开录制库", systemImage: "list.bullet") {
-                        onOpenTakeLibrary()
-                    }
-                    .buttonStyle(.bordered)
-                    .buttonBorderShape(.roundedRectangle)
-                    .hoverEffect()
-                }
-                .disabled(isAIPerformanceActive)
 
                 SettingsSection(title: "练习", systemImage: "music.note") {
                     Picker("练习手", selection: $practiceHandModeRawValue) {
@@ -243,10 +252,6 @@ struct PracticeSettingsView: View {
                     .disabled(isAIPerformanceActive)
                 }
 
-                SettingsSection(title: "调试", systemImage: "ladybug") {
-                    Toggle("显示键盘坐标轴（X/Y/Z）", isOn: $debugKeyboardAxesOverlayEnabled)
-                }
-                .disabled(isAIPerformanceActive)
             }
             .padding(16)
         }
