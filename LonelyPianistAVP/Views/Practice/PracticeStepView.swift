@@ -89,6 +89,7 @@ struct PracticeStepView: View {
                 }
             )
             .frame(width: 400, height: 640)
+            .glassBackgroundEffect(in: .rect(cornerRadius: 32))
         }
         .toolbar {
             ToolbarItemGroup(placement: .bottomOrnament) {
