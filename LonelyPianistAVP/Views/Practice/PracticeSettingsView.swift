@@ -35,6 +35,7 @@ struct PracticeSettingsView: View {
     private var sendLocalControlOff = false
 
     @State private var destinationConnectionViewModel = MIDIDestinationConnectionViewModel()
+    @State private var isAdvancedFeaturesExpanded = false
 
     var body: some View {
         ScrollView {
