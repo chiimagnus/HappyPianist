@@ -12,6 +12,7 @@ struct PracticeStepView: View {
     @State private var isAudioErrorAlertPresented = false
     @State private var isAutoplayErrorAlertPresented = false
     @State private var isTakeLibraryPresented = false
+    @State private var isSettingsPresented = false
 
     @State private var isAutoplayEnabled = false
     @AppStorage(PracticeSessionSettingsKeys.manualAdvanceMode) private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
@@ -46,7 +47,7 @@ struct PracticeStepView: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 30)
         .ornament(
-            visibility: .visible,
+            visibility: isSettingsPresented ? .visible : .hidden,
             attachmentAnchor: .scene(.trailing),
             contentAlignment: .leading
         ) {
@@ -124,6 +125,13 @@ struct PracticeStepView: View {
                     .buttonBorderShape(.roundedRectangle)
                     .hoverEffect()
                     .disabled(viewModel.isAIPerformanceActive)
+
+                Button("设置", systemImage: "gearshape") {
+                    isSettingsPresented.toggle()
+                }
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.roundedRectangle)
+                .hoverEffect()
 
                 Text("进度 \(viewModel.practiceProgressText)")
                     .monospacedDigit()
