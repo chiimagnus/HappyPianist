@@ -61,7 +61,6 @@ final class AIPerformanceService {
     private var inFlightGenerateTasks: [Int: Task<Void, Never>] = [:]
     private var nextRequestID = 0
     private var activationID = 0
-    private var inputRevision = 0
     private var lastWindowRequestTimestampSeconds: TimeInterval?
 
     private var isGenerating = false
@@ -113,6 +112,20 @@ final class AIPerformanceService {
     }
 
     func updatePracticeSession(_ session: any AIPerformancePracticeSessionProtocol) {
+        if let practiceSession,
+           ObjectIdentifier(practiceSession) != ObjectIdentifier(session),
+           isEnabled {
+            invalidateGeneration()
+            noteContext.reset()
+            ccContext.reset()
+            controlEstimator.reset()
+            latestSchedule = []
+            latestCandidateDiagnostics = nil
+            notifyStateChanged()
+            Task { @MainActor [aiPlaybackQueue] in
+                await aiPlaybackQueue.stopAll()
+            }
+        }
         practiceSession = session
     }
 
@@ -133,7 +146,6 @@ final class AIPerformanceService {
                 task.cancel()
             }
             inFlightGenerateTasks.removeAll(keepingCapacity: true)
-            inputRevision &+= 1
             lastWindowRequestTimestampSeconds = nil
             isGenerating = false
             isAIPlaybackActive = false
@@ -155,7 +167,6 @@ final class AIPerformanceService {
         guard isEnabled == false else { return }
         isEnabled = true
         activationID += 1
-        inputRevision &+= 1
         lastWindowRequestTimestampSeconds = nil
         noteContext.reset()
         ccContext.reset()
@@ -174,17 +185,14 @@ final class AIPerformanceService {
 
         switch event.kind {
         case let .noteOn(note, velocity):
-            inputRevision &+= 1
             noteContext.recordNoteOn(midi: note, velocity: velocity, timestampSeconds: event.receivedAtUptimeSeconds)
         case let .noteOff(note, _):
-            inputRevision &+= 1
             noteContext.recordNoteOff(
                 midi: note,
                 timestampSeconds: event.receivedAtUptimeSeconds,
                 sustainIsDown: ccContext.sustainValue >= 64
             )
         case let .controlChange(controller, value):
-            inputRevision &+= 1
             let wasSustainDown = ccContext.sustainValue >= 64
             ccContext.recordControlChange(controller: controller, value: value, timestampSeconds: event.receivedAtUptimeSeconds)
             if controller == 64, wasSustainDown, value < 64 {
@@ -201,21 +209,18 @@ final class AIPerformanceService {
 
         switch event.kind {
         case let .noteOn(note, velocity16):
-            inputRevision &+= 1
             noteContext.recordNoteOn(
                 midi: note,
                 velocity: MIDI2ValueMapping.value16To7Bit(velocity16),
                 timestampSeconds: event.receivedAtUptimeSeconds
             )
         case let .noteOff(note, _):
-            inputRevision &+= 1
             noteContext.recordNoteOff(
                 midi: note,
                 timestampSeconds: event.receivedAtUptimeSeconds,
                 sustainIsDown: ccContext.sustainValue >= 64
             )
         case let .controlChange(controller, value32):
-            inputRevision &+= 1
             let value = MIDI2ValueMapping.value32To7Bit(value32)
             let wasSustainDown = ccContext.sustainValue >= 64
             ccContext.recordControlChange(
@@ -241,7 +246,6 @@ final class AIPerformanceService {
         syncBackendDiscoveryIfNeeded()
 
         guard keyContact.started.isEmpty == false || keyContact.ended.isEmpty == false else { return }
-        inputRevision &+= 1
 
         for note in keyContact.started {
             noteContext.recordNoteOn(midi: note, velocity: 90, timestampSeconds: nowUptimeSeconds)
@@ -375,7 +379,6 @@ final class AIPerformanceService {
         let kind = selectedBackendKind()
         let requestID = nextRequestID
         let activationAtRequest = activationID
-        let inputRevisionAtRequest = inputRevision
         nextRequestID += 1
         lastWindowRequestTimestampSeconds = nowTimestampSeconds
 
@@ -392,7 +395,6 @@ final class AIPerformanceService {
             await generateContinuousWindow(
                 requestID: requestID,
                 activationAtRequest: activationAtRequest,
-                inputRevisionAtRequest: inputRevisionAtRequest,
                 kind: kind,
                 promptEvents: promptEvents,
                 requestPolicy: requestPolicy
@@ -406,14 +408,12 @@ final class AIPerformanceService {
 	private func generateContinuousWindow(
 		requestID: Int,
 		activationAtRequest: Int,
-		inputRevisionAtRequest: Int,
 		kind: ImprovBackendKind,
 		promptEvents: [ImprovEvent],
         requestPolicy: DuetPhrasePolicy.RequestPolicy
     ) async {
         guard isEnabled else { return }
         guard activationAtRequest == activationID else { return }
-        guard inputRevisionAtRequest == inputRevision else { return }
         guard kind == selectedBackendKind() else { return }
         guard let practiceSession else { return }
         guard let backend = backendRegistry.backend(for: kind) else {
@@ -434,7 +434,7 @@ final class AIPerformanceService {
 				baseSeed: seed
 			)
         } catch {
-			guard isEnabled, activationAtRequest == activationID, inputRevisionAtRequest == inputRevision, kind == selectedBackendKind() else { return }
+			guard isEnabled, activationAtRequest == activationID, kind == selectedBackendKind() else { return }
             logger.warning("continuous duet backend failed: \(String(describing: error), privacy: .public)")
             lastImprovStatusText = "AI 即兴：生成失败（\(kind.rawValue)）"
             notifyStateChanged()
@@ -443,7 +443,6 @@ final class AIPerformanceService {
 
         guard isEnabled else { return }
         guard activationAtRequest == activationID else { return }
-		guard inputRevisionAtRequest == inputRevision else { return }
 		guard kind == selectedBackendKind() else { return }
 
         let now = nowUptimeSeconds()
@@ -626,8 +625,26 @@ final class AIPerformanceService {
     private func syncBackendDiscoveryIfNeeded() {
         let kind = selectedBackendKind()
         guard kind != lastKnownBackendKind else { return }
+        if lastKnownBackendKind != nil, isEnabled {
+            invalidateGeneration()
+            Task { [aiPlaybackQueue] in
+                await aiPlaybackQueue.clearPendingWindow()
+            }
+        }
         lastKnownBackendKind = kind
         discoveryOrchestrator.start(for: kind)
+    }
+
+    private func invalidateGeneration() {
+        activationID &+= 1
+        for task in inFlightGenerateTasks.values {
+            task.cancel()
+        }
+        inFlightGenerateTasks.removeAll(keepingCapacity: true)
+        lastWindowRequestTimestampSeconds = nil
+        isGenerating = false
+        latestCandidateDiagnostics = nil
+        notifyStateChanged()
     }
 
     private func makeStatusText(

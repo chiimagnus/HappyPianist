@@ -12,7 +12,6 @@ actor DuetAIPlaybackQueue {
     private struct WindowItem: Sendable {
         let schedule: [PracticeSequencerMIDIEvent]
         let routing: PracticeSoundRoutingSettings
-        let endUptimeSeconds: TimeInterval
     }
 
     private let logger: Logger
@@ -24,7 +23,6 @@ actor DuetAIPlaybackQueue {
 
     private var pendingWindow: WindowItem?
     private var playbackLoopTask: Task<Void, Never>?
-    private var currentSegmentEndUptimeSeconds: TimeInterval = 0
     private var playbackGeneration = 0
 
     init(
@@ -52,7 +50,6 @@ actor DuetAIPlaybackQueue {
         playbackLoopTask?.cancel()
         playbackLoopTask = nil
         pendingWindow = nil
-        currentSegmentEndUptimeSeconds = 0
 
         await MainActor.run {
             playbackServiceFactory().stopAll()
@@ -78,8 +75,7 @@ actor DuetAIPlaybackQueue {
 
         pendingWindow = WindowItem(
             schedule: shiftedSchedule,
-            routing: routing,
-            endUptimeSeconds: endUptimeSeconds
+            routing: routing
         )
         ensurePlaybackLoop()
 
@@ -104,7 +100,6 @@ actor DuetAIPlaybackQueue {
         defer {
             if generation == playbackGeneration {
                 playbackLoopTask = nil
-                currentSegmentEndUptimeSeconds = 0
                 Task { @MainActor [onPlaybackActiveChanged] in
                     onPlaybackActiveChanged(false)
                 }
@@ -114,7 +109,6 @@ actor DuetAIPlaybackQueue {
         while Task.isCancelled == false, generation == playbackGeneration {
             guard let item = pendingWindow else { break }
             pendingWindow = nil
-            currentSegmentEndUptimeSeconds = item.endUptimeSeconds
 
             await MainActor.run {
                 onPlaybackActiveChanged(true)
@@ -174,9 +168,9 @@ actor DuetAIPlaybackQueue {
         let firstEventSeconds = schedule.map(\.timeSeconds).min() ?? 0
         let lastEventSeconds = schedule.map(\.timeSeconds).max() ?? 0
         let leadInSeconds: TimeInterval = 0.05
-        let desiredStartUptimeSeconds = max(nowUptimeSeconds + leadInSeconds, currentSegmentEndUptimeSeconds)
-        let desiredOffsetSeconds = desiredStartUptimeSeconds - nowUptimeSeconds
-        let delta = max(0, desiredOffsetSeconds - firstEventSeconds)
+        // The playback loop already serializes windows. Only add a sequence-relative lead-in;
+        // carrying the active segment's wall-clock remainder into this sequence would wait twice.
+        let delta = max(0, leadInSeconds - firstEventSeconds)
 
         let shifted = schedule.map { event in
             PracticeSequencerMIDIEvent(

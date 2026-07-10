@@ -4,7 +4,7 @@
 
 LonelyPianist 是一个本地优先的钢琴交互系统。当前仓库包含 macOS MIDI recorder、visionOS 练习端与可选的 Python 工作区：
 
-- AVP 端 AI 即兴默认使用本地后端（CoreML / 本地规则 / tick-range replay），不依赖电脑端服务。
+- AVP 端 AI 即兴默认使用本地后端（CoreML / 本地规则），不依赖电脑端服务。
 - 但 AVP 也支持可选的 **网络后端（Aria v2）**：在 Mac 上启动 `python_backend/aria_server/` 服务后，AVP 可通过 Bonjour 发现并用 HTTP/WS 生成即兴回应。
 
 ## 运行面

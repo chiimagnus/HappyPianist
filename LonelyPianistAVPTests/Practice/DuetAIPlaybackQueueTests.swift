@@ -148,7 +148,8 @@ func duetAIPlaybackQueueClearPendingWindowDropsQueuedReplacement() async {
 
     _ = await queue.submitWindow(schedule: currentSchedule, routing: routing, submittedAtUptimeSeconds: 50)
     #expect(await gate.waitForStart())
-    _ = await queue.submitWindow(schedule: replacementSchedule, routing: routing, submittedAtUptimeSeconds: 50)
+    let replacement = await queue.submitWindow(schedule: replacementSchedule, routing: routing, submittedAtUptimeSeconds: 50)
+    #expect(abs(replacement.baseDelaySeconds - 0.05) < 1e-9)
     await queue.clearPendingWindow()
     await gate.resume()
     for _ in 0 ..< 200 { await Task.yield() }

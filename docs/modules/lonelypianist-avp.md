@@ -74,7 +74,7 @@ xcodebuild test -project LonelyPianist.xcodeproj -scheme LonelyPianistAVP -desti
 
 ## 可选：网络即兴后端（Aria v2）
 
-AVP 的 AI 即兴默认使用本地后端（CoreML / 本地规则 / tick-range replay）。当用户在练习设置中选择网络后端时，AVP 会：
+AVP 的 AI 即兴默认使用本地后端（CoreML / 本地规则）。当用户在练习设置中选择网络后端时，AVP 会：
 
 - 通过 Bonjour 发现 `_lpduet._tcp` 服务（需要真机允许 Local Network 权限）
 - 调用 Mac 侧 `python_backend/aria_server/`（HTTP `/generate` 或 WebSocket `/stream`）

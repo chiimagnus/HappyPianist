@@ -162,9 +162,9 @@ func disablingServiceDropsLateBackendResponses() async {
 
 @Test
 @MainActor
-func newInputDropsStaleContinuousResponse() async {
+func newInputReevaluatesContinuousResponseAgainstLatestContext() async {
     var nowUptime: TimeInterval = 0
-    let selectedKind: ImprovBackendKind = .localRule
+    let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
     let backend = ControlledBackend(kind: selectedKind)
     let playbackService = NonAdvancingPlaybackService()
     let factory = DuetAIPlaybackServiceFactory(
@@ -195,7 +195,7 @@ func newInputDropsStaleContinuousResponse() async {
 
     service.recordKeyContactForPhraseRecordingIfNeeded(
         usesBluetoothMIDIInput: false,
-        keyContact: KeyContactResult(down: [60, 62, 64, 65], started: [62, 64, 65], ended: []),
+        keyContact: KeyContactResult(down: [60, 62], started: [62], ended: []),
         nowUptimeSeconds: nowUptime
     )
     nowUptime = 0.3
@@ -205,6 +205,98 @@ func newInputDropsStaleContinuousResponse() async {
     ], backendLatencyMS: nil))
 
     for _ in 0 ..< 200 { await Task.yield() }
+    #expect(enqueuedSchedule)
+    service.setEnabled(false)
+}
+
+@Test
+@MainActor
+func changingBackendDoesNotWaitForSuspendedOldBackend() async {
+    var nowUptime: TimeInterval = 0
+    var selectedKind: ImprovBackendKind = .localRule
+    let oldBackend = ControlledBackend(kind: .localRule)
+    let newBackend = ControlledBackend(kind: .networkBonjourHTTPAriaV2)
+    let playbackService = NonAdvancingPlaybackService()
+    let factory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { playbackService },
+        makeExternalMIDIPlaybackService: { _ in playbackService }
+    )
+    let service = AIPerformanceService(
+        logger: Logger(subsystem: "test", category: "ai-perf"),
+        nowUptimeSeconds: { nowUptime },
+        sleepFor: { _ in },
+        discoveryOrchestrator: FakeDiscoveryOrchestrator(),
+        backendRegistry: ImprovBackendRegistry(backends: [oldBackend, newBackend]),
+        selectedBackendKind: { selectedKind },
+        aiPlaybackServiceFactory: { factory },
+        onStateChanged: { _ in }
+    )
+    let session = FakePracticeSession(sequencerPlaybackService: playbackService, settingsProvider: FakeSettingsProvider())
+    service.updatePracticeSession(session)
+    service.setEnabled(true)
+    service.recordKeyContactForPhraseRecordingIfNeeded(
+        usesBluetoothMIDIInput: false,
+        keyContact: KeyContactResult(down: [60], started: [60], ended: []),
+        nowUptimeSeconds: 0
+    )
+    nowUptime = 0.2
+    #expect(await oldBackend.waitForCall())
+
+    selectedKind = .networkBonjourHTTPAriaV2
+    service.recordKeyContactForPhraseRecordingIfNeeded(
+        usesBluetoothMIDIInput: false,
+        keyContact: KeyContactResult(down: [60, 64], started: [64], ended: []),
+        nowUptimeSeconds: nowUptime
+    )
+    nowUptime = 0.4
+    #expect(await newBackend.waitForCall())
+
+    await newBackend.resume(with: .schedule([], backendLatencyMS: nil))
+    await oldBackend.resume(with: .schedule([], backendLatencyMS: nil))
+    service.setEnabled(false)
+}
+
+@Test
+@MainActor
+func replacingPracticeSessionInvalidatesOldResponse() async {
+    var nowUptime: TimeInterval = 0
+    let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
+    let backend = ControlledBackend(kind: selectedKind)
+    let playbackService = NonAdvancingPlaybackService()
+    let factory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { playbackService },
+        makeExternalMIDIPlaybackService: { _ in playbackService }
+    )
+    var enqueuedSchedule = false
+    let service = AIPerformanceService(
+        logger: Logger(subsystem: "test", category: "ai-perf"),
+        nowUptimeSeconds: { nowUptime },
+        sleepFor: { _ in },
+        discoveryOrchestrator: FakeDiscoveryOrchestrator(),
+        backendRegistry: ImprovBackendRegistry(backends: [backend]),
+        selectedBackendKind: { selectedKind },
+        aiPlaybackServiceFactory: { factory },
+        onStateChanged: { enqueuedSchedule = enqueuedSchedule || $0.latestSchedule.isEmpty == false }
+    )
+    let firstSession = FakePracticeSession(sequencerPlaybackService: playbackService, settingsProvider: FakeSettingsProvider())
+    let replacementSession = FakePracticeSession(sequencerPlaybackService: playbackService, settingsProvider: FakeSettingsProvider())
+    service.updatePracticeSession(firstSession)
+    service.setEnabled(true)
+    service.recordKeyContactForPhraseRecordingIfNeeded(
+        usesBluetoothMIDIInput: false,
+        keyContact: KeyContactResult(down: [60], started: [60], ended: []),
+        nowUptimeSeconds: 0
+    )
+    nowUptime = 0.2
+    #expect(await backend.waitForCall())
+
+    service.updatePracticeSession(replacementSession)
+    await backend.resume(with: .schedule([
+        PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 72, velocity: 90)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 72)),
+    ], backendLatencyMS: nil))
+    for _ in 0 ..< 200 { await Task.yield() }
+
     #expect(enqueuedSchedule == false)
     service.setEnabled(false)
 }
