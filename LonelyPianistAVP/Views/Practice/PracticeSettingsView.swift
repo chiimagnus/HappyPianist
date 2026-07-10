@@ -128,13 +128,7 @@ struct PracticeSettingsView: View {
                         VStack(alignment: .leading, spacing: 6) {
                             Text("输出音量（AVP）")
                                 .font(.callout)
-                            HStack {
-                                Slider(value: $audioOutputVolume, in: 0 ... 1, step: 0.1)
-                                Text(audioOutputVolume, format: .percent.precision(.fractionLength(0)))
-                                    .font(.footnote)
-                                    .foregroundStyle(.secondary)
-                                    .frame(width: 56, alignment: .trailing)
-                            }
+                            Slider(value: $audioOutputVolume, in: 0 ... 1, step: 0.1)
                             Text("调到 0 可避免与真实钢琴叠音。")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
