@@ -88,8 +88,7 @@ flowchart TD
 
 | 代码 | 说明 |
 | --- | --- |
-| `AIPerformanceClipSelector` | 选择生成输入片段。 |
-| `AIPerformanceService` | 调用后端并把结果转为可排程表现。 |
+| `AIPerformanceService` | 运行连续控制回路，按短窗请求后端并把整形结果送入可替换调度器。 |
 | `ImprovScheduleBuilder` | 将生成 note 转成回放 schedule。 |
 | `LocalCoreMLDuetImprovBackend` | 本地 CoreML 生成（Performance RNN 单步模型采样）。 |
 | `LocalRuleImprovBackend` | 本地 rule 生成（SwiftPM `ImprovEngines`）。 |
@@ -99,7 +98,9 @@ flowchart TD
 说明：
 
 - 网络后端需要 Mac 侧启动 `python_backend/aria_server/` 服务，并在 AVP 真机允许 Local Network 权限后通过 Bonjour 发现 `_lpduet._tcp`。
-- 网络后端以 v2 events 为协议真源（notes + CC64/7/11）；AVP 端用 `ImprovScheduleBuilder` 统一转成回放 schedule。
+- 网络后端以 v2 events 为协议真源（notes + CC64/7/11）；AVP 端以 rolling context + short future window 方式请求候选素材，并用 `ImprovScheduleBuilder`/response shaper 统一转成回放 schedule。
+- 当前质量环路会先做 deterministic symbolic 质量评分与护栏；`localRule` 后端可在服务层做多候选采样，再按质量分数选出更优短窗。
+- `lastImprovStatusText` 现在会带紧凑诊断信息，例如 quality band、candidate 数量与首要 reject reason，便于调参但不持久化原始演奏日志。
 
 ## 调试边界
 

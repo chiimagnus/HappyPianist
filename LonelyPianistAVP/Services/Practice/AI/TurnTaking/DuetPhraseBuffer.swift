@@ -1,142 +1,241 @@
 import Foundation
 import ImprovProtocol
 
-/// A pure-logic phrase buffer which records user notes (note-on / note-off) into `ImprovDialogueNote`s.
-///
-/// This buffer intentionally does not decide *when* to flush; that belongs to `DuetTurnTakingCore`.
+/// Continuous-duet note context. This buffer never waits for a phrase flush.
+/// It keeps recent notes, current held notes, and can project a rolling prompt at any time.
 struct DuetPhraseBuffer: Sendable {
-    struct FlushResult: Equatable, Sendable {
-        /// Trimmed and rebased notes (A.I. Duet style: if duration > 10s keep last 15s and rebase).
-        let trimmedNotes: [ImprovDialogueNote]
-
-        /// Phrase duration before trimming/rebasing.
-        let untrimmedEndTimeSeconds: TimeInterval
-
-        /// Phrase duration after trimming.
-        let endTimeSeconds: TimeInterval
+    struct HeldNoteState: Equatable, Sendable {
+        let midi: Int
+        let velocity: Int
+        let startedAtTimestampSeconds: TimeInterval
     }
 
-    struct OpenNote: Equatable, Sendable {
-        let startTimestampSeconds: TimeInterval
+    struct Snapshot: Equatable, Sendable {
+        let nowTimestampSeconds: TimeInterval
+        let promptNotes: [ImprovDialogueNote]
+        let heldNotes: [HeldNoteState]
+        let heldNoteMIDIs: Set<Int>
+        let lastUserEventTimestampSeconds: TimeInterval?
+        let lastNoteOnTimestampSeconds: TimeInterval?
+        let recentIOIMedianSeconds: TimeInterval?
+        let recentVelocityTrend: Double
+        let recentNoteDensityPerSecond: Double
+        let activePitchCenter: Double?
+    }
+
+    private struct OpenNote: Equatable, Sendable {
+        let startedAtTimestampSeconds: TimeInterval
         let velocity: Int
     }
 
-    private var phraseStartTimestampSeconds: TimeInterval?
     private var openNotes: [Int: OpenNote] = [:]
-    private var recordedNotes: [ImprovDialogueNote] = []
+    private var sustainedNotes: [Int: OpenNote] = [:]
+    private var completedNotes: [ImprovDialogueNote] = []
+    private var lastUserEventTimestampSeconds: TimeInterval?
+    private var lastNoteOnTimestampSeconds: TimeInterval?
+
+    private static let maxHistorySeconds: TimeInterval = 12.0
 
     init() {}
 
-    var heldNotesCount: Int { openNotes.count }
-
     mutating func recordNoteOn(midi: Int, velocity: Int, timestampSeconds: TimeInterval) {
-        if phraseStartTimestampSeconds == nil {
-            phraseStartTimestampSeconds = timestampSeconds
+        pruneHistory(nowTimestampSeconds: timestampSeconds)
+        lastUserEventTimestampSeconds = timestampSeconds
+        lastNoteOnTimestampSeconds = timestampSeconds
+
+        if let existing = openNotes.removeValue(forKey: midi) ?? sustainedNotes.removeValue(forKey: midi) {
+            appendCompletedNote(midi: midi, open: existing, endedAtTimestampSeconds: timestampSeconds)
         }
 
-        if let existing = openNotes[midi] {
-            let endTimestamp = max(timestampSeconds, existing.startTimestampSeconds)
-            recordedNotes.append(
-                ImprovDialogueNote(
-                    note: midi,
-                    velocity: existing.velocity,
-                    time: existing.startTimestampSeconds,
-                    duration: max(0.05, endTimestamp - existing.startTimestampSeconds)
-                )
-            )
-        }
-
-        openNotes[midi] = OpenNote(startTimestampSeconds: timestampSeconds, velocity: velocity)
+        openNotes[midi] = OpenNote(startedAtTimestampSeconds: timestampSeconds, velocity: velocity)
     }
 
-    mutating func recordNoteOff(midi: Int, timestampSeconds: TimeInterval) {
+    mutating func recordNoteOff(
+        midi: Int,
+        timestampSeconds: TimeInterval,
+        sustainIsDown: Bool
+    ) {
+        pruneHistory(nowTimestampSeconds: timestampSeconds)
+        lastUserEventTimestampSeconds = timestampSeconds
+
         guard let open = openNotes.removeValue(forKey: midi) else { return }
-        let endTimestamp = max(timestampSeconds, open.startTimestampSeconds)
-        recordedNotes.append(
+        if sustainIsDown {
+            sustainedNotes[midi] = open
+            return
+        }
+        appendCompletedNote(midi: midi, open: open, endedAtTimestampSeconds: timestampSeconds)
+    }
+
+    mutating func releaseSustainedNotes(timestampSeconds: TimeInterval) {
+        pruneHistory(nowTimestampSeconds: timestampSeconds)
+        for (midi, open) in sustainedNotes {
+            appendCompletedNote(midi: midi, open: open, endedAtTimestampSeconds: timestampSeconds)
+        }
+        sustainedNotes.removeAll(keepingCapacity: true)
+    }
+
+    private mutating func appendCompletedNote(
+        midi: Int,
+        open: OpenNote,
+        endedAtTimestampSeconds: TimeInterval
+    ) {
+        let endTimestampSeconds = max(endedAtTimestampSeconds, open.startedAtTimestampSeconds)
+        completedNotes.append(
             ImprovDialogueNote(
                 note: midi,
                 velocity: open.velocity,
-                time: open.startTimestampSeconds,
-                duration: max(0.05, endTimestamp - open.startTimestampSeconds)
+                time: open.startedAtTimestampSeconds,
+                duration: max(0.05, endTimestampSeconds - open.startedAtTimestampSeconds)
             )
         )
     }
 
-    mutating func flushPhrase(endTimestampSeconds: TimeInterval) -> FlushResult {
-        for (midi, open) in openNotes {
-            let endTimestamp = max(endTimestampSeconds, open.startTimestampSeconds)
-            recordedNotes.append(
-                ImprovDialogueNote(
-                    note: midi,
-                    velocity: open.velocity,
-                    time: open.startTimestampSeconds,
-                    duration: max(0.05, endTimestamp - open.startTimestampSeconds)
-                )
-            )
+    mutating func snapshot(
+        nowTimestampSeconds: TimeInterval,
+        lookbackSeconds: TimeInterval,
+        maxPromptSeconds: TimeInterval
+    ) -> Snapshot {
+        pruneHistory(nowTimestampSeconds: nowTimestampSeconds)
+
+        let soundingNotes = openNotes.merging(sustainedNotes) { _, sustained in sustained }
+        let heldStates = soundingNotes
+            .map { midi, open in
+                HeldNoteState(midi: midi, velocity: open.velocity, startedAtTimestampSeconds: open.startedAtTimestampSeconds)
+            }
+            .sorted { lhs, rhs in
+                if lhs.startedAtTimestampSeconds != rhs.startedAtTimestampSeconds {
+                    return lhs.startedAtTimestampSeconds < rhs.startedAtTimestampSeconds
+                }
+                return lhs.midi < rhs.midi
+            }
+
+        let lookbackStart = max(0, nowTimestampSeconds - max(0, lookbackSeconds))
+        var rawPromptNotes = completedNotes.filter { note in
+            (note.time + note.duration) >= lookbackStart
         }
-        openNotes.removeAll(keepingCapacity: true)
-
-        guard recordedNotes.isEmpty == false else {
-            phraseStartTimestampSeconds = nil
-            return FlushResult(trimmedNotes: [], untrimmedEndTimeSeconds: 0, endTimeSeconds: 0)
-        }
-
-        let base = phraseStartTimestampSeconds ?? (recordedNotes.map(\.time).min() ?? 0)
-        phraseStartTimestampSeconds = nil
-
-        let rebased = recordedNotes.map { note in
-            ImprovDialogueNote(
-                note: note.note,
-                velocity: note.velocity,
-                time: max(0, note.time - base),
-                duration: note.duration
-            )
-        }
-        recordedNotes.removeAll(keepingCapacity: true)
-
-        let sorted = rebased.sorted { lhs, rhs in
+        rawPromptNotes.append(contentsOf: projectedOpenNotes(at: nowTimestampSeconds))
+        rawPromptNotes.sort { lhs, rhs in
             if lhs.time != rhs.time { return lhs.time < rhs.time }
             return lhs.note < rhs.note
         }
 
-        let phraseEndTimeSeconds = sorted.map { $0.time + $0.duration }.max() ?? 0
-        if phraseEndTimeSeconds <= 10 {
-            return FlushResult(
-                trimmedNotes: sorted,
-                untrimmedEndTimeSeconds: phraseEndTimeSeconds,
-                endTimeSeconds: phraseEndTimeSeconds
-            )
-        }
+        let promptNotes = makePromptNotes(
+            from: rawPromptNotes,
+            lookbackStart: lookbackStart,
+            nowTimestampSeconds: nowTimestampSeconds,
+            maxPromptSeconds: maxPromptSeconds
+        )
 
-        let windowStartSeconds = max(0, phraseEndTimeSeconds - 15)
-        let windowed = sorted.filter { $0.time >= windowStartSeconds }
-        guard windowed.isEmpty == false else {
-            return FlushResult(trimmedNotes: [], untrimmedEndTimeSeconds: phraseEndTimeSeconds, endTimeSeconds: 0)
+        let recentStarts = rawPromptNotes
+            .map(\.time)
+            .filter { $0 >= nowTimestampSeconds - 2.4 }
+            .sorted()
+        let recentIOIValues = zip(recentStarts.dropFirst(), recentStarts).map { current, previous in
+            max(0, current - previous)
         }
+        let recentIOIMedianSeconds = Self.median(recentIOIValues)
 
-        let windowBase = windowStartSeconds
-        let rebasedWindow = windowed.map { note in
-            ImprovDialogueNote(
-                note: note.note,
-                velocity: note.velocity,
-                time: max(0, note.time - windowBase),
-                duration: note.duration
-            )
-        }.sorted { lhs, rhs in
-            if lhs.time != rhs.time { return lhs.time < rhs.time }
-            return lhs.note < rhs.note
-        }
-        let rebasedEndTimeSeconds = rebasedWindow.map { $0.time + $0.duration }.max() ?? 0
-        return FlushResult(
-            trimmedNotes: rebasedWindow,
-            untrimmedEndTimeSeconds: phraseEndTimeSeconds,
-            endTimeSeconds: rebasedEndTimeSeconds
+        let densityWindowSeconds: TimeInterval = 1.2
+        let recentDensityCount = rawPromptNotes.filter { $0.time >= nowTimestampSeconds - densityWindowSeconds }.count
+        let recentNoteDensityPerSecond = Double(recentDensityCount) / densityWindowSeconds
+
+        let recentVelocities = rawPromptNotes.suffix(8).map(\.velocity)
+        let recentVelocityTrend = Self.velocityTrend(recentVelocities)
+
+        let activePitchSource = heldStates.isEmpty == false
+            ? heldStates.map { Double($0.midi) }
+            : rawPromptNotes
+                .filter { ($0.time + $0.duration) >= nowTimestampSeconds - 2.0 }
+                .map { Double($0.note) }
+        let activePitchCenter = activePitchSource.isEmpty ? nil : activePitchSource.reduce(0, +) / Double(activePitchSource.count)
+
+        return Snapshot(
+            nowTimestampSeconds: nowTimestampSeconds,
+            promptNotes: promptNotes,
+            heldNotes: heldStates,
+            heldNoteMIDIs: Set(heldStates.map(\.midi)),
+            lastUserEventTimestampSeconds: lastUserEventTimestampSeconds,
+            lastNoteOnTimestampSeconds: lastNoteOnTimestampSeconds,
+            recentIOIMedianSeconds: recentIOIMedianSeconds,
+            recentVelocityTrend: recentVelocityTrend,
+            recentNoteDensityPerSecond: recentNoteDensityPerSecond,
+            activePitchCenter: activePitchCenter
         )
     }
 
     mutating func reset() {
-        phraseStartTimestampSeconds = nil
-        openNotes.removeAll()
-        recordedNotes.removeAll()
+        openNotes.removeAll(keepingCapacity: true)
+        sustainedNotes.removeAll(keepingCapacity: true)
+        completedNotes.removeAll(keepingCapacity: true)
+        lastUserEventTimestampSeconds = nil
+        lastNoteOnTimestampSeconds = nil
+    }
+
+    private mutating func pruneHistory(nowTimestampSeconds: TimeInterval) {
+        let cutoff = nowTimestampSeconds - Self.maxHistorySeconds
+        completedNotes.removeAll { note in
+            (note.time + note.duration) < cutoff
+        }
+    }
+
+    private func projectedOpenNotes(at nowTimestampSeconds: TimeInterval) -> [ImprovDialogueNote] {
+        openNotes.merging(sustainedNotes) { _, sustained in sustained }.map { midi, open in
+            ImprovDialogueNote(
+                note: midi,
+                velocity: open.velocity,
+                time: open.startedAtTimestampSeconds,
+                duration: max(0.05, nowTimestampSeconds - open.startedAtTimestampSeconds)
+            )
+        }
+    }
+
+    private func makePromptNotes(
+        from notes: [ImprovDialogueNote],
+        lookbackStart: TimeInterval,
+        nowTimestampSeconds: TimeInterval,
+        maxPromptSeconds: TimeInterval
+    ) -> [ImprovDialogueNote] {
+        guard notes.isEmpty == false else { return [] }
+
+        let latestEnd = notes.map { $0.time + $0.duration }.max() ?? nowTimestampSeconds
+        let windowStart = max(lookbackStart, latestEnd - max(0.5, maxPromptSeconds))
+        let windowEnd = max(nowTimestampSeconds, latestEnd)
+
+        return notes.compactMap { note in
+            let noteStart = max(note.time, windowStart)
+            let noteEnd = min(note.time + note.duration, windowEnd)
+            guard noteEnd > noteStart else { return nil }
+            return ImprovDialogueNote(
+                note: note.note,
+                velocity: note.velocity,
+                time: max(0, noteStart - windowStart),
+                duration: max(0.05, noteEnd - noteStart)
+            )
+        }
+        .sorted { lhs, rhs in
+            if lhs.time != rhs.time { return lhs.time < rhs.time }
+            return lhs.note < rhs.note
+        }
+    }
+
+    private static func median(_ values: [TimeInterval]) -> TimeInterval? {
+        guard values.isEmpty == false else { return nil }
+        let sorted = values.sorted()
+        let middle = sorted.count / 2
+        if sorted.count.isMultiple(of: 2) {
+            return (sorted[middle - 1] + sorted[middle]) / 2
+        }
+        return sorted[middle]
+    }
+
+    private static func velocityTrend(_ velocities: [Int]) -> Double {
+        guard velocities.count >= 2 else { return 0 }
+        let midpoint = velocities.count / 2
+        let firstHalf = velocities.prefix(midpoint)
+        let secondHalf = velocities.suffix(velocities.count - midpoint)
+        guard firstHalf.isEmpty == false, secondHalf.isEmpty == false else { return 0 }
+        let firstAverage = Double(firstHalf.reduce(0, +)) / Double(firstHalf.count)
+        let secondAverage = Double(secondHalf.reduce(0, +)) / Double(secondHalf.count)
+        return secondAverage - firstAverage
     }
 }

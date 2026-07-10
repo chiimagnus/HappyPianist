@@ -1,56 +1,114 @@
-import ImprovProtocol
+import Foundation
 @testable import LonelyPianistAVP
 import Testing
 
 @Test
-func duetTurnTakingCoreShortPhraseSchedulesAfterReleaseAll() {
+func duetTurnTakingCoreReturnsYieldForDenseHeldTexture() {
     var core = DuetTurnTakingCore()
-    #expect(core.handle(.noteOn(note: 60, velocity: 90, timestampSeconds: 10.0)) == .none)
+    let decision = core.evaluate(
+        .init(
+            nowTimestampSeconds: 10.0,
+            heldNotesCount: 2,
+            sustainValue: 0,
+            recentIOIMedianSeconds: 0.12,
+            recentVelocityTrend: 2,
+            recentNoteDensityPerSecond: 3.0,
+            lastUserEventTimestampSeconds: 9.8,
+            lastNoteOnTimestampSeconds: 9.9,
+            activePitchCenter: 64
+        )
+    )
 
-    let decision = core.handle(.noteOff(note: 60, timestampSeconds: 10.1))
-    guard case let .scheduleSend(deadlineTimestampSeconds: deadline) = decision else {
-        #expect(Bool(false))
-        return
-    }
-    #expect(abs(deadline - 10.7) < 1e-9)
-    #expect(core.hasPendingSend)
+    #expect(decision.mode == .yield)
+    #expect(decision.shouldRequestGeneration == false)
+    #expect(decision.shouldClearFutureWindows)
 }
 
 @Test
-func duetTurnTakingCoreLongPhraseSendsImmediately() {
+func duetTurnTakingCoreReturnsYieldForDenseStaccatoTexture() {
     var core = DuetTurnTakingCore()
-    _ = core.handle(.noteOn(note: 60, velocity: 90, timestampSeconds: 1.0))
+    let decision = core.evaluate(
+        .init(
+            nowTimestampSeconds: 10,
+            heldNotesCount: 0,
+            sustainValue: 0,
+            recentIOIMedianSeconds: 0.12,
+            recentVelocityTrend: 0,
+            recentNoteDensityPerSecond: 3,
+            lastUserEventTimestampSeconds: 9.9,
+            lastNoteOnTimestampSeconds: 9.8,
+            activePitchCenter: 64
+        )
+    )
 
-    let decision = core.handle(.noteOff(note: 60, timestampSeconds: 4.1))
-    #expect(decision == .sendNow)
-    #expect(core.hasPendingSend == false)
+    #expect(decision.mode == .yield)
+    #expect(decision.shouldClearFutureWindows)
 }
 
 @Test
-func duetTurnTakingCoreNoteOnCancelsPendingSend() {
+func duetTurnTakingCoreReturnsSparseForSustainLedHeldTexture() {
     var core = DuetTurnTakingCore()
-    _ = core.handle(.noteOn(note: 60, velocity: 90, timestampSeconds: 1.0))
-    let scheduleDecision = core.handle(.noteOff(note: 60, timestampSeconds: 1.2))
-    guard case let .scheduleSend(deadlineTimestampSeconds: deadline) = scheduleDecision else {
-        #expect(Bool(false))
-        return
-    }
-    #expect(abs(deadline - 1.8) < 1e-9)
-    #expect(core.handle(.noteOn(note: 64, velocity: 90, timestampSeconds: 1.3)) == .cancelPendingSend)
-    #expect(core.hasPendingSend == false)
+    let decision = core.evaluate(
+        .init(
+            nowTimestampSeconds: 5.0,
+            heldNotesCount: 1,
+            sustainValue: 127,
+            recentIOIMedianSeconds: 0.32,
+            recentVelocityTrend: 8,
+            recentNoteDensityPerSecond: 1.0,
+            lastUserEventTimestampSeconds: 4.9,
+            lastNoteOnTimestampSeconds: 4.85,
+            activePitchCenter: 60
+        )
+    )
+
+    #expect(decision.mode == .sparse)
+    #expect(decision.shouldRequestGeneration)
+    #expect(abs(decision.requestWindowSeconds - 0.45) < 1e-9)
+    #expect(decision.maxTokens == 28)
 }
 
 @Test
-func duetTurnTakingCoreHeldNotesGateOnlyTriggersWhenAllReleased() {
+func duetTurnTakingCoreReturnsSupportForRecentHeldLine() {
     var core = DuetTurnTakingCore()
-    _ = core.handle(.noteOn(note: 60, velocity: 90, timestampSeconds: 1.0))
-    _ = core.handle(.noteOn(note: 64, velocity: 90, timestampSeconds: 1.1))
+    let decision = core.evaluate(
+        .init(
+            nowTimestampSeconds: 20.0,
+            heldNotesCount: 1,
+            sustainValue: 0,
+            recentIOIMedianSeconds: 0.28,
+            recentVelocityTrend: 0,
+            recentNoteDensityPerSecond: 1.4,
+            lastUserEventTimestampSeconds: 19.7,
+            lastNoteOnTimestampSeconds: 19.8,
+            activePitchCenter: 67
+        )
+    )
 
-    #expect(core.handle(.noteOff(note: 60, timestampSeconds: 1.2)) == .none)
-    let decision = core.handle(.noteOff(note: 64, timestampSeconds: 1.3))
-    guard case let .scheduleSend(deadlineTimestampSeconds: deadline) = decision else {
-        #expect(Bool(false))
-        return
-    }
-    #expect(abs(deadline - 1.9) < 1e-9)
+    #expect(decision.mode == .support)
+    #expect(decision.shouldRequestGeneration)
+    #expect(decision.shouldClearFutureWindows == false)
+    #expect(abs(decision.requestWindowSeconds - 0.70) < 1e-9)
+}
+
+@Test
+func duetTurnTakingCoreReturnsSilentForStaleInput() {
+    var core = DuetTurnTakingCore()
+    let decision = core.evaluate(
+        .init(
+            nowTimestampSeconds: 100.0,
+            heldNotesCount: 0,
+            sustainValue: 0,
+            recentIOIMedianSeconds: nil,
+            recentVelocityTrend: 0,
+            recentNoteDensityPerSecond: 0,
+            lastUserEventTimestampSeconds: 98.0,
+            lastNoteOnTimestampSeconds: 98.0,
+            activePitchCenter: nil
+        )
+    )
+
+    #expect(decision.mode == .silent)
+    #expect(decision.shouldRequestGeneration == false)
+    #expect(decision.shouldClearFutureWindows)
 }

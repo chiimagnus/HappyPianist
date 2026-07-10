@@ -127,7 +127,9 @@ struct PracticeStepView: View {
                             viewModel.replacePracticeSessionViewModel()
                         },
                         onDebugInjectAIImprovPhrase: {
+                            #if DEBUG
                             viewModel.debugInjectAIImprovPhrase()
+                            #endif
                         }
                     )
                 }

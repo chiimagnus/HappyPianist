@@ -29,7 +29,6 @@ private final class FakePracticeSession: AIPerformancePracticeSessionProtocol {
         self.settingsProvider = settingsProvider
     }
 
-    func aiPerformanceTickRange(maxMeasures _: Int) -> (startTick: Int, endTick: Int)? { nil }
     func stopVirtualPianoInput() {}
     func stopAudioRecognition() {}
     func prepareAudioRecognitionSuppressWindowForPlayback() -> Date { .now }
@@ -40,7 +39,7 @@ private actor ControlledBackend: ImprovBackendProtocol {
     nonisolated let kind: ImprovBackendKind
     nonisolated let displayName: String
 
-    private var continuations: [CheckedContinuation<ImprovBackendPlaybackPlan, Error>] = []
+    private var continuation: CheckedContinuation<ImprovBackendPlaybackPlan, Error>?
 
     init(kind: ImprovBackendKind, displayName: String = "Controlled") {
         self.kind = kind
@@ -50,48 +49,32 @@ private actor ControlledBackend: ImprovBackendProtocol {
     func generatePlaybackPlan(request _: ImprovGenerateRequestV2, timeout _: Duration) async throws -> ImprovBackendPlaybackPlan {
         try Task.checkCancellation()
         return try await withCheckedThrowingContinuation { continuation in
-            continuations.append(continuation)
+            self.continuation = continuation
         }
     }
 
-    func waitForCallCount(_ expected: Int) async {
-        _ = await waitForCallCount(expected, maxYields: 10_000)
-    }
-
-    func waitForCallCount(_ expected: Int, maxYields: Int) async -> Bool {
+    func waitForCall(maxYields: Int = 10_000) async -> Bool {
         for _ in 0 ..< maxYields {
-            if continuations.count >= expected { return true }
+            if continuation != nil { return true }
             await Task.yield()
         }
-        return continuations.count >= expected
+        return continuation != nil
     }
 
-    func resumeCall(at index: Int, with plan: ImprovBackendPlaybackPlan) {
-        guard index < continuations.count else { return }
-        let continuation = continuations.remove(at: index)
+    func resume(with plan: ImprovBackendPlaybackPlan) {
+        guard let continuation else { return }
+        self.continuation = nil
         continuation.resume(returning: plan)
-    }
-
-    func resumeAllRemaining(with plan: ImprovBackendPlaybackPlan) {
-        for continuation in continuations {
-            continuation.resume(returning: plan)
-        }
-        continuations.removeAll(keepingCapacity: true)
     }
 }
 
 @MainActor
 private final class NonAdvancingPlaybackService: PracticeSequencerPlaybackServiceProtocol {
-    private var nowSeconds: TimeInterval = 0
-
     func warmUp() throws {}
     func stop() {}
     func load(sequence _: PracticeSequencerSequence) throws {}
     func play(fromSeconds _: TimeInterval) throws {}
-    func currentSeconds() -> TimeInterval {
-        nowSeconds += 1
-        return nowSeconds
-    }
+    func currentSeconds() -> TimeInterval { 0 }
     func playOneShot(noteOns _: [PracticeOneShotNoteOn], durationSeconds _: TimeInterval) throws {}
     func startLiveNotes(midiNotes _: Set<Int>) throws {}
     func stopLiveNotes(midiNotes _: Set<Int>) {}
@@ -110,7 +93,7 @@ private struct FakeSettingsProvider: PracticeSessionSettingsProviderProtocol {
 
 @Test
 @MainActor
-func outOfOrderResponsesAreEnqueuedInSendOrder() async throws {
+func continuousDuetRequestsGenerationBeforeUserReleasesKey() async {
     var nowUptime: TimeInterval = 0
 
     let selectedKind: ImprovBackendKind = .localRule
@@ -122,7 +105,6 @@ func outOfOrderResponsesAreEnqueuedInSendOrder() async throws {
         makeExternalMIDIPlaybackService: { _ in aiPlaybackService }
     )
 
-    var enqueuedFirstNoteMIDIs: [Int] = []
     let service = AIPerformanceService(
         logger: Logger(subsystem: "test", category: "ai-perf"),
         nowUptimeSeconds: { nowUptime },
@@ -131,13 +113,7 @@ func outOfOrderResponsesAreEnqueuedInSendOrder() async throws {
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
         aiPlaybackServiceFactory: { aiPlaybackFactory },
-        onStateChanged: { state in
-            guard let first = state.latestSchedule.first else { return }
-            guard case let .noteOn(midi, _) = first.kind else { return }
-            if enqueuedFirstNoteMIDIs.last != midi {
-                enqueuedFirstNoteMIDIs.append(midi)
-            }
-        }
+        onStateChanged: { _ in }
     )
 
     let practicePlaybackService = NonAdvancingPlaybackService()
@@ -148,71 +124,74 @@ func outOfOrderResponsesAreEnqueuedInSendOrder() async throws {
     service.updatePracticeSession(session)
     service.setEnabled(true)
 
-    // Ensure any unfinished backend continuations are resumed to avoid test-runner crashes.
-    defer {
-        Task {
-            let fallbackSchedule = [
-                PracticeSequencerMIDIEvent(timeSeconds: 0.0, kind: .noteOn(midi: 60, velocity: 90)),
-                PracticeSequencerMIDIEvent(timeSeconds: 0.1, kind: .noteOff(midi: 60)),
-            ]
-            await backend.resumeAllRemaining(with: .schedule(fallbackSchedule, backendLatencyMS: nil))
-        }
-    }
-
-    // Send 2 phrases (force immediate send via long-phrase threshold).
-    nowUptime = 0.0
     service.recordKeyContactForPhraseRecordingIfNeeded(
         usesBluetoothMIDIInput: false,
-        keyContact: KeyContactResult(down: [], started: [60], ended: []),
+        keyContact: KeyContactResult(down: [60], started: [60], ended: []),
         nowUptimeSeconds: nowUptime
     )
-    nowUptime = 3.1
-    service.recordKeyContactForPhraseRecordingIfNeeded(
-        usesBluetoothMIDIInput: false,
-        keyContact: KeyContactResult(down: [], started: [], ended: [60]),
-        nowUptimeSeconds: nowUptime
-    )
+    nowUptime = 0.2
 
-    for _ in 0 ..< 50 { await Task.yield() }
-    #expect(await backend.waitForCallCount(1, maxYields: 10_000))
+    #expect(await backend.waitForCall())
 
-    nowUptime = 4.0
-    service.recordKeyContactForPhraseRecordingIfNeeded(
-        usesBluetoothMIDIInput: false,
-        keyContact: KeyContactResult(down: [], started: [64], ended: []),
-        nowUptimeSeconds: nowUptime
-    )
-    nowUptime = 7.2
-    service.recordKeyContactForPhraseRecordingIfNeeded(
-        usesBluetoothMIDIInput: false,
-        keyContact: KeyContactResult(down: [], started: [], ended: [64]),
-        nowUptimeSeconds: nowUptime
-    )
-
-    for _ in 0 ..< 200 { await Task.yield() }
-    try #require(await backend.waitForCallCount(2, maxYields: 10_000))
-
-    // Resume out of order: second call returns before the first.
-    let schedule1 = [
-        PracticeSequencerMIDIEvent(timeSeconds: 0.0, kind: .noteOn(midi: 60, velocity: 90)),
-        PracticeSequencerMIDIEvent(timeSeconds: 0.1, kind: .noteOff(midi: 60)),
+    let schedule = [
+        PracticeSequencerMIDIEvent(timeSeconds: 0.0, kind: .noteOn(midi: 67, velocity: 90)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.1, kind: .noteOff(midi: 67)),
     ]
-    let schedule2 = [
-        PracticeSequencerMIDIEvent(timeSeconds: 0.0, kind: .noteOn(midi: 64, velocity: 90)),
-        PracticeSequencerMIDIEvent(timeSeconds: 0.1, kind: .noteOff(midi: 64)),
-    ]
+    await backend.resume(with: .schedule(schedule, backendLatencyMS: nil))
 
-    await backend.resumeCall(at: 1, with: .schedule(schedule2, backendLatencyMS: nil))
-    await backend.resumeCall(at: 0, with: .schedule(schedule1, backendLatencyMS: nil))
+    service.setEnabled(false)
+}
 
-    for _ in 0 ..< 10_000 {
-        await Task.yield()
-        if enqueuedFirstNoteMIDIs.count >= 2 { break }
-    }
+@Test
+@MainActor
+func continuousDuetRequestsGenerationForMIDI2Input() async {
+    var nowUptime: TimeInterval = 0
 
-    try #require(enqueuedFirstNoteMIDIs.count >= 2)
-    #expect(enqueuedFirstNoteMIDIs[0] == 60)
-    #expect(enqueuedFirstNoteMIDIs[1] == 64)
+    let selectedKind: ImprovBackendKind = .localRule
+    let backend = ControlledBackend(kind: selectedKind)
+
+    let aiPlaybackService = NonAdvancingPlaybackService()
+    let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { aiPlaybackService },
+        makeExternalMIDIPlaybackService: { _ in aiPlaybackService }
+    )
+
+    let service = AIPerformanceService(
+        logger: Logger(subsystem: "test", category: "ai-perf"),
+        nowUptimeSeconds: { nowUptime },
+        sleepFor: { _ in },
+        discoveryOrchestrator: FakeDiscoveryOrchestrator(),
+        backendRegistry: ImprovBackendRegistry(backends: [backend]),
+        selectedBackendKind: { selectedKind },
+        aiPlaybackServiceFactory: { aiPlaybackFactory },
+        onStateChanged: { _ in }
+    )
+
+    let practicePlaybackService = NonAdvancingPlaybackService()
+    let session = FakePracticeSession(
+        sequencerPlaybackService: practicePlaybackService,
+        settingsProvider: FakeSettingsProvider()
+    )
+    service.updatePracticeSession(session)
+    service.setEnabled(true)
+
+    service.recordMIDI2EventForPhraseRecordingIfNeeded(MIDI2InputEvent(
+        kind: .noteOn(note: 60, velocity16: .max),
+        channel: 1,
+        group: 0,
+        source: MIDI2InputEvent.Source(identifier: .sourceIndex(0), endpointName: "test"),
+        receivedAt: Date(timeIntervalSince1970: 0),
+        receivedAtUptimeSeconds: nowUptime,
+        debugEventID: 1
+    ))
+    nowUptime = 0.2
+
+    #expect(await backend.waitForCall())
+
+    await backend.resume(with: .schedule([
+        PracticeSequencerMIDIEvent(timeSeconds: 0.0, kind: .noteOn(midi: 67, velocity: 90)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.1, kind: .noteOff(midi: 67)),
+    ], backendLatencyMS: nil))
 
     service.setEnabled(false)
 }
