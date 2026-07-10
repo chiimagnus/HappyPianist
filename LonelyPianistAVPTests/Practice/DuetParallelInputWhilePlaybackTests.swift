@@ -38,7 +38,6 @@ private final class FakePracticeSession: AIPerformancePracticeSessionProtocol {
         self.settingsProvider = settingsProvider
     }
 
-    func aiPerformanceTickRange(maxMeasures _: Int) -> (startTick: Int, endTick: Int)? { nil }
     func stopVirtualPianoInput() {}
     func stopAudioRecognition() {}
     func prepareAudioRecognitionSuppressWindowForPlayback() -> Date { .now }
@@ -98,7 +97,7 @@ private struct FakeSettingsProvider: PracticeSessionSettingsProviderProtocol {
 
 @Test
 @MainActor
-func aiPlaybackDoesNotBlockKeyContactRecordingOrNextTrigger() async {
+func aiPlaybackDoesNotBlockSecondContinuousWindowRequest() async {
     var nowUptime: TimeInterval = 0
 
     let orchestrator = FakeDiscoveryOrchestrator()
@@ -136,41 +135,31 @@ func aiPlaybackDoesNotBlockKeyContactRecordingOrNextTrigger() async {
     service.updatePracticeSession(session)
     service.setEnabled(true)
 
-    // First phrase triggers playback.
     service.recordKeyContactForPhraseRecordingIfNeeded(
         usesBluetoothMIDIInput: false,
-        keyContact: KeyContactResult(down: [], started: [60], ended: []),
+        keyContact: KeyContactResult(down: [60], started: [60], ended: []),
         nowUptimeSeconds: 0.0
     )
-    service.recordKeyContactForPhraseRecordingIfNeeded(
-        usesBluetoothMIDIInput: false,
-        keyContact: KeyContactResult(down: [], started: [], ended: [60]),
-        nowUptimeSeconds: 0.1
-    )
+    nowUptime = 0.3
 
     for _ in 0 ..< 500 {
         await Task.yield()
-        if await backend.generateCallCount() >= 1 { break }
+        if await backend.generateCallCount() >= 3 { break }
     }
-    #expect(await backend.generateCallCount() == 1)
+    #expect(await backend.generateCallCount() == 3)
 
-    // While playback is ongoing, second phrase should still be accepted and trigger a new generation.
     service.recordKeyContactForPhraseRecordingIfNeeded(
         usesBluetoothMIDIInput: false,
-        keyContact: KeyContactResult(down: [], started: [64], ended: []),
-        nowUptimeSeconds: 0.2
-    )
-    service.recordKeyContactForPhraseRecordingIfNeeded(
-        usesBluetoothMIDIInput: false,
-        keyContact: KeyContactResult(down: [], started: [], ended: [64]),
+        keyContact: KeyContactResult(down: [64], started: [64], ended: []),
         nowUptimeSeconds: 0.3
     )
+    nowUptime = 0.7
 
     for _ in 0 ..< 500 {
         await Task.yield()
-        if await backend.generateCallCount() >= 2 { break }
+        if await backend.generateCallCount() >= 6 { break }
     }
-    #expect(await backend.generateCallCount() == 2)
+    #expect(await backend.generateCallCount() == 6)
 
     service.setEnabled(false)
 }

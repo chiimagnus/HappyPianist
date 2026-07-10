@@ -221,15 +221,6 @@ extension PracticeSessionViewModel {
         self.latestNoteOnMIDINotes = midiNotes
     }
 
-    func aiPerformanceTickRange(maxMeasures: Int = 2) -> (startTick: Int, endTick: Int)? {
-        guard let currentStep = self.currentStep else { return nil }
-        return AIPerformanceClipSelector().tickRange(
-            currentTick: currentStep.tick,
-            measureSpans: self.measureSpans,
-            maxMeasures: maxMeasures
-        )
-    }
-
     func clearCalibration() {
         self.calibration = nil
         self.keyboardGeometry = nil

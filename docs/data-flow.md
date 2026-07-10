@@ -2,7 +2,7 @@
 
 本文只描述当前代码存在的运行链路。macOS 端不再包含 MIDI mapping、键盘注入或 AVP 的网络后端 client；visionOS 端（AVP）的 AI 即兴链路包含：
 
-- 本地生成后端（CoreML / SwiftPM rule / tick-range replay）
+- 本地生成后端（CoreML / SwiftPM rule）
 - 可选网络后端（Aria v2：Bonjour 发现 + HTTP `/generate` + WebSocket `/stream`，由 Mac 侧 `python_backend/aria_server/` 提供）
 
 无论本地/网络后端，AVP 都严格只使用用户在 practice 设置中选择的后端（失败只提示，不自动降级/切换）。
@@ -18,7 +18,7 @@
 | AVP 准备 | 钢琴类型选择 | `PracticeSetupState` + `WindowTransitionState` | 进入曲库前的 readiness gate |
 | AVP 曲库 | bundled MusicXML / 用户导入 MusicXML | `SongLibraryViewModel` + `PracticePreparationService` | `PreparedPractice` |
 | AVP 练习 | `PreparedPractice` + selected piano mode | `ARGuideViewModel` + `PracticeSessionViewModel` | 步骤推进、谱面、高亮、录制与回放 |
-| AVP AI 即兴 | recorded phrase / selected clip | `AIPerformanceService` + `ImprovBackendRegistry` | 生成片段并排程回放（严格按所选后端） |
+| AVP AI 即兴 | rolling note/CC context | `AIPerformanceService` + `ImprovBackendRegistry` | 连续评估、短窗生成、整形后送入可替换调度器（严格按所选后端） |
 
 ## macOS recorder
 
@@ -106,7 +106,6 @@ practice 窗口的 settings popover 中可选择后端：
 
 - `本地 CoreML（A.I. Duet / Performance RNN）`：AVP 端使用 CoreML 运行 Performance RNN 单步模型做自回归采样；模型文件（`AIDuetPerformanceRNN.mlpackage` / `AIDuetPerformanceRNN.mlmodelc`）不入库，由开发者本地放置并加入 Xcode target。
 - `本地规则生成（Local rule）`：AVP 端直接调用 SwiftPM `ImprovEngines`（seed 可复现）。
-- `按谱片段回放（tick-range replay）`：不做生成，回放当前谱面片段；它不是自动 fallback，只会在用户选择时使用。
 - `网络本地连接（Aria v2）`：AVP 通过 Bonjour 发现 `_lpduet._tcp` 服务并调用 HTTP `POST /generate` 获取 v2 events。
 - `网络本地连接（Aria v2 Streaming）`：AVP 通过 Bonjour 获取 `ws_path` 并用 WebSocket `GET /stream` 接收 v2 chunk events（更快开声）。
 
@@ -133,9 +132,7 @@ sequenceDiagram
     Backend->>Aria: Bonjour resolve + HTTP/WS
     Aria-->>Backend: v2 events (notes + CC)
     Backend-->>AVP: schedule (built from events)
-  else tick-range replay
-    Backend-->>AVP: tickRange(maxMeasures)
   end
 ```
 
-本地规则生成由 SwiftPM（`Packages/ImprovEngines/`）提供。当前默认后端为本地 CoreML（若未放置模型文件，UI 会提示缺失并可手动切换到本地 rule / tick-range replay）。
+本地规则生成由 SwiftPM（`Packages/ImprovEngines/`）提供。当前默认后端为本地 CoreML；若未放置模型文件，UI 会提示缺失，并可手动切换到本地 rule。

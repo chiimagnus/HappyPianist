@@ -1,113 +1,94 @@
 import Foundation
 import ImprovProtocol
 
-/// A pure-logic buffer which records MIDI control changes during a phrase and flushes them using the
-/// same trim/rebase/window strategy as `DuetPhraseBuffer`.
+/// Continuous-duet CC context. Records rolling control changes instead of phrase-bounded events.
 struct DuetPhraseEventBuffer: Sendable {
-    struct RecordedControlChange: Equatable, Sendable {
+    struct Snapshot: Equatable, Sendable {
+        let promptEvents: [ImprovEvent]
+        let latestValues: [Int: Int]
+        let sustainValue: Int
+    }
+
+    private struct RecordedControlChange: Equatable, Sendable {
         let controller: Int
         let value: Int
         let timestampSeconds: TimeInterval
     }
 
-    private var phraseStartTimestampSeconds: TimeInterval?
     private var recordedControlChanges: [RecordedControlChange] = []
     private var latestKnownControlValues: [Int: Int] = [:]
+    private var latestKnownControlTimestamps: [Int: TimeInterval] = [:]
+
+    private static let allowedControllers: Set<Int> = [7, 11, 64]
+    private static let maxHistorySeconds: TimeInterval = 12.0
+
+    var sustainValue: Int {
+        latestKnownControlValues[64] ?? 0
+    }
 
     init() {}
 
-    mutating func recordPhraseStartIfNeeded(timestampSeconds: TimeInterval) {
-        if phraseStartTimestampSeconds == nil {
-            phraseStartTimestampSeconds = timestampSeconds
-
-            let injected = latestKnownControlValues
-                .filter { Self.allowedControllers.contains($0.key) }
-                .map { controller, value in
-                    RecordedControlChange(controller: controller, value: value, timestampSeconds: timestampSeconds)
-                }
-                .sorted { lhs, rhs in
-                    if lhs.controller != rhs.controller { return lhs.controller < rhs.controller }
-                    return lhs.value < rhs.value
-                }
-            recordedControlChanges.append(contentsOf: injected)
-        }
-    }
-
     mutating func recordControlChange(controller: Int, value: Int, timestampSeconds: TimeInterval) {
         guard Self.allowedControllers.contains(controller) else { return }
+        pruneHistory(nowTimestampSeconds: timestampSeconds)
         latestKnownControlValues[controller] = value
-        guard phraseStartTimestampSeconds != nil else { return }
-
+        latestKnownControlTimestamps[controller] = timestampSeconds
         recordedControlChanges.append(
-            RecordedControlChange(
-                controller: controller,
-                value: value,
-                timestampSeconds: timestampSeconds
-            )
+            RecordedControlChange(controller: controller, value: value, timestampSeconds: timestampSeconds)
         )
     }
 
-    mutating func flushPhrase(flushedPhrase: DuetPhraseBuffer.FlushResult) -> [ImprovEvent] {
-        defer { reset() }
-        guard let base = phraseStartTimestampSeconds else { return [] }
-        guard recordedControlChanges.isEmpty == false else { return [] }
+    mutating func snapshot(
+        nowTimestampSeconds: TimeInterval,
+        lookbackSeconds: TimeInterval,
+        maxPromptSeconds: TimeInterval
+    ) -> Snapshot {
+        pruneHistory(nowTimestampSeconds: nowTimestampSeconds)
 
-        let rebased = recordedControlChanges.map { change in
-            RecordedControlChange(
+        let lookbackStart = max(0, nowTimestampSeconds - max(0, lookbackSeconds))
+        let latestEventTime = recordedControlChanges.map(\.timestampSeconds).max() ?? nowTimestampSeconds
+        let windowStart = max(lookbackStart, latestEventTime - max(0.5, maxPromptSeconds))
+        let windowEnd = max(nowTimestampSeconds, latestEventTime)
+
+        let initialEvents: [ImprovEvent] = Self.allowedControllers.compactMap { controller in
+            if let beforeWindow = recordedControlChanges.last(where: { $0.controller == controller && $0.timestampSeconds < windowStart }) {
+                return ImprovEvent.cc(controller: beforeWindow.controller, value: beforeWindow.value, time: 0)
+            }
+            guard latestKnownControlTimestamps[controller].map({ $0 < windowStart }) == true,
+                  let currentValue = latestKnownControlValues[controller]
+            else { return nil }
+            return ImprovEvent.cc(controller: controller, value: currentValue, time: 0)
+        }
+
+        let promptEvents = recordedControlChanges.compactMap { change -> ImprovEvent? in
+            guard change.timestampSeconds >= windowStart, change.timestampSeconds <= windowEnd else { return nil }
+            return ImprovEvent.cc(
                 controller: change.controller,
                 value: change.value,
-                timestampSeconds: max(0, change.timestampSeconds - base)
+                time: max(0, change.timestampSeconds - windowStart)
             )
-        }.sorted { lhs, rhs in
-            if lhs.timestampSeconds != rhs.timestampSeconds { return lhs.timestampSeconds < rhs.timestampSeconds }
-            if lhs.controller != rhs.controller { return lhs.controller < rhs.controller }
-            return lhs.value < rhs.value
         }
 
-        let phraseEndTimeSeconds = flushedPhrase.untrimmedEndTimeSeconds
-        if phraseEndTimeSeconds <= 10 {
-            return rebased
-                .filter { $0.timestampSeconds <= phraseEndTimeSeconds + 1e-9 }
-                .map { ImprovEvent.cc(controller: $0.controller, value: $0.value, time: $0.timestampSeconds) }
-        }
-
-        let windowStartSeconds = max(0, phraseEndTimeSeconds - 15)
-        let windowEvents = rebased
-            .filter { $0.timestampSeconds >= windowStartSeconds }
-            .map { change in
-                ImprovEvent.cc(
-                    controller: change.controller,
-                    value: change.value,
-                    time: max(0, change.timestampSeconds - windowStartSeconds)
-                )
-            }
-        let initialAtWindowStart: [ImprovEvent] = Self.allowedControllers.compactMap { controller in
-            let lastChange = rebased.last(where: { $0.controller == controller && $0.timestampSeconds <= windowStartSeconds + 1e-9 })
-            guard let lastChange else { return nil }
-            return ImprovEvent.cc(controller: lastChange.controller, value: lastChange.value, time: 0)
-        }
-
-        return (initialAtWindowStart + windowEvents).sorted { lhs, rhs in
+        let combined = (initialEvents + promptEvents).sorted { lhs, rhs in
             if lhs.time != rhs.time { return lhs.time < rhs.time }
-            if lhs.type != rhs.type { return lhs.type == .cc }
-            return tieBreaker(lhs) < tieBreaker(rhs)
+            return (lhs.controller ?? 0) < (rhs.controller ?? 0)
         }
+
+        return Snapshot(
+            promptEvents: combined,
+            latestValues: latestKnownControlValues,
+            sustainValue: latestKnownControlValues[64] ?? 0
+        )
     }
 
     mutating func reset() {
-        phraseStartTimestampSeconds = nil
         recordedControlChanges.removeAll(keepingCapacity: true)
         latestKnownControlValues.removeAll(keepingCapacity: true)
+        latestKnownControlTimestamps.removeAll(keepingCapacity: true)
     }
 
-    private static let allowedControllers: Set<Int> = [7, 11, 64]
-
-    private func tieBreaker(_ event: ImprovEvent) -> Int {
-        switch event.type {
-        case .cc:
-            return (event.controller ?? 0) * 256 + (event.value ?? 0)
-        case .note:
-            return (event.note ?? 0) * 256 + (event.velocity ?? 0)
-        }
+    private mutating func pruneHistory(nowTimestampSeconds: TimeInterval) {
+        let cutoff = nowTimestampSeconds - Self.maxHistorySeconds
+        recordedControlChanges.removeAll { $0.timestampSeconds < cutoff }
     }
 }
