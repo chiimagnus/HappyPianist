@@ -33,6 +33,7 @@ actor PracticeProgressCoordinator {
     private var pendingProgress: SongPracticeProgress?
     private var delayedFlushTask: Task<Void, Never>?
     private var saveStatus: PracticeProgressSaveStatus = .idle
+    private var lastAcceptedUpdatedAt: Date?
 
     init(
         repository: any PracticeProgressRepositoryProtocol,
@@ -52,14 +53,19 @@ actor PracticeProgressCoordinator {
         currentIdentity = identity
 
         let progress = await repository.progress(for: identity)
+        lastAcceptedUpdatedAt = progress?.updatedAt
         saveStatus = .loaded
         return PracticeProgressSession(generation: currentGeneration, progress: progress)
     }
 
     func checkpoint(_ progress: SongPracticeProgress, generation: Int) {
         guard accepts(progress: progress, generation: generation) else { return }
+        if let lastAcceptedUpdatedAt, progress.updatedAt < lastAcceptedUpdatedAt {
+            return
+        }
         var timestamped = progress
-        timestamped.updatedAt = clock.now()
+        timestamped.updatedAt = max(progress.updatedAt, clock.now())
+        lastAcceptedUpdatedAt = timestamped.updatedAt
         pendingProgress = timestamped
         saveStatus = .pending
 
@@ -105,6 +111,7 @@ actor PracticeProgressCoordinator {
         delayedFlushTask = nil
         currentIdentity = nil
         pendingProgress = nil
+        lastAcceptedUpdatedAt = nil
         currentGeneration += 1
         return status
     }

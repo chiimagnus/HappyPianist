@@ -131,7 +131,11 @@ final class ARGuideViewModel {
             self?.practiceSessionViewModel.clearCalibration()
         }
         appState.onSessionReset = { [weak self] in
-            self?.practiceSessionViewModel.resetSession()
+            Task { @MainActor in
+                guard let self else { return }
+                await self.practiceSessionViewModel.suspendAndFlushProgress()
+                self.practiceSessionViewModel.resetSession()
+            }
         }
         appState.onApplyKeyboardGeometry = { [weak self] geometry, calibration in
             self?.practiceSessionViewModel.applyKeyboardGeometry(geometry, calibration: calibration)
@@ -162,9 +166,8 @@ final class ARGuideViewModel {
     }
 
     func replacePracticeSessionViewModel() async {
-        let next = makePracticeSessionViewModel(practiceSetupState.selectedPianoModeID)
-
         await practiceSessionViewModel.flushAndShutdown()
+        let next = makePracticeSessionViewModel(practiceSetupState.selectedPianoModeID)
         practiceSessionViewModel = next
         placementViewModel.updatePracticeSession(next)
         practiceViewModel.updatePracticeSession(next)
@@ -467,6 +470,10 @@ final class ARGuideViewModel {
 
     func suspendPracticeAndFlushProgress() async {
         await practiceSessionViewModel.suspendAndFlushProgress()
+    }
+
+    func resumePracticeAfterSuspension() {
+        practiceSessionViewModel.resumeAfterSuspension()
     }
 
     func leavePracticeStep() async {

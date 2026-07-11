@@ -28,6 +28,7 @@ struct PracticeWindowRootView: View {
         // .frame(minWidth: 1200, idealWidth: 1600, minHeight: 520, idealHeight: 620)
         .onChange(of: scenePhase) {
             if scenePhase == .active {
+                viewModel.resumePracticeAfterSuspension()
                 dismissPendingSourceIfNeeded()
             } else {
                 Task { await viewModel.suspendPracticeAndFlushProgress() }

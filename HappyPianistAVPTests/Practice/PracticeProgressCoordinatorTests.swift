@@ -51,6 +51,29 @@ func progressCoordinatorDiscardsLateGenerationWrites() async throws {
     #expect(await repository.upsertCount == 0)
 }
 
+
+@Test
+func progressCoordinatorRejectsOlderSnapshotWithinSameGeneration() async throws {
+    let repository = InMemoryPracticeProgressRepository()
+    let coordinator = PracticeProgressCoordinator(repository: repository, checkpointDelay: .seconds(60))
+    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
+    let session = await coordinator.begin(identity: identity)
+    var newer = SongPracticeProgress(
+        identity: identity,
+        updatedAt: Date(timeIntervalSince1970: 200)
+    )
+    newer.measureFacts = [makeFacts(successes: 2)]
+    var older = newer
+    older.updatedAt = Date(timeIntervalSince1970: 100)
+    older.measureFacts = [makeFacts(successes: 1)]
+
+    await coordinator.checkpoint(newer, generation: session.generation)
+    await coordinator.checkpoint(older, generation: session.generation)
+    _ = await coordinator.flush(generation: session.generation)
+
+    #expect(await repository.progress(for: identity)?.measureFacts.first?.successfulAttempts == 2)
+}
+
 @Test
 func progressCoordinatorReportsStoreFailureWithoutCrashingSession() async throws {
     let repository = InMemoryPracticeProgressRepository(upsertError: TestProgressError.writeFailed)

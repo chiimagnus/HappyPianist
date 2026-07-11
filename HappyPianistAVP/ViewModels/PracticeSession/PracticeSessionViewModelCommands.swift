@@ -218,6 +218,15 @@ extension PracticeSessionViewModel {
         await flushProgress()
     }
 
+    func resumeAfterSuspension() {
+        guard hasShutdown == false, steps.isEmpty == false, state != .completed else { return }
+        acceptsPracticeAttempts = true
+        isRestoredSessionPaused = true
+        state = .ready
+        setCurrentHighlightGuideForStepIndex(currentStepIndex)
+        refreshAudioRecognitionForCurrentState()
+    }
+
     func flushAndShutdown() async {
         await suspendAndFlushProgress()
         if let progressCoordinator, let generation = progressGeneration {
@@ -368,6 +377,12 @@ extension PracticeSessionViewModel {
             self.currentStepIndex = activeRange?.firstStepIndex ?? 0
             self.currentHighlightGuideIndex = nil
             self.pressedNotes.removeAll()
+            self.attemptReductionState = PracticeAttemptReductionState()
+            self.lastAttemptOutcome = nil
+            self.lastSessionFact = nil
+            if self.sessionProgress?.identity != self.songIdentity {
+                self.sessionProgress = nil
+            }
         }
 
         let tick = steps.indices.contains(self.currentStepIndex) ? steps[self.currentStepIndex].tick : 0

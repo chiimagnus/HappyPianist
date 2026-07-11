@@ -52,6 +52,36 @@ func restoredPracticeStaysReadyAndSilentUntilExplicitStart() async throws {
     #expect(playback.oneShotCount == 1)
 }
 
+
+@MainActor
+@Test
+func suspendedPracticeReturnsToPausedReadyAndCanRestartInput() async throws {
+    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
+    let repository = ResumeRepository(progress: nil)
+    let coordinator = PracticeProgressCoordinator(repository: repository, checkpointDelay: .seconds(60))
+    let session = PracticeSessionViewModel(
+        pressDetectionService: ResumeNoopPressDetectionService(),
+        chordAttemptAccumulator: ResumeNoopChordAccumulator(),
+        sleeper: TaskSleeper(),
+        progressCoordinator: coordinator
+    )
+    session.songIdentity = identity
+    session.setSteps(
+        makeResumeSteps(),
+        tempoMap: MusicXMLTempoMap(tempoEvents: []),
+        measureSpans: makeResumeSpans()
+    )
+    await session.restoreProgressIfAvailable()
+    session.startGuidingIfReady()
+    await session.suspendAndFlushProgress()
+
+    #expect(session.acceptsPracticeAttempts == false)
+    session.resumeAfterSuspension()
+    #expect(session.acceptsPracticeAttempts)
+    #expect(session.state == .ready)
+    #expect(session.isRestoredSessionPaused)
+}
+
 @MainActor
 @Test
 func flushAndShutdownPersistsLatestResumePointBeforeTeardown() async throws {
