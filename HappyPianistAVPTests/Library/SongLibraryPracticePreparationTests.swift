@@ -52,10 +52,9 @@ func latestPreparationGenerationWins() async throws {
         SongLibraryEntry(id: secondID, displayName: "Second", musicXMLFileName: "second.musicxml", importedAt: .now, audioFileName: nil, isBundled: true),
     ]
     let service = DelayedPreparationService(delays: [firstID: .milliseconds(80), secondID: .milliseconds(5)])
-    let setup = PracticeSetupState()
+    let appState = AppState()
     let viewModel = SongLibraryViewModel(
-        appState: AppState(),
-        practiceSetupState: setup,
+        appState: appState,
         practicePreparationService: service,
         indexStore: PreparationTestIndexStore(),
         fileStore: PreparationTestFileStore(),
@@ -73,7 +72,7 @@ func latestPreparationGenerationWins() async throws {
 
     #expect(newResult)
     #expect(staleResult == false)
-    #expect(setup.preparedPracticeIdentity?.songID == secondID)
+    #expect(appState.practiceSetupState.preparedPracticeIdentity?.songID == secondID)
 }
 
 private final class PreparationTestIndexStore: SongLibraryIndexStoreProtocol {

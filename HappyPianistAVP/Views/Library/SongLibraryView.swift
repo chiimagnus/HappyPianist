@@ -360,7 +360,6 @@ struct SongLibraryView: View {
   let songLibraryPaths = SongLibraryPaths()
   let bundledSongLibraryProvider: BundledSongLibraryProviderProtocol = BundledSongLibraryProvider()
   let songAudioPlayer: SongAudioPlayerProtocol = SongAudioPlayer()
-  let practiceSetupState = PracticeSetupState()
   let appState = AppState(
     arTrackingService: arTrackingService,
     calibrationCaptureService: calibrationCaptureService,
@@ -369,7 +368,6 @@ struct SongLibraryView: View {
   )
   let viewModel = SongLibraryViewModel(
     appState: appState,
-    practiceSetupState: practiceSetupState,
     practicePreparationService: practicePreparationService,
     indexStore: songLibraryIndexStore,
     fileStore: songFileStore,

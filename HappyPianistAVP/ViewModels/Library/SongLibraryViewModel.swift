@@ -11,7 +11,6 @@ enum PracticeLaunchMode: Equatable {
 @Observable
 final class SongLibraryViewModel {
     private let appState: AppState
-    private let practiceSetupState: PracticeSetupState
     private let indexStore: SongLibraryIndexStoreProtocol
     private let fileStore: SongFileStoreProtocol
     private let audioImportService: AudioImportServiceProtocol
@@ -39,7 +38,6 @@ final class SongLibraryViewModel {
 
     init(
         appState: AppState,
-        practiceSetupState: PracticeSetupState,
         practicePreparationService: PracticePreparationServiceProtocol,
         indexStore: SongLibraryIndexStoreProtocol,
         fileStore: SongFileStoreProtocol,
@@ -50,7 +48,6 @@ final class SongLibraryViewModel {
         practiceProgressRepository: any PracticeProgressRepositoryProtocol
     ) {
         self.appState = appState
-        self.practiceSetupState = practiceSetupState
         self.practicePreparationService = practicePreparationService
         self.indexStore = indexStore
         self.fileStore = fileStore

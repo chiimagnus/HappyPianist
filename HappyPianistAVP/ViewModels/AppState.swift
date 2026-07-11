@@ -392,7 +392,6 @@ class AppState {
 
         let libraryViewModel = SongLibraryViewModel(
             appState: self,
-            practiceSetupState: practiceSetupState,
             practicePreparationService: practicePreparationService,
             indexStore: songLibraryIndexStore,
             fileStore: songFileStore,

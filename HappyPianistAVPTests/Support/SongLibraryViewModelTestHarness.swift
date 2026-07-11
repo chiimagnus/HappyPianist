@@ -5,18 +5,15 @@ import Foundation
 enum SongLibraryViewModelTestHarness {
     static func make(
         appState: AppState? = nil,
-        practiceSetupState: PracticeSetupState? = nil,
         index: SongLibraryIndex? = nil,
         bundledEntries: [SongLibraryEntry] = [],
         practicePreparationService: (any PracticePreparationServiceProtocol)? = nil,
         practiceProgressRepository: (any PracticeProgressRepositoryProtocol)? = nil
     ) -> SongLibraryViewModel {
         let resolvedAppState = appState ?? AppState()
-        let resolvedPracticeSetupState = practiceSetupState ?? PracticeSetupState()
         let resolvedIndex = index ?? .empty
         return SongLibraryViewModel(
             appState: resolvedAppState,
-            practiceSetupState: resolvedPracticeSetupState,
             practicePreparationService: practicePreparationService ?? NoopPracticePreparationService(),
             indexStore: InMemorySongLibraryIndexStore(index: resolvedIndex),
             fileStore: InMemorySongFileStore(),
