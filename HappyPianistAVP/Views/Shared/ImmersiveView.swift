@@ -10,6 +10,7 @@ struct ImmersiveView: View {
     @State private var gazePlaneDiskOverlayController = GazePlaneDiskOverlayController()
     @State private var virtualPerformerOverlayController = VirtualPerformerOverlayController()
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var shouldShowCalibrationReticle: Bool {
         guard viewModel.immersiveMode == .calibration else { return false }
@@ -46,6 +47,7 @@ struct ImmersiveView: View {
                 keyboardGeometry: keyboardGeometry,
                 content: content
             )
+            overlayController.updateRestorationEffect(event: session.latestFeedbackEvent, reduceMotion: reduceMotion)
             gazePlaneDiskOverlayController.update(
                 isVisible: viewModel.isGazePlaneDiskVisible,
                 diskWorldTransform: viewModel.gazePlaneDiskWorldTransform,
@@ -85,6 +87,7 @@ struct ImmersiveView: View {
                 keyboardGeometry: keyboardGeometry,
                 content: content
             )
+            overlayController.updateRestorationEffect(event: session.latestFeedbackEvent, reduceMotion: reduceMotion)
             gazePlaneDiskOverlayController.update(
                 isVisible: viewModel.isGazePlaneDiskVisible,
                 diskWorldTransform: viewModel.gazePlaneDiskWorldTransform,
@@ -110,6 +113,7 @@ struct ImmersiveView: View {
             viewModel.onImmersiveAppear()
         }
         .onDisappear {
+            overlayController.reset()
             viewModel.onImmersiveDisappear()
         }
     }
