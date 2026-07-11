@@ -2,6 +2,7 @@ import Foundation
 @testable import LonelyPianistAVP
 import Testing
 
+@MainActor
 struct AudioOutputVolumeSettingsTests {
     @Test func defaultIsOneWhenUnset() throws {
         let suiteName = "AudioOutputVolumeSettingsTests.\(UUID().uuidString)"
