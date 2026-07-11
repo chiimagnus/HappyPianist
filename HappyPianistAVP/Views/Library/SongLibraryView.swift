@@ -3,48 +3,118 @@ import UniformTypeIdentifiers
 
 struct SongLibraryView: View {
     @Bindable var viewModel: SongLibraryViewModel
-    var onStartPractice: () -> Void = {}
+    let onBackToPreparation: @MainActor () -> Void
+    let onStartPractice: @MainActor () -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var selectedEntryID: UUID?
     @State private var isAudioImporterPresented = false
     @State private var pendingAudioBindingEntryID: UUID?
     @State private var pendingDeletionEntryID: UUID?
 
     private var audioImporterTypes: [UTType] {
-        let types = SongLibraryViewModel.supportedAudioFileExtensions.compactMap { UTType(filenameExtension: $0) }
+        let types = SongLibraryViewModel.supportedAudioFileExtensions.compactMap {
+            UTType(filenameExtension: $0)
+        }
         return types.isEmpty ? [.audio] : types
     }
 
     var body: some View {
-        Group {
-            if viewModel.entries.isEmpty {
-                emptyState
-            } else {
-                songList
+        let entries = viewModel.entries
+        let selectedIndex = entries.firstIndex(where: { $0.id == selectedEntryID })
+        let selectedEntry = selectedIndex.map { entries[$0] }
+        let selectedPresentation = selectedIndex.map {
+            SongLibraryTrackPresentation(entry: entries[$0], index: $0)
+        }
+        let selectedIsPlaying =
+            selectedEntry.map { viewModel.isListeningPlaying(entryID: $0.id) } ?? false
+        let selectedDuration = resolvedDuration(
+            presentation: selectedPresentation, selectedEntry: selectedEntry)
+        let selectedCurrentTime = resolvedCurrentTime(selectedEntry: selectedEntry)
+        let selectedProgress = selectedDuration > 0 ? selectedCurrentTime / selectedDuration : 0
+        let requiresAudioImport =
+            selectedEntry != nil && selectedEntry?.audioFileName == nil && selectedEntry?.isBundled != true
+        let canPerformPlaybackAction = selectedEntry?.audioFileName != nil || requiresAudioImport
+
+        VStack(spacing: 0) {
+            LibraryTopBarView(onBack: onBackToPreparation)
+
+            if entries.isEmpty {
+                SongLibraryEmptyView(onImport: viewModel.didTapImportMusicXML)
+            } else if let selectedEntry, let selectedPresentation {
+                LibraryCrateView(
+                    entries: entries,
+                    selectedEntryID: $selectedEntryID,
+                    playingEntryID: viewModel.currentListeningEntryID,
+                    isPlaying: selectedIsPlaying,
+                    reduceMotion: reduceMotion,
+                    onSelectionChanged: didSelectEntry,
+                    onTogglePlayback: togglePlayback,
+                    onImportMusicXML: viewModel.didTapImportMusicXML,
+                    onBindAudio: presentAudioImporter,
+                    onDelete: requestDeletion
+                )
+
+                LibraryTrackInfoView(
+                    presentation: selectedPresentation,
+                    progress: selectedProgress,
+                    currentTime: selectedCurrentTime,
+                    duration: selectedDuration,
+                    canSeek: viewModel.currentListeningEntryID == selectedEntry.id && selectedDuration > 0,
+                    onSeek: { progress in
+                        viewModel.seekListening(entryID: selectedEntry.id, progress: progress)
+                    }
+                )
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 30)
+                .padding(.bottom, 22)
             }
         }
-        .navigationTitle("乐曲库")
+        .frame(
+            minWidth: 780,
+            idealWidth: 1140,
+            maxWidth: 1240,
+            minHeight: 520,
+            idealHeight: 650,
+            maxHeight: 780
+        )
+        .toolbar {
+            ToolbarItemGroup(placement: .bottomOrnament) {
+                Button(
+                    playbackButtonTitle(
+                        requiresAudioImport: requiresAudioImport,
+                        isPlaying: selectedIsPlaying
+                    ),
+                    systemImage: playbackButtonSystemImage(
+                        requiresAudioImport: requiresAudioImport,
+                        isPlaying: selectedIsPlaying
+                    ),
+                    action: toggleSelectedPlayback
+                )
+                .labelStyle(.iconOnly)
+                .buttonStyle(.bordered)
+                .buttonBorderShape(.circle)
+                .disabled(canPerformPlaybackAction == false)
+
+                Button("开始练习", systemImage: "music.note", action: startSelectedPractice)
+                    .buttonStyle(.borderedProminent)
+                    .buttonBorderShape(.capsule)
+                    .tint(LibraryDesignTokens.accent)
+                    .disabled(selectedEntry == nil)
+            }
+        }
         .fileImporter(
             isPresented: $isAudioImporterPresented,
             allowedContentTypes: audioImporterTypes,
-            allowsMultipleSelection: false
-        ) { result in
-            do {
-                let urls = try result.get()
-                guard
-                    let entryID = pendingAudioBindingEntryID,
-                    let audioURL = urls.first
-                else {
-                    return
-                }
-
-                viewModel.bindAudio(entryID: entryID, from: audioURL)
-            } catch {
-                viewModel.errorMessage = "导入音频失败：\(error.localizedDescription)"
-            }
-
-            pendingAudioBindingEntryID = nil
-        }
+            allowsMultipleSelection: false,
+            onCompletion: handleAudioImport
+        )
         .onAppear {
             viewModel.reload()
+            synchronizeSelection()
+        }
+        .onChange(of: viewModel.entries) {
+            synchronizeSelection()
         }
         .onDisappear {
             viewModel.stopListening()
@@ -60,9 +130,7 @@ struct SongLibraryView: View {
                 }
             )
         ) {
-            Button("好") {
-                viewModel.dismissError()
-            }
+            Button("好", action: viewModel.dismissError)
         } message: {
             Text(viewModel.errorMessage ?? "未知错误")
         }
@@ -77,12 +145,7 @@ struct SongLibraryView: View {
                 }
             )
         ) {
-            if let entryID = pendingDeletionEntryID {
-                Button("删除", role: .destructive) {
-                    viewModel.deleteEntry(entryID: entryID)
-                    pendingDeletionEntryID = nil
-                }
-            }
+            Button("删除", role: .destructive, action: deletePendingEntry)
             Button("取消", role: .cancel) {
                 pendingDeletionEntryID = nil
             }
@@ -91,77 +154,118 @@ struct SongLibraryView: View {
         }
     }
 
-    private var emptyState: some View {
-        ContentUnavailableView {
-            Label("乐曲库为空", systemImage: "music.note.list")
-        } description: {
-            Text("先导入 MusicXML 开始你的练习旅程。")
-        } actions: {
-            Button("导入 MusicXML") {
-                viewModel.didTapImportMusicXML()
-            }
-            .buttonStyle(.borderedProminent)
+    private func resolvedDuration(
+        presentation: SongLibraryTrackPresentation?,
+        selectedEntry: SongLibraryEntry?
+    ) -> TimeInterval {
+        if let selectedEntry,
+            viewModel.currentListeningEntryID == selectedEntry.id,
+            viewModel.listeningDuration > 0
+        {
+            return viewModel.listeningDuration
+        }
+        return presentation?.knownDuration ?? 0
+    }
+
+    private func resolvedCurrentTime(selectedEntry: SongLibraryEntry?) -> TimeInterval {
+        guard let selectedEntry, viewModel.currentListeningEntryID == selectedEntry.id else { return 0 }
+        return viewModel.listeningCurrentTime
+    }
+
+    private func playbackButtonTitle(requiresAudioImport: Bool, isPlaying: Bool) -> String {
+        if requiresAudioImport {
+            return "导入音频"
+        }
+        return isPlaying ? "暂停" : "播放"
+    }
+
+    private func playbackButtonSystemImage(requiresAudioImport: Bool, isPlaying: Bool) -> String {
+        if requiresAudioImport {
+            return "waveform.badge.plus"
+        }
+        return isPlaying ? "pause.fill" : "play.fill"
+    }
+
+    private func synchronizeSelection() {
+        let entries = viewModel.entries
+        guard entries.isEmpty == false else {
+            selectedEntryID = nil
+            return
+        }
+
+        if let selectedEntryID, entries.contains(where: { $0.id == selectedEntryID }) {
+            return
+        }
+
+        selectedEntryID =
+            viewModel.index.lastSelectedEntryID.flatMap { preferredID in
+                entries.first(where: { $0.id == preferredID })?.id
+            } ?? entries.first?.id
+    }
+
+    private func didSelectEntry(_ entryID: UUID) {
+        if let currentListeningEntryID = viewModel.currentListeningEntryID,
+            currentListeningEntryID != entryID
+        {
+            viewModel.stopListening()
         }
     }
 
-    private var songList: some View {
-        List(viewModel.entries) { entry in
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(entry.displayName)
-                            .font(.headline)
-                        if entry.isBundled == true {
-                            Text("内置曲目")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        } else {
-                            Text(entry.importedAt, style: .date)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
+    private func toggleSelectedPlayback() {
+        guard let selectedEntryID else { return }
+        togglePlayback(selectedEntryID)
+    }
 
-                    Spacer()
-
-                    Button("开始练习") {
-                        if viewModel.preparePractice(entryID: entry.id) {
-                            onStartPractice()
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                }
-
-                HStack(spacing: 8) {
-                    if entry.audioFileName == nil {
-                        Text("(无音频)")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        if entry.isBundled != true {
-                            Button("导入音频") {
-                                pendingAudioBindingEntryID = entry.id
-                                isAudioImporterPresented = true
-                            }
-                            .buttonStyle(.bordered)
-                        }
-                    } else {
-                        Button(viewModel.isListeningPlaying(entryID: entry.id) ? "暂停" : "聆听") {
-                            viewModel.didTapListen(entryID: entry.id)
-                        }
-                        .buttonStyle(.bordered)
-                    }
-                }
+    private func togglePlayback(_ entryID: UUID) {
+        guard let entry = viewModel.entries.first(where: { $0.id == entryID }) else { return }
+        guard entry.audioFileName != nil else {
+            if entry.isBundled == true {
+                viewModel.errorMessage = "此内置曲目没有可播放的音频。"
+            } else {
+                presentAudioImporter(entryID)
             }
-            .padding(.vertical, 2)
-            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                if entry.isBundled != true {
-                    Button("删除", role: .destructive) {
-                        pendingDeletionEntryID = entry.id
-                    }
-                }
-            }
+            return
         }
+        viewModel.didTapListen(entryID: entryID)
+    }
+
+    private func startSelectedPractice() {
+        guard let selectedEntryID, viewModel.preparePractice(entryID: selectedEntryID) else { return }
+        onStartPractice()
+    }
+
+    private func presentAudioImporter(_ entryID: UUID) {
+        guard let entry = viewModel.entries.first(where: { $0.id == entryID }), entry.isBundled != true else {
+            return
+        }
+        pendingAudioBindingEntryID = entryID
+        isAudioImporterPresented = true
+    }
+
+    private func requestDeletion(_ entryID: UUID) {
+        guard let entry = viewModel.entries.first(where: { $0.id == entryID }), entry.isBundled != true else {
+            return
+        }
+        pendingDeletionEntryID = entryID
+    }
+
+    private func handleAudioImport(_ result: Result<[URL], Error>) {
+        defer { pendingAudioBindingEntryID = nil }
+
+        do {
+            let urls = try result.get()
+            guard let entryID = pendingAudioBindingEntryID, let audioURL = urls.first else { return }
+            viewModel.bindAudio(entryID: entryID, from: audioURL)
+        } catch {
+            viewModel.errorMessage = "导入音频失败：\(error.localizedDescription)"
+        }
+    }
+
+    private func deletePendingEntry() {
+        guard let entryID = pendingDeletionEntryID else { return }
+        viewModel.deleteEntry(entryID: entryID)
+        pendingDeletionEntryID = nil
+        synchronizeSelection()
     }
 }
 
@@ -172,7 +276,8 @@ struct SongLibraryView: View {
     let stepBuilder: PracticeStepBuilderProtocol = PracticeStepBuilder()
     let arTrackingService = ARTrackingService()
     let calibrationCaptureService = CalibrationPointCaptureService()
-    let calibrationRepository = CalibrationRepository(worldAnchorCalibrationStore: worldAnchorCalibrationStore)
+    let calibrationRepository = CalibrationRepository(
+        worldAnchorCalibrationStore: worldAnchorCalibrationStore)
     let practicePreparationService: PracticePreparationServiceProtocol =
         PracticePreparationService(parser: parser, stepBuilder: stepBuilder)
     let songLibraryIndexStore: SongLibraryIndexStoreProtocol = SongLibraryIndexStore()
@@ -199,7 +304,9 @@ struct SongLibraryView: View {
         bundledProvider: bundledSongLibraryProvider,
         audioPlayer: songAudioPlayer
     )
-    return NavigationStack {
-        SongLibraryView(viewModel: viewModel)
-    }
+    return SongLibraryView(
+        viewModel: viewModel,
+        onBackToPreparation: {},
+        onStartPractice: {}
+    )
 }

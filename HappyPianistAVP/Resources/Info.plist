@@ -46,6 +46,25 @@
 				<string>application/vnd.recordare.musicxml+xml</string>
 			</dict>
 		</dict>
+		<dict>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.zip-archive</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Compressed MusicXML</string>
+			<key>UTTypeIdentifier</key>
+			<string>com.recordare.musicxml.mxl</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>mxl</string>
+				</array>
+				<key>public.mime-type</key>
+				<string>application/vnd.recordare.musicxml</string>
+			</dict>
+		</dict>
 	</array>
 	<key>UIApplicationSceneManifest</key>
 	<dict>

@@ -52,6 +52,8 @@
 | `HappyPianistAVP/Services/Library/AudioImportService.swift` | 写入用户绑定音频。 |
 | `HappyPianistAVP/Services/Practice/Session/PracticePreparationService.swift` | 把 MusicXML 转成 `PreparedPractice`。 |
 
+曲库 UI 直接使用 visionOS 系统窗口背景，并通过 `ToolbarItemGroup(placement: .bottomOrnament)` 提供播放与开始练习操作。中心唱片上拽可导入 `.xml`、`.musicxml` 或 `.mxl`；用户曲目的音频替换与删除位于唱片 context menu。
+
 ## 沉浸空间
 
 | 代码 | 说明 |

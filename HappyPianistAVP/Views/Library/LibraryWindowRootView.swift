@@ -15,13 +15,8 @@ struct LibraryWindowRootView: View {
     }
 
     var body: some View {
-        let selectedTitle = windowState.pianoModeRegistry
-            .mode(for: windowState.practiceSetupState.selectedPianoModeID)?
-            .pickerCard.title
-
         LibraryContentView(
             songLibraryViewModel: songLibraryViewModel,
-            selectedPianoModeTitle: selectedTitle,
             onBackToPreparation: {
                 windowState.resetToPreparation(reason: "user tapped back from library window")
                 windowState.beginTransition(from: .library, to: .preparation)
@@ -32,7 +27,6 @@ struct LibraryWindowRootView: View {
                 openWindow(id: WindowID.practice)
             }
         )
-        // .frame(minWidth: 700, idealWidth: 900, minHeight: 520, idealHeight: 700)
         .onChange(of: scenePhase) {
             guard scenePhase == .active else { return }
             dismissPendingSourceIfNeeded()

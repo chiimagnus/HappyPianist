@@ -14,6 +14,7 @@ final class SongLibraryViewModel {
     private let bundledEntries: [SongLibraryEntry]
     private let practicePreparationService: PracticePreparationServiceProtocol
     private let audioPlaybackController: SongAudioPlaybackStateController
+    @ObservationIgnored private var playbackProgressTask: Task<Void, Never>?
 
     static let supportedAudioFileExtensions = ["mp3", "m4a"]
     private static let supportedAudioFileExtensionSet = Set(supportedAudioFileExtensions)
@@ -22,6 +23,8 @@ final class SongLibraryViewModel {
     var errorMessage: String?
     var currentListeningEntryID: UUID?
     var isCurrentListeningPlaying = false
+    var listeningCurrentTime: TimeInterval = 0
+    var listeningDuration: TimeInterval = 0
     var isMusicXMLImporterPresented = false
 
     init(
@@ -226,6 +229,9 @@ final class SongLibraryViewModel {
 
             do {
                 try indexStore.save(updatedIndex)
+                if currentListeningEntryID == entryID {
+                    stopListening()
+                }
                 index = updatedIndex
                 if let previousAudioFileName {
                     try? fileStore.deleteAudioFile(named: previousAudioFileName)
@@ -261,13 +267,22 @@ final class SongLibraryViewModel {
             }
             try audioPlaybackController.toggle(entryID: entryID, url: audioURL)
             syncListeningState()
+            updatePlaybackProgressTask()
         } catch {
             errorMessage = "播放失败：\(error.localizedDescription)"
         }
     }
 
     func stopListening() {
+        playbackProgressTask?.cancel()
+        playbackProgressTask = nil
         audioPlaybackController.stop()
+        syncListeningState()
+    }
+
+    func seekListening(entryID: UUID, progress: Double) {
+        guard currentListeningEntryID == entryID else { return }
+        audioPlaybackController.seek(toProgress: progress)
         syncListeningState()
     }
 
@@ -278,9 +293,29 @@ final class SongLibraryViewModel {
     private func syncListeningState() {
         currentListeningEntryID = audioPlaybackController.currentEntryID
         if let currentListeningEntryID {
-            isCurrentListeningPlaying = audioPlaybackController.isPlaying(entryID: currentListeningEntryID)
+            isCurrentListeningPlaying = audioPlaybackController.isPlaying(
+                entryID: currentListeningEntryID)
+            listeningCurrentTime = audioPlaybackController.currentTime
+            listeningDuration = audioPlaybackController.duration
         } else {
             isCurrentListeningPlaying = false
+            listeningCurrentTime = 0
+            listeningDuration = 0
+        }
+    }
+
+    private func updatePlaybackProgressTask() {
+        playbackProgressTask?.cancel()
+        playbackProgressTask = nil
+
+        guard isCurrentListeningPlaying else { return }
+
+        playbackProgressTask = Task { @MainActor [weak self] in
+            while Task.isCancelled == false {
+                try? await Task.sleep(for: .milliseconds(250))
+                guard let self, self.isCurrentListeningPlaying else { return }
+                self.syncListeningState()
+            }
         }
     }
 }

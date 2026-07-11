@@ -4,11 +4,21 @@ import Foundation
 protocol SongAudioPlayerProtocol: AnyObject {
     var onPlaybackFinished: ((UUID?) -> Void)? { get set }
     var currentEntryID: UUID? { get }
+    var currentTime: TimeInterval { get }
+    var duration: TimeInterval { get }
 
     func play(entryID: UUID, url: URL) throws
     func pause()
     func stop()
+    func seek(to time: TimeInterval)
     func isPlaying(entryID: UUID) -> Bool
+}
+
+extension SongAudioPlayerProtocol {
+    var currentTime: TimeInterval { 0 }
+    var duration: TimeInterval { 0 }
+
+    func seek(to _: TimeInterval) {}
 }
 
 enum SongAudioPlayerStateError: Error {
@@ -18,6 +28,8 @@ enum SongAudioPlayerStateError: Error {
 final class SongAudioPlayer: NSObject, SongAudioPlayerProtocol, AVAudioPlayerDelegate {
     var onPlaybackFinished: ((UUID?) -> Void)?
     private(set) var currentEntryID: UUID?
+    var currentTime: TimeInterval { audioPlayer?.currentTime ?? 0 }
+    var duration: TimeInterval { audioPlayer?.duration ?? 0 }
 
     private let userDefaults: UserDefaults
     private var audioPlayer: AVAudioPlayer?
@@ -37,7 +49,8 @@ final class SongAudioPlayer: NSObject, SongAudioPlayerProtocol, AVAudioPlayerDel
     }
 
     deinit {
-        NotificationCenter.default.removeObserver(self, name: UserDefaults.didChangeNotification, object: nil)
+        NotificationCenter.default.removeObserver(
+            self, name: UserDefaults.didChangeNotification, object: nil)
     }
 
     func play(entryID: UUID, url: URL) throws {
@@ -71,6 +84,11 @@ final class SongAudioPlayer: NSObject, SongAudioPlayerProtocol, AVAudioPlayerDel
         audioPlayer?.currentTime = 0
         audioPlayer = nil
         currentEntryID = nil
+    }
+
+    func seek(to time: TimeInterval) {
+        guard let audioPlayer else { return }
+        audioPlayer.currentTime = min(max(time, 0), audioPlayer.duration)
     }
 
     func isPlaying(entryID: UUID) -> Bool {
@@ -138,6 +156,20 @@ final class SongAudioPlaybackStateController {
     func stop() {
         player.stop()
         currentEntryID = nil
+        onStateChanged?(currentEntryID)
+    }
+
+    var currentTime: TimeInterval {
+        player.currentTime
+    }
+
+    var duration: TimeInterval {
+        player.duration
+    }
+
+    func seek(toProgress progress: Double) {
+        guard duration > 0 else { return }
+        player.seek(to: min(max(progress, 0), 1) * duration)
         onStateChanged?(currentEntryID)
     }
 

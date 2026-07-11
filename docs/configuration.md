@@ -27,7 +27,7 @@
 | --- | --- | --- |
 | 权限说明 | `HappyPianistAVP/Resources/Info.plist` | Hand Tracking、World Sensing、Microphone、Bluetooth。 |
 | 网络（可选） | `HappyPianistAVP/Resources/Info.plist` | 为网络即兴后端（Aria v2）预留 Local Network + Bonjour：`NSLocalNetworkUsageDescription`、`NSBonjourServices = _lpduet._tcp`、`NSAllowsLocalNetworking = true`。仅当用户在练习设置中选择网络后端时才会使用。 |
-| MusicXML 文件类型 | `UTImportedTypeDeclarations` | 导入 `.musicxml` / `.xml`。 |
+| MusicXML 文件类型 | `UTImportedTypeDeclarations` | 导入 `.musicxml` / `.xml` / `.mxl`。 |
 | 字体 | `UIAppFonts` | `Bravura.otf`。 |
 | soundfont | `HappyPianistAVP/Resources/Audio/SoundFonts/SalC5Light2.sf2` | 仓库默认不内置；需要本地 sampler 回放时手动放入。 |
 
