@@ -54,7 +54,7 @@ struct ImmersiveView: View {
                 content: content
             )
             virtualPianoOverlayController.update(
-                isEnabled: viewModel.isVirtualPianoEnabled,
+                isEnabled: viewModel.shouldShowVirtualPiano,
                 keyboardGeometry: keyboardGeometry,
                 content: content
             )
@@ -93,7 +93,7 @@ struct ImmersiveView: View {
                 content: content
             )
             virtualPianoOverlayController.update(
-                isEnabled: viewModel.isVirtualPianoEnabled,
+                isEnabled: viewModel.shouldShowVirtualPiano,
                 keyboardGeometry: keyboardGeometry,
                 content: content
             )

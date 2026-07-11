@@ -284,6 +284,10 @@ final class ARGuideViewModel {
         placementViewModel.isVirtualPianoEnabled
     }
 
+    var shouldShowVirtualPiano: Bool {
+        placementViewModel.isVirtualPianoEnabled && placementViewModel.presentation != .hidden
+    }
+
     var isVirtualPianoPlaced: Bool {
         placementViewModel.isVirtualPianoPlaced
     }
@@ -314,6 +318,10 @@ final class ARGuideViewModel {
 
     func setPracticeVirtualPianoEnabled(_ isEnabled: Bool) {
         placementViewModel.setPracticeVirtualPianoEnabled(isEnabled)
+    }
+
+    func hideVirtualPiano() {
+        placementViewModel.hideVirtualPiano()
     }
 
     func retryVirtualPianoPlacement() {

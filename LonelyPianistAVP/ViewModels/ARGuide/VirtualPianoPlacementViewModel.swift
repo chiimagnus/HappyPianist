@@ -6,6 +6,12 @@ import simd
 @MainActor
 @Observable
 final class VirtualPianoPlacementViewModel {
+    enum Presentation: Equatable {
+        case hidden
+        case placement
+        case practice
+    }
+
     private let appState: AppState
     private let practiceLocalizationViewModel: PracticeLocalizationViewModel
     private let gazePlaneHitTestService: any GazePlaneHitTestingProtocol
@@ -16,6 +22,7 @@ final class VirtualPianoPlacementViewModel {
 
     var practiceSessionViewModel: PracticeSessionViewModel
     var isVirtualPianoEnabled = false
+    private(set) var presentation: Presentation = .hidden
     var isVirtualPianoPlaced = false
     var latestDeviceWorldPosition: SIMD3<Float>?
     var latestGazePlaneHit: PlaneHit?
@@ -123,6 +130,7 @@ final class VirtualPianoPlacementViewModel {
                 }
             #endif
         } else {
+            presentation = .hidden
             practiceSessionViewModel.stopVirtualPianoInput()
             practiceSessionViewModel.clearCalibration()
             practiceLocalizationViewModel.setPracticeLocalizationState(.idle)
@@ -130,6 +138,20 @@ final class VirtualPianoPlacementViewModel {
             latestGazePlaneHit = nil
             stopGuidance()
         }
+    }
+
+    func showVirtualPianoForPlacement() {
+        guard isVirtualPianoEnabled else { return }
+        presentation = .placement
+    }
+
+    func showVirtualPianoForPractice() {
+        guard isVirtualPianoEnabled else { return }
+        presentation = .practice
+    }
+
+    func hideVirtualPiano() {
+        presentation = .hidden
     }
 
     func retryPlacement() {

@@ -271,6 +271,37 @@ func arGuideViewModelToggleOffClearsVirtualKeyboardAndStopsLiveNotes() throws {
 }
 
 @MainActor
+@Test
+func hidingVirtualPianoPreservesPlacedKeyboardForLaterPractice() async {
+    let session = PracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: TaskSleeper(),
+        sequencerPlaybackService: LiveNoteCapturingPlaybackService()
+    )
+    let viewModel = ARGuideViewModel(
+        appState: AppState(),
+        practiceSetupState: PracticeSetupState(),
+        pianoModeRegistry: PianoModeRegistryService(modes: []),
+        makePracticeSessionViewModel: SinglePracticeSessionViewModelProvider(session: session).callAsFunction
+    )
+
+    viewModel.setPracticeVirtualPianoEnabled(true)
+
+    await viewModel.enterPracticeStep(
+        openImmersiveSpace: { _ in .opened },
+        dismissImmersiveSpace: {}
+    )
+    session.applyVirtualKeyboardGeometry(makeTestKeyboardGeometry())
+    #expect(viewModel.shouldShowVirtualPiano)
+
+    viewModel.hideVirtualPiano()
+
+    #expect(viewModel.shouldShowVirtualPiano == false)
+    #expect(session.keyboardGeometry != nil)
+}
+
+@MainActor
 private final class SinglePracticeSessionViewModelProvider: @unchecked Sendable {
     private let session: PracticeSessionViewModel
 
