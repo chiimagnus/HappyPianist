@@ -122,6 +122,60 @@ struct PracticeAttemptReducerTests {
         #expect(facts.successfulAttempts == 0)
         #expect(result.fact == nil)
     }
+
+    @Test func tempoChangeStartsANewStableStreak() throws {
+        let fixture = try Fixture(requiredSuccesses: 2)
+        let reducer = PracticeAttemptReducer()
+        var progress: SongPracticeProgress?
+        var state = PracticeAttemptReductionState()
+
+        for stepIndex in 0 ... 1 {
+            let result = reducer.reduceAttempt(
+                progress: progress,
+                reductionState: state,
+                outcome: fixture.matched(stepIndex: stepIndex),
+                stepIndex: stepIndex,
+                identity: fixture.identity,
+                configuration: fixture.configuration,
+                roundGeneration: 1,
+                measureIndex: fixture.measureIndex,
+                timestamp: .now
+            )
+            progress = result.progress
+            state = result.reductionState
+        }
+
+        let fasterConfiguration = fixture.configuration(tempoScale: 1)
+        let restarted = reducer.reducePassageRestart(
+            progress: progress,
+            identity: fixture.identity,
+            configuration: fasterConfiguration,
+            roundGeneration: 2,
+            timestamp: .now
+        )
+        progress = restarted.progress
+        state = restarted.reductionState
+        for stepIndex in 0 ... 1 {
+            let result = reducer.reduceAttempt(
+                progress: progress,
+                reductionState: state,
+                outcome: fixture.matched(stepIndex: stepIndex),
+                stepIndex: stepIndex,
+                identity: fixture.identity,
+                configuration: fasterConfiguration,
+                roundGeneration: 2,
+                measureIndex: fixture.measureIndex,
+                timestamp: .now
+            )
+            progress = result.progress
+            state = result.reductionState
+        }
+
+        let facts = try #require(progress?.measureFacts.first)
+        #expect(facts.successfulAttempts == 2)
+        #expect(facts.consecutiveSuccesses == 1)
+        #expect(facts.state == .learning)
+    }
 }
 
 private struct Fixture {
@@ -169,6 +223,16 @@ private struct Fixture {
 
     func insufficient(stepIndex: Int) -> StepAttemptMatchResult {
         .insufficientEvidence(evidence: evidence(stepIndex: stepIndex, observed: []))
+    }
+
+    func configuration(tempoScale: Double) -> PracticeRoundConfiguration {
+        PracticeRoundConfiguration(
+            passage: configuration.passage,
+            handMode: configuration.handMode,
+            tempoScale: tempoScale,
+            loopEnabled: configuration.loopEnabled,
+            requiredSuccesses: configuration.requiredSuccesses
+        )
     }
 
     private func evidence(stepIndex: Int, observed: Set<Int>) -> PracticeAttemptEvidence {
