@@ -46,9 +46,12 @@ private final class FakeImmediatePlaybackService: PracticeSequencerPlaybackServi
 private actor SequenceBuildGate {
     private var continuation: CheckedContinuation<Void, Never>?
     private var didStart = false
+    private var startWaiters: [CheckedContinuation<Void, Never>] = []
 
     func build(_ schedule: [PracticeSequencerMIDIEvent]) async throws -> PracticeSequencerSequence {
         didStart = true
+        startWaiters.forEach { $0.resume() }
+        startWaiters.removeAll()
         await withCheckedContinuation { continuation in
             self.continuation = continuation
         }
@@ -56,12 +59,11 @@ private actor SequenceBuildGate {
         return PracticeSequencerSequence(midiData: Data(), durationSeconds: end, events: schedule)
     }
 
-    func waitForStart() async -> Bool {
-        for _ in 0 ..< 500 {
-            if didStart { return true }
-            await Task.yield()
+    func waitForStart() async {
+        guard didStart == false else { return }
+        await withCheckedContinuation { continuation in
+            startWaiters.append(continuation)
         }
-        return didStart
     }
 
     func resume() {
@@ -71,7 +73,7 @@ private actor SequenceBuildGate {
 }
 
 @Test
-func duetAIPlaybackQueueSubmitWindowShiftsLeadInAndReplacesPendingWindow() async {
+func duetAIPlaybackQueueSubmitWindowShiftsLeadInForQueuedWindows() async {
     let fakeService = await MainActor.run { FakeImmediatePlaybackService() }
     let factory = await MainActor.run {
         DuetAIPlaybackServiceFactory(
@@ -109,7 +111,6 @@ func duetAIPlaybackQueueSubmitWindowShiftsLeadInAndReplacesPendingWindow() async
 
     let result2 = await queue.submitWindow(schedule: schedule2, routing: routing, submittedAtUptimeSeconds: 100)
     #expect(abs(result2.baseDelaySeconds - 0.05) < 1e-9)
-    #expect(result2.replacedPendingWindow)
     #expect(abs(result2.shiftedSchedule[0].timeSeconds - 0.05) < 1e-9)
     #expect(abs(result2.windowEndUptimeSeconds - 100.15) < 1e-9)
 
@@ -147,7 +148,7 @@ func duetAIPlaybackQueueClearPendingWindowDropsQueuedReplacement() async {
     ]
 
     _ = await queue.submitWindow(schedule: currentSchedule, routing: routing, submittedAtUptimeSeconds: 50)
-    #expect(await gate.waitForStart())
+    await gate.waitForStart()
     let replacement = await queue.submitWindow(schedule: replacementSchedule, routing: routing, submittedAtUptimeSeconds: 50)
     #expect(abs(replacement.baseDelaySeconds - 0.05) < 1e-9)
     await queue.clearPendingWindow()
@@ -184,7 +185,7 @@ func duetAIPlaybackQueueStopAllPreventsLateBuildFromStartingPlayback() async {
         routing: routing,
         submittedAtUptimeSeconds: 50
     )
-    #expect(await gate.waitForStart())
+    await gate.waitForStart()
 
     await queue.stopAll()
     await gate.resume()
