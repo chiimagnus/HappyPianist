@@ -12,6 +12,7 @@ final class PianoGuideOverlayController {
     private var lastGuideIDByMIDINote: [Int: Int] = [:]
     private var didAttemptDecalTextureLoad = false
     private var decalTexture: TextureResource?
+    private let restorationRenderer = PracticeRestorationEffectRenderer()
 
     func updateHighlights(
         highlightGuide: PianoHighlightGuide?,
@@ -68,6 +69,17 @@ final class PianoGuideOverlayController {
             beam.scale = descriptor.sizeLocal
             beam.position = descriptor.positionLocal
         }
+    }
+
+    func updateRestorationEffect(event: PracticeFeedbackEvent?, reduceMotion: Bool) {
+        restorationRenderer.update(event: event, parent: keyboardRootEntity, reduceMotion: reduceMotion)
+    }
+
+    func reset() {
+        clearBeams()
+        restorationRenderer.reset()
+        rootEntity.removeFromParent()
+        hasAttachedRoot = false
     }
 
     private func beamMaterial(for descriptor: PianoGuideBeamDescriptor) -> UnlitMaterial {
