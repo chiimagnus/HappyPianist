@@ -21,6 +21,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
     let audioStepAttemptAccumulator: AudioStepAttemptAccumulator
     let midiPracticeStepMatcher: any MIDIPracticeStepMatchingProtocol
     let settingsProvider: any PracticeSessionSettingsProviderProtocol
+    let attemptReducer = PracticeAttemptReducer()
     let roundConfigurationController: PracticeRoundConfigurationController
 
     var practiceMIDIInputService: PracticeMIDIInputService?
@@ -162,7 +163,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
     func handle(effect: PracticeSessionEffect) {
         switch effect {
         case let .attemptEvaluated(outcome):
-            lastAttemptOutcome = outcome
+            recordAttemptOutcome(outcome)
         case .advanceToNextStep:
             advanceToNextStep()
         case .refreshPracticeInput:
