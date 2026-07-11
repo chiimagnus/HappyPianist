@@ -30,7 +30,9 @@ final class PracticeHighlightGuideController: PracticeSessionLifecycleProtocol {
     func setCurrentHighlightGuideForStepIndex(_ stepIndex: Int) {
         stopTransition()
 
-        guard stateStore.steps.indices.contains(stepIndex) else {
+        guard stateStore.steps.indices.contains(stepIndex),
+              stateStore.activeRange?.contains(stepIndex: stepIndex) ?? true
+        else {
             stateStore.currentHighlightGuideIndex = nil
             return
         }
@@ -45,7 +47,9 @@ final class PracticeHighlightGuideController: PracticeSessionLifecycleProtocol {
 
         stopTransition()
 
-        guard stateStore.steps.indices.contains(nextStepIndex) else {
+        guard stateStore.steps.indices.contains(nextStepIndex),
+              stateStore.activeRange?.contains(stepIndex: nextStepIndex) ?? true
+        else {
             stateStore.currentHighlightGuideIndex = nil
             return
         }
@@ -54,6 +58,7 @@ final class PracticeHighlightGuideController: PracticeSessionLifecycleProtocol {
         let transitionIndex = stateStore.highlightGuides.firstIndex { guide in
             guide.tick > previousTick &&
                 guide.tick < nextTick &&
+                (stateStore.activeRange?.contains(tick: guide.tick) ?? true) &&
                 (guide.kind == .release || guide.kind == .gap)
         }
 

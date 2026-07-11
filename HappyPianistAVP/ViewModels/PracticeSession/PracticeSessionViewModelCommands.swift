@@ -8,6 +8,7 @@ extension PracticeSessionViewModel {
     var currentStep: PracticeStep? {
         guard self.state != .completed else { return nil }
         guard self.steps.indices.contains(self.currentStepIndex) else { return nil }
+        guard self.activeRange?.contains(stepIndex: self.currentStepIndex) ?? true else { return nil }
         return self.steps[self.currentStepIndex]
     }
 
@@ -44,7 +45,12 @@ extension PracticeSessionViewModel {
     }
 
     var notationMeasureSpans: [MusicXMLMeasureSpan] {
-        self.measureSpans
+        self.activeRange?.measureSpans ?? self.measureSpans
+    }
+
+    var activeHighlightGuides: [PianoHighlightGuide] {
+        guard let activeRange else { return highlightGuides }
+        return highlightGuides.filter { activeRange.contains(tick: $0.tick) }
     }
 
     var currentGrandStaffNotationContext: GrandStaffNotationContext? {
@@ -137,7 +143,8 @@ extension PracticeSessionViewModel {
         ManualAdvanceContext(
             currentStepIndex: self.currentStepIndex,
             steps: self.steps,
-            measureSpans: self.measureSpans
+            measureSpans: self.activeRange?.measureSpans ?? self.measureSpans,
+            activeRange: self.activeRange
         )
     }
 
@@ -157,13 +164,32 @@ extension PracticeSessionViewModel {
         stopAutoplayAudio()
         stopAudioRecognition()
         let routingChanged = roundConfigurationController.applyPending()
-        currentStepIndex = 0
+        rebuildActiveRange()
+        currentStepIndex = activeRange?.firstStepIndex ?? 0
         state = steps.isEmpty ? .idle : .ready
         setCurrentHighlightGuideForStepIndex(currentStepIndex)
         rebuildAutoplayTimeline()
         refreshAudioRecognitionForCurrentState()
         refreshPracticeInputForCurrentState()
         return routingChanged
+    }
+
+    func rebuildActiveRange() {
+        guard let configuration = activeRoundConfiguration, let measureIndex else {
+            activeRange = nil
+            activeRangeDiagnostic = nil
+            return
+        }
+        do {
+            activeRange = try measureIndex.resolve(configuration.passage)
+            activeRangeDiagnostic = nil
+        } catch let diagnostic as PracticeMeasureIndexDiagnostic {
+            activeRange = nil
+            activeRangeDiagnostic = diagnostic
+        } catch {
+            activeRange = nil
+            activeRangeDiagnostic = .passageBoundaryNotFound
+        }
     }
 
     func setSteps(
@@ -197,6 +223,8 @@ extension PracticeSessionViewModel {
         {
             roundConfigurationController.installInitialPassageIfNeeded(passage)
         }
+        measureIndex = PracticeMeasureIndex(steps: steps, measureSpans: measureSpans)
+        rebuildActiveRange()
         self.pedalTimeline = pedalTimeline
         self.fermataTimeline = fermataTimeline
         self.attributeTimeline = attributeTimeline
@@ -206,7 +234,7 @@ extension PracticeSessionViewModel {
         self.currentHighlightGuideIndex = nil
 
         if shouldResetProgress {
-            self.currentStepIndex = 0
+            self.currentStepIndex = activeRange?.firstStepIndex ?? 0
             self.currentHighlightGuideIndex = nil
             self.pressedNotes.removeAll()
         }
@@ -320,7 +348,7 @@ extension PracticeSessionViewModel {
     func startGuidingIfReady() {
         guard self.state == .ready, self.steps.isEmpty == false else { return }
 
-        let navigation = stepNavigator.restart(steps: self.steps)
+        let navigation = stepNavigator.restart(steps: self.steps, activeRange: self.activeRange)
         self.currentStepIndex = navigation.currentStepIndex
         setCurrentHighlightGuideForStepIndex(self.currentStepIndex)
         self.state = navigation.state
@@ -390,10 +418,21 @@ extension PracticeSessionViewModel {
     }
 
     func advanceToNextStep() {
-        let navigation = stepNavigator.advance(steps: self.steps, currentStepIndex: self.currentStepIndex)
+        let navigation = stepNavigator.advance(
+            steps: self.steps,
+            currentStepIndex: self.currentStepIndex,
+            activeRange: self.activeRange
+        )
         guard case let .guiding(stepIndex: nextIndex) = navigation.state else {
             if navigation.state == .idle {
                 self.state = .idle
+                return
+            }
+
+            if activeRoundConfiguration?.loopEnabled == true,
+               let firstStepIndex = activeRange?.firstStepIndex
+            {
+                moveToStep(firstStepIndex, shouldPlaySound: autoplayState == .off)
                 return
             }
 
@@ -423,7 +462,11 @@ extension PracticeSessionViewModel {
     }
 
     func moveToStep(_ nextStepIndex: Int, shouldPlaySound: Bool) {
-        let navigation = stepNavigator.move(to: nextStepIndex, steps: self.steps)
+        let navigation = stepNavigator.move(
+            to: nextStepIndex,
+            steps: self.steps,
+            activeRange: self.activeRange
+        )
         guard case let .guiding(stepIndex: targetIndex) = navigation.state else {
             completeManualAdvance()
             return
@@ -443,7 +486,13 @@ extension PracticeSessionViewModel {
     }
 
     private func completeManualAdvance() {
-        self.currentStepIndex = self.steps.count
+        if activeRoundConfiguration?.loopEnabled == true,
+           let firstStepIndex = activeRange?.firstStepIndex
+        {
+            moveToStep(firstStepIndex, shouldPlaySound: autoplayState == .off)
+            return
+        }
+        self.currentStepIndex = activeRange?.completionStepIndex ?? self.steps.count
         self.currentHighlightGuideIndex = nil
         self.pressedNotes.removeAll()
         self.state = .completed

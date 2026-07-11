@@ -81,6 +81,7 @@ final class PracticePlaybackControlService: PracticePlaybackControlServiceProtoc
 
     func playCurrentStepSound(applyRecognitionSuppress: Bool) {
         guard let currentStep else { return }
+        guard stateStore.activeRange?.contains(stepIndex: stateStore.currentStepIndex) ?? true else { return }
         guard stateStore.audioPlaybackErrorMessage == nil else { return }
 
         if applyRecognitionSuppress {
@@ -110,6 +111,7 @@ final class PracticePlaybackControlService: PracticePlaybackControlServiceProtoc
         guard stateStore.autoplayState == .playing else { return }
         guard case .guiding = stateStore.state else { return }
         guard stateStore.steps.isEmpty == false else { return }
+        guard stateStore.activeRange?.contains(stepIndex: stateStore.currentStepIndex) ?? true else { return }
         guard stateStore.isManualReplayPlaying == false else { return }
 
         if let error = autoplayStartErrorMessage() {
