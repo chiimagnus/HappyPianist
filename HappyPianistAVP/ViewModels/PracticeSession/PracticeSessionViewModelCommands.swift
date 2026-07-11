@@ -250,6 +250,7 @@ extension PracticeSessionViewModel {
             return
         }
 
+        let previousProgress = self.sessionProgress
         let result = attemptReducer.reduceAttempt(
             progress: self.sessionProgress,
             reductionState: self.attemptReductionState,
@@ -264,6 +265,7 @@ extension PracticeSessionViewModel {
         self.sessionProgress = result.progress
         self.attemptReductionState = result.reductionState
         self.lastSessionFact = result.fact
+        publishFeedback(for: result.fact, previousProgress: previousProgress, progress: result.progress)
         if result.fact != nil {
             checkpointProgress()
         }
@@ -286,6 +288,7 @@ extension PracticeSessionViewModel {
 
     func recordPassageCompletion(at timestamp: Date = .now) {
         guard let identity = self.songIdentity, let configuration = self.activeRoundConfiguration else { return }
+        let previousProgress = self.sessionProgress
         let result = attemptReducer.reducePassageCompletion(
             progress: self.sessionProgress,
             reductionState: self.attemptReductionState,
@@ -297,7 +300,24 @@ extension PracticeSessionViewModel {
         self.sessionProgress = result.progress
         self.attemptReductionState = result.reductionState
         self.lastSessionFact = result.fact
+        publishFeedback(for: result.fact, previousProgress: previousProgress, progress: result.progress)
         checkpointProgress()
+    }
+
+    private func publishFeedback(
+        for fact: PracticeSessionFact?,
+        previousProgress: SongPracticeProgress?,
+        progress: SongPracticeProgress
+    ) {
+        for event in feedbackPolicy.events(
+            for: fact,
+            previousProgress: previousProgress,
+            progress: progress,
+            sessionGeneration: self.progressGeneration ?? 0
+        ) where event.roundGeneration == self.roundGeneration && event.identity == self.songIdentity {
+            self.latestFeedbackEvent = event
+            feedbackEventSink?.receive(event)
+        }
     }
 
     @discardableResult
@@ -386,6 +406,7 @@ extension PracticeSessionViewModel {
             self.attemptReductionState = PracticeAttemptReductionState()
             self.lastAttemptOutcome = nil
             self.lastSessionFact = nil
+            self.latestFeedbackEvent = nil
             if self.sessionProgress?.identity != self.songIdentity {
                 self.sessionProgress = nil
             }
@@ -452,6 +473,7 @@ extension PracticeSessionViewModel {
         self.isRestoredSessionPaused = false
         self.acceptsPracticeAttempts = true
         self.sessionProgress = nil
+        self.latestFeedbackEvent = nil
         self.steps = []
         self.tempoMap = MusicXMLTempoMap(tempoEvents: [])
         self.measureSpans = []

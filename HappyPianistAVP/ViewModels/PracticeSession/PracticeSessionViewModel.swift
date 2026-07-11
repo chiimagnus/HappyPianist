@@ -24,6 +24,8 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
     let attemptReducer = PracticeAttemptReducer()
     let roundConfigurationController: PracticeRoundConfigurationController
     let progressCoordinator: PracticeProgressCoordinator?
+    let feedbackEventSink: (any PracticeFeedbackEventSink)?
+    let feedbackPolicy = PracticeFeedbackPolicy()
 
     var practiceMIDIInputService: PracticeMIDIInputService?
     var audioRecognitionInputService: PracticeAudioRecognitionInputService?
@@ -65,7 +67,8 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
         handPianoActivityGate: HandPianoActivityGate,
         settingsProvider: (any PracticeSessionSettingsProviderProtocol)? = nil,
         roundDefaultsStore: (any PracticeRoundDefaultsStoreProtocol)? = nil,
-        progressCoordinator: PracticeProgressCoordinator? = nil
+        progressCoordinator: PracticeProgressCoordinator? = nil,
+        feedbackEventSink: (any PracticeFeedbackEventSink)? = nil
     ) {
         stateStore = PracticeSessionStateStore()
         stepNavigator = PracticeStepNavigator()
@@ -85,6 +88,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
         let resolvedSettingsProvider = settingsProvider ?? UserDefaultsPracticeSessionSettingsProvider()
         self.settingsProvider = resolvedSettingsProvider
         self.progressCoordinator = progressCoordinator
+        self.feedbackEventSink = feedbackEventSink
         roundConfigurationController = PracticeRoundConfigurationController(
             stateStore: stateStore,
             settingsProvider: resolvedSettingsProvider,

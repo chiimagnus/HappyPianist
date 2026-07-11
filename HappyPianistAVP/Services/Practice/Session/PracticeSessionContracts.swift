@@ -4,6 +4,11 @@ protocol PracticeSessionLifecycleProtocol: AnyObject {
     func shutdown()
 }
 
+@MainActor
+protocol PracticeFeedbackEventSink: AnyObject {
+    func receive(_ event: PracticeFeedbackEvent)
+}
+
 protocol PracticeAudioRecognitionInputServiceProtocol: AnyObject {
     func refreshForCurrentState()
     func stop()
