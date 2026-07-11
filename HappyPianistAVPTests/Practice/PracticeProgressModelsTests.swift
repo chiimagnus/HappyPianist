@@ -64,6 +64,46 @@ func practiceProgressDocumentSuppliesMigrationDefaults() throws {
 }
 
 @Test
+func nestedProgressModelsSupplyMigrationDefaults() throws {
+    let songID = UUID()
+    let json = """
+    {
+      "songs": [{
+        "identity": { "songID": "\(songID.uuidString)", "scoreRevision": "r1" },
+        "activeConfiguration": {
+          "passage": {
+            "start": { "sourceMeasureID": { "partID": "P1", "sourceMeasureIndex": 0 }, "occurrenceIndex": 0 },
+            "end": { "sourceMeasureID": { "partID": "P1", "sourceMeasureIndex": 0 }, "occurrenceIndex": 0 }
+          }
+        },
+        "resumePoint": {
+          "occurrenceID": { "sourceMeasureID": { "partID": "P1", "sourceMeasureIndex": 0 }, "occurrenceIndex": 0 }
+        },
+        "measureFacts": [{
+          "sourceMeasureID": { "partID": "P1", "sourceMeasureIndex": 0 }
+        }]
+      }]
+    }
+    """
+
+    let document = try JSONDecoder().decode(PracticeProgressDocument.self, from: Data(json.utf8))
+    let progress = try #require(document.songs.first)
+    let configuration = try #require(progress.activeConfiguration)
+    let facts = try #require(progress.measureFacts.first)
+
+    #expect(configuration.handMode == .both)
+    #expect(configuration.tempoScale == 1)
+    #expect(configuration.loopEnabled == false)
+    #expect(configuration.requiredSuccesses == 3)
+    #expect(progress.resumePoint?.stepIndex == 0)
+    #expect(progress.updatedAt == .distantPast)
+    #expect(facts.state == .notStarted)
+    #expect(facts.successfulAttempts == 0)
+    #expect(facts.failedAttempts == 0)
+    #expect(facts.consecutiveSuccesses == 0)
+}
+
+@Test
 func roundConfigurationClampsSupportedValues() throws {
     let passage = try #require(PracticePassage(start: makeOccurrence(0), end: makeOccurrence(0)))
     let low = PracticeRoundConfiguration(

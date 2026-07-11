@@ -73,6 +73,25 @@ struct PracticeRoundConfiguration: Codable, Equatable, Sendable {
             Self.supportedSuccessRange.upperBound
         )
     }
+
+    private enum CodingKeys: String, CodingKey {
+        case passage
+        case handMode
+        case tempoScale
+        case loopEnabled
+        case requiredSuccesses
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            passage: try container.decode(PracticePassage.self, forKey: .passage),
+            handMode: try container.decodeIfPresent(PracticeHandMode.self, forKey: .handMode) ?? .both,
+            tempoScale: try container.decodeIfPresent(Double.self, forKey: .tempoScale) ?? 1,
+            loopEnabled: try container.decodeIfPresent(Bool.self, forKey: .loopEnabled) ?? false,
+            requiredSuccesses: try container.decodeIfPresent(Int.self, forKey: .requiredSuccesses) ?? 3
+        )
+    }
 }
 
 struct PracticeResumePoint: Codable, Equatable, Sendable {
@@ -84,6 +103,21 @@ struct PracticeResumePoint: Codable, Equatable, Sendable {
         self.occurrenceID = occurrenceID
         self.stepIndex = max(0, stepIndex)
         self.updatedAt = updatedAt
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case occurrenceID
+        case stepIndex
+        case updatedAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            occurrenceID: try container.decode(PracticeMeasureOccurrenceID.self, forKey: .occurrenceID),
+            stepIndex: try container.decodeIfPresent(Int.self, forKey: .stepIndex) ?? 0,
+            updatedAt: try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? .distantPast
+        )
     }
 }
 
@@ -133,6 +167,33 @@ struct MeasurePracticeFacts: Codable, Equatable, Sendable {
         self.recentIssue = recentIssue
         self.lastAttemptAt = lastAttemptAt
     }
+
+    private enum CodingKeys: String, CodingKey {
+        case sourceMeasureID
+        case handMode
+        case state
+        case successfulAttempts
+        case failedAttempts
+        case consecutiveSuccesses
+        case highestStableTempoScale
+        case recentIssue
+        case lastAttemptAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            sourceMeasureID: try container.decode(PracticeSourceMeasureID.self, forKey: .sourceMeasureID),
+            handMode: try container.decodeIfPresent(PracticeHandMode.self, forKey: .handMode) ?? .both,
+            state: try container.decodeIfPresent(MeasureLearningState.self, forKey: .state) ?? .notStarted,
+            successfulAttempts: try container.decodeIfPresent(Int.self, forKey: .successfulAttempts) ?? 0,
+            failedAttempts: try container.decodeIfPresent(Int.self, forKey: .failedAttempts) ?? 0,
+            consecutiveSuccesses: try container.decodeIfPresent(Int.self, forKey: .consecutiveSuccesses) ?? 0,
+            highestStableTempoScale: try container.decodeIfPresent(Double.self, forKey: .highestStableTempoScale),
+            recentIssue: try container.decodeIfPresent(PracticeIssueKind.self, forKey: .recentIssue),
+            lastAttemptAt: try container.decodeIfPresent(Date.self, forKey: .lastAttemptAt)
+        )
+    }
 }
 
 struct SongPracticeProgress: Codable, Equatable, Sendable {
@@ -154,6 +215,25 @@ struct SongPracticeProgress: Codable, Equatable, Sendable {
         self.resumePoint = resumePoint
         self.measureFacts = measureFacts
         self.updatedAt = updatedAt
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case identity
+        case activeConfiguration
+        case resumePoint
+        case measureFacts
+        case updatedAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            identity: try container.decode(PracticeSongIdentity.self, forKey: .identity),
+            activeConfiguration: try container.decodeIfPresent(PracticeRoundConfiguration.self, forKey: .activeConfiguration),
+            resumePoint: try container.decodeIfPresent(PracticeResumePoint.self, forKey: .resumePoint),
+            measureFacts: try container.decodeIfPresent([MeasurePracticeFacts].self, forKey: .measureFacts) ?? [],
+            updatedAt: try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? .distantPast
+        )
     }
 }
 
