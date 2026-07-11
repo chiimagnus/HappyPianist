@@ -22,16 +22,6 @@ private final class AlwaysMatchChordAttemptAccumulator: ChordAttemptAccumulatorP
         testAttemptOutcome(matched: true)
     }
 
-    func registerHandSeparated(
-        pressedNotes _: Set<Int>,
-        expectedRightNotes _: [Int],
-        expectedLeftNotes _: [Int],
-        tolerance _: Int,
-        at _: Date
-    ) -> Bool {
-        true
-    }
-
     func reset() {}
 }
 

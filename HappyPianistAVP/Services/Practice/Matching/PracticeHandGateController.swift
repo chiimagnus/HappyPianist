@@ -56,9 +56,10 @@ final class PracticeHandGateController: PracticeSessionLifecycleProtocol {
         practiceHandMode: PracticeHandMode
     ) {
         guard pressedNotes.isEmpty == false else { return }
+        guard stateStore.acceptsPracticeAttempts else { return }
+        guard case .guiding = stateStore.state else { return }
         guard stateStore.autoplayState == .off else { return }
         guard stateStore.isManualReplayPlaying == false else { return }
-        guard stateStore.state != .completed else { return }
         guard stateStore.steps.indices.contains(stateStore.currentStepIndex) else { return }
 
         let currentStep = stateStore.steps[stateStore.currentStepIndex]

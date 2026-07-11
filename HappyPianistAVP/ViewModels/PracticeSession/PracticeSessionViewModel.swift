@@ -166,9 +166,10 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
     func handle(effect: PracticeSessionEffect) {
         switch effect {
         case let .attemptEvaluated(outcome):
-            guard self.acceptsPracticeAttempts else { return }
+            guard self.acceptsPracticeAttempts, case .guiding = self.state else { return }
             recordAttemptOutcome(outcome)
         case .advanceToNextStep:
+            guard self.acceptsPracticeAttempts, case .guiding = self.state else { return }
             advanceToNextStep()
         case .refreshPracticeInput:
             refreshPracticeInputForCurrentState()

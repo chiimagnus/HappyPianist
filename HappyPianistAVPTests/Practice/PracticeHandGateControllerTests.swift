@@ -21,16 +21,6 @@ private final class AlwaysMatchChordAttemptAccumulator: ChordAttemptAccumulatorP
         testAttemptOutcome(matched: true)
     }
 
-    func registerHandSeparated(
-        pressedNotes _: Set<Int>,
-        expectedRightNotes _: [Int],
-        expectedLeftNotes _: [Int],
-        tolerance _: Int,
-        at _: Date
-    ) -> Bool {
-        true
-    }
-
     func reset() {}
 }
 
@@ -42,6 +32,8 @@ func chordMatchAdvancesToNextStepViaEffect() {
         PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
     ]
     store.currentStepIndex = 0
+    store.state = .guiding(stepIndex: 0)
+    store.acceptsPracticeAttempts = true
     store.autoplayState = .off
     store.isManualReplayPlaying = false
     store.noteMatchTolerance = 1
@@ -61,4 +53,26 @@ func chordMatchAdvancesToNextStepViaEffect() {
     )
 
     #expect(effectHandler.effects == [.advanceToNextStep])
+}
+
+@Test
+@MainActor
+func chordMatchDoesNotAdvanceWhileReady() {
+    let store = PracticeSessionStateStore()
+    store.steps = [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])]
+    store.currentStepIndex = 0
+    store.state = .ready
+    store.acceptsPracticeAttempts = true
+
+    let effectHandler = CapturingEffectHandler()
+    let controller = PracticeHandGateController(
+        activityGate: HandPianoActivityGate(),
+        chordAttemptAccumulator: AlwaysMatchChordAttemptAccumulator(),
+        stateStore: store,
+        effectHandler: effectHandler
+    )
+
+    controller.registerChordAttemptIfNeeded(pressedNotes: [60], at: .now, practiceHandMode: .both)
+
+    #expect(effectHandler.effects.isEmpty)
 }

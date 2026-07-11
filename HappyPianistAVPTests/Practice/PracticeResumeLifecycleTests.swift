@@ -84,6 +84,26 @@ func suspendedPracticeReturnsToPausedReadyAndCanRestartInput() async throws {
 
 @MainActor
 @Test
+func pausedPracticeRejectsAdvanceEffectWithoutPlayback() {
+    let playback = CapturingResumePlaybackService()
+    let session = PracticeSessionViewModel(
+        pressDetectionService: ResumeNoopPressDetectionService(),
+        chordAttemptAccumulator: ResumeNoopChordAccumulator(),
+        sleeper: TaskSleeper(),
+        sequencerPlaybackService: playback
+    )
+    session.setSteps(makeResumeSteps(), tempoMap: MusicXMLTempoMap(tempoEvents: []), measureSpans: makeResumeSpans())
+
+    session.handle(effect: .advanceToNextStep)
+
+    #expect(session.state == .ready)
+    #expect(session.currentStepIndex == 0)
+    #expect(playback.oneShotCount == 0)
+    #expect(playback.playCount == 0)
+}
+
+@MainActor
+@Test
 func flushAndShutdownPersistsLatestResumePointBeforeTeardown() async throws {
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
     let repository = ResumeRepository(progress: nil)
