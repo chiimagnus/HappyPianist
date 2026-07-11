@@ -47,6 +47,13 @@ struct PracticeStepView: View {
         .containerRelativeFrame(.horizontal, count: 100, span: 95, spacing: 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding(.vertical, 30)
+        .overlay(alignment: .top) {
+            if let cue = viewModel.practiceFeedbackViewModel.cue {
+                PracticeFeedbackCueView(event: cue)
+                    .transition(.opacity)
+                    .accessibilityAddTraits(.updatesFrequently)
+            }
+        }
         .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { height in
             practiceViewHeight = height
         }
@@ -177,6 +184,9 @@ struct PracticeStepView: View {
         .onChange(of: isAutoplayEnabled) {
             viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
         }
+        .onChange(of: session.latestFeedbackEvent) {
+            viewModel.practiceFeedbackViewModel.present(session.latestFeedbackEvent)
+        }
         .onChange(of: session.audioErrorMessage) {
             isAudioErrorAlertPresented = session.audioErrorMessage != nil
         }
@@ -198,6 +208,7 @@ struct PracticeStepView: View {
             Text(session.autoplayErrorMessage ?? "")
         }
         .onDisappear {
+            viewModel.practiceFeedbackViewModel.cancel()
             isStepVisible = false
             hasRequestedImmersiveOpen = false
             leavePractice(shouldNavigateBack: false)

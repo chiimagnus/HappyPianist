@@ -25,6 +25,7 @@ final class ARGuideViewModel {
     let practiceViewModel: ARGuidePracticeViewModel
     let recordingViewModel: ARGuideRecordingViewModel
     let aiPerformanceViewModel: ARGuideAIPerformanceViewModel
+    let practiceFeedbackViewModel = PracticeFeedbackViewModel()
 
     // MARK: - Practice session facade state
 
