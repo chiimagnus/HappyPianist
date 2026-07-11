@@ -9,14 +9,15 @@ func learningLoopFixtureCoversEightMeasuresHandsTempoChordAndRepeatIdentity() th
 
     let parsed = try MusicXMLParser().parse(fileURL: fixtureURL)
     #expect(parsed.measures.count == 8)
-    #expect(parsed.tempoEvents.contains(where: { $0.bpm == 84 }))
-    #expect(parsed.tempoEvents.contains(where: { $0.bpm == 72 }))
+    #expect(parsed.tempoEvents.contains(where: { $0.quarterBPM == 84 }))
+    #expect(parsed.tempoEvents.contains(where: { $0.quarterBPM == 72 }))
     #expect(parsed.notes.contains(where: { $0.staff == 1 && $0.isRest == false }))
     #expect(parsed.notes.contains(where: { $0.staff == 2 && $0.isRest == false }))
 
     let routed = MusicXMLHandRouter().routeIfNeeded(score: parsed)
-    #expect(routed.notes.contains(where: { $0.hand == .right }))
-    #expect(routed.notes.contains(where: { $0.hand == .left }))
+    let routedSteps = PracticeStepBuilder().buildSteps(from: routed).steps
+    #expect(routedSteps.flatMap(\.notes).contains(where: { $0.hand == .right }))
+    #expect(routedSteps.flatMap(\.notes).contains(where: { $0.hand == .left }))
 
     let expanded = MusicXMLStructureExpander().expandRepeatAndEndingIfPossible(score: routed)
     #expect(expanded.measures.count == 10)

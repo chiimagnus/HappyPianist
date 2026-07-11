@@ -29,7 +29,7 @@ func accumulatorMatchesChordWithinWindowAcrossMultiplePresses() {
         tolerance: 0,
         at: base.addingTimeInterval(0.45)
     )
-    #expect(third == true)
+    #expect(third.isMatched)
 }
 
 @Test
@@ -50,5 +50,5 @@ func accumulatorResetsAfterWindowTimeout() {
         tolerance: 0,
         at: base.addingTimeInterval(0.8)
     )
-    #expect(timedOut == false)
+    #expect(timedOut.isMatched == false)
 }

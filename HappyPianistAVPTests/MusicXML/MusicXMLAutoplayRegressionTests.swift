@@ -50,7 +50,6 @@ func realScoreAutoplaySkipCancelsPendingEventsWithAllNotesOff() async throws {
         tempoMap: model.tempoMap,
         pedalTimeline: model.pedalTimeline,
         fermataTimeline: model.fermataTimeline,
-        noteSpans: model.noteSpans,
         highlightGuides: model.guides
     )
     viewModel.setAutoplayEnabled(true)
@@ -170,8 +169,8 @@ private final class RegressionNoopChordAttemptAccumulator: ChordAttemptAccumulat
         expectedNotes _: [Int],
         tolerance _: Int,
         at _: Date
-    ) -> Bool {
-        false
+    ) -> StepAttemptMatchResult {
+        testAttemptOutcome(matched: false)
     }
 
     func reset() {}

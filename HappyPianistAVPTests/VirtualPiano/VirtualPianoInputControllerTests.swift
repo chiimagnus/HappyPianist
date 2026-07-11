@@ -18,8 +18,8 @@ private final class AlwaysMatchChordAttemptAccumulator: ChordAttemptAccumulatorP
         expectedNotes _: [Int],
         tolerance _: Int,
         at _: Date
-    ) -> Bool {
-        true
+    ) -> StepAttemptMatchResult {
+        testAttemptOutcome(matched: true)
     }
 
     func registerHandSeparated(

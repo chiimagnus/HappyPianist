@@ -51,7 +51,7 @@ private func makeManualAdvanceContext(currentStepIndex: Int) -> ManualAdvanceCon
 
 @Test
 @MainActor
-func appStatePassesMeasureSpansToPracticeSession() {
+func appStatePassesMeasureSpansToPracticeSession() async {
     let playbackService = ManualAdvanceNoopPlaybackService()
     let sessionViewModel = PracticeSessionViewModel(
         pressDetectionService: ManualAdvanceNoopPressDetectionService(),
@@ -125,8 +125,8 @@ private struct ManualAdvanceNoopPressDetectionService: PressDetectionServiceProt
 }
 
 private final class ManualAdvanceNoopChordAttemptAccumulator: ChordAttemptAccumulatorProtocol {
-    func register(pressedNotes _: Set<Int>, expectedNotes _: [Int], tolerance _: Int, at _: Date) -> Bool {
-        false
+    func register(pressedNotes _: Set<Int>, expectedNotes _: [Int], tolerance _: Int, at _: Date) -> StepAttemptMatchResult {
+        testAttemptOutcome(matched: false)
     }
 
     func reset() {}

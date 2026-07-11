@@ -231,8 +231,8 @@ private struct ManualReplayConstantPressDetectionService: PressDetectionServiceP
 }
 
 private final class ManualReplayAlwaysMatchAccumulator: ChordAttemptAccumulatorProtocol {
-    func register(pressedNotes _: Set<Int>, expectedNotes _: [Int], tolerance _: Int, at _: Date) -> Bool {
-        true
+    func register(pressedNotes _: Set<Int>, expectedNotes _: [Int], tolerance _: Int, at _: Date) -> StepAttemptMatchResult {
+        testAttemptOutcome(matched: true)
     }
 
     func reset() {}
