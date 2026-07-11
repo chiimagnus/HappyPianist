@@ -23,6 +23,7 @@ func practiceEntryBlockingReasonIsMissingStoredCalibrationWhenStepsExist() {
     let appState = AppState()
     let practiceSetupState = PracticeSetupState()
     practiceSetupState.setImportedSteps(from: PreparedPractice(
+        identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "test"),
         steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
         file: ImportedMusicXMLFile(fileName: "Test", storedURL: URL(fileURLWithPath: "/dev/null"), importedAt: Date()),
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
@@ -30,7 +31,6 @@ func practiceEntryBlockingReasonIsMissingStoredCalibrationWhenStepsExist() {
         fermataTimeline: nil,
         attributeTimeline: nil,
         slurTimeline: nil,
-        noteSpans: [],
         highlightGuides: [],
         measureSpans: [],
         unsupportedNoteCount: 0
@@ -51,6 +51,7 @@ func practiceEntryBlockingReasonIsNilWhenPreconditionsAreReady() {
         whiteKeyWidth: 0.0235
     )
     practiceSetupState.setImportedSteps(from: PreparedPractice(
+        identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "test"),
         steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
         file: ImportedMusicXMLFile(fileName: "Test", storedURL: URL(fileURLWithPath: "/dev/null"), importedAt: Date()),
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
@@ -58,7 +59,6 @@ func practiceEntryBlockingReasonIsNilWhenPreconditionsAreReady() {
         fermataTimeline: nil,
         attributeTimeline: nil,
         slurTimeline: nil,
-        noteSpans: [],
         highlightGuides: [],
         measureSpans: [],
         unsupportedNoteCount: 0

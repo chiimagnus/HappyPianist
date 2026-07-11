@@ -7,7 +7,8 @@ enum SongLibraryViewModelTestHarness {
         appState: AppState? = nil,
         practiceSetupState: PracticeSetupState? = nil,
         index: SongLibraryIndex? = nil,
-        bundledEntries: [SongLibraryEntry] = []
+        bundledEntries: [SongLibraryEntry] = [],
+        practicePreparationService: (any PracticePreparationServiceProtocol)? = nil
     ) -> SongLibraryViewModel {
         let resolvedAppState = appState ?? AppState()
         let resolvedPracticeSetupState = practiceSetupState ?? PracticeSetupState()
@@ -15,7 +16,7 @@ enum SongLibraryViewModelTestHarness {
         return SongLibraryViewModel(
             appState: resolvedAppState,
             practiceSetupState: resolvedPracticeSetupState,
-            practicePreparationService: NoopPracticePreparationService(),
+            practicePreparationService: practicePreparationService ?? NoopPracticePreparationService(),
             indexStore: InMemorySongLibraryIndexStore(index: resolvedIndex),
             fileStore: InMemorySongFileStore(),
             audioImportService: NoopAudioImportService(),
@@ -88,7 +89,7 @@ private struct StubBundledSongLibraryProvider: BundledSongLibraryProviderProtoco
 }
 
 private struct NoopPracticePreparationService: PracticePreparationServiceProtocol {
-    func prepare(from _: URL, file _: ImportedMusicXMLFile) throws -> PreparedPractice {
+    func prepare(songID _: UUID, from _: URL, file _: ImportedMusicXMLFile) async throws -> PreparedPractice {
         throw NSError(domain: "SongLibraryViewModelTestHarness", code: 1)
     }
 }

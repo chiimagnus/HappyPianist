@@ -157,7 +157,6 @@ extension PracticeSessionViewModel {
         fermataTimeline: MusicXMLFermataTimeline? = nil,
         attributeTimeline: MusicXMLAttributeTimeline? = nil,
         slurTimeline: MusicXMLSlurTimeline? = nil,
-        noteSpans _: [MusicXMLNoteSpan] = [],
         highlightGuides: [PianoHighlightGuide] = [],
         measureSpans: [MusicXMLMeasureSpan] = []
     ) {
@@ -245,6 +244,7 @@ extension PracticeSessionViewModel {
         stopAudioRecognition()
         chordAttemptAccumulator.reset()
 
+        self.songIdentity = nil
         self.steps = []
         self.tempoMap = MusicXMLTempoMap(tempoEvents: [])
         self.measureSpans = []

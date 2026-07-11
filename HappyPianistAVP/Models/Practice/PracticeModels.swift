@@ -122,6 +122,7 @@ struct PracticeStepBuildResult: Equatable {
 }
 
 struct PreparedPractice {
+    let identity: PracticeSongIdentity
     let steps: [PracticeStep]
     let file: ImportedMusicXMLFile
     let tempoMap: MusicXMLTempoMap
@@ -129,7 +130,6 @@ struct PreparedPractice {
     let fermataTimeline: MusicXMLFermataTimeline?
     let attributeTimeline: MusicXMLAttributeTimeline?
     let slurTimeline: MusicXMLSlurTimeline?
-    let noteSpans: [MusicXMLNoteSpan]
     let highlightGuides: [PianoHighlightGuide]
     let measureSpans: [MusicXMLMeasureSpan]
     let unsupportedNoteCount: Int

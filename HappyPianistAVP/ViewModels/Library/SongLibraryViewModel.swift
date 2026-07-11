@@ -15,6 +15,7 @@ final class SongLibraryViewModel {
     private let practicePreparationService: PracticePreparationServiceProtocol
     private let audioPlaybackController: SongAudioPlaybackStateController
     @ObservationIgnored private var playbackProgressTask: Task<Void, Never>?
+    @ObservationIgnored private var practicePreparationGeneration = 0
 
     static let supportedAudioFileExtensions = ["mp3", "m4a"]
     private static let supportedAudioFileExtensionSet = Set(supportedAudioFileExtensions)
@@ -26,6 +27,7 @@ final class SongLibraryViewModel {
     var listeningCurrentTime: TimeInterval = 0
     var listeningDuration: TimeInterval = 0
     var isMusicXMLImporterPresented = false
+    var isPreparingPractice = false
 
     init(
         appState: AppState,
@@ -124,9 +126,18 @@ final class SongLibraryViewModel {
         }
     }
 
-    func preparePractice(entryID: UUID) -> Bool {
+    func preparePractice(entryID: UUID) async -> Bool {
         guard let entry = entries.first(where: { $0.id == entryID }) else {
             return false
+        }
+
+        practicePreparationGeneration += 1
+        let generation = practicePreparationGeneration
+        isPreparingPractice = true
+        defer {
+            if generation == practicePreparationGeneration {
+                isPreparingPractice = false
+            }
         }
 
         do {
@@ -146,8 +157,15 @@ final class SongLibraryViewModel {
                 storedURL: scoreURL,
                 importedAt: entry.importedAt
             )
-            let prepared = try practicePreparationService.prepare(from: scoreURL, file: file)
+            let prepared = try await practicePreparationService.prepare(
+                songID: entry.id,
+                from: scoreURL,
+                file: file
+            )
 
+            guard generation == practicePreparationGeneration, Task.isCancelled == false else {
+                return false
+            }
             guard prepared.steps.isEmpty == false else {
                 errorMessage = "该曲目未生成可练习步骤。"
                 return false
@@ -161,10 +179,18 @@ final class SongLibraryViewModel {
             index = updatedIndex
 
             return true
+        } catch is CancellationError {
+            return false
         } catch {
+            guard generation == practicePreparationGeneration else { return false }
             errorMessage = "加载曲目失败：\(error.localizedDescription)"
             return false
         }
+    }
+
+    func cancelPracticePreparation() {
+        practicePreparationGeneration += 1
+        isPreparingPractice = false
     }
 
     func deleteEntry(entryID: UUID) {

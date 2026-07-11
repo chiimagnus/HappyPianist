@@ -1,10 +1,15 @@
+import CryptoKit
 import Foundation
 
 protocol PracticePreparationServiceProtocol {
-    func prepare(from scoreURL: URL, file: ImportedMusicXMLFile) throws -> PreparedPractice
+    func prepare(
+        songID: UUID,
+        from scoreURL: URL,
+        file: ImportedMusicXMLFile
+    ) async throws -> PreparedPractice
 }
 
-struct PracticePreparationService: PracticePreparationServiceProtocol {
+actor PracticePreparationService: PracticePreparationServiceProtocol {
     private let parser: MusicXMLParserProtocol
     private let stepBuilder: PracticeStepBuilderProtocol
     private let structureExpander = MusicXMLStructureExpander()
@@ -17,11 +22,22 @@ struct PracticePreparationService: PracticePreparationServiceProtocol {
         self.stepBuilder = stepBuilder ?? PracticeStepBuilder()
     }
 
-    func prepare(from scoreURL: URL, file: ImportedMusicXMLFile) throws -> PreparedPractice {
+    func prepare(
+        songID: UUID,
+        from scoreURL: URL,
+        file: ImportedMusicXMLFile
+    ) async throws -> PreparedPractice {
+        try Task.checkCancellation()
+        let scoreBytes = try Data(contentsOf: scoreURL)
+        let revision = SHA256.hash(data: scoreBytes).map { String(format: "%02x", $0) }.joined()
+
+        try Task.checkCancellation()
         let rawScore = try parser.parse(fileURL: scoreURL)
         let score = MusicXMLPianoGrandStaffNormalizer().normalize(score: rawScore)
         let shouldExpandStructure = MusicXMLRealisticPlaybackDefaults.shouldExpandStructure
         let primaryPartIDForExpansion = score.preferredPrimaryPartID()
+
+        try Task.checkCancellation()
         let effectiveScore = shouldExpandStructure
             ? structureExpander.expandStructureIfPossible(score: score, primaryPartID: primaryPartIDForExpansion)
             : score
@@ -29,6 +45,7 @@ struct PracticePreparationService: PracticePreparationServiceProtocol {
         let practiceScore = effectiveScore.filtering(toPartID: primaryPartID)
         let routedPracticeScore = MusicXMLHandRouter().routeIfNeeded(score: practiceScore)
 
+        try Task.checkCancellation()
         let expressivityOptions = MusicXMLRealisticPlaybackDefaults.expressivityOptions
         let buildResult = stepBuilder.buildSteps(from: routedPracticeScore, expressivity: expressivityOptions)
         let wordsSemantics = expressivityOptions.wordsSemanticsEnabled
@@ -56,10 +73,9 @@ struct PracticePreparationService: PracticePreparationServiceProtocol {
             clefEvents: routedPracticeScore.clefEvents
         )
         let slurTimeline = MusicXMLSlurTimeline(events: routedPracticeScore.slurEvents)
-        let shouldUsePerformanceTiming = MusicXMLRealisticPlaybackDefaults.performanceTimingEnabled
         let noteSpans = MusicXMLNoteSpanBuilder().buildSpans(
             from: routedPracticeScore.notes,
-            performanceTimingEnabled: shouldUsePerformanceTiming,
+            performanceTimingEnabled: MusicXMLRealisticPlaybackDefaults.performanceTimingEnabled,
             expressivity: expressivityOptions,
             fermataTimeline: fermataTimeline
         )
@@ -72,7 +88,9 @@ struct PracticePreparationService: PracticePreparationServiceProtocol {
             )
         )
 
+        try Task.checkCancellation()
         return PreparedPractice(
+            identity: PracticeSongIdentity(songID: songID, scoreRevision: revision),
             steps: buildResult.steps,
             file: file,
             tempoMap: tempoMap,
@@ -80,7 +98,6 @@ struct PracticePreparationService: PracticePreparationServiceProtocol {
             fermataTimeline: fermataTimeline,
             attributeTimeline: attributeTimeline,
             slurTimeline: slurTimeline,
-            noteSpans: noteSpans,
             highlightGuides: highlightGuides,
             measureSpans: routedPracticeScore.measures,
             unsupportedNoteCount: buildResult.unsupportedNoteCount

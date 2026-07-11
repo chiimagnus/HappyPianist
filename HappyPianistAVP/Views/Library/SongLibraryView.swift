@@ -101,7 +101,7 @@ struct SongLibraryView: View {
           .buttonStyle(.borderedProminent)
           .buttonBorderShape(.capsule)
           .tint(LibraryDesignTokens.accent)
-          .disabled(selectedEntry == nil)
+          .disabled(selectedEntry == nil || viewModel.isPreparingPractice)
       }
     }
     .fileImporter(
@@ -231,8 +231,11 @@ struct SongLibraryView: View {
   }
 
   private func startSelectedPractice() {
-    guard let selectedEntryID, viewModel.preparePractice(entryID: selectedEntryID) else { return }
-    onStartPractice()
+    guard let selectedEntryID else { return }
+    Task { @MainActor in
+      guard await viewModel.preparePractice(entryID: selectedEntryID) else { return }
+      onStartPractice()
+    }
   }
 
   private func presentAudioImporter(_ entryID: UUID) {

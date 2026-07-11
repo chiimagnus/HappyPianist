@@ -69,6 +69,7 @@ func appStatePassesMeasureSpansToPracticeSession() {
     )
     #expect(guideViewModel.practiceSessionViewModel === sessionViewModel)
     let prepared = PreparedPractice(
+        identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "test"),
         steps: [
             PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
             PracticeStep(tick: 240, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
@@ -80,7 +81,6 @@ func appStatePassesMeasureSpansToPracticeSession() {
         fermataTimeline: nil,
         attributeTimeline: nil,
         slurTimeline: nil,
-        noteSpans: [],
         highlightGuides: [],
         measureSpans: [
             MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, sourceMeasureIndex: 1, sourceMeasureNumberToken: "1", occurrenceIndex: 0, startTick: 0, endTick: 480),

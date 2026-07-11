@@ -147,6 +147,7 @@ final class ARGuideViewModel {
     }
 
     private func applyPreparedPractice(_ prepared: PreparedPractice, to session: PracticeSessionViewModel) {
+        session.songIdentity = prepared.identity
         session.setSteps(
             prepared.steps,
             tempoMap: prepared.tempoMap,
@@ -154,7 +155,6 @@ final class ARGuideViewModel {
             fermataTimeline: prepared.fermataTimeline,
             attributeTimeline: prepared.attributeTimeline,
             slurTimeline: prepared.slurTimeline,
-            noteSpans: prepared.noteSpans,
             highlightGuides: prepared.highlightGuides,
             measureSpans: prepared.measureSpans
         )
