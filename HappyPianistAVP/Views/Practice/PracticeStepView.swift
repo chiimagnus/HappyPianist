@@ -242,10 +242,6 @@ struct PracticeStepView: View {
         }
     }
 
-    private var manualAdvanceMode: ManualAdvanceMode {
-        ManualAdvanceMode.storageValue(from: manualAdvanceModeRawValue)
-    }
-
     private var isVirtualPianoMode: Bool {
         viewModel.isVirtualPianoMode
     }

@@ -112,3 +112,13 @@ flowchart TD
 `HappyPianistAVPTests/Fixtures/PracticeLearningLoopEightMeasures.musicxml` 是为自动化测试专门编写的合成曲谱，不是产品内置曲目。它包含八个原始小节、双谱表左右手、两个速度事件、一个右手和弦和一次前后反复，用于校验 parser、结构展开、手别路由、step builder 与 source/occurrence measure identity。
 
 当前仓库没有版权与来源均已确认的生产内置练习曲，因此设备验收应由测试人员导入许可明确的 MusicXML 曲目。不得把上述测试 fixture 描述为首发内置内容，也不得在缺少真实资源时把“内置曲目练习闭环”标记为通过。
+
+## P1 可恢复练习会话
+
+- `PracticeSongIdentity` 使用曲库 UUID 与曲谱 revision digest，避免同名文件或覆盖导入串进度。
+- `PracticeProgressCoordinator` 负责 generation-safe checkpoint、合并写入和退出前 flush。
+- 恢复后 session 保持 paused-ready，不预览当前音、不自动启动 sequencer。
+- active range 统一约束导航、谱面、琴键高亮、自动播放、手动重播和完成条件。
+- typed attempt outcome 只表达 matched、wrong note、missing notes、incomplete chord 与 insufficient evidence；不能通过解析错误字符串生成进度。
+
+麦克风识别仍属于实验路径。特别是三音及以上和弦的证据完整度受 detector 能力限制，P1 不把它描述成与 MIDI 相同的严格和弦完整判定。

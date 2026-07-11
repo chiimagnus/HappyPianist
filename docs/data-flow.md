@@ -136,3 +136,24 @@ sequenceDiagram
 ```
 
 本地规则生成由 AVP target 内嵌实现提供。当前默认后端为本地 CoreML；若未放置模型文件，UI 会提示缺失，并可手动切换到本地 rule。
+
+## AVP 可恢复练习闭环（P1）
+
+```mermaid
+flowchart TD
+  A[SongLibraryEntry UUID] --> B[PracticePreparationService actor]
+  B --> C[PreparedPractice song identity + score revision]
+  C --> D[PracticeSessionViewModel]
+  D --> E[typed StepAttemptMatchResult]
+  E --> F[PracticeAttemptReducer]
+  F --> G[measure-level SongPracticeProgress]
+  G --> H[PracticeProgressCoordinator]
+  H --> I[FilePracticeProgressRepository]
+  I --> J[Documents/Practice/progress-v1.json]
+```
+
+`PracticeStep` 是即时判定单位；持久化反馈以 source measure 为最小单位。重复结构使用 occurrence identity 定位本次播放位置，同时把学习事实聚合回 source measure。
+
+配置分为长期默认值、下一轮 pending 配置和本轮 immutable active 配置。范围、手别、速度、循环和成功目标只在应用并重开一轮时进入 active state。恢复流程在 preparation 完成后加载完全匹配的 song UUID + score revision，应用片段和 step 位置后停在 `.ready`；只有用户明确开始后才进入 guiding 与发声。
+
+窗口退出、场景进入非 active、session replacement 和完成一轮时遵循：停止新 attempt → flush 当前 generation → shutdown 输入/回放/录制 → 关闭 immersive。旧 generation 的延迟保存会被丢弃。
