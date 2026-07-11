@@ -24,32 +24,16 @@
 			remoteGlobalIDString = D85596A82F83FF72005BE7FE;
 			remoteInfo = LonelyPianistAVP;
 		};
-		E10000012A9B000100000007 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = D8D428052F4DFD3800EC9C9B /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = D8D4280C2F4DFD3800EC9C9B;
-			remoteInfo = LonelyPianist;
-		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		1B62407901B3CFC1E2FBC10D /* ImprovEngines */ = {isa = PBXFileReference; lastKnownFileType = text; path = ImprovEngines; sourceTree = "<group>"; };
 		D85596AC2F83FF72005BE7FE /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = text; path = RealityKitContent; sourceTree = "<group>"; };
-		D8C8848C2FC3623C00F1D94F /* LonelyPianist.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LonelyPianist.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D8C8848D2FC3623C00F1D94F /* LonelyPianistAVP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = LonelyPianistAVP.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		D8C8848E2FC3623C00F1D94F /* LonelyPianistTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LonelyPianistTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D8C8848F2FC3623C00F1D94F /* LonelyPianistAVPTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = LonelyPianistAVPTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		43211432ECD449DA986D359D /* Exceptions for "LonelyPianist" folder in "LonelyPianist" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = D8D4280C2F4DFD3800EC9C9B /* LonelyPianist */;
-		};
 		D85596C62F83FF74005BE7FE /* Exceptions for "LonelyPianistAVP" folder in "LonelyPianistAVP" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
@@ -71,19 +55,6 @@
 		D85596BF2F83FF74005BE7FE /* LonelyPianistAVPTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = LonelyPianistAVPTests;
-			sourceTree = "<group>";
-		};
-		D8D4280F2F4DFD3800EC9C9B /* LonelyPianist */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				43211432ECD449DA986D359D /* Exceptions for "LonelyPianist" folder in "LonelyPianist" target */,
-			);
-			path = LonelyPianist;
-			sourceTree = "<group>";
-		};
-		E10000012A9B000100000002 /* LonelyPianistTests */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = LonelyPianistTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -110,20 +81,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		D8D4280A2F4DFD3800EC9C9B /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		E10000012A9B000100000003 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -139,14 +96,10 @@
 		D8D428042F4DFD3800EC9C9B = {
 			isa = PBXGroup;
 			children = (
-				D8D4280F2F4DFD3800EC9C9B /* LonelyPianist */,
-				E10000012A9B000100000002 /* LonelyPianistTests */,
 				D85596AA2F83FF72005BE7FE /* LonelyPianistAVP */,
 				D85596AB2F83FF72005BE7FE /* Packages */,
 				D85596BF2F83FF74005BE7FE /* LonelyPianistAVPTests */,
-				D8C8848C2FC3623C00F1D94F /* LonelyPianist.app */,
 				D8C8848D2FC3623C00F1D94F /* LonelyPianistAVP.app */,
-				D8C8848E2FC3623C00F1D94F /* LonelyPianistTests.xctest */,
 				D8C8848F2FC3623C00F1D94F /* LonelyPianistAVPTests.xctest */,
 			);
 			sourceTree = "<group>";
@@ -206,51 +159,6 @@
 			productReference = D8C8848F2FC3623C00F1D94F /* LonelyPianistAVPTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		D8D4280C2F4DFD3800EC9C9B /* LonelyPianist */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = D8D428182F4DFD3900EC9C9B /* Build configuration list for PBXNativeTarget "LonelyPianist" */;
-			buildPhases = (
-				D8D428092F4DFD3800EC9C9B /* Sources */,
-				D8D4280A2F4DFD3800EC9C9B /* Frameworks */,
-				D8D4280B2F4DFD3800EC9C9B /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			fileSystemSynchronizedGroups = (
-				D8D4280F2F4DFD3800EC9C9B /* LonelyPianist */,
-			);
-			name = LonelyPianist;
-			packageProductDependencies = (
-			);
-			productName = LonelyPianist;
-			productReference = D8C8848C2FC3623C00F1D94F /* LonelyPianist.app */;
-			productType = "com.apple.product-type.application";
-		};
-		E10000012A9B000100000006 /* LonelyPianistTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = E10000012A9B00010000000B /* Build configuration list for PBXNativeTarget "LonelyPianistTests" */;
-			buildPhases = (
-				E10000012A9B000100000004 /* Sources */,
-				E10000012A9B000100000003 /* Frameworks */,
-				E10000012A9B000100000005 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				E10000012A9B000100000008 /* PBXTargetDependency */,
-			);
-			fileSystemSynchronizedGroups = (
-				E10000012A9B000100000002 /* LonelyPianistTests */,
-			);
-			name = LonelyPianistTests;
-			packageProductDependencies = (
-			);
-			productName = LonelyPianistTests;
-			productReference = D8C8848E2FC3623C00F1D94F /* LonelyPianistTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -267,13 +175,6 @@
 					D85596BB2F83FF74005BE7FE = {
 						CreatedOnToolsVersion = 26.4;
 						TestTargetID = D85596A82F83FF72005BE7FE;
-					};
-					D8D4280C2F4DFD3800EC9C9B = {
-						CreatedOnToolsVersion = 26.0;
-					};
-					E10000012A9B000100000006 = {
-						CreatedOnToolsVersion = 26.0;
-						TestTargetID = D8D4280C2F4DFD3800EC9C9B;
 					};
 				};
 			};
@@ -295,8 +196,6 @@
 			projectRoot = "";
 			targets = (
 				D85596A82F83FF72005BE7FE /* LonelyPianistAVP */,
-				D8D4280C2F4DFD3800EC9C9B /* LonelyPianist */,
-				E10000012A9B000100000006 /* LonelyPianistTests */,
 				D85596BB2F83FF74005BE7FE /* LonelyPianistAVPTests */,
 			);
 		};
@@ -311,20 +210,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		D85596BA2F83FF74005BE7FE /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		D8D4280B2F4DFD3800EC9C9B /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		E10000012A9B000100000005 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -348,20 +233,6 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		D8D428092F4DFD3800EC9C9B /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		E10000012A9B000100000004 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -369,11 +240,6 @@
 			isa = PBXTargetDependency;
 			target = D85596A82F83FF72005BE7FE /* LonelyPianistAVP */;
 			targetProxy = D85596BD2F83FF74005BE7FE /* PBXContainerItemProxy */;
-		};
-		E10000012A9B000100000008 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = D8D4280C2F4DFD3800EC9C9B /* LonelyPianist */;
-			targetProxy = E10000012A9B000100000007 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -386,9 +252,15 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = RDQHYSDFFG;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = YES;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "$(TARGET_NAME)/Resources/Info.plist";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -396,9 +268,11 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.chiimagnus.LonelyPianistAVP;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = xros;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -417,9 +291,15 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = RDQHYSDFFG;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_OUTGOING_NETWORK_CONNECTIONS = YES;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_RESOURCE_ACCESS_AUDIO_INPUT = YES;
+				ENABLE_RESOURCE_ACCESS_BLUETOOTH = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "$(TARGET_NAME)/Resources/Info.plist";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -427,9 +307,11 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.chiimagnus.LonelyPianistAVP;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
 				SDKROOT = xros;
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SUPPORTED_PLATFORMS = "xros xrsimulator";
+				SUPPORTS_MACCATALYST = NO;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_DEFAULT_ACTOR_ISOLATION = nonisolated;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -614,139 +496,6 @@
 			};
 			name = Release;
 		};
-		D8D428192F4DFD3900EC9C9B /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = LonelyPianist/LonelyPianist.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
-				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = RDQHYSDFFG;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_HARDENED_RUNTIME = YES;
-				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = LonelyPianist/Info.plist;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				INFOPLIST_KEY_LSUIElement = NO;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.chiimagnus.LonelyPianist;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				REGISTER_APP_GROUPS = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "macosx xros xrsimulator";
-				SUPPORTS_MACCATALYST = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = 7;
-				XROS_DEPLOYMENT_TARGET = 26.0;
-			};
-			name = Debug;
-		};
-		D8D4281A2F4DFD3900EC9C9B /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CODE_SIGN_ENTITLEMENTS = LonelyPianist/LonelyPianist.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 1;
-				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = RDQHYSDFFG;
-				ENABLE_APP_SANDBOX = YES;
-				ENABLE_HARDENED_RUNTIME = YES;
-				ENABLE_PREVIEWS = YES;
-				ENABLE_USER_SELECTED_FILES = readonly;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = LonelyPianist/Info.plist;
-				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.music";
-				INFOPLIST_KEY_LSUIElement = NO;
-				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.chiimagnus.LonelyPianist;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				REGISTER_APP_GROUPS = YES;
-				STRING_CATALOG_GENERATE_SYMBOLS = YES;
-				SUPPORTED_PLATFORMS = "macosx xros xrsimulator";
-				SUPPORTS_MACCATALYST = NO;
-				SWIFT_APPROACHABLE_CONCURRENCY = YES;
-				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
-				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
-				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = 7;
-				XROS_DEPLOYMENT_TARGET = 26.0;
-			};
-			name = Release;
-		};
-		E10000012A9B000100000009 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/LonelyPianist.app/Contents/MacOS/LonelyPianist.debug.dylib";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = RDQHYSDFFG;
-				GENERATE_INFOPLIST_FILE = YES;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@loader_path/../Frameworks",
-					"$(BUILT_PRODUCTS_DIR)/LonelyPianist.app/Contents/MacOS",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.chiimagnus.LonelyPianistTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
-				SWIFT_VERSION = 6.0;
-				TEST_HOST = "";
-				TEST_TARGET_NAME = "";
-			};
-			name = Debug;
-		};
-		E10000012A9B00010000000A /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(BUILT_PRODUCTS_DIR)/LonelyPianist.app/Contents/MacOS/LonelyPianist.debug.dylib";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEAD_CODE_STRIPPING = YES;
-				DEVELOPMENT_TEAM = RDQHYSDFFG;
-				GENERATE_INFOPLIST_FILE = YES;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/../Frameworks",
-					"@loader_path/../Frameworks",
-					"$(BUILT_PRODUCTS_DIR)/LonelyPianist.app/Contents/MacOS",
-				);
-				MACOSX_DEPLOYMENT_TARGET = 26.0;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.chiimagnus.LonelyPianistTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 6.0;
-				TEST_HOST = "";
-				TEST_TARGET_NAME = "";
-			};
-			name = Release;
-		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -773,24 +522,6 @@
 			buildConfigurations = (
 				D8D428162F4DFD3900EC9C9B /* Debug */,
 				D8D428172F4DFD3900EC9C9B /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		D8D428182F4DFD3900EC9C9B /* Build configuration list for PBXNativeTarget "LonelyPianist" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				D8D428192F4DFD3900EC9C9B /* Debug */,
-				D8D4281A2F4DFD3900EC9C9B /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		E10000012A9B00010000000B /* Build configuration list for PBXNativeTarget "LonelyPianistTests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				E10000012A9B000100000009 /* Debug */,
-				E10000012A9B00010000000A /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
