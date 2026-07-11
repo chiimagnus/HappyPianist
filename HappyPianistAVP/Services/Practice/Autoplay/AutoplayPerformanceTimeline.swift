@@ -105,7 +105,7 @@ struct AutoplayPerformanceTimeline: Equatable {
                 pedalEventsByTick[releaseTick, default: []].insert(.down)
             }
         }
-        for (tick, events) in pedalEventsByTick where activeRange.map({ tick >= $0.tickRange.lowerBound && tick <= $0.tickRange.upperBound }) ?? true {
+        for (tick, events) in pedalEventsByTick where activeRange.map({ $0.contains(tick: tick) }) ?? true {
             if events.contains(.up) {
                 rawEvents.append((tick: tick, priority: 2, kind: .pedalUp))
             }
