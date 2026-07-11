@@ -6,27 +6,43 @@ struct PracticeStepNavigator {
         let currentStepIndex: Int
     }
 
-    func restart(steps: [PracticeStep]) -> Navigation {
+    func restart(steps: [PracticeStep], activeRange: PracticeActiveRange? = nil) -> Navigation {
         guard steps.isEmpty == false else {
             return Navigation(state: .idle, currentStepIndex: 0)
         }
-        return Navigation(state: .guiding(stepIndex: 0), currentStepIndex: 0)
+        let startIndex = activeRange?.firstStepIndex ?? 0
+        guard steps.indices.contains(startIndex) else {
+            return Navigation(state: .idle, currentStepIndex: 0)
+        }
+        return Navigation(state: .guiding(stepIndex: startIndex), currentStepIndex: startIndex)
     }
 
-    func advance(steps: [PracticeStep], currentStepIndex: Int) -> Navigation {
+    func advance(
+        steps: [PracticeStep],
+        currentStepIndex: Int,
+        activeRange: PracticeActiveRange? = nil
+    ) -> Navigation {
         guard steps.isEmpty == false else {
             return Navigation(state: .idle, currentStepIndex: 0)
         }
-        if currentStepIndex + 1 < steps.count {
-            let nextIndex = currentStepIndex + 1
+        let completionIndex = activeRange?.completionStepIndex ?? steps.count
+        let nextIndex = currentStepIndex + 1
+        if nextIndex < completionIndex, steps.indices.contains(nextIndex) {
             return Navigation(state: .guiding(stepIndex: nextIndex), currentStepIndex: nextIndex)
         }
-        return Navigation(state: .completed, currentStepIndex: steps.count)
+        return Navigation(state: .completed, currentStepIndex: completionIndex)
     }
 
-    func move(to nextStepIndex: Int, steps: [PracticeStep]) -> Navigation {
-        guard steps.indices.contains(nextStepIndex) else {
-            return Navigation(state: .completed, currentStepIndex: steps.count)
+    func move(
+        to nextStepIndex: Int,
+        steps: [PracticeStep],
+        activeRange: PracticeActiveRange? = nil
+    ) -> Navigation {
+        guard steps.indices.contains(nextStepIndex), activeRange?.contains(stepIndex: nextStepIndex) ?? true else {
+            return Navigation(
+                state: .completed,
+                currentStepIndex: activeRange?.completionStepIndex ?? steps.count
+            )
         }
         return Navigation(state: .guiding(stepIndex: nextStepIndex), currentStepIndex: nextStepIndex)
     }

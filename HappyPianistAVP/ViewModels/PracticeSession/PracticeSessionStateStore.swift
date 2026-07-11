@@ -25,6 +25,9 @@ final class PracticeSessionStateStore {
     var lastAttemptOutcome: StepAttemptMatchResult?
     var songIdentity: PracticeSongIdentity?
     var activeRoundConfiguration: PracticeRoundConfiguration?
+    var measureIndex: PracticeMeasureIndex?
+    var activeRange: PracticeActiveRange?
+    var activeRangeDiagnostic: PracticeMeasureIndexDiagnostic?
     var activeManualAdvanceMode: ManualAdvanceMode = .step
     var activeSoundRoutingSettings = PracticeSoundRoutingSettings(
         outputRoute: .localSampler,

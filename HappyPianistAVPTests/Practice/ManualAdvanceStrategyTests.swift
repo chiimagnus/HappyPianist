@@ -44,7 +44,8 @@ private func makeManualAdvanceContext(currentStepIndex: Int) -> ManualAdvanceCon
             MusicXMLMeasureSpan(partID: "P1", measureNumber: 2, sourceMeasureIndex: 2, sourceMeasureNumberToken: "2", occurrenceIndex: 1, startTick: 480, endTick: 960),
             MusicXMLMeasureSpan(partID: "P1", measureNumber: 3, sourceMeasureIndex: 3, sourceMeasureNumberToken: "3", occurrenceIndex: 2, startTick: 960, endTick: 1440),
             MusicXMLMeasureSpan(partID: "P1", measureNumber: 4, sourceMeasureIndex: 4, sourceMeasureNumberToken: "4", occurrenceIndex: 3, startTick: 1440, endTick: 1920),
-        ]
+        ],
+        activeRange: nil
     )
 }
 

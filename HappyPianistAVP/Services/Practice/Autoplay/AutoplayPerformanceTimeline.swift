@@ -58,29 +58,42 @@ struct AutoplayPerformanceTimeline: Equatable {
         pedalTimeline: MusicXMLPedalTimeline,
         fermataTimeline: MusicXMLFermataTimeline,
         tempoMap: MusicXMLTempoMap,
-        practiceHandMode: PracticeHandMode
+        practiceHandMode: PracticeHandMode,
+        activeRange: PracticeActiveRange? = nil
     ) -> AutoplayPerformanceTimeline {
         var rawEvents: [(tick: Int, priority: Int, kind: EventKind)] = []
         rawEvents.reserveCapacity(guides.count + steps.count + 16)
 
-        for (index, guide) in guides.enumerated() {
+        let guideEntries = guides.enumerated().filter { _, guide in
+            activeRange?.contains(tick: guide.tick) ?? true
+        }
+        let stepEntries = steps.enumerated().filter { index, _ in
+            activeRange?.contains(stepIndex: index) ?? true
+        }
+
+        for (index, guide) in guideEntries {
             rawEvents.append((tick: guide.tick, priority: 5, kind: .advanceGuide(index: index, guideID: guide.id)))
         }
 
-        for (index, step) in steps.enumerated() {
+        for (index, step) in stepEntries {
             rawEvents.append((tick: step.tick, priority: 4, kind: .advanceStep(index: index)))
         }
 
-        for interval in normalizedNoteIntervals(from: guides, practiceHandMode: practiceHandMode) {
+        let activeGuides = guideEntries.map { $0.element }
+        for interval in normalizedNoteIntervals(from: activeGuides, practiceHandMode: practiceHandMode) {
+            let offTick = activeRange.map { min(interval.offTick, $0.tickRange.upperBound) } ?? interval.offTick
             rawEvents.append((
                 tick: interval.onTick,
                 priority: 3,
                 kind: .noteOn(midi: interval.midi, velocity: interval.velocity)
             ))
-            rawEvents.append((tick: interval.offTick, priority: 1, kind: .noteOff(midi: interval.midi)))
+            rawEvents.append((tick: offTick, priority: 1, kind: .noteOff(midi: interval.midi)))
         }
 
         var pedalEventsByTick: [Int: Set<PedalEventKind>] = [:]
+        if let activeRange, pedalTimeline.isDown(atTick: activeRange.tickRange.lowerBound) {
+            pedalEventsByTick[activeRange.tickRange.lowerBound, default: []].insert(.down)
+        }
         var cursor = -1
         while let change = pedalTimeline.nextChange(afterTick: cursor) {
             pedalEventsByTick[change.tick, default: []].insert(change.isDown ? .down : .up)
@@ -92,7 +105,7 @@ struct AutoplayPerformanceTimeline: Equatable {
                 pedalEventsByTick[releaseTick, default: []].insert(.down)
             }
         }
-        for (tick, events) in pedalEventsByTick {
+        for (tick, events) in pedalEventsByTick where activeRange.map({ tick >= $0.tickRange.lowerBound && tick <= $0.tickRange.upperBound }) ?? true {
             if events.contains(.up) {
                 rawEvents.append((tick: tick, priority: 2, kind: .pedalUp))
             }
@@ -101,7 +114,8 @@ struct AutoplayPerformanceTimeline: Equatable {
             }
         }
 
-        for pair in zip(steps, steps.dropFirst()) {
+        let activeSteps = stepEntries.map { $0.element }
+        for pair in zip(activeSteps, activeSteps.dropFirst()) {
             let current = pair.0
             let next = pair.1
             let staffs = Set(current.notes.map { $0.staff ?? 1 })

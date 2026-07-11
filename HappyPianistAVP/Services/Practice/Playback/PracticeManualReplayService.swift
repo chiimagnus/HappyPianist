@@ -44,8 +44,15 @@ final class PracticeManualReplayService: PracticeSessionLifecycleProtocol {
 
         stopManualReplayTask(restoreAudioRecognition: false)
 
-        guard plan.stepRange.isEmpty == false else { return }
-        guard stateStore.steps.indices.contains(plan.stepRange.lowerBound) else { return }
+        let effectiveStepRange: Range<Int>
+        if let activeRange = stateStore.activeRange {
+            guard let clampedRange = activeRange.clampedStepRange(plan.stepRange) else { return }
+            effectiveStepRange = clampedRange
+        } else {
+            effectiveStepRange = plan.stepRange
+        }
+        guard effectiveStepRange.isEmpty == false else { return }
+        guard stateStore.steps.indices.contains(effectiveStepRange.lowerBound) else { return }
 
         stateStore.shouldResumeAudioRecognitionAfterManualReplay = shouldResumeRecognitionWhenReplayEnds
 
@@ -53,8 +60,8 @@ final class PracticeManualReplayService: PracticeSessionLifecycleProtocol {
 
         stateStore.manualReplayGeneration += 1
         let generation = stateStore.manualReplayGeneration
-        let startIndex = plan.stepRange.lowerBound
-        let stepRangeSnapshot = plan.stepRange
+        let startIndex = effectiveStepRange.lowerBound
+        let stepRangeSnapshot = effectiveStepRange
         let stepsSnapshot = filteredStepsForPracticeHandMode(
             stateStore.steps,
             mode: stateStore.activeRoundConfiguration?.handMode ?? .both

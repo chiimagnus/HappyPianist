@@ -25,7 +25,7 @@ struct PracticeStepView: View {
 
         VStack(spacing: 30) {
             GrandStaffNotationView(
-                guides: session.highlightGuides,
+                guides: session.activeHighlightGuides,
                 currentGuide: currentGuide,
                 measureSpans: session.notationMeasureSpans,
                 context: session.currentGrandStaffNotationContext,
