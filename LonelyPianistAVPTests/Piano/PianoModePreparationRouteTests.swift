@@ -20,14 +20,6 @@ func routerRendersAllPreparationRoutes() {
 @Test
 @MainActor
 func defaultPianoModesExposeExpectedPreparationRoutes() {
-    let makeViewModel: @MainActor () -> PracticeSessionViewModel = {
-        PracticeSessionViewModel(
-            pressDetectionService: PressDetectionService(),
-            chordAttemptAccumulator: ChordAttemptAccumulator(),
-            sleeper: TaskSleeper()
-        )
-    }
-
     #expect(RealAudioPianoMode().preparationRoute == .realPiano)
     #expect(BluetoothMIDIPianoMode().preparationRoute == .bluetoothMIDI)
     #expect(VirtualPianoMode().preparationRoute == .virtualPiano)

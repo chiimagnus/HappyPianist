@@ -82,10 +82,10 @@ func streamingChunkAssemblerRebasesEventsByTimeRangeStart() async throws {
     let note = try #require(e1.first(where: { $0.type == .note }))
     #expect(abs(note.time - 0.2) < 1e-9)
 
-    let schedule0 = try await Task.detached(priority: .userInitiated) {
+    let schedule0 = await Task.detached(priority: .userInitiated) {
         ImprovScheduleBuilder().buildSchedule(from: e0, leadInSeconds: 0)
     }.value
-    let schedule1 = try await Task.detached(priority: .userInitiated) {
+    let schedule1 = await Task.detached(priority: .userInitiated) {
         ImprovScheduleBuilder().buildSchedule(from: e1, leadInSeconds: 0)
     }.value
 

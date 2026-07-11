@@ -212,7 +212,7 @@ private struct FakeSettingsProvider: PracticeSessionSettingsProviderProtocol {
 @Test
 @MainActor
 func enableDisableAreIdempotent() async {
-    var nowUptime: TimeInterval = 0
+    let nowUptime: TimeInterval = 0
     var states: [AIPerformanceService.State] = []
 
     let backendService = FakeBackendDiscoveryService()
@@ -346,7 +346,7 @@ func disableCancelsPendingPlaybackAndStopsSequencer() async {
 @Test
 @MainActor
 func shutdownPreventsFurtherEnable() async {
-    var nowUptime: TimeInterval = 0
+    let nowUptime: TimeInterval = 0
 
     let backendService = FakeBackendDiscoveryService()
     let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
@@ -396,7 +396,7 @@ func shutdownPreventsFurtherEnable() async {
 @Test
 @MainActor
 func localRuleBackendUsesDeterministicMultiCandidateSeeds() async {
-	var nowUptime: TimeInterval = 0
+	let nowUptime: TimeInterval = 0
 
 	let backendService = FakeBackendDiscoveryService()
 	let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
@@ -468,7 +468,7 @@ func localRuleBackendUsesDeterministicMultiCandidateSeeds() async {
 @Test
 @MainActor
 func networkBackendRemainsSingleCandidate() async {
-	var nowUptime: TimeInterval = 0
+	let nowUptime: TimeInterval = 0
 
 	let backendService = FakeBackendDiscoveryService()
 	let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
@@ -536,7 +536,7 @@ func networkBackendRemainsSingleCandidate() async {
 @Test
 @MainActor
 func localRuleCandidateSelectionPrefersHigherQualityWindow() async {
-	var nowUptime: TimeInterval = 0
+	let nowUptime: TimeInterval = 0
 	var states: [AIPerformanceService.State] = []
 
 	let backendService = FakeBackendDiscoveryService()
@@ -634,7 +634,7 @@ func localRuleCandidateSelectionPrefersHigherQualityWindow() async {
 @Test
 @MainActor
 func allRejectedCandidatesPreferSilenceWithRejectStatus() async {
-	var nowUptime: TimeInterval = 0
+	let nowUptime: TimeInterval = 0
 	var states: [AIPerformanceService.State] = []
 
 	let backendService = FakeBackendDiscoveryService()

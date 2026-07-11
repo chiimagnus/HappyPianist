@@ -10,6 +10,15 @@ private final class FakeDiscoveryOrchestrator: ImprovBackendDiscoveryOrchestrati
 }
 
 @MainActor
+private final class MutableBackendKind {
+    var value: ImprovBackendKind
+
+    init(_ value: ImprovBackendKind) {
+        self.value = value
+    }
+}
+
+@MainActor
 private final class FakePracticeSession: AIPerformancePracticeSessionProtocol {
     var autoplayState: PracticeSessionAutoplayState = .off
     var isManualReplayPlaying: Bool = false
@@ -212,7 +221,7 @@ func newInputReevaluatesContinuousResponseAgainstLatestContext() async {
 @MainActor
 func changingBackendDoesNotWaitForSuspendedOldBackend() async {
     var nowUptime: TimeInterval = 0
-    var selectedKind: ImprovBackendKind = .localRule
+    let selectedKind = MutableBackendKind(.localRule)
     let oldBackend = ControlledBackend(kind: .localRule)
     let newBackend = ControlledBackend(kind: .networkBonjourHTTPAriaV2)
     let playbackService = NonAdvancingPlaybackService()
@@ -226,7 +235,7 @@ func changingBackendDoesNotWaitForSuspendedOldBackend() async {
         sleepFor: { _ in },
         discoveryOrchestrator: FakeDiscoveryOrchestrator(),
         backendRegistry: ImprovBackendRegistry(backends: [oldBackend, newBackend]),
-        selectedBackendKind: { selectedKind },
+        selectedBackendKind: { selectedKind.value },
         aiPlaybackServiceFactory: { factory },
         onStateChanged: { _ in }
     )
@@ -241,7 +250,7 @@ func changingBackendDoesNotWaitForSuspendedOldBackend() async {
     nowUptime = 0.2
     #expect(await oldBackend.waitForCall())
 
-    selectedKind = .networkBonjourHTTPAriaV2
+    selectedKind.value = .networkBonjourHTTPAriaV2
     service.recordKeyContactForPhraseRecordingIfNeeded(
         usesBluetoothMIDIInput: false,
         keyContact: KeyContactResult(down: [60, 64], started: [64], ended: []),
