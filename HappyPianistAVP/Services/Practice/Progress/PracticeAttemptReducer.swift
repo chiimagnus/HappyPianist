@@ -157,6 +157,17 @@ struct PracticeAttemptReducer {
         timestamp: Date
     ) -> Result {
         var updated = progress ?? emptyProgress(identity: identity, configuration: configuration, timestamp: timestamp)
+        if let previousConfiguration = updated.activeConfiguration,
+           previousConfiguration.handMode != configuration.handMode || previousConfiguration.tempoScale != configuration.tempoScale
+        {
+            for index in updated.measureFacts.indices where updated.measureFacts[index].handMode == configuration.handMode {
+                updated.measureFacts[index].consecutiveSuccesses = 0
+                updated.measureFacts[index].state = learningState(
+                    for: updated.measureFacts[index],
+                    tempoScale: configuration.tempoScale
+                )
+            }
+        }
         updated.activeConfiguration = configuration
         updated.updatedAt = timestamp
         let fact = PracticeSessionFact.passageRestarted(
@@ -206,6 +217,15 @@ struct PracticeAttemptReducer {
             activeConfiguration: configuration,
             updatedAt: timestamp
         )
+    }
+
+    private func learningState(for facts: MeasurePracticeFacts, tempoScale: Double) -> MeasureLearningState {
+        if let highestStableTempoScale = facts.highestStableTempoScale,
+           highestStableTempoScale >= tempoScale
+        {
+            return .stable
+        }
+        return facts.successfulAttempts == 0 && facts.failedAttempts == 0 ? .notStarted : .learning
     }
 
     private func stepRange(
