@@ -249,4 +249,3 @@ enum StepAttemptMatchResult: Equatable, Sendable {
         category == .matched
     }
 }
-
