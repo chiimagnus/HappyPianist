@@ -167,8 +167,8 @@ private final class NoopChordAttemptAccumulator: ChordAttemptAccumulatorProtocol
         expectedNotes _: [Int],
         tolerance _: Int,
         at _: Date
-    ) -> Bool {
-        false
+    ) -> StepAttemptMatchResult {
+        testAttemptOutcome(matched: false)
     }
 
     func reset() {}
@@ -180,8 +180,8 @@ private final class AlwaysMatchChordAttemptAccumulator: ChordAttemptAccumulatorP
         expectedNotes _: [Int],
         tolerance _: Int,
         at _: Date
-    ) -> Bool {
-        true
+    ) -> StepAttemptMatchResult {
+        testAttemptOutcome(matched: true)
     }
 
     func reset() {}

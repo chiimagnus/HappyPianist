@@ -861,7 +861,6 @@ func highlightGuideStartsAtFirstTriggerAfterStartGuiding() async {
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
         pedalTimeline: nil,
-        noteSpans: [],
         highlightGuides: [
             makeHighlightGuide(id: 1, kind: .trigger, tick: 0, practiceStepIndex: 0, midiNotes: [60]),
             makeHighlightGuide(id: 2, kind: .gap, tick: 240, practiceStepIndex: nil, midiNotes: [], released: [60]),
@@ -892,7 +891,6 @@ func resetSessionClearsCurrentHighlightGuide() async {
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
         pedalTimeline: nil,
-        noteSpans: [],
         highlightGuides: [
             makeHighlightGuide(id: 1, kind: .trigger, tick: 0, practiceStepIndex: 0, midiNotes: [60]),
         ]
@@ -925,7 +923,6 @@ func manualAdvanceShowsReleaseOrGapGuideBeforeNextTrigger() async {
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
         pedalTimeline: nil,
-        noteSpans: [],
         highlightGuides: [
             makeHighlightGuide(id: 1, kind: .trigger, tick: 0, practiceStepIndex: 0, midiNotes: [60]),
             makeHighlightGuide(
@@ -973,7 +970,6 @@ func resetCancelsPendingManualHighlightTransition() async {
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
         pedalTimeline: nil,
-        noteSpans: [],
         highlightGuides: [
             makeHighlightGuide(id: 1, kind: .trigger, tick: 0, practiceStepIndex: 0, midiNotes: [60]),
             makeHighlightGuide(id: 2, kind: .gap, tick: 240, practiceStepIndex: nil, midiNotes: [], released: [60]),
@@ -1304,9 +1300,6 @@ func disablingAutoplayStopsAudioAndClearsPendingScheduling() async {
         tempoMap: tempoMap,
         pedalTimeline: MusicXMLPedalTimeline(events: []),
         fermataTimeline: MusicXMLFermataTimeline(fermataEvents: [], notes: []),
-        noteSpans: [
-            MusicXMLNoteSpan(midiNote: 60, staff: 1, voice: 1, onTick: 0, offTick: 480),
-        ],
         highlightGuides: [
             PianoHighlightGuide(
                 id: 1,
@@ -1558,8 +1551,8 @@ private final class NoopChordAttemptAccumulator: ChordAttemptAccumulatorProtocol
         expectedNotes _: [Int],
         tolerance _: Int,
         at _: Date
-    ) -> Bool {
-        false
+    ) -> StepAttemptMatchResult {
+        testAttemptOutcome(matched: false)
     }
 
     func reset() {}
@@ -1571,8 +1564,8 @@ private final class AlwaysMatchChordAttemptAccumulator: ChordAttemptAccumulatorP
         expectedNotes _: [Int],
         tolerance _: Int,
         at _: Date
-    ) -> Bool {
-        true
+    ) -> StepAttemptMatchResult {
+        testAttemptOutcome(matched: true)
     }
 
     func reset() {}

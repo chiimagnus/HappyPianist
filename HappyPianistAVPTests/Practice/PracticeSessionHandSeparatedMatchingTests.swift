@@ -69,7 +69,7 @@ func chordAccumulatorRequiresBothHandsWithinSameWindow() {
         tolerance: 0,
         at: t0
     )
-    #expect(first == false)
+    #expect(first.isMatched == false)
 
     let second = accumulator.registerHandSeparated(
         pressedNotes: [48],
@@ -78,5 +78,5 @@ func chordAccumulatorRequiresBothHandsWithinSameWindow() {
         tolerance: 0,
         at: t0.addingTimeInterval(0.1)
     )
-    #expect(second == true)
+    #expect(second.isMatched)
 }
