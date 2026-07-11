@@ -196,6 +196,54 @@ func autoplayTimelineEmitsReleaseAndRedownForSameTickPedalChange() {
     #expect(pedalEventsAtReleaseTick == ["up", "down"])
 }
 
+@Test
+@MainActor
+func autoplayTimelineExcludesPedalEventsAtActiveRangeUpperBound() throws {
+    let span = MusicXMLMeasureSpan(
+        partID: "P1",
+        measureNumber: 1,
+        sourceMeasureIndex: 0,
+        sourceMeasureNumberToken: "1",
+        occurrenceIndex: 0,
+        startTick: 0,
+        endTick: 480
+    )
+    let passage = try #require(PracticePassage(start: span.occurrenceID, end: span.occurrenceID))
+    let activeRange = PracticeActiveRange(
+        passage: passage,
+        occurrenceRange: 0 ..< 1,
+        stepRange: 0 ..< 1,
+        tickRange: 0 ..< 480,
+        measureSpans: [span]
+    )
+    let timeline = AutoplayPerformanceTimeline.build(
+        guides: [makeTimelineGuide(
+            id: 1,
+            tick: 0,
+            notes: [makeTimelineNote(midi: 60, velocity: 80, onTick: 0, offTick: 480)]
+        )],
+        steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        pedalTimeline: MusicXMLPedalTimeline(events: [
+            MusicXMLPedalEvent(
+                partID: "P1",
+                measureNumber: 2,
+                tick: 480,
+                kind: .start,
+                isDown: true,
+                timeOnlyPasses: nil
+            ),
+        ]),
+        fermataTimeline: MusicXMLFermataTimeline(fermataEvents: [], notes: []),
+        tempoMap: MusicXMLTempoMap(tempoEvents: []),
+        practiceHandMode: .both,
+        activeRange: activeRange
+    )
+
+    #expect(timeline.events.contains { event in
+        event.tick == 480 && (event.kind == .pedalDown || event.kind == .pedalUp)
+    } == false)
+}
+
 private func makeTimelineGuide(id: Int, tick: Int, notes: [PianoHighlightNote]) -> PianoHighlightGuide {
     PianoHighlightGuide(
         id: id,
