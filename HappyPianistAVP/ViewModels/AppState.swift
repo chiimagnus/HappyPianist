@@ -55,6 +55,7 @@ class AppState {
     var windowState: WindowTransitionState!
     var arGuideViewModel: ARGuideViewModel!
     var songLibraryViewModel: SongLibraryViewModel!
+    var practiceProgressRepository: (any PracticeProgressRepositoryProtocol)!
 
     init(
         arTrackingService: ARTrackingServiceProtocol,
@@ -283,6 +284,7 @@ class AppState {
         let songLibraryPaths = SongLibraryPaths()
         let bundledSongLibraryProvider: BundledSongLibraryProviderProtocol = BundledSongLibraryProvider()
         let songAudioPlayer: SongAudioPlayerProtocol = SongAudioPlayer()
+        let progressRepository: any PracticeProgressRepositoryProtocol = FilePracticeProgressRepository()
 
         let makePressDetectionService: () -> PressDetectionServiceProtocol = { PressDetectionService() }
         let makeChordAttemptAccumulator: () -> ChordAttemptAccumulatorProtocol = { ChordAttemptAccumulator() }
@@ -392,11 +394,13 @@ class AppState {
             audioImportService: audioImportService,
             paths: songLibraryPaths,
             bundledProvider: bundledSongLibraryProvider,
-            audioPlayer: songAudioPlayer
+            audioPlayer: songAudioPlayer,
+            practiceProgressRepository: progressRepository
         )
 
         arGuideViewModel = guideViewModel
         songLibraryViewModel = libraryViewModel
+        practiceProgressRepository = progressRepository
         windowState = WindowTransitionState(practiceSetupState: practiceSetupState, pianoModeRegistry: registry)
     }
 

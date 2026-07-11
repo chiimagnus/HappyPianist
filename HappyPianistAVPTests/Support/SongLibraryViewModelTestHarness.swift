@@ -8,7 +8,8 @@ enum SongLibraryViewModelTestHarness {
         practiceSetupState: PracticeSetupState? = nil,
         index: SongLibraryIndex? = nil,
         bundledEntries: [SongLibraryEntry] = [],
-        practicePreparationService: (any PracticePreparationServiceProtocol)? = nil
+        practicePreparationService: (any PracticePreparationServiceProtocol)? = nil,
+        practiceProgressRepository: (any PracticeProgressRepositoryProtocol)? = nil
     ) -> SongLibraryViewModel {
         let resolvedAppState = appState ?? AppState()
         let resolvedPracticeSetupState = practiceSetupState ?? PracticeSetupState()
@@ -22,7 +23,8 @@ enum SongLibraryViewModelTestHarness {
             audioImportService: NoopAudioImportService(),
             paths: SongLibraryPaths(),
             bundledProvider: StubBundledSongLibraryProvider(entries: bundledEntries),
-            audioPlayer: NoopSongAudioPlayer()
+            audioPlayer: NoopSongAudioPlayer(),
+            practiceProgressRepository: practiceProgressRepository ?? InMemoryPracticeProgressRepository()
         )
     }
 }
@@ -112,5 +114,22 @@ private final class NoopSongAudioPlayer: SongAudioPlayerProtocol {
 
     func isPlaying(entryID: UUID) -> Bool {
         currentEntryID == entryID
+    }
+}
+
+
+private actor InMemoryPracticeProgressRepository: PracticeProgressRepositoryProtocol {
+    private var document = PracticeProgressDocument()
+
+    func load() -> PracticeProgressLoadResult { .loaded(document) }
+    func progress(for identity: PracticeSongIdentity) -> SongPracticeProgress? {
+        document.songs.first(where: { $0.identity == identity })
+    }
+    func upsert(_ progress: SongPracticeProgress) {
+        document.songs.removeAll(where: { $0.identity == progress.identity })
+        document.songs.append(progress)
+    }
+    func remove(songID: UUID) {
+        document.songs.removeAll(where: { $0.identity.songID == songID })
     }
 }

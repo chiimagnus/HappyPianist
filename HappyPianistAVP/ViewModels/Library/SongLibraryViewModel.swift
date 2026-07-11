@@ -14,6 +14,7 @@ final class SongLibraryViewModel {
     private let bundledEntries: [SongLibraryEntry]
     private let practicePreparationService: PracticePreparationServiceProtocol
     private let audioPlaybackController: SongAudioPlaybackStateController
+    private let practiceProgressRepository: any PracticeProgressRepositoryProtocol
     @ObservationIgnored private var playbackProgressTask: Task<Void, Never>?
     @ObservationIgnored private var practicePreparationGeneration = 0
 
@@ -38,7 +39,8 @@ final class SongLibraryViewModel {
         audioImportService: AudioImportServiceProtocol,
         paths: SongLibraryPaths,
         bundledProvider: BundledSongLibraryProviderProtocol,
-        audioPlayer: SongAudioPlayerProtocol
+        audioPlayer: SongAudioPlayerProtocol,
+        practiceProgressRepository: any PracticeProgressRepositoryProtocol
     ) {
         self.appState = appState
         self.practiceSetupState = practiceSetupState
@@ -48,6 +50,7 @@ final class SongLibraryViewModel {
         self.audioImportService = audioImportService
         self.paths = paths
         self.bundledProvider = bundledProvider
+        self.practiceProgressRepository = practiceProgressRepository
         bundledEntries = bundledProvider.bundledEntries()
         audioPlaybackController = SongAudioPlaybackStateController(player: audioPlayer)
 
@@ -193,7 +196,7 @@ final class SongLibraryViewModel {
         isPreparingPractice = false
     }
 
-    func deleteEntry(entryID: UUID) {
+    func deleteEntry(entryID: UUID) async {
         if bundledEntries.contains(where: { $0.id == entryID }) {
             errorMessage = "内置曲目无法删除。"
             return
@@ -217,6 +220,12 @@ final class SongLibraryViewModel {
 
             try indexStore.save(updatedIndex)
             index = updatedIndex
+
+            do {
+                try await practiceProgressRepository.remove(songID: entry.id)
+            } catch {
+                errorMessage = "曲目已删除，但练习进度清理失败：\(error.localizedDescription)"
+            }
 
             do {
                 try fileStore.deleteScoreFile(named: entry.musicXMLFileName)

@@ -62,7 +62,8 @@ func latestPreparationGenerationWins() async throws {
         audioImportService: PreparationTestAudioImporter(),
         paths: SongLibraryPaths(),
         bundledProvider: PreparationTestBundledProvider(entries: entries, scoreURL: url),
-        audioPlayer: PreparationTestAudioPlayer()
+        audioPlayer: PreparationTestAudioPlayer(),
+        practiceProgressRepository: PreparationTestProgressRepository()
     )
 
     async let oldResult = viewModel.preparePractice(entryID: firstID)
@@ -100,4 +101,12 @@ private final class PreparationTestAudioPlayer: SongAudioPlayerProtocol {
     func pause() {}
     func stop() {}
     func isPlaying(entryID _: UUID) -> Bool { false }
+}
+
+
+private actor PreparationTestProgressRepository: PracticeProgressRepositoryProtocol {
+    func load() -> PracticeProgressLoadResult { .loaded(PracticeProgressDocument()) }
+    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? { nil }
+    func upsert(_: SongPracticeProgress) {}
+    func remove(songID _: UUID) {}
 }

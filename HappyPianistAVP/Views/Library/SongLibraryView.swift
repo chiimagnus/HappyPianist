@@ -269,9 +269,11 @@ struct SongLibraryView: View {
 
   private func deletePendingEntry() {
     guard let entryID = pendingDeletionEntryID else { return }
-    viewModel.deleteEntry(entryID: entryID)
-    pendingDeletionEntryID = nil
-    synchronizeSelection()
+    Task { @MainActor in
+      await viewModel.deleteEntry(entryID: entryID)
+      pendingDeletionEntryID = nil
+      synchronizeSelection()
+    }
   }
 }
 
@@ -308,7 +310,8 @@ struct SongLibraryView: View {
     audioImportService: audioImportService,
     paths: songLibraryPaths,
     bundledProvider: bundledSongLibraryProvider,
-    audioPlayer: songAudioPlayer
+    audioPlayer: songAudioPlayer,
+    practiceProgressRepository: FilePracticeProgressRepository()
   )
   return SongLibraryView(
     viewModel: viewModel,
