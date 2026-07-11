@@ -535,6 +535,17 @@ extension PracticeSessionViewModel {
         stopAutoplayTask()
         stopAutoplayAudio()
         stopAudioRecognition()
+        if let firstMeasure = self.measureSpans.first,
+           let lastMeasure = self.measureSpans.last,
+           let fullPassage = PracticePassage(
+               start: firstMeasure.occurrenceID,
+               end: lastMeasure.occurrenceID
+           )
+        {
+            roundConfigurationController.pendingPassage = fullPassage
+            _ = roundConfigurationController.applyPending()
+            rebuildActiveRange()
+        }
         self.acceptsPracticeAttempts = true
         self.isRestoredSessionPaused = false
         self.currentStepIndex = self.activeRange?.firstStepIndex ?? 0

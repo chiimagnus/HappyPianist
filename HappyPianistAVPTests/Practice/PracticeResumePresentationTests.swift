@@ -46,6 +46,10 @@ func prepareStartOverMovesToFirstActiveStepWithoutPlaying() async throws {
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
         measureSpans: spans
     )
+    session.roundConfigurationController.pendingPassage = try #require(
+        PracticePassage(start: spans[1].occurrenceID, end: spans[1].occurrenceID)
+    )
+    _ = session.applyPendingRoundConfiguration()
     session.currentStepIndex = 1
     session.state = .ready
     session.isRestoredSessionPaused = true
@@ -53,6 +57,8 @@ func prepareStartOverMovesToFirstActiveStepWithoutPlaying() async throws {
     session.prepareStartOver()
 
     #expect(session.currentStepIndex == 0)
+    #expect(session.activeRoundConfiguration?.passage.start == spans[0].occurrenceID)
+    #expect(session.activeRoundConfiguration?.passage.end == spans[1].occurrenceID)
     #expect(session.state == .ready)
     #expect(session.isRestoredSessionPaused == false)
 }
