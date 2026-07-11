@@ -113,7 +113,14 @@ struct PracticeStepView: View {
                     #if DEBUG
                         viewModel.debugInjectAIImprovPhrase()
                     #endif
-                }
+                },
+                measureMap: PracticeMeasureMapViewModel(
+                    measureSpans: session.measureSpans,
+                    progress: session.sessionProgress,
+                    handMode: session.practiceHandMode,
+                    currentPassage: session.activeRoundConfiguration?.passage,
+                    currentMeasure: session.measureIndex?.occurrenceID(forStepIndex: session.currentStepIndex)?.sourceMeasureID
+                )
             )
             .frame(width: 400, height: practiceViewHeight)
             .glassBackgroundEffect()

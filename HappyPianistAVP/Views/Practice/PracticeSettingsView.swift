@@ -37,6 +37,7 @@ struct PracticeSettingsView: View {
     let onRetryVirtualPianoPlacement: () -> Void
     let onApplyPendingConfiguration: () -> Void
     let onDebugInjectAIImprovPhrase: () -> Void
+    let measureMap: PracticeMeasureMapViewModel?
 
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
     @AppStorage(AudioOutputVolumeSettings.userDefaultsKey)
@@ -60,6 +61,11 @@ struct PracticeSettingsView: View {
 
                 switch selectedTab {
                 case .practice:
+                    if let measureMap {
+                        DisclosureGroup("小节恢复地图") {
+                            PracticeMeasureMapView(viewModel: measureMap)
+                        }
+                    }
                     if isBluetoothMIDIMode {
                         VStack(alignment: .leading, spacing: 12) {
                             Picker("发声路由", selection: $roundConfigurationController.pendingSoundOutputRoute) {
@@ -352,6 +358,7 @@ struct PracticeSettingsView: View {
         onOpenTakeLibrary: {},
         onRetryVirtualPianoPlacement: {},
         onApplyPendingConfiguration: {},
-        onDebugInjectAIImprovPhrase: {}
+        onDebugInjectAIImprovPhrase: {},
+        measureMap: nil
     )
 }
