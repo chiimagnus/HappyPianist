@@ -39,7 +39,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
     let audioRecognitionEnabledSnapshot = MusicXMLRealisticPlaybackDefaults.audioRecognitionEnabled
     let autoplayTimingLeadInSeconds: TimeInterval = 0.05
 
-    private var hasShutdown = false
+    private(set) var hasShutdown = false
 
     var practiceHandMode: PracticeHandMode {
         stateStore.activeRoundConfiguration?.handMode ?? .both
@@ -166,7 +166,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
     func handle(effect: PracticeSessionEffect) {
         switch effect {
         case let .attemptEvaluated(outcome):
-            guard acceptsPracticeAttempts else { return }
+            guard self.acceptsPracticeAttempts else { return }
             recordAttemptOutcome(outcome)
         case .advanceToNextStep:
             advanceToNextStep()

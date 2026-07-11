@@ -55,8 +55,7 @@ struct LibraryCrateView: View {
           }
           .rotation3DEffect(
             .degrees(isActive ? 0 : relativeIndex < 0 ? 42 : -42),
-            axis: (x: 0, y: 1, z: 0),
-            perspective: 0.6
+            axis: (x: 0, y: 1, z: 0)
           )
           .scaleEffect(isActive ? 1 : LibraryDesignTokens.sideRecordScale)
           .opacity(isActive ? 1 : 0.52)
