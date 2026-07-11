@@ -587,6 +587,15 @@ extension PracticeSessionViewModel {
         recordPassageRestart(at: timestamp)
     }
 
+    func retryMeasure(_ sourceMeasureID: PracticeSourceMeasureID) {
+        guard let span = self.measureSpans.first(where: { $0.occurrenceID.sourceMeasureID == sourceMeasureID }),
+              let passage = PracticePassage(start: span.occurrenceID, end: span.occurrenceID)
+        else { return }
+        roundConfigurationController.pendingPassage = passage
+        _ = applyPendingRoundConfiguration()
+        startGuidingIfReady()
+    }
+
     func skip() {
         if self.state == .ready {
             startGuidingIfReady()

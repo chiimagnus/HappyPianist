@@ -43,6 +43,22 @@ struct PracticeStepView: View {
                 fingeringByMIDINote: fingeringByMIDINote
             )
             .aspectRatio(PianoKeyboard88View.aspectRatio, contentMode: .fit)
+
+            if session.state == .completed,
+               let summary = PracticeRoundSummaryViewModel(
+                   progress: session.sessionProgress,
+                   configuration: session.activeRoundConfiguration,
+                   isFullPassage: session.activeRange?.measureSpans.count == session.measureSpans.count
+               )
+            {
+                PracticeRoundSummaryView(
+                    summary: summary,
+                    onRetryHotspot: {
+                        if let id = summary.hotspot?.sourceMeasureID { session.retryMeasure(id) }
+                    },
+                    onContinue: { onBackToLibrary() }
+                )
+            }
         }
         .containerRelativeFrame(.horizontal, count: 100, span: 95, spacing: 0)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
