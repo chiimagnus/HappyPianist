@@ -106,3 +106,9 @@ flowchart TD
 
 - Simulator 可覆盖 ViewModel、MusicXML、matching、timeline 等逻辑测试。
 - 真机才可验证 hand tracking、音频输入、空间 overlay 对齐、平面检测、BLE MIDI 与局域网权限。
+
+## P1 练习闭环验收曲谱
+
+`HappyPianistAVPTests/Fixtures/PracticeLearningLoopEightMeasures.musicxml` 是为自动化测试专门编写的合成曲谱，不是产品内置曲目。它包含八个原始小节、双谱表左右手、两个速度事件、一个右手和弦和一次前后反复，用于校验 parser、结构展开、手别路由、step builder 与 source/occurrence measure identity。
+
+当前仓库没有版权与来源均已确认的生产内置练习曲，因此设备验收应由测试人员导入许可明确的 MusicXML 曲目。不得把上述测试 fixture 描述为首发内置内容，也不得在缺少真实资源时把“内置曲目练习闭环”标记为通过。
