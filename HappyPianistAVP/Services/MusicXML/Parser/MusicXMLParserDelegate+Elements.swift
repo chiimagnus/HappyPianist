@@ -511,8 +511,9 @@ extension MusicXMLParserDelegate {
                 MusicXMLMeasureSpan(
                     partID: state.currentPartID,
                     measureNumber: state.currentMeasureNumber,
-                    measureIndex: state.currentMeasureIndex,
-                    measureNumberToken: state.currentMeasureNumberToken,
+                    sourceMeasureIndex: state.currentMeasureIndex,
+                    sourceMeasureNumberToken: state.currentMeasureNumberToken,
+                    occurrenceIndex: max(0, state.currentMeasureIndex - 1),
                     startTick: state.currentMeasureStartTick,
                     endTick: endTick
                 )

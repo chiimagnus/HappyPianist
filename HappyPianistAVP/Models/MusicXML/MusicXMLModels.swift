@@ -194,39 +194,56 @@ struct MusicXMLPedalEvent: Equatable, Identifiable {
     let timeOnlyPasses: [Int]?
 }
 
-struct MusicXMLMeasureSpan: Equatable, Identifiable {
+struct MusicXMLMeasureSpan: Equatable, Identifiable, Sendable {
     var id: String {
-        "\(partID)-\(measureIndex)-\(startTick)-\(endTick)"
+        "\(partID)-\(sourceMeasureIndex)-\(occurrenceIndex)-\(startTick)-\(endTick)"
     }
 
     let partID: String
     let measureNumber: Int
-    let measureIndex: Int
-    let measureNumberToken: String?
+    let sourceMeasureIndex: Int
+    let sourceMeasureNumberToken: String?
+    let occurrenceIndex: Int
     let startTick: Int
     let endTick: Int
 
-    init(partID: String, measureNumber: Int, startTick: Int, endTick: Int) {
-        self.partID = partID
-        self.measureNumber = measureNumber
-        measureIndex = measureNumber
-        measureNumberToken = nil
-        self.startTick = startTick
-        self.endTick = endTick
+    var measureIndex: Int {
+        sourceMeasureIndex
+    }
+
+    var measureNumberToken: String? {
+        sourceMeasureNumberToken
+    }
+
+    var sourceMeasureID: PracticeSourceMeasureID {
+        PracticeSourceMeasureID(
+            partID: partID,
+            sourceMeasureIndex: sourceMeasureIndex,
+            sourceNumberToken: sourceMeasureNumberToken
+        )
+    }
+
+    var occurrenceID: PracticeMeasureOccurrenceID {
+        PracticeMeasureOccurrenceID(
+            sourceMeasureID: sourceMeasureID,
+            occurrenceIndex: occurrenceIndex
+        )
     }
 
     init(
         partID: String,
         measureNumber: Int,
-        measureIndex: Int,
-        measureNumberToken: String?,
+        sourceMeasureIndex: Int,
+        sourceMeasureNumberToken: String?,
+        occurrenceIndex: Int,
         startTick: Int,
         endTick: Int
     ) {
         self.partID = partID
         self.measureNumber = measureNumber
-        self.measureIndex = measureIndex
-        self.measureNumberToken = measureNumberToken
+        self.sourceMeasureIndex = sourceMeasureIndex
+        self.sourceMeasureNumberToken = sourceMeasureNumberToken
+        self.occurrenceIndex = occurrenceIndex
         self.startTick = startTick
         self.endTick = endTick
     }

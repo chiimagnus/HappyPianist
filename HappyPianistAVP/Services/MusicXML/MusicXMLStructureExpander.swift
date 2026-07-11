@@ -344,6 +344,9 @@ struct MusicXMLStructureExpander {
             outputMeasures.append(MusicXMLMeasureSpan(
                 partID: primaryPartID,
                 measureNumber: outputMeasureNumber,
+                sourceMeasureIndex: span.sourceMeasureIndex,
+                sourceMeasureNumberToken: span.sourceMeasureNumberToken,
+                occurrenceIndex: outputMeasures.count,
                 startTick: currentMeasureStartTick,
                 endTick: currentMeasureStartTick + duration
             ))

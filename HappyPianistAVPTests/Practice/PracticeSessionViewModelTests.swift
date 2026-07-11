@@ -1498,7 +1498,7 @@ func enablingAutoplayStopsManualReplayWithoutResumingAudioRecognition() async {
                 releasedMIDINotes: []
             ),
         ],
-        measureSpans: [MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, startTick: 0, endTick: 960)]
+        measureSpans: [MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, sourceMeasureIndex: 1, sourceMeasureNumberToken: "1", occurrenceIndex: 0, startTick: 0, endTick: 960)]
     )
     viewModel.startGuidingIfReady()
     await settleTaskQueue()

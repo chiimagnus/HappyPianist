@@ -144,7 +144,7 @@ private func makeReplaySteps() -> [PracticeStep] {
 }
 
 private func makeReplayMeasures() -> [MusicXMLMeasureSpan] {
-    [MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, startTick: 0, endTick: 960)]
+    [MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, sourceMeasureIndex: 1, sourceMeasureNumberToken: "1", occurrenceIndex: 0, startTick: 0, endTick: 960)]
 }
 
 private func makeReplayTempoMap() -> MusicXMLTempoMap {

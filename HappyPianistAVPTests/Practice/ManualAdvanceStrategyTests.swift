@@ -40,10 +40,10 @@ private func makeManualAdvanceContext(currentStepIndex: Int) -> ManualAdvanceCon
             PracticeStep(tick: 1440, notes: [PracticeStepNote(midiNote: 65, staff: 1)]),
         ],
         measureSpans: [
-            MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, startTick: 0, endTick: 480),
-            MusicXMLMeasureSpan(partID: "P1", measureNumber: 2, startTick: 480, endTick: 960),
-            MusicXMLMeasureSpan(partID: "P1", measureNumber: 3, startTick: 960, endTick: 1440),
-            MusicXMLMeasureSpan(partID: "P1", measureNumber: 4, startTick: 1440, endTick: 1920),
+            MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, sourceMeasureIndex: 1, sourceMeasureNumberToken: "1", occurrenceIndex: 0, startTick: 0, endTick: 480),
+            MusicXMLMeasureSpan(partID: "P1", measureNumber: 2, sourceMeasureIndex: 2, sourceMeasureNumberToken: "2", occurrenceIndex: 1, startTick: 480, endTick: 960),
+            MusicXMLMeasureSpan(partID: "P1", measureNumber: 3, sourceMeasureIndex: 3, sourceMeasureNumberToken: "3", occurrenceIndex: 2, startTick: 960, endTick: 1440),
+            MusicXMLMeasureSpan(partID: "P1", measureNumber: 4, sourceMeasureIndex: 4, sourceMeasureNumberToken: "4", occurrenceIndex: 3, startTick: 1440, endTick: 1920),
         ]
     )
 }
@@ -83,8 +83,8 @@ func appStatePassesMeasureSpansToPracticeSession() {
         noteSpans: [],
         highlightGuides: [],
         measureSpans: [
-            MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, startTick: 0, endTick: 480),
-            MusicXMLMeasureSpan(partID: "P1", measureNumber: 2, startTick: 480, endTick: 960),
+            MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, sourceMeasureIndex: 1, sourceMeasureNumberToken: "1", occurrenceIndex: 0, startTick: 0, endTick: 480),
+            MusicXMLMeasureSpan(partID: "P1", measureNumber: 2, sourceMeasureIndex: 2, sourceMeasureNumberToken: "2", occurrenceIndex: 1, startTick: 480, endTick: 960),
         ],
         unsupportedNoteCount: 0
     )

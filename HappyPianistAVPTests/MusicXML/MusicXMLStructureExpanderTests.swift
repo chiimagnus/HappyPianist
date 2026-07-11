@@ -217,7 +217,7 @@ func structureExpanderFallsBackWhenJumpLimitsAreHit() {
             ),
         ],
         measures: [
-            MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, startTick: 0, endTick: 480),
+            MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, sourceMeasureIndex: 1, sourceMeasureNumberToken: "1", occurrenceIndex: 0, startTick: 0, endTick: 480),
         ],
         repeatDirectives: [],
         endingDirectives: []
@@ -289,8 +289,8 @@ func structureExpanderPreservesParsedNoteAndScoreFieldsWhenMaterializing() {
         )],
         wordsEvents: [MusicXMLWordsEvent(tick: 0, text: "Allegro", scope: scope)],
         measures: [
-            MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, startTick: 0, endTick: 480),
-            MusicXMLMeasureSpan(partID: "P1", measureNumber: 2, startTick: 480, endTick: 960),
+            MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, sourceMeasureIndex: 1, sourceMeasureNumberToken: "1", occurrenceIndex: 0, startTick: 0, endTick: 480),
+            MusicXMLMeasureSpan(partID: "P1", measureNumber: 2, sourceMeasureIndex: 2, sourceMeasureNumberToken: "2", occurrenceIndex: 1, startTick: 480, endTick: 960),
         ],
         repeatDirectives: [
             MusicXMLRepeatDirective(partID: "P1", measureNumber: 1, direction: .forward),
