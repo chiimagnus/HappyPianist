@@ -160,6 +160,7 @@ extension PracticeSessionViewModel {
     func restoreProgressIfAvailable() async {
         guard let identity = self.songIdentity, let progressCoordinator else { return }
         let session = await progressCoordinator.begin(identity: identity)
+        guard session.isCurrent, self.songIdentity == identity else { return }
         self.progressGeneration = session.generation
         self.progressSaveStatus = .loaded
         self.acceptsPracticeAttempts = true

@@ -51,6 +51,29 @@ func progressCoordinatorDiscardsLateGenerationWrites() async throws {
     #expect(await repository.upsertCount == 0)
 }
 
+@Test
+func progressCoordinatorDiscardsLateBeginResult() async {
+    let repository = SuspendedPracticeProgressRepository()
+    let coordinator = PracticeProgressCoordinator(repository: repository)
+    let firstIdentity = PracticeSongIdentity(songID: UUID(), scoreRevision: "first")
+    let secondIdentity = PracticeSongIdentity(songID: UUID(), scoreRevision: "second")
+
+    async let firstSession = coordinator.begin(identity: firstIdentity)
+    await repository.waitForRequest(identity: firstIdentity)
+    async let secondSession = coordinator.begin(identity: secondIdentity)
+    await repository.waitForRequest(identity: secondIdentity)
+
+    await repository.resume(identity: secondIdentity)
+    let second = await secondSession
+    await repository.resume(identity: firstIdentity)
+    let first = await firstSession
+
+    #expect(second.isCurrent)
+    #expect(second.generation == 2)
+    #expect(first.isCurrent == false)
+    #expect(first.generation == 1)
+}
+
 
 @Test
 func progressCoordinatorRejectsOlderSnapshotWithinSameGeneration() async throws {
@@ -138,4 +161,29 @@ private actor InMemoryPracticeProgressRepository: PracticeProgressRepositoryProt
     func remove(songID: UUID) {
         values = values.filter { $0.key.songID != songID }
     }
+}
+
+private actor SuspendedPracticeProgressRepository: PracticeProgressRepositoryProtocol {
+    private var continuations: [PracticeSongIdentity: CheckedContinuation<SongPracticeProgress?, Never>] = [:]
+
+    func load() -> PracticeProgressLoadResult { .loaded(PracticeProgressDocument()) }
+
+    func progress(for identity: PracticeSongIdentity) async -> SongPracticeProgress? {
+        await withCheckedContinuation { continuation in
+            continuations[identity] = continuation
+        }
+    }
+
+    func waitForRequest(identity: PracticeSongIdentity) async {
+        while continuations[identity] == nil {
+            await Task.yield()
+        }
+    }
+
+    func resume(identity: PracticeSongIdentity) {
+        continuations.removeValue(forKey: identity)?.resume(returning: nil)
+    }
+
+    func upsert(_: SongPracticeProgress) {}
+    func remove(songID _: UUID) {}
 }
