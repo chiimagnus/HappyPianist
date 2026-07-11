@@ -150,14 +150,12 @@ final class ARGuidePracticeViewModel {
     }
 
     func enterPracticeStep(
-        replacePracticeSessionViewModel: () -> Void,
         openImmersiveSpace: PracticeImmersiveOpenHandler,
         dismissImmersiveSpace: @escaping PracticeImmersiveDismissHandler
     ) async {
         if placementViewModel.isVirtualPianoEnabled {
             placementViewModel.showVirtualPianoForPractice()
         }
-        replacePracticeSessionViewModel()
         await beginPracticeLocalization(
             openImmersiveSpace: openImmersiveSpace,
             dismissImmersiveSpace: dismissImmersiveSpace
@@ -165,11 +163,9 @@ final class ARGuidePracticeViewModel {
     }
 
     func retryPracticeLocalization(
-        replacePracticeSessionViewModel: () -> Void,
         openImmersiveSpace: PracticeImmersiveOpenHandler,
         dismissImmersiveSpace: @escaping PracticeImmersiveDismissHandler
     ) async {
-        replacePracticeSessionViewModel()
         await beginPracticeLocalization(
             openImmersiveSpace: openImmersiveSpace,
             dismissImmersiveSpace: dismissImmersiveSpace

@@ -27,6 +27,10 @@ final class PracticeSessionStateStore {
     var attemptReductionState = PracticeAttemptReductionState()
     var lastSessionFact: PracticeSessionFact?
     var songIdentity: PracticeSongIdentity?
+    var progressGeneration: Int?
+    var progressSaveStatus: PracticeProgressSaveStatus = .idle
+    var isRestoredSessionPaused = false
+    var acceptsPracticeAttempts = true
     var activeRoundConfiguration: PracticeRoundConfiguration?
     var measureIndex: PracticeMeasureIndex?
     var activeRange: PracticeActiveRange?

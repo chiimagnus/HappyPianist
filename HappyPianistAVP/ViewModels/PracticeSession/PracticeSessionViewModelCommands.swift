@@ -157,6 +157,75 @@ extension PracticeSessionViewModel {
         }
     }
 
+    func restoreProgressIfAvailable() async {
+        guard let identity = songIdentity, let progressCoordinator else { return }
+        let session = await progressCoordinator.begin(identity: identity)
+        progressGeneration = session.generation
+        progressSaveStatus = .loaded
+        acceptsPracticeAttempts = true
+
+        guard let progress = session.progress else {
+            isRestoredSessionPaused = false
+            return
+        }
+
+        sessionProgress = progress
+        if let configuration = progress.activeConfiguration {
+            roundConfigurationController.restoreActiveConfiguration(configuration)
+            rebuildActiveRange()
+        }
+        if let resumePoint = progress.resumePoint,
+           measureIndex?.occurrenceID(forStepIndex: resumePoint.stepIndex) == resumePoint.occurrenceID,
+           activeRange?.contains(stepIndex: resumePoint.stepIndex) ?? true
+        {
+            currentStepIndex = resumePoint.stepIndex
+        } else {
+            currentStepIndex = activeRange?.firstStepIndex ?? 0
+        }
+        setCurrentHighlightGuideForStepIndex(currentStepIndex)
+        state = steps.isEmpty ? .idle : .ready
+        isRestoredSessionPaused = steps.isEmpty == false
+        refreshAudioRecognitionForCurrentState()
+        refreshPracticeInputForCurrentState()
+    }
+
+    func checkpointProgress() {
+        guard let progressCoordinator,
+              let generation = progressGeneration,
+              let progress = sessionProgress
+        else { return }
+        progressSaveStatus = .pending
+        Task {
+            await progressCoordinator.checkpoint(progress, generation: generation)
+        }
+    }
+
+    func flushProgress() async {
+        guard let progressCoordinator, let generation = progressGeneration else { return }
+        if let progress = sessionProgress {
+            await progressCoordinator.checkpoint(progress, generation: generation)
+        }
+        progressSaveStatus = await progressCoordinator.flush(generation: generation)
+    }
+
+    func suspendAndFlushProgress() async {
+        acceptsPracticeAttempts = false
+        stopManualReplayTask()
+        stopAutoplayTask()
+        stopAutoplayAudio()
+        stopAudioRecognition()
+        stopPracticeInput()
+        await flushProgress()
+    }
+
+    func flushAndShutdown() async {
+        await suspendAndFlushProgress()
+        if let progressCoordinator, let generation = progressGeneration {
+            progressSaveStatus = await progressCoordinator.finish(generation: generation)
+        }
+        shutdown()
+    }
+
     func recordAttemptOutcome(_ outcome: StepAttemptMatchResult, at timestamp: Date = .now) {
         lastAttemptOutcome = outcome
         guard let identity = songIdentity,
@@ -180,6 +249,9 @@ extension PracticeSessionViewModel {
         sessionProgress = result.progress
         attemptReductionState = result.reductionState
         lastSessionFact = result.fact
+        if result.fact != nil {
+            checkpointProgress()
+        }
     }
 
     func recordPassageRestart(at timestamp: Date = .now) {
@@ -194,6 +266,7 @@ extension PracticeSessionViewModel {
         sessionProgress = result.progress
         attemptReductionState = result.reductionState
         lastSessionFact = result.fact
+        checkpointProgress()
     }
 
     func recordPassageCompletion(at timestamp: Date = .now) {
@@ -209,6 +282,7 @@ extension PracticeSessionViewModel {
         sessionProgress = result.progress
         attemptReductionState = result.reductionState
         lastSessionFact = result.fact
+        checkpointProgress()
     }
 
     @discardableResult
@@ -221,6 +295,8 @@ extension PracticeSessionViewModel {
         rebuildActiveRange()
         currentStepIndex = activeRange?.firstStepIndex ?? 0
         state = steps.isEmpty ? .idle : .ready
+        isRestoredSessionPaused = false
+        acceptsPracticeAttempts = true
         recordPassageRestart()
         setCurrentHighlightGuideForStepIndex(currentStepIndex)
         rebuildAutoplayTimeline()
@@ -350,6 +426,11 @@ extension PracticeSessionViewModel {
         chordAttemptAccumulator.reset()
 
         self.songIdentity = nil
+        self.progressGeneration = nil
+        self.progressSaveStatus = .idle
+        self.isRestoredSessionPaused = false
+        self.acceptsPracticeAttempts = true
+        self.sessionProgress = nil
         self.steps = []
         self.tempoMap = MusicXMLTempoMap(tempoEvents: [])
         self.measureSpans = []
@@ -403,11 +484,18 @@ extension PracticeSessionViewModel {
     func startGuidingIfReady() {
         guard self.state == .ready, self.steps.isEmpty == false else { return }
 
-        let navigation = stepNavigator.restart(steps: self.steps, activeRange: self.activeRange)
-        self.currentStepIndex = navigation.currentStepIndex
-        recordPassageRestart()
-        setCurrentHighlightGuideForStepIndex(self.currentStepIndex)
-        self.state = navigation.state
+        if isRestoredSessionPaused {
+            isRestoredSessionPaused = false
+            acceptsPracticeAttempts = true
+            setCurrentHighlightGuideForStepIndex(currentStepIndex)
+            self.state = .guiding(stepIndex: currentStepIndex)
+        } else {
+            let navigation = stepNavigator.restart(steps: self.steps, activeRange: self.activeRange)
+            self.currentStepIndex = navigation.currentStepIndex
+            recordPassageRestart()
+            setCurrentHighlightGuideForStepIndex(self.currentStepIndex)
+            self.state = navigation.state
+        }
 
         if self.autoplayState == .playing {
             refreshAudioRecognitionForCurrentState()

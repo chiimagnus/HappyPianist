@@ -14,6 +14,7 @@ struct PracticeStepView: View {
     @State private var isTakeLibraryPresented = false
     @State private var isSettingsPresented = false
     @State private var practiceViewHeight: CGFloat = 640
+    @State private var isLeavingPractice = false
 
     @State private var isAutoplayEnabled = false
 
@@ -82,7 +83,7 @@ struct PracticeStepView: View {
                 onApplyPendingConfiguration: {
                     let requiresSessionRebuild = session.applyPendingRoundConfiguration()
                     if requiresSessionRebuild {
-                        viewModel.replacePracticeSessionViewModel()
+                        Task { await viewModel.replacePracticeSessionViewModel() }
                     }
                 },
                 onDebugInjectAIImprovPhrase: {
@@ -97,8 +98,7 @@ struct PracticeStepView: View {
         .toolbar {
             ToolbarItemGroup(placement: .bottomOrnament) {
                 Button("返回选曲库", systemImage: "chevron.backward") {
-                    viewModel.practiceSessionViewModel.shutdown()
-                    onBackToLibrary()
+                    leavePractice(shouldNavigateBack: true)
                 }
                 .buttonStyle(.bordered)
                 .buttonBorderShape(.roundedRectangle)
@@ -200,18 +200,7 @@ struct PracticeStepView: View {
         .onDisappear {
             isStepVisible = false
             hasRequestedImmersiveOpen = false
-            viewModel.practiceSessionViewModel.shutdown()
-            viewModel.stopRecording()
-            viewModel.takePlaybackViewModel.stop()
-            viewModel.setPracticeAutoplayEnabled(false)
-            viewModel.hideVirtualPiano()
-            viewModel.setPracticeVirtualPerformerEnabled(false)
-            viewModel.resetPracticeLocalizationState()
-            Task { @MainActor in
-                let dismissHandler = makePracticeImmersiveDismissHandler(dismissImmersiveSpace)
-                await viewModel.closeImmersiveForStep(dismissImmersiveSpace: dismissHandler)
-                await viewModel.recoverImmersiveStateIfStuck()
-            }
+            leavePractice(shouldNavigateBack: false)
         }
         .sheet(isPresented: $isTakeLibraryPresented) {
             NavigationStack {
@@ -236,6 +225,20 @@ struct PracticeStepView: View {
                 }
             }
             .frame(minWidth: 400, minHeight: 500)
+        }
+    }
+
+    private func leavePractice(shouldNavigateBack: Bool) {
+        guard isLeavingPractice == false else { return }
+        isLeavingPractice = true
+        Task { @MainActor in
+            let dismissHandler = makePracticeImmersiveDismissHandler(dismissImmersiveSpace)
+            await viewModel.leavePracticeStep()
+            await viewModel.closeImmersiveForStep(dismissImmersiveSpace: dismissHandler)
+            await viewModel.recoverImmersiveStateIfStuck()
+            if shouldNavigateBack {
+                onBackToLibrary()
+            }
         }
     }
 

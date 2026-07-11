@@ -12,6 +12,7 @@ extension PracticeSessionViewModel {
         practiceInputEventSource: PracticeInputEventSourceProtocol? = nil,
         audioStepAttemptAccumulator: AudioStepAttemptAccumulator? = nil,
         handPianoActivityGate: HandPianoActivityGate? = nil,
+        progressCoordinator: PracticeProgressCoordinator? = nil,
         manualAdvanceModeProvider: @escaping () -> ManualAdvanceMode = {
             ManualAdvanceMode.storageValue(from: UserDefaults.standard.string(forKey: "practiceManualAdvanceMode"))
         }
@@ -31,7 +32,8 @@ extension PracticeSessionViewModel {
             practiceInputEventSource: practiceInputEventSource,
             audioStepAttemptAccumulator: resolvedAudioStepAttemptAccumulator,
             handPianoActivityGate: resolvedHandPianoActivityGate,
-            settingsProvider: settingsProvider
+            settingsProvider: settingsProvider,
+            progressCoordinator: progressCoordinator
         )
     }
 }

@@ -148,6 +148,16 @@ final class PracticeRoundConfigurationController {
         return routingChanged
     }
 
+    func restoreActiveConfiguration(_ configuration: PracticeRoundConfiguration) {
+        pendingPassage = configuration.passage
+        pendingHandMode = configuration.handMode
+        pendingTempoScale = configuration.tempoScale
+        pendingLoopEnabled = configuration.loopEnabled
+        pendingRequiredSuccesses = configuration.requiredSuccesses
+        stateStore.activeRoundConfiguration = configuration
+        stateStore.roundGeneration += 1
+    }
+
     func resetPendingToActive() {
         guard let activeConfiguration = stateStore.activeRoundConfiguration else { return }
         pendingPassage = activeConfiguration.passage

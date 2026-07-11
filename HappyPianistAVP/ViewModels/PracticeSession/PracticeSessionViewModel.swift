@@ -23,6 +23,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
     let settingsProvider: any PracticeSessionSettingsProviderProtocol
     let attemptReducer = PracticeAttemptReducer()
     let roundConfigurationController: PracticeRoundConfigurationController
+    let progressCoordinator: PracticeProgressCoordinator?
 
     var practiceMIDIInputService: PracticeMIDIInputService?
     var audioRecognitionInputService: PracticeAudioRecognitionInputService?
@@ -63,7 +64,8 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
         audioStepAttemptAccumulator: AudioStepAttemptAccumulator,
         handPianoActivityGate: HandPianoActivityGate,
         settingsProvider: (any PracticeSessionSettingsProviderProtocol)? = nil,
-        roundDefaultsStore: (any PracticeRoundDefaultsStoreProtocol)? = nil
+        roundDefaultsStore: (any PracticeRoundDefaultsStoreProtocol)? = nil,
+        progressCoordinator: PracticeProgressCoordinator? = nil
     ) {
         stateStore = PracticeSessionStateStore()
         stepNavigator = PracticeStepNavigator()
@@ -82,6 +84,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
         self.handPianoActivityGate = handPianoActivityGate
         let resolvedSettingsProvider = settingsProvider ?? UserDefaultsPracticeSessionSettingsProvider()
         self.settingsProvider = resolvedSettingsProvider
+        self.progressCoordinator = progressCoordinator
         roundConfigurationController = PracticeRoundConfigurationController(
             stateStore: stateStore,
             settingsProvider: resolvedSettingsProvider,
@@ -163,6 +166,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
     func handle(effect: PracticeSessionEffect) {
         switch effect {
         case let .attemptEvaluated(outcome):
+            guard acceptsPracticeAttempts else { return }
             recordAttemptOutcome(outcome)
         case .advanceToNextStep:
             advanceToNextStep()

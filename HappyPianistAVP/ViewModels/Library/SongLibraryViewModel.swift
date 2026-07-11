@@ -174,7 +174,7 @@ final class SongLibraryViewModel {
                 return false
             }
 
-            appState.applyPreparedPractice(prepared)
+            await appState.applyPreparedPractice(prepared)
 
             var updatedIndex = index
             updatedIndex.lastSelectedEntryID = entry.id

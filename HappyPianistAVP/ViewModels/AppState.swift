@@ -56,6 +56,7 @@ class AppState {
     var arGuideViewModel: ARGuideViewModel!
     var songLibraryViewModel: SongLibraryViewModel!
     var practiceProgressRepository: (any PracticeProgressRepositoryProtocol)!
+    var practiceProgressCoordinator: PracticeProgressCoordinator!
 
     init(
         arTrackingService: ARTrackingServiceProtocol,
@@ -265,9 +266,9 @@ class AppState {
 
     var onApplyKeyboardGeometry: ((PianoKeyboardGeometry, PianoCalibration) -> Void)?
 
-    func applyPreparedPractice(_ prepared: PreparedPractice) {
+    func applyPreparedPractice(_ prepared: PreparedPractice) async {
         practiceSetupState.setImportedSteps(from: prepared)
-        arGuideViewModel?.applyPreparedPractice(prepared)
+        await arGuideViewModel?.applyPreparedPractice(prepared)
         applySessionIfPossible()
     }
 
@@ -285,6 +286,7 @@ class AppState {
         let bundledSongLibraryProvider: BundledSongLibraryProviderProtocol = BundledSongLibraryProvider()
         let songAudioPlayer: SongAudioPlayerProtocol = SongAudioPlayer()
         let progressRepository: any PracticeProgressRepositoryProtocol = FilePracticeProgressRepository()
+        let progressCoordinator = PracticeProgressCoordinator(repository: progressRepository)
 
         let makePressDetectionService: () -> PressDetectionServiceProtocol = { PressDetectionService() }
         let makeChordAttemptAccumulator: () -> ChordAttemptAccumulatorProtocol = { ChordAttemptAccumulator() }
@@ -346,7 +348,8 @@ class AppState {
                     practiceInputEventSource: makeBluetoothMIDIEventSource(),
                     audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
                     handPianoActivityGate: makeHandPianoActivityGate(),
-                    settingsProvider: settingsProvider
+                    settingsProvider: settingsProvider,
+                    progressCoordinator: progressCoordinator
                 )
 
             case .virtualPiano:
@@ -358,7 +361,8 @@ class AppState {
                     audioRecognitionService: nil,
                     practiceInputEventSource: nil,
                     audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
-                    handPianoActivityGate: makeHandPianoActivityGate()
+                    handPianoActivityGate: makeHandPianoActivityGate(),
+                    progressCoordinator: progressCoordinator
                 )
 
             default:
@@ -370,7 +374,8 @@ class AppState {
                     audioRecognitionService: makeAudioRecognitionService(),
                     practiceInputEventSource: nil,
                     audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
-                    handPianoActivityGate: makeHandPianoActivityGate()
+                    handPianoActivityGate: makeHandPianoActivityGate(),
+                    progressCoordinator: progressCoordinator
                 )
             }
         }
@@ -401,6 +406,7 @@ class AppState {
         arGuideViewModel = guideViewModel
         songLibraryViewModel = libraryViewModel
         practiceProgressRepository = progressRepository
+        practiceProgressCoordinator = progressCoordinator
         windowState = WindowTransitionState(practiceSetupState: practiceSetupState, pianoModeRegistry: registry)
     }
 

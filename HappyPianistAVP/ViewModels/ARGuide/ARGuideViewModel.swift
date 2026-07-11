@@ -138,15 +138,15 @@ final class ARGuideViewModel {
         }
     }
 
-    func applyPreparedPractice(_ prepared: PreparedPractice) {
+    func applyPreparedPractice(_ prepared: PreparedPractice) async {
         latestPreparedPractice = prepared
-        applyPreparedPractice(prepared, to: practiceSessionViewModel)
+        await applyPreparedPractice(prepared, to: practiceSessionViewModel)
         if isVirtualPerformerEnabled {
             setPracticeVirtualPerformerEnabled(true)
         }
     }
 
-    private func applyPreparedPractice(_ prepared: PreparedPractice, to session: PracticeSessionViewModel) {
+    private func applyPreparedPractice(_ prepared: PreparedPractice, to session: PracticeSessionViewModel) async {
         session.songIdentity = prepared.identity
         session.setSteps(
             prepared.steps,
@@ -158,19 +158,20 @@ final class ARGuideViewModel {
             highlightGuides: prepared.highlightGuides,
             measureSpans: prepared.measureSpans
         )
+        await session.restoreProgressIfAvailable()
     }
 
-    func replacePracticeSessionViewModel() {
+    func replacePracticeSessionViewModel() async {
         let next = makePracticeSessionViewModel(practiceSetupState.selectedPianoModeID)
 
-        practiceSessionViewModel.shutdown()
+        await practiceSessionViewModel.flushAndShutdown()
         practiceSessionViewModel = next
         placementViewModel.updatePracticeSession(next)
         practiceViewModel.updatePracticeSession(next)
         aiPerformanceViewModel.updatePracticeSession(next)
 
         if let prepared = latestPreparedPractice {
-            applyPreparedPractice(prepared, to: next)
+            await applyPreparedPractice(prepared, to: next)
         }
 
         appState.applySessionIfPossible()
@@ -420,7 +421,6 @@ final class ARGuideViewModel {
         dismissImmersiveSpace: @escaping PracticeImmersiveDismissHandler
     ) async {
         await practiceViewModel.enterPracticeStep(
-            replacePracticeSessionViewModel: { self.replacePracticeSessionViewModel() },
             openImmersiveSpace: openImmersiveSpace,
             dismissImmersiveSpace: dismissImmersiveSpace
         )
@@ -431,7 +431,6 @@ final class ARGuideViewModel {
         dismissImmersiveSpace: @escaping PracticeImmersiveDismissHandler
     ) async {
         await practiceViewModel.retryPracticeLocalization(
-            replacePracticeSessionViewModel: { self.replacePracticeSessionViewModel() },
             openImmersiveSpace: openImmersiveSpace,
             dismissImmersiveSpace: dismissImmersiveSpace
         )
@@ -464,6 +463,20 @@ final class ARGuideViewModel {
 
     func recoverImmersiveStateIfStuck() async {
         await practiceViewModel.recoverImmersiveStateIfStuck()
+    }
+
+    func suspendPracticeAndFlushProgress() async {
+        await practiceSessionViewModel.suspendAndFlushProgress()
+    }
+
+    func leavePracticeStep() async {
+        await practiceSessionViewModel.flushAndShutdown()
+        recordingViewModel.stop()
+        takePlaybackViewModel.stop()
+        setPracticeAutoplayEnabled(false)
+        hideVirtualPiano()
+        setPracticeVirtualPerformerEnabled(false)
+        resetPracticeLocalizationState()
     }
 
     var recordingElapsedText: String {
@@ -531,7 +544,6 @@ final class ARGuideViewModel {
     func onImmersiveDisappear() {
         calibrationGuideViewModel.shutdown()
         practiceLocalizationViewModel.shutdown()
-        practiceSessionViewModel.shutdown()
         practiceSessionViewModel.stopVirtualPianoInput()
         recordingViewModel.stop()
         aiPerformanceViewModel.shutdown()
