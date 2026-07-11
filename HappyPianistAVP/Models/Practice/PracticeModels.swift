@@ -135,7 +135,7 @@ struct PreparedPractice {
     let unsupportedNoteCount: Int
 }
 
-enum ManualAdvanceMode: String, CaseIterable, Identifiable {
+enum ManualAdvanceMode: String, CaseIterable, Identifiable, Codable, Equatable, Sendable {
     case step
     case measure
 

@@ -19,6 +19,7 @@ struct PracticeSettingsView: View {
         }
     }
 
+    @Bindable var roundConfigurationController: PracticeRoundConfigurationController
     @Binding var virtualPerformerEnabled: Bool
     let backendStatusText: String?
     let lastImprovStatusText: String?
@@ -34,22 +35,14 @@ struct PracticeSettingsView: View {
     let onStopRecording: () -> Void
     let onOpenTakeLibrary: () -> Void
     let onRetryVirtualPianoPlacement: () -> Void
-    let onRequestSessionRebuild: () -> Void
+    let onApplyPendingConfiguration: () -> Void
     let onDebugInjectAIImprovPhrase: () -> Void
 
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
     @AppStorage(AudioOutputVolumeSettings.userDefaultsKey)
     private var audioOutputVolume = Double(AudioOutputVolumeSettings.defaultValue)
-    @AppStorage(PracticeSessionSettingsKeys.manualAdvanceMode) private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
-    @AppStorage(PracticeSessionSettingsKeys.handMode) private var practiceHandModeRawValue = PracticeHandMode.both.rawValue
     @AppStorage(PracticeSessionSettingsKeys.improvBackendKind)
     private var improvBackendKindRawValue = ImprovBackendSelection.defaultKind.rawValue
-    @AppStorage(PracticeSessionSettingsKeys.soundOutputRoute)
-    private var soundOutputRouteRawValue = PracticeSoundOutputRoute.localSampler.rawValue
-    @AppStorage(PracticeSessionSettingsKeys.midiDestinationUniqueID)
-    private var midiDestinationUniqueID = 0
-    @AppStorage(PracticeSessionSettingsKeys.sendLocalControlOff)
-    private var sendLocalControlOff = false
 
     @State private var destinationConnectionViewModel = MIDIDestinationConnectionViewModel()
     @State private var isAdvancedFeaturesExpanded = false
@@ -69,15 +62,15 @@ struct PracticeSettingsView: View {
                 case .practice:
                     if isBluetoothMIDIMode {
                         VStack(alignment: .leading, spacing: 12) {
-                            Picker("发声路由", selection: $soundOutputRouteRawValue) {
+                            Picker("发声路由", selection: $roundConfigurationController.pendingSoundOutputRoute) {
                                 ForEach(PracticeSoundOutputRoute.allCases) { route in
-                                    Text(route.title).tag(route.rawValue)
+                                    Text(route.title).tag(route)
                                 }
                             }
                             .pickerStyle(.segmented)
 
                             HStack(spacing: 12) {
-                                Picker("MIDI 输出目的地", selection: $midiDestinationUniqueID) {
+                                Picker("MIDI 输出目的地", selection: $roundConfigurationController.pendingMIDIDestinationUniqueID) {
                                     Text("未选择").tag(0)
                                     ForEach(destinationConnectionViewModel.destinations) { destination in
                                         Text(destination.name).tag(Int(destination.id))
@@ -92,29 +85,18 @@ struct PracticeSettingsView: View {
                                 .buttonBorderShape(.roundedRectangle)
                             }
 
-                            Toggle("Local Control Off（可选）", isOn: $sendLocalControlOff)
+                            Toggle("Local Control Off（可选）", isOn: $roundConfigurationController.pendingSendLocalControlOff)
 
-                            Text("变更路由/目的地会重启当前练习会话（进度可能重置）。输出音量不会受影响。")
+                            Text("发声路由将在下一轮生效；输出音量仍会立即生效。")
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
 
-                            Button("应用路由变更并重启会话", systemImage: "arrow.clockwise") {
-                                onRequestSessionRebuild()
-                            }
-                            .buttonStyle(.bordered)
-                            .buttonBorderShape(.roundedRectangle)
 
                             if let message = destinationConnectionViewModel.lastErrorMessage {
                                 Text(message)
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
                             }
-                        }
-                        .onChange(of: sendLocalControlOff) {
-                            applyLocalControlOffIfNeeded()
-                        }
-                        .onChange(of: midiDestinationUniqueID) {
-                            applyLocalControlOffIfNeeded()
                         }
                     }
 
@@ -123,19 +105,49 @@ struct PracticeSettingsView: View {
                             .font(.headline)
                             .foregroundStyle(.secondary)
 
-                        Picker("练习手", selection: $practiceHandModeRawValue) {
+                        Picker("练习手", selection: $roundConfigurationController.pendingHandMode) {
                             ForEach(PracticeHandMode.allCases) { mode in
-                                Text(mode.title).tag(mode.rawValue)
+                                Text(mode.title).tag(mode)
                             }
                         }
                         .pickerStyle(.segmented)
 
-                        Picker("手动前进方式", selection: $manualAdvanceModeRawValue) {
+                        Picker("手动前进方式", selection: $roundConfigurationController.pendingManualAdvanceMode) {
                             ForEach(ManualAdvanceMode.allCases) { mode in
-                                Text(mode.title).tag(mode.rawValue)
+                                Text(mode.title).tag(mode)
                             }
                         }
                         .pickerStyle(.segmented)
+
+                        LabeledContent("练习速度") {
+                            Text(roundConfigurationController.pendingTempoScale, format: .percent.precision(.fractionLength(0)))
+                                .monospacedDigit()
+                        }
+                        Slider(
+                            value: $roundConfigurationController.pendingTempoScale,
+                            in: PracticeRoundConfiguration.supportedTempoRange,
+                            step: 0.05
+                        )
+
+                        Toggle("循环当前片段", isOn: $roundConfigurationController.pendingLoopEnabled)
+
+                        Stepper(
+                            "连续成功 \(roundConfigurationController.pendingRequiredSuccesses) 次",
+                            value: $roundConfigurationController.pendingRequiredSuccesses,
+                            in: PracticeRoundConfiguration.supportedSuccessRange
+                        )
+
+                        Label("这些规则将在下一轮生效", systemImage: "arrow.clockwise")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+
+                        Button("应用并重新开始本轮", systemImage: "arrow.clockwise") {
+                            applyLocalControlOffIfNeeded()
+                            onApplyPendingConfiguration()
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .buttonBorderShape(.roundedRectangle)
+                        .disabled(roundConfigurationController.hasPendingChanges == false)
                     }
                     .disabled(isAIPerformanceActive)
 
@@ -271,9 +283,13 @@ struct PracticeSettingsView: View {
     }
 
     private func applyLocalControlOffIfNeeded() {
-        guard midiDestinationUniqueID != 0 else { return }
-        guard let destinationUniqueID = Int32(exactly: midiDestinationUniqueID) else { return }
-        destinationConnectionViewModel.sendLocalControlOff(sendLocalControlOff, destinationUniqueID: destinationUniqueID)
+        let destinationID = roundConfigurationController.pendingMIDIDestinationUniqueID
+        guard destinationID != 0 else { return }
+        guard let destinationUniqueID = Int32(exactly: destinationID) else { return }
+        destinationConnectionViewModel.sendLocalControlOff(
+            roundConfigurationController.pendingSendLocalControlOff,
+            destinationUniqueID: destinationUniqueID
+        )
     }
 
     private var effectiveBackendStatusText: String? {
@@ -313,7 +329,13 @@ struct PracticeSettingsView: View {
 }
 
 #Preview("练习设置") {
+    let stateStore = PracticeSessionStateStore()
+    let controller = PracticeRoundConfigurationController(
+        stateStore: stateStore,
+        settingsProvider: UserDefaultsPracticeSessionSettingsProvider()
+    )
     PracticeSettingsView(
+        roundConfigurationController: controller,
         virtualPerformerEnabled: .constant(false),
         backendStatusText: nil,
         lastImprovStatusText: nil,
@@ -329,7 +351,7 @@ struct PracticeSettingsView: View {
         onStopRecording: {},
         onOpenTakeLibrary: {},
         onRetryVirtualPianoPlacement: {},
-        onRequestSessionRebuild: {},
+        onApplyPendingConfiguration: {},
         onDebugInjectAIImprovPhrase: {}
     )
 }

@@ -9,6 +9,9 @@ enum PracticeSessionSettingsKeys {
     static let soundOutputRoute = "practiceSoundOutputRoute"
     static let midiDestinationUniqueID = "practiceMIDIDestinationUniqueID"
     static let sendLocalControlOff = "practiceSendLocalControlOff"
+    static let tempoScale = "practiceTempoScale"
+    static let loopEnabled = "practiceLoopEnabled"
+    static let requiredSuccesses = "practiceRequiredSuccesses"
 }
 
 protocol PracticeSessionSettingsProviderProtocol {

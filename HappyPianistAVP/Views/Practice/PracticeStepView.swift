@@ -16,13 +16,12 @@ struct PracticeStepView: View {
     @State private var practiceViewHeight: CGFloat = 640
 
     @State private var isAutoplayEnabled = false
-    @AppStorage(PracticeSessionSettingsKeys.manualAdvanceMode) private var manualAdvanceModeRawValue = ManualAdvanceMode.step.rawValue
-    @AppStorage(PracticeSessionSettingsKeys.handMode) private var practiceHandModeRawValue = PracticeHandMode.both.rawValue
 
     var body: some View {
         let session = viewModel.practiceSessionViewModel
         let currentGuide = session.currentPianoHighlightGuide
-        let practiceHandMode = PracticeHandMode.storageValue(from: practiceHandModeRawValue)
+        let practiceHandMode = session.practiceHandMode
+        let manualAdvanceMode = session.manualAdvanceMode
 
         VStack(spacing: 30) {
             GrandStaffNotationView(
@@ -56,6 +55,7 @@ struct PracticeStepView: View {
             contentAlignment: .leading
         ) {
             PracticeSettingsView(
+                roundConfigurationController: session.roundConfigurationController,
                 virtualPerformerEnabled: virtualPerformerEnabled,
                 backendStatusText: viewModel.backendStatusText,
                 lastImprovStatusText: viewModel.lastImprovStatusText,
@@ -79,8 +79,11 @@ struct PracticeStepView: View {
                 onRetryVirtualPianoPlacement: {
                     viewModel.retryVirtualPianoPlacement()
                 },
-                onRequestSessionRebuild: {
-                    viewModel.replacePracticeSessionViewModel()
+                onApplyPendingConfiguration: {
+                    let requiresSessionRebuild = session.applyPendingRoundConfiguration()
+                    if requiresSessionRebuild {
+                        viewModel.replacePracticeSessionViewModel()
+                    }
                 },
                 onDebugInjectAIImprovPhrase: {
                     #if DEBUG
@@ -173,16 +176,6 @@ struct PracticeStepView: View {
         }
         .onChange(of: isAutoplayEnabled) {
             viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
-        }
-        .onChange(of: practiceHandModeRawValue) {
-            session.rebuildAutoplayTimeline()
-            session.refreshAudioRecognitionForCurrentState()
-            session.refreshPracticeInputForCurrentState()
-            if session.autoplayState == .playing {
-                session.stopAutoplayAudio()
-                session.stopAutoplayTask()
-                session.startAutoplayTaskIfNeeded()
-            }
         }
         .onChange(of: session.audioErrorMessage) {
             isAudioErrorAlertPresented = session.audioErrorMessage != nil

@@ -21,6 +21,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
     let audioStepAttemptAccumulator: AudioStepAttemptAccumulator
     let midiPracticeStepMatcher: any MIDIPracticeStepMatchingProtocol
     let settingsProvider: any PracticeSessionSettingsProviderProtocol
+    let roundConfigurationController: PracticeRoundConfigurationController
 
     var practiceMIDIInputService: PracticeMIDIInputService?
     var audioRecognitionInputService: PracticeAudioRecognitionInputService?
@@ -31,7 +32,6 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
     var virtualPianoInputController: VirtualPianoInputController?
 
     let handPianoActivityGate: HandPianoActivityGate
-    let manualAdvanceModeProvider: () -> ManualAdvanceMode
 
     let audioRecognitionSuppressDuration: TimeInterval = 0.6
     let audioRecognitionEnabledSnapshot = MusicXMLRealisticPlaybackDefaults.audioRecognitionEnabled
@@ -40,7 +40,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
     private var hasShutdown = false
 
     var practiceHandMode: PracticeHandMode {
-        settingsProvider.practiceHandMode
+        stateStore.activeRoundConfiguration?.handMode ?? .both
     }
 
     subscript<Value>(dynamicMember keyPath: ReferenceWritableKeyPath<PracticeSessionStateStore, Value>) -> Value {
@@ -62,7 +62,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
         audioStepAttemptAccumulator: AudioStepAttemptAccumulator,
         handPianoActivityGate: HandPianoActivityGate,
         settingsProvider: (any PracticeSessionSettingsProviderProtocol)? = nil,
-        manualAdvanceModeProvider: (() -> ManualAdvanceMode)? = nil
+        roundDefaultsStore: (any PracticeRoundDefaultsStoreProtocol)? = nil
     ) {
         stateStore = PracticeSessionStateStore()
         stepNavigator = PracticeStepNavigator()
@@ -81,7 +81,11 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
         self.handPianoActivityGate = handPianoActivityGate
         let resolvedSettingsProvider = settingsProvider ?? UserDefaultsPracticeSessionSettingsProvider()
         self.settingsProvider = resolvedSettingsProvider
-        self.manualAdvanceModeProvider = manualAdvanceModeProvider ?? { resolvedSettingsProvider.manualAdvanceMode }
+        roundConfigurationController = PracticeRoundConfigurationController(
+            stateStore: stateStore,
+            settingsProvider: resolvedSettingsProvider,
+            defaultsStore: roundDefaultsStore ?? UserDefaultsPracticeRoundDefaultsStore()
+        )
 
         practiceMIDIInputService = PracticeMIDIInputService(
             practiceInputEventSource: practiceInputEventSource,
@@ -107,8 +111,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
             audioRecognitionService: audioRecognitionService,
             effectHandler: self,
             audioRecognitionSuppressDuration: audioRecognitionSuppressDuration,
-            leadInSeconds: autoplayTimingLeadInSeconds,
-            handModeProvider: { resolvedSettingsProvider.practiceHandMode }
+            leadInSeconds: autoplayTimingLeadInSeconds
         )
 
         manualReplayService = PracticeManualReplayService(
@@ -116,8 +119,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
             sequencerPlaybackService: sequencerPlaybackService,
             playbackSequenceBuilder: self.playbackSequenceBuilder,
             stateStore: stateStore,
-            effectHandler: self,
-            handModeProvider: { resolvedSettingsProvider.practiceHandMode }
+            effectHandler: self
         )
 
         highlightGuideController = PracticeHighlightGuideController(
