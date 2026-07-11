@@ -11,6 +11,7 @@ struct VirtualPianoPreparationView: View {
         VStack(spacing: 20) {
             HStack {
                 Button("返回钢琴类型选择") {
+                    viewModel.setPracticeVirtualPianoEnabled(false)
                     navigationActions.backToTypePicker()
                 }
                 .buttonStyle(.bordered)
@@ -23,6 +24,7 @@ struct VirtualPianoPreparationView: View {
                 Spacer()
 
                 Button("下一步：去选曲") {
+                    viewModel.hideVirtualPiano()
                     navigationActions.nextToLibrary()
                 }
                 .buttonStyle(.borderedProminent)
@@ -49,6 +51,9 @@ struct VirtualPianoPreparationView: View {
         }
         .onChange(of: viewModel.isVirtualPianoPlaced) {
             windowState.practiceSetupState.isVirtualPianoPlaced = viewModel.isVirtualPianoPlaced
+        }
+        .onDisappear {
+            viewModel.hideVirtualPiano()
         }
     }
 

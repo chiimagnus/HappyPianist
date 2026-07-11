@@ -211,7 +211,7 @@ struct PracticeStepView: View {
             viewModel.stopRecording()
             viewModel.takePlaybackViewModel.stop()
             viewModel.setPracticeAutoplayEnabled(false)
-            viewModel.setPracticeVirtualPianoEnabled(false)
+            viewModel.hideVirtualPiano()
             viewModel.setPracticeVirtualPerformerEnabled(false)
             viewModel.resetPracticeLocalizationState()
             Task { @MainActor in

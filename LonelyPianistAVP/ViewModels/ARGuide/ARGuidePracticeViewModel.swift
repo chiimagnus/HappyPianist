@@ -154,6 +154,9 @@ final class ARGuidePracticeViewModel {
         openImmersiveSpace: PracticeImmersiveOpenHandler,
         dismissImmersiveSpace: @escaping PracticeImmersiveDismissHandler
     ) async {
+        if placementViewModel.isVirtualPianoEnabled {
+            placementViewModel.showVirtualPianoForPractice()
+        }
         replacePracticeSessionViewModel()
         await beginPracticeLocalization(
             openImmersiveSpace: openImmersiveSpace,
@@ -184,6 +187,8 @@ final class ARGuidePracticeViewModel {
                 }
             #endif
         }
+
+        placementViewModel.showVirtualPianoForPlacement()
 
         practiceLocalizationViewModel.setPracticeLocalizationState(.openingImmersive)
         if let openError = await openImmersiveForStep(mode: .practice, openImmersiveSpace: openImmersiveSpace) {
