@@ -157,3 +157,18 @@ flowchart TD
 配置分为长期默认值、下一轮 pending 配置和本轮 immutable active 配置。范围、手别、速度、循环和成功目标只在应用并重开一轮时进入 active state。恢复流程在 preparation 完成后加载完全匹配的 song UUID + score revision，应用片段和 step 位置后停在 `.ready`；只有用户明确开始后才进入 guiding 与发声。
 
 窗口退出、场景进入非 active、session replacement 和完成一轮时遵循：停止新 attempt → flush 当前 generation → shutdown 输入/回放/录制 → 关闭 immersive。旧 generation 的延迟保存会被丢弃。
+
+## P2 正反馈派生链路
+
+```mermaid
+flowchart LR
+  A[typed user attempt] --> B[PracticeAttemptReducer]
+  B --> C[durable measure facts]
+  C --> D[one hotspot + one next action]
+  B --> E[generation-safe feedback event]
+  E --> F[non-modal cue]
+  E --> G[piano-guide restoration effect]
+  C --> H[round summary + measure map]
+```
+
+cue、summary、map 与空间效果都是 facts 的派生表现，不进入 progress JSON。Autoplay、manual replay、AI output、teardown 与 insufficient evidence 不发布反馈事件；旧 song/revision/round generation 的事件在 session 边界丢弃。
