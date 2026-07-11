@@ -33,3 +33,10 @@ func feedbackPolicyPublishesTypedRetryAndRejectsInsufficientEvidence() {
     )])
     #expect(PracticeFeedbackPolicy().events(for: nil, previousProgress: nil, progress: progress, sessionGeneration: 7).isEmpty)
 }
+
+@Test
+func feedbackCopyHasNoPunitiveTerms() {
+    let copy = ["这个音再试一次", "还有一个音在等你", "让和弦一起落下", "这个小节已经点亮"]
+    let punitiveTerms = ["失败", "扣分", "错误太多", "差"]
+    #expect(copy.allSatisfy { text in punitiveTerms.allSatisfy { text.localizedStandardContains($0) == false } })
+}
