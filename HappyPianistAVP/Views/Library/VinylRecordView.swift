@@ -77,10 +77,13 @@ struct VinylRecordView: View {
                             ],
                             center: .center,
                             startRadius: 0,
-                            endRadius: 41
+                            endRadius: 41 * LibraryDesignTokens.recordScale
                         )
                     )
-                    .frame(width: 82, height: 82)
+                    .frame(
+                        width: 82 * LibraryDesignTokens.recordScale,
+                        height: 82 * LibraryDesignTokens.recordScale
+                    )
                     .overlay {
                         Circle()
                             .stroke(.black.opacity(0.30), lineWidth: 1)
@@ -88,7 +91,7 @@ struct VinylRecordView: View {
                     .overlay {
                         Circle()
                             .stroke(.white.opacity(0.16), lineWidth: 1)
-                            .padding(2)
+                            .padding(2 * LibraryDesignTokens.recordScale)
                     }
             }
             .rotationEffect(.degrees(angle))
@@ -98,7 +101,11 @@ struct VinylRecordView: View {
             Circle()
                 .stroke(.white.opacity(0.08), lineWidth: 1)
         }
-        .shadow(color: .black.opacity(0.44), radius: 24, y: 18)
+        .shadow(
+            color: .black.opacity(0.44),
+            radius: 24 * LibraryDesignTokens.recordScale,
+            y: 18 * LibraryDesignTokens.recordScale
+        )
         .onAppear(perform: updateRotationState)
         .onChange(of: isPlaying) {
             updateRotationState()

@@ -57,7 +57,7 @@ struct LibraryCrateView: View {
                         axis: (x: 0, y: 1, z: 0),
                         perspective: 0.6
                     )
-                    .scaleEffect(isActive ? 1 : 0.74)
+                    .scaleEffect(isActive ? 1 : LibraryDesignTokens.sideRecordScale)
                     .opacity(isActive ? 1 : 0.52)
                     .saturation(isActive ? 1 : 0.62)
                     .brightness(isActive ? 0 : -0.06)
@@ -127,7 +127,11 @@ struct LibraryCrateView: View {
             .zIndex(35)
             .accessibilityHidden(true)
         }
-        .frame(maxWidth: .infinity, minHeight: 300, maxHeight: .infinity)
+        .frame(
+            maxWidth: .infinity,
+            minHeight: LibraryDesignTokens.crateMinimumHeight,
+            maxHeight: .infinity
+        )
         .contentShape(.rect)
         .highPriorityGesture(dragGesture)
         .accessibilityElement(children: .contain)

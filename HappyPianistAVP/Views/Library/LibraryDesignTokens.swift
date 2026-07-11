@@ -8,8 +8,17 @@ enum LibraryDesignTokens {
     static let accent = Color(red: 233 / 255, green: 195 / 255, blue: 122 / 255)
     static let accentForeground = Color(red: 58 / 255, green: 44 / 255, blue: 18 / 255)
 
-    static let recordDiameter: CGFloat = 236
-    static let recordSpacing: CGFloat = 238
+    static let recordReferenceDiameter: CGFloat = 236
+    static let recordDiameter: CGFloat = 304
+    static let recordScale = recordDiameter / recordReferenceDiameter
+    static let recordSpacing: CGFloat = 294
+    static let sideRecordScale: CGFloat = 0.80
+    static let crateMinimumHeight: CGFloat = 410
+
+    static let windowMinimumHeight: CGFloat = 620
+    static let windowIdealHeight: CGFloat = 720
+    static let windowMaximumHeight: CGFloat = 860
+
     static let liftMaximum: CGFloat = 72
     static let liftTrigger: CGFloat = 44
 

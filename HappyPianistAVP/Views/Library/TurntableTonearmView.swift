@@ -97,7 +97,17 @@ struct TurntableTonearmView: View {
             )
             .animation(reduceMotion ? nil : LibraryDesignTokens.ease, value: isPlaying)
         }
-        .frame(width: LibraryDesignTokens.recordDiameter, height: LibraryDesignTokens.recordDiameter)
+        .frame(
+            width: LibraryDesignTokens.recordReferenceDiameter,
+            height: LibraryDesignTokens.recordReferenceDiameter,
+            alignment: .topLeading
+        )
+        .scaleEffect(LibraryDesignTokens.recordScale, anchor: .topLeading)
+        .frame(
+            width: LibraryDesignTokens.recordDiameter,
+            height: LibraryDesignTokens.recordDiameter,
+            alignment: .topLeading
+        )
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }

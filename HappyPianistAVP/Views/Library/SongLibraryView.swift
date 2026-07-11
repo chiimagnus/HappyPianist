@@ -74,9 +74,9 @@ struct SongLibraryView: View {
             minWidth: 780,
             idealWidth: 1140,
             maxWidth: 1240,
-            minHeight: 520,
-            idealHeight: 650,
-            maxHeight: 780
+            minHeight: LibraryDesignTokens.windowMinimumHeight,
+            idealHeight: LibraryDesignTokens.windowIdealHeight,
+            maxHeight: LibraryDesignTokens.windowMaximumHeight
         )
         .toolbar {
             ToolbarItemGroup(placement: .bottomOrnament) {
