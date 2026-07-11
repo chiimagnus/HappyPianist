@@ -133,8 +133,7 @@ func autoplayStartsAndAdvancesStep() async throws {
         audioRecognitionService: nil,
         effectHandler: effectHandler,
         audioRecognitionSuppressDuration: 0.6,
-        leadInSeconds: 0.05,
-        handModeProvider: { .both }
+        leadInSeconds: 0.05
     )
 
     service.startAutoplayTaskIfNeeded()
@@ -221,8 +220,7 @@ func shutdownCancelsAutoplayAndPreventsFurtherAdvance() async throws {
         audioRecognitionService: nil,
         effectHandler: effectHandler,
         audioRecognitionSuppressDuration: 0.6,
-        leadInSeconds: 0.05,
-        handModeProvider: { .both }
+        leadInSeconds: 0.05
     )
 
     service.startAutoplayTaskIfNeeded()

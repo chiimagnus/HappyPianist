@@ -24,6 +24,14 @@ final class PracticeSessionStateStore {
     var state: PracticeSessionState = .idle
     var lastAttemptOutcome: StepAttemptMatchResult?
     var songIdentity: PracticeSongIdentity?
+    var activeRoundConfiguration: PracticeRoundConfiguration?
+    var activeManualAdvanceMode: ManualAdvanceMode = .step
+    var activeSoundRoutingSettings = PracticeSoundRoutingSettings(
+        outputRoute: .localSampler,
+        midiDestinationUniqueID: nil,
+        sendLocalControlOff: false
+    )
+    var roundGeneration = 0
     var steps: [PracticeStep] = []
 
     var currentStepIndex: Int = 0 {

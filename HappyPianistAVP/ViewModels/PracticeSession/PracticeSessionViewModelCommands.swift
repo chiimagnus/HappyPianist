@@ -126,7 +126,7 @@ extension PracticeSessionViewModel {
     }
 
     var manualAdvanceMode: ManualAdvanceMode {
-        manualAdvanceModeProvider()
+        stateStore.activeManualAdvanceMode
     }
 
     var canReplayCurrentManualUnit: Bool {
@@ -148,6 +148,22 @@ extension PracticeSessionViewModel {
         case .measure:
             MeasureManualAdvanceStrategy()
         }
+    }
+
+    @discardableResult
+    func applyPendingRoundConfiguration() -> Bool {
+        stopManualReplayTask()
+        stopAutoplayTask()
+        stopAutoplayAudio()
+        stopAudioRecognition()
+        let routingChanged = roundConfigurationController.applyPending()
+        currentStepIndex = 0
+        state = steps.isEmpty ? .idle : .ready
+        setCurrentHighlightGuideForStepIndex(currentStepIndex)
+        rebuildAutoplayTimeline()
+        refreshAudioRecognitionForCurrentState()
+        refreshPracticeInputForCurrentState()
+        return routingChanged
     }
 
     func setSteps(
@@ -175,6 +191,12 @@ extension PracticeSessionViewModel {
         self.steps = steps
         self.tempoMap = tempoMap
         self.measureSpans = measureSpans
+        if let firstMeasure = measureSpans.first,
+           let lastMeasure = measureSpans.last,
+           let passage = PracticePassage(start: firstMeasure.occurrenceID, end: lastMeasure.occurrenceID)
+        {
+            roundConfigurationController.installInitialPassageIfNeeded(passage)
+        }
         self.pedalTimeline = pedalTimeline
         self.fermataTimeline = fermataTimeline
         self.attributeTimeline = attributeTimeline

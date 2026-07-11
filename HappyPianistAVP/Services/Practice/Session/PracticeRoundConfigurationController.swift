@@ -1,0 +1,163 @@
+import Foundation
+import Observation
+
+protocol PracticeRoundDefaultsStoreProtocol: Sendable {
+    var tempoScale: Double { get }
+    var loopEnabled: Bool { get }
+    var requiredSuccesses: Int { get }
+
+    func save(
+        handMode: PracticeHandMode,
+        manualAdvanceMode: ManualAdvanceMode,
+        soundRoutingSettings: PracticeSoundRoutingSettings,
+        tempoScale: Double,
+        loopEnabled: Bool,
+        requiredSuccesses: Int
+    )
+}
+
+struct UserDefaultsPracticeRoundDefaultsStore: PracticeRoundDefaultsStoreProtocol, @unchecked Sendable {
+    private let userDefaults: UserDefaults
+
+    init(userDefaults: UserDefaults = .standard) {
+        self.userDefaults = userDefaults
+    }
+
+    var tempoScale: Double {
+        let stored = userDefaults.object(forKey: PracticeSessionSettingsKeys.tempoScale) as? Double ?? 1
+        return min(max(stored, PracticeRoundConfiguration.supportedTempoRange.lowerBound), PracticeRoundConfiguration.supportedTempoRange.upperBound)
+    }
+
+    var loopEnabled: Bool {
+        userDefaults.bool(forKey: PracticeSessionSettingsKeys.loopEnabled)
+    }
+
+    var requiredSuccesses: Int {
+        let stored = userDefaults.object(forKey: PracticeSessionSettingsKeys.requiredSuccesses) as? Int ?? 3
+        return min(max(stored, PracticeRoundConfiguration.supportedSuccessRange.lowerBound), PracticeRoundConfiguration.supportedSuccessRange.upperBound)
+    }
+
+    func save(
+        handMode: PracticeHandMode,
+        manualAdvanceMode: ManualAdvanceMode,
+        soundRoutingSettings: PracticeSoundRoutingSettings,
+        tempoScale: Double,
+        loopEnabled: Bool,
+        requiredSuccesses: Int
+    ) {
+        userDefaults.set(handMode.rawValue, forKey: PracticeSessionSettingsKeys.handMode)
+        userDefaults.set(manualAdvanceMode.rawValue, forKey: PracticeSessionSettingsKeys.manualAdvanceMode)
+        userDefaults.set(soundRoutingSettings.outputRoute.rawValue, forKey: PracticeSessionSettingsKeys.soundOutputRoute)
+        userDefaults.set(Int(soundRoutingSettings.midiDestinationUniqueID ?? 0), forKey: PracticeSessionSettingsKeys.midiDestinationUniqueID)
+        userDefaults.set(soundRoutingSettings.sendLocalControlOff, forKey: PracticeSessionSettingsKeys.sendLocalControlOff)
+        userDefaults.set(tempoScale, forKey: PracticeSessionSettingsKeys.tempoScale)
+        userDefaults.set(loopEnabled, forKey: PracticeSessionSettingsKeys.loopEnabled)
+        userDefaults.set(requiredSuccesses, forKey: PracticeSessionSettingsKeys.requiredSuccesses)
+    }
+}
+
+@MainActor
+@Observable
+final class PracticeRoundConfigurationController {
+    private let stateStore: PracticeSessionStateStore
+    private let defaultsStore: any PracticeRoundDefaultsStoreProtocol
+
+    var pendingPassage: PracticePassage?
+    var pendingHandMode: PracticeHandMode
+    var pendingManualAdvanceMode: ManualAdvanceMode
+    var pendingSoundOutputRoute: PracticeSoundOutputRoute
+    var pendingMIDIDestinationUniqueID: Int
+    var pendingSendLocalControlOff: Bool
+    var pendingTempoScale: Double
+    var pendingLoopEnabled: Bool
+    var pendingRequiredSuccesses: Int
+
+    init(
+        stateStore: PracticeSessionStateStore,
+        settingsProvider: any PracticeSessionSettingsProviderProtocol,
+        defaultsStore: any PracticeRoundDefaultsStoreProtocol = UserDefaultsPracticeRoundDefaultsStore()
+    ) {
+        self.stateStore = stateStore
+        self.defaultsStore = defaultsStore
+        pendingPassage = nil
+        pendingHandMode = settingsProvider.practiceHandMode
+        pendingManualAdvanceMode = settingsProvider.manualAdvanceMode
+        pendingSoundOutputRoute = settingsProvider.soundRoutingSettings.outputRoute
+        pendingMIDIDestinationUniqueID = Int(settingsProvider.soundRoutingSettings.midiDestinationUniqueID ?? 0)
+        pendingSendLocalControlOff = settingsProvider.soundRoutingSettings.sendLocalControlOff
+        pendingTempoScale = defaultsStore.tempoScale
+        pendingLoopEnabled = defaultsStore.loopEnabled
+        pendingRequiredSuccesses = defaultsStore.requiredSuccesses
+
+        stateStore.activeManualAdvanceMode = pendingManualAdvanceMode
+        stateStore.activeSoundRoutingSettings = pendingSoundRoutingSettings
+    }
+
+    var pendingSoundRoutingSettings: PracticeSoundRoutingSettings {
+        PracticeSoundRoutingSettings(
+            outputRoute: pendingSoundOutputRoute,
+            midiDestinationUniqueID: Int32(exactly: pendingMIDIDestinationUniqueID).flatMap { $0 == 0 ? nil : $0 },
+            sendLocalControlOff: pendingSendLocalControlOff
+        )
+    }
+
+    var pendingConfiguration: PracticeRoundConfiguration? {
+        guard let pendingPassage else { return nil }
+        return PracticeRoundConfiguration(
+            passage: pendingPassage,
+            handMode: pendingHandMode,
+            tempoScale: pendingTempoScale,
+            loopEnabled: pendingLoopEnabled,
+            requiredSuccesses: pendingRequiredSuccesses
+        )
+    }
+
+    var hasPendingChanges: Bool {
+        pendingConfiguration != stateStore.activeRoundConfiguration ||
+            pendingManualAdvanceMode != stateStore.activeManualAdvanceMode ||
+            pendingSoundRoutingSettings != stateStore.activeSoundRoutingSettings
+    }
+
+    func installInitialPassageIfNeeded(_ passage: PracticePassage) {
+        if pendingPassage == nil {
+            pendingPassage = passage
+        }
+        if stateStore.activeRoundConfiguration == nil {
+            _ = applyPending()
+        }
+    }
+
+    @discardableResult
+    func applyPending() -> Bool {
+        guard let pendingConfiguration else { return false }
+        let routingChanged = pendingSoundRoutingSettings != stateStore.activeSoundRoutingSettings
+
+        stateStore.activeRoundConfiguration = pendingConfiguration
+        stateStore.activeManualAdvanceMode = pendingManualAdvanceMode
+        stateStore.activeSoundRoutingSettings = pendingSoundRoutingSettings
+        stateStore.roundGeneration += 1
+
+        defaultsStore.save(
+            handMode: pendingHandMode,
+            manualAdvanceMode: pendingManualAdvanceMode,
+            soundRoutingSettings: pendingSoundRoutingSettings,
+            tempoScale: pendingConfiguration.tempoScale,
+            loopEnabled: pendingConfiguration.loopEnabled,
+            requiredSuccesses: pendingConfiguration.requiredSuccesses
+        )
+        return routingChanged
+    }
+
+    func resetPendingToActive() {
+        guard let activeConfiguration = stateStore.activeRoundConfiguration else { return }
+        pendingPassage = activeConfiguration.passage
+        pendingHandMode = activeConfiguration.handMode
+        pendingTempoScale = activeConfiguration.tempoScale
+        pendingLoopEnabled = activeConfiguration.loopEnabled
+        pendingRequiredSuccesses = activeConfiguration.requiredSuccesses
+        pendingManualAdvanceMode = stateStore.activeManualAdvanceMode
+        pendingSoundOutputRoute = stateStore.activeSoundRoutingSettings.outputRoute
+        pendingMIDIDestinationUniqueID = Int(stateStore.activeSoundRoutingSettings.midiDestinationUniqueID ?? 0)
+        pendingSendLocalControlOff = stateStore.activeSoundRoutingSettings.sendLocalControlOff
+    }
+}

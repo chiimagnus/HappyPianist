@@ -13,7 +13,6 @@ final class PracticeManualReplayService: PracticeSessionLifecycleProtocol {
     private let playbackSequenceBuilder: any PlaybackSequenceBuildingProtocol
     private let stateStore: PracticeSessionStateStore
     private weak var effectHandler: (any PracticeSessionEffectHandlerProtocol)?
-    private let handModeProvider: () -> PracticeHandMode
 
     private var manualReplayTask: Task<Void, Never>?
     private var hasShutdown = false
@@ -23,15 +22,13 @@ final class PracticeManualReplayService: PracticeSessionLifecycleProtocol {
         sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol,
         playbackSequenceBuilder: any PlaybackSequenceBuildingProtocol,
         stateStore: PracticeSessionStateStore,
-        effectHandler: any PracticeSessionEffectHandlerProtocol,
-        handModeProvider: @escaping () -> PracticeHandMode
+        effectHandler: any PracticeSessionEffectHandlerProtocol
     ) {
         self.sleeper = sleeper
         self.sequencerPlaybackService = sequencerPlaybackService
         self.playbackSequenceBuilder = playbackSequenceBuilder
         self.stateStore = stateStore
         self.effectHandler = effectHandler
-        self.handModeProvider = handModeProvider
     }
 
     func shutdown() {
@@ -60,7 +57,7 @@ final class PracticeManualReplayService: PracticeSessionLifecycleProtocol {
         let stepRangeSnapshot = plan.stepRange
         let stepsSnapshot = filteredStepsForPracticeHandMode(
             stateStore.steps,
-            mode: handModeProvider()
+            mode: stateStore.activeRoundConfiguration?.handMode ?? .both
         )
         let tempoMapSnapshot = stateStore.tempoMap
         let leadInSeconds: TimeInterval = 0.05

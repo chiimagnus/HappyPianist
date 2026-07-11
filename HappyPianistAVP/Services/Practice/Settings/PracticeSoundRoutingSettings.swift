@@ -1,6 +1,6 @@
 import Foundation
 
-enum PracticeSoundOutputRoute: String, CaseIterable, Identifiable {
+enum PracticeSoundOutputRoute: String, CaseIterable, Identifiable, Codable, Equatable, Sendable {
     case localSampler
     case externalMIDIDestination
 
@@ -18,7 +18,7 @@ enum PracticeSoundOutputRoute: String, CaseIterable, Identifiable {
     }
 }
 
-struct PracticeSoundRoutingSettings {
+struct PracticeSoundRoutingSettings: Equatable, Sendable {
     let outputRoute: PracticeSoundOutputRoute
     let midiDestinationUniqueID: Int32?
     let sendLocalControlOff: Bool

@@ -19,6 +19,9 @@ extension PracticeSessionViewModel {
         let resolvedPlaybackService = sequencerPlaybackService ?? NoopPracticeSequencerPlaybackService()
         let resolvedAudioStepAttemptAccumulator = audioStepAttemptAccumulator ?? AudioStepAttemptAccumulator()
         let resolvedHandPianoActivityGate = handPianoActivityGate ?? HandPianoActivityGate()
+        let settingsProvider = TestPracticeSessionSettingsProvider(
+            manualAdvanceMode: manualAdvanceModeProvider()
+        )
         self.init(
             pressDetectionService: pressDetectionService,
             chordAttemptAccumulator: chordAttemptAccumulator,
@@ -28,7 +31,7 @@ extension PracticeSessionViewModel {
             practiceInputEventSource: practiceInputEventSource,
             audioStepAttemptAccumulator: resolvedAudioStepAttemptAccumulator,
             handPianoActivityGate: resolvedHandPianoActivityGate,
-            manualAdvanceModeProvider: manualAdvanceModeProvider
+            settingsProvider: settingsProvider
         )
     }
 }
@@ -46,4 +49,15 @@ private final class NoopPracticeSequencerPlaybackService: PracticeSequencerPlayb
     func startLiveNotes(midiNotes _: Set<Int>) throws {}
     func stopLiveNotes(midiNotes _: Set<Int>) {}
     func stopAllLiveNotes() {}
+}
+
+private struct TestPracticeSessionSettingsProvider: PracticeSessionSettingsProviderProtocol {
+    let manualAdvanceMode: ManualAdvanceMode
+    let practiceHandMode: PracticeHandMode = .both
+    let audioRecognitionDetectorMode: PracticeAudioRecognitionDetectorMode = .harmonicTemplate
+    let soundRoutingSettings = PracticeSoundRoutingSettings(
+        outputRoute: .localSampler,
+        midiDestinationUniqueID: nil,
+        sendLocalControlOff: false
+    )
 }
