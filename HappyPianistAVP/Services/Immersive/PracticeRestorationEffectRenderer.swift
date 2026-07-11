@@ -24,7 +24,10 @@ final class PracticeRestorationEffectRenderer {
         reset(clearEvent: false)
         var material = UnlitMaterial(color: event.kind.isStable ? .systemYellow : .systemTeal)
         material.blending = .transparent(opacity: .init(floatLiteral: reduceMotion ? 0.35 : 0.65))
-        let effect = ModelEntity(mesh: .generateBox(size: SIMD3<Float>(0.12, 0.002, 0.025)), materials: [material])
+        let mesh: MeshResource = event.kind.isStable
+            ? .generateSphere(radius: 0.025)
+            : .generateBox(size: SIMD3<Float>(0.12, 0.002, 0.025))
+        let effect = ModelEntity(mesh: mesh, materials: [material])
         effect.position = [0, 0.012, 0]
         parent.addChild(effect)
         entity = effect

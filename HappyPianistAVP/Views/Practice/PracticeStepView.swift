@@ -53,8 +53,8 @@ struct PracticeStepView: View {
             {
                 PracticeRoundSummaryView(
                     summary: summary,
-                    onRetryHotspot: {
-                        if let id = summary.hotspot?.sourceMeasureID { session.retryMeasure(id) }
+                    onPrimaryAction: {
+                        if session.perform(summary.nextAction) == false { onBackToLibrary() }
                     },
                     onContinue: { onBackToLibrary() }
                 )

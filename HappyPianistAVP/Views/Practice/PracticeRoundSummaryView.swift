@@ -2,7 +2,7 @@ import SwiftUI
 
 struct PracticeRoundSummaryView: View {
     let summary: PracticeRoundSummaryViewModel
-    let onRetryHotspot: () -> Void
+    let onPrimaryAction: () -> Void
     let onContinue: () -> Void
 
     var body: some View {
@@ -13,11 +13,9 @@ struct PracticeRoundSummaryView: View {
                 Text("可以再照顾第 \(hotspot.sourceMeasureID.sourceMeasureIndex + 1) 小节")
             }
             HStack {
-                if summary.hotspot != nil {
-                    Button("重练这个小节", systemImage: "arrow.clockwise", action: onRetryHotspot)
-                        .buttonStyle(.borderedProminent)
-                }
-                Button("继续", systemImage: "forward", action: onContinue)
+                Button(summary.actionTitle, systemImage: "arrow.clockwise", action: onPrimaryAction)
+                    .buttonStyle(.borderedProminent)
+                Button("返回曲库", systemImage: "books.vertical", action: onContinue)
                     .buttonStyle(.bordered)
             }
         }
