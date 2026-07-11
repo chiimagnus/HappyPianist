@@ -2,6 +2,7 @@ import Foundation
 @testable import LonelyPianistAVP
 import Testing
 
+@MainActor
 struct PracticeSoundRoutingSettingsTests {
     @Test func defaultsToLocalSampler() throws {
         let suiteName = "PracticeSoundRoutingSettingsTests.\(UUID().uuidString)"
