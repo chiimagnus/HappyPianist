@@ -179,12 +179,12 @@ func parserTracksMeasureIndexAndNumberToken() throws {
 
     let score = try MusicXMLParser().parse(data: Data(xml.utf8))
     #expect(score.measures.count == 2)
-    #expect(score.measures[0].measureIndex == 1)
+    #expect(score.measures[0].sourceMeasureIndex == 1)
     #expect(score.measures[0].measureNumber == 1)
-    #expect(score.measures[0].measureNumberToken == "1A")
-    #expect(score.measures[1].measureIndex == 2)
+    #expect(score.measures[0].sourceMeasureNumberToken == "1A")
+    #expect(score.measures[1].sourceMeasureIndex == 2)
     #expect(score.measures[1].measureNumber == 2)
-    #expect(score.measures[1].measureNumberToken == "2")
+    #expect(score.measures[1].sourceMeasureNumberToken == "2")
 }
 
 @Test

@@ -207,14 +207,6 @@ struct MusicXMLMeasureSpan: Equatable, Identifiable, Sendable {
     let startTick: Int
     let endTick: Int
 
-    var measureIndex: Int {
-        sourceMeasureIndex
-    }
-
-    var measureNumberToken: String? {
-        sourceMeasureNumberToken
-    }
-
     var sourceMeasureID: PracticeSourceMeasureID {
         PracticeSourceMeasureID(
             partID: partID,
