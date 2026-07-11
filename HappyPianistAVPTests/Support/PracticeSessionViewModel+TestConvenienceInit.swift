@@ -13,15 +13,13 @@ extension PracticeSessionViewModel {
         audioStepAttemptAccumulator: AudioStepAttemptAccumulator? = nil,
         handPianoActivityGate: HandPianoActivityGate? = nil,
         progressCoordinator: PracticeProgressCoordinator? = nil,
-        manualAdvanceModeProvider: @escaping () -> ManualAdvanceMode = {
-            ManualAdvanceMode.storageValue(from: UserDefaults.standard.string(forKey: "practiceManualAdvanceMode"))
-        }
+        manualAdvanceMode: ManualAdvanceMode = .step
     ) {
         let resolvedPlaybackService = sequencerPlaybackService ?? NoopPracticeSequencerPlaybackService()
         let resolvedAudioStepAttemptAccumulator = audioStepAttemptAccumulator ?? AudioStepAttemptAccumulator()
         let resolvedHandPianoActivityGate = handPianoActivityGate ?? HandPianoActivityGate()
         let settingsProvider = TestPracticeSessionSettingsProvider(
-            manualAdvanceMode: manualAdvanceModeProvider()
+            manualAdvanceMode: manualAdvanceMode
         )
         self.init(
             pressDetectionService: pressDetectionService,

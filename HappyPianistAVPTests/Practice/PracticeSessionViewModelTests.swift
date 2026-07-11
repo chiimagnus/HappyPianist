@@ -1459,7 +1459,7 @@ func enablingAutoplayStopsManualReplayWithoutResumingAudioRecognition() async {
         sleeper: sleeper,
         sequencerPlaybackService: playbackService,
         audioRecognitionService: audioRecognitionService,
-        manualAdvanceModeProvider: { .measure }
+        manualAdvanceMode: .measure
     )
     viewModel.setSteps(
         [

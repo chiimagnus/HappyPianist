@@ -58,7 +58,7 @@ func appStatePassesMeasureSpansToPracticeSession() async {
         chordAttemptAccumulator: ManualAdvanceNoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playbackService,
-        manualAdvanceModeProvider: { .measure }
+        manualAdvanceMode: .measure
     )
     let appState = AppState()
     let practiceSetupState = PracticeSetupState()
