@@ -13,7 +13,7 @@ func manualReplayBlocksGestureAdvance() async {
         chordAttemptAccumulator: ManualReplayAlwaysMatchAccumulator(),
         sleeper: sleeper,
         sequencerPlaybackService: playbackService,
-        manualAdvanceModeProvider: { .measure }
+        manualAdvanceMode: .measure
     )
     viewModel.setSteps(makeReplaySteps(), tempoMap: makeReplayTempoMap(), measureSpans: makeReplayMeasures())
     viewModel.applyKeyboardGeometry(makeReplayKeyboardGeometry(), calibration: makeReplayCalibration())
@@ -42,7 +42,7 @@ func manualReplayBlocksAudioRecognitionAdvance() async {
         sleeper: sleeper,
         sequencerPlaybackService: playbackService,
         audioRecognitionService: audioRecognitionService,
-        manualAdvanceModeProvider: { .measure }
+        manualAdvanceMode: .measure
     )
     viewModel.setSteps(makeReplaySteps(), tempoMap: makeReplayTempoMap(), measureSpans: makeReplayMeasures())
     viewModel.startGuidingIfReady()
@@ -79,7 +79,7 @@ func completedManualReplayReturnsProgressToMeasureStart() async {
         chordAttemptAccumulator: ManualReplayAlwaysMatchAccumulator(),
         sleeper: ImmediateManualReplaySleeper(),
         sequencerPlaybackService: playbackService,
-        manualAdvanceModeProvider: { .measure }
+        manualAdvanceMode: .measure
     )
     viewModel.setSteps(makeReplaySteps(), tempoMap: makeReplayTempoMap(), measureSpans: makeReplayMeasures())
     viewModel.startGuidingIfReady()
@@ -112,7 +112,7 @@ func restartingManualReplayDoesNotResumeAudioRecognitionBetweenGenerations() asy
         sleeper: sleeper,
         sequencerPlaybackService: playbackService,
         audioRecognitionService: audioRecognitionService,
-        manualAdvanceModeProvider: { .measure }
+        manualAdvanceMode: .measure
     )
     viewModel.setSteps(makeReplaySteps(), tempoMap: makeReplayTempoMap(), measureSpans: makeReplayMeasures())
     viewModel.startGuidingIfReady()
