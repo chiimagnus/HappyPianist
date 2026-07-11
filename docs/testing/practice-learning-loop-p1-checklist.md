@@ -4,21 +4,21 @@
 
 | 项目 | 当前状态 | 证据/说明 |
 | --- | --- | --- |
-| Swift 语法解析 | pass | Linux 环境对 P1 修改文件执行 `swiftc -parse`。 |
-| P1 自动化测试 | blocked | 当前执行环境没有 Xcode、visionOS SDK 与 Simulator；必须在 macOS 运行完整 `HappyPianistAVPTests`。 |
-| 八小节 MusicXML fixture | pass | XML 可解析；fixture 包含双手、速度、和弦与 repeat。Xcode test bundle membership 待 macOS 测试确认。 |
-| Bravura 字体 | blocked | 仓库未包含 `Bravura.otf`；不得宣称最终谱面字形已验收。 |
-| 本地 SoundFont | blocked | 仓库未包含 `SalC5Light2.sf2`；不得宣称本地 sampler 示范播放已验收。 |
+| Swift 编译 | pass | Xcode 27.0、visionOS Simulator 26.4 完整 test build 通过。 |
+| P1 自动化测试 | pass | `HappyPianistAVPTests` 共 519 项通过，0 失败、0 跳过。xcresult：`Test-HappyPianistAVP-2026.07.12_02-51-53-+0800.xcresult`。 |
+| 八小节 MusicXML fixture | pass | fixture 已进入 test bundle；双手、速度、和弦、repeat 与选段回归测试通过。 |
+| Bravura 字体 | available | 仓库包含 `HappyPianistAVP/Resources/Fonts/Bravura.otf`；真机字形观感仍按下方清单验收。 |
+| 本地 SoundFont | available | 仓库包含 `HappyPianistAVP/Resources/SalC5Light2.sf2`；真机扬声器输出仍按下方清单验收。 |
 | CoreML 即兴模型 | skipped | P1 不依赖模型；仓库未包含生产模型。 |
 | 外部 MIDI 输入/输出 | skipped | 需要真实设备与 Vision Pro 验证。 |
 | 麦克风多音和弦识别 | skipped | 当前仍为实验能力；三音及以上存在多数命中限制。 |
-| paused resume 无自动发声 | code-reviewed | coordinator/session 测试已加入；需 Xcode 执行确认 note-on/play 调用为零。 |
-| scene background / back flush | code-reviewed | `PracticeWindowRootView` 与统一 leave lifecycle 已接入；需窗口集成测试。 |
+| paused resume 无自动发声 | pass | coordinator/session 回归测试确认恢复后保持暂停，note-on/play 调用为零。 |
+| scene background / back flush | automated | lifecycle 与 flush 回归测试通过；直接关闭窗口的 UI 路径仍需真机手工确认。 |
 
 ## macOS 验证命令
 
 ```bash
-xcodebuild test \
+rtk xcodebuild test \
   -project HappyPianist.xcodeproj \
   -scheme HappyPianistAVP \
   -destination "$AVP_DESTINATION" \

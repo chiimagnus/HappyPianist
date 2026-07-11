@@ -31,7 +31,7 @@
 
 | 数据 | 代码位置 | 默认目录/文件 |
 | --- | --- | --- |
-| 小节级练习进度 | `FilePracticeProgressRepository` | Documents 下 `Practice/progress-v1.json`。 |
+| 小节级练习进度 | `FilePracticeProgressRepository` | Documents 下 `PracticeProgress/progress-v1.json`。 |
 
 `progress-v1.json` 使用 schema version，按 `SongLibraryEntry.id + score revision digest` 区分曲谱版本。内容只保存练习事实：active configuration、resume point 与 source-measure facts；不保存 SwiftUI 状态、动画、AI 文案或原始逐帧输入。
 
