@@ -11,6 +11,8 @@ struct SongLibraryView: View {
   @State private var isAudioImporterPresented = false
   @State private var pendingAudioBindingEntryID: UUID?
   @State private var pendingDeletionEntryID: UUID?
+  @State private var isPracticeOptionsPresented = false
+  @State private var isPassageSetupPresented = false
 
   private var audioImporterTypes: [UTType] {
     let types = SongLibraryViewModel.supportedAudioFileExtensions.compactMap {
@@ -32,6 +34,8 @@ struct SongLibraryView: View {
       presentation: selectedPresentation, selectedEntry: selectedEntry)
     let selectedCurrentTime = resolvedCurrentTime(selectedEntry: selectedEntry)
     let selectedProgress = selectedDuration > 0 ? selectedCurrentTime / selectedDuration : 0
+    let practiceSummary = selectedEntry.flatMap { viewModel.practiceSummary(entryID: $0.id) }
+    let hasResumeProgress = selectedEntry.map { viewModel.hasResumableProgress(entryID: $0.id) } ?? false
     let requiresAudioImport =
       selectedEntry != nil && selectedEntry?.audioFileName == nil
       && selectedEntry?.isBundled != true
@@ -61,6 +65,7 @@ struct SongLibraryView: View {
           progress: selectedProgress,
           currentTime: selectedCurrentTime,
           duration: selectedDuration,
+          practiceSummary: practiceSummary,
           canSeek: viewModel.currentListeningEntryID == selectedEntry.id && selectedDuration > 0,
           onSeek: { progress in
             viewModel.seekListening(entryID: selectedEntry.id, progress: progress)
@@ -97,7 +102,11 @@ struct SongLibraryView: View {
         .buttonBorderShape(.circle)
         .disabled(canPerformPlaybackAction == false)
 
-        Button("开始练习", systemImage: "music.note", action: startSelectedPractice)
+        Button(
+          hasResumeProgress ? "继续练习" : "开始练习",
+          systemImage: hasResumeProgress ? "arrow.forward.circle.fill" : "music.note",
+          action: presentPracticeOptions
+        )
           .buttonStyle(.borderedProminent)
           .buttonBorderShape(.capsule)
           .tint(LibraryDesignTokens.accent)
@@ -113,9 +122,11 @@ struct SongLibraryView: View {
     .onAppear {
       viewModel.reload()
       synchronizeSelection()
+      Task { await viewModel.reloadPracticeProgress() }
     }
     .onChange(of: viewModel.entries) {
       synchronizeSelection()
+      Task { await viewModel.reloadPracticeProgress() }
     }
     .onDisappear {
       viewModel.stopListening()
@@ -134,6 +145,34 @@ struct SongLibraryView: View {
       Button("好", action: viewModel.dismissError)
     } message: {
       Text(viewModel.errorMessage ?? "未知错误")
+    }
+    .confirmationDialog(
+      "如何开始练习？",
+      isPresented: $isPracticeOptionsPresented,
+      titleVisibility: .visible
+    ) {
+      if let selectedEntryID, viewModel.hasResumableProgress(entryID: selectedEntryID) {
+        Button("继续上次练习", action: continueSelectedPractice)
+      }
+      Button("从头练习", action: startSelectedPracticeFromBeginning)
+      Button("选择片段练习", action: preparePassageSelection)
+      Button("取消", role: .cancel) {}
+    } message: {
+      if let selectedEntryID, let summary = viewModel.practiceSummary(entryID: selectedEntryID) {
+        Text(summary)
+      }
+    }
+    .sheet(isPresented: $isPassageSetupPresented) {
+      if let controller = viewModel.preparedRoundConfigurationController {
+        PracticePassageSetupView(
+          roundConfigurationController: controller,
+          measureSpans: viewModel.preparedMeasureSpans,
+          onCancel: { isPassageSetupPresented = false },
+          onStart: startPreparedPassage
+        )
+      } else {
+        ContentUnavailableView("无法配置练习片段", systemImage: "music.note.list")
+      }
     }
     .confirmationDialog(
       "确认删除该曲目？",
@@ -230,10 +269,37 @@ struct SongLibraryView: View {
     viewModel.didTapListen(entryID: entryID)
   }
 
-  private func startSelectedPractice() {
+  private func presentPracticeOptions() {
+    guard selectedEntryID != nil else { return }
+    isPracticeOptionsPresented = true
+  }
+
+  private func continueSelectedPractice() {
+    prepareAndOpenPractice(mode: .continueLast)
+  }
+
+  private func startSelectedPracticeFromBeginning() {
+    prepareAndOpenPractice(mode: .startOver)
+  }
+
+  private func preparePassageSelection() {
     guard let selectedEntryID else { return }
     Task { @MainActor in
-      guard await viewModel.preparePractice(entryID: selectedEntryID) else { return }
+      guard await viewModel.preparePractice(entryID: selectedEntryID, launchMode: .selectPassage) else { return }
+      isPassageSetupPresented = true
+    }
+  }
+
+  private func startPreparedPassage() {
+    _ = viewModel.applyPreparedPassageConfiguration()
+    isPassageSetupPresented = false
+    onStartPractice()
+  }
+
+  private func prepareAndOpenPractice(mode: PracticeLaunchMode) {
+    guard let selectedEntryID else { return }
+    Task { @MainActor in
+      guard await viewModel.preparePractice(entryID: selectedEntryID, launchMode: mode) else { return }
       onStartPractice()
     }
   }
@@ -361,6 +427,7 @@ private struct LibraryTrackInfoView: View {
   let progress: Double
   let currentTime: TimeInterval
   let duration: TimeInterval
+  let practiceSummary: String?
   let canSeek: Bool
   let onSeek: (Double) -> Void
 
@@ -379,6 +446,13 @@ private struct LibraryTrackInfoView: View {
         .font(.subheadline)
         .foregroundStyle(LibraryDesignTokens.secondaryText)
         .lineLimit(1)
+
+      if let practiceSummary {
+        Label(practiceSummary, systemImage: "clock.arrow.circlepath")
+          .font(.footnote)
+          .foregroundStyle(LibraryDesignTokens.secondaryText)
+          .lineLimit(1)
+      }
 
       VStack(spacing: 7) {
         ZStack(alignment: .leading) {

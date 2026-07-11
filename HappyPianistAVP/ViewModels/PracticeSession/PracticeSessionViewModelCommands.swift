@@ -508,6 +508,30 @@ extension PracticeSessionViewModel {
         startAutoplayTaskIfNeeded()
     }
 
+    func prepareStartOver(at timestamp: Date = .now) {
+        stopManualReplayTask()
+        stopAutoplayTask()
+        stopAutoplayAudio()
+        stopAudioRecognition()
+        acceptsPracticeAttempts = true
+        isRestoredSessionPaused = false
+        currentStepIndex = activeRange?.firstStepIndex ?? 0
+        state = steps.isEmpty ? .idle : .ready
+        setCurrentHighlightGuideForStepIndex(currentStepIndex)
+        if let occurrenceID = measureIndex?.occurrenceID(forStepIndex: currentStepIndex),
+           var progress = sessionProgress
+        {
+            progress.resumePoint = PracticeResumePoint(
+                occurrenceID: occurrenceID,
+                stepIndex: currentStepIndex,
+                updatedAt: timestamp
+            )
+            progress.updatedAt = timestamp
+            sessionProgress = progress
+        }
+        recordPassageRestart(at: timestamp)
+    }
+
     func skip() {
         if self.state == .ready {
             startGuidingIfReady()

@@ -1,6 +1,12 @@
 import Foundation
 import Observation
 
+enum PracticeLaunchMode: Equatable {
+    case continueLast
+    case startOver
+    case selectPassage
+}
+
 @MainActor
 @Observable
 final class SongLibraryViewModel {
@@ -29,6 +35,7 @@ final class SongLibraryViewModel {
     var listeningDuration: TimeInterval = 0
     var isMusicXMLImporterPresented = false
     var isPreparingPractice = false
+    var practiceProgressBySongID: [UUID: SongPracticeProgress] = [:]
 
     init(
         appState: AppState,
@@ -86,6 +93,45 @@ final class SongLibraryViewModel {
         }
     }
 
+    func reloadPracticeProgress() async {
+        guard case let .loaded(document) = await practiceProgressRepository.load() else {
+            practiceProgressBySongID = [:]
+            return
+        }
+        practiceProgressBySongID = Dictionary(
+            document.songs.map { ($0.identity.songID, $0) },
+            uniquingKeysWith: { current, candidate in
+                current.updatedAt >= candidate.updatedAt ? current : candidate
+            }
+        )
+    }
+
+    func hasResumableProgress(entryID: UUID) -> Bool {
+        practiceProgressBySongID[entryID]?.resumePoint != nil
+    }
+
+    func practiceSummary(entryID: UUID) -> String? {
+        guard let progress = practiceProgressBySongID[entryID],
+              let configuration = progress.activeConfiguration
+        else { return nil }
+        let start = configuration.passage.start.sourceMeasureID.sourceMeasureIndex + 1
+        let end = configuration.passage.end.sourceMeasureID.sourceMeasureIndex + 1
+        return "上次练习：第 \(start)–\(end) 小节 · \(configuration.handMode.title) · \(configuration.tempoScale.formatted(.percent.precision(.fractionLength(0))))"
+    }
+
+    var preparedRoundConfigurationController: PracticeRoundConfigurationController? {
+        appState.arGuideViewModel?.practiceSessionViewModel.roundConfigurationController
+    }
+
+    var preparedMeasureSpans: [MusicXMLMeasureSpan] {
+        appState.arGuideViewModel?.practiceSessionViewModel.measureSpans ?? []
+    }
+
+    @discardableResult
+    func applyPreparedPassageConfiguration() -> Bool {
+        appState.arGuideViewModel?.practiceSessionViewModel.applyPendingRoundConfiguration() ?? false
+    }
+
     func dismissError() {
         errorMessage = nil
     }
@@ -129,7 +175,10 @@ final class SongLibraryViewModel {
         }
     }
 
-    func preparePractice(entryID: UUID) async -> Bool {
+    func preparePractice(
+        entryID: UUID,
+        launchMode: PracticeLaunchMode = .continueLast
+    ) async -> Bool {
         guard let entry = entries.first(where: { $0.id == entryID }) else {
             return false
         }
@@ -175,6 +224,9 @@ final class SongLibraryViewModel {
             }
 
             await appState.applyPreparedPractice(prepared)
+            if launchMode == .startOver {
+                appState.arGuideViewModel.practiceSessionViewModel.prepareStartOver()
+            }
 
             var updatedIndex = index
             updatedIndex.lastSelectedEntryID = entry.id
