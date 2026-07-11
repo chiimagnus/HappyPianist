@@ -38,6 +38,7 @@ final class PracticeManualReplayService: PracticeSessionLifecycleProtocol {
     }
 
     func startManualReplay(with plan: ManualReplayPlan) {
+        guard stateStore.isActiveRangeInvalid == false else { return }
         let shouldResumeRecognitionWhenReplayEnds = stateStore.isManualReplayPlaying
             ? stateStore.shouldResumeAudioRecognitionAfterManualReplay
             : stateStore.isAudioRecognitionRunning

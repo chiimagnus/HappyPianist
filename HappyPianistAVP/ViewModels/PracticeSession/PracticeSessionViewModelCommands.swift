@@ -6,6 +6,7 @@ extension PracticeSessionViewModel {
     }
 
     var currentStep: PracticeStep? {
+        guard self.stateStore.isActiveRangeInvalid == false else { return nil }
         guard self.state != .completed else { return nil }
         guard self.steps.indices.contains(self.currentStepIndex) else { return nil }
         guard self.activeRange?.contains(stepIndex: self.currentStepIndex) ?? true else { return nil }
@@ -13,6 +14,7 @@ extension PracticeSessionViewModel {
     }
 
     var currentPianoHighlightGuide: PianoHighlightGuide? {
+        guard self.stateStore.isActiveRangeInvalid == false else { return nil }
         guard let currentHighlightGuideIndex = self.currentHighlightGuideIndex else { return nil }
         guard self.highlightGuides.indices.contains(currentHighlightGuideIndex) else { return nil }
         return self.highlightGuides[currentHighlightGuideIndex]
@@ -45,10 +47,12 @@ extension PracticeSessionViewModel {
     }
 
     var notationMeasureSpans: [MusicXMLMeasureSpan] {
-        self.activeRange?.measureSpans ?? self.measureSpans
+        guard self.stateStore.isActiveRangeInvalid == false else { return [] }
+        return self.activeRange?.measureSpans ?? self.measureSpans
     }
 
     var activeHighlightGuides: [PianoHighlightGuide] {
+        guard self.stateStore.isActiveRangeInvalid == false else { return [] }
         guard let activeRange = self.activeRange else { return self.highlightGuides }
         return self.highlightGuides.filter { activeRange.contains(tick: $0.tick) }
     }
@@ -238,6 +242,7 @@ extension PracticeSessionViewModel {
 
     func recordAttemptOutcome(_ outcome: StepAttemptMatchResult, at timestamp: Date = .now) {
         self.lastAttemptOutcome = outcome
+        guard self.stateStore.isActiveRangeInvalid == false else { return }
         guard let identity = self.songIdentity,
               let configuration = self.activeRoundConfiguration,
               let measureIndex = self.measureIndex
@@ -498,6 +503,7 @@ extension PracticeSessionViewModel {
     }
 
     func startGuidingIfReady() {
+        guard self.stateStore.isActiveRangeInvalid == false else { return }
         guard self.state == .ready, self.steps.isEmpty == false else { return }
 
         if self.isRestoredSessionPaused {
@@ -565,12 +571,14 @@ extension PracticeSessionViewModel {
     }
 
     func replayCurrentUnit() {
+        guard self.stateStore.isActiveRangeInvalid == false else { return }
         guard self.autoplayState == .off else { return }
         guard let plan = manualAdvanceStrategy.replayPlan(in: manualAdvanceContext) else { return }
         startManualReplay(with: plan)
     }
 
     func playCurrentStepSound() {
+        guard self.stateStore.isActiveRangeInvalid == false else { return }
         playCurrentStepSound(applyRecognitionSuppress: true)
     }
 
@@ -579,6 +587,7 @@ extension PracticeSessionViewModel {
     }
 
     func setAutoplayEnabled(_ isEnabled: Bool) {
+        guard isEnabled == false || self.stateStore.isActiveRangeInvalid == false else { return }
         if isEnabled {
             stopManualReplayTask()
             stopVirtualPianoInput()

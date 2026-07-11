@@ -80,6 +80,7 @@ final class PracticePlaybackControlService: PracticePlaybackControlServiceProtoc
     }
 
     func playCurrentStepSound(applyRecognitionSuppress: Bool) {
+        guard stateStore.isActiveRangeInvalid == false else { return }
         guard let currentStep else { return }
         guard stateStore.activeRange?.contains(stepIndex: stateStore.currentStepIndex) ?? true else { return }
         guard stateStore.audioPlaybackErrorMessage == nil else { return }
@@ -108,6 +109,7 @@ final class PracticePlaybackControlService: PracticePlaybackControlServiceProtoc
     }
 
     func startAutoplayTaskIfNeeded() {
+        guard stateStore.isActiveRangeInvalid == false else { return }
         guard stateStore.autoplayState == .playing else { return }
         guard case .guiding = stateStore.state else { return }
         guard stateStore.steps.isEmpty == false else { return }

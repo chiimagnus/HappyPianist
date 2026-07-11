@@ -35,6 +35,7 @@ final class PracticeSessionStateStore {
     var measureIndex: PracticeMeasureIndex?
     var activeRange: PracticeActiveRange?
     var activeRangeDiagnostic: PracticeMeasureIndexDiagnostic?
+    var isActiveRangeInvalid: Bool { activeRangeDiagnostic != nil }
     var activeManualAdvanceMode: ManualAdvanceMode = .step
     var activeSoundRoutingSettings = PracticeSoundRoutingSettings(
         outputRoute: .localSampler,

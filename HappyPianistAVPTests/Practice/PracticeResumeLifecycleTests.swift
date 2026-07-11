@@ -52,6 +52,50 @@ func restoredPracticeStaysReadyAndSilentUntilExplicitStart() async throws {
     #expect(playback.oneShotCount == 1)
 }
 
+@MainActor
+@Test
+func invalidRestoredPassageFailsClosed() async throws {
+    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
+    let spans = makeResumeSpans()
+    let missingSource = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 99)
+    let missingOccurrence = PracticeMeasureOccurrenceID(sourceMeasureID: missingSource, occurrenceIndex: 99)
+    let passage = try #require(PracticePassage(start: missingOccurrence, end: missingOccurrence))
+    let progress = SongPracticeProgress(
+        identity: identity,
+        activeConfiguration: PracticeRoundConfiguration(
+            passage: passage,
+            handMode: .both,
+            tempoScale: 1,
+            loopEnabled: false,
+            requiredSuccesses: 3
+        ),
+        updatedAt: .now
+    )
+    let playback = CapturingResumePlaybackService()
+    let session = PracticeSessionViewModel(
+        pressDetectionService: ResumeNoopPressDetectionService(),
+        chordAttemptAccumulator: ResumeNoopChordAccumulator(),
+        sleeper: TaskSleeper(),
+        sequencerPlaybackService: playback,
+        progressCoordinator: PracticeProgressCoordinator(repository: ResumeRepository(progress: progress))
+    )
+    session.songIdentity = identity
+    session.setSteps(makeResumeSteps(), tempoMap: MusicXMLTempoMap(tempoEvents: []), measureSpans: spans)
+
+    await session.restoreProgressIfAvailable()
+    session.startGuidingIfReady()
+    session.playCurrentStepSound()
+    session.setAutoplayEnabled(true)
+
+    #expect(session.activeRangeDiagnostic == .passageBoundaryNotFound)
+    #expect(session.state == .ready)
+    #expect(session.currentStep == nil)
+    #expect(session.notationMeasureSpans.isEmpty)
+    #expect(session.autoplayTimeline == .empty)
+    #expect(playback.oneShotCount == 0)
+    #expect(playback.playCount == 0)
+}
+
 
 @MainActor
 @Test
