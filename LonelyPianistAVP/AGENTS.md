@@ -31,6 +31,8 @@
 - **Hover Effects:** 标准 SwiftUI `Button` 使用系统样式时已有默认 hover，无需重复添加 `.hoverEffect()`；自定义交互控件必须确保有 hover 反馈，仅在系统未提供时显式添加。
 - **按钮样式:** 为按钮设置 `.buttonBorderShape()` 以符合 visionOS 的空间风格（例如 `.roundedRectangle`、`.capsule`、`.circle`）。
 - **“屏幕”幻觉:** 不要用 `UIScreen.main.bounds`。visionOS 没有“屏幕”。用 `GeometryReader` 或 `GeometryReader3D`。
+- 使用 `pushWindow` 前必须核对完整窗口流：它会后台保留来源窗口、让目标窗口继承来源窗口尺寸；关闭目标才恢复来源，且不能从已 pushed 的窗口再次 push。仅用于真正的单层“前进／返回”窗口栈，不能拿它修补关闭窗口导致 app 退出的问题。
+- 需要始终贴附在主窗口旁、随主窗口移动的面板，使用 `.ornament`（例如 `.scene(.trailing)`）；独立 `Window` 加 `defaultWindowPlacement(.trailing(...))` 只决定首次位置，之后系统允许用户移动和调整，不能作为持久贴附行为。
 
 ### 2. RealityKit 与 ECS（Entity Component System）
 - **RealityView:** 所有 3D 内容集成都使用 `RealityView`。
