@@ -332,6 +332,7 @@ extension PracticeSessionViewModel {
         self.state = self.steps.isEmpty ? .idle : .ready
         self.isRestoredSessionPaused = false
         self.acceptsPracticeAttempts = true
+        self.latestFeedbackEvent = nil
         recordPassageRestart()
         setCurrentHighlightGuideForStepIndex(self.currentStepIndex)
         rebuildAutoplayTimeline()
@@ -594,6 +595,43 @@ extension PracticeSessionViewModel {
         roundConfigurationController.pendingPassage = passage
         _ = applyPendingRoundConfiguration()
         startGuidingIfReady()
+    }
+
+    @discardableResult
+    func perform(_ action: PracticeNextAction) -> Bool {
+        switch action {
+        case let .retryMeasure(id):
+            retryMeasure(id)
+        case .isolateHands:
+            roundConfigurationController.pendingHandMode = self.practiceHandMode == .left ? .left : .right
+            _ = applyPendingRoundConfiguration()
+            startGuidingIfReady()
+        case let .lowerTempo(scale):
+            roundConfigurationController.pendingTempoScale = scale
+            _ = applyPendingRoundConfiguration()
+            startGuidingIfReady()
+        case .keepTempo:
+            _ = applyPendingRoundConfiguration()
+            startGuidingIfReady()
+        case .restoreFullPassage:
+            prepareStartOver()
+            startGuidingIfReady()
+        case .expandPassage:
+            guard let activeRange = self.activeRange,
+                  let first = self.measureSpans.firstIndex(where: { $0.occurrenceID == activeRange.measureSpans.first?.occurrenceID }),
+                  let last = self.measureSpans.firstIndex(where: { $0.occurrenceID == activeRange.measureSpans.last?.occurrenceID }),
+                  let passage = PracticePassage(
+                      start: self.measureSpans[max(0, first - 1)].occurrenceID,
+                      end: self.measureSpans[min(self.measureSpans.count - 1, last + 1)].occurrenceID
+                  )
+            else { return false }
+            roundConfigurationController.pendingPassage = passage
+            _ = applyPendingRoundConfiguration()
+            startGuidingIfReady()
+        case .continuePassage:
+            return false
+        }
+        return true
     }
 
     func skip() {

@@ -28,12 +28,16 @@ struct PracticeFeedbackPolicy {
             return [event(attempt: attempt, sessionGeneration: sessionGeneration, kind: .retryInvitation(issue: issue))]
         case let .attemptMatched(attempt):
             let id = attempt.occurrenceID.sourceMeasureID
-            guard state(of: id, in: previousProgress) != .stable, state(of: id, in: progress) == .stable else { return [] }
+            guard state(of: id, handMode: attempt.handMode, in: previousProgress) != .stable,
+                  state(of: id, handMode: attempt.handMode, in: progress) == .stable
+            else { return [] }
             return [event(attempt: attempt, sessionGeneration: sessionGeneration, kind: .measureStable)]
         case .passageRestarted:
             return []
         case let .passageCompleted(round):
-            let passageFacts = progress.measureFacts.filter { $0.handMode == round.handMode }
+            let passageFacts = progress.measureFacts.filter {
+                $0.handMode == round.handMode && round.passage.contains($0.sourceMeasureID)
+            }
             let stable = passageFacts.isEmpty == false && passageFacts.allSatisfy { $0.state == .stable }
             return [
                 PracticeFeedbackEvent(
@@ -47,8 +51,12 @@ struct PracticeFeedbackPolicy {
         }
     }
 
-    private func state(of id: PracticeSourceMeasureID, in progress: SongPracticeProgress?) -> MeasureLearningState? {
-        progress?.measureFacts.first { $0.sourceMeasureID == id }?.state
+    private func state(
+        of id: PracticeSourceMeasureID,
+        handMode: PracticeHandMode,
+        in progress: SongPracticeProgress?
+    ) -> MeasureLearningState? {
+        progress?.measureFacts.first { $0.sourceMeasureID == id && $0.handMode == handMode }?.state
     }
 
     private func event(
@@ -63,5 +71,14 @@ struct PracticeFeedbackPolicy {
             sourceMeasureID: attempt.occurrenceID.sourceMeasureID,
             kind: kind
         )
+    }
+}
+
+extension PracticePassage {
+    func contains(_ sourceMeasureID: PracticeSourceMeasureID) -> Bool {
+        guard sourceMeasureID.partID == start.sourceMeasureID.partID else { return false }
+        let bounds = min(start.sourceMeasureID.sourceMeasureIndex, end.sourceMeasureID.sourceMeasureIndex)
+            ... max(start.sourceMeasureID.sourceMeasureIndex, end.sourceMeasureID.sourceMeasureIndex)
+        return bounds.contains(sourceMeasureID.sourceMeasureIndex)
     }
 }
