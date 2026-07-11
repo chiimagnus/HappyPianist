@@ -122,3 +122,11 @@ flowchart TD
 - typed attempt outcome 只表达 matched、wrong note、missing notes、incomplete chord 与 insufficient evidence；不能通过解析错误字符串生成进度。
 
 麦克风识别仍属于实验路径。特别是三音及以上和弦的证据完整度受 detector 能力限制，P1 不把它描述成与 MIDI 相同的严格和弦完整判定。
+
+## P2 正反馈
+
+- typed attempt 只派生一个主要卡点与一个确定性下一步；结果不持久化。
+- 当前小节 cue 为顶部非模态短提示；一轮结束后可直接重练主要小节。
+- 设置中的小节恢复地图只显示尚未开始、正在练习、已经稳定，并从 durable facts 恢复。
+- immersive 点亮效果复用 piano-guide root；换曲、restart 与 dismiss 统一清理。
+- Simulator/真机验收状态见 `docs/testing/practice-feedback-usability-checklist.md`。
