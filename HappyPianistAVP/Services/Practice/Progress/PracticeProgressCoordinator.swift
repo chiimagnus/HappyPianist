@@ -20,6 +20,7 @@ enum PracticeProgressSaveStatus: Equatable, Sendable {
 struct PracticeProgressSession: Equatable, Sendable {
     let generation: Int
     let progress: SongPracticeProgress?
+    let isCurrent: Bool
 }
 
 actor PracticeProgressCoordinator {
@@ -51,11 +52,15 @@ actor PracticeProgressCoordinator {
         pendingProgress = nil
         currentGeneration += 1
         currentIdentity = identity
+        let generation = currentGeneration
 
         let progress = await repository.progress(for: identity)
+        guard generation == currentGeneration, identity == currentIdentity else {
+            return PracticeProgressSession(generation: generation, progress: nil, isCurrent: false)
+        }
         lastAcceptedUpdatedAt = progress?.updatedAt
         saveStatus = .loaded
-        return PracticeProgressSession(generation: currentGeneration, progress: progress)
+        return PracticeProgressSession(generation: generation, progress: progress, isCurrent: true)
     }
 
     func checkpoint(_ progress: SongPracticeProgress, generation: Int) {
