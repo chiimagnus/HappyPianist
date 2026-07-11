@@ -157,6 +157,60 @@ extension PracticeSessionViewModel {
         }
     }
 
+    func recordAttemptOutcome(_ outcome: StepAttemptMatchResult, at timestamp: Date = .now) {
+        lastAttemptOutcome = outcome
+        guard let identity = songIdentity,
+              let configuration = activeRoundConfiguration,
+              let measureIndex
+        else {
+            return
+        }
+
+        let result = attemptReducer.reduceAttempt(
+            progress: sessionProgress,
+            reductionState: attemptReductionState,
+            outcome: outcome,
+            stepIndex: currentStepIndex,
+            identity: identity,
+            configuration: configuration,
+            roundGeneration: roundGeneration,
+            measureIndex: measureIndex,
+            timestamp: timestamp
+        )
+        sessionProgress = result.progress
+        attemptReductionState = result.reductionState
+        lastSessionFact = result.fact
+    }
+
+    func recordPassageRestart(at timestamp: Date = .now) {
+        guard let identity = songIdentity, let configuration = activeRoundConfiguration else { return }
+        let result = attemptReducer.reducePassageRestart(
+            progress: sessionProgress,
+            identity: identity,
+            configuration: configuration,
+            roundGeneration: roundGeneration,
+            timestamp: timestamp
+        )
+        sessionProgress = result.progress
+        attemptReductionState = result.reductionState
+        lastSessionFact = result.fact
+    }
+
+    func recordPassageCompletion(at timestamp: Date = .now) {
+        guard let identity = songIdentity, let configuration = activeRoundConfiguration else { return }
+        let result = attemptReducer.reducePassageCompletion(
+            progress: sessionProgress,
+            reductionState: attemptReductionState,
+            identity: identity,
+            configuration: configuration,
+            roundGeneration: roundGeneration,
+            timestamp: timestamp
+        )
+        sessionProgress = result.progress
+        attemptReductionState = result.reductionState
+        lastSessionFact = result.fact
+    }
+
     @discardableResult
     func applyPendingRoundConfiguration() -> Bool {
         stopManualReplayTask()
@@ -167,6 +221,7 @@ extension PracticeSessionViewModel {
         rebuildActiveRange()
         currentStepIndex = activeRange?.firstStepIndex ?? 0
         state = steps.isEmpty ? .idle : .ready
+        recordPassageRestart()
         setCurrentHighlightGuideForStepIndex(currentStepIndex)
         rebuildAutoplayTimeline()
         refreshAudioRecognitionForCurrentState()
@@ -350,6 +405,7 @@ extension PracticeSessionViewModel {
 
         let navigation = stepNavigator.restart(steps: self.steps, activeRange: self.activeRange)
         self.currentStepIndex = navigation.currentStepIndex
+        recordPassageRestart()
         setCurrentHighlightGuideForStepIndex(self.currentStepIndex)
         self.state = navigation.state
 
@@ -429,6 +485,7 @@ extension PracticeSessionViewModel {
                 return
             }
 
+            recordPassageCompletion()
             if activeRoundConfiguration?.loopEnabled == true,
                let firstStepIndex = activeRange?.firstStepIndex
             {
@@ -486,6 +543,7 @@ extension PracticeSessionViewModel {
     }
 
     private func completeManualAdvance() {
+        recordPassageCompletion()
         if activeRoundConfiguration?.loopEnabled == true,
            let firstStepIndex = activeRange?.firstStepIndex
         {

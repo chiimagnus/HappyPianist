@@ -23,6 +23,9 @@ struct PracticeSessionNotationGuideScrollPoint: Equatable {
 final class PracticeSessionStateStore {
     var state: PracticeSessionState = .idle
     var lastAttemptOutcome: StepAttemptMatchResult?
+    var sessionProgress: SongPracticeProgress?
+    var attemptReductionState = PracticeAttemptReductionState()
+    var lastSessionFact: PracticeSessionFact?
     var songIdentity: PracticeSongIdentity?
     var activeRoundConfiguration: PracticeRoundConfiguration?
     var measureIndex: PracticeMeasureIndex?
