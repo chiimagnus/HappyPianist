@@ -1,5 +1,4 @@
 import Foundation
-import ImprovProtocol
 
 enum AriaNetworkBonjourHTTPImprovBackendError: Error, LocalizedError, Equatable {
     case backendNotResolved
@@ -96,4 +95,3 @@ actor AriaNetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
         return TimeInterval(components.seconds) + TimeInterval(components.attoseconds) / 1_000_000_000_000_000_000
     }
 }
-

@@ -1,5 +1,4 @@
 import Foundation
-import ImprovProtocol
 
 enum LocalCoreMLDuetImprovBackendError: Error, LocalizedError, Equatable, Sendable {
     case timeout

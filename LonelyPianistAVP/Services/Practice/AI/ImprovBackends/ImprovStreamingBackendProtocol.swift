@@ -1,5 +1,4 @@
 import Foundation
-import ImprovProtocol
 
 protocol ImprovStreamingBackendProtocol: Sendable {
     func streamChunks(

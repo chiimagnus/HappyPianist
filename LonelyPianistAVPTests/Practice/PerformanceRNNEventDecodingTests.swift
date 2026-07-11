@@ -1,4 +1,3 @@
-import ImprovProtocol
 @testable import LonelyPianistAVP
 import Testing
 
@@ -36,4 +35,3 @@ func performanceRNNEventCodec_decodesChordInStableOrder() {
     #expect(notes.allSatisfy { $0.time >= 0.0 })
     #expect(notes.allSatisfy { $0.duration > 0.0 })
 }
-

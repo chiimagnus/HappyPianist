@@ -1,5 +1,4 @@
 import Foundation
-import ImprovProtocol
 
 /// Continuous-duet note context. This buffer never waits for a phrase flush.
 /// It keeps recent notes, current held notes, and can project a rolling prompt at any time.

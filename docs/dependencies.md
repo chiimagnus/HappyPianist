@@ -38,4 +38,4 @@
 
 - macOS recorder 不依赖 Python 服务。
 - AVP AI 即兴默认使用本地 CoreML / 本地 rule（无需电脑端服务）。
-- `Packages/RealityKitContent/` 与 `Packages/ImprovEngines/` 是仓库内的 SwiftPM 包；若只关注主 app 逻辑，文档不应把它们作为唯一入口。
+- `Packages/RealityKitContent/` 是仓库内的 SwiftPM 包；AI 即兴实现内嵌在 AVP target。

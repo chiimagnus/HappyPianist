@@ -1,5 +1,7 @@
 import Foundation
 
+// ponytail: embedded in AVP; extract only when another Swift target needs it.
+
 public struct PythonRandom {
     private static let n = 624
     private static let m = 397

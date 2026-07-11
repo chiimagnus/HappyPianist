@@ -1,6 +1,4 @@
 import Foundation
-import ImprovEngines
-import ImprovProtocol
 
 enum PerformanceRNNImprovGeneratorError: Error, LocalizedError, Equatable, Sendable {
     case emptyPrompt

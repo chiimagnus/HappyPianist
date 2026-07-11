@@ -9,7 +9,7 @@
 - macOS 测试：`LonelyPianistTests/`（Swift Testing）
 - visionOS App：`LonelyPianistAVP/`
 - visionOS 测试：`LonelyPianistAVPTests/`（Swift Testing）
-- SwiftPM 包：`Packages/RealityKitContent/`、`Packages/ImprovEngines/`
+- SwiftPM 包：`Packages/RealityKitContent/`
 - Python 工作区：`python_backend/`（保留 shared 工具与脚本目录；当前仓库不再内置 Duet Python 服务）
 - 规划/知识库：`.github/features/`、`docs/`
 

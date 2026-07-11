@@ -1,5 +1,5 @@
 import Foundation
-import ImprovProtocol
+@testable import LonelyPianistAVP
 import Testing
 
 @Test
@@ -54,4 +54,3 @@ func v2RequestRoundTripDecodeMatches() throws {
     let decoded = try JSONDecoder().decode(ImprovGenerateRequestV2.self, from: data)
     #expect(decoded == request)
 }
-

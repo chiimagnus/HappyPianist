@@ -1,6 +1,4 @@
 import Foundation
-import ImprovEngines
-import ImprovProtocol
 
 enum LocalRuleImprovBackendError: Error, LocalizedError, Equatable {
     case timeout

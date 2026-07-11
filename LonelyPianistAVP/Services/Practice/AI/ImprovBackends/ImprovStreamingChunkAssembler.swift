@@ -1,5 +1,4 @@
 import Foundation
-import ImprovProtocol
 
 struct ImprovStreamingChunkAssembler: Sendable {
     private(set) var lastSeq: Int = -1
@@ -19,4 +18,3 @@ struct ImprovStreamingChunkAssembler: Sendable {
         }
     }
 }
-

@@ -91,7 +91,7 @@ flowchart TD
 | `AIPerformanceService` | 运行连续控制回路，按短窗请求后端并把整形结果送入可替换调度器。 |
 | `ImprovScheduleBuilder` | 将生成 note 转成回放 schedule。 |
 | `LocalCoreMLDuetImprovBackend` | 本地 CoreML 生成（Performance RNN 单步模型采样）。 |
-| `LocalRuleImprovBackend` | 本地 rule 生成（SwiftPM `ImprovEngines`）。 |
+| `LocalRuleImprovBackend` | 本地 rule 生成（AVP 内嵌实现）。 |
 | `AriaNetworkBonjourHTTPImprovBackend` | 可选网络后端：Bonjour + HTTP `/generate`（v2 events）。 |
 | `AriaNetworkBonjourWebSocketImprovBackend` | 可选网络后端：Bonjour + WebSocket `/stream`（v2 chunk events）。 |
 

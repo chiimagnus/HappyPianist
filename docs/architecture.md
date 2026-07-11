@@ -96,7 +96,7 @@ flowchart TD
 | `PracticeStep` / `PracticeStepNote` | AVP practice models | 练习 step 与 expected notes |
 | `PianoHighlightGuide` / `PianoHighlightNote` | AVP practice models | 自动播放、高亮、五线谱布局输入 |
 | `MIDI1InputEvent` / `MIDI2InputEvent` | AVP MIDI models | BLE MIDI 协议分流后的练习输入 |
-| `ImprovGenerateRequestV2` / `ImprovResultResponseV2` | `ImprovProtocol` (SwiftPM) | AI 即兴后端的 v2 request/response（events-first） |
+| `ImprovGenerateRequestV2` / `ImprovResultResponseV2` | AVP AI services | AI 即兴后端的 v2 request/response（events-first） |
 
 ## 危险修改区
 

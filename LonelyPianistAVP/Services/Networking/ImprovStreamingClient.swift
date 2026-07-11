@@ -1,5 +1,4 @@
 import Foundation
-import ImprovProtocol
 
 protocol WebSocketTaskProtocol: AnyObject, Sendable {
     func resume()

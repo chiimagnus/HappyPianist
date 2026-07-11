@@ -1,5 +1,4 @@
 import Foundation
-import ImprovProtocol
 
 /// Performance RNN event codec (Magenta / note-seq compatible).
 ///

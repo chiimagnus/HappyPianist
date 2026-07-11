@@ -1,5 +1,4 @@
 import Foundation
-import ImprovProtocol
 
 enum AriaNetworkBonjourWebSocketImprovBackendError: Error, LocalizedError, Equatable {
     case backendNotResolved

@@ -1,4 +1,3 @@
-import ImprovProtocol
 @testable import LonelyPianistAVP
 import Testing
 
@@ -40,4 +39,3 @@ func improvScheduleBuilderV2BuildsCCAndNotesWithStablePriority() {
     // A.I. Duet: reply note durations are shortened to 90%.
     #expect(abs(schedule[2].timeSeconds - 0.18) < 0.0001)
 }
-

@@ -1,4 +1,3 @@
-import ImprovProtocol
 @testable import LonelyPianistAVP
 import Testing
 
@@ -42,4 +41,3 @@ func performanceRNNEventCodec_encodesChordAsGoldenEventIDs() {
 
     #expect(eventIDs == [375, 60, 64, 67, 330, 188, 192, 195])
 }
-

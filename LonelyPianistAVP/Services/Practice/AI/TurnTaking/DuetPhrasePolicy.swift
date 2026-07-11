@@ -1,5 +1,4 @@
 import Foundation
-import ImprovProtocol
 
 /// Continuous-duet helpers for prompt extraction, short-window policy, and response shaping.
 struct DuetPhrasePolicy: Sendable {

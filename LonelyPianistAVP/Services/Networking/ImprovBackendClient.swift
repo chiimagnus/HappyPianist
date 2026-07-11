@@ -1,5 +1,4 @@
 import Foundation
-import ImprovProtocol
 
 enum ImprovBackendClientError: Error {
     case invalidURL

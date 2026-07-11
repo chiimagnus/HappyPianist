@@ -1,5 +1,7 @@
 import Foundation
 
+// ponytail: embedded in AVP; extract only when another Swift target needs it.
+
 public struct ImprovStreamStartRequestV2: Codable, Equatable, Sendable {
     public var type: String
     public var protocolVersion: Int

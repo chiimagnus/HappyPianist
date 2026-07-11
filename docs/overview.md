@@ -31,7 +31,7 @@ LonelyPianist 是一个本地优先的钢琴交互系统。当前仓库包含 ma
 - macOS app 当前不是映射器，也不包含 AVP 的网络后端 client；它是 recorder/playback 面。
 - visionOS app 的跨窗口流程由 `PracticeSetupState` 与 `WindowTransitionState` 维护，不存在 `FlowState` 或 `WindowCoordinator` 文件。
 - `LonelyPianistAVP` 的 app 资源里声明了 Bravura 字体和 MusicXML UTI；`SalC5Light2.sf2` 需要本地补齐后才有完整音色回放。
-- AI 即兴支持本地 CoreML（Performance RNN）与本地 rule（SwiftPM：`Packages/ImprovEngines/`）；CoreML 模型文件不入库，需要开发者本地加入 Xcode target。
+- AI 即兴支持本地 CoreML（Performance RNN）与本地 rule（均内嵌于 AVP target）；CoreML 模型文件不入库，需要开发者本地加入 Xcode target。
 - AI 即兴也支持可选网络后端（Aria v2）：需要 Mac 侧启动 `python_backend/aria_server/`，并在 AVP 真机允许 Local Network 权限后通过 Bonjour 发现 `_lpduet._tcp` 服务。
 
 ## Coverage Gaps

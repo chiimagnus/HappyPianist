@@ -1,5 +1,4 @@
 import Foundation
-import ImprovProtocol
 
 /// Continuous-duet CC context. Records rolling control changes instead of phrase-bounded events.
 struct DuetPhraseEventBuffer: Sendable {
