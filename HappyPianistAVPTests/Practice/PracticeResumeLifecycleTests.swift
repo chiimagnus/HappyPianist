@@ -282,6 +282,41 @@ func automaticLoopStartsANewAttemptRound() {
     #expect(session.sessionProgress?.measureFacts.first?.failedAttempts == 2)
 }
 
+@MainActor
+@Test
+func automaticLoopStopsWhenPassageReachesTarget() {
+    let span = makeResumeSpans()[0]
+    let session = PracticeSessionViewModel(
+        pressDetectionService: ResumeNoopPressDetectionService(),
+        chordAttemptAccumulator: ResumeNoopChordAccumulator(),
+        sleeper: TaskSleeper()
+    )
+    session.setSteps(
+        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        tempoMap: MusicXMLTempoMap(tempoEvents: []),
+        measureSpans: [span]
+    )
+    session.roundConfigurationController.pendingLoopEnabled = true
+    session.roundConfigurationController.pendingRequiredSuccesses = 1
+    _ = session.applyPendingRoundConfiguration()
+    session.startGuidingIfReady()
+    let generation = session.roundGeneration
+    session.recordAttemptOutcome(.matched(evidence: PracticeAttemptEvidence(
+        expectedNotes: [60],
+        observedNotes: [60],
+        handMode: .both,
+        source: .midi,
+        isPartialEvidence: false,
+        debugMessage: "matched"
+    )))
+
+    session.advanceToNextStep()
+
+    #expect(session.state == .completed)
+    #expect(session.roundGeneration == generation)
+    #expect(session.latestFeedbackEvent?.kind == .passageStable)
+}
+
 private func makeResumeSteps() -> [PracticeStep] {
     [
         PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),

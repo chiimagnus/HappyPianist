@@ -15,10 +15,14 @@ struct PracticeRoundSummaryViewModel: Equatable {
         let facts = progress.measureFacts.filter {
             $0.handMode == configuration.handMode && passageSourceMeasureIDs.contains($0.sourceMeasureID)
         }
-        isStable = facts.isEmpty == false && facts.allSatisfy { $0.state == .stable }
+        isStable = PracticePassageCoverage.isStable(
+            facts: facts,
+            sourceMeasureIDs: passageSourceMeasureIDs
+        )
         hotspot = PracticeHotspotPolicy().hotspot(in: facts)
         nextAction = PracticeNextActionPolicy().nextAction(for: PracticeFeedbackContext(
             passageFacts: facts,
+            passageSourceMeasureIDs: passageSourceMeasureIDs,
             configuration: configuration,
             isFullPassage: isFullPassage
         ))

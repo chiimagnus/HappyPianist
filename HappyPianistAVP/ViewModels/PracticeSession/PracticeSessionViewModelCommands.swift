@@ -707,6 +707,7 @@ extension PracticeSessionViewModel {
 
             recordPassageCompletion()
             if self.activeRoundConfiguration?.loopEnabled == true,
+               self.isActivePassageStable == false,
                let firstStepIndex = self.activeRange?.firstStepIndex
             {
                 beginNextLoopRound(at: firstStepIndex)
@@ -781,6 +782,7 @@ extension PracticeSessionViewModel {
     private func completeManualAdvance() {
         recordPassageCompletion()
         if self.activeRoundConfiguration?.loopEnabled == true,
+           self.isActivePassageStable == false,
            let firstStepIndex = self.activeRange?.firstStepIndex
         {
             beginNextLoopRound(at: firstStepIndex)
@@ -801,6 +803,17 @@ extension PracticeSessionViewModel {
         self.latestFeedbackEvent = nil
         recordPassageRestart()
         moveToStep(firstStepIndex, shouldPlaySound: self.autoplayState == .off)
+    }
+
+    private var isActivePassageStable: Bool {
+        guard let configuration = self.activeRoundConfiguration,
+              let progress = self.sessionProgress
+        else { return false }
+        let facts = progress.measureFacts.filter { $0.handMode == configuration.handMode }
+        return PracticePassageCoverage.isStable(
+            facts: facts,
+            sourceMeasureIDs: self.activeRange?.sourceMeasureIDs ?? []
+        )
     }
 
     func uniqueMIDINotes(in step: PracticeStep) -> [Int] {

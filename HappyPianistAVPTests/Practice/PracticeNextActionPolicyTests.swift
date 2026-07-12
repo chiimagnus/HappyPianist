@@ -30,6 +30,7 @@ private func feedbackContext(
     let passage = try #require(PracticePassage(start: occurrence, end: occurrence))
     return PracticeFeedbackContext(
         passageFacts: facts,
+        passageSourceMeasureIDs: Set(facts.map(\.sourceMeasureID)).isEmpty ? [source] : Set(facts.map(\.sourceMeasureID)),
         configuration: PracticeRoundConfiguration(
             passage: passage,
             handMode: .both,

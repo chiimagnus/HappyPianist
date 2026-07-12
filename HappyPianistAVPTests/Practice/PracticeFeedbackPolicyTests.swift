@@ -136,3 +136,36 @@ func passageCompletionUsesResolvedOccurrenceSourceIDs() throws {
 
     #expect(events.map(\.kind) == [.passageStable])
 }
+
+@Test
+func passageCompletionRequiresEveryExpectedMeasure() throws {
+    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r")
+    let first = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 0)
+    let second = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 1)
+    let passage = try #require(PracticePassage(
+        start: PracticeMeasureOccurrenceID(sourceMeasureID: first, occurrenceIndex: 0),
+        end: PracticeMeasureOccurrenceID(sourceMeasureID: second, occurrenceIndex: 1)
+    ))
+    let progress = SongPracticeProgress(
+        identity: identity,
+        measureFacts: [MeasurePracticeFacts(sourceMeasureID: first, handMode: .both, state: .stable)],
+        updatedAt: .now
+    )
+    let round = PracticeRoundFact(
+        identity: identity,
+        roundGeneration: 1,
+        passage: passage,
+        handMode: .both,
+        tempoScale: 0.6,
+        timestamp: .now
+    )
+
+    let events = PracticeFeedbackPolicy().events(
+        for: .passageCompleted(round),
+        previousProgress: progress,
+        progress: progress,
+        sessionGeneration: 1,
+        passageSourceMeasureIDs: [first, second]
+    )
+    #expect(events.map(\.kind) == [.roundSummaryReady])
+}

@@ -39,7 +39,10 @@ struct PracticeFeedbackPolicy {
             let passageFacts = progress.measureFacts.filter {
                 $0.handMode == round.handMode && passageSourceMeasureIDs.contains($0.sourceMeasureID)
             }
-            let stable = passageFacts.isEmpty == false && passageFacts.allSatisfy { $0.state == .stable }
+            let stable = PracticePassageCoverage.isStable(
+                facts: passageFacts,
+                sourceMeasureIDs: passageSourceMeasureIDs
+            )
             return [
                 PracticeFeedbackEvent(
                     identity: round.identity,

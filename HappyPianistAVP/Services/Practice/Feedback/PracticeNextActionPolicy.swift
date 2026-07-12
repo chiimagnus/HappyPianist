@@ -3,8 +3,10 @@ struct PracticeNextActionPolicy {
 
     func nextAction(for context: PracticeFeedbackContext) -> PracticeNextAction {
         guard let hotspot = hotspotPolicy.hotspot(in: context.passageFacts) else {
-            let attempted = context.passageFacts.filter { $0.state != .notStarted }
-            guard attempted.isEmpty == false, attempted.allSatisfy({ $0.state == .stable }) else {
+            guard PracticePassageCoverage.isStable(
+                facts: context.passageFacts,
+                sourceMeasureIDs: context.passageSourceMeasureIDs
+            ) else {
                 return .continuePassage
             }
             return context.isFullPassage ? .keepTempo : .expandPassage
