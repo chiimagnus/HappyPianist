@@ -102,6 +102,96 @@ struct PracticeAttemptReducerTests {
         #expect(facts.recentIssue == .wrongNote)
     }
 
+    @Test func failedOccurrenceKeepsIssueUntilANewCleanPass() throws {
+        let fixture = try Fixture(requiredSuccesses: 2)
+        let reducer = PracticeAttemptReducer()
+        var progress: SongPracticeProgress?
+        var state = PracticeAttemptReductionState()
+
+        for (stepIndex, outcome) in [
+            (0, fixture.wrong(stepIndex: 0)),
+            (0, fixture.matched(stepIndex: 0)),
+            (1, fixture.matched(stepIndex: 1)),
+        ] {
+            let result = reducer.reduceAttempt(
+                progress: progress,
+                reductionState: state,
+                outcome: outcome,
+                stepIndex: stepIndex,
+                identity: fixture.identity,
+                configuration: fixture.configuration,
+                roundGeneration: 1,
+                measureIndex: fixture.measureIndex,
+                timestamp: .now
+            )
+            progress = result.progress
+            state = result.reductionState
+        }
+
+        #expect(progress?.measureFacts.first?.successfulAttempts == 0)
+        #expect(progress?.measureFacts.first?.recentIssue == .wrongNote)
+
+        for stepIndex in 0 ... 1 {
+            let result = reducer.reduceAttempt(
+                progress: progress,
+                reductionState: state,
+                outcome: fixture.matched(stepIndex: stepIndex),
+                stepIndex: stepIndex,
+                identity: fixture.identity,
+                configuration: fixture.configuration,
+                roundGeneration: 2,
+                measureIndex: fixture.measureIndex,
+                timestamp: .now
+            )
+            progress = result.progress
+            state = result.reductionState
+        }
+        #expect(progress?.measureFacts.first?.recentIssue == nil)
+    }
+
+    @Test func partialMatchDoesNotDowngradeStableMeasure() throws {
+        let fixture = try Fixture(requiredSuccesses: 2)
+        let reducer = PracticeAttemptReducer()
+        let stable = MeasurePracticeFacts(
+            sourceMeasureID: fixture.configuration.passage.start.sourceMeasureID,
+            handMode: .right,
+            state: .stable,
+            consecutiveSuccesses: 2,
+            highestStableTempoScale: 0.6
+        )
+        let progress = SongPracticeProgress(
+            identity: fixture.identity,
+            activeConfiguration: fixture.configuration,
+            measureFacts: [stable],
+            updatedAt: .now
+        )
+        let partial = reducer.reduceAttempt(
+            progress: progress,
+            reductionState: .init(),
+            outcome: fixture.matched(stepIndex: 0),
+            stepIndex: 0,
+            identity: fixture.identity,
+            configuration: fixture.configuration,
+            roundGeneration: 2,
+            measureIndex: fixture.measureIndex,
+            timestamp: .now
+        )
+        #expect(partial.progress.measureFacts.first?.state == .stable)
+
+        let failed = reducer.reduceAttempt(
+            progress: partial.progress,
+            reductionState: partial.reductionState,
+            outcome: fixture.wrong(stepIndex: 1),
+            stepIndex: 1,
+            identity: fixture.identity,
+            configuration: fixture.configuration,
+            roundGeneration: 2,
+            measureIndex: fixture.measureIndex,
+            timestamp: .now
+        )
+        #expect(failed.progress.measureFacts.first?.state == .learning)
+    }
+
     @Test func insufficientEvidenceDoesNotCreateDurableFacts() throws {
         let fixture = try Fixture(requiredSuccesses: 3)
         let reducer = PracticeAttemptReducer()

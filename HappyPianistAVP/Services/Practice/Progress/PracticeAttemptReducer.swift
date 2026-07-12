@@ -90,7 +90,6 @@ struct PracticeAttemptReducer {
             sourceMeasureID: sourceMeasureID,
             handMode: configuration.handMode
         )
-        facts.state = .learning
         facts.lastAttemptAt = timestamp
 
         let baseFact = PracticeAttemptFact(
@@ -110,6 +109,7 @@ struct PracticeAttemptReducer {
 
         case .wrongNote, .missingNotes, .incompleteChord:
             let issue = outcome.issueKind ?? .missedNote
+            facts.state = .learning
             if state.failedStepIndices.insert(stepIndex).inserted {
                 facts.failedAttempts += 1
             }
@@ -121,7 +121,9 @@ struct PracticeAttemptReducer {
         case .matched:
             state.failedStepIndices.remove(stepIndex)
             state.matchedStepIndicesByOccurrence[occurrenceID, default: []].insert(stepIndex)
-            facts.recentIssue = nil
+            if facts.state == .notStarted {
+                facts.state = .learning
+            }
             if let occurrenceStepRange = stepRange(
                 for: occurrenceID,
                 measureIndex: measureIndex,
@@ -132,6 +134,7 @@ struct PracticeAttemptReducer {
                 let matchedIndices = state.matchedStepIndicesByOccurrence[occurrenceID, default: []]
                 let completedEveryStep = occurrenceStepRange.allSatisfy { matchedIndices.contains($0) }
                 if completedEveryStep, state.failedOccurrences.contains(occurrenceID) == false {
+                    facts.recentIssue = nil
                     facts.successfulAttempts += 1
                     facts.consecutiveSuccesses += 1
                     if facts.consecutiveSuccesses >= configuration.requiredSuccesses {
