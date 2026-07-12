@@ -19,17 +19,23 @@ struct PracticeMeasureMapViewModel: Equatable {
     ) {
         let facts = progress?.measureFacts.filter { $0.handMode == handMode } ?? []
         let hotspot = PracticeHotspotPolicy().hotspot(in: facts)?.sourceMeasureID
+        let currentSourceMeasureIDs = Set(measureSpans.compactMap { span -> PracticeSourceMeasureID? in
+            guard let currentPassage,
+                  currentPassage.start.occurrenceIndex <= span.occurrenceIndex,
+                  span.occurrenceIndex <= currentPassage.end.occurrenceIndex
+            else { return nil }
+            return span.occurrenceID.sourceMeasureID
+        })
         var seen: Set<PracticeSourceMeasureID> = []
         items = measureSpans.compactMap { span in
             let id = span.occurrenceID.sourceMeasureID
             guard seen.insert(id).inserted else { return nil }
             let state = facts.first { $0.sourceMeasureID == id }?.state ?? .notStarted
-            let occurrence = span.occurrenceID.occurrenceIndex
             return PracticeMeasureMapItem(
                 id: id,
                 displayNumber: id.sourceNumberToken ?? "\(id.sourceMeasureIndex + 1)",
                 state: state,
-                isCurrentPassage: currentPassage.map { $0.start.occurrenceIndex <= occurrence && occurrence <= $0.end.occurrenceIndex } ?? false,
+                isCurrentPassage: currentSourceMeasureIDs.contains(id),
                 isCurrentMeasure: id == currentMeasure,
                 isHotspot: id == hotspot
             )
