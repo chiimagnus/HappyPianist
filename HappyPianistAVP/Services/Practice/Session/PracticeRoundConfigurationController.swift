@@ -62,6 +62,7 @@ struct UserDefaultsPracticeRoundDefaultsStore: PracticeRoundDefaultsStoreProtoco
 final class PracticeRoundConfigurationController {
     private let stateStore: PracticeSessionStateStore
     private let defaultsStore: any PracticeRoundDefaultsStoreProtocol
+    private(set) var configuredSongIdentity: PracticeSongIdentity?
 
     var pendingPassage: PracticePassage?
     var pendingHandMode: PracticeHandMode
@@ -119,13 +120,23 @@ final class PracticeRoundConfigurationController {
             pendingSoundRoutingSettings != stateStore.activeSoundRoutingSettings
     }
 
-    func installInitialPassageIfNeeded(_ passage: PracticePassage) {
-        if pendingPassage == nil {
-            pendingPassage = passage
-        }
-        if stateStore.activeRoundConfiguration == nil {
-            _ = applyPending()
-        }
+    func initializeSong(_ identity: PracticeSongIdentity, initialPassage: PracticePassage) {
+        guard configuredSongIdentity != identity else { return }
+        configuredSongIdentity = identity
+        pendingPassage = initialPassage
+        _ = applyPending()
+    }
+
+    func installUnidentifiedSessionPassageIfNeeded(_ passage: PracticePassage) {
+        guard stateStore.activeRoundConfiguration == nil else { return }
+        pendingPassage = passage
+        _ = applyPending()
+    }
+
+    func resetSong() {
+        configuredSongIdentity = nil
+        pendingPassage = nil
+        stateStore.activeRoundConfiguration = nil
     }
 
     @discardableResult

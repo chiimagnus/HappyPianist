@@ -29,7 +29,10 @@ struct PracticeRoundConfigurationControllerTests {
             defaultsStore: defaults
         )
         let passage = try #require(makePassage())
-        controller.installInitialPassageIfNeeded(passage)
+        controller.initializeSong(
+            PracticeSongIdentity(songID: UUID(), scoreRevision: "r1"),
+            initialPassage: passage
+        )
 
         #expect(stateStore.activeRoundConfiguration?.handMode == .both)
         let initialGeneration = stateStore.roundGeneration
@@ -61,7 +64,10 @@ struct PracticeRoundConfigurationControllerTests {
             settingsProvider: FixedPracticeSettingsProvider(),
             defaultsStore: CapturingRoundDefaultsStore()
         )
-        controller.installInitialPassageIfNeeded(try #require(makePassage()))
+        controller.initializeSong(
+            PracticeSongIdentity(songID: UUID(), scoreRevision: "r1"),
+            initialPassage: try #require(makePassage())
+        )
 
         controller.pendingSoundOutputRoute = .externalMIDIDestination
         controller.pendingMIDIDestinationUniqueID = 42
@@ -72,8 +78,37 @@ struct PracticeRoundConfigurationControllerTests {
         #expect(stateStore.activeSoundRoutingSettings.midiDestinationUniqueID == 42)
     }
 
-    private func makePassage() -> PracticePassage? {
-        let source = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 0, sourceNumberToken: "1")
+    @Test func newSongAlwaysReplacesPendingAndActivePassage() throws {
+        let stateStore = PracticeSessionStateStore()
+        let controller = PracticeRoundConfigurationController(
+            stateStore: stateStore,
+            settingsProvider: FixedPracticeSettingsProvider(),
+            defaultsStore: CapturingRoundDefaultsStore()
+        )
+        let passageA = try #require(makePassage(partID: "A", sourceIndex: 0))
+        let passageB = try #require(makePassage(partID: "B", sourceIndex: 8))
+        controller.initializeSong(
+            PracticeSongIdentity(songID: UUID(), scoreRevision: "a"),
+            initialPassage: passageA
+        )
+        controller.pendingPassage = passageA
+        _ = controller.applyPending()
+
+        controller.initializeSong(
+            PracticeSongIdentity(songID: UUID(), scoreRevision: "b"),
+            initialPassage: passageB
+        )
+
+        #expect(controller.pendingPassage == passageB)
+        #expect(stateStore.activeRoundConfiguration?.passage == passageB)
+    }
+
+    private func makePassage(partID: String = "P1", sourceIndex: Int = 0) -> PracticePassage? {
+        let source = PracticeSourceMeasureID(
+            partID: partID,
+            sourceMeasureIndex: sourceIndex,
+            sourceNumberToken: "\(sourceIndex + 1)"
+        )
         return PracticePassage(
             start: PracticeMeasureOccurrenceID(sourceMeasureID: source, occurrenceIndex: 0),
             end: PracticeMeasureOccurrenceID(sourceMeasureID: source, occurrenceIndex: 0)

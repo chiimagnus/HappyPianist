@@ -375,11 +375,10 @@ extension PracticeSessionViewModel {
         highlightGuides: [PianoHighlightGuide] = [],
         measureSpans: [MusicXMLMeasureSpan] = []
     ) {
-        if self.state == .completed, self.steps == steps, steps.isEmpty == false {
-            return
-        }
-
-        let shouldResetProgress = self.steps != steps
+        let songChanged = self.songIdentity.map {
+            $0 != roundConfigurationController.configuredSongIdentity
+        } ?? false
+        let shouldResetProgress = self.steps != steps || songChanged
         stopManualReplayTask()
         stopAutoplayTask()
         stopAutoplayAudio()
@@ -394,7 +393,11 @@ extension PracticeSessionViewModel {
            let lastMeasure = measureSpans.prefix(4).last,
            let passage = PracticePassage(start: firstMeasure.occurrenceID, end: lastMeasure.occurrenceID)
         {
-            roundConfigurationController.installInitialPassageIfNeeded(passage)
+            if let identity = self.songIdentity {
+                roundConfigurationController.initializeSong(identity, initialPassage: passage)
+            } else {
+                roundConfigurationController.installUnidentifiedSessionPassageIfNeeded(passage)
+            }
         }
         self.measureIndex = PracticeMeasureIndex(steps: steps, measureSpans: measureSpans)
         rebuildActiveRange()
@@ -424,7 +427,7 @@ extension PracticeSessionViewModel {
 
         if steps.isEmpty {
             self.state = .idle
-        } else if self.state != .completed {
+        } else if shouldResetProgress || self.state != .completed {
             self.state = .ready
         }
 
@@ -475,6 +478,7 @@ extension PracticeSessionViewModel {
         chordAttemptAccumulator.reset()
 
         self.songIdentity = nil
+        roundConfigurationController.resetSong()
         self.progressGeneration = nil
         self.progressSaveStatus = .idle
         self.isRestoredSessionPaused = false

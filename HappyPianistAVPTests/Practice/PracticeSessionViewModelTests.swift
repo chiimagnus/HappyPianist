@@ -1376,6 +1376,36 @@ func freshScoreDefaultsToFirstFourMeasures() {
     #expect(viewModel.activeRoundConfiguration?.passage.end == spans[3].occurrenceID)
 }
 
+@Test
+@MainActor
+func changingSongWithEqualStepsReplacesCompletedPassage() {
+    let viewModel = makePracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: TaskSleeper()
+    )
+    let steps = [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])]
+    let spanA = MusicXMLMeasureSpan(
+        partID: "A", measureNumber: 1, sourceMeasureIndex: 0, sourceMeasureNumberToken: "1",
+        occurrenceIndex: 0, startTick: 0, endTick: 480
+    )
+    let spanB = MusicXMLMeasureSpan(
+        partID: "B", measureNumber: 9, sourceMeasureIndex: 8, sourceMeasureNumberToken: "9",
+        occurrenceIndex: 0, startTick: 0, endTick: 480
+    )
+    viewModel.songIdentity = PracticeSongIdentity(songID: UUID(), scoreRevision: "a")
+    viewModel.setSteps(steps, tempoMap: MusicXMLTempoMap(tempoEvents: []), measureSpans: [spanA])
+    viewModel.state = .completed
+
+    viewModel.songIdentity = PracticeSongIdentity(songID: UUID(), scoreRevision: "b")
+    viewModel.setSteps(steps, tempoMap: MusicXMLTempoMap(tempoEvents: []), measureSpans: [spanB])
+
+    #expect(viewModel.roundConfigurationController.pendingPassage?.start == spanB.occurrenceID)
+    #expect(viewModel.activeRoundConfiguration?.passage.start == spanB.occurrenceID)
+    #expect(viewModel.activeRange?.measureSpans == [spanB])
+    #expect(viewModel.state == .ready)
+}
+
 @MainActor
 private func makePracticeSessionViewModel(
     pressDetectionService: PressDetectionServiceProtocol,
