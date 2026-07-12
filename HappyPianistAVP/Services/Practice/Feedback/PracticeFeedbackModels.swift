@@ -12,7 +12,6 @@ enum PracticeNextAction: Equatable, Sendable {
     case isolateHands(PracticeSourceMeasureID)
     case lowerTempo(Double)
     case keepTempo
-    case restoreFullPassage
     case expandPassage
     case continuePassage
 }

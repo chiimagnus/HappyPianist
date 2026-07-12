@@ -619,9 +619,6 @@ extension PracticeSessionViewModel {
         case .keepTempo:
             _ = applyPendingRoundConfiguration()
             startGuidingIfReady()
-        case .restoreFullPassage:
-            prepareStartOver()
-            startGuidingIfReady()
         case .expandPassage:
             guard let activeRange = self.activeRange,
                   let first = self.measureSpans.firstIndex(where: { $0.occurrenceID == activeRange.measureSpans.first?.occurrenceID }),

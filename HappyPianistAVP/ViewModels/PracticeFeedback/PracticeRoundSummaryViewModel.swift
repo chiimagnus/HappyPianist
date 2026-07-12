@@ -31,7 +31,6 @@ struct PracticeRoundSummaryViewModel: Equatable {
         case .isolateHands: "先用单手练习"
         case .lowerTempo: "放慢一点再练"
         case .keepTempo: "保持速度再来一轮"
-        case .restoreFullPassage: "回到完整片段"
         case .expandPassage: "扩大练习片段"
         case .continuePassage: "继续"
         }
