@@ -124,7 +124,7 @@ struct DiagnosticEvent: Codable, Equatable, Sendable, Identifiable {
 
     var textRepresentation: String {
         var lines = [
-            "timestamp: \(Self.timestampFormatter.string(from: timestamp))",
+            "timestamp: \(DiagnosticsDateText.iso8601(timestamp))",
             "level: \(severity.rawValue)",
             "code: \(code.rawValue)",
             "category: \(category.rawValue)",
@@ -153,12 +153,6 @@ struct DiagnosticEvent: Codable, Equatable, Sendable, Identifiable {
         }
         return lines.joined(separator: "\n")
     }
-
-    private static let timestampFormatter: ISO8601DateFormatter = {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        return formatter
-    }()
 }
 
 private extension String {
@@ -179,4 +173,44 @@ struct DiagnosticLogSummary: Equatable, Sendable {
         coverageStart: nil,
         coverageEnd: nil
     )
+}
+
+enum DiagnosticsDateText {
+    static func iso8601(_ date: Date) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.string(from: date)
+    }
+
+    static func dayToken(_ date: Date, calendar: Calendar) -> String {
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        return [
+            padded(components.year, width: 4),
+            padded(components.month, width: 2),
+            padded(components.day, width: 2),
+        ].joined(separator: "-")
+    }
+
+    static func archiveToken(_ date: Date, calendar: Calendar) -> String {
+        let components = calendar.dateComponents(
+            [.year, .month, .day, .hour, .minute, .second],
+            from: date
+        )
+        let day = [
+            padded(components.year, width: 4),
+            padded(components.month, width: 2),
+            padded(components.day, width: 2),
+        ].joined()
+        let time = [
+            padded(components.hour, width: 2),
+            padded(components.minute, width: 2),
+            padded(components.second, width: 2),
+        ].joined()
+        return "\(day)-\(time)"
+    }
+
+    private static func padded(_ component: Int?, width: Int) -> String {
+        let text = String(max(0, component ?? 0))
+        return String(repeating: "0", count: max(0, width - text.count)) + text
+    }
 }

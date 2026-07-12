@@ -71,9 +71,10 @@ actor DiagnosticsArchiveExporter: DiagnosticsArchiveExporting {
         try archive.addEntry(with: textURL.lastPathComponent, relativeTo: root, compressionMethod: .deflate)
         try archive.addEntry(with: environmentURL.lastPathComponent, relativeTo: root, compressionMethod: .deflate)
 
+        let token = DiagnosticsDateText.archiveToken(referenceDate, calendar: calendar)
         return DiagnosticArchive(
             data: try Data(contentsOf: archiveURL),
-            fileName: "HappyPianist-Diagnostics-\(dateToken(referenceDate)).zip",
+            fileName: "HappyPianist-Diagnostics-\(token).zip",
             eventCount: events.count
         )
     }
@@ -96,33 +97,18 @@ actor DiagnosticsArchiveExporter: DiagnosticsArchiveExporting {
 
     private func makeEnvironmentText(events: [DiagnosticEvent], generatedAt: Date) -> String {
         let environment = environmentProvider.environment()
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let coverageStart = events.map(\.timestamp).min().map(formatter.string(from:)) ?? "none"
-        let coverageEnd = events.map(\.timestamp).max().map(formatter.string(from:)) ?? "none"
+        let coverageStart = events.map(\.timestamp).min().map(DiagnosticsDateText.iso8601) ?? "none"
+        let coverageEnd = events.map(\.timestamp).max().map(DiagnosticsDateText.iso8601) ?? "none"
         return [
             "appVersion: \(environment.appVersion)",
             "buildNumber: \(environment.buildNumber)",
             "systemVersion: \(environment.systemVersion)",
-            "generatedAt: \(formatter.string(from: generatedAt))",
+            "generatedAt: \(DiagnosticsDateText.iso8601(generatedAt))",
             "coverageStart: \(coverageStart)",
             "coverageEnd: \(coverageEnd)",
             "eventCount: \(events.count)",
             "retentionDays: 7",
             "privacy: no raw score, audio, MIDI stream, AI conversation, credential, or absolute path data",
         ].joined(separator: "\n")
-    }
-
-    private func dateToken(_ date: Date) -> String {
-        let components = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
-        return String(
-            format: "%04d%02d%02d-%02d%02d%02d",
-            components.year ?? 0,
-            components.month ?? 0,
-            components.day ?? 0,
-            components.hour ?? 0,
-            components.minute ?? 0,
-            components.second ?? 0
-        )
     }
 }

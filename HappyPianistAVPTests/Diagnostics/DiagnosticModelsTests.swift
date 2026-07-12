@@ -70,3 +70,26 @@ func diagnosticEventCodableRoundTrips() throws {
     let decoded = try JSONDecoder().decode(DiagnosticEvent.self, from: data)
     #expect(decoded == event)
 }
+
+
+@Test
+func diagnosticsDateTextBuildsStableTokensWithoutSharedFormatters() throws {
+    var calendar = Calendar(identifier: .gregorian)
+    calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+    let date = try #require(
+        calendar.date(
+            from: DateComponents(
+                year: 2026,
+                month: 7,
+                day: 2,
+                hour: 3,
+                minute: 4,
+                second: 5
+            )
+        )
+    )
+
+    #expect(DiagnosticsDateText.dayToken(date, calendar: calendar) == "2026-07-02")
+    #expect(DiagnosticsDateText.archiveToken(date, calendar: calendar) == "20260702-030405")
+    #expect(DiagnosticsDateText.iso8601(date).hasPrefix("2026-07-02T03:04:05"))
+}
