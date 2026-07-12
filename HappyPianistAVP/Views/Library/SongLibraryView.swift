@@ -36,7 +36,6 @@ struct SongLibraryView: View {
       presentation: selectedPresentation, selectedEntry: selectedEntry)
     let selectedCurrentTime = resolvedCurrentTime(selectedEntry: selectedEntry)
     let selectedProgress = selectedDuration > 0 ? selectedCurrentTime / selectedDuration : 0
-    let practiceSummary = selectedEntry.flatMap { viewModel.practiceSummary(entryID: $0.id) }
     let hasResumeProgress = selectedEntry.map { viewModel.hasResumableProgress(entryID: $0.id) } ?? false
     let requiresAudioImport =
       selectedEntry != nil && selectedEntry?.audioFileName == nil
@@ -70,7 +69,6 @@ struct SongLibraryView: View {
           progress: selectedProgress,
           currentTime: selectedCurrentTime,
           duration: selectedDuration,
-          practiceSummary: practiceSummary,
           canSeek: viewModel.currentListeningEntryID == selectedEntry.id && selectedDuration > 0,
           onSeek: { progress in
             viewModel.seekListening(entryID: selectedEntry.id, progress: progress)
@@ -440,7 +438,6 @@ private struct LibraryTrackInfoView: View {
   let progress: Double
   let currentTime: TimeInterval
   let duration: TimeInterval
-  let practiceSummary: String?
   let canSeek: Bool
   let onSeek: (Double) -> Void
 
@@ -459,13 +456,6 @@ private struct LibraryTrackInfoView: View {
         .font(.subheadline)
         .foregroundStyle(LibraryDesignTokens.secondaryText)
         .lineLimit(1)
-
-      if let practiceSummary {
-        Label(practiceSummary, systemImage: "clock.arrow.circlepath")
-          .font(.footnote)
-          .foregroundStyle(LibraryDesignTokens.secondaryText)
-          .lineLimit(1)
-      }
 
       VStack(spacing: 7) {
         ZStack(alignment: .leading) {

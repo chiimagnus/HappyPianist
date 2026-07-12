@@ -15,7 +15,7 @@ struct PracticeRoundSummaryViewModel: Equatable {
               passageOccurrences.isEmpty == false
         else { return nil }
         self.configuration = configuration
-        passageTitle = Self.passageTitle(for: passageOccurrences)
+        passageTitle = PracticePassagePresentation.title(for: passageOccurrences)
         let passageSourceMeasureIDs = Set(passageOccurrences.map(\.sourceMeasureID))
         let facts = progress.measureFacts.filter {
             $0.handMode == configuration.handMode && passageSourceMeasureIDs.contains($0.sourceMeasureID)
@@ -46,24 +46,10 @@ struct PracticeRoundSummaryViewModel: Equatable {
 
     let passageTitle: String
 
-    private static func passageTitle(for occurrences: [PracticeMeasureOccurrenceID]) -> String {
-        guard let first = occurrences.first, let last = occurrences.last else { return "" }
-        let start = measureTitle(first.sourceMeasureID)
-        let end = measureTitle(last.sourceMeasureID)
-        guard first != last else { return "第 \(start) 小节" }
-        let crossesRepeat = zip(occurrences, occurrences.dropFirst()).contains { previous, next in
-            next.sourceMeasureID.sourceMeasureIndex <= previous.sourceMeasureID.sourceMeasureIndex
-        }
-        return crossesRepeat
-            ? "第 \(start) 小节至重复后的第 \(end) 小节"
-            : "第 \(start)–\(end) 小节"
-    }
 
     var hotspotTitle: String? {
-        hotspot.map { "第 \(Self.measureTitle($0.sourceMeasureID)) 小节" }
+        hotspot.map { "第 \(PracticePassagePresentation.measureTitle($0.sourceMeasureID)) 小节" }
     }
 
-    private static func measureTitle(_ id: PracticeSourceMeasureID) -> String {
-        id.sourceNumberToken ?? "\(id.sourceMeasureIndex + 1)"
-    }
+
 }

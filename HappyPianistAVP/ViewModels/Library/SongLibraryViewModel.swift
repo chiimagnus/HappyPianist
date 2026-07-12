@@ -125,11 +125,47 @@ final class SongLibraryViewModel {
     }
 
     var preparedRoundConfigurationController: PracticeRoundConfigurationController? {
-        appState.arGuideViewModel?.practiceSessionViewModel.roundConfigurationController
+        currentPreparedPracticeSession?.roundConfigurationController
     }
 
     var preparedMeasureSpans: [MusicXMLMeasureSpan] {
-        appState.arGuideViewModel?.practiceSessionViewModel.measureSpans ?? []
+        currentPreparedPracticeSession?.measureSpans ?? []
+    }
+
+    var selectedPracticePresentation: LibraryPracticePanelPresentation? {
+        guard case let .ready(entryID, identity) = practicePreparationState,
+              entryID == selectedPracticeEntryID,
+              let session = currentPreparedPracticeSession,
+              let configuration = session.roundConfigurationController.pendingConfiguration
+        else { return nil }
+
+        let sessionProgress = session.sessionProgress?.identity == identity
+            ? session.sessionProgress
+            : nil
+        let storedProgress = practiceProgressBySongID[entryID]?.identity == identity
+            ? practiceProgressBySongID[entryID]
+            : nil
+        let currentMeasure = session.measureIndex?
+            .occurrenceID(forStepIndex: session.currentStepIndex)?
+            .sourceMeasureID
+
+        return LibraryPracticePanelPresentation(
+            entryID: entryID,
+            identity: identity,
+            measureSpans: session.measureSpans,
+            progress: sessionProgress ?? storedProgress,
+            configuration: configuration,
+            currentMeasure: currentMeasure
+        )
+    }
+
+    private var currentPreparedPracticeSession: PracticeSessionViewModel? {
+        guard case let .ready(entryID, identity) = practicePreparationState,
+              entryID == selectedPracticeEntryID,
+              let session = appState.arGuideViewModel?.practiceSessionViewModel,
+              session.songIdentity == identity
+        else { return nil }
+        return session
     }
 
     @discardableResult
