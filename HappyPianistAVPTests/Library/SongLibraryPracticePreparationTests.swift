@@ -17,7 +17,10 @@ private actor DelayedPreparationService: PracticePreparationServiceProtocol {
         }
         return PreparedPractice(
             identity: PracticeSongIdentity(songID: songID, scoreRevision: songID.uuidString),
-            steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+            steps: [
+                PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
+                PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
+            ],
             file: file,
             tempoMap: MusicXMLTempoMap(tempoEvents: []),
             pedalTimeline: nil,
@@ -25,15 +28,26 @@ private actor DelayedPreparationService: PracticePreparationServiceProtocol {
             attributeTimeline: nil,
             slurTimeline: nil,
             highlightGuides: [],
-            measureSpans: includesMeasureSpans ? [MusicXMLMeasureSpan(
-                partID: "P1",
-                measureNumber: 1,
-                sourceMeasureIndex: 0,
-                sourceMeasureNumberToken: "1",
-                occurrenceIndex: 0,
-                startTick: 0,
-                endTick: 1
-            )] : [],
+            measureSpans: includesMeasureSpans ? [
+                MusicXMLMeasureSpan(
+                    partID: "P1",
+                    measureNumber: 1,
+                    sourceMeasureIndex: 0,
+                    sourceMeasureNumberToken: "1",
+                    occurrenceIndex: 0,
+                    startTick: 0,
+                    endTick: 480
+                ),
+                MusicXMLMeasureSpan(
+                    partID: "P1",
+                    measureNumber: 2,
+                    sourceMeasureIndex: 1,
+                    sourceMeasureNumberToken: "2",
+                    occurrenceIndex: 1,
+                    startTick: 480,
+                    endTick: 960
+                ),
+            ] : [],
             unsupportedNoteCount: 0
         )
     }
@@ -185,10 +199,26 @@ private final class PreparationTestAudioPlayer: SongAudioPlayerProtocol {
 
 
 private actor PreparationTestProgressRepository: PracticeProgressRepositoryProtocol {
-    func load() -> PracticeProgressLoadResult { .loaded(PracticeProgressDocument()) }
-    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? { nil }
-    func upsert(_: SongPracticeProgress) {}
-    func remove(songID _: UUID) {}
+    private var document: PracticeProgressDocument
+
+    init(progress: SongPracticeProgress? = nil) {
+        document = PracticeProgressDocument(songs: progress.map { [$0] } ?? [])
+    }
+
+    func load() -> PracticeProgressLoadResult { .loaded(document) }
+
+    func progress(for identity: PracticeSongIdentity) -> SongPracticeProgress? {
+        document.songs.first { $0.identity == identity }
+    }
+
+    func upsert(_ progress: SongPracticeProgress) {
+        document.songs.removeAll { $0.identity == progress.identity }
+        document.songs.append(progress)
+    }
+
+    func remove(songID: UUID) {
+        document.songs.removeAll { $0.identity.songID == songID }
+    }
 }
 
 @Test
@@ -420,4 +450,123 @@ private func waitForLoggedPreparationFailure(
     }
     Issue.record("Timed out waiting for logged preparation failure")
     throw CancellationError()
+}
+
+@Test
+@MainActor
+func directPracticeLaunchPreservesSavedResumeWhenSettingsAreUnchanged() async throws {
+    let songID = UUID()
+    let identity = PracticeSongIdentity(songID: songID, scoreRevision: songID.uuidString)
+    let secondSource = PracticeSourceMeasureID(
+        partID: "P1",
+        sourceMeasureIndex: 1,
+        sourceNumberToken: "2"
+    )
+    let secondOccurrence = PracticeMeasureOccurrenceID(
+        sourceMeasureID: secondSource,
+        occurrenceIndex: 1
+    )
+    let passage = try #require(PracticePassage(start: secondOccurrence, end: secondOccurrence))
+    let configuration = PracticeRoundConfiguration(
+        passage: passage,
+        handMode: .right,
+        tempoScale: 0.75,
+        loopEnabled: true,
+        requiredSuccesses: 3
+    )
+    let progress = SongPracticeProgress(
+        identity: identity,
+        activeConfiguration: configuration,
+        resumePoint: PracticeResumePoint(
+            occurrenceID: secondOccurrence,
+            stepIndex: 1,
+            updatedAt: .now
+        ),
+        updatedAt: .now
+    )
+    let fixture = makeDirectLaunchFixture(songID: songID, progress: progress)
+
+    fixture.viewModel.selectEntryForPractice(songID)
+    try await waitForPreparation(fixture.viewModel, entryID: songID)
+
+    #expect(fixture.session.currentStepIndex == 1)
+    #expect(fixture.session.isRestoredSessionPaused)
+    #expect(fixture.viewModel.startSelectedPractice())
+    #expect(fixture.session.currentStepIndex == 1)
+    #expect(fixture.session.isRestoredSessionPaused)
+}
+
+@Test
+@MainActor
+func directPracticeLaunchAppliesEditedPendingConfiguration() async throws {
+    let songID = UUID()
+    let fixture = makeDirectLaunchFixture(songID: songID, progress: nil)
+
+    fixture.viewModel.selectEntryForPractice(songID)
+    try await waitForPreparation(fixture.viewModel, entryID: songID)
+    let secondSpan = try #require(fixture.session.measureSpans.last)
+    let passage = try #require(
+        PracticePassage(start: secondSpan.occurrenceID, end: secondSpan.occurrenceID)
+    )
+    fixture.session.roundConfigurationController.pendingPassage = passage
+    fixture.session.roundConfigurationController.pendingTempoScale = 0.5
+
+    #expect(fixture.viewModel.startSelectedPractice())
+    #expect(fixture.session.activeRoundConfiguration?.passage == passage)
+    #expect(fixture.session.activeRoundConfiguration?.tempoScale == 0.5)
+    #expect(fixture.session.currentStepIndex == 1)
+}
+
+@MainActor
+private func makeDirectLaunchFixture(
+    songID: UUID,
+    progress: SongPracticeProgress?
+) -> (
+    viewModel: SongLibraryViewModel,
+    session: PracticeSessionViewModel
+) {
+    let repository = PreparationTestProgressRepository(progress: progress)
+    let session = PracticeSessionViewModel(
+        pressDetectionService: PreparationRacePressDetectionService(),
+        chordAttemptAccumulator: PreparationRaceChordAccumulator(),
+        sleeper: TaskSleeper(),
+        progressCoordinator: PracticeProgressCoordinator(
+            repository: repository,
+            checkpointDelay: .seconds(60)
+        )
+    )
+    let appState = AppState()
+    let guide = ARGuideViewModel(
+        appState: appState,
+        practiceSetupState: appState.practiceSetupState,
+        pianoModeRegistry: PianoModeRegistryService(modes: []),
+        makePracticeSessionViewModel: SinglePreparationRaceSessionProvider(
+            session: session
+        ).callAsFunction
+    )
+    appState.arGuideViewModel = guide
+
+    let scoreURL = FileManager.default.temporaryDirectory.appending(
+        path: "direct-launch-\(songID.uuidString).musicxml"
+    )
+    let entry = SongLibraryEntry(
+        id: songID,
+        displayName: "Direct Launch",
+        musicXMLFileName: scoreURL.lastPathComponent,
+        importedAt: .now,
+        audioFileName: nil,
+        isBundled: true
+    )
+    let viewModel = SongLibraryViewModel(
+        appState: appState,
+        practicePreparationService: DelayedPreparationService(delays: [:]),
+        indexStore: PreparationTestIndexStore(),
+        fileStore: PreparationTestFileStore(),
+        audioImportService: PreparationTestAudioImporter(),
+        bundledProvider: PreparationTestBundledProvider(entries: [entry], scoreURL: scoreURL),
+        audioPlayer: PreparationTestAudioPlayer(),
+        practiceProgressRepository: repository,
+        diagnosticsReporter: InMemoryDiagnosticsReporter()
+    )
+    return (viewModel, session)
 }

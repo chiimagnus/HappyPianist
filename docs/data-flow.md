@@ -8,7 +8,7 @@
 | --- | --- | --- | --- |
 | 准备 | 钢琴模式选择 | `PracticeSetupState`、`PianoModeProtocol` | readiness gate |
 | 曲库 | bundled / 用户导入 MusicXML | `SongLibraryViewModel`、`SongFileStore` | `SongLibraryEntry` |
-| 曲谱准备 | 选择曲目 | `PracticePreparationService` | `PreparedPractice` |
+| 曲谱准备 | 曲库中切换唱片 | `SongLibraryViewModel`、`PracticePreparationService` | 右侧 Ornament 的 loading / ready / failure 状态 |
 | 练习 | prepared score + piano mode | `ARGuideViewModel`、`PracticeSessionViewModel` | 导航、判定、回放、录制 |
 | 持久化 | attempt 与 session 生命周期 | reducer、coordinator、repository | 小节事实与恢复点 |
 | 正反馈 | durable facts + typed attempt | feedback policies / view models | cue、summary、map、空间效果 |
@@ -64,7 +64,22 @@ LibraryWindowView / SongLibraryView
 | 高亮与谱面 | guide builder、notation layout | 键位 guide 与五线谱输入 |
 | session 注入 | `PracticeSessionViewModel` | 可开始的一轮练习 |
 
-正式 preparation 结果必须同时有可演奏 steps 和 measure spans。解析失败或缺少小节结构时应返回加载错误，不进入推测性的兼容模式。
+正式 preparation 结果必须同时有可演奏 steps 和 measure spans。解析失败或缺少小节结构时应返回具体错误，不进入推测性的兼容模式。
+
+曲库选择链路：
+
+```text
+选择唱片
+-> 取消旧 preparation generation
+-> 右侧 Ornament 显示系统骨架占位
+-> 准备并恢复精确 song UUID + revision 的进度
+-> 展示小节地图与 pending configuration
+-> 用户点击“去练习！”
+-> 配置有修改时应用 pending；未修改时保留恢复位置
+-> 打开 practice window
+```
+
+切换唱片会丢弃尚未开始的草稿设置；重新选回曲目时从持久化进度或整首、双手、100%、不循环的默认值重建。曲库主内容保留曲名、作曲家与试听控件，练习信息只在 trailing Ornament 中呈现。
 
 ## 本轮配置与 active range
 
@@ -178,3 +193,18 @@ sequenceDiagram
 ```
 
 后端失败只更新状态并停止该次生成，不自动降级到另一个后端，也不写入练习进度。
+
+
+## 诊断事件与导出
+
+```text
+Typed domain failure
+-> DiagnosticEvent
+-> AppDiagnosticsReporter
+   -> OSLogDiagnosticsSink
+   -> FileDiagnosticsStore（仅 exportable）
+```
+
+曲谱准备失败使用同一个 `LibraryPracticePreparationFailure` 生成右侧错误界面、默认展开且可选择复制的技术详情，以及诊断事件。事件写入导出存储成功后，界面才显示“此错误已写入诊断日志”。重试会生成新的事件 ID，不复用旧失败。
+
+用户通过曲库顶部“诊断”入口管理日志。导出动作在本地生成 ZIP，不自动上传。日志默认保留7 个日历日，并排除绝对路径、原始 MusicXML、逐音 MIDI、音频样本、手部帧、AI 正文和凭据。

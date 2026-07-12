@@ -27,6 +27,7 @@ Xcode 工程只有 `HappyPianistAVP` 与 `HappyPianistAVPTests` 两个 target。
 | 术语 | [glossary.md](glossary.md) |
 | 可恢复练习验收 | [testing/practice-learning-loop-p1-checklist.md](testing/practice-learning-loop-p1-checklist.md) |
 | 正反馈与空间效果验收 | [testing/practice-feedback-usability-checklist.md](testing/practice-feedback-usability-checklist.md) |
+| 曲库右侧练习 Ornament 与诊断导出验收 | [testing/library-practice-ornament-checklist.md](testing/library-practice-ornament-checklist.md) |
 
 ## 产品主流程
 
@@ -34,7 +35,7 @@ Xcode 工程只有 `HappyPianistAVP` 与 `HappyPianistAVPTests` 两个 target。
 选择钢琴模式
 -> 完成校准或虚拟琴放置
 -> 进入曲库并导入 MusicXML
--> 选择练习片段与本轮配置
+-> 在曲库右侧 Ornament 查看进度并设置本轮配置
 -> 演奏、判定、保存小节事实
 -> 查看即时反馈、总结和恢复地图
 ```

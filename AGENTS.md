@@ -80,7 +80,9 @@ xcodebuild test \
 - 不把 `build-for-testing` 当作测试通过证据。
 - 没有实际运行 `xcodebuild test`、Simulator 或真机时，不得声称对应验证已通过。
 - 纯 Swift 逻辑可在 Linux 临时 harness 中验证，但不能替代 Apple target 的完整类型检查与集成测试。
-- 日志使用 `os.Logger`，明确 `subsystem` 与 `category`。
+- 业务代码通过统一的 `DiagnosticsReporting` 记录结构化事件；不要同时直接调用 `os.Logger` 和文件日志。
+- 统一诊断入口内部将事件写入 `os.Logger`，仅将明确标记为 exportable 的低频事件写入七天诊断文件。
+- 可导出日志不得包含绝对路径、原始曲谱、逐音 MIDI/音频/手部数据、AI 正文、密钥或认证信息。
 
 ## Swift 规范
 

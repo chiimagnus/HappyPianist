@@ -13,7 +13,7 @@
 | `HappyPianistAVP/ViewModels/WindowTransitionState.swift` | 窗口替换 transition。 |
 | `HappyPianistAVP/ViewModels/ARGuide/ARGuideViewModel.swift` | 练习、追踪、沉浸空间、录制与 AI 的总协调器。 |
 
-窗口使用系统背景与 replacement placement。属于窗口 chrome 的操作优先放在 toolbar/ornament，不在 content 内复制悬浮控制条。
+窗口使用系统背景与 replacement placement。曲库主窗口保留唱片浏览、曲名/作曲家与试听控件；练习信息与设置使用附着在 scene trailing 的 Ornament，不把主窗口改成内部 split view。
 
 ## 钢琴模式
 
@@ -38,7 +38,11 @@
 | `HappyPianistAVP/Services/Library/AudioImportService.swift` | 绑定 `.mp3` / `.m4a` 试听音频。 |
 | `HappyPianistAVP/Services/Practice/Session/PracticePreparationService.swift` | 把所选曲谱转换成 `PreparedPractice`。 |
 
-支持 `.musicxml`、`.xml`、`.mxl`。正式生产导入链只有：
+支持 `.musicxml`、`.xml`、`.mxl`。切换唱片后自动异步准备当前曲谱；右侧 Ornament 固定呈现骨架、练习信息/设置或具体失败原因。底部固定按钮统一为“去练习！”，直接使用当前 pending configuration，不再弹出练习选择 dialog 或 sheet。
+
+曲名、作曲家、来源与试听播放仍属于主曲库内容；练习范围、手别、速度、循环、连续成功目标、恢复点、卡点和小节地图只属于右侧 Ornament。
+
+正式生产导入链只有：
 
 ```text
 Library View -> SongLibraryViewModel -> SongFileStore
@@ -47,6 +51,13 @@ Library View -> SongLibraryViewModel -> SongFileStore
 不要重新引入平行的 MusicXML import service。
 
 源码归档没有 bundled production score；`BundledSongLibraryProvider` 只有在 App target 实际包含 `.musicxml` 时才会产生内置曲目。
+
+
+## 诊断
+
+曲库顶部“诊断”入口打开全局诊断管理界面，可查看日志覆盖范围、清除日志并导出7 天的诊断 ZIP。业务代码只写 `DiagnosticEvent`；`AppDiagnosticsReporter` 同时负责 `os.Logger` 与受隐私规则约束的 JSONL 存储。
+
+曲谱准备失败在右侧 Ornament 中显示具体标题、解释、错误代码、阶段、文件名、App 内相对路径和可用的行列/小节。技术详情默认可见并通过系统文本选择菜单复制。
 
 ## 练习窗口
 

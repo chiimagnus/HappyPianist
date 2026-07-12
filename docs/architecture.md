@@ -45,6 +45,7 @@ flowchart TD
   LIBRARY --> FILES[SongFileStore]
   LIBRARY --> INDEX[SongLibraryIndexStore]
   LIBRARY --> PREP[PracticePreparationService]
+  LIBRARY --> DIAG[DiagnosticsReporting]
 
   PREP --> PARSER[MusicXMLParser]
   PREP --> EXPAND[MusicXMLStructureExpander]
@@ -57,6 +58,9 @@ flowchart TD
   SESSION --> PLAYBACK[Playback Services]
   SESSION --> PROGRESS[PracticeProgressCoordinator]
   SESSION --> FEEDBACK[Feedback Policies]
+  LIBRARY --> DIAGNOSTICS[AppDiagnosticsReporter]
+  DIAGNOSTICS --> OSLOG[os.Logger]
+  DIAGNOSTICS --> LOGSTORE[7-day JSONL Store]
 ```
 
 `AppState.configureLiveAppGraphIfNeeded()` 是 live app 的 composition root。新增服务必须在创建它的 task 中完成注入和消费；不要留下未接入的协议或实现。
@@ -85,6 +89,7 @@ flowchart TD
 | 反馈 | feedback policies、view models | 从 durable facts 派生 cue、summary、map 和空间效果。 |
 | 录制 | `RecordingTakeRecorder`、`RecordingTakeStore` | 练习中的 MIDI 风格事件记录、回放与导出。 |
 | AI | `ImprovBackendRegistry`、`AIPerformanceService` | 严格使用用户选择的本地或网络后端。 |
+| 诊断 | `DiagnosticEvent`、`AppDiagnosticsReporter`、`FileDiagnosticsStore` | 单一事件入口分发到系统日志与受筛选的七天可导出日志。 |
 
 ## 关键不变量
 
@@ -95,6 +100,8 @@ flowchart TD
 - 退出、后台、换 session 与完成流程必须先停止新 attempt，再 flush 进度，最后 teardown 输入和回放。
 - feedback 表现不进入 progress JSON。
 - AI 失败不改变练习进度，也不自动切换后端。
+- 曲谱准备失败的界面说明、技术详情、系统日志和导出日志必须来自同一个 typed failure。
+- 诊断文件只接收低频且明确可导出的事件，不保存绝对路径或原始演奏数据。
 
 ## 高风险修改区
 
@@ -107,7 +114,7 @@ flowchart TD
 | `PracticePlaybackControlService` | tempo、片段边界、pedal 与输入抑制 | playback/autoplay tests |
 | MIDI/audio matcher | 错音、漏音、和弦与证据不足 | matcher tests |
 | `ARGuideViewModel` / `ImmersiveView` | scenePhase、tracking 和 overlay 清理 | Simulator + Vision Pro |
-| `SongLibraryViewModel` | 导入、删除、revision、继续练习与换曲 | library + preparation tests |
+| `SongLibraryViewModel` | 导入、删除、selection preparation、右侧练习配置、直接进入练习与诊断状态 | library + preparation tests |
 
 ## 验证分层
 

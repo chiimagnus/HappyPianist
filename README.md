@@ -7,10 +7,11 @@ HappyPianist 是一个面向 Apple Vision Pro 的钢琴练习应用。它把 Mus
 ## 当前能力
 
 - 导入 `.musicxml`、`.xml`、`.mxl` 曲谱并建立曲库。
-- 选择练习片段、手别、速度、循环与连续成功目标。
+- 在曲库右侧练习 Ornament 中查看进度并设置片段、手别、速度、循环与连续成功目标。
 - 记录小节级练习事实，恢复上次片段与位置。
 - 显示非模态即时反馈、练习总结与小节恢复地图。
 - 在沉浸空间显示键位高亮与轻量恢复效果。
+- 记录系统开发日志，并允许用户导出最近七天的安全诊断日志。
 - 练习中录制、回放并导出 MIDI take。
 - AI 对弹支持本地规则、本地 CoreML，以及可选的 Mac 侧 Aria v2 网络后端。
 
@@ -94,6 +95,7 @@ uv run --project aria_server \
 - [配置与资源](docs/configuration.md)
 - [存储](docs/storage.md)
 - [测试清单](docs/testing/practice-learning-loop-p1-checklist.md)
+- [曲库练习 Ornament 与诊断验收](docs/testing/library-practice-ornament-checklist.md)
 
 ## Acknowledgements
 
