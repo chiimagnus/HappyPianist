@@ -166,3 +166,17 @@ private extension String {
         isEmpty ? nil : self
     }
 }
+
+struct DiagnosticLogSummary: Equatable, Sendable {
+    let eventCount: Int
+    let totalBytes: Int64
+    let coverageStart: Date?
+    let coverageEnd: Date?
+
+    static let empty = DiagnosticLogSummary(
+        eventCount: 0,
+        totalBytes: 0,
+        coverageStart: nil,
+        coverageEnd: nil
+    )
+}
