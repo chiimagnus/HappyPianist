@@ -117,9 +117,18 @@ func suspendedPracticeReturnsToPausedReadyAndCanRestartInput() async throws {
     )
     await session.restoreProgressIfAvailable()
     session.startGuidingIfReady()
+    session.latestFeedbackEvent = PracticeFeedbackEvent(
+        identity: identity,
+        sessionGeneration: 1,
+        roundGeneration: session.roundGeneration,
+        sequence: 1,
+        sourceMeasureID: makeResumeSpans()[0].occurrenceID.sourceMeasureID,
+        kind: .retryInvitation(issue: .wrongNote)
+    )
     await session.suspendAndFlushProgress()
 
     #expect(session.acceptsPracticeAttempts == false)
+    #expect(session.latestFeedbackEvent == nil)
     session.resumeAfterSuspension()
     #expect(session.acceptsPracticeAttempts)
     #expect(session.state == .ready)

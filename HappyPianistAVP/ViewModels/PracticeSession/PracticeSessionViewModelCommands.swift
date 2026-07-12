@@ -215,6 +215,7 @@ extension PracticeSessionViewModel {
 
     func suspendAndFlushProgress() async {
         self.acceptsPracticeAttempts = false
+        self.latestFeedbackEvent = nil
         stopManualReplayTask()
         stopAutoplayTask()
         stopAutoplayAudio()

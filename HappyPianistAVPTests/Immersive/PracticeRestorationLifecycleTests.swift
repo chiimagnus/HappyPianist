@@ -29,3 +29,22 @@ func restorationResetCannotBeRevivedByCancelledTask() async {
     #expect(renderer.activeEffectCount == 0)
     #expect(parent.children.isEmpty)
 }
+
+@Test @MainActor
+func clearingFeedbackEventRemovesRestorationEffect() async {
+    let renderer = PracticeRestorationEffectRenderer()
+    let parent = Entity()
+    let event = PracticeFeedbackEvent(
+        identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "r"),
+        sessionGeneration: 1,
+        roundGeneration: 1,
+        sequence: 1,
+        sourceMeasureID: nil,
+        kind: .measureStable
+    )
+    renderer.update(event: event, parent: parent, reduceMotion: false)
+    renderer.update(event: nil, parent: parent, reduceMotion: false)
+    await Task.yield()
+    #expect(renderer.activeEffectCount == 0)
+    #expect(parent.children.isEmpty)
+}

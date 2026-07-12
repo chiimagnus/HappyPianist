@@ -11,6 +11,7 @@ struct ImmersiveView: View {
     @State private var virtualPerformerOverlayController = VirtualPerformerOverlayController()
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
 
     private var shouldShowCalibrationReticle: Bool {
         guard viewModel.immersiveMode == .calibration else { return false }
@@ -115,6 +116,11 @@ struct ImmersiveView: View {
         .onDisappear {
             overlayController.reset()
             viewModel.onImmersiveDisappear()
+        }
+        .onChange(of: scenePhase) {
+            if scenePhase != .active {
+                overlayController.reset()
+            }
         }
     }
 }

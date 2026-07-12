@@ -470,6 +470,7 @@ final class ARGuideViewModel {
     }
 
     func suspendPracticeAndFlushProgress() async {
+        practiceFeedbackViewModel.cancel()
         await practiceSessionViewModel.suspendAndFlushProgress()
     }
 
