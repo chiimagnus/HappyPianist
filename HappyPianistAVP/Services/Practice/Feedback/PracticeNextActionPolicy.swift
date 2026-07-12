@@ -12,9 +12,6 @@ struct PracticeNextActionPolicy {
             return context.isFullPassage ? .keepTempo : .expandPassage
         }
 
-        if hotspot.handMode == .both, hotspot.failedAttempts >= 2 {
-            return .isolateHands(hotspot.sourceMeasureID)
-        }
         if hotspot.failedAttempts >= 2,
            context.configuration.tempoScale > PracticeRoundConfiguration.supportedTempoRange.lowerBound
         {

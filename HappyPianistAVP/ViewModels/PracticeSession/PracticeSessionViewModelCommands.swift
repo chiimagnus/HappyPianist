@@ -608,10 +608,6 @@ extension PracticeSessionViewModel {
         switch action {
         case let .retryMeasure(id):
             retryMeasure(id)
-        case .isolateHands:
-            roundConfigurationController.pendingHandMode = self.practiceHandMode == .left ? .left : .right
-            _ = applyPendingRoundConfiguration()
-            startGuidingIfReady()
         case let .lowerTempo(scale):
             roundConfigurationController.pendingTempoScale = scale
             _ = applyPendingRoundConfiguration()
