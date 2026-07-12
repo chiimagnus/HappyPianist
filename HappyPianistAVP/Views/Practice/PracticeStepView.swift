@@ -48,7 +48,7 @@ struct PracticeStepView: View {
                let summary = PracticeRoundSummaryViewModel(
                    progress: session.sessionProgress,
                    configuration: session.activeRoundConfiguration,
-                   passageSourceMeasureIDs: session.activeRange?.sourceMeasureIDs ?? [],
+                   passageOccurrences: session.activeRange?.measureSpans.map(\.occurrenceID) ?? [],
                    isFullPassage: session.activeRange?.measureSpans.count == session.measureSpans.count
                )
             {

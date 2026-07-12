@@ -7,11 +7,16 @@ struct PracticeRoundSummaryViewModel: Equatable {
     init?(
         progress: SongPracticeProgress?,
         configuration: PracticeRoundConfiguration?,
-        passageSourceMeasureIDs: Set<PracticeSourceMeasureID>,
+        passageOccurrences: [PracticeMeasureOccurrenceID],
         isFullPassage: Bool
     ) {
-        guard let progress, let configuration else { return nil }
+        guard let progress,
+              let configuration,
+              passageOccurrences.isEmpty == false
+        else { return nil }
         self.configuration = configuration
+        passageTitle = Self.passageTitle(for: passageOccurrences)
+        let passageSourceMeasureIDs = Set(passageOccurrences.map(\.sourceMeasureID))
         let facts = progress.measureFacts.filter {
             $0.handMode == configuration.handMode && passageSourceMeasureIDs.contains($0.sourceMeasureID)
         }
@@ -39,17 +44,26 @@ struct PracticeRoundSummaryViewModel: Equatable {
         }
     }
 
-    var passageTitle: String {
-        let start = measureTitle(configuration.passage.start.sourceMeasureID)
-        let end = measureTitle(configuration.passage.end.sourceMeasureID)
-        return start == end ? "第 \(start) 小节" : "第 \(start)–\(end) 小节"
+    let passageTitle: String
+
+    private static func passageTitle(for occurrences: [PracticeMeasureOccurrenceID]) -> String {
+        guard let first = occurrences.first, let last = occurrences.last else { return "" }
+        let start = measureTitle(first.sourceMeasureID)
+        let end = measureTitle(last.sourceMeasureID)
+        guard first != last else { return "第 \(start) 小节" }
+        let crossesRepeat = zip(occurrences, occurrences.dropFirst()).contains { previous, next in
+            next.sourceMeasureID.sourceMeasureIndex <= previous.sourceMeasureID.sourceMeasureIndex
+        }
+        return crossesRepeat
+            ? "第 \(start) 小节至重复后的第 \(end) 小节"
+            : "第 \(start)–\(end) 小节"
     }
 
     var hotspotTitle: String? {
-        hotspot.map { "第 \(measureTitle($0.sourceMeasureID)) 小节" }
+        hotspot.map { "第 \(Self.measureTitle($0.sourceMeasureID)) 小节" }
     }
 
-    private func measureTitle(_ id: PracticeSourceMeasureID) -> String {
+    private static func measureTitle(_ id: PracticeSourceMeasureID) -> String {
         id.sourceNumberToken ?? "\(id.sourceMeasureIndex + 1)"
     }
 }
