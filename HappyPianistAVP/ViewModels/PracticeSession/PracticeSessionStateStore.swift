@@ -27,6 +27,7 @@ final class PracticeSessionStateStore {
     var attemptReductionState = PracticeAttemptReductionState()
     var lastSessionFact: PracticeSessionFact?
     var latestFeedbackEvent: PracticeFeedbackEvent?
+    var feedbackEventSequence = 0
     var songIdentity: PracticeSongIdentity?
     var progressGeneration: Int?
     var progressSaveStatus: PracticeProgressSaveStatus = .idle

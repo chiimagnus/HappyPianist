@@ -309,15 +309,19 @@ extension PracticeSessionViewModel {
         previousProgress: SongPracticeProgress?,
         progress: SongPracticeProgress
     ) {
-        for event in feedbackPolicy.events(
+        let nextSequence = self.feedbackEventSequence + 1
+        let events = feedbackPolicy.events(
             for: fact,
             previousProgress: previousProgress,
             progress: progress,
             sessionGeneration: self.progressGeneration ?? 0,
+            eventSequence: nextSequence,
             passageSourceMeasureIDs: self.activeRange?.sourceMeasureIDs ?? []
-        ) where event.roundGeneration == self.roundGeneration && event.identity == self.songIdentity {
+        )
+        guard events.isEmpty == false else { return }
+        self.feedbackEventSequence = nextSequence
+        for event in events where event.roundGeneration == self.roundGeneration && event.identity == self.songIdentity {
             self.latestFeedbackEvent = event
-            feedbackEventSink?.receive(event)
         }
     }
 

@@ -11,6 +11,7 @@ struct PracticeFeedbackEvent: Equatable, Sendable {
     let identity: PracticeSongIdentity
     let sessionGeneration: Int
     let roundGeneration: Int
+    let sequence: Int
     let sourceMeasureID: PracticeSourceMeasureID?
     let kind: PracticeFeedbackEventKind
 }
@@ -21,18 +22,19 @@ struct PracticeFeedbackPolicy {
         previousProgress: SongPracticeProgress?,
         progress: SongPracticeProgress,
         sessionGeneration: Int,
+        eventSequence: Int,
         passageSourceMeasureIDs: Set<PracticeSourceMeasureID>
     ) -> [PracticeFeedbackEvent] {
         guard let fact else { return [] }
         switch fact {
         case let .attemptIssue(attempt, issue):
-            return [event(attempt: attempt, sessionGeneration: sessionGeneration, kind: .retryInvitation(issue: issue))]
+            return [event(attempt: attempt, sessionGeneration: sessionGeneration, sequence: eventSequence, kind: .retryInvitation(issue: issue))]
         case let .attemptMatched(attempt):
             let id = attempt.occurrenceID.sourceMeasureID
             guard state(of: id, handMode: attempt.handMode, in: previousProgress) != .stable,
                   state(of: id, handMode: attempt.handMode, in: progress) == .stable
             else { return [] }
-            return [event(attempt: attempt, sessionGeneration: sessionGeneration, kind: .measureStable)]
+            return [event(attempt: attempt, sessionGeneration: sessionGeneration, sequence: eventSequence, kind: .measureStable)]
         case .passageRestarted:
             return []
         case let .passageCompleted(round):
@@ -48,6 +50,7 @@ struct PracticeFeedbackPolicy {
                     identity: round.identity,
                     sessionGeneration: sessionGeneration,
                     roundGeneration: round.roundGeneration,
+                    sequence: eventSequence,
                     sourceMeasureID: nil,
                     kind: stable ? .passageStable : .roundSummaryReady
                 )
@@ -66,12 +69,14 @@ struct PracticeFeedbackPolicy {
     private func event(
         attempt: PracticeAttemptFact,
         sessionGeneration: Int,
+        sequence: Int,
         kind: PracticeFeedbackEventKind
     ) -> PracticeFeedbackEvent {
         PracticeFeedbackEvent(
             identity: attempt.identity,
             sessionGeneration: sessionGeneration,
             roundGeneration: attempt.roundGeneration,
+            sequence: sequence,
             sourceMeasureID: attempt.occurrenceID.sourceMeasureID,
             kind: kind
         )

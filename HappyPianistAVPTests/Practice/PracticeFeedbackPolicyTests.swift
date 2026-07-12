@@ -22,6 +22,7 @@ func feedbackPolicyPublishesTypedRetryAndRejectsInsufficientEvidence() {
         previousProgress: nil,
         progress: progress,
         sessionGeneration: 7,
+        eventSequence: 1,
         passageSourceMeasureIDs: [source]
     )
 
@@ -29,6 +30,7 @@ func feedbackPolicyPublishesTypedRetryAndRejectsInsufficientEvidence() {
         identity: identity,
         sessionGeneration: 7,
         roundGeneration: 4,
+        sequence: 1,
         sourceMeasureID: source,
         kind: .retryInvitation(issue: .wrongNote)
     )])
@@ -37,6 +39,7 @@ func feedbackPolicyPublishesTypedRetryAndRejectsInsufficientEvidence() {
         previousProgress: nil,
         progress: progress,
         sessionGeneration: 7,
+        eventSequence: 2,
         passageSourceMeasureIDs: [source]
     ).isEmpty)
 }
@@ -50,6 +53,7 @@ func feedbackCopyHasNoPunitiveTerms() {
             identity: identity,
             sessionGeneration: 1,
             roundGeneration: 1,
+            sequence: 1,
             sourceMeasureID: id,
             kind: .retryInvitation(issue: issue)
         )).title
@@ -86,6 +90,7 @@ func measureStableUsesSourceAndHandCompositeIdentity() {
         previousProgress: previous,
         progress: current,
         sessionGeneration: 1,
+        eventSequence: 1,
         passageSourceMeasureIDs: [id]
     )
     #expect(events.map(\.kind) == [.measureStable])
@@ -131,6 +136,7 @@ func passageCompletionUsesResolvedOccurrenceSourceIDs() throws {
         previousProgress: progress,
         progress: progress,
         sessionGeneration: 1,
+        eventSequence: 1,
         passageSourceMeasureIDs: [source6, source0]
     )
 
@@ -165,7 +171,42 @@ func passageCompletionRequiresEveryExpectedMeasure() throws {
         previousProgress: progress,
         progress: progress,
         sessionGeneration: 1,
+        eventSequence: 1,
         passageSourceMeasureIDs: [first, second]
     )
     #expect(events.map(\.kind) == [.roundSummaryReady])
+}
+
+@Test
+func repeatedIssueEventsHaveDistinctSequenceIdentity() {
+    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r")
+    let source = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 0)
+    let attempt = PracticeAttemptFact(
+        identity: identity,
+        roundGeneration: 1,
+        occurrenceID: PracticeMeasureOccurrenceID(sourceMeasureID: source, occurrenceIndex: 0),
+        stepIndex: 0,
+        handMode: .both,
+        tempoScale: 0.6,
+        timestamp: .now
+    )
+    let progress = SongPracticeProgress(identity: identity, updatedAt: .now)
+    let policy = PracticeFeedbackPolicy()
+    let first = policy.events(
+        for: .attemptIssue(attempt, issue: .wrongNote),
+        previousProgress: progress,
+        progress: progress,
+        sessionGeneration: 1,
+        eventSequence: 1,
+        passageSourceMeasureIDs: [source]
+    )
+    let second = policy.events(
+        for: .attemptIssue(attempt, issue: .wrongNote),
+        previousProgress: progress,
+        progress: progress,
+        sessionGeneration: 1,
+        eventSequence: 2,
+        passageSourceMeasureIDs: [source]
+    )
+    #expect(first != second)
 }

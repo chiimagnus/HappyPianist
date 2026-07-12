@@ -10,6 +10,7 @@ func feedbackViewModelReplacesAndCancelsCue() {
         identity: identity,
         sessionGeneration: 1,
         roundGeneration: 1,
+        sequence: 1,
         sourceMeasureID: nil,
         kind: .roundSummaryReady
     )

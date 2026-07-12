@@ -19,6 +19,7 @@ func restorationResetCannotBeRevivedByCancelledTask() async {
         identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "r"),
         sessionGeneration: 1,
         roundGeneration: 1,
+        sequence: 1,
         sourceMeasureID: nil,
         kind: .measureStable
     )
