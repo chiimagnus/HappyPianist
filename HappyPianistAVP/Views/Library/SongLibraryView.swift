@@ -15,6 +15,7 @@ struct SongLibraryView: View {
   @State private var isPracticeOptionsPresented = false
   @State private var isPassageSetupPresented = false
   @State private var isDiagnosticsPresented = false
+  @State private var libraryViewHeight: CGFloat = LibraryDesignTokens.windowIdealHeight
 
   private var audioImporterTypes: [UTType] {
     let types = SongLibraryViewModel.supportedAudioFileExtensions.compactMap {
@@ -96,6 +97,23 @@ struct SongLibraryView: View {
       idealHeight: LibraryDesignTokens.windowIdealHeight,
       maxHeight: LibraryDesignTokens.windowMaximumHeight
     )
+    .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { height in
+      libraryViewHeight = height
+    }
+    .ornament(
+      visibility: .visible,
+      attachmentAnchor: .scene(.trailing),
+      contentAlignment: .leading
+    ) {
+      LibraryPracticeOrnamentView(
+        viewModel: viewModel,
+        isStartEnabled: false,
+        onStartPractice: onStartPractice,
+        onImportMusicXML: viewModel.didTapImportMusicXML
+      )
+      .frame(height: libraryViewHeight)
+      .glassBackgroundEffect()
+    }
     .sheet(isPresented: $isDiagnosticsPresented) {
       DiagnosticsView(viewModel: diagnosticsViewModel)
     }
