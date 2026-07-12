@@ -29,8 +29,7 @@ struct PracticeRoundConfigurationControllerTests {
             defaultsStore: defaults
         )
         let passage = try #require(makePassage())
-        controller.initializeSong(
-            PracticeSongIdentity(songID: UUID(), scoreRevision: "r1"),
+        controller.installInitialPassage(
             initialPassage: passage
         )
 
@@ -64,8 +63,7 @@ struct PracticeRoundConfigurationControllerTests {
             settingsProvider: FixedPracticeSettingsProvider(),
             defaultsStore: CapturingRoundDefaultsStore()
         )
-        controller.initializeSong(
-            PracticeSongIdentity(songID: UUID(), scoreRevision: "r1"),
+        controller.installInitialPassage(
             initialPassage: try #require(makePassage())
         )
 
@@ -87,15 +85,13 @@ struct PracticeRoundConfigurationControllerTests {
         )
         let passageA = try #require(makePassage(partID: "A", sourceIndex: 0))
         let passageB = try #require(makePassage(partID: "B", sourceIndex: 8))
-        controller.initializeSong(
-            PracticeSongIdentity(songID: UUID(), scoreRevision: "a"),
+        controller.installInitialPassage(
             initialPassage: passageA
         )
         controller.pendingPassage = passageA
         _ = controller.applyPending()
 
-        controller.initializeSong(
-            PracticeSongIdentity(songID: UUID(), scoreRevision: "b"),
+        controller.installInitialPassage(
             initialPassage: passageB
         )
 

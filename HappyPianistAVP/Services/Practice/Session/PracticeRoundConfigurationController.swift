@@ -62,7 +62,6 @@ struct UserDefaultsPracticeRoundDefaultsStore: PracticeRoundDefaultsStoreProtoco
 final class PracticeRoundConfigurationController {
     private let stateStore: PracticeSessionStateStore
     private let defaultsStore: any PracticeRoundDefaultsStoreProtocol
-    private(set) var configuredSongIdentity: PracticeSongIdentity?
 
     var pendingPassage: PracticePassage?
     var pendingHandMode: PracticeHandMode
@@ -120,21 +119,12 @@ final class PracticeRoundConfigurationController {
             pendingSoundRoutingSettings != stateStore.activeSoundRoutingSettings
     }
 
-    func initializeSong(_ identity: PracticeSongIdentity, initialPassage: PracticePassage) {
-        guard configuredSongIdentity != identity else { return }
-        configuredSongIdentity = identity
+    func installInitialPassage(initialPassage: PracticePassage) {
         pendingPassage = initialPassage
         _ = applyPending()
     }
 
-    func installUnidentifiedSessionPassageIfNeeded(_ passage: PracticePassage) {
-        guard stateStore.activeRoundConfiguration == nil else { return }
-        pendingPassage = passage
-        _ = applyPending()
-    }
-
     func resetSong() {
-        configuredSongIdentity = nil
         pendingPassage = nil
         stateStore.activeRoundConfiguration = nil
     }
@@ -175,16 +165,5 @@ final class PracticeRoundConfigurationController {
         stateStore.roundGeneration += 1
     }
 
-    func resetPendingToActive() {
-        guard let activeConfiguration = stateStore.activeRoundConfiguration else { return }
-        pendingPassage = activeConfiguration.passage
-        pendingHandMode = activeConfiguration.handMode
-        pendingTempoScale = activeConfiguration.tempoScale
-        pendingLoopEnabled = activeConfiguration.loopEnabled
-        pendingRequiredSuccesses = activeConfiguration.requiredSuccesses
-        pendingManualAdvanceMode = stateStore.activeManualAdvanceMode
-        pendingSoundOutputRoute = stateStore.activeSoundRoutingSettings.outputRoute
-        pendingMIDIDestinationUniqueID = Int(stateStore.activeSoundRoutingSettings.midiDestinationUniqueID ?? 0)
-        pendingSendLocalControlOff = stateStore.activeSoundRoutingSettings.sendLocalControlOff
-    }
+
 }

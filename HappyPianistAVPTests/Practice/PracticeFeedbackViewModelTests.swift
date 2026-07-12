@@ -5,11 +5,7 @@ import Testing
 @Test @MainActor
 func feedbackViewModelReplacesAndCancelsCue() {
     let viewModel = PracticeFeedbackViewModel(sleeper: NeverFeedbackSleeper())
-    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r")
     let event = PracticeFeedbackEvent(
-        identity: identity,
-        sessionGeneration: 1,
-        roundGeneration: 1,
         sequence: 1,
         sourceMeasureID: nil,
         kind: .roundSummaryReady
@@ -27,9 +23,6 @@ func scenePresentationInvalidationIsSynchronous() {
         practiceSetupState: PracticeSetupState()
     )
     let event = PracticeFeedbackEvent(
-        identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "r"),
-        sessionGeneration: 1,
-        roundGeneration: 1,
         sequence: 1,
         sourceMeasureID: nil,
         kind: .roundSummaryReady

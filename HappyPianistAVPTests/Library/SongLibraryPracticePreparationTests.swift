@@ -4,9 +4,11 @@ import Testing
 
 private actor DelayedPreparationService: PracticePreparationServiceProtocol {
     let delays: [UUID: Duration]
+    let includesMeasureSpans: Bool
 
-    init(delays: [UUID: Duration]) {
+    init(delays: [UUID: Duration], includesMeasureSpans: Bool = true) {
         self.delays = delays
+        self.includesMeasureSpans = includesMeasureSpans
     }
 
     func prepare(songID: UUID, from _: URL, file: ImportedMusicXMLFile) async throws -> PreparedPractice {
@@ -23,7 +25,15 @@ private actor DelayedPreparationService: PracticePreparationServiceProtocol {
             attributeTimeline: nil,
             slurTimeline: nil,
             highlightGuides: [],
-            measureSpans: [],
+            measureSpans: includesMeasureSpans ? [MusicXMLMeasureSpan(
+                partID: "P1",
+                measureNumber: 1,
+                sourceMeasureIndex: 0,
+                sourceMeasureNumberToken: "1",
+                occurrenceIndex: 0,
+                startTick: 0,
+                endTick: 1
+            )] : [],
             unsupportedNoteCount: 0
         )
     }
@@ -73,6 +83,41 @@ func latestPreparationGenerationWins() async throws {
     #expect(newResult)
     #expect(staleResult == false)
     #expect(appState.practiceSetupState.preparedPracticeIdentity?.songID == secondID)
+}
+
+
+@Test
+@MainActor
+func preparationWithoutMeasureSpansIsRejectedAtTheLibraryBoundary() async throws {
+    let url = FileManager.default.temporaryDirectory.appending(path: "missing-measures-\(UUID().uuidString).musicxml")
+    try Data("<score-partwise/>".utf8).write(to: url)
+    defer { try? FileManager.default.removeItem(at: url) }
+
+    let entryID = UUID()
+    let entry = SongLibraryEntry(
+        id: entryID,
+        displayName: "Missing Measures",
+        musicXMLFileName: "missing.musicxml",
+        importedAt: .now,
+        audioFileName: nil,
+        isBundled: true
+    )
+    let appState = AppState()
+    let viewModel = SongLibraryViewModel(
+        appState: appState,
+        practicePreparationService: DelayedPreparationService(delays: [:], includesMeasureSpans: false),
+        indexStore: PreparationTestIndexStore(),
+        fileStore: PreparationTestFileStore(),
+        audioImportService: PreparationTestAudioImporter(),
+        paths: SongLibraryPaths(),
+        bundledProvider: PreparationTestBundledProvider(entries: [entry], scoreURL: url),
+        audioPlayer: PreparationTestAudioPlayer(),
+        practiceProgressRepository: PreparationTestProgressRepository()
+    )
+
+    #expect(await viewModel.preparePractice(entryID: entryID) == false)
+    #expect(viewModel.errorMessage == "该曲目缺少可用的练习步骤或小节信息。")
+    #expect(appState.practiceSetupState.preparedPracticeIdentity == nil)
 }
 
 private final class PreparationTestIndexStore: SongLibraryIndexStoreProtocol {

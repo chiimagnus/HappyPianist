@@ -33,6 +33,6 @@
 | --- | --- | --- |
 | 小节级练习进度 | `FilePracticeProgressRepository` | Documents 下 `PracticeProgress/progress-v1.json`。 |
 
-`progress-v1.json` 使用 schema version，按 `SongLibraryEntry.id + score revision digest` 区分曲谱版本。内容只保存练习事实：active configuration、resume point 与 source-measure facts；不保存 SwiftUI 状态、动画、AI 文案或原始逐帧输入。
+`progress-v1.json` 的文件名定义 v1 格式，按 `SongLibraryEntry.id + score revision digest` 区分曲谱版本。v1 使用严格解码；缺字段、损坏或不受支持的数据会被视为不可恢复的旧进度，而不会通过推测默认值继续运行。内容只保存练习事实：active configuration、resume point 与 source-measure facts；不保存 SwiftUI 状态、动画、AI 文案或原始逐帧输入。
 
 写入由 `PracticeProgressCoordinator` 串行化并原子落盘。快速 checkpoint 会合并；back、background、session replacement 与 completion 必须 await flush。删除用户曲目时同时按 song UUID 清理进度；进度清理失败不会回滚已经完成的曲库删除。

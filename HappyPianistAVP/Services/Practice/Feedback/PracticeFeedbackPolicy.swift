@@ -8,9 +8,6 @@ enum PracticeFeedbackEventKind: Equatable, Sendable {
 }
 
 struct PracticeFeedbackEvent: Equatable, Sendable {
-    let identity: PracticeSongIdentity
-    let sessionGeneration: Int
-    let roundGeneration: Int
     let sequence: Int
     let sourceMeasureID: PracticeSourceMeasureID?
     let kind: PracticeFeedbackEventKind
@@ -21,35 +18,28 @@ struct PracticeFeedbackPolicy {
         for fact: PracticeSessionFact?,
         previousProgress: SongPracticeProgress?,
         progress: SongPracticeProgress,
-        sessionGeneration: Int,
         eventSequence: Int,
         passageSourceMeasureIDs: Set<PracticeSourceMeasureID>
     ) -> [PracticeFeedbackEvent] {
         guard let fact else { return [] }
         switch fact {
-        case let .attemptIssue(attempt, issue):
-            return [event(attempt: attempt, sessionGeneration: sessionGeneration, sequence: eventSequence, kind: .retryInvitation(issue: issue))]
-        case let .attemptMatched(attempt):
-            let id = attempt.occurrenceID.sourceMeasureID
-            guard state(of: id, handMode: attempt.handMode, in: previousProgress) != .stable,
-                  state(of: id, handMode: attempt.handMode, in: progress) == .stable
+        case let .attemptIssue(sourceMeasureID, issue):
+            return [event(sequence: eventSequence, sourceMeasureID: sourceMeasureID, kind: .retryInvitation(issue: issue))]
+        case let .attemptMatched(sourceMeasureID, handMode):
+            guard state(of: sourceMeasureID, handMode: handMode, in: previousProgress) != .stable,
+                  state(of: sourceMeasureID, handMode: handMode, in: progress) == .stable
             else { return [] }
-            return [event(attempt: attempt, sessionGeneration: sessionGeneration, sequence: eventSequence, kind: .measureStable)]
-        case .passageRestarted:
-            return []
-        case let .passageCompleted(round):
+            return [event(sequence: eventSequence, sourceMeasureID: sourceMeasureID, kind: .measureStable)]
+        case let .passageCompleted(handMode):
             let passageFacts = progress.measureFacts.filter {
-                $0.handMode == round.handMode && passageSourceMeasureIDs.contains($0.sourceMeasureID)
+                $0.handMode == handMode && passageSourceMeasureIDs.contains($0.sourceMeasureID)
             }
             let stable = PracticePassageCoverage.isStable(
                 facts: passageFacts,
                 sourceMeasureIDs: passageSourceMeasureIDs
             )
             return [
-                PracticeFeedbackEvent(
-                    identity: round.identity,
-                    sessionGeneration: sessionGeneration,
-                    roundGeneration: round.roundGeneration,
+                event(
                     sequence: eventSequence,
                     sourceMeasureID: nil,
                     kind: stable ? .passageStable : .roundSummaryReady
@@ -67,17 +57,13 @@ struct PracticeFeedbackPolicy {
     }
 
     private func event(
-        attempt: PracticeAttemptFact,
-        sessionGeneration: Int,
         sequence: Int,
+        sourceMeasureID: PracticeSourceMeasureID?,
         kind: PracticeFeedbackEventKind
     ) -> PracticeFeedbackEvent {
         PracticeFeedbackEvent(
-            identity: attempt.identity,
-            sessionGeneration: sessionGeneration,
-            roundGeneration: attempt.roundGeneration,
             sequence: sequence,
-            sourceMeasureID: attempt.occurrenceID.sourceMeasureID,
+            sourceMeasureID: sourceMeasureID,
             kind: kind
         )
     }

@@ -20,14 +20,8 @@ struct PracticeWindowRootView: View {
             onBackToLibrary: {
                 windowState.beginTransition(from: .practice, to: .library)
                 openWindow(id: WindowID.library)
-            },
-            onRestartFromTypePicker: {
-                windowState.resetToPreparation(reason: "user restarted from practice window")
-                windowState.beginTransition(from: .practice, to: .preparation)
-                openWindow(id: WindowID.preparation)
             }
         )
-        // .frame(minWidth: 1200, idealWidth: 1600, minHeight: 520, idealHeight: 620)
         .onChange(of: scenePhase) {
             handleScenePhaseChange()
         }

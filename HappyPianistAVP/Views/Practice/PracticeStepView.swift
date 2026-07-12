@@ -3,7 +3,6 @@ import SwiftUI
 struct PracticeStepView: View {
     @Bindable var viewModel: ARGuideViewModel
     let onBackToLibrary: () -> Void
-    let onRestartFromTypePicker: () -> Void
     @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
     @Environment(\.openImmersiveSpace) private var openImmersiveSpace
 
@@ -333,7 +332,6 @@ struct PracticeStepView: View {
     )
     PracticeStepView(
         viewModel: viewModel,
-        onBackToLibrary: {},
-        onRestartFromTypePicker: {}
+        onBackToLibrary: {}
     )
 }

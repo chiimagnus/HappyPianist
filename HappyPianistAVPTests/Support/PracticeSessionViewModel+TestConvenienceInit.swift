@@ -61,3 +61,51 @@ private struct TestPracticeSessionSettingsProvider: PracticeSessionSettingsProvi
         sendLocalControlOff: false
     )
 }
+
+private let defaultTestPracticeSongIdentity = PracticeSongIdentity(
+    songID: UUID(),
+    scoreRevision: "test-score"
+)
+
+extension PracticeSessionViewModel {
+    @MainActor
+    func setSteps(
+        _ steps: [PracticeStep],
+        tempoMap: MusicXMLTempoMap,
+        pedalTimeline: MusicXMLPedalTimeline? = nil,
+        fermataTimeline: MusicXMLFermataTimeline? = nil,
+        attributeTimeline: MusicXMLAttributeTimeline? = nil,
+        slurTimeline: MusicXMLSlurTimeline? = nil,
+        highlightGuides: [PianoHighlightGuide] = [],
+        measureSpans: [MusicXMLMeasureSpan] = []
+    ) {
+        let resolvedMeasureSpans = measureSpans.isEmpty
+            ? [Self.syntheticMeasureSpan(for: steps)]
+            : measureSpans
+        installPreparedSteps(
+            steps,
+            identity: songIdentity ?? defaultTestPracticeSongIdentity,
+            tempoMap: tempoMap,
+            pedalTimeline: pedalTimeline,
+            fermataTimeline: fermataTimeline,
+            attributeTimeline: attributeTimeline,
+            slurTimeline: slurTimeline,
+            highlightGuides: highlightGuides,
+            measureSpans: resolvedMeasureSpans
+        )
+    }
+
+    private static func syntheticMeasureSpan(for steps: [PracticeStep]) -> MusicXMLMeasureSpan {
+        let startTick = steps.map(\.tick).min() ?? 0
+        let finalTick = steps.map(\.tick).max() ?? startTick
+        return MusicXMLMeasureSpan(
+            partID: "test-part",
+            measureNumber: 1,
+            sourceMeasureIndex: 0,
+            sourceMeasureNumberToken: "1",
+            occurrenceIndex: 0,
+            startTick: startTick,
+            endTick: finalTick + 1
+        )
+    }
+}

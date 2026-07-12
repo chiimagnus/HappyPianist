@@ -7,7 +7,6 @@ final class PracticeRestorationEffectRenderer {
     private var entity: ModelEntity?
     private var removalTask: Task<Void, Never>?
     private var lastEvent: PracticeFeedbackEvent?
-    private(set) var activeEffectCount = 0
 
     init(sleeper: any SleeperProtocol = TaskSleeper()) {
         self.sleeper = sleeper
@@ -31,7 +30,6 @@ final class PracticeRestorationEffectRenderer {
         effect.position = [0, 0.012, 0]
         parent.addChild(effect)
         entity = effect
-        activeEffectCount = 1
         removalTask = Task { [weak self, sleeper] in
             try? await sleeper.sleep(for: .seconds(1))
             guard Task.isCancelled == false else { return }
@@ -48,7 +46,6 @@ final class PracticeRestorationEffectRenderer {
         removalTask = nil
         entity?.removeFromParent()
         entity = nil
-        activeEffectCount = 0
         if clearEvent { lastEvent = nil }
     }
 }

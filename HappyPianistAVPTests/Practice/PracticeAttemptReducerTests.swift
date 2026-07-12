@@ -18,7 +18,6 @@ struct PracticeAttemptReducerTests {
                 stepIndex: 0,
                 identity: fixture.identity,
                 configuration: fixture.configuration,
-                roundGeneration: 1,
                 measureIndex: fixture.measureIndex,
                 timestamp: secondPass ? Date(timeIntervalSince1970: 2) : Date(timeIntervalSince1970: 1)
             )
@@ -32,7 +31,6 @@ struct PracticeAttemptReducerTests {
                 stepIndex: 1,
                 identity: fixture.identity,
                 configuration: fixture.configuration,
-                roundGeneration: 1,
                 measureIndex: fixture.measureIndex,
                 timestamp: secondPass ? Date(timeIntervalSince1970: 4) : Date(timeIntervalSince1970: 3)
             )
@@ -57,7 +55,6 @@ struct PracticeAttemptReducerTests {
             stepIndex: 0,
             identity: fixture.identity,
             configuration: fixture.configuration,
-            roundGeneration: 1,
             measureIndex: fixture.measureIndex,
             timestamp: .now
         )
@@ -68,7 +65,6 @@ struct PracticeAttemptReducerTests {
             stepIndex: 1,
             identity: fixture.identity,
             configuration: fixture.configuration,
-            roundGeneration: 1,
             measureIndex: fixture.measureIndex,
             timestamp: .now
         )
@@ -79,7 +75,6 @@ struct PracticeAttemptReducerTests {
             stepIndex: 0,
             identity: fixture.identity,
             configuration: fixture.configuration,
-            roundGeneration: 1,
             measureIndex: fixture.measureIndex,
             timestamp: .now
         )
@@ -90,7 +85,6 @@ struct PracticeAttemptReducerTests {
             stepIndex: 0,
             identity: fixture.identity,
             configuration: fixture.configuration,
-            roundGeneration: 1,
             measureIndex: fixture.measureIndex,
             timestamp: .now
         )
@@ -120,7 +114,6 @@ struct PracticeAttemptReducerTests {
                 stepIndex: stepIndex,
                 identity: fixture.identity,
                 configuration: fixture.configuration,
-                roundGeneration: 1,
                 measureIndex: fixture.measureIndex,
                 timestamp: .now
             )
@@ -139,7 +132,6 @@ struct PracticeAttemptReducerTests {
                 stepIndex: stepIndex,
                 identity: fixture.identity,
                 configuration: fixture.configuration,
-                roundGeneration: 2,
                 measureIndex: fixture.measureIndex,
                 timestamp: .now
             )
@@ -172,7 +164,6 @@ struct PracticeAttemptReducerTests {
             stepIndex: 0,
             identity: fixture.identity,
             configuration: fixture.configuration,
-            roundGeneration: 2,
             measureIndex: fixture.measureIndex,
             timestamp: .now
         )
@@ -185,7 +176,6 @@ struct PracticeAttemptReducerTests {
             stepIndex: 1,
             identity: fixture.identity,
             configuration: fixture.configuration,
-            roundGeneration: 2,
             measureIndex: fixture.measureIndex,
             timestamp: .now
         )
@@ -202,7 +192,6 @@ struct PracticeAttemptReducerTests {
             stepIndex: 0,
             identity: fixture.identity,
             configuration: fixture.configuration,
-            roundGeneration: 1,
             measureIndex: fixture.measureIndex,
             timestamp: .now
         )
@@ -226,7 +215,6 @@ struct PracticeAttemptReducerTests {
                 stepIndex: stepIndex,
                 identity: fixture.identity,
                 configuration: fixture.configuration,
-                roundGeneration: 1,
                 measureIndex: fixture.measureIndex,
                 timestamp: .now
             )
@@ -239,7 +227,6 @@ struct PracticeAttemptReducerTests {
             progress: progress,
             identity: fixture.identity,
             configuration: fasterConfiguration,
-            roundGeneration: 2,
             timestamp: .now
         )
         progress = restarted.progress
@@ -252,7 +239,6 @@ struct PracticeAttemptReducerTests {
                 stepIndex: stepIndex,
                 identity: fixture.identity,
                 configuration: fasterConfiguration,
-                roundGeneration: 2,
                 measureIndex: fixture.measureIndex,
                 timestamp: .now
             )

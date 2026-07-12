@@ -32,7 +32,15 @@ func practiceEntryBlockingReasonIsMissingStoredCalibrationWhenStepsExist() {
         attributeTimeline: nil,
         slurTimeline: nil,
         highlightGuides: [],
-        measureSpans: [],
+        measureSpans: [MusicXMLMeasureSpan(
+            partID: "P1",
+            measureNumber: 1,
+            sourceMeasureIndex: 0,
+            sourceMeasureNumberToken: "1",
+            occurrenceIndex: 0,
+            startTick: 0,
+            endTick: 1
+        )],
         unsupportedNoteCount: 0
     ))
 
@@ -60,7 +68,15 @@ func practiceEntryBlockingReasonIsNilWhenPreconditionsAreReady() {
         attributeTimeline: nil,
         slurTimeline: nil,
         highlightGuides: [],
-        measureSpans: [],
+        measureSpans: [MusicXMLMeasureSpan(
+            partID: "P1",
+            measureNumber: 1,
+            sourceMeasureIndex: 0,
+            sourceMeasureNumberToken: "1",
+            occurrenceIndex: 0,
+            startTick: 0,
+            endTick: 1
+        )],
         unsupportedNoteCount: 0
     ))
 

@@ -152,9 +152,9 @@ final class ARGuideViewModel {
     }
 
     private func applyPreparedPractice(_ prepared: PreparedPractice, to session: PracticeSessionViewModel) async {
-        session.songIdentity = prepared.identity
-        session.setSteps(
+        session.installPreparedSteps(
             prepared.steps,
+            identity: prepared.identity,
             tempoMap: prepared.tempoMap,
             pedalTimeline: prepared.pedalTimeline,
             fermataTimeline: prepared.fermataTimeline,

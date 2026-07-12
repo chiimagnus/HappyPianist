@@ -8,7 +8,7 @@ func restorationRendererIgnoresSummaryEvents() {
     let renderer = PracticeRestorationEffectRenderer()
     let parent = Entity()
     renderer.update(event: nil, parent: parent, reduceMotion: false)
-    #expect(renderer.activeEffectCount == 0)
+    #expect(parent.children.isEmpty)
 }
 
 @Test @MainActor
@@ -16,9 +16,6 @@ func restorationResetCannotBeRevivedByCancelledTask() async {
     let renderer = PracticeRestorationEffectRenderer()
     let parent = Entity()
     let event = PracticeFeedbackEvent(
-        identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "r"),
-        sessionGeneration: 1,
-        roundGeneration: 1,
         sequence: 1,
         sourceMeasureID: nil,
         kind: .measureStable
@@ -26,7 +23,6 @@ func restorationResetCannotBeRevivedByCancelledTask() async {
     renderer.update(event: event, parent: parent, reduceMotion: true)
     renderer.reset()
     await Task.yield()
-    #expect(renderer.activeEffectCount == 0)
     #expect(parent.children.isEmpty)
 }
 
@@ -35,9 +31,6 @@ func clearingFeedbackEventRemovesRestorationEffect() async {
     let renderer = PracticeRestorationEffectRenderer()
     let parent = Entity()
     let event = PracticeFeedbackEvent(
-        identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "r"),
-        sessionGeneration: 1,
-        roundGeneration: 1,
         sequence: 1,
         sourceMeasureID: nil,
         kind: .measureStable
@@ -45,6 +38,5 @@ func clearingFeedbackEventRemovesRestorationEffect() async {
     renderer.update(event: event, parent: parent, reduceMotion: false)
     renderer.update(event: nil, parent: parent, reduceMotion: false)
     await Task.yield()
-    #expect(renderer.activeEffectCount == 0)
     #expect(parent.children.isEmpty)
 }

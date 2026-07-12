@@ -16,7 +16,6 @@ func restoredPracticeStaysReadyAndSilentUntilExplicitStart() async throws {
         requiredSuccesses: 3
     )
     let progress = SongPracticeProgress(
-        identity: identity,
         activeConfiguration: configuration,
         resumePoint: PracticeResumePoint(
             occurrenceID: spans[1].occurrenceID,
@@ -61,7 +60,6 @@ func invalidRestoredPassageFailsClosed() async throws {
     let missingOccurrence = PracticeMeasureOccurrenceID(sourceMeasureID: missingSource, occurrenceIndex: 99)
     let passage = try #require(PracticePassage(start: missingOccurrence, end: missingOccurrence))
     let progress = SongPracticeProgress(
-        identity: identity,
         activeConfiguration: PracticeRoundConfiguration(
             passage: passage,
             handMode: .both,
@@ -118,9 +116,6 @@ func suspendedPracticeReturnsToPausedReadyAndCanRestartInput() async throws {
     await session.restoreProgressIfAvailable()
     session.startGuidingIfReady()
     session.latestFeedbackEvent = PracticeFeedbackEvent(
-        identity: identity,
-        sessionGeneration: 1,
-        roundGeneration: session.roundGeneration,
         sequence: 1,
         sourceMeasureID: makeResumeSpans()[0].occurrenceID.sourceMeasureID,
         kind: .retryInvitation(issue: .wrongNote)

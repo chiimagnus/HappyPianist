@@ -166,7 +166,6 @@ extension PracticeSessionViewModel {
         let session = await progressCoordinator.begin(identity: identity)
         guard session.isCurrent, self.songIdentity == identity else { return }
         self.progressGeneration = session.generation
-        self.progressSaveStatus = .loaded
         self.acceptsPracticeAttempts = true
 
         guard let progress = session.progress else {
@@ -199,7 +198,6 @@ extension PracticeSessionViewModel {
               let generation = self.progressGeneration,
               let progress = self.sessionProgress
         else { return }
-        self.progressSaveStatus = .pending
         Task {
             await progressCoordinator.checkpoint(progress, generation: generation)
         }
@@ -210,7 +208,7 @@ extension PracticeSessionViewModel {
         if let progress = self.sessionProgress {
             await progressCoordinator.checkpoint(progress, generation: generation)
         }
-        self.progressSaveStatus = await progressCoordinator.flush(generation: generation)
+        _ = await progressCoordinator.flush(generation: generation)
     }
 
     func suspendAndFlushProgress() async {
@@ -240,13 +238,12 @@ extension PracticeSessionViewModel {
     func flushAndShutdown() async {
         await suspendAndFlushProgress()
         if let progressCoordinator, let generation = self.progressGeneration {
-            self.progressSaveStatus = await progressCoordinator.finish(generation: generation)
+            _ = await progressCoordinator.finish(generation: generation)
         }
         shutdown()
     }
 
     func recordAttemptOutcome(_ outcome: StepAttemptMatchResult, at timestamp: Date = .now) {
-        self.lastAttemptOutcome = outcome
         guard self.stateStore.isActiveRangeInvalid == false else { return }
         guard let identity = self.songIdentity,
               let configuration = self.activeRoundConfiguration,
@@ -263,13 +260,11 @@ extension PracticeSessionViewModel {
             stepIndex: self.currentStepIndex,
             identity: identity,
             configuration: configuration,
-            roundGeneration: self.roundGeneration,
             measureIndex: measureIndex,
             timestamp: timestamp
         )
         self.sessionProgress = result.progress
         self.attemptReductionState = result.reductionState
-        self.lastSessionFact = result.fact
         publishFeedback(for: result.fact, previousProgress: previousProgress, progress: result.progress)
         if result.fact != nil {
             checkpointProgress()
@@ -282,12 +277,10 @@ extension PracticeSessionViewModel {
             progress: self.sessionProgress,
             identity: identity,
             configuration: configuration,
-            roundGeneration: self.roundGeneration,
             timestamp: timestamp
         )
         self.sessionProgress = result.progress
         self.attemptReductionState = result.reductionState
-        self.lastSessionFact = result.fact
         checkpointProgress()
     }
 
@@ -299,12 +292,10 @@ extension PracticeSessionViewModel {
             reductionState: self.attemptReductionState,
             identity: identity,
             configuration: configuration,
-            roundGeneration: self.roundGeneration,
             timestamp: timestamp
         )
         self.sessionProgress = result.progress
         self.attemptReductionState = result.reductionState
-        self.lastSessionFact = result.fact
         publishFeedback(for: result.fact, previousProgress: previousProgress, progress: result.progress)
         checkpointProgress()
     }
@@ -319,15 +310,12 @@ extension PracticeSessionViewModel {
             for: fact,
             previousProgress: previousProgress,
             progress: progress,
-            sessionGeneration: self.progressGeneration ?? 0,
             eventSequence: nextSequence,
             passageSourceMeasureIDs: self.activeRange?.sourceMeasureIDs ?? []
         )
         guard events.isEmpty == false else { return }
         self.feedbackEventSequence = nextSequence
-        for event in events where event.roundGeneration == self.roundGeneration && event.identity == self.songIdentity {
-            self.latestFeedbackEvent = event
-        }
+        self.latestFeedbackEvent = events.last
     }
 
     @discardableResult
@@ -369,19 +357,19 @@ extension PracticeSessionViewModel {
         }
     }
 
-    func setSteps(
+    func installPreparedSteps(
         _ steps: [PracticeStep],
+        identity: PracticeSongIdentity,
         tempoMap: MusicXMLTempoMap,
         pedalTimeline: MusicXMLPedalTimeline? = nil,
         fermataTimeline: MusicXMLFermataTimeline? = nil,
         attributeTimeline: MusicXMLAttributeTimeline? = nil,
         slurTimeline: MusicXMLSlurTimeline? = nil,
         highlightGuides: [PianoHighlightGuide] = [],
-        measureSpans: [MusicXMLMeasureSpan] = []
+        measureSpans: [MusicXMLMeasureSpan]
     ) {
-        let songChanged = self.songIdentity.map {
-            $0 != roundConfigurationController.configuredSongIdentity
-        } ?? false
+        let songChanged = self.songIdentity != identity
+        self.songIdentity = identity
         let shouldResetProgress = self.steps != steps || songChanged
         stopManualReplayTask()
         stopAutoplayTask()
@@ -397,10 +385,8 @@ extension PracticeSessionViewModel {
            let lastMeasure = measureSpans.prefix(4).last,
            let passage = PracticePassage(start: firstMeasure.occurrenceID, end: lastMeasure.occurrenceID)
         {
-            if let identity = self.songIdentity {
-                roundConfigurationController.initializeSong(identity, initialPassage: passage)
-            } else {
-                roundConfigurationController.installUnidentifiedSessionPassageIfNeeded(passage)
+            if songChanged || self.activeRoundConfiguration == nil {
+                roundConfigurationController.installInitialPassage(initialPassage: passage)
             }
         }
         self.measureIndex = PracticeMeasureIndex(steps: steps, measureSpans: measureSpans)
@@ -418,8 +404,6 @@ extension PracticeSessionViewModel {
             self.currentHighlightGuideIndex = nil
             self.pressedNotes.removeAll()
             self.attemptReductionState = PracticeAttemptReductionState()
-            self.lastAttemptOutcome = nil
-            self.lastSessionFact = nil
             self.latestFeedbackEvent = nil
             if self.sessionProgress?.identity != self.songIdentity {
                 self.sessionProgress = nil
@@ -484,7 +468,6 @@ extension PracticeSessionViewModel {
         self.songIdentity = nil
         roundConfigurationController.resetSong()
         self.progressGeneration = nil
-        self.progressSaveStatus = .idle
         self.isRestoredSessionPaused = false
         self.acceptsPracticeAttempts = true
         self.sessionProgress = nil

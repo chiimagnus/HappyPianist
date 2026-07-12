@@ -215,8 +215,8 @@ final class SongLibraryViewModel {
             guard generation == practicePreparationGeneration, Task.isCancelled == false else {
                 return false
             }
-            guard prepared.steps.isEmpty == false else {
-                errorMessage = "该曲目未生成可练习步骤。"
+            guard prepared.steps.isEmpty == false, prepared.measureSpans.isEmpty == false else {
+                errorMessage = "该曲目缺少可用的练习步骤或小节信息。"
                 return false
             }
 

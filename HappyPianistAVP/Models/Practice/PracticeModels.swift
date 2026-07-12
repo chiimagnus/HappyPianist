@@ -232,19 +232,6 @@ enum StepAttemptMatchResult: Equatable, Sendable {
         }
     }
 
-    var issueKind: PracticeIssueKind? {
-        switch self {
-        case .matched, .insufficientEvidence:
-            nil
-        case .wrongNote:
-            .wrongNote
-        case .missingNotes:
-            .missedNote
-        case .incompleteChord:
-            .incompleteChord
-        }
-    }
-
     var isMatched: Bool {
         category == .matched
     }

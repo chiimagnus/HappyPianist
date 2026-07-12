@@ -3,33 +3,20 @@ import Foundation
 import Testing
 
 @Test
-func feedbackPolicyPublishesTypedRetryAndRejectsInsufficientEvidence() {
+func feedbackPolicyPublishesTypedRetryAndRejectsMissingFact() {
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
     let source = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 1)
-    let attempt = PracticeAttemptFact(
-        identity: identity,
-        roundGeneration: 4,
-        occurrenceID: PracticeMeasureOccurrenceID(sourceMeasureID: source, occurrenceIndex: 1),
-        stepIndex: 2,
-        handMode: .both,
-        tempoScale: 0.8,
-        timestamp: .now
-    )
     let progress = SongPracticeProgress(identity: identity, updatedAt: .now)
 
     let events = PracticeFeedbackPolicy().events(
-        for: .attemptIssue(attempt, issue: .wrongNote),
+        for: .attemptIssue(sourceMeasureID: source, issue: .wrongNote),
         previousProgress: nil,
         progress: progress,
-        sessionGeneration: 7,
         eventSequence: 1,
         passageSourceMeasureIDs: [source]
     )
 
     #expect(events == [PracticeFeedbackEvent(
-        identity: identity,
-        sessionGeneration: 7,
-        roundGeneration: 4,
         sequence: 1,
         sourceMeasureID: source,
         kind: .retryInvitation(issue: .wrongNote)
@@ -38,7 +25,6 @@ func feedbackPolicyPublishesTypedRetryAndRejectsInsufficientEvidence() {
         for: nil,
         previousProgress: nil,
         progress: progress,
-        sessionGeneration: 7,
         eventSequence: 2,
         passageSourceMeasureIDs: [source]
     ).isEmpty)
@@ -46,13 +32,9 @@ func feedbackPolicyPublishesTypedRetryAndRejectsInsufficientEvidence() {
 
 @Test
 func feedbackCopyHasNoPunitiveTerms() {
-    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r")
     let id = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 11, sourceNumberToken: "12A")
     let copy = PracticeIssueKind.allCasesForFeedbackTest.map { issue in
         PracticeFeedbackCuePresentation(event: PracticeFeedbackEvent(
-            identity: identity,
-            sessionGeneration: 1,
-            roundGeneration: 1,
             sequence: 1,
             sourceMeasureID: id,
             kind: .retryInvitation(issue: issue)
@@ -71,25 +53,15 @@ private extension PracticeIssueKind {
 func measureStableUsesSourceAndHandCompositeIdentity() {
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r")
     let id = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 0)
-    let attempt = PracticeAttemptFact(
-        identity: identity,
-        roundGeneration: 1,
-        occurrenceID: PracticeMeasureOccurrenceID(sourceMeasureID: id, occurrenceIndex: 0),
-        stepIndex: 0,
-        handMode: .right,
-        tempoScale: 0.8,
-        timestamp: .now
-    )
     let left = MeasurePracticeFacts(sourceMeasureID: id, handMode: .left, state: .stable)
     let rightLearning = MeasurePracticeFacts(sourceMeasureID: id, handMode: .right, state: .learning)
     let rightStable = MeasurePracticeFacts(sourceMeasureID: id, handMode: .right, state: .stable)
     let previous = SongPracticeProgress(identity: identity, measureFacts: [left, rightLearning], updatedAt: .now)
     let current = SongPracticeProgress(identity: identity, measureFacts: [left, rightStable], updatedAt: .now)
     let events = PracticeFeedbackPolicy().events(
-        for: .attemptMatched(attempt),
+        for: .attemptMatched(sourceMeasureID: id, handMode: .right),
         previousProgress: previous,
         progress: current,
-        sessionGeneration: 1,
         eventSequence: 1,
         passageSourceMeasureIDs: [id]
     )
@@ -97,22 +69,11 @@ func measureStableUsesSourceAndHandCompositeIdentity() {
 }
 
 @Test
-func passageCompletionUsesResolvedOccurrenceSourceIDs() throws {
+func passageCompletionUsesResolvedOccurrenceSourceIDs() {
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r")
     let source0 = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 0)
     let source6 = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 6)
     let unrelated = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 3)
-    let passage = try #require(PracticePassage(
-        start: PracticeMeasureOccurrenceID(sourceMeasureID: source6, occurrenceIndex: 6),
-        end: PracticeMeasureOccurrenceID(sourceMeasureID: source0, occurrenceIndex: 7)
-    ))
-    let configuration = PracticeRoundConfiguration(
-        passage: passage,
-        handMode: .both,
-        tempoScale: 0.8,
-        loopEnabled: false,
-        requiredSuccesses: 1
-    )
     let progress = SongPracticeProgress(
         identity: identity,
         measureFacts: [
@@ -122,20 +83,11 @@ func passageCompletionUsesResolvedOccurrenceSourceIDs() throws {
         ],
         updatedAt: .now
     )
-    let round = PracticeRoundFact(
-        identity: identity,
-        roundGeneration: 2,
-        passage: passage,
-        handMode: .both,
-        tempoScale: 0.8,
-        timestamp: .now
-    )
 
     let events = PracticeFeedbackPolicy().events(
-        for: .passageCompleted(round),
+        for: .passageCompleted(handMode: .both),
         previousProgress: progress,
         progress: progress,
-        sessionGeneration: 1,
         eventSequence: 1,
         passageSourceMeasureIDs: [source6, source0]
     )
@@ -144,33 +96,20 @@ func passageCompletionUsesResolvedOccurrenceSourceIDs() throws {
 }
 
 @Test
-func passageCompletionRequiresEveryExpectedMeasure() throws {
+func passageCompletionRequiresEveryExpectedMeasure() {
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r")
     let first = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 0)
     let second = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 1)
-    let passage = try #require(PracticePassage(
-        start: PracticeMeasureOccurrenceID(sourceMeasureID: first, occurrenceIndex: 0),
-        end: PracticeMeasureOccurrenceID(sourceMeasureID: second, occurrenceIndex: 1)
-    ))
     let progress = SongPracticeProgress(
         identity: identity,
         measureFacts: [MeasurePracticeFacts(sourceMeasureID: first, handMode: .both, state: .stable)],
         updatedAt: .now
     )
-    let round = PracticeRoundFact(
-        identity: identity,
-        roundGeneration: 1,
-        passage: passage,
-        handMode: .both,
-        tempoScale: 0.6,
-        timestamp: .now
-    )
 
     let events = PracticeFeedbackPolicy().events(
-        for: .passageCompleted(round),
+        for: .passageCompleted(handMode: .both),
         previousProgress: progress,
         progress: progress,
-        sessionGeneration: 1,
         eventSequence: 1,
         passageSourceMeasureIDs: [first, second]
     )
@@ -181,30 +120,19 @@ func passageCompletionRequiresEveryExpectedMeasure() throws {
 func repeatedIssueEventsHaveDistinctSequenceIdentity() {
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r")
     let source = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 0)
-    let attempt = PracticeAttemptFact(
-        identity: identity,
-        roundGeneration: 1,
-        occurrenceID: PracticeMeasureOccurrenceID(sourceMeasureID: source, occurrenceIndex: 0),
-        stepIndex: 0,
-        handMode: .both,
-        tempoScale: 0.6,
-        timestamp: .now
-    )
     let progress = SongPracticeProgress(identity: identity, updatedAt: .now)
     let policy = PracticeFeedbackPolicy()
     let first = policy.events(
-        for: .attemptIssue(attempt, issue: .wrongNote),
+        for: .attemptIssue(sourceMeasureID: source, issue: .wrongNote),
         previousProgress: progress,
         progress: progress,
-        sessionGeneration: 1,
         eventSequence: 1,
         passageSourceMeasureIDs: [source]
     )
     let second = policy.events(
-        for: .attemptIssue(attempt, issue: .wrongNote),
+        for: .attemptIssue(sourceMeasureID: source, issue: .wrongNote),
         previousProgress: progress,
         progress: progress,
-        sessionGeneration: 1,
         eventSequence: 2,
         passageSourceMeasureIDs: [source]
     )

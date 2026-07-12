@@ -1,41 +1,15 @@
 import Foundation
 
 enum PracticeSessionFact: Equatable, Sendable {
-    case attemptMatched(PracticeAttemptFact)
-    case attemptIssue(PracticeAttemptFact, issue: PracticeIssueKind)
-    case passageRestarted(PracticeRoundFact)
-    case passageCompleted(PracticeRoundFact)
-}
-
-struct PracticeAttemptFact: Equatable, Sendable {
-    let identity: PracticeSongIdentity
-    let roundGeneration: Int
-    let occurrenceID: PracticeMeasureOccurrenceID
-    let stepIndex: Int
-    let handMode: PracticeHandMode
-    let tempoScale: Double
-    let timestamp: Date
-}
-
-struct PracticeRoundFact: Equatable, Sendable {
-    let identity: PracticeSongIdentity
-    let roundGeneration: Int
-    let passage: PracticePassage
-    let handMode: PracticeHandMode
-    let tempoScale: Double
-    let timestamp: Date
+    case attemptMatched(sourceMeasureID: PracticeSourceMeasureID, handMode: PracticeHandMode)
+    case attemptIssue(sourceMeasureID: PracticeSourceMeasureID, issue: PracticeIssueKind)
+    case passageCompleted(handMode: PracticeHandMode)
 }
 
 struct PracticeAttemptReductionState: Equatable {
     var failedStepIndices: Set<Int> = []
     var failedOccurrences: Set<PracticeMeasureOccurrenceID> = []
     var matchedStepIndicesByOccurrence: [PracticeMeasureOccurrenceID: Set<Int>] = [:]
-
-    mutating func resetPassageAttempt() {
-        failedStepIndices.removeAll()
-        failedOccurrences.removeAll()
-        matchedStepIndicesByOccurrence.removeAll()
-    }
 }
 
 struct PracticeAttemptReducer {
@@ -52,7 +26,6 @@ struct PracticeAttemptReducer {
         stepIndex: Int,
         identity: PracticeSongIdentity,
         configuration: PracticeRoundConfiguration,
-        roundGeneration: Int,
         measureIndex: PracticeMeasureIndex,
         timestamp: Date
     ) -> Result {
@@ -64,7 +37,17 @@ struct PracticeAttemptReducer {
             )
         }
 
-        guard outcome.category != .insufficientEvidence else {
+        let issue: PracticeIssueKind?
+        switch outcome {
+        case .matched:
+            issue = nil
+        case .wrongNote:
+            issue = .wrongNote
+        case .missingNotes:
+            issue = .missedNote
+        case .incompleteChord:
+            issue = .incompleteChord
+        case .insufficientEvidence:
             return Result(
                 progress: progress ?? emptyProgress(identity: identity, configuration: configuration, timestamp: timestamp),
                 reductionState: reductionState,
@@ -92,23 +75,8 @@ struct PracticeAttemptReducer {
         )
         facts.lastAttemptAt = timestamp
 
-        let baseFact = PracticeAttemptFact(
-            identity: identity,
-            roundGeneration: roundGeneration,
-            occurrenceID: occurrenceID,
-            stepIndex: stepIndex,
-            handMode: configuration.handMode,
-            tempoScale: configuration.tempoScale,
-            timestamp: timestamp
-        )
-
-        let fact: PracticeSessionFact?
-        switch outcome.category {
-        case .insufficientEvidence:
-            fact = nil // ponytail: handled by the early guard; kept for exhaustive enum matching.
-
-        case .wrongNote, .missingNotes, .incompleteChord:
-            let issue = outcome.issueKind ?? .missedNote
+        let fact: PracticeSessionFact
+        if let issue {
             facts.state = .learning
             if state.failedStepIndices.insert(stepIndex).inserted {
                 facts.failedAttempts += 1
@@ -116,9 +84,8 @@ struct PracticeAttemptReducer {
             facts.consecutiveSuccesses = 0
             facts.recentIssue = issue
             state.failedOccurrences.insert(occurrenceID)
-            fact = .attemptIssue(baseFact, issue: issue)
-
-        case .matched:
+            fact = .attemptIssue(sourceMeasureID: sourceMeasureID, issue: issue)
+        } else {
             state.failedStepIndices.remove(stepIndex)
             state.matchedStepIndicesByOccurrence[occurrenceID, default: []].insert(stepIndex)
             if facts.state == .notStarted {
@@ -148,7 +115,7 @@ struct PracticeAttemptReducer {
                 state.failedOccurrences.remove(occurrenceID)
                 state.matchedStepIndicesByOccurrence.removeValue(forKey: occurrenceID)
             }
-            fact = .attemptMatched(baseFact)
+            fact = .attemptMatched(sourceMeasureID: sourceMeasureID, handMode: configuration.handMode)
         }
 
         if let factsIndex {
@@ -164,7 +131,6 @@ struct PracticeAttemptReducer {
         progress: SongPracticeProgress?,
         identity: PracticeSongIdentity,
         configuration: PracticeRoundConfiguration,
-        roundGeneration: Int,
         timestamp: Date
     ) -> Result {
         var updated = progress ?? emptyProgress(identity: identity, configuration: configuration, timestamp: timestamp)
@@ -181,17 +147,7 @@ struct PracticeAttemptReducer {
         }
         updated.activeConfiguration = configuration
         updated.updatedAt = timestamp
-        let fact = PracticeSessionFact.passageRestarted(
-            PracticeRoundFact(
-                identity: identity,
-                roundGeneration: roundGeneration,
-                passage: configuration.passage,
-                handMode: configuration.handMode,
-                tempoScale: configuration.tempoScale,
-                timestamp: timestamp
-            )
-        )
-        return Result(progress: updated, reductionState: .init(), fact: fact)
+        return Result(progress: updated, reductionState: .init(), fact: nil)
     }
 
     func reducePassageCompletion(
@@ -199,23 +155,16 @@ struct PracticeAttemptReducer {
         reductionState: PracticeAttemptReductionState,
         identity: PracticeSongIdentity,
         configuration: PracticeRoundConfiguration,
-        roundGeneration: Int,
         timestamp: Date
     ) -> Result {
         var updated = progress ?? emptyProgress(identity: identity, configuration: configuration, timestamp: timestamp)
         updated.activeConfiguration = configuration
         updated.updatedAt = timestamp
-        let fact = PracticeSessionFact.passageCompleted(
-            PracticeRoundFact(
-                identity: identity,
-                roundGeneration: roundGeneration,
-                passage: configuration.passage,
-                handMode: configuration.handMode,
-                tempoScale: configuration.tempoScale,
-                timestamp: timestamp
-            )
+        return Result(
+            progress: updated,
+            reductionState: reductionState,
+            fact: .passageCompleted(handMode: configuration.handMode)
         )
-        return Result(progress: updated, reductionState: reductionState, fact: fact)
     }
 
     private func emptyProgress(

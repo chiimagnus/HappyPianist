@@ -7,18 +7,14 @@ import Testing
 func restorationRendererResetRemovesEffect() {
     let renderer = PracticeRestorationEffectRenderer(sleeper: LongRestorationSleeper())
     let event = PracticeFeedbackEvent(
-        identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "r"),
-        sessionGeneration: 1,
-        roundGeneration: 1,
         sequence: 1,
         sourceMeasureID: nil,
         kind: .measureStable
     )
     let parent = Entity()
     renderer.update(event: event, parent: parent, reduceMotion: true)
-    #expect(renderer.activeEffectCount == 1)
+    #expect(parent.children.count == 1)
     renderer.reset()
-    #expect(renderer.activeEffectCount == 0)
     #expect(parent.children.isEmpty)
 }
 

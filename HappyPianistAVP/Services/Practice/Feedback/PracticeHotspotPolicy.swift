@@ -19,7 +19,6 @@ struct PracticeHotspotPolicy {
             .map { _, facts, issue in
                 PracticeHotspot(
                     sourceMeasureID: facts.sourceMeasureID,
-                    handMode: facts.handMode,
                     issue: issue,
                     failedAttempts: facts.failedAttempts
                 )

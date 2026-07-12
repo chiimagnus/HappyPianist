@@ -1,7 +1,6 @@
 import Foundation
 
 enum PracticeMeasureIndexDiagnostic: Error, Equatable, Sendable {
-    case noMeasures
     case passageBoundaryNotFound
     case passageOrderInvalid
     case noStepsInPassage
@@ -47,9 +46,6 @@ struct PracticeMeasureIndex: Equatable {
     }
 
     func resolve(_ passage: PracticePassage) throws -> PracticeActiveRange {
-        guard measureSpans.isEmpty == false else {
-            throw PracticeMeasureIndexDiagnostic.noMeasures
-        }
         guard let startIndex = measureSpans.firstIndex(where: { $0.occurrenceID == passage.start }),
               let endIndex = measureSpans.firstIndex(where: { $0.occurrenceID == passage.end })
         else {

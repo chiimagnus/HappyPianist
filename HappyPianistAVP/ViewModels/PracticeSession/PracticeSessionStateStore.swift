@@ -22,15 +22,12 @@ struct PracticeSessionNotationGuideScrollPoint: Equatable {
 @Observable
 final class PracticeSessionStateStore {
     var state: PracticeSessionState = .idle
-    var lastAttemptOutcome: StepAttemptMatchResult?
     var sessionProgress: SongPracticeProgress?
     var attemptReductionState = PracticeAttemptReductionState()
-    var lastSessionFact: PracticeSessionFact?
     var latestFeedbackEvent: PracticeFeedbackEvent?
     var feedbackEventSequence = 0
     var songIdentity: PracticeSongIdentity?
     var progressGeneration: Int?
-    var progressSaveStatus: PracticeProgressSaveStatus = .idle
     var isRestoredSessionPaused = false
     var acceptsPracticeAttempts = true
     var activeRoundConfiguration: PracticeRoundConfiguration?

@@ -67,37 +67,6 @@ func revisionMismatchDoesNotRestoreOldScoreProgress() async throws {
     #expect(session.progress == nil)
 }
 
-@Test
-func missingMeasureSpanDoesNotCreateInventedMeasureFacts() throws {
-    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
-    let source = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 0)
-    let occurrence = PracticeMeasureOccurrenceID(sourceMeasureID: source, occurrenceIndex: 0)
-    let passage = try #require(PracticePassage(start: occurrence, end: occurrence))
-    let configuration = PracticeRoundConfiguration(
-        passage: passage,
-        handMode: .both,
-        tempoScale: 0.6,
-        loopEnabled: false,
-        requiredSuccesses: 3
-    )
-    let index = PracticeMeasureIndex(steps: [], measureSpans: [])
-
-    let result = PracticeAttemptReducer().reduceAttempt(
-        progress: nil,
-        reductionState: .init(),
-        outcome: matchedLearningLoopOutcome(),
-        stepIndex: 0,
-        identity: identity,
-        configuration: configuration,
-        roundGeneration: 1,
-        measureIndex: index,
-        timestamp: .now
-    )
-
-    #expect(result.fact == nil)
-    #expect(result.progress.measureFacts.isEmpty)
-}
-
 @MainActor
 private func makeLearningLoopSession(
     playback: LearningLoopPlaybackService,
