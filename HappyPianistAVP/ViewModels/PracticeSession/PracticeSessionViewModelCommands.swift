@@ -724,6 +724,7 @@ extension PracticeSessionViewModel {
         let previousTick = self.steps.indices.contains(self.currentStepIndex) ? self.steps[self.currentStepIndex].tick : 0
         self.currentStepIndex = navigation.currentStepIndex
         self.state = navigation.state
+        updateResumePointAfterNavigation()
         updateHighlightGuideAfterStepAdvance(previousTick: previousTick, nextStepIndex: nextIndex)
 
         if self.autoplayState == .playing {
@@ -750,6 +751,7 @@ extension PracticeSessionViewModel {
         chordAttemptAccumulator.reset()
         self.currentStepIndex = navigation.currentStepIndex
         self.state = navigation.state
+        updateResumePointAfterNavigation()
         updateHighlightGuideAfterStepAdvance(previousTick: previousTick, nextStepIndex: targetIndex)
         refreshAudioRecognitionForCurrentState()
 
@@ -757,6 +759,20 @@ extension PracticeSessionViewModel {
             _ = prepareAudioRecognitionSuppressWindowForPlayback()
             playCurrentStepSound(applyRecognitionSuppress: false)
         }
+    }
+
+    private func updateResumePointAfterNavigation(at timestamp: Date = .now) {
+        guard let occurrenceID = self.measureIndex?.occurrenceID(forStepIndex: self.currentStepIndex),
+              var progress = self.sessionProgress
+        else { return }
+        progress.resumePoint = PracticeResumePoint(
+            occurrenceID: occurrenceID,
+            stepIndex: self.currentStepIndex,
+            updatedAt: timestamp
+        )
+        progress.updatedAt = timestamp
+        self.sessionProgress = progress
+        checkpointProgress()
     }
 
     private func completeManualAdvance() {

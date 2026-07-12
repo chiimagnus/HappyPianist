@@ -182,6 +182,30 @@ func flushAndShutdownPersistsLatestResumePointBeforeTeardown() async throws {
     #expect(session.acceptsPracticeAttempts == false)
 }
 
+@MainActor
+@Test
+func navigationWithoutAttemptPersistsLatestResumePoint() async throws {
+    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
+    let repository = ResumeRepository(progress: nil)
+    let session = PracticeSessionViewModel(
+        pressDetectionService: ResumeNoopPressDetectionService(),
+        chordAttemptAccumulator: ResumeNoopChordAccumulator(),
+        sleeper: TaskSleeper(),
+        progressCoordinator: PracticeProgressCoordinator(repository: repository, checkpointDelay: .seconds(60))
+    )
+    let spans = makeResumeSpans()
+    session.songIdentity = identity
+    session.setSteps(makeResumeSteps(), tempoMap: MusicXMLTempoMap(tempoEvents: []), measureSpans: spans)
+    await session.restoreProgressIfAvailable()
+    session.startGuidingIfReady()
+
+    session.moveToStep(1, shouldPlaySound: false)
+    await session.flushAndShutdown()
+
+    #expect(await repository.progress(for: identity)?.resumePoint?.stepIndex == 1)
+    #expect(await repository.progress(for: identity)?.resumePoint?.occurrenceID == spans[1].occurrenceID)
+}
+
 private func makeResumeSteps() -> [PracticeStep] {
     [
         PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
