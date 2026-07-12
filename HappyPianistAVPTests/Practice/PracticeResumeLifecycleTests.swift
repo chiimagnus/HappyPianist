@@ -206,6 +206,41 @@ func navigationWithoutAttemptPersistsLatestResumePoint() async throws {
     #expect(await repository.progress(for: identity)?.resumePoint?.occurrenceID == spans[1].occurrenceID)
 }
 
+@MainActor
+@Test
+func retryMeasureKeepsRepeatedOccurrenceInCurrentPassage() {
+    let repeatedSource = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 0, sourceNumberToken: "1")
+    let spans = [
+        MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, sourceMeasureIndex: 0, sourceMeasureNumberToken: "1", occurrenceIndex: 0, startTick: 0, endTick: 480),
+        MusicXMLMeasureSpan(partID: "P1", measureNumber: 2, sourceMeasureIndex: 1, sourceMeasureNumberToken: "2", occurrenceIndex: 1, startTick: 480, endTick: 960),
+        MusicXMLMeasureSpan(partID: "P1", measureNumber: 3, sourceMeasureIndex: 0, sourceMeasureNumberToken: "1", occurrenceIndex: 2, startTick: 960, endTick: 1_440),
+    ]
+    let session = PracticeSessionViewModel(
+        pressDetectionService: ResumeNoopPressDetectionService(),
+        chordAttemptAccumulator: ResumeNoopChordAccumulator(),
+        sleeper: TaskSleeper()
+    )
+    session.setSteps(
+        [
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
+            PracticeStep(tick: 960, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
+        ],
+        tempoMap: MusicXMLTempoMap(tempoEvents: []),
+        measureSpans: spans
+    )
+    session.roundConfigurationController.pendingPassage = PracticePassage(
+        start: spans[2].occurrenceID,
+        end: spans[2].occurrenceID
+    )
+    _ = session.applyPendingRoundConfiguration()
+
+    session.retryMeasure(repeatedSource)
+
+    #expect(session.activeRoundConfiguration?.passage.start == spans[2].occurrenceID)
+    #expect(session.activeRoundConfiguration?.passage.start.sourceMeasureID == repeatedSource)
+}
+
 private func makeResumeSteps() -> [PracticeStep] {
     [
         PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
