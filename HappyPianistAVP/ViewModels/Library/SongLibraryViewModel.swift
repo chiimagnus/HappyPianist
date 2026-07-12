@@ -17,6 +17,7 @@ final class SongLibraryViewModel {
     @ObservationIgnored private var playbackProgressTask: Task<Void, Never>?
     @ObservationIgnored private var practicePreparationTask: Task<Void, Never>?
     @ObservationIgnored private var practicePreparationGeneration = 0
+    @ObservationIgnored private var recordedPreparationFailureID: UUID?
 
     static let supportedAudioFileExtensions = ["mp3", "m4a"]
     private static let supportedAudioFileExtensionSet = Set(supportedAudioFileExtensions)
@@ -42,6 +43,11 @@ final class SongLibraryViewModel {
     var isSelectedPracticeReady: Bool {
         guard case let .ready(entryID, _) = practicePreparationState else { return false }
         return entryID == selectedPracticeEntryID
+    }
+
+    var wasSelectedPreparationFailureRecorded: Bool {
+        guard case let .failure(failure) = practicePreparationState else { return false }
+        return recordedPreparationFailureID == failure.id
     }
 
     init(
@@ -239,6 +245,7 @@ final class SongLibraryViewModel {
         practicePreparationTask = nil
         practicePreparationGeneration += 1
         selectedPracticeEntryID = nil
+        recordedPreparationFailureID = nil
         practicePreparationState = .idle
     }
 
@@ -247,6 +254,7 @@ final class SongLibraryViewModel {
         practicePreparationGeneration += 1
         let generation = practicePreparationGeneration
         selectedPracticeEntryID = entryID
+        recordedPreparationFailureID = nil
         practicePreparationState = .loading(entryID: entryID)
         persistSelectedEntry(entryID)
 
@@ -340,7 +348,12 @@ final class SongLibraryViewModel {
             )
             practicePreparationState = .failure(failure)
             practicePreparationTask = nil
-            _ = await diagnosticsReporter.record(failure.diagnosticEvent)
+            let recordResult = await diagnosticsReporter.record(failure.diagnosticEvent)
+            guard isCurrentPracticePreparation(entryID: entryID, generation: generation),
+                  case let .failure(currentFailure) = practicePreparationState,
+                  currentFailure.id == failure.id
+            else { return }
+            recordedPreparationFailureID = recordResult.persistedForExport ? failure.id : nil
         }
     }
 

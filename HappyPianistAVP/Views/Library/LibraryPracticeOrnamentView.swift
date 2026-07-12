@@ -25,7 +25,7 @@ struct LibraryPracticeOrnamentView: View {
                 case let .failure(failure):
                     LibraryPracticeFailureView(
                         failure: failure,
-                        wasRecordedInDiagnostics: false,
+                        wasRecordedInDiagnostics: viewModel.wasSelectedPreparationFailureRecorded,
                         onRetry: viewModel.retrySelectedPracticePreparation,
                         onImportMusicXML: onImportMusicXML
                     )

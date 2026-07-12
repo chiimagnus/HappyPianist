@@ -321,3 +321,103 @@ private final class PreparationRaceChordAccumulator: ChordAttemptAccumulatorProt
 
     func reset() {}
 }
+
+private actor FailingLibraryPreparationService: PracticePreparationServiceProtocol {
+    func prepare(songID _: UUID, from _: URL, file _: ImportedMusicXMLFile) async throws -> PreparedPractice {
+        throw PracticePreparationError.xmlParseFailed(
+            line: 12,
+            column: 4,
+            reason: "Mismatched closing tag"
+        )
+    }
+}
+
+@Test
+@MainActor
+func preparationFailureUsesOneTypedEventAndReportsExportAcceptance() async throws {
+    let fixture = makeFailurePreparationFixture(persistResult: true)
+
+    fixture.viewModel.selectEntryForPractice(fixture.entryID)
+    let firstFailure = try await waitForLoggedPreparationFailure(fixture.viewModel)
+    let firstEvents = await fixture.reporter.events
+
+    #expect(fixture.viewModel.wasSelectedPreparationFailureRecorded)
+    #expect(firstEvents == [firstFailure.diagnosticEvent])
+
+    fixture.viewModel.retrySelectedPracticePreparation()
+    let secondFailure = try await waitForLoggedPreparationFailure(
+        fixture.viewModel,
+        excluding: firstFailure.id
+    )
+    let secondEvents = await fixture.reporter.events
+
+    #expect(secondFailure.id != firstFailure.id)
+    #expect(secondEvents.count == 2)
+    #expect(secondEvents.last == secondFailure.diagnosticEvent)
+}
+
+@Test
+@MainActor
+func preparationFailureDoesNotClaimExportWhenStoreRejectsEvent() async throws {
+    let fixture = makeFailurePreparationFixture(persistResult: false)
+
+    fixture.viewModel.selectEntryForPractice(fixture.entryID)
+    _ = try await waitForPreparationFailure(fixture.viewModel, entryID: fixture.entryID)
+    try await Task.sleep(for: .milliseconds(20))
+
+    #expect(fixture.viewModel.wasSelectedPreparationFailureRecorded == false)
+    #expect(await fixture.reporter.events.count == 1)
+}
+
+@MainActor
+private func makeFailurePreparationFixture(
+    persistResult: Bool
+) -> (
+    viewModel: SongLibraryViewModel,
+    reporter: InMemoryDiagnosticsReporter,
+    entryID: UUID
+) {
+    let scoreURL = FileManager.default.temporaryDirectory.appending(
+        path: "failure-\(UUID().uuidString).musicxml"
+    )
+    let entryID = UUID()
+    let entry = SongLibraryEntry(
+        id: entryID,
+        displayName: "Broken Score",
+        musicXMLFileName: scoreURL.lastPathComponent,
+        importedAt: .now,
+        audioFileName: nil,
+        isBundled: true
+    )
+    let reporter = InMemoryDiagnosticsReporter(persistResult: persistResult)
+    let viewModel = SongLibraryViewModel(
+        appState: AppState(),
+        practicePreparationService: FailingLibraryPreparationService(),
+        indexStore: PreparationTestIndexStore(),
+        fileStore: PreparationTestFileStore(),
+        audioImportService: PreparationTestAudioImporter(),
+        bundledProvider: PreparationTestBundledProvider(entries: [entry], scoreURL: scoreURL),
+        audioPlayer: PreparationTestAudioPlayer(),
+        practiceProgressRepository: PreparationTestProgressRepository(),
+        diagnosticsReporter: reporter
+    )
+    return (viewModel, reporter, entryID)
+}
+
+@MainActor
+private func waitForLoggedPreparationFailure(
+    _ viewModel: SongLibraryViewModel,
+    excluding previousID: UUID? = nil
+) async throws -> LibraryPracticePreparationFailure {
+    for _ in 0..<100 {
+        if case let .failure(failure) = viewModel.practicePreparationState,
+           failure.id != previousID,
+           viewModel.wasSelectedPreparationFailureRecorded
+        {
+            return failure
+        }
+        try await Task.sleep(for: .milliseconds(5))
+    }
+    Issue.record("Timed out waiting for logged preparation failure")
+    throw CancellationError()
+}
