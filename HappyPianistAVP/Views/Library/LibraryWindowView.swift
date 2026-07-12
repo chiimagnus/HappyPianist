@@ -9,15 +9,22 @@ struct LibraryWindowRootView: View {
 
   @Bindable var appState: AppState
   @State private var songLibraryViewModel: SongLibraryViewModel
+  @State private var diagnosticsViewModel: DiagnosticsViewModel
 
-  init(appState: AppState, songLibraryViewModel: SongLibraryViewModel) {
+  init(
+    appState: AppState,
+    songLibraryViewModel: SongLibraryViewModel,
+    diagnosticsViewModel: DiagnosticsViewModel
+  ) {
     _appState = Bindable(wrappedValue: appState)
     _songLibraryViewModel = State(initialValue: songLibraryViewModel)
+    _diagnosticsViewModel = State(initialValue: diagnosticsViewModel)
   }
 
   var body: some View {
     LibraryContentView(
       songLibraryViewModel: songLibraryViewModel,
+      diagnosticsViewModel: diagnosticsViewModel,
       onBackToPreparation: {
         windowState.resetToPreparation(reason: "user tapped back from library window")
         windowState.beginTransition(from: .library, to: .preparation)
@@ -47,12 +54,14 @@ struct LibraryWindowRootView: View {
 
 struct LibraryContentView: View {
   @Bindable var songLibraryViewModel: SongLibraryViewModel
+  @Bindable var diagnosticsViewModel: DiagnosticsViewModel
   let onBackToPreparation: @MainActor () -> Void
   let onStartPractice: @MainActor () -> Void
 
   var body: some View {
     SongLibraryView(
       viewModel: songLibraryViewModel,
+      diagnosticsViewModel: diagnosticsViewModel,
       onBackToPreparation: onBackToPreparation,
       onStartPractice: onStartPractice
     )

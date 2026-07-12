@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 
 struct SongLibraryView: View {
   @Bindable var viewModel: SongLibraryViewModel
+  @Bindable var diagnosticsViewModel: DiagnosticsViewModel
   let onBackToPreparation: @MainActor () -> Void
   let onStartPractice: @MainActor () -> Void
 
@@ -13,6 +14,7 @@ struct SongLibraryView: View {
   @State private var pendingDeletionEntryID: UUID?
   @State private var isPracticeOptionsPresented = false
   @State private var isPassageSetupPresented = false
+  @State private var isDiagnosticsPresented = false
 
   private var audioImporterTypes: [UTType] {
     let types = SongLibraryViewModel.supportedAudioFileExtensions.compactMap {
@@ -42,7 +44,10 @@ struct SongLibraryView: View {
     let canPerformPlaybackAction = selectedEntry?.audioFileName != nil || requiresAudioImport
 
     VStack(spacing: 0) {
-      LibraryTopBarView(onBack: onBackToPreparation)
+      LibraryTopBarView(
+        onBack: onBackToPreparation,
+        onDiagnostics: { isDiagnosticsPresented = true }
+      )
 
       if entries.isEmpty {
         SongLibraryEmptyView(onImport: viewModel.didTapImportMusicXML)
@@ -112,6 +117,9 @@ struct SongLibraryView: View {
           .tint(LibraryDesignTokens.accent)
           .disabled(selectedEntry == nil || viewModel.isPreparingPractice)
       }
+    }
+    .sheet(isPresented: $isDiagnosticsPresented) {
+      DiagnosticsView(viewModel: diagnosticsViewModel)
     }
     .fileImporter(
       isPresented: $isAudioImporterPresented,
@@ -379,6 +387,10 @@ struct SongLibraryView: View {
   )
   return SongLibraryView(
     viewModel: viewModel,
+    diagnosticsViewModel: DiagnosticsViewModel(
+      store: FileDiagnosticsStore(),
+      exporter: DiagnosticsArchiveExporter(store: FileDiagnosticsStore())
+    ),
     onBackToPreparation: {},
     onStartPractice: {}
   )
@@ -386,6 +398,7 @@ struct SongLibraryView: View {
 
 private struct LibraryTopBarView: View {
   let onBack: () -> Void
+  let onDiagnostics: () -> Void
 
   var body: some View {
     HStack {
@@ -394,6 +407,10 @@ private struct LibraryTopBarView: View {
         .buttonBorderShape(.capsule)
 
       Spacer()
+
+      Button("诊断", systemImage: "stethoscope", action: onDiagnostics)
+        .buttonStyle(.bordered)
+        .buttonBorderShape(.capsule)
     }
     .frame(height: 70)
     .padding(.horizontal, 28)

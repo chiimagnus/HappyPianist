@@ -22,7 +22,11 @@ struct HappyPianistAVPApp: App {
         }
 
         Window("Library", id: WindowID.library) {
-            LibraryWindowRootView(appState: appState, songLibraryViewModel: appState.songLibraryViewModel)
+            LibraryWindowRootView(
+                appState: appState,
+                songLibraryViewModel: appState.songLibraryViewModel,
+                diagnosticsViewModel: appState.diagnosticsViewModel
+            )
                 .environment(appState.windowState)
         }
         .windowStyle(.automatic)

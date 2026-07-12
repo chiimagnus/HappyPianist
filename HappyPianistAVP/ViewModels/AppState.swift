@@ -57,6 +57,8 @@ class AppState {
     var songLibraryViewModel: SongLibraryViewModel!
     var practiceProgressRepository: (any PracticeProgressRepositoryProtocol)!
     var practiceProgressCoordinator: PracticeProgressCoordinator!
+    var diagnosticsReporter: (any DiagnosticsReporting)!
+    var diagnosticsViewModel: DiagnosticsViewModel!
 
     init(
         arTrackingService: ARTrackingServiceProtocol,
@@ -287,6 +289,13 @@ class AppState {
         let songAudioPlayer: SongAudioPlayerProtocol = SongAudioPlayer()
         let progressRepository: any PracticeProgressRepositoryProtocol = FilePracticeProgressRepository()
         let progressCoordinator = PracticeProgressCoordinator(repository: progressRepository)
+        let diagnosticsStore: any DiagnosticsStoreProtocol = FileDiagnosticsStore()
+        let diagnosticsReporter: any DiagnosticsReporting = AppDiagnosticsReporter(exportStore: diagnosticsStore)
+        let diagnosticsExporter: any DiagnosticsArchiveExporting = DiagnosticsArchiveExporter(store: diagnosticsStore)
+        let diagnosticsViewModel = DiagnosticsViewModel(
+            store: diagnosticsStore,
+            exporter: diagnosticsExporter
+        )
 
         let makePressDetectionService: () -> PressDetectionServiceProtocol = { PressDetectionService() }
         let makeChordAttemptAccumulator: () -> ChordAttemptAccumulatorProtocol = { ChordAttemptAccumulator() }
@@ -406,7 +415,27 @@ class AppState {
         songLibraryViewModel = libraryViewModel
         practiceProgressRepository = progressRepository
         practiceProgressCoordinator = progressCoordinator
+        self.diagnosticsReporter = diagnosticsReporter
+        self.diagnosticsViewModel = diagnosticsViewModel
         windowState = WindowTransitionState(practiceSetupState: practiceSetupState, pianoModeRegistry: registry)
+
+        Task {
+            do {
+                try await diagnosticsStore.cleanupExpiredLogs(referenceDate: .now)
+            } catch {
+                _ = await diagnosticsReporter.record(
+                    DiagnosticEvent(
+                        severity: .warning,
+                        code: .diagnosticsRetentionCleanupFailed,
+                        category: .diagnostics,
+                        stage: "startupRetentionCleanup",
+                        summary: "无法清理过期诊断日志",
+                        reason: String(describing: error),
+                        persistence: .systemOnly
+                    )
+                )
+            }
+        }
     }
 
     private func worldAnchorPoint(from anchor: WorldAnchor) -> SIMD3<Float> {
