@@ -38,4 +38,18 @@ struct PracticeRoundSummaryViewModel: Equatable {
         case .continuePassage: "继续"
         }
     }
+
+    var passageTitle: String {
+        let start = measureTitle(configuration.passage.start.sourceMeasureID)
+        let end = measureTitle(configuration.passage.end.sourceMeasureID)
+        return start == end ? "第 \(start) 小节" : "第 \(start)–\(end) 小节"
+    }
+
+    var hotspotTitle: String? {
+        hotspot.map { "第 \(measureTitle($0.sourceMeasureID)) 小节" }
+    }
+
+    private func measureTitle(_ id: PracticeSourceMeasureID) -> String {
+        id.sourceNumberToken ?? "\(id.sourceMeasureIndex + 1)"
+    }
 }
