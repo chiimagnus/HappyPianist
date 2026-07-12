@@ -3,9 +3,9 @@ import Foundation
 struct PracticeHotspotPolicy {
     func hotspot(in facts: [MeasurePracticeFacts]) -> PracticeHotspot? {
         facts.enumerated()
-            .compactMap { offset, facts -> (Int, MeasurePracticeFacts, PracticeIssueKind)? in
-                guard facts.failedAttempts > 0, let issue = facts.recentIssue else { return nil }
-                return (offset, facts, issue)
+            .compactMap { offset, facts -> (Int, MeasurePracticeFacts)? in
+                guard facts.failedAttempts > 0, facts.recentIssue != nil else { return nil }
+                return (offset, facts)
             }
             .max { lhs, rhs in
                 if lhs.1.failedAttempts != rhs.1.failedAttempts {
@@ -16,10 +16,9 @@ struct PracticeHotspotPolicy {
                 }
                 return lhs.0 > rhs.0
             }
-            .map { _, facts, issue in
+            .map { _, facts in
                 PracticeHotspot(
                     sourceMeasureID: facts.sourceMeasureID,
-                    issue: issue,
                     failedAttempts: facts.failedAttempts
                 )
             }

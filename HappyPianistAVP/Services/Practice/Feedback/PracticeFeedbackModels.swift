@@ -2,7 +2,6 @@ import Foundation
 
 struct PracticeHotspot: Equatable, Sendable {
     let sourceMeasureID: PracticeSourceMeasureID
-    let issue: PracticeIssueKind
     let failedAttempts: Int
 }
 

@@ -10,7 +10,6 @@ func hotspotUsesFailuresRecencyThenPassageOrder() throws {
     let hotspot = try #require(PracticeHotspotPolicy().hotspot(in: [first, recent]))
 
     #expect(hotspot.sourceMeasureID == recent.sourceMeasureID)
-    #expect(hotspot.issue == .incompleteChord)
 }
 
 @Test
