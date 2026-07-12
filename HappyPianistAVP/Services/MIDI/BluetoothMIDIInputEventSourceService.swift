@@ -33,14 +33,6 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
         subsystem: Bundle.main.bundleIdentifier ?? "HappyPianistAVP",
         category: "BluetoothMIDI"
     )
-    private let midi1Logger = Logger(
-        subsystem: Bundle.main.bundleIdentifier ?? "HappyPianistAVP",
-        category: "BluetoothMIDI-MIDI1"
-    )
-    private let midi2Logger = Logger(
-        subsystem: Bundle.main.bundleIdentifier ?? "HappyPianistAVP",
-        category: "BluetoothMIDI-MIDI2"
-    )
     private let refreshScheduler = DebouncedActionScheduler(debounce: .milliseconds(200))
 
     private var clientRef: MIDIClientRef = 0
