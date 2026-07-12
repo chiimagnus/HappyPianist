@@ -190,3 +190,134 @@ private actor PreparationTestProgressRepository: PracticeProgressRepositoryProto
     func upsert(_: SongPracticeProgress) {}
     func remove(songID _: UUID) {}
 }
+
+@Test
+@MainActor
+func stalePreparedPracticeApplicationCannotOverwriteNewerSelection() async throws {
+    let firstID = UUID()
+    let secondID = UUID()
+    let repository = DelayedIdentityProgressRepository(
+        delays: [firstID: .milliseconds(80), secondID: .milliseconds(5)]
+    )
+    let session = PracticeSessionViewModel(
+        pressDetectionService: PreparationRacePressDetectionService(),
+        chordAttemptAccumulator: PreparationRaceChordAccumulator(),
+        sleeper: TaskSleeper(),
+        progressCoordinator: PracticeProgressCoordinator(repository: repository)
+    )
+    let appState = AppState()
+    let guide = ARGuideViewModel(
+        appState: appState,
+        practiceSetupState: appState.practiceSetupState,
+        pianoModeRegistry: PianoModeRegistryService(modes: []),
+        makePracticeSessionViewModel: SinglePreparationRaceSessionProvider(session: session).callAsFunction
+    )
+    var selectedID = firstID
+    let first = makeRacePreparedPractice(songID: firstID)
+    let second = makeRacePreparedPractice(songID: secondID)
+
+    let firstTask = Task { @MainActor in
+        await guide.applyPreparedPractice(first, isCurrent: { selectedID == firstID })
+    }
+    try await Task.sleep(for: .milliseconds(10))
+    selectedID = secondID
+    let secondTask = Task { @MainActor in
+        await guide.applyPreparedPractice(second, isCurrent: { selectedID == secondID })
+    }
+
+    let firstApplied = await firstTask.value
+    let secondApplied = await secondTask.value
+
+    #expect(firstApplied == false)
+    #expect(secondApplied)
+    #expect(session.songIdentity == second.identity)
+    #expect(guide.latestPreparedPractice?.identity == second.identity)
+}
+
+private func makeRacePreparedPractice(songID: UUID) -> PreparedPractice {
+    PreparedPractice(
+        identity: PracticeSongIdentity(songID: songID, scoreRevision: songID.uuidString),
+        steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        file: ImportedMusicXMLFile(
+            fileName: songID.uuidString,
+            storedURL: URL(fileURLWithPath: "/dev/null"),
+            importedAt: .now
+        ),
+        tempoMap: MusicXMLTempoMap(tempoEvents: []),
+        pedalTimeline: nil,
+        fermataTimeline: nil,
+        attributeTimeline: nil,
+        slurTimeline: nil,
+        highlightGuides: [],
+        measureSpans: [
+            MusicXMLMeasureSpan(
+                partID: "P1",
+                measureNumber: 1,
+                sourceMeasureIndex: 0,
+                sourceMeasureNumberToken: "1",
+                occurrenceIndex: 0,
+                startTick: 0,
+                endTick: 1
+            )
+        ],
+        unsupportedNoteCount: 0
+    )
+}
+
+private actor DelayedIdentityProgressRepository: PracticeProgressRepositoryProtocol {
+    let delays: [UUID: Duration]
+
+    init(delays: [UUID: Duration]) {
+        self.delays = delays
+    }
+
+    func load() -> PracticeProgressLoadResult {
+        .loaded(PracticeProgressDocument())
+    }
+
+    func progress(for identity: PracticeSongIdentity) async -> SongPracticeProgress? {
+        if let delay = delays[identity.songID] {
+            try? await Task.sleep(for: delay)
+        }
+        return nil
+    }
+
+    func upsert(_: SongPracticeProgress) {}
+    func remove(songID _: UUID) {}
+}
+
+@MainActor
+private final class SinglePreparationRaceSessionProvider: @unchecked Sendable {
+    private let session: PracticeSessionViewModel
+
+    init(session: PracticeSessionViewModel) {
+        self.session = session
+    }
+
+    func callAsFunction(_: String?) -> PracticeSessionViewModel {
+        session
+    }
+}
+
+private struct PreparationRacePressDetectionService: PressDetectionServiceProtocol {
+    func detectPressedNotes(
+        fingerTips _: [String: SIMD3<Float>],
+        keyboardGeometry _: PianoKeyboardGeometry?,
+        at _: Date
+    ) -> Set<Int> {
+        []
+    }
+}
+
+private final class PreparationRaceChordAccumulator: ChordAttemptAccumulatorProtocol {
+    func register(
+        pressedNotes _: Set<Int>,
+        expectedNotes _: [Int],
+        tolerance _: Int,
+        at _: Date
+    ) -> StepAttemptMatchResult {
+        .insufficientEvidence
+    }
+
+    func reset() {}
+}

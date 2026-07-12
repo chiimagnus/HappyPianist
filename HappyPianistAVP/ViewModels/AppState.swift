@@ -268,10 +268,22 @@ class AppState {
 
     var onApplyKeyboardGeometry: ((PianoKeyboardGeometry, PianoCalibration) -> Void)?
 
-    func applyPreparedPractice(_ prepared: PreparedPractice) async {
+    @discardableResult
+    func applyPreparedPractice(
+        _ prepared: PreparedPractice,
+        isCurrent: @escaping @MainActor () -> Bool
+    ) async -> Bool {
+        guard isCurrent() else { return false }
+        if let arGuideViewModel {
+            guard await arGuideViewModel.applyPreparedPractice(
+                prepared,
+                isCurrent: isCurrent
+            ) else { return false }
+        }
+        guard isCurrent() else { return false }
         practiceSetupState.setImportedSteps(from: prepared)
-        await arGuideViewModel?.applyPreparedPractice(prepared)
         applySessionIfPossible()
+        return true
     }
 
     func configureLiveAppGraphIfNeeded() {

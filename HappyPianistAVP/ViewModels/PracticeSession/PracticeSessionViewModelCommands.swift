@@ -336,8 +336,7 @@ extension PracticeSessionViewModel {
            let passage = PracticePassage(
                start: firstMeasure.occurrenceID,
                end: lastMeasure.occurrenceID
-           ),
-           songChanged || self.activeRoundConfiguration == nil
+           )
         {
             roundConfigurationController.installFreshFullScoreConfiguration(passage: passage)
         }

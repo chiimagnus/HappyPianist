@@ -16,6 +16,27 @@ enum PracticePreparationError: Error, Equatable, Sendable {
     case unexpected(stage: String, reason: String)
 }
 
+
+enum PracticePreparationErrorDetails {
+    static func safeErrorSummary(_ error: Error) -> String {
+        let nsError = error as NSError
+        return "\(String(reflecting: type(of: error))) [\(nsError.domain):\(nsError.code)]"
+    }
+
+    static func safeArchiveEntry(_ path: String) -> String {
+        let normalized = path.replacing("\\", with: "/")
+        let components = normalized.split(separator: "/", omittingEmptySubsequences: true)
+        let isSafeRelativePath = normalized.hasPrefix("/") == false &&
+            normalized.contains("://") == false &&
+            components.allSatisfy { $0 != "." && $0 != ".." }
+        if isSafeRelativePath, components.isEmpty == false {
+            return components.joined(separator: "/")
+        }
+        let fileName = URL(fileURLWithPath: normalized).lastPathComponent
+        return fileName.isEmpty ? "unknown-score.xml" : fileName
+    }
+}
+
 protocol PracticePreparationServiceProtocol {
     func prepare(
         songID: UUID,
@@ -81,7 +102,7 @@ actor PracticePreparationService: PracticePreparationServiceProtocol {
         } catch {
             throw PracticePreparationError.unexpected(
                 stage: "musicXMLParsing",
-                reason: String(describing: error)
+                reason: PracticePreparationErrorDetails.safeErrorSummary(error)
             )
         }
         let score = MusicXMLPianoGrandStaffNormalizer().normalize(score: rawScore)
@@ -166,7 +187,7 @@ actor PracticePreparationService: PracticePreparationServiceProtocol {
         if cocoaError?.code == .fileNoSuchFile || cocoaError?.code == .fileReadNoSuchFile {
             return .scoreFileNotFound
         }
-        return .scoreFileUnreadable(reason: error.localizedDescription)
+        return .scoreFileUnreadable(reason: PracticePreparationErrorDetails.safeErrorSummary(error))
     }
 
     private static func mapMXLReaderError(_ error: MXLReaderError) -> PracticePreparationError {
@@ -178,7 +199,7 @@ actor PracticePreparationService: PracticePreparationServiceProtocol {
         case .missingRootfileFullPath:
             .missingMXLRootfile
         case let .missingScoreXML(path):
-            .missingMXLScore(path: path)
+            .missingMXLScore(path: PracticePreparationErrorDetails.safeArchiveEntry(path))
         case .invalidContainerXML:
             .invalidMXLContainer
         }

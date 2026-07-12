@@ -90,7 +90,7 @@ func appStatePassesMeasureSpansToPracticeSession() async {
         unsupportedNoteCount: 0
     )
     practiceSetupState.setImportedSteps(from: prepared)
-    await guideViewModel.applyPreparedPractice(prepared)
+    _ = await guideViewModel.applyPreparedPractice(prepared, isCurrent: { true })
 
     // First "next" begins the practice session at step 1.
     sessionViewModel.skip()

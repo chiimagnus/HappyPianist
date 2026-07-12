@@ -28,7 +28,7 @@ struct MusicXMLParser: MusicXMLParserProtocol {
             throw MusicXMLParserError.parseFailed(
                 line: parser.lineNumber > 0 ? parser.lineNumber : nil,
                 column: parser.columnNumber > 0 ? parser.columnNumber : nil,
-                reason: parser.parserError?.localizedDescription ?? "Unknown XML parser error"
+                reason: parser.parserError.map(PracticePreparationErrorDetails.safeErrorSummary) ?? "XMLParser returned no error details."
             )
         }
         return MusicXMLScore(

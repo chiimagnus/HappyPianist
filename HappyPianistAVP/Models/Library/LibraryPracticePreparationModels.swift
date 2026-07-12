@@ -9,6 +9,7 @@ enum LibraryPracticePreparationState: Equatable, Sendable {
 
 struct LibraryPracticePreparationFailure: Equatable, Identifiable, Sendable {
     let id: UUID
+    let occurredAt: Date
     let entryID: UUID
     let code: DiagnosticCode
     let title: String
@@ -20,6 +21,7 @@ struct LibraryPracticePreparationFailure: Equatable, Identifiable, Sendable {
 
     init(
         id: UUID = UUID(),
+        occurredAt: Date = .now,
         entryID: UUID,
         code: DiagnosticCode,
         title: String,
@@ -30,6 +32,7 @@ struct LibraryPracticePreparationFailure: Equatable, Identifiable, Sendable {
         reason: String
     ) {
         self.id = id
+        self.occurredAt = occurredAt
         self.entryID = entryID
         self.code = code
         self.title = title
@@ -41,22 +44,13 @@ struct LibraryPracticePreparationFailure: Equatable, Identifiable, Sendable {
     }
 
     var technicalDetails: String {
-        DiagnosticEvent(
-            severity: .error,
-            code: code,
-            category: .practicePreparation,
-            stage: stage,
-            summary: title,
-            reason: reason,
-            songID: entryID,
-            file: file,
-            sourceLocation: sourceLocation,
-            persistence: .exportable
-        ).textRepresentation
+        diagnosticEvent.textRepresentation
     }
 
     var diagnosticEvent: DiagnosticEvent {
         DiagnosticEvent(
+            id: id,
+            timestamp: occurredAt,
             severity: .error,
             code: code,
             category: .practicePreparation,
@@ -134,7 +128,7 @@ struct LibraryPracticePreparationFailure: Equatable, Identifiable, Sendable {
                 explanation: "压缩包指定的主 MusicXML 文件不存在。",
                 stage: "mxlScoreExtraction",
                 file: file,
-                reason: "The rootfile entry is missing: \(path)"
+                reason: "The rootfile entry is missing: \(PracticePreparationErrorDetails.safeArchiveEntry(path))"
             )
         case .invalidMXLContainer:
             LibraryPracticePreparationFailure(

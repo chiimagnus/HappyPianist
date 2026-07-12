@@ -174,3 +174,53 @@ private func repeatedPresentationSpans() -> [MusicXMLMeasureSpan] {
         MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, sourceMeasureIndex: 0, sourceMeasureNumberToken: "1", occurrenceIndex: 2, startTick: 960, endTick: 1_440),
     ]
 }
+
+@Test
+func measureMapDoesNotMarkHotspotOutsideCurrentPassage() throws {
+    let spans = presentationSpans()
+    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
+    let passage = try #require(PracticePassage(start: spans[1].occurrenceID, end: spans[2].occurrenceID))
+    let configuration = PracticeRoundConfiguration(
+        passage: passage,
+        handMode: .right,
+        tempoScale: 1,
+        loopEnabled: false,
+        requiredSuccesses: 3
+    )
+    let progress = SongPracticeProgress(
+        identity: identity,
+        activeConfiguration: configuration,
+        measureFacts: [
+            MeasurePracticeFacts(
+                sourceMeasureID: spans[0].sourceMeasureID,
+                handMode: .right,
+                state: .learning,
+                failedAttempts: 9,
+                recentIssue: .wrongNote,
+                lastAttemptAt: .now
+            ),
+            MeasurePracticeFacts(
+                sourceMeasureID: spans[1].sourceMeasureID,
+                handMode: .right,
+                state: .learning,
+                failedAttempts: 2,
+                recentIssue: .wrongNote,
+                lastAttemptAt: .now
+            ),
+        ],
+        updatedAt: .now
+    )
+
+    let presentation = try #require(LibraryPracticePanelPresentation(
+        entryID: identity.songID,
+        identity: identity,
+        measureSpans: spans,
+        progress: progress,
+        configuration: configuration,
+        currentMeasure: spans[1].sourceMeasureID
+    ))
+
+    #expect(presentation.hotspotTitle == "第 2 小节")
+    #expect(presentation.measureMap.items.first(where: { $0.id == spans[0].sourceMeasureID })?.isHotspot == false)
+    #expect(presentation.measureMap.items.first(where: { $0.id == spans[1].sourceMeasureID })?.isHotspot == true)
+}

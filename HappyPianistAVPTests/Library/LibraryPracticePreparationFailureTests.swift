@@ -72,3 +72,44 @@ func missingMXLScoreIncludesOnlyArchiveRelativePath() throws {
     #expect(failure.code == .practiceMXLMissingScore)
     #expect(failure.reason.contains("scores/main.musicxml"))
 }
+
+@Test
+func preparationFailureTechnicalDetailsRemainStableAndMatchDiagnosticEvent() throws {
+    let occurredAt = Date(timeIntervalSince1970: 1_700_000_000)
+    let eventID = UUID()
+    let failure = LibraryPracticePreparationFailure(
+        id: eventID,
+        occurredAt: occurredAt,
+        entryID: UUID(),
+        code: .practicePreparationFailed,
+        title: "无法准备这份曲谱",
+        explanation: "准备练习数据时发生未预期的错误。",
+        stage: "test",
+        file: DiagnosticFileReference(fileName: "score.musicxml", relativePath: "SongLibrary/scores/score.musicxml"),
+        reason: "Synthetic failure"
+    )
+
+    let firstDetails = failure.technicalDetails
+    let secondDetails = failure.technicalDetails
+
+    #expect(firstDetails == secondDetails)
+    #expect(failure.diagnosticEvent.id == eventID)
+    #expect(failure.diagnosticEvent.timestamp == occurredAt)
+}
+
+@Test
+func preparationErrorDetailsNeverExposeAbsolutePaths() {
+    let cocoaError = NSError(
+        domain: NSCocoaErrorDomain,
+        code: CocoaError.fileReadNoSuchFile.rawValue,
+        userInfo: [NSFilePathErrorKey: "/Users/example/Private Scores/song.musicxml"]
+    )
+    let summary = PracticePreparationErrorDetails.safeErrorSummary(cocoaError)
+    let archiveEntry = PracticePreparationErrorDetails.safeArchiveEntry(
+        "/Users/example/Private Scores/secret.musicxml"
+    )
+
+    #expect(summary.contains("/Users/") == false)
+    #expect(summary.contains("Private Scores") == false)
+    #expect(archiveEntry == "secret.musicxml")
+}

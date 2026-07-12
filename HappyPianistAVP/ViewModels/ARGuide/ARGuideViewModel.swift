@@ -33,6 +33,7 @@ final class ARGuideViewModel {
     var latestPreparedPractice: PreparedPractice?
 
     @ObservationIgnored private var handTrackingConsumerTask: Task<Void, Never>?
+    @ObservationIgnored private var preparedPracticeApplicationID: UUID?
     private var currentTrackingMode: ARTrackingMode?
 
     init(
@@ -143,15 +144,39 @@ final class ARGuideViewModel {
         }
     }
 
-    func applyPreparedPractice(_ prepared: PreparedPractice) async {
+    @discardableResult
+    func applyPreparedPractice(
+        _ prepared: PreparedPractice,
+        isCurrent: @escaping @MainActor () -> Bool
+    ) async -> Bool {
+        let applicationID = UUID()
+        preparedPracticeApplicationID = applicationID
+        guard isCurrent() else {
+            preparedPracticeApplicationID = nil
+            return false
+        }
+        guard await applyPreparedPractice(
+            prepared,
+            to: practiceSessionViewModel,
+            applicationID: applicationID,
+            isCurrent: isCurrent
+        ) else { return false }
+
         latestPreparedPractice = prepared
-        await applyPreparedPractice(prepared, to: practiceSessionViewModel)
+        preparedPracticeApplicationID = nil
         if isVirtualPerformerEnabled {
             setPracticeVirtualPerformerEnabled(true)
         }
+        return true
     }
 
-    private func applyPreparedPractice(_ prepared: PreparedPractice, to session: PracticeSessionViewModel) async {
+    private func applyPreparedPractice(
+        _ prepared: PreparedPractice,
+        to session: PracticeSessionViewModel,
+        applicationID: UUID,
+        isCurrent: @escaping @MainActor () -> Bool
+    ) async -> Bool {
+        guard preparedPracticeApplicationID == applicationID, isCurrent() else { return false }
         session.installPreparedSteps(
             prepared.steps,
             identity: prepared.identity,
@@ -163,7 +188,25 @@ final class ARGuideViewModel {
             highlightGuides: prepared.highlightGuides,
             measureSpans: prepared.measureSpans
         )
+        guard preparedPracticeApplicationID == applicationID, isCurrent() else {
+            clearStalePreparedPractice(applicationID: applicationID, session: session)
+            return false
+        }
         await session.restoreProgressIfAvailable()
+        guard preparedPracticeApplicationID == applicationID, isCurrent() else {
+            clearStalePreparedPractice(applicationID: applicationID, session: session)
+            return false
+        }
+        return true
+    }
+
+    private func clearStalePreparedPractice(
+        applicationID: UUID,
+        session: PracticeSessionViewModel
+    ) {
+        guard preparedPracticeApplicationID == applicationID else { return }
+        session.resetSession()
+        preparedPracticeApplicationID = nil
     }
 
     func replacePracticeSessionViewModel() async {
@@ -175,7 +218,15 @@ final class ARGuideViewModel {
         aiPerformanceViewModel.updatePracticeSession(next)
 
         if let prepared = latestPreparedPractice {
-            await applyPreparedPractice(prepared, to: next)
+            let applicationID = UUID()
+            preparedPracticeApplicationID = applicationID
+            _ = await applyPreparedPractice(
+                prepared,
+                to: next,
+                applicationID: applicationID,
+                isCurrent: { true }
+            )
+            preparedPracticeApplicationID = nil
         }
 
         appState.applySessionIfPossible()

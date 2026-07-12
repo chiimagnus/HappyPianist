@@ -284,7 +284,7 @@ final class SongLibraryViewModel {
                         throw PracticePreparationError.scoreFileNotFound
                     }
                     throw PracticePreparationError.scoreFileUnreadable(
-                        reason: error.localizedDescription
+                        reason: PracticePreparationErrorDetails.safeErrorSummary(error)
                     )
                 }
             }
@@ -308,7 +308,15 @@ final class SongLibraryViewModel {
                 throw PracticePreparationError.missingMeasureStructure
             }
 
-            await appState.applyPreparedPractice(prepared)
+            guard await appState.applyPreparedPractice(
+                prepared,
+                isCurrent: { [weak self] in
+                    self?.isCurrentPracticePreparation(
+                        entryID: entryID,
+                        generation: generation
+                    ) == true
+                }
+            ) else { return }
             guard isCurrentPracticePreparation(entryID: entryID, generation: generation) else { return }
             practicePreparationState = .ready(entryID: entryID, identity: prepared.identity)
             practicePreparationTask = nil
@@ -332,7 +340,7 @@ final class SongLibraryViewModel {
             guard isCurrentPracticePreparation(entryID: entryID, generation: generation) else { return }
             let preparationError = (error as? PracticePreparationError) ?? .unexpected(
                 stage: "selectedScorePreparation",
-                reason: String(describing: error)
+                reason: PracticePreparationErrorDetails.safeErrorSummary(error)
             )
             let failure = LibraryPracticePreparationFailure.map(
                 preparationError,

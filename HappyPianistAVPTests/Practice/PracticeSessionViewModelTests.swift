@@ -1751,3 +1751,36 @@ private actor ControllableSleeper: SleeperProtocol {
         }
     }
 }
+
+@MainActor
+@Test
+func reinstallingSamePreparedScoreDiscardsUnappliedDraftConfiguration() throws {
+    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "same-revision")
+    let spans = makeConfigurationSpans(count: 6)
+    let steps = makeConfigurationSteps(count: 6)
+    let session = makeConfigurationTestSession()
+
+    session.installPreparedSteps(
+        steps,
+        identity: identity,
+        tempoMap: MusicXMLTempoMap(tempoEvents: []),
+        measureSpans: spans
+    )
+    session.roundConfigurationController.pendingHandMode = .left
+    session.roundConfigurationController.pendingTempoScale = 0.5
+    session.roundConfigurationController.pendingLoopEnabled = true
+
+    session.installPreparedSteps(
+        steps,
+        identity: identity,
+        tempoMap: MusicXMLTempoMap(tempoEvents: []),
+        measureSpans: spans
+    )
+
+    let configuration = try #require(session.roundConfigurationController.pendingConfiguration)
+    #expect(configuration.handMode == .both)
+    #expect(configuration.tempoScale == 1)
+    #expect(configuration.loopEnabled == false)
+    #expect(configuration.passage.start == spans.first?.occurrenceID)
+    #expect(configuration.passage.end == spans.last?.occurrenceID)
+}
