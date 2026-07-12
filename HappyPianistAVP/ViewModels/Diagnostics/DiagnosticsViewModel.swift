@@ -57,8 +57,14 @@ final class DiagnosticsViewModel {
         }
     }
 
-    func finishExport() {
+    func finishExport(_ result: Result<URL, Error>) {
         pendingArchive = nil
+        guard case let .failure(error) = result,
+              (error as? CocoaError)?.code != .userCancelled
+        else {
+            return
+        }
+        errorMessage = "保存诊断日志失败：\(error.localizedDescription)"
     }
 
     func dismissError() {

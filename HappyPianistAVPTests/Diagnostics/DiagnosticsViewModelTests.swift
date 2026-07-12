@@ -33,6 +33,10 @@ private actor DiagnosticsViewModelExporter: DiagnosticsArchiveExporting {
     }
 }
 
+private enum DiagnosticsViewModelTestError: Error {
+    case exportFailed
+}
+
 @Test
 @MainActor
 func diagnosticsViewModelLoadsExportsAndClears() async {
@@ -51,8 +55,43 @@ func diagnosticsViewModelLoadsExportsAndClears() async {
 
     #expect(await viewModel.prepareExport())
     #expect(viewModel.pendingArchive?.fileName == "logs.zip")
+    viewModel.finishExport(.success(URL(fileURLWithPath: "/tmp/logs.zip")))
+    #expect(viewModel.pendingArchive == nil)
 
     await viewModel.clearLogs()
     #expect(viewModel.summary == .empty)
     #expect(await store.didClear)
+}
+
+
+@Test
+@MainActor
+func diagnosticsViewModelReportsSystemExportFailure() async {
+    let store = DiagnosticsViewModelStore()
+    let exporter = DiagnosticsViewModelExporter(result: .success(
+        DiagnosticArchive(data: Data([1]), fileName: "logs.zip", eventCount: 1)
+    ))
+    let viewModel = DiagnosticsViewModel(store: store, exporter: exporter)
+
+    #expect(await viewModel.prepareExport())
+    viewModel.finishExport(.failure(DiagnosticsViewModelTestError.exportFailed))
+
+    #expect(viewModel.pendingArchive == nil)
+    #expect(viewModel.errorMessage?.hasPrefix("保存诊断日志失败：") == true)
+}
+
+@Test
+@MainActor
+func diagnosticsViewModelIgnoresCancelledSystemExport() async {
+    let store = DiagnosticsViewModelStore()
+    let exporter = DiagnosticsViewModelExporter(result: .success(
+        DiagnosticArchive(data: Data([1]), fileName: "logs.zip", eventCount: 1)
+    ))
+    let viewModel = DiagnosticsViewModel(store: store, exporter: exporter)
+
+    #expect(await viewModel.prepareExport())
+    viewModel.finishExport(.failure(CocoaError(.userCancelled)))
+
+    #expect(viewModel.pendingArchive == nil)
+    #expect(viewModel.errorMessage == nil)
 }

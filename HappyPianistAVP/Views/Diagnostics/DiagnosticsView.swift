@@ -51,8 +51,8 @@ struct DiagnosticsView: View {
             document: viewModel.pendingArchive.map { DiagnosticsArchiveDocument(data: $0.data) },
             contentType: .zip,
             defaultFilename: viewModel.pendingArchive?.fileName ?? "HappyPianist-Diagnostics.zip"
-        ) { _ in
-            viewModel.finishExport()
+        ) { result in
+            viewModel.finishExport(result)
         }
         .confirmationDialog(
             "清除最近 7 天的诊断日志？",
