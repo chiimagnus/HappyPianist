@@ -32,7 +32,6 @@ struct PracticeRoundSummaryViewModel: Equatable {
     var actionTitle: String {
         switch nextAction {
         case .retryMeasure: "重练这个小节"
-        case .isolateHands: "先用单手练习"
         case .lowerTempo: "放慢一点再练"
         case .keepTempo: "保持速度再来一轮"
         case .expandPassage: "扩大练习片段"

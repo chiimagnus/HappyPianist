@@ -9,7 +9,6 @@ struct PracticeHotspot: Equatable, Sendable {
 
 enum PracticeNextAction: Equatable, Sendable {
     case retryMeasure(PracticeSourceMeasureID)
-    case isolateHands(PracticeSourceMeasureID)
     case lowerTempo(Double)
     case keepTempo
     case expandPassage

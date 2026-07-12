@@ -8,10 +8,10 @@ func nextActionDoesNotInventAdviceWithoutEvidence() throws {
 }
 
 @Test
-func nextActionIsolatesRepeatedBothHandHotspot() throws {
+func nextActionLowersTempoWithoutInventingAProblemHand() throws {
     let facts = feedbackFacts(index: 2, failures: 2, issue: .missedNote)
     let context = try feedbackContext(facts: [facts])
-    #expect(PracticeNextActionPolicy().nextAction(for: context) == .isolateHands(facts.sourceMeasureID))
+    #expect(PracticeNextActionPolicy().nextAction(for: context) == .lowerTempo(0.7))
 }
 
 @Test
