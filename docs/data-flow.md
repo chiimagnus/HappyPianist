@@ -66,7 +66,7 @@ flowchart TD
 
 | 阶段 | 关键对象 | 结果 |
 | --- | --- | --- |
-| 导入/读取 | `MusicXMLImportService`、`MXLReader`、`BundledSongLibraryProvider` | MusicXML score |
+| 导入/读取 | `SongLibraryViewModel`、`SongFileStore`、`MXLReader`、`BundledSongLibraryProvider` | MusicXML score |
 | 乐谱归一化 | `MusicXMLPianoGrandStaffNormalizer`、`MusicXMLStructureExpander` | 面向钢琴练习的 score |
 | 语义提取 | `MusicXMLTempoMap`、`MusicXMLPedalTimeline`、`MusicXMLFermataTimeline`、`MusicXMLAttributeTimeline`、`MusicXMLSlurTimeline`、`MusicXMLWordsSemanticsInterpreter` | timing、踏板、延音、表情信息 |
 | 分手与 step | `MusicXMLHandRouter`、`PracticeStepBuilder`、`MusicXMLNoteSpanBuilder` | `PracticeStep[]`、note spans |
