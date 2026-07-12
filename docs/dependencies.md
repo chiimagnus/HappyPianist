@@ -1,41 +1,57 @@
 # 依赖
 
-## 平台依赖
+## Apple 平台
 
-| 运行面 | 主要 Apple framework | 用途 |
+| 依赖 | 用途 |
+| --- | --- |
+| SwiftUI + Observation | 窗口、设置、曲库、练习 UI 与状态绑定。 |
+| RealityKit | 沉浸空间、琴键高亮、虚拟钢琴和恢复效果。 |
+| ARKit | world、hand 与 plane tracking。 |
+| AVFoundation | sampler、sequencer、音频播放与麦克风识别。 |
+| CoreMIDI + CoreAudioKit | Bluetooth MIDI 输入、外部 MIDI 输出与系统连接面板。 |
+| CoreML | 可选的本地 Performance RNN 后端。 |
+| CryptoKit | bundled 曲目稳定 UUID 与曲谱 digest。 |
+| UniformTypeIdentifiers | MusicXML、MXL、音频与 MIDI 文件选择。 |
+
+App target 为 visionOS 26.0、Swift 6.0。测试使用 Swift Testing，并通过 Xcode test target 集成。
+
+## SwiftPM
+
+| 包 | 来源 | 用途 |
 | --- | --- | --- |
-| macOS recorder | SwiftUI、SwiftData、CoreMIDI、AVFoundation、CoreAudioKit | UI、take 存储、MIDI 输入/输出、sampler 回放、Bluetooth MIDI 面板。 |
-| visionOS app | SwiftUI、RealityKit、ARKit、CoreMIDI、AVFoundation、CoreAudioKit、UniformTypeIdentifiers | 窗口/沉浸空间、空间 overlay、hand/world/plane tracking、BLE MIDI、音频识别与回放、文件导入。 |
-| Tests | Swift Testing / XCTest project integration | macOS 与 AVP 的本地测试。 |
+| `RealityKitContent` | `Packages/RealityKitContent/` | Reality Composer Pro 内容 bundle。 |
+| `ZIPFoundation` 0.9.20 | GitHub remote package | 解包 `.mxl`。 |
 
-当前代码使用 SwiftUI Observation（`@Observable` / `@Bindable`）。新增状态对象时不要退回 `ObservableObject` / `@Published`。
+锁定版本见 `HappyPianist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`。
 
-## Python
+## Python（可选）
 
-`python_backend/` 是可选工作区：
+`python_backend/` 不是 AVP App 的必需依赖，只在选择 Aria v2 网络后端时运行。
 
-- 默认情况下（仅使用 AVP 本地后端）：不需要 Python。
-- 若要在 AVP 端使用 **网络后端（Aria v2）**：需要在 Mac 上运行 `python_backend/aria_server/`（Bonjour + HTTP/WS）。
-
-建议环境：
-
-- Apple silicon（MLX 推理）
 - Python 3.11+
-- `uv` 管理依赖
+- `uv`
+- Apple silicon 上的 MLX/Aria 依赖
+- `python_backend/aria/hf/model-demo.safetensors`
+- Bonjour、HTTP 与 WebSocket 网络环境
 
-注意：Aria demo checkpoint 体积较大（默认路径 `python_backend/aria/hf/model-demo.safetensors`），不会随仓库分发。
+服务工程：`python_backend/aria_server/`。入口与 smoketest 位于 `python_backend/scripts/`。
 
-## 资源依赖
+## 外部资源
 
-| 资源 | 当前状态 | 使用方 |
+源码归档不包含：
+
+| 资源 | 代码期望名称 | 用途 |
 | --- | --- | --- |
-| `HappyPianistAVP/Resources/Audio/SoundFonts/SalC5Light2.sf2` | 仓库默认不内置 | AVP sampler 回放。 |
-| `HappyPianistAVP/Resources/Fonts/Bravura.otf` | 在 app bundle 中声明 | 谱面符号。 |
-| Bundled MusicXML | 由 `BundledSongLibraryProvider` 扫描 | AVP 曲库。 |
-| CoreML 模型文件 | 不入库 | `AIDuetPerformanceRNN.mlpackage` / `.mlmodelc`（由开发者本地加入 Xcode target）。 |
+| Bravura 字体 | `Bravura.otf` | 五线谱符号。 |
+| Salamander SoundFont | `SalC5Light2.sf2` | AVP 本地 sampler。 |
+| Performance RNN 模型 | `AIDuetPerformanceRNN.mlpackage` 或 `.mlmodelc` | 本地 CoreML 对弹。 |
+| Aria 权重 | `python_backend/aria/hf/model-demo.safetensors` | Mac 侧 Aria v2 推理。 |
+
+资源是否可用以实际文件和 App bundle 为准，不以 plist 声明或代码常量为准。
 
 ## 依赖边界
 
-- macOS recorder 不依赖 Python 服务。
-- AVP AI 即兴默认使用本地 CoreML / 本地 rule（无需电脑端服务）。
-- `Packages/RealityKitContent/` 是仓库内的 SwiftPM 包；AI 即兴实现内嵌在 AVP target。
+- 正常练习不依赖 Python 服务。
+- 本地规则 AI 不依赖 CoreML 模型或 Python。
+- MXL 导入依赖 ZIPFoundation；普通 MusicXML 不依赖 Python。
+- Apple framework 行为只能在 Xcode/Simulator/设备环境中完成最终验证。

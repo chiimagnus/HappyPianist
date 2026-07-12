@@ -1,80 +1,140 @@
 # 配置
 
-## 构建入口
+## Xcode 工程
 
-| 项目 | 位置 | 说明 |
+| 项目 | 当前值 |
+| --- | --- |
+| 工程 | `HappyPianist.xcodeproj` |
+| App target / scheme | `HappyPianistAVP` |
+| Test target | `HappyPianistAVPTests` |
+| Swift | 6.0 |
+| 部署目标 | visionOS 26.0 |
+| 支持平台 | `xros`、`xrsimulator` |
+| SwiftPM | 本地 `RealityKitContent`、远程 `ZIPFoundation` 0.9.20 |
+
+仓库没有 macOS App target，也没有 `.github/workflows/`。Apple 平台验证以本地 `xcodebuild` 为准。
+
+## Info.plist 与权限
+
+配置文件：`HappyPianistAVP/Resources/Info.plist`。
+
+| Key | 用途 |
+| --- | --- |
+| `NSHandsTrackingUsageDescription` | 手部追踪和按键接触。 |
+| `NSWorldSensingUsageDescription` | 虚拟钢琴平面检测。 |
+| `NSMicrophoneUsageDescription` | 真实钢琴音频识别。 |
+| `NSBluetoothAlwaysUsageDescription` | Bluetooth MIDI。 |
+| `NSLocalNetworkUsageDescription` | 可选 Aria v2 网络后端。 |
+| `NSBonjourServices` | `_lpduet._tcp` 服务发现。 |
+| `NSAllowsLocalNetworking` | 本地 HTTP/WS 连接。 |
+| `UTImportedTypeDeclarations` | `.musicxml` 与 `.mxl`；`.xml` 通过文件 importer 接受。 |
+| `UIAppFonts` | 声明 `Bravura.otf`。 |
+
+权限只应在对应功能实际启用时请求。ARKit provider 只在沉浸空间内运行。
+
+## 外部资源
+
+当前源码归档中，`HappyPianistAVP/Resources/` 只有 `Info.plist`。以下文件必须由开发者自行加入 App target：
+
+| 文件 | 消费方 | 缺失行为 |
 | --- | --- | --- |
-| Xcode 工程 | `HappyPianist.xcodeproj` | 包含 macOS app、visionOS app 与测试 target。 |
-| macOS scheme | `HappyPianist` | recorder app 与 `HappyPianistTests`。 |
-| visionOS scheme | `HappyPianistAVP` | AVP app 与 `HappyPianistAVPTests`。 |
-| Python 工作区（可选） | `python_backend/` | 包含 Aria 模型源码与可运行的本地服务 `python_backend/aria_server/`（用于 AVP 网络即兴后端）。 |
+| `Bravura.otf` | `GrandStaffNotationRenderer` | 谱号、调号和拍号不能保证正确字形。 |
+| `SalC5Light2.sf2` | `AVAudioSequencerPracticePlaybackService` | 本地 sampler 返回“未找到音色文件”。 |
+| `AIDuetPerformanceRNN.mlpackage` 或 `.mlmodelc` | `PerformanceRNNCoreMLModelLoader` | 本地 CoreML 后端不可用。 |
 
-当前仓库没有 `.github/workflows/`，自动化验证以本地命令为准。
+不要用 `Info.plist` 声明、代码中的资源名或旧测试记录代替实际 bundle 检查。
 
-## macOS app 配置
+## 练习设置
 
-| 配置面 | 位置 | 说明 |
+`UserDefaultsPracticeSessionSettingsProvider` 读取以下 key：
+
+| Key | 含义 |
+| --- | --- |
+| `practiceManualAdvanceMode` | 手动推进策略。 |
+| `practiceHandMode` | 左手、右手或双手。 |
+| `practiceStep3AudioRecognitionMode` | 音频识别 detector。 |
+| `practiceSoundOutputRoute` | `localSampler` 或 `externalMIDIDestination`。 |
+| `practiceMIDIDestinationUniqueID` | CoreMIDI destination unique ID；`0` 或缺失表示未选择。 |
+| `practiceSendLocalControlOff` | 是否发送 Local Control Off（CC122）。 |
+| `practiceTempoScale` | 下一轮速度比例。 |
+| `practiceLoopEnabled` | 下一轮是否循环。 |
+| `practiceRequiredSuccesses` | 连续成功目标。 |
+| `practiceImprovBackendKind` | AI 即兴后端选择。 |
+| `audioOutputVolume` | AVP 本地 sampler 与试听音频音量，范围 0...1。 |
+
+练习配置分为：
+
+- UserDefaults 中的长期默认值
+- 下一轮 pending configuration
+- 当前轮 immutable active configuration
+
+修改手别、速度、循环和成功目标时，不得直接改变正在进行的一轮。
+
+## 发声路由
+
+| 路由 | 实现 | 说明 |
 | --- | --- | --- |
-| 沙盒与权限 | `HappyPianist/HappyPianist.entitlements` | App Sandbox、network client、Bluetooth、user-selected read-only files。 |
-| 蓝牙说明 | `HappyPianist/Info.plist` | `NSBluetoothAlwaysUsageDescription` 支持在 app 内打开 Bluetooth MIDI 面板。 |
-| 文件类型 | `HappyPianist/Info.plist` | 导入 MIDI 文件。 |
-| 持久化 | `ModelContainerFactory` | SwiftData store 名为 `HappyPianist.store`。 |
-| 回放输出 | recorder UI + `RoutedMIDIPlaybackService` | 内建 sampler 或外部 MIDI destination。 |
+| 仅 AVP 发声 | `AVAudioSequencerPracticePlaybackService` | 需要 `SalC5Light2.sf2`。 |
+| 仅真实钢琴发声 | `CoreMIDIPracticePlaybackService` | 需要有效 MIDI destination。 |
 
-## visionOS app 配置
+`practiceSendLocalControlOff` 是 best-effort 选项，默认关闭；不同钢琴对 CC122 的支持不一致。
 
-| 配置面 | 位置 | 说明 |
-| --- | --- | --- |
-| 权限说明 | `HappyPianistAVP/Resources/Info.plist` | Hand Tracking、World Sensing、Microphone、Bluetooth。 |
-| 网络（可选） | `HappyPianistAVP/Resources/Info.plist` | 为网络即兴后端（Aria v2）预留 Local Network + Bonjour：`NSLocalNetworkUsageDescription`、`NSBonjourServices = _lpduet._tcp`、`NSAllowsLocalNetworking = true`。仅当用户在练习设置中选择网络后端时才会使用。 |
-| MusicXML 文件类型 | `UTImportedTypeDeclarations` | 导入 `.musicxml` / `.xml` / `.mxl`。 |
-| 字体 | `UIAppFonts` | `Bravura.otf`。 |
-| soundfont | `HappyPianistAVP/Resources/Audio/SoundFonts/SalC5Light2.sf2` | 仓库默认不内置；需要本地 sampler 回放时手动放入。 |
+## 可选 Aria v2 服务
 
-`PracticeSessionSettingsProvider` 使用 `UserDefaults` 保存练习相关设置；修改时优先从 provider 和对应 UI 查找真实 key。
-
-### 可选：启动 Aria v2 网络后端（Mac）
-
-用于 AVP 真机选择 `网络本地连接（Aria v2）` / `网络本地连接（Aria v2 Streaming）` 时连接：
+安装并启动：
 
 ```bash
-cd python_backend/aria_server && uv sync
-cd .. && uv run --project aria_server python scripts/aria_server.py --host 0.0.0.0 --port 8766
+cd python_backend/aria_server
+uv sync
+
+cd ..
+uv run --project aria_server \
+  python scripts/aria_server.py \
+  --host 0.0.0.0 \
+  --port 8766
 ```
 
-更多说明见 `python_backend/README.md`。
+本机 smoketest：
 
-### 练习发声路由与音量（AVP）
+```bash
+cd python_backend
+uv run --project aria_server \
+  python scripts/aria_server_smoketest.py \
+  --host 127.0.0.1 \
+  --port 8766
 
-以下键值由 `UserDefaultsPracticeSessionSettingsProvider` 与练习设置 UI 共同维护（以代码为准）：
+uv run --project aria_server \
+  python scripts/ws_client_smoketest.py \
+  ws://127.0.0.1:8766/stream
+```
 
-| Key | 说明 |
-| --- | --- |
-| `practiceSoundOutputRoute` | 发声路由：`localSampler`（仅 AVP 发声）或 `externalMIDIDestination`（仅真实钢琴发声）。 |
-| `practiceMIDIDestinationUniqueID` | 外部 MIDI 输出目的地的 `kMIDIPropertyUniqueID`（`Int32`，可能为负数；`0` 表示未选择）。 |
-| `practiceSendLocalControlOff` | 是否 best-effort 向目的地发送 Local Control Off（CC122）。兼容性不保证，默认关闭。 |
-| `AudioOutputVolumeSettings.userDefaultsKey` | AVP 本地采样器输出音量（0…1）。仅影响 AVP sampler，不影响外部 MIDI 发往真实钢琴的力度/音量。 |
+前提：
 
-说明（练习判定与设置项）：
-- “练习判定：左右手分别满足”已改为强制启用（不再作为可配置项，也不再暴露 UI 开关）。
-- 当前仍会通过 `UserDefaults` 保存练习手（左/右/双手）、手动推进方式与音频识别模式等设置项。
+- Python 3.11+
+- `uv`
+- `python_backend/aria/hf/model-demo.safetensors`
+- Mac 与 Vision Pro 位于同一局域网
+- Vision Pro 允许 Local Network 权限
 
 ## 常见误配
 
-| 现象 | 可能原因 | 检查点 |
-| --- | --- | --- |
-| AI 对弹不可用 | CoreML 模型文件未加入 app bundle | 练习设置页的后端状态提示；检查 `AIDuetPerformanceRNN.mlpackage` / `AIDuetPerformanceRNN.mlmodelc`。 |
-| 网络后端不可用/找不到 | Mac 未启动 Aria 服务或 Local Network 权限被拒绝 | Mac 先启动 `python_backend/aria_server/`；AVP 真机允许 Local Network；确认同一局域网与防火墙设置。 |
-| BLE MIDI source 不显示 | Bluetooth 权限或系统连接未完成 | `CABTMIDICentralViewController` 面板、系统蓝牙、app Bluetooth 权限。 |
-| 真实音频模式无法推进 | Microphone 权限、输入源噪声、音频识别阈值 | `PracticeAudioRecognitionService` 状态与 debug snapshot。 |
-| 虚拟钢琴无法继续 | 平面检测或放置确认未完成 | `VirtualPianoPlacementViewModel`、`GazePlaneHitTestService`。 |
-| CoreML 首次加载慢 | `.mlpackage` 首次运行会触发编译 | 属正常现象；建议提交 `.mlmodelc` 或预先编译。 |
+| 现象 | 检查点 |
+| --- | --- |
+| 五线谱符号异常 | `Bravura.otf` 是否实际在 App target 的 Copy Bundle Resources。 |
+| 本地回放无声 | `SalC5Light2.sf2` 是否在 bundle；设置是否选择本地 sampler。 |
+| CoreML 后端不可用 | 模型文件是否在 bundle；设置页后端状态。 |
+| 找不到 Aria 服务 | 服务是否监听 `0.0.0.0`、防火墙、同一 Wi-Fi、Bonjour 与 Local Network 权限。 |
+| BLE MIDI source 为空 | 系统 Bluetooth MIDI 面板、蓝牙权限和 CoreMIDI source。 |
+| 麦克风模式不推进 | 麦克风权限、输入设备、噪声与 detector 状态。 |
+| 虚拟琴无法继续 | 平面检测、放置确认和沉浸空间状态。 |
 
-## 代码格式化（SwiftFormat）
+## SwiftFormat
 
-仓库根目录提供 `.swiftformat` 配置文件，供 `swiftformat`（nicklockwood/SwiftFormat）统一 Swift 代码风格。
+仓库根目录提供 `.swiftformat`：
 
-常用命令（需本机安装 SwiftFormat）：
-- `brew install swiftformat`：通过 Homebrew 安装命令行工具。
-- `swiftformat .`：格式化整个仓库（会跳过 `.swiftformat` 中 `--exclude` 的目录）。
-- `swiftformat . --lint`：仅检查格式差异，不改文件。
+```bash
+swiftformat . --lint
+swiftformat .
+```
+
+运行前需本机安装 SwiftFormat。

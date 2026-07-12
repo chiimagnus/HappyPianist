@@ -1,41 +1,59 @@
-# 概览
+# 项目概览
 
-## 仓库目标
+HappyPianist 当前是一个 visionOS 26.0 钢琴练习应用。仓库包含 AVP App、测试、RealityKit 内容包，以及可选的 Mac 侧 Aria v2 Python 服务。
 
-HappyPianist 是一个本地优先的钢琴交互系统。当前仓库包含 macOS MIDI recorder、visionOS 练习端与可选的 Python 工作区：
+## 运行单元
 
-- AVP 端 AI 即兴默认使用本地后端（CoreML / 本地规则），不依赖电脑端服务。
-- 但 AVP 也支持可选的 **网络后端（Aria v2）**：在 Mac 上启动 `python_backend/aria_server/` 服务后，AVP 可通过 Bonjour 发现并用 HTTP/WS 生成即兴回应。
+| 运行单元 | 入口 | 作用 |
+| --- | --- | --- |
+| visionOS App | `HappyPianistAVP/` | 准备、曲库、练习、录制、AI 对弹与沉浸空间。 |
+| visionOS Tests | `HappyPianistAVPTests/` | MusicXML、练习、输入、回放、反馈、窗口与 AI 服务测试。 |
+| RealityKit 内容包 | `Packages/RealityKitContent/` | Reality Composer Pro 资产与 bundle。 |
+| Aria v2 服务（可选） | `python_backend/aria_server/` | Bonjour + HTTP/WS 网络即兴后端。 |
 
-## 运行面
+Xcode 工程只有 `HappyPianistAVP` 与 `HappyPianistAVPTests` 两个 target。仓库中不存在 macOS App target。
 
-| 运行面 | 入口 | 用户价值 | 深入文档 |
-| --- | --- | --- | --- |
-| macOS recorder | `HappyPianist/` | MIDI 监听、take 录制、MIDI 导入、sampler/外部 MIDI 回放 | [modules/happypianist-macos.md](modules/happypianist-macos.md) |
-| visionOS app | `HappyPianistAVP/` | MusicXML 曲库、三种钢琴模式、空间练习、虚拟钢琴、BLE MIDI、AI 即兴 | [modules/happypianist-avp.md](modules/happypianist-avp.md) |
-| AVP Practice | `HappyPianistAVP/ViewModels/PracticeSession/` + `HappyPianistAVP/Services/Practice/` | step 推进、五线谱、自动播放、输入匹配、贴皮高亮 | [modules/happypianist-avp-practice.md](modules/happypianist-avp-practice.md) |
-| Mac Aria v2 server（可选） | `python_backend/aria_server/` | 给 AVP 提供 Bonjour + HTTP/WS 的网络即兴后端 | [configuration.md](configuration.md) |
+## 按问题导航
 
-## 本地验证命令
-
-> 仓库命令示例可用 `rtk` 作为前缀运行（见根目录 `AGENTS.md`）。下表省略 `rtk` 不影响命令本身含义。
-
-| 场景 | 命令 |
+| 想了解什么 | 文档 |
 | --- | --- |
-| macOS tests | `xcodebuild test -project HappyPianist.xcodeproj -scheme HappyPianist -destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO` |
-| 查看 AVP destinations | `xcodebuild -showdestinations -project HappyPianist.xcodeproj -scheme HappyPianistAVP` |
-| AVP tests（Simulator） | `xcodebuild test -project HappyPianist.xcodeproj -scheme HappyPianistAVP -destination 'platform=visionOS Simulator,id=<device-id>' CODE_SIGNING_ALLOWED=NO` |
+| 整体模块、依赖方向和危险修改区 | [architecture.md](architecture.md) |
+| 数据如何从 MusicXML、输入源流到练习与反馈 | [data-flow.md](data-flow.md) |
+| App 窗口、钢琴模式、曲库与沉浸空间 | [modules/happypianist-avp.md](modules/happypianist-avp.md) |
+| 练习 session、判定、进度、反馈和回放 | [modules/happypianist-avp-practice.md](modules/happypianist-avp-practice.md) |
+| Xcode、权限、UserDefaults、资源与 Python 服务 | [configuration.md](configuration.md) |
+| JSON 文件和 Documents 目录结构 | [storage.md](storage.md) |
+| Apple framework、SwiftPM 与外部资源 | [dependencies.md](dependencies.md) |
+| 术语 | [glossary.md](glossary.md) |
+| 可恢复练习验收 | [testing/practice-learning-loop-p1-checklist.md](testing/practice-learning-loop-p1-checklist.md) |
+| 正反馈与空间效果验收 | [testing/practice-feedback-usability-checklist.md](testing/practice-feedback-usability-checklist.md) |
 
-## 关键事实
+## 产品主流程
 
-- macOS app 当前不是映射器，也不包含 AVP 的网络后端 client；它是 recorder/playback 面。
-- visionOS app 的跨窗口流程由 `PracticeSetupState` 与 `WindowTransitionState` 维护，不存在 `FlowState` 或 `WindowCoordinator` 文件。
-- `HappyPianistAVP` 的 app 资源里声明了 Bravura 字体和 MusicXML UTI；`SalC5Light2.sf2` 需要本地补齐后才有完整音色回放。
-- AI 即兴支持本地 CoreML（Performance RNN）与本地 rule（均内嵌于 AVP target）；CoreML 模型文件不入库，需要开发者本地加入 Xcode target。
-- AI 即兴也支持可选网络后端（Aria v2）：需要 Mac 侧启动 `python_backend/aria_server/`，并在 AVP 真机允许 Local Network 权限后通过 Bonjour 发现 `_lpduet._tcp` 服务。
+```text
+选择钢琴模式
+-> 完成校准或虚拟琴放置
+-> 进入曲库并导入 MusicXML
+-> 选择练习片段与本轮配置
+-> 演奏、判定、保存小节事实
+-> 查看即时反馈、总结和恢复地图
+```
 
-## Coverage Gaps
+练习输入支持：
 
-- 没有提交 `.github/workflows/`，自动化验证以本地命令为准。
-- AVP 的手部追踪、平面检测、BLE MIDI 与视觉舒适度需要 Apple Vision Pro 真机验证。
- - AVP 的 Local Network（Bonjour 发现 + HTTP/WS 连接）也需要真机验证与局域网环境配合。
+- 真实钢琴麦克风识别
+- 蓝牙 MIDI
+- 空间虚拟钢琴
+
+AI 对弹支持：
+
+- 本地规则后端
+- 本地 CoreML 后端（需要模型资源）
+- Aria v2 HTTP/WS 网络后端（需要 Mac 服务与 Local Network 权限）
+
+## 验证边界
+
+- 纯模型、reducer、range、matcher 等逻辑可以在跨平台 Swift harness 中验证。
+- App target、SwiftUI、RealityKit、AVFoundation、CoreMIDI 与资源集成必须使用 Xcode 和 visionOS SDK。
+- 手部追踪、麦克风、蓝牙 MIDI、真实空间对齐、Local Network 与舒适度需要 Apple Vision Pro 真机。
+- 当前源码归档缺少 Bravura、SoundFont 和 CoreML 模型；相关测试不能标记为已通过。

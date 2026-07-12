@@ -1,132 +1,161 @@
 # Module: AVP Practice
 
-AVP practice 由 `PracticeSessionViewModel`、state store、输入服务、回放服务、guide/notation 服务和沉浸空间 overlay 共同组成。
+AVP practice 由 session state、输入匹配、回放、进度、反馈、谱面与 RealityKit overlay 组成。
 
 ## 核心对象
 
 | 对象 | 作用 |
 | --- | --- |
-| `PracticeSessionViewModel` | 对 UI 暴露练习命令与状态，分派 session effects。 |
-| `PracticeSessionStateStore` | 练习状态真源。 |
-| `PracticeSessionEffect` | 统一表达推进、播放、停止、刷新输入等副作用。 |
-| `PracticeSessionEffectHandlerProtocol` | 执行副作用的协议边界。 |
-| `PracticeStepNavigator` | step / measure 导航。 |
-| `PracticePlaybackControlService` | 自动播放、手动回放、sequence 构建和前置检查。 |
+| `PracticeSessionViewModel` | 对 UI 暴露状态与命令，协调 session effects。 |
+| `PracticeSessionStateStore` | 练习 session 的可观察状态真源。 |
+| `PracticeRoundConfigurationController` | pending / active configuration。 |
+| `PracticeMeasureIndex` | source measure、occurrence 与 step 映射。 |
+| `PracticeActiveRange` | 片段的 step/tick/measure 边界。 |
+| `PracticeStepNavigator` | 范围内 step 与 measure 导航。 |
+| `PracticePlaybackControlService` | autoplay、tempo、回放和输入抑制。 |
+| `PracticeProgressCoordinator` | load、checkpoint、flush 和 generation 防护。 |
+
+## 曲谱契约
+
+`PracticePreparationService` 的正式输入是 MusicXML。可进入练习的 `PreparedPractice` 必须包含：
+
+- stable song UUID 与 score revision
+- `PracticeStep[]`
+- `MusicXMLMeasureSpan[]`
+- tempo、pedal、fermata 等时间线
+- highlight guides
+- notation 输入
+
+不支持“有 steps、无小节”的兼容模式。新增非 MusicXML 来源前，应先定义新的产品模式和数据契约，而不是在现有 session 中添加 fallback。
+
+`HappyPianistAVPTests/Fixtures/PracticeLearningLoopEightMeasures.musicxml` 是测试 fixture，不是产品内置曲目。
+
+## 配置与范围
+
+一轮练习的配置包含：
+
+- passage
+- hand mode
+- tempo scale
+- loop enabled
+- required successes
+
+设置先写入 pending configuration；应用或 restart 时生成新的 active configuration。本轮开始后 active configuration 不可变。
+
+`PracticeActiveRange` 是以下消费者的唯一范围来源：
+
+- 导航
+- 五线谱 viewport
+- 琴键高亮
+- autoplay
+- manual replay
+- round completion
+
+换曲或 score revision 改变时必须安装新曲目的范围，不能复用上一首曲目的 passage。
 
 ## 输入与匹配
 
-| 输入 | 服务 | 匹配方式 |
+| 输入 | 服务 | 主要判定对象 |
 | --- | --- | --- |
-| 真实音频 | `PracticeAudioRecognitionInputService` | `AudioStepAttemptAccumulator` 与 harmonic template detector。 |
-| BLE MIDI | `PracticeMIDIInputService` | `MIDIPracticeStepMatcher` 对 note-on 与 expected notes 做 deterministic matching。 |
-| 虚拟钢琴 | `VirtualPianoInputController` | `KeyContactDetectionService` 将手指接触转成 note events。 |
-| 手部真实钢琴 | `PracticeHandGateController` / `HandPianoActivityGate` | 管理左右手活动 gate 与触键判定。 |
+| 麦克风 | `PracticeAudioRecognitionInputService` | `AudioStepAttemptAccumulator` |
+| Bluetooth MIDI | `PracticeMIDIInputService` | `MIDIPracticeStepMatcher`、`ChordAttemptAccumulator` |
+| 虚拟钢琴 | `VirtualPianoInputController` | `KeyContactDetectionService` |
+| 真实琴手部 gate | `PracticeHandGateController` | `HandPianoActivityGate` |
 
-BLE MIDI 输入在自动播放、手动回放或非 guiding 状态下不会推进 step，避免输出事件反向触发练习判定。
+matcher 只返回 reducer 需要的 typed outcome kind。不要重新增加未消费的 debug payload、source 标记、note set 副本或字符串解析分支。
 
-### 练习手（左/右/双手）
+用户 attempt 的条件：
 
-- 练习手会影响“当前 step 里哪些音符需要用户完成”：单手模式会把另一只手的音符从 expected notes 中排除。
-- Step 判定采用“左右手分别满足”的规则并且 **强制启用**（不再提供 UI 开关）。在单手模式下，非练习手的 expected notes 为空，因此视为自动满足；在双手模式下需要左右手都满足才会推进。
+- session 处于 guiding
+- `acceptsPracticeAttempts == true`
+- 不是 autoplay、manual replay 或 AI output
+- event 属于当前 round generation
 
-## Guide 与谱面
+## 小节事实与进度
 
-| 服务 | 输出 |
-| --- | --- |
-| `PianoHighlightGuideBuilderService` | `PianoHighlightGuide[]`，用于空间琴键高亮和自动播放。 |
-| `PracticeHighlightGuideController` | 当前 step 的 active/release/gap guide 状态。 |
-| `GrandStaffNotationLayoutService` | 双谱表布局项目。 |
-| `GrandStaffNotationViewportLayoutService` | 当前视口内的谱面上下文。 |
-| `GrandStaffNotationView` / `GrandStaffNotationRenderer` | SwiftUI 谱面渲染。 |
+`PracticeAttemptReducer` 把 step attempt 聚合为 source-measure facts：
 
-`PianoHighlightGuideBuilderService` 使用 MusicXML note、span、rest 与 expressivity 信息构建 guide；不能解析的数据不会被描述成完整伪 guide。
+- 尝试次数与成功次数
+- 当前 streak
+- stable 状态
+- 本轮最后一次 typed issue
+- resume point
 
-### 单手模式下的高亮推进（当前策略）
+规则：
 
-单手模式下，高亮/滚动/自动推进目前 **不做额外的“按手过滤或跳过”处理**：可能出现“当前段落只有另一只手有音符，但谱面高亮仍推进到该段落”的情况。当前产品策略是让用户使用练习页底部的 `Next step` 按钮手动跳过（先不做自动快进或静音伴奏策略）。
+- streak 按手别、tempo 和本轮条件隔离。
+- 同一小节发生错误后，后续单个正确 step 不能提前清除该轮错误。
+- 已 stable 小节不会因未完成的新一轮局部尝试立即降级。
+- passage stable 必须覆盖目标范围中的全部 source measure。
+- loop 达到 `requiredSuccesses` 后结束，不开始额外一轮。
 
-### 音符高亮颜色（左右手）
+`PracticeProgressCoordinator` 防止旧曲目或旧 generation 的 load/save 覆盖当前 session。退出路径必须 await flush。
 
-- 钢琴键高亮会区分左右手：右手为明亮黄色系，左手为明亮蓝色系。
-- 五线谱当前高亮的音符也按左右手着色（右手黄、左手蓝），用于视觉上快速区分手部责任。
+## 恢复
 
-## 自动播放
+恢复过程：
 
-```mermaid
-flowchart TD
-  A[PreparedPractice] --> B[PracticePlaybackControlService]
-  B --> C{preflight}
-  C -->|missing timeline or guides| D[error message]
-  C -->|ok| E[AutoplayPerformanceTimeline]
-  E --> F[PracticeSessionViewModel effects]
-  F --> G[sequencer note events]
-  F --> H[guide phase updates]
-  F --> I[step navigation]
+```text
+prepare score
+-> match song UUID + score revision
+-> load active configuration and resume point
+-> resolve active range
+-> restore step index
+-> remain ready/paused
 ```
 
-启动自动播放前必须具备 pedal timeline、fermata timeline、highlight guides 和严格 trigger guide index。缺失时返回中文错误消息并阻止启动。
+恢复时不得：
 
-## 回放与发声路由（蓝牙 MIDI）
+- 自动 note-on
+- 启动 sequencer
+- 预览当前 step
+- 接受输入 attempt
 
-练习回放通过 `PracticeSequencerPlaybackServiceProtocol` 抽象输出；在蓝牙 MIDI 模式下会根据用户设置切换实现：
+用户明确点击继续后才进入 guiding。
 
-- `AVAudioSequencerPracticePlaybackService`：本地 sampler（仅 AVP 发声，受 AVP 输出音量影响）。
-- `CoreMIDIPracticePlaybackService`：外部 MIDI destination（仅真实钢琴发声，音量/力度由 MIDI velocity 与钢琴自身响应决定）。
+## 回放
 
-## 录制与 take library
+`PracticePlaybackControlService` 使用 active range 和 tempo scale 构建当前片段的 playback timeline。踏板事件采用半开区间，不包含片段上界事件。
 
-| 代码 | 说明 |
-| --- | --- |
-| `RecordingTakeRecorder` | 在练习中记录 note events。 |
-| `MIDIRecordingAdapter` | 把 MIDI 1.0/2.0 输入转换成 recorder event。 |
-| `RecordingTakeStore` | 保存 `TakeLibrary/takes.json`。 |
-| `TakePlaybackController` | 回放录制 take。 |
-| `RecordingTakeSequenceAdapter` | 把 take 转成 sequencer sequence。 |
-| `RecordingMIDIExportService` | 导出 MIDI。 |
+发声实现：
 
-## AI performance
+- `AVAudioSequencerPracticePlaybackService`：AVP 本地 sampler，需要 `SalC5Light2.sf2`。
+- `CoreMIDIPracticePlaybackService`：发送到用户选择的外部 MIDI destination。
 
-| 代码 | 说明 |
-| --- | --- |
-| `AIPerformanceService` | 运行连续控制回路，按短窗请求后端并把整形结果送入可替换调度器。 |
-| `ImprovScheduleBuilder` | 将生成 note 转成回放 schedule。 |
-| `LocalCoreMLDuetImprovBackend` | 本地 CoreML 生成（Performance RNN 单步模型采样）。 |
-| `LocalRuleImprovBackend` | 本地 rule 生成（AVP 内嵌实现）。 |
-| `AriaNetworkBonjourHTTPImprovBackend` | 可选网络后端：Bonjour + HTTP `/generate`（v2 events）。 |
-| `AriaNetworkBonjourWebSocketImprovBackend` | 可选网络后端：Bonjour + WebSocket `/stream`（v2 chunk events）。 |
+输出期间输入匹配保持抑制，避免回放反向推进练习。
 
-说明：
+## 正反馈
 
-- 网络后端需要 Mac 侧启动 `python_backend/aria_server/` 服务，并在 AVP 真机允许 Local Network 权限后通过 Bonjour 发现 `_lpduet._tcp`。
-- 网络后端以 v2 events 为协议真源（notes + CC64/7/11）；AVP 端以 rolling context + short future window 方式请求候选素材，并用 `ImprovScheduleBuilder`/response shaper 统一转成回放 schedule。
-- 当前质量环路会先做 deterministic symbolic 质量评分与护栏；`localRule` 后端可在服务层做多候选采样，再按质量分数选出更优短窗。
-- `lastImprovStatusText` 现在会带紧凑诊断信息，例如 quality band、candidate 数量与首要 reject reason，便于调参但不持久化原始演奏日志。
+| 派生对象 | 来源 | 展示 |
+| --- | --- | --- |
+| feedback event | 当前 typed attempt | 顶部非模态 cue、空间恢复效果 |
+| hotspot | 当前 passage 的 measure facts | 一个主要卡点 |
+| next action | hotspot 与 round 状态 | 一个确定性操作 |
+| round summary | active configuration + passage facts | 片段、手别、速度、结果和下一步 |
+| measure map | durable facts | 未开始、练习中、稳定 |
 
-## 调试边界
+反馈不保存到 JSON。相同 issue 的后续 attempt 通过事件序号区分，确保 UI 可以重新呈现。进入后台、换曲、restart、窗口关闭和 immersive dismiss 会立即失效 presentation。
 
-- Simulator 可覆盖 ViewModel、MusicXML、matching、timeline 等逻辑测试。
-- 真机才可验证 hand tracking、音频输入、空间 overlay 对齐、平面检测、BLE MIDI 与局域网权限。
+## 录制与 take
 
-## P1 练习闭环验收曲谱
+- `RecordingTakeRecorder` 聚合 note/control events。
+- `MIDIRecordingAdapter` 接收 MIDI 1.0/2.0。
+- `RecordingTakeStore` 保存 `Documents/TakeLibrary/takes.json`。
+- `TakePlaybackController` 回放 take。
+- `RecordingMIDIExportService` 导出 `.mid`。
 
-`HappyPianistAVPTests/Fixtures/PracticeLearningLoopEightMeasures.musicxml` 是为自动化测试专门编写的合成曲谱，不是产品内置曲目。它包含八个原始小节、双谱表左右手、两个速度事件、一个右手和弦和一次前后反复，用于校验 parser、结构展开、手别路由、step builder 与 source/occurrence measure identity。
+## 测试重点
 
-当前仓库没有版权与来源均已确认的生产内置练习曲，因此设备验收应由测试人员导入许可明确的 MusicXML 曲目。不得把上述测试 fixture 描述为首发内置内容，也不得在缺少真实资源时把“内置曲目练习闭环”标记为通过。
+- source/occurrence measure identity 与 repeat
+- 单手 step 过滤与空 expected-note 边界
+- active range 半开区间
+- tempo、loop、required successes
+- wrong/missing/incomplete chord outcome
+- stable 状态与 streak
+- A/B 曲目乱序恢复
+- flush-before-teardown
+- paused resume 静默
+- feedback generation、重复事件和 lifecycle cleanup
+- summary 与 measure map 只消费当前 passage facts
 
-## P1 可恢复练习会话
-
-- `PracticeSongIdentity` 使用曲库 UUID 与曲谱 revision digest，避免同名文件或覆盖导入串进度。
-- `PracticeProgressCoordinator` 负责 generation-safe checkpoint、合并写入和退出前 flush。
-- 恢复后 session 保持 paused-ready，不预览当前音、不自动启动 sequencer。
-- active range 统一约束导航、谱面、琴键高亮、自动播放、手动重播和完成条件。
-- typed attempt outcome 只表达 matched、wrong note、missing notes、incomplete chord 与 insufficient evidence；不能通过解析错误字符串生成进度。
-
-麦克风识别仍属于实验路径。特别是三音及以上和弦的证据完整度受 detector 能力限制，P1 不把它描述成与 MIDI 相同的严格和弦完整判定。
-
-## P2 正反馈
-
-- typed attempt 只派生一个主要卡点与一个确定性下一步；结果不持久化。
-- 当前小节 cue 为顶部非模态短提示；一轮结束后可直接重练主要小节。
-- 设置中的小节恢复地图只显示尚未开始、正在练习、已经稳定，并从 durable facts 恢复。
-- immersive 点亮效果复用 piano-guide root；换曲、restart 与 dismiss 统一清理。
-- Simulator/真机验收状态见 `docs/testing/practice-feedback-usability-checklist.md`。
+完整 Apple target 命令见 [../testing/practice-learning-loop-p1-checklist.md](../testing/practice-learning-loop-p1-checklist.md)。

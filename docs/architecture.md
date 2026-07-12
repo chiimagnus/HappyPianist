@@ -4,113 +4,113 @@
 
 ```mermaid
 flowchart LR
-  MIDI[MIDI devices / MIDI files] --> MAC[macOS recorder]
-  MAC --> STORE[(SwiftData takes)]
-  MAC --> OUT[Built-in sampler / CoreMIDI destination]
-
-  XML[MusicXML / MXL] --> LIB[AVP Song Library]
+  XML[MusicXML / MXL] --> LIB[Song Library]
   LIB --> PREP[PracticePreparationService]
   PREP --> SESSION[PracticeSessionViewModel]
 
-  SESSION --> AR[RealityKit overlays]
-  SESSION --> AUDIO[AVAudioSequencerPracticePlaybackService]
-  SESSION --> BLE[BluetoothMIDIInputEventSourceService]
-  SESSION --> MIC[PracticeAudioRecognitionService]
+  MIC[Microphone] --> SESSION
+  MIDI[Bluetooth MIDI] --> SESSION
+  VPIANO[Virtual Piano] --> SESSION
 
-  SESSION --> IM[ImprovBackendRegistry]
-  IM -->|optional: Bonjour + HTTP/WS| ARIA[Mac Aria v2 server]
+  SESSION --> PLAY[Playback / Recording]
+  SESSION --> PROGRESS[Practice Progress]
+  SESSION --> FEEDBACK[Feedback / Summary / Map]
+  SESSION --> IMMERSIVE[RealityKit Overlays]
+
+  SESSION --> AI[ImprovBackendRegistry]
+  AI --> LOCAL[Local Rule / CoreML]
+  AI -->|optional| ARIA[Mac Aria v2 Server]
 ```
 
 ## 运行时边界
 
-| 运行单元 | 位置 | 生命周期 | 核心职责 |
-| --- | --- | --- | --- |
-| macOS app | `HappyPianist/` | 单窗口 app | CoreMIDI 输入、take 录制、MIDI 导入、回放输出选择、SwiftData 持久化 |
-| visionOS app | `HappyPianistAVP/` | 3 个 Window + 1 个 mixed `ImmersiveSpace` | 钢琴准备、曲库、校准、练习、虚拟钢琴、BLE MIDI、AI 即兴 |
+| 单元 | 位置 | 核心职责 |
+| --- | --- | --- |
+| visionOS App | `HappyPianistAVP/` | 三窗口流程、沉浸空间、曲库、练习、录制与 AI 对弹。 |
+| visionOS Tests | `HappyPianistAVPTests/` | 业务逻辑和 Apple target 集成测试。 |
+| RealityKit 内容包 | `Packages/RealityKitContent/` | Reality Composer Pro 资产和 bundle。 |
+| Python 服务（可选） | `python_backend/` | Aria v2 推理、Bonjour、HTTP/WS 与 smoketest。 |
 
-## macOS 架构
-
-```mermaid
-flowchart TD
-  APP[HappyPianistApp] --> VM[HappyPianistViewModel]
-  VM --> IN[CoreMIDIInputService]
-  VM --> REC[DefaultRecordingService]
-  VM --> REPO[SwiftDataRecordingTakeRepository]
-  VM --> ROUTE[RoutedMIDIPlaybackService]
-  ROUTE --> SAMPLER[AVSamplerMIDIPlaybackService]
-  ROUTE --> MIDI_OUT[CoreMIDIOutputMIDIPlaybackService]
-  MIDI_OUT --> OUT[CoreMIDIOutputService]
-  REPO --> DATA[(HappyPianist.store)]
-```
-
-当前 macOS app 的核心对象：
-
-- `HappyPianistViewModel`：状态、take 列表、录制/回放命令、MIDI import。
-- `CoreMIDIInputService`：MIDI 1.0/2.0 note/control 事件输入。
-- `RoutedMIDIPlaybackService`：内建 sampler 与外部 destination 的输出路由。
-- `SwiftDataRecordingTakeRepository`：`RecordingTakeEntity` / `RecordedNoteEntity` 持久化。
-
-## visionOS 架构
+## App 依赖图
 
 ```mermaid
 flowchart TD
   APP[HappyPianistAVPApp] --> STATE[AppState]
   STATE --> SETUP[PracticeSetupState]
-  STATE --> WIN[WindowTransitionState]
-  STATE --> ARVM[ARGuideViewModel]
-  STATE --> LIBVM[SongLibraryViewModel]
-  STATE --> REG[PianoModeRegistryService]
+  STATE --> WINDOW[WindowTransitionState]
+  STATE --> LIBRARY[SongLibraryViewModel]
+  STATE --> ARGUIDE[ARGuideViewModel]
+  STATE --> MODES[PianoModeRegistryService]
 
-  REG --> REAL[RealAudioPianoMode]
-  REG --> BMIDI[BluetoothMIDIPianoMode]
-  REG --> VIRT[VirtualPianoMode]
+  LIBRARY --> FILES[SongFileStore]
+  LIBRARY --> INDEX[SongLibraryIndexStore]
+  LIBRARY --> PREP[PracticePreparationService]
 
-  LIBVM --> PREP[PracticePreparationService]
   PREP --> PARSER[MusicXMLParser]
-  PREP --> ROUTER[MusicXMLHandRouter]
+  PREP --> EXPAND[MusicXMLStructureExpander]
+  PREP --> HANDS[MusicXMLHandRouter]
   PREP --> STEPS[PracticeStepBuilder]
   PREP --> GUIDES[PianoHighlightGuideBuilderService]
 
-  ARVM --> PSESSION[PracticeSessionViewModel]
-  PSESSION --> PLAY[PracticePlaybackControlService]
-  PSESSION --> MIDI[PracticeMIDIInputService]
-  PSESSION --> AIN[PracticeAudioRecognitionInputService]
-  PSESSION --> VINPUT[VirtualPianoInputController]
-  PSESSION --> HG[PracticeHighlightGuideController]
+  ARGUIDE --> SESSION[PracticeSessionViewModel]
+  SESSION --> INPUT[Audio / MIDI / Virtual Input]
+  SESSION --> PLAYBACK[Playback Services]
+  SESSION --> PROGRESS[PracticeProgressCoordinator]
+  SESSION --> FEEDBACK[Feedback Policies]
 ```
 
-关键约束：
+`AppState.configureLiveAppGraphIfNeeded()` 是 live app 的 composition root。新增服务必须在创建它的 task 中完成注入和消费；不要留下未接入的协议或实现。
 
-- `AppState.configureLiveAppGraphIfNeeded()` 是 live app 的依赖组装点。
-- `PracticeSetupState` 保存当前钢琴模式、校准完成状态、虚拟钢琴放置状态、BLE MIDI source 数和已准备的 MusicXML steps。
-- `WindowTransitionState` 只负责 preparation/library/practice 三窗口的替换式导航。
-- `PianoModeProtocol` 决定准备页 route、进入曲库 gate、练习追踪模式和录制来源文案。
+## 窗口与空间
 
-## 关键契约
+`HappyPianistAVPApp` 声明：
 
-| 契约 | 位置 | 作用 |
+- `preparation` window
+- `library` window
+- `practice` window
+- mixed `ImmersiveSpace`
+
+`WindowTransitionState` 负责替换式窗口切换。`ARGuideViewModel` 协调沉浸空间、追踪、练习 session、录制与 AI 服务。
+
+## 主要领域边界
+
+| 边界 | 核心类型 | 说明 |
 | --- | --- | --- |
-| `RecordingTake` / `RecordedNote` | macOS models | macOS recorder 的 take 与 note 数据 |
-| `SongLibraryIndex` / `SongLibraryEntry` | AVP library models | 用户导入曲库索引 |
-| `StoredWorldAnchorCalibration` | AVP calibration models | A0/C8 world anchor 持久化 |
-| `PracticeStep` / `PracticeStepNote` | AVP practice models | 练习 step 与 expected notes |
-| `PianoHighlightGuide` / `PianoHighlightNote` | AVP practice models | 自动播放、高亮、五线谱布局输入 |
-| `MIDI1InputEvent` / `MIDI2InputEvent` | AVP MIDI models | BLE MIDI 协议分流后的练习输入 |
-| `ImprovGenerateRequestV2` / `ImprovResultResponseV2` | AVP AI services | AI 即兴后端的 v2 request/response（events-first） |
+| 曲库 | `SongLibraryEntry`、`SongLibraryIndex` | bundled 与用户导入曲目的统一索引。 |
+| 曲谱准备 | `PreparedPractice`、`PracticePreparationService` | MusicXML 到 steps、measure spans、timelines、guide 与 notation 输入。 |
+| 练习配置 | `PracticeRoundConfigurationController` | pending 与 active round configuration。 |
+| 范围 | `PracticeMeasureIndex`、`PracticeActiveRange` | 小节、step、回放、谱面和完成边界的统一投影。 |
+| 判定 | `StepAttemptMatchResult`、matcher/accumulator | 输入证据转换为 typed attempt outcome。 |
+| 进度 | `SongPracticeProgress`、`PracticeProgressCoordinator` | 小节级事实、恢复点、generation-safe 保存。 |
+| 反馈 | feedback policies、view models | 从 durable facts 派生 cue、summary、map 和空间效果。 |
+| 录制 | `RecordingTakeRecorder`、`RecordingTakeStore` | 练习中的 MIDI 风格事件记录、回放与导出。 |
+| AI | `ImprovBackendRegistry`、`AIPerformanceService` | 严格使用用户选择的本地或网络后端。 |
 
-## 危险修改区
+## 关键不变量
 
-| 区域 | 风险 | 建议验证 |
+- 正式曲谱来源是 MusicXML；可进入练习的 prepared result 必须同时有 steps 与 measure spans。
+- `PracticeStep` 是即时判定单位；持久化事实聚合到 source measure。
+- 重复结构用 occurrence identity 定位播放位置，用 source identity 汇总学习事实。
+- 本轮 active configuration 在一轮中不可变；设置修改只影响下一轮。
+- 退出、后台、换 session 与完成流程必须先停止新 attempt，再 flush 进度，最后 teardown 输入和回放。
+- feedback 表现不进入 progress JSON。
+- AI 失败不改变练习进度，也不自动切换后端。
+
+## 高风险修改区
+
+| 区域 | 风险 | 最低验证 |
 | --- | --- | --- |
-| `HappyPianistViewModel.handleMIDIEvent` | 影响 macOS pressed notes、录制 preview 与 take 内容 | macOS tests + 手工录制/回放 |
-| `CoreMIDIInputService.handleUniversalMessage` | MIDI 1.0/2.0 velocity 与 noteOff 语义漂移 | macOS tests + MIDI 设备冒烟 |
-| `PracticePreparationService.prepare` | 影响 MusicXML parsing、分手、tempo、pedal、guide 与 step 全链路 | AVP MusicXML tests |
-| `PracticePlaybackControlService` | 影响 autoplay、manual replay、audio recognition suppress 与错误提示 | AVP practice tests |
-| `BluetoothMIDIInputEventSourceService` | BLE MIDI source 生命周期、协议解码、广播 stream | BLE MIDI tests + 真机 |
-| `VirtualPianoInputController` / `KeyContactDetectionService` | 虚拟键触发、黑键优先、迟滞阈值 | VirtualPiano tests + 真机 |
-| `ARTrackingService.start(mode:)` | provider 权限和沉浸空间可用性 | AVP tests + 真机 |
+| `PracticePreparationService` | parser、repeat、手别、tempo、guide 与 identity 全链路 | MusicXML + preparation tests |
+| `PracticeSessionViewModelCommands` | range、resume、round、completion 与 feedback 生命周期 | session + progress + feedback tests |
+| `PracticeAttemptReducer` | streak、稳定状态与错误事实 | reducer tests |
+| `PracticeProgressCoordinator` | 乱序 load/save、flush 与跨曲污染 | delayed repository tests |
+| `PracticePlaybackControlService` | tempo、片段边界、pedal 与输入抑制 | playback/autoplay tests |
+| MIDI/audio matcher | 错音、漏音、和弦与证据不足 | matcher tests |
+| `ARGuideViewModel` / `ImmersiveView` | scenePhase、tracking 和 overlay 清理 | Simulator + Vision Pro |
+| `SongLibraryViewModel` | 导入、删除、revision、继续练习与换曲 | library + preparation tests |
 
-## Coverage Gaps
+## 验证分层
 
-- 没有跨 macOS 与 AVP 的端到端自动化门禁。
-- AVP sensor-dependent 行为需要真机验证。
+1. 纯 Swift：模型、reducer、range、matcher、repository、policy。
+2. Xcode target：完整类型检查、资源、SwiftUI、RealityKit、AVFoundation、CoreMIDI 集成。
+3. Simulator / Vision Pro：窗口、生命周期、声音、MIDI、手部追踪、空间对齐与舒适度。

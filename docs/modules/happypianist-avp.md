@@ -1,82 +1,112 @@
 # Module: HappyPianistAVP
 
-`HappyPianistAVP/` 是 Apple Vision Pro 练习端。它围绕“准备 -> 曲库 -> 练习”三窗口和一个沉浸空间组织代码。
+`HappyPianistAVP/` 是 Apple Vision Pro App target，围绕准备、曲库、练习三个窗口和一个 mixed immersive space 组织。
 
 ## App 与窗口
 
-| 代码 | 说明 |
+| 代码 | 作用 |
 | --- | --- |
-| `HappyPianistAVP/Views/HappyPianistAVPApp.swift` | `@main` app，创建 `AppState`，声明 preparation/library/practice windows 与 `ImmersiveSpace`。 |
-| `HappyPianistAVP/Models/WindowID.swift` | 窗口 id：`preparation`、`library`、`practice`。 |
-| `HappyPianistAVP/ViewModels/AppState.swift` | 依赖图、校准、曲库、AR guide、piano mode registry 与 window state。 |
-| `HappyPianistAVP/ViewModels/PracticeSetupState.swift` | 准备阶段状态。 |
-| `HappyPianistAVP/ViewModels/WindowTransitionState.swift` | 跨窗口 transition 状态。 |
+| `HappyPianistAVP/Views/HappyPianistAVPApp.swift` | 创建 `AppState`，声明三个窗口与 `ImmersiveSpace`。 |
+| `HappyPianistAVP/Models/WindowID.swift` | `preparation`、`library`、`practice` window ID。 |
+| `HappyPianistAVP/ViewModels/AppState.swift` | live composition root 与共享依赖。 |
+| `HappyPianistAVP/ViewModels/PracticeSetupState.swift` | 准备阶段 readiness 状态。 |
+| `HappyPianistAVP/ViewModels/WindowTransitionState.swift` | 窗口替换 transition。 |
+| `HappyPianistAVP/ViewModels/ARGuide/ARGuideViewModel.swift` | 练习、追踪、沉浸空间、录制与 AI 的总协调器。 |
 
-当前代码没有 `HappyPianistAVP/Models/AppFlow/FlowState.swift`、`HappyPianistAVP/ViewModels/WindowCoordinator.swift` 或 `HappyPianistAVP/Services/AppFlow/`。
+窗口使用系统背景与 replacement placement。属于窗口 chrome 的操作优先放在 toolbar/ornament，不在 content 内复制悬浮控制条。
 
 ## 钢琴模式
 
-| 模式 | 类型 | 进入曲库条件 | 练习追踪模式 |
-| --- | --- | --- | --- |
-| 真实钢琴（音频） | `RealAudioPianoMode` | A0/C8 校准完成 | `.practiceVirtualOrAudio` |
-| 真实钢琴（蓝牙 MIDI） | `BluetoothMIDIPianoMode` | A0/C8 校准完成且 source 数量大于 0 | `.practiceBluetoothMIDI`，若启用虚拟琴则转为 `.practiceVirtualOrAudio` |
-| 虚拟钢琴 | `VirtualPianoMode` | 虚拟钢琴完成放置 | `.practiceVirtualOrAudio` |
+`PianoModeCatalogService.makeDefaultModes()` 注册三种模式：
 
-模式注册由 `PianoModeCatalogService.makeDefaultModes()` 与 `PianoModeRegistryService` 完成。
+| 模式 | 进入曲库条件 | 练习输入 |
+| --- | --- | --- |
+| 真实钢琴（音频） | A0/C8 校准完成 | 麦克风识别 + 手部追踪。 |
+| 真实钢琴（蓝牙 MIDI） | 校准完成且至少一个 MIDI source | CoreMIDI MIDI 1.0/2.0。 |
+| 虚拟钢琴 | 虚拟键盘放置完成 | 手部接触虚拟琴键。 |
 
-### 蓝牙 MIDI 模式的发声路由
-
-当选择“真实钢琴（蓝牙 MIDI）”时，练习回放支持两种路由：
-
-- 仅 AVP 发声：使用 AVP 内置 sampler（音量由练习设置里的“输出音量（AVP）”控制）。
-- 仅真实钢琴发声：把回放事件通过 CoreMIDI 发送到用户选择的 MIDI destination（`kMIDIPropertyUniqueID` 可能为负数；`0` 表示未选择）。
-
-## 准备阶段 UI
-
-| 代码 | 说明 |
-| --- | --- |
-| `HappyPianistAVP/Views/PianoChoose/Preparation/PreparationWindowRootView.swift` | preparation window root。 |
-| `HappyPianistAVP/Views/PianoChoose/PianoTypePickerView.swift` | 选择钢琴类型。 |
-| `HappyPianistAVP/Views/PianoChoose/PianoModePreparationRouterView.swift` | 根据 mode route 到准备页。 |
-| `HappyPianistAVP/Views/PianoChoose/MicrophonePianoPreparationView.swift` | 真实钢琴音频准备。 |
-| `HappyPianistAVP/Views/PianoChoose/BluetoothPianoPreparationView.swift` | BLE MIDI 准备，嵌入 `CABTMIDICentralViewController`。 |
-| `HappyPianistAVP/Views/PianoChoose/VirtualPianoPreparationView.swift` | 虚拟琴放置准备。 |
+准备 UI 位于 `HappyPianistAVP/Views/PianoChoose/`。模式差异通过 `PianoModeProtocol` 表达，不在 View 中维护平行的 mode switch。
 
 ## 曲库
 
-| 代码 | 说明 |
+| 代码 | 作用 |
 | --- | --- |
-| `HappyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift` | 合并 bundled entries 与用户导入 entries，管理导入、删除、音频绑定与进入练习。 |
-| `HappyPianistAVP/Services/Library/BundledSongLibraryProvider.swift` | 扫描 bundle 内置曲谱。 |
-| `HappyPianistAVP/Services/Library/SongFileStore.swift` | 写入用户导入 MusicXML。 |
-| `HappyPianistAVP/Services/Library/AudioImportService.swift` | 写入用户绑定音频。 |
-| `HappyPianistAVP/Services/Practice/Session/PracticePreparationService.swift` | 把 MusicXML 转成 `PreparedPractice`。 |
+| `HappyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift` | 合并 bundled/imported entries，管理选择、试听、导入、删除和进入练习。 |
+| `HappyPianistAVP/Services/Library/SongFileStore.swift` | 导入 MusicXML 到 Documents。 |
+| `HappyPianistAVP/Services/Library/SongLibraryIndexStore.swift` | 保存用户曲库索引。 |
+| `HappyPianistAVP/Services/Library/BundledSongLibraryProvider.swift` | 扫描 App bundle 中的 `.musicxml`。 |
+| `HappyPianistAVP/Services/Library/AudioImportService.swift` | 绑定 `.mp3` / `.m4a` 试听音频。 |
+| `HappyPianistAVP/Services/Practice/Session/PracticePreparationService.swift` | 把所选曲谱转换成 `PreparedPractice`。 |
 
-曲库 UI 直接使用 visionOS 系统窗口背景，并通过 `ToolbarItemGroup(placement: .bottomOrnament)` 提供播放与开始练习操作。中心唱片上拽可导入 `.xml`、`.musicxml` 或 `.mxl`；用户曲目的音频替换与删除位于唱片 context menu。
+支持 `.musicxml`、`.xml`、`.mxl`。正式生产导入链只有：
+
+```text
+Library View -> SongLibraryViewModel -> SongFileStore
+```
+
+不要重新引入平行的 MusicXML import service。
+
+源码归档没有 bundled production score；`BundledSongLibraryProvider` 只有在 App target 实际包含 `.musicxml` 时才会产生内置曲目。
+
+## 练习窗口
+
+`HappyPianistAVP/Views/Practice/PracticeWindowRootView.swift` 承载：
+
+- 五线谱和 step 控制
+- 片段设置
+- 练习设置
+- 非模态 feedback cue
+- round summary
+- measure restoration map
+- take library
+
+业务状态由 `PracticeSessionViewModel`、反馈 view models 和 `ARGuideViewModel` 提供。View 不直接读写 repository 或设备服务。
+
+详见 [happypianist-avp-practice.md](happypianist-avp-practice.md)。
 
 ## 沉浸空间
 
-| 代码 | 说明 |
+| 代码 | 作用 |
 | --- | --- |
-| `HappyPianistAVP/Views/Shared/ImmersiveView.swift` | RealityKit/ARKit overlay 容器。 |
-| `HappyPianistAVP/Services/Tracking/ARTrackingService.swift` | 根据 `ARTrackingMode` 启停 hand/world/plane providers。 |
-| `HappyPianistAVP/Services/Immersive/*OverlayController.swift` | 校准、琴键高亮、虚拟琴、虚拟演奏者等 overlay。 |
-| `HappyPianistAVP/ViewModels/ARGuide/ARGuideViewModel.swift` | 沉浸空间总协调器。 |
+| `HappyPianistAVP/Views/Shared/ImmersiveView.swift` | `RealityView` 容器和 overlay 挂载点。 |
+| `HappyPianistAVP/Services/Tracking/ARTrackingService.swift` | 按 `ARTrackingMode` 管理 ARKit providers。 |
+| `Services/Immersive/*OverlayController.swift` | 校准、琴键、虚拟钢琴和调试 overlay。 |
+| `PianoGuideOverlayController` | 高亮与练习恢复效果的共享 root。 |
 
-ARKit provider 只应在沉浸空间内运行；窗口 UI 不应假设 hand/world/plane data 在 shared space 可用。
+规则：
+
+- ARKit provider 只在 immersive space 内运行。
+- 进入后台、换曲、restart、关闭窗口和退出 immersive 时清理长生命周期 task 与 entity。
+- Reduce Motion 和 Differentiate Without Color 必须有等价表现。
+
+## 录制
+
+练习中的 note/control 事件可写入 `RecordingTakeStore`，在 take library 中回放，并通过 `RecordingMIDIExportService` 导出 MIDI。录制数据属于 AVP App，不依赖已删除或不存在的 macOS target。
+
+## AI 对弹
+
+`ImprovBackendRegistry` 提供：
+
+- 本地规则后端
+- 本地 CoreML 后端
+- Aria v2 HTTP 后端
+- Aria v2 WebSocket streaming 后端
+
+本地 CoreML 需要模型资源；网络后端需要 Mac 侧 Python 服务。系统严格使用用户选择的后端，不做静默 fallback。
 
 ## 本地验证
 
 ```bash
-xcodebuild -showdestinations -project HappyPianist.xcodeproj -scheme HappyPianistAVP
-xcodebuild test -project HappyPianist.xcodeproj -scheme HappyPianistAVP -destination 'platform=visionOS Simulator,id=<device-id>' CODE_SIGNING_ALLOWED=NO
+xcodebuild -showdestinations \
+  -project HappyPianist.xcodeproj \
+  -scheme HappyPianistAVP
+
+xcodebuild test \
+  -project HappyPianist.xcodeproj \
+  -scheme HappyPianistAVP \
+  -destination 'platform=visionOS Simulator,id=<device-id>' \
+  CODE_SIGNING_ALLOWED=NO \
+  -parallel-testing-enabled NO
 ```
 
-真机才可验证 hand tracking、plane detection、Bluetooth MIDI、Microphone 与空间舒适度。
-
-## 可选：网络即兴后端（Aria v2）
-
-AVP 的 AI 即兴默认使用本地后端（CoreML / 本地规则）。当用户在练习设置中选择网络后端时，AVP 会：
-
-- 通过 Bonjour 发现 `_lpduet._tcp` 服务（需要真机允许 Local Network 权限）
-- 调用 Mac 侧 `python_backend/aria_server/`（HTTP `/generate` 或 WebSocket `/stream`）
+手部追踪、平面检测、麦克风、Bluetooth MIDI、Local Network、空间对齐与舒适度需要真机。

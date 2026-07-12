@@ -4,13 +4,14 @@
 
 | Item | Value |
 | --- | --- |
-| Commit hash | 6a01443e |
-| Branch name | crh3 |
-| Generated at | 2026-06-07T16:16:46+08:00 |
+| Source snapshot | `HappyPianist-20260712-101747-cleaned.zip` |
+| Commit hash | Unavailable: source archive does not contain `.git` metadata |
+| Branch name | Unavailable |
+| Generated at | 2026-07-12T14:27:54+08:00 |
 | Output language | Chinese |
-| Generation mode | Full docs reconciliation via `neat-freak` against current working tree |
+| Generation mode | Full canonical-doc reconciliation with `neat-freak` |
 
-## Pages
+## Canonical pages
 
 - `AGENTS.md`
 - `README.md`
@@ -21,14 +22,15 @@
 - `docs/dependencies.md`
 - `docs/storage.md`
 - `docs/glossary.md`
-- `docs/modules/happypianist-macos.md`
 - `docs/modules/happypianist-avp.md`
 - `docs/modules/happypianist-avp-practice.md`
-- `docs/modules/improv-engines.md`
+- `docs/testing/practice-learning-loop-p1-checklist.md`
+- `docs/testing/practice-feedback-usability-checklist.md`
 
-## Current Coverage Gaps
+## Coverage gaps
 
-- 本仓库没有 `.github/workflows/`，自动化验证以本地命令为准。
-- AVP 的手部追踪、平面检测、BLE MIDI、Microphone 与空间舒适度需要真机验证。
-- `HappyPianistAVP/Resources/Audio/SoundFonts/SalC5Light2.sf2` 仓库默认不内置。
-- AVP 的 Local Network（Bonjour 发现 + HTTP/WS 连接）需要真机与局域网环境配合（用于可选网络后端 Aria v2）。
+- The archive does not include Git history, so documentation cannot name the original repository HEAD.
+- `.codegraph/codegraph.db` was generated before the latest source cleanup and must be regenerated before using hashes or line locations as current evidence.
+- The cleaned source has not been revalidated with Xcode in this environment.
+- Hand tracking, microphone, Bluetooth MIDI, Local Network, spatial alignment, VoiceOver gestures and comfort require Apple Vision Pro hardware.
+- `Bravura.otf`, `SalC5Light2.sf2`, the Performance RNN CoreML model and Aria checkpoint are not included in the source archive.

@@ -1,43 +1,107 @@
-# 🎹 HappyPianist
+# HappyPianist
 
-一款 Apple Vision Pro 上的 AI 钢琴伙伴，它会引导你一步步弹奏；并且你可以享受与 ta 的接力即兴演奏。
+HappyPianist 是一个面向 Apple Vision Pro 的钢琴练习应用。它把 MusicXML 转成空间练习引导，并支持音频、蓝牙 MIDI 与虚拟钢琴三种输入方式。
 
-中文 | [**English**](./README.en.md)
+![scene](docs/assets/scene1.jpg)
 
-[![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-![Platform](https://img.shields.io/badge/visionOS-lightgrey)
-![Swift](https://img.shields.io/badge/Swift-6-orange)
-[![Last Update](https://img.shields.io/github/last-commit/chiimagnus/happypianist?label=Last%20update&style=classic)](https://github.com/chiimagnus/happypianist)
+## 当前能力
 
-![scene1](docs/assets/scene1.jpg)
+- 导入 `.musicxml`、`.xml`、`.mxl` 曲谱并建立曲库。
+- 选择练习片段、手别、速度、循环与连续成功目标。
+- 记录小节级练习事实，恢复上次片段与位置。
+- 显示非模态即时反馈、练习总结与小节恢复地图。
+- 在沉浸空间显示键位高亮与轻量恢复效果。
+- 练习中录制、回放并导出 MIDI take。
+- AI 对弹支持本地规则、本地 CoreML，以及可选的 Mac 侧 Aria v2 网络后端。
 
-## 你可以用它做什么
+## 仓库结构
 
-### 🥽 AR Guide 
-导入 MusicXML，在 Vision Pro 上做空间练习引导（双谱表五线谱 + 左右手键位高亮）
+```text
+HappyPianist.xcodeproj      visionOS 工程
+HappyPianistAVP/            App 源码
+HappyPianistAVPTests/       Swift Testing 测试
+Packages/RealityKitContent/ RealityKit 内容包
+python_backend/             可选的 Aria v2 本地服务与工具
+docs/                       项目知识库
+```
 
-### 🎹 AI 对弹（接力即兴）
-你弹一句、AI 回一句；在沉浸空间中回放。
+当前工程只有 `HappyPianistAVP` 与 `HappyPianistAVPTests` 两个 target；仓库中没有 macOS App target。
 
-AI 对弹默认使用 AVP 端的本地 CoreML / 本地规则后端，不需要电脑端 Python 服务。
+## 环境要求
 
-可选：你也可以在 Mac 上启动 `python_backend/aria_server/`，让 AVP 通过 Bonjour + HTTP/WS 连接 Aria v2 网络后端（适合真机联调与低延迟 streaming 验证）。
+- 支持 visionOS 26.0 SDK 的 Xcode
+- visionOS Simulator 或 Apple Vision Pro
+- Swift 6
+- 可选：Python 3.11+ 与 `uv`，仅用于 Aria v2 网络后端
 
-## 发布物
+## 资源状态
 
-- 当前仓库主要以“源码运行”为主：**需要 Xcode 本地构建**，暂未提供可直接下载运行的 notarized app。
+源码归档不包含以下资源：
 
-- `HappyPianistAVP` 的音色文件 `SalC5Light2.sf2` 体积较大，仓库默认不内置；可以从 [GitHub Releases 的“资源文件”](https://github.com/chiimagnus/HappyPianist/releases/tag/v0.1.6-beta2)里下载并放到：
-  - `HappyPianistAVP/Resources/Audio/SoundFonts/SalC5Light2.sf2`
+| 资源 | 影响 |
+| --- | --- |
+| `Bravura.otf` | `Info.plist` 已声明该字体；缺失时五线谱符号不能按预期显示。 |
+| `SalC5Light2.sf2` | 本地 sampler 无法加载钢琴音色。 |
+| `AIDuetPerformanceRNN.mlpackage` / `.mlmodelc` | 本地 CoreML 对弹不可用；仍可使用本地规则或网络后端。 |
+
+将资源加入 `HappyPianistAVP` target 后再进行相关验收。不要仅因 `Info.plist` 中存在声明就认定资源已经打包。
+
+## 构建与测试
+
+先查看可用 destination：
+
+```bash
+xcodebuild -showdestinations \
+  -project HappyPianist.xcodeproj \
+  -scheme HappyPianistAVP
+```
+
+运行完整测试：
+
+```bash
+xcodebuild test \
+  -project HappyPianist.xcodeproj \
+  -scheme HappyPianistAVP \
+  -destination 'platform=visionOS Simulator,id=<device-id>' \
+  CODE_SIGNING_ALLOWED=NO \
+  -parallel-testing-enabled NO
+```
+
+应用需要在 Xcode 中运行到 Simulator 或真机。ARKit、手部追踪、麦克风、蓝牙 MIDI、Local Network 与空间舒适度必须在对应设备环境中验证。
+
+## 可选：启动 Aria v2 网络后端
+
+```bash
+cd python_backend/aria_server
+uv sync
+
+cd ..
+uv run --project aria_server \
+  python scripts/aria_server.py \
+  --host 0.0.0.0 \
+  --port 8766
+```
+
+模型权重默认路径是 `python_backend/aria/hf/model-demo.safetensors`，不会随仓库分发。详细说明见 [`python_backend/README.md`](python_backend/README.md)。
+
+## 文档
+
+- [项目概览与导航](docs/overview.md)
+- [架构](docs/architecture.md)
+- [数据流](docs/data-flow.md)
+- [AVP 模块](docs/modules/happypianist-avp.md)
+- [练习模块](docs/modules/happypianist-avp-practice.md)
+- [配置与资源](docs/configuration.md)
+- [存储](docs/storage.md)
+- [测试清单](docs/testing/practice-learning-loop-p1-checklist.md)
 
 ## Acknowledgements
 
-- [Anticipation](https://github.com/jthickstun/anticipation) · [Anticipatory Music Transformer](https://arxiv.org/abs/2306.08620)
+- [Anticipation](https://github.com/jthickstun/anticipation) 与 [Anticipatory Music Transformer](https://arxiv.org/abs/2306.08620)
 - [stanford-crfm/music-large-800k](https://huggingface.co/stanford-crfm/music-large-800k)
-- Apple CoreMIDI / RealityKit / ARKit
-- Salamander Grand Piano 音色采样
-- 感谢南客松S2，感谢`njuer勇闯互联网`、`罗恩`、`大宝哥`，让这个项目、我们这个团队荣获此次黑客松的金奖～
+- Apple CoreMIDI、RealityKit、ARKit 与 Salamander Grand Piano 音色采样
+- 感谢南客松 S2、`njuer勇闯互联网`、`罗恩`、`大宝哥` 对项目的支持
 
 ## License
 
-本项目基于 [AGPL-3.0](./LICENSE.APGLv3) 开源。
+本项目基于 [AGPL-3.0](LICENSE.APGLv3) 开源。
