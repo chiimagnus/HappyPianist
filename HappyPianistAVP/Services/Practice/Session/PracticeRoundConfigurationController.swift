@@ -158,6 +158,11 @@ final class PracticeRoundConfigurationController {
         stateStore.roundGeneration += 1
     }
 
+    func beginNextRound() {
+        guard stateStore.activeRoundConfiguration != nil else { return }
+        stateStore.roundGeneration += 1
+    }
+
     func resetPendingToActive() {
         guard let activeConfiguration = stateStore.activeRoundConfiguration else { return }
         pendingPassage = activeConfiguration.passage

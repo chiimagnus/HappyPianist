@@ -712,7 +712,7 @@ extension PracticeSessionViewModel {
             if self.activeRoundConfiguration?.loopEnabled == true,
                let firstStepIndex = self.activeRange?.firstStepIndex
             {
-                moveToStep(firstStepIndex, shouldPlaySound: self.autoplayState == .off)
+                beginNextLoopRound(at: firstStepIndex)
                 return
             }
 
@@ -786,7 +786,7 @@ extension PracticeSessionViewModel {
         if self.activeRoundConfiguration?.loopEnabled == true,
            let firstStepIndex = self.activeRange?.firstStepIndex
         {
-            moveToStep(firstStepIndex, shouldPlaySound: self.autoplayState == .off)
+            beginNextLoopRound(at: firstStepIndex)
             return
         }
         self.currentStepIndex = self.activeRange?.completionStepIndex ?? self.steps.count
@@ -797,6 +797,13 @@ extension PracticeSessionViewModel {
         stopAutoplayTask()
         stopAutoplayAudio()
         stopAudioRecognition()
+    }
+
+    private func beginNextLoopRound(at firstStepIndex: Int) {
+        roundConfigurationController.beginNextRound()
+        self.latestFeedbackEvent = nil
+        recordPassageRestart()
+        moveToStep(firstStepIndex, shouldPlaySound: self.autoplayState == .off)
     }
 
     func uniqueMIDINotes(in step: PracticeStep) -> [Int] {

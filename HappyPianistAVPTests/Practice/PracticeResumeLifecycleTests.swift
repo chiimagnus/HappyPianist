@@ -241,6 +241,47 @@ func retryMeasureKeepsRepeatedOccurrenceInCurrentPassage() {
     #expect(session.activeRoundConfiguration?.passage.start.sourceMeasureID == repeatedSource)
 }
 
+@MainActor
+@Test
+func automaticLoopStartsANewAttemptRound() {
+    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
+    let span = makeResumeSpans()[0]
+    let session = PracticeSessionViewModel(
+        pressDetectionService: ResumeNoopPressDetectionService(),
+        chordAttemptAccumulator: ResumeNoopChordAccumulator(),
+        sleeper: TaskSleeper()
+    )
+    session.songIdentity = identity
+    session.setSteps(
+        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        tempoMap: MusicXMLTempoMap(tempoEvents: []),
+        measureSpans: [span]
+    )
+    session.roundConfigurationController.pendingLoopEnabled = true
+    _ = session.applyPendingRoundConfiguration()
+    session.startGuidingIfReady()
+    let firstGeneration = session.roundGeneration
+    let wrong = StepAttemptMatchResult.wrongNote(
+        evidence: PracticeAttemptEvidence(
+            expectedNotes: [60],
+            observedNotes: [71],
+            handMode: .both,
+            source: .midi,
+            isPartialEvidence: false,
+            debugMessage: "wrong"
+        ),
+        unexpectedNotes: [71]
+    )
+
+    session.recordAttemptOutcome(wrong)
+    session.advanceToNextStep()
+    let secondGeneration = session.roundGeneration
+    session.recordAttemptOutcome(wrong)
+
+    #expect(secondGeneration == firstGeneration + 1)
+    #expect(session.sessionProgress?.measureFacts.first?.failedAttempts == 2)
+}
+
 private func makeResumeSteps() -> [PracticeStep] {
     [
         PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
