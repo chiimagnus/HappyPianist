@@ -102,7 +102,7 @@ struct PracticeAttemptReducerTests {
         #expect(facts.recentIssue == .wrongNote)
     }
 
-    @Test func insufficientEvidenceDoesNotCountAsFailure() throws {
+    @Test func insufficientEvidenceDoesNotCreateDurableFacts() throws {
         let fixture = try Fixture(requiredSuccesses: 3)
         let reducer = PracticeAttemptReducer()
         let result = reducer.reduceAttempt(
@@ -117,9 +117,8 @@ struct PracticeAttemptReducerTests {
             timestamp: .now
         )
 
-        let facts = try #require(result.progress.measureFacts.first)
-        #expect(facts.failedAttempts == 0)
-        #expect(facts.successfulAttempts == 0)
+        #expect(result.progress.measureFacts.isEmpty)
+        #expect(result.progress.resumePoint == nil)
         #expect(result.fact == nil)
     }
 

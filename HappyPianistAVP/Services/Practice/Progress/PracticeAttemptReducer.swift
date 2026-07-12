@@ -64,6 +64,14 @@ struct PracticeAttemptReducer {
             )
         }
 
+        guard outcome.category != .insufficientEvidence else {
+            return Result(
+                progress: progress ?? emptyProgress(identity: identity, configuration: configuration, timestamp: timestamp),
+                reductionState: reductionState,
+                fact: nil
+            )
+        }
+
         var state = reductionState
         var updated = progress ?? emptyProgress(identity: identity, configuration: configuration, timestamp: timestamp)
         updated.activeConfiguration = configuration
@@ -98,7 +106,7 @@ struct PracticeAttemptReducer {
         let fact: PracticeSessionFact?
         switch outcome.category {
         case .insufficientEvidence:
-            fact = nil
+            fact = nil // ponytail: handled by the early guard; kept for exhaustive enum matching.
 
         case .wrongNote, .missingNotes, .incompleteChord:
             let issue = outcome.issueKind ?? .missedNote
