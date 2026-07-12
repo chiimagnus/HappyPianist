@@ -251,18 +251,6 @@ struct GrandStaffNotationViewportLayoutService: GrandStaffNotationViewportLayout
         return CanvasMetrics(requiredHeight: requiredHeight, contentYOffset: contentYOffset)
     }
 
-    private func beamCountFor(noteValue: GrandStaffNoteValue) -> Int {
-        switch noteValue {
-        case .eighth:
-            1
-        case .sixteenth:
-            2
-        case .thirtySecond:
-            3
-        default:
-            0
-        }
-    }
 
     private func clefAnchorStaffStep(signToken: String?, line: Int?) -> Int? {
         if let line, (1 ... 5).contains(line) {

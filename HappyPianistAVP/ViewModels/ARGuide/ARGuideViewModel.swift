@@ -367,9 +367,6 @@ final class ARGuideViewModel {
         aiPerformanceViewModel.backendStatusText
     }
 
-    func restartBackendDiscoveryForSelectedBackend() {
-        aiPerformanceViewModel.restartDiscoveryForSelectedBackend()
-    }
 
     func setPracticeVirtualPerformerEnabled(_ isEnabled: Bool) {
         aiPerformanceViewModel.setVirtualPerformerEnabled(

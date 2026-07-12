@@ -240,10 +240,6 @@ final class SongLibraryViewModel {
         }
     }
 
-    func cancelPracticePreparation() {
-        practicePreparationGeneration += 1
-        isPreparingPractice = false
-    }
 
     func deleteEntry(entryID: UUID) async {
         if bundledEntries.contains(where: { $0.id == entryID }) {

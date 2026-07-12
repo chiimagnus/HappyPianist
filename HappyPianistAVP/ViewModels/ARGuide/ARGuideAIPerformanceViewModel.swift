@@ -118,20 +118,6 @@ final class ARGuideAIPerformanceViewModel {
         }
     }
 
-    func restartDiscoveryForSelectedBackend() {
-        switch backendSelection.selectedKind() {
-        case .networkBonjourHTTPAriaV2:
-            ariaDiscoveryService.stop()
-            ariaDiscoveryService.start()
-        case .networkBonjourWebSocketAriaV2:
-            ariaWebSocketDiscoveryService.stop()
-            ariaWebSocketDiscoveryService.start()
-        case .localCoreMLDuet:
-            restartLocalCoreMLDuetProbe()
-        case .localRule:
-            break
-        }
-    }
 
     func updatePracticeSession(_ practiceSessionViewModel: PracticeSessionViewModel) {
         aiPerformanceService.updatePracticeSession(practiceSessionViewModel)
@@ -237,12 +223,6 @@ final class ARGuideAIPerformanceViewModel {
     @ObservationIgnored
     private var localCoreMLDuetProbeTask: Task<Void, Never>?
 
-    private func restartLocalCoreMLDuetProbe() {
-        localCoreMLDuetProbeTask?.cancel()
-        localCoreMLDuetProbeTask = nil
-        localCoreMLDuetAvailability = .idle
-        startLocalCoreMLDuetProbeIfNeeded()
-    }
 
     private func startLocalCoreMLDuetProbeIfNeeded() {
         guard localCoreMLDuetProbeTask == nil else { return }

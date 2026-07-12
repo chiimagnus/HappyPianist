@@ -26,34 +26,7 @@ public struct RuleChordGuess: Equatable, Sendable {
     }
 }
 
-public struct RuleMeasureChord: Equatable, Sendable {
-    public var measureIndex: Int
-    public var chord: RuleChordGuess
 
-    public init(measureIndex: Int, chord: RuleChordGuess) {
-        self.measureIndex = measureIndex
-        self.chord = chord
-    }
-}
-
-public struct RuleChordProgression: Equatable, Sendable {
-    public var chords: [RuleMeasureChord]
-    public var tonal: RuleTonalCenter
-    public var isLooping: Bool
-    public var loopLength: Int
-
-    public init(
-        chords: [RuleMeasureChord],
-        tonal: RuleTonalCenter,
-        isLooping: Bool = false,
-        loopLength: Int = 0
-    ) {
-        self.chords = chords
-        self.tonal = tonal
-        self.isLooping = isLooping
-        self.loopLength = loopLength
-    }
-}
 
 public struct RuleResult: Equatable, Sendable {
     public var notes: [RuleNoteEvent]

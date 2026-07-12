@@ -19,10 +19,6 @@ struct PianoHighlightParsedElementCoverage: Equatable, Identifiable {
 }
 
 struct PianoHighlightParsedElementCoverageService {
-    func allCoverages() -> [PianoHighlightParsedElementCoverage] {
-        noteEventCoverages() + scoreCoverages() + noteSpanCoverages()
-    }
-
     func noteEventCoverages() -> [PianoHighlightParsedElementCoverage] {
         [
             coverage(

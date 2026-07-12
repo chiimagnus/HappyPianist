@@ -1,7 +1,6 @@
 import Foundation
 
 enum MusicXMLParserError: Error, Equatable {
-    case invalidData
     case parseFailed
 }
 

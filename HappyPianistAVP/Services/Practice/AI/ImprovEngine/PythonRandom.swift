@@ -42,9 +42,6 @@ public struct PythonRandom {
         return (Double(a) * 67_108_864.0 + Double(b)) * (1.0 / 9_007_199_254_740_992.0)
     }
 
-    public mutating func uniform(_ a: Double, _ b: Double) -> Double {
-        a + (b - a) * random()
-    }
 
     public mutating func randint(_ a: Int, _ b: Int) -> Int {
         precondition(a <= b, "empty range for randint()")

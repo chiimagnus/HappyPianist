@@ -15,7 +15,4 @@ public struct RuleNoteEvent: Equatable, Sendable {
         self.duration = duration
     }
 
-    public func asDialogueNote() -> ImprovDialogueNote {
-        ImprovDialogueNote(note: note, velocity: velocity, time: time, duration: duration)
-    }
 }
