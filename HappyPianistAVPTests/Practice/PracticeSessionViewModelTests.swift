@@ -1347,7 +1347,7 @@ func disablingAutoplayStopsAudioAndClearsPendingScheduling() async {
 
 @Test
 @MainActor
-func freshScoreDefaultsToFirstFourMeasures() {
+func freshScoreDefaultsToFullScoreAtOneHundredPercent() {
     let viewModel = makePracticeSessionViewModel(
         pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
@@ -1373,7 +1373,10 @@ func freshScoreDefaultsToFirstFourMeasures() {
     )
 
     #expect(viewModel.activeRoundConfiguration?.passage.start == spans[0].occurrenceID)
-    #expect(viewModel.activeRoundConfiguration?.passage.end == spans[3].occurrenceID)
+    #expect(viewModel.activeRoundConfiguration?.passage.end == spans[5].occurrenceID)
+    #expect(viewModel.activeRoundConfiguration?.handMode == .both)
+    #expect(viewModel.activeRoundConfiguration?.tempoScale == 1)
+    #expect(viewModel.activeRoundConfiguration?.loopEnabled == false)
 }
 
 @Test

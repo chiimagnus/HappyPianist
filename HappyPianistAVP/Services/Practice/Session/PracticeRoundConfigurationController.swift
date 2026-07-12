@@ -119,9 +119,21 @@ final class PracticeRoundConfigurationController {
             pendingSoundRoutingSettings != stateStore.activeSoundRoutingSettings
     }
 
-    func installInitialPassage(initialPassage: PracticePassage) {
-        pendingPassage = initialPassage
-        _ = applyPending()
+    func installFreshFullScoreConfiguration(passage: PracticePassage) {
+        let configuration = PracticeRoundConfiguration(
+            passage: passage,
+            handMode: .both,
+            tempoScale: 1,
+            loopEnabled: false,
+            requiredSuccesses: pendingRequiredSuccesses
+        )
+        pendingPassage = passage
+        pendingHandMode = configuration.handMode
+        pendingTempoScale = configuration.tempoScale
+        pendingLoopEnabled = configuration.loopEnabled
+        pendingRequiredSuccesses = configuration.requiredSuccesses
+        stateStore.activeRoundConfiguration = configuration
+        stateStore.roundGeneration += 1
     }
 
     func resetSong() {
@@ -164,6 +176,4 @@ final class PracticeRoundConfigurationController {
         guard stateStore.activeRoundConfiguration != nil else { return }
         stateStore.roundGeneration += 1
     }
-
-
 }

@@ -332,12 +332,14 @@ extension PracticeSessionViewModel {
         self.tempoMap = tempoMap
         self.measureSpans = measureSpans
         if let firstMeasure = measureSpans.first,
-           let lastMeasure = measureSpans.prefix(4).last,
-           let passage = PracticePassage(start: firstMeasure.occurrenceID, end: lastMeasure.occurrenceID)
+           let lastMeasure = measureSpans.last,
+           let passage = PracticePassage(
+               start: firstMeasure.occurrenceID,
+               end: lastMeasure.occurrenceID
+           ),
+           songChanged || self.activeRoundConfiguration == nil
         {
-            if songChanged || self.activeRoundConfiguration == nil {
-                roundConfigurationController.installInitialPassage(initialPassage: passage)
-            }
+            roundConfigurationController.installFreshFullScoreConfiguration(passage: passage)
         }
         self.measureIndex = PracticeMeasureIndex(steps: steps, measureSpans: measureSpans)
         rebuildActiveRange()

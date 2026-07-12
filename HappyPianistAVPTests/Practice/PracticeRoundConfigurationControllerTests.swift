@@ -29,9 +29,7 @@ struct PracticeRoundConfigurationControllerTests {
             defaultsStore: defaults
         )
         let passage = try #require(makePassage())
-        controller.installInitialPassage(
-            initialPassage: passage
-        )
+        controller.installFreshFullScoreConfiguration(passage: passage)
 
         #expect(stateStore.activeRoundConfiguration?.handMode == .both)
         let initialGeneration = stateStore.roundGeneration
@@ -63,9 +61,7 @@ struct PracticeRoundConfigurationControllerTests {
             settingsProvider: FixedPracticeSettingsProvider(),
             defaultsStore: CapturingRoundDefaultsStore()
         )
-        controller.installInitialPassage(
-            initialPassage: try #require(makePassage())
-        )
+        controller.installFreshFullScoreConfiguration(passage: try #require(makePassage()))
 
         controller.pendingSoundOutputRoute = .externalMIDIDestination
         controller.pendingMIDIDestinationUniqueID = 42
@@ -76,7 +72,7 @@ struct PracticeRoundConfigurationControllerTests {
         #expect(stateStore.activeSoundRoutingSettings.midiDestinationUniqueID == 42)
     }
 
-    @Test func newSongAlwaysReplacesPendingAndActivePassage() throws {
+    @Test func freshConfigurationAlwaysReplacesPendingAndActivePassage() throws {
         let stateStore = PracticeSessionStateStore()
         let controller = PracticeRoundConfigurationController(
             stateStore: stateStore,
@@ -85,15 +81,11 @@ struct PracticeRoundConfigurationControllerTests {
         )
         let passageA = try #require(makePassage(partID: "A", sourceIndex: 0))
         let passageB = try #require(makePassage(partID: "B", sourceIndex: 8))
-        controller.installInitialPassage(
-            initialPassage: passageA
-        )
+        controller.installFreshFullScoreConfiguration(passage: passageA)
         controller.pendingPassage = passageA
         _ = controller.applyPending()
 
-        controller.installInitialPassage(
-            initialPassage: passageB
-        )
+        controller.installFreshFullScoreConfiguration(passage: passageB)
 
         #expect(controller.pendingPassage == passageB)
         #expect(stateStore.activeRoundConfiguration?.passage == passageB)
