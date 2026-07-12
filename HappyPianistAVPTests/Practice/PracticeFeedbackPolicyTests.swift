@@ -21,7 +21,8 @@ func feedbackPolicyPublishesTypedRetryAndRejectsInsufficientEvidence() {
         for: .attemptIssue(attempt, issue: .wrongNote),
         previousProgress: nil,
         progress: progress,
-        sessionGeneration: 7
+        sessionGeneration: 7,
+        passageSourceMeasureIDs: [source]
     )
 
     #expect(events == [PracticeFeedbackEvent(
@@ -31,7 +32,13 @@ func feedbackPolicyPublishesTypedRetryAndRejectsInsufficientEvidence() {
         sourceMeasureID: source,
         kind: .retryInvitation(issue: .wrongNote)
     )])
-    #expect(PracticeFeedbackPolicy().events(for: nil, previousProgress: nil, progress: progress, sessionGeneration: 7).isEmpty)
+    #expect(PracticeFeedbackPolicy().events(
+        for: nil,
+        previousProgress: nil,
+        progress: progress,
+        sessionGeneration: 7,
+        passageSourceMeasureIDs: [source]
+    ).isEmpty)
 }
 
 @Test
@@ -75,7 +82,57 @@ func measureStableUsesSourceAndHandCompositeIdentity() {
     let previous = SongPracticeProgress(identity: identity, measureFacts: [left, rightLearning], updatedAt: .now)
     let current = SongPracticeProgress(identity: identity, measureFacts: [left, rightStable], updatedAt: .now)
     let events = PracticeFeedbackPolicy().events(
-        for: .attemptMatched(attempt), previousProgress: previous, progress: current, sessionGeneration: 1
+        for: .attemptMatched(attempt),
+        previousProgress: previous,
+        progress: current,
+        sessionGeneration: 1,
+        passageSourceMeasureIDs: [id]
     )
     #expect(events.map(\.kind) == [.measureStable])
+}
+
+@Test
+func passageCompletionUsesResolvedOccurrenceSourceIDs() throws {
+    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r")
+    let source0 = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 0)
+    let source6 = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 6)
+    let unrelated = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 3)
+    let passage = try #require(PracticePassage(
+        start: PracticeMeasureOccurrenceID(sourceMeasureID: source6, occurrenceIndex: 6),
+        end: PracticeMeasureOccurrenceID(sourceMeasureID: source0, occurrenceIndex: 7)
+    ))
+    let configuration = PracticeRoundConfiguration(
+        passage: passage,
+        handMode: .both,
+        tempoScale: 0.8,
+        loopEnabled: false,
+        requiredSuccesses: 1
+    )
+    let progress = SongPracticeProgress(
+        identity: identity,
+        measureFacts: [
+            MeasurePracticeFacts(sourceMeasureID: source0, handMode: .both, state: .stable),
+            MeasurePracticeFacts(sourceMeasureID: source6, handMode: .both, state: .stable),
+            MeasurePracticeFacts(sourceMeasureID: unrelated, handMode: .both, state: .learning),
+        ],
+        updatedAt: .now
+    )
+    let round = PracticeRoundFact(
+        identity: identity,
+        roundGeneration: 2,
+        passage: passage,
+        handMode: .both,
+        tempoScale: 0.8,
+        timestamp: .now
+    )
+
+    let events = PracticeFeedbackPolicy().events(
+        for: .passageCompleted(round),
+        previousProgress: progress,
+        progress: progress,
+        sessionGeneration: 1,
+        passageSourceMeasureIDs: [source6, source0]
+    )
+
+    #expect(events.map(\.kind) == [.passageStable])
 }

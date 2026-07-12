@@ -20,7 +20,8 @@ struct PracticeFeedbackPolicy {
         for fact: PracticeSessionFact?,
         previousProgress: SongPracticeProgress?,
         progress: SongPracticeProgress,
-        sessionGeneration: Int
+        sessionGeneration: Int,
+        passageSourceMeasureIDs: Set<PracticeSourceMeasureID>
     ) -> [PracticeFeedbackEvent] {
         guard let fact else { return [] }
         switch fact {
@@ -36,7 +37,7 @@ struct PracticeFeedbackPolicy {
             return []
         case let .passageCompleted(round):
             let passageFacts = progress.measureFacts.filter {
-                $0.handMode == round.handMode && round.passage.contains($0.sourceMeasureID)
+                $0.handMode == round.handMode && passageSourceMeasureIDs.contains($0.sourceMeasureID)
             }
             let stable = passageFacts.isEmpty == false && passageFacts.allSatisfy { $0.state == .stable }
             return [
@@ -71,14 +72,5 @@ struct PracticeFeedbackPolicy {
             sourceMeasureID: attempt.occurrenceID.sourceMeasureID,
             kind: kind
         )
-    }
-}
-
-extension PracticePassage {
-    func contains(_ sourceMeasureID: PracticeSourceMeasureID) -> Bool {
-        guard sourceMeasureID.partID == start.sourceMeasureID.partID else { return false }
-        let bounds = min(start.sourceMeasureID.sourceMeasureIndex, end.sourceMeasureID.sourceMeasureIndex)
-            ... max(start.sourceMeasureID.sourceMeasureIndex, end.sourceMeasureID.sourceMeasureIndex)
-        return bounds.contains(sourceMeasureID.sourceMeasureIndex)
     }
 }

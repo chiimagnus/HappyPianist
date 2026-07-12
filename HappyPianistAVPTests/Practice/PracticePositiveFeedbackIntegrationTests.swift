@@ -19,7 +19,12 @@ func positiveFeedbackFactsDriveCueSummaryRetryAndRestoredMap() throws {
     let progress = SongPracticeProgress(identity: identity, activeConfiguration: configuration, measureFacts: [facts], updatedAt: .now)
 
     let hotspot = try #require(PracticeHotspotPolicy().hotspot(in: progress.measureFacts))
-    let summary = try #require(PracticeRoundSummaryViewModel(progress: progress, configuration: configuration, isFullPassage: true))
+    let summary = try #require(PracticeRoundSummaryViewModel(
+        progress: progress,
+        configuration: configuration,
+        passageSourceMeasureIDs: [source],
+        isFullPassage: true
+    ))
     let span = MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, sourceMeasureIndex: 0, sourceMeasureNumberToken: "1", occurrenceIndex: 0, startTick: 0, endTick: 480)
     let restoredMap = PracticeMeasureMapViewModel(measureSpans: [span], progress: progress, handMode: .both, currentPassage: passage, currentMeasure: source)
 

@@ -15,7 +15,12 @@ func roundSummaryContainsOnlyOneHotspotAndAction() throws {
         measureFacts: [feedbackFacts(index: 0, failures: 1, issue: .wrongNote)],
         updatedAt: .now
     )
-    let summary = try #require(PracticeRoundSummaryViewModel(progress: progress, configuration: configuration, isFullPassage: true))
+    let summary = try #require(PracticeRoundSummaryViewModel(
+        progress: progress,
+        configuration: configuration,
+        passageSourceMeasureIDs: [source],
+        isFullPassage: true
+    ))
     #expect(summary.hotspot?.sourceMeasureID == source)
     #expect(summary.nextAction == .retryMeasure(source))
 }
@@ -34,7 +39,12 @@ func roundSummaryIgnoresFactsOutsideActivePassage() throws {
         ],
         updatedAt: .now
     )
-    let summary = try #require(PracticeRoundSummaryViewModel(progress: progress, configuration: configuration, isFullPassage: false))
+    let summary = try #require(PracticeRoundSummaryViewModel(
+        progress: progress,
+        configuration: configuration,
+        passageSourceMeasureIDs: [active],
+        isFullPassage: false
+    ))
     #expect(summary.hotspot == nil)
     #expect(summary.isStable)
 }

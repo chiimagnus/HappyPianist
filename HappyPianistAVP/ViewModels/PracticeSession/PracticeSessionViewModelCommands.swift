@@ -313,7 +313,8 @@ extension PracticeSessionViewModel {
             for: fact,
             previousProgress: previousProgress,
             progress: progress,
-            sessionGeneration: self.progressGeneration ?? 0
+            sessionGeneration: self.progressGeneration ?? 0,
+            passageSourceMeasureIDs: self.activeRange?.sourceMeasureIDs ?? []
         ) where event.roundGeneration == self.roundGeneration && event.identity == self.songIdentity {
             self.latestFeedbackEvent = event
             feedbackEventSink?.receive(event)

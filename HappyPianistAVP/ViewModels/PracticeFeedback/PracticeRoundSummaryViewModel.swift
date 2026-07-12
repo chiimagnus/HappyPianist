@@ -4,11 +4,16 @@ struct PracticeRoundSummaryViewModel: Equatable {
     let hotspot: PracticeHotspot?
     let nextAction: PracticeNextAction
 
-    init?(progress: SongPracticeProgress?, configuration: PracticeRoundConfiguration?, isFullPassage: Bool) {
+    init?(
+        progress: SongPracticeProgress?,
+        configuration: PracticeRoundConfiguration?,
+        passageSourceMeasureIDs: Set<PracticeSourceMeasureID>,
+        isFullPassage: Bool
+    ) {
         guard let progress, let configuration else { return nil }
         self.configuration = configuration
         let facts = progress.measureFacts.filter {
-            $0.handMode == configuration.handMode && configuration.passage.contains($0.sourceMeasureID)
+            $0.handMode == configuration.handMode && passageSourceMeasureIDs.contains($0.sourceMeasureID)
         }
         isStable = facts.isEmpty == false && facts.allSatisfy { $0.state == .stable }
         hotspot = PracticeHotspotPolicy().hotspot(in: facts)

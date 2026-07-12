@@ -9,6 +9,9 @@ struct PracticeActiveRange: Equatable, Sendable {
 
     var firstStepIndex: Int { stepRange.lowerBound }
     var completionStepIndex: Int { stepRange.upperBound }
+    var sourceMeasureIDs: Set<PracticeSourceMeasureID> {
+        Set(measureSpans.map(\.occurrenceID.sourceMeasureID))
+    }
 
     func contains(stepIndex: Int) -> Bool {
         stepRange.contains(stepIndex)
