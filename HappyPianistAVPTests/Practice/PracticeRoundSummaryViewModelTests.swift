@@ -18,7 +18,7 @@ func roundSummaryContainsOnlyOneHotspotAndAction() throws {
     let summary = try #require(PracticeRoundSummaryViewModel(
         progress: progress,
         configuration: configuration,
-        passageSourceMeasureIDs: [source],
+        passageOccurrences: [occurrence],
         isFullPassage: true
     ))
     #expect(summary.hotspot?.sourceMeasureID == source)
@@ -56,7 +56,10 @@ func roundSummaryUsesSourceTokensForPassageAndHotspot() throws {
     let summary = try #require(PracticeRoundSummaryViewModel(
         progress: progress,
         configuration: configuration,
-        passageSourceMeasureIDs: [start, end],
+        passageOccurrences: [
+            PracticeMeasureOccurrenceID(sourceMeasureID: start, occurrenceIndex: 0),
+            PracticeMeasureOccurrenceID(sourceMeasureID: end, occurrenceIndex: 1),
+        ],
         isFullPassage: false
     ))
     #expect(summary.passageTitle == "第 12A–13 小节")
@@ -82,7 +85,7 @@ func roundSummaryIgnoresFactsOutsideActivePassage() throws {
     let summary = try #require(PracticeRoundSummaryViewModel(
         progress: progress,
         configuration: configuration,
-        passageSourceMeasureIDs: [active],
+        passageOccurrences: [occurrence],
         isFullPassage: false
     ))
     #expect(summary.hotspot == nil)
@@ -112,9 +115,40 @@ func roundSummaryRequiresEveryExpectedMeasure() throws {
     let summary = try #require(PracticeRoundSummaryViewModel(
         progress: progress,
         configuration: configuration,
-        passageSourceMeasureIDs: [first, second],
+        passageOccurrences: [
+            PracticeMeasureOccurrenceID(sourceMeasureID: first, occurrenceIndex: 0),
+            PracticeMeasureOccurrenceID(sourceMeasureID: second, occurrenceIndex: 1),
+        ],
         isFullPassage: false
     ))
     #expect(summary.isStable == false)
     #expect(summary.nextAction == .continuePassage)
+}
+
+@Test
+func roundSummaryDescribesRepeatBoundaryInPlaybackOrder() throws {
+    let seventh = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 6, sourceNumberToken: "7")
+    let first = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 0, sourceNumberToken: "1")
+    let occurrences = [
+        PracticeMeasureOccurrenceID(sourceMeasureID: seventh, occurrenceIndex: 6),
+        PracticeMeasureOccurrenceID(sourceMeasureID: first, occurrenceIndex: 7),
+    ]
+    let passage = try #require(PracticePassage(start: occurrences[0], end: occurrences[1]))
+    let configuration = PracticeRoundConfiguration(
+        passage: passage,
+        handMode: .both,
+        tempoScale: 0.6,
+        loopEnabled: true,
+        requiredSuccesses: 3
+    )
+    let summary = try #require(PracticeRoundSummaryViewModel(
+        progress: SongPracticeProgress(
+            identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "r"),
+            updatedAt: .now
+        ),
+        configuration: configuration,
+        passageOccurrences: occurrences,
+        isFullPassage: false
+    ))
+    #expect(summary.passageTitle == "第 7 小节至重复后的第 1 小节")
 }

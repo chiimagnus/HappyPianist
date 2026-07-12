@@ -22,7 +22,7 @@ func positiveFeedbackFactsDriveCueSummaryRetryAndRestoredMap() throws {
     let summary = try #require(PracticeRoundSummaryViewModel(
         progress: progress,
         configuration: configuration,
-        passageSourceMeasureIDs: [source],
+        passageOccurrences: [occurrence],
         isFullPassage: true
     ))
     let span = MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, sourceMeasureIndex: 0, sourceMeasureNumberToken: "1", occurrenceIndex: 0, startTick: 0, endTick: 480)
