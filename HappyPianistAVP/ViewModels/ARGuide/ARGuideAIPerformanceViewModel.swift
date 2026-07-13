@@ -152,7 +152,7 @@ final class ARGuideAIPerformanceViewModel {
                 (81, 92, 0.24),
             ]
 
-            for (index, item) in notes.enumerated() {
+            for (_, item) in notes.enumerated() {
                 recordMIDI1EventForPhraseRecordingIfNeeded(
                     MIDI1InputEvent(
                         kind: .noteOn(note: item.note, velocity: item.velocity),
@@ -165,7 +165,7 @@ final class ARGuideAIPerformanceViewModel {
                 )
             }
 
-            for (index, item) in notes.enumerated() {
+            for (_, item) in notes.enumerated() {
                 recordMIDI1EventForPhraseRecordingIfNeeded(
                     MIDI1InputEvent(
                         kind: .noteOff(note: item.note, velocity: 0),
