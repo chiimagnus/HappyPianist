@@ -63,10 +63,12 @@ private actor ControlledBackend: ImprovBackendProtocol {
         }
     }
 
-    func waitForCall(minimumCount: Int = 1, maxYields: Int = 10_000) async -> Bool {
-        for _ in 0 ..< maxYields {
+    func waitForCall(minimumCount: Int = 1, timeout: Duration = .seconds(2)) async -> Bool {
+        let deadline = ContinuousClock.now + timeout
+        while ContinuousClock.now < deadline {
             if continuations.count >= minimumCount { return true }
-            await Task.yield()
+            // ponytail: 1 ms polling keeps this test helper deterministic without a bespoke test clock.
+            try? await Task.sleep(for: .milliseconds(1))
         }
         return continuations.count >= minimumCount
     }
