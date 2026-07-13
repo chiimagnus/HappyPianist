@@ -190,7 +190,6 @@ struct PracticeStepView: View {
             Task { @MainActor in
                 let openHandler = makePracticeImmersiveOpenHandler(openImmersiveSpace)
                 let dismissHandler = makePracticeImmersiveDismissHandler(dismissImmersiveSpace)
-                session.refreshAudioRecognitionFromSettings()
                 viewModel.setPracticeVirtualPianoEnabled(isVirtualPianoMode)
                 viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
                 await viewModel.enterPracticeStep(

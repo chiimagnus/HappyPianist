@@ -1,9 +1,9 @@
 import Foundation
+
 @testable import HappyPianistAVP
 
 struct FakeHarmonicBandEnergyProvider: HarmonicBandEnergyProvidingProtocol {
     var rms: Double = 0.03
-    var noiseFloor: Double = 0.001
     var bandEnergies: [Int: Double] = [:]
     var surroundingEnergies: [Int: Double] = [:]
 

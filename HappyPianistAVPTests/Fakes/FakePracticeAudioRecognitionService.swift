@@ -1,4 +1,5 @@
 import Foundation
+
 @testable import HappyPianistAVP
 
 final class FakePracticeAudioRecognitionService: PracticeAudioRecognitionServiceProtocol {
@@ -20,53 +21,26 @@ final class FakePracticeAudioRecognitionService: PracticeAudioRecognitionService
         let generation: Int
     }
 
-    var events: AsyncStream<DetectedNoteEvent> {
-        eventsStream
-    }
-
-    var statusUpdates: AsyncStream<PracticeAudioRecognitionStatus> {
-        statusStream
-    }
-
-    var debugSnapshots: AsyncStream<PracticeAudioRecognitionDebugSnapshot> {
-        debugStream
-    }
-
-    private let eventsStream: AsyncStream<DetectedNoteEvent>
-    private let statusStream: AsyncStream<PracticeAudioRecognitionStatus>
-    private let debugStream: AsyncStream<PracticeAudioRecognitionDebugSnapshot>
+    let events: AsyncStream<DetectedNoteEvent>
+    let statusUpdates: AsyncStream<PracticeAudioRecognitionStatus>
 
     private let eventsContinuation: AsyncStream<DetectedNoteEvent>.Continuation
     private let statusContinuation: AsyncStream<PracticeAudioRecognitionStatus>.Continuation
-    private let debugContinuation: AsyncStream<PracticeAudioRecognitionDebugSnapshot>.Continuation
 
     private(set) var startCalls: [StartCall] = []
     private(set) var updateCalls: [UpdateCall] = []
     private(set) var suppressCalls: [SuppressCall] = []
-    private(set) var configuredDetectorMode: PracticeAudioRecognitionDetectorMode = .harmonicTemplate
-    private(set) var configuredProfile: HarmonicTemplateTuningProfile = .lowLatencyDefault
     private(set) var stopCallCount = 0
     private var currentGeneration = 0
 
     init() {
-        var eventsContinuation: AsyncStream<DetectedNoteEvent>.Continuation?
-        eventsStream = AsyncStream { continuation in
-            eventsContinuation = continuation
-        }
+        (events, eventsContinuation) = AsyncStream.makeStream()
+        (statusUpdates, statusContinuation) = AsyncStream.makeStream()
+    }
 
-        var statusContinuation: AsyncStream<PracticeAudioRecognitionStatus>.Continuation?
-        statusStream = AsyncStream { continuation in
-            statusContinuation = continuation
-        }
-
-        var debugContinuation: AsyncStream<PracticeAudioRecognitionDebugSnapshot>.Continuation?
-        debugStream = AsyncStream { continuation in
-            debugContinuation = continuation
-        }
-
-        self.eventsContinuation = eventsContinuation!
-        self.statusContinuation = statusContinuation!
-        self.debugContinuation = debugContinuation!
+    deinit {
+        eventsContinuation.finish()
+        statusContinuation.finish()
     }
 
     func start(
@@ -86,7 +60,9 @@ final class FakePracticeAudioRecognitionService: PracticeAudioRecognitionService
         )
     }
 
-    func updateExpectedNotes(_ expectedMIDINotes: [Int], wrongCandidateMIDINotes: [Int], generation: Int) {
+    func updateExpectedNotes(
+        _ expectedMIDINotes: [Int], wrongCandidateMIDINotes: [Int], generation: Int
+    ) {
         currentGeneration = generation
         updateCalls.append(
             UpdateCall(
@@ -95,11 +71,6 @@ final class FakePracticeAudioRecognitionService: PracticeAudioRecognitionService
                 generation: generation
             )
         )
-    }
-
-    func configureDetectorMode(_ mode: PracticeAudioRecognitionDetectorMode, profile: HarmonicTemplateTuningProfile) {
-        configuredDetectorMode = mode
-        configuredProfile = profile
     }
 
     func suppressRecognition(until date: Date, generation: Int) {
@@ -117,9 +88,5 @@ final class FakePracticeAudioRecognitionService: PracticeAudioRecognitionService
 
     func emitStatus(_ status: PracticeAudioRecognitionStatus) {
         statusContinuation.yield(status)
-    }
-
-    func emitDebugSnapshot(_ snapshot: PracticeAudioRecognitionDebugSnapshot) {
-        debugContinuation.yield(snapshot)
     }
 }

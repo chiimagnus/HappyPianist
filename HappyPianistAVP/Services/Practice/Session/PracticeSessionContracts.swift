@@ -1,21 +1,25 @@
 import Foundation
 
+@MainActor
 protocol PracticeSessionLifecycleProtocol: AnyObject {
     func shutdown()
 }
 
+@MainActor
 protocol PracticeAudioRecognitionInputServiceProtocol: AnyObject {
     func refreshForCurrentState()
     func stop()
     func shutdown()
 }
 
+@MainActor
 protocol PracticeMIDIInputServiceProtocol: AnyObject {
     func refreshForCurrentState()
     func stop()
     func shutdown()
 }
 
+@MainActor
 protocol PracticePlaybackControlServiceProtocol: AnyObject {
     func startAutoplayTaskIfNeeded()
     func stopAutoplayTask()
@@ -53,5 +57,6 @@ enum PracticeImmersiveOpenResult: Equatable {
     case unknown
 }
 
-typealias PracticeImmersiveOpenHandler = @MainActor @Sendable (String) async -> PracticeImmersiveOpenResult
+typealias PracticeImmersiveOpenHandler =
+    @MainActor @Sendable (String) async -> PracticeImmersiveOpenResult
 typealias PracticeImmersiveDismissHandler = @MainActor @Sendable () async -> Void

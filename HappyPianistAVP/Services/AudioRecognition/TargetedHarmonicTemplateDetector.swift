@@ -7,9 +7,8 @@ protocol HarmonicTemplateDetectingProtocol: Sendable {
         wrongCandidateMIDINotes: [Int],
         generation: Int,
         suppressing: Bool,
-        requestedMode: PracticeAudioRecognitionDetectorMode,
         profile: HarmonicTemplateTuningProfile
-    ) -> TargetedHarmonicDetectionFrame
+    ) -> [DetectedNoteEvent]
 }
 
 struct TargetedHarmonicTemplateDetector: HarmonicTemplateDetectingProtocol {
@@ -30,10 +29,8 @@ struct TargetedHarmonicTemplateDetector: HarmonicTemplateDetectingProtocol {
         wrongCandidateMIDINotes: [Int],
         generation: Int,
         suppressing: Bool,
-        requestedMode: PracticeAudioRecognitionDetectorMode,
         profile: HarmonicTemplateTuningProfile
-    ) -> TargetedHarmonicDetectionFrame {
-        let startedAt = Date.now.timeIntervalSinceReferenceDate
+    ) -> [DetectedNoteEvent] {
         let templates = templateProvider.makeTemplates(
             expectedMIDINotes: expectedMIDINotes,
             wrongCandidateMIDINotes: wrongCandidateMIDINotes,
@@ -44,21 +41,12 @@ struct TargetedHarmonicTemplateDetector: HarmonicTemplateDetectingProtocol {
             energyProvider: spectrumFrame,
             profile: profile
         )
-        let events = makeEvents(
+        return makeEvents(
             from: results,
             spectrumFrame: spectrumFrame,
             generation: generation,
             suppressing: suppressing,
             profile: profile
-        )
-        return TargetedHarmonicDetectionFrame(
-            events: events,
-            templateMatchResults: results,
-            processingDurationMs: ((Date.now.timeIntervalSinceReferenceDate) - startedAt) * 1000,
-            suppressing: suppressing,
-            fallbackReason: nil,
-            activeDetectorMode: requestedMode,
-            rollingWindowSize: spectrumFrame.windowSize
         )
     }
 
@@ -71,20 +59,14 @@ struct TargetedHarmonicTemplateDetector: HarmonicTemplateDetectingProtocol {
     ) -> [DetectedNoteEvent] {
         guard suppressing == false else { return [] }
         guard spectrumFrame.rms >= profile.minimumRMS else { return [] }
-        guard spectrumFrame.isOnset || spectrumFrame.onsetScore >= profile.onsetThreshold else { return [] }
+        guard spectrumFrame.isOnset || spectrumFrame.onsetScore >= profile.onsetThreshold else {
+            return []
+        }
         return results.compactMap { result in
             guard result.role != .octaveDebug else { return nil }
             guard result.confidence >= profile.minimumConfidence else { return nil }
-            switch result.role {
-            case .expected:
-                guard result.tonalRatio >= profile.minimumTonalRatio else { return nil }
-                guard result.dominanceOverWrong >= profile.minimumDominance else { return nil }
-            case .wrongCandidate:
-                guard result.tonalRatio >= profile.minimumTonalRatio else { return nil }
-                guard result.dominanceOverWrong >= profile.minimumDominance else { return nil }
-            case .octaveDebug:
-                return nil
-            }
+            guard result.tonalRatio >= profile.minimumTonalRatio else { return nil }
+            guard result.dominanceOverWrong >= profile.minimumDominance else { return nil }
             return DetectedNoteEvent(
                 midiNote: result.midiNote,
                 confidence: result.confidence,

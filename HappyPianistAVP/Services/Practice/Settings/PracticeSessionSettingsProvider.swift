@@ -3,7 +3,6 @@ import Foundation
 enum PracticeSessionSettingsKeys {
     static let manualAdvanceMode = "practiceManualAdvanceMode"
     static let handMode = "practiceHandMode"
-    static let audioRecognitionDetectorMode = "practiceStep3AudioRecognitionMode"
     static let improvBackendKind = "practiceImprovBackendKind"
 
     static let soundOutputRoute = "practiceSoundOutputRoute"
@@ -17,7 +16,6 @@ enum PracticeSessionSettingsKeys {
 protocol PracticeSessionSettingsProviderProtocol {
     var manualAdvanceMode: ManualAdvanceMode { get }
     var practiceHandMode: PracticeHandMode { get }
-    var audioRecognitionDetectorMode: PracticeAudioRecognitionDetectorMode { get }
     var soundRoutingSettings: PracticeSoundRoutingSettings { get }
 }
 
@@ -36,15 +34,6 @@ struct UserDefaultsPracticeSessionSettingsProvider: PracticeSessionSettingsProvi
 
     var practiceHandMode: PracticeHandMode {
         PracticeHandMode.storageValue(from: userDefaults.string(forKey: PracticeSessionSettingsKeys.handMode))
-    }
-
-    var audioRecognitionDetectorMode: PracticeAudioRecognitionDetectorMode {
-        guard let rawValue = userDefaults.string(forKey: PracticeSessionSettingsKeys.audioRecognitionDetectorMode),
-              let mode = PracticeAudioRecognitionDetectorMode(rawValue: rawValue)
-        else {
-            return .harmonicTemplate
-        }
-        return mode
     }
 
     var soundRoutingSettings: PracticeSoundRoutingSettings {

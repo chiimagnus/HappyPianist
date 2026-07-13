@@ -9,7 +9,6 @@ struct MusicXMLExpressivityOptions: Equatable {
 enum MusicXMLRealisticPlaybackDefaults {
     static let shouldExpandStructure = false
     static let performanceTimingEnabled = true
-    static let audioRecognitionEnabled = true
 
     static let expressivityOptions = MusicXMLExpressivityOptions(
         wedgeEnabled: true,

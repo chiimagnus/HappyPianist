@@ -57,7 +57,6 @@ func fakeAudioRecognitionServiceRecordsLifecycleCalls() async throws {
 @Test
 @MainActor
 func guidingStartsAudioRecognitionService() async {
-    UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
     let fakeService = FakePracticeAudioRecognitionService()
     let viewModel = makeViewModel(audioRecognitionService: fakeService)
     viewModel.setSteps(
@@ -77,7 +76,6 @@ func guidingStartsAudioRecognitionService() async {
 @Test
 @MainActor
 func switchingStepUpdatesGenerationAndExpectedNotes() async {
-    UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
     let fakeService = FakePracticeAudioRecognitionService()
     let viewModel = makeViewModel(audioRecognitionService: fakeService)
     viewModel.setSteps(
@@ -102,7 +100,6 @@ func switchingStepUpdatesGenerationAndExpectedNotes() async {
 @Test
 @MainActor
 func staleGenerationEventDoesNotAdvanceStep() async {
-    UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
     let fakeService = FakePracticeAudioRecognitionService()
     let viewModel = makeViewModel(audioRecognitionService: fakeService)
     viewModel.setSteps(
@@ -135,7 +132,6 @@ func staleGenerationEventDoesNotAdvanceStep() async {
 @Test
 @MainActor
 func matchingAudioEventAdvancesStep() async {
-    UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
     let fakeService = FakePracticeAudioRecognitionService()
     let viewModel = makeViewModel(audioRecognitionService: fakeService)
     viewModel.setSteps(
@@ -168,7 +164,6 @@ func matchingAudioEventAdvancesStep() async {
 @Test
 @MainActor
 func suppressWindowBlocksThenAllowsAdvance() async {
-    UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
     let fakeService = FakePracticeAudioRecognitionService()
     let playbackService = CapturingSequencerPlaybackService()
     let viewModel = PracticeSessionViewModel(
@@ -227,7 +222,6 @@ func suppressWindowBlocksThenAllowsAdvance() async {
 @Test
 @MainActor
 func autoplayIsolationBlocksAudioAdvanceUntilAutoplayOff() async {
-    UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
     let fakeService = FakePracticeAudioRecognitionService()
     let viewModel = makeViewModel(audioRecognitionService: fakeService)
     let tempoMap = MusicXMLTempoMap(tempoEvents: [MusicXMLTempoEvent(
@@ -331,7 +325,6 @@ func autoplayIsolationBlocksAudioAdvanceUntilAutoplayOff() async {
 @Test
 @MainActor
 func permissionFailureStatusDoesNotAdvanceAndSetsError() async {
-    UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
     let fakeService = FakePracticeAudioRecognitionService()
     let viewModel = makeViewModel(audioRecognitionService: fakeService)
     viewModel.setSteps(
@@ -417,7 +410,6 @@ private final class CapturingSequencerPlaybackService: PracticeSequencerPlayback
 @Test
 @MainActor
 func startGuidingPassesPlaybackSuppressDeadlineIntoAudioServiceStart() async {
-    UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
     let fakeService = FakePracticeAudioRecognitionService()
     let playbackService = CapturingSequencerPlaybackService()
     let viewModel = PracticeSessionViewModel(
@@ -444,7 +436,6 @@ func startGuidingPassesPlaybackSuppressDeadlineIntoAudioServiceStart() async {
 @Test
 @MainActor
 func microphonePermissionFailureDoesNotBlockPlaybackFallback() async {
-    UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
     let fakeService = FakePracticeAudioRecognitionService()
     let playbackService = CapturingSequencerPlaybackService()
     let viewModel = PracticeSessionViewModel(
@@ -469,88 +460,4 @@ func microphonePermissionFailureDoesNotBlockPlaybackFallback() async {
 
     #expect(viewModel.audioRecognitionErrorMessage == "未授予麦克风权限")
     #expect(playbackService.oneShots.count >= 2)
-}
-
-@Test
-@MainActor
-func disablingAudioRecognitionSettingStopsRunningService() async {
-    UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
-    let fakeService = FakePracticeAudioRecognitionService()
-    let viewModel = makeViewModel(audioRecognitionService: fakeService)
-    viewModel.setSteps(
-        [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-        ],
-        tempoMap: MusicXMLTempoMap(tempoEvents: [])
-    )
-    viewModel.startGuidingIfReady()
-    await settleTaskQueue()
-
-    UserDefaults.standard.set(false, forKey: "practiceAudioRecognitionEnabled")
-    viewModel.refreshAudioRecognitionFromSettings()
-
-    #expect(fakeService.stopCallCount >= 1)
-}
-
-@Test
-@MainActor
-func disablingAudioRecognitionSettingIgnoresQueuedEvents() async {
-    UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
-    let fakeService = FakePracticeAudioRecognitionService()
-    let viewModel = makeViewModel(audioRecognitionService: fakeService)
-    viewModel.setSteps(
-        [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-            PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
-        ],
-        tempoMap: MusicXMLTempoMap(tempoEvents: [])
-    )
-    viewModel.startGuidingIfReady()
-    await settleTaskQueue()
-    let generation = fakeService.startCalls.first?.generation ?? 0
-
-    UserDefaults.standard.set(false, forKey: "practiceAudioRecognitionEnabled")
-    viewModel.refreshAudioRecognitionFromSettings()
-    fakeService.emitEvent(
-        DetectedNoteEvent(
-            midiNote: 60,
-            confidence: 0.95,
-            onsetScore: 0.9,
-            isOnset: true,
-            timestamp: Date().addingTimeInterval(0.8),
-            generation: generation
-        )
-    )
-    await settleTaskQueue()
-
-    #expect(viewModel.currentStepIndex == 0)
-}
-
-@Test
-@MainActor
-func detectorModeSettingRefreshConfiguresServiceWithoutEventTimeUserDefaultsRead() async {
-    UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
-    UserDefaults.standard.set(
-        PracticeAudioRecognitionDetectorMode.harmonicTemplate.rawValue,
-        forKey: "practiceStep3AudioRecognitionMode"
-    )
-    let fakeService = FakePracticeAudioRecognitionService()
-    let viewModel = makeViewModel(audioRecognitionService: fakeService)
-    viewModel.refreshAudioRecognitionFromSettings()
-
-    #expect(fakeService.configuredDetectorMode == .harmonicTemplate)
-
-    UserDefaults.standard.set(false, forKey: "practiceAudioRecognitionEnabled")
-    fakeService.emitEvent(
-        DetectedNoteEvent(
-            midiNote: 60,
-            confidence: 0.95,
-            onsetScore: 0.9,
-            isOnset: true,
-            timestamp: Date().addingTimeInterval(1.0),
-            generation: 999
-        )
-    )
-    await settleTaskQueue()
-    #expect(fakeService.configuredDetectorMode == .harmonicTemplate)
 }

@@ -37,7 +37,6 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
     let handPianoActivityGate: HandPianoActivityGate
 
     let audioRecognitionSuppressDuration: TimeInterval = 0.6
-    let audioRecognitionEnabledSnapshot = MusicXMLRealisticPlaybackDefaults.audioRecognitionEnabled
     let autoplayTimingLeadInSeconds: TimeInterval = 0.05
 
     private(set) var hasShutdown = false

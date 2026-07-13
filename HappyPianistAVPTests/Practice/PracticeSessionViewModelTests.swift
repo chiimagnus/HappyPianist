@@ -1511,7 +1511,6 @@ private func makeDummyKeyboardGeometry() -> PianoKeyboardGeometry {
 @Test
 @MainActor
 func enablingAutoplayStopsManualReplayWithoutResumingAudioRecognition() async {
-    UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
     let sleeper = PendingSleeper()
     let audioRecognitionService = FakePracticeAudioRecognitionService()
     let playbackService = CapturingSequencerPlaybackService()

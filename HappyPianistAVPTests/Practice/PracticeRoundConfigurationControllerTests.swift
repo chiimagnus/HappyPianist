@@ -107,7 +107,6 @@ struct PracticeRoundConfigurationControllerTests {
 private struct FixedPracticeSettingsProvider: PracticeSessionSettingsProviderProtocol {
     let manualAdvanceMode: ManualAdvanceMode = .step
     let practiceHandMode: PracticeHandMode = .both
-    let audioRecognitionDetectorMode: PracticeAudioRecognitionDetectorMode = .harmonicTemplate
     let soundRoutingSettings = PracticeSoundRoutingSettings(
         outputRoute: .localSampler,
         midiDestinationUniqueID: nil,

@@ -1,4 +1,5 @@
 import Foundation
+
 #if canImport(Accelerate)
     import Accelerate
 #endif
@@ -15,8 +16,6 @@ struct VDSPAudioSpectrumAnalyzer: AudioSpectrumAnalyzingProtocol {
         }
     }
 
-    init() {}
-
     func analyze(samples: [Float], sampleRate: Double, timestamp: Date) throws -> AudioSpectrumFrame {
         guard samples.isEmpty == false, sampleRate > 0 else { throw AnalyzerError.invalidInput }
         let rms = Self.rms(samples)
@@ -26,7 +25,6 @@ struct VDSPAudioSpectrumAnalyzer: AudioSpectrumAnalyzingProtocol {
             sampleRate: sampleRate,
             windowSize: samples.count,
             rms: rms,
-            noiseFloor: Self.noiseFloorEstimate(samples),
             onsetScore: onsetScore,
             isOnset: onsetScore >= 0.25,
             timestamp: timestamp,
@@ -49,13 +47,6 @@ struct VDSPAudioSpectrumAnalyzer: AudioSpectrumAnalyzingProtocol {
         let tailRMS = rms(tail)
         let denominator = max(headRMS, tailRMS, 1e-9)
         return max(0.0, min(1.0, (tailRMS - headRMS) / denominator))
-    }
-
-    private static func noiseFloorEstimate(_ samples: [Float]) -> Double {
-        guard samples.isEmpty == false else { return 0 }
-        let absoluteValues = samples.map { abs(Double($0)) }.sorted()
-        let index = max(0, min(absoluteValues.count - 1, absoluteValues.count / 10))
-        return absoluteValues[index]
     }
 
     private static func magnitudeSpectrum(
@@ -101,7 +92,7 @@ struct VDSPAudioSpectrumAnalyzer: AudioSpectrumAnalyzingProtocol {
                     vDSP_fft_zrip(setup, &split, 1, log2n, FFTDirection(FFT_FORWARD))
                     var magnitudes = [Float](repeating: 0, count: halfCount)
                     vDSP_zvmags(&split, 1, &magnitudes, 1, vDSP_Length(halfCount))
-                    let frequencies = (0 ..< halfCount).map { Double($0) * sampleRate / Double(count) }
+                    let frequencies = (0..<halfCount).map { Double($0) * sampleRate / Double(count) }
                     return (frequencies, magnitudes.map(Double.init))
                 }
             }
@@ -139,8 +130,8 @@ struct VDSPAudioSpectrumAnalyzer: AudioSpectrumAnalyzingProtocol {
     }
 }
 
-private extension Int {
-    var isPowerOfTwo: Bool {
+extension Int {
+    fileprivate var isPowerOfTwo: Bool {
         self > 0 && (self & (self - 1)) == 0
     }
 }

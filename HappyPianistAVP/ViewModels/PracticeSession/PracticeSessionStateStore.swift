@@ -66,7 +66,6 @@ final class PracticeSessionStateStore {
     var autoplayErrorMessage: String?
 
     var audioRecognitionStatus: PracticeAudioRecognitionStatus = .idle
-    var audioRecognitionDebugSnapshot: PracticeAudioRecognitionDebugSnapshot = .empty
     var handGateState = HandGateState(
         isNearKeyboard: false,
         hasDownwardMotion: false,
@@ -101,6 +100,4 @@ final class PracticeSessionStateStore {
     var practiceInputActiveSinceUptimeSeconds: TimeInterval?
     var practiceInputLastResetStepIndex: Int?
     var audioRecognitionSuppressUntil: Date?
-    var practiceAudioRecognitionDetectorModeSnapshot: PracticeAudioRecognitionDetectorMode = .harmonicTemplate
-    var harmonicTemplateTuningProfileSnapshot: HarmonicTemplateTuningProfile = .lowLatencyDefault
 }

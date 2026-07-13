@@ -37,7 +37,6 @@ extension PracticeSessionViewModel {
                 practiceState: self.state,
                 autoplayState: self.autoplayState,
                 isManualReplayPlaying: self.isManualReplayPlaying,
-                isAudioRecognitionEnabled: isPracticeAudioRecognitionEnabled,
                 expectedMIDINotes: expectedMIDINotes,
                 expectedRightMIDINotes: expectedByHand.right,
                 expectedLeftMIDINotes: expectedByHand.left,
@@ -49,16 +48,6 @@ extension PracticeSessionViewModel {
                 suppressUntil: suppressUntil
             )
         )
-    }
-
-    func refreshAudioRecognitionFromSettings() {
-        self.practiceAudioRecognitionDetectorModeSnapshot = settingsProvider.audioRecognitionDetectorMode
-        self.harmonicTemplateTuningProfileSnapshot = Self.profile(for: self.practiceAudioRecognitionDetectorModeSnapshot)
-        audioRecognitionService?.configureDetectorMode(
-            self.practiceAudioRecognitionDetectorModeSnapshot,
-            profile: self.harmonicTemplateTuningProfileSnapshot
-        )
-        refreshAudioRecognitionForCurrentState()
     }
 
     func stopAudioRecognition() {
@@ -95,16 +84,8 @@ extension PracticeSessionViewModel {
         return result.sorted()
     }
 
-    private var isPracticeAudioRecognitionEnabled: Bool {
-        audioRecognitionEnabledSnapshot
-    }
-
     var audioRecognitionGenerationForTesting: Int {
         self.audioRecognitionGeneration
-    }
-
-    private static func profile(for _: PracticeAudioRecognitionDetectorMode) -> HarmonicTemplateTuningProfile {
-        .lowLatencyDefault
     }
 
     private func currentStepNotesForPracticeHandMode() -> [PracticeStepNote] {

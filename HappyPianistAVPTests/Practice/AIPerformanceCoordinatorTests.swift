@@ -205,7 +205,6 @@ private final class FakePracticeSession: AIPerformancePracticeSessionProtocol {
 private struct FakeSettingsProvider: PracticeSessionSettingsProviderProtocol {
     var manualAdvanceMode: ManualAdvanceMode { .step }
     var practiceHandMode: PracticeHandMode { .both }
-    var audioRecognitionDetectorMode: PracticeAudioRecognitionDetectorMode { .harmonicTemplate }
     var soundRoutingSettings: PracticeSoundRoutingSettings { PracticeSoundRoutingSettings(outputRoute: .localSampler, midiDestinationUniqueID: nil, sendLocalControlOff: false) }
 }
 

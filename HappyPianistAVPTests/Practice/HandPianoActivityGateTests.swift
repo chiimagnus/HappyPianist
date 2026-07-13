@@ -58,7 +58,6 @@ func exactHitFallbackStillAdvancesStep() {
 @Test
 @MainActor
 func gateInactiveStillAllowsAudioMatchedAdvance() async {
-    UserDefaults.standard.set(true, forKey: "practiceAudioRecognitionEnabled")
     let fakeService = FakePracticeAudioRecognitionService()
     let viewModel = PracticeSessionViewModel(
         pressDetectionService: NoopPressDetectionService(),

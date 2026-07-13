@@ -54,7 +54,6 @@ private final class NoopPracticeSequencerPlaybackService: PracticeSequencerPlayb
 private struct TestPracticeSessionSettingsProvider: PracticeSessionSettingsProviderProtocol {
     let manualAdvanceMode: ManualAdvanceMode
     let practiceHandMode: PracticeHandMode = .both
-    let audioRecognitionDetectorMode: PracticeAudioRecognitionDetectorMode = .harmonicTemplate
     let soundRoutingSettings = PracticeSoundRoutingSettings(
         outputRoute: .localSampler,
         midiDestinationUniqueID: nil,

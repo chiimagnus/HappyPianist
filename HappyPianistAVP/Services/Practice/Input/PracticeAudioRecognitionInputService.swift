@@ -2,12 +2,13 @@ import Foundation
 import os
 
 @MainActor
-final class PracticeAudioRecognitionInputService: PracticeAudioRecognitionInputServiceProtocol, PracticeSessionLifecycleProtocol {
+final class PracticeAudioRecognitionInputService: PracticeAudioRecognitionInputServiceProtocol,
+    PracticeSessionLifecycleProtocol
+{
     struct Snapshot: Equatable {
         var practiceState: PracticeSessionState
         var autoplayState: PracticeSessionAutoplayState
         var isManualReplayPlaying: Bool
-        var isAudioRecognitionEnabled: Bool
         var expectedMIDINotes: [Int]
         var expectedRightMIDINotes: [Int]
         var expectedLeftMIDINotes: [Int]
@@ -27,9 +28,9 @@ final class PracticeAudioRecognitionInputService: PracticeAudioRecognitionInputS
     private weak var effectHandler: (any PracticeSessionEffectHandlerProtocol)?
 
     private var hasShutdown = false
+    private var startTask: Task<Void, Never>?
     private var eventsTask: Task<Void, Never>?
     private var statusTask: Task<Void, Never>?
-    private var debugTask: Task<Void, Never>?
 
     init(
         service: PracticeAudioRecognitionServiceProtocol?,
@@ -53,8 +54,6 @@ final class PracticeAudioRecognitionInputService: PracticeAudioRecognitionInputS
         eventsTask = nil
         statusTask?.cancel()
         statusTask = nil
-        debugTask?.cancel()
-        debugTask = nil
     }
 
     func refreshForCurrentState() {
@@ -67,6 +66,8 @@ final class PracticeAudioRecognitionInputService: PracticeAudioRecognitionInputS
 
     func stop() {
         guard let service else { return }
+        startTask?.cancel()
+        startTask = nil
         stateStore.audioRecognitionGeneration += 1
         accumulator.resetForNewStep(generation: stateStore.audioRecognitionGeneration)
         service.stop()
@@ -77,13 +78,10 @@ final class PracticeAudioRecognitionInputService: PracticeAudioRecognitionInputS
     private var latestSnapshot: Snapshot?
 
     func refresh(for snapshot: Snapshot) {
+        guard hasShutdown == false else { return }
         latestSnapshot = snapshot
         guard let service else { return }
 
-        guard snapshot.isAudioRecognitionEnabled else {
-            stop()
-            return
-        }
         guard snapshot.autoplayState == .off else {
             stop()
             return
@@ -96,11 +94,6 @@ final class PracticeAudioRecognitionInputService: PracticeAudioRecognitionInputS
             stop()
             return
         }
-
-        service.configureDetectorMode(
-            stateStore.practiceAudioRecognitionDetectorModeSnapshot,
-            profile: stateStore.harmonicTemplateTuningProfileSnapshot
-        )
 
         accumulator.setMode(.lowLatency)
         stateStore.audioRecognitionGeneration += 1
@@ -118,7 +111,7 @@ final class PracticeAudioRecognitionInputService: PracticeAudioRecognitionInputS
 
         stateStore.isAudioRecognitionRunning = true
         let startGeneration = stateStore.audioRecognitionGeneration
-        Task { @MainActor [weak self] in
+        startTask = Task { @MainActor [weak self] in
             guard let self else { return }
             do {
                 try await service.start(
@@ -128,14 +121,24 @@ final class PracticeAudioRecognitionInputService: PracticeAudioRecognitionInputS
                     suppressUntil: snapshot.suppressUntil
                 )
                 guard stateStore.audioRecognitionGeneration == startGeneration else {
-                    stop()
+                    service.stop()
+                    stateStore.isAudioRecognitionRunning = false
+                    startTask = nil
+                    guard hasShutdown == false else { return }
+                    refreshForCurrentState()
                     return
                 }
+                startTask = nil
                 applyPendingSuppressIfNeeded(generation: startGeneration)
             } catch {
+                startTask = nil
+                guard hasShutdown == false,
+                    stateStore.audioRecognitionGeneration == startGeneration
+                else { return }
                 stateStore.isAudioRecognitionRunning = false
                 recordError(error)
-                logger.error("audio recognition start failed: \(error.localizedDescription, privacy: .public)")
+                logger.error(
+                    "audio recognition start failed: \(error.localizedDescription, privacy: .public)")
             }
         }
     }
@@ -159,17 +162,9 @@ final class PracticeAudioRecognitionInputService: PracticeAudioRecognitionInputS
                     if case .permissionDenied = status {
                         self?.stateStore.audioRecognitionErrorMessage = "未授予麦克风权限"
                     }
-                    if case let .engineFailed(reason) = status {
+                    if case .engineFailed(let reason) = status {
                         self?.stateStore.audioRecognitionErrorMessage = reason
                     }
-                }
-            }
-        }
-
-        debugTask = Task { [weak self] in
-            for await snapshot in service.debugSnapshots {
-                await MainActor.run {
-                    self?.stateStore.audioRecognitionDebugSnapshot = snapshot
                 }
             }
         }
@@ -189,11 +184,12 @@ final class PracticeAudioRecognitionInputService: PracticeAudioRecognitionInputS
 
     private func handle(_ event: DetectedNoteEvent) {
         guard let snapshot = latestSnapshot else { return }
-        guard snapshot.isAudioRecognitionEnabled else { return }
         guard snapshot.autoplayState == .off else { return }
         guard snapshot.isManualReplayPlaying == false else { return }
         guard event.generation == stateStore.audioRecognitionGeneration else { return }
-        if let suppressUntil = stateStore.audioRecognitionSuppressUntil, event.timestamp <= suppressUntil {
+        if let suppressUntil = stateStore.audioRecognitionSuppressUntil,
+            event.timestamp <= suppressUntil
+        {
             return
         }
 

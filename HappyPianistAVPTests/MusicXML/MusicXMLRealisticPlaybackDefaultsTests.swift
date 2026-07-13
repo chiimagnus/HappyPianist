@@ -17,4 +17,3 @@ func musicXMLRealisticPlaybackDefaultsAreHardcodedForNoSettingsSwitches() {
 
 // Grep gate for local/CI regression checks:
 // rg -n 'UserDefaults\.standard\.bool\(forKey:
-// "practiceMusicXML|@AppStorage\("practiceMusicXML|practiceAudioRecognitionEnabled\b' HappyPianistAVP || true
