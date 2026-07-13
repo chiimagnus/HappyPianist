@@ -164,7 +164,7 @@ prepare score
 - feedback generation、重复事件和 lifecycle cleanup
 - summary 与 measure map 只消费当前 passage facts
 
-完整 Apple target 命令见 [../testing/practice-learning-loop-p1-checklist.md](../testing/practice-learning-loop-p1-checklist.md)。
+核心功能验证步骤见 [核心功能测试清单](../testing/core-function-checklist.md)。
 
 
 ## 曲库练习面板

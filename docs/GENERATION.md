@@ -4,12 +4,11 @@
 
 | Item | Value |
 | --- | --- |
-| Source snapshot | `HappyPianist-20260712-101747-docs-synced.zip` + library practice ornament/diagnostics feature |
-| Commit hash | `4289c13` (source baseline before canonical-doc synchronization) |
-| Branch name | `master` |
-| Generated at | 2026-07-12T23:26:03+08:00 |
+| Source snapshot | `HappyPianist-20260713-181406.zip` |
+| Commit hash | 不可用（源码归档不包含 Git 元数据） |
+| Generated at | 2026-07-13T19:32:15+09:00 |
 | Output language | Chinese |
-| Generation mode | Full canonical-doc reconciliation with `neat-freak` |
+| Generation mode | Canonical documentation cleanup with `neat-freak` |
 
 ## Canonical pages
 
@@ -19,18 +18,20 @@
 - `docs/architecture.md`
 - `docs/data-flow.md`
 - `docs/configuration.md`
-- `docs/dependencies.md`
 - `docs/storage.md`
-- `docs/glossary.md`
 - `docs/modules/happypianist-avp.md`
 - `docs/modules/happypianist-avp-practice.md`
-- `docs/testing/practice-learning-loop-p1-checklist.md`
-- `docs/testing/practice-feedback-usability-checklist.md`
-- `docs/testing/library-practice-ornament-checklist.md`
+- `docs/testing/core-function-checklist.md`
+
+## Removed or merged pages
+
+- `docs/dependencies.md`：必要内容并入 `docs/configuration.md`。
+- `docs/glossary.md`：术语已在架构、数据流和模块页中就地解释。
+- 原三份 testing checklist：合并为 `docs/testing/core-function-checklist.md`。
 
 ## Coverage gaps
 
-- The archive does not include Git history, so documentation cannot name the original repository HEAD.
-- The cleaned source has not been revalidated with Xcode in this environment.
-- Hand tracking, microphone, Bluetooth MIDI, Local Network, spatial alignment, VoiceOver gestures and comfort require Apple Vision Pro hardware.
-- `Bravura.otf`, `SalC5Light2.sf2`, the Performance RNN CoreML model and Aria checkpoint are not included in the source archive.
+- 源码归档不包含 Git 历史，因此无法记录原始仓库 HEAD。
+- 当前环境未使用 Xcode 重新验证这份源码。
+- 手部追踪、麦克风、Bluetooth MIDI、空间对齐与舒适度需要 Apple Vision Pro 真机。
+- 源码归档不包含 `Bravura.otf`、`SalC5Light2.sf2`、Performance RNN CoreML 模型与 Aria 权重。

@@ -14,6 +14,14 @@
 
 仓库没有 macOS App target，也没有 `.github/workflows/`。Apple 平台验证以本地 `xcodebuild` 为准。
 
+## 依赖边界
+
+- `RealityKitContent` 是仓库内 SwiftPM 内容包。
+- `ZIPFoundation` 0.9.20 用于解包 `.mxl`；普通 MusicXML 不依赖它。
+- SwiftPM 锁定版本见 `HappyPianist.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved`。
+- 正常练习不依赖 Python 服务；本地规则 AI 也不依赖 CoreML 模型或 Python。
+- Apple framework 的最终行为只能在 Xcode、Simulator 或设备环境中验证。
+
 ## Info.plist 与权限
 
 配置文件：`HappyPianistAVP/Resources/Info.plist`。
