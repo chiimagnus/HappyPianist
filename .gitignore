@@ -31,6 +31,8 @@ python_backend/**/.venv*/
 python_backend/**/out/
 
 __pycache__/
+.pytest_cache/
+*.egg-info/
 *.pyc
 
 *.mag

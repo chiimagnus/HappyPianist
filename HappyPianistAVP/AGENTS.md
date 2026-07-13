@@ -47,7 +47,7 @@
   }
   ```
 - **Attachments:** 在 `RealityView` 中使用 `Attachment` 将 SwiftUI 视图嵌入 3D 空间。
-- **异步加载:** 资源必须异步加载（例如 `_ = try! await Entity(named: "MyEntity")`、`async let textureA = try? TextureResource(named:"textureA.jpg")`），避免阻塞主线程。
+- **异步加载:** 资源必须异步加载（例如 `let entity = try? await Entity(named: "MyEntity")`、`async let textureA = try? TextureResource(named: "textureA.jpg")`），避免阻塞主线程。
 - **Components:** 组合优于继承。自定义组件应实现 `Component` 与 `Codable`。
 - **可拖拽实体:** 必须同时具备 `CollisionComponent` 和 `InputTargetComponent`。
   ```swift
