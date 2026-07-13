@@ -26,7 +26,7 @@ enum AriaNetworkBonjourWebSocketImprovBackendError: Error, LocalizedError, Equat
     }
 }
 
-actor AriaNetworkBonjourWebSocketImprovBackend: ImprovBackendProtocol, ImprovStreamingBackendProtocol {
+actor AriaNetworkBonjourWebSocketImprovBackend: ImprovBackendProtocol {
     nonisolated let kind: ImprovBackendKind = .networkBonjourWebSocketAriaV2
     nonisolated let displayName: String = "网络本地连接（Aria v2 Streaming）"
 
@@ -44,7 +44,7 @@ actor AriaNetworkBonjourWebSocketImprovBackend: ImprovBackendProtocol, ImprovStr
         self.scheduleBuilder = scheduleBuilder
     }
 
-    func streamChunks(
+    private func streamChunks(
         request: ImprovGenerateRequestV2,
         timeout: Duration
     ) async throws -> AsyncThrowingStream<ImprovStreamChunkV2, Error> {

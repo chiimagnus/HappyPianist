@@ -16,6 +16,7 @@ final class BonjourBackendDiscoveryService: Sendable {
 
     private let serviceType: String
     private let requiredTXTRecord: [String: String]
+    private let resolutionTimeout: Duration
     private(set) var state: State = .idle
 
     private var browser: NWBrowser?
@@ -23,10 +24,12 @@ final class BonjourBackendDiscoveryService: Sendable {
 
     init(
         serviceType: String = BonjourBackendDiscoveryService.defaultServiceType,
-        requiredTXTRecord: [String: String] = [:]
+        requiredTXTRecord: [String: String] = [:],
+        resolutionTimeout: Duration = .seconds(2)
     ) {
         self.serviceType = serviceType
         self.requiredTXTRecord = requiredTXTRecord
+        self.resolutionTimeout = resolutionTimeout
     }
 
     var resolvedEndpoint: (host: String, port: Int)? {
@@ -90,27 +93,26 @@ final class BonjourBackendDiscoveryService: Sendable {
     }
 
     private func resolveAndPublish(candidates: [NWBrowser.Result]) async {
-        defer {
-            Task { @MainActor [weak self] in
-                self?.resolveTask = nil
-            }
-        }
+        defer { resolveTask = nil }
 
         for result in candidates {
+            guard Task.isCancelled == false else { return }
+
             let endpoint = result.endpoint
             let txtRecord = extractTXTRecordStrings(from: result.metadata) ?? [:]
-            let resolved = await resolveHostPort(from: endpoint)
-            if let resolved {
-                await MainActor.run {
-                    self.state = .resolved(host: resolved.host, port: resolved.port, txtRecord: txtRecord)
-                }
-                return
-            }
-        }
+            let resolved = await resolveHostPort(
+                from: endpoint,
+                timeout: resolutionTimeout
+            )
 
-        await MainActor.run {
-            if case .discovering = self.state {
-                // Keep discovering. A transient resolve failure should not permanently lock the service in `.failed`.
+            guard Task.isCancelled == false else { return }
+            if let resolved {
+                state = .resolved(
+                    host: resolved.host,
+                    port: resolved.port,
+                    txtRecord: txtRecord
+                )
+                return
             }
         }
     }
@@ -173,41 +175,73 @@ final class BonjourBackendDiscoveryService: Sendable {
         return result
     }
 
-    private nonisolated func resolveHostPort(from endpoint: NWEndpoint) async -> (host: String, port: Int)? {
-        await withCheckedContinuation { continuation in
-            let connection = NWConnection(to: endpoint, using: .tcp)
-            let lock = OSAllocatedUnfairLock(initialState: false)
+    private nonisolated func resolveHostPort(
+        from endpoint: NWEndpoint,
+        timeout: Duration
+    ) async -> (host: String, port: Int)? {
+        enum ResolutionEvent: Sendable {
+            case resolved(host: String, port: Int)
+            case failed
+        }
 
-            @Sendable func finish(_ value: (host: String, port: Int)?) {
-                let shouldResume = lock.withLock { alreadyFinished in
-                    if alreadyFinished {
-                        return false
-                    }
-                    alreadyFinished = true
-                    return true
-                }
-                guard shouldResume else { return }
-                continuation.resume(returning: value)
-                connection.cancel()
-            }
-
+        let connection = NWConnection(to: endpoint, using: .tcp)
+        let events = AsyncStream<ResolutionEvent> { continuation in
             connection.stateUpdateHandler = { state in
                 switch state {
                 case .ready:
                     if case let .hostPort(host, port) = connection.currentPath?.remoteEndpoint {
-                        let resolvedHost = self.normalizeResolvedHost(String(describing: host))
-                        finish((host: resolvedHost, port: Int(port.rawValue)))
+                        continuation.yield(
+                            .resolved(
+                                host: self.normalizeResolvedHost(String(describing: host)),
+                                port: Int(port.rawValue)
+                            )
+                        )
                     } else {
-                        finish(nil)
+                        continuation.yield(.failed)
                     }
-                case .failed:
-                    finish(nil)
-                default:
+                    continuation.finish()
+                case .failed, .cancelled:
+                    continuation.yield(.failed)
+                    continuation.finish()
+                case .setup, .waiting, .preparing:
                     break
+                @unknown default:
+                    continuation.yield(.failed)
+                    continuation.finish()
                 }
             }
-
+            continuation.onTermination = { @Sendable _ in
+                connection.cancel()
+            }
             connection.start(queue: .global(qos: .utility))
+        }
+
+        defer { connection.cancel() }
+
+        return await withTaskGroup(of: (host: String, port: Int)?.self) { group in
+            group.addTask {
+                for await event in events {
+                    switch event {
+                    case let .resolved(host, port):
+                        return (host, port)
+                    case .failed:
+                        return nil
+                    }
+                }
+                return nil
+            }
+            group.addTask {
+                do {
+                    try await Task.sleep(for: timeout)
+                } catch {
+                    return nil
+                }
+                return nil
+            }
+
+            let result = await group.next() ?? nil
+            group.cancelAll()
+            return result
         }
     }
 

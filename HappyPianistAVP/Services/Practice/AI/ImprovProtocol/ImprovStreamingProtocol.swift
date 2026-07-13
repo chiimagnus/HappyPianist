@@ -25,8 +25,8 @@ public struct ImprovStreamTimeRange: Codable, Equatable, Sendable {
     public var end: Double
 
     public init(start: Double, end: Double) {
-        self.start = Self.sanitizeSeconds(start)
-        self.end = max(Self.sanitizeSeconds(end), self.start)
+        self.start = start
+        self.end = end
     }
 
     enum CodingKeys: String, CodingKey {
@@ -36,15 +36,26 @@ public struct ImprovStreamTimeRange: Codable, Equatable, Sendable {
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        let decodedStart = Self.sanitizeSeconds(try container.decode(Double.self, forKey: .start))
-        let decodedEnd = Self.sanitizeSeconds(try container.decode(Double.self, forKey: .end))
-        start = decodedStart
-        end = max(decodedEnd, decodedStart)
-    }
+        let decodedStart = try container.decode(Double.self, forKey: .start)
+        let decodedEnd = try container.decode(Double.self, forKey: .end)
 
-    private static func sanitizeSeconds(_ seconds: Double) -> Double {
-        guard seconds.isFinite else { return 0 }
-        return max(0, seconds)
+        guard decodedStart.isFinite, decodedStart >= 0 else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .start,
+                in: container,
+                debugDescription: "Stream time-range start must be finite and nonnegative."
+            )
+        }
+        guard decodedEnd.isFinite, decodedEnd >= decodedStart else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .end,
+                in: container,
+                debugDescription: "Stream time-range end must be finite and no earlier than start."
+            )
+        }
+
+        start = decodedStart
+        end = decodedEnd
     }
 }
 

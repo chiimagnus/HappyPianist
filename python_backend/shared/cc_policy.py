@@ -14,9 +14,6 @@ class DefaultCCPolicy:
         def sanitize_value(value: int | None) -> int | None:
             if value is None:
                 return None
-            if value == 0:
-                # Convention: treat 0 as "disabled" (even though 0 is a legal CC value).
-                return None
             return max(0, min(127, int(value)))
 
         return DefaultCCPolicy(
