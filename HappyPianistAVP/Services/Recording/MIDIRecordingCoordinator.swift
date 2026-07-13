@@ -135,32 +135,10 @@ final class MIDIRecordingState {
         onStateChanged(State(isRecording: isRecording, recordingStartDate: recordingStartDate))
     }
 
-    private func logMIDIPerNoteIfEnabled(_ message: String) {
-        let config = MIDIDiagnosticsConfiguration.live()
-        if config.isPerNoteInfoLoggingEnabled {
-            logger.info("\(message, privacy: .public)")
-            return
-        }
-        if config.isPerNoteDebugLoggingEnabled {
-            logger.debug("\(message, privacy: .public)")
-        }
-    }
-
     private func handleMIDI1TakeRecordingEvent(_ event: MIDI1InputEvent) {
         guard Task.isCancelled == false else { return }
 
         onMIDI1Event?(event)
-
-        if let id = event.debugEventID {
-            switch event.kind {
-            case let .noteOn(note, velocity):
-                logMIDIPerNoteIfEnabled("recording saw midi1 id=\(id) src=\(describe(event.source)) noteOn=\(note) vel=\(velocity)")
-            case let .noteOff(note, velocity):
-                logMIDIPerNoteIfEnabled("recording saw midi1 id=\(id) src=\(describe(event.source)) noteOff=\(note) vel=\(velocity)")
-            default:
-                break
-            }
-        }
 
         if isRecording {
             midiRecordingAdapter.record(event: event, into: &takeRecorder)
@@ -172,49 +150,12 @@ final class MIDIRecordingState {
 
         onMIDI2Event?(event)
 
-        if let id = event.debugEventID {
-            switch event.kind {
-            case let .noteOn(note, velocity16):
-                logMIDIPerNoteIfEnabled("recording saw midi2 id=\(id) src=\(describe(event.source)) noteOn=\(note) vel16=\(Int(velocity16))")
-            case let .noteOff(note, velocity16):
-                logMIDIPerNoteIfEnabled("recording saw midi2 id=\(id) src=\(describe(event.source)) noteOff=\(note) vel16=\(Int(velocity16))")
-            default:
-                break
-            }
-        }
-
         if isRecording {
             midiRecordingAdapter.record(event: event, into: &takeRecorder)
         }
     }
 
-    private func describe(_ source: MIDI1InputEvent.Source) -> String {
-        switch source.identifier {
-        case let .endpointUniqueID(uniqueID):
-            if let name = source.endpointName, name.isEmpty == false {
-                return "uid=\(uniqueID)(\(name))"
-            }
-            return "uid=\(uniqueID)"
-        case let .sourceIndex(index):
-            if let name = source.endpointName, name.isEmpty == false {
-                return "idx=\(index)(\(name))"
-            }
-            return "idx=\(index)"
-        }
-    }
 
-    private func describe(_ source: MIDI2InputEvent.Source) -> String {
-        switch source.identifier {
-        case let .endpointUniqueID(uniqueID):
-            if let name = source.endpointName, name.isEmpty == false {
-                return "uid=\(uniqueID)(\(name))"
-            }
-            return "uid=\(uniqueID)"
-        case let .sourceIndex(index):
-            if let name = source.endpointName, name.isEmpty == false {
-                return "idx=\(index)(\(name))"
-            }
-            return "idx=\(index)"
-        }
-    }
+
+
 }

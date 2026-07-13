@@ -15,21 +15,13 @@ final class MIDISourceConnectionViewModel {
         self.monitoringService = monitoringService
 
         monitoringService.onSourceNamesChange = { [weak self] names in
-            Task { @MainActor [weak self] in
-                self?.sourceNames = names
-            }
+            self?.sourceNames = names
         }
-
         monitoringService.onConnectionStateChange = { [weak self] state in
-            Task { @MainActor [weak self] in
-                self?.connectionState = state
-            }
+            self?.connectionState = state
         }
-
         monitoringService.onLastErrorMessageChange = { [weak self] message in
-            Task { @MainActor [weak self] in
-                self?.lastErrorMessage = message
-            }
+            self?.lastErrorMessage = message
         }
     }
 

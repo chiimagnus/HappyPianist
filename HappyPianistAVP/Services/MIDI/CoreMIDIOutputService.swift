@@ -42,42 +42,45 @@ enum CoreMIDIOutputServiceError: LocalizedError {
     }
 }
 
-final class CoreMIDIOutputService: MIDIOutputSendingProtocol, @unchecked Sendable {
-    var onDestinationListChange: (@Sendable ([MIDIDestinationInfo]) -> Void)?
-    var onLastErrorMessageChange: (@Sendable (String?) -> Void)?
+final class CoreMIDIOutputService: MIDIOutputSendingProtocol {
+    var onDestinationListChange: (@Sendable ([MIDIDestinationInfo]) -> Void)? {
+        get { stateLock.withLock { $0.onDestinationListChange } }
+        set { stateLock.withLock { $0.onDestinationListChange = newValue } }
+    }
 
-    private let logger = Logger(subsystem: Bundle.main.bundleIdentifier ?? "HappyPianistAVP", category: "CoreMIDI-AVP-Output")
+    var onLastErrorMessageChange: (@Sendable (String?) -> Void)? {
+        get { stateLock.withLock { $0.onLastErrorMessageChange } }
+        set { stateLock.withLock { $0.onLastErrorMessageChange = newValue } }
+    }
+
+    private let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "HappyPianistAVP",
+        category: "CoreMIDI-AVP-Output"
+    )
     private let refreshScheduler = DebouncedActionScheduler(debounce: .milliseconds(200))
-
-    private var clientRef: MIDIClientRef = 0
-    private var outputPortRef: MIDIPortRef = 0
     private let stateLock = OSAllocatedUnfairLock(initialState: OutputState())
 
     func start() throws {
-        try createClientIfNeeded()
-        try createOutputPortIfNeeded()
+        try ensureClientAndPort()
         refreshDestinations()
     }
 
     func stop() {
         refreshScheduler.cancel()
-
-        stateLock.withLock { state in
+        let callbacks = stateLock.withLock { state in
+            if state.outputPortRef != 0 {
+                MIDIPortDispose(state.outputPortRef)
+                state.outputPortRef = 0
+            }
+            if state.clientRef != 0 {
+                MIDIClientDispose(state.clientRef)
+                state.clientRef = 0
+            }
             state.destinationCache.removeAll(keepingCapacity: false)
+            return (state.onLastErrorMessageChange, state.onDestinationListChange)
         }
-
-        if outputPortRef != 0 {
-            MIDIPortDispose(outputPortRef)
-            outputPortRef = 0
-        }
-
-        if clientRef != 0 {
-            MIDIClientDispose(clientRef)
-            clientRef = 0
-        }
-
-        onLastErrorMessageChange?(nil)
-        onDestinationListChange?([])
+        callbacks.0?(nil)
+        callbacks.1?([])
     }
 
     func listDestinations() -> [MIDIDestinationInfo] {
@@ -86,60 +89,48 @@ final class CoreMIDIOutputService: MIDIOutputSendingProtocol, @unchecked Sendabl
 
     @discardableResult
     func refreshDestinations() -> [MIDIDestinationInfo] {
-        var newDestinationCache: [Int32: MIDIEndpointRef] = [:]
-
+        var destinationCache: [Int32: MIDIEndpointRef] = [:]
         let count = MIDIGetNumberOfDestinations()
         var results: [MIDIDestinationInfo] = []
         results.reserveCapacity(max(0, count))
 
         for index in 0 ..< count {
             let endpoint = MIDIGetDestination(index)
-            guard endpoint != 0 else { continue }
-
-            guard let uniqueID = endpointUniqueID(endpoint) else { continue }
-            let name = endpointName(endpoint)
-            newDestinationCache[uniqueID] = endpoint
-            results.append(MIDIDestinationInfo(id: uniqueID, name: name))
+            guard endpoint != 0, let uniqueID = endpointUniqueID(endpoint) else { continue }
+            destinationCache[uniqueID] = endpoint
+            results.append(MIDIDestinationInfo(id: uniqueID, name: endpointName(endpoint)))
         }
-
         results.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
 
-        let destinationCache = newDestinationCache
-        stateLock.withLock { state in
+        let callbacks = stateLock.withLock { state in
             state.destinationCache = destinationCache
+            return (state.onDestinationListChange, state.onLastErrorMessageChange)
         }
-
-        onDestinationListChange?(results)
-        onLastErrorMessageChange?(nil)
+        callbacks.0?(results)
+        callbacks.1?(nil)
         return results
     }
 
     func sendMIDI1Bytes(_ bytes: [UInt8], destinationUniqueID: Int32) throws {
-        try createClientIfNeeded()
-        try createOutputPortIfNeeded()
-
+        try ensureClientAndPort()
         let destination = try resolveDestination(destinationUniqueID)
         try sendBytes(bytes, destination: destination)
     }
 
     func sendNoteOn(note: UInt8, velocity: UInt8, channel: UInt8, destinationUniqueID: Int32) throws {
-        let status: UInt8 = 0x90 | (channel & 0x0F)
-        try sendMIDI1Bytes([status, note, velocity], destinationUniqueID: destinationUniqueID)
+        try sendMIDI1Bytes([0x90 | (channel & 0x0F), note, velocity], destinationUniqueID: destinationUniqueID)
     }
 
     func sendNoteOff(note: UInt8, channel: UInt8, destinationUniqueID: Int32) throws {
-        let status: UInt8 = 0x80 | (channel & 0x0F)
-        try sendMIDI1Bytes([status, note, 0], destinationUniqueID: destinationUniqueID)
+        try sendMIDI1Bytes([0x80 | (channel & 0x0F), note, 0], destinationUniqueID: destinationUniqueID)
     }
 
     func sendControlChange(controller: UInt8, value: UInt8, channel: UInt8, destinationUniqueID: Int32) throws {
-        let status: UInt8 = 0xB0 | (channel & 0x0F)
-        try sendMIDI1Bytes([status, controller, value], destinationUniqueID: destinationUniqueID)
+        try sendMIDI1Bytes([0xB0 | (channel & 0x0F), controller, value], destinationUniqueID: destinationUniqueID)
     }
 
     func sendProgramChange(program: UInt8, channel: UInt8, destinationUniqueID: Int32) throws {
-        let status: UInt8 = 0xC0 | (channel & 0x0F)
-        try sendMIDI1Bytes([status, program], destinationUniqueID: destinationUniqueID)
+        try sendMIDI1Bytes([0xC0 | (channel & 0x0F), program], destinationUniqueID: destinationUniqueID)
     }
 
     func sendAllNotesOff(channel: UInt8, destinationUniqueID: Int32) throws {
@@ -150,42 +141,40 @@ final class CoreMIDIOutputService: MIDIOutputSendingProtocol, @unchecked Sendabl
         try sendControlChange(controller: 120, value: 0, channel: channel, destinationUniqueID: destinationUniqueID)
     }
 
-    private func createClientIfNeeded() throws {
-        guard clientRef == 0 else { return }
+    private func ensureClientAndPort() throws {
+        try stateLock.withLock { state in
+            if state.clientRef == 0 {
+                var clientRef: MIDIClientRef = 0
+                let status = MIDIClientCreateWithBlock(
+                    "HappyPianistAVPOutputClient" as CFString,
+                    &clientRef
+                ) { [weak self] _ in
+                    self?.scheduleRefreshDestinations()
+                }
+                guard status == noErr else {
+                    throw CoreMIDIOutputServiceError.clientCreate(status)
+                }
+                state.clientRef = clientRef
+            }
 
-        let status = MIDIClientCreateWithBlock(
-            "HappyPianistAVPOutputClient" as CFString,
-            &clientRef
-        ) { [weak self] message in
-            guard let self else { return }
-            let notification = message.pointee
-            Task { @MainActor [weak self] in
-                self?.handleMIDINotification(notification)
+            if state.outputPortRef == 0 {
+                var outputPortRef: MIDIPortRef = 0
+                let status = MIDIOutputPortCreate(
+                    state.clientRef,
+                    "HappyPianistAVPOutputPort" as CFString,
+                    &outputPortRef
+                )
+                guard status == noErr else {
+                    throw CoreMIDIOutputServiceError.outputPortCreate(status)
+                }
+                state.outputPortRef = outputPortRef
             }
         }
-
-        guard status == noErr else {
-            throw CoreMIDIOutputServiceError.clientCreate(status)
-        }
-    }
-
-    private func createOutputPortIfNeeded() throws {
-        guard outputPortRef == 0 else { return }
-        let status = MIDIOutputPortCreate(clientRef, "HappyPianistAVPOutputPort" as CFString, &outputPortRef)
-        guard status == noErr else {
-            throw CoreMIDIOutputServiceError.outputPortCreate(status)
-        }
-    }
-
-    private func handleMIDINotification(_ notification: MIDINotification) {
-        _ = notification
-        scheduleRefreshDestinations()
     }
 
     private func scheduleRefreshDestinations() {
         refreshScheduler.schedule { [weak self] in
-            guard let self else { return }
-            _ = self.refreshDestinations()
+            _ = self?.refreshDestinations()
         }
     }
 
@@ -194,14 +183,10 @@ final class CoreMIDIOutputService: MIDIOutputSendingProtocol, @unchecked Sendabl
             return endpoint
         }
 
-        let destinations = refreshDestinations()
-        if destinations.contains(where: { $0.id == destinationUniqueID }),
-           let endpoint = stateLock.withLock({ $0.destinationCache[destinationUniqueID] }),
-           endpoint != 0
-        {
+        _ = refreshDestinations()
+        if let endpoint = stateLock.withLock({ $0.destinationCache[destinationUniqueID] }), endpoint != 0 {
             return endpoint
         }
-
         throw CoreMIDIOutputServiceError.destinationNotFound(destinationUniqueID)
     }
 
@@ -213,31 +198,41 @@ final class CoreMIDIOutputService: MIDIOutputSendingProtocol, @unchecked Sendabl
         )
         defer { buffer.deallocate() }
 
-        let packetListPtr = buffer.assumingMemoryBound(to: MIDIPacketList.self)
-        packetListPtr.initialize(to: MIDIPacketList())
-
-        var packet = MIDIPacketListInit(packetListPtr)
-        bytes.withUnsafeBytes { raw in
-            guard let base = raw.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return }
-            packet = MIDIPacketListAdd(packetListPtr, bufferSize, packet, 0, bytes.count, base)
+        let packetListPointer = buffer.assumingMemoryBound(to: MIDIPacketList.self)
+        packetListPointer.initialize(to: MIDIPacketList())
+        var packet = MIDIPacketListInit(packetListPointer)
+        bytes.withUnsafeBytes { rawBuffer in
+            guard let baseAddress = rawBuffer.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return }
+            packet = MIDIPacketListAdd(
+                packetListPointer,
+                bufferSize,
+                packet,
+                0,
+                bytes.count,
+                baseAddress
+            )
         }
 
-        let statusSend = MIDISend(outputPortRef, destination, packetListPtr)
-        guard statusSend == noErr else {
-            logger.error("MIDISend failed: \(statusSend, privacy: .public)")
-            onLastErrorMessageChange?("MIDISend failed: \(statusSend)")
-            throw CoreMIDIOutputServiceError.send(statusSend)
+        let result: (OSStatus, (@Sendable (String?) -> Void)?) = stateLock.withLock { state in
+            guard state.outputPortRef != 0 else {
+                return (-1, state.onLastErrorMessageChange)
+            }
+            return (
+                MIDISend(state.outputPortRef, destination, packetListPointer),
+                state.onLastErrorMessageChange
+            )
+        }
+        guard result.0 == noErr else {
+            logger.error("MIDISend failed: \(result.0, privacy: .public)")
+            result.1?("MIDISend failed: \(result.0)")
+            throw CoreMIDIOutputServiceError.send(result.0)
         }
     }
 
     private func endpointName(_ endpoint: MIDIEndpointRef) -> String {
-        if let displayName = MIDIEndpointPropertyReader.stringProperty(endpoint, kMIDIPropertyDisplayName) {
-            return displayName
-        }
-        if let name = MIDIEndpointPropertyReader.stringProperty(endpoint, kMIDIPropertyName) {
-            return name
-        }
-        return "Unknown MIDI Destination"
+        MIDIEndpointPropertyReader.stringProperty(endpoint, kMIDIPropertyDisplayName) ??
+            MIDIEndpointPropertyReader.stringProperty(endpoint, kMIDIPropertyName) ??
+            "Unknown MIDI Destination"
     }
 
     private func endpointUniqueID(_ endpoint: MIDIEndpointRef) -> Int32? {
@@ -245,6 +240,10 @@ final class CoreMIDIOutputService: MIDIOutputSendingProtocol, @unchecked Sendabl
     }
 }
 
-private struct OutputState {
+private struct OutputState: Sendable {
+    var clientRef: MIDIClientRef = 0
+    var outputPortRef: MIDIPortRef = 0
     var destinationCache: [Int32: MIDIEndpointRef] = [:]
+    var onDestinationListChange: (@Sendable ([MIDIDestinationInfo]) -> Void)?
+    var onLastErrorMessageChange: (@Sendable (String?) -> Void)?
 }

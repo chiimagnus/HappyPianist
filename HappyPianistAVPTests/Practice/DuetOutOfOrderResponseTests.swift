@@ -179,8 +179,7 @@ func continuousDuetRequestsGenerationForMIDI2Input() async {
         group: 0,
         source: MIDI2InputEvent.Source(identifier: .sourceIndex(0), endpointName: "test"),
         receivedAt: Date(timeIntervalSince1970: 0),
-        receivedAtUptimeSeconds: nowUptime,
-        debugEventID: 1
+        receivedAtUptimeSeconds: nowUptime
     ))
     nowUptime = 0.2
 

@@ -58,8 +58,7 @@ func midiOnlyPracticeInputNoteOnAdvancesStep() async {
         group: 0,
         source: MIDI1InputEvent.Source(identifier: .sourceIndex(0), endpointName: "fake"),
         receivedAt: Date(),
-        receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime,
-        debugEventID: 1
+        receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime
     ))
 
     for _ in 0 ..< 20 {
@@ -102,8 +101,7 @@ func midiOnlyPracticeInputMIDI2NoteOnAdvancesStepEvenWithZeroVelocity() async {
         group: 0,
         source: MIDI2InputEvent.Source(identifier: .sourceIndex(0), endpointName: "fake"),
         receivedAt: Date(),
-        receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime,
-        debugEventID: 1
+        receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime
     ))
 
     for _ in 0 ..< 20 {
@@ -150,8 +148,7 @@ func midiOnlyPracticeExitStopsInputAndDoesNotAdvanceStepAfterTeardown() async {
         group: 0,
         source: MIDI1InputEvent.Source(identifier: .sourceIndex(0), endpointName: "fake"),
         receivedAt: Date(),
-        receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime,
-        debugEventID: 2
+        receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime
     ))
 
     for _ in 0 ..< 20 {
@@ -199,8 +196,7 @@ func midiOnlyPracticeInputStartFailureThenReplacingSameIndexStepResetsMatcherExp
         group: 0,
         source: MIDI1InputEvent.Source(identifier: .sourceIndex(0), endpointName: "fake"),
         receivedAt: Date(),
-        receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime,
-        debugEventID: 10
+        receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime
     ))
 
     for _ in 0 ..< 20 {
@@ -214,8 +210,7 @@ func midiOnlyPracticeInputStartFailureThenReplacingSameIndexStepResetsMatcherExp
         group: 0,
         source: MIDI1InputEvent.Source(identifier: .sourceIndex(0), endpointName: "fake"),
         receivedAt: Date(),
-        receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime,
-        debugEventID: 11
+        receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime
     ))
 
     for _ in 0 ..< 20 {

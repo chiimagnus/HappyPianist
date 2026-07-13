@@ -160,8 +160,7 @@ final class ARGuideAIPerformanceViewModel {
                         group: 0,
                         source: source,
                         receivedAt: baseDate,
-                        receivedAtUptimeSeconds: baseUptime + item.at,
-                        debugEventID: Int64(10_000 + index)
+                        receivedAtUptimeSeconds: baseUptime + item.at
                     )
                 )
             }
@@ -174,8 +173,7 @@ final class ARGuideAIPerformanceViewModel {
                         group: 0,
                         source: source,
                         receivedAt: baseDate,
-                        receivedAtUptimeSeconds: baseUptime + 0.38 + item.at,
-                        debugEventID: Int64(20_000 + index)
+                        receivedAtUptimeSeconds: baseUptime + 0.38 + item.at
                     )
                 )
             }

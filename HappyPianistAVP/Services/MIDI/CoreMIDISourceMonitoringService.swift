@@ -19,10 +19,11 @@ enum CoreMIDISourceMonitoringServiceError: LocalizedError {
     }
 }
 
-final class CoreMIDISourceMonitoringService: MIDISourceMonitoringServiceProtocol, @unchecked Sendable {
-    var onConnectionStateChange: (@Sendable (MIDISourceMonitoringConnectionState) -> Void)?
-    var onSourceNamesChange: (@Sendable ([String]) -> Void)?
-    var onLastErrorMessageChange: (@Sendable (String?) -> Void)?
+@MainActor
+final class CoreMIDISourceMonitoringService: MIDISourceMonitoringServiceProtocol {
+    var onConnectionStateChange: ((MIDISourceMonitoringConnectionState) -> Void)?
+    var onSourceNamesChange: (([String]) -> Void)?
+    var onLastErrorMessageChange: ((String?) -> Void)?
 
     private let logger = Logger(subsystem: "com.chiimagnus.HappyPianist", category: "CoreMIDI-AVP-Sources")
     private let refreshScheduler = DebouncedActionScheduler(debounce: .milliseconds(200))
@@ -36,10 +37,15 @@ final class CoreMIDISourceMonitoringService: MIDISourceMonitoringServiceProtocol
     func start() throws {
         guard !isRunning else { return }
 
-        try createClientIfNeeded()
-        try createInputPortsIfNeeded()
-        isRunning = true
-        try refreshSources()
+        do {
+            try createClientIfNeeded()
+            try createInputPortsIfNeeded()
+            isRunning = true
+            try refreshSources()
+        } catch {
+            stop()
+            throw error
+        }
     }
 
     func stop() {
@@ -169,15 +175,15 @@ final class CoreMIDISourceMonitoringService: MIDISourceMonitoringServiceProtocol
     private func scheduleRefreshSources() {
         guard isRunning else { return }
         refreshScheduler.schedule { [weak self] in
-            guard let self else { return }
-            guard self.isRunning, self.midi1InputPortRef != 0 || self.midi2InputPortRef != 0 else { return }
-
-            do {
-                try self.refreshSources()
-            } catch {
-                self.logger.error("Auto refresh MIDI sources failed: \(error.localizedDescription, privacy: .public)")
-                self.onLastErrorMessageChange?(error.localizedDescription)
-                self.onConnectionStateChange?(.connected(sourceCount: self.connectedSources.count))
+            Task { @MainActor [weak self] in
+                guard let self, self.isRunning else { return }
+                do {
+                    try self.refreshSources()
+                } catch {
+                    self.logger.error("Auto refresh MIDI sources failed: \(error.localizedDescription, privacy: .public)")
+                    self.onLastErrorMessageChange?(error.localizedDescription)
+                    self.onConnectionStateChange?(.connected(sourceCount: self.connectedSources.count))
+                }
             }
         }
     }

@@ -16,10 +16,11 @@ enum MIDISourceMonitoringConnectionState: Equatable {
     case failed(message: String)
 }
 
+@MainActor
 protocol MIDISourceMonitoringServiceProtocol: AnyObject {
-    var onConnectionStateChange: (@Sendable (MIDISourceMonitoringConnectionState) -> Void)? { get set }
-    var onSourceNamesChange: (@Sendable ([String]) -> Void)? { get set }
-    var onLastErrorMessageChange: (@Sendable (String?) -> Void)? { get set }
+    var onConnectionStateChange: ((MIDISourceMonitoringConnectionState) -> Void)? { get set }
+    var onSourceNamesChange: (([String]) -> Void)? { get set }
+    var onLastErrorMessageChange: ((String?) -> Void)? { get set }
 
     func start() throws
     func stop()
@@ -47,7 +48,7 @@ enum MIDI2ValueMapping {
     }
 }
 
-struct MIDI1MessageDecoder {
+struct MIDI1MessageDecoder: Sendable {
     func decode(_ message: MIDIUniversalMessage) -> MIDI1InputEvent.Kind? {
         guard message.type == .channelVoice1 else { return nil }
 
@@ -92,7 +93,7 @@ struct MIDI1MessageDecoder {
     }
 }
 
-struct MIDI2MessageDecoder {
+struct MIDI2MessageDecoder: Sendable {
     func decode(_ message: MIDIUniversalMessage) -> MIDI2InputEvent.Kind? {
         guard message.type == .channelVoice2 else { return nil }
 

@@ -110,8 +110,7 @@ func shutdownDoesNotCancelOtherConsumers() async {
             group: 0,
             source: .init(identifier: .sourceIndex(0), endpointName: "test"),
             receivedAt: .now,
-            receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime,
-            debugEventID: 1
+            receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime
         )
     )
 
