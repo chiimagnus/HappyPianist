@@ -32,49 +32,6 @@ struct MusicXMLParserUIInfoTests {
     }
 
     @Test
-    func parserParsesSlurStartStopEventsFromNotations() throws {
-        let xml = """
-        <?xml version="1.0" encoding="UTF-8"?>
-        <score-partwise version="4.0">
-          <part-list>
-            <score-part id="P1"><part-name>Piano</part-name></score-part>
-          </part-list>
-          <part id="P1">
-            <measure number="1">
-              <attributes><divisions>1</divisions></attributes>
-              <note>
-                <pitch><step>C</step><octave>4</octave></pitch>
-                <duration>1</duration>
-                <staff>1</staff>
-                <voice>1</voice>
-                <notations>
-                  <slur type="start" number="1"/>
-                </notations>
-              </note>
-              <note>
-                <pitch><step>D</step><octave>4</octave></pitch>
-                <duration>1</duration>
-                <staff>1</staff>
-                <voice>1</voice>
-                <notations>
-                  <slur type="stop" number="1"/>
-                </notations>
-              </note>
-            </measure>
-          </part>
-        </score-partwise>
-        """
-
-        let score = try MusicXMLParser().parse(data: Data(xml.utf8))
-        #expect(score.slurEvents.count == 2)
-        #expect(score.slurEvents[0].kind == .start)
-        #expect(score.slurEvents[0].numberToken == "1")
-        #expect(score.slurEvents[0].scope.staff == 1)
-        #expect(score.slurEvents[1].kind == .stop)
-        #expect(score.slurEvents[1].numberToken == "1")
-    }
-
-    @Test
     func parserParsesTimeKeyAndClefEventsFromAttributes() throws {
         let xml = """
         <?xml version="1.0" encoding="UTF-8"?>

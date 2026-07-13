@@ -162,7 +162,6 @@ extension MusicXMLParserDelegate {
             state.noteHasFermata = false
             state.noteArpeggiate = nil
             state.noteFingeringText = nil
-            state.notePendingSlurEvents = []
             state.isInTechnical = false
         case "technical":
             if state.isInNote {
@@ -224,26 +223,6 @@ extension MusicXMLParserDelegate {
         case "articulations":
             if state.isInNote {
                 state.isInNoteArticulations = true
-            }
-        case "slur":
-            if state.isInNote {
-                let kind: MusicXMLSlurEventKind? = switch attributeDict["type"]?
-                    .trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-                {
-                case "start":
-                    .start
-                case "stop":
-                    .stop
-                default:
-                    nil
-                }
-                if let kind {
-                    let numberToken = attributeDict["number"].flatMap { token in
-                        let trimmed = token.trimmingCharacters(in: .whitespacesAndNewlines)
-                        return trimmed.isEmpty ? nil : trimmed
-                    }
-                    state.notePendingSlurEvents.append((kind: kind, numberToken: numberToken))
-                }
             }
         default:
             recordDirectionDynamicsMarkIfPresent(elementName: elementName)

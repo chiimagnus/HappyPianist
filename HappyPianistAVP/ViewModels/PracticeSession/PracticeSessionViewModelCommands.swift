@@ -314,7 +314,6 @@ extension PracticeSessionViewModel {
         pedalTimeline: MusicXMLPedalTimeline? = nil,
         fermataTimeline: MusicXMLFermataTimeline? = nil,
         attributeTimeline: MusicXMLAttributeTimeline? = nil,
-        slurTimeline: MusicXMLSlurTimeline? = nil,
         highlightGuides: [PianoHighlightGuide] = [],
         measureSpans: [MusicXMLMeasureSpan]
     ) {
@@ -345,7 +344,6 @@ extension PracticeSessionViewModel {
         self.pedalTimeline = pedalTimeline
         self.fermataTimeline = fermataTimeline
         self.attributeTimeline = attributeTimeline
-        self.slurTimeline = slurTimeline
         self.highlightGuides = highlightGuides
         rebuildAutoplayTimeline()
         self.currentHighlightGuideIndex = nil
@@ -429,7 +427,6 @@ extension PracticeSessionViewModel {
         self.pedalTimeline = nil
         self.fermataTimeline = nil
         self.attributeTimeline = nil
-        self.slurTimeline = nil
         self.highlightGuides = []
         self.currentHighlightGuideIndex = nil
         highlightGuideController?.stopTransition()

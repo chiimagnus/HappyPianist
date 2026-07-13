@@ -81,7 +81,6 @@ func appStatePassesMeasureSpansToPracticeSession() async {
         pedalTimeline: nil,
         fermataTimeline: nil,
         attributeTimeline: nil,
-        slurTimeline: nil,
         highlightGuides: [],
         measureSpans: [
             MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, sourceMeasureIndex: 1, sourceMeasureNumberToken: "1", occurrenceIndex: 0, startTick: 0, endTick: 480),

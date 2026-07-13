@@ -184,7 +184,6 @@ final class ARGuideViewModel {
             pedalTimeline: prepared.pedalTimeline,
             fermataTimeline: prepared.fermataTimeline,
             attributeTimeline: prepared.attributeTimeline,
-            slurTimeline: prepared.slurTimeline,
             highlightGuides: prepared.highlightGuides,
             measureSpans: prepared.measureSpans
         )

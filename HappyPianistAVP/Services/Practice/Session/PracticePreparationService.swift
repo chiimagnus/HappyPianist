@@ -144,7 +144,6 @@ actor PracticePreparationService: PracticePreparationServiceProtocol {
             keySignatureEvents: routedPracticeScore.keySignatureEvents,
             clefEvents: routedPracticeScore.clefEvents
         )
-        let slurTimeline = MusicXMLSlurTimeline(events: routedPracticeScore.slurEvents)
         let noteSpans = MusicXMLNoteSpanBuilder().buildSpans(
             from: routedPracticeScore.notes,
             performanceTimingEnabled: MusicXMLRealisticPlaybackDefaults.performanceTimingEnabled,
@@ -175,7 +174,6 @@ actor PracticePreparationService: PracticePreparationServiceProtocol {
             pedalTimeline: pedalTimeline,
             fermataTimeline: fermataTimeline,
             attributeTimeline: attributeTimeline,
-            slurTimeline: slurTimeline,
             highlightGuides: highlightGuides,
             measureSpans: routedPracticeScore.measures,
             unsupportedNoteCount: buildResult.unsupportedNoteCount

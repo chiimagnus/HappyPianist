@@ -34,7 +34,6 @@ extension MusicXMLScore {
             dynamicEvents: dynamicEvents.filter { $0.scope.partID == partID },
             wedgeEvents: wedgeEvents.filter { $0.scope.partID == partID },
             fermataEvents: fermataEvents.filter { $0.scope.partID == partID },
-            slurEvents: slurEvents.filter { $0.scope.partID == partID },
             timeSignatureEvents: timeSignatureEvents.filter { $0.scope.partID == partID },
             keySignatureEvents: keySignatureEvents.filter { $0.scope.partID == partID },
             clefEvents: clefEvents.filter { $0.scope.partID == partID },

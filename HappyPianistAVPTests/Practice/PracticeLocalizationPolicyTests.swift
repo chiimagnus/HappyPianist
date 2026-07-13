@@ -30,7 +30,6 @@ func practiceEntryBlockingReasonIsMissingStoredCalibrationWhenStepsExist() {
         pedalTimeline: nil,
         fermataTimeline: nil,
         attributeTimeline: nil,
-        slurTimeline: nil,
         highlightGuides: [],
         measureSpans: [MusicXMLMeasureSpan(
             partID: "P1",
@@ -66,7 +65,6 @@ func practiceEntryBlockingReasonIsNilWhenPreconditionsAreReady() {
         pedalTimeline: nil,
         fermataTimeline: nil,
         attributeTimeline: nil,
-        slurTimeline: nil,
         highlightGuides: [],
         measureSpans: [MusicXMLMeasureSpan(
             partID: "P1",

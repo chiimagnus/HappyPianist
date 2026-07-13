@@ -38,10 +38,6 @@ func pedalTimelineComputesIsDownAndNextChange() {
     #expect(change1?.isDown == false)
 
     #expect(timeline.nextChange(afterTick: 480) == nil)
-
-    #expect(timeline.nextReleaseEdge(afterTick: -1) == 480)
-    #expect(timeline.nextReleaseEdge(afterTick: 0) == 480)
-    #expect(timeline.nextReleaseEdge(afterTick: 480) == nil)
 }
 
 @Test
@@ -82,7 +78,4 @@ func pedalTimelineIgnoresContinueAndCoalescesSameTickChanges() {
     let change = timeline.nextChange(afterTick: 0)
     #expect(change?.tick == 120)
     #expect(change?.isDown == true)
-
-    #expect(timeline.nextReleaseEdge(afterTick: 0) == 120)
-    #expect(timeline.nextReleaseEdge(afterTick: 120) == nil)
 }

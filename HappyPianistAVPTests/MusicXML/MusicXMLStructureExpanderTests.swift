@@ -276,7 +276,6 @@ func structureExpanderPreservesParsedNoteAndScoreFieldsWhenMaterializing() {
         dynamicEvents: [MusicXMLDynamicEvent(tick: 0, velocity: 70, scope: scope, source: .directionDynamics)],
         wedgeEvents: [MusicXMLWedgeEvent(tick: 0, kind: .crescendoStart, numberToken: "1", scope: scope)],
         fermataEvents: [MusicXMLFermataEvent(tick: 0, scope: scope, source: .noteNotations)],
-        slurEvents: [MusicXMLSlurEvent(tick: 0, kind: .start, numberToken: "1", scope: scope)],
         timeSignatureEvents: [MusicXMLTimeSignatureEvent(tick: 0, beats: 4, beatType: 4, scope: scope)],
         keySignatureEvents: [MusicXMLKeySignatureEvent(tick: 0, fifths: 1, modeToken: "major", scope: scope)],
         clefEvents: [MusicXMLClefEvent(
@@ -314,7 +313,6 @@ func structureExpanderPreservesParsedNoteAndScoreFieldsWhenMaterializing() {
     #expect(expanded.dynamicEvents.isEmpty == false)
     #expect(expanded.wedgeEvents.isEmpty == false)
     #expect(expanded.fermataEvents.isEmpty == false)
-    #expect(expanded.slurEvents.isEmpty == false)
     #expect(expanded.timeSignatureEvents.isEmpty == false)
     #expect(expanded.keySignatureEvents.isEmpty == false)
     #expect(expanded.clefEvents.isEmpty == false)

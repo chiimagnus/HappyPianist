@@ -121,7 +121,6 @@ struct PreparedPractice {
     let pedalTimeline: MusicXMLPedalTimeline?
     let fermataTimeline: MusicXMLFermataTimeline?
     let attributeTimeline: MusicXMLAttributeTimeline?
-    let slurTimeline: MusicXMLSlurTimeline?
     let highlightGuides: [PianoHighlightGuide]
     let measureSpans: [MusicXMLMeasureSpan]
     let unsupportedNoteCount: Int

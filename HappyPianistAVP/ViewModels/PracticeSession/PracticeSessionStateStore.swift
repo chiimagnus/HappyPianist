@@ -82,7 +82,6 @@ final class PracticeSessionStateStore {
     var pedalTimeline: MusicXMLPedalTimeline?
     var fermataTimeline: MusicXMLFermataTimeline?
     var attributeTimeline: MusicXMLAttributeTimeline?
-    var slurTimeline: MusicXMLSlurTimeline?
     var autoplayTimeline: AutoplayPerformanceTimeline = .empty
     var highlightGuides: [PianoHighlightGuide] = []
     var currentHighlightGuideIndex: Int?

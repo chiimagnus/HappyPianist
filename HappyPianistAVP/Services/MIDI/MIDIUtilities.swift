@@ -1,15 +1,6 @@
 import CoreMIDI
 import Foundation
 
-enum MIDICanonicalProtocolSelection {
-    static func subscribedProtocol(endpointProtocolID: MIDIProtocolID?, midi2PortAvailable: Bool) -> MIDIProtocolID {
-        if endpointProtocolID == ._2_0, midi2PortAvailable {
-            return ._2_0
-        }
-        return ._1_0
-    }
-}
-
 enum MIDIEndpointConnectionPolicy {
     static func subscribedProtocol(endpointProtocolID: MIDIProtocolID?, midi2PortAvailable: Bool) -> MIDIProtocolID {
         guard endpointProtocolID == ._2_0, midi2PortAvailable else {

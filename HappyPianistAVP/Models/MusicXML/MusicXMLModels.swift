@@ -9,7 +9,6 @@ struct MusicXMLScore: Equatable {
     var dynamicEvents: [MusicXMLDynamicEvent] = []
     var wedgeEvents: [MusicXMLWedgeEvent] = []
     var fermataEvents: [MusicXMLFermataEvent] = []
-    var slurEvents: [MusicXMLSlurEvent] = []
     var timeSignatureEvents: [MusicXMLTimeSignatureEvent] = []
     var keySignatureEvents: [MusicXMLKeySignatureEvent] = []
     var clefEvents: [MusicXMLClefEvent] = []
@@ -76,22 +75,6 @@ struct MusicXMLFermataEvent: Equatable, Identifiable {
 struct MusicXMLArpeggiate: Equatable, Hashable {
     let numberToken: String?
     let directionToken: String?
-}
-
-enum MusicXMLSlurEventKind: Equatable {
-    case start
-    case stop
-}
-
-struct MusicXMLSlurEvent: Equatable, Identifiable {
-    var id: String {
-        "\(tick)-\(kind)-\(numberToken ?? "")-\(scope.partID)-\(scope.staff ?? -1)-\(scope.voice ?? -1)"
-    }
-
-    let tick: Int
-    let kind: MusicXMLSlurEventKind
-    let numberToken: String?
-    let scope: MusicXMLEventScope
 }
 
 struct MusicXMLTimeSignatureEvent: Equatable, Identifiable {

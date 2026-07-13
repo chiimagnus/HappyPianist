@@ -145,7 +145,6 @@ struct MusicXMLStructureExpander {
         var outputDynamicEvents: [MusicXMLDynamicEvent] = []
         var outputWedgeEvents: [MusicXMLWedgeEvent] = []
         var outputFermataEvents: [MusicXMLFermataEvent] = []
-        var outputSlurEvents: [MusicXMLSlurEvent] = []
         var outputTimeSignatureEvents: [MusicXMLTimeSignatureEvent] = []
         var outputKeySignatureEvents: [MusicXMLKeySignatureEvent] = []
         var outputClefEvents: [MusicXMLClefEvent] = []
@@ -159,7 +158,6 @@ struct MusicXMLStructureExpander {
         outputDynamicEvents.reserveCapacity(original.dynamicEvents.count)
         outputWedgeEvents.reserveCapacity(original.wedgeEvents.count)
         outputFermataEvents.reserveCapacity(original.fermataEvents.count)
-        outputSlurEvents.reserveCapacity(original.slurEvents.count)
         outputTimeSignatureEvents.reserveCapacity(original.timeSignatureEvents.count)
         outputKeySignatureEvents.reserveCapacity(original.keySignatureEvents.count)
         outputClefEvents.reserveCapacity(original.clefEvents.count)
@@ -289,16 +287,6 @@ struct MusicXMLStructureExpander {
                     source: event.source
                 ))
             }
-            for event in original.slurEvents
-                where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick
-            {
-                outputSlurEvents.append(MusicXMLSlurEvent(
-                    tick: currentMeasureStartTick + (event.tick - span.startTick),
-                    kind: event.kind,
-                    numberToken: event.numberToken,
-                    scope: shiftedScope(event.scope, primaryPartID: primaryPartID)
-                ))
-            }
             for event in original.timeSignatureEvents
                 where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick
             {
@@ -370,7 +358,6 @@ struct MusicXMLStructureExpander {
         outputDynamicEvents.sort { $0.tick < $1.tick }
         outputWedgeEvents.sort { $0.tick < $1.tick }
         outputFermataEvents.sort { $0.tick < $1.tick }
-        outputSlurEvents.sort { $0.tick < $1.tick }
         outputTimeSignatureEvents.sort { $0.tick < $1.tick }
         outputKeySignatureEvents.sort { $0.tick < $1.tick }
         outputClefEvents.sort { $0.tick < $1.tick }
@@ -385,7 +372,6 @@ struct MusicXMLStructureExpander {
             dynamicEvents: outputDynamicEvents,
             wedgeEvents: outputWedgeEvents,
             fermataEvents: outputFermataEvents,
-            slurEvents: outputSlurEvents,
             timeSignatureEvents: outputTimeSignatureEvents,
             keySignatureEvents: outputKeySignatureEvents,
             clefEvents: outputClefEvents,

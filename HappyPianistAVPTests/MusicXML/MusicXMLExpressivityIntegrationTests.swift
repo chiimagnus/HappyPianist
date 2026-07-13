@@ -36,7 +36,6 @@ func expressivityPipelineParsesAndPlumbsKeySignalsEndToEnd() throws {
             <staff>1</staff>
             <notations>
               <technical><fingering>1</fingering></technical>
-              <slur type="start" number="1"/>
               <fermata/>
               <arpeggiate/>
             </notations>
@@ -64,7 +63,6 @@ func expressivityPipelineParsesAndPlumbsKeySignalsEndToEnd() throws {
     #expect(score.keySignatureEvents.isEmpty == false)
     #expect(score.timeSignatureEvents.isEmpty == false)
     #expect(score.clefEvents.isEmpty == false)
-    #expect(score.slurEvents.isEmpty == false)
     #expect(score.wordsEvents.isEmpty == false)
     #expect(score.fermataEvents.isEmpty == false)
 

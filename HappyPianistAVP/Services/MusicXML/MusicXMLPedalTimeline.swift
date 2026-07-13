@@ -85,24 +85,6 @@ struct MusicXMLPedalTimeline: Equatable {
         return changes[low]
     }
 
-    func nextReleaseEdge(afterTick tick: Int) -> Int? {
-        guard releaseEdgeTicks.isEmpty == false else { return nil }
-
-        var low = 0
-        var high = releaseEdgeTicks.count
-        while low < high {
-            let mid = (low + high) / 2
-            if releaseEdgeTicks[mid] <= tick {
-                low = mid + 1
-            } else {
-                high = mid
-            }
-        }
-
-        guard low < releaseEdgeTicks.count else { return nil }
-        return releaseEdgeTicks[low]
-    }
-
     func releaseEdges() -> [Int] {
         releaseEdgeTicks
     }

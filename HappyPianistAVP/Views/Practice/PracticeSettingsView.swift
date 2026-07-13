@@ -275,7 +275,6 @@ struct PracticeSettingsView: View {
         }
         .scrollIndicators(.automatic)
         .onAppear {
-            migrateLegacyBackendKindIfNeeded()
             if isBluetoothMIDIMode {
                 destinationConnectionViewModel.start()
             }
@@ -328,10 +327,6 @@ struct PracticeSettingsView: View {
         }
     }
 
-    private func migrateLegacyBackendKindIfNeeded() {
-        guard ImprovBackendKind(rawValue: improvBackendKindRawValue) == nil else { return }
-        improvBackendKindRawValue = ImprovBackendSelection.defaultKind.rawValue
-    }
 }
 
 #Preview("练习设置") {

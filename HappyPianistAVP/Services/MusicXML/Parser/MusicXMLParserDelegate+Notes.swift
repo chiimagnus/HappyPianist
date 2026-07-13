@@ -146,23 +146,6 @@ extension MusicXMLParserDelegate {
             )
         )
 
-        if state.notePendingSlurEvents.isEmpty == false {
-            for slur in state.notePendingSlurEvents {
-                state.slurEvents.append(
-                    MusicXMLSlurEvent(
-                        tick: startTick,
-                        kind: slur.kind,
-                        numberToken: slur.numberToken,
-                        scope: MusicXMLEventScope(
-                            partID: state.currentPartID,
-                            staff: state.noteStaff,
-                            voice: state.noteVoice
-                        )
-                    )
-                )
-            }
-        }
-
         if state.noteHasFermata {
             state.fermataEvents.append(
                 MusicXMLFermataEvent(

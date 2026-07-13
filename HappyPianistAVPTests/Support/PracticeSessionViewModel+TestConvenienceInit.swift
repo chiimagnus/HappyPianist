@@ -74,7 +74,6 @@ extension PracticeSessionViewModel {
         pedalTimeline: MusicXMLPedalTimeline? = nil,
         fermataTimeline: MusicXMLFermataTimeline? = nil,
         attributeTimeline: MusicXMLAttributeTimeline? = nil,
-        slurTimeline: MusicXMLSlurTimeline? = nil,
         highlightGuides: [PianoHighlightGuide] = [],
         measureSpans: [MusicXMLMeasureSpan] = []
     ) {
@@ -88,7 +87,6 @@ extension PracticeSessionViewModel {
             pedalTimeline: pedalTimeline,
             fermataTimeline: fermataTimeline,
             attributeTimeline: attributeTimeline,
-            slurTimeline: slurTimeline,
             highlightGuides: highlightGuides,
             measureSpans: resolvedMeasureSpans
         )

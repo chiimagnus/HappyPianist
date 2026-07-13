@@ -40,7 +40,6 @@ struct MusicXMLParser: MusicXMLParserProtocol {
             dynamicEvents: delegate.dynamicEvents,
             wedgeEvents: delegate.wedgeEvents,
             fermataEvents: delegate.fermataEvents,
-            slurEvents: delegate.slurEvents,
             timeSignatureEvents: delegate.timeSignatureEvents,
             keySignatureEvents: delegate.keySignatureEvents,
             clefEvents: delegate.clefEvents,

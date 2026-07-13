@@ -19,7 +19,6 @@ func resetToPreparationClearsPracticeSetupState() {
         pedalTimeline: nil,
         fermataTimeline: nil,
         attributeTimeline: nil,
-        slurTimeline: nil,
         highlightGuides: [],
         measureSpans: [MusicXMLMeasureSpan(
             partID: "P1",

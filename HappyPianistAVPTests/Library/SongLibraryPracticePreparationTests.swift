@@ -26,7 +26,6 @@ private actor DelayedPreparationService: PracticePreparationServiceProtocol {
             pedalTimeline: nil,
             fermataTimeline: nil,
             attributeTimeline: nil,
-            slurTimeline: nil,
             highlightGuides: [],
             measureSpans: includesMeasureSpans ? [
                 MusicXMLMeasureSpan(
@@ -277,7 +276,6 @@ private func makeRacePreparedPractice(songID: UUID) -> PreparedPractice {
         pedalTimeline: nil,
         fermataTimeline: nil,
         attributeTimeline: nil,
-        slurTimeline: nil,
         highlightGuides: [],
         measureSpans: [
             MusicXMLMeasureSpan(

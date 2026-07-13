@@ -20,10 +20,6 @@ struct ImprovBackendSelection {
             return Self.defaultKind
         }
 
-        if let kind = ImprovBackendKind(rawValue: rawValue) {
-            return kind
-        }
-        userDefaults.set(Self.defaultKind.rawValue, forKey: Self.userDefaultsKey)
-        return Self.defaultKind
+        return ImprovBackendKind(rawValue: rawValue) ?? Self.defaultKind
     }
 }
