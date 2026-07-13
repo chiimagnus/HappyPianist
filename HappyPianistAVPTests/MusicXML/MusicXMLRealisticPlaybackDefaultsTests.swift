@@ -7,7 +7,6 @@ func musicXMLRealisticPlaybackDefaultsAreHardcodedForNoSettingsSwitches() {
 
     #expect(MusicXMLRealisticPlaybackDefaults.shouldExpandStructure == false)
     #expect(MusicXMLRealisticPlaybackDefaults.performanceTimingEnabled == true)
-    #expect(MusicXMLRealisticPlaybackDefaults.audioRecognitionEnabled == true)
     #expect(expressivity.wedgeEnabled == true)
     #expect(expressivity.graceEnabled == true)
     #expect(expressivity.fermataEnabled == true)

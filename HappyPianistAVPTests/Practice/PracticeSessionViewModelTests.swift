@@ -1396,12 +1396,20 @@ func changingSongWithEqualStepsReplacesCompletedPassage() {
         partID: "B", measureNumber: 9, sourceMeasureIndex: 8, sourceMeasureNumberToken: "9",
         occurrenceIndex: 0, startTick: 0, endTick: 480
     )
-    viewModel.songIdentity = PracticeSongIdentity(songID: UUID(), scoreRevision: "a")
-    viewModel.setSteps(steps, tempoMap: MusicXMLTempoMap(tempoEvents: []), measureSpans: [spanA])
+    viewModel.installPreparedSteps(
+        steps,
+        identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "a"),
+        tempoMap: MusicXMLTempoMap(tempoEvents: []),
+        measureSpans: [spanA]
+    )
     viewModel.state = .completed
 
-    viewModel.songIdentity = PracticeSongIdentity(songID: UUID(), scoreRevision: "b")
-    viewModel.setSteps(steps, tempoMap: MusicXMLTempoMap(tempoEvents: []), measureSpans: [spanB])
+    viewModel.installPreparedSteps(
+        steps,
+        identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "b"),
+        tempoMap: MusicXMLTempoMap(tempoEvents: []),
+        measureSpans: [spanB]
+    )
 
     #expect(viewModel.roundConfigurationController.pendingPassage?.start == spanB.occurrenceID)
     #expect(viewModel.activeRoundConfiguration?.passage.start == spanB.occurrenceID)
@@ -1755,9 +1763,28 @@ private actor ControllableSleeper: SleeperProtocol {
 @Test
 func reinstallingSamePreparedScoreDiscardsUnappliedDraftConfiguration() throws {
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "same-revision")
-    let spans = makeConfigurationSpans(count: 6)
-    let steps = makeConfigurationSteps(count: 6)
-    let session = makeConfigurationTestSession()
+    let spans = (0 ..< 6).map { index in
+        MusicXMLMeasureSpan(
+            partID: "P1",
+            measureNumber: index + 1,
+            sourceMeasureIndex: index,
+            sourceMeasureNumberToken: "\(index + 1)",
+            occurrenceIndex: index,
+            startTick: index * 480,
+            endTick: (index + 1) * 480
+        )
+    }
+    let steps = (0 ..< 6).map { index in
+        PracticeStep(
+            tick: index * 480,
+            notes: [PracticeStepNote(midiNote: 60 + index, staff: 1)]
+        )
+    }
+    let session = makePracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: TaskSleeper()
+    )
 
     session.installPreparedSteps(
         steps,

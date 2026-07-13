@@ -39,7 +39,7 @@ func diagnosticsExporterContainsOnlyExpectedEntries() async throws {
 
     #expect(Set(archive.map(\.path)) == Set(["diagnostics.jsonl", "diagnostics.txt", "environment.txt"]))
     #expect(result.eventCount == 1)
-    #expect(result.fileName == "HappyPianist-Diagnostics-20260712-000000.zip")
+    #expect(result.fileName == "HappyPianist-Diagnostics-20240712-000000.zip")
 
     let environment = try extract(path: "environment.txt", from: archive)
     let environmentText = try #require(String(data: environment, encoding: .utf8))

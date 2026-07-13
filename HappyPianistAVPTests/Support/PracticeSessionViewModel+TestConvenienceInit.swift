@@ -31,6 +31,7 @@ extension PracticeSessionViewModel {
             audioStepAttemptAccumulator: resolvedAudioStepAttemptAccumulator,
             handPianoActivityGate: resolvedHandPianoActivityGate,
             settingsProvider: settingsProvider,
+            roundDefaultsStore: TestPracticeRoundDefaultsStore(),
             progressCoordinator: progressCoordinator
         )
     }
@@ -61,6 +62,21 @@ private struct TestPracticeSessionSettingsProvider: PracticeSessionSettingsProvi
     )
 }
 
+private struct TestPracticeRoundDefaultsStore: PracticeRoundDefaultsStoreProtocol {
+    let tempoScale = 0.6
+    let loopEnabled = true
+    let requiredSuccesses = 3
+
+    func save(
+        handMode _: PracticeHandMode,
+        manualAdvanceMode _: ManualAdvanceMode,
+        soundRoutingSettings _: PracticeSoundRoutingSettings,
+        tempoScale _: Double,
+        loopEnabled _: Bool,
+        requiredSuccesses _: Int
+    ) {}
+}
+
 private let defaultTestPracticeSongIdentity = PracticeSongIdentity(
     songID: UUID(),
     scoreRevision: "test-score"
@@ -82,7 +98,7 @@ extension PracticeSessionViewModel {
             : measureSpans
         installPreparedSteps(
             steps,
-            identity: songIdentity ?? defaultTestPracticeSongIdentity,
+            identity: self.songIdentity ?? defaultTestPracticeSongIdentity,
             tempoMap: tempoMap,
             pedalTimeline: pedalTimeline,
             fermataTimeline: fermataTimeline,

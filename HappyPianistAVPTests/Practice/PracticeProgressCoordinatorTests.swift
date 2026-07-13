@@ -14,7 +14,7 @@ func progressCoordinatorCoalescesCheckpointsAndFlushesLatestValue() async throws
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
     let session = await coordinator.begin(identity: identity)
 
-    var first = SongPracticeProgress(identity: identity, updatedAt: .distantPast)
+    var first = SongPracticeProgress(identity: identity, updatedAt: clock.date)
     first.measureFacts = [makeFacts(successes: 1)]
     var second = first
     second.measureFacts = [makeFacts(successes: 2)]

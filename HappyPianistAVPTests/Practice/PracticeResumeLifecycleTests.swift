@@ -16,6 +16,7 @@ func restoredPracticeStaysReadyAndSilentUntilExplicitStart() async throws {
         requiredSuccesses: 3
     )
     let progress = SongPracticeProgress(
+        identity: identity,
         activeConfiguration: configuration,
         resumePoint: PracticeResumePoint(
             occurrenceID: spans[1].occurrenceID,
@@ -60,6 +61,7 @@ func invalidRestoredPassageFailsClosed() async throws {
     let missingOccurrence = PracticeMeasureOccurrenceID(sourceMeasureID: missingSource, occurrenceIndex: 99)
     let passage = try #require(PracticePassage(start: missingOccurrence, end: missingOccurrence))
     let progress = SongPracticeProgress(
+        identity: identity,
         activeConfiguration: PracticeRoundConfiguration(
             passage: passage,
             handMode: .both,

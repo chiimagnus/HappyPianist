@@ -149,6 +149,7 @@ func preparationWithoutMeasureSpansIsRejectedAtTheLibraryBoundary() async throws
     #expect(appState.practiceSetupState.preparedPracticeIdentity == nil)
 }
 
+@MainActor
 private func waitForPreparation(
     _ viewModel: SongLibraryViewModel,
     entryID: UUID
@@ -163,6 +164,7 @@ private func waitForPreparation(
     Issue.record("Timed out waiting for ready preparation")
 }
 
+@MainActor
 private func waitForPreparationFailure(
     _ viewModel: SongLibraryViewModel,
     entryID: UUID
