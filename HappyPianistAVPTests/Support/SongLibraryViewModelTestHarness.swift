@@ -13,8 +13,12 @@ enum SongLibraryViewModelTestHarness {
     ) -> SongLibraryViewModel {
         let resolvedAppState = appState ?? AppState()
         let resolvedIndex = index ?? .empty
-        return SongLibraryViewModel(
+        let arGuideViewModel = ARGuideViewModel(
             appState: resolvedAppState,
+            practiceSetupState: resolvedAppState.practiceSetupState
+        )
+        return SongLibraryViewModel(
+            arGuideViewModel: arGuideViewModel,
             practicePreparationService: practicePreparationService ?? NoopPracticePreparationService(),
             indexStore: InMemorySongLibraryIndexStore(index: resolvedIndex),
             fileStore: InMemorySongFileStore(),

@@ -296,48 +296,14 @@ struct SongLibraryView: View {
 }
 
 #Preview {
-  let worldAnchorCalibrationStore = WorldAnchorCalibrationStore()
-  let keyGeometryService = PianoKeyGeometryService()
-  let parser: MusicXMLParserProtocol = MusicXMLParser()
-  let stepBuilder: PracticeStepBuilderProtocol = PracticeStepBuilder()
-  let arTrackingService = ARTrackingService()
-  let calibrationCaptureService = CalibrationPointCaptureService()
-  let calibrationRepository = CalibrationRepository(
-    worldAnchorCalibrationStore: worldAnchorCalibrationStore)
-  let practicePreparationService: PracticePreparationServiceProtocol =
-    PracticePreparationService(parser: parser, stepBuilder: stepBuilder)
-  let songLibraryIndexStore: SongLibraryIndexStoreProtocol = SongLibraryIndexStore()
-  let songFileStore: SongFileStoreProtocol = SongFileStore()
-  let audioImportService: AudioImportServiceProtocol = AudioImportService()
-  let bundledSongLibraryProvider: BundledSongLibraryProviderProtocol = BundledSongLibraryProvider()
-  let songAudioPlayer: SongAudioPlayerProtocol = SongAudioPlayer()
-  let appState = AppState(
-    arTrackingService: arTrackingService,
-    calibrationCaptureService: calibrationCaptureService,
-    calibrationRepository: calibrationRepository,
-    keyGeometryService: keyGeometryService
-  )
-  let diagnosticsStore = FileDiagnosticsStore()
-  let viewModel = SongLibraryViewModel(
-    appState: appState,
-    practicePreparationService: practicePreparationService,
-    indexStore: songLibraryIndexStore,
-    fileStore: songFileStore,
-    audioImportService: audioImportService,
-    bundledProvider: bundledSongLibraryProvider,
-    audioPlayer: songAudioPlayer,
-    practiceProgressRepository: FilePracticeProgressRepository(),
-    diagnosticsReporter: AppDiagnosticsReporter(exportStore: diagnosticsStore)
-  )
+  let graph = LiveAppGraph.make()
   return SongLibraryView(
-    viewModel: viewModel,
-    diagnosticsViewModel: DiagnosticsViewModel(
-      store: diagnosticsStore,
-      exporter: DiagnosticsArchiveExporter(store: diagnosticsStore)
-    ),
+    viewModel: graph.songLibraryViewModel,
+    diagnosticsViewModel: graph.diagnosticsViewModel,
     onBackToPreparation: {},
     onStartPractice: {}
   )
+
 }
 
 private struct LibraryTopBarView: View {

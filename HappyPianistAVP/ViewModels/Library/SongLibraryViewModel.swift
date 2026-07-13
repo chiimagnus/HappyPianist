@@ -4,7 +4,7 @@ import Observation
 @MainActor
 @Observable
 final class SongLibraryViewModel {
-    private let appState: AppState
+    private let arGuideViewModel: ARGuideViewModel
     private let indexStore: SongLibraryIndexStoreProtocol
     private let fileStore: SongFileStoreProtocol
     private let audioImportService: AudioImportServiceProtocol
@@ -51,7 +51,7 @@ final class SongLibraryViewModel {
     }
 
     init(
-        appState: AppState,
+        arGuideViewModel: ARGuideViewModel,
         practicePreparationService: PracticePreparationServiceProtocol,
         indexStore: SongLibraryIndexStoreProtocol,
         fileStore: SongFileStoreProtocol,
@@ -61,7 +61,7 @@ final class SongLibraryViewModel {
         practiceProgressRepository: any PracticeProgressRepositoryProtocol,
         diagnosticsReporter: any DiagnosticsReporting
     ) {
-        self.appState = appState
+        self.arGuideViewModel = arGuideViewModel
         self.practicePreparationService = practicePreparationService
         self.indexStore = indexStore
         self.fileStore = fileStore
@@ -145,9 +145,9 @@ final class SongLibraryViewModel {
     }
 
     private var currentPreparedPracticeSession: PracticeSessionViewModel? {
+        let session = arGuideViewModel.practiceSessionViewModel
         guard case let .ready(entryID, identity) = practicePreparationState,
               entryID == selectedPracticeEntryID,
-              let session = appState.arGuideViewModel?.practiceSessionViewModel,
               session.songIdentity == identity
         else { return nil }
         return session
@@ -299,7 +299,7 @@ final class SongLibraryViewModel {
                 throw PracticePreparationError.missingMeasureStructure
             }
 
-            guard await appState.applyPreparedPractice(
+            guard await arGuideViewModel.applyPreparedPractice(
                 prepared,
                 isCurrent: { [weak self] in
                     self?.isCurrentPracticePreparation(

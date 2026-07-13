@@ -162,6 +162,8 @@ final class ARGuideViewModel {
             isCurrent: isCurrent
         ) else { return false }
 
+        practiceSetupState.setImportedSteps(from: prepared)
+        appState.applySessionIfPossible()
         latestPreparedPractice = prepared
         preparedPracticeApplicationID = nil
         if isVirtualPerformerEnabled {

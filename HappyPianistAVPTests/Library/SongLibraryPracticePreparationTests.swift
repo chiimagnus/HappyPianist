@@ -76,8 +76,12 @@ func latestPreparationGenerationWins() async throws {
     ]
     let service = DelayedPreparationService(delays: [firstID: .milliseconds(80), secondID: .milliseconds(5)])
     let appState = AppState()
-    let viewModel = SongLibraryViewModel(
+    let guide = ARGuideViewModel(
         appState: appState,
+        practiceSetupState: appState.practiceSetupState
+    )
+    let viewModel = SongLibraryViewModel(
+        arGuideViewModel: guide,
         practicePreparationService: service,
         indexStore: PreparationTestIndexStore(),
         fileStore: PreparationTestFileStore(),
@@ -118,8 +122,12 @@ func preparationWithoutMeasureSpansIsRejectedAtTheLibraryBoundary() async throws
         isBundled: true
     )
     let appState = AppState()
-    let viewModel = SongLibraryViewModel(
+    let guide = ARGuideViewModel(
         appState: appState,
+        practiceSetupState: appState.practiceSetupState
+    )
+    let viewModel = SongLibraryViewModel(
+        arGuideViewModel: guide,
         practicePreparationService: DelayedPreparationService(delays: [:], includesMeasureSpans: false),
         indexStore: PreparationTestIndexStore(),
         fileStore: PreparationTestFileStore(),
@@ -435,8 +443,13 @@ private func makeFailurePreparationFixture(
         isBundled: true
     )
     let reporter = InMemoryDiagnosticsReporter(persistResult: persistResult)
+    let appState = AppState()
+    let guide = ARGuideViewModel(
+        appState: appState,
+        practiceSetupState: appState.practiceSetupState
+    )
     let viewModel = SongLibraryViewModel(
-        appState: AppState(),
+        arGuideViewModel: guide,
         practicePreparationService: FailingLibraryPreparationService(),
         indexStore: PreparationTestIndexStore(),
         fileStore: PreparationTestFileStore(),
@@ -559,8 +572,6 @@ private func makeDirectLaunchFixture(
             session: session
         ).callAsFunction
     )
-    appState.arGuideViewModel = guide
-
     let scoreURL = FileManager.default.temporaryDirectory.appending(
         path: "direct-launch-\(songID.uuidString).musicxml"
     )
@@ -573,7 +584,7 @@ private func makeDirectLaunchFixture(
         isBundled: true
     )
     let viewModel = SongLibraryViewModel(
-        appState: appState,
+        arGuideViewModel: guide,
         practicePreparationService: DelayedPreparationService(delays: [:]),
         indexStore: PreparationTestIndexStore(),
         fileStore: PreparationTestFileStore(),

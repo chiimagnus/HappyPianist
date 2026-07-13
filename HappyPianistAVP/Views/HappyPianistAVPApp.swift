@@ -3,17 +3,18 @@ import SwiftUI
 @main
 struct HappyPianistAVPApp: App {
     @State private var appState: AppState
+    private let graph: LiveAppGraph
 
     init() {
-        let appState = AppState()
-        appState.configureLiveAppGraphIfNeeded()
-        _appState = State(initialValue: appState)
+        let graph = LiveAppGraph.make()
+        self.graph = graph
+        _appState = State(initialValue: graph.appState)
     }
 
     var body: some Scene {
         Window("Preparation", id: WindowID.preparation) {
-            PreparationWindowRootView(arGuideViewModel: appState.arGuideViewModel)
-                .environment(appState.windowState)
+            PreparationWindowRootView(arGuideViewModel: graph.arGuideViewModel)
+                .environment(graph.windowState)
         }
         .windowStyle(.automatic)
         .windowResizability(.contentSize)
@@ -24,10 +25,10 @@ struct HappyPianistAVPApp: App {
         Window("Library", id: WindowID.library) {
             LibraryWindowRootView(
                 appState: appState,
-                songLibraryViewModel: appState.songLibraryViewModel,
-                diagnosticsViewModel: appState.diagnosticsViewModel
+                songLibraryViewModel: graph.songLibraryViewModel,
+                diagnosticsViewModel: graph.diagnosticsViewModel
             )
-                .environment(appState.windowState)
+            .environment(graph.windowState)
         }
         .windowStyle(.automatic)
         .windowResizability(.contentSize)
@@ -36,8 +37,8 @@ struct HappyPianistAVPApp: App {
         }
 
         Window("Practice", id: WindowID.practice) {
-            PracticeWindowRootView(viewModel: appState.arGuideViewModel)
-                .environment(appState.windowState)
+            PracticeWindowRootView(viewModel: graph.arGuideViewModel)
+                .environment(graph.windowState)
         }
         .windowStyle(.automatic)
         .windowResizability(.contentSize)
@@ -46,7 +47,7 @@ struct HappyPianistAVPApp: App {
         }
 
         ImmersiveSpace(id: appState.immersiveSpaceID) {
-            ImmersiveView(viewModel: appState.arGuideViewModel)
+            ImmersiveView(viewModel: graph.arGuideViewModel)
                 .onAppear {
                     appState.immersiveSpaceState = .open
                 }
@@ -61,13 +62,11 @@ struct HappyPianistAVPApp: App {
         targetWindowID: String,
         context: WindowPlacementContext
     ) -> WindowPlacement {
-        guard let pendingTransition = appState.windowState.pendingTransition else { return WindowPlacement() }
+        guard let pendingTransition = graph.windowState.pendingTransition else { return WindowPlacement() }
         guard pendingTransition.toWindowID == targetWindowID else { return WindowPlacement() }
-
         guard let sourceWindow = context.windows.first(where: { $0.id == pendingTransition.fromWindowID }) else {
             return WindowPlacement()
         }
-
         return WindowPlacement(.replacing(sourceWindow))
     }
 }

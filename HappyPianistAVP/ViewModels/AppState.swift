@@ -5,7 +5,7 @@ import simd
 /// Maintains app-wide state
 @MainActor
 @Observable
-class AppState {
+final class AppState {
     enum PracticeCalibrationResolutionResult: Equatable {
         case resolved
         case missingStoredCalibration
@@ -50,15 +50,7 @@ class AppState {
     private let calibrationRepository: CalibrationRepositoryProtocol
     private let keyGeometryService: PianoKeyGeometryServiceProtocol
 
-    var practiceSetupState = PracticeSetupState()
-    var pianoModeRegistry: PianoModeRegistryProtocol!
-    var windowState: WindowTransitionState!
-    var arGuideViewModel: ARGuideViewModel!
-    var songLibraryViewModel: SongLibraryViewModel!
-    var practiceProgressRepository: (any PracticeProgressRepositoryProtocol)!
-    var practiceProgressCoordinator: PracticeProgressCoordinator!
-    var diagnosticsReporter: (any DiagnosticsReporting)!
-    var diagnosticsViewModel: DiagnosticsViewModel!
+    let practiceSetupState = PracticeSetupState()
 
     init(
         arTrackingService: ARTrackingServiceProtocol,
@@ -70,19 +62,6 @@ class AppState {
         self.calibrationCaptureService = calibrationCaptureService
         self.calibrationRepository = calibrationRepository
         self.keyGeometryService = keyGeometryService
-    }
-
-    /// Convenience init for tests/previews that don't need to control service instances.
-    convenience init(
-        keyGeometryService: PianoKeyGeometryServiceProtocol? = nil,
-        arTrackingService: ARTrackingServiceProtocol? = nil
-    ) {
-        self.init(
-            arTrackingService: arTrackingService ?? ARTrackingService(),
-            calibrationCaptureService: CalibrationPointCaptureService(),
-            calibrationRepository: CalibrationRepository(),
-            keyGeometryService: keyGeometryService ?? PianoKeyGeometryService()
-        )
     }
 
     func beginCalibrationRecapture() {
@@ -268,186 +247,7 @@ class AppState {
 
     var onApplyKeyboardGeometry: ((PianoKeyboardGeometry, PianoCalibration) -> Void)?
 
-    @discardableResult
-    func applyPreparedPractice(
-        _ prepared: PreparedPractice,
-        isCurrent: @escaping @MainActor () -> Bool
-    ) async -> Bool {
-        guard isCurrent() else { return false }
-        if let arGuideViewModel {
-            guard await arGuideViewModel.applyPreparedPractice(
-                prepared,
-                isCurrent: isCurrent
-            ) else { return false }
-        }
-        guard isCurrent() else { return false }
-        practiceSetupState.setImportedSteps(from: prepared)
-        applySessionIfPossible()
-        return true
-    }
 
-    func configureLiveAppGraphIfNeeded() {
-        guard arGuideViewModel == nil else { return }
-
-        let parser: MusicXMLParserProtocol = MusicXMLParser()
-        let stepBuilder: PracticeStepBuilderProtocol = PracticeStepBuilder()
-        let practicePreparationService: PracticePreparationServiceProtocol =
-            PracticePreparationService(parser: parser, stepBuilder: stepBuilder)
-        let songLibraryIndexStore: SongLibraryIndexStoreProtocol = SongLibraryIndexStore()
-        let songFileStore: SongFileStoreProtocol = SongFileStore()
-        let audioImportService: AudioImportServiceProtocol = AudioImportService()
-        let bundledSongLibraryProvider: BundledSongLibraryProviderProtocol = BundledSongLibraryProvider()
-        let songAudioPlayer: SongAudioPlayerProtocol = SongAudioPlayer()
-        let progressRepository: any PracticeProgressRepositoryProtocol = FilePracticeProgressRepository()
-        let progressCoordinator = PracticeProgressCoordinator(repository: progressRepository)
-        let diagnosticsStore: any DiagnosticsStoreProtocol = FileDiagnosticsStore()
-        let diagnosticsReporter: any DiagnosticsReporting = AppDiagnosticsReporter(exportStore: diagnosticsStore)
-        let diagnosticsExporter: any DiagnosticsArchiveExporting = DiagnosticsArchiveExporter(store: diagnosticsStore)
-        let diagnosticsViewModel = DiagnosticsViewModel(
-            store: diagnosticsStore,
-            exporter: diagnosticsExporter
-        )
-
-        let makePressDetectionService: () -> PressDetectionServiceProtocol = { PressDetectionService() }
-        let makeChordAttemptAccumulator: () -> ChordAttemptAccumulatorProtocol = { ChordAttemptAccumulator() }
-        let makeSleeper: () -> SleeperProtocol = { TaskSleeper() }
-        let makeLocalSamplerPlaybackService: () -> PracticeSequencerPlaybackServiceProtocol = {
-            AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2")
-        }
-        let aiPlaybackServiceFactory = DuetAIPlaybackServiceFactory(
-            makeLocalSamplerPlaybackService: {
-                AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2", channel: 1)
-            },
-            makeExternalMIDIPlaybackService: { destinationUniqueID in
-                CoreMIDIPracticePlaybackService(destinationUniqueID: destinationUniqueID, channel: 1)
-            }
-        )
-        let makeAIPlaybackServiceFactory: @MainActor () -> DuetAIPlaybackServiceFactory = { aiPlaybackServiceFactory }
-        let makeAudioStepAttemptAccumulator: () -> AudioStepAttemptAccumulator = {
-            AudioStepAttemptAccumulator()
-        }
-        let makeHandPianoActivityGate: () -> HandPianoActivityGate = {
-            HandPianoActivityGate()
-        }
-        let makeAudioRecognitionService: () -> PracticeAudioRecognitionServiceProtocol? = {
-            #if targetEnvironment(simulator)
-                nil
-            #else
-                PracticeAudioRecognitionService()
-            #endif
-        }
-        let makeBluetoothMIDIEventSource: () -> PracticeInputEventSourceProtocol = {
-            BluetoothMIDIInputEventSourceService()
-        }
-
-        let registry: PianoModeRegistryProtocol = PianoModeRegistryService(modes: PianoModeCatalogService.makeDefaultModes())
-        pianoModeRegistry = registry
-
-        let makePracticeSessionViewModel: @MainActor (String?) -> PracticeSessionViewModel = { pianoModeID in
-            switch PianoModeID(rawValue: pianoModeID ?? "") {
-            case .bluetoothMIDI:
-                let settingsProvider = UserDefaultsPracticeSessionSettingsProvider()
-                let routing = settingsProvider.soundRoutingSettings
-                let sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol = switch routing.outputRoute {
-                case .localSampler:
-                    makeLocalSamplerPlaybackService()
-                case .externalMIDIDestination:
-                    if let destinationUniqueID = routing.midiDestinationUniqueID {
-                        CoreMIDIPracticePlaybackService(destinationUniqueID: destinationUniqueID)
-                    } else {
-                        makeLocalSamplerPlaybackService()
-                    }
-                }
-
-                return PracticeSessionViewModel(
-                    pressDetectionService: makePressDetectionService(),
-                    chordAttemptAccumulator: makeChordAttemptAccumulator(),
-                    sleeper: makeSleeper(),
-                    sequencerPlaybackService: sequencerPlaybackService,
-                    audioRecognitionService: nil,
-                    practiceInputEventSource: makeBluetoothMIDIEventSource(),
-                    audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
-                    handPianoActivityGate: makeHandPianoActivityGate(),
-                    settingsProvider: settingsProvider,
-                    progressCoordinator: progressCoordinator
-                )
-
-            case .virtualPiano:
-                return PracticeSessionViewModel(
-                    pressDetectionService: makePressDetectionService(),
-                    chordAttemptAccumulator: makeChordAttemptAccumulator(),
-                    sleeper: makeSleeper(),
-                    sequencerPlaybackService: makeLocalSamplerPlaybackService(),
-                    audioRecognitionService: nil,
-                    practiceInputEventSource: nil,
-                    audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
-                    handPianoActivityGate: makeHandPianoActivityGate(),
-                    progressCoordinator: progressCoordinator
-                )
-
-            default:
-                return PracticeSessionViewModel(
-                    pressDetectionService: makePressDetectionService(),
-                    chordAttemptAccumulator: makeChordAttemptAccumulator(),
-                    sleeper: makeSleeper(),
-                    sequencerPlaybackService: makeLocalSamplerPlaybackService(),
-                    audioRecognitionService: makeAudioRecognitionService(),
-                    practiceInputEventSource: nil,
-                    audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
-                    handPianoActivityGate: makeHandPianoActivityGate(),
-                    progressCoordinator: progressCoordinator
-                )
-            }
-        }
-
-        loadStoredCalibrationIfPossible()
-
-        let guideViewModel = ARGuideViewModel(
-            appState: self,
-            practiceSetupState: practiceSetupState,
-            pianoModeRegistry: registry,
-            makePracticeSessionViewModel: makePracticeSessionViewModel,
-            aiPlaybackServiceFactory: makeAIPlaybackServiceFactory
-        )
-
-        let libraryViewModel = SongLibraryViewModel(
-            appState: self,
-            practicePreparationService: practicePreparationService,
-            indexStore: songLibraryIndexStore,
-            fileStore: songFileStore,
-            audioImportService: audioImportService,
-            bundledProvider: bundledSongLibraryProvider,
-            audioPlayer: songAudioPlayer,
-            practiceProgressRepository: progressRepository,
-            diagnosticsReporter: diagnosticsReporter
-        )
-
-        arGuideViewModel = guideViewModel
-        songLibraryViewModel = libraryViewModel
-        practiceProgressRepository = progressRepository
-        practiceProgressCoordinator = progressCoordinator
-        self.diagnosticsReporter = diagnosticsReporter
-        self.diagnosticsViewModel = diagnosticsViewModel
-        windowState = WindowTransitionState(practiceSetupState: practiceSetupState, pianoModeRegistry: registry)
-
-        Task {
-            do {
-                try await diagnosticsStore.cleanupExpiredLogs(referenceDate: .now)
-            } catch {
-                _ = await diagnosticsReporter.record(
-                    DiagnosticEvent(
-                        severity: .warning,
-                        code: .diagnosticsRetentionCleanupFailed,
-                        category: .diagnostics,
-                        stage: "startupRetentionCleanup",
-                        summary: "无法清理过期诊断日志",
-                        reason: String(describing: error),
-                        persistence: .systemOnly
-                    )
-                )
-            }
-        }
-    }
 
     private func worldAnchorPoint(from anchor: WorldAnchor) -> SIMD3<Float> {
         let transform = anchor.originFromAnchorTransform
