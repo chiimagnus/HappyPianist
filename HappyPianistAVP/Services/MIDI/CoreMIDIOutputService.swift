@@ -101,9 +101,10 @@ final class CoreMIDIOutputService: MIDIOutputSendingProtocol {
             results.append(MIDIDestinationInfo(id: uniqueID, name: endpointName(endpoint)))
         }
         results.sort { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+        let cacheSnapshot = destinationCache
 
         let callbacks = stateLock.withLock { state in
-            state.destinationCache = destinationCache
+            state.destinationCache = cacheSnapshot
             return (state.onDestinationListChange, state.onLastErrorMessageChange)
         }
         callbacks.0?(results)
@@ -191,6 +192,27 @@ final class CoreMIDIOutputService: MIDIOutputSendingProtocol {
     }
 
     private func sendBytes(_ bytes: [UInt8], destination: MIDIEndpointRef) throws {
+        let result: (OSStatus, (@Sendable (String?) -> Void)?) = stateLock.withLock { state in
+            guard state.outputPortRef != 0 else {
+                return (-1, state.onLastErrorMessageChange)
+            }
+            return (
+                Self.sendBytes(bytes, outputPortRef: state.outputPortRef, destination: destination),
+                state.onLastErrorMessageChange
+            )
+        }
+        guard result.0 == noErr else {
+            logger.error("MIDISend failed: \(result.0, privacy: .public)")
+            result.1?("MIDISend failed: \(result.0)")
+            throw CoreMIDIOutputServiceError.send(result.0)
+        }
+    }
+
+    private static func sendBytes(
+        _ bytes: [UInt8],
+        outputPortRef: MIDIPortRef,
+        destination: MIDIEndpointRef
+    ) -> OSStatus {
         let bufferSize = 1024
         let buffer = UnsafeMutableRawPointer.allocate(
             byteCount: bufferSize,
@@ -213,20 +235,7 @@ final class CoreMIDIOutputService: MIDIOutputSendingProtocol {
             )
         }
 
-        let result: (OSStatus, (@Sendable (String?) -> Void)?) = stateLock.withLock { state in
-            guard state.outputPortRef != 0 else {
-                return (-1, state.onLastErrorMessageChange)
-            }
-            return (
-                MIDISend(state.outputPortRef, destination, packetListPointer),
-                state.onLastErrorMessageChange
-            )
-        }
-        guard result.0 == noErr else {
-            logger.error("MIDISend failed: \(result.0, privacy: .public)")
-            result.1?("MIDISend failed: \(result.0)")
-            throw CoreMIDIOutputServiceError.send(result.0)
-        }
+        return MIDISend(outputPortRef, destination, packetListPointer)
     }
 
     private func endpointName(_ endpoint: MIDIEndpointRef) -> String {
