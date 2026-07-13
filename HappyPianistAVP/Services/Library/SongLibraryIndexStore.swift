@@ -35,7 +35,12 @@ struct SongLibraryIndexStore: SongLibraryIndexStoreProtocol {
 
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
-        return try decoder.decode(SongLibraryIndex.self, from: data)
+        do {
+            return try decoder.decode(SongLibraryIndex.self, from: data)
+        } catch {
+            try CorruptedFileQuarantine.move(indexFileURL, fileManager: fileManager)
+            return .empty
+        }
     }
 
     func save(_ index: SongLibraryIndex) throws {

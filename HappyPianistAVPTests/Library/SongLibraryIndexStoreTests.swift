@@ -85,3 +85,30 @@ private final class TestDocumentsFileManager: FileManager {
         return super.urls(for: directory, in: domainMask)
     }
 }
+
+
+@Test
+func songLibraryIndexStoreQuarantinesCorruptedFileAndRecovers() throws {
+    let documentsURL = try makeTemporaryDirectory(prefix: "SongLibraryIndexStoreTests")
+    defer { try? FileManager.default.removeItem(at: documentsURL) }
+
+    let fileManager = TestDocumentsFileManager(documentsURL: documentsURL)
+    let paths = SongLibraryPaths(fileManager: fileManager)
+    let store = SongLibraryIndexStore(fileManager: fileManager, paths: paths)
+    try paths.ensureDirectoriesExist()
+    let indexFileURL = try paths.indexFileURL()
+    try Data("not-json".utf8).write(to: indexFileURL)
+
+    #expect(try store.load() == .empty)
+    #expect(fileManager.fileExists(atPath: indexFileURL.path()) == false)
+    let quarantinedFiles = try fileManager.contentsOfDirectory(
+        at: indexFileURL.deletingLastPathComponent(),
+        includingPropertiesForKeys: nil
+    ).filter { $0.lastPathComponent.hasPrefix("index.corrupt-") }
+    #expect(quarantinedFiles.count == 1)
+    #expect(try String(contentsOf: quarantinedFiles[0], encoding: .utf8) == "not-json")
+
+    let replacement = SongLibraryIndex(entries: [], lastSelectedEntryID: UUID())
+    try store.save(replacement)
+    #expect(try store.load() == replacement)
+}

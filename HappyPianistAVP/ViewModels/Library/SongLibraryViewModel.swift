@@ -83,17 +83,10 @@ final class SongLibraryViewModel {
     }
 
     var entries: [SongLibraryEntry] {
-        var merged: [SongLibraryEntry] = []
-        merged.reserveCapacity(bundledEntries.count + index.entries.count)
-
-        let bundledNames = Set(bundledEntries.map(\.displayName))
-        merged.append(contentsOf: bundledEntries)
-
-        for entry in index.entries where bundledNames.contains(entry.displayName) == false {
-            merged.append(entry)
+        var seenEntryIDs: Set<UUID> = []
+        return (bundledEntries + index.entries).filter { entry in
+            seenEntryIDs.insert(entry.id).inserted
         }
-
-        return merged
     }
 
     func reload() {

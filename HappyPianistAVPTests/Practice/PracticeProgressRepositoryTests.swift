@@ -30,17 +30,28 @@ func progressRepositoryReturnsEmptyOnFirstRunAndRoundTrips() async throws {
 }
 
 @Test
-func progressRepositoryPreservesCorruptedFile() async throws {
+func progressRepositoryQuarantinesCorruptedFileOnNextMutation() async throws {
     let (repository, directory) = try makeRepositoryFixture()
     defer { try? FileManager.default.removeItem(at: directory) }
     let paths = PracticeProgressPaths(rootDirectoryURL: directory)
     try Data("not-json".utf8).write(to: paths.fileURL)
 
     guard case .corrupted = await repository.load() else {
-        Issue.record("Expected recoverable corruption result")
+        Issue.record("Expected explicit corruption result before recovery")
         return
     }
     #expect(try String(contentsOf: paths.fileURL, encoding: .utf8) == "not-json")
+
+    let progress = makeProgress()
+    try await repository.upsert(progress)
+    #expect(await repository.progress(for: progress.identity) == progress)
+
+    let quarantinedFiles = try FileManager.default.contentsOfDirectory(
+        at: directory,
+        includingPropertiesForKeys: nil
+    ).filter { $0.lastPathComponent.hasPrefix("progress-v1.corrupt-") }
+    #expect(quarantinedFiles.count == 1)
+    #expect(try String(contentsOf: quarantinedFiles[0], encoding: .utf8) == "not-json")
 }
 
 @Test

@@ -42,7 +42,7 @@ actor FilePracticeProgressRepository: PracticeProgressRepositoryProtocol {
     }
 
     func upsert(_ progress: SongPracticeProgress) throws {
-        var document = try loadDocument()
+        var document = try loadDocumentForMutation()
         if let index = document.songs.firstIndex(where: { $0.identity == progress.identity }) {
             document.songs[index] = progress
         } else {
@@ -58,7 +58,7 @@ actor FilePracticeProgressRepository: PracticeProgressRepositoryProtocol {
     }
 
     func remove(songID: UUID) throws {
-        var document = try loadDocument()
+        var document = try loadDocumentForMutation()
         document.songs.removeAll(where: { $0.identity.songID == songID })
         try saveDocument(document)
     }
@@ -82,6 +82,15 @@ actor FilePracticeProgressRepository: PracticeProgressRepositoryProtocol {
             return try decoder.decode(PracticeProgressDocument.self, from: data)
         } catch {
             throw PracticeProgressRepositoryError.corrupted(description: error.localizedDescription)
+        }
+    }
+
+    private func loadDocumentForMutation() throws -> PracticeProgressDocument {
+        do {
+            return try loadDocument()
+        } catch PracticeProgressRepositoryError.corrupted {
+            try CorruptedFileQuarantine.move(paths.fileURL, fileManager: fileManager)
+            return PracticeProgressDocument()
         }
     }
 
