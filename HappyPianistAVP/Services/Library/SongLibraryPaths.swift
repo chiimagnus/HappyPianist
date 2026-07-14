@@ -48,6 +48,12 @@ struct SongLibraryPaths {
             .appending(path: try validatedComponent(safeFileName))
     }
 
+    func transactionPartialStageFileURL(operationID: UUID) throws -> URL {
+        try transactionOperationDirectoryURL(operationID: operationID)
+            .appending(path: "stage", directoryHint: .isDirectory)
+            .appending(path: ".partial")
+    }
+
     func transactionBackupFileURL(operationID: UUID, safeFileName: String) throws -> URL {
         try transactionOperationDirectoryURL(operationID: operationID)
             .appending(path: "backup", directoryHint: .isDirectory)

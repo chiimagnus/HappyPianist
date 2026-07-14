@@ -269,9 +269,6 @@ private actor ResolverFileStore: SongFileStoreProtocol {
         self.result = result
     }
 
-    func importMusicXML(from _: URL) async throws -> ImportedSongScoreFile {
-        throw CocoaError(.fileNoSuchFile)
-    }
     func scoreFileURL(fileName _: String) async throws -> URL {
         switch result {
         case let .url(url): url

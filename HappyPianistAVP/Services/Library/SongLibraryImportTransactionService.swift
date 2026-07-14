@@ -5,13 +5,37 @@ protocol SongLibraryImportTransactionRecovering: Actor {
     func recoverPendingTransactions() async -> SongLibraryTransactionRecoveryResult
 }
 
-actor SongLibraryImportTransactionService: SongLibraryImportTransactionRecovering {
+protocol SongLibraryImportTransactionServicing: SongLibraryImportTransactionRecovering {
+    func stageImports(from selectedURLs: [URL]) async -> SongLibraryImportBatchStageResult
+    func process(operationID: UUID) async -> SongLibraryImportProcessResult
+    func cancel(operationID: UUID) async -> Bool
+}
+
+protocol SecurityScopedResourceAccessing: Sendable {
+    func startAccessing(_ url: URL) -> Bool
+    func stopAccessing(_ url: URL)
+}
+
+struct LiveSecurityScopedResourceAccessor: SecurityScopedResourceAccessing {
+    func startAccessing(_ url: URL) -> Bool {
+        url.startAccessingSecurityScopedResource()
+    }
+
+    func stopAccessing(_ url: URL) {
+        url.stopAccessingSecurityScopedResource()
+    }
+}
+
+actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing {
+    private static let supportedScoreExtensions = Set(["xml", "musicxml", "mxl"])
+
     private let indexStore: any SongLibraryImportIndexStoreProtocol
     private let paths: SongLibraryPaths
     private let fileManager: FileManager
     private let now: @Sendable () -> Date
     private let makeUUID: @Sendable () -> UUID
     private let diagnostics: any DiagnosticsReporting
+    private let securityScopedResourceAccessor: any SecurityScopedResourceAccessing
 
     init(
         indexStore: any SongLibraryImportIndexStoreProtocol,
@@ -19,7 +43,8 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionRecoverin
         fileManager: FileManager = .default,
         now: @escaping @Sendable () -> Date = { .now },
         makeUUID: @escaping @Sendable () -> UUID = { UUID() },
-        diagnostics: any DiagnosticsReporting
+        diagnostics: any DiagnosticsReporting,
+        securityScopedResourceAccessor: any SecurityScopedResourceAccessing = LiveSecurityScopedResourceAccessor()
     ) {
         self.indexStore = indexStore
         self.paths = paths ?? SongLibraryPaths(fileManager: fileManager)
@@ -27,6 +52,510 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionRecoverin
         self.now = now
         self.makeUUID = makeUUID
         self.diagnostics = diagnostics
+        self.securityScopedResourceAccessor = securityScopedResourceAccessor
+    }
+
+    func stageImports(from selectedURLs: [URL]) async -> SongLibraryImportBatchStageResult {
+        guard selectedURLs.isEmpty == false else {
+            return SongLibraryImportBatchStageResult(items: [], blocked: nil)
+        }
+        do {
+            try ensureRecoveryDirectoriesAreSafe()
+        } catch {
+            return SongLibraryImportBatchStageResult(
+                items: [],
+                blocked: SongLibraryBlockedImport(
+                    operationID: nil,
+                    message: "无法准备曲谱导入目录，请修复存储后重试。"
+                )
+            )
+        }
+
+        var items: [SongLibraryImportBatchItem] = []
+        var stagedOperationIDs: [UUID] = []
+        for sourceURL in selectedURLs {
+            if Task.isCancelled {
+                await cancelStagedOperations(stagedOperationIDs)
+                return cancelledBatch(items: items)
+            }
+            let sourceFileName = sourceURL.lastPathComponent
+            guard isValidSourceFileName(sourceFileName) else {
+                items.append(.failure(itemFailure(fileName: sourceFileName, message: "文件名或曲谱格式不受支持。")))
+                continue
+            }
+
+            let operationID = makeUUID()
+            switch await stageOne(
+                sourceURL: sourceURL,
+                safeFileName: sourceFileName,
+                operationID: operationID
+            ) {
+            case let .staged(descriptor):
+                items.append(.staged(descriptor))
+                stagedOperationIDs.append(operationID)
+            case let .itemFailure(failure):
+                items.append(.failure(failure))
+            case let .blocked(blocked):
+                for stagedOperationID in stagedOperationIDs {
+                    _ = await cancel(operationID: stagedOperationID)
+                }
+                return SongLibraryImportBatchStageResult(items: items, blocked: blocked)
+            }
+        }
+        if Task.isCancelled {
+            await cancelStagedOperations(stagedOperationIDs)
+            return cancelledBatch(items: items)
+        }
+        return SongLibraryImportBatchStageResult(items: items, blocked: nil)
+    }
+
+    private func cancelStagedOperations(_ operationIDs: [UUID]) async {
+        for operationID in operationIDs {
+            _ = await cancel(operationID: operationID)
+        }
+    }
+
+    private func cancelledBatch(items: [SongLibraryImportBatchItem]) -> SongLibraryImportBatchStageResult {
+        SongLibraryImportBatchStageResult(
+            items: items,
+            blocked: SongLibraryBlockedImport(operationID: nil, message: "本批曲谱导入已取消。")
+        )
+    }
+
+    func process(operationID: UUID) async -> SongLibraryImportProcessResult {
+        do {
+            let journal = try loadJournal(operationID: operationID)
+            guard journal.kind == .unclassified,
+                  journal.phase == .staged,
+                  journal.stagedFingerprint != nil
+            else {
+                return .blocked(
+                    SongLibraryBlockedImport(
+                        operationID: operationID,
+                        message: "导入事务状态已变化，请重新导入。"
+                    )
+                )
+            }
+
+            let index = try await indexStore.load()
+            let targetFacts = try targetVolumeFacts(safeFileName: journal.safeFileName)
+            let conflict = SongLibraryImportConflictClassifier.classify(
+                userEntries: index.entries,
+                candidateFileName: journal.safeFileName,
+                targetFacts: targetFacts
+            )
+            switch conflict {
+            case .none:
+                return try await commitNewImport(journal: journal)
+            case .indexedTarget, .indexedMissingTarget, .filesystemOrphan:
+                return .requiresConfirmation(
+                    SongLibraryPendingImport(
+                        id: operationID,
+                        fileName: journal.safeFileName,
+                        conflict: conflict
+                    )
+                )
+            case .ambiguousIndexedTargets:
+                _ = await diagnostics.record(
+                    DiagnosticEvent(
+                        severity: .error,
+                        code: .libraryImportConflictAmbiguous,
+                        category: .library,
+                        stage: "classifyImport",
+                        summary: "多个曲库条目指向同一导入目标",
+                        reason: "为避免猜测曲目身份，已阻止该项导入",
+                        persistence: .systemOnly
+                    )
+                )
+                if await cancel(operationID: operationID) {
+                    return .blocked(
+                        SongLibraryBlockedImport(
+                            operationID: operationID,
+                            message: "多个曲库条目指向同一目标，已取消该项导入。"
+                        )
+                    )
+                }
+                return .blocked(
+                    SongLibraryBlockedImport(
+                        operationID: operationID,
+                        message: "歧义事务无法安全清理。"
+                    )
+                )
+            }
+        } catch {
+            return .blocked(
+                SongLibraryBlockedImport(
+                    operationID: operationID,
+                    message: "无法核对导入事务，请修复存储后重试。"
+                )
+            )
+        }
+    }
+
+    func cancel(operationID: UUID) async -> Bool {
+        do {
+            let operationDirectory = try paths.transactionOperationDirectoryURL(operationID: operationID)
+            guard fileManager.fileExists(atPath: operationDirectory.path(percentEncoded: false)) else { return true }
+            let journal = try loadJournal(operationID: operationID)
+            guard journal.kind == .unclassified else { return false }
+            let facts = try await recoveryFacts(for: journal)
+            guard SongLibraryTransactionRecoveryPlanner.action(journal: journal, facts: facts) == .cleanup else {
+                return false
+            }
+            try removeOperationDirectory(for: journal, facts: facts)
+            return true
+        } catch {
+            _ = await diagnostics.record(
+                DiagnosticEvent(
+                    severity: .warning,
+                    code: .libraryImportCleanupFailed,
+                    category: .library,
+                    stage: "cancelImport",
+                    summary: "无法清理已取消的曲谱导入",
+                    reason: "事务文件已保留供下次启动恢复",
+                    persistence: .systemOnly
+                )
+            )
+            return false
+        }
+    }
+
+    private func stageOne(
+        sourceURL: URL,
+        safeFileName: String,
+        operationID: UUID
+    ) async -> SongLibraryStageOneResult {
+        let preparingJournal: SongLibraryImportJournal
+        do {
+            let operationDirectory = try paths.transactionOperationDirectoryURL(operationID: operationID)
+            try fileManager.createDirectory(at: operationDirectory, withIntermediateDirectories: false)
+            preparingJournal = try SongLibraryImportJournal(
+                operationID: operationID,
+                kind: .unclassified,
+                phase: .preparing,
+                safeFileName: safeFileName
+            )
+            try writeJournal(preparingJournal)
+            try fileManager.createDirectory(
+                at: try paths.transactionPartialStageFileURL(operationID: operationID)
+                    .deletingLastPathComponent(),
+                withIntermediateDirectories: false
+            )
+        } catch {
+            await discardFailedStage(operationID: operationID)
+            return .blocked(
+                SongLibraryBlockedImport(
+                    operationID: operationID,
+                    message: "无法记录曲谱导入事务，已停止本批导入。"
+                )
+            )
+        }
+
+        let hasScopedAccess = securityScopedResourceAccessor.startAccessing(sourceURL)
+        defer {
+            if hasScopedAccess {
+                securityScopedResourceAccessor.stopAccessing(sourceURL)
+            }
+        }
+
+        do {
+            let values = try sourceURL.resourceValues(
+                forKeys: [.isDirectoryKey, .isRegularFileKey, .isSymbolicLinkKey]
+            )
+            guard values.isDirectory != true,
+                  values.isRegularFile == true,
+                  values.isSymbolicLink != true
+            else {
+                throw SongLibraryStageError.unsupportedSource
+            }
+
+            let partialURL = try paths.transactionPartialStageFileURL(operationID: operationID)
+            try fileManager.copyItem(at: sourceURL, to: partialURL)
+            if Task.isCancelled {
+                throw CancellationError()
+            }
+            let handle = try FileHandle(forWritingTo: partialURL)
+            do {
+                try handle.synchronize()
+                try handle.close()
+            } catch {
+                try? handle.close()
+                throw error
+            }
+            let observed = try observedFile(at: partialURL)
+            guard let fingerprint = observed.fingerprint else {
+                throw SongLibraryStageError.unsupportedSource
+            }
+            let stagedURL = try paths.transactionStageFileURL(
+                operationID: operationID,
+                safeFileName: safeFileName
+            )
+            try fileManager.moveItem(at: partialURL, to: stagedURL)
+            let stagedJournal = try SongLibraryImportJournal(
+                operationID: operationID,
+                kind: .unclassified,
+                phase: .staged,
+                safeFileName: safeFileName,
+                stagedFingerprint: fingerprint
+            )
+            do {
+                try writeJournal(stagedJournal)
+            } catch {
+                await discardFailedStage(operationID: operationID)
+                return .blocked(
+                    SongLibraryBlockedImport(
+                        operationID: operationID,
+                        message: "无法完成曲谱暂存记录，已停止本批导入。"
+                    )
+                )
+            }
+            return .staged(SongLibraryStagedImport(id: operationID, fileName: safeFileName))
+        } catch is CancellationError {
+            await discardFailedStage(operationID: operationID)
+            return .itemFailure(itemFailure(fileName: safeFileName, message: "导入已取消。"))
+        } catch SongLibraryStageError.unsupportedSource {
+            await discardFailedStage(operationID: operationID)
+            return .itemFailure(itemFailure(fileName: safeFileName, message: "所选项目不是可读取的普通文件。"))
+        } catch {
+            await discardFailedStage(operationID: operationID)
+            return .itemFailure(itemFailure(fileName: safeFileName, message: "无法读取或暂存该曲谱。"))
+        }
+    }
+
+    private func commitNewImport(
+        journal: SongLibraryImportJournal
+    ) async throws -> SongLibraryImportProcessResult {
+        guard let stagedFingerprint = journal.stagedFingerprint else {
+            throw SongLibraryTransactionServiceError.changedFile
+        }
+        let songID = makeUUID()
+        let payload = SongLibraryNewEntryPayload(
+            songID: songID,
+            displayName: URL(fileURLWithPath: journal.safeFileName)
+                .deletingPathExtension()
+                .lastPathComponent,
+            musicXMLFileName: journal.safeFileName,
+            importedAt: now(),
+            scoreFileVersionID: makeUUID()
+        )
+        let resolvedJournal = try SongLibraryImportJournal(
+            operationID: journal.operationID,
+            kind: .newImport,
+            phase: .targetInstalled,
+            safeFileName: journal.safeFileName,
+            stagedFingerprint: stagedFingerprint,
+            newEntry: payload
+        )
+        try writeJournal(resolvedJournal)
+
+        do {
+            let facts = try await recoveryFacts(for: resolvedJournal)
+            try moveStageToTarget(journal: resolvedJournal, facts: facts)
+        } catch {
+            try? writeJournal(journal)
+            _ = await cancel(operationID: journal.operationID)
+            return .itemFailure(
+                itemFailure(fileName: journal.safeFileName, message: "目标文件在导入时发生变化，请重试。")
+            )
+        }
+
+        let updatedIndex: SongLibraryIndex
+        do {
+            updatedIndex = try await indexStore.appendUserEntry(payload.entry)
+        } catch {
+            do {
+                try moveTargetBackToStage(journal: resolvedJournal)
+                try writeJournal(journal)
+                _ = await cancel(operationID: journal.operationID)
+                return .itemFailure(
+                    itemFailure(fileName: journal.safeFileName, message: "无法保存曲库索引，该项未导入。")
+                )
+            } catch {
+                return .blocked(
+                    SongLibraryBlockedImport(
+                        operationID: journal.operationID,
+                        message: "导入回滚未完成，请重新启动后恢复。"
+                    )
+                )
+            }
+        }
+
+        let committedJournal = try SongLibraryImportJournal(
+            operationID: resolvedJournal.operationID,
+            kind: resolvedJournal.kind,
+            phase: .indexCommitted,
+            safeFileName: resolvedJournal.safeFileName,
+            stagedFingerprint: stagedFingerprint,
+            newEntry: payload
+        )
+        do {
+            try writeJournal(committedJournal)
+            let facts = try await recoveryFacts(for: committedJournal)
+            try removeOperationDirectory(for: committedJournal, facts: facts)
+        } catch {
+            _ = await diagnostics.record(
+                DiagnosticEvent(
+                    severity: .warning,
+                    code: .libraryImportCleanupFailed,
+                    category: .library,
+                    stage: "commitNewImport",
+                    summary: "曲谱已导入但事务清理未完成",
+                    reason: "事务文件已保留供下次启动恢复",
+                    songID: songID,
+                    persistence: .systemOnly
+                )
+            )
+        }
+        return .committed(index: updatedIndex, entry: payload.entry)
+    }
+
+    private func moveTargetBackToStage(journal: SongLibraryImportJournal) throws {
+        let targetURL = try paths.scoreFileURL(safeFileName: journal.safeFileName)
+        let target = try observedFile(at: targetURL)
+        guard target.fingerprint == journal.stagedFingerprint else {
+            throw SongLibraryTransactionServiceError.changedFile
+        }
+        let stageURL = try paths.transactionStageFileURL(
+            operationID: journal.operationID,
+            safeFileName: journal.safeFileName
+        )
+        guard fileManager.fileExists(atPath: stageURL.path(percentEncoded: false)) == false else {
+            throw SongLibraryTransactionServiceError.changedFile
+        }
+        try fileManager.moveItem(at: targetURL, to: stageURL)
+    }
+
+    private func targetVolumeFacts(
+        safeFileName: String
+    ) throws -> SongLibraryImportTargetVolumeFacts {
+        let targetURL = try paths.scoreFileURL(safeFileName: safeFileName)
+        guard fileManager.fileExists(atPath: targetURL.path(percentEncoded: false)) else {
+            return SongLibraryImportTargetVolumeFacts(
+                candidateExists: false,
+                candidateResourceIdentifier: nil,
+                fileNamesWithCandidateResourceIdentifier: []
+            )
+        }
+        guard try isPlainFile(targetURL) else {
+            throw SongLibraryTransactionServiceError.unsafePath
+        }
+        let candidateIdentifier = try targetURL.resourceValues(
+            forKeys: [.fileResourceIdentifierKey]
+        ).fileResourceIdentifier
+        var matchingNames: [String] = []
+        if let candidateIdentifier {
+            let directoryItems = try fileManager.contentsOfDirectory(
+                at: paths.scoresDirectoryURL(),
+                includingPropertiesForKeys: [
+                    .fileResourceIdentifierKey,
+                    .isRegularFileKey,
+                    .isSymbolicLinkKey,
+                ],
+                options: []
+            )
+            for item in directoryItems {
+                let values = try item.resourceValues(
+                    forKeys: [
+                        .fileResourceIdentifierKey,
+                        .isRegularFileKey,
+                        .isSymbolicLinkKey,
+                    ]
+                )
+                guard values.isRegularFile == true,
+                      values.isSymbolicLink != true,
+                      let itemIdentifier = values.fileResourceIdentifier,
+                      resourceIdentifiersAreEqual(candidateIdentifier, itemIdentifier)
+                else { continue }
+                matchingNames.append(item.lastPathComponent)
+            }
+        }
+        return SongLibraryImportTargetVolumeFacts(
+            candidateExists: true,
+            candidateResourceIdentifier: candidateIdentifier.map { String(describing: $0) },
+            fileNamesWithCandidateResourceIdentifier: matchingNames
+        )
+    }
+
+    private func resourceIdentifiersAreEqual(_ lhs: Any, _ rhs: Any) -> Bool {
+        guard let lhsObject = lhs as? NSObject else { return false }
+        return lhsObject.isEqual(rhs)
+    }
+
+    private func isValidSourceFileName(_ fileName: String) -> Bool {
+        guard fileName.isEmpty == false,
+              fileName != ".",
+              fileName != "..",
+              fileName.contains("/") == false,
+              fileName.contains("\\") == false,
+              SongLibraryFileNameIdentity.isExact(
+                URL(fileURLWithPath: fileName).lastPathComponent,
+                fileName
+              )
+        else { return false }
+        return Self.supportedScoreExtensions.contains(
+            URL(fileURLWithPath: fileName).pathExtension.lowercased()
+        )
+    }
+
+    private func itemFailure(fileName: String, message: String) -> SongLibraryImportItemFailure {
+        SongLibraryImportItemFailure(
+            fileName: fileName.isEmpty ? "未命名项目" : fileName,
+            message: message
+        )
+    }
+
+    private func discardFailedStage(operationID: UUID) async {
+        do {
+            let operationDirectory = try paths.transactionOperationDirectoryURL(operationID: operationID)
+            guard fileManager.fileExists(atPath: operationDirectory.path(percentEncoded: false)) else { return }
+            let journalURL = try paths.transactionJournalFileURL(operationID: operationID)
+            if fileManager.fileExists(atPath: journalURL.path(percentEncoded: false)) {
+                guard await cancel(operationID: operationID) else {
+                    throw SongLibraryTransactionServiceError.changedFile
+                }
+            } else if try isSafeJournalLessScratch(operationDirectory) {
+                try fileManager.removeItem(at: operationDirectory)
+            } else {
+                throw SongLibraryTransactionServiceError.unsafePath
+            }
+        } catch {
+            _ = await diagnostics.record(
+                DiagnosticEvent(
+                    severity: .warning,
+                    code: .libraryImportCleanupFailed,
+                    category: .library,
+                    stage: "stageImport",
+                    summary: "无法清理未完成的曲谱暂存",
+                    reason: "事务目录已保留供下次启动恢复",
+                    persistence: .systemOnly
+                )
+            )
+        }
+    }
+
+    private func writeJournal(_ journal: SongLibraryImportJournal) throws {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .deferredToDate
+        encoder.outputFormatting = [.sortedKeys]
+        try encoder.encode(journal).write(
+            to: paths.transactionJournalFileURL(operationID: journal.operationID),
+            options: .atomic
+        )
+    }
+
+    private func loadJournal(operationID: UUID) throws -> SongLibraryImportJournal {
+        let journal = try decodeJournal(
+            at: paths.transactionJournalFileURL(operationID: operationID)
+        )
+        guard journal.operationID == operationID,
+              try isSafeRecordedOperationDirectory(
+                paths.transactionOperationDirectoryURL(operationID: operationID),
+                journal: journal
+              )
+        else {
+            throw SongLibraryTransactionServiceError.unsafePath
+        }
+        return journal
     }
 
     func recoverPendingTransactions() async -> SongLibraryTransactionRecoveryResult {
@@ -72,7 +601,7 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionRecoverin
     }
 
     private func ensurePlainDirectory(at url: URL) throws {
-        if fileManager.fileExists(atPath: url.path()) {
+        if fileManager.fileExists(atPath: url.path(percentEncoded: false)) {
             guard try isPlainDirectory(url) else {
                 throw SongLibraryTransactionServiceError.unsafePath
             }
@@ -89,7 +618,7 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionRecoverin
         operationID: UUID
     ) async throws -> SongLibraryTransactionRecoveryResult {
         let journalURL = try paths.transactionJournalFileURL(operationID: operationID)
-        guard fileManager.fileExists(atPath: journalURL.path()) else {
+        guard fileManager.fileExists(atPath: journalURL.path(percentEncoded: false)) else {
             guard try isSafeJournalLessScratch(operationDirectory) else {
                 return await blocked(operationID: operationID, reason: "无法确认未记录事务的所有权")
             }
@@ -140,6 +669,14 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionRecoverin
             operationID: journal.operationID,
             safeFileName: journal.safeFileName
         )
+        if journal.kind == .unclassified {
+            return SongLibraryTransactionRecoveryFacts(
+                stage: try observedFile(at: stageURL),
+                backup: try observedFile(at: backupURL),
+                target: .missing,
+                indexState: .neither
+            )
+        }
         let targetURL = try paths.scoreFileURL(safeFileName: journal.safeFileName)
         return SongLibraryTransactionRecoveryFacts(
             stage: try observedFile(at: stageURL),
@@ -305,7 +842,7 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionRecoverin
     }
 
     private func observedFile(at url: URL) throws -> SongLibraryObservedTransactionFile {
-        guard fileManager.fileExists(atPath: url.path()) else { return .missing }
+        guard fileManager.fileExists(atPath: url.path(percentEncoded: false)) else { return .missing }
         guard try isPlainFile(url) else { throw SongLibraryTransactionServiceError.unsafePath }
         let handle = try FileHandle(forReadingFrom: url)
         defer { try? handle.close() }
@@ -351,8 +888,11 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionRecoverin
         for child in children where child.lastPathComponent == "stage" || child.lastPathComponent == "backup" {
             guard try isPlainDirectory(child) else { return false }
             let files = try fileManager.contentsOfDirectory(at: child, includingPropertiesForKeys: nil)
+            let allowedFileNames = journal.phase == .preparing
+                ? Set([journal.safeFileName, ".partial"])
+                : Set([journal.safeFileName])
             guard files.count <= 1,
-                  files.allSatisfy({ $0.lastPathComponent == journal.safeFileName })
+                  files.allSatisfy({ allowedFileNames.contains($0.lastPathComponent) })
             else { return false }
         }
         return true
@@ -408,4 +948,14 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionRecoverin
 private enum SongLibraryTransactionServiceError: Error {
     case unsafePath
     case changedFile
+}
+
+private enum SongLibraryStageError: Error {
+    case unsupportedSource
+}
+
+private enum SongLibraryStageOneResult {
+    case staged(SongLibraryStagedImport)
+    case itemFailure(SongLibraryImportItemFailure)
+    case blocked(SongLibraryBlockedImport)
 }

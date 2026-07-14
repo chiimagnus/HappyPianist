@@ -75,6 +75,7 @@ struct SongLibraryView: View {
               playingEntryID: viewModel.currentListeningEntryID,
               isPlaying: selectedIsPlaying,
               reduceMotion: reduceMotion,
+              allowsDestructiveActions: viewModel.importState.isActive == false,
               onSelectEntry: viewModel.selectEntry,
               onTogglePlayback: togglePlayback,
               onImportMusicXML: viewModel.didTapImportMusicXML,
@@ -108,11 +109,16 @@ struct SongLibraryView: View {
           }
 
           Button("开始练习", systemImage: "music.note") {
-            onStartPractice(selectedEntry.id)
+            viewModel.startPractice(entryID: selectedEntry.id, perform: onStartPractice)
           }
           .buttonStyle(.borderedProminent)
           .buttonBorderShape(.roundedRectangle)
-          .accessibilityHint("在练习窗口中准备并打开当前曲目")
+          .disabled(viewModel.importState.isActive)
+          .accessibilityHint(
+            viewModel.importState.isActive
+              ? "曲谱导入完成或取消后才能开始练习"
+              : "在练习窗口中准备并打开当前曲目"
+          )
           .padding()
         }
       }
@@ -125,6 +131,29 @@ struct SongLibraryView: View {
       idealHeight: LibraryDesignTokens.windowIdealHeight,
       maxHeight: LibraryDesignTokens.windowMaximumHeight
     )
+    .safeAreaInset(edge: .top) {
+      if viewModel.importState.isActive {
+        LibraryImportStatusView(
+          state: viewModel.importState,
+          onCancelCurrent: { operationID in
+            Task { @MainActor in
+              await viewModel.cancelPendingImport(operationID: operationID)
+            }
+          },
+          onContinue: {
+            Task { @MainActor in
+              await viewModel.continueAfterImportFailure()
+            }
+          },
+          onCancelAll: {
+            Task { @MainActor in
+              await viewModel.cancelAllImports()
+            }
+          }
+        )
+        .padding(.horizontal)
+      }
+    }
     .ornament(attachmentAnchor: .scene(.trailing)) {
       LibraryPracticeProgressOrnamentView(state: viewModel.practiceSnapshotState)
     }
@@ -143,6 +172,7 @@ struct SongLibraryView: View {
     .onDisappear {
       viewModel.stopListening()
       Task { @MainActor in
+        await viewModel.cancelAllImports()
         await viewModel.flushPendingSelectionPersistence()
       }
     }
@@ -243,6 +273,10 @@ struct SongLibraryView: View {
   }
 
   private func requestDeletion(_ entryID: UUID) {
+    guard viewModel.importState.isActive == false else {
+      viewModel.errorMessage = "曲谱导入完成或取消后才能删除曲目。"
+      return
+    }
     guard let entry = viewModel.entries.first(where: { $0.id == entryID }), entry.isBundled != true
     else {
       return
@@ -269,6 +303,71 @@ struct SongLibraryView: View {
     Task { @MainActor in
       await viewModel.deleteEntry(entryID: entryID)
       pendingDeletionEntryID = nil
+    }
+  }
+}
+
+private struct LibraryImportStatusView: View {
+  let state: SongLibraryImportState
+  let onCancelCurrent: (UUID) -> Void
+  let onContinue: () -> Void
+  let onCancelAll: () -> Void
+
+  var body: some View {
+    HStack(spacing: 12) {
+      if showsProgress {
+        ProgressView()
+          .controlSize(.small)
+      }
+
+      Text(statusText)
+        .font(.callout)
+        .frame(maxWidth: .infinity, alignment: .leading)
+
+      switch state {
+      case let .awaitingConfirmation(pending, _, _):
+        Button("取消此项") { onCancelCurrent(pending.id) }
+          .buttonStyle(.borderedProminent)
+        Button("取消剩余导入", role: .cancel, action: onCancelAll)
+          .buttonStyle(.bordered)
+      case .itemFailure:
+        Button("继续下一项", action: onContinue)
+          .buttonStyle(.borderedProminent)
+        Button("取消剩余导入", role: .cancel, action: onCancelAll)
+          .buttonStyle(.bordered)
+      case .staging, .processing:
+        Button("取消导入", role: .cancel, action: onCancelAll)
+          .buttonStyle(.bordered)
+      case .idle:
+        EmptyView()
+      }
+    }
+    .padding(12)
+    .background(.regularMaterial, in: .rect(cornerRadius: 14))
+    .accessibilityElement(children: .contain)
+  }
+
+  private var showsProgress: Bool {
+    switch state {
+    case .staging, .processing:
+      true
+    case .idle, .awaitingConfirmation, .itemFailure:
+      false
+    }
+  }
+
+  private var statusText: String {
+    switch state {
+    case let .staging(index, count):
+      "正在暂存曲谱 \(min(index + 1, count))/\(count)…"
+    case let .processing(_, index, count):
+      "正在导入第 \(index)/\(count) 项…"
+    case let .awaitingConfirmation(pending, index, count):
+      "第 \(index)/\(count) 项“\(pending.fileName)”与曲库现有文件冲突；当前版本只能取消此项。"
+    case let .itemFailure(failure, index, count):
+      "第 \(index)/\(count) 项“\(failure.fileName)”失败：\(failure.message)"
+    case .idle:
+      ""
     }
   }
 }

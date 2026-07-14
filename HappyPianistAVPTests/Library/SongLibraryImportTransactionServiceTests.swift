@@ -34,7 +34,7 @@ func transactionRecoveryCleansJournalLessOwnedStageScratch() async throws {
     #expect(await fixture.service.recoverPendingTransactions() == .recovered)
     #expect(
         FileManager.default.fileExists(
-            atPath: try fixture.paths.transactionOperationDirectoryURL(operationID: operationID).path()
+            atPath: try fixture.paths.transactionOperationDirectoryURL(operationID: operationID).path(percentEncoded: false)
         ) == false
     )
 }
@@ -58,7 +58,7 @@ func transactionRecoveryBlocksUnknownOrSymlinkedScratch() async throws {
         return
     }
     #expect(blocked.operationID == operationID)
-    #expect(FileManager.default.fileExists(atPath: operationURL.path()))
+    #expect(FileManager.default.fileExists(atPath: operationURL.path(percentEncoded: false)))
 }
 
 private struct TransactionRecoveryFixture {

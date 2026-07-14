@@ -7,7 +7,7 @@
 | 流程 | 入口 | 关键对象 | 输出 |
 | --- | --- | --- | --- |
 | 准备 | 钢琴模式选择 | `PracticeSetupState`、`PianoModeProtocol` | readiness gate |
-| 曲库 | bundled / 用户导入 MusicXML | `SongLibraryBootstrapLoader`、`SongLibraryViewModel`、`SongFileStore` | `SongLibraryEntry` |
+| 曲库 | bundled / 用户导入 MusicXML | `SongLibraryBootstrapLoader`、`SongLibraryViewModel`、`SongLibraryImportTransactionService` | `SongLibraryEntry` |
 | 曲谱准备 | 练习窗口激活已登记 request | `PracticeLaunchViewModel`、`PracticePreparationService` | loading / ready / typed failure |
 | 练习 | ready prepared score + piano mode | `ARGuideViewModel`、`PracticeSessionViewModel` | 导航、判定、回放、录制 |
 | 持久化 | attempt 与 session 生命周期 | reducer、coordinator、repository | 小节事实与恢复点 |
@@ -53,15 +53,18 @@ SongLibraryView.task
 ```text
 LibraryWindowView / SongLibraryView
 -> SongLibraryViewModel.importMusicXML
--> SongFileStore
--> Documents/SongLibrary/scores
--> SongLibraryIndexStore
--> actor 内对磁盘最新 index 执行 append mutation 后原子写回
+-> SongLibraryImportTransactionService.stageImports
+-> 短 security lease + transactions/<operation-id>/stage/.partial
+-> 原名 stage + journal fingerprint
+-> operation-ID 单写者队列逐项 process
+-> 读取最新 index 与目标卷 resource identity facts
+-> 无冲突：原名 target move -> SongLibraryIndexStore append -> cleanup
+-> 冲突：target/index 零 mutation，等待取消或后续确认
 ```
 
-`SongFileStore` 与 `AudioImportService` 是 actor；Library MainActor 不执行 Documents IO、security-scope access、copy 或 delete。试听 URL await 返回后还必须匹配最新 intent、entry 和 audio filename，旧结果静默丢弃。
+`SongLibraryImportTransactionService`、`SongFileStore` 与 `AudioImportService` 都是 actor；Library MainActor 不执行 Documents IO、security-scope access、copy 或 delete。`SongFileStore` 不再拥有 score import API。试听 URL await 返回后还必须匹配最新 intent、entry 和 audio filename，旧结果静默丢弃。
 
-当前没有第二套 MusicXML import service。`.mxl` 在 preparation 阶段通过 `MXLReader` 解包。
+score import 只有 transaction service 一条写入路径；`.mxl` 在 preparation 阶段通过 `MXLReader` 解包。
 
 ### 准备管线
 

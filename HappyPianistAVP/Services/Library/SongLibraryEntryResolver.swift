@@ -93,9 +93,9 @@ actor SongLibraryEntryResolver: SongLibraryEntryResolving {
 
     private func validateBundledScore(at scoreURL: URL) throws {
         do {
-            let attributes = try fileManager.attributesOfItem(atPath: scoreURL.path())
+            let attributes = try fileManager.attributesOfItem(atPath: scoreURL.path(percentEncoded: false))
             guard attributes[.type] as? FileAttributeType == .typeRegular,
-                  fileManager.isReadableFile(atPath: scoreURL.path())
+                  fileManager.isReadableFile(atPath: scoreURL.path(percentEncoded: false))
             else {
                 throw SongFileStoreError.unreadableScoreFile
             }

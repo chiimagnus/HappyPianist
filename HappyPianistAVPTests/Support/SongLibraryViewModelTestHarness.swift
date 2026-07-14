@@ -6,6 +6,7 @@ enum SongLibraryViewModelTestHarness {
     static func make(
         index: SongLibraryIndex? = nil,
         indexStore: (any SongLibraryIndexStoreProtocol)? = nil,
+        importTransactionService: (any SongLibraryImportTransactionServicing)? = nil,
         fileStore: (any SongFileStoreProtocol)? = nil,
         bundledEntries: [SongLibraryEntry] = [],
         practiceProgressRepository: (any PracticeProgressRepositoryProtocol)? = nil,
@@ -23,6 +24,7 @@ enum SongLibraryViewModelTestHarness {
         let resolvedBundledProvider = StubBundledSongLibraryProvider(entries: bundledEntries)
         return SongLibraryViewModel(
             indexStore: resolvedIndexStore,
+            importTransactionService: importTransactionService ?? NoopSongLibraryImportTransactionService(),
             fileStore: resolvedFileStore,
             audioImportService: NoopAudioImportService(),
             bundledProvider: resolvedBundledProvider,
@@ -99,16 +101,6 @@ private actor InMemorySongLibraryIndexStore: SongLibraryIndexStoreProtocol {
 }
 
 private actor InMemorySongFileStore: SongFileStoreProtocol {
-    func importMusicXML(from sourceURL: URL) async throws -> ImportedSongScoreFile {
-        let storedURL = FileManager.default.temporaryDirectory.appendingPathComponent(sourceURL.lastPathComponent)
-        return ImportedSongScoreFile(
-            sourceFileName: sourceURL.lastPathComponent,
-            storedFileName: storedURL.lastPathComponent,
-            storedURL: storedURL,
-            importedAt: Date(timeIntervalSince1970: 0)
-        )
-    }
-
     func scoreFileURL(fileName: String) async throws -> URL {
         FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
     }
@@ -119,6 +111,30 @@ private actor InMemorySongFileStore: SongFileStoreProtocol {
 
     func deleteScoreFile(named _: String) async throws {}
     func deleteAudioFile(named _: String) async throws {}
+}
+
+private actor NoopSongLibraryImportTransactionService: SongLibraryImportTransactionServicing {
+    func recoverPendingTransactions() -> SongLibraryTransactionRecoveryResult { .recovered }
+
+    func stageImports(from selectedURLs: [URL]) -> SongLibraryImportBatchStageResult {
+        SongLibraryImportBatchStageResult(
+            items: selectedURLs.map {
+                .failure(
+                    SongLibraryImportItemFailure(
+                        fileName: $0.lastPathComponent,
+                        message: "测试未配置导入事务"
+                    )
+                )
+            },
+            blocked: nil
+        )
+    }
+
+    func process(operationID: UUID) -> SongLibraryImportProcessResult {
+        .blocked(SongLibraryBlockedImport(operationID: operationID, message: "测试未配置导入事务"))
+    }
+
+    func cancel(operationID _: UUID) -> Bool { true }
 }
 
 private actor NoopAudioImportService: AudioImportServiceProtocol {

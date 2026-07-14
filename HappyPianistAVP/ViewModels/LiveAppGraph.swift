@@ -159,6 +159,7 @@ struct LiveAppGraph {
     )
     let songLibraryViewModel = SongLibraryViewModel(
       indexStore: songLibraryIndexStore,
+      importTransactionService: importTransactionService,
       fileStore: songFileStore,
       audioImportService: audioImportService,
       bundledProvider: bundledSongLibraryProvider,

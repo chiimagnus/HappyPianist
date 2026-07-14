@@ -1,12 +1,5 @@
 import Foundation
 
-struct ImportedSongScoreFile: Equatable, Sendable {
-    let sourceFileName: String
-    let storedFileName: String
-    let storedURL: URL
-    let importedAt: Date
-}
-
 enum SongFileStoreError: LocalizedError, Equatable {
     case invalidFileName(String)
     case unreadableScoreFile
@@ -22,7 +15,6 @@ enum SongFileStoreError: LocalizedError, Equatable {
 }
 
 protocol SongFileStoreProtocol: Actor {
-    func importMusicXML(from sourceURL: URL) async throws -> ImportedSongScoreFile
     func scoreFileURL(fileName: String) async throws -> URL
     func audioFileURL(fileName: String) async throws -> URL
     func deleteScoreFile(named fileName: String) async throws
@@ -32,45 +24,20 @@ protocol SongFileStoreProtocol: Actor {
 actor SongFileStore: SongFileStoreProtocol {
     private let fileManager: FileManager
     private let paths: SongLibraryPaths
-    private let now: @Sendable () -> Date
 
     init(
         fileManager: FileManager = .default,
-        paths: SongLibraryPaths? = nil,
-        now: @escaping @Sendable () -> Date = Date.init
+        paths: SongLibraryPaths? = nil
     ) {
         self.fileManager = fileManager
         self.paths = paths ?? SongLibraryPaths(fileManager: fileManager)
-        self.now = now
-    }
-
-    func importMusicXML(from sourceURL: URL) async throws -> ImportedSongScoreFile {
-        let hasScopedAccess = sourceURL.startAccessingSecurityScopedResource()
-        defer {
-            if hasScopedAccess { sourceURL.stopAccessingSecurityScopedResource() }
-        }
-        try paths.ensureDirectoriesExist()
-        let importedAt = now()
-        let sourceFileName = try validatedFileName(sourceURL.lastPathComponent)
-        let targetFileName = makeDestinationFileName(
-            sourceFileName: sourceFileName,
-            importedAt: importedAt
-        )
-        let destinationURL = try uniqueScoreDestinationURL(fileName: targetFileName)
-        try fileManager.copyItem(at: sourceURL, to: destinationURL)
-        return ImportedSongScoreFile(
-            sourceFileName: sourceFileName,
-            storedFileName: destinationURL.lastPathComponent,
-            storedURL: destinationURL,
-            importedAt: importedAt
-        )
     }
 
     func scoreFileURL(fileName: String) async throws -> URL {
         let fileURL = try paths.scoresDirectoryURL().appending(path: validatedFileName(fileName))
-        let attributes = try fileManager.attributesOfItem(atPath: fileURL.path())
+        let attributes = try fileManager.attributesOfItem(atPath: fileURL.path(percentEncoded: false))
         guard attributes[.type] as? FileAttributeType == .typeRegular,
-              fileManager.isReadableFile(atPath: fileURL.path())
+              fileManager.isReadableFile(atPath: fileURL.path(percentEncoded: false))
         else {
             throw SongFileStoreError.unreadableScoreFile
         }
@@ -105,26 +72,9 @@ actor SongFileStore: SongFileStoreProtocol {
     }
 
     private func removeFileIfExists(at fileURL: URL) throws {
-        if fileManager.fileExists(atPath: fileURL.path()) {
+        if fileManager.fileExists(atPath: fileURL.path(percentEncoded: false)) {
             try fileManager.removeItem(at: fileURL)
         }
     }
 
-    private func uniqueScoreDestinationURL(fileName: String) throws -> URL {
-        let scoresDirectory = try paths.scoresDirectoryURL()
-        var candidateURL = scoresDirectory.appending(path: fileName)
-        if fileManager.fileExists(atPath: candidateURL.path()) == false { return candidateURL }
-        let extensionName = candidateURL.pathExtension
-        let baseName = candidateURL.deletingPathExtension().lastPathComponent
-        candidateURL = scoresDirectory.appending(path: "\(baseName)-\(UUID().uuidString)")
-        if extensionName.isEmpty == false { candidateURL.appendPathExtension(extensionName) }
-        return candidateURL
-    }
-
-    private func makeDestinationFileName(sourceFileName: String, importedAt: Date) -> String {
-        let formatter = ISO8601DateFormatter()
-        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        let timestamp = formatter.string(from: importedAt).replacing(":", with: "-")
-        return "\(timestamp)-\(sourceFileName)"
-    }
 }

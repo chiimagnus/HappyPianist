@@ -48,6 +48,8 @@ flowchart TD
   RECOVERY --> INDEX
   BOOTSTRAP --> BUNDLED[BundledSongLibraryProvider]
   BOOTSTRAP --> INDEX[SongLibraryIndexStore]
+  LIBRARY --> IMPORT[SongLibraryImportTransactionService]
+  IMPORT --> INDEX
   LIBRARY --> FILES[SongFileStore]
   LIBRARY --> DIAG[DiagnosticsReporting]
 
@@ -115,7 +117,8 @@ flowchart TD
 - 曲库 bootstrap 固定先由唯一 `SongLibraryImportTransactionService` 恢复未完成事务，再读取 index，最后扫描 bundle；恢复被阻塞时不得发布任何新 snapshot，也不得放回 ViewModel 初始化或 SwiftUI `body`。
 - bootstrap loader、Library ViewModel 与后续 resolver 必须复用 composition root 注入的同一个 `SongLibraryIndexStore` 和 bundled provider；索引写入只能通过 actor 内 concern mutation，损坏 JSON 必须 fail closed 并保留原文件。
 - score replacement 使用 song ID、旧 version token 与旧文件名三项 exact CAS，只更新文件名、导入时间与新 token；entry 顺序、显示名、音频、bundled 标志和 last-selected 原位保留。
-- `SongLibraryViewModel` 只在 MainActor 编排；Documents 查询、security scope、copy、delete 与用户文件 URL 解析全部由 `SongFileStore` / `AudioImportService` actor 执行。
+- `SongLibraryViewModel` 只在 MainActor 编排；score 导入的 security scope、同卷 stage、指纹、target/index commit 与恢复全部由唯一 `SongLibraryImportTransactionService` actor 执行。`SongFileStore` 只保留已入库 score/audio URL 解析与删除；音频复制归 `AudioImportService`。
+- 批量导入队列只保存 operation ID，不跨 actor await 保留外部 URL。队列非 idle 时开始练习和用户曲目删除在 UI 与 MainActor intent 两层同时门控；选曲与试听仍可用。
 - feedback 表现不进入 progress JSON。
 - AI 失败不改变练习进度，也不自动切换后端。
 - 曲谱准备失败的界面说明、技术详情、系统日志和导出日志必须来自同一个 typed failure。

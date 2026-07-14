@@ -42,7 +42,7 @@ actor AudioImportService: AudioImportServiceProtocol {
     private func uniqueDestinationURL(fileName: String) throws -> URL {
         let audioDirectoryURL = try paths.audioDirectoryURL()
         var destinationURL = audioDirectoryURL.appending(path: fileName)
-        if fileManager.fileExists(atPath: destinationURL.path()) == false { return destinationURL }
+        if fileManager.fileExists(atPath: destinationURL.path(percentEncoded: false)) == false { return destinationURL }
         let ext = destinationURL.pathExtension
         let base = destinationURL.deletingPathExtension().lastPathComponent
         destinationURL = audioDirectoryURL.appending(path: "\(base)-\(UUID().uuidString)")

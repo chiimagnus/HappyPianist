@@ -459,9 +459,6 @@ private actor MutableSnapshotIndexStore: SongLibraryIndexStoreProtocol {
 
 private actor SnapshotScoreAccessSpy: SongFileStoreProtocol {
     private(set) var scoreAccessCount = 0
-    func importMusicXML(from _: URL) async throws -> ImportedSongScoreFile {
-        throw CocoaError(.fileReadUnsupportedScheme)
-    }
     func scoreFileURL(fileName _: String) -> URL {
         scoreAccessCount += 1
         return URL(fileURLWithPath: "/unexpected")

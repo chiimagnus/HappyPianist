@@ -69,7 +69,7 @@ func recoveryPlannerBlocksChangedOrAliasedFiles() throws {
 }
 
 @Test
-func recoveryPlannerCleansOnlyUnclassifiedScratchWithoutMutationEvidence() throws {
+func recoveryPlannerCleansUnclassifiedScratchWithoutTouchingExistingTarget() throws {
     let staged = try recoveryFingerprint("a")
     let journal = try SongLibraryImportJournal(
         operationID: UUID(),
@@ -89,7 +89,7 @@ func recoveryPlannerCleansOnlyUnclassifiedScratchWithoutMutationEvidence() throw
         SongLibraryTransactionRecoveryPlanner.action(
             journal: journal,
             facts: recoveryFacts(target: observed(staged, id: "target"), index: .neither)
-        ) == .block
+        ) == .cleanup
     )
     #expect(
         SongLibraryTransactionRecoveryPlanner.action(

@@ -5,6 +5,7 @@ import Observation
 @Observable
 final class SongLibraryViewModel {
     private let indexStore: SongLibraryIndexStoreProtocol
+    private let importTransactionService: any SongLibraryImportTransactionServicing
     private let fileStore: SongFileStoreProtocol
     private let audioImportService: AudioImportServiceProtocol
     private let bundledProvider: BundledSongLibraryProviderProtocol
@@ -28,6 +29,9 @@ final class SongLibraryViewModel {
     @ObservationIgnored private var selectionPersistenceNeedsDrain = false
     @ObservationIgnored private var snapshotLoadTask: Task<Void, Never>?
     @ObservationIgnored private var snapshotGeneration = 0
+    @ObservationIgnored private var importQueue: [SongLibraryImportBatchItem] = []
+    @ObservationIgnored private var importQueueIndex = 0
+    @ObservationIgnored private var importQueueGeneration = 0
     private var desiredPersistedSelection: UUID?
     private var persistedSelection: UUID?
 
@@ -44,11 +48,13 @@ final class SongLibraryViewModel {
     var listeningCurrentTime: TimeInterval = 0
     var listeningDuration: TimeInterval = 0
     var isMusicXMLImporterPresented = false
+    private(set) var importState: SongLibraryImportState = .idle
     private(set) var selectedEntryID: UUID?
     private(set) var practiceSnapshotState: SongPracticeLibraryPresentationState = .noSelection
 
     init(
         indexStore: SongLibraryIndexStoreProtocol,
+        importTransactionService: any SongLibraryImportTransactionServicing,
         fileStore: SongFileStoreProtocol,
         audioImportService: AudioImportServiceProtocol,
         bundledProvider: BundledSongLibraryProviderProtocol,
@@ -64,6 +70,7 @@ final class SongLibraryViewModel {
         selectionPersistenceDelay: Duration = .milliseconds(200)
     ) {
         self.indexStore = indexStore
+        self.importTransactionService = importTransactionService
         self.fileStore = fileStore
         self.audioImportService = audioImportService
         self.bundledProvider = bundledProvider
@@ -263,39 +270,198 @@ final class SongLibraryViewModel {
     }
 
     func didTapImportMusicXML() {
+        guard importState.isActive == false else { return }
         isMusicXMLImporterPresented = true
     }
 
     func importMusicXML(from selectedURLs: [URL]) async {
-        guard selectedURLs.isEmpty == false else { return }
+        guard selectedURLs.isEmpty == false, importState.isActive == false else { return }
+        importQueueGeneration += 1
+        let generation = importQueueGeneration
+        importState = .staging(index: 0, count: selectedURLs.count)
+        let batch = await importTransactionService.stageImports(from: selectedURLs)
+        guard generation == importQueueGeneration else {
+            for item in batch.items {
+                guard case let .staged(descriptor) = item else { continue }
+                _ = await importTransactionService.cancel(operationID: descriptor.id)
+            }
+            return
+        }
+        if let blocked = batch.blocked {
+            importState = .idle
+            errorMessage = blocked.message
+            return
+        }
 
+        importQueue = batch.items
+        importQueueIndex = 0
+        await drainImportQueue(generation: generation)
+    }
+
+    func cancelPendingImport(operationID: UUID) async {
+        guard case let .awaitingConfirmation(pending, _, _) = importState,
+              pending.id == operationID,
+              case let .staged(descriptor) = currentImportQueueItem,
+              descriptor.id == operationID
+        else { return }
+        let generation = importQueueGeneration
+        guard await importTransactionService.cancel(operationID: operationID) else {
+            errorMessage = "无法安全取消当前导入，请重新启动后恢复。"
+            return
+        }
+        guard generation == importQueueGeneration else { return }
+        importQueueIndex += 1
+        await drainImportQueue(generation: generation)
+    }
+
+    func continueAfterImportFailure() async {
+        guard case .itemFailure = importState,
+              currentImportQueueItem != nil
+        else { return }
+        let generation = importQueueGeneration
+        if case let .staged(descriptor) = currentImportQueueItem {
+            guard await importTransactionService.cancel(operationID: descriptor.id) else {
+                errorMessage = "无法安全清理当前导入，请重新启动后恢复。"
+                return
+            }
+            do {
+                index = try await indexStore.load()
+                repairSelectionAfterImportReload()
+            } catch {
+                errorMessage = "清理导入后无法刷新曲库：\(error.localizedDescription)"
+                return
+            }
+        }
+        guard generation == importQueueGeneration else { return }
+        importQueueIndex += 1
+        await drainImportQueue(generation: generation)
+    }
+
+    func cancelAllImports() async {
+        guard importState.isActive else { return }
+        importQueueGeneration += 1
+        let operationIDs = importQueue.dropFirst(importQueueIndex).compactMap { item -> UUID? in
+            guard case let .staged(descriptor) = item else { return nil }
+            return descriptor.id
+        }
+        var failedOperationIDs: [UUID] = []
+        for operationID in operationIDs {
+            if await importTransactionService.cancel(operationID: operationID) == false {
+                failedOperationIDs.append(operationID)
+            }
+        }
+        if let failedOperationID = failedOperationIDs.first {
+            let descriptor = importQueue.compactMap { item -> SongLibraryStagedImport? in
+                guard case let .staged(descriptor) = item,
+                      descriptor.id == failedOperationID
+                else { return nil }
+                return descriptor
+            }.first ?? SongLibraryStagedImport(id: failedOperationID, fileName: "未知曲谱")
+            importQueue = [.staged(descriptor)]
+            importQueueIndex = 0
+            importState = .itemFailure(
+                SongLibraryImportItemFailure(
+                    fileName: descriptor.fileName,
+                    message: "无法安全取消，请重新启动后恢复。"
+                ),
+                index: 1,
+                count: 1
+            )
+            return
+        }
+        importQueue = []
+        importQueueIndex = 0
+        importState = .idle
         do {
-            for url in selectedURLs {
-                let imported = try await fileStore.importMusicXML(from: url)
-                let entry = SongLibraryEntry(
-                    id: UUID(),
-                    displayName: URL(fileURLWithPath: imported.sourceFileName)
-                        .deletingPathExtension()
-                        .lastPathComponent,
-                    musicXMLFileName: imported.storedFileName,
-                    importedAt: imported.importedAt,
-                    audioFileName: nil
-                )
+            index = try await indexStore.load()
+            repairSelectionAfterImportReload()
+        } catch {
+            errorMessage = "取消导入后无法刷新曲库：\(error.localizedDescription)"
+        }
+    }
 
-                do {
-                    index = try await indexStore.appendUserEntry(entry)
+    func startPractice(
+        entryID: UUID,
+        perform: @MainActor (UUID) -> Void
+    ) {
+        guard importState.isActive == false else {
+            errorMessage = "曲谱导入完成或取消后才能开始练习。"
+            return
+        }
+        guard entries.contains(where: { $0.id == entryID }) else { return }
+        perform(entryID)
+    }
+
+    private var currentImportQueueItem: SongLibraryImportBatchItem? {
+        importQueue.indices.contains(importQueueIndex) ? importQueue[importQueueIndex] : nil
+    }
+
+    private func drainImportQueue(generation: Int) async {
+        while generation == importQueueGeneration,
+              let item = currentImportQueueItem
+        {
+            let position = importQueueIndex + 1
+            let count = importQueue.count
+            switch item {
+            case let .failure(failure):
+                importState = .itemFailure(failure, index: position, count: count)
+                return
+            case let .staged(descriptor):
+                importState = .processing(
+                    operationID: descriptor.id,
+                    index: position,
+                    count: count
+                )
+                let result = await importTransactionService.process(operationID: descriptor.id)
+                guard generation == importQueueGeneration else { return }
+                switch result {
+                case let .committed(updatedIndex, entry):
+                    index = updatedIndex
                     if selectedEntryID == nil {
                         selectedEntryID = entry.id
                         requestSelectionPersistence(entry.id)
-                        scheduleSnapshotLoad()
                     }
-                } catch {
-                    try? await fileStore.deleteScoreFile(named: imported.storedFileName)
-                    throw error
+                    scheduleSnapshotLoad()
+                    importQueueIndex += 1
+                case let .requiresConfirmation(pending):
+                    // ponytail: P3-T3 replaces this cancel-only presentation with typed confirm actions.
+                    importState = .awaitingConfirmation(
+                        pending,
+                        index: position,
+                        count: count
+                    )
+                    return
+                case let .itemFailure(failure):
+                    importState = .itemFailure(failure, index: position, count: count)
+                    return
+                case let .blocked(blocked):
+                    importState = .itemFailure(
+                        SongLibraryImportItemFailure(
+                            fileName: descriptor.fileName,
+                            message: blocked.message
+                        ),
+                        index: position,
+                        count: count
+                    )
+                    return
                 }
             }
-        } catch {
-            errorMessage = "导入失败：\(error.localizedDescription)"
+        }
+        guard generation == importQueueGeneration else { return }
+        importQueue = []
+        importQueueIndex = 0
+        importState = .idle
+    }
+
+    private func repairSelectionAfterImportReload() {
+        guard let selectedEntryID,
+              entries.contains(where: { $0.id == selectedEntryID })
+        else {
+            let replacement = entries.first?.id
+            self.selectedEntryID = replacement
+            requestSelectionPersistence(replacement)
+            scheduleSnapshotLoad()
+            return
         }
     }
 
@@ -311,6 +477,10 @@ final class SongLibraryViewModel {
     }
 
     func deleteEntry(entryID: UUID) async {
+        guard importState.isActive == false else {
+            errorMessage = "曲谱导入完成或取消后才能删除曲目。"
+            return
+        }
         if bundledEntries.contains(where: { $0.id == entryID }) {
             errorMessage = "内置曲目无法删除。"
             return

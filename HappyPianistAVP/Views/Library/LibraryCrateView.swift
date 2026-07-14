@@ -6,6 +6,7 @@ struct LibraryCrateView: View {
   let playingEntryID: UUID?
   let isPlaying: Bool
   let reduceMotion: Bool
+  let allowsDestructiveActions: Bool
   let onSelectEntry: (UUID) -> Void
   let onTogglePlayback: (UUID) -> Void
   let onImportMusicXML: () -> Void
@@ -51,6 +52,10 @@ struct LibraryCrateView: View {
               Button("删除曲目", systemImage: "trash", role: .destructive) {
                 onDelete(entry.id)
               }
+              .disabled(allowsDestructiveActions == false)
+              .accessibilityHint(
+                allowsDestructiveActions ? "删除当前曲目" : "曲谱导入期间不能删除曲目"
+              )
             }
           }
           .scaleEffect(

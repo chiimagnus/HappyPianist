@@ -162,6 +162,43 @@ struct SongLibraryPendingImport: Equatable, Identifiable, Sendable {
     let conflict: SongLibraryImportConflictKind
 }
 
+struct SongLibraryStagedImport: Equatable, Identifiable, Sendable {
+    let id: UUID
+    let fileName: String
+}
+
+struct SongLibraryImportItemFailure: Equatable, Sendable {
+    let fileName: String
+    let message: String
+}
+
+enum SongLibraryImportBatchItem: Equatable, Sendable {
+    case staged(SongLibraryStagedImport)
+    case failure(SongLibraryImportItemFailure)
+}
+
+struct SongLibraryImportBatchStageResult: Equatable, Sendable {
+    let items: [SongLibraryImportBatchItem]
+    let blocked: SongLibraryBlockedImport?
+}
+
+enum SongLibraryImportProcessResult: Equatable, Sendable {
+    case committed(index: SongLibraryIndex, entry: SongLibraryEntry)
+    case requiresConfirmation(SongLibraryPendingImport)
+    case itemFailure(SongLibraryImportItemFailure)
+    case blocked(SongLibraryBlockedImport)
+}
+
+enum SongLibraryImportState: Equatable, Sendable {
+    case idle
+    case staging(index: Int, count: Int)
+    case processing(operationID: UUID, index: Int, count: Int)
+    case awaitingConfirmation(SongLibraryPendingImport, index: Int, count: Int)
+    case itemFailure(SongLibraryImportItemFailure, index: Int, count: Int)
+
+    var isActive: Bool { self != .idle }
+}
+
 struct SongLibraryBlockedImport: Equatable, Sendable {
     let operationID: UUID?
     let message: String

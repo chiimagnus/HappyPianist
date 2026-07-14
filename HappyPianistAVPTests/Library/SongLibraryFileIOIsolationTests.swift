@@ -67,7 +67,6 @@ private actor DelayedListeningFileStore: SongFileStoreProtocol {
     private var requests = 0
     var requestCount: Int { requests }
 
-    func importMusicXML(from _: URL) async throws -> ImportedSongScoreFile { throw CocoaError(.fileNoSuchFile) }
     func scoreFileURL(fileName _: String) async throws -> URL { throw CocoaError(.fileNoSuchFile) }
     func audioFileURL(fileName: String) async throws -> URL {
         requests += 1

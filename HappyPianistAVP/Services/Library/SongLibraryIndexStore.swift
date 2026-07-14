@@ -147,7 +147,7 @@ actor SongLibraryIndexStore: SongLibraryImportIndexStoreProtocol {
         try paths.ensureDirectoriesExist()
         let indexFileURL = try paths.indexFileURL()
 
-        guard fileManager.fileExists(atPath: indexFileURL.path()) else {
+        guard fileManager.fileExists(atPath: indexFileURL.path(percentEncoded: false)) else {
             return .empty
         }
 

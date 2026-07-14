@@ -80,9 +80,7 @@ enum SongLibraryTransactionRecoveryPlanner {
         guard hasNoAliasedPaths(facts) else { return .block }
 
         if journal.kind == .unclassified {
-            guard facts.indexState != .newEntryPresent,
-                  facts.backup.exists == false,
-                  facts.target.exists == false,
+            guard facts.backup.exists == false,
                   journal.stagedFingerprint == nil
                     || matchesIfPresent(facts.stage, expected: journal.stagedFingerprint)
             else { return .block }

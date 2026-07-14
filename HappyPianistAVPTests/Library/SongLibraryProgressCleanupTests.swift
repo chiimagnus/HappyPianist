@@ -129,10 +129,6 @@ private actor DeletionRecordingFileStore: SongFileStoreProtocol {
     private(set) var deletedScoreNames: [String] = []
     private(set) var deletedAudioNames: [String] = []
 
-    func importMusicXML(from _: URL) async throws -> ImportedSongScoreFile {
-        throw CocoaError(.fileReadUnsupportedScheme)
-    }
-
     func scoreFileURL(fileName: String) async throws -> URL {
         URL(fileURLWithPath: fileName)
     }
