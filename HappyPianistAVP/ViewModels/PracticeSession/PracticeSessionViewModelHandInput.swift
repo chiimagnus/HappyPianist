@@ -24,7 +24,7 @@ extension PracticeSessionViewModel {
             at: timestamp
         )
         updateLatestNoteOnMIDINotes(detected)
-        latestKeyContactResult = realPianoContactDetectionService.detect(
+        self.latestKeyContactResult = realPianoContactDetectionService.detect(
             fingerTips: fingerTips,
             keyboardGeometry: keyboardGeometry
         )
@@ -36,7 +36,7 @@ extension PracticeSessionViewModel {
         )
 
         if detected.isEmpty == false {
-            pressedNotes = detected
+            self.pressedNotes = detected
             handGateController?.registerChordAttemptIfNeeded(
                 pressedNotes: detected,
                 at: timestamp,
