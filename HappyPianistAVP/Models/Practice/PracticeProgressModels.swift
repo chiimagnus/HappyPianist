@@ -251,7 +251,7 @@ enum PracticeProgressRecordOrder {
 
     private static func canonicalData(_ progress: SongPracticeProgress) -> Data {
         let encoder = JSONEncoder()
-        encoder.dateEncodingStrategy = .iso8601
+        encoder.dateEncodingStrategy = .deferredToDate
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
         return (try? encoder.encode(progress)) ?? Data()
     }

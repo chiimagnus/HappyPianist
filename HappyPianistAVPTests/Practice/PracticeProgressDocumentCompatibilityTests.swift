@@ -92,3 +92,35 @@ func duplicateProgressTieBreakDoesNotDependOnDocumentOrder() {
             == PracticeProgressRecordOrder.preferred(in: [second, first])
     )
 }
+
+@Test
+func duplicateProgressTieBreakPreservesNestedDateFractions() {
+    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
+    let updatedAt = Date(timeIntervalSince1970: 100)
+    let source = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 0)
+    let first = SongPracticeProgress(
+        identity: identity,
+        measureFacts: [MeasurePracticeFacts(
+            sourceMeasureID: source,
+            handMode: .right,
+            failedAttempts: 1,
+            lastAttemptAt: Date(timeIntervalSince1970: 100.1)
+        )],
+        updatedAt: updatedAt
+    )
+    let second = SongPracticeProgress(
+        identity: identity,
+        measureFacts: [MeasurePracticeFacts(
+            sourceMeasureID: source,
+            handMode: .right,
+            failedAttempts: 1,
+            lastAttemptAt: Date(timeIntervalSince1970: 100.2)
+        )],
+        updatedAt: updatedAt
+    )
+
+    #expect(
+        PracticeProgressRecordOrder.preferred(in: [first, second])
+            == PracticeProgressRecordOrder.preferred(in: [second, first])
+    )
+}
