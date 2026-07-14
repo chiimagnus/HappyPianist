@@ -15,6 +15,8 @@ final class SongLibraryViewModel {
     private let audioPlaybackController: SongAudioPlaybackStateController
     private let practiceProgressRepository: any PracticeProgressRepositoryProtocol
     private let diagnosticsReporter: any DiagnosticsReporting
+    private let selectionSettleSleeper: any SleeperProtocol
+    private let selectionSettleDelay: Duration
     @ObservationIgnored private var playbackProgressTask: Task<Void, Never>?
     @ObservationIgnored private var practicePreparationTask: Task<Void, Never>?
     @ObservationIgnored private var practicePreparationGeneration = 0
@@ -64,7 +66,9 @@ final class SongLibraryViewModel {
         practiceProgressRepository: any PracticeProgressRepositoryProtocol,
         diagnosticsReporter: any DiagnosticsReporting,
         bootstrapLoader: (any SongLibraryBootstrapLoading)? = nil,
-        initialSnapshot: SongLibraryBootstrapSnapshot? = nil
+        initialSnapshot: SongLibraryBootstrapSnapshot? = nil,
+        selectionSettleSleeper: any SleeperProtocol = TaskSleeper(),
+        selectionSettleDelay: Duration = .milliseconds(200)
     ) {
         self.arGuideViewModel = arGuideViewModel
         self.practicePreparationService = practicePreparationService
@@ -75,6 +79,8 @@ final class SongLibraryViewModel {
         self.bootstrapLoader = bootstrapLoader
         self.practiceProgressRepository = practiceProgressRepository
         self.diagnosticsReporter = diagnosticsReporter
+        self.selectionSettleSleeper = selectionSettleSleeper
+        self.selectionSettleDelay = selectionSettleDelay
         index = initialSnapshot?.index ?? .empty
         bundledEntries = initialSnapshot?.bundledEntries ?? []
         errorMessage = initialSnapshot?.errorMessage
@@ -272,8 +278,21 @@ final class SongLibraryViewModel {
         recordedPreparationFailureID = nil
         practicePreparationState = .loading(entryID: entryID)
         practicePreparationTask = Task { @MainActor [weak self] in
-            await self?.persistSelectedEntry(entryID)
-            await self?.prepareSelectedEntry(entryID: entryID, generation: generation)
+            guard let self else { return }
+            do {
+                try await selectionSettleSleeper.sleep(for: selectionSettleDelay)
+                try Task.checkCancellation()
+            } catch {
+                return
+            }
+            guard isCurrentPracticePreparation(entryID: entryID, generation: generation) else {
+                return
+            }
+            await persistSelectedEntry(entryID, generation: generation)
+            guard isCurrentPracticePreparation(entryID: entryID, generation: generation) else {
+                return
+            }
+            await prepareSelectedEntry(entryID: entryID, generation: generation)
         }
     }
 
@@ -385,13 +404,16 @@ final class SongLibraryViewModel {
         return DiagnosticFileReference(fileName: fileName, relativePath: relativePath)
     }
 
-    private func persistSelectedEntry(_ entryID: UUID) async {
+    private func persistSelectedEntry(_ entryID: UUID, generation: Int) async {
+        guard isCurrentPracticePreparation(entryID: entryID, generation: generation) else { return }
         var updatedIndex = index
         updatedIndex.lastSelectedEntryID = entryID
         do {
             try await indexStore.save(updatedIndex)
+            guard isCurrentPracticePreparation(entryID: entryID, generation: generation) else { return }
             index = updatedIndex
         } catch {
+            guard isCurrentPracticePreparation(entryID: entryID, generation: generation) else { return }
             errorMessage = "保存曲库选择失败：\(error.localizedDescription)"
         }
     }

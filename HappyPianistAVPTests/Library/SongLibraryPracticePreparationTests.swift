@@ -5,6 +5,7 @@ import Testing
 private actor DelayedPreparationService: PracticePreparationServiceProtocol {
     let delays: [UUID: Duration]
     let includesMeasureSpans: Bool
+    private var requestedSongIDs: [UUID] = []
 
     init(delays: [UUID: Duration], includesMeasureSpans: Bool = true) {
         self.delays = delays
@@ -12,6 +13,7 @@ private actor DelayedPreparationService: PracticePreparationServiceProtocol {
     }
 
     func prepare(songID: UUID, from _: URL, file: ImportedMusicXMLFile) async throws -> PreparedPractice {
+        requestedSongIDs.append(songID)
         if let delay = delays[songID] {
             try await Task.sleep(for: delay)
         }
@@ -49,6 +51,10 @@ private actor DelayedPreparationService: PracticePreparationServiceProtocol {
             ] : [],
             unsupportedNoteCount: 0
         )
+    }
+
+    func requests() -> [UUID] {
+        requestedSongIDs
     }
 }
 
@@ -90,7 +96,8 @@ func latestPreparationGenerationWins() async throws {
         audioPlayer: PreparationTestAudioPlayer(),
         practiceProgressRepository: PreparationTestProgressRepository(),
         diagnosticsReporter: InMemoryDiagnosticsReporter(),
-        initialSnapshot: .loaded(index: .empty, bundledEntries: entries)
+        initialSnapshot: .loaded(index: .empty, bundledEntries: entries),
+        selectionSettleDelay: .zero
     )
 
     viewModel.selectEntryForPractice(firstID)
@@ -103,6 +110,121 @@ func latestPreparationGenerationWins() async throws {
         identity: PracticeSongIdentity(songID: secondID, scoreRevision: secondID.uuidString)
     ))
     #expect(appState.practiceSetupState.preparedPracticeIdentity?.songID == secondID)
+}
+
+@Test
+@MainActor
+func rapidSelectionOnlyPersistsAndPreparesTheSettledEntry() async throws {
+    let url = FileManager.default.temporaryDirectory.appending(
+        path: "settled-selection-\(UUID().uuidString).musicxml"
+    )
+    try Data("<score-partwise/>".utf8).write(to: url)
+    defer { try? FileManager.default.removeItem(at: url) }
+
+    let entries = ["First", "Second", "Third"].map { name in
+        SongLibraryEntry(
+            id: UUID(),
+            displayName: name,
+            musicXMLFileName: "\(name).musicxml",
+            importedAt: .now,
+            audioFileName: nil,
+            isBundled: true
+        )
+    }
+    let service = DelayedPreparationService(delays: [:])
+    let indexStore = PreparationTestIndexStore()
+    let viewModel = makeSelectionViewModel(
+        entries: entries,
+        scoreURL: url,
+        service: service,
+        indexStore: indexStore,
+        settleDelay: .milliseconds(40)
+    )
+
+    viewModel.selectEntryForPractice(entries[0].id)
+    await Task.yield()
+    viewModel.selectEntryForPractice(entries[1].id)
+    await Task.yield()
+    viewModel.selectEntryForPractice(entries[2].id)
+    try await waitForPreparation(viewModel, entryID: entries[2].id)
+
+    let savedEntryIDs = await indexStore.savedEntryIDs
+    let preparedEntryIDs = await service.requests()
+    #expect(savedEntryIDs == [entries[2].id])
+    #expect(preparedEntryIDs == [entries[2].id])
+}
+
+@Test
+@MainActor
+func selectionPersistenceFailureDoesNotBlockPreparation() async throws {
+    let url = FileManager.default.temporaryDirectory.appending(
+        path: "failed-selection-save-\(UUID().uuidString).musicxml"
+    )
+    try Data("<score-partwise/>".utf8).write(to: url)
+    defer { try? FileManager.default.removeItem(at: url) }
+
+    let entry = SongLibraryEntry(
+        id: UUID(),
+        displayName: "Still Prepare",
+        musicXMLFileName: "still-prepare.musicxml",
+        importedAt: .now,
+        audioFileName: nil,
+        isBundled: true
+    )
+    let service = DelayedPreparationService(delays: [:])
+    let viewModel = makeSelectionViewModel(
+        entries: [entry],
+        scoreURL: url,
+        service: service,
+        indexStore: PreparationTestIndexStore(failSaves: true),
+        settleDelay: .zero
+    )
+
+    viewModel.selectEntryForPractice(entry.id)
+    try await waitForPreparation(viewModel, entryID: entry.id)
+
+    let preparedEntryIDs = await service.requests()
+    #expect(preparedEntryIDs == [entry.id])
+    #expect(viewModel.errorMessage?.contains("保存曲库选择失败") == true)
+}
+
+@Test
+@MainActor
+func cancellingSelectionDuringSettleLeavesNoSideEffects() async throws {
+    let url = FileManager.default.temporaryDirectory.appending(
+        path: "cancelled-selection-\(UUID().uuidString).musicxml"
+    )
+    try Data("<score-partwise/>".utf8).write(to: url)
+    defer { try? FileManager.default.removeItem(at: url) }
+
+    let entry = SongLibraryEntry(
+        id: UUID(),
+        displayName: "Cancelled",
+        musicXMLFileName: "cancelled.musicxml",
+        importedAt: .now,
+        audioFileName: nil,
+        isBundled: true
+    )
+    let service = DelayedPreparationService(delays: [:])
+    let indexStore = PreparationTestIndexStore()
+    let viewModel = makeSelectionViewModel(
+        entries: [entry],
+        scoreURL: url,
+        service: service,
+        indexStore: indexStore,
+        settleDelay: .milliseconds(40)
+    )
+
+    viewModel.selectEntryForPractice(entry.id)
+    await Task.yield()
+    viewModel.cancelPracticePreparation()
+    try await Task.sleep(for: .milliseconds(60))
+
+    let savedEntryIDs = await indexStore.savedEntryIDs
+    let preparedEntryIDs = await service.requests()
+    #expect(savedEntryIDs.isEmpty)
+    #expect(preparedEntryIDs.isEmpty)
+    #expect(viewModel.practicePreparationState == .idle)
 }
 
 
@@ -137,7 +259,8 @@ func preparationWithoutMeasureSpansIsRejectedAtTheLibraryBoundary() async throws
         audioPlayer: PreparationTestAudioPlayer(),
         practiceProgressRepository: PreparationTestProgressRepository(),
         diagnosticsReporter: InMemoryDiagnosticsReporter(),
-        initialSnapshot: .loaded(index: .empty, bundledEntries: [entry])
+        initialSnapshot: .loaded(index: .empty, bundledEntries: [entry]),
+        selectionSettleDelay: .zero
     )
 
     viewModel.selectEntryForPractice(entryID)
@@ -183,8 +306,48 @@ private func waitForPreparationFailure(
 
 private actor PreparationTestIndexStore: SongLibraryIndexStoreProtocol {
     var value = SongLibraryIndex.empty
+    private(set) var savedEntryIDs: [UUID] = []
+    private let failSaves: Bool
+
+    init(failSaves: Bool = false) {
+        self.failSaves = failSaves
+    }
+
     func load() throws -> SongLibraryIndex { value }
-    func save(_ index: SongLibraryIndex) throws { value = index }
+    func save(_ index: SongLibraryIndex) throws {
+        guard failSaves == false else { throw CocoaError(.fileWriteUnknown) }
+        value = index
+        if let selectedEntryID = index.lastSelectedEntryID {
+            savedEntryIDs.append(selectedEntryID)
+        }
+    }
+}
+
+@MainActor
+private func makeSelectionViewModel(
+    entries: [SongLibraryEntry],
+    scoreURL: URL,
+    service: DelayedPreparationService,
+    indexStore: PreparationTestIndexStore,
+    settleDelay: Duration
+) -> SongLibraryViewModel {
+    let appState = AppState()
+    return SongLibraryViewModel(
+        arGuideViewModel: ARGuideViewModel(
+            appState: appState,
+            practiceSetupState: appState.practiceSetupState
+        ),
+        practicePreparationService: service,
+        indexStore: indexStore,
+        fileStore: PreparationTestFileStore(),
+        audioImportService: PreparationTestAudioImporter(),
+        bundledProvider: PreparationTestBundledProvider(entries: entries, scoreURL: scoreURL),
+        audioPlayer: PreparationTestAudioPlayer(),
+        practiceProgressRepository: PreparationTestProgressRepository(),
+        diagnosticsReporter: InMemoryDiagnosticsReporter(),
+        initialSnapshot: .loaded(index: .empty, bundledEntries: entries),
+        selectionSettleDelay: settleDelay
+    )
 }
 
 private struct PreparationTestFileStore: SongFileStoreProtocol {
@@ -462,7 +625,8 @@ private func makeFailurePreparationFixture(
         audioPlayer: PreparationTestAudioPlayer(),
         practiceProgressRepository: PreparationTestProgressRepository(),
         diagnosticsReporter: reporter,
-        initialSnapshot: .loaded(index: .empty, bundledEntries: [entry])
+        initialSnapshot: .loaded(index: .empty, bundledEntries: [entry]),
+        selectionSettleDelay: .zero
     )
     return (viewModel, reporter, entryID)
 }
@@ -598,7 +762,8 @@ private func makeDirectLaunchFixture(
         audioPlayer: PreparationTestAudioPlayer(),
         practiceProgressRepository: repository,
         diagnosticsReporter: InMemoryDiagnosticsReporter(),
-        initialSnapshot: .loaded(index: .empty, bundledEntries: [entry])
+        initialSnapshot: .loaded(index: .empty, bundledEntries: [entry]),
+        selectionSettleDelay: .zero
     )
     return (viewModel, session)
 }
