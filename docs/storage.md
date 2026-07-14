@@ -26,7 +26,8 @@ bundled MusicXML 和 App 资源来自 bundle，不写入 Documents。
 1. `SongLibraryImportTransactionService` 按选择顺序创建 operation，只在复制单个输入时持有短 security-scoped lease，并先写 preparing journal。
 2. 输入以 `.partial` 同卷复制、同步并流式计算字节数与 SHA-256，随后原子改为原始安全文件名并写 staged journal；不会增加时间戳或 UUID 后缀。
 3. actor 逐 operation 读取最新 index 与目标卷 resource facts。无冲突项先写 resolved journal，再移动到 `scores/` 原名目标并追加带非空 version token 的 entry；冲突项在任何 target/index mutation 前暂停。
-4. index 保存失败时按指纹把 target 移回 stage 并清理 operation；已经提交但 cleanup 失败的 journal 由下次 bootstrap 幂等收尾。
+4. 用户确认只回传 operation ID；actor 重新分类最新事实。indexed target 先按指纹备份旧文件再用 CAS 保留 song ID、显示名、音频、顺序和最后选择，missing target 直接修复同一 entry，filesystem orphan 备份同名未索引文件后建立新 entry。歧义目标不提供覆盖动作。
+5. CAS 或 index 保存失败时仅在 staged/backup/target 指纹仍匹配时恢复确认前文件事实；已经提交但 cleanup 失败的 journal 由下次 bootstrap 幂等收尾。
 
 只有 index 文件缺失时视为空库；零字节、空白或无法解码的 JSON 都保留原文件并阻塞读取及所有 mutation，禁止按空库继续写入。
 

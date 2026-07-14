@@ -8,6 +8,7 @@ protocol SongLibraryImportTransactionRecovering: Actor {
 protocol SongLibraryImportTransactionServicing: SongLibraryImportTransactionRecovering {
     func stageImports(from selectedURLs: [URL]) async -> SongLibraryImportBatchStageResult
     func process(operationID: UUID) async -> SongLibraryImportProcessResult
+    func confirm(operationID: UUID) async -> SongLibraryImportProcessResult
     func cancel(operationID: UUID) async -> Bool
 }
 
@@ -156,31 +157,7 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
                     )
                 )
             case .ambiguousIndexedTargets:
-                _ = await diagnostics.record(
-                    DiagnosticEvent(
-                        severity: .error,
-                        code: .libraryImportConflictAmbiguous,
-                        category: .library,
-                        stage: "classifyImport",
-                        summary: "多个曲库条目指向同一导入目标",
-                        reason: "为避免猜测曲目身份，已阻止该项导入",
-                        persistence: .systemOnly
-                    )
-                )
-                if await cancel(operationID: operationID) {
-                    return .blocked(
-                        SongLibraryBlockedImport(
-                            operationID: operationID,
-                            message: "多个曲库条目指向同一目标，已取消该项导入。"
-                        )
-                    )
-                }
-                return .blocked(
-                    SongLibraryBlockedImport(
-                        operationID: operationID,
-                        message: "歧义事务无法安全清理。"
-                    )
-                )
+                return await blockAmbiguous(journal: journal)
             }
         } catch {
             return .blocked(
@@ -190,6 +167,69 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
                 )
             )
         }
+    }
+
+    func confirm(operationID: UUID) async -> SongLibraryImportProcessResult {
+        do {
+            let journal = try loadJournal(operationID: operationID)
+            guard journal.kind == .unclassified,
+                  journal.phase == .staged,
+                  journal.stagedFingerprint != nil
+            else {
+                return .blocked(
+                    SongLibraryBlockedImport(
+                        operationID: operationID,
+                        message: "导入事务状态已变化，请重新导入。"
+                    )
+                )
+            }
+
+            let index = try await indexStore.load()
+            let conflict = SongLibraryImportConflictClassifier.classify(
+                userEntries: index.entries,
+                candidateFileName: journal.safeFileName,
+                targetFacts: try targetVolumeFacts(safeFileName: journal.safeFileName)
+            )
+            switch conflict {
+            case .none:
+                return try await commitNewImport(journal: journal)
+            case let .indexedTarget(entry):
+                return await commitIndexedReplacement(journal: journal, entry: entry)
+            case let .indexedMissingTarget(entry):
+                return await commitMissingTargetRepair(journal: journal, entry: entry)
+            case .filesystemOrphan:
+                return await commitOrphanAdoption(journal: journal)
+            case .ambiguousIndexedTargets:
+                return await blockAmbiguous(journal: journal)
+            }
+        } catch {
+            return .blocked(
+                SongLibraryBlockedImport(
+                    operationID: operationID,
+                    message: "无法重新核对导入冲突，请修复存储后重试。"
+                )
+            )
+        }
+    }
+
+    private func blockAmbiguous(
+        journal: SongLibraryImportJournal
+    ) async -> SongLibraryImportProcessResult {
+        _ = await diagnostics.record(
+            DiagnosticEvent(
+                severity: .error,
+                code: .libraryImportConflictAmbiguous,
+                category: .library,
+                stage: "classifyImport",
+                summary: "多个曲库条目指向同一导入目标",
+                reason: "为避免猜测曲目身份，已阻止该项导入",
+                persistence: .systemOnly
+            )
+        )
+        let message = await cancel(operationID: journal.operationID)
+            ? "多个曲库条目指向同一目标，已取消该项导入。"
+            : "歧义事务无法安全清理。"
+        return blockedImport(journal, message: message)
     }
 
     func cancel(operationID: UUID) async -> Bool {
@@ -407,6 +447,328 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
             )
         }
         return .committed(index: updatedIndex, entry: payload.entry)
+    }
+
+    private func commitIndexedReplacement(
+        journal: SongLibraryImportJournal,
+        entry: SongLibraryEntry
+    ) async -> SongLibraryImportProcessResult {
+        await commitExistingEntry(
+            journal: journal,
+            entry: entry,
+            kind: .indexedReplace,
+            backsUpTarget: true
+        )
+    }
+
+    private func commitMissingTargetRepair(
+        journal: SongLibraryImportJournal,
+        entry: SongLibraryEntry
+    ) async -> SongLibraryImportProcessResult {
+        await commitExistingEntry(
+            journal: journal,
+            entry: entry,
+            kind: .missingTargetRepair,
+            backsUpTarget: false
+        )
+    }
+
+    private func commitExistingEntry(
+        journal: SongLibraryImportJournal,
+        entry: SongLibraryEntry,
+        kind: SongLibraryImportOperationKind,
+        backsUpTarget: Bool
+    ) async -> SongLibraryImportProcessResult {
+        guard let stagedFingerprint = journal.stagedFingerprint else {
+            return blockedImport(journal, message: "暂存曲谱事实不完整，请重新导入。")
+        }
+        let expected = SongLibraryExpectedEntryIdentity(
+            songID: entry.id,
+            scoreFileVersionID: entry.scoreFileVersionID,
+            musicXMLFileName: entry.musicXMLFileName
+        )
+        let payload = SongLibraryNewEntryPayload(
+            songID: entry.id,
+            displayName: entry.displayName,
+            musicXMLFileName: journal.safeFileName,
+            importedAt: now(),
+            scoreFileVersionID: makeUUID()
+        )
+        let backupFingerprint: TransactionFileFingerprint?
+        do {
+            let target = try observedFile(
+                at: paths.scoreFileURL(safeFileName: journal.safeFileName)
+            )
+            guard target.exists == backsUpTarget else {
+                return await process(operationID: journal.operationID)
+            }
+            backupFingerprint = backsUpTarget ? target.fingerprint : nil
+            if backsUpTarget, backupFingerprint == nil {
+                return blockedImport(journal, message: "无法核对现有曲谱文件，请重试。")
+            }
+        } catch {
+            return blockedImport(journal, message: "无法核对现有曲谱文件，请重试。")
+        }
+
+        let resolved: SongLibraryImportJournal
+        do {
+            resolved = try SongLibraryImportJournal(
+                operationID: journal.operationID,
+                kind: kind,
+                phase: backsUpTarget ? .backupMoved : .targetInstalled,
+                safeFileName: journal.safeFileName,
+                stagedFingerprint: stagedFingerprint,
+                backupFingerprint: backupFingerprint,
+                expectedEntry: expected,
+                newEntry: payload
+            )
+            try writeJournal(resolved)
+        } catch {
+            return blockedImport(journal, message: "无法记录曲谱替换事务，请修复存储后重试。")
+        }
+        do {
+            if backsUpTarget {
+                try moveTargetToBackup(journal: resolved)
+            }
+            let facts = try await recoveryFacts(for: resolved)
+            try moveStageToTarget(journal: resolved, facts: facts)
+            try writeJournal(try self.journal(resolved, phase: .targetInstalled))
+        } catch {
+            guard await rollbackResolvedImport(resolvedJournal: resolved, stagedJournal: journal) else {
+                return blockedImport(journal, message: "曲谱替换回滚未完成，请重新启动后恢复。")
+            }
+            return .itemFailure(
+                itemFailure(fileName: journal.safeFileName, message: "曲谱文件在确认期间发生变化，请重试。")
+            )
+        }
+
+        do {
+            let replacement = SongLibraryScoreReplacement(
+                musicXMLFileName: payload.musicXMLFileName,
+                importedAt: payload.importedAt,
+                scoreFileVersionID: payload.scoreFileVersionID
+            )
+            switch try await indexStore.replaceUserScore(
+                expectedSongID: expected.songID,
+                expectedScoreFileVersionID: expected.scoreFileVersionID,
+                expectedMusicXMLFileName: expected.musicXMLFileName,
+                with: replacement
+            ) {
+            case let .applied(updatedIndex, updatedEntry):
+                return await finishCommittedImport(
+                    journal: resolved,
+                    index: updatedIndex,
+                    entry: updatedEntry
+                )
+            case .conflict:
+                guard await rollbackResolvedImport(
+                    resolvedJournal: resolved,
+                    stagedJournal: journal
+                ) else {
+                    return blockedImport(journal, message: "曲谱替换与索引竞争且回滚未完成，请重新启动后恢复。")
+                }
+                return await process(operationID: journal.operationID)
+            }
+        } catch {
+            guard await rollbackResolvedImport(resolvedJournal: resolved, stagedJournal: journal) else {
+                return blockedImport(journal, message: "曲谱替换回滚未完成，请重新启动后恢复。")
+            }
+            return .itemFailure(
+                itemFailure(fileName: journal.safeFileName, message: "无法保存曲谱替换，该项未修改。")
+            )
+        }
+    }
+
+    private func commitOrphanAdoption(
+        journal: SongLibraryImportJournal
+    ) async -> SongLibraryImportProcessResult {
+        guard let stagedFingerprint = journal.stagedFingerprint else {
+            return blockedImport(journal, message: "暂存曲谱事实不完整，请重新导入。")
+        }
+        let target: SongLibraryObservedTransactionFile
+        do {
+            target = try observedFile(at: paths.scoreFileURL(safeFileName: journal.safeFileName))
+        } catch {
+            return blockedImport(journal, message: "无法核对未索引曲谱文件，请重试。")
+        }
+        guard target.exists, let backupFingerprint = target.fingerprint else {
+            return await process(operationID: journal.operationID)
+        }
+        let payload = SongLibraryNewEntryPayload(
+            songID: makeUUID(),
+            displayName: URL(fileURLWithPath: journal.safeFileName)
+                .deletingPathExtension()
+                .lastPathComponent,
+            musicXMLFileName: journal.safeFileName,
+            importedAt: now(),
+            scoreFileVersionID: makeUUID()
+        )
+        let resolved: SongLibraryImportJournal
+        do {
+            resolved = try SongLibraryImportJournal(
+                operationID: journal.operationID,
+                kind: .orphanAdopt,
+                phase: .backupMoved,
+                safeFileName: journal.safeFileName,
+                stagedFingerprint: stagedFingerprint,
+                backupFingerprint: backupFingerprint,
+                newEntry: payload
+            )
+            try writeJournal(resolved)
+        } catch {
+            return blockedImport(journal, message: "无法记录未索引曲谱事务，请修复存储后重试。")
+        }
+        do {
+            try moveTargetToBackup(journal: resolved)
+            let facts = try await recoveryFacts(for: resolved)
+            try moveStageToTarget(journal: resolved, facts: facts)
+            try writeJournal(try self.journal(resolved, phase: .targetInstalled))
+        } catch {
+            guard await rollbackResolvedImport(resolvedJournal: resolved, stagedJournal: journal) else {
+                return blockedImport(journal, message: "未索引曲谱替换回滚未完成，请重新启动后恢复。")
+            }
+            return .itemFailure(
+                itemFailure(fileName: journal.safeFileName, message: "未索引曲谱在确认期间发生变化，请重试。")
+            )
+        }
+
+        do {
+            let updatedIndex = try await indexStore.appendUserEntry(payload.entry)
+            return await finishCommittedImport(
+                journal: resolved,
+                index: updatedIndex,
+                entry: payload.entry
+            )
+        } catch {
+            guard await rollbackResolvedImport(resolvedJournal: resolved, stagedJournal: journal) else {
+                return blockedImport(journal, message: "未索引曲谱替换回滚未完成，请重新启动后恢复。")
+            }
+            return .itemFailure(
+                itemFailure(fileName: journal.safeFileName, message: "无法保存曲库索引，该项未导入。")
+            )
+        }
+    }
+
+    private func journal(
+        _ journal: SongLibraryImportJournal,
+        phase: SongLibraryImportJournalPhase
+    ) throws -> SongLibraryImportJournal {
+        try SongLibraryImportJournal(
+            operationID: journal.operationID,
+            kind: journal.kind,
+            phase: phase,
+            safeFileName: journal.safeFileName,
+            stagedFingerprint: journal.stagedFingerprint,
+            backupFingerprint: journal.backupFingerprint,
+            expectedEntry: journal.expectedEntry,
+            newEntry: journal.newEntry
+        )
+    }
+
+    private func moveTargetToBackup(journal: SongLibraryImportJournal) throws {
+        guard let backupFingerprint = journal.backupFingerprint,
+              let stagedFingerprint = journal.stagedFingerprint
+        else { throw SongLibraryTransactionServiceError.changedFile }
+        let targetURL = try paths.scoreFileURL(safeFileName: journal.safeFileName)
+        let backupURL = try paths.transactionBackupFileURL(
+            operationID: journal.operationID,
+            safeFileName: journal.safeFileName
+        )
+        let stageURL = try paths.transactionStageFileURL(
+            operationID: journal.operationID,
+            safeFileName: journal.safeFileName
+        )
+        guard try observedFile(at: targetURL).fingerprint == backupFingerprint,
+              try observedFile(at: backupURL).exists == false,
+              try observedFile(at: stageURL).fingerprint == stagedFingerprint
+        else { throw SongLibraryTransactionServiceError.changedFile }
+        try fileManager.createDirectory(
+            at: backupURL.deletingLastPathComponent(),
+            withIntermediateDirectories: false
+        )
+        try fileManager.moveItem(at: targetURL, to: backupURL)
+        guard try observedFile(at: backupURL).fingerprint == backupFingerprint else {
+            throw SongLibraryTransactionServiceError.changedFile
+        }
+    }
+
+    private func rollbackResolvedImport(
+        resolvedJournal: SongLibraryImportJournal?,
+        stagedJournal: SongLibraryImportJournal
+    ) async -> Bool {
+        guard let resolvedJournal else { return true }
+        do {
+            let targetURL = try paths.scoreFileURL(safeFileName: resolvedJournal.safeFileName)
+            let stageURL = try paths.transactionStageFileURL(
+                operationID: resolvedJournal.operationID,
+                safeFileName: resolvedJournal.safeFileName
+            )
+            let backupURL = try paths.transactionBackupFileURL(
+                operationID: resolvedJournal.operationID,
+                safeFileName: resolvedJournal.safeFileName
+            )
+            let target = try observedFile(at: targetURL)
+            if target.exists {
+                if target.fingerprint == resolvedJournal.stagedFingerprint {
+                    guard try observedFile(at: stageURL).exists == false else { return false }
+                    try fileManager.moveItem(at: targetURL, to: stageURL)
+                } else if target.fingerprint != resolvedJournal.backupFingerprint {
+                    return false
+                }
+            }
+            let backup = try observedFile(at: backupURL)
+            if backup.exists {
+                guard backup.fingerprint == resolvedJournal.backupFingerprint,
+                      try observedFile(at: targetURL).exists == false
+                else { return false }
+                try fileManager.moveItem(at: backupURL, to: targetURL)
+            }
+            try writeJournal(stagedJournal)
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    private func finishCommittedImport(
+        journal: SongLibraryImportJournal,
+        index: SongLibraryIndex,
+        entry: SongLibraryEntry
+    ) async -> SongLibraryImportProcessResult {
+        do {
+            let committed = try self.journal(journal, phase: .indexCommitted)
+            try writeJournal(committed)
+            try removeOperationDirectory(
+                for: committed,
+                facts: try await recoveryFacts(for: committed)
+            )
+        } catch {
+            _ = await diagnostics.record(
+                DiagnosticEvent(
+                    severity: .warning,
+                    code: .libraryImportCleanupFailed,
+                    category: .library,
+                    stage: "finishImport",
+                    summary: "曲谱已提交但事务清理未完成",
+                    reason: "事务文件已保留供下次启动恢复",
+                    songID: entry.id,
+                    persistence: .systemOnly
+                )
+            )
+        }
+        return .committed(index: index, entry: entry)
+    }
+
+    private func blockedImport(
+        _ journal: SongLibraryImportJournal,
+        message: String
+    ) -> SongLibraryImportProcessResult {
+        .blocked(
+            SongLibraryBlockedImport(
+                operationID: journal.operationID,
+                message: message
+            )
+        )
     }
 
     private func moveTargetBackToStage(journal: SongLibraryImportJournal) throws {

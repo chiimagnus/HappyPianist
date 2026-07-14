@@ -11,6 +11,7 @@ struct SongLibraryView: View {
   @State private var isAudioImporterPresented = false
   @State private var pendingAudioBindingEntryID: UUID?
   @State private var pendingDeletionEntryID: UUID?
+  @State private var pendingImportConfirmationID: UUID?
   @State private var isDiagnosticsPresented = false
 
   private var audioImporterTypes: [UTType] {
@@ -135,6 +136,9 @@ struct SongLibraryView: View {
       if viewModel.importState.isActive {
         LibraryImportStatusView(
           state: viewModel.importState,
+          onReviewConflict: { operationID in
+            pendingImportConfirmationID = operationID
+          },
           onCancelCurrent: { operationID in
             Task { @MainActor in
               await viewModel.cancelPendingImport(operationID: operationID)
@@ -176,6 +180,13 @@ struct SongLibraryView: View {
         await viewModel.flushPendingSelectionPersistence()
       }
     }
+    .onChange(of: viewModel.importState) { _, state in
+      guard case let .awaitingConfirmation(pending, _, _) = state else {
+        pendingImportConfirmationID = nil
+        return
+      }
+      pendingImportConfirmationID = pending.id
+    }
     .alert(
       "提示",
       isPresented: Binding(
@@ -190,6 +201,40 @@ struct SongLibraryView: View {
       Button("好", action: viewModel.dismissError)
     } message: {
       Text(viewModel.errorMessage ?? "未知错误")
+    }
+    .confirmationDialog(
+      importConflictTitle,
+      isPresented: Binding(
+        get: { pendingImportConfirmationID != nil && pendingImport != nil },
+        set: { isPresented in
+          if isPresented == false {
+            pendingImportConfirmationID = nil
+          }
+        }
+      ),
+      titleVisibility: .visible
+    ) {
+      if let pendingImport {
+        let presentation = SongLibraryImportConflictPresentation(conflict: pendingImport.conflict)
+        if let actionTitle = presentation.actionTitle {
+          Button(actionTitle, role: presentation.actionRole) {
+            pendingImportConfirmationID = nil
+            Task { @MainActor in
+              await viewModel.confirmPendingImport(operationID: pendingImport.id)
+            }
+          }
+        }
+      }
+      if let pendingImport {
+        Button("跳过此项", role: .cancel) {
+          pendingImportConfirmationID = nil
+          Task { @MainActor in
+            await viewModel.cancelPendingImport(operationID: pendingImport.id)
+          }
+        }
+      }
+    } message: {
+      Text(importConflictPresentation?.message ?? "曲谱冲突状态已变化。")
     }
     .confirmationDialog(
       "确认删除该曲目？",
@@ -222,6 +267,22 @@ struct SongLibraryView: View {
       return viewModel.listeningDuration
     }
     return presentation?.knownDuration ?? 0
+  }
+
+  private var pendingImport: SongLibraryPendingImport? {
+    guard case let .awaitingConfirmation(pending, _, _) = viewModel.importState,
+      pending.id == pendingImportConfirmationID
+    else { return nil }
+    return pending
+  }
+
+  private var importConflictTitle: String {
+    guard let pendingImport else { return "处理曲谱冲突" }
+    return "处理“\(pendingImport.fileName)”"
+  }
+
+  private var importConflictPresentation: SongLibraryImportConflictPresentation? {
+    pendingImport.map { SongLibraryImportConflictPresentation(conflict: $0.conflict) }
   }
 
   private func resolvedCurrentTime(selectedEntry: SongLibraryEntry?) -> TimeInterval {
@@ -309,6 +370,7 @@ struct SongLibraryView: View {
 
 private struct LibraryImportStatusView: View {
   let state: SongLibraryImportState
+  let onReviewConflict: (UUID) -> Void
   let onCancelCurrent: (UUID) -> Void
   let onContinue: () -> Void
   let onCancelAll: () -> Void
@@ -326,8 +388,10 @@ private struct LibraryImportStatusView: View {
 
       switch state {
       case let .awaitingConfirmation(pending, _, _):
-        Button("取消此项") { onCancelCurrent(pending.id) }
+        Button("处理此项") { onReviewConflict(pending.id) }
           .buttonStyle(.borderedProminent)
+        Button("取消此项") { onCancelCurrent(pending.id) }
+          .buttonStyle(.bordered)
         Button("取消剩余导入", role: .cancel, action: onCancelAll)
           .buttonStyle(.bordered)
       case .itemFailure:
@@ -363,7 +427,7 @@ private struct LibraryImportStatusView: View {
     case let .processing(_, index, count):
       "正在导入第 \(index)/\(count) 项…"
     case let .awaitingConfirmation(pending, index, count):
-      "第 \(index)/\(count) 项“\(pending.fileName)”与曲库现有文件冲突；当前版本只能取消此项。"
+      "第 \(index)/\(count) 项“\(pending.fileName)”需要确认后才能继续。"
     case let .itemFailure(failure, index, count):
       "第 \(index)/\(count) 项“\(failure.fileName)”失败：\(failure.message)"
     case .idle:
@@ -381,6 +445,37 @@ private struct LibraryImportStatusView: View {
     onStartPractice: { _ in }
   )
 
+}
+
+struct SongLibraryImportConflictPresentation {
+  let actionTitle: String?
+  let actionRole: ButtonRole?
+  let message: String
+
+  init(conflict: SongLibraryImportConflictKind) {
+    switch conflict {
+    case .indexedTarget:
+      actionTitle = "替换现有曲谱"
+      actionRole = .destructive
+      message = "将替换现有曲谱文件并保留曲目名称、音频、练习历史和曲库位置。"
+    case .indexedMissingTarget:
+      actionTitle = "修复缺失曲谱"
+      actionRole = nil
+      message = "曲库条目仍在，但曲谱文件缺失。将用所选文件修复该曲目。"
+    case .filesystemOrphan:
+      actionTitle = "替换并加入曲库"
+      actionRole = .destructive
+      message = "同名文件尚未加入曲库。将替换该文件并创建新的曲库条目。"
+    case .none:
+      actionTitle = "继续导入"
+      actionRole = nil
+      message = "冲突已消失，将按新曲谱导入。"
+    case .ambiguousIndexedTargets:
+      actionTitle = nil
+      actionRole = nil
+      message = "多个曲库条目指向同一文件，无法安全判断要更新哪一项。"
+    }
+  }
 }
 
 private struct LibraryTopBarView: View {

@@ -59,10 +59,15 @@ LibraryWindowView / SongLibraryView
 -> operation-ID 单写者队列逐项 process
 -> 读取最新 index 与目标卷 resource identity facts
 -> 无冲突：原名 target move -> SongLibraryIndexStore append -> cleanup
--> 冲突：target/index 零 mutation，等待取消或后续确认
+-> 冲突：target/index 零 mutation，等待 typed 确认
+-> confirm(operation ID) 重新读取最新事实
+   -> indexed target：backup -> staged target -> entry CAS
+   -> indexed missing：staged target -> entry CAS
+   -> filesystem orphan：backup -> staged target -> append entry
+   -> ambiguous：阻止并清理 staged operation，不猜 song ID
 ```
 
-`SongLibraryImportTransactionService`、`SongFileStore` 与 `AudioImportService` 都是 actor；Library MainActor 不执行 Documents IO、security-scope access、copy 或 delete。`SongFileStore` 不再拥有 score import API。试听 URL await 返回后还必须匹配最新 intent、entry 和 audio filename，旧结果静默丢弃。
+`SongLibraryImportTransactionService`、`SongFileStore` 与 `AudioImportService` 都是 actor；Library MainActor 不执行 Documents IO、security-scope access、copy 或 delete。确认与取消只传 operation ID，外部 URL 与 security lease 不跨 staging。`SongFileStore` 不再拥有 score import API。试听 URL await 返回后还必须匹配最新 intent、entry 和 audio filename，旧结果静默丢弃。
 
 score import 只有 transaction service 一条写入路径；`.mxl` 在 preparation 阶段通过 `MXLReader` 解包。
 

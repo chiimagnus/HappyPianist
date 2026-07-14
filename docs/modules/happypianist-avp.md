@@ -36,7 +36,7 @@
 | `HappyPianistAVP/Services/Library/SongPracticeLibrarySnapshotBuilder.swift` | 从单曲 history 纯派生当前版本/真实 attempt facts，不读取文件或 UI 类型。 |
 | `HappyPianistAVP/Views/Library/LibraryPracticeProgressOrnamentView.swift` | 只读展示 never/current/rebuild/unavailable 等 snapshot state；无配置控件或练习按钮。 |
 | `HappyPianistAVP/Services/Library/SongLibraryBootstrapLoader.swift` | actor 隔离的首次 bundle 扫描与索引解码，避免阻塞 MainActor 启动。 |
-| `HappyPianistAVP/Services/Library/SongLibraryImportTransactionService.swift` | 原名 batch staging、冲突事实、target/index commit、取消与 bootstrap recovery 的唯一 owner。 |
+| `HappyPianistAVP/Services/Library/SongLibraryImportTransactionService.swift` | 原名 batch staging、确认时事实重分类、indexed replace / missing repair / orphan adopt、取消与 bootstrap recovery 的唯一 owner。 |
 | `HappyPianistAVP/Services/Library/SongFileStore.swift` | 解析及删除已经入库的用户 score/audio 文件；不执行曲谱导入。 |
 | `HappyPianistAVP/Services/Library/SongLibraryIndexStore.swift` | actor 内按 concern 原子更新用户曲库索引。 |
 | `HappyPianistAVP/Services/Library/BundledSongLibraryProvider.swift` | 扫描 App bundle 中的 `.musicxml`。 |
@@ -50,6 +50,8 @@
 ```text
 Library View -> SongLibraryViewModel -> SongLibraryImportTransactionService -> SongLibraryIndexStore
 ```
+
+同名确认只携带 operation ID。现有 target 的替换与 orphan adopt 使用 destructive action；缺失 target 修复使用非 destructive action；多个 entry 指向同一 target 时不显示覆盖动作。entry CAS 保留非曲谱字段，新的 version token 让旧练习事实保留为历史但不会当成当前版本恢复。
 
 不要重新引入平行的 MusicXML import service。
 

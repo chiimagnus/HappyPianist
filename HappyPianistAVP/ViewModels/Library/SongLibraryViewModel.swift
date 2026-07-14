@@ -314,6 +314,30 @@ final class SongLibraryViewModel {
         await drainImportQueue(generation: generation)
     }
 
+    func confirmPendingImport(operationID: UUID) async {
+        guard case let .awaitingConfirmation(pending, position, count) = importState,
+              pending.id == operationID,
+              case let .staged(descriptor) = currentImportQueueItem,
+              descriptor.id == operationID
+        else { return }
+        let generation = importQueueGeneration
+        importState = .processing(
+            operationID: operationID,
+            index: position,
+            count: count
+        )
+        let result = await importTransactionService.confirm(operationID: operationID)
+        guard generation == importQueueGeneration else { return }
+        guard handleImportResult(
+            result,
+            descriptor: descriptor,
+            position: position,
+            count: count
+        ) else { return }
+        importQueueIndex += 1
+        await drainImportQueue(generation: generation)
+    }
+
     func continueAfterImportFailure() async {
         guard case .itemFailure = importState,
               currentImportQueueItem != nil
@@ -414,43 +438,53 @@ final class SongLibraryViewModel {
                 )
                 let result = await importTransactionService.process(operationID: descriptor.id)
                 guard generation == importQueueGeneration else { return }
-                switch result {
-                case let .committed(updatedIndex, entry):
-                    index = updatedIndex
-                    if selectedEntryID == nil {
-                        selectedEntryID = entry.id
-                        requestSelectionPersistence(entry.id)
-                    }
-                    scheduleSnapshotLoad()
-                    importQueueIndex += 1
-                case let .requiresConfirmation(pending):
-                    // ponytail: P3-T3 replaces this cancel-only presentation with typed confirm actions.
-                    importState = .awaitingConfirmation(
-                        pending,
-                        index: position,
-                        count: count
-                    )
-                    return
-                case let .itemFailure(failure):
-                    importState = .itemFailure(failure, index: position, count: count)
-                    return
-                case let .blocked(blocked):
-                    importState = .itemFailure(
-                        SongLibraryImportItemFailure(
-                            fileName: descriptor.fileName,
-                            message: blocked.message
-                        ),
-                        index: position,
-                        count: count
-                    )
-                    return
-                }
+                guard handleImportResult(
+                    result,
+                    descriptor: descriptor,
+                    position: position,
+                    count: count
+                ) else { return }
+                importQueueIndex += 1
             }
         }
         guard generation == importQueueGeneration else { return }
         importQueue = []
         importQueueIndex = 0
         importState = .idle
+    }
+
+    private func handleImportResult(
+        _ result: SongLibraryImportProcessResult,
+        descriptor: SongLibraryStagedImport,
+        position: Int,
+        count: Int
+    ) -> Bool {
+        switch result {
+        case let .committed(updatedIndex, entry):
+            index = updatedIndex
+            if selectedEntryID == nil {
+                selectedEntryID = entry.id
+                requestSelectionPersistence(entry.id)
+            }
+            scheduleSnapshotLoad()
+            return true
+        case let .requiresConfirmation(pending):
+            importState = .awaitingConfirmation(pending, index: position, count: count)
+            return false
+        case let .itemFailure(failure):
+            importState = .itemFailure(failure, index: position, count: count)
+            return false
+        case let .blocked(blocked):
+            importState = .itemFailure(
+                SongLibraryImportItemFailure(
+                    fileName: descriptor.fileName,
+                    message: blocked.message
+                ),
+                index: position,
+                count: count
+            )
+            return false
+        }
     }
 
     private func repairSelectionAfterImportReload() {

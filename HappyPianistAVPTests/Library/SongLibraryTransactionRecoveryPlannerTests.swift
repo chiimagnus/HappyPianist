@@ -128,6 +128,63 @@ func recoveryPlannerRollsForwardNewImportAndRemovesUncommittedReplacement() thro
     )
 }
 
+@Test
+func recoveryPlannerHandlesOrphanAndMissingTargetFaultPointsWithoutGuessing() throws {
+    let staged = try recoveryFingerprint("a")
+    let backup = try recoveryFingerprint("b")
+    let orphan = try recoveryJournal(kind: .orphanAdopt, staged: staged, backup: backup)
+    let missing = try recoveryJournal(kind: .missingTargetRepair, staged: staged)
+
+    #expect(
+        SongLibraryTransactionRecoveryPlanner.action(
+            journal: orphan,
+            facts: recoveryFacts(
+                stage: observed(staged, id: "stage"),
+                backup: observed(backup, id: "backup"),
+                index: .neither
+            )
+        ) == .rollForwardTarget
+    )
+    #expect(
+        SongLibraryTransactionRecoveryPlanner.action(
+            journal: orphan,
+            facts: recoveryFacts(
+                backup: observed(backup, id: "backup"),
+                index: .neither
+            )
+        ) == .restoreBackup
+    )
+    #expect(
+        SongLibraryTransactionRecoveryPlanner.action(
+            journal: orphan,
+            facts: recoveryFacts(
+                backup: observed(backup, id: "backup"),
+                target: observed(staged, id: "target"),
+                index: .neither
+            )
+        ) == .commitIndex
+    )
+    #expect(
+        SongLibraryTransactionRecoveryPlanner.action(
+            journal: missing,
+            facts: recoveryFacts(
+                stage: observed(staged, id: "stage"),
+                index: .expectedEntryPresent
+            )
+        ) == .rollForwardTarget
+    )
+    #expect(
+        SongLibraryTransactionRecoveryPlanner.action(
+            journal: orphan,
+            facts: recoveryFacts(
+                stage: observed(staged, id: "stage"),
+                backup: observed(backup, id: "backup"),
+                index: .newEntryPresent
+            )
+        ) == .rollForwardTarget
+    )
+}
+
 private func recoveryJournal(
     kind: SongLibraryImportOperationKind = .indexedReplace,
     staged: TransactionFileFingerprint,
@@ -141,11 +198,13 @@ private func recoveryJournal(
         safeFileName: "score.musicxml",
         stagedFingerprint: staged,
         backupFingerprint: backup,
-        expectedEntry: kind == .newImport ? nil : SongLibraryExpectedEntryIdentity(
-            songID: songID,
-            scoreFileVersionID: UUID(),
-            musicXMLFileName: "score.musicxml"
-        ),
+        expectedEntry: kind == .indexedReplace || kind == .missingTargetRepair
+            ? SongLibraryExpectedEntryIdentity(
+                songID: songID,
+                scoreFileVersionID: UUID(),
+                musicXMLFileName: "score.musicxml"
+            )
+            : nil,
         newEntry: SongLibraryNewEntryPayload(
             songID: songID,
             displayName: "Score",

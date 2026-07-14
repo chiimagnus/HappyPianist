@@ -121,7 +121,7 @@ struct SongLibraryImportJournal: Codable, Equatable, Sendable {
             }
         } else {
             let expectsExistingEntry = kind == .indexedReplace || kind == .missingTargetRepair
-            let expectsBackup = kind == .indexedReplace
+            let expectsBackup = kind == .indexedReplace || kind == .orphanAdopt
             guard kind != .unclassified,
                   stagedFingerprint != nil,
                   newEntry != nil,

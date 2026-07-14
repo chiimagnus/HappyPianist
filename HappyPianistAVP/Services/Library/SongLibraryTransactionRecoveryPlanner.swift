@@ -101,8 +101,10 @@ enum SongLibraryTransactionRecoveryPlanner {
 
         switch facts.indexState {
         case .newEntryPresent:
-            guard targetIsNew else { return .block }
-            return .cleanup
+            if targetIsNew { return .cleanup }
+            if facts.target.exists { return .block }
+            if facts.stage.exists { return .rollForwardTarget }
+            return .block
 
         case .expectedEntryPresent:
             if targetIsNew {
@@ -126,7 +128,7 @@ enum SongLibraryTransactionRecoveryPlanner {
 
         case .neither:
             switch journal.kind {
-            case .newImport, .orphanAdopt:
+            case .newImport:
                 if targetIsNew {
                     return .commitIndex
                 }
@@ -134,6 +136,17 @@ enum SongLibraryTransactionRecoveryPlanner {
                     return .block
                 }
                 return facts.stage.exists ? .rollForwardTarget : .cleanup
+            case .orphanAdopt:
+                if targetIsNew {
+                    return .commitIndex
+                }
+                if facts.target.exists {
+                    return targetIsOld ? .cleanup : .block
+                }
+                if facts.stage.exists {
+                    return .rollForwardTarget
+                }
+                return facts.backup.exists ? .restoreBackup : .cleanup
             case .indexedReplace, .missingTargetRepair:
                 if targetIsNew {
                     return .removeUncommittedTarget

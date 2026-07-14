@@ -252,8 +252,11 @@ xcodebuild test \
 
 - [ ] 导入后立即出现在曲库
 - [ ] 重启 App 后曲目仍然存在
-- [ ] 两个同名曲目都能显示
-- [ ] 同名曲目不会共享错误的练习进度
+- [ ] 同名 indexed target 显示“替换现有曲谱” destructive 确认，确认前文件和索引不变
+- [ ] indexed missing target 显示“修复缺失曲谱”非 destructive 确认，并保留 song ID、显示名、音频和曲库位置
+- [ ] filesystem orphan 明确提示“替换并加入曲库”，确认后建立新的 song ID 与版本 token
+- [ ] 多个 entry 指向同一 target 时不显示覆盖动作
+- [ ] 替换后旧练习进度仍作为历史保留，但不会作为新版本当前进度恢复
 - [ ] 导入失败不会留下半成品曲目
 
 ### 删除

@@ -134,6 +134,10 @@ private actor NoopSongLibraryImportTransactionService: SongLibraryImportTransact
         .blocked(SongLibraryBlockedImport(operationID: operationID, message: "测试未配置导入事务"))
     }
 
+    func confirm(operationID: UUID) -> SongLibraryImportProcessResult {
+        .blocked(SongLibraryBlockedImport(operationID: operationID, message: "测试未配置导入事务"))
+    }
+
     func cancel(operationID _: UUID) -> Bool { true }
 }
 
