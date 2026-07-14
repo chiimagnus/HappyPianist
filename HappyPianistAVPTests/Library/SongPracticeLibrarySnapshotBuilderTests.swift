@@ -5,6 +5,22 @@ import Testing
 private let snapshotBuilder = SongPracticeLibrarySnapshotBuilder()
 
 @Test
+@MainActor
+func snapshotBuilderLeavesMainActorIsolation() async {
+    let entry = makeSnapshotEntry()
+    let probe = SnapshotBuilderIsolationProbe()
+    let builder = SongPracticeLibrarySnapshotBuilder { isolation in
+        probe.record(isolation: isolation)
+    }
+
+    #expect(await builder.build(
+        entry: entry,
+        history: PracticeSongHistory(songID: entry.id, progresses: [], scoreMetadata: [])
+    ) == .neverPracticed)
+    #expect(probe.observedNonisolated == true)
+}
+
+@Test
 func snapshotNeverPracticedIgnoresUpdatedAtWithoutAttempts() async {
     let entry = makeSnapshotEntry()
     let progress = SongPracticeProgress(
@@ -446,4 +462,17 @@ private func snapshotSource(_ index: Int) -> PracticeSourceMeasureID {
         sourceMeasureIndex: index,
         sourceNumberToken: "\(index + 1)"
     )
+}
+
+private final class SnapshotBuilderIsolationProbe: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: Bool?
+
+    var observedNonisolated: Bool? {
+        lock.withLock { value }
+    }
+
+    func record(isolation: (any Actor)?) {
+        lock.withLock { value = isolation == nil }
+    }
 }

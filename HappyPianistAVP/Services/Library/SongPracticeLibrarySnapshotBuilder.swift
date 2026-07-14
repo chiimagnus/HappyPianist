@@ -1,6 +1,7 @@
 import Foundation
 
 protocol SongPracticeLibrarySnapshotBuilding: Sendable {
+    @concurrent
     nonisolated func build(
         entry: SongLibraryEntry,
         history: PracticeSongHistory
@@ -8,10 +9,19 @@ protocol SongPracticeLibrarySnapshotBuilding: Sendable {
 }
 
 struct SongPracticeLibrarySnapshotBuilder: SongPracticeLibrarySnapshotBuilding {
+    private let isolationObserver: (@Sendable ((any Actor)?) -> Void)?
+
+    init(isolationObserver: (@Sendable ((any Actor)?) -> Void)? = nil) {
+        self.isolationObserver = isolationObserver
+    }
+
+    @concurrent
     nonisolated func build(
         entry: SongLibraryEntry,
         history: PracticeSongHistory
     ) async -> SongPracticeLibrarySnapshotBuildResult {
+        let isolation: (any Actor)? = #isolation
+        isolationObserver?(isolation)
         let progresses = deduplicatedProgresses(
             history.progresses.filter { $0.identity.songID == entry.id }
         )
