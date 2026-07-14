@@ -282,6 +282,13 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
                 withIntermediateDirectories: false
             )
         } catch {
+            await recordStageDiagnostic(
+                operationID: operationID,
+                safeFileName: safeFileName,
+                phase: .preparing,
+                stage: "stageImport.result",
+                result: "transactionSetupFailed"
+            )
             await discardFailedStage(operationID: operationID)
             return .blocked(
                 SongLibraryBlockedImport(
@@ -292,12 +299,7 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
         }
 
         let hasScopedAccess = securityScopedResourceAccessor.startAccessing(sourceURL)
-        defer {
-            if hasScopedAccess {
-                securityScopedResourceAccessor.stopAccessing(sourceURL)
-            }
-        }
-
+        let stageResult: Result<Void, Error>
         do {
             let values = try sourceURL.resourceValues(
                 forKeys: [.isDirectoryKey, .isRegularFileKey, .isSymbolicLinkKey]
@@ -341,25 +343,104 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
             do {
                 try writeJournal(stagedJournal)
             } catch {
-                await discardFailedStage(operationID: operationID)
-                return .blocked(
-                    SongLibraryBlockedImport(
-                        operationID: operationID,
-                        message: "无法完成曲谱暂存记录，已停止本批导入。"
-                    )
-                )
+                throw SongLibraryStageError.journalWriteFailed
             }
+            stageResult = .success(())
+        } catch {
+            stageResult = .failure(error)
+        }
+        if hasScopedAccess {
+            securityScopedResourceAccessor.stopAccessing(sourceURL)
+        }
+        await recordStageDiagnostic(
+            operationID: operationID,
+            safeFileName: safeFileName,
+            phase: .preparing,
+            stage: "stageImport.access",
+            result: "accessAcquired=\(hasScopedAccess)"
+        )
+
+        switch stageResult {
+        case .success:
+            await recordStageDiagnostic(
+                operationID: operationID,
+                safeFileName: safeFileName,
+                phase: .staged,
+                stage: "stageImport.result",
+                result: "staged"
+            )
             return .staged(SongLibraryStagedImport(id: operationID, fileName: safeFileName))
-        } catch is CancellationError {
+        case let .failure(error as CancellationError):
+            _ = error
+            await recordStageDiagnostic(
+                operationID: operationID,
+                safeFileName: safeFileName,
+                phase: .preparing,
+                stage: "stageImport.result",
+                result: "cancelled"
+            )
             await discardFailedStage(operationID: operationID)
             return .itemFailure(itemFailure(fileName: safeFileName, message: "导入已取消。"))
-        } catch SongLibraryStageError.unsupportedSource {
+        case .failure(SongLibraryStageError.unsupportedSource):
+            await recordStageDiagnostic(
+                operationID: operationID,
+                safeFileName: safeFileName,
+                phase: .preparing,
+                stage: "stageImport.result",
+                result: "unsupportedSource"
+            )
             await discardFailedStage(operationID: operationID)
             return .itemFailure(itemFailure(fileName: safeFileName, message: "所选项目不是可读取的普通文件。"))
-        } catch {
+        case .failure(SongLibraryStageError.journalWriteFailed):
+            await recordStageDiagnostic(
+                operationID: operationID,
+                safeFileName: safeFileName,
+                phase: .preparing,
+                stage: "stageImport.result",
+                result: "journalWriteFailed"
+            )
+            await discardFailedStage(operationID: operationID)
+            return .blocked(
+                SongLibraryBlockedImport(
+                    operationID: operationID,
+                    message: "无法完成曲谱暂存记录，已停止本批导入。"
+                )
+            )
+        case .failure:
+            await recordStageDiagnostic(
+                operationID: operationID,
+                safeFileName: safeFileName,
+                phase: .preparing,
+                stage: "stageImport.result",
+                result: "readOrStageFailed"
+            )
             await discardFailedStage(operationID: operationID)
             return .itemFailure(itemFailure(fileName: safeFileName, message: "无法读取或暂存该曲谱。"))
         }
+    }
+
+    private func recordStageDiagnostic(
+        operationID: UUID,
+        safeFileName: String,
+        phase: SongLibraryImportJournalPhase,
+        stage: String,
+        result: String
+    ) async {
+        _ = await diagnostics.record(
+            DiagnosticEvent(
+                severity: .info,
+                code: .libraryImportStage,
+                category: .library,
+                stage: stage,
+                summary: "曲谱导入暂存状态",
+                reason: result,
+                operationID: operationID,
+                safeFileName: safeFileName,
+                transactionKind: SongLibraryImportOperationKind.unclassified.rawValue,
+                transactionPhase: phase.rawValue,
+                persistence: .systemOnly
+            )
+        )
     }
 
     private func commitNewImport(
@@ -403,6 +484,9 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
         do {
             updatedIndex = try await indexStore.appendUserEntry(payload.entry)
         } catch {
+            if let reconciled = await reconcileIndexMutationFailure(journal: resolvedJournal) {
+                return reconciled
+            }
             do {
                 try moveTargetBackToStage(journal: resolvedJournal)
                 try writeJournal(journal)
@@ -420,33 +504,11 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
             }
         }
 
-        let committedJournal = try SongLibraryImportJournal(
-            operationID: resolvedJournal.operationID,
-            kind: resolvedJournal.kind,
-            phase: .indexCommitted,
-            safeFileName: resolvedJournal.safeFileName,
-            stagedFingerprint: stagedFingerprint,
-            newEntry: payload
+        return await finishCommittedImport(
+            journal: resolvedJournal,
+            index: updatedIndex,
+            entry: payload.entry
         )
-        do {
-            try writeJournal(committedJournal)
-            let facts = try await recoveryFacts(for: committedJournal)
-            try removeOperationDirectory(for: committedJournal, facts: facts)
-        } catch {
-            _ = await diagnostics.record(
-                DiagnosticEvent(
-                    severity: .warning,
-                    code: .libraryImportCleanupFailed,
-                    category: .library,
-                    stage: "commitNewImport",
-                    summary: "曲谱已导入但事务清理未完成",
-                    reason: "事务文件已保留供下次启动恢复",
-                    songID: songID,
-                    persistence: .systemOnly
-                )
-            )
-        }
-        return .committed(index: updatedIndex, entry: payload.entry)
     }
 
     private func commitIndexedReplacement(
@@ -570,6 +632,9 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
                 return await process(operationID: journal.operationID)
             }
         } catch {
+            if let reconciled = await reconcileIndexMutationFailure(journal: resolved) {
+                return reconciled
+            }
             guard await rollbackResolvedImport(resolvedJournal: resolved, stagedJournal: journal) else {
                 return blockedImport(journal, message: "曲谱替换回滚未完成，请重新启动后恢复。")
             }
@@ -640,6 +705,9 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
                 entry: payload.entry
             )
         } catch {
+            if let reconciled = await reconcileIndexMutationFailure(journal: resolved) {
+                return reconciled
+            }
             guard await rollbackResolvedImport(resolvedJournal: resolved, stagedJournal: journal) else {
                 return blockedImport(journal, message: "未索引曲谱替换回滚未完成，请重新启动后恢复。")
             }
@@ -735,28 +803,89 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
         index: SongLibraryIndex,
         entry: SongLibraryEntry
     ) async -> SongLibraryImportProcessResult {
+        let committed: SongLibraryImportJournal
         do {
-            let committed = try self.journal(journal, phase: .indexCommitted)
+            committed = try self.journal(journal, phase: .indexCommitted)
+        } catch {
+            return blockedImport(journal, message: "无法记录已提交事务，请重新启动后恢复。")
+        }
+        let journalWasWritten: Bool
+        do {
             try writeJournal(committed)
+            journalWasWritten = true
+        } catch {
+            journalWasWritten = false
+        }
+
+        let facts: SongLibraryTransactionRecoveryFacts
+        do {
+            facts = try await recoveryFacts(for: committed)
+        } catch {
+            return blockedImport(journal, message: "提交后的事务事实无法读取，请重新启动后恢复。")
+        }
+        guard SongLibraryTransactionRecoveryPlanner.action(journal: committed, facts: facts) == .cleanup else {
+            return blockedImport(journal, message: "提交后的曲谱事实发生变化，请重新启动后恢复。")
+        }
+        guard journalWasWritten else {
+            await recordCommittedCleanupWarning(songID: entry.id)
+            return .committed(index: index, entry: entry)
+        }
+
+        do {
             try removeOperationDirectory(
                 for: committed,
-                facts: try await recoveryFacts(for: committed)
+                facts: facts
             )
         } catch {
-            _ = await diagnostics.record(
-                DiagnosticEvent(
-                    severity: .warning,
-                    code: .libraryImportCleanupFailed,
-                    category: .library,
-                    stage: "finishImport",
-                    summary: "曲谱已提交但事务清理未完成",
-                    reason: "事务文件已保留供下次启动恢复",
-                    songID: entry.id,
-                    persistence: .systemOnly
-                )
-            )
+            await recordCommittedCleanupWarning(songID: entry.id)
         }
         return .committed(index: index, entry: entry)
+    }
+
+    private func recordCommittedCleanupWarning(songID: UUID) async {
+        _ = await diagnostics.record(
+            DiagnosticEvent(
+                severity: .warning,
+                code: .libraryImportCleanupFailed,
+                category: .library,
+                stage: "finishImport",
+                summary: "曲谱已提交但事务清理未完成",
+                reason: "事务文件已保留供下次启动恢复",
+                songID: songID,
+                persistence: .systemOnly
+            )
+        )
+    }
+
+    private func reconcileIndexMutationFailure(
+        journal: SongLibraryImportJournal
+    ) async -> SongLibraryImportProcessResult? {
+        do {
+            let index = try await indexStore.load()
+            switch try indexState(for: journal, index: index) {
+            case .newEntryPresent:
+                guard let payload = journal.newEntry,
+                      let entry = index.entries.first(where: {
+                          $0.id == payload.songID
+                              && $0.isBundled != true
+                              && SongLibraryFileNameIdentity.isExact(
+                                  $0.musicXMLFileName,
+                                  payload.musicXMLFileName
+                              )
+                              && $0.scoreFileVersionID == payload.scoreFileVersionID
+                      })
+                else {
+                    return blockedImport(journal, message: "索引提交结果无法确认，请重新启动后恢复。")
+                }
+                return await finishCommittedImport(journal: journal, index: index, entry: entry)
+            case .expectedEntryPresent, .neither:
+                return nil
+            case .conflicting:
+                return blockedImport(journal, message: "索引提交结果发生冲突，请重新启动后恢复。")
+            }
+        } catch {
+            return blockedImport(journal, message: "索引提交结果无法读取，请修复存储后恢复。")
+        }
     }
 
     private func blockedImport(
@@ -1001,7 +1130,25 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
     private func recover(journal: SongLibraryImportJournal) async throws -> SongLibraryTransactionRecoveryResult {
         for _ in 0..<8 {
             let facts = try await recoveryFacts(for: journal)
-            switch SongLibraryTransactionRecoveryPlanner.action(journal: journal, facts: facts) {
+            let action = SongLibraryTransactionRecoveryPlanner.action(journal: journal, facts: facts)
+            _ = await diagnostics.record(
+                DiagnosticEvent(
+                    severity: action == .block ? .warning : .info,
+                    code: .libraryImportRecoveryAction,
+                    category: .library,
+                    stage: "importRecovery.action",
+                    summary: "曲谱导入事务恢复决策",
+                    reason: "stage=\(facts.stage.exists);backup=\(facts.backup.exists);target=\(facts.target.exists);index=\(facts.indexState);action=\(action)",
+                    songID: journal.newEntry?.songID,
+                    operationID: journal.operationID,
+                    safeFileName: journal.safeFileName,
+                    transactionKind: journal.kind.rawValue,
+                    transactionPhase: journal.phase.rawValue,
+                    scoreFileVersionID: journal.newEntry?.scoreFileVersionID,
+                    persistence: .systemOnly
+                )
+            )
+            switch action {
             case .cleanup:
                 try removeOperationDirectory(for: journal, facts: facts)
                 return .recovered
@@ -1050,8 +1197,27 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
 
     private func indexState(for journal: SongLibraryImportJournal) async throws -> SongLibraryRecoveryIndexState {
         let index = try await indexStore.load()
+        return try indexState(for: journal, index: index)
+    }
+
+    private func indexState(
+        for journal: SongLibraryImportJournal,
+        index: SongLibraryIndex
+    ) throws -> SongLibraryRecoveryIndexState {
         guard let payload = journal.newEntry else {
             return .neither
+        }
+        switch SongLibraryImportConflictClassifier.classify(
+            userEntries: index.entries,
+            candidateFileName: journal.safeFileName,
+            targetFacts: try targetVolumeFacts(safeFileName: journal.safeFileName)
+        ) {
+        case .ambiguousIndexedTargets:
+            return .conflicting
+        case let .indexedTarget(entry), let .indexedMissingTarget(entry):
+            guard entry.id == payload.songID else { return .conflicting }
+        case .filesystemOrphan, .none:
+            break
         }
         let matchingEntries = index.entries.filter { $0.id == payload.songID && $0.isBundled != true }
         guard matchingEntries.count <= 1 else { return .conflicting }
@@ -1295,6 +1461,7 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
                 summary: "曲谱导入事务恢复被阻止",
                 reason: reason,
                 songID: nil,
+                operationID: operationID,
                 persistence: .systemOnly
             )
         )
@@ -1314,6 +1481,7 @@ private enum SongLibraryTransactionServiceError: Error {
 
 private enum SongLibraryStageError: Error {
     case unsupportedSource
+    case journalWriteFailed
 }
 
 private enum SongLibraryStageOneResult {

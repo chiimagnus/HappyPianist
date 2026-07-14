@@ -150,6 +150,12 @@ actor SongLibraryIndexStore: SongLibraryImportIndexStoreProtocol {
         guard fileManager.fileExists(atPath: indexFileURL.path(percentEncoded: false)) else {
             return .empty
         }
+        let values = try indexFileURL.resourceValues(
+            forKeys: [.isRegularFileKey, .isSymbolicLinkKey]
+        )
+        guard values.isRegularFile == true, values.isSymbolicLink != true else {
+            throw SongLibraryIndexStoreError.corrupted
+        }
 
         let data = try Data(contentsOf: indexFileURL)
         let decoder = JSONDecoder()

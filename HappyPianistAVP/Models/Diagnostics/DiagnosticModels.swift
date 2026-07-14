@@ -44,8 +44,11 @@ enum DiagnosticCode: String, Codable, CaseIterable, Sendable {
     case practiceHistoryLoadFailed = "PRACTICE_HISTORY_LOAD_FAILED"
     case libraryPracticeHistoryLoadFailed = "LIBRARY_PRACTICE_HISTORY_LOAD_FAILED"
     case libraryImportRecoveryBlocked = "LIBRARY_IMPORT_RECOVERY_BLOCKED"
+    case libraryImportRecoveryAction = "LIBRARY_IMPORT_RECOVERY_ACTION"
+    case libraryImportStage = "LIBRARY_IMPORT_STAGE"
     case libraryImportCleanupFailed = "LIBRARY_IMPORT_CLEANUP_FAILED"
     case libraryImportConflictAmbiguous = "LIBRARY_IMPORT_CONFLICT_AMBIGUOUS"
+    case practiceHistoryResolution = "PRACTICE_HISTORY_RESOLUTION"
     case practiceScoreMetadataWriteFailed = "PRACTICE_SCORE_METADATA_WRITE_FAILED"
     case diagnosticsStoreWriteFailed = "DIAGNOSTICS_STORE_WRITE_FAILED"
     case diagnosticsRetentionCleanupFailed = "DIAGNOSTICS_RETENTION_CLEANUP_FAILED"
@@ -96,6 +99,11 @@ struct DiagnosticEvent: Codable, Equatable, Sendable, Identifiable {
     let reason: String
     let songID: UUID?
     let scoreRevision: String?
+    let operationID: UUID?
+    let safeFileName: String?
+    let transactionKind: String?
+    let transactionPhase: String?
+    let scoreFileVersionID: UUID?
     let file: DiagnosticFileReference?
     let sourceLocation: DiagnosticSourceLocation?
     let persistence: DiagnosticPersistence
@@ -111,6 +119,11 @@ struct DiagnosticEvent: Codable, Equatable, Sendable, Identifiable {
         reason: String,
         songID: UUID? = nil,
         scoreRevision: String? = nil,
+        operationID: UUID? = nil,
+        safeFileName: String? = nil,
+        transactionKind: String? = nil,
+        transactionPhase: String? = nil,
+        scoreFileVersionID: UUID? = nil,
         file: DiagnosticFileReference? = nil,
         sourceLocation: DiagnosticSourceLocation? = nil,
         persistence: DiagnosticPersistence
@@ -125,6 +138,13 @@ struct DiagnosticEvent: Codable, Equatable, Sendable, Identifiable {
         self.reason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
         self.songID = songID
         self.scoreRevision = scoreRevision?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        self.operationID = operationID
+        self.safeFileName = safeFileName.flatMap {
+            URL(fileURLWithPath: $0).lastPathComponent == $0 ? $0 : nil
+        }
+        self.transactionKind = transactionKind?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        self.transactionPhase = transactionPhase?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        self.scoreFileVersionID = scoreFileVersionID
         self.file = file
         self.sourceLocation = sourceLocation
         self.persistence = persistence
@@ -145,6 +165,21 @@ struct DiagnosticEvent: Codable, Equatable, Sendable, Identifiable {
         }
         if let scoreRevision {
             lines.append("scoreRevision: \(scoreRevision)")
+        }
+        if let operationID {
+            lines.append("operationID: \(operationID.uuidString)")
+        }
+        if let safeFileName {
+            lines.append("safeFileName: \(safeFileName)")
+        }
+        if let transactionKind {
+            lines.append("transactionKind: \(transactionKind)")
+        }
+        if let transactionPhase {
+            lines.append("transactionPhase: \(transactionPhase)")
+        }
+        if let scoreFileVersionID {
+            lines.append("scoreFileVersionID: \(scoreFileVersionID.uuidString)")
         }
         if let file {
             lines.append("file: \(file.fileName)")

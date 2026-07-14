@@ -28,6 +28,7 @@ enum SongLibraryImportTransactionModelError: Error, Equatable {
     case invalidFingerprint
     case invalidSafeFileName
     case unresolvedJournalPhase
+    case inconsistentResolvedIdentity
 }
 
 struct TransactionFileFingerprint: Codable, Equatable, Sendable {
@@ -129,6 +130,15 @@ struct SongLibraryImportJournal: Codable, Equatable, Sendable {
                   expectsBackup == (backupFingerprint != nil)
             else {
                 throw SongLibraryImportTransactionModelError.unresolvedJournalPhase
+            }
+            guard let newEntry,
+                  SongLibraryFileNameIdentity.isExact(
+                    newEntry.musicXMLFileName,
+                    safeFileName
+                  ),
+                  expectedEntry.map({ $0.songID == newEntry.songID }) ?? true
+            else {
+                throw SongLibraryImportTransactionModelError.inconsistentResolvedIdentity
             }
         }
         self.operationID = operationID

@@ -401,6 +401,146 @@ func indexAppendFailureRollsTargetBackAndLeavesOldLibraryUnchanged() async throw
 }
 
 @Test
+func newImportFinishesWhenIndexAppendPersistsThenThrows() async throws {
+    let indexStore = PersistThenThrowImportIndexStore(index: .empty)
+    let fixture = try ImportTransactionFixture(indexStore: indexStore)
+    defer { fixture.remove() }
+    let source = try fixture.makeSource(name: "post-commit.musicxml", contents: "new")
+    let staged = await fixture.service.stageImports(from: [source])
+    guard case let .staged(descriptor)? = staged.items.first else {
+        Issue.record("Expected staged import")
+        return
+    }
+
+    guard case let .committed(index, entry) = await fixture.service.process(operationID: descriptor.id) else {
+        Issue.record("Expected persisted append to finish as committed")
+        return
+    }
+    #expect(index.entries == [entry])
+    #expect(await indexStore.load().entries == [entry])
+    #expect(
+        try Data(contentsOf: fixture.paths.scoreFileURL(safeFileName: "post-commit.musicxml"))
+            == Data("new".utf8)
+    )
+}
+
+@Test
+func indexedReplacementFinishesWhenIndexReplacePersistsThenThrows() async throws {
+    let existing = makeImportEntry(fileName: "post-replace.musicxml")
+    let indexStore = PersistThenThrowImportIndexStore(index: SongLibraryIndex(entries: [existing]))
+    let fixture = try ImportTransactionFixture(indexStore: indexStore)
+    defer { fixture.remove() }
+    try fixture.paths.ensureDirectoriesExist()
+    let target = try fixture.paths.scoreFileURL(safeFileName: existing.musicXMLFileName)
+    try Data("old".utf8).write(to: target)
+    let source = try fixture.makeSource(name: existing.musicXMLFileName, contents: "new")
+    let staged = await fixture.service.stageImports(from: [source])
+    guard case let .staged(descriptor)? = staged.items.first,
+          case .requiresConfirmation = await fixture.service.process(operationID: descriptor.id)
+    else {
+        Issue.record("Expected indexed replacement confirmation")
+        return
+    }
+
+    guard case let .committed(index, entry) = await fixture.service.confirm(operationID: descriptor.id) else {
+        Issue.record("Expected persisted replacement to finish as committed")
+        return
+    }
+    #expect(entry.id == existing.id)
+    #expect(entry.scoreFileVersionID != existing.scoreFileVersionID)
+    #expect(index.entries == [entry])
+    #expect(await indexStore.load().entries == [entry])
+    #expect(try Data(contentsOf: target) == Data("new".utf8))
+}
+
+@Test
+func orphanAdoptionFinishesWhenIndexAppendPersistsThenThrows() async throws {
+    let indexStore = PersistThenThrowImportIndexStore(index: .empty)
+    let fixture = try ImportTransactionFixture(indexStore: indexStore)
+    defer { fixture.remove() }
+    try fixture.paths.ensureDirectoriesExist()
+    let target = try fixture.paths.scoreFileURL(safeFileName: "post-orphan.musicxml")
+    try Data("old".utf8).write(to: target)
+    let source = try fixture.makeSource(name: "post-orphan.musicxml", contents: "new")
+    let staged = await fixture.service.stageImports(from: [source])
+    guard case let .staged(descriptor)? = staged.items.first,
+          case .requiresConfirmation = await fixture.service.process(operationID: descriptor.id)
+    else {
+        Issue.record("Expected orphan adoption confirmation")
+        return
+    }
+
+    guard case let .committed(index, entry) = await fixture.service.confirm(operationID: descriptor.id) else {
+        Issue.record("Expected persisted orphan append to finish as committed")
+        return
+    }
+    #expect(index.entries == [entry])
+    #expect(await indexStore.load().entries == [entry])
+    #expect(try Data(contentsOf: target) == Data("new".utf8))
+}
+
+@Test(arguments: PersistedTargetTamperScenario.allCases)
+func postCommitTargetTamperBlocksAndPreservesRecoveryEvidence(
+    _ scenario: PersistedTargetTamperScenario
+) async throws {
+    let fileName = "tampered-(scenario.rawValue).musicxml"
+    let existing = makeImportEntry(fileName: fileName)
+    let initialIndex = scenario == .indexedReplacement
+        ? SongLibraryIndex(entries: [existing])
+        : .empty
+    let indexStore = PersistThenThrowImportIndexStore(index: initialIndex)
+    let fixture = try ImportTransactionFixture(indexStore: indexStore)
+    defer { fixture.remove() }
+    try fixture.paths.ensureDirectoriesExist()
+    let target = try fixture.paths.scoreFileURL(safeFileName: fileName)
+    if scenario != .newImport {
+        try Data("old".utf8).write(to: target)
+    }
+    await indexStore.setAfterMutation {
+        try? Data("external".utf8).write(to: target)
+    }
+    let source = try fixture.makeSource(name: fileName, contents: "new")
+    let staged = await fixture.service.stageImports(from: [source])
+    guard case let .staged(descriptor)? = staged.items.first else {
+        Issue.record("Expected staged import")
+        return
+    }
+
+    let result: SongLibraryImportProcessResult
+    if scenario == .newImport {
+        result = await fixture.service.process(operationID: descriptor.id)
+    } else {
+        guard case .requiresConfirmation = await fixture.service.process(operationID: descriptor.id) else {
+            Issue.record("Expected conflict confirmation")
+            return
+        }
+        result = await fixture.service.confirm(operationID: descriptor.id)
+    }
+
+    guard case .blocked = result else {
+        Issue.record("Expected post-commit target tamper to block")
+        return
+    }
+    #expect(try Data(contentsOf: target) == Data("external".utf8))
+    #expect(
+        FileManager.default.fileExists(
+            atPath: try fixture.paths.transactionJournalFileURL(operationID: descriptor.id)
+                .path(percentEncoded: false)
+        )
+    )
+    if scenario != .newImport {
+        #expect(
+            FileManager.default.fileExists(
+                atPath: try fixture.paths.transactionBackupFileURL(
+                    operationID: descriptor.id,
+                    safeFileName: fileName
+                ).path(percentEncoded: false)
+            )
+        )
+    }
+}
+
+@Test
 func bootstrapRecoveryRollsForwardStagedNewImportAndCommitsIndex() async throws {
     let fixture = try ImportTransactionFixture()
     defer { fixture.remove() }
@@ -954,6 +1094,78 @@ private actor FailingImportIndexStore: SongLibraryImportIndexStoreProtocol {
         expectedCurrentFileName _: String?,
         newFileName _: String?
     ) -> SongLibraryEntryMutationResult { .notFound(index: .empty) }
+}
+
+private actor PersistThenThrowImportIndexStore: SongLibraryImportIndexStoreProtocol {
+    private var index: SongLibraryIndex
+    private var afterMutation: @Sendable () -> Void = {}
+
+    init(index: SongLibraryIndex) {
+        self.index = index
+    }
+
+    func load() -> SongLibraryIndex { index }
+
+    func setAfterMutation(_ action: @escaping @Sendable () -> Void) {
+        afterMutation = action
+    }
+
+    func setLastSelectedEntryID(_ entryID: UUID?) -> SongLibraryIndex {
+        index.lastSelectedEntryID = entryID
+        return index
+    }
+
+    func appendUserEntry(_ entry: SongLibraryEntry) throws -> SongLibraryIndex {
+        index.entries.append(entry)
+        afterMutation()
+        throw CocoaError(.fileWriteUnknown)
+    }
+
+    func replaceUserScore(
+        expectedSongID: UUID,
+        expectedScoreFileVersionID: UUID?,
+        expectedMusicXMLFileName: String,
+        with replacement: SongLibraryScoreReplacement
+    ) throws -> SongLibraryScoreReplacementResult {
+        let matchingIndices = index.entries.indices.filter {
+            index.entries[$0].id == expectedSongID && index.entries[$0].isBundled != true
+        }
+        guard matchingIndices.count == 1,
+              let entryIndex = matchingIndices.first,
+              index.entries[entryIndex].scoreFileVersionID == expectedScoreFileVersionID,
+              SongLibraryFileNameIdentity.isExact(
+                  index.entries[entryIndex].musicXMLFileName,
+                  expectedMusicXMLFileName
+              )
+        else {
+            return .conflict(
+                index: index,
+                matchingEntries: matchingIndices.map { index.entries[$0] }
+            )
+        }
+        index.entries[entryIndex].musicXMLFileName = replacement.musicXMLFileName
+        index.entries[entryIndex].importedAt = replacement.importedAt
+        index.entries[entryIndex].scoreFileVersionID = replacement.scoreFileVersionID
+        afterMutation()
+        throw CocoaError(.fileWriteUnknown)
+    }
+
+    func removeUserEntry(
+        id _: UUID,
+        fallbackLastSelectedEntryID _: UUID?
+    ) -> SongLibraryEntryMutationResult { .notFound(index: index) }
+
+    func updateAudioFileName(
+        entryID _: UUID,
+        expectedCurrentFileName _: String?,
+        newFileName _: String?
+    ) -> SongLibraryEntryMutationResult { .notFound(index: index) }
+}
+
+enum PersistedTargetTamperScenario: String, CaseIterable, Sendable {
+    case newImport
+    case indexedReplacement
+    case orphanAdoption
 }
 
 private actor RacingImportIndexStore: SongLibraryImportIndexStoreProtocol {

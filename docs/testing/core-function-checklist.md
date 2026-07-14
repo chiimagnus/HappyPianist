@@ -265,7 +265,7 @@ xcodebuild test \
 - [ ] 取消整批或关闭 Library 后，已提交项保留，当前与剩余 staged operation 被清理
 - [ ] App 重启后 preparing、staged、backup moved、target installed、index committed 均幂等恢复或明确阻塞
 - [ ] 磁盘/权限失败及外部同名文件篡改不会删除非事务文件，也不会发布 dangling index
-- [ ] journal 与可导出 diagnostics 不含 source URL、Documents 绝对路径、XML 内容或文件指纹
+- [ ] journal 不含 source URL、Documents 绝对路径或 XML 内容，只保存恢复必需的 byte-count/SHA-256；可导出 diagnostics 还不得包含任何文件指纹
 
 ### 删除
 

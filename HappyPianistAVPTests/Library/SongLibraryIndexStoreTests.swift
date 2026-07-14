@@ -346,6 +346,32 @@ func corruptedSongLibraryIndexIsPreservedAndBlocksEveryMutation() async throws {
     #expect(try Data(contentsOf: indexFileURL) == corruptedData)
 }
 
+@Test
+func symbolicLinkIndexIsPreservedAndBlocksLoadAndMutation() async throws {
+    let fixture = try SongLibraryIndexStoreFixture()
+    defer { fixture.remove() }
+    try FileManager.default.createDirectory(
+        at: fixture.indexFileURL.deletingLastPathComponent(),
+        withIntermediateDirectories: true
+    )
+    let externalURL = fixture.documentsURL.appending(path: "external-index.json")
+    let externalData = try JSONEncoder().encode(SongLibraryIndex.empty)
+    try externalData.write(to: externalURL)
+    try FileManager.default.createSymbolicLink(
+        at: fixture.indexFileURL,
+        withDestinationURL: externalURL
+    )
+
+    await #expect(throws: SongLibraryIndexStoreError.corrupted) {
+        _ = try await fixture.store.load()
+    }
+    await #expect(throws: SongLibraryIndexStoreError.corrupted) {
+        _ = try await fixture.store.appendUserEntry(makeEntry(name: "blocked"))
+    }
+    #expect(try fixture.indexFileURL.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink == true)
+    #expect(try Data(contentsOf: externalURL) == externalData)
+}
+
 private func makeEntry(name: String) -> SongLibraryEntry {
     SongLibraryEntry(
         id: UUID(),
