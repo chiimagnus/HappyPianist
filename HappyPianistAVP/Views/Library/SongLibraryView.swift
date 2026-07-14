@@ -8,7 +8,6 @@ struct SongLibraryView: View {
   let onStartPractice: @MainActor () -> Void
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
-  @State private var selectedEntryID: UUID?
   @State private var isAudioImporterPresented = false
   @State private var pendingAudioBindingEntryID: UUID?
   @State private var pendingDeletionEntryID: UUID?
@@ -24,7 +23,7 @@ struct SongLibraryView: View {
 
   var body: some View {
     let entries = viewModel.entries
-    let selectedIndex = entries.firstIndex(where: { $0.id == selectedEntryID })
+    let selectedIndex = entries.firstIndex(where: { $0.id == viewModel.selectedEntryID })
     let selectedEntry = selectedIndex.map { entries[$0] }
     let selectedPresentation = selectedIndex.map {
       SongLibraryTrackPresentation(entry: entries[$0], index: $0)
@@ -71,11 +70,11 @@ struct SongLibraryView: View {
       } else if let selectedEntry, let selectedPresentation {
         LibraryCrateView(
           entries: entries,
-          selectedEntryID: $selectedEntryID,
+          selectedEntryID: viewModel.selectedEntryID,
           playingEntryID: viewModel.currentListeningEntryID,
           isPlaying: selectedIsPlaying,
           reduceMotion: reduceMotion,
-          onSelectionChanged: didSelectEntry,
+          onSelectEntry: viewModel.selectEntry,
           onTogglePlayback: togglePlayback,
           onImportMusicXML: viewModel.didTapImportMusicXML,
           onBindAudio: presentAudioImporter,
@@ -143,21 +142,17 @@ struct SongLibraryView: View {
     )
     .task {
       await viewModel.loadLibraryIfNeeded()
-      synchronizeSelection()
       await viewModel.reloadPracticeProgress()
-      if let selectedEntryID {
-        viewModel.selectEntryForPractice(selectedEntryID)
-      }
-    }
-    .onChange(of: viewModel.entries) {
-      synchronizeSelection()
-      if let selectedEntryID {
-        viewModel.selectEntryForPractice(selectedEntryID)
+      if let selectedEntryID = viewModel.selectedEntryID {
+        viewModel.selectEntry(selectedEntryID)
       }
     }
     .onDisappear {
       viewModel.stopListening()
       viewModel.cancelPracticePreparation()
+      Task { @MainActor in
+        await viewModel.flushPendingSelectionPersistence()
+      }
     }
     .alert(
       "提示",
@@ -226,34 +221,8 @@ struct SongLibraryView: View {
     return isPlaying ? "pause.fill" : "play.fill"
   }
 
-  private func synchronizeSelection() {
-    let entries = viewModel.entries
-    guard entries.isEmpty == false else {
-      selectedEntryID = nil
-      return
-    }
-
-    if let selectedEntryID, entries.contains(where: { $0.id == selectedEntryID }) {
-      return
-    }
-
-    selectedEntryID =
-      viewModel.index.lastSelectedEntryID.flatMap { preferredID in
-        entries.first(where: { $0.id == preferredID })?.id
-      } ?? entries.first?.id
-  }
-
-  private func didSelectEntry(_ entryID: UUID) {
-    if let currentListeningEntryID = viewModel.currentListeningEntryID,
-      currentListeningEntryID != entryID
-    {
-      viewModel.stopListening()
-    }
-    viewModel.selectEntryForPractice(entryID)
-  }
-
   private func toggleSelectedPlayback() {
-    guard let selectedEntryID else { return }
+    guard let selectedEntryID = viewModel.selectedEntryID else { return }
     togglePlayback(selectedEntryID)
   }
 
@@ -311,7 +280,6 @@ struct SongLibraryView: View {
     Task { @MainActor in
       await viewModel.deleteEntry(entryID: entryID)
       pendingDeletionEntryID = nil
-      synchronizeSelection()
     }
   }
 }

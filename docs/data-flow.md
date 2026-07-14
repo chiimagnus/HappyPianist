@@ -79,10 +79,10 @@ LibraryWindowView / SongLibraryView
 
 ```text
 选择唱片
--> 立即更新唱片、曲名和当前 Ornament loading
--> 取消旧 settle / preparation generation
--> 等待选择稳定 200 ms
--> SongLibraryIndexStore actor 保存最终 lastSelectedEntryID
+-> SongLibraryViewModel 立即发布唯一 selectedEntryID
+-> 独立 debounce 唤醒单写者 drain loop
+-> SongLibraryIndexStore actor 保存最新 desired lastSelectedEntryID
+-> preparation 使用另一套 settle / generation，只准备最终曲目
 -> PracticePreparationService 只准备最终曲目
 -> 右侧 Ornament 显示系统骨架占位
 -> 准备并恢复精确 song UUID + revision 的进度
@@ -92,7 +92,7 @@ LibraryWindowView / SongLibraryView
 -> 打开 practice window
 ```
 
-200 ms 内的连续切换不会写入中间选择或启动中间曲目的 preparation。切换唱片会丢弃尚未开始的草稿设置；重新选回曲目时从持久化进度或整首、双手、100%、不循环的默认值重建。曲库主内容保留曲名、作曲家与试听控件，练习信息只在 trailing Ornament 中呈现。
+SwiftUI View 与 `LibraryCrateView` 不保存第二份 selection；点击、拖动、上一首/下一首和 VoiceOver adjustable action 都只发送 `selectEntry` intent。持久化 worker 同时最多执行一个 mutation，旧写返回后会继续 drain 最新 desired selection；窗口消失时显式 flush。切换唱片会丢弃尚未开始的草稿设置；重新选回曲目时从持久化进度或整首、双手、100%、不循环的默认值重建。
 
 ## 本轮配置与 active range
 

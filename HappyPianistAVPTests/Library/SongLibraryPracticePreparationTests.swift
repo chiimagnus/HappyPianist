@@ -100,9 +100,9 @@ func latestPreparationGenerationWins() async throws {
         selectionSettleDelay: .zero
     )
 
-    viewModel.selectEntryForPractice(firstID)
+    viewModel.selectEntry(firstID)
     try await Task.sleep(for: .milliseconds(10))
-    viewModel.selectEntryForPractice(secondID)
+    viewModel.selectEntry(secondID)
     try await waitForPreparation(viewModel, entryID: secondID)
 
     #expect(viewModel.practicePreparationState == .ready(
@@ -141,11 +141,11 @@ func rapidSelectionOnlyPersistsAndPreparesTheSettledEntry() async throws {
         settleDelay: .milliseconds(40)
     )
 
-    viewModel.selectEntryForPractice(entries[0].id)
+    viewModel.selectEntry(entries[0].id)
     await Task.yield()
-    viewModel.selectEntryForPractice(entries[1].id)
+    viewModel.selectEntry(entries[1].id)
     await Task.yield()
-    viewModel.selectEntryForPractice(entries[2].id)
+    viewModel.selectEntry(entries[2].id)
     try await waitForPreparation(viewModel, entryID: entries[2].id)
 
     let persistedEntryIDs = await indexStore.persistedEntryIDs
@@ -180,7 +180,7 @@ func selectionPersistenceFailureDoesNotBlockPreparation() async throws {
         settleDelay: .zero
     )
 
-    viewModel.selectEntryForPractice(entry.id)
+    viewModel.selectEntry(entry.id)
     try await waitForPreparation(viewModel, entryID: entry.id)
 
     let preparedEntryIDs = await service.requests()
@@ -190,7 +190,7 @@ func selectionPersistenceFailureDoesNotBlockPreparation() async throws {
 
 @Test
 @MainActor
-func cancellingSelectionDuringSettleLeavesNoSideEffects() async throws {
+func cancellingPreparationDoesNotCancelSelectionPersistence() async throws {
     let url = FileManager.default.temporaryDirectory.appending(
         path: "cancelled-selection-\(UUID().uuidString).musicxml"
     )
@@ -215,16 +215,17 @@ func cancellingSelectionDuringSettleLeavesNoSideEffects() async throws {
         settleDelay: .milliseconds(40)
     )
 
-    viewModel.selectEntryForPractice(entry.id)
+    viewModel.selectEntry(entry.id)
     await Task.yield()
     viewModel.cancelPracticePreparation()
     try await Task.sleep(for: .milliseconds(60))
 
     let persistedEntryIDs = await indexStore.persistedEntryIDs
     let preparedEntryIDs = await service.requests()
-    #expect(persistedEntryIDs.isEmpty)
+    #expect(persistedEntryIDs == [entry.id])
     #expect(preparedEntryIDs.isEmpty)
     #expect(viewModel.practicePreparationState == .idle)
+    #expect(viewModel.selectedEntryID == entry.id)
 }
 
 
@@ -263,7 +264,7 @@ func preparationWithoutMeasureSpansIsRejectedAtTheLibraryBoundary() async throws
         selectionSettleDelay: .zero
     )
 
-    viewModel.selectEntryForPractice(entryID)
+    viewModel.selectEntry(entryID)
     try await waitForPreparationFailure(viewModel, entryID: entryID)
 
     guard case let .failure(failure) = viewModel.practicePreparationState else {
@@ -381,7 +382,8 @@ private func makeSelectionViewModel(
         practiceProgressRepository: PreparationTestProgressRepository(),
         diagnosticsReporter: InMemoryDiagnosticsReporter(),
         initialSnapshot: .loaded(index: .empty, bundledEntries: entries),
-        selectionSettleDelay: settleDelay
+        selectionSettleDelay: settleDelay,
+        selectionPersistenceDelay: settleDelay
     )
 }
 
@@ -578,7 +580,7 @@ private actor FailingLibraryPreparationService: PracticePreparationServiceProtoc
 func preparationFailureUsesOneTypedEventAndReportsExportAcceptance() async throws {
     let fixture = makeFailurePreparationFixture(persistResult: true)
 
-    fixture.viewModel.selectEntryForPractice(fixture.entryID)
+    fixture.viewModel.selectEntry(fixture.entryID)
     let firstFailure = try await waitForLoggedPreparationFailure(fixture.viewModel)
     let firstEvents = await fixture.reporter.events
 
@@ -602,7 +604,7 @@ func preparationFailureUsesOneTypedEventAndReportsExportAcceptance() async throw
 func preparationFailureDoesNotClaimExportWhenStoreRejectsEvent() async throws {
     let fixture = makeFailurePreparationFixture(persistResult: false)
 
-    fixture.viewModel.selectEntryForPractice(fixture.entryID)
+    fixture.viewModel.selectEntry(fixture.entryID)
     _ = try await waitForPreparationFailure(fixture.viewModel, entryID: fixture.entryID)
     try await waitForDiagnosticEventCount(fixture.reporter, count: 1)
 
@@ -718,7 +720,7 @@ func directPracticeLaunchPreservesSavedResumeWhenSettingsAreUnchanged() async th
     )
     let fixture = makeDirectLaunchFixture(songID: songID, progress: progress)
 
-    fixture.viewModel.selectEntryForPractice(songID)
+    fixture.viewModel.selectEntry(songID)
     try await waitForPreparation(fixture.viewModel, entryID: songID)
 
     #expect(fixture.session.currentStepIndex == 1)
@@ -734,7 +736,7 @@ func directPracticeLaunchAppliesEditedPendingConfiguration() async throws {
     let songID = UUID()
     let fixture = makeDirectLaunchFixture(songID: songID, progress: nil)
 
-    fixture.viewModel.selectEntryForPractice(songID)
+    fixture.viewModel.selectEntry(songID)
     try await waitForPreparation(fixture.viewModel, entryID: songID)
     let secondSpan = try #require(fixture.session.measureSpans.last)
     let passage = try #require(

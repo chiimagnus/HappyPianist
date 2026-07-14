@@ -70,10 +70,13 @@ func batchImportKeepsSuccessfulEntriesVisibleWhenLaterPersistenceFails() async {
         URL(fileURLWithPath: "/tmp/first.musicxml"),
         URL(fileURLWithPath: "/tmp/second.musicxml"),
     ])
+    await viewModel.flushPendingSelectionPersistence()
 
     #expect(viewModel.index.entries.map(\.displayName) == ["first"])
+    #expect(viewModel.selectedEntryID == viewModel.index.entries.first?.id)
     let storedIndex = await indexStore.index
     #expect(storedIndex.entries.map(\.displayName) == ["first"])
+    #expect(storedIndex.lastSelectedEntryID == storedIndex.entries.first?.id)
     #expect(fileStore.deletedScoreNames == ["second.musicxml"])
     #expect(viewModel.errorMessage != nil)
 }

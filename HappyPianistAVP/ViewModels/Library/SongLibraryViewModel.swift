@@ -17,9 +17,19 @@ final class SongLibraryViewModel {
     private let diagnosticsReporter: any DiagnosticsReporting
     private let selectionSettleSleeper: any SleeperProtocol
     private let selectionSettleDelay: Duration
+    private let selectionPersistenceSleeper: any SleeperProtocol
+    private let selectionPersistenceDelay: Duration
     @ObservationIgnored private var playbackProgressTask: Task<Void, Never>?
     @ObservationIgnored private var practicePreparationTask: Task<Void, Never>?
     @ObservationIgnored private var practicePreparationGeneration = 0
+    @ObservationIgnored private var selectionPersistenceDebounceTask: Task<Void, Never>?
+    @ObservationIgnored private var selectionPersistenceWorker: Task<Void, Never>?
+    @ObservationIgnored private var selectionPersistenceRevision = 0
+    @ObservationIgnored private var selectionPersistenceReadyRevision = 0
+    @ObservationIgnored private var selectionPersistenceFailedRevision: Int?
+    @ObservationIgnored private var selectionPersistenceNeedsDrain = false
+    private var desiredPersistedSelection: UUID?
+    private var persistedSelection: UUID?
     private var recordedPreparationFailureID: UUID?
 
     static let supportedAudioFileExtensions = ["mp3", "m4a"]
@@ -36,7 +46,7 @@ final class SongLibraryViewModel {
     var listeningDuration: TimeInterval = 0
     var isMusicXMLImporterPresented = false
     var practicePreparationState: LibraryPracticePreparationState = .idle
-    var selectedPracticeEntryID: UUID?
+    private(set) var selectedEntryID: UUID?
     var practiceProgressBySongID: [UUID: SongPracticeProgress] = [:]
 
     var isPreparingPractice: Bool {
@@ -48,7 +58,7 @@ final class SongLibraryViewModel {
 
     var isSelectedPracticeReady: Bool {
         guard case let .ready(entryID, _) = practicePreparationState else { return false }
-        return entryID == selectedPracticeEntryID
+        return entryID == selectedEntryID
     }
 
     var wasSelectedPreparationFailureRecorded: Bool {
@@ -69,7 +79,9 @@ final class SongLibraryViewModel {
         bootstrapLoader: (any SongLibraryBootstrapLoading)? = nil,
         initialSnapshot: SongLibraryBootstrapSnapshot? = nil,
         selectionSettleSleeper: any SleeperProtocol = TaskSleeper(),
-        selectionSettleDelay: Duration = .milliseconds(200)
+        selectionSettleDelay: Duration = .milliseconds(200),
+        selectionPersistenceSleeper: any SleeperProtocol = TaskSleeper(),
+        selectionPersistenceDelay: Duration = .milliseconds(200)
     ) {
         self.arGuideViewModel = arGuideViewModel
         self.practicePreparationService = practicePreparationService
@@ -82,6 +94,8 @@ final class SongLibraryViewModel {
         self.diagnosticsReporter = diagnosticsReporter
         self.selectionSettleSleeper = selectionSettleSleeper
         self.selectionSettleDelay = selectionSettleDelay
+        self.selectionPersistenceSleeper = selectionPersistenceSleeper
+        self.selectionPersistenceDelay = selectionPersistenceDelay
         switch initialSnapshot {
         case let .loaded(initialIndex, initialBundledEntries):
             index = initialIndex
@@ -94,6 +108,9 @@ final class SongLibraryViewModel {
             bundledEntries = []
         }
         audioPlaybackController = SongAudioPlaybackStateController(player: audioPlayer)
+        if hasLoadedLibrary {
+            installBootstrapSelection()
+        }
 
         audioPlaybackController.onStateChanged = { [weak self] _ in
             guard let self else { return }
@@ -125,6 +142,7 @@ final class SongLibraryViewModel {
             bundledEntries = loadedBundledEntries
             bootstrapFailureMessage = nil
             hasLoadedLibrary = true
+            installBootstrapSelection()
         case let .blocked(failure):
             bootstrapFailureMessage = failure.message
         }
@@ -134,8 +152,122 @@ final class SongLibraryViewModel {
     func reload() async {
         do {
             index = try await indexStore.load()
+            installBootstrapSelection()
         } catch {
             errorMessage = "加载乐曲库失败：\(error.localizedDescription)"
+        }
+    }
+
+    func flushPendingSelectionPersistence() async {
+        selectionPersistenceDebounceTask?.cancel()
+        selectionPersistenceDebounceTask = nil
+        selectionPersistenceReadyRevision = selectionPersistenceRevision
+        selectionPersistenceFailedRevision = nil
+
+        while selectionPersistenceNeedsDrain {
+            startSelectionPersistenceWorkerIfNeeded()
+            guard let worker = selectionPersistenceWorker else { return }
+            await worker.value
+            if selectionPersistenceFailedRevision == selectionPersistenceRevision {
+                return
+            }
+        }
+    }
+
+    private func installBootstrapSelection() {
+        let availableEntries = entries
+        let resolvedSelection = index.lastSelectedEntryID.flatMap { preferredID in
+            availableEntries.contains(where: { $0.id == preferredID }) ? preferredID : nil
+        } ?? availableEntries.first?.id
+
+        selectionPersistenceDebounceTask?.cancel()
+        selectionPersistenceDebounceTask = nil
+        selectionPersistenceRevision += 1
+        selectionPersistenceReadyRevision = selectionPersistenceRevision
+        selectionPersistenceFailedRevision = nil
+        selectedEntryID = resolvedSelection
+        persistedSelection = index.lastSelectedEntryID
+        desiredPersistedSelection = resolvedSelection
+        selectionPersistenceNeedsDrain = resolvedSelection != index.lastSelectedEntryID
+        if selectionPersistenceNeedsDrain {
+            requestSelectionPersistence(resolvedSelection)
+        }
+    }
+
+    private func adoptPersistedSelection(_ entryID: UUID?) {
+        selectionPersistenceDebounceTask?.cancel()
+        selectionPersistenceDebounceTask = nil
+        selectionPersistenceRevision += 1
+        selectionPersistenceReadyRevision = selectionPersistenceRevision
+        selectionPersistenceFailedRevision = nil
+        selectedEntryID = entryID
+        persistedSelection = entryID
+        desiredPersistedSelection = entryID
+        selectionPersistenceNeedsDrain = false
+    }
+
+    private func requestSelectionPersistence(_ entryID: UUID?) {
+        desiredPersistedSelection = entryID
+        selectionPersistenceRevision += 1
+        selectionPersistenceNeedsDrain = persistedSelection != entryID
+        selectionPersistenceFailedRevision = nil
+        let revision = selectionPersistenceRevision
+
+        selectionPersistenceDebounceTask?.cancel()
+        guard selectionPersistenceNeedsDrain else {
+            selectionPersistenceDebounceTask = nil
+            return
+        }
+        selectionPersistenceDebounceTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                try await selectionPersistenceSleeper.sleep(for: selectionPersistenceDelay)
+                try Task.checkCancellation()
+            } catch {
+                return
+            }
+            guard revision == selectionPersistenceRevision else { return }
+            selectionPersistenceReadyRevision = revision
+            selectionPersistenceDebounceTask = nil
+            startSelectionPersistenceWorkerIfNeeded()
+        }
+    }
+
+    private func startSelectionPersistenceWorkerIfNeeded() {
+        guard selectionPersistenceWorker == nil,
+              selectionPersistenceNeedsDrain,
+              selectionPersistenceReadyRevision == selectionPersistenceRevision
+        else { return }
+
+        selectionPersistenceWorker = Task { @MainActor [weak self] in
+            await self?.drainSelectionPersistence()
+        }
+    }
+
+    private func drainSelectionPersistence() async {
+        while selectionPersistenceNeedsDrain,
+              selectionPersistenceReadyRevision == selectionPersistenceRevision
+        {
+            let revision = selectionPersistenceRevision
+            let target = desiredPersistedSelection
+            do {
+                let updatedIndex = try await indexStore.setLastSelectedEntryID(target)
+                if revision == selectionPersistenceRevision {
+                    persistedSelection = target
+                    index = updatedIndex
+                }
+                selectionPersistenceNeedsDrain = desiredPersistedSelection != persistedSelection
+            } catch {
+                selectionPersistenceNeedsDrain = true
+                selectionPersistenceFailedRevision = revision
+                errorMessage = "保存曲库选择失败：\(error.localizedDescription)"
+                break
+            }
+        }
+
+        selectionPersistenceWorker = nil
+        if selectionPersistenceFailedRevision == nil {
+            startSelectionPersistenceWorkerIfNeeded()
         }
     }
 
@@ -162,7 +294,7 @@ final class SongLibraryViewModel {
 
     var selectedPracticePresentation: LibraryPracticePanelPresentation? {
         guard case let .ready(entryID, identity) = practicePreparationState,
-              entryID == selectedPracticeEntryID,
+              entryID == selectedEntryID,
               let session = currentPreparedPracticeSession,
               let configuration = session.roundConfigurationController.pendingConfiguration
         else { return nil }
@@ -189,7 +321,7 @@ final class SongLibraryViewModel {
     private var currentPreparedPracticeSession: PracticeSessionViewModel? {
         let session = arGuideViewModel.practiceSessionViewModel
         guard case let .ready(entryID, identity) = practicePreparationState,
-              entryID == selectedPracticeEntryID,
+              entryID == selectedEntryID,
               session.songIdentity == identity
         else { return nil }
         return session
@@ -236,6 +368,10 @@ final class SongLibraryViewModel {
 
                 do {
                     index = try await indexStore.appendUserEntry(entry)
+                    if selectedEntryID == nil {
+                        selectedEntryID = entry.id
+                        requestSelectionPersistence(entry.id)
+                    }
                 } catch {
                     try? fileStore.deleteScoreFile(named: imported.storedFileName)
                     throw error
@@ -246,12 +382,18 @@ final class SongLibraryViewModel {
         }
     }
 
-    func selectEntryForPractice(_ entryID: UUID) {
+    func selectEntry(_ entryID: UUID) {
         guard entries.contains(where: { $0.id == entryID }) else {
             cancelPracticePreparation()
             return
         }
-        if selectedPracticeEntryID == entryID {
+        if selectedEntryID != entryID {
+            if currentListeningEntryID != nil {
+                stopListening()
+            }
+            selectedEntryID = entryID
+            requestSelectionPersistence(entryID)
+        } else {
             switch practicePreparationState {
             case .loading, .ready:
                 return
@@ -263,15 +405,14 @@ final class SongLibraryViewModel {
     }
 
     func retrySelectedPracticePreparation() {
-        guard let selectedPracticeEntryID else { return }
-        beginPracticePreparation(entryID: selectedPracticeEntryID)
+        guard let selectedEntryID else { return }
+        beginPracticePreparation(entryID: selectedEntryID)
     }
 
     func cancelPracticePreparation() {
         practicePreparationTask?.cancel()
         practicePreparationTask = nil
         practicePreparationGeneration += 1
-        selectedPracticeEntryID = nil
         recordedPreparationFailureID = nil
         practicePreparationState = .idle
     }
@@ -280,7 +421,6 @@ final class SongLibraryViewModel {
         practicePreparationTask?.cancel()
         practicePreparationGeneration += 1
         let generation = practicePreparationGeneration
-        selectedPracticeEntryID = entryID
         recordedPreparationFailureID = nil
         practicePreparationState = .loading(entryID: entryID)
         practicePreparationTask = Task { @MainActor [weak self] in
@@ -291,10 +431,6 @@ final class SongLibraryViewModel {
             } catch {
                 return
             }
-            guard isCurrentPracticePreparation(entryID: entryID, generation: generation) else {
-                return
-            }
-            await persistSelectedEntry(entryID, generation: generation)
             guard isCurrentPracticePreparation(entryID: entryID, generation: generation) else {
                 return
             }
@@ -398,7 +534,7 @@ final class SongLibraryViewModel {
 
     private func isCurrentPracticePreparation(entryID: UUID, generation: Int) -> Bool {
         generation == practicePreparationGeneration &&
-            selectedPracticeEntryID == entryID &&
+            selectedEntryID == entryID &&
             Task.isCancelled == false
     }
 
@@ -408,18 +544,6 @@ final class SongLibraryViewModel {
             ? "Bundle/\(fileName)"
             : "SongLibrary/scores/\(fileName)"
         return DiagnosticFileReference(fileName: fileName, relativePath: relativePath)
-    }
-
-    private func persistSelectedEntry(_ entryID: UUID, generation: Int) async {
-        guard isCurrentPracticePreparation(entryID: entryID, generation: generation) else { return }
-        do {
-            let updatedIndex = try await indexStore.setLastSelectedEntryID(entryID)
-            guard isCurrentPracticePreparation(entryID: entryID, generation: generation) else { return }
-            index = updatedIndex
-        } catch {
-            guard isCurrentPracticePreparation(entryID: entryID, generation: generation) else { return }
-            errorMessage = "保存曲库选择失败：\(error.localizedDescription)"
-        }
     }
 
     func deleteEntry(entryID: UUID) async {
@@ -445,6 +569,10 @@ final class SongLibraryViewModel {
                 return
             }
             index = updatedIndex
+            if selectedEntryID == entryID {
+                cancelPracticePreparation()
+                adoptPersistedSelection(updatedIndex.lastSelectedEntryID)
+            }
 
             do {
                 try await practiceProgressRepository.remove(songID: entry.id)

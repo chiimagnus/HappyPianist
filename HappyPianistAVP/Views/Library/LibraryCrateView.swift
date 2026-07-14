@@ -2,11 +2,11 @@ import SwiftUI
 
 struct LibraryCrateView: View {
   let entries: [SongLibraryEntry]
-  @Binding var selectedEntryID: UUID?
+  let selectedEntryID: UUID?
   let playingEntryID: UUID?
   let isPlaying: Bool
   let reduceMotion: Bool
-  let onSelectionChanged: (UUID) -> Void
+  let onSelectEntry: (UUID) -> Void
   let onTogglePlayback: (UUID) -> Void
   let onImportMusicXML: () -> Void
   let onBindAudio: (UUID) -> Void
@@ -194,10 +194,7 @@ struct LibraryCrateView: View {
   private func select(index: Int) {
     guard entries.indices.contains(index) else { return }
     let entryID = entries[index].id
-    withAnimation(reduceMotion ? nil : LibraryDesignTokens.easeOut) {
-      selectedEntryID = entryID
-    }
-    onSelectionChanged(entryID)
+    onSelectEntry(entryID)
   }
 }
 

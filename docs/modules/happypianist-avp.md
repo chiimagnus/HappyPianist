@@ -31,10 +31,10 @@
 
 | 代码 | 作用 |
 | --- | --- |
-| `HappyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift` | 接收异步 bootstrap snapshot，合并 bundled/imported entries，管理选择、试听、导入、删除和进入练习。 |
+| `HappyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift` | 接收异步 bootstrap snapshot，合并 bundled/imported entries，并作为唯一 selection owner 管理试听、导入、删除和进入练习；selection 由独立单写者异步持久化。 |
 | `HappyPianistAVP/Services/Library/SongLibraryBootstrapLoader.swift` | actor 隔离的首次 bundle 扫描与索引解码，避免阻塞 MainActor 启动。 |
 | `HappyPianistAVP/Services/Library/SongFileStore.swift` | 导入 MusicXML 到 Documents。 |
-| `HappyPianistAVP/Services/Library/SongLibraryIndexStore.swift` | 保存用户曲库索引。 |
+| `HappyPianistAVP/Services/Library/SongLibraryIndexStore.swift` | actor 内按 concern 原子更新用户曲库索引。 |
 | `HappyPianistAVP/Services/Library/BundledSongLibraryProvider.swift` | 扫描 App bundle 中的 `.musicxml`。 |
 | `HappyPianistAVP/Services/Library/AudioImportService.swift` | 绑定 `.mp3` / `.m4a` 试听音频。 |
 | `HappyPianistAVP/Services/Practice/Session/PracticePreparationService.swift` | 把所选曲谱转换成 `PreparedPractice`。 |

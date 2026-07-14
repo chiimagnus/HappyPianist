@@ -35,7 +35,8 @@ enum SongLibraryViewModelTestHarness {
             initialSnapshot: deferInitialLoad
                 ? nil
                 : .loaded(index: resolvedIndex, bundledEntries: bundledEntries),
-            selectionSettleDelay: .zero
+            selectionSettleDelay: .zero,
+            selectionPersistenceDelay: .zero
         )
     }
 }
