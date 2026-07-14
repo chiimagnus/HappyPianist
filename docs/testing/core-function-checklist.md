@@ -258,6 +258,11 @@ xcodebuild test \
 - [ ] 多个 entry 指向同一 target 时不显示覆盖动作
 - [ ] 替换后旧练习进度仍作为历史保留，但不会作为新版本当前进度恢复
 - [ ] 导入失败不会留下半成品曲目
+- [ ] 多选队列等待确认时不处理下一项；确认或取消当前项后才继续
+- [ ] 取消整批或关闭 Library 后，已提交项保留，当前与剩余 staged operation 被清理
+- [ ] App 重启后 preparing、staged、backup moved、target installed、index committed 均幂等恢复或明确阻塞
+- [ ] 磁盘/权限失败及外部同名文件篡改不会删除非事务文件，也不会发布 dangling index
+- [ ] journal 与可导出 diagnostics 不含 source URL、Documents 绝对路径、XML 内容或文件指纹
 
 ### 删除
 

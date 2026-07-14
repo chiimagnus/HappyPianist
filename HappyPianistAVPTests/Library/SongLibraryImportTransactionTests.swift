@@ -789,7 +789,7 @@ func itemFailureWaitsForAcknowledgementThenContinuesQueue() async {
     #expect(await service.processedOperationIDs == [committedID])
 }
 
-private struct ImportTransactionFixture {
+struct ImportTransactionFixture {
     let documentsURL: URL
     let externalURL: URL
     let paths: SongLibraryPaths
@@ -799,7 +799,8 @@ private struct ImportTransactionFixture {
     init(
         indexStore suppliedIndexStore: (any SongLibraryImportIndexStoreProtocol)? = nil,
         security: ImportSecurityScopeSpy = ImportSecurityScopeSpy(startResult: false),
-        now: Date = Date(timeIntervalSince1970: 1_700_000_000)
+        now: Date = Date(timeIntervalSince1970: 1_700_000_000),
+        diagnostics: any DiagnosticsReporting = ImportTransactionDiagnosticsReporter()
     ) throws {
         documentsURL = FileManager.default.temporaryDirectory.appending(
             path: "SongLibraryImportTransactionTests-docs-\(UUID().uuidString)",
@@ -829,7 +830,7 @@ private struct ImportTransactionFixture {
             ),
             fileManager: ImportTransactionDocumentsFileManager(documentsURL: documentsURL),
             now: { now },
-            diagnostics: ImportTransactionDiagnosticsReporter(),
+            diagnostics: diagnostics,
             securityScopedResourceAccessor: security
         )
     }
@@ -883,7 +884,7 @@ private struct ImportTransactionFixture {
     }
 }
 
-private final class ImportTransactionDocumentsFileManager: FileManager {
+final class ImportTransactionDocumentsFileManager: FileManager {
     private let documentsURL: URL
 
     init(documentsURL: URL) {
@@ -901,7 +902,7 @@ private final class ImportTransactionDocumentsFileManager: FileManager {
     }
 }
 
-private final class ImportSecurityScopeSpy: SecurityScopedResourceAccessing, @unchecked Sendable {
+final class ImportSecurityScopeSpy: SecurityScopedResourceAccessing, @unchecked Sendable {
     private let lock = NSLock()
     private let startResult: Bool
     private var started: [String] = []
@@ -924,7 +925,7 @@ private final class ImportSecurityScopeSpy: SecurityScopedResourceAccessing, @un
     }
 }
 
-private actor ImportTransactionDiagnosticsReporter: DiagnosticsReporting {
+actor ImportTransactionDiagnosticsReporter: DiagnosticsReporting {
     func record(_: DiagnosticEvent) -> DiagnosticRecordResult {
         DiagnosticRecordResult(persistedForExport: false)
     }
