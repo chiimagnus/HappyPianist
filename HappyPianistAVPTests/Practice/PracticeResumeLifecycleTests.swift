@@ -377,7 +377,7 @@ private final class CapturingResumePlaybackService: PracticeSequencerPlaybackSer
 
 private struct ResumeNoopPressDetectionService: PressDetectionServiceProtocol {
     func detectPressedNotes(
-        fingerTips _: [String: SIMD3<Float>],
+        fingerTips _: FingerTipsSnapshot,
         keyboardGeometry _: PianoKeyboardGeometry?,
         at _: Date
     ) -> Set<Int> { [] }

@@ -7,7 +7,7 @@ import Testing
 func pressDetectionReturnsEmptyWhenKeyboardGeometryIsNil() {
     let service = PressDetectionService(cooldownSeconds: 0.0)
     let pressed = service.detectPressedNotes(
-        fingerTips: ["index": SIMD3<Float>(0.0, 0.0, 0.0)],
+        fingerTips: FingerTipsSnapshot(right: HandTips(index: SIMD3<Float>(0.0, 0.0, 0.0))),
         keyboardGeometry: nil,
         at: Date(timeIntervalSince1970: 0)
     )
@@ -44,13 +44,13 @@ func pressDetectionTriggersWhenFingerCrossesWhiteKeySurfaceUsingKeyboardGeometry
     let currWorld = PressDetectionService.transformPoint(frame.worldFromKeyboard, currLocal)
 
     _ = service.detectPressedNotes(
-        fingerTips: ["index": prevWorld],
+        fingerTips: FingerTipsSnapshot(right: HandTips(index: prevWorld)),
         keyboardGeometry: geometry,
         at: Date(timeIntervalSince1970: 0)
     )
 
     let pressed = service.detectPressedNotes(
-        fingerTips: ["index": currWorld],
+        fingerTips: FingerTipsSnapshot(right: HandTips(index: currWorld)),
         keyboardGeometry: geometry,
         at: Date(timeIntervalSince1970: 1)
     )
@@ -88,13 +88,13 @@ func pressDetectionTriggersWhenFingerCrossesBlackKeySurfaceUsingKeyboardGeometry
     let currWorld = PressDetectionService.transformPoint(frame.worldFromKeyboard, currLocal)
 
     _ = service.detectPressedNotes(
-        fingerTips: ["index": prevWorld],
+        fingerTips: FingerTipsSnapshot(right: HandTips(index: prevWorld)),
         keyboardGeometry: geometry,
         at: Date(timeIntervalSince1970: 0)
     )
 
     let pressed = service.detectPressedNotes(
-        fingerTips: ["index": currWorld],
+        fingerTips: FingerTipsSnapshot(right: HandTips(index: currWorld)),
         keyboardGeometry: geometry,
         at: Date(timeIntervalSince1970: 1)
     )
@@ -143,13 +143,13 @@ func pressDetectionPrefersBlackKeyOverWhiteKeyWhenBothWouldBeHit() throws {
     let currWorld = PressDetectionService.transformPoint(frame.worldFromKeyboard, currLocal)
 
     _ = service.detectPressedNotes(
-        fingerTips: ["index": prevWorld],
+        fingerTips: FingerTipsSnapshot(right: HandTips(index: prevWorld)),
         keyboardGeometry: geometry,
         at: Date(timeIntervalSince1970: 0)
     )
 
     let pressed = service.detectPressedNotes(
-        fingerTips: ["index": currWorld],
+        fingerTips: FingerTipsSnapshot(right: HandTips(index: currWorld)),
         keyboardGeometry: geometry,
         at: Date(timeIntervalSince1970: 1)
     )
@@ -188,16 +188,65 @@ func pressDetectionUsesKeyboardLocalHitBoundsUnderYawUsingKeyboardGeometry() thr
     let currWorld = PressDetectionService.transformPoint(frame.worldFromKeyboard, currLocal)
 
     _ = service.detectPressedNotes(
-        fingerTips: ["index": prevWorld],
+        fingerTips: FingerTipsSnapshot(right: HandTips(index: prevWorld)),
         keyboardGeometry: geometry,
         at: Date(timeIntervalSince1970: 0)
     )
 
     let pressed = service.detectPressedNotes(
-        fingerTips: ["index": currWorld],
+        fingerTips: FingerTipsSnapshot(right: HandTips(index: currWorld)),
         keyboardGeometry: geometry,
         at: Date(timeIntervalSince1970: 1)
     )
 
     #expect(pressed == [61])
+}
+
+
+@Test
+func pressDetectionDoesNotReuseAStalePositionAfterAFingerDisappears() throws {
+    let service = PressDetectionService(cooldownSeconds: 0.0)
+    let frame = try #require(KeyboardFrame(
+        a0World: SIMD3<Float>(0.0, 0.5, 0.0),
+        c8World: SIMD3<Float>(1.0, 0.5, 0.0),
+        planeHeight: 0.5
+    ))
+    let key = PianoKeyGeometry(
+        midiNote: 60,
+        kind: .white,
+        localCenter: SIMD3<Float>(0.0, -0.015, -0.07),
+        localSize: SIMD3<Float>(0.02, 0.03, 0.14),
+        surfaceLocalY: 0.0,
+        hitCenterLocal: SIMD3<Float>(0.0, -0.015, -0.07),
+        hitSizeLocal: SIMD3<Float>(0.02, 0.03, 0.14),
+        beamFootprintCenterLocal: SIMD3<Float>(0.0, 0.0, -0.07),
+        beamFootprintSizeLocal: SIMD2<Float>(0.018, 0.11)
+    )
+    let geometry = PianoKeyboardGeometry(frame: frame, keys: [key])
+    let aboveWorld = PressDetectionService.transformPoint(
+        frame.worldFromKeyboard,
+        SIMD3<Float>(0.0, 0.05, -0.07)
+    )
+    let belowWorld = PressDetectionService.transformPoint(
+        frame.worldFromKeyboard,
+        SIMD3<Float>(0.0, -0.01, -0.07)
+    )
+
+    _ = service.detectPressedNotes(
+        fingerTips: FingerTipsSnapshot(right: HandTips(index: aboveWorld)),
+        keyboardGeometry: geometry,
+        at: Date(timeIntervalSince1970: 0)
+    )
+    _ = service.detectPressedNotes(
+        fingerTips: .empty,
+        keyboardGeometry: geometry,
+        at: Date(timeIntervalSince1970: 1)
+    )
+    let pressed = service.detectPressedNotes(
+        fingerTips: FingerTipsSnapshot(right: HandTips(index: belowWorld)),
+        keyboardGeometry: geometry,
+        at: Date(timeIntervalSince1970: 2)
+    )
+
+    #expect(pressed.isEmpty)
 }

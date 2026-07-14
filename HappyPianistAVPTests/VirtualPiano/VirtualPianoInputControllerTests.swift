@@ -36,7 +36,7 @@ private final class FakeKeyContactDetector: KeyContactDetectingProtocol {
     func reset() {}
 
     func detect(
-        fingerTips _: [String: SIMD3<Float>],
+        fingerTips _: FingerTipsSnapshot,
         keyboardGeometry _: PianoKeyboardGeometry
     ) -> KeyContactResult {
         resultToReturn
@@ -114,7 +114,7 @@ func virtualPianoPlaysLiveNotesWhenNotSuppressed() {
     )
 
     _ = controller.handleFingerTips(
-        ["finger": .zero],
+        FingerTipsSnapshot.empty,
         keyboardGeometry: makeMinimalKeyboardGeometry(),
         at: .now,
         practiceHandMode: .both
@@ -152,7 +152,7 @@ func virtualPianoDoesNotPlayLiveNotesDuringAutoplay() {
     )
 
     _ = controller.handleFingerTips(
-        ["finger": .zero],
+        FingerTipsSnapshot.empty,
         keyboardGeometry: makeMinimalKeyboardGeometry(),
         at: .now,
         practiceHandMode: .both

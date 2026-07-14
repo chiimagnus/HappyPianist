@@ -69,9 +69,9 @@ func virtualPianoNoteOnTriggersLiveStart() throws {
     viewModel.applyVirtualKeyboardGeometry(geometry)
 
     let c4Key = try #require(geometry.key(for: 60))
-    let fingerTips: [String: SIMD3<Float>] = [
-        "right-indexFingerTip": SIMD3<Float>(c4Key.hitCenterLocal.x, -0.001, c4Key.hitCenterLocal.z),
-    ]
+    let fingerTips = FingerTipsSnapshot(
+        right: HandTips(index: SIMD3<Float>(c4Key.hitCenterLocal.x, -0.001, c4Key.hitCenterLocal.z))
+    )
     let detected = viewModel.handleFingerTipPositions(fingerTips, isVirtualPiano: true)
 
     #expect(detected.contains(60))
@@ -101,9 +101,9 @@ func physicalPianoPathUnaffectedByVirtualPiano() {
     )
     viewModel.applyKeyboardGeometry(geometry, calibration: calibration)
 
-    let fingerTips: [String: SIMD3<Float>] = [
-        "right-indexFingerTip": SIMD3<Float>(0.5, 0, 0),
-    ]
+    let fingerTips = FingerTipsSnapshot(
+        right: HandTips(index: SIMD3<Float>(0.5, 0, 0))
+    )
     let detected = viewModel.handleFingerTipPositions(fingerTips, isVirtualPiano: false)
 
     #expect(playbackService.startedLiveNotes.isEmpty)
@@ -120,35 +120,40 @@ func keyContactDetectionStartedEndedHysteresis() throws {
     let geometry = makeTestKeyboardGeometry()
     let c4Key = try #require(geometry.key(for: 60))
 
-    let atSurface: [String: SIMD3<Float>] = [
-        "right-indexFingerTip": SIMD3<Float>(c4Key.hitCenterLocal.x, c4Key.surfaceLocalY, c4Key.hitCenterLocal.z),
-    ]
+    let atSurface = FingerTipsSnapshot(
+        right: HandTips(
+            index: SIMD3<Float>(c4Key.hitCenterLocal.x, c4Key.surfaceLocalY, c4Key.hitCenterLocal.z)
+        )
+    )
     let result1 = service.detect(fingerTips: atSurface, keyboardGeometry: geometry)
     #expect(result1.started.contains(60))
     #expect(result1.down.contains(60))
 
-    let betweenThresholds: [String: SIMD3<Float>] = [
-        "right-indexFingerTip": SIMD3<Float>(
-            c4Key.hitCenterLocal.x,
-            c4Key
-                .surfaceLocalY +
-                (KeyContactDetectionService.pressThresholdMeters + KeyContactDetectionService.releaseThresholdMeters) /
-                2,
-            c4Key.hitCenterLocal.z
-        ),
-    ]
+    let betweenThresholds = FingerTipsSnapshot(
+        right: HandTips(
+            index: SIMD3<Float>(
+                c4Key.hitCenterLocal.x,
+                c4Key.surfaceLocalY
+                    + (KeyContactDetectionService.pressThresholdMeters
+                        + KeyContactDetectionService.releaseThresholdMeters) / 2,
+                c4Key.hitCenterLocal.z
+            )
+        )
+    )
     let result2 = service.detect(fingerTips: betweenThresholds, keyboardGeometry: geometry)
     #expect(result2.down.contains(60), "Between press/release threshold: should stay down (hysteresis)")
     #expect(result2.started.isEmpty)
     #expect(result2.ended.isEmpty)
 
-    let aboveRelease: [String: SIMD3<Float>] = [
-        "right-indexFingerTip": SIMD3<Float>(
-            c4Key.hitCenterLocal.x,
-            c4Key.surfaceLocalY + KeyContactDetectionService.releaseThresholdMeters + 0.001,
-            c4Key.hitCenterLocal.z
-        ),
-    ]
+    let aboveRelease = FingerTipsSnapshot(
+        right: HandTips(
+            index: SIMD3<Float>(
+                c4Key.hitCenterLocal.x,
+                c4Key.surfaceLocalY + KeyContactDetectionService.releaseThresholdMeters + 0.001,
+                c4Key.hitCenterLocal.z
+            )
+        )
+    )
     let result3 = service.detect(fingerTips: aboveRelease, keyboardGeometry: geometry)
     #expect(result3.ended.contains(60))
     #expect(result3.down.isEmpty)
@@ -179,9 +184,9 @@ func keyContactDetectionBlackKeyPriority() throws {
         return (max(blackMin.x, whiteMin.x) + min(blackMax.x, whiteMax.x)) / 2
     }()
 
-    let fingerTips: [String: SIMD3<Float>] = [
-        "right-indexFingerTip": SIMD3<Float>(overlapPointX, -0.001, blackKey.hitCenterLocal.z),
-    ]
+    let fingerTips = FingerTipsSnapshot(
+        right: HandTips(index: SIMD3<Float>(overlapPointX, -0.001, blackKey.hitCenterLocal.z))
+    )
     let result = service.detect(fingerTips: fingerTips, keyboardGeometry: geometry)
     #expect(result.down == [blackKey.midiNote])
 }
@@ -192,7 +197,7 @@ func keyContactDetectionNoFingerNoDown() {
     let service = KeyContactDetectionService()
     let geometry = makeTestKeyboardGeometry()
 
-    let result = service.detect(fingerTips: [:], keyboardGeometry: geometry)
+    let result = service.detect(fingerTips: .empty, keyboardGeometry: geometry)
     #expect(result.down.isEmpty)
     #expect(result.started.isEmpty)
     #expect(result.ended.isEmpty)
@@ -368,7 +373,7 @@ private final class LiveNoteCapturingPlaybackService: PracticeSequencerPlaybackS
 
 private struct NoopPressDetectionService: PressDetectionServiceProtocol {
     func detectPressedNotes(
-        fingerTips _: [String: SIMD3<Float>],
+        fingerTips _: FingerTipsSnapshot,
         keyboardGeometry _: PianoKeyboardGeometry?,
         at _: Date
     ) -> Set<Int> {

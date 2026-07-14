@@ -14,12 +14,12 @@ func nearKeyboardWithoutExactHitProducesBoostOnly() throws {
     let currWorld = PressDetectionService.transformPoint(geometry.frame.worldFromKeyboard, currLocal)
 
     _ = gate.evaluate(
-        fingerTips: ["index": prevWorld],
+        fingerTips: FingerTipsSnapshot(right: HandTips(index: prevWorld)),
         keyboardGeometry: geometry,
         exactPressedNotes: []
     )
     let state = gate.evaluate(
-        fingerTips: ["index": currWorld],
+        fingerTips: FingerTipsSnapshot(right: HandTips(index: currWorld)),
         keyboardGeometry: geometry,
         exactPressedNotes: []
     )
@@ -50,7 +50,7 @@ func exactHitFallbackStillAdvancesStep() {
         calibration: PianoCalibration(a0: .zero, c8: SIMD3<Float>(1, 0, 0), planeHeight: 0)
     )
     viewModel.startGuidingIfReady()
-    _ = viewModel.handleFingerTipPositions(["finger": .zero], at: Date())
+    _ = viewModel.handleFingerTipPositions(FingerTipsSnapshot.empty, at: Date())
 
     #expect(viewModel.currentStepIndex == 1)
 }
@@ -131,7 +131,7 @@ private func settleTaskQueue(iterations: Int = 4) async {
 
 private struct NoopPressDetectionService: PressDetectionServiceProtocol {
     func detectPressedNotes(
-        fingerTips _: [String: SIMD3<Float>],
+        fingerTips _: FingerTipsSnapshot,
         keyboardGeometry _: PianoKeyboardGeometry?,
         at _: Date
     ) -> Set<Int> {
@@ -151,7 +151,7 @@ private struct ConstantPressDetectionService: PressDetectionServiceProtocol {
     }
 
     func detectPressedNotes(
-        fingerTips _: [String: SIMD3<Float>],
+        fingerTips _: FingerTipsSnapshot,
         keyboardGeometry _: PianoKeyboardGeometry?,
         at _: Date
     ) -> Set<Int> {

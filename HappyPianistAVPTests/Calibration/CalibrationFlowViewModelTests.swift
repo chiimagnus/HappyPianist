@@ -78,33 +78,40 @@ func shutdownIsIdempotent() async {
 
 @MainActor
 private final class FakeARTrackingService: ARTrackingServiceProtocol {
-    var fingerTipPositions: [String: SIMD3<Float>] = [:]
-    var leftIndexFingerTipPosition: SIMD3<Float>?
-    var leftThumbTipPosition: SIMD3<Float>?
-    var rightIndexFingerTipPosition: SIMD3<Float>?
-    var rightThumbTipPosition: SIMD3<Float>?
+    var fingerTipsSnapshot = FingerTipsSnapshot.empty
     var worldAnchorsByID: [UUID: WorldAnchor] = [:]
     var planeAnchorsByID: [UUID: PlaneAnchor] = [:]
+    var detectedPlanes: [DetectedPlane] = []
     var authorizationStatusByType: [ARKitSession.AuthorizationType: ARKitSession.AuthorizationStatus] = [:]
     var providerStateByName: [String: HappyPianistAVP.DataProviderState] = [
         "hand": .idle,
         "world": .idle,
+        "plane": .idle,
     ]
+    var activeRequirements: ARTrackingRequirements = []
 
     var isWorldTrackingSupported: Bool {
         true
     }
 
-    let worldTrackingProvider = WorldTrackingProvider()
-
-    func fingerTipUpdatesStream() -> AsyncStream<[String: SIMD3<Float>]> {
+    func fingerTipUpdatesStream() -> AsyncStream<FingerTipsSnapshot> {
         AsyncStream { continuation in
-            continuation.yield([:])
+            continuation.yield(.empty)
             continuation.finish()
         }
     }
 
-    func start(mode _: ARTrackingMode) {}
+    func deviceWorldTransform(atTimestamp _: TimeInterval) -> simd_float4x4? { nil }
+
+    func addWorldAnchor(originFromAnchorTransform _: simd_float4x4) async throws -> UUID {
+        UUID()
+    }
+
+    func removeWorldAnchor(id _: UUID) async throws {}
+
+    func start(requirements: ARTrackingRequirements) {
+        activeRequirements = requirements
+    }
     func stop() {}
 }
 

@@ -34,7 +34,9 @@ final class ARGuideViewModel {
 
     @ObservationIgnored private var handTrackingConsumerTask: Task<Void, Never>?
     @ObservationIgnored private var preparedPracticeApplicationID: UUID?
-    private var currentTrackingMode: ARTrackingMode?
+    @ObservationIgnored private var currentTrackingRequirements: ARTrackingRequirements = []
+    @ObservationIgnored private var isImmersiveRuntimeSuspended = false
+    @ObservationIgnored private var shouldResumeVirtualPerformer = false
 
     init(
         appState: AppState,
@@ -94,6 +96,9 @@ final class ARGuideViewModel {
             placementViewModel: placement
         )
 
+        placement.onTrackingRequirementsChanged = { [weak self] in
+            self?.startTrackingIfNeeded()
+        }
         setupAppStateCallbacks()
 
         // Ensure Bluetooth MIDI input events are subscribed immediately for the initial practice session.
@@ -349,10 +354,6 @@ final class ARGuideViewModel {
         placementViewModel.isVirtualPianoPlaced
     }
 
-    var latestDeviceWorldPosition: SIMD3<Float>? {
-        placementViewModel.latestDeviceWorldPosition
-    }
-
     var gazePlaneDiskStatusText: String? {
         placementViewModel.gazePlaneDiskStatusText
     }
@@ -418,7 +419,6 @@ final class ARGuideViewModel {
     var backendStatusText: String? {
         aiPerformanceViewModel.backendStatusText
     }
-
 
     func setPracticeVirtualPerformerEnabled(_ isEnabled: Bool) {
         aiPerformanceViewModel.setVirtualPerformerEnabled(
@@ -595,6 +595,7 @@ final class ARGuideViewModel {
     }
 
     func onImmersiveAppear() {
+        isImmersiveRuntimeSuspended = false
         switch appState.immersiveMode {
         case .calibration:
             startTrackingIfNeeded()
@@ -602,32 +603,63 @@ final class ARGuideViewModel {
         case .practice:
             startTrackingIfNeeded()
         }
+        if isVirtualPerformerEnabled {
+            setPracticeVirtualPerformerEnabled(true)
+        }
     }
 
     func onImmersiveDisappear() {
+        isImmersiveRuntimeSuspended = false
+        shouldResumeVirtualPerformer = false
         calibrationGuideViewModel.shutdown()
         practiceLocalizationViewModel.shutdown()
         practiceSessionViewModel.stopVirtualPianoInput()
         recordingViewModel.stop()
         aiPerformanceViewModel.shutdown()
-        stopHandTracking()
+        stopTracking()
+    }
+
+    func suspendImmersiveRuntime() {
+        guard isImmersiveRuntimeSuspended == false else { return }
+        isImmersiveRuntimeSuspended = true
+        shouldResumeVirtualPerformer = isVirtualPerformerEnabled
+        calibrationGuideViewModel.shutdown()
+        practiceLocalizationViewModel.shutdown()
+        practiceSessionViewModel.stopVirtualPianoInput()
+        recordingViewModel.stop()
+        aiPerformanceViewModel.shutdown()
+        stopTracking()
+    }
+
+    func resumeImmersiveRuntimeIfNeeded() {
+        guard isImmersiveRuntimeSuspended else { return }
+        isImmersiveRuntimeSuspended = false
+        startTrackingIfNeeded()
+        if appState.immersiveMode == .calibration {
+            calibrationGuideViewModel.onImmersiveAppear()
+        }
+        if shouldResumeVirtualPerformer {
+            setPracticeVirtualPerformerEnabled(true)
+        }
+        shouldResumeVirtualPerformer = false
     }
 
     func startTrackingIfNeeded() {
-        let desiredMode: ARTrackingMode = switch appState.immersiveMode {
-        case .calibration:
-            .calibration
-        case .practice:
-            selectedPianoMode?.practiceTrackingMode(isVirtualPianoEnabled: isVirtualPianoEnabled) ?? .practiceVirtualOrAudio
+        guard isImmersiveRuntimeSuspended == false else { return }
+
+        let desiredRequirements = trackingRequirementsForCurrentContext()
+        if desiredRequirements != currentTrackingRequirements {
+            cancelHandTrackingConsumer()
+            currentTrackingRequirements = desiredRequirements
         }
 
-        if desiredMode != currentTrackingMode {
-            stopHandTracking()
-            currentTrackingMode = desiredMode
-        }
+        arTrackingService.start(requirements: desiredRequirements)
 
-        arTrackingService.start(mode: desiredMode)
-        guard desiredMode != .practiceBluetoothMIDI else { return }
+        guard desiredRequirements.contains(.hand) else {
+            cancelHandTrackingConsumer()
+            stopVirtualPianoGuidance()
+            return
+        }
         guard handTrackingConsumerTask == nil else { return }
 
         startVirtualPianoGuidanceIfNeeded()
@@ -642,25 +674,45 @@ final class ARGuideViewModel {
     }
 
     func stopHandTracking() {
-        handTrackingConsumerTask?.cancel()
-        handTrackingConsumerTask = nil
-        currentTrackingMode = nil
+        stopTracking()
+    }
+
+    private func stopTracking() {
+        cancelHandTrackingConsumer()
+        currentTrackingRequirements = []
         stopVirtualPianoGuidance()
         calibrationGuideViewModel.stopHandTracking()
         arTrackingService.stop()
     }
 
-    private func handleHandTrackingUpdate(_ fingerTips: [String: SIMD3<Float>]) {
+    private func cancelHandTrackingConsumer() {
+        handTrackingConsumerTask?.cancel()
+        handTrackingConsumerTask = nil
+    }
+
+    private func trackingRequirementsForCurrentContext() -> ARTrackingRequirements {
+        switch appState.immersiveMode {
+        case .calibration:
+            .calibration
+        case .practice:
+            .practice(
+                base: selectedPianoMode?.practiceTrackingRequirements ?? [.hand, .world],
+                requiresHorizontalPlanePlacement: isVirtualPianoEnabled
+                    && practiceSessionViewModel.keyboardGeometry == nil
+            )
+        }
+    }
+
+    private func handleHandTrackingUpdate(_ fingerTips: FingerTipsSnapshot) {
         switch appState.immersiveMode {
         case .calibration:
             calibrationGuideViewModel.handleHandUpdates()
 
         case .practice:
             let nowUptime = ProcessInfo.processInfo.systemUptime
-            placementViewModel.updateLatestDeviceWorldPosition(nowUptime: nowUptime)
+            placementViewModel.updateLatestFingerSnapshot(fingerTips)
 
             if isVirtualPianoEnabled {
-                placementViewModel.updateGuidance(fingerTips: fingerTips, nowUptime: nowUptime)
                 if practiceSessionViewModel.keyboardGeometry != nil {
                     _ = practiceSessionViewModel.handleFingerTipPositions(fingerTips, isVirtualPiano: true)
                     recordPhraseIfNeeded(nowUptime: nowUptime)

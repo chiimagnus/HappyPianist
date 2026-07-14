@@ -63,6 +63,7 @@ final class CalibrationGuideViewModel {
         guard appState.immersiveMode == .calibration else { return }
         wasRightHandPinching = false
         wasLeftHandPinching = false
+        resumeInterruptedTransitionIfNeeded()
         startCalibrationSupportPollingIfNeeded()
         updateCalibrationTrackingStatusIfNeeded()
     }
@@ -123,11 +124,12 @@ final class CalibrationGuideViewModel {
 
     func handleHandUpdates() {
         let nowUptime = ProcessInfo.processInfo.systemUptime
+        let fingerTips = arTrackingService.fingerTipsSnapshot
         let reticleSourcePoint: SIMD3<Float>? = switch pendingCalibrationCaptureAnchor {
         case .c8:
-            arTrackingService.rightIndexFingerTipPosition
+            fingerTips.right.index
         case .a0, .none:
-            arTrackingService.leftIndexFingerTipPosition
+            fingerTips.left.index
         }
         calibrationCaptureService.updateReticleFromHandTracking(
             reticleSourcePoint,
@@ -138,22 +140,14 @@ final class CalibrationGuideViewModel {
         let pinchDistanceThresholdMeters: Float = 0.018
 
         let isLeftHandPinching: Bool = {
-            guard
-                let leftIndex = arTrackingService.leftIndexFingerTipPosition,
-                let leftThumb = arTrackingService.leftThumbTipPosition
-            else {
-                return false
-            }
+            guard let leftIndex = fingerTips.left.index,
+                  let leftThumb = fingerTips.left.thumb else { return false }
             return simd_length(leftIndex - leftThumb) < pinchDistanceThresholdMeters
         }()
 
         let isRightHandPinching: Bool = {
-            guard
-                let rightIndex = arTrackingService.rightIndexFingerTipPosition,
-                let rightThumb = arTrackingService.rightThumbTipPosition
-            else {
-                return false
-            }
+            guard let rightIndex = fingerTips.right.index,
+                  let rightThumb = fingerTips.right.thumb else { return false }
             return simd_length(rightIndex - rightThumb) < pinchDistanceThresholdMeters
         }()
 
@@ -218,20 +212,17 @@ final class CalibrationGuideViewModel {
 
         var anchorTransform = matrix_identity_float4x4
         anchorTransform.columns.3 = SIMD4<Float>(reticlePoint.x, reticlePoint.y, reticlePoint.z, 1)
-        let worldAnchor = WorldAnchor(originFromAnchorTransform: anchorTransform)
-
         do {
-            try await arTrackingService.worldTrackingProvider.addAnchor(worldAnchor)
-            calibrationCaptureService.setAnchorID(worldAnchor.id, for: pendingAnchor)
+            let worldAnchorID = try await arTrackingService.addWorldAnchor(
+                originFromAnchorTransform: anchorTransform
+            )
+            calibrationCaptureService.setAnchorID(worldAnchorID, for: pendingAnchor)
             calibrationStatusMessage = "已锁定 \(pendingAnchor == .a0 ? "A0" : "C8")"
             pendingCalibrationCaptureAnchor = nil
             onCalibrationAnchorConfirmed(pendingAnchor)
 
-            if let oldAnchorID,
-               oldAnchorID != worldAnchor.id,
-               let oldAnchor = arTrackingService.worldAnchorsByID[oldAnchorID]
-            {
-                try? await arTrackingService.worldTrackingProvider.removeAnchor(oldAnchor)
+            if let oldAnchorID, oldAnchorID != worldAnchorID {
+                try? await arTrackingService.removeWorldAnchor(id: oldAnchorID)
             }
         } catch {
             calibrationStatusMessage = "锁定失败：\(error.localizedDescription)"
@@ -262,22 +253,41 @@ final class CalibrationGuideViewModel {
                 calibrationStatusMessage = nil
                 try? await Task.sleep(for: .seconds(0.3))
                 guard Task.isCancelled == false else { return }
-
-                let didSave = appState.saveCalibrationIfPossible()
-                if didSave,
-                   let storedCalibration,
-                   storedCalibration.a0AnchorID == capturedA0,
-                   storedCalibration.c8AnchorID == capturedC8
-                {
-                    calibrationStatusMessage = nil
-                    calibrationPhase = .completed
-                } else {
-                    let message = calibrationStatusMessage ?? "保存校准失败，请重试。"
-                    presentCalibrationError(message: message)
-                }
+                completeCalibrationAfterC8(capturedA0: capturedA0, capturedC8: capturedC8)
             }
 
             calibrationGuidedCalibrationTask = nil
+        }
+    }
+
+    private func resumeInterruptedTransitionIfNeeded() {
+        switch calibrationPhase {
+        case .transitionA0:
+            calibrationStatusMessage = nil
+            pendingCalibrationCaptureAnchor = .c8
+            calibrationPhase = .capturingC8
+        case .transitionC8:
+            completeCalibrationAfterC8(
+                capturedA0: calibrationCaptureService.a0AnchorID,
+                capturedC8: calibrationCaptureService.c8AnchorID
+            )
+        case .capturingA0, .capturingC8, .completed, .error:
+            break
+        }
+    }
+
+    private func completeCalibrationAfterC8(capturedA0: UUID?, capturedC8: UUID?) {
+        let didSave = appState.saveCalibrationIfPossible()
+        if didSave,
+           let storedCalibration,
+           storedCalibration.a0AnchorID == capturedA0,
+           storedCalibration.c8AnchorID == capturedC8
+        {
+            calibrationStatusMessage = nil
+            calibrationPhase = .completed
+        } else {
+            let message = calibrationStatusMessage ?? "保存校准失败，请重试。"
+            presentCalibrationError(message: message)
         }
     }
 

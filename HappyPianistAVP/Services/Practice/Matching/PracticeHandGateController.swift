@@ -39,7 +39,7 @@ final class PracticeHandGateController: PracticeSessionLifecycleProtocol {
     }
 
     func updateHandGateState(
-        fingerTips: [String: SIMD3<Float>],
+        fingerTips: FingerTipsSnapshot,
         keyboardGeometry: PianoKeyboardGeometry,
         exactPressedNotes: Set<Int>
     ) {

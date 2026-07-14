@@ -230,7 +230,7 @@ private actor LibraryConfigurationRepository: PracticeProgressRepositoryProtocol
 
 private struct LibraryConfigurationPressDetectionService: PressDetectionServiceProtocol {
     func detectPressedNotes(
-        fingerTips _: [String: SIMD3<Float>],
+        fingerTips _: FingerTipsSnapshot,
         keyboardGeometry _: PianoKeyboardGeometry?,
         at _: Date
     ) -> Set<Int> {

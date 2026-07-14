@@ -4,19 +4,19 @@ import simd
 
 @MainActor
 protocol ARTrackingServiceProtocol: AnyObject {
-    var fingerTipPositions: [String: SIMD3<Float>] { get }
-    var leftIndexFingerTipPosition: SIMD3<Float>? { get }
-    var leftThumbTipPosition: SIMD3<Float>? { get }
-    var rightIndexFingerTipPosition: SIMD3<Float>? { get }
-    var rightThumbTipPosition: SIMD3<Float>? { get }
+    var fingerTipsSnapshot: FingerTipsSnapshot { get }
     var worldAnchorsByID: [UUID: WorldAnchor] { get }
     var planeAnchorsByID: [UUID: PlaneAnchor] { get }
+    var detectedPlanes: [DetectedPlane] { get }
     var authorizationStatusByType: [ARKitSession.AuthorizationType: ARKitSession.AuthorizationStatus] { get }
     var providerStateByName: [String: DataProviderState] { get }
+    var activeRequirements: ARTrackingRequirements { get }
     var isWorldTrackingSupported: Bool { get }
-    var worldTrackingProvider: WorldTrackingProvider { get }
 
-    func fingerTipUpdatesStream() -> AsyncStream<[String: SIMD3<Float>]>
-    func start(mode: ARTrackingMode)
+    func fingerTipUpdatesStream() -> AsyncStream<FingerTipsSnapshot>
+    func deviceWorldTransform(atTimestamp timestamp: TimeInterval) -> simd_float4x4?
+    func addWorldAnchor(originFromAnchorTransform: simd_float4x4) async throws -> UUID
+    func removeWorldAnchor(id: UUID) async throws
+    func start(requirements: ARTrackingRequirements)
     func stop()
 }

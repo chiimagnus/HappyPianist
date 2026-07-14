@@ -36,7 +36,6 @@ struct PianoModeDescriptor: Equatable {
 protocol PianoModeProtocol {
     var descriptor: PianoModeDescriptor { get }
     func canProceedToLibrary(context: PianoModeReadinessContext) -> Bool
-    func practiceTrackingMode(isVirtualPianoEnabled: Bool) -> ARTrackingMode
 }
 
 extension PianoModeProtocol {
@@ -58,6 +57,10 @@ extension PianoModeProtocol {
 
     var isVirtualPianoMode: Bool {
         descriptor.isVirtualPianoMode
+    }
+
+    var practiceTrackingRequirements: ARTrackingRequirements {
+        descriptor.usesBluetoothMIDIInput ? [.world] : [.hand, .world]
     }
 
     func recordingSourceText() -> String? {

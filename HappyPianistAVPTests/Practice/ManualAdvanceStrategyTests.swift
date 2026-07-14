@@ -115,7 +115,7 @@ private final class SinglePracticeSessionViewModelProvider: @unchecked Sendable 
 
 private struct ManualAdvanceNoopPressDetectionService: PressDetectionServiceProtocol {
     func detectPressedNotes(
-        fingerTips _: [String: SIMD3<Float>],
+        fingerTips _: FingerTipsSnapshot,
         keyboardGeometry _: PianoKeyboardGeometry?,
         at _: Date
     ) -> Set<Int> {

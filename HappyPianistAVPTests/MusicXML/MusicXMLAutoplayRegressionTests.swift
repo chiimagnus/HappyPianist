@@ -155,7 +155,7 @@ private func settleRegressionTasks(iterations: Int = 4) async {
 
 private struct RegressionNoopPressDetectionService: PressDetectionServiceProtocol {
     func detectPressedNotes(
-        fingerTips _: [String: SIMD3<Float>],
+        fingerTips _: FingerTipsSnapshot,
         keyboardGeometry _: PianoKeyboardGeometry?,
         at _: Date
     ) -> Set<Int> {

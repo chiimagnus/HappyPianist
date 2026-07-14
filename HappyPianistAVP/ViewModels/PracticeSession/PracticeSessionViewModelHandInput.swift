@@ -3,7 +3,7 @@ import simd
 
 extension PracticeSessionViewModel {
     func handleFingerTipPositions(
-        _ fingerTips: [String: SIMD3<Float>],
+        _ fingerTips: FingerTipsSnapshot,
         isVirtualPiano: Bool = false,
         at timestamp: Date = .now
     ) -> Set<Int> {
@@ -24,31 +24,27 @@ extension PracticeSessionViewModel {
             at: timestamp
         )
         updateLatestNoteOnMIDINotes(detected)
-        self.latestKeyContactResult = realPianoContactDetectionService.detect(
+        latestKeyContactResult = realPianoContactDetectionService.detect(
             fingerTips: fingerTips,
             keyboardGeometry: keyboardGeometry
         )
 
+        handGateController?.updateHandGateState(
+            fingerTips: fingerTips,
+            keyboardGeometry: keyboardGeometry,
+            exactPressedNotes: detected
+        )
+
         if detected.isEmpty == false {
-            self.pressedNotes = detected
-            handGateController?.updateHandGateState(
-                fingerTips: fingerTips,
-                keyboardGeometry: keyboardGeometry,
-                exactPressedNotes: detected
-            )
+            pressedNotes = detected
             handGateController?.registerChordAttemptIfNeeded(
                 pressedNotes: detected,
                 at: timestamp,
                 practiceHandMode: practiceHandMode
             )
-        } else {
-            handGateController?.updateHandGateState(
-                fingerTips: fingerTips,
-                keyboardGeometry: keyboardGeometry,
-                exactPressedNotes: []
-            )
         }
 
         return detected
     }
+
 }

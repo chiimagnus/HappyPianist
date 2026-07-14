@@ -38,10 +38,6 @@ struct BluetoothMIDIPianoMode: PianoModeProtocol {
     func canProceedToLibrary(context: PianoModeReadinessContext) -> Bool {
         context.isCalibrationCompleted && context.bluetoothMIDISourceCount > 0
     }
-
-    func practiceTrackingMode(isVirtualPianoEnabled: Bool) -> ARTrackingMode {
-        usesBluetoothMIDIInput && isVirtualPianoEnabled == false ? .practiceBluetoothMIDI : .practiceVirtualOrAudio
-    }
 }
 
 struct RealAudioPianoMode: PianoModeProtocol {
@@ -61,10 +57,6 @@ struct RealAudioPianoMode: PianoModeProtocol {
     func canProceedToLibrary(context: PianoModeReadinessContext) -> Bool {
         context.isCalibrationCompleted
     }
-
-    func practiceTrackingMode(isVirtualPianoEnabled _: Bool) -> ARTrackingMode {
-        .practiceVirtualOrAudio
-    }
 }
 
 struct VirtualPianoMode: PianoModeProtocol {
@@ -83,9 +75,5 @@ struct VirtualPianoMode: PianoModeProtocol {
 
     func canProceedToLibrary(context: PianoModeReadinessContext) -> Bool {
         context.isVirtualPianoPlaced
-    }
-
-    func practiceTrackingMode(isVirtualPianoEnabled _: Bool) -> ARTrackingMode {
-        .practiceVirtualOrAudio
     }
 }

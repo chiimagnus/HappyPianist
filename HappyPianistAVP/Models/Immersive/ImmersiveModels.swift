@@ -1,7 +1,24 @@
-enum ARTrackingMode: Equatable {
-    case calibration
-    case practiceBluetoothMIDI
-    case practiceVirtualOrAudio
+struct ARTrackingRequirements: OptionSet, Sendable {
+    let rawValue: UInt8
+
+    static let hand = Self(rawValue: 1 << 0)
+    static let world = Self(rawValue: 1 << 1)
+    static let horizontalPlanes = Self(rawValue: 1 << 2)
+
+    static let calibration: Self = [.hand, .world]
+
+    static func practice(
+        base: Self,
+        requiresHorizontalPlanePlacement: Bool
+    ) -> Self {
+        var requirements = base
+        if requiresHorizontalPlanePlacement {
+            requirements.insert(.horizontalPlanes)
+        } else {
+            requirements.remove(.horizontalPlanes)
+        }
+        return requirements
+    }
 }
 
 enum DataProviderState: Equatable {

@@ -22,7 +22,7 @@ func manualReplayBlocksGestureAdvance() async {
     await Task.yield()
 
     let before = viewModel.currentStepIndex
-    _ = viewModel.handleFingerTipPositions(["thumb": SIMD3<Float>(0, 0, 0)])
+    _ = viewModel.handleFingerTipPositions(FingerTipsSnapshot.empty)
 
     #expect(viewModel.isManualReplayPlaying)
     #expect(viewModel.currentStepIndex == before)
@@ -210,7 +210,7 @@ private final class ManualReplaySequencerPlaybackService: PracticeSequencerPlayb
 
 private struct ManualReplayNoopPressDetectionService: PressDetectionServiceProtocol {
     func detectPressedNotes(
-        fingerTips _: [String: SIMD3<Float>],
+        fingerTips _: FingerTipsSnapshot,
         keyboardGeometry _: PianoKeyboardGeometry?,
         at _: Date
     ) -> Set<Int> {
@@ -221,7 +221,7 @@ private struct ManualReplayNoopPressDetectionService: PressDetectionServiceProto
 private struct ManualReplayConstantPressDetectionService: PressDetectionServiceProtocol {
     let pressedNotes: Set<Int>
     func detectPressedNotes(
-        fingerTips _: [String: SIMD3<Float>],
+        fingerTips _: FingerTipsSnapshot,
         keyboardGeometry _: PianoKeyboardGeometry?,
         at _: Date
     ) -> Set<Int> {

@@ -97,10 +97,21 @@ struct PianoKeyGeometry: Equatable, Identifiable {
 }
 
 struct PianoKeyboardGeometry: Equatable {
+    let cacheID: UUID
     let frame: KeyboardFrame
     let keys: [PianoKeyGeometry]
 
+    init(frame: KeyboardFrame, keys: [PianoKeyGeometry]) {
+        cacheID = UUID()
+        self.frame = frame
+        self.keys = keys
+    }
+
     func key(for midiNote: Int) -> PianoKeyGeometry? {
         keys.first { $0.midiNote == midiNote }
+    }
+
+    static func == (lhs: PianoKeyboardGeometry, rhs: PianoKeyboardGeometry) -> Bool {
+        lhs.frame == rhs.frame && lhs.keys == rhs.keys
     }
 }

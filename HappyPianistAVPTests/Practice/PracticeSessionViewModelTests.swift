@@ -187,7 +187,7 @@ func markCorrectSchedulesFeedbackResetWithExpectedDuration() async {
         calibration: PianoCalibration(a0: .zero, c8: SIMD3<Float>(1, 0, 0), planeHeight: 0)
     )
 
-    _ = viewModel.handleFingerTipPositions(["dummy": .zero])
+    _ = viewModel.handleFingerTipPositions(FingerTipsSnapshot.empty)
     await settleTaskQueue()
 
     #expect(viewModel.state == .completed)
@@ -220,9 +220,9 @@ func secondFeedbackCancelsPreviousResetTaskDeterministically() async {
         calibration: PianoCalibration(a0: .zero, c8: SIMD3<Float>(1, 0, 0), planeHeight: 0)
     )
 
-    _ = viewModel.handleFingerTipPositions(["dummy": .zero])
+    _ = viewModel.handleFingerTipPositions(FingerTipsSnapshot.empty)
     await settleTaskQueue()
-    _ = viewModel.handleFingerTipPositions(["dummy": .zero])
+    _ = viewModel.handleFingerTipPositions(FingerTipsSnapshot.empty)
     await settleTaskQueue()
 
     #expect(viewModel.state == .completed)
@@ -251,7 +251,7 @@ func feedbackResetsToNoneAfterSleeperResumes() async {
         calibration: PianoCalibration(a0: .zero, c8: SIMD3<Float>(1, 0, 0), planeHeight: 0)
     )
 
-    _ = viewModel.handleFingerTipPositions(["dummy": .zero])
+    _ = viewModel.handleFingerTipPositions(FingerTipsSnapshot.empty)
     await settleTaskQueue()
     #expect(viewModel.state == .completed)
     #expect(await sleeper.callCount() == 0)
@@ -321,7 +321,7 @@ func handleFingerTipPositionsIsNoopWithoutKeyboardGeometry() {
     )
     viewModel.startGuidingIfReady()
 
-    let detected = viewModel.handleFingerTipPositions(["dummy": .zero])
+    let detected = viewModel.handleFingerTipPositions(FingerTipsSnapshot.empty)
     #expect(detected.isEmpty == true)
     #expect(viewModel.currentStepIndex == 0)
 }
@@ -836,7 +836,7 @@ func autoplayDoesNotAdvanceOnMatch() async {
         calibration: PianoCalibration(a0: .zero, c8: SIMD3<Float>(1, 0, 0), planeHeight: 0)
     )
 
-    _ = viewModel.handleFingerTipPositions(["dummy": .zero])
+    _ = viewModel.handleFingerTipPositions(FingerTipsSnapshot.empty)
     await settleTaskQueue()
 
     #expect(viewModel.currentStepIndex == 0)
@@ -1582,7 +1582,7 @@ func enablingAutoplayStopsManualReplayWithoutResumingAudioRecognition() async {
 
 private struct NoopPressDetectionService: PressDetectionServiceProtocol {
     func detectPressedNotes(
-        fingerTips _: [String: SIMD3<Float>],
+        fingerTips _: FingerTipsSnapshot,
         keyboardGeometry _: PianoKeyboardGeometry?,
         at _: Date
     ) -> Set<Int> {
@@ -1608,7 +1608,7 @@ private struct ConstantPressDetectionService: PressDetectionServiceProtocol {
     }
 
     func detectPressedNotes(
-        fingerTips _: [String: SIMD3<Float>],
+        fingerTips _: FingerTipsSnapshot,
         keyboardGeometry _: PianoKeyboardGeometry?,
         at _: Date
     ) -> Set<Int> {

@@ -5,7 +5,7 @@ import simd
 protocol KeyContactDetectingProtocol: AnyObject {
     func reset()
     func detect(
-        fingerTips: [String: SIMD3<Float>],
+        fingerTips: FingerTipsSnapshot,
         keyboardGeometry: PianoKeyboardGeometry
     ) -> KeyContactResult
 }
@@ -48,7 +48,7 @@ final class VirtualPianoInputController: PracticeSessionLifecycleProtocol {
     }
 
     func handleFingerTips(
-        _ fingerTips: [String: SIMD3<Float>],
+        _ fingerTips: FingerTipsSnapshot,
         keyboardGeometry: PianoKeyboardGeometry,
         at timestamp: Date,
         practiceHandMode: PracticeHandMode
@@ -87,4 +87,5 @@ final class VirtualPianoInputController: PracticeSessionLifecycleProtocol {
 
         return result.down
     }
+
 }

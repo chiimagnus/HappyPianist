@@ -24,11 +24,12 @@ final class VirtualPianoPlacementViewModel {
     var isVirtualPianoEnabled = false
     private(set) var presentation: Presentation = .hidden
     var isVirtualPianoPlaced = false
-    var latestDeviceWorldPosition: SIMD3<Float>?
     var latestGazePlaneHit: PlaneHit?
     var latestGazeRayOriginWorld: SIMD3<Float>?
 
     @ObservationIgnored private var virtualPianoGuidanceUpdateTask: Task<Void, Never>?
+    @ObservationIgnored private var latestFingerTips = FingerTipsSnapshot.empty
+    @ObservationIgnored var onTrackingRequirementsChanged: (@MainActor () -> Void)?
 
     init(
         appState: AppState,
@@ -111,13 +112,16 @@ final class VirtualPianoPlacementViewModel {
     }
 
     func setPracticeVirtualPianoEnabled(_ isEnabled: Bool) {
+        guard isVirtualPianoEnabled != isEnabled else { return }
         isVirtualPianoEnabled = isEnabled
+
         if isEnabled {
             practiceSessionViewModel.stopVirtualPianoInput()
             practiceSessionViewModel.clearCalibration()
             practiceLocalizationViewModel.shutdown()
             gazePlaneDiskConfirmation.reset()
             latestGazePlaneHit = nil
+            latestFingerTips = .empty
             startGuidanceIfNeeded()
             #if DEBUG && targetEnvironment(simulator)
                 practiceLocalizationViewModel.setPracticeLocalizationState(.ready)
@@ -136,8 +140,12 @@ final class VirtualPianoPlacementViewModel {
             practiceLocalizationViewModel.setPracticeLocalizationState(.idle)
             gazePlaneDiskConfirmation.reset()
             latestGazePlaneHit = nil
+            latestFingerTips = .empty
+            isVirtualPianoPlaced = false
             stopGuidance()
         }
+
+        onTrackingRequirementsChanged?()
     }
 
     func showVirtualPianoForPlacement() {
@@ -159,33 +167,27 @@ final class VirtualPianoPlacementViewModel {
 
         practiceSessionViewModel.stopVirtualPianoInput()
         practiceSessionViewModel.clearCalibration()
+        isVirtualPianoPlaced = false
         if let anchorID = appState.cachedVirtualPianoWorldAnchorID {
             appState.cachedVirtualPianoWorldAnchorID = nil
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                try? await arTrackingService.worldTrackingProvider.removeAnchor(forID: anchorID)
+                try? await arTrackingService.removeWorldAnchor(id: anchorID)
             }
         }
 
         gazePlaneDiskConfirmation.reset()
         latestGazePlaneHit = nil
+        startGuidanceIfNeeded()
+        onTrackingRequirementsChanged?()
 
         #if DEBUG && targetEnvironment(simulator)
             applyVirtualPianoGeometryAtDefaultPositionForSimulator()
         #endif
     }
 
-    func updateLatestDeviceWorldPosition(nowUptime: TimeInterval) {
-        guard
-            let deviceAnchor = arTrackingService.worldTrackingProvider.queryDeviceAnchor(atTimestamp: nowUptime),
-            deviceAnchor.isTracked
-        else { return }
-        let deviceWorldTransform = deviceAnchor.originFromAnchorTransform
-        latestDeviceWorldPosition = SIMD3<Float>(
-            deviceWorldTransform.columns.3.x,
-            deviceWorldTransform.columns.3.y,
-            deviceWorldTransform.columns.3.z
-        )
+    func updateLatestFingerSnapshot(_ snapshot: FingerTipsSnapshot) {
+        latestFingerTips = snapshot
     }
 
     func startGuidanceIfNeeded() {
@@ -199,7 +201,7 @@ final class VirtualPianoPlacementViewModel {
             guard let self else { return }
             while Task.isCancelled == false {
                 let nowUptime = ProcessInfo.processInfo.systemUptime
-                updateGuidance(fingerTips: arTrackingService.fingerTipPositions, nowUptime: nowUptime)
+                updateGuidance(fingerTips: latestFingerTips, nowUptime: nowUptime)
                 try? await Task.sleep(for: .milliseconds(33))
             }
         }
@@ -211,29 +213,21 @@ final class VirtualPianoPlacementViewModel {
     }
 
     func updateGuidance(
-        fingerTips: [String: SIMD3<Float>],
+        fingerTips: FingerTipsSnapshot,
         nowUptime: TimeInterval
     ) {
         guard isVirtualPianoEnabled else { return }
 
-        if
-            practiceSessionViewModel.keyboardGeometry == nil,
-            let anchorID = appState.cachedVirtualPianoWorldAnchorID,
-            let anchor = arTrackingService.worldAnchorsByID[anchorID],
-            anchor.isTracked
+        if practiceSessionViewModel.keyboardGeometry == nil,
+           let anchorID = appState.cachedVirtualPianoWorldAnchorID,
+           let anchor = arTrackingService.worldAnchorsByID[anchorID],
+           anchor.isTracked
         {
             applyVirtualPianoGeometry(worldFromKeyboard: anchor.originFromAnchorTransform)
             return
         }
 
-        let deviceWorldTransform: simd_float4x4? = if
-            let deviceAnchor = arTrackingService.worldTrackingProvider.queryDeviceAnchor(atTimestamp: nowUptime),
-            deviceAnchor.isTracked
-        {
-            deviceAnchor.originFromAnchorTransform
-        } else {
-            nil
-        }
+        let deviceWorldTransform = arTrackingService.deviceWorldTransform(atTimestamp: nowUptime)
 
         let ray: GazeRay? = {
             guard let deviceWorldTransform else { return nil }
@@ -251,17 +245,13 @@ final class VirtualPianoPlacementViewModel {
         }()
         latestGazeRayOriginWorld = ray?.originWorld
 
-        let planes: [DetectedPlane] = arTrackingService.planeAnchorsByID.values.map { anchor in
-            DetectedPlane(id: anchor.id, worldFromPlane: anchor.originFromAnchorTransform)
-        }
-
-        let hit = ray.flatMap { gazePlaneHitTestService.hitTest(ray: $0, planes: planes) }
+        let hit = ray.flatMap { gazePlaneHitTestService.hitTest(ray: $0, planes: arTrackingService.detectedPlanes) }
         latestGazePlaneHit = hit
 
         gazePlaneDiskConfirmation.update(
             planeHit: hit,
-            leftPalmWorld: fingerTips["left-palmCenter"],
-            rightPalmWorld: fingerTips["right-palmCenter"],
+            leftPalmWorld: fingerTips.left.palm,
+            rightPalmWorld: fingerTips.right.palm,
             nowUptime: nowUptime
         )
 
@@ -270,8 +260,8 @@ final class VirtualPianoPlacementViewModel {
         guard let hit else { return }
         guard let planeWorldFromAnchor = arTrackingService.planeAnchorsByID[hit.id]?.originFromAnchorTransform
         else { return }
-        guard let leftPalm = fingerTips["left-palmCenter"],
-              let rightPalm = fingerTips["right-palmCenter"] else { return }
+        guard let leftPalm = fingerTips.left.palm,
+              let rightPalm = fingerTips.right.palm else { return }
 
         let handCenterWorld = (leftPalm + rightPalm) / 2
         let n = simd_normalize(hit.planeNormalWorld)
@@ -288,19 +278,25 @@ final class VirtualPianoPlacementViewModel {
 
     private func applyVirtualPianoGeometry(worldFromKeyboard: simd_float4x4) {
         let frame = KeyboardFrame(worldFromKeyboard: worldFromKeyboard)
-        if let geometry = virtualPianoKeyGeometryService.generateKeyboardGeometry(from: frame) {
-            practiceSessionViewModel.applyVirtualKeyboardGeometry(geometry)
-            isVirtualPianoPlaced = true
-            if appState.cachedVirtualPianoWorldAnchorID == nil {
-                let anchor = WorldAnchor(originFromAnchorTransform: worldFromKeyboard)
-                Task { @MainActor [weak self] in
-                    guard let self else { return }
-                    do {
-                        try await arTrackingService.worldTrackingProvider.addAnchor(anchor)
-                        appState.cachedVirtualPianoWorldAnchorID = anchor.id
-                    } catch {
-                        // If persistence fails, the user can still play in this session.
-                    }
+        guard let geometry = virtualPianoKeyGeometryService.generateKeyboardGeometry(from: frame) else { return }
+
+        let wasPlaced = isVirtualPianoPlaced
+        practiceSessionViewModel.applyVirtualKeyboardGeometry(geometry)
+        isVirtualPianoPlaced = true
+        stopGuidance()
+        if wasPlaced == false {
+            onTrackingRequirementsChanged?()
+        }
+
+        if appState.cachedVirtualPianoWorldAnchorID == nil {
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                do {
+                    appState.cachedVirtualPianoWorldAnchorID = try await arTrackingService.addWorldAnchor(
+                        originFromAnchorTransform: worldFromKeyboard
+                    )
+                } catch {
+                    // Persistence failure does not invalidate the current in-memory placement.
                 }
             }
         }

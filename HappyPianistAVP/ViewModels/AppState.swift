@@ -186,14 +186,9 @@ final class AppState {
         let frontEdgeToKeyCenterLocalZ: Float
         if let frame = KeyboardFrame(a0World: a0Point, c8World: c8Point, planeHeight: planeY) {
             let timestamp = ProcessInfo.processInfo.systemUptime
-            guard
-                let deviceAnchor = arTrackingService.worldTrackingProvider.queryDeviceAnchor(atTimestamp: timestamp),
-                deviceAnchor.isTracked
-            else {
+            guard let deviceTransform = arTrackingService.deviceWorldTransform(atTimestamp: timestamp) else {
                 return .devicePoseUnavailable
             }
-
-            let deviceTransform = deviceAnchor.originFromAnchorTransform
             let devicePos = SIMD3<Float>(
                 deviceTransform.columns.3.x,
                 deviceTransform.columns.3.y,

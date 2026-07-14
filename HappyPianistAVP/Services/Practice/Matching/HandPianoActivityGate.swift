@@ -9,9 +9,17 @@ struct HandGateState: Equatable {
 }
 
 final class HandPianoActivityGate {
+    private struct KeyboardBounds {
+        let x: ClosedRange<Float>
+        let y: ClosedRange<Float>
+        let z: ClosedRange<Float>
+    }
+
     private let nearDistance: Float
     private let downwardThreshold: Float
-    private var lastFingerTipPositions: [String: SIMD3<Float>] = [:]
+    private var lastFingerTips = FingerTipsSnapshot.empty
+    private var cachedGeometryID: UUID?
+    private var cachedBounds: KeyboardBounds?
 
     init(nearDistance: Float = 0.06, downwardThreshold: Float = 0.004) {
         self.nearDistance = nearDistance
@@ -19,12 +27,12 @@ final class HandPianoActivityGate {
     }
 
     func evaluate(
-        fingerTips: [String: SIMD3<Float>],
+        fingerTips: FingerTipsSnapshot,
         keyboardGeometry: PianoKeyboardGeometry?,
         exactPressedNotes: Set<Int>
     ) -> HandGateState {
         guard let keyboardGeometry else {
-            lastFingerTipPositions = fingerTips
+            replacePreviousPositions(with: fingerTips)
             return HandGateState(
                 isNearKeyboard: false,
                 hasDownwardMotion: false,
@@ -34,34 +42,28 @@ final class HandPianoActivityGate {
         }
 
         let keyboardFromWorld = keyboardGeometry.frame.keyboardFromWorld
-        let yBounds = keyboardYBounds(keys: keyboardGeometry.keys)
-        let xBounds = keyboardXBounds(keys: keyboardGeometry.keys)
-        let zBounds = keyboardZBounds(keys: keyboardGeometry.keys)
-
+        let bounds = bounds(for: keyboardGeometry)
         var isNearKeyboard = false
         var hasDownwardMotion = false
 
-        for (fingerID, worldPoint) in fingerTips {
+        fingerTips.forEachTrackedTip { fingerID, worldPoint in
             let localPoint = PressDetectionService.transformPoint(keyboardFromWorld, worldPoint)
-            if localPoint.y <= yBounds.upperBound + nearDistance,
-               localPoint.y >= yBounds.lowerBound - nearDistance,
-               localPoint.x >= xBounds.lowerBound,
-               localPoint.x <= xBounds.upperBound,
-               localPoint.z >= zBounds.lowerBound,
-               localPoint.z <= zBounds.upperBound
+            if localPoint.y <= bounds.y.upperBound + nearDistance,
+               localPoint.y >= bounds.y.lowerBound - nearDistance,
+               bounds.x.contains(localPoint.x),
+               bounds.z.contains(localPoint.z)
             {
                 isNearKeyboard = true
             }
 
-            if let previous = lastFingerTipPositions[fingerID] {
+            if let previous = lastFingerTips.position(for: fingerID) {
                 let previousLocal = PressDetectionService.transformPoint(keyboardFromWorld, previous)
                 if previousLocal.y - localPoint.y > downwardThreshold {
                     hasDownwardMotion = true
                 }
             }
         }
-
-        lastFingerTipPositions = fingerTips
+        lastFingerTips = fingerTips
 
         let confidenceBoost: Double = if exactPressedNotes.isEmpty == false {
             0.10
@@ -82,27 +84,44 @@ final class HandPianoActivityGate {
     }
 
     func reset() {
-        lastFingerTipPositions.removeAll()
+        lastFingerTips = .empty
     }
 
-    private func keyboardYBounds(keys: [PianoKeyGeometry]) -> ClosedRange<Float> {
-        guard keys.isEmpty == false else { return -0.02 ... 0.02 }
-        let minValue = keys.map { $0.surfaceLocalY - 0.02 }.min() ?? -0.02
-        let maxValue = keys.map { $0.surfaceLocalY + 0.03 }.max() ?? 0.03
-        return minValue ... maxValue
+    private func replacePreviousPositions(with fingerTips: FingerTipsSnapshot) {
+        lastFingerTips = fingerTips
     }
 
-    private func keyboardXBounds(keys: [PianoKeyGeometry]) -> ClosedRange<Float> {
-        guard keys.isEmpty == false else { return -1 ... 1 }
-        let minValue = keys.map { $0.localCenter.x - $0.localSize.x / 2 }.min() ?? -1
-        let maxValue = keys.map { $0.localCenter.x + $0.localSize.x / 2 }.max() ?? 1
-        return minValue ... maxValue
-    }
+    private func bounds(for geometry: PianoKeyboardGeometry) -> KeyboardBounds {
+        if cachedGeometryID == geometry.cacheID, let cachedBounds {
+            return cachedBounds
+        }
 
-    private func keyboardZBounds(keys: [PianoKeyGeometry]) -> ClosedRange<Float> {
-        guard keys.isEmpty == false else { return -1 ... 1 }
-        let minValue = keys.map { $0.localCenter.z - $0.localSize.z / 2 }.min() ?? -1
-        let maxValue = keys.map { $0.localCenter.z + $0.localSize.z / 2 }.max() ?? 1
-        return minValue ... maxValue
+        guard let first = geometry.keys.first else {
+            let fallback = KeyboardBounds(x: -1 ... 1, y: -0.02 ... 0.03, z: -1 ... 1)
+            cachedGeometryID = geometry.cacheID
+            cachedBounds = fallback
+            return fallback
+        }
+
+        var minX = first.localCenter.x - first.localSize.x / 2
+        var maxX = first.localCenter.x + first.localSize.x / 2
+        var minY = first.surfaceLocalY - 0.02
+        var maxY = first.surfaceLocalY + 0.03
+        var minZ = first.localCenter.z - first.localSize.z / 2
+        var maxZ = first.localCenter.z + first.localSize.z / 2
+
+        for key in geometry.keys.dropFirst() {
+            minX = min(minX, key.localCenter.x - key.localSize.x / 2)
+            maxX = max(maxX, key.localCenter.x + key.localSize.x / 2)
+            minY = min(minY, key.surfaceLocalY - 0.02)
+            maxY = max(maxY, key.surfaceLocalY + 0.03)
+            minZ = min(minZ, key.localCenter.z - key.localSize.z / 2)
+            maxZ = max(maxZ, key.localCenter.z + key.localSize.z / 2)
+        }
+
+        let next = KeyboardBounds(x: minX ... maxX, y: minY ... maxY, z: minZ ... maxZ)
+        cachedGeometryID = geometry.cacheID
+        cachedBounds = next
+        return next
     }
 }
