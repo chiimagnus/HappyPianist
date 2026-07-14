@@ -9,8 +9,18 @@ func clearingPreparedPracticePreventsSessionReplacementFromResurrectingSong() as
     appState.practiceSetupState.selectedPianoModeID = "kept-mode"
     let guide = makeLifecycleGuide(appState: appState)
     let prepared = makeLifecyclePreparedPractice()
+    let calibration = PianoCalibration(
+        a0: .zero,
+        c8: SIMD3<Float>(1, 0, 0),
+        planeHeight: 0
+    )
+    guide.practiceSessionViewModel.calibration = calibration
 
-    #expect(await guide.applyPreparedPractice(prepared, isCurrent: { true }))
+    #expect(await guide.applyPreparedPracticeForLaunch(
+        prepared,
+        restorePolicy: .freshDefaults,
+        isCurrent: { true }
+    ) == .applied)
     #expect(guide.practiceSessionViewModel.songIdentity == prepared.identity)
     #expect(guide.latestPreparedPractice?.identity == prepared.identity)
 
@@ -23,12 +33,80 @@ func clearingPreparedPracticePreventsSessionReplacementFromResurrectingSong() as
     #expect(appState.practiceSetupState.preparedPracticeIdentity == nil)
     #expect(appState.practiceSetupState.importedSteps.isEmpty)
     #expect(appState.practiceSetupState.selectedPianoModeID == "kept-mode")
+    #expect(guide.practiceSessionViewModel.calibration == calibration)
 
     await guide.replacePracticeSessionViewModel()
 
     #expect(guide.practiceSessionViewModel.songIdentity == nil)
     #expect(guide.practiceSessionViewModel.steps.isEmpty)
     #expect(guide.latestPreparedPractice == nil)
+}
+
+@Test
+@MainActor
+func replacingPracticeSessionReappliesTheSameHistoricalRestorePolicy() async {
+    let appState = AppState()
+    let guide = makeLifecycleGuide(appState: appState)
+    let prepared = makeLifecyclePreparedPractice()
+    let policy = PracticeLaunchRestorePolicy.historicalPreferences(
+        PracticeHistoricalPreferences(
+            handMode: .left,
+            tempoScale: 0.7,
+            loopEnabled: true,
+            requiredSuccesses: 4
+        )
+    )
+    #expect(await guide.applyPreparedPracticeForLaunch(
+        prepared,
+        restorePolicy: policy,
+        isCurrent: { true }
+    ) == .applied)
+    let first = guide.practiceSessionViewModel
+
+    await guide.replacePracticeSessionViewModel()
+
+    let replacement = guide.practiceSessionViewModel
+    #expect(replacement !== first)
+    #expect(replacement.songIdentity == prepared.identity)
+    #expect(replacement.activeRoundConfiguration?.handMode == .left)
+    #expect(replacement.activeRoundConfiguration?.tempoScale == 0.7)
+    #expect(replacement.activeRoundConfiguration?.loopEnabled == true)
+    #expect(replacement.activeRoundConfiguration?.requiredSuccesses == 4)
+    #expect(replacement.activeRoundConfiguration?.passage.start == prepared.measureSpans.first?.occurrenceID)
+    #expect(replacement.activeRoundConfiguration?.passage.end == prepared.measureSpans.last?.occurrenceID)
+}
+
+@Test
+@MainActor
+func replacingAfterCurrentRevisionStartsRestoresItsExactProgress() async {
+    let repository = LifecycleProgressRepository()
+    let coordinator = PracticeProgressCoordinator(
+        repository: repository,
+        checkpointDelay: .seconds(60)
+    )
+    let appState = AppState()
+    let guide = makeLifecycleGuide(appState: appState, progressCoordinator: coordinator)
+    let prepared = makeLifecyclePreparedPractice()
+    #expect(await guide.applyPreparedPracticeForLaunch(
+        prepared,
+        restorePolicy: .historicalPreferences(PracticeHistoricalPreferences(
+            handMode: .left,
+            tempoScale: 0.7,
+            loopEnabled: true,
+            requiredSuccesses: 4
+        )),
+        isCurrent: { true }
+    ) == .applied)
+    guide.practiceSessionViewModel.startGuidingIfReady()
+    #expect(guide.practiceSessionViewModel.sessionProgress != nil)
+
+    await guide.replacePracticeSessionViewModel()
+
+    #expect(guide.practiceSessionViewModel.activeRoundConfiguration?.handMode == .left)
+    #expect(guide.practiceSessionViewModel.activeRoundConfiguration?.tempoScale == 0.7)
+    #expect(guide.practiceSessionViewModel.lastProgressRestoreOutcome == .restored)
+    #expect(guide.practiceSessionViewModel.isRestoredSessionPaused)
+    #expect(await repository.progress(for: prepared.identity) != nil)
 }
 
 @Test
@@ -40,7 +118,11 @@ func clearWinsWhilePreparedPracticeAwaitsProgressRestore() async {
     let guide = makeLifecycleGuide(appState: appState, progressCoordinator: coordinator)
     let prepared = makeLifecyclePreparedPractice()
     let applyTask = Task { @MainActor in
-        await guide.applyPreparedPractice(prepared, isCurrent: { true })
+        await guide.applyPreparedPracticeForLaunch(
+            prepared,
+            restorePolicy: .freshDefaults,
+            isCurrent: { true }
+        )
     }
     await repository.waitForRequest(identity: prepared.identity)
 
@@ -48,7 +130,7 @@ func clearWinsWhilePreparedPracticeAwaitsProgressRestore() async {
     await repository.resume(identity: prepared.identity)
     let applied = await applyTask.value
 
-    #expect(applied == false)
+    #expect(applied == nil)
     #expect(guide.latestPreparedPractice == nil)
     #expect(appState.practiceSetupState.preparedPracticeIdentity == nil)
     #expect(appState.practiceSetupState.importedSteps.isEmpty)
@@ -206,6 +288,32 @@ private actor SuspendedLifecycleProgressRepository: PracticeProgressRepositoryPr
     func upsert(_: SongPracticeProgress) {}
     func upsert(_: SongScorePracticeMetadata) {}
     func remove(songID _: UUID) {}
+}
+
+private actor LifecycleProgressRepository: PracticeProgressRepositoryProtocol {
+    private var storedProgress: SongPracticeProgress?
+
+    func load() -> PracticeProgressLoadResult {
+        .loaded(PracticeProgressDocument(songs: storedProgress.map { [$0] } ?? []))
+    }
+
+    func progress(for identity: PracticeSongIdentity) -> SongPracticeProgress? {
+        storedProgress?.identity == identity ? storedProgress : nil
+    }
+
+    func history(for songID: UUID) -> PracticeSongHistoryLoadResult {
+        .loaded(PracticeSongHistory(
+            songID: songID,
+            progresses: storedProgress.map { $0.identity.songID == songID ? [$0] : [] } ?? [],
+            scoreMetadata: []
+        ))
+    }
+
+    func upsert(_ progress: SongPracticeProgress) { storedProgress = progress }
+    func upsert(_: SongScorePracticeMetadata) {}
+    func remove(songID: UUID) {
+        if storedProgress?.identity.songID == songID { storedProgress = nil }
+    }
 }
 
 private actor FirstSuspendedLifecycleProgressRepository: PracticeProgressRepositoryProtocol {

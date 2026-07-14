@@ -111,20 +111,55 @@ extension PracticeSessionViewModel {
         }
     }
 
-    func restoreProgressIfAvailable() async {
+    func applyLaunchRestorePolicy(_ policy: PracticeLaunchRestorePolicy) async {
         self.lastProgressRestoreOutcome = .none
-        guard let identity = self.songIdentity, let progressCoordinator else { return }
+        guard let identity = self.songIdentity else { return }
         let freshConfiguration = self.activeRoundConfiguration
-        let session = await progressCoordinator.begin(identity: identity)
-        guard session.isCurrent, self.songIdentity == identity else { return }
-        self.progressGeneration = session.generation
-        self.acceptsPracticeAttempts = true
-
-        guard let progress = session.progress else {
-            self.isRestoredSessionPaused = false
-            return
+        var progress: SongPracticeProgress?
+        var progressSession: PracticeProgressSession?
+        if let progressCoordinator {
+            let session = await progressCoordinator.begin(identity: identity)
+            guard session.isCurrent, self.songIdentity == identity else { return }
+            self.progressGeneration = session.generation
+            progress = session.progress
+            progressSession = session
         }
+        self.acceptsPracticeAttempts = true
+        self.sessionProgress = nil
+        self.isRestoredSessionPaused = false
 
+        switch policy {
+        case .exactAvailable:
+            guard let progress, let progressSession, let progressCoordinator else {
+                finishFreshLaunchRestore()
+                return
+            }
+            await restoreExactProgress(
+                progress,
+                freshConfiguration: freshConfiguration,
+                session: progressSession,
+                progressCoordinator: progressCoordinator
+            )
+        case let .historicalPreferences(preferences):
+            if let passage = freshConfiguration?.passage {
+                roundConfigurationController.installHistoricalPreferences(
+                    preferences,
+                    passage: passage
+                )
+                rebuildActiveRange()
+            }
+            finishFreshLaunchRestore()
+        case .freshDefaults, .historyUnavailable:
+            finishFreshLaunchRestore()
+        }
+    }
+
+    private func restoreExactProgress(
+        _ progress: SongPracticeProgress,
+        freshConfiguration: PracticeRoundConfiguration?,
+        session: PracticeProgressSession,
+        progressCoordinator: PracticeProgressCoordinator
+    ) async {
         var restoredProgress = progress
         var repairedSavedState = false
         if let configuration = progress.activeConfiguration {
@@ -173,8 +208,17 @@ extension PracticeSessionViewModel {
         setCurrentHighlightGuideForStepIndex(self.currentStepIndex)
         self.state = self.steps.isEmpty ? .idle : .ready
         self.isRestoredSessionPaused = self.steps.isEmpty == false
+        rebuildAutoplayTimeline()
         refreshAudioRecognitionForCurrentState()
-        refreshPracticeInputForCurrentState()
+    }
+
+    private func finishFreshLaunchRestore() {
+        self.currentStepIndex = self.activeRange?.firstStepIndex ?? 0
+        setCurrentHighlightGuideForStepIndex(self.currentStepIndex)
+        self.state = self.steps.isEmpty ? .idle : .ready
+        self.isRestoredSessionPaused = false
+        rebuildAutoplayTimeline()
+        refreshAudioRecognitionForCurrentState()
     }
 
     func checkpointProgress() {

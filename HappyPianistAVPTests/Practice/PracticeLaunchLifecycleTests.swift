@@ -137,7 +137,12 @@ func stalePreparedPracticeApplyCannotOverwriteNewerLaunch() async throws {
     let firstTask = Task { @MainActor in
         await guide.applyPreparedPracticeForLaunch(
             first,
-            restorePolicy: .freshDefaults,
+            restorePolicy: .historicalPreferences(PracticeHistoricalPreferences(
+                handMode: .left,
+                tempoScale: 0.5,
+                loopEnabled: true,
+                requiredSuccesses: 5
+            )),
             isCurrent: { currentID == firstID }
         )
     }
@@ -157,6 +162,9 @@ func stalePreparedPracticeApplyCannotOverwriteNewerLaunch() async throws {
     #expect(firstOutcome == nil)
     #expect(secondOutcome == .applied)
     #expect(session.songIdentity == second.identity)
+    #expect(session.activeRoundConfiguration?.handMode == .both)
+    #expect(session.activeRoundConfiguration?.tempoScale == 1)
+    #expect(session.activeRoundConfiguration?.loopEnabled == false)
     #expect(guide.latestPreparedPractice?.identity == second.identity)
 }
 
@@ -168,7 +176,7 @@ func freshPracticeLaunchUsesFullScoreDefaults() async throws {
     let session = makeLaunchLifecycleSession(repository: LaunchLifecycleRepository(progresses: []))
 
     installLaunchLifecycleScore(in: session, identity: identity, spans: spans)
-    await session.restoreProgressIfAvailable()
+    await session.applyLaunchRestorePolicy(.freshDefaults)
 
     let configuration = try #require(session.activeRoundConfiguration)
     #expect(configuration.passage.start == spans.first?.occurrenceID)
@@ -209,7 +217,7 @@ func exactPracticeLaunchConfigurationAndResumeAreRestored() async throws {
     )
 
     installLaunchLifecycleScore(in: session, identity: identity, spans: spans)
-    await session.restoreProgressIfAvailable()
+    await session.applyLaunchRestorePolicy(.exactAvailable)
 
     #expect(session.activeRoundConfiguration == savedConfiguration)
     #expect(session.roundConfigurationController.pendingConfiguration == savedConfiguration)
@@ -220,7 +228,7 @@ func exactPracticeLaunchConfigurationAndResumeAreRestored() async throws {
 
 @MainActor
 @Test
-func practiceLaunchRevisionMismatchUsesFreshDefaults() async throws {
+func practiceLaunchRevisionMismatchAppliesOnlyHistoricalPreferencesToFullScore() async throws {
     let songID = UUID()
     let oldIdentity = PracticeSongIdentity(songID: songID, scoreRevision: "r1")
     let currentIdentity = PracticeSongIdentity(songID: songID, scoreRevision: "r2")
@@ -242,14 +250,22 @@ func practiceLaunchRevisionMismatchUsesFreshDefaults() async throws {
     )
 
     installLaunchLifecycleScore(in: session, identity: currentIdentity, spans: spans)
-    await session.restoreProgressIfAvailable()
+    await session.applyLaunchRestorePolicy(.historicalPreferences(
+        PracticeHistoricalPreferences(
+            handMode: .right,
+            tempoScale: 0.6,
+            loopEnabled: true,
+            requiredSuccesses: 5
+        )
+    ))
 
     let configuration = try #require(session.activeRoundConfiguration)
     #expect(configuration.passage.start == spans.first?.occurrenceID)
     #expect(configuration.passage.end == spans.last?.occurrenceID)
-    #expect(configuration.handMode == .both)
-    #expect(configuration.tempoScale == 1)
-    #expect(configuration.loopEnabled == false)
+    #expect(configuration.handMode == .right)
+    #expect(configuration.tempoScale == 0.6)
+    #expect(configuration.loopEnabled)
+    #expect(configuration.requiredSuccesses == 5)
     #expect(session.sessionProgress == nil)
     #expect(session.currentStepIndex == 0)
 }
@@ -283,18 +299,18 @@ func practiceLaunchAtoBtoARestoresPersistedStateAndDiscardsDrafts() async throws
     )
 
     installLaunchLifecycleScore(in: session, identity: identityA, spans: spans)
-    await session.restoreProgressIfAvailable()
+    await session.applyLaunchRestorePolicy(.exactAvailable)
     session.roundConfigurationController.pendingHandMode = .right
     session.roundConfigurationController.pendingTempoScale = 0.5
 
     installLaunchLifecycleScore(in: session, identity: identityB, spans: spans)
-    await session.restoreProgressIfAvailable()
+    await session.applyLaunchRestorePolicy(.freshDefaults)
     #expect(session.roundConfigurationController.pendingHandMode == .both)
     #expect(session.roundConfigurationController.pendingTempoScale == 1)
     session.roundConfigurationController.pendingTempoScale = 0.65
 
     installLaunchLifecycleScore(in: session, identity: identityA, spans: spans)
-    await session.restoreProgressIfAvailable()
+    await session.applyLaunchRestorePolicy(.exactAvailable)
 
     #expect(session.activeRoundConfiguration == savedConfigurationA)
     #expect(session.roundConfigurationController.pendingConfiguration == savedConfigurationA)

@@ -126,6 +126,9 @@ xcodebuild test \
 - [ ] loading / failure 状态不会短暂显示上一首曲目的练习内容
 - [ ] exact revision 的片段、手别、速度、循环、成功目标和恢复位置均正确
 - [ ] 无效 passage/resume 回退到整首且下一次启动不再重复失败
+- [ ] 替换曲谱后只继承手别、速度、循环、成功目标；passage、resume、measure facts 不跨 revision
+- [ ] 历史偏好应用到当前整首 first step，且不会改写全局 defaults
+- [ ] 损坏历史仍可进入 fresh 整首练习，并记录不含绝对路径的 warning
 - [ ] 点击一次只创建一个练习 Session
 - [ ] 快速连续点击不会打开多个练习窗口
 - [ ] 曲谱尚未准备好或准备失败时在练习窗口有明确状态、技术详情、重试和返回

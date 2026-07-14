@@ -62,6 +62,7 @@ struct UserDefaultsPracticeRoundDefaultsStore: PracticeRoundDefaultsStoreProtoco
 final class PracticeRoundConfigurationController {
     private let stateStore: PracticeSessionStateStore
     private let defaultsStore: any PracticeRoundDefaultsStoreProtocol
+    private let freshRequiredSuccesses: Int
 
     var pendingPassage: PracticePassage?
     var pendingHandMode: PracticeHandMode
@@ -80,6 +81,7 @@ final class PracticeRoundConfigurationController {
     ) {
         self.stateStore = stateStore
         self.defaultsStore = defaultsStore
+        freshRequiredSuccesses = defaultsStore.requiredSuccesses
         pendingPassage = nil
         pendingHandMode = settingsProvider.practiceHandMode
         pendingManualAdvanceMode = settingsProvider.manualAdvanceMode
@@ -88,7 +90,7 @@ final class PracticeRoundConfigurationController {
         pendingSendLocalControlOff = settingsProvider.soundRoutingSettings.sendLocalControlOff
         pendingTempoScale = defaultsStore.tempoScale
         pendingLoopEnabled = defaultsStore.loopEnabled
-        pendingRequiredSuccesses = defaultsStore.requiredSuccesses
+        pendingRequiredSuccesses = freshRequiredSuccesses
 
         stateStore.activeManualAdvanceMode = pendingManualAdvanceMode
         stateStore.activeSoundRoutingSettings = pendingSoundRoutingSettings
@@ -125,9 +127,26 @@ final class PracticeRoundConfigurationController {
             handMode: .both,
             tempoScale: 1,
             loopEnabled: false,
-            requiredSuccesses: pendingRequiredSuccesses
+            requiredSuccesses: freshRequiredSuccesses
         )
-        pendingPassage = passage
+        installWithoutSavingDefaults(configuration)
+    }
+
+    func installHistoricalPreferences(
+        _ preferences: PracticeHistoricalPreferences,
+        passage: PracticePassage
+    ) {
+        installWithoutSavingDefaults(PracticeRoundConfiguration(
+            passage: passage,
+            handMode: preferences.handMode,
+            tempoScale: preferences.tempoScale,
+            loopEnabled: preferences.loopEnabled,
+            requiredSuccesses: preferences.requiredSuccesses
+        ))
+    }
+
+    private func installWithoutSavingDefaults(_ configuration: PracticeRoundConfiguration) {
+        pendingPassage = configuration.passage
         pendingHandMode = configuration.handMode
         pendingTempoScale = configuration.tempoScale
         pendingLoopEnabled = configuration.loopEnabled
@@ -163,13 +182,7 @@ final class PracticeRoundConfigurationController {
     }
 
     func restoreActiveConfiguration(_ configuration: PracticeRoundConfiguration) {
-        pendingPassage = configuration.passage
-        pendingHandMode = configuration.handMode
-        pendingTempoScale = configuration.tempoScale
-        pendingLoopEnabled = configuration.loopEnabled
-        pendingRequiredSuccesses = configuration.requiredSuccesses
-        stateStore.activeRoundConfiguration = configuration
-        stateStore.roundGeneration += 1
+        installWithoutSavingDefaults(configuration)
     }
 
     func beginNextRound() {

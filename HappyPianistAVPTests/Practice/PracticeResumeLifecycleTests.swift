@@ -38,7 +38,7 @@ func restoredPracticeStaysReadyAndSilentUntilExplicitStart() async throws {
     session.songIdentity = identity
     session.setSteps(makeResumeSteps(), tempoMap: MusicXMLTempoMap(tempoEvents: []), measureSpans: spans)
 
-    await session.restoreProgressIfAvailable()
+    await session.applyLaunchRestorePolicy(.exactAvailable)
 
     #expect(session.state == .ready)
     #expect(session.currentStepIndex == 1)
@@ -95,7 +95,7 @@ func invalidRestoredPassageIsRepairedAndPersistedWithoutLosingFacts() async thro
     session.songIdentity = identity
     session.setSteps(makeResumeSteps(), tempoMap: MusicXMLTempoMap(tempoEvents: []), measureSpans: spans)
 
-    await session.restoreProgressIfAvailable()
+    await session.applyLaunchRestorePolicy(.exactAvailable)
     let repaired = try #require(await repository.progress(for: identity))
     let repairedConfiguration = try #require(repaired.activeConfiguration)
 
@@ -146,13 +146,69 @@ func invalidRestoredPassageUsesSafeFallbackWhenRepairCannotPersist() async throw
         measureSpans: spans
     )
 
-    await session.restoreProgressIfAvailable()
+    await session.applyLaunchRestorePolicy(.exactAvailable)
 
     #expect(session.activeRangeDiagnostic == nil)
     #expect(session.activeRoundConfiguration?.passage.start == spans.first?.occurrenceID)
     #expect(session.activeRoundConfiguration?.passage.end == spans.last?.occurrenceID)
     #expect(session.lastProgressRestoreOutcome == .repairPersistenceFailed)
     #expect(await repository.progress(for: identity)?.activeConfiguration == storedProgress.activeConfiguration)
+}
+
+@MainActor
+@Test
+func resumeOutsideValidActivePassageIsClearedAndPersistedWithoutLosingFacts() async throws {
+    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
+    let spans = makeResumeSpans()
+    let passage = try #require(PracticePassage(
+        start: spans[0].occurrenceID,
+        end: spans[0].occurrenceID
+    ))
+    let retainedFact = MeasurePracticeFacts(
+        sourceMeasureID: spans[0].occurrenceID.sourceMeasureID,
+        handMode: .both,
+        state: .learning,
+        successfulAttempts: 1
+    )
+    let storedProgress = SongPracticeProgress(
+        identity: identity,
+        activeConfiguration: PracticeRoundConfiguration(
+            passage: passage,
+            handMode: .both,
+            tempoScale: 1,
+            loopEnabled: false,
+            requiredSuccesses: 3
+        ),
+        resumePoint: PracticeResumePoint(
+            occurrenceID: spans[1].occurrenceID,
+            stepIndex: 1,
+            updatedAt: .now
+        ),
+        measureFacts: [retainedFact],
+        updatedAt: .now
+    )
+    let repository = ResumeRepository(progress: storedProgress)
+    let session = PracticeSessionViewModel(
+        pressDetectionService: ResumeNoopPressDetectionService(),
+        chordAttemptAccumulator: ResumeNoopChordAccumulator(),
+        sleeper: TaskSleeper(),
+        progressCoordinator: PracticeProgressCoordinator(repository: repository)
+    )
+    session.songIdentity = identity
+    session.setSteps(
+        makeResumeSteps(),
+        tempoMap: MusicXMLTempoMap(tempoEvents: []),
+        measureSpans: spans
+    )
+
+    await session.applyLaunchRestorePolicy(.exactAvailable)
+
+    let repaired = try #require(await repository.progress(for: identity))
+    #expect(repaired.activeConfiguration == storedProgress.activeConfiguration)
+    #expect(repaired.resumePoint == nil)
+    #expect(repaired.measureFacts == [retainedFact])
+    #expect(session.currentStepIndex == 0)
+    #expect(session.lastProgressRestoreOutcome == .repairedInvalidSavedState)
 }
 
 
@@ -174,7 +230,7 @@ func suspendedPracticeReturnsToPausedReadyAndCanRestartInput() async throws {
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
         measureSpans: makeResumeSpans()
     )
-    await session.restoreProgressIfAvailable()
+    await session.applyLaunchRestorePolicy(.freshDefaults)
     session.startGuidingIfReady()
     session.latestFeedbackEvent = PracticeFeedbackEvent(
         sequence: 1,
@@ -226,7 +282,7 @@ func flushAndShutdownPersistsLatestResumePointBeforeTeardown() async throws {
     let spans = makeResumeSpans()
     session.songIdentity = identity
     session.setSteps(makeResumeSteps(), tempoMap: MusicXMLTempoMap(tempoEvents: []), measureSpans: spans)
-    await session.restoreProgressIfAvailable()
+    await session.applyLaunchRestorePolicy(.freshDefaults)
     session.startGuidingIfReady()
     session.recordAttemptOutcome(
 .matched
@@ -252,7 +308,7 @@ func navigationWithoutAttemptPersistsLatestResumePoint() async throws {
     let spans = makeResumeSpans()
     session.songIdentity = identity
     session.setSteps(makeResumeSteps(), tempoMap: MusicXMLTempoMap(tempoEvents: []), measureSpans: spans)
-    await session.restoreProgressIfAvailable()
+    await session.applyLaunchRestorePolicy(.freshDefaults)
     session.startGuidingIfReady()
 
     session.moveToStep(1, shouldPlaySound: false)

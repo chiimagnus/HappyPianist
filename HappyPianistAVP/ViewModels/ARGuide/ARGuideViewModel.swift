@@ -31,6 +31,7 @@ final class ARGuideViewModel: PracticeLaunchApplying {
 
     var practiceSessionViewModel: PracticeSessionViewModel
     var latestPreparedPractice: PreparedPractice?
+    @ObservationIgnored private var latestPracticeRestorePolicy: PracticeLaunchRestorePolicy?
 
     @ObservationIgnored private var handTrackingConsumerTask: Task<Void, Never>?
     @ObservationIgnored private var preparedPracticeApplicationID: UUID?
@@ -149,48 +150,41 @@ final class ARGuideViewModel: PracticeLaunchApplying {
         }
     }
 
-    @discardableResult
-    func applyPreparedPractice(
+    func applyPreparedPracticeForLaunch(
         _ prepared: PreparedPractice,
+        restorePolicy: PracticeLaunchRestorePolicy,
         isCurrent: @escaping @MainActor () -> Bool
-    ) async -> Bool {
+    ) async -> PracticeLaunchApplyOutcome? {
         let applicationID = UUID()
         let session = practiceSessionViewModel
         preparedPracticeApplicationID = applicationID
         guard isCurrent() else {
             preparedPracticeApplicationID = nil
-            return false
+            return nil
         }
         guard await applyPreparedPractice(
             prepared,
+            restorePolicy: restorePolicy,
             to: session,
             applicationID: applicationID,
             isCurrent: isCurrent
-        ) else { return false }
+        ) else { return nil }
         guard practiceSessionViewModel === session,
               preparedPracticeApplicationID == applicationID,
               isCurrent()
         else {
             clearStalePreparedPractice(applicationID: applicationID, session: session)
-            return false
+            return nil
         }
 
         practiceSetupState.setImportedSteps(from: prepared)
         appState.applySessionIfPossible()
         latestPreparedPractice = prepared
+        latestPracticeRestorePolicy = restorePolicy
         preparedPracticeApplicationID = nil
         if isVirtualPerformerEnabled {
             setPracticeVirtualPerformerEnabled(true)
         }
-        return true
-    }
-
-    func applyPreparedPracticeForLaunch(
-        _ prepared: PreparedPractice,
-        restorePolicy _: PracticeLaunchRestorePolicy,
-        isCurrent: @escaping @MainActor () -> Bool
-    ) async -> PracticeLaunchApplyOutcome? {
-        guard await applyPreparedPractice(prepared, isCurrent: isCurrent) else { return nil }
         return switch practiceSessionViewModel.lastProgressRestoreOutcome {
         case .repairedInvalidSavedState:
             .appliedWithRepairedSavedState
@@ -203,6 +197,7 @@ final class ARGuideViewModel: PracticeLaunchApplying {
 
     private func applyPreparedPractice(
         _ prepared: PreparedPractice,
+        restorePolicy: PracticeLaunchRestorePolicy,
         to session: PracticeSessionViewModel,
         applicationID: UUID,
         isCurrent: @escaping @MainActor () -> Bool
@@ -228,7 +223,7 @@ final class ARGuideViewModel: PracticeLaunchApplying {
             clearStalePreparedPractice(applicationID: applicationID, session: session)
             return false
         }
-        await session.restoreProgressIfAvailable()
+        await session.applyLaunchRestorePolicy(restorePolicy)
         guard practiceSessionViewModel === session,
               preparedPracticeApplicationID == applicationID,
               isCurrent()
@@ -251,6 +246,7 @@ final class ARGuideViewModel: PracticeLaunchApplying {
     func clearPreparedPracticeForLaunch() async {
         preparedPracticeApplicationID = nil
         latestPreparedPractice = nil
+        latestPracticeRestorePolicy = nil
         practiceSetupState.clearSongAndSteps()
         invalidatePracticeFeedbackPresentation()
 
@@ -268,6 +264,8 @@ final class ARGuideViewModel: PracticeLaunchApplying {
     }
 
     func replacePracticeSessionViewModel() async {
+        let hadCurrentProgress = practiceSessionViewModel.progressCoordinator != nil &&
+            practiceSessionViewModel.sessionProgress != nil
         await practiceSessionViewModel.flushAndShutdown()
         let next = makePracticeSessionViewModel(practiceSetupState.selectedPianoModeID)
         practiceSessionViewModel = next
@@ -275,15 +273,21 @@ final class ARGuideViewModel: PracticeLaunchApplying {
         practiceViewModel.updatePracticeSession(next)
         aiPerformanceViewModel.updatePracticeSession(next)
 
-        if let prepared = latestPreparedPractice {
+        if let prepared = latestPreparedPractice,
+           let previousRestorePolicy = latestPracticeRestorePolicy {
+            let restorePolicy: PracticeLaunchRestorePolicy = hadCurrentProgress
+                ? .exactAvailable
+                : previousRestorePolicy
             let applicationID = UUID()
             preparedPracticeApplicationID = applicationID
             _ = await applyPreparedPractice(
                 prepared,
+                restorePolicy: restorePolicy,
                 to: next,
                 applicationID: applicationID,
                 isCurrent: { true }
             )
+            latestPracticeRestorePolicy = restorePolicy
             preparedPracticeApplicationID = nil
         }
 

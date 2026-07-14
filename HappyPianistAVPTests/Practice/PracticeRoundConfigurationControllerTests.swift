@@ -91,6 +91,32 @@ struct PracticeRoundConfigurationControllerTests {
         #expect(stateStore.activeRoundConfiguration?.passage == passageB)
     }
 
+    @Test func historicalPreferencesInstallWithoutWritingDefaults() throws {
+        let stateStore = PracticeSessionStateStore()
+        let defaults = CapturingRoundDefaultsStore()
+        let controller = PracticeRoundConfigurationController(
+            stateStore: stateStore,
+            settingsProvider: FixedPracticeSettingsProvider(),
+            defaultsStore: defaults
+        )
+        let passage = try #require(makePassage())
+
+        controller.installHistoricalPreferences(
+            PracticeHistoricalPreferences(
+                handMode: .left,
+                tempoScale: 0.7,
+                loopEnabled: true,
+                requiredSuccesses: 4
+            ),
+            passage: passage
+        )
+
+        #expect(controller.pendingConfiguration == stateStore.activeRoundConfiguration)
+        #expect(stateStore.activeRoundConfiguration?.passage == passage)
+        #expect(stateStore.activeRoundConfiguration?.handMode == .left)
+        #expect(defaults.saveCount == 0)
+    }
+
     private func makePassage(partID: String = "P1", sourceIndex: Int = 0) -> PracticePassage? {
         let source = PracticeSourceMeasureID(
             partID: partID,
@@ -119,6 +145,7 @@ private final class CapturingRoundDefaultsStore: PracticeRoundDefaultsStoreProto
     var loopEnabled = false
     var requiredSuccesses = 3
     var savedHandMode: PracticeHandMode?
+    private(set) var saveCount = 0
 
     func save(
         handMode: PracticeHandMode,
@@ -128,6 +155,7 @@ private final class CapturingRoundDefaultsStore: PracticeRoundDefaultsStoreProto
         loopEnabled: Bool,
         requiredSuccesses: Int
     ) {
+        saveCount += 1
         savedHandMode = handMode
         self.tempoScale = tempoScale
         self.loopEnabled = loopEnabled

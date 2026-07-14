@@ -22,7 +22,7 @@ func configuredAttemptPersistsAndRebuildsAsPausedResume() async throws {
     )
     firstSession.roundConfigurationController.pendingRequiredSuccesses = 1
     _ = firstSession.applyPendingRoundConfiguration()
-    await firstSession.restoreProgressIfAvailable()
+    await firstSession.applyLaunchRestorePolicy(.freshDefaults)
     firstSession.startGuidingIfReady()
     firstSession.recordAttemptOutcome(matchedLearningLoopOutcome())
     await firstSession.flushAndShutdown()
@@ -43,7 +43,7 @@ func configuredAttemptPersistsAndRebuildsAsPausedResume() async throws {
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
         measureSpans: [span]
     )
-    await secondSession.restoreProgressIfAvailable()
+    await secondSession.applyLaunchRestorePolicy(.exactAvailable)
 
     #expect(secondSession.state == .ready)
     #expect(secondSession.isRestoredSessionPaused)
