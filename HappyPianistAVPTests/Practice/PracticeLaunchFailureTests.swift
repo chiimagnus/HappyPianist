@@ -4,12 +4,24 @@ import Testing
 
 @Test(arguments: [
     (PracticePreparationError.scoreFileNotFound, DiagnosticCode.practiceScoreFileNotFound, "找不到曲谱文件"),
+    (PracticePreparationError.scoreFileUnreadable(reason: "read failed"), DiagnosticCode.practiceScoreFileUnreadable, "无法读取曲谱文件"),
     (PracticePreparationError.invalidMXLArchive, DiagnosticCode.practiceMXLInvalidArchive, "压缩曲谱已损坏"),
     (PracticePreparationError.missingMXLContainer, DiagnosticCode.practiceMXLMissingContainer, "压缩曲谱缺少入口文件"),
     (PracticePreparationError.missingMXLRootfile, DiagnosticCode.practiceMXLMissingRootfile, "压缩曲谱没有指定主曲谱"),
     (PracticePreparationError.invalidMXLContainer, DiagnosticCode.practiceMXLInvalidContainer, "压缩曲谱入口文件无效"),
     (PracticePreparationError.noPlayableNotes, DiagnosticCode.practiceNoPlayableNotes, "曲谱中没有可练习的音符"),
     (PracticePreparationError.missingMeasureStructure, DiagnosticCode.practiceMissingMeasureStructure, "曲谱的小节结构不完整"),
+    (PracticePreparationError.unsupportedRootElement(reason: "score-custom"), DiagnosticCode.practicePreparationFailed, "不支持这份 MusicXML 结构"),
+    (
+        PracticePreparationError.unexpected(
+            stage: "test",
+            reason: PracticePreparationErrorDetails.safeErrorSummary(
+                NSError(domain: "PracticeLaunchFailureTests", code: 1)
+            )
+        ),
+        DiagnosticCode.practicePreparationFailed,
+        "无法准备这份曲谱"
+    ),
 ])
 func preparationFailuresMapToConcretePresentation(
     error: PracticePreparationError,
@@ -23,7 +35,7 @@ func preparationFailuresMapToConcretePresentation(
         )
     )
 
-    let failure = LibraryPracticePreparationFailure.map(
+    let failure = PracticeLaunchFailure.map(
         error,
         entryID: UUID(),
         file: file
@@ -43,7 +55,7 @@ func xmlPreparationFailurePreservesParserLocation() throws {
             relativePath: "SongLibrary/scores/broken.musicxml"
         )
     )
-    let failure = LibraryPracticePreparationFailure.map(
+    let failure = PracticeLaunchFailure.map(
         .xmlParseFailed(line: 42, column: 7, reason: "tag mismatch"),
         entryID: UUID(),
         file: file
@@ -63,7 +75,7 @@ func missingMXLScoreIncludesOnlyArchiveRelativePath() throws {
             relativePath: "SongLibrary/scores/broken.mxl"
         )
     )
-    let failure = LibraryPracticePreparationFailure.map(
+    let failure = PracticeLaunchFailure.map(
         .missingMXLScore(path: "scores/main.musicxml"),
         entryID: UUID(),
         file: file
@@ -77,7 +89,7 @@ func missingMXLScoreIncludesOnlyArchiveRelativePath() throws {
 func preparationFailureTechnicalDetailsRemainStableAndMatchDiagnosticEvent() throws {
     let occurredAt = Date(timeIntervalSince1970: 1_700_000_000)
     let eventID = UUID()
-    let failure = LibraryPracticePreparationFailure(
+    let failure = PracticeLaunchFailure(
         id: eventID,
         occurredAt: occurredAt,
         entryID: UUID(),

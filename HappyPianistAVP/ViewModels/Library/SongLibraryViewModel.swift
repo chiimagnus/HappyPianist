@@ -518,7 +518,7 @@ final class SongLibraryViewModel {
                 stage: "selectedScorePreparation",
                 reason: PracticePreparationErrorDetails.safeErrorSummary(error)
             )
-            let failure = LibraryPracticePreparationFailure.map(
+            let failure = PracticeLaunchFailure.map(
                 preparationError,
                 entryID: entryID,
                 file: fileReference

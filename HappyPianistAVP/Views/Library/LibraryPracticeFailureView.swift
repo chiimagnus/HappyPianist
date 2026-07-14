@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct LibraryPracticeFailureView: View {
-    let failure: LibraryPracticePreparationFailure
+    let failure: PracticeLaunchFailure
     let wasRecordedInDiagnostics: Bool
     let onRetry: () -> Void
     let onImportMusicXML: () -> Void

@@ -672,7 +672,7 @@ private func makeFailurePreparationFixture(
 private func waitForLoggedPreparationFailure(
     _ viewModel: SongLibraryViewModel,
     excluding previousID: UUID? = nil
-) async throws -> LibraryPracticePreparationFailure {
+) async throws -> PracticeLaunchFailure {
     for _ in 0..<100 {
         if case let .failure(failure) = viewModel.practicePreparationState,
            failure.id != previousID,
