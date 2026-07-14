@@ -53,6 +53,34 @@ func libraryRejectsStaleSnapshotWhenSelectionChangesDuringHistoryRead() async th
 
 @Test
 @MainActor
+func libraryAtoBtoAActorReadDisorderOnlyPublishesLatestA() async throws {
+    let first = makeLoadingEntry(name: "A")
+    let second = makeLoadingEntry(name: "B")
+    let repository = OrderedSuspendedHistoryRepository()
+    let viewModel = SongLibraryViewModelTestHarness.make(
+        index: SongLibraryIndex(entries: [first, second], lastSelectedEntryID: first.id),
+        practiceProgressRepository: repository
+    )
+    await repository.waitForRequestCount(1)
+
+    viewModel.selectEntry(second.id)
+    await repository.waitForRequestCount(2)
+    viewModel.selectEntry(first.id)
+    await repository.waitForRequestCount(3)
+
+    await repository.resumeRequest(at: 2, result: emptyHistory(for: first.id))
+    try await waitForSnapshotState(viewModel) {
+        $0 == .neverPracticed(selectionIdentity(first))
+    }
+    await repository.resumeRequest(at: 1, result: currentHistory(for: second))
+    await repository.resumeRequest(at: 0, result: currentHistory(for: first))
+    try await Task.sleep(for: .milliseconds(20))
+
+    #expect(viewModel.practiceSnapshotState == .neverPracticed(selectionIdentity(first)))
+}
+
+@Test
+@MainActor
 func libraryRefreshCoalescesSameSelectionAndReadsHistoryOnce() async throws {
     let entry = makeLoadingEntry()
     let repository = CountingHistoryRepository(result: emptyHistory(for: entry.id))
@@ -311,6 +339,33 @@ private actor SuspendedHistoryRepository: PracticeProgressRepositoryProtocol {
     }
     func resume(songID: UUID, result: PracticeSongHistoryLoadResult) {
         continuations.removeValue(forKey: songID)?.resume(returning: result)
+    }
+    func upsert(_: SongPracticeProgress) {}
+    func upsert(_: SongScorePracticeMetadata) {}
+    func remove(songID _: UUID) {}
+}
+
+private actor OrderedSuspendedHistoryRepository: PracticeProgressRepositoryProtocol {
+    private struct Request {
+        let continuation: CheckedContinuation<PracticeSongHistoryLoadResult, Never>
+    }
+
+    private var requests: [Request?] = []
+
+    func load() -> PracticeProgressLoadResult { .loaded(PracticeProgressDocument()) }
+    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? { nil }
+    func history(for _: UUID) async -> PracticeSongHistoryLoadResult {
+        await withCheckedContinuation { continuation in
+            requests.append(Request(continuation: continuation))
+        }
+    }
+    func waitForRequestCount(_ count: Int) async {
+        while requests.count < count { await Task.yield() }
+    }
+    func resumeRequest(at index: Int, result: PracticeSongHistoryLoadResult) {
+        guard requests.indices.contains(index), let request = requests[index] else { return }
+        requests[index] = nil
+        request.continuation.resume(returning: result)
     }
     func upsert(_: SongPracticeProgress) {}
     func upsert(_: SongScorePracticeMetadata) {}

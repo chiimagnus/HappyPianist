@@ -46,6 +46,44 @@ func snapshotNeedsRebuildWhenRealHistoryHasNoExactTokenMetadata() async {
 }
 
 @Test
+func bundledBuildTokenChangeDoesNotReuseOldMetadata() async {
+    let songID = UUID()
+    let oldToken = BundledSongLibraryProvider.scoreFileVersionID(
+        fileName: "score.musicxml",
+        bundleIdentifier: "com.example.HappyPianist",
+        shortVersion: "1.0",
+        buildVersion: "1"
+    )
+    let currentToken = BundledSongLibraryProvider.scoreFileVersionID(
+        fileName: "score.musicxml",
+        bundleIdentifier: "com.example.HappyPianist",
+        shortVersion: "1.0",
+        buildVersion: "2"
+    )
+    let entry = SongLibraryEntry(
+        id: songID,
+        displayName: "Bundled",
+        musicXMLFileName: "score.musicxml",
+        scoreFileVersionID: currentToken,
+        importedAt: Date(timeIntervalSince1970: 0),
+        audioFileName: nil,
+        isBundled: true
+    )
+    let progress = makeSnapshotProgress(songID: songID, revision: "old", attemptedAt: 10)
+    let metadata = makeSnapshotMetadata(songID: songID, token: oldToken, revision: "old")
+
+    #expect(oldToken != currentToken)
+    #expect(await snapshotBuilder.build(
+        entry: entry,
+        history: PracticeSongHistory(
+            songID: songID,
+            progresses: [progress],
+            scoreMetadata: [metadata]
+        )
+    ) == .needsRebuild(historyDate: Date(timeIntervalSince1970: 10)))
+}
+
+@Test
 func snapshotLegacyNilTokenOnlyMatchesNilMetadata() async {
     let entry = makeSnapshotEntry(token: nil)
     let progress = makeSnapshotProgress(songID: entry.id, revision: "legacy", attemptedAt: 10)

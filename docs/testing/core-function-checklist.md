@@ -30,6 +30,17 @@
 | VoiceOver 名称与 hint、键盘/间接输入 | Not Run | 需要可交互 Simulator GUI 或真机。 |
 | loading/failure/retry/return 与 scene inactive 的人工交互 | Not Run | 自动化状态机与竞态已通过；交互呈现仍需可见 Simulator GUI 或真机。 |
 
+## 2026-07-15 P2 曲库事实 Ornament Gate 记录
+
+| 检查 | 状态 | 证据 |
+| --- | --- | --- |
+| never/current/needs rebuild/unavailable 事实边界与 A→B→A 乱序 | Pass | snapshot builder、受控 actor history 与 metadata failure 回归测试实际运行。 |
+| Library/Ornament 不触达 score、prepare、session 或配置 controller | Pass | CodeGraph 调用图、score access spy 与静态符号 gate。 |
+| visionOS Simulator 完整测试与 App build | Pass | Apple Vision Pro visionOS 26.4 的本轮 `xcodebuild test` / `build` 结果。 |
+| Ornament 各状态与 min/ideal/max 窗口 | Not Run | 当前环境没有可见的 Simulator GUI/应用窗口。 |
+| 最大 Dynamic Type、VoiceOver | Not Run | 需要可交互 Simulator GUI 或真机。 |
+| Reduce Motion、Differentiate Without Color | Not Run | 自动化构建覆盖相应 SwiftUI 分支；人工呈现需要可交互 Simulator GUI 或真机。 |
+
 ## 1. 构建与自动化测试
 
 先查看可用 Simulator：

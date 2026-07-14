@@ -223,6 +223,55 @@ func metadataWriteFailureKeepsReadyAndRecordsPrivateSafeWarning() async throws {
     #expect(event.reason.contains(songID.uuidString))
     #expect(event.reason.contains("measureCount=1"))
     #expect(event.reason.contains("/Users/") == false)
+    let history = try #require(await repository.loadedHistory(songID: songID))
+    #expect(await SongPracticeLibrarySnapshotBuilder().build(
+        entry: makePracticeLaunchEntry(songID: songID),
+        history: history
+    ) == .neverPracticed)
+}
+
+@MainActor
+@Test
+func metadataWriteFailureLeavesRealOldHistoryAsNeedsRebuild() async throws {
+    let songID = UUID()
+    let attemptedAt = Date(timeIntervalSince1970: 42)
+    let oldProgress = SongPracticeProgress(
+        identity: PracticeSongIdentity(songID: songID, scoreRevision: "old"),
+        measureFacts: [MeasurePracticeFacts(
+            sourceMeasureID: PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 0),
+            handMode: .both,
+            state: .learning,
+            failedAttempts: 1,
+            lastAttemptAt: attemptedAt
+        )],
+        updatedAt: attemptedAt
+    )
+    let repository = RecordingPracticeLaunchProgressRepository(
+        metadataError: CocoaError(.fileWriteOutOfSpace),
+        progresses: [oldProgress]
+    )
+    let reporter = InMemoryDiagnosticsReporter()
+    let owner = PracticeLaunchViewModel(
+        resolver: PracticeLaunchResolver(songIDs: [songID]),
+        preparationService: PracticeLaunchPreparationService(
+            delays: [:],
+            errors: [:],
+            includeMeasureSpans: true
+        ),
+        applicator: PracticeLaunchRecordingApplicator(applyOutcome: .applied),
+        diagnosticsReporter: reporter,
+        progressRepository: repository
+    )
+    owner.request(songID: songID)
+
+    await owner.activateCurrentRequest()
+    _ = try await waitForLaunchDiagnostic(reporter, code: .practiceScoreMetadataWriteFailed)
+
+    let history = try #require(await repository.loadedHistory(songID: songID))
+    #expect(await SongPracticeLibrarySnapshotBuilder().build(
+        entry: makePracticeLaunchEntry(songID: songID),
+        history: history
+    ) == .needsRebuild(historyDate: attemptedAt))
 }
 
 @MainActor
@@ -534,18 +583,30 @@ private struct PracticeLaunchFixture {
 
 private actor RecordingPracticeLaunchProgressRepository: PracticeProgressRepositoryProtocol {
     private(set) var metadata: [SongScorePracticeMetadata] = []
+    private var progresses: [SongPracticeProgress]
     let metadataError: Error?
 
-    init(metadataError: Error? = nil) {
+    init(
+        metadataError: Error? = nil,
+        progresses: [SongPracticeProgress] = []
+    ) {
         self.metadataError = metadataError
+        self.progresses = progresses
     }
 
     func load() -> PracticeProgressLoadResult { .loaded(PracticeProgressDocument()) }
     func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? { nil }
     func history(for songID: UUID) -> PracticeSongHistoryLoadResult {
-        .loaded(PracticeSongHistory(songID: songID, progresses: [], scoreMetadata: metadata))
+        .loaded(PracticeSongHistory(
+            songID: songID,
+            progresses: progresses.filter { $0.identity.songID == songID },
+            scoreMetadata: metadata.filter { $0.songID == songID }
+        ))
     }
-    func upsert(_: SongPracticeProgress) {}
+    func upsert(_ progress: SongPracticeProgress) {
+        progresses.removeAll(where: { $0.identity == progress.identity })
+        progresses.append(progress)
+    }
     func upsert(_ metadata: SongScorePracticeMetadata) throws {
         if let metadataError { throw metadataError }
         self.metadata.append(metadata)
@@ -555,6 +616,23 @@ private actor RecordingPracticeLaunchProgressRepository: PracticeProgressReposit
     func waitForMetadataCount(_ count: Int) async {
         while metadata.count < count { await Task.yield() }
     }
+
+    func loadedHistory(songID: UUID) -> PracticeSongHistory? {
+        guard case let .loaded(history) = history(for: songID) else { return nil }
+        return history
+    }
+}
+
+private func makePracticeLaunchEntry(songID: UUID) -> SongLibraryEntry {
+    SongLibraryEntry(
+        id: songID,
+        displayName: "Song",
+        musicXMLFileName: "song.musicxml",
+        scoreFileVersionID: songID,
+        importedAt: Date(timeIntervalSince1970: 0),
+        audioFileName: nil,
+        isBundled: true
+    )
 }
 
 private func waitForLaunchDiagnostic(
