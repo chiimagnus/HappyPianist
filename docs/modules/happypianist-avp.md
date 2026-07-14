@@ -31,7 +31,8 @@
 
 | 代码 | 作用 |
 | --- | --- |
-| `HappyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift` | 合并 bundled/imported entries，管理选择、试听、导入、删除和进入练习。 |
+| `HappyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift` | 接收异步 bootstrap snapshot，合并 bundled/imported entries，管理选择、试听、导入、删除和进入练习。 |
+| `HappyPianistAVP/Services/Library/SongLibraryBootstrapLoader.swift` | actor 隔离的首次 bundle 扫描与索引解码，避免阻塞 MainActor 启动。 |
 | `HappyPianistAVP/Services/Library/SongFileStore.swift` | 导入 MusicXML 到 Documents。 |
 | `HappyPianistAVP/Services/Library/SongLibraryIndexStore.swift` | 保存用户曲库索引。 |
 | `HappyPianistAVP/Services/Library/BundledSongLibraryProvider.swift` | 扫描 App bundle 中的 `.musicxml`。 |
@@ -80,14 +81,18 @@ Library View -> SongLibraryViewModel -> SongFileStore
 | 代码 | 作用 |
 | --- | --- |
 | `HappyPianistAVP/Views/Shared/ImmersiveView.swift` | `RealityView` 容器和 overlay 挂载点。 |
-| `HappyPianistAVP/Services/Tracking/ARTrackingService.swift` | 按 `ARTrackingMode` 管理 ARKit providers。 |
+| `HappyPianistAVP/Services/Tracking/ARTrackingService.swift` | 按 `ARTrackingRequirements` 管理最小 ARKit provider 集合，并发布 newest-only typed 手部快照。 |
+| `HappyPianistAVP/Models/Tracking/FingerTipsSnapshot.swift` | 固定手别与手指身份的 typed snapshot，替代逐帧字符串字典。 |
+| `HappyPianistAVP/Services/HandTracking/PianoKeyHitTestIndex.swift` | 键盘几何索引与常数级相邻候选命中。 |
 | `Services/Immersive/*OverlayController.swift` | 校准、琴键、虚拟钢琴和调试 overlay。 |
 | `PianoGuideOverlayController` | 高亮与练习恢复效果的共享 root。 |
 
 规则：
 
-- ARKit provider 只在 immersive space 内运行。
-- 进入后台、换曲、restart、关闭窗口和退出 immersive 时清理长生命周期 task 与 entity。
+- ARKit provider 只在 immersive space 内运行；平面检测仅在虚拟琴尚未完成摆放时启用。
+- 虚拟琴引导只有一个 30 Hz 驱动循环；手部 stream 只更新最新快照，不直接触发第二次 guidance。
+- 进入后台、换曲、restart、关闭窗口和退出 immersive 时清理 tracking session、订阅、长生命周期 task 与 entity。
+- 钢琴键 mesh/material 由沉浸视图持有的共享工厂复用。
 - Reduce Motion 和 Differentiate Without Color 必须有等价表现。
 
 ## 录制

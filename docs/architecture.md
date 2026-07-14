@@ -42,8 +42,10 @@ flowchart TD
   STATE --> ARGUIDE[ARGuideViewModel]
   STATE --> MODES[PianoModeRegistryService]
 
+  LIBRARY --> BOOTSTRAP[SongLibraryBootstrapLoader actor]
+  BOOTSTRAP --> BUNDLED[BundledSongLibraryProvider]
+  BOOTSTRAP --> INDEX[SongLibraryIndexStore]
   LIBRARY --> FILES[SongFileStore]
-  LIBRARY --> INDEX[SongLibraryIndexStore]
   LIBRARY --> PREP[PracticePreparationService]
   LIBRARY --> DIAG[DiagnosticsReporting]
 
@@ -74,7 +76,7 @@ flowchart TD
 - `practice` window
 - mixed `ImmersiveSpace`
 
-`WindowTransitionState` 负责替换式窗口切换。`ARGuideViewModel` 协调沉浸空间、追踪、练习 session、录制与 AI 服务。
+`WindowTransitionState` 负责替换式窗口切换。`ARGuideViewModel` 协调沉浸空间、追踪、练习 session、录制与 AI 服务。`ARTrackingRequirements` 从当前流程推导最小 provider 集合；后台或退出沉浸空间时统一暂停追踪、输入消费者和 RealityKit 长生命周期任务，恢复 active 后按当前需求重建。
 
 ## 主要领域边界
 
@@ -97,7 +99,10 @@ flowchart TD
 - `PracticeStep` 是即时判定单位；持久化事实聚合到 source measure。
 - 重复结构用 occurrence identity 定位播放位置，用 source identity 汇总学习事实。
 - 本轮 active configuration 在一轮中不可变；设置修改只影响下一轮。
-- 退出、后台、换 session 与完成流程必须先停止新 attempt，再 flush 进度，最后 teardown 输入和回放。
+- 退出、后台、换 session 与完成流程必须先停止新 attempt，再 flush 进度，最后 teardown 输入、追踪、RealityKit task 和回放。
+- 手部热路径只传递 `FingerTipsSnapshot`；订阅使用 newest-only current-value relay，消费者不得恢复字符串字典协议。
+- CoreMIDI 输入流必须有固定容量；发生溢出时以 channel-wide All Notes Off 作为状态恢复边界。
+- 曲库首次 bundle 扫描与索引解码必须在 `SongLibraryBootstrapLoader` actor 中完成，不得放回 ViewModel 初始化或 SwiftUI `body`。
 - feedback 表现不进入 progress JSON。
 - AI 失败不改变练习进度，也不自动切换后端。
 - 曲谱准备失败的界面说明、技术详情、系统日志和导出日志必须来自同一个 typed failure。

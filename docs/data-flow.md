@@ -7,7 +7,7 @@
 | 流程 | 入口 | 关键对象 | 输出 |
 | --- | --- | --- | --- |
 | 准备 | 钢琴模式选择 | `PracticeSetupState`、`PianoModeProtocol` | readiness gate |
-| 曲库 | bundled / 用户导入 MusicXML | `SongLibraryViewModel`、`SongFileStore` | `SongLibraryEntry` |
+| 曲库 | bundled / 用户导入 MusicXML | `SongLibraryBootstrapLoader`、`SongLibraryViewModel`、`SongFileStore` | `SongLibraryEntry` |
 | 曲谱准备 | 曲库中切换唱片 | `SongLibraryViewModel`、`PracticePreparationService` | 右侧 Ornament 的 loading / ready / failure 状态 |
 | 练习 | prepared score + piano mode | `ARGuideViewModel`、`PracticeSessionViewModel` | 导航、判定、回放、录制 |
 | 持久化 | attempt 与 session 生命周期 | reducer、coordinator、repository | 小节事实与恢复点 |
@@ -34,11 +34,19 @@ flowchart TD
   L --> M[mixed ImmersiveSpace]
 ```
 
-`WindowTransitionState` 维护 preparation、library、practice 三个窗口的替换式切换。ARKit provider 只在沉浸空间内启动。
+`WindowTransitionState` 维护 preparation、library、practice 三个窗口的替换式切换。ARKit provider 只在沉浸空间内启动，并由 `ARTrackingRequirements` 按校准、练习模式和虚拟琴摆放阶段选择 hand、world 与 horizontal-plane provider。scenePhase 进入非 active 时停止 session 与所有消费者，恢复 active 后从当前业务状态重新推导需求。
 
 ## MusicXML 导入与准备
 
-### 导入
+### 启动与导入
+
+```text
+SongLibraryView.task
+-> SongLibraryViewModel.loadLibraryIfNeeded
+-> SongLibraryBootstrapLoader actor
+-> bundled scan + index decode off MainActor
+-> one immutable bootstrap snapshot
+```
 
 ```text
 LibraryWindowView / SongLibraryView
@@ -107,10 +115,10 @@ active range 同时约束：
 | 模式 | 输入链路 | 判定 |
 | --- | --- | --- |
 | 真实钢琴（音频） | microphone -> recognition service -> accumulator | 目标音证据与 typed outcome |
-| 真实钢琴（蓝牙 MIDI） | CoreMIDI -> MIDI1/2 decoder -> input service | deterministic note/chord matching |
-| 虚拟钢琴 | hand contact -> virtual input controller | 虚拟按键 note events |
+| 真实钢琴（蓝牙 MIDI） | CoreMIDI -> bounded MIDI1/2 stream -> decoder -> input service | deterministic note/chord matching |
+| 虚拟钢琴 | newest-only `FingerTipsSnapshot` -> indexed hand contact -> virtual input controller | 虚拟按键 note events |
 
-自动播放、手动回放、AI 输出、paused、suspended 与非 guiding 状态不会生成用户 attempt。
+手部 producer 只发布 typed snapshot；琴键几何变化时重建一次 hit-test index，每帧仅查询相邻候选键。CoreMIDI 缓冲溢出会发布 All Notes Off，统一复位 matcher、AI 持音上下文和录音中的开放音符。自动播放、手动回放、AI 输出、paused、suspended 与非 guiding 状态不会生成用户 attempt。
 
 ## 练习事实与恢复
 
