@@ -93,6 +93,7 @@ func latestPreparationGenerationWins() async throws {
         fileStore: PreparationTestFileStore(),
         audioImportService: PreparationTestAudioImporter(),
         bundledProvider: PreparationTestBundledProvider(entries: entries, scoreURL: url),
+        entryResolver: PreparationTestEntryResolver(entries: entries, scoreURL: url),
         audioPlayer: PreparationTestAudioPlayer(),
         practiceProgressRepository: PreparationTestProgressRepository(),
         diagnosticsReporter: InMemoryDiagnosticsReporter(),
@@ -257,6 +258,7 @@ func preparationWithoutMeasureSpansIsRejectedAtTheLibraryBoundary() async throws
         fileStore: PreparationTestFileStore(),
         audioImportService: PreparationTestAudioImporter(),
         bundledProvider: PreparationTestBundledProvider(entries: [entry], scoreURL: url),
+        entryResolver: PreparationTestEntryResolver(entries: [entry], scoreURL: url),
         audioPlayer: PreparationTestAudioPlayer(),
         practiceProgressRepository: PreparationTestProgressRepository(),
         diagnosticsReporter: InMemoryDiagnosticsReporter(),
@@ -378,6 +380,7 @@ private func makeSelectionViewModel(
         fileStore: PreparationTestFileStore(),
         audioImportService: PreparationTestAudioImporter(),
         bundledProvider: PreparationTestBundledProvider(entries: entries, scoreURL: scoreURL),
+        entryResolver: PreparationTestEntryResolver(entries: entries, scoreURL: scoreURL),
         audioPlayer: PreparationTestAudioPlayer(),
         practiceProgressRepository: PreparationTestProgressRepository(),
         diagnosticsReporter: InMemoryDiagnosticsReporter(),
@@ -393,6 +396,34 @@ private actor PreparationTestFileStore: SongFileStoreProtocol {
     func audioFileURL(fileName _: String) async throws -> URL { throw CocoaError(.fileNoSuchFile) }
     func deleteScoreFile(named _: String) async throws {}
     func deleteAudioFile(named _: String) async throws {}
+}
+
+private actor PreparationTestEntryResolver: SongLibraryEntryResolving {
+    let entries: [SongLibraryEntry]
+    let scoreURL: URL
+
+    init(entries: [SongLibraryEntry], scoreURL: URL) {
+        self.entries = entries
+        self.scoreURL = scoreURL
+    }
+
+    func resolve(songID: UUID) throws -> ResolvedSongLibraryEntry {
+        guard let entry = entries.first(where: { $0.id == songID }) else {
+            throw SongLibraryEntryResolutionError(
+                preparationError: .scoreFileNotFound,
+                diagnosticFileReference: nil
+            )
+        }
+        let fileName = scoreURL.lastPathComponent
+        return ResolvedSongLibraryEntry(
+            entry: entry,
+            scoreURL: scoreURL,
+            diagnosticFileReference: DiagnosticFileReference(
+                fileName: fileName,
+                relativePath: "Bundle/\(fileName)"
+            )
+        )
+    }
 }
 
 private actor PreparationTestAudioImporter: AudioImportServiceProtocol {
@@ -659,6 +690,7 @@ private func makeFailurePreparationFixture(
         fileStore: PreparationTestFileStore(),
         audioImportService: PreparationTestAudioImporter(),
         bundledProvider: PreparationTestBundledProvider(entries: [entry], scoreURL: scoreURL),
+        entryResolver: PreparationTestEntryResolver(entries: [entry], scoreURL: scoreURL),
         audioPlayer: PreparationTestAudioPlayer(),
         practiceProgressRepository: PreparationTestProgressRepository(),
         diagnosticsReporter: reporter,
@@ -796,6 +828,7 @@ private func makeDirectLaunchFixture(
         fileStore: PreparationTestFileStore(),
         audioImportService: PreparationTestAudioImporter(),
         bundledProvider: PreparationTestBundledProvider(entries: [entry], scoreURL: scoreURL),
+        entryResolver: PreparationTestEntryResolver(entries: [entry], scoreURL: scoreURL),
         audioPlayer: PreparationTestAudioPlayer(),
         practiceProgressRepository: repository,
         diagnosticsReporter: InMemoryDiagnosticsReporter(),

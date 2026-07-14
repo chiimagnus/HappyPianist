@@ -27,6 +27,11 @@ struct LiveAppGraph {
     let audioImportService: AudioImportServiceProtocol = AudioImportService()
     let bundledSongLibraryProvider: BundledSongLibraryProviderProtocol =
       BundledSongLibraryProvider()
+    let songLibraryEntryResolver: any SongLibraryEntryResolving = SongLibraryEntryResolver(
+      indexStore: songLibraryIndexStore,
+      bundledProvider: bundledSongLibraryProvider,
+      fileStore: songFileStore
+    )
     let songAudioPlayer: SongAudioPlayerProtocol = SongAudioPlayer()
     let progressRepository: any PracticeProgressRepositoryProtocol =
       FilePracticeProgressRepository()
@@ -154,6 +159,7 @@ struct LiveAppGraph {
       fileStore: songFileStore,
       audioImportService: audioImportService,
       bundledProvider: bundledSongLibraryProvider,
+      entryResolver: songLibraryEntryResolver,
       audioPlayer: songAudioPlayer,
       practiceProgressRepository: progressRepository,
       diagnosticsReporter: diagnosticsReporter,

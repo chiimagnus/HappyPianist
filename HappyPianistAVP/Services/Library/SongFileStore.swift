@@ -9,11 +9,14 @@ struct ImportedSongScoreFile: Equatable, Sendable {
 
 enum SongFileStoreError: LocalizedError, Equatable {
     case invalidFileName(String)
+    case unreadableScoreFile
 
     var errorDescription: String? {
         switch self {
         case .invalidFileName:
             "曲库文件名无效。"
+        case .unreadableScoreFile:
+            "曲谱文件不可读。"
         }
     }
 }
@@ -64,7 +67,14 @@ actor SongFileStore: SongFileStoreProtocol {
     }
 
     func scoreFileURL(fileName: String) async throws -> URL {
-        try paths.scoresDirectoryURL().appending(path: validatedFileName(fileName))
+        let fileURL = try paths.scoresDirectoryURL().appending(path: validatedFileName(fileName))
+        let attributes = try fileManager.attributesOfItem(atPath: fileURL.path())
+        guard attributes[.type] as? FileAttributeType == .typeRegular,
+              fileManager.isReadableFile(atPath: fileURL.path())
+        else {
+            throw SongFileStoreError.unreadableScoreFile
+        }
+        return fileURL
     }
 
     func audioFileURL(fileName: String) async throws -> URL {

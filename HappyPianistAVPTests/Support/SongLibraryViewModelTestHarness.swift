@@ -9,6 +9,7 @@ enum SongLibraryViewModelTestHarness {
         indexStore: (any SongLibraryIndexStoreProtocol)? = nil,
         fileStore: (any SongFileStoreProtocol)? = nil,
         bundledEntries: [SongLibraryEntry] = [],
+        entryResolver: (any SongLibraryEntryResolving)? = nil,
         practicePreparationService: (any PracticePreparationServiceProtocol)? = nil,
         practiceProgressRepository: (any PracticeProgressRepositoryProtocol)? = nil,
         diagnosticsReporter: (any DiagnosticsReporting)? = nil,
@@ -18,6 +19,14 @@ enum SongLibraryViewModelTestHarness {
     ) -> SongLibraryViewModel {
         let resolvedAppState = appState ?? AppState()
         let resolvedIndex = index ?? .empty
+        let resolvedIndexStore = indexStore ?? InMemorySongLibraryIndexStore(index: resolvedIndex)
+        let resolvedFileStore = fileStore ?? InMemorySongFileStore()
+        let resolvedBundledProvider = StubBundledSongLibraryProvider(entries: bundledEntries)
+        let resolvedEntryResolver = entryResolver ?? SongLibraryEntryResolver(
+            indexStore: resolvedIndexStore,
+            bundledProvider: resolvedBundledProvider,
+            fileStore: resolvedFileStore
+        )
         let arGuideViewModel = ARGuideViewModel(
             appState: resolvedAppState,
             practiceSetupState: resolvedAppState.practiceSetupState
@@ -25,10 +34,11 @@ enum SongLibraryViewModelTestHarness {
         return SongLibraryViewModel(
             arGuideViewModel: arGuideViewModel,
             practicePreparationService: practicePreparationService ?? NoopPracticePreparationService(),
-            indexStore: indexStore ?? InMemorySongLibraryIndexStore(index: resolvedIndex),
-            fileStore: fileStore ?? InMemorySongFileStore(),
+            indexStore: resolvedIndexStore,
+            fileStore: resolvedFileStore,
             audioImportService: NoopAudioImportService(),
-            bundledProvider: StubBundledSongLibraryProvider(entries: bundledEntries),
+            bundledProvider: resolvedBundledProvider,
+            entryResolver: resolvedEntryResolver,
             audioPlayer: audioPlayer ?? NoopSongAudioPlayer(),
             practiceProgressRepository: practiceProgressRepository ?? InMemoryPracticeProgressRepository(),
             diagnosticsReporter: diagnosticsReporter ?? InMemoryDiagnosticsReporter(),

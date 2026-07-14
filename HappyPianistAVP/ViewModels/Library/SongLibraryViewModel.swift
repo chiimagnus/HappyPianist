@@ -9,6 +9,7 @@ final class SongLibraryViewModel {
     private let fileStore: SongFileStoreProtocol
     private let audioImportService: AudioImportServiceProtocol
     private let bundledProvider: BundledSongLibraryProviderProtocol
+    private let entryResolver: any SongLibraryEntryResolving
     private let bootstrapLoader: (any SongLibraryBootstrapLoading)?
     private var bundledEntries: [SongLibraryEntry]
     private let practicePreparationService: PracticePreparationServiceProtocol
@@ -74,6 +75,7 @@ final class SongLibraryViewModel {
         fileStore: SongFileStoreProtocol,
         audioImportService: AudioImportServiceProtocol,
         bundledProvider: BundledSongLibraryProviderProtocol,
+        entryResolver: any SongLibraryEntryResolving,
         audioPlayer: SongAudioPlayerProtocol,
         practiceProgressRepository: any PracticeProgressRepositoryProtocol,
         diagnosticsReporter: any DiagnosticsReporting,
@@ -90,6 +92,7 @@ final class SongLibraryViewModel {
         self.fileStore = fileStore
         self.audioImportService = audioImportService
         self.bundledProvider = bundledProvider
+        self.entryResolver = entryResolver
         self.bootstrapLoader = bootstrapLoader
         self.practiceProgressRepository = practiceProgressRepository
         self.diagnosticsReporter = diagnosticsReporter
@@ -441,29 +444,13 @@ final class SongLibraryViewModel {
     }
 
     private func prepareSelectedEntry(entryID: UUID, generation: Int) async {
-        guard let entry = entries.first(where: { $0.id == entryID }) else { return }
-        let fileReference = diagnosticFileReference(for: entry)
+        var fileReference: DiagnosticFileReference?
 
         do {
-            let scoreURL: URL
-            if entry.isBundled == true {
-                guard let bundledURL = bundledProvider.musicXMLURL(fileName: entry.musicXMLFileName) else {
-                    throw PracticePreparationError.scoreFileNotFound
-                }
-                scoreURL = bundledURL
-            } else {
-                do {
-                    scoreURL = try await fileStore.scoreFileURL(fileName: entry.musicXMLFileName)
-                } catch {
-                    let cocoaError = error as? CocoaError
-                    if cocoaError?.code == .fileNoSuchFile || cocoaError?.code == .fileReadNoSuchFile {
-                        throw PracticePreparationError.scoreFileNotFound
-                    }
-                    throw PracticePreparationError.scoreFileUnreadable(
-                        reason: PracticePreparationErrorDetails.safeErrorSummary(error)
-                    )
-                }
-            }
+            let resolvedEntry = try await entryResolver.resolve(songID: entryID)
+            let entry = resolvedEntry.entry
+            let scoreURL = resolvedEntry.scoreURL
+            fileReference = resolvedEntry.diagnosticFileReference
 
             let file = ImportedMusicXMLFile(
                 fileName: entry.displayName,
@@ -514,10 +501,16 @@ final class SongLibraryViewModel {
             return
         } catch {
             guard isCurrentPracticePreparation(entryID: entryID, generation: generation) else { return }
-            let preparationError = (error as? PracticePreparationError) ?? .unexpected(
-                stage: "selectedScorePreparation",
-                reason: PracticePreparationErrorDetails.safeErrorSummary(error)
-            )
+            let preparationError: PracticePreparationError
+            if let resolutionError = error as? SongLibraryEntryResolutionError {
+                preparationError = resolutionError.preparationError
+                fileReference = resolutionError.diagnosticFileReference
+            } else {
+                preparationError = (error as? PracticePreparationError) ?? .unexpected(
+                    stage: "selectedScorePreparation",
+                    reason: PracticePreparationErrorDetails.safeErrorSummary(error)
+                )
+            }
             let failure = PracticeLaunchFailure.map(
                 preparationError,
                 entryID: entryID,
@@ -538,14 +531,6 @@ final class SongLibraryViewModel {
         generation == practicePreparationGeneration &&
             selectedEntryID == entryID &&
             Task.isCancelled == false
-    }
-
-    private func diagnosticFileReference(for entry: SongLibraryEntry) -> DiagnosticFileReference? {
-        let fileName = URL(fileURLWithPath: entry.musicXMLFileName).lastPathComponent
-        let relativePath = entry.isBundled == true
-            ? "Bundle/\(fileName)"
-            : "SongLibrary/scores/\(fileName)"
-        return DiagnosticFileReference(fileName: fileName, relativePath: relativePath)
     }
 
     func deleteEntry(entryID: UUID) async {
