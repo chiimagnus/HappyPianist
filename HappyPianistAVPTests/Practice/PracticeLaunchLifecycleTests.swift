@@ -64,6 +64,30 @@ func overlappingReadyPresentationCloseIntentsDismissImmersiveOnce() async {
 }
 
 @MainActor
+@Test
+func activeSceneOperationWaitsForCancelledSuspendToFinish() async {
+    let coordinator = PracticeSceneLifecycleCoordinator()
+    let gate = MainActorTestGate()
+    var calls: [String] = []
+    coordinator.schedule {
+        calls.append("suspend-start")
+        await gate.wait()
+        calls.append("suspend-finish")
+    }
+    await gate.waitUntilEntered()
+
+    coordinator.schedule {
+        calls.append("activate")
+    }
+    await Task.yield()
+    #expect(calls == ["suspend-start"])
+
+    gate.resume()
+    await coordinator.waitForCurrentOperation()
+    #expect(calls == ["suspend-start", "suspend-finish", "activate"])
+}
+
+@MainActor
 private final class MainActorTestGate {
     private var continuation: CheckedContinuation<Void, Never>?
     private var hasEntered = false

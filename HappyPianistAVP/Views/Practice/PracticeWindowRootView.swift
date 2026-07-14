@@ -9,7 +9,7 @@ struct PracticeWindowRootView: View {
 
     @Bindable var arGuideViewModel: ARGuideViewModel
     @Bindable var launchViewModel: PracticeLaunchViewModel
-    @State private var sceneLifecycleTask: Task<Void, Never>?
+    @State private var sceneLifecycleCoordinator = PracticeSceneLifecycleCoordinator()
     @State private var returnCoordinator = PracticeWindowReturnCoordinator()
     @State private var immersiveCloseCoordinator = PracticeImmersiveCloseCoordinator()
 
@@ -39,8 +39,6 @@ struct PracticeWindowRootView: View {
             dismissPendingSourceIfNeeded()
         }
         .onDisappear {
-            sceneLifecycleTask?.cancel()
-            sceneLifecycleTask = nil
             beginReturnToLibrary()
         }
     }
@@ -54,9 +52,8 @@ struct PracticeWindowRootView: View {
 
     private func handleScenePhaseChange() {
         let phase = scenePhase
-        sceneLifecycleTask?.cancel()
-        sceneLifecycleTask = Task { @MainActor in
-            guard Task.isCancelled == false, returnCoordinator.isReturning == false else { return }
+        sceneLifecycleCoordinator.schedule { @MainActor in
+            guard returnCoordinator.isReturning == false else { return }
             if phase == .active {
                 dismissPendingSourceIfNeeded()
                 await activateCurrentRequest()
@@ -67,11 +64,13 @@ struct PracticeWindowRootView: View {
     }
 
     private func beginReturnToLibrary() {
-        sceneLifecycleTask?.cancel()
-        sceneLifecycleTask = nil
+        let pendingLifecycle = sceneLifecycleCoordinator.cancel()
         returnCoordinator.begin(
             beginReturn: launchViewModel.beginReturn,
-            leave: arGuideViewModel.leavePracticeStep,
+            leave: {
+                await pendingLifecycle?.value
+                await arGuideViewModel.leavePracticeStep()
+            },
             closeImmersive: {
                 await closeImmersivePresentationIfNeeded()
             },
@@ -100,6 +99,32 @@ struct PracticeWindowRootView: View {
             },
             recover: arGuideViewModel.recoverImmersiveStateIfStuck
         )
+    }
+}
+
+@MainActor
+final class PracticeSceneLifecycleCoordinator {
+    private var operationTask: Task<Void, Never>?
+
+    func schedule(_ operation: @escaping @MainActor () async -> Void) {
+        let previousTask = operationTask
+        previousTask?.cancel()
+        operationTask = Task { @MainActor in
+            await previousTask?.value
+            guard Task.isCancelled == false else { return }
+            await operation()
+        }
+    }
+
+    func cancel() -> Task<Void, Never>? {
+        let pendingTask = operationTask
+        pendingTask?.cancel()
+        operationTask = nil
+        return pendingTask
+    }
+
+    func waitForCurrentOperation() async {
+        await operationTask?.value
     }
 }
 
