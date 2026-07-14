@@ -162,15 +162,18 @@ final class PracticeLaunchViewModel {
             guard prepared.measureSpans.isEmpty == false else {
                 throw PracticePreparationError.missingMeasureStructure
             }
-            guard isCurrent(songID: songID, generation: generation),
-                  let applyOutcome = await applicator.applyPreparedPracticeForLaunch(
-                    prepared,
-                    isCurrent: { [weak self] in
-                        self?.isCurrent(songID: songID, generation: generation) == true
-                    }
-                  ),
-                  isCurrent(songID: songID, generation: generation)
-            else { return }
+            guard isCurrent(songID: songID, generation: generation) else { return }
+            let applyOutcome = await applicator.applyPreparedPracticeForLaunch(
+                prepared,
+                isCurrent: { [weak self] in
+                    self?.isCurrent(songID: songID, generation: generation) == true
+                }
+            )
+            guard isCurrent(songID: songID, generation: generation) else { return }
+            guard let applyOutcome else {
+                registerRequest(songID: songID)
+                return
+            }
 
             state = .ready(prepared.identity)
             _ = await diagnosticsReporter.record(

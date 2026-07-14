@@ -80,6 +80,41 @@ func clearingShutdownPracticeSessionInstallsFreshEmptyReplacement() async {
     #expect(appState.practiceSetupState.preparedPracticeIdentity == nil)
 }
 
+@Test
+@MainActor
+func replacementDuringProgressRestoreInvalidatesOldPreparedApply() async {
+    let repository = FirstSuspendedLifecycleProgressRepository()
+    let coordinator = PracticeProgressCoordinator(repository: repository)
+    let appState = AppState()
+    let guide = makeLifecycleGuide(appState: appState, progressCoordinator: coordinator)
+    let prepared = makeLifecyclePreparedPractice()
+    let oldSession = guide.practiceSessionViewModel
+    let applyTask = Task { @MainActor in
+        await guide.applyPreparedPracticeForLaunch(prepared, isCurrent: { true })
+    }
+    await repository.waitForFirstRequest()
+
+    await guide.replacePracticeSessionViewModel()
+    let replacementSession = guide.practiceSessionViewModel
+    await repository.resumeFirstRequest()
+    let staleOutcome = await applyTask.value
+
+    #expect(staleOutcome == nil)
+    #expect(replacementSession !== oldSession)
+    #expect(replacementSession.songIdentity == nil)
+    #expect(guide.latestPreparedPractice == nil)
+    #expect(appState.practiceSetupState.preparedPracticeIdentity == nil)
+
+    let replacementOutcome = await guide.applyPreparedPracticeForLaunch(
+        prepared,
+        isCurrent: { true }
+    )
+    #expect(replacementOutcome == .applied)
+    #expect(guide.practiceSessionViewModel === replacementSession)
+    #expect(replacementSession.songIdentity == prepared.identity)
+    #expect(guide.latestPreparedPractice?.identity == prepared.identity)
+}
+
 @MainActor
 private func makeLifecycleGuide(
     appState: AppState,
@@ -153,6 +188,33 @@ private actor SuspendedLifecycleProgressRepository: PracticeProgressRepositoryPr
 
     func resume(identity: PracticeSongIdentity) {
         continuations.removeValue(forKey: identity)?.resume(returning: nil)
+    }
+
+    func upsert(_: SongPracticeProgress) {}
+    func remove(songID _: UUID) {}
+}
+
+private actor FirstSuspendedLifecycleProgressRepository: PracticeProgressRepositoryProtocol {
+    private var firstContinuation: CheckedContinuation<SongPracticeProgress?, Never>?
+    private var didSuspendFirstRequest = false
+
+    func load() -> PracticeProgressLoadResult { .loaded(PracticeProgressDocument()) }
+
+    func progress(for _: PracticeSongIdentity) async -> SongPracticeProgress? {
+        guard didSuspendFirstRequest == false else { return nil }
+        didSuspendFirstRequest = true
+        return await withCheckedContinuation { continuation in
+            firstContinuation = continuation
+        }
+    }
+
+    func waitForFirstRequest() async {
+        while firstContinuation == nil { await Task.yield() }
+    }
+
+    func resumeFirstRequest() {
+        firstContinuation?.resume(returning: nil)
+        firstContinuation = nil
     }
 
     func upsert(_: SongPracticeProgress) {}

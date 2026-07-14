@@ -303,6 +303,31 @@ func consecutivePracticeLaunchRetriesUseFreshGenerationsAndEventuallyReady() asy
     #expect(await reporter.events.filter { $0.severity == .error }.count == 2)
 }
 
+@MainActor
+@Test
+func currentApplyRejectionRequeuesRequestInsteadOfRemainingLoading() async {
+    let songID = UUID()
+    let applicator = RejectOncePracticeLaunchApplicator()
+    let owner = PracticeLaunchViewModel(
+        resolver: PracticeLaunchResolver(songIDs: [songID]),
+        preparationService: PracticeLaunchPreparationService(
+            delays: [:],
+            errors: [:],
+            includeMeasureSpans: true
+        ),
+        applicator: applicator,
+        diagnosticsReporter: InMemoryDiagnosticsReporter()
+    )
+    owner.request(songID: songID)
+
+    await owner.activateCurrentRequest()
+    #expect(owner.state == .requested(songID: songID))
+
+    await owner.activateCurrentRequest()
+    #expect(owner.state == .ready(PracticeSongIdentity(songID: songID, scoreRevision: songID.uuidString)))
+    #expect(applicator.applyCount == 2)
+}
+
 private let fixtureSongA = UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!
 
 @MainActor
@@ -561,6 +586,24 @@ private final class ControlledPracticeLaunchApplicator: PracticeLaunchApplying {
 
     func clearPreparedPracticeForLaunch() async {}
     func suspendPracticeAndFlushProgress() async { suspendCount += 1 }
+    func leavePracticeStep() async {}
+}
+
+@MainActor
+private final class RejectOncePracticeLaunchApplicator: PracticeLaunchApplying {
+    private(set) var applyCount = 0
+
+    func applyPreparedPracticeForLaunch(
+        _: PreparedPractice,
+        isCurrent: @escaping @MainActor () -> Bool
+    ) async -> PracticeLaunchApplyOutcome? {
+        applyCount += 1
+        guard applyCount > 1, isCurrent() else { return nil }
+        return .applied
+    }
+
+    func clearPreparedPracticeForLaunch() async {}
+    func suspendPracticeAndFlushProgress() async {}
     func leavePracticeStep() async {}
 }
 

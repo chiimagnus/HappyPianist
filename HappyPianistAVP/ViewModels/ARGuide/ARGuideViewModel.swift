@@ -155,6 +155,7 @@ final class ARGuideViewModel: PracticeLaunchApplying {
         isCurrent: @escaping @MainActor () -> Bool
     ) async -> Bool {
         let applicationID = UUID()
+        let session = practiceSessionViewModel
         preparedPracticeApplicationID = applicationID
         guard isCurrent() else {
             preparedPracticeApplicationID = nil
@@ -162,10 +163,17 @@ final class ARGuideViewModel: PracticeLaunchApplying {
         }
         guard await applyPreparedPractice(
             prepared,
-            to: practiceSessionViewModel,
+            to: session,
             applicationID: applicationID,
             isCurrent: isCurrent
         ) else { return false }
+        guard practiceSessionViewModel === session,
+              preparedPracticeApplicationID == applicationID,
+              isCurrent()
+        else {
+            clearStalePreparedPractice(applicationID: applicationID, session: session)
+            return false
+        }
 
         practiceSetupState.setImportedSteps(from: prepared)
         appState.applySessionIfPossible()
@@ -193,7 +201,10 @@ final class ARGuideViewModel: PracticeLaunchApplying {
         applicationID: UUID,
         isCurrent: @escaping @MainActor () -> Bool
     ) async -> Bool {
-        guard preparedPracticeApplicationID == applicationID, isCurrent() else { return false }
+        guard practiceSessionViewModel === session,
+              preparedPracticeApplicationID == applicationID,
+              isCurrent()
+        else { return false }
         session.installPreparedSteps(
             prepared.steps,
             identity: prepared.identity,
@@ -204,12 +215,18 @@ final class ARGuideViewModel: PracticeLaunchApplying {
             highlightGuides: prepared.highlightGuides,
             measureSpans: prepared.measureSpans
         )
-        guard preparedPracticeApplicationID == applicationID, isCurrent() else {
+        guard practiceSessionViewModel === session,
+              preparedPracticeApplicationID == applicationID,
+              isCurrent()
+        else {
             clearStalePreparedPractice(applicationID: applicationID, session: session)
             return false
         }
         await session.restoreProgressIfAvailable()
-        guard preparedPracticeApplicationID == applicationID, isCurrent() else {
+        guard practiceSessionViewModel === session,
+              preparedPracticeApplicationID == applicationID,
+              isCurrent()
+        else {
             clearStalePreparedPractice(applicationID: applicationID, session: session)
             return false
         }
