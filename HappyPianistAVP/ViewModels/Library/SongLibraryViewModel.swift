@@ -27,6 +27,7 @@ final class SongLibraryViewModel {
 
     var index: SongLibraryIndex = .empty
     var errorMessage: String?
+    private(set) var bootstrapFailureMessage: String?
     private(set) var isLibraryLoading = false
     private(set) var hasLoadedLibrary = false
     var currentListeningEntryID: UUID?
@@ -81,10 +82,17 @@ final class SongLibraryViewModel {
         self.diagnosticsReporter = diagnosticsReporter
         self.selectionSettleSleeper = selectionSettleSleeper
         self.selectionSettleDelay = selectionSettleDelay
-        index = initialSnapshot?.index ?? .empty
-        bundledEntries = initialSnapshot?.bundledEntries ?? []
-        errorMessage = initialSnapshot?.errorMessage
-        hasLoadedLibrary = initialSnapshot != nil
+        switch initialSnapshot {
+        case let .loaded(initialIndex, initialBundledEntries):
+            index = initialIndex
+            bundledEntries = initialBundledEntries
+            hasLoadedLibrary = true
+        case let .blocked(failure):
+            bundledEntries = []
+            bootstrapFailureMessage = failure.message
+        case nil:
+            bundledEntries = []
+        }
         audioPlaybackController = SongAudioPlaybackStateController(player: audioPlayer)
 
         audioPlaybackController.onStateChanged = { [weak self] _ in
@@ -111,10 +119,15 @@ final class SongLibraryViewModel {
 
         isLibraryLoading = true
         let snapshot = await bootstrapLoader.load()
-        index = snapshot.index
-        bundledEntries = snapshot.bundledEntries
-        errorMessage = snapshot.errorMessage
-        hasLoadedLibrary = true
+        switch snapshot {
+        case let .loaded(loadedIndex, loadedBundledEntries):
+            index = loadedIndex
+            bundledEntries = loadedBundledEntries
+            bootstrapFailureMessage = nil
+            hasLoadedLibrary = true
+        case let .blocked(failure):
+            bootstrapFailureMessage = failure.message
+        }
         isLibraryLoading = false
     }
 
@@ -209,8 +222,6 @@ final class SongLibraryViewModel {
         guard selectedURLs.isEmpty == false else { return }
 
         do {
-            var updatedIndex = try await indexStore.load()
-
             for url in selectedURLs {
                 let imported = try fileStore.importMusicXML(from: url)
                 let entry = SongLibraryEntry(
@@ -223,13 +234,8 @@ final class SongLibraryViewModel {
                     audioFileName: nil
                 )
 
-                var nextIndex = updatedIndex
-                nextIndex.entries.append(entry)
-
                 do {
-                    try await indexStore.save(nextIndex)
-                    updatedIndex = nextIndex
-                    index = updatedIndex
+                    index = try await indexStore.appendUserEntry(entry)
                 } catch {
                     try? fileStore.deleteScoreFile(named: imported.storedFileName)
                     throw error
@@ -406,10 +412,8 @@ final class SongLibraryViewModel {
 
     private func persistSelectedEntry(_ entryID: UUID, generation: Int) async {
         guard isCurrentPracticePreparation(entryID: entryID, generation: generation) else { return }
-        var updatedIndex = index
-        updatedIndex.lastSelectedEntryID = entryID
         do {
-            try await indexStore.save(updatedIndex)
+            let updatedIndex = try await indexStore.setLastSelectedEntryID(entryID)
             guard isCurrentPracticePreparation(entryID: entryID, generation: generation) else { return }
             index = updatedIndex
         } catch {
@@ -423,24 +427,23 @@ final class SongLibraryViewModel {
             errorMessage = "内置曲目无法删除。"
             return
         }
-        guard let entryIndex = index.entries.firstIndex(where: { $0.id == entryID }) else {
+        guard index.entries.contains(where: { $0.id == entryID }) else {
             return
         }
-
-        let entry = index.entries[entryIndex]
-        if currentListeningEntryID == entry.id {
+        if currentListeningEntryID == entryID {
             stopListening()
         }
 
         do {
-            var updatedIndex = index
-            updatedIndex.entries.remove(at: entryIndex)
-
-            if updatedIndex.lastSelectedEntryID == entry.id {
-                updatedIndex.lastSelectedEntryID = updatedIndex.entries.last?.id
+            let fallbackID = entries.last(where: { $0.id != entryID })?.id
+            let mutation = try await indexStore.removeUserEntry(
+                id: entryID,
+                fallbackLastSelectedEntryID: fallbackID
+            )
+            guard case let .applied(updatedIndex, entry) = mutation else {
+                index = mutation.index
+                return
             }
-
-            try await indexStore.save(updatedIndex)
             index = updatedIndex
 
             do {
@@ -467,7 +470,7 @@ final class SongLibraryViewModel {
             errorMessage = "内置曲目不支持绑定外部音频文件。"
             return
         }
-        guard let entryIndex = index.entries.firstIndex(where: { $0.id == entryID }) else {
+        guard let entry = index.entries.first(where: { $0.id == entryID }) else {
             return
         }
 
@@ -480,12 +483,20 @@ final class SongLibraryViewModel {
         do {
             let importedAudioFileName = try audioImportService.importAudio(from: sourceURL)
 
-            var updatedIndex = index
-            let previousAudioFileName = updatedIndex.entries[entryIndex].audioFileName
-            updatedIndex.entries[entryIndex].audioFileName = importedAudioFileName
+            let previousAudioFileName = entry.audioFileName
 
             do {
-                try await indexStore.save(updatedIndex)
+                let mutation = try await indexStore.updateAudioFileName(
+                    entryID: entryID,
+                    expectedCurrentFileName: previousAudioFileName,
+                    newFileName: importedAudioFileName
+                )
+                guard case let .applied(updatedIndex, _) = mutation else {
+                    index = mutation.index
+                    try? fileStore.deleteAudioFile(named: importedAudioFileName)
+                    errorMessage = "曲目已发生变化，请重试导入音频。"
+                    return
+                }
                 if currentListeningEntryID == entryID {
                     stopListening()
                 }

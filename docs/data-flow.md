@@ -44,8 +44,8 @@ flowchart TD
 SongLibraryView.task
 -> SongLibraryViewModel.loadLibraryIfNeeded
 -> SongLibraryBootstrapLoader actor
--> bundled scan + index decode off MainActor
--> one immutable bootstrap snapshot
+-> injected shared BundledSongLibraryProvider + SongLibraryIndexStore actor
+-> loaded snapshot，或保留内存状态并显示可重试的 blocked failure
 ```
 
 ```text
@@ -54,6 +54,7 @@ LibraryWindowView / SongLibraryView
 -> SongFileStore
 -> Documents/SongLibrary/scores
 -> SongLibraryIndexStore
+-> actor 内对磁盘最新 index 执行 append mutation 后原子写回
 ```
 
 当前没有第二套 MusicXML import service。`.mxl` 在 preparation 阶段通过 `MXLReader` 解包。

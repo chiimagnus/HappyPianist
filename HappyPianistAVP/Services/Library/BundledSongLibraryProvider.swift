@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 
-protocol BundledSongLibraryProviderProtocol {
+protocol BundledSongLibraryProviderProtocol: Sendable {
     func bundledEntries() -> [SongLibraryEntry]
     func musicXMLURL(fileName: String) -> URL?
     func audioURL(fileName: String) -> URL?

@@ -157,7 +157,10 @@ struct LiveAppGraph {
       audioPlayer: songAudioPlayer,
       practiceProgressRepository: progressRepository,
       diagnosticsReporter: diagnosticsReporter,
-      bootstrapLoader: LiveSongLibraryBootstrapLoader()
+      bootstrapLoader: LiveSongLibraryBootstrapLoader(
+        indexStore: songLibraryIndexStore,
+        bundledProvider: bundledSongLibraryProvider
+      )
     )
     let windowState = WindowTransitionState(
       practiceSetupState: appState.practiceSetupState,

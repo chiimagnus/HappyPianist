@@ -1,20 +1,12 @@
 import Foundation
 
-struct SongLibraryBootstrapSnapshot: Sendable {
-    let index: SongLibraryIndex
-    let bundledEntries: [SongLibraryEntry]
-    let errorMessage: String?
+struct SongLibraryBootstrapFailure: Equatable, Sendable {
+    let message: String
+}
 
-    static func loaded(
-        index: SongLibraryIndex,
-        bundledEntries: [SongLibraryEntry]
-    ) -> SongLibraryBootstrapSnapshot {
-        SongLibraryBootstrapSnapshot(
-            index: index,
-            bundledEntries: bundledEntries,
-            errorMessage: nil
-        )
-    }
+enum SongLibraryBootstrapSnapshot: Equatable, Sendable {
+    case loaded(index: SongLibraryIndex, bundledEntries: [SongLibraryEntry])
+    case blocked(failure: SongLibraryBootstrapFailure)
 }
 
 protocol SongLibraryBootstrapLoading: Actor {
@@ -22,21 +14,28 @@ protocol SongLibraryBootstrapLoading: Actor {
 }
 
 actor LiveSongLibraryBootstrapLoader: SongLibraryBootstrapLoading {
-    private let indexStore = SongLibraryIndexStore()
-    private let bundledProvider = BundledSongLibraryProvider()
+    private let indexStore: any SongLibraryIndexStoreProtocol
+    private let bundledProvider: any BundledSongLibraryProviderProtocol
+
+    init(
+        indexStore: any SongLibraryIndexStoreProtocol,
+        bundledProvider: any BundledSongLibraryProviderProtocol
+    ) {
+        self.indexStore = indexStore
+        self.bundledProvider = bundledProvider
+    }
 
     func load() async -> SongLibraryBootstrapSnapshot {
-        let bundledEntries = bundledProvider.bundledEntries()
         do {
             return .loaded(
                 index: try await indexStore.load(),
-                bundledEntries: bundledEntries
+                bundledEntries: bundledProvider.bundledEntries()
             )
         } catch {
-            return SongLibraryBootstrapSnapshot(
-                index: .empty,
-                bundledEntries: bundledEntries,
-                errorMessage: "加载乐曲库失败：\(error.localizedDescription)"
+            return .blocked(
+                failure: SongLibraryBootstrapFailure(
+                    message: "加载乐曲库失败：\(error.localizedDescription)"
+                )
             )
         }
     }

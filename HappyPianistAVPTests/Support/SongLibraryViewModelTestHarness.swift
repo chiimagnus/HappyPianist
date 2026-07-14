@@ -51,8 +51,43 @@ private actor InMemorySongLibraryIndexStore: SongLibraryIndexStoreProtocol {
         index
     }
 
-    func save(_ index: SongLibraryIndex) throws {
-        self.index = index
+    func setLastSelectedEntryID(_ entryID: UUID?) throws -> SongLibraryIndex {
+        index.lastSelectedEntryID = entryID
+        return index
+    }
+
+    func appendUserEntry(_ entry: SongLibraryEntry) throws -> SongLibraryIndex {
+        index.entries.append(entry)
+        return index
+    }
+
+    func removeUserEntry(
+        id: UUID,
+        fallbackLastSelectedEntryID: UUID?
+    ) throws -> SongLibraryEntryMutationResult {
+        guard let entryIndex = index.entries.firstIndex(where: { $0.id == id }) else {
+            return .notFound(index: index)
+        }
+        let entry = index.entries.remove(at: entryIndex)
+        if index.lastSelectedEntryID == id {
+            index.lastSelectedEntryID = fallbackLastSelectedEntryID
+        }
+        return .applied(index: index, entry: entry)
+    }
+
+    func updateAudioFileName(
+        entryID: UUID,
+        expectedCurrentFileName: String?,
+        newFileName: String?
+    ) throws -> SongLibraryEntryMutationResult {
+        guard let entryIndex = index.entries.firstIndex(where: { $0.id == entryID }) else {
+            return .notFound(index: index)
+        }
+        guard index.entries[entryIndex].audioFileName == expectedCurrentFileName else {
+            return .conflict(index: index, entry: index.entries[entryIndex])
+        }
+        index.entries[entryIndex].audioFileName = newFileName
+        return .applied(index: index, entry: index.entries[entryIndex])
     }
 }
 

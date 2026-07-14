@@ -24,8 +24,10 @@ bundled MusicXML 和 App 资源来自 bundle，不写入 Documents。
 
 1. `SongFileStore` 复制文件到 `Documents/SongLibrary/scores/`。
 2. `SongLibraryViewModel` 生成 UUID 和 index entry。
-3. `SongLibraryIndexStore` 原子写入 index。
+3. `SongLibraryIndexStore` actor 读取磁盘最新 index，只追加新 entry 后原子写回；selection、删除和音频绑定也各使用独立 mutation，调用者不能整份覆盖 index。
 4. index 保存失败时删除刚复制的 score，避免孤儿文件。
+
+index 缺失、零字节或只有空白时视为空库；JSON 无法解码时保留原文件并阻塞读取及所有 mutation，禁止隔离损坏文件后按空库继续写入。
 
 删除用户曲目时同时删除曲谱、绑定音频和对应 song UUID 的练习进度。进度清理失败不回滚已完成的曲目删除。
 

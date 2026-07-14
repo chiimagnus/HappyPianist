@@ -148,9 +148,9 @@ func rapidSelectionOnlyPersistsAndPreparesTheSettledEntry() async throws {
     viewModel.selectEntryForPractice(entries[2].id)
     try await waitForPreparation(viewModel, entryID: entries[2].id)
 
-    let savedEntryIDs = await indexStore.savedEntryIDs
+    let persistedEntryIDs = await indexStore.persistedEntryIDs
     let preparedEntryIDs = await service.requests()
-    #expect(savedEntryIDs == [entries[2].id])
+    #expect(persistedEntryIDs == [entries[2].id])
     #expect(preparedEntryIDs == [entries[2].id])
 }
 
@@ -220,9 +220,9 @@ func cancellingSelectionDuringSettleLeavesNoSideEffects() async throws {
     viewModel.cancelPracticePreparation()
     try await Task.sleep(for: .milliseconds(60))
 
-    let savedEntryIDs = await indexStore.savedEntryIDs
+    let persistedEntryIDs = await indexStore.persistedEntryIDs
     let preparedEntryIDs = await service.requests()
-    #expect(savedEntryIDs.isEmpty)
+    #expect(persistedEntryIDs.isEmpty)
     #expect(preparedEntryIDs.isEmpty)
     #expect(viewModel.practicePreparationState == .idle)
 }
@@ -306,7 +306,7 @@ private func waitForPreparationFailure(
 
 private actor PreparationTestIndexStore: SongLibraryIndexStoreProtocol {
     var value = SongLibraryIndex.empty
-    private(set) var savedEntryIDs: [UUID] = []
+    private(set) var persistedEntryIDs: [UUID] = []
     private let failSaves: Bool
 
     init(failSaves: Bool = false) {
@@ -314,12 +314,47 @@ private actor PreparationTestIndexStore: SongLibraryIndexStoreProtocol {
     }
 
     func load() throws -> SongLibraryIndex { value }
-    func save(_ index: SongLibraryIndex) throws {
+    func setLastSelectedEntryID(_ entryID: UUID?) throws -> SongLibraryIndex {
         guard failSaves == false else { throw CocoaError(.fileWriteUnknown) }
-        value = index
-        if let selectedEntryID = index.lastSelectedEntryID {
-            savedEntryIDs.append(selectedEntryID)
+        value.lastSelectedEntryID = entryID
+        if let selectedEntryID = entryID {
+            persistedEntryIDs.append(selectedEntryID)
         }
+        return value
+    }
+
+    func appendUserEntry(_ entry: SongLibraryEntry) throws -> SongLibraryIndex {
+        value.entries.append(entry)
+        return value
+    }
+
+    func removeUserEntry(
+        id: UUID,
+        fallbackLastSelectedEntryID: UUID?
+    ) throws -> SongLibraryEntryMutationResult {
+        guard let entryIndex = value.entries.firstIndex(where: { $0.id == id }) else {
+            return .notFound(index: value)
+        }
+        let entry = value.entries.remove(at: entryIndex)
+        if value.lastSelectedEntryID == id {
+            value.lastSelectedEntryID = fallbackLastSelectedEntryID
+        }
+        return .applied(index: value, entry: entry)
+    }
+
+    func updateAudioFileName(
+        entryID: UUID,
+        expectedCurrentFileName: String?,
+        newFileName: String?
+    ) throws -> SongLibraryEntryMutationResult {
+        guard let entryIndex = value.entries.firstIndex(where: { $0.id == entryID }) else {
+            return .notFound(index: value)
+        }
+        guard value.entries[entryIndex].audioFileName == expectedCurrentFileName else {
+            return .conflict(index: value, entry: value.entries[entryIndex])
+        }
+        value.entries[entryIndex].audioFileName = newFileName
+        return .applied(index: value, entry: value.entries[entryIndex])
     }
 }
 
