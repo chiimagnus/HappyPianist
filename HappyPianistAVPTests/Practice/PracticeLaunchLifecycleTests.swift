@@ -32,6 +32,61 @@ func duplicatePracticeDisappearAndReturnIntentsRunOneOrderedTeardown() async {
 
 @MainActor
 @Test
+func overlappingReadyPresentationCloseIntentsDismissImmersiveOnce() async {
+    let coordinator = PracticeImmersiveCloseCoordinator()
+    let gate = MainActorTestGate()
+    var closeCount = 0
+    var recoverCount = 0
+    let first = Task { @MainActor in
+        await coordinator.closeIfNeeded(
+            isClosed: false,
+            close: {
+                closeCount += 1
+                await gate.wait()
+            },
+            recover: { recoverCount += 1 }
+        )
+    }
+    await gate.waitUntilEntered()
+    let second = Task { @MainActor in
+        await coordinator.closeIfNeeded(
+            isClosed: false,
+            close: { closeCount += 1 },
+            recover: { recoverCount += 1 }
+        )
+    }
+    gate.resume()
+    await first.value
+    await second.value
+
+    #expect(closeCount == 1)
+    #expect(recoverCount == 1)
+}
+
+@MainActor
+private final class MainActorTestGate {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var hasEntered = false
+
+    func wait() async {
+        hasEntered = true
+        await withCheckedContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func waitUntilEntered() async {
+        while hasEntered == false { await Task.yield() }
+    }
+
+    func resume() {
+        continuation?.resume()
+        continuation = nil
+    }
+}
+
+@MainActor
+@Test
 func stalePreparedPracticeApplyCannotOverwriteNewerLaunch() async throws {
     let firstID = UUID()
     let secondID = UUID()

@@ -11,6 +11,7 @@ struct PracticeWindowRootView: View {
     @Bindable var launchViewModel: PracticeLaunchViewModel
     @State private var sceneLifecycleTask: Task<Void, Never>?
     @State private var returnCoordinator = PracticeWindowReturnCoordinator()
+    @State private var immersiveCloseCoordinator = PracticeImmersiveCloseCoordinator()
 
     init(
         arGuideViewModel: ARGuideViewModel,
@@ -29,7 +30,7 @@ struct PracticeWindowRootView: View {
         .task(id: launchViewModel.activationIdentity) {
             guard scenePhase == .active else { return }
             dismissPendingSourceIfNeeded()
-            await launchViewModel.activateCurrentRequest()
+            await activateCurrentRequest()
         }
         .onChange(of: scenePhase) {
             handleScenePhaseChange()
@@ -58,7 +59,7 @@ struct PracticeWindowRootView: View {
             guard Task.isCancelled == false, returnCoordinator.isReturning == false else { return }
             if phase == .active {
                 dismissPendingSourceIfNeeded()
-                await launchViewModel.activateCurrentRequest()
+                await activateCurrentRequest()
             } else {
                 await launchViewModel.suspendForInactiveScene()
             }
@@ -72,18 +73,57 @@ struct PracticeWindowRootView: View {
             beginReturn: launchViewModel.beginReturn,
             leave: arGuideViewModel.leavePracticeStep,
             closeImmersive: {
-                let dismissHandler = makePracticeImmersiveDismissHandler(dismissImmersiveSpace)
-                await arGuideViewModel.closeImmersiveForStep(
-                    dismissImmersiveSpace: dismissHandler
-                )
+                await closeImmersivePresentationIfNeeded()
             },
-            recoverImmersive: arGuideViewModel.recoverImmersiveStateIfStuck,
+            recoverImmersive: {},
             finishReturn: launchViewModel.finishReturn,
             navigate: {
             windowState.beginTransition(from: .practice, to: .library)
             openWindow(id: WindowID.library)
             }
         )
+    }
+
+    private func activateCurrentRequest() async {
+        await closeImmersivePresentationIfNeeded()
+        await launchViewModel.activateCurrentRequest()
+    }
+
+    private func closeImmersivePresentationIfNeeded() async {
+        await immersiveCloseCoordinator.closeIfNeeded(
+            isClosed: arGuideViewModel.immersiveSpaceState == .closed,
+            close: {
+                let dismissHandler = makePracticeImmersiveDismissHandler(dismissImmersiveSpace)
+                await arGuideViewModel.closeImmersiveForStep(
+                    dismissImmersiveSpace: dismissHandler
+                )
+            },
+            recover: arGuideViewModel.recoverImmersiveStateIfStuck
+        )
+    }
+}
+
+@MainActor
+final class PracticeImmersiveCloseCoordinator {
+    private var operationTask: Task<Void, Never>?
+
+    func closeIfNeeded(
+        isClosed: Bool,
+        close: @escaping @MainActor () async -> Void,
+        recover: @escaping @MainActor () async -> Void
+    ) async {
+        if let operationTask {
+            await operationTask.value
+            return
+        }
+        guard isClosed == false else { return }
+        let task = Task { @MainActor in
+            await close()
+            await recover()
+        }
+        operationTask = task
+        await task.value
+        operationTask = nil
     }
 }
 
