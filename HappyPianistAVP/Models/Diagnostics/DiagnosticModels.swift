@@ -39,6 +39,7 @@ enum DiagnosticCode: String, Codable, CaseIterable, Sendable {
     case practiceNoPlayableNotes = "PRACTICE_NO_PLAYABLE_NOTES"
     case practiceMissingMeasureStructure = "PRACTICE_MISSING_MEASURE_STRUCTURE"
     case practicePreparationFailed = "PRACTICE_PREPARATION_FAILED"
+    case practiceSavedConfigurationRepaired = "PRACTICE_SAVED_CONFIGURATION_REPAIRED"
     case diagnosticsStoreWriteFailed = "DIAGNOSTICS_STORE_WRITE_FAILED"
     case diagnosticsRetentionCleanupFailed = "DIAGNOSTICS_RETENTION_CLEANUP_FAILED"
     case diagnosticsExportFailed = "DIAGNOSTICS_EXPORT_FAILED"

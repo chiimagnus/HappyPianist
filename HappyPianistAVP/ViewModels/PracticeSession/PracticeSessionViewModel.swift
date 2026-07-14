@@ -40,6 +40,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
     let autoplayTimingLeadInSeconds: TimeInterval = 0.05
 
     private(set) var hasShutdown = false
+    var lastProgressRestoreOutcome: PracticeProgressRestoreOutcome = .none
 
     var practiceHandMode: PracticeHandMode {
         stateStore.activeRoundConfiguration?.handMode ?? .both

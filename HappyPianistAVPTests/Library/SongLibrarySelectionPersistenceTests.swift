@@ -17,7 +17,6 @@ func rapidSelectionPersistsOnlyTheFinalIntent() async throws {
     viewModel.selectEntry(entries[0].id)
     viewModel.selectEntry(entries[1].id)
     viewModel.selectEntry(entries[0].id)
-    viewModel.cancelPracticePreparation()
     await viewModel.flushPendingSelectionPersistence()
 
     #expect(viewModel.selectedEntryID == entries[0].id)

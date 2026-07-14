@@ -9,15 +9,18 @@ struct LibraryWindowRootView: View {
 
   @Bindable var appState: AppState
   @State private var songLibraryViewModel: SongLibraryViewModel
+  @State private var practiceLaunchViewModel: PracticeLaunchViewModel
   @State private var diagnosticsViewModel: DiagnosticsViewModel
 
   init(
     appState: AppState,
     songLibraryViewModel: SongLibraryViewModel,
+    practiceLaunchViewModel: PracticeLaunchViewModel,
     diagnosticsViewModel: DiagnosticsViewModel
   ) {
     _appState = Bindable(wrappedValue: appState)
     _songLibraryViewModel = State(initialValue: songLibraryViewModel)
+    _practiceLaunchViewModel = State(initialValue: practiceLaunchViewModel)
     _diagnosticsViewModel = State(initialValue: diagnosticsViewModel)
   }
 
@@ -30,7 +33,8 @@ struct LibraryWindowRootView: View {
         windowState.beginTransition(from: .library, to: .preparation)
         openWindow(id: WindowID.preparation)
       },
-      onStartPractice: {
+      onStartPractice: { songID in
+        practiceLaunchViewModel.request(songID: songID)
         windowState.beginTransition(from: .library, to: .practice)
         openWindow(id: WindowID.practice)
       }
@@ -56,7 +60,7 @@ struct LibraryContentView: View {
   @Bindable var songLibraryViewModel: SongLibraryViewModel
   @Bindable var diagnosticsViewModel: DiagnosticsViewModel
   let onBackToPreparation: @MainActor () -> Void
-  let onStartPractice: @MainActor () -> Void
+  let onStartPractice: @MainActor (UUID) -> Void
 
   var body: some View {
     SongLibraryView(

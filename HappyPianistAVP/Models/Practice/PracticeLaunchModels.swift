@@ -1,5 +1,29 @@
 import Foundation
 
+enum PracticeLaunchState: Equatable, Sendable {
+    case noRequest
+    case requested(songID: UUID)
+    case loading(songID: UUID)
+    case failure(PracticeLaunchFailure)
+    case ready(PracticeSongIdentity)
+}
+
+struct PracticeLaunchActivationIdentity: Equatable, Hashable, Sendable {
+    let songID: UUID
+    let revision: Int
+}
+
+enum PracticeProgressRestoreOutcome: Equatable, Sendable {
+    case none
+    case restored
+    case repairedInvalidSavedState
+}
+
+enum PracticeLaunchApplyOutcome: Equatable, Sendable {
+    case applied
+    case appliedWithRepairedSavedState
+}
+
 struct PracticeLaunchFailure: Equatable, Identifiable, Sendable {
     let id: UUID
     let occurredAt: Date

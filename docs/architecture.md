@@ -65,7 +65,7 @@ flowchart TD
   DIAGNOSTICS --> LOGSTORE[7-day JSONL Store]
 ```
 
-`AppState.configureLiveAppGraphIfNeeded()` 是 live app 的 composition root。新增服务必须在创建它的 task 中完成注入和消费；不要留下未接入的协议或实现。
+`LiveAppGraph.make()` 是 live app 的 composition root。新增服务必须在创建它的 task 中完成注入和消费；不要留下未接入的协议或实现。
 
 ## 窗口与空间
 
@@ -76,7 +76,7 @@ flowchart TD
 - `practice` window
 - mixed `ImmersiveSpace`
 
-`WindowTransitionState` 负责替换式窗口切换。`ARGuideViewModel` 协调沉浸空间、追踪、练习 session、录制与 AI 服务。`ARTrackingRequirements` 从当前流程推导最小 provider 集合；后台或退出沉浸空间时统一暂停追踪、输入消费者和 RealityKit 长生命周期任务，恢复 active 后按当前需求重建。
+`WindowTransitionState` 记录显式窗口切换事务，由目标根视图消费并关闭来源窗口。`PracticeLaunchViewModel` 是曲谱准备 request、激活、失败、恢复与 prepared-song 清理的唯一 owner；`PracticeWindowRootView` 是练习 leave、immersive close/recover 与返回曲库的唯一 owner。`ARGuideViewModel` 协调沉浸空间、追踪、练习 session、录制与 AI 服务。`ARTrackingRequirements` 从当前流程推导最小 provider 集合；后台或退出沉浸空间时统一暂停追踪、输入消费者和 RealityKit 长生命周期任务，恢复 active 后按当前 request 重建。
 
 ## 主要领域边界
 
@@ -108,6 +108,8 @@ flowchart TD
 - feedback 表现不进入 progress JSON。
 - AI 失败不改变练习进度，也不自动切换后端。
 - 曲谱准备失败的界面说明、技术详情、系统日志和导出日志必须来自同一个 typed failure。
+- 曲库 selection 只更新内存并异步持久化；不得触发 resolver、曲谱准备或 ARGuide。只有练习窗口激活 registered request 后才执行这些副作用。
+- 同 revision 的无效 passage/resume 必须回退到当前曲谱的整首配置并立即 checkpoint；小节事实继续保留。
 - 诊断文件只接收低频且明确可导出的事件，不保存绝对路径或原始演奏数据。
 
 ## 高风险修改区
@@ -121,7 +123,8 @@ flowchart TD
 | `PracticePlaybackControlService` | tempo、片段边界、pedal 与输入抑制 | playback/autoplay tests |
 | MIDI/audio matcher | 错音、漏音、和弦与证据不足 | matcher tests |
 | `ARGuideViewModel` / `ImmersiveView` | scenePhase、tracking 和 overlay 清理 | Simulator + Vision Pro |
-| `SongLibraryViewModel` | 导入、删除、selection preparation、右侧练习配置、直接进入练习与诊断状态 | library + preparation tests |
+| `SongLibraryViewModel` | 导入、删除、试听、唯一 selection 与独立异步持久化 | library + selection tests |
+| `PracticeLaunchViewModel` | request generation、prepare/apply 竞态、失败、scene suspend 与 return 清理 | launch + lifecycle tests |
 
 ## 验证分层
 

@@ -8,12 +8,13 @@
 | --- | --- |
 | `HappyPianistAVP/Views/HappyPianistAVPApp.swift` | 创建 `AppState`，声明三个窗口与 `ImmersiveSpace`。 |
 | `HappyPianistAVP/Models/WindowID.swift` | `preparation`、`library`、`practice` window ID。 |
-| `HappyPianistAVP/ViewModels/AppState.swift` | live composition root 与共享依赖。 |
+| `HappyPianistAVP/ViewModels/LiveAppGraph.swift` | live composition root 与共享依赖。 |
 | `HappyPianistAVP/ViewModels/PracticeSetupState.swift` | 准备阶段 readiness 状态。 |
 | `HappyPianistAVP/ViewModels/WindowTransitionState.swift` | 窗口替换 transition。 |
 | `HappyPianistAVP/ViewModels/ARGuide/ARGuideViewModel.swift` | 练习、追踪、沉浸空间、录制与 AI 的总协调器。 |
+| `HappyPianistAVP/ViewModels/PracticeLaunch/PracticeLaunchViewModel.swift` | 唯一的练习启动 request、激活、失败、scene suspend 与 prepared-song 清理 owner。 |
 
-窗口使用系统背景与 replacement placement。曲库主窗口保留唱片浏览、曲名/作曲家与试听控件；练习信息与设置使用附着在 scene trailing 的 Ornament，不把主窗口改成内部 split view。
+窗口使用系统背景；切换时由 `WindowTransitionState` 记录事务，目标根视图显式关闭来源窗口。曲库主窗口只保留唱片浏览、曲名/作曲家、试听控件和唯一“开始练习”按钮。
 
 ## 钢琴模式
 
@@ -31,7 +32,7 @@
 
 | 代码 | 作用 |
 | --- | --- |
-| `HappyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift` | 接收异步 bootstrap snapshot，合并 bundled/imported entries，并作为唯一 selection owner 管理试听、导入、删除和进入练习；selection 由独立单写者异步持久化。 |
+| `HappyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift` | 接收异步 bootstrap snapshot，合并 bundled/imported entries，并作为唯一 selection owner 管理试听、导入和删除；selection 由独立单写者异步持久化。 |
 | `HappyPianistAVP/Services/Library/SongLibraryBootstrapLoader.swift` | actor 隔离的首次 bundle 扫描与索引解码，避免阻塞 MainActor 启动。 |
 | `HappyPianistAVP/Services/Library/SongFileStore.swift` | 导入 MusicXML 到 Documents。 |
 | `HappyPianistAVP/Services/Library/SongLibraryIndexStore.swift` | actor 内按 concern 原子更新用户曲库索引。 |
@@ -39,9 +40,7 @@
 | `HappyPianistAVP/Services/Library/AudioImportService.swift` | 绑定 `.mp3` / `.m4a` 试听音频。 |
 | `HappyPianistAVP/Services/Practice/Session/PracticePreparationService.swift` | 把所选曲谱转换成 `PreparedPractice`。 |
 
-支持 `.musicxml`、`.xml`、`.mxl`。切换唱片后自动异步准备当前曲谱；右侧 Ornament 固定呈现骨架、练习信息/设置或具体失败原因。底部固定按钮统一为“去练习！”，直接使用当前 pending configuration，不再弹出练习选择 dialog 或 sheet。
-
-曲名、作曲家、来源与试听播放仍属于主曲库内容；练习范围、手别、速度、循环、连续成功目标、恢复点、卡点和小节地图只属于右侧 Ornament。
+支持 `.musicxml`、`.xml`、`.mxl`。切换唱片只更新 selection；点击“开始练习”才登记 request 并打开练习窗口，曲谱解析、进度恢复和失败展示都由练习窗口拥有。P2 前曲库不显示进度 Ornament，也没有隐藏的旧配置路径。
 
 正式生产导入链只有：
 
@@ -58,12 +57,13 @@ Library View -> SongLibraryViewModel -> SongFileStore
 
 曲库顶部“诊断”入口打开全局诊断管理界面，可查看日志覆盖范围、清除日志并导出7 天的诊断 ZIP。业务代码只写 `DiagnosticEvent`；`AppDiagnosticsReporter` 同时负责 `os.Logger` 与受隐私规则约束的 JSONL 存储。
 
-曲谱准备失败在右侧 Ornament 中显示具体标题、解释、错误代码、阶段、文件名、App 内相对路径和可用的行列/小节。技术详情默认可见并通过系统文本选择菜单复制。
+曲谱准备失败在练习窗口中显示具体标题、解释、错误代码、阶段、文件名、App 内相对路径和可用的行列。技术详情可通过系统文本选择菜单复制。
 
 ## 练习窗口
 
 `HappyPianistAVP/Views/Practice/PracticeWindowRootView.swift` 承载：
 
+- launch loading / failure / retry 与唯一返回事务
 - 五线谱和 step 控制
 - 片段设置
 - 练习设置

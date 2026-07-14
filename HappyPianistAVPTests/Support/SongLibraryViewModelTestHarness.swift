@@ -4,49 +4,30 @@ import Foundation
 @MainActor
 enum SongLibraryViewModelTestHarness {
     static func make(
-        appState: AppState? = nil,
         index: SongLibraryIndex? = nil,
         indexStore: (any SongLibraryIndexStoreProtocol)? = nil,
         fileStore: (any SongFileStoreProtocol)? = nil,
         bundledEntries: [SongLibraryEntry] = [],
-        entryResolver: (any SongLibraryEntryResolving)? = nil,
-        practicePreparationService: (any PracticePreparationServiceProtocol)? = nil,
         practiceProgressRepository: (any PracticeProgressRepositoryProtocol)? = nil,
-        diagnosticsReporter: (any DiagnosticsReporting)? = nil,
         audioPlayer: (any SongAudioPlayerProtocol)? = nil,
         bootstrapLoader: (any SongLibraryBootstrapLoading)? = nil,
         deferInitialLoad: Bool = false
     ) -> SongLibraryViewModel {
-        let resolvedAppState = appState ?? AppState()
         let resolvedIndex = index ?? .empty
         let resolvedIndexStore = indexStore ?? InMemorySongLibraryIndexStore(index: resolvedIndex)
         let resolvedFileStore = fileStore ?? InMemorySongFileStore()
         let resolvedBundledProvider = StubBundledSongLibraryProvider(entries: bundledEntries)
-        let resolvedEntryResolver = entryResolver ?? SongLibraryEntryResolver(
-            indexStore: resolvedIndexStore,
-            bundledProvider: resolvedBundledProvider,
-            fileStore: resolvedFileStore
-        )
-        let arGuideViewModel = ARGuideViewModel(
-            appState: resolvedAppState,
-            practiceSetupState: resolvedAppState.practiceSetupState
-        )
         return SongLibraryViewModel(
-            arGuideViewModel: arGuideViewModel,
-            practicePreparationService: practicePreparationService ?? NoopPracticePreparationService(),
             indexStore: resolvedIndexStore,
             fileStore: resolvedFileStore,
             audioImportService: NoopAudioImportService(),
             bundledProvider: resolvedBundledProvider,
-            entryResolver: resolvedEntryResolver,
             audioPlayer: audioPlayer ?? NoopSongAudioPlayer(),
             practiceProgressRepository: practiceProgressRepository ?? InMemoryPracticeProgressRepository(),
-            diagnosticsReporter: diagnosticsReporter ?? InMemoryDiagnosticsReporter(),
             bootstrapLoader: bootstrapLoader,
             initialSnapshot: deferInitialLoad
                 ? nil
                 : .loaded(index: resolvedIndex, bundledEntries: bundledEntries),
-            selectionSettleDelay: .zero,
             selectionPersistenceDelay: .zero
         )
     }
@@ -145,12 +126,6 @@ private struct StubBundledSongLibraryProvider: BundledSongLibraryProviderProtoco
 
     func audioURL(fileName _: String) -> URL? {
         nil
-    }
-}
-
-private struct NoopPracticePreparationService: PracticePreparationServiceProtocol {
-    func prepare(songID _: UUID, from _: URL, file _: ImportedMusicXMLFile) async throws -> PreparedPractice {
-        throw NSError(domain: "SongLibraryViewModelTestHarness", code: 1)
     }
 }
 

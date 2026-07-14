@@ -5,14 +5,13 @@ struct SongLibraryView: View {
   @Bindable var viewModel: SongLibraryViewModel
   @Bindable var diagnosticsViewModel: DiagnosticsViewModel
   let onBackToPreparation: @MainActor () -> Void
-  let onStartPractice: @MainActor () -> Void
+  let onStartPractice: @MainActor (UUID) -> Void
 
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   @State private var isAudioImporterPresented = false
   @State private var pendingAudioBindingEntryID: UUID?
   @State private var pendingDeletionEntryID: UUID?
   @State private var isDiagnosticsPresented = false
-  @State private var libraryViewHeight: CGFloat = LibraryDesignTokens.windowIdealHeight
 
   private var audioImporterTypes: [UTType] {
     let types = SongLibraryViewModel.supportedAudioFileExtensions.compactMap {
@@ -68,42 +67,54 @@ struct SongLibraryView: View {
       } else if entries.isEmpty {
         SongLibraryEmptyView(onImport: viewModel.didTapImportMusicXML)
       } else if let selectedEntry, let selectedPresentation {
-        LibraryCrateView(
-          entries: entries,
-          selectedEntryID: viewModel.selectedEntryID,
-          playingEntryID: viewModel.currentListeningEntryID,
-          isPlaying: selectedIsPlaying,
-          reduceMotion: reduceMotion,
-          onSelectEntry: viewModel.selectEntry,
-          onTogglePlayback: togglePlayback,
-          onImportMusicXML: viewModel.didTapImportMusicXML,
-          onBindAudio: presentAudioImporter,
-          onDelete: requestDeletion
-        )
+        ZStack(alignment: .bottomTrailing) {
+          VStack(spacing: 0) {
+            LibraryCrateView(
+              entries: entries,
+              selectedEntryID: viewModel.selectedEntryID,
+              playingEntryID: viewModel.currentListeningEntryID,
+              isPlaying: selectedIsPlaying,
+              reduceMotion: reduceMotion,
+              onSelectEntry: viewModel.selectEntry,
+              onTogglePlayback: togglePlayback,
+              onImportMusicXML: viewModel.didTapImportMusicXML,
+              onBindAudio: presentAudioImporter,
+              onDelete: requestDeletion
+            )
 
-        LibraryTrackInfoView(
-          presentation: selectedPresentation,
-          progress: selectedProgress,
-          currentTime: selectedCurrentTime,
-          duration: selectedDuration,
-          canSeek: viewModel.currentListeningEntryID == selectedEntry.id && selectedDuration > 0,
-          playbackTitle: playbackButtonTitle(
-            requiresAudioImport: requiresAudioImport,
-            isPlaying: selectedIsPlaying
-          ),
-          playbackSystemImage: playbackButtonSystemImage(
-            requiresAudioImport: requiresAudioImport,
-            isPlaying: selectedIsPlaying
-          ),
-          canPerformPlaybackAction: canPerformPlaybackAction,
-          onPlayback: toggleSelectedPlayback,
-          onSeek: { progress in
-            viewModel.seekListening(entryID: selectedEntry.id, progress: progress)
+            LibraryTrackInfoView(
+              presentation: selectedPresentation,
+              progress: selectedProgress,
+              currentTime: selectedCurrentTime,
+              duration: selectedDuration,
+              canSeek: viewModel.currentListeningEntryID == selectedEntry.id && selectedDuration > 0,
+              playbackTitle: playbackButtonTitle(
+                requiresAudioImport: requiresAudioImport,
+                isPlaying: selectedIsPlaying
+              ),
+              playbackSystemImage: playbackButtonSystemImage(
+                requiresAudioImport: requiresAudioImport,
+                isPlaying: selectedIsPlaying
+              ),
+              canPerformPlaybackAction: canPerformPlaybackAction,
+              onPlayback: toggleSelectedPlayback,
+              onSeek: { progress in
+                viewModel.seekListening(entryID: selectedEntry.id, progress: progress)
+              }
+            )
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 30)
+            .padding(.bottom, 22)
           }
-        )
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 30)
-        .padding(.bottom, 22)
+
+          Button("开始练习", systemImage: "music.note") {
+            onStartPractice(selectedEntry.id)
+          }
+          .buttonStyle(.borderedProminent)
+          .buttonBorderShape(.roundedRectangle)
+          .accessibilityHint("在练习窗口中准备并打开当前曲目")
+          .padding()
+        }
       }
     }
     .frame(
@@ -114,23 +125,6 @@ struct SongLibraryView: View {
       idealHeight: LibraryDesignTokens.windowIdealHeight,
       maxHeight: LibraryDesignTokens.windowMaximumHeight
     )
-    .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { height in
-      libraryViewHeight = height
-    }
-    .ornament(
-      visibility: .visible,
-      attachmentAnchor: .scene(.trailing),
-      contentAlignment: .leading
-    ) {
-      LibraryPracticeOrnamentView(
-        viewModel: viewModel,
-        isStartEnabled: viewModel.canStartSelectedPractice,
-        onStartPractice: startSelectedPractice,
-        onImportMusicXML: viewModel.didTapImportMusicXML
-      )
-      .frame(height: libraryViewHeight)
-      .glassBackgroundEffect()
-    }
     .sheet(isPresented: $isDiagnosticsPresented) {
       DiagnosticsView(viewModel: diagnosticsViewModel)
     }
@@ -142,14 +136,9 @@ struct SongLibraryView: View {
     )
     .task {
       await viewModel.loadLibraryIfNeeded()
-      await viewModel.reloadPracticeProgress()
-      if let selectedEntryID = viewModel.selectedEntryID {
-        viewModel.selectEntry(selectedEntryID)
-      }
     }
     .onDisappear {
       viewModel.stopListening()
-      viewModel.cancelPracticePreparation()
       Task { @MainActor in
         await viewModel.flushPendingSelectionPersistence()
       }
@@ -241,11 +230,6 @@ struct SongLibraryView: View {
     }
   }
 
-  private func startSelectedPractice() {
-    guard viewModel.startSelectedPractice() else { return }
-    onStartPractice()
-  }
-
   private func presentAudioImporter(_ entryID: UUID) {
     guard let entry = viewModel.entries.first(where: { $0.id == entryID }), entry.isBundled != true
     else {
@@ -288,11 +272,11 @@ struct SongLibraryView: View {
 
 #Preview {
   let graph = LiveAppGraph.make()
-  return SongLibraryView(
+  SongLibraryView(
     viewModel: graph.songLibraryViewModel,
     diagnosticsViewModel: graph.diagnosticsViewModel,
     onBackToPreparation: {},
-    onStartPractice: {}
+    onStartPractice: { _ in }
   )
 
 }

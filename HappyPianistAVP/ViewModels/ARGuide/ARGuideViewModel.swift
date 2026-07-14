@@ -5,7 +5,7 @@ import simd
 
 @MainActor
 @Observable
-final class ARGuideViewModel {
+final class ARGuideViewModel: PracticeLaunchApplying {
     typealias CalibrationPhase = CalibrationGuideViewModel.CalibrationPhase
     typealias PracticeLocalizationFailure = PracticeLocalizationViewModel.PracticeLocalizationFailure
     typealias PracticeLocalizationState = PracticeLocalizationViewModel.PracticeLocalizationState
@@ -177,6 +177,16 @@ final class ARGuideViewModel {
         return true
     }
 
+    func applyPreparedPracticeForLaunch(
+        _ prepared: PreparedPractice,
+        isCurrent: @escaping @MainActor () -> Bool
+    ) async -> PracticeLaunchApplyOutcome? {
+        guard await applyPreparedPractice(prepared, isCurrent: isCurrent) else { return nil }
+        return practiceSessionViewModel.lastProgressRestoreOutcome == .repairedInvalidSavedState
+            ? .appliedWithRepairedSavedState
+            : .applied
+    }
+
     private func applyPreparedPractice(
         _ prepared: PreparedPractice,
         to session: PracticeSessionViewModel,
@@ -228,6 +238,9 @@ final class ARGuideViewModel {
             session.clearPreparedSong()
             guard practiceSessionViewModel !== session else { break }
             session = practiceSessionViewModel
+        }
+        if practiceSessionViewModel.hasShutdown {
+            await replacePracticeSessionViewModel()
         }
     }
 

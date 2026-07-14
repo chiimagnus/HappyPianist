@@ -4,26 +4,18 @@ import Observation
 @MainActor
 @Observable
 final class SongLibraryViewModel {
-    private let arGuideViewModel: ARGuideViewModel
     private let indexStore: SongLibraryIndexStoreProtocol
     private let fileStore: SongFileStoreProtocol
     private let audioImportService: AudioImportServiceProtocol
     private let bundledProvider: BundledSongLibraryProviderProtocol
-    private let entryResolver: any SongLibraryEntryResolving
     private let bootstrapLoader: (any SongLibraryBootstrapLoading)?
     private var bundledEntries: [SongLibraryEntry]
-    private let practicePreparationService: PracticePreparationServiceProtocol
     private let audioPlaybackController: SongAudioPlaybackStateController
     private let practiceProgressRepository: any PracticeProgressRepositoryProtocol
-    private let diagnosticsReporter: any DiagnosticsReporting
-    private let selectionSettleSleeper: any SleeperProtocol
-    private let selectionSettleDelay: Duration
     private let selectionPersistenceSleeper: any SleeperProtocol
     private let selectionPersistenceDelay: Duration
     @ObservationIgnored private var playbackProgressTask: Task<Void, Never>?
     @ObservationIgnored private var listenIntentGeneration = 0
-    @ObservationIgnored private var practicePreparationTask: Task<Void, Never>?
-    @ObservationIgnored private var practicePreparationGeneration = 0
     @ObservationIgnored private var selectionPersistenceDebounceTask: Task<Void, Never>?
     @ObservationIgnored private var selectionPersistenceWorker: Task<Void, Never>?
     @ObservationIgnored private var selectionPersistenceRevision = 0
@@ -32,7 +24,6 @@ final class SongLibraryViewModel {
     @ObservationIgnored private var selectionPersistenceNeedsDrain = false
     private var desiredPersistedSelection: UUID?
     private var persistedSelection: UUID?
-    private var recordedPreparationFailureID: UUID?
 
     static let supportedAudioFileExtensions = ["mp3", "m4a"]
     private static let supportedAudioFileExtensionSet = Set(supportedAudioFileExtensions)
@@ -47,57 +38,26 @@ final class SongLibraryViewModel {
     var listeningCurrentTime: TimeInterval = 0
     var listeningDuration: TimeInterval = 0
     var isMusicXMLImporterPresented = false
-    var practicePreparationState: LibraryPracticePreparationState = .idle
     private(set) var selectedEntryID: UUID?
-    var practiceProgressBySongID: [UUID: SongPracticeProgress] = [:]
-
-    var isPreparingPractice: Bool {
-        if case .loading = practicePreparationState {
-            return true
-        }
-        return false
-    }
-
-    var isSelectedPracticeReady: Bool {
-        guard case let .ready(entryID, _) = practicePreparationState else { return false }
-        return entryID == selectedEntryID
-    }
-
-    var wasSelectedPreparationFailureRecorded: Bool {
-        guard case let .failure(failure) = practicePreparationState else { return false }
-        return recordedPreparationFailureID == failure.id
-    }
 
     init(
-        arGuideViewModel: ARGuideViewModel,
-        practicePreparationService: PracticePreparationServiceProtocol,
         indexStore: SongLibraryIndexStoreProtocol,
         fileStore: SongFileStoreProtocol,
         audioImportService: AudioImportServiceProtocol,
         bundledProvider: BundledSongLibraryProviderProtocol,
-        entryResolver: any SongLibraryEntryResolving,
         audioPlayer: SongAudioPlayerProtocol,
         practiceProgressRepository: any PracticeProgressRepositoryProtocol,
-        diagnosticsReporter: any DiagnosticsReporting,
         bootstrapLoader: (any SongLibraryBootstrapLoading)? = nil,
         initialSnapshot: SongLibraryBootstrapSnapshot? = nil,
-        selectionSettleSleeper: any SleeperProtocol = TaskSleeper(),
-        selectionSettleDelay: Duration = .milliseconds(200),
         selectionPersistenceSleeper: any SleeperProtocol = TaskSleeper(),
         selectionPersistenceDelay: Duration = .milliseconds(200)
     ) {
-        self.arGuideViewModel = arGuideViewModel
-        self.practicePreparationService = practicePreparationService
         self.indexStore = indexStore
         self.fileStore = fileStore
         self.audioImportService = audioImportService
         self.bundledProvider = bundledProvider
-        self.entryResolver = entryResolver
         self.bootstrapLoader = bootstrapLoader
         self.practiceProgressRepository = practiceProgressRepository
-        self.diagnosticsReporter = diagnosticsReporter
-        self.selectionSettleSleeper = selectionSettleSleeper
-        self.selectionSettleDelay = selectionSettleDelay
         self.selectionPersistenceSleeper = selectionPersistenceSleeper
         self.selectionPersistenceDelay = selectionPersistenceDelay
         switch initialSnapshot {
@@ -275,77 +235,6 @@ final class SongLibraryViewModel {
         }
     }
 
-    func reloadPracticeProgress() async {
-        guard case let .loaded(document) = await practiceProgressRepository.load() else {
-            practiceProgressBySongID = [:]
-            return
-        }
-        practiceProgressBySongID = Dictionary(
-            document.songs.map { ($0.identity.songID, $0) },
-            uniquingKeysWith: { current, candidate in
-                current.updatedAt >= candidate.updatedAt ? current : candidate
-            }
-        )
-    }
-
-    var preparedRoundConfigurationController: PracticeRoundConfigurationController? {
-        currentPreparedPracticeSession?.roundConfigurationController
-    }
-
-    var preparedMeasureSpans: [MusicXMLMeasureSpan] {
-        currentPreparedPracticeSession?.measureSpans ?? []
-    }
-
-    var selectedPracticePresentation: LibraryPracticePanelPresentation? {
-        guard case let .ready(entryID, identity) = practicePreparationState,
-              entryID == selectedEntryID,
-              let session = currentPreparedPracticeSession,
-              let configuration = session.roundConfigurationController.pendingConfiguration
-        else { return nil }
-
-        let sessionProgress = session.sessionProgress?.identity == identity
-            ? session.sessionProgress
-            : nil
-        let storedProgress = practiceProgressBySongID[entryID]?.identity == identity
-            ? practiceProgressBySongID[entryID]
-            : nil
-        let currentMeasure = session.measureIndex?
-            .occurrenceID(forStepIndex: session.currentStepIndex)?
-            .sourceMeasureID
-
-        return LibraryPracticePanelPresentation(
-            identity: identity,
-            measureSpans: session.measureSpans,
-            progress: sessionProgress ?? storedProgress,
-            configuration: configuration,
-            currentMeasure: currentMeasure
-        )
-    }
-
-    private var currentPreparedPracticeSession: PracticeSessionViewModel? {
-        let session = arGuideViewModel.practiceSessionViewModel
-        guard case let .ready(entryID, identity) = practicePreparationState,
-              entryID == selectedEntryID,
-              session.songIdentity == identity
-        else { return nil }
-        return session
-    }
-
-    var canStartSelectedPractice: Bool {
-        isSelectedPracticeReady && preparedRoundConfigurationController?.pendingConfiguration != nil
-    }
-
-    @discardableResult
-    func startSelectedPractice() -> Bool {
-        guard canStartSelectedPractice,
-              let session = currentPreparedPracticeSession
-        else { return false }
-        if session.roundConfigurationController.hasPendingChanges {
-            _ = session.applyPendingRoundConfiguration()
-        }
-        return session.activeRange != nil && session.activeRangeDiagnostic == nil
-    }
-
     func dismissError() {
         errorMessage = nil
     }
@@ -387,150 +276,13 @@ final class SongLibraryViewModel {
     }
 
     func selectEntry(_ entryID: UUID) {
-        guard entries.contains(where: { $0.id == entryID }) else {
-            cancelPracticePreparation()
-            return
+        guard entries.contains(where: { $0.id == entryID }), selectedEntryID != entryID else { return }
+        listenIntentGeneration += 1
+        if currentListeningEntryID != nil {
+            stopListening()
         }
-        if selectedEntryID != entryID {
-            listenIntentGeneration += 1
-            if currentListeningEntryID != nil {
-                stopListening()
-            }
-            selectedEntryID = entryID
-            requestSelectionPersistence(entryID)
-        } else {
-            switch practicePreparationState {
-            case .loading, .ready:
-                return
-            case .idle, .failure:
-                break
-            }
-        }
-        beginPracticePreparation(entryID: entryID)
-    }
-
-    func retrySelectedPracticePreparation() {
-        guard let selectedEntryID else { return }
-        beginPracticePreparation(entryID: selectedEntryID)
-    }
-
-    func cancelPracticePreparation() {
-        practicePreparationTask?.cancel()
-        practicePreparationTask = nil
-        practicePreparationGeneration += 1
-        recordedPreparationFailureID = nil
-        practicePreparationState = .idle
-    }
-
-    private func beginPracticePreparation(entryID: UUID) {
-        practicePreparationTask?.cancel()
-        practicePreparationGeneration += 1
-        let generation = practicePreparationGeneration
-        recordedPreparationFailureID = nil
-        practicePreparationState = .loading(entryID: entryID)
-        practicePreparationTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-            do {
-                try await selectionSettleSleeper.sleep(for: selectionSettleDelay)
-                try Task.checkCancellation()
-            } catch {
-                return
-            }
-            guard isCurrentPracticePreparation(entryID: entryID, generation: generation) else {
-                return
-            }
-            await prepareSelectedEntry(entryID: entryID, generation: generation)
-        }
-    }
-
-    private func prepareSelectedEntry(entryID: UUID, generation: Int) async {
-        var fileReference: DiagnosticFileReference?
-
-        do {
-            let resolvedEntry = try await entryResolver.resolve(songID: entryID)
-            let entry = resolvedEntry.entry
-            let scoreURL = resolvedEntry.scoreURL
-            fileReference = resolvedEntry.diagnosticFileReference
-
-            let file = ImportedMusicXMLFile(
-                fileName: entry.displayName,
-                storedURL: scoreURL,
-                importedAt: entry.importedAt
-            )
-            let prepared = try await practicePreparationService.prepare(
-                songID: entry.id,
-                from: scoreURL,
-                file: file
-            )
-            try Task.checkCancellation()
-            guard isCurrentPracticePreparation(entryID: entryID, generation: generation) else { return }
-            guard prepared.steps.isEmpty == false else {
-                throw PracticePreparationError.noPlayableNotes
-            }
-            guard prepared.measureSpans.isEmpty == false else {
-                throw PracticePreparationError.missingMeasureStructure
-            }
-
-            guard await arGuideViewModel.applyPreparedPractice(
-                prepared,
-                isCurrent: { [weak self] in
-                    self?.isCurrentPracticePreparation(
-                        entryID: entryID,
-                        generation: generation
-                    ) == true
-                }
-            ) else { return }
-            guard isCurrentPracticePreparation(entryID: entryID, generation: generation) else { return }
-            practicePreparationState = .ready(entryID: entryID, identity: prepared.identity)
-            practicePreparationTask = nil
-            _ = await diagnosticsReporter.record(
-                DiagnosticEvent(
-                    severity: .info,
-                    code: .practicePreparationSucceeded,
-                    category: .practicePreparation,
-                    stage: "selectedScorePreparation",
-                    summary: "曲谱练习数据已准备完成",
-                    reason: "Prepared \(prepared.steps.count) steps and \(prepared.measureSpans.count) measure occurrences.",
-                    songID: entryID,
-                    scoreRevision: prepared.identity.scoreRevision,
-                    file: fileReference,
-                    persistence: .exportable
-                )
-            )
-        } catch is CancellationError {
-            return
-        } catch {
-            guard isCurrentPracticePreparation(entryID: entryID, generation: generation) else { return }
-            let preparationError: PracticePreparationError
-            if let resolutionError = error as? SongLibraryEntryResolutionError {
-                preparationError = resolutionError.preparationError
-                fileReference = resolutionError.diagnosticFileReference
-            } else {
-                preparationError = (error as? PracticePreparationError) ?? .unexpected(
-                    stage: "selectedScorePreparation",
-                    reason: PracticePreparationErrorDetails.safeErrorSummary(error)
-                )
-            }
-            let failure = PracticeLaunchFailure.map(
-                preparationError,
-                entryID: entryID,
-                file: fileReference
-            )
-            practicePreparationState = .failure(failure)
-            practicePreparationTask = nil
-            let recordResult = await diagnosticsReporter.record(failure.diagnosticEvent)
-            guard isCurrentPracticePreparation(entryID: entryID, generation: generation),
-                  case let .failure(currentFailure) = practicePreparationState,
-                  currentFailure.id == failure.id
-            else { return }
-            recordedPreparationFailureID = recordResult.persistedForExport ? failure.id : nil
-        }
-    }
-
-    private func isCurrentPracticePreparation(entryID: UUID, generation: Int) -> Bool {
-        generation == practicePreparationGeneration &&
-            selectedEntryID == entryID &&
-            Task.isCancelled == false
+        selectedEntryID = entryID
+        requestSelectionPersistence(entryID)
     }
 
     func deleteEntry(entryID: UUID) async {
@@ -557,7 +309,6 @@ final class SongLibraryViewModel {
             }
             index = updatedIndex
             if selectedEntryID == entryID {
-                cancelPracticePreparation()
                 adoptPersistedSelection(updatedIndex.lastSelectedEntryID)
             }
 

@@ -31,7 +31,8 @@ Xcode 工程只有 `HappyPianistAVP` 与 `HappyPianistAVPTests` 两个 target；
 选择钢琴模式
 -> 完成校准或虚拟琴放置
 -> 进入曲库并导入 MusicXML
--> 在曲库右侧 Ornament 查看进度并设置本轮配置
+-> 选择曲目并点击“开始练习”
+-> 练习窗口准备曲谱并恢复精确版本的进度
 -> 演奏、判定并保存小节事实
 -> 查看即时反馈、总结和恢复地图
 ```

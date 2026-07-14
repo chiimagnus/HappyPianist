@@ -7,21 +7,30 @@ struct PracticeWindowRootView: View {
     @Environment(\.dismissImmersiveSpace) private var dismissImmersiveSpace
     @Environment(\.scenePhase) private var scenePhase
 
-    @Bindable var viewModel: ARGuideViewModel
+    @Bindable var arGuideViewModel: ARGuideViewModel
+    @Bindable var launchViewModel: PracticeLaunchViewModel
     @State private var sceneLifecycleTask: Task<Void, Never>?
+    @State private var returnCoordinator = PracticeWindowReturnCoordinator()
 
-    init(viewModel: ARGuideViewModel) {
-        _viewModel = Bindable(wrappedValue: viewModel)
+    init(
+        arGuideViewModel: ARGuideViewModel,
+        launchViewModel: PracticeLaunchViewModel
+    ) {
+        _arGuideViewModel = Bindable(wrappedValue: arGuideViewModel)
+        _launchViewModel = Bindable(wrappedValue: launchViewModel)
     }
 
     var body: some View {
-        PracticeStepView(
-            viewModel: viewModel,
-            onBackToLibrary: {
-                windowState.beginTransition(from: .practice, to: .library)
-                openWindow(id: WindowID.library)
-            }
+        PracticeLaunchContainerView(
+            launchViewModel: launchViewModel,
+            arGuideViewModel: arGuideViewModel,
+            onReturn: beginReturnToLibrary
         )
+        .task(id: launchViewModel.activationIdentity) {
+            guard scenePhase == .active else { return }
+            dismissPendingSourceIfNeeded()
+            await launchViewModel.activateCurrentRequest()
+        }
         .onChange(of: scenePhase) {
             handleScenePhaseChange()
         }
@@ -31,14 +40,7 @@ struct PracticeWindowRootView: View {
         .onDisappear {
             sceneLifecycleTask?.cancel()
             sceneLifecycleTask = nil
-            guard windowState.pendingTransition == nil else { return }
-            Task { @MainActor in
-                let dismissHandler = makePracticeImmersiveDismissHandler(dismissImmersiveSpace)
-                await viewModel.leavePracticeStep()
-                await viewModel.closeImmersiveForStep(dismissImmersiveSpace: dismissHandler)
-                await viewModel.recoverImmersiveStateIfStuck()
-                openWindow(id: WindowID.library)
-            }
+            beginReturnToLibrary()
         }
     }
 
@@ -51,18 +53,66 @@ struct PracticeWindowRootView: View {
 
     private func handleScenePhaseChange() {
         let phase = scenePhase
-        if phase != .active {
-            viewModel.invalidatePracticeFeedbackPresentation()
-        }
         sceneLifecycleTask?.cancel()
         sceneLifecycleTask = Task { @MainActor in
-            guard Task.isCancelled == false else { return }
+            guard Task.isCancelled == false, returnCoordinator.isReturning == false else { return }
             if phase == .active {
-                viewModel.resumePracticeAfterSuspension()
                 dismissPendingSourceIfNeeded()
+                await launchViewModel.activateCurrentRequest()
             } else {
-                await viewModel.suspendPracticeAndFlushProgress()
+                await launchViewModel.suspendForInactiveScene()
             }
         }
+    }
+
+    private func beginReturnToLibrary() {
+        sceneLifecycleTask?.cancel()
+        sceneLifecycleTask = nil
+        returnCoordinator.begin(
+            beginReturn: launchViewModel.beginReturn,
+            leave: arGuideViewModel.leavePracticeStep,
+            closeImmersive: {
+                let dismissHandler = makePracticeImmersiveDismissHandler(dismissImmersiveSpace)
+                await arGuideViewModel.closeImmersiveForStep(
+                    dismissImmersiveSpace: dismissHandler
+                )
+            },
+            recoverImmersive: arGuideViewModel.recoverImmersiveStateIfStuck,
+            finishReturn: launchViewModel.finishReturn,
+            navigate: {
+            windowState.beginTransition(from: .practice, to: .library)
+            openWindow(id: WindowID.library)
+            }
+        )
+    }
+}
+
+@MainActor
+final class PracticeWindowReturnCoordinator {
+    private var operationTask: Task<Void, Never>?
+
+    var isReturning: Bool { operationTask != nil }
+
+    func begin(
+        beginReturn: @escaping @MainActor () -> UUID,
+        leave: @escaping @MainActor () async -> Void,
+        closeImmersive: @escaping @MainActor () async -> Void,
+        recoverImmersive: @escaping @MainActor () async -> Void,
+        finishReturn: @escaping @MainActor (UUID) async -> Void,
+        navigate: @escaping @MainActor () -> Void
+    ) {
+        guard operationTask == nil else { return }
+        let operationID = beginReturn()
+        operationTask = Task { @MainActor in
+            await leave()
+            await closeImmersive()
+            await recoverImmersive()
+            await finishReturn(operationID)
+            navigate()
+        }
+    }
+
+    func waitForCompletion() async {
+        await operationTask?.value
     }
 }

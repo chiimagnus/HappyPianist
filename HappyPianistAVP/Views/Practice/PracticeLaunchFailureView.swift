@@ -1,10 +1,9 @@
 import SwiftUI
 
-struct LibraryPracticeFailureView: View {
+struct PracticeLaunchFailureView: View {
     let failure: PracticeLaunchFailure
-    let wasRecordedInDiagnostics: Bool
-    let onRetry: () -> Void
-    let onImportMusicXML: () -> Void
+    let onRetry: @MainActor () -> Void
+    let onReturn: @MainActor () -> Void
 
     var body: some View {
         ScrollView {
@@ -19,28 +18,20 @@ struct LibraryPracticeFailureView: View {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("技术详情")
                         .font(.headline)
-
                     Text(failure.technicalDetails)
                         .font(.system(.footnote, design: .monospaced))
                         .textSelection(.enabled)
-                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
 
-                if wasRecordedInDiagnostics {
-                    Label("此错误已写入诊断日志", systemImage: "doc.text.magnifyingglass")
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-
-                VStack(alignment: .leading, spacing: 10) {
-                    Button("重新准备", systemImage: "arrow.clockwise", action: onRetry)
+                HStack {
+                    Button("重试", systemImage: "arrow.clockwise", action: onRetry)
                         .buttonStyle(.borderedProminent)
-
-                    Button("导入其他曲谱", systemImage: "square.and.arrow.down", action: onImportMusicXML)
+                    Button("返回选曲库", systemImage: "chevron.backward", action: onReturn)
                         .buttonStyle(.bordered)
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(maxWidth: 640, alignment: .leading)
+            .padding()
         }
         .scrollIndicators(.hidden)
     }

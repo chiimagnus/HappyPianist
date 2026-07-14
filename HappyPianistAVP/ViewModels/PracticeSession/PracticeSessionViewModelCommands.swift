@@ -112,7 +112,9 @@ extension PracticeSessionViewModel {
     }
 
     func restoreProgressIfAvailable() async {
+        self.lastProgressRestoreOutcome = .none
         guard let identity = self.songIdentity, let progressCoordinator else { return }
+        let freshConfiguration = self.activeRoundConfiguration
         let session = await progressCoordinator.begin(identity: identity)
         guard session.isCurrent, self.songIdentity == identity else { return }
         self.progressGeneration = session.generation
@@ -123,15 +125,43 @@ extension PracticeSessionViewModel {
             return
         }
 
-        self.sessionProgress = progress
+        var restoredProgress = progress
+        var repairedSavedState = false
         if let configuration = progress.activeConfiguration {
             roundConfigurationController.restoreActiveConfiguration(configuration)
             rebuildActiveRange()
+            if self.activeRange == nil || self.activeRangeDiagnostic != nil {
+                restoredProgress.activeConfiguration = freshConfiguration
+                restoredProgress.resumePoint = nil
+                repairedSavedState = true
+                if let freshConfiguration {
+                    roundConfigurationController.restoreActiveConfiguration(freshConfiguration)
+                } else {
+                    roundConfigurationController.resetSong()
+                }
+                rebuildActiveRange()
+            }
         }
-        if let resumePoint = progress.resumePoint,
-           self.measureIndex?.occurrenceID(forStepIndex: resumePoint.stepIndex) == resumePoint.occurrenceID,
-           self.activeRange?.contains(stepIndex: resumePoint.stepIndex) ?? true
-        {
+
+        let resumePoint = restoredProgress.resumePoint
+        let hasValidResumePoint = resumePoint.map {
+            self.measureIndex?.occurrenceID(forStepIndex: $0.stepIndex) == $0.occurrenceID &&
+                (self.activeRange?.contains(stepIndex: $0.stepIndex) ?? true)
+        } ?? false
+        if resumePoint != nil, hasValidResumePoint == false {
+            restoredProgress.resumePoint = nil
+            repairedSavedState = true
+        }
+        self.sessionProgress = restoredProgress
+        if repairedSavedState {
+            await progressCoordinator.checkpoint(restoredProgress, generation: session.generation)
+            _ = await progressCoordinator.flush(generation: session.generation)
+            self.lastProgressRestoreOutcome = .repairedInvalidSavedState
+        } else {
+            self.lastProgressRestoreOutcome = .restored
+        }
+
+        if let resumePoint = restoredProgress.resumePoint, hasValidResumePoint {
             self.currentStepIndex = resumePoint.stepIndex
         } else {
             self.currentStepIndex = self.activeRange?.firstStepIndex ?? 0
@@ -428,6 +458,7 @@ extension PracticeSessionViewModel {
         self.isRestoredSessionPaused = false
         self.acceptsPracticeAttempts = true
         self.sessionProgress = nil
+        self.lastProgressRestoreOutcome = .none
         self.attemptReductionState = PracticeAttemptReductionState()
         self.latestFeedbackEvent = nil
         self.steps = []

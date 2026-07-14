@@ -6,6 +6,7 @@ struct LiveAppGraph {
   let windowState: WindowTransitionState
   let arGuideViewModel: ARGuideViewModel
   let songLibraryViewModel: SongLibraryViewModel
+  let practiceLaunchViewModel: PracticeLaunchViewModel
   let diagnosticsViewModel: DiagnosticsViewModel
 
   static func make() -> LiveAppGraph {
@@ -153,20 +154,22 @@ struct LiveAppGraph {
       aiPlaybackServiceFactory: makeAIPlaybackServiceFactory
     )
     let songLibraryViewModel = SongLibraryViewModel(
-      arGuideViewModel: arGuideViewModel,
-      practicePreparationService: practicePreparationService,
       indexStore: songLibraryIndexStore,
       fileStore: songFileStore,
       audioImportService: audioImportService,
       bundledProvider: bundledSongLibraryProvider,
-      entryResolver: songLibraryEntryResolver,
       audioPlayer: songAudioPlayer,
       practiceProgressRepository: progressRepository,
-      diagnosticsReporter: diagnosticsReporter,
       bootstrapLoader: LiveSongLibraryBootstrapLoader(
         indexStore: songLibraryIndexStore,
         bundledProvider: bundledSongLibraryProvider
       )
+    )
+    let practiceLaunchViewModel = PracticeLaunchViewModel(
+      resolver: songLibraryEntryResolver,
+      preparationService: practicePreparationService,
+      applicator: arGuideViewModel,
+      diagnosticsReporter: diagnosticsReporter
     )
     let windowState = WindowTransitionState(
       practiceSetupState: appState.practiceSetupState,
@@ -196,6 +199,7 @@ struct LiveAppGraph {
       windowState: windowState,
       arGuideViewModel: arGuideViewModel,
       songLibraryViewModel: songLibraryViewModel,
+      practiceLaunchViewModel: practiceLaunchViewModel,
       diagnosticsViewModel: diagnosticsViewModel
     )
   }

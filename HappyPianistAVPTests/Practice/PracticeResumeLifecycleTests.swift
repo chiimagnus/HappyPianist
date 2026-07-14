@@ -54,12 +54,18 @@ func restoredPracticeStaysReadyAndSilentUntilExplicitStart() async throws {
 
 @MainActor
 @Test
-func invalidRestoredPassageFailsClosed() async throws {
+func invalidRestoredPassageIsRepairedAndPersistedWithoutLosingFacts() async throws {
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
     let spans = makeResumeSpans()
     let missingSource = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 99)
     let missingOccurrence = PracticeMeasureOccurrenceID(sourceMeasureID: missingSource, occurrenceIndex: 99)
     let passage = try #require(PracticePassage(start: missingOccurrence, end: missingOccurrence))
+    let retainedFact = MeasurePracticeFacts(
+        sourceMeasureID: spans[0].occurrenceID.sourceMeasureID,
+        handMode: .both,
+        state: .learning,
+        successfulAttempts: 1
+    )
     let progress = SongPracticeProgress(
         identity: identity,
         activeConfiguration: PracticeRoundConfiguration(
@@ -69,31 +75,38 @@ func invalidRestoredPassageFailsClosed() async throws {
             loopEnabled: false,
             requiredSuccesses: 3
         ),
+        resumePoint: PracticeResumePoint(
+            occurrenceID: missingOccurrence,
+            stepIndex: 99,
+            updatedAt: .now
+        ),
+        measureFacts: [retainedFact],
         updatedAt: .now
     )
+    let repository = ResumeRepository(progress: progress)
     let playback = CapturingResumePlaybackService()
     let session = PracticeSessionViewModel(
         pressDetectionService: ResumeNoopPressDetectionService(),
         chordAttemptAccumulator: ResumeNoopChordAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playback,
-        progressCoordinator: PracticeProgressCoordinator(repository: ResumeRepository(progress: progress))
+        progressCoordinator: PracticeProgressCoordinator(repository: repository)
     )
     session.songIdentity = identity
     session.setSteps(makeResumeSteps(), tempoMap: MusicXMLTempoMap(tempoEvents: []), measureSpans: spans)
 
     await session.restoreProgressIfAvailable()
-    session.startGuidingIfReady()
-    session.playCurrentStepSound()
-    session.setAutoplayEnabled(true)
+    let repaired = try #require(await repository.progress(for: identity))
+    let repairedConfiguration = try #require(repaired.activeConfiguration)
 
-    #expect(session.activeRangeDiagnostic == .passageBoundaryNotFound)
+    #expect(session.activeRangeDiagnostic == nil)
     #expect(session.state == .ready)
-    #expect(session.currentStep == nil)
-    #expect(session.notationMeasureSpans.isEmpty)
-    #expect(session.autoplayTimeline == .empty)
-    #expect(playback.oneShotCount == 0)
-    #expect(playback.playCount == 0)
+    #expect(session.currentStepIndex == 0)
+    #expect(repairedConfiguration.passage.start == spans.first?.occurrenceID)
+    #expect(repairedConfiguration.passage.end == spans.last?.occurrenceID)
+    #expect(repaired.resumePoint == nil)
+    #expect(repaired.measureFacts == [retainedFact])
+    #expect(session.lastProgressRestoreOutcome == .repairedInvalidSavedState)
 }
 
 
