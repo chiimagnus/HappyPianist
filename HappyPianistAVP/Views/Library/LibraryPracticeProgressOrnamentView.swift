@@ -4,52 +4,16 @@ struct LibraryPracticeProgressOrnamentView: View {
   let state: SongPracticeLibraryPresentationState
 
   var body: some View {
-    ZStack {
-      LibraryPracticeOrnamentBackdrop()
-
-      ScrollView {
-        LibraryPracticeOrnamentContentView(state: state)
-          .padding(LibraryDesignTokens.practiceOrnamentContentPadding)
-          .frame(maxWidth: .infinity, alignment: .topLeading)
-      }
-      .scrollIndicators(.hidden)
+    ScrollView {
+      LibraryPracticeOrnamentContentView(state: state)
+        .padding(LibraryDesignTokens.practiceOrnamentContentPadding)
+        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
+    .scrollIndicators(.hidden)
     .clipShape(.rect(cornerRadius: LibraryDesignTokens.practiceOrnamentCornerRadius))
     .containerShape(.rect(cornerRadius: LibraryDesignTokens.practiceOrnamentCornerRadius))
-    .foregroundStyle(LibraryDesignTokens.practiceInk)
-    .environment(\.colorScheme, .light)
     .accessibilityElement(children: .contain)
     .accessibilityLabel("当前曲目练习概览")
-  }
-}
-
-private struct LibraryPracticeOrnamentBackdrop: View {
-  var body: some View {
-    ZStack {
-      LibraryDesignTokens.practicePanel
-
-      LinearGradient(
-        colors: [
-          .white.opacity(0.52),
-          .white.opacity(0.08),
-          LibraryDesignTokens.practiceAccent.opacity(0.04),
-        ],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-      )
-
-      RadialGradient(
-        colors: [
-          LibraryDesignTokens.practiceAccent.opacity(0.16),
-          LibraryDesignTokens.practiceAccent.opacity(0.04),
-          .clear,
-        ],
-        center: .topTrailing,
-        startRadius: 0,
-        endRadius: 260
-      )
-    }
-    .accessibilityHidden(true)
   }
 }
 
@@ -107,7 +71,7 @@ private struct LibraryPracticeLoadingView: View {
 private struct LibraryPracticeLoadingPlaceholderView: View {
   var body: some View {
     RoundedRectangle(cornerRadius: LibraryDesignTokens.practiceCardCornerRadius)
-      .fill(LibraryDesignTokens.practiceCard)
+      .fill(.thinMaterial)
       .frame(height: 92)
       .overlay(alignment: .leading) {
         VStack(alignment: .leading, spacing: 10) {
@@ -199,13 +163,17 @@ private struct LibraryPracticeInvitationView: View {
       .padding(.horizontal, 16)
       .padding(.vertical, 14)
       .frame(maxWidth: .infinity)
-      .background(
-        LibraryDesignTokens.practiceAccent.opacity(0.13),
-        in: .rect(cornerRadius: 16)
-      )
+      .background {
+        RoundedRectangle(cornerRadius: 16)
+          .fill(.thinMaterial)
+          .overlay {
+            RoundedRectangle(cornerRadius: 16)
+              .fill(LibraryDesignTokens.practiceAccent.opacity(0.12))
+          }
+      }
       .overlay {
         RoundedRectangle(cornerRadius: 16)
-          .strokeBorder(LibraryDesignTokens.practiceAccent.opacity(0.12), lineWidth: 1)
+          .strokeBorder(LibraryDesignTokens.practiceAccent.opacity(0.28), lineWidth: 1)
       }
       .accessibilityElement(children: .combine)
 
@@ -244,7 +212,7 @@ private struct LibraryPracticeBenefitRow: View {
     }
     .padding(.horizontal, 13)
     .padding(.vertical, 12)
-    .background(LibraryDesignTokens.practiceCard, in: .rect(cornerRadius: 15))
+    .background(.thinMaterial, in: .rect(cornerRadius: 15))
     .overlay {
       RoundedRectangle(cornerRadius: 15)
         .strokeBorder(LibraryDesignTokens.practiceLine, lineWidth: 1)
@@ -323,7 +291,14 @@ private struct LibraryPracticeOverviewHeader: View {
       .foregroundStyle(presentation.status.tint)
       .padding(.horizontal, 11)
       .padding(.vertical, 8)
-      .background(presentation.status.tint.opacity(0.12), in: .capsule)
+      .background {
+        Capsule()
+          .fill(.thinMaterial)
+          .overlay {
+            Capsule()
+              .fill(presentation.status.tint.opacity(0.10))
+          }
+      }
       .overlay {
         if differentiateWithoutColor || colorSchemeContrast == .increased {
           Capsule()
@@ -384,7 +359,7 @@ private struct LibraryPracticeMetricCard: View {
     .padding(.horizontal, 12)
     .padding(.vertical, 14)
     .frame(maxWidth: .infinity, minHeight: 82, alignment: .topLeading)
-    .background(LibraryDesignTokens.practiceCard, in: .rect(cornerRadius: 16))
+    .background(.thinMaterial, in: .rect(cornerRadius: 16))
     .overlay {
       RoundedRectangle(cornerRadius: 16)
         .strokeBorder(LibraryDesignTokens.practiceLine, lineWidth: 1)
@@ -652,7 +627,7 @@ private struct LibraryPracticeFocusRow: View {
     }
     .padding(.horizontal, 12)
     .padding(.vertical, 11)
-    .background(LibraryDesignTokens.practiceCardStrong, in: .rect(cornerRadius: 14))
+    .background(.thinMaterial, in: .rect(cornerRadius: 14))
     .overlay {
       RoundedRectangle(cornerRadius: 14)
         .strokeBorder(LibraryDesignTokens.practiceLine.opacity(0.72), lineWidth: 1)
@@ -712,22 +687,14 @@ private struct LibraryPracticeSectionCard<Content: View>: View {
       .padding(18)
       .frame(maxWidth: .infinity, alignment: .leading)
       .background {
-        if accented {
-          RoundedRectangle(cornerRadius: cornerRadius)
-            .fill(
-              LinearGradient(
-                colors: [
-                  LibraryDesignTokens.practiceCardStrong,
-                  LibraryDesignTokens.practiceAccent.opacity(0.13),
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-              )
-            )
-        } else {
-          RoundedRectangle(cornerRadius: cornerRadius)
-            .fill(LibraryDesignTokens.practiceCard)
-        }
+        RoundedRectangle(cornerRadius: cornerRadius)
+          .fill(.thinMaterial)
+          .overlay {
+            if accented {
+              RoundedRectangle(cornerRadius: cornerRadius)
+                .fill(LibraryDesignTokens.practiceAccent.opacity(0.10))
+            }
+          }
       }
       .overlay {
         RoundedRectangle(cornerRadius: cornerRadius)
@@ -1069,19 +1036,13 @@ extension PracticeIssueKind {
     }
 
     var body: some View {
-      ZStack {
-        LibraryPracticeOrnamentBackdrop()
-
-        ScrollView {
-          content
-            .padding(LibraryDesignTokens.practiceOrnamentContentPadding)
-        }
-        .scrollIndicators(.hidden)
+      ScrollView {
+        content
+          .padding(LibraryDesignTokens.practiceOrnamentContentPadding)
       }
+      .scrollIndicators(.hidden)
       .clipShape(.rect(cornerRadius: LibraryDesignTokens.practiceOrnamentCornerRadius))
       .containerShape(.rect(cornerRadius: LibraryDesignTokens.practiceOrnamentCornerRadius))
-      .foregroundStyle(LibraryDesignTokens.practiceInk)
-      .environment(\.colorScheme, .light)
       .frame(
         minWidth: LibraryDesignTokens.practiceOrnamentMinimumWidth,
         idealWidth: LibraryDesignTokens.practiceOrnamentIdealWidth,

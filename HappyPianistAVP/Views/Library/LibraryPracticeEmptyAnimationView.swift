@@ -179,10 +179,10 @@ private struct LibraryPracticeFloatingNote: View {
       .font(.system(.title2, design: .rounded))
       .foregroundStyle(LibraryDesignTokens.practiceAccent)
       .frame(width: 48, height: 48)
-      .background(LibraryDesignTokens.practiceCardStrong, in: .circle)
+      .background(.thinMaterial, in: .circle)
       .overlay {
         Circle()
-          .strokeBorder(.white.opacity(0.66), lineWidth: 1)
+          .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
       }
       .shadow(color: LibraryDesignTokens.practiceAccentDeep.opacity(0.11), radius: 10, y: 6)
       .offset(x: horizontalOffset, y: verticalOffset)

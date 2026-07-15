@@ -34,7 +34,7 @@
 | --- | --- |
 | `HappyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift` | 接收异步 bootstrap snapshot，合并 bundled/imported entries，并作为唯一 selection owner 管理试听、导入和删除；selection 持久化与练习事实 snapshot 各有独立 generation。 |
 | `HappyPianistAVP/Services/Library/SongPracticeLibrarySnapshotBuilder.swift` | 从单曲 history 纯派生当前版本/真实 attempt facts，不读取文件或 UI 类型。 |
-| `HappyPianistAVP/Views/Library/LibraryPracticeProgressOrnamentView.swift` | 以原生 trailing Ornament 和单一内部 `ScrollView` 只读展示 loading、首次练习邀请、当前概览、重建提示与 unavailable；视觉采用与曲库一致的暖色纸张表面、分段小节进度、恢复位置、近期重点和 Reduce Motion 动画降级，无配置控件或练习按钮。 |
+| `HappyPianistAVP/Views/Library/LibraryPracticeProgressOrnamentView.swift` | 以原生 trailing Ornament 和单一内部 `ScrollView` 只读展示 loading、首次练习邀请、当前概览、重建提示与 unavailable；外层完全使用 visionOS `glassBackgroundEffect` 与系统前景色，内部卡片使用系统 Material，暖色只作为强调色；钢琴、琴键按压与音符漂浮均由 SwiftUI Shape、SF Symbols 和 `phaseAnimator` 原生实现，并支持 Reduce Motion，无配置控件或练习按钮。 |
 | `HappyPianistAVP/Services/Library/SongLibraryBootstrapLoader.swift` | actor 隔离的首次 bundle 扫描与索引解码，避免阻塞 MainActor 启动。 |
 | `HappyPianistAVP/Services/Library/SongLibraryImportTransactionService.swift` | 原名 batch staging、确认时事实重分类、indexed replace / missing repair / orphan adopt、取消与 bootstrap recovery 的唯一 owner。 |
 | `HappyPianistAVP/Services/Library/SongFileStore.swift` | 解析及删除已经入库的用户 score/audio 文件；不执行曲谱导入。 |

@@ -8,12 +8,9 @@ enum LibraryDesignTokens {
   static let accent = Color(red: 233 / 255, green: 195 / 255, blue: 122 / 255)
   static let accentForeground = Color(red: 58 / 255, green: 44 / 255, blue: 18 / 255)
 
-  static let practicePanel = Color(red: 247 / 255, green: 239 / 255, blue: 227 / 255)
-  static let practiceCard = Color.white.opacity(0.46)
-  static let practiceCardStrong = Color(red: 255 / 255, green: 250 / 255, blue: 241 / 255)
-  static let practiceInk = Color(red: 42 / 255, green: 33 / 255, blue: 29 / 255)
-  static let practiceSecondaryInk = Color(red: 111 / 255, green: 98 / 255, blue: 92 / 255)
-  static let practiceLine = Color(red: 67 / 255, green: 51 / 255, blue: 44 / 255).opacity(0.14)
+  static let practiceInk = Color.primary
+  static let practiceSecondaryInk = Color.secondary
+  static let practiceLine = Color.primary.opacity(0.14)
   static let practiceAccent = Color(red: 240 / 255, green: 139 / 255, blue: 82 / 255)
   static let practiceAccentDeep = Color(red: 151 / 255, green: 70 / 255, blue: 34 / 255)
   static let practiceStable = Color(red: 111 / 255, green: 155 / 255, blue: 117 / 255)
