@@ -494,13 +494,11 @@ private struct LibraryTopBarView: View {
     HStack {
       Button("重新选择钢琴", action: onBack)
         .buttonStyle(.bordered)
-        .buttonBorderShape(.capsule)
 
       Spacer()
 
       Button("诊断", systemImage: "stethoscope", action: onDiagnostics)
         .buttonStyle(.bordered)
-        .buttonBorderShape(.capsule)
     }
     .frame(height: 70)
     .padding(.horizontal, 28)
@@ -606,7 +604,6 @@ private struct LibraryTrackInfoView: View {
         Button(playbackTitle, systemImage: playbackSystemImage, action: onPlayback)
           .labelStyle(.iconOnly)
           .buttonStyle(.bordered)
-          .buttonBorderShape(.circle)
           .disabled(canPerformPlaybackAction == false)
       }
       .padding(.top, 9)

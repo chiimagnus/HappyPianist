@@ -39,6 +39,7 @@ struct PianoTypePickerView: View {
             .frame(width: 220, height: 220)
         }
         // .buttonStyle(.bordered)
+        .buttonBorderShape(.roundedRectangle(radius: 20))
     }
 }
 
