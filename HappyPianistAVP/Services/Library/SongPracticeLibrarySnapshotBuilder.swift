@@ -31,29 +31,49 @@ struct SongPracticeLibrarySnapshotBuilder: SongPracticeLibrarySnapshotBuilding {
         }
         let latestPracticeDate = realHistoricalFacts.compactMap(\.lastAttemptAt).max()
 
+        let identity = SongPracticeLibrarySelectionIdentity(
+            songID: entry.id,
+            scoreFileVersionID: entry.scoreFileVersionID
+        )
+
         let metadata = SongScorePracticeMetadataOrder.preferred(
             in: history.scoreMetadata.filter {
                 $0.songID == entry.id && $0.scoreFileVersionID == entry.scoreFileVersionID
             }
         )
         guard let metadata else {
-            return .needsRebuild(historyDate: latestPracticeDate)
+            return .current(SongPracticeLibrarySnapshot(
+                identity: identity,
+                status: .currentVersionNotPracticed,
+                latestPracticeDate: latestPracticeDate,
+                totalSourceMeasureCount: 0,
+                measureProgress: .metadataUnavailable,
+                currentFacts: nil,
+                hasHistory: true
+            ))
         }
 
-        let identity = SongPracticeLibrarySelectionIdentity(
-            songID: entry.id,
-            scoreFileVersionID: entry.scoreFileVersionID
-        )
         let currentProgress = PracticeProgressRecordOrder.preferred(
             in: progresses.filter { $0.identity.scoreRevision == metadata.scoreRevision }
         )
-        let currentFacts = currentProgress.flatMap(deriveCurrentFacts)
+        let currentFacts = deriveCurrentFacts(
+            currentProgress,
+            totalSourceMeasureCount: metadata.totalSourceMeasureCount
+        )
+        let measureProgress = SongPracticeMeasureProgress(
+            stableSourceMeasureCount: currentFacts.stableSourceMeasureCount,
+            learningSourceMeasureCount: currentFacts.learningSourceMeasureCount,
+            unpracticedSourceMeasureCount: currentFacts.unpracticedSourceMeasureCount
+        )
 
         return .current(SongPracticeLibrarySnapshot(
             identity: identity,
-            status: currentFacts == nil ? .currentVersionNotPracticed : .practicedCurrentVersion,
+            status: currentFacts.stableSourceMeasureCount + currentFacts.learningSourceMeasureCount == 0
+                ? .currentVersionNotPracticed
+                : .practicedCurrentVersion,
             latestPracticeDate: latestPracticeDate,
             totalSourceMeasureCount: metadata.totalSourceMeasureCount,
+            measureProgress: .available(measureProgress),
             currentFacts: currentFacts,
             hasHistory: true
         ))
@@ -68,25 +88,32 @@ struct SongPracticeLibrarySnapshotBuilder: SongPracticeLibrarySnapshotBuilding {
     }
 
     private nonisolated func deriveCurrentFacts(
-        _ progress: SongPracticeProgress
-    ) -> SongPracticeCurrentFacts? {
-        let realFacts = progress.measureFacts.filter(hasRealAttempt)
-        guard realFacts.isEmpty == false else { return nil }
+        _ progress: SongPracticeProgress?,
+        totalSourceMeasureCount: Int
+    ) -> SongPracticeCurrentFacts {
+        let realFacts = progress?.measureFacts.filter(hasRealAttempt) ?? []
 
         let uniqueFacts = Dictionary(grouping: realFacts) {
             MeasureHandIdentity(sourceMeasureID: $0.sourceMeasureID, handMode: $0.handMode)
         }.values.compactMap(preferredFact)
-        guard let currentFact = uniqueFacts.sorted(by: currentFactComesFirst).first else { return nil }
-        let currentHandFacts = uniqueFacts.filter { $0.handMode == currentFact.handMode }
-
-        let stableSourceIDs = Set(
-            currentHandFacts.filter { $0.state == .stable }.map(\.sourceMeasureID)
+        let currentFact = uniqueFacts.sorted(by: currentFactComesFirst).first
+        let sourceGroups = Dictionary(grouping: uniqueFacts, by: \.sourceMeasureID)
+        let stableSourceIDs = Set(sourceGroups.compactMap { sourceID, facts in
+            let stableHands = Set(facts.filter { $0.state == .stable }.map(\.handMode))
+            return stableHands.contains(.both) || (stableHands.contains(.left) && stableHands.contains(.right))
+                ? sourceID
+                : nil
+        })
+        let attemptedSourceIDs = Set(sourceGroups.keys)
+        let learningSourceIDs = attemptedSourceIDs.subtracting(stableSourceIDs)
+        let stableCount = min(totalSourceMeasureCount, stableSourceIDs.count)
+        let learningCount = min(
+            max(0, totalSourceMeasureCount - stableCount),
+            learningSourceIDs.count
         )
-        let learningSourceIDs = Set(
-            currentHandFacts.filter { $0.state == .learning }.map(\.sourceMeasureID)
-        )
+        let unpracticedCount = max(0, totalSourceMeasureCount - stableCount - learningCount)
         let recentIssues = Dictionary(
-            grouping: currentHandFacts.filter { $0.recentIssue != nil && $0.lastAttemptAt != nil },
+            grouping: uniqueFacts.filter { $0.recentIssue != nil && $0.lastAttemptAt != nil },
             by: \.sourceMeasureID
         ).values.compactMap { facts -> SongPracticeRecentIssue? in
             guard let fact = preferredFact(facts),
@@ -104,14 +131,15 @@ struct SongPracticeLibrarySnapshotBuilder: SongPracticeLibrarySnapshotBuilding {
         }
 
         return SongPracticeCurrentFacts(
-            handMode: currentFact.handMode,
-            stableSourceMeasureCount: stableSourceIDs.count,
-            learningSourceMeasureCount: learningSourceIDs.count,
+            handMode: currentFact?.handMode ?? .both,
+            stableSourceMeasureCount: stableCount,
+            learningSourceMeasureCount: learningCount,
+            unpracticedSourceMeasureCount: unpracticedCount,
             resumeSourceMeasureID: validResumeSourceMeasureID(
                 progress: progress,
                 currentFacts: uniqueFacts
             ),
-            highestStableTempoScale: currentHandFacts
+            highestStableTempoScale: uniqueFacts
                 .filter { $0.state == .stable }
                 .compactMap(\.highestStableTempoScale)
                 .max(),
@@ -124,10 +152,10 @@ struct SongPracticeLibrarySnapshotBuilder: SongPracticeLibrarySnapshotBuilding {
     }
 
     private nonisolated func validResumeSourceMeasureID(
-        progress: SongPracticeProgress,
+        progress: SongPracticeProgress?,
         currentFacts: [MeasurePracticeFacts]
     ) -> PracticeSourceMeasureID? {
-        guard let source = progress.resumePoint?.occurrenceID.sourceMeasureID,
+        guard let source = progress?.resumePoint?.occurrenceID.sourceMeasureID,
               currentFacts.contains(where: { $0.sourceMeasureID == source })
         else { return nil }
         return source

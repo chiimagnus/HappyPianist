@@ -15,6 +15,7 @@ struct SongPracticeCurrentFacts: Equatable, Sendable {
     let handMode: PracticeHandMode
     let stableSourceMeasureCount: Int
     let learningSourceMeasureCount: Int
+    let unpracticedSourceMeasureCount: Int
     let resumeSourceMeasureID: PracticeSourceMeasureID?
     let highestStableTempoScale: Double?
     let recentIssues: [SongPracticeRecentIssue]
@@ -30,6 +31,7 @@ struct SongPracticeLibrarySnapshot: Equatable, Sendable {
     let status: Status
     let latestPracticeDate: Date?
     let totalSourceMeasureCount: Int
+    let measureProgress: SongPracticeMeasureProgressState
     let currentFacts: SongPracticeCurrentFacts?
     let hasHistory: Bool
 }

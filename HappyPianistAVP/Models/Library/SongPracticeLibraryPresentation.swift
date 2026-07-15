@@ -16,3 +16,18 @@ struct SongPracticeSessionSummary: Equatable, Sendable {
     let sessionCount: Int
     let streak: SongPracticeStreak?
 }
+
+struct SongPracticeMeasureProgress: Equatable, Sendable {
+    let stableSourceMeasureCount: Int
+    let learningSourceMeasureCount: Int
+    let unpracticedSourceMeasureCount: Int
+
+    var totalSourceMeasureCount: Int {
+        stableSourceMeasureCount + learningSourceMeasureCount + unpracticedSourceMeasureCount
+    }
+}
+
+enum SongPracticeMeasureProgressState: Equatable, Sendable {
+    case available(SongPracticeMeasureProgress)
+    case metadataUnavailable
+}

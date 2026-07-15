@@ -57,7 +57,7 @@ func snapshotRecognizesCountOnlyAttemptsWithoutInventingPracticeDate() async {
 }
 
 @Test
-func snapshotNeedsRebuildForCountOnlyHistoryWithoutUsingUpdatedAtAsPracticeDate() async {
+func snapshotMarksMetadataUnavailableWithoutUsingUpdatedAtAsPracticeDate() async throws {
     let entry = makeSnapshotEntry()
     let progress = SongPracticeProgress(
         identity: PracticeSongIdentity(songID: entry.id, scoreRevision: "old"),
@@ -71,14 +71,19 @@ func snapshotNeedsRebuildForCountOnlyHistoryWithoutUsingUpdatedAtAsPracticeDate(
         updatedAt: Date(timeIntervalSince1970: 500)
     )
 
-    #expect(await snapshotBuilder.build(
+    guard case let .current(snapshot) = await snapshotBuilder.build(
         entry: entry,
         history: PracticeSongHistory(songID: entry.id, progresses: [progress], scoreMetadata: [])
-    ) == .needsRebuild(historyDate: nil))
+    ) else {
+        Issue.record("Expected an overview-compatible snapshot")
+        return
+    }
+    #expect(snapshot.measureProgress == .metadataUnavailable)
+    #expect(snapshot.latestPracticeDate == nil)
 }
 
 @Test
-func snapshotNeedsRebuildWhenRealHistoryHasNoExactTokenMetadata() async {
+func snapshotDoesNotReuseMismatchedTokenMetadata() async throws {
     let entry = makeSnapshotEntry(token: UUID())
     let progress = makeSnapshotProgress(songID: entry.id, revision: "old", attemptedAt: 10)
     let mismatched = makeSnapshotMetadata(
@@ -87,18 +92,23 @@ func snapshotNeedsRebuildWhenRealHistoryHasNoExactTokenMetadata() async {
         revision: "old"
     )
 
-    #expect(await snapshotBuilder.build(
+    guard case let .current(snapshot) = await snapshotBuilder.build(
         entry: entry,
         history: PracticeSongHistory(
             songID: entry.id,
             progresses: [progress],
             scoreMetadata: [mismatched]
         )
-    ) == .needsRebuild(historyDate: Date(timeIntervalSince1970: 10)))
+    ) else {
+        Issue.record("Expected an overview-compatible snapshot")
+        return
+    }
+    #expect(snapshot.measureProgress == .metadataUnavailable)
+    #expect(snapshot.latestPracticeDate == Date(timeIntervalSince1970: 10))
 }
 
 @Test
-func bundledBuildTokenChangeDoesNotReuseOldMetadata() async {
+func bundledBuildTokenChangeDoesNotReuseOldMetadata() async throws {
     let songID = UUID()
     let oldToken = BundledSongLibraryProvider.scoreFileVersionID(
         fileName: "score.musicxml",
@@ -125,18 +135,22 @@ func bundledBuildTokenChangeDoesNotReuseOldMetadata() async {
     let metadata = makeSnapshotMetadata(songID: songID, token: oldToken, revision: "old")
 
     #expect(oldToken != currentToken)
-    #expect(await snapshotBuilder.build(
+    guard case let .current(snapshot) = await snapshotBuilder.build(
         entry: entry,
         history: PracticeSongHistory(
             songID: songID,
             progresses: [progress],
             scoreMetadata: [metadata]
         )
-    ) == .needsRebuild(historyDate: Date(timeIntervalSince1970: 10)))
+    ) else {
+        Issue.record("Expected an overview-compatible snapshot")
+        return
+    }
+    #expect(snapshot.measureProgress == .metadataUnavailable)
 }
 
 @Test
-func snapshotLegacyNilTokenOnlyMatchesNilMetadata() async {
+func snapshotAbsentTokenOnlyMatchesAbsentMetadata() async {
     let entry = makeSnapshotEntry(token: nil)
     let progress = makeSnapshotProgress(songID: entry.id, revision: "legacy", attemptedAt: 10)
     let metadata = makeSnapshotMetadata(songID: entry.id, token: nil, revision: "legacy")
@@ -149,7 +163,7 @@ func snapshotLegacyNilTokenOnlyMatchesNilMetadata() async {
             scoreMetadata: [metadata]
         )
     ) else {
-        Issue.record("Expected current legacy snapshot")
+        Issue.record("Expected current snapshot with an absent version token")
         return
     }
     #expect(snapshot.identity.scoreFileVersionID == nil)
@@ -174,7 +188,12 @@ func snapshotCurrentMetadataWithOnlyOldAttemptsDoesNotNeedRebuild() async {
         return
     }
     #expect(snapshot.status == .currentVersionNotPracticed)
-    #expect(snapshot.currentFacts == nil)
+    #expect(snapshot.measureProgress == .available(SongPracticeMeasureProgress(
+        stableSourceMeasureCount: 0,
+        learningSourceMeasureCount: 0,
+        unpracticedSourceMeasureCount: 10
+    )))
+    #expect(snapshot.currentFacts?.unpracticedSourceMeasureCount == 10)
     #expect(snapshot.latestPracticeDate == Date(timeIntervalSince1970: 20))
 }
 
@@ -250,15 +269,58 @@ func snapshotDerivesUniqueCurrentHandFactsIssuesTempoAndValidResume() async thro
     let facts = try #require(snapshot.currentFacts)
     #expect(snapshot.latestPracticeDate == Date(timeIntervalSince1970: 30))
     #expect(facts.handMode == .right)
-    #expect(facts.stableSourceMeasureCount == 1)
-    #expect(facts.learningSourceMeasureCount == 1)
-    #expect(facts.highestStableTempoScale == 0.8)
+    #expect(facts.stableSourceMeasureCount == 0)
+    #expect(facts.learningSourceMeasureCount == 3)
+    #expect(facts.unpracticedSourceMeasureCount == 0)
+    #expect(facts.highestStableTempoScale == 1)
     #expect(facts.resumeSourceMeasureID == snapshotSource(1))
     #expect(facts.recentIssues == [SongPracticeRecentIssue(
         sourceMeasureID: snapshotSource(1),
         kind: .wrongNote,
         attemptedAt: Date(timeIntervalSince1970: 19)
     )])
+}
+
+@Test
+func snapshotMergesBothAndSeparateHandsIntoThreeWayProgress() async throws {
+    let entry = makeSnapshotEntry()
+    let revision = "current"
+    let progress = SongPracticeProgress(
+        identity: PracticeSongIdentity(songID: entry.id, scoreRevision: revision),
+        measureFacts: [
+            snapshotFact(0, hand: .both, state: .stable, attemptedAt: 10),
+            snapshotFact(1, hand: .left, state: .stable, attemptedAt: 10),
+            snapshotFact(1, hand: .right, state: .stable, attemptedAt: 11),
+            snapshotFact(2, hand: .left, state: .stable, attemptedAt: 12),
+            snapshotFact(3, hand: .both, state: .learning, attemptedAt: 13),
+            snapshotFact(3, hand: .both, state: .learning, attemptedAt: 14),
+        ],
+        updatedAt: Date(timeIntervalSince1970: 14)
+    )
+    let metadata = makeSnapshotMetadata(
+        songID: entry.id,
+        token: entry.scoreFileVersionID,
+        revision: revision,
+        total: 5
+    )
+
+    guard case let .current(snapshot) = await snapshotBuilder.build(
+        entry: entry,
+        history: PracticeSongHistory(
+            songID: entry.id,
+            progresses: [progress],
+            scoreMetadata: [metadata]
+        )
+    ) else {
+        Issue.record("Expected current snapshot")
+        return
+    }
+
+    #expect(snapshot.measureProgress == .available(SongPracticeMeasureProgress(
+        stableSourceMeasureCount: 2,
+        learningSourceMeasureCount: 2,
+        unpracticedSourceMeasureCount: 1
+    )))
 }
 
 @Test
