@@ -166,15 +166,16 @@ struct SongLibraryView: View {
       contentAlignment: .leading
     ) {
       if let state = viewModel.practiceSnapshotState {
-        LibraryPracticeProgressOrnamentView(state: state)
-          .frame(
-            minWidth: LibraryPracticeProgressOrnamentView.minimumWidth,
-            idealWidth: LibraryPracticeProgressOrnamentView.idealWidth,
-            maxWidth: LibraryPracticeProgressOrnamentView.maximumWidth,
-            minHeight: libraryViewHeight,
-            idealHeight: libraryViewHeight,
-            maxHeight: libraryViewHeight
-          )
+        LibraryPracticeProgressOrnamentView(
+          state: state,
+          height: libraryViewHeight,
+          onRetry: viewModel.retrySelectedPracticeSnapshot,
+          onConfirmedReset: {
+            Task { @MainActor in
+              await viewModel.recoverCorruptedSelectedPracticeHistory()
+            }
+          }
+        )
           .glassBackgroundEffect()
       }
     }

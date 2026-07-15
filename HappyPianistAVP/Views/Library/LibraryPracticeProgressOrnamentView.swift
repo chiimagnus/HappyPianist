@@ -1,31 +1,47 @@
 import SwiftUI
 
 struct LibraryPracticeProgressOrnamentView: View {
-  static let minimumWidth: CGFloat = 360
-  static let idealWidth: CGFloat = 420
-  static let maximumWidth: CGFloat = 440
-
   let state: SongPracticeLibraryPresentationState
+  let height: CGFloat
+  let onRetry: () -> Void
+  let onConfirmedReset: () -> Void
 
   var body: some View {
     ScrollView {
-      LibraryPracticeOrnamentContentView(state: state)
+      LibraryPracticeOrnamentContentView(
+        state: state,
+        onRetry: onRetry,
+        onConfirmedReset: onConfirmedReset
+      )
         .padding(LibraryPracticeOrnamentLayout.contentPadding)
         .frame(maxWidth: .infinity, alignment: .topLeading)
     }
     .scrollIndicators(.hidden)
     .accessibilityElement(children: .contain)
     .accessibilityLabel("当前曲目练习概览")
+    .frame(
+      minWidth: LibraryPracticeOrnamentLayout.minimumWidth,
+      idealWidth: LibraryPracticeOrnamentLayout.idealWidth,
+      maxWidth: LibraryPracticeOrnamentLayout.maximumWidth,
+      minHeight: height,
+      idealHeight: height,
+      maxHeight: height
+    )
   }
 }
 
 private enum LibraryPracticeOrnamentLayout {
+  static let minimumWidth: CGFloat = 360
+  static let idealWidth: CGFloat = 420
+  static let maximumWidth: CGFloat = 440
   static let contentPadding: CGFloat = 24
   static let cardCornerRadius: CGFloat = 22
 }
 
 private struct LibraryPracticeOrnamentContentView: View {
   let state: SongPracticeLibraryPresentationState
+  let onRetry: () -> Void
+  let onConfirmedReset: () -> Void
 
   var body: some View {
     switch state {
@@ -35,8 +51,12 @@ private struct LibraryPracticeOrnamentContentView: View {
       LibraryPracticeInvitationView()
     case .overview(let overview):
       LibraryPracticeOverviewView(overview: overview)
-    case .unavailable:
-      LibraryPracticeUnavailableView()
+    case .unavailable(let unavailable):
+      LibraryPracticeUnavailableView(
+        unavailable: unavailable,
+        onRetry: onRetry,
+        onConfirmedReset: onConfirmedReset
+      )
     }
   }
 }
@@ -87,14 +107,55 @@ private struct LibraryPracticeLoadingPlaceholderView: View {
 }
 
 private struct LibraryPracticeUnavailableView: View {
+  let unavailable: SongPracticeLibraryUnavailable
+  let onRetry: () -> Void
+  let onConfirmedReset: () -> Void
+
+  @State private var isResetConfirmationPresented = false
+
   var body: some View {
     ContentUnavailableView {
-      Label("暂时无法读取练习记录", systemImage: "exclamationmark.triangle")
+      Label(title, systemImage: "exclamationmark.triangle")
     } description: {
-      Text("你仍然可以试听曲目或从主窗口开始练习；这里不会修改已有数据。")
+      Text(message)
+    } actions: {
+      Button("重试", systemImage: "arrow.clockwise", action: onRetry)
+        .buttonStyle(.borderedProminent)
+
+      if unavailable.recoveryOptions == .retryAndConfirmedBackupReset {
+        Button("备份并重置", systemImage: "externaldrive.badge.xmark") {
+          isResetConfirmationPresented = true
+        }
+      }
     }
     .foregroundStyle(.primary)
     .frame(maxWidth: .infinity, minHeight: 420)
+    .confirmationDialog(
+      "备份并重置练习记录？",
+      isPresented: $isResetConfirmationPresented,
+      titleVisibility: .visible
+    ) {
+      Button("备份并重置", role: .destructive, action: onConfirmedReset)
+      Button("取消", role: .cancel) {}
+    } message: {
+      Text("仅在记录已确认损坏时使用。原文件会先备份，再创建空记录。")
+    }
+  }
+
+  private var title: String {
+    switch unavailable.reason {
+    case .temporarilyUnavailable: "暂时无法读取练习记录"
+    case .corrupted: "练习记录已损坏"
+    }
+  }
+
+  private var message: String {
+    switch unavailable.reason {
+    case .temporarilyUnavailable:
+      "你仍然可以试听曲目；请稍后重试读取练习记录。"
+    case .corrupted:
+      "你仍然可以试听曲目；可以重试，或确认备份损坏文件后重置练习记录。"
+    }
   }
 }
 
@@ -286,15 +347,23 @@ private struct LibraryPracticeOverviewHeader: View {
 private struct LibraryPracticeSummaryView: View {
   let summary: SongPracticeSessionSummary
 
-  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  var body: some View {
+    ViewThatFits(in: .horizontal) {
+      HStack(alignment: .top, spacing: 10) {
+        LibraryPracticeSummaryCards(summary: summary)
+      }
+      VStack(spacing: 10) {
+        LibraryPracticeSummaryCards(summary: summary)
+      }
+    }
+  }
+}
+
+private struct LibraryPracticeSummaryCards: View {
+  let summary: SongPracticeSessionSummary
 
   var body: some View {
-    let layout =
-      dynamicTypeSize.isAccessibilitySize
-      ? AnyLayout(VStackLayout(spacing: 10))
-      : AnyLayout(HStackLayout(alignment: .top, spacing: 10))
-
-    layout {
+    Group {
       LibraryPracticeMetricCard(
         title: "最近练习",
         value: summary.latestPracticeEndedAt?.formatted(
@@ -373,15 +442,23 @@ private struct LibraryPracticeProgressSection: View {
 private struct LibraryPracticeProgressLegend: View {
   let progress: SongPracticeMeasureProgress
 
-  @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+  var body: some View {
+    ViewThatFits(in: .horizontal) {
+      HStack(spacing: 8) {
+        LibraryPracticeLegendItems(progress: progress)
+      }
+      VStack(alignment: .leading, spacing: 10) {
+        LibraryPracticeLegendItems(progress: progress)
+      }
+    }
+  }
+}
+
+private struct LibraryPracticeLegendItems: View {
+  let progress: SongPracticeMeasureProgress
 
   var body: some View {
-    let layout =
-      dynamicTypeSize.isAccessibilitySize
-      ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
-      : AnyLayout(HStackLayout(spacing: 8))
-
-    layout {
+    Group {
       LibraryPracticeLegendItem(
         title: "稳定",
         count: progress.stableSourceMeasureCount,
@@ -775,9 +852,9 @@ extension SongPracticeFocusReason {
       }
       .scrollIndicators(.hidden)
       .frame(
-        minWidth: LibraryPracticeProgressOrnamentView.minimumWidth,
-        idealWidth: LibraryPracticeProgressOrnamentView.idealWidth,
-        maxWidth: LibraryPracticeProgressOrnamentView.maximumWidth,
+        minWidth: LibraryPracticeOrnamentLayout.minimumWidth,
+        idealWidth: LibraryPracticeOrnamentLayout.idealWidth,
+        maxWidth: LibraryPracticeOrnamentLayout.maximumWidth,
         minHeight: 720,
         idealHeight: 720,
         maxHeight: 720
@@ -828,13 +905,20 @@ extension SongPracticeFocusReason {
             reason: .learning
           ),
         ]
-      )))
+      )), onRetry: {}, onConfirmedReset: {})
     }
   }
 
   #Preview("首次练习邀请") {
     LibraryPracticePreviewOrnament {
-      LibraryPracticeInvitationView()
+      LibraryPracticeOrnamentContentView(
+        state: .invitation(SongPracticeLibrarySelectionIdentity(
+          songID: UUID(),
+          scoreFileVersionID: UUID()
+        )),
+        onRetry: {},
+        onConfirmedReset: {}
+      )
     }
   }
 #endif
