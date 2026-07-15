@@ -7,6 +7,28 @@ private let defaultTempoScope = MusicXMLEventScope(partID: "P1", staff: nil, voi
 
 @Test
 @MainActor
+func guidingStartBlockIsEnforcedAtSessionBoundary() {
+    let viewModel = PracticeSessionViewModel(
+        pressDetectionService: NoopPressDetectionService(),
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: TaskSleeper()
+    )
+    viewModel.setSteps(
+        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        tempoMap: MusicXMLTempoMap(tempoEvents: [])
+    )
+    viewModel.setGuidingStartBlocked(true)
+
+    viewModel.startGuidingIfReady()
+    #expect(viewModel.state == .ready)
+
+    viewModel.setGuidingStartBlocked(false)
+    viewModel.startGuidingIfReady()
+    #expect(viewModel.state == .guiding(stepIndex: 0))
+}
+
+@Test
+@MainActor
 func autoplayTimelineKeepsGuideAndNoteOnOnSameTick() {
     let tempoMap = MusicXMLTempoMap(
         tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope)]

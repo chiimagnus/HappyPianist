@@ -8,6 +8,7 @@ protocol PracticeLaunchApplying: AnyObject, Sendable {
         restorePolicy: PracticeLaunchRestorePolicy,
         isCurrent: @escaping @MainActor () -> Bool
     ) async -> PracticeLaunchApplyOutcome?
+    func setPracticeGuidingStartBlocked(_ isBlocked: Bool)
     func clearPreparedPracticeForLaunch() async -> PracticeProgressSaveStatus
     func suspendPracticeAndFlushProgress() async
 }
@@ -33,6 +34,7 @@ final class PracticeLaunchViewModel {
     private let makeVisitID: @Sendable () -> UUID
 
     @ObservationIgnored private var activationTask: Task<Void, Never>?
+    @ObservationIgnored private var retiredActivationTasks: [Task<Void, Never>] = []
     @ObservationIgnored private var metadataWriteTasks: [UUID: Task<Void, Never>] = [:]
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var returnContext: PracticeLaunchReturnContext?
@@ -42,6 +44,7 @@ final class PracticeLaunchViewModel {
     private(set) var state: PracticeLaunchState?
     private(set) var requestedSongID: UUID?
     private(set) var activationIdentity: PracticeLaunchActivationIdentity?
+    private(set) var progressAccessFailure: PracticeLaunchFailure?
 
     init(
         resolver: any SongLibraryEntryResolving,
@@ -108,14 +111,17 @@ final class PracticeLaunchViewModel {
 
     func recoverCorruptedProgress() async {
         guard let songID = requestedSongID,
-              case let .failure(failure) = state,
+              case let .ready(identity) = state,
+              let failure = progressAccessFailure,
               failure.recoveryAction == .backupAndResetCorruptedProgress,
               let progressRecovery
         else { return }
 
+        let recoveryGeneration = generation
         state = .loading(songID: songID)
         do {
             let result = try await progressRecovery.recoverFromCorruption()
+            guard isCurrentRecovery(songID: songID, generation: recoveryGeneration) else { return }
             if case .recovered = result {
                 _ = await diagnosticsReporter.record(
                     DiagnosticEvent(
@@ -130,22 +136,24 @@ final class PracticeLaunchViewModel {
                     )
                 )
             }
+            guard isCurrentRecovery(songID: songID, generation: recoveryGeneration) else { return }
             registerRequest(songID: songID, startsNewVisit: false)
             await activateCurrentRequest()
         } catch {
+            guard isCurrentRecovery(songID: songID, generation: recoveryGeneration) else { return }
             let recoveryFailure = PracticeLaunchFailure.progressStoreUnavailable(
                 entryID: songID,
                 reason: PracticePreparationErrorDetails.safeErrorSummary(error)
             )
-            state = .failure(recoveryFailure)
+            progressAccessFailure = recoveryFailure
+            state = .ready(identity)
             _ = await diagnosticsReporter.record(recoveryFailure.diagnosticEvent)
         }
     }
 
     func suspendForInactiveScene() async {
         await sessionRecorder?.setSceneActive(false)
-        activationTask?.cancel()
-        activationTask = nil
+        retireCurrentActivationTask()
         generation += 1
         if let songID = requestedSongID {
             state = .requested(songID: songID)
@@ -154,13 +162,13 @@ final class PracticeLaunchViewModel {
                 revision: generation
             )
         }
+        await settleRetiredActivationTasks()
         await applicator.suspendPracticeAndFlushProgress()
     }
 
     func beginReturn() -> UUID {
         if let returnContext { return returnContext.operationID }
-        activationTask?.cancel()
-        activationTask = nil
+        retireCurrentActivationTask()
         generation += 1
         let operationID = UUID()
         returnContext = PracticeLaunchReturnContext(
@@ -198,6 +206,7 @@ final class PracticeLaunchViewModel {
     @discardableResult
     func finishReturn(operationID: UUID) async -> PracticeProgressSaveStatus {
         guard returnContext?.operationID == operationID else { return .idle }
+        await settleRetiredActivationTasks()
         await waitForMetadataWrites()
         if let sessionRecorder {
             let recorderStatus = await sessionRecorder.finalize()
@@ -216,6 +225,7 @@ final class PracticeLaunchViewModel {
         }
         returnContext = nil
         currentVisitID = nil
+        progressAccessFailure = nil
         return status
     }
 
@@ -224,6 +234,8 @@ final class PracticeLaunchViewModel {
         operationID: UUID
     ) async -> PracticeProgressSaveStatus {
         guard returnContext?.operationID == operationID else { return .idle }
+        await settleRetiredActivationTasks()
+        await cancelAndWaitForMetadataWrites()
         await sessionRecorder?.discardPendingDelta()
         let status = await applicator.clearPreparedPracticeForLaunch()
         guard returnContext?.operationID == operationID else {
@@ -235,27 +247,28 @@ final class PracticeLaunchViewModel {
         }
         returnContext = nil
         currentVisitID = nil
+        progressAccessFailure = nil
         return status
     }
 
     func closeForSystemDisappear() async {
-        activationTask?.cancel()
-        activationTask = nil
+        retireCurrentActivationTask()
         generation += 1
-        metadataWriteTasks.values.forEach { $0.cancel() }
-        metadataWriteTasks.removeAll()
+        await settleRetiredActivationTasks()
+        await cancelAndWaitForMetadataWrites()
         _ = await sessionRecorder?.finalize()
         returnContext = nil
         requestedSongID = nil
         activationIdentity = nil
         currentVisitID = nil
+        progressAccessFailure = nil
     }
 
     private func registerRequest(songID: UUID, startsNewVisit: Bool) {
-        activationTask?.cancel()
-        activationTask = nil
+        retireCurrentActivationTask()
         generation += 1
         returnContext = nil
+        progressAccessFailure = nil
         if startsNewVisit || currentVisitID == nil {
             currentVisitID = makeVisitID()
         }
@@ -298,28 +311,41 @@ final class PracticeLaunchViewModel {
             let history = await progressRepository.history(for: songID)
             guard isCurrent(songID: songID, generation: generation) else { return }
             let loadedHistory: PracticeSongHistory
+            let accessFailure: PracticeLaunchFailure?
             switch history {
             case let .loaded(history):
                 loadedHistory = history
+                accessFailure = nil
                 await reportRecoveredSessions(in: history)
             case let .unavailable(description):
                 let failure = PracticeLaunchFailure.progressStoreUnavailable(
                     entryID: songID,
                     reason: description
                 )
-                state = .failure(failure)
+                loadedHistory = PracticeSongHistory(
+                    songID: songID,
+                    progresses: [],
+                    scoreMetadata: [],
+                    sessions: []
+                )
+                accessFailure = failure
                 _ = await diagnosticsReporter.record(failure.diagnosticEvent)
-                return
             case let .corrupted(description):
                 let failure = PracticeLaunchFailure.progressStoreCorrupted(
                     entryID: songID,
                     reason: description,
                     canReset: progressRecovery != nil
                 )
-                state = .failure(failure)
+                loadedHistory = PracticeSongHistory(
+                    songID: songID,
+                    progresses: [],
+                    scoreMetadata: [],
+                    sessions: []
+                )
+                accessFailure = failure
                 _ = await diagnosticsReporter.record(failure.diagnosticEvent)
-                return
             }
+            guard isCurrent(songID: songID, generation: generation) else { return }
             _ = await diagnosticsReporter.record(
                 DiagnosticEvent(
                     severity: .info,
@@ -376,6 +402,7 @@ final class PracticeLaunchViewModel {
                 )
             )
             guard isCurrent(songID: songID, generation: generation) else { return }
+            applicator.setPracticeGuidingStartBlocked(accessFailure != nil)
             let applyOutcome = await applicator.applyPreparedPracticeForLaunch(
                 prepared,
                 restorePolicy: restorePolicy,
@@ -405,12 +432,17 @@ final class PracticeLaunchViewModel {
                 preparedAt: now()
             )
             guard isCurrent(songID: songID, generation: generation) else {
-                scheduleMetadataWrite(metadata)
+                if accessFailure == nil {
+                    scheduleMetadataWrite(metadata)
+                }
                 return
             }
 
+            progressAccessFailure = accessFailure
             state = .ready(prepared.identity)
-            scheduleMetadataWrite(metadata)
+            if accessFailure == nil {
+                scheduleMetadataWrite(metadata)
+            }
             _ = await diagnosticsReporter.record(
                 DiagnosticEvent(
                     severity: .info,
@@ -487,6 +519,10 @@ final class PracticeLaunchViewModel {
             Task.isCancelled == false
     }
 
+    private func isCurrentRecovery(songID: UUID, generation: Int) -> Bool {
+        self.generation == generation && requestedSongID == songID
+    }
+
     private func publishRecorderFailure(
         songID: UUID,
         status: PracticeSessionRecorderSaveStatus
@@ -522,7 +558,7 @@ final class PracticeLaunchViewModel {
                         category: .persistence,
                         stage: "practiceScoreMetadataWrite",
                         summary: "无法保存曲谱练习元数据",
-                        reason: "token=\(metadata.scoreFileVersionID?.uuidString ?? "legacy-nil"); measureCount=\(metadata.totalSourceMeasureCount); \(PracticePreparationErrorDetails.safeErrorSummary(error))",
+                        reason: "token=\(metadata.scoreFileVersionID?.uuidString ?? "absent"); measureCount=\(metadata.totalSourceMeasureCount); \(PracticePreparationErrorDetails.safeErrorSummary(error))",
                         songID: metadata.songID,
                         scoreRevision: metadata.scoreRevision,
                         persistence: .exportable
@@ -535,6 +571,29 @@ final class PracticeLaunchViewModel {
 
     private func waitForMetadataWrites() async {
         while let task = metadataWriteTasks.values.first {
+            await task.value
+        }
+    }
+
+    private func retireCurrentActivationTask() {
+        guard let activationTask else { return }
+        activationTask.cancel()
+        retiredActivationTasks.append(activationTask)
+        self.activationTask = nil
+    }
+
+    private func settleRetiredActivationTasks() async {
+        let tasks = retiredActivationTasks
+        retiredActivationTasks.removeAll()
+        for task in tasks {
+            await task.value
+        }
+    }
+
+    private func cancelAndWaitForMetadataWrites() async {
+        let tasks = Array(metadataWriteTasks.values)
+        tasks.forEach { $0.cancel() }
+        for task in tasks {
             await task.value
         }
     }

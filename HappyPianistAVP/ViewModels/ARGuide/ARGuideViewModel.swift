@@ -38,6 +38,7 @@ final class ARGuideViewModel: PracticeLaunchApplying {
     var latestPreparedPractice: PreparedPractice?
     var practiceProgressSaveErrorMessage: String?
     @ObservationIgnored private var latestPracticeRestorePolicy: PracticeLaunchRestorePolicy?
+    @ObservationIgnored private var practiceGuidingStartIsBlocked = false
 
     @ObservationIgnored private var handTrackingConsumerTask: Task<Void, Never>?
     @ObservationIgnored private var preparedPracticeApplicationID: UUID?
@@ -201,6 +202,11 @@ final class ARGuideViewModel: PracticeLaunchApplying {
         }
     }
 
+    func setPracticeGuidingStartBlocked(_ isBlocked: Bool) {
+        practiceGuidingStartIsBlocked = isBlocked
+        practiceSessionViewModel.setGuidingStartBlocked(isBlocked)
+    }
+
     private func applyPreparedPractice(
         _ prepared: PreparedPractice,
         restorePolicy: PracticeLaunchRestorePolicy,
@@ -299,6 +305,7 @@ final class ARGuideViewModel: PracticeLaunchApplying {
         }
         practiceProgressSaveErrorMessage = nil
         let next = makePracticeSessionViewModel(practiceSetupState.selectedPianoModeID)
+        next.setGuidingStartBlocked(practiceGuidingStartIsBlocked)
         practiceSessionViewModel = next
         placementViewModel.updatePracticeSession(next)
         practiceViewModel.updatePracticeSession(next)

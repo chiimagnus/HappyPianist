@@ -612,6 +612,7 @@ extension PracticeSessionViewModel {
     }
 
     func startGuidingIfReady() {
+        guard self.guidingStartIsBlocked == false else { return }
         guard self.stateStore.isActiveRangeInvalid == false else { return }
         guard self.state == .ready, self.steps.isEmpty == false else { return }
 

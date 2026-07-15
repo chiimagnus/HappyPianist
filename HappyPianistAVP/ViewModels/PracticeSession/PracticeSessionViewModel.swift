@@ -47,6 +47,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
     let autoplayTimingLeadInSeconds: TimeInterval = 0.05
 
     private(set) var hasShutdown = false
+    private(set) var guidingStartIsBlocked = false
     var lastProgressRestoreOutcome: PracticeProgressRestoreOutcome = .none
     @ObservationIgnored private var sessionRecorderEventTask: Task<Void, Never>?
 
@@ -172,6 +173,10 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
         manualReplayService?.shutdown()
         handGateController?.shutdown()
         virtualPianoInputController?.shutdown()
+    }
+
+    func setGuidingStartBlocked(_ isBlocked: Bool) {
+        guidingStartIsBlocked = isBlocked
     }
 
     func enqueueSessionRecorderEvent(_ event: SessionRecorderEvent) {

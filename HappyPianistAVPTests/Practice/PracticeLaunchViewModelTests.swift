@@ -160,7 +160,7 @@ func practiceLaunchPassesHistoricalPreferencesWithoutStructuralState() async {
 
 @MainActor
 @Test
-func corruptedPracticeHistoryBlocksPreparationAndRoundStart() async {
+func corruptedPracticeHistoryKeepsScoreReadyButBlocksRoundStart() async throws {
     let fixture = makePracticeLaunchFixture(
         historyResultOverride: .corrupted(description: "invalid progress document")
     )
@@ -168,14 +168,17 @@ func corruptedPracticeHistoryBlocksPreparationAndRoundStart() async {
 
     await fixture.owner.activateCurrentRequest()
 
-    guard case let .failure(failure) = fixture.owner.state else {
-        Issue.record("Expected corruption to block launch")
-        return
-    }
+    let failure = try #require(fixture.owner.progressAccessFailure)
     #expect(failure.code == .practiceProgressStoreCorrupted)
     #expect(failure.recoveryAction == .backupAndResetCorruptedProgress)
-    #expect(fixture.applicator.restorePolicies.isEmpty)
-    #expect(await fixture.preparation.requestedSongIDs().isEmpty)
+    #expect(fixture.owner.state == .ready(PracticeSongIdentity(
+        songID: fixture.songA,
+        scoreRevision: fixture.songA.uuidString
+    )))
+    #expect(fixture.applicator.restorePolicies == [.freshDefaults])
+    #expect(fixture.applicator.guidingStartBlocks == [true])
+    #expect(await fixture.preparation.requestedSongIDs() == [fixture.songA])
+    #expect(await fixture.metadataRepository.metadata.isEmpty)
     #expect(await fixture.reporter.events.contains { $0.code == .practiceProgressStoreCorrupted })
 }
 
@@ -196,12 +199,14 @@ func confirmedCorruptionRecoveryReReadsStoreBeforePreparing() async {
     )))
     #expect(await fixture.preparation.requestedSongIDs() == [fixture.songA])
     #expect(await fixture.metadataRepository.recoveryCount == 1)
+    #expect(fixture.owner.progressAccessFailure == nil)
+    #expect(fixture.applicator.guidingStartBlocks == [true, false])
     #expect(await fixture.reporter.events.contains { $0.code == .practiceProgressStoreReset })
 }
 
 @MainActor
 @Test
-func unavailablePracticeStoreBlocksPreparationWithoutOfferingDestructiveReset() async {
+func unavailablePracticeStoreKeepsScoreReadyWithoutOfferingDestructiveReset() async throws {
     let fixture = makePracticeLaunchFixture(
         historyResultOverride: .unavailable(description: "NSCocoaErrorDomain#640")
     )
@@ -209,14 +214,50 @@ func unavailablePracticeStoreBlocksPreparationWithoutOfferingDestructiveReset() 
 
     await fixture.owner.activateCurrentRequest()
 
-    guard case let .failure(failure) = fixture.owner.state else {
-        Issue.record("Expected unavailable store to block launch")
-        return
-    }
+    let failure = try #require(fixture.owner.progressAccessFailure)
     #expect(failure.code == .practiceProgressStoreUnavailable)
     #expect(failure.recoveryAction == .retry)
-    #expect(await fixture.preparation.requestedSongIDs().isEmpty)
-    #expect(fixture.applicator.appliedSongIDs.isEmpty)
+    #expect(fixture.owner.state == .ready(PracticeSongIdentity(
+        songID: fixture.songA,
+        scoreRevision: fixture.songA.uuidString
+    )))
+    #expect(await fixture.preparation.requestedSongIDs() == [fixture.songA])
+    #expect(fixture.applicator.appliedSongIDs == [fixture.songA])
+    #expect(fixture.applicator.guidingStartBlocks == [true])
+    #expect(await fixture.metadataRepository.metadata.isEmpty)
+}
+
+@MainActor
+@Test
+func corruptionRecoveryCannotResurrectRequestAfterReturnStarts() async {
+    let songID = UUID()
+    let repository = RecordingPracticeLaunchProgressRepository(
+        historyResultOverride: .corrupted(description: "invalid progress document")
+    )
+    let recovery = ControlledPracticeProgressRecovery()
+    let owner = PracticeLaunchViewModel(
+        resolver: PracticeLaunchResolver(songIDs: [songID]),
+        preparationService: PracticeLaunchPreparationService(
+            delays: [:],
+            errors: [:],
+            includeMeasureSpans: true
+        ),
+        applicator: PracticeLaunchRecordingApplicator(applyOutcome: .applied),
+        diagnosticsReporter: InMemoryDiagnosticsReporter(),
+        progressRepository: repository,
+        progressRecovery: recovery
+    )
+    owner.request(songID: songID)
+    await owner.activateCurrentRequest()
+
+    let recoveryTask = Task { @MainActor in await owner.recoverCorruptedProgress() }
+    await recovery.waitUntilRequested()
+    _ = owner.beginReturn()
+    await recovery.resume()
+    await recoveryTask.value
+
+    #expect(owner.requestedSongID == nil)
+    #expect(owner.activationIdentity == nil)
 }
 
 @MainActor
@@ -407,6 +448,73 @@ func practiceLaunchReturnKeepsReadyPresentationUntilWindowCloses() async {
 
 @MainActor
 @Test
+func systemCloseWaitsForCancelledActivationToActuallyFinish() async {
+    let songID = UUID()
+    let preparation = ControlledPracticeLaunchPreparationService()
+    let owner = PracticeLaunchViewModel(
+        resolver: PracticeLaunchResolver(songIDs: [songID]),
+        preparationService: preparation,
+        applicator: PracticeLaunchRecordingApplicator(applyOutcome: .applied),
+        diagnosticsReporter: InMemoryDiagnosticsReporter(),
+        progressRepository: RecordingPracticeLaunchProgressRepository()
+    )
+    owner.request(songID: songID)
+    let activation = Task { @MainActor in await owner.activateCurrentRequest() }
+    await preparation.waitUntilRequested(songID: songID)
+    let completion = PracticeLaunchCompletionProbe()
+
+    let close = Task { @MainActor in
+        await owner.closeForSystemDisappear()
+        await completion.markCompleted()
+    }
+    for _ in 0 ..< 20 { await Task.yield() }
+    let completedBeforeDependencySettled = await completion.isCompleted
+    await preparation.resume(songID: songID)
+    await close.value
+    await activation.value
+
+    #expect(completedBeforeDependencySettled == false)
+    #expect(owner.requestedSongID == nil)
+}
+
+@MainActor
+@Test
+func discardReturnWaitsForCancelledMetadataWriteToActuallyFinish() async {
+    let songID = UUID()
+    let repository = SuspendedMetadataPracticeLaunchRepository()
+    let owner = PracticeLaunchViewModel(
+        resolver: PracticeLaunchResolver(songIDs: [songID]),
+        preparationService: PracticeLaunchPreparationService(
+            delays: [:],
+            errors: [:],
+            includeMeasureSpans: true
+        ),
+        applicator: PracticeLaunchRecordingApplicator(applyOutcome: .applied),
+        diagnosticsReporter: InMemoryDiagnosticsReporter(),
+        progressRepository: repository
+    )
+    owner.request(songID: songID)
+    await owner.activateCurrentRequest()
+    await repository.waitUntilMetadataWriteStarts()
+    let operationID = owner.beginReturn()
+    let completion = PracticeLaunchCompletionProbe()
+
+    let discard = Task { @MainActor in
+        let status = await owner.discardUnsavedChangesAndFinishReturn(operationID: operationID)
+        await completion.markCompleted()
+        return status
+    }
+    for _ in 0 ..< 20 { await Task.yield() }
+    let completedBeforeDependencySettled = await completion.isCompleted
+    await repository.resumeMetadataWrite()
+
+    #expect(completedBeforeDependencySettled == false)
+    #expect(await discard.value == .saved)
+    #expect(owner.currentVisitID == nil)
+}
+
+@MainActor
+@Test
 func practiceLaunchReportsRepairedSavedConfigurationButStillBecomesReady() async {
     let fixture = makePracticeLaunchFixture(applyOutcome: .appliedWithRepairedSavedState)
     fixture.owner.request(songID: fixture.songA)
@@ -432,7 +540,7 @@ func practiceLaunchReportsRepairPersistenceFailureWithoutClaimingSuccess() async
 
 @MainActor
 @Test
-func practiceLaunchWritesLegacyNilTokenMetadataAfterSuccessfulApply() async {
+func practiceLaunchWritesAbsentVersionTokenMetadataAfterSuccessfulApply() async {
     let songID = UUID()
     let repository = RecordingPracticeLaunchProgressRepository()
     let owner = PracticeLaunchViewModel(
@@ -959,6 +1067,61 @@ private actor RecordingPracticeLaunchProgressRepository:
     }
 }
 
+private actor ControlledPracticeProgressRecovery: PracticeProgressRecoveryProtocol {
+    private var continuation: CheckedContinuation<PracticeProgressRecoveryResult, Error>?
+    private var isRequested = false
+
+    func recoverFromCorruption() async throws -> PracticeProgressRecoveryResult {
+        isRequested = true
+        return try await withCheckedThrowingContinuation { continuation = $0 }
+    }
+
+    func waitUntilRequested() async {
+        while isRequested == false { await Task.yield() }
+    }
+
+    func resume() {
+        continuation?.resume(returning: .recovered(
+            backupURL: URL(fileURLWithPath: "/test-only-backup.json")
+        ))
+        continuation = nil
+    }
+}
+
+private actor SuspendedMetadataPracticeLaunchRepository: PracticeProgressRepositoryProtocol {
+    private var metadataContinuation: CheckedContinuation<Void, Never>?
+    private var didStartMetadataWrite = false
+
+    func load() -> PracticeProgressLoadResult { .loaded(PracticeProgressDocument()) }
+    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? { nil }
+    func history(for songID: UUID) -> PracticeSongHistoryLoadResult {
+        .loaded(PracticeSongHistory(songID: songID, progresses: [], scoreMetadata: []))
+    }
+    func upsert(_: SongPracticeProgress) {}
+    func upsert(_: SongScorePracticeMetadata) async {
+        didStartMetadataWrite = true
+        await withCheckedContinuation { metadataContinuation = $0 }
+    }
+    func remove(songID _: UUID) {}
+
+    func waitUntilMetadataWriteStarts() async {
+        while didStartMetadataWrite == false { await Task.yield() }
+    }
+
+    func resumeMetadataWrite() {
+        metadataContinuation?.resume()
+        metadataContinuation = nil
+    }
+}
+
+private actor PracticeLaunchCompletionProbe {
+    private(set) var isCompleted = false
+
+    func markCompleted() {
+        isCompleted = true
+    }
+}
+
 private func makeLaunchProgress(
     songID: UUID,
     revision: String,
@@ -1182,6 +1345,7 @@ private final class PracticeLaunchRecordingApplicator: PracticeLaunchApplying {
     private(set) var restorePolicies: [PracticeLaunchRestorePolicy] = []
     private(set) var clearCount = 0
     private(set) var suspendCount = 0
+    private(set) var guidingStartBlocks: [Bool] = []
     let applyOutcome: PracticeLaunchApplyOutcome
     var clearStatus: PracticeProgressSaveStatus
 
@@ -1207,6 +1371,9 @@ private final class PracticeLaunchRecordingApplicator: PracticeLaunchApplying {
     func clearPreparedPracticeForLaunch() async -> PracticeProgressSaveStatus {
         clearCount += 1
         return clearStatus
+    }
+    func setPracticeGuidingStartBlocked(_ isBlocked: Bool) {
+        guidingStartBlocks.append(isBlocked)
     }
     func suspendPracticeAndFlushProgress() async { suspendCount += 1 }
 }
@@ -1242,6 +1409,7 @@ private final class ControlledPracticeLaunchApplicator: PracticeLaunchApplying {
     }
 
     func clearPreparedPracticeForLaunch() async -> PracticeProgressSaveStatus { .saved }
+    func setPracticeGuidingStartBlocked(_: Bool) {}
     func suspendPracticeAndFlushProgress() async { suspendCount += 1 }
 }
 
@@ -1268,6 +1436,7 @@ private final class AppliedThenSuspendedPracticeLaunchApplicator: PracticeLaunch
     }
 
     func clearPreparedPracticeForLaunch() async -> PracticeProgressSaveStatus { .saved }
+    func setPracticeGuidingStartBlocked(_: Bool) {}
     func suspendPracticeAndFlushProgress() async {}
 }
 
@@ -1286,6 +1455,7 @@ private final class RejectOncePracticeLaunchApplicator: PracticeLaunchApplying {
     }
 
     func clearPreparedPracticeForLaunch() async -> PracticeProgressSaveStatus { .saved }
+    func setPracticeGuidingStartBlocked(_: Bool) {}
     func suspendPracticeAndFlushProgress() async {}
 }
 
