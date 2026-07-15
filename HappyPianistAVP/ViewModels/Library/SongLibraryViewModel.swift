@@ -618,10 +618,22 @@ final class SongLibraryViewModel {
                 adoptPersistedSelection(updatedIndex.lastSelectedEntryID)
             }
 
+            var cleanupDiagnosticEvent: DiagnosticEvent?
             do {
                 try await practiceProgressRepository.remove(songID: entry.id)
             } catch {
                 errorMessage = "曲目已删除，但练习进度清理失败：\(error.localizedDescription)"
+                cleanupDiagnosticEvent = DiagnosticEvent(
+                    severity: .warning,
+                    code: .libraryPracticeHistoryCleanupFailed,
+                    category: .library,
+                    stage: "practiceHistoryCleanup",
+                    summary: "删除曲目后无法清理练习历史",
+                    reason: PracticePreparationErrorDetails.safeErrorSummary(error),
+                    songID: entry.id,
+                    scoreFileVersionID: entry.scoreFileVersionID,
+                    persistence: .exportable
+                )
             }
 
             do {
@@ -631,6 +643,9 @@ final class SongLibraryViewModel {
                 }
             } catch {
                 errorMessage = "曲目已从索引移除，但文件删除失败：\(error.localizedDescription)"
+            }
+            if let cleanupDiagnosticEvent {
+                _ = await diagnosticsReporter.record(cleanupDiagnosticEvent)
             }
         } catch {
             errorMessage = "删除失败：\(error.localizedDescription)"

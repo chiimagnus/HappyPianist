@@ -95,6 +95,36 @@ func sessionSummaryUsesCapturedDayAcrossMidnightAndTimeZoneChanges() throws {
 }
 
 @Test
+func sessionSummaryStartsStreakFromLatestPersistedDayWhenWallClockOrderReverses() throws {
+    let songID = UUID()
+    let singapore = try #require(TimeZone(identifier: "Asia/Singapore"))
+    let latestPersistedDay = try makeSummarySession(
+        songID: songID,
+        day: (2026, 7, 15),
+        startedAt: 100,
+        endedAt: 150,
+        activeMilliseconds: 1_000
+    )
+    let laterAbsoluteSessionOnEarlierLocalDay = try makeSummarySession(
+        songID: songID,
+        day: (2026, 7, 14),
+        dayTimeZone: try #require(TimeZone(identifier: "America/Los_Angeles")),
+        startedAt: 200,
+        endedAt: 250,
+        activeMilliseconds: 1_000
+    )
+
+    let summary = sessionSummaryBuilder.build(
+        songID: songID,
+        sessions: [latestPersistedDay, laterAbsoluteSessionOnEarlierLocalDay],
+        viewedAt: date(2026, 7, 16, timeZone: singapore),
+        viewingTimeZone: singapore
+    )
+
+    #expect(summary.streak == SongPracticeStreak(dayCount: 2, recency: .current))
+}
+
+@Test
 func sessionSummaryMarksOlderStreakAsRecentAndIncludesOpenCheckpoint() throws {
     let songID = UUID()
     let singapore = try #require(TimeZone(identifier: "Asia/Singapore"))

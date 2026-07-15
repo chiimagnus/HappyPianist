@@ -142,15 +142,22 @@ func practiceCleanupFailureKeepsTheIndexDeletionAndReportsTheFailure() async {
     let repository = RecordingProgressRepository(
         removalError: .unavailable(description: "NSCocoaErrorDomain#640")
     )
+    let diagnostics = CleanupDiagnosticsRecorder()
     let viewModel = SongLibraryViewModelTestHarness.make(
         index: SongLibraryIndex(entries: [entry], lastSelectedEntryID: songID),
-        practiceProgressRepository: repository
+        practiceProgressRepository: repository,
+        diagnosticsReporter: diagnostics
     )
 
     await viewModel.deleteEntry(entryID: songID)
 
     #expect(viewModel.index.entries.isEmpty)
     #expect(viewModel.errorMessage?.contains("练习进度清理失败") == true)
+    #expect(await diagnostics.events.contains {
+        $0.code == .libraryPracticeHistoryCleanupFailed
+            && $0.songID == songID
+            && $0.reason.contains("/Users/") == false
+    })
 }
 
 private func cleanupSession(songID: UUID) throws -> PracticeSessionRecord {
@@ -242,5 +249,14 @@ private actor DeletionRecordingFileStore: SongFileStoreProtocol {
 
     func deleteAudioFile(named fileName: String) async throws {
         deletedAudioNames.append(fileName)
+    }
+}
+
+private actor CleanupDiagnosticsRecorder: DiagnosticsReporting {
+    private(set) var events: [DiagnosticEvent] = []
+
+    func record(_ event: DiagnosticEvent) -> DiagnosticRecordResult {
+        events.append(event)
+        return DiagnosticRecordResult(persistedForExport: true)
     }
 }

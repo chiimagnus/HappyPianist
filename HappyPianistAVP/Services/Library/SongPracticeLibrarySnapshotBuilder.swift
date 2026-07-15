@@ -93,10 +93,7 @@ struct SongPracticeLibrarySnapshotBuilder: SongPracticeLibrarySnapshotBuilding {
                 )
             )
         } ?? .metadataUnavailable
-        let resumeSourceMeasureID = validResumeSourceMeasureID(
-            progress: currentProgress,
-            currentFacts: uniqueCurrentFacts
-        )
+        let resumeSourceMeasureID = currentProgress?.resumePoint?.occurrenceID.sourceMeasureID
 
         return .overview(SongPracticeLibraryOverview(
             identity: identity,
@@ -145,17 +142,5 @@ struct SongPracticeLibrarySnapshotBuilder: SongPracticeLibrarySnapshotBuilding {
                 totalSourceMeasureCount - stableCount - learningCount
             )
         )
-    }
-
-    private nonisolated func validResumeSourceMeasureID(
-        progress: SongPracticeProgress?,
-        currentFacts: [MeasurePracticeFacts]
-    ) -> PracticeSourceMeasureID? {
-        guard let source = progress?.resumePoint?.occurrenceID.sourceMeasureID,
-              currentFacts.contains(where: { $0.sourceMeasureID == source })
-        else {
-            return nil
-        }
-        return source
     }
 }

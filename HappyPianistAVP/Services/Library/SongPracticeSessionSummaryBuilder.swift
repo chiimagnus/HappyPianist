@@ -24,12 +24,10 @@ struct SongPracticeSessionSummaryBuilder: Sendable {
             )
             total = overflow ? .max : sum
         }
-        let uniquePracticeDays = Set(matchingSessions.map(\.practiceDay))
-        let dayOrdinals = Set(uniquePracticeDays.compactMap(Self.dayOrdinal))
-        let latestPracticeDay = matchingSessions.max(by: Self.sessionStartedEarlier)?.practiceDay
-        let streak = latestPracticeDay.flatMap { latestDay in
+        let dayOrdinals = Set(matchingSessions.compactMap { Self.dayOrdinal($0.practiceDay) })
+        let streak = dayOrdinals.max().flatMap { latestOrdinal in
             Self.streak(
-                endingAt: latestDay,
+                endingAt: latestOrdinal,
                 dayOrdinals: dayOrdinals,
                 viewedAt: viewedAt,
                 viewingTimeZone: viewingTimeZone
@@ -44,23 +42,12 @@ struct SongPracticeSessionSummaryBuilder: Sendable {
         )
     }
 
-    private static func sessionStartedEarlier(
-        _ lhs: PracticeSessionRecord,
-        _ rhs: PracticeSessionRecord
-    ) -> Bool {
-        if lhs.practiceStartedAt != rhs.practiceStartedAt {
-            return lhs.practiceStartedAt < rhs.practiceStartedAt
-        }
-        return lhs.id.uuidString < rhs.id.uuidString
-    }
-
     private static func streak(
-        endingAt latestDay: PracticeLocalDay,
+        endingAt latestOrdinal: Int,
         dayOrdinals: Set<Int>,
         viewedAt: Date,
         viewingTimeZone: TimeZone
     ) -> SongPracticeStreak? {
-        guard let latestOrdinal = dayOrdinal(latestDay) else { return nil }
         var dayCount = 0
         while dayOrdinals.contains(latestOrdinal - dayCount) {
             dayCount += 1

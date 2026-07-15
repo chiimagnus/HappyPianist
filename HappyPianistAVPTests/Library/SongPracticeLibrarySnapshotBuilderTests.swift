@@ -182,6 +182,47 @@ func overviewIsolatesResumeProgressAndFocusToCurrentRevision() async throws {
 }
 
 @Test
+func overviewKeepsCurrentRevisionResumeBeforeTheDestinationMeasureHasFacts() async throws {
+    let entry = makeSnapshotEntry()
+    let attemptedSource = snapshotSource(0)
+    let resumeSource = snapshotSource(1)
+    let current = SongPracticeProgress(
+        identity: PracticeSongIdentity(songID: entry.id, scoreRevision: "current"),
+        resumePoint: PracticeResumePoint(
+            occurrenceID: PracticeMeasureOccurrenceID(
+                sourceMeasureID: resumeSource,
+                occurrenceIndex: 0
+            ),
+            stepIndex: 4,
+            updatedAt: Date(timeIntervalSince1970: 30)
+        ),
+        measureFacts: [MeasurePracticeFacts(
+            sourceMeasureID: attemptedSource,
+            handMode: .both,
+            state: .learning,
+            successfulAttempts: 1,
+            lastAttemptAt: Date(timeIntervalSince1970: 20)
+        )],
+        updatedAt: Date(timeIntervalSince1970: 30)
+    )
+
+    guard case let .overview(overview) = await buildSnapshot(
+        entry: entry,
+        history: PracticeSongHistory(
+            songID: entry.id,
+            progresses: [current],
+            scoreMetadata: [makeSnapshotMetadata(entry: entry, revision: "current")],
+            sessions: [try makeSnapshotSession(songID: entry.id, revision: "current")]
+        )
+    ) else {
+        Issue.record("Expected overview")
+        return
+    }
+
+    #expect(overview.resumeSourceMeasureID == resumeSource)
+}
+
+@Test
 func replacementKeepsStableSongSessionsWithoutLeakingOldRevisionFacts() async throws {
     let entry = makeSnapshotEntry(token: UUID())
     let oldToken = UUID()
