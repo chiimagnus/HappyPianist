@@ -24,13 +24,15 @@
 
 ### 1. SwiftUI 与窗口管理
 - **WindowGroups:** 在 `App` struct 里为每个 `WindowGroup` 明确且互不冲突地定义 `id`。
-- **Ornaments:** 使用 `.ornament()` 来承载附着在窗口上的工具条与控制组件。若按钮属于“窗口 chrome/外壳”，不要把标准悬浮按钮直接塞进 window content 区域。
+- **底部 Toolbar Ornament:** 窗口下方的标准按钮组使用 `.toolbar { ToolbarItemGroup(placement: .bottomOrnament) { ... } }`，由系统管理布局、玻璃与交互反馈；不要用 `.ornament(attachmentAnchor: .scene(.bottom))` 手工仿制。
+- **自定义 Ornament:** 右侧设置、进度概览等任意自定义面板使用 `.ornament(attachmentAnchor: .scene(.trailing), contentAlignment: .leading)`；它不是 toolbar。需要与主窗口等高时用 `onGeometryChange` 跟随窗口实际高度，玻璃背景只由最外层面板添加一次。
+- **窗口外壳:** 属于窗口 chrome/外壳的按钮不要直接塞进 window content。当前练习窗口底部按钮条采用 Toolbar Ornament，练习与 Library 右侧面板采用 trailing custom ornament。
 - **玻璃背景:** 优先使用系统默认玻璃背景；需要时使用 `.glassBackgroundEffect()`。
 - **Hover Effects:** 标准 SwiftUI `Button` 使用系统样式时已有默认 hover，无需重复添加 `.hoverEffect()`；自定义交互控件必须确保有 hover 反馈，仅在系统未提供时显式添加。
 - **按钮样式:** 无特殊形态需求时使用系统默认按钮边框；仅在圆形图标按钮、胶囊选择器等形态本身承载语义时设置 `.buttonBorderShape()`。
 - **“屏幕”幻觉:** 不要用 `UIScreen.main.bounds`。visionOS 没有“屏幕”。用 `GeometryReader` 或 `GeometryReader3D`。
 - 使用 `pushWindow` 前必须核对完整窗口流：它会后台保留来源窗口、让目标窗口继承来源窗口尺寸；关闭目标才恢复来源，且不能从已 pushed 的窗口再次 push。仅用于真正的单层“前进／返回”窗口栈，不能拿它修补关闭窗口导致 app 退出的问题。
-- 需要始终贴附在主窗口旁、随主窗口移动的面板，使用 `.ornament`（例如 `.scene(.trailing)`）；独立 `Window` 加 `defaultWindowPlacement(.trailing(...))` 只决定首次位置，之后系统允许用户移动和调整，不能作为持久贴附行为。
+- 需要始终贴附在主窗口旁、随主窗口移动的自定义面板，使用 `.ornament`；独立 `Window` 加 `defaultWindowPlacement(.trailing(...))` 只决定首次位置，之后系统允许用户移动和调整，不能作为持久贴附行为。
 
 ### 2. RealityKit 与 ECS（Entity Component System）
 - **RealityView:** 所有 3D 内容集成都使用 `RealityView`。
