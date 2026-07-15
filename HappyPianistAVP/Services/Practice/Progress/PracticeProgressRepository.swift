@@ -47,6 +47,8 @@ typealias PracticeProgressFileReplacement = @Sendable (
     _ backupName: String
 ) throws -> Void
 
+typealias PracticeProgressDocumentWriter = @Sendable (_ data: Data, _ url: URL) throws -> Void
+
 actor FilePracticeProgressRepository:
     PracticeProgressRepositoryProtocol,
     PracticeProgressRecoveryProtocol,
@@ -55,6 +57,7 @@ actor FilePracticeProgressRepository:
     private let fileManager: FileManager
     private let paths: PracticeProgressPaths
     private let replaceFile: PracticeProgressFileReplacement
+    private let writeDocument: PracticeProgressDocumentWriter
     private var liveSessionIDs: Set<UUID> = []
 
     init(
@@ -67,11 +70,15 @@ actor FilePracticeProgressRepository:
                 backupItemName: backupName,
                 options: [.usingNewMetadataOnly, .withoutDeletingBackupItem]
             )
+        },
+        writeDocument: @escaping PracticeProgressDocumentWriter = { data, url in
+            try data.write(to: url, options: .atomic)
         }
     ) {
         self.fileManager = fileManager
         self.paths = paths
         self.replaceFile = replaceFile
+        self.writeDocument = writeDocument
     }
 
     func load() -> PracticeProgressLoadResult {
@@ -235,13 +242,15 @@ actor FilePracticeProgressRepository:
             )
         }
 
+        let document: PracticeProgressDocument
         do {
-            return try recoveringInterruptedSessions(in: decodedDocument(from: data))
+            document = try decodedDocument(from: data)
         } catch {
             throw PracticeProgressRepositoryError.corrupted(
                 description: Self.safeDescription(error)
             )
         }
+        return try recoveringInterruptedSessions(in: document)
     }
 
     private func decodedDocument(from data: Data) throws -> PracticeProgressDocument {
@@ -310,7 +319,7 @@ actor FilePracticeProgressRepository:
     private func saveDocument(_ document: PracticeProgressDocument) throws {
         do {
             try fileManager.createDirectory(at: paths.rootDirectoryURL, withIntermediateDirectories: true)
-            try encodedDocument(document).write(to: paths.fileURL, options: .atomic)
+            try writeDocument(encodedDocument(document), paths.fileURL)
         } catch let error as PracticeProgressRepositoryError {
             throw error
         } catch {

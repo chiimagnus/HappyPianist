@@ -278,6 +278,28 @@ func progressRepositoryRecoversOnlySessionsNotLiveInCurrentActor() async throws 
 }
 
 @Test
+func interruptedSessionRecoveryWriteFailureIsUnavailableNotCorruption() async throws {
+    let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let paths = PracticeProgressPaths(rootDirectoryURL: directory)
+    let openSession = try makeSession()
+    let encoder = JSONEncoder()
+    encoder.dateEncodingStrategy = .iso8601
+    try encoder.encode(PracticeProgressDocument(sessions: [openSession])).write(to: paths.fileURL)
+    let repository = FilePracticeProgressRepository(
+        paths: paths,
+        writeDocument: { _, _ in throw CocoaError(.fileWriteOutOfSpace) }
+    )
+
+    guard case .unavailable = await repository.load() else {
+        Issue.record("Expected a recovery write failure to remain an availability failure")
+        return
+    }
+    #expect(try Data(contentsOf: paths.fileURL) == encoder.encode(PracticeProgressDocument(sessions: [openSession])))
+}
+
+@Test
 func progressRepositoryRejectsSessionRegressionAndIdentityCollision() async throws {
     let (repository, directory) = try makeRepositoryFixture()
     defer { try? FileManager.default.removeItem(at: directory) }
