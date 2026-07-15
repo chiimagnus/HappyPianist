@@ -124,8 +124,7 @@ private struct LibraryPracticePianoKeyboardView: View {
     .rotationEffect(.degrees(-6))
     .rotation3DEffect(
       .degrees(16),
-      axis: (x: 1, y: 0, z: 0),
-      perspective: 0.52
+      axis: (x: 1, y: 0, z: 0)
     )
     .shadow(color: .black.opacity(0.22), radius: 22, y: 18)
   }
