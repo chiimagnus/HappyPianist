@@ -4,10 +4,10 @@ import Testing
 
 @Test
 @MainActor
-func staleAudioURLResolutionCannotStartPlaybackAfterSelectionChanges() async throws {
+func staleAudioURLResolutionCannotStartPlaybackAfterSelectionChanges() async {
     let first = makeListeningEntry(name: "first")
     let second = makeListeningEntry(name: "second")
-    let fileStore = DelayedListeningFileStore()
+    let fileStore = ControlledListeningFileStore()
     let player = RecordingListeningPlayer()
     let viewModel = SongLibraryViewModelTestHarness.make(
         index: SongLibraryIndex(entries: [first, second], lastSelectedEntryID: first.id),
@@ -15,38 +15,42 @@ func staleAudioURLResolutionCannotStartPlaybackAfterSelectionChanges() async thr
         audioPlayer: player
     )
 
-    let listenTask = Task { await viewModel.didTapListen(entryID: first.id) }
-    try await waitForRequests(1, in: fileStore)
+    let listenTask = Task { @MainActor in await viewModel.didTapListen(entryID: first.id) }
+    await fileStore.waitForRequestCount(1)
     viewModel.selectEntry(second.id)
+    await fileStore.succeedRequest(at: 0)
     await listenTask.value
 
+    #expect(viewModel.selectedEntryID == second.id)
     #expect(player.playedEntryIDs.isEmpty)
 }
 
 @Test
 @MainActor
-func staleAudioURLFailureDoesNotPublishPlaybackErrorAfterSelectionChanges() async throws {
+func staleAudioURLFailureDoesNotPublishPlaybackErrorAfterSelectionChanges() async {
     let first = makeListeningEntry(name: "first")
     let second = makeListeningEntry(name: "second")
-    let fileStore = DelayedFailingListeningFileStore()
+    let fileStore = ControlledListeningFileStore()
     let viewModel = SongLibraryViewModelTestHarness.make(
         index: SongLibraryIndex(entries: [first, second], lastSelectedEntryID: first.id),
         fileStore: fileStore
     )
 
-    let listenTask = Task { await viewModel.didTapListen(entryID: first.id) }
-    try await waitForFailureRequest(in: fileStore)
+    let listenTask = Task { @MainActor in await viewModel.didTapListen(entryID: first.id) }
+    await fileStore.waitForRequestCount(1)
     viewModel.selectEntry(second.id)
+    await fileStore.failRequest(at: 0)
     await listenTask.value
 
+    #expect(viewModel.selectedEntryID == second.id)
     #expect(viewModel.errorMessage == nil)
 }
 
 @Test
 @MainActor
-func outOfOrderSameEntryAudioResolutionsHonorOnlyLatestIntent() async throws {
+func outOfOrderSameEntryAudioResolutionsHonorOnlyLatestIntent() async {
     let entry = makeListeningEntry(name: "same")
-    let fileStore = DelayedListeningFileStore()
+    let fileStore = ControlledListeningFileStore()
     let player = RecordingListeningPlayer()
     let viewModel = SongLibraryViewModelTestHarness.make(
         index: SongLibraryIndex(entries: [entry], lastSelectedEntryID: entry.id),
@@ -54,11 +58,13 @@ func outOfOrderSameEntryAudioResolutionsHonorOnlyLatestIntent() async throws {
         audioPlayer: player
     )
 
-    let first = Task { await viewModel.didTapListen(entryID: entry.id) }
-    try await waitForRequests(1, in: fileStore)
-    let second = Task { await viewModel.didTapListen(entryID: entry.id) }
-    try await waitForRequests(2, in: fileStore)
+    let first = Task { @MainActor in await viewModel.didTapListen(entryID: entry.id) }
+    await fileStore.waitForRequestCount(1)
+    let second = Task { @MainActor in await viewModel.didTapListen(entryID: entry.id) }
+    await fileStore.waitForRequestCount(2)
+    await fileStore.succeedRequest(at: 1)
     await second.value
+    await fileStore.succeedRequest(at: 0)
     await first.value
 
     #expect(player.playedEntryIDs == [entry.id])
@@ -74,47 +80,37 @@ private func makeListeningEntry(name: String) -> SongLibraryEntry {
     )
 }
 
-private func waitForRequests(_ count: Int, in store: DelayedListeningFileStore) async throws {
-    for _ in 0..<100 {
-        if await store.requestCount == count { return }
-        try await Task.sleep(for: .milliseconds(5))
+private actor ControlledListeningFileStore: SongFileStoreProtocol {
+    private var requests: [CheckedContinuation<URL, Error>?] = []
+
+    func scoreFileURL(fileName _: String) async throws -> URL {
+        throw CocoaError(.fileNoSuchFile)
     }
-    Issue.record("Timed out waiting for audio URL request")
-}
 
-private actor DelayedListeningFileStore: SongFileStoreProtocol {
-    private var requests = 0
-    var requestCount: Int { requests }
-
-    func scoreFileURL(fileName _: String) async throws -> URL { throw CocoaError(.fileNoSuchFile) }
-    func audioFileURL(fileName: String) async throws -> URL {
-        requests += 1
-        let request = requests
-        try await Task.sleep(for: request == 1 ? .milliseconds(50) : .milliseconds(5))
-        return URL(fileURLWithPath: "/tmp/audio.mp3")
-    }
-    func deleteScoreFile(named _: String) async throws {}
-    func deleteAudioFile(named _: String) async throws {}
-}
-
-private func waitForFailureRequest(in store: DelayedFailingListeningFileStore) async throws {
-    for _ in 0..<100 {
-        if await store.requestCount == 1 { return }
-        try await Task.sleep(for: .milliseconds(5))
-    }
-    Issue.record("Timed out waiting for failing audio URL request")
-}
-
-private actor DelayedFailingListeningFileStore: SongFileStoreProtocol {
-    private var requests = 0
-    var requestCount: Int { requests }
-
-    func scoreFileURL(fileName _: String) async throws -> URL { throw CocoaError(.fileNoSuchFile) }
     func audioFileURL(fileName _: String) async throws -> URL {
-        requests += 1
-        try await Task.sleep(for: .milliseconds(50))
-        throw CocoaError(.fileReadUnknown)
+        try await withCheckedThrowingContinuation { continuation in
+            requests.append(continuation)
+        }
     }
+
+    func waitForRequestCount(_ count: Int) async {
+        while requests.count < count {
+            await Task.yield()
+        }
+    }
+
+    func succeedRequest(at index: Int) {
+        guard requests.indices.contains(index), let request = requests[index] else { return }
+        requests[index] = nil
+        request.resume(returning: URL(fileURLWithPath: "/tmp/audio.mp3"))
+    }
+
+    func failRequest(at index: Int) {
+        guard requests.indices.contains(index), let request = requests[index] else { return }
+        requests[index] = nil
+        request.resume(throwing: CocoaError(.fileReadUnknown))
+    }
+
     func deleteScoreFile(named _: String) async throws {}
     func deleteAudioFile(named _: String) async throws {}
 }
