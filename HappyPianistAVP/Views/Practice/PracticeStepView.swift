@@ -199,6 +199,9 @@ struct PracticeStepView: View {
         .onChange(of: isAutoplayEnabled) {
             viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
         }
+        .onChange(of: isSettingsPresented) {
+            session.setPracticeSettingsPresented(isSettingsPresented)
+        }
         .onChange(of: session.latestFeedbackEvent) {
             viewModel.practiceFeedbackViewModel.present(session.latestFeedbackEvent)
         }
@@ -234,6 +237,7 @@ struct PracticeStepView: View {
         }
         .onDisappear {
             viewModel.practiceFeedbackViewModel.cancel()
+            session.setPracticeSettingsPresented(false)
             isStepVisible = false
             hasRequestedImmersiveOpen = false
         }

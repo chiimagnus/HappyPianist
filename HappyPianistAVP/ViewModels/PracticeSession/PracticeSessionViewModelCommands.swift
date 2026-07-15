@@ -255,6 +255,8 @@ extension PracticeSessionViewModel {
         stopAutoplayAudio()
         stopAudioRecognition()
         stopPracticeInput()
+        await waitForSessionRecorderEvents()
+        await sessionRecorder?.setGuiding(false)
         return await flushProgress()
     }
 
@@ -379,6 +381,7 @@ extension PracticeSessionViewModel {
 
     @discardableResult
     func applyPendingRoundConfiguration() -> Bool {
+        enqueueSessionRecorderEvent(.guiding(false))
         stopManualReplayTask()
         stopAutoplayTask()
         stopAutoplayAudio()
@@ -612,6 +615,9 @@ extension PracticeSessionViewModel {
             self.state = navigation.state
         }
 
+        guard case .guiding = self.state else { return }
+        enqueueSessionRecorderEvent(.guiding(true))
+
         if self.autoplayState == .playing {
             refreshAudioRecognitionForCurrentState()
         } else {
@@ -741,6 +747,7 @@ extension PracticeSessionViewModel {
                self.isActivePassageStable == false,
                let firstStepIndex = self.activeRange?.firstStepIndex
             {
+                enqueueSessionRecorderEvent(.checkpoint)
                 beginNextLoopRound(at: firstStepIndex)
                 return
             }
@@ -752,6 +759,7 @@ extension PracticeSessionViewModel {
             stopAutoplayTask()
             stopAutoplayAudio()
             stopAudioRecognition()
+            enqueueSessionRecorderEvent(.guiding(false))
             return
         }
 
@@ -816,6 +824,7 @@ extension PracticeSessionViewModel {
            self.isActivePassageStable == false,
            let firstStepIndex = self.activeRange?.firstStepIndex
         {
+            enqueueSessionRecorderEvent(.checkpoint)
             beginNextLoopRound(at: firstStepIndex)
             return
         }
@@ -827,6 +836,11 @@ extension PracticeSessionViewModel {
         stopAutoplayTask()
         stopAutoplayAudio()
         stopAudioRecognition()
+        enqueueSessionRecorderEvent(.guiding(false))
+    }
+
+    func setPracticeSettingsPresented(_ isPresented: Bool) {
+        enqueueSessionRecorderEvent(.settingsPresented(isPresented))
     }
 
     private func beginNextLoopRound(at firstStepIndex: Int) {

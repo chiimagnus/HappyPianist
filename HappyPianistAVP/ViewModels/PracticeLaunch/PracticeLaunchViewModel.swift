@@ -80,6 +80,7 @@ final class PracticeLaunchViewModel {
     }
 
     func activateCurrentRequest() async {
+        await sessionRecorder?.setSceneActive(true)
         guard activationTask == nil,
               let songID = requestedSongID,
               case .requested(songID) = state
@@ -103,6 +104,7 @@ final class PracticeLaunchViewModel {
     }
 
     func suspendForInactiveScene() async {
+        await sessionRecorder?.setSceneActive(false)
         activationTask?.cancel()
         activationTask = nil
         generation += 1

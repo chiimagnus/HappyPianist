@@ -6,6 +6,12 @@ import os
 @MainActor
 @Observable
 final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, PracticeSessionEffectHandlerProtocol {
+    enum SessionRecorderEvent: Sendable {
+        case guiding(Bool)
+        case settingsPresented(Bool)
+        case checkpoint
+    }
+
     let stateStore: PracticeSessionStateStore
     let stepNavigator: PracticeStepNavigator
 
@@ -42,6 +48,7 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
 
     private(set) var hasShutdown = false
     var lastProgressRestoreOutcome: PracticeProgressRestoreOutcome = .none
+    @ObservationIgnored private var sessionRecorderEventTask: Task<Void, Never>?
 
     var practiceHandMode: PracticeHandMode {
         stateStore.activeRoundConfiguration?.handMode ?? .both
@@ -165,6 +172,26 @@ final class PracticeSessionViewModel: PracticeSessionLifecycleProtocol, Practice
         manualReplayService?.shutdown()
         handGateController?.shutdown()
         virtualPianoInputController?.shutdown()
+    }
+
+    func enqueueSessionRecorderEvent(_ event: SessionRecorderEvent) {
+        guard let sessionRecorder else { return }
+        let previousTask = sessionRecorderEventTask
+        sessionRecorderEventTask = Task { @MainActor in
+            await previousTask?.value
+            switch event {
+            case let .guiding(isGuiding):
+                await sessionRecorder.setGuiding(isGuiding)
+            case let .settingsPresented(isPresented):
+                await sessionRecorder.setSettingsPresented(isPresented)
+            case .checkpoint:
+                await sessionRecorder.checkpoint()
+            }
+        }
+    }
+
+    func waitForSessionRecorderEvents() async {
+        await sessionRecorderEventTask?.value
     }
 
     func handle(effect: PracticeSessionEffect) {
