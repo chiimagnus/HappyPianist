@@ -36,7 +36,7 @@
 | --- | --- | --- |
 | invitation/overview(metadata 缺失)/unavailable 事实边界与 A→B→A 乱序 | Pass | presentation builder、受控 actor history 与 metadata failure 回归测试实际运行。 |
 | Library/Ornament 不访问 score URL、prepare 服务或 Practice session/config controller | Pass | CodeGraph 调用图、score access spy 与静态符号 gate；View 只消费最终 presentation 中的 session summary 与当前 revision facts。 |
-| visionOS Simulator 完整测试与 App build | Pass | Apple Vision Pro visionOS 26.4 的本轮 `xcodebuild test` / `build` 结果。 |
+| visionOS Simulator 完整测试与 App build | Needs Re-run | 2026-07-15 的 Apple Vision Pro visionOS 26.4 结果是本次 plan-task-auditor 修复前基线；当前 HEAD 必须重新运行 `xcodebuild test` 与 Debug/Release build。 |
 | Ornament 各状态与 min/ideal/max 窗口 | Not Run | 当前环境没有可见的 Simulator GUI/应用窗口。 |
 | 最大 Dynamic Type、VoiceOver | Not Run | 需要可交互 Simulator GUI 或真机。 |
 | Reduce Motion、Differentiate Without Color | Not Run | 自动化构建覆盖相应 SwiftUI 分支；人工呈现需要可交互 Simulator GUI 或真机。 |
@@ -52,6 +52,14 @@
 | 超大 Dynamic Type 与增强对比度 | Pass | `accessibility-extra-extra-extra-large` + Increase Contrast 下摘要退化为纵排，日期、时长、次数、状态、进度与符号仍可辨识，剩余区域可由单一 ScrollView 访问。 |
 | 切换曲目与 corruption 二次确认点击 | Not Run | 当前 Xcode 安装没有可交互的独立 Simulator GUI；generation/capability/action 由自动化测试覆盖，但不冒充手工点击通过。 |
 | Reduce Motion 动态切换与 VoiceOver 阅读顺序 | Not Run | 源码审计和 accessibility label/value 已完成；仍需可交互 Simulator GUI 或真机确认动态效果与实际朗读顺序。 |
+
+## 2026-07-16 plan-task-auditor 复审状态
+
+| 检查 | 状态 | 证据 |
+| --- | --- | --- |
+| 本次审计修复后的 visionOS Simulator 完整测试与 App build | Needs Re-run | 压缩包提供的 815/815、Debug/Release build 是修复前基线；当前 Linux 环境没有 `xcodebuild`，不得把旧结果当作当前提交证据。 |
+| 全仓 Swift 语法与补丁静态检查 | Pass | `swiftc -frontend -parse` 覆盖 App、Tests 与 RealityKitContent；`git diff --check` 和逐提交 `git show --check` 通过。 |
+| 纯 Swift 边界验证 | Pass | 会话模型隔离 typecheck 与跨国际日期线 streak harness 通过；不替代 Apple target 类型检查和集成测试。 |
 
 ## 1. 构建与自动化测试
 
