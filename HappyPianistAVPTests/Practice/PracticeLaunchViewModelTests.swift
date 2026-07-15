@@ -385,6 +385,7 @@ func inactivePracticeLaunchReactivatesItsRegisteredRequest() async {
 func practiceLaunchReturnFinishIsIdempotentAndRejectsStaleOperation() async {
     let fixture = makePracticeLaunchFixture()
     fixture.owner.request(songID: fixture.songA)
+    let clearCountBeforeReturn = fixture.applicator.clearCount
     let operationID = fixture.owner.beginReturn()
 
     await fixture.owner.finishReturn(operationID: UUID())
@@ -394,7 +395,7 @@ func practiceLaunchReturnFinishIsIdempotentAndRejectsStaleOperation() async {
     #expect(fixture.owner.state == .requested(songID: fixture.songA))
     #expect(fixture.owner.requestedSongID == nil)
     #expect(fixture.owner.activationIdentity == nil)
-    #expect(fixture.applicator.clearCount == 1)
+    #expect(fixture.applicator.clearCount == clearCountBeforeReturn)
     #expect(fixture.applicator.returnCommitCount == 1)
 }
 
