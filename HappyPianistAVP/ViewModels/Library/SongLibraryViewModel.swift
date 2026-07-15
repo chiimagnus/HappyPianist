@@ -733,15 +733,23 @@ final class SongLibraryViewModel {
                 case let .needsRebuild(historyDate):
                     state = .needsRebuild(identity, historyDate: historyDate)
                 }
-            case .corrupted:
+            case .unavailable, .corrupted:
                 state = .unavailable(identity)
+                let repositoryState = switch historyResult {
+                case .loaded:
+                    "loaded"
+                case .unavailable:
+                    "unavailable"
+                case .corrupted:
+                    "corrupted"
+                }
                 diagnosticEvent = DiagnosticEvent(
                     severity: .warning,
                     code: .libraryPracticeHistoryLoadFailed,
                     category: .library,
                     stage: "practiceHistoryLoad",
                     summary: "无法读取曲目练习历史",
-                    reason: "token=\(identity.scoreFileVersionID?.uuidString ?? "legacy-nil"); repository=corrupted",
+                    reason: "token=\(identity.scoreFileVersionID?.uuidString ?? "legacy-nil"); repository=\(repositoryState)",
                     songID: identity.songID,
                     persistence: .exportable
                 )

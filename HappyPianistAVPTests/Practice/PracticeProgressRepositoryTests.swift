@@ -63,6 +63,74 @@ func progressRepositoryPreservesCorruptedFileAndRejectsEveryMutation(
 }
 
 @Test
+func progressRepositoryDistinguishesTemporaryReadFailureFromCorruption() async throws {
+    let (repository, directory) = try makeRepositoryFixture()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let paths = PracticeProgressPaths(rootDirectoryURL: directory)
+    try FileManager.default.createDirectory(at: paths.fileURL, withIntermediateDirectories: false)
+
+    guard case .unavailable = await repository.load() else {
+        Issue.record("Expected explicit unavailable result for a file read failure")
+        return
+    }
+    guard case .unavailable = await repository.history(for: UUID()) else {
+        Issue.record("Expected unavailable history for a file read failure")
+        return
+    }
+    await #expect(throws: PracticeProgressRepositoryError.self) {
+        try await repository.upsert(makeProgress())
+    }
+    #expect(FileManager.default.fileExists(atPath: paths.fileURL.path()))
+}
+
+@Test
+func progressRepositoryBacksUpCorruptionBeforeInstallingEmptyStrictSchema() async throws {
+    let (repository, directory) = try makeRepositoryFixture()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let paths = PracticeProgressPaths(rootDirectoryURL: directory)
+    let corruptedData = Data("not-json".utf8)
+    try corruptedData.write(to: paths.fileURL)
+
+    let recovery = try await repository.recoverFromCorruption()
+    let backupURL = try #require(recovery.backupURL)
+    #expect(try Data(contentsOf: backupURL) == corruptedData)
+    #expect(await repository.load() == .loaded(PracticeProgressDocument()))
+    #expect(try await repository.recoverFromCorruption() == .notNeeded)
+    #expect(try Data(contentsOf: backupURL) == corruptedData)
+}
+
+@Test
+func progressRepositoryReplacementFailureLeavesCorruptedOriginalUntouched() async throws {
+    let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let paths = PracticeProgressPaths(rootDirectoryURL: directory)
+    let corruptedData = Data("not-json".utf8)
+    try corruptedData.write(to: paths.fileURL)
+    let repository = FilePracticeProgressRepository(
+        paths: paths,
+        replaceFile: { _, _, _, _ in
+            throw CocoaError(.fileWriteUnknown)
+        }
+    )
+
+    await #expect(throws: PracticeProgressRepositoryError.self) {
+        try await repository.recoverFromCorruption()
+    }
+
+    #expect(try Data(contentsOf: paths.fileURL) == corruptedData)
+    guard case .corrupted = await repository.load() else {
+        Issue.record("Expected corruption to remain active after replacement failure")
+        return
+    }
+    let children = try FileManager.default.contentsOfDirectory(
+        at: directory,
+        includingPropertiesForKeys: nil
+    )
+    #expect(children == [paths.fileURL])
+}
+
+@Test
 func progressRepositorySerializesConcurrentUpsertsAndRemovesSong() async throws {
     let (repository, directory) = try makeRepositoryFixture()
     defer { try? FileManager.default.removeItem(at: directory) }
@@ -174,4 +242,11 @@ private func makeMetadata(
         totalSourceMeasureCount: 8,
         preparedAt: Date(timeIntervalSince1970: 100)
     )
+}
+
+private extension PracticeProgressRecoveryResult {
+    var backupURL: URL? {
+        guard case let .recovered(backupURL) = self else { return nil }
+        return backupURL
+    }
 }

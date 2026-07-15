@@ -2,11 +2,18 @@ import Foundation
 
 enum PracticeProgressLoadResult: Equatable, Sendable {
     case loaded(PracticeProgressDocument)
+    case unavailable(description: String)
     case corrupted(description: String)
 }
 
-enum PracticeProgressRepositoryError: Error, Equatable {
+enum PracticeProgressRepositoryError: Error, Equatable, Sendable {
+    case unavailable(description: String)
     case corrupted(description: String)
+}
+
+enum PracticeProgressRecoveryResult: Equatable, Sendable {
+    case recovered(backupURL: URL)
+    case notNeeded
 }
 
 protocol PracticeProgressRepositoryProtocol: Sendable {
@@ -18,23 +25,51 @@ protocol PracticeProgressRepositoryProtocol: Sendable {
     func remove(songID: UUID) async throws
 }
 
-actor FilePracticeProgressRepository: PracticeProgressRepositoryProtocol {
+protocol PracticeProgressRecoveryProtocol: Sendable {
+    func recoverFromCorruption() async throws -> PracticeProgressRecoveryResult
+}
+
+typealias PracticeProgressFileReplacement = @Sendable (
+    _ fileManager: FileManager,
+    _ originalURL: URL,
+    _ stagingURL: URL,
+    _ backupName: String
+) throws -> Void
+
+actor FilePracticeProgressRepository: PracticeProgressRepositoryProtocol, PracticeProgressRecoveryProtocol {
     private let fileManager: FileManager
     private let paths: PracticeProgressPaths
+    private let replaceFile: PracticeProgressFileReplacement
 
     init(
         fileManager: FileManager = .default,
-        paths: PracticeProgressPaths = PracticeProgressPaths()
+        paths: PracticeProgressPaths = PracticeProgressPaths(),
+        replaceFile: @escaping PracticeProgressFileReplacement = { fileManager, originalURL, stagingURL, backupName in
+            _ = try fileManager.replaceItemAt(
+                originalURL,
+                withItemAt: stagingURL,
+                backupItemName: backupName,
+                options: [.usingNewMetadataOnly, .withoutDeletingBackupItem]
+            )
+        }
     ) {
         self.fileManager = fileManager
         self.paths = paths
+        self.replaceFile = replaceFile
     }
 
     func load() -> PracticeProgressLoadResult {
         do {
             return .loaded(try loadDocument())
+        } catch let error as PracticeProgressRepositoryError {
+            switch error {
+            case let .unavailable(description):
+                return .unavailable(description: description)
+            case let .corrupted(description):
+                return .corrupted(description: description)
+            }
         } catch {
-            return .corrupted(description: error.localizedDescription)
+            return .unavailable(description: Self.safeDescription(error))
         }
     }
 
@@ -59,6 +94,8 @@ actor FilePracticeProgressRepository: PracticeProgressRepositoryProtocol {
                     )
                 )
             )
+        case let .unavailable(description):
+            return .unavailable(description: description)
         case let .corrupted(description):
             return .corrupted(description: description)
         }
@@ -98,28 +135,83 @@ actor FilePracticeProgressRepository: PracticeProgressRepositoryProtocol {
         try saveDocument(document)
     }
 
-    private func loadDocument() throws -> PracticeProgressDocument {
-        let fileURL = paths.fileURL
-        guard fileManager.fileExists(atPath: fileURL.path()) else {
-            return PracticeProgressDocument()
+    func recoverFromCorruption() throws -> PracticeProgressRecoveryResult {
+        do {
+            _ = try loadDocument()
+            return .notNeeded
+        } catch PracticeProgressRepositoryError.corrupted {
+            // Continue only for confirmed schema corruption.
         }
 
-        let data = try Data(contentsOf: fileURL)
-        let decoder = JSONDecoder()
-        decoder.dateDecodingStrategy = .iso8601
+        let recoveryID = UUID()
+        let stagingURL = paths.recoveryStagingURL(id: recoveryID)
+        let backupURL = paths.recoveryBackupURL(id: recoveryID)
+        defer { try? fileManager.removeItem(at: stagingURL) }
+
         do {
-            return try decoder.decode(PracticeProgressDocument.self, from: data)
+            try fileManager.createDirectory(at: paths.rootDirectoryURL, withIntermediateDirectories: true)
+            let data = try encodedDocument(PracticeProgressDocument())
+            try data.write(to: stagingURL, options: .atomic)
+            _ = try decodedDocument(from: Data(contentsOf: stagingURL))
+            try replaceFile(
+                fileManager,
+                paths.fileURL,
+                stagingURL,
+                paths.recoveryBackupName(id: recoveryID)
+            )
+            return .recovered(backupURL: backupURL)
         } catch {
-            throw PracticeProgressRepositoryError.corrupted(description: error.localizedDescription)
+            throw PracticeProgressRepositoryError.unavailable(
+                description: Self.safeDescription(error)
+            )
         }
     }
 
+    private func loadDocument() throws -> PracticeProgressDocument {
+        let data: Data
+        do {
+            data = try Data(contentsOf: paths.fileURL)
+        } catch let error as CocoaError where error.code == .fileReadNoSuchFile {
+            return PracticeProgressDocument()
+        } catch {
+            throw PracticeProgressRepositoryError.unavailable(
+                description: Self.safeDescription(error)
+            )
+        }
+
+        do {
+            return try decodedDocument(from: data)
+        } catch {
+            throw PracticeProgressRepositoryError.corrupted(
+                description: Self.safeDescription(error)
+            )
+        }
+    }
+
+    private func decodedDocument(from data: Data) throws -> PracticeProgressDocument {
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(PracticeProgressDocument.self, from: data)
+    }
+
     private func saveDocument(_ document: PracticeProgressDocument) throws {
-        try fileManager.createDirectory(at: paths.rootDirectoryURL, withIntermediateDirectories: true)
+        do {
+            try fileManager.createDirectory(at: paths.rootDirectoryURL, withIntermediateDirectories: true)
+            try encodedDocument(document).write(to: paths.fileURL, options: .atomic)
+        } catch let error as PracticeProgressRepositoryError {
+            throw error
+        } catch {
+            throw PracticeProgressRepositoryError.unavailable(
+                description: Self.safeDescription(error)
+            )
+        }
+    }
+
+    private func encodedDocument(_ document: PracticeProgressDocument) throws -> Data {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try encoder.encode(document).write(to: paths.fileURL, options: .atomic)
+        return try encoder.encode(document)
     }
 
     private static func sortedMetadata(
@@ -146,5 +238,10 @@ actor FilePracticeProgressRepository: PracticeProgressRepositoryProtocol {
             }
             return lhs.totalSourceMeasureCount < rhs.totalSourceMeasureCount
         }
+    }
+
+    private static func safeDescription(_ error: Error) -> String {
+        let error = error as NSError
+        return "\(error.domain)#\(error.code)"
     }
 }

@@ -190,7 +190,17 @@ final class PracticeLaunchViewModel {
             fileReference = resolved.diagnosticFileReference
             let history = await progressRepository.history(for: songID)
             guard isCurrent(songID: songID, generation: generation) else { return }
-            if case .corrupted = history {
+            if case .loaded = history {
+                // No repository warning is needed.
+            } else {
+                let repositoryState = switch history {
+                case .loaded:
+                    "loaded"
+                case .unavailable:
+                    "unavailable"
+                case .corrupted:
+                    "corrupted"
+                }
                 _ = await diagnosticsReporter.record(
                     DiagnosticEvent(
                         severity: .warning,
@@ -198,7 +208,7 @@ final class PracticeLaunchViewModel {
                         category: .persistence,
                         stage: "practiceHistoryLoad",
                         summary: "无法读取练习历史",
-                        reason: "The practice progress document could not be decoded.",
+                        reason: "Practice progress repository state: \(repositoryState).",
                         songID: songID,
                         file: fileReference,
                         persistence: .exportable

@@ -413,6 +413,7 @@ struct PracticeSongHistory: Equatable, Sendable {
 
 enum PracticeSongHistoryLoadResult: Equatable, Sendable {
     case loaded(PracticeSongHistory)
+    case unavailable(description: String)
     case corrupted(description: String)
 }
 
