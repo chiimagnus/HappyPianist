@@ -129,13 +129,13 @@ struct PracticeStepView: View {
                 Button("返回选曲库", systemImage: "chevron.backward") {
                     onBackToLibrary()
                 }
-                .buttonStyle(.bordered)
+                // .buttonStyle(.bordered)
 
                 if isAutoplayEnabled == false {
                     Button(manualAdvanceMode.nextButtonTitle, systemImage: "forward.fill") {
                         viewModel.skipStep()
                     }
-                    .buttonStyle(.bordered)
+                    // .buttonStyle(.bordered)
                     .disabled(viewModel.isAIPerformanceActive || viewModel.hasImportedSteps == false || viewModel
                         .practiceSessionViewModel.state == .completed)
 
@@ -146,7 +146,7 @@ struct PracticeStepView: View {
                             viewModel.playCurrentPracticeStepSound()
                         }
                     }
-                    .buttonStyle(.bordered)
+                    // .buttonStyle(.bordered)
                     .disabled(
                         viewModel.isAIPerformanceActive ||
                             session.state == .ready ||
@@ -156,13 +156,13 @@ struct PracticeStepView: View {
 
                 Toggle("自动播放", isOn: $isAutoplayEnabled)
                     .toggleStyle(.button)
-                    .buttonStyle(.bordered)
+                    // .buttonStyle(.bordered)
                 .disabled(viewModel.isAIPerformanceActive)
 
                 Button("设置", systemImage: "gearshape") {
                     isSettingsPresented.toggle()
                 }
-                .buttonStyle(.bordered)
+                // .buttonStyle(.bordered)
 
                 Text("进度 \(viewModel.practiceProgressText)")
                     .monospacedDigit()
