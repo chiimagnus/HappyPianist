@@ -30,7 +30,7 @@ func libraryLoadsNeverPracticedSnapshotWithoutScoreAccess() async throws {
     )
 
     try await waitForSnapshotState(viewModel) {
-        $0 == .neverPracticed(selectionIdentity(entry))
+        $0 == .invitation(selectionIdentity(entry))
     }
 
     #expect(await fileStore.scoreAccessCount == 0)
@@ -52,12 +52,12 @@ func libraryRejectsStaleSnapshotWhenSelectionChangesDuringHistoryRead() async th
     await repository.waitForRequest(songID: second.id)
     await repository.resume(songID: second.id, result: emptyHistory(for: second.id))
     try await waitForSnapshotState(viewModel) {
-        $0 == .neverPracticed(selectionIdentity(second))
+        $0 == .invitation(selectionIdentity(second))
     }
 
     await repository.resume(songID: first.id, result: currentHistory(for: first))
     try await Task.sleep(for: .milliseconds(20))
-    #expect(viewModel.practiceSnapshotState == .neverPracticed(selectionIdentity(second)))
+    #expect(viewModel.practiceSnapshotState == .invitation(selectionIdentity(second)))
 }
 
 @Test
@@ -79,13 +79,13 @@ func libraryAtoBtoAActorReadDisorderOnlyPublishesLatestA() async throws {
 
     await repository.resumeRequest(at: 2, result: emptyHistory(for: first.id))
     try await waitForSnapshotState(viewModel) {
-        $0 == .neverPracticed(selectionIdentity(first))
+        $0 == .invitation(selectionIdentity(first))
     }
     await repository.resumeRequest(at: 1, result: currentHistory(for: second))
     await repository.resumeRequest(at: 0, result: currentHistory(for: first))
     try await Task.sleep(for: .milliseconds(20))
 
-    #expect(viewModel.practiceSnapshotState == .neverPracticed(selectionIdentity(first)))
+    #expect(viewModel.practiceSnapshotState == .invitation(selectionIdentity(first)))
 }
 
 @Test
@@ -102,7 +102,7 @@ func libraryRefreshCoalescesSameSelectionAndReadsHistoryOnce() async throws {
     viewModel.refreshSelectedPracticeSnapshot()
     viewModel.refreshSelectedPracticeSnapshot()
     try await waitForSnapshotState(viewModel) {
-        $0 == .neverPracticed(selectionIdentity(entry))
+        $0 == .invitation(selectionIdentity(entry))
     }
 
     #expect(await repository.historyRequestCount == 1)
@@ -127,8 +127,8 @@ func committedReplacementBindsSnapshotGenerationToChangedEntryToken() async thro
 
     await viewModel.importMusicXML(from: [URL(fileURLWithPath: "/tmp/Versioned.musicxml")])
     try await waitForSnapshotState(viewModel) { state in
-        guard case let .current(snapshot) = state else { return false }
-        return snapshot.identity == selectionIdentity(second)
+        guard case let .overview(overview) = state else { return false }
+        return overview.identity == selectionIdentity(second)
     }
 }
 
@@ -147,7 +147,11 @@ func corruptedHistoryIsUnavailableWithoutGlobalErrorAndUsesTypedDiagnostic() asy
     )
 
     try await waitForSnapshotState(viewModel) {
-        $0 == .unavailable(selectionIdentity(entry))
+        $0 == .unavailable(SongPracticeLibraryUnavailable(
+            identity: selectionIdentity(entry),
+            reason: .corrupted,
+            recoveryOptions: .retry
+        ))
     }
     try await waitForDiagnostic(diagnostics)
 
@@ -177,7 +181,7 @@ func rapidSelectionDragOnlyReadsFinalSongAfterSettleDelay() async throws {
     viewModel.selectEntry(second.id)
     viewModel.selectEntry(third.id)
     try await waitForSnapshotState(viewModel) {
-        $0 == .neverPracticed(selectionIdentity(third))
+        $0 == .invitation(selectionIdentity(third))
     }
 
     #expect(await repository.requestedSongIDs == [third.id])
@@ -193,15 +197,15 @@ func refreshingSameSelectionReadsPracticeFactsWrittenWhileLibraryWasAway() async
         practiceProgressRepository: repository
     )
     try await waitForSnapshotState(viewModel) {
-        $0 == .neverPracticed(selectionIdentity(entry))
+        $0 == .invitation(selectionIdentity(entry))
     }
 
     await repository.setResult(currentHistory(for: entry))
     viewModel.refreshSelectedPracticeSnapshot()
 
     try await waitForSnapshotState(viewModel) {
-        guard case let .current(snapshot) = $0 else { return false }
-        return snapshot.identity == selectionIdentity(entry)
+        guard case let .overview(overview) = $0 else { return false }
+        return overview.identity == selectionIdentity(entry)
     }
 }
 
@@ -223,7 +227,7 @@ func deletingSelectedSongLoadsFallbackSnapshot() async throws {
 
     #expect(viewModel.selectedEntryID == second.id)
     try await waitForSnapshotState(viewModel) {
-        $0 == .neverPracticed(selectionIdentity(second))
+        $0 == .invitation(selectionIdentity(second))
     }
 }
 
@@ -312,8 +316,31 @@ private func currentHistory(for entry: SongLibraryEntry) -> PracticeSongHistoryL
             scoreRevision: revision,
             totalSourceMeasureCount: 1,
             preparedAt: date
-        )]
+        )],
+        sessions: [makeLoadingSession(songID: entry.id, revision: revision)]
     ))
+}
+
+private func makeLoadingSession(songID: UUID, revision: String) -> PracticeSessionRecord {
+    let day = PracticeLocalDay(
+        year: 2026,
+        month: 7,
+        day: 15,
+        timeZoneIdentifier: "Asia/Singapore"
+    )!
+    return PracticeSessionRecord(
+        id: UUID(),
+        songID: songID,
+        scoreRevision: revision,
+        windowOpenedAt: Date(timeIntervalSince1970: 0),
+        practiceStartedAt: Date(timeIntervalSince1970: 1),
+        practiceDay: day,
+        endedAt: Date(timeIntervalSince1970: 10),
+        lastPersistedAt: Date(timeIntervalSince1970: 10),
+        practiceWindowDurationMilliseconds: 10_000,
+        activePracticeDurationMilliseconds: 5_000,
+        termination: .normal
+    )!
 }
 
 private actor FixedHistoryRepository: PracticeProgressRepositoryProtocol {

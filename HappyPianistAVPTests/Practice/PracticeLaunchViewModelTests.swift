@@ -599,15 +599,22 @@ func metadataWriteFailureKeepsReadyAndRecordsPrivateSafeWarning() async throws {
     #expect(event.reason.contains("measureCount=1"))
     #expect(event.reason.contains("/Users/") == false)
     let history = try #require(await repository.loadedHistory(songID: songID))
+    let entry = makePracticeLaunchEntry(songID: songID)
     #expect(await SongPracticeLibrarySnapshotBuilder().build(
-        entry: makePracticeLaunchEntry(songID: songID),
-        history: history
-    ) == .neverPracticed)
+        entry: entry,
+        historyResult: .loaded(history),
+        viewedAt: Date(timeIntervalSince1970: 200),
+        viewingTimeZone: TimeZone(secondsFromGMT: 0)!,
+        canResetCorruption: false
+    ) == .invitation(SongPracticeLibrarySelectionIdentity(
+        songID: entry.id,
+        scoreFileVersionID: entry.scoreFileVersionID
+    )))
 }
 
 @MainActor
 @Test
-func metadataWriteFailureLeavesRealOldHistoryAsNeedsRebuild() async throws {
+func metadataWriteFailureWithOldProgressStillInvitesUntilARealSessionExists() async throws {
     let songID = UUID()
     let attemptedAt = Date(timeIntervalSince1970: 42)
     let oldProgress = SongPracticeProgress(
@@ -643,10 +650,17 @@ func metadataWriteFailureLeavesRealOldHistoryAsNeedsRebuild() async throws {
     _ = try await waitForLaunchDiagnostic(reporter, code: .practiceScoreMetadataWriteFailed)
 
     let history = try #require(await repository.loadedHistory(songID: songID))
+    let entry = makePracticeLaunchEntry(songID: songID)
     #expect(await SongPracticeLibrarySnapshotBuilder().build(
-        entry: makePracticeLaunchEntry(songID: songID),
-        history: history
-    ) == .needsRebuild(historyDate: attemptedAt))
+        entry: entry,
+        historyResult: .loaded(history),
+        viewedAt: Date(timeIntervalSince1970: 200),
+        viewingTimeZone: TimeZone(secondsFromGMT: 0)!,
+        canResetCorruption: false
+    ) == .invitation(SongPracticeLibrarySelectionIdentity(
+        songID: entry.id,
+        scoreFileVersionID: entry.scoreFileVersionID
+    )))
 }
 
 @MainActor

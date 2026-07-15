@@ -721,20 +721,18 @@ final class SongLibraryViewModel {
             // add an index/cache only after measured selection latency warrants invalidation complexity.
             let historyResult = await practiceProgressRepository.history(for: entry.id)
             guard Task.isCancelled == false else { return }
-            let state: SongPracticeLibraryPresentationState
+            let state = await snapshotBuilder.build(
+                entry: entry,
+                historyResult: historyResult,
+                viewedAt: .now,
+                viewingTimeZone: .autoupdatingCurrent,
+                canResetCorruption: false
+            )
             var diagnosticEvent: DiagnosticEvent?
             switch historyResult {
-            case let .loaded(history):
-                switch await snapshotBuilder.build(entry: entry, history: history) {
-                case .neverPracticed:
-                    state = .neverPracticed(identity)
-                case let .current(snapshot):
-                    state = .current(snapshot)
-                case let .needsRebuild(historyDate):
-                    state = .needsRebuild(identity, historyDate: historyDate)
-                }
+            case .loaded:
+                break
             case .unavailable, .corrupted:
-                state = .unavailable(identity)
                 let repositoryState = switch historyResult {
                 case .loaded:
                     "loaded"
@@ -749,7 +747,7 @@ final class SongLibraryViewModel {
                     category: .library,
                     stage: "practiceHistoryLoad",
                     summary: "无法读取曲目练习历史",
-                    reason: "token=\(identity.scoreFileVersionID?.uuidString ?? "legacy-nil"); repository=\(repositoryState)",
+                    reason: "token=\(identity.scoreFileVersionID?.uuidString ?? "absent"); repository=\(repositoryState)",
                     songID: identity.songID,
                     persistence: .exportable
                 )

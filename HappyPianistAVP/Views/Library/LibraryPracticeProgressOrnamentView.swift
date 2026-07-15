@@ -31,17 +31,11 @@ private struct LibraryPracticeOrnamentContentView: View {
     switch state {
     case .loading:
       LibraryPracticeLoadingView()
-    case .neverPracticed:
+    case .invitation:
       LibraryPracticeInvitationView()
-    case .current(let snapshot):
+    case .overview(let overview):
       LibraryPracticeOverviewView(
-        presentation: LibraryPracticeOverviewPresentation(snapshot: snapshot)
-      )
-    case .needsRebuild(_, let historyDate):
-      LibraryPracticeOverviewView(
-        presentation: LibraryPracticeOverviewPresentation.needsRebuild(
-          historyDate: historyDate
-        )
+        presentation: LibraryPracticeOverviewPresentation(overview: overview)
       )
     case .unavailable:
       LibraryPracticeUnavailableView()
@@ -707,20 +701,24 @@ private struct LibraryPracticeOverviewPresentation {
   let focusItems: [LibraryPracticeFocusItem]
   let encouragement: LibraryPracticeEncouragementPresentation?
 
-  init(snapshot: SongPracticeLibrarySnapshot) {
-    let facts = snapshot.currentFacts
-    let stableCount = facts?.stableSourceMeasureCount ?? 0
-    let learningCount = facts?.learningSourceMeasureCount ?? 0
+  init(overview: SongPracticeLibraryOverview) {
+    let availableProgress = switch overview.measureProgress {
+    case let .available(progress): progress
+    case .metadataUnavailable: nil
+    }
+    let stableCount = availableProgress?.stableSourceMeasureCount ?? 0
+    let learningCount = availableProgress?.learningSourceMeasureCount ?? 0
+    let totalCount = availableProgress?.totalSourceMeasureCount ?? 0
     let latestPracticeText =
-      snapshot.latestPracticeDate.map {
+      overview.sessionSummary.latestPracticeEndedAt.map {
         $0.formatted(date: .abbreviated, time: .omitted)
       } ?? "暂无"
 
     status = Self.status(
       stableCount: stableCount,
       learningCount: learningCount,
-      totalCount: snapshot.totalSourceMeasureCount,
-      hasCurrentFacts: facts != nil
+      totalCount: totalCount,
+      hasCurrentFacts: availableProgress != nil
     )
 
     summaryItems = [
@@ -731,100 +729,74 @@ private struct LibraryPracticeOverviewPresentation {
         note: nil
       ),
       LibraryPracticeSummaryItem(
-        id: "stable",
-        title: "稳定小节",
-        value: stableCount.formatted(),
-        note: "当前版本"
+        id: "duration",
+        title: "累计练习",
+        value: Self.durationText(overview.sessionSummary.totalActiveDurationMilliseconds),
+        note: nil
       ),
       LibraryPracticeSummaryItem(
-        id: "learning",
-        title: "练习中",
-        value: learningCount.formatted(),
-        note: facts?.handMode.libraryDisplayName
+        id: "sessions",
+        title: "练习次数",
+        value: overview.sessionSummary.sessionCount.formatted(),
+        note: nil
       ),
     ]
 
-    if snapshot.totalSourceMeasureCount > 0 {
+    if totalCount > 0 {
       progress = LibraryPracticeMeasureProgress(
-        total: snapshot.totalSourceMeasureCount,
+        total: totalCount,
         stable: stableCount,
         learning: learningCount,
-        handModeText: facts?.handMode.libraryDisplayName ?? "当前版本"
+        handModeText: "当前版本"
       )
       progressMessage = nil
     } else {
       progress = nil
-      progressMessage = "开始一次练习后会建立当前曲谱结构。"
+      progressMessage = switch overview.measureProgress {
+      case .metadataUnavailable: "下次成功准备曲谱后建立当前版本进度。"
+      case .available: "当前曲谱尚无可统计的小节。"
+      }
     }
 
-    resume = facts?.resumeSourceMeasureID.map {
+    resume = overview.resumeSourceMeasureID.map {
       LibraryPracticeResumePresentation(
         measureText: "第 \($0.libraryMeasureText) 小节"
       )
     }
 
     focusItems =
-      facts?.recentIssues.prefix(3).enumerated().map { index, issue in
+      overview.focusMeasures.enumerated().map { index, focus in
         LibraryPracticeFocusItem(
           rank: index + 1,
-          title: "第 \(issue.sourceMeasureID.libraryMeasureText) 小节",
-          detail:
-            "近期\(issue.kind.libraryDisplayName) · \(issue.attemptedAt.formatted(date: .abbreviated, time: .omitted))"
+          title: "第 \(focus.sourceMeasureID.libraryMeasureText) 小节",
+          detail: switch focus.reason {
+          case let .recentIssue(issue): "近期\(issue.libraryDisplayName)"
+          case let .failedAttempts(count): "失败 \(count.formatted()) 次"
+          case .learning: "仍在学习"
+          }
         )
-      } ?? []
+      }
 
-    if stableCount > 0 {
+    if let streak = overview.sessionSummary.streak {
       encouragement = LibraryPracticeEncouragementPresentation(
-        title: "已经稳定掌握 \(stableCount.formatted()) 个小节",
-        message: "保持这个节奏。你正在把困难的小节变成身体记忆。"
-      )
-    } else if facts != nil {
-      encouragement = LibraryPracticeEncouragementPresentation(
-        title: "每一次练习都在积累",
-        message: "继续完成当前小节，稳定进度会逐步出现在这里。"
+        title: streak.recency == .current
+          ? "已连续练习 \(streak.dayCount.formatted()) 天"
+          : "最近连续练习 \(streak.dayCount.formatted()) 天",
+        message: stableCount > 0
+          ? "已经稳定掌握 \(stableCount.formatted()) 个小节。"
+          : "每一次练习都在积累。"
       )
     } else {
       encouragement = nil
     }
   }
 
-  static func needsRebuild(historyDate: Date?) -> LibraryPracticeOverviewPresentation {
-    let latestText =
-      historyDate.map {
-        $0.formatted(date: .abbreviated, time: .omitted)
-      } ?? "已保留"
-
-    return LibraryPracticeOverviewPresentation(
-      status: .pending,
-      summaryItems: [
-        LibraryPracticeSummaryItem(
-          id: "latest",
-          title: "最近练习",
-          value: latestText,
-          note: nil
-        ),
-        LibraryPracticeSummaryItem(
-          id: "progress",
-          title: "当前进度",
-          value: "待建立",
-          note: nil
-        ),
-        LibraryPracticeSummaryItem(
-          id: "history",
-          title: "历史记录",
-          value: "已保留",
-          note: nil
-        ),
-      ],
-      progress: nil,
-      progressMessage: "历史练习事实已经保留。开始一次练习后，会按当前曲谱版本重新建立小节进度。",
-      resume: nil,
-      focusItems: [],
-      encouragement: LibraryPracticeEncouragementPresentation(
-        title: "可以从当前版本重新开始",
-        message: "历史练习不会丢失，新的小节进度会在练习后逐步建立。"
-      )
-    )
+  private static func durationText(_ milliseconds: Int64) -> String {
+    let duration = Duration.milliseconds(milliseconds)
+    if milliseconds < 60_000 {
+      return duration.formatted(.units(allowed: [.seconds], width: .abbreviated))
+    }
+    return duration.formatted(.units(allowed: [.hours, .minutes], width: .abbreviated))
   }
 
   private init(

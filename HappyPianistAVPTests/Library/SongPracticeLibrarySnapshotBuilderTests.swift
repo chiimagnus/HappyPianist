@@ -3,6 +3,8 @@ import Foundation
 import Testing
 
 private let snapshotBuilder = SongPracticeLibrarySnapshotBuilder()
+private let snapshotViewedAt = Date(timeIntervalSince1970: 1_721_044_800)
+private let snapshotTimeZone = TimeZone(identifier: "Asia/Singapore")!
 
 @Test
 @MainActor
@@ -13,310 +15,90 @@ func snapshotBuilderLeavesMainActorIsolation() async {
         probe.record(isolation: isolation)
     }
 
-    #expect(await builder.build(
+    #expect(await buildSnapshot(
+        builder: builder,
         entry: entry,
         history: PracticeSongHistory(songID: entry.id, progresses: [], scoreMetadata: [])
-    ) == .neverPracticed)
+    ) == .invitation(snapshotIdentity(entry)))
     #expect(probe.observedNonisolated == true)
 }
 
 @Test
-func snapshotRecognizesCountOnlyAttemptsWithoutInventingPracticeDate() async {
+func invitationDependsOnSessionsNotMeasureAttempts() async {
     let entry = makeSnapshotEntry()
-    let progress = SongPracticeProgress(
-        identity: PracticeSongIdentity(songID: entry.id, scoreRevision: "r1"),
-        measureFacts: [MeasurePracticeFacts(
-            sourceMeasureID: snapshotSource(0),
-            handMode: .both,
-            state: .learning,
-            successfulAttempts: 2,
-            lastAttemptAt: nil
-        )],
-        updatedAt: Date(timeIntervalSince1970: 500)
-    )
-    let metadata = makeSnapshotMetadata(
+    let progress = makeSnapshotProgress(
         songID: entry.id,
-        token: entry.scoreFileVersionID,
-        revision: "r1"
+        revision: "current",
+        facts: [snapshotFact(0, hand: .both, state: .stable)]
     )
 
-    guard case let .current(snapshot) = await snapshotBuilder.build(
+    #expect(await buildSnapshot(
         entry: entry,
         history: PracticeSongHistory(
             songID: entry.id,
             progresses: [progress],
-            scoreMetadata: [metadata]
+            scoreMetadata: [makeSnapshotMetadata(entry: entry, revision: "current")]
         )
-    ) else {
-        Issue.record("Expected current snapshot")
-        return
-    }
-    #expect(snapshot.status == .practicedCurrentVersion)
-    #expect(snapshot.latestPracticeDate == nil)
-    #expect(snapshot.currentFacts?.learningSourceMeasureCount == 1)
+    ) == .invitation(snapshotIdentity(entry)))
 }
 
 @Test
-func snapshotMarksMetadataUnavailableWithoutUsingUpdatedAtAsPracticeDate() async throws {
+func overviewUsesSessionsWhenCurrentMetadataIsUnavailable() async throws {
     let entry = makeSnapshotEntry()
-    let progress = SongPracticeProgress(
-        identity: PracticeSongIdentity(songID: entry.id, scoreRevision: "old"),
-        measureFacts: [MeasurePracticeFacts(
-            sourceMeasureID: snapshotSource(0),
-            handMode: .both,
-            state: .learning,
-            failedAttempts: 1,
-            lastAttemptAt: nil
-        )],
-        updatedAt: Date(timeIntervalSince1970: 500)
-    )
+    let session = try makeSnapshotSession(songID: entry.id, revision: "old", activeMilliseconds: 45_000)
 
-    guard case let .current(snapshot) = await snapshotBuilder.build(
-        entry: entry,
-        history: PracticeSongHistory(songID: entry.id, progresses: [progress], scoreMetadata: [])
-    ) else {
-        Issue.record("Expected an overview-compatible snapshot")
-        return
-    }
-    #expect(snapshot.measureProgress == .metadataUnavailable)
-    #expect(snapshot.latestPracticeDate == nil)
-}
-
-@Test
-func snapshotDoesNotReuseMismatchedTokenMetadata() async throws {
-    let entry = makeSnapshotEntry(token: UUID())
-    let progress = makeSnapshotProgress(songID: entry.id, revision: "old", attemptedAt: 10)
-    let mismatched = makeSnapshotMetadata(
-        songID: entry.id,
-        token: UUID(),
-        revision: "old"
-    )
-
-    guard case let .current(snapshot) = await snapshotBuilder.build(
+    guard case let .overview(overview) = await buildSnapshot(
         entry: entry,
         history: PracticeSongHistory(
             songID: entry.id,
-            progresses: [progress],
-            scoreMetadata: [mismatched]
+            progresses: [],
+            scoreMetadata: [],
+            sessions: [session]
         )
     ) else {
-        Issue.record("Expected an overview-compatible snapshot")
-        return
-    }
-    #expect(snapshot.measureProgress == .metadataUnavailable)
-    #expect(snapshot.latestPracticeDate == Date(timeIntervalSince1970: 10))
-}
-
-@Test
-func bundledBuildTokenChangeDoesNotReuseOldMetadata() async throws {
-    let songID = UUID()
-    let oldToken = BundledSongLibraryProvider.scoreFileVersionID(
-        fileName: "score.musicxml",
-        bundleIdentifier: "com.example.HappyPianist",
-        shortVersion: "1.0",
-        buildVersion: "1"
-    )
-    let currentToken = BundledSongLibraryProvider.scoreFileVersionID(
-        fileName: "score.musicxml",
-        bundleIdentifier: "com.example.HappyPianist",
-        shortVersion: "1.0",
-        buildVersion: "2"
-    )
-    let entry = SongLibraryEntry(
-        id: songID,
-        displayName: "Bundled",
-        musicXMLFileName: "score.musicxml",
-        scoreFileVersionID: currentToken,
-        importedAt: Date(timeIntervalSince1970: 0),
-        audioFileName: nil,
-        isBundled: true
-    )
-    let progress = makeSnapshotProgress(songID: songID, revision: "old", attemptedAt: 10)
-    let metadata = makeSnapshotMetadata(songID: songID, token: oldToken, revision: "old")
-
-    #expect(oldToken != currentToken)
-    guard case let .current(snapshot) = await snapshotBuilder.build(
-        entry: entry,
-        history: PracticeSongHistory(
-            songID: songID,
-            progresses: [progress],
-            scoreMetadata: [metadata]
-        )
-    ) else {
-        Issue.record("Expected an overview-compatible snapshot")
-        return
-    }
-    #expect(snapshot.measureProgress == .metadataUnavailable)
-}
-
-@Test
-func snapshotAbsentTokenOnlyMatchesAbsentMetadata() async {
-    let entry = makeSnapshotEntry(token: nil)
-    let progress = makeSnapshotProgress(songID: entry.id, revision: "legacy", attemptedAt: 10)
-    let metadata = makeSnapshotMetadata(songID: entry.id, token: nil, revision: "legacy")
-
-    guard case let .current(snapshot) = await snapshotBuilder.build(
-        entry: entry,
-        history: PracticeSongHistory(
-            songID: entry.id,
-            progresses: [progress],
-            scoreMetadata: [metadata]
-        )
-    ) else {
-        Issue.record("Expected current snapshot with an absent version token")
-        return
-    }
-    #expect(snapshot.identity.scoreFileVersionID == nil)
-    #expect(snapshot.status == .practicedCurrentVersion)
-}
-
-@Test
-func snapshotCurrentMetadataWithOnlyOldAttemptsDoesNotNeedRebuild() async {
-    let entry = makeSnapshotEntry()
-    let old = makeSnapshotProgress(songID: entry.id, revision: "old", attemptedAt: 20)
-    let metadata = makeSnapshotMetadata(songID: entry.id, token: entry.scoreFileVersionID, revision: "current")
-
-    guard case let .current(snapshot) = await snapshotBuilder.build(
-        entry: entry,
-        history: PracticeSongHistory(
-            songID: entry.id,
-            progresses: [old],
-            scoreMetadata: [metadata]
-        )
-    ) else {
-        Issue.record("Expected current-version snapshot")
-        return
-    }
-    #expect(snapshot.status == .currentVersionNotPracticed)
-    #expect(snapshot.measureProgress == .available(SongPracticeMeasureProgress(
-        stableSourceMeasureCount: 0,
-        learningSourceMeasureCount: 0,
-        unpracticedSourceMeasureCount: 10
-    )))
-    #expect(snapshot.currentFacts?.unpracticedSourceMeasureCount == 10)
-    #expect(snapshot.latestPracticeDate == Date(timeIntervalSince1970: 20))
-}
-
-@Test
-func snapshotKeepsUnknownMetadataTotalWithoutInventingProgress() async throws {
-    let entry = makeSnapshotEntry()
-    let progress = makeSnapshotProgress(songID: entry.id, revision: "r1", attemptedAt: 10)
-    let metadata = makeSnapshotMetadata(
-        songID: entry.id,
-        token: entry.scoreFileVersionID,
-        revision: "r1",
-        total: 0
-    )
-
-    guard case let .current(snapshot) = await snapshotBuilder.build(
-        entry: entry,
-        history: PracticeSongHistory(
-            songID: entry.id,
-            progresses: [progress],
-            scoreMetadata: [metadata]
-        )
-    ) else {
-        Issue.record("Expected current snapshot")
+        Issue.record("Expected overview")
         return
     }
 
-    #expect(snapshot.totalSourceMeasureCount == 0)
-    #expect(snapshot.currentFacts != nil)
+    #expect(overview.identity == snapshotIdentity(entry))
+    #expect(overview.sessionSummary.sessionCount == 1)
+    #expect(overview.sessionSummary.totalActiveDurationMilliseconds == 45_000)
+    #expect(overview.measureProgress == .metadataUnavailable)
+    #expect(overview.resumeSourceMeasureID == nil)
+    #expect(overview.focusMeasures.isEmpty)
 }
 
 @Test
-func snapshotDerivesUniqueCurrentHandFactsIssuesTempoAndValidResume() async throws {
+func overviewMergesCurrentRevisionHandsAndCompletesThreeWayTotal() async throws {
     let entry = makeSnapshotEntry()
     let revision = "current"
-    let resumeOccurrence = PracticeMeasureOccurrenceID(
-        sourceMeasureID: snapshotSource(1),
-        occurrenceIndex: 4
-    )
-    let current = SongPracticeProgress(
-        identity: PracticeSongIdentity(songID: entry.id, scoreRevision: revision),
-        resumePoint: PracticeResumePoint(
-            occurrenceID: resumeOccurrence,
-            stepIndex: 2,
-            updatedAt: Date(timeIntervalSince1970: 20)
-        ),
-        measureFacts: [
-            snapshotFact(0, hand: .right, state: .learning, attemptedAt: 10),
-            snapshotFact(0, hand: .right, state: .stable, tempo: 0.8, attemptedAt: 20),
-            snapshotFact(1, hand: .right, state: .learning, issue: .wrongNote, attemptedAt: 19),
-            snapshotFact(2, hand: .left, state: .stable, tempo: 1, attemptedAt: 5),
-        ],
-        updatedAt: Date(timeIntervalSince1970: 20)
-    )
-    let old = makeSnapshotProgress(songID: entry.id, revision: "old", attemptedAt: 30)
-    let metadata = makeSnapshotMetadata(
+    let progress = makeSnapshotProgress(
         songID: entry.id,
-        token: entry.scoreFileVersionID,
         revision: revision,
-        total: 3
+        facts: [
+            snapshotFact(0, hand: .both, state: .stable),
+            snapshotFact(1, hand: .left, state: .stable),
+            snapshotFact(1, hand: .right, state: .stable),
+            snapshotFact(2, hand: .left, state: .stable),
+            snapshotFact(3, hand: .both, state: .learning, failed: 2),
+        ]
     )
+    let session = try makeSnapshotSession(songID: entry.id, revision: revision)
 
-    guard case let .current(snapshot) = await snapshotBuilder.build(
-        entry: entry,
-        history: PracticeSongHistory(
-            songID: entry.id,
-            progresses: [current, old],
-            scoreMetadata: [metadata]
-        )
-    ) else {
-        Issue.record("Expected current snapshot")
-        return
-    }
-    let facts = try #require(snapshot.currentFacts)
-    #expect(snapshot.latestPracticeDate == Date(timeIntervalSince1970: 30))
-    #expect(facts.handMode == .right)
-    #expect(facts.stableSourceMeasureCount == 0)
-    #expect(facts.learningSourceMeasureCount == 3)
-    #expect(facts.unpracticedSourceMeasureCount == 0)
-    #expect(facts.highestStableTempoScale == 1)
-    #expect(facts.resumeSourceMeasureID == snapshotSource(1))
-    #expect(facts.recentIssues == [SongPracticeRecentIssue(
-        sourceMeasureID: snapshotSource(1),
-        kind: .wrongNote,
-        attemptedAt: Date(timeIntervalSince1970: 19)
-    )])
-}
-
-@Test
-func snapshotMergesBothAndSeparateHandsIntoThreeWayProgress() async throws {
-    let entry = makeSnapshotEntry()
-    let revision = "current"
-    let progress = SongPracticeProgress(
-        identity: PracticeSongIdentity(songID: entry.id, scoreRevision: revision),
-        measureFacts: [
-            snapshotFact(0, hand: .both, state: .stable, attemptedAt: 10),
-            snapshotFact(1, hand: .left, state: .stable, attemptedAt: 10),
-            snapshotFact(1, hand: .right, state: .stable, attemptedAt: 11),
-            snapshotFact(2, hand: .left, state: .stable, attemptedAt: 12),
-            snapshotFact(3, hand: .both, state: .learning, attemptedAt: 13),
-            snapshotFact(3, hand: .both, state: .learning, attemptedAt: 14),
-        ],
-        updatedAt: Date(timeIntervalSince1970: 14)
-    )
-    let metadata = makeSnapshotMetadata(
-        songID: entry.id,
-        token: entry.scoreFileVersionID,
-        revision: revision,
-        total: 5
-    )
-
-    guard case let .current(snapshot) = await snapshotBuilder.build(
+    guard case let .overview(overview) = await buildSnapshot(
         entry: entry,
         history: PracticeSongHistory(
             songID: entry.id,
             progresses: [progress],
-            scoreMetadata: [metadata]
+            scoreMetadata: [makeSnapshotMetadata(entry: entry, revision: revision, total: 5)],
+            sessions: [session]
         )
     ) else {
-        Issue.record("Expected current snapshot")
+        Issue.record("Expected overview")
         return
     }
 
-    #expect(snapshot.measureProgress == .available(SongPracticeMeasureProgress(
+    #expect(overview.measureProgress == .available(SongPracticeMeasureProgress(
         stableSourceMeasureCount: 2,
         learningSourceMeasureCount: 2,
         unpracticedSourceMeasureCount: 1
@@ -324,170 +106,166 @@ func snapshotMergesBothAndSeparateHandsIntoThreeWayProgress() async throws {
 }
 
 @Test
-func snapshotHidesResumeWithoutRealCurrentSourceFact() async throws {
+func overviewWithMetadataAndNoFactsMarksEveryMeasureUnpracticed() async throws {
     let entry = makeSnapshotEntry()
-    let progress = SongPracticeProgress(
-        identity: PracticeSongIdentity(songID: entry.id, scoreRevision: "r1"),
-        resumePoint: PracticeResumePoint(
-            occurrenceID: PracticeMeasureOccurrenceID(
-                sourceMeasureID: snapshotSource(9),
-                occurrenceIndex: 9
-            ),
-            stepIndex: 0,
-            updatedAt: Date(timeIntervalSince1970: 10)
-        ),
-        measureFacts: [snapshotFact(0, hand: .both, state: .learning, attemptedAt: 10)],
-        updatedAt: Date(timeIntervalSince1970: 10)
-    )
-    let metadata = makeSnapshotMetadata(songID: entry.id, token: entry.scoreFileVersionID, revision: "r1")
+    let session = try makeSnapshotSession(songID: entry.id, revision: "current")
 
-    guard case let .current(snapshot) = await snapshotBuilder.build(
+    guard case let .overview(overview) = await buildSnapshot(
         entry: entry,
         history: PracticeSongHistory(
             songID: entry.id,
-            progresses: [progress],
-            scoreMetadata: [metadata]
+            progresses: [],
+            scoreMetadata: [makeSnapshotMetadata(entry: entry, revision: "current", total: 8)],
+            sessions: [session]
         )
     ) else {
-        Issue.record("Expected current snapshot")
+        Issue.record("Expected overview")
         return
     }
-    #expect(try #require(snapshot.currentFacts).resumeSourceMeasureID == nil)
+
+    #expect(overview.measureProgress == .available(SongPracticeMeasureProgress(
+        stableSourceMeasureCount: 0,
+        learningSourceMeasureCount: 0,
+        unpracticedSourceMeasureCount: 8
+    )))
 }
 
 @Test
-func snapshotDuplicateProgressAndMetadataTieBreaksAreOrderIndependent() async {
+func overviewIsolatesResumeProgressAndFocusToCurrentRevision() async throws {
     let entry = makeSnapshotEntry()
-    let first = makeSnapshotProgress(songID: entry.id, revision: "a", attemptedAt: 10)
-    let second = makeSnapshotProgress(songID: entry.id, revision: "b", attemptedAt: 20)
-    let date = Date(timeIntervalSince1970: 100)
-    let metadataA = makeSnapshotMetadata(
+    let oldSource = snapshotSource(9)
+    let old = SongPracticeProgress(
+        identity: PracticeSongIdentity(songID: entry.id, scoreRevision: "old"),
+        resumePoint: PracticeResumePoint(
+            occurrenceID: PracticeMeasureOccurrenceID(sourceMeasureID: oldSource, occurrenceIndex: 0),
+            stepIndex: 0,
+            updatedAt: Date(timeIntervalSince1970: 20)
+        ),
+        measureFacts: [snapshotFact(9, hand: .both, state: .learning, issue: .wrongNote)],
+        updatedAt: Date(timeIntervalSince1970: 20)
+    )
+    let currentSource = snapshotSource(1)
+    let current = SongPracticeProgress(
+        identity: PracticeSongIdentity(songID: entry.id, scoreRevision: "current"),
+        resumePoint: PracticeResumePoint(
+            occurrenceID: PracticeMeasureOccurrenceID(sourceMeasureID: currentSource, occurrenceIndex: 0),
+            stepIndex: 0,
+            updatedAt: Date(timeIntervalSince1970: 30)
+        ),
+        measureFacts: [snapshotFact(1, hand: .both, state: .learning, failed: 3)],
+        updatedAt: Date(timeIntervalSince1970: 30)
+    )
+    let sessions = [
+        try makeSnapshotSession(songID: entry.id, revision: "old", startedAt: 100),
+        try makeSnapshotSession(songID: entry.id, revision: "current", startedAt: 200),
+    ]
+
+    guard case let .overview(overview) = await buildSnapshot(
+        entry: entry,
+        history: PracticeSongHistory(
+            songID: entry.id,
+            progresses: [old, current],
+            scoreMetadata: [makeSnapshotMetadata(entry: entry, revision: "current")],
+            sessions: sessions
+        )
+    ) else {
+        Issue.record("Expected overview")
+        return
+    }
+
+    #expect(overview.sessionSummary.sessionCount == 2)
+    #expect(overview.resumeSourceMeasureID == currentSource)
+    #expect(overview.focusMeasures == [SongPracticeFocusMeasure(
+        sourceMeasureID: currentSource,
+        reason: .failedAttempts(3)
+    )])
+}
+
+@Test
+func unavailableCapabilitiesDistinguishIOFailureAndConfirmedCorruption() async {
+    let entry = makeSnapshotEntry()
+
+    #expect(await buildSnapshot(
+        entry: entry,
+        historyResult: .unavailable(description: "disk busy"),
+        canResetCorruption: true
+    ) == .unavailable(SongPracticeLibraryUnavailable(
+        identity: snapshotIdentity(entry),
+        reason: .temporarilyUnavailable,
+        recoveryOptions: .retry
+    )))
+    #expect(await buildSnapshot(
+        entry: entry,
+        historyResult: .corrupted(description: "invalid JSON"),
+        canResetCorruption: true
+    ) == .unavailable(SongPracticeLibraryUnavailable(
+        identity: snapshotIdentity(entry),
+        reason: .corrupted,
+        recoveryOptions: .retryAndConfirmedBackupReset
+    )))
+}
+
+@Test
+func snapshotBuildIsOrderIndependentForDuplicateProgressAndMetadata() async throws {
+    let entry = makeSnapshotEntry(token: nil)
+    let session = try makeSnapshotSession(songID: entry.id, revision: "b")
+    let first = makeSnapshotProgress(
         songID: entry.id,
-        token: entry.scoreFileVersionID,
         revision: "a",
-        preparedAt: date
+        facts: [snapshotFact(0, hand: .both, state: .stable)]
     )
-    let metadataB = makeSnapshotMetadata(
+    let second = makeSnapshotProgress(
         songID: entry.id,
-        token: entry.scoreFileVersionID,
         revision: "b",
-        preparedAt: date
+        facts: [snapshotFact(1, hand: .both, state: .learning, failed: 1)]
     )
+    let metadataA = makeSnapshotMetadata(entry: entry, revision: "a", preparedAt: 100)
+    let metadataB = makeSnapshotMetadata(entry: entry, revision: "b", preparedAt: 100)
     let forward = PracticeSongHistory(
         songID: entry.id,
         progresses: [first, second],
-        scoreMetadata: [metadataA, metadataB]
+        scoreMetadata: [metadataA, metadataB],
+        sessions: [session]
     )
     let reversed = PracticeSongHistory(
         songID: entry.id,
         progresses: [second, first],
-        scoreMetadata: [metadataB, metadataA]
+        scoreMetadata: [metadataB, metadataA],
+        sessions: [session]
     )
 
-    #expect(await snapshotBuilder.build(entry: entry, history: forward)
-        == snapshotBuilder.build(entry: entry, history: reversed))
+    let forwardState = await buildSnapshot(entry: entry, history: forward)
+    let reversedState = await buildSnapshot(entry: entry, history: reversed)
+    #expect(forwardState == reversedState)
 }
 
-@Test
-func snapshotSourceIdentityOrderDoesNotUseCollidingStrings() async throws {
-    let entry = makeSnapshotEntry()
-    let attemptedAt = Date(timeIntervalSince1970: 10)
-    let sourceA = PracticeSourceMeasureID(
-        partID: "P|1",
-        sourceMeasureIndex: 2,
-        sourceNumberToken: nil
+private func buildSnapshot(
+    builder: SongPracticeLibrarySnapshotBuilder = snapshotBuilder,
+    entry: SongLibraryEntry,
+    history: PracticeSongHistory,
+    canResetCorruption: Bool = false
+) async -> SongPracticeLibraryPresentationState {
+    await buildSnapshot(
+        builder: builder,
+        entry: entry,
+        historyResult: .loaded(history),
+        canResetCorruption: canResetCorruption
     )
-    let sourceB = PracticeSourceMeasureID(
-        partID: "P",
-        sourceMeasureIndex: 1,
-        sourceNumberToken: "2|"
-    )
-    let sourceNil = PracticeSourceMeasureID(
-        partID: "Z",
-        sourceMeasureIndex: 0,
-        sourceNumberToken: nil
-    )
-    let sourceEmpty = PracticeSourceMeasureID(
-        partID: "Z",
-        sourceMeasureIndex: 0,
-        sourceNumberToken: ""
-    )
-    let facts = [
-        MeasurePracticeFacts(
-            sourceMeasureID: sourceA,
-            handMode: .right,
-            state: .learning,
-            lastAttemptAt: attemptedAt
-        ),
-        MeasurePracticeFacts(
-            sourceMeasureID: sourceA,
-            handMode: .left,
-            state: .learning,
-            failedAttempts: 1,
-            recentIssue: .wrongNote,
-            lastAttemptAt: attemptedAt
-        ),
-        MeasurePracticeFacts(
-            sourceMeasureID: sourceB,
-            handMode: .left,
-            state: .learning,
-            failedAttempts: 1,
-            recentIssue: .missedNote,
-            lastAttemptAt: attemptedAt
-        ),
-        MeasurePracticeFacts(
-            sourceMeasureID: sourceNil,
-            handMode: .left,
-            state: .learning,
-            failedAttempts: 1,
-            recentIssue: .wrongNote,
-            lastAttemptAt: attemptedAt
-        ),
-        MeasurePracticeFacts(
-            sourceMeasureID: sourceEmpty,
-            handMode: .left,
-            state: .learning,
-            failedAttempts: 1,
-            recentIssue: .missedNote,
-            lastAttemptAt: attemptedAt
-        ),
-    ]
-    let metadata = makeSnapshotMetadata(
-        songID: entry.id,
-        token: entry.scoreFileVersionID,
-        revision: "r1"
-    )
+}
 
-    func build(_ measureFacts: [MeasurePracticeFacts]) async throws -> SongPracticeCurrentFacts {
-        let progress = SongPracticeProgress(
-            identity: PracticeSongIdentity(songID: entry.id, scoreRevision: "r1"),
-            measureFacts: measureFacts,
-            updatedAt: attemptedAt
-        )
-        guard case let .current(snapshot) = await snapshotBuilder.build(
-            entry: entry,
-            history: PracticeSongHistory(
-                songID: entry.id,
-                progresses: [progress],
-                scoreMetadata: [metadata]
-            )
-        ) else {
-            throw CocoaError(.coderReadCorrupt)
-        }
-        return try #require(snapshot.currentFacts)
-    }
-
-    let forward = try await build(facts)
-    let reversed = try await build(Array(facts.reversed()))
-
-    #expect(forward == reversed)
-    #expect(forward.handMode == .left)
-    #expect(forward.recentIssues.map(\.sourceMeasureID) == [
-        sourceB,
-        sourceA,
-        sourceNil,
-        sourceEmpty,
-    ])
+private func buildSnapshot(
+    builder: SongPracticeLibrarySnapshotBuilder = snapshotBuilder,
+    entry: SongLibraryEntry,
+    historyResult: PracticeSongHistoryLoadResult,
+    canResetCorruption: Bool
+) async -> SongPracticeLibraryPresentationState {
+    await builder.build(
+        entry: entry,
+        historyResult: historyResult,
+        viewedAt: snapshotViewedAt,
+        viewingTimeZone: snapshotTimeZone,
+        canResetCorruption: canResetCorruption
+    )
 }
 
 private func makeSnapshotEntry(token: UUID? = UUID()) -> SongLibraryEntry {
@@ -501,36 +279,37 @@ private func makeSnapshotEntry(token: UUID? = UUID()) -> SongLibraryEntry {
     )
 }
 
+private func snapshotIdentity(_ entry: SongLibraryEntry) -> SongPracticeLibrarySelectionIdentity {
+    SongPracticeLibrarySelectionIdentity(
+        songID: entry.id,
+        scoreFileVersionID: entry.scoreFileVersionID
+    )
+}
+
 private func makeSnapshotMetadata(
-    songID: UUID,
-    token: UUID?,
+    entry: SongLibraryEntry,
     revision: String,
     total: Int = 10,
-    preparedAt: Date = Date(timeIntervalSince1970: 100)
+    preparedAt: TimeInterval = 100
 ) -> SongScorePracticeMetadata {
     SongScorePracticeMetadata(
-        songID: songID,
-        scoreFileVersionID: token,
+        songID: entry.id,
+        scoreFileVersionID: entry.scoreFileVersionID,
         scoreRevision: revision,
         totalSourceMeasureCount: total,
-        preparedAt: preparedAt
+        preparedAt: Date(timeIntervalSince1970: preparedAt)
     )
 }
 
 private func makeSnapshotProgress(
     songID: UUID,
     revision: String,
-    attemptedAt: TimeInterval
+    facts: [MeasurePracticeFacts]
 ) -> SongPracticeProgress {
     SongPracticeProgress(
         identity: PracticeSongIdentity(songID: songID, scoreRevision: revision),
-        measureFacts: [snapshotFact(
-            0,
-            hand: .both,
-            state: .learning,
-            attemptedAt: attemptedAt
-        )],
-        updatedAt: Date(timeIntervalSince1970: attemptedAt)
+        measureFacts: facts,
+        updatedAt: Date(timeIntervalSince1970: 50)
     )
 }
 
@@ -538,19 +317,17 @@ private func snapshotFact(
     _ index: Int,
     hand: PracticeHandMode,
     state: MeasureLearningState,
-    tempo: Double? = nil,
     issue: PracticeIssueKind? = nil,
-    attemptedAt: TimeInterval
+    failed: Int = 0
 ) -> MeasurePracticeFacts {
     MeasurePracticeFacts(
         sourceMeasureID: snapshotSource(index),
         handMode: hand,
         state: state,
-        successfulAttempts: state == .stable ? 3 : 0,
-        failedAttempts: issue == nil ? 0 : 1,
-        highestStableTempoScale: tempo,
+        successfulAttempts: state == .stable ? 1 : 0,
+        failedAttempts: failed,
         recentIssue: issue,
-        lastAttemptAt: Date(timeIntervalSince1970: attemptedAt)
+        lastAttemptAt: Date(timeIntervalSince1970: Double(index + 1))
     )
 }
 
@@ -560,6 +337,33 @@ private func snapshotSource(_ index: Int) -> PracticeSourceMeasureID {
         sourceMeasureIndex: index,
         sourceNumberToken: "\(index + 1)"
     )
+}
+
+private func makeSnapshotSession(
+    songID: UUID,
+    revision: String,
+    startedAt: TimeInterval = 100,
+    activeMilliseconds: Int64 = 10_000
+) throws -> PracticeSessionRecord {
+    let day = try #require(PracticeLocalDay(
+        year: 2026,
+        month: 7,
+        day: 15,
+        timeZoneIdentifier: "Asia/Singapore"
+    ))
+    return try #require(PracticeSessionRecord(
+        id: UUID(),
+        songID: songID,
+        scoreRevision: revision,
+        windowOpenedAt: Date(timeIntervalSince1970: startedAt - 10),
+        practiceStartedAt: Date(timeIntervalSince1970: startedAt),
+        practiceDay: day,
+        endedAt: Date(timeIntervalSince1970: startedAt + 20),
+        lastPersistedAt: Date(timeIntervalSince1970: startedAt + 20),
+        practiceWindowDurationMilliseconds: max(20_000, activeMilliseconds),
+        activePracticeDurationMilliseconds: activeMilliseconds,
+        termination: .normal
+    ))
 }
 
 private final class SnapshotBuilderIsolationProbe: @unchecked Sendable {

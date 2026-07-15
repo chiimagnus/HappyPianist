@@ -4,8 +4,11 @@ protocol SongPracticeLibrarySnapshotBuilding: Sendable {
     @concurrent
     nonisolated func build(
         entry: SongLibraryEntry,
-        history: PracticeSongHistory
-    ) async -> SongPracticeLibrarySnapshotBuildResult
+        historyResult: PracticeSongHistoryLoadResult,
+        viewedAt: Date,
+        viewingTimeZone: TimeZone,
+        canResetCorruption: Bool
+    ) async -> SongPracticeLibraryPresentationState
 }
 
 struct SongPracticeLibrarySnapshotBuilder: SongPracticeLibrarySnapshotBuilding {
@@ -18,66 +21,94 @@ struct SongPracticeLibrarySnapshotBuilder: SongPracticeLibrarySnapshotBuilding {
     @concurrent
     nonisolated func build(
         entry: SongLibraryEntry,
-        history: PracticeSongHistory
-    ) async -> SongPracticeLibrarySnapshotBuildResult {
+        historyResult: PracticeSongHistoryLoadResult,
+        viewedAt: Date,
+        viewingTimeZone: TimeZone,
+        canResetCorruption: Bool
+    ) async -> SongPracticeLibraryPresentationState {
         let isolation: (any Actor)? = #isolation
         isolationObserver?(isolation)
-        let progresses = deduplicatedProgresses(
-            history.progresses.filter { $0.identity.songID == entry.id }
-        )
-        let realHistoricalFacts = progresses.flatMap(\.measureFacts).filter(
-            SongPracticeMeasureFactOrder.hasRealAttempt
-        )
-        guard realHistoricalFacts.isEmpty == false else {
-            return .neverPracticed
-        }
-        let latestPracticeDate = realHistoricalFacts.compactMap(\.lastAttemptAt).max()
-
         let identity = SongPracticeLibrarySelectionIdentity(
             songID: entry.id,
             scoreFileVersionID: entry.scoreFileVersionID
         )
 
+        switch historyResult {
+        case .unavailable:
+            return .unavailable(SongPracticeLibraryUnavailable(
+                identity: identity,
+                reason: .temporarilyUnavailable,
+                recoveryOptions: .retry
+            ))
+        case .corrupted:
+            return .unavailable(SongPracticeLibraryUnavailable(
+                identity: identity,
+                reason: .corrupted,
+                recoveryOptions: canResetCorruption ? .retryAndConfirmedBackupReset : .retry
+            ))
+        case let .loaded(history):
+            return buildLoaded(
+                entry: entry,
+                identity: identity,
+                history: history,
+                viewedAt: viewedAt,
+                viewingTimeZone: viewingTimeZone
+            )
+        }
+    }
+
+    private nonisolated func buildLoaded(
+        entry: SongLibraryEntry,
+        identity: SongPracticeLibrarySelectionIdentity,
+        history: PracticeSongHistory,
+        viewedAt: Date,
+        viewingTimeZone: TimeZone
+    ) -> SongPracticeLibraryPresentationState {
+        let sessions = history.sessions.filter { $0.songID == entry.id }
+        guard sessions.isEmpty == false else {
+            return .invitation(identity)
+        }
+
+        let progresses = deduplicatedProgresses(
+            history.progresses.filter { $0.identity.songID == entry.id }
+        )
         let metadata = SongScorePracticeMetadataOrder.preferred(
             in: history.scoreMetadata.filter {
                 $0.songID == entry.id && $0.scoreFileVersionID == entry.scoreFileVersionID
             }
         )
-        guard let metadata else {
-            return .current(SongPracticeLibrarySnapshot(
-                identity: identity,
-                status: .currentVersionNotPracticed,
-                latestPracticeDate: latestPracticeDate,
-                totalSourceMeasureCount: 0,
-                measureProgress: .metadataUnavailable,
-                currentFacts: nil,
-                hasHistory: true
-            ))
+        let currentProgress = metadata.flatMap { metadata in
+            PracticeProgressRecordOrder.preferred(
+                in: progresses.filter { $0.identity.scoreRevision == metadata.scoreRevision }
+            )
         }
+        let uniqueCurrentFacts = SongPracticeMeasureFactOrder.uniqueRealFacts(
+            in: currentProgress?.measureFacts ?? []
+        )
+        let measureProgress = metadata.map { metadata in
+            SongPracticeMeasureProgressState.available(
+                deriveMeasureProgress(
+                    facts: uniqueCurrentFacts,
+                    totalSourceMeasureCount: metadata.totalSourceMeasureCount
+                )
+            )
+        } ?? .metadataUnavailable
+        let resumeSourceMeasureID = validResumeSourceMeasureID(
+            progress: currentProgress,
+            currentFacts: uniqueCurrentFacts
+        )
 
-        let currentProgress = PracticeProgressRecordOrder.preferred(
-            in: progresses.filter { $0.identity.scoreRevision == metadata.scoreRevision }
-        )
-        let currentFacts = deriveCurrentFacts(
-            currentProgress,
-            totalSourceMeasureCount: metadata.totalSourceMeasureCount
-        )
-        let measureProgress = SongPracticeMeasureProgress(
-            stableSourceMeasureCount: currentFacts.stableSourceMeasureCount,
-            learningSourceMeasureCount: currentFacts.learningSourceMeasureCount,
-            unpracticedSourceMeasureCount: currentFacts.unpracticedSourceMeasureCount
-        )
-
-        return .current(SongPracticeLibrarySnapshot(
+        return .overview(SongPracticeLibraryOverview(
             identity: identity,
-            status: currentFacts.stableSourceMeasureCount + currentFacts.learningSourceMeasureCount == 0
-                ? .currentVersionNotPracticed
-                : .practicedCurrentVersion,
-            latestPracticeDate: latestPracticeDate,
-            totalSourceMeasureCount: metadata.totalSourceMeasureCount,
-            measureProgress: .available(measureProgress),
-            currentFacts: currentFacts,
-            hasHistory: true
+            sessionSummary: SongPracticeSessionSummaryBuilder().build(
+                songID: entry.id,
+                sessions: sessions,
+                viewedAt: viewedAt,
+                viewingTimeZone: viewingTimeZone
+            ),
+            measureProgress: measureProgress,
+            resumeSourceMeasureID: resumeSourceMeasureID,
+            focusMeasures: SongPracticeFocusMeasureBuilder().build(from: currentProgress)
         ))
     }
 
@@ -89,61 +120,30 @@ struct SongPracticeLibrarySnapshotBuilder: SongPracticeLibrarySnapshotBuilding {
             .compactMap { PracticeProgressRecordOrder.preferred(in: $0) }
     }
 
-    private nonisolated func deriveCurrentFacts(
-        _ progress: SongPracticeProgress?,
+    private nonisolated func deriveMeasureProgress(
+        facts: [MeasurePracticeFacts],
         totalSourceMeasureCount: Int
-    ) -> SongPracticeCurrentFacts {
-        let uniqueFacts = SongPracticeMeasureFactOrder.uniqueRealFacts(
-            in: progress?.measureFacts ?? []
-        )
-        let currentFact = uniqueFacts.sorted(by: currentFactComesFirst).first
-        let sourceGroups = Dictionary(grouping: uniqueFacts, by: \.sourceMeasureID)
+    ) -> SongPracticeMeasureProgress {
+        let sourceGroups = Dictionary(grouping: facts, by: \.sourceMeasureID)
         let stableSourceIDs = Set(sourceGroups.compactMap { sourceID, facts in
             let stableHands = Set(facts.filter { $0.state == .stable }.map(\.handMode))
             return stableHands.contains(.both) || (stableHands.contains(.left) && stableHands.contains(.right))
                 ? sourceID
                 : nil
         })
-        let attemptedSourceIDs = Set(sourceGroups.keys)
-        let learningSourceIDs = attemptedSourceIDs.subtracting(stableSourceIDs)
+        let learningSourceIDs = Set(sourceGroups.keys).subtracting(stableSourceIDs)
         let stableCount = min(totalSourceMeasureCount, stableSourceIDs.count)
         let learningCount = min(
             max(0, totalSourceMeasureCount - stableCount),
             learningSourceIDs.count
         )
-        let unpracticedCount = max(0, totalSourceMeasureCount - stableCount - learningCount)
-        let recentIssues = Dictionary(
-            grouping: uniqueFacts.filter { $0.recentIssue != nil && $0.lastAttemptAt != nil },
-            by: \.sourceMeasureID
-        ).values.compactMap { facts -> SongPracticeRecentIssue? in
-            guard let fact = preferredFact(facts),
-                  let kind = fact.recentIssue,
-                  let attemptedAt = fact.lastAttemptAt
-            else { return nil }
-            return SongPracticeRecentIssue(
-                sourceMeasureID: fact.sourceMeasureID,
-                kind: kind,
-                attemptedAt: attemptedAt
-            )
-        }.sorted { lhs, rhs in
-            if lhs.attemptedAt != rhs.attemptedAt { return lhs.attemptedAt > rhs.attemptedAt }
-            return PracticeSourceMeasureOrder.comesFirst(lhs.sourceMeasureID, rhs.sourceMeasureID)
-        }
-
-        return SongPracticeCurrentFacts(
-            handMode: currentFact?.handMode ?? .both,
+        return SongPracticeMeasureProgress(
             stableSourceMeasureCount: stableCount,
             learningSourceMeasureCount: learningCount,
-            unpracticedSourceMeasureCount: unpracticedCount,
-            resumeSourceMeasureID: validResumeSourceMeasureID(
-                progress: progress,
-                currentFacts: uniqueFacts
-            ),
-            highestStableTempoScale: uniqueFacts
-                .filter { $0.state == .stable }
-                .compactMap(\.highestStableTempoScale)
-                .max(),
-            recentIssues: recentIssues
+            unpracticedSourceMeasureCount: max(
+                0,
+                totalSourceMeasureCount - stableCount - learningCount
+            )
         )
     }
 
@@ -153,27 +153,9 @@ struct SongPracticeLibrarySnapshotBuilder: SongPracticeLibrarySnapshotBuilding {
     ) -> PracticeSourceMeasureID? {
         guard let source = progress?.resumePoint?.occurrenceID.sourceMeasureID,
               currentFacts.contains(where: { $0.sourceMeasureID == source })
-        else { return nil }
+        else {
+            return nil
+        }
         return source
     }
-
-    private nonisolated func preferredFact(
-        _ facts: [MeasurePracticeFacts]
-    ) -> MeasurePracticeFacts? {
-        facts.sorted(by: SongPracticeMeasureFactOrder.comesFirst).first
-    }
-
-    private nonisolated func currentFactComesFirst(
-        _ lhs: MeasurePracticeFacts,
-        _ rhs: MeasurePracticeFacts
-    ) -> Bool {
-        if lhs.lastAttemptAt != rhs.lastAttemptAt {
-            return (lhs.lastAttemptAt ?? .distantPast) > (rhs.lastAttemptAt ?? .distantPast)
-        }
-        if lhs.sourceMeasureID != rhs.sourceMeasureID {
-            return PracticeSourceMeasureOrder.comesFirst(lhs.sourceMeasureID, rhs.sourceMeasureID)
-        }
-        return lhs.handMode.rawValue < rhs.handMode.rawValue
-    }
-
 }
