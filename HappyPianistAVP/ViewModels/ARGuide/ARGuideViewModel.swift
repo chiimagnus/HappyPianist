@@ -294,6 +294,16 @@ final class ARGuideViewModel: PracticeLaunchApplying {
         return finalStatus
     }
 
+    func commitPreparedPracticeReturn() {
+        preparedPracticeApplicationID = nil
+        invalidatePracticeFeedbackPresentation()
+        practiceSessionViewModel.clearPreparedSong()
+        latestPreparedPractice = nil
+        latestPracticeRestorePolicy = nil
+        practiceSetupState.clearSongAndSteps()
+        practiceProgressSaveErrorMessage = nil
+    }
+
     @discardableResult
     func replacePracticeSessionViewModel() async -> PracticeSessionReplacementResult {
         let hadCurrentProgress = practiceSessionViewModel.progressCoordinator != nil &&

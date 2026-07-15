@@ -10,6 +10,7 @@ protocol PracticeLaunchApplying: AnyObject, Sendable {
     ) async -> PracticeLaunchApplyOutcome?
     func setPracticeGuidingStartBlocked(_ isBlocked: Bool)
     func clearPreparedPracticeForLaunch() async -> PracticeProgressSaveStatus
+    func commitPreparedPracticeReturn()
     func suspendPracticeAndFlushProgress() async
 }
 
@@ -215,18 +216,14 @@ final class PracticeLaunchViewModel {
                 return .failed(message: "Practice session facts could not be saved.")
             }
         }
-        let status = await applicator.clearPreparedPracticeForLaunch()
         guard returnContext?.operationID == operationID else {
             return .failed(message: "Return operation was superseded.")
         }
-        if case .failed = status {
-            abortReturn(operationID: operationID)
-            return status
-        }
+        applicator.commitPreparedPracticeReturn()
         returnContext = nil
         currentVisitID = nil
         progressAccessFailure = nil
-        return status
+        return .saved
     }
 
     @discardableResult
@@ -237,18 +234,14 @@ final class PracticeLaunchViewModel {
         await settleRetiredActivationTasks()
         await cancelAndWaitForMetadataWrites()
         await sessionRecorder?.discardPendingDelta()
-        let status = await applicator.clearPreparedPracticeForLaunch()
         guard returnContext?.operationID == operationID else {
             return .failed(message: "Return operation was superseded.")
         }
-        if case .failed = status {
-            abortReturn(operationID: operationID)
-            return status
-        }
+        applicator.commitPreparedPracticeReturn()
         returnContext = nil
         currentVisitID = nil
         progressAccessFailure = nil
-        return status
+        return .saved
     }
 
     func closeForSystemDisappear() async {

@@ -173,7 +173,7 @@ flowchart LR
 - source measure 是持久化学习单位。
 - `PracticeSessionRecorder` 由 `LiveAppGraph` 按 window visit 持有，跨 session ViewModel replacement 复用；首次真实 `ready -> guiding` 才写入一条会话事实，同一窗口多轮不增加次数。
 - recorder 使用单调时钟累计 window duration 与 active duration；后者仅覆盖 scene active、guiding、设置未展示的区间。首次 guiding、guiding/settings/scene 边界、round 结束与退出立即 checkpoint，连续 guiding 最多每 30 秒一次。
-- 显式返回必须等待 progress 与 session 最终 flush；失败时留在 Practice，用户可确认只放弃尚未保存的增量。系统关闭走独立 best-effort finalize，不触发返回窗口导航。
+- 显式返回必须先等待 progress flush，再终结 session recorder；任一步失败都留在 Practice，用户可确认只放弃尚未保存的增量。recorder 成功终结后只提交无 IO 的内存清理，不再复用启动前可失败的 progress clear。系统关闭走独立 best-effort finalize，不触发返回窗口导航。
 - 读取 `.open` 会话时以 `lastPersistedAt` 幂等结算为 `recoveredAfterInterruption`，不补算未落盘时长。
 - occurrence identity 只负责重复结构中的播放位置。
 - launch 先按 song UUID + score revision 查 exact progress；exact 不存在时，历史 resolver 只可继承 hand mode、tempo scale、loop enabled、required successes。passage、resume、measure facts 与任何 source/occurrence identity 不跨 revision。
