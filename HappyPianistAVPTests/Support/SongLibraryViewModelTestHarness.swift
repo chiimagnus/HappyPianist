@@ -206,7 +206,10 @@ private final class NoopSongAudioPlayer: SongAudioPlayerProtocol {
 }
 
 
-private actor InMemoryPracticeProgressRepository: PracticeProgressRepositoryProtocol {
+private actor InMemoryPracticeProgressRepository:
+    PracticeProgressRepositoryProtocol,
+    PracticeSessionRepositoryProtocol
+{
     private var document = PracticeProgressDocument()
 
     func load() -> PracticeProgressLoadResult { .loaded(document) }
@@ -219,7 +222,8 @@ private actor InMemoryPracticeProgressRepository: PracticeProgressRepositoryProt
         .loaded(PracticeSongHistory(
             songID: songID,
             progresses: document.songs.filter { $0.identity.songID == songID },
-            scoreMetadata: document.scoreMetadata.filter { $0.songID == songID }
+            scoreMetadata: document.scoreMetadata.filter { $0.songID == songID },
+            sessions: document.sessions.filter { $0.songID == songID }
         ))
     }
     func upsert(_ progress: SongPracticeProgress) {
@@ -234,8 +238,14 @@ private actor InMemoryPracticeProgressRepository: PracticeProgressRepositoryProt
         }
         document.scoreMetadata.append(metadata)
     }
+    func upsert(_ session: PracticeSessionRecord) {
+        document.sessions.removeAll(where: { $0.id == session.id })
+        document.sessions.append(session)
+    }
+    func abandonLiveSession(id _: UUID) {}
     func remove(songID: UUID) {
         document.songs.removeAll(where: { $0.identity.songID == songID })
         document.scoreMetadata.removeAll(where: { $0.songID == songID })
+        document.sessions.removeAll(where: { $0.songID == songID })
     }
 }

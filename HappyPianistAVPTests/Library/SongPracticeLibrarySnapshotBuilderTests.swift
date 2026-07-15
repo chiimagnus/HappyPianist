@@ -182,6 +182,52 @@ func overviewIsolatesResumeProgressAndFocusToCurrentRevision() async throws {
 }
 
 @Test
+func replacementKeepsStableSongSessionsWithoutLeakingOldRevisionFacts() async throws {
+    let entry = makeSnapshotEntry(token: UUID())
+    let oldToken = UUID()
+    let oldSource = snapshotSource(7)
+    let oldProgress = SongPracticeProgress(
+        identity: PracticeSongIdentity(songID: entry.id, scoreRevision: "old"),
+        resumePoint: PracticeResumePoint(
+            occurrenceID: PracticeMeasureOccurrenceID(
+                sourceMeasureID: oldSource,
+                occurrenceIndex: 0
+            ),
+            stepIndex: 0,
+            updatedAt: Date(timeIntervalSince1970: 30)
+        ),
+        measureFacts: [snapshotFact(7, hand: .both, state: .learning, failed: 4)],
+        updatedAt: Date(timeIntervalSince1970: 30)
+    )
+    let oldMetadata = SongScorePracticeMetadata(
+        songID: entry.id,
+        scoreFileVersionID: oldToken,
+        scoreRevision: "old",
+        totalSourceMeasureCount: 8,
+        preparedAt: Date(timeIntervalSince1970: 30)
+    )
+    let oldSession = try makeSnapshotSession(songID: entry.id, revision: "old")
+
+    guard case let .overview(overview) = await buildSnapshot(
+        entry: entry,
+        history: PracticeSongHistory(
+            songID: entry.id,
+            progresses: [oldProgress],
+            scoreMetadata: [oldMetadata],
+            sessions: [oldSession]
+        )
+    ) else {
+        Issue.record("Expected replacement overview")
+        return
+    }
+
+    #expect(overview.sessionSummary.sessionCount == 1)
+    #expect(overview.measureProgress == .metadataUnavailable)
+    #expect(overview.resumeSourceMeasureID == nil)
+    #expect(overview.focusMeasures.isEmpty)
+}
+
+@Test
 func unavailableCapabilitiesDistinguishIOFailureAndConfirmedCorruption() async {
     let entry = makeSnapshotEntry()
 

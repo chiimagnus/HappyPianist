@@ -4,7 +4,11 @@ import Testing
 
 private actor RecordingProgressRepository: PracticeProgressRepositoryProtocol {
     private(set) var removedSongIDs: [UUID] = []
-    var removalError: Error?
+    private let removalError: PracticeProgressRepositoryError?
+
+    init(removalError: PracticeProgressRepositoryError? = nil) {
+        self.removalError = removalError
+    }
 
     func load() -> PracticeProgressLoadResult { .loaded(PracticeProgressDocument()) }
     func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? { nil }
@@ -17,6 +21,54 @@ private actor RecordingProgressRepository: PracticeProgressRepositoryProtocol {
         if let removalError { throw removalError }
         removedSongIDs.append(songID)
     }
+}
+
+@Test
+@MainActor
+func deletingSongRemovesSessionsProgressAndMetadataFromTheSharedRepository() async throws {
+    let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let repository = FilePracticeProgressRepository(
+        paths: PracticeProgressPaths(rootDirectoryURL: directory)
+    )
+    let songID = UUID()
+    let entry = SongLibraryEntry(
+        id: songID,
+        displayName: "User Song",
+        musicXMLFileName: "user.musicxml",
+        scoreFileVersionID: UUID(),
+        importedAt: .now,
+        audioFileName: nil
+    )
+    let progress = SongPracticeProgress(
+        identity: PracticeSongIdentity(songID: songID, scoreRevision: "r1"),
+        updatedAt: Date(timeIntervalSince1970: 10)
+    )
+    let metadata = SongScorePracticeMetadata(
+        songID: songID,
+        scoreFileVersionID: entry.scoreFileVersionID,
+        scoreRevision: "r1",
+        totalSourceMeasureCount: 1,
+        preparedAt: Date(timeIntervalSince1970: 10)
+    )
+    let session = try cleanupSession(songID: songID)
+    try await repository.upsert(progress)
+    try await repository.upsert(metadata)
+    try await repository.upsert(session)
+    let viewModel = SongLibraryViewModelTestHarness.make(
+        index: SongLibraryIndex(entries: [entry], lastSelectedEntryID: songID),
+        practiceProgressRepository: repository
+    )
+
+    await viewModel.deleteEntry(entryID: songID)
+
+    #expect(await repository.history(for: songID) == .loaded(PracticeSongHistory(
+        songID: songID,
+        progresses: [],
+        scoreMetadata: [],
+        sessions: []
+    )))
 }
 
 @Test
@@ -74,6 +126,53 @@ func deletingSongUsesEntryReturnedByIndexActor() async {
 
     #expect(await fileStore.deletedScoreNames == ["persisted.musicxml"])
     #expect(await fileStore.deletedAudioNames == ["persisted.mp3"])
+}
+
+@Test
+@MainActor
+func practiceCleanupFailureKeepsTheIndexDeletionAndReportsTheFailure() async {
+    let songID = UUID()
+    let entry = SongLibraryEntry(
+        id: songID,
+        displayName: "User Song",
+        musicXMLFileName: "user.musicxml",
+        importedAt: .now,
+        audioFileName: nil
+    )
+    let repository = RecordingProgressRepository(
+        removalError: .unavailable(description: "NSCocoaErrorDomain#640")
+    )
+    let viewModel = SongLibraryViewModelTestHarness.make(
+        index: SongLibraryIndex(entries: [entry], lastSelectedEntryID: songID),
+        practiceProgressRepository: repository
+    )
+
+    await viewModel.deleteEntry(entryID: songID)
+
+    #expect(viewModel.index.entries.isEmpty)
+    #expect(viewModel.errorMessage?.contains("练习进度清理失败") == true)
+}
+
+private func cleanupSession(songID: UUID) throws -> PracticeSessionRecord {
+    let day = try #require(PracticeLocalDay(
+        year: 2026,
+        month: 7,
+        day: 15,
+        timeZoneIdentifier: "Asia/Singapore"
+    ))
+    return try #require(PracticeSessionRecord(
+        id: UUID(),
+        songID: songID,
+        scoreRevision: "r1",
+        windowOpenedAt: Date(timeIntervalSince1970: 1),
+        practiceStartedAt: Date(timeIntervalSince1970: 2),
+        practiceDay: day,
+        endedAt: Date(timeIntervalSince1970: 10),
+        lastPersistedAt: Date(timeIntervalSince1970: 10),
+        practiceWindowDurationMilliseconds: 9_000,
+        activePracticeDurationMilliseconds: 8_000,
+        termination: .normal
+    ))
 }
 
 private actor DeletionIndexStore: SongLibraryIndexStoreProtocol {
