@@ -15,10 +15,7 @@ struct LibraryPracticeProgressOrnamentView: View {
       .scrollIndicators(.hidden)
     }
     .clipShape(.rect(cornerRadius: LibraryDesignTokens.practiceOrnamentCornerRadius))
-    .overlay {
-      RoundedRectangle(cornerRadius: LibraryDesignTokens.practiceOrnamentCornerRadius)
-        .strokeBorder(.white.opacity(0.72), lineWidth: 1)
-    }
+    .containerShape(.rect(cornerRadius: LibraryDesignTokens.practiceOrnamentCornerRadius))
     .foregroundStyle(LibraryDesignTokens.practiceInk)
     .environment(\.colorScheme, .light)
     .accessibilityElement(children: .contain)
@@ -1082,10 +1079,7 @@ extension PracticeIssueKind {
         .scrollIndicators(.hidden)
       }
       .clipShape(.rect(cornerRadius: LibraryDesignTokens.practiceOrnamentCornerRadius))
-      .overlay {
-        RoundedRectangle(cornerRadius: LibraryDesignTokens.practiceOrnamentCornerRadius)
-          .strokeBorder(.white.opacity(0.72), lineWidth: 1)
-      }
+      .containerShape(.rect(cornerRadius: LibraryDesignTokens.practiceOrnamentCornerRadius))
       .foregroundStyle(LibraryDesignTokens.practiceInk)
       .environment(\.colorScheme, .light)
       .frame(
@@ -1096,7 +1090,9 @@ extension PracticeIssueKind {
         idealHeight: 720,
         maxHeight: 720
       )
-      .glassBackgroundEffect()
+      .glassBackgroundEffect(
+        in: .rect(cornerRadius: LibraryDesignTokens.practiceOrnamentCornerRadius)
+      )
     }
   }
 

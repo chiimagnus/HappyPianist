@@ -175,7 +175,9 @@ struct SongLibraryView: View {
             idealHeight: libraryViewHeight,
             maxHeight: libraryViewHeight
           )
-          .glassBackgroundEffect()
+          .glassBackgroundEffect(
+            in: .rect(cornerRadius: LibraryDesignTokens.practiceOrnamentCornerRadius)
+          )
       }
     }
     .sheet(isPresented: $isDiagnosticsPresented) {
