@@ -33,8 +33,8 @@
 | 代码 | 作用 |
 | --- | --- |
 | `HappyPianistAVP/ViewModels/Library/SongLibraryViewModel.swift` | 接收异步 bootstrap snapshot，合并 bundled/imported entries，并作为唯一 selection owner 管理试听、导入和删除；selection 持久化与练习事实 snapshot 各有独立 generation。 |
-| `HappyPianistAVP/Services/Library/SongPracticeLibrarySnapshotBuilder.swift` | 从单曲 history 纯派生当前版本/真实 attempt facts，不读取文件或 UI 类型。 |
-| `HappyPianistAVP/Views/Library/LibraryPracticeProgressOrnamentView.swift` | 以原生 trailing Ornament 和单一内部 `ScrollView` 只读展示 loading、首次练习邀请、当前概览、重建提示与 unavailable；外层完全使用 visionOS `glassBackgroundEffect`，内部卡片与前景统一使用系统 Material、系统 tint 和语义层级；进度中的“稳定”使用系统绿色、“学习中”使用系统橙色，不定义 Ornament 专用 RGB 调色板；钢琴、琴键按压与音符漂浮均由 SwiftUI Shape、SF Symbols 和 `phaseAnimator` 原生实现，并支持 Reduce Motion，无配置控件或练习按钮。 |
+| `HappyPianistAVP/Services/Library/SongPracticeLibrarySnapshotBuilder.swift` | 从单曲 history 在非 MainActor 纯派生四态最终 presentation、跨 revision session summary 与当前 revision facts；不读取 score 文件。 |
+| `HappyPianistAVP/Views/Library/LibraryPracticeProgressOrnamentView.swift` | 以原生 trailing Ornament、单一 `ScrollView` 和一次外层 `glassBackgroundEffect` 直接展示 loading、invitation、overview、unavailable；summary/legend 用 `ViewThatFits` 按真实宽度退化，retry/reset 调用真实 intent。内部只使用系统 Material、语义色与 SF Symbols；稳定绿、学习中橙、未练习 secondary 均同时带文字、数量和符号，无 Ornament 专属 RGB 调色板。琴键与无圆形遮罩的音符由 SwiftUI 原生实现，支持 Reduce Motion、VoiceOver、Differentiate Without Color 和增强对比度，无配置控件或练习按钮。 |
 | `HappyPianistAVP/Services/Library/SongLibraryBootstrapLoader.swift` | actor 隔离的首次 bundle 扫描与索引解码，避免阻塞 MainActor 启动。 |
 | `HappyPianistAVP/Services/Library/SongLibraryImportTransactionService.swift` | 原名 batch staging、确认时事实重分类、indexed replace / missing repair / orphan adopt、取消与 bootstrap recovery 的唯一 owner。 |
 | `HappyPianistAVP/Services/Library/SongFileStore.swift` | 解析及删除已经入库的用户 score/audio 文件；不执行曲谱导入。 |
@@ -43,7 +43,9 @@
 | `HappyPianistAVP/Services/Library/AudioImportService.swift` | 绑定 `.mp3` / `.m4a` 试听音频。 |
 | `HappyPianistAVP/Services/Practice/Session/PracticePreparationService.swift` | 把所选曲谱转换成 `PreparedPractice`。 |
 
-支持 `.musicxml`、`.xml`、`.mxl`。切换唱片只更新 selection 并异步读取同曲 history JSON；点击主内容中唯一的“开始练习”才登记 request 并打开练习窗口，曲谱解析、进度恢复和失败展示都由练习窗口拥有。snapshot generation 同时绑定 song UUID 与 entry token，旧结果不能覆盖新选择，且 Library/Ornament 不访问 score/preparation/session。Ornament 没有隐藏配置或练习入口。
+支持 `.musicxml`、`.xml`、`.mxl`。切换唱片只更新 selection 并异步读取同曲 history JSON；点击主内容中唯一的“开始练习”才登记 request 并打开练习窗口，曲谱解析、进度恢复和失败展示都由练习窗口拥有。presentation generation 同时绑定 song UUID 与 entry token，旧结果不能覆盖新选择；Library/Ornament 不访问 score URL、preparation 服务或 Practice session controller。Ornament 没有隐藏配置或练习入口。
+
+`LiveAppGraph` 持有跨 `PracticeSessionViewModel` replacement 的 `PracticeSessionRecorder`。recorder 按 Practice window visit 建立会话，只有首次真实进入 guiding 才落一条 session；scene、guiding、设置、round 与退出边界 checkpoint，active duration 只累计 scene active、guiding 且设置未覆盖的单调时间。
 
 正式生产导入链只有：
 

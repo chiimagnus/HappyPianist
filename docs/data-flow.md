@@ -112,10 +112,10 @@ selected song UUID + entry version token
 -> 短 settle delay
 -> FilePracticeProgressRepository.history（actor 内 JSON decode/filter）
 -> nonisolated SongPracticeLibrarySnapshotBuilder（纯 facts 派生）
--> UUID + token + generation 仍一致时发布 snapshot state
+-> UUID + token + generation 仍一致时发布最终 presentation
 ```
 
-Library 返回前台时会刷新同一 selection；同一 run-loop 的 `onAppear` / active refresh 会取消并合并到最新 generation。损坏 history 只产生 `unavailable` 与 typed diagnostic，不设置全局错误，也不禁用试听或唯一开始按钮。该路径不解析曲谱、不访问 score URL、`PreparedPractice` 或 session。未选择曲目时不挂载 trailing Ornament；已选曲目只渲染 loading、never practiced、current、needs rebuild 与 unavailable 五类只读状态；Reduce Motion 使用静态 phase，VoiceOver 和 Differentiate Without Color 不依赖颜色传达事实。
+Library 返回前台时会刷新同一 selection；同一 run-loop 的 `onAppear` / active refresh 会取消并合并到最新 generation。IO 失败或损坏 history 只产生带真实 capability 的 `unavailable` 与 typed diagnostic，不设置全局错误，也不禁用试听或唯一开始按钮；重试调用 ViewModel intent，确认损坏时才提供“先备份、再重置”的二次确认动作。该路径不解析 MusicXML、不访问 score URL、`PreparedPractice` 或练习 session。未选择曲目时不挂载 trailing Ornament；已选曲目只渲染 `loading`、`invitation`、`overview`、`unavailable` 四态，metadata 缺失是保留历史会话摘要的 `overview` 进度区状态。Ornament 只有一个系统玻璃背景且没有专属调色板；Reduce Motion 使用静态 phase，VoiceOver 和 Differentiate Without Color 不依赖颜色传达事实。
 
 ## 本轮配置与 active range
 
@@ -157,10 +157,12 @@ flowchart LR
   C --> D[SongPracticeProgress]
   D --> E[PracticeProgressCoordinator]
   E --> F[FilePracticeProgressRepository]
+  M[Practice window lifecycle] --> N[PracticeSessionRecorder]
+  N --> F
   F --> G[Documents/PracticeProgress/progress-v1.json]
   F --> H[PracticeSongHistory]
   H --> I[SongPracticeLibrarySnapshotBuilder]
-  I --> J[Library snapshot state]
+  I --> J[Library presentation state]
   H --> K[PracticeHistoricalPreferencesResolver]
   K --> L[Launch restore policy]
 ```
@@ -169,10 +171,14 @@ flowchart LR
 
 - `PracticeStep` 是即时判定单位。
 - source measure 是持久化学习单位。
+- `PracticeSessionRecorder` 由 `LiveAppGraph` 按 window visit 持有，跨 session ViewModel replacement 复用；首次真实 `ready -> guiding` 才写入一条会话事实，同一窗口多轮不增加次数。
+- recorder 使用单调时钟累计 window duration 与 active duration；后者仅覆盖 scene active、guiding、设置未展示的区间。首次 guiding、guiding/settings/scene 边界、round 结束与退出立即 checkpoint，连续 guiding 最多每 30 秒一次。
+- 显式返回必须等待 progress 与 session 最终 flush；失败时留在 Practice，用户可确认只放弃尚未保存的增量。系统关闭走独立 best-effort finalize，不触发返回窗口导航。
+- 读取 `.open` 会话时以 `lastPersistedAt` 幂等结算为 `recoveredAfterInterruption`，不补算未落盘时长。
 - occurrence identity 只负责重复结构中的播放位置。
 - launch 先按 song UUID + score revision 查 exact progress；exact 不存在时，历史 resolver 只可继承 hand mode、tempo scale、loop enabled、required successes。passage、resume、measure facts 与任何 source/occurrence identity 不跨 revision。
 - 历史记录损坏时 launch 记录 warning 并使用 `historyUnavailable` policy；无可用配置则使用 `freshDefaults`，两者都不阻止 score preparation。
-- streak 按手别、速度与本轮条件隔离。
+- 小节连续成功仍按手别、速度与本轮条件隔离；Library 的连续练习日只按当前 song 的持久化 `PracticeLocalDay` 聚合。
 - resume point 保存片段、配置与当前 step。
 - 恢复完成后停在 ready/paused，不自动发声。
 - back、background、换 session 与完成时等待 flush。

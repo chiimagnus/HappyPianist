@@ -37,7 +37,7 @@ index 文件缺失、零字节或仅包含空白时视为空库，首次 mutatio
 
 ## 练习进度
 
-`progress-v1.json` 仍是唯一练习事实文件，包含 `songs` 与 `scoreMetadata` 两个数组。前者按 `song UUID + score revision digest` 区分事实版本；后者按 `song UUID + entry version token + score revision` 记录成功准备时的曲谱结构 metadata。旧文件只有 `songs` 或缺少数组时无需 migration 即可读取。
+`progress-v1.json` 是唯一练习事实文件，严格包含必填的 `songs`、`scoreMetadata`、`sessions` 三个数组。前者按 `song UUID + score revision digest` 区分小节事实版本；metadata 按 `song UUID + entry version token + score revision` 记录成功准备时的曲谱结构；session 按稳定 `song UUID` 保留跨 revision 历史。文件不存在表示全新空 store；非空文件缺少任一数组、字段非法或 JSON 损坏都返回 corruption，不保留旧 schema fallback。
 
 保存内容：
 
@@ -46,6 +46,7 @@ index 文件缺失、零字节或仅包含空白时视为空库，首次 mutatio
 - source-measure facts
 - 更新时间
 - 曲谱版本 token、revision、唯一 source measure 总数与准备时间
+- 原始 session identity、开始/结算时间、本地练习日、最后 checkpoint、window/active duration 与 termination
 
 不保存：
 
@@ -55,11 +56,13 @@ index 文件缺失、零字节或仅包含空白时视为空库，首次 mutatio
 - AI 文案或生成内容
 - 原始逐帧麦克风、MIDI 或手部数据
 
-repository 的 progress 与 metadata mutation 在 actor 内读取磁盘最新文档，只更新对应 concern 并保留另一数组；删除曲目同时删除两类记录。损坏或不受支持的数据返回明确错误、保留原文件并拒绝所有 mutation，不再隔离后按空文档覆盖。exact progress 重复记录使用共享的确定性 order 选择，避免数组顺序改变恢复结果。
+repository 的 progress、metadata 与 session mutation 在 actor 内读取磁盘最新文档，只更新对应 concern 并保留另外两类数组；删除曲目同时删除三类记录。临时 IO 失败与 corruption 使用不同 typed result；corruption 保留原文件并拒绝 mutation，只有用户确认后才把损坏文件备份并创建空 store，备份失败不得覆盖原文件。exact progress 重复记录使用共享的确定性 order 选择，避免数组顺序改变恢复结果。
 
 `PracticeLaunchViewModel` 仅在 `PreparedPractice` 通过 steps/spans 校验且 applicator 确认安装成功后，写入 entry token、score revision、唯一 source measure 数量与准备时间。repeat occurrence 使用同一个 source identity，只计一次。ready publication 不等待 metadata 文件 IO；写入失败保留已安装 session 并记录不含路径/measure 列表的 typed warning。已经成功 apply 形成的 immutable metadata commit 不因随后切歌或 scene inactive 而取消。
 
 `PracticeProgressCoordinator` 串行化 checkpoint，并用 song identity、round generation 与 progress generation 防止旧任务覆盖新状态。back、background、session replacement 和 completion 必须等待 flush。
+
+`PracticeSessionRecorder` 是 composition root 持有的 actor。首次进入 guiding 时创建同一 window visit 唯一 session；scene、guiding、设置、round 和退出边界立即 checkpoint，连续 active guiding 最多每 30 秒一次。周期写失败保留最新待写记录供下一边界重试。正常返回等待 final flush；读取遗留 `.open` session 时 repository 只结算到 `lastPersistedAt` 并标记 `recoveredAfterInterruption`。
 
 
 ## 诊断日志

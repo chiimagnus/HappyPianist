@@ -34,12 +34,24 @@
 
 | 检查 | 状态 | 证据 |
 | --- | --- | --- |
-| never/current/needs rebuild/unavailable 事实边界与 A→B→A 乱序 | Pass | snapshot builder、受控 actor history 与 metadata failure 回归测试实际运行。 |
+| invitation/overview(metadata 缺失)/unavailable 事实边界与 A→B→A 乱序 | Pass | presentation builder、受控 actor history 与 metadata failure 回归测试实际运行。 |
 | Library/Ornament 不触达 score、prepare、session 或配置 controller | Pass | CodeGraph 调用图、score access spy 与静态符号 gate。 |
 | visionOS Simulator 完整测试与 App build | Pass | Apple Vision Pro visionOS 26.4 的本轮 `xcodebuild test` / `build` 结果。 |
 | Ornament 各状态与 min/ideal/max 窗口 | Not Run | 当前环境没有可见的 Simulator GUI/应用窗口。 |
 | 最大 Dynamic Type、VoiceOver | Not Run | 需要可交互 Simulator GUI 或真机。 |
 | Reduce Motion、Differentiate Without Color | Not Run | 自动化构建覆盖相应 SwiftUI 分支；人工呈现需要可交互 Simulator GUI 或真机。 |
+
+## 2026-07-15 P3 最终 Ornament 平台验收记录
+
+| 检查 | 状态 | 证据 |
+| --- | --- | --- |
+| visionOS Simulator 完整测试与 App build | Pass | Apple Vision Pro visionOS 26.4（device `86364D5F-BCCF-48C5-AF79-8154E5689FA3`）实际运行 `xcodebuild test` 与 `build`，两者 exit 0。 |
+| invitation、metadata 缺失、IO unavailable、corruption | Pass | 向 Simulator Documents 注入严格 schema 或明确故障后，以 production Library root 实际渲染并截取 device framebuffer；IO 仅有重试，corruption 同时显示备份重置。 |
+| overview、resume、focus、streak | Fail | production overview 均已渲染，但普通字号横排摘要中的最近练习日期被单行截断；转入 P3 audit 修复。 |
+| Practice preparation 与 ready 界面 | Pass | 同一测试曲目经真实 resolver/preparation 后在 Simulator 显示五线谱、琴键、bottom ornament 与 `0 / 8` 进度。 |
+| 超大 Dynamic Type 与增强对比度 | Pass | `accessibility-extra-extra-extra-large` + Increase Contrast 下摘要退化为纵排，日期、时长、次数、状态、进度与符号仍可辨识，剩余区域可由单一 ScrollView 访问。 |
+| 切换曲目与 corruption 二次确认点击 | Not Run | 当前 Xcode 安装没有可交互的独立 Simulator GUI；generation/capability/action 由自动化测试覆盖，但不冒充手工点击通过。 |
+| Reduce Motion 动态切换与 VoiceOver 阅读顺序 | Not Run | 源码审计和 accessibility label/value 已完成；仍需可交互 Simulator GUI 或真机确认动态效果与实际朗读顺序。 |
 
 ## 1. 构建与自动化测试
 
@@ -94,7 +106,8 @@ xcodebuild test \
 - [ ] 曲名、作曲家与当前唱片一致
 - [ ] 唯一“开始练习”按钮始终对应当前曲目
 - [ ] 再次打开时仍选中上次曲目
-- [ ] trailing Ornament 随当前曲目显示 never/current/needs rebuild/unavailable 对应状态
+- [ ] trailing Ornament 随当前曲目显示 loading/invitation/overview/unavailable 对应状态；metadata 缺失仍保留历史 session 摘要
+- [ ] IO unavailable 只提供重试；confirmed corruption 才提供二次确认的备份重置
 - [ ] Ornament 只有事实与说明，没有配置控件或第二个练习按钮
 - [ ] 从练习窗口返回后，同一曲目的最新 metadata/facts 会刷新
 

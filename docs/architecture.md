@@ -51,6 +51,9 @@ flowchart TD
   LIBRARY --> IMPORT[SongLibraryImportTransactionService]
   IMPORT --> INDEX
   LIBRARY --> FILES[SongFileStore]
+  LIBRARY --> HISTORY[FilePracticeProgressRepository actor]
+  HISTORY --> PRESENTATION[SongPracticeLibrarySnapshotBuilder]
+  PRESENTATION --> ORNAMENT[Library Practice Ornament]
   LIBRARY --> DIAG[DiagnosticsReporting]
 
   LAUNCH --> RESOLVER[SongLibraryEntryResolver]
@@ -67,6 +70,9 @@ flowchart TD
   PREP --> GUIDES[PianoHighlightGuideBuilderService]
 
   ARGUIDE --> SESSION[PracticeSessionViewModel]
+  LAUNCH --> RECORDER[PracticeSessionRecorder actor]
+  SESSION --> RECORDER
+  RECORDER --> HISTORY
   SESSION --> INPUT[Audio / MIDI / Virtual Input]
   SESSION --> PLAYBACK[Playback Services]
   SESSION --> PROGRESS[PracticeProgressCoordinator]
@@ -94,12 +100,13 @@ flowchart TD
 | 边界 | 核心类型 | 说明 |
 | --- | --- | --- |
 | 曲库 | `SongLibraryEntry`、`SongLibraryIndex` | bundled 与用户导入曲目的统一索引；entry version token 标识文件版本。 |
-| 曲库练习事实 | `SongPracticeLibrarySnapshot`、`LibraryPracticeProgressOrnamentView` | 由 history 纯派生并在 trailing Ornament 只读展示，不持久化 UI summary。 |
+| 曲库练习展示 | `SongPracticeLibraryPresentationState`、`LibraryPracticeProgressOrnamentView` | 从单曲 history 纯派生四态最终 presentation，并在 trailing Ornament 只读展示；不持久化 UI summary。 |
 | 曲谱准备 | `PreparedPractice`、`PracticePreparationService` | MusicXML 到 steps、measure spans、timelines、guide 与 notation 输入。 |
 | 练习配置 | `PracticeRoundConfigurationController` | pending 与 active round configuration。 |
 | 范围 | `PracticeMeasureIndex`、`PracticeActiveRange` | 小节、step、回放、谱面和完成边界的统一投影。 |
 | 判定 | `StepAttemptMatchResult`、matcher/accumulator | 输入证据转换为 typed attempt outcome。 |
-| 进度 | `SongPracticeProgress`、`SongScorePracticeMetadata`、`PracticeProgressCoordinator` | 同一 JSON 内的小节级事实、曲谱结构 metadata、恢复点与 generation-safe 保存。 |
+| 进度与会话 | `SongPracticeProgress`、`SongScorePracticeMetadata`、`PracticeSessionRecord` | 同一严格 JSON schema 内的小节事实、曲谱 metadata、恢复点与原始会话事实。 |
+| 会话记录 | `PracticeSessionRecorder` | composition root 持有的 window-visit actor；跨 `PracticeSessionViewModel` replacement 计时并 checkpoint。 |
 | 反馈 | feedback policies、view models | 从 durable facts 派生 cue、summary、map 和空间效果。 |
 | 录制 | `RecordingTakeRecorder`、`RecordingTakeStore` | 练习中的 MIDI 风格事件记录、回放与导出。 |
 | AI | `ImprovBackendRegistry`、`AIPerformanceService` | 严格使用用户选择的本地或网络后端。 |
@@ -123,9 +130,11 @@ flowchart TD
 - AI 失败不改变练习进度，也不自动切换后端。
 - 曲谱准备失败的界面说明、技术详情、系统日志和导出日志必须来自同一个 typed failure。
 - 曲库 selection 只更新内存并异步持久化；不得触发 resolver、曲谱准备或 ARGuide。只有练习窗口激活 registered request 后才执行这些副作用。
-- trailing Ornament 只能消费 snapshot state；不得持有 launch owner、配置 controller、score service 或第二个练习入口。
+- trailing Ornament 只能消费 `loading`、`invitation`、`overview`、`unavailable` 最终 presentation；不得持有 launch owner、配置 controller、score service、MusicXML parser 或第二个练习入口。
+- `PracticeSessionRecorder` 由 `LiveAppGraph` 按 Practice window visit 共享；首次真实进入 guiding 才创建会话，同一窗口的多轮练习或 ViewModel replacement 不得拆分会话。
+- 会话 active duration 只累计 scene active、guiding 且设置未覆盖的单调时钟增量；生命周期边界立即 checkpoint，连续 guiding 最多每 30 秒 checkpoint。
 - 同 revision 的无效 passage/resume 必须回退到当前曲谱的整首配置并立即 checkpoint；小节事实继续保留。
-- progress repository 的 facts/metadata mutation 必须保留另一 concern；损坏 JSON fail closed，exact duplicate 使用共享确定性 order，调用方不得整份覆盖。
+- progress repository 的 progress、metadata、session mutation 必须保留另外两类 concern；三数组 schema 缺字段或损坏时 fail closed，exact duplicate 使用共享确定性 order，调用方不得整份覆盖。
 - 诊断文件只接收低频且明确可导出的事件，不保存绝对路径或原始演奏数据。
 
 ## 高风险修改区
