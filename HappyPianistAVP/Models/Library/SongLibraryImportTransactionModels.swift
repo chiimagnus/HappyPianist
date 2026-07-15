@@ -201,7 +201,7 @@ enum SongLibraryImportProcessResult: Equatable, Sendable {
 
 enum SongLibraryImportState: Equatable, Sendable {
     case idle
-    case staging(index: Int, count: Int)
+    case staging(count: Int)
     case processing(operationID: UUID, index: Int, count: Int)
     case awaitingConfirmation(SongLibraryPendingImport, index: Int, count: Int)
     case itemFailure(SongLibraryImportItemFailure, index: Int, count: Int)

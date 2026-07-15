@@ -431,8 +431,8 @@ private struct LibraryImportStatusView: View {
 
   private var statusText: String {
     switch state {
-    case let .staging(index, count):
-      "正在暂存曲谱 \(min(index + 1, count))/\(count)…"
+    case let .staging(count):
+      "正在暂存 \(count) 项曲谱…"
     case let .processing(_, index, count):
       "正在导入第 \(index)/\(count) 项…"
     case let .awaitingConfirmation(pending, index, count):
