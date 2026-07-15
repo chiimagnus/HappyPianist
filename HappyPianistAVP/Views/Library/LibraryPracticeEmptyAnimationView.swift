@@ -7,8 +7,8 @@ struct LibraryPracticeEmptyAnimationView: View {
     ZStack {
       RadialGradient(
         colors: [
-          LibraryDesignTokens.practiceAccent.opacity(0.24),
-          LibraryDesignTokens.practiceAccent.opacity(0.07),
+          Color.accentColor.opacity(0.18),
+          Color.accentColor.opacity(0.04),
           .clear,
         ],
         center: .center,
@@ -71,8 +71,8 @@ private struct LibraryPracticePianoKeyboardView: View {
         .fill(
           LinearGradient(
             colors: [
-              LibraryDesignTokens.practiceKeyboardDeep,
-              LibraryDesignTokens.practiceKeyboardDark,
+              Color.black.opacity(0.96),
+              Color.black.opacity(0.78),
             ],
             startPoint: .top,
             endPoint: .bottom
@@ -85,8 +85,8 @@ private struct LibraryPracticePianoKeyboardView: View {
         .fill(
           LinearGradient(
             colors: [
-              LibraryDesignTokens.practiceKeyboardTop,
-              LibraryDesignTokens.practiceKeyboardDark,
+              Color.black.opacity(0.76),
+              Color.black.opacity(0.92),
             ],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
@@ -110,7 +110,7 @@ private struct LibraryPracticePianoKeyboardView: View {
         RoundedRectangle(cornerRadius: 4)
           .fill(
             LinearGradient(
-              colors: [.black.opacity(0.88), LibraryDesignTokens.practiceKeyboardDeep],
+              colors: [.black, .black.opacity(0.76)],
               startPoint: .top,
               endPoint: .bottom
             )
@@ -127,7 +127,7 @@ private struct LibraryPracticePianoKeyboardView: View {
       axis: (x: 1, y: 0, z: 0),
       perspective: 0.52
     )
-    .shadow(color: LibraryDesignTokens.practiceAccentDeep.opacity(0.22), radius: 22, y: 18)
+    .shadow(color: .black.opacity(0.22), radius: 22, y: 18)
   }
 }
 
@@ -141,8 +141,8 @@ private struct LibraryPracticeWhiteKey: View {
       .fill(
         LinearGradient(
           colors: [
-            LibraryDesignTokens.practiceIvoryHighlight,
-            LibraryDesignTokens.practiceIvory,
+            .white,
+            .white.opacity(0.80),
           ],
           startPoint: .top,
           endPoint: .bottom
@@ -151,7 +151,7 @@ private struct LibraryPracticeWhiteKey: View {
       .frame(width: 30, height: 92)
       .overlay {
         RoundedRectangle(cornerRadius: 6)
-          .strokeBorder(LibraryDesignTokens.practiceKeyboardDark.opacity(0.13), lineWidth: 1)
+          .strokeBorder(.black.opacity(0.16), lineWidth: 1)
       }
       .shadow(color: .black.opacity(0.08), radius: 2, y: 2)
       .phaseAnimator(reduceMotion ? [false] : [false, true, false]) { content, pressed in
@@ -177,14 +177,14 @@ private struct LibraryPracticeFloatingNote: View {
   var body: some View {
     Image(systemName: systemImage)
       .font(.system(.title2, design: .rounded))
-      .foregroundStyle(LibraryDesignTokens.practiceAccent)
+      .foregroundStyle(.tint)
       .frame(width: 48, height: 48)
       .background(.thinMaterial, in: .circle)
       .overlay {
         Circle()
           .strokeBorder(Color.primary.opacity(0.12), lineWidth: 1)
       }
-      .shadow(color: LibraryDesignTokens.practiceAccentDeep.opacity(0.11), radius: 10, y: 6)
+      .shadow(color: .black.opacity(0.10), radius: 10, y: 6)
       .offset(x: horizontalOffset, y: verticalOffset)
       .phaseAnimator(reduceMotion ? [false] : [false, true]) { content, raised in
         content

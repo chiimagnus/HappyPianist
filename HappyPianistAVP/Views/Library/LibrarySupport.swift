@@ -8,18 +8,6 @@ enum LibraryDesignTokens {
   static let accent = Color(red: 233 / 255, green: 195 / 255, blue: 122 / 255)
   static let accentForeground = Color(red: 58 / 255, green: 44 / 255, blue: 18 / 255)
 
-  static let practiceLine = Color.primary.opacity(0.14)
-  static let practiceAccent = Color(red: 240 / 255, green: 139 / 255, blue: 82 / 255)
-  static let practiceAccentDeep = Color(red: 151 / 255, green: 70 / 255, blue: 34 / 255)
-  static let practiceStable = Color(red: 111 / 255, green: 155 / 255, blue: 117 / 255)
-  static let practiceLearning = Color(red: 217 / 255, green: 162 / 255, blue: 92 / 255)
-  static let practiceUnpracticed = Color(red: 216 / 255, green: 208 / 255, blue: 201 / 255)
-  static let practiceKeyboardTop = Color(red: 58 / 255, green: 44 / 255, blue: 40 / 255)
-  static let practiceKeyboardDark = Color(red: 41 / 255, green: 30 / 255, blue: 27 / 255)
-  static let practiceKeyboardDeep = Color(red: 28 / 255, green: 21 / 255, blue: 19 / 255)
-  static let practiceIvoryHighlight = Color(red: 255 / 255, green: 253 / 255, blue: 248 / 255)
-  static let practiceIvory = Color(red: 234 / 255, green: 223 / 255, blue: 214 / 255)
-
   static let recordReferenceDiameter: CGFloat = 236
   static let recordDiameter: CGFloat = 304
   static let recordScale = recordDiameter / recordReferenceDiameter

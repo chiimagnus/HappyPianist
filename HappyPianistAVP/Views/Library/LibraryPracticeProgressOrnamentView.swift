@@ -45,7 +45,6 @@ private struct LibraryPracticeLoadingView: View {
     VStack(alignment: .leading, spacing: 18) {
       HStack(spacing: 12) {
         ProgressView()
-          .tint(LibraryDesignTokens.practiceAccent)
 
         VStack(alignment: .leading, spacing: 4) {
           Text("正在读取练习记录")
@@ -152,21 +151,14 @@ private struct LibraryPracticeInvitationView: View {
       )
       .font(.subheadline)
       .bold()
-      .foregroundStyle(LibraryDesignTokens.practiceAccentDeep)
+      .foregroundStyle(.primary)
       .padding(.horizontal, 16)
       .padding(.vertical, 14)
       .frame(maxWidth: .infinity)
-      .background {
-        RoundedRectangle(cornerRadius: 16)
-          .fill(.thinMaterial)
-          .overlay {
-            RoundedRectangle(cornerRadius: 16)
-              .fill(LibraryDesignTokens.practiceAccent.opacity(0.12))
-          }
-      }
+      .background(.thinMaterial, in: .rect(cornerRadius: 16))
       .overlay {
         RoundedRectangle(cornerRadius: 16)
-          .strokeBorder(LibraryDesignTokens.practiceAccent.opacity(0.28), lineWidth: 1)
+          .strokeBorder(Color.primary.opacity(0.14), lineWidth: 1)
       }
       .accessibilityElement(children: .combine)
 
@@ -190,12 +182,9 @@ private struct LibraryPracticeBenefitRow: View {
     HStack(spacing: 12) {
       Image(systemName: benefit.systemImage)
         .font(.body)
-        .foregroundStyle(LibraryDesignTokens.practiceAccentDeep)
+        .foregroundStyle(.tint)
         .frame(width: 32, height: 32)
-        .background(
-          LibraryDesignTokens.practiceAccent.opacity(0.13),
-          in: .rect(cornerRadius: 10)
-        )
+        .background(.thinMaterial, in: .rect(cornerRadius: 10))
         .accessibilityHidden(true)
 
       Text(benefit.title)
@@ -253,7 +242,7 @@ private struct LibraryPracticeOverviewHeader: View {
           .font(.caption2)
           .bold()
           .tracking(1.1)
-          .foregroundStyle(LibraryDesignTokens.practiceAccent)
+          .foregroundStyle(.secondary)
 
         Text("练习概览")
           .font(.title2)
@@ -264,34 +253,21 @@ private struct LibraryPracticeOverviewHeader: View {
       Spacer(minLength: 8)
 
       HStack(spacing: 7) {
-        Circle()
-          .fill(presentation.status.tint)
-          .frame(width: 8, height: 8)
-          .overlay {
-            Circle()
-              .strokeBorder(presentation.status.tint.opacity(0.18), lineWidth: 5)
-          }
+        Image(systemName: presentation.status.systemImage)
           .accessibilityHidden(true)
 
         Text(presentation.status.title)
           .font(.caption)
           .bold()
       }
-      .foregroundStyle(presentation.status.tint)
+      .foregroundStyle(.primary)
       .padding(.horizontal, 11)
       .padding(.vertical, 8)
-      .background {
-        Capsule()
-          .fill(.thinMaterial)
-          .overlay {
-            Capsule()
-              .fill(presentation.status.tint.opacity(0.10))
-          }
-      }
+      .background(.thinMaterial, in: .capsule)
       .overlay {
         if differentiateWithoutColor || colorSchemeContrast == .increased {
           Capsule()
-            .strokeBorder(presentation.status.tint.opacity(0.65), lineWidth: 1)
+            .strokeBorder(Color.primary.opacity(0.32), lineWidth: 1)
         }
       }
       .accessibilityElement(children: .combine)
@@ -396,13 +372,13 @@ private struct LibraryPracticeProgressLegend: View {
         title: "稳定",
         count: progress.stable,
         systemImage: "checkmark.circle.fill",
-        tint: LibraryDesignTokens.practiceStable
+        tint: Color.primary.opacity(0.82)
       )
       LibraryPracticeLegendItem(
         title: "学习中",
         count: progress.learning,
         systemImage: "clock.fill",
-        tint: LibraryDesignTokens.practiceLearning
+        tint: Color.primary.opacity(0.52)
       )
       LibraryPracticeLegendItem(
         title: "未练习",
@@ -422,21 +398,21 @@ private struct LibraryPracticeSegmentedProgressBar: View {
       let bounds = CGRect(origin: .zero, size: size)
       context.fill(
         roundedPath(in: bounds, radius: size.height / 2),
-        with: .color(LibraryDesignTokens.practiceUnpracticed)
+        with: .color(Color.primary.opacity(0.14))
       )
 
       let segments = [
         LibraryPracticeProgressSegment(
           count: progress.stable,
-          tint: LibraryDesignTokens.practiceStable
+          tint: Color.primary.opacity(0.82)
         ),
         LibraryPracticeProgressSegment(
           count: progress.learning,
-          tint: LibraryDesignTokens.practiceLearning
+          tint: Color.primary.opacity(0.52)
         ),
         LibraryPracticeProgressSegment(
           count: progress.unpracticed,
-          tint: LibraryDesignTokens.practiceUnpracticed
+          tint: Color.primary.opacity(0.18)
         ),
       ].filter { $0.count > 0 }
 
@@ -515,7 +491,7 @@ private struct LibraryPracticeProgressMessageSection: View {
         }
       } icon: {
         Image(systemName: "arrow.trianglehead.2.clockwise.rotate.90")
-          .foregroundStyle(LibraryDesignTokens.practiceAccent)
+          .foregroundStyle(.secondary)
       }
       .accessibilityElement(children: .combine)
     }
@@ -544,12 +520,9 @@ private struct LibraryPracticeResumeSection: View {
 
         Image(systemName: "arrow.up.forward")
           .font(.title3)
-          .foregroundStyle(LibraryDesignTokens.practiceAccentDeep)
+          .foregroundStyle(.primary)
           .frame(width: 46, height: 46)
-          .background(
-            LibraryDesignTokens.practiceAccent.opacity(0.13),
-            in: .rect(cornerRadius: 15)
-          )
+          .background(.thinMaterial, in: .rect(cornerRadius: 15))
           .accessibilityHidden(true)
       }
       .accessibilityElement(children: .combine)
@@ -591,12 +564,9 @@ private struct LibraryPracticeFocusRow: View {
       Text(item.rank.formatted())
         .font(.caption)
         .bold()
-        .foregroundStyle(LibraryDesignTokens.practiceAccentDeep)
+        .foregroundStyle(.primary)
         .frame(width: 28, height: 28)
-        .background(
-          LibraryDesignTokens.practiceAccent.opacity(0.14),
-          in: .rect(cornerRadius: 9)
-        )
+        .background(.thinMaterial, in: .rect(cornerRadius: 9))
         .accessibilityHidden(true)
 
       VStack(alignment: .leading, spacing: 3) {
@@ -620,11 +590,11 @@ private struct LibraryPracticeEncouragementSection: View {
   let encouragement: LibraryPracticeEncouragementPresentation
 
   var body: some View {
-    LibraryPracticeSectionCard(accented: true) {
+    LibraryPracticeSectionCard {
       ZStack(alignment: .topTrailing) {
         Image(systemName: "sparkles")
           .font(.largeTitle)
-          .foregroundStyle(LibraryDesignTokens.practiceAccent.opacity(0.42))
+          .foregroundStyle(.secondary)
           .accessibilityHidden(true)
 
         VStack(alignment: .leading, spacing: 7) {
@@ -646,16 +616,13 @@ private struct LibraryPracticeEncouragementSection: View {
 
 private struct LibraryPracticeSectionCard<Content: View>: View {
   let cornerRadius: CGFloat
-  let accented: Bool
   let content: Content
 
   init(
     cornerRadius: CGFloat = LibraryDesignTokens.practiceCardCornerRadius,
-    accented: Bool = false,
     @ViewBuilder content: () -> Content
   ) {
     self.cornerRadius = cornerRadius
-    self.accented = accented
     self.content = content()
   }
 
@@ -663,36 +630,23 @@ private struct LibraryPracticeSectionCard<Content: View>: View {
     content
       .padding(18)
       .frame(maxWidth: .infinity, alignment: .leading)
-      .libraryPracticeCardSurface(
-        cornerRadius: cornerRadius,
-        accented: accented
-      )
+      .libraryPracticeCardSurface(cornerRadius: cornerRadius)
   }
 }
 
 private struct LibraryPracticeCardSurfaceModifier: ViewModifier {
   let cornerRadius: CGFloat
-  let accented: Bool
 
   @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
   @Environment(\.colorSchemeContrast) private var colorSchemeContrast
 
   func body(content: Content) -> some View {
     content
-      .background {
-        RoundedRectangle(cornerRadius: cornerRadius)
-          .fill(.thinMaterial)
-          .overlay {
-            if accented {
-              RoundedRectangle(cornerRadius: cornerRadius)
-                .fill(LibraryDesignTokens.practiceAccent.opacity(0.10))
-            }
-          }
-      }
+      .background(.thinMaterial, in: .rect(cornerRadius: cornerRadius))
       .overlay {
         RoundedRectangle(cornerRadius: cornerRadius)
           .strokeBorder(
-            LibraryDesignTokens.practiceLine,
+            Color.primary.opacity(0.14),
             lineWidth: differentiateWithoutColor || colorSchemeContrast == .increased ? 1.5 : 1
           )
       }
@@ -700,16 +654,8 @@ private struct LibraryPracticeCardSurfaceModifier: ViewModifier {
 }
 
 extension View {
-  fileprivate func libraryPracticeCardSurface(
-    cornerRadius: CGFloat,
-    accented: Bool = false
-  ) -> some View {
-    modifier(
-      LibraryPracticeCardSurfaceModifier(
-        cornerRadius: cornerRadius,
-        accented: accented
-      )
-    )
+  fileprivate func libraryPracticeCardSurface(cornerRadius: CGFloat) -> some View {
+    modifier(LibraryPracticeCardSurfaceModifier(cornerRadius: cornerRadius))
   }
 }
 
@@ -732,14 +678,6 @@ private struct LibraryPracticeOverviewPresentation {
       case .learning: "clock.fill"
       case .stable: "checkmark.circle.fill"
       case .pending: "sparkles"
-      }
-    }
-
-    var tint: Color {
-      switch self {
-      case .learning: LibraryDesignTokens.practiceAccent
-      case .stable: .green
-      case .pending: .secondary
       }
     }
   }
