@@ -69,16 +69,17 @@ struct PracticeWindowRootView: View {
             beginReturn: launchViewModel.beginReturn,
             leave: {
                 await pendingLifecycle?.value
-                await arGuideViewModel.leavePracticeStep()
+                return await arGuideViewModel.leavePracticeStep()
             },
             closeImmersive: {
                 await closeImmersivePresentationIfNeeded()
             },
             recoverImmersive: {},
+            abortReturn: launchViewModel.abortReturn,
             finishReturn: launchViewModel.finishReturn,
             navigate: {
-            windowState.beginTransition(from: .practice, to: .library)
-            openWindow(id: WindowID.library)
+                windowState.beginTransition(from: .practice, to: .library)
+                openWindow(id: WindowID.library)
             }
         )
     }
@@ -160,19 +161,30 @@ final class PracticeWindowReturnCoordinator {
 
     func begin(
         beginReturn: @escaping @MainActor () -> UUID,
-        leave: @escaping @MainActor () async -> Void,
+        leave: @escaping @MainActor () async -> PracticeProgressSaveStatus,
         closeImmersive: @escaping @MainActor () async -> Void,
         recoverImmersive: @escaping @MainActor () async -> Void,
-        finishReturn: @escaping @MainActor (UUID) async -> Void,
+        abortReturn: @escaping @MainActor (UUID) -> Void,
+        finishReturn: @escaping @MainActor (UUID) async -> PracticeProgressSaveStatus,
         navigate: @escaping @MainActor () -> Void
     ) {
         guard operationTask == nil else { return }
         let operationID = beginReturn()
-        operationTask = Task { @MainActor in
-            await leave()
+        operationTask = Task { @MainActor [weak self] in
+            let leaveStatus = await leave()
+            if case .failed = leaveStatus {
+                abortReturn(operationID)
+                self?.operationTask = nil
+                return
+            }
             await closeImmersive()
             await recoverImmersive()
-            await finishReturn(operationID)
+            let finishStatus = await finishReturn(operationID)
+            if case .failed = finishStatus {
+                abortReturn(operationID)
+                self?.operationTask = nil
+                return
+            }
             navigate()
         }
     }

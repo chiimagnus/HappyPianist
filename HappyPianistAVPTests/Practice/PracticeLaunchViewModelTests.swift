@@ -31,6 +31,26 @@ func practiceLaunchRegistersWithoutPreparingThenActivatesExactlyOnce() async {
 
 @MainActor
 @Test
+func practiceLaunchStopsBeforePreparationWhenPreviousProgressCannotBeSaved() async {
+    let fixture = makePracticeLaunchFixture()
+    fixture.applicator.clearStatus = .failed(message: "disk full")
+    fixture.owner.request(songID: fixture.songA)
+
+    await fixture.owner.activateCurrentRequest()
+
+    guard case let .failure(failure) = fixture.owner.state else {
+        Issue.record("Expected a typed progress-save failure")
+        return
+    }
+    #expect(failure.code == .practiceProgressSaveFailed)
+    #expect(failure.diagnosticEvent.category == .persistence)
+    #expect(await fixture.preparation.requestedSongIDs().isEmpty)
+    #expect(fixture.applicator.appliedSongIDs.isEmpty)
+    #expect(await fixture.reporter.events.last == failure.diagnosticEvent)
+}
+
+@MainActor
+@Test
 func practiceLaunchPassesExactRestorePolicyBeforeSessionApply() async {
     let songID = fixtureSongA
     let fixture = makePracticeLaunchFixture(
@@ -226,6 +246,41 @@ func practiceLaunchReturnFinishIsIdempotentAndRejectsStaleOperation() async {
     #expect(fixture.owner.requestedSongID == nil)
     #expect(fixture.owner.activationIdentity == nil)
     #expect(fixture.applicator.clearCount == 1)
+}
+
+@MainActor
+@Test
+func failedPracticeReturnRestoresTheReadyRequestForRetry() async {
+    let fixture = makePracticeLaunchFixture()
+    fixture.owner.request(songID: fixture.songA)
+    await fixture.owner.activateCurrentRequest()
+    let readyState = fixture.owner.state
+    fixture.applicator.clearStatus = .failed(message: "disk full")
+
+    let operationID = fixture.owner.beginReturn()
+    let status = await fixture.owner.finishReturn(operationID: operationID)
+
+    guard case .failed = status else {
+        Issue.record("Expected progress-save failure")
+        return
+    }
+    #expect(fixture.owner.state == readyState)
+    #expect(fixture.owner.requestedSongID == fixture.songA)
+    #expect(fixture.owner.activationIdentity?.songID == fixture.songA)
+}
+
+@MainActor
+@Test
+func abortingPracticeReturnRestoresARequestedLaunch() {
+    let fixture = makePracticeLaunchFixture()
+    fixture.owner.request(songID: fixture.songA)
+
+    let operationID = fixture.owner.beginReturn()
+    fixture.owner.abortReturn(operationID: operationID)
+
+    #expect(fixture.owner.state == .requested(songID: fixture.songA))
+    #expect(fixture.owner.requestedSongID == fixture.songA)
+    #expect(fixture.owner.activationIdentity?.songID == fixture.songA)
 }
 
 @MainActor
@@ -979,9 +1034,14 @@ private final class PracticeLaunchRecordingApplicator: PracticeLaunchApplying {
     private(set) var suspendCount = 0
     private(set) var leaveCount = 0
     let applyOutcome: PracticeLaunchApplyOutcome
+    var clearStatus: PracticeProgressSaveStatus
 
-    init(applyOutcome: PracticeLaunchApplyOutcome) {
+    init(
+        applyOutcome: PracticeLaunchApplyOutcome,
+        clearStatus: PracticeProgressSaveStatus = .saved
+    ) {
         self.applyOutcome = applyOutcome
+        self.clearStatus = clearStatus
     }
 
     func applyPreparedPracticeForLaunch(
@@ -995,9 +1055,15 @@ private final class PracticeLaunchRecordingApplicator: PracticeLaunchApplying {
         return applyOutcome
     }
 
-    func clearPreparedPracticeForLaunch() async { clearCount += 1 }
+    func clearPreparedPracticeForLaunch() async -> PracticeProgressSaveStatus {
+        clearCount += 1
+        return clearStatus
+    }
     func suspendPracticeAndFlushProgress() async { suspendCount += 1 }
-    func leavePracticeStep() async { leaveCount += 1 }
+    func leavePracticeStep() async -> PracticeProgressSaveStatus {
+        leaveCount += 1
+        return .saved
+    }
 }
 
 @MainActor
@@ -1030,9 +1096,9 @@ private final class ControlledPracticeLaunchApplicator: PracticeLaunchApplying {
         applyContinuation = nil
     }
 
-    func clearPreparedPracticeForLaunch() async {}
+    func clearPreparedPracticeForLaunch() async -> PracticeProgressSaveStatus { .saved }
     func suspendPracticeAndFlushProgress() async { suspendCount += 1 }
-    func leavePracticeStep() async {}
+    func leavePracticeStep() async -> PracticeProgressSaveStatus { .saved }
 }
 
 @MainActor
@@ -1057,9 +1123,9 @@ private final class AppliedThenSuspendedPracticeLaunchApplicator: PracticeLaunch
         continuation = nil
     }
 
-    func clearPreparedPracticeForLaunch() async {}
+    func clearPreparedPracticeForLaunch() async -> PracticeProgressSaveStatus { .saved }
     func suspendPracticeAndFlushProgress() async {}
-    func leavePracticeStep() async {}
+    func leavePracticeStep() async -> PracticeProgressSaveStatus { .saved }
 }
 
 @MainActor
@@ -1076,9 +1142,9 @@ private final class RejectOncePracticeLaunchApplicator: PracticeLaunchApplying {
         return .applied
     }
 
-    func clearPreparedPracticeForLaunch() async {}
+    func clearPreparedPracticeForLaunch() async -> PracticeProgressSaveStatus { .saved }
     func suspendPracticeAndFlushProgress() async {}
-    func leavePracticeStep() async {}
+    func leavePracticeStep() async -> PracticeProgressSaveStatus { .saved }
 }
 
 private func makePracticeLaunchPreparedPractice(

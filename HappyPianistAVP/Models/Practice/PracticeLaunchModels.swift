@@ -103,7 +103,7 @@ struct PracticeLaunchFailure: Equatable, Identifiable, Sendable {
             timestamp: occurredAt,
             severity: .error,
             code: code,
-            category: .practicePreparation,
+            category: code == .practiceProgressSaveFailed ? .persistence : .practicePreparation,
             stage: stage,
             summary: title,
             reason: reason,
@@ -111,6 +111,18 @@ struct PracticeLaunchFailure: Equatable, Identifiable, Sendable {
             file: file,
             sourceLocation: sourceLocation,
             persistence: .exportable
+        )
+    }
+
+    static func progressSaveFailed(entryID: UUID) -> PracticeLaunchFailure {
+        PracticeLaunchFailure(
+            entryID: entryID,
+            code: .practiceProgressSaveFailed,
+            title: "无法保存上一首曲目的进度",
+            explanation: "当前练习仍被保留。请检查存储空间后重试。",
+            stage: "practiceProgressHandoff",
+            file: nil,
+            reason: "Previous practice progress could not be saved before the next launch."
         )
     }
 

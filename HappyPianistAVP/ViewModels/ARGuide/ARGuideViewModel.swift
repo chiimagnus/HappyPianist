@@ -36,7 +36,7 @@ final class ARGuideViewModel: PracticeLaunchApplying {
 
     var practiceSessionViewModel: PracticeSessionViewModel
     var latestPreparedPractice: PreparedPractice?
-    var practiceSessionReplacementErrorMessage: String?
+    var practiceProgressSaveErrorMessage: String?
     @ObservationIgnored private var latestPracticeRestorePolicy: PracticeLaunchRestorePolicy?
 
     @ObservationIgnored private var handTrackingConsumerTask: Task<Void, Never>?
@@ -249,24 +249,43 @@ final class ARGuideViewModel: PracticeLaunchApplying {
         preparedPracticeApplicationID = nil
     }
 
-    func clearPreparedPracticeForLaunch() async {
+    @discardableResult
+    func clearPreparedPracticeForLaunch() async -> PracticeProgressSaveStatus {
         preparedPracticeApplicationID = nil
-        latestPreparedPractice = nil
-        latestPracticeRestorePolicy = nil
-        practiceSetupState.clearSongAndSteps()
         invalidatePracticeFeedbackPresentation()
 
+        var finalStatus: PracticeProgressSaveStatus = .idle
         var session = practiceSessionViewModel
         while true {
-            await session.suspendAndFlushProgress()
-            await session.finishProgressSession()
+            let flushStatus = await session.suspendAndFlushProgress()
+            if case .failed = flushStatus {
+                session.resumeAfterSuspension()
+                publishPracticeProgressSaveFailure()
+                return flushStatus
+            }
+            let finishStatus = await session.finishProgressSession()
+            if case .failed = finishStatus {
+                session.resumeAfterSuspension()
+                publishPracticeProgressSaveFailure()
+                return finishStatus
+            }
+            finalStatus = finishStatus == .idle ? flushStatus : finishStatus
             session.clearPreparedSong()
             guard practiceSessionViewModel !== session else { break }
             session = practiceSessionViewModel
         }
+
+        latestPreparedPractice = nil
+        latestPracticeRestorePolicy = nil
+        practiceSetupState.clearSongAndSteps()
         if practiceSessionViewModel.hasShutdown {
-            await replacePracticeSessionViewModel()
+            let replacementResult = await replacePracticeSessionViewModel()
+            if replacementResult == .progressSaveFailed {
+                return .failed(message: "Practice progress could not be saved.")
+            }
         }
+        practiceProgressSaveErrorMessage = nil
+        return finalStatus
     }
 
     @discardableResult
@@ -275,10 +294,10 @@ final class ARGuideViewModel: PracticeLaunchApplying {
             practiceSessionViewModel.sessionProgress != nil
         let saveStatus = await practiceSessionViewModel.flushAndShutdown()
         if case .failed = saveStatus {
-            practiceSessionReplacementErrorMessage = "练习进度尚未保存，设置没有应用。请检查存储空间后重试。"
+            practiceProgressSaveErrorMessage = "练习进度尚未保存，设置没有应用。请检查存储空间后重试。"
             return .progressSaveFailed
         }
-        practiceSessionReplacementErrorMessage = nil
+        practiceProgressSaveErrorMessage = nil
         let next = makePracticeSessionViewModel(practiceSetupState.selectedPianoModeID)
         practiceSessionViewModel = next
         placementViewModel.updatePracticeSession(next)
@@ -318,8 +337,12 @@ final class ARGuideViewModel: PracticeLaunchApplying {
         return .replaced
     }
 
-    func clearPracticeSessionReplacementError() {
-        practiceSessionReplacementErrorMessage = nil
+    func clearPracticeProgressSaveError() {
+        practiceProgressSaveErrorMessage = nil
+    }
+
+    private func publishPracticeProgressSaveFailure() {
+        practiceProgressSaveErrorMessage = "练习进度尚未保存。请检查存储空间后重试。"
     }
 
     var calibration: PianoCalibration? {
@@ -605,14 +628,21 @@ final class ARGuideViewModel: PracticeLaunchApplying {
         practiceSessionViewModel.resumeAfterSuspension()
     }
 
-    func leavePracticeStep() async {
-        await practiceSessionViewModel.flushAndShutdown()
+    @discardableResult
+    func leavePracticeStep() async -> PracticeProgressSaveStatus {
+        let saveStatus = await practiceSessionViewModel.flushAndShutdown()
+        if case .failed = saveStatus {
+            publishPracticeProgressSaveFailure()
+            return saveStatus
+        }
+        practiceProgressSaveErrorMessage = nil
         recordingViewModel.stop()
         takePlaybackViewModel.stop()
         setPracticeAutoplayEnabled(false)
         hideVirtualPiano()
         setPracticeVirtualPerformerEnabled(false)
         resetPracticeLocalizationState()
+        return saveStatus
     }
 
     var recordingElapsedText: String {

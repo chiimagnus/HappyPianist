@@ -8,9 +8,15 @@ protocol PracticeLaunchApplying: AnyObject, Sendable {
         restorePolicy: PracticeLaunchRestorePolicy,
         isCurrent: @escaping @MainActor () -> Bool
     ) async -> PracticeLaunchApplyOutcome?
-    func clearPreparedPracticeForLaunch() async
+    func clearPreparedPracticeForLaunch() async -> PracticeProgressSaveStatus
     func suspendPracticeAndFlushProgress() async
-    func leavePracticeStep() async
+    func leavePracticeStep() async -> PracticeProgressSaveStatus
+}
+
+private struct PracticeLaunchReturnContext {
+    let operationID: UUID
+    let requestedSongID: UUID?
+    let state: PracticeLaunchState?
 }
 
 @MainActor
@@ -27,7 +33,7 @@ final class PracticeLaunchViewModel {
     @ObservationIgnored private var activationTask: Task<Void, Never>?
     @ObservationIgnored private var metadataWriteTasks: [UUID: Task<Void, Never>] = [:]
     @ObservationIgnored private var generation = 0
-    @ObservationIgnored private var returnOperationID: UUID?
+    @ObservationIgnored private var returnContext: PracticeLaunchReturnContext?
 
     private(set) var state: PracticeLaunchState?
     private(set) var requestedSongID: UUID?
@@ -101,28 +107,63 @@ final class PracticeLaunchViewModel {
     }
 
     func beginReturn() -> UUID {
-        if let returnOperationID { return returnOperationID }
+        if let returnContext { return returnContext.operationID }
         activationTask?.cancel()
         activationTask = nil
         generation += 1
+        let operationID = UUID()
+        returnContext = PracticeLaunchReturnContext(
+            operationID: operationID,
+            requestedSongID: requestedSongID,
+            state: state
+        )
         requestedSongID = nil
         activationIdentity = nil
-        let operationID = UUID()
-        returnOperationID = operationID
         return operationID
     }
 
-    func finishReturn(operationID: UUID) async {
-        guard returnOperationID == operationID else { return }
-        returnOperationID = nil
-        await applicator.clearPreparedPracticeForLaunch()
+    func abortReturn(operationID: UUID) {
+        guard let context = returnContext, context.operationID == operationID else { return }
+        returnContext = nil
+        generation += 1
+        requestedSongID = context.requestedSongID
+        guard let songID = context.requestedSongID else {
+            state = nil
+            activationIdentity = nil
+            return
+        }
+        switch context.state {
+        case .requested, .loading, nil:
+            state = .requested(songID: songID)
+        case .failure, .ready:
+            state = context.state
+        }
+        activationIdentity = PracticeLaunchActivationIdentity(
+            songID: songID,
+            revision: generation
+        )
+    }
+
+    @discardableResult
+    func finishReturn(operationID: UUID) async -> PracticeProgressSaveStatus {
+        guard returnContext?.operationID == operationID else { return .idle }
+        let status = await applicator.clearPreparedPracticeForLaunch()
+        guard returnContext?.operationID == operationID else {
+            return .failed(message: "Return operation was superseded.")
+        }
+        if case .failed = status {
+            abortReturn(operationID: operationID)
+            return status
+        }
+        returnContext = nil
+        return status
     }
 
     private func registerRequest(songID: UUID) {
         activationTask?.cancel()
         activationTask = nil
         generation += 1
-        returnOperationID = nil
+        returnContext = nil
         requestedSongID = songID
         state = .requested(songID: songID)
         activationIdentity = PracticeLaunchActivationIdentity(
@@ -134,8 +175,14 @@ final class PracticeLaunchViewModel {
     private func performActivation(songID: UUID, generation: Int) async {
         guard isCurrent(songID: songID, generation: generation) else { return }
         state = .loading(songID: songID)
-        await applicator.clearPreparedPracticeForLaunch()
+        let clearStatus = await applicator.clearPreparedPracticeForLaunch()
         guard isCurrent(songID: songID, generation: generation) else { return }
+        if case .failed = clearStatus {
+            let failure = PracticeLaunchFailure.progressSaveFailed(entryID: songID)
+            state = .failure(failure)
+            _ = await diagnosticsReporter.record(failure.diagnosticEvent)
+            return
+        }
 
         var fileReference: DiagnosticFileReference?
         do {

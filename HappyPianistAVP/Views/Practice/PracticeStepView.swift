@@ -222,15 +222,15 @@ struct PracticeStepView: View {
         } message: {
             Text(session.autoplayErrorMessage ?? "")
         }
-        .onChange(of: viewModel.practiceSessionReplacementErrorMessage) {
-            isSessionReplacementErrorAlertPresented = viewModel.practiceSessionReplacementErrorMessage != nil
+        .onChange(of: viewModel.practiceProgressSaveErrorMessage) {
+            isSessionReplacementErrorAlertPresented = viewModel.practiceProgressSaveErrorMessage != nil
         }
-        .alert("无法应用设置", isPresented: $isSessionReplacementErrorAlertPresented) {
+        .alert("练习进度尚未保存", isPresented: $isSessionReplacementErrorAlertPresented) {
             Button("知道了") {
-                viewModel.clearPracticeSessionReplacementError()
+                viewModel.clearPracticeProgressSaveError()
             }
         } message: {
-            Text(viewModel.practiceSessionReplacementErrorMessage ?? "")
+            Text(viewModel.practiceProgressSaveErrorMessage ?? "")
         }
         .onDisappear {
             viewModel.practiceFeedbackViewModel.cancel()

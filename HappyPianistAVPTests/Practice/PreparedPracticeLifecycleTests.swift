@@ -135,7 +135,40 @@ func replacementStopsAndKeepsOldSessionWhenProgressCannotBeSaved() async {
     #expect(guide.practiceSessionViewModel === oldSession)
     #expect(oldSession.hasShutdown == false)
     #expect(oldSession.sessionProgress == oldProgress)
-    #expect(guide.practiceSessionReplacementErrorMessage != nil)
+    #expect(guide.practiceProgressSaveErrorMessage != nil)
+}
+
+@Test
+@MainActor
+func clearingPreparedPracticePreservesCurrentSessionWhenProgressCannotBeSaved() async {
+    let repository = FailingLifecycleProgressRepository()
+    let coordinator = PracticeProgressCoordinator(
+        repository: repository,
+        checkpointDelay: .seconds(60)
+    )
+    let appState = AppState()
+    let guide = makeLifecycleGuide(appState: appState, progressCoordinator: coordinator)
+    let prepared = makeLifecyclePreparedPractice()
+    #expect(await guide.applyPreparedPracticeForLaunch(
+        prepared,
+        restorePolicy: .freshDefaults,
+        isCurrent: { true }
+    ) == .applied)
+    guide.practiceSessionViewModel.startGuidingIfReady()
+    let session = guide.practiceSessionViewModel
+
+    let status = await guide.clearPreparedPracticeForLaunch()
+
+    guard case .failed = status else {
+        Issue.record("Expected progress-save failure")
+        return
+    }
+    #expect(guide.practiceSessionViewModel === session)
+    #expect(session.hasShutdown == false)
+    #expect(session.songIdentity == prepared.identity)
+    #expect(guide.latestPreparedPractice?.identity == prepared.identity)
+    #expect(appState.practiceSetupState.preparedPracticeIdentity == prepared.identity)
+    #expect(guide.practiceProgressSaveErrorMessage != nil)
 }
 
 @Test
