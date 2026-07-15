@@ -292,11 +292,14 @@ extension PracticeSessionViewModel {
         return finalStatus
     }
 
-    func finishProgressSession() async {
-        guard let progressCoordinator, let generation = self.progressGeneration else { return }
-        _ = await progressCoordinator.finish(generation: generation)
-        guard self.progressGeneration == generation else { return }
+    @discardableResult
+    func finishProgressSession() async -> PracticeProgressSaveStatus {
+        guard let progressCoordinator, let generation = self.progressGeneration else { return .idle }
+        let status = await progressCoordinator.finish(generation: generation)
+        guard self.progressGeneration == generation else { return status }
+        if case .failed = status { return status }
         self.progressGeneration = nil
+        return status
     }
 
     func recordAttemptOutcome(_ outcome: StepAttemptMatchResult, at timestamp: Date = .now) {

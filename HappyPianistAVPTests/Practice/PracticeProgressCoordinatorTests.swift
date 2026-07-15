@@ -144,6 +144,27 @@ func progressCoordinatorReportsStoreFailureWithoutCrashingSession() async throws
     }
 }
 
+@Test
+func progressCoordinatorFinishFailureRetainsPendingProgressForRetry() async throws {
+    let repository = InMemoryPracticeProgressRepository(upsertError: TestProgressError.writeFailed)
+    let coordinator = PracticeProgressCoordinator(repository: repository, checkpointDelay: .seconds(60))
+    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
+    let session = await coordinator.begin(identity: identity)
+    var progress = SongPracticeProgress(identity: identity, updatedAt: .now)
+    progress.measureFacts = [makeFacts(successes: 3)]
+    await coordinator.checkpoint(progress, generation: session.generation)
+
+    guard case .failed = await coordinator.finish(generation: session.generation) else {
+        Issue.record("Expected recoverable finish failure")
+        return
+    }
+    await repository.allowWrites()
+
+    #expect(await coordinator.finish(generation: session.generation) == .saved)
+    #expect(await repository.progress(for: identity)?.measureFacts.first?.successfulAttempts == 3)
+    #expect(await repository.upsertCount == 1)
+}
+
 private func makeFacts(successes: Int) -> MeasurePracticeFacts {
     MeasurePracticeFacts(
         sourceMeasureID: PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 0),
@@ -163,7 +184,7 @@ private struct FixedPracticeProgressClock: PracticeProgressClockProtocol {
 
 private actor InMemoryPracticeProgressRepository: PracticeProgressRepositoryProtocol {
     private var values: [PracticeSongIdentity: SongPracticeProgress]
-    private let upsertError: Error?
+    private var upsertError: Error?
     private(set) var upsertCount = 0
 
     init(
@@ -188,6 +209,10 @@ private actor InMemoryPracticeProgressRepository: PracticeProgressRepositoryProt
             progresses: values.values.filter { $0.identity.songID == songID },
             scoreMetadata: []
         ))
+    }
+
+    func allowWrites() {
+        upsertError = nil
     }
 
     func upsert(_ progress: SongPracticeProgress) throws {

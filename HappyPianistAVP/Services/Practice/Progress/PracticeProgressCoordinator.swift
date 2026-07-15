@@ -112,6 +112,7 @@ actor PracticeProgressCoordinator {
     func finish(generation: Int) async -> PracticeProgressSaveStatus {
         let status = await flush(generation: generation)
         guard generation == currentGeneration else { return status }
+        if case .failed = status { return status }
         delayedFlushTask?.cancel()
         delayedFlushTask = nil
         currentIdentity = nil
