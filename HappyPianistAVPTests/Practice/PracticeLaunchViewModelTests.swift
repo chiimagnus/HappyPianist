@@ -64,6 +64,38 @@ func successfulLaunchBindsPreparedRevisionToWindowRecorder() async throws {
 
 @MainActor
 @Test
+func failedRecorderFinalizeBlocksReturnUntilUserDiscardsPendingDelta() async throws {
+    let sessionRepository = PracticeLaunchSessionRepository()
+    let recorder = PracticeSessionRecorder(repository: sessionRepository)
+    let fixture = makePracticeLaunchFixture(sessionRecorder: recorder)
+    fixture.owner.request(songID: fixture.songA)
+    let visitID = try #require(fixture.owner.currentVisitID)
+    await fixture.owner.activateCurrentRequest()
+    await recorder.setGuiding(true)
+    let clearCountBeforeReturn = fixture.applicator.clearCount
+    await sessionRepository.failNextWrites(1)
+
+    let failedOperation = fixture.owner.beginReturn()
+    let failedStatus = await fixture.owner.finishReturn(operationID: failedOperation)
+
+    guard case .failed = failedStatus else {
+        Issue.record("Expected recorder finalization failure")
+        return
+    }
+    #expect(fixture.owner.requestedSongID == fixture.songA)
+    #expect(fixture.applicator.clearCount == clearCountBeforeReturn)
+    #expect(await sessionRepository.records().last?.termination == .open)
+
+    let discardOperation = fixture.owner.beginReturn()
+    #expect(await fixture.owner.discardUnsavedChangesAndFinishReturn(
+        operationID: discardOperation
+    ) == .saved)
+    #expect(await sessionRepository.abandonedIDs() == [visitID])
+    #expect(fixture.owner.currentVisitID == nil)
+}
+
+@MainActor
+@Test
 func practiceLaunchStopsBeforePreparationWhenPreviousProgressCannotBeSaved() async {
     let fixture = makePracticeLaunchFixture()
     fixture.applicator.clearStatus = .failed(message: "disk full")
@@ -126,7 +158,7 @@ func practiceLaunchPassesHistoricalPreferencesWithoutStructuralState() async {
 
 @MainActor
 @Test
-func corruptedPracticeHistoryWarnsAndLaunchesWithUnavailablePolicy() async {
+func corruptedPracticeHistoryBlocksPreparationAndRoundStart() async {
     let fixture = makePracticeLaunchFixture(
         historyResultOverride: .corrupted(description: "invalid progress document")
     )
@@ -134,16 +166,55 @@ func corruptedPracticeHistoryWarnsAndLaunchesWithUnavailablePolicy() async {
 
     await fixture.owner.activateCurrentRequest()
 
+    guard case let .failure(failure) = fixture.owner.state else {
+        Issue.record("Expected corruption to block launch")
+        return
+    }
+    #expect(failure.code == .practiceProgressStoreCorrupted)
+    #expect(failure.recoveryAction == .backupAndResetCorruptedProgress)
+    #expect(fixture.applicator.restorePolicies.isEmpty)
+    #expect(await fixture.preparation.requestedSongIDs().isEmpty)
+    #expect(await fixture.reporter.events.contains { $0.code == .practiceProgressStoreCorrupted })
+}
+
+@MainActor
+@Test
+func confirmedCorruptionRecoveryReReadsStoreBeforePreparing() async {
+    let fixture = makePracticeLaunchFixture(
+        historyResultOverride: .corrupted(description: "invalid progress document")
+    )
+    fixture.owner.request(songID: fixture.songA)
+    await fixture.owner.activateCurrentRequest()
+
+    await fixture.owner.recoverCorruptedProgress()
+
     #expect(fixture.owner.state == .ready(PracticeSongIdentity(
         songID: fixture.songA,
         scoreRevision: fixture.songA.uuidString
     )))
-    #expect(fixture.applicator.restorePolicies == [.historyUnavailable])
-    let warning = await fixture.reporter.events.first { $0.code == .practiceHistoryLoadFailed }
-    #expect(warning?.reason == "Practice progress repository state: corrupted.")
-    #expect(warning?.reason.contains("/Users/private") == false)
-    let resolution = await fixture.reporter.events.first { $0.code == .practiceHistoryResolution }
-    #expect(resolution?.reason == "historyCorrupted")
+    #expect(await fixture.preparation.requestedSongIDs() == [fixture.songA])
+    #expect(await fixture.metadataRepository.recoveryCount == 1)
+    #expect(await fixture.reporter.events.contains { $0.code == .practiceProgressStoreReset })
+}
+
+@MainActor
+@Test
+func unavailablePracticeStoreBlocksPreparationWithoutOfferingDestructiveReset() async {
+    let fixture = makePracticeLaunchFixture(
+        historyResultOverride: .unavailable(description: "NSCocoaErrorDomain#640")
+    )
+    fixture.owner.request(songID: fixture.songA)
+
+    await fixture.owner.activateCurrentRequest()
+
+    guard case let .failure(failure) = fixture.owner.state else {
+        Issue.record("Expected unavailable store to block launch")
+        return
+    }
+    #expect(failure.code == .practiceProgressStoreUnavailable)
+    #expect(failure.recoveryAction == .retry)
+    #expect(await fixture.preparation.requestedSongIDs().isEmpty)
+    #expect(fixture.applicator.appliedSongIDs.isEmpty)
 }
 
 @MainActor
@@ -162,8 +233,8 @@ func staleCorruptedHistoryDoesNotRecordWarningAfterRequestChanges() async {
     fixture.owner.request(songID: fixture.songB)
     await activation.value
 
-    let warnings = await fixture.reporter.events.filter { $0.code == .practiceHistoryLoadFailed }
-    #expect(warnings.isEmpty)
+    let failures = await fixture.reporter.events.filter { $0.code == .practiceProgressStoreCorrupted }
+    #expect(failures.isEmpty)
     #expect(fixture.owner.state == .requested(songID: fixture.songB))
 }
 
@@ -764,6 +835,7 @@ private func makePracticeLaunchFixture(
             applicator: applicator,
             diagnosticsReporter: reporter,
             progressRepository: metadataRepository,
+            progressRecovery: metadataRepository,
             sessionRecorder: sessionRecorder
         ),
         preparation: preparation,
@@ -777,15 +849,31 @@ private func makePracticeLaunchFixture(
 
 private actor PracticeLaunchSessionRepository: PracticeSessionRepositoryProtocol {
     private var storedRecords: [PracticeSessionRecord] = []
+    private var failuresRemaining = 0
+    private var abandonedSessionIDs: [UUID] = []
 
-    func upsert(_ session: PracticeSessionRecord) {
+    func upsert(_ session: PracticeSessionRecord) throws {
+        if failuresRemaining > 0 {
+            failuresRemaining -= 1
+            throw CocoaError(.fileWriteOutOfSpace)
+        }
         storedRecords.append(session)
     }
 
-    func abandonLiveSession(id _: UUID) {}
+    func abandonLiveSession(id: UUID) {
+        abandonedSessionIDs.append(id)
+    }
+
+    func failNextWrites(_ count: Int) {
+        failuresRemaining = max(0, count)
+    }
 
     func records() -> [PracticeSessionRecord] {
         storedRecords
+    }
+
+    func abandonedIDs() -> [UUID] {
+        abandonedSessionIDs
     }
 }
 
@@ -800,13 +888,17 @@ private struct PracticeLaunchFixture {
     let songB: UUID
 }
 
-private actor RecordingPracticeLaunchProgressRepository: PracticeProgressRepositoryProtocol {
+private actor RecordingPracticeLaunchProgressRepository:
+    PracticeProgressRepositoryProtocol,
+    PracticeProgressRecoveryProtocol
+{
     private(set) var metadata: [SongScorePracticeMetadata] = []
     private var progresses: [SongPracticeProgress]
     let metadataError: Error?
-    let historyResultOverride: PracticeSongHistoryLoadResult?
+    private var historyResultOverride: PracticeSongHistoryLoadResult?
     let historyDelay: Duration
     private var historyRequestCount = 0
+    private(set) var recoveryCount = 0
 
     init(
         metadataError: Error? = nil,
@@ -843,6 +935,13 @@ private actor RecordingPracticeLaunchProgressRepository: PracticeProgressReposit
         self.metadata.append(metadata)
     }
     func remove(songID _: UUID) {}
+
+    func recoverFromCorruption() -> PracticeProgressRecoveryResult {
+        guard case .corrupted = historyResultOverride else { return .notNeeded }
+        historyResultOverride = nil
+        recoveryCount += 1
+        return .recovered(backupURL: URL(fileURLWithPath: "/test-only-backup.json"))
+    }
 
     func waitForMetadataCount(_ count: Int) async {
         while metadata.count < count { await Task.yield() }

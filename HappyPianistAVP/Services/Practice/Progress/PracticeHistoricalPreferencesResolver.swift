@@ -3,9 +3,8 @@ import Foundation
 struct PracticeHistoricalPreferencesResolver: Sendable {
     nonisolated func resolve(
         identity: PracticeSongIdentity,
-        history result: PracticeSongHistoryLoadResult
-    ) async -> PracticeLaunchRestorePolicy {
-        guard case let .loaded(history) = result else { return .historyUnavailable }
+        history: PracticeSongHistory
+    ) -> PracticeLaunchRestorePolicy {
         let progresses = history.progresses.filter { $0.identity.songID == identity.songID }
         guard progresses.contains(where: { $0.identity == identity }) == false else {
             return .exactAvailable

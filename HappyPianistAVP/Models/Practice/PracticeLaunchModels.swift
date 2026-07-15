@@ -54,7 +54,11 @@ enum PracticeLaunchRestorePolicy: Equatable, Sendable {
     case exactAvailable
     case historicalPreferences(PracticeHistoricalPreferences)
     case freshDefaults
-    case historyUnavailable
+}
+
+enum PracticeLaunchRecoveryAction: Equatable, Sendable {
+    case retry
+    case backupAndResetCorruptedProgress
 }
 
 struct PracticeLaunchFailure: Equatable, Identifiable, Sendable {
@@ -68,6 +72,7 @@ struct PracticeLaunchFailure: Equatable, Identifiable, Sendable {
     let file: DiagnosticFileReference?
     let sourceLocation: DiagnosticSourceLocation?
     let reason: String
+    let recoveryAction: PracticeLaunchRecoveryAction
 
     init(
         id: UUID = UUID(),
@@ -79,7 +84,8 @@ struct PracticeLaunchFailure: Equatable, Identifiable, Sendable {
         stage: String,
         file: DiagnosticFileReference?,
         sourceLocation: DiagnosticSourceLocation? = nil,
-        reason: String
+        reason: String,
+        recoveryAction: PracticeLaunchRecoveryAction = .retry
     ) {
         self.id = id
         self.occurredAt = occurredAt
@@ -91,6 +97,7 @@ struct PracticeLaunchFailure: Equatable, Identifiable, Sendable {
         self.file = file
         self.sourceLocation = sourceLocation
         self.reason = reason
+        self.recoveryAction = recoveryAction
     }
 
     var technicalDetails: String {
@@ -98,12 +105,21 @@ struct PracticeLaunchFailure: Equatable, Identifiable, Sendable {
     }
 
     var diagnosticEvent: DiagnosticEvent {
-        DiagnosticEvent(
+        let category: DiagnosticCategory = switch code {
+        case .practiceProgressSaveFailed,
+             .practiceProgressStoreUnavailable,
+             .practiceProgressStoreCorrupted,
+             .practiceProgressStoreReset:
+            .persistence
+        default:
+            .practicePreparation
+        }
+        return DiagnosticEvent(
             id: id,
             timestamp: occurredAt,
             severity: .error,
             code: code,
-            category: code == .practiceProgressSaveFailed ? .persistence : .practicePreparation,
+            category: category,
             stage: stage,
             summary: title,
             reason: reason,
@@ -123,6 +139,40 @@ struct PracticeLaunchFailure: Equatable, Identifiable, Sendable {
             stage: "practiceProgressHandoff",
             file: nil,
             reason: "Previous practice progress could not be saved before the next launch."
+        )
+    }
+
+    static func progressStoreUnavailable(
+        entryID: UUID,
+        reason: String
+    ) -> PracticeLaunchFailure {
+        PracticeLaunchFailure(
+            entryID: entryID,
+            code: .practiceProgressStoreUnavailable,
+            title: "无法读取练习记录",
+            explanation: "曲谱仍然安全，但现在不能开始新的练习。请检查存储空间后重试。",
+            stage: "practiceProgressLoad",
+            file: nil,
+            reason: reason
+        )
+    }
+
+    static func progressStoreCorrupted(
+        entryID: UUID,
+        reason: String,
+        canReset: Bool
+    ) -> PracticeLaunchFailure {
+        PracticeLaunchFailure(
+            entryID: entryID,
+            code: .practiceProgressStoreCorrupted,
+            title: "练习记录已损坏",
+            explanation: canReset
+                ? "开始练习前，需要先备份并重置损坏的练习记录。"
+                : "现在不能开始新的练习，请稍后重试。",
+            stage: "practiceProgressLoad",
+            file: nil,
+            reason: reason,
+            recoveryAction: canReset ? .backupAndResetCorruptedProgress : .retry
         )
     }
 

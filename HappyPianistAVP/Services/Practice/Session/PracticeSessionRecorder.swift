@@ -90,12 +90,15 @@ actor PracticeSessionRecorder {
         var windowDurationMilliseconds: Int64 = 0
         var activeDurationMilliseconds: Int64 = 0
         var isFinalized = false
+        var didReportCreation = false
+        var didReportFinalization = false
     }
 
     private let repository: any PracticeSessionRepositoryProtocol
     private let clock: PracticeSessionRecorderClock
     private let sleeper: any SleeperProtocol
     private let checkpointInterval: Duration
+    private let diagnosticsReporter: (any DiagnosticsReporting)?
 
     private var visit: VisitState?
     private var pendingRecord: PracticeSessionRecord?
@@ -104,17 +107,20 @@ actor PracticeSessionRecorder {
     private var periodicCheckpointGeneration = 0
     private var persistenceTask: Task<PracticeSessionRecorderSaveStatus, Never>?
     private var persistenceGeneration = 0
+    private var didReportPendingFailure = false
 
     init(
         repository: any PracticeSessionRepositoryProtocol,
         clock: PracticeSessionRecorderClock = .live(),
         sleeper: any SleeperProtocol = TaskSleeper(),
-        checkpointInterval: Duration = .seconds(30)
+        checkpointInterval: Duration = .seconds(30),
+        diagnosticsReporter: (any DiagnosticsReporting)? = nil
     ) {
         self.repository = repository
         self.clock = clock
         self.sleeper = sleeper
         self.checkpointInterval = min(max(checkpointInterval, .milliseconds(1)), .seconds(30))
+        self.diagnosticsReporter = diagnosticsReporter
     }
 
     @discardableResult
@@ -134,6 +140,7 @@ actor PracticeSessionRecorder {
         cancelPeriodicCheckpoint()
         pendingRecord = nil
         saveStatus = .idle
+        didReportPendingFailure = false
         visit = VisitState(
             id: id,
             songID: songID,
@@ -257,6 +264,7 @@ actor PracticeSessionRecorder {
         pendingRecord = nil
         visit = nil
         saveStatus = .idle
+        didReportPendingFailure = false
         if let abandonedSessionID {
             await repository.abandonLiveSession(id: abandonedSessionID)
         }
@@ -313,16 +321,86 @@ actor PracticeSessionRecorder {
     }
 
     private func flushPendingRecord() async -> PracticeSessionRecorderSaveStatus {
-        guard pendingRecord != nil else { return saveStatus }
+        guard pendingRecord != nil else {
+            await reportPersistenceStatus(saveStatus)
+            return saveStatus
+        }
         if let persistenceTask {
-            return await persistenceTask.value
+            let status = await persistenceTask.value
+            await reportPersistenceStatus(status)
+            return status
         }
 
         persistenceGeneration += 1
         let generation = persistenceGeneration
         let task = Task { await self.drainPendingRecords(generation: generation) }
         persistenceTask = task
-        return await task.value
+        let status = await task.value
+        await reportPersistenceStatus(status)
+        return status
+    }
+
+    private func reportPersistenceStatus(_ status: PracticeSessionRecorderSaveStatus) async {
+        guard let diagnosticsReporter, var visit else { return }
+        switch status {
+        case .saved:
+            didReportPendingFailure = false
+            var events: [DiagnosticEvent] = []
+            if visit.practiceStartedAt != nil, visit.didReportCreation == false {
+                visit.didReportCreation = true
+                events.append(
+                    DiagnosticEvent(
+                        severity: .info,
+                        code: .practiceSessionCreated,
+                        category: .practiceSession,
+                        stage: "practiceSessionRecorder",
+                        summary: "练习会话已创建",
+                        reason: "The visit entered guiding and its first session checkpoint was saved.",
+                        songID: visit.songID,
+                        scoreRevision: visit.scoreRevision,
+                        persistence: .systemOnly
+                    )
+                )
+            }
+            if visit.isFinalized, visit.didReportFinalization == false {
+                visit.didReportFinalization = true
+                events.append(
+                    DiagnosticEvent(
+                        severity: .info,
+                        code: .practiceSessionFinalized,
+                        category: .practiceSession,
+                        stage: "practiceSessionRecorder",
+                        summary: "练习会话已正常结算",
+                        reason: "The final session checkpoint was saved before leaving Practice.",
+                        songID: visit.songID,
+                        scoreRevision: visit.scoreRevision,
+                        persistence: .systemOnly
+                    )
+                )
+            }
+            self.visit = visit
+            for event in events {
+                _ = await diagnosticsReporter.record(event)
+            }
+        case .failed:
+            guard didReportPendingFailure == false else { return }
+            didReportPendingFailure = true
+            _ = await diagnosticsReporter.record(
+                DiagnosticEvent(
+                    severity: .warning,
+                    code: .practiceSessionCheckpointFailed,
+                    category: .persistence,
+                    stage: "practiceSessionRecorder",
+                    summary: "无法保存练习会话 checkpoint",
+                    reason: "The recorder retained a pending checkpoint for the next lifecycle boundary.",
+                    songID: visit.songID,
+                    scoreRevision: visit.scoreRevision,
+                    persistence: .exportable
+                )
+            )
+        case .idle, .pending:
+            break
+        }
     }
 
     private func drainPendingRecords(

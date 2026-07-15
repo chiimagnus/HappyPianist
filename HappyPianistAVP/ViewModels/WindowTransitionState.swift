@@ -1,11 +1,8 @@
 import Observation
-import os
 
 @MainActor
 @Observable
 final class WindowTransitionState {
-    private static let logger = Logger(subsystem: "HappyPianistAVP", category: "WindowTransitionState")
-
     enum Window: Hashable {
         case preparation
         case library
@@ -38,7 +35,6 @@ final class WindowTransitionState {
     }
 
     func beginTransition(from fromWindow: Window, to toWindow: Window) {
-        Self.logger.info("beginTransition: \(fromWindow.id) -> \(toWindow.id)")
         pendingTransition = PendingTransition(fromWindowID: fromWindow.id, toWindowID: toWindow.id)
     }
 
@@ -49,8 +45,7 @@ final class WindowTransitionState {
         return pendingTransition
     }
 
-    func resetToPreparation(reason: String) {
-        Self.logger.info("resetToPreparation: \(reason)")
+    func resetToPreparation(reason _: String) {
         practiceSetupState.clearSongAndSteps()
         practiceSetupState.isCalibrationCompleted = false
         practiceSetupState.isVirtualPianoPlaced = false

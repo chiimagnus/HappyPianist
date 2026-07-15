@@ -145,6 +145,31 @@ func progressCoordinatorReportsStoreFailureWithoutCrashingSession() async throws
 }
 
 @Test
+func discardingPendingProgressCancelsRetryAndKeepsLastPersistedFact() async throws {
+    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
+    let persisted = SongPracticeProgress(
+        identity: identity,
+        updatedAt: Date(timeIntervalSince1970: 1)
+    )
+    let repository = InMemoryPracticeProgressRepository(values: [identity: persisted])
+    let coordinator = PracticeProgressCoordinator(
+        repository: repository,
+        checkpointDelay: .seconds(60)
+    )
+    let session = await coordinator.begin(identity: identity)
+    var pending = persisted
+    pending.updatedAt = Date(timeIntervalSince1970: 2)
+    pending.measureFacts = [makeFacts(successes: 9)]
+    await coordinator.checkpoint(pending, generation: session.generation)
+
+    await coordinator.discardPendingProgress(generation: session.generation)
+    _ = await coordinator.flush(generation: session.generation)
+
+    #expect(await repository.progress(for: identity) == persisted)
+    #expect(await repository.upsertCount == 0)
+}
+
+@Test
 func progressCoordinatorFinishFailureRetainsPendingProgressForRetry() async throws {
     let repository = InMemoryPracticeProgressRepository(upsertError: TestProgressError.writeFailed)
     let coordinator = PracticeProgressCoordinator(repository: repository, checkpointDelay: .seconds(60))

@@ -150,7 +150,7 @@ extension PracticeSessionViewModel {
                 rebuildActiveRange()
             }
             finishFreshLaunchRestore()
-        case .freshDefaults, .historyUnavailable:
+        case .freshDefaults:
             finishFreshLaunchRestore()
         }
     }
@@ -248,6 +248,23 @@ extension PracticeSessionViewModel {
 
     @discardableResult
     func suspendAndFlushProgress() async -> PracticeProgressSaveStatus {
+        suspendPracticeWork()
+        await waitForSessionRecorderEvents()
+        await sessionRecorder?.setGuiding(false)
+        return await flushProgress()
+    }
+
+    func discardPendingProgressAndShutdown() async {
+        suspendPracticeWork()
+        await waitForSessionRecorderEvents()
+        if let progressCoordinator, let generation = self.progressGeneration {
+            await progressCoordinator.discardPendingProgress(generation: generation)
+        }
+        self.progressGeneration = nil
+        shutdown()
+    }
+
+    private func suspendPracticeWork() {
         self.acceptsPracticeAttempts = false
         invalidateFeedbackPresentation()
         stopManualReplayTask()
@@ -255,9 +272,6 @@ extension PracticeSessionViewModel {
         stopAutoplayAudio()
         stopAudioRecognition()
         stopPracticeInput()
-        await waitForSessionRecorderEvents()
-        await sessionRecorder?.setGuiding(false)
-        return await flushProgress()
     }
 
     func invalidateFeedbackPresentation() {

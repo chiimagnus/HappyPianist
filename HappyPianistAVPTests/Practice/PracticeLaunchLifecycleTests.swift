@@ -61,22 +61,39 @@ func failedProgressSaveAbortsReturnWithoutClosingOrNavigatingAndAllowsRetry() as
                 calls.append("finish")
                 return .saved
             },
+            onFailure: { calls.append("failure") },
             navigate: { calls.append("navigate") }
         )
     }
 
     begin()
     await coordinator.waitForCompletion()
-    #expect(calls == ["begin", "leave", "abort"])
+    #expect(calls == ["begin", "leave", "abort", "failure"])
     #expect(coordinator.isReturning == false)
 
     shouldFail = false
     begin()
     await coordinator.waitForCompletion()
     #expect(calls == [
-        "begin", "leave", "abort",
+        "begin", "leave", "abort", "failure",
         "begin", "leave", "close", "recover", "finish", "navigate",
     ])
+}
+
+@MainActor
+@Test
+func systemDisappearRunsBestEffortCloseOnceWithoutReturnNavigation() async {
+    let coordinator = PracticeSystemCloseCoordinator()
+    var calls: [String] = []
+
+    for _ in 0 ..< 2 {
+        coordinator.begin {
+            calls.append("finalize")
+        }
+    }
+    await coordinator.waitForCompletion()
+
+    #expect(calls == ["finalize"])
 }
 
 @MainActor

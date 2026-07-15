@@ -20,6 +20,12 @@ struct PracticeLaunchContainerView: View {
                                 await launchViewModel.retry()
                             }
                         },
+                        canRecoverCorruptedProgress: failure.recoveryAction == .backupAndResetCorruptedProgress,
+                        onRecoverCorruptedProgress: {
+                            Task { @MainActor in
+                                await launchViewModel.recoverCorruptedProgress()
+                            }
+                        },
                         onReturn: onReturn
                     )
                 case .ready:

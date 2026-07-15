@@ -67,38 +67,6 @@ func historicalPreferencesApplyToCurrentFullPassageWithoutPersistingDefaultsOrOl
 }
 
 @MainActor
-@Test
-func unavailableHistoryUsesApprovedFreshDefaultsInsteadOfPendingLastSongValues() async throws {
-    let defaults = HistoricalApplicationDefaultsStore()
-    let session = historicalApplicationSession(defaults: defaults, repository: nil)
-    let spans = historicalApplicationSpans()
-    installHistoricalApplicationScore(
-        session,
-        identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "current"),
-        spans: spans
-    )
-    session.roundConfigurationController.pendingHandMode = .left
-    session.roundConfigurationController.pendingTempoScale = 0.5
-    session.roundConfigurationController.pendingLoopEnabled = true
-    session.roundConfigurationController.pendingRequiredSuccesses = 5
-
-    session.installPreparedSteps(
-        historicalApplicationSteps(),
-        identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "next"),
-        tempoMap: MusicXMLTempoMap(tempoEvents: []),
-        measureSpans: spans
-    )
-    await session.applyLaunchRestorePolicy(.historyUnavailable)
-
-    let active = try #require(session.activeRoundConfiguration)
-    #expect(active.handMode == .both)
-    #expect(active.tempoScale == 1)
-    #expect(active.loopEnabled == false)
-    #expect(active.requiredSuccesses == 2)
-    #expect(defaults.saveCount == 0)
-}
-
-@MainActor
 private func historicalApplicationSession(
     defaults: HistoricalApplicationDefaultsStore,
     repository: HistoricalApplicationRepository?

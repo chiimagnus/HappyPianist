@@ -636,13 +636,29 @@ final class ARGuideViewModel: PracticeLaunchApplying {
             return saveStatus
         }
         practiceProgressSaveErrorMessage = nil
+        cleanUpPracticePresentation()
+        return saveStatus
+    }
+
+    func discardUnsavedProgressAndLeavePracticeStep() async {
+        await practiceSessionViewModel.discardPendingProgressAndShutdown()
+        practiceProgressSaveErrorMessage = nil
+        cleanUpPracticePresentation()
+    }
+
+    func closePracticeStepForSystemDisappear() async {
+        _ = await practiceSessionViewModel.suspendAndFlushProgress()
+        practiceSessionViewModel.shutdown()
+        cleanUpPracticePresentation()
+    }
+
+    private func cleanUpPracticePresentation() {
         recordingViewModel.stop()
         takePlaybackViewModel.stop()
         setPracticeAutoplayEnabled(false)
         hideVirtualPiano()
         setPracticeVirtualPerformerEnabled(false)
         resetPracticeLocalizationState()
-        return saveStatus
     }
 
     var recordingElapsedText: String {

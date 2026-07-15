@@ -27,6 +27,7 @@ final class PracticeLaunchViewModel {
     private let applicator: any PracticeLaunchApplying
     private let diagnosticsReporter: any DiagnosticsReporting
     private let progressRepository: any PracticeProgressRepositoryProtocol
+    private let progressRecovery: (any PracticeProgressRecoveryProtocol)?
     private let sessionRecorder: PracticeSessionRecorder?
     private let historicalPreferencesResolver: PracticeHistoricalPreferencesResolver
     private let now: @Sendable () -> Date
@@ -37,6 +38,7 @@ final class PracticeLaunchViewModel {
     @ObservationIgnored private var generation = 0
     @ObservationIgnored private var returnContext: PracticeLaunchReturnContext?
     @ObservationIgnored private(set) var currentVisitID: UUID?
+    @ObservationIgnored private var reportedRecoveredSessionIDs: Set<UUID> = []
 
     private(set) var state: PracticeLaunchState?
     private(set) var requestedSongID: UUID?
@@ -48,6 +50,7 @@ final class PracticeLaunchViewModel {
         applicator: any PracticeLaunchApplying,
         diagnosticsReporter: any DiagnosticsReporting,
         progressRepository: any PracticeProgressRepositoryProtocol,
+        progressRecovery: (any PracticeProgressRecoveryProtocol)? = nil,
         sessionRecorder: PracticeSessionRecorder? = nil,
         historicalPreferencesResolver: PracticeHistoricalPreferencesResolver = PracticeHistoricalPreferencesResolver(),
         now: @escaping @Sendable () -> Date = { .now },
@@ -58,6 +61,7 @@ final class PracticeLaunchViewModel {
         self.applicator = applicator
         self.diagnosticsReporter = diagnosticsReporter
         self.progressRepository = progressRepository
+        self.progressRecovery = progressRecovery
         self.sessionRecorder = sessionRecorder
         self.historicalPreferencesResolver = historicalPreferencesResolver
         self.now = now
@@ -101,6 +105,42 @@ final class PracticeLaunchViewModel {
         guard let songID = requestedSongID else { return }
         registerRequest(songID: songID, startsNewVisit: false)
         await activateCurrentRequest()
+    }
+
+    func recoverCorruptedProgress() async {
+        guard let songID = requestedSongID,
+              case let .failure(failure) = state,
+              failure.recoveryAction == .backupAndResetCorruptedProgress,
+              let progressRecovery
+        else { return }
+
+        state = .loading(songID: songID)
+        do {
+            let result = try await progressRecovery.recoverFromCorruption()
+            if case .recovered = result {
+                _ = await diagnosticsReporter.record(
+                    DiagnosticEvent(
+                        severity: .warning,
+                        code: .practiceProgressStoreReset,
+                        category: .persistence,
+                        stage: "practiceProgressRecovery",
+                        summary: "已备份并重置损坏的练习记录",
+                        reason: "The user confirmed recovery and the repository replaced the corrupted store.",
+                        songID: songID,
+                        persistence: .exportable
+                    )
+                )
+            }
+            registerRequest(songID: songID, startsNewVisit: false)
+            await activateCurrentRequest()
+        } catch {
+            let recoveryFailure = PracticeLaunchFailure.progressStoreUnavailable(
+                entryID: songID,
+                reason: PracticePreparationErrorDetails.safeErrorSummary(error)
+            )
+            state = .failure(recoveryFailure)
+            _ = await diagnosticsReporter.record(recoveryFailure.diagnosticEvent)
+        }
     }
 
     func suspendForInactiveScene() async {
@@ -159,6 +199,14 @@ final class PracticeLaunchViewModel {
     @discardableResult
     func finishReturn(operationID: UUID) async -> PracticeProgressSaveStatus {
         guard returnContext?.operationID == operationID else { return .idle }
+        await waitForMetadataWrites()
+        if let sessionRecorder {
+            let recorderStatus = await sessionRecorder.finalize()
+            guard recorderStatus.permitsExit else {
+                abortReturn(operationID: operationID)
+                return .failed(message: "Practice session facts could not be saved.")
+            }
+        }
         let status = await applicator.clearPreparedPracticeForLaunch()
         guard returnContext?.operationID == operationID else {
             return .failed(message: "Return operation was superseded.")
@@ -170,6 +218,38 @@ final class PracticeLaunchViewModel {
         returnContext = nil
         currentVisitID = nil
         return status
+    }
+
+    @discardableResult
+    func discardUnsavedChangesAndFinishReturn(
+        operationID: UUID
+    ) async -> PracticeProgressSaveStatus {
+        guard returnContext?.operationID == operationID else { return .idle }
+        await sessionRecorder?.discardPendingDelta()
+        let status = await applicator.clearPreparedPracticeForLaunch()
+        guard returnContext?.operationID == operationID else {
+            return .failed(message: "Return operation was superseded.")
+        }
+        if case .failed = status {
+            abortReturn(operationID: operationID)
+            return status
+        }
+        returnContext = nil
+        currentVisitID = nil
+        return status
+    }
+
+    func closeForSystemDisappear() async {
+        activationTask?.cancel()
+        activationTask = nil
+        generation += 1
+        metadataWriteTasks.values.forEach { $0.cancel() }
+        metadataWriteTasks.removeAll()
+        _ = await sessionRecorder?.finalize()
+        returnContext = nil
+        requestedSongID = nil
+        activationIdentity = nil
+        currentVisitID = nil
     }
 
     private func registerRequest(songID: UUID, startsNewVisit: Bool) {
@@ -218,30 +298,28 @@ final class PracticeLaunchViewModel {
             fileReference = resolved.diagnosticFileReference
             let history = await progressRepository.history(for: songID)
             guard isCurrent(songID: songID, generation: generation) else { return }
-            if case .loaded = history {
-                // No repository warning is needed.
-            } else {
-                let repositoryState = switch history {
-                case .loaded:
-                    "loaded"
-                case .unavailable:
-                    "unavailable"
-                case .corrupted:
-                    "corrupted"
-                }
-                _ = await diagnosticsReporter.record(
-                    DiagnosticEvent(
-                        severity: .warning,
-                        code: .practiceHistoryLoadFailed,
-                        category: .persistence,
-                        stage: "practiceHistoryLoad",
-                        summary: "无法读取练习历史",
-                        reason: "Practice progress repository state: \(repositoryState).",
-                        songID: songID,
-                        file: fileReference,
-                        persistence: .exportable
-                    )
+            let loadedHistory: PracticeSongHistory
+            switch history {
+            case let .loaded(history):
+                loadedHistory = history
+                await reportRecoveredSessions(in: history)
+            case let .unavailable(description):
+                let failure = PracticeLaunchFailure.progressStoreUnavailable(
+                    entryID: songID,
+                    reason: description
                 )
+                state = .failure(failure)
+                _ = await diagnosticsReporter.record(failure.diagnosticEvent)
+                return
+            case let .corrupted(description):
+                let failure = PracticeLaunchFailure.progressStoreCorrupted(
+                    entryID: songID,
+                    reason: description,
+                    canReset: progressRecovery != nil
+                )
+                state = .failure(failure)
+                _ = await diagnosticsReporter.record(failure.diagnosticEvent)
+                return
             }
             _ = await diagnosticsReporter.record(
                 DiagnosticEvent(
@@ -273,9 +351,9 @@ final class PracticeLaunchViewModel {
             guard prepared.measureSpans.isEmpty == false else {
                 throw PracticePreparationError.missingMeasureStructure
             }
-            let restorePolicy = await historicalPreferencesResolver.resolve(
+            let restorePolicy = historicalPreferencesResolver.resolve(
                 identity: prepared.identity,
-                history: history
+                history: loadedHistory
             )
             let historyResolutionReason = switch restorePolicy {
             case .exactAvailable:
@@ -284,12 +362,10 @@ final class PracticeLaunchViewModel {
                 "exactMissing:historicalCandidate"
             case .freshDefaults:
                 "exactMissing:noValidCandidate"
-            case .historyUnavailable:
-                "historyCorrupted"
             }
             _ = await diagnosticsReporter.record(
                 DiagnosticEvent(
-                    severity: restorePolicy == .historyUnavailable ? .warning : .info,
+                    severity: .info,
                     code: .practiceHistoryResolution,
                     category: .persistence,
                     stage: "practiceHistoryResolution",
@@ -455,6 +531,34 @@ final class PracticeLaunchViewModel {
                 )
             }
             self?.metadataWriteTasks[operationID] = nil
+        }
+    }
+
+    private func waitForMetadataWrites() async {
+        while let task = metadataWriteTasks.values.first {
+            await task.value
+        }
+    }
+
+    private func reportRecoveredSessions(in history: PracticeSongHistory) async {
+        let recoveredSessions = history.sessions.filter {
+            $0.termination == .recoveredAfterInterruption &&
+                reportedRecoveredSessionIDs.insert($0.id).inserted
+        }
+        for session in recoveredSessions {
+            _ = await diagnosticsReporter.record(
+                DiagnosticEvent(
+                    severity: .warning,
+                    code: .practiceSessionRecovered,
+                    category: .practiceSession,
+                    stage: "practiceSessionRecovery",
+                    summary: "已结算中断的练习会话",
+                    reason: "An open session was finalized at its last persisted checkpoint.",
+                    songID: session.songID,
+                    scoreRevision: session.scoreRevision,
+                    persistence: .systemOnly
+                )
+            )
         }
     }
 }

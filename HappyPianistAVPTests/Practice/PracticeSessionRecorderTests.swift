@@ -105,13 +105,41 @@ private actor RecorderSleeper: SleeperProtocol {
 private func makeRecorder(
     repository: RecorderRepository,
     clock: RecorderClock,
-    sleeper: RecorderSleeper = RecorderSleeper()
+    sleeper: RecorderSleeper = RecorderSleeper(),
+    diagnosticsReporter: (any DiagnosticsReporting)? = nil
 ) -> PracticeSessionRecorder {
     PracticeSessionRecorder(
         repository: repository,
         clock: clock.makeClock(),
-        sleeper: sleeper
+        sleeper: sleeper,
+        diagnosticsReporter: diagnosticsReporter
     )
+}
+
+@Test
+func recorderReportsLifecycleWithoutExportingSessionContents() async throws {
+    let repository = RecorderRepository()
+    let clock = try RecorderClock()
+    let reporter = InMemoryDiagnosticsReporter()
+    let recorder = makeRecorder(
+        repository: repository,
+        clock: clock,
+        diagnosticsReporter: reporter
+    )
+    await beginActiveVisit(recorder: recorder)
+
+    await recorder.setGuiding(true)
+    await repository.failNextWrites(1)
+    await recorder.setSettingsPresented(true)
+    await recorder.finalize()
+
+    let events = await reporter.events
+    #expect(events.map(\.code) == [
+        .practiceSessionCreated,
+        .practiceSessionCheckpointFailed,
+        .practiceSessionFinalized,
+    ])
+    #expect(events.allSatisfy { $0.reason.contains("{") == false })
 }
 
 private func beginActiveVisit(

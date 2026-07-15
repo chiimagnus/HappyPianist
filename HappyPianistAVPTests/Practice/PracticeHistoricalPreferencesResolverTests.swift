@@ -92,17 +92,12 @@ struct PracticeHistoricalPreferencesResolverTests {
         )))
     }
 
-    @Test func corruptedAndNoConfiguredCandidateRemainDistinct() async {
+    @Test func noConfiguredCandidateUsesFreshDefaults() async {
         let current = identity("current")
-        let unavailable = await resolver.resolve(
-            identity: current,
-            history: .corrupted(description: "invalid JSON")
-        )
         let fresh = await resolve(current, progresses: [
             progress(revision: "old", updatedAt: 20, configuration: nil),
         ])
 
-        #expect(unavailable == .historyUnavailable)
         #expect(fresh == .freshDefaults)
     }
 
@@ -110,13 +105,13 @@ struct PracticeHistoricalPreferencesResolverTests {
         _ identity: PracticeSongIdentity,
         progresses: [SongPracticeProgress]
     ) async -> PracticeLaunchRestorePolicy {
-        await resolver.resolve(
+        resolver.resolve(
             identity: identity,
-            history: .loaded(PracticeSongHistory(
+            history: PracticeSongHistory(
                 songID: songID,
                 progresses: progresses,
                 scoreMetadata: []
-            ))
+            )
         )
     }
 

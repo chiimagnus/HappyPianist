@@ -3,7 +3,10 @@ import SwiftUI
 struct PracticeLaunchFailureView: View {
     let failure: PracticeLaunchFailure
     let onRetry: @MainActor () -> Void
+    let canRecoverCorruptedProgress: Bool
+    let onRecoverCorruptedProgress: @MainActor () -> Void
     let onReturn: @MainActor () -> Void
+    @State private var isRecoveryConfirmationPresented = false
 
     var body: some View {
         ScrollView {
@@ -26,6 +29,12 @@ struct PracticeLaunchFailureView: View {
                 HStack {
                     Button("重试", systemImage: "arrow.clockwise", action: onRetry)
                         .buttonStyle(.borderedProminent)
+                    if canRecoverCorruptedProgress {
+                        Button("备份并重置记录", systemImage: "externaldrive.badge.exclamationmark") {
+                            isRecoveryConfirmationPresented = true
+                        }
+                        .buttonStyle(.bordered)
+                    }
                     Button("返回选曲库", systemImage: "chevron.backward", action: onReturn)
                         .buttonStyle(.bordered)
                 }
@@ -34,5 +43,17 @@ struct PracticeLaunchFailureView: View {
             .padding()
         }
         .scrollIndicators(.hidden)
+        .confirmationDialog(
+            "备份并重置练习记录？",
+            isPresented: $isRecoveryConfirmationPresented,
+            titleVisibility: .visible
+        ) {
+            Button("备份并重置", role: .destructive) {
+                onRecoverCorruptedProgress()
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("损坏的原文件会先保留为本地备份，然后创建新的空练习记录。曲谱文件不会受影响。")
+        }
     }
 }

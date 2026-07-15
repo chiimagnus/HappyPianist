@@ -36,17 +36,23 @@ struct LiveAppGraph {
     )
     let songAudioPlayer: SongAudioPlayerProtocol = SongAudioPlayer()
     let progressRepository = FilePracticeProgressRepository()
-    let progressCoordinator = PracticeProgressCoordinator(repository: progressRepository)
     let diagnosticsStore: any DiagnosticsStoreProtocol = FileDiagnosticsStore()
     let diagnosticsReporter: any DiagnosticsReporting = AppDiagnosticsReporter(
       exportStore: diagnosticsStore)
+    let progressCoordinator = PracticeProgressCoordinator(
+      repository: progressRepository,
+      diagnosticsReporter: diagnosticsReporter
+    )
     let diagnosticsExporter: any DiagnosticsArchiveExporting = DiagnosticsArchiveExporter(
       store: diagnosticsStore)
     let diagnosticsViewModel = DiagnosticsViewModel(
       store: diagnosticsStore,
       exporter: diagnosticsExporter
     )
-    let practiceSessionRecorder = PracticeSessionRecorder(repository: progressRepository)
+    let practiceSessionRecorder = PracticeSessionRecorder(
+      repository: progressRepository,
+      diagnosticsReporter: diagnosticsReporter
+    )
     let importTransactionService = SongLibraryImportTransactionService(
       indexStore: songLibraryIndexStore,
       diagnostics: diagnosticsReporter
@@ -183,6 +189,7 @@ struct LiveAppGraph {
       applicator: arGuideViewModel,
       diagnosticsReporter: diagnosticsReporter,
       progressRepository: progressRepository,
+      progressRecovery: progressRepository,
       sessionRecorder: practiceSessionRecorder
     )
     let windowState = WindowTransitionState(

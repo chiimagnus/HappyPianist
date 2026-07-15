@@ -12,6 +12,9 @@ struct PracticeWindowRootView: View {
     @State private var sceneLifecycleCoordinator = PracticeSceneLifecycleCoordinator()
     @State private var returnCoordinator = PracticeWindowReturnCoordinator()
     @State private var immersiveCloseCoordinator = PracticeImmersiveCloseCoordinator()
+    @State private var systemCloseCoordinator = PracticeSystemCloseCoordinator()
+    @State private var isReturnSaveFailurePresented = false
+    @State private var isDiscardConfirmationPresented = false
 
     init(
         arGuideViewModel: ARGuideViewModel,
@@ -39,7 +42,28 @@ struct PracticeWindowRootView: View {
             dismissPendingSourceIfNeeded()
         }
         .onDisappear {
-            beginReturnToLibrary()
+            closeForSystemDisappear()
+        }
+        .alert("无法保存练习记录", isPresented: $isReturnSaveFailurePresented) {
+            Button("重试") { beginReturnToLibrary() }
+            Button("放弃未保存增量", role: .destructive) {
+                isDiscardConfirmationPresented = true
+            }
+            Button("留在练习", role: .cancel) {}
+        } message: {
+            Text("Practice 会保持打开。你可以重试，或明确放弃尚未成功写入的增量。")
+        }
+        .confirmationDialog(
+            "放弃未保存增量并返回选曲库？",
+            isPresented: $isDiscardConfirmationPresented,
+            titleVisibility: .visible
+        ) {
+            Button("放弃并返回", role: .destructive) {
+                beginDiscardingReturnToLibrary()
+            }
+            Button("取消", role: .cancel) {}
+        } message: {
+            Text("已经成功保存的 checkpoint 会保留；只有仍在内存中、尚未写入的增量会被放弃。")
         }
     }
 
@@ -64,11 +88,23 @@ struct PracticeWindowRootView: View {
     }
 
     private func beginReturnToLibrary() {
+        beginReturnToLibrary(discardingUnsavedChanges: false)
+    }
+
+    private func beginDiscardingReturnToLibrary() {
+        beginReturnToLibrary(discardingUnsavedChanges: true)
+    }
+
+    private func beginReturnToLibrary(discardingUnsavedChanges: Bool) {
         let pendingLifecycle = sceneLifecycleCoordinator.cancel()
         returnCoordinator.begin(
             beginReturn: launchViewModel.beginReturn,
             leave: {
                 await pendingLifecycle?.value
+                if discardingUnsavedChanges {
+                    await arGuideViewModel.discardUnsavedProgressAndLeavePracticeStep()
+                    return .saved
+                }
                 return await arGuideViewModel.leavePracticeStep()
             },
             closeImmersive: {
@@ -76,12 +112,32 @@ struct PracticeWindowRootView: View {
             },
             recoverImmersive: {},
             abortReturn: launchViewModel.abortReturn,
-            finishReturn: launchViewModel.finishReturn,
+            finishReturn: { operationID in
+                if discardingUnsavedChanges {
+                    return await launchViewModel.discardUnsavedChangesAndFinishReturn(
+                        operationID: operationID
+                    )
+                }
+                return await launchViewModel.finishReturn(operationID: operationID)
+            },
+            onFailure: {
+                isReturnSaveFailurePresented = true
+            },
             navigate: {
                 windowState.beginTransition(from: .practice, to: .library)
                 openWindow(id: WindowID.library)
             }
         )
+    }
+
+    private func closeForSystemDisappear() {
+        let pendingLifecycle = sceneLifecycleCoordinator.cancel()
+        systemCloseCoordinator.begin {
+            await pendingLifecycle?.value
+            await closeImmersivePresentationIfNeeded()
+            await arGuideViewModel.closePracticeStepForSystemDisappear()
+            await launchViewModel.closeForSystemDisappear()
+        }
     }
 
     private func activateCurrentRequest() async {
@@ -166,6 +222,7 @@ final class PracticeWindowReturnCoordinator {
         recoverImmersive: @escaping @MainActor () async -> Void,
         abortReturn: @escaping @MainActor (UUID) -> Void,
         finishReturn: @escaping @MainActor (UUID) async -> PracticeProgressSaveStatus,
+        onFailure: @escaping @MainActor () -> Void = {},
         navigate: @escaping @MainActor () -> Void
     ) {
         guard operationTask == nil else { return }
@@ -175,6 +232,7 @@ final class PracticeWindowReturnCoordinator {
             if case .failed = leaveStatus {
                 abortReturn(operationID)
                 self?.operationTask = nil
+                onFailure()
                 return
             }
             await closeImmersive()
@@ -183,9 +241,26 @@ final class PracticeWindowReturnCoordinator {
             if case .failed = finishStatus {
                 abortReturn(operationID)
                 self?.operationTask = nil
+                onFailure()
                 return
             }
             navigate()
+        }
+    }
+
+    func waitForCompletion() async {
+        await operationTask?.value
+    }
+}
+
+@MainActor
+final class PracticeSystemCloseCoordinator {
+    private var operationTask: Task<Void, Never>?
+
+    func begin(_ operation: @escaping @MainActor () async -> Void) {
+        guard operationTask == nil else { return }
+        operationTask = Task { @MainActor in
+            await operation()
         }
     }
 
