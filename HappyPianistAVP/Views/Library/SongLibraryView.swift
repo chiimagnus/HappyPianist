@@ -46,7 +46,9 @@ struct SongLibraryView: View {
         onDiagnostics: { isDiagnosticsPresented = true }
       )
 
-      if viewModel.isLibraryLoading {
+      if viewModel.isLibraryLoading
+        || (viewModel.hasLoadedLibrary == false && viewModel.bootstrapFailureMessage == nil)
+      {
         ProgressView("正在加载乐曲库…")
           .frame(maxWidth: .infinity, maxHeight: .infinity)
       } else if let bootstrapFailureMessage = viewModel.bootstrapFailureMessage {
@@ -63,9 +65,6 @@ struct SongLibraryView: View {
           .buttonStyle(.borderedProminent)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-      } else if viewModel.hasLoadedLibrary == false {
-        ProgressView("正在加载乐曲库…")
-          .frame(maxWidth: .infinity, maxHeight: .infinity)
       } else if entries.isEmpty {
         SongLibraryEmptyView(onImport: viewModel.didTapImportMusicXML)
       } else if let selectedEntry, let selectedPresentation {
