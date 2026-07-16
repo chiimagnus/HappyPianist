@@ -3,6 +3,8 @@ import SwiftUI
 private let libraryRecordScrollCoordinateSpace = "LibraryRecordScroll"
 
 struct LibraryCrateView: View {
+    private static let animation = Animation.timingCurve(0.16, 1, 0.30, 1, duration: 0.56)
+
     let entries: [SongLibraryEntry]
     let selectedEntryID: UUID?
     let playingEntryID: UUID?
@@ -49,7 +51,7 @@ struct LibraryCrateView: View {
             .zIndex(1)
 
             ScrollView(.horizontal) {
-                LazyHStack(spacing: LibraryCrateLayout.recordSpacing) {
+                LazyHStack(spacing: 24) {
                     ForEach(entries.enumerated(), id: \.element.id) { index, entry in
                         LibraryRecordScrollItemView(
                             entry: entry,
@@ -98,7 +100,7 @@ struct LibraryCrateView: View {
         }
         .frame(
             maxWidth: .infinity,
-            minHeight: LibraryCrateLayout.minimumHeight,
+            minHeight: 410,
             maxHeight: .infinity
         )
         .contentShape(.rect)
@@ -110,7 +112,7 @@ struct LibraryCrateView: View {
             guard let entryID = deletionHoldEntryID else { return }
 
             do {
-                try await Task.sleep(for: LibraryDeletionHoldPolicy.duration)
+                try await Task.sleep(for: .seconds(LibraryDeletionHoldPolicy.durationSeconds))
             } catch {
                 return
             }
@@ -196,7 +198,7 @@ struct LibraryCrateView: View {
                     onImportMusicXML()
                 }
 
-                withAnimation(reduceMotion ? nil : LibraryCrateLayout.animation) {
+                withAnimation(reduceMotion ? nil : Self.animation) {
                     liftOffset = 0
                     downwardDragOffset = 0
                 }
@@ -247,7 +249,7 @@ struct LibraryCrateView: View {
     }
 
     private func select(entryID: UUID) {
-        withAnimation(reduceMotion ? nil : LibraryCrateLayout.animation) {
+        withAnimation(reduceMotion ? nil : Self.animation) {
             scrollTargetID = entryID
         }
         onSelectEntry(entryID)
@@ -270,7 +272,7 @@ struct LibraryCrateView: View {
             return
         }
         guard scrollTargetID != entryID else { return }
-        withAnimation(reduceMotion ? nil : LibraryCrateLayout.animation) {
+        withAnimation(reduceMotion ? nil : Self.animation) {
             scrollTargetID = entryID
         }
     }
@@ -351,12 +353,6 @@ private struct LibraryPageIndicatorView: View {
             }
         }
     }
-}
-
-private enum LibraryCrateLayout {
-    static let recordSpacing: CGFloat = 24
-    static let minimumHeight: CGFloat = 410
-    static let animation = Animation.timingCurve(0.16, 1, 0.30, 1, duration: 0.56)
 }
 
 struct LibraryRecordScrollPresentation: Equatable {

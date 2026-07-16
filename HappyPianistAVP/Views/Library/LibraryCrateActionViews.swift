@@ -111,7 +111,6 @@ enum LibraryVerticalDragIntentPolicy {
 
 enum LibraryDeletionHoldPolicy {
     static let durationSeconds = 2.0
-    static let duration: Duration = .seconds(durationSeconds)
 
     static func progress(for downwardDragTranslation: CGFloat) -> CGFloat {
         LibraryCrateDragConfiguration.progress(for: downwardDragTranslation)
