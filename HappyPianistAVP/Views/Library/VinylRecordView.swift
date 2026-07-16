@@ -88,11 +88,6 @@ struct VinylRecordView: View {
                         Circle()
                             .stroke(.black.opacity(0.30), lineWidth: 1)
                     }
-                    .overlay {
-                        Circle()
-                            .stroke(.white.opacity(0.16), lineWidth: 1)
-                            .padding(2 * LibraryDesignTokens.recordScale)
-                    }
             }
             .rotationEffect(.degrees(angle))
         }
