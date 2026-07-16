@@ -14,6 +14,7 @@ struct SongLibraryView: View {
     @State private var pendingImportConfirmationID: UUID?
     @State private var isDiagnosticsPresented = false
     @State private var libraryViewHeight = LibraryDesignTokens.windowIdealHeight
+    @State private var trackInfoSelectionDirection: LibraryCarouselSelectionDirection = .next
 
     private var audioImporterTypes: [UTType] {
         let types = SongLibraryViewModel.supportedAudioFileExtensions.compactMap {
@@ -78,7 +79,7 @@ struct SongLibraryView: View {
                             isPlaying: selectedIsPlaying,
                             reduceMotion: reduceMotion,
                             allowsDestructiveActions: viewModel.importState.isActive == false,
-                            onSelectEntry: viewModel.selectEntry,
+                            onSelectEntry: selectEntry,
                             onTogglePlayback: togglePlayback,
                             onImportMusicXML: viewModel.didTapImportMusicXML,
                             onBindAudio: presentAudioImporter,
@@ -104,6 +105,10 @@ struct SongLibraryView: View {
                             onSeek: { progress in
                                 viewModel.seekListening(entryID: selectedEntry.id, progress: progress)
                             }
+                        )
+                        .id(selectedEntry.id)
+                        .transition(
+                            reduceMotion ? .opacity : trackInfoSelectionDirection.trackInfoTransition
                         )
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 30)
@@ -326,6 +331,20 @@ struct SongLibraryView: View {
     private func toggleSelectedPlayback() {
         guard let selectedEntryID = viewModel.selectedEntryID else { return }
         togglePlayback(selectedEntryID)
+    }
+
+    private func selectEntry(_ entryID: UUID) {
+        guard entryID != viewModel.selectedEntryID else { return }
+
+        if let currentIndex = viewModel.entries.firstIndex(where: { $0.id == viewModel.selectedEntryID }),
+           let nextIndex = viewModel.entries.firstIndex(where: { $0.id == entryID })
+        {
+            trackInfoSelectionDirection = nextIndex > currentIndex ? .next : .previous
+        }
+
+        withAnimation(reduceMotion ? .easeInOut(duration: 0.20) : LibraryDesignTokens.easeOut) {
+            viewModel.selectEntry(entryID)
+        }
     }
 
     private func togglePlayback(_ entryID: UUID) {
