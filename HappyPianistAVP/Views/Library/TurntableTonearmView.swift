@@ -36,8 +36,8 @@ struct TurntableTonearmView: View {
                 }
                 .shadow(color: .black.opacity(0.40), radius: 5, y: 3)
                 .position(
-                    x: LibraryDesignTokens.armrestCenterX,
-                    y: LibraryDesignTokens.armrestCenterY
+                    x: TonearmGeometry.armrestCenterX,
+                    y: TonearmGeometry.armrestCenterY
                 )
 
             ZStack {
@@ -52,10 +52,10 @@ struct TurntableTonearmView: View {
                             endPoint: .bottom
                         )
                     )
-                    .frame(width: LibraryDesignTokens.tonearmLength, height: 7)
+                    .frame(width: TonearmGeometry.length, height: 7)
                     .shadow(color: .black.opacity(0.34), radius: 6, y: 4)
             }
-            .frame(width: LibraryDesignTokens.tonearmLength, height: 40)
+            .frame(width: TonearmGeometry.length, height: 40)
             .overlay(alignment: .leading) {
                 RoundedRectangle(cornerRadius: 4)
                     .fill(
@@ -92,25 +92,34 @@ struct TurntableTonearmView: View {
             }
             .rotationEffect(.degrees(isPlaying ? -58 : -80), anchor: .trailing)
             .position(
-                x: LibraryDesignTokens.tonearmPivotX - LibraryDesignTokens.tonearmLength / 2,
-                y: LibraryDesignTokens.tonearmPivotY
+                x: TonearmGeometry.pivotX - TonearmGeometry.length / 2,
+                y: TonearmGeometry.pivotY
             )
-            .animation(reduceMotion ? nil : LibraryDesignTokens.ease, value: isPlaying)
+            .animation(reduceMotion ? nil : TonearmGeometry.animation, value: isPlaying)
         }
         .frame(
-            width: LibraryDesignTokens.recordReferenceDiameter,
-            height: LibraryDesignTokens.recordReferenceDiameter,
+            width: LibraryRecordLayout.referenceDiameter,
+            height: LibraryRecordLayout.referenceDiameter,
             alignment: .topLeading
         )
-        .scaleEffect(LibraryDesignTokens.recordScale, anchor: .topLeading)
+        .scaleEffect(LibraryRecordLayout.scale, anchor: .topLeading)
         .frame(
-            width: LibraryDesignTokens.recordDiameter,
-            height: LibraryDesignTokens.recordDiameter,
+            width: LibraryRecordLayout.diameter,
+            height: LibraryRecordLayout.diameter,
             alignment: .topLeading
         )
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
+}
+
+private enum TonearmGeometry {
+    static let length: CGFloat = 184
+    static let pivotX: CGFloat = 264
+    static let pivotY: CGFloat = -2.5
+    static let armrestCenterX: CGFloat = 237.5
+    static let armrestCenterY: CGFloat = 176
+    static let animation = Animation.timingCurve(0.22, 1, 0.36, 1, duration: 0.62)
 }
 
 #Preview("播放中的唱臂") {

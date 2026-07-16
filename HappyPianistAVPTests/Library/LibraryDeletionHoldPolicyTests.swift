@@ -5,31 +5,31 @@ import Testing
 @Test
 func deletionHoldRequiresThresholdAndAnEligibleEntry() {
     #expect(LibraryDeletionHoldPolicy.progress(for: -1) == 0)
-    #expect(LibraryDeletionHoldPolicy.progress(for: LibraryDesignTokens.liftMaximum * 2) == 1)
+    #expect(LibraryDeletionHoldPolicy.progress(for: LibraryCrateDragConfiguration.maximumOffset * 2) == 1)
     #expect(
         LibraryDeletionHoldPolicy.isArmed(
-            downwardDragTranslation: LibraryDesignTokens.liftTrigger - 1,
+            downwardDragTranslation: LibraryCrateDragConfiguration.trigger - 1,
             isBundled: false,
             allowsDestructiveActions: true
         ) == false
     )
     #expect(
         LibraryDeletionHoldPolicy.isArmed(
-            downwardDragTranslation: LibraryDesignTokens.liftTrigger,
+            downwardDragTranslation: LibraryCrateDragConfiguration.trigger,
             isBundled: false,
             allowsDestructiveActions: true
         )
     )
     #expect(
         LibraryDeletionHoldPolicy.isArmed(
-            downwardDragTranslation: LibraryDesignTokens.liftTrigger,
+            downwardDragTranslation: LibraryCrateDragConfiguration.trigger,
             isBundled: true,
             allowsDestructiveActions: true
         ) == false
     )
     #expect(
         LibraryDeletionHoldPolicy.isArmed(
-            downwardDragTranslation: LibraryDesignTokens.liftTrigger,
+            downwardDragTranslation: LibraryCrateDragConfiguration.trigger,
             isBundled: false,
             allowsDestructiveActions: false
         ) == false

@@ -6,10 +6,10 @@ import Testing
 func recordScrollPresentationEmphasizesTheCenteredRecord() {
     let center = LibraryRecordScrollPresentation(centerDistance: 0)
     let neighbor = LibraryRecordScrollPresentation(
-        centerDistance: LibraryDesignTokens.recordDiameter
+        centerDistance: LibraryRecordLayout.diameter
     )
     let outerRecord = LibraryRecordScrollPresentation(
-        centerDistance: LibraryDesignTokens.recordDiameter * 2
+        centerDistance: LibraryRecordLayout.diameter * 2
     )
 
     #expect(center.scale == 1)

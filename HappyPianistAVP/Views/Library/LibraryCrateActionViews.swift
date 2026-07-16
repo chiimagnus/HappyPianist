@@ -4,24 +4,24 @@ struct LibraryImportLiftView: View {
     let liftOffset: CGFloat
 
     var body: some View {
-        let progress = min(max(liftOffset / LibraryDesignTokens.liftMaximum, 0), 1)
-        let isArmed = liftOffset >= LibraryDesignTokens.liftTrigger
+        let progress = LibraryCrateDragConfiguration.progress(for: liftOffset)
+        let isArmed = liftOffset >= LibraryCrateDragConfiguration.trigger
 
         Label("导入 MusicXML", systemImage: "plus")
             .font(.subheadline)
-            .foregroundStyle(isArmed ? LibraryDesignTokens.accentForeground : LibraryDesignTokens.text)
+            .foregroundStyle(isArmed ? .white : .primary)
             .padding(.horizontal, 16)
             .frame(minHeight: 44)
             .background(
                 isArmed
-                    ? LibraryDesignTokens.accent
+                    ? Color.accentColor
                     : Color(red: 30 / 255, green: 27 / 255, blue: 26 / 255).opacity(0.66),
                 in: .capsule
             )
             .overlay {
                 Capsule()
                     .stroke(
-                        isArmed ? LibraryDesignTokens.accent : Color.white.opacity(0.42),
+                        isArmed ? Color.accentColor : Color.white.opacity(0.42),
                         style: StrokeStyle(lineWidth: 1, dash: isArmed ? [] : [5, 4])
                     )
             }
@@ -46,7 +46,7 @@ struct LibraryDeleteHoldView: View {
             let holdProgress = holdStartedAt.map {
                 min(
                     max(
-                        context.date.timeIntervalSince($0) / LibraryDesignTokens.deletionHoldSeconds,
+                        context.date.timeIntervalSince($0) / LibraryDeletionHoldPolicy.durationSeconds,
                         0
                     ),
                     1
@@ -63,7 +63,7 @@ struct LibraryDeleteHoldView: View {
                 systemImage: "trash"
             )
             .font(.subheadline)
-            .foregroundStyle(isDisabled ? LibraryDesignTokens.faintText : isHolding ? .white : .red)
+            .foregroundStyle(isDisabled ? Color.primary.opacity(0.45) : isHolding ? .white : .red)
             .padding(.horizontal, 16)
             .frame(minHeight: 44)
             .background {
@@ -91,5 +91,39 @@ struct LibraryDeleteHoldView: View {
             .offset(y: -66 + 18 * dragProgress)
             .accessibilityHidden(true)
         }
+    }
+}
+
+enum LibraryCrateDragConfiguration {
+    static let maximumOffset: CGFloat = 72
+    static let trigger: CGFloat = 44
+
+    static func progress(for translation: CGFloat) -> CGFloat {
+        min(max(translation / maximumOffset, 0), 1)
+    }
+}
+
+enum LibraryVerticalDragIntentPolicy {
+    static func isClearlyVertical(translation: CGSize) -> Bool {
+        abs(translation.height) > abs(translation.width) * 1.5
+    }
+}
+
+enum LibraryDeletionHoldPolicy {
+    static let durationSeconds = 2.0
+    static let duration: Duration = .seconds(durationSeconds)
+
+    static func progress(for downwardDragTranslation: CGFloat) -> CGFloat {
+        LibraryCrateDragConfiguration.progress(for: downwardDragTranslation)
+    }
+
+    static func isArmed(
+        downwardDragTranslation: CGFloat,
+        isBundled: Bool,
+        allowsDestructiveActions: Bool
+    ) -> Bool {
+        isBundled == false
+            && allowsDestructiveActions
+            && downwardDragTranslation >= LibraryCrateDragConfiguration.trigger
     }
 }

@@ -19,8 +19,8 @@ struct VinylRecordView: View {
                     .fill(Color(red: 14 / 255, green: 13 / 255, blue: 13 / 255))
                     .shadow(
                         color: .black.opacity(0.44),
-                        radius: 24 * LibraryDesignTokens.recordScale,
-                        y: 18 * LibraryDesignTokens.recordScale
+                        radius: 24 * LibraryRecordLayout.scale,
+                        y: 18 * LibraryRecordLayout.scale
                     )
 
                 Canvas { context, size in
@@ -82,12 +82,12 @@ struct VinylRecordView: View {
                             ],
                             center: .center,
                             startRadius: 0,
-                            endRadius: 41 * LibraryDesignTokens.recordScale
+                            endRadius: 41 * LibraryRecordLayout.scale
                         )
                     )
                     .frame(
-                        width: 82 * LibraryDesignTokens.recordScale,
-                        height: 82 * LibraryDesignTokens.recordScale
+                        width: 82 * LibraryRecordLayout.scale,
+                        height: 82 * LibraryRecordLayout.scale
                     )
                     .overlay {
                         Circle()
@@ -96,7 +96,7 @@ struct VinylRecordView: View {
             }
             .rotationEffect(.degrees(angle))
         }
-        .frame(width: LibraryDesignTokens.recordDiameter, height: LibraryDesignTokens.recordDiameter)
+        .frame(width: LibraryRecordLayout.diameter, height: LibraryRecordLayout.diameter)
         .onAppear(perform: updateRotationState)
         .onChange(of: isPlaying) {
             updateRotationState()
@@ -123,5 +123,11 @@ struct VinylRecordView: View {
 }
 
 #Preview("黑胶唱片") {
-    VinylRecordView(labelColor: LibraryDesignTokens.accent, isPlaying: false, reduceMotion: false)
+    VinylRecordView(labelColor: .accentColor, isPlaying: false, reduceMotion: false)
+}
+
+enum LibraryRecordLayout {
+    static let referenceDiameter: CGFloat = 236
+    static let diameter: CGFloat = 304
+    static let scale = diameter / referenceDiameter
 }
