@@ -335,28 +335,39 @@ private struct LibraryDeleteHoldView: View {
                     1
                 )
             } ?? 0
+            let isHolding = holdStartedAt != nil
 
-            VStack(spacing: 6) {
-                Label(
-                    isBundled
-                        ? "内置曲目不能删除"
-                        : allowsDestructiveActions ? "下拽并按住删除" : "导入期间不能删除",
-                    systemImage: "trash"
-                )
-                .font(.subheadline)
-
-                ProgressView(value: holdProgress)
-                    .tint(.red)
-                    .frame(width: 130)
-                    .opacity(holdStartedAt == nil ? 0 : 1)
-            }
-            .foregroundStyle(isDisabled ? LibraryDesignTokens.faintText : .red)
+            Label(
+                isBundled
+                    ? "内置曲目不能删除"
+                    : allowsDestructiveActions
+                        ? isHolding ? "继续按住删除" : "下拽唱片删除"
+                        : "导入期间不能删除",
+                systemImage: "trash"
+            )
+            .font(.subheadline)
+            .foregroundStyle(isDisabled ? LibraryDesignTokens.faintText : isHolding ? .white : .red)
             .padding(.horizontal, 16)
             .frame(minHeight: 44)
-            .background(.black.opacity(0.66), in: .capsule)
+            .background {
+                ZStack {
+                    Capsule()
+                        .fill(Color(red: 30 / 255, green: 27 / 255, blue: 26 / 255).opacity(0.66))
+
+                    if isDisabled == false {
+                        Capsule()
+                            .fill(.red)
+                            .scaleEffect(x: holdProgress, anchor: .leading)
+                    }
+                }
+                .clipShape(.capsule)
+            }
             .overlay {
                 Capsule()
-                    .stroke(isDisabled ? Color.white.opacity(0.24) : .red.opacity(0.72), lineWidth: 1)
+                    .stroke(
+                        isDisabled ? Color.white.opacity(0.24) : isHolding ? .red : Color.white.opacity(0.42),
+                        style: StrokeStyle(lineWidth: 1, dash: isHolding ? [] : [5, 4])
+                    )
             }
             .opacity(dragProgress)
             .scaleEffect(0.92 + 0.08 * dragProgress)
