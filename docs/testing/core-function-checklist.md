@@ -315,7 +315,7 @@ xcodebuild test \
 
 ### 曲库连续切换
 
-分别使用左右按钮、水平拖拽和 VoiceOver adjustable action 执行：
+分别使用系统水平滚动、中心/邻项唱片点按和 VoiceOver adjustable action 执行：
 
 1. 在 200 ms 内连续切换至少三首，包含一首小曲谱和一首大曲谱。
 2. 选择最终曲目后立即点击“开始练习”。
@@ -324,7 +324,10 @@ xcodebuild test \
 检查：
 
 - [ ] 每次选择后唱片、曲名和来源立即更新，不等待磁盘写入
-- [ ] 快速连续切换时动画无明显停顿，曲库不会调用 resolver、prepare 或 ARGuide
+- [ ] 快速滚动时只在落定后提交最终曲目，动画无明显停顿，曲库不会调用 resolver、prepare 或 ARGuide
+- [ ] 中心唱片点按播放/暂停；邻项与边缘裁切项点按后选中并居中；首尾项和 resize 后也能居中
+- [ ] min/ideal/max 窗口宽度下可见唱片数量随宽度自然变化，不出现左右箭头、侧翻或横向手势抢占
+- [ ] 横向、上拽、下拽与对角线手势互不误触；删除选中项后的 fallback 仍居中
 - [ ] 只有按钮传入的内存 song ID 在练习窗口进入 ready 或 failure
 - [ ] 离开曲库后不继续保存或发布旧选择结果
 - [ ] 开启 Reduce Motion 后仍满足上述状态与取消规则

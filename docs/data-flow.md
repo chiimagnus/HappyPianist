@@ -103,7 +103,7 @@ score import 只有 transaction service 一条写入路径；`.mxl` 在 preparat
 -> ready 后才挂载 PracticeStepView
 ```
 
-SwiftUI View 与 `LibraryCrateView` 不保存第二份 selection；点击、拖动、上一首/下一首和 VoiceOver adjustable action 都只发送 `selectEntry` intent。持久化 worker 同时最多执行一个 mutation，旧写返回后会继续 drain 最新 desired selection；窗口消失时显式 flush。selection 保存尚未完成或失败都不阻塞启动，因为按钮传递当前内存 song ID。trailing Ornament 只读消费 snapshot state，不保存配置，也不提供第二个练习入口。
+SwiftUI View 与 `LibraryCrateView` 不保存第二份业务 selection；唱片点按、系统滚动落定和 VoiceOver adjustable action 都只发送 `selectEntry` intent。crate 的临时 scroll target 只表示系统滚动位置：外部 selection 会同步它，用户滚动只在 idle 时提交最终项，因此不会在途中停止试听或持久化中间项。持久化 worker 同时最多执行一个 mutation，旧写返回后会继续 drain 最新 desired selection；窗口消失时显式 flush。selection 保存尚未完成或失败都不阻塞启动，因为按钮传递当前内存 song ID。trailing Ornament 只读消费 snapshot state，不保存配置，也不提供第二个练习入口。
 
 当前曲目练习事实读取与 selection 持久化使用彼此独立的 generation：
 

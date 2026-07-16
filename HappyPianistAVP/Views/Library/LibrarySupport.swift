@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 
 enum LibraryDesignTokens {
@@ -11,10 +12,7 @@ enum LibraryDesignTokens {
     static let recordReferenceDiameter: CGFloat = 236
     static let recordDiameter: CGFloat = 304
     static let recordScale = recordDiameter / recordReferenceDiameter
-    static let carouselNeighborOffset = recordDiameter * 1.06
-    static let carouselOuterOffset = recordDiameter * 1.94
-    static let carouselHiddenOffset = carouselOuterOffset + recordDiameter * 0.64
-    static let carouselSelectionThreshold: CGFloat = 60
+    static let recordSpacing: CGFloat = 24
     static let crateMinimumHeight: CGFloat = 410
 
     static let windowMinimumHeight: CGFloat = 620
@@ -36,51 +34,41 @@ enum LibraryDesignTokens {
     static let easeOut = Animation.timingCurve(0.16, 1, 0.30, 1, duration: 0.56)
 }
 
-struct LibraryCarouselPose: Equatable {
-    let horizontalOffset: CGFloat
+struct LibraryRecordScrollPresentation: Equatable {
     let scale: CGFloat
     let opacity: Double
     let saturation: Double
-    let horizontalScale: CGFloat
-    let zIndex: Double
 
-    init(relativePosition: CGFloat) {
-        let distance = min(abs(relativePosition), 3)
-        let direction: CGFloat = relativePosition < 0 ? -1 : 1
-
-        horizontalOffset = direction * Self.interpolate(
-            distance,
-            samples: [
-                0,
-                LibraryDesignTokens.carouselNeighborOffset,
-                LibraryDesignTokens.carouselOuterOffset,
-                LibraryDesignTokens.carouselHiddenOffset,
-            ]
+    init(centerDistance: CGFloat) {
+        let normalizedDistance = min(
+            abs(centerDistance) / LibraryDesignTokens.recordDiameter,
+            2
         )
-        scale = Self.interpolate(distance, samples: [1, 0.82, 0.66, 0.58])
-        opacity = Double(Self.interpolate(distance, samples: [1, 0.82, 0.42, 0]))
-        saturation = Double(Self.interpolate(distance, samples: [1, 0.88, 0.70, 0.70]))
-        horizontalScale = Self.interpolate(distance, samples: [1, 0.92, 0.86, 0.86])
-        zIndex = Double(3 - distance)
-    }
-
-    private static func interpolate(_ distance: CGFloat, samples: [CGFloat]) -> CGFloat {
-        let lowerIndex = min(Int(distance.rounded(.down)), samples.count - 1)
-        let upperIndex = min(lowerIndex + 1, samples.count - 1)
-        let progress = distance - CGFloat(lowerIndex)
-        return samples[lowerIndex] + (samples[upperIndex] - samples[lowerIndex]) * progress
+        scale = max(0.64, 1 - normalizedDistance * 0.18)
+        opacity = Double(max(0.42, 1 - normalizedDistance * 0.22))
+        saturation = Double(max(0.72, 1 - normalizedDistance * 0.11))
     }
 }
 
-enum LibraryCarouselSelectionDirection: Equatable {
-    case previous
-    case next
+enum LibraryRecordScrollTapAction: Equatable {
+    case togglePlayback
+    case selectEntry
+}
 
-    static func from(horizontalDragTranslation: CGFloat) -> Self? {
-        guard abs(horizontalDragTranslation) >= LibraryDesignTokens.carouselSelectionThreshold else {
-            return nil
-        }
-        return horizontalDragTranslation < 0 ? .next : .previous
+enum LibraryRecordScrollSelectionDecision {
+    static func action(
+        forTappedEntryID entryID: UUID,
+        selectedEntryID: UUID?
+    ) -> LibraryRecordScrollTapAction {
+        entryID == selectedEntryID ? .togglePlayback : .selectEntry
+    }
+
+    static func selectionToCommit(
+        scrollTargetID: UUID?,
+        selectedEntryID: UUID?
+    ) -> UUID? {
+        guard let scrollTargetID, scrollTargetID != selectedEntryID else { return nil }
+        return scrollTargetID
     }
 }
 
