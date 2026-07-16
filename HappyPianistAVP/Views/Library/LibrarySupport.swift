@@ -74,21 +74,6 @@ enum LibraryCarouselSelectionDirection: Equatable {
     case previous
     case next
 
-    var trackInfoInsertionEdge: Edge {
-        self == .next ? .trailing : .leading
-    }
-
-    var trackInfoRemovalEdge: Edge {
-        self == .next ? .leading : .trailing
-    }
-
-    var trackInfoTransition: AnyTransition {
-        .asymmetric(
-            insertion: .move(edge: trackInfoInsertionEdge).combined(with: .opacity),
-            removal: .move(edge: trackInfoRemovalEdge).combined(with: .opacity)
-        )
-    }
-
     static func from(horizontalDragTranslation: CGFloat) -> Self? {
         guard abs(horizontalDragTranslation) >= LibraryDesignTokens.carouselSelectionThreshold else {
             return nil

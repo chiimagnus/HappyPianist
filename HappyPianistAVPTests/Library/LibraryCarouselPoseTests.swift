@@ -1,6 +1,5 @@
 @testable import HappyPianistAVP
 import CoreGraphics
-import SwiftUI
 import Testing
 
 @Test
@@ -50,12 +49,4 @@ func carouselSelectionDirectionHonorsTheReleaseThreshold() {
     #expect(LibraryCarouselSelectionDirection.from(horizontalDragTranslation: 59) == nil)
     #expect(LibraryCarouselSelectionDirection.from(horizontalDragTranslation: -60) == .next)
     #expect(LibraryCarouselSelectionDirection.from(horizontalDragTranslation: 60) == .previous)
-}
-
-@Test
-func carouselSelectionDirectionMapsTrackInfoToOpposingEdges() {
-    #expect(LibraryCarouselSelectionDirection.next.trackInfoInsertionEdge == .trailing)
-    #expect(LibraryCarouselSelectionDirection.next.trackInfoRemovalEdge == .leading)
-    #expect(LibraryCarouselSelectionDirection.previous.trackInfoInsertionEdge == .leading)
-    #expect(LibraryCarouselSelectionDirection.previous.trackInfoRemovalEdge == .trailing)
 }
