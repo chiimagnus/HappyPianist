@@ -9,7 +9,6 @@ final class ARGuideAIPerformanceViewModel {
     let ariaWebSocketDiscoveryService: BonjourBackendDiscoveryService
     private let backendSelection = ImprovBackendSelection()
     private let aiPlaybackServiceFactory: @MainActor () -> DuetAIPlaybackServiceFactory
-    @ObservationIgnored
     private let localCoreMLModelLoader = PerformanceRNNCoreMLModelLoader()
 
     var localCoreMLDuetAvailability: LocalCoreMLDuetAvailability = .idle

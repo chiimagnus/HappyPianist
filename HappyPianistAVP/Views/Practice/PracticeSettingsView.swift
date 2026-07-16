@@ -1,13 +1,9 @@
 import SwiftUI
 
 struct PracticeSettingsView: View {
-    private enum SettingsTab: String, CaseIterable, Identifiable {
+    private enum SettingsTab: String, CaseIterable {
         case practice
         case improvDuet
-
-        var id: Self {
-            self
-        }
 
         var title: String {
             switch self {
@@ -53,7 +49,7 @@ struct PracticeSettingsView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 Picker("设置分类", selection: $selectedTab) {
-                    ForEach(SettingsTab.allCases) { tab in
+                    ForEach(SettingsTab.allCases, id: \.rawValue) { tab in
                         Text(tab.title).tag(tab)
                     }
                 }
