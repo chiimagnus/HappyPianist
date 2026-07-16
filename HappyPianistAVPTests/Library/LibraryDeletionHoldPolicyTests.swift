@@ -35,3 +35,22 @@ func deletionHoldRequiresThresholdAndAnEligibleEntry() {
         ) == false
     )
 }
+
+@Test
+func verticalIntentRejectsHorizontalAndDiagonalDrags() {
+    #expect(
+        LibraryVerticalDragIntentPolicy.isClearlyVertical(
+            translation: CGSize(width: 0, height: 8)
+        )
+    )
+    #expect(
+        LibraryVerticalDragIntentPolicy.isClearlyVertical(
+            translation: CGSize(width: 8, height: 8)
+        ) == false
+    )
+    #expect(
+        LibraryVerticalDragIntentPolicy.isClearlyVertical(
+            translation: CGSize(width: 12, height: 8)
+        ) == false
+    )
+}

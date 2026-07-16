@@ -18,6 +18,7 @@ struct LibraryCrateView: View {
     @State private var crateWidth: CGFloat = 0
     @State private var liftOffset: CGFloat = 0
     @State private var downwardDragOffset: CGFloat = 0
+    @State private var hasVerticalDragIntent = false
     @State private var deletionHoldEntryID: UUID?
     @State private var deletionHoldStartedAt: Date?
     @State private var didDeleteDuringDrag = false
@@ -170,7 +171,12 @@ struct LibraryCrateView: View {
     private var verticalDragGesture: some Gesture {
         DragGesture(minimumDistance: 7)
             .onChanged { value in
-                guard isVerticalIntent(value) else { return }
+                guard hasVerticalDragIntent || LibraryVerticalDragIntentPolicy.isClearlyVertical(
+                    translation: value.translation
+                ) else {
+                    return
+                }
+                hasVerticalDragIntent = true
 
                 if value.translation.height < 0 {
                     cancelDeletionHold()
@@ -183,7 +189,7 @@ struct LibraryCrateView: View {
                 }
             }
             .onEnded { value in
-                if isVerticalIntent(value),
+                if hasVerticalDragIntent,
                    liftOffset >= LibraryDesignTokens.liftTrigger,
                    didDeleteDuringDrag == false
                 {
@@ -196,6 +202,7 @@ struct LibraryCrateView: View {
                 }
                 cancelDeletionHold()
                 didDeleteDuringDrag = false
+                hasVerticalDragIntent = false
             }
     }
 
@@ -266,10 +273,6 @@ struct LibraryCrateView: View {
         withAnimation(reduceMotion ? nil : LibraryDesignTokens.easeOut) {
             scrollTargetID = entryID
         }
-    }
-
-    private func isVerticalIntent(_ value: DragGesture.Value) -> Bool {
-        abs(value.translation.height) > abs(value.translation.width)
     }
 }
 

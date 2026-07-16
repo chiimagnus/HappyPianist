@@ -72,6 +72,12 @@ enum LibraryRecordScrollSelectionDecision {
     }
 }
 
+enum LibraryVerticalDragIntentPolicy {
+    static func isClearlyVertical(translation: CGSize) -> Bool {
+        abs(translation.height) > abs(translation.width) * 1.5
+    }
+}
+
 enum LibraryDeletionHoldPolicy {
     static func progress(for downwardDragTranslation: CGFloat) -> CGFloat {
         min(max(downwardDragTranslation / LibraryDesignTokens.liftMaximum, 0), 1)
