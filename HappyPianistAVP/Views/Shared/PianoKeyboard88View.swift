@@ -10,9 +10,7 @@ struct PianoKeyboard88Highlight: Equatable {
 }
 
 struct PianoKeyboard88View: View {
-    static let aspectRatio: CGFloat = 52.0 / 8.0
-    static let minPlayableMIDINote = 21
-    static let maxPlayableMIDINote = 108
+    static let aspectRatio: CGFloat = CGFloat(PianoKeyboardTopology.whiteKeyCount) / 8
 
     let highlightByMIDINote: [Int: PianoKeyboard88Highlight]
     let highlightOccurrenceID: Int?
@@ -122,7 +120,7 @@ struct PianoKeyboard88View: View {
     }
 
     static func keyCenterFraction(midiNote: Int) -> CGFloat? {
-        if let whiteIndex = whiteIndexByMIDINote[midiNote] {
+        if let whiteIndex = PianoKeyboardTopology.layout.whiteKeyIndexByMIDINote[midiNote] {
             return (CGFloat(whiteIndex) + 0.5) / CGFloat(max(1, whiteKeys.count))
         }
         if let blackCenter = blackKeyCenterFractionByMIDINote[midiNote] {
@@ -131,29 +129,15 @@ struct PianoKeyboard88View: View {
         return nil
     }
 
-    private static let playableRange = minPlayableMIDINote ... maxPlayableMIDINote
-    private static let blackPitchClasses: Set<Int> = [1, 3, 6, 8, 10]
+    private static let whiteKeys: [WhiteKey] = PianoKeyboardTopology.playableMIDINoteRange.compactMap { midiNote in
+        guard let whiteIndex = PianoKeyboardTopology.layout.whiteKeyIndexByMIDINote[midiNote] else { return nil }
+        return WhiteKey(midiNote: midiNote, whiteIndex: whiteIndex)
+    }
 
-    private static let whiteKeys: [WhiteKey] = {
-        var keys: [WhiteKey] = []
-        var whiteIndex = 0
-
-        for midiNote in playableRange {
-            guard isBlackKey(midiNote) == false else { continue }
-            keys.append(WhiteKey(midiNote: midiNote, whiteIndex: whiteIndex))
-            whiteIndex += 1
+    private static let blackKeys: [BlackKey] = PianoKeyboardTopology.playableMIDINoteRange.compactMap { midiNote in
+        guard let leftWhiteIndex = PianoKeyboardTopology.layout.adjacentWhiteKeyIndicesByBlackMIDINote[midiNote]?.left else {
+            return nil
         }
-
-        return keys
-    }()
-
-    private static let whiteIndexByMIDINote: [Int: Int] = Dictionary(
-        uniqueKeysWithValues: whiteKeys.map { ($0.midiNote, $0.whiteIndex) }
-    )
-
-    private static let blackKeys: [BlackKey] = playableRange.compactMap { midiNote in
-        guard isBlackKey(midiNote) else { return nil }
-        guard let leftWhiteIndex = whiteIndexByMIDINote[midiNote - 1] else { return nil }
         return BlackKey(midiNote: midiNote, leftWhiteIndex: leftWhiteIndex)
     }
 
@@ -164,12 +148,8 @@ struct PianoKeyboard88View: View {
         }
     )
 
-    private static func isBlackKey(_ midiNote: Int) -> Bool {
-        blackPitchClasses.contains(midiNote % 12)
-    }
-
     static func keyKind(for midiNote: Int) -> PianoKeyKind {
-        isBlackKey(midiNote) ? .black : .white
+        PianoKeyboardTopology.keyKind(for: midiNote)
     }
 
     nonisolated static func highlightKeyViewID(

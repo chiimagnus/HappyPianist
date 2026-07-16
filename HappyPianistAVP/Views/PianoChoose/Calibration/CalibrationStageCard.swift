@@ -25,9 +25,9 @@ struct CalibrationStageCard: View {
                     KeyboardMovingGlowOverlay(
                         isActive: showsMovingGlow,
                         startFraction: PianoKeyboard88View
-                            .keyCenterFraction(midiNote: PianoKeyboard88View.minPlayableMIDINote) ?? 0,
+                            .keyCenterFraction(midiNote: PianoKeyboardTopology.playableMIDINoteRange.lowerBound) ?? 0,
                         endFraction: PianoKeyboard88View
-                            .keyCenterFraction(midiNote: PianoKeyboard88View.maxPlayableMIDINote) ?? 1
+                            .keyCenterFraction(midiNote: PianoKeyboardTopology.playableMIDINoteRange.upperBound) ?? 1
                     )
                 }
 

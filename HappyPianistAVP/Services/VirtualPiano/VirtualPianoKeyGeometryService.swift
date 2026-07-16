@@ -6,14 +6,9 @@ protocol VirtualPianoKeyGeometryServiceProtocol {
 }
 
 struct VirtualPianoKeyGeometryService: VirtualPianoKeyGeometryServiceProtocol {
-    private static let keyCount = 88
-    private static let whiteKeyCount = 52
-    private static let firstMIDINote = 21 // A0
-    private static let lastMIDINote = 108 // C8
-
     static let whiteKeyWidthMeters: Float = 0.0235
     static let whiteKeySpacingMeters: Float = whiteKeyWidthMeters / 0.95
-    static let totalKeyboardLengthMeters: Float = whiteKeySpacingMeters * Float(whiteKeyCount - 1)
+    static let totalKeyboardLengthMeters: Float = whiteKeySpacingMeters * Float(PianoKeyboardTopology.whiteKeyCount - 1)
 
     static let whiteKeyDepthMeters: Float = 0.14
     static let whiteKeyThicknessMeters: Float = 0.03
@@ -37,13 +32,13 @@ struct VirtualPianoKeyGeometryService: VirtualPianoKeyGeometryServiceProtocol {
         // - Keys extend "into" the keyboard along -Z.
         let whiteKeyCenterZ: Float = -Self.whiteKeyDepthMeters / 2
 
-        let layout = Self.makeLayoutMaps()
+        let layout = PianoKeyboardTopology.layout
 
         var keys: [PianoKeyGeometry] = []
-        keys.reserveCapacity(Self.keyCount)
+        keys.reserveCapacity(PianoKeyboardTopology.keyCount)
 
-        for midiNote in Self.firstMIDINote ... Self.lastMIDINote {
-            let kind = Self.keyKind(for: midiNote)
+        for midiNote in PianoKeyboardTopology.playableMIDINoteRange {
+            let kind = PianoKeyboardTopology.keyKind(for: midiNote)
 
             switch kind {
             case .white:
@@ -110,49 +105,7 @@ struct VirtualPianoKeyGeometryService: VirtualPianoKeyGeometryServiceProtocol {
             }
         }
 
-        guard keys.count == Self.keyCount else { return nil }
+        guard keys.count == PianoKeyboardTopology.keyCount else { return nil }
         return PianoKeyboardGeometry(frame: frame, keys: keys)
-    }
-}
-
-extension VirtualPianoKeyGeometryService {
-    private static let blackPitchClasses: Set<Int> = [1, 3, 6, 8, 10]
-
-    static func keyKind(for midiNote: Int) -> PianoKeyKind {
-        let pitchClass = ((midiNote % 12) + 12) % 12
-        return blackPitchClasses.contains(pitchClass) ? .black : .white
-    }
-
-    private struct LayoutMaps {
-        let whiteKeyIndexByMIDINote: [Int: Int]
-        let adjacentWhiteKeyIndicesByBlackMIDINote: [Int: (left: Int, right: Int)]
-    }
-
-    private static func makeLayoutMaps() -> LayoutMaps {
-        var whiteKeyIndexByMIDINote: [Int: Int] = [:]
-        var adjacentWhiteKeyIndicesByBlackMIDINote: [Int: (left: Int, right: Int)] = [:]
-
-        var whiteIndex = 0
-        var pendingBlackMIDINoteWithLeftWhiteIndex: (midi: Int, left: Int)?
-
-        for midiNote in firstMIDINote ... lastMIDINote {
-            let kind = keyKind(for: midiNote)
-            switch kind {
-            case .white:
-                whiteKeyIndexByMIDINote[midiNote] = whiteIndex
-                if let pending = pendingBlackMIDINoteWithLeftWhiteIndex {
-                    adjacentWhiteKeyIndicesByBlackMIDINote[pending.midi] = (left: pending.left, right: whiteIndex)
-                    pendingBlackMIDINoteWithLeftWhiteIndex = nil
-                }
-                whiteIndex += 1
-            case .black:
-                pendingBlackMIDINoteWithLeftWhiteIndex = (midi: midiNote, left: max(0, whiteIndex - 1))
-            }
-        }
-
-        return LayoutMaps(
-            whiteKeyIndexByMIDINote: whiteKeyIndexByMIDINote,
-            adjacentWhiteKeyIndicesByBlackMIDINote: adjacentWhiteKeyIndicesByBlackMIDINote
-        )
     }
 }

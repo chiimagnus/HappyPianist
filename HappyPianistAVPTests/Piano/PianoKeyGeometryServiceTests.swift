@@ -3,6 +3,20 @@ import simd
 import Testing
 
 @Test
+func pianoKeyboardTopologyDefinesTheCanonical88KeyLayout() {
+    let layout = PianoKeyboardTopology.layout
+
+    #expect(PianoKeyboardTopology.playableMIDINoteRange.count == PianoKeyboardTopology.keyCount)
+    #expect(layout.whiteKeyIndexByMIDINote.count == PianoKeyboardTopology.whiteKeyCount)
+    #expect(PianoKeyboardTopology.keyKind(for: 60) == .white)
+    #expect(PianoKeyboardTopology.keyKind(for: 61) == .black)
+    #expect(layout.whiteKeyIndexByMIDINote[21] == 0)
+    #expect(layout.whiteKeyIndexByMIDINote[108] == 51)
+    #expect(layout.adjacentWhiteKeyIndicesByBlackMIDINote[22]?.left == 0)
+    #expect(layout.adjacentWhiteKeyIndicesByBlackMIDINote[22]?.right == 1)
+}
+
+@Test
 func keyGeometryIgnoresYNoiseInCalibrationAnchors() {
     let calibration = PianoCalibration(
         a0: SIMD3<Float>(0.0, 0.50, 0.0),

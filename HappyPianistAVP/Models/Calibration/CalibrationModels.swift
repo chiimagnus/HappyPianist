@@ -72,6 +72,52 @@ enum PianoKeyKind: Equatable {
     case black
 }
 
+enum PianoKeyboardTopology {
+    static let keyCount = 88
+    static let whiteKeyCount = 52
+    static let playableMIDINoteRange = 21 ... 108
+
+    static let layout = makeLayout()
+
+    static func keyKind(for midiNote: Int) -> PianoKeyKind {
+        let pitchClass = ((midiNote % 12) + 12) % 12
+        return blackPitchClasses.contains(pitchClass) ? .black : .white
+    }
+
+    struct Layout {
+        let whiteKeyIndexByMIDINote: [Int: Int]
+        let adjacentWhiteKeyIndicesByBlackMIDINote: [Int: (left: Int, right: Int)]
+    }
+
+    private static let blackPitchClasses: Set<Int> = [1, 3, 6, 8, 10]
+
+    private static func makeLayout() -> Layout {
+        var whiteKeyIndexByMIDINote: [Int: Int] = [:]
+        var adjacentWhiteKeyIndicesByBlackMIDINote: [Int: (left: Int, right: Int)] = [:]
+        var whiteIndex = 0
+        var pendingBlackMIDINoteWithLeftWhiteIndex: (midi: Int, left: Int)?
+
+        for midiNote in playableMIDINoteRange {
+            switch keyKind(for: midiNote) {
+            case .white:
+                whiteKeyIndexByMIDINote[midiNote] = whiteIndex
+                if let pending = pendingBlackMIDINoteWithLeftWhiteIndex {
+                    adjacentWhiteKeyIndicesByBlackMIDINote[pending.midi] = (left: pending.left, right: whiteIndex)
+                    pendingBlackMIDINoteWithLeftWhiteIndex = nil
+                }
+                whiteIndex += 1
+            case .black:
+                pendingBlackMIDINoteWithLeftWhiteIndex = (midi: midiNote, left: max(0, whiteIndex - 1))
+            }
+        }
+
+        return Layout(
+            whiteKeyIndexByMIDINote: whiteKeyIndexByMIDINote,
+            adjacentWhiteKeyIndicesByBlackMIDINote: adjacentWhiteKeyIndicesByBlackMIDINote
+        )
+    }
+}
+
 struct PianoKeyGeometry: Equatable, Identifiable {
     var id: Int {
         midiNote
