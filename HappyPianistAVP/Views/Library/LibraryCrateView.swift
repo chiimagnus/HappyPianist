@@ -12,16 +12,13 @@ struct LibraryCrateView: View {
     let onImportMusicXML: () -> Void
     let onImmediateDelete: (UUID) -> Void
 
-    @State private var scrollTargetID: UUID?
-    @State private var crateWidth: CGFloat = 0
+    @State private var horizontalDragOffset: CGFloat = 0
     @State private var liftOffset: CGFloat = 0
     @State private var downwardDragOffset: CGFloat = 0
-    @State private var verticalDragIsActive: Bool?
+    @State private var dragIsHorizontal: Bool?
     @State private var deletionHoldEntryID: UUID?
     @State private var deletionHoldStartedAt: Date?
     @State private var didDeleteDuringDrag = false
-
-    private static let scrollCoordinateSpace = "LibraryRecordScroll"
 
     private var selectedEntry: SongLibraryEntry? {
         entries.first(where: { $0.id == selectedEntryID })
@@ -30,10 +27,7 @@ struct LibraryCrateView: View {
     var body: some View {
         let selectedIndex = entries.firstIndex(where: { $0.id == selectedEntryID }) ?? 0
         let selectedEntry = entries.indices.contains(selectedIndex) ? entries[selectedIndex] : nil
-        let horizontalContentMargin = max(
-            0,
-            (crateWidth - LibraryDesignTokens.recordDiameter) / 2
-        )
+        let dragProgress = horizontalDragOffset / LibraryDesignTokens.carouselNeighborOffset
 
         ZStack {
             LibraryImportLiftView(liftOffset: liftOffset)
@@ -49,67 +43,45 @@ struct LibraryCrateView: View {
             .offset(y: 74 - LibraryDesignTokens.recordDiameter / 2)
             .zIndex(1)
 
-            ScrollView(.horizontal) {
-                LazyHStack(spacing: LibraryDesignTokens.recordSpacing) {
-                    ForEach(entries.enumerated(), id: \.element.id) { index, entry in
-                        let isSelected = entry.id == selectedEntryID
-                        let presentation = SongLibraryTrackPresentation(entry: entry, index: index)
+            ForEach(entries.enumerated(), id: \.element.id) { index, entry in
+                let relativeIndex = index - selectedIndex
+                let distance = abs(relativeIndex)
 
-                        Button {
-                            handleRecordTap(entryID: entry.id)
-                        } label: {
-                            VinylRecordView(
-                                labelColor: presentation.labelColor,
-                                isPlaying: isSelected && playingEntryID == entry.id && isPlaying,
-                                reduceMotion: reduceMotion
-                            )
-                            .visualEffect { content, geometry in
-                                let frame = geometry.frame(in: .named(Self.scrollCoordinateSpace))
-                                let scrollPresentation = LibraryRecordScrollPresentation(
-                                    centerDistance: frame.midX - crateWidth / 2
-                                )
+                if distance <= 3 {
+                    let isActive = relativeIndex == 0
+                    let pose = LibraryCarouselPose(
+                        relativePosition: CGFloat(relativeIndex) + dragProgress
+                    )
+                    let presentation = SongLibraryTrackPresentation(entry: entry, index: index)
 
-                                content
-                                    .scaleEffect(scrollPresentation.scale)
-                                    .opacity(scrollPresentation.opacity)
-                                    .saturation(scrollPresentation.saturation)
-                            }
-                        }
-                        .buttonStyle(.plain)
-                        .hoverEffect()
-                        .frame(
-                            width: LibraryDesignTokens.recordDiameter,
-                            height: LibraryDesignTokens.recordDiameter
+                    Button {
+                        handleRecordTap(entryID: entry.id, index: index, selectedIndex: selectedIndex)
+                    } label: {
+                        VinylRecordView(
+                            labelColor: presentation.labelColor,
+                            isPlaying: isActive && playingEntryID == entry.id && isPlaying,
+                            reduceMotion: reduceMotion
                         )
-                        .contentShape(.rect)
-                        .offset(y: isSelected ? downwardDragOffset - liftOffset : 0)
-                        .id(entry.id)
-                        .accessibilityLabel(presentation.title)
-                        .accessibilityHint(isSelected ? "播放或暂停当前曲目" : "将这首曲目移到中央并选中")
-                        .accessibilityAddTraits(isSelected ? .isSelected : [])
                     }
+                    .buttonStyle(.plain)
+                    .hoverEffect()
+                    // ponytail: visionOS clips rotated record layers; horizontal compression keeps the depth cue.
+                    .scaleEffect(x: pose.scale * pose.horizontalScale, y: pose.scale)
+                    .opacity(pose.opacity)
+                    .saturation(pose.saturation)
+                    .offset(
+                        x: pose.horizontalOffset,
+                        y: isActive ? downwardDragOffset - liftOffset : 0
+                    )
+                    .zIndex(pose.zIndex)
+                    .animation(reduceMotion ? nil : LibraryDesignTokens.easeOut, value: selectedEntryID)
+                    .allowsHitTesting(distance <= 2)
+                    .accessibilityHidden(distance > 2)
+                    .accessibilityLabel(presentation.title)
+                    .accessibilityHint(isActive ? "播放或暂停当前曲目" : "切换到这首曲目")
+                    .accessibilityAddTraits(isActive ? .isSelected : [])
                 }
-                .frame(maxHeight: .infinity)
-                .scrollTargetLayout()
             }
-            .scrollIndicators(.hidden)
-            .contentMargins(.horizontal, horizontalContentMargin, for: .scrollContent)
-            .scrollTargetBehavior(.viewAligned(anchor: .center))
-            .scrollPosition(id: $scrollTargetID, anchor: .center)
-            .coordinateSpace(.named(Self.scrollCoordinateSpace))
-            .onScrollPhaseChange { _, newPhase in
-                guard let settledEntryID = LibraryRecordScrollSelection.settledEntryID(
-                    scrollTargetID: scrollTargetID,
-                    selectedEntryID: selectedEntryID,
-                    isIdle: newPhase == .idle,
-                    availableEntryIDs: entries.map(\.id)
-                ) else {
-                    return
-                }
-
-                onSelectEntry(settledEntryID)
-            }
-            .zIndex(10)
 
             TurntableTonearmView(isPlaying: isPlaying, reduceMotion: reduceMotion)
                 .zIndex(30)
@@ -120,6 +92,26 @@ struct LibraryCrateView: View {
                     .padding(.bottom, 12)
             }
             .zIndex(40)
+
+            HStack {
+                Button("上一首", systemImage: "chevron.left") {
+                    select(index: selectedIndex - 1)
+                }
+                .labelStyle(.iconOnly)
+                .opacity(selectedIndex > 0 ? 0.95 : 0)
+                .disabled(selectedIndex == 0)
+
+                Spacer()
+
+                Button("下一首", systemImage: "chevron.right") {
+                    select(index: selectedIndex + 1)
+                }
+                .labelStyle(.iconOnly)
+                .opacity(selectedIndex < entries.count - 1 ? 0.95 : 0)
+                .disabled(selectedIndex >= entries.count - 1)
+            }
+            .padding()
+            .zIndex(50)
 
             VStack {
                 Spacer()
@@ -137,10 +129,7 @@ struct LibraryCrateView: View {
             maxHeight: .infinity
         )
         .contentShape(.rect)
-        .onGeometryChange(for: CGFloat.self, of: { $0.size.width }) { width in
-            crateWidth = width
-        }
-        .simultaneousGesture(verticalDragGesture)
+        .highPriorityGesture(dragGesture)
         .task(id: deletionHoldEntryID) {
             guard let entryID = deletionHoldEntryID else { return }
 
@@ -161,26 +150,16 @@ struct LibraryCrateView: View {
             didDeleteDuringDrag = true
             cancelDeletionHold()
         }
-        .onAppear {
-            synchronizeScrollTarget(with: selectedEntryID)
-        }
-        .onChange(of: entries.map(\.id)) { _, entryIDs in
-            if let scrollTargetID, entryIDs.contains(scrollTargetID) == false {
-                self.scrollTargetID = nil
-            }
-            synchronizeScrollTarget(with: selectedEntryID)
-        }
         .onChange(of: allowsDestructiveActions) { _, allowsDestructiveActions in
             if allowsDestructiveActions == false {
                 cancelDeletionHold()
             }
         }
-        .onChange(of: selectedEntryID) { _, selectedEntryID in
+        .onChange(of: selectedEntryID) {
             cancelDeletionHold()
-            synchronizeScrollTarget(with: selectedEntryID)
         }
         .accessibilityElement(children: .contain)
-        .accessibilityLabel("唱片架，左右滚动选曲")
+        .accessibilityLabel("唱片架，左右滑动选曲")
         .accessibilityAction(named: "删除曲目") {
             guard let selectedEntry,
                   selectedEntry.isBundled != true,
@@ -203,16 +182,23 @@ struct LibraryCrateView: View {
         .clipped()
     }
 
-    private var verticalDragGesture: some Gesture {
+    private var dragGesture: some Gesture {
         DragGesture(minimumDistance: 7)
             .onChanged { value in
-                if verticalDragIsActive == nil {
-                    verticalDragIsActive = abs(value.translation.height) > abs(value.translation.width)
+                if dragIsHorizontal == nil {
+                    dragIsHorizontal = abs(value.translation.width) >= abs(value.translation.height)
                 }
 
-                guard verticalDragIsActive == true else { return }
-
-                if value.translation.height < 0 {
+                if dragIsHorizontal == true {
+                    cancelDeletionHold()
+                    horizontalDragOffset = min(
+                        max(
+                            value.translation.width,
+                            -LibraryDesignTokens.carouselNeighborOffset
+                        ),
+                        LibraryDesignTokens.carouselNeighborOffset
+                    )
+                } else if value.translation.height < 0 {
                     cancelDeletionHold()
                     downwardDragOffset = 0
                     liftOffset = min(-value.translation.height, LibraryDesignTokens.liftMaximum)
@@ -222,21 +208,32 @@ struct LibraryCrateView: View {
                     updateDeletionHold(for: value.translation.height)
                 }
             }
-            .onEnded { _ in
-                if verticalDragIsActive == true,
-                   liftOffset >= LibraryDesignTokens.liftTrigger,
-                   didDeleteDuringDrag == false
-                {
+            .onEnded { value in
+                let selectedIndex = entries.firstIndex(where: { $0.id == selectedEntryID }) ?? 0
+
+                if dragIsHorizontal == true {
+                    switch LibraryCarouselSelectionDirection.from(
+                        horizontalDragTranslation: value.translation.width
+                    ) {
+                    case .next:
+                        select(index: selectedIndex + 1)
+                    case .previous:
+                        select(index: selectedIndex - 1)
+                    case nil:
+                        break
+                    }
+                } else if liftOffset >= LibraryDesignTokens.liftTrigger, didDeleteDuringDrag == false {
                     onImportMusicXML()
                 }
 
                 withAnimation(reduceMotion ? nil : LibraryDesignTokens.easeOut) {
+                    horizontalDragOffset = 0
                     liftOffset = 0
                     downwardDragOffset = 0
                 }
                 cancelDeletionHold()
                 didDeleteDuringDrag = false
-                verticalDragIsActive = nil
+                dragIsHorizontal = nil
             }
     }
 
@@ -263,38 +260,18 @@ struct LibraryCrateView: View {
         deletionHoldStartedAt = nil
     }
 
-    private func handleRecordTap(entryID: UUID) {
-        switch LibraryRecordScrollSelection.tapAction(
-            entryID: entryID,
-            selectedEntryID: selectedEntryID
-        ) {
-        case .togglePlayback:
+    private func handleRecordTap(entryID: UUID, index: Int, selectedIndex: Int) {
+        if index == selectedIndex {
             onTogglePlayback(entryID)
-        case .select:
-            select(entryID: entryID)
+        } else {
+            select(index: index)
         }
     }
 
     private func select(index: Int) {
         guard entries.indices.contains(index) else { return }
-        select(entryID: entries[index].id)
-    }
-
-    private func select(entryID: UUID) {
-        withAnimation(reduceMotion ? nil : LibraryDesignTokens.easeOut) {
-            scrollTargetID = entryID
-        }
+        let entryID = entries[index].id
         onSelectEntry(entryID)
-    }
-
-    private func synchronizeScrollTarget(with selectedEntryID: UUID?) {
-        guard let selectedEntryID,
-              entries.contains(where: { $0.id == selectedEntryID })
-        else {
-            scrollTargetID = nil
-            return
-        }
-        scrollTargetID = selectedEntryID
     }
 }
 

@@ -90,7 +90,7 @@ score import 只有 transaction service 一条写入路径；`.mxl` 在 preparat
 曲库选择链路：
 
 ```text
-点按唱片、系统滚动落定或 VoiceOver 调整 selection
+选择唱片
 -> SongLibraryViewModel 立即发布唯一 selectedEntryID
 -> 独立 debounce 唤醒单写者 drain loop
 -> SongLibraryIndexStore actor 保存最新 desired lastSelectedEntryID
@@ -103,7 +103,7 @@ score import 只有 transaction service 一条写入路径；`.mxl` 在 preparat
 -> ready 后才挂载 PracticeStepView
 ```
 
-SwiftUI View 与 `LibraryCrateView` 不保存第二份业务 selection；点按、系统滚动落定和 VoiceOver adjustable action 都只发送 `selectEntry` intent。`scrollTargetID` 仅表示瞬时滚动位置，不持久化且不启动业务副作用。持久化 worker 同时最多执行一个 mutation，旧写返回后会继续 drain 最新 desired selection；窗口消失时显式 flush。selection 保存尚未完成或失败都不阻塞启动，因为按钮传递当前内存 song ID。trailing Ornament 只读消费 snapshot state，不保存配置，也不提供第二个练习入口。
+SwiftUI View 与 `LibraryCrateView` 不保存第二份 selection；点击、拖动、上一首/下一首和 VoiceOver adjustable action 都只发送 `selectEntry` intent。持久化 worker 同时最多执行一个 mutation，旧写返回后会继续 drain 最新 desired selection；窗口消失时显式 flush。selection 保存尚未完成或失败都不阻塞启动，因为按钮传递当前内存 song ID。trailing Ornament 只读消费 snapshot state，不保存配置，也不提供第二个练习入口。
 
 当前曲目练习事实读取与 selection 持久化使用彼此独立的 generation：
 
