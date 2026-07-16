@@ -14,7 +14,6 @@ struct VirtualPianoPreparationView: View {
                     viewModel.setPracticeVirtualPianoEnabled(false)
                     navigationActions.backToTypePicker()
                 }
-                .buttonStyle(.bordered)
 
                 Spacer()
 

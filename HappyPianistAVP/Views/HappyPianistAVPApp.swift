@@ -63,7 +63,6 @@ struct HappyPianistAVPApp: App {
             initialWindowRoot
                 .environment(graph.windowState)
         }
-        .windowStyle(.automatic)
         .windowResizability(.contentSize)
 
         Window("Library", id: WindowID.library) {
@@ -75,7 +74,6 @@ struct HappyPianistAVPApp: App {
             )
             .environment(graph.windowState)
         }
-        .windowStyle(.automatic)
         .windowResizability(.contentSize)
 
         Window("Practice", id: WindowID.practice) {
@@ -85,7 +83,6 @@ struct HappyPianistAVPApp: App {
             )
                 .environment(graph.windowState)
         }
-        .windowStyle(.automatic)
         .windowResizability(.contentSize)
 
         ImmersiveSpace(id: appState.immersiveSpaceID) {

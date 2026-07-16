@@ -33,10 +33,8 @@ struct PracticeLaunchFailureView: View {
                         Button("备份并重置记录", systemImage: "externaldrive.badge.exclamationmark") {
                             isRecoveryConfirmationPresented = true
                         }
-                        .buttonStyle(.bordered)
                     }
                     Button("返回选曲库", systemImage: "chevron.backward", action: onReturn)
-                        .buttonStyle(.bordered)
                 }
             }
             .frame(maxWidth: 640, alignment: .leading)
@@ -79,7 +77,6 @@ struct PracticeProgressAccessFailureBanner: View {
                     Button("备份并重置记录", systemImage: "externaldrive.badge.exclamationmark") {
                         isRecoveryConfirmationPresented = true
                     }
-                    .buttonStyle(.bordered)
                 }
             }
         }

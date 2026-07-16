@@ -409,18 +409,14 @@ private struct LibraryImportStatusView: View {
         Button("处理此项") { onReviewConflict(pending.id) }
           .buttonStyle(.borderedProminent)
         Button("取消此项") { onCancelCurrent(pending.id) }
-          .buttonStyle(.bordered)
         Button("取消剩余导入", role: .cancel, action: onCancelAll)
-          .buttonStyle(.bordered)
       case .itemFailure:
         Button("继续下一项", action: onContinue)
           .buttonStyle(.borderedProminent)
         Button("取消剩余导入", role: .cancel, action: onCancelAll)
-          .buttonStyle(.bordered)
       case .idle, .staging, .processing:
         // ponytail: the parent only creates this view while an import is active.
         Button("取消导入", role: .cancel, action: onCancelAll)
-          .buttonStyle(.bordered)
       }
     }
     .padding(12)
@@ -502,12 +498,10 @@ private struct LibraryTopBarView: View {
   var body: some View {
     HStack {
       Button("重新选择钢琴", action: onBack)
-        .buttonStyle(.bordered)
 
       Spacer()
 
       Button("诊断", systemImage: "stethoscope", action: onDiagnostics)
-        .buttonStyle(.bordered)
     }
     .frame(height: 70)
     .padding(.horizontal, 28)
@@ -612,7 +606,6 @@ private struct LibraryTrackInfoView: View {
 
         Button(playbackTitle, systemImage: playbackSystemImage, action: onPlayback)
           .labelStyle(.iconOnly)
-          .buttonStyle(.bordered)
           .disabled(canPerformPlaybackAction == false)
       }
       .padding(.top, 9)

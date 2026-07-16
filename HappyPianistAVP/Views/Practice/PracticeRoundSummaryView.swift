@@ -21,7 +21,6 @@ struct PracticeRoundSummaryView: View {
                 Button(summary.actionTitle, systemImage: "arrow.clockwise", action: onPrimaryAction)
                     .buttonStyle(.borderedProminent)
                 Button("返回曲库", systemImage: "books.vertical", action: onContinue)
-                    .buttonStyle(.bordered)
             }
         }
         .padding()

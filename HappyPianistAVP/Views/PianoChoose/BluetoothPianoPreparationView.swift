@@ -12,7 +12,6 @@ struct BluetoothMIDIPreparationView: View {
                 Button("返回钢琴类型选择") {
                     navigationActions.backToTypePicker()
                 }
-                .buttonStyle(.bordered)
 
                 Spacer()
 
@@ -89,7 +88,6 @@ struct BluetoothMIDIConnectionSection: View {
                     Button("选择/连接…", systemImage: "dot.radiowaves.left.and.right") {
                         isDevicePickerPresented = true
                     }
-                    .buttonStyle(.bordered)
                     .popover(isPresented: $isDevicePickerPresented) {
                         VStack(alignment: .leading) {
                             Button {
@@ -138,7 +136,6 @@ struct BluetoothMIDIConnectionSection: View {
                         Button("刷新输出", systemImage: "arrow.clockwise") {
                             destinationConnectionViewModel.refreshDestinations()
                         }
-                        .buttonStyle(.bordered)
                     }
 
                     Toggle("Local Control Off（可选）", isOn: $sendLocalControlOff)
@@ -284,7 +281,6 @@ struct BluetoothMIDIConnectionSection: View {
                             await bluetoothAccessViewModel.refreshStatus()
                         }
                     }
-                    .buttonStyle(.bordered)
                 }
 
                 if showsOpenSettingsButton {

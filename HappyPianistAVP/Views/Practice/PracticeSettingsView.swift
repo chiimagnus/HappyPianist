@@ -87,7 +87,6 @@ struct PracticeSettingsView: View {
                                 Button("刷新输出", systemImage: "arrow.clockwise") {
                                     destinationConnectionViewModel.refreshDestinations()
                                 }
-                                .buttonStyle(.bordered)
                             }
 
                             Toggle("Local Control Off（可选）", isOn: $roundConfigurationController.pendingSendLocalControlOff)
@@ -195,7 +194,6 @@ struct PracticeSettingsView: View {
                                 Button("打开录制库", systemImage: "list.bullet") {
                                     onOpenTakeLibrary()
                                 }
-                                .buttonStyle(.bordered)
                             }
                             .disabled(isAIPerformanceActive)
 
@@ -253,7 +251,6 @@ struct PracticeSettingsView: View {
                                 Button("调试：注入测试短句（跨键盘）", systemImage: "hammer") {
                                     onDebugInjectAIImprovPhrase()
                                 }
-                                .buttonStyle(.bordered)
 
                                 Text("用于 simulator：不依赖 Hand Tracking，直接触发 AI 生成/回放。")
                                     .font(.footnote)
@@ -266,7 +263,6 @@ struct PracticeSettingsView: View {
             }
             .padding(16)
         }
-        .scrollIndicators(.automatic)
         .onAppear {
             if isBluetoothMIDIMode {
                 destinationConnectionViewModel.start()

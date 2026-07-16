@@ -11,7 +11,6 @@ struct RealPianoPreparationView: View {
                 Button("返回钢琴类型选择") {
                     navigationActions.backToTypePicker()
                 }
-                .buttonStyle(.bordered)
 
                 Spacer()
 
