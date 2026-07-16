@@ -85,17 +85,6 @@ uv run --project aria_server \
 
 模型权重默认路径是 `python_backend/aria/hf/model-demo.safetensors`，不会随仓库分发。详细说明见 [`python_backend/README.md`](python_backend/README.md)。
 
-## 文档
-
-- [项目概览与导航](docs/overview.md)
-- [架构](docs/architecture.md)
-- [数据流](docs/data-flow.md)
-- [AVP 模块](docs/modules/happypianist-avp.md)
-- [练习模块](docs/modules/happypianist-avp-practice.md)
-- [配置与资源](docs/configuration.md)
-- [存储](docs/storage.md)
-- [核心功能与人工验收清单](docs/testing/core-function-checklist.md)
-
 ## Acknowledgements
 
 - [Anticipation](https://github.com/jthickstun/anticipation) 与 [Anticipatory Music Transformer](https://arxiv.org/abs/2306.08620)
