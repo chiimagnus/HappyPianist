@@ -10,7 +10,6 @@ struct SongLibraryView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isAudioImporterPresented = false
     @State private var pendingAudioBindingEntryID: UUID?
-    @State private var pendingDeletionEntryID: UUID?
     @State private var pendingImportConfirmationID: UUID?
     @State private var isDiagnosticsPresented = false
     @State private var libraryViewHeight = LibraryDesignTokens.windowIdealHeight
@@ -63,7 +62,7 @@ struct SongLibraryView: View {
                             onTogglePlayback: togglePlayback,
                             onImportMusicXML: viewModel.didTapImportMusicXML,
                             onBindAudio: presentAudioImporter,
-                            onDelete: requestDeletion
+                            onImmediateDelete: deleteWithoutConfirmation
                         )
 
                         LibraryTrackInfoView(
@@ -236,24 +235,6 @@ struct SongLibraryView: View {
         } message: {
             Text(importConflictPresentation?.message ?? "曲谱冲突状态已变化。")
         }
-        .confirmationDialog(
-            "确认删除该曲目？",
-            isPresented: Binding(
-                get: { pendingDeletionEntryID != nil },
-                set: { isPresented in
-                    if isPresented == false {
-                        pendingDeletionEntryID = nil
-                    }
-                }
-            )
-        ) {
-            Button("删除", role: .destructive, action: deletePendingEntry)
-            Button("取消", role: .cancel) {
-                pendingDeletionEntryID = nil
-            }
-        } message: {
-            Text("删除后将移除曲谱文件及已绑定音频文件，且无法撤销。")
-        }
     }
 
     private func resolvedDuration(
@@ -333,18 +314,6 @@ struct SongLibraryView: View {
         isAudioImporterPresented = true
     }
 
-    private func requestDeletion(_ entryID: UUID) {
-        guard viewModel.importState.isActive == false else {
-            viewModel.errorMessage = "曲谱导入完成或取消后才能删除曲目。"
-            return
-        }
-        guard let entry = viewModel.entries.first(where: { $0.id == entryID }), entry.isBundled != true
-        else {
-            return
-        }
-        pendingDeletionEntryID = entryID
-    }
-
     private func handleAudioImport(_ result: Result<[URL], Error>) {
         defer { pendingAudioBindingEntryID = nil }
 
@@ -359,11 +328,16 @@ struct SongLibraryView: View {
         }
     }
 
-    private func deletePendingEntry() {
-        guard let entryID = pendingDeletionEntryID else { return }
+    private func deleteWithoutConfirmation(_ entryID: UUID) {
+        guard viewModel.importState.isActive == false,
+              let entry = viewModel.entries.first(where: { $0.id == entryID }),
+              entry.isBundled != true
+        else {
+            return
+        }
+
         Task { @MainActor in
             await viewModel.deleteEntry(entryID: entryID)
-            pendingDeletionEntryID = nil
         }
     }
 }

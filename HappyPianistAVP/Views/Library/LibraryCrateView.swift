@@ -11,20 +11,38 @@ struct LibraryCrateView: View {
     let onTogglePlayback: (UUID) -> Void
     let onImportMusicXML: () -> Void
     let onBindAudio: (UUID) -> Void
-    let onDelete: (UUID) -> Void
+    let onImmediateDelete: (UUID) -> Void
 
     @State private var horizontalDragOffset: CGFloat = 0
     @State private var liftOffset: CGFloat = 0
+    @State private var downwardDragOffset: CGFloat = 0
     @State private var dragIsHorizontal: Bool?
+    @State private var deletionHoldEntryID: UUID?
+    @State private var deletionHoldStartedAt: Date?
+    @State private var didDeleteDuringDrag = false
+
+    private var selectedEntry: SongLibraryEntry? {
+        entries.first(where: { $0.id == selectedEntryID })
+    }
 
     var body: some View {
         let selectedIndex = entries.firstIndex(where: { $0.id == selectedEntryID }) ?? 0
+        let selectedEntry = entries.indices.contains(selectedIndex) ? entries[selectedIndex] : nil
         let dragProgress = horizontalDragOffset / LibraryDesignTokens.carouselNeighborOffset
 
         ZStack {
             LibraryImportLiftView(liftOffset: liftOffset)
                 .offset(y: LibraryDesignTokens.recordDiameter / 2 - 74)
                 .zIndex(1)
+
+            LibraryDeleteHoldView(
+                downwardDragOffset: downwardDragOffset,
+                holdStartedAt: deletionHoldStartedAt,
+                isBundled: selectedEntry?.isBundled == true,
+                allowsDestructiveActions: allowsDestructiveActions
+            )
+            .offset(y: 74 - LibraryDesignTokens.recordDiameter / 2)
+            .zIndex(1)
 
             ForEach(entries.enumerated(), id: \.element.id) { index, entry in
                 let relativeIndex = index - selectedIndex
@@ -53,13 +71,6 @@ struct LibraryCrateView: View {
                             Button("导入或替换音频", systemImage: "waveform") {
                                 onBindAudio(entry.id)
                             }
-                            Button("删除曲目", systemImage: "trash", role: .destructive) {
-                                onDelete(entry.id)
-                            }
-                            .disabled(allowsDestructiveActions == false)
-                            .accessibilityHint(
-                                allowsDestructiveActions ? "删除当前曲目" : "曲谱导入期间不能删除曲目"
-                            )
                         }
                     }
                     // ponytail: visionOS clips rotated record layers; horizontal compression keeps the depth cue.
@@ -68,7 +79,7 @@ struct LibraryCrateView: View {
                     .saturation(pose.saturation)
                     .offset(
                         x: pose.horizontalOffset,
-                        y: isActive ? -liftOffset : 0
+                        y: isActive ? downwardDragOffset - liftOffset : 0
                     )
                     .zIndex(pose.zIndex)
                     .animation(reduceMotion ? nil : LibraryDesignTokens.easeOut, value: selectedEntryID)
@@ -127,8 +138,45 @@ struct LibraryCrateView: View {
         )
         .contentShape(.rect)
         .highPriorityGesture(dragGesture)
+        .task(id: deletionHoldEntryID) {
+            guard let entryID = deletionHoldEntryID else { return }
+
+            do {
+                try await Task.sleep(for: LibraryDesignTokens.deletionHoldDuration)
+            } catch {
+                return
+            }
+
+            guard deletionHoldEntryID == entryID,
+                  allowsDestructiveActions,
+                  entries.contains(where: { $0.id == entryID && $0.isBundled != true })
+            else {
+                return
+            }
+
+            onImmediateDelete(entryID)
+            didDeleteDuringDrag = true
+            cancelDeletionHold()
+        }
+        .onChange(of: allowsDestructiveActions) { _, allowsDestructiveActions in
+            if allowsDestructiveActions == false {
+                cancelDeletionHold()
+            }
+        }
+        .onChange(of: selectedEntryID) {
+            cancelDeletionHold()
+        }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("唱片架，左右滑动选曲")
+        .accessibilityAction(named: "删除曲目") {
+            guard let selectedEntry,
+                  selectedEntry.isBundled != true,
+                  allowsDestructiveActions
+            else {
+                return
+            }
+            onImmediateDelete(selectedEntry.id)
+        }
         .accessibilityAdjustableAction { direction in
             switch direction {
             case .increment:
@@ -150,6 +198,7 @@ struct LibraryCrateView: View {
                 }
 
                 if dragIsHorizontal == true {
+                    cancelDeletionHold()
                     horizontalDragOffset = min(
                         max(
                             value.translation.width,
@@ -158,7 +207,13 @@ struct LibraryCrateView: View {
                         LibraryDesignTokens.carouselNeighborOffset
                     )
                 } else if value.translation.height < 0 {
+                    cancelDeletionHold()
+                    downwardDragOffset = 0
                     liftOffset = min(-value.translation.height, LibraryDesignTokens.liftMaximum)
+                } else {
+                    liftOffset = 0
+                    downwardDragOffset = min(value.translation.height, LibraryDesignTokens.liftMaximum)
+                    updateDeletionHold(for: value.translation.height)
                 }
             }
             .onEnded { value in
@@ -175,16 +230,42 @@ struct LibraryCrateView: View {
                     case nil:
                         break
                     }
-                } else if liftOffset >= LibraryDesignTokens.liftTrigger {
+                } else if liftOffset >= LibraryDesignTokens.liftTrigger, didDeleteDuringDrag == false {
                     onImportMusicXML()
                 }
 
                 withAnimation(reduceMotion ? nil : LibraryDesignTokens.easeOut) {
                     horizontalDragOffset = 0
                     liftOffset = 0
+                    downwardDragOffset = 0
                 }
+                cancelDeletionHold()
+                didDeleteDuringDrag = false
                 dragIsHorizontal = nil
             }
+    }
+
+    private func updateDeletionHold(for downwardDragTranslation: CGFloat) {
+        guard didDeleteDuringDrag == false,
+              let selectedEntry,
+              LibraryDeletionHoldPolicy.isArmed(
+                  downwardDragTranslation: downwardDragTranslation,
+                  isBundled: selectedEntry.isBundled == true,
+                  allowsDestructiveActions: allowsDestructiveActions
+              )
+        else {
+            cancelDeletionHold()
+            return
+        }
+
+        guard deletionHoldEntryID != selectedEntry.id else { return }
+        deletionHoldEntryID = selectedEntry.id
+        deletionHoldStartedAt = .now
+    }
+
+    private func cancelDeletionHold() {
+        deletionHoldEntryID = nil
+        deletionHoldStartedAt = nil
     }
 
     private func handleRecordTap(entryID: UUID, index: Int, selectedIndex: Int) {
@@ -234,6 +315,57 @@ private struct LibraryImportLiftView: View {
     }
 }
 
+private struct LibraryDeleteHoldView: View {
+    let downwardDragOffset: CGFloat
+    let holdStartedAt: Date?
+    let isBundled: Bool
+    let allowsDestructiveActions: Bool
+
+    var body: some View {
+        let dragProgress = LibraryDeletionHoldPolicy.progress(for: downwardDragOffset)
+        let isDisabled = isBundled || allowsDestructiveActions == false
+
+        TimelineView(.animation(minimumInterval: 1 / 30, paused: holdStartedAt == nil)) { context in
+            let holdProgress = holdStartedAt.map {
+                min(
+                    max(
+                        context.date.timeIntervalSince($0) / LibraryDesignTokens.deletionHoldSeconds,
+                        0
+                    ),
+                    1
+                )
+            } ?? 0
+
+            VStack(spacing: 6) {
+                Label(
+                    isBundled
+                        ? "内置曲目不能删除"
+                        : allowsDestructiveActions ? "下拽并按住删除" : "导入期间不能删除",
+                    systemImage: "trash"
+                )
+                .font(.subheadline)
+
+                ProgressView(value: holdProgress)
+                    .tint(.red)
+                    .frame(width: 130)
+                    .opacity(holdStartedAt == nil ? 0 : 1)
+            }
+            .foregroundStyle(isDisabled ? LibraryDesignTokens.faintText : .red)
+            .padding(.horizontal, 16)
+            .frame(minHeight: 44)
+            .background(.black.opacity(0.66), in: .capsule)
+            .overlay {
+                Capsule()
+                    .stroke(isDisabled ? Color.white.opacity(0.24) : .red.opacity(0.72), lineWidth: 1)
+            }
+            .opacity(dragProgress)
+            .scaleEffect(0.92 + 0.08 * dragProgress)
+            .offset(y: -66 + 18 * dragProgress)
+            .accessibilityHidden(true)
+        }
+    }
+}
+
 private struct LibraryPageIndicatorView: View {
     let count: Int
     let selectedIndex: Int
@@ -271,7 +403,7 @@ private struct LibraryPageIndicatorView: View {
         onTogglePlayback: { _ in },
         onImportMusicXML: {},
         onBindAudio: { _ in },
-        onDelete: { _ in }
+        onImmediateDelete: { _ in }
     )
     .frame(width: 1_140, height: 500)
 }

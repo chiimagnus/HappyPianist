@@ -23,7 +23,8 @@ enum LibraryDesignTokens {
 
     static let liftMaximum: CGFloat = 72
     static let liftTrigger: CGFloat = 44
-    static let deletionHoldDuration: Duration = .seconds(2)
+    static let deletionHoldSeconds = 2.0
+    static let deletionHoldDuration: Duration = .seconds(deletionHoldSeconds)
 
     static let tonearmLength: CGFloat = 184
     static let tonearmPivotX: CGFloat = 264
