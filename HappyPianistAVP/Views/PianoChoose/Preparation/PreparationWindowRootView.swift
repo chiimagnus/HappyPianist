@@ -44,7 +44,6 @@ struct PreparationWindowRootView: View {
             }
         }
         .environment(\.preparationNavigationActions, actions)
-        // .frame(minWidth: 860, idealWidth: 900, minHeight: 520, idealHeight: 650)
         .onChange(of: scenePhase) {
             guard scenePhase == .active else { return }
             dismissPendingSourceIfNeeded()
