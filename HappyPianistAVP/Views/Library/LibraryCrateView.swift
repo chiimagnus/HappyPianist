@@ -3,6 +3,8 @@ import SwiftUI
 private let libraryRecordScrollCoordinateSpace = "LibraryRecordScroll"
 
 struct LibraryCrateView: View {
+    private static let animation = Animation.timingCurve(0.16, 1, 0.30, 1, duration: 0.56)
+
     let entries: [SongLibraryEntry]
     let selectedEntryID: UUID?
     let playingEntryID: UUID?
@@ -28,7 +30,7 @@ struct LibraryCrateView: View {
     }
 
     private var scrollContentMargin: CGFloat {
-        max(0, (crateWidth - LibraryDesignTokens.recordDiameter) / 2)
+        max(0, (crateWidth - LibraryRecordLayout.diameter) / 2)
     }
 
     var body: some View {
@@ -36,7 +38,7 @@ struct LibraryCrateView: View {
         let selectedEntry = entries.indices.contains(selectedIndex) ? entries[selectedIndex] : nil
         ZStack {
             LibraryImportLiftView(liftOffset: liftOffset)
-                .offset(y: LibraryDesignTokens.recordDiameter / 2 - 74)
+                .offset(y: LibraryRecordLayout.diameter / 2 - 74)
                 .zIndex(1)
 
             LibraryDeleteHoldView(
@@ -45,11 +47,11 @@ struct LibraryCrateView: View {
                 isBundled: selectedEntry?.isBundled == true,
                 allowsDestructiveActions: allowsDestructiveActions
             )
-            .offset(y: 74 - LibraryDesignTokens.recordDiameter / 2)
+            .offset(y: 74 - LibraryRecordLayout.diameter / 2)
             .zIndex(1)
 
             ScrollView(.horizontal) {
-                LazyHStack(spacing: LibraryDesignTokens.recordSpacing) {
+                LazyHStack(spacing: 24) {
                     ForEach(entries.enumerated(), id: \.element.id) { index, entry in
                         LibraryRecordScrollItemView(
                             entry: entry,
@@ -90,7 +92,7 @@ struct LibraryCrateView: View {
                 Spacer()
                 Text("↑ 上拽唱片导入乐谱")
                     .font(.caption)
-                    .foregroundStyle(LibraryDesignTokens.faintText)
+                    .foregroundStyle(Color.primary.opacity(0.45))
                     .padding(.bottom, 54)
             }
             .zIndex(35)
@@ -98,7 +100,7 @@ struct LibraryCrateView: View {
         }
         .frame(
             maxWidth: .infinity,
-            minHeight: LibraryDesignTokens.crateMinimumHeight,
+            minHeight: 410,
             maxHeight: .infinity
         )
         .contentShape(.rect)
@@ -110,7 +112,7 @@ struct LibraryCrateView: View {
             guard let entryID = deletionHoldEntryID else { return }
 
             do {
-                try await Task.sleep(for: LibraryDesignTokens.deletionHoldDuration)
+                try await Task.sleep(for: .seconds(LibraryDeletionHoldPolicy.durationSeconds))
             } catch {
                 return
             }
@@ -181,22 +183,22 @@ struct LibraryCrateView: View {
                 if value.translation.height < 0 {
                     cancelDeletionHold()
                     downwardDragOffset = 0
-                    liftOffset = min(-value.translation.height, LibraryDesignTokens.liftMaximum)
+                    liftOffset = min(-value.translation.height, LibraryCrateDragConfiguration.maximumOffset)
                 } else {
                     liftOffset = 0
-                    downwardDragOffset = min(value.translation.height, LibraryDesignTokens.liftMaximum)
+                    downwardDragOffset = min(value.translation.height, LibraryCrateDragConfiguration.maximumOffset)
                     updateDeletionHold(for: value.translation.height)
                 }
             }
             .onEnded { value in
                 if hasVerticalDragIntent,
-                   liftOffset >= LibraryDesignTokens.liftTrigger,
+                   liftOffset >= LibraryCrateDragConfiguration.trigger,
                    didDeleteDuringDrag == false
                 {
                     onImportMusicXML()
                 }
 
-                withAnimation(reduceMotion ? nil : LibraryDesignTokens.easeOut) {
+                withAnimation(reduceMotion ? nil : Self.animation) {
                     liftOffset = 0
                     downwardDragOffset = 0
                 }
@@ -247,7 +249,7 @@ struct LibraryCrateView: View {
     }
 
     private func select(entryID: UUID) {
-        withAnimation(reduceMotion ? nil : LibraryDesignTokens.easeOut) {
+        withAnimation(reduceMotion ? nil : Self.animation) {
             scrollTargetID = entryID
         }
         onSelectEntry(entryID)
@@ -270,7 +272,7 @@ struct LibraryCrateView: View {
             return
         }
         guard scrollTargetID != entryID else { return }
-        withAnimation(reduceMotion ? nil : LibraryDesignTokens.easeOut) {
+        withAnimation(reduceMotion ? nil : Self.animation) {
             scrollTargetID = entryID
         }
     }
@@ -308,8 +310,8 @@ private struct LibraryRecordScrollItemView: View {
         .buttonStyle(.plain)
         .hoverEffect()
         .frame(
-            width: LibraryDesignTokens.recordDiameter,
-            height: LibraryDesignTokens.recordDiameter
+            width: LibraryRecordLayout.diameter,
+            height: LibraryRecordLayout.diameter
         )
         .visualEffect { content, geometry in
             let centerDistance = geometry.frame(in: .named(libraryRecordScrollCoordinateSpace)).midX
@@ -338,18 +340,53 @@ private struct LibraryPageIndicatorView: View {
         if count > 12 {
             Text("\(selectedIndex + 1) / \(count)")
                 .font(.caption)
-                .foregroundStyle(LibraryDesignTokens.faintText)
+                .foregroundStyle(Color.primary.opacity(0.45))
                 .monospacedDigit()
         } else {
             HStack(spacing: 7) {
                 ForEach(0 ..< count, id: \.self) { index in
                     Capsule()
-                        .fill(index == selectedIndex ? LibraryDesignTokens.text : Color.white.opacity(0.28))
+                        .fill(index == selectedIndex ? Color.primary : Color.white.opacity(0.28))
                         .frame(width: index == selectedIndex ? 22 : 6, height: 6)
                         .animation(reduceMotion ? nil : .easeInOut(duration: 0.30), value: selectedIndex)
                 }
             }
         }
+    }
+}
+
+struct LibraryRecordScrollPresentation: Equatable {
+    let scale: CGFloat
+    let opacity: Double
+    let saturation: Double
+
+    init(centerDistance: CGFloat) {
+        let normalizedDistance = min(abs(centerDistance) / LibraryRecordLayout.diameter, 2)
+        scale = max(0.64, 1 - normalizedDistance * 0.18)
+        opacity = Double(max(0.42, 1 - normalizedDistance * 0.22))
+        saturation = Double(max(0.72, 1 - normalizedDistance * 0.11))
+    }
+}
+
+enum LibraryRecordScrollTapAction: Equatable {
+    case togglePlayback
+    case selectEntry
+}
+
+enum LibraryRecordScrollSelectionDecision {
+    static func action(
+        forTappedEntryID entryID: UUID,
+        selectedEntryID: UUID?
+    ) -> LibraryRecordScrollTapAction {
+        entryID == selectedEntryID ? .togglePlayback : .selectEntry
+    }
+
+    static func selectionToCommit(
+        scrollTargetID: UUID?,
+        selectedEntryID: UUID?
+    ) -> UUID? {
+        guard let scrollTargetID, scrollTargetID != selectedEntryID else { return nil }
+        return scrollTargetID
     }
 }
 

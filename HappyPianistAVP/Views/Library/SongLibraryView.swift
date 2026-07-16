@@ -12,7 +12,7 @@ struct SongLibraryView: View {
     @State private var pendingAudioBindingEntryID: UUID?
     @State private var pendingImportConfirmationID: UUID?
     @State private var isDiagnosticsPresented = false
-    @State private var libraryViewHeight = LibraryDesignTokens.windowIdealHeight
+    @State private var libraryViewHeight = LibraryWindowLayout.idealHeight
 
     private var audioImporterTypes: [UTType] {
         let types = SongLibraryViewModel.supportedAudioFileExtensions.compactMap {
@@ -107,9 +107,9 @@ struct SongLibraryView: View {
             minWidth: 780,
             idealWidth: 1140,
             maxWidth: 1240,
-            minHeight: LibraryDesignTokens.windowMinimumHeight,
-            idealHeight: LibraryDesignTokens.windowIdealHeight,
-            maxHeight: LibraryDesignTokens.windowMaximumHeight
+            minHeight: LibraryWindowLayout.minimumHeight,
+            idealHeight: LibraryWindowLayout.idealHeight,
+            maxHeight: LibraryWindowLayout.maximumHeight
         )
         .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { height in
             libraryViewHeight = height
@@ -341,6 +341,12 @@ struct SongLibraryView: View {
     }
 }
 
+private enum LibraryWindowLayout {
+    static let minimumHeight: CGFloat = 620
+    static let idealHeight: CGFloat = 720
+    static let maximumHeight: CGFloat = 860
+}
+
 private struct LibraryImportStatusView: View {
     let state: SongLibraryImportState
     let onReviewConflict: (UUID) -> Void
@@ -468,15 +474,13 @@ private struct SongLibraryEmptyView: View {
     var body: some View {
         ContentUnavailableView {
             Label("乐曲库为空", systemImage: "record.circle")
-                .foregroundStyle(LibraryDesignTokens.text)
+                .foregroundStyle(.primary)
         } description: {
             Text("导入 MusicXML 后，曲谱会以黑胶唱片的形式出现在这里。")
-                .foregroundStyle(LibraryDesignTokens.secondaryText)
+                .foregroundStyle(.secondary)
         } actions: {
             Button("导入 MusicXML", systemImage: "plus", action: onImport)
                 .buttonStyle(.borderedProminent)
-                .tint(LibraryDesignTokens.accent)
-                .foregroundStyle(LibraryDesignTokens.accentForeground)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -484,7 +488,7 @@ private struct SongLibraryEmptyView: View {
 
 #Preview("空乐曲库") {
     SongLibraryEmptyView(onImport: {})
-        .frame(width: 1140, height: LibraryDesignTokens.windowIdealHeight)
+        .frame(width: 1140, height: LibraryWindowLayout.idealHeight)
 }
 
 private struct LibraryTrackInfoView: View {
@@ -506,23 +510,23 @@ private struct LibraryTrackInfoView: View {
             Text(presentation.title)
                 .font(.system(.largeTitle, design: .serif))
                 .bold()
-                .foregroundStyle(LibraryDesignTokens.text)
+                .foregroundStyle(.primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.72)
 
             Text(presentation.subtitle)
                 .font(.subheadline)
-                .foregroundStyle(LibraryDesignTokens.secondaryText)
+                .foregroundStyle(.secondary)
                 .lineLimit(1)
 
             HStack(alignment: .bottom, spacing: 14) {
                 VStack(spacing: 7) {
                     ZStack(alignment: .leading) {
                         Capsule()
-                            .fill(LibraryDesignTokens.line)
+                            .fill(Color.primary.opacity(0.16))
 
                         Capsule()
-                            .fill(LibraryDesignTokens.text)
+                            .fill(.primary)
                             .frame(width: progressBarWidth * min(max(progress, 0), 1))
                     }
                     .frame(height: 5)
@@ -559,7 +563,7 @@ private struct LibraryTrackInfoView: View {
                     }
                     .font(.caption)
                     .monospacedDigit()
-                    .foregroundStyle(LibraryDesignTokens.faintText)
+                    .foregroundStyle(Color.primary.opacity(0.45))
                 }
                 .frame(maxWidth: 340)
 
@@ -577,5 +581,49 @@ private struct LibraryTrackInfoView: View {
         let seconds = totalSeconds % 60
         let secondsText = seconds < 10 ? "0\(seconds)" : "\(seconds)"
         return "\(totalSeconds / 60):\(secondsText)"
+    }
+}
+
+struct SongLibraryTrackPresentation {
+    let title: String
+    let subtitle: String
+    let labelColor: Color
+    let knownDuration: TimeInterval?
+
+    init(entry: SongLibraryEntry, index: Int) {
+        title = entry.displayName.replacing("_", with: " ")
+
+        let normalizedTitle = entry.displayName.lowercased()
+        switch normalizedTitle {
+        case let value where value.localizedStandardContains("bohemian rhapsody"):
+            subtitle = "Queen · arr. Phillip Keveren"
+            knownDuration = 5 * 60 + 54
+        case let value where value.localizedStandardContains("despacito"):
+            subtitle = "Peter Bence"
+            knownDuration = 4 * 60 + 12
+        case let value where value.localizedStandardContains("awesome piano"):
+            subtitle = "Peter Bence"
+            knownDuration = 3 * 60 + 48
+        case let value where value.localizedStandardContains("under pressure"):
+            subtitle = "David Bowie & Queen"
+            knownDuration = 4 * 60 + 6
+        default:
+            if entry.isBundled == true {
+                subtitle = "内置曲目"
+            } else {
+                subtitle = "导入于 \(entry.importedAt.formatted(date: .abbreviated, time: .omitted))"
+            }
+            knownDuration = nil
+        }
+
+        let palette: [Color] = [
+            Color(red: 77 / 255, green: 127 / 255, blue: 116 / 255),
+            Color(red: 197 / 255, green: 106 / 255, blue: 86 / 255),
+            Color(red: 189 / 255, green: 148 / 255, blue: 82 / 255),
+            Color(red: 138 / 255, green: 100 / 255, blue: 134 / 255),
+            Color(red: 74 / 255, green: 102 / 255, blue: 140 / 255),
+            Color(red: 142 / 255, green: 112 / 255, blue: 82 / 255),
+        ]
+        labelColor = palette[index % palette.count]
     }
 }
