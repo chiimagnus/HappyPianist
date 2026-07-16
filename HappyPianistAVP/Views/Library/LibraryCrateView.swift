@@ -502,3 +502,41 @@ private struct TurntableTonearmView: View {
         .accessibilityHidden(true)
     }
 }
+
+#Preview("正在播放的唱片架") {
+    LibraryCrateView(
+        entries: LibraryCratePreviewFixture.entries,
+        selectedEntryID: LibraryCratePreviewFixture.entries[1].id,
+        playingEntryID: LibraryCratePreviewFixture.entries[1].id,
+        isPlaying: true,
+        reduceMotion: false,
+        allowsDestructiveActions: true,
+        onSelectEntry: { _ in },
+        onTogglePlayback: { _ in },
+        onImportMusicXML: {},
+        onBindAudio: { _ in },
+        onDelete: { _ in }
+    )
+    .frame(width: 1_140, height: 500)
+    .background(.black)
+}
+
+private enum LibraryCratePreviewFixture {
+    static let entries = [
+        entry(named: "Bohemian Rhapsody"),
+        entry(named: "Despacito"),
+        entry(named: "Under Pressure"),
+    ]
+
+    private static func entry(named name: String) -> SongLibraryEntry {
+        SongLibraryEntry(
+            id: UUID(),
+            displayName: name,
+            musicXMLFileName: "\(name).musicxml",
+            scoreFileVersionID: UUID(),
+            importedAt: .now,
+            audioFileName: "\(name).mp3",
+            isBundled: true
+        )
+    }
+}
