@@ -4,7 +4,7 @@ import Testing
 
 @MainActor
 @Test
-func songLibraryBootstrapLoadsOnceWithoutBlockingViewModelConstruction() async {
+func songLibraryBootstrapAppliesLoadedSnapshot() async {
     let entry = SongLibraryEntry(
         id: UUID(),
         displayName: "Bundled",
@@ -14,69 +14,16 @@ func songLibraryBootstrapLoadsOnceWithoutBlockingViewModelConstruction() async {
         audioFileName: nil,
         isBundled: true
     )
-    let loader = TestSongLibraryBootstrapLoader(
-        snapshot: .loaded(index: .empty, bundledEntries: [entry])
-    )
     let viewModel = SongLibraryViewModelTestHarness.make(
-        bootstrapLoader: loader,
+        bundledEntries: [entry],
         deferInitialLoad: true
     )
 
-    #expect(viewModel.hasLoadedLibrary == false)
     #expect(viewModel.entries.isEmpty)
 
-    await viewModel.loadLibraryIfNeeded()
-    await viewModel.loadLibraryIfNeeded()
+    await viewModel.loadLibrary()
 
-    #expect(viewModel.hasLoadedLibrary)
     #expect(viewModel.entries == [entry])
-    #expect(await loader.loadCount() == 1)
-}
-
-@MainActor
-@Test
-func blockedBootstrapPreservesMemoryAndCanRetry() async {
-    let existing = SongLibraryEntry(
-        id: UUID(),
-        displayName: "Existing",
-        musicXMLFileName: "existing.musicxml",
-        scoreFileVersionID: UUID(),
-        importedAt: .distantPast,
-        audioFileName: nil
-    )
-    let recovered = SongLibraryEntry(
-        id: UUID(),
-        displayName: "Recovered",
-        musicXMLFileName: "recovered.musicxml",
-        scoreFileVersionID: UUID(),
-        importedAt: .now,
-        audioFileName: nil
-    )
-    let loader = SequencedSongLibraryBootstrapLoader(
-        snapshots: [
-            .blocked(failure: SongLibraryBootstrapFailure(message: "index corrupted")),
-            .loaded(index: SongLibraryIndex(entries: [recovered], lastSelectedEntryID: nil), bundledEntries: []),
-        ]
-    )
-    let viewModel = SongLibraryViewModelTestHarness.make(
-        index: SongLibraryIndex(entries: [existing], lastSelectedEntryID: existing.id),
-        bootstrapLoader: loader,
-        deferInitialLoad: true
-    )
-    viewModel.index = SongLibraryIndex(entries: [existing], lastSelectedEntryID: existing.id)
-
-    await viewModel.loadLibraryIfNeeded()
-
-    #expect(viewModel.hasLoadedLibrary == false)
-    #expect(viewModel.isLibraryLoading == false)
-    #expect(viewModel.index.entries == [existing])
-    #expect(viewModel.bootstrapFailureMessage == "index corrupted")
-
-    await viewModel.loadLibraryIfNeeded()
-
-    #expect(viewModel.hasLoadedLibrary)
-    #expect(viewModel.index.entries == [recovered])
-    #expect(viewModel.bootstrapFailureMessage == nil)
 }
 
 @Test
@@ -114,7 +61,7 @@ func liveBootstrapUsesInjectedStoreAndProvider() async {
     let result = await loader.load()
 
     #expect(
-        result == .loaded(
+        result == SongLibraryBootstrapSnapshot(
             index: SongLibraryIndex(entries: [storedEntry], lastSelectedEntryID: storedEntry.id),
             bundledEntries: [bundledEntry]
         )
@@ -141,39 +88,9 @@ func blockedTransactionRecoveryPreventsIndexSnapshotPublication() async {
 
     let result = await loader.load()
 
-    #expect(result == .blocked(failure: SongLibraryBootstrapFailure(message: "recovery blocked")))
+    #expect(result == nil)
     #expect(await store.loadCount == 0)
     #expect(recorder.events == ["recover"])
-}
-
-private actor TestSongLibraryBootstrapLoader: SongLibraryBootstrapLoading {
-    private let snapshot: SongLibraryBootstrapSnapshot
-    private var count = 0
-
-    init(snapshot: SongLibraryBootstrapSnapshot) {
-        self.snapshot = snapshot
-    }
-
-    func load() -> SongLibraryBootstrapSnapshot {
-        count += 1
-        return snapshot
-    }
-
-    func loadCount() -> Int {
-        count
-    }
-}
-
-private actor SequencedSongLibraryBootstrapLoader: SongLibraryBootstrapLoading {
-    private var snapshots: [SongLibraryBootstrapSnapshot]
-
-    init(snapshots: [SongLibraryBootstrapSnapshot]) {
-        self.snapshots = snapshots
-    }
-
-    func load() -> SongLibraryBootstrapSnapshot {
-        snapshots.removeFirst()
-    }
 }
 
 private actor BootstrapRecordingIndexStore: SongLibraryIndexStoreProtocol {

@@ -11,9 +11,10 @@ enum LibraryDesignTokens {
     static let recordReferenceDiameter: CGFloat = 236
     static let recordDiameter: CGFloat = 304
     static let recordScale = recordDiameter / recordReferenceDiameter
-    static let recordSpacing: CGFloat = 294
-    static let sideRecordScale: CGFloat = 0.80
-    static let sideRecordWidthScale: CGFloat = 0.74
+    static let carouselNeighborOffset = recordDiameter * 1.06
+    static let carouselOuterOffset = recordDiameter * 1.94
+    static let carouselHiddenOffset = carouselOuterOffset + recordDiameter * 0.64
+    static let carouselSelectionThreshold: CGFloat = 60
     static let crateMinimumHeight: CGFloat = 410
 
     static let windowMinimumHeight: CGFloat = 620
@@ -22,6 +23,8 @@ enum LibraryDesignTokens {
 
     static let liftMaximum: CGFloat = 72
     static let liftTrigger: CGFloat = 44
+    static let deletionHoldSeconds = 2.0
+    static let deletionHoldDuration: Duration = .seconds(deletionHoldSeconds)
 
     static let tonearmLength: CGFloat = 184
     static let tonearmPivotX: CGFloat = 264
@@ -31,6 +34,70 @@ enum LibraryDesignTokens {
 
     static let ease = Animation.timingCurve(0.22, 1, 0.36, 1, duration: 0.62)
     static let easeOut = Animation.timingCurve(0.16, 1, 0.30, 1, duration: 0.56)
+}
+
+struct LibraryCarouselPose: Equatable {
+    let horizontalOffset: CGFloat
+    let scale: CGFloat
+    let opacity: Double
+    let saturation: Double
+    let horizontalScale: CGFloat
+    let zIndex: Double
+
+    init(relativePosition: CGFloat) {
+        let distance = min(abs(relativePosition), 3)
+        let direction: CGFloat = relativePosition < 0 ? -1 : 1
+
+        horizontalOffset = direction * Self.interpolate(
+            distance,
+            samples: [
+                0,
+                LibraryDesignTokens.carouselNeighborOffset,
+                LibraryDesignTokens.carouselOuterOffset,
+                LibraryDesignTokens.carouselHiddenOffset,
+            ]
+        )
+        scale = Self.interpolate(distance, samples: [1, 0.82, 0.66, 0.58])
+        opacity = Double(Self.interpolate(distance, samples: [1, 0.82, 0.42, 0]))
+        saturation = Double(Self.interpolate(distance, samples: [1, 0.88, 0.70, 0.70]))
+        horizontalScale = Self.interpolate(distance, samples: [1, 0.92, 0.86, 0.86])
+        zIndex = Double(3 - distance)
+    }
+
+    private static func interpolate(_ distance: CGFloat, samples: [CGFloat]) -> CGFloat {
+        let lowerIndex = min(Int(distance.rounded(.down)), samples.count - 1)
+        let upperIndex = min(lowerIndex + 1, samples.count - 1)
+        let progress = distance - CGFloat(lowerIndex)
+        return samples[lowerIndex] + (samples[upperIndex] - samples[lowerIndex]) * progress
+    }
+}
+
+enum LibraryCarouselSelectionDirection: Equatable {
+    case previous
+    case next
+
+    static func from(horizontalDragTranslation: CGFloat) -> Self? {
+        guard abs(horizontalDragTranslation) >= LibraryDesignTokens.carouselSelectionThreshold else {
+            return nil
+        }
+        return horizontalDragTranslation < 0 ? .next : .previous
+    }
+}
+
+enum LibraryDeletionHoldPolicy {
+    static func progress(for downwardDragTranslation: CGFloat) -> CGFloat {
+        min(max(downwardDragTranslation / LibraryDesignTokens.liftMaximum, 0), 1)
+    }
+
+    static func isArmed(
+        downwardDragTranslation: CGFloat,
+        isBundled: Bool,
+        allowsDestructiveActions: Bool
+    ) -> Bool {
+        isBundled == false
+            && allowsDestructiveActions
+            && downwardDragTranslation >= LibraryDesignTokens.liftTrigger
+    }
 }
 
 struct SongLibraryTrackPresentation {

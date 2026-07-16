@@ -1,16 +1,12 @@
 import Foundation
 
-struct SongLibraryBootstrapFailure: Equatable {
-    let message: String
-}
-
-enum SongLibraryBootstrapSnapshot: Equatable {
-    case loaded(index: SongLibraryIndex, bundledEntries: [SongLibraryEntry])
-    case blocked(failure: SongLibraryBootstrapFailure)
+struct SongLibraryBootstrapSnapshot: Equatable {
+    let index: SongLibraryIndex
+    let bundledEntries: [SongLibraryEntry]
 }
 
 protocol SongLibraryBootstrapLoading: Actor {
-    func load() async -> SongLibraryBootstrapSnapshot
+    func load() async -> SongLibraryBootstrapSnapshot?
 }
 
 actor LiveSongLibraryBootstrapLoader: SongLibraryBootstrapLoading {
@@ -28,22 +24,16 @@ actor LiveSongLibraryBootstrapLoader: SongLibraryBootstrapLoading {
         self.bundledProvider = bundledProvider
     }
 
-    func load() async -> SongLibraryBootstrapSnapshot {
+    func load() async -> SongLibraryBootstrapSnapshot? {
         let recoveryResult = await transactionRecovery.recoverPendingTransactions()
-        if case let .blocked(blocked) = recoveryResult {
-            return .blocked(failure: SongLibraryBootstrapFailure(message: blocked.message))
-        }
+        guard case .recovered = recoveryResult else { return nil }
         do {
-            return try await .loaded(
+            return try await SongLibraryBootstrapSnapshot(
                 index: indexStore.load(),
                 bundledEntries: bundledProvider.bundledEntries()
             )
         } catch {
-            return .blocked(
-                failure: SongLibraryBootstrapFailure(
-                    message: "加载乐曲库失败：\(error.localizedDescription)"
-                )
-            )
+            return nil
         }
     }
 }

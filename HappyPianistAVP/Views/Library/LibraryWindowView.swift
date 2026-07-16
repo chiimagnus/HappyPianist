@@ -87,3 +87,15 @@ struct LibraryContentView: View {
         }
     }
 }
+
+#Preview("曲库窗口") {
+    let graph = LiveAppGraph.make()
+
+    LibraryWindowRootView(
+        appState: graph.appState,
+        songLibraryViewModel: graph.songLibraryViewModel,
+        practiceLaunchViewModel: graph.practiceLaunchViewModel,
+        diagnosticsViewModel: graph.diagnosticsViewModel
+    )
+    .environment(graph.windowState)
+}

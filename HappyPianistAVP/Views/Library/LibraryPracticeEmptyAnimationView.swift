@@ -191,3 +191,7 @@ private struct LibraryPracticeFloatingNote: View {
             }
     }
 }
+
+#Preview("无练习数据时的动画") {
+    LibraryPracticeEmptyAnimationView()
+}

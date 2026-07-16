@@ -42,9 +42,6 @@ final class SongLibraryViewModel {
 
     var index: SongLibraryIndex = .empty
     var errorMessage: String?
-    private(set) var bootstrapFailureMessage: String?
-    private(set) var isLibraryLoading = false
-    private(set) var hasLoadedLibrary = false
     var currentListeningEntryID: UUID?
     var isCurrentListeningPlaying = false
     var listeningCurrentTime: TimeInterval = 0
@@ -86,19 +83,10 @@ final class SongLibraryViewModel {
         self.snapshotSettleDelay = snapshotSettleDelay
         self.selectionPersistenceSleeper = selectionPersistenceSleeper
         self.selectionPersistenceDelay = selectionPersistenceDelay
-        switch initialSnapshot {
-        case let .loaded(initialIndex, initialBundledEntries):
-            index = initialIndex
-            bundledEntries = initialBundledEntries
-            hasLoadedLibrary = true
-        case let .blocked(failure):
-            bundledEntries = []
-            bootstrapFailureMessage = failure.message
-        case nil:
-            bundledEntries = []
-        }
+        index = initialSnapshot?.index ?? .empty
+        bundledEntries = initialSnapshot?.bundledEntries ?? []
         audioPlaybackController = SongAudioPlaybackStateController(player: audioPlayer)
-        if hasLoadedLibrary {
+        if initialSnapshot != nil {
             installBootstrapSelection()
         }
 
@@ -117,22 +105,11 @@ final class SongLibraryViewModel {
         }
     }
 
-    func loadLibraryIfNeeded() async {
-        guard hasLoadedLibrary == false, isLibraryLoading == false else { return }
-
-        isLibraryLoading = true
-        let snapshot = await bootstrapLoader.load()
-        switch snapshot {
-        case let .loaded(loadedIndex, loadedBundledEntries):
-            index = loadedIndex
-            bundledEntries = loadedBundledEntries
-            bootstrapFailureMessage = nil
-            hasLoadedLibrary = true
-            installBootstrapSelection()
-        case let .blocked(failure):
-            bootstrapFailureMessage = failure.message
-        }
-        isLibraryLoading = false
+    func loadLibrary() async {
+        guard let snapshot = await bootstrapLoader.load() else { return }
+        index = snapshot.index
+        bundledEntries = snapshot.bundledEntries
+        installBootstrapSelection()
     }
 
     func refreshSelectedPracticeSnapshot() {

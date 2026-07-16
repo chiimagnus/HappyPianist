@@ -24,7 +24,7 @@ enum SongLibraryViewModelTestHarness {
         let resolvedFileStore = fileStore ?? InMemorySongFileStore()
         let resolvedBundledProvider = StubBundledSongLibraryProvider(entries: bundledEntries)
         let resolvedBootstrapLoader = bootstrapLoader ?? FixedSongLibraryBootstrapLoader(
-            snapshot: .loaded(index: resolvedIndex, bundledEntries: bundledEntries)
+            snapshot: SongLibraryBootstrapSnapshot(index: resolvedIndex, bundledEntries: bundledEntries)
         )
         return SongLibraryViewModel(
             indexStore: resolvedIndexStore,
@@ -40,7 +40,7 @@ enum SongLibraryViewModelTestHarness {
             bootstrapLoader: resolvedBootstrapLoader,
             initialSnapshot: deferInitialLoad
                 ? nil
-                : .loaded(index: resolvedIndex, bundledEntries: bundledEntries),
+                : SongLibraryBootstrapSnapshot(index: resolvedIndex, bundledEntries: bundledEntries),
             snapshotSleeper: snapshotSleeper ?? TaskSleeper(),
             snapshotSettleDelay: snapshotSettleDelay,
             selectionPersistenceDelay: .zero
@@ -55,7 +55,7 @@ private actor FixedSongLibraryBootstrapLoader: SongLibraryBootstrapLoading {
         self.snapshot = snapshot
     }
 
-    func load() -> SongLibraryBootstrapSnapshot {
+    func load() -> SongLibraryBootstrapSnapshot? {
         snapshot
     }
 }
