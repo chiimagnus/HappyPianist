@@ -19,6 +19,7 @@ struct LibraryCrateView: View {
 
     var body: some View {
         let selectedIndex = entries.firstIndex(where: { $0.id == selectedEntryID }) ?? 0
+        let dragProgress = horizontalDragOffset / LibraryDesignTokens.carouselNeighborOffset
 
         ZStack {
             LibraryImportLiftView(liftOffset: liftOffset)
@@ -31,6 +32,9 @@ struct LibraryCrateView: View {
 
                 if distance <= 3 {
                     let isActive = relativeIndex == 0
+                    let pose = LibraryCarouselPose(
+                        relativePosition: CGFloat(relativeIndex) + dragProgress
+                    )
                     let presentation = SongLibraryTrackPresentation(entry: entry, index: index)
 
                     Button {
@@ -58,20 +62,21 @@ struct LibraryCrateView: View {
                             )
                         }
                     }
-                    .scaleEffect(
-                        x: isActive ? 1 : LibraryDesignTokens.sideRecordWidthScale,
-                        y: 1
+                    .scaleEffect(pose.scale)
+                    .opacity(pose.opacity)
+                    .saturation(pose.saturation)
+                    .rotation3DEffect(
+                        reduceMotion ? .zero : .degrees(pose.rotationY),
+                        axis: (x: 0, y: 1, z: 0),
+                        perspective: 1
                     )
-                    .scaleEffect(isActive ? 1 : LibraryDesignTokens.sideRecordScale)
-                    .opacity(isActive ? 1 : 0.52)
-                    .saturation(isActive ? 1 : 0.62)
-                    .brightness(isActive ? 0 : -0.06)
                     .offset(
-                        x: CGFloat(relativeIndex) * LibraryDesignTokens.recordSpacing + horizontalDragOffset,
+                        x: pose.horizontalOffset,
                         y: isActive ? -liftOffset : 0
                     )
-                    .zIndex(Double(20 - distance))
+                    .zIndex(pose.zIndex)
                     .animation(reduceMotion ? nil : LibraryDesignTokens.easeOut, value: selectedEntryID)
+                    .allowsHitTesting(distance <= 2)
                     .accessibilityLabel(presentation.title)
                     .accessibilityHint(isActive ? "播放或暂停当前曲目" : "切换到这首曲目")
                     .accessibilityAddTraits(isActive ? .isSelected : [])
@@ -148,7 +153,13 @@ struct LibraryCrateView: View {
                 }
 
                 if dragIsHorizontal == true {
-                    horizontalDragOffset = value.translation.width
+                    horizontalDragOffset = min(
+                        max(
+                            value.translation.width,
+                            -LibraryDesignTokens.carouselNeighborOffset
+                        ),
+                        LibraryDesignTokens.carouselNeighborOffset
+                    )
                 } else if value.translation.height < 0 {
                     liftOffset = min(-value.translation.height, LibraryDesignTokens.liftMaximum)
                 }
@@ -157,9 +168,9 @@ struct LibraryCrateView: View {
                 let selectedIndex = entries.firstIndex(where: { $0.id == selectedEntryID }) ?? 0
 
                 if dragIsHorizontal == true {
-                    if value.translation.width <= -60 {
+                    if value.translation.width <= -LibraryDesignTokens.carouselSelectionThreshold {
                         select(index: selectedIndex + 1)
-                    } else if value.translation.width >= 60 {
+                    } else if value.translation.width >= LibraryDesignTokens.carouselSelectionThreshold {
                         select(index: selectedIndex - 1)
                     }
                 } else if liftOffset >= LibraryDesignTokens.liftTrigger {
