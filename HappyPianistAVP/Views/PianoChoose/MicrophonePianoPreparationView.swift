@@ -15,7 +15,8 @@ struct RealPianoPreparationView: View {
                 Spacer()
 
                 Text("真实钢琴准备")
-                    .font(.largeTitle.weight(.bold))
+                    .font(.largeTitle)
+                    .bold()
 
                 Spacer()
 

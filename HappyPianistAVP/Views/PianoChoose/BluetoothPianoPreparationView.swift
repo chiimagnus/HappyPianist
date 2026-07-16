@@ -16,7 +16,8 @@ struct BluetoothMIDIPreparationView: View {
                 Spacer()
 
                 Text("真实钢琴（蓝牙 MIDI）")
-                    .font(.largeTitle.weight(.bold))
+                    .font(.largeTitle)
+                    .bold()
 
                 Spacer()
 

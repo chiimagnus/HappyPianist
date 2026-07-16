@@ -6,7 +6,8 @@ struct PianoTypePickerView: View {
     var body: some View {
         VStack(spacing: 32) {
             Text("选择钢琴类型")
-                .font(.largeTitle.weight(.bold))
+                .font(.largeTitle)
+                .bold()
 
             HStack(spacing: 24) {
                 let modes = windowState.pianoModeRegistry.modes
