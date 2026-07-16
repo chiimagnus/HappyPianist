@@ -27,7 +27,7 @@ func importQueueConfirmsOneOperationBeforeProcessingTheNext() async {
             secondID: .committed(index: finalIndex, entry: secondEntry),
         ],
         confirmResults: [
-            firstID: .committed(index: afterFirst, entry: firstEntry)
+            firstID: .committed(index: afterFirst, entry: firstEntry),
         ]
     )
     let viewModel = SongLibraryViewModelTestHarness.make(importTransactionService: service)
@@ -71,7 +71,7 @@ func staleImportCallbacksCannotAdvanceOrOverwriteANewerQueue() async {
         confirmResults: [
             oldID: .blocked(
                 SongLibraryBlockedImport(operationID: oldID, message: "stale callback")
-            )
+            ),
         ]
     )
     let viewModel = SongLibraryViewModelTestHarness.make(importTransactionService: service)
@@ -106,7 +106,9 @@ private actor ImportQueueIntegrationService: SongLibraryImportTransactionServici
         self.confirmResults = confirmResults
     }
 
-    func recoverPendingTransactions() -> SongLibraryTransactionRecoveryResult { .recovered }
+    func recoverPendingTransactions() -> SongLibraryTransactionRecoveryResult {
+        .recovered
+    }
 
     func stageImports(from _: [URL]) -> SongLibraryImportBatchStageResult {
         SongLibraryImportBatchStageResult(

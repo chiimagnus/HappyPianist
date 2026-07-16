@@ -20,4 +20,3 @@ func virtualPerformerGaitResolverProducesOppositeLegSwings() {
     #expect(pose.rightAngleRadians < 0)
     #expect(abs(pose.leftAngleRadians + pose.rightAngleRadians) < 0.0001)
 }
-

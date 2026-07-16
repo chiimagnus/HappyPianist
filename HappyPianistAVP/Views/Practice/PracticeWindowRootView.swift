@@ -215,7 +215,9 @@ final class PracticeImmersiveCloseCoordinator {
 final class PracticeWindowReturnCoordinator {
     private var operationTask: Task<Void, Never>?
 
-    var isReturning: Bool { operationTask != nil }
+    var isReturning: Bool {
+        operationTask != nil
+    }
 
     func begin(
         beginReturn: @escaping @MainActor () -> UUID,

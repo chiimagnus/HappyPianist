@@ -77,8 +77,8 @@ func duetPhrasePolicyShapeScheduleDropsHeldConflictsAndClipsHorizon() {
         horizonSeconds: 0.7
     )
 
-    #expect(shaped.contains { if case let .noteOn(midi, _) = $0.kind { return midi == 67 } else { return false } })
-    #expect(shaped.contains { if case let .noteOn(midi, _) = $0.kind { return midi == 60 } else { return false } } == false)
+    #expect(shaped.contains { if case let .noteOn(midi, _) = $0.kind { midi == 67 } else { false } })
+    #expect(shaped.contains { if case let .noteOn(midi, _) = $0.kind { midi == 60 } else { false } } == false)
     #expect(shaped.contains { $0.timeSeconds > 0.7 } == false)
 }
 
@@ -120,133 +120,133 @@ func duetPhrasePolicyShapeScheduleThinsSparseMode() {
 
 @Test
 func duetPhrasePolicyShapeScheduleSalvagesRiskyWindow() {
-	let snapshot = DuetPhraseBuffer.Snapshot(
-		nowTimestampSeconds: 1.0,
-		promptNotes: [],
-		heldNotes: [],
-		heldNoteMIDIs: [],
-		lastUserEventTimestampSeconds: 0.9,
-		lastNoteOnTimestampSeconds: 0.9,
-		recentIOIMedianSeconds: 0.18,
-		recentVelocityTrend: 0,
-		recentNoteDensityPerSecond: 2.0,
-		activePitchCenter: nil
-	)
+    let snapshot = DuetPhraseBuffer.Snapshot(
+        nowTimestampSeconds: 1.0,
+        promptNotes: [],
+        heldNotes: [],
+        heldNoteMIDIs: [],
+        lastUserEventTimestampSeconds: 0.9,
+        lastNoteOnTimestampSeconds: 0.9,
+        recentIOIMedianSeconds: 0.18,
+        recentVelocityTrend: 0,
+        recentNoteDensityPerSecond: 2.0,
+        activePitchCenter: nil
+    )
 
-	let schedule = [
-		PracticeSequencerMIDIEvent(timeSeconds: 0.00, kind: .noteOn(midi: 72, velocity: 100)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.10, kind: .noteOff(midi: 72)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.12, kind: .noteOn(midi: 72, velocity: 100)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.22, kind: .noteOff(midi: 72)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.24, kind: .noteOn(midi: 72, velocity: 100)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.34, kind: .noteOff(midi: 72)),
-	]
+    let schedule = [
+        PracticeSequencerMIDIEvent(timeSeconds: 0.00, kind: .noteOn(midi: 72, velocity: 100)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.10, kind: .noteOff(midi: 72)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.12, kind: .noteOn(midi: 72, velocity: 100)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.22, kind: .noteOff(midi: 72)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.24, kind: .noteOn(midi: 72, velocity: 100)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.34, kind: .noteOff(midi: 72)),
+    ]
 
-	let shaped = DuetPhrasePolicy.shapeSchedule(
-		schedule,
-		noteSnapshot: snapshot,
-		controlMode: .support,
-		horizonSeconds: 0.6
-	)
+    let shaped = DuetPhrasePolicy.shapeSchedule(
+        schedule,
+        noteSnapshot: snapshot,
+        controlMode: .support,
+        horizonSeconds: 0.6
+    )
 
-	let noteOns = shaped.compactMap { event -> (Int, UInt8)? in
-		if case let .noteOn(midi, velocity) = event.kind { return (midi, velocity) }
-		return nil
-	}
-	#expect(noteOns.count == 2)
-	#expect(noteOns.allSatisfy { $0.1 < 100 })
-	let assessment = DuetPhrasePolicy.assessSchedule(shaped, noteSnapshot: snapshot, horizonSeconds: 0.6)
-	#expect(assessment.band != .reject)
+    let noteOns = shaped.compactMap { event -> (Int, UInt8)? in
+        if case let .noteOn(midi, velocity) = event.kind { return (midi, velocity) }
+        return nil
+    }
+    #expect(noteOns.count == 2)
+    #expect(noteOns.allSatisfy { $0.1 < 100 })
+    let assessment = DuetPhrasePolicy.assessSchedule(shaped, noteSnapshot: snapshot, horizonSeconds: 0.6)
+    #expect(assessment.band != .reject)
 }
 
 @Test
 func duetPhrasePolicyShapeScheduleDropsRejectedWindow() {
-	let snapshot = DuetPhraseBuffer.Snapshot(
-		nowTimestampSeconds: 1.0,
-		promptNotes: [],
-		heldNotes: [],
-		heldNoteMIDIs: [60],
-		lastUserEventTimestampSeconds: 0.9,
-		lastNoteOnTimestampSeconds: 0.9,
-		recentIOIMedianSeconds: 0.1,
-		recentVelocityTrend: 0,
-		recentNoteDensityPerSecond: 3.0,
-		activePitchCenter: 60
-	)
+    let snapshot = DuetPhraseBuffer.Snapshot(
+        nowTimestampSeconds: 1.0,
+        promptNotes: [],
+        heldNotes: [],
+        heldNoteMIDIs: [60],
+        lastUserEventTimestampSeconds: 0.9,
+        lastNoteOnTimestampSeconds: 0.9,
+        recentIOIMedianSeconds: 0.1,
+        recentVelocityTrend: 0,
+        recentNoteDensityPerSecond: 3.0,
+        activePitchCenter: 60
+    )
 
-	let schedule = [
-		PracticeSequencerMIDIEvent(timeSeconds: 0.00, kind: .noteOn(midi: 61, velocity: 100)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.03, kind: .noteOn(midi: 62, velocity: 100)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.06, kind: .noteOn(midi: 63, velocity: 100)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.09, kind: .noteOn(midi: 64, velocity: 100)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.12, kind: .noteOn(midi: 65, velocity: 100)),
-	]
+    let schedule = [
+        PracticeSequencerMIDIEvent(timeSeconds: 0.00, kind: .noteOn(midi: 61, velocity: 100)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.03, kind: .noteOn(midi: 62, velocity: 100)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.06, kind: .noteOn(midi: 63, velocity: 100)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.09, kind: .noteOn(midi: 64, velocity: 100)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.12, kind: .noteOn(midi: 65, velocity: 100)),
+    ]
 
-	let shaped = DuetPhrasePolicy.shapeSchedule(
-		schedule,
-		noteSnapshot: snapshot,
-		controlMode: .support,
-		horizonSeconds: 0.6
-	)
+    let shaped = DuetPhrasePolicy.shapeSchedule(
+        schedule,
+        noteSnapshot: snapshot,
+        controlMode: .support,
+        horizonSeconds: 0.6
+    )
 
-	#expect(shaped.isEmpty)
+    #expect(shaped.isEmpty)
 }
 
 @Test
 func duetPhrasePolicyAssessScheduleAcceptsSupportiveWindow() {
-	let snapshot = DuetPhraseBuffer.Snapshot(
-		nowTimestampSeconds: 1.0,
-		promptNotes: [],
-		heldNotes: [],
-		heldNoteMIDIs: [48],
-		lastUserEventTimestampSeconds: 0.9,
-		lastNoteOnTimestampSeconds: 0.9,
-		recentIOIMedianSeconds: 0.25,
-		recentVelocityTrend: 0,
-		recentNoteDensityPerSecond: 1.0,
-		activePitchCenter: 55
-	)
+    let snapshot = DuetPhraseBuffer.Snapshot(
+        nowTimestampSeconds: 1.0,
+        promptNotes: [],
+        heldNotes: [],
+        heldNoteMIDIs: [48],
+        lastUserEventTimestampSeconds: 0.9,
+        lastNoteOnTimestampSeconds: 0.9,
+        recentIOIMedianSeconds: 0.25,
+        recentVelocityTrend: 0,
+        recentNoteDensityPerSecond: 1.0,
+        activePitchCenter: 55
+    )
 
-	let schedule = [
-		PracticeSequencerMIDIEvent(timeSeconds: 0.00, kind: .noteOn(midi: 64, velocity: 96)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.20, kind: .noteOff(midi: 64)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.24, kind: .noteOn(midi: 67, velocity: 92)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.46, kind: .noteOff(midi: 67)),
-	]
+    let schedule = [
+        PracticeSequencerMIDIEvent(timeSeconds: 0.00, kind: .noteOn(midi: 64, velocity: 96)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.20, kind: .noteOff(midi: 64)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.24, kind: .noteOn(midi: 67, velocity: 92)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.46, kind: .noteOff(midi: 67)),
+    ]
 
-	let assessment = DuetPhrasePolicy.assessSchedule(schedule, noteSnapshot: snapshot, horizonSeconds: 0.7)
-	#expect(assessment.band == .acceptable)
-	#expect(assessment.reasons.isEmpty)
-	#expect(assessment.score >= 80)
+    let assessment = DuetPhrasePolicy.assessSchedule(schedule, noteSnapshot: snapshot, horizonSeconds: 0.7)
+    #expect(assessment.band == .acceptable)
+    #expect(assessment.reasons.isEmpty)
+    #expect(assessment.score >= 80)
 }
 
 @Test
 func duetPhrasePolicyAssessScheduleRejectsDensityOverload() {
-	let snapshot = DuetPhraseBuffer.Snapshot(
-		nowTimestampSeconds: 1.0,
-		promptNotes: [],
-		heldNotes: [],
-		heldNoteMIDIs: [],
-		lastUserEventTimestampSeconds: 0.9,
-		lastNoteOnTimestampSeconds: 0.9,
-		recentIOIMedianSeconds: 0.08,
-		recentVelocityTrend: 0,
-		recentNoteDensityPerSecond: 4.0,
-		activePitchCenter: nil
-	)
+    let snapshot = DuetPhraseBuffer.Snapshot(
+        nowTimestampSeconds: 1.0,
+        promptNotes: [],
+        heldNotes: [],
+        heldNoteMIDIs: [],
+        lastUserEventTimestampSeconds: 0.9,
+        lastNoteOnTimestampSeconds: 0.9,
+        recentIOIMedianSeconds: 0.08,
+        recentVelocityTrend: 0,
+        recentNoteDensityPerSecond: 4.0,
+        activePitchCenter: nil
+    )
 
-	let schedule = [
-		PracticeSequencerMIDIEvent(timeSeconds: 0.00, kind: .noteOn(midi: 60, velocity: 90)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.03, kind: .noteOn(midi: 62, velocity: 90)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.06, kind: .noteOn(midi: 64, velocity: 90)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.09, kind: .noteOn(midi: 65, velocity: 90)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.12, kind: .noteOn(midi: 67, velocity: 90)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.15, kind: .noteOn(midi: 69, velocity: 90)),
-	]
+    let schedule = [
+        PracticeSequencerMIDIEvent(timeSeconds: 0.00, kind: .noteOn(midi: 60, velocity: 90)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.03, kind: .noteOn(midi: 62, velocity: 90)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.06, kind: .noteOn(midi: 64, velocity: 90)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.09, kind: .noteOn(midi: 65, velocity: 90)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.12, kind: .noteOn(midi: 67, velocity: 90)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.15, kind: .noteOn(midi: 69, velocity: 90)),
+    ]
 
-	let assessment = DuetPhrasePolicy.assessSchedule(schedule, noteSnapshot: snapshot, horizonSeconds: 0.6)
-	#expect(assessment.band == .reject)
-	#expect(assessment.reasons.contains(.densityOverload))
+    let assessment = DuetPhrasePolicy.assessSchedule(schedule, noteSnapshot: snapshot, horizonSeconds: 0.6)
+    #expect(assessment.band == .reject)
+    #expect(assessment.reasons.contains(.densityOverload))
 }
 
 @Test
@@ -280,58 +280,58 @@ func duetPhrasePolicyRejectsDenseSupportWindowBeforeClosingOpenNotes() {
 
 @Test
 func duetPhrasePolicyAssessScheduleRejectsExcessiveRepetition() {
-	let snapshot = DuetPhraseBuffer.Snapshot(
-		nowTimestampSeconds: 1.0,
-		promptNotes: [],
-		heldNotes: [],
-		heldNoteMIDIs: [],
-		lastUserEventTimestampSeconds: 0.9,
-		lastNoteOnTimestampSeconds: 0.9,
-		recentIOIMedianSeconds: 0.12,
-		recentVelocityTrend: 0,
-		recentNoteDensityPerSecond: 2.0,
-		activePitchCenter: nil
-	)
+    let snapshot = DuetPhraseBuffer.Snapshot(
+        nowTimestampSeconds: 1.0,
+        promptNotes: [],
+        heldNotes: [],
+        heldNoteMIDIs: [],
+        lastUserEventTimestampSeconds: 0.9,
+        lastNoteOnTimestampSeconds: 0.9,
+        recentIOIMedianSeconds: 0.12,
+        recentVelocityTrend: 0,
+        recentNoteDensityPerSecond: 2.0,
+        activePitchCenter: nil
+    )
 
-	let schedule = [
-		PracticeSequencerMIDIEvent(timeSeconds: 0.00, kind: .noteOn(midi: 72, velocity: 90)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.10, kind: .noteOff(midi: 72)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.12, kind: .noteOn(midi: 72, velocity: 90)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.22, kind: .noteOff(midi: 72)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.24, kind: .noteOn(midi: 72, velocity: 90)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.34, kind: .noteOff(midi: 72)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.36, kind: .noteOn(midi: 72, velocity: 90)),
-	]
+    let schedule = [
+        PracticeSequencerMIDIEvent(timeSeconds: 0.00, kind: .noteOn(midi: 72, velocity: 90)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.10, kind: .noteOff(midi: 72)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.12, kind: .noteOn(midi: 72, velocity: 90)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.22, kind: .noteOff(midi: 72)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.24, kind: .noteOn(midi: 72, velocity: 90)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.34, kind: .noteOff(midi: 72)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.36, kind: .noteOn(midi: 72, velocity: 90)),
+    ]
 
-	let assessment = DuetPhrasePolicy.assessSchedule(schedule, noteSnapshot: snapshot, horizonSeconds: 0.6)
-	#expect(assessment.band == .reject)
-	#expect(assessment.reasons.contains(.excessiveRepetition))
+    let assessment = DuetPhrasePolicy.assessSchedule(schedule, noteSnapshot: snapshot, horizonSeconds: 0.6)
+    #expect(assessment.band == .reject)
+    #expect(assessment.reasons.contains(.excessiveRepetition))
 }
 
 @Test
 func duetPhrasePolicyAssessScheduleRejectsExtremeLeap() {
-	let snapshot = DuetPhraseBuffer.Snapshot(
-		nowTimestampSeconds: 1.0,
-		promptNotes: [],
-		heldNotes: [],
-		heldNoteMIDIs: [],
-		lastUserEventTimestampSeconds: 0.9,
-		lastNoteOnTimestampSeconds: 0.9,
-		recentIOIMedianSeconds: 0.2,
-		recentVelocityTrend: 0,
-		recentNoteDensityPerSecond: 1.0,
-		activePitchCenter: nil
-	)
+    let snapshot = DuetPhraseBuffer.Snapshot(
+        nowTimestampSeconds: 1.0,
+        promptNotes: [],
+        heldNotes: [],
+        heldNoteMIDIs: [],
+        lastUserEventTimestampSeconds: 0.9,
+        lastNoteOnTimestampSeconds: 0.9,
+        recentIOIMedianSeconds: 0.2,
+        recentVelocityTrend: 0,
+        recentNoteDensityPerSecond: 1.0,
+        activePitchCenter: nil
+    )
 
-	let schedule = [
-		PracticeSequencerMIDIEvent(timeSeconds: 0.00, kind: .noteOn(midi: 48, velocity: 90)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.10, kind: .noteOff(midi: 48)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.20, kind: .noteOn(midi: 76, velocity: 90)),
-	]
+    let schedule = [
+        PracticeSequencerMIDIEvent(timeSeconds: 0.00, kind: .noteOn(midi: 48, velocity: 90)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.10, kind: .noteOff(midi: 48)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.20, kind: .noteOn(midi: 76, velocity: 90)),
+    ]
 
-	let assessment = DuetPhrasePolicy.assessSchedule(schedule, noteSnapshot: snapshot, horizonSeconds: 0.7)
-	#expect(assessment.band == .reject)
-	#expect(assessment.reasons.contains(.extremeLeap))
+    let assessment = DuetPhrasePolicy.assessSchedule(schedule, noteSnapshot: snapshot, horizonSeconds: 0.7)
+    #expect(assessment.band == .reject)
+    #expect(assessment.reasons.contains(.extremeLeap))
 }
 
 @Test
@@ -363,51 +363,51 @@ func duetPhrasePolicyDoesNotTreatSimultaneousChordAsExtremeLeap() {
 
 @Test
 func duetPhrasePolicyAssessScheduleRejectsFragmentedWindow() {
-	let snapshot = DuetPhraseBuffer.Snapshot(
-		nowTimestampSeconds: 1.0,
-		promptNotes: [],
-		heldNotes: [],
-		heldNoteMIDIs: [],
-		lastUserEventTimestampSeconds: 0.9,
-		lastNoteOnTimestampSeconds: 0.9,
-		recentIOIMedianSeconds: 0.2,
-		recentVelocityTrend: 0,
-		recentNoteDensityPerSecond: 1.0,
-		activePitchCenter: nil
-	)
+    let snapshot = DuetPhraseBuffer.Snapshot(
+        nowTimestampSeconds: 1.0,
+        promptNotes: [],
+        heldNotes: [],
+        heldNoteMIDIs: [],
+        lastUserEventTimestampSeconds: 0.9,
+        lastNoteOnTimestampSeconds: 0.9,
+        recentIOIMedianSeconds: 0.2,
+        recentVelocityTrend: 0,
+        recentNoteDensityPerSecond: 1.0,
+        activePitchCenter: nil
+    )
 
-	let schedule = [
-		PracticeSequencerMIDIEvent(timeSeconds: 0.00, kind: .noteOn(midi: 60, velocity: 80)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.03, kind: .noteOff(midi: 60)),
-	]
+    let schedule = [
+        PracticeSequencerMIDIEvent(timeSeconds: 0.00, kind: .noteOn(midi: 60, velocity: 80)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.03, kind: .noteOff(midi: 60)),
+    ]
 
-	let assessment = DuetPhrasePolicy.assessSchedule(schedule, noteSnapshot: snapshot, horizonSeconds: 0.6)
-	#expect(assessment.band == .reject)
-	#expect(assessment.reasons.contains(.fragmentedWindow))
+    let assessment = DuetPhrasePolicy.assessSchedule(schedule, noteSnapshot: snapshot, horizonSeconds: 0.6)
+    #expect(assessment.band == .reject)
+    #expect(assessment.reasons.contains(.fragmentedWindow))
 }
 
 @Test
 func duetPhrasePolicyAssessScheduleFlagsRegisterCollision() {
-	let snapshot = DuetPhraseBuffer.Snapshot(
-		nowTimestampSeconds: 1.0,
-		promptNotes: [],
-		heldNotes: [],
-		heldNoteMIDIs: [60],
-		lastUserEventTimestampSeconds: 0.9,
-		lastNoteOnTimestampSeconds: 0.9,
-		recentIOIMedianSeconds: 0.2,
-		recentVelocityTrend: 0,
-		recentNoteDensityPerSecond: 1.0,
-		activePitchCenter: 60
-	)
+    let snapshot = DuetPhraseBuffer.Snapshot(
+        nowTimestampSeconds: 1.0,
+        promptNotes: [],
+        heldNotes: [],
+        heldNoteMIDIs: [60],
+        lastUserEventTimestampSeconds: 0.9,
+        lastNoteOnTimestampSeconds: 0.9,
+        recentIOIMedianSeconds: 0.2,
+        recentVelocityTrend: 0,
+        recentNoteDensityPerSecond: 1.0,
+        activePitchCenter: 60
+    )
 
-	let schedule = [
-		PracticeSequencerMIDIEvent(timeSeconds: 0.00, kind: .noteOn(midi: 61, velocity: 84)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.18, kind: .noteOff(midi: 61)),
-		PracticeSequencerMIDIEvent(timeSeconds: 0.22, kind: .noteOn(midi: 62, velocity: 82)),
-	]
+    let schedule = [
+        PracticeSequencerMIDIEvent(timeSeconds: 0.00, kind: .noteOn(midi: 61, velocity: 84)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.18, kind: .noteOff(midi: 61)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.22, kind: .noteOn(midi: 62, velocity: 82)),
+    ]
 
-	let assessment = DuetPhrasePolicy.assessSchedule(schedule, noteSnapshot: snapshot, horizonSeconds: 0.7)
-	#expect(assessment.band == .reject)
-	#expect(assessment.reasons.contains(.registerCollision))
+    let assessment = DuetPhrasePolicy.assessSchedule(schedule, noteSnapshot: snapshot, horizonSeconds: 0.7)
+    #expect(assessment.band == .reject)
+    #expect(assessment.reasons.contains(.registerCollision))
 }

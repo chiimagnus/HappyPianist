@@ -1,6 +1,6 @@
 import Foundation
-import os
 @testable import HappyPianistAVP
+import os
 import Testing
 
 private let identityFixtureA = """
@@ -76,7 +76,7 @@ func compressedMusicXMLPreparationKeepsTheArchiveParserPath() async throws {
 }
 
 private final class RecordingPreparationParser: MusicXMLParserProtocol, Sendable {
-    enum Call: Equatable, Sendable {
+    enum Call: Equatable {
         case data(Data)
         case fileURL(URL)
     }

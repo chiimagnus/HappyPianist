@@ -2,8 +2,13 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct DiagnosticsArchiveDocument: FileDocument {
-    static var readableContentTypes: [UTType] { [.zip] }
-    static var writableContentTypes: [UTType] { [.zip] }
+    static var readableContentTypes: [UTType] {
+        [.zip]
+    }
+
+    static var writableContentTypes: [UTType] {
+        [.zip]
+    }
 
     let data: Data
 

@@ -263,7 +263,15 @@ private final class BootstrapEventRecorder: @unchecked Sendable {
 private struct BootstrapBundledProvider: BundledSongLibraryProviderProtocol {
     let entries: [SongLibraryEntry]
 
-    func bundledEntries() -> [SongLibraryEntry] { entries }
-    func musicXMLURL(fileName _: String) -> URL? { nil }
-    func audioURL(fileName _: String) -> URL? { nil }
+    func bundledEntries() -> [SongLibraryEntry] {
+        entries
+    }
+
+    func musicXMLURL(fileName _: String) -> URL? {
+        nil
+    }
+
+    func audioURL(fileName _: String) -> URL? {
+        nil
+    }
 }

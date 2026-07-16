@@ -25,9 +25,17 @@ private actor RecordingDiagnosticsStore: DiagnosticsStoreProtocol {
     }
 
     func cleanupExpiredLogs(referenceDate _: Date) {}
-    func loadEventsForExport(referenceDate _: Date) -> [DiagnosticEvent] { events }
-    func summary(referenceDate _: Date) -> DiagnosticLogSummary { .empty }
-    func clear() { events = [] }
+    func loadEventsForExport(referenceDate _: Date) -> [DiagnosticEvent] {
+        events
+    }
+
+    func summary(referenceDate _: Date) -> DiagnosticLogSummary {
+        .empty
+    }
+
+    func clear() {
+        events = []
+    }
 }
 
 @Test

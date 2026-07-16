@@ -17,17 +17,16 @@ struct PracticeFeedbackCuePresentation: Equatable {
     let systemImage: String
 
     init(event: PracticeFeedbackEvent) {
-        let message: String
-        switch event.kind {
+        let message = switch event.kind {
         case let .retryInvitation(issue):
-            message = switch issue {
+            switch issue {
             case .wrongNote: "这个音再试一次"
             case .missedNote: "还有一个音在等你"
             case .incompleteChord: "让和弦一起落下"
             }
-        case .measureStable: message = "这个小节已经点亮"
-        case .passageStable: message = "这一段已经连起来了"
-        case .roundSummaryReady: message = "来看看这一轮"
+        case .measureStable: "这个小节已经点亮"
+        case .passageStable: "这一段已经连起来了"
+        case .roundSummaryReady: "来看看这一轮"
         }
         if let id = event.sourceMeasureID {
             title = "第 \(id.sourceNumberToken ?? "\(id.sourceMeasureIndex + 1)") 小节：\(message)"

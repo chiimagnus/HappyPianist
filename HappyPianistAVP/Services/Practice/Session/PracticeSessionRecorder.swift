@@ -1,6 +1,6 @@
 import Foundation
 
-struct PracticeSessionRecorderClock: Sendable {
+struct PracticeSessionRecorderClock {
     let monotonicMilliseconds: @Sendable () -> Int64
     let wallDate: @Sendable () -> Date
     let localDay: @Sendable (Date) -> PracticeLocalDay?
@@ -37,7 +37,7 @@ struct PracticeSessionRecorderClock: Sendable {
     private static func milliseconds(in duration: Duration) -> Int64 {
         let components = duration.components
         guard components.seconds >= 0 else { return 0 }
-        let (wholeMilliseconds, multipliedOverflow) = components.seconds.multipliedReportingOverflow(by: 1_000)
+        let (wholeMilliseconds, multipliedOverflow) = components.seconds.multipliedReportingOverflow(by: 1000)
         guard multipliedOverflow == false else { return .max }
         let fractionalMilliseconds = max(0, components.attoseconds / 1_000_000_000_000_000)
         let (milliseconds, addedOverflow) = wholeMilliseconds.addingReportingOverflow(fractionalMilliseconds)
@@ -45,7 +45,7 @@ struct PracticeSessionRecorderClock: Sendable {
     }
 }
 
-enum PracticeSessionRecorderSaveStatus: Equatable, Sendable {
+enum PracticeSessionRecorderSaveStatus: Equatable {
     case idle
     case pending
     case saved
@@ -160,7 +160,8 @@ actor PracticeSessionRecorder {
             return saveStatus
         }
         if let scoreRevision = visit.scoreRevision,
-           scoreRevision != identity.scoreRevision {
+           scoreRevision != identity.scoreRevision
+        {
             saveStatus = .failed(description: "practice-visit-revision-mismatch")
             return saveStatus
         }
@@ -333,17 +334,17 @@ actor PracticeSessionRecorder {
               let practiceStartedAt = visit.practiceStartedAt,
               let practiceDay = visit.practiceDay,
               let record = PracticeSessionRecord(
-                id: visit.id,
-                songID: visit.songID,
-                scoreRevision: scoreRevision,
-                windowOpenedAt: visit.windowOpenedAt,
-                practiceStartedAt: practiceStartedAt,
-                practiceDay: practiceDay,
-                endedAt: endedAt ?? visit.endedAt,
-                lastPersistedAt: persistedAt ?? clock.wallDate(),
-                practiceWindowDurationMilliseconds: visit.windowDurationMilliseconds,
-                activePracticeDurationMilliseconds: visit.activeDurationMilliseconds,
-                termination: termination ?? (visit.isFinalized ? .normal : .open)
+                  id: visit.id,
+                  songID: visit.songID,
+                  scoreRevision: scoreRevision,
+                  windowOpenedAt: visit.windowOpenedAt,
+                  practiceStartedAt: practiceStartedAt,
+                  practiceDay: practiceDay,
+                  endedAt: endedAt ?? visit.endedAt,
+                  lastPersistedAt: persistedAt ?? clock.wallDate(),
+                  practiceWindowDurationMilliseconds: visit.windowDurationMilliseconds,
+                  activePracticeDurationMilliseconds: visit.activeDurationMilliseconds,
+                  termination: termination ?? (visit.isFinalized ? .normal : .open)
               )
         else {
             return

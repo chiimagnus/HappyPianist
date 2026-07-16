@@ -1,7 +1,7 @@
 import Foundation
 import ZIPFoundation
 
-struct DiagnosticsEnvironment: Equatable, Sendable {
+struct DiagnosticsEnvironment: Equatable {
     let appVersion: String
     let buildNumber: String
     let systemVersion: String
@@ -21,7 +21,7 @@ struct LiveDiagnosticsEnvironmentProvider: DiagnosticsEnvironmentProviding {
     }
 }
 
-struct DiagnosticArchive: Equatable, Sendable {
+struct DiagnosticArchive: Equatable {
     let data: Data
     let fileName: String
     let eventCount: Int
@@ -72,8 +72,8 @@ actor DiagnosticsArchiveExporter: DiagnosticsArchiveExporting {
         try archive.addEntry(with: environmentURL.lastPathComponent, relativeTo: root, compressionMethod: .deflate)
 
         let token = DiagnosticsDateText.archiveToken(referenceDate, calendar: calendar)
-        return DiagnosticArchive(
-            data: try Data(contentsOf: archiveURL),
+        return try DiagnosticArchive(
+            data: Data(contentsOf: archiveURL),
             fileName: "HappyPianist-Diagnostics-\(token).zip",
             eventCount: events.count
         )
@@ -85,7 +85,7 @@ actor DiagnosticsArchiveExporter: DiagnosticsArchiveExporting {
         encoder.outputFormatting = [.sortedKeys]
         var result = Data()
         for event in events {
-            result.append(try encoder.encode(event))
+            try result.append(encoder.encode(event))
             result.append(0x0A)
         }
         return result

@@ -13,4 +13,3 @@ struct FakePerformanceRNNStepModel: PerformanceRNNStepModeling {
         try PerformanceRNNStepResult(softmax: softmax, state: nextState)
     }
 }
-

@@ -71,7 +71,6 @@ func diagnosticEventCodableRoundTrips() throws {
     #expect(decoded == event)
 }
 
-
 @Test
 func diagnosticsDateTextBuildsStableTokensWithoutSharedFormatters() throws {
     var calendar = Calendar(identifier: .gregorian)

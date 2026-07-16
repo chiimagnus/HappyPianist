@@ -1,6 +1,6 @@
 import Foundation
 
-struct PerformanceRNNState: Equatable, Sendable {
+struct PerformanceRNNState: Equatable {
     static let hiddenSize = 512
 
     var c0: [Float]
@@ -48,7 +48,7 @@ struct PerformanceRNNState: Equatable, Sendable {
     }
 }
 
-struct PerformanceRNNStepResult: Equatable, Sendable {
+struct PerformanceRNNStepResult: Equatable {
     static let numClasses = PerformanceRNNEventCodec.numClasses
 
     var softmax: [Float]
@@ -63,7 +63,7 @@ struct PerformanceRNNStepResult: Equatable, Sendable {
     }
 }
 
-enum PerformanceRNNStepModelError: Error, LocalizedError, Equatable, Sendable {
+enum PerformanceRNNStepModelError: Error, LocalizedError, Equatable {
     case invalidEventID(expectedRange: ClosedRange<Int>, actual: Int)
     case invalidSoftmax(expectedCount: Int, actualCount: Int)
     case invalidStateVector(name: String, expectedCount: Int, actualCount: Int)

@@ -107,8 +107,8 @@ func noConflictImportCommitsOriginalNameAndCleansTransaction() async throws {
     #expect(entry.importedAt == importedAt)
     #expect(index.entries == [entry])
     #expect(
-        FileManager.default.fileExists(
-            atPath: try fixture.paths.scoreFileURL(safeFileName: "Original Name.musicxml").path(percentEncoded: false)
+        try FileManager.default.fileExists(
+            atPath: fixture.paths.scoreFileURL(safeFileName: "Original Name.musicxml").path(percentEncoded: false)
         )
     )
     #expect(
@@ -361,8 +361,8 @@ func ambiguousConflictBlocksAndCleansOnlyStagedOperation() async throws {
     }
     #expect(try Data(contentsOf: target) == Data("old".utf8))
     #expect(
-        FileManager.default.fileExists(
-            atPath: try fixture.paths.transactionOperationDirectoryURL(operationID: descriptor.id).path(percentEncoded: false)
+        try FileManager.default.fileExists(
+            atPath: fixture.paths.transactionOperationDirectoryURL(operationID: descriptor.id).path(percentEncoded: false)
         ) == false
     )
 }
@@ -386,14 +386,14 @@ func indexAppendFailureRollsTargetBackAndLeavesOldLibraryUnchanged() async throw
         return
     }
     #expect(
-        FileManager.default.fileExists(
-            atPath: try fixture.paths.scoreFileURL(safeFileName: "rollback.musicxml").path(percentEncoded: false)
+        try FileManager.default.fileExists(
+            atPath: fixture.paths.scoreFileURL(safeFileName: "rollback.musicxml").path(percentEncoded: false)
         ) == false
     )
     #expect(await indexStore.load() == .empty)
     #expect(
-        FileManager.default.fileExists(
-            atPath: try fixture.paths.transactionOperationDirectoryURL(operationID: descriptor.id).path(percentEncoded: false)
+        try FileManager.default.fileExists(
+            atPath: fixture.paths.transactionOperationDirectoryURL(operationID: descriptor.id).path(percentEncoded: false)
         ) == false
     )
 }
@@ -521,15 +521,15 @@ func postCommitTargetTamperBlocksAndPreservesRecoveryEvidence(
     }
     #expect(try Data(contentsOf: target) == Data("external".utf8))
     #expect(
-        FileManager.default.fileExists(
-            atPath: try fixture.paths.transactionJournalFileURL(operationID: descriptor.id)
+        try FileManager.default.fileExists(
+            atPath: fixture.paths.transactionJournalFileURL(operationID: descriptor.id)
                 .path(percentEncoded: false)
         )
     )
     if scenario != .newImport {
         #expect(
-            FileManager.default.fileExists(
-                atPath: try fixture.paths.transactionBackupFileURL(
+            try FileManager.default.fileExists(
+                atPath: fixture.paths.transactionBackupFileURL(
                     operationID: descriptor.id,
                     safeFileName: fileName
                 ).path(percentEncoded: false)
@@ -589,8 +589,8 @@ func bootstrapRecoveryRollsForwardStagedNewImportAndCommitsIndex() async throws 
         ) == data
     )
     #expect(
-        FileManager.default.fileExists(
-            atPath: try fixture.paths.transactionOperationDirectoryURL(operationID: operationID).path(percentEncoded: false)
+        try FileManager.default.fileExists(
+            atPath: fixture.paths.transactionOperationDirectoryURL(operationID: operationID).path(percentEncoded: false)
         ) == false
     )
 }
@@ -812,10 +812,10 @@ func importQueueConfirmsCurrentConflictThenContinuesWithoutSecondStateMachine() 
                     fileName: "confirmed.musicxml",
                     conflict: .filesystemOrphan
                 )
-            )
+            ),
         ],
         confirmResults: [
-            operationID: .committed(index: finalIndex, entry: committed)
+            operationID: .committed(index: finalIndex, entry: committed),
         ]
     )
     let viewModel = SongLibraryViewModelTestHarness.make(importTransactionService: service)
@@ -875,7 +875,7 @@ func cancellingAllPendingImportsCleansCurrentAndRemainingOperations() async {
                     fileName: "first.musicxml",
                     conflict: .filesystemOrphan
                 )
-            )
+            ),
         ]
     )
     let viewModel = SongLibraryViewModelTestHarness.make(importTransactionService: service)
@@ -908,7 +908,7 @@ func itemFailureWaitsForAcknowledgementThenContinuesQueue() async {
             .staged(SongLibraryStagedImport(id: committedID, fileName: "good.musicxml")),
         ],
         processResults: [
-            committedID: .committed(index: finalIndex, entry: committed)
+            committedID: .committed(index: finalIndex, entry: committed),
         ]
     )
     let viewModel = SongLibraryViewModelTestHarness.make(importTransactionService: service)
@@ -1051,8 +1051,13 @@ final class ImportSecurityScopeSpy: SecurityScopedResourceAccessing, @unchecked 
         self.startResult = startResult
     }
 
-    var startedNames: [String] { lock.withLock { started } }
-    var stoppedNames: [String] { lock.withLock { stopped } }
+    var startedNames: [String] {
+        lock.withLock { started }
+    }
+
+    var stoppedNames: [String] {
+        lock.withLock { stopped }
+    }
 
     func startAccessing(_ url: URL) -> Bool {
         lock.withLock { started.append(url.lastPathComponent) }
@@ -1071,11 +1076,18 @@ actor ImportTransactionDiagnosticsReporter: DiagnosticsReporting {
 }
 
 private actor FailingImportIndexStore: SongLibraryImportIndexStoreProtocol {
-    func load() -> SongLibraryIndex { .empty }
-    func setLastSelectedEntryID(_: UUID?) -> SongLibraryIndex { .empty }
+    func load() -> SongLibraryIndex {
+        .empty
+    }
+
+    func setLastSelectedEntryID(_: UUID?) -> SongLibraryIndex {
+        .empty
+    }
+
     func appendUserEntry(_: SongLibraryEntry) throws -> SongLibraryIndex {
         throw CocoaError(.fileWriteUnknown)
     }
+
     func replaceUserScore(
         expectedSongID _: UUID,
         expectedScoreFileVersionID _: UUID,
@@ -1084,15 +1096,21 @@ private actor FailingImportIndexStore: SongLibraryImportIndexStoreProtocol {
     ) -> SongLibraryScoreReplacementResult {
         .conflict(index: .empty, matchingEntries: [])
     }
+
     func removeUserEntry(
         id _: UUID,
         fallbackLastSelectedEntryID _: UUID?
-    ) -> SongLibraryEntryMutationResult { .notFound(index: .empty) }
+    ) -> SongLibraryEntryMutationResult {
+        .notFound(index: .empty)
+    }
+
     func updateAudioFileName(
         entryID _: UUID,
         expectedCurrentFileName _: String?,
         newFileName _: String?
-    ) -> SongLibraryEntryMutationResult { .notFound(index: .empty) }
+    ) -> SongLibraryEntryMutationResult {
+        .notFound(index: .empty)
+    }
 }
 
 private actor PersistThenThrowImportIndexStore: SongLibraryImportIndexStoreProtocol {
@@ -1103,7 +1121,9 @@ private actor PersistThenThrowImportIndexStore: SongLibraryImportIndexStoreProto
         self.index = index
     }
 
-    func load() -> SongLibraryIndex { index }
+    func load() -> SongLibraryIndex {
+        index
+    }
 
     func setAfterMutation(_ action: @escaping @Sendable () -> Void) {
         afterMutation = action
@@ -1152,16 +1172,20 @@ private actor PersistThenThrowImportIndexStore: SongLibraryImportIndexStoreProto
     func removeUserEntry(
         id _: UUID,
         fallbackLastSelectedEntryID _: UUID?
-    ) -> SongLibraryEntryMutationResult { .notFound(index: index) }
+    ) -> SongLibraryEntryMutationResult {
+        .notFound(index: index)
+    }
 
     func updateAudioFileName(
         entryID _: UUID,
         expectedCurrentFileName _: String?,
         newFileName _: String?
-    ) -> SongLibraryEntryMutationResult { .notFound(index: index) }
+    ) -> SongLibraryEntryMutationResult {
+        .notFound(index: index)
+    }
 }
 
-enum PersistedTargetTamperScenario: String, CaseIterable, Sendable {
+enum PersistedTargetTamperScenario: String, CaseIterable {
     case newImport
     case indexedReplacement
     case orphanAdoption
@@ -1174,7 +1198,9 @@ private actor RacingImportIndexStore: SongLibraryImportIndexStoreProtocol {
         self.index = index
     }
 
-    func load() -> SongLibraryIndex { index }
+    func load() -> SongLibraryIndex {
+        index
+    }
 
     func setLastSelectedEntryID(_ entryID: UUID?) -> SongLibraryIndex {
         index.lastSelectedEntryID = entryID
@@ -1202,13 +1228,17 @@ private actor RacingImportIndexStore: SongLibraryImportIndexStoreProtocol {
     func removeUserEntry(
         id _: UUID,
         fallbackLastSelectedEntryID _: UUID?
-    ) -> SongLibraryEntryMutationResult { .notFound(index: index) }
+    ) -> SongLibraryEntryMutationResult {
+        .notFound(index: index)
+    }
 
     func updateAudioFileName(
         entryID _: UUID,
         expectedCurrentFileName _: String?,
         newFileName _: String?
-    ) -> SongLibraryEntryMutationResult { .notFound(index: index) }
+    ) -> SongLibraryEntryMutationResult {
+        .notFound(index: index)
+    }
 }
 
 private actor QueueImportTransactionService: SongLibraryImportTransactionServicing {
@@ -1233,7 +1263,9 @@ private actor QueueImportTransactionService: SongLibraryImportTransactionServici
         self.stageDelay = stageDelay
     }
 
-    func recoverPendingTransactions() -> SongLibraryTransactionRecoveryResult { .recovered }
+    func recoverPendingTransactions() -> SongLibraryTransactionRecoveryResult {
+        .recovered
+    }
 
     func stageImports(from _: [URL]) async -> SongLibraryImportBatchStageResult {
         if stageDelay != .zero {
@@ -1280,7 +1312,7 @@ private func makeImportEntry(fileName: String) -> SongLibraryEntry {
 private func fingerprint(_ data: Data) throws -> TransactionFileFingerprint {
     let digest = SHA256.hash(data: data).map { byte in
         let digits = Array("0123456789abcdef")
-        return String([digits[Int(byte >> 4)], digits[Int(byte & 0x0f)]])
+        return String([digits[Int(byte >> 4)], digits[Int(byte & 0x0F)]])
     }.joined()
     return try TransactionFileFingerprint(byteCount: Int64(data.count), sha256: digest)
 }

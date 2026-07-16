@@ -128,14 +128,14 @@ struct HarmonicTemplateProvider {
         }
         for note in wrongCandidateMIDINotes {
             if let existingRole = rolesByNote[note],
-                existingRole.priority >= HarmonicTemplateCandidateRole.wrongCandidate.priority
+               existingRole.priority >= HarmonicTemplateCandidateRole.wrongCandidate.priority
             {
                 continue
             }
             rolesByNote[note] = .wrongCandidate
         }
         for note in expectedMIDINotes {
-            for octaveNote in [note - 12, note + 12] where (21...108).contains(octaveNote) {
+            for octaveNote in [note - 12, note + 12] where (21 ... 108).contains(octaveNote) {
                 if rolesByNote[octaveNote] == nil {
                     rolesByNote[octaveNote] = .octaveDebug
                 }
@@ -144,17 +144,17 @@ struct HarmonicTemplateProvider {
 
         return
             rolesByNote
-            .map { midiNote, role in
-                HarmonicTemplate(
-                    midiNote: midiNote,
-                    role: role,
-                    partials: makePartials(midiNote: midiNote, profile: profile)
-                )
-            }
-            .sorted { lhs, rhs in
-                if lhs.role.priority != rhs.role.priority { return lhs.role.priority > rhs.role.priority }
-                return lhs.midiNote < rhs.midiNote
-            }
+                .map { midiNote, role in
+                    HarmonicTemplate(
+                        midiNote: midiNote,
+                        role: role,
+                        partials: makePartials(midiNote: midiNote, profile: profile)
+                    )
+                }
+                .sorted { lhs, rhs in
+                    if lhs.role.priority != rhs.role.priority { return lhs.role.priority > rhs.role.priority }
+                    return lhs.midiNote < rhs.midiNote
+                }
     }
 
     func midiFrequency(midiNote: Int) -> Double {

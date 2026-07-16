@@ -96,7 +96,7 @@ func performanceRNNImprovGenerator_throwsGenerationLimitExceededWhenNoTimeShiftP
     let warmupCalls = promptEventIDs.count + 1
 
     // Only emits NOTE_ON/NOTE_OFF, never TIME_SHIFT -> generator should hit safety limit.
-    let repeatingEvents = Array(repeating: 60, count: 10_000)
+    let repeatingEvents = Array(repeating: 60, count: 10000)
     let stepModel = ScriptedStepModel(warmupCallCount: warmupCalls, scriptedNextEventIDs: repeatingEvents)
 
     let params = ImprovGenerateParams(topP: 0.95, maxTokens: 1, strategy: "model", seed: 1)

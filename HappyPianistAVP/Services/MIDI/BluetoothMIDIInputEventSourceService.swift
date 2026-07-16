@@ -465,7 +465,6 @@ final class BluetoothMIDIInputEventSourceService: PracticeInputEventSourceProtoc
             reason: "messageType=\(messageType), expected=\(expected.rawValue), actual=\(actual.rawValue)"
         )
     }
-
 }
 
 private enum BluetoothMIDIInputProtocol: Hashable {

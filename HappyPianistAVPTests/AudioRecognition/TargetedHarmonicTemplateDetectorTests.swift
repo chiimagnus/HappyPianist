@@ -1,13 +1,13 @@
 import Foundation
-import Testing
-
 @testable import HappyPianistAVP
+import Testing
 
 struct TargetedHarmonicTemplateDetectorTests {
     @Test func harmonicSignalProducesExpectedEvent() throws {
         let samples = SyntheticAudioFixtures.harmonic(midiNote: 60, attack: true)
         let spectrum = try VDSPAudioSpectrumAnalyzer().analyze(
-            samples: samples, sampleRate: 48000, timestamp: .now)
+            samples: samples, sampleRate: 48000, timestamp: .now
+        )
         let events = TargetedHarmonicTemplateDetector().detect(
             spectrumFrame: spectrum,
             expectedMIDINotes: [60],
@@ -22,7 +22,8 @@ struct TargetedHarmonicTemplateDetectorTests {
     @Test func suppressWindowBlocksEvents() throws {
         let samples = SyntheticAudioFixtures.harmonic(midiNote: 60, attack: true)
         let spectrum = try VDSPAudioSpectrumAnalyzer().analyze(
-            samples: samples, sampleRate: 48000, timestamp: .now)
+            samples: samples, sampleRate: 48000, timestamp: .now
+        )
         let events = TargetedHarmonicTemplateDetector().detect(
             spectrumFrame: spectrum,
             expectedMIDINotes: [60],
@@ -37,7 +38,8 @@ struct TargetedHarmonicTemplateDetectorTests {
     @Test func sustainedHarmonicDoesNotAdvance() throws {
         let samples = SyntheticAudioFixtures.harmonic(midiNote: 60, attack: false)
         let spectrum = try VDSPAudioSpectrumAnalyzer().analyze(
-            samples: samples, sampleRate: 48000, timestamp: .now)
+            samples: samples, sampleRate: 48000, timestamp: .now
+        )
         let events = TargetedHarmonicTemplateDetector().detect(
             spectrumFrame: spectrum,
             expectedMIDINotes: [60],
@@ -52,7 +54,8 @@ struct TargetedHarmonicTemplateDetectorTests {
     @Test func broadbandNoiseDoesNotProduceEvents() throws {
         let samples = SyntheticAudioFixtures.broadbandNoise(amplitude: 0.12)
         let spectrum = try VDSPAudioSpectrumAnalyzer().analyze(
-            samples: samples, sampleRate: 48000, timestamp: .now)
+            samples: samples, sampleRate: 48000, timestamp: .now
+        )
         let events = TargetedHarmonicTemplateDetector().detect(
             spectrumFrame: spectrum,
             expectedMIDINotes: [60],
@@ -67,7 +70,8 @@ struct TargetedHarmonicTemplateDetectorTests {
     @Test func adjacentSemitoneDoesNotEmitExpectedEvent() throws {
         let samples = SyntheticAudioFixtures.harmonic(midiNote: 61, attack: true)
         let spectrum = try VDSPAudioSpectrumAnalyzer().analyze(
-            samples: samples, sampleRate: 48000, timestamp: .now)
+            samples: samples, sampleRate: 48000, timestamp: .now
+        )
         let events = TargetedHarmonicTemplateDetector().detect(
             spectrumFrame: spectrum,
             expectedMIDINotes: [60],
@@ -83,7 +87,8 @@ struct TargetedHarmonicTemplateDetectorTests {
     @Test func simpleMajorChordProducesMultipleExpectedEvents() throws {
         let samples = SyntheticAudioFixtures.chord([60, 64, 67], attack: true)
         let spectrum = try VDSPAudioSpectrumAnalyzer().analyze(
-            samples: samples, sampleRate: 48000, timestamp: .now)
+            samples: samples, sampleRate: 48000, timestamp: .now
+        )
         let events = TargetedHarmonicTemplateDetector().detect(
             spectrumFrame: spectrum,
             expectedMIDINotes: [60, 64, 67],
@@ -101,7 +106,8 @@ struct TargetedHarmonicTemplateDetectorTests {
         let wrong = SyntheticAudioFixtures.harmonic(midiNote: 61, amplitude: 0.9, attack: true)
         let samples = SyntheticAudioFixtures.mixed([expected, wrong])
         let spectrum = try VDSPAudioSpectrumAnalyzer().analyze(
-            samples: samples, sampleRate: 48000, timestamp: .now)
+            samples: samples, sampleRate: 48000, timestamp: .now
+        )
         let events = TargetedHarmonicTemplateDetector().detect(
             spectrumFrame: spectrum,
             expectedMIDINotes: [60, 64, 67],

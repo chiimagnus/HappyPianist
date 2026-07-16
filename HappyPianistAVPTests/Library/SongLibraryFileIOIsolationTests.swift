@@ -121,15 +121,26 @@ private final class RecordingListeningPlayer: SongAudioPlayerProtocol {
     var onPlaybackFinished: ((UUID?) -> Void)?
     private(set) var currentEntryID: UUID?
     private(set) var playedEntryIDs: [UUID] = []
-    var currentTime: TimeInterval { 0 }
-    var duration: TimeInterval { 1 }
+    var currentTime: TimeInterval {
+        0
+    }
+
+    var duration: TimeInterval {
+        1
+    }
 
     func play(entryID: UUID, url _: URL) throws {
         currentEntryID = entryID
         playedEntryIDs.append(entryID)
     }
+
     func pause() {}
-    func stop() { currentEntryID = nil }
+    func stop() {
+        currentEntryID = nil
+    }
+
     func seek(to _: TimeInterval) {}
-    func isPlaying(entryID: UUID) -> Bool { currentEntryID == entryID }
+    func isPlaying(entryID: UUID) -> Bool {
+        currentEntryID == entryID
+    }
 }

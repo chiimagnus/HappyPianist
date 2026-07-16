@@ -255,7 +255,7 @@ final class CoreMIDIOutputService: MIDIOutputSendingProtocol {
     }
 }
 
-private struct OutputState: Sendable {
+private struct OutputState {
     var clientRef: MIDIClientRef = 0
     var outputPortRef: MIDIPortRef = 0
     var destinationCache: [Int32: MIDIEndpointRef] = [:]

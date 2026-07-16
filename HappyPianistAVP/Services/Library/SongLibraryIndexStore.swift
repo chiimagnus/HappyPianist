@@ -11,7 +11,7 @@ enum SongLibraryIndexStoreError: LocalizedError, Equatable {
     }
 }
 
-enum SongLibraryEntryMutationResult: Equatable, Sendable {
+enum SongLibraryEntryMutationResult: Equatable {
     case applied(index: SongLibraryIndex, entry: SongLibraryEntry)
     case notFound(index: SongLibraryIndex)
     case conflict(index: SongLibraryIndex, entry: SongLibraryEntry)
@@ -89,8 +89,8 @@ actor SongLibraryIndexStore: SongLibraryImportIndexStoreProtocol {
               let entryIndex = matchingIndices.first,
               index.entries[entryIndex].scoreFileVersionID == expectedScoreFileVersionID,
               SongLibraryFileNameIdentity.isExact(
-                index.entries[entryIndex].musicXMLFileName,
-                expectedMusicXMLFileName
+                  index.entries[entryIndex].musicXMLFileName,
+                  expectedMusicXMLFileName
               )
         else {
             return .conflict(

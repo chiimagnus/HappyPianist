@@ -1,22 +1,22 @@
 import Foundation
 
-enum PracticeProgressLoadResult: Equatable, Sendable {
+enum PracticeProgressLoadResult: Equatable {
     case loaded(PracticeProgressDocument)
     case unavailable(description: String)
     case corrupted(description: String)
 }
 
-enum PracticeProgressRepositoryError: Error, Equatable, Sendable {
+enum PracticeProgressRepositoryError: Error, Equatable {
     case unavailable(description: String)
     case corrupted(description: String)
 }
 
-enum PracticeProgressRecoveryResult: Equatable, Sendable {
+enum PracticeProgressRecoveryResult: Equatable {
     case recovered(backupURL: URL)
     case notNeeded
 }
 
-enum PracticeSessionMutationError: Error, Equatable, Sendable {
+enum PracticeSessionMutationError: Error, Equatable {
     case identityMismatch(id: UUID)
     case durationRegression(id: UUID)
     case cannotReopen(id: UUID)
@@ -83,7 +83,7 @@ actor FilePracticeProgressRepository:
 
     func load() -> PracticeProgressLoadResult {
         do {
-            return .loaded(try loadDocument())
+            return try .loaded(loadDocument())
         } catch let error as PracticeProgressRepositoryError {
             switch error {
             case let .unavailable(description):
@@ -106,7 +106,7 @@ actor FilePracticeProgressRepository:
     func history(for songID: UUID) -> PracticeSongHistoryLoadResult {
         switch load() {
         case let .loaded(document):
-            return .loaded(
+            .loaded(
                 PracticeSongHistory(
                     songID: songID,
                     progresses: PracticeProgressRecordOrder.sorted(
@@ -121,9 +121,9 @@ actor FilePracticeProgressRepository:
                 )
             )
         case let .unavailable(description):
-            return .unavailable(description: description)
+            .unavailable(description: description)
         case let .corrupted(description):
-            return .corrupted(description: description)
+            .corrupted(description: description)
         }
     }
 
@@ -268,17 +268,17 @@ actor FilePracticeProgressRepository:
             guard session.termination == .open,
                   liveSessionIDs.contains(session.id) == false,
                   let recovered = PracticeSessionRecord(
-                    id: session.id,
-                    songID: session.songID,
-                    scoreRevision: session.scoreRevision,
-                    windowOpenedAt: session.windowOpenedAt,
-                    practiceStartedAt: session.practiceStartedAt,
-                    practiceDay: session.practiceDay,
-                    endedAt: session.lastPersistedAt,
-                    lastPersistedAt: session.lastPersistedAt,
-                    practiceWindowDurationMilliseconds: session.practiceWindowDurationMilliseconds,
-                    activePracticeDurationMilliseconds: session.activePracticeDurationMilliseconds,
-                    termination: .recoveredAfterInterruption
+                      id: session.id,
+                      songID: session.songID,
+                      scoreRevision: session.scoreRevision,
+                      windowOpenedAt: session.windowOpenedAt,
+                      practiceStartedAt: session.practiceStartedAt,
+                      practiceDay: session.practiceDay,
+                      endedAt: session.lastPersistedAt,
+                      lastPersistedAt: session.lastPersistedAt,
+                      practiceWindowDurationMilliseconds: session.practiceWindowDurationMilliseconds,
+                      activePracticeDurationMilliseconds: session.activePracticeDurationMilliseconds,
+                      termination: .recoveredAfterInterruption
                   )
             else {
                 return session
@@ -305,9 +305,9 @@ actor FilePracticeProgressRepository:
             throw PracticeSessionMutationError.identityMismatch(id: replacement.id)
         }
         guard replacement.practiceWindowDurationMilliseconds
-                >= existing.practiceWindowDurationMilliseconds,
-              replacement.activePracticeDurationMilliseconds
-                >= existing.activePracticeDurationMilliseconds
+            >= existing.practiceWindowDurationMilliseconds,
+            replacement.activePracticeDurationMilliseconds
+            >= existing.activePracticeDurationMilliseconds
         else {
             throw PracticeSessionMutationError.durationRegression(id: replacement.id)
         }

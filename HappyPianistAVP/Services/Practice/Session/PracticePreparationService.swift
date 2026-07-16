@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 
-enum PracticePreparationError: Error, Equatable, Sendable {
+enum PracticePreparationError: Error, Equatable {
     case scoreFileNotFound
     case scoreFileUnreadable(reason: String)
     case invalidMXLArchive
@@ -15,7 +15,6 @@ enum PracticePreparationError: Error, Equatable, Sendable {
     case missingMeasureStructure
     case unexpected(stage: String, reason: String)
 }
-
 
 enum PracticePreparationErrorDetails {
     static func safeErrorSummary(_ error: Error) -> String {

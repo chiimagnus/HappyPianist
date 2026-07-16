@@ -1,6 +1,5 @@
 import Foundation
 
-
 public struct ImprovStreamStartRequestV2: Codable, Equatable, Sendable {
     public var type: String
     public var protocolVersion: Int

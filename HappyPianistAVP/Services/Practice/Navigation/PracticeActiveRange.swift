@@ -1,14 +1,20 @@
 import Foundation
 
-struct PracticeActiveRange: Equatable, Sendable {
+struct PracticeActiveRange: Equatable {
     let passage: PracticePassage
     let occurrenceRange: Range<Int>
     let stepRange: Range<Int>
     let tickRange: Range<Int>
     let measureSpans: [MusicXMLMeasureSpan]
 
-    var firstStepIndex: Int { stepRange.lowerBound }
-    var completionStepIndex: Int { stepRange.upperBound }
+    var firstStepIndex: Int {
+        stepRange.lowerBound
+    }
+
+    var completionStepIndex: Int {
+        stepRange.upperBound
+    }
+
     var sourceMeasureIDs: Set<PracticeSourceMeasureID> {
         Set(measureSpans.map(\.occurrenceID.sourceMeasureID))
     }

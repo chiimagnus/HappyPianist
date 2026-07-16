@@ -3,7 +3,7 @@ import Foundation
 import Observation
 import simd
 
-enum PracticeSessionReplacementResult: Equatable, Sendable {
+enum PracticeSessionReplacementResult: Equatable {
     case replaced
     case progressSaveFailed
 }
@@ -326,7 +326,8 @@ final class ARGuideViewModel: PracticeLaunchApplying {
         aiPerformanceViewModel.updatePracticeSession(next)
 
         if let prepared = latestPreparedPractice,
-           let previousRestorePolicy = latestPracticeRestorePolicy {
+           let previousRestorePolicy = latestPracticeRestorePolicy
+        {
             let restorePolicy: PracticeLaunchRestorePolicy = hadCurrentProgress
                 ? .exactAvailable
                 : previousRestorePolicy

@@ -47,14 +47,14 @@ struct HarmonicTemplateScorer {
 
         let maxWrongScore =
             partialSummaries
-            .filter { $0.template.role == .wrongCandidate }
-            .map(\.harmonicScore)
-            .max() ?? 0
+                .filter { $0.template.role == .wrongCandidate }
+                .map(\.harmonicScore)
+                .max() ?? 0
         let maxExpectedScore =
             partialSummaries
-            .filter { $0.template.role == .expected }
-            .map(\.harmonicScore)
-            .max() ?? 0
+                .filter { $0.template.role == .expected }
+                .map(\.harmonicScore)
+                .max() ?? 0
         let globalMax = max(partialSummaries.map(\.harmonicScore).max() ?? 0, epsilon)
 
         return partialSummaries.map { summary in
@@ -72,7 +72,8 @@ struct HarmonicTemplateScorer {
             let dominanceFactor = min(1.0, dominance / max(profile.minimumDominance, epsilon))
             let requiredActivePartials = min(2, max(1, summary.template.partials.count))
             let completenessFactor = min(
-                1.0, Double(summary.activePartialCount) / Double(requiredActivePartials))
+                1.0, Double(summary.activePartialCount) / Double(requiredActivePartials)
+            )
             let noiseGateFactor = min(1.0, energyProvider.rms / max(profile.minimumRMS, epsilon))
             let roleFactor = summary.template.role == .octaveDebug ? 0.75 : 1.0
             let confidence = max(

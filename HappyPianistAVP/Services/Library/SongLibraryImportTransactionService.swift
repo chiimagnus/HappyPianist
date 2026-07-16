@@ -185,10 +185,10 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
             }
 
             let index = try await indexStore.load()
-            let conflict = SongLibraryImportConflictClassifier.classify(
+            let conflict = try SongLibraryImportConflictClassifier.classify(
                 userEntries: index.entries,
                 candidateFileName: journal.safeFileName,
-                targetFacts: try targetVolumeFacts(safeFileName: journal.safeFileName)
+                targetFacts: targetVolumeFacts(safeFileName: journal.safeFileName)
             )
             switch conflict {
             case .none:
@@ -277,7 +277,7 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
             )
             try writeJournal(preparingJournal)
             try fileManager.createDirectory(
-                at: try paths.transactionPartialStageFileURL(operationID: operationID)
+                at: paths.transactionPartialStageFileURL(operationID: operationID)
                     .deletingLastPathComponent(),
                 withIntermediateDirectories: false
             )
@@ -594,7 +594,7 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
             }
             let facts = try await recoveryFacts(for: resolved)
             try moveStageToTarget(journal: resolved, facts: facts)
-            try writeJournal(try self.journal(resolved, phase: .targetInstalled))
+            try writeJournal(self.journal(resolved, phase: .targetInstalled))
         } catch {
             guard await rollbackResolvedImport(resolvedJournal: resolved, stagedJournal: journal) else {
                 return blockedImport(journal, message: "曲谱替换回滚未完成，请重新启动后恢复。")
@@ -687,7 +687,7 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
             try moveTargetToBackup(journal: resolved)
             let facts = try await recoveryFacts(for: resolved)
             try moveStageToTarget(journal: resolved, facts: facts)
-            try writeJournal(try self.journal(resolved, phase: .targetInstalled))
+            try writeJournal(self.journal(resolved, phase: .targetInstalled))
         } catch {
             guard await rollbackResolvedImport(resolvedJournal: resolved, stagedJournal: journal) else {
                 return blockedImport(journal, message: "未索引曲谱替换回滚未完成，请重新启动后恢复。")
@@ -979,8 +979,8 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
               fileName.contains("/") == false,
               fileName.contains("\\") == false,
               SongLibraryFileNameIdentity.isExact(
-                URL(fileURLWithPath: fileName).lastPathComponent,
-                fileName
+                  URL(fileURLWithPath: fileName).lastPathComponent,
+                  fileName
               )
         else { return false }
         return Self.supportedScoreExtensions.contains(
@@ -1040,8 +1040,8 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
         )
         guard journal.operationID == operationID,
               try isSafeRecordedOperationDirectory(
-                paths.transactionOperationDirectoryURL(operationID: operationID),
-                journal: journal
+                  paths.transactionOperationDirectoryURL(operationID: operationID),
+                  journal: journal
               )
         else {
             throw SongLibraryTransactionServiceError.unsafePath
@@ -1128,7 +1128,7 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
     }
 
     private func recover(journal: SongLibraryImportJournal) async throws -> SongLibraryTransactionRecoveryResult {
-        for _ in 0..<8 {
+        for _ in 0 ..< 8 {
             let facts = try await recoveryFacts(for: journal)
             let action = SongLibraryTransactionRecoveryPlanner.action(journal: journal, facts: facts)
             _ = await diagnostics.record(
@@ -1179,19 +1179,19 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
             safeFileName: journal.safeFileName
         )
         if journal.kind == .unclassified {
-            return SongLibraryTransactionRecoveryFacts(
-                stage: try observedFile(at: stageURL),
-                backup: try observedFile(at: backupURL),
+            return try SongLibraryTransactionRecoveryFacts(
+                stage: observedFile(at: stageURL),
+                backup: observedFile(at: backupURL),
                 target: .missing,
                 indexState: .neither
             )
         }
         let targetURL = try paths.scoreFileURL(safeFileName: journal.safeFileName)
-        return SongLibraryTransactionRecoveryFacts(
-            stage: try observedFile(at: stageURL),
-            backup: try observedFile(at: backupURL),
-            target: try observedFile(at: targetURL),
-            indexState: try await indexState(for: journal)
+        return try await SongLibraryTransactionRecoveryFacts(
+            stage: observedFile(at: stageURL),
+            backup: observedFile(at: backupURL),
+            target: observedFile(at: targetURL),
+            indexState: indexState(for: journal)
         )
     }
 
@@ -1207,10 +1207,10 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
         guard let payload = journal.newEntry else {
             return .neither
         }
-        switch SongLibraryImportConflictClassifier.classify(
+        switch try SongLibraryImportConflictClassifier.classify(
             userEntries: index.entries,
             candidateFileName: journal.safeFileName,
-            targetFacts: try targetVolumeFacts(safeFileName: journal.safeFileName)
+            targetFacts: targetVolumeFacts(safeFileName: journal.safeFileName)
         ) {
         case .ambiguousIndexedTargets:
             return .conflicting
@@ -1226,15 +1226,15 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
             actual.musicXMLFileName,
             payload.musicXMLFileName
         ),
-           actual.scoreFileVersionID == payload.scoreFileVersionID
+            actual.scoreFileVersionID == payload.scoreFileVersionID
         {
             return .newEntryPresent
         }
         if let expected = journal.expectedEntry,
            actual.id == expected.songID,
            SongLibraryFileNameIdentity.isExact(
-            actual.musicXMLFileName,
-            expected.musicXMLFileName
+               actual.musicXMLFileName,
+               expected.musicXMLFileName
            ),
            actual.scoreFileVersionID == expected.scoreFileVersionID
         {
@@ -1350,11 +1350,11 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
         guard facts.stage == currentStage,
               facts.backup == currentBackup,
               currentStage.exists == false
-                || journal.phase == .preparing
-                || currentStage.fingerprint == journal.stagedFingerprint,
+              || journal.phase == .preparing
+              || currentStage.fingerprint == journal.stagedFingerprint,
               currentBackup.exists == false || currentBackup.fingerprint == journal.backupFingerprint,
               try containsNoSymbolicLinks(
-                paths.transactionOperationDirectoryURL(operationID: journal.operationID)
+                  paths.transactionOperationDirectoryURL(operationID: journal.operationID)
               )
         else { throw SongLibraryTransactionServiceError.changedFile }
         try fileManager.removeItem(
@@ -1382,7 +1382,7 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
         }
         let digits = Array("0123456789abcdef")
         let digest = hasher.finalize().flatMap { byte in
-            [digits[Int(byte >> 4)], digits[Int(byte & 0x0f)]]
+            [digits[Int(byte >> 4)], digits[Int(byte & 0x0F)]]
         }
         let digestText = String(digest)
         let fingerprint = try TransactionFileFingerprint(byteCount: byteCount, sha256: digestText)

@@ -21,8 +21,13 @@ enum SongAudioPlayerStateError: Error {
 final class SongAudioPlayer: NSObject, SongAudioPlayerProtocol, AVAudioPlayerDelegate {
     var onPlaybackFinished: ((UUID?) -> Void)?
     private(set) var currentEntryID: UUID?
-    var currentTime: TimeInterval { audioPlayer?.currentTime ?? 0 }
-    var duration: TimeInterval { audioPlayer?.duration ?? 0 }
+    var currentTime: TimeInterval {
+        audioPlayer?.currentTime ?? 0
+    }
+
+    var duration: TimeInterval {
+        audioPlayer?.duration ?? 0
+    }
 
     private let userDefaults: UserDefaults
     private var audioPlayer: AVAudioPlayer?
@@ -43,7 +48,8 @@ final class SongAudioPlayer: NSObject, SongAudioPlayerProtocol, AVAudioPlayerDel
 
     deinit {
         NotificationCenter.default.removeObserver(
-            self, name: UserDefaults.didChangeNotification, object: nil)
+            self, name: UserDefaults.didChangeNotification, object: nil
+        )
     }
 
     func play(entryID: UUID, url: URL) throws {

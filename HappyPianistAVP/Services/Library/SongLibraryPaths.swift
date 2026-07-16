@@ -45,7 +45,7 @@ struct SongLibraryPaths {
     func transactionStageFileURL(operationID: UUID, safeFileName: String) throws -> URL {
         try transactionOperationDirectoryURL(operationID: operationID)
             .appending(path: "stage", directoryHint: .isDirectory)
-            .appending(path: try validatedComponent(safeFileName))
+            .appending(path: validatedComponent(safeFileName))
     }
 
     func transactionPartialStageFileURL(operationID: UUID) throws -> URL {
@@ -57,7 +57,7 @@ struct SongLibraryPaths {
     func transactionBackupFileURL(operationID: UUID, safeFileName: String) throws -> URL {
         try transactionOperationDirectoryURL(operationID: operationID)
             .appending(path: "backup", directoryHint: .isDirectory)
-            .appending(path: try validatedComponent(safeFileName))
+            .appending(path: validatedComponent(safeFileName))
     }
 
     func transactionJournalFileURL(operationID: UUID) throws -> URL {
@@ -66,7 +66,7 @@ struct SongLibraryPaths {
     }
 
     func scoreFileURL(safeFileName: String) throws -> URL {
-        try scoresDirectoryURL().appending(path: try validatedComponent(safeFileName))
+        try scoresDirectoryURL().appending(path: validatedComponent(safeFileName))
     }
 
     func ensureDirectoriesExist() throws {

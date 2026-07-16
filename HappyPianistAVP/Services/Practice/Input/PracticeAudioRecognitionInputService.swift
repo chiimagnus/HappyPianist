@@ -128,7 +128,7 @@ final class PracticeAudioRecognitionInputService {
             } catch {
                 startTask = nil
                 guard hasShutdown == false,
-                    stateStore.audioRecognitionGeneration == startGeneration
+                      stateStore.audioRecognitionGeneration == startGeneration
                 else { return }
                 stateStore.isAudioRecognitionRunning = false
                 recordError(error)
@@ -162,7 +162,7 @@ final class PracticeAudioRecognitionInputService {
                     if case .permissionDenied = status {
                         self?.stateStore.audioRecognitionErrorMessage = "未授予麦克风权限"
                     }
-                    if case .engineFailed(let reason) = status {
+                    if case let .engineFailed(reason) = status {
                         self?.stateStore.audioRecognitionErrorMessage = reason
                     }
                 }
@@ -188,7 +188,7 @@ final class PracticeAudioRecognitionInputService {
         guard snapshot.isManualReplayPlaying == false else { return }
         guard event.generation == stateStore.audioRecognitionGeneration else { return }
         if let suppressUntil = stateStore.audioRecognitionSuppressUntil,
-            event.timestamp <= suppressUntil
+           event.timestamp <= suppressUntil
         {
             return
         }

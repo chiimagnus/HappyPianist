@@ -38,7 +38,10 @@ private final class FakePracticeSession: AIPerformancePracticeSessionProtocol {
 
     func stopVirtualPianoInput() {}
     func stopAudioRecognition() {}
-    func prepareAudioRecognitionSuppressWindowForPlayback() -> Date { .now }
+    func prepareAudioRecognitionSuppressWindowForPlayback() -> Date {
+        .now
+    }
+
     func refreshAudioRecognitionForCurrentState() {}
 }
 
@@ -89,7 +92,10 @@ private final class NonAdvancingPlaybackService: PracticeSequencerPlaybackServic
     func stop() {}
     func load(sequence _: PracticeSequencerSequence) throws {}
     func play(fromSeconds _: TimeInterval) throws {}
-    func currentSeconds() -> TimeInterval { 0 }
+    func currentSeconds() -> TimeInterval {
+        0
+    }
+
     func playOneShot(noteOns _: [PracticeOneShotNoteOn], durationSeconds _: TimeInterval) throws {}
     func startLiveNotes(midiNotes _: Set<Int>) throws {}
     func stopLiveNotes(midiNotes _: Set<Int>) {}
@@ -98,8 +104,14 @@ private final class NonAdvancingPlaybackService: PracticeSequencerPlaybackServic
 
 @MainActor
 private struct FakeSettingsProvider: PracticeSessionSettingsProviderProtocol {
-    var manualAdvanceMode: ManualAdvanceMode { .step }
-    var practiceHandMode: PracticeHandMode { .both }
+    var manualAdvanceMode: ManualAdvanceMode {
+        .step
+    }
+
+    var practiceHandMode: PracticeHandMode {
+        .both
+    }
+
     var soundRoutingSettings: PracticeSoundRoutingSettings {
         PracticeSoundRoutingSettings(outputRoute: .localSampler, midiDestinationUniqueID: nil, sendLocalControlOff: false)
     }
@@ -210,7 +222,9 @@ func newInputReevaluatesContinuousResponseAgainstLatestContext() async {
         PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 72)),
     ], backendLatencyMS: nil))
 
-    for _ in 0 ..< 200 { await Task.yield() }
+    for _ in 0 ..< 200 {
+        await Task.yield()
+    }
     #expect(enqueuedSchedule)
     service.setEnabled(false)
 }
@@ -299,7 +313,9 @@ func replacingPracticeSessionInvalidatesOldResponse() async {
         PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 72, velocity: 90)),
         PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 72)),
     ], backendLatencyMS: nil))
-    for _ in 0 ..< 200 { await Task.yield() }
+    for _ in 0 ..< 200 {
+        await Task.yield()
+    }
 
     #expect(enqueuedSchedule == false)
     service.setEnabled(false)
@@ -343,7 +359,9 @@ func silentContextDropsLateContinuousResponse() async {
         PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 72)),
     ], backendLatencyMS: nil))
 
-    for _ in 0 ..< 200 { await Task.yield() }
+    for _ in 0 ..< 200 {
+        await Task.yield()
+    }
     #expect(enqueuedSchedule == false)
     service.setEnabled(false)
 }
@@ -390,7 +408,9 @@ func disablingAndReenablingKeepsNewRequestTracked() async {
     #expect(await backend.waitForCall(minimumCount: 2))
 
     await backend.resume(with: .schedule([], backendLatencyMS: nil))
-    for _ in 0 ..< 200 { await Task.yield() }
+    for _ in 0 ..< 200 {
+        await Task.yield()
+    }
     #expect(await backend.generateCallCount() == 2)
 
     await backend.resume(with: .schedule([], backendLatencyMS: nil))

@@ -46,7 +46,7 @@ func invitationDependsOnSessionsNotMeasureAttempts() async {
 @Test
 func overviewUsesSessionsWhenCurrentMetadataIsUnavailable() async throws {
     let entry = makeSnapshotEntry()
-    let session = try makeSnapshotSession(songID: entry.id, revision: "old", activeMilliseconds: 45_000)
+    let session = try makeSnapshotSession(songID: entry.id, revision: "old", activeMilliseconds: 45000)
 
     guard case let .overview(overview) = await buildSnapshot(
         entry: entry,
@@ -64,7 +64,7 @@ func overviewUsesSessionsWhenCurrentMetadataIsUnavailable() async throws {
     #expect(overview.identity == snapshotIdentity(entry))
     #expect(overview.status == .pending)
     #expect(overview.sessionSummary.sessionCount == 1)
-    #expect(overview.sessionSummary.totalActiveDurationMilliseconds == 45_000)
+    #expect(overview.sessionSummary.totalActiveDurationMilliseconds == 45000)
     #expect(overview.measureProgress == .metadataUnavailable)
     #expect(overview.resumeSourceMeasureID == nil)
     #expect(overview.focusMeasures.isEmpty)
@@ -121,13 +121,13 @@ func overviewStatusIsStableOnlyWhenEveryCurrentMeasureIsStable() async throws {
         ]
     )
 
-    guard case let .overview(overview) = await buildSnapshot(
+    guard case let .overview(overview) = try await buildSnapshot(
         entry: entry,
         history: PracticeSongHistory(
             songID: entry.id,
             progresses: [progress],
             scoreMetadata: [makeSnapshotMetadata(entry: entry, revision: "current", total: 2)],
-            sessions: [try makeSnapshotSession(songID: entry.id, revision: "current")]
+            sessions: [makeSnapshotSession(songID: entry.id, revision: "current")]
         )
     ) else {
         Issue.record("Expected overview")
@@ -187,9 +187,9 @@ func overviewIsolatesResumeProgressAndFocusToCurrentRevision() async throws {
         measureFacts: [snapshotFact(1, hand: .both, state: .learning, failed: 3)],
         updatedAt: Date(timeIntervalSince1970: 30)
     )
-    let sessions = [
-        try makeSnapshotSession(songID: entry.id, revision: "old", startedAt: 100),
-        try makeSnapshotSession(songID: entry.id, revision: "current", startedAt: 200),
+    let sessions = try [
+        makeSnapshotSession(songID: entry.id, revision: "old", startedAt: 100),
+        makeSnapshotSession(songID: entry.id, revision: "current", startedAt: 200),
     ]
 
     guard case let .overview(overview) = await buildSnapshot(
@@ -238,13 +238,13 @@ func overviewKeepsCurrentRevisionResumeBeforeTheDestinationMeasureHasFacts() asy
         updatedAt: Date(timeIntervalSince1970: 30)
     )
 
-    guard case let .overview(overview) = await buildSnapshot(
+    guard case let .overview(overview) = try await buildSnapshot(
         entry: entry,
         history: PracticeSongHistory(
             songID: entry.id,
             progresses: [current],
             scoreMetadata: [makeSnapshotMetadata(entry: entry, revision: "current")],
-            sessions: [try makeSnapshotSession(songID: entry.id, revision: "current")]
+            sessions: [makeSnapshotSession(songID: entry.id, revision: "current")]
         )
     ) else {
         Issue.record("Expected overview")
@@ -462,7 +462,7 @@ private func makeSnapshotSession(
     songID: UUID,
     revision: String,
     startedAt: TimeInterval = 100,
-    activeMilliseconds: Int64 = 10_000
+    activeMilliseconds: Int64 = 10000
 ) throws -> PracticeSessionRecord {
     let day = try #require(PracticeLocalDay(
         year: 2026,
@@ -479,7 +479,7 @@ private func makeSnapshotSession(
         practiceDay: day,
         endedAt: Date(timeIntervalSince1970: startedAt + 20),
         lastPersistedAt: Date(timeIntervalSince1970: startedAt + 20),
-        practiceWindowDurationMilliseconds: max(20_000, activeMilliseconds),
+        practiceWindowDurationMilliseconds: max(20000, activeMilliseconds),
         activePracticeDurationMilliseconds: activeMilliseconds,
         termination: .normal
     ))

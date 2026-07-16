@@ -102,6 +102,4 @@ final class ChordAttemptAccumulator: ChordAttemptAccumulatorProtocol {
         windowStart = nil
         accumulatedPressedNotes.removeAll()
     }
-
-
 }

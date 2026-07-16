@@ -1,6 +1,6 @@
 import Foundation
 
-enum PerformanceRNNImprovGeneratorError: Error, LocalizedError, Equatable, Sendable {
+enum PerformanceRNNImprovGeneratorError: Error, LocalizedError, Equatable {
     case emptyPrompt
     case invalidDistribution
     case generationLimitExceeded
@@ -17,7 +17,7 @@ enum PerformanceRNNImprovGeneratorError: Error, LocalizedError, Equatable, Senda
     }
 }
 
-struct PerformanceRNNImprovGenerator: Sendable {
+struct PerformanceRNNImprovGenerator {
     private let codec: PerformanceRNNEventCodec
     private let seedResolver: ImprovSeedResolver
 
@@ -28,13 +28,12 @@ struct PerformanceRNNImprovGenerator: Sendable {
 
     func temperatureFromTopP(_ topP: Double) -> Float {
         let p = max(0.0, min(1.0, topP))
-        let t: Double
-        if p <= 0.7 {
-            t = 0.0
+        let t: Double = if p <= 0.7 {
+            0.0
         } else if p >= 1.0 {
-            t = 1.0
+            1.0
         } else {
-            t = (p - 0.7) / 0.3
+            (p - 0.7) / 0.3
         }
         let temperature = 0.8 + (1.2 - 0.8) * t
         return Float(max(0.5, min(1.5, temperature)))
@@ -45,11 +44,11 @@ struct PerformanceRNNImprovGenerator: Sendable {
         return max(2.0, min(12.0, seconds))
     }
 
-    func generateReplyNotes<StepModel: PerformanceRNNStepModeling>(
+    func generateReplyNotes(
         promptNotes: [ImprovDialogueNote],
         params: ImprovGenerateParams,
         sessionID: String?,
-        stepModel: StepModel
+        stepModel: some PerformanceRNNStepModeling
     ) async throws -> [ImprovDialogueNote] {
         guard promptNotes.isEmpty == false else {
             throw PerformanceRNNImprovGeneratorError.emptyPrompt

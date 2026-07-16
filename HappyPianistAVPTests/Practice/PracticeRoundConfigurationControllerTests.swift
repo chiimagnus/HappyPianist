@@ -61,7 +61,7 @@ struct PracticeRoundConfigurationControllerTests {
             settingsProvider: FixedPracticeSettingsProvider(),
             defaultsStore: CapturingRoundDefaultsStore()
         )
-        controller.installFreshFullScoreConfiguration(passage: try #require(makePassage()))
+        try controller.installFreshFullScoreConfiguration(passage: #require(makePassage()))
 
         controller.pendingSoundOutputRoute = .externalMIDIDestination
         controller.pendingMIDIDestinationUniqueID = 42

@@ -131,7 +131,9 @@ private actor InMemorySongFileStore: SongFileStoreProtocol {
 }
 
 private actor NoopSongLibraryImportTransactionService: SongLibraryImportTransactionServicing {
-    func recoverPendingTransactions() -> SongLibraryTransactionRecoveryResult { .recovered }
+    func recoverPendingTransactions() -> SongLibraryTransactionRecoveryResult {
+        .recovered
+    }
 
     func stageImports(from selectedURLs: [URL]) -> SongLibraryImportBatchStageResult {
         SongLibraryImportBatchStageResult(
@@ -155,7 +157,9 @@ private actor NoopSongLibraryImportTransactionService: SongLibraryImportTransact
         .blocked(SongLibraryBlockedImport(operationID: operationID, message: "测试未配置导入事务"))
     }
 
-    func cancel(operationID _: UUID) -> Bool { true }
+    func cancel(operationID _: UUID) -> Bool {
+        true
+    }
 }
 
 private actor NoopAudioImportService: AudioImportServiceProtocol {
@@ -183,8 +187,13 @@ private struct StubBundledSongLibraryProvider: BundledSongLibraryProviderProtoco
 private final class NoopSongAudioPlayer: SongAudioPlayerProtocol {
     var onPlaybackFinished: ((UUID?) -> Void)?
     private(set) var currentEntryID: UUID?
-    var currentTime: TimeInterval { 0 }
-    var duration: TimeInterval { 0 }
+    var currentTime: TimeInterval {
+        0
+    }
+
+    var duration: TimeInterval {
+        0
+    }
 
     init() {}
 
@@ -205,19 +214,22 @@ private final class NoopSongAudioPlayer: SongAudioPlayerProtocol {
     }
 }
 
-
 private actor InMemoryPracticeProgressRepository:
     PracticeProgressRepositoryProtocol,
     PracticeSessionRepositoryProtocol
 {
     private var document = PracticeProgressDocument()
 
-    func load() -> PracticeProgressLoadResult { .loaded(document) }
+    func load() -> PracticeProgressLoadResult {
+        .loaded(document)
+    }
+
     func progress(for identity: PracticeSongIdentity) -> SongPracticeProgress? {
         PracticeProgressRecordOrder.preferred(
             in: document.songs.filter { $0.identity == identity }
         )
     }
+
     func history(for songID: UUID) -> PracticeSongHistoryLoadResult {
         .loaded(PracticeSongHistory(
             songID: songID,
@@ -226,10 +238,12 @@ private actor InMemoryPracticeProgressRepository:
             sessions: document.sessions.filter { $0.songID == songID }
         ))
     }
+
     func upsert(_ progress: SongPracticeProgress) {
         document.songs.removeAll(where: { $0.identity == progress.identity })
         document.songs.append(progress)
     }
+
     func upsert(_ metadata: SongScorePracticeMetadata) {
         document.scoreMetadata.removeAll {
             $0.songID == metadata.songID
@@ -238,10 +252,12 @@ private actor InMemoryPracticeProgressRepository:
         }
         document.scoreMetadata.append(metadata)
     }
+
     func upsert(_ session: PracticeSessionRecord) {
         document.sessions.removeAll(where: { $0.id == session.id })
         document.sessions.append(session)
     }
+
     func abandonLiveSession(id _: UUID) {}
     func remove(songID: UUID) {
         document.songs.removeAll(where: { $0.identity.songID == songID })

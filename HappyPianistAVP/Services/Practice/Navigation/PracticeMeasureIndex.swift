@@ -1,6 +1,6 @@
 import Foundation
 
-enum PracticeMeasureIndexDiagnostic: Error, Equatable, Sendable {
+enum PracticeMeasureIndexDiagnostic: Error, Equatable {
     case passageBoundaryNotFound
     case passageOrderInvalid
     case noStepsInPassage

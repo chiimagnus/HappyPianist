@@ -13,13 +13,13 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
                 "Microphone permission denied."
             case .invalidInputFormat:
                 "Invalid microphone input format."
-            case .engineStartFailed(let reason):
+            case let .engineStartFailed(reason):
                 reason
             }
         }
     }
 
-    private struct AudioProcessingRequest: Sendable {
+    private struct AudioProcessingRequest {
         let samples: [Float]
         let sampleRate: Double
         let epoch: Int
@@ -237,8 +237,9 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
     ) -> [DetectedNoteEvent] {
         do {
             let spectrum = try spectrumAnalyzer.analyze(
-                samples: samples, sampleRate: sampleRate, timestamp: .now)
-            let events = harmonicDetector.detect(
+                samples: samples, sampleRate: sampleRate, timestamp: .now
+            )
+            return harmonicDetector.detect(
                 spectrumFrame: spectrum,
                 expectedMIDINotes: expectedMIDINotes,
                 wrongCandidateMIDINotes: wrongCandidateMIDINotes,
@@ -246,7 +247,6 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
                 suppressing: suppressing,
                 profile: tuningProfile
             )
-            return events
         } catch {
             diagnosticsReporter?.recordSystem(
                 severity: .error,
@@ -293,9 +293,9 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
         guard channelCount > 0 else { return nil }
         if channelCount == 1 { return Array(UnsafeBufferPointer(start: channelData[0], count: frameLength)) }
         var result = Array(repeating: Float.zero, count: frameLength)
-        for channel in 0..<channelCount {
+        for channel in 0 ..< channelCount {
             let values = UnsafeBufferPointer(start: channelData[channel], count: frameLength)
-            for index in 0..<frameLength {
+            for index in 0 ..< frameLength {
                 result[index] += values[index] / Float(channelCount)
             }
         }

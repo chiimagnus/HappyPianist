@@ -118,5 +118,4 @@ struct GrandStaffNotationItem: Equatable, Identifiable {
     let articulations: Set<MusicXMLArticulation>
     let arpeggiate: MusicXMLArpeggiate?
     let dotCount: Int
-
 }

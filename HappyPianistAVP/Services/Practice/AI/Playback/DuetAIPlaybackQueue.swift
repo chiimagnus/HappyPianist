@@ -1,14 +1,14 @@
 import Foundation
 
 actor DuetAIPlaybackQueue {
-    struct SubmitResult: Equatable, Sendable {
+    struct SubmitResult: Equatable {
         let shiftedSchedule: [PracticeSequencerMIDIEvent]
         let baseDelaySeconds: TimeInterval
         let replacedPendingWindow: Bool
         let windowEndUptimeSeconds: TimeInterval
     }
 
-    private struct WindowItem: Sendable {
+    private struct WindowItem {
         let schedule: [PracticeSequencerMIDIEvent]
         let routing: PracticeSoundRoutingSettings
     }

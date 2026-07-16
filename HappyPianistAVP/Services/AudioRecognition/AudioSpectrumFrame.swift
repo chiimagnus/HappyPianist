@@ -34,10 +34,12 @@ struct AudioSpectrumFrame: Equatable, HarmonicBandEnergyProvidingProtocol {
         guard centerFrequency.isFinite, centerFrequency > 0 else { return 0 }
         guard frequencyBins.isEmpty == false, frequencyBins.count == magnitudes.count else { return 0 }
         let range = frequencyRange(
-            centerFrequency: centerFrequency, toleranceCents: toleranceCents, multiplier: 1.0)
+            centerFrequency: centerFrequency, toleranceCents: toleranceCents, multiplier: 1.0
+        )
         var energy = 0.0
         for index in frequencyBins.indices
-        where frequencyBins[index] >= range.lower && frequencyBins[index] <= range.upper {
+            where frequencyBins[index] >= range.lower && frequencyBins[index] <= range.upper
+        {
             energy += magnitudes[index]
         }
         if energy > 0 { return energy }
@@ -52,12 +54,15 @@ struct AudioSpectrumFrame: Equatable, HarmonicBandEnergyProvidingProtocol {
         guard centerFrequency.isFinite, centerFrequency > 0 else { return 0 }
         guard frequencyBins.isEmpty == false, frequencyBins.count == magnitudes.count else { return 0 }
         let inner = frequencyRange(
-            centerFrequency: centerFrequency, toleranceCents: toleranceCents, multiplier: 1.0)
+            centerFrequency: centerFrequency, toleranceCents: toleranceCents, multiplier: 1.0
+        )
         let outer = frequencyRange(
-            centerFrequency: centerFrequency, toleranceCents: toleranceCents, multiplier: 3.0)
+            centerFrequency: centerFrequency, toleranceCents: toleranceCents, multiplier: 3.0
+        )
         var energy = 0.0
         for index in frequencyBins.indices
-        where frequencyBins[index] >= outer.lower && frequencyBins[index] <= outer.upper {
+            where frequencyBins[index] >= outer.lower && frequencyBins[index] <= outer.upper
+        {
             if frequencyBins[index] >= inner.lower, frequencyBins[index] <= inner.upper { continue }
             energy += magnitudes[index]
         }

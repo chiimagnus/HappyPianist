@@ -23,16 +23,16 @@ final class AIPerformanceService {
         var lastImprovStatusText: String?
     }
 
-	private struct CandidateEvaluation {
-		let shapedSchedule: [PracticeSequencerMIDIEvent]
-		let assessment: DuetPhrasePolicy.QualityAssessment
-	}
+    private struct CandidateEvaluation {
+        let shapedSchedule: [PracticeSequencerMIDIEvent]
+        let assessment: DuetPhrasePolicy.QualityAssessment
+    }
 
-	private struct CandidateDiagnostics {
-		let band: DuetPhrasePolicy.QualityAssessment.Band
-		let candidateCount: Int
-		let topRejectReason: DuetPhrasePolicy.QualityAssessment.Reason?
-	}
+    private struct CandidateDiagnostics {
+        let band: DuetPhrasePolicy.QualityAssessment.Band
+        let candidateCount: Int
+        let topRejectReason: DuetPhrasePolicy.QualityAssessment.Reason?
+    }
 
     private let diagnosticsReporter: (any DiagnosticsReporting)?
     private let nowUptimeSeconds: () -> TimeInterval
@@ -68,17 +68,15 @@ final class AIPerformanceService {
     private var latestCandidateDiagnostics: CandidateDiagnostics?
 
     @MainActor
-    private lazy var aiPlaybackQueue: DuetAIPlaybackQueue = {
-        DuetAIPlaybackQueue(
-            diagnosticsReporter: diagnosticsReporter,
-            playbackServiceFactory: aiPlaybackServiceFactory,
-            onPlaybackActiveChanged: { [weak self] isActive in
-                guard let self else { return }
-                isAIPlaybackActive = isActive
-                notifyStateChanged()
-            }
-        )
-    }()
+    private lazy var aiPlaybackQueue: DuetAIPlaybackQueue = .init(
+        diagnosticsReporter: diagnosticsReporter,
+        playbackServiceFactory: aiPlaybackServiceFactory,
+        onPlaybackActiveChanged: { [weak self] isActive in
+            guard let self else { return }
+            isAIPlaybackActive = isActive
+            notifyStateChanged()
+        }
+    )
 
     init(
         diagnosticsReporter: (any DiagnosticsReporting)? = nil,
@@ -112,7 +110,8 @@ final class AIPerformanceService {
     func updatePracticeSession(_ session: any AIPerformancePracticeSessionProtocol) {
         if let practiceSession,
            ObjectIdentifier(practiceSession) != ObjectIdentifier(session),
-           isEnabled {
+           isEnabled
+        {
             invalidateGeneration()
             noteContext.reset()
             ccContext.reset()
@@ -369,7 +368,8 @@ final class AIPerformanceService {
         guard inFlightGenerateTasks.isEmpty else { return false }
 
         if let lastWindowRequestTimestampSeconds,
-           nowTimestampSeconds - lastWindowRequestTimestampSeconds < decision.minRequestIntervalSeconds {
+           nowTimestampSeconds - lastWindowRequestTimestampSeconds < decision.minRequestIntervalSeconds
+        {
             return false
         }
         return true
@@ -409,11 +409,11 @@ final class AIPerformanceService {
         notifyStateChanged()
     }
 
-	private func generateContinuousWindow(
-		requestID: Int,
-		activationAtRequest: Int,
-		kind: ImprovBackendKind,
-		promptEvents: [ImprovEvent],
+    private func generateContinuousWindow(
+        requestID: Int,
+        activationAtRequest: Int,
+        kind: ImprovBackendKind,
+        promptEvents: [ImprovEvent],
         requestPolicy: DuetPhrasePolicy.RequestPolicy
     ) async {
         guard isEnabled else { return }
@@ -426,19 +426,19 @@ final class AIPerformanceService {
             return
         }
 
-		let seed = UInt64(activationAtRequest) << 32 | UInt64(requestID)
+        let seed = UInt64(activationAtRequest) << 32 | UInt64(requestID)
 
-		let rawCandidates: [[PracticeSequencerMIDIEvent]]
-		do {
-			rawCandidates = try await generatePlaybackCandidates(
-				backend: backend,
-				kind: kind,
-				promptEvents: promptEvents,
-				requestPolicy: requestPolicy,
-				baseSeed: seed
-			)
+        let rawCandidates: [[PracticeSequencerMIDIEvent]]
+        do {
+            rawCandidates = try await generatePlaybackCandidates(
+                backend: backend,
+                kind: kind,
+                promptEvents: promptEvents,
+                requestPolicy: requestPolicy,
+                baseSeed: seed
+            )
         } catch {
-			guard isEnabled, activationAtRequest == activationID, kind == selectedBackendKind() else { return }
+            guard isEnabled, activationAtRequest == activationID, kind == selectedBackendKind() else { return }
             diagnosticsReporter?.recordSystem(
                 severity: .warning,
                 category: .ai,
@@ -453,7 +453,7 @@ final class AIPerformanceService {
 
         guard isEnabled else { return }
         guard activationAtRequest == activationID else { return }
-		guard kind == selectedBackendKind() else { return }
+        guard kind == selectedBackendKind() else { return }
 
         let now = nowUptimeSeconds()
         let noteSnapshot = noteContext.snapshot(
@@ -461,33 +461,33 @@ final class AIPerformanceService {
             lookbackSeconds: requestPolicy.lookbackSeconds,
             maxPromptSeconds: requestPolicy.maxPromptSeconds
         )
-		let ccSnapshot = ccContext.snapshot(
-			nowTimestampSeconds: now,
-			lookbackSeconds: requestPolicy.lookbackSeconds,
-			maxPromptSeconds: requestPolicy.maxPromptSeconds
-		)
-		let decision = controlDecision(noteSnapshot: noteSnapshot, ccSnapshot: ccSnapshot)
-		guard decision.shouldRequestGeneration else { return }
-		let responsePolicy = DuetPhrasePolicy.requestPolicy(for: decision)
-		let evaluations = rawCandidates.map {
-			evaluateCandidate(
-				rawSchedule: $0,
-				noteSnapshot: noteSnapshot,
-				controlMode: decision.mode,
-				horizonSeconds: responsePolicy.requestWindowSeconds
-			)
-		}
-		let topRejectReason = evaluations
-			.filter { $0.assessment.band == .reject }
-			.compactMap(\.assessment.primaryReason)
-			.first
-		guard let bestCandidate = selectBestCandidate(from: evaluations) else {
-			latestCandidateDiagnostics = CandidateDiagnostics(band: .reject, candidateCount: evaluations.count, topRejectReason: topRejectReason)
-			lastImprovStatusText = makeStatusText(decision: decision, noteSnapshot: noteSnapshot)
-			notifyStateChanged()
-			return
-		}
-		let shapedSchedule = bestCandidate.shapedSchedule
+        let ccSnapshot = ccContext.snapshot(
+            nowTimestampSeconds: now,
+            lookbackSeconds: requestPolicy.lookbackSeconds,
+            maxPromptSeconds: requestPolicy.maxPromptSeconds
+        )
+        let decision = controlDecision(noteSnapshot: noteSnapshot, ccSnapshot: ccSnapshot)
+        guard decision.shouldRequestGeneration else { return }
+        let responsePolicy = DuetPhrasePolicy.requestPolicy(for: decision)
+        let evaluations = rawCandidates.map {
+            evaluateCandidate(
+                rawSchedule: $0,
+                noteSnapshot: noteSnapshot,
+                controlMode: decision.mode,
+                horizonSeconds: responsePolicy.requestWindowSeconds
+            )
+        }
+        let topRejectReason = evaluations
+            .filter { $0.assessment.band == .reject }
+            .compactMap(\.assessment.primaryReason)
+            .first
+        guard let bestCandidate = selectBestCandidate(from: evaluations) else {
+            latestCandidateDiagnostics = CandidateDiagnostics(band: .reject, candidateCount: evaluations.count, topRejectReason: topRejectReason)
+            lastImprovStatusText = makeStatusText(decision: decision, noteSnapshot: noteSnapshot)
+            notifyStateChanged()
+            return
+        }
+        let shapedSchedule = bestCandidate.shapedSchedule
         guard shapedSchedule.isEmpty == false else { return }
 
         let result = await aiPlaybackQueue.submitWindow(
@@ -496,141 +496,140 @@ final class AIPerformanceService {
             submittedAtUptimeSeconds: now
         )
         latestSchedule = result.shiftedSchedule
-		latestCandidateDiagnostics = CandidateDiagnostics(
-			band: bestCandidate.assessment.band,
-			candidateCount: evaluations.count,
-			topRejectReason: topRejectReason
-		)
-		lastImprovStatusText = makeStatusText(decision: decision, noteSnapshot: noteSnapshot)
+        latestCandidateDiagnostics = CandidateDiagnostics(
+            band: bestCandidate.assessment.band,
+            candidateCount: evaluations.count,
+            topRejectReason: topRejectReason
+        )
+        lastImprovStatusText = makeStatusText(decision: decision, noteSnapshot: noteSnapshot)
         notifyStateChanged()
     }
 
-	private func generatePlaybackCandidates(
-		backend: any ImprovBackendProtocol,
-		kind: ImprovBackendKind,
-		promptEvents: [ImprovEvent],
-		requestPolicy: DuetPhrasePolicy.RequestPolicy,
-		baseSeed: UInt64
-	) async throws -> [[PracticeSequencerMIDIEvent]] {
-		let candidateCount = preferredCandidateCount(for: kind)
-		var candidates: [[PracticeSequencerMIDIEvent]] = []
-		var firstError: (any Error)?
-		candidates.reserveCapacity(candidateCount)
+    private func generatePlaybackCandidates(
+        backend: any ImprovBackendProtocol,
+        kind: ImprovBackendKind,
+        promptEvents: [ImprovEvent],
+        requestPolicy: DuetPhrasePolicy.RequestPolicy,
+        baseSeed: UInt64
+    ) async throws -> [[PracticeSequencerMIDIEvent]] {
+        let candidateCount = preferredCandidateCount(for: kind)
+        var candidates: [[PracticeSequencerMIDIEvent]] = []
+        var firstError: (any Error)?
+        candidates.reserveCapacity(candidateCount)
 
-		for candidateIndex in 0 ..< candidateCount {
-			let request = makeGenerateRequest(
-				promptEvents: promptEvents,
-				requestPolicy: requestPolicy,
-				seed: candidateSeed(baseSeed: baseSeed, candidateIndex: candidateIndex)
-			)
-			do {
-				let playbackPlan = try await backend.generatePlaybackPlan(request: request, timeout: backendTimeout)
-				if case let .schedule(schedule, _) = playbackPlan {
-					candidates.append(schedule)
-				}
-			} catch {
-				if candidateCount == 1 { throw error }
-				if firstError == nil { firstError = error }
-			}
-		}
+        for candidateIndex in 0 ..< candidateCount {
+            let request = makeGenerateRequest(
+                promptEvents: promptEvents,
+                requestPolicy: requestPolicy,
+                seed: candidateSeed(baseSeed: baseSeed, candidateIndex: candidateIndex)
+            )
+            do {
+                let playbackPlan = try await backend.generatePlaybackPlan(request: request, timeout: backendTimeout)
+                if case let .schedule(schedule, _) = playbackPlan {
+                    candidates.append(schedule)
+                }
+            } catch {
+                if candidateCount == 1 { throw error }
+                if firstError == nil { firstError = error }
+            }
+        }
 
-		if candidates.isEmpty, let firstError { throw firstError }
-		return candidates
-	}
+        if candidates.isEmpty, let firstError { throw firstError }
+        return candidates
+    }
 
-	private func preferredCandidateCount(for kind: ImprovBackendKind) -> Int {
-		switch kind {
-		case .localRule:
-			return 3
-		case .networkBonjourHTTPAriaV2, .networkBonjourWebSocketAriaV2, .localCoreMLDuet:
-			return 1
-		}
-	}
+    private func preferredCandidateCount(for kind: ImprovBackendKind) -> Int {
+        switch kind {
+        case .localRule:
+            3
+        case .networkBonjourHTTPAriaV2, .networkBonjourWebSocketAriaV2, .localCoreMLDuet:
+            1
+        }
+    }
 
-	private func makeGenerateRequest(
-		promptEvents: [ImprovEvent],
-		requestPolicy: DuetPhrasePolicy.RequestPolicy,
-		seed: UInt64
-	) -> ImprovGenerateRequestV2 {
-		ImprovGenerateRequestV2(
-			events: promptEvents,
-			params: ImprovGenerateParams(
-				topP: 0.95,
-				maxTokens: max(1, requestPolicy.maxTokens),
-				strategy: "continuous",
-				seed: seed
-			),
-			sessionID: improvSessionID
-		)
-	}
+    private func makeGenerateRequest(
+        promptEvents: [ImprovEvent],
+        requestPolicy: DuetPhrasePolicy.RequestPolicy,
+        seed: UInt64
+    ) -> ImprovGenerateRequestV2 {
+        ImprovGenerateRequestV2(
+            events: promptEvents,
+            params: ImprovGenerateParams(
+                topP: 0.95,
+                maxTokens: max(1, requestPolicy.maxTokens),
+                strategy: "continuous",
+                seed: seed
+            ),
+            sessionID: improvSessionID
+        )
+    }
 
-	private func candidateSeed(baseSeed: UInt64, candidateIndex: Int) -> UInt64 {
-		guard candidateIndex > 0 else { return baseSeed }
-		return baseSeed &+ (UInt64(candidateIndex) &* 0x9E3779B97F4A7C15)
-	}
+    private func candidateSeed(baseSeed: UInt64, candidateIndex: Int) -> UInt64 {
+        guard candidateIndex > 0 else { return baseSeed }
+        return baseSeed &+ (UInt64(candidateIndex) &* 0x9E37_79B9_7F4A_7C15)
+    }
 
-	private func evaluateCandidate(
-		rawSchedule: [PracticeSequencerMIDIEvent],
-		noteSnapshot: DuetPhraseBuffer.Snapshot,
-		controlMode: DuetTurnTakingCore.Mode,
-		horizonSeconds: TimeInterval
-	) -> CandidateEvaluation {
-		let rawAssessment = DuetPhrasePolicy.assessSchedule(
-			rawSchedule,
-			noteSnapshot: noteSnapshot,
-			horizonSeconds: horizonSeconds
-		)
-		let shapedSchedule = DuetPhrasePolicy.shapeSchedule(
-			rawSchedule,
-			noteSnapshot: noteSnapshot,
-			controlMode: controlMode,
-			horizonSeconds: horizonSeconds
-		)
-		let assessment: DuetPhrasePolicy.QualityAssessment
-		if shapedSchedule.isEmpty {
-			assessment = rawAssessment.band == .reject
-				? rawAssessment
-				: .init(
-					band: .reject,
-					score: rawAssessment.score,
-					reasons: rawAssessment.reasons.isEmpty ? [.fragmentedWindow] : rawAssessment.reasons,
-					noteOnCount: rawAssessment.noteOnCount,
-					effectiveDurationSeconds: rawAssessment.effectiveDurationSeconds
-				)
-		} else {
-			assessment = DuetPhrasePolicy.assessSchedule(
-				shapedSchedule,
-				noteSnapshot: noteSnapshot,
-				horizonSeconds: horizonSeconds
-			)
-		}
-		return CandidateEvaluation(shapedSchedule: shapedSchedule, assessment: assessment)
-	}
+    private func evaluateCandidate(
+        rawSchedule: [PracticeSequencerMIDIEvent],
+        noteSnapshot: DuetPhraseBuffer.Snapshot,
+        controlMode: DuetTurnTakingCore.Mode,
+        horizonSeconds: TimeInterval
+    ) -> CandidateEvaluation {
+        let rawAssessment = DuetPhrasePolicy.assessSchedule(
+            rawSchedule,
+            noteSnapshot: noteSnapshot,
+            horizonSeconds: horizonSeconds
+        )
+        let shapedSchedule = DuetPhrasePolicy.shapeSchedule(
+            rawSchedule,
+            noteSnapshot: noteSnapshot,
+            controlMode: controlMode,
+            horizonSeconds: horizonSeconds
+        )
+        let assessment: DuetPhrasePolicy.QualityAssessment = if shapedSchedule.isEmpty {
+            rawAssessment.band == .reject
+                ? rawAssessment
+                : .init(
+                    band: .reject,
+                    score: rawAssessment.score,
+                    reasons: rawAssessment.reasons.isEmpty ? [.fragmentedWindow] : rawAssessment.reasons,
+                    noteOnCount: rawAssessment.noteOnCount,
+                    effectiveDurationSeconds: rawAssessment.effectiveDurationSeconds
+                )
+        } else {
+            DuetPhrasePolicy.assessSchedule(
+                shapedSchedule,
+                noteSnapshot: noteSnapshot,
+                horizonSeconds: horizonSeconds
+            )
+        }
+        return CandidateEvaluation(shapedSchedule: shapedSchedule, assessment: assessment)
+    }
 
-	private func selectBestCandidate(from evaluations: [CandidateEvaluation]) -> CandidateEvaluation? {
-		evaluations
-			.filter { $0.shapedSchedule.isEmpty == false && $0.assessment.band != .reject }
-			.max { lhs, rhs in
-				if bandRank(lhs.assessment.band) != bandRank(rhs.assessment.band) {
-					return bandRank(lhs.assessment.band) < bandRank(rhs.assessment.band)
-				}
-				if lhs.assessment.score != rhs.assessment.score {
-					return lhs.assessment.score < rhs.assessment.score
-				}
-				return lhs.assessment.noteOnCount < rhs.assessment.noteOnCount
-			}
-	}
+    private func selectBestCandidate(from evaluations: [CandidateEvaluation]) -> CandidateEvaluation? {
+        evaluations
+            .filter { $0.shapedSchedule.isEmpty == false && $0.assessment.band != .reject }
+            .max { lhs, rhs in
+                if bandRank(lhs.assessment.band) != bandRank(rhs.assessment.band) {
+                    return bandRank(lhs.assessment.band) < bandRank(rhs.assessment.band)
+                }
+                if lhs.assessment.score != rhs.assessment.score {
+                    return lhs.assessment.score < rhs.assessment.score
+                }
+                return lhs.assessment.noteOnCount < rhs.assessment.noteOnCount
+            }
+    }
 
-	private func bandRank(_ band: DuetPhrasePolicy.QualityAssessment.Band) -> Int {
-		switch band {
-		case .acceptable:
-			return 2
-		case .risky:
-			return 1
-		case .reject:
-			return 0
-		}
-	}
+    private func bandRank(_ band: DuetPhrasePolicy.QualityAssessment.Band) -> Int {
+        switch band {
+        case .acceptable:
+            2
+        case .risky:
+            1
+        case .reject:
+            0
+        }
+    }
 
     private func syncBackendDiscoveryIfNeeded() {
         let kind = selectedBackendKind()

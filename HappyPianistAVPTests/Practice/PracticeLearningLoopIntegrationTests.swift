@@ -52,7 +52,7 @@ func configuredAttemptPersistsAndRebuildsAsPausedResume() async throws {
 }
 
 @Test
-func revisionMismatchDoesNotRestoreOldScoreProgress() async throws {
+func revisionMismatchDoesNotRestoreOldScoreProgress() async {
     let songID = UUID()
     let oldIdentity = PracticeSongIdentity(songID: songID, scoreRevision: "old")
     let repository = LearningLoopRepository(
@@ -138,9 +138,18 @@ private final class LearningLoopPlaybackService: PracticeSequencerPlaybackServic
     func warmUp() throws {}
     func stop() {}
     func load(sequence _: PracticeSequencerSequence) throws {}
-    func play(fromSeconds _: TimeInterval) throws { playCount += 1 }
-    func currentSeconds() -> TimeInterval { 0 }
-    func playOneShot(noteOns _: [PracticeOneShotNoteOn], durationSeconds _: TimeInterval) throws { oneShotCount += 1 }
+    func play(fromSeconds _: TimeInterval) throws {
+        playCount += 1
+    }
+
+    func currentSeconds() -> TimeInterval {
+        0
+    }
+
+    func playOneShot(noteOns _: [PracticeOneShotNoteOn], durationSeconds _: TimeInterval) throws {
+        oneShotCount += 1
+    }
+
     func startLiveNotes(midiNotes _: Set<Int>) throws {}
     func stopLiveNotes(midiNotes _: Set<Int>) {}
     func stopAllLiveNotes() {}
@@ -151,17 +160,19 @@ private struct LearningLoopPressDetector: PressDetectionServiceProtocol {
         fingerTips _: FingerTipsSnapshot,
         keyboardGeometry _: PianoKeyboardGeometry?,
         at _: Date
-    ) -> Set<Int> { [] }
+    ) -> Set<Int> {
+        []
+    }
 }
 
 private final class LearningLoopChordAccumulator: ChordAttemptAccumulatorProtocol {
     func register(
-        pressedNotes: Set<Int>,
-        expectedNotes: [Int],
+        pressedNotes _: Set<Int>,
+        expectedNotes _: [Int],
         tolerance _: Int,
         at _: Date
     ) -> StepAttemptMatchResult {
-.insufficientEvidence
+        .insufficientEvidence
     }
 
     func reset() {}

@@ -1,6 +1,6 @@
 import Foundation
 
-struct SongPracticeFocusMeasureBuilder: Sendable {
+struct SongPracticeFocusMeasureBuilder {
     func build(from progress: SongPracticeProgress?) -> [SongPracticeFocusMeasure] {
         guard let progress else { return [] }
         let factsBySource = Dictionary(
@@ -11,14 +11,14 @@ struct SongPracticeFocusMeasureBuilder: Sendable {
         return factsBySource.compactMap { sourceMeasureID, facts in
             Self.candidate(sourceMeasureID: sourceMeasureID, facts: facts)
         }
-            .sorted(by: Self.candidateComesFirst)
-            .prefix(3)
-            .map { candidate in
-                SongPracticeFocusMeasure(
-                    sourceMeasureID: candidate.sourceMeasureID,
-                    reason: candidate.reason
-                )
-            }
+        .sorted(by: Self.candidateComesFirst)
+        .prefix(3)
+        .map { candidate in
+            SongPracticeFocusMeasure(
+                sourceMeasureID: candidate.sourceMeasureID,
+                reason: candidate.reason
+            )
+        }
     }
 
     private struct Candidate {
@@ -134,7 +134,7 @@ enum PracticeSourceMeasureOrder {
     }
 }
 
-private struct MeasureHandIdentity: Hashable, Sendable {
+private struct MeasureHandIdentity: Hashable {
     let sourceMeasureID: PracticeSourceMeasureID
     let handMode: PracticeHandMode
 }

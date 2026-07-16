@@ -15,11 +15,11 @@ struct PracticeMeasureMapView: View {
                                 .font(.caption)
                         }
                     }
-                        .padding(6)
-                        .background(item.isCurrentPassage ? .thinMaterial : .regularMaterial, in: .rect(cornerRadius: 8))
-                        .overlay { if item.isCurrentMeasure { RoundedRectangle(cornerRadius: 8).stroke(.primary) } }
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("第 \(item.displayNumber) 小节，\(label(for: item.state))\(item.isHotspot ? "，建议重练" : "")")
+                    .padding(6)
+                    .background(item.isCurrentPassage ? .thinMaterial : .regularMaterial, in: .rect(cornerRadius: 8))
+                    .overlay { if item.isCurrentMeasure { RoundedRectangle(cornerRadius: 8).stroke(.primary) } }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("第 \(item.displayNumber) 小节，\(label(for: item.state))\(item.isHotspot ? "，建议重练" : "")")
                 }
             }
         }

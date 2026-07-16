@@ -46,7 +46,7 @@ func streamingClientAcceptsSequentialNonOverlappingChunks() async throws {
 }
 
 @Test
-func streamingClientRejectsUnexpectedSequence() async throws {
+func streamingClientRejectsUnexpectedSequence() async {
     let chunks = [
         ImprovStreamChunkV2(
             seq: 0,
@@ -68,7 +68,7 @@ func streamingClientRejectsUnexpectedSequence() async throws {
 }
 
 @Test
-func streamingClientRejectsOverlappingTimeRanges() async throws {
+func streamingClientRejectsOverlappingTimeRanges() async {
     let chunks = [
         ImprovStreamChunkV2(
             seq: 0,
@@ -93,14 +93,14 @@ func streamingClientRejectsOverlappingTimeRanges() async throws {
 }
 
 @Test
-func streamingClientRejectsEventOutsideChunkTimeRange() async throws {
+func streamingClientRejectsEventOutsideChunkTimeRange() async {
     let chunks = [
         ImprovStreamChunkV2(
             seq: 0,
             isFinal: true,
             timeRange: ImprovStreamTimeRange(start: 1, end: 2),
             events: [.note(note: 60, velocity: 90, time: 0.5, duration: 0.3)]
-        )
+        ),
     ]
 
     let error = await streamError(from: chunks)
@@ -126,7 +126,7 @@ func streamingTimeRangeRejectsInvalidValues(json: String) {
 }
 
 private func collectChunks(from chunks: [ImprovStreamChunkV2]) async throws -> [ImprovStreamChunkV2] {
-    let task = ScriptedWebSocketTask(messages: try chunks.map { try JSONEncoder().encode($0) })
+    let task = try ScriptedWebSocketTask(messages: chunks.map { try JSONEncoder().encode($0) })
     let client = ImprovStreamingClient(
         urlSession: .shared,
         makeWebSocketTask: { _, _ in task }
@@ -137,7 +137,7 @@ private func collectChunks(from chunks: [ImprovStreamChunkV2]) async throws -> [
         sessionID: "validation"
     )
     let stream = try await client.streamChunks(
-        url: try #require(URL(string: "ws://example.com/stream")),
+        url: #require(URL(string: "ws://example.com/stream")),
         start: ImprovStreamStartRequestV2(request: request),
         timeout: .seconds(1)
     )

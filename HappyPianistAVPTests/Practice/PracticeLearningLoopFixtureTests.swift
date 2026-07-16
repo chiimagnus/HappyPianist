@@ -30,7 +30,7 @@ func learningLoopFixtureCoversEightMeasuresHandsTempoChordAndRepeatIdentity() th
 }
 
 @Test
-func learningLoopFixtureIsIncludedInTestBundle() throws {
+func learningLoopFixtureIsIncludedInTestBundle() {
     let bundle = Bundle(for: PracticeLearningLoopFixtureBundleSentinel.self)
     let bundledURLs = (bundle.urls(
         forResourcesWithExtension: "musicxml",

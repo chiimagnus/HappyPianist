@@ -177,7 +177,7 @@ struct MusicXMLPedalEvent: Equatable, Identifiable {
     let timeOnlyPasses: [Int]?
 }
 
-struct MusicXMLMeasureSpan: Equatable, Identifiable, Sendable {
+struct MusicXMLMeasureSpan: Equatable, Identifiable {
     var id: String {
         "\(partID)-\(sourceMeasureIndex)-\(occurrenceIndex)-\(startTick)-\(endTick)"
     }
@@ -203,24 +203,6 @@ struct MusicXMLMeasureSpan: Equatable, Identifiable, Sendable {
             sourceMeasureID: sourceMeasureID,
             occurrenceIndex: occurrenceIndex
         )
-    }
-
-    init(
-        partID: String,
-        measureNumber: Int,
-        sourceMeasureIndex: Int,
-        sourceMeasureNumberToken: String?,
-        occurrenceIndex: Int,
-        startTick: Int,
-        endTick: Int
-    ) {
-        self.partID = partID
-        self.measureNumber = measureNumber
-        self.sourceMeasureIndex = sourceMeasureIndex
-        self.sourceMeasureNumberToken = sourceMeasureNumberToken
-        self.occurrenceIndex = occurrenceIndex
-        self.startTick = startTick
-        self.endTick = endTick
     }
 }
 

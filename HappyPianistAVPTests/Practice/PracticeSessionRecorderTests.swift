@@ -1,6 +1,6 @@
 import Foundation
-import Synchronization
 @testable import HappyPianistAVP
+import Synchronization
 import Testing
 
 private enum RecorderRepositoryError: Error {
@@ -39,7 +39,9 @@ private actor RecorderRepository: PracticeSessionRepositoryProtocol {
     }
 
     func waitForWriteAttempts(_ count: Int) async {
-        while writeAttemptCount < count { await Task.yield() }
+        while writeAttemptCount < count {
+            await Task.yield()
+        }
     }
 }
 
@@ -47,7 +49,7 @@ private final class RecorderClock: Sendable {
     private struct State {
         var monotonicMilliseconds: Int64 = 0
         var monotonicReadCount = 0
-        var wallDate = Date(timeIntervalSince1970: 1_000)
+        var wallDate = Date(timeIntervalSince1970: 1000)
     }
 
     private let state = Mutex(State())
@@ -65,7 +67,7 @@ private final class RecorderClock: Sendable {
     func advance(milliseconds: Int64) {
         state.withLock { state in
             state.monotonicMilliseconds += milliseconds
-            state.wallDate.addTimeInterval(Double(milliseconds) / 1_000)
+            state.wallDate.addTimeInterval(Double(milliseconds) / 1000)
         }
     }
 
@@ -149,7 +151,9 @@ func recorderReportsLifecycleWithoutExportingSessionContents() async throws {
     await repository.failNextWrites(1)
     await recorder.setSettingsPresented(true)
     await repository.waitForWriteAttempts(3)
-    for _ in 0 ..< 10 { await Task.yield() }
+    for _ in 0 ..< 10 {
+        await Task.yield()
+    }
     _ = await recorder.checkpoint()
     await recorder.finalize()
 
@@ -208,7 +212,7 @@ func recorderDoesNotCreateSessionWithoutGuiding() async throws {
     let recorder = makeRecorder(repository: repository, clock: clock)
 
     await beginActiveVisit(recorder: recorder)
-    clock.advance(milliseconds: 10_000)
+    clock.advance(milliseconds: 10000)
     #expect(await recorder.finalize() == .idle)
     #expect(await repository.records().isEmpty)
 }
@@ -222,33 +226,33 @@ func recorderUsesOneSessionAcrossRoundsAndCountsOnlyEligibleDurations() async th
     let songID = UUID()
 
     await beginActiveVisit(recorder: recorder, visitID: visitID, songID: songID)
-    clock.advance(milliseconds: 5_000)
+    clock.advance(milliseconds: 5000)
     await recorder.setGuiding(true)
-    clock.advance(milliseconds: 10_000)
+    clock.advance(milliseconds: 10000)
     await recorder.setGuiding(false)
     await recorder.setGuiding(true)
-    clock.advance(milliseconds: 2_000)
+    clock.advance(milliseconds: 2000)
     await recorder.setSettingsPresented(true)
-    clock.advance(milliseconds: 3_000)
+    clock.advance(milliseconds: 3000)
     await recorder.setSettingsPresented(false)
-    clock.advance(milliseconds: 4_000)
+    clock.advance(milliseconds: 4000)
     await recorder.setSceneActive(false)
     clock.advance(milliseconds: 100_000)
     await recorder.setSceneActive(true)
-    clock.advance(milliseconds: 1_000)
+    clock.advance(milliseconds: 1000)
     #expect(await recorder.finalize() == .saved)
 
     let records = await repository.records()
     let final = try #require(records.last)
     #expect(Set(records.map(\.id)) == [visitID])
     #expect(final.songID == songID)
-    #expect(final.practiceWindowDurationMilliseconds == 25_000)
-    #expect(final.activePracticeDurationMilliseconds == 17_000)
+    #expect(final.practiceWindowDurationMilliseconds == 25000)
+    #expect(final.activePracticeDurationMilliseconds == 17000)
     #expect(final.termination == .normal)
     #expect(final.endedAt != nil)
 
     let countAfterFinalize = records.count
-    clock.advance(milliseconds: 10_000)
+    clock.advance(milliseconds: 10000)
     #expect(await recorder.finalize() == .saved)
     #expect(await repository.records().count == countAfterFinalize)
 }
@@ -265,12 +269,12 @@ func recorderPeriodicCheckpointUsesThirtySecondCadence() async throws {
     await waitForSleep(1, sleeper: sleeper)
     #expect(await sleeper.recordedDurations() == [.seconds(30)])
 
-    clock.advance(milliseconds: 30_000)
+    clock.advance(milliseconds: 30000)
     await sleeper.resumeOldest()
     await waitForRecords(2, repository: repository)
     let periodic = try #require(await repository.records().last)
-    #expect(periodic.practiceWindowDurationMilliseconds == 30_000)
-    #expect(periodic.activePracticeDurationMilliseconds == 30_000)
+    #expect(periodic.practiceWindowDurationMilliseconds == 30000)
+    #expect(periodic.activePracticeDurationMilliseconds == 30000)
 }
 
 @Test
@@ -281,18 +285,20 @@ func recorderRetriesFailedWriteAtNextBoundary() async throws {
     let recorder = makeRecorder(repository: repository, clock: clock)
 
     await beginActiveVisit(recorder: recorder)
-    clock.advance(milliseconds: 1_000)
+    clock.advance(milliseconds: 1000)
     await recorder.setGuiding(true)
     await repository.waitForWriteAttempts(1)
-    for _ in 0 ..< 10 { await Task.yield() }
+    for _ in 0 ..< 10 {
+        await Task.yield()
+    }
     #expect(await repository.records().isEmpty)
 
-    clock.advance(milliseconds: 1_000)
+    clock.advance(milliseconds: 1000)
     await recorder.setSettingsPresented(true)
     #expect(await recorder.checkpoint() == .saved)
     let retried = try #require(await repository.records().last)
-    #expect(retried.practiceWindowDurationMilliseconds == 2_000)
-    #expect(retried.activePracticeDurationMilliseconds == 1_000)
+    #expect(retried.practiceWindowDurationMilliseconds == 2000)
+    #expect(retried.activePracticeDurationMilliseconds == 1000)
 }
 
 @Test
@@ -303,17 +309,19 @@ func recorderDiscardKeepsLastSuccessfulCheckpoint() async throws {
     let visitID = UUID()
 
     await beginActiveVisit(recorder: recorder, visitID: visitID)
-    clock.advance(milliseconds: 1_000)
+    clock.advance(milliseconds: 1000)
     await recorder.setGuiding(true)
     _ = await recorder.checkpoint()
     let savedRecords = await repository.records()
     _ = try #require(savedRecords.last)
     await repository.failNextWrites(1)
 
-    clock.advance(milliseconds: 1_000)
+    clock.advance(milliseconds: 1000)
     await recorder.setSettingsPresented(true)
     await repository.waitForWriteAttempts(3)
-    for _ in 0 ..< 10 { await Task.yield() }
+    for _ in 0 ..< 10 {
+        await Task.yield()
+    }
     await recorder.discardPendingDelta()
 
     #expect(await repository.records() == savedRecords)
@@ -329,17 +337,17 @@ func recorderDurationIgnoresWallClockChanges() async throws {
 
     await beginActiveVisit(recorder: recorder)
     await recorder.setGuiding(true)
-    clock.jumpWallTime(seconds: 86_400)
+    clock.jumpWallTime(seconds: 86400)
     await recorder.checkpoint()
     var latest = try #require(await repository.records().last)
     #expect(latest.practiceWindowDurationMilliseconds == 0)
     #expect(latest.activePracticeDurationMilliseconds == 0)
 
-    clock.advance(milliseconds: 1_000)
+    clock.advance(milliseconds: 1000)
     await recorder.finalize()
     latest = try #require(await repository.records().last)
-    #expect(latest.practiceWindowDurationMilliseconds == 1_000)
-    #expect(latest.activePracticeDurationMilliseconds == 1_000)
+    #expect(latest.practiceWindowDurationMilliseconds == 1000)
+    #expect(latest.activePracticeDurationMilliseconds == 1000)
 }
 
 @Test
@@ -352,14 +360,16 @@ func recorderIgnoresCancelledPeriodicCheckpointThatFinishesLate() async throws {
     await beginActiveVisit(recorder: recorder)
     await recorder.setGuiding(true)
     await waitForSleep(1, sleeper: sleeper)
-    clock.advance(milliseconds: 5_000)
+    clock.advance(milliseconds: 5000)
     await recorder.setSettingsPresented(true)
     _ = await recorder.checkpoint()
     let countAfterSettingsBoundary = await repository.records().count
 
-    clock.advance(milliseconds: 30_000)
+    clock.advance(milliseconds: 30000)
     await sleeper.resumeOldest()
-    for _ in 0 ..< 20 { await Task.yield() }
+    for _ in 0 ..< 20 {
+        await Task.yield()
+    }
 
     #expect(await repository.records().count == countAfterSettingsBoundary)
 }
@@ -377,21 +387,21 @@ func recorderFinalizeUsesBoundaryAfterBlockedPersistenceAndInterleavedEvent() as
     await recorder.setGuiding(true)
     await repository.waitUntilFirstWriteStarts()
 
-    clock.advance(milliseconds: 10_000)
+    clock.advance(milliseconds: 10000)
     let finalizationTask = Task { await recorder.finalize() }
     await clock.waitForMonotonicReads(3)
-    clock.advance(milliseconds: 5_000)
+    clock.advance(milliseconds: 5000)
     await recorder.setSettingsPresented(true)
 
     await repository.resumeFirstWrite()
     #expect(await finalizationTask.value == .saved)
 
     let final = try #require(await repository.records().last)
-    let expectedEnd = Date(timeIntervalSince1970: 1_015)
+    let expectedEnd = Date(timeIntervalSince1970: 1015)
     #expect(final.endedAt == expectedEnd)
     #expect(final.lastPersistedAt == expectedEnd)
-    #expect(final.practiceWindowDurationMilliseconds == 15_000)
-    #expect(final.activePracticeDurationMilliseconds == 15_000)
+    #expect(final.practiceWindowDurationMilliseconds == 15000)
+    #expect(final.activePracticeDurationMilliseconds == 15000)
 }
 
 @Test
@@ -412,15 +422,19 @@ func recorderSemanticEventsReturnBeforeSlowPersistenceCompletes() async throws {
         await guidingCompletion.markCompleted()
     }
     await repository.waitUntilFirstWriteStarts()
-    for _ in 0 ..< 20 { await Task.yield() }
+    for _ in 0 ..< 20 {
+        await Task.yield()
+    }
     let guidingReturnedBeforeRelease = await guidingCompletion.isCompleted
 
-    clock.advance(milliseconds: 10_000)
+    clock.advance(milliseconds: 10000)
     let settingsTask = Task {
         _ = await recorder.setSettingsPresented(true)
         await settingsCompletion.markCompleted()
     }
-    for _ in 0 ..< 20 { await Task.yield() }
+    for _ in 0 ..< 20 {
+        await Task.yield()
+    }
     let settingsReturnedBeforeRelease = await settingsCompletion.isCompleted
 
     await repository.resumeFirstWrite()
@@ -430,7 +444,7 @@ func recorderSemanticEventsReturnBeforeSlowPersistenceCompletes() async throws {
     #expect(settingsReturnedBeforeRelease)
     #expect(await recorder.finalize() == .saved)
     let final = try #require(await repository.records().last)
-    #expect(final.activePracticeDurationMilliseconds == 10_000)
+    #expect(final.activePracticeDurationMilliseconds == 10000)
 }
 
 private actor GatedRecorderRepository: PracticeSessionRepositoryProtocol {
@@ -449,7 +463,9 @@ private actor GatedRecorderRepository: PracticeSessionRepositoryProtocol {
     func abandonLiveSession(id _: UUID) {}
 
     func waitUntilFirstWriteStarts() async {
-        while didStartFirstWrite == false { await Task.yield() }
+        while didStartFirstWrite == false {
+            await Task.yield()
+        }
     }
 
     func resumeFirstWrite() {
@@ -457,7 +473,9 @@ private actor GatedRecorderRepository: PracticeSessionRepositoryProtocol {
         firstWriteContinuation = nil
     }
 
-    func records() -> [PracticeSessionRecord] { savedRecords }
+    func records() -> [PracticeSessionRecord] {
+        savedRecords
+    }
 }
 
 private actor RecorderCompletionProbe {

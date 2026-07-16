@@ -1,7 +1,6 @@
 import Foundation
-import Testing
-
 @testable import HappyPianistAVP
+import Testing
 
 @MainActor
 private final class CapturingPracticeAudioRecognitionEffectHandler:
@@ -236,7 +235,7 @@ private func waitUntil(
     maxIterations: Int = 100,
     condition: () -> Bool
 ) async {
-    for _ in 0..<maxIterations {
+    for _ in 0 ..< maxIterations {
         guard condition() == false else { return }
         await Task.yield()
     }
@@ -244,7 +243,7 @@ private func waitUntil(
 
 @MainActor
 private func settleTaskQueue(iterations: Int = 8) async {
-    for _ in 0..<iterations {
+    for _ in 0 ..< iterations {
         await Task.yield()
     }
 }

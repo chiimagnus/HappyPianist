@@ -931,5 +931,4 @@ final class VirtualPerformerOverlayController {
         root.addChild(keyboardRoot)
         return root
     }
-
 }

@@ -33,7 +33,6 @@ struct PracticeRoundSummaryViewModel: Equatable {
         ))
     }
 
-
     var actionTitle: String {
         switch nextAction {
         case .retryMeasure: "重练这个小节"
@@ -46,10 +45,7 @@ struct PracticeRoundSummaryViewModel: Equatable {
 
     let passageTitle: String
 
-
     var hotspotTitle: String? {
         hotspot.map { "第 \(PracticePassagePresentation.measureTitle($0.sourceMeasureID)) 小节" }
     }
-
-
 }

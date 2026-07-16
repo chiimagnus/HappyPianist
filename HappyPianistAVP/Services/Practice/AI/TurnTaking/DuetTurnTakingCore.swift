@@ -1,15 +1,15 @@
 import Foundation
 
 /// Pure overlap-control estimator for the continuous duet engine.
-struct DuetTurnTakingCore: Sendable {
-    enum Mode: String, Equatable, Sendable {
+struct DuetTurnTakingCore {
+    enum Mode: String, Equatable {
         case support
         case sparse
         case yield
         case silent
     }
 
-    struct ControlSnapshot: Equatable, Sendable {
+    struct ControlSnapshot: Equatable {
         let nowTimestampSeconds: TimeInterval
         let heldNotesCount: Int
         let sustainValue: Int
@@ -21,7 +21,7 @@ struct DuetTurnTakingCore: Sendable {
         let activePitchCenter: Double?
     }
 
-    struct Decision: Equatable, Sendable {
+    struct Decision: Equatable {
         let mode: Mode
         let shouldRequestGeneration: Bool
         let shouldClearFutureWindows: Bool
@@ -63,7 +63,6 @@ struct DuetTurnTakingCore: Sendable {
         }
 
         if snapshot.heldNotesCount > 0 {
-
             if sustainIsDown || snapshot.recentVelocityTrend > 4 {
                 return Decision(
                     mode: .sparse,

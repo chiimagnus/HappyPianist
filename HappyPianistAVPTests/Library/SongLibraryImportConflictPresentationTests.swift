@@ -1,5 +1,5 @@
-import SwiftUI
 @testable import HappyPianistAVP
+import SwiftUI
 import Testing
 
 @Test

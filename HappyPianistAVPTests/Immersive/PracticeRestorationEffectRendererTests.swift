@@ -1,6 +1,6 @@
 import Foundation
-import RealityKit
 @testable import HappyPianistAVP
+import RealityKit
 import Testing
 
 @Test @MainActor
@@ -19,5 +19,7 @@ func restorationRendererResetRemovesEffect() {
 }
 
 private struct LongRestorationSleeper: SleeperProtocol {
-    func sleep(for _: Duration) async throws { try await Task.sleep(for: .seconds(60)) }
+    func sleep(for _: Duration) async throws {
+        try await Task.sleep(for: .seconds(60))
+    }
 }

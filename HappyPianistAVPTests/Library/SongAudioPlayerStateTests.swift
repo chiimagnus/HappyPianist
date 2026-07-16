@@ -84,8 +84,13 @@ private final class FakeSongAudioPlayer: SongAudioPlayerProtocol {
     var stubDuration: TimeInterval = 0
     private var isCurrentlyPlaying = false
 
-    var currentTime: TimeInterval { stubCurrentTime }
-    var duration: TimeInterval { stubDuration }
+    var currentTime: TimeInterval {
+        stubCurrentTime
+    }
+
+    var duration: TimeInterval {
+        stubDuration
+    }
 
     func play(entryID: UUID, url: URL) throws {
         currentEntryID = entryID

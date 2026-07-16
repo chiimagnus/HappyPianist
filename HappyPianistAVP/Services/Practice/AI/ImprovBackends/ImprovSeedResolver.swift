@@ -7,7 +7,7 @@ import Foundation
 /// - Prefer explicit seed.
 /// - Otherwise derive from sessionID using SHA256 (first 8 bytes, big-endian).
 /// - Otherwise return 0.
-struct ImprovSeedResolver: Sendable {
+struct ImprovSeedResolver {
     init() {}
 
     func resolveSeed(explicitSeed: UInt64?, sessionID: String?) -> UInt64 {
@@ -29,4 +29,3 @@ struct ImprovSeedResolver: Sendable {
         return seed
     }
 }
-

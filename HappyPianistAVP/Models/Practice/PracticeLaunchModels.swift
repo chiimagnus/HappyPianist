@@ -1,31 +1,31 @@
 import Foundation
 
-enum PracticeLaunchState: Equatable, Sendable {
+enum PracticeLaunchState: Equatable {
     case requested(songID: UUID)
     case loading(songID: UUID)
     case failure(PracticeLaunchFailure)
     case ready(PracticeSongIdentity)
 }
 
-struct PracticeLaunchActivationIdentity: Equatable, Hashable, Sendable {
+struct PracticeLaunchActivationIdentity: Equatable, Hashable {
     let songID: UUID
     let revision: Int
 }
 
-enum PracticeProgressRestoreOutcome: Equatable, Sendable {
+enum PracticeProgressRestoreOutcome: Equatable {
     case none
     case restored
     case repairedInvalidSavedState
     case repairPersistenceFailed
 }
 
-enum PracticeLaunchApplyOutcome: Equatable, Sendable {
+enum PracticeLaunchApplyOutcome: Equatable {
     case applied
     case appliedWithRepairedSavedState
     case appliedWithUnpersistedRepair
 }
 
-struct PracticeHistoricalPreferences: Equatable, Sendable {
+struct PracticeHistoricalPreferences: Equatable {
     let handMode: PracticeHandMode
     let tempoScale: Double
     let loopEnabled: Bool
@@ -50,18 +50,18 @@ struct PracticeHistoricalPreferences: Equatable, Sendable {
     }
 }
 
-enum PracticeLaunchRestorePolicy: Equatable, Sendable {
+enum PracticeLaunchRestorePolicy: Equatable {
     case exactAvailable
     case historicalPreferences(PracticeHistoricalPreferences)
     case freshDefaults
 }
 
-enum PracticeLaunchRecoveryAction: Equatable, Sendable {
+enum PracticeLaunchRecoveryAction: Equatable {
     case retry
     case backupAndResetCorruptedProgress
 }
 
-struct PracticeLaunchFailure: Equatable, Identifiable, Sendable {
+struct PracticeLaunchFailure: Equatable, Identifiable {
     let id: UUID
     let occurredAt: Date
     let entryID: UUID

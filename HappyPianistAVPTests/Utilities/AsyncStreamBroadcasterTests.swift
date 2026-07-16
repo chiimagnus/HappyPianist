@@ -2,7 +2,7 @@ import Foundation
 @testable import HappyPianistAVP
 import Testing
 
-private struct TestEvent: Equatable, Sendable {
+private struct TestEvent: Equatable {
     let id: Int
     let value: Int
 }

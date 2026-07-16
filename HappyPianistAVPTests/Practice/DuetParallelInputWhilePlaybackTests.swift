@@ -38,7 +38,10 @@ private final class FakePracticeSession: AIPerformancePracticeSessionProtocol {
 
     func stopVirtualPianoInput() {}
     func stopAudioRecognition() {}
-    func prepareAudioRecognitionSuppressWindowForPlayback() -> Date { .now }
+    func prepareAudioRecognitionSuppressWindowForPlayback() -> Date {
+        .now
+    }
+
     func refreshAudioRecognitionForCurrentState() {}
 }
 
@@ -77,7 +80,9 @@ private final class NonAdvancingPlaybackService: PracticeSequencerPlaybackServic
         playCallCount += 1
     }
 
-    func currentSeconds() -> TimeInterval { 0 }
+    func currentSeconds() -> TimeInterval {
+        0
+    }
 
     func playOneShot(noteOns _: [PracticeOneShotNoteOn], durationSeconds _: TimeInterval) throws {}
     func startLiveNotes(midiNotes _: Set<Int>) throws {}
@@ -87,9 +92,17 @@ private final class NonAdvancingPlaybackService: PracticeSequencerPlaybackServic
 
 @MainActor
 private struct FakeSettingsProvider: PracticeSessionSettingsProviderProtocol {
-    var manualAdvanceMode: ManualAdvanceMode { .step }
-    var practiceHandMode: PracticeHandMode { .both }
-    var soundRoutingSettings: PracticeSoundRoutingSettings { PracticeSoundRoutingSettings(outputRoute: .localSampler, midiDestinationUniqueID: nil, sendLocalControlOff: false) }
+    var manualAdvanceMode: ManualAdvanceMode {
+        .step
+    }
+
+    var practiceHandMode: PracticeHandMode {
+        .both
+    }
+
+    var soundRoutingSettings: PracticeSoundRoutingSettings {
+        PracticeSoundRoutingSettings(outputRoute: .localSampler, midiDestinationUniqueID: nil, sendLocalControlOff: false)
+    }
 }
 
 @Test

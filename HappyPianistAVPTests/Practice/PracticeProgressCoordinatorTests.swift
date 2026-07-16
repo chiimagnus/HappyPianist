@@ -3,7 +3,7 @@ import Foundation
 import Testing
 
 @Test
-func progressCoordinatorCoalescesCheckpointsAndFlushesLatestValue() async throws {
+func progressCoordinatorCoalescesCheckpointsAndFlushesLatestValue() async {
     let repository = InMemoryPracticeProgressRepository()
     let clock = FixedPracticeProgressClock(date: Date(timeIntervalSince1970: 200))
     let coordinator = PracticeProgressCoordinator(
@@ -30,7 +30,7 @@ func progressCoordinatorCoalescesCheckpointsAndFlushesLatestValue() async throws
 }
 
 @Test
-func progressCoordinatorDiscardsLateGenerationWrites() async throws {
+func progressCoordinatorDiscardsLateGenerationWrites() async {
     let repository = InMemoryPracticeProgressRepository()
     let coordinator = PracticeProgressCoordinator(
         repository: repository,
@@ -74,9 +74,8 @@ func progressCoordinatorDiscardsLateBeginResult() async {
     #expect(first.generation == 1)
 }
 
-
 @Test
-func progressCoordinatorRejectsOlderSnapshotWithinSameGeneration() async throws {
+func progressCoordinatorRejectsOlderSnapshotWithinSameGeneration() async {
     let repository = InMemoryPracticeProgressRepository()
     let coordinator = PracticeProgressCoordinator(repository: repository, checkpointDelay: .seconds(60))
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
@@ -98,7 +97,7 @@ func progressCoordinatorRejectsOlderSnapshotWithinSameGeneration() async throws 
 }
 
 @Test
-func progressCoordinatorRejectsSnapshotOlderThanTimestampedCheckpoint() async throws {
+func progressCoordinatorRejectsSnapshotOlderThanTimestampedCheckpoint() async {
     let repository = InMemoryPracticeProgressRepository()
     let clock = FixedPracticeProgressClock(date: Date(timeIntervalSince1970: 300))
     let coordinator = PracticeProgressCoordinator(
@@ -128,7 +127,7 @@ func progressCoordinatorRejectsSnapshotOlderThanTimestampedCheckpoint() async th
 }
 
 @Test
-func progressCoordinatorReportsStoreFailureWithoutCrashingSession() async throws {
+func progressCoordinatorReportsStoreFailureWithoutCrashingSession() async {
     let repository = InMemoryPracticeProgressRepository(upsertError: TestProgressError.writeFailed)
     let coordinator = PracticeProgressCoordinator(repository: repository, checkpointDelay: .seconds(60))
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
@@ -172,7 +171,7 @@ func progressCoordinatorFailureResultCannotBeOverwrittenWhileReportingDiagnostic
 }
 
 @Test
-func discardingPendingProgressCancelsRetryAndKeepsLastPersistedFact() async throws {
+func discardingPendingProgressCancelsRetryAndKeepsLastPersistedFact() async {
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
     let persisted = SongPracticeProgress(
         identity: identity,
@@ -197,7 +196,7 @@ func discardingPendingProgressCancelsRetryAndKeepsLastPersistedFact() async thro
 }
 
 @Test
-func progressCoordinatorFinishFailureRetainsPendingProgressForRetry() async throws {
+func progressCoordinatorFinishFailureRetainsPendingProgressForRetry() async {
     let repository = InMemoryPracticeProgressRepository(upsertError: TestProgressError.writeFailed)
     let coordinator = PracticeProgressCoordinator(repository: repository, checkpointDelay: .seconds(60))
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
@@ -231,7 +230,9 @@ private enum TestProgressError: Error {
 
 private struct FixedPracticeProgressClock: PracticeProgressClockProtocol {
     let date: Date
-    func now() -> Date { date }
+    func now() -> Date {
+        date
+    }
 }
 
 private actor InMemoryPracticeProgressRepository: PracticeProgressRepositoryProtocol {
@@ -284,7 +285,9 @@ private actor InMemoryPracticeProgressRepository: PracticeProgressRepositoryProt
 private actor SuspendedPracticeProgressRepository: PracticeProgressRepositoryProtocol {
     private var continuations: [PracticeSongIdentity: CheckedContinuation<SongPracticeProgress?, Never>] = [:]
 
-    func load() -> PracticeProgressLoadResult { .loaded(PracticeProgressDocument()) }
+    func load() -> PracticeProgressLoadResult {
+        .loaded(PracticeProgressDocument())
+    }
 
     func progress(for identity: PracticeSongIdentity) async -> SongPracticeProgress? {
         await withCheckedContinuation { continuation in
@@ -322,7 +325,9 @@ private actor SuspendedProgressDiagnosticsReporter: DiagnosticsReporting {
     }
 
     func waitUntilRecording() async {
-        while isRecording == false { await Task.yield() }
+        while isRecording == false {
+            await Task.yield()
+        }
     }
 
     func resume() {

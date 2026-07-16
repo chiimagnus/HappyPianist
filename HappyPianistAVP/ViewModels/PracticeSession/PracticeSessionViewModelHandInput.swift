@@ -46,5 +46,4 @@ extension PracticeSessionViewModel {
 
         return detected
     }
-
 }

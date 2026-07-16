@@ -1,7 +1,7 @@
 import Foundation
 import os
 
-struct DiagnosticRecordResult: Equatable, Sendable {
+struct DiagnosticRecordResult: Equatable {
     let persistedForExport: Bool
 }
 

@@ -1,5 +1,5 @@
-@testable import HappyPianistAVP
 import Foundation
+@testable import HappyPianistAVP
 import Testing
 
 @Test @MainActor

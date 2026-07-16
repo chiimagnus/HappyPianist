@@ -1,7 +1,7 @@
 @preconcurrency import CoreML
 import Foundation
 
-enum PerformanceRNNCoreMLModelLoaderError: Error, LocalizedError, Equatable, Sendable {
+enum PerformanceRNNCoreMLModelLoaderError: Error, LocalizedError, Equatable {
     case modelMissing(expectedNames: [String])
     case compileFailed(modelName: String, message: String)
     case loadFailed(modelName: String, message: String)

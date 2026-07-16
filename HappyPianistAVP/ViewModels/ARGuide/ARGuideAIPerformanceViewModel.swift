@@ -119,7 +119,6 @@ final class ARGuideAIPerformanceViewModel {
         }
     }
 
-
     func updatePracticeSession(_ practiceSessionViewModel: PracticeSessionViewModel) {
         aiPerformanceService.updatePracticeSession(practiceSessionViewModel)
     }
@@ -228,7 +227,6 @@ final class ARGuideAIPerformanceViewModel {
     @ObservationIgnored
     private var localCoreMLDuetProbeTask: Task<Void, Never>?
 
-
     private func startLocalCoreMLDuetProbeIfNeeded() {
         guard localCoreMLDuetProbeTask == nil else { return }
 
@@ -312,7 +310,7 @@ final class ARGuideAIPerformanceViewModel {
     }
 }
 
-enum LocalCoreMLDuetAvailability: Sendable, Equatable {
+enum LocalCoreMLDuetAvailability: Equatable {
     case idle
     case probing
     case available

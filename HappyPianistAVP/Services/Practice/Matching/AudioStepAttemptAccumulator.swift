@@ -200,6 +200,4 @@ final class AudioStepAttemptAccumulator {
         guard let blockedAt = rearmBlockedSince[midiNote] else { return true }
         return timestamp.timeIntervalSince(blockedAt) >= configuration.rearmSilenceWindow
     }
-
-
 }

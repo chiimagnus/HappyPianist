@@ -217,7 +217,9 @@ private actor SelectionPersistenceStore: SongLibraryIndexStoreProtocol {
         self.failSelectionMutation = failSelectionMutation
     }
 
-    func load() throws -> SongLibraryIndex { index }
+    func load() throws -> SongLibraryIndex {
+        index
+    }
 
     func setLastSelectedEntryID(_ entryID: UUID?) throws -> SongLibraryIndex {
         if shouldDelayFirstSelectionMutation {

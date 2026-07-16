@@ -13,8 +13,14 @@ private actor DiagnosticsViewModelStore: DiagnosticsStoreProtocol {
 
     func append(_: DiagnosticEvent) {}
     func cleanupExpiredLogs(referenceDate _: Date) {}
-    func loadEventsForExport(referenceDate _: Date) -> [DiagnosticEvent] { [] }
-    func summary(referenceDate _: Date) -> DiagnosticLogSummary { storedSummary }
+    func loadEventsForExport(referenceDate _: Date) -> [DiagnosticEvent] {
+        []
+    }
+
+    func summary(referenceDate _: Date) -> DiagnosticLogSummary {
+        storedSummary
+    }
+
     func clear() {
         didClear = true
         storedSummary = .empty
@@ -62,7 +68,6 @@ func diagnosticsViewModelLoadsExportsAndClears() async {
     #expect(viewModel.summary == .empty)
     #expect(await store.didClear)
 }
-
 
 @Test
 @MainActor

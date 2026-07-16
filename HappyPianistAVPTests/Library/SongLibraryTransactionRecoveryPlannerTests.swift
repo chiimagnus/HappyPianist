@@ -92,10 +92,10 @@ func recoveryPlannerCleansUnclassifiedScratchWithoutTouchingExistingTarget() thr
         ) == .cleanup
     )
     #expect(
-        SongLibraryTransactionRecoveryPlanner.action(
+        try SongLibraryTransactionRecoveryPlanner.action(
             journal: journal,
             facts: recoveryFacts(
-                stage: observed(try recoveryFingerprint("c"), id: "stage"),
+                stage: observed(recoveryFingerprint("c"), id: "stage"),
                 index: .neither
             )
         ) == .block

@@ -1,6 +1,5 @@
 import Foundation
 
-
 public struct RuleNoteEvent: Equatable, Sendable {
     public var note: Int
     public var velocity: Int
@@ -13,5 +12,4 @@ public struct RuleNoteEvent: Equatable, Sendable {
         self.time = time
         self.duration = duration
     }
-
 }

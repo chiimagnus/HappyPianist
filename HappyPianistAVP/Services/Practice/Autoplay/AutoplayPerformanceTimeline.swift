@@ -79,7 +79,7 @@ struct AutoplayPerformanceTimeline: Equatable {
             rawEvents.append((tick: step.tick, priority: 4, kind: .advanceStep(index: index)))
         }
 
-        let activeGuides = guideEntries.map { $0.element }
+        let activeGuides = guideEntries.map(\.element)
         for interval in normalizedNoteIntervals(from: activeGuides, practiceHandMode: practiceHandMode) {
             let offTick = activeRange.map { min(interval.offTick, $0.tickRange.upperBound) } ?? interval.offTick
             rawEvents.append((
@@ -114,7 +114,7 @@ struct AutoplayPerformanceTimeline: Equatable {
             }
         }
 
-        let activeSteps = stepEntries.map { $0.element }
+        let activeSteps = stepEntries.map(\.element)
         for pair in zip(activeSteps, activeSteps.dropFirst()) {
             let current = pair.0
             let next = pair.1

@@ -305,10 +305,9 @@ func resumeWithoutSavedConfigurationIsClearedAndRepairedToFullPassage() async th
     #expect(session.lastProgressRestoreOutcome == .repairedInvalidSavedState)
 }
 
-
 @MainActor
 @Test
-func suspendedPracticeReturnsToPausedReadyAndCanRestartInput() async throws {
+func suspendedPracticeReturnsToPausedReadyAndCanRestartInput() async {
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
     let repository = ResumeRepository(progress: nil)
     let coordinator = PracticeProgressCoordinator(repository: repository, checkpointDelay: .seconds(60))
@@ -363,7 +362,7 @@ func pausedPracticeRejectsAdvanceEffectWithoutPlayback() {
 
 @MainActor
 @Test
-func flushAndShutdownPersistsLatestResumePointBeforeTeardown() async throws {
+func flushAndShutdownPersistsLatestResumePointBeforeTeardown() async {
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
     let repository = ResumeRepository(progress: nil)
     let coordinator = PracticeProgressCoordinator(repository: repository, checkpointDelay: .seconds(60))
@@ -379,7 +378,7 @@ func flushAndShutdownPersistsLatestResumePointBeforeTeardown() async throws {
     await session.applyLaunchRestorePolicy(.freshDefaults)
     session.startGuidingIfReady()
     session.recordAttemptOutcome(
-.matched
+        .matched
     )
 
     await session.flushAndShutdown()
@@ -390,7 +389,7 @@ func flushAndShutdownPersistsLatestResumePointBeforeTeardown() async throws {
 
 @MainActor
 @Test
-func navigationWithoutAttemptPersistsLatestResumePoint() async throws {
+func navigationWithoutAttemptPersistsLatestResumePoint() async {
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
     let repository = ResumeRepository(progress: nil)
     let session = PracticeSessionViewModel(
@@ -419,7 +418,7 @@ func retryMeasureKeepsRepeatedOccurrenceInCurrentPassage() {
     let spans = [
         MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, sourceMeasureIndex: 0, sourceMeasureNumberToken: "1", occurrenceIndex: 0, startTick: 0, endTick: 480),
         MusicXMLMeasureSpan(partID: "P1", measureNumber: 2, sourceMeasureIndex: 1, sourceMeasureNumberToken: "2", occurrenceIndex: 1, startTick: 480, endTick: 960),
-        MusicXMLMeasureSpan(partID: "P1", measureNumber: 3, sourceMeasureIndex: 0, sourceMeasureNumberToken: "1", occurrenceIndex: 2, startTick: 960, endTick: 1_440),
+        MusicXMLMeasureSpan(partID: "P1", measureNumber: 3, sourceMeasureIndex: 0, sourceMeasureNumberToken: "1", occurrenceIndex: 2, startTick: 960, endTick: 1440),
     ]
     let session = PracticeSessionViewModel(
         pressDetectionService: ResumeNoopPressDetectionService(),
@@ -622,9 +621,18 @@ private final class CapturingResumePlaybackService: PracticeSequencerPlaybackSer
     func warmUp() throws {}
     func stop() {}
     func load(sequence _: PracticeSequencerSequence) throws {}
-    func play(fromSeconds _: TimeInterval) throws { playCount += 1 }
-    func currentSeconds() -> TimeInterval { 0 }
-    func playOneShot(noteOns _: [PracticeOneShotNoteOn], durationSeconds _: TimeInterval) throws { oneShotCount += 1 }
+    func play(fromSeconds _: TimeInterval) throws {
+        playCount += 1
+    }
+
+    func currentSeconds() -> TimeInterval {
+        0
+    }
+
+    func playOneShot(noteOns _: [PracticeOneShotNoteOn], durationSeconds _: TimeInterval) throws {
+        oneShotCount += 1
+    }
+
     func startLiveNotes(midiNotes _: Set<Int>) throws {}
     func stopLiveNotes(midiNotes _: Set<Int>) {}
     func stopAllLiveNotes() {}
@@ -635,17 +643,19 @@ private struct ResumeNoopPressDetectionService: PressDetectionServiceProtocol {
         fingerTips _: FingerTipsSnapshot,
         keyboardGeometry _: PianoKeyboardGeometry?,
         at _: Date
-    ) -> Set<Int> { [] }
+    ) -> Set<Int> {
+        []
+    }
 }
 
 private final class ResumeNoopChordAccumulator: ChordAttemptAccumulatorProtocol {
     func register(
-        pressedNotes: Set<Int>,
-        expectedNotes: [Int],
+        pressedNotes _: Set<Int>,
+        expectedNotes _: [Int],
         tolerance _: Int,
         at _: Date
     ) -> StepAttemptMatchResult {
-.insufficientEvidence
+        .insufficientEvidence
     }
 
     func reset() {}

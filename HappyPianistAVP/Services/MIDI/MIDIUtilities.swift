@@ -48,7 +48,7 @@ enum MIDI2ValueMapping {
     }
 }
 
-struct MIDI1MessageDecoder: Sendable {
+struct MIDI1MessageDecoder {
     func decode(_ message: MIDIUniversalMessage) -> MIDI1InputEvent.Kind? {
         guard message.type == .channelVoice1 else { return nil }
 
@@ -93,7 +93,7 @@ struct MIDI1MessageDecoder: Sendable {
     }
 }
 
-struct MIDI2MessageDecoder: Sendable {
+struct MIDI2MessageDecoder {
     func decode(_ message: MIDIUniversalMessage) -> MIDI2InputEvent.Kind? {
         guard message.type == .channelVoice2 else { return nil }
 

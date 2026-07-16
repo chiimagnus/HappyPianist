@@ -4,7 +4,7 @@ enum DiagnosticsPathsError: Error {
     case documentsUnavailable
 }
 
-struct DiagnosticsPaths: Sendable {
+struct DiagnosticsPaths {
     static let directoryName = "Diagnostics"
 
     private let rootOverride: URL?

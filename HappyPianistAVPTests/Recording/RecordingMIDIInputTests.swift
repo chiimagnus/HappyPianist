@@ -172,5 +172,5 @@ func midiRecordingAdapterAllNotesOffClosesOpenNotesAtDiscontinuity() {
 
     #expect(take.events.contains { abs($0.time - 0.4) < 0.0001 && $0.kind == .noteOff(midi: 60) })
     #expect(take.events.contains { $0.kind == .controlChange(controller: 123, value: 0) })
-    #expect(take.events.filter { $0.kind == .noteOff(midi: 60) }.count == 1)
+    #expect(take.events.count(where: { $0.kind == .noteOff(midi: 60) }) == 1)
 }

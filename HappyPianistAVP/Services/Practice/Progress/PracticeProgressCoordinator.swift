@@ -5,10 +5,12 @@ protocol PracticeProgressClockProtocol: Sendable {
 }
 
 struct SystemPracticeProgressClock: PracticeProgressClockProtocol {
-    func now() -> Date { .now }
+    func now() -> Date {
+        .now
+    }
 }
 
-enum PracticeProgressSaveStatus: Equatable, Sendable {
+enum PracticeProgressSaveStatus: Equatable {
     case idle
     case loaded
     case pending
@@ -16,7 +18,7 @@ enum PracticeProgressSaveStatus: Equatable, Sendable {
     case failed(message: String)
 }
 
-struct PracticeProgressSession: Equatable, Sendable {
+struct PracticeProgressSession: Equatable {
     let generation: Int
     let progress: SongPracticeProgress?
     let isCurrent: Bool

@@ -345,7 +345,7 @@ func practiceLaunchFailureRetryCreatesNewFailureIdentity() async {
         return
     }
     #expect(second.id != first.id)
-    #expect(await fixture.reporter.events.filter { $0.severity == .error }.count == 2)
+    #expect(await fixture.reporter.events.count(where: { $0.severity == .error }) == 2)
 }
 
 @MainActor
@@ -473,7 +473,9 @@ func systemCloseWaitsForCancelledActivationToActuallyFinish() async {
         await owner.closeForSystemDisappear()
         await completion.markCompleted()
     }
-    for _ in 0 ..< 20 { await Task.yield() }
+    for _ in 0 ..< 20 {
+        await Task.yield()
+    }
     let completedBeforeDependencySettled = await completion.isCompleted
     await preparation.resume(songID: songID)
     await close.value
@@ -510,7 +512,9 @@ func discardReturnWaitsForCancelledMetadataWriteToActuallyFinish() async {
         await completion.markCompleted()
         return status
     }
-    for _ in 0 ..< 20 { await Task.yield() }
+    for _ in 0 ..< 20 {
+        await Task.yield()
+    }
     let completedBeforeDependencySettled = await completion.isCompleted
     await repository.resumeMetadataWrite()
 
@@ -579,11 +583,11 @@ func metadataWriteFailureKeepsReadyAndRecordsPrivateSafeWarning() async throws {
     #expect(event.reason.contains("/Users/") == false)
     let history = try #require(await repository.loadedHistory(songID: songID))
     let entry = makePracticeLaunchEntry(songID: songID)
-    #expect(await SongPracticeLibrarySnapshotBuilder().build(
+    #expect(try await SongPracticeLibrarySnapshotBuilder().build(
         entry: entry,
         historyResult: .loaded(history),
         viewedAt: Date(timeIntervalSince1970: 200),
-        viewingTimeZone: TimeZone(secondsFromGMT: 0)!,
+        viewingTimeZone: #require(TimeZone(secondsFromGMT: 0)),
         canResetCorruption: false
     ) == .invitation(SongPracticeLibrarySelectionIdentity(
         songID: entry.id,
@@ -630,11 +634,11 @@ func metadataWriteFailureWithOldProgressStillInvitesUntilARealSessionExists() as
 
     let history = try #require(await repository.loadedHistory(songID: songID))
     let entry = makePracticeLaunchEntry(songID: songID)
-    #expect(await SongPracticeLibrarySnapshotBuilder().build(
+    #expect(try await SongPracticeLibrarySnapshotBuilder().build(
         entry: entry,
         historyResult: .loaded(history),
         viewedAt: Date(timeIntervalSince1970: 200),
-        viewingTimeZone: TimeZone(secondsFromGMT: 0)!,
+        viewingTimeZone: #require(TimeZone(secondsFromGMT: 0)),
         canResetCorruption: false
     ) == .invitation(SongPracticeLibrarySelectionIdentity(
         songID: entry.id,
@@ -800,7 +804,9 @@ func sceneInactiveWhileApplyIsSuspendedCannotLeakOldReadyState() async {
     let suspension = Task { @MainActor in
         await owner.suspendForInactiveScene()
     }
-    for _ in 0 ..< 20 { await Task.yield() }
+    for _ in 0 ..< 20 {
+        await Task.yield()
+    }
     applicator.resumeApply()
     await suspension.value
     await activation.value
@@ -877,7 +883,7 @@ func consecutivePracticeLaunchRetriesUseFreshGenerationsAndEventuallyReady() asy
     #expect(owner.state == .ready(PracticeSongIdentity(songID: songID, scoreRevision: songID.uuidString)))
     #expect(await preparation.requestCount == 3)
     #expect(applicator.appliedSongIDs == [songID])
-    #expect(await reporter.events.filter { $0.severity == .error }.count == 2)
+    #expect(await reporter.events.count(where: { $0.severity == .error }) == 2)
 }
 
 @MainActor
@@ -1019,8 +1025,14 @@ private actor RecordingPracticeLaunchProgressRepository:
         self.historyDelay = historyDelay
     }
 
-    func load() -> PracticeProgressLoadResult { .loaded(PracticeProgressDocument()) }
-    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? { nil }
+    func load() -> PracticeProgressLoadResult {
+        .loaded(PracticeProgressDocument())
+    }
+
+    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? {
+        nil
+    }
+
     func history(for songID: UUID) async -> PracticeSongHistoryLoadResult {
         historyRequestCount += 1
         if historyDelay != .zero {
@@ -1034,14 +1046,17 @@ private actor RecordingPracticeLaunchProgressRepository:
             sessions: []
         ))
     }
+
     func upsert(_ progress: SongPracticeProgress) {
         progresses.removeAll(where: { $0.identity == progress.identity })
         progresses.append(progress)
     }
+
     func upsert(_ metadata: SongScorePracticeMetadata) throws {
         if let metadataError { throw metadataError }
         self.metadata.append(metadata)
     }
+
     func remove(songID _: UUID) {}
 
     func recoverFromCorruption() -> PracticeProgressRecoveryResult {
@@ -1052,7 +1067,9 @@ private actor RecordingPracticeLaunchProgressRepository:
     }
 
     func waitForMetadataCount(_ count: Int) async {
-        while metadata.count < count { await Task.yield() }
+        while metadata.count < count {
+            await Task.yield()
+        }
     }
 
     func loadedHistory(songID: UUID) async -> PracticeSongHistory? {
@@ -1061,7 +1078,9 @@ private actor RecordingPracticeLaunchProgressRepository:
     }
 
     func waitUntilHistoryRequested() async {
-        while historyRequestCount == 0 { await Task.yield() }
+        while historyRequestCount == 0 {
+            await Task.yield()
+        }
     }
 }
 
@@ -1075,7 +1094,9 @@ private actor ControlledPracticeProgressRecovery: PracticeProgressRecoveryProtoc
     }
 
     func waitUntilRequested() async {
-        while isRequested == false { await Task.yield() }
+        while isRequested == false {
+            await Task.yield()
+        }
     }
 
     func resume() {
@@ -1090,20 +1111,30 @@ private actor SuspendedMetadataPracticeLaunchRepository: PracticeProgressReposit
     private var metadataContinuation: CheckedContinuation<Void, Never>?
     private var didStartMetadataWrite = false
 
-    func load() -> PracticeProgressLoadResult { .loaded(PracticeProgressDocument()) }
-    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? { nil }
+    func load() -> PracticeProgressLoadResult {
+        .loaded(PracticeProgressDocument())
+    }
+
+    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? {
+        nil
+    }
+
     func history(for songID: UUID) -> PracticeSongHistoryLoadResult {
         .loaded(PracticeSongHistory(songID: songID, progresses: [], scoreMetadata: [], sessions: []))
     }
+
     func upsert(_: SongPracticeProgress) {}
     func upsert(_: SongScorePracticeMetadata) async {
         didStartMetadataWrite = true
         await withCheckedContinuation { metadataContinuation = $0 }
     }
+
     func remove(songID _: UUID) {}
 
     func waitUntilMetadataWriteStarts() async {
-        while didStartMetadataWrite == false { await Task.yield() }
+        while didStartMetadataWrite == false {
+            await Task.yield()
+        }
     }
 
     func resumeMetadataWrite() {
@@ -1238,7 +1269,9 @@ private actor ControlledPracticeLaunchResolver: SongLibraryEntryResolving {
     }
 
     func waitUntilRequested(songID: UUID) async {
-        while requestedSongIDs.contains(songID) == false { await Task.yield() }
+        while requestedSongIDs.contains(songID) == false {
+            await Task.yield()
+        }
     }
 
     func resume(songID: UUID) {
@@ -1280,7 +1313,9 @@ private actor PracticeLaunchPreparationService: PracticePreparationServiceProtoc
         )
     }
 
-    func requestedSongIDs() -> [UUID] { requests }
+    func requestedSongIDs() -> [UUID] {
+        requests
+    }
 }
 
 private actor ControlledPracticeLaunchPreparationService: PracticePreparationServiceProtocol {
@@ -1295,7 +1330,9 @@ private actor ControlledPracticeLaunchPreparationService: PracticePreparationSer
     }
 
     func waitUntilRequested(songID: UUID) async {
-        while continuations[songID] == nil { await Task.yield() }
+        while continuations[songID] == nil {
+            await Task.yield()
+        }
     }
 
     func resume(songID: UUID) {
@@ -1371,13 +1408,18 @@ private final class PracticeLaunchRecordingApplicator: PracticeLaunchApplying {
         clearCount += 1
         return clearStatus
     }
+
     func commitPreparedPracticeReturn() {
         returnCommitCount += 1
     }
+
     func setPracticeGuidingStartBlocked(_ isBlocked: Bool) {
         guidingStartBlocks.append(isBlocked)
     }
-    func suspendPracticeAndFlushProgress() async { suspendCount += 1 }
+
+    func suspendPracticeAndFlushProgress() async {
+        suspendCount += 1
+    }
 }
 
 @MainActor
@@ -1402,7 +1444,9 @@ private final class ControlledPracticeLaunchApplicator: PracticeLaunchApplying {
     }
 
     func waitUntilApplyStarted() async {
-        while applyContinuation == nil { await Task.yield() }
+        while applyContinuation == nil {
+            await Task.yield()
+        }
     }
 
     func resumeApply() {
@@ -1410,10 +1454,15 @@ private final class ControlledPracticeLaunchApplicator: PracticeLaunchApplying {
         applyContinuation = nil
     }
 
-    func clearPreparedPracticeForLaunch() async -> PracticeProgressSaveStatus { .saved }
+    func clearPreparedPracticeForLaunch() async -> PracticeProgressSaveStatus {
+        .saved
+    }
+
     func commitPreparedPracticeReturn() {}
     func setPracticeGuidingStartBlocked(_: Bool) {}
-    func suspendPracticeAndFlushProgress() async { suspendCount += 1 }
+    func suspendPracticeAndFlushProgress() async {
+        suspendCount += 1
+    }
 }
 
 @MainActor
@@ -1430,7 +1479,9 @@ private final class AppliedThenSuspendedPracticeLaunchApplicator: PracticeLaunch
     }
 
     func waitUntilApplyStarted() async {
-        while continuation == nil { await Task.yield() }
+        while continuation == nil {
+            await Task.yield()
+        }
     }
 
     func resumeApply() {
@@ -1438,7 +1489,10 @@ private final class AppliedThenSuspendedPracticeLaunchApplicator: PracticeLaunch
         continuation = nil
     }
 
-    func clearPreparedPracticeForLaunch() async -> PracticeProgressSaveStatus { .saved }
+    func clearPreparedPracticeForLaunch() async -> PracticeProgressSaveStatus {
+        .saved
+    }
+
     func commitPreparedPracticeReturn() {}
     func setPracticeGuidingStartBlocked(_: Bool) {}
     func suspendPracticeAndFlushProgress() async {}
@@ -1458,7 +1512,10 @@ private final class RejectOncePracticeLaunchApplicator: PracticeLaunchApplying {
         return .applied
     }
 
-    func clearPreparedPracticeForLaunch() async -> PracticeProgressSaveStatus { .saved }
+    func clearPreparedPracticeForLaunch() async -> PracticeProgressSaveStatus {
+        .saved
+    }
+
     func commitPreparedPracticeReturn() {}
     func setPracticeGuidingStartBlocked(_: Bool) {}
     func suspendPracticeAndFlushProgress() async {}

@@ -30,7 +30,7 @@ func streamingClientTimesOutWhenNoMessagesArrive() async throws {
     let start = ImprovStreamStartRequestV2(request: request)
 
     let stream = try await client.streamChunks(
-        url: try #require(URL(string: "ws://example.com/stream")),
+        url: #require(URL(string: "ws://example.com/stream")),
         start: start,
         timeout: .milliseconds(30)
     )

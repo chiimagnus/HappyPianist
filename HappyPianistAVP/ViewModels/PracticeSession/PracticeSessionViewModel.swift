@@ -5,7 +5,7 @@ import Observation
 @MainActor
 @Observable
 final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
-    enum SessionRecorderEvent: Sendable {
+    enum SessionRecorderEvent {
         case guiding(Bool)
         case settingsPresented(Bool)
         case checkpoint

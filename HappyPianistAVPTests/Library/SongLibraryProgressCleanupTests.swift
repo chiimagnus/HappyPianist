@@ -10,11 +10,18 @@ private actor RecordingProgressRepository: PracticeProgressRepositoryProtocol {
         self.removalError = removalError
     }
 
-    func load() -> PracticeProgressLoadResult { .loaded(PracticeProgressDocument()) }
-    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? { nil }
+    func load() -> PracticeProgressLoadResult {
+        .loaded(PracticeProgressDocument())
+    }
+
+    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? {
+        nil
+    }
+
     func history(for songID: UUID) -> PracticeSongHistoryLoadResult {
         .loaded(PracticeSongHistory(songID: songID, progresses: [], scoreMetadata: [], sessions: []))
     }
+
     func upsert(_: SongPracticeProgress) {}
     func upsert(_: SongScorePracticeMetadata) {}
     func remove(songID: UUID) throws {
@@ -180,8 +187,8 @@ private func cleanupSession(songID: UUID) throws -> PracticeSessionRecord {
         practiceDay: day,
         endedAt: Date(timeIntervalSince1970: 10),
         lastPersistedAt: Date(timeIntervalSince1970: 10),
-        practiceWindowDurationMilliseconds: 9_000,
-        activePracticeDurationMilliseconds: 8_000,
+        practiceWindowDurationMilliseconds: 9000,
+        activePracticeDurationMilliseconds: 8000,
         termination: .normal
     ))
 }
@@ -193,7 +200,9 @@ private actor DeletionIndexStore: SongLibraryIndexStoreProtocol {
         self.index = index
     }
 
-    func load() throws -> SongLibraryIndex { index }
+    func load() throws -> SongLibraryIndex {
+        index
+    }
 
     func setLastSelectedEntryID(_ entryID: UUID?) throws -> SongLibraryIndex {
         index.lastSelectedEntryID = entryID

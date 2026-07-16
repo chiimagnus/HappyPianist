@@ -111,7 +111,7 @@ func importJournalRejectsInvalidDigestAndContainsNoURLField() throws {
         safeFileName: "score.musicxml",
         stagedFingerprint: fingerprint
     )
-    let text = String(decoding: try JSONEncoder().encode(journal), as: UTF8.self)
+    let text = try String(decoding: JSONEncoder().encode(journal), as: UTF8.self)
 
     #expect(text.localizedStandardContains("url") == false)
     #expect(text.localizedStandardContains("path") == false)

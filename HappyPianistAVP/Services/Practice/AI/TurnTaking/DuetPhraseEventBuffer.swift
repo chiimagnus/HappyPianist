@@ -1,14 +1,14 @@
 import Foundation
 
 /// Continuous-duet CC context. Records rolling control changes instead of phrase-bounded events.
-struct DuetPhraseEventBuffer: Sendable {
-    struct Snapshot: Equatable, Sendable {
+struct DuetPhraseEventBuffer {
+    struct Snapshot: Equatable {
         let promptEvents: [ImprovEvent]
         let latestValues: [Int: Int]
         let sustainValue: Int
     }
 
-    private struct RecordedControlChange: Equatable, Sendable {
+    private struct RecordedControlChange: Equatable {
         let controller: Int
         let value: Int
         let timestampSeconds: TimeInterval

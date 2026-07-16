@@ -87,5 +87,4 @@ final class VirtualPianoInputController {
 
         return result.down
     }
-
 }

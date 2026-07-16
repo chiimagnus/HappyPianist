@@ -55,8 +55,8 @@ func recoveryProcessesOwnedOperationsInOrderThenBlocksTamperedFactsIdempotently(
         return
     }
     #expect(
-        FileManager.default.fileExists(
-            atPath: try fixture.paths.transactionOperationDirectoryURL(operationID: ownedID)
+        try FileManager.default.fileExists(
+            atPath: fixture.paths.transactionOperationDirectoryURL(operationID: ownedID)
                 .path(percentEncoded: false)
         ) == false
     )
@@ -254,7 +254,9 @@ private final class RecordingDiagnosticsSink: SystemDiagnosticsSinkProtocol, @un
     private let lock = NSLock()
     private var storage: [DiagnosticEvent] = []
 
-    var events: [DiagnosticEvent] { lock.withLock { storage } }
+    var events: [DiagnosticEvent] {
+        lock.withLock { storage }
+    }
 
     func record(_ event: DiagnosticEvent) {
         lock.withLock { storage.append(event) }
@@ -284,7 +286,7 @@ private func transactionEntry(name: String) -> SongLibraryEntry {
 private func transactionFingerprint(_ data: Data) throws -> TransactionFileFingerprint {
     let digest = SHA256.hash(data: data).map { byte in
         let digits = Array("0123456789abcdef")
-        return String([digits[Int(byte >> 4)], digits[Int(byte & 0x0f)]])
+        return String([digits[Int(byte >> 4)], digits[Int(byte & 0x0F)]])
     }.joined()
     return try TransactionFileFingerprint(byteCount: Int64(data.count), sha256: digest)
 }

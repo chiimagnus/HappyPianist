@@ -1,5 +1,5 @@
-import simd
 import Foundation
+import simd
 
 struct PianoKeyHitRegion: Equatable {
     let midiNote: Int

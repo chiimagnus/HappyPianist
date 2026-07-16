@@ -1,6 +1,5 @@
 import Foundation
 
-
 public struct RuleImprovGenerator: Sendable {
     public init() {}
 

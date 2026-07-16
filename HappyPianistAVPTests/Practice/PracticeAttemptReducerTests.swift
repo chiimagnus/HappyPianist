@@ -285,11 +285,17 @@ private struct Fixture {
         )
     }
 
-    func matched(stepIndex _: Int) -> StepAttemptMatchResult { .matched }
+    func matched(stepIndex _: Int) -> StepAttemptMatchResult {
+        .matched
+    }
 
-    func wrong(stepIndex _: Int) -> StepAttemptMatchResult { .wrongNote }
+    func wrong(stepIndex _: Int) -> StepAttemptMatchResult {
+        .wrongNote
+    }
 
-    func insufficient(stepIndex _: Int) -> StepAttemptMatchResult { .insufficientEvidence }
+    func insufficient(stepIndex _: Int) -> StepAttemptMatchResult {
+        .insufficientEvidence
+    }
 
     func configuration(tempoScale: Double) -> PracticeRoundConfiguration {
         PracticeRoundConfiguration(
@@ -300,5 +306,4 @@ private struct Fixture {
             requiredSuccesses: configuration.requiredSuccesses
         )
     }
-
 }

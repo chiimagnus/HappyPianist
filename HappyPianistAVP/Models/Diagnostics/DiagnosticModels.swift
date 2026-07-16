@@ -1,13 +1,13 @@
 import Foundation
 
-enum DiagnosticSeverity: String, Codable, CaseIterable, Sendable {
+enum DiagnosticSeverity: String, Codable, CaseIterable {
     case debug
     case info
     case warning
     case error
 }
 
-enum DiagnosticCategory: String, Codable, CaseIterable, Sendable {
+enum DiagnosticCategory: String, Codable, CaseIterable {
     case general
     case library
     case practicePreparation
@@ -20,12 +20,12 @@ enum DiagnosticCategory: String, Codable, CaseIterable, Sendable {
     case diagnostics
 }
 
-enum DiagnosticPersistence: String, Codable, Sendable {
+enum DiagnosticPersistence: String, Codable {
     case systemOnly
     case exportable
 }
 
-enum DiagnosticCode: String, Codable, CaseIterable, Sendable {
+enum DiagnosticCode: String, Codable, CaseIterable {
     case runtimeEvent = "RUNTIME_EVENT"
     case practicePreparationStarted = "PRACTICE_PREPARATION_STARTED"
     case practicePreparationSucceeded = "PRACTICE_PREPARATION_SUCCEEDED"
@@ -66,7 +66,7 @@ enum DiagnosticCode: String, Codable, CaseIterable, Sendable {
     case diagnosticsCleared = "DIAGNOSTICS_CLEARED"
 }
 
-struct DiagnosticFileReference: Codable, Equatable, Sendable {
+struct DiagnosticFileReference: Codable, Equatable {
     let fileName: String
     let relativePath: String
 
@@ -86,7 +86,7 @@ struct DiagnosticFileReference: Codable, Equatable, Sendable {
     }
 }
 
-struct DiagnosticSourceLocation: Codable, Equatable, Sendable {
+struct DiagnosticSourceLocation: Codable, Equatable {
     let line: Int?
     let column: Int?
     let measure: String?
@@ -98,7 +98,7 @@ struct DiagnosticSourceLocation: Codable, Equatable, Sendable {
     }
 }
 
-struct DiagnosticEvent: Codable, Equatable, Sendable, Identifiable {
+struct DiagnosticEvent: Codable, Equatable, Identifiable {
     let id: UUID
     let timestamp: Date
     let severity: DiagnosticSeverity
@@ -214,7 +214,7 @@ private extension String {
     }
 }
 
-struct DiagnosticLogSummary: Equatable, Sendable {
+struct DiagnosticLogSummary: Equatable {
     let eventCount: Int
     let totalBytes: Int64
     let coverageStart: Date?

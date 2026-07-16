@@ -1,11 +1,11 @@
 import simd
 
-enum TrackedHandSide: UInt8, CaseIterable, Sendable {
+enum TrackedHandSide: UInt8, CaseIterable {
     case left
     case right
 }
 
-enum TrackedFingerTip: UInt8, CaseIterable, Sendable {
+enum TrackedFingerTip: UInt8, CaseIterable {
     case thumb
     case index
     case middle
@@ -14,12 +14,12 @@ enum TrackedFingerTip: UInt8, CaseIterable, Sendable {
     case palm
 }
 
-struct FingerTipID: Hashable, Sendable {
+struct FingerTipID: Hashable {
     let hand: TrackedHandSide
     let tip: TrackedFingerTip
 }
 
-struct HandTips: Equatable, Sendable {
+struct HandTips: Equatable {
     var thumb: SIMD3<Float>?
     var index: SIMD3<Float>?
     var middle: SIMD3<Float>?
@@ -79,7 +79,7 @@ struct HandTips: Equatable, Sendable {
     }
 }
 
-struct FingerTipsSnapshot: Equatable, Sendable {
+struct FingerTipsSnapshot: Equatable {
     static let empty = FingerTipsSnapshot()
 
     var left = HandTips()

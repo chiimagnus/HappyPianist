@@ -30,4 +30,3 @@ func fakePerformanceRNNStepModel_returnsExpectedShapes() async throws {
     #expect(result.softmax.count == 388)
     #expect(result.state.c0.count == 512)
 }
-

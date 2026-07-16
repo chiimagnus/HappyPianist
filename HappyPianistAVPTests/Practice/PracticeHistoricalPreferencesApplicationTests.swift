@@ -11,10 +11,10 @@ func historicalPreferencesApplyToCurrentFullPassageWithoutPersistingDefaultsOrOl
     let spans = historicalApplicationSpans()
     let oldSource = PracticeSourceMeasureID(partID: "old-part", sourceMeasureIndex: 99)
     let oldOccurrence = PracticeMeasureOccurrenceID(sourceMeasureID: oldSource, occurrenceIndex: 99)
-    let oldProgress = SongPracticeProgress(
+    let oldProgress = try SongPracticeProgress(
         identity: oldIdentity,
         activeConfiguration: PracticeRoundConfiguration(
-            passage: try #require(PracticePassage(start: oldOccurrence, end: oldOccurrence)),
+            passage: #require(PracticePassage(start: oldOccurrence, end: oldOccurrence)),
             handMode: .left,
             tempoScale: 0.65,
             loopEnabled: true,
@@ -149,10 +149,14 @@ private actor HistoricalApplicationRepository: PracticeProgressRepositoryProtoco
         self.progress = progress
     }
 
-    func load() -> PracticeProgressLoadResult { .loaded(PracticeProgressDocument()) }
+    func load() -> PracticeProgressLoadResult {
+        .loaded(PracticeProgressDocument())
+    }
+
     func progress(for identity: PracticeSongIdentity) -> SongPracticeProgress? {
         progress?.identity == identity ? progress : nil
     }
+
     func history(for songID: UUID) -> PracticeSongHistoryLoadResult {
         .loaded(PracticeSongHistory(
             songID: songID,
@@ -161,7 +165,11 @@ private actor HistoricalApplicationRepository: PracticeProgressRepositoryProtoco
             sessions: []
         ))
     }
-    func upsert(_ progress: SongPracticeProgress) { self.progress = progress }
+
+    func upsert(_ progress: SongPracticeProgress) {
+        self.progress = progress
+    }
+
     func upsert(_: SongScorePracticeMetadata) {}
     func remove(songID: UUID) {
         if progress?.identity.songID == songID { progress = nil }
@@ -173,7 +181,9 @@ private struct HistoricalApplicationPressDetectionService: PressDetectionService
         fingerTips _: FingerTipsSnapshot,
         keyboardGeometry _: PianoKeyboardGeometry?,
         at _: Date
-    ) -> Set<Int> { [] }
+    ) -> Set<Int> {
+        []
+    }
 }
 
 private final class HistoricalApplicationChordAccumulator: ChordAttemptAccumulatorProtocol {
@@ -182,7 +192,10 @@ private final class HistoricalApplicationChordAccumulator: ChordAttemptAccumulat
         expectedNotes _: [Int],
         tolerance _: Int,
         at _: Date
-    ) -> StepAttemptMatchResult { .insufficientEvidence }
+    ) -> StepAttemptMatchResult {
+        .insufficientEvidence
+    }
+
     func reset() {}
 }
 
@@ -191,7 +204,10 @@ private final class HistoricalApplicationPlaybackService: PracticeSequencerPlayb
     func stop() {}
     func load(sequence _: PracticeSequencerSequence) throws {}
     func play(fromSeconds _: TimeInterval) throws {}
-    func currentSeconds() -> TimeInterval { 0 }
+    func currentSeconds() -> TimeInterval {
+        0
+    }
+
     func playOneShot(noteOns _: [PracticeOneShotNoteOn], durationSeconds _: TimeInterval) throws {}
     func startLiveNotes(midiNotes _: Set<Int>) throws {}
     func stopLiveNotes(midiNotes _: Set<Int>) {}

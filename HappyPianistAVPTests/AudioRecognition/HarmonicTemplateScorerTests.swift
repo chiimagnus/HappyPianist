@@ -1,6 +1,5 @@
-import Testing
-
 @testable import HappyPianistAVP
+import Testing
 
 struct HarmonicTemplateScorerTests {
     @Test func expectedDominatesWrongCandidate() {
@@ -19,7 +18,8 @@ struct HarmonicTemplateScorerTests {
             }
         }
         let results = HarmonicTemplateScorer().score(
-            templates: templates, energyProvider: provider, profile: profile)
+            templates: templates, energyProvider: provider, profile: profile
+        )
         let expected = results.first { $0.midiNote == 60 && $0.role == .expected }
         let wrong = results.first { $0.midiNote == 61 && $0.role == .wrongCandidate }
         #expect((expected?.confidence ?? 0) > (wrong?.confidence ?? 1))
@@ -54,7 +54,8 @@ extension HarmonicTemplateScorerTests {
             }
         }
         let results = HarmonicTemplateScorer().score(
-            templates: templates, energyProvider: provider, profile: profile)
+            templates: templates, energyProvider: provider, profile: profile
+        )
         #expect(results.allSatisfy { $0.confidence < profile.minimumConfidence })
     }
 }

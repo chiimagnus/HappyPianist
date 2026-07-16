@@ -325,7 +325,9 @@ private actor SuspendedLifecycleProgressRepository: PracticeProgressRepositoryPr
         PracticeSongIdentity: CheckedContinuation<SongPracticeProgress?, Never>
     ] = [:]
 
-    func load() -> PracticeProgressLoadResult { .loaded(PracticeProgressDocument()) }
+    func load() -> PracticeProgressLoadResult {
+        .loaded(PracticeProgressDocument())
+    }
 
     func progress(for identity: PracticeSongIdentity) async -> SongPracticeProgress? {
         await withCheckedContinuation { continuation in
@@ -372,7 +374,10 @@ private actor LifecycleProgressRepository: PracticeProgressRepositoryProtocol {
         ))
     }
 
-    func upsert(_ progress: SongPracticeProgress) { storedProgress = progress }
+    func upsert(_ progress: SongPracticeProgress) {
+        storedProgress = progress
+    }
+
     func upsert(_: SongScorePracticeMetadata) {}
     func remove(songID: UUID) {
         if storedProgress?.identity.songID == songID { storedProgress = nil }
@@ -380,12 +385,22 @@ private actor LifecycleProgressRepository: PracticeProgressRepositoryProtocol {
 }
 
 private actor FailingLifecycleProgressRepository: PracticeProgressRepositoryProtocol {
-    func load() -> PracticeProgressLoadResult { .loaded(PracticeProgressDocument()) }
-    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? { nil }
+    func load() -> PracticeProgressLoadResult {
+        .loaded(PracticeProgressDocument())
+    }
+
+    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? {
+        nil
+    }
+
     func history(for songID: UUID) -> PracticeSongHistoryLoadResult {
         .loaded(PracticeSongHistory(songID: songID, progresses: [], scoreMetadata: [], sessions: []))
     }
-    func upsert(_: SongPracticeProgress) throws { throw CocoaError(.fileWriteOutOfSpace) }
+
+    func upsert(_: SongPracticeProgress) throws {
+        throw CocoaError(.fileWriteOutOfSpace)
+    }
+
     func upsert(_: SongScorePracticeMetadata) {}
     func remove(songID _: UUID) {}
 }
@@ -394,7 +409,9 @@ private actor FirstSuspendedLifecycleProgressRepository: PracticeProgressReposit
     private var firstContinuation: CheckedContinuation<SongPracticeProgress?, Never>?
     private var didSuspendFirstRequest = false
 
-    func load() -> PracticeProgressLoadResult { .loaded(PracticeProgressDocument()) }
+    func load() -> PracticeProgressLoadResult {
+        .loaded(PracticeProgressDocument())
+    }
 
     func progress(for _: PracticeSongIdentity) async -> SongPracticeProgress? {
         guard didSuspendFirstRequest == false else { return nil }
@@ -409,7 +426,9 @@ private actor FirstSuspendedLifecycleProgressRepository: PracticeProgressReposit
     }
 
     func waitForFirstRequest() async {
-        while firstContinuation == nil { await Task.yield() }
+        while firstContinuation == nil {
+            await Task.yield()
+        }
     }
 
     func resumeFirstRequest() {

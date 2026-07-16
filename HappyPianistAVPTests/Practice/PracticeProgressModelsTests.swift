@@ -17,7 +17,7 @@ private func makeOccurrence(_ index: Int, partID: String = "P1") -> PracticeMeas
 func practiceProgressDocumentRoundTrips() throws {
     let passage = try #require(PracticePassage(start: makeOccurrence(1), end: makeOccurrence(4)))
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "sha256:abc")
-    let date = Date(timeIntervalSince1970: 1_234)
+    let date = Date(timeIntervalSince1970: 1234)
     let configuration = PracticeRoundConfiguration(
         passage: passage,
         handMode: .right,
@@ -40,8 +40,8 @@ func practiceProgressDocumentRoundTrips() throws {
         practiceDay: practiceDay,
         endedAt: date,
         lastPersistedAt: date,
-        practiceWindowDurationMilliseconds: 4_000,
-        activePracticeDurationMilliseconds: 2_000,
+        practiceWindowDurationMilliseconds: 4000,
+        activePracticeDurationMilliseconds: 2000,
         termination: .normal
     ))
     let document = PracticeProgressDocument(
@@ -59,7 +59,7 @@ func practiceProgressDocumentRoundTrips() throws {
                     consecutiveSuccesses: 2,
                     recentIssue: .incompleteChord,
                     lastAttemptAt: date
-                )
+                ),
             ],
             updatedAt: date
         )],

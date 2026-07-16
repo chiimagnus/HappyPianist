@@ -239,7 +239,6 @@ struct GrandStaffNotationViewportLayoutService {
         return CanvasMetrics(requiredHeight: requiredHeight, contentYOffset: contentYOffset)
     }
 
-
     private func clefAnchorStaffStep(signToken: String?, line: Int?) -> Int? {
         if let line, (1 ... 5).contains(line) {
             return (line - 1) * 2

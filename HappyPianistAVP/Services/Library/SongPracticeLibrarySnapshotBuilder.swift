@@ -118,7 +118,7 @@ struct SongPracticeLibrarySnapshotBuilder: SongPracticeLibrarySnapshotBuilding {
             .pending
         case let .available(progress)
             where progress.totalSourceMeasureCount > 0
-                && progress.stableSourceMeasureCount == progress.totalSourceMeasureCount:
+            && progress.stableSourceMeasureCount == progress.totalSourceMeasureCount:
             .stable
         case .available:
             .learning

@@ -1,6 +1,6 @@
 import Foundation
 
-struct PracticeHistoricalPreferencesResolver: Sendable {
+struct PracticeHistoricalPreferencesResolver {
     nonisolated func resolve(
         identity: PracticeSongIdentity,
         history: PracticeSongHistory
@@ -13,7 +13,8 @@ struct PracticeHistoricalPreferencesResolver: Sendable {
         var preferredByIdentity: [PracticeSongIdentity: SongPracticeProgress] = [:]
         for progress in progresses where progress.activeConfiguration != nil {
             if let current = preferredByIdentity[progress.identity],
-               PracticeProgressRecordOrder.preferred(current, over: progress) {
+               PracticeProgressRecordOrder.preferred(current, over: progress)
+            {
                 continue
             }
             preferredByIdentity[progress.identity] = progress

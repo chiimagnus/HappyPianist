@@ -1,6 +1,5 @@
 import Foundation
 
-
 public struct ImprovDialogueNote: Codable, Equatable, Sendable {
     public var note: Int
     public var velocity: Int
@@ -127,7 +126,7 @@ public struct ImprovEvent: Codable, Equatable, Sendable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         type = try container.decode(EventType.self, forKey: .type)
-        time = Self.sanitizeSeconds(try container.decode(Double.self, forKey: .time))
+        time = try Self.sanitizeSeconds(container.decode(Double.self, forKey: .time))
 
         switch type {
         case .note:

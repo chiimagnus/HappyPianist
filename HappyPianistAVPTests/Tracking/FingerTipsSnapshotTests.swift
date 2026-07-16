@@ -1,6 +1,6 @@
+@testable import HappyPianistAVP
 import simd
 import Testing
-@testable import HappyPianistAVP
 
 @Test
 func fingerTipsSnapshotStoresTypedPositionsWithoutStringKeys() {

@@ -1,6 +1,6 @@
 import Foundation
 
-struct PracticeProgressPaths: Sendable {
+struct PracticeProgressPaths {
     static let rootDirectoryName = "PracticeProgress"
     static let fileName = "progress-v1.json"
     static let recoveryBackupPrefix = "progress-v1.corrupted-"

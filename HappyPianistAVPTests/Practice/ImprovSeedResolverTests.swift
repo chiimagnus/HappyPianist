@@ -10,7 +10,7 @@ func improvSeedResolver_explicitSeedTakesPrecedence() {
 @Test
 func improvSeedResolver_sessionIDDerivesStableSeed() {
     let resolver = ImprovSeedResolver()
-    #expect(resolver.resolveSeed(explicitSeed: nil, sessionID: "session-123") == 13387023709829870795)
+    #expect(resolver.resolveSeed(explicitSeed: nil, sessionID: "session-123") == 13_387_023_709_829_870_795)
 }
 
 @Test
@@ -18,4 +18,3 @@ func improvSeedResolver_missingInputsReturnsZero() {
     let resolver = ImprovSeedResolver()
     #expect(resolver.resolveSeed(explicitSeed: nil, sessionID: nil) == 0)
 }
-

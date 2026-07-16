@@ -92,7 +92,7 @@ struct VDSPAudioSpectrumAnalyzer: AudioSpectrumAnalyzingProtocol {
                     vDSP_fft_zrip(setup, &split, 1, log2n, FFTDirection(FFT_FORWARD))
                     var magnitudes = [Float](repeating: 0, count: halfCount)
                     vDSP_zvmags(&split, 1, &magnitudes, 1, vDSP_Length(halfCount))
-                    let frequencies = (0..<halfCount).map { Double($0) * sampleRate / Double(count) }
+                    let frequencies = (0 ..< halfCount).map { Double($0) * sampleRate / Double(count) }
                     return (frequencies, magnitudes.map(Double.init))
                 }
             }
@@ -130,8 +130,8 @@ struct VDSPAudioSpectrumAnalyzer: AudioSpectrumAnalyzingProtocol {
     }
 }
 
-extension Int {
-    fileprivate var isPowerOfTwo: Bool {
+private extension Int {
+    var isPowerOfTwo: Bool {
         self > 0 && (self & (self - 1)) == 0
     }
 }

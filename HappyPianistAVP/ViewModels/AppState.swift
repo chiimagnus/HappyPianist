@@ -242,8 +242,6 @@ final class AppState {
 
     var onApplyKeyboardGeometry: ((PianoKeyboardGeometry, PianoCalibration) -> Void)?
 
-
-
     private func worldAnchorPoint(from anchor: WorldAnchor) -> SIMD3<Float> {
         let transform = anchor.originFromAnchorTransform
         return SIMD3<Float>(

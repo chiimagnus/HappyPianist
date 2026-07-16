@@ -5,7 +5,7 @@ import Testing
 
 @MainActor
 @Test
-func immersiveSuspendAndResumeAreIdempotentAndRebuildTrackingFromRequirements() async {
+func immersiveSuspendAndResumeAreIdempotentAndRebuildTrackingFromRequirements() {
     let tracking = LifecycleTrackingService()
     let appState = AppState(arTrackingService: tracking)
     appState.immersiveMode = .calibration
@@ -48,7 +48,9 @@ private final class LifecycleTrackingService: ARTrackingServiceProtocol {
         relay.makeStream()
     }
 
-    func deviceWorldTransform(atTimestamp _: TimeInterval) -> simd_float4x4? { nil }
+    func deviceWorldTransform(atTimestamp _: TimeInterval) -> simd_float4x4? {
+        nil
+    }
 
     func addWorldAnchor(originFromAnchorTransform _: simd_float4x4) async throws -> UUID {
         UUID()

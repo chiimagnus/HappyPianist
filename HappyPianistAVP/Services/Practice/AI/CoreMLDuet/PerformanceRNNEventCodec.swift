@@ -7,7 +7,7 @@ import Foundation
 /// - NOTE_OFF(pitch 0..127) -> 128..255
 /// - TIME_SHIFT(steps 1..100) -> 256..355
 /// - VELOCITY(bin 1..32) -> 356..387
-struct PerformanceRNNEventCodec: Sendable {
+struct PerformanceRNNEventCodec {
     static let numClasses = 388
     static let stepsPerSecond = 100
     static let numVelocityBins = 32
@@ -126,12 +126,12 @@ struct PerformanceRNNEventCodec: Sendable {
         return 1 + (clampedBin - 1) * velocityBinSize
     }
 
-    private enum NoteEdgeKind: Sendable, Hashable {
+    private enum NoteEdgeKind: Hashable {
         case noteOff
         case noteOn(velocityBin: Int)
     }
 
-    private struct NoteEdgeEvent: Sendable, Hashable {
+    private struct NoteEdgeEvent: Hashable {
         let step: Int
         let pitch: Int
         let kind: NoteEdgeKind
@@ -170,9 +170,9 @@ struct PerformanceRNNEventCodec: Sendable {
     private func kindPriority(_ kind: NoteEdgeKind) -> Int {
         switch kind {
         case .noteOff:
-            return 0
+            0
         case .noteOn:
-            return 1
+            1
         }
     }
 

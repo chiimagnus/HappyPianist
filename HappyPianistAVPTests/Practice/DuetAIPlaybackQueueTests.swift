@@ -150,7 +150,9 @@ func duetAIPlaybackQueueClearPendingWindowDropsQueuedReplacement() async {
     #expect(abs(replacement.baseDelaySeconds - 0.05) < 1e-9)
     await queue.clearPendingWindow()
     await gate.resume()
-    for _ in 0 ..< 200 { await Task.yield() }
+    for _ in 0 ..< 200 {
+        await Task.yield()
+    }
 
     let counts = await MainActor.run { (fakeService.loadCallCount, fakeService.playCallCount) }
     #expect(counts.0 == 1)
@@ -185,7 +187,9 @@ func duetAIPlaybackQueueStopAllPreventsLateBuildFromStartingPlayback() async {
 
     await queue.stopAll()
     await gate.resume()
-    for _ in 0 ..< 200 { await Task.yield() }
+    for _ in 0 ..< 200 {
+        await Task.yield()
+    }
 
     let counts = await MainActor.run { (fakeService.warmUpCallCount, fakeService.loadCallCount, fakeService.playCallCount) }
     #expect(counts.0 == 0)

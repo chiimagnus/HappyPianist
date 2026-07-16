@@ -86,7 +86,7 @@ func missingMXLScoreIncludesOnlyArchiveRelativePath() throws {
 }
 
 @Test
-func preparationFailureTechnicalDetailsRemainStableAndMatchDiagnosticEvent() throws {
+func preparationFailureTechnicalDetailsRemainStableAndMatchDiagnosticEvent() {
     let occurredAt = Date(timeIntervalSince1970: 1_700_000_000)
     let eventID = UUID()
     let failure = PracticeLaunchFailure(

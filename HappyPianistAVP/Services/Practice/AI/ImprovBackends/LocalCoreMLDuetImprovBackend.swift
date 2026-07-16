@@ -1,6 +1,6 @@
 import Foundation
 
-enum LocalCoreMLDuetImprovBackendError: Error, LocalizedError, Equatable, Sendable {
+enum LocalCoreMLDuetImprovBackendError: Error, LocalizedError, Equatable {
     case timeout
     case emptyReply
 

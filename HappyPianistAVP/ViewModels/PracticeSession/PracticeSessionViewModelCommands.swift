@@ -293,11 +293,10 @@ extension PracticeSessionViewModel {
             resumeAfterSuspension()
             return flushStatus
         }
-        let finalStatus: PracticeProgressSaveStatus
-        if let progressCoordinator, let generation = self.progressGeneration {
-            finalStatus = await progressCoordinator.finish(generation: generation)
+        let finalStatus: PracticeProgressSaveStatus = if let progressCoordinator, let generation = self.progressGeneration {
+            await progressCoordinator.finish(generation: generation)
         } else {
-            finalStatus = flushStatus
+            flushStatus
         }
         if case .failed = finalStatus {
             resumeAfterSuspension()

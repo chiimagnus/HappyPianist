@@ -1,6 +1,6 @@
 import Foundation
-import Synchronization
 @testable import HappyPianistAVP
+import Synchronization
 import Testing
 
 @MainActor
@@ -10,7 +10,7 @@ func duplicatePracticeDisappearAndReturnIntentsRunOneOrderedTeardown() async {
     var calls: [String] = []
     let operationID = UUID()
 
-    for _ in 0..<2 {
+    for _ in 0 ..< 2 {
         coordinator.begin(
             beginReturn: {
                 calls.append("begin")
@@ -200,7 +200,9 @@ private final class MainActorTestGate {
     }
 
     func waitUntilEntered() async {
-        while hasEntered == false { await Task.yield() }
+        while hasEntered == false {
+            await Task.yield()
+        }
     }
 
     func resume() {
@@ -270,7 +272,7 @@ func stalePreparedPracticeApplyCannotOverwriteNewerLaunch() async throws {
 
 @MainActor
 @Test
-func practiceSessionReplacementKeepsWindowRecorderAndDoesNotSplitSession() async throws {
+func practiceSessionReplacementKeepsWindowRecorderAndDoesNotSplitSession() async {
     let repository = LaunchLifecycleSessionRepository()
     let recorder = PracticeSessionRecorder(repository: repository)
     let provider = LaunchLifecycleRecorderSessionProvider(recorder: recorder)
@@ -336,33 +338,33 @@ func multipleRoundsAndSettingsUseOneWindowSessionAndPauseActiveTime() async thro
     await recorder.beginVisit(id: visitID, songID: identity.songID, sceneIsActive: true)
     await recorder.bindIdentity(identity)
 
-    clock.advance(milliseconds: 5_000)
+    clock.advance(milliseconds: 5000)
     session.startGuidingIfReady()
     await session.waitForSessionRecorderEvents()
-    clock.advance(milliseconds: 4_000)
+    clock.advance(milliseconds: 4000)
     session.setPracticeSettingsPresented(true)
     await session.waitForSessionRecorderEvents()
-    clock.advance(milliseconds: 3_000)
+    clock.advance(milliseconds: 3000)
     session.setPracticeSettingsPresented(false)
     await session.waitForSessionRecorderEvents()
-    clock.advance(milliseconds: 2_000)
+    clock.advance(milliseconds: 2000)
     session.skip()
     await session.waitForSessionRecorderEvents()
     #expect(session.state == .completed)
 
     #expect(session.perform(.continuePassage))
     await session.waitForSessionRecorderEvents()
-    clock.advance(milliseconds: 3_000)
+    clock.advance(milliseconds: 3000)
     session.skip()
     await session.waitForSessionRecorderEvents()
-    clock.advance(milliseconds: 5_000)
+    clock.advance(milliseconds: 5000)
     #expect(await recorder.finalize() == .saved)
 
     let records = await repository.records()
     let final = try #require(records.last)
     #expect(Set(records.map(\.id)) == [visitID])
-    #expect(final.practiceWindowDurationMilliseconds == 22_000)
-    #expect(final.activePracticeDurationMilliseconds == 9_000)
+    #expect(final.practiceWindowDurationMilliseconds == 22000)
+    #expect(final.activePracticeDurationMilliseconds == 9000)
     #expect(final.termination == .normal)
 }
 
@@ -384,7 +386,7 @@ func inactiveSceneExcludesBackgroundTimeAndRequiresRealGuidingResume() async thr
     session.startGuidingIfReady()
     await session.waitForSessionRecorderEvents()
 
-    clock.advance(milliseconds: 4_000)
+    clock.advance(milliseconds: 4000)
     await recorder.setSceneActive(false)
     await session.suspendAndFlushProgress()
     clock.advance(milliseconds: 100_000)
@@ -392,13 +394,13 @@ func inactiveSceneExcludesBackgroundTimeAndRequiresRealGuidingResume() async thr
     session.resumeAfterSuspension()
     session.startGuidingIfReady()
     await session.waitForSessionRecorderEvents()
-    clock.advance(milliseconds: 3_000)
+    clock.advance(milliseconds: 3000)
     await recorder.finalize()
 
     let final = try #require(await repository.records().last)
     #expect(final.id == visitID)
-    #expect(final.practiceWindowDurationMilliseconds == 7_000)
-    #expect(final.activePracticeDurationMilliseconds == 7_000)
+    #expect(final.practiceWindowDurationMilliseconds == 7000)
+    #expect(final.activePracticeDurationMilliseconds == 7000)
 }
 
 @MainActor
@@ -587,7 +589,7 @@ private func makeLaunchLifecycleSpans() -> [MusicXMLMeasureSpan] {
     [
         MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, sourceMeasureIndex: 0, sourceMeasureNumberToken: "1", occurrenceIndex: 0, startTick: 0, endTick: 480),
         MusicXMLMeasureSpan(partID: "P1", measureNumber: 2, sourceMeasureIndex: 1, sourceMeasureNumberToken: "2", occurrenceIndex: 1, startTick: 480, endTick: 960),
-        MusicXMLMeasureSpan(partID: "P1", measureNumber: 3, sourceMeasureIndex: 2, sourceMeasureNumberToken: "3", occurrenceIndex: 2, startTick: 960, endTick: 1_440),
+        MusicXMLMeasureSpan(partID: "P1", measureNumber: 3, sourceMeasureIndex: 2, sourceMeasureNumberToken: "3", occurrenceIndex: 2, startTick: 960, endTick: 1440),
     ]
 }
 
@@ -633,7 +635,9 @@ private actor LaunchRaceProgressRepository: PracticeProgressRepositoryProtocol {
         self.delays = delays
     }
 
-    func load() -> PracticeProgressLoadResult { .loaded(PracticeProgressDocument()) }
+    func load() -> PracticeProgressLoadResult {
+        .loaded(PracticeProgressDocument())
+    }
 
     func progress(for identity: PracticeSongIdentity) async -> SongPracticeProgress? {
         if let delay = delays[identity.songID] {
@@ -659,7 +663,9 @@ private final class LaunchRaceSessionProvider: @unchecked Sendable {
         self.session = session
     }
 
-    func callAsFunction(_: String?) -> PracticeSessionViewModel { session }
+    func callAsFunction(_: String?) -> PracticeSessionViewModel {
+        session
+    }
 }
 
 private func makeLaunchRacePreparedPractice(songID: UUID) -> PreparedPractice {
@@ -696,7 +702,9 @@ private struct LaunchLifecyclePressDetectionService: PressDetectionServiceProtoc
         fingerTips _: FingerTipsSnapshot,
         keyboardGeometry _: PianoKeyboardGeometry?,
         at _: Date
-    ) -> Set<Int> { [] }
+    ) -> Set<Int> {
+        []
+    }
 }
 
 private final class LaunchLifecycleChordAccumulator: ChordAttemptAccumulatorProtocol {
@@ -705,7 +713,9 @@ private final class LaunchLifecycleChordAccumulator: ChordAttemptAccumulatorProt
         expectedNotes _: [Int],
         tolerance _: Int,
         at _: Date
-    ) -> StepAttemptMatchResult { .insufficientEvidence }
+    ) -> StepAttemptMatchResult {
+        .insufficientEvidence
+    }
 
     func reset() {}
 }
@@ -727,7 +737,7 @@ private actor LaunchLifecycleSessionRepository: PracticeSessionRepositoryProtoco
 private final class LaunchLifecycleRecorderClock: Sendable {
     private struct State {
         var monotonicMilliseconds: Int64 = 0
-        var wallDate = Date(timeIntervalSince1970: 1_000)
+        var wallDate = Date(timeIntervalSince1970: 1000)
     }
 
     private let state = Mutex(State())
@@ -757,7 +767,7 @@ private final class LaunchLifecycleRecorderClock: Sendable {
     func advance(milliseconds: Int64) {
         state.withLock { state in
             state.monotonicMilliseconds += milliseconds
-            state.wallDate.addTimeInterval(Double(milliseconds) / 1_000)
+            state.wallDate.addTimeInterval(Double(milliseconds) / 1000)
         }
     }
 }

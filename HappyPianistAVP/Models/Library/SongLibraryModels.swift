@@ -1,6 +1,6 @@
 import Foundation
 
-struct SongLibraryEntry: Codable, Equatable, Identifiable, Sendable {
+struct SongLibraryEntry: Codable, Equatable, Identifiable {
     let id: UUID
     var displayName: String
     var musicXMLFileName: String
@@ -28,7 +28,7 @@ struct SongLibraryEntry: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
-struct SongLibraryIndex: Codable, Equatable, Sendable {
+struct SongLibraryIndex: Codable, Equatable {
     var entries: [SongLibraryEntry]
     var lastSelectedEntryID: UUID?
 

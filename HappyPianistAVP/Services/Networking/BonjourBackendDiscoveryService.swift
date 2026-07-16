@@ -55,11 +55,10 @@ final class BonjourBackendDiscoveryService: Sendable {
                 guard let self, discoveryGeneration == generation else { return }
                 switch newState {
                 case let .failed(error):
-                    let failureState: State
-                    if case let .posix(code) = error, code == .EPERM {
-                        failureState = .denied
+                    let failureState: State = if case let .posix(code) = error, code == .EPERM {
+                        .denied
                     } else {
-                        failureState = .failed(message: String(describing: error))
+                        .failed(message: String(describing: error))
                     }
                     cancelDiscovery(nextState: failureState)
                 case .cancelled:

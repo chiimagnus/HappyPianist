@@ -23,8 +23,8 @@ private func makeSession(
     songID: UUID = UUID(),
     revision: String = "r1",
     persistedAt: Date = Date(timeIntervalSince1970: 200),
-    windowDuration: Int64 = 5_000,
-    activeDuration: Int64 = 3_000,
+    windowDuration: Int64 = 5000,
+    activeDuration: Int64 = 3000,
     termination: PracticeSessionTermination = .open
 ) throws -> PracticeSessionRecord {
     let day = try #require(PracticeLocalDay(
@@ -193,15 +193,15 @@ func progressRepositoryUpsertsAndFinalizesOneSessionWithoutDuplicatingCheckpoint
         id: id,
         songID: songID,
         persistedAt: Date(timeIntervalSince1970: 230),
-        windowDuration: 8_000,
-        activeDuration: 6_000
+        windowDuration: 8000,
+        activeDuration: 6000
     )
     let finalized = try makeSession(
         id: id,
         songID: songID,
         persistedAt: Date(timeIntervalSince1970: 240),
-        windowDuration: 9_000,
-        activeDuration: 7_000,
+        windowDuration: 9000,
+        activeDuration: 7000,
         termination: .normal
     )
 
@@ -311,8 +311,8 @@ func progressRepositoryRejectsSessionRegressionAndIdentityCollision() async thro
         id: original.id,
         songID: original.songID,
         persistedAt: Date(timeIntervalSince1970: 250),
-        windowDuration: 4_000,
-        activeDuration: 2_000
+        windowDuration: 4000,
+        activeDuration: 2000
     )
     await #expect(throws: PracticeSessionMutationError.durationRegression(id: original.id)) {
         try await repository.upsert(regressed)

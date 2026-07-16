@@ -1,13 +1,13 @@
 import Foundation
 
-enum PracticeFeedbackEventKind: Equatable, Sendable {
+enum PracticeFeedbackEventKind: Equatable {
     case retryInvitation(issue: PracticeIssueKind)
     case measureStable
     case passageStable
     case roundSummaryReady
 }
 
-struct PracticeFeedbackEvent: Equatable, Sendable {
+struct PracticeFeedbackEvent: Equatable {
     let sequence: Int
     let sourceMeasureID: PracticeSourceMeasureID?
     let kind: PracticeFeedbackEventKind
@@ -43,7 +43,7 @@ struct PracticeFeedbackPolicy {
                     sequence: eventSequence,
                     sourceMeasureID: nil,
                     kind: stable ? .passageStable : .roundSummaryReady
-                )
+                ),
             ]
         }
     }

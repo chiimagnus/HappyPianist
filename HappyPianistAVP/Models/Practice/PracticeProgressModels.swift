@@ -1,16 +1,11 @@
 import Foundation
 
-struct PracticeSongIdentity: Codable, Equatable, Hashable, Sendable {
+struct PracticeSongIdentity: Codable, Equatable, Hashable {
     let songID: UUID
     let scoreRevision: String
-
-    init(songID: UUID, scoreRevision: String) {
-        self.songID = songID
-        self.scoreRevision = scoreRevision
-    }
 }
 
-struct PracticeLocalDay: Codable, Equatable, Hashable, Sendable {
+struct PracticeLocalDay: Codable, Equatable, Hashable {
     let year: Int
     let month: Int
     let day: Int
@@ -71,13 +66,13 @@ struct PracticeLocalDay: Codable, Equatable, Hashable, Sendable {
     }
 }
 
-enum PracticeSessionTermination: String, Codable, Equatable, Sendable {
+enum PracticeSessionTermination: String, Codable, Equatable {
     case open
     case normal
     case recoveredAfterInterruption
 }
 
-struct PracticeSessionRecord: Codable, Equatable, Sendable {
+struct PracticeSessionRecord: Codable, Equatable {
     let id: UUID
     let songID: UUID
     let scoreRevision: String
@@ -141,20 +136,20 @@ struct PracticeSessionRecord: Codable, Equatable, Sendable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let termination = try container.decode(PracticeSessionTermination.self, forKey: .termination)
-        guard let record = Self(
-            id: try container.decode(UUID.self, forKey: .id),
-            songID: try container.decode(UUID.self, forKey: .songID),
-            scoreRevision: try container.decode(String.self, forKey: .scoreRevision),
-            windowOpenedAt: try container.decode(Date.self, forKey: .windowOpenedAt),
-            practiceStartedAt: try container.decode(Date.self, forKey: .practiceStartedAt),
-            practiceDay: try container.decode(PracticeLocalDay.self, forKey: .practiceDay),
-            endedAt: try container.decodeIfPresent(Date.self, forKey: .endedAt),
-            lastPersistedAt: try container.decode(Date.self, forKey: .lastPersistedAt),
-            practiceWindowDurationMilliseconds: try container.decode(
+        guard let record = try Self(
+            id: container.decode(UUID.self, forKey: .id),
+            songID: container.decode(UUID.self, forKey: .songID),
+            scoreRevision: container.decode(String.self, forKey: .scoreRevision),
+            windowOpenedAt: container.decode(Date.self, forKey: .windowOpenedAt),
+            practiceStartedAt: container.decode(Date.self, forKey: .practiceStartedAt),
+            practiceDay: container.decode(PracticeLocalDay.self, forKey: .practiceDay),
+            endedAt: container.decodeIfPresent(Date.self, forKey: .endedAt),
+            lastPersistedAt: container.decode(Date.self, forKey: .lastPersistedAt),
+            practiceWindowDurationMilliseconds: container.decode(
                 Int64.self,
                 forKey: .practiceWindowDurationMilliseconds
             ),
-            activePracticeDurationMilliseconds: try container.decode(
+            activePracticeDurationMilliseconds: container.decode(
                 Int64.self,
                 forKey: .activePracticeDurationMilliseconds
             ),
@@ -170,7 +165,7 @@ struct PracticeSessionRecord: Codable, Equatable, Sendable {
     }
 }
 
-struct PracticeSourceMeasureID: Codable, Equatable, Hashable, Sendable {
+struct PracticeSourceMeasureID: Codable, Equatable, Hashable {
     let partID: String
     let sourceMeasureIndex: Int
     let sourceNumberToken: String?
@@ -182,7 +177,7 @@ struct PracticeSourceMeasureID: Codable, Equatable, Hashable, Sendable {
     }
 }
 
-struct PracticeMeasureOccurrenceID: Codable, Equatable, Hashable, Sendable {
+struct PracticeMeasureOccurrenceID: Codable, Equatable, Hashable {
     let sourceMeasureID: PracticeSourceMeasureID
     let occurrenceIndex: Int
 
@@ -192,7 +187,7 @@ struct PracticeMeasureOccurrenceID: Codable, Equatable, Hashable, Sendable {
     }
 }
 
-struct PracticePassage: Codable, Equatable, Sendable {
+struct PracticePassage: Codable, Equatable {
     let start: PracticeMeasureOccurrenceID
     let end: PracticeMeasureOccurrenceID
 
@@ -207,7 +202,7 @@ struct PracticePassage: Codable, Equatable, Sendable {
     }
 }
 
-struct PracticeRoundConfiguration: Codable, Equatable, Sendable {
+struct PracticeRoundConfiguration: Codable, Equatable {
     static let supportedTempoRange = 0.5 ... 1.0
     static let supportedSuccessRange = 1 ... 5
 
@@ -244,17 +239,17 @@ struct PracticeRoundConfiguration: Codable, Equatable, Sendable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.init(
-            passage: try container.decode(PracticePassage.self, forKey: .passage),
-            handMode: try container.decode(PracticeHandMode.self, forKey: .handMode),
-            tempoScale: try container.decode(Double.self, forKey: .tempoScale),
-            loopEnabled: try container.decode(Bool.self, forKey: .loopEnabled),
-            requiredSuccesses: try container.decode(Int.self, forKey: .requiredSuccesses)
+        try self.init(
+            passage: container.decode(PracticePassage.self, forKey: .passage),
+            handMode: container.decode(PracticeHandMode.self, forKey: .handMode),
+            tempoScale: container.decode(Double.self, forKey: .tempoScale),
+            loopEnabled: container.decode(Bool.self, forKey: .loopEnabled),
+            requiredSuccesses: container.decode(Int.self, forKey: .requiredSuccesses)
         )
     }
 }
 
-struct PracticeResumePoint: Codable, Equatable, Sendable {
+struct PracticeResumePoint: Codable, Equatable {
     let occurrenceID: PracticeMeasureOccurrenceID
     let stepIndex: Int
     let updatedAt: Date
@@ -266,19 +261,19 @@ struct PracticeResumePoint: Codable, Equatable, Sendable {
     }
 }
 
-enum MeasureLearningState: String, Codable, Equatable, Sendable {
+enum MeasureLearningState: String, Codable, Equatable {
     case notStarted
     case learning
     case stable
 }
 
-enum PracticeIssueKind: String, Codable, Equatable, Sendable {
+enum PracticeIssueKind: String, Codable, Equatable {
     case wrongNote
     case missedNote
     case incompleteChord
 }
 
-struct MeasurePracticeFacts: Codable, Equatable, Sendable {
+struct MeasurePracticeFacts: Codable, Equatable {
     let sourceMeasureID: PracticeSourceMeasureID
     let handMode: PracticeHandMode
     var state: MeasureLearningState
@@ -314,7 +309,7 @@ struct MeasurePracticeFacts: Codable, Equatable, Sendable {
     }
 }
 
-struct SongPracticeProgress: Codable, Equatable, Sendable {
+struct SongPracticeProgress: Codable, Equatable {
     let identity: PracticeSongIdentity
     var activeConfiguration: PracticeRoundConfiguration?
     var resumePoint: PracticeResumePoint?
@@ -336,7 +331,7 @@ struct SongPracticeProgress: Codable, Equatable, Sendable {
     }
 }
 
-struct SongScorePracticeMetadata: Codable, Equatable, Sendable {
+struct SongScorePracticeMetadata: Codable, Equatable {
     let songID: UUID
     let scoreFileVersionID: UUID
     let scoreRevision: String
@@ -367,18 +362,18 @@ struct SongScorePracticeMetadata: Codable, Equatable, Sendable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.init(
-            songID: try container.decode(UUID.self, forKey: .songID),
-            scoreFileVersionID: try container.decode(
+        try self.init(
+            songID: container.decode(UUID.self, forKey: .songID),
+            scoreFileVersionID: container.decode(
                 UUID.self,
                 forKey: .scoreFileVersionID
             ),
-            scoreRevision: try container.decode(String.self, forKey: .scoreRevision),
-            totalSourceMeasureCount: try container.decode(
+            scoreRevision: container.decode(String.self, forKey: .scoreRevision),
+            totalSourceMeasureCount: container.decode(
                 Int.self,
                 forKey: .totalSourceMeasureCount
             ),
-            preparedAt: try container.decode(Date.self, forKey: .preparedAt)
+            preparedAt: container.decode(Date.self, forKey: .preparedAt)
         )
     }
 }
@@ -410,26 +405,14 @@ enum SongScorePracticeMetadataOrder {
     }
 }
 
-struct PracticeSongHistory: Equatable, Sendable {
+struct PracticeSongHistory: Equatable {
     let songID: UUID
     let progresses: [SongPracticeProgress]
     let scoreMetadata: [SongScorePracticeMetadata]
     let sessions: [PracticeSessionRecord]
-
-    init(
-        songID: UUID,
-        progresses: [SongPracticeProgress],
-        scoreMetadata: [SongScorePracticeMetadata],
-        sessions: [PracticeSessionRecord]
-    ) {
-        self.songID = songID
-        self.progresses = progresses
-        self.scoreMetadata = scoreMetadata
-        self.sessions = sessions
-    }
 }
 
-enum PracticeSongHistoryLoadResult: Equatable, Sendable {
+enum PracticeSongHistoryLoadResult: Equatable {
     case loaded(PracticeSongHistory)
     case unavailable(description: String)
     case corrupted(description: String)
@@ -489,7 +472,7 @@ enum PracticeSessionRecordOrder {
     }
 }
 
-struct PracticeProgressDocument: Codable, Equatable, Sendable {
+struct PracticeProgressDocument: Codable, Equatable {
     var songs: [SongPracticeProgress]
     var scoreMetadata: [SongScorePracticeMetadata]
     var sessions: [PracticeSessionRecord]

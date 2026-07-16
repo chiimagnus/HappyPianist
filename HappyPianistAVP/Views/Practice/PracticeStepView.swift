@@ -153,7 +153,7 @@ struct PracticeStepView: View {
 
                 Toggle("自动播放", isOn: $isAutoplayEnabled)
                     .toggleStyle(.button)
-                .disabled(viewModel.isAIPerformanceActive)
+                    .disabled(viewModel.isAIPerformanceActive)
 
                 Button("设置", systemImage: "gearshape") {
                     isSettingsPresented.toggle()

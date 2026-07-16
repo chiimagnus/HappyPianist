@@ -1,12 +1,12 @@
 import Foundation
 
-struct SongPracticeLibrarySelectionIdentity: Equatable, Sendable {
+struct SongPracticeLibrarySelectionIdentity: Equatable {
     let songID: UUID
     let scoreFileVersionID: UUID
 }
 
-struct SongPracticeStreak: Equatable, Sendable {
-    enum Recency: Equatable, Sendable {
+struct SongPracticeStreak: Equatable {
+    enum Recency: Equatable {
         case current
         case recent
     }
@@ -15,14 +15,14 @@ struct SongPracticeStreak: Equatable, Sendable {
     let recency: Recency
 }
 
-struct SongPracticeSessionSummary: Equatable, Sendable {
+struct SongPracticeSessionSummary: Equatable {
     let latestPracticeEndedAt: Date?
     let totalActiveDurationMilliseconds: Int64
     let sessionCount: Int
     let streak: SongPracticeStreak?
 }
 
-struct SongPracticeMeasureProgress: Equatable, Sendable {
+struct SongPracticeMeasureProgress: Equatable {
     let stableSourceMeasureCount: Int
     let learningSourceMeasureCount: Int
     let unpracticedSourceMeasureCount: Int
@@ -32,29 +32,29 @@ struct SongPracticeMeasureProgress: Equatable, Sendable {
     }
 }
 
-enum SongPracticeMeasureProgressState: Equatable, Sendable {
+enum SongPracticeMeasureProgressState: Equatable {
     case available(SongPracticeMeasureProgress)
     case metadataUnavailable
 }
 
-enum SongPracticeFocusReason: Equatable, Sendable {
+enum SongPracticeFocusReason: Equatable {
     case recentIssue(PracticeIssueKind)
     case failedAttempts(Int)
     case learning
 }
 
-struct SongPracticeFocusMeasure: Equatable, Sendable {
+struct SongPracticeFocusMeasure: Equatable {
     let sourceMeasureID: PracticeSourceMeasureID
     let reason: SongPracticeFocusReason
 }
 
-enum SongPracticeLibraryOverviewStatus: Equatable, Sendable {
+enum SongPracticeLibraryOverviewStatus: Equatable {
     case learning
     case stable
     case pending
 }
 
-struct SongPracticeLibraryOverview: Equatable, Sendable {
+struct SongPracticeLibraryOverview: Equatable {
     let identity: SongPracticeLibrarySelectionIdentity
     let status: SongPracticeLibraryOverviewStatus
     let sessionSummary: SongPracticeSessionSummary
@@ -63,13 +63,13 @@ struct SongPracticeLibraryOverview: Equatable, Sendable {
     let focusMeasures: [SongPracticeFocusMeasure]
 }
 
-struct SongPracticeLibraryUnavailable: Equatable, Sendable {
-    enum Reason: Equatable, Sendable {
+struct SongPracticeLibraryUnavailable: Equatable {
+    enum Reason: Equatable {
         case temporarilyUnavailable
         case corrupted
     }
 
-    enum RecoveryOptions: Equatable, Sendable {
+    enum RecoveryOptions: Equatable {
         case retry
         case retryAndConfirmedBackupReset
     }
@@ -79,7 +79,7 @@ struct SongPracticeLibraryUnavailable: Equatable, Sendable {
     let recoveryOptions: RecoveryOptions
 }
 
-enum SongPracticeLibraryPresentationState: Equatable, Sendable {
+enum SongPracticeLibraryPresentationState: Equatable {
     case loading(SongPracticeLibrarySelectionIdentity)
     case invitation(SongPracticeLibrarySelectionIdentity)
     case overview(SongPracticeLibraryOverview)

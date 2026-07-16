@@ -5,12 +5,12 @@ import Testing
 private let sessionSummaryBuilder = SongPracticeSessionSummaryBuilder()
 
 @Test
-func sessionSummaryIsEmptyWithoutValidSessions() {
-    #expect(sessionSummaryBuilder.build(
+func sessionSummaryIsEmptyWithoutValidSessions() throws {
+    #expect(try sessionSummaryBuilder.build(
         songID: UUID(),
         sessions: [],
         viewedAt: Date(timeIntervalSince1970: 0),
-        viewingTimeZone: TimeZone(identifier: "Asia/Singapore")!
+        viewingTimeZone: #require(TimeZone(identifier: "Asia/Singapore"))
     ) == SongPracticeSessionSummary(
         latestPracticeEndedAt: nil,
         totalActiveDurationMilliseconds: 0,
@@ -31,14 +31,14 @@ func sessionSummaryCountsEverySessionButDeduplicatesPracticeDays() throws {
         day: (2026, 7, 14),
         startedAt: date(2026, 7, 14, hour: 10, timeZone: singapore),
         endedAt: firstEnd,
-        activeMilliseconds: 30_000
+        activeMilliseconds: 30000
     )
     let second = try makeSummarySession(
         songID: songID,
         day: (2026, 7, 14),
         startedAt: date(2026, 7, 14, hour: 11, timeZone: singapore),
         endedAt: secondEnd,
-        activeMilliseconds: 45_000
+        activeMilliseconds: 45000
     )
     let ignored = try makeSummarySession(
         songID: otherSongID,
@@ -55,7 +55,7 @@ func sessionSummaryCountsEverySessionButDeduplicatesPracticeDays() throws {
         viewingTimeZone: singapore
     ) == SongPracticeSessionSummary(
         latestPracticeEndedAt: secondEnd,
-        totalActiveDurationMilliseconds: 75_000,
+        totalActiveDurationMilliseconds: 75000,
         sessionCount: 2,
         streak: SongPracticeStreak(dayCount: 1, recency: .current)
     ))
@@ -73,7 +73,7 @@ func sessionSummaryUsesCapturedDayAcrossMidnightAndTimeZoneChanges() throws {
         dayTimeZone: losAngeles,
         startedAt: date(2026, 7, 13, hour: 23, minute: 30, timeZone: losAngeles),
         endedAt: date(2026, 7, 13, hour: 23, minute: 45, timeZone: losAngeles),
-        activeMilliseconds: 1_000
+        activeMilliseconds: 1000
     )
     let acrossMidnightEnd = date(2026, 7, 15, hour: 0, minute: 10, timeZone: tokyo)
     let acrossMidnight = try makeSummarySession(
@@ -82,7 +82,7 @@ func sessionSummaryUsesCapturedDayAcrossMidnightAndTimeZoneChanges() throws {
         dayTimeZone: tokyo,
         startedAt: date(2026, 7, 14, hour: 23, minute: 50, timeZone: tokyo),
         endedAt: acrossMidnightEnd,
-        activeMilliseconds: 2_000,
+        activeMilliseconds: 2000,
         termination: .recoveredAfterInterruption
     )
 
@@ -109,7 +109,7 @@ func sessionSummaryStartsStreakFromLatestPersistedDayWhenWallClockOrderReverses(
         dayTimeZone: tokyo,
         startedAt: date(2026, 7, 15, hour: 0, minute: 10, timeZone: tokyo),
         endedAt: date(2026, 7, 15, hour: 0, minute: 20, timeZone: tokyo),
-        activeMilliseconds: 1_000
+        activeMilliseconds: 1000
     )
     let laterAbsoluteSessionOnEarlierLocalDay = try makeSummarySession(
         songID: songID,
@@ -117,7 +117,7 @@ func sessionSummaryStartsStreakFromLatestPersistedDayWhenWallClockOrderReverses(
         dayTimeZone: losAngeles,
         startedAt: date(2026, 7, 14, hour: 23, minute: 30, timeZone: losAngeles),
         endedAt: date(2026, 7, 14, hour: 23, minute: 40, timeZone: losAngeles),
-        activeMilliseconds: 1_000
+        activeMilliseconds: 1000
     )
 
     let summary = sessionSummaryBuilder.build(
@@ -142,7 +142,7 @@ func sessionSummaryUsesViewingTimeZoneForStreakRecency() throws {
         dayTimeZone: tokyo,
         startedAt: date(2026, 7, 15, hour: 0, minute: 20, timeZone: tokyo),
         endedAt: endedAt,
-        activeMilliseconds: 1_000
+        activeMilliseconds: 1000
     )
 
     let summary = sessionSummaryBuilder.build(
@@ -166,7 +166,7 @@ func sessionSummaryMarksOlderStreakAsRecentAndIncludesOpenCheckpoint() throws {
         day: (2026, 7, 10),
         startedAt: startedAt,
         endedAt: nil,
-        activeMilliseconds: 20_000,
+        activeMilliseconds: 20000,
         termination: .open
     )
 
@@ -177,7 +177,7 @@ func sessionSummaryMarksOlderStreakAsRecentAndIncludesOpenCheckpoint() throws {
         viewingTimeZone: singapore
     ) == SongPracticeSessionSummary(
         latestPracticeEndedAt: nil,
-        totalActiveDurationMilliseconds: 20_000,
+        totalActiveDurationMilliseconds: 20000,
         sessionCount: 1,
         streak: SongPracticeStreak(dayCount: 1, recency: .recent)
     ))
@@ -207,7 +207,7 @@ private func makeSummarySession(
         practiceDay: practiceDay,
         endedAt: endedAt,
         lastPersistedAt: endedAt ?? startedAt,
-        practiceWindowDurationMilliseconds: max(activeMilliseconds, 30_000),
+        practiceWindowDurationMilliseconds: max(activeMilliseconds, 30000),
         activePracticeDurationMilliseconds: activeMilliseconds,
         termination: termination
     ))

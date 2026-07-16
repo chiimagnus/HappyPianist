@@ -38,8 +38,8 @@ func entryResolverReadsLatestUserEntryWithoutCaching() async throws {
     try paths.ensureDirectoriesExist()
     let firstFileName = "first.musicxml"
     let secondFileName = "second.musicxml"
-    try Data("first".utf8).write(to: try paths.scoresDirectoryURL().appending(path: firstFileName))
-    try Data("second".utf8).write(to: try paths.scoresDirectoryURL().appending(path: secondFileName))
+    try Data("first".utf8).write(to: paths.scoresDirectoryURL().appending(path: firstFileName))
+    try Data("second".utf8).write(to: paths.scoresDirectoryURL().appending(path: secondFileName))
     let songID = UUID()
     let firstEntry = SongLibraryEntry(
         id: songID,
@@ -75,7 +75,7 @@ func entryResolverReadsLatestUserEntryWithoutCaching() async throws {
 }
 
 @Test
-func entryResolverMapsMissingEntryAndBundledResource() async throws {
+func entryResolverMapsMissingEntryAndBundledResource() async {
     let missingID = UUID()
     let indexStore = ResolverIndexStore(index: .empty)
     let emptyResolver = SongLibraryEntryResolver(
@@ -141,7 +141,7 @@ func entryResolverRejectsBundledNonRegularResource() async throws {
 }
 
 @Test
-func entryResolverRejectsUnsafeUserFileNameWithoutLeakingPath() async throws {
+func entryResolverRejectsUnsafeUserFileNameWithoutLeakingPath() async {
     let entry = resolverEntry(name: "Unsafe", fileName: "../private.musicxml")
     let resolver = SongLibraryEntryResolver(
         indexStore: ResolverIndexStore(index: SongLibraryIndex(entries: [entry])),
@@ -235,15 +235,20 @@ private actor ResolverIndexStore: SongLibraryIndexStoreProtocol {
         index.entries = entries
     }
 
-    func load() throws -> SongLibraryIndex { index }
+    func load() throws -> SongLibraryIndex {
+        index
+    }
+
     func setLastSelectedEntryID(_ entryID: UUID?) throws -> SongLibraryIndex {
         index.lastSelectedEntryID = entryID
         return index
     }
+
     func appendUserEntry(_ entry: SongLibraryEntry) throws -> SongLibraryIndex {
         index.entries.append(entry)
         return index
     }
+
     func removeUserEntry(
         id: UUID,
         fallbackLastSelectedEntryID _: UUID?
@@ -253,6 +258,7 @@ private actor ResolverIndexStore: SongLibraryIndexStoreProtocol {
         }
         return .applied(index: index, entry: index.entries.remove(at: entryIndex))
     }
+
     func updateAudioFileName(
         entryID: UUID,
         expectedCurrentFileName _: String?,
@@ -279,12 +285,16 @@ private actor ResolverFileStore: SongFileStoreProtocol {
         case let .error(error): throw error
         }
     }
-    func audioFileURL(fileName _: String) async throws -> URL { throw CocoaError(.fileNoSuchFile) }
+
+    func audioFileURL(fileName _: String) async throws -> URL {
+        throw CocoaError(.fileNoSuchFile)
+    }
+
     func deleteScoreFile(named _: String) async throws {}
     func deleteAudioFile(named _: String) async throws {}
 }
 
-private enum ResolverFileStoreResult: Sendable {
+private enum ResolverFileStoreResult {
     case url(URL)
     case missing
     case error(SongFileStoreError)
@@ -294,9 +304,17 @@ private struct ResolverBundledProvider: BundledSongLibraryProviderProtocol {
     let entries: [SongLibraryEntry]
     let scoreURL: URL?
 
-    func bundledEntries() -> [SongLibraryEntry] { entries }
-    func musicXMLURL(fileName _: String) -> URL? { scoreURL }
-    func audioURL(fileName _: String) -> URL? { nil }
+    func bundledEntries() -> [SongLibraryEntry] {
+        entries
+    }
+
+    func musicXMLURL(fileName _: String) -> URL? {
+        scoreURL
+    }
+
+    func audioURL(fileName _: String) -> URL? {
+        nil
+    }
 }
 
 private func resolverTemporaryDirectory(prefix: String) throws -> URL {

@@ -1,6 +1,6 @@
 import Foundation
 
-enum PracticeSessionFact: Equatable, Sendable {
+enum PracticeSessionFact: Equatable {
     case attemptMatched(sourceMeasureID: PracticeSourceMeasureID, handMode: PracticeHandMode)
     case attemptIssue(sourceMeasureID: PracticeSourceMeasureID, issue: PracticeIssueKind)
     case passageCompleted(handMode: PracticeHandMode)

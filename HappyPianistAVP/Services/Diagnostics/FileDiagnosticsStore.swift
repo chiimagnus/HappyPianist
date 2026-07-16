@@ -134,7 +134,7 @@ actor FileDiagnosticsStore: DiagnosticsStoreProtocol {
 
     private func ensureDirectoryExists() throws {
         try fileManager.createDirectory(
-            at: try paths.rootDirectoryURL(using: fileManager),
+            at: paths.rootDirectoryURL(using: fileManager),
             withIntermediateDirectories: true
         )
     }

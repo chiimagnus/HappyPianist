@@ -1,6 +1,5 @@
 import Foundation
 
-
 public struct RuleTonalCenter: Equatable, Sendable {
     public var rootPC: Int
     public var mode: String
@@ -24,8 +23,6 @@ public struct RuleChordGuess: Equatable, Sendable {
         self.pitchClasses = pitchClasses
     }
 }
-
-
 
 public struct RuleResult: Equatable, Sendable {
     public var notes: [RuleNoteEvent]

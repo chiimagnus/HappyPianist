@@ -1,13 +1,13 @@
 import Foundation
-import Testing
-
 @testable import HappyPianistAVP
+import Testing
 
 struct VDSPAudioSpectrumAnalyzerTests {
     @Test func attackWindowProducesOnset() throws {
         let samples = SyntheticAudioFixtures.harmonic(midiNote: 60, attack: true)
         let frame = try VDSPAudioSpectrumAnalyzer().analyze(
-            samples: samples, sampleRate: 48000, timestamp: .now)
+            samples: samples, sampleRate: 48000, timestamp: .now
+        )
         #expect(frame.isOnset)
         #expect(frame.onsetScore >= 0.25)
     }
@@ -15,7 +15,8 @@ struct VDSPAudioSpectrumAnalyzerTests {
     @Test func sustainedWindowDoesNotBecomeOnset() throws {
         let samples = SyntheticAudioFixtures.harmonic(midiNote: 60, attack: false)
         let frame = try VDSPAudioSpectrumAnalyzer().analyze(
-            samples: samples, sampleRate: 48000, timestamp: .now)
+            samples: samples, sampleRate: 48000, timestamp: .now
+        )
         #expect(frame.isOnset == false)
         #expect(frame.onsetScore < 0.25)
     }

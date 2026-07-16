@@ -1,11 +1,11 @@
 import Foundation
 
-struct PracticeHotspot: Equatable, Sendable {
+struct PracticeHotspot: Equatable {
     let sourceMeasureID: PracticeSourceMeasureID
     let failedAttempts: Int
 }
 
-enum PracticeNextAction: Equatable, Sendable {
+enum PracticeNextAction: Equatable {
     case retryMeasure(PracticeSourceMeasureID)
     case lowerTempo(Double)
     case keepTempo
@@ -13,7 +13,7 @@ enum PracticeNextAction: Equatable, Sendable {
     case continuePassage
 }
 
-struct PracticeFeedbackContext: Equatable, Sendable {
+struct PracticeFeedbackContext: Equatable {
     let passageFacts: [MeasurePracticeFacts]
     let passageSourceMeasureIDs: Set<PracticeSourceMeasureID>
     let configuration: PracticeRoundConfiguration

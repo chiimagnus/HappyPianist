@@ -33,8 +33,8 @@ func transactionRecoveryCleansJournalLessOwnedStageScratch() async throws {
 
     #expect(await fixture.service.recoverPendingTransactions() == .recovered)
     #expect(
-        FileManager.default.fileExists(
-            atPath: try fixture.paths.transactionOperationDirectoryURL(operationID: operationID).path(percentEncoded: false)
+        try FileManager.default.fileExists(
+            atPath: fixture.paths.transactionOperationDirectoryURL(operationID: operationID).path(percentEncoded: false)
         ) == false
     )
 }

@@ -91,7 +91,6 @@ struct PracticeSettingsView: View {
                                 .font(.footnote)
                                 .foregroundStyle(.secondary)
 
-
                             if let message = destinationConnectionViewModel.lastErrorMessage {
                                 Text(message)
                                     .font(.footnote)
@@ -311,7 +310,6 @@ struct PracticeSettingsView: View {
             "本地 rule（无需模型/无需电脑端）"
         }
     }
-
 }
 
 #Preview("练习设置") {

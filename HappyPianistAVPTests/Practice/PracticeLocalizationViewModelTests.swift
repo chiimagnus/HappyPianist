@@ -160,7 +160,9 @@ private final class FakeARTrackingService: ARTrackingServiceProtocol {
         }
     }
 
-    func deviceWorldTransform(atTimestamp _: TimeInterval) -> simd_float4x4? { nil }
+    func deviceWorldTransform(atTimestamp _: TimeInterval) -> simd_float4x4? {
+        nil
+    }
 
     func addWorldAnchor(originFromAnchorTransform _: simd_float4x4) async throws -> UUID {
         UUID()
@@ -171,6 +173,7 @@ private final class FakeARTrackingService: ARTrackingServiceProtocol {
     func start(requirements: ARTrackingRequirements) {
         activeRequirements = requirements
     }
+
     func stop() {}
 }
 

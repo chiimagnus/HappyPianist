@@ -760,7 +760,8 @@ final class SongLibraryViewModel {
         currentListeningEntryID = audioPlaybackController.currentEntryID
         if let currentListeningEntryID {
             isCurrentListeningPlaying = audioPlaybackController.isPlaying(
-                entryID: currentListeningEntryID)
+                entryID: currentListeningEntryID
+            )
             listeningCurrentTime = audioPlaybackController.currentTime
             listeningDuration = audioPlaybackController.duration
         } else {

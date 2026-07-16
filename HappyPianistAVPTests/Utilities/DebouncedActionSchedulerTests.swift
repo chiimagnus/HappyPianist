@@ -29,12 +29,22 @@ func debouncedActionSchedulerRunsOnlyLatestAction() async throws {
 
 private final class LockedInteger: Sendable {
     private let lock = OSAllocatedUnfairLock(initialState: 0)
-    var value: Int { lock.withLock { $0 } }
-    func increment() { lock.withLock { $0 += 1 } }
+    var value: Int {
+        lock.withLock { $0 }
+    }
+
+    func increment() {
+        lock.withLock { $0 += 1 }
+    }
 }
 
 private final class LockedIntegers: Sendable {
     private let lock = OSAllocatedUnfairLock(initialState: [Int]())
-    var value: [Int] { lock.withLock { $0 } }
-    func append(_ value: Int) { lock.withLock { $0.append(value) } }
+    var value: [Int] {
+        lock.withLock { $0 }
+    }
+
+    func append(_ value: Int) {
+        lock.withLock { $0.append(value) }
+    }
 }

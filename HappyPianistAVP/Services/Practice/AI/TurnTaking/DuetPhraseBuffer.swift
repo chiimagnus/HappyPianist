@@ -2,14 +2,14 @@ import Foundation
 
 /// Continuous-duet note context. This buffer never waits for a phrase flush.
 /// It keeps recent notes, current held notes, and can project a rolling prompt at any time.
-struct DuetPhraseBuffer: Sendable {
-    struct HeldNoteState: Equatable, Sendable {
+struct DuetPhraseBuffer {
+    struct HeldNoteState: Equatable {
         let midi: Int
         let velocity: Int
         let startedAtTimestampSeconds: TimeInterval
     }
 
-    struct Snapshot: Equatable, Sendable {
+    struct Snapshot: Equatable {
         let nowTimestampSeconds: TimeInterval
         let promptNotes: [ImprovDialogueNote]
         let heldNotes: [HeldNoteState]
@@ -22,7 +22,7 @@ struct DuetPhraseBuffer: Sendable {
         let activePitchCenter: Double?
     }
 
-    private struct OpenNote: Equatable, Sendable {
+    private struct OpenNote: Equatable {
         let startedAtTimestampSeconds: TimeInterval
         let velocity: Int
     }
@@ -135,7 +135,7 @@ struct DuetPhraseBuffer: Sendable {
         let recentIOIMedianSeconds = Self.median(recentIOIValues)
 
         let densityWindowSeconds: TimeInterval = 1.2
-        let recentDensityCount = rawPromptNotes.filter { $0.time >= nowTimestampSeconds - densityWindowSeconds }.count
+        let recentDensityCount = rawPromptNotes.count(where: { $0.time >= nowTimestampSeconds - densityWindowSeconds })
         let recentNoteDensityPerSecond = Double(recentDensityCount) / densityWindowSeconds
 
         let recentVelocities = rawPromptNotes.suffix(8).map(\.velocity)
@@ -144,8 +144,8 @@ struct DuetPhraseBuffer: Sendable {
         let activePitchSource = heldStates.isEmpty == false
             ? heldStates.map { Double($0.midi) }
             : rawPromptNotes
-                .filter { ($0.time + $0.duration) >= nowTimestampSeconds - 2.0 }
-                .map { Double($0.note) }
+            .filter { ($0.time + $0.duration) >= nowTimestampSeconds - 2.0 }
+            .map { Double($0.note) }
         let activePitchCenter = activePitchSource.isEmpty ? nil : activePitchSource.reduce(0, +) / Double(activePitchSource.count)
 
         return Snapshot(

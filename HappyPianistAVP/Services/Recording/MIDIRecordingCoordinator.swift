@@ -150,8 +150,4 @@ final class MIDIRecordingState {
             midiRecordingAdapter.record(event: event, into: &takeRecorder)
         }
     }
-
-
-
-
 }

@@ -21,7 +21,7 @@ func libraryLoadsInvitationWithoutScoreAccess() async throws {
             progresses: [],
             scoreMetadata: [],
             sessions: []
-        ))
+        )),
     ])
     let fileStore = SnapshotScoreAccessSpy()
     let viewModel = SongLibraryViewModelTestHarness.make(
@@ -124,7 +124,7 @@ func committedReplacementBindsSnapshotGenerationToChangedEntryToken() async thro
     let updatedIndex = SongLibraryIndex(entries: [second], lastSelectedEntryID: songID)
     let importService = CommittedSnapshotImportService(index: updatedIndex, entry: second)
     let repository = FixedHistoryRepository(histories: [
-        songID: currentHistory(for: second)
+        songID: currentHistory(for: second),
     ])
     let viewModel = SongLibraryViewModelTestHarness.make(
         index: SongLibraryIndex(entries: [first], lastSelectedEntryID: songID),
@@ -144,7 +144,7 @@ func committedReplacementBindsSnapshotGenerationToChangedEntryToken() async thro
 func corruptedHistoryIsUnavailableWithoutGlobalErrorAndUsesTypedDiagnostic() async throws {
     let entry = makeLoadingEntry()
     let repository = FixedHistoryRepository(histories: [
-        entry.id: .corrupted(description: "/Users/private/PracticeProgress/progress-v1.json")
+        entry.id: .corrupted(description: "/Users/private/PracticeProgress/progress-v1.json"),
     ])
     let diagnostics = SnapshotDiagnosticsRecorder()
     let viewModel = SongLibraryViewModelTestHarness.make(
@@ -494,8 +494,8 @@ private func makeLoadingSession(songID: UUID, revision: String) -> PracticeSessi
         practiceDay: day,
         endedAt: Date(timeIntervalSince1970: 10),
         lastPersistedAt: Date(timeIntervalSince1970: 10),
-        practiceWindowDurationMilliseconds: 10_000,
-        activePracticeDurationMilliseconds: 5_000,
+        practiceWindowDurationMilliseconds: 10000,
+        activePracticeDurationMilliseconds: 5000,
         termination: .normal
     )!
 }
@@ -507,11 +507,18 @@ private actor FixedHistoryRepository: PracticeProgressRepositoryProtocol {
         self.histories = histories
     }
 
-    func load() -> PracticeProgressLoadResult { .loaded(PracticeProgressDocument()) }
-    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? { nil }
+    func load() -> PracticeProgressLoadResult {
+        .loaded(PracticeProgressDocument())
+    }
+
+    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? {
+        nil
+    }
+
     func history(for songID: UUID) -> PracticeSongHistoryLoadResult {
         histories[songID] ?? emptyHistory(for: songID)
     }
+
     func upsert(_: SongPracticeProgress) {}
     func upsert(_: SongScorePracticeMetadata) {}
     func remove(songID _: UUID) {}
@@ -520,17 +527,28 @@ private actor FixedHistoryRepository: PracticeProgressRepositoryProtocol {
 private actor SuspendedHistoryRepository: PracticeProgressRepositoryProtocol {
     private var continuations: [UUID: CheckedContinuation<PracticeSongHistoryLoadResult, Never>] = [:]
 
-    func load() -> PracticeProgressLoadResult { .loaded(PracticeProgressDocument()) }
-    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? { nil }
+    func load() -> PracticeProgressLoadResult {
+        .loaded(PracticeProgressDocument())
+    }
+
+    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? {
+        nil
+    }
+
     func history(for songID: UUID) async -> PracticeSongHistoryLoadResult {
         await withCheckedContinuation { continuations[songID] = $0 }
     }
+
     func waitForRequest(songID: UUID) async {
-        while continuations[songID] == nil { await Task.yield() }
+        while continuations[songID] == nil {
+            await Task.yield()
+        }
     }
+
     func resume(songID: UUID, result: PracticeSongHistoryLoadResult) {
         continuations.removeValue(forKey: songID)?.resume(returning: result)
     }
+
     func upsert(_: SongPracticeProgress) {}
     func upsert(_: SongScorePracticeMetadata) {}
     func remove(songID _: UUID) {}
@@ -543,21 +561,32 @@ private actor OrderedSuspendedHistoryRepository: PracticeProgressRepositoryProto
 
     private var requests: [Request?] = []
 
-    func load() -> PracticeProgressLoadResult { .loaded(PracticeProgressDocument()) }
-    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? { nil }
+    func load() -> PracticeProgressLoadResult {
+        .loaded(PracticeProgressDocument())
+    }
+
+    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? {
+        nil
+    }
+
     func history(for _: UUID) async -> PracticeSongHistoryLoadResult {
         await withCheckedContinuation { continuation in
             requests.append(Request(continuation: continuation))
         }
     }
+
     func waitForRequestCount(_ count: Int) async {
-        while requests.count < count { await Task.yield() }
+        while requests.count < count {
+            await Task.yield()
+        }
     }
+
     func resumeRequest(at index: Int, result: PracticeSongHistoryLoadResult) {
         guard requests.indices.contains(index), let request = requests[index] else { return }
         requests[index] = nil
         request.continuation.resume(returning: result)
     }
+
     func upsert(_: SongPracticeProgress) {}
     func upsert(_: SongScorePracticeMetadata) {}
     func remove(songID _: UUID) {}
@@ -571,12 +600,19 @@ private actor CountingHistoryRepository: PracticeProgressRepositoryProtocol {
         self.result = result
     }
 
-    func load() -> PracticeProgressLoadResult { .loaded(PracticeProgressDocument()) }
-    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? { nil }
+    func load() -> PracticeProgressLoadResult {
+        .loaded(PracticeProgressDocument())
+    }
+
+    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? {
+        nil
+    }
+
     func history(for _: UUID) -> PracticeSongHistoryLoadResult {
         historyRequestCount += 1
         return result
     }
+
     func upsert(_: SongPracticeProgress) {}
     func upsert(_: SongScorePracticeMetadata) {}
     func remove(songID _: UUID) {}
@@ -584,12 +620,19 @@ private actor CountingHistoryRepository: PracticeProgressRepositoryProtocol {
 
 private actor RequestedSongHistoryRepository: PracticeProgressRepositoryProtocol {
     private(set) var requestedSongIDs: [UUID] = []
-    func load() -> PracticeProgressLoadResult { .loaded(PracticeProgressDocument()) }
-    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? { nil }
+    func load() -> PracticeProgressLoadResult {
+        .loaded(PracticeProgressDocument())
+    }
+
+    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? {
+        nil
+    }
+
     func history(for songID: UUID) -> PracticeSongHistoryLoadResult {
         requestedSongIDs.append(songID)
         return emptyHistory(for: songID)
     }
+
     func upsert(_: SongPracticeProgress) {}
     func upsert(_: SongScorePracticeMetadata) {}
     func remove(songID _: UUID) {}
@@ -598,14 +641,27 @@ private actor RequestedSongHistoryRepository: PracticeProgressRepositoryProtocol
 private actor UpdatingHistoryRepository: PracticeProgressRepositoryProtocol {
     private var result: PracticeSongHistoryLoadResult
     private(set) var historyRequestCount = 0
-    init(result: PracticeSongHistoryLoadResult) { self.result = result }
-    func setResult(_ result: PracticeSongHistoryLoadResult) { self.result = result }
-    func load() -> PracticeProgressLoadResult { .loaded(PracticeProgressDocument()) }
-    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? { nil }
+    init(result: PracticeSongHistoryLoadResult) {
+        self.result = result
+    }
+
+    func setResult(_ result: PracticeSongHistoryLoadResult) {
+        self.result = result
+    }
+
+    func load() -> PracticeProgressLoadResult {
+        .loaded(PracticeProgressDocument())
+    }
+
+    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? {
+        nil
+    }
+
     func history(for _: UUID) -> PracticeSongHistoryLoadResult {
         historyRequestCount += 1
         return result
     }
+
     func upsert(_: SongPracticeProgress) {}
     func upsert(_: SongScorePracticeMetadata) {}
     func remove(songID _: UUID) {}
@@ -615,7 +671,7 @@ private actor ControlledSnapshotRecoveryRepository:
     PracticeProgressRepositoryProtocol,
     PracticeProgressRecoveryProtocol
 {
-    enum Behavior: Sendable {
+    enum Behavior {
         case succeeds
         case fails
         case suspended
@@ -638,12 +694,19 @@ private actor ControlledSnapshotRecoveryRepository:
         self.behavior = behavior
     }
 
-    func load() -> PracticeProgressLoadResult { .loaded(PracticeProgressDocument()) }
-    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? { nil }
+    func load() -> PracticeProgressLoadResult {
+        .loaded(PracticeProgressDocument())
+    }
+
+    func progress(for _: PracticeSongIdentity) -> SongPracticeProgress? {
+        nil
+    }
+
     func history(for songID: UUID) -> PracticeSongHistoryLoadResult {
         historyRequestCount += 1
         return histories[songID] ?? emptyHistory(for: songID)
     }
+
     func upsert(_: SongPracticeProgress) {}
     func upsert(_: SongScorePracticeMetadata) {}
     func remove(songID _: UUID) {}
@@ -665,7 +728,9 @@ private actor ControlledSnapshotRecoveryRepository:
     }
 
     func waitForRecovery() async {
-        while recoveryContinuation == nil { await Task.yield() }
+        while recoveryContinuation == nil {
+            await Task.yield()
+        }
     }
 
     func resumeRecovery() {
@@ -684,7 +749,9 @@ private actor CommittedSnapshotImportService: SongLibraryImportTransactionServic
         self.entry = entry
     }
 
-    func recoverPendingTransactions() -> SongLibraryTransactionRecoveryResult { .recovered }
+    func recoverPendingTransactions() -> SongLibraryTransactionRecoveryResult {
+        .recovered
+    }
 
     func stageImports(from _: [URL]) -> SongLibraryImportBatchStageResult {
         SongLibraryImportBatchStageResult(items: [.staged(descriptor)], blocked: nil)
@@ -701,7 +768,9 @@ private actor CommittedSnapshotImportService: SongLibraryImportTransactionServic
         .blocked(SongLibraryBlockedImport(operationID: operationID, message: "unexpected confirmation"))
     }
 
-    func cancel(operationID _: UUID) -> Bool { true }
+    func cancel(operationID _: UUID) -> Bool {
+        true
+    }
 }
 
 private actor SnapshotScoreAccessSpy: SongFileStoreProtocol {
@@ -710,7 +779,11 @@ private actor SnapshotScoreAccessSpy: SongFileStoreProtocol {
         scoreAccessCount += 1
         return URL(fileURLWithPath: "/unexpected")
     }
-    func audioFileURL(fileName _: String) -> URL { URL(fileURLWithPath: "/audio") }
+
+    func audioFileURL(fileName _: String) -> URL {
+        URL(fileURLWithPath: "/audio")
+    }
+
     func deleteScoreFile(named _: String) {}
     func deleteAudioFile(named _: String) {}
 }

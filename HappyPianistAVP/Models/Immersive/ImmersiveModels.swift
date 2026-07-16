@@ -1,4 +1,4 @@
-struct ARTrackingRequirements: OptionSet, Sendable {
+struct ARTrackingRequirements: OptionSet {
     let rawValue: UInt8
 
     static let hand = Self(rawValue: 1 << 0)

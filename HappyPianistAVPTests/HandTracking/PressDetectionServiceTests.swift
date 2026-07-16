@@ -202,7 +202,6 @@ func pressDetectionUsesKeyboardLocalHitBoundsUnderYawUsingKeyboardGeometry() thr
     #expect(pressed == [61])
 }
 
-
 @Test
 func pressDetectionDoesNotReuseAStalePositionAfterAFingerDisappears() throws {
     let service = PressDetectionService(cooldownSeconds: 0.0)

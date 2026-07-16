@@ -1,6 +1,6 @@
 import Foundation
 
-struct SongPracticeSessionSummaryBuilder: Sendable {
+struct SongPracticeSessionSummaryBuilder {
     func build(
         songID: UUID,
         sessions: [PracticeSessionRecord],
@@ -60,8 +60,8 @@ struct SongPracticeSessionSummaryBuilder: Sendable {
         guard dayCount > 0,
               let latestPracticeActivityAt,
               let latestViewedDay = localDay(
-                for: latestPracticeActivityAt,
-                in: viewingTimeZone
+                  for: latestPracticeActivityAt,
+                  in: viewingTimeZone
               ),
               let latestViewedOrdinal = dayOrdinal(latestViewedDay),
               let viewedDay = localDay(for: viewedAt, in: viewingTimeZone),

@@ -1,6 +1,6 @@
 import Foundation
 
-struct SongLibraryImportTargetVolumeFacts: Equatable, Sendable {
+struct SongLibraryImportTargetVolumeFacts: Equatable {
     let candidateExists: Bool
     let candidateResourceIdentifier: String?
     let fileNamesWithCandidateResourceIdentifier: [String]
@@ -37,7 +37,7 @@ enum SongLibraryImportConflictClassifier {
     }
 }
 
-struct SongLibraryObservedTransactionFile: Equatable, Sendable {
+struct SongLibraryObservedTransactionFile: Equatable {
     let exists: Bool
     let fingerprint: TransactionFileFingerprint?
     let resourceIdentifier: String?
@@ -49,21 +49,21 @@ struct SongLibraryObservedTransactionFile: Equatable, Sendable {
     )
 }
 
-enum SongLibraryRecoveryIndexState: Equatable, Sendable {
+enum SongLibraryRecoveryIndexState: Equatable {
     case expectedEntryPresent
     case newEntryPresent
     case neither
     case conflicting
 }
 
-struct SongLibraryTransactionRecoveryFacts: Equatable, Sendable {
+struct SongLibraryTransactionRecoveryFacts: Equatable {
     let stage: SongLibraryObservedTransactionFile
     let backup: SongLibraryObservedTransactionFile
     let target: SongLibraryObservedTransactionFile
     let indexState: SongLibraryRecoveryIndexState
 }
 
-enum SongLibraryTransactionRecoveryAction: Equatable, Sendable {
+enum SongLibraryTransactionRecoveryAction: Equatable {
     case cleanup
     case rollForwardTarget
     case commitIndex
@@ -82,7 +82,7 @@ enum SongLibraryTransactionRecoveryPlanner {
         if journal.kind == .unclassified {
             guard facts.backup.exists == false,
                   journal.stagedFingerprint == nil
-                    || matchesIfPresent(facts.stage, expected: journal.stagedFingerprint)
+                  || matchesIfPresent(facts.stage, expected: journal.stagedFingerprint)
             else { return .block }
             return .cleanup
         }

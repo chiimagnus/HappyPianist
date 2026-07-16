@@ -1,12 +1,12 @@
 import Foundation
 
-struct ResolvedSongLibraryEntry: Equatable, Sendable {
+struct ResolvedSongLibraryEntry: Equatable {
     let entry: SongLibraryEntry
     let scoreURL: URL
     let diagnosticFileReference: DiagnosticFileReference?
 }
 
-struct SongLibraryEntryResolutionError: Error, Equatable, Sendable {
+struct SongLibraryEntryResolutionError: Error, Equatable {
     let preparationError: PracticePreparationError
     let diagnosticFileReference: DiagnosticFileReference?
 }

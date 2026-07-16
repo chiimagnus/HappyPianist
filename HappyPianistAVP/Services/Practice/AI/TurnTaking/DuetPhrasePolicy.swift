@@ -1,8 +1,8 @@
 import Foundation
 
 /// Continuous-duet helpers for prompt extraction, short-window policy, and response shaping.
-struct DuetPhrasePolicy: Sendable {
-    struct RequestPolicy: Equatable, Sendable {
+enum DuetPhrasePolicy {
+    struct RequestPolicy: Equatable {
         let lookbackSeconds: TimeInterval
         let maxPromptSeconds: TimeInterval
         let requestWindowSeconds: TimeInterval
@@ -10,31 +10,31 @@ struct DuetPhrasePolicy: Sendable {
         let maxTokens: Int
     }
 
-	struct QualityAssessment: Equatable, Sendable {
-		enum Band: String, Equatable, Sendable {
-			case acceptable
-			case risky
-			case reject
-		}
+    struct QualityAssessment: Equatable {
+        enum Band: String, Equatable {
+            case acceptable
+            case risky
+            case reject
+        }
 
-		enum Reason: String, Equatable, Sendable {
-			case registerCollision
-			case densityOverload
-			case excessiveRepetition
-			case fragmentedWindow
-			case extremeLeap
-		}
+        enum Reason: String, Equatable {
+            case registerCollision
+            case densityOverload
+            case excessiveRepetition
+            case fragmentedWindow
+            case extremeLeap
+        }
 
-		let band: Band
-		let score: Int
-		let reasons: [Reason]
-		let noteOnCount: Int
-		let effectiveDurationSeconds: TimeInterval
+        let band: Band
+        let score: Int
+        let reasons: [Reason]
+        let noteOnCount: Int
+        let effectiveDurationSeconds: TimeInterval
 
-		var primaryReason: Reason? {
-			reasons.first
-		}
-	}
+        var primaryReason: Reason? {
+            reasons.first
+        }
+    }
 
     static func requestPolicy(for decision: DuetTurnTakingCore.Decision) -> RequestPolicy {
         RequestPolicy(
@@ -69,112 +69,111 @@ struct DuetPhrasePolicy: Sendable {
         }
     }
 
-	static func assessSchedule(
-		_ schedule: [PracticeSequencerMIDIEvent],
-		noteSnapshot: DuetPhraseBuffer.Snapshot,
-		horizonSeconds: TimeInterval
-	) -> QualityAssessment {
-		let noteOnEvents = schedule.compactMap { event -> (time: TimeInterval, midi: Int)? in
-			guard case let .noteOn(midi, _) = event.kind else { return nil }
-			return (event.timeSeconds, midi)
-		}.sorted { lhs, rhs in
-			if lhs.time != rhs.time { return lhs.time < rhs.time }
-			return lhs.midi < rhs.midi
-		}
+    static func assessSchedule(
+        _ schedule: [PracticeSequencerMIDIEvent],
+        noteSnapshot: DuetPhraseBuffer.Snapshot,
+        horizonSeconds: TimeInterval
+    ) -> QualityAssessment {
+        let noteOnEvents = schedule.compactMap { event -> (time: TimeInterval, midi: Int)? in
+            guard case let .noteOn(midi, _) = event.kind else { return nil }
+            return (event.timeSeconds, midi)
+        }.sorted { lhs, rhs in
+            if lhs.time != rhs.time { return lhs.time < rhs.time }
+            return lhs.midi < rhs.midi
+        }
 
-		guard noteOnEvents.isEmpty == false else {
-			return QualityAssessment(
-				band: .reject,
-				score: 0,
-				reasons: [.fragmentedWindow],
-				noteOnCount: 0,
-				effectiveDurationSeconds: 0
-			)
-		}
+        guard noteOnEvents.isEmpty == false else {
+            return QualityAssessment(
+                band: .reject,
+                score: 0,
+                reasons: [.fragmentedWindow],
+                noteOnCount: 0,
+                effectiveDurationSeconds: 0
+            )
+        }
 
-		let lastNoteEventTime = schedule.compactMap { event -> TimeInterval? in
-			switch event.kind {
-			case .noteOn, .noteOff:
-				event.timeSeconds
-			case .controlChange, .pitchBend, .programChange, .channelPressure, .polyPressure:
-				nil
-			}
-		}.max() ?? 0
-		let effectiveDurationSeconds = min(max(0.05, lastNoteEventTime), max(0.2, horizonSeconds))
-		let density = Double(noteOnEvents.count) / effectiveDurationSeconds
-		let repeatedRunLength = maxRepeatedRunLength(noteOnEvents.map(\.midi))
-		let maxLeap = maxMelodicLeap(noteOnEvents)
-		let collisionCount = noteOnEvents.filter { event in
-			let nearHeldNote = noteSnapshot.heldNoteMIDIs.contains(where: { abs($0 - event.midi) <= 2 })
-			let nearPitchCenter = noteSnapshot.activePitchCenter.map { abs($0 - Double(event.midi)) <= 1.5 } ?? false
-			return nearHeldNote || nearPitchCenter
-		}.count
-		let isFragmentedWindow = noteOnEvents.count <= 1 && effectiveDurationSeconds < 0.12
+        let lastNoteEventTime = schedule.compactMap { event -> TimeInterval? in
+            switch event.kind {
+            case .noteOn, .noteOff:
+                event.timeSeconds
+            case .controlChange, .pitchBend, .programChange, .channelPressure, .polyPressure:
+                nil
+            }
+        }.max() ?? 0
+        let effectiveDurationSeconds = min(max(0.05, lastNoteEventTime), max(0.2, horizonSeconds))
+        let density = Double(noteOnEvents.count) / effectiveDurationSeconds
+        let repeatedRunLength = maxRepeatedRunLength(noteOnEvents.map(\.midi))
+        let maxLeap = maxMelodicLeap(noteOnEvents)
+        let collisionCount = noteOnEvents.count(where: { event in
+            let nearHeldNote = noteSnapshot.heldNoteMIDIs.contains(where: { abs($0 - event.midi) <= 2 })
+            let nearPitchCenter = noteSnapshot.activePitchCenter.map { abs($0 - Double(event.midi)) <= 1.5 } ?? false
+            return nearHeldNote || nearPitchCenter
+        })
+        let isFragmentedWindow = noteOnEvents.count <= 1 && effectiveDurationSeconds < 0.12
 
-		var score = 100
-		var reasons: [QualityAssessment.Reason] = []
-		var rejected = false
+        var score = 100
+        var reasons: [QualityAssessment.Reason] = []
+        var rejected = false
 
-		if isFragmentedWindow {
-			reasons.append(.fragmentedWindow)
-			score -= 70
-			rejected = true
-		}
+        if isFragmentedWindow {
+            reasons.append(.fragmentedWindow)
+            score -= 70
+            rejected = true
+        }
 
-		if density >= 9 {
-			reasons.append(.densityOverload)
-			score -= 50
-			rejected = true
-		} else if density >= 5 {
-			reasons.append(.densityOverload)
-			score -= 25
-		}
+        if density >= 9 {
+            reasons.append(.densityOverload)
+            score -= 50
+            rejected = true
+        } else if density >= 5 {
+            reasons.append(.densityOverload)
+            score -= 25
+        }
 
-		if repeatedRunLength >= 4 {
-			reasons.append(.excessiveRepetition)
-			score -= 45
-			rejected = true
-		} else if repeatedRunLength == 3 {
-			reasons.append(.excessiveRepetition)
-			score -= 20
-		}
+        if repeatedRunLength >= 4 {
+            reasons.append(.excessiveRepetition)
+            score -= 45
+            rejected = true
+        } else if repeatedRunLength == 3 {
+            reasons.append(.excessiveRepetition)
+            score -= 20
+        }
 
-		if maxLeap >= 24 {
-			reasons.append(.extremeLeap)
-			score -= 45
-			rejected = true
-		} else if maxLeap >= 16 {
-			reasons.append(.extremeLeap)
-			score -= 20
-		}
+        if maxLeap >= 24 {
+            reasons.append(.extremeLeap)
+            score -= 45
+            rejected = true
+        } else if maxLeap >= 16 {
+            reasons.append(.extremeLeap)
+            score -= 20
+        }
 
-		if collisionCount >= max(2, noteOnEvents.count / 2) {
-			reasons.append(.registerCollision)
-			score -= 35
-			rejected = true
-		} else if collisionCount > 0 {
-			reasons.append(.registerCollision)
-			score -= 15
-		}
+        if collisionCount >= max(2, noteOnEvents.count / 2) {
+            reasons.append(.registerCollision)
+            score -= 35
+            rejected = true
+        } else if collisionCount > 0 {
+            reasons.append(.registerCollision)
+            score -= 15
+        }
 
-		score = max(0, score)
-		let band: QualityAssessment.Band
-		if rejected || score < 45 {
-			band = .reject
-		} else if reasons.isEmpty == false || score < 80 {
-			band = .risky
-		} else {
-			band = .acceptable
-		}
+        score = max(0, score)
+        let band: QualityAssessment.Band = if rejected || score < 45 {
+            .reject
+        } else if reasons.isEmpty == false || score < 80 {
+            .risky
+        } else {
+            .acceptable
+        }
 
-		return QualityAssessment(
-			band: band,
-			score: score,
-			reasons: reasons,
-			noteOnCount: noteOnEvents.count,
-			effectiveDurationSeconds: effectiveDurationSeconds
-		)
-	}
+        return QualityAssessment(
+            band: band,
+            score: score,
+            reasons: reasons,
+            noteOnCount: noteOnEvents.count,
+            effectiveDurationSeconds: effectiveDurationSeconds
+        )
+    }
 
     static func shapeSchedule(
         _ schedule: [PracticeSequencerMIDIEvent],
@@ -275,67 +274,67 @@ struct DuetPhrasePolicy: Sendable {
             }
         }
 
-		let guardedSchedule = applyQualityGuardrails(
-			to: shaped.sorted(by: sortEvents),
-			noteSnapshot: noteSnapshot,
-			horizonSeconds: clippedHorizon,
-			controlMode: controlMode
-		)
-		return closeOpenNotes(in: guardedSchedule, at: clippedHorizon)
-	}
+        let guardedSchedule = applyQualityGuardrails(
+            to: shaped.sorted(by: sortEvents),
+            noteSnapshot: noteSnapshot,
+            horizonSeconds: clippedHorizon,
+            controlMode: controlMode
+        )
+        return closeOpenNotes(in: guardedSchedule, at: clippedHorizon)
+    }
 
-	private static func closeOpenNotes(
-		in schedule: [PracticeSequencerMIDIEvent],
-		at horizonSeconds: TimeInterval
-	) -> [PracticeSequencerMIDIEvent] {
-		guard schedule.isEmpty == false else { return [] }
+    private static func closeOpenNotes(
+        in schedule: [PracticeSequencerMIDIEvent],
+        at horizonSeconds: TimeInterval
+    ) -> [PracticeSequencerMIDIEvent] {
+        guard schedule.isEmpty == false else { return [] }
 
-		var openDepths: [Int: Int] = [:]
-		for event in schedule.sorted(by: sortEvents) {
-			switch event.kind {
-			case let .noteOn(midi, _):
-				openDepths[midi, default: 0] += 1
-			case let .noteOff(midi):
-				guard (openDepths[midi] ?? 0) > 0 else { continue }
-				openDepths[midi, default: 0] -= 1
-			case .controlChange, .pitchBend, .programChange, .channelPressure, .polyPressure:
-				continue
-			}
-		}
+        var openDepths: [Int: Int] = [:]
+        for event in schedule.sorted(by: sortEvents) {
+            switch event.kind {
+            case let .noteOn(midi, _):
+                openDepths[midi, default: 0] += 1
+            case let .noteOff(midi):
+                guard (openDepths[midi] ?? 0) > 0 else { continue }
+                openDepths[midi, default: 0] -= 1
+            case .controlChange, .pitchBend, .programChange, .channelPressure, .polyPressure:
+                continue
+            }
+        }
 
-		var closed = schedule
-		for (midi, openDepth) in openDepths where openDepth > 0 {
-			for _ in 0 ..< openDepth {
-				closed.append(
-					PracticeSequencerMIDIEvent(
-						timeSeconds: horizonSeconds,
-						kind: .noteOff(midi: midi)
-					)
-				)
-			}
-		}
-		return closed.sorted(by: sortEvents)
-	}
+        var closed = schedule
+        for (midi, openDepth) in openDepths where openDepth > 0 {
+            for _ in 0 ..< openDepth {
+                closed.append(
+                    PracticeSequencerMIDIEvent(
+                        timeSeconds: horizonSeconds,
+                        kind: .noteOff(midi: midi)
+                    )
+                )
+            }
+        }
+        return closed.sorted(by: sortEvents)
+    }
 
-	private static func maxMelodicLeap(_ events: [(time: TimeInterval, midi: Int)]) -> Int {
-		let groups = Dictionary(grouping: events, by: { $0.time })
-		let onsetCenters = groups.keys.sorted().compactMap { onset -> Double? in
-			guard let group = groups[onset], group.isEmpty == false else { return nil }
-			return Double(group.map(\.midi).reduce(0, +)) / Double(group.count)
-		}
-		return zip(onsetCenters.dropFirst(), onsetCenters)
-			.map { Int(abs($0 - $1).rounded()) }
-			.max() ?? 0
-	}
+    private static func maxMelodicLeap(_ events: [(time: TimeInterval, midi: Int)]) -> Int {
+        let groups = Dictionary(grouping: events, by: { $0.time })
+        let onsetCenters = groups.keys.sorted().compactMap { onset -> Double? in
+            guard let group = groups[onset], group.isEmpty == false else { return nil }
+            return Double(group.map(\.midi).reduce(0, +)) / Double(group.count)
+        }
+        return zip(onsetCenters.dropFirst(), onsetCenters)
+            .map { Int(abs($0 - $1).rounded()) }
+            .max() ?? 0
+    }
 
     private static func adjustedVelocity(_ velocity: UInt8, mode: DuetTurnTakingCore.Mode) -> UInt8 {
         switch mode {
         case .support:
-            return UInt8(clamping: Int((Double(velocity) * 0.85).rounded()))
+            UInt8(clamping: Int((Double(velocity) * 0.85).rounded()))
         case .sparse:
-            return UInt8(clamping: Int((Double(velocity) * 0.65).rounded()))
+            UInt8(clamping: Int((Double(velocity) * 0.65).rounded()))
         case .yield, .silent:
-            return 0
+            0
         }
     }
 
@@ -350,119 +349,119 @@ struct DuetPhrasePolicy: Sendable {
     private static func eventPriority(_ kind: PracticeSequencerMIDIEvent.Kind) -> Int {
         switch kind {
         case .controlChange:
-            return 0
+            0
         case .programChange, .pitchBend, .channelPressure, .polyPressure:
-            return 1
+            1
         case .noteOff:
-            return 2
+            2
         case .noteOn:
-            return 3
+            3
         }
     }
 
     private static func tieBreaker(_ kind: PracticeSequencerMIDIEvent.Kind) -> Int {
         switch kind {
         case let .controlChange(controller, value):
-            return Int(controller) * 256 + Int(value)
+            Int(controller) * 256 + Int(value)
         case let .noteOff(midi):
-            return midi
+            midi
         case let .noteOn(midi, velocity):
-            return midi * 256 + Int(velocity)
+            midi * 256 + Int(velocity)
         case let .pitchBend(value):
-            return 1_000_000 + Int(value)
+            1_000_000 + Int(value)
         case let .programChange(program):
-            return 2_000_000 + Int(program)
+            2_000_000 + Int(program)
         case let .channelPressure(value):
-            return 3_000_000 + Int(value)
+            3_000_000 + Int(value)
         case let .polyPressure(midi, value):
-            return 4_000_000 + midi * 256 + Int(value)
+            4_000_000 + midi * 256 + Int(value)
         }
     }
 
-	private static func applyQualityGuardrails(
-		to schedule: [PracticeSequencerMIDIEvent],
-		noteSnapshot: DuetPhraseBuffer.Snapshot,
-		horizonSeconds: TimeInterval,
-		controlMode: DuetTurnTakingCore.Mode
-	) -> [PracticeSequencerMIDIEvent] {
-		let assessment = assessSchedule(schedule, noteSnapshot: noteSnapshot, horizonSeconds: horizonSeconds)
-		switch assessment.band {
-		case .acceptable:
-			return schedule
-		case .reject:
-			return []
-		case .risky:
-			let salvaged = salvageSchedule(schedule, controlMode: controlMode, horizonSeconds: horizonSeconds)
-			let salvagedAssessment = assessSchedule(salvaged, noteSnapshot: noteSnapshot, horizonSeconds: horizonSeconds)
-			return salvagedAssessment.band == .reject ? [] : salvaged
-		}
-	}
+    private static func applyQualityGuardrails(
+        to schedule: [PracticeSequencerMIDIEvent],
+        noteSnapshot: DuetPhraseBuffer.Snapshot,
+        horizonSeconds: TimeInterval,
+        controlMode: DuetTurnTakingCore.Mode
+    ) -> [PracticeSequencerMIDIEvent] {
+        let assessment = assessSchedule(schedule, noteSnapshot: noteSnapshot, horizonSeconds: horizonSeconds)
+        switch assessment.band {
+        case .acceptable:
+            return schedule
+        case .reject:
+            return []
+        case .risky:
+            let salvaged = salvageSchedule(schedule, controlMode: controlMode, horizonSeconds: horizonSeconds)
+            let salvagedAssessment = assessSchedule(salvaged, noteSnapshot: noteSnapshot, horizonSeconds: horizonSeconds)
+            return salvagedAssessment.band == .reject ? [] : salvaged
+        }
+    }
 
-	private static func salvageSchedule(
-		_ schedule: [PracticeSequencerMIDIEvent],
-		controlMode: DuetTurnTakingCore.Mode,
-		horizonSeconds: TimeInterval
-	) -> [PracticeSequencerMIDIEvent] {
-		var droppedNoteDepths: [Int: Int] = [:]
-		var keptNoteOnCount = 0
-		let velocityScale: Double = controlMode == .support ? 0.75 : 0.65
-		var salvaged: [PracticeSequencerMIDIEvent] = []
+    private static func salvageSchedule(
+        _ schedule: [PracticeSequencerMIDIEvent],
+        controlMode: DuetTurnTakingCore.Mode,
+        horizonSeconds: TimeInterval
+    ) -> [PracticeSequencerMIDIEvent] {
+        var droppedNoteDepths: [Int: Int] = [:]
+        var keptNoteOnCount = 0
+        let velocityScale: Double = controlMode == .support ? 0.75 : 0.65
+        var salvaged: [PracticeSequencerMIDIEvent] = []
 
-		for event in schedule.sorted(by: sortEvents) {
-			switch event.kind {
-			case let .noteOn(midi, velocity):
-				let keepThisNote = keptNoteOnCount.isMultiple(of: 2)
-				keptNoteOnCount += 1
-				guard keepThisNote else {
-					droppedNoteDepths[midi, default: 0] += 1
-					continue
-				}
-				salvaged.append(
-					PracticeSequencerMIDIEvent(
-						timeSeconds: min(horizonSeconds, max(0, event.timeSeconds)),
-						kind: .noteOn(
-							midi: midi,
-							velocity: UInt8(clamping: Int((Double(velocity) * velocityScale).rounded()))
-						)
-					)
-				)
+        for event in schedule.sorted(by: sortEvents) {
+            switch event.kind {
+            case let .noteOn(midi, velocity):
+                let keepThisNote = keptNoteOnCount.isMultiple(of: 2)
+                keptNoteOnCount += 1
+                guard keepThisNote else {
+                    droppedNoteDepths[midi, default: 0] += 1
+                    continue
+                }
+                salvaged.append(
+                    PracticeSequencerMIDIEvent(
+                        timeSeconds: min(horizonSeconds, max(0, event.timeSeconds)),
+                        kind: .noteOn(
+                            midi: midi,
+                            velocity: UInt8(clamping: Int((Double(velocity) * velocityScale).rounded()))
+                        )
+                    )
+                )
 
-			case let .noteOff(midi):
-				if (droppedNoteDepths[midi] ?? 0) > 0 {
-					droppedNoteDepths[midi, default: 0] -= 1
-					continue
-				}
-				salvaged.append(
-					PracticeSequencerMIDIEvent(
-						timeSeconds: min(horizonSeconds, max(0, event.timeSeconds)),
-						kind: .noteOff(midi: midi)
-					)
-				)
+            case let .noteOff(midi):
+                if (droppedNoteDepths[midi] ?? 0) > 0 {
+                    droppedNoteDepths[midi, default: 0] -= 1
+                    continue
+                }
+                salvaged.append(
+                    PracticeSequencerMIDIEvent(
+                        timeSeconds: min(horizonSeconds, max(0, event.timeSeconds)),
+                        kind: .noteOff(midi: midi)
+                    )
+                )
 
-			case .controlChange, .pitchBend, .programChange, .channelPressure, .polyPressure:
-				salvaged.append(event)
-			}
-		}
+            case .controlChange, .pitchBend, .programChange, .channelPressure, .polyPressure:
+                salvaged.append(event)
+            }
+        }
 
-		return salvaged.sorted(by: sortEvents)
-	}
+        return salvaged.sorted(by: sortEvents)
+    }
 
-	private static func maxRepeatedRunLength(_ values: [Int]) -> Int {
-		guard let first = values.first else { return 0 }
-		var maxRunLength = 1
-		var currentRunLength = 1
-		var previous = first
+    private static func maxRepeatedRunLength(_ values: [Int]) -> Int {
+        guard let first = values.first else { return 0 }
+        var maxRunLength = 1
+        var currentRunLength = 1
+        var previous = first
 
-		for value in values.dropFirst() {
-			if value == previous {
-				currentRunLength += 1
-			} else {
-				maxRunLength = max(maxRunLength, currentRunLength)
-				currentRunLength = 1
-				previous = value
-			}
-		}
+        for value in values.dropFirst() {
+            if value == previous {
+                currentRunLength += 1
+            } else {
+                maxRunLength = max(maxRunLength, currentRunLength)
+                currentRunLength = 1
+                previous = value
+            }
+        }
 
-		return max(maxRunLength, currentRunLength)
-	}
+        return max(maxRunLength, currentRunLength)
+    }
 }

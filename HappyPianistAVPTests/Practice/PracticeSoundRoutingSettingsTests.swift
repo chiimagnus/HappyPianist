@@ -54,6 +54,7 @@ struct PracticeSoundRoutingSettingsTests {
         let provider = UserDefaultsPracticeSessionSettingsProvider(userDefaults: userDefaults)
         #expect(provider.soundRoutingSettings.midiDestinationUniqueID == nil)
     }
+
     @Test func roundDefaultsStoreKeepsExistingPreferenceKeys() throws {
         let suiteName = "PracticeSoundRoutingSettingsTests.\(UUID().uuidString)"
         let userDefaults = try #require(UserDefaults(suiteName: suiteName))
@@ -81,5 +82,4 @@ struct PracticeSoundRoutingSettingsTests {
         #expect(store.loopEnabled)
         #expect(store.requiredSuccesses == 4)
     }
-
 }

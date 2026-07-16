@@ -1,10 +1,10 @@
 import Foundation
 
-struct SongLibraryBootstrapFailure: Equatable, Sendable {
+struct SongLibraryBootstrapFailure: Equatable {
     let message: String
 }
 
-enum SongLibraryBootstrapSnapshot: Equatable, Sendable {
+enum SongLibraryBootstrapSnapshot: Equatable {
     case loaded(index: SongLibraryIndex, bundledEntries: [SongLibraryEntry])
     case blocked(failure: SongLibraryBootstrapFailure)
 }
@@ -34,8 +34,8 @@ actor LiveSongLibraryBootstrapLoader: SongLibraryBootstrapLoading {
             return .blocked(failure: SongLibraryBootstrapFailure(message: blocked.message))
         }
         do {
-            return .loaded(
-                index: try await indexStore.load(),
+            return try await .loaded(
+                index: indexStore.load(),
                 bundledEntries: bundledProvider.bundledEntries()
             )
         } catch {

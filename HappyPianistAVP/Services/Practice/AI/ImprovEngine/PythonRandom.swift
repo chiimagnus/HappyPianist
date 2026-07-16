@@ -1,6 +1,5 @@
 import Foundation
 
-
 public struct PythonRandom {
     private static let n = 624
     private static let m = 397
@@ -40,7 +39,6 @@ public struct PythonRandom {
         let b = nextUInt32() >> 6
         return (Double(a) * 67_108_864.0 + Double(b)) * (1.0 / 9_007_199_254_740_992.0)
     }
-
 
     public mutating func randint(_ a: Int, _ b: Int) -> Int {
         precondition(a <= b, "empty range for randint()")
