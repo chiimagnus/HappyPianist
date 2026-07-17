@@ -58,8 +58,8 @@ struct LibraryDeleteHoldView: View {
                 isBundled
                     ? "内置曲目不能删除"
                     : allowsDestructiveActions
-                        ? isHolding ? "继续按住删除" : "下拽唱片删除"
-                        : "导入期间不能删除",
+                    ? isHolding ? "继续按住删除" : "下拽唱片删除"
+                    : "导入期间不能删除",
                 systemImage: "trash"
             )
             .font(.subheadline)

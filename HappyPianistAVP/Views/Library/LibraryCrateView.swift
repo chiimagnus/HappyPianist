@@ -190,7 +190,7 @@ struct LibraryCrateView: View {
                     updateDeletionHold(for: value.translation.height)
                 }
             }
-            .onEnded { value in
+            .onEnded { _ in
                 if hasVerticalDragIntent,
                    liftOffset >= LibraryCrateDragConfiguration.trigger,
                    didDeleteDuringDrag == false
@@ -403,7 +403,7 @@ enum LibraryRecordScrollSelectionDecision {
         onImportMusicXML: {},
         onImmediateDelete: { _ in }
     )
-    .frame(width: 1_140, height: 500)
+    .frame(width: 1140, height: 500)
 }
 
 private enum LibraryCratePreviewFixture {

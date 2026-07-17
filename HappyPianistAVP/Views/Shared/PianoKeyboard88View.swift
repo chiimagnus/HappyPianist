@@ -10,7 +10,7 @@ struct PianoKeyboard88Highlight: Equatable {
 }
 
 struct PianoKeyboard88View: View {
-    static let aspectRatio: CGFloat = CGFloat(PianoKeyboardTopology.whiteKeyCount) / 8
+    static let aspectRatio: CGFloat = .init(PianoKeyboardTopology.whiteKeyCount) / 8
 
     let highlightByMIDINote: [Int: PianoKeyboard88Highlight]
     let highlightOccurrenceID: Int?
