@@ -119,6 +119,36 @@ private struct FakeSettingsProvider: PracticeSessionSettingsProviderProtocol {
 
 @Test
 @MainActor
+func releasedServiceStopsItsControlLoop() async {
+    weak var releasedService: AIPerformanceService?
+    let playbackService = NonAdvancingPlaybackService()
+    let factory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { playbackService },
+        makeExternalMIDIPlaybackService: { _ in playbackService }
+    )
+
+    do {
+        let service = AIPerformanceService(
+            sleepFor: { _ in await Task.yield() },
+            discoveryOrchestrator: FakeDiscoveryOrchestrator(),
+            backendRegistry: .init(),
+            selectedBackendKind: { .localRule },
+            aiPlaybackServiceFactory: { factory },
+            onStateChanged: { _ in }
+        )
+        releasedService = service
+        service.setEnabled(true)
+        await Task.yield()
+    }
+
+    for _ in 0 ..< 20 where releasedService != nil {
+        try? await Task.sleep(for: .milliseconds(1))
+    }
+    #expect(releasedService == nil)
+}
+
+@Test
+@MainActor
 func disablingServiceDropsLateBackendResponses() async {
     var nowUptime: TimeInterval = 0
 
