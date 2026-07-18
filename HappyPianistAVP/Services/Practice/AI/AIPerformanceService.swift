@@ -295,13 +295,18 @@ final class AIPerformanceService {
 
     private func startControlLoop() {
         controlLoopTask?.cancel()
+        scheduleNextControlTick()
+    }
+
+    private func scheduleNextControlTick() {
         controlLoopTask = Task { @MainActor [weak self] in
-            guard let self else { return }
-            while Task.isCancelled == false, isEnabled {
-                await runContinuousControlTick()
-                await sleepFor(.milliseconds(100))
-                await Task.yield()
-            }
+            guard let self, self.isEnabled else { return }
+            await self.runContinuousControlTick()
+            await self.sleepFor(.milliseconds(100))
+            // ponytail: injected clocks may return immediately; prevent a MainActor hot loop.
+            try? await Task.sleep(for: .milliseconds(1))
+            guard Task.isCancelled == false, self.isEnabled else { return }
+            self.scheduleNextControlTick()
         }
     }
 
