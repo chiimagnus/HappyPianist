@@ -35,9 +35,9 @@ struct GrandStaffNotationLayoutService {
     ) -> GrandStaffNotationLayout {
         let sourceNotesByID = Dictionary(grouping: projection.sourceNotes, by: \.id)
             .compactMapValues { notes in notes.count == 1 ? notes[0] : nil }
-        let activeOccurrenceIDs = projection.activeState.occurrenceIDs
+        let activeEventIDs = projection.activeState.occurrenceIDs
         let layoutNotes = projection.performedOccurrences.enumerated().compactMap { index, occurrence -> LayoutNote? in
-            guard let source = sourceNotesByID[occurrence.primarySourceNoteID],
+            guard let source = sourceNotesByID[occurrence.sourceNoteID],
                   source.isRest == false
             else {
                 return nil
@@ -50,8 +50,8 @@ struct GrandStaffNotationLayoutService {
                 hand: occurrence.handAssignment.hand,
                 midiNote: source.midiNote ?? occurrence.midiNote,
                 guideID: index + 1,
-                tick: occurrence.performedOnTick,
-                isHighlighted: activeOccurrenceIDs.contains(occurrence.id),
+                tick: occurrence.writtenOnTick,
+                isHighlighted: occurrence.performanceEventIDs.contains { activeEventIDs.contains($0) },
                 fingeringText: source.fingeringText,
                 noteValue: noteValue(forDurationTicks: writtenDurationTicks),
                 durationTicks: writtenDurationTicks,
