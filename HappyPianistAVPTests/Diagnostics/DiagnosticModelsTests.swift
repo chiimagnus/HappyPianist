@@ -92,3 +92,34 @@ func diagnosticsDateTextBuildsStableTokensWithoutSharedFormatters() throws {
     #expect(DiagnosticsDateText.archiveToken(date, calendar: calendar) == "20260702-030405")
     #expect(DiagnosticsDateText.iso8601(date).hasPrefix("2026-07-02T03:04:05"))
 }
+
+@Test
+func pianoPerformanceDiagnosticUsesOnlyLowCardinalityWhitelistedFields() {
+    let sample = PianoPerformanceDiagnosticSample(
+        stage: .plan,
+        outcome: .mismatch,
+        capability: .performancePlan,
+        itemCount: 12,
+        durationBucket: .underFiftyMilliseconds,
+        exportable: true
+    )
+    let event = sample.diagnosticEvent
+
+    #expect(event.code == .pianoPerformancePipeline)
+    #expect(event.category == .pianoPerformance)
+    #expect(event.persistence == .exportable)
+    #expect(event.reason == "outcome=mismatch;capability=performancePlan;count=12;duration=underFiftyMilliseconds")
+    #expect(event.file == nil)
+    #expect(event.safeFileName == nil)
+    #expect(event.reason.contains("/") == false)
+    #expect(event.reason.contains(".musicxml") == false)
+}
+
+@Test
+func pianoPerformanceDurationBucketsAreStable() {
+    #expect(PianoPerformanceDurationBucket(seconds: 0.001) == .underTenMilliseconds)
+    #expect(PianoPerformanceDurationBucket(seconds: 0.02) == .underFiftyMilliseconds)
+    #expect(PianoPerformanceDurationBucket(seconds: 0.1) == .underTwoHundredMilliseconds)
+    #expect(PianoPerformanceDurationBucket(seconds: 0.5) == .underOneSecond)
+    #expect(PianoPerformanceDurationBucket(seconds: 2) == .oneSecondOrMore)
+}

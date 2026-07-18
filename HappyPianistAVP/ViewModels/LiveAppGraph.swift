@@ -9,12 +9,14 @@ struct LiveAppGraph {
     let practiceLaunchViewModel: PracticeLaunchViewModel
     let practiceSessionRecorder: PracticeSessionRecorder
     let diagnosticsViewModel: DiagnosticsViewModel
+    let pianoPerformanceDiagnostics: PianoPerformanceDiagnostics
 
     static func make() -> LiveAppGraph {
         let diagnosticsStore: any DiagnosticsStoreProtocol = FileDiagnosticsStore()
         let diagnosticsReporter: any DiagnosticsReporting = AppDiagnosticsReporter(
             exportStore: diagnosticsStore
         )
+        let pianoPerformanceDiagnostics = PianoPerformanceDiagnostics(reporter: diagnosticsReporter)
         let worldAnchorCalibrationStore = WorldAnchorCalibrationStore()
         let appState = AppState(
             arTrackingService: ARTrackingService(),
@@ -237,7 +239,8 @@ struct LiveAppGraph {
             songLibraryViewModel: songLibraryViewModel,
             practiceLaunchViewModel: practiceLaunchViewModel,
             practiceSessionRecorder: practiceSessionRecorder,
-            diagnosticsViewModel: diagnosticsViewModel
+            diagnosticsViewModel: diagnosticsViewModel,
+            pianoPerformanceDiagnostics: pianoPerformanceDiagnostics
         )
     }
 }

@@ -18,6 +18,7 @@ enum DiagnosticCategory: String, Codable, CaseIterable {
     case immersiveSpace
     case ai
     case diagnostics
+    case pianoPerformance
 }
 
 enum DiagnosticPersistence: String, Codable {
@@ -64,6 +65,7 @@ enum DiagnosticCode: String, Codable, CaseIterable {
     case diagnosticsRetentionCleanupFailed = "DIAGNOSTICS_RETENTION_CLEANUP_FAILED"
     case diagnosticsExportFailed = "DIAGNOSTICS_EXPORT_FAILED"
     case diagnosticsCleared = "DIAGNOSTICS_CLEARED"
+    case pianoPerformancePipeline = "PIANO_PERFORMANCE_PIPELINE"
 }
 
 struct DiagnosticFileReference: Codable, Equatable {
