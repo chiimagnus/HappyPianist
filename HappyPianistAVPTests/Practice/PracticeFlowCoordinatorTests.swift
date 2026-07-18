@@ -12,7 +12,7 @@ func enterPracticeStepCallsOpenImmersive() async {
     viewModel.setPracticeVirtualPianoEnabled(true)
     practiceSetupState.setImportedSteps(from: PreparedPractice(
         identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "test"),
-        steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
         file: ImportedMusicXMLFile(fileName: "Test", storedURL: URL(fileURLWithPath: "/dev/null"), importedAt: Date()),
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
         pedalTimeline: nil,

@@ -13,7 +13,7 @@ func descriptorsAreEmptyWhenCurrentStepIsNil() {
 
 @Test
 func descriptorsAreEmptyWhenKeyboardGeometryIsNil() {
-    let step = PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)])
+    let step = PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)])
     let result = PianoGuideBeamDescriptor.makeDescriptors(
         highlightGuide: makeGuide(from: step),
         keyboardGeometry: nil
@@ -24,8 +24,8 @@ func descriptorsAreEmptyWhenKeyboardGeometryIsNil() {
 @Test
 func descriptorsDeduplicateNotesAndAlignToSurface() {
     let step = PracticeStep(tick: 0, notes: [
-        PracticeStepNote(midiNote: 60, staff: nil),
-        PracticeStepNote(midiNote: 60, staff: nil),
+        PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown),
+        PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown),
     ])
     let geometry = makeGeometry()
 
@@ -45,7 +45,7 @@ func descriptorsDeduplicateNotesAndAlignToSurface() {
 
 @Test
 func descriptorUsesFootprintAndMinimumSizes() {
-    let step = PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)])
+    let step = PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)])
     let geometry = makeGeometry(beamWidth: 0.002, beamDepth: 0.006)
 
     let result = PianoGuideBeamDescriptor.makeDescriptors(
@@ -63,7 +63,7 @@ func descriptorUsesFootprintAndMinimumSizes() {
 
 @Test
 func descriptorIDIncludesGuideIDToSupportRepeatedOccurrences() {
-    let step = PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)])
+    let step = PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)])
     let geometry = makeGeometry()
 
     let guide = makeGuide(from: step)
@@ -122,7 +122,8 @@ private func makeGuide(from step: PracticeStep) -> PianoHighlightGuide {
             velocity: note.velocity,
             onTick: step.tick + note.onTickOffset,
             offTick: step.tick + note.onTickOffset + 1,
-            fingeringText: note.fingeringText
+            fingeringText: note.fingeringText,
+            handAssignment: .unknown
         )
     }
     return PianoHighlightGuide(

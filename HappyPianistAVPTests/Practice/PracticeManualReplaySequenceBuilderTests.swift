@@ -10,8 +10,8 @@ func manualReplayBuilderInsertsAllNotesOffAtEachStepStart() {
         tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope)]
     )
     let steps: [PracticeStep] = [
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
-        PracticeStep(tick: 120, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
+        PracticeStep(tick: 120, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
     ]
 
     let builder = PracticeManualReplaySequenceBuilder(chordDurationSeconds: 0.35, velocity: 96)
@@ -36,9 +36,9 @@ func manualReplayBuilderUsesStepNoteVelocities() {
     )
     let steps: [PracticeStep] = [
         PracticeStep(tick: 0, notes: [
-            PracticeStepNote(midiNote: 60, staff: 1, velocity: 22),
-            PracticeStepNote(midiNote: 60, staff: 1, velocity: 88),
-            PracticeStepNote(midiNote: 64, staff: 1, velocity: 40),
+            PracticeStepNote(midiNote: 60, staff: 1, velocity: 22, handAssignment: .unknown),
+            PracticeStepNote(midiNote: 60, staff: 1, velocity: 88, handAssignment: .unknown),
+            PracticeStepNote(midiNote: 64, staff: 1, velocity: 40, handAssignment: .unknown),
         ]),
     ]
 

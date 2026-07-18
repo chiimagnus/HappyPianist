@@ -118,7 +118,12 @@ final class PianoGuideOverlayController {
         var position = descriptor.positionLocal
         if differentiateWithoutColor {
             scale.x *= 0.5
-            position.x += descriptor.sizeLocal.x * (descriptor.hand == .left ? -0.25 : 0.25)
+            let handOffset: Float = switch descriptor.hand {
+            case .left: -0.25
+            case .right: 0.25
+            case .unknown: 0
+            }
+            position.x += descriptor.sizeLocal.x * handOffset
             if descriptor.phase == .triggered {
                 scale.z *= 0.65
                 position.z += descriptor.sizeLocal.z * 0.175

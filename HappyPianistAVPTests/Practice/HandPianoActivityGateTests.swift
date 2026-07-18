@@ -40,8 +40,8 @@ func exactHitFallbackStillAdvancesStep() {
     )
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-            PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 62, staff: nil)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
+            PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 62, staff: nil, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
@@ -68,8 +68,8 @@ func gateInactiveStillAllowsAudioMatchedAdvance() async {
     )
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-            PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 62, staff: nil)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
+            PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 62, staff: nil, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )

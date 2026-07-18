@@ -102,7 +102,7 @@ struct PianoHighlightGuideBuilderService {
                     articulations: source?.articulations ?? [],
                     arpeggiate: source?.arpeggiate,
                     dotCount: source?.dotCount ?? 0,
-                    hand: stepNote.hand
+                    handAssignment: stepNote.handAssignment
                 )
                 triggersByTick[onTick, default: []].append(note)
                 if practiceStepIndexByTriggerTick[onTick] == nil {

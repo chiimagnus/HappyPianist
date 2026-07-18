@@ -293,7 +293,7 @@ private func makeLifecyclePreparedPractice() -> PreparedPractice {
     return PreparedPractice(
         identity: PracticeSongIdentity(songID: songID, scoreRevision: "revision"),
         steps: [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
         ],
         file: ImportedMusicXMLFile(
             fileName: "Lifecycle",

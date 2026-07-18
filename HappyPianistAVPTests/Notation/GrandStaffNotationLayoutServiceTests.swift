@@ -20,7 +20,8 @@ func layoutAssignsItemsToTrebleAndBassStaves() {
                     velocity: 96,
                     onTick: 0,
                     offTick: 480,
-                    fingeringText: nil
+                    fingeringText: nil,
+                    handAssignment: .unknown
                 ),
                 PianoHighlightNote(
                     occurrenceID: "n2",
@@ -30,7 +31,8 @@ func layoutAssignsItemsToTrebleAndBassStaves() {
                     velocity: 96,
                     onTick: 0,
                     offTick: 480,
-                    fingeringText: nil
+                    fingeringText: nil,
+                    handAssignment: .unknown
                 ),
             ],
             releasedMIDINotes: []

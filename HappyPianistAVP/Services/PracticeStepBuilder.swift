@@ -21,7 +21,7 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
 
     func buildSteps(from score: MusicXMLScore, expressivity: MusicXMLExpressivityOptions) -> PracticeStepBuildResult {
         var grouped: [Int: [StepNoteKey: (
-            hand: ScoreHand,
+            handAssignment: ScoreHandAssignment,
             velocity: UInt8,
             onTickOffset: Int,
             fingeringText: String?
@@ -50,14 +50,13 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
             let velocity = velocityResolver.velocity(for: noteEvent)
             let effectiveTick = graceOnTickByNoteIndex[index] ?? noteEvent.tick
             let onTickOffset = max(0, arpeggiateOffsetByNoteIndex[index] ?? 0)
-            let hand = ScoreHand.fromStaff(noteEvent.staff)
             let staff = noteEvent.staff ?? 1
             let voice = noteEvent.voice ?? 1
             let key = StepNoteKey(midiNote: midiNote, staff: staff, voice: voice)
             var map = grouped[effectiveTick] ?? [:]
             if map[key] == nil {
                 map[key] = (
-                    hand: hand,
+                    handAssignment: .unknown,
                     velocity: velocity,
                     onTickOffset: onTickOffset,
                     fingeringText: noteEvent.fingeringText
@@ -81,7 +80,7 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
                     velocity: entry?.velocity ?? 96,
                     onTickOffset: entry?.onTickOffset ?? 0,
                     fingeringText: entry?.fingeringText,
-                    hand: entry?.hand
+                    handAssignment: entry?.handAssignment ?? .unknown
                 )
             }
             return PracticeStep(tick: tick, notes: notes)

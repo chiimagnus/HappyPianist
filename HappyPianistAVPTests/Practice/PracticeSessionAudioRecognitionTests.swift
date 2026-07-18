@@ -61,7 +61,7 @@ func guidingStartsAudioRecognitionService() async {
     let viewModel = makeViewModel(audioRecognitionService: fakeService)
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
@@ -80,8 +80,8 @@ func switchingStepUpdatesGenerationAndExpectedNotes() async {
     let viewModel = makeViewModel(audioRecognitionService: fakeService)
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-            PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
+            PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
@@ -104,8 +104,8 @@ func staleGenerationEventDoesNotAdvanceStep() async {
     let viewModel = makeViewModel(audioRecognitionService: fakeService)
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-            PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
+            PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
@@ -136,8 +136,8 @@ func matchingAudioEventAdvancesStep() async {
     let viewModel = makeViewModel(audioRecognitionService: fakeService)
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-            PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
+            PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
@@ -175,8 +175,8 @@ func suppressWindowBlocksThenAllowsAdvance() async {
     )
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-            PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
+            PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
@@ -232,8 +232,8 @@ func autoplayIsolationBlocksAudioAdvanceUntilAutoplayOff() async {
     let pedalTimeline = MusicXMLPedalTimeline(events: [])
     let fermataTimeline = MusicXMLFermataTimeline(fermataEvents: [], notes: [])
     let steps = [
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-        PracticeStep(tick: 4800, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
+        PracticeStep(tick: 4800, notes: [PracticeStepNote(midiNote: 64, staff: nil, handAssignment: .unknown)]),
     ]
     let guides = [
         PianoHighlightGuide(
@@ -252,7 +252,8 @@ func autoplayIsolationBlocksAudioAdvanceUntilAutoplayOff() async {
                     velocity: 96,
                     onTick: 0,
                     offTick: 1,
-                    fingeringText: nil
+                    fingeringText: nil,
+                    handAssignment: .unknown
                 ),
             ],
             releasedMIDINotes: []
@@ -273,7 +274,8 @@ func autoplayIsolationBlocksAudioAdvanceUntilAutoplayOff() async {
                     velocity: 96,
                     onTick: 4800,
                     offTick: 4801,
-                    fingeringText: nil
+                    fingeringText: nil,
+                    handAssignment: .unknown
                 ),
             ],
             releasedMIDINotes: []
@@ -329,8 +331,8 @@ func permissionFailureStatusDoesNotAdvanceAndSetsError() async {
     let viewModel = makeViewModel(audioRecognitionService: fakeService)
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-            PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
+            PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 64, staff: nil, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
@@ -421,7 +423,7 @@ func startGuidingPassesPlaybackSuppressDeadlineIntoAudioServiceStart() async {
     )
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
@@ -447,7 +449,7 @@ func microphonePermissionFailureDoesNotBlockPlaybackFallback() async {
     )
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )

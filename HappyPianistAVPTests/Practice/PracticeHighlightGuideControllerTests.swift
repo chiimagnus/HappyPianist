@@ -30,8 +30,8 @@ func transitionGuideSchedulesDelayedSwitchToTrigger() async {
     let store = PracticeSessionStateStore()
     store.autoplayState = .off
     store.steps = [
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
-        PracticeStep(tick: 100, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
+        PracticeStep(tick: 100, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
     ]
 
     store.highlightGuides = [
@@ -94,8 +94,8 @@ func shutdownCancelsPendingTransitionTaskAndClearsGuide() async {
     let store = PracticeSessionStateStore()
     store.autoplayState = .off
     store.steps = [
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
-        PracticeStep(tick: 100, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
+        PracticeStep(tick: 100, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
     ]
 
     store.highlightGuides = [

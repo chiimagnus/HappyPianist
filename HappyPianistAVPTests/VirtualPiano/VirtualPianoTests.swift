@@ -35,7 +35,7 @@ func autoplayEnabledStopsLiveNotes() {
         tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: .init(partID: "P1", staff: nil, voice: nil))]
     )
     viewModel.setSteps(
-        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
         tempoMap: tempoMap
     )
 
@@ -60,7 +60,7 @@ func virtualPianoNoteOnTriggersLiveStart() throws {
         tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: .init(partID: "P1", staff: nil, voice: nil))]
     )
     viewModel.setSteps(
-        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
         tempoMap: tempoMap
     )
     viewModel.startGuidingIfReady()
@@ -218,7 +218,7 @@ func virtualPianoDoesNotTriggerLiveNotesDuringAutoplay() throws {
         tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: .init(partID: "P1", staff: nil, voice: nil))]
     )
     viewModel.setSteps(
-        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
         tempoMap: tempoMap
     )
 

@@ -9,12 +9,6 @@ enum ScoreHand: String, CaseIterable, Codable, Sendable {
     case right
     case left
     case unknown
-
-    static func fromStaff(_ staff: Int?) -> ScoreHand {
-        guard let staff else { return .right }
-        if staff <= 1 { return .right }
-        return .left
-    }
 }
 
 enum PracticeHandMode: String, CaseIterable, Identifiable, Codable {
@@ -89,8 +83,7 @@ struct PracticeStepNote: Equatable, Hashable, Identifiable {
         velocity: UInt8 = 96,
         onTickOffset: Int = 0,
         fingeringText: String? = nil,
-        handAssignment: ScoreHandAssignment? = nil,
-        hand: ScoreHand? = nil
+        handAssignment: ScoreHandAssignment
     ) {
         self.midiNote = midiNote
         self.staff = staff
@@ -99,8 +92,6 @@ struct PracticeStepNote: Equatable, Hashable, Identifiable {
         self.onTickOffset = onTickOffset
         self.fingeringText = fingeringText
         self.handAssignment = handAssignment
-            ?? hand.map { ScoreHandAssignment(hand: $0, provenance: .score) }
-            ?? .unknown
     }
 }
 

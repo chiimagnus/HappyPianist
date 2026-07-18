@@ -51,7 +51,7 @@ func refreshInNonGuidingStateStopsInput() {
             autoplayState: .off,
             isManualReplayPlaying: false,
             currentStepIndex: 0,
-            expectedNotes: [PracticeStepNote(midiNote: 60, staff: 1)]
+            expectedNotes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]
         )
     )
 
@@ -79,7 +79,7 @@ func practiceMIDIInputService_shutdownIsIdempotent() {
             autoplayState: .off,
             isManualReplayPlaying: false,
             currentStepIndex: 0,
-            expectedNotes: [PracticeStepNote(midiNote: 60, staff: 1)]
+            expectedNotes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]
         )
     )
     #expect(source.startCallCount == 1)
@@ -111,7 +111,7 @@ func shutdownDoesNotCancelOtherConsumers() async {
             autoplayState: .off,
             isManualReplayPlaying: false,
             currentStepIndex: 0,
-            expectedNotes: [PracticeStepNote(midiNote: 60, staff: 1)]
+            expectedNotes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]
         )
     )
 
@@ -147,7 +147,7 @@ func allNotesOffResetsActiveMatcherWithoutStoppingInput() async {
     let matcher = CapturingMIDIPracticeStepMatcher()
     let stateStore = PracticeSessionStateStore()
     let effectHandler = CapturingPracticeSessionEffectHandler()
-    let expectedNotes = [PracticeStepNote(midiNote: 60, staff: 1)]
+    let expectedNotes = [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]
     let service = PracticeMIDIInputService(
         practiceInputEventSource: source,
         matcher: matcher,

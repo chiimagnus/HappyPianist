@@ -1528,7 +1528,7 @@ private func makePracticeLaunchPreparedPractice(
 ) -> PreparedPractice {
     PreparedPractice(
         identity: PracticeSongIdentity(songID: songID, scoreRevision: songID.uuidString),
-        steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
         file: file,
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
         pedalTimeline: nil,

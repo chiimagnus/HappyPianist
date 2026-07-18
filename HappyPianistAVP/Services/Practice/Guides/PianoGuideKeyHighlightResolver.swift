@@ -17,7 +17,7 @@ struct PianoGuideKeyHighlightResolver {
             let phase: PianoGuideHighlightPhase = triggeredMIDINotes.contains(midiNote) ? .triggered : .active
             let preferredHand = triggeredNotesByMidi[midiNote].flatMap(Self.resolvedHand)
                 ?? activeNotesByMidi[midiNote].flatMap(Self.resolvedHand)
-                ?? .right
+                ?? .unknown
             return (midiNote, PianoGuideKeyHighlight(midiNote: midiNote, phase: phase, hand: preferredHand))
         })
     }
@@ -25,6 +25,7 @@ struct PianoGuideKeyHighlightResolver {
     private static func resolvedHand(notes: [PianoHighlightNote]) -> ScoreHand? {
         guard notes.isEmpty == false else { return nil }
         if notes.contains(where: { $0.hand == .left }) { return .left }
-        return .right
+        if notes.contains(where: { $0.hand == .right }) { return .right }
+        return .unknown
     }
 }

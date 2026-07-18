@@ -66,8 +66,8 @@ func highlightGuideBuilderPreservesStaffAndVoiceOccurrences() {
         makeNote(tick: 0, duration: 2, midi: 60, isChord: true, staff: 2, voice: 2),
     ])
     let steps = [PracticeStep(tick: 0, notes: [
-        PracticeStepNote(midiNote: 60, staff: 1),
-        PracticeStepNote(midiNote: 60, staff: 2),
+        PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown),
+        PracticeStepNote(midiNote: 60, staff: 2, handAssignment: .unknown),
     ])]
     let spans = MusicXMLNoteSpanBuilder().buildSpans(from: score.notes)
 

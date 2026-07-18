@@ -14,6 +14,8 @@ struct PianoGuideHighlightStyle: Equatable, Hashable {
             .leftHandKey
         case .right:
             (keyKind == .black) ? .rightHandBlackKey : .rightHandWhiteKey
+        case .unknown:
+            .unassignedHandKey
         }
 
         let opacity = switch (keyKind, phase, hand) {
@@ -23,12 +25,16 @@ struct PianoGuideHighlightStyle: Equatable, Hashable {
             0.48
         case (.white, .active, .left):
             0.55
+        case (.white, .active, .unknown):
+            0.42
         case (.black, .triggered, _):
             0.95
         case (.black, .active, .right):
             0.95
         case (.black, .active, .left):
             0.92
+        case (.black, .active, .unknown):
+            0.85
         }
 
         return PianoGuideHighlightStyle(tintToken: tintToken, opacity: opacity)
