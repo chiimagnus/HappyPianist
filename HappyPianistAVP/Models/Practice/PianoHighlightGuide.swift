@@ -14,7 +14,8 @@ struct PianoHighlightNote: Equatable, Hashable, Identifiable {
 
     let occurrenceID: String
     let midiNote: Int
-    let hand: ScoreHand
+    let handAssignment: ScoreHandAssignment
+    var hand: ScoreHand { handAssignment.hand }
     let staff: Int?
     let voice: Int?
     let velocity: UInt8
@@ -43,6 +44,7 @@ struct PianoHighlightNote: Equatable, Hashable, Identifiable {
         articulations: Set<MusicXMLArticulation> = [],
         arpeggiate: MusicXMLArpeggiate? = nil,
         dotCount: Int = 0,
+        handAssignment: ScoreHandAssignment? = nil,
         hand: ScoreHand? = nil
     ) {
         self.occurrenceID = occurrenceID
@@ -59,7 +61,9 @@ struct PianoHighlightNote: Equatable, Hashable, Identifiable {
         self.articulations = articulations
         self.arpeggiate = arpeggiate
         self.dotCount = dotCount
-        self.hand = hand ?? ScoreHand.fromStaff(staff)
+        self.handAssignment = handAssignment
+            ?? hand.map { ScoreHandAssignment(hand: $0, provenance: .score) }
+            ?? .unknown
     }
 }
 

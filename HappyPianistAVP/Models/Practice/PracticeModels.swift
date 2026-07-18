@@ -5,9 +5,10 @@ enum PianoGuideHighlightPhase: String, Equatable, Hashable {
     case triggered
 }
 
-enum ScoreHand: String, CaseIterable, Codable {
+enum ScoreHand: String, CaseIterable, Codable, Sendable {
     case right
     case left
+    case unknown
 
     static func fromStaff(_ staff: Int?) -> ScoreHand {
         guard let staff else { return .right }
@@ -73,7 +74,8 @@ struct PracticeStepNote: Equatable, Hashable, Identifiable {
     }
 
     let midiNote: Int
-    let hand: ScoreHand
+    let handAssignment: ScoreHandAssignment
+    var hand: ScoreHand { handAssignment.hand }
     let staff: Int?
     let voice: Int?
     let velocity: UInt8
@@ -87,6 +89,7 @@ struct PracticeStepNote: Equatable, Hashable, Identifiable {
         velocity: UInt8 = 96,
         onTickOffset: Int = 0,
         fingeringText: String? = nil,
+        handAssignment: ScoreHandAssignment? = nil,
         hand: ScoreHand? = nil
     ) {
         self.midiNote = midiNote
@@ -95,7 +98,9 @@ struct PracticeStepNote: Equatable, Hashable, Identifiable {
         self.velocity = velocity
         self.onTickOffset = onTickOffset
         self.fingeringText = fingeringText
-        self.hand = hand ?? ScoreHand.fromStaff(staff)
+        self.handAssignment = handAssignment
+            ?? hand.map { ScoreHandAssignment(hand: $0, provenance: .score) }
+            ?? .unknown
     }
 }
 
