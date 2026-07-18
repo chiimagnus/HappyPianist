@@ -14,15 +14,19 @@ func debouncedActionSchedulerCancelPreventsPendingAction() async throws {
     #expect(counter.value == 0)
 }
 
-@Test
-func debouncedActionSchedulerRunsOnlyLatestAction() async throws {
+@Test(.timeLimit(.minutes(1)))
+func debouncedActionSchedulerRunsOnlyLatestAction() async {
     let scheduler = DebouncedActionScheduler(debounce: .milliseconds(40))
     let values = LockedIntegers()
 
-    scheduler.schedule { values.append(1) }
-    try await Task.sleep(for: .milliseconds(10))
-    scheduler.schedule { values.append(2) }
-    try await Task.sleep(for: .milliseconds(90))
+    await withCheckedContinuation { completion in
+        scheduler.schedule { values.append(1) }
+        scheduler.schedule {
+            values.append(2)
+            completion.resume()
+        }
+    }
+    withExtendedLifetime(scheduler) {}
 
     #expect(values.value == [2])
 }
