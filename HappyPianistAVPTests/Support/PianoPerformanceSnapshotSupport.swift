@@ -24,7 +24,8 @@ struct PianoPerformanceSnapshotEncoder {
   }
 
   func encode<T: BinaryInteger>(_ value: T?) -> String {
-    value.map(String.init) ?? "null"
+    guard let value else { return "null" }
+    return String(value)
   }
 
   func encode(_ value: Bool?) -> String {
