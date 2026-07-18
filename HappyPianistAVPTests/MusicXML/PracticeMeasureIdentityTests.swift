@@ -23,3 +23,22 @@ func expandedMeasuresKeepSourceIdentityAcrossOccurrences() throws {
     #expect(expanded.measures[0].sourceMeasureID == expanded.measures[2].sourceMeasureID)
     #expect(expanded.measures[0].occurrenceID != expanded.measures[2].occurrenceID)
 }
+
+@Test
+func parsedNotesReceiveStableSourceIdentityIndependentOfPerformanceFields() throws {
+    let scoreA = try MusicXMLParser().parse(fileURL: testFixtureURL("PracticeMeasureIdentityRepeats.musicxml"))
+    let scoreB = try MusicXMLParser().parse(fileURL: testFixtureURL("PracticeMeasureIdentityRepeats.musicxml"))
+
+    #expect(scoreA.notes.map(\.sourceID) == scoreB.notes.map(\.sourceID))
+    #expect(scoreA.notes.allSatisfy { $0.sourceID != nil })
+    #expect(Set(scoreA.notes.compactMap(\.sourceID)).count == scoreA.notes.count)
+}
+
+@Test
+func expandedNotesKeepTheirSourceIdentityAcrossPerformedOccurrences() throws {
+    let score = try MusicXMLParser().parse(fileURL: testFixtureURL("PracticeMeasureIdentityRepeats.musicxml"))
+    let expanded = MusicXMLStructureExpander().expandRepeatAndEndingIfPossible(score: score)
+    let repeatedSourceIDs = Dictionary(grouping: expanded.notes.compactMap(\.sourceID), by: { $0 })
+
+    #expect(repeatedSourceIDs.values.contains { $0.count > 1 })
+}

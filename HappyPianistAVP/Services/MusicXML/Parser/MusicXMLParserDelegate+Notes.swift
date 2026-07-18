@@ -127,8 +127,19 @@ extension MusicXMLParserDelegate {
         }
         let midiNote = writtenPitch.flatMap(Self.makeMIDINote)
 
+        let sourceID = MusicXMLSourceNoteID(
+            partID: state.currentPartID,
+            sourceMeasureIndex: state.currentMeasureIndex,
+            sourceMeasureNumberToken: state.currentMeasureNumberToken,
+            staff: state.noteStaff,
+            voice: state.noteVoice,
+            sourceOrdinal: state.currentSourceNoteOrdinal
+        )
+        state.currentSourceNoteOrdinal += 1
+
         state.notes.append(
             MusicXMLNoteEvent(
+                sourceID: sourceID,
                 partID: state.currentPartID,
                 measureNumber: state.currentMeasureNumber,
                 tick: startTick,

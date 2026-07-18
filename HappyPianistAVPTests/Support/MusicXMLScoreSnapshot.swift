@@ -124,7 +124,7 @@ struct MusicXMLScoreSnapshot {
     private func noteLine(index: Int, note: MusicXMLNoteEvent) -> String {
         encoder.encode(fields: [
             ("kind", "note"),
-            ("sourceNoteID", "unresolved"),
+            ("sourceNoteID", note.sourceID?.description ?? "unresolved"),
             ("sourceIndex", String(index)),
             ("part", note.partID),
             ("measure", String(note.measureNumber)),

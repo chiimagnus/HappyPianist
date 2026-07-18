@@ -44,6 +44,7 @@ struct MusicXMLParserDelegateState {
     var currentMeasureNumber = 1
     var currentMeasureIndex = 0
     var currentMeasureNumberToken: String?
+    var currentSourceNoteOrdinal = 0
 
     var partDivisions: [String: Int] = [:]
     var partTick: [String: Int] = [:]

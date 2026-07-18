@@ -178,10 +178,12 @@ struct MusicXMLStructureExpander {
                 let shiftedTick = currentMeasureStartTick + (note.tick - span.startTick)
                 outputNotes.append(
                     MusicXMLNoteEvent(
+                        sourceID: note.sourceID,
                         partID: note.partID,
                         measureNumber: outputMeasureNumber,
                         tick: shiftedTick,
                         durationTicks: note.durationTicks,
+                        writtenPitch: note.writtenPitch,
                         midiNote: note.midiNote,
                         isRest: note.isRest,
                         isChord: note.isChord,

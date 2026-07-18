@@ -52,6 +52,7 @@ struct MusicXMLHandRouter {
         }
 
         return MusicXMLNoteEvent(
+            sourceID: note.sourceID,
             partID: note.partID,
             measureNumber: note.measureNumber,
             tick: note.tick,

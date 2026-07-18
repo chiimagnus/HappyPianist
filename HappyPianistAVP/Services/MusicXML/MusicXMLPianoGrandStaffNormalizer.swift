@@ -23,10 +23,12 @@ struct MusicXMLPianoGrandStaffNormalizer {
         let mergedNotes = score.notes.map { note in
             guard note.partID == bassPartID else { return note }
             return MusicXMLNoteEvent(
+                sourceID: note.sourceID,
                 partID: treblePartID,
                 measureNumber: note.measureNumber,
                 tick: note.tick,
                 durationTicks: note.durationTicks,
+                writtenPitch: note.writtenPitch,
                 midiNote: note.midiNote,
                 isRest: note.isRest,
                 isChord: note.isChord,

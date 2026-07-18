@@ -52,6 +52,7 @@ extension MusicXMLParserDelegate {
             state.currentMeasureIndex += 1
             state.currentMeasureNumber = state.currentMeasureIndex
             state.currentMeasureNumberToken = attributeDict["number"]
+            state.currentSourceNoteOrdinal = 0
             state.currentMeasureStartTick = state.partTick[state.currentPartID] ?? 0
             state.partMeasureMaxTick[state.currentPartID] = state.currentMeasureStartTick
             state.partLastNonChordStartTick[state.currentPartID] = nil
