@@ -25,6 +25,7 @@ Xcode 工程只有 `HappyPianistAVP` 与 `HappyPianistAVPTests` 两个 target；
 | App 窗口、钢琴模式、曲库与沉浸空间 | [modules/happypianist-avp.md](modules/happypianist-avp.md) |
 | 练习 session、判定、进度、反馈与回放 | [modules/happypianist-avp-practice.md](modules/happypianist-avp-practice.md) |
 | 日常需要验证的核心功能 | [testing/core-function-checklist.md](testing/core-function-checklist.md) |
+| 钢琴演奏专业化的快照、真机、盲听与教学证据 | [testing/piano-performance-validation.md](testing/piano-performance-validation.md) |
 
 ## 产品主流程
 

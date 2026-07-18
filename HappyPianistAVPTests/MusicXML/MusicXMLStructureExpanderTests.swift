@@ -60,6 +60,13 @@ func structureExpanderExpandsRepeatWithEndingsAndTempoEvents() throws {
 
     let pedalTicks = expanded.pedalEvents.map(\.tick)
     #expect(pedalTicks == [0, 960])
+
+    #expect(expanded.notes.map(\.performedOccurrenceIndex) == [0, 1, 2, 3])
+    #expect(Set(expanded.notes.compactMap(\.performedID)).count == expanded.notes.count)
+    #expect(expanded.tempoEvents.map(\.performedOccurrenceIndex) == [0, 1, 2])
+    #expect(Set(expanded.tempoEvents.compactMap(\.performedID)).count == expanded.tempoEvents.count)
+    #expect(expanded.pedalEvents.map(\.performedOccurrenceIndex) == [0, 2])
+    #expect(Set(expanded.pedalEvents.compactMap(\.performedID)).count == expanded.pedalEvents.count)
 }
 
 @Test
@@ -233,7 +240,14 @@ func structureExpanderFallsBackWhenJumpLimitsAreHit() {
 @Test
 func structureExpanderPreservesParsedNoteAndScoreFieldsWhenMaterializing() {
     let scope = MusicXMLEventScope(partID: "P1", staff: 1, voice: 1)
+    let directionID = MusicXMLDirectionSourceID(
+        partID: "P1",
+        sourceMeasureIndex: 1,
+        sourceMeasureNumberToken: "1",
+        sourceOrdinal: 0
+    )
     let score = MusicXMLScore(
+        partMetadata: [MusicXMLPartMetadata(partID: "P1", name: "Piano")],
         notes: [
             MusicXMLNoteEvent(
                 partID: "P1",
@@ -247,6 +261,7 @@ func structureExpanderPreservesParsedNoteAndScoreFieldsWhenMaterializing() {
                 graceSlash: true,
                 graceStealTimePrevious: 0.2,
                 graceStealTimeFollowing: 0.3,
+                graceMakeTimeTicks: 90,
                 tieStart: false,
                 tieStop: false,
                 staff: 1,
@@ -272,10 +287,10 @@ func structureExpanderPreservesParsedNoteAndScoreFieldsWhenMaterializing() {
                 voice: 1
             ),
         ],
-        tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 100, scope: scope)],
-        dynamicEvents: [MusicXMLDynamicEvent(tick: 0, velocity: 70, scope: scope, source: .directionDynamics)],
-        wedgeEvents: [MusicXMLWedgeEvent(tick: 0, kind: .crescendoStart, numberToken: "1", scope: scope)],
-        fermataEvents: [MusicXMLFermataEvent(tick: 0, scope: scope, source: .noteNotations)],
+        tempoEvents: [MusicXMLTempoEvent(sourceID: directionID, tick: 0, quarterBPM: 100, scope: scope)],
+        dynamicEvents: [MusicXMLDynamicEvent(sourceID: directionID, tick: 0, velocity: 70, scope: scope, source: .directionDynamics)],
+        wedgeEvents: [MusicXMLWedgeEvent(sourceID: directionID, tick: 0, kind: .crescendoStart, numberToken: "1", scope: scope)],
+        fermataEvents: [MusicXMLFermataEvent(sourceID: directionID, tick: 0, scope: scope, source: .directionType)],
         timeSignatureEvents: [MusicXMLTimeSignatureEvent(tick: 0, beats: 4, beatType: 4, scope: scope)],
         keySignatureEvents: [MusicXMLKeySignatureEvent(tick: 0, fifths: 1, modeToken: "major", scope: scope)],
         clefEvents: [MusicXMLClefEvent(
@@ -286,7 +301,13 @@ func structureExpanderPreservesParsedNoteAndScoreFieldsWhenMaterializing() {
             numberToken: "1",
             scope: scope
         )],
-        wordsEvents: [MusicXMLWordsEvent(tick: 0, text: "Allegro", scope: scope)],
+        transposeEvents: [MusicXMLTransposeEvent(
+            tick: 0, diatonic: 1, chromatic: 2, octaveChange: 0, isDouble: false, scope: scope
+        )],
+        octaveShiftEvents: [MusicXMLOctaveShiftEvent(
+            sourceID: directionID, tick: 0, kind: .up, size: 8, numberToken: "1", scope: scope
+        )],
+        wordsEvents: [MusicXMLWordsEvent(sourceID: directionID, tick: 0, text: "Allegro", scope: scope)],
         measures: [
             MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, sourceMeasureIndex: 1, sourceMeasureNumberToken: "1", occurrenceIndex: 0, startTick: 0, endTick: 480),
             MusicXMLMeasureSpan(partID: "P1", measureNumber: 2, sourceMeasureIndex: 2, sourceMeasureNumberToken: "2", occurrenceIndex: 1, startTick: 480, endTick: 960),
@@ -304,6 +325,7 @@ func structureExpanderPreservesParsedNoteAndScoreFieldsWhenMaterializing() {
     #expect(preserved?.graceSlash == true)
     #expect(preserved?.graceStealTimePrevious == 0.2)
     #expect(preserved?.graceStealTimeFollowing == 0.3)
+    #expect(preserved?.graceMakeTimeTicks == 90)
     #expect(preserved?.attackTicks == -10)
     #expect(preserved?.releaseTicks == 20)
     #expect(preserved?.dynamicsOverrideVelocity == 88)
@@ -317,4 +339,12 @@ func structureExpanderPreservesParsedNoteAndScoreFieldsWhenMaterializing() {
     #expect(expanded.keySignatureEvents.isEmpty == false)
     #expect(expanded.clefEvents.isEmpty == false)
     #expect(expanded.wordsEvents.isEmpty == false)
+    #expect(expanded.partMetadata.map(\.partID) == ["P1"])
+    #expect(expanded.tempoEvents.first?.sourceID == directionID)
+    #expect(expanded.dynamicEvents.first?.sourceID == directionID)
+    #expect(expanded.wedgeEvents.first?.sourceID == directionID)
+    #expect(expanded.fermataEvents.first?.sourceID == directionID)
+    #expect(expanded.wordsEvents.first?.sourceID == directionID)
+    #expect(expanded.transposeEvents.first?.chromatic == 2)
+    #expect(expanded.octaveShiftEvents.first?.sourceID == directionID)
 }

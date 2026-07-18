@@ -20,6 +20,13 @@ extension MusicXMLParserDelegate {
         return clamped == 0 ? nil : clamped
     }
 
+    func parseGraceMakeTimeTicks(_ rawValue: String?) -> Int? {
+        guard let ticks = parseNotePerformanceOffsetTicks(rawValue), ticks > 0 else {
+            return nil
+        }
+        return ticks
+    }
+
     func parseNotePerformanceOffsetTicks(_ rawValue: String?) -> Int? {
         guard let rawValue = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines),
               rawValue.isEmpty == false
@@ -89,6 +96,47 @@ extension MusicXMLParserDelegate {
         return ticks > 0 ? ticks : nil
     }
 
+
+    func recordPerformanceNotation(elementName: String, attributes: [String: String]) {
+        guard state.isInNote else { return }
+        let rawElementToken = elementName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard rawElementToken.isEmpty == false else { return }
+        let kind = MusicXMLPerformanceNotationKind(rawValue: rawElementToken) ?? .other
+        let pending = MusicXMLParserDelegateState.PendingPerformanceNotation(
+            kind: kind,
+            rawElementToken: rawElementToken,
+            typeToken: normalizedNotationToken(attributes["type"]),
+            numberToken: normalizedNotationToken(attributes["number"]),
+            placementToken: normalizedNotationToken(attributes["placement"]),
+            textToken: nil,
+            attributes: attributes
+        )
+        state.notePerformanceNotations.append(pending)
+        state.currentPerformanceNotationIndexByElement[rawElementToken] = state.notePerformanceNotations.count - 1
+    }
+
+    func finalizePerformanceNotationText(elementName: String, text: String) {
+        let rawElementToken = elementName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard let index = state.currentPerformanceNotationIndexByElement.removeValue(forKey: rawElementToken),
+              state.notePerformanceNotations.indices.contains(index)
+        else {
+            return
+        }
+        let normalizedText = normalizedNotationToken(text)
+        state.notePerformanceNotations[index].textToken = normalizedText
+    }
+
+    func shouldRecordUnsupportedOrnament(elementName: String) -> Bool {
+        guard state.isInNote, state.isInNoteOrnaments else { return false }
+        let token = elementName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return token.isEmpty == false && token != "ornaments"
+    }
+
+    private func normalizedNotationToken(_ rawValue: String?) -> String? {
+        let token = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return token.isEmpty ? nil : token
+    }
+
     func finalizeNote() {
         let duration: Int
         if let rawDuration = state.noteDuration {
@@ -113,18 +161,54 @@ extension MusicXMLParserDelegate {
             state.partTick[state.currentPartID] = currentTick + duration
         }
 
-        let midiNote: Int? = if state.noteIsRest {
+        let writtenPitch: MusicXMLWrittenPitch? = if state.noteIsRest {
             nil
+        } else if let step = state.noteStep, let octave = state.noteOctave {
+            MusicXMLWrittenPitch(
+                step: step,
+                octave: octave,
+                alter: state.noteAlter ?? 0,
+                accidentalToken: state.noteAccidentalToken
+            )
         } else {
-            Self.makeMIDINote(step: state.noteStep, alter: state.noteAlter ?? 0, octave: state.noteOctave)
+            nil
+        }
+        let midiNote = writtenPitch.flatMap(Self.makeMIDINote)
+
+        let sourceID = MusicXMLSourceNoteID(
+            partID: state.currentPartID,
+            sourceMeasureIndex: state.currentMeasureIndex,
+            sourceMeasureNumberToken: state.currentMeasureNumberToken,
+            staff: state.noteStaff,
+            voice: state.noteVoice,
+            sourceOrdinal: state.currentSourceNoteOrdinal
+        )
+        state.currentSourceNoteOrdinal += 1
+
+        let performanceNotations = state.notePerformanceNotations.enumerated().map { ordinal, pending in
+            MusicXMLPerformanceNotation(
+                sourceID: MusicXMLPerformanceNotationSourceID(
+                    sourceNoteID: sourceID,
+                    sourceOrdinal: ordinal
+                ),
+                kind: pending.kind,
+                rawElementToken: pending.rawElementToken,
+                typeToken: pending.typeToken,
+                numberToken: pending.numberToken,
+                placementToken: pending.placementToken,
+                textToken: pending.textToken,
+                attributes: pending.attributes
+            )
         }
 
         state.notes.append(
             MusicXMLNoteEvent(
+                sourceID: sourceID,
                 partID: state.currentPartID,
                 measureNumber: state.currentMeasureNumber,
                 tick: startTick,
                 durationTicks: duration,
+                writtenPitch: writtenPitch,
                 midiNote: midiNote,
                 isRest: state.noteIsRest,
                 isChord: state.noteIsChord,
@@ -132,6 +216,7 @@ extension MusicXMLParserDelegate {
                 graceSlash: state.noteGraceSlash,
                 graceStealTimePrevious: state.noteGraceStealTimePrevious,
                 graceStealTimeFollowing: state.noteGraceStealTimeFollowing,
+                graceMakeTimeTicks: state.noteGraceMakeTimeTicks,
                 tieStart: state.noteTieStart,
                 tieStop: state.noteTieStop,
                 staff: state.noteStaff,
@@ -141,6 +226,7 @@ extension MusicXMLParserDelegate {
                 dynamicsOverrideVelocity: state.noteDynamicsOverrideVelocity,
                 articulations: state.noteArticulations,
                 arpeggiate: state.noteArpeggiate,
+                performanceNotations: performanceNotations,
                 fingeringText: state.noteFingeringText,
                 dotCount: state.noteDotCount
             )
@@ -169,12 +255,14 @@ extension MusicXMLParserDelegate {
         )
     }
 
-    static func makeMIDINote(step: String?, alter: Int, octave: Int?) -> Int? {
-        guard let step, let octave else { return nil }
+    static func makeMIDINote(_ pitch: MusicXMLWrittenPitch) -> Int? {
+        let roundedAlter = pitch.alter.rounded()
+        guard abs(pitch.alter - roundedAlter) < 0.000_001 else { return nil }
         let stepBase: [String: Int] = [
             "C": 0, "D": 2, "E": 4, "F": 5, "G": 7, "A": 9, "B": 11,
         ]
-        guard let base = stepBase[step] else { return nil }
-        return (octave + 1) * 12 + base + alter
+        guard let base = stepBase[pitch.step] else { return nil }
+        let value = (pitch.octave + 1) * 12 + base + Int(roundedAlter)
+        return (0...127).contains(value) ? value : nil
     }
 }

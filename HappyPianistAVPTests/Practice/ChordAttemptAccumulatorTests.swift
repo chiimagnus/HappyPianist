@@ -5,31 +5,23 @@ import Testing
 @Test
 func accumulatorMatchesChordWithinWindowAcrossMultiplePresses() {
     let accumulator = ChordAttemptAccumulator(windowSeconds: 0.6)
-    let base = Date(timeIntervalSince1970: 1000)
+    var replay = PerformanceInputReplayCursor(events: [
+        PerformanceReplayEvent(instant: .init(seconds: 1_000), source: "midi", payload: Set([60])),
+        PerformanceReplayEvent(instant: .init(seconds: 1_000.2), source: "midi", payload: Set([64])),
+        PerformanceReplayEvent(instant: .init(seconds: 1_000.45), source: "midi", payload: Set([67])),
+    ])
+    var outcomes: [StepAttemptMatchResult] = []
 
-    let first = accumulator.register(
-        pressedNotes: [60],
-        expectedNotes: [60, 64, 67],
-        tolerance: 0,
-        at: base
-    )
-    #expect(first.isMatched == false)
+    replay.replay { event in
+        outcomes.append(accumulator.register(
+            pressedNotes: event.payload,
+            expectedNotes: [60, 64, 67],
+            tolerance: 0,
+            at: event.instant.date
+        ))
+    }
 
-    let second = accumulator.register(
-        pressedNotes: [64],
-        expectedNotes: [60, 64, 67],
-        tolerance: 0,
-        at: base.addingTimeInterval(0.2)
-    )
-    #expect(second.isMatched == false)
-
-    let third = accumulator.register(
-        pressedNotes: [67],
-        expectedNotes: [60, 64, 67],
-        tolerance: 0,
-        at: base.addingTimeInterval(0.45)
-    )
-    #expect(third.isMatched)
+    #expect(outcomes.map(\.isMatched) == [false, false, true])
 }
 
 @Test

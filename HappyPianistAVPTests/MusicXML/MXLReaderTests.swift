@@ -141,3 +141,26 @@ struct MXLReaderTests {
         }
     }
 }
+
+@Test
+func readerReturnsScoreBytesWithoutAssigningOrRewritingMusicIdentity() throws {
+    let baseURL = FileManager.default.temporaryDirectory
+        .appending(path: "MXLReaderIdentityTests")
+        .appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(at: baseURL, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: baseURL) }
+    let metaInfURL = baseURL.appending(path: "META-INF")
+    try FileManager.default.createDirectory(at: metaInfURL, withIntermediateDirectories: true)
+    let container = "<container><rootfiles><rootfile full-path=\"scores/score.xml\"/></rootfiles></container>"
+    try Data(container.utf8).write(to: metaInfURL.appending(path: "container.xml"))
+    let scoreDirectory = baseURL.appending(path: "scores")
+    try FileManager.default.createDirectory(at: scoreDirectory, withIntermediateDirectories: true)
+    let scoreData = Data("<score-partwise version=\"4.0\"></score-partwise>".utf8)
+    try scoreData.write(to: scoreDirectory.appending(path: "score.xml"))
+    let mxlURL = baseURL.appending(path: "identity.mxl")
+    let archive = try Archive(url: mxlURL, accessMode: .create)
+    try archive.addEntry(with: "META-INF/container.xml", relativeTo: baseURL, compressionMethod: .deflate)
+    try archive.addEntry(with: "scores/score.xml", relativeTo: baseURL, compressionMethod: .deflate)
+
+    #expect(try MXLReader().readScoreXMLData(from: mxlURL) == scoreData)
+}

@@ -70,8 +70,8 @@ func autoplayStartsAndAdvancesStep() async throws {
     let effectHandler = CapturingPracticeSessionEffectHandler()
 
     stateStore.steps = [
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
-        PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
+        PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
     ]
     stateStore.currentStepIndex = 0
     stateStore.autoplayState = .playing
@@ -100,7 +100,8 @@ func autoplayStartsAndAdvancesStep() async throws {
         velocity: 96,
         onTick: 0,
         offTick: 240,
-        fingeringText: nil
+        fingeringText: nil,
+        handAssignment: .unknown
     )
     stateStore.highlightGuides = [
         PianoHighlightGuide(
@@ -157,8 +158,8 @@ func shutdownCancelsAutoplayAndPreventsFurtherAdvance() async throws {
     let effectHandler = CapturingPracticeSessionEffectHandler()
 
     stateStore.steps = [
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
-        PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
+        PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
     ]
     stateStore.currentStepIndex = 0
     stateStore.autoplayState = .playing
@@ -187,7 +188,8 @@ func shutdownCancelsAutoplayAndPreventsFurtherAdvance() async throws {
         velocity: 96,
         onTick: 0,
         offTick: 240,
-        fingeringText: nil
+        fingeringText: nil,
+        handAssignment: .unknown
     )
     stateStore.highlightGuides = [
         PianoHighlightGuide(

@@ -29,7 +29,7 @@ private final class AlwaysMatchChordAttemptAccumulator: ChordAttemptAccumulatorP
 func chordMatchAdvancesToNextStepViaEffect() {
     let store = PracticeSessionStateStore()
     store.steps = [
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
     ]
     store.currentStepIndex = 0
     store.state = .guiding(stepIndex: 0)
@@ -65,7 +65,7 @@ func chordMatchAdvancesToNextStepViaEffect() {
 @MainActor
 func chordMatchDoesNotAdvanceWhileReady() {
     let store = PracticeSessionStateStore()
-    store.steps = [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])]
+    store.steps = [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])]
     store.currentStepIndex = 0
     store.state = .ready
     store.acceptsPracticeAttempts = true

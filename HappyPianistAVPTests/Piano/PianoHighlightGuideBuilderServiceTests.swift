@@ -66,8 +66,8 @@ func highlightGuideBuilderPreservesStaffAndVoiceOccurrences() {
         makeNote(tick: 0, duration: 2, midi: 60, isChord: true, staff: 2, voice: 2),
     ])
     let steps = [PracticeStep(tick: 0, notes: [
-        PracticeStepNote(midiNote: 60, staff: 1),
-        PracticeStepNote(midiNote: 60, staff: 2),
+        PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown),
+        PracticeStepNote(midiNote: 60, staff: 2, handAssignment: .unknown),
     ])]
     let spans = MusicXMLNoteSpanBuilder().buildSpans(from: score.notes)
 
@@ -267,8 +267,7 @@ func highlightGuideBuilderUsesFermataExtraTicksWhenEnabled() {
     let spans = MusicXMLNoteSpanBuilder().buildSpans(
         from: score.notes,
         performanceTimingEnabled: false,
-        expressivity: expressivity,
-        fermataTimeline: fermataTimeline
+        expressivity: expressivity
     )
 
     let guides = PianoHighlightGuideBuilderService().buildGuides(
@@ -277,6 +276,6 @@ func highlightGuideBuilderUsesFermataExtraTicksWhenEnabled() {
 
     let trigger = guides.first { $0.kind == .trigger }
     #expect(spans.count == 1)
-    #expect(spans.first?.offTick == 720)
+    #expect(spans.first?.offTick == 480)
     #expect(trigger?.triggeredNotes.first?.offTick == spans.first?.offTick)
 }

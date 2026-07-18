@@ -102,8 +102,8 @@ private func installHistoricalApplicationScore(
 
 private func historicalApplicationSteps() -> [PracticeStep] {
     [
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
-        PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 2)]),
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
+        PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 2, handAssignment: .unknown)]),
     ]
 }
 

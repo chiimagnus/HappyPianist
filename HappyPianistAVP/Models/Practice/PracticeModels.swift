@@ -5,15 +5,10 @@ enum PianoGuideHighlightPhase: String, Equatable, Hashable {
     case triggered
 }
 
-enum ScoreHand: String, CaseIterable, Codable {
+enum ScoreHand: String, CaseIterable, Codable, Sendable {
     case right
     case left
-
-    static func fromStaff(_ staff: Int?) -> ScoreHand {
-        guard let staff else { return .right }
-        if staff <= 1 { return .right }
-        return .left
-    }
+    case unknown
 }
 
 enum PracticeHandMode: String, CaseIterable, Identifiable, Codable {
@@ -73,7 +68,8 @@ struct PracticeStepNote: Equatable, Hashable, Identifiable {
     }
 
     let midiNote: Int
-    let hand: ScoreHand
+    let handAssignment: ScoreHandAssignment
+    var hand: ScoreHand { handAssignment.hand }
     let staff: Int?
     let voice: Int?
     let velocity: UInt8
@@ -87,7 +83,7 @@ struct PracticeStepNote: Equatable, Hashable, Identifiable {
         velocity: UInt8 = 96,
         onTickOffset: Int = 0,
         fingeringText: String? = nil,
-        hand: ScoreHand? = nil
+        handAssignment: ScoreHandAssignment
     ) {
         self.midiNote = midiNote
         self.staff = staff
@@ -95,7 +91,7 @@ struct PracticeStepNote: Equatable, Hashable, Identifiable {
         self.velocity = velocity
         self.onTickOffset = onTickOffset
         self.fingeringText = fingeringText
-        self.hand = hand ?? ScoreHand.fromStaff(staff)
+        self.handAssignment = handAssignment
     }
 }
 
@@ -113,6 +109,15 @@ struct PracticeStepBuildResult: Equatable {
     let unsupportedNoteCount: Int
 }
 
+struct PreparedPracticeScoreContext: Equatable {
+    let sourceScore: MusicXMLScore
+    let preparedScore: MusicXMLScore
+    let logicalInstrument: MusicXMLLogicalInstrument
+    let structuralPartID: String
+    let orderSelection: MusicXMLOrderSelection
+    let handAssignments: [MusicXMLSourceNoteID: ScoreHandAssignment]
+}
+
 struct PreparedPractice {
     let identity: PracticeSongIdentity
     let steps: [PracticeStep]
@@ -124,6 +129,7 @@ struct PreparedPractice {
     let highlightGuides: [PianoHighlightGuide]
     let measureSpans: [MusicXMLMeasureSpan]
     let unsupportedNoteCount: Int
+    let scoreContext: PreparedPracticeScoreContext
 }
 
 enum ManualAdvanceMode: String, CaseIterable, Identifiable, Codable, Equatable {

@@ -189,10 +189,10 @@ func noteSpanBuilderEmitsGraceSpansAndStealsFromFollowingWhenEnabled() {
 
     let grace = spans.first(where: { $0.midiNote == 60 })
     let main = spans.first(where: { $0.midiNote == 62 })
-    #expect(grace?.onTick == 360)
-    #expect(grace?.offTick == 480)
-    #expect(main?.onTick == 480)
-    #expect(main?.offTick == 840)
+    #expect(grace?.onTick == 480)
+    #expect(grace?.offTick == 600)
+    #expect(main?.onTick == 600)
+    #expect(main?.offTick == 960)
 }
 
 @Test
@@ -238,7 +238,7 @@ func noteSpanBuilderOffsetsArpeggiateChordOnsetsWhenEnabled() {
 }
 
 @Test
-func noteSpanBuilderExtendsFermataNoteOffTicksWhenEnabled() {
+func noteSpanBuilderLeavesFermataAsSingleGlobalHold() {
     let builder = MusicXMLNoteSpanBuilder()
     let notes: [MusicXMLNoteEvent] = [
         MusicXMLNoteEvent(
@@ -266,10 +266,168 @@ func noteSpanBuilderExtendsFermataNoteOffTicksWhenEnabled() {
 
     let spans = builder.buildSpans(
         from: notes,
-        expressivity: MusicXMLExpressivityOptions(fermataEnabled: true),
-        fermataTimeline: fermataTimeline
+        expressivity: MusicXMLExpressivityOptions(fermataEnabled: true)
     )
     #expect(spans.count == 1)
     #expect(spans[0].onTick == 480)
-    #expect(spans[0].offTick == 1200)
+    #expect(spans[0].offTick == 960)
+    #expect(fermataTimeline.extraTicksForNote(atTick: 480, staff: 1) == 240)
+    #expect(fermataTimeline.interpretationProfileID == MusicXMLInterpretationProfile.generic.id)
+}
+
+@Test
+func timingScheduleRecordsGenericInterpretationProfileForArticulation() {
+    let note = MusicXMLNoteEvent(
+        partID: "P1",
+        measureNumber: 1,
+        tick: 0,
+        durationTicks: 480,
+        midiNote: 60,
+        isRest: false,
+        isChord: false,
+        tieStart: false,
+        tieStop: false,
+        staff: 1,
+        voice: 1,
+        articulations: [.detachedLegato]
+    )
+
+    let entry = ScoreTimingScheduleBuilder().build(notes: [note])[0]
+    #expect(entry.performedOffTick == 360)
+    #expect(entry.releasePolicy == .interpretationProfile)
+    #expect(entry.provenance.contains(.interpretationProfile(id: MusicXMLInterpretationProfile.generic.id)))
+}
+
+@Test
+func timingScheduleConnectsSlurReleaseWithoutPedalSemantics() {
+    let notes = [
+        MusicXMLNoteEvent(
+            partID: "P1",
+            measureNumber: 1,
+            tick: 0,
+            durationTicks: 240,
+            midiNote: 60,
+            isRest: false,
+            isChord: false,
+            tieStart: false,
+            tieStop: false,
+            staff: 1,
+            voice: 1,
+            performanceNotations: [makePerformanceNotation(kind: .slur, typeToken: "start", numberToken: "2")]
+        ),
+        MusicXMLNoteEvent(
+            partID: "P1",
+            measureNumber: 1,
+            tick: 480,
+            durationTicks: 480,
+            midiNote: 62,
+            isRest: false,
+            isChord: false,
+            tieStart: false,
+            tieStop: false,
+            staff: 1,
+            voice: 1,
+            performanceNotations: [makePerformanceNotation(kind: .slur, typeToken: "stop", numberToken: "2")]
+        ),
+    ]
+
+    let schedule = ScoreTimingScheduleBuilder().build(notes: notes)
+    #expect(schedule[0].performedOffTick == 480)
+    #expect(schedule[0].releasePolicy == .slurLegato)
+    #expect(schedule[0].provenance.contains {
+        guard case let .performanceNotation(kind, _, profileID) = $0 else { return false }
+        return kind == .slur && profileID == MusicXMLInterpretationProfile.generic.id
+    })
+    #expect(schedule.directives.isEmpty)
+}
+
+@Test
+func timingScheduleCreatesBreathGapAndCaesuraPauseDirective() {
+    let note = MusicXMLNoteEvent(
+        partID: "P1",
+        measureNumber: 1,
+        tick: 0,
+        durationTicks: 480,
+        midiNote: 60,
+        isRest: false,
+        isChord: false,
+        tieStart: false,
+        tieStop: false,
+        staff: 1,
+        voice: 1,
+        performanceNotations: [
+            makePerformanceNotation(kind: .breathMark),
+            makePerformanceNotation(kind: .caesura),
+        ]
+    )
+
+    let schedule = ScoreTimingScheduleBuilder().build(notes: [note])
+    #expect(schedule[0].performedOffTick == 420)
+    #expect(schedule[0].releasePolicy == .breathGap)
+    #expect(schedule.directives == [
+        ScoreTimingDirective(
+            kind: .caesuraPause,
+            tick: 420,
+            durationTicks: 240,
+            sourceNotationID: nil,
+            interpretationProfileID: MusicXMLInterpretationProfile.generic.id
+        ),
+    ])
+}
+
+@Test
+func timingSchedulePreservesShortArticulationWhenItConflictsWithSlur() {
+    let notes = [
+        MusicXMLNoteEvent(
+            partID: "P1",
+            measureNumber: 1,
+            tick: 0,
+            durationTicks: 480,
+            midiNote: 60,
+            isRest: false,
+            isChord: false,
+            tieStart: false,
+            tieStop: false,
+            staff: 1,
+            voice: 1,
+            articulations: [.staccato],
+            performanceNotations: [makePerformanceNotation(kind: .slur, typeToken: "start")]
+        ),
+        MusicXMLNoteEvent(
+            partID: "P1",
+            measureNumber: 1,
+            tick: 480,
+            durationTicks: 480,
+            midiNote: 62,
+            isRest: false,
+            isChord: false,
+            tieStart: false,
+            tieStop: false,
+            staff: 1,
+            voice: 1,
+            performanceNotations: [makePerformanceNotation(kind: .slur, typeToken: "stop")]
+        ),
+    ]
+
+    let first = ScoreTimingScheduleBuilder().build(notes: notes)[0]
+    #expect(first.performedOffTick == 240)
+    #expect(first.releasePolicy == .interpretationProfile)
+    #expect(first.provenance.contains(.approximation(reason: "slur-conflicts-with-short-articulation")))
+}
+
+private func makePerformanceNotation(
+    kind: MusicXMLPerformanceNotationKind,
+    typeToken: String? = nil,
+    numberToken: String? = nil
+) -> MusicXMLPerformanceNotation {
+    MusicXMLPerformanceNotation(
+        sourceID: nil,
+        kind: kind,
+        rawElementToken: kind.rawValue,
+        typeToken: typeToken,
+        numberToken: numberToken,
+        placementToken: nil,
+        textToken: nil,
+        attributes: [:]
+    )
 }

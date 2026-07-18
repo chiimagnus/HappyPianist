@@ -7,6 +7,37 @@ extension MusicXMLParserDelegate {
             if state.scoreVersion == nil {
                 state.scoreVersion = attributeDict["version"]
             }
+        case "part-list":
+            state.isInPartList = true
+        case "score-part" where state.isInPartList:
+            guard let partID = normalizedMetadataToken(attributeDict["id"]) else {
+                state.metadataError = .invalidPartMetadata(reason: "score-part is missing id")
+                break
+            }
+            guard state.partMetadataByID[partID] == nil,
+                  state.currentScorePartMetadata?.partID != partID
+            else {
+                state.metadataError = .invalidPartMetadata(reason: "duplicate score-part id: \(partID)")
+                break
+            }
+            state.currentScorePartMetadata = MusicXMLPartMetadata(partID: partID)
+        case "score-instrument" where state.currentScorePartMetadata != nil:
+            guard let instrumentID = normalizedMetadataToken(attributeDict["id"]) else {
+                state.metadataError = .invalidPartMetadata(reason: "score-instrument is missing id")
+                break
+            }
+            state.currentScoreInstrumentMetadata = MusicXMLScoreInstrumentMetadata(id: instrumentID, name: nil)
+        case "midi-instrument" where state.currentScorePartMetadata != nil:
+            guard let instrumentID = normalizedMetadataToken(attributeDict["id"]) else {
+                state.metadataError = .invalidPartMetadata(reason: "midi-instrument is missing id")
+                break
+            }
+            state.currentMIDIInstrumentMetadata = MusicXMLMIDIInstrumentMetadata(
+                id: instrumentID,
+                channel: nil,
+                program: nil,
+                bank: nil
+            )
         case "part":
             state.currentPartID = attributeDict["id"] ?? "P1"
             if state.partDivisions[state.currentPartID] == nil {
@@ -21,6 +52,10 @@ extension MusicXMLParserDelegate {
             state.currentMeasureIndex += 1
             state.currentMeasureNumber = state.currentMeasureIndex
             state.currentMeasureNumberToken = attributeDict["number"]
+            state.currentSourceNoteOrdinal = 0
+            state.currentDirectionSourceOrdinal = 0
+            state.currentDirectionSourceID = nil
+            state.currentSoundSourceID = nil
             state.currentMeasureStartTick = state.partTick[state.currentPartID] ?? 0
             state.partMeasureMaxTick[state.currentPartID] = state.currentMeasureStartTick
             state.partLastNonChordStartTick[state.currentPartID] = nil
@@ -29,14 +64,24 @@ extension MusicXMLParserDelegate {
         case "time":
             if state.isInAttributes {
                 state.isInTime = true
-                state.timeBeats = nil
-                state.timeBeatType = nil
+                state.timeBeatGroups = []
+                state.timeBeatTypes = []
+                state.timeSymbolToken = normalizedMetadataToken(attributeDict["symbol"])
+                state.timeIsSenzaMisura = false
             }
         case "key":
             if state.isInAttributes {
                 state.isInKey = true
                 state.keyFifths = nil
                 state.keyModeToken = nil
+            }
+        case "transpose":
+            if state.isInAttributes {
+                state.isInTranspose = true
+                state.transposeDiatonic = nil
+                state.transposeChromatic = nil
+                state.transposeOctaveChange = nil
+                state.transposeIsDouble = false
             }
         case "clef":
             if state.isInAttributes {
@@ -48,6 +93,7 @@ extension MusicXMLParserDelegate {
             }
         case "direction":
             state.isInDirection = true
+            state.currentDirectionSourceID = nextDirectionSourceID()
             state.currentDirectionOffsetTicks = 0
             state.currentDirectionMeasureStartTick = state.currentMeasureStartTick
             state.currentDirectionTempoStartIndex = state.rawTempoEventsByPart[state.currentPartID]?.count ?? 0
@@ -72,10 +118,10 @@ extension MusicXMLParserDelegate {
             recordPedalEvent(attributes: attributeDict)
         case "wedge":
             recordWedgeEvent(attributes: attributeDict)
+        case "octave-shift":
+            recordOctaveShiftEvent(attributes: attributeDict)
         case "offset":
-            if state.isInDirection, state.isInSound == false {
-                state.currentOffsetAppliesToSound = attributeDict["sound"]?.lowercased() == "yes"
-            }
+            break
         case "barline":
             state.isInBarline = true
         case "repeat":
@@ -115,6 +161,7 @@ extension MusicXMLParserDelegate {
             }
         case "sound":
             state.isInSound = true
+            state.currentSoundSourceID = state.currentDirectionSourceID ?? nextDirectionSourceID()
             state.currentSoundMeasureStartTick = state.currentMeasureStartTick
             state.currentSoundBaseTick = state.partTick[state.currentPartID] ?? state.currentMeasureStartTick
             state.currentSoundTempoStartIndex = state.rawTempoEventsByPart[state.currentPartID]?.count ?? 0
@@ -140,8 +187,10 @@ extension MusicXMLParserDelegate {
             state.noteGraceSlash = false
             state.noteGraceStealTimePrevious = nil
             state.noteGraceStealTimeFollowing = nil
+            state.noteGraceMakeTimeTicks = nil
             state.noteStep = nil
             state.noteAlter = nil
+            state.noteAccidentalToken = nil
             state.noteOctave = nil
             state.noteDuration = nil
             state.noteType = nil
@@ -156,13 +205,28 @@ extension MusicXMLParserDelegate {
             state.noteAttackTicks = parseNotePerformanceOffsetTicks(attributeDict["attack"])
             state.noteReleaseTicks = parseNotePerformanceOffsetTicks(attributeDict["release"])
             state.noteDynamicsOverrideVelocity = nil
-            state.noteDynamicsOverrideVelocity = parseMIDIVelocity(attributeDict["dynamics"])
+            state.noteDynamicsOverrideVelocity = parseMusicXMLDynamicsVelocity(attributeDict["dynamics"])
             state.isInNoteArticulations = false
             state.noteArticulations = []
             state.noteHasFermata = false
             state.noteArpeggiate = nil
+            state.notePerformanceNotations = []
+            state.currentPerformanceNotationIndexByElement = [:]
+            state.isInNoteNotations = false
+            state.isInNoteOrnaments = false
             state.noteFingeringText = nil
             state.isInTechnical = false
+        case "notations":
+            if state.isInNote {
+                state.isInNoteNotations = true
+            }
+        case "ornaments":
+            if state.isInNote {
+                state.isInNoteOrnaments = true
+            }
+        case "slur", "trill-mark", "mordent", "inverted-mordent", "turn", "inverted-turn",
+             "tremolo", "glissando", "breath-mark", "caesura", "other-notation":
+            recordPerformanceNotation(elementName: elementName, attributes: attributeDict)
         case "technical":
             if state.isInNote {
                 state.isInTechnical = true
@@ -192,6 +256,7 @@ extension MusicXMLParserDelegate {
                 state.noteGraceSlash = slash == "yes" || slash == "true" || slash == "1"
                 state.noteGraceStealTimePrevious = parseGraceStealFraction(attributeDict["steal-time-previous"])
                 state.noteGraceStealTimeFollowing = parseGraceStealFraction(attributeDict["steal-time-following"])
+                state.noteGraceMakeTimeTicks = parseGraceMakeTimeTicks(attributeDict["make-time"])
             }
         case "dot":
             if state.isInNote {
@@ -232,27 +297,68 @@ extension MusicXMLParserDelegate {
                     state.noteArticulations.insert(articulation)
                 }
             }
+            if shouldRecordUnsupportedOrnament(elementName: elementName) {
+                recordPerformanceNotation(elementName: elementName, attributes: attributeDict)
+            }
         }
     }
 
     func handleEndElement(_ elementName: String, text: String) {
+        finalizePerformanceNotationText(elementName: elementName, text: text)
         switch elementName {
+        case "part-name" where state.currentScorePartMetadata != nil:
+            state.currentScorePartMetadata?.name = normalizedMetadataToken(text)
+        case "part-abbreviation" where state.currentScorePartMetadata != nil:
+            state.currentScorePartMetadata?.abbreviation = normalizedMetadataToken(text)
+        case "instrument-name" where state.currentScoreInstrumentMetadata != nil:
+            state.currentScoreInstrumentMetadata?.name = normalizedMetadataToken(text)
+        case "midi-channel" where state.currentMIDIInstrumentMetadata != nil:
+            state.currentMIDIInstrumentMetadata?.channel = Int(text)
+        case "midi-program" where state.currentMIDIInstrumentMetadata != nil:
+            state.currentMIDIInstrumentMetadata?.program = Int(text)
+        case "midi-bank" where state.currentMIDIInstrumentMetadata != nil:
+            state.currentMIDIInstrumentMetadata?.bank = Int(text)
+        case "score-instrument" where state.currentScoreInstrumentMetadata != nil:
+            if let instrument = state.currentScoreInstrumentMetadata {
+                state.currentScorePartMetadata?.scoreInstruments.append(instrument)
+            }
+            state.currentScoreInstrumentMetadata = nil
+        case "midi-instrument" where state.currentMIDIInstrumentMetadata != nil:
+            if let instrument = state.currentMIDIInstrumentMetadata {
+                state.currentScorePartMetadata?.midiInstruments.append(instrument)
+            }
+            state.currentMIDIInstrumentMetadata = nil
+        case "score-part" where state.currentScorePartMetadata != nil:
+            if let metadata = state.currentScorePartMetadata {
+                state.partMetadataByID[metadata.partID] = metadata
+                state.partMetadataOrder.append(metadata.partID)
+            }
+            state.currentScorePartMetadata = nil
+            state.currentScoreInstrumentMetadata = nil
+            state.currentMIDIInstrumentMetadata = nil
+        case "part-list":
+            state.isInPartList = false
         case "divisions" where state.isInAttributes:
             if let value = Int(text), value > 0 {
                 state.partDivisions[state.currentPartID] = value
             }
         case "beats" where state.isInTime:
-            state.timeBeats = Int(text)
+            if let groups = parseMeterBeatGroups(text) {
+                state.timeBeatGroups.append(groups)
+            }
         case "beat-type" where state.isInTime:
-            state.timeBeatType = Int(text)
+            if let beatType = Int(text), beatType > 0 {
+                state.timeBeatTypes.append(beatType)
+            }
+        case "senza-misura" where state.isInTime:
+            state.timeIsSenzaMisura = true
         case "time" where state.isInTime:
-            if let beats = state.timeBeats, let beatType = state.timeBeatType, beats > 0, beatType > 0 {
-                let tick = state.partTick[state.currentPartID] ?? state.currentMeasureStartTick
+            let tick = state.partTick[state.currentPartID] ?? state.currentMeasureStartTick
+            if let meter = makeCurrentMeter() {
                 state.timeSignatureEvents.append(
                     MusicXMLTimeSignatureEvent(
                         tick: tick,
-                        beats: beats,
-                        beatType: beatType,
+                        meter: meter,
                         scope: MusicXMLEventScope(partID: state.currentPartID, staff: nil, voice: nil)
                     )
                 )
@@ -276,6 +382,29 @@ extension MusicXMLParserDelegate {
                 )
             }
             state.isInKey = false
+        case "diatonic" where state.isInTranspose:
+            state.transposeDiatonic = Int(text)
+        case "chromatic" where state.isInTranspose:
+            state.transposeChromatic = Int(text)
+        case "octave-change" where state.isInTranspose:
+            state.transposeOctaveChange = Int(text)
+        case "double" where state.isInTranspose:
+            state.transposeIsDouble = true
+        case "transpose" where state.isInTranspose:
+            if let chromatic = state.transposeChromatic {
+                let tick = state.partTick[state.currentPartID] ?? state.currentMeasureStartTick
+                state.transposeEvents.append(
+                    MusicXMLTransposeEvent(
+                        tick: tick,
+                        diatonic: state.transposeDiatonic,
+                        chromatic: chromatic,
+                        octaveChange: state.transposeOctaveChange ?? 0,
+                        isDouble: state.transposeIsDouble,
+                        scope: MusicXMLEventScope(partID: state.currentPartID, staff: nil, voice: nil)
+                    )
+                )
+            }
+            state.isInTranspose = false
         case "sign" where state.isInClef:
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
             state.clefSignToken = trimmed.isEmpty ? nil : trimmed
@@ -316,6 +445,7 @@ extension MusicXMLParserDelegate {
             guard trimmed.isEmpty == false else { break }
             state.wordsEvents.append(
                 MusicXMLWordsEvent(
+                    sourceID: state.currentDirectionSourceID,
                     tick: currentDirectionEventTick(),
                     text: trimmed,
                     scope: MusicXMLEventScope(
@@ -326,14 +456,13 @@ extension MusicXMLParserDelegate {
                 )
             )
         case "offset":
-            if let rawOffset = Int(text) {
+            if let rawOffset = Double(text), rawOffset.isFinite {
                 if state.isInSound {
                     applySoundOffset(rawOffset)
-                } else if state.isInDirection, state.currentOffsetAppliesToSound {
+                } else if state.isInDirection {
                     applyDirectionOffset(rawOffset)
                 }
             }
-            state.currentOffsetAppliesToSound = false
         case "technical" where state.isInNote:
             state.isInTechnical = false
         case "fingering" where state.isInNote && state.isInTechnical:
@@ -364,10 +493,21 @@ extension MusicXMLParserDelegate {
             if state.isInNote {
                 state.isInNoteArticulations = false
             }
+        case "ornaments":
+            if state.isInNote {
+                state.isInNoteOrnaments = false
+            }
+        case "notations":
+            if state.isInNote {
+                state.isInNoteNotations = false
+            }
         case "step" where state.isInNote:
             state.noteStep = text
         case "alter" where state.isInNote:
-            state.noteAlter = Int(text)
+            state.noteAlter = Double(text)
+        case "accidental" where state.isInNote:
+            let token = text.trimmingCharacters(in: .whitespacesAndNewlines)
+            state.noteAccidentalToken = token.isEmpty ? nil : token
         case "octave" where state.isInNote:
             state.noteOctave = Int(text)
         case "staff" where state.isInNote:
@@ -381,6 +521,7 @@ extension MusicXMLParserDelegate {
                     where state.dynamicEvents[i].scope.staff == nil
                 {
                     state.dynamicEvents[i] = MusicXMLDynamicEvent(
+                        sourceID: state.dynamicEvents[i].sourceID,
                         tick: state.dynamicEvents[i].tick,
                         velocity: state.dynamicEvents[i].velocity,
                         scope: MusicXMLEventScope(
@@ -399,6 +540,7 @@ extension MusicXMLParserDelegate {
                     where state.wedgeEvents[i].scope.staff == nil
                 {
                     state.wedgeEvents[i] = MusicXMLWedgeEvent(
+                        sourceID: state.wedgeEvents[i].sourceID,
                         tick: state.wedgeEvents[i].tick,
                         kind: state.wedgeEvents[i].kind,
                         numberToken: state.wedgeEvents[i].numberToken,
@@ -417,6 +559,7 @@ extension MusicXMLParserDelegate {
                     where state.fermataEvents[i].scope.staff == nil
                 {
                     state.fermataEvents[i] = MusicXMLFermataEvent(
+                        sourceID: state.fermataEvents[i].sourceID,
                         tick: state.fermataEvents[i].tick,
                         scope: MusicXMLEventScope(
                             partID: state.fermataEvents[i].scope.partID,
@@ -434,6 +577,7 @@ extension MusicXMLParserDelegate {
                     where state.wordsEvents[i].scope.staff == nil
                 {
                     state.wordsEvents[i] = MusicXMLWordsEvent(
+                        sourceID: state.wordsEvents[i].sourceID,
                         tick: state.wordsEvents[i].tick,
                         text: state.wordsEvents[i].text,
                         scope: MusicXMLEventScope(
@@ -450,11 +594,15 @@ extension MusicXMLParserDelegate {
             finalizeNote()
             state.isInNote = false
             state.isInTechnical = false
+            state.isInNoteNotations = false
+            state.isInNoteOrnaments = false
+            state.currentPerformanceNotationIndexByElement = [:]
         case "attributes":
             state.isInAttributes = false
             state.isInTime = false
             state.isInKey = false
             state.isInClef = false
+            state.isInTranspose = false
         case "direction":
             state.isInDirection = false
             state.currentDirectionOffsetTicks = 0
@@ -470,6 +618,7 @@ extension MusicXMLParserDelegate {
             state.currentDirectionSoundOffsetSoundOverrideTicksByIndex = [:]
             state.currentDirectionSoundOffsetPedalOverrideTicksByIndex = [:]
             state.currentDirectionStaff = nil
+            state.currentDirectionSourceID = nil
             state.isInDirectionTypeDynamics = false
         case "sound":
             state.isInSound = false
@@ -478,6 +627,7 @@ extension MusicXMLParserDelegate {
             state.currentSoundTempoStartIndex = 0
             state.currentSoundSoundStartIndex = 0
             state.currentSoundPedalStartIndex = 0
+            state.currentSoundSourceID = nil
         case "barline":
             state.isInBarline = false
         case "backup":
@@ -501,5 +651,10 @@ extension MusicXMLParserDelegate {
         default:
             break
         }
+    }
+
+    private func normalizedMetadataToken(_ raw: String?) -> String? {
+        let value = raw?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return value.isEmpty ? nil : value
     }
 }

@@ -1,0 +1,521 @@
+{
+  "version": 1,
+  "sourceDocument": "docs/piano-performance-quality.md",
+  "requirements": [
+    {
+      "id": "ARCH-001",
+      "plannedTask": "P5-T1",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/PreparedPracticeLifecycleTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "ARCH-002",
+      "plannedTask": "P8-T1",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/PracticeSessionRecorderTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "ARCH-003",
+      "plannedTask": "P11-T1",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/PerformanceAssessmentTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "SCORE-001",
+      "plannedTask": "P2-T6",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/MusicXML/MusicXMLParserDynamicsTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "SCORE-002",
+      "plannedTask": "P2-T8",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/MusicXML/MusicXMLParserDynamicsTests.swift",
+        "HappyPianistAVPTests/MusicXML/MusicXMLParserWedgeTests.swift",
+        "HappyPianistAVPTests/MusicXML/MusicXMLParserWordsTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "SCORE-003",
+      "plannedTask": "P3-T2",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/MusicXML/MusicXMLPianoGrandStaffNormalizerTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "SCORE-004",
+      "plannedTask": "P3-T3",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/PracticeLaunchFailureTests.swift",
+        "HappyPianistAVPTests/MusicXML/MusicXMLParserTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "SCORE-005",
+      "plannedTask": "P3-T5",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Notation/ScoreHandTests.swift",
+        "HappyPianistAVPTests/Practice/PianoGuideKeyHighlightResolverTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "SCORE-006",
+      "plannedTask": "P2-T3",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/MusicXML/MusicXMLParserTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "SCORE-007",
+      "plannedTask": "P2-T4",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/MusicXML/PracticeMeasureIdentityTests.swift",
+        "HappyPianistAVPTests/MusicXML/MusicXMLParserTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "SCORE-008",
+      "plannedTask": "P2-T9",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/MusicXML/MusicXMLAttributeTimelineTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "SCORE-009",
+      "plannedTask": "P4-T2",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/MusicXML/MusicXMLParserGraceDetailsTests.swift",
+        "HappyPianistAVPTests/MusicXML/MusicXMLParserGraceTupletTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "SCORE-010",
+      "plannedTask": "P4-T3",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/MusicXML/MusicXMLParserFermataArpeggiateTests.swift",
+        "HappyPianistAVPTests/Practice/PracticeStepBuilderTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "SCORE-011",
+      "plannedTask": "P4-T4",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/MusicXML/MusicXMLVelocityResolverTests.swift",
+        "HappyPianistAVPTests/MusicXML/MusicXMLParserWedgeTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "SCORE-012",
+      "plannedTask": "P4-T8",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/MusicXML/MusicXMLParserArticulationsTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "SCORE-013",
+      "plannedTask": "P3-T7",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/MusicXML/MusicXMLRealisticPlaybackDefaultsTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "SCORE-014",
+      "plannedTask": "P4-T11",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/PracticeStepBuilderTests.swift",
+        "HappyPianistAVPTests/MusicXML/MusicXMLNoteSpanBuilderTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "PERF-001",
+      "plannedTask": "P5-T4",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/PreparedPracticeLifecycleTests.swift",
+        "HappyPianistAVPTests/Practice/PracticePreparationCancellationTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "PERF-002",
+      "plannedTask": "P6-T1",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Playback/AutoplayPerformanceTimelineTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "PERF-003",
+      "plannedTask": "P6-T3",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Playback/AutoplayPerformanceTimelineTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "PERF-004",
+      "plannedTask": "P6-T5",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/MusicXML/MusicXMLExpressivityIntegrationTests.swift",
+        "HappyPianistAVPTests/Playback/AutoplayPerformanceTimelineTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "PERF-005",
+      "plannedTask": "P4-T7",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/MusicXML/MusicXMLNoteSpanBuilderTests.swift",
+        "HappyPianistAVPTests/MusicXML/MusicXMLRealisticPlaybackDefaultsTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "PERF-006",
+      "plannedTask": "P4-T6",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/MusicXML/MusicXMLWordsSemanticsInterpreterTests.swift",
+        "HappyPianistAVPTests/MusicXML/MusicXMLTempoMapTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "PERF-007",
+      "plannedTask": "P6-T7",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/PracticeManualReplaySequenceBuilderTests.swift",
+        "HappyPianistAVPTests/Practice/PracticeManualReplayCoordinatorTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "PERF-008",
+      "plannedTask": "P9-T7",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/VirtualPiano/VirtualPianoInputControllerTests.swift",
+        "HappyPianistAVPTests/Practice/PracticeSequencerPlaybackServiceProtocolTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "PERF-009",
+      "plannedTask": "P7-T2",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/PracticeSequencerSequenceBuilderTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "PERF-010",
+      "plannedTask": "P7-T5",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/MIDI/CoreMIDIPracticePlaybackServiceStopTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "PERF-011",
+      "plannedTask": "P7-T8",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/PracticeSequencerPlaybackServiceProtocolTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "PERF-012",
+      "plannedTask": "P7-T9",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Diagnostics/DiagnosticModelsTests.swift",
+        "HappyPianistAVPTests/Diagnostics/DiagnosticsReporterTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "NOTATION-001",
+      "plannedTask": "P13-T1",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Notation/GrandStaffNotationLayoutServiceTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "NOTATION-002",
+      "plannedTask": "P13-T3",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Notation/GrandStaffNotationLayoutServiceTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "NOTATION-003",
+      "plannedTask": "P13-T5",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Notation/GrandStaffNotationLayoutServiceTests.swift",
+        "HappyPianistAVPTests/MusicXML/MusicXMLAttributeTimelineTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "NOTATION-004",
+      "plannedTask": "P13-T7",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/MusicXML/MusicXMLParserTests.swift",
+        "HappyPianistAVPTests/Notation/GrandStaffNotationLayoutServiceTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "OBS-001",
+      "plannedTask": "P8-T4",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/PracticeMIDIInputCoordinatorTests.swift",
+        "HappyPianistAVPTests/MIDI/MIDI2ValueMappingTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "OBS-002",
+      "plannedTask": "P8-T6",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/ChordAttemptAccumulatorTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "OBS-003",
+      "plannedTask": "P8-T7",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/PracticeAudioRecognitionCoordinatorTests.swift",
+        "HappyPianistAVPTests/AudioRecognition/TargetedHarmonicTemplateDetectorTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "OBS-004",
+      "plannedTask": "P9-T2",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/HandPianoActivityGateTests.swift",
+        "HappyPianistAVPTests/VirtualPiano/VirtualPianoInputControllerTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "OBS-005",
+      "plannedTask": "P9-T3",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/VirtualPiano/VirtualPianoInputControllerTests.swift",
+        "HappyPianistAVPTests/HandTracking/PressDetectionServiceTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "OBS-006",
+      "plannedTask": "P9-T5",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/HandPianoActivityGateTests.swift",
+        "HappyPianistAVPTests/HandTracking/PressDetectionServiceTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "OBS-007",
+      "plannedTask": "P9-T9",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/StepMatcherTests.swift",
+        "HappyPianistAVPTests/Practice/PracticeHandGateControllerTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "OBS-008",
+      "plannedTask": "P9-T8",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/PracticeSessionHandSeparatedMatchingTests.swift",
+        "HappyPianistAVPTests/Practice/PracticeHandGateControllerTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "OBS-009",
+      "plannedTask": "P8-T3",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/PracticeSessionRecorderTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "ASSESS-001",
+      "plannedTask": "P10-T1",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/PerformanceAlignmentTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "ASSESS-002",
+      "plannedTask": "P11-T8",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/PracticeAttemptReducerTests.swift",
+        "HappyPianistAVPTests/Practice/PracticeProgressModelsTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "ASSESS-003",
+      "plannedTask": "P12-T1",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/PracticeCoachingDecisionTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "ASSESS-004",
+      "plannedTask": "P11-T2",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/StepMatcherTests.swift",
+        "HappyPianistAVPTests/Practice/PerformanceAssessmentTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "ASSESS-005",
+      "plannedTask": "P11-T7",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/PerformanceAssessmentTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "GUIDE-001",
+      "plannedTask": "P12-T3",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/PracticeCoachingDecisionTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "GUIDE-002",
+      "plannedTask": "P12-T7",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Notation/ScoreHandTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "GUIDE-003",
+      "plannedTask": "P12-T6",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/PerformanceAssessmentTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "AI-001",
+      "plannedTask": "P14-T1",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/AIPerformanceCoordinatorTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "AI-002",
+      "plannedTask": "P14-T3",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/DuetPhraseEventBufferTests.swift",
+        "HappyPianistAVPTests/MIDI/MIDIRecordingCoordinatorTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "AI-003",
+      "plannedTask": "P14-T6",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Practice/DuetQualityRegressionTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    },
+    {
+      "id": "RECORD-001",
+      "plannedTask": "P8-T9",
+      "fixtures": [],
+      "tests": [
+        "HappyPianistAVPTests/Recording/RecordingTakeRecorderTests.swift",
+        "HappyPianistAVPTests/MIDI/MIDIRecordingCoordinatorTests.swift"
+      ],
+      "evidenceStatus": "characterizationPlanned"
+    }
+  ]
+}

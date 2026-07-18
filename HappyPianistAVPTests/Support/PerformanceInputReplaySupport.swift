@@ -1,0 +1,69 @@
+import Foundation
+
+struct TestMonotonicInstant: Comparable, Equatable, Hashable, Sendable {
+    let seconds: TimeInterval
+
+    static func < (lhs: TestMonotonicInstant, rhs: TestMonotonicInstant) -> Bool {
+        lhs.seconds < rhs.seconds
+    }
+
+    func advanced(by interval: TimeInterval) -> TestMonotonicInstant {
+        TestMonotonicInstant(seconds: seconds + interval)
+    }
+
+    var date: Date {
+        Date(timeIntervalSince1970: seconds)
+    }
+}
+
+struct PerformanceReplayEvent<Payload> {
+    let instant: TestMonotonicInstant
+    let source: String
+    let payload: Payload
+}
+
+struct PerformanceInputReplayCursor<Payload> {
+    private let events: [PerformanceReplayEvent<Payload>]
+    private(set) var index = 0
+
+    init(events: [PerformanceReplayEvent<Payload>]) {
+        self.events = events.enumerated().sorted { lhs, rhs in
+            if lhs.element.instant != rhs.element.instant {
+                return lhs.element.instant < rhs.element.instant
+            }
+            return lhs.offset < rhs.offset
+        }.map(\.element)
+    }
+
+    var hasNext: Bool {
+        index < events.count
+    }
+
+    mutating func next() -> PerformanceReplayEvent<Payload>? {
+        guard events.indices.contains(index) else { return nil }
+        defer { index += 1 }
+        return events[index]
+    }
+
+    mutating func replay(_ consume: (PerformanceReplayEvent<Payload>) throws -> Void) rethrows {
+        while let event = next() {
+            try consume(event)
+        }
+    }
+}
+
+final class DeterministicPerformanceClock {
+    private var instant: TestMonotonicInstant
+
+    init(start: TestMonotonicInstant = TestMonotonicInstant(seconds: 0)) {
+        instant = start
+    }
+
+    var now: TestMonotonicInstant {
+        instant
+    }
+
+    func advance(by interval: TimeInterval) {
+        instant = instant.advanced(by: interval)
+    }
+}

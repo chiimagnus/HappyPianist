@@ -7,7 +7,8 @@ struct MusicXMLExpressivityOptions: Equatable {
 }
 
 enum MusicXMLRealisticPlaybackDefaults {
-    static let shouldExpandStructure = false
+    static let practiceScoreOrder: MusicXMLScoreOrder = .written
+    static let referencePlaybackScoreOrder: MusicXMLScoreOrder = .performed
     static let performanceTimingEnabled = true
 
     static let expressivityOptions = MusicXMLExpressivityOptions(

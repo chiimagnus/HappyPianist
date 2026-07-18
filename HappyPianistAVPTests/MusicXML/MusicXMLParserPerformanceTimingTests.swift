@@ -29,3 +29,13 @@ struct MusicXMLParserPerformanceTimingTests {
         #expect(score.notes.first?.releaseTicks == 240)
     }
 }
+
+@Test
+func directionOffsetResolverNormalizesDivisionsAndClampsBeforeMeasureStart() {
+    let resolver = MusicXMLDirectionOffsetResolver(ticksPerQuarter: 480)
+
+    #expect(resolver.offsetTicks(rawDivisions: 1.5, divisions: 2) == 360)
+    #expect(resolver.offsetTicks(rawDivisions: -2, divisions: 2) == -480)
+    #expect(resolver.offsetTicks(rawDivisions: .nan, divisions: 2) == nil)
+    #expect(resolver.absoluteTick(directionStartTick: 960, measureStartTick: 720, offsetTicks: -480) == 720)
+}

@@ -1,12 +1,28 @@
 import Foundation
 
 struct MusicXMLStructureExpander {
-    func expandStructureIfPossible(score: MusicXMLScore, primaryPartID: String = "P1") -> MusicXMLScore {
-        let afterRepeat = expandRepeatAndEndingIfPossible(score: score, primaryPartID: primaryPartID)
-        return expandSoundJumpsIfPossible(score: afterRepeat, primaryPartID: primaryPartID)
+    func expandStructureIfPossible(
+        score: MusicXMLScore,
+        primaryPartID: String = "P1",
+        includedPartIDs: Set<String>? = nil
+    ) -> MusicXMLScore {
+        let afterRepeat = expandRepeatAndEndingIfPossible(
+            score: score,
+            primaryPartID: primaryPartID,
+            includedPartIDs: includedPartIDs
+        )
+        return expandSoundJumpsIfPossible(
+            score: afterRepeat,
+            primaryPartID: primaryPartID,
+            includedPartIDs: includedPartIDs
+        )
     }
 
-    func expandRepeatAndEndingIfPossible(score: MusicXMLScore, primaryPartID: String = "P1") -> MusicXMLScore {
+    func expandRepeatAndEndingIfPossible(
+        score: MusicXMLScore,
+        primaryPartID: String = "P1",
+        includedPartIDs: Set<String>? = nil
+    ) -> MusicXMLScore {
         let primaryMeasures = score.measures
             .filter { $0.partID == primaryPartID }
             .sorted { $0.startTick < $1.startTick }
@@ -77,7 +93,8 @@ struct MusicXMLStructureExpander {
             primaryPartID: primaryPartID,
             primaryMeasures: primaryMeasures,
             sequence: sequence,
-            includeSoundDirectives: true
+            includeSoundDirectives: true,
+            includedPartIDs: includedPartIDs
         )
     }
 
@@ -130,8 +147,10 @@ struct MusicXMLStructureExpander {
         primaryPartID: String,
         primaryMeasures: [MusicXMLMeasureSpan],
         sequence: [Int],
-        includeSoundDirectives: Bool
+        includeSoundDirectives: Bool,
+        includedPartIDs: Set<String>?
     ) -> MusicXMLScore {
+        let selectedPartIDs = includedPartIDs ?? [primaryPartID]
         var outputNotes: [MusicXMLNoteEvent] = []
         var outputTempoEvents: [MusicXMLTempoEvent] = []
         var outputSoundDirectives: [MusicXMLSoundDirective] = []
@@ -142,6 +161,8 @@ struct MusicXMLStructureExpander {
         var outputTimeSignatureEvents: [MusicXMLTimeSignatureEvent] = []
         var outputKeySignatureEvents: [MusicXMLKeySignatureEvent] = []
         var outputClefEvents: [MusicXMLClefEvent] = []
+        var outputTransposeEvents: [MusicXMLTransposeEvent] = []
+        var outputOctaveShiftEvents: [MusicXMLOctaveShiftEvent] = []
         var outputWordsEvents: [MusicXMLWordsEvent] = []
         var outputMeasures: [MusicXMLMeasureSpan] = []
 
@@ -155,33 +176,42 @@ struct MusicXMLStructureExpander {
         outputTimeSignatureEvents.reserveCapacity(original.timeSignatureEvents.count)
         outputKeySignatureEvents.reserveCapacity(original.keySignatureEvents.count)
         outputClefEvents.reserveCapacity(original.clefEvents.count)
+        outputTransposeEvents.reserveCapacity(original.transposeEvents.count)
+        outputOctaveShiftEvents.reserveCapacity(original.octaveShiftEvents.count)
         outputWordsEvents.reserveCapacity(original.wordsEvents.count)
-        outputMeasures.reserveCapacity(sequence.count)
+        outputMeasures.reserveCapacity(sequence.count * selectedPartIDs.count)
 
+        let orderedSelectedPartIDs = orderedPartIDs(
+            selectedPartIDs,
+            partMetadata: original.partMetadata
+        )
         var outputTick = 0
         var outputMeasureNumber = 1
-        var passByOriginalMeasureNumber: [Int: Int] = [:]
+        var passBySourceMeasureID: [PracticeSourceMeasureID: Int] = [:]
 
-        for index in sequence {
+        for (occurrenceIndex, index) in sequence.enumerated() {
             guard primaryMeasures.indices.contains(index) else { continue }
             let span = primaryMeasures[index]
             let duration = max(0, span.endTick - span.startTick)
             let currentMeasureStartTick = outputTick
-            let originalMeasureNumber = span.measureNumber
-            let pass = (passByOriginalMeasureNumber[originalMeasureNumber] ?? 0) + 1
-            passByOriginalMeasureNumber[originalMeasureNumber] = pass
+            let sourceMeasureID = span.sourceMeasureID
+            let pass = (passBySourceMeasureID[sourceMeasureID] ?? 0) + 1
+            passBySourceMeasureID[sourceMeasureID] = pass
 
             let notesInMeasure = original.notes.filter { note in
-                note.partID == primaryPartID && note.tick >= span.startTick && note.tick < span.endTick
+                selectedPartIDs.contains(note.partID) && note.tick >= span.startTick && note.tick < span.endTick
             }
             for note in notesInMeasure {
                 let shiftedTick = currentMeasureStartTick + (note.tick - span.startTick)
                 outputNotes.append(
                     MusicXMLNoteEvent(
+                        sourceID: note.sourceID,
+                        performedOccurrenceIndex: occurrenceIndex,
                         partID: note.partID,
                         measureNumber: outputMeasureNumber,
                         tick: shiftedTick,
                         durationTicks: note.durationTicks,
+                        writtenPitch: note.writtenPitch,
                         midiNote: note.midiNote,
                         isRest: note.isRest,
                         isChord: note.isChord,
@@ -189,6 +219,7 @@ struct MusicXMLStructureExpander {
                         graceSlash: note.graceSlash,
                         graceStealTimePrevious: note.graceStealTimePrevious,
                         graceStealTimeFollowing: note.graceStealTimeFollowing,
+                        graceMakeTimeTicks: note.graceMakeTimeTicks,
                         tieStart: note.tieStart,
                         tieStop: note.tieStop,
                         staff: note.staff,
@@ -198,31 +229,37 @@ struct MusicXMLStructureExpander {
                         dynamicsOverrideVelocity: note.dynamicsOverrideVelocity,
                         articulations: note.articulations,
                         arpeggiate: note.arpeggiate,
-                        fingeringText: note.fingeringText
+                        performanceNotations: note.performanceNotations,
+                        fingeringText: note.fingeringText,
+                        dotCount: note.dotCount
                     )
                 )
             }
 
             for event in original.tempoEvents
-                where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick
+                where selectedPartIDs.contains(event.scope.partID) && event.tick >= span.startTick && event.tick < span.endTick
             {
                 outputTempoEvents.append(MusicXMLTempoEvent(
+                    sourceID: event.sourceID,
+                    performedOccurrenceIndex: occurrenceIndex,
                     tick: currentMeasureStartTick + (event.tick - span.startTick),
                     quarterBPM: event.quarterBPM,
-                    scope: shiftedScope(event.scope, primaryPartID: primaryPartID)
+                    scope: shiftedScope(event.scope)
                 ))
             }
 
             if includeSoundDirectives {
                 let soundsInMeasure = original.soundDirectives.filter { event in
-                    event.partID == primaryPartID && event.measureNumber == span.measureNumber
+                    selectedPartIDs.contains(event.partID) && event.measureNumber == span.measureNumber
                 }
                 for event in soundsInMeasure {
                     if let timeOnlyPasses = event.timeOnlyPasses, timeOnlyPasses.contains(pass) == false {
                         continue
                     }
                     outputSoundDirectives.append(MusicXMLSoundDirective(
-                        partID: primaryPartID,
+                        sourceID: event.sourceID,
+                        performedOccurrenceIndex: occurrenceIndex,
+                        partID: event.partID,
                         measureNumber: outputMeasureNumber,
                         tick: currentMeasureStartTick + (event.tick - span.startTick),
                         segno: event.segno,
@@ -236,14 +273,16 @@ struct MusicXMLStructureExpander {
             }
 
             let pedalsInMeasure = original.pedalEvents.filter { event in
-                event.partID == primaryPartID && event.measureNumber == span.measureNumber
+                selectedPartIDs.contains(event.partID) && event.measureNumber == span.measureNumber
             }
             for event in pedalsInMeasure {
                 if let timeOnlyPasses = event.timeOnlyPasses, timeOnlyPasses.contains(pass) == false {
                     continue
                 }
                 outputPedalEvents.append(MusicXMLPedalEvent(
-                    partID: primaryPartID,
+                    sourceID: event.sourceID,
+                    performedOccurrenceIndex: occurrenceIndex,
+                    partID: event.partID,
                     measureNumber: outputMeasureNumber,
                     tick: currentMeasureStartTick + (event.tick - span.startTick),
                     kind: event.kind,
@@ -253,56 +292,61 @@ struct MusicXMLStructureExpander {
             }
 
             for event in original.dynamicEvents
-                where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick
+                where selectedPartIDs.contains(event.scope.partID) && event.tick >= span.startTick && event.tick < span.endTick
             {
                 outputDynamicEvents.append(MusicXMLDynamicEvent(
+                    sourceID: event.sourceID,
+                    performedOccurrenceIndex: occurrenceIndex,
                     tick: currentMeasureStartTick + (event.tick - span.startTick),
                     velocity: event.velocity,
-                    scope: shiftedScope(event.scope, primaryPartID: primaryPartID),
+                    scope: shiftedScope(event.scope),
                     source: event.source
                 ))
             }
             for event in original.wedgeEvents
-                where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick
+                where selectedPartIDs.contains(event.scope.partID) && event.tick >= span.startTick && event.tick < span.endTick
             {
                 outputWedgeEvents.append(MusicXMLWedgeEvent(
+                    sourceID: event.sourceID,
+                    performedOccurrenceIndex: occurrenceIndex,
                     tick: currentMeasureStartTick + (event.tick - span.startTick),
                     kind: event.kind,
                     numberToken: event.numberToken,
-                    scope: shiftedScope(event.scope, primaryPartID: primaryPartID)
+                    scope: shiftedScope(event.scope)
                 ))
             }
             for event in original.fermataEvents
-                where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick
+                where selectedPartIDs.contains(event.scope.partID) && event.tick >= span.startTick && event.tick < span.endTick
             {
                 outputFermataEvents.append(MusicXMLFermataEvent(
+                    sourceID: event.sourceID,
+                    performedOccurrenceIndex: occurrenceIndex,
                     tick: currentMeasureStartTick + (event.tick - span.startTick),
-                    scope: shiftedScope(event.scope, primaryPartID: primaryPartID),
+                    scope: shiftedScope(event.scope),
                     source: event.source
                 ))
             }
             for event in original.timeSignatureEvents
-                where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick
+                where selectedPartIDs.contains(event.scope.partID) && event.tick >= span.startTick && event.tick < span.endTick
             {
                 outputTimeSignatureEvents.append(MusicXMLTimeSignatureEvent(
                     tick: currentMeasureStartTick + (event.tick - span.startTick),
-                    beats: event.beats,
-                    beatType: event.beatType,
-                    scope: shiftedScope(event.scope, primaryPartID: primaryPartID)
+                    meter: event.meter,
+                    scope: shiftedScope(event.scope)
                 ))
             }
             for event in original.keySignatureEvents
-                where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick
+                where selectedPartIDs.contains(event.scope.partID) && event.tick >= span.startTick && event.tick < span.endTick
             {
                 outputKeySignatureEvents.append(MusicXMLKeySignatureEvent(
                     tick: currentMeasureStartTick + (event.tick - span.startTick),
                     fifths: event.fifths,
                     modeToken: event.modeToken,
-                    scope: shiftedScope(event.scope, primaryPartID: primaryPartID)
+                    scope: shiftedScope(event.scope)
                 ))
             }
             for event in original.clefEvents
-                where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick
+                where selectedPartIDs.contains(event.scope.partID) && event.tick >= span.startTick && event.tick < span.endTick
             {
                 outputClefEvents.append(MusicXMLClefEvent(
                     tick: currentMeasureStartTick + (event.tick - span.startTick),
@@ -310,28 +354,62 @@ struct MusicXMLStructureExpander {
                     line: event.line,
                     octaveChange: event.octaveChange,
                     numberToken: event.numberToken,
-                    scope: shiftedScope(event.scope, primaryPartID: primaryPartID)
+                    scope: shiftedScope(event.scope)
+                ))
+            }
+            for event in original.transposeEvents
+                where selectedPartIDs.contains(event.scope.partID) && event.tick >= span.startTick && event.tick < span.endTick
+            {
+                outputTransposeEvents.append(MusicXMLTransposeEvent(
+                    tick: currentMeasureStartTick + (event.tick - span.startTick),
+                    diatonic: event.diatonic,
+                    chromatic: event.chromatic,
+                    octaveChange: event.octaveChange,
+                    isDouble: event.isDouble,
+                    scope: shiftedScope(event.scope)
+                ))
+            }
+            for event in original.octaveShiftEvents
+                where selectedPartIDs.contains(event.scope.partID) && event.tick >= span.startTick && event.tick < span.endTick
+            {
+                outputOctaveShiftEvents.append(MusicXMLOctaveShiftEvent(
+                    sourceID: event.sourceID,
+                    performedOccurrenceIndex: occurrenceIndex,
+                    tick: currentMeasureStartTick + (event.tick - span.startTick),
+                    kind: event.kind,
+                    size: event.size,
+                    numberToken: event.numberToken,
+                    scope: shiftedScope(event.scope)
                 ))
             }
             for event in original.wordsEvents
-                where event.scope.partID == primaryPartID && event.tick >= span.startTick && event.tick < span.endTick
+                where selectedPartIDs.contains(event.scope.partID) && event.tick >= span.startTick && event.tick < span.endTick
             {
                 outputWordsEvents.append(MusicXMLWordsEvent(
+                    sourceID: event.sourceID,
+                    performedOccurrenceIndex: occurrenceIndex,
                     tick: currentMeasureStartTick + (event.tick - span.startTick),
                     text: event.text,
-                    scope: shiftedScope(event.scope, primaryPartID: primaryPartID)
+                    scope: shiftedScope(event.scope)
                 ))
             }
 
-            outputMeasures.append(MusicXMLMeasureSpan(
-                partID: primaryPartID,
-                measureNumber: outputMeasureNumber,
-                sourceMeasureIndex: span.sourceMeasureIndex,
-                sourceMeasureNumberToken: span.sourceMeasureNumberToken,
-                occurrenceIndex: outputMeasures.count,
-                startTick: currentMeasureStartTick,
-                endTick: currentMeasureStartTick + duration
-            ))
+            for partID in orderedSelectedPartIDs {
+                guard let sourceSpan = sourceMeasureSpan(
+                    for: partID,
+                    matching: span,
+                    in: original.measures
+                ) else { continue }
+                outputMeasures.append(MusicXMLMeasureSpan(
+                    partID: partID,
+                    measureNumber: outputMeasureNumber,
+                    sourceMeasureIndex: sourceSpan.sourceMeasureIndex,
+                    sourceMeasureNumberToken: sourceSpan.sourceMeasureNumberToken,
+                    occurrenceIndex: occurrenceIndex,
+                    startTick: currentMeasureStartTick,
+                    endTick: currentMeasureStartTick + duration
+                ))
+            }
 
             outputTick += duration
             outputMeasureNumber += 1
@@ -355,10 +433,16 @@ struct MusicXMLStructureExpander {
         outputTimeSignatureEvents.sort { $0.tick < $1.tick }
         outputKeySignatureEvents.sort { $0.tick < $1.tick }
         outputClefEvents.sort { $0.tick < $1.tick }
+        outputTransposeEvents.sort { $0.tick < $1.tick }
+        outputOctaveShiftEvents.sort { $0.tick < $1.tick }
         outputWordsEvents.sort { $0.tick < $1.tick }
 
         return MusicXMLScore(
             scoreVersion: original.scoreVersion,
+            partMetadata: original.partMetadata.filter { selectedPartIDs.contains($0.partID) },
+            logicalInstruments: original.logicalInstruments.filter { instrument in
+                instrument.memberPartIDs.contains { selectedPartIDs.contains($0) }
+            },
             notes: outputNotes,
             tempoEvents: outputTempoEvents,
             soundDirectives: outputSoundDirectives,
@@ -369,6 +453,8 @@ struct MusicXMLStructureExpander {
             timeSignatureEvents: outputTimeSignatureEvents,
             keySignatureEvents: outputKeySignatureEvents,
             clefEvents: outputClefEvents,
+            transposeEvents: outputTransposeEvents,
+            octaveShiftEvents: outputOctaveShiftEvents,
             wordsEvents: outputWordsEvents,
             measures: outputMeasures,
             repeatDirectives: [],
@@ -376,8 +462,33 @@ struct MusicXMLStructureExpander {
         )
     }
 
-    private func shiftedScope(_ scope: MusicXMLEventScope, primaryPartID: String) -> MusicXMLEventScope {
-        MusicXMLEventScope(partID: primaryPartID, staff: scope.staff, voice: scope.voice)
+    private func orderedPartIDs(
+        _ selectedPartIDs: Set<String>,
+        partMetadata: [MusicXMLPartMetadata]
+    ) -> [String] {
+        let sourceOrder = partMetadata.map(\.partID) + selectedPartIDs.sorted()
+        return sourceOrder.reduce(into: [String]()) { result, partID in
+            guard selectedPartIDs.contains(partID), result.contains(partID) == false else { return }
+            result.append(partID)
+        }
+    }
+
+    private func sourceMeasureSpan(
+        for partID: String,
+        matching primarySpan: MusicXMLMeasureSpan,
+        in measures: [MusicXMLMeasureSpan]
+    ) -> MusicXMLMeasureSpan? {
+        let partMeasures = measures.filter { $0.partID == partID }
+        return partMeasures.first { $0.sourceMeasureIndex == primarySpan.sourceMeasureIndex }
+            ?? partMeasures.first {
+                $0.sourceMeasureNumberToken != nil
+                    && $0.sourceMeasureNumberToken == primarySpan.sourceMeasureNumberToken
+            }
+            ?? partMeasures.first { $0.measureNumber == primarySpan.measureNumber }
+    }
+
+    private func shiftedScope(_ scope: MusicXMLEventScope) -> MusicXMLEventScope {
+        scope
     }
 }
 
@@ -398,7 +509,8 @@ extension MusicXMLStructureExpander {
         score: MusicXMLScore,
         primaryPartID: String = "P1",
         maxOutputMeasures: Int = 10000,
-        maxJumps: Int = 64
+        maxJumps: Int = 64,
+        includedPartIDs: Set<String>? = nil
     ) -> MusicXMLScore {
         let primarySoundDirectives = score.soundDirectives.filter { $0.partID == primaryPartID }
         guard primarySoundDirectives.isEmpty == false else { return score }
@@ -526,7 +638,8 @@ extension MusicXMLStructureExpander {
             primaryPartID: primaryPartID,
             primaryMeasures: primaryMeasures,
             sequence: outputSequence,
-            includeSoundDirectives: false
+            includeSoundDirectives: false,
+            includedPartIDs: includedPartIDs
         )
     }
 }

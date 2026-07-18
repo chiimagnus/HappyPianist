@@ -1252,3 +1252,15 @@ MIDI / microphone / hand tracking
 - [PianoCoRe](https://pianocore.github.io/)
 
 这些数据集可辅助 score-performance alignment、表现力特征和回放研究，但存在自动转录、谱面质量、版权或许可边界。产品验收仍需要自有、可授权、由钢琴家核对的精简 golden set。
+
+### 表现语义实现基线（P4）
+
+`ExpressivePianoSemantics.musicxml` 现作为项目自有 golden fixture，固定以下三类边界，避免把近似解释误写成完整专业支持：
+
+| 语义 | 当前实现基线 | 证据边界 |
+|---|---|---|
+| grace、arpeggio、dynamic wedge、tempo ramp、fermata、slur、breath | 已生成可追踪的统一时序或控制事实 | generic interpretation profile；风格化解释仍未验证 |
+| trill、measured/unmeasured tremolo、chromatic glissando | 仅在辅助音、记号参数、端点和音阶策略可确定时生成事件 | 生成事件保留 source notation 与 profile；不推断未知 accidental 或风格 |
+| 未识别 ornament、冲突或缺失参数 | 保留原始 notation 并标记 unsupported / approximation | 不静默丢失，不把未知解释为正确演奏 |
+
+该表描述代码与测试的当前事实，不构成产品级“钢琴家示范”能力声明；完整支持仍以本文后续真机、事件级和钢琴家验收门为准。

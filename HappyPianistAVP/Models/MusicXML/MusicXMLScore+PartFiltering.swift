@@ -1,46 +1,39 @@
 import Foundation
 
 extension MusicXMLScore {
-    func preferredPrimaryPartID(preferredPartID: String = "P1") -> String {
-        let available = Set(notes.map(\.partID))
-        if available.contains(preferredPartID) {
-            return preferredPartID
-        }
-
-        var countByPartID: [String: Int] = [:]
-        countByPartID.reserveCapacity(available.count)
-
-        for note in notes where note.isRest == false && note.midiNote != nil {
-            countByPartID[note.partID, default: 0] += 1
-        }
-
-        if let best = countByPartID.max(by: { lhs, rhs in
-            if lhs.value != rhs.value { return lhs.value < rhs.value }
-            return lhs.key > rhs.key
-        })?.key {
-            return best
-        }
-
-        return notes.first?.partID ?? preferredPartID
+    func filtering(toLogicalInstrument instrument: MusicXMLLogicalInstrument) -> MusicXMLScore {
+        filtering(toPartIDs: Set(instrument.memberPartIDs), selectedLogicalInstrument: instrument)
     }
 
     func filtering(toPartID partID: String) -> MusicXMLScore {
+        let selected = logicalInstruments.first { $0.memberPartIDs == [partID] }
+        return filtering(toPartIDs: [partID], selectedLogicalInstrument: selected)
+    }
+
+    private func filtering(
+        toPartIDs partIDs: Set<String>,
+        selectedLogicalInstrument: MusicXMLLogicalInstrument?
+    ) -> MusicXMLScore {
         MusicXMLScore(
             scoreVersion: scoreVersion,
-            notes: notes.filter { $0.partID == partID },
-            tempoEvents: tempoEvents.filter { $0.scope.partID == partID },
-            soundDirectives: soundDirectives.filter { $0.partID == partID },
-            pedalEvents: pedalEvents.filter { $0.partID == partID },
-            dynamicEvents: dynamicEvents.filter { $0.scope.partID == partID },
-            wedgeEvents: wedgeEvents.filter { $0.scope.partID == partID },
-            fermataEvents: fermataEvents.filter { $0.scope.partID == partID },
-            timeSignatureEvents: timeSignatureEvents.filter { $0.scope.partID == partID },
-            keySignatureEvents: keySignatureEvents.filter { $0.scope.partID == partID },
-            clefEvents: clefEvents.filter { $0.scope.partID == partID },
-            wordsEvents: wordsEvents.filter { $0.scope.partID == partID },
-            measures: measures.filter { $0.partID == partID },
-            repeatDirectives: repeatDirectives.filter { $0.partID == partID },
-            endingDirectives: endingDirectives.filter { $0.partID == partID }
+            partMetadata: partMetadata.filter { partIDs.contains($0.partID) },
+            logicalInstruments: selectedLogicalInstrument.map { [$0] } ?? [],
+            notes: notes.filter { partIDs.contains($0.partID) },
+            tempoEvents: tempoEvents.filter { partIDs.contains($0.scope.partID) },
+            soundDirectives: soundDirectives.filter { partIDs.contains($0.partID) },
+            pedalEvents: pedalEvents.filter { partIDs.contains($0.partID) },
+            dynamicEvents: dynamicEvents.filter { partIDs.contains($0.scope.partID) },
+            wedgeEvents: wedgeEvents.filter { partIDs.contains($0.scope.partID) },
+            fermataEvents: fermataEvents.filter { partIDs.contains($0.scope.partID) },
+            timeSignatureEvents: timeSignatureEvents.filter { partIDs.contains($0.scope.partID) },
+            keySignatureEvents: keySignatureEvents.filter { partIDs.contains($0.scope.partID) },
+            clefEvents: clefEvents.filter { partIDs.contains($0.scope.partID) },
+            transposeEvents: transposeEvents.filter { partIDs.contains($0.scope.partID) },
+            octaveShiftEvents: octaveShiftEvents.filter { partIDs.contains($0.scope.partID) },
+            wordsEvents: wordsEvents.filter { partIDs.contains($0.scope.partID) },
+            measures: measures.filter { partIDs.contains($0.partID) },
+            repeatDirectives: repeatDirectives.filter { partIDs.contains($0.partID) },
+            endingDirectives: endingDirectives.filter { partIDs.contains($0.partID) }
         )
     }
 }

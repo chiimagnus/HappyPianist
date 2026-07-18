@@ -13,7 +13,7 @@ func resetPianoSetupClearsPracticeSetupState() {
     practiceSetupState.importErrorMessage = "error"
     practiceSetupState.setImportedSteps(from: PreparedPractice(
         identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "test"),
-        steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)])],
+        steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)])],
         file: ImportedMusicXMLFile(
             fileName: "Test",
             storedURL: URL(fileURLWithPath: "/dev/null"),
@@ -33,7 +33,8 @@ func resetPianoSetupClearsPracticeSetupState() {
             startTick: 0,
             endTick: 1
         )],
-        unsupportedNoteCount: 0
+        unsupportedNoteCount: 0,
+        scoreContext: makeTestPreparedPracticeScoreContext()
     ))
 
     let registry = PianoModeRegistryService(modes: [])

@@ -14,7 +14,7 @@ func autoplayTimelineUsesGuidesForNoteOnOffAndGuideAdvance() {
 
     let timeline = AutoplayPerformanceTimeline.build(
         guides: [guide],
-        steps: [PracticeStep(tick: 120, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        steps: [PracticeStep(tick: 120, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
         pedalTimeline: MusicXMLPedalTimeline(events: []),
         fermataTimeline: MusicXMLFermataTimeline(fermataEvents: [], notes: []),
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
@@ -50,7 +50,7 @@ func autoplayTimelineDeduplicatesSameTickMIDINotesWithMaxVelocityAndOffTick() {
 
     let timeline = AutoplayPerformanceTimeline.build(
         guides: [guide],
-        steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
         pedalTimeline: MusicXMLPedalTimeline(events: []),
         fermataTimeline: MusicXMLFermataTimeline(fermataEvents: [], notes: []),
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
@@ -89,8 +89,8 @@ func autoplayTimelineRearticulatesOverlappingSameMIDINoteAtNextOnTick() {
     let timeline = AutoplayPerformanceTimeline.build(
         guides: [first, second],
         steps: [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
-            PracticeStep(tick: 240, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
+            PracticeStep(tick: 240, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
         ],
         pedalTimeline: MusicXMLPedalTimeline(events: []),
         fermataTimeline: MusicXMLFermataTimeline(fermataEvents: [], notes: []),
@@ -120,7 +120,7 @@ func autoplayTimelineKeepsZeroDurationGuideNotesReleasable() {
 
     let timeline = AutoplayPerformanceTimeline.build(
         guides: [guide],
-        steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
         pedalTimeline: MusicXMLPedalTimeline(events: []),
         fermataTimeline: MusicXMLFermataTimeline(fermataEvents: [], notes: []),
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
@@ -177,7 +177,7 @@ func autoplayTimelineEmitsReleaseAndRedownForSameTickPedalChange() {
 
     let timeline = AutoplayPerformanceTimeline.build(
         guides: [guide],
-        steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
         pedalTimeline: pedalTimeline,
         fermataTimeline: MusicXMLFermataTimeline(fermataEvents: [], notes: []),
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
@@ -222,7 +222,7 @@ func autoplayTimelineExcludesPedalEventsAtActiveRangeUpperBound() throws {
             tick: 0,
             notes: [makeTimelineNote(midi: 60, velocity: 80, onTick: 0, offTick: 480)]
         )],
-        steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
         pedalTimeline: MusicXMLPedalTimeline(events: [
             MusicXMLPedalEvent(
                 partID: "P1",
@@ -266,6 +266,24 @@ private func makeTimelineNote(midi: Int, velocity: UInt8, onTick: Int, offTick: 
         velocity: velocity,
         onTick: onTick,
         offTick: offTick,
-        fingeringText: nil
+        fingeringText: nil,
+        handAssignment: .unknown
+    )
+}
+
+@Test
+func autoplayPerformanceSnapshotPreservesSortedEventPositions() {
+    let timeline = AutoplayPerformanceTimeline(events: [
+        .init(id: 0, tick: 0, kind: .noteOn(midi: 60, velocity: 72)),
+        .init(id: 1, tick: 480, kind: .noteOff(midi: 60)),
+    ])
+
+    let snapshot = PerformanceEventSnapshot().encode(timeline)
+    expectSnapshot(
+        snapshot,
+        equals: """
+        position=0|eventID=0|sourceEventID=unresolved|tick=0|kind=noteOn:60:72
+        position=1|eventID=1|sourceEventID=unresolved|tick=480|kind=noteOff:60
+        """
     )
 }

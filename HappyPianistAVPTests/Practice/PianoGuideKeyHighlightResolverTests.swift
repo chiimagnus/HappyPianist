@@ -12,7 +12,7 @@ func resolverMarksTriggeredNotesAsTriggered() {
         onTick: 0,
         offTick: 1,
         fingeringText: nil,
-        hand: .right
+        handAssignment: ScoreHandAssignment(hand: .right, provenance: .score)
     )
 
     let guide = PianoHighlightGuide(
@@ -41,7 +41,7 @@ func resolverPrefersLeftHandWhenMultipleNotesShareMIDINote() {
         onTick: 0,
         offTick: 1,
         fingeringText: nil,
-        hand: .right
+        handAssignment: ScoreHandAssignment(hand: .right, provenance: .score)
     )
     let left = PianoHighlightNote(
         occurrenceID: "t1",
@@ -52,7 +52,7 @@ func resolverPrefersLeftHandWhenMultipleNotesShareMIDINote() {
         onTick: 0,
         offTick: 1,
         fingeringText: nil,
-        hand: .left
+        handAssignment: ScoreHandAssignment(hand: .left, provenance: .score)
     )
 
     let guide = PianoHighlightGuide(
@@ -81,7 +81,7 @@ func resolverUsesTriggeredNotesHandPreferenceBeforeActiveNotes() {
         onTick: 0,
         offTick: 1,
         fingeringText: nil,
-        hand: .right
+        handAssignment: ScoreHandAssignment(hand: .right, provenance: .score)
     )
     let activeLeft = PianoHighlightNote(
         occurrenceID: "a0",
@@ -92,7 +92,7 @@ func resolverUsesTriggeredNotesHandPreferenceBeforeActiveNotes() {
         onTick: 0,
         offTick: 1,
         fingeringText: nil,
-        hand: .left
+        handAssignment: ScoreHandAssignment(hand: .left, provenance: .score)
     )
 
     let guide = PianoHighlightGuide(
@@ -108,4 +108,37 @@ func resolverUsesTriggeredNotesHandPreferenceBeforeActiveNotes() {
 
     let highlights = PianoGuideKeyHighlightResolver().resolveHighlights(guide: guide)
     #expect(highlights[60]?.hand == .right)
+}
+
+@Test
+func resolverKeepsUnassignedNotesNeutral() {
+    let note = PianoHighlightNote(
+        occurrenceID: "u0",
+        midiNote: 60,
+        staff: 3,
+        voice: nil,
+        velocity: 96,
+        onTick: 0,
+        offTick: 1,
+        fingeringText: nil,
+        handAssignment: .unknown
+    )
+    let guide = PianoHighlightGuide(
+        id: 1,
+        kind: .trigger,
+        tick: 0,
+        durationTicks: nil,
+        practiceStepIndex: nil,
+        activeNotes: [],
+        triggeredNotes: [note],
+        releasedMIDINotes: []
+    )
+
+    let highlight = PianoGuideKeyHighlightResolver().resolveHighlights(guide: guide)[60]
+    #expect(highlight?.hand == .unknown)
+    #expect(PianoGuideHighlightStyle.resolve(
+        hand: .unknown,
+        phase: .triggered,
+        keyKind: .white
+    ).tintToken == .unassignedHandKey)
 }

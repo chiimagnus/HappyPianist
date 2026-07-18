@@ -555,6 +555,8 @@ struct GrandStaffNotationRenderer {
             return .cyan
         case .right:
             return .yellow
+        case .unknown:
+            return .secondary
         }
     }
 

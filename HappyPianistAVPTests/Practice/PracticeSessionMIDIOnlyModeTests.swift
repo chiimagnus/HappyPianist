@@ -43,8 +43,8 @@ func midiOnlyPracticeInputNoteOnAdvancesStep() async {
     )
 
     let steps = [
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
-        PracticeStep(tick: 240, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
+        PracticeStep(tick: 240, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
     ]
     session.setSteps(steps, tempoMap: MusicXMLTempoMap(tempoEvents: []))
     session.startGuidingIfReady()
@@ -86,8 +86,8 @@ func midiOnlyPracticeInputMIDI2NoteOnAdvancesStepEvenWithZeroVelocity() async {
     #expect(inputSource.midi2StreamCallCount == 1)
 
     let steps = [
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
-        PracticeStep(tick: 240, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
+        PracticeStep(tick: 240, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
     ]
     session.setSteps(steps, tempoMap: MusicXMLTempoMap(tempoEvents: []))
     session.startGuidingIfReady()
@@ -126,8 +126,8 @@ func midiOnlyPracticeExitStopsInputAndDoesNotAdvanceStepAfterTeardown() async {
     )
 
     let steps = [
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
-        PracticeStep(tick: 240, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
+        PracticeStep(tick: 240, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
     ]
     session.setSteps(steps, tempoMap: MusicXMLTempoMap(tempoEvents: []))
     session.startGuidingIfReady()
@@ -174,7 +174,7 @@ func midiOnlyPracticeInputStartFailureThenReplacingSameIndexStepResetsMatcherExp
         handPianoActivityGate: HandPianoActivityGate()
     )
 
-    let stepA = PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])
+    let stepA = PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])
     session.setSteps([stepA], tempoMap: MusicXMLTempoMap(tempoEvents: []))
     session.startGuidingIfReady()
     #expect(inputSource.startCallCount == 1)
@@ -182,7 +182,7 @@ func midiOnlyPracticeInputStartFailureThenReplacingSameIndexStepResetsMatcherExp
     #expect(inputSource.isRunning == false)
     #expect(session.currentStepIndex == 0)
 
-    let stepB = PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 61, staff: 1)])
+    let stepB = PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 61, staff: 1, handAssignment: .unknown)])
     session.setSteps([stepB], tempoMap: MusicXMLTempoMap(tempoEvents: []))
     session.startGuidingIfReady()
     #expect(inputSource.startCallCount == 2)

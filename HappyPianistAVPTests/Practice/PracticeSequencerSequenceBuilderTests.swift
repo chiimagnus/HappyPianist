@@ -87,3 +87,15 @@ func sequenceBuilderInjectsInitialSustainPedalStateWhenStartingMidSong() {
     #expect(schedule.first?.kind == .controlChange(controller: 64, value: 127))
     #expect(abs((schedule.first?.timeSeconds ?? -1) - 0.0) < 1e-9)
 }
+
+@Test
+func sequencerPerformanceSnapshotPreservesControllerAndTime() {
+    let events = [
+        PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .controlChange(controller: 64, value: 127)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.5, kind: .noteOn(midi: 60, velocity: 80)),
+    ]
+
+    let snapshot = PerformanceEventSnapshot().encode(events)
+    #expect(snapshot.contains("position=0|sourceEventID=unresolved|seconds=0|kind=cc:64:127"))
+    #expect(snapshot.contains("position=1|sourceEventID=unresolved|seconds=0.5|kind=noteOn:60:80"))
+}

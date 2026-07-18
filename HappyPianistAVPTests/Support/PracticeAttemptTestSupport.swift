@@ -8,3 +8,7 @@ func testAttemptOutcome(
 ) -> StepAttemptMatchResult {
     matched ? .matched : .insufficientEvidence
 }
+
+func testSnapshotLine(_ fields: [(String, String?)]) -> String {
+    PianoPerformanceSnapshotEncoder().encode(fields: fields)
+}

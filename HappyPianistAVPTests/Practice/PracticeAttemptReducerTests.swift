@@ -278,8 +278,8 @@ private struct Fixture {
         )
         measureIndex = PracticeMeasureIndex(
             steps: [
-                PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
-                PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
+                PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
+                PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
             ],
             measureSpans: [span]
         )

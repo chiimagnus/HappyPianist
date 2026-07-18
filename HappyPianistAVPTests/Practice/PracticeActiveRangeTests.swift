@@ -53,7 +53,7 @@ struct PracticeActiveRangeTests {
                         onTick: step.tick,
                         offTick: step.tick + 240,
                         fingeringText: nil,
-                        hand: .right
+                        handAssignment: ScoreHandAssignment(hand: .right, provenance: .score)
                     ),
                 ],
                 releasedMIDINotes: []
@@ -79,7 +79,7 @@ struct PracticeActiveRangeTests {
 
     private func makeSteps() -> [PracticeStep] {
         [0, 480, 960, 1440].enumerated().map { index, tick in
-            PracticeStep(tick: tick, notes: [PracticeStepNote(midiNote: 60 + index, staff: 1)])
+            PracticeStep(tick: tick, notes: [PracticeStepNote(midiNote: 60 + index, staff: 1, handAssignment: .unknown)])
         }
     }
 

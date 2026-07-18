@@ -36,8 +36,8 @@ func playbackSequenceBuilderBuildsManualReplaySequence() async throws {
         tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope)]
     )
     let steps: [PracticeStep] = [
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
-        PracticeStep(tick: 120, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
+        PracticeStep(tick: 120, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
     ]
 
     let sequence = try await builder.buildManualReplaySequence(

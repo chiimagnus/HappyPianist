@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <part-list>
+    <score-part id="P1">
+      <part-name>Piano</part-name>
+      <score-instrument id="P1-I1"><instrument-name>Grand Piano</instrument-name></score-instrument>
+    </score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>2</divisions><staves>2</staves>
+        <clef number="1"><sign>G</sign><line>2</line></clef>
+        <clef number="2"><sign>F</sign><line>4</line></clef>
+      </attributes>
+      <note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff></note>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>2</voice><staff>2</staff></note>
+      <backup><duration>2</duration></backup>
+      <note><pitch><step>E</step><octave>5</octave></pitch><duration>1</duration><voice>3</voice><staff>1</staff></note>
+      <note><pitch><step>E</step><octave>3</octave></pitch><duration>1</duration><voice>4</voice><staff>2</staff></note>
+    </measure>
+  </part>
+</score-partwise>

@@ -8,14 +8,16 @@ func shutdownIsIdempotentAndEmitsAtMostOneTake() {
     var recordedTakes: [RecordingTake] = []
     var states: [MIDIRecordingState.State] = []
 
+    let clock = DeterministicPerformanceClock(start: .init(seconds: 100))
     let service = MIDIRecordingState(
-        nowUptimeSeconds: { 100 },
-        nowDate: { Date(timeIntervalSince1970: 0) },
+        nowUptimeSeconds: { clock.now.seconds },
+        nowDate: { clock.now.date },
         onStateChanged: { states.append($0) },
         onTakeRecorded: { recordedTakes.append($0) }
     )
 
     service.startRecordingIfPossible(canRecord: true)
+    clock.advance(by: 0.25)
 
     service.shutdown()
     service.shutdown()

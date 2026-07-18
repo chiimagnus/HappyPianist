@@ -59,8 +59,8 @@ func manualReplayStopsAudioRecognitionAndRestoresAfterCompletion() async {
 
     let stateStore = PracticeSessionStateStore()
     stateStore.steps = [
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
-        PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
+        PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
     ]
     stateStore.currentStepIndex = 0
     stateStore.tempoMap = MusicXMLTempoMap(
@@ -121,8 +121,8 @@ func practiceManualReplayService_shutdownIsIdempotent() async {
 
     let stateStore = PracticeSessionStateStore()
     stateStore.steps = [
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
-        PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
+        PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
     ]
     stateStore.currentStepIndex = 0
     stateStore.tempoMap = MusicXMLTempoMap(

@@ -792,3 +792,184 @@ func parserSoundOffsetOverridesDirectionOffsetForSoundEvents() throws {
     #expect(score.tempoEvents[0].quarterBPM == 60)
     #expect(score.tempoEvents[0].tick == 480)
 }
+
+@Test
+func parserSnapshotSupportUsesStableFieldOrdering() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1"><measure number="1">
+        <attributes><divisions>1</divisions></attributes>
+        <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+      </measure></part>
+    </score-partwise>
+    """
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let note = try #require(score.notes.first)
+    let snapshot = PianoPerformanceSnapshotEncoder().encode(lines: [
+        testSnapshotLine([
+            ("part", note.partID),
+            ("tick", String(note.tick)),
+            ("midi", note.midiNote.map(String.init)),
+        ]),
+    ])
+
+    expectSnapshot(snapshot, equals: "part=P1|tick=0|midi=60\n")
+}
+
+@Test
+func parserPreservesPartListAndMIDIInstrumentMetadata() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list>
+        <score-part id="P1">
+          <part-name>Concert Grand Piano</part-name>
+          <part-abbreviation>Pno.</part-abbreviation>
+          <score-instrument id="P1-I1"><instrument-name>Grand Piano</instrument-name></score-instrument>
+          <midi-instrument id="P1-I1"><midi-channel>1</midi-channel><midi-program>1</midi-program><midi-bank>1</midi-bank></midi-instrument>
+        </score-part>
+        <score-part id="P2"><part-name>Violin</part-name></score-part>
+      </part-list>
+      <part id="P1"><measure number="1"/></part>
+      <part id="P2"><measure number="1"/></part>
+    </score-partwise>
+    """
+
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+
+    #expect(score.partMetadata.map(\.partID) == ["P1", "P2"])
+    #expect(score.partMetadata[0].name == "Concert Grand Piano")
+    #expect(score.partMetadata[0].abbreviation == "Pno.")
+    #expect(score.partMetadata[0].scoreInstruments == [
+        MusicXMLScoreInstrumentMetadata(id: "P1-I1", name: "Grand Piano")
+    ])
+    #expect(score.partMetadata[0].midiInstruments == [
+        MusicXMLMIDIInstrumentMetadata(id: "P1-I1", channel: 1, program: 1, bank: 1)
+    ])
+}
+
+@Test
+func parserRejectsDuplicateScorePartIdentifiers() {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list>
+        <score-part id="P1"><part-name>Piano</part-name></score-part>
+        <score-part id="P1"><part-name>Duplicate</part-name></score-part>
+      </part-list>
+      <part id="P1"><measure number="1"/></part>
+    </score-partwise>
+    """
+
+    #expect(throws: MusicXMLParserError.invalidPartMetadata(reason: "duplicate score-part id: P1")) {
+        try MusicXMLParser().parse(data: Data(xml.utf8))
+    }
+}
+
+@Test
+func parserPreservesWrittenPitchSpellingAndDecimalAlter() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes>
+        <note><pitch><step>C</step><alter>1</alter><octave>4</octave></pitch><accidental>sharp</accidental><duration>1</duration></note>
+        <note><pitch><step>D</step><alter>-1</alter><octave>4</octave></pitch><accidental>flat</accidental><duration>1</duration></note>
+        <note><pitch><step>F</step><alter>2</alter><octave>4</octave></pitch><accidental>double-sharp</accidental><duration>1</duration></note>
+        <note><pitch><step>G</step><alter>0.5</alter><octave>4</octave></pitch><accidental>quarter-sharp</accidental><duration>1</duration></note>
+        <note><rest/><duration>1</duration></note>
+      </measure></part>
+    </score-partwise>
+    """
+
+    let notes = try MusicXMLParser().parse(data: Data(xml.utf8)).notes
+
+    #expect(notes[0].writtenPitch == MusicXMLWrittenPitch(step: "C", octave: 4, alter: 1, accidentalToken: "sharp"))
+    #expect(notes[0].midiNote == 61)
+    #expect(notes[1].writtenPitch == MusicXMLWrittenPitch(step: "D", octave: 4, alter: -1, accidentalToken: "flat"))
+    #expect(notes[1].midiNote == 61)
+    #expect(notes[2].writtenPitch?.alter == 2)
+    #expect(notes[2].midiNote == 67)
+    #expect(notes[3].writtenPitch?.alter == 0.5)
+    #expect(notes[3].midiNote == nil)
+    #expect(notes[4].writtenPitch == nil)
+}
+
+@Test
+func parserPreservesTransposeAndOctaveShiftFacts() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Clarinet and Piano</part-name></score-part></part-list>
+      <part id="P1">
+        <measure number="1">
+          <attributes><divisions>1</divisions><transpose><diatonic>-1</diatonic><chromatic>-2</chromatic><octave-change>0</octave-change></transpose></attributes>
+          <direction><direction-type><octave-shift type="up" size="8" number="1"/></direction-type></direction>
+          <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+        </measure>
+        <measure number="2"><direction><direction-type><octave-shift type="stop" size="8" number="1"/></direction-type></direction></measure>
+      </part>
+    </score-partwise>
+    """
+
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+
+    #expect(score.transposeEvents == [
+        MusicXMLTransposeEvent(
+            tick: 0,
+            diatonic: -1,
+            chromatic: -2,
+            octaveChange: 0,
+            isDouble: false,
+            scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
+        )
+    ])
+    #expect(score.notes.first?.writtenPitch?.step == "C")
+    #expect(score.octaveShiftEvents.map(\.kind) == [.up, .stop])
+    #expect(score.octaveShiftEvents.map(\.tick) == [0, 480])
+}
+
+@Test
+func partSelectorPrefersTheOnlyExplicitPianoOverNoteCount() {
+    let piano = MusicXMLLogicalInstrument(
+        id: "piano:P2",
+        memberPartIDs: ["P2"],
+        classification: .piano,
+        evidence: [.init(kind: .explicitPianoMetadata, partIDs: ["P2"])]
+    )
+    let orchestra = MusicXMLLogicalInstrument(
+        id: "other:P1",
+        memberPartIDs: ["P1"],
+        classification: .other,
+        evidence: [.init(kind: .singlePlayablePart, partIDs: ["P1"])]
+    )
+    let score = MusicXMLScore(
+        logicalInstruments: [orchestra, piano],
+        notes: [
+            MusicXMLNoteEvent(partID: "P1", measureNumber: 1, tick: 0, durationTicks: 1, midiNote: 60, isRest: false, isChord: false, tieStart: false, tieStop: false, staff: 1, voice: 1),
+            MusicXMLNoteEvent(partID: "P1", measureNumber: 1, tick: 1, durationTicks: 1, midiNote: 62, isRest: false, isChord: false, tieStart: false, tieStop: false, staff: 1, voice: 1),
+            MusicXMLNoteEvent(partID: "P2", measureNumber: 1, tick: 0, durationTicks: 1, midiNote: 48, isRest: false, isChord: false, tieStart: false, tieStop: false, staff: 1, voice: 1),
+        ]
+    )
+    #expect(MusicXMLPracticePartSelector().select(from: score) == .selected(piano))
+}
+
+@Test
+func partSelectorReportsAmbiguityInsteadOfPickingTheMostNotes() {
+    let a = MusicXMLLogicalInstrument(
+        id: "other:P1", memberPartIDs: ["P1"], classification: .other,
+        evidence: [.init(kind: .singlePlayablePart, partIDs: ["P1"])]
+    )
+    let b = MusicXMLLogicalInstrument(
+        id: "other:P2", memberPartIDs: ["P2"], classification: .other,
+        evidence: [.init(kind: .singlePlayablePart, partIDs: ["P2"])]
+    )
+    let score = MusicXMLScore(
+        logicalInstruments: [a, b],
+        notes: [
+            MusicXMLNoteEvent(partID: "P1", measureNumber: 1, tick: 0, durationTicks: 1, midiNote: 60, isRest: false, isChord: false, tieStart: false, tieStop: false, staff: 1, voice: 1),
+            MusicXMLNoteEvent(partID: "P2", measureNumber: 1, tick: 0, durationTicks: 1, midiNote: 48, isRest: false, isChord: false, tieStart: false, tieStop: false, staff: 1, voice: 1),
+        ]
+    )
+    #expect(MusicXMLPracticePartSelector().select(from: score) == .ambiguous(.init(
+        candidateInstrumentIDs: ["other:P1", "other:P2"],
+        reason: "multiple-playable-instruments-without-piano-evidence"
+    )))
+}

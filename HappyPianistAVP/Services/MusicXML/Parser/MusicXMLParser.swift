@@ -2,6 +2,7 @@ import Foundation
 
 enum MusicXMLParserError: Error, Equatable {
     case parseFailed(line: Int?, column: Int?, reason: String)
+    case invalidPartMetadata(reason: String)
 }
 
 protocol MusicXMLParserProtocol: Sendable {
@@ -45,8 +46,12 @@ struct MusicXMLParser: MusicXMLParserProtocol {
             )
         }
         try Task.checkCancellation()
+        if let metadataError = delegate.metadataError {
+            throw metadataError
+        }
         return MusicXMLScore(
             scoreVersion: delegate.scoreVersion,
+            partMetadata: delegate.partMetadata,
             notes: delegate.notes,
             tempoEvents: delegate.tempoEvents,
             soundDirectives: delegate.soundDirectives,
@@ -57,6 +62,8 @@ struct MusicXMLParser: MusicXMLParserProtocol {
             timeSignatureEvents: delegate.timeSignatureEvents,
             keySignatureEvents: delegate.keySignatureEvents,
             clefEvents: delegate.clefEvents,
+            transposeEvents: delegate.transposeEvents,
+            octaveShiftEvents: delegate.octaveShiftEvents,
             wordsEvents: delegate.wordsEvents,
             measures: delegate.measures,
             repeatDirectives: delegate.repeatDirectives,

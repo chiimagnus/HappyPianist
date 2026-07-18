@@ -427,9 +427,9 @@ func retryMeasureKeepsRepeatedOccurrenceInCurrentPassage() {
     )
     session.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
-            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
-            PracticeStep(tick: 960, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
+            PracticeStep(tick: 960, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
         measureSpans: spans
@@ -458,7 +458,7 @@ func automaticLoopStartsANewAttemptRound() {
     )
     session.songIdentity = identity
     session.setSteps(
-        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
         measureSpans: [span]
     )
@@ -489,7 +489,7 @@ func automaticLoopStopsWhenPassageReachesTarget() {
     )
     session.songIdentity = identity
     session.setSteps(
-        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
         measureSpans: [span]
     )
@@ -517,7 +517,7 @@ func continuePassageStartsANewRoundInPractice() {
         sleeper: TaskSleeper()
     )
     session.setSteps(
-        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
         measureSpans: [span]
     )
@@ -533,8 +533,8 @@ func continuePassageStartsANewRoundInPractice() {
 
 private func makeResumeSteps() -> [PracticeStep] {
     [
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
-        PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
+        PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
     ]
 }
 

@@ -96,9 +96,9 @@ private struct AutoplayRegressionModel {
 
 @MainActor
 private func makeAutoplayRegressionModel() throws -> AutoplayRegressionModel {
-    let fixtureURL = testFixtureURL("MusicXMLAutoplayRegression.musicxml")
+    let fixture = try PianoPerformanceFixtureLoader().fixture(id: "musicxml-autoplay-regression")
 
-    let score = try MusicXMLParser().parse(fileURL: fixtureURL)
+    let score = try MusicXMLParser().parse(fileURL: fixture.url)
     let expressivity = MusicXMLRealisticPlaybackDefaults.expressivityOptions
     let buildResult = PracticeStepBuilder().buildSteps(from: score, expressivity: expressivity)
     let wordsSemantics = MusicXMLWordsSemanticsInterpreter().interpret(
@@ -115,8 +115,7 @@ private func makeAutoplayRegressionModel() throws -> AutoplayRegressionModel {
     let noteSpans = MusicXMLNoteSpanBuilder().buildSpans(
         from: score.notes,
         performanceTimingEnabled: MusicXMLRealisticPlaybackDefaults.performanceTimingEnabled,
-        expressivity: expressivity,
-        fermataTimeline: fermataTimeline
+        expressivity: expressivity
     )
     let guides = PianoHighlightGuideBuilderService().buildGuides(
         input: PianoHighlightGuideBuildInput(

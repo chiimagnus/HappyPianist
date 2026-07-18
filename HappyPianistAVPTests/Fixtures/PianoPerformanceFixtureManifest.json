@@ -1,0 +1,142 @@
+{
+  "version": 1,
+  "fixtures": [
+    {
+      "id": "cross-staff-hand-assignment",
+      "file": "CrossStaffHandAssignment.musicxml",
+      "source": "project-authored MusicXML regression fixture",
+      "license": "repository test asset",
+      "exporter": "hand-authored MusicXML 4.0",
+      "coverage": [
+        "cross-staff",
+        "voice",
+        "hand-assignment",
+        "unknown-hand"
+      ],
+      "snapshot": "cross-staff-hand-assignment"
+    },
+    {
+      "id": "despacito-highlight-regression",
+      "file": "DESPACITOHighlightRegression.musicxml",
+      "source": "project regression fixture",
+      "license": "repository test asset",
+      "exporter": "unknown",
+      "coverage": [
+        "highlight",
+        "real-score-regression"
+      ],
+      "snapshot": "despacito-highlight-regression"
+    },
+    {
+      "id": "expressive-piano-semantics",
+      "file": "ExpressivePianoSemantics.musicxml",
+      "source": "project-authored MusicXML regression fixture",
+      "license": "repository test asset",
+      "exporter": "hand-authored MusicXML 4.0",
+      "coverage": [
+        "grace",
+        "arpeggio",
+        "dynamic-curve",
+        "tempo-ramp",
+        "fermata",
+        "slur",
+        "ornament",
+        "unsupported"
+      ],
+      "snapshot": "expressive-piano-semantics"
+    },
+    {
+      "id": "musicxml-autoplay-regression",
+      "file": "MusicXMLAutoplayRegression.musicxml",
+      "source": "project regression fixture",
+      "license": "repository test asset",
+      "exporter": "unknown",
+      "coverage": [
+        "autoplay",
+        "tempo",
+        "pedal",
+        "fermata",
+        "articulation"
+      ],
+      "snapshot": "musicxml-autoplay-regression"
+    },
+    {
+      "id": "practice-learning-loop-eight-measures",
+      "file": "PracticeLearningLoopEightMeasures.musicxml",
+      "source": "project regression fixture",
+      "license": "repository test asset",
+      "exporter": "unknown",
+      "coverage": [
+        "measures",
+        "practice-loop"
+      ],
+      "snapshot": "practice-learning-loop-eight-measures"
+    },
+    {
+      "id": "practice-measure-identity-repeats",
+      "file": "PracticeMeasureIdentityRepeats.musicxml",
+      "source": "project regression fixture",
+      "license": "repository test asset",
+      "exporter": "unknown",
+      "coverage": [
+        "measure-identity",
+        "repeats",
+        "endings"
+      ],
+      "snapshot": "practice-measure-identity-repeats"
+    },
+    {
+      "id": "single-staff-hand-routing-clear",
+      "file": "SingleStaffHandRoutingClear.musicxml",
+      "source": "project regression fixture",
+      "license": "repository test asset",
+      "exporter": "unknown",
+      "coverage": [
+        "single-staff",
+        "hand-routing"
+      ],
+      "snapshot": "single-staff-hand-routing-clear"
+    },
+    {
+      "id": "single-staff-hand-routing-interleaving",
+      "file": "SingleStaffHandRoutingInterleaving.musicxml",
+      "source": "project regression fixture",
+      "license": "repository test asset",
+      "exporter": "unknown",
+      "coverage": [
+        "single-staff",
+        "hand-routing",
+        "interleaving"
+      ],
+      "snapshot": "single-staff-hand-routing-interleaving"
+    },
+    {
+      "id": "split-part-grand-staff-piano",
+      "file": "SplitPartGrandStaffPiano.musicxml",
+      "source": "project-authored MusicXML regression fixture",
+      "license": "repository test asset",
+      "exporter": "hand-authored MusicXML 4.0",
+      "coverage": [
+        "logical-instrument",
+        "split-piano",
+        "directions",
+        "pedal",
+        "performed-order"
+      ],
+      "snapshot": "split-part-grand-staff-piano"
+    },
+    {
+      "id": "two-instrument-not-piano",
+      "file": "TwoInstrumentNotPiano.musicxml",
+      "source": "project-authored MusicXML regression fixture",
+      "license": "repository test asset",
+      "exporter": "hand-authored MusicXML 4.0",
+      "coverage": [
+        "logical-instrument",
+        "multi-part",
+        "negative-piano-classification"
+      ],
+      "snapshot": "two-instrument-not-piano"
+    }
+  ]
+}

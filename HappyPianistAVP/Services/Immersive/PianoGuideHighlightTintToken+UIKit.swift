@@ -10,6 +10,8 @@ extension PianoGuideHighlightTintToken {
             UIColor(Color.orange)
         case .leftHandKey:
             UIColor(Color.cyan)
+        case .unassignedHandKey:
+            UIColor(Color.gray)
         }
     }
 }

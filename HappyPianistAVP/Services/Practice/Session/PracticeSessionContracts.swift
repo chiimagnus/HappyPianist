@@ -1,5 +1,16 @@
 import Foundation
 
+struct PracticePreparationOptions: Equatable, Sendable {
+    let scoreOrder: MusicXMLScoreOrder
+
+    static let practice = PracticePreparationOptions(
+        scoreOrder: MusicXMLRealisticPlaybackDefaults.practiceScoreOrder
+    )
+    static let referencePlayback = PracticePreparationOptions(
+        scoreOrder: MusicXMLRealisticPlaybackDefaults.referencePlaybackScoreOrder
+    )
+}
+
 @MainActor
 protocol PracticeSessionEffectHandlerProtocol: AnyObject {
     func handle(effect: PracticeSessionEffect)

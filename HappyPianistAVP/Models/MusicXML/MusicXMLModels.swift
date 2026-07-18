@@ -2,6 +2,8 @@ import Foundation
 
 struct MusicXMLScore: Equatable {
     var scoreVersion: String?
+    var partMetadata: [MusicXMLPartMetadata] = []
+    var logicalInstruments: [MusicXMLLogicalInstrument] = []
     var notes: [MusicXMLNoteEvent]
     var tempoEvents: [MusicXMLTempoEvent] = []
     var soundDirectives: [MusicXMLSoundDirective] = []
@@ -12,13 +14,15 @@ struct MusicXMLScore: Equatable {
     var timeSignatureEvents: [MusicXMLTimeSignatureEvent] = []
     var keySignatureEvents: [MusicXMLKeySignatureEvent] = []
     var clefEvents: [MusicXMLClefEvent] = []
+    var transposeEvents: [MusicXMLTransposeEvent] = []
+    var octaveShiftEvents: [MusicXMLOctaveShiftEvent] = []
     var wordsEvents: [MusicXMLWordsEvent] = []
     var measures: [MusicXMLMeasureSpan] = []
     var repeatDirectives: [MusicXMLRepeatDirective] = []
     var endingDirectives: [MusicXMLEndingDirective] = []
 }
 
-struct MusicXMLEventScope: Equatable {
+struct MusicXMLEventScope: Equatable, Sendable {
     let partID: String
     let staff: Int?
     let voice: Int?
@@ -29,32 +33,66 @@ enum MusicXMLDynamicEventSource: Equatable {
     case soundDynamicsAttribute
 }
 
-struct MusicXMLDynamicEvent: Equatable, Identifiable {
-    var id: String {
-        "\(tick)-\(velocity)-\(scope.partID)-\(scope.staff ?? -1)-\(scope.voice ?? -1)-\(source)"
+struct MusicXMLDynamicEvent: Equatable {
+    var sourceID: MusicXMLDirectionSourceID? = nil
+    var performedOccurrenceIndex: Int = 0
+    var performedID: MusicXMLPerformedDirectionID? {
+        sourceID.map { MusicXMLPerformedDirectionID(sourceID: $0, occurrenceIndex: performedOccurrenceIndex) }
     }
-
     let tick: Int
     let velocity: UInt8
     let scope: MusicXMLEventScope
     let source: MusicXMLDynamicEventSource
 }
 
-enum MusicXMLWedgeKind: Equatable {
+enum MusicXMLWedgeKind: Equatable, Sendable {
     case crescendoStart
     case diminuendoStart
     case stop
 }
 
-struct MusicXMLWedgeEvent: Equatable, Identifiable {
-    var id: String {
-        "\(tick)-\(kind)-\(numberToken ?? "")-\(scope.partID)-\(scope.staff ?? -1)-\(scope.voice ?? -1)"
+struct MusicXMLWedgeEvent: Equatable {
+    var sourceID: MusicXMLDirectionSourceID? = nil
+    var performedOccurrenceIndex: Int = 0
+    var performedID: MusicXMLPerformedDirectionID? {
+        sourceID.map { MusicXMLPerformedDirectionID(sourceID: $0, occurrenceIndex: performedOccurrenceIndex) }
     }
-
     let tick: Int
     let kind: MusicXMLWedgeKind
     let numberToken: String?
     let scope: MusicXMLEventScope
+}
+
+struct MusicXMLWedgePairKey: Equatable, Hashable, Sendable {
+    let partID: String
+    let staff: Int?
+    let voice: Int?
+    let numberToken: String
+}
+
+extension MusicXMLWedgeEvent {
+    var normalizedNumberToken: String {
+        guard let token = numberToken?.trimmingCharacters(in: .whitespacesAndNewlines),
+              token.isEmpty == false
+        else {
+            return "1"
+        }
+        return token
+    }
+
+    var pairKey: MusicXMLWedgePairKey {
+        MusicXMLWedgePairKey(
+            partID: scope.partID,
+            staff: scope.staff,
+            voice: scope.voice,
+            numberToken: normalizedNumberToken
+        )
+    }
+}
+
+struct MusicXMLWedgeApproximation: Equatable, Sendable {
+    let sourceID: MusicXMLDirectionSourceID?
+    let reason: String
 }
 
 enum MusicXMLFermataEventSource: Equatable {
@@ -62,30 +100,71 @@ enum MusicXMLFermataEventSource: Equatable {
     case directionType
 }
 
-struct MusicXMLFermataEvent: Equatable, Identifiable {
-    var id: String {
-        "\(tick)-\(scope.partID)-\(scope.staff ?? -1)-\(scope.voice ?? -1)-\(source)"
+struct MusicXMLFermataEvent: Equatable {
+    var sourceID: MusicXMLDirectionSourceID? = nil
+    var performedOccurrenceIndex: Int = 0
+    var performedID: MusicXMLPerformedDirectionID? {
+        sourceID.map { MusicXMLPerformedDirectionID(sourceID: $0, occurrenceIndex: performedOccurrenceIndex) }
     }
-
     let tick: Int
     let scope: MusicXMLEventScope
     let source: MusicXMLFermataEventSource
 }
 
-struct MusicXMLArpeggiate: Equatable, Hashable {
+enum MusicXMLArpeggiateDirection: String, Codable, Equatable, Hashable, Sendable {
+    case up
+    case down
+}
+
+struct MusicXMLArpeggiate: Equatable, Hashable, Sendable {
     let numberToken: String?
     let directionToken: String?
+
+    var normalizedNumberToken: String {
+        guard let trimmed = numberToken?.trimmingCharacters(in: .whitespacesAndNewlines),
+              trimmed.isEmpty == false
+        else {
+            return "1"
+        }
+        return trimmed
+    }
+
+    var direction: MusicXMLArpeggiateDirection? {
+        guard let token = directionToken?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() else {
+            return nil
+        }
+        return MusicXMLArpeggiateDirection(rawValue: token)
+    }
 }
 
 struct MusicXMLTimeSignatureEvent: Equatable, Identifiable {
-    var id: String {
-        "\(tick)-\(beats)-\(beatType)-\(scope.partID)"
-    }
+    var id: String { "\(tick)-\(meter.displayText)-\(scope.partID)" }
 
     let tick: Int
-    let beats: Int
-    let beatType: Int
+    let meter: MusicXMLMeter
     let scope: MusicXMLEventScope
+
+    var beats: Int { meter.totalBeats }
+    var beatType: Int { meter.primaryBeatType }
+
+    init(tick: Int, meter: MusicXMLMeter, scope: MusicXMLEventScope) {
+        self.tick = tick
+        self.meter = meter
+        self.scope = scope
+    }
+
+    init(tick: Int, beats: Int, beatType: Int, scope: MusicXMLEventScope) {
+        self.init(
+            tick: tick,
+            meter: MusicXMLMeter(
+                components: [.init(beatGroups: [beats], beatType: beatType)],
+                symbolToken: nil,
+                isSenzaMisura: false,
+                approximation: nil
+            ),
+            scope: scope
+        )
+    }
 }
 
 struct MusicXMLKeySignatureEvent: Equatable, Identifiable {
@@ -112,11 +191,12 @@ struct MusicXMLClefEvent: Equatable, Identifiable {
     let scope: MusicXMLEventScope
 }
 
-struct MusicXMLWordsEvent: Equatable, Identifiable {
-    var id: String {
-        "\(tick)-\(scope.partID)-\(scope.staff ?? -1)-\(scope.voice ?? -1)-\(text)"
+struct MusicXMLWordsEvent: Equatable {
+    var sourceID: MusicXMLDirectionSourceID? = nil
+    var performedOccurrenceIndex: Int = 0
+    var performedID: MusicXMLPerformedDirectionID? {
+        sourceID.map { MusicXMLPerformedDirectionID(sourceID: $0, occurrenceIndex: performedOccurrenceIndex) }
     }
-
     let tick: Int
     let text: String
     let scope: MusicXMLEventScope
@@ -131,21 +211,23 @@ enum MusicXMLArticulation: String, CaseIterable, Equatable, Hashable {
     case detachedLegato = "detached-legato"
 }
 
-struct MusicXMLTempoEvent: Equatable, Identifiable {
-    var id: String {
-        "\(tick)-\(quarterBPM)-\(scope.partID)-\(scope.staff ?? -1)-\(scope.voice ?? -1)"
+struct MusicXMLTempoEvent: Equatable {
+    var sourceID: MusicXMLDirectionSourceID? = nil
+    var performedOccurrenceIndex: Int = 0
+    var performedID: MusicXMLPerformedDirectionID? {
+        sourceID.map { MusicXMLPerformedDirectionID(sourceID: $0, occurrenceIndex: performedOccurrenceIndex) }
     }
-
     let tick: Int
     let quarterBPM: Double
     let scope: MusicXMLEventScope
 }
 
-struct MusicXMLSoundDirective: Equatable, Identifiable {
-    var id: String {
-        "\(partID)-\(measureNumber)-\(tick)-\(segno ?? "")-\(coda ?? "")-\(tocoda ?? "")-\(dalsegno ?? "")-\(dacapo ?? "")-\(timeOnlyPasses?.map(String.init).joined(separator: ",") ?? "")"
+struct MusicXMLSoundDirective: Equatable {
+    var sourceID: MusicXMLDirectionSourceID? = nil
+    var performedOccurrenceIndex: Int = 0
+    var performedID: MusicXMLPerformedDirectionID? {
+        sourceID.map { MusicXMLPerformedDirectionID(sourceID: $0, occurrenceIndex: performedOccurrenceIndex) }
     }
-
     let partID: String
     let measureNumber: Int
     let tick: Int
@@ -164,11 +246,12 @@ enum MusicXMLPedalEventKind: String, Equatable {
     case `continue`
 }
 
-struct MusicXMLPedalEvent: Equatable, Identifiable {
-    var id: String {
-        "\(partID)-\(measureNumber)-\(tick)-\(kind.rawValue)-\(isDown.map { $0 ? "down" : "up" } ?? "keep")-\(timeOnlyPasses?.map(String.init).joined(separator: ",") ?? "")"
+struct MusicXMLPedalEvent: Equatable {
+    var sourceID: MusicXMLDirectionSourceID? = nil
+    var performedOccurrenceIndex: Int = 0
+    var performedID: MusicXMLPerformedDirectionID? {
+        sourceID.map { MusicXMLPerformedDirectionID(sourceID: $0, occurrenceIndex: performedOccurrenceIndex) }
     }
-
     let partID: String
     let measureNumber: Int
     let tick: Int
@@ -231,14 +314,18 @@ struct MusicXMLEndingDirective: Equatable {
 }
 
 struct MusicXMLNoteEvent: Equatable, Identifiable {
-    var id: String {
-        "\(partID)-\(measureNumber)-\(tick)-\(midiNote ?? -1)-\(durationTicks)-\(isRest)-\(isChord)-\(isGrace)-\(graceSlash)-\(graceStealTimePrevious ?? 0)-\(graceStealTimeFollowing ?? 0)-\(tieStart)-\(tieStop)-\(attackTicks ?? 0)-\(releaseTicks ?? 0)-\(dynamicsOverrideVelocity ?? 0)-\(articulations.map(\.rawValue).sorted().joined(separator: ","))-\(arpeggiate?.numberToken ?? "")-\(arpeggiate?.directionToken ?? "")-\(fingeringText ?? "")"
+    var id: MusicXMLPerformedNoteID? { performedID }
+    var performedID: MusicXMLPerformedNoteID? {
+        sourceID.map { MusicXMLPerformedNoteID(sourceID: $0, occurrenceIndex: performedOccurrenceIndex) }
     }
 
+    let sourceID: MusicXMLSourceNoteID?
+    let performedOccurrenceIndex: Int
     let partID: String
     let measureNumber: Int
     let tick: Int
     let durationTicks: Int
+    let writtenPitch: MusicXMLWrittenPitch?
     let midiNote: Int?
     let isRest: Bool
     let isChord: Bool
@@ -246,6 +333,7 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
     let graceSlash: Bool
     let graceStealTimePrevious: Double?
     let graceStealTimeFollowing: Double?
+    let graceMakeTimeTicks: Int?
     let tieStart: Bool
     let tieStop: Bool
     let staff: Int?
@@ -255,14 +343,18 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
     let dynamicsOverrideVelocity: UInt8?
     let articulations: Set<MusicXMLArticulation>
     let arpeggiate: MusicXMLArpeggiate?
+    let performanceNotations: [MusicXMLPerformanceNotation]
     let fingeringText: String?
     let dotCount: Int
 
     init(
+        sourceID: MusicXMLSourceNoteID? = nil,
+        performedOccurrenceIndex: Int = 0,
         partID: String,
         measureNumber: Int,
         tick: Int,
         durationTicks: Int,
+        writtenPitch: MusicXMLWrittenPitch? = nil,
         midiNote: Int?,
         isRest: Bool,
         isChord: Bool,
@@ -270,6 +362,7 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         graceSlash: Bool = false,
         graceStealTimePrevious: Double? = nil,
         graceStealTimeFollowing: Double? = nil,
+        graceMakeTimeTicks: Int? = nil,
         tieStart: Bool,
         tieStop: Bool,
         staff: Int?,
@@ -279,13 +372,17 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         dynamicsOverrideVelocity: UInt8? = nil,
         articulations: Set<MusicXMLArticulation> = [],
         arpeggiate: MusicXMLArpeggiate? = nil,
+        performanceNotations: [MusicXMLPerformanceNotation] = [],
         fingeringText: String? = nil,
         dotCount: Int = 0
     ) {
+        self.sourceID = sourceID
+        self.performedOccurrenceIndex = max(0, performedOccurrenceIndex)
         self.partID = partID
         self.measureNumber = measureNumber
         self.tick = tick
         self.durationTicks = durationTicks
+        self.writtenPitch = writtenPitch
         self.midiNote = midiNote
         self.isRest = isRest
         self.isChord = isChord
@@ -293,6 +390,7 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         self.graceSlash = graceSlash
         self.graceStealTimePrevious = graceStealTimePrevious
         self.graceStealTimeFollowing = graceStealTimeFollowing
+        self.graceMakeTimeTicks = graceMakeTimeTicks.map { max(0, $0) }
         self.tieStart = tieStart
         self.tieStop = tieStop
         self.staff = staff
@@ -302,6 +400,7 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         self.dynamicsOverrideVelocity = dynamicsOverrideVelocity
         self.articulations = articulations
         self.arpeggiate = arpeggiate
+        self.performanceNotations = performanceNotations
         self.fingeringText = fingeringText
         self.dotCount = dotCount
     }

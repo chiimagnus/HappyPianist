@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <part-list>
+    <score-part id="FL">
+      <part-name>Flute</part-name>
+      <score-instrument id="FL-I1"><instrument-name>Flute</instrument-name></score-instrument>
+      <midi-instrument id="FL-I1"><midi-channel>1</midi-channel><midi-program>74</midi-program></midi-instrument>
+    </score-part>
+    <score-part id="VC">
+      <part-name>Cello</part-name>
+      <score-instrument id="VC-I1"><instrument-name>Cello</instrument-name></score-instrument>
+      <midi-instrument id="VC-I1"><midi-channel>2</midi-channel><midi-program>43</midi-program></midi-instrument>
+    </score-part>
+  </part-list>
+  <part id="FL">
+    <measure number="1">
+      <attributes><divisions>1</divisions><clef><sign>G</sign><line>2</line></clef></attributes>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff></note>
+    </measure>
+  </part>
+  <part id="VC">
+    <measure number="1">
+      <attributes><divisions>1</divisions><clef><sign>F</sign><line>4</line></clef></attributes>
+      <note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff></note>
+    </measure>
+  </part>
+</score-partwise>

@@ -16,7 +16,7 @@ func configuredAttemptPersistsAndRebuildsAsPausedResume() async throws {
     let span = learningLoopSpan()
     firstSession.songIdentity = identity
     firstSession.setSteps(
-        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
         measureSpans: [span]
     )
@@ -39,7 +39,7 @@ func configuredAttemptPersistsAndRebuildsAsPausedResume() async throws {
     )
     secondSession.songIdentity = identity
     secondSession.setSteps(
-        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
         measureSpans: [span]
     )

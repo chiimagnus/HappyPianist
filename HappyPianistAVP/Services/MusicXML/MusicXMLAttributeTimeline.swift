@@ -19,6 +19,10 @@ struct MusicXMLAttributeTimeline: Equatable {
         lastTimeSignature(atOrBeforeTick: tick, events: timeSignatureEvents)
     }
 
+    func meter(atTick tick: Int) -> MusicXMLMeter? {
+        timeSignature(atTick: tick)?.meter
+    }
+
     func keySignature(atTick tick: Int) -> MusicXMLKeySignatureEvent? {
         lastKeySignature(atOrBeforeTick: tick, events: keySignatureEvents)
     }

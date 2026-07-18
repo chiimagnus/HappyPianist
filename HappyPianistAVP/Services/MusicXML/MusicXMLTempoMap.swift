@@ -214,6 +214,20 @@ struct MusicXMLTempoMap {
         )
     }
 
+    func quarterBPM(atTick tick: Int) -> Double {
+        let clampedTick = max(0, tick)
+        guard let index = segmentIndex(atOrBeforeTick: clampedTick) else { return 120 }
+        let segment = segments[index]
+        guard segment.endTick != Int.max, segment.endTick > segment.startTick else {
+            return segment.startQuarterBPM
+        }
+        let boundedTick = min(clampedTick, segment.endTick)
+        let fraction = Double(boundedTick - segment.startTick)
+            / Double(segment.endTick - segment.startTick)
+        return segment.startQuarterBPM
+            + (segment.endQuarterBPM - segment.startQuarterBPM) * fraction
+    }
+
     func durationSeconds(fromTick: Int, toTick: Int) -> TimeInterval {
         let start = max(0, fromTick)
         let end = max(0, toTick)

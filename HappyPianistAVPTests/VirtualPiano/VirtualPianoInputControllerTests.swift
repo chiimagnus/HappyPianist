@@ -91,7 +91,7 @@ func virtualPianoPlaysLiveNotesWhenNotSuppressed() {
     let store = PracticeSessionStateStore()
     store.autoplayState = .off
     store.isManualReplayPlaying = false
-    store.steps = [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])]
+    store.steps = [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])]
     store.currentStepIndex = 0
 
     let effectHandler = CapturingEffectHandler()

@@ -14,7 +14,7 @@ func guidingStartBlockIsEnforcedAtSessionBoundary() {
         sleeper: TaskSleeper()
     )
     viewModel.setSteps(
-        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
     viewModel.setGuidingStartBlocked(true)
@@ -53,8 +53,8 @@ func autoplayTimelineKeepsGuideAndNoteOnOnSameTick() {
     let timeline = AutoplayPerformanceTimeline.build(
         guides: [firstGuide, secondGuide],
         steps: [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
-            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
         ],
         pedalTimeline: pedalTimeline,
         fermataTimeline: fermataTimeline,
@@ -102,8 +102,8 @@ func skipDuringAutoplayCancelsPendingEventsAndRestartsAtNextStep() async {
 
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
-            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
         ],
         tempoMap: tempoMap,
         pedalTimeline: pedalTimeline,
@@ -149,8 +149,8 @@ func skipDoesNotLetCancelledAutoplayTaskClearNewTaskReference() async {
 
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
-            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
         ],
         tempoMap: tempoMap,
         pedalTimeline: pedalTimeline,
@@ -199,7 +199,7 @@ func markCorrectSchedulesFeedbackResetWithExpectedDuration() async {
 
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
@@ -231,8 +231,8 @@ func secondFeedbackCancelsPreviousResetTaskDeterministically() async {
 
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-            PracticeStep(tick: 1, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
+            PracticeStep(tick: 1, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
@@ -263,7 +263,7 @@ func feedbackResetsToNoneAfterSleeperResumes() async {
 
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
@@ -290,7 +290,7 @@ func stepsOnlyGuidingStartsWithoutCalibration() {
 
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
@@ -311,8 +311,8 @@ func skipAdvancesAndCompletesInStepsOnlyMode() {
 
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-            PracticeStep(tick: 1, notes: [PracticeStepNote(midiNote: 62, staff: nil)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
+            PracticeStep(tick: 1, notes: [PracticeStepNote(midiNote: 62, staff: nil, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
@@ -337,7 +337,7 @@ func handleFingerTipPositionsIsNoopWithoutKeyboardGeometry() {
 
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
@@ -359,8 +359,8 @@ func applyingCalibrationDoesNotResetProgress() {
 
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-            PracticeStep(tick: 1, notes: [PracticeStepNote(midiNote: 62, staff: nil)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
+            PracticeStep(tick: 1, notes: [PracticeStepNote(midiNote: 62, staff: nil, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
@@ -391,8 +391,8 @@ func guidingStartAutoPlaysCurrentStepSound() {
     viewModel.setSteps(
         [
             PracticeStep(tick: 0, notes: [
-                PracticeStepNote(midiNote: 60, staff: nil),
-                PracticeStepNote(midiNote: 64, staff: nil),
+                PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown),
+                PracticeStepNote(midiNote: 64, staff: nil, handAssignment: .unknown),
             ]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
@@ -414,7 +414,7 @@ func guidingStartRecordsAudioErrorWhenAudioPlayerThrows() async {
 
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
@@ -437,8 +437,8 @@ func advancingAutoPlaysNextStepSound() {
 
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-            PracticeStep(tick: 1, notes: [PracticeStepNote(midiNote: 62, staff: nil)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
+            PracticeStep(tick: 1, notes: [PracticeStepNote(midiNote: 62, staff: nil, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
@@ -502,9 +502,9 @@ func autoplaySchedulesAndAdvancesStepsUsingTempoMap() async {
 
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: nil)]),
-            PracticeStep(tick: 960, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: nil, handAssignment: .unknown)]),
+            PracticeStep(tick: 960, notes: [PracticeStepNote(midiNote: 64, staff: nil, handAssignment: .unknown)]),
         ],
         tempoMap: tempoMap,
         pedalTimeline: pedalTimeline,
@@ -548,7 +548,8 @@ func autoplaySchedulesPendingOnsetsInsideCurrentStep() {
                     velocity: 96,
                     onTick: 0,
                     offTick: 480,
-                    fingeringText: nil
+                    fingeringText: nil,
+                    handAssignment: .unknown
                 ),
                 PianoHighlightNote(
                     occurrenceID: "t30-64",
@@ -558,7 +559,8 @@ func autoplaySchedulesPendingOnsetsInsideCurrentStep() {
                     velocity: 96,
                     onTick: 30,
                     offTick: 510,
-                    fingeringText: nil
+                    fingeringText: nil,
+                    handAssignment: .unknown
                 ),
             ],
             releasedMIDINotes: []
@@ -663,8 +665,8 @@ func autoplayInsertsFermataHoldBeforeAdvancingWhenTimelineProvided() {
     let timeline = AutoplayPerformanceTimeline.build(
         guides: guides,
         steps: [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
-            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
         ],
         pedalTimeline: pedalTimeline,
         fermataTimeline: fermataTimeline,
@@ -732,8 +734,8 @@ func autoplaySchedulesPedalChangesBetweenSteps() {
     let timeline = AutoplayPerformanceTimeline.build(
         guides: guides,
         steps: [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-            PracticeStep(tick: 960, notes: [PracticeStepNote(midiNote: 62, staff: nil)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
+            PracticeStep(tick: 960, notes: [PracticeStepNote(midiNote: 62, staff: nil, handAssignment: .unknown)]),
         ],
         pedalTimeline: pedalTimeline,
         fermataTimeline: fermataTimeline,
@@ -805,9 +807,9 @@ func autoplaySkipCancelsPendingSleepAndRestartsScheduling() async {
 
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: nil)]),
-            PracticeStep(tick: 960, notes: [PracticeStepNote(midiNote: 64, staff: nil)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: nil, handAssignment: .unknown)]),
+            PracticeStep(tick: 960, notes: [PracticeStepNote(midiNote: 64, staff: nil, handAssignment: .unknown)]),
         ],
         tempoMap: tempoMap,
         pedalTimeline: pedalTimeline,
@@ -847,8 +849,8 @@ func autoplayDoesNotAdvanceOnMatch() async {
 
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: nil)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: nil, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
@@ -878,8 +880,8 @@ func highlightGuideStartsAtFirstTriggerAfterStartGuiding() async {
 
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, voice: 1)]),
-            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, voice: 1)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, voice: 1, handAssignment: .unknown)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, voice: 1, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
         pedalTimeline: nil,
@@ -909,7 +911,7 @@ func resetSessionClearsCurrentHighlightGuide() async {
 
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, voice: 1)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, voice: 1, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
         pedalTimeline: nil,
@@ -944,7 +946,7 @@ func clearPreparedSongRemovesSongStateAndPreservesCalibration() throws {
     let geometry = makeDummyKeyboardGeometry()
     viewModel.applyKeyboardGeometry(geometry, calibration: calibration)
     viewModel.setSteps(
-        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
         highlightGuides: [
             makeHighlightGuide(
@@ -996,8 +998,8 @@ func manualAdvanceShowsReleaseOrGapGuideBeforeNextTrigger() async {
 
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, voice: 1)]),
-            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, voice: 1)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, voice: 1, handAssignment: .unknown)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, voice: 1, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
         pedalTimeline: nil,
@@ -1043,8 +1045,8 @@ func resetCancelsPendingManualHighlightTransition() async {
 
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, voice: 1)]),
-            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, voice: 1)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, voice: 1, handAssignment: .unknown)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, voice: 1, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
         pedalTimeline: nil,
@@ -1095,8 +1097,8 @@ func autoplayAdvancesHighlightGuidesByTick() {
     let timeline = AutoplayPerformanceTimeline.build(
         guides: guides,
         steps: [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, voice: 1)]),
-            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, voice: 1)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, voice: 1, handAssignment: .unknown)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, voice: 1, handAssignment: .unknown)]),
         ],
         pedalTimeline: pedalTimeline,
         fermataTimeline: fermataTimeline,
@@ -1142,7 +1144,8 @@ func autoplaySchedulesNoteOffUsingNoteSpans() {
                     velocity: 96,
                     onTick: 0,
                     offTick: 480,
-                    fingeringText: nil
+                    fingeringText: nil,
+                    handAssignment: .unknown
                 ),
             ],
             releasedMIDINotes: []
@@ -1372,8 +1375,8 @@ func disablingAutoplayStopsAudioAndClearsPendingScheduling() async {
 
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil)]),
-            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: nil)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: nil, handAssignment: .unknown)]),
         ],
         tempoMap: tempoMap,
         pedalTimeline: MusicXMLPedalTimeline(events: []),
@@ -1395,7 +1398,8 @@ func disablingAutoplayStopsAudioAndClearsPendingScheduling() async {
                         velocity: 96,
                         onTick: 0,
                         offTick: 480,
-                        fingeringText: nil
+                        fingeringText: nil,
+                        handAssignment: .unknown
                     ),
                 ],
                 releasedMIDINotes: []
@@ -1444,7 +1448,7 @@ func freshScoreDefaultsToFullScoreAtOneHundredPercent() {
     }
     viewModel.setSteps(
         (0 ..< 6).map { index in
-            PracticeStep(tick: index * 480, notes: [PracticeStepNote(midiNote: 60 + index, staff: 1)])
+            PracticeStep(tick: index * 480, notes: [PracticeStepNote(midiNote: 60 + index, staff: 1, handAssignment: .unknown)])
         },
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
         measureSpans: spans
@@ -1465,7 +1469,7 @@ func changingSongWithEqualStepsReplacesCompletedPassage() {
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper()
     )
-    let steps = [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])]
+    let steps = [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])]
     let spanA = MusicXMLMeasureSpan(
         partID: "A", measureNumber: 1, sourceMeasureIndex: 0, sourceMeasureNumberToken: "1",
         occurrenceIndex: 0, startTick: 0, endTick: 480
@@ -1568,7 +1572,8 @@ private func makeHighlightGuide(
             velocity: 96,
             onTick: tick,
             offTick: tick + max(1, noteDurationTicks),
-            fingeringText: nil
+            fingeringText: nil,
+            handAssignment: .unknown
         )
     }
     let activeNotes = (kind == .trigger || kind == .sustain || kind == .release) ? notes : []
@@ -1612,8 +1617,8 @@ func enablingAutoplayStopsManualReplayWithoutResumingAudioRecognition() async {
     )
     viewModel.setSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
-            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
         ],
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
         pedalTimeline: MusicXMLPedalTimeline(events: []),
@@ -1855,7 +1860,7 @@ func reinstallingSamePreparedScoreDiscardsUnappliedDraftConfiguration() throws {
     let steps = (0 ..< 6).map { index in
         PracticeStep(
             tick: index * 480,
-            notes: [PracticeStepNote(midiNote: 60 + index, staff: 1)]
+            notes: [PracticeStepNote(midiNote: 60 + index, staff: 1, handAssignment: .unknown)]
         )
     }
     let session = makePracticeSessionViewModel(

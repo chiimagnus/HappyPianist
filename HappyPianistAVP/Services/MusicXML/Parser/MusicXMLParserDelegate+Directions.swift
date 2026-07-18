@@ -1,15 +1,16 @@
 import Foundation
 
 extension MusicXMLParserDelegate {
-    func parseMIDIVelocity(_ raw: String?) -> UInt8? {
+    func parseMusicXMLDynamicsVelocity(_ raw: String?) -> UInt8? {
         guard let raw = raw?.trimmingCharacters(in: .whitespacesAndNewlines),
               raw.isEmpty == false,
-              let value = Int(raw)
+              let percent = Double(raw),
+              percent.isFinite
         else {
             return nil
         }
-        let clamped = min(127, max(0, value))
-        return UInt8(clamped)
+        let velocity = (percent * 90 / 100).rounded(.toNearestOrAwayFromZero)
+        return UInt8(min(127, max(0, Int(velocity))))
     }
 
     func velocityForDynamicsMark(_ markElementName: String) -> UInt8? {
@@ -45,6 +46,7 @@ extension MusicXMLParserDelegate {
     ) {
         state.dynamicEvents.append(
             MusicXMLDynamicEvent(
+                sourceID: state.currentSoundSourceID ?? state.currentDirectionSourceID,
                 tick: tick,
                 velocity: velocity,
                 scope: MusicXMLEventScope(partID: state.currentPartID, staff: staff, voice: nil),
@@ -54,7 +56,7 @@ extension MusicXMLParserDelegate {
     }
 
     func recordSoundDynamicsAttributeIfPresent(attributes: [String: String]) {
-        guard let velocity = parseMIDIVelocity(attributes["dynamics"]) else { return }
+        guard let velocity = parseMusicXMLDynamicsVelocity(attributes["dynamics"]) else { return }
 
         let tick: Int = if state.isInDirection {
             currentDirectionEventTick()
@@ -109,6 +111,7 @@ extension MusicXMLParserDelegate {
 
         state.wedgeEvents.append(
             MusicXMLWedgeEvent(
+                sourceID: state.currentDirectionSourceID,
                 tick: currentDirectionEventTick(),
                 kind: kind,
                 numberToken: numberToken,
@@ -117,10 +120,34 @@ extension MusicXMLParserDelegate {
         )
     }
 
+    func recordOctaveShiftEvent(attributes: [String: String]) {
+        guard state.isInDirection,
+              let rawType = attributes["type"]?.lowercased(),
+              let kind = MusicXMLOctaveShiftKind(rawValue: rawType)
+        else { return }
+        let size = max(1, Int(attributes["size"] ?? "8") ?? 8)
+        let numberToken = attributes["number"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        state.octaveShiftEvents.append(
+            MusicXMLOctaveShiftEvent(
+                sourceID: state.currentDirectionSourceID,
+                tick: currentDirectionEventTick(),
+                kind: kind,
+                size: size,
+                numberToken: numberToken?.isEmpty == true ? nil : numberToken,
+                scope: MusicXMLEventScope(
+                    partID: state.currentPartID,
+                    staff: state.currentDirectionStaff,
+                    voice: nil
+                )
+            )
+        )
+    }
+
     func recordDirectionFermataEvent() {
         guard state.isInDirection else { return }
         state.fermataEvents.append(
             MusicXMLFermataEvent(
+                sourceID: state.currentDirectionSourceID,
                 tick: currentDirectionEventTick(),
                 scope: MusicXMLEventScope(partID: state.currentPartID, staff: state.currentDirectionStaff, voice: nil),
                 source: .directionType
@@ -182,6 +209,7 @@ extension MusicXMLParserDelegate {
         let timeOnlyPasses = parseTimeOnlyPasses(attributes: attributes)
         state.pedalEvents.append(
             MusicXMLPedalEvent(
+                sourceID: state.currentSoundSourceID,
                 partID: state.currentPartID,
                 measureNumber: state.currentMeasureNumber,
                 tick: tick,
@@ -209,6 +237,7 @@ extension MusicXMLParserDelegate {
         case "start":
             state.pedalEvents.append(
                 MusicXMLPedalEvent(
+                    sourceID: state.currentDirectionSourceID,
                     partID: base.partID,
                     measureNumber: base.measureNumber,
                     tick: base.tick,
@@ -220,6 +249,7 @@ extension MusicXMLParserDelegate {
         case "stop":
             state.pedalEvents.append(
                 MusicXMLPedalEvent(
+                    sourceID: state.currentDirectionSourceID,
                     partID: base.partID,
                     measureNumber: base.measureNumber,
                     tick: base.tick,
@@ -231,6 +261,7 @@ extension MusicXMLParserDelegate {
         case "change":
             state.pedalEvents.append(
                 MusicXMLPedalEvent(
+                    sourceID: state.currentDirectionSourceID,
                     partID: base.partID,
                     measureNumber: base.measureNumber,
                     tick: base.tick,
@@ -241,6 +272,7 @@ extension MusicXMLParserDelegate {
             )
             state.pedalEvents.append(
                 MusicXMLPedalEvent(
+                    sourceID: state.currentDirectionSourceID,
                     partID: base.partID,
                     measureNumber: base.measureNumber,
                     tick: base.tick,
@@ -252,6 +284,7 @@ extension MusicXMLParserDelegate {
         case "continue":
             state.pedalEvents.append(
                 MusicXMLPedalEvent(
+                    sourceID: state.currentDirectionSourceID,
                     partID: base.partID,
                     measureNumber: base.measureNumber,
                     tick: base.tick,
@@ -265,8 +298,11 @@ extension MusicXMLParserDelegate {
         }
     }
 
-    func applyDirectionOffset(_ rawOffset: Int) {
-        let newOffset = normalizeSignedDuration(rawOffset)
+    func applyDirectionOffset(_ rawOffset: Double) {
+        let newOffset = state.directionOffsetResolver.offsetTicks(
+            rawDivisions: rawOffset,
+            divisions: state.partDivisions[state.currentPartID]
+        ) ?? 0
         let delta = newOffset - state.currentDirectionOffsetTicks
         guard delta != 0 else { return }
 
@@ -276,6 +312,7 @@ extension MusicXMLParserDelegate {
             for i in state.currentDirectionTempoStartIndex ..< tempoEvents.count {
                 let shifted = max(state.currentDirectionMeasureStartTick, tempoEvents[i].tick + delta)
                 tempoEvents[i] = RawTempoEvent(
+                    sourceID: tempoEvents[i].sourceID,
                     partID: tempoEvents[i].partID,
                     tick: shifted,
                     quarterBPM: tempoEvents[i].quarterBPM,
@@ -288,6 +325,7 @@ extension MusicXMLParserDelegate {
                     where i >= state.currentDirectionTempoStartIndex && i < tempoEvents.count
                 {
                     tempoEvents[i] = RawTempoEvent(
+                        sourceID: tempoEvents[i].sourceID,
                         partID: tempoEvents[i].partID,
                         tick: overrideTick,
                         quarterBPM: tempoEvents[i].quarterBPM,
@@ -303,6 +341,7 @@ extension MusicXMLParserDelegate {
             for i in state.currentDirectionSoundStartIndex ..< state.soundDirectives.count {
                 let shifted = max(state.currentDirectionMeasureStartTick, state.soundDirectives[i].tick + delta)
                 state.soundDirectives[i] = MusicXMLSoundDirective(
+                    sourceID: state.soundDirectives[i].sourceID,
                     partID: state.soundDirectives[i].partID,
                     measureNumber: state.soundDirectives[i].measureNumber,
                     tick: shifted,
@@ -319,6 +358,7 @@ extension MusicXMLParserDelegate {
                     where i >= state.currentDirectionSoundStartIndex && i < state.soundDirectives.count
                 {
                     state.soundDirectives[i] = MusicXMLSoundDirective(
+                        sourceID: state.soundDirectives[i].sourceID,
                         partID: state.soundDirectives[i].partID,
                         measureNumber: state.soundDirectives[i].measureNumber,
                         tick: overrideTick,
@@ -337,6 +377,7 @@ extension MusicXMLParserDelegate {
             for i in state.currentDirectionPedalStartIndex ..< state.pedalEvents.count {
                 let shifted = max(state.currentDirectionMeasureStartTick, state.pedalEvents[i].tick + delta)
                 state.pedalEvents[i] = MusicXMLPedalEvent(
+                    sourceID: state.pedalEvents[i].sourceID,
                     partID: state.pedalEvents[i].partID,
                     measureNumber: state.pedalEvents[i].measureNumber,
                     tick: shifted,
@@ -350,6 +391,7 @@ extension MusicXMLParserDelegate {
                     where i >= state.currentDirectionPedalStartIndex && i < state.pedalEvents.count
                 {
                     state.pedalEvents[i] = MusicXMLPedalEvent(
+                        sourceID: state.pedalEvents[i].sourceID,
                         partID: state.pedalEvents[i].partID,
                         measureNumber: state.pedalEvents[i].measureNumber,
                         tick: overrideTick,
@@ -361,18 +403,110 @@ extension MusicXMLParserDelegate {
             }
         }
 
+        if state.currentDirectionDynamicStartIndex < state.dynamicEvents.count {
+            for index in state.currentDirectionDynamicStartIndex ..< state.dynamicEvents.count {
+                let event = state.dynamicEvents[index]
+                state.dynamicEvents[index] = MusicXMLDynamicEvent(
+                    sourceID: event.sourceID,
+                    tick: state.directionOffsetResolver.absoluteTick(
+                        directionStartTick: event.tick,
+                        measureStartTick: state.currentDirectionMeasureStartTick,
+                        offsetTicks: delta
+                    ),
+                    velocity: event.velocity,
+                    scope: event.scope,
+                    source: event.source
+                )
+            }
+        }
+
+        if state.currentDirectionWedgeStartIndex < state.wedgeEvents.count {
+            for index in state.currentDirectionWedgeStartIndex ..< state.wedgeEvents.count {
+                let event = state.wedgeEvents[index]
+                state.wedgeEvents[index] = MusicXMLWedgeEvent(
+                    sourceID: event.sourceID,
+                    tick: state.directionOffsetResolver.absoluteTick(
+                        directionStartTick: event.tick,
+                        measureStartTick: state.currentDirectionMeasureStartTick,
+                        offsetTicks: delta
+                    ),
+                    kind: event.kind,
+                    numberToken: event.numberToken,
+                    scope: event.scope
+                )
+            }
+        }
+
+        if state.currentDirectionFermataStartIndex < state.fermataEvents.count {
+            for index in state.currentDirectionFermataStartIndex ..< state.fermataEvents.count {
+                let event = state.fermataEvents[index]
+                state.fermataEvents[index] = MusicXMLFermataEvent(
+                    sourceID: event.sourceID,
+                    tick: state.directionOffsetResolver.absoluteTick(
+                        directionStartTick: event.tick,
+                        measureStartTick: state.currentDirectionMeasureStartTick,
+                        offsetTicks: delta
+                    ),
+                    scope: event.scope,
+                    source: event.source
+                )
+            }
+        }
+
+        if state.currentDirectionWordsStartIndex < state.wordsEvents.count {
+            for index in state.currentDirectionWordsStartIndex ..< state.wordsEvents.count {
+                let event = state.wordsEvents[index]
+                state.wordsEvents[index] = MusicXMLWordsEvent(
+                    sourceID: event.sourceID,
+                    tick: state.directionOffsetResolver.absoluteTick(
+                        directionStartTick: event.tick,
+                        measureStartTick: state.currentDirectionMeasureStartTick,
+                        offsetTicks: delta
+                    ),
+                    text: event.text,
+                    scope: event.scope
+                )
+            }
+        }
+
+        for index in state.octaveShiftEvents.indices
+            where state.octaveShiftEvents[index].sourceID == state.currentDirectionSourceID
+        {
+            let event = state.octaveShiftEvents[index]
+            state.octaveShiftEvents[index] = MusicXMLOctaveShiftEvent(
+                sourceID: event.sourceID,
+                tick: state.directionOffsetResolver.absoluteTick(
+                    directionStartTick: event.tick,
+                    measureStartTick: state.currentDirectionMeasureStartTick,
+                    offsetTicks: delta
+                ),
+                kind: event.kind,
+                size: event.size,
+                numberToken: event.numberToken,
+                scope: event.scope
+            )
+        }
+
         state.currentDirectionOffsetTicks = newOffset
     }
 
-    func applySoundOffset(_ rawOffset: Int) {
-        let offsetTicks = normalizeSignedDuration(rawOffset)
-        let tick = max(state.currentSoundMeasureStartTick, state.currentSoundBaseTick + offsetTicks)
+    func applySoundOffset(_ rawOffset: Double) {
+        let offsetTicks = state.directionOffsetResolver.offsetTicks(
+            rawDivisions: rawOffset,
+            divisions: state.partDivisions[state.currentPartID]
+        ) ?? 0
+        let tick = state.directionOffsetResolver.absoluteTick(
+            directionStartTick: state.currentSoundBaseTick,
+            measureStartTick: state.currentSoundMeasureStartTick,
+            offsetTicks: offsetTicks
+        )
 
         if var tempoEvents = state.rawTempoEventsByPart[state.currentPartID],
            state.currentSoundTempoStartIndex < tempoEvents.count
         {
             for i in state.currentSoundTempoStartIndex ..< tempoEvents.count {
                 tempoEvents[i] = RawTempoEvent(
+                    sourceID: tempoEvents[i].sourceID,
                     partID: tempoEvents[i].partID,
                     tick: tick,
                     quarterBPM: tempoEvents[i].quarterBPM,
@@ -389,6 +523,7 @@ extension MusicXMLParserDelegate {
         if state.currentSoundSoundStartIndex < state.soundDirectives.count {
             for i in state.currentSoundSoundStartIndex ..< state.soundDirectives.count {
                 state.soundDirectives[i] = MusicXMLSoundDirective(
+                    sourceID: state.soundDirectives[i].sourceID,
                     partID: state.soundDirectives[i].partID,
                     measureNumber: state.soundDirectives[i].measureNumber,
                     tick: tick,
@@ -408,6 +543,7 @@ extension MusicXMLParserDelegate {
         if state.currentSoundPedalStartIndex < state.pedalEvents.count {
             for i in state.currentSoundPedalStartIndex ..< state.pedalEvents.count {
                 state.pedalEvents[i] = MusicXMLPedalEvent(
+                    sourceID: state.pedalEvents[i].sourceID,
                     partID: state.pedalEvents[i].partID,
                     measureNumber: state.pedalEvents[i].measureNumber,
                     tick: tick,
@@ -422,11 +558,24 @@ extension MusicXMLParserDelegate {
         }
     }
 
+    func nextDirectionSourceID() -> MusicXMLDirectionSourceID {
+        defer { state.currentDirectionSourceOrdinal += 1 }
+        return MusicXMLDirectionSourceID(
+            partID: state.currentPartID,
+            sourceMeasureIndex: state.currentMeasureIndex,
+            sourceMeasureNumberToken: state.currentMeasureNumberToken,
+            sourceOrdinal: state.currentDirectionSourceOrdinal
+        )
+    }
+
     func currentDirectionEventTick() -> Int {
         let baseTick = state.partTick[state.currentPartID] ?? state.currentMeasureStartTick
         guard state.isInDirection else { return baseTick }
-        let shifted = baseTick + state.currentDirectionOffsetTicks
-        return max(state.currentDirectionMeasureStartTick, shifted)
+        return state.directionOffsetResolver.absoluteTick(
+            directionStartTick: baseTick,
+            measureStartTick: state.currentDirectionMeasureStartTick,
+            offsetTicks: state.currentDirectionOffsetTicks
+        )
     }
 
     func recordTempoEvent(quarterBPM: Double, source: TempoSource) {
@@ -434,6 +583,7 @@ extension MusicXMLParserDelegate {
 
         let tick = currentDirectionEventTick()
         let event = RawTempoEvent(
+            sourceID: state.currentSoundSourceID ?? state.currentDirectionSourceID,
             partID: state.currentPartID,
             tick: tick,
             quarterBPM: quarterBPM,
@@ -458,6 +608,7 @@ extension MusicXMLParserDelegate {
         let timeOnlyPasses = parseTimeOnlyPasses(attributes: attributes)
         state.soundDirectives.append(
             MusicXMLSoundDirective(
+                sourceID: state.currentSoundSourceID,
                 partID: state.currentPartID,
                 measureNumber: state.currentMeasureNumber,
                 tick: tick,
@@ -526,6 +677,7 @@ extension MusicXMLParserDelegate {
 
             output.append(contentsOf: byTick.values.map {
                 MusicXMLTempoEvent(
+                    sourceID: $0.sourceID,
                     tick: $0.tick,
                     quarterBPM: $0.quarterBPM,
                     scope: MusicXMLEventScope(partID: $0.partID, staff: $0.staff, voice: nil)

@@ -79,3 +79,27 @@ func tempoMapIntegratesAcrossLinearRitardandoRamp() {
 
     #expect(abs(map.durationSeconds(fromTick: 0, toTick: 480) - log(2)) < 0.000_1)
 }
+
+@Test
+func tempoMapReportsTickDomainBPMInsideRamp() {
+    let scope = MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
+    let map = MusicXMLTempoMap(
+        tempoEvents: [
+            MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: scope),
+            MusicXMLTempoEvent(tick: 480, quarterBPM: 60, scope: scope),
+        ],
+        tempoRamps: [
+            MusicXMLTempoMap.TempoRamp(
+                startTick: 0,
+                endTick: 480,
+                startQuarterBPM: 120,
+                endQuarterBPM: 60,
+                scope: scope
+            ),
+        ]
+    )
+
+    #expect(map.quarterBPM(atTick: 0) == 120)
+    #expect(map.quarterBPM(atTick: 240) == 90)
+    #expect(map.quarterBPM(atTick: 480) == 60)
+}

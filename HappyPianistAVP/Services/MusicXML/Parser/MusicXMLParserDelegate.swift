@@ -24,6 +24,14 @@ final class MusicXMLParserDelegate: NSObject {
         state.scoreVersion
     }
 
+    var partMetadata: [MusicXMLPartMetadata] {
+        state.partMetadataOrder.compactMap { state.partMetadataByID[$0] }
+    }
+
+    var metadataError: MusicXMLParserError? {
+        state.metadataError
+    }
+
     var notes: [MusicXMLNoteEvent] {
         state.notes
     }
@@ -62,6 +70,14 @@ final class MusicXMLParserDelegate: NSObject {
 
     var clefEvents: [MusicXMLClefEvent] {
         state.clefEvents
+    }
+
+    var transposeEvents: [MusicXMLTransposeEvent] {
+        state.transposeEvents
+    }
+
+    var octaveShiftEvents: [MusicXMLOctaveShiftEvent] {
+        state.octaveShiftEvents
     }
 
     var wordsEvents: [MusicXMLWordsEvent] {

@@ -9,6 +9,8 @@ extension PianoGuideHighlightTintToken {
             .orange
         case .leftHandKey:
             .cyan
+        case .unassignedHandKey:
+            .gray
         }
     }
 }

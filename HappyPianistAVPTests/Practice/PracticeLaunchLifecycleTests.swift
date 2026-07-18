@@ -327,7 +327,7 @@ func multipleRoundsAndSettingsUseOneWindowSessionAndPauseActiveTime() async thro
     let recorder = PracticeSessionRecorder(repository: repository, clock: clock.makeClock())
     let session = LaunchLifecycleRecorderSessionProvider(recorder: recorder).callAsFunction(nil)
     session.setSteps(
-        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
     let identity = try #require(session.songIdentity)
@@ -373,7 +373,7 @@ func inactiveSceneExcludesBackgroundTimeAndRequiresRealGuidingResume() async thr
     let recorder = PracticeSessionRecorder(repository: repository, clock: clock.makeClock())
     let session = LaunchLifecycleRecorderSessionProvider(recorder: recorder).callAsFunction(nil)
     session.setSteps(
-        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
         tempoMap: MusicXMLTempoMap(tempoEvents: [])
     )
     let identity = try #require(session.songIdentity)
@@ -572,9 +572,9 @@ private func installLaunchLifecycleScore(
 ) {
     session.installPreparedSteps(
         [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
-            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
-            PracticeStep(tick: 960, notes: [PracticeStepNote(midiNote: 64, staff: 1)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
+            PracticeStep(tick: 960, notes: [PracticeStepNote(midiNote: 64, staff: 1, handAssignment: .unknown)]),
         ],
         identity: identity,
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
@@ -668,7 +668,7 @@ private final class LaunchRaceSessionProvider: @unchecked Sendable {
 private func makeLaunchRacePreparedPractice(songID: UUID) -> PreparedPractice {
     PreparedPractice(
         identity: PracticeSongIdentity(songID: songID, scoreRevision: songID.uuidString),
-        steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)])],
+        steps: [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
         file: ImportedMusicXMLFile(
             fileName: songID.uuidString,
             storedURL: URL(fileURLWithPath: "/dev/null"),
@@ -690,7 +690,8 @@ private func makeLaunchRacePreparedPractice(songID: UUID) -> PreparedPractice {
                 endTick: 480
             ),
         ],
-        unsupportedNoteCount: 0
+        unsupportedNoteCount: 0,
+        scoreContext: makeTestPreparedPracticeScoreContext()
     )
 }
 

@@ -50,7 +50,7 @@ extension PracticeSessionViewModel {
         let keySignatureText = keySignatureEvent
             .flatMap { Self.notationKeySignatureText(fifths: $0.fifths) }
         let keySignatureFifths = keySignatureEvent?.fifths
-        let timeSignatureText = attributeTimeline.timeSignature(atTick: tick).map { "\($0.beats)/\($0.beatType)" }
+        let timeSignatureText = attributeTimeline.meter(atTick: tick)?.displayText
 
         return GrandStaffNotationContext(
             trebleClefSymbol: trebleClef,

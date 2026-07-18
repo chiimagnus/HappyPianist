@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <part-list>
+    <score-part id="RH">
+      <part-name>Piano RH</part-name>
+      <score-instrument id="RH-I1"><instrument-name>Grand Piano</instrument-name></score-instrument>
+      <midi-instrument id="RH-I1"><midi-channel>1</midi-channel><midi-program>1</midi-program></midi-instrument>
+    </score-part>
+    <score-part id="LH">
+      <part-name>Piano LH</part-name>
+      <score-instrument id="LH-I1"><instrument-name>Grand Piano</instrument-name></score-instrument>
+      <midi-instrument id="LH-I1"><midi-channel>1</midi-channel><midi-program>1</midi-program></midi-instrument>
+    </score-part>
+  </part-list>
+  <part id="RH">
+    <measure number="1">
+      <attributes><divisions>1</divisions><clef><sign>G</sign><line>2</line></clef></attributes>
+      <barline location="left"><repeat direction="forward"/></barline>
+      <direction><sound tempo="96"/></direction>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff></note>
+    </measure>
+    <measure number="2">
+      <note><pitch><step>D</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff></note>
+      <barline location="right"><repeat direction="backward"/></barline>
+    </measure>
+  </part>
+  <part id="LH">
+    <measure number="1">
+      <attributes><divisions>1</divisions><clef><sign>F</sign><line>4</line></clef></attributes>
+      <direction placement="below"><direction-type><dynamics><p/></dynamics></direction-type></direction>
+      <direction placement="below"><direction-type><pedal type="start"/></direction-type></direction>
+      <note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff></note>
+    </measure>
+    <measure number="2">
+      <direction placement="below"><direction-type><pedal type="stop"/></direction-type></direction>
+      <note><pitch><step>G</step><octave>2</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff></note>
+    </measure>
+  </part>
+</score-partwise>

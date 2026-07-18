@@ -63,3 +63,27 @@ struct MusicXMLParserTimewiseTests {
         #expect(score.notes.map(\.tick) == [0])
     }
 }
+
+@Test
+func timewiseConversionPreservesMetadataWrittenPitchAndSourceIdentity() throws {
+    let timewise = """
+    <score-timewise version="4.0">
+      <part-list><score-part id="P1"><part-name>Grand Piano</part-name><score-instrument id="P1-I1"><instrument-name>Piano</instrument-name></score-instrument></score-part></part-list>
+      <measure number="A"><part id="P1"><attributes><divisions>1</divisions></attributes><direction><sound tempo="90"/></direction><note><pitch><step>D</step><alter>-1</alter><octave>4</octave></pitch><accidental>flat</accidental><duration>1</duration></note></part></measure>
+    </score-timewise>
+    """
+    let partwise = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Grand Piano</part-name><score-instrument id="P1-I1"><instrument-name>Piano</instrument-name></score-instrument></score-part></part-list>
+      <part id="P1"><measure number="A"><attributes><divisions>1</divisions></attributes><direction><sound tempo="90"/></direction><note><pitch><step>D</step><alter>-1</alter><octave>4</octave></pitch><accidental>flat</accidental><duration>1</duration></note></measure></part>
+    </score-partwise>
+    """
+
+    let timewiseScore = try MusicXMLParser().parse(data: Data(timewise.utf8))
+    let partwiseScore = try MusicXMLParser().parse(data: Data(partwise.utf8))
+
+    #expect(timewiseScore.partMetadata == partwiseScore.partMetadata)
+    #expect(timewiseScore.notes.map(\.writtenPitch) == partwiseScore.notes.map(\.writtenPitch))
+    #expect(timewiseScore.notes.map(\.sourceID) == partwiseScore.notes.map(\.sourceID))
+    #expect(timewiseScore.tempoEvents.map(\.sourceID) == partwiseScore.tempoEvents.map(\.sourceID))
+}

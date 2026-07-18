@@ -23,4 +23,46 @@ extension MusicXMLParserDelegate {
         let normalized = normalizeDuration(abs(rawDuration))
         return sign * normalized
     }
+
+
+    func parseMeterBeatGroups(_ raw: String) -> [Int]? {
+        let groups = raw.split(separator: "+").compactMap { token -> Int? in
+            let value = Int(token.trimmingCharacters(in: .whitespacesAndNewlines))
+            return value.flatMap { $0 > 0 ? $0 : nil }
+        }
+        return groups.isEmpty ? nil : groups
+    }
+
+    func makeCurrentMeter() -> MusicXMLMeter? {
+        if state.timeIsSenzaMisura {
+            return MusicXMLMeter(
+                components: [],
+                symbolToken: state.timeSymbolToken,
+                isSenzaMisura: true,
+                approximation: nil
+            )
+        }
+        guard state.timeBeatGroups.isEmpty == false,
+              state.timeBeatTypes.isEmpty == false
+        else { return nil }
+
+        let fallbackBeatType = state.timeBeatTypes.last ?? 4
+        let components = state.timeBeatGroups.enumerated().map { index, groups in
+            MusicXMLMeter.Component(
+                beatGroups: groups,
+                beatType: state.timeBeatTypes.indices.contains(index)
+                    ? state.timeBeatTypes[index]
+                    : fallbackBeatType
+            )
+        }
+        let approximation = state.timeBeatGroups.count == state.timeBeatTypes.count
+            ? nil
+            : "beat-group-count-mismatch"
+        return MusicXMLMeter(
+            components: components,
+            symbolToken: state.timeSymbolToken,
+            isSenzaMisura: false,
+            approximation: approximation
+        )
+    }
 }

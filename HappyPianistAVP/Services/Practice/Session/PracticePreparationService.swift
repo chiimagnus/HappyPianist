@@ -40,10 +40,20 @@ protocol PracticePreparationServiceProtocol {
     func prepare(
         songID: UUID,
         from scoreURL: URL,
-        file: ImportedMusicXMLFile
+        file: ImportedMusicXMLFile,
+        options: PracticePreparationOptions
     ) async throws -> PreparedPractice
 }
 
+extension PracticePreparationServiceProtocol {
+    func prepare(
+        songID: UUID,
+        from scoreURL: URL,
+        file: ImportedMusicXMLFile
+    ) async throws -> PreparedPractice {
+        try await prepare(songID: songID, from: scoreURL, file: file, options: .practice)
+    }
+}
 actor PracticePreparationService: PracticePreparationServiceProtocol {
     private let parser: MusicXMLParserProtocol
     private let stepBuilder: PracticeStepBuilderProtocol
@@ -60,7 +70,8 @@ actor PracticePreparationService: PracticePreparationServiceProtocol {
     func prepare(
         songID: UUID,
         from scoreURL: URL,
-        file: ImportedMusicXMLFile
+        file: ImportedMusicXMLFile,
+        options: PracticePreparationOptions
     ) async throws -> PreparedPractice {
         try Task.checkCancellation()
         let scoreBytes: Data
@@ -89,6 +100,12 @@ actor PracticePreparationService: PracticePreparationServiceProtocol {
                     column: column,
                     reason: reason
                 )
+            case let .invalidPartMetadata(reason):
+                throw PracticePreparationError.xmlParseFailed(
+                    line: nil,
+                    column: nil,
+                    reason: reason
+                )
             }
         } catch MusicXMLTimewiseConverterError.invalidXML {
             throw PracticePreparationError.xmlParseFailed(
@@ -108,65 +125,99 @@ actor PracticePreparationService: PracticePreparationServiceProtocol {
                 reason: PracticePreparationErrorDetails.safeErrorSummary(error)
             )
         }
-        let score = MusicXMLPianoGrandStaffNormalizer().normalize(score: rawScore)
-        let shouldExpandStructure = MusicXMLRealisticPlaybackDefaults.shouldExpandStructure
-        let primaryPartIDForExpansion = score.preferredPrimaryPartID()
+        let normalizedScore = MusicXMLPianoGrandStaffNormalizer().normalize(score: rawScore)
+        let selectedInstrument: MusicXMLLogicalInstrument
+        switch MusicXMLPracticePartSelector().select(from: normalizedScore) {
+        case let .selected(instrument):
+            selectedInstrument = instrument
+        case let .ambiguous(ambiguity):
+            throw PracticePreparationError.unexpected(
+                stage: "musicXMLPartSelection",
+                reason: "Ambiguous logical instruments: \(ambiguity.candidateInstrumentIDs.joined(separator: ",")); \(ambiguity.reason)"
+            )
+        case .unavailable:
+            throw PracticePreparationError.noPlayableNotes
+        }
+
+        guard let structuralPartID = MusicXMLPracticePartSelector().structuralPartID(
+            for: selectedInstrument,
+            in: normalizedScore
+        ) else {
+            throw PracticePreparationError.noPlayableNotes
+        }
+        let sourceScore = normalizedScore.filtering(toLogicalInstrument: selectedInstrument)
 
         try Task.checkCancellation()
-        let effectiveScore = shouldExpandStructure
-            ? structureExpander.expandStructureIfPossible(score: score, primaryPartID: primaryPartIDForExpansion)
-            : score
-        let primaryPartID = effectiveScore.preferredPrimaryPartID(preferredPartID: primaryPartIDForExpansion)
-        let practiceScore = effectiveScore.filtering(toPartID: primaryPartID)
-        let routedPracticeScore = MusicXMLHandRouter().routeIfNeeded(score: practiceScore)
+        let practiceScore: MusicXMLScore
+        let orderSelection: MusicXMLOrderSelection
+        switch options.scoreOrder {
+        case .written:
+            practiceScore = sourceScore
+            orderSelection = MusicXMLOrderSelection(requested: .written, applied: .written)
+        case .performed:
+            practiceScore = structureExpander.expandStructureIfPossible(
+                score: sourceScore,
+                primaryPartID: structuralPartID,
+                includedPartIDs: Set(selectedInstrument.memberPartIDs)
+            )
+            orderSelection = MusicXMLOrderSelection(requested: .performed, applied: .performed)
+        }
+
+        let handRouting = MusicXMLHandRouter().assignments(for: practiceScore)
 
         try Task.checkCancellation()
         let expressivityOptions = MusicXMLRealisticPlaybackDefaults.expressivityOptions
-        let buildResult = stepBuilder.buildSteps(from: routedPracticeScore, expressivity: expressivityOptions)
+        let buildResult = stepBuilder.buildSteps(
+            from: practiceScore,
+            expressivity: expressivityOptions,
+            handAssignments: handRouting.assignmentsBySourceNoteID
+        )
         let wordsSemantics = expressivityOptions.wordsSemanticsEnabled
             ? MusicXMLWordsSemanticsInterpreter().interpret(
-                wordsEvents: routedPracticeScore.wordsEvents,
-                tempoEvents: routedPracticeScore.tempoEvents
+                wordsEvents: practiceScore.wordsEvents,
+                tempoEvents: practiceScore.tempoEvents
             )
             : nil
         let tempoMap = MusicXMLTempoMap(
-            tempoEvents: routedPracticeScore.tempoEvents + (wordsSemantics?.derivedTempoEvents ?? []),
+            tempoEvents: practiceScore.tempoEvents + (wordsSemantics?.derivedTempoEvents ?? []),
             tempoRamps: wordsSemantics?.derivedTempoRamps ?? [],
-            partID: primaryPartID
+            partID: structuralPartID
         )
-        let pedalTimeline = MusicXMLPedalTimeline(events: routedPracticeScore
+        let pedalTimeline = MusicXMLPedalTimeline(events: practiceScore
             .pedalEvents + (wordsSemantics?.derivedPedalEvents ?? []))
         let fermataTimeline = expressivityOptions.fermataEnabled
             ? MusicXMLFermataTimeline(
-                fermataEvents: routedPracticeScore.fermataEvents,
-                notes: routedPracticeScore.notes
+                fermataEvents: practiceScore.fermataEvents,
+                notes: practiceScore.notes
             )
             : nil
         let attributeTimeline = MusicXMLAttributeTimeline(
-            timeSignatureEvents: routedPracticeScore.timeSignatureEvents,
-            keySignatureEvents: routedPracticeScore.keySignatureEvents,
-            clefEvents: routedPracticeScore.clefEvents
+            timeSignatureEvents: practiceScore.timeSignatureEvents,
+            keySignatureEvents: practiceScore.keySignatureEvents,
+            clefEvents: practiceScore.clefEvents
         )
         let noteSpans = MusicXMLNoteSpanBuilder().buildSpans(
-            from: routedPracticeScore.notes,
+            from: practiceScore.notes,
             performanceTimingEnabled: MusicXMLRealisticPlaybackDefaults.performanceTimingEnabled,
             expressivity: expressivityOptions,
-            fermataTimeline: fermataTimeline
+            logicalInstruments: practiceScore.logicalInstruments
         )
         let highlightGuides = PianoHighlightGuideBuilderService().buildGuides(
             input: PianoHighlightGuideBuildInput(
-                score: routedPracticeScore,
+                score: practiceScore,
                 steps: buildResult.steps,
                 noteSpans: noteSpans,
                 expressivity: expressivityOptions
             )
         )
 
+        let measureSpans = practiceScore.measures.filter { $0.partID == structuralPartID }
+
         try Task.checkCancellation()
         guard buildResult.steps.isEmpty == false else {
             throw PracticePreparationError.noPlayableNotes
         }
-        guard routedPracticeScore.measures.isEmpty == false else {
+        guard measureSpans.isEmpty == false else {
             throw PracticePreparationError.missingMeasureStructure
         }
         return PreparedPractice(
@@ -178,8 +229,16 @@ actor PracticePreparationService: PracticePreparationServiceProtocol {
             fermataTimeline: fermataTimeline,
             attributeTimeline: attributeTimeline,
             highlightGuides: highlightGuides,
-            measureSpans: routedPracticeScore.measures,
-            unsupportedNoteCount: buildResult.unsupportedNoteCount
+            measureSpans: measureSpans,
+            unsupportedNoteCount: buildResult.unsupportedNoteCount,
+            scoreContext: PreparedPracticeScoreContext(
+                sourceScore: sourceScore,
+                preparedScore: practiceScore,
+                logicalInstrument: selectedInstrument,
+                structuralPartID: structuralPartID,
+                orderSelection: orderSelection,
+                handAssignments: handRouting.assignmentsBySourceNoteID
+            )
         )
     }
 

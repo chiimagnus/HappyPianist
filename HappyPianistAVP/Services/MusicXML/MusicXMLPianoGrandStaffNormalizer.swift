@@ -1,85 +1,157 @@
 import Foundation
 
-/// Normalizes a common (but non-standard-for-piano) MusicXML export pattern:
-/// two separate `<part>` entries (one treble clef, one bass clef) representing a single piano grand staff.
-///
-/// Our practice pipeline later filters down to a single `partID`. If left unmodified, the bass `<part>`
-/// gets dropped entirely, resulting in missing left-hand notes.
 struct MusicXMLPianoGrandStaffNormalizer {
     func normalize(score: MusicXMLScore) -> MusicXMLScore {
-        let notePartIDs = Set(score.notes.map(\.partID))
-        guard notePartIDs.count == 2 else { return score }
-
-        // If the source already encodes multi-staff notes (staff >= 2), we don't need to normalize.
-        if score.notes.contains(where: { ($0.staff ?? 1) >= 2 }) {
-            return score
-        }
-
-        guard let mapping = inferTrebleAndBassPartIDs(score: score) else { return score }
-        let (treblePartID, bassPartID) = mapping
-
-        guard notePartIDs.contains(treblePartID), notePartIDs.contains(bassPartID) else { return score }
-
-        let mergedNotes = score.notes.map { note in
-            guard note.partID == bassPartID else { return note }
-            return MusicXMLNoteEvent(
-                partID: treblePartID,
-                measureNumber: note.measureNumber,
-                tick: note.tick,
-                durationTicks: note.durationTicks,
-                midiNote: note.midiNote,
-                isRest: note.isRest,
-                isChord: note.isChord,
-                isGrace: note.isGrace,
-                graceSlash: note.graceSlash,
-                graceStealTimePrevious: note.graceStealTimePrevious,
-                graceStealTimeFollowing: note.graceStealTimeFollowing,
-                tieStart: note.tieStart,
-                tieStop: note.tieStop,
-                staff: note.staff,
-                voice: note.voice,
-                attackTicks: note.attackTicks,
-                releaseTicks: note.releaseTicks,
-                dynamicsOverrideVelocity: note.dynamicsOverrideVelocity,
-                articulations: note.articulations,
-                arpeggiate: note.arpeggiate,
-                fingeringText: note.fingeringText,
-                dotCount: note.dotCount
-            )
-        }
-
         var copy = score
-        copy.notes = mergedNotes
+        copy.logicalInstruments = classifyLogicalInstruments(in: score)
         return copy
     }
 
-    private func inferTrebleAndBassPartIDs(score: MusicXMLScore) -> (treble: String, bass: String)? {
-        // We infer by the first clef sign seen per part: "G" => treble, "F" => bass.
-        // This matches exports like music21 that emit two piano parts with separate clefs.
-        var earliestClefByPart: [String: (tick: Int, sign: String)] = [:]
-
-        for event in score.clefEvents {
-            let partID = event.scope.partID
-            guard let token = event.signToken?.trimmingCharacters(in: .whitespacesAndNewlines),
-                  token.isEmpty == false
-            else { continue }
-            let sign = token.uppercased()
-            guard sign == "G" || sign == "F" else { continue }
-
-            if let existing = earliestClefByPart[partID] {
-                if event.tick < existing.tick {
-                    earliestClefByPart[partID] = (tick: event.tick, sign: sign)
-                }
-            } else {
-                earliestClefByPart[partID] = (tick: event.tick, sign: sign)
-            }
+    private func classifyLogicalInstruments(in score: MusicXMLScore) -> [MusicXMLLogicalInstrument] {
+        let partIDs = allPartIDs(in: score)
+        let metadataByPartID = Dictionary(uniqueKeysWithValues: score.partMetadata.map { ($0.partID, $0) })
+        let explicitPianoPartIDs = partIDs.filter { partID in
+            metadataByPartID[partID].map(isExplicitPiano) == true
         }
 
-        guard earliestClefByPart.count >= 2 else { return nil }
+        var consumed = Set<String>()
+        var output: [MusicXMLLogicalInstrument] = []
 
-        let treblePartID = earliestClefByPart.first(where: { $0.value.sign == "G" })?.key
-        let bassPartID = earliestClefByPart.first(where: { $0.value.sign == "F" })?.key
-        guard let treblePartID, let bassPartID, treblePartID != bassPartID else { return nil }
-        return (treble: treblePartID, bass: bassPartID)
+        if let splitPair = splitKeyboardPair(
+            partIDs: explicitPianoPartIDs,
+            metadataByPartID: metadataByPartID
+        ) {
+            let members = [splitPair.upper, splitPair.lower].sorted()
+            output.append(MusicXMLLogicalInstrument(
+                id: logicalInstrumentID(classification: .piano, partIDs: members),
+                memberPartIDs: members,
+                classification: .piano,
+                evidence: [
+                    MusicXMLLogicalInstrumentEvidence(
+                        kind: .explicitPianoMetadata,
+                        partIDs: members
+                    ),
+                    MusicXMLLogicalInstrumentEvidence(
+                        kind: .splitKeyboardPartNames,
+                        partIDs: members
+                    ),
+                ]
+            ))
+            consumed.formUnion(members)
+        }
+
+        for partID in partIDs where consumed.contains(partID) == false {
+            let metadata = metadataByPartID[partID]
+            let classification: MusicXMLLogicalInstrumentClassification = if metadata.map(isExplicitPiano) == true {
+                .piano
+            } else if metadata == nil {
+                .unknown
+            } else {
+                .other
+            }
+            let evidenceKind: MusicXMLLogicalInstrumentEvidenceKind = switch classification {
+            case .piano:
+                .explicitPianoMetadata
+            case .other:
+                .singlePlayablePart
+            case .unknown:
+                .unresolvedMetadata
+            }
+            output.append(MusicXMLLogicalInstrument(
+                id: logicalInstrumentID(classification: classification, partIDs: [partID]),
+                memberPartIDs: [partID],
+                classification: classification,
+                evidence: [MusicXMLLogicalInstrumentEvidence(kind: evidenceKind, partIDs: [partID])]
+            ))
+        }
+
+        return output.sorted { $0.id < $1.id }
+    }
+
+    private func allPartIDs(in score: MusicXMLScore) -> [String] {
+        var ids = Set(score.partMetadata.map(\.partID))
+        ids.formUnion(score.notes.map(\.partID))
+        ids.formUnion(score.measures.map(\.partID))
+        ids.formUnion(score.tempoEvents.map(\.scope.partID))
+        ids.formUnion(score.soundDirectives.map(\.partID))
+        ids.formUnion(score.pedalEvents.map(\.partID))
+        ids.formUnion(score.dynamicEvents.map(\.scope.partID))
+        ids.formUnion(score.wedgeEvents.map(\.scope.partID))
+        ids.formUnion(score.fermataEvents.map(\.scope.partID))
+        ids.formUnion(score.timeSignatureEvents.map(\.scope.partID))
+        ids.formUnion(score.keySignatureEvents.map(\.scope.partID))
+        ids.formUnion(score.clefEvents.map(\.scope.partID))
+        ids.formUnion(score.transposeEvents.map(\.scope.partID))
+        ids.formUnion(score.octaveShiftEvents.map(\.scope.partID))
+        ids.formUnion(score.wordsEvents.map(\.scope.partID))
+        return ids.sorted()
+    }
+
+    private func isExplicitPiano(_ metadata: MusicXMLPartMetadata) -> Bool {
+        let tokens = [metadata.name, metadata.abbreviation]
+            + metadata.scoreInstruments.map(\.name)
+        return tokens.compactMap { $0 }.contains { normalizedToken($0).contains("piano") }
+    }
+
+    private func splitKeyboardPair(
+        partIDs: [String],
+        metadataByPartID: [String: MusicXMLPartMetadata]
+    ) -> (upper: String, lower: String)? {
+        let roles = partIDs.compactMap { partID -> (String, KeyboardRole, String)? in
+            guard let name = metadataByPartID[partID]?.name,
+                  let role = keyboardRole(in: name)
+            else { return nil }
+            return (partID, role, keyboardBaseName(name))
+        }
+        guard roles.count == 2,
+              let upper = roles.first(where: { $0.1 == .upper }),
+              let lower = roles.first(where: { $0.1 == .lower }),
+              upper.2.isEmpty == false,
+              upper.2 == lower.2
+        else { return nil }
+        return (upper.0, lower.0)
+    }
+
+    private enum KeyboardRole {
+        case upper
+        case lower
+    }
+
+    private func keyboardRole(in value: String) -> KeyboardRole? {
+        let words = normalizedToken(value).split(separator: " ").map(String.init)
+        if words.contains(where: { ["rh", "right", "upper", "treble", "primo"].contains($0) }) {
+            return .upper
+        }
+        if words.contains(where: { ["lh", "left", "lower", "bass", "secondo"].contains($0) }) {
+            return .lower
+        }
+        return nil
+    }
+
+    private func keyboardBaseName(_ value: String) -> String {
+        let roleWords = Set(["rh", "right", "upper", "treble", "primo", "lh", "left", "lower", "bass", "secondo"])
+        return normalizedToken(value)
+            .split(separator: " ")
+            .map(String.init)
+            .filter { roleWords.contains($0) == false }
+            .joined(separator: " ")
+    }
+
+    private func normalizedToken(_ value: String) -> String {
+        value
+            .lowercased()
+            .map { $0.isLetter || $0.isNumber ? $0 : " " }
+            .reduce(into: "") { result, character in
+                if character == " ", result.last == " " { return }
+                result.append(character)
+            }
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func logicalInstrumentID(
+        classification: MusicXMLLogicalInstrumentClassification,
+        partIDs: [String]
+    ) -> String {
+        "\(classification.rawValue):\(partIDs.sorted().joined(separator: "+"))"
     }
 }

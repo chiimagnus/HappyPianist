@@ -1,18 +1,17 @@
 import Foundation
 
 struct MusicXMLVelocityResolver {
-    private struct WedgeSpan: Equatable {
-        let startTick: Int
-        let endTick: Int
-        let kind: MusicXMLWedgeKind
-        let numberToken: String?
-        let scope: MusicXMLEventScope
+    struct WedgeSpan: Equatable {
+        let start: MusicXMLWedgeEvent
+        let stop: MusicXMLWedgeEvent
     }
 
     let dynamicEvents: [MusicXMLDynamicEvent]
     let wedgeEvents: [MusicXMLWedgeEvent]
     let wedgeEnabled: Bool
     let defaultVelocity: UInt8
+    let dynamicCurves: [MusicXMLDynamicCurve]
+    let wedgeApproximations: [MusicXMLWedgeApproximation]
     private let wedgeSpans: [WedgeSpan]
 
     init(
@@ -25,165 +24,329 @@ struct MusicXMLVelocityResolver {
         self.wedgeEvents = wedgeEvents
         self.wedgeEnabled = wedgeEnabled
         self.defaultVelocity = defaultVelocity
-        wedgeSpans = Self.buildWedgeSpans(from: wedgeEvents)
+
+        let pairing = Self.buildWedgeSpans(from: wedgeEvents)
+        wedgeSpans = pairing.spans
+        let curveBuild = Self.buildDynamicCurves(
+            spans: pairing.spans,
+            dynamicEvents: dynamicEvents,
+            defaultVelocity: defaultVelocity
+        )
+        dynamicCurves = curveBuild.curves
+        wedgeApproximations = pairing.approximations + curveBuild.approximations
     }
 
     func velocity(for note: MusicXMLNoteEvent) -> UInt8 {
-        if let override = note.dynamicsOverrideVelocity {
-            return override
-        }
-
-        let noteStaff = note.staff ?? 1
-
-        let baseVelocity: UInt8 = if wedgeEnabled,
-                                     let velocity = wedgeVelocity(
-                                         partID: note.partID,
-                                         tick: note.tick,
-                                         staff: noteStaff
-                                     )
-        {
-            velocity
-        } else {
-            resolvedVelocityFromDynamics(partID: note.partID, tick: note.tick, staff: noteStaff) ?? defaultVelocity
-        }
-
-        return applyArticulations(note: note, velocity: baseVelocity)
+        resolution(for: note).velocity
     }
 
-    private func applyArticulations(note: MusicXMLNoteEvent, velocity: UInt8) -> UInt8 {
-        var value = Int(velocity)
+    func resolution(for note: MusicXMLNoteEvent) -> MusicXMLVelocityResolution {
+        let baseVelocity: Int
+        let selectedCurve: MusicXMLDynamicCurve?
+        let curveVelocity: Double?
+
+        if let override = note.dynamicsOverrideVelocity {
+            baseVelocity = Int(override)
+            selectedCurve = nil
+            curveVelocity = nil
+        } else {
+            baseVelocity = Int(
+                resolvedDynamicEvent(
+                    partID: note.partID,
+                    tick: note.tick,
+                    staff: note.staff,
+                    voice: note.voice
+                )?.velocity ?? defaultVelocity
+            )
+            selectedCurve = wedgeEnabled ? curve(
+                partID: note.partID,
+                tick: note.tick,
+                staff: note.staff,
+                voice: note.voice
+            ) : nil
+            curveVelocity = selectedCurve?.interpolatedVelocity(at: note.tick)
+        }
+
+        let articulationDelta = articulationDelta(for: note)
+        let resolvedBase = Int((curveVelocity ?? Double(baseVelocity)).rounded())
+        let unclampedVelocity = resolvedBase + articulationDelta
+        let output = UInt8(min(127, max(0, unclampedVelocity)))
+
+        return MusicXMLVelocityResolution(
+            baseVelocity: baseVelocity,
+            curveVelocity: curveVelocity,
+            articulationDelta: articulationDelta,
+            unclampedVelocity: unclampedVelocity,
+            velocity: output,
+            curve: selectedCurve
+        )
+    }
+
+    private func articulationDelta(for note: MusicXMLNoteEvent) -> Int {
+        var value = 0
         if note.articulations.contains(.accent) {
             value += 10
         }
         if note.articulations.contains(.marcato) {
             value += 15
         }
-        return UInt8(min(127, max(0, value)))
+        return value
     }
 
-    private func resolvedVelocityFromDynamics(partID: String, tick: Int, staff: Int) -> UInt8? {
-        resolvedVelocity(source: .soundDynamicsAttribute, partID: partID, tick: tick, staff: staff)
-            ?? resolvedVelocity(source: .directionDynamics, partID: partID, tick: tick, staff: staff)
-    }
-
-    private func resolvedVelocity(
-        source: MusicXMLDynamicEventSource,
+    private func resolvedDynamicEvent(
         partID: String,
         tick: Int,
-        staff: Int
-    ) -> UInt8? {
-        if let staffSpecific = dynamicEvents
-            .reversed()
-            .first(where: { event in
-                event.source == source &&
-                    event.scope.partID == partID &&
-                    event.tick <= tick &&
-                    event.scope.staff == staff
+        staff: Int?,
+        voice: Int?
+    ) -> MusicXMLDynamicEvent? {
+        Self.latestDynamicEvent(
+            in: dynamicEvents,
+            partID: partID,
+            atOrBeforeTick: tick,
+            staff: staff,
+            voice: voice
+        )
+    }
+
+    private func curve(
+        partID: String,
+        tick: Int,
+        staff: Int?,
+        voice: Int?
+    ) -> MusicXMLDynamicCurve? {
+        dynamicCurves
+            .filter { curve in
+                curve.scope.partID == partID
+                    && curve.startTick <= tick
+                    && tick <= curve.endTick
+                    && Self.scope(curve.scope, matchesStaff: staff, voice: voice)
+            }
+            .max(by: { lhs, rhs in
+                if lhs.startTick != rhs.startTick { return lhs.startTick < rhs.startTick }
+                let lhsSpecificity = Self.scopeSpecificity(lhs.scope, staff: staff, voice: voice)
+                let rhsSpecificity = Self.scopeSpecificity(rhs.scope, staff: staff, voice: voice)
+                if lhsSpecificity != rhsSpecificity { return lhsSpecificity < rhsSpecificity }
+                return lhs.numberToken < rhs.numberToken
             })
-        {
-            return staffSpecific.velocity
+    }
+
+    private static func buildDynamicCurves(
+        spans: [WedgeSpan],
+        dynamicEvents: [MusicXMLDynamicEvent],
+        defaultVelocity: UInt8
+    ) -> (curves: [MusicXMLDynamicCurve], approximations: [MusicXMLWedgeApproximation]) {
+        var curves: [MusicXMLDynamicCurve] = []
+        var approximations: [MusicXMLWedgeApproximation] = []
+
+        for span in spans {
+            guard span.stop.tick > span.start.tick else {
+                approximations.append(MusicXMLWedgeApproximation(
+                    sourceID: span.start.sourceID,
+                    reason: "wedge-zero-duration"
+                ))
+                continue
+            }
+
+            let startEvent = latestDynamicEvent(
+                in: dynamicEvents,
+                partID: span.start.scope.partID,
+                atOrBeforeTick: span.start.tick,
+                staff: span.start.scope.staff,
+                voice: span.start.scope.voice
+            )
+            guard let targetEvent = firstDynamicEvent(
+                in: dynamicEvents,
+                partID: span.start.scope.partID,
+                atOrAfterTick: span.stop.tick,
+                staff: span.start.scope.staff,
+                voice: span.start.scope.voice
+            ) else {
+                approximations.append(MusicXMLWedgeApproximation(
+                    sourceID: span.start.sourceID,
+                    reason: "wedge-missing-target-dynamic"
+                ))
+                continue
+            }
+
+            let startVelocity = Int(startEvent?.velocity ?? defaultVelocity)
+            let endVelocity = Int(targetEvent.velocity)
+            let directionConflicts = switch span.start.kind {
+            case .crescendoStart:
+                endVelocity < startVelocity
+            case .diminuendoStart:
+                endVelocity > startVelocity
+            case .stop:
+                false
+            }
+            if directionConflicts {
+                approximations.append(MusicXMLWedgeApproximation(
+                    sourceID: span.start.sourceID,
+                    reason: "wedge-direction-conflicts-with-target"
+                ))
+            }
+
+            curves.append(MusicXMLDynamicCurve(
+                startTick: span.start.tick,
+                endTick: span.stop.tick,
+                startVelocity: startVelocity,
+                endVelocity: endVelocity,
+                scope: span.start.scope,
+                numberToken: span.start.normalizedNumberToken,
+                kind: span.start.kind,
+                provenance: .explicitWedge(
+                    startSourceID: span.start.sourceID,
+                    stopSourceID: span.stop.sourceID,
+                    targetSourceID: targetEvent.sourceID
+                )
+            ))
         }
 
-        if let global = dynamicEvents
-            .reversed()
-            .first(where: { event in
-                event.source == source &&
-                    event.scope.partID == partID &&
-                    event.tick <= tick &&
-                    event.scope.staff == nil
+        return (
+            curves: curves.sorted { lhs, rhs in
+                if lhs.startTick != rhs.startTick { return lhs.startTick < rhs.startTick }
+                if lhs.endTick != rhs.endTick { return lhs.endTick < rhs.endTick }
+                return lhs.numberToken < rhs.numberToken
+            },
+            approximations: approximations
+        )
+    }
+
+    private static func latestDynamicEvent(
+        in dynamicEvents: [MusicXMLDynamicEvent],
+        partID: String,
+        atOrBeforeTick tick: Int,
+        staff: Int?,
+        voice: Int?
+    ) -> MusicXMLDynamicEvent? {
+        dynamicEvents
+            .filter { event in
+                event.scope.partID == partID
+                    && event.tick <= tick
+                    && scope(event.scope, matchesStaff: staff, voice: voice)
+            }
+            .max(by: { lhs, rhs in
+                compareDynamicEvents(lhs, rhs, staff: staff, voice: voice)
             })
-        {
-            return global.velocity
-        }
-
-        return nil
     }
 
-    private func wedgeVelocity(partID: String, tick: Int, staff: Int) -> UInt8? {
-        guard wedgeSpans.isEmpty == false else { return nil }
-
-        let candidates = wedgeSpans.filter { span in
-            span.scope.partID == partID &&
-                span.startTick <= tick &&
-                tick <= span.endTick
-        }
-        guard candidates.isEmpty == false else { return nil }
-
-        let staffSpecific = candidates
-            .filter { $0.scope.staff == staff }
-            .max(by: { $0.startTick < $1.startTick })
-
-        let global = candidates
-            .filter { $0.scope.staff == nil }
-            .max(by: { $0.startTick < $1.startTick })
-
-        let span = staffSpecific ?? global
-        guard let span else { return nil }
-        guard span.endTick > span.startTick else { return nil }
-        guard span.kind != .stop else { return nil }
-
-        let startVelocity = resolvedVelocityFromDynamics(partID: partID, tick: span.startTick, staff: staff) ??
-            defaultVelocity
-        guard let endVelocity = firstExplicitDynamicVelocity(atOrAfterTick: span.endTick, partID: partID, staff: staff)
-        else {
-            return nil
-        }
-
-        let progress = Double(tick - span.startTick) / Double(span.endTick - span.startTick)
-        let interpolated = Double(startVelocity) + (Double(endVelocity) - Double(startVelocity)) * progress
-        let clamped = min(127, max(0, Int(interpolated.rounded())))
-        return UInt8(clamped)
+    private static func firstDynamicEvent(
+        in dynamicEvents: [MusicXMLDynamicEvent],
+        partID: String,
+        atOrAfterTick tick: Int,
+        staff: Int?,
+        voice: Int?
+    ) -> MusicXMLDynamicEvent? {
+        dynamicEvents
+            .filter { event in
+                event.scope.partID == partID
+                    && event.tick >= tick
+                    && scope(event.scope, matchesStaff: staff, voice: voice)
+            }
+            .min(by: { lhs, rhs in
+                if lhs.tick != rhs.tick { return lhs.tick < rhs.tick }
+                let lhsSpecificity = scopeSpecificity(lhs.scope, staff: staff, voice: voice)
+                let rhsSpecificity = scopeSpecificity(rhs.scope, staff: staff, voice: voice)
+                if lhsSpecificity != rhsSpecificity { return lhsSpecificity > rhsSpecificity }
+                let lhsSource = sourcePrecedence(lhs.source)
+                let rhsSource = sourcePrecedence(rhs.source)
+                if lhsSource != rhsSource { return lhsSource > rhsSource }
+                let lhsIdentity = lhs.sourceID?.description ?? ""
+                let rhsIdentity = rhs.sourceID?.description ?? ""
+                if lhsIdentity != rhsIdentity { return lhsIdentity < rhsIdentity }
+                return lhs.velocity > rhs.velocity
+            })
     }
 
-    private func firstExplicitDynamicVelocity(atOrAfterTick tick: Int, partID: String, staff: Int) -> UInt8? {
-        if let staffSpecific = dynamicEvents.first(where: { event in
-            event.scope.partID == partID &&
-                event.tick >= tick &&
-                event.scope.staff == staff
-        }) {
-            return staffSpecific.velocity
-        }
-
-        if let global = dynamicEvents.first(where: { event in
-            event.scope.partID == partID &&
-                event.tick >= tick &&
-                event.scope.staff == nil
-        }) {
-            return global.velocity
-        }
-
-        return nil
+    private static func compareDynamicEvents(
+        _ lhs: MusicXMLDynamicEvent,
+        _ rhs: MusicXMLDynamicEvent,
+        staff: Int?,
+        voice: Int?
+    ) -> Bool {
+        if lhs.tick != rhs.tick { return lhs.tick < rhs.tick }
+        let lhsSpecificity = scopeSpecificity(lhs.scope, staff: staff, voice: voice)
+        let rhsSpecificity = scopeSpecificity(rhs.scope, staff: staff, voice: voice)
+        if lhsSpecificity != rhsSpecificity { return lhsSpecificity < rhsSpecificity }
+        let lhsSource = sourcePrecedence(lhs.source)
+        let rhsSource = sourcePrecedence(rhs.source)
+        if lhsSource != rhsSource { return lhsSource < rhsSource }
+        let lhsIdentity = lhs.sourceID?.description ?? ""
+        let rhsIdentity = rhs.sourceID?.description ?? ""
+        if lhsIdentity != rhsIdentity { return lhsIdentity < rhsIdentity }
+        return lhs.velocity < rhs.velocity
     }
 
-    private static func buildWedgeSpans(from wedgeEvents: [MusicXMLWedgeEvent]) -> [WedgeSpan] {
-        var active: [String: (startTick: Int, kind: MusicXMLWedgeKind, scope: MusicXMLEventScope)] = [:]
+    private static func scope(_ scope: MusicXMLEventScope, matchesStaff staff: Int?, voice: Int?) -> Bool {
+        (scope.staff == nil || scope.staff == staff)
+            && (scope.voice == nil || scope.voice == voice)
+    }
+
+    private static func scopeSpecificity(_ scope: MusicXMLEventScope, staff: Int?, voice: Int?) -> Int {
+        var value = 0
+        if scope.staff != nil, scope.staff == staff { value += 1 }
+        if scope.voice != nil, scope.voice == voice { value += 2 }
+        return value
+    }
+
+    private static func sourcePrecedence(_ source: MusicXMLDynamicEventSource) -> Int {
+        switch source {
+        case .directionDynamics:
+            0
+        case .soundDynamicsAttribute:
+            1
+        }
+    }
+
+    private static func buildWedgeSpans(
+        from wedgeEvents: [MusicXMLWedgeEvent]
+    ) -> (spans: [WedgeSpan], approximations: [MusicXMLWedgeApproximation]) {
+        let orderedEvents = wedgeEvents.sorted { lhs, rhs in
+            if lhs.tick != rhs.tick { return lhs.tick < rhs.tick }
+            let lhsKind = kindOrder(lhs.kind)
+            let rhsKind = kindOrder(rhs.kind)
+            if lhsKind != rhsKind { return lhsKind < rhsKind }
+            return (lhs.sourceID?.description ?? "") < (rhs.sourceID?.description ?? "")
+        }
+        var active: [MusicXMLWedgePairKey: MusicXMLWedgeEvent] = [:]
         var spans: [WedgeSpan] = []
-        spans.reserveCapacity(wedgeEvents.count / 2)
+        var approximations: [MusicXMLWedgeApproximation] = []
 
-        for event in wedgeEvents {
-            let number = event.numberToken ?? ""
-            let staffKey = event.scope.staff.map(String.init) ?? "_"
-            let key = "\(event.scope.partID)-\(staffKey)-\(number)"
-
+        for event in orderedEvents {
             switch event.kind {
             case .crescendoStart, .diminuendoStart:
-                active[key] = (startTick: event.tick, kind: event.kind, scope: event.scope)
-            case .stop:
-                if let start = active[key] {
-                    spans.append(
-                        WedgeSpan(
-                            startTick: start.startTick,
-                            endTick: event.tick,
-                            kind: start.kind,
-                            numberToken: event.numberToken,
-                            scope: start.scope
-                        )
-                    )
-                    active[key] = nil
+                if let replaced = active.updateValue(event, forKey: event.pairKey) {
+                    approximations.append(MusicXMLWedgeApproximation(
+                        sourceID: replaced.sourceID,
+                        reason: "wedge-start-replaced-before-stop"
+                    ))
                 }
+            case .stop:
+                guard let start = active.removeValue(forKey: event.pairKey) else {
+                    approximations.append(MusicXMLWedgeApproximation(
+                        sourceID: event.sourceID,
+                        reason: "wedge-stop-without-start"
+                    ))
+                    continue
+                }
+                spans.append(WedgeSpan(start: start, stop: event))
             }
         }
 
-        return spans
+        for event in active.values.sorted(by: { $0.tick < $1.tick }) {
+            approximations.append(MusicXMLWedgeApproximation(
+                sourceID: event.sourceID,
+                reason: "wedge-start-without-stop"
+            ))
+        }
+        return (spans: spans, approximations: approximations)
+    }
+
+    private static func kindOrder(_ kind: MusicXMLWedgeKind) -> Int {
+        switch kind {
+        case .crescendoStart, .diminuendoStart:
+            0
+        case .stop:
+            1
+        }
     }
 }

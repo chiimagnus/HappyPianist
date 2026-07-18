@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<score-partwise version="4.0">
+  <part-list>
+    <score-part id="P1"><part-name>Grand Piano</part-name></score-part>
+  </part-list>
+  <part id="P1">
+    <measure number="1">
+      <attributes>
+        <divisions>4</divisions>
+        <time><beats>4</beats><beat-type>4</beat-type></time>
+        <staves>2</staves>
+        <clef number="1"><sign>G</sign><line>2</line></clef>
+        <clef number="2"><sign>F</sign><line>4</line></clef>
+      </attributes>
+      <direction>
+        <direction-type><dynamics><p/></dynamics><wedge type="crescendo" number="1"/></direction-type>
+        <sound tempo="120"/>
+        <staff>1</staff>
+      </direction>
+      <note>
+        <grace make-time="1"/>
+        <pitch><step>D</step><octave>4</octave></pitch>
+        <voice>1</voice><type>16th</type><staff>1</staff>
+      </note>
+      <note>
+        <pitch><step>C</step><octave>4</octave></pitch><duration>4</duration>
+        <voice>1</voice><type>quarter</type><staff>1</staff>
+        <notations><slur type="start" number="1"/><arpeggiate number="1"/></notations>
+      </note>
+      <note>
+        <chord/><pitch><step>E</step><octave>4</octave></pitch><duration>4</duration>
+        <voice>1</voice><type>quarter</type><staff>1</staff>
+        <notations><arpeggiate number="1"/></notations>
+      </note>
+      <note>
+        <chord/><pitch><step>G</step><octave>4</octave></pitch><duration>4</duration>
+        <voice>1</voice><type>quarter</type><staff>1</staff>
+        <notations><arpeggiate number="1"/></notations>
+      </note>
+      <direction>
+        <direction-type><dynamics><f/></dynamics><wedge type="stop" number="1"/></direction-type>
+        <offset>4</offset><staff>1</staff>
+      </direction>
+      <note>
+        <pitch><step>D</step><octave>4</octave></pitch><duration>4</duration>
+        <voice>1</voice><type>quarter</type><staff>1</staff>
+        <notations><slur type="stop" number="1"/><breath-mark/></notations>
+      </note>
+      <note>
+        <pitch><step>E</step><octave>4</octave></pitch><duration>8</duration>
+        <voice>1</voice><type>half</type><staff>1</staff>
+        <notations><fermata/></notations>
+      </note>
+    </measure>
+    <measure number="2">
+      <direction><direction-type><words>rit.</words></direction-type><staff>1</staff></direction>
+      <note>
+        <pitch><step>C</step><octave>5</octave></pitch><duration>4</duration>
+        <voice>1</voice><type>quarter</type><staff>1</staff>
+        <notations><ornaments><trill-mark/><accidental-mark placement="above">natural</accidental-mark></ornaments></notations>
+      </note>
+      <note>
+        <pitch><step>D</step><octave>5</octave></pitch><duration>4</duration>
+        <voice>1</voice><type>quarter</type><staff>1</staff>
+        <notations><ornaments><trill-mark/></ornaments></notations>
+      </note>
+      <note>
+        <pitch><step>G</step><octave>4</octave></pitch><duration>4</duration>
+        <voice>1</voice><type>quarter</type><staff>1</staff>
+        <notations><ornaments><tremolo type="single">3</tremolo></ornaments></notations>
+      </note>
+      <note>
+        <pitch><step>C</step><octave>4</octave></pitch><duration>4</duration>
+        <voice>1</voice><type>quarter</type><staff>1</staff>
+        <notations><glissando type="start" number="1"/></notations>
+      </note>
+    </measure>
+    <measure number="3">
+      <direction><sound tempo="90"/></direction>
+      <note>
+        <pitch><step>C</step><octave>5</octave></pitch><duration>4</duration>
+        <voice>1</voice><type>quarter</type><staff>1</staff>
+        <notations><glissando type="stop" number="1"/></notations>
+      </note>
+      <note>
+        <pitch><step>F</step><octave>4</octave></pitch><duration>4</duration>
+        <voice>1</voice><type>quarter</type><staff>1</staff>
+        <notations><ornaments><schleifer/></ornaments></notations>
+      </note>
+      <note><rest/><duration>8</duration><voice>1</voice><type>half</type><staff>1</staff></note>
+    </measure>
+  </part>
+</score-partwise>

@@ -34,10 +34,10 @@ private func makeManualAdvanceContext(currentStepIndex: Int) -> ManualAdvanceCon
     ManualAdvanceContext(
         currentStepIndex: currentStepIndex,
         steps: [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
-            PracticeStep(tick: 240, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
-            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 64, staff: 1)]),
-            PracticeStep(tick: 1440, notes: [PracticeStepNote(midiNote: 65, staff: 1)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
+            PracticeStep(tick: 240, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 64, staff: 1, handAssignment: .unknown)]),
+            PracticeStep(tick: 1440, notes: [PracticeStepNote(midiNote: 65, staff: 1, handAssignment: .unknown)]),
         ],
         measureSpans: [
             MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, sourceMeasureIndex: 1, sourceMeasureNumberToken: "1", occurrenceIndex: 0, startTick: 0, endTick: 480),
@@ -72,9 +72,9 @@ func appStatePassesMeasureSpansToPracticeSession() async {
     let prepared = PreparedPractice(
         identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "test"),
         steps: [
-            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1)]),
-            PracticeStep(tick: 240, notes: [PracticeStepNote(midiNote: 62, staff: 1)]),
-            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 64, staff: 1)]),
+            PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
+            PracticeStep(tick: 240, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
+            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 64, staff: 1, handAssignment: .unknown)]),
         ],
         file: ImportedMusicXMLFile(fileName: "Test", storedURL: URL(fileURLWithPath: "/dev/null"), importedAt: Date()),
         tempoMap: MusicXMLTempoMap(tempoEvents: []),
@@ -86,7 +86,8 @@ func appStatePassesMeasureSpansToPracticeSession() async {
             MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, sourceMeasureIndex: 1, sourceMeasureNumberToken: "1", occurrenceIndex: 0, startTick: 0, endTick: 480),
             MusicXMLMeasureSpan(partID: "P1", measureNumber: 2, sourceMeasureIndex: 2, sourceMeasureNumberToken: "2", occurrenceIndex: 1, startTick: 480, endTick: 960),
         ],
-        unsupportedNoteCount: 0
+        unsupportedNoteCount: 0,
+        scoreContext: makeTestPreparedPracticeScoreContext()
     )
     practiceSetupState.setImportedSteps(from: prepared)
     _ = await guideViewModel.applyPreparedPracticeForLaunch(

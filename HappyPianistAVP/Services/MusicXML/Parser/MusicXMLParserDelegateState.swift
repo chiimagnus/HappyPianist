@@ -1,9 +1,28 @@
 import Foundation
 
 struct MusicXMLParserDelegateState {
+
+    struct PendingPerformanceNotation {
+        let kind: MusicXMLPerformanceNotationKind
+        let rawElementToken: String
+        let typeToken: String?
+        let numberToken: String?
+        let placementToken: String?
+        var textToken: String?
+        let attributes: [String: String]
+    }
+
     let normalizedTicksPerQuarter = 480
+    let directionOffsetResolver = MusicXMLDirectionOffsetResolver(ticksPerQuarter: 480)
 
     var scoreVersion: String?
+    var partMetadataByID: [String: MusicXMLPartMetadata] = [:]
+    var partMetadataOrder: [String] = []
+    var metadataError: MusicXMLParserError?
+    var isInPartList = false
+    var currentScorePartMetadata: MusicXMLPartMetadata?
+    var currentScoreInstrumentMetadata: MusicXMLScoreInstrumentMetadata?
+    var currentMIDIInstrumentMetadata: MusicXMLMIDIInstrumentMetadata?
 
     var notes: [MusicXMLNoteEvent] = []
     var tempoEvents: [MusicXMLTempoEvent] = []
@@ -15,6 +34,8 @@ struct MusicXMLParserDelegateState {
     var timeSignatureEvents: [MusicXMLTimeSignatureEvent] = []
     var keySignatureEvents: [MusicXMLKeySignatureEvent] = []
     var clefEvents: [MusicXMLClefEvent] = []
+    var transposeEvents: [MusicXMLTransposeEvent] = []
+    var octaveShiftEvents: [MusicXMLOctaveShiftEvent] = []
     var wordsEvents: [MusicXMLWordsEvent] = []
     var measures: [MusicXMLMeasureSpan] = []
     var repeatDirectives: [MusicXMLRepeatDirective] = []
@@ -26,6 +47,7 @@ struct MusicXMLParserDelegateState {
     }
 
     struct RawTempoEvent {
+        let sourceID: MusicXMLDirectionSourceID?
         let partID: String
         let tick: Int
         let quarterBPM: Double
@@ -37,6 +59,10 @@ struct MusicXMLParserDelegateState {
     var currentMeasureNumber = 1
     var currentMeasureIndex = 0
     var currentMeasureNumberToken: String?
+    var currentSourceNoteOrdinal = 0
+    var currentDirectionSourceOrdinal = 0
+    var currentDirectionSourceID: MusicXMLDirectionSourceID?
+    var currentSoundSourceID: MusicXMLDirectionSourceID?
 
     var partDivisions: [String: Int] = [:]
     var partTick: [String: Int] = [:]
@@ -48,8 +74,10 @@ struct MusicXMLParserDelegateState {
 
     var isInAttributes = false
     var isInTime = false
-    var timeBeats: Int?
-    var timeBeatType: Int?
+    var timeBeatGroups: [[Int]] = []
+    var timeBeatTypes: [Int] = []
+    var timeSymbolToken: String?
+    var timeIsSenzaMisura = false
     var isInKey = false
     var keyFifths: Int?
     var keyModeToken: String?
@@ -58,6 +86,11 @@ struct MusicXMLParserDelegateState {
     var clefLine: Int?
     var clefOctaveChange: Int?
     var clefNumberToken: String?
+    var isInTranspose = false
+    var transposeDiatonic: Int?
+    var transposeChromatic: Int?
+    var transposeOctaveChange: Int?
+    var transposeIsDouble = false
     var isInBackup = false
     var isInForward = false
     var isInDirection = false
@@ -70,7 +103,8 @@ struct MusicXMLParserDelegateState {
     var noteIsRest = false
     var noteIsChord = false
     var noteStep: String?
-    var noteAlter: Int?
+    var noteAlter: Double?
+    var noteAccidentalToken: String?
     var noteOctave: Int?
     var noteDuration: Int?
     var noteStaff: Int?
@@ -83,6 +117,7 @@ struct MusicXMLParserDelegateState {
     var noteGraceSlash = false
     var noteGraceStealTimePrevious: Double?
     var noteGraceStealTimeFollowing: Double?
+    var noteGraceMakeTimeTicks: Int?
     var noteType: String?
     var noteDotCount = 0
     var isInTimeModification = false
@@ -93,6 +128,10 @@ struct MusicXMLParserDelegateState {
     var noteArticulations: Set<MusicXMLArticulation> = []
     var noteHasFermata = false
     var noteArpeggiate: MusicXMLArpeggiate?
+    var notePerformanceNotations: [PendingPerformanceNotation] = []
+    var currentPerformanceNotationIndexByElement: [String: Int] = [:]
+    var isInNoteNotations = false
+    var isInNoteOrnaments = false
     var noteFingeringText: String?
     var isInTechnical = false
 
@@ -113,8 +152,6 @@ struct MusicXMLParserDelegateState {
     var currentDirectionWedgeStartIndex = 0
     var currentDirectionFermataStartIndex = 0
     var currentDirectionWordsStartIndex = 0
-
-    var currentOffsetAppliesToSound = false
 
     var currentSoundBaseTick = 0
     var currentSoundMeasureStartTick = 0
