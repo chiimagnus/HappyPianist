@@ -4,32 +4,24 @@ struct MusicXMLTempoMap {
     static let ticksPerQuarter = 480
 
     struct TempoRamp: Equatable {
-        enum Curve: Equatable {
-            case linearBPM
-            case easeInOut
-        }
-
         let startTick: Int
         let endTick: Int
         let startQuarterBPM: Double
         let endQuarterBPM: Double
         let scope: MusicXMLEventScope
-        let curve: Curve
 
         init(
             startTick: Int,
             endTick: Int,
             startQuarterBPM: Double,
             endQuarterBPM: Double,
-            scope: MusicXMLEventScope = MusicXMLEventScope(partID: "P1", staff: nil, voice: nil),
-            curve: Curve = .linearBPM
+            scope: MusicXMLEventScope = MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
         ) {
             self.startTick = startTick
             self.endTick = endTick
             self.startQuarterBPM = startQuarterBPM
             self.endQuarterBPM = endQuarterBPM
             self.scope = scope
-            self.curve = curve
         }
     }
 
@@ -309,12 +301,6 @@ struct MusicXMLTempoMap {
         let end = Double(ramp.endTick)
         let t = min(max(Double(tick), start), end)
         let fraction = (t - start) / max(1.0, end - start)
-        let easedFraction: Double = switch ramp.curve {
-        case .linearBPM:
-            fraction
-        case .easeInOut:
-            fraction * fraction * (3 - 2 * fraction)
-        }
-        return ramp.startQuarterBPM + (ramp.endQuarterBPM - ramp.startQuarterBPM) * easedFraction
+        return ramp.startQuarterBPM + (ramp.endQuarterBPM - ramp.startQuarterBPM) * fraction
     }
 }

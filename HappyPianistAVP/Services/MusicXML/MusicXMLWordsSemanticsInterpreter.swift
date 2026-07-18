@@ -412,8 +412,7 @@ private extension MusicXMLWordsSemanticsInterpreter {
             endTick: endEvent.tick,
             startQuarterBPM: startBPM,
             endQuarterBPM: endEvent.quarterBPM,
-            scope: scope,
-            curve: .easeInOut
+            scope: scope
         )
     }
 

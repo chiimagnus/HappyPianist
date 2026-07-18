@@ -100,6 +100,8 @@ func tempoMapReportsTickDomainBPMInsideRamp() {
     )
 
     #expect(map.quarterBPM(atTick: 0) == 120)
+    #expect(map.quarterBPM(atTick: 120) == 105)
     #expect(map.quarterBPM(atTick: 240) == 90)
+    #expect(map.quarterBPM(atTick: 360) == 75)
     #expect(map.quarterBPM(atTick: 480) == 60)
 }

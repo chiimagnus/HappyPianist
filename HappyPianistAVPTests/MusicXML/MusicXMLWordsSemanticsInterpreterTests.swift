@@ -63,8 +63,7 @@ func wordsSemanticsDerivesTempoRampForRitWhenTargetIsSlower() {
             startTick: 0,
             endTick: 480,
             startQuarterBPM: 120,
-            endQuarterBPM: 60,
-            curve: .easeInOut
+            endQuarterBPM: 60
         ),
     ])
 }
