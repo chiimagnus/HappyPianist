@@ -9,6 +9,7 @@ enum MusicXMLPerformanceNotationKind: String, CaseIterable, Codable, Equatable, 
     case invertedTurn = "inverted-turn"
     case tremolo
     case glissando
+    case accidentalMark = "accidental-mark"
     case breathMark = "breath-mark"
     case caesura
     case other

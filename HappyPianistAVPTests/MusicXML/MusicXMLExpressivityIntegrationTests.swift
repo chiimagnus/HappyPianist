@@ -262,3 +262,59 @@ func velocityResolutionClampsAfterKeepingUnclampedArticulationResult() {
     #expect(resolution.unclampedVelocity == 140)
     #expect(resolution.velocity == 127)
 }
+
+@Test
+func ornamentSchedulerGeneratesOnlyFromExplicitPerformanceFacts() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1"><measure number="1">
+        <attributes><divisions>1</divisions></attributes>
+        <note>
+          <pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff>
+          <notations><ornaments><trill-mark/><accidental-mark placement="above">natural</accidental-mark></ornaments></notations>
+        </note>
+        <note>
+          <pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff>
+          <notations><ornaments><trill-mark/></ornaments></notations>
+        </note>
+        <note>
+          <pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff>
+          <notations><ornaments><tremolo type="single">3</tremolo></ornaments></notations>
+        </note>
+        <note>
+          <pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff>
+          <notations><glissando type="start" number="1"/></notations>
+        </note>
+        <note>
+          <pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff>
+          <notations><glissando type="stop" number="1"/></notations>
+        </note>
+      </measure></part>
+    </score-partwise>
+    """
+
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let schedule = ScoreTimingScheduleBuilder().build(
+        notes: score.notes,
+        performanceTimingEnabled: true
+    )
+
+    let trillNotes = schedule.generatedNotes.filter { $0.notationKind == .trillMark }
+    #expect(trillNotes.map(\.midiNote) == [60, 62, 60, 62, 60, 62, 60, 62, 60])
+    #expect(trillNotes.allSatisfy { $0.sourceNoteIndices == [0] })
+
+    let unsupportedTrill = try #require(schedule.notationResolutions.first {
+        $0.notationKind == .trillMark && $0.sourceNoteIndices == [1]
+    })
+    #expect(unsupportedTrill.status == .unsupported(reason: "ornament-accidental-unavailable"))
+
+    let tremoloNotes = schedule.generatedNotes.filter { $0.notationKind == .tremolo }
+    #expect(tremoloNotes.count == 8)
+    #expect(tremoloNotes.allSatisfy { $0.midiNote == 67 })
+
+    let glissandoNotes = schedule.generatedNotes.filter { $0.notationKind == .glissando }
+    #expect(glissandoNotes.map(\.midiNote) == Array(60..<72))
+    #expect(glissandoNotes.first?.onTick == 1_440)
+    #expect(glissandoNotes.last?.offTick == 1_920)
+}

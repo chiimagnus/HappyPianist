@@ -1,5 +1,9 @@
 import Foundation
 
+enum MusicXMLGlissandoPitchPolicy: String, Codable, Equatable, Sendable {
+    case chromatic
+}
+
 struct MusicXMLInterpretationProfile: Equatable, Sendable {
     static let generic = MusicXMLInterpretationProfile(
         id: "generic-score-v1",
@@ -9,6 +13,9 @@ struct MusicXMLInterpretationProfile: Equatable, Sendable {
         marcatoDurationMultiplier: 0.75,
         breathGapTicks: MusicXMLTempoMap.ticksPerQuarter / 8,
         caesuraPauseTicks: MusicXMLTempoMap.ticksPerQuarter / 2,
+        ornamentSubdivisionTicks: MusicXMLTempoMap.ticksPerQuarter / 8,
+        unmeasuredTremoloSubdivisionTicks: MusicXMLTempoMap.ticksPerQuarter / 8,
+        glissandoPitchPolicy: .chromatic,
         fermataExtraDurationMultiplier: 0.5,
         fermataMaximumExtraTicks: MusicXMLTempoMap.ticksPerQuarter * 2
     )
@@ -20,6 +27,9 @@ struct MusicXMLInterpretationProfile: Equatable, Sendable {
     let marcatoDurationMultiplier: Double
     let breathGapTicks: Int
     let caesuraPauseTicks: Int
+    let ornamentSubdivisionTicks: Int
+    let unmeasuredTremoloSubdivisionTicks: Int
+    let glissandoPitchPolicy: MusicXMLGlissandoPitchPolicy
     let fermataExtraDurationMultiplier: Double
     let fermataMaximumExtraTicks: Int
 

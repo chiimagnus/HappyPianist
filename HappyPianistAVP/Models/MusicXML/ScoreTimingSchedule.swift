@@ -48,6 +48,39 @@ struct ScoreTimingEntry: Equatable, Sendable {
     let provenance: [ScoreTimingProvenance]
 }
 
+
+enum ScoreGeneratedNotePurpose: String, Codable, Equatable, Sendable {
+    case ornament
+    case tremolo
+    case glissando
+}
+
+struct ScoreGeneratedNoteEvent: Equatable, Sendable {
+    let sourceNoteIndices: [Int]
+    let sourceNotationID: MusicXMLPerformanceNotationSourceID?
+    let notationKind: MusicXMLPerformanceNotationKind
+    let purpose: ScoreGeneratedNotePurpose
+    let ordinal: Int
+    let midiNote: Int
+    let onTick: Int
+    let offTick: Int
+    let interpretationProfileID: String
+}
+
+enum ScorePerformanceNotationResolutionStatus: Equatable, Sendable {
+    case generated
+    case unsupported(reason: String)
+}
+
+struct ScorePerformanceNotationResolution: Equatable, Sendable {
+    let sourceNotationID: MusicXMLPerformanceNotationSourceID?
+    let notationKind: MusicXMLPerformanceNotationKind
+    let sourceNoteIndices: [Int]
+    let replacesSourceNoteIndices: [Int]
+    let status: ScorePerformanceNotationResolutionStatus
+    let interpretationProfileID: String
+}
+
 enum ScoreTimingDirectiveKind: String, Codable, Equatable, Sendable {
     case caesuraPause
 }
@@ -63,10 +96,19 @@ struct ScoreTimingDirective: Equatable, Sendable {
 struct ScoreTimingSchedule: Equatable, Sendable {
     let entries: [ScoreTimingEntry]
     let directives: [ScoreTimingDirective]
+    let generatedNotes: [ScoreGeneratedNoteEvent]
+    let notationResolutions: [ScorePerformanceNotationResolution]
 
-    init(entries: [ScoreTimingEntry], directives: [ScoreTimingDirective] = []) {
+    init(
+        entries: [ScoreTimingEntry],
+        directives: [ScoreTimingDirective] = [],
+        generatedNotes: [ScoreGeneratedNoteEvent] = [],
+        notationResolutions: [ScorePerformanceNotationResolution] = []
+    ) {
         self.entries = entries
         self.directives = directives
+        self.generatedNotes = generatedNotes
+        self.notationResolutions = notationResolutions
     }
 
     subscript(noteIndex: Int) -> ScoreTimingEntry {

@@ -45,8 +45,19 @@ struct ScoreTimingScheduleBuilder {
             profile: interpretationProfile,
             entries: &entries
         )
+        let entryValues = entries.map(\.value)
+        let ornamentSchedule = MusicXMLOrnamentScheduler().schedule(
+            notes: notes,
+            timingEntries: entryValues,
+            interpretationProfile: interpretationProfile
+        )
 
-        return ScoreTimingSchedule(entries: entries.map(\.value), directives: directives)
+        return ScoreTimingSchedule(
+            entries: entryValues,
+            directives: directives,
+            generatedNotes: ornamentSchedule.generatedNotes,
+            notationResolutions: ornamentSchedule.resolutions
+        )
     }
 }
 
