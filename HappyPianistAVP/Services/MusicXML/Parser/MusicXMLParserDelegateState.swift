@@ -23,6 +23,8 @@ struct MusicXMLParserDelegateState {
     var timeSignatureEvents: [MusicXMLTimeSignatureEvent] = []
     var keySignatureEvents: [MusicXMLKeySignatureEvent] = []
     var clefEvents: [MusicXMLClefEvent] = []
+    var transposeEvents: [MusicXMLTransposeEvent] = []
+    var octaveShiftEvents: [MusicXMLOctaveShiftEvent] = []
     var wordsEvents: [MusicXMLWordsEvent] = []
     var measures: [MusicXMLMeasureSpan] = []
     var repeatDirectives: [MusicXMLRepeatDirective] = []
@@ -73,6 +75,11 @@ struct MusicXMLParserDelegateState {
     var clefLine: Int?
     var clefOctaveChange: Int?
     var clefNumberToken: String?
+    var isInTranspose = false
+    var transposeDiatonic: Int?
+    var transposeChromatic: Int?
+    var transposeOctaveChange: Int?
+    var transposeIsDouble = false
     var isInBackup = false
     var isInForward = false
     var isInDirection = false

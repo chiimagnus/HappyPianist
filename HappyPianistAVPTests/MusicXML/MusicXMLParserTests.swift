@@ -892,3 +892,36 @@ func parserPreservesWrittenPitchSpellingAndDecimalAlter() throws {
     #expect(notes[3].midiNote == nil)
     #expect(notes[4].writtenPitch == nil)
 }
+
+@Test
+func parserPreservesTransposeAndOctaveShiftFacts() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Clarinet and Piano</part-name></score-part></part-list>
+      <part id="P1">
+        <measure number="1">
+          <attributes><divisions>1</divisions><transpose><diatonic>-1</diatonic><chromatic>-2</chromatic><octave-change>0</octave-change></transpose></attributes>
+          <direction><direction-type><octave-shift type="up" size="8" number="1"/></direction-type></direction>
+          <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+        </measure>
+        <measure number="2"><direction><direction-type><octave-shift type="stop" size="8" number="1"/></direction-type></direction></measure>
+      </part>
+    </score-partwise>
+    """
+
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+
+    #expect(score.transposeEvents == [
+        MusicXMLTransposeEvent(
+            tick: 0,
+            diatonic: -1,
+            chromatic: -2,
+            octaveChange: 0,
+            isDouble: false,
+            scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
+        )
+    ])
+    #expect(score.notes.first?.writtenPitch?.step == "C")
+    #expect(score.octaveShiftEvents.map(\.kind) == [.up, .stop])
+    #expect(score.octaveShiftEvents.map(\.tick) == [0, 480])
+}

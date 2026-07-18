@@ -120,6 +120,29 @@ extension MusicXMLParserDelegate {
         )
     }
 
+    func recordOctaveShiftEvent(attributes: [String: String]) {
+        guard state.isInDirection,
+              let rawType = attributes["type"]?.lowercased(),
+              let kind = MusicXMLOctaveShiftKind(rawValue: rawType)
+        else { return }
+        let size = max(1, Int(attributes["size"] ?? "8") ?? 8)
+        let numberToken = attributes["number"]?.trimmingCharacters(in: .whitespacesAndNewlines)
+        state.octaveShiftEvents.append(
+            MusicXMLOctaveShiftEvent(
+                sourceID: state.currentDirectionSourceID,
+                tick: currentDirectionEventTick(),
+                kind: kind,
+                size: size,
+                numberToken: numberToken?.isEmpty == true ? nil : numberToken,
+                scope: MusicXMLEventScope(
+                    partID: state.currentPartID,
+                    staff: state.currentDirectionStaff,
+                    voice: nil
+                )
+            )
+        )
+    }
+
     func recordDirectionFermataEvent() {
         guard state.isInDirection else { return }
         state.fermataEvents.append(
@@ -444,6 +467,24 @@ extension MusicXMLParserDelegate {
                     scope: event.scope
                 )
             }
+        }
+
+        for index in state.octaveShiftEvents.indices
+            where state.octaveShiftEvents[index].sourceID == state.currentDirectionSourceID
+        {
+            let event = state.octaveShiftEvents[index]
+            state.octaveShiftEvents[index] = MusicXMLOctaveShiftEvent(
+                sourceID: event.sourceID,
+                tick: state.directionOffsetResolver.absoluteTick(
+                    directionStartTick: event.tick,
+                    measureStartTick: state.currentDirectionMeasureStartTick,
+                    offsetTicks: delta
+                ),
+                kind: event.kind,
+                size: event.size,
+                numberToken: event.numberToken,
+                scope: event.scope
+            )
         }
 
         state.currentDirectionOffsetTicks = newOffset

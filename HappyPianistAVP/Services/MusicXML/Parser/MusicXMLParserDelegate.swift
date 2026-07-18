@@ -72,6 +72,14 @@ final class MusicXMLParserDelegate: NSObject {
         state.clefEvents
     }
 
+    var transposeEvents: [MusicXMLTransposeEvent] {
+        state.transposeEvents
+    }
+
+    var octaveShiftEvents: [MusicXMLOctaveShiftEvent] {
+        state.octaveShiftEvents
+    }
+
     var wordsEvents: [MusicXMLWordsEvent] {
         state.wordsEvents
     }

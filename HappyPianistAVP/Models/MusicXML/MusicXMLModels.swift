@@ -13,6 +13,8 @@ struct MusicXMLScore: Equatable {
     var timeSignatureEvents: [MusicXMLTimeSignatureEvent] = []
     var keySignatureEvents: [MusicXMLKeySignatureEvent] = []
     var clefEvents: [MusicXMLClefEvent] = []
+    var transposeEvents: [MusicXMLTransposeEvent] = []
+    var octaveShiftEvents: [MusicXMLOctaveShiftEvent] = []
     var wordsEvents: [MusicXMLWordsEvent] = []
     var measures: [MusicXMLMeasureSpan] = []
     var repeatDirectives: [MusicXMLRepeatDirective] = []

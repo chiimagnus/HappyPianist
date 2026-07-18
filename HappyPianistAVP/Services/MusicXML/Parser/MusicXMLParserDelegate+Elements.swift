@@ -75,6 +75,14 @@ extension MusicXMLParserDelegate {
                 state.keyFifths = nil
                 state.keyModeToken = nil
             }
+        case "transpose":
+            if state.isInAttributes {
+                state.isInTranspose = true
+                state.transposeDiatonic = nil
+                state.transposeChromatic = nil
+                state.transposeOctaveChange = nil
+                state.transposeIsDouble = false
+            }
         case "clef":
             if state.isInAttributes {
                 state.isInClef = true
@@ -111,6 +119,8 @@ extension MusicXMLParserDelegate {
             recordPedalEvent(attributes: attributeDict)
         case "wedge":
             recordWedgeEvent(attributes: attributeDict)
+        case "octave-shift":
+            recordOctaveShiftEvent(attributes: attributeDict)
         case "offset":
             break
         case "barline":
@@ -352,6 +362,29 @@ extension MusicXMLParserDelegate {
                 )
             }
             state.isInKey = false
+        case "diatonic" where state.isInTranspose:
+            state.transposeDiatonic = Int(text)
+        case "chromatic" where state.isInTranspose:
+            state.transposeChromatic = Int(text)
+        case "octave-change" where state.isInTranspose:
+            state.transposeOctaveChange = Int(text)
+        case "double" where state.isInTranspose:
+            state.transposeIsDouble = true
+        case "transpose" where state.isInTranspose:
+            if let chromatic = state.transposeChromatic {
+                let tick = state.partTick[state.currentPartID] ?? state.currentMeasureStartTick
+                state.transposeEvents.append(
+                    MusicXMLTransposeEvent(
+                        tick: tick,
+                        diatonic: state.transposeDiatonic,
+                        chromatic: chromatic,
+                        octaveChange: state.transposeOctaveChange ?? 0,
+                        isDouble: state.transposeIsDouble,
+                        scope: MusicXMLEventScope(partID: state.currentPartID, staff: nil, voice: nil)
+                    )
+                )
+            }
+            state.isInTranspose = false
         case "sign" where state.isInClef:
             let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
             state.clefSignToken = trimmed.isEmpty ? nil : trimmed
@@ -538,6 +571,7 @@ extension MusicXMLParserDelegate {
             state.isInTime = false
             state.isInKey = false
             state.isInClef = false
+            state.isInTranspose = false
         case "direction":
             state.isInDirection = false
             state.currentDirectionOffsetTicks = 0
