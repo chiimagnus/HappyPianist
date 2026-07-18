@@ -15,6 +15,7 @@ private final class CapturingPracticeSessionEffectHandler: PracticeSessionEffect
 private final class FakeSequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol {
     private(set) var warmUpCallCount = 0
     private(set) var stopCallCount = 0
+    private(set) var resetCommandCalls: [[PerformanceTransportCommand]] = []
     private(set) var loadCallCount = 0
     private(set) var playCallCount = 0
     private(set) var playOneShotCallCount = 0
@@ -27,8 +28,9 @@ private final class FakeSequencerPlaybackService: PracticeSequencerPlaybackServi
         warmUpCallCount += 1
     }
 
-    func stop(resetCommands _: [PerformanceTransportCommand]) {
+    func stop(resetCommands: [PerformanceTransportCommand]) {
         stopCallCount += 1
+        resetCommandCalls.append(resetCommands)
     }
 
     func load(sequence: PracticeSequencerSequence) throws {
@@ -184,6 +186,7 @@ func autoplayStartsAndAdvancesStep() async {
 
     #expect(fixture.sequencer.loadCallCount == 1)
     #expect(fixture.sequencer.playCallCount == 1)
+    #expect(fixture.sequencer.resetCommandCalls == [PerformanceTransportReducer.fullResetCommands])
     #expect(fixture.stateStore.currentStepIndex == 1)
     #expect(fixture.effectHandler.effects.contains(.refreshAudioRecognition))
 }
@@ -300,7 +303,10 @@ func seekAndLoopRestartWithTargetTickState() async throws {
     fixture.service.seekAutoplay(toStepIndex: 1)
     for _ in 0 ..< 10 { await Task.yield() }
 
-    #expect(fixture.sequencer.stopCallCount == 1)
+    #expect(fixture.sequencer.stopCallCount == 2)
+    #expect(fixture.sequencer.resetCommandCalls.last == PerformanceTransportReducer.resetCommands(
+        eventIDs: [fixture.plan.noteEvents[0].id]
+    ))
     #expect(fixture.sequencer.loadCallCount == 2)
     #expect(fixture.sequencer.playCallCount == 2)
     #expect(fixture.stateStore.currentStepIndex == 1)
@@ -313,7 +319,7 @@ func seekAndLoopRestartWithTargetTickState() async throws {
     fixture.service.loopAutoplay(toStepIndex: 0)
     for _ in 0 ..< 10 { await Task.yield() }
 
-    #expect(fixture.sequencer.stopCallCount == 2)
+    #expect(fixture.sequencer.stopCallCount == 3)
     #expect(fixture.sequencer.loadCallCount == 3)
     #expect(fixture.sequencer.playCallCount == 3)
     #expect(fixture.stateStore.currentStepIndex == 0)

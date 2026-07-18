@@ -21,6 +21,7 @@ final class TakePlaybackController {
 
     func play(take: RecordingTake) throws {
         let sequence = try cachedSequence(for: take)
+        playbackService.stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
         try playbackService.load(sequence: sequence)
         try playbackService.play(fromSeconds: 0)
         isPlaying = true

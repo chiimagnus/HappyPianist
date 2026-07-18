@@ -117,6 +117,41 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             .noteOn(note: 72, velocity: 80, channel: 0, destination: destinationUniqueID)
         ) == false)
     }
+
+    @Test func loadAndPlayDoNotInjectResetCommands() async throws {
+        let output = FakeMIDIOutputService()
+        let destinationUniqueID: Int32 = 3456
+        let playback = await MainActor.run {
+            CoreMIDIPracticePlaybackService(
+                destinationUniqueID: destinationUniqueID,
+                outputService: output,
+                velocity: 96,
+                channel: 1
+            )
+        }
+
+        try await MainActor.run {
+            try playback.load(sequence: PracticeSequencerSequence(
+                midiData: Data(),
+                durationSeconds: 1,
+                events: [PracticeSequencerMIDIEvent(
+                    sourceEventID: "later",
+                    timeSeconds: 1,
+                    kind: .noteOn(midi: 60, velocity: 70)
+                )]
+            ))
+            try playback.play(fromSeconds: 0)
+        }
+
+        #expect(output.callsSnapshot().allSatisfy { call in
+            if case .start = call { return true }
+            return false
+        })
+
+        await MainActor.run {
+            playback.stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
+        }
+    }
 }
 
 private final class FakeMIDIOutputService: MIDIOutputSendingProtocol, @unchecked Sendable {

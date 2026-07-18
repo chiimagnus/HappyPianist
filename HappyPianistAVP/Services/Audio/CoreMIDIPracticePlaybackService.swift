@@ -39,26 +39,13 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
     }
 
     func stop(resetCommands: [PerformanceTransportCommand]) {
-        oneShotStopTask?.cancel()
-        oneShotStopTask = nil
-
-        if let playbackStartedAtUptimeSeconds {
-            lastKnownSeconds = playbackStartSeconds + max(0, ProcessInfo.processInfo.systemUptime - playbackStartedAtUptimeSeconds)
-        }
-        playbackStartedAtUptimeSeconds = nil
-
-        scheduler?.stop()
-        scheduler = nil
-
-        stopAllLiveNotes()
-        stopOneShotNotes()
-
+        haltPlayback()
         execute(resetCommands)
     }
 
     func load(sequence: PracticeSequencerSequence) throws {
         try ensureReady()
-        stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
+        haltPlayback()
         loadedDurationSeconds = sequence.durationSeconds
         loadedEvents = sequence.events
         lastKnownSeconds = 0
@@ -68,7 +55,7 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
         try ensureReady()
         guard let events = loadedEvents else { return }
 
-        stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
+        haltPlayback()
 
         let startSeconds = max(0, start)
         lastKnownSeconds = startSeconds
@@ -83,6 +70,22 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
         self.scheduler = scheduler
 
         scheduler.play(events: events, fromSeconds: startSeconds)
+    }
+
+    private func haltPlayback() {
+        oneShotStopTask?.cancel()
+        oneShotStopTask = nil
+
+        if let playbackStartedAtUptimeSeconds {
+            lastKnownSeconds = playbackStartSeconds + max(0, ProcessInfo.processInfo.systemUptime - playbackStartedAtUptimeSeconds)
+        }
+        playbackStartedAtUptimeSeconds = nil
+
+        scheduler?.stop()
+        scheduler = nil
+
+        liveNotes.removeAll()
+        playingOneShotNotes.removeAll()
     }
 
     func currentSeconds() -> TimeInterval {

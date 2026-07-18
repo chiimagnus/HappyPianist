@@ -139,6 +139,7 @@ actor DuetAIPlaybackQueue {
             let service = playbackServiceFactory().playbackService(for: item.routing)
             do {
                 try service.warmUp()
+                service.stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
                 try service.load(sequence: sequence)
                 try service.play(fromSeconds: 0)
             } catch {

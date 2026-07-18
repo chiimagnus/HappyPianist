@@ -278,7 +278,6 @@ extension PracticeSessionViewModel {
         invalidateFeedbackPresentation()
         stopManualReplayTask()
         stopAutoplayTask()
-        stopAutoplayAudio()
         stopAudioRecognition()
         stopPracticeInput()
     }
@@ -406,7 +405,6 @@ extension PracticeSessionViewModel {
         enqueueSessionRecorderEvent(.guiding(false))
         stopManualReplayTask()
         stopAutoplayTask()
-        stopAutoplayAudio()
         stopAudioRecognition()
         let routingChanged = roundConfigurationController.applyPending()
         rebuildActiveRange()
@@ -455,7 +453,6 @@ extension PracticeSessionViewModel {
         let shouldResetProgress = self.steps != steps || songChanged
         stopManualReplayTask()
         stopAutoplayTask()
-        stopAutoplayAudio()
         stopAudioRecognition()
         highlightGuideController?.stopTransition()
         chordAttemptAccumulator.reset()
@@ -544,7 +541,6 @@ extension PracticeSessionViewModel {
     func clearPreparedSong() {
         stopManualReplayTask()
         stopAutoplayTask()
-        stopAutoplayAudio()
         stopAudioRecognition()
         stopPracticeInput()
         chordAttemptAccumulator.reset()
@@ -704,9 +700,6 @@ extension PracticeSessionViewModel {
 
         stopManualReplayTask()
         stopAutoplayTask()
-        if self.autoplayState == .playing || self.isManualReplayPlaying {
-            stopAutoplayAudio()
-        }
 
         advanceToNextManualUnit()
         startAutoplayTaskIfNeeded()
@@ -779,7 +772,6 @@ extension PracticeSessionViewModel {
             self.pressedNotes.removeAll()
             self.state = navigation.state
             stopAutoplayTask()
-            stopAutoplayAudio()
             stopAudioRecognition()
             enqueueSessionRecorderEvent(.guiding(false))
             return
@@ -856,7 +848,6 @@ extension PracticeSessionViewModel {
         self.state = .completed
         stopManualReplayTask()
         stopAutoplayTask()
-        stopAutoplayAudio()
         stopAudioRecognition()
         enqueueSessionRecorderEvent(.guiding(false))
     }

@@ -9,10 +9,6 @@ extension PracticeSessionViewModel {
         playbackControlService?.stopAutoplayTask()
     }
 
-    func stopAutoplayAudio() {
-        playbackControlService?.stopAutoplayAudio()
-    }
-
     func smoothNotationScrollTick() -> Double? {
         playbackControlService?.smoothNotationScrollTick()
     }

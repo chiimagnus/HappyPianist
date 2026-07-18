@@ -99,12 +99,7 @@ final class AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackSe
     }
 
     func stop(resetCommands: [PerformanceTransportCommand]) {
-        oneShotStopTask?.cancel()
-        oneShotStopTask = nil
-
-        sequencer.stop()
-        stopOneShotNotes()
-        stopAllLiveNotes()
+        haltPlayback()
         execute(resetCommands)
     }
 
@@ -112,7 +107,7 @@ final class AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackSe
         try ensureReady()
         applyAudioOutputVolumeIfNeeded()
 
-        stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
+        haltPlayback()
 
         try sequencer.load(from: sequence.midiData, options: [])
         noteBySourceEventID = Dictionary(
@@ -209,6 +204,14 @@ final class AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackSe
             sampler.stopNote(note, onChannel: channel)
         }
         playingOneShotNotes.removeAll()
+    }
+
+    private func haltPlayback() {
+        oneShotStopTask?.cancel()
+        oneShotStopTask = nil
+        sequencer.stop()
+        playingOneShotNotes.removeAll()
+        liveNotes.removeAll()
     }
 
     private func execute(_ commands: [PerformanceTransportCommand]) {
