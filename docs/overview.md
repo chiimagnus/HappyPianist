@@ -19,6 +19,7 @@ Xcode 工程只有 `HappyPianistAVP` 与 `HappyPianistAVPTests` 两个 target；
 | --- | --- |
 | 模块、依赖方向、运行时边界和危险修改区 | [architecture.md](architecture.md) |
 | MusicXML、输入、练习、反馈、录制与 AI 的数据流 | [data-flow.md](data-flow.md) |
+| 曲谱真值、参考演奏、输入证据、演奏评价、虚拟指导与专业验收路线 | [piano-performance-quality.md](piano-performance-quality.md) |
 | Xcode、权限、依赖、资源、设置与可选服务 | [configuration.md](configuration.md) |
 | Documents 目录、JSON、曲库、进度与诊断文件 | [storage.md](storage.md) |
 | App 窗口、钢琴模式、曲库与沉浸空间 | [modules/happypianist-avp.md](modules/happypianist-avp.md) |
