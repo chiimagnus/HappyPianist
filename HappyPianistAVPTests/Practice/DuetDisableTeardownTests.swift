@@ -19,27 +19,10 @@ private final class MutableBackendKind {
 
 @MainActor
 private final class FakePracticeSession: AIPerformancePracticeSessionProtocol {
-    var autoplayState: PracticeSessionAutoplayState = .off
-    var isManualReplayPlaying: Bool = false
-    var currentStep: PracticeStep?
-    var autoplayTimeline: AutoplayPerformanceTimeline = .empty
-    var tempoMap: MusicXMLTempoMap = .init(tempoEvents: [])
-    var pedalTimeline: MusicXMLPedalTimeline?
-    let sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol
     let settingsProvider: any PracticeSessionSettingsProviderProtocol
 
-    init(
-        sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol,
-        settingsProvider: any PracticeSessionSettingsProviderProtocol
-    ) {
-        self.sequencerPlaybackService = sequencerPlaybackService
+    init(settingsProvider: any PracticeSessionSettingsProviderProtocol) {
         self.settingsProvider = settingsProvider
-    }
-
-    func stopVirtualPianoInput() {}
-    func stopAudioRecognition() {}
-    func prepareAudioRecognitionSuppressWindowForPlayback() -> Date {
-        .now
     }
 
     func refreshAudioRecognitionForCurrentState() {}
@@ -174,11 +157,7 @@ func disablingServiceDropsLateBackendResponses() async {
         }
     )
 
-    let practicePlaybackService = NonAdvancingPlaybackService()
-    let session = FakePracticeSession(
-        sequencerPlaybackService: practicePlaybackService,
-        settingsProvider: FakeSettingsProvider()
-    )
+    let session = FakePracticeSession(settingsProvider: FakeSettingsProvider())
     service.updatePracticeSession(session)
     service.setEnabled(true)
 
@@ -230,7 +209,7 @@ func newInputReevaluatesContinuousResponseAgainstLatestContext() async {
         aiPlaybackServiceFactory: { factory },
         onStateChanged: { enqueuedSchedule = enqueuedSchedule || $0.latestSchedule.isEmpty == false }
     )
-    let session = FakePracticeSession(sequencerPlaybackService: playbackService, settingsProvider: FakeSettingsProvider())
+    let session = FakePracticeSession(settingsProvider: FakeSettingsProvider())
     service.updatePracticeSession(session)
     service.setEnabled(true)
     service.recordKeyContactForPhraseRecordingIfNeeded(
@@ -280,7 +259,7 @@ func changingBackendDoesNotWaitForSuspendedOldBackend() async {
         aiPlaybackServiceFactory: { factory },
         onStateChanged: { _ in }
     )
-    let session = FakePracticeSession(sequencerPlaybackService: playbackService, settingsProvider: FakeSettingsProvider())
+    let session = FakePracticeSession(settingsProvider: FakeSettingsProvider())
     service.updatePracticeSession(session)
     service.setEnabled(true)
     service.recordKeyContactForPhraseRecordingIfNeeded(
@@ -326,8 +305,8 @@ func replacingPracticeSessionInvalidatesOldResponse() async {
         aiPlaybackServiceFactory: { factory },
         onStateChanged: { enqueuedSchedule = enqueuedSchedule || $0.latestSchedule.isEmpty == false }
     )
-    let firstSession = FakePracticeSession(sequencerPlaybackService: playbackService, settingsProvider: FakeSettingsProvider())
-    let replacementSession = FakePracticeSession(sequencerPlaybackService: playbackService, settingsProvider: FakeSettingsProvider())
+    let firstSession = FakePracticeSession(settingsProvider: FakeSettingsProvider())
+    let replacementSession = FakePracticeSession(settingsProvider: FakeSettingsProvider())
     service.updatePracticeSession(firstSession)
     service.setEnabled(true)
     service.recordKeyContactForPhraseRecordingIfNeeded(
@@ -372,7 +351,7 @@ func silentContextDropsLateContinuousResponse() async {
         aiPlaybackServiceFactory: { factory },
         onStateChanged: { enqueuedSchedule = enqueuedSchedule || $0.latestSchedule.isEmpty == false }
     )
-    let session = FakePracticeSession(sequencerPlaybackService: playbackService, settingsProvider: FakeSettingsProvider())
+    let session = FakePracticeSession(settingsProvider: FakeSettingsProvider())
     service.updatePracticeSession(session)
     service.setEnabled(true)
     service.recordKeyContactForPhraseRecordingIfNeeded(
@@ -416,7 +395,7 @@ func disablingAndReenablingKeepsNewRequestTracked() async {
         aiPlaybackServiceFactory: { factory },
         onStateChanged: { _ in }
     )
-    let session = FakePracticeSession(sequencerPlaybackService: playbackService, settingsProvider: FakeSettingsProvider())
+    let session = FakePracticeSession(settingsProvider: FakeSettingsProvider())
     service.updatePracticeSession(session)
     service.setEnabled(true)
     service.recordKeyContactForPhraseRecordingIfNeeded(

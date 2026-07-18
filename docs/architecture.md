@@ -66,8 +66,9 @@ flowchart TD
   PREP --> PARSER[MusicXMLParser]
   PREP --> EXPAND[MusicXMLStructureExpander]
   PREP --> HANDS[MusicXMLHandRouter]
-  PREP --> STEPS[PracticeStepBuilder]
-  PREP --> GUIDES[PianoHighlightGuideBuilderService]
+  PREP --> PLAN[ScorePerformancePlanBuilder]
+  PLAN --> STEPS[PracticeStepBuilder]
+  PLAN --> GUIDES[PianoHighlightGuideBuilderService]
 
   ARGUIDE --> SESSION[PracticeSessionViewModel]
   LAUNCH --> RECORDER[PracticeSessionRecorder actor]
@@ -101,7 +102,7 @@ flowchart TD
 | --- | --- | --- |
 | 曲库 | `SongLibraryEntry`、`SongLibraryIndex` | bundled 与用户导入曲目的统一索引；entry version token 标识文件版本。 |
 | 曲库练习展示 | `SongPracticeLibraryPresentationState`、`LibraryPracticeProgressOrnamentView` | 从单曲 history 纯派生四态最终 presentation，并在 trailing Ornament 只读展示；不持久化 UI summary。 |
-| 曲谱准备 | `PreparedPractice`、`PracticePreparationService` | MusicXML 到 steps、measure spans、timelines、guide 与 notation 输入。 |
+| 曲谱准备 | `PreparedPractice`、`ScorePerformancePlan`、`PracticePreparationService` | MusicXML 到唯一演奏计划，再投影 steps、guide、notation context 与 measure spans。 |
 | 练习配置 | `PracticeRoundConfigurationController` | pending 与 active round configuration。 |
 | 范围 | `PracticeMeasureIndex`、`PracticeActiveRange` | 小节、step、回放、谱面和完成边界的统一投影。 |
 | 判定 | `StepAttemptMatchResult`、matcher/accumulator | 输入证据转换为 typed attempt outcome。 |
@@ -115,6 +116,7 @@ flowchart TD
 ## 关键不变量
 
 - 正式曲谱来源是 MusicXML；可进入练习的 prepared result 必须同时有 steps 与 measure spans。
+- `ScorePerformancePlan` 是声音事件的唯一真源；tempo 查询只能从 plan 派生，steps 与 highlights 只负责判定、导航和显示。
 - `PracticeStep` 是即时判定单位；持久化事实聚合到 source measure。
 - 重复结构用 occurrence identity 定位播放位置，用 source identity 汇总学习事实。
 - 本轮 active configuration 在一轮中不可变；设置修改只影响下一轮。

@@ -17,29 +17,10 @@ private final class FakeDiscoveryOrchestrator: ImprovBackendDiscoveryOrchestrati
 
 @MainActor
 private final class FakePracticeSession: AIPerformancePracticeSessionProtocol {
-    var autoplayState: PracticeSessionAutoplayState = .off
-    var isManualReplayPlaying: Bool = false
-    var currentStep: PracticeStep?
-    var autoplayTimeline: AutoplayPerformanceTimeline = .empty
-    var tempoMap: MusicXMLTempoMap = .init(tempoEvents: [])
-    var pedalTimeline: MusicXMLPedalTimeline?
-    let sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol
     let settingsProvider: any PracticeSessionSettingsProviderProtocol
 
-    init(
-        currentStep: PracticeStep?,
-        sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol,
-        settingsProvider: any PracticeSessionSettingsProviderProtocol
-    ) {
-        self.currentStep = currentStep
-        self.sequencerPlaybackService = sequencerPlaybackService
+    init(settingsProvider: any PracticeSessionSettingsProviderProtocol) {
         self.settingsProvider = settingsProvider
-    }
-
-    func stopVirtualPianoInput() {}
-    func stopAudioRecognition() {}
-    func prepareAudioRecognitionSuppressWindowForPlayback() -> Date {
-        .now
     }
 
     func refreshAudioRecognitionForCurrentState() {}
@@ -135,12 +116,7 @@ func aiPlaybackDoesNotBlockSecondContinuousWindowRequest() async {
         onStateChanged: { _ in }
     )
 
-    let practicePlaybackService = NonAdvancingPlaybackService()
-    let session = FakePracticeSession(
-        currentStep: PracticeStep(tick: 0, notes: []),
-        sequencerPlaybackService: practicePlaybackService,
-        settingsProvider: FakeSettingsProvider()
-    )
+    let session = FakePracticeSession(settingsProvider: FakeSettingsProvider())
     service.updatePracticeSession(session)
     service.setEnabled(true)
 

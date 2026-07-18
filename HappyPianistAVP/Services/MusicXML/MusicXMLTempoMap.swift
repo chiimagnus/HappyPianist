@@ -69,6 +69,64 @@ struct MusicXMLTempoMap {
         )
     }
 
+    init(performanceEvents: [ScorePerformanceTempoEvent], defaultQuarterBPM: Double = 120) {
+        let fixedEvents = performanceEvents.filter { $0.endTick == nil || $0.endQuarterBPM == nil }
+        let explicitTicks = Set(fixedEvents.map(\.tick))
+        let partID = performanceEvents.compactMap(\.sourceDirectionID?.partID).first ?? "P1"
+        let scope = MusicXMLEventScope(partID: partID, staff: nil, voice: nil)
+
+        var tempoEvents = fixedEvents.map { event in
+            var tempoEvent = MusicXMLTempoEvent(
+                tick: event.tick,
+                quarterBPM: event.quarterBPM,
+                scope: scope
+            )
+            tempoEvent.sourceID = event.sourceDirectionID
+            tempoEvent.performedOccurrenceIndex = event.performedOccurrenceIndex
+            return tempoEvent
+        }
+        var tempoRamps: [TempoRamp] = []
+        for event in performanceEvents {
+            guard let endTick = event.endTick, let endQuarterBPM = event.endQuarterBPM else { continue }
+            tempoRamps.append(TempoRamp(
+                startTick: event.tick,
+                endTick: endTick,
+                startQuarterBPM: event.quarterBPM,
+                endQuarterBPM: endQuarterBPM,
+                scope: scope,
+                sourceDirectionID: event.sourceDirectionID,
+                performedOccurrenceIndex: event.performedOccurrenceIndex
+            ))
+            if explicitTicks.contains(event.tick) == false {
+                var startEvent = MusicXMLTempoEvent(
+                    tick: event.tick,
+                    quarterBPM: event.quarterBPM,
+                    scope: scope
+                )
+                startEvent.sourceID = event.sourceDirectionID
+                startEvent.performedOccurrenceIndex = event.performedOccurrenceIndex
+                tempoEvents.append(startEvent)
+            }
+            if explicitTicks.contains(endTick) == false {
+                var endEvent = MusicXMLTempoEvent(
+                    tick: endTick,
+                    quarterBPM: endQuarterBPM,
+                    scope: scope
+                )
+                endEvent.sourceID = event.sourceDirectionID
+                endEvent.performedOccurrenceIndex = event.performedOccurrenceIndex
+                tempoEvents.append(endEvent)
+            }
+        }
+
+        self.init(
+            tempoEvents: tempoEvents,
+            tempoRamps: tempoRamps,
+            defaultQuarterBPM: defaultQuarterBPM,
+            partID: partID
+        )
+    }
+
     init(
         tempoEvents: [MusicXMLTempoEvent],
         tempoRamps: [TempoRamp],

@@ -81,15 +81,15 @@ score import 只有 transaction service 一条写入路径；`.mxl` 在 preparat
 | 解析 | `MusicXMLParser`、`MXLReader` | 保留 source part、staff、voice、written pitch 与 source identity 的 score model |
 | 逻辑乐器 | `MusicXMLPianoGrandStaffNormalizer`、`MusicXMLPracticePartSelector` | 不改写 source part 的 logical instrument 与显式 selection / ambiguity |
 | 顺序选择 | `MusicXMLStructureExpander`、`MusicXMLOrderSelection` | written score，或带 source + occurrence identity 的 performed score |
-| 时间语义 | tempo、pedal、fermata、attribute、slur timelines | 回放和谱面上下文 |
-| hand 与 step | `MusicXMLHandRouter`、`PracticeStepBuilder` | 不改写 staff / voice 的派生 hand assignments 与 `PracticeStep[]` |
+| 演奏事实 | `ScoreTimingScheduleBuilder`、velocity / tempo / pedal / fermata 解释器、`ScorePerformancePlanBuilder` | 保留事件 identity、时值、力度、控制器与注释的唯一 `ScorePerformancePlan` |
+| hand 与 step | `MusicXMLHandRouter`、`PracticeStepBuilder` | 从 plan 投影、不改写 staff / voice 的 hand assignments 与 `PracticeStep[]` |
 | 小节身份 | `MusicXMLMeasureSpan`、`PracticeMeasureIndex` | source / occurrence 映射 |
-| 高亮与谱面 | guide builder、notation layout | 键位 guide 与五线谱输入 |
+| 高亮与谱面 | guide builder、notation layout | 从 plan 与 source score 投影的键位 guide 与五线谱输入 |
 | session 注入 | `PracticeSessionViewModel` | 可开始的一轮练习 |
 
 正式 preparation 结果必须同时有可演奏 steps 和 measure spans。解析失败或缺少小节结构时应返回具体错误，不进入推测性的兼容模式。
 
-`PreparedPractice.scoreContext` 保存本次选择的 source score、prepared score、logical instrument、structural part、order selection 与按 source-note identity 索引的 hand assignments。双 part 钢琴只形成一个 logical instrument；两个独立乐器即使分别使用高音与低音谱号也不得合并。staff 与 hand 是不同事实：跨谱表或多谱表材料保持原 staff / voice，无法从可靠证据确定 hand 时保留 `unknown`。
+`PreparedPractice.performancePlan` 是本轮所有本地 sampler、CoreMIDI 与手动重播共同消费的声音真源；会话中的 tempo map 只是 plan tempo events 的查询投影，不接受独立注入。`steps` 与 `highlightGuides` 只负责判定、导航和显示，不能反推音高、力度、时值或控制器。`scoreContext` 保存本次选择的 source score、prepared score、logical instrument、structural part、order selection 与按 source-note identity 索引的 hand assignments。双 part 钢琴只形成一个 logical instrument；两个独立乐器即使分别使用高音与低音谱号也不得合并。staff 与 hand 是不同事实：跨谱表或多谱表材料保持原 staff / voice，无法从可靠证据确定 hand 时保留 `unknown`。
 
 曲库选择链路：
 

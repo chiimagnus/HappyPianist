@@ -15,7 +15,11 @@ func manualReplayBlocksGestureAdvance() async {
         sequencerPlaybackService: playbackService,
         manualAdvanceMode: .measure
     )
-    viewModel.setSteps(makeReplaySteps(), tempoMap: makeReplayTempoMap(), measureSpans: makeReplayMeasures())
+    viewModel.setSteps(
+        makeReplaySteps(),
+        tempoEvents: makeTestScorePerformanceTempoEvents(from: makeReplayTempoMap()),
+        measureSpans: makeReplayMeasures()
+    )
     viewModel.applyKeyboardGeometry(makeReplayKeyboardGeometry(), calibration: makeReplayCalibration())
     viewModel.startGuidingIfReady()
     viewModel.replayCurrentUnit()
@@ -44,7 +48,11 @@ func manualReplayBlocksAudioRecognitionAdvance() async {
         audioRecognitionService: audioRecognitionService,
         manualAdvanceMode: .measure
     )
-    viewModel.setSteps(makeReplaySteps(), tempoMap: makeReplayTempoMap(), measureSpans: makeReplayMeasures())
+    viewModel.setSteps(
+        makeReplaySteps(),
+        tempoEvents: makeTestScorePerformanceTempoEvents(from: makeReplayTempoMap()),
+        measureSpans: makeReplayMeasures()
+    )
     viewModel.startGuidingIfReady()
     await Task.yield()
     viewModel.replayCurrentUnit()
@@ -80,7 +88,11 @@ func completedManualReplayReturnsProgressToMeasureStart() async {
         sequencerPlaybackService: playbackService,
         manualAdvanceMode: .measure
     )
-    viewModel.setSteps(makeReplaySteps(), tempoMap: makeReplayTempoMap(), measureSpans: makeReplayMeasures())
+    viewModel.setSteps(
+        makeReplaySteps(),
+        tempoEvents: makeTestScorePerformanceTempoEvents(from: makeReplayTempoMap()),
+        measureSpans: makeReplayMeasures()
+    )
     viewModel.startGuidingIfReady()
     viewModel.currentStepIndex = 1
     #expect(viewModel.currentStepIndex == 1)
@@ -113,7 +125,11 @@ func restartingManualReplayDoesNotResumeAudioRecognitionBetweenGenerations() asy
         audioRecognitionService: audioRecognitionService,
         manualAdvanceMode: .measure
     )
-    viewModel.setSteps(makeReplaySteps(), tempoMap: makeReplayTempoMap(), measureSpans: makeReplayMeasures())
+    viewModel.setSteps(
+        makeReplaySteps(),
+        tempoEvents: makeTestScorePerformanceTempoEvents(from: makeReplayTempoMap()),
+        measureSpans: makeReplayMeasures()
+    )
     viewModel.startGuidingIfReady()
     await Task.yield()
     let startCallCountBeforeReplay = audioRecognitionService.startCalls.count

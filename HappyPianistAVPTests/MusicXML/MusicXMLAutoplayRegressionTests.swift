@@ -47,9 +47,7 @@ func realScoreAutoplaySkipCancelsPendingEventsWithAllNotesOff() async throws {
 
     viewModel.setSteps(
         model.steps,
-        tempoMap: model.tempoMap,
-        pedalTimeline: model.pedalTimeline,
-        fermataTimeline: model.fermataTimeline,
+        performancePlan: model.plan,
         highlightGuides: model.guides
     )
     viewModel.setAutoplayEnabled(true)
@@ -85,12 +83,10 @@ private final class RegressionCapturingSequencerPlaybackService: PracticeSequenc
 
 private struct AutoplayRegressionModel {
     let score: MusicXMLScore
+    let plan: ScorePerformancePlan
     let steps: [PracticeStep]
-    let noteSpans: [MusicXMLNoteSpan]
     let guides: [PianoHighlightGuide]
     let tempoMap: MusicXMLTempoMap
-    let pedalTimeline: MusicXMLPedalTimeline
-    let fermataTimeline: MusicXMLFermataTimeline
     let timeline: AutoplayPerformanceTimeline
 }
 
@@ -111,13 +107,6 @@ private func makeAutoplayRegressionModel() throws -> AutoplayRegressionModel {
         tempoRamps: wordsSemantics.derivedTempoRamps,
         partID: "P1"
     )
-    let pedalTimeline = MusicXMLPedalTimeline(events: score.pedalEvents + wordsSemantics.derivedPedalEvents)
-    let fermataTimeline = MusicXMLFermataTimeline(fermataEvents: score.fermataEvents, notes: score.notes)
-    let noteSpans = MusicXMLNoteSpanBuilder().buildSpans(
-        from: score.notes,
-        performanceTimingEnabled: MusicXMLRealisticPlaybackDefaults.performanceTimingEnabled,
-        expressivity: expressivity
-    )
     let guides = PianoHighlightGuideBuilderService().buildGuides(
         input: PianoHighlightGuideBuildInput(
             plan: plan,
@@ -134,12 +123,10 @@ private func makeAutoplayRegressionModel() throws -> AutoplayRegressionModel {
 
     return AutoplayRegressionModel(
         score: score,
+        plan: plan,
         steps: buildResult.steps,
-        noteSpans: noteSpans,
         guides: guides,
         tempoMap: tempoMap,
-        pedalTimeline: pedalTimeline,
-        fermataTimeline: fermataTimeline,
         timeline: timeline
     )
 }

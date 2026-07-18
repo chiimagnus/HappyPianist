@@ -17,7 +17,6 @@ func configuredAttemptPersistsAndRebuildsAsPausedResume() async throws {
     firstSession.songIdentity = identity
     firstSession.setSteps(
         [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
-        tempoMap: MusicXMLTempoMap(tempoEvents: []),
         measureSpans: [span]
     )
     firstSession.roundConfigurationController.pendingRequiredSuccesses = 1
@@ -40,7 +39,6 @@ func configuredAttemptPersistsAndRebuildsAsPausedResume() async throws {
     secondSession.songIdentity = identity
     secondSession.setSteps(
         [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
-        tempoMap: MusicXMLTempoMap(tempoEvents: []),
         measureSpans: [span]
     )
     await secondSession.applyLaunchRestorePolicy(.exactAvailable)

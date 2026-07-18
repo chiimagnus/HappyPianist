@@ -435,9 +435,6 @@ extension PracticeSessionViewModel {
         _ steps: [PracticeStep],
         identity: PracticeSongIdentity,
         performancePlan: ScorePerformancePlan,
-        tempoMap: MusicXMLTempoMap,
-        pedalTimeline: MusicXMLPedalTimeline? = nil,
-        fermataTimeline: MusicXMLFermataTimeline? = nil,
         attributeTimeline: MusicXMLAttributeTimeline? = nil,
         highlightGuides: [PianoHighlightGuide] = [],
         measureSpans: [MusicXMLMeasureSpan]
@@ -454,7 +451,6 @@ extension PracticeSessionViewModel {
 
         self.steps = steps
         self.performancePlan = performancePlan
-        self.tempoMap = tempoMap
         self.measureSpans = measureSpans
         if let firstMeasure = measureSpans.first,
            let lastMeasure = measureSpans.last,
@@ -467,8 +463,6 @@ extension PracticeSessionViewModel {
         }
         self.measureIndex = PracticeMeasureIndex(steps: steps, measureSpans: measureSpans)
         rebuildActiveRange()
-        self.pedalTimeline = pedalTimeline
-        self.fermataTimeline = fermataTimeline
         self.attributeTimeline = attributeTimeline
         self.highlightGuides = highlightGuides
         rebuildAutoplayTimeline()
@@ -486,7 +480,9 @@ extension PracticeSessionViewModel {
         }
 
         let tick = steps.indices.contains(self.currentStepIndex) ? steps[self.currentStepIndex].tick : 0
-        self.isSustainPedalDown = pedalTimeline?.isDown(atTick: tick) ?? false
+        self.isSustainPedalDown = performancePlan.controllerEvents.last {
+            $0.controllerNumber == 64 && $0.tick <= tick
+        }.map { $0.value >= 64 } ?? false
 
         if steps.isEmpty {
             self.state = .idle
@@ -552,13 +548,10 @@ extension PracticeSessionViewModel {
         self.latestFeedbackEvent = nil
         self.performancePlan = nil
         self.steps = []
-        self.tempoMap = MusicXMLTempoMap(tempoEvents: [])
         self.measureSpans = []
         self.measureIndex = nil
         self.activeRange = nil
         self.activeRangeDiagnostic = nil
-        self.pedalTimeline = nil
-        self.fermataTimeline = nil
         self.attributeTimeline = nil
         self.highlightGuides = []
         self.currentHighlightGuideIndex = nil

@@ -58,8 +58,6 @@ private struct YieldingSleeper: SleeperProtocol {
     }
 }
 
-private let defaultTempoScope = MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
-
 @Test
 @MainActor
 func autoplayStartsAndAdvancesStep() async throws {
@@ -75,9 +73,6 @@ func autoplayStartsAndAdvancesStep() async throws {
     ]
     stateStore.currentStepIndex = 0
     stateStore.autoplayState = .playing
-    stateStore.tempoMap = MusicXMLTempoMap(
-        tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope)]
-    )
 
     let pedalEvents = [
         MusicXMLPedalEvent(
@@ -89,8 +84,6 @@ func autoplayStartsAndAdvancesStep() async throws {
             timeOnlyPasses: nil
         ),
     ]
-    stateStore.pedalTimeline = MusicXMLPedalTimeline(events: pedalEvents)
-    stateStore.fermataTimeline = MusicXMLFermataTimeline(fermataEvents: [], notes: [])
 
     let triggerNote = PianoHighlightNote(
         occurrenceID: "n0",
@@ -117,7 +110,20 @@ func autoplayStartsAndAdvancesStep() async throws {
     ]
     stateStore.performancePlan = makeTestScorePerformancePlan(
         identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "autoplay-start"),
-        steps: stateStore.steps
+        steps: stateStore.steps,
+        tempoEvents: [
+            ScorePerformanceTempoEvent(
+                sourceDirectionID: nil,
+                performedOccurrenceIndex: 0,
+                tick: 0,
+                quarterBPM: 120,
+                endTick: nil,
+                endQuarterBPM: nil
+            ),
+        ],
+        controllerEvents: makeTestScorePerformanceControllerEvents(
+            from: MusicXMLPedalTimeline(events: pedalEvents)
+        )
     )
 
     stateStore.autoplayTimeline = try AutoplayPerformanceTimeline.build(
@@ -166,9 +172,6 @@ func shutdownCancelsAutoplayAndPreventsFurtherAdvance() async throws {
     ]
     stateStore.currentStepIndex = 0
     stateStore.autoplayState = .playing
-    stateStore.tempoMap = MusicXMLTempoMap(
-        tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope)]
-    )
 
     let pedalEvents = [
         MusicXMLPedalEvent(
@@ -180,8 +183,6 @@ func shutdownCancelsAutoplayAndPreventsFurtherAdvance() async throws {
             timeOnlyPasses: nil
         ),
     ]
-    stateStore.pedalTimeline = MusicXMLPedalTimeline(events: pedalEvents)
-    stateStore.fermataTimeline = MusicXMLFermataTimeline(fermataEvents: [], notes: [])
 
     let triggerNote = PianoHighlightNote(
         occurrenceID: "n0",
@@ -208,7 +209,20 @@ func shutdownCancelsAutoplayAndPreventsFurtherAdvance() async throws {
     ]
     stateStore.performancePlan = makeTestScorePerformancePlan(
         identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "autoplay-shutdown"),
-        steps: stateStore.steps
+        steps: stateStore.steps,
+        tempoEvents: [
+            ScorePerformanceTempoEvent(
+                sourceDirectionID: nil,
+                performedOccurrenceIndex: 0,
+                tick: 0,
+                quarterBPM: 120,
+                endTick: nil,
+                endQuarterBPM: nil
+            ),
+        ],
+        controllerEvents: makeTestScorePerformanceControllerEvents(
+            from: MusicXMLPedalTimeline(events: pedalEvents)
+        )
     )
 
     stateStore.autoplayTimeline = try AutoplayPerformanceTimeline.build(

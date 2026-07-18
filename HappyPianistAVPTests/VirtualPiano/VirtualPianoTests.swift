@@ -31,12 +31,8 @@ func autoplayEnabledStopsLiveNotes() {
         sequencerPlaybackService: playbackService
     )
 
-    let tempoMap = MusicXMLTempoMap(
-        tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: .init(partID: "P1", staff: nil, voice: nil))]
-    )
     viewModel.setSteps(
-        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
-        tempoMap: tempoMap
+        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])]
     )
 
     viewModel.setAutoplayEnabled(true)
@@ -56,12 +52,8 @@ func virtualPianoNoteOnTriggersLiveStart() throws {
         sequencerPlaybackService: playbackService
     )
 
-    let tempoMap = MusicXMLTempoMap(
-        tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: .init(partID: "P1", staff: nil, voice: nil))]
-    )
     viewModel.setSteps(
-        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
-        tempoMap: tempoMap
+        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])]
     )
     viewModel.startGuidingIfReady()
 
@@ -214,12 +206,8 @@ func virtualPianoDoesNotTriggerLiveNotesDuringAutoplay() throws {
         sequencerPlaybackService: playbackService
     )
 
-    let tempoMap = MusicXMLTempoMap(
-        tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: .init(partID: "P1", staff: nil, voice: nil))]
-    )
     viewModel.setSteps(
-        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
-        tempoMap: tempoMap
+        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])]
     )
 
     let geometry = makeTestKeyboardGeometry()

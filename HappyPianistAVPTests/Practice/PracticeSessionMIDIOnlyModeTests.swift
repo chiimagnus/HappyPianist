@@ -46,7 +46,7 @@ func midiOnlyPracticeInputNoteOnAdvancesStep() async {
         PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
         PracticeStep(tick: 240, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
     ]
-    session.setSteps(steps, tempoMap: MusicXMLTempoMap(tempoEvents: []))
+    session.setSteps(steps)
     session.startGuidingIfReady()
 
     #expect(inputSource.isRunning)
@@ -89,7 +89,7 @@ func midiOnlyPracticeInputMIDI2NoteOnAdvancesStepEvenWithZeroVelocity() async {
         PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
         PracticeStep(tick: 240, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
     ]
-    session.setSteps(steps, tempoMap: MusicXMLTempoMap(tempoEvents: []))
+    session.setSteps(steps)
     session.startGuidingIfReady()
 
     #expect(inputSource.isRunning)
@@ -129,7 +129,7 @@ func midiOnlyPracticeExitStopsInputAndDoesNotAdvanceStepAfterTeardown() async {
         PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
         PracticeStep(tick: 240, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
     ]
-    session.setSteps(steps, tempoMap: MusicXMLTempoMap(tempoEvents: []))
+    session.setSteps(steps)
     session.startGuidingIfReady()
 
     #expect(inputSource.startCallCount == 1)
@@ -175,7 +175,7 @@ func midiOnlyPracticeInputStartFailureThenReplacingSameIndexStepResetsMatcherExp
     )
 
     let stepA = PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])
-    session.setSteps([stepA], tempoMap: MusicXMLTempoMap(tempoEvents: []))
+    session.setSteps([stepA])
     session.startGuidingIfReady()
     #expect(inputSource.startCallCount == 1)
     #expect(session.isPracticeInputRunning == false)
@@ -183,7 +183,7 @@ func midiOnlyPracticeInputStartFailureThenReplacingSameIndexStepResetsMatcherExp
     #expect(session.currentStepIndex == 0)
 
     let stepB = PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 61, staff: 1, handAssignment: .unknown)])
-    session.setSteps([stepB], tempoMap: MusicXMLTempoMap(tempoEvents: []))
+    session.setSteps([stepB])
     session.startGuidingIfReady()
     #expect(inputSource.startCallCount == 2)
     #expect(session.isPracticeInputRunning)

@@ -42,9 +42,7 @@ func exactHitFallbackStillAdvancesStep() {
         [
             PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
             PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 62, staff: nil, handAssignment: .unknown)]),
-        ],
-        tempoMap: MusicXMLTempoMap(tempoEvents: [])
-    )
+        ])
     viewModel.applyKeyboardGeometry(
         makeDummyKeyboardGeometry(),
         calibration: PianoCalibration(a0: .zero, c8: SIMD3<Float>(1, 0, 0), planeHeight: 0)
@@ -70,9 +68,7 @@ func gateInactiveStillAllowsAudioMatchedAdvance() async {
         [
             PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
             PracticeStep(tick: 10, notes: [PracticeStepNote(midiNote: 62, staff: nil, handAssignment: .unknown)]),
-        ],
-        tempoMap: MusicXMLTempoMap(tempoEvents: [])
-    )
+        ])
     viewModel.startGuidingIfReady()
     await settleTaskQueue()
     let generation = fakeService.startCalls.first?.generation ?? 0

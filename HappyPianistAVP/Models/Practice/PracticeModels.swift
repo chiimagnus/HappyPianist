@@ -126,9 +126,6 @@ struct PreparedPractice {
     let performancePlan: ScorePerformancePlan
     let steps: [PracticeStep]
     let file: ImportedMusicXMLFile
-    let tempoMap: MusicXMLTempoMap
-    let pedalTimeline: MusicXMLPedalTimeline?
-    let fermataTimeline: MusicXMLFermataTimeline?
     let attributeTimeline: MusicXMLAttributeTimeline?
     let highlightGuides: [PianoHighlightGuide]
     let measureSpans: [MusicXMLMeasureSpan]

@@ -226,9 +226,6 @@ final class ARGuideViewModel: PracticeLaunchApplying {
             prepared.steps,
             identity: prepared.identity,
             performancePlan: prepared.performancePlan,
-            tempoMap: prepared.tempoMap,
-            pedalTimeline: prepared.pedalTimeline,
-            fermataTimeline: prepared.fermataTimeline,
             attributeTimeline: prepared.attributeTimeline,
             highlightGuides: prepared.highlightGuides,
             measureSpans: prepared.measureSpans

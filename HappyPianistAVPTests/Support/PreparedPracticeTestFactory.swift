@@ -14,9 +14,6 @@ func makeTestPreparedPractice(
         storedURL: URL(fileURLWithPath: "/dev/null"),
         importedAt: .now
     ),
-    tempoMap: MusicXMLTempoMap = MusicXMLTempoMap(tempoEvents: []),
-    pedalTimeline: MusicXMLPedalTimeline? = nil,
-    fermataTimeline: MusicXMLFermataTimeline? = nil,
     attributeTimeline: MusicXMLAttributeTimeline? = nil,
     highlightGuides: [PianoHighlightGuide] = [],
     measureSpans: [MusicXMLMeasureSpan] = [
@@ -43,9 +40,6 @@ func makeTestPreparedPractice(
         ),
         steps: steps,
         file: file,
-        tempoMap: tempoMap,
-        pedalTimeline: pedalTimeline,
-        fermataTimeline: fermataTimeline,
         attributeTimeline: attributeTimeline,
         highlightGuides: highlightGuides,
         measureSpans: measureSpans,
@@ -57,7 +51,10 @@ func makeTestPreparedPractice(
 func makeTestScorePerformancePlan(
     identity: PracticeSongIdentity,
     steps: [PracticeStep],
-    scoreContext: PreparedPracticeScoreContext = makeTestPreparedPracticeScoreContext()
+    scoreContext: PreparedPracticeScoreContext = makeTestPreparedPracticeScoreContext(),
+    tempoEvents: [ScorePerformanceTempoEvent] = [],
+    controllerEvents: [ScorePerformanceControllerEvent] = [],
+    annotations: [ScorePerformanceAnnotation] = []
 ) -> ScorePerformancePlan {
     var ordinal = 0
     var noteEvents: [ScorePerformanceNoteEvent] = []
@@ -116,11 +113,41 @@ func makeTestScorePerformancePlan(
         order: scoreContext.orderSelection,
         resolution: ScorePerformanceTickResolution(ticksPerQuarter: MusicXMLTempoMap.ticksPerQuarter),
         noteEvents: noteEvents,
-        tempoEvents: [],
-        controllerEvents: [],
-        annotations: [],
+        tempoEvents: tempoEvents,
+        controllerEvents: controllerEvents,
+        annotations: annotations,
         approximations: []
     )
+}
+
+func makeTestScorePerformanceTempoEvents(
+    from tempoMap: MusicXMLTempoMap
+) -> [ScorePerformanceTempoEvent] {
+    tempoMap.performanceEvents().map {
+        ScorePerformanceTempoEvent(
+            sourceDirectionID: $0.sourceDirectionID,
+            performedOccurrenceIndex: $0.performedOccurrenceIndex,
+            tick: $0.tick,
+            quarterBPM: $0.quarterBPM,
+            endTick: $0.endTick,
+            endQuarterBPM: $0.endQuarterBPM
+        )
+    }
+}
+
+func makeTestScorePerformanceControllerEvents(
+    from pedalTimeline: MusicXMLPedalTimeline
+) -> [ScorePerformanceControllerEvent] {
+    pedalTimeline.controllerChanges().map {
+        ScorePerformanceControllerEvent(
+            sourceDirectionID: $0.sourceDirectionID,
+            performedOccurrenceIndex: $0.performedOccurrenceIndex,
+            tick: $0.tick,
+            controllerNumber: $0.controllerNumber,
+            value: $0.value,
+            outputCapabilityRequirement: .continuousControlChange
+        )
+    }
 }
 
 func makeTestScorePerformancePlan(
@@ -149,6 +176,23 @@ func makeTestScorePerformancePlan(
         wedgeEvents: score.wedgeEvents,
         wedgeEnabled: expressivity.wedgeEnabled
     )
+    let wordsSemantics = expressivity.wordsSemanticsEnabled
+        ? MusicXMLWordsSemanticsInterpreter().interpret(
+            wordsEvents: score.wordsEvents,
+            tempoEvents: score.tempoEvents
+        )
+        : nil
+    let tempoMap = MusicXMLTempoMap(
+        tempoEvents: score.tempoEvents + (wordsSemantics?.derivedTempoEvents ?? []),
+        tempoRamps: wordsSemantics?.derivedTempoRamps ?? [],
+        partID: memberPartIDs.first
+    )
+    let pedalTimeline = MusicXMLPedalTimeline(
+        events: score.pedalEvents + (wordsSemantics?.derivedPedalEvents ?? [])
+    )
+    let fermataTimeline = expressivity.fermataEnabled
+        ? MusicXMLFermataTimeline(fermataEvents: score.fermataEvents, notes: score.notes)
+        : nil
     return ScorePerformancePlanBuilder().build(
         sourceIdentity: ScorePerformanceSourceIdentity(
             songID: UUID(),
@@ -161,7 +205,12 @@ func makeTestScorePerformancePlan(
         timingSchedule: timingSchedule,
         velocityResolver: velocityResolver,
         expressivity: expressivity,
-        handAssignments: handAssignments
+        handAssignments: handAssignments,
+        tempoMap: tempoMap,
+        pedalTimeline: pedalTimeline,
+        tempoAnnotations: wordsSemantics?.tempoAnnotations ?? [],
+        fermataEvents: score.fermataEvents,
+        fermataTimeline: fermataTimeline
     )
 }
 

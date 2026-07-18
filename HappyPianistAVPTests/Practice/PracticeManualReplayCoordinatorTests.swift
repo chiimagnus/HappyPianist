@@ -49,8 +49,6 @@ private struct YieldingSleeper: SleeperProtocol {
     }
 }
 
-private let defaultTempoScope = MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
-
 @Test
 @MainActor
 func manualReplayStopsAudioRecognitionAndRestoresAfterCompletion() async {
@@ -65,11 +63,17 @@ func manualReplayStopsAudioRecognitionAndRestoresAfterCompletion() async {
     stateStore.performancePlan = makeTestScorePerformancePlan(notes: [
         TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 480),
         TestScorePerformanceNote(midiNote: 62, onTick: 480, offTick: 960),
+    ], tempoEvents: [
+        ScorePerformanceTempoEvent(
+            sourceDirectionID: nil,
+            performedOccurrenceIndex: 0,
+            tick: 0,
+            quarterBPM: 120,
+            endTick: nil,
+            endQuarterBPM: nil
+        ),
     ])
     stateStore.currentStepIndex = 0
-    stateStore.tempoMap = MusicXMLTempoMap(
-        tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope)]
-    )
     stateStore.isAudioRecognitionRunning = true
 
     stateStore.highlightGuides = [
@@ -131,11 +135,17 @@ func practiceManualReplayService_shutdownIsIdempotent() async {
     stateStore.performancePlan = makeTestScorePerformancePlan(notes: [
         TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 480),
         TestScorePerformanceNote(midiNote: 62, onTick: 480, offTick: 960),
+    ], tempoEvents: [
+        ScorePerformanceTempoEvent(
+            sourceDirectionID: nil,
+            performedOccurrenceIndex: 0,
+            tick: 0,
+            quarterBPM: 120,
+            endTick: nil,
+            endQuarterBPM: nil
+        ),
     ])
     stateStore.currentStepIndex = 0
-    stateStore.tempoMap = MusicXMLTempoMap(
-        tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope)]
-    )
 
     let effectHandler = CapturingPracticeSessionEffectHandler()
     let service = PracticeManualReplayService(

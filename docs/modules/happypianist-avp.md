@@ -45,6 +45,8 @@
 
 支持 `.musicxml`、`.xml`、`.mxl`。切换唱片只更新 selection 并异步读取同曲 history JSON；点击主内容中唯一的“开始练习”才登记 request 并 push 练习窗口，曲谱解析、进度恢复和失败展示都由练习窗口拥有。presentation generation 同时绑定 song UUID 与 entry token，旧结果不能覆盖新选择；Library/Ornament 不访问 score URL、preparation 服务或 Practice session controller。Ornament 没有隐藏配置或练习入口。
 
+`PracticePreparationService` 先生成唯一 `ScorePerformancePlan`，再从它投影 `PracticeStep` 与 `PianoHighlightGuide`。sampler、CoreMIDI、autoplay 和手动重播只消费 plan 事件；`PreparedPractice` 不再保存平行 tempo、pedal、fermata 或 note-span 声音事实。会话 tempo map 仅由 plan 自动派生，step/highlight 不得反向生成声音。
+
 `LiveAppGraph` 持有跨 `PracticeSessionViewModel` replacement 的 `PracticeSessionRecorder`。recorder 按 Practice window visit 建立会话，只有首次真实进入 guiding 才落一条 session；scene、guiding、设置、round 与退出边界 checkpoint，active duration 只累计 scene active、guiding 且设置未覆盖的单调时间。
 
 正式生产导入链只有：

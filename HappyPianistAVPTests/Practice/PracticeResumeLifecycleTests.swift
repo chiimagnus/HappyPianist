@@ -36,7 +36,7 @@ func restoredPracticeStaysReadyAndSilentUntilExplicitStart() async throws {
         progressCoordinator: coordinator
     )
     session.songIdentity = identity
-    session.setSteps(makeResumeSteps(), tempoMap: MusicXMLTempoMap(tempoEvents: []), measureSpans: spans)
+    session.setSteps(makeResumeSteps(), measureSpans: spans)
 
     await session.applyLaunchRestorePolicy(.exactAvailable)
 
@@ -83,7 +83,7 @@ func exactProgressAppearingAfterHistoricalPolicySnapshotStillWins() async throws
         progressCoordinator: PracticeProgressCoordinator(repository: repository)
     )
     session.songIdentity = identity
-    session.setSteps(makeResumeSteps(), tempoMap: MusicXMLTempoMap(tempoEvents: []), measureSpans: spans)
+    session.setSteps(makeResumeSteps(), measureSpans: spans)
 
     await session.applyLaunchRestorePolicy(.historicalPreferences(
         PracticeHistoricalPreferences(
@@ -141,7 +141,7 @@ func invalidRestoredPassageIsRepairedAndPersistedWithoutLosingFacts() async thro
         progressCoordinator: PracticeProgressCoordinator(repository: repository)
     )
     session.songIdentity = identity
-    session.setSteps(makeResumeSteps(), tempoMap: MusicXMLTempoMap(tempoEvents: []), measureSpans: spans)
+    session.setSteps(makeResumeSteps(), measureSpans: spans)
 
     await session.applyLaunchRestorePolicy(.exactAvailable)
     let repaired = try #require(await repository.progress(for: identity))
@@ -190,7 +190,6 @@ func invalidRestoredPassageUsesSafeFallbackWhenRepairCannotPersist() async throw
     session.songIdentity = identity
     session.setSteps(
         makeResumeSteps(),
-        tempoMap: MusicXMLTempoMap(tempoEvents: []),
         measureSpans: spans
     )
 
@@ -245,7 +244,6 @@ func resumeOutsideValidActivePassageIsClearedAndPersistedWithoutLosingFacts() as
     session.songIdentity = identity
     session.setSteps(
         makeResumeSteps(),
-        tempoMap: MusicXMLTempoMap(tempoEvents: []),
         measureSpans: spans
     )
 
@@ -290,7 +288,6 @@ func resumeWithoutSavedConfigurationIsClearedAndRepairedToFullPassage() async th
     session.songIdentity = identity
     session.setSteps(
         makeResumeSteps(),
-        tempoMap: MusicXMLTempoMap(tempoEvents: []),
         measureSpans: spans
     )
 
@@ -320,7 +317,6 @@ func suspendedPracticeReturnsToPausedReadyAndCanRestartInput() async {
     session.songIdentity = identity
     session.setSteps(
         makeResumeSteps(),
-        tempoMap: MusicXMLTempoMap(tempoEvents: []),
         measureSpans: makeResumeSpans()
     )
     await session.applyLaunchRestorePolicy(.freshDefaults)
@@ -350,7 +346,7 @@ func pausedPracticeRejectsAdvanceEffectWithoutPlayback() {
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playback
     )
-    session.setSteps(makeResumeSteps(), tempoMap: MusicXMLTempoMap(tempoEvents: []), measureSpans: makeResumeSpans())
+    session.setSteps(makeResumeSteps(), measureSpans: makeResumeSpans())
 
     session.handle(effect: .advanceToNextStep)
 
@@ -374,7 +370,7 @@ func flushAndShutdownPersistsLatestResumePointBeforeTeardown() async {
     )
     let spans = makeResumeSpans()
     session.songIdentity = identity
-    session.setSteps(makeResumeSteps(), tempoMap: MusicXMLTempoMap(tempoEvents: []), measureSpans: spans)
+    session.setSteps(makeResumeSteps(), measureSpans: spans)
     await session.applyLaunchRestorePolicy(.freshDefaults)
     session.startGuidingIfReady()
     session.recordAttemptOutcome(
@@ -400,7 +396,7 @@ func navigationWithoutAttemptPersistsLatestResumePoint() async {
     )
     let spans = makeResumeSpans()
     session.songIdentity = identity
-    session.setSteps(makeResumeSteps(), tempoMap: MusicXMLTempoMap(tempoEvents: []), measureSpans: spans)
+    session.setSteps(makeResumeSteps(), measureSpans: spans)
     await session.applyLaunchRestorePolicy(.freshDefaults)
     session.startGuidingIfReady()
 
@@ -431,7 +427,6 @@ func retryMeasureKeepsRepeatedOccurrenceInCurrentPassage() {
             PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
             PracticeStep(tick: 960, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
         ],
-        tempoMap: MusicXMLTempoMap(tempoEvents: []),
         measureSpans: spans
     )
     session.roundConfigurationController.pendingPassage = PracticePassage(
@@ -459,7 +454,6 @@ func automaticLoopStartsANewAttemptRound() {
     session.songIdentity = identity
     session.setSteps(
         [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
-        tempoMap: MusicXMLTempoMap(tempoEvents: []),
         measureSpans: [span]
     )
     session.roundConfigurationController.pendingLoopEnabled = true
@@ -490,7 +484,6 @@ func automaticLoopStopsWhenPassageReachesTarget() {
     session.songIdentity = identity
     session.setSteps(
         [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
-        tempoMap: MusicXMLTempoMap(tempoEvents: []),
         measureSpans: [span]
     )
     session.roundConfigurationController.pendingLoopEnabled = true
@@ -518,7 +511,6 @@ func continuePassageStartsANewRoundInPractice() {
     )
     session.setSteps(
         [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
-        tempoMap: MusicXMLTempoMap(tempoEvents: []),
         measureSpans: [span]
     )
     session.startGuidingIfReady()

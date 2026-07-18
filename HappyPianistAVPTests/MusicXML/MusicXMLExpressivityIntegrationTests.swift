@@ -96,15 +96,11 @@ func expressivityPipelineParsesAndPlumbsKeySignalsEndToEnd() throws {
     #expect(steps.flatMap(\.notes).map(\.midiNote) == [60, 64])
     #expect(steps[0].notes.first(where: { $0.midiNote == 60 })?.fingeringText == "1")
 
-    let spans = MusicXMLNoteSpanBuilder().buildSpans(
-        from: score.notes,
-        expressivity: expressivity
-    )
-    let c4Span = spans.first(where: { $0.midiNote == 60 })
-    let e4Span = spans.first(where: { $0.midiNote == 64 })
-    #expect(c4Span?.onTick == 0)
-    #expect(e4Span?.onTick == 30)
-    #expect(c4Span?.offTick == 480)
+    let c4 = plan.noteEvents.first(where: { $0.midiNote == 60 })
+    let e4 = plan.noteEvents.first(where: { $0.midiNote == 64 })
+    #expect(c4?.performedOnTick == 0)
+    #expect(e4?.performedOnTick == 30)
+    #expect(c4?.performedOffTick == 480)
 }
 
 @Test

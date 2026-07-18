@@ -105,3 +105,30 @@ func tempoMapReportsTickDomainBPMInsideRamp() {
     #expect(map.quarterBPM(atTick: 360) == 75)
     #expect(map.quarterBPM(atTick: 480) == 60)
 }
+
+@Test
+func tempoMapDerivedFromPerformancePlanKeepsRampEndpointTempo() {
+    let map = MusicXMLTempoMap(performanceEvents: [
+        ScorePerformanceTempoEvent(
+            sourceDirectionID: nil,
+            performedOccurrenceIndex: 0,
+            tick: 0,
+            quarterBPM: 120,
+            endTick: nil,
+            endQuarterBPM: nil
+        ),
+        ScorePerformanceTempoEvent(
+            sourceDirectionID: nil,
+            performedOccurrenceIndex: 0,
+            tick: 480,
+            quarterBPM: 120,
+            endTick: 960,
+            endQuarterBPM: 60
+        ),
+    ])
+
+    #expect(map.quarterBPM(atTick: 720) == 90)
+    #expect(map.quarterBPM(atTick: 960) == 60)
+    #expect(map.quarterBPM(atTick: 1_440) == 60)
+    #expect(abs(map.durationSeconds(fromTick: 960, toTick: 1_440) - 1) < 0.000_1)
+}

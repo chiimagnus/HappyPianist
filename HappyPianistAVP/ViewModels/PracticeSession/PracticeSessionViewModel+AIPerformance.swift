@@ -9,13 +9,7 @@ extension PracticeSessionViewModel {
     }
 
     var tempoMap: MusicXMLTempoMap {
-        get { stateStore.tempoMap }
-        set { stateStore.tempoMap = newValue }
-    }
-
-    var pedalTimeline: MusicXMLPedalTimeline? {
-        get { stateStore.pedalTimeline }
-        set { stateStore.pedalTimeline = newValue }
+        stateStore.tempoMap
     }
 
     var autoplayState: PracticeSessionAutoplayState {

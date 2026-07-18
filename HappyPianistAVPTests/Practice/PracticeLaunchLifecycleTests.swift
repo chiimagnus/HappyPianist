@@ -327,9 +327,7 @@ func multipleRoundsAndSettingsUseOneWindowSessionAndPauseActiveTime() async thro
     let recorder = PracticeSessionRecorder(repository: repository, clock: clock.makeClock())
     let session = LaunchLifecycleRecorderSessionProvider(recorder: recorder).callAsFunction(nil)
     session.setSteps(
-        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
-        tempoMap: MusicXMLTempoMap(tempoEvents: [])
-    )
+        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])])
     let identity = try #require(session.songIdentity)
     let visitID = UUID()
     await recorder.beginVisit(id: visitID, songID: identity.songID, sceneIsActive: true)
@@ -373,9 +371,7 @@ func inactiveSceneExcludesBackgroundTimeAndRequiresRealGuidingResume() async thr
     let recorder = PracticeSessionRecorder(repository: repository, clock: clock.makeClock())
     let session = LaunchLifecycleRecorderSessionProvider(recorder: recorder).callAsFunction(nil)
     session.setSteps(
-        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])],
-        tempoMap: MusicXMLTempoMap(tempoEvents: [])
-    )
+        [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])])
     let identity = try #require(session.songIdentity)
     let visitID = UUID()
     await recorder.beginVisit(id: visitID, songID: identity.songID, sceneIsActive: true)
@@ -579,7 +575,6 @@ private func installLaunchLifecycleScore(
         steps,
         identity: identity,
         performancePlan: makeTestScorePerformancePlan(identity: identity, steps: steps),
-        tempoMap: MusicXMLTempoMap(tempoEvents: []),
         measureSpans: spans
     )
 }

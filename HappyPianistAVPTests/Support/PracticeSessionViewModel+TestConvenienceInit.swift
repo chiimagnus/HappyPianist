@@ -73,9 +73,10 @@ extension PracticeSessionViewModel {
     @MainActor
     func setSteps(
         _ steps: [PracticeStep],
-        tempoMap: MusicXMLTempoMap,
-        pedalTimeline: MusicXMLPedalTimeline? = nil,
-        fermataTimeline: MusicXMLFermataTimeline? = nil,
+        performancePlan: ScorePerformancePlan? = nil,
+        tempoEvents: [ScorePerformanceTempoEvent] = [],
+        controllerEvents: [ScorePerformanceControllerEvent] = [],
+        annotations: [ScorePerformanceAnnotation] = [],
         attributeTimeline: MusicXMLAttributeTimeline? = nil,
         highlightGuides: [PianoHighlightGuide] = [],
         measureSpans: [MusicXMLMeasureSpan] = []
@@ -87,10 +88,13 @@ extension PracticeSessionViewModel {
         installPreparedSteps(
             steps,
             identity: identity,
-            performancePlan: makeTestScorePerformancePlan(identity: identity, steps: steps),
-            tempoMap: tempoMap,
-            pedalTimeline: pedalTimeline,
-            fermataTimeline: fermataTimeline,
+            performancePlan: performancePlan ?? makeTestScorePerformancePlan(
+                identity: identity,
+                steps: steps,
+                tempoEvents: tempoEvents,
+                controllerEvents: controllerEvents,
+                annotations: annotations
+            ),
             attributeTimeline: attributeTimeline,
             highlightGuides: highlightGuides,
             measureSpans: resolvedMeasureSpans

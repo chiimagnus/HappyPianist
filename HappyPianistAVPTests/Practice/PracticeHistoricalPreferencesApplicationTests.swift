@@ -97,7 +97,6 @@ private func installHistoricalApplicationScore(
         steps,
         identity: identity,
         performancePlan: makeTestScorePerformancePlan(identity: identity, steps: steps),
-        tempoMap: MusicXMLTempoMap(tempoEvents: []),
         measureSpans: spans
     )
 }

@@ -84,9 +84,16 @@ final class PracticePlaybackControlService {
         }
 
         let mode = stateStore.activeRoundConfiguration?.handMode ?? .both
-        let expectedNotes = mode == .both ? currentStep.notes : currentStep.notes.filter { mode.allows(hand: $0.hand) }
-        let velocityByMIDINote = Dictionary(grouping: expectedNotes, by: \.midiNote)
-            .compactMapValues { notes in notes.map(\.velocity).max() }
+        let endTick = stateStore.steps.indices.contains(stateStore.currentStepIndex + 1)
+            ? stateStore.steps[stateStore.currentStepIndex + 1].tick
+            : Int.max
+        let planNotes = stateStore.performancePlan?.noteEvents.filter {
+            $0.performedOnTick >= currentStep.tick
+                && $0.performedOnTick < endTick
+                && mode.allows(hand: $0.handAssignment.hand)
+        } ?? []
+        let velocityByMIDINote = Dictionary(grouping: planNotes, by: \.midiNote)
+            .compactMapValues { notes in notes.map(\.velocityResolution.velocity).max() }
         let noteOns = velocityByMIDINote
             .map { PracticeOneShotNoteOn(midiNote: $0.key, velocity: $0.value) }
             .sorted { $0.midiNote < $1.midiNote }

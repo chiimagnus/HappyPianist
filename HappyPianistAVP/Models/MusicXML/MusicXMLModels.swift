@@ -418,15 +418,3 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         self.dotCount = dotCount
     }
 }
-
-struct MusicXMLNoteSpan: Equatable, Identifiable {
-    var id: String {
-        "\(midiNote)-\(staff)-\(voice)-\(onTick)-\(offTick)"
-    }
-
-    let midiNote: Int
-    let staff: Int
-    let voice: Int
-    let onTick: Int
-    let offTick: Int
-}
