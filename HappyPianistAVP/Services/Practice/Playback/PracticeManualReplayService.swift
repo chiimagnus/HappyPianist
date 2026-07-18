@@ -60,18 +60,19 @@ final class PracticeManualReplayService {
         let stepRangeSnapshot = effectiveStepRange
         let stepsSnapshot = stateStore.steps
         let tempoMapSnapshot = stateStore.tempoMap
+        let startTick = stepsSnapshot[startIndex].tick
+        let endTick = stepsSnapshot.indices.contains(stepRangeSnapshot.upperBound)
+            ? stepsSnapshot[stepRangeSnapshot.upperBound].tick
+            : stateStore.activeRange?.tickRange.upperBound
         let timelineSnapshot = AutoplayPerformanceTimeline.build(
             plan: performancePlan,
             guideProjection: [],
             stepProjection: [],
             tempoMap: tempoMapSnapshot,
             practiceHandMode: stateStore.activeRoundConfiguration?.handMode ?? .both,
-            activeRange: stateStore.activeRange
+            activeRange: stateStore.activeRange,
+            transportStartTick: startTick
         )
-        let startTick = stepsSnapshot[startIndex].tick
-        let endTick = stepsSnapshot.indices.contains(stepRangeSnapshot.upperBound)
-            ? stepsSnapshot[stepRangeSnapshot.upperBound].tick
-            : stateStore.activeRange?.tickRange.upperBound
         let leadInSeconds: TimeInterval = 0.05
 
         stateStore.isManualReplayPlaying = true

@@ -16,6 +16,7 @@ private final class FakeSequencerPlaybackService: PracticeSequencerPlaybackServi
     private(set) var stopCallCount = 0
     private(set) var loadCallCount = 0
     private(set) var playCallCount = 0
+    private(set) var loadedSequence: PracticeSequencerSequence?
 
     var currentSecondsValue: TimeInterval = 0
 
@@ -25,8 +26,9 @@ private final class FakeSequencerPlaybackService: PracticeSequencerPlaybackServi
         stopCallCount += 1
     }
 
-    func load(sequence _: PracticeSequencerSequence) throws {
+    func load(sequence: PracticeSequencerSequence) throws {
         loadCallCount += 1
+        loadedSequence = sequence
     }
 
     func play(fromSeconds _: TimeInterval) throws {
@@ -51,7 +53,7 @@ private struct YieldingSleeper: SleeperProtocol {
 
 @Test
 @MainActor
-func manualReplayStopsAudioRecognitionAndRestoresAfterCompletion() async {
+func manualReplayProjectsCanonicalPlanAndRestoresRecognitionAfterCompletion() async throws {
     let sequencer = FakeSequencerPlaybackService()
     sequencer.currentSecondsValue = 999
 
@@ -59,10 +61,12 @@ func manualReplayStopsAudioRecognitionAndRestoresAfterCompletion() async {
     stateStore.steps = [
         PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
         PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
+        PracticeStep(tick: 960, notes: [PracticeStepNote(midiNote: 67, staff: 1, handAssignment: .unknown)]),
     ]
     stateStore.performancePlan = makeTestScorePerformancePlan(notes: [
-        TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 480),
-        TestScorePerformanceNote(midiNote: 62, onTick: 480, offTick: 960),
+        TestScorePerformanceNote(midiNote: 55, velocity: 70, onTick: 0, offTick: 720),
+        TestScorePerformanceNote(midiNote: 62, velocity: 31, onTick: 480, offTick: 600),
+        TestScorePerformanceNote(midiNote: 65, velocity: 99, onTick: 540, offTick: 720),
     ], tempoEvents: [
         ScorePerformanceTempoEvent(
             sourceDirectionID: nil,
@@ -72,8 +76,35 @@ func manualReplayStopsAudioRecognitionAndRestoresAfterCompletion() async {
             endTick: nil,
             endQuarterBPM: nil
         ),
+    ], controllerEvents: [
+        ScorePerformanceControllerEvent(
+            sourceDirectionID: nil,
+            performedOccurrenceIndex: 0,
+            tick: 240,
+            controllerNumber: 64,
+            value: 48,
+            outputCapabilityRequirement: .continuousControlChange
+        ),
+        ScorePerformanceControllerEvent(
+            sourceDirectionID: nil,
+            performedOccurrenceIndex: 0,
+            tick: 600,
+            controllerNumber: 64,
+            value: 100,
+            outputCapabilityRequirement: .continuousControlChange
+        ),
+    ], annotations: [
+        ScorePerformanceAnnotation(
+            sourceDirectionID: nil,
+            performedOccurrenceIndex: 0,
+            tick: 720,
+            durationTicks: 240,
+            kind: .pause,
+            text: "fermata",
+            provenance: []
+        ),
     ])
-    stateStore.currentStepIndex = 0
+    stateStore.currentStepIndex = 1
     stateStore.isAudioRecognitionRunning = true
 
     stateStore.highlightGuides = [
@@ -108,7 +139,7 @@ func manualReplayStopsAudioRecognitionAndRestoresAfterCompletion() async {
         effectHandler: effectHandler
     )
 
-    service.startManualReplay(with: ManualReplayPlan(stepRange: 0 ..< 2))
+    service.startManualReplay(with: ManualReplayPlan(stepRange: 1 ..< 2))
     for _ in 0 ..< 20 {
         await Task.yield()
     }
@@ -116,9 +147,22 @@ func manualReplayStopsAudioRecognitionAndRestoresAfterCompletion() async {
     #expect(effectHandler.effects.contains(.stopAudioRecognition))
     #expect(effectHandler.effects.contains(.refreshAudioRecognition))
     #expect(stateStore.isManualReplayPlaying == false)
-    #expect(stateStore.currentStepIndex == 0)
+    #expect(stateStore.currentStepIndex == 1)
     #expect(sequencer.loadCallCount == 1)
     #expect(sequencer.playCallCount == 1)
+
+    let events = try #require(sequencer.loadedSequence?.events)
+    #expect(events.map(\.kind) == [
+        .controlChange(controller: 64, value: 48),
+        .noteOn(midi: 55, velocity: 70),
+        .noteOn(midi: 62, velocity: 31),
+        .noteOn(midi: 65, velocity: 99),
+        .noteOff(midi: 62),
+        .controlChange(controller: 64, value: 100),
+        .noteOff(midi: 55),
+        .noteOff(midi: 65),
+    ])
+    #expect(events.map(\.timeSeconds) == [0.05, 0.05, 0.05, 0.1125, 0.175, 0.175, 0.55, 0.55])
 }
 
 @Test

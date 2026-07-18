@@ -645,7 +645,7 @@ extension PracticeSessionViewModel {
         } else {
             _ = prepareAudioRecognitionSuppressWindowForPlayback()
             refreshAudioRecognitionForCurrentState()
-            playCurrentStepSound(applyRecognitionSuppress: false)
+            previewCurrentStepPitches(applyRecognitionSuppress: false)
         }
 
         startAutoplayTaskIfNeeded()
@@ -719,13 +719,13 @@ extension PracticeSessionViewModel {
         startManualReplay(with: plan)
     }
 
-    func playCurrentStepSound() {
+    func previewCurrentStepPitches() {
         guard self.stateStore.isActiveRangeInvalid == false else { return }
-        playCurrentStepSound(applyRecognitionSuppress: true)
+        previewCurrentStepPitches(applyRecognitionSuppress: true)
     }
 
-    func playCurrentStepSound(applyRecognitionSuppress: Bool) {
-        playbackControlService?.playCurrentStepSound(applyRecognitionSuppress: applyRecognitionSuppress)
+    func previewCurrentStepPitches(applyRecognitionSuppress: Bool) {
+        playbackControlService?.previewCurrentStepPitches(applyRecognitionSuppress: applyRecognitionSuppress)
     }
 
     func setAutoplayEnabled(_ isEnabled: Bool) {
@@ -797,7 +797,7 @@ extension PracticeSessionViewModel {
         } else {
             _ = prepareAudioRecognitionSuppressWindowForPlayback()
             refreshAudioRecognitionForCurrentState()
-            playCurrentStepSound(applyRecognitionSuppress: false)
+            previewCurrentStepPitches(applyRecognitionSuppress: false)
         }
     }
 
@@ -822,7 +822,7 @@ extension PracticeSessionViewModel {
 
         if shouldPlaySound {
             _ = prepareAudioRecognitionSuppressWindowForPlayback()
-            playCurrentStepSound(applyRecognitionSuppress: false)
+            previewCurrentStepPitches(applyRecognitionSuppress: false)
         }
     }
 

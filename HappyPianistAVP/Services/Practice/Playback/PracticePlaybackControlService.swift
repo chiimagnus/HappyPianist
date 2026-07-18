@@ -78,7 +78,7 @@ final class PracticePlaybackControlService {
         }
     }
 
-    func playCurrentStepSound(applyRecognitionSuppress: Bool) {
+    func previewCurrentStepPitches(applyRecognitionSuppress: Bool) {
         guard stateStore.isActiveRangeInvalid == false else { return }
         guard let currentStep else { return }
         guard stateStore.activeRange?.contains(stepIndex: stateStore.currentStepIndex) ?? true else { return }

@@ -440,7 +440,7 @@ func microphonePermissionFailureDoesNotBlockPlaybackFallback() async {
     await settleTaskQueue()
     fakeService.emitStatus(.permissionDenied)
     await settleTaskQueue()
-    viewModel.playCurrentStepSound()
+    viewModel.previewCurrentStepPitches()
 
     #expect(viewModel.audioRecognitionErrorMessage == "未授予麦克风权限")
     #expect(playbackService.oneShots.count >= 2)

@@ -448,7 +448,7 @@ final class ARGuideViewModel: PracticeLaunchApplying {
     }
 
     func playCurrentPracticeStepSound() {
-        practiceSessionViewModel.playCurrentStepSound()
+        practiceSessionViewModel.previewCurrentStepPitches()
     }
 
     func replayCurrentPracticeUnit() {

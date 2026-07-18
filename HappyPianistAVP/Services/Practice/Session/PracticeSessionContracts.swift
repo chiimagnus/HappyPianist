@@ -29,7 +29,6 @@ enum PracticeSessionEffect: Equatable {
     case advanceToNextStep
     case refreshPracticeInput
     case refreshAudioRecognition
-    case playCurrentStepSound(applyRecognitionSuppress: Bool)
     case stopTransientWork
     case stopAudioRecognition
     case stopPracticeInput

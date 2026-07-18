@@ -215,8 +215,6 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
             refreshPracticeInputForCurrentState()
         case .refreshAudioRecognition:
             refreshAudioRecognitionForCurrentState()
-        case let .playCurrentStepSound(applyRecognitionSuppress):
-            playCurrentStepSound(applyRecognitionSuppress: applyRecognitionSuppress)
         case .stopTransientWork:
             stopManualReplayTask()
             playbackControlService?.stopTransientWork()
