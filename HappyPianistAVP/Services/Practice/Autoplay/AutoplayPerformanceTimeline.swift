@@ -121,7 +121,20 @@ struct AutoplayPerformanceTimeline: Equatable {
                 practiceHandMode: practiceHandMode
             )
         }
-        let transportNotes = (rangeStartState?.heldNotes ?? []) + plan.noteEvents.compactMap { note in
+        let rangeEndTick = activeRange?.tickRange.upperBound
+        let rangeEndState = rangeEndTick.map {
+            PerformanceRangeStateResolver().resolveEnd(plan: plan, at: $0)
+        }
+        let heldNotes = (rangeStartState?.heldNotes ?? []).map { note in
+            PerformanceTransportReducer.Note(
+                eventID: note.eventID,
+                midiNote: note.midiNote,
+                velocity: note.velocity,
+                onTick: note.onTick,
+                offTick: rangeEndTick.map { min(note.offTick, $0) } ?? note.offTick
+            )
+        }
+        let transportNotes = heldNotes + plan.noteEvents.compactMap { note in
             guard practiceHandMode.allows(hand: note.handAssignment.hand),
                   stateStartTick.map({ note.performedOnTick >= $0 }) ?? true,
                   activeRange?.contains(tick: note.performedOnTick) ?? true
@@ -178,10 +191,12 @@ struct AutoplayPerformanceTimeline: Equatable {
             ))
         }
 
-        let selectedControllerEvents = (rangeStartState?.controllers ?? []) + plan.controllerEvents.filter { event in
-            (stateStartTick.map { $0 <= event.tick } ?? true)
-                && (activeRange?.contains(tick: event.tick) ?? true)
-        }
+        let selectedControllerEvents = (rangeStartState?.controllers ?? [])
+            + plan.controllerEvents.filter { event in
+                (stateStartTick.map { $0 <= event.tick } ?? true)
+                    && (activeRange?.contains(tick: event.tick) ?? true)
+            }
+            + (rangeEndState?.controllerResets ?? [])
         for (index, controller) in selectedControllerEvents.enumerated() {
             rawEvents.append(RawEvent(
                 tick: controller.tick,

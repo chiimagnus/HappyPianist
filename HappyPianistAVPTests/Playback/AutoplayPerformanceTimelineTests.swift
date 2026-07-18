@@ -300,6 +300,106 @@ func autoplayTimelineReconstructsCrossBoundaryHeldNoteWithoutRevivingBoundaryOff
 }
 
 @Test
+func autoplayTimelineRestoresHalfPedalAndClosesRangeAfterRepedal() throws {
+    let activeRange = try timelineActiveRange(startTick: 480, endTick: 960)
+    let plan = makeTimelinePlan(
+        notes: [TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 1_440)],
+        controllerEvents: [
+            timelineController(sourceID: directionID(ordinal: 11), tick: 0, value: 48),
+            timelineController(sourceID: directionID(ordinal: 12), tick: 600, value: 0),
+            timelineController(sourceID: directionID(ordinal: 13), tick: 720, value: 100),
+        ]
+    )
+
+    let timeline = makeTimeline(plan: plan, activeRange: activeRange)
+    let controllers = timeline.events.filter {
+        if case .controlChange = $0.kind { return true }
+        return false
+    }
+    let notes = timeline.events.filter {
+        if case .noteOn = $0.kind { return true }
+        if case .noteOff = $0.kind { return true }
+        return false
+    }
+
+    #expect(controllers.map(\.tick) == [480, 600, 720, 960])
+    #expect(controllers.map(\.kind) == [
+        .controlChange(controller: 64, value: 48),
+        .controlChange(controller: 64, value: 0),
+        .controlChange(controller: 64, value: 100),
+        .controlChange(controller: 64, value: 0),
+    ])
+    #expect(notes.map(\.tick) == [480, 960])
+    #expect(notes.map(\.kind) == [
+        .noteOn(midi: 60, velocity: 96),
+        .noteOff(midi: 60),
+    ])
+}
+
+@Test
+func autoplayTimelineReconstructsPedalLatchedNoteUntilRelease() throws {
+    let activeRange = try timelineActiveRange(startTick: 480, endTick: 960)
+    let plan = makeTimelinePlan(
+        notes: [TestScorePerformanceNote(midiNote: 60, velocity: 76, onTick: 0, offTick: 240)],
+        controllerEvents: [
+            timelineController(sourceID: directionID(ordinal: 14), tick: 0, value: 127),
+            timelineController(sourceID: directionID(ordinal: 15), tick: 600, value: 0),
+            timelineController(sourceID: directionID(ordinal: 16), tick: 720, value: 127),
+        ]
+    )
+
+    let timeline = makeTimeline(plan: plan, activeRange: activeRange)
+    let soundEvents = timeline.events.filter {
+        if case .noteOn = $0.kind { return true }
+        if case .noteOff = $0.kind { return true }
+        return false
+    }
+
+    #expect(soundEvents.map(\.tick) == [480, 600])
+    #expect(soundEvents.map(\.kind) == [
+        .noteOn(midi: 60, velocity: 76),
+        .noteOff(midi: 60),
+    ])
+    #expect(timeline.rangeStartApproximations == [
+        .reattackedSustainedNote(eventID: plan.noteEvents[0].id),
+    ])
+}
+
+@Test
+func autoplayTimelineClosesHeldAndRangeNotesAfterSamePitchRetrigger() throws {
+    let activeRange = try timelineActiveRange(startTick: 480, endTick: 960)
+    let plan = makeTimelinePlan(notes: [
+        TestScorePerformanceNote(midiNote: 60, velocity: 72, onTick: 0, offTick: 1_440),
+        TestScorePerformanceNote(midiNote: 64, velocity: 80, onTick: 600, offTick: 1_440),
+        TestScorePerformanceNote(midiNote: 60, velocity: 88, onTick: 720, offTick: 1_200),
+    ])
+
+    let soundEvents = makeTimeline(plan: plan, activeRange: activeRange).events.filter {
+        if case .noteOn = $0.kind { return true }
+        if case .noteOff = $0.kind { return true }
+        return false
+    }
+
+    #expect(soundEvents.map(\.tick) == [480, 600, 720, 720, 960, 960])
+    #expect(soundEvents.map(\.kind) == [
+        .noteOn(midi: 60, velocity: 72),
+        .noteOn(midi: 64, velocity: 80),
+        .noteOff(midi: 60),
+        .noteOn(midi: 60, velocity: 88),
+        .noteOff(midi: 60),
+        .noteOff(midi: 64),
+    ])
+    #expect(soundEvents.map(\.sourceEventID) == [
+        plan.noteEvents[0].id.description,
+        plan.noteEvents[1].id.description,
+        plan.noteEvents[0].id.description,
+        plan.noteEvents[2].id.description,
+        plan.noteEvents[2].id.description,
+        plan.noteEvents[1].id.description,
+    ])
+}
+
+@Test
 func autoplayTimelinePrefersExplicitTempoAtActiveRangeStart() throws {
     let activeRange = try timelineActiveRange(startTick: 480, endTick: 960)
     let carriedID = directionID(ordinal: 9)
