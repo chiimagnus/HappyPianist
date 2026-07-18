@@ -269,6 +269,73 @@ func autoplayTimelineInterpolatesTempoRampAtActiveRangeStart() throws {
 }
 
 @Test
+func autoplayTimelineReconstructsCrossBoundaryHeldNoteWithoutRevivingBoundaryOff() throws {
+    let activeRange = try timelineActiveRange(startTick: 480, endTick: 960)
+    let plan = makeTimelinePlan(notes: [
+        TestScorePerformanceNote(midiNote: 60, velocity: 72, onTick: 0, offTick: 720),
+        TestScorePerformanceNote(midiNote: 62, velocity: 80, onTick: 0, offTick: 480),
+        TestScorePerformanceNote(midiNote: 64, velocity: 88, onTick: 480, offTick: 720),
+    ])
+
+    let timeline = makeTimeline(plan: plan, activeRange: activeRange)
+    let soundEvents = timeline.events.filter {
+        if case .noteOn = $0.kind { return true }
+        if case .noteOff = $0.kind { return true }
+        return false
+    }
+
+    #expect(soundEvents.map(\.kind) == [
+        .noteOn(midi: 60, velocity: 72),
+        .noteOn(midi: 64, velocity: 88),
+        .noteOff(midi: 60),
+        .noteOff(midi: 64),
+    ])
+    #expect(soundEvents.map(\.tick) == [480, 480, 720, 720])
+    #expect(soundEvents.contains { event in
+        event.sourceEventID == plan.noteEvents[1].id.description
+    } == false)
+    #expect(timeline.rangeStartApproximations == [
+        .reattackedHeldNote(eventID: plan.noteEvents[0].id),
+    ])
+}
+
+@Test
+func autoplayTimelinePrefersExplicitTempoAtActiveRangeStart() throws {
+    let activeRange = try timelineActiveRange(startTick: 480, endTick: 960)
+    let carriedID = directionID(ordinal: 9)
+    let explicitID = directionID(ordinal: 10)
+    let plan = makeTimelinePlan(
+        notes: [],
+        tempoEvents: [
+            ScorePerformanceTempoEvent(
+                sourceDirectionID: carriedID,
+                performedOccurrenceIndex: 0,
+                tick: 0,
+                quarterBPM: 120,
+                endTick: nil,
+                endQuarterBPM: nil
+            ),
+            ScorePerformanceTempoEvent(
+                sourceDirectionID: explicitID,
+                performedOccurrenceIndex: 0,
+                tick: 480,
+                quarterBPM: 84,
+                endTick: nil,
+                endQuarterBPM: nil
+            ),
+        ]
+    )
+
+    let tempos = makeTimeline(plan: plan, activeRange: activeRange).events.filter {
+        if case .tempo = $0.kind { true } else { false }
+    }
+
+    #expect(tempos.count == 1)
+    #expect(tempos.first?.sourceEventID == explicitID.description)
+    #expect(tempos.first?.kind == .tempo(quarterBPM: 84, endTick: nil, endQuarterBPM: nil))
+}
+
+@Test
 func autoplayTimelineHoldsPlanPauseAtNoteOffBoundary() throws {
     let plan = makeTimelinePlan(
         notes: [TestScorePerformanceNote(midiNote: 60, velocity: 80, onTick: 0, offTick: 240)],

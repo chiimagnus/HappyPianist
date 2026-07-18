@@ -52,6 +52,15 @@ struct AutoplayPerformanceTimeline: Equatable {
     static let empty = AutoplayPerformanceTimeline(events: [])
 
     let events: [Event]
+    let rangeStartApproximations: [PerformanceRangeStateResolver.Approximation]
+
+    init(
+        events: [Event],
+        rangeStartApproximations: [PerformanceRangeStateResolver.Approximation] = []
+    ) {
+        self.events = events
+        self.rangeStartApproximations = rangeStartApproximations
+    }
 
     func firstEventIndex(atOrAfter tick: Int) -> Int {
         var low = 0
@@ -103,7 +112,14 @@ struct AutoplayPerformanceTimeline: Equatable {
             ))
         }
 
-        let transportNotes = plan.noteEvents.compactMap { note -> PerformanceTransportReducer.Note? in
+        let rangeStartState = activeRange.map {
+            PerformanceRangeStateResolver().resolve(
+                plan: plan,
+                at: $0.tickRange.lowerBound,
+                practiceHandMode: practiceHandMode
+            )
+        }
+        let transportNotes = (rangeStartState?.heldNotes ?? []) + plan.noteEvents.compactMap { note in
             guard practiceHandMode.allows(hand: note.handAssignment.hand),
                   activeRange?.contains(tick: note.performedOnTick) ?? true
             else {
@@ -141,7 +157,10 @@ struct AutoplayPerformanceTimeline: Equatable {
             ))
         }
 
-        for (index, tempo) in selectedTempoEvents(plan.tempoEvents, activeRange: activeRange).enumerated() {
+        let selectedTempoEvents = (rangeStartState?.tempo.map { [$0] } ?? []) + plan.tempoEvents.filter {
+            activeRange?.contains(tick: $0.tick) ?? true
+        }
+        for (index, tempo) in selectedTempoEvents.enumerated() {
             rawEvents.append(RawEvent(
                 tick: tempo.tick,
                 priority: 2,
@@ -155,10 +174,10 @@ struct AutoplayPerformanceTimeline: Equatable {
             ))
         }
 
-        for (index, controller) in selectedControllerEvents(
-            plan.controllerEvents,
-            activeRange: activeRange
-        ).enumerated() {
+        let selectedControllerEvents = (rangeStartState?.controllers ?? []) + plan.controllerEvents.filter {
+            activeRange?.contains(tick: $0.tick) ?? true
+        }
+        for (index, controller) in selectedControllerEvents.enumerated() {
             rawEvents.append(RawEvent(
                 tick: controller.tick,
                 priority: 2,
@@ -210,65 +229,10 @@ struct AutoplayPerformanceTimeline: Equatable {
                 )
             }
 
-        return AutoplayPerformanceTimeline(events: sortedEvents)
-    }
-
-    private static func selectedTempoEvents(
-        _ events: [ScorePerformanceTempoEvent],
-        activeRange: PracticeActiveRange?
-    ) -> [ScorePerformanceTempoEvent] {
-        guard let activeRange else { return events }
-        let lowerBound = activeRange.tickRange.lowerBound
-        let hasEventAtLowerBound = events.contains { $0.tick == lowerBound }
-        let initial = events.last { $0.tick < lowerBound }.map { event in
-            let continuesRamp = event.endTick.map { lowerBound < $0 } ?? false
-            let quarterBPM: Double
-            if let endTick = event.endTick,
-               let endQuarterBPM = event.endQuarterBPM,
-               endTick > event.tick {
-                let progress = min(1, Double(lowerBound - event.tick) / Double(endTick - event.tick))
-                quarterBPM = event.quarterBPM
-                    + (endQuarterBPM - event.quarterBPM) * progress
-            } else {
-                quarterBPM = event.quarterBPM
-            }
-            return ScorePerformanceTempoEvent(
-                sourceDirectionID: event.sourceDirectionID,
-                performedOccurrenceIndex: event.performedOccurrenceIndex,
-                tick: lowerBound,
-                quarterBPM: quarterBPM,
-                endTick: continuesRamp ? event.endTick : nil,
-                endQuarterBPM: continuesRamp ? event.endQuarterBPM : nil
-            )
-        }
-        return (hasEventAtLowerBound ? [] : [initial].compactMap(\.self))
-            + events.filter { activeRange.contains(tick: $0.tick) }
-    }
-
-    private static func selectedControllerEvents(
-        _ events: [ScorePerformanceControllerEvent],
-        activeRange: PracticeActiveRange?
-    ) -> [ScorePerformanceControllerEvent] {
-        guard let activeRange else { return events }
-        let lowerBound = activeRange.tickRange.lowerBound
-        let controllersAtLowerBound = Set(
-            events.lazy.filter { $0.tick == lowerBound }.map(\.controllerNumber)
+        return AutoplayPerformanceTimeline(
+            events: sortedEvents,
+            rangeStartApproximations: rangeStartState?.approximations ?? []
         )
-        let initialByController = Dictionary(grouping: events.filter { $0.tick < lowerBound }, by: \.controllerNumber)
-            .compactMapValues(\.last)
-            .values
-            .filter { controllersAtLowerBound.contains($0.controllerNumber) == false }
-            .map { event in
-                ScorePerformanceControllerEvent(
-                    sourceDirectionID: event.sourceDirectionID,
-                    performedOccurrenceIndex: event.performedOccurrenceIndex,
-                    tick: lowerBound,
-                    controllerNumber: event.controllerNumber,
-                    value: event.value,
-                    outputCapabilityRequirement: event.outputCapabilityRequirement
-                )
-            }
-        return initialByController + events.filter { activeRange.contains(tick: $0.tick) }
     }
 
     private static func containsAnnotationTick(_ tick: Int, activeRange: PracticeActiveRange?) -> Bool {
