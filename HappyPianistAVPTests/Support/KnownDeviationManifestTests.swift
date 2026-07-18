@@ -33,6 +33,10 @@ func knownDeviationManifestCoversEveryProfessionalAuditRequirementExactlyOnce() 
     #expect(manifest.requirements.allSatisfy {
         ["missingEvidence", "characterizationPlanned"].contains($0.evidenceStatus)
     })
+    #expect(manifest.requirements.allSatisfy { requirement in
+        let hasEvidencePath = (requirement.fixtures + requirement.tests).isEmpty == false
+        return requirement.evidenceStatus == "missingEvidence" ? hasEvidencePath == false : hasEvidencePath
+    })
 
     let repositoryRoot = repositoryRootURL()
     let plannedTaskIDs = try ["todo1.toml", "todo2.toml"].reduce(into: Set<String>()) { result, fileName in

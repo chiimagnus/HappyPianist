@@ -24,10 +24,8 @@
       "id": "ARCH-003",
       "plannedTask": "P11-T1",
       "fixtures": [],
-      "tests": [
-        "HappyPianistAVPTests/Practice/PerformanceAssessmentTests.swift"
-      ],
-      "evidenceStatus": "characterizationPlanned"
+      "tests": [],
+      "evidenceStatus": "missingEvidence"
     },
     {
       "id": "SCORE-001",
@@ -409,10 +407,8 @@
       "id": "ASSESS-001",
       "plannedTask": "P10-T1",
       "fixtures": [],
-      "tests": [
-        "HappyPianistAVPTests/Practice/PerformanceAlignmentTests.swift"
-      ],
-      "evidenceStatus": "characterizationPlanned"
+      "tests": [],
+      "evidenceStatus": "missingEvidence"
     },
     {
       "id": "ASSESS-002",
@@ -428,18 +424,15 @@
       "id": "ASSESS-003",
       "plannedTask": "P12-T1",
       "fixtures": [],
-      "tests": [
-        "HappyPianistAVPTests/Practice/PracticeCoachingDecisionTests.swift"
-      ],
-      "evidenceStatus": "characterizationPlanned"
+      "tests": [],
+      "evidenceStatus": "missingEvidence"
     },
     {
       "id": "ASSESS-004",
       "plannedTask": "P11-T2",
       "fixtures": [],
       "tests": [
-        "HappyPianistAVPTests/Practice/StepMatcherTests.swift",
-        "HappyPianistAVPTests/Practice/PerformanceAssessmentTests.swift"
+        "HappyPianistAVPTests/Practice/StepMatcherTests.swift"
       ],
       "evidenceStatus": "characterizationPlanned"
     },
@@ -447,19 +440,15 @@
       "id": "ASSESS-005",
       "plannedTask": "P11-T7",
       "fixtures": [],
-      "tests": [
-        "HappyPianistAVPTests/Practice/PerformanceAssessmentTests.swift"
-      ],
-      "evidenceStatus": "characterizationPlanned"
+      "tests": [],
+      "evidenceStatus": "missingEvidence"
     },
     {
       "id": "GUIDE-001",
       "plannedTask": "P12-T3",
       "fixtures": [],
-      "tests": [
-        "HappyPianistAVPTests/Practice/PracticeCoachingDecisionTests.swift"
-      ],
-      "evidenceStatus": "characterizationPlanned"
+      "tests": [],
+      "evidenceStatus": "missingEvidence"
     },
     {
       "id": "GUIDE-002",
@@ -474,10 +463,8 @@
       "id": "GUIDE-003",
       "plannedTask": "P12-T6",
       "fixtures": [],
-      "tests": [
-        "HappyPianistAVPTests/Practice/PerformanceAssessmentTests.swift"
-      ],
-      "evidenceStatus": "characterizationPlanned"
+      "tests": [],
+      "evidenceStatus": "missingEvidence"
     },
     {
       "id": "AI-001",
