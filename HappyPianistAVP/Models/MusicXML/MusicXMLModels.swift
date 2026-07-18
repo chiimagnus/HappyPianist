@@ -298,6 +298,19 @@ struct MusicXMLRepeatDirective: Equatable {
     let partID: String
     let measureNumber: Int
     let direction: MusicXMLRepeatDirection
+    let times: Int?
+
+    init(
+        partID: String,
+        measureNumber: Int,
+        direction: MusicXMLRepeatDirection,
+        times: Int? = nil
+    ) {
+        self.partID = partID
+        self.measureNumber = measureNumber
+        self.direction = direction
+        self.times = times
+    }
 }
 
 enum MusicXMLEndingType: String, Equatable {

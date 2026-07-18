@@ -141,6 +141,112 @@ func structureExpanderHandlesImplicitStartAndMultipleSequentialRepeats() throws 
 }
 
 @Test
+func structureExpanderHonorsRepeatTimesAndNestedRepeats() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1">
+        <measure number="1">
+          <attributes><divisions>1</divisions></attributes>
+          <barline location="left"><repeat direction="forward"/></barline>
+          <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+        </measure>
+        <measure number="2">
+          <barline location="left"><repeat direction="forward"/></barline>
+          <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration></note>
+        </measure>
+        <measure number="3">
+          <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration></note>
+          <barline location="right"><repeat direction="backward" times="3"/></barline>
+        </measure>
+        <measure number="4">
+          <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration></note>
+          <barline location="right"><repeat direction="backward"/></barline>
+        </measure>
+      </part>
+    </score-partwise>
+    """
+
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    #expect(score.repeatDirectives.compactMap(\.times) == [3])
+
+    let result = MusicXMLStructureExpander().expandStructureIfPossible(score: score)
+    #expect(result.approximationReason == nil)
+    #expect(result.score.notes.compactMap(\.midiNote) == [
+        60, 62, 64, 62, 64, 62, 64, 65,
+        60, 62, 64, 62, 64, 62, 64, 65,
+    ])
+    #expect(result.score.notes.map(\.performedOccurrenceIndex) == Array(0 ... 15))
+
+    let limited = MusicXMLStructureExpander(maxOutputMeasures: 5).expandStructureIfPossible(score: score)
+    #expect(limited.approximationReason == "structure-expansion-output-measure-limit")
+    #expect(limited.score == score)
+}
+
+@Test
+func structureExpanderSelectsCommaSeparatedAndThirdEndingsByRepeatPass() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1">
+        <measure number="1">
+          <attributes><divisions>1</divisions></attributes>
+          <barline location="left"><repeat direction="forward"/></barline>
+          <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+        </measure>
+        <measure number="2">
+          <barline location="left"><ending number="1, 2" type="start"/></barline>
+          <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration></note>
+          <barline location="right">
+            <ending number="1, 2" type="stop"/>
+            <repeat direction="backward" times="3"/>
+          </barline>
+        </measure>
+        <measure number="3">
+          <barline location="left"><ending number="3" type="start"/></barline>
+          <direction><sound damper-pedal="yes" time-only="3"/></direction>
+          <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration></note>
+          <barline location="right"><ending number="3" type="stop"/></barline>
+        </measure>
+        <measure number="4">
+          <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration></note>
+        </measure>
+      </part>
+    </score-partwise>
+    """
+
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let result = MusicXMLStructureExpander().expandStructureIfPossible(score: score)
+
+    #expect(result.approximationReason == nil)
+    #expect(result.score.notes.compactMap(\.midiNote) == [60, 62, 60, 62, 60, 64, 65])
+    #expect(result.score.pedalEvents.map(\.tick) == [2_400])
+}
+
+@Test
+func structureExpanderReportsMalformedEndingInsteadOfSilentlyIgnoringIt() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1">
+        <measure number="1">
+          <attributes><divisions>1</divisions></attributes>
+          <barline location="left"><ending number="1" type="start"/></barline>
+          <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+          <barline location="right"><ending number="1" type="stop"/></barline>
+        </measure>
+      </part>
+    </score-partwise>
+    """
+
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let result = MusicXMLStructureExpander().expandStructureIfPossible(score: score)
+
+    #expect(result.approximationReason == "structure-expansion-invalid-repeat-ending")
+    #expect(result.score == score)
+}
+
+@Test
 func structureExpanderExpandsDalSegnoJumpOnce() throws {
     let xml = """
     <?xml version="1.0" encoding="UTF-8"?>

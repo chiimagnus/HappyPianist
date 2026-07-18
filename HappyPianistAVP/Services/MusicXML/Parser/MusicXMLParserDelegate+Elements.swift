@@ -137,7 +137,8 @@ extension MusicXMLParserDelegate {
                     MusicXMLRepeatDirective(
                         partID: state.currentPartID,
                         measureNumber: state.currentMeasureNumber,
-                        direction: direction
+                        direction: direction,
+                        times: attributeDict["times"].flatMap(Int.init).flatMap { $0 > 0 ? $0 : nil }
                     )
                 )
             }

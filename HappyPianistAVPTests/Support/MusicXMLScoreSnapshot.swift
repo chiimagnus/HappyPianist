@@ -153,6 +153,7 @@ struct MusicXMLScoreSnapshot {
                 ("part", directive.partID),
                 ("measure", String(directive.measureNumber)),
                 ("direction", directive.direction.rawValue),
+                ("times", directive.times.map(String.init)),
             ])
         })
         lines.append(contentsOf: canonicalLines(score.endingDirectives, sortKey: { directive, fallback in
