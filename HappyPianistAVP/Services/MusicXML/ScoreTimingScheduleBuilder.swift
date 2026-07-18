@@ -352,8 +352,21 @@ private extension ScoreTimingScheduleBuilder {
                 )
             }
 
+            if usedDefaultFollowing {
+                markApproximation(
+                    "grace-default-steal-following-25-percent",
+                    noteIndices: group.noteIndices,
+                    entries: &entries
+                )
+            }
+
             let totalTicks = previousTicks + followingTicks
-            guard totalTicks > 0 else { continue }
+            guard totalTicks > 0 else {
+                for index in group.noteIndices where notes[index].graceSlash {
+                    entries[index].appendProvenance(.approximation(reason: "grace-slash-does-not-define-duration"))
+                }
+                continue
+            }
 
             let kind: ScoreGraceTimingKind
             let policy: ScoreTimingReleasePolicy
@@ -395,16 +408,6 @@ private extension ScoreTimingScheduleBuilder {
                 entries: &entries
             )
 
-            if usedDefaultFollowing {
-                markApproximation(
-                    "grace-default-steal-following-25-percent",
-                    noteIndices: group.noteIndices,
-                    entries: &entries
-                )
-            }
-            for index in group.noteIndices where notes[index].graceSlash {
-                entries[index].appendProvenance(.approximation(reason: "grace-slash-does-not-define-duration"))
-            }
         }
     }
 

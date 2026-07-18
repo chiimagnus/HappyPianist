@@ -119,12 +119,54 @@ struct MusicXMLParserGraceDetailsTests {
         #expect(schedule[1].performedOnTick == 0)
     }
 
+    @Test
+    func schedulePartitionsConsecutiveGraceNotesAndRecordsSlashProvenance() {
+        let notes = [
+            makeNote(
+                tick: 480,
+                duration: 0,
+                midi: 60,
+                isGrace: true,
+                graceSlash: true,
+                stealFollowing: 0.25
+            ),
+            makeNote(tick: 480, duration: 0, midi: 62, isGrace: true),
+            makeNote(tick: 480, duration: 480, midi: 64),
+        ]
+
+        let schedule = ScoreTimingScheduleBuilder().build(notes: notes)
+
+        #expect(schedule[0].performedOnTick == 480)
+        #expect(schedule[0].performedOffTick == 540)
+        #expect(schedule[1].performedOnTick == 540)
+        #expect(schedule[1].performedOffTick == 600)
+        #expect(schedule[2].performedOnTick == 600)
+        #expect(schedule[2].performedOffTick == 960)
+        #expect(schedule[0].provenance.contains(.approximation(reason: "grace-slash-does-not-define-duration")))
+    }
+
+    @Test
+    func scheduleRecordsDefaultGraceRuleWhenFollowingAnchorIsMissing() {
+        let notes = [
+            makeNote(tick: 480, duration: 0, midi: 60, isGrace: true, graceSlash: true),
+        ]
+
+        let entry = ScoreTimingScheduleBuilder().build(notes: notes)[0]
+
+        #expect(entry.performedOnTick == 480)
+        #expect(entry.performedOffTick == 480)
+        #expect(entry.provenance.contains(.approximation(reason: "grace-steal-following-missing-anchor")))
+        #expect(entry.provenance.contains(.approximation(reason: "grace-default-steal-following-25-percent")))
+        #expect(entry.provenance.contains(.approximation(reason: "grace-slash-does-not-define-duration")))
+    }
+
     private func makeNote(
         tick: Int,
         duration: Int,
         midi: Int,
         measure: Int = 1,
         isGrace: Bool = false,
+        graceSlash: Bool = false,
         stealPrevious: Double? = nil,
         stealFollowing: Double? = nil,
         makeTime: Int? = nil
@@ -138,6 +180,7 @@ struct MusicXMLParserGraceDetailsTests {
             isRest: false,
             isChord: false,
             isGrace: isGrace,
+            graceSlash: graceSlash,
             graceStealTimePrevious: stealPrevious,
             graceStealTimeFollowing: stealFollowing,
             graceMakeTimeTicks: makeTime,
