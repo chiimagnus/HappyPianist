@@ -82,7 +82,8 @@ struct AutoplayPerformanceTimeline: Equatable {
         stepProjection: [PracticeStep],
         tempoMap: MusicXMLTempoMap,
         practiceHandMode: PracticeHandMode,
-        activeRange: PracticeActiveRange? = nil
+        activeRange: PracticeActiveRange? = nil,
+        transportStartTick: Int? = nil
     ) -> AutoplayPerformanceTimeline {
         var rawEvents: [RawEvent] = []
         rawEvents.reserveCapacity(
@@ -112,15 +113,17 @@ struct AutoplayPerformanceTimeline: Equatable {
             ))
         }
 
-        let rangeStartState = activeRange.map {
+        let stateStartTick = transportStartTick ?? activeRange?.tickRange.lowerBound
+        let rangeStartState = stateStartTick.map {
             PerformanceRangeStateResolver().resolve(
                 plan: plan,
-                at: $0.tickRange.lowerBound,
+                at: $0,
                 practiceHandMode: practiceHandMode
             )
         }
         let transportNotes = (rangeStartState?.heldNotes ?? []) + plan.noteEvents.compactMap { note in
             guard practiceHandMode.allows(hand: note.handAssignment.hand),
+                  stateStartTick.map({ note.performedOnTick >= $0 }) ?? true,
                   activeRange?.contains(tick: note.performedOnTick) ?? true
             else {
                 return nil
@@ -157,8 +160,9 @@ struct AutoplayPerformanceTimeline: Equatable {
             ))
         }
 
-        let selectedTempoEvents = (rangeStartState?.tempo.map { [$0] } ?? []) + plan.tempoEvents.filter {
-            activeRange?.contains(tick: $0.tick) ?? true
+        let selectedTempoEvents = (rangeStartState?.tempo.map { [$0] } ?? []) + plan.tempoEvents.filter { event in
+            (stateStartTick.map { $0 <= event.tick } ?? true)
+                && (activeRange?.contains(tick: event.tick) ?? true)
         }
         for (index, tempo) in selectedTempoEvents.enumerated() {
             rawEvents.append(RawEvent(
@@ -174,8 +178,9 @@ struct AutoplayPerformanceTimeline: Equatable {
             ))
         }
 
-        let selectedControllerEvents = (rangeStartState?.controllers ?? []) + plan.controllerEvents.filter {
-            activeRange?.contains(tick: $0.tick) ?? true
+        let selectedControllerEvents = (rangeStartState?.controllers ?? []) + plan.controllerEvents.filter { event in
+            (stateStartTick.map { $0 <= event.tick } ?? true)
+                && (activeRange?.contains(tick: event.tick) ?? true)
         }
         for (index, controller) in selectedControllerEvents.enumerated() {
             rawEvents.append(RawEvent(

@@ -11,10 +11,15 @@ final class PracticePlaybackControlService {
     private weak var effectHandler: (any PracticeSessionEffectHandlerProtocol)?
     private let audioRecognitionSuppressDuration: TimeInterval
     private let leadInSeconds: TimeInterval
+    private let transportReducer = PerformanceTransportReducer()
 
     private var autoplayTask: Task<Void, Never>?
-    private var autoplayTaskGeneration = 0
+    private var transportState = PerformanceTransportReducer.TransportState.idle
     private var hasShutdown = false
+
+    private var autoplayTaskGeneration: Int {
+        transportState.generation
+    }
 
     init(
         sleeper: SleeperProtocol,
@@ -123,13 +128,30 @@ final class PracticePlaybackControlService {
         }
 
         guard autoplayTask == nil else { return }
+        guard let performancePlan = stateStore.performancePlan else { return }
 
-        autoplayTaskGeneration += 1
-        let generation = autoplayTaskGeneration
+        let timingBaseTick = currentStep?.tick ?? 0
+        let transition = transportReducer.transition(
+            from: transportState,
+            at: .start(
+                tick: timingBaseTick,
+                activeEventIDs: activeEventIDs(at: timingBaseTick)
+            )
+        )
+        transportState = transition.state
+        let generation = transportState.generation
 
+        stateStore.autoplayTimeline = AutoplayPerformanceTimeline.build(
+            plan: performancePlan,
+            guideProjection: stateStore.highlightGuides,
+            stepProjection: stateStore.steps,
+            tempoMap: stateStore.tempoMap,
+            practiceHandMode: stateStore.activeRoundConfiguration?.handMode ?? .both,
+            activeRange: stateStore.activeRange,
+            transportStartTick: timingBaseTick
+        )
         let timelineSnapshot = stateStore.autoplayTimeline
         let tempoMapSnapshot = stateStore.tempoMap
-        let timingBaseTick = currentStep?.tick ?? 0
         stateStore.autoplayTimingBaseTick = timingBaseTick
         stateStore.notationGuideScrollScheduleTaskGeneration = -1
 
@@ -150,7 +172,21 @@ final class PracticePlaybackControlService {
     }
 
     func stopAutoplayTask() {
-        autoplayTaskGeneration += 1
+        let transition = transportReducer.transition(from: transportState, at: .stop)
+        transportState = transition.state
+        cancelAutoplayTask()
+        executeResetIfNeeded(transition)
+    }
+
+    func seekAutoplay(toStepIndex stepIndex: Int) {
+        restartAutoplay(atStepIndex: stepIndex, reason: .seek)
+    }
+
+    func loopAutoplay(toStepIndex stepIndex: Int) {
+        restartAutoplay(atStepIndex: stepIndex, reason: .loop)
+    }
+
+    private func cancelAutoplayTask() {
         autoplayTask?.cancel()
         autoplayTask = nil
 
@@ -234,6 +270,62 @@ final class PracticePlaybackControlService {
         stateStore.performancePlan?.controllerEvents.last {
             $0.controllerNumber == 64 && $0.tick <= tick
         }.map { $0.value >= 64 } ?? false
+    }
+
+    private func activeEventIDs(at tick: Int) -> Set<ScorePerformanceNoteEventID> {
+        let handMode = stateStore.activeRoundConfiguration?.handMode ?? .both
+        guard let performancePlan = stateStore.performancePlan else { return [] }
+        return Set(performancePlan.noteEvents.lazy.filter {
+            handMode.allows(hand: $0.handAssignment.hand)
+                && $0.performedOnTick <= tick
+                && $0.performedOffTick > tick
+        }.map(\.id))
+    }
+
+    private func restartAutoplay(
+        atStepIndex stepIndex: Int,
+        reason: PerformanceTransportReducer.ResetReason
+    ) {
+        guard stateStore.autoplayState == .playing,
+              case .guiding = stateStore.state,
+              stateStore.steps.indices.contains(stepIndex),
+              stateStore.activeRange?.contains(stepIndex: stepIndex) ?? true
+        else {
+            return
+        }
+
+        let tick = stateStore.steps[stepIndex].tick
+        let boundary: PerformanceTransportReducer.Boundary
+        switch reason {
+        case .seek:
+            boundary = .seek(tick: tick, activeEventIDs: activeEventIDs(at: tick))
+        case .loop:
+            boundary = .loop(tick: tick, activeEventIDs: activeEventIDs(at: tick))
+        case .end, .stop:
+            return
+        }
+        let transition = transportReducer.transition(from: transportState, at: boundary)
+        transportState = transition.state
+        cancelAutoplayTask()
+
+        executeResetIfNeeded(transition)
+
+        chordAttemptAccumulator.reset()
+        stateStore.currentStepIndex = stepIndex
+        stateStore.currentHighlightGuideIndex = stateStore.strictTriggerGuideIndex(forStepIndex: stepIndex)
+        stateStore.isSustainPedalDown = sustainPedalIsDown(atTick: tick)
+        effectHandler?.handle(effect: .refreshAudioRecognition)
+        startAutoplayTaskIfNeeded()
+    }
+
+    private func executeResetIfNeeded(_ transition: PerformanceTransportReducer.Transition) {
+        guard transition.commands.contains(where: { command in
+            if case .reset = command { return true }
+            return false
+        }) else {
+            return
+        }
+        sequencerPlaybackService.stop()
     }
 
     private func stopAutoplayWithError(_ message: String) {
@@ -346,11 +438,11 @@ final class PracticePlaybackControlService {
         }
 
         if Task.isCancelled == false, autoplayTaskGeneration == generation {
-            sequencerPlaybackService.stop()
+            let transition = transportReducer.transition(from: transportState, at: .end)
+            transportState = transition.state
+            executeResetIfNeeded(transition)
+            autoplayTask = nil
         }
-
-        guard autoplayTaskGeneration == generation else { return }
-        autoplayTask = nil
     }
 
     private func advanceAutoplayStep(to stepIndex: Int) {

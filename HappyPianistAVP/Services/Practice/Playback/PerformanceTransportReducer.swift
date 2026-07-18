@@ -1,6 +1,55 @@
 import Foundation
 
 struct PerformanceTransportReducer {
+    struct TransportState: Equatable, Sendable {
+        let generation: Int
+        let startTick: Int?
+        let activeEventIDs: Set<ScorePerformanceNoteEventID>
+
+        var isPlaying: Bool {
+            startTick != nil
+        }
+
+        static let idle = TransportState(
+            generation: 0,
+            startTick: nil,
+            activeEventIDs: []
+        )
+    }
+
+    enum ResetReason: Equatable, Sendable {
+        case seek
+        case loop
+        case end
+        case stop
+    }
+
+    enum Boundary: Equatable, Sendable {
+        case start(tick: Int, activeEventIDs: Set<ScorePerformanceNoteEventID>)
+        case seek(tick: Int, activeEventIDs: Set<ScorePerformanceNoteEventID>)
+        case loop(tick: Int, activeEventIDs: Set<ScorePerformanceNoteEventID>)
+        case end
+        case stop
+    }
+
+    enum LifecycleCommand: Equatable, Sendable {
+        case reset(
+            eventIDs: [ScorePerformanceNoteEventID],
+            reason: ResetReason,
+            generation: Int
+        )
+        case apply(
+            tick: Int,
+            eventIDs: [ScorePerformanceNoteEventID],
+            generation: Int
+        )
+    }
+
+    struct Transition: Equatable, Sendable {
+        let state: TransportState
+        let commands: [LifecycleCommand]
+    }
+
     struct Note: Equatable, Sendable {
         let eventID: ScorePerformanceNoteEventID
         let midiNote: Int
@@ -26,6 +75,43 @@ struct PerformanceTransportReducer {
         let retriggeredEventCount: Int
         let preventedStaleOffCount: Int
         let orphanOffCount: Int
+    }
+
+    func transition(from state: TransportState, at boundary: Boundary) -> Transition {
+        switch boundary {
+        case let .start(tick, activeEventIDs):
+            guard state.isPlaying == false else {
+                return Transition(state: state, commands: [])
+            }
+            return applyingState(
+                from: state,
+                tick: tick,
+                activeEventIDs: activeEventIDs,
+                resetReason: nil
+            )
+
+        case let .seek(tick, activeEventIDs):
+            return applyingState(
+                from: state,
+                tick: tick,
+                activeEventIDs: activeEventIDs,
+                resetReason: .seek
+            )
+
+        case let .loop(tick, activeEventIDs):
+            return applyingState(
+                from: state,
+                tick: tick,
+                activeEventIDs: activeEventIDs,
+                resetReason: .loop
+            )
+
+        case .end:
+            return stopping(from: state, reason: .end)
+
+        case .stop:
+            return stopping(from: state, reason: .stop)
+        }
     }
 
     func reduce(notes: [Note]) -> Reduction {
@@ -97,6 +183,62 @@ struct PerformanceTransportReducer {
 }
 
 private extension PerformanceTransportReducer {
+    func applyingState(
+        from state: TransportState,
+        tick: Int,
+        activeEventIDs: Set<ScorePerformanceNoteEventID>,
+        resetReason: ResetReason?
+    ) -> Transition {
+        let generation = state.generation + 1
+        let sortedTargetEventIDs = sorted(activeEventIDs)
+        var commands: [LifecycleCommand] = []
+        if let resetReason {
+            commands.append(.reset(
+                eventIDs: sorted(state.activeEventIDs),
+                reason: resetReason,
+                generation: generation
+            ))
+        }
+        commands.append(.apply(
+            tick: tick,
+            eventIDs: sortedTargetEventIDs,
+            generation: generation
+        ))
+        return Transition(
+            state: TransportState(
+                generation: generation,
+                startTick: tick,
+                activeEventIDs: activeEventIDs
+            ),
+            commands: commands
+        )
+    }
+
+    func stopping(from state: TransportState, reason: ResetReason) -> Transition {
+        guard state.isPlaying else {
+            return Transition(state: state, commands: [])
+        }
+        let generation = state.generation + 1
+        return Transition(
+            state: TransportState(
+                generation: generation,
+                startTick: nil,
+                activeEventIDs: []
+            ),
+            commands: [
+                .reset(
+                    eventIDs: sorted(state.activeEventIDs),
+                    reason: reason,
+                    generation: generation
+                ),
+            ]
+        )
+    }
+
+    func sorted(_ eventIDs: Set<ScorePerformanceNoteEventID>) -> [ScorePerformanceNoteEventID] {
+        eventIDs.sorted { $0.description < $1.description }
+    }
+
     struct Edge {
         enum Kind {
             case off
