@@ -550,14 +550,10 @@ struct GrandStaffNotationRenderer {
 
     private func resolvedNoteColor(for item: GrandStaffNotationItem) -> Color {
         guard item.isHighlighted else { return .primary }
-        switch item.hand {
-        case .left:
-            return .cyan
-        case .right:
-            return .yellow
-        case .unknown:
-            return .secondary
-        }
+        return PianoGuideHighlightTintToken.resolve(
+            staffNumber: item.staffNumber,
+            keyKind: .white
+        ).swiftUIColor
     }
 
     private func handFadeScale(for hand: ScoreHand, practiceHandMode: PracticeHandMode) -> Double {

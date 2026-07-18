@@ -4,13 +4,13 @@ import UIKit
 extension PianoGuideHighlightTintToken {
     var uiColor: UIColor {
         switch self {
-        case .rightHandWhiteKey:
+        case .upperStaffWhiteKey:
             UIColor(Color.yellow)
-        case .rightHandBlackKey:
+        case .upperStaffBlackKey:
             UIColor(Color.orange)
-        case .leftHandKey:
+        case .lowerStaffKey:
             UIColor(Color.cyan)
-        case .unassignedHandKey:
+        case .unassignedStaffKey:
             UIColor(Color.gray)
         }
     }

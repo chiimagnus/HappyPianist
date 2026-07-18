@@ -282,7 +282,7 @@ struct PracticeStepView: View {
 
         return Dictionary(uniqueKeysWithValues: highlightTokenByMidi.map { midiNote, token in
             let style = PianoGuideHighlightStyle.resolve(
-                hand: token.hand,
+                staffNumber: token.staffNumber,
                 phase: token.phase,
                 keyKind: PianoKeyboard88View.keyKind(for: midiNote)
             )

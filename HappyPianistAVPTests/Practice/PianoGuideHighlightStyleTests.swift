@@ -2,39 +2,53 @@
 import Testing
 
 @Test
-func styleResolvesRightHandWhiteKeyTriggered() {
-    let style = PianoGuideHighlightStyle.resolve(hand: .right, phase: .triggered, keyKind: .white)
-    #expect(style.tintToken == .rightHandWhiteKey)
+func styleResolvesUpperStaffWhiteKeyTriggered() {
+    let style = PianoGuideHighlightStyle.resolve(staffNumber: 1, phase: .triggered, keyKind: .white)
+    #expect(style.tintToken == .upperStaffWhiteKey)
     #expect(style.opacity == 0.75)
 }
 
 @Test
-func styleResolvesRightHandWhiteKeyActive() {
-    let style = PianoGuideHighlightStyle.resolve(hand: .right, phase: .active, keyKind: .white)
-    #expect(style.tintToken == .rightHandWhiteKey)
+func styleResolvesUpperStaffWhiteKeyActive() {
+    let style = PianoGuideHighlightStyle.resolve(staffNumber: 1, phase: .active, keyKind: .white)
+    #expect(style.tintToken == .upperStaffWhiteKey)
     #expect(style.opacity == 0.48)
 }
 
 @Test
-func styleResolvesLeftHandWhiteKeyActive() {
-    let style = PianoGuideHighlightStyle.resolve(hand: .left, phase: .active, keyKind: .white)
-    #expect(style.tintToken == .leftHandKey)
+func styleResolvesLowerStaffWhiteKeyActive() {
+    let style = PianoGuideHighlightStyle.resolve(staffNumber: 2, phase: .active, keyKind: .white)
+    #expect(style.tintToken == .lowerStaffKey)
     #expect(style.opacity == 0.55)
 }
 
 @Test
-func styleResolvesRightHandBlackKeyActiveMatchesTriggered() {
-    let active = PianoGuideHighlightStyle.resolve(hand: .right, phase: .active, keyKind: .black)
-    let triggered = PianoGuideHighlightStyle.resolve(hand: .right, phase: .triggered, keyKind: .black)
-    #expect(active.tintToken == .rightHandBlackKey)
-    #expect(triggered.tintToken == .rightHandBlackKey)
+func styleResolvesUpperStaffBlackKeyActiveMatchesTriggered() {
+    let active = PianoGuideHighlightStyle.resolve(staffNumber: 1, phase: .active, keyKind: .black)
+    let triggered = PianoGuideHighlightStyle.resolve(staffNumber: 1, phase: .triggered, keyKind: .black)
+    #expect(active.tintToken == .upperStaffBlackKey)
+    #expect(triggered.tintToken == .upperStaffBlackKey)
     #expect(active.opacity == 0.95)
     #expect(triggered.opacity == 0.95)
 }
 
 @Test
-func styleResolvesLeftHandBlackKeyActive() {
-    let style = PianoGuideHighlightStyle.resolve(hand: .left, phase: .active, keyKind: .black)
-    #expect(style.tintToken == .leftHandKey)
+func styleResolvesLowerStaffBlackKeyActive() {
+    let style = PianoGuideHighlightStyle.resolve(staffNumber: 2, phase: .active, keyKind: .black)
+    #expect(style.tintToken == .lowerStaffKey)
     #expect(style.opacity == 0.92)
+}
+
+@Test
+func styleKeepsMissingAndAdditionalStavesNeutral() {
+    #expect(PianoGuideHighlightStyle.resolve(
+        staffNumber: nil,
+        phase: .triggered,
+        keyKind: .white
+    ).tintToken == .unassignedStaffKey)
+    #expect(PianoGuideHighlightStyle.resolve(
+        staffNumber: 3,
+        phase: .triggered,
+        keyKind: .white
+    ).tintToken == .unassignedStaffKey)
 }

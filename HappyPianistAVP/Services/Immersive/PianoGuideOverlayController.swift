@@ -118,12 +118,12 @@ final class PianoGuideOverlayController {
         var position = descriptor.positionLocal
         if differentiateWithoutColor {
             scale.x *= 0.5
-            let handOffset: Float = switch descriptor.hand {
-            case .left: -0.25
-            case .right: 0.25
-            case .unknown: 0
+            let staffOffset: Float = switch descriptor.staffNumber {
+            case 1: 0.25
+            case 2: -0.25
+            default: 0
             }
-            position.x += descriptor.sizeLocal.x * handOffset
+            position.x += descriptor.sizeLocal.x * staffOffset
             if descriptor.phase == .triggered {
                 scale.z *= 0.65
                 position.z += descriptor.sizeLocal.z * 0.175
@@ -136,7 +136,7 @@ final class PianoGuideOverlayController {
 
     private func beamMaterial(for descriptor: PianoGuideBeamDescriptor) -> UnlitMaterial {
         let style = PianoGuideHighlightStyle.resolve(
-            hand: descriptor.hand,
+            staffNumber: descriptor.staffNumber,
             phase: descriptor.phase,
             keyKind: descriptor.keyKind
         )

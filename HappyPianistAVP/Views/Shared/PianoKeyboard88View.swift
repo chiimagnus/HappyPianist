@@ -185,7 +185,7 @@ private struct BlackKey: Identifiable {
     let notes: Set = [21, 60, 61, 72, 108, 130]
     let highlightByMIDINote = Dictionary(uniqueKeysWithValues: notes.map { midiNote in
         let style = PianoGuideHighlightStyle.resolve(
-            hand: .right,
+            staffNumber: 1,
             phase: .active,
             keyKind: PianoKeyboard88View.keyKind(for: midiNote)
         )

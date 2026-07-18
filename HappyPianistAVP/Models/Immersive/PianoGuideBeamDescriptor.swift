@@ -2,12 +2,12 @@ import simd
 
 struct PianoGuideBeamDescriptor: Equatable, Identifiable {
     var id: String {
-        "\(midiNote)-\(guideID)-\(hand.rawValue)"
+        "\(midiNote)-\(guideID)-\(staffNumber ?? 0)"
     }
 
     let midiNote: Int
     let guideID: Int
-    let hand: ScoreHand
+    let staffNumber: Int?
     let phase: PianoGuideHighlightPhase
     let keyKind: PianoKeyKind
     let positionLocal: SIMD3<Float>
@@ -44,7 +44,7 @@ extension PianoGuideBeamDescriptor {
             return PianoGuideBeamDescriptor(
                 midiNote: midiNote,
                 guideID: highlightGuide.id,
-                hand: highlight.hand,
+                staffNumber: highlight.staffNumber,
                 phase: highlight.phase,
                 keyKind: key.kind,
                 positionLocal: positionLocal,

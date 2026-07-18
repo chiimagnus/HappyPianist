@@ -3,13 +3,13 @@ import SwiftUI
 extension PianoGuideHighlightTintToken {
     var swiftUIColor: Color {
         switch self {
-        case .rightHandWhiteKey:
+        case .upperStaffWhiteKey:
             .yellow
-        case .rightHandBlackKey:
+        case .upperStaffBlackKey:
             .orange
-        case .leftHandKey:
+        case .lowerStaffKey:
             .cyan
-        case .unassignedHandKey:
+        case .unassignedStaffKey:
             .gray
         }
     }

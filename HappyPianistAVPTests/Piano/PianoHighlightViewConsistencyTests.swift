@@ -37,7 +37,7 @@ func highlightGuide2DAnd3DUseSameMIDINoteSet() {
         PianoHighlightNote(
             occurrenceID: "o-64",
             midiNote: 64,
-            staff: 1,
+            staff: 2,
             voice: 1,
             velocity: 96,
             onTick: 0,
@@ -65,6 +65,10 @@ func highlightGuide2DAnd3DUseSameMIDINoteSet() {
 
     #expect(Set(descriptors.map(\.midiNote)) == guide.highlightedMIDINotes)
     #expect(Set(descriptors.map(\.guideID)) == [41])
+    #expect(Dictionary(uniqueKeysWithValues: descriptors.map { ($0.midiNote, $0.staffNumber) }) == [
+        60: 1,
+        64: 2,
+    ])
 }
 
 @Test

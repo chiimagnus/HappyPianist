@@ -15,17 +15,22 @@ struct PianoGuideKeyHighlightResolver {
 
         return Dictionary(uniqueKeysWithValues: guide.highlightedMIDINotes.map { midiNote in
             let phase: PianoGuideHighlightPhase = triggeredMIDINotes.contains(midiNote) ? .triggered : .active
-            let preferredHand = triggeredNotesByMidi[midiNote].flatMap(Self.resolvedHand)
-                ?? activeNotesByMidi[midiNote].flatMap(Self.resolvedHand)
-                ?? .unknown
-            return (midiNote, PianoGuideKeyHighlight(midiNote: midiNote, phase: phase, hand: preferredHand))
+            let sourceNotes = triggeredNotesByMidi[midiNote] ?? activeNotesByMidi[midiNote] ?? []
+            return (
+                midiNote,
+                PianoGuideKeyHighlight(
+                    midiNote: midiNote,
+                    phase: phase,
+                    staffNumber: Self.resolvedStaffNumber(notes: sourceNotes)
+                )
+            )
         })
     }
 
-    private static func resolvedHand(notes: [PianoHighlightNote]) -> ScoreHand? {
-        guard notes.isEmpty == false else { return nil }
-        if notes.contains(where: { $0.hand == .left }) { return .left }
-        if notes.contains(where: { $0.hand == .right }) { return .right }
-        return .unknown
+    private static func resolvedStaffNumber(notes: [PianoHighlightNote]) -> Int? {
+        let staffNumbers = Set(notes.compactMap(\.staff))
+        // ponytail: one physical key gets one solid tint; use neutral if both staves contain it simultaneously.
+        guard staffNumbers.count == 1 else { return nil }
+        return staffNumbers.first
     }
 }
