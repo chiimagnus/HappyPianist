@@ -47,6 +47,7 @@ func expressivityPipelineParsesAndPlumbsKeySignalsEndToEnd() throws {
             <voice>1</voice>
             <type>quarter</type>
             <staff>1</staff>
+            <notations><arpeggiate/></notations>
           </note>
 
           <direction placement="below">
