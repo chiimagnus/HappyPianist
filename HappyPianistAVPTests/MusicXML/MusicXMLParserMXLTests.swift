@@ -58,3 +58,30 @@ struct MusicXMLParserMXLTests {
         #expect(score.notes.first?.durationTicks == 480)
     }
 }
+
+@Test
+func repeatedMXLParsingKeepsSourceIdentityAndWrittenPitchStable() throws {
+    let baseURL = FileManager.default.temporaryDirectory
+        .appending(path: "MusicXMLParserMXLIdentityTests")
+        .appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(at: baseURL, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: baseURL) }
+    let metaInfURL = baseURL.appending(path: "META-INF")
+    try FileManager.default.createDirectory(at: metaInfURL, withIntermediateDirectories: true)
+    try Data("<container><rootfiles><rootfile full-path=\"score.xml\"/></rootfiles></container>".utf8)
+        .write(to: metaInfURL.appending(path: "container.xml"))
+    let xml = """
+    <score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+    <part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes><note><pitch><step>C</step><alter>1</alter><octave>4</octave></pitch><duration>1</duration></note></measure></part></score-partwise>
+    """
+    try Data(xml.utf8).write(to: baseURL.appending(path: "score.xml"))
+    let mxlURL = baseURL.appending(path: "identity.mxl")
+    let archive = try Archive(url: mxlURL, accessMode: .create)
+    try archive.addEntry(with: "META-INF/container.xml", relativeTo: baseURL, compressionMethod: .deflate)
+    try archive.addEntry(with: "score.xml", relativeTo: baseURL, compressionMethod: .deflate)
+
+    let first = try MusicXMLParser().parse(fileURL: mxlURL)
+    let second = try MusicXMLParser().parse(fileURL: mxlURL)
+    #expect(first.notes.map(\.sourceID) == second.notes.map(\.sourceID))
+    #expect(first.notes.map(\.writtenPitch) == second.notes.map(\.writtenPitch))
+}

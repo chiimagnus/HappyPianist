@@ -123,7 +123,15 @@ private final class MusicXMLTimewiseParsingDelegate: NSObject, XMLParserDelegate
 
         if capturingPartListDepth != nil {
             capturingPartListDepth! += 1
-            partListBuilder.startElement(localName(from: elementName), attributes: attributeDict)
+            let name = localName(from: elementName)
+            if name == "score-part",
+               let partID = attributeDict["id"],
+               partID.isEmpty == false,
+               orderedPartIDs.contains(partID) == false
+            {
+                orderedPartIDs.append(partID)
+            }
+            partListBuilder.startElement(name, attributes: attributeDict)
             return
         }
 
@@ -214,7 +222,8 @@ private struct XMLStringBuilder {
 
     mutating func startElement(_ name: String, attributes: [String: String]) {
         output += "<\(name)"
-        for (key, value) in attributes {
+        for key in attributes.keys.sorted() {
+            guard let value = attributes[key] else { continue }
             output += " \(key)=\"\(escapeAttribute(value))\""
         }
         output += ">"

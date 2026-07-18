@@ -43,12 +43,19 @@ struct MXLReader {
         let containerData = try extract(entry: containerEntry, from: archive)
         let rootfileFullPath = try parseRootfileFullPath(fromContainerXML: containerData)
 
-        let normalizedRootfilePath = rootfileFullPath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let normalizedRootfilePath = normalizedArchivePath(rootfileFullPath)
         guard let scoreEntry = archive[normalizedRootfilePath] else {
             throw MXLReaderError.missingScoreXML(path: rootfileFullPath)
         }
 
         return try extract(entry: scoreEntry, from: archive)
+    }
+
+    private func normalizedArchivePath(_ path: String) -> String {
+        path.replacing("\\", with: "/")
+            .split(separator: "/", omittingEmptySubsequences: true)
+            .filter { $0 != "." }
+            .joined(separator: "/")
     }
 
     private func extract(entry: Entry, from archive: Archive) throws -> Data {
