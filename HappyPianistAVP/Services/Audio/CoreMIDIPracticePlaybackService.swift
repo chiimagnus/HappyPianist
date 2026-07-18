@@ -1,3 +1,4 @@
+import CoreMIDI
 import Foundation
 import os
 
@@ -7,6 +8,7 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
     private let destinationUniqueID: Int32
     private let outputCapabilities: PerformanceOutputCapabilities
     private let diagnosticsReporter: (any DiagnosticsReporting)?
+    private let hostTimeConverter: MIDIHostTimeConverter
 
     private let velocity: UInt8
     private let channel: UInt8
@@ -28,6 +30,7 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
         outputService: (any MIDIOutputSendingProtocol)? = nil,
         diagnosticsReporter: (any DiagnosticsReporting)? = nil,
         outputCapabilities: PerformanceOutputCapabilities = .externalMIDI,
+        hostTimeConverter: MIDIHostTimeConverter = MIDIHostTimeConverter(),
         velocity: UInt8 = 96,
         channel: UInt8 = 0
     ) {
@@ -35,6 +38,7 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
         self.outputService = outputService ?? CoreMIDIOutputService(diagnosticsReporter: diagnosticsReporter)
         self.outputCapabilities = outputCapabilities
         self.diagnosticsReporter = diagnosticsReporter
+        self.hostTimeConverter = hostTimeConverter
         self.velocity = velocity
         self.channel = channel
     }
@@ -72,7 +76,8 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
             outputService: outputService,
             destinationUniqueID: destinationUniqueID,
             channel: channel,
-            outputCapabilities: outputCapabilities
+            outputCapabilities: outputCapabilities,
+            hostTimeConverter: hostTimeConverter
         )
         self.scheduler = scheduler
 
@@ -237,18 +242,21 @@ private final class MIDIEventScheduler: Sendable {
     private let destinationUniqueID: Int32
     private let channel: UInt8
     private let outputCapabilities: PerformanceOutputCapabilities
+    private let hostTimeConverter: MIDIHostTimeConverter
     private let state = OSAllocatedUnfairLock(initialState: State())
 
     init(
         outputService: any MIDIOutputSendingProtocol,
         destinationUniqueID: Int32,
         channel: UInt8,
-        outputCapabilities: PerformanceOutputCapabilities
+        outputCapabilities: PerformanceOutputCapabilities,
+        hostTimeConverter: MIDIHostTimeConverter
     ) {
         self.outputService = outputService
         self.destinationUniqueID = destinationUniqueID
         self.channel = channel
         self.outputCapabilities = outputCapabilities
+        self.hostTimeConverter = hostTimeConverter
     }
 
     func play(events: [PracticeSequencerMIDIEvent], fromSeconds startSeconds: TimeInterval) {
@@ -261,6 +269,7 @@ private final class MIDIEventScheduler: Sendable {
         let task = Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
             let startedAt = ProcessInfo.processInfo.systemUptime
+            let hostTimeOrigin = hostTimeConverter.origin(atTransportSeconds: startSeconds)
             var index = 0
 
             while index < eventsToPlay.count, Task.isCancelled == false {
@@ -273,7 +282,11 @@ private final class MIDIEventScheduler: Sendable {
                     guard Task.isCancelled == false else { break }
                 }
 
-                guard sendIfCurrent(event, generation: generation) else { break }
+                let hostTime = hostTimeConverter.hostTime(
+                    atTransportSeconds: event.timeSeconds,
+                    relativeTo: hostTimeOrigin
+                )
+                guard sendIfCurrent(event, hostTime: hostTime, generation: generation) else { break }
                 index += 1
             }
         }
@@ -295,7 +308,11 @@ private final class MIDIEventScheduler: Sendable {
         task?.cancel()
     }
 
-    private func sendIfCurrent(_ event: PracticeSequencerMIDIEvent, generation: Int) -> Bool {
+    private func sendIfCurrent(
+        _ event: PracticeSequencerMIDIEvent,
+        hostTime: MIDITimeStamp,
+        generation: Int
+    ) -> Bool {
         state.withLock { state in
             guard state.generation == generation else { return false }
             do {
@@ -304,7 +321,8 @@ private final class MIDIEventScheduler: Sendable {
                     outputService: outputService,
                     destinationUniqueID: destinationUniqueID,
                     channel: channel,
-                    outputCapabilities: outputCapabilities
+                    outputCapabilities: outputCapabilities,
+                    hostTime: hostTime
                 )
             } catch {
                 // best-effort: ignore individual send failures
@@ -318,37 +336,47 @@ private final class MIDIEventScheduler: Sendable {
         outputService: any MIDIOutputSendingProtocol,
         destinationUniqueID: Int32,
         channel: UInt8,
-        outputCapabilities: PerformanceOutputCapabilities
+        outputCapabilities: PerformanceOutputCapabilities,
+        hostTime: MIDITimeStamp
     ) throws {
+        guard let bytes = messageBytes(
+            for: event,
+            channel: channel,
+            outputCapabilities: outputCapabilities
+        ) else { return }
+        try outputService.sendMIDI1Messages(
+            [TimestampedMIDI1Message(hostTime: hostTime, bytes: bytes)],
+            destinationUniqueID: destinationUniqueID
+        )
+    }
+
+    private static func messageBytes(
+        for event: PracticeSequencerMIDIEvent,
+        channel: UInt8,
+        outputCapabilities: PerformanceOutputCapabilities
+    ) -> [UInt8]? {
+        let statusChannel = channel & 0x0F
         switch event.kind {
         case let .noteOn(midi, velocity):
-            guard let note = UInt8(exactly: midi) else { return }
-            try outputService.sendNoteOn(note: note, velocity: velocity, channel: channel, destinationUniqueID: destinationUniqueID)
+            guard let note = UInt8(exactly: midi) else { return nil }
+            return [0x90 | statusChannel, note, velocity]
         case let .noteOff(midi):
-            guard let note = UInt8(exactly: midi) else { return }
-            try outputService.sendNoteOff(note: note, channel: channel, destinationUniqueID: destinationUniqueID)
+            guard let note = UInt8(exactly: midi) else { return nil }
+            return [0x80 | statusChannel, note, 0]
         case let .controlChange(controller, value):
             let resolution = outputCapabilities.resolve(controllerNumber: controller, value: value)
-            try outputService.sendControlChange(
-                controller: controller,
-                value: resolution.value,
-                channel: channel,
-                destinationUniqueID: destinationUniqueID
-            )
+            return [0xB0 | statusChannel, controller, resolution.value]
         case let .programChange(program):
-            try outputService.sendProgramChange(program: program, channel: channel, destinationUniqueID: destinationUniqueID)
+            return [0xC0 | statusChannel, program]
         case let .pitchBend(value):
             let lsb = UInt8(value & 0x7F)
             let msb = UInt8((value >> 7) & 0x7F)
-            let status: UInt8 = 0xE0 | (channel & 0x0F)
-            try outputService.sendMIDI1Bytes([status, lsb, msb], destinationUniqueID: destinationUniqueID)
+            return [0xE0 | statusChannel, lsb, msb]
         case let .channelPressure(value):
-            let status: UInt8 = 0xD0 | (channel & 0x0F)
-            try outputService.sendMIDI1Bytes([status, value], destinationUniqueID: destinationUniqueID)
+            return [0xD0 | statusChannel, value]
         case let .polyPressure(midi, value):
-            guard let note = UInt8(exactly: midi) else { return }
-            let status: UInt8 = 0xA0 | (channel & 0x0F)
-            try outputService.sendMIDI1Bytes([status, note, value], destinationUniqueID: destinationUniqueID)
+            guard let note = UInt8(exactly: midi) else { return nil }
+            return [0xA0 | statusChannel, note, value]
         }
     }
 }

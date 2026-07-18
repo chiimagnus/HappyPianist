@@ -76,8 +76,8 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
         try await Task.sleep(for: .milliseconds(20))
 
         let expected: [FakeMIDIOutputService.Call] = [
-            .controlChange(controller: 11, value: 72, channel: 2, destination: destinationUniqueID),
-            .noteOn(note: 60, velocity: 88, channel: 2, destination: destinationUniqueID),
+            .bytes([0xB2, 11, 72], destination: destinationUniqueID),
+            .bytes([0x92, 60, 88], destination: destinationUniqueID),
         ]
         let musicalCalls = output.callsSnapshot().filter(expected.contains)
         #expect(musicalCalls == expected)
@@ -117,13 +117,13 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
         try await Task.sleep(for: .milliseconds(20))
 
         let controllerCalls = output.callsSnapshot().filter {
-            if case .controlChange = $0 { return true }
+            if case let .bytes(bytes, _) = $0 { return bytes.first == 0xB1 }
             return false
         }
         #expect(controllerCalls == [
-            .controlChange(controller: 64, value: 0, channel: 1, destination: destinationUniqueID),
-            .controlChange(controller: 66, value: 127, channel: 1, destination: destinationUniqueID),
-            .controlChange(controller: 67, value: 0, channel: 1, destination: destinationUniqueID),
+            .bytes([0xB1, 64, 0], destination: destinationUniqueID),
+            .bytes([0xB1, 66, 127], destination: destinationUniqueID),
+            .bytes([0xB1, 67, 0], destination: destinationUniqueID),
         ])
         let diagnosticEvents = await diagnostics.events
         #expect(diagnosticEvents.contains { event in
@@ -163,7 +163,7 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
 
         #expect(output.callsSnapshot() == callsAfterStop)
         #expect(output.callsSnapshot().contains(
-            .noteOn(note: 72, velocity: 80, channel: 0, destination: destinationUniqueID)
+            .bytes([0x90, 72, 80], destination: destinationUniqueID)
         ) == false)
     }
 
