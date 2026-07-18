@@ -95,7 +95,6 @@ func expressivityPipelineParsesAndPlumbsKeySignalsEndToEnd() throws {
     #expect(steps[0].notes.map(\.midiNote) == [60, 64])
     #expect(steps[0].notes.first(where: { $0.midiNote == 60 })?.fingeringText == "1")
 
-    let fermataTimeline = MusicXMLFermataTimeline(fermataEvents: score.fermataEvents, notes: score.notes)
     let spans = MusicXMLNoteSpanBuilder().buildSpans(
         from: score.notes,
         expressivity: expressivity

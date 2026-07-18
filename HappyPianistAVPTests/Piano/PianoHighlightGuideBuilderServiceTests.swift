@@ -270,7 +270,6 @@ func highlightGuideBuilderUsesFermataExtraTicksWhenEnabled() {
             source: .noteNotations
         ),
     ])
-    let fermataTimeline = MusicXMLFermataTimeline(fermataEvents: score.fermataEvents, notes: score.notes)
     let steps = PracticeStepBuilder().buildSteps(from: score, expressivity: expressivity).steps
     let spans = MusicXMLNoteSpanBuilder().buildSpans(
         from: score.notes,
