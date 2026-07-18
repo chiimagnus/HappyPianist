@@ -56,3 +56,27 @@ func normalizerMergesTwoPartGrandStaffNotesIntoPrimaryPart() throws {
     }
     #expect(hasLeftHand)
 }
+
+
+@Test
+func logicalInstrumentModelNormalizesMemberOrderAndSupportsEquality() {
+    let evidence = MusicXMLLogicalInstrumentEvidence(
+        kind: .splitKeyboardPartNames,
+        partIDs: ["P2", "P1"]
+    )
+    let lhs = MusicXMLLogicalInstrument(
+        id: "piano:P1+P2",
+        memberPartIDs: ["P2", "P1", "P1"],
+        classification: .piano,
+        evidence: [evidence]
+    )
+    let rhs = MusicXMLLogicalInstrument(
+        id: "piano:P1+P2",
+        memberPartIDs: ["P1", "P2"],
+        classification: .piano,
+        evidence: [evidence]
+    )
+
+    #expect(lhs == rhs)
+    #expect(lhs.memberPartIDs == ["P1", "P2"])
+}
