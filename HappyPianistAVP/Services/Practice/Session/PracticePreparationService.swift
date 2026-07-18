@@ -231,6 +231,10 @@ actor PracticePreparationService: PracticePreparationServiceProtocol {
             fermataTimeline: fermataTimeline
         )
         let buildResult = stepBuilder.buildSteps(from: performancePlan)
+        let notationProjection = ScoreNotationProjection(
+            plan: performancePlan,
+            sourceScore: sourceScore
+        )
         let highlightGuides = PianoHighlightGuideBuilderService().buildGuides(
             input: PianoHighlightGuideBuildInput(
                 plan: performancePlan,
@@ -250,6 +254,7 @@ actor PracticePreparationService: PracticePreparationServiceProtocol {
         return PreparedPractice(
             identity: identity,
             performancePlan: performancePlan,
+            notationProjection: notationProjection,
             steps: buildResult.steps,
             file: file,
             attributeTimeline: attributeTimeline,

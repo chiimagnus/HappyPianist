@@ -25,10 +25,20 @@ extension PracticeSessionViewModel {
         return self.activeRange?.measureSpans ?? self.measureSpans
     }
 
-    var activeHighlightGuides: [PianoHighlightGuide] {
-        guard self.stateStore.isActiveRangeInvalid == false else { return [] }
-        guard let activeRange = self.activeRange else { return self.highlightGuides }
-        return self.highlightGuides.filter { activeRange.contains(tick: $0.tick) }
+    var activeNotationProjection: ScoreNotationProjection? {
+        guard self.stateStore.isActiveRangeInvalid == false,
+              let notationProjection = self.notationProjection
+        else {
+            return nil
+        }
+        let activeOccurrenceIDs = Set(
+            (self.currentPianoHighlightGuide.map { $0.activeNotes + $0.triggeredNotes } ?? [])
+                .map(\.occurrenceID)
+        )
+        let activeEventIDs = Set(activeOccurrenceIDs.compactMap {
+            self.stateStore.performanceEventIDByDescription[$0]
+        })
+        return notationProjection.activating(activeEventIDs)
     }
 
     var currentGrandStaffNotationContext: GrandStaffNotationContext? {
@@ -435,6 +445,7 @@ extension PracticeSessionViewModel {
         _ steps: [PracticeStep],
         identity: PracticeSongIdentity,
         performancePlan: ScorePerformancePlan,
+        notationProjection: ScoreNotationProjection,
         attributeTimeline: MusicXMLAttributeTimeline? = nil,
         highlightGuides: [PianoHighlightGuide] = [],
         measureSpans: [MusicXMLMeasureSpan]
@@ -451,6 +462,7 @@ extension PracticeSessionViewModel {
 
         self.steps = steps
         self.performancePlan = performancePlan
+        self.notationProjection = notationProjection
         self.measureSpans = measureSpans
         if let firstMeasure = measureSpans.first,
            let lastMeasure = measureSpans.last,
@@ -547,6 +559,7 @@ extension PracticeSessionViewModel {
         self.attemptReductionState = PracticeAttemptReductionState()
         self.latestFeedbackEvent = nil
         self.performancePlan = nil
+        self.notationProjection = nil
         self.steps = []
         self.measureSpans = []
         self.measureIndex = nil

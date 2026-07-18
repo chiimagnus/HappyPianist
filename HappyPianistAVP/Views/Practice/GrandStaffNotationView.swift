@@ -1,11 +1,11 @@
 import SwiftUI
 
 struct GrandStaffNotationView: View {
-    let guides: [PianoHighlightGuide]
-    let currentGuide: PianoHighlightGuide?
+    let projection: ScoreNotationProjection
     let measureSpans: [MusicXMLMeasureSpan]
     let context: GrandStaffNotationContext?
     let practiceHandMode: PracticeHandMode
+    let tickRange: Range<Int>?
     var scrollTickProvider: (() -> Double?)?
 
     private let fixedLineSpacing: CGFloat = 14
@@ -13,24 +13,24 @@ struct GrandStaffNotationView: View {
     private let renderer: GrandStaffNotationRenderer
 
     @Environment(\.displayScale) private var displayScale
-    @State private var centeredForFirstGuideID: Int?
+    @State private var centeredForFirstOccurrenceID: String?
 
     init(
-        guides: [PianoHighlightGuide],
-        currentGuide: PianoHighlightGuide?,
+        projection: ScoreNotationProjection,
         measureSpans: [MusicXMLMeasureSpan],
         context: GrandStaffNotationContext?,
         practiceHandMode: PracticeHandMode = .both,
+        tickRange: Range<Int>? = nil,
         scrollTickProvider: (() -> Double?)? = nil,
         layoutService: GrandStaffNotationLayoutService = GrandStaffNotationLayoutService(),
         viewportLayoutService: GrandStaffNotationViewportLayoutService = GrandStaffNotationViewportLayoutService(),
         renderer: GrandStaffNotationRenderer = GrandStaffNotationRenderer()
     ) {
-        self.guides = guides
-        self.currentGuide = currentGuide
+        self.projection = projection
         self.measureSpans = measureSpans
         self.context = context
         self.practiceHandMode = practiceHandMode
+        self.tickRange = tickRange
         self.scrollTickProvider = scrollTickProvider
         presentationViewModel = GrandStaffNotationPresentationViewModel(
             layoutService: layoutService,
@@ -45,11 +45,11 @@ struct GrandStaffNotationView: View {
             let presentation = presentationViewModel.makePresentation(
                 size: proxy.size,
                 lineSpacing: fixedLineSpacing,
-                guides: guides,
-                currentGuide: currentGuide,
+                projection: projection,
                 measureSpans: measureSpans,
                 context: context,
                 practiceHandMode: practiceHandMode,
+                tickRange: tickRange,
                 scrollTick: scrollTickProvider?()
             )
             let viewportLayout = presentation.viewportLayout
@@ -78,10 +78,16 @@ struct GrandStaffNotationView: View {
                 }
                 .scrollIndicators(.hidden)
                 .onAppear {
-                    centerIfNeeded(firstGuideID: guides.first?.id, scrollProxy: scrollProxy)
+                    centerIfNeeded(
+                        firstOccurrenceID: firstVisibleOccurrenceID,
+                        scrollProxy: scrollProxy
+                    )
                 }
-                .onChange(of: guides.first?.id) {
-                    centerIfNeeded(firstGuideID: guides.first?.id, scrollProxy: scrollProxy)
+                .onChange(of: firstVisibleOccurrenceID) {
+                    centerIfNeeded(
+                        firstOccurrenceID: firstVisibleOccurrenceID,
+                        scrollProxy: scrollProxy
+                    )
                 }
             }
         }
@@ -92,9 +98,15 @@ struct GrandStaffNotationView: View {
         static let value = "grandstaff-default-anchor"
     }
 
-    private func centerIfNeeded(firstGuideID: Int?, scrollProxy: ScrollViewProxy) {
-        guard centeredForFirstGuideID != firstGuideID else { return }
-        centeredForFirstGuideID = firstGuideID
+    private var firstVisibleOccurrenceID: String? {
+        projection.performedOccurrences.first {
+            tickRange?.contains($0.writtenOnTick) ?? true
+        }?.id.description
+    }
+
+    private func centerIfNeeded(firstOccurrenceID: String?, scrollProxy: ScrollViewProxy) {
+        guard centeredForFirstOccurrenceID != firstOccurrenceID else { return }
+        centeredForFirstOccurrenceID = firstOccurrenceID
         Task { @MainActor in
             await Task.yield()
             scrollProxy.scrollTo(DefaultScrollAnchorID.value, anchor: .center)
@@ -104,8 +116,7 @@ struct GrandStaffNotationView: View {
 
 #Preview("Grand Staff") {
     GrandStaffNotationView(
-        guides: [],
-        currentGuide: nil,
+        projection: .empty,
         measureSpans: [],
         context: GrandStaffNotationContext()
     )

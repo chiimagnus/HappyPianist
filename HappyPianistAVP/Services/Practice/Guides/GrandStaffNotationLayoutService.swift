@@ -10,7 +10,6 @@ struct GrandStaffNotationLayoutService {
     private let visibleOverscan: Double = 0.18
     private let trebleBottomLineMIDINote = 64
     private let bassBottomLineMIDINote = 43
-    private let blackKeyPitchClasses: Set<Int> = [1, 3, 6, 8, 10]
     private let diatonicIndexByPitchClass: [Int: Int] = [
         0: 0,
         1: 0,
@@ -30,6 +29,7 @@ struct GrandStaffNotationLayoutService {
         projection: ScoreNotationProjection,
         measureSpans: [MusicXMLMeasureSpan] = [],
         context: GrandStaffNotationContext? = nil,
+        tickRange: Range<Int>? = nil,
         halfWindowTicks: Int = 1920,
         scrollTick: Double? = nil
     ) -> GrandStaffNotationLayout {
@@ -37,6 +37,7 @@ struct GrandStaffNotationLayoutService {
             .compactMapValues { notes in notes.count == 1 ? notes[0] : nil }
         let activeEventIDs = projection.activeState.occurrenceIDs
         let layoutNotes = projection.performedOccurrences.enumerated().compactMap { index, occurrence -> LayoutNote? in
+            guard tickRange?.contains(occurrence.writtenOnTick) ?? true else { return nil }
             guard let source = sourceNotesByID[occurrence.sourceNoteID],
                   source.isRest == false
             else {
@@ -63,49 +64,6 @@ struct GrandStaffNotationLayoutService {
                 arpeggiate: source.arpeggiate,
                 dotCount: source.dotCount
             )
-        }
-
-        return makeLayout(
-            notes: layoutNotes,
-            measureSpans: measureSpans,
-            context: context,
-            halfWindowTicks: halfWindowTicks,
-            scrollTick: scrollTick
-        )
-    }
-
-    func makeLayout(
-        guides: [PianoHighlightGuide],
-        currentGuide: PianoHighlightGuide?,
-        measureSpans: [MusicXMLMeasureSpan] = [],
-        context: GrandStaffNotationContext? = nil,
-        halfWindowTicks: Int = 1920,
-        scrollTick: Double? = nil
-    ) -> GrandStaffNotationLayout {
-        let currentGuideID = currentGuide?.id
-        let layoutNotes = guides.flatMap { guide in
-            guide.triggeredNotes.map { note in
-                LayoutNote(
-                    occurrenceID: note.occurrenceID,
-                    staffNumber: resolvedStaffNumber(note.staff),
-                    voice: note.voice ?? 1,
-                    hand: note.hand,
-                    midiNote: note.midiNote,
-                    guideID: guide.id,
-                    tick: guide.tick,
-                    isHighlighted: guide.id == currentGuideID,
-                    fingeringText: note.fingeringText,
-                    noteValue: noteValue(forDurationTicks: max(1, note.offTick - note.onTick)),
-                    durationTicks: max(1, note.offTick - note.onTick),
-                    showsSharpAccidental: showsSharpAccidental(for: note.midiNote),
-                    isGrace: note.isGrace,
-                    tieStart: note.tieStart,
-                    tieStop: note.tieStop,
-                    articulations: note.articulations,
-                    arpeggiate: note.arpeggiate,
-                    dotCount: note.dotCount
-                )
-            }
         }
 
         return makeLayout(
@@ -208,10 +166,6 @@ struct GrandStaffNotationLayoutService {
     func staffStep(for midiNote: Int, staffNumber: Int) -> Int {
         let bottomLineMIDINote = (staffNumber >= 2) ? bassBottomLineMIDINote : trebleBottomLineMIDINote
         return diatonicIndex(for: midiNote) - diatonicIndex(for: bottomLineMIDINote)
-    }
-
-    func showsSharpAccidental(for midiNote: Int) -> Bool {
-        blackKeyPitchClasses.contains(normalizedPitchClass(for: midiNote))
     }
 
     func ledgerStaffSteps(for staffStep: Int) -> [Int] {

@@ -97,6 +97,7 @@ private func installHistoricalApplicationScore(
         steps,
         identity: identity,
         performancePlan: makeTestScorePerformancePlan(identity: identity, steps: steps),
+        notationProjection: .empty,
         measureSpans: spans
     )
 }

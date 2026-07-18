@@ -24,11 +24,11 @@ struct PracticeStepView: View {
 
         VStack(spacing: 30) {
             GrandStaffNotationView(
-                guides: session.activeHighlightGuides,
-                currentGuide: currentGuide,
+                projection: session.activeNotationProjection ?? .empty,
                 measureSpans: session.notationMeasureSpans,
                 context: session.currentGrandStaffNotationContext,
                 practiceHandMode: practiceHandMode,
+                tickRange: session.activeRange?.tickRange,
                 scrollTickProvider: session.autoplayState == .playing ? {
                     session.smoothNotationScrollTick()
                 } : nil

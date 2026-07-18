@@ -3,45 +3,12 @@ import Testing
 
 @Test
 func layoutAssignsItemsToTrebleAndBassStaves() {
-    let guides = [
-        PianoHighlightGuide(
-            id: 1,
-            kind: .trigger,
-            tick: 0,
-            durationTicks: 480,
-            practiceStepIndex: 0,
-            activeNotes: [],
-            triggeredNotes: [
-                PianoHighlightNote(
-                    occurrenceID: "n1",
-                    midiNote: 60,
-                    staff: 1,
-                    voice: 1,
-                    velocity: 96,
-                    onTick: 0,
-                    offTick: 480,
-                    fingeringText: nil,
-                    handAssignment: .unknown
-                ),
-                PianoHighlightNote(
-                    occurrenceID: "n2",
-                    midiNote: 48,
-                    staff: 2,
-                    voice: 1,
-                    velocity: 96,
-                    onTick: 0,
-                    offTick: 480,
-                    fingeringText: nil,
-                    handAssignment: .unknown
-                ),
-            ],
-            releasedMIDINotes: []
-        ),
-    ]
-
+    let score = notationProjectionScore()
     let layout = GrandStaffNotationLayoutService().makeLayout(
-        guides: guides,
-        currentGuide: guides[0]
+        projection: ScoreNotationProjection(
+            plan: makeTestScorePerformancePlan(from: score),
+            sourceScore: score
+        )
     )
 
     #expect(layout.items.count == 2)
@@ -56,19 +23,7 @@ func layoutEmitsBarlinesForMeasureSpansStartAndEndTicks() {
     ]
 
     let layout = GrandStaffNotationLayoutService().makeLayout(
-        guides: [
-            PianoHighlightGuide(
-                id: 1,
-                kind: .trigger,
-                tick: 0,
-                durationTicks: 480,
-                practiceStepIndex: 0,
-                activeNotes: [],
-                triggeredNotes: [],
-                releasedMIDINotes: []
-            ),
-        ],
-        currentGuide: nil,
+        projection: .empty,
         measureSpans: measureSpans
     )
 
@@ -198,7 +153,7 @@ private func notationProjectionScore() -> MusicXMLScore {
                 partID: "P1",
                 sourceMeasureIndex: 0,
                 sourceMeasureNumberToken: "1",
-                staff: 1,
+                staff: 2,
                 voice: 1,
                 sourceOrdinal: 0
             ),
@@ -235,7 +190,7 @@ private func notationProjectionScore() -> MusicXMLScore {
             isChord: false,
             tieStart: false,
             tieStop: false,
-            staff: 1,
+            staff: 2,
             voice: 1
         ),
     ])

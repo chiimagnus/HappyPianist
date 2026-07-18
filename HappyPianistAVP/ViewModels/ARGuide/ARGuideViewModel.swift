@@ -226,6 +226,7 @@ final class ARGuideViewModel: PracticeLaunchApplying {
             prepared.steps,
             identity: prepared.identity,
             performancePlan: prepared.performancePlan,
+            notationProjection: prepared.notationProjection,
             attributeTimeline: prepared.attributeTimeline,
             highlightGuides: prepared.highlightGuides,
             measureSpans: prepared.measureSpans

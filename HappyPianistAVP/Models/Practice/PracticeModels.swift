@@ -124,6 +124,7 @@ struct PreparedPracticeScoreContext: Equatable {
 struct PreparedPractice {
     let identity: PracticeSongIdentity
     let performancePlan: ScorePerformancePlan
+    let notationProjection: ScoreNotationProjection
     let steps: [PracticeStep]
     let file: ImportedMusicXMLFile
     let attributeTimeline: MusicXMLAttributeTimeline?

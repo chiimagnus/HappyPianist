@@ -31,12 +31,17 @@ func makeTestPreparedPractice(
     scoreContext: PreparedPracticeScoreContext = makeTestPreparedPracticeScoreContext(),
     performancePlan: ScorePerformancePlan? = nil
 ) -> PreparedPractice {
-    PreparedPractice(
+    let resolvedPlan = performancePlan ?? makeTestScorePerformancePlan(
         identity: identity,
-        performancePlan: performancePlan ?? makeTestScorePerformancePlan(
-            identity: identity,
-            steps: steps,
-            scoreContext: scoreContext
+        steps: steps,
+        scoreContext: scoreContext
+    )
+    return PreparedPractice(
+        identity: identity,
+        performancePlan: resolvedPlan,
+        notationProjection: ScoreNotationProjection(
+            plan: resolvedPlan,
+            sourceScore: scoreContext.sourceScore
         ),
         steps: steps,
         file: file,

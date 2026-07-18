@@ -15,22 +15,25 @@ struct GrandStaffNotationPresentationViewModel {
     func makePresentation(
         size: CGSize,
         lineSpacing: CGFloat,
-        guides: [PianoHighlightGuide],
-        currentGuide: PianoHighlightGuide?,
+        projection: ScoreNotationProjection,
         measureSpans: [MusicXMLMeasureSpan],
         context: GrandStaffNotationContext?,
         practiceHandMode: PracticeHandMode,
+        tickRange: Range<Int>?,
         scrollTick: Double?
     ) -> GrandStaffNotationPresentation {
         let contentWidth = resolvedContentWidth(for: size, lineSpacing: lineSpacing)
         let halfWindowTicks = resolvedHalfWindowTicks(contentWidth: contentWidth, lineSpacing: lineSpacing)
-        let staffStepBounds = resolvedStaffStepBounds(guides: guides)
+        let staffStepBounds = resolvedStaffStepBounds(
+            projection: projection,
+            tickRange: tickRange
+        )
 
         let notationLayout = layoutService.makeLayout(
-            guides: guides,
-            currentGuide: currentGuide,
+            projection: projection,
             measureSpans: measureSpans,
             context: context,
+            tickRange: tickRange,
             halfWindowTicks: halfWindowTicks,
             scrollTick: scrollTick
         )
@@ -86,26 +89,34 @@ struct GrandStaffNotationPresentationViewModel {
     }
 
     private func resolvedStaffStepBounds(
-        guides: [PianoHighlightGuide]
+        projection: ScoreNotationProjection,
+        tickRange: Range<Int>?
     ) -> GrandStaffNotationViewportLayoutService.StaffStepBounds {
-        guard guides.isEmpty == false else { return .default }
+        let sourceNotesByID = Dictionary(grouping: projection.sourceNotes, by: \.id)
+            .compactMapValues { notes in notes.count == 1 ? notes[0] : nil }
+        let occurrences = projection.performedOccurrences.filter {
+            tickRange?.contains($0.writtenOnTick) ?? true
+        }
+        guard occurrences.isEmpty == false else { return .default }
 
         var minTrebleStep = 0
         var maxTrebleStep = 8
         var minBassStep = 0
         var maxBassStep = 8
 
-        for guide in guides {
-            for note in guide.activeNotes + guide.triggeredNotes {
-                let staffNumber = resolvedStaffNumber(note.staff)
-                let step = layoutService.staffStep(for: note.midiNote, staffNumber: staffNumber)
-                if staffNumber >= 2 {
-                    minBassStep = min(minBassStep, step)
-                    maxBassStep = max(maxBassStep, step)
-                } else {
-                    minTrebleStep = min(minTrebleStep, step)
-                    maxTrebleStep = max(maxTrebleStep, step)
-                }
+        for occurrence in occurrences {
+            guard let source = sourceNotesByID[occurrence.sourceNoteID] else { continue }
+            let staffNumber = source.staff >= 2 ? 2 : 1
+            let step = layoutService.staffStep(
+                for: source.midiNote ?? occurrence.midiNote,
+                staffNumber: staffNumber
+            )
+            if staffNumber >= 2 {
+                minBassStep = min(minBassStep, step)
+                maxBassStep = max(maxBassStep, step)
+            } else {
+                minTrebleStep = min(minTrebleStep, step)
+                maxTrebleStep = max(maxTrebleStep, step)
             }
         }
 
@@ -117,8 +128,4 @@ struct GrandStaffNotationPresentationViewModel {
         )
     }
 
-    private func resolvedStaffNumber(_ staff: Int?) -> Int {
-        guard let staff else { return 1 }
-        return (staff >= 2) ? 2 : 1
-    }
 }

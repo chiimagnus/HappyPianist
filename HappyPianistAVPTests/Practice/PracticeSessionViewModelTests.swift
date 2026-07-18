@@ -1410,6 +1410,7 @@ func changingSongWithEqualStepsReplacesCompletedPassage() {
         steps,
         identity: identityA,
         performancePlan: makeTestScorePerformancePlan(identity: identityA, steps: steps),
+        notationProjection: .empty,
         measureSpans: [spanA]
     )
     viewModel.state = .completed
@@ -1419,6 +1420,7 @@ func changingSongWithEqualStepsReplacesCompletedPassage() {
         steps,
         identity: identityB,
         performancePlan: makeTestScorePerformancePlan(identity: identityB, steps: steps),
+        notationProjection: .empty,
         measureSpans: [spanB]
     )
 
@@ -1815,6 +1817,7 @@ func reinstallingSamePreparedScoreDiscardsUnappliedDraftConfiguration() throws {
         steps,
         identity: identity,
         performancePlan: makeTestScorePerformancePlan(identity: identity, steps: steps),
+        notationProjection: .empty,
         measureSpans: spans
     )
     session.roundConfigurationController.pendingHandMode = .left
@@ -1825,6 +1828,7 @@ func reinstallingSamePreparedScoreDiscardsUnappliedDraftConfiguration() throws {
         steps,
         identity: identity,
         performancePlan: makeTestScorePerformancePlan(identity: identity, steps: steps),
+        notationProjection: .empty,
         measureSpans: spans
     )
 

@@ -40,6 +40,12 @@ struct ScoreNotationProjection: Equatable, Sendable {
     let performedOccurrences: [PerformedOccurrence]
     let activeState: ActiveState
 
+    static let empty = ScoreNotationProjection(
+        sourceNotes: [],
+        performedOccurrences: [],
+        activeState: .empty
+    )
+
     init(
         plan: ScorePerformancePlan,
         sourceScore: MusicXMLScore,
@@ -112,6 +118,24 @@ struct ScoreNotationProjection: Equatable, Sendable {
             if lhs.writtenOnTick != rhs.writtenOnTick { return lhs.writtenOnTick < rhs.writtenOnTick }
             return lhs.id.description < rhs.id.description
         }
+        self.activeState = activeState
+    }
+
+    func activating(_ occurrenceIDs: Set<ScorePerformanceNoteEventID>) -> ScoreNotationProjection {
+        ScoreNotationProjection(
+            sourceNotes: sourceNotes,
+            performedOccurrences: performedOccurrences,
+            activeState: ActiveState(occurrenceIDs: occurrenceIDs)
+        )
+    }
+
+    private init(
+        sourceNotes: [SourceNote],
+        performedOccurrences: [PerformedOccurrence],
+        activeState: ActiveState
+    ) {
+        self.sourceNotes = sourceNotes
+        self.performedOccurrences = performedOccurrences
         self.activeState = activeState
     }
 }

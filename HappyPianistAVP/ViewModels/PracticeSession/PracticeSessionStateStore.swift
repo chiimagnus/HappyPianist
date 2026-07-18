@@ -48,8 +48,15 @@ final class PracticeSessionStateStore {
     var performancePlan: ScorePerformancePlan? {
         didSet {
             tempoMap = MusicXMLTempoMap(performanceEvents: performancePlan?.tempoEvents ?? [])
+            performanceEventIDByDescription = Dictionary(
+                uniqueKeysWithValues: (performancePlan?.noteEvents ?? []).map {
+                    ($0.id.description, $0.id)
+                }
+            )
         }
     }
+    private(set) var performanceEventIDByDescription: [String: ScorePerformanceNoteEventID] = [:]
+    var notationProjection: ScoreNotationProjection?
     var steps: [PracticeStep] = []
 
     var currentStepIndex: Int = 0 {
