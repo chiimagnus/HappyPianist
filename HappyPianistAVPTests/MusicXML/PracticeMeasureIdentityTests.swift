@@ -31,6 +31,7 @@ func parsedNotesReceiveStableSourceIdentityIndependentOfPerformanceFields() thro
 
     #expect(scoreA.notes.map(\.sourceID) == scoreB.notes.map(\.sourceID))
     #expect(scoreA.notes.allSatisfy { $0.sourceID != nil })
+    #expect(scoreA.notes.allSatisfy { $0.performedOccurrenceIndex == 0 })
     #expect(Set(scoreA.notes.compactMap(\.sourceID)).count == scoreA.notes.count)
 }
 
@@ -41,4 +42,9 @@ func expandedNotesKeepTheirSourceIdentityAcrossPerformedOccurrences() throws {
     let repeatedSourceIDs = Dictionary(grouping: expanded.notes.compactMap(\.sourceID), by: { $0 })
 
     #expect(repeatedSourceIDs.values.contains { $0.count > 1 })
+    #expect(expanded.notes.map(\.performedOccurrenceIndex) == [0, 1, 2, 3])
+    #expect(Set(expanded.notes.compactMap(\.performedID)).count == expanded.notes.count)
+    #expect(expanded.notes.allSatisfy { note in
+        note.performedID?.sourceID == note.sourceID
+    })
 }

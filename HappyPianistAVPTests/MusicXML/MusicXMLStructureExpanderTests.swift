@@ -60,6 +60,13 @@ func structureExpanderExpandsRepeatWithEndingsAndTempoEvents() throws {
 
     let pedalTicks = expanded.pedalEvents.map(\.tick)
     #expect(pedalTicks == [0, 960])
+
+    #expect(expanded.notes.map(\.performedOccurrenceIndex) == [0, 1, 2, 3])
+    #expect(Set(expanded.notes.compactMap(\.performedID)).count == expanded.notes.count)
+    #expect(expanded.tempoEvents.map(\.performedOccurrenceIndex) == [0, 1, 2])
+    #expect(Set(expanded.tempoEvents.compactMap(\.performedID)).count == expanded.tempoEvents.count)
+    #expect(expanded.pedalEvents.map(\.performedOccurrenceIndex) == [0, 2])
+    #expect(Set(expanded.pedalEvents.compactMap(\.performedID)).count == expanded.pedalEvents.count)
 }
 
 @Test

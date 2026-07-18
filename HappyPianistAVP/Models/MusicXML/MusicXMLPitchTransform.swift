@@ -18,6 +18,10 @@ enum MusicXMLOctaveShiftKind: String, Equatable, Sendable {
 
 struct MusicXMLOctaveShiftEvent: Equatable, Sendable {
     var sourceID: MusicXMLDirectionSourceID? = nil
+    var performedOccurrenceIndex: Int = 0
+    var performedID: MusicXMLPerformedDirectionID? {
+        sourceID.map { MusicXMLPerformedDirectionID(sourceID: $0, occurrenceIndex: performedOccurrenceIndex) }
+    }
     let tick: Int
     let kind: MusicXMLOctaveShiftKind
     let size: Int

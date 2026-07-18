@@ -27,3 +27,21 @@ struct MusicXMLOrderSelection: Codable, Equatable, Sendable {
         return "requested=\(requested.rawValue),applied=\(applied.rawValue)"
     }
 }
+
+struct MusicXMLPerformedNoteID: Codable, Equatable, Hashable, Sendable, CustomStringConvertible {
+    let sourceID: MusicXMLSourceNoteID
+    let occurrenceIndex: Int
+
+    var description: String {
+        "\(sourceID.description)@\(occurrenceIndex)"
+    }
+}
+
+struct MusicXMLPerformedDirectionID: Codable, Equatable, Hashable, Sendable, CustomStringConvertible {
+    let sourceID: MusicXMLDirectionSourceID
+    let occurrenceIndex: Int
+
+    var description: String {
+        "\(sourceID.description)@\(occurrenceIndex)"
+    }
+}

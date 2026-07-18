@@ -35,6 +35,10 @@ enum MusicXMLDynamicEventSource: Equatable {
 
 struct MusicXMLDynamicEvent: Equatable {
     var sourceID: MusicXMLDirectionSourceID? = nil
+    var performedOccurrenceIndex: Int = 0
+    var performedID: MusicXMLPerformedDirectionID? {
+        sourceID.map { MusicXMLPerformedDirectionID(sourceID: $0, occurrenceIndex: performedOccurrenceIndex) }
+    }
     let tick: Int
     let velocity: UInt8
     let scope: MusicXMLEventScope
@@ -49,6 +53,10 @@ enum MusicXMLWedgeKind: Equatable {
 
 struct MusicXMLWedgeEvent: Equatable {
     var sourceID: MusicXMLDirectionSourceID? = nil
+    var performedOccurrenceIndex: Int = 0
+    var performedID: MusicXMLPerformedDirectionID? {
+        sourceID.map { MusicXMLPerformedDirectionID(sourceID: $0, occurrenceIndex: performedOccurrenceIndex) }
+    }
     let tick: Int
     let kind: MusicXMLWedgeKind
     let numberToken: String?
@@ -62,6 +70,10 @@ enum MusicXMLFermataEventSource: Equatable {
 
 struct MusicXMLFermataEvent: Equatable {
     var sourceID: MusicXMLDirectionSourceID? = nil
+    var performedOccurrenceIndex: Int = 0
+    var performedID: MusicXMLPerformedDirectionID? {
+        sourceID.map { MusicXMLPerformedDirectionID(sourceID: $0, occurrenceIndex: performedOccurrenceIndex) }
+    }
     let tick: Int
     let scope: MusicXMLEventScope
     let source: MusicXMLFermataEventSource
@@ -128,6 +140,10 @@ struct MusicXMLClefEvent: Equatable, Identifiable {
 
 struct MusicXMLWordsEvent: Equatable {
     var sourceID: MusicXMLDirectionSourceID? = nil
+    var performedOccurrenceIndex: Int = 0
+    var performedID: MusicXMLPerformedDirectionID? {
+        sourceID.map { MusicXMLPerformedDirectionID(sourceID: $0, occurrenceIndex: performedOccurrenceIndex) }
+    }
     let tick: Int
     let text: String
     let scope: MusicXMLEventScope
@@ -144,6 +160,10 @@ enum MusicXMLArticulation: String, CaseIterable, Equatable, Hashable {
 
 struct MusicXMLTempoEvent: Equatable {
     var sourceID: MusicXMLDirectionSourceID? = nil
+    var performedOccurrenceIndex: Int = 0
+    var performedID: MusicXMLPerformedDirectionID? {
+        sourceID.map { MusicXMLPerformedDirectionID(sourceID: $0, occurrenceIndex: performedOccurrenceIndex) }
+    }
     let tick: Int
     let quarterBPM: Double
     let scope: MusicXMLEventScope
@@ -151,6 +171,10 @@ struct MusicXMLTempoEvent: Equatable {
 
 struct MusicXMLSoundDirective: Equatable {
     var sourceID: MusicXMLDirectionSourceID? = nil
+    var performedOccurrenceIndex: Int = 0
+    var performedID: MusicXMLPerformedDirectionID? {
+        sourceID.map { MusicXMLPerformedDirectionID(sourceID: $0, occurrenceIndex: performedOccurrenceIndex) }
+    }
     let partID: String
     let measureNumber: Int
     let tick: Int
@@ -171,6 +195,10 @@ enum MusicXMLPedalEventKind: String, Equatable {
 
 struct MusicXMLPedalEvent: Equatable {
     var sourceID: MusicXMLDirectionSourceID? = nil
+    var performedOccurrenceIndex: Int = 0
+    var performedID: MusicXMLPerformedDirectionID? {
+        sourceID.map { MusicXMLPerformedDirectionID(sourceID: $0, occurrenceIndex: performedOccurrenceIndex) }
+    }
     let partID: String
     let measureNumber: Int
     let tick: Int
@@ -233,9 +261,13 @@ struct MusicXMLEndingDirective: Equatable {
 }
 
 struct MusicXMLNoteEvent: Equatable, Identifiable {
-    var id: MusicXMLSourceNoteID? { sourceID }
+    var id: MusicXMLPerformedNoteID? { performedID }
+    var performedID: MusicXMLPerformedNoteID? {
+        sourceID.map { MusicXMLPerformedNoteID(sourceID: $0, occurrenceIndex: performedOccurrenceIndex) }
+    }
 
     let sourceID: MusicXMLSourceNoteID?
+    let performedOccurrenceIndex: Int
     let partID: String
     let measureNumber: Int
     let tick: Int
@@ -262,6 +294,7 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
 
     init(
         sourceID: MusicXMLSourceNoteID? = nil,
+        performedOccurrenceIndex: Int = 0,
         partID: String,
         measureNumber: Int,
         tick: Int,
@@ -287,6 +320,7 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         dotCount: Int = 0
     ) {
         self.sourceID = sourceID
+        self.performedOccurrenceIndex = max(0, performedOccurrenceIndex)
         self.partID = partID
         self.measureNumber = measureNumber
         self.tick = tick
