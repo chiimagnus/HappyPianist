@@ -14,7 +14,13 @@ struct MusicXMLNoteSpanBuilder {
         expressivity: MusicXMLExpressivityOptions = MusicXMLExpressivityOptions(),
         fermataTimeline: MusicXMLFermataTimeline? = nil
     ) -> [MusicXMLNoteSpan] {
-        let orderedNotes = notes.sorted { lhs, rhs in
+        let timingSchedule = ScoreTimingScheduleBuilder().build(
+            notes: notes,
+            performanceTimingEnabled: performanceTimingEnabled
+        )
+        let orderedNoteIndices = notes.indices.sorted { lhsIndex, rhsIndex in
+            let lhs = notes[lhsIndex]
+            let rhs = notes[rhsIndex]
             if lhs.tick != rhs.tick { return lhs.tick < rhs.tick }
             return (lhs.midiNote ?? -1) < (rhs.midiNote ?? -1)
         }
@@ -23,11 +29,13 @@ struct MusicXMLNoteSpanBuilder {
         let arpeggiatePlan = expressivity.arpeggiateEnabled ? ArpeggiatePlan(notes: notes) : nil
 
         var output: [MusicXMLNoteSpan] = []
-        output.reserveCapacity(orderedNotes.count)
+        output.reserveCapacity(orderedNoteIndices.count)
 
         var activeSpanIndexByKey: [Key: Int] = [:]
 
-        for note in orderedNotes {
+        for noteIndex in orderedNoteIndices {
+            let note = notes[noteIndex]
+            let timing = timingSchedule[noteIndex]
             guard note.isRest == false else { continue }
             if note.isGrace, expressivity.graceEnabled == false { continue }
             guard let midiNote = note.midiNote else { continue }
@@ -59,7 +67,7 @@ struct MusicXMLNoteSpanBuilder {
 
                 let arpeggiateOffset = note.isGrace ? 0 : (arpeggiatePlan?.offsetTicksByNoteID[note.id] ?? 0)
                 let baseTick = note.tick + max(0, arpeggiateOffset)
-                let onTick = baseTick + (performanceTimingEnabled ? (note.attackTicks ?? 0) : 0)
+                let onTick = baseTick + timing.onsetOffsetTicks
                 let offTick = max(onTick, baseTick + max(0, note.durationTicks))
                 let span = MusicXMLNoteSpan(
                     midiNote: midiNote,
@@ -83,7 +91,7 @@ struct MusicXMLNoteSpanBuilder {
                 } else {
                     let arpeggiateOffset = note.isGrace ? 0 : (arpeggiatePlan?.offsetTicksByNoteID[note.id] ?? 0)
                     let baseTick = note.tick + max(0, arpeggiateOffset)
-                    let onTick = baseTick + (performanceTimingEnabled ? (note.attackTicks ?? 0) : 0)
+                    let onTick = baseTick + timing.onsetOffsetTicks
                     let offTick = max(onTick, baseTick + max(0, note.durationTicks))
                     let span = MusicXMLNoteSpan(
                         midiNote: midiNote,
@@ -96,7 +104,7 @@ struct MusicXMLNoteSpanBuilder {
                     activeSpanIndexByKey[key] = output.count - 1
                 }
             case .end:
-                let releaseTicks = performanceTimingEnabled ? (note.releaseTicks ?? 0) : 0
+                let releaseTicks = timing.releaseOffsetTicks
                 if let existingIndex = activeSpanIndexByKey[key] {
                     let existing = output[existingIndex]
                     output[existingIndex] = MusicXMLNoteSpan(
@@ -113,7 +121,7 @@ struct MusicXMLNoteSpanBuilder {
                 } else {
                     let arpeggiateOffset = note.isGrace ? 0 : (arpeggiatePlan?.offsetTicksByNoteID[note.id] ?? 0)
                     let baseTick = note.tick + max(0, arpeggiateOffset)
-                    let onTick = baseTick + (performanceTimingEnabled ? (note.attackTicks ?? 0) : 0)
+                    let onTick = baseTick + timing.onsetOffsetTicks
                     output.append(
                         MusicXMLNoteSpan(
                             midiNote: midiNote,
@@ -128,8 +136,7 @@ struct MusicXMLNoteSpanBuilder {
                     )
                 }
             case .normal:
-                let attackTicks = performanceTimingEnabled ? (note.attackTicks ?? 0) : 0
-                let releaseTicks = performanceTimingEnabled ? (note.releaseTicks ?? 0) : 0
+                let releaseTicks = timing.releaseOffsetTicks
                 let plannedGrace = note.isGrace ? gracePlan?.scheduleByNoteID[note.id] : nil
                 let arpeggiateOffset = note.isGrace ? 0 : (arpeggiatePlan?.offsetTicksByNoteID[note.id] ?? 0)
                 let baseTick = (plannedGrace?.onTick ?? note.tick) + max(0, arpeggiateOffset)
@@ -146,7 +153,7 @@ struct MusicXMLNoteSpanBuilder {
                     note.durationTicks
                 }
 
-                let onTick = baseTick + attackTicks
+                let onTick = baseTick + timing.onsetOffsetTicks
                 let effectiveDurationTicks = articulatedDurationTicks(for: note, rawDurationTicks: rawDurationTicks)
                 let offTick = max(
                     onTick,

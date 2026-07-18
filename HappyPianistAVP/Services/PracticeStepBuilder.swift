@@ -47,6 +47,7 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
         )]] =
             [:]
         var unsupportedNoteCount = 0
+        let timingSchedule = ScoreTimingScheduleBuilder().build(notes: score.notes)
         let velocityResolver = MusicXMLVelocityResolver(
             dynamicEvents: score.dynamicEvents,
             wedgeEvents: score.wedgeEvents,
@@ -67,7 +68,7 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
             }
 
             let velocity = velocityResolver.velocity(for: noteEvent)
-            let effectiveTick = graceOnTickByNoteIndex[index] ?? noteEvent.tick
+            let effectiveTick = graceOnTickByNoteIndex[index] ?? timingSchedule[index].performedOnTick
             let onTickOffset = max(0, arpeggiateOffsetByNoteIndex[index] ?? 0)
             let staff = noteEvent.staff ?? 1
             let voice = noteEvent.voice ?? 1
