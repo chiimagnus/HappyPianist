@@ -126,3 +126,31 @@ func musicXMLScoreSnapshotCapturesSourceFactsWithoutHeuristics() throws {
     #expect(snapshot.contains("kind=dynamic|sourceDirectionID=unresolved"))
     #expect(snapshot.contains("kind=measure|sourceMeasureID=P1-m1"))
 }
+
+@Test
+func parserAssignsStableDirectionIdentityAcrossEventKinds() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes>
+        <direction>
+          <direction-type><dynamics><mf/></dynamics><wedge type="crescendo" number="1"/></direction-type>
+          <sound tempo="90" damper-pedal="yes" segno="s1"/>
+        </direction>
+        <direction><direction-type><words>dolce</words></direction-type></direction>
+        <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+      </measure></part>
+    </score-partwise>
+    """
+
+    let scoreA = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let scoreB = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let sharedID = try #require(scoreA.dynamicEvents.first?.sourceID)
+
+    #expect(scoreA.dynamicEvents.map(\.sourceID) == scoreB.dynamicEvents.map(\.sourceID))
+    #expect(scoreA.wedgeEvents.first?.sourceID == sharedID)
+    #expect(scoreA.tempoEvents.first?.sourceID == sharedID)
+    #expect(scoreA.pedalEvents.first?.sourceID == sharedID)
+    #expect(scoreA.soundDirectives.first?.sourceID == sharedID)
+    #expect(scoreA.wordsEvents.first?.sourceID != sharedID)
+}

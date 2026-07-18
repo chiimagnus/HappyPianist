@@ -16,6 +16,7 @@ struct MusicXMLScoreSnapshot {
         lines.append(contentsOf: score.tempoEvents.enumerated().map { index, event in
             directionLine(
                 kind: "tempo",
+                sourceID: event.sourceID,
                 index: index,
                 tick: event.tick,
                 scope: event.scope,
@@ -25,6 +26,7 @@ struct MusicXMLScoreSnapshot {
         lines.append(contentsOf: score.dynamicEvents.enumerated().map { index, event in
             directionLine(
                 kind: "dynamic",
+                sourceID: event.sourceID,
                 index: index,
                 tick: event.tick,
                 scope: event.scope,
@@ -34,6 +36,7 @@ struct MusicXMLScoreSnapshot {
         lines.append(contentsOf: score.wedgeEvents.enumerated().map { index, event in
             directionLine(
                 kind: "wedge",
+                sourceID: event.sourceID,
                 index: index,
                 tick: event.tick,
                 scope: event.scope,
@@ -43,7 +46,7 @@ struct MusicXMLScoreSnapshot {
         lines.append(contentsOf: score.pedalEvents.enumerated().map { index, event in
             encoder.encode(fields: [
                 ("kind", "pedal"),
-                ("sourceDirectionID", "unresolved"),
+                ("sourceDirectionID", event.sourceID?.description ?? "unresolved"),
                 ("sourceIndex", String(index)),
                 ("part", event.partID),
                 ("measure", String(event.measureNumber)),
@@ -55,6 +58,7 @@ struct MusicXMLScoreSnapshot {
         lines.append(contentsOf: score.fermataEvents.enumerated().map { index, event in
             directionLine(
                 kind: "fermata",
+                sourceID: event.sourceID,
                 index: index,
                 tick: event.tick,
                 scope: event.scope,
@@ -64,6 +68,7 @@ struct MusicXMLScoreSnapshot {
         lines.append(contentsOf: score.wordsEvents.enumerated().map { index, event in
             directionLine(
                 kind: "words",
+                sourceID: event.sourceID,
                 index: index,
                 tick: event.tick,
                 scope: event.scope,
@@ -73,7 +78,7 @@ struct MusicXMLScoreSnapshot {
         lines.append(contentsOf: score.soundDirectives.enumerated().map { index, event in
             encoder.encode(fields: [
                 ("kind", "sound"),
-                ("sourceDirectionID", "unresolved"),
+                ("sourceDirectionID", event.sourceID?.description ?? "unresolved"),
                 ("sourceIndex", String(index)),
                 ("part", event.partID),
                 ("measure", String(event.measureNumber)),
@@ -143,6 +148,7 @@ struct MusicXMLScoreSnapshot {
 
     private func directionLine(
         kind: String,
+        sourceID: MusicXMLDirectionSourceID?,
         index: Int,
         tick: Int,
         scope: MusicXMLEventScope,
@@ -150,7 +156,7 @@ struct MusicXMLScoreSnapshot {
     ) -> String {
         encoder.encode(fields: [
             ("kind", kind),
-            ("sourceDirectionID", "unresolved"),
+            ("sourceDirectionID", sourceID?.description ?? "unresolved"),
             ("sourceIndex", String(index)),
             ("part", scope.partID),
             ("staff", encoder.encode(scope.staff)),

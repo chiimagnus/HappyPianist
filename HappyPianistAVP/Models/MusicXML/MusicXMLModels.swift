@@ -31,9 +31,8 @@ enum MusicXMLDynamicEventSource: Equatable {
 }
 
 struct MusicXMLDynamicEvent: Equatable, Identifiable {
-    var id: String {
-        "\(tick)-\(velocity)-\(scope.partID)-\(scope.staff ?? -1)-\(scope.voice ?? -1)-\(source)"
-    }
+    var sourceID: MusicXMLDirectionSourceID? = nil
+    var id: MusicXMLDirectionSourceID? { sourceID }
 
     let tick: Int
     let velocity: UInt8
@@ -48,9 +47,8 @@ enum MusicXMLWedgeKind: Equatable {
 }
 
 struct MusicXMLWedgeEvent: Equatable, Identifiable {
-    var id: String {
-        "\(tick)-\(kind)-\(numberToken ?? "")-\(scope.partID)-\(scope.staff ?? -1)-\(scope.voice ?? -1)"
-    }
+    var sourceID: MusicXMLDirectionSourceID? = nil
+    var id: MusicXMLDirectionSourceID? { sourceID }
 
     let tick: Int
     let kind: MusicXMLWedgeKind
@@ -64,9 +62,8 @@ enum MusicXMLFermataEventSource: Equatable {
 }
 
 struct MusicXMLFermataEvent: Equatable, Identifiable {
-    var id: String {
-        "\(tick)-\(scope.partID)-\(scope.staff ?? -1)-\(scope.voice ?? -1)-\(source)"
-    }
+    var sourceID: MusicXMLDirectionSourceID? = nil
+    var id: MusicXMLDirectionSourceID? { sourceID }
 
     let tick: Int
     let scope: MusicXMLEventScope
@@ -114,9 +111,8 @@ struct MusicXMLClefEvent: Equatable, Identifiable {
 }
 
 struct MusicXMLWordsEvent: Equatable, Identifiable {
-    var id: String {
-        "\(tick)-\(scope.partID)-\(scope.staff ?? -1)-\(scope.voice ?? -1)-\(text)"
-    }
+    var sourceID: MusicXMLDirectionSourceID? = nil
+    var id: MusicXMLDirectionSourceID? { sourceID }
 
     let tick: Int
     let text: String
@@ -133,9 +129,8 @@ enum MusicXMLArticulation: String, CaseIterable, Equatable, Hashable {
 }
 
 struct MusicXMLTempoEvent: Equatable, Identifiable {
-    var id: String {
-        "\(tick)-\(quarterBPM)-\(scope.partID)-\(scope.staff ?? -1)-\(scope.voice ?? -1)"
-    }
+    var sourceID: MusicXMLDirectionSourceID? = nil
+    var id: MusicXMLDirectionSourceID? { sourceID }
 
     let tick: Int
     let quarterBPM: Double
@@ -143,9 +138,8 @@ struct MusicXMLTempoEvent: Equatable, Identifiable {
 }
 
 struct MusicXMLSoundDirective: Equatable, Identifiable {
-    var id: String {
-        "\(partID)-\(measureNumber)-\(tick)-\(segno ?? "")-\(coda ?? "")-\(tocoda ?? "")-\(dalsegno ?? "")-\(dacapo ?? "")-\(timeOnlyPasses?.map(String.init).joined(separator: ",") ?? "")"
-    }
+    var sourceID: MusicXMLDirectionSourceID? = nil
+    var id: MusicXMLDirectionSourceID? { sourceID }
 
     let partID: String
     let measureNumber: Int
@@ -166,9 +160,8 @@ enum MusicXMLPedalEventKind: String, Equatable {
 }
 
 struct MusicXMLPedalEvent: Equatable, Identifiable {
-    var id: String {
-        "\(partID)-\(measureNumber)-\(tick)-\(kind.rawValue)-\(isDown.map { $0 ? "down" : "up" } ?? "keep")-\(timeOnlyPasses?.map(String.init).joined(separator: ",") ?? "")"
-    }
+    var sourceID: MusicXMLDirectionSourceID? = nil
+    var id: MusicXMLDirectionSourceID? { sourceID }
 
     let partID: String
     let measureNumber: Int

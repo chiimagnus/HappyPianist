@@ -33,6 +33,7 @@ struct MusicXMLParserDelegateState {
     }
 
     struct RawTempoEvent {
+        let sourceID: MusicXMLDirectionSourceID?
         let partID: String
         let tick: Int
         let quarterBPM: Double
@@ -45,6 +46,9 @@ struct MusicXMLParserDelegateState {
     var currentMeasureIndex = 0
     var currentMeasureNumberToken: String?
     var currentSourceNoteOrdinal = 0
+    var currentDirectionSourceOrdinal = 0
+    var currentDirectionSourceID: MusicXMLDirectionSourceID?
+    var currentSoundSourceID: MusicXMLDirectionSourceID?
 
     var partDivisions: [String: Int] = [:]
     var partTick: [String: Int] = [:]
