@@ -128,8 +128,6 @@ struct MusicXMLParserDelegateState {
     var currentDirectionFermataStartIndex = 0
     var currentDirectionWordsStartIndex = 0
 
-    var currentOffsetAppliesToSound = false
-
     var currentSoundBaseTick = 0
     var currentSoundMeasureStartTick = 0
     var currentSoundTempoStartIndex = 0

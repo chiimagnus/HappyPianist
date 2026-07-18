@@ -44,3 +44,15 @@ struct MusicXMLParserWedgeTests {
         #expect(second.scope.staff == 2)
     }
 }
+
+@Test
+func directionOffsetMovesWedge() throws {
+    let xml = """
+    <score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+    <part id="P1"><measure number="1"><attributes><divisions>2</divisions></attributes>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration></note>
+      <direction><direction-type><wedge type="crescendo"/></direction-type><offset>-1</offset></direction>
+    </measure></part></score-partwise>
+    """
+    #expect(try MusicXMLParser().parse(data: Data(xml.utf8)).wedgeEvents.first?.tick == 240)
+}

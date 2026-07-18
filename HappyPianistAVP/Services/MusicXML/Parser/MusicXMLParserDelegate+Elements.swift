@@ -110,9 +110,7 @@ extension MusicXMLParserDelegate {
         case "wedge":
             recordWedgeEvent(attributes: attributeDict)
         case "offset":
-            if state.isInDirection, state.isInSound == false {
-                state.currentOffsetAppliesToSound = attributeDict["sound"]?.lowercased() == "yes"
-            }
+            break
         case "barline":
             state.isInBarline = true
         case "repeat":
@@ -398,14 +396,13 @@ extension MusicXMLParserDelegate {
                 )
             )
         case "offset":
-            if let rawOffset = Int(text) {
+            if let rawOffset = Double(text), rawOffset.isFinite {
                 if state.isInSound {
                     applySoundOffset(rawOffset)
-                } else if state.isInDirection, state.currentOffsetAppliesToSound {
+                } else if state.isInDirection {
                     applyDirectionOffset(rawOffset)
                 }
             }
-            state.currentOffsetAppliesToSound = false
         case "technical" where state.isInNote:
             state.isInTechnical = false
         case "fingering" where state.isInNote && state.isInTechnical:

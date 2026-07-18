@@ -275,9 +275,9 @@ extension MusicXMLParserDelegate {
         }
     }
 
-    func applyDirectionOffset(_ rawOffset: Int) {
+    func applyDirectionOffset(_ rawOffset: Double) {
         let newOffset = state.directionOffsetResolver.offsetTicks(
-            rawDivisions: Double(rawOffset),
+            rawDivisions: rawOffset,
             divisions: state.partDivisions[state.currentPartID]
         ) ?? 0
         let delta = newOffset - state.currentDirectionOffsetTicks
@@ -380,12 +380,78 @@ extension MusicXMLParserDelegate {
             }
         }
 
+        if state.currentDirectionDynamicStartIndex < state.dynamicEvents.count {
+            for index in state.currentDirectionDynamicStartIndex ..< state.dynamicEvents.count {
+                let event = state.dynamicEvents[index]
+                state.dynamicEvents[index] = MusicXMLDynamicEvent(
+                    sourceID: event.sourceID,
+                    tick: state.directionOffsetResolver.absoluteTick(
+                        directionStartTick: event.tick,
+                        measureStartTick: state.currentDirectionMeasureStartTick,
+                        offsetTicks: delta
+                    ),
+                    velocity: event.velocity,
+                    scope: event.scope,
+                    source: event.source
+                )
+            }
+        }
+
+        if state.currentDirectionWedgeStartIndex < state.wedgeEvents.count {
+            for index in state.currentDirectionWedgeStartIndex ..< state.wedgeEvents.count {
+                let event = state.wedgeEvents[index]
+                state.wedgeEvents[index] = MusicXMLWedgeEvent(
+                    sourceID: event.sourceID,
+                    tick: state.directionOffsetResolver.absoluteTick(
+                        directionStartTick: event.tick,
+                        measureStartTick: state.currentDirectionMeasureStartTick,
+                        offsetTicks: delta
+                    ),
+                    kind: event.kind,
+                    numberToken: event.numberToken,
+                    scope: event.scope
+                )
+            }
+        }
+
+        if state.currentDirectionFermataStartIndex < state.fermataEvents.count {
+            for index in state.currentDirectionFermataStartIndex ..< state.fermataEvents.count {
+                let event = state.fermataEvents[index]
+                state.fermataEvents[index] = MusicXMLFermataEvent(
+                    sourceID: event.sourceID,
+                    tick: state.directionOffsetResolver.absoluteTick(
+                        directionStartTick: event.tick,
+                        measureStartTick: state.currentDirectionMeasureStartTick,
+                        offsetTicks: delta
+                    ),
+                    scope: event.scope,
+                    source: event.source
+                )
+            }
+        }
+
+        if state.currentDirectionWordsStartIndex < state.wordsEvents.count {
+            for index in state.currentDirectionWordsStartIndex ..< state.wordsEvents.count {
+                let event = state.wordsEvents[index]
+                state.wordsEvents[index] = MusicXMLWordsEvent(
+                    sourceID: event.sourceID,
+                    tick: state.directionOffsetResolver.absoluteTick(
+                        directionStartTick: event.tick,
+                        measureStartTick: state.currentDirectionMeasureStartTick,
+                        offsetTicks: delta
+                    ),
+                    text: event.text,
+                    scope: event.scope
+                )
+            }
+        }
+
         state.currentDirectionOffsetTicks = newOffset
     }
 
-    func applySoundOffset(_ rawOffset: Int) {
+    func applySoundOffset(_ rawOffset: Double) {
         let offsetTicks = state.directionOffsetResolver.offsetTicks(
-            rawDivisions: Double(rawOffset),
+            rawDivisions: rawOffset,
             divisions: state.partDivisions[state.currentPartID]
         ) ?? 0
         let tick = state.directionOffsetResolver.absoluteTick(
