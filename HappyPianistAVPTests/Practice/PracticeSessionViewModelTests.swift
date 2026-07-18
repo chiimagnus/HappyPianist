@@ -170,17 +170,26 @@ func skipDoesNotLetCancelledAutoplayTaskClearNewTaskReference() async {
     )
     viewModel.setAutoplayEnabled(true)
     viewModel.startGuidingIfReady()
-    await waitUntil("autoplay completed") {
-        playbackService.loadedSequences.count == 1 && viewModel.currentStepIndex == 2
+    await waitUntil("initial autoplay load") {
+        playbackService.loadedSequences.count == 1
+            && playbackService.playStarts.count == 1
+            && viewModel.autoplayTimingBaseTick == 0
     }
 
     #expect(viewModel.autoplayTimingBaseTick != nil)
 
     viewModel.skip()
+    await waitUntil("replacement autoplay load after skip") {
+        playbackService.loadedSequences.count == 2
+            && playbackService.playStarts.count == 2
+            && viewModel.currentStepIndex == 1
+            && viewModel.autoplayTimingBaseTick == 480
+    }
     await settleTaskQueue()
 
     #expect(viewModel.autoplayState == .playing)
-    #expect(viewModel.autoplayTimingBaseTick != nil)
+    #expect(viewModel.autoplayTimingBaseTick == 480)
+    viewModel.shutdown()
 }
 
 @Test
