@@ -2,6 +2,7 @@ import Foundation
 
 struct MusicXMLParserDelegateState {
     let normalizedTicksPerQuarter = 480
+    let directionOffsetResolver = MusicXMLDirectionOffsetResolver(ticksPerQuarter: 480)
 
     var scoreVersion: String?
     var partMetadataByID: [String: MusicXMLPartMetadata] = [:]

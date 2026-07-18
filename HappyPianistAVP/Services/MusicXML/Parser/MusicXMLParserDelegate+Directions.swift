@@ -276,7 +276,10 @@ extension MusicXMLParserDelegate {
     }
 
     func applyDirectionOffset(_ rawOffset: Int) {
-        let newOffset = normalizeSignedDuration(rawOffset)
+        let newOffset = state.directionOffsetResolver.offsetTicks(
+            rawDivisions: Double(rawOffset),
+            divisions: state.partDivisions[state.currentPartID]
+        ) ?? 0
         let delta = newOffset - state.currentDirectionOffsetTicks
         guard delta != 0 else { return }
 
@@ -381,8 +384,15 @@ extension MusicXMLParserDelegate {
     }
 
     func applySoundOffset(_ rawOffset: Int) {
-        let offsetTicks = normalizeSignedDuration(rawOffset)
-        let tick = max(state.currentSoundMeasureStartTick, state.currentSoundBaseTick + offsetTicks)
+        let offsetTicks = state.directionOffsetResolver.offsetTicks(
+            rawDivisions: Double(rawOffset),
+            divisions: state.partDivisions[state.currentPartID]
+        ) ?? 0
+        let tick = state.directionOffsetResolver.absoluteTick(
+            directionStartTick: state.currentSoundBaseTick,
+            measureStartTick: state.currentSoundMeasureStartTick,
+            offsetTicks: offsetTicks
+        )
 
         if var tempoEvents = state.rawTempoEventsByPart[state.currentPartID],
            state.currentSoundTempoStartIndex < tempoEvents.count
@@ -454,8 +464,11 @@ extension MusicXMLParserDelegate {
     func currentDirectionEventTick() -> Int {
         let baseTick = state.partTick[state.currentPartID] ?? state.currentMeasureStartTick
         guard state.isInDirection else { return baseTick }
-        let shifted = baseTick + state.currentDirectionOffsetTicks
-        return max(state.currentDirectionMeasureStartTick, shifted)
+        return state.directionOffsetResolver.absoluteTick(
+            directionStartTick: baseTick,
+            measureStartTick: state.currentDirectionMeasureStartTick,
+            offsetTicks: state.currentDirectionOffsetTicks
+        )
     }
 
     func recordTempoEvent(quarterBPM: Double, source: TempoSource) {
