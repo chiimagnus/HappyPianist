@@ -532,9 +532,10 @@ func continuePassageStartsANewRoundInPractice() {
 }
 
 private func makeResumeSteps() -> [PracticeStep] {
-    [
-        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
-        PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
+    let rightHand = ScoreHandAssignment(hand: .right, provenance: .score)
+    return [
+        PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: rightHand)]),
+        PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: rightHand)]),
     ]
 }
 

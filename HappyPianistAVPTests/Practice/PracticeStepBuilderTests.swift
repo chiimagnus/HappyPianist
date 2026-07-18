@@ -3,8 +3,27 @@ import Testing
 
 @Test
 func buildStepsGroupsNotesByTickAndMergesHands() {
+    let sourceIDs = [
+        MusicXMLSourceNoteID(
+            partID: "P1", sourceMeasureIndex: 1, sourceMeasureNumberToken: "1",
+            staff: 1, voice: 1, sourceOrdinal: 0
+        ),
+        MusicXMLSourceNoteID(
+            partID: "P1", sourceMeasureIndex: 1, sourceMeasureNumberToken: "1",
+            staff: 1, voice: 1, sourceOrdinal: 1
+        ),
+        MusicXMLSourceNoteID(
+            partID: "P1", sourceMeasureIndex: 1, sourceMeasureNumberToken: "1",
+            staff: 2, voice: 2, sourceOrdinal: 2
+        ),
+        MusicXMLSourceNoteID(
+            partID: "P1", sourceMeasureIndex: 1, sourceMeasureNumberToken: "1",
+            staff: 1, voice: 1, sourceOrdinal: 3
+        ),
+    ]
     let score = MusicXMLScore(notes: [
         MusicXMLNoteEvent(
+            sourceID: sourceIDs[0],
             partID: "P1",
             measureNumber: 1,
             tick: 0,
@@ -18,6 +37,7 @@ func buildStepsGroupsNotesByTickAndMergesHands() {
             voice: 1
         ),
         MusicXMLNoteEvent(
+            sourceID: sourceIDs[1],
             partID: "P1",
             measureNumber: 1,
             tick: 0,
@@ -31,6 +51,7 @@ func buildStepsGroupsNotesByTickAndMergesHands() {
             voice: 1
         ),
         MusicXMLNoteEvent(
+            sourceID: sourceIDs[2],
             partID: "P1",
             measureNumber: 1,
             tick: 0,
@@ -44,6 +65,7 @@ func buildStepsGroupsNotesByTickAndMergesHands() {
             voice: 2
         ),
         MusicXMLNoteEvent(
+            sourceID: sourceIDs[3],
             partID: "P1",
             measureNumber: 1,
             tick: 2,
@@ -58,7 +80,16 @@ func buildStepsGroupsNotesByTickAndMergesHands() {
         ),
     ])
 
-    let result = PracticeStepBuilder().buildSteps(from: score)
+    let result = PracticeStepBuilder().buildSteps(
+        from: score,
+        expressivity: MusicXMLExpressivityOptions(),
+        handAssignments: [
+            sourceIDs[0]: ScoreHandAssignment(hand: .right, provenance: .score),
+            sourceIDs[1]: ScoreHandAssignment(hand: .right, provenance: .score),
+            sourceIDs[2]: ScoreHandAssignment(hand: .left, provenance: .score),
+            sourceIDs[3]: ScoreHandAssignment(hand: .right, provenance: .score),
+        ]
+    )
     #expect(result.steps.count == 2)
     #expect(result.steps[0].tick == 0)
     #expect(result.steps[0].notes.map(\.midiNote) == [48, 60, 64])
