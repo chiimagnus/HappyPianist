@@ -32,10 +32,8 @@ enum MusicXMLDynamicEventSource: Equatable {
     case soundDynamicsAttribute
 }
 
-struct MusicXMLDynamicEvent: Equatable, Identifiable {
+struct MusicXMLDynamicEvent: Equatable {
     var sourceID: MusicXMLDirectionSourceID? = nil
-    var id: MusicXMLDirectionSourceID? { sourceID }
-
     let tick: Int
     let velocity: UInt8
     let scope: MusicXMLEventScope
@@ -48,10 +46,8 @@ enum MusicXMLWedgeKind: Equatable {
     case stop
 }
 
-struct MusicXMLWedgeEvent: Equatable, Identifiable {
+struct MusicXMLWedgeEvent: Equatable {
     var sourceID: MusicXMLDirectionSourceID? = nil
-    var id: MusicXMLDirectionSourceID? { sourceID }
-
     let tick: Int
     let kind: MusicXMLWedgeKind
     let numberToken: String?
@@ -63,10 +59,8 @@ enum MusicXMLFermataEventSource: Equatable {
     case directionType
 }
 
-struct MusicXMLFermataEvent: Equatable, Identifiable {
+struct MusicXMLFermataEvent: Equatable {
     var sourceID: MusicXMLDirectionSourceID? = nil
-    var id: MusicXMLDirectionSourceID? { sourceID }
-
     let tick: Int
     let scope: MusicXMLEventScope
     let source: MusicXMLFermataEventSource
@@ -131,10 +125,8 @@ struct MusicXMLClefEvent: Equatable, Identifiable {
     let scope: MusicXMLEventScope
 }
 
-struct MusicXMLWordsEvent: Equatable, Identifiable {
+struct MusicXMLWordsEvent: Equatable {
     var sourceID: MusicXMLDirectionSourceID? = nil
-    var id: MusicXMLDirectionSourceID? { sourceID }
-
     let tick: Int
     let text: String
     let scope: MusicXMLEventScope
@@ -149,19 +141,15 @@ enum MusicXMLArticulation: String, CaseIterable, Equatable, Hashable {
     case detachedLegato = "detached-legato"
 }
 
-struct MusicXMLTempoEvent: Equatable, Identifiable {
+struct MusicXMLTempoEvent: Equatable {
     var sourceID: MusicXMLDirectionSourceID? = nil
-    var id: MusicXMLDirectionSourceID? { sourceID }
-
     let tick: Int
     let quarterBPM: Double
     let scope: MusicXMLEventScope
 }
 
-struct MusicXMLSoundDirective: Equatable, Identifiable {
+struct MusicXMLSoundDirective: Equatable {
     var sourceID: MusicXMLDirectionSourceID? = nil
-    var id: MusicXMLDirectionSourceID? { sourceID }
-
     let partID: String
     let measureNumber: Int
     let tick: Int
@@ -180,10 +168,8 @@ enum MusicXMLPedalEventKind: String, Equatable {
     case `continue`
 }
 
-struct MusicXMLPedalEvent: Equatable, Identifiable {
+struct MusicXMLPedalEvent: Equatable {
     var sourceID: MusicXMLDirectionSourceID? = nil
-    var id: MusicXMLDirectionSourceID? { sourceID }
-
     let partID: String
     let measureNumber: Int
     let tick: Int

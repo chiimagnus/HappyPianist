@@ -154,3 +154,23 @@ func parserAssignsStableDirectionIdentityAcrossEventKinds() throws {
     #expect(scoreA.soundDirectives.first?.sourceID == sharedID)
     #expect(scoreA.wordsEvents.first?.sourceID != sharedID)
 }
+
+
+@Test
+func pedalChangePreservesBothControllerEdgesUnderOneDirectionSource() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes>
+        <direction><direction-type><pedal type="change"/></direction-type></direction>
+        <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+      </measure></part>
+    </score-partwise>
+    """
+
+    let events = try MusicXMLParser().parse(data: Data(xml.utf8)).pedalEvents
+    #expect(events.count == 2)
+    #expect(events.map(\.isDown) == [false, true])
+    #expect(events[0].sourceID != nil)
+    #expect(events[0].sourceID == events[1].sourceID)
+}

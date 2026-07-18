@@ -16,10 +16,8 @@ enum MusicXMLOctaveShiftKind: String, Equatable, Sendable {
     case `continue`
 }
 
-struct MusicXMLOctaveShiftEvent: Equatable, Sendable, Identifiable {
+struct MusicXMLOctaveShiftEvent: Equatable, Sendable {
     var sourceID: MusicXMLDirectionSourceID? = nil
-    var id: MusicXMLDirectionSourceID? { sourceID }
-
     let tick: Int
     let kind: MusicXMLOctaveShiftKind
     let size: Int
