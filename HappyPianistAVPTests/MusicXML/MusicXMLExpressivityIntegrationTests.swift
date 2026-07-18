@@ -106,3 +106,23 @@ func expressivityPipelineParsesAndPlumbsKeySignalsEndToEnd() throws {
     #expect(e4Span?.onTick == 30)
     #expect(c4Span?.offTick == 720)
 }
+
+@Test
+func musicXMLScoreSnapshotCapturesSourceFactsWithoutHeuristics() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1"><measure number="1">
+        <attributes><divisions>1</divisions></attributes>
+        <direction><direction-type><dynamics><mf/></dynamics></direction-type></direction>
+        <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff></note>
+      </measure></part>
+    </score-partwise>
+    """
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let snapshot = MusicXMLScoreSnapshot().encode(score)
+
+    #expect(snapshot.contains("kind=note|sourceNoteID=unresolved|sourceIndex=0|part=P1"))
+    #expect(snapshot.contains("kind=dynamic|sourceDirectionID=unresolved"))
+    #expect(snapshot.contains("kind=measure|sourceMeasureID=P1-m1"))
+}
