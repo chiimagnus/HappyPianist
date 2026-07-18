@@ -52,9 +52,14 @@ enum PracticeSequencerSequenceBuilderError: LocalizedError, Equatable {
 
 struct PracticeSequencerSequenceBuilder {
     private let midiChannel: UInt8
+    private let outputCapabilities: PerformanceOutputCapabilities
 
-    init(midiChannel: UInt8 = 0) {
+    init(
+        midiChannel: UInt8 = 0,
+        outputCapabilities: PerformanceOutputCapabilities = .localSampler
+    ) {
         self.midiChannel = midiChannel
+        self.outputCapabilities = outputCapabilities
     }
 
     func buildPerformanceEventSchedule(
@@ -175,10 +180,15 @@ struct PracticeSequencerSequenceBuilder {
         }
 
         var durationSeconds: TimeInterval = 0
+        var outputApproximations: [PerformanceOutputApproximation] = []
         for event in sortedSchedule {
             durationSeconds = max(durationSeconds, event.timeSeconds)
 
-            var message = midiChannelMessage(for: event.kind)
+            let resolution = resolvedOutput(for: event.kind)
+            if let approximation = resolution.approximation {
+                outputApproximations.append(approximation)
+            }
+            var message = midiChannelMessage(for: resolution.kind)
             let timeStamp = MusicTimeStamp(max(0, event.timeSeconds))
             let insertStatus = MusicTrackNewMIDIChannelEvent(track, timeStamp, &message)
             guard insertStatus == noErr else {
@@ -201,7 +211,21 @@ struct PracticeSequencerSequenceBuilder {
         return PracticeSequencerSequence(
             midiData: exportedData.takeRetainedValue() as Data,
             durationSeconds: durationSeconds,
-            events: sortedSchedule
+            events: sortedSchedule,
+            outputApproximations: outputApproximations
+        )
+    }
+
+    private func resolvedOutput(
+        for kind: PracticeSequencerMIDIEvent.Kind
+    ) -> (kind: PracticeSequencerMIDIEvent.Kind, approximation: PerformanceOutputApproximation?) {
+        guard case let .controlChange(controller, value) = kind else {
+            return (kind, nil)
+        }
+        let resolution = outputCapabilities.resolve(controllerNumber: controller, value: value)
+        return (
+            .controlChange(controller: controller, value: resolution.value),
+            resolution.approximation
         )
     }
 

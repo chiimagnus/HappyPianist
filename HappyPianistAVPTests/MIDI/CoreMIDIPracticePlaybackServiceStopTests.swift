@@ -83,6 +83,55 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
         #expect(musicalCalls == expected)
     }
 
+    @Test func playbackQuantizesPedalsForBinaryOutputAndReportsAggregateApproximation() async throws {
+        let output = FakeMIDIOutputService()
+        let diagnostics = InMemoryDiagnosticsReporter()
+        let destinationUniqueID: Int32 = 6789
+        let playback = await MainActor.run {
+            CoreMIDIPracticePlaybackService(
+                destinationUniqueID: destinationUniqueID,
+                outputService: output,
+                diagnosticsReporter: diagnostics,
+                outputCapabilities: PerformanceOutputCapabilities(
+                    damper: .binary,
+                    sostenuto: .binary,
+                    soft: .binary
+                ),
+                channel: 1
+            )
+        }
+        let sequence = PracticeSequencerSequence(
+            midiData: Data(),
+            durationSeconds: 0,
+            events: [
+                PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .controlChange(controller: 64, value: 54)),
+                PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .controlChange(controller: 66, value: 80)),
+                PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .controlChange(controller: 67, value: 20)),
+            ]
+        )
+
+        try await MainActor.run {
+            try playback.load(sequence: sequence)
+            try playback.play(fromSeconds: 0)
+        }
+        try await Task.sleep(for: .milliseconds(20))
+
+        let controllerCalls = output.callsSnapshot().filter {
+            if case .controlChange = $0 { return true }
+            return false
+        }
+        #expect(controllerCalls == [
+            .controlChange(controller: 64, value: 0, channel: 1, destination: destinationUniqueID),
+            .controlChange(controller: 66, value: 127, channel: 1, destination: destinationUniqueID),
+            .controlChange(controller: 67, value: 0, channel: 1, destination: destinationUniqueID),
+        ])
+        let diagnosticEvents = await diagnostics.events
+        #expect(diagnosticEvents.contains { event in
+            event.stage == "coreMIDI.controllerCapability"
+                && event.reason == "approximationCount=3"
+        })
+    }
+
     @Test func stopPreventsDelayedEventsFromEscapingAfterReset() async throws {
         let output = FakeMIDIOutputService()
         let destinationUniqueID: Int32 = 9012

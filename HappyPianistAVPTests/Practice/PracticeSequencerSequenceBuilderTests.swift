@@ -85,6 +85,44 @@ func sequenceBuilderConsumesControllerStateProjectedAtStartTick() {
 }
 
 @Test
+func sequenceBuilderPreservesCanonicalPedalValuesAndReportsLocalQuantization() throws {
+    let tempoMap = MusicXMLTempoMap(
+        tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope)]
+    )
+    let timeline = AutoplayPerformanceTimeline(events: [
+        .init(id: 0, sourceEventID: "off", tick: 480, kind: .noteOff(midi: 60)),
+        .init(id: 1, sourceEventID: "damper", tick: 480, kind: .controlChange(controller: 64, value: 54)),
+        .init(id: 2, sourceEventID: "sostenuto", tick: 480, kind: .controlChange(controller: 66, value: 80)),
+        .init(id: 3, sourceEventID: "soft", tick: 480, kind: .controlChange(controller: 67, value: 20)),
+        .init(id: 4, sourceEventID: "on", tick: 480, kind: .noteOn(midi: 62, velocity: 96)),
+    ])
+    let builder = PracticeSequencerSequenceBuilder(outputCapabilities: .localSampler)
+    let schedule = builder.buildPerformanceEventSchedule(
+        timeline: timeline,
+        tempoMap: tempoMap,
+        startTick: 0
+    )
+    let sequence = try builder.buildSequence(from: schedule)
+
+    #expect(sequence.events.map(\.kind) == [
+        .noteOff(midi: 60),
+        .controlChange(controller: 64, value: 54),
+        .controlChange(controller: 66, value: 80),
+        .controlChange(controller: 67, value: 20),
+        .noteOn(midi: 62, velocity: 96),
+    ])
+    #expect(sequence.outputApproximations == [
+        PerformanceOutputApproximation(controllerNumber: 64, sourceValue: 54, renderedValue: 0),
+        PerformanceOutputApproximation(controllerNumber: 66, sourceValue: 80, renderedValue: 127),
+        PerformanceOutputApproximation(controllerNumber: 67, sourceValue: 20, renderedValue: 0),
+    ])
+    #expect(PerformanceOutputCapabilities.externalMIDI.resolve(
+        controllerNumber: 64,
+        value: 54
+    ).approximation == nil)
+}
+
+@Test
 func sequenceBuilderKeepsPlanPauseBeforeClosingReplayBoundary() {
     let tempoMap = MusicXMLTempoMap(
         tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope)]

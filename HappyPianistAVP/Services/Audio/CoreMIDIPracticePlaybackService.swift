@@ -5,6 +5,8 @@ import os
 final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServiceProtocol {
     private let outputService: any MIDIOutputSendingProtocol
     private let destinationUniqueID: Int32
+    private let outputCapabilities: PerformanceOutputCapabilities
+    private let diagnosticsReporter: (any DiagnosticsReporting)?
 
     private let velocity: UInt8
     private let channel: UInt8
@@ -25,11 +27,14 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
         destinationUniqueID: Int32,
         outputService: (any MIDIOutputSendingProtocol)? = nil,
         diagnosticsReporter: (any DiagnosticsReporting)? = nil,
+        outputCapabilities: PerformanceOutputCapabilities = .externalMIDI,
         velocity: UInt8 = 96,
         channel: UInt8 = 0
     ) {
         self.destinationUniqueID = destinationUniqueID
         self.outputService = outputService ?? CoreMIDIOutputService(diagnosticsReporter: diagnosticsReporter)
+        self.outputCapabilities = outputCapabilities
+        self.diagnosticsReporter = diagnosticsReporter
         self.velocity = velocity
         self.channel = channel
     }
@@ -49,6 +54,7 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
         loadedDurationSeconds = sequence.durationSeconds
         loadedEvents = sequence.events
         lastKnownSeconds = 0
+        recordControllerApproximations(in: sequence.events)
     }
 
     func play(fromSeconds start: TimeInterval) throws {
@@ -65,7 +71,8 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
         let scheduler = MIDIEventScheduler(
             outputService: outputService,
             destinationUniqueID: destinationUniqueID,
-            channel: channel
+            channel: channel,
+            outputCapabilities: outputCapabilities
         )
         self.scheduler = scheduler
 
@@ -183,9 +190,10 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
                     destinationUniqueID: destinationUniqueID
                 )
             case let .controlChange(controller, value):
+                let resolution = outputCapabilities.resolve(controllerNumber: controller, value: value)
                 try? outputService.sendControlChange(
                     controller: controller,
-                    value: value,
+                    value: resolution.value,
                     channel: channel,
                     destinationUniqueID: destinationUniqueID
                 )
@@ -200,6 +208,23 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
     private func ensureReady() throws {
         try outputService.start()
     }
+
+    private func recordControllerApproximations(in events: [PracticeSequencerMIDIEvent]) {
+        let count = events.reduce(into: 0) { count, event in
+            guard case let .controlChange(controller, value) = event.kind,
+                  outputCapabilities.resolve(controllerNumber: controller, value: value).approximation != nil
+            else { return }
+            count += 1
+        }
+        guard count > 0 else { return }
+        diagnosticsReporter?.recordSystem(
+            severity: .info,
+            category: .midi,
+            stage: "coreMIDI.controllerCapability",
+            summary: "外部 MIDI 控制器值已按输出能力量化",
+            reason: "approximationCount=\(count)"
+        )
+    }
 }
 
 private final class MIDIEventScheduler: Sendable {
@@ -211,12 +236,19 @@ private final class MIDIEventScheduler: Sendable {
     private let outputService: any MIDIOutputSendingProtocol
     private let destinationUniqueID: Int32
     private let channel: UInt8
+    private let outputCapabilities: PerformanceOutputCapabilities
     private let state = OSAllocatedUnfairLock(initialState: State())
 
-    init(outputService: any MIDIOutputSendingProtocol, destinationUniqueID: Int32, channel: UInt8) {
+    init(
+        outputService: any MIDIOutputSendingProtocol,
+        destinationUniqueID: Int32,
+        channel: UInt8,
+        outputCapabilities: PerformanceOutputCapabilities
+    ) {
         self.outputService = outputService
         self.destinationUniqueID = destinationUniqueID
         self.channel = channel
+        self.outputCapabilities = outputCapabilities
     }
 
     func play(events: [PracticeSequencerMIDIEvent], fromSeconds startSeconds: TimeInterval) {
@@ -271,7 +303,8 @@ private final class MIDIEventScheduler: Sendable {
                     event: event,
                     outputService: outputService,
                     destinationUniqueID: destinationUniqueID,
-                    channel: channel
+                    channel: channel,
+                    outputCapabilities: outputCapabilities
                 )
             } catch {
                 // best-effort: ignore individual send failures
@@ -284,7 +317,8 @@ private final class MIDIEventScheduler: Sendable {
         event: PracticeSequencerMIDIEvent,
         outputService: any MIDIOutputSendingProtocol,
         destinationUniqueID: Int32,
-        channel: UInt8
+        channel: UInt8,
+        outputCapabilities: PerformanceOutputCapabilities
     ) throws {
         switch event.kind {
         case let .noteOn(midi, velocity):
@@ -294,7 +328,13 @@ private final class MIDIEventScheduler: Sendable {
             guard let note = UInt8(exactly: midi) else { return }
             try outputService.sendNoteOff(note: note, channel: channel, destinationUniqueID: destinationUniqueID)
         case let .controlChange(controller, value):
-            try outputService.sendControlChange(controller: controller, value: value, channel: channel, destinationUniqueID: destinationUniqueID)
+            let resolution = outputCapabilities.resolve(controllerNumber: controller, value: value)
+            try outputService.sendControlChange(
+                controller: controller,
+                value: resolution.value,
+                channel: channel,
+                destinationUniqueID: destinationUniqueID
+            )
         case let .programChange(program):
             try outputService.sendProgramChange(program: program, channel: channel, destinationUniqueID: destinationUniqueID)
         case let .pitchBend(value):

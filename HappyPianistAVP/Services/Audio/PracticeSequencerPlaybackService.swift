@@ -6,6 +6,19 @@ struct PracticeSequencerSequence {
     let midiData: Data
     let durationSeconds: TimeInterval
     let events: [PracticeSequencerMIDIEvent]
+    let outputApproximations: [PerformanceOutputApproximation]
+
+    init(
+        midiData: Data,
+        durationSeconds: TimeInterval,
+        events: [PracticeSequencerMIDIEvent],
+        outputApproximations: [PerformanceOutputApproximation] = []
+    ) {
+        self.midiData = midiData
+        self.durationSeconds = durationSeconds
+        self.events = events
+        self.outputApproximations = outputApproximations
+    }
 }
 
 struct PracticeOneShotNoteOn: Hashable {
