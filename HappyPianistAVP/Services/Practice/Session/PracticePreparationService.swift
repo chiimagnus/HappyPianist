@@ -139,7 +139,10 @@ actor PracticePreparationService: PracticePreparationServiceProtocol {
             throw PracticePreparationError.noPlayableNotes
         }
 
-        guard let structuralPartID = selectedInstrument.memberPartIDs.first else {
+        guard let structuralPartID = MusicXMLPracticePartSelector().structuralPartID(
+            for: selectedInstrument,
+            in: normalizedScore
+        ) else {
             throw PracticePreparationError.noPlayableNotes
         }
         let sourceScore = normalizedScore.filtering(toLogicalInstrument: selectedInstrument)

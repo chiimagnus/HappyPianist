@@ -85,6 +85,23 @@ func referencePlaybackPreparationExpandsPerformedOrderWithoutLosingSourceIdentit
 }
 
 @Test
+func splitPianoPreparationUsesThePartThatOwnsStructureDirectives() async throws {
+    let url = testFixtureURL("SplitPartGrandStaffPiano.musicxml")
+    let prepared = try await PracticePreparationService().prepare(
+        songID: UUID(),
+        from: url,
+        file: ImportedMusicXMLFile(fileName: "Split Piano", storedURL: url, importedAt: .now),
+        options: .referencePlayback
+    )
+
+    #expect(prepared.scoreContext.logicalInstrument.memberPartIDs == ["LH", "RH"])
+    #expect(prepared.scoreContext.structuralPartID == "RH")
+    #expect(prepared.scoreContext.preparedScore.notes.count == 8)
+    #expect(Set(prepared.scoreContext.preparedScore.notes.map(\.partID)) == ["LH", "RH"])
+    #expect(prepared.measureSpans.map(\.occurrenceIndex) == [0, 1, 2, 3])
+}
+
+@Test
 func plainMusicXMLPreparationParsesTheAlreadyReadBytes() async throws {
     let url = FileManager.default.temporaryDirectory.appending(
         path: "single-read-\(UUID().uuidString).musicxml"

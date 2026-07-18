@@ -29,4 +29,37 @@ struct MusicXMLPracticePartSelector {
             reason: "multiple-playable-instruments-without-piano-evidence"
         ))
     }
+
+    func structuralPartID(
+        for instrument: MusicXMLLogicalInstrument,
+        in score: MusicXMLScore
+    ) -> String? {
+        let memberIDs = Set(instrument.memberPartIDs)
+        guard memberIDs.isEmpty == false else { return nil }
+
+        let sourceOrder = score.partMetadata.map(\.partID) + instrument.memberPartIDs
+        let orderedMembers = sourceOrder.reduce(into: [String]()) { result, partID in
+            guard memberIDs.contains(partID), result.contains(partID) == false else { return }
+            result.append(partID)
+        }
+        let structureCounts = Dictionary(uniqueKeysWithValues: orderedMembers.map { partID in
+            let count = score.repeatDirectives.count { $0.partID == partID }
+                + score.endingDirectives.count { $0.partID == partID }
+                + score.soundDirectives.count { directive in
+                    directive.partID == partID && (
+                        directive.segno != nil || directive.coda != nil || directive.tocoda != nil
+                            || directive.dalsegno != nil || directive.dacapo != nil
+                    )
+                }
+            return (partID, count)
+        })
+        let highestCount = structureCounts.values.max() ?? 0
+        if highestCount > 0 {
+            return orderedMembers.first { structureCounts[$0] == highestCount }
+        }
+        return orderedMembers.first { partID in
+            score.measures.contains { $0.partID == partID }
+        }
+    }
+
 }
