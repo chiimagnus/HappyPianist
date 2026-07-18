@@ -1,4 +1,5 @@
 @testable import HappyPianistAVP
+import Foundation
 import Testing
 
 @Test
@@ -453,6 +454,194 @@ func timingSchedulePreservesShortArticulationWhenItConflictsWithSlur() {
     #expect(first.performedOffTick == 240)
     #expect(first.releasePolicy == .interpretationProfile)
     #expect(first.provenance.contains(.approximation(reason: "slur-conflicts-with-short-articulation")))
+}
+
+@Test
+func performancePlanBuilderPreservesSamePitchVoicesAndPerformedOccurrences() throws {
+    let voiceOneID = makeSourceNoteID(sourceOrdinal: 0, voice: 1)
+    let voiceTwoID = makeSourceNoteID(sourceOrdinal: 1, voice: 2)
+    let notes = [
+        makeIdentifiedNote(sourceID: voiceOneID, occurrenceIndex: 0, tick: 0, voice: 1),
+        makeIdentifiedNote(sourceID: voiceTwoID, occurrenceIndex: 0, tick: 0, voice: 2),
+        makeIdentifiedNote(sourceID: voiceOneID, occurrenceIndex: 1, tick: 480, voice: 1),
+    ]
+
+    let plan = try makePerformancePlan(notes: notes)
+
+    #expect(plan.noteEvents.count == 3)
+    #expect(Set(plan.noteEvents.map(\.id)).count == 3)
+    #expect(plan.noteEvents.map(\.voice) == [1, 2, 1])
+    #expect(plan.noteEvents.map(\.performedNoteID.occurrenceIndex) == [0, 0, 1])
+}
+
+@Test
+func performancePlanBuilderMergesTieChainWithoutLosingContributors() throws {
+    let firstID = makeSourceNoteID(sourceOrdinal: 0, voice: 1)
+    let secondID = makeSourceNoteID(sourceOrdinal: 1, voice: 1)
+    let notes = [
+        makeIdentifiedNote(sourceID: firstID, occurrenceIndex: 0, tick: 0, voice: 1, tieStart: true),
+        makeIdentifiedNote(sourceID: secondID, occurrenceIndex: 0, tick: 480, voice: 1, tieStop: true),
+    ]
+
+    let plan = try makePerformancePlan(notes: notes)
+    let event = try #require(plan.noteEvents.first)
+
+    #expect(plan.noteEvents.count == 1)
+    #expect(event.sourceNoteID == firstID)
+    #expect(event.contributingSourceNoteIDs == [firstID, secondID])
+    #expect(event.writtenOnTick == 0)
+    #expect(event.writtenOffTick == 960)
+    #expect(event.performedOffTick == 960)
+    #expect(plan.approximations.isEmpty)
+}
+
+@Test
+func performancePlanBuilderReplacesSourceNoteWithGeneratedEvents() throws {
+    let sourceID = makeSourceNoteID(sourceOrdinal: 0, voice: 1)
+    let note = makeIdentifiedNote(sourceID: sourceID, occurrenceIndex: 0, tick: 0, voice: 1)
+    let notationID = MusicXMLPerformanceNotationSourceID(sourceNoteID: sourceID, sourceOrdinal: 0)
+    let baseSchedule = ScoreTimingScheduleBuilder().build(notes: [note])
+    let schedule = ScoreTimingSchedule(
+        entries: baseSchedule.entries,
+        generatedNotes: [
+            ScoreGeneratedNoteEvent(
+                sourceNoteIndices: [0],
+                sourceNotationID: notationID,
+                notationKind: .trillMark,
+                purpose: .ornament,
+                ordinal: 0,
+                midiNote: 60,
+                onTick: 0,
+                offTick: 120,
+                interpretationProfileID: MusicXMLInterpretationProfile.generic.id
+            ),
+            ScoreGeneratedNoteEvent(
+                sourceNoteIndices: [0],
+                sourceNotationID: notationID,
+                notationKind: .trillMark,
+                purpose: .ornament,
+                ordinal: 1,
+                midiNote: 62,
+                onTick: 120,
+                offTick: 240,
+                interpretationProfileID: MusicXMLInterpretationProfile.generic.id
+            ),
+        ],
+        notationResolutions: [
+            ScorePerformanceNotationResolution(
+                sourceNotationID: notationID,
+                notationKind: .trillMark,
+                sourceNoteIndices: [0],
+                replacesSourceNoteIndices: [0],
+                status: .generated,
+                interpretationProfileID: MusicXMLInterpretationProfile.generic.id
+            ),
+        ]
+    )
+
+    let plan = try makePerformancePlan(notes: [note], timingSchedule: schedule)
+
+    #expect(plan.noteEvents.map(\.purpose) == [.ornament, .ornament])
+    #expect(plan.noteEvents.map(\.midiNote) == [60, 62])
+    #expect(Set(plan.noteEvents.map(\.id)).count == 2)
+}
+
+@Test
+func performancePlanBuilderPublishesTimingApproximations() throws {
+    let firstID = makeSourceNoteID(sourceOrdinal: 0, voice: 1)
+    let secondID = makeSourceNoteID(sourceOrdinal: 1, voice: 1)
+    let notes = [
+        makeIdentifiedNote(
+            sourceID: firstID,
+            occurrenceIndex: 0,
+            tick: 0,
+            voice: 1,
+            articulations: [.staccato],
+            performanceNotations: [makePerformanceNotation(kind: .slur, typeToken: "start")]
+        ),
+        makeIdentifiedNote(
+            sourceID: secondID,
+            occurrenceIndex: 0,
+            tick: 480,
+            voice: 1,
+            performanceNotations: [makePerformanceNotation(kind: .slur, typeToken: "stop")]
+        ),
+    ]
+
+    let plan = try makePerformancePlan(notes: notes)
+
+    #expect(plan.approximations.contains {
+        $0.eventIdentity == plan.noteEvents[0].id.description
+            && $0.reason == "slur-conflicts-with-short-articulation"
+    })
+}
+
+private func makePerformancePlan(
+    notes: [MusicXMLNoteEvent],
+    timingSchedule: ScoreTimingSchedule? = nil
+) throws -> ScorePerformancePlan {
+    let songID = try #require(UUID(uuidString: "1F1C7688-CFD9-4CD8-8EC5-FD7C80730E18"))
+    let logicalInstrument = MusicXMLLogicalInstrument(
+        id: "piano:P1",
+        memberPartIDs: ["P1"],
+        classification: .piano,
+        evidence: []
+    )
+    return ScorePerformancePlanBuilder().build(
+        sourceIdentity: ScorePerformanceSourceIdentity(
+            songID: songID,
+            scoreRevision: "revision",
+            logicalInstrumentID: logicalInstrument.id
+        ),
+        order: MusicXMLOrderSelection(requested: .performed, applied: .performed),
+        logicalInstrument: logicalInstrument,
+        notes: notes,
+        timingSchedule: timingSchedule ?? ScoreTimingScheduleBuilder().build(notes: notes),
+        velocityResolver: MusicXMLVelocityResolver(dynamicEvents: []),
+        expressivity: MusicXMLExpressivityOptions(),
+        handAssignments: [:]
+    )
+}
+
+private func makeSourceNoteID(sourceOrdinal: Int, voice: Int) -> MusicXMLSourceNoteID {
+    MusicXMLSourceNoteID(
+        partID: "P1",
+        sourceMeasureIndex: 0,
+        sourceMeasureNumberToken: "1",
+        staff: 1,
+        voice: voice,
+        sourceOrdinal: sourceOrdinal
+    )
+}
+
+private func makeIdentifiedNote(
+    sourceID: MusicXMLSourceNoteID,
+    occurrenceIndex: Int,
+    tick: Int,
+    voice: Int,
+    tieStart: Bool = false,
+    tieStop: Bool = false,
+    articulations: Set<MusicXMLArticulation> = [],
+    performanceNotations: [MusicXMLPerformanceNotation] = []
+) -> MusicXMLNoteEvent {
+    MusicXMLNoteEvent(
+        sourceID: sourceID,
+        performedOccurrenceIndex: occurrenceIndex,
+        partID: "P1",
+        measureNumber: 1,
+        tick: tick,
+        durationTicks: 480,
+        writtenPitch: MusicXMLWrittenPitch(step: "C", octave: 4),
+        midiNote: 60,
+        isRest: false,
+        isChord: false,
+        tieStart: tieStart,
+        tieStop: tieStop,
+        staff: 1,
+        voice: voice,
+        articulations: articulations,
+        performanceNotations: performanceNotations
+    )
 }
 
 private func makePerformanceNotation(
