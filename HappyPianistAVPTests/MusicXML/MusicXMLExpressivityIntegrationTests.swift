@@ -413,7 +413,7 @@ resolution|source=P1:2:2:1:1:1:notation:0|kind=trill-mark|notes=7|replaces=|stat
 resolution|source=P1:2:2:1:1:2:notation:0|kind=tremolo|notes=8|replaces=8|status=generated
 resolution|source=P1:2:2:1:1:3:notation:0|kind=glissando|notes=9,10|replaces=9|status=generated
 resolution|source=P1:3:3:1:1:0:notation:0|kind=glissando|notes=9,10|replaces=|status=generated
-dynamic|ticks=0-960|velocity=50-90|number=1
+dynamic|ticks=0-480|velocity=50-90|number=1
 tempo-ramp|ticks=1920-3840|bpm=120-90
 unsupported|kind=schleifer|count=1
 """
