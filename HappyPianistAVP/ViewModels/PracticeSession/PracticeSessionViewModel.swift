@@ -131,7 +131,8 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
             audioRecognitionService: audioRecognitionService,
             effectHandler: self,
             audioRecognitionSuppressDuration: audioRecognitionSuppressDuration,
-            leadInSeconds: autoplayTimingLeadInSeconds
+            leadInSeconds: autoplayTimingLeadInSeconds,
+            diagnosticsReporter: diagnosticsReporter
         )
 
         manualReplayService = PracticeManualReplayService(
@@ -139,7 +140,8 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
             sequencerPlaybackService: sequencerPlaybackService,
             playbackSequenceBuilder: self.playbackSequenceBuilder,
             stateStore: stateStore,
-            effectHandler: self
+            effectHandler: self,
+            diagnosticsReporter: diagnosticsReporter
         )
 
         highlightGuideController = PracticeHighlightGuideController(

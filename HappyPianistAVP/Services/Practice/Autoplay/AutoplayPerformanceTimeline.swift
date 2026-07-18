@@ -1,6 +1,18 @@
 import Foundation
 
 struct AutoplayPerformanceTimeline: Equatable {
+    struct TransportMetrics: Equatable {
+        static let empty = TransportMetrics(
+            retriggeredEventCount: 0,
+            preventedStaleOffCount: 0,
+            orphanOffCount: 0
+        )
+
+        let retriggeredEventCount: Int
+        let preventedStaleOffCount: Int
+        let orphanOffCount: Int
+    }
+
     enum EventKind: Equatable {
         case pauseSeconds(TimeInterval)
         case noteOff(midi: Int)
@@ -37,13 +49,16 @@ struct AutoplayPerformanceTimeline: Equatable {
 
     let events: [Event]
     let rangeStartApproximations: [PerformanceRangeStateResolver.Approximation]
+    let transportMetrics: TransportMetrics
 
     init(
         events: [Event],
-        rangeStartApproximations: [PerformanceRangeStateResolver.Approximation] = []
+        rangeStartApproximations: [PerformanceRangeStateResolver.Approximation] = [],
+        transportMetrics: TransportMetrics = .empty
     ) {
         self.events = events
         self.rangeStartApproximations = rangeStartApproximations
+        self.transportMetrics = transportMetrics
     }
 
     func firstEventIndex(atOrAfter tick: Int) -> Int {
@@ -236,7 +251,12 @@ struct AutoplayPerformanceTimeline: Equatable {
 
         return AutoplayPerformanceTimeline(
             events: sortedEvents,
-            rangeStartApproximations: rangeStartState?.approximations ?? []
+            rangeStartApproximations: rangeStartState?.approximations ?? [],
+            transportMetrics: TransportMetrics(
+                retriggeredEventCount: transport.retriggeredEventCount,
+                preventedStaleOffCount: transport.preventedStaleOffCount,
+                orphanOffCount: transport.orphanOffCount
+            )
         )
     }
 
@@ -263,5 +283,31 @@ struct AutoplayPerformanceTimeline: Equatable {
         case let .pauseSeconds(seconds):
             "pause-\(seconds)-\(identity)"
         }
+    }
+}
+
+extension AutoplayPerformanceTimeline {
+    func recordTransportDiagnostics(
+        using reporter: (any DiagnosticsReporting)?,
+        stage: String
+    ) {
+        let heldCount = rangeStartApproximations.count { approximation in
+            if case .reattackedHeldNote = approximation { true } else { false }
+        }
+        let sustainedCount = rangeStartApproximations.count { approximation in
+            if case .reattackedSustainedNote = approximation { true } else { false }
+        }
+        guard transportMetrics != .empty || heldCount > 0 || sustainedCount > 0 else { return }
+
+        reporter?.recordSystem(
+            severity: transportMetrics.orphanOffCount > 0 ? .warning : .info,
+            category: .pianoPerformance,
+            stage: stage,
+            summary: "演奏 transport 已完成事件归约",
+            reason: "retriggered=\(transportMetrics.retriggeredEventCount); "
+                + "staleOffPrevented=\(transportMetrics.preventedStaleOffCount); "
+                + "orphanOff=\(transportMetrics.orphanOffCount); "
+                + "heldReconstructed=\(heldCount); sustainedReconstructed=\(sustainedCount)"
+        )
     }
 }

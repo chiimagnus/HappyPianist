@@ -66,7 +66,8 @@ func autoplayTimelineRetriggersOverlappingSamePitchWhileSustainIsDown() {
         controllerEvents: [timelineController(sourceID: directionID(ordinal: 8), tick: 0, value: 127)]
     )
 
-    let midiEvents = makeTimeline(plan: plan).events.compactMap { event -> String? in
+    let timeline = makeTimeline(plan: plan)
+    let midiEvents = timeline.events.compactMap { event -> String? in
         switch event.kind {
         case let .controlChange(controller, value): "cc:\(controller):\(value)@\(event.tick)"
         case let .noteOn(midi, _): "on:\(midi)@\(event.tick)"
@@ -76,6 +77,11 @@ func autoplayTimelineRetriggersOverlappingSamePitchWhileSustainIsDown() {
     }
 
     #expect(midiEvents == ["cc:64:127@0", "on:60@0", "off:60@240", "on:60@240", "off:60@720"])
+    #expect(timeline.transportMetrics == AutoplayPerformanceTimeline.TransportMetrics(
+        retriggeredEventCount: 1,
+        preventedStaleOffCount: 1,
+        orphanOffCount: 0
+    ))
 }
 
 @Test
@@ -508,7 +514,8 @@ func autoplayTimelineClosesHeldAndRangeNotesAfterSamePitchRetrigger() throws {
         TestScorePerformanceNote(midiNote: 60, velocity: 88, onTick: 720, offTick: 1_200),
     ])
 
-    let soundEvents = makeTimeline(plan: plan, activeRange: activeRange).events.filter {
+    let timeline = makeTimeline(plan: plan, activeRange: activeRange)
+    let soundEvents = timeline.events.filter {
         if case .noteOn = $0.kind { return true }
         if case .noteOff = $0.kind { return true }
         return false
@@ -531,6 +538,48 @@ func autoplayTimelineClosesHeldAndRangeNotesAfterSamePitchRetrigger() throws {
         plan.noteEvents[2].id.description,
         plan.noteEvents[1].id.description,
     ])
+    #expect(timeline.transportMetrics == AutoplayPerformanceTimeline.TransportMetrics(
+        retriggeredEventCount: 1,
+        preventedStaleOffCount: 1,
+        orphanOffCount: 0
+    ))
+}
+
+@Test
+func transportDiagnosticsContainOnlyAggregateTimelineAndResetMetrics() async throws {
+    let activeRange = try timelineActiveRange(startTick: 480, endTick: 960)
+    let plan = makeTimelinePlan(notes: [
+        TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 1_440),
+        TestScorePerformanceNote(midiNote: 60, onTick: 720, offTick: 1_200),
+    ])
+    let timeline = makeTimeline(plan: plan, activeRange: activeRange)
+    let reporter = InMemoryDiagnosticsReporter()
+
+    timeline.recordTransportDiagnostics(using: reporter, stage: "test.timeline")
+    let start = PerformanceTransportReducer().transition(
+        from: .idle,
+        at: .start(tick: 480, activeEventIDs: [plan.noteEvents[0].id])
+    )
+    let seek = PerformanceTransportReducer().transition(
+        from: start.state,
+        at: .seek(tick: 720, activeEventIDs: [plan.noteEvents[1].id])
+    )
+    seek.recordResetDiagnostics(using: reporter, stage: "test.reset")
+
+    for _ in 0 ..< 100 {
+        if await reporter.events.count == 2 { break }
+        await Task.yield()
+    }
+    let events = await reporter.events
+    let reasonsByStage = Dictionary(uniqueKeysWithValues: events.map { ($0.stage, $0.reason) })
+
+    #expect(events.allSatisfy { $0.persistence == .systemOnly })
+    #expect(reasonsByStage["test.timeline"] ==
+        "retriggered=1; staleOffPrevented=1; orphanOff=0; heldReconstructed=1; sustainedReconstructed=0")
+    #expect(reasonsByStage["test.reset"] == "reason=seek; activeEventCount=1; commandCount=6")
+    #expect(events.allSatisfy { event in
+        plan.noteEvents.allSatisfy { event.reason.contains($0.id.description) == false }
+    })
 }
 
 @Test

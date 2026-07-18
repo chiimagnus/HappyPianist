@@ -200,6 +200,36 @@ struct PerformanceTransportReducer {
     }
 }
 
+extension PerformanceTransportReducer.Transition {
+    func recordResetDiagnostics(
+        using reporter: (any DiagnosticsReporting)?,
+        stage: String
+    ) {
+        for command in commands {
+            guard case let .reset(eventIDs, transportCommands, reason, _) = command else { continue }
+            reporter?.recordSystem(
+                severity: .info,
+                category: .pianoPerformance,
+                stage: stage,
+                summary: "演奏 transport 已执行边界复位",
+                reason: "reason=\(reason.diagnosticName); activeEventCount=\(eventIDs.count); "
+                    + "commandCount=\(transportCommands.count)"
+            )
+        }
+    }
+}
+
+private extension PerformanceTransportReducer.ResetReason {
+    var diagnosticName: String {
+        switch self {
+        case .seek: "seek"
+        case .loop: "loop"
+        case .end: "end"
+        case .stop: "stop"
+        }
+    }
+}
+
 private extension PerformanceTransportReducer {
     func applyingState(
         from state: TransportState,

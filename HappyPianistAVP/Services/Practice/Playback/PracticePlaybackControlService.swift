@@ -11,6 +11,7 @@ final class PracticePlaybackControlService {
     private weak var effectHandler: (any PracticeSessionEffectHandlerProtocol)?
     private let audioRecognitionSuppressDuration: TimeInterval
     private let leadInSeconds: TimeInterval
+    private let diagnosticsReporter: (any DiagnosticsReporting)?
     private let transportReducer = PerformanceTransportReducer()
 
     private var autoplayTask: Task<Void, Never>?
@@ -30,7 +31,8 @@ final class PracticePlaybackControlService {
         audioRecognitionService: PracticeAudioRecognitionServiceProtocol?,
         effectHandler: any PracticeSessionEffectHandlerProtocol,
         audioRecognitionSuppressDuration: TimeInterval,
-        leadInSeconds: TimeInterval
+        leadInSeconds: TimeInterval,
+        diagnosticsReporter: (any DiagnosticsReporting)? = nil
     ) {
         self.sleeper = sleeper
         self.sequencerPlaybackService = sequencerPlaybackService
@@ -41,6 +43,7 @@ final class PracticePlaybackControlService {
         self.effectHandler = effectHandler
         self.audioRecognitionSuppressDuration = audioRecognitionSuppressDuration
         self.leadInSeconds = leadInSeconds
+        self.diagnosticsReporter = diagnosticsReporter
     }
 
     func shutdown() {
@@ -151,6 +154,10 @@ final class PracticePlaybackControlService {
             practiceHandMode: stateStore.activeRoundConfiguration?.handMode ?? .both,
             activeRange: stateStore.activeRange,
             transportStartTick: timingBaseTick
+        )
+        stateStore.autoplayTimeline.recordTransportDiagnostics(
+            using: diagnosticsReporter,
+            stage: "autoplay.timeline"
         )
         let timelineSnapshot = stateStore.autoplayTimeline
         let tempoMapSnapshot = stateStore.tempoMap
@@ -319,6 +326,7 @@ final class PracticePlaybackControlService {
 
     @discardableResult
     private func executeResetIfNeeded(_ transition: PerformanceTransportReducer.Transition) -> Bool {
+        transition.recordResetDiagnostics(using: diagnosticsReporter, stage: "autoplay.reset")
         guard let resetCommands = transition.commands.compactMap({ command -> [PerformanceTransportCommand]? in
             if case let .reset(_, transportCommands, _, _) = command { return transportCommands }
             return nil

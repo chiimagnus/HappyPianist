@@ -6,6 +6,7 @@ final class PracticeManualReplayService {
     private let sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol
     private let playbackSequenceBuilder: any PlaybackSequenceBuildingProtocol
     private let stateStore: PracticeSessionStateStore
+    private let diagnosticsReporter: (any DiagnosticsReporting)?
     private weak var effectHandler: (any PracticeSessionEffectHandlerProtocol)?
 
     private var manualReplayTask: Task<Void, Never>?
@@ -16,13 +17,15 @@ final class PracticeManualReplayService {
         sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol,
         playbackSequenceBuilder: any PlaybackSequenceBuildingProtocol,
         stateStore: PracticeSessionStateStore,
-        effectHandler: any PracticeSessionEffectHandlerProtocol
+        effectHandler: any PracticeSessionEffectHandlerProtocol,
+        diagnosticsReporter: (any DiagnosticsReporting)? = nil
     ) {
         self.sleeper = sleeper
         self.sequencerPlaybackService = sequencerPlaybackService
         self.playbackSequenceBuilder = playbackSequenceBuilder
         self.stateStore = stateStore
         self.effectHandler = effectHandler
+        self.diagnosticsReporter = diagnosticsReporter
     }
 
     func shutdown() {
@@ -72,6 +75,10 @@ final class PracticeManualReplayService {
             practiceHandMode: stateStore.activeRoundConfiguration?.handMode ?? .both,
             activeRange: stateStore.activeRange,
             transportStartTick: startTick
+        )
+        timelineSnapshot.recordTransportDiagnostics(
+            using: diagnosticsReporter,
+            stage: "manualReplay.timeline"
         )
         let leadInSeconds: TimeInterval = 0.05
 
