@@ -73,33 +73,6 @@ struct PracticeSequencerSequenceBuilder {
         var schedule: [PracticeSequencerMIDIEvent] = []
         schedule.reserveCapacity(128)
 
-        let controllersAtBaseTick = Set(timeline.events[startIndex...].compactMap { event -> UInt8? in
-            guard event.tick == baseTick else { return nil }
-            if case let .controlChange(controller, _) = event.kind { return controller }
-            return nil
-        })
-        let controllerContext = Dictionary(
-            grouping: timeline.events[..<startIndex].compactMap { event -> (UInt8, AutoplayPerformanceTimeline.Event)? in
-                if case let .controlChange(controller, _) = event.kind { return (controller, event) }
-                return nil
-            },
-            by: \.0
-        )
-        .compactMap { controller, events in events.last.map { (controller, $0.1) } }
-        .filter { controllersAtBaseTick.contains($0.0) == false }
-        .sorted { $0.0 < $1.0 }
-
-        for (_, event) in controllerContext {
-            guard case let .controlChange(controller, value) = event.kind else { continue }
-            schedule.append(
-                PracticeSequencerMIDIEvent(
-                    sourceEventID: event.sourceEventID,
-                    timeSeconds: max(0, leadInSeconds),
-                    kind: .controlChange(controller: controller, value: value)
-                )
-            )
-        }
-
         var openNotes: [String: Int] = [:]
         for event in timeline.events[startIndex...] {
             if let endTick {

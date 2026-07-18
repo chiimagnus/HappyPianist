@@ -24,22 +24,6 @@ struct AutoplayPerformanceTimeline: Equatable {
             self.kind = kind
         }
 
-        var sortPriority: Int {
-            switch kind {
-            case .pauseSeconds:
-                0
-            case .noteOff:
-                1
-            case .controlChange, .tempo:
-                2
-            case .noteOn:
-                3
-            case .advanceStep:
-                4
-            case .advanceGuide:
-                5
-            }
-        }
     }
 
     private struct RawEvent {

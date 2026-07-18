@@ -64,56 +64,7 @@ func sequenceBuilderExportsMIDISMFData() throws {
 }
 
 @Test
-func sequenceBuilderRestoresPlanControllerContextWhenStartingMidSong() {
-    let tempoMap = MusicXMLTempoMap(
-        tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope)]
-    )
-    let timeline = AutoplayPerformanceTimeline(
-        events: [
-            AutoplayPerformanceTimeline.Event(
-                id: 0,
-                sourceEventID: "controller-volume",
-                tick: 0,
-                kind: .controlChange(controller: 7, value: 100)
-            ),
-            AutoplayPerformanceTimeline.Event(
-                id: 1,
-                sourceEventID: "controller-sustain",
-                tick: 0,
-                kind: .controlChange(controller: 64, value: 127)
-            ),
-            AutoplayPerformanceTimeline.Event(
-                id: 2,
-                sourceEventID: "note-1",
-                tick: 480,
-                kind: .noteOn(midi: 60, velocity: 96)
-            ),
-            AutoplayPerformanceTimeline.Event(
-                id: 3,
-                sourceEventID: "note-1",
-                tick: 960,
-                kind: .noteOff(midi: 60)
-            ),
-        ]
-    )
-
-    let builder = PracticeSequencerSequenceBuilder(midiChannel: 0)
-    let schedule = builder.buildPerformanceEventSchedule(
-        timeline: timeline,
-        tempoMap: tempoMap,
-        startTick: 480
-    )
-
-    #expect(schedule.prefix(2).map(\.kind) == [
-        .controlChange(controller: 7, value: 100),
-        .controlChange(controller: 64, value: 127),
-    ])
-    #expect(schedule.prefix(2).map(\.sourceEventID) == ["controller-volume", "controller-sustain"])
-    #expect(abs((schedule.first?.timeSeconds ?? -1) - 0.0) < 1e-9)
-}
-
-@Test
-func sequenceBuilderDoesNotDuplicateControllerContextAlreadyProjectedAtStartTick() {
+func sequenceBuilderConsumesControllerStateProjectedAtStartTick() {
     let tempoMap = MusicXMLTempoMap(
         tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope)]
     )
