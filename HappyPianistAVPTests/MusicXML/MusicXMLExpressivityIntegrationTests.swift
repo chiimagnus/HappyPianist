@@ -120,10 +120,57 @@ func musicXMLScoreSnapshotCapturesSourceFactsWithoutHeuristics() throws {
     """
     let score = try MusicXMLParser().parse(data: Data(xml.utf8))
     let snapshot = MusicXMLScoreSnapshot().encode(score)
+    let noteID = try #require(score.notes.first?.sourceID)
+    let directionID = try #require(score.dynamicEvents.first?.sourceID)
 
-    #expect(snapshot.contains("kind=note|sourceNoteID=unresolved|sourceIndex=0|part=P1"))
-    #expect(snapshot.contains("kind=dynamic|sourceDirectionID=unresolved"))
-    #expect(snapshot.contains("kind=measure|sourceMeasureID=P1-m1"))
+    #expect(snapshot.contains("kind=note|sourceNoteID=\(noteID.description)|sourceIndex=0|part=P1"))
+    #expect(snapshot.contains("kind=dynamic|sourceDirectionID=\(directionID.description)"))
+    #expect(snapshot.contains("kind=measure|sourceMeasureID=P1:0:1"))
+}
+
+@Test
+func musicXMLScoreSnapshotIsIndependentOfFactArrayOrder() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1">
+        <measure number="1">
+          <attributes><divisions>1</divisions><time><beats>4</beats><beat-type>4</beat-type></time></attributes>
+          <barline location="left"><repeat direction="forward"/><ending number="1" type="start"/></barline>
+          <direction>
+            <direction-type><dynamics><p/></dynamics><wedge type="crescendo"/><words>dolce</words><fermata/></direction-type>
+            <sound tempo="80" damper-pedal="yes" segno="s1"/>
+          </direction>
+          <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+        </measure>
+        <measure number="2">
+          <attributes><time><beats>3</beats><beat-type>4</beat-type></time></attributes>
+          <direction>
+            <direction-type><dynamics><f/></dynamics><wedge type="stop"/><words>cantabile</words><fermata/></direction-type>
+            <sound tempo="100" damper-pedal="no" coda="c1"/>
+          </direction>
+          <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration></note>
+          <barline location="right"><ending number="1" type="stop"/><repeat direction="backward"/></barline>
+        </measure>
+      </part>
+    </score-partwise>
+    """
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    var reordered = score
+    reordered.notes.reverse()
+    reordered.tempoEvents.reverse()
+    reordered.soundDirectives.reverse()
+    reordered.pedalEvents.reverse()
+    reordered.dynamicEvents.reverse()
+    reordered.wedgeEvents.reverse()
+    reordered.fermataEvents.reverse()
+    reordered.timeSignatureEvents.reverse()
+    reordered.wordsEvents.reverse()
+    reordered.measures.reverse()
+    reordered.repeatDirectives.reverse()
+    reordered.endingDirectives.reverse()
+
+    #expect(MusicXMLScoreSnapshot().encode(reordered) == MusicXMLScoreSnapshot().encode(score))
 }
 
 @Test

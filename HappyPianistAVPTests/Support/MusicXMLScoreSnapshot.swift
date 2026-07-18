@@ -12,8 +12,10 @@ struct MusicXMLScoreSnapshot {
             ]),
         ]
 
-        lines.append(contentsOf: score.notes.enumerated().map(noteLine))
-        lines.append(contentsOf: score.tempoEvents.enumerated().map { index, event in
+        lines.append(contentsOf: canonicalLines(score.notes, sortKey: noteSortKey, encode: noteLine))
+        lines.append(contentsOf: canonicalLines(score.tempoEvents, sortKey: { event, fallback in
+            directionSortKey(sourceID: event.sourceID, tick: event.tick, scope: event.scope, fallback: fallback)
+        }) { index, event in
             directionLine(
                 kind: "tempo",
                 sourceID: event.sourceID,
@@ -23,7 +25,9 @@ struct MusicXMLScoreSnapshot {
                 value: encoder.encode(event.quarterBPM)
             )
         })
-        lines.append(contentsOf: score.dynamicEvents.enumerated().map { index, event in
+        lines.append(contentsOf: canonicalLines(score.dynamicEvents, sortKey: { event, fallback in
+            directionSortKey(sourceID: event.sourceID, tick: event.tick, scope: event.scope, fallback: fallback)
+        }) { index, event in
             directionLine(
                 kind: "dynamic",
                 sourceID: event.sourceID,
@@ -33,7 +37,9 @@ struct MusicXMLScoreSnapshot {
                 value: String(event.velocity)
             )
         })
-        lines.append(contentsOf: score.wedgeEvents.enumerated().map { index, event in
+        lines.append(contentsOf: canonicalLines(score.wedgeEvents, sortKey: { event, fallback in
+            directionSortKey(sourceID: event.sourceID, tick: event.tick, scope: event.scope, fallback: fallback)
+        }) { index, event in
             directionLine(
                 kind: "wedge",
                 sourceID: event.sourceID,
@@ -43,7 +49,14 @@ struct MusicXMLScoreSnapshot {
                 value: "\(event.kind):\(event.numberToken ?? "null")"
             )
         })
-        lines.append(contentsOf: score.pedalEvents.enumerated().map { index, event in
+        lines.append(contentsOf: canonicalLines(score.pedalEvents, sortKey: { event, fallback in
+            directionSortKey(
+                sourceID: event.sourceID,
+                tick: event.tick,
+                scope: MusicXMLEventScope(partID: event.partID, staff: nil, voice: nil),
+                fallback: fallback
+            )
+        }) { index, event in
             encoder.encode(fields: [
                 ("kind", "pedal"),
                 ("sourceDirectionID", event.sourceID?.description ?? "unresolved"),
@@ -55,7 +68,9 @@ struct MusicXMLScoreSnapshot {
                 ("down", encoder.encode(event.isDown)),
             ])
         })
-        lines.append(contentsOf: score.fermataEvents.enumerated().map { index, event in
+        lines.append(contentsOf: canonicalLines(score.fermataEvents, sortKey: { event, fallback in
+            directionSortKey(sourceID: event.sourceID, tick: event.tick, scope: event.scope, fallback: fallback)
+        }) { index, event in
             directionLine(
                 kind: "fermata",
                 sourceID: event.sourceID,
@@ -65,7 +80,9 @@ struct MusicXMLScoreSnapshot {
                 value: String(describing: event.source)
             )
         })
-        lines.append(contentsOf: score.wordsEvents.enumerated().map { index, event in
+        lines.append(contentsOf: canonicalLines(score.wordsEvents, sortKey: { event, fallback in
+            directionSortKey(sourceID: event.sourceID, tick: event.tick, scope: event.scope, fallback: fallback)
+        }) { index, event in
             directionLine(
                 kind: "words",
                 sourceID: event.sourceID,
@@ -75,7 +92,14 @@ struct MusicXMLScoreSnapshot {
                 value: event.text
             )
         })
-        lines.append(contentsOf: score.soundDirectives.enumerated().map { index, event in
+        lines.append(contentsOf: canonicalLines(score.soundDirectives, sortKey: { event, fallback in
+            directionSortKey(
+                sourceID: event.sourceID,
+                tick: event.tick,
+                scope: MusicXMLEventScope(partID: event.partID, staff: nil, voice: nil),
+                fallback: fallback
+            )
+        }) { index, event in
             encoder.encode(fields: [
                 ("kind", "sound"),
                 ("sourceDirectionID", event.sourceID?.description ?? "unresolved"),
@@ -90,7 +114,9 @@ struct MusicXMLScoreSnapshot {
                 ("dacapo", event.dacapo),
             ])
         })
-        lines.append(contentsOf: score.timeSignatureEvents.enumerated().map { index, event in
+        lines.append(contentsOf: canonicalLines(score.timeSignatureEvents, sortKey: { event, fallback in
+            SnapshotSortKey(tick: event.tick, scope: event.scope, fallback: fallback)
+        }) { index, event in
             encoder.encode(fields: [
                 ("kind", "meter"),
                 ("sourceIndex", String(index)),
@@ -114,7 +140,13 @@ struct MusicXMLScoreSnapshot {
                 ("end", String(measure.endTick)),
             ])
         })
-        lines.append(contentsOf: score.repeatDirectives.enumerated().map { index, directive in
+        lines.append(contentsOf: canonicalLines(score.repeatDirectives, sortKey: { directive, fallback in
+            SnapshotSortKey(
+                tick: directive.measureNumber,
+                scope: MusicXMLEventScope(partID: directive.partID, staff: nil, voice: nil),
+                fallback: fallback
+            )
+        }) { index, directive in
             encoder.encode(fields: [
                 ("kind", "repeat"),
                 ("sourceIndex", String(index)),
@@ -123,7 +155,13 @@ struct MusicXMLScoreSnapshot {
                 ("direction", directive.direction.rawValue),
             ])
         })
-        lines.append(contentsOf: score.endingDirectives.enumerated().map { index, directive in
+        lines.append(contentsOf: canonicalLines(score.endingDirectives, sortKey: { directive, fallback in
+            SnapshotSortKey(
+                tick: directive.measureNumber,
+                scope: MusicXMLEventScope(partID: directive.partID, staff: nil, voice: nil),
+                fallback: fallback
+            )
+        }) { index, directive in
             encoder.encode(fields: [
                 ("kind", "ending"),
                 ("sourceIndex", String(index)),
@@ -177,6 +215,47 @@ struct MusicXMLScoreSnapshot {
         ])
     }
 
+    private func canonicalLines<Element>(
+        _ elements: [Element],
+        sortKey: (Element, String) -> SnapshotSortKey,
+        encode: (Int, Element) -> String
+    ) -> [String] {
+        elements
+            .map { element in (element, sortKey(element, encode(0, element))) }
+            .sorted { $0.1 < $1.1 }
+            .enumerated()
+            .map { index, entry in encode(index, entry.0) }
+    }
+
+    private func noteSortKey(_ note: MusicXMLNoteEvent, fallback: String) -> SnapshotSortKey {
+        SnapshotSortKey(
+            sourcePartID: note.sourceID?.partID,
+            sourceMeasureIndex: note.sourceID?.sourceMeasureIndex,
+            sourceStaff: note.sourceID?.staff,
+            sourceVoice: note.sourceID?.voice,
+            sourceOrdinal: note.sourceID?.sourceOrdinal,
+            tick: note.tick,
+            scope: MusicXMLEventScope(partID: note.partID, staff: note.staff, voice: note.voice),
+            fallback: fallback
+        )
+    }
+
+    private func directionSortKey(
+        sourceID: MusicXMLDirectionSourceID?,
+        tick: Int,
+        scope: MusicXMLEventScope,
+        fallback: String
+    ) -> SnapshotSortKey {
+        SnapshotSortKey(
+            sourcePartID: sourceID?.partID,
+            sourceMeasureIndex: sourceID?.sourceMeasureIndex,
+            sourceOrdinal: sourceID?.sourceOrdinal,
+            tick: tick,
+            scope: scope,
+            fallback: fallback
+        )
+    }
+
     private func sourceMeasureID(_ id: PracticeSourceMeasureID) -> String {
         "\(id.partID):\(id.sourceMeasureIndex):\(id.sourceNumberToken ?? "null")"
     }
@@ -194,5 +273,51 @@ struct MusicXMLScoreSnapshot {
             return lhs.occurrenceIndex < rhs.occurrenceIndex
         }
         return lhs.startTick < rhs.startTick
+    }
+
+    private struct SnapshotSortKey: Comparable {
+        var sourcePartID: String?
+        var sourceMeasureIndex: Int?
+        var sourceStaff: Int?
+        var sourceVoice: Int?
+        var sourceOrdinal: Int?
+        let tick: Int
+        let scope: MusicXMLEventScope
+        let fallback: String
+
+        init(
+            sourcePartID: String? = nil,
+            sourceMeasureIndex: Int? = nil,
+            sourceStaff: Int? = nil,
+            sourceVoice: Int? = nil,
+            sourceOrdinal: Int? = nil,
+            tick: Int,
+            scope: MusicXMLEventScope,
+            fallback: String
+        ) {
+            self.sourcePartID = sourcePartID
+            self.sourceMeasureIndex = sourceMeasureIndex
+            self.sourceStaff = sourceStaff
+            self.sourceVoice = sourceVoice
+            self.sourceOrdinal = sourceOrdinal
+            self.tick = tick
+            self.scope = scope
+            self.fallback = fallback
+        }
+
+        static func < (lhs: Self, rhs: Self) -> Bool {
+            if lhs.sourcePartID != rhs.sourcePartID { return (lhs.sourcePartID ?? "~") < (rhs.sourcePartID ?? "~") }
+            if lhs.sourceMeasureIndex != rhs.sourceMeasureIndex {
+                return (lhs.sourceMeasureIndex ?? .max) < (rhs.sourceMeasureIndex ?? .max)
+            }
+            if lhs.sourceStaff != rhs.sourceStaff { return (lhs.sourceStaff ?? .max) < (rhs.sourceStaff ?? .max) }
+            if lhs.sourceVoice != rhs.sourceVoice { return (lhs.sourceVoice ?? .max) < (rhs.sourceVoice ?? .max) }
+            if lhs.sourceOrdinal != rhs.sourceOrdinal { return (lhs.sourceOrdinal ?? .max) < (rhs.sourceOrdinal ?? .max) }
+            if lhs.tick != rhs.tick { return lhs.tick < rhs.tick }
+            if lhs.scope.partID != rhs.scope.partID { return lhs.scope.partID < rhs.scope.partID }
+            if lhs.scope.staff != rhs.scope.staff { return (lhs.scope.staff ?? .max) < (rhs.scope.staff ?? .max) }
+            if lhs.scope.voice != rhs.scope.voice { return (lhs.scope.voice ?? .max) < (rhs.scope.voice ?? .max) }
+            return lhs.fallback < rhs.fallback
+        }
     }
 }
