@@ -136,44 +136,48 @@ actor PracticePreparationService: PracticePreparationServiceProtocol {
             : score
         let practiceScore = effectiveScore.filtering(toLogicalInstrument: selectedInstrument)
         let primaryPartID = primaryPartIDForExpansion
-        let routedPracticeScore = MusicXMLHandRouter().routeIfNeeded(score: practiceScore)
+        let handRouting = MusicXMLHandRouter().assignments(for: practiceScore)
 
         try Task.checkCancellation()
         let expressivityOptions = MusicXMLRealisticPlaybackDefaults.expressivityOptions
-        let buildResult = stepBuilder.buildSteps(from: routedPracticeScore, expressivity: expressivityOptions)
+        let buildResult = stepBuilder.buildSteps(
+            from: practiceScore,
+            expressivity: expressivityOptions,
+            handAssignments: handRouting.assignmentsBySourceNoteID
+        )
         let wordsSemantics = expressivityOptions.wordsSemanticsEnabled
             ? MusicXMLWordsSemanticsInterpreter().interpret(
-                wordsEvents: routedPracticeScore.wordsEvents,
-                tempoEvents: routedPracticeScore.tempoEvents
+                wordsEvents: practiceScore.wordsEvents,
+                tempoEvents: practiceScore.tempoEvents
             )
             : nil
         let tempoMap = MusicXMLTempoMap(
-            tempoEvents: routedPracticeScore.tempoEvents + (wordsSemantics?.derivedTempoEvents ?? []),
+            tempoEvents: practiceScore.tempoEvents + (wordsSemantics?.derivedTempoEvents ?? []),
             tempoRamps: wordsSemantics?.derivedTempoRamps ?? [],
             partID: primaryPartID
         )
-        let pedalTimeline = MusicXMLPedalTimeline(events: routedPracticeScore
+        let pedalTimeline = MusicXMLPedalTimeline(events: practiceScore
             .pedalEvents + (wordsSemantics?.derivedPedalEvents ?? []))
         let fermataTimeline = expressivityOptions.fermataEnabled
             ? MusicXMLFermataTimeline(
-                fermataEvents: routedPracticeScore.fermataEvents,
-                notes: routedPracticeScore.notes
+                fermataEvents: practiceScore.fermataEvents,
+                notes: practiceScore.notes
             )
             : nil
         let attributeTimeline = MusicXMLAttributeTimeline(
-            timeSignatureEvents: routedPracticeScore.timeSignatureEvents,
-            keySignatureEvents: routedPracticeScore.keySignatureEvents,
-            clefEvents: routedPracticeScore.clefEvents
+            timeSignatureEvents: practiceScore.timeSignatureEvents,
+            keySignatureEvents: practiceScore.keySignatureEvents,
+            clefEvents: practiceScore.clefEvents
         )
         let noteSpans = MusicXMLNoteSpanBuilder().buildSpans(
-            from: routedPracticeScore.notes,
+            from: practiceScore.notes,
             performanceTimingEnabled: MusicXMLRealisticPlaybackDefaults.performanceTimingEnabled,
             expressivity: expressivityOptions,
             fermataTimeline: fermataTimeline
         )
         let highlightGuides = PianoHighlightGuideBuilderService().buildGuides(
             input: PianoHighlightGuideBuildInput(
-                score: routedPracticeScore,
+                score: practiceScore,
                 steps: buildResult.steps,
                 noteSpans: noteSpans,
                 expressivity: expressivityOptions
@@ -184,7 +188,7 @@ actor PracticePreparationService: PracticePreparationServiceProtocol {
         guard buildResult.steps.isEmpty == false else {
             throw PracticePreparationError.noPlayableNotes
         }
-        guard routedPracticeScore.measures.isEmpty == false else {
+        guard practiceScore.measures.isEmpty == false else {
             throw PracticePreparationError.missingMeasureStructure
         }
         return PreparedPractice(
@@ -196,7 +200,7 @@ actor PracticePreparationService: PracticePreparationServiceProtocol {
             fermataTimeline: fermataTimeline,
             attributeTimeline: attributeTimeline,
             highlightGuides: highlightGuides,
-            measureSpans: routedPracticeScore.measures,
+            measureSpans: practiceScore.measures,
             unsupportedNoteCount: buildResult.unsupportedNoteCount
         )
     }

@@ -1,12 +1,27 @@
 import Foundation
 
 protocol PracticeStepBuilderProtocol {
-    func buildSteps(from score: MusicXMLScore, expressivity: MusicXMLExpressivityOptions) -> PracticeStepBuildResult
+    func buildSteps(
+        from score: MusicXMLScore,
+        expressivity: MusicXMLExpressivityOptions,
+        handAssignments: [MusicXMLSourceNoteID: ScoreHandAssignment]
+    ) -> PracticeStepBuildResult
 }
 
 extension PracticeStepBuilderProtocol {
     func buildSteps(from score: MusicXMLScore) -> PracticeStepBuildResult {
-        buildSteps(from: score, expressivity: MusicXMLExpressivityOptions())
+        buildSteps(
+            from: score,
+            expressivity: MusicXMLExpressivityOptions(),
+            handAssignments: [:]
+        )
+    }
+
+    func buildSteps(
+        from score: MusicXMLScore,
+        expressivity: MusicXMLExpressivityOptions
+    ) -> PracticeStepBuildResult {
+        buildSteps(from: score, expressivity: expressivity, handAssignments: [:])
     }
 }
 
@@ -19,7 +34,11 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
 
     private let playableRange = 21 ... 108
 
-    func buildSteps(from score: MusicXMLScore, expressivity: MusicXMLExpressivityOptions) -> PracticeStepBuildResult {
+    func buildSteps(
+        from score: MusicXMLScore,
+        expressivity: MusicXMLExpressivityOptions,
+        handAssignments: [MusicXMLSourceNoteID: ScoreHandAssignment]
+    ) -> PracticeStepBuildResult {
         var grouped: [Int: [StepNoteKey: (
             handAssignment: ScoreHandAssignment,
             velocity: UInt8,
@@ -56,7 +75,7 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
             var map = grouped[effectiveTick] ?? [:]
             if map[key] == nil {
                 map[key] = (
-                    handAssignment: .unknown,
+                    handAssignment: noteEvent.sourceID.flatMap { handAssignments[$0] } ?? .unknown,
                     velocity: velocity,
                     onTickOffset: onTickOffset,
                     fingeringText: noteEvent.fingeringText
