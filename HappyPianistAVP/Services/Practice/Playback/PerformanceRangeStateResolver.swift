@@ -46,7 +46,7 @@ struct PerformanceRangeStateResolver {
             if note.performedOffTick > startTick {
                 approximation = .reattackedHeldNote(eventID: note.id)
                 offTick = note.performedOffTick
-            } else if let sustainIntervalStart, note.performedOffTick >= sustainIntervalStart {
+            } else if let sustainIntervalStart, note.performedOffTick > sustainIntervalStart {
                 approximation = .reattackedSustainedNote(eventID: note.id)
                 offTick = nextSustainReleaseTick ?? planEndTick
             } else {

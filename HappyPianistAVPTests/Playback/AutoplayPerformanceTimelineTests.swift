@@ -345,6 +345,26 @@ func autoplayTimelineReconstructsCrossBoundaryHeldNoteWithoutRevivingBoundaryOff
 }
 
 @Test
+func autoplayTimelineDoesNotReviveBoundaryOffBeforeSameTickPedalDown() throws {
+    let activeRange = try timelineActiveRange(startTick: 480, endTick: 960)
+    let plan = makeTimelinePlan(
+        notes: [TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 480)],
+        controllerEvents: [
+            timelineController(sourceID: directionID(ordinal: 10), tick: 480, value: 127),
+        ]
+    )
+
+    let timeline = makeTimeline(plan: plan, activeRange: activeRange)
+
+    #expect(timeline.events.contains { event in
+        if case .noteOn = event.kind { return true }
+        if case .noteOff = event.kind { return true }
+        return false
+    } == false)
+    #expect(timeline.rangeStartApproximations.isEmpty)
+}
+
+@Test
 func autoplayTimelineRestoresHalfPedalAndClosesRangeAfterRepedal() throws {
     let activeRange = try timelineActiveRange(startTick: 480, endTick: 960)
     let plan = makeTimelinePlan(
