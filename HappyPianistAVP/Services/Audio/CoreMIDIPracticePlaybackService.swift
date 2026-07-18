@@ -8,7 +8,8 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
     private let velocity: UInt8
     private let channel: UInt8
 
-    private var loadedSequence: PracticeSequencerSequence?
+    private var loadedDurationSeconds: TimeInterval?
+    private var loadedEvents: [PracticeSequencerMIDIEvent]?
     private var scheduler: MIDIEventScheduler?
 
     private var playingOneShotNotes: Set<UInt8> = []
@@ -59,13 +60,14 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
     func load(sequence: PracticeSequencerSequence) throws {
         try ensureReady()
         stop()
-        loadedSequence = sequence
+        loadedDurationSeconds = sequence.durationSeconds
+        loadedEvents = sequence.events
         lastKnownSeconds = 0
     }
 
     func play(fromSeconds start: TimeInterval) throws {
         try ensureReady()
-        guard let sequence = loadedSequence else { return }
+        guard let events = loadedEvents else { return }
 
         stop()
 
@@ -81,7 +83,6 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
         )
         self.scheduler = scheduler
 
-        let events = sequence.events
         Task.detached(priority: .userInitiated) {
             await scheduler.play(events: events, fromSeconds: startSeconds)
         }
@@ -91,8 +92,8 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
         guard let playbackStartedAtUptimeSeconds else { return lastKnownSeconds }
         let now = ProcessInfo.processInfo.systemUptime
         let seconds = playbackStartSeconds + max(0, now - playbackStartedAtUptimeSeconds)
-        if let loadedSequence {
-            return min(seconds, loadedSequence.durationSeconds)
+        if let loadedDurationSeconds {
+            return min(seconds, loadedDurationSeconds)
         }
         return seconds
     }

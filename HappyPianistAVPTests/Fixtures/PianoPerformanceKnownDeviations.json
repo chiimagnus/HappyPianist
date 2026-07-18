@@ -225,7 +225,6 @@
       "plannedTask": "P6-T7",
       "fixtures": [],
       "tests": [
-        "HappyPianistAVPTests/Practice/PracticeManualReplaySequenceBuilderTests.swift",
         "HappyPianistAVPTests/Practice/PracticeManualReplayCoordinatorTests.swift"
       ],
       "evidenceStatus": "characterizationPlanned"

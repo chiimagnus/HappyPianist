@@ -33,6 +33,7 @@ final class PracticeManualReplayService {
 
     func startManualReplay(with plan: ManualReplayPlan) {
         guard stateStore.isActiveRangeInvalid == false else { return }
+        guard let performancePlan = stateStore.performancePlan else { return }
         let shouldResumeRecognitionWhenReplayEnds = stateStore.isManualReplayPlaying
             ? stateStore.shouldResumeAudioRecognitionAfterManualReplay
             : stateStore.isAudioRecognitionRunning
@@ -57,11 +58,20 @@ final class PracticeManualReplayService {
         let generation = stateStore.manualReplayGeneration
         let startIndex = effectiveStepRange.lowerBound
         let stepRangeSnapshot = effectiveStepRange
-        let stepsSnapshot = filteredStepsForPracticeHandMode(
-            stateStore.steps,
-            mode: stateStore.activeRoundConfiguration?.handMode ?? .both
-        )
+        let stepsSnapshot = stateStore.steps
         let tempoMapSnapshot = stateStore.tempoMap
+        let timelineSnapshot = AutoplayPerformanceTimeline.build(
+            plan: performancePlan,
+            guideProjection: [],
+            stepProjection: [],
+            tempoMap: tempoMapSnapshot,
+            practiceHandMode: stateStore.activeRoundConfiguration?.handMode ?? .both,
+            activeRange: stateStore.activeRange
+        )
+        let startTick = stepsSnapshot[startIndex].tick
+        let endTick = stepsSnapshot.indices.contains(stepRangeSnapshot.upperBound)
+            ? stepsSnapshot[stepRangeSnapshot.upperBound].tick
+            : stateStore.activeRange?.tickRange.upperBound
         let leadInSeconds: TimeInterval = 0.05
 
         stateStore.isManualReplayPlaying = true
@@ -99,10 +109,11 @@ final class PracticeManualReplayService {
 
             let sequence: PracticeSequencerSequence
             do {
-                sequence = try await playbackSequenceBuilder.buildManualReplaySequence(
-                    steps: stepsSnapshot,
+                sequence = try await playbackSequenceBuilder.buildPerformanceSequence(
+                    timeline: timelineSnapshot,
                     tempoMap: tempoMapSnapshot,
-                    stepRange: stepRangeSnapshot,
+                    startTick: startTick,
+                    endTick: endTick,
                     leadInSeconds: leadInSeconds
                 )
             } catch {
@@ -178,15 +189,6 @@ final class PracticeManualReplayService {
         stateStore.currentHighlightGuideIndex = stateStore.strictTriggerGuideIndex(forStepIndex: stepIndex)
     }
 
-    private func filteredStepsForPracticeHandMode(_ steps: [PracticeStep], mode: PracticeHandMode) -> [PracticeStep] {
-        guard mode != .both else { return steps }
-        return steps.map { step in
-            PracticeStep(
-                tick: step.tick,
-                notes: step.notes.filter { note in mode.allows(hand: note.hand) }
-            )
-        }
-    }
 }
 
 private struct ManualReplayTimeCursor: Equatable {

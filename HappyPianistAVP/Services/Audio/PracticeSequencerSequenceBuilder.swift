@@ -12,8 +12,19 @@ struct PracticeSequencerMIDIEvent: Equatable {
         case polyPressure(midi: Int, value: UInt8)
     }
 
+    let sourceEventID: String?
     let timeSeconds: TimeInterval
     let kind: Kind
+
+    init(
+        sourceEventID: String? = nil,
+        timeSeconds: TimeInterval,
+        kind: Kind
+    ) {
+        self.sourceEventID = sourceEventID
+        self.timeSeconds = timeSeconds
+        self.kind = kind
+    }
 }
 
 enum PracticeSequencerSequenceBuilderError: LocalizedError, Equatable {
@@ -46,11 +57,10 @@ struct PracticeSequencerSequenceBuilder {
         self.midiChannel = midiChannel
     }
 
-    func buildAudioEventSchedule(
+    func buildPerformanceEventSchedule(
         timeline: AutoplayPerformanceTimeline,
         tempoMap: MusicXMLTempoMap,
         startTick: Int,
-        initialSustainPedalDown: Bool = false,
         leadInSeconds: TimeInterval = 0,
         endTick: Int? = nil
     ) -> [PracticeSequencerMIDIEvent] {
@@ -63,22 +73,46 @@ struct PracticeSequencerSequenceBuilder {
         var schedule: [PracticeSequencerMIDIEvent] = []
         schedule.reserveCapacity(128)
 
-        let timelineDefinesInitialSustain = timeline.events[startIndex...].contains { event in
-            guard event.tick == baseTick else { return false }
-            if case .controlChange(controller: 64, value: _) = event.kind { return true }
-            return false
-        }
-        if initialSustainPedalDown && timelineDefinesInitialSustain == false {
+        let controllersAtBaseTick = Set(timeline.events[startIndex...].compactMap { event -> UInt8? in
+            guard event.tick == baseTick else { return nil }
+            if case let .controlChange(controller, _) = event.kind { return controller }
+            return nil
+        })
+        let controllerContext = Dictionary(
+            grouping: timeline.events[..<startIndex].compactMap { event -> (UInt8, AutoplayPerformanceTimeline.Event)? in
+                if case let .controlChange(controller, _) = event.kind { return (controller, event) }
+                return nil
+            },
+            by: \.0
+        )
+        .compactMap { controller, events in events.last.map { (controller, $0.1) } }
+        .filter { controllersAtBaseTick.contains($0.0) == false }
+        .sorted { $0.0 < $1.0 }
+
+        for (_, event) in controllerContext {
+            guard case let .controlChange(controller, value) = event.kind else { continue }
             schedule.append(
                 PracticeSequencerMIDIEvent(
+                    sourceEventID: event.sourceEventID,
                     timeSeconds: max(0, leadInSeconds),
-                    kind: .controlChange(controller: 64, value: 127)
+                    kind: .controlChange(controller: controller, value: value)
                 )
             )
         }
 
+        var openNotes: [String: Int] = [:]
         for event in timeline.events[startIndex...] {
-            if let endTick, event.tick >= endTick { break }
+            if let endTick {
+                if event.tick > endTick { break }
+                if event.tick == endTick {
+                    switch event.kind {
+                    case .pauseSeconds, .noteOff:
+                        break
+                    case .controlChange, .tempo, .noteOn, .advanceStep, .advanceGuide:
+                        continue
+                    }
+                }
+            }
 
             switch event.kind {
             case let .pauseSeconds(seconds):
@@ -87,15 +121,18 @@ struct PracticeSequencerSequenceBuilder {
             case let .noteOff(midi):
                 schedule.append(
                     PracticeSequencerMIDIEvent(
+                        sourceEventID: event.sourceEventID,
                         timeSeconds: tempoMap
                             .timeSeconds(atTick: event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
                         kind: .noteOff(midi: midi)
                     )
                 )
+                openNotes.removeValue(forKey: event.sourceEventID ?? "timeline:\(event.id)")
 
             case let .controlChange(controller, value):
                 schedule.append(
                     PracticeSequencerMIDIEvent(
+                        sourceEventID: event.sourceEventID,
                         timeSeconds: tempoMap
                             .timeSeconds(atTick: event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
                         kind: .controlChange(controller: controller, value: value)
@@ -105,14 +142,28 @@ struct PracticeSequencerSequenceBuilder {
             case let .noteOn(midi, velocity):
                 schedule.append(
                     PracticeSequencerMIDIEvent(
+                        sourceEventID: event.sourceEventID,
                         timeSeconds: tempoMap
                             .timeSeconds(atTick: event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
                         kind: .noteOn(midi: midi, velocity: velocity)
                     )
                 )
+                openNotes[event.sourceEventID ?? "timeline:\(event.id)"] = midi
 
             case .tempo, .advanceStep, .advanceGuide:
                 continue
+            }
+        }
+
+        if let endTick {
+            let endSeconds = tempoMap.timeSeconds(atTick: endTick) - baseSeconds
+                + pausePrefixSeconds + leadInSeconds
+            for (sourceEventID, midi) in openNotes.sorted(by: { $0.key < $1.key }) {
+                schedule.append(PracticeSequencerMIDIEvent(
+                    sourceEventID: sourceEventID,
+                    timeSeconds: endSeconds,
+                    kind: .noteOff(midi: midi)
+                ))
             }
         }
 
@@ -147,7 +198,7 @@ struct PracticeSequencerSequenceBuilder {
             if eventPriority(lhs.kind) != eventPriority(rhs.kind) {
                 return eventPriority(lhs.kind) < eventPriority(rhs.kind)
             }
-            return tieBreaker(lhs.kind) < tieBreaker(rhs.kind)
+            return tieBreaker(lhs) < tieBreaker(rhs)
         }
 
         var durationSeconds: TimeInterval = 0
@@ -257,8 +308,8 @@ struct PracticeSequencerSequenceBuilder {
         }
     }
 
-    private func tieBreaker(_ kind: PracticeSequencerMIDIEvent.Kind) -> String {
-        switch kind {
+    private func tieBreaker(_ event: PracticeSequencerMIDIEvent) -> String {
+        let kind = switch event.kind {
         case let .noteOn(midi, velocity):
             "on-\(midi)-\(velocity)"
         case let .noteOff(midi):
@@ -274,5 +325,6 @@ struct PracticeSequencerSequenceBuilder {
         case let .polyPressure(midi, value):
             "pp-\(midi)-\(value)"
         }
+        return "\(kind)-\(event.sourceEventID ?? "unresolved")"
     }
 }

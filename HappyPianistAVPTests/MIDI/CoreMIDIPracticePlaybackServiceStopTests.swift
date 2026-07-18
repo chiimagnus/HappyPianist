@@ -21,6 +21,48 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
         #expect(calls.contains(.controlChange(controller: 123, value: 0, channel: 0, destination: destinationUniqueID)))
         #expect(calls.contains(.controlChange(controller: 120, value: 0, channel: 0, destination: destinationUniqueID)))
     }
+
+    @Test func playbackSendsCanonicalSequenceEventsIncludingControllers() async throws {
+        let output = FakeMIDIOutputService()
+        let destinationUniqueID: Int32 = 5678
+        let playback = await MainActor.run {
+            CoreMIDIPracticePlaybackService(
+                destinationUniqueID: destinationUniqueID,
+                outputService: output,
+                velocity: 96,
+                channel: 2
+            )
+        }
+        let sequence = PracticeSequencerSequence(
+            midiData: Data(),
+            durationSeconds: 0,
+            events: [
+                PracticeSequencerMIDIEvent(
+                    sourceEventID: "controller-1",
+                    timeSeconds: 0,
+                    kind: .controlChange(controller: 11, value: 72)
+                ),
+                PracticeSequencerMIDIEvent(
+                    sourceEventID: "note-1",
+                    timeSeconds: 0,
+                    kind: .noteOn(midi: 60, velocity: 88)
+                ),
+            ]
+        )
+
+        try await MainActor.run {
+            try playback.load(sequence: sequence)
+            try playback.play(fromSeconds: 0)
+        }
+        try await Task.sleep(for: .milliseconds(20))
+
+        let expected: [FakeMIDIOutputService.Call] = [
+            .controlChange(controller: 11, value: 72, channel: 2, destination: destinationUniqueID),
+            .noteOn(note: 60, velocity: 88, channel: 2, destination: destinationUniqueID),
+        ]
+        let musicalCalls = output.callsSnapshot().filter(expected.contains)
+        #expect(musicalCalls == expected)
+    }
 }
 
 private final class FakeMIDIOutputService: MIDIOutputSendingProtocol, @unchecked Sendable {

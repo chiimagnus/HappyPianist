@@ -269,11 +269,11 @@ final class PracticePlaybackControlService {
 
         let sequence: PracticeSequencerSequence
         do {
-            sequence = try await playbackSequenceBuilder.buildAutoplaySequence(
+            sequence = try await playbackSequenceBuilder.buildPerformanceSequence(
                 timeline: timeline,
                 tempoMap: tempoMap,
                 startTick: timingBaseTick,
-                initialSustainPedalDown: initialSustainPedalDown,
+                endTick: nil,
                 leadInSeconds: leadInSeconds
             )
         } catch {

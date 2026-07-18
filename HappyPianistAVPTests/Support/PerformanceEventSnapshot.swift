@@ -20,7 +20,7 @@ struct PerformanceEventSnapshot {
         encoder.encode(lines: events.enumerated().map { position, event in
             encoder.encode(fields: [
                 ("position", String(position)),
-                ("sourceEventID", "unresolved"),
+                ("sourceEventID", event.sourceEventID ?? "unresolved"),
                 ("seconds", encoder.encode(event.timeSeconds)),
                 ("kind", sequencerKind(event.kind)),
             ])

@@ -62,6 +62,10 @@ func manualReplayStopsAudioRecognitionAndRestoresAfterCompletion() async {
         PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
         PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
     ]
+    stateStore.performancePlan = makeTestScorePerformancePlan(notes: [
+        TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 480),
+        TestScorePerformanceNote(midiNote: 62, onTick: 480, offTick: 960),
+    ])
     stateStore.currentStepIndex = 0
     stateStore.tempoMap = MusicXMLTempoMap(
         tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope)]
@@ -124,6 +128,10 @@ func practiceManualReplayService_shutdownIsIdempotent() async {
         PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
         PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
     ]
+    stateStore.performancePlan = makeTestScorePerformancePlan(notes: [
+        TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 480),
+        TestScorePerformanceNote(midiNote: 62, onTick: 480, offTick: 960),
+    ])
     stateStore.currentStepIndex = 0
     stateStore.tempoMap = MusicXMLTempoMap(
         tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope)]

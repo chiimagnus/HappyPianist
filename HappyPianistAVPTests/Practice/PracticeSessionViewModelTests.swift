@@ -609,7 +609,7 @@ func autoplaySchedulesPendingOnsetsInsideCurrentStep() {
     )
 
     let builder = PracticeSequencerSequenceBuilder()
-    let schedule = builder.buildAudioEventSchedule(
+    let schedule = builder.buildPerformanceEventSchedule(
         timeline: timeline,
         tempoMap: tempoMap,
         startTick: 0
@@ -748,7 +748,7 @@ func autoplaySchedulesPedalChangesBetweenSteps() {
     )
 
     let builder = PracticeSequencerSequenceBuilder()
-    let schedule = builder.buildAudioEventSchedule(timeline: timeline, tempoMap: tempoMap, startTick: 0)
+    let schedule = builder.buildPerformanceEventSchedule(timeline: timeline, tempoMap: tempoMap, startTick: 0)
     let pedalChanges = schedule.compactMap { event -> (value: UInt8, time: TimeInterval)? in
         guard case let .controlChange(controller, value) = event.kind, controller == 64 else { return nil }
         return (value: value, time: event.timeSeconds)
@@ -1176,7 +1176,7 @@ func autoplaySchedulesNoteOffFromPerformancePlan() {
     )
 
     let builder = PracticeSequencerSequenceBuilder()
-    let schedule = builder.buildAudioEventSchedule(timeline: timeline, tempoMap: tempoMap, startTick: 0)
+    let schedule = builder.buildPerformanceEventSchedule(timeline: timeline, tempoMap: tempoMap, startTick: 0)
 
     let noteOff = schedule.first { event in
         if case let .noteOff(midi) = event.kind {
@@ -1236,7 +1236,7 @@ func autoplayDefersNoteOffWhilePedalIsDownAndReleasesOnPedalUp() {
     )
 
     let builder = PracticeSequencerSequenceBuilder()
-    let schedule = builder.buildAudioEventSchedule(timeline: timeline, tempoMap: tempoMap, startTick: 0)
+    let schedule = builder.buildPerformanceEventSchedule(timeline: timeline, tempoMap: tempoMap, startTick: 0)
 
     let pedalChanges = schedule.compactMap { event -> (value: UInt8, time: TimeInterval)? in
         guard case let .controlChange(controller, value) = event.kind, controller == 64 else { return nil }
@@ -1301,7 +1301,7 @@ func autoplayReleasesPendingNotesOnPedalChangeTickEvenIfPedalStaysDown() {
     )
 
     let builder = PracticeSequencerSequenceBuilder()
-    let schedule = builder.buildAudioEventSchedule(timeline: timeline, tempoMap: tempoMap, startTick: 0)
+    let schedule = builder.buildPerformanceEventSchedule(timeline: timeline, tempoMap: tempoMap, startTick: 0)
 
     let pedalChangesAtHalfSecond = schedule.compactMap { event -> UInt8? in
         guard abs(event.timeSeconds - 0.5) < 1e-9 else { return nil }
