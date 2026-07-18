@@ -79,9 +79,30 @@ struct MusicXMLFermataEvent: Equatable {
     let source: MusicXMLFermataEventSource
 }
 
-struct MusicXMLArpeggiate: Equatable, Hashable {
+enum MusicXMLArpeggiateDirection: String, Codable, Equatable, Hashable, Sendable {
+    case up
+    case down
+}
+
+struct MusicXMLArpeggiate: Equatable, Hashable, Sendable {
     let numberToken: String?
     let directionToken: String?
+
+    var normalizedNumberToken: String {
+        guard let trimmed = numberToken?.trimmingCharacters(in: .whitespacesAndNewlines),
+              trimmed.isEmpty == false
+        else {
+            return "1"
+        }
+        return trimmed
+    }
+
+    var direction: MusicXMLArpeggiateDirection? {
+        guard let token = directionToken?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() else {
+            return nil
+        }
+        return MusicXMLArpeggiateDirection(rawValue: token)
+    }
 }
 
 struct MusicXMLTimeSignatureEvent: Equatable, Identifiable {

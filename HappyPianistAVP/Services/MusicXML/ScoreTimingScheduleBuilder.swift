@@ -3,7 +3,9 @@ import Foundation
 struct ScoreTimingScheduleBuilder {
     func build(
         notes: [MusicXMLNoteEvent],
-        performanceTimingEnabled: Bool = false
+        performanceTimingEnabled: Bool = false,
+        logicalInstruments: [MusicXMLLogicalInstrument] = [],
+        arpeggiateEnabled: Bool = false
     ) -> ScoreTimingSchedule {
         var entries = notes.enumerated().map { index, note in
             MutableEntry(noteIndex: index, note: note, performanceTimingEnabled: performanceTimingEnabled)
@@ -20,6 +22,13 @@ struct ScoreTimingScheduleBuilder {
             notes: notes,
             entries: &entries
         )
+        if arpeggiateEnabled {
+            applyArpeggio(
+                notes: notes,
+                logicalInstruments: logicalInstruments,
+                entries: &entries
+            )
+        }
 
         return ScoreTimingSchedule(entries: entries.map(\.value))
     }
@@ -45,6 +54,22 @@ private extension ScoreTimingScheduleBuilder {
     struct MakeTimeGroup {
         let group: GraceGroup
         let durationTicks: Int
+    }
+
+    struct ArpeggioGroupKey: Hashable {
+        let logicalInstrumentID: String
+        let performedTick: Int
+        let numberToken: String
+        let sourceMeasureIndex: Int
+        let sourceTick: Int
+        let occurrenceIndex: Int
+    }
+
+    struct ArpeggioCandidate {
+        let noteIndex: Int
+        let midiNote: Int
+        let durationTicks: Int
+        let arpeggiate: MusicXMLArpeggiate
     }
 
     struct MutableEntry {
@@ -341,6 +366,108 @@ private extension ScoreTimingScheduleBuilder {
             }
             for index in group.noteIndices where notes[index].graceSlash {
                 entries[index].appendProvenance(.approximation(reason: "grace-slash-does-not-define-duration"))
+            }
+        }
+    }
+
+    func applyArpeggio(
+        notes: [MusicXMLNoteEvent],
+        logicalInstruments: [MusicXMLLogicalInstrument],
+        entries: inout [MutableEntry]
+    ) {
+        let instrumentIDByPartID = logicalInstruments.reduce(into: [String: String]()) { result, instrument in
+            for partID in instrument.memberPartIDs where result[partID] == nil {
+                result[partID] = instrument.id
+            }
+        }
+        var candidatesByGroup: [ArpeggioGroupKey: [ArpeggioCandidate]] = [:]
+
+        for index in notes.indices {
+            let note = notes[index]
+            guard note.isRest == false,
+                  note.isGrace == false,
+                  let midiNote = note.midiNote,
+                  let arpeggiate = note.arpeggiate
+            else {
+                continue
+            }
+
+            let key = ArpeggioGroupKey(
+                logicalInstrumentID: instrumentIDByPartID[note.partID] ?? "part:\(note.partID)",
+                performedTick: entries[index].performedOnTick,
+                numberToken: arpeggiate.normalizedNumberToken,
+                sourceMeasureIndex: note.sourceID?.sourceMeasureIndex ?? note.measureNumber,
+                sourceTick: note.tick,
+                occurrenceIndex: note.performedOccurrenceIndex
+            )
+            candidatesByGroup[key, default: []].append(
+                ArpeggioCandidate(
+                    noteIndex: index,
+                    midiNote: midiNote,
+                    durationTicks: max(0, entries[index].performedOffTick - entries[index].performedOnTick),
+                    arpeggiate: arpeggiate
+                )
+            )
+        }
+
+        for (key, candidates) in candidatesByGroup {
+            guard candidates.isEmpty == false else { continue }
+            let explicitDirections = Set(candidates.compactMap { $0.arpeggiate.direction })
+            let direction = explicitDirections.sorted { $0.rawValue < $1.rawValue }.first ?? .up
+            let provenance = ScoreTimingProvenance.arpeggio(
+                numberToken: key.numberToken,
+                direction: direction
+            )
+
+            if explicitDirections.count > 1 {
+                for candidate in candidates {
+                    entries[candidate.noteIndex].appendProvenance(
+                        .approximation(reason: "arpeggio-conflicting-directions-defaulted-\(direction.rawValue)")
+                    )
+                }
+            }
+            for candidate in candidates where candidate.arpeggiate.directionToken != nil && candidate.arpeggiate.direction == nil {
+                entries[candidate.noteIndex].appendProvenance(
+                    .approximation(reason: "arpeggio-unsupported-direction-defaulted-up")
+                )
+            }
+
+            let ordered = candidates.sorted { lhs, rhs in
+                if lhs.midiNote != rhs.midiNote {
+                    return direction == .down ? lhs.midiNote > rhs.midiNote : lhs.midiNote < rhs.midiNote
+                }
+                return lhs.noteIndex < rhs.noteIndex
+            }
+            guard ordered.count > 1 else {
+                entries[ordered[0].noteIndex].appendProvenance(provenance)
+                continue
+            }
+
+            let shortestDuration = ordered.map(\.durationTicks).filter { $0 > 0 }.min() ?? 0
+            guard shortestDuration > 1 else {
+                for candidate in ordered {
+                    entries[candidate.noteIndex].appendProvenance(
+                        .approximation(reason: "arpeggio-insufficient-duration")
+                    )
+                }
+                continue
+            }
+
+            let totalSpreadTicks = max(
+                1,
+                min(shortestDuration - 1, min(480 / 16, shortestDuration / 4))
+            )
+            let stepTicks = max(1, totalSpreadTicks / (ordered.count - 1))
+            var offsetTicks = 0
+            for (position, candidate) in ordered.enumerated() {
+                entries[candidate.noteIndex].delayOnset(
+                    by: offsetTicks,
+                    policy: .arpeggio,
+                    timingProvenance: provenance
+                )
+                if position < ordered.count - 1 {
+                    offsetTicks = min(totalSpreadTicks, offsetTicks + stepTicks)
+                }
             }
         }
     }

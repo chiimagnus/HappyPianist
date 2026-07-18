@@ -241,7 +241,8 @@ func buildStepsSetsOnTickOffsetsForArpeggiateChordWhenEnabled() {
             tieStart: false,
             tieStop: false,
             staff: 1,
-            voice: 1
+            voice: 1,
+            arpeggiate: MusicXMLArpeggiate(numberToken: nil, directionToken: nil)
         ),
     ])
 

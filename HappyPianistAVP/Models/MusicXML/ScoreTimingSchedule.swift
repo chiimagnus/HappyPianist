@@ -7,6 +7,7 @@ enum ScoreTimingReleasePolicy: String, Codable, Equatable, Sendable {
     case graceStealFollowing
     case graceStealPreviousAndFollowing
     case graceMakeTime
+    case arpeggio
 }
 
 enum ScoreGraceTimingKind: String, Codable, Equatable, Sendable {
@@ -20,6 +21,7 @@ enum ScoreTimingProvenance: Equatable, Sendable {
     case score
     case performanceOffset
     case grace(kind: ScoreGraceTimingKind)
+    case arpeggio(numberToken: String, direction: MusicXMLArpeggiateDirection)
     case interpretationProfile(id: String)
     case approximation(reason: String)
 }
