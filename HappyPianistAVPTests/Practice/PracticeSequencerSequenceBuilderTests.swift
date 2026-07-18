@@ -23,6 +23,7 @@ func sequenceBuilderAppliesPauseBeforeSameTickAudioEvents() {
 
     let builder = PracticeSequencerSequenceBuilder(midiChannel: 0)
     let schedule = builder.buildPerformanceEventSchedule(timeline: timeline, tempoMap: tempoMap, startTick: 0)
+    let sequence = try? builder.buildSequence(from: schedule)
 
     #expect(schedule.map(\.kind) == [
         .noteOn(midi: 60, velocity: 96),
@@ -32,6 +33,7 @@ func sequenceBuilderAppliesPauseBeforeSameTickAudioEvents() {
         .noteOn(midi: 62, velocity: 96),
         .noteOff(midi: 62),
     ])
+    #expect(sequence?.events.map(\.kind) == schedule.map(\.kind))
 
     #expect(abs(schedule[0].timeSeconds - 0.0) < 1e-9)
 

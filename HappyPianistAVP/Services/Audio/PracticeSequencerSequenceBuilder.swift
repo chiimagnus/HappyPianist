@@ -270,14 +270,12 @@ struct PracticeSequencerSequenceBuilder {
 
     private func eventPriority(_ kind: PracticeSequencerMIDIEvent.Kind) -> Int {
         switch kind {
-        case .controlChange:
-            0
-        case .programChange, .pitchBend, .channelPressure, .polyPressure:
-            1
         case .noteOff:
-            2
+            0
+        case .controlChange, .programChange, .pitchBend, .channelPressure, .polyPressure:
+            1
         case .noteOn:
-            3
+            2
         }
     }
 
