@@ -303,8 +303,9 @@ struct GrandStaffNotationLayoutService {
                 voice: occurrence.voice,
                 tick: occurrence.tick,
                 xPosition: 0,
-                noteValue: noteValue(for: source.writtenRhythm),
-                dotCount: source.writtenRhythm?.dotCount ?? 0,
+                noteValue: source.isMeasureRest ? .whole : noteValue(for: source.writtenRhythm),
+                dotCount: source.isMeasureRest ? 0 : source.writtenRhythm?.dotCount ?? 0,
+                isMeasureRest: source.isMeasureRest,
                 isHighlighted: occurrence.isHighlighted
             )
         }
@@ -355,14 +356,26 @@ struct GrandStaffNotationLayoutService {
             )
         }
         let positionedRests = rests.map { rest in
+            let position = if rest.isMeasureRest,
+                              let measure = measureSpans.first(where: {
+                                  $0.startTick <= rest.tick && rest.tick < $0.endTick
+                              })
+            {
+                let start = spacing.position(at: Double(measure.startTick))
+                let end = spacing.position(at: Double(measure.endTick))
+                normalized((start + end) / 2)
+            } else {
+                normalizedTick(rest.tick)
+            }
             GrandStaffNotationRest(
                 id: rest.id,
                 staffNumber: rest.staffNumber,
                 voice: rest.voice,
                 tick: rest.tick,
-                xPosition: normalizedTick(rest.tick),
+                xPosition: position,
                 noteValue: rest.noteValue,
                 dotCount: rest.dotCount,
+                isMeasureRest: rest.isMeasureRest,
                 isHighlighted: rest.isHighlighted
             )
         }.filter {

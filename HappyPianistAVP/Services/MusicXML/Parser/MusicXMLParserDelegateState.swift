@@ -145,6 +145,7 @@ struct MusicXMLParserDelegateState {
 
     var isInNote = false
     var noteIsRest = false
+    var noteIsMeasureRest = false
     var noteIsPrintObjectVisible = true
     var noteIsChord = false
     var noteStep: String?

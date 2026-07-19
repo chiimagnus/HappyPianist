@@ -340,6 +340,7 @@ extension MusicXMLParserDelegate {
                 writtenRhythm: writtenRhythm,
                 midiNote: midiNote,
                 isRest: state.noteIsRest,
+                isMeasureRest: state.noteIsMeasureRest,
                 isPrintObjectVisible: state.noteIsPrintObjectVisible,
                 isChord: state.noteIsChord,
                 isGrace: state.noteIsGrace,

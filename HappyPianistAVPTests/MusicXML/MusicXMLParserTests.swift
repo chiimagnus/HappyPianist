@@ -111,6 +111,30 @@ func parserHandlesChordAndBackupTimeline() throws {
 }
 
 @Test
+func parserPreservesWholeMeasureRestWithoutWrittenType() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1"><measure number="1">
+        <attributes>
+          <divisions>1</divisions>
+          <time><beats>3</beats><beat-type>4</beat-type></time>
+        </attributes>
+        <note><rest measure="yes"/><duration>3</duration><staff>1</staff><voice>1</voice></note>
+      </measure></part>
+    </score-partwise>
+    """
+
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let rest = try #require(score.notes.first)
+
+    #expect(rest.isRest)
+    #expect(rest.isMeasureRest)
+    #expect(rest.writtenRhythm == nil)
+    #expect(rest.durationTicks == 1_440)
+}
+
+@Test
 func parserHandlesForwardAcrossMeasures() throws {
     let xml = """
     <?xml version="1.0" encoding="UTF-8"?>

@@ -380,6 +380,7 @@ struct MusicXMLStructureExpander {
                         writtenRhythm: note.writtenRhythm,
                         midiNote: note.midiNote,
                         isRest: note.isRest,
+                        isMeasureRest: note.isMeasureRest,
                         isPrintObjectVisible: note.isPrintObjectVisible,
                         isChord: note.isChord,
                         isGrace: note.isGrace,

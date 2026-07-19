@@ -521,6 +521,7 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
     let writtenRhythm: MusicXMLWrittenRhythm?
     let midiNote: Int?
     let isRest: Bool
+    let isMeasureRest: Bool
     let isPrintObjectVisible: Bool
     let isChord: Bool
     let isGrace: Bool
@@ -561,6 +562,7 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         writtenRhythm: MusicXMLWrittenRhythm? = nil,
         midiNote: Int?,
         isRest: Bool,
+        isMeasureRest: Bool = false,
         isPrintObjectVisible: Bool = true,
         isChord: Bool,
         isGrace: Bool = false,
@@ -593,6 +595,7 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         self.writtenRhythm = writtenRhythm
         self.midiNote = midiNote
         self.isRest = isRest
+        self.isMeasureRest = isMeasureRest
         self.isPrintObjectVisible = isPrintObjectVisible
         self.isChord = isChord
         self.isGrace = isGrace

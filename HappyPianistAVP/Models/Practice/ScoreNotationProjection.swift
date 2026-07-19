@@ -123,6 +123,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
         let writtenPitch: MusicXMLWrittenPitch?
         let writtenRhythm: MusicXMLWrittenRhythm?
         let isRest: Bool
+        let isMeasureRest: Bool
         let isPrintObjectVisible: Bool
         let staff: Int
         let voice: Int
@@ -219,6 +220,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
                 writtenPitch: note.writtenPitch,
                 writtenRhythm: note.writtenRhythm,
                 isRest: note.isRest,
+                isMeasureRest: note.isMeasureRest,
                 isPrintObjectVisible: note.isPrintObjectVisible,
                 staff: Self.displayStaff(
                     sourceStaff: note.staff ?? 1,
@@ -624,7 +626,9 @@ struct ScoreNotationProjection: Equatable, Sendable {
             let rhythmToken = note.writtenRhythm?.typeToken?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .lowercased()
-            if rhythmToken == nil || rhythmToken?.isEmpty == true {
+            if note.isMeasureRest {
+                // MusicXML whole-measure rests are valid without a <type> child.
+            } else if rhythmToken == nil || rhythmToken?.isEmpty == true {
                 result.append(Fallback(
                     sourceID: source.sourceID,
                     kind: note.isRest ? .rest : .notehead,

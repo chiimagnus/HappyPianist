@@ -191,6 +191,7 @@ extension MusicXMLParserDelegate {
         case "note":
             state.isInNote = true
             state.noteIsRest = false
+            state.noteIsMeasureRest = false
             let printObjectToken = attributeDict["print-object"]?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .lowercased()
@@ -311,6 +312,9 @@ extension MusicXMLParserDelegate {
         case "rest":
             if state.isInNote {
                 state.noteIsRest = true
+                state.noteIsMeasureRest = attributeDict["measure"]?
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .lowercased() == "yes"
             }
         case "chord":
             if state.isInNote {

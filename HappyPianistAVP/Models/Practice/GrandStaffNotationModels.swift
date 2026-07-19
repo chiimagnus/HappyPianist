@@ -121,6 +121,7 @@ struct GrandStaffNotationRest: Equatable, Identifiable {
     let xPosition: Double
     let noteValue: GrandStaffNoteValue
     let dotCount: Int
+    let isMeasureRest: Bool
     let isHighlighted: Bool
 
     var glyphToken: GrandStaffGlyphToken? { noteValue.restGlyphToken }

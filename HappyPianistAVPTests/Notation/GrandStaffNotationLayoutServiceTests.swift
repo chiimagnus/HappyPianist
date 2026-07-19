@@ -66,6 +66,41 @@ func layoutOmitsPitchedNotesMarkedPrintObjectNo() throws {
 }
 
 @Test
+func layoutRendersWholeMeasureRestWithoutTypeAtMeasureCenter() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1"><measure number="1">
+        <attributes>
+          <divisions>1</divisions>
+          <time><beats>4</beats><beat-type>4</beat-type></time>
+          <clef><sign>G</sign><line>2</line></clef>
+        </attributes>
+        <note><rest measure="yes"/><duration>4</duration><staff>1</staff><voice>1</voice></note>
+      </measure></part>
+    </score-partwise>
+    """
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let projection = ScoreNotationProjection(
+        plan: makeTestScorePerformancePlan(from: score),
+        sourceScore: score
+    )
+    let layout = GrandStaffNotationLayoutService().makeLayout(
+        projection: projection,
+        measureSpans: score.measures,
+        viewportWidthStaffSpaces: 36,
+        scrollTick: 0
+    )
+    let rest = try #require(layout.rests.first)
+
+    #expect(projection.fallbacks.isEmpty)
+    #expect(rest.noteValue == .whole)
+    #expect(rest.isMeasureRest)
+    #expect(rest.glyphToken == .restWhole)
+    #expect(rest.xPosition > 0.5)
+}
+
+@Test
 func layoutEmitsBarlinesForMeasureSpansStartAndEndTicks() {
     let measureSpans = [
         MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, sourceMeasureIndex: 1, sourceMeasureNumberToken: "1", occurrenceIndex: 0, startTick: 0, endTick: 480),
