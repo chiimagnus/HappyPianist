@@ -149,6 +149,44 @@ func takeStoreRejectsAbsolutePathsAndRawScoreMetadata() throws {
 }
 
 @Test
+func takeStoreRejectsPrivatePathsInsideObservationEvidence() throws {
+    let documentsURL = try makeTemporaryDirectory(prefix: "RecordingTakeStoreTests")
+    defer { try? FileManager.default.removeItem(at: documentsURL) }
+    let fileManager = TestDocumentsFileManager(documentsURL: documentsURL)
+    let paths = RecordingTakeLibraryPaths(fileManager: fileManager)
+    let store = RecordingTakeStore(fileManager: fileManager, paths: paths)
+    let host = PerformanceMonotonicInstant(seconds: 1)
+    let observation = PerformanceObservation(
+        source: .init(kind: .midi1, id: "/Users/private/device", generation: 1),
+        timing: PerformanceClockReading(
+            host: host,
+            source: nil,
+            correctedHost: host,
+            mapping: nil,
+            provenance: .hostOnly
+        ),
+        event: .noteOn(note: 60, velocity: .init(midi1: 90)),
+        channel: 1,
+        group: 0
+    )
+    let take = RecordingTake(
+        name: "Unsafe",
+        events: [RecordingTakeEvent(
+            time: 0,
+            kind: .noteOn(midi: 60, velocity: 90),
+            observation: observation
+        )]
+    )
+
+    do {
+        try store.save([take])
+        Issue.record("Private path in event evidence should not be encoded")
+    } catch let error as RecordingTakeCodingError {
+        #expect(error == .unsafeMetadata(field: "events.observation.source.id"))
+    }
+}
+
+@Test
 func takeStoreLoadReturnsEmptyWhenFileIsEmpty() throws {
     let documentsURL = try makeTemporaryDirectory(prefix: "RecordingTakeStoreTests")
     defer { try? FileManager.default.removeItem(at: documentsURL) }

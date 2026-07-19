@@ -4,6 +4,7 @@ struct RecordingTakeEvent: Codable, Equatable, Identifiable, Sendable {
     let id: UUID
     let time: TimeInterval
     let kind: Kind
+    let observation: PerformanceObservation?
 
     enum Kind: Codable, Equatable, Sendable {
         case noteOn(midi: Int, velocity: Int)
@@ -15,10 +16,42 @@ struct RecordingTakeEvent: Codable, Equatable, Identifiable, Sendable {
         case polyPressure(midi: Int, value: Int)
     }
 
-    init(id: UUID = UUID(), time: TimeInterval, kind: Kind) {
-        self.id = id
+    init(
+        id: UUID = UUID(),
+        time: TimeInterval,
+        kind: Kind,
+        observation: PerformanceObservation? = nil
+    ) {
+        self.id = observation?.id ?? id
         self.time = time
         self.kind = kind
+        self.observation = observation
+    }
+
+    func validatePrivacy() throws {
+        guard let observation else { return }
+        try RecordingTakeMetadata.validatePersistenceValue(
+            observation.source.id,
+            field: "events.observation.source.id"
+        )
+        try RecordingTakeMetadata.validatePersistenceValue(
+            observation.timing.source?.clockID,
+            field: "events.observation.timing.source.clockID"
+        )
+        try RecordingTakeMetadata.validatePersistenceValue(
+            observation.timing.mapping?.sourceClockID,
+            field: "events.observation.timing.mapping.sourceClockID"
+        )
+        try RecordingTakeMetadata.validatePersistenceValue(
+            observation.calibrationReference,
+            field: "events.observation.calibrationReference"
+        )
+        if case let .contact(id, _, _) = observation.event {
+            try RecordingTakeMetadata.validatePersistenceValue(
+                id,
+                field: "events.observation.contact.id"
+            )
+        }
     }
 }
 
@@ -190,11 +223,17 @@ struct RecordingTake: Codable, Equatable, Identifiable, Sendable {
         events = try container.decode([RecordingTakeEvent].self, forKey: .events)
         try RecordingTakeMetadata.validatePersistenceValue(name, field: "name")
         try metadata.validatePrivacy()
+        for event in events {
+            try event.validatePrivacy()
+        }
     }
 
     func encode(to encoder: Encoder) throws {
         try metadata.validatePrivacy()
         try RecordingTakeMetadata.validatePersistenceValue(name, field: "name")
+        for event in events {
+            try event.validatePrivacy()
+        }
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(Self.currentSchemaVersion, forKey: .schemaVersion)
         try container.encode(id, forKey: .id)

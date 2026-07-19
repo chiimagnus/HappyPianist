@@ -23,6 +23,7 @@ final class MIDIRecordingState {
 
     private var isRecording = false
     private var recordingStartDate: Date?
+    private var recordingGeneration: UInt64 = 0
 
     init(
         nowUptimeSeconds: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
@@ -82,6 +83,8 @@ final class MIDIRecordingState {
     func startRecordingIfPossible(canRecord: Bool) {
         guard canRecord else { return }
         let now = nowUptimeSeconds()
+        recordingGeneration &+= 1
+        midiRecordingAdapter.beginRecording()
         takeRecorder.start(now: now)
         isRecording = true
         recordingStartDate = nowDate()
@@ -113,11 +116,58 @@ final class MIDIRecordingState {
         guard isRecording else { return }
 
         for note in keyContact.started {
-            takeRecorder.recordNoteOn(note: note, velocity: 90, now: nowUptimeSeconds)
+            let observation = contactObservation(note: note, phase: .started, now: nowUptimeSeconds)
+            // ponytail: key-contact has no velocity before P9; 64 is only a MIDI playback projection.
+            takeRecorder.recordNoteOn(
+                note: note,
+                velocity: 64,
+                now: nowUptimeSeconds,
+                observation: observation
+            )
         }
         for note in keyContact.ended {
-            takeRecorder.recordNoteOff(note: note, now: nowUptimeSeconds)
+            takeRecorder.recordNoteOff(
+                note: note,
+                now: nowUptimeSeconds,
+                observation: contactObservation(note: note, phase: .ended, now: nowUptimeSeconds)
+            )
         }
+    }
+
+    private func contactObservation(
+        note: Int,
+        phase: PerformanceObservation.ContactPhase,
+        now: TimeInterval
+    ) -> PerformanceObservation {
+        let host = PerformanceMonotonicInstant(seconds: now)
+        let capabilities = PerformanceInputCapabilities(
+            pitch: .degraded,
+            onset: .observed,
+            release: .observed,
+            velocity: .unavailable,
+            controllers: .unavailable,
+            polyphony: .observed,
+            hand: .unavailable,
+            finger: .unavailable,
+            position: .unavailable,
+            confidence: .unavailable
+        )
+        return PerformanceObservation(
+            source: PerformanceObservation.Source(
+                kind: .realPianoContact,
+                id: "real-piano-key-contact",
+                generation: recordingGeneration,
+                capabilities: capabilities
+            ),
+            timing: PerformanceClockReading(
+                host: host,
+                source: nil,
+                correctedHost: host,
+                mapping: nil,
+                provenance: .hostOnly
+            ),
+            event: .contact(id: "piano-key:\(note)", keyCandidate: note, phase: phase)
+        )
     }
 
     private func stopMIDISubscription() {

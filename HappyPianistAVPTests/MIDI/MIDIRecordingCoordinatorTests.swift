@@ -69,4 +69,7 @@ func recordTakeFromKeyContactRequiresRecordingAndNonBluetooth() {
     service.stopRecordingIfNeeded()
     #expect(recordedTakes.count == 1)
     #expect(recordedTakes[0].events.isEmpty == false)
+    #expect(recordedTakes[0].metadata.inputSources.first?.kind == .realPianoContact)
+    #expect(recordedTakes[0].metadata.inputSources.first?.capabilities.velocity == .unavailable)
+    #expect(recordedTakes[0].events.allSatisfy { $0.observation?.source.kind == .realPianoContact })
 }
