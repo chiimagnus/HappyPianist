@@ -847,7 +847,7 @@ func cancellingDuringStagingDiscardsReturnedOperationsByGeneration() async {
     let importTask = Task {
         await viewModel.importMusicXML(from: [URL(fileURLWithPath: "/tmp/late.musicxml")])
     }
-    await Task.yield()
+    await service.waitUntilStagingStarts()
 
     await viewModel.cancelAllImports()
     await importTask.value
@@ -1250,6 +1250,8 @@ private actor QueueImportTransactionService: SongLibraryImportTransactionServici
     private(set) var processedOperationIDs: [UUID] = []
     private(set) var confirmedOperationIDs: [UUID] = []
     private(set) var stageCancellationObserved = false
+    private let stageStarted: AsyncStream<Void>
+    private let stageStartedContinuation: AsyncStream<Void>.Continuation
 
     init(
         items: [SongLibraryImportBatchItem],
@@ -1261,6 +1263,9 @@ private actor QueueImportTransactionService: SongLibraryImportTransactionServici
         self.processResults = processResults
         self.confirmResults = confirmResults
         self.stageDelay = stageDelay
+        (stageStarted, stageStartedContinuation) = AsyncStream.makeStream(
+            bufferingPolicy: .bufferingNewest(1)
+        )
     }
 
     func recoverPendingTransactions() -> SongLibraryTransactionRecoveryResult {
@@ -1268,6 +1273,7 @@ private actor QueueImportTransactionService: SongLibraryImportTransactionServici
     }
 
     func stageImports(from _: [URL]) async -> SongLibraryImportBatchStageResult {
+        stageStartedContinuation.yield()
         if stageDelay != .zero {
             do {
                 try await Task.sleep(for: stageDelay)
@@ -1276,6 +1282,11 @@ private actor QueueImportTransactionService: SongLibraryImportTransactionServici
             } catch {}
         }
         return SongLibraryImportBatchStageResult(items: items, blocked: nil)
+    }
+
+    func waitUntilStagingStarts() async {
+        var iterator = stageStarted.makeAsyncIterator()
+        _ = await iterator.next()
     }
 
     func process(operationID: UUID) -> SongLibraryImportProcessResult {
