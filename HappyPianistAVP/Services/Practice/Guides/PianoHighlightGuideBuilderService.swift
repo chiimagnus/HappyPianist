@@ -1,22 +1,11 @@
 import Foundation
 
-struct PianoHighlightGuideBuildInput {
-    let plan: ScorePerformancePlan
-    let sourceScore: MusicXMLScore
-}
-
 struct PianoHighlightGuideBuilderService {
     private let playableRange = 21 ... 108
 
-    func buildGuides(input: PianoHighlightGuideBuildInput) -> [PianoHighlightGuide] {
-        let playableEvents = input.plan.noteEvents.filter { playableRange.contains($0.midiNote) }
+    func buildGuides(plan: ScorePerformancePlan) -> [PianoHighlightGuide] {
+        let playableEvents = plan.noteEvents.filter { playableRange.contains($0.midiNote) }
         guard playableEvents.isEmpty == false else { return [] }
-
-        let sourceNotesByID = Dictionary(grouping: input.sourceScore.notes.compactMap { note in
-            note.sourceID.map { ($0, note) }
-        }, by: \.0).compactMapValues { matches in
-            matches.count == 1 ? matches[0].1 : nil
-        }
         let stepIndexByTick = Dictionary(uniqueKeysWithValues: Set(playableEvents.map(\.performedOnTick))
             .sorted()
             .enumerated()
@@ -25,7 +14,6 @@ struct PianoHighlightGuideBuilderService {
         var releasesByTick: [Int: [PianoHighlightNote]] = [:]
 
         for event in playableEvents {
-            let source = sourceNotesByID[event.sourceNoteID]
             let onTick = event.performedOnTick
             let offTick = max(onTick + 1, event.performedOffTick)
             let note = PianoHighlightNote(
@@ -37,13 +25,6 @@ struct PianoHighlightGuideBuilderService {
                 onTick: onTick,
                 offTick: offTick,
                 fingerings: event.fingerings,
-                isGrace: event.timingProvenance.contains { $0.kind == .grace } || source?.isGrace == true,
-                tieStart: source?.startsTie ?? false,
-                tieStop: source?.stopsTie ?? false,
-                articulations: source?.articulations ?? [],
-                arpeggiate: source?.arpeggiate,
-                dotCount: source?.writtenRhythm?.dotCount ?? 0,
-                sourceNoteIDs: event.contributingSourceNoteIDs,
                 handAssignment: event.handAssignment
             )
             triggersByTick[onTick, default: []].append(note)

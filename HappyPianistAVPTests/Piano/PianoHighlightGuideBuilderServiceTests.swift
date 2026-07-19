@@ -10,9 +10,7 @@ func highlightGuideBuilderEmitsReleaseGapAndRetriggerForRepeatedNote() {
     ])
     let plan = makeTestScorePerformancePlan(from: score)
 
-    let guides = PianoHighlightGuideBuilderService().buildGuides(
-        input: PianoHighlightGuideBuildInput(plan: plan, sourceScore: score)
-    )
+    let guides = PianoHighlightGuideBuilderService().buildGuides(plan: plan)
 
     let triggerGuides = guides.filter { $0.kind == .trigger }
     #expect(triggerGuides.count == 2)
@@ -30,17 +28,13 @@ func highlightGuideBuilderUsesPlanTieOccurrenceWithoutRetriggeringContinuation()
     ])
     let plan = makeTestScorePerformancePlan(from: score)
 
-    let guides = PianoHighlightGuideBuilderService().buildGuides(
-        input: PianoHighlightGuideBuildInput(plan: plan, sourceScore: score)
-    )
+    let guides = PianoHighlightGuideBuilderService().buildGuides(plan: plan)
 
     let event = try #require(plan.noteEvents.first)
     let trigger = try #require(guides.first { $0.kind == .trigger })
     #expect(guides.count(where: { $0.kind == .trigger }) == 1)
     #expect(trigger.highlightedMIDINotes == [60])
     #expect(trigger.triggeredNotes[0].occurrenceID == event.id.description)
-    #expect(trigger.triggeredNotes[0].sourceNoteIDs == event.contributingSourceNoteIDs)
-    #expect(trigger.triggeredNotes[0].sourceNoteIDs.count == 2)
 }
 
 @Test
@@ -52,9 +46,7 @@ func highlightGuideBuilderGroupsPlanChordInSingleTriggerGuide() {
     ])
     let plan = makeTestScorePerformancePlan(from: score)
 
-    let guides = PianoHighlightGuideBuilderService().buildGuides(
-        input: PianoHighlightGuideBuildInput(plan: plan, sourceScore: score)
-    )
+    let guides = PianoHighlightGuideBuilderService().buildGuides(plan: plan)
 
     let trigger = guides.first { $0.kind == .trigger }
     #expect(trigger?.highlightedMIDINotes == [60, 64, 67])
@@ -63,7 +55,7 @@ func highlightGuideBuilderGroupsPlanChordInSingleTriggerGuide() {
 }
 
 @Test
-func highlightGuideBuilderPreservesSamePitchSourceContributorsAndHands() throws {
+func highlightGuideBuilderPreservesSamePitchOccurrencesAndHands() throws {
     let score = MusicXMLScore(notes: [
         makeNote(tick: 0, duration: 2, midi: 60, staff: 1, voice: 1),
         makeNote(tick: 0, duration: 2, midi: 60, isChord: true, staff: 2, voice: 2),
@@ -75,16 +67,14 @@ func highlightGuideBuilderPreservesSamePitchSourceContributorsAndHands() throws 
         leftID: ScoreHandAssignment(hand: .left, provenance: .score),
     ])
 
-    let guides = PianoHighlightGuideBuilderService().buildGuides(
-        input: PianoHighlightGuideBuildInput(plan: plan, sourceScore: score)
-    )
+    let guides = PianoHighlightGuideBuilderService().buildGuides(plan: plan)
 
     let trigger = try #require(guides.first { $0.kind == .trigger })
     #expect(trigger.highlightedMIDINotes == [60])
     #expect(trigger.triggeredNotes.count == 2)
     #expect(Set(trigger.triggeredNotes.compactMap(\.staff)) == [1, 2])
     #expect(Set(trigger.triggeredNotes.map(\.hand)) == [.right, .left])
-    #expect(Set(trigger.triggeredNotes.flatMap(\.sourceNoteIDs)) == [rightID, leftID])
+    #expect(Set(trigger.triggeredNotes.map(\.occurrenceID)) == Set(plan.noteEvents.map { $0.id.description }))
 }
 
 @Test
@@ -95,9 +85,7 @@ func highlightGuideBuilderKeepsPhysicalKeyLitUntilLastSamePitchVoiceReleases() t
     ])
     let plan = makeTestScorePerformancePlan(from: score)
 
-    let guides = PianoHighlightGuideBuilderService().buildGuides(
-        input: PianoHighlightGuideBuildInput(plan: plan, sourceScore: score)
-    )
+    let guides = PianoHighlightGuideBuilderService().buildGuides(plan: plan)
 
     let trigger = try #require(guides.first { $0.kind == .trigger })
     let firstRelease = try #require(guides.first { $0.tick == 2 })
@@ -118,9 +106,7 @@ func highlightGuideBuilderUsesPlanArticulatedOffTick() throws {
     ])
     let plan = makeTestScorePerformancePlan(from: score)
 
-    let guides = PianoHighlightGuideBuilderService().buildGuides(
-        input: PianoHighlightGuideBuildInput(plan: plan, sourceScore: score)
-    )
+    let guides = PianoHighlightGuideBuilderService().buildGuides(plan: plan)
 
     let event = try #require(plan.noteEvents.first)
     let trigger = try #require(guides.first { $0.kind == .trigger })
@@ -135,9 +121,7 @@ func highlightGuideBuilderUsesPlanPerformanceTiming() throws {
     ])
     let plan = makeTestScorePerformancePlan(from: score, performanceTimingEnabled: true)
 
-    let guides = PianoHighlightGuideBuilderService().buildGuides(
-        input: PianoHighlightGuideBuildInput(plan: plan, sourceScore: score)
-    )
+    let guides = PianoHighlightGuideBuilderService().buildGuides(plan: plan)
 
     let event = try #require(plan.noteEvents.first)
     let trigger = try #require(guides.first { $0.kind == .trigger })
@@ -162,9 +146,7 @@ func highlightGuideBuilderUsesPlanGraceSchedule() throws {
     ])
     let plan = makeTestScorePerformancePlan(from: score, expressivity: expressivity)
 
-    let guides = PianoHighlightGuideBuilderService().buildGuides(
-        input: PianoHighlightGuideBuildInput(plan: plan, sourceScore: score)
-    )
+    let guides = PianoHighlightGuideBuilderService().buildGuides(plan: plan)
 
     for event in plan.noteEvents {
         let note = try #require(guides.flatMap(\.triggeredNotes).first { $0.occurrenceID == event.id.description })
@@ -184,9 +166,7 @@ func highlightGuideBuilderUsesPlanArpeggiateOffsets() {
     ])
     let plan = makeTestScorePerformancePlan(from: score, expressivity: expressivity)
 
-    let guides = PianoHighlightGuideBuilderService().buildGuides(
-        input: PianoHighlightGuideBuildInput(plan: plan, sourceScore: score)
-    )
+    let guides = PianoHighlightGuideBuilderService().buildGuides(plan: plan)
 
     let triggerTicks = Set(guides.filter { $0.kind == .trigger }.map(\.tick))
     #expect(triggerTicks == Set(plan.noteEvents.map(\.performedOnTick)))

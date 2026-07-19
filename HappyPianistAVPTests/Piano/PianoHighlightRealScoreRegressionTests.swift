@@ -9,9 +9,7 @@ func despacitoFixtureBuildsGuidesWithGapAndRetrigger() throws {
     let score = try MusicXMLParser().parse(fileURL: fixtureURL)
     let expressivity = MusicXMLExpressivityOptions()
     let plan = makeTestScorePerformancePlan(from: score, expressivity: expressivity)
-    let guides = PianoHighlightGuideBuilderService().buildGuides(
-        input: PianoHighlightGuideBuildInput(plan: plan, sourceScore: score)
-    )
+    let guides = PianoHighlightGuideBuilderService().buildGuides(plan: plan)
 
     let c4Triggers = guides.filter { guide in
         guide.kind == .trigger && guide.triggeredNotes.contains(where: { $0.midiNote == 60 })
