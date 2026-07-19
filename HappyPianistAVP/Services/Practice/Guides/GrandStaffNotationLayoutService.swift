@@ -5,6 +5,14 @@ struct GrandStaffNotationLayoutService {
         let performedSourceID: String
     }
 
+    private struct ChordCandidate {
+        let id: String
+        let tick: Int
+        let xPosition: Double
+        let items: [GrandStaffNotationItem]
+        let noteValue: GrandStaffNoteValue
+    }
+
     private struct NotationFacts {
         struct BeamMembership: Hashable {
             let id: String
@@ -72,6 +80,11 @@ struct GrandStaffNotationLayoutService {
     }
 
     private let visibleOverscan: Double = 0.18
+    private let chordLayoutService: GrandStaffChordLayoutService
+
+    init(chordLayoutService: GrandStaffChordLayoutService = GrandStaffChordLayoutService()) {
+        self.chordLayoutService = chordLayoutService
+    }
 
     func makeLayout(
         projection: ScoreNotationProjection,
@@ -214,8 +227,7 @@ struct GrandStaffNotationLayoutService {
                 fingerings: note.fingerings,
                 noteValue: note.noteValue,
                 chordID: nil,
-                noteHeadXOffset: 0,
-                stemDirection: .up,
+                noteheadXOffset: 0,
                 beamID: nil,
                 durationTicks: note.durationTicks,
                 isGrace: note.isGrace,
@@ -667,33 +679,55 @@ struct GrandStaffNotationLayoutService {
             return lhs.performedSourceID < rhs.performedSourceID
         }
 
+        let candidates = sortedKeys.compactMap { key -> ChordCandidate? in
+            guard let chordItems = grouped[key], chordItems.isEmpty == false else { return nil }
+            return ChordCandidate(
+                id: "chord-\(key.performedSourceID)",
+                tick: chordItems.map(\.tick).min() ?? 0,
+                xPosition: chordItems.map(\.xPosition).reduce(0.0, +) / Double(chordItems.count),
+                items: chordItems,
+                noteValue: resolvedChordNoteValue(items: chordItems)
+            )
+        }
+        let chordLayouts = chordLayoutService.makeLayouts(chords: candidates.map { candidate in
+            GrandStaffChordLayoutService.Chord(
+                id: candidate.id,
+                tick: candidate.tick,
+                notes: candidate.items.map { item in
+                    GrandStaffChordLayoutService.Note(
+                        id: item.occurrenceID,
+                        staffNumber: item.staffNumber,
+                        staffStep: item.staffStep,
+                        voice: item.voice,
+                        sourceStem: notationFactsByOccurrenceID[item.occurrenceID]?.stem ?? .unspecified
+                    )
+                }
+            )
+        })
+        let chordLayoutByID = Dictionary(uniqueKeysWithValues: chordLayouts.map { ($0.chordID, $0) })
         var chords: [GrandStaffNotationChord] = []
-        chords.reserveCapacity(sortedKeys.count)
-
         var updatedItemsByOccurrenceID: [String: GrandStaffNotationItem] = [:]
         updatedItemsByOccurrenceID.reserveCapacity(items.count)
 
-        for key in sortedKeys {
-            guard let chordItems = grouped[key], chordItems.isEmpty == false else { continue }
-
-            let chordID = "chord-\(key.performedSourceID)"
-            let xPosition = chordItems.map(\.xPosition).reduce(0.0, +) / Double(chordItems.count)
-            let stemDirection = resolvedStemDirection(
-                chordItems: chordItems,
-                notationFactsByOccurrenceID: notationFactsByOccurrenceID
+        for candidate in candidates {
+            guard let chordLayout = chordLayoutByID[candidate.id] else { continue }
+            let stem = GrandStaffNotationStem(
+                direction: chordLayout.direction,
+                isVisible: chordLayout.isStemVisible,
+                startItemID: chordLayout.stemStartItemID,
+                endItemID: chordLayout.stemEndItemID,
+                xOffset: chordLayout.stemXOffset
             )
-            let noteValue = resolvedChordNoteValue(items: chordItems)
-
             chords.append(GrandStaffNotationChord(
-                id: chordID,
-                tick: chordItems.map(\.tick).min() ?? 0,
-                xPosition: xPosition,
-                itemIDs: chordItems.map(\.occurrenceID),
-                stemDirection: stemDirection,
-                noteValue: noteValue
+                id: candidate.id,
+                tick: candidate.tick,
+                xPosition: candidate.xPosition,
+                itemIDs: candidate.items.map(\.occurrenceID),
+                stem: stem,
+                noteValue: candidate.noteValue
             ))
 
-            for item in chordItems {
+            for item in candidate.items {
                 updatedItemsByOccurrenceID[item.occurrenceID] = GrandStaffNotationItem(
                     occurrenceID: item.occurrenceID,
                     staffNumber: item.staffNumber,
@@ -707,9 +741,8 @@ struct GrandStaffNotationLayoutService {
                     isHighlighted: item.isHighlighted,
                     fingerings: item.fingerings,
                     noteValue: item.noteValue,
-                    chordID: chordID,
-                    noteHeadXOffset: item.noteHeadXOffset,
-                    stemDirection: stemDirection,
+                    chordID: candidate.id,
+                    noteheadXOffset: chordLayout.noteheadXOffsets[item.occurrenceID] ?? 0,
                     beamID: nil,
                     durationTicks: item.durationTicks,
                     isGrace: item.isGrace,
@@ -720,8 +753,6 @@ struct GrandStaffNotationLayoutService {
             }
         }
 
-        _ = items.compactMap { updatedItemsByOccurrenceID[$0.occurrenceID] }
-
         let beamsBuild = buildBeams(
             chords: chords,
             itemsByOccurrenceID: updatedItemsByOccurrenceID,
@@ -729,99 +760,39 @@ struct GrandStaffNotationLayoutService {
             barlineTicks: barlineTicks
         )
 
-        var beamedItemsByOccurrenceID = updatedItemsByOccurrenceID
-        for (beamID, chordIDs) in beamsBuild.beamChordIDsByBeamID {
-            for chordID in chordIDs {
-                guard let chord = chords.first(where: { $0.id == chordID }) else { continue }
-                for itemID in chord.itemIDs {
-                    if let existing = beamedItemsByOccurrenceID[itemID] {
-                        beamedItemsByOccurrenceID[itemID] = GrandStaffNotationItem(
-                            occurrenceID: existing.occurrenceID,
-                            staffNumber: existing.staffNumber,
-                            voice: existing.voice,
-                            hand: existing.hand,
-                            guideID: existing.guideID,
-                            tick: existing.tick,
-                            xPosition: existing.xPosition,
-                            staffStep: existing.staffStep,
-                            displayedAccidental: existing.displayedAccidental,
-                            isHighlighted: existing.isHighlighted,
-                            fingerings: existing.fingerings,
-                            noteValue: existing.noteValue,
-                            chordID: existing.chordID,
-                            noteHeadXOffset: existing.noteHeadXOffset,
-                            stemDirection: existing.stemDirection,
-                            beamID: beamID,
-                            durationTicks: existing.durationTicks,
-                            isGrace: existing.isGrace,
-                            articulations: existing.articulations,
-                            arpeggiate: existing.arpeggiate,
-                            dotCount: existing.dotCount
-                        )
-                    }
-                }
+        var beamIDByChordID: [String: String] = [:]
+        for beamID in beamsBuild.beamChordIDsByBeamID.keys.sorted() {
+            for chordID in beamsBuild.beamChordIDsByBeamID[beamID] ?? [] {
+                beamIDByChordID[chordID] = beamID
             }
         }
-
-        _ = items.compactMap { beamedItemsByOccurrenceID[$0.occurrenceID] }
-
-        let finalChords = chords
-        var finalItemsByOccurrenceID = beamedItemsByOccurrenceID
-        for chord in finalChords {
-            for itemID in chord.itemIDs {
-                if let existing = finalItemsByOccurrenceID[itemID] {
-                    finalItemsByOccurrenceID[itemID] = GrandStaffNotationItem(
-                        occurrenceID: existing.occurrenceID,
-                        staffNumber: existing.staffNumber,
-                        voice: existing.voice,
-                        hand: existing.hand,
-                        guideID: existing.guideID,
-                        tick: existing.tick,
-                        xPosition: existing.xPosition,
-                        staffStep: existing.staffStep,
-                        displayedAccidental: existing.displayedAccidental,
-                        isHighlighted: existing.isHighlighted,
-                        fingerings: existing.fingerings,
-                        noteValue: existing.noteValue,
-                        chordID: existing.chordID,
-                        noteHeadXOffset: existing.noteHeadXOffset,
-                        stemDirection: chord.stemDirection,
-                        beamID: existing.beamID,
-                        durationTicks: existing.durationTicks,
-                        isGrace: existing.isGrace,
-                        articulations: existing.articulations,
-                        arpeggiate: existing.arpeggiate,
-                        dotCount: existing.dotCount
-                    )
-                }
-            }
+        let normalizedItems = items.compactMap { original -> GrandStaffNotationItem? in
+            guard let item = updatedItemsByOccurrenceID[original.occurrenceID] else { return nil }
+            return GrandStaffNotationItem(
+                occurrenceID: item.occurrenceID,
+                staffNumber: item.staffNumber,
+                voice: item.voice,
+                hand: item.hand,
+                guideID: item.guideID,
+                tick: item.tick,
+                xPosition: item.xPosition,
+                staffStep: item.staffStep,
+                displayedAccidental: item.displayedAccidental,
+                isHighlighted: item.isHighlighted,
+                fingerings: item.fingerings,
+                noteValue: item.noteValue,
+                chordID: item.chordID,
+                noteheadXOffset: item.noteheadXOffset,
+                beamID: item.chordID.flatMap { beamIDByChordID[$0] },
+                durationTicks: item.durationTicks,
+                isGrace: item.isGrace,
+                articulations: item.articulations,
+                arpeggiate: item.arpeggiate,
+                dotCount: item.dotCount
+            )
         }
 
-        let normalizedItems = items.compactMap { finalItemsByOccurrenceID[$0.occurrenceID] }
-
-        return (normalizedItems, finalChords, beamsBuild.beams)
-    }
-
-    private func resolvedStemDirection(
-        chordItems: [GrandStaffNotationItem],
-        notationFactsByOccurrenceID: [String: NotationFacts]
-    ) -> GrandStaffStemDirection {
-        for item in chordItems {
-            switch notationFactsByOccurrenceID[item.occurrenceID]?.stem {
-            case .up:
-                return .up
-            case .down:
-                return .down
-            default:
-                continue
-            }
-        }
-        let voice = chordItems.map(\.voice).min() ?? 1
-        if voice > 1 {
-            return voice.isMultiple(of: 2) ? .down : .up
-        }
-        let averageStaffStep = chordItems.map(\.staffStep).reduce(0, +) / max(1, chordItems.count)
-        return averageStaffStep >= 4 ? .down : .up
+        return (normalizedItems, chords, beamsBuild.beams)
     }
 
     private func resolvedChordNoteValue(items: [GrandStaffNotationItem]) -> GrandStaffNoteValue {

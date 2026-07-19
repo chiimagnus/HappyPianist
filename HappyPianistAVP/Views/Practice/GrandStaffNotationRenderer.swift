@@ -3,6 +3,7 @@ import SwiftUI
 struct GrandStaffNotationRenderer {
     private let displayScale: CGFloat
     private let engravingMetrics = GrandStaffEngravingMetrics()
+    private let chordLayoutService = GrandStaffChordLayoutService()
 
     init(displayScale: CGFloat = 1) {
         self.displayScale = displayScale
@@ -265,10 +266,11 @@ struct GrandStaffNotationRenderer {
         guard items.isEmpty == false else { return }
 
         for item in items {
-            let x = layout.xPosition(item.xPosition) + CGFloat(item.noteHeadXOffset) * layout.noteWidth
+            let glyphScale = engravingMetrics.glyphScale(isGrace: item.isGrace)
+            let x = layout.xPosition(item.xPosition)
+                + item.noteheadXOffset * layout.noteWidth * glyphScale
             let y = layout.yPosition(staffStep: item.staffStep, staffNumber: item.staffNumber)
             let fadeScale = handFadeScale(for: item.hand, practiceHandMode: practiceHandMode)
-            let glyphScale = engravingMetrics.glyphScale(isGrace: item.isGrace)
 
             for step in ledgerStepsByItemID[item.id] ?? [] {
                 let ledgerY = alignedToPixel(layout.yPosition(staffStep: step, staffNumber: item.staffNumber))
@@ -327,26 +329,26 @@ struct GrandStaffNotationRenderer {
 
         for chord in chords {
             if beamedChordIDs.contains(chord.id) { continue }
-            guard chord.noteValue.hasStem else { continue }
+            guard chord.noteValue.hasStem, chord.stem.isVisible else { continue }
             guard let chordItems = itemsByChordID[chord.id], chordItems.isEmpty == false else { continue }
 
             let fadeScale = chordFadeScale(for: chordItems, practiceHandMode: practiceHandMode)
             let isGrace = chordItems.allSatisfy(\.isGrace)
             let glyphScale = engravingMetrics.glyphScale(isGrace: isGrace)
-            let stem = resolvedStemGeometry(
-                chord: chord,
-                chordItems: chordItems,
-                stemLength: layout.lineSpacing * engravingMetrics.defaultStemLength * glyphScale,
+            guard let stem = chordLayoutService.stemGeometry(
+                stem: chord.stem,
+                chordX: layout.xPosition(chord.xPosition),
                 noteheadWidth: layout.noteWidth * glyphScale,
-                layout: layout
-            )
+                stemLength: layout.lineSpacing * engravingMetrics.defaultStemLength * glyphScale,
+                noteCentersByID: noteCenters(for: chordItems, layout: layout)
+            ) else { continue }
 
             var path = Path()
             path.move(to: stem.start)
             path.addLine(to: stem.end)
             context.stroke(path, with: .color(Color.primary.opacity(0.45 * fadeScale)), style: stemStroke)
 
-            if let flagToken = chord.noteValue.flagGlyphToken(stemDirection: chord.stemDirection) {
+            if let flagToken = chord.noteValue.flagGlyphToken(stemDirection: chord.stem.direction) {
                 drawFlag(
                     token: flagToken,
                     stemEnd: stem.end,
@@ -391,20 +393,22 @@ struct GrandStaffNotationRenderer {
                 }
                 .max() ?? 1.0
 
-            let direction = chords.first?.stemDirection ?? .up
+            let direction = chords.first?.stem.direction ?? .up
             var stemByChordID: [String: (start: CGPoint, end: CGPoint)] = [:]
             stemByChordID.reserveCapacity(chords.count)
 
             for chord in chords {
-                guard let chordItems = itemsByChordID[chord.id], chordItems.isEmpty == false else { continue }
+                guard chord.stem.isVisible, chord.noteValue.hasStem,
+                      let chordItems = itemsByChordID[chord.id], chordItems.isEmpty == false
+                else { continue }
                 let glyphScale = engravingMetrics.glyphScale(isGrace: chordItems.allSatisfy(\.isGrace))
-                let stem = resolvedStemGeometry(
-                    chord: chord,
-                    chordItems: chordItems,
-                    stemLength: layout.lineSpacing * engravingMetrics.defaultStemLength * glyphScale,
+                guard let stem = chordLayoutService.stemGeometry(
+                    stem: chord.stem,
+                    chordX: layout.xPosition(chord.xPosition),
                     noteheadWidth: layout.noteWidth * glyphScale,
-                    layout: layout
-                )
+                    stemLength: layout.lineSpacing * engravingMetrics.defaultStemLength * glyphScale,
+                    noteCentersByID: noteCenters(for: chordItems, layout: layout)
+                ) else { continue }
                 stemByChordID[chord.id] = (start: stem.start, end: stem.end)
             }
 
@@ -537,30 +541,17 @@ struct GrandStaffNotationRenderer {
         )
     }
 
-    private func resolvedStemGeometry(
-        chord: GrandStaffNotationChord,
-        chordItems: [GrandStaffNotationItem],
-        stemLength: CGFloat,
-        noteheadWidth: CGFloat,
+    private func noteCenters(
+        for items: [GrandStaffNotationItem],
         layout: GrandStaffNotationViewportLayoutService.Layout
-    ) -> (start: CGPoint, end: CGPoint) {
-        let x = layout.xPosition(chord.xPosition)
-        let steps = chordItems.map(\.staffStep)
-        let staffNumber = chordItems.first?.staffNumber ?? 1
-
-        if chord.stemDirection == .up {
-            let topStep = steps.max() ?? 4
-            let startY = layout.yPosition(staffStep: topStep, staffNumber: staffNumber)
-            let startX = x + noteheadWidth / 2
-            let end = CGPoint(x: startX, y: startY - stemLength)
-            return (CGPoint(x: startX, y: startY), end)
-        } else {
-            let bottomStep = steps.min() ?? 4
-            let startY = layout.yPosition(staffStep: bottomStep, staffNumber: staffNumber)
-            let startX = x - noteheadWidth / 2
-            let end = CGPoint(x: startX, y: startY + stemLength)
-            return (CGPoint(x: startX, y: startY), end)
-        }
+    ) -> [String: CGPoint] {
+        Dictionary(uniqueKeysWithValues: items.map { item in
+            let scale = engravingMetrics.glyphScale(isGrace: item.isGrace)
+            return (item.id, CGPoint(
+                x: layout.xPosition(item.xPosition) + item.noteheadXOffset * layout.noteWidth * scale,
+                y: layout.yPosition(staffStep: item.staffStep, staffNumber: item.staffNumber)
+            ))
+        })
     }
 
     private func drawNoteHead(

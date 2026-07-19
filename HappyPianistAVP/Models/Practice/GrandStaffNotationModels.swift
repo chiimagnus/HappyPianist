@@ -98,8 +98,16 @@ struct GrandStaffNotationChord: Equatable, Identifiable {
     let tick: Int
     let xPosition: Double
     let itemIDs: [String]
-    let stemDirection: GrandStaffStemDirection
+    let stem: GrandStaffNotationStem
     let noteValue: GrandStaffNoteValue
+}
+
+struct GrandStaffNotationStem: Equatable {
+    let direction: GrandStaffStemDirection
+    let isVisible: Bool
+    let startItemID: String
+    let endItemID: String
+    let xOffset: Double
 }
 
 struct GrandStaffNotationRest: Equatable, Identifiable {
@@ -236,8 +244,7 @@ struct GrandStaffNotationItem: Equatable, Identifiable {
     let fingerings: [MusicXMLFingering]
     let noteValue: GrandStaffNoteValue
     let chordID: String?
-    let noteHeadXOffset: Double
-    let stemDirection: GrandStaffStemDirection
+    let noteheadXOffset: Double
     let beamID: String?
     let durationTicks: Int
     let isGrace: Bool
@@ -246,7 +253,6 @@ struct GrandStaffNotationItem: Equatable, Identifiable {
     let dotCount: Int
 
     var noteheadGlyphToken: GrandStaffGlyphToken? { noteValue.noteheadGlyphToken }
-    var flagGlyphToken: GrandStaffGlyphToken? { noteValue.flagGlyphToken(stemDirection: stemDirection) }
     var articulationGlyphTokens: [GrandStaffGlyphToken] {
         articulations.sorted { $0.rawValue < $1.rawValue }.compactMap(\.grandStaffGlyphToken)
     }

@@ -21,8 +21,7 @@ func viewportLayoutKeepsExtremeNotesWithinCanvasBounds() {
             fingerings: [],
             noteValue: .quarter,
             chordID: nil,
-            noteHeadXOffset: 0,
-            stemDirection: .up,
+            noteheadXOffset: 0,
             beamID: nil,
             durationTicks: 480,
             isGrace: false,
@@ -100,7 +99,7 @@ func crossStaffChordAndBeamKeepSourceIdentityInsteadOfHandRouting() throws {
     let notation = GrandStaffNotationLayoutService().makeLayout(projection: projection)
     #expect(notation.chords.count == 2)
     #expect(notation.chords.allSatisfy { $0.itemIDs.count == 2 })
-    #expect(notation.chords.allSatisfy { $0.stemDirection == .down })
+    #expect(notation.chords.allSatisfy { $0.stem.direction == .down })
     #expect(notation.beams.count == 1)
     #expect(notation.beams[0].chordIDs == notation.chords.map(\.id))
     #expect(Set(notation.items.map(\.staffNumber)) == [1, 2])
