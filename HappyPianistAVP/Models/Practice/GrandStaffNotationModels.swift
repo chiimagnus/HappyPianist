@@ -7,13 +7,16 @@ enum GrandStaffNoteValue: Equatable {
     case eighth
     case sixteenth
     case thirtySecond
+    case sixtyFourth
+    case oneHundredTwentyEighth
     case unsupported(sourceTypeToken: String?)
 
     var noteheadGlyphToken: GrandStaffGlyphToken? {
         switch self {
         case .whole: .noteheadWhole
         case .half: .noteheadHalf
-        case .quarter, .eighth, .sixteenth, .thirtySecond: .noteheadBlack
+        case .quarter, .eighth, .sixteenth, .thirtySecond, .sixtyFourth, .oneHundredTwentyEighth:
+            .noteheadBlack
         case .unsupported: nil
         }
     }
@@ -26,6 +29,8 @@ enum GrandStaffNoteValue: Equatable {
         case .eighth: .restEighth
         case .sixteenth: .restSixteenth
         case .thirtySecond: .restThirtySecond
+        case .sixtyFourth: .restSixtyFourth
+        case .oneHundredTwentyEighth: .restOneHundredTwentyEighth
         case .unsupported: nil
         }
     }
@@ -38,13 +43,18 @@ enum GrandStaffNoteValue: Equatable {
         case (.sixteenth, .down): .flagSixteenthDown
         case (.thirtySecond, .up): .flagThirtySecondUp
         case (.thirtySecond, .down): .flagThirtySecondDown
+        case (.sixtyFourth, .up): .flagSixtyFourthUp
+        case (.sixtyFourth, .down): .flagSixtyFourthDown
+        case (.oneHundredTwentyEighth, .up): .flagOneHundredTwentyEighthUp
+        case (.oneHundredTwentyEighth, .down): .flagOneHundredTwentyEighthDown
         default: nil
         }
     }
 
     var hasStem: Bool {
         switch self {
-        case .half, .quarter, .eighth, .sixteenth, .thirtySecond: true
+        case .half, .quarter, .eighth, .sixteenth, .thirtySecond, .sixtyFourth, .oneHundredTwentyEighth:
+            true
         case .whole, .unsupported: false
         }
     }

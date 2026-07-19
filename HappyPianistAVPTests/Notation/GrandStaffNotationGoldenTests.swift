@@ -237,6 +237,8 @@ private func noteValue(_ value: GrandStaffNoteValue) -> String {
     case .eighth: "eighth"
     case .sixteenth: "16th"
     case .thirtySecond: "32nd"
+    case .sixtyFourth: "64th"
+    case .oneHundredTwentyEighth: "128th"
     case let .unsupported(token): "unsupported:\(token ?? "-")"
     }
 }

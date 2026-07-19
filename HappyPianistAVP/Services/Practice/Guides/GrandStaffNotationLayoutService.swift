@@ -852,6 +852,8 @@ struct GrandStaffNotationLayoutService {
         case "eighth": .eighth
         case "16th": .sixteenth
         case "32nd": .thirtySecond
+        case "64th": .sixtyFourth
+        case "128th": .oneHundredTwentyEighth
         default: .unsupported(sourceTypeToken: sourceTypeToken)
         }
     }
@@ -1168,6 +1170,8 @@ struct GrandStaffNotationLayoutService {
         case .eighth: MusicXMLTempoMap.ticksPerQuarter / 2
         case .sixteenth: MusicXMLTempoMap.ticksPerQuarter / 4
         case .thirtySecond: MusicXMLTempoMap.ticksPerQuarter / 8
+        case .sixtyFourth: MusicXMLTempoMap.ticksPerQuarter / 16
+        case .oneHundredTwentyEighth: MusicXMLTempoMap.ticksPerQuarter / 32
         }
     }
 
@@ -1428,19 +1432,23 @@ struct GrandStaffNotationLayoutService {
     private func beamRank(for noteValue: GrandStaffNoteValue) -> Int {
         switch noteValue {
         case .unsupported:
-            6
-        case .thirtySecond:
+            8
+        case .oneHundredTwentyEighth:
             0
-        case .sixteenth:
+        case .sixtyFourth:
             1
-        case .eighth:
+        case .thirtySecond:
             2
-        case .quarter:
+        case .sixteenth:
             3
-        case .half:
+        case .eighth:
             4
-        case .whole:
+        case .quarter:
             5
+        case .half:
+            6
+        case .whole:
+            7
         }
     }
 
@@ -1707,6 +1715,10 @@ struct GrandStaffNotationLayoutService {
             2
         case .thirtySecond:
             3
+        case .sixtyFourth:
+            4
+        case .oneHundredTwentyEighth:
+            5
         default:
             0
         }

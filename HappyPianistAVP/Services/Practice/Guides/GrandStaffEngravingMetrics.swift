@@ -21,7 +21,7 @@ struct GrandStaffEngravingMetrics: Equatable, Sendable {
     let ledgerLineThickness = 0.16
     let ledgerLineExtension = 0.40
     let defaultStemLength = 3.50
-    let maximumBeamCount = 3
+    let maximumBeamCount = 5
     let accidentalNoteheadGap = 0.25
     let accidentalColumnGap = 0.20
     let dotNoteheadGap = 0.35
@@ -67,6 +67,10 @@ struct GrandStaffEngravingMetrics: Equatable, Sendable {
             GrandStaffGlyphBounds(minX: -0.64, minY: -2.0, maxX: 0.64, maxY: 0.716)
         case .restThirtySecond:
             GrandStaffGlyphBounds(minX: -0.726, minY: -2.0, maxX: 0.726, maxY: 1.704)
+        case .restSixtyFourth:
+            GrandStaffGlyphBounds(minX: -0.78, minY: -2.0, maxX: 0.78, maxY: 2.70)
+        case .restOneHundredTwentyEighth:
+            GrandStaffGlyphBounds(minX: -0.82, minY: -2.0, maxX: 0.82, maxY: 3.70)
         case .articulationAccentAbove:
             GrandStaffGlyphBounds(minX: -0.678, minY: -0.49, maxX: 0.678, maxY: 0.49)
         case .articulationStaccatoAbove:

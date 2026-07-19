@@ -101,6 +101,34 @@ func layoutRendersWholeMeasureRestWithoutTypeAtMeasureCenter() throws {
 }
 
 @Test
+func layoutSupportsSixtyFourthAndOneHundredTwentyEighthNotesAndRests() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1"><measure number="1">
+        <attributes><divisions>32</divisions><clef><sign>G</sign><line>2</line></clef></attributes>
+        <note><pitch><step>C</step><octave>5</octave></pitch><duration>2</duration><type>64th</type></note>
+        <note><pitch><step>D</step><octave>5</octave></pitch><duration>1</duration><type>128th</type></note>
+        <note><rest/><duration>2</duration><type>64th</type></note>
+        <note><rest/><duration>1</duration><type>128th</type></note>
+      </measure></part>
+    </score-partwise>
+    """
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let projection = ScoreNotationProjection(
+        plan: makeTestScorePerformancePlan(from: score),
+        sourceScore: score
+    )
+    let layout = GrandStaffNotationLayoutService().makeLayout(projection: projection)
+
+    #expect(projection.fallbacks.isEmpty)
+    #expect(layout.items.map(\.noteValue) == [.sixtyFourth, .oneHundredTwentyEighth])
+    #expect(layout.items.map(\.flagGlyphToken) == [.flagSixtyFourthDown, .flagOneHundredTwentyEighthDown])
+    #expect(layout.rests.map(\.noteValue) == [.sixtyFourth, .oneHundredTwentyEighth])
+    #expect(layout.rests.compactMap(\.glyphToken) == [.restSixtyFourth, .restOneHundredTwentyEighth])
+}
+
+@Test
 func layoutEmitsBarlinesForMeasureSpansStartAndEndTicks() {
     let measureSpans = [
         MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, sourceMeasureIndex: 1, sourceMeasureNumberToken: "1", occurrenceIndex: 0, startTick: 0, endTick: 480),

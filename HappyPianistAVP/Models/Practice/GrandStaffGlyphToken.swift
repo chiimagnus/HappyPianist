@@ -14,12 +14,18 @@ enum GrandStaffGlyphToken: String, CaseIterable, Equatable, Hashable, Sendable {
     case flagSixteenthDown
     case flagThirtySecondUp
     case flagThirtySecondDown
+    case flagSixtyFourthUp
+    case flagSixtyFourthDown
+    case flagOneHundredTwentyEighthUp
+    case flagOneHundredTwentyEighthDown
     case restWhole
     case restHalf
     case restQuarter
     case restEighth
     case restSixteenth
     case restThirtySecond
+    case restSixtyFourth
+    case restOneHundredTwentyEighth
     case accidentalFlat
     case accidentalNatural
     case accidentalSharp
@@ -64,12 +70,18 @@ enum GrandStaffGlyphToken: String, CaseIterable, Equatable, Hashable, Sendable {
         case .flagSixteenthDown: 0xE243
         case .flagThirtySecondUp: 0xE244
         case .flagThirtySecondDown: 0xE245
+        case .flagSixtyFourthUp: 0xE246
+        case .flagSixtyFourthDown: 0xE247
+        case .flagOneHundredTwentyEighthUp: 0xE248
+        case .flagOneHundredTwentyEighthDown: 0xE249
         case .restWhole: 0xE4E3
         case .restHalf: 0xE4E4
         case .restQuarter: 0xE4E5
         case .restEighth: 0xE4E6
         case .restSixteenth: 0xE4E7
         case .restThirtySecond: 0xE4E8
+        case .restSixtyFourth: 0xE4E9
+        case .restOneHundredTwentyEighth: 0xE4EA
         case .accidentalFlat: 0xE260
         case .accidentalNatural: 0xE261
         case .accidentalSharp: 0xE262
