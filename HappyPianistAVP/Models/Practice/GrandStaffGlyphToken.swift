@@ -1,6 +1,7 @@
 import Foundation
 
 enum GrandStaffGlyphToken: String, CaseIterable, Equatable, Hashable, Sendable {
+    case brace
     case gClef
     case fClef
     case cClef
@@ -32,6 +33,11 @@ enum GrandStaffGlyphToken: String, CaseIterable, Equatable, Hashable, Sendable {
     case articulationMarcatoAbove
     case fermataAbove
     case fermataBelow
+    case arpeggiato
+    case arpeggiatoUp
+    case arpeggiatoDown
+    case keyboardPedalPed
+    case keyboardPedalUp
     case timeSignature0
     case timeSignature1
     case timeSignature2
@@ -45,6 +51,7 @@ enum GrandStaffGlyphToken: String, CaseIterable, Equatable, Hashable, Sendable {
 
     var smuflCodePoint: UInt32 {
         switch self {
+        case .brace: 0xE000
         case .gClef: 0xE050
         case .fClef: 0xE062
         case .cClef: 0xE05C
@@ -76,6 +83,11 @@ enum GrandStaffGlyphToken: String, CaseIterable, Equatable, Hashable, Sendable {
         case .articulationMarcatoAbove: 0xE4AC
         case .fermataAbove: 0xE4C0
         case .fermataBelow: 0xE4C1
+        case .arpeggiato: 0xE63C
+        case .arpeggiatoUp: 0xE634
+        case .arpeggiatoDown: 0xE635
+        case .keyboardPedalPed: 0xE650
+        case .keyboardPedalUp: 0xE655
         case .timeSignature0: 0xE080
         case .timeSignature1: 0xE081
         case .timeSignature2: 0xE082

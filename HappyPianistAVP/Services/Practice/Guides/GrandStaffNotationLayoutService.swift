@@ -32,12 +32,6 @@ struct GrandStaffNotationLayoutService {
         let voice: Int
     }
 
-    private struct AttributeSignature: Equatable {
-        let meter: MusicXMLMeter?
-        let keySignature: ScoreNotationProjection.KeySignatureFact?
-        let clef: ScoreNotationProjection.ClefFact?
-    }
-
     private struct AccidentalMeasureKey: Hashable {
         let partID: String
         let sourceMeasureIndex: Int
@@ -176,6 +170,8 @@ struct GrandStaffNotationLayoutService {
         return makeLayout(
             notes: layoutNotes,
             occurrences: occurrences,
+            sourceMarks: projection.marks,
+            sourceAttributeChanges: projection.attributeChanges,
             activeTickRange: overlay.activeTickRange,
             measureSpans: measureSpans,
             context: context,
@@ -224,13 +220,17 @@ struct GrandStaffNotationLayoutService {
     private func makeLayout(
         notes: [LayoutNote],
         occurrences: [LayoutOccurrence],
+        sourceMarks: [ScoreNotationProjection.Mark],
+        sourceAttributeChanges: [ScoreNotationProjection.AttributeChange],
         activeTickRange: Range<Int>?,
         measureSpans: [MusicXMLMeasureSpan],
         context: GrandStaffNotationContext?,
         viewportWidthStaffSpaces: Double,
         scrollTick: Double?
     ) -> GrandStaffNotationLayout {
-        let currentTick = scrollTick ?? Double(occurrences.first?.tick ?? 0)
+        let currentTick = scrollTick ?? Double(
+            occurrences.first?.tick ?? sourceMarks.first?.tick ?? sourceAttributeChanges.first?.tick ?? 0
+        )
         let notationFactsByOccurrenceID = Dictionary(uniqueKeysWithValues: notes.map { note in
             (
                 note.occurrenceID,
@@ -307,15 +307,23 @@ struct GrandStaffNotationLayoutService {
                 isHighlighted: occurrence.isHighlighted
             )
         }
-        let barlineTicks = makeBarlineTicks(measureSpans: measureSpans)
+        let rawMarks = notationMarks(sourceMarks: sourceMarks, items: chordBuild.items)
+        let structuralMarkTicks = Set(rawMarks.compactMap { mark in
+            isBarlineMark(mark.kind) ? mark.tick : nil
+        })
+        let barlineTicks = makeBarlineTicks(measureSpans: measureSpans).union(structuralMarkTicks)
+        let attributeTicks = Set(sourceAttributeChanges.map(\.tick))
         let spacing = horizontalSpacingService.makeLayout(
             rhythmicColumns: rhythmicColumns(
                 items: chordBuild.items,
                 rests: rests,
-                ledgerLines: chordBuild.ledgerLines
+                ledgerLines: chordBuild.ledgerLines,
+                marks: rawMarks
             ),
             barlineTicks: barlineTicks,
-            attributeTicks: attributeChangeTicks(occurrences: occurrences)
+            attributeTicks: attributeTicks,
+            barlineExtentsByTick: Dictionary(uniqueKeysWithValues: structuralMarkTicks.map { ($0, 0.8) }),
+            attributeRightExtentsByTick: attributeRightExtentsByTick(sourceAttributeChanges)
         )
         let safeViewportWidth = max(1, viewportWidthStaffSpaces)
         let scrollPosition = spacing.position(at: currentTick)
@@ -378,6 +386,34 @@ struct GrandStaffNotationLayoutService {
             guard xPosition >= -visibleOverscan, xPosition <= 1 + visibleOverscan else { return nil }
             return GrandStaffNotationBarline(id: "barline-\(tick)", tick: tick, xPosition: xPosition)
         }
+        let positionedMarks = rawMarks.compactMap { mark -> GrandStaffNotationMark? in
+            let position = isBarlineMark(mark.kind)
+                ? spacing.barlinePositionsByTick[mark.tick]
+                : spacing.rhythmicPositionsByTick[mark.tick] ?? spacing.position(at: Double(mark.tick))
+            guard let position else { return nil }
+            let positioned = copy(mark: mark, xPosition: normalized(position))
+            guard positioned.xPosition >= -visibleOverscan,
+                  positioned.xPosition <= 1 + visibleOverscan,
+                  activeTickRange?.contains(positioned.tick) ?? true
+            else { return nil }
+            return positioned
+        }
+        let positionedAttributeChanges = sourceAttributeChanges.compactMap { change -> GrandStaffNotationAttributeChange? in
+            guard let position = spacing.attributePositionsByTick[change.tick] else { return nil }
+            let xPosition = normalized(position)
+            guard xPosition >= -visibleOverscan, xPosition <= 1 + visibleOverscan else { return nil }
+            return GrandStaffNotationAttributeChange(
+                id: change.id,
+                tick: change.tick,
+                xPosition: xPosition,
+                staffNumber: change.staff,
+                clefSignToken: change.clef?.signToken,
+                clefLine: change.clef?.line,
+                keySignatureFifths: change.keySignatureFifths,
+                previousKeySignatureFifths: change.previousKeySignatureFifths,
+                timeSignatureText: change.meterText
+            )
+        }
         let spanners = clippedSpannerSegments(
             occurrences: occurrences,
             activeTickRange: activeTickRange,
@@ -396,6 +432,8 @@ struct GrandStaffNotationLayoutService {
             barlines: positionedBarlines,
             beams: clippedBeams(chordBuild.beams, visibleChordIDs: visibleChordIDs),
             ledgerLines: positionedLedgerLines,
+            marks: positionedMarks,
+            attributeChanges: positionedAttributeChanges,
             context: context
         )
     }
@@ -786,30 +824,190 @@ struct GrandStaffNotationLayoutService {
         return ticks
     }
 
-    private func attributeChangeTicks(occurrences: [LayoutOccurrence]) -> Set<Int> {
-        var signatureByStaff: [Int: AttributeSignature] = [:]
-        var ticks: Set<Int> = []
-        for occurrence in occurrences.sorted(by: {
-            if $0.tick != $1.tick { return $0.tick < $1.tick }
-            return $0.occurrenceID < $1.occurrenceID
-        }) {
-            let signature = AttributeSignature(
-                meter: occurrence.source.meter,
-                keySignature: occurrence.source.keySignature,
-                clef: occurrence.source.clef
-            )
-            if let previous = signatureByStaff[occurrence.staffNumber], previous != signature {
-                ticks.insert(occurrence.tick)
+    private func notationMarks(
+        sourceMarks: [ScoreNotationProjection.Mark],
+        items: [GrandStaffNotationItem]
+    ) -> [GrandStaffNotationMark] {
+        var marks = sourceMarks.compactMap { source -> GrandStaffNotationMark? in
+            guard source.kind != .pedalContinue else { return nil }
+            let kind: GrandStaffNotationMark.Kind = switch source.kind {
+            case .dynamic: .dynamic
+            case .tempo: .tempo
+            case .text: .text
+            case .pedalStart: .pedalStart
+            case .pedalStop: .pedalStop
+            case .pedalChange: .pedalChange
+            case .pedalContinue: .pedalContinue
+            case .fermata: .fermata
+            case .repeatForward: .repeatForward
+            case .repeatBackward: .repeatBackward
+            case .endingStart: .endingStart
+            case .endingStop: .endingStop
+            case .endingDiscontinue: .endingDiscontinue
             }
-            signatureByStaff[occurrence.staffNumber] = signature
+            let voice = source.voice ?? 1
+            let matchingItems = items.filter {
+                $0.tick == source.tick &&
+                    (source.staff == nil || $0.staffNumber == resolvedStaffNumber(source.staff)) &&
+                    (source.voice == nil || $0.voice == source.voice)
+            }
+            let staffNumber = source.staff.map(resolvedStaffNumber)
+                ?? matchingItems.first?.staffNumber
+                ?? (kind == .pedalStart || kind == .pedalStop || kind == .pedalChange ? 2 : 1)
+            let placement = resolvedMarkPlacement(
+                sourceToken: source.placementToken,
+                kind: kind,
+                voice: voice
+            )
+            let anchorsToNote = kind == .fermata
+            return GrandStaffNotationMark(
+                id: source.id,
+                tick: source.tick,
+                xPosition: 0,
+                staffNumber: staffNumber,
+                voice: voice,
+                kind: kind,
+                text: source.text,
+                placement: placement,
+                collisionLevel: 0,
+                minimumStaffStep: anchorsToNote ? matchingItems.map(\.staffStep).min() : nil,
+                maximumStaffStep: anchorsToNote ? matchingItems.map(\.staffStep).max() : nil
+            )
         }
-        return ticks
+
+        for item in items {
+            for (index, token) in item.articulationGlyphTokens.enumerated() {
+                let placement = resolvedMarkPlacement(sourceToken: nil, kind: .articulation(token), voice: item.voice)
+                marks.append(GrandStaffNotationMark(
+                    id: "\(item.id):articulation:\(index)",
+                    tick: item.tick,
+                    xPosition: 0,
+                    staffNumber: item.staffNumber,
+                    voice: item.voice,
+                    kind: .articulation(token),
+                    text: nil,
+                    placement: placement,
+                    collisionLevel: 0,
+                    minimumStaffStep: item.staffStep,
+                    maximumStaffStep: item.staffStep
+                ))
+            }
+            for (index, fingering) in item.fingerings.enumerated() where fingering.text.isEmpty == false {
+                let placement = resolvedMarkPlacement(
+                    sourceToken: fingering.placementToken,
+                    kind: .fingering,
+                    voice: item.voice
+                )
+                marks.append(GrandStaffNotationMark(
+                    id: fingering.sourceID?.description ?? "\(item.id):fingering:\(index)",
+                    tick: item.tick,
+                    xPosition: 0,
+                    staffNumber: item.staffNumber,
+                    voice: item.voice,
+                    kind: .fingering,
+                    text: fingering.text,
+                    placement: placement,
+                    collisionLevel: 0,
+                    minimumStaffStep: item.staffStep,
+                    maximumStaffStep: item.staffStep
+                ))
+            }
+        }
+
+        let arpeggioItems = Dictionary(grouping: items.filter { $0.arpeggiate != nil }) { item in
+            "\(item.chordID ?? item.id):staff-\(item.staffNumber):\(item.arpeggiate?.normalizedNumberToken ?? "1")"
+        }
+        for (id, chordItems) in arpeggioItems {
+            guard let first = chordItems.first, let arpeggiate = first.arpeggiate else { continue }
+            let token: GrandStaffGlyphToken = switch arpeggiate.direction {
+            case .up: .arpeggiatoUp
+            case .down: .arpeggiatoDown
+            case nil: .arpeggiato
+            }
+            marks.append(GrandStaffNotationMark(
+                id: "\(id):arpeggio",
+                tick: first.tick,
+                xPosition: 0,
+                staffNumber: first.staffNumber,
+                voice: first.voice,
+                kind: .arpeggio(token),
+                text: nil,
+                placement: .left,
+                collisionLevel: 0,
+                minimumStaffStep: chordItems.map(\.staffStep).min(),
+                maximumStaffStep: chordItems.map(\.staffStep).max()
+            ))
+        }
+
+        var nextLevelByCollisionKey: [String: Int] = [:]
+        return marks.sorted {
+            if $0.tick != $1.tick { return $0.tick < $1.tick }
+            if $0.staffNumber != $1.staffNumber { return $0.staffNumber < $1.staffNumber }
+            return $0.id < $1.id
+        }.map { mark in
+            let key = "\(mark.tick):\(mark.staffNumber):\(mark.placement)"
+            let level = nextLevelByCollisionKey[key, default: 0]
+            nextLevelByCollisionKey[key] = level + 1
+            return GrandStaffNotationMark(
+                id: mark.id,
+                tick: mark.tick,
+                xPosition: mark.xPosition,
+                staffNumber: mark.staffNumber,
+                voice: mark.voice,
+                kind: mark.kind,
+                text: mark.text,
+                placement: mark.placement,
+                collisionLevel: level,
+                minimumStaffStep: mark.minimumStaffStep,
+                maximumStaffStep: mark.maximumStaffStep
+            )
+        }
+    }
+
+    private func resolvedMarkPlacement(
+        sourceToken: String?,
+        kind: GrandStaffNotationMark.Kind,
+        voice: Int
+    ) -> GrandStaffNotationPlacement {
+        switch sourceToken?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "above": return .above
+        case "below": return .below
+        default: break
+        }
+        return switch kind {
+        case .tempo, .text, .endingStart, .endingStop, .endingDiscontinue: .above
+        case .dynamic, .pedalStart, .pedalStop, .pedalChange, .pedalContinue: .below
+        case .repeatForward, .repeatBackward, .arpeggio: .left
+        case .fermata, .articulation, .fingering: voice.isMultiple(of: 2) ? .below : .above
+        }
+    }
+
+    private func isBarlineMark(_ kind: GrandStaffNotationMark.Kind) -> Bool {
+        switch kind {
+        case .repeatForward, .repeatBackward, .endingStart, .endingStop, .endingDiscontinue: true
+        default: false
+        }
+    }
+
+    private func attributeRightExtentsByTick(
+        _ changes: [ScoreNotationProjection.AttributeChange]
+    ) -> [Int: Double] {
+        Dictionary(grouping: changes, by: \.tick).mapValues { changesAtTick in
+            changesAtTick.map { change in
+                let clefWidth = change.clef == nil ? 0 : 1.7
+                let cancellationWidth = Double(abs(change.previousKeySignatureFifths ?? 0)) * 0.78
+                let keyWidth = Double(abs(change.keySignatureFifths ?? 0)) * 0.78
+                let meterWidth = change.meterText == nil ? 0 : 1.8
+                return max(1.1, clefWidth + cancellationWidth + keyWidth + meterWidth + 0.8)
+            }.max() ?? 1.1
+        }
     }
 
     private func rhythmicColumns(
         items: [GrandStaffNotationItem],
         rests: [GrandStaffNotationRest],
-        ledgerLines: [GrandStaffNotationLedgerLine]
+        ledgerLines: [GrandStaffNotationLedgerLine],
+        marks: [GrandStaffNotationMark]
     ) -> [GrandStaffHorizontalSpacingService.RhythmicColumn] {
         let metrics = GrandStaffEngravingMetrics()
         var columns: [GrandStaffHorizontalSpacingService.RhythmicColumn] = []
@@ -832,9 +1030,6 @@ struct GrandStaffNotationLayoutService {
                     maxX,
                     center + bounds.maxX * scale + Double(item.dotCount - 1) * metrics.dotSpacing
                 )
-            }
-            if item.arpeggiate != nil {
-                minX -= 0.8
             }
             columns.append(.init(
                 tick: item.tick,
@@ -862,7 +1057,39 @@ struct GrandStaffNotationLayoutService {
                 rightExtent: max(0, ledgerLine.maxXOffsetStaffSpaces)
             ))
         }
+        for mark in marks where isBarlineMark(mark.kind) == false {
+            let duration = items.first { $0.tick == mark.tick }?.durationTicks ?? MusicXMLTempoMap.ticksPerQuarter
+            let extents = markHorizontalExtents(mark, metrics: metrics)
+            columns.append(.init(
+                tick: mark.tick,
+                durationTicks: duration,
+                leftExtent: extents.left,
+                rightExtent: extents.right
+            ))
+        }
         return columns
+    }
+
+    private func markHorizontalExtents(
+        _ mark: GrandStaffNotationMark,
+        metrics: GrandStaffEngravingMetrics
+    ) -> (left: Double, right: Double) {
+        if case let .arpeggio(token) = mark.kind {
+            return (left: (metrics.bounds(for: token)?.width ?? 0.9) + 0.45, right: 0)
+        }
+        if let token = mark.glyphToken, let bounds = metrics.bounds(for: token) {
+            return switch mark.kind {
+            case .pedalChange:
+                (0.15, bounds.width * 0.75 + (metrics.bounds(for: .keyboardPedalPed)?.width ?? 4.1) * 0.75 + 1.75)
+            case .pedalStart, .pedalStop: (0.15, bounds.width + 0.15)
+            default: (bounds.width / 2 + 0.15, bounds.width / 2 + 0.15)
+            }
+        }
+        let textWidth = max(0.8, Double(mark.text?.count ?? 0) * 0.55)
+        return switch mark.kind {
+        case .tempo, .text: (0.15, textWidth + 0.15)
+        default: (textWidth / 2 + 0.15, textWidth / 2 + 0.15)
+        }
     }
 
     private func durationTicks(for noteValue: GrandStaffNoteValue) -> Int {
@@ -901,6 +1128,22 @@ struct GrandStaffNotationLayoutService {
             articulations: item.articulations,
             arpeggiate: item.arpeggiate,
             dotCount: item.dotCount
+        )
+    }
+
+    private func copy(mark: GrandStaffNotationMark, xPosition: Double) -> GrandStaffNotationMark {
+        GrandStaffNotationMark(
+            id: mark.id,
+            tick: mark.tick,
+            xPosition: xPosition,
+            staffNumber: mark.staffNumber,
+            voice: mark.voice,
+            kind: mark.kind,
+            text: mark.text,
+            placement: mark.placement,
+            collisionLevel: mark.collisionLevel,
+            minimumStaffStep: mark.minimumStaffStep,
+            maximumStaffStep: mark.maximumStaffStep
         )
     }
 

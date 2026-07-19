@@ -43,6 +43,28 @@ struct MusicXMLDynamicEvent: Equatable {
     let velocity: UInt8
     let scope: MusicXMLEventScope
     let source: MusicXMLDynamicEventSource
+    let markToken: String?
+    let placementToken: String?
+
+    init(
+        sourceID: MusicXMLDirectionSourceID? = nil,
+        performedOccurrenceIndex: Int = 0,
+        tick: Int,
+        velocity: UInt8,
+        scope: MusicXMLEventScope,
+        source: MusicXMLDynamicEventSource,
+        markToken: String? = nil,
+        placementToken: String? = nil
+    ) {
+        self.sourceID = sourceID
+        self.performedOccurrenceIndex = performedOccurrenceIndex
+        self.tick = tick
+        self.velocity = velocity
+        self.scope = scope
+        self.source = source
+        self.markToken = markToken
+        self.placementToken = placementToken
+    }
 }
 
 enum MusicXMLWedgeKind: Equatable, Sendable {
@@ -109,6 +131,23 @@ struct MusicXMLFermataEvent: Equatable {
     let tick: Int
     let scope: MusicXMLEventScope
     let source: MusicXMLFermataEventSource
+    let placementToken: String?
+
+    init(
+        sourceID: MusicXMLDirectionSourceID? = nil,
+        performedOccurrenceIndex: Int = 0,
+        tick: Int,
+        scope: MusicXMLEventScope,
+        source: MusicXMLFermataEventSource,
+        placementToken: String? = nil
+    ) {
+        self.sourceID = sourceID
+        self.performedOccurrenceIndex = performedOccurrenceIndex
+        self.tick = tick
+        self.scope = scope
+        self.source = source
+        self.placementToken = placementToken
+    }
 }
 
 enum MusicXMLArpeggiateDirection: String, Codable, Equatable, Hashable, Sendable {
@@ -200,6 +239,23 @@ struct MusicXMLWordsEvent: Equatable {
     let tick: Int
     let text: String
     let scope: MusicXMLEventScope
+    let placementToken: String?
+
+    init(
+        sourceID: MusicXMLDirectionSourceID? = nil,
+        performedOccurrenceIndex: Int = 0,
+        tick: Int,
+        text: String,
+        scope: MusicXMLEventScope,
+        placementToken: String? = nil
+    ) {
+        self.sourceID = sourceID
+        self.performedOccurrenceIndex = performedOccurrenceIndex
+        self.tick = tick
+        self.text = text
+        self.scope = scope
+        self.placementToken = placementToken
+    }
 }
 
 enum MusicXMLArticulation: String, CaseIterable, Equatable, Hashable {
@@ -220,6 +276,23 @@ struct MusicXMLTempoEvent: Equatable {
     let tick: Int
     let quarterBPM: Double
     let scope: MusicXMLEventScope
+    let placementToken: String?
+
+    init(
+        sourceID: MusicXMLDirectionSourceID? = nil,
+        performedOccurrenceIndex: Int = 0,
+        tick: Int,
+        quarterBPM: Double,
+        scope: MusicXMLEventScope,
+        placementToken: String? = nil
+    ) {
+        self.sourceID = sourceID
+        self.performedOccurrenceIndex = performedOccurrenceIndex
+        self.tick = tick
+        self.quarterBPM = quarterBPM
+        self.scope = scope
+        self.placementToken = placementToken
+    }
 }
 
 struct MusicXMLSoundDirective: Equatable {
@@ -259,6 +332,34 @@ struct MusicXMLPedalEvent: Equatable {
     var controller: MusicXMLPedalController = .damper
     let value: MusicXMLControllerValue?
     let timeOnlyPasses: [Int]?
+    let staff: Int?
+    let placementToken: String?
+
+    init(
+        sourceID: MusicXMLDirectionSourceID? = nil,
+        performedOccurrenceIndex: Int = 0,
+        partID: String,
+        measureNumber: Int,
+        tick: Int,
+        kind: MusicXMLPedalEventKind,
+        controller: MusicXMLPedalController = .damper,
+        value: MusicXMLControllerValue?,
+        timeOnlyPasses: [Int]?,
+        staff: Int? = nil,
+        placementToken: String? = nil
+    ) {
+        self.sourceID = sourceID
+        self.performedOccurrenceIndex = performedOccurrenceIndex
+        self.partID = partID
+        self.measureNumber = measureNumber
+        self.tick = tick
+        self.kind = kind
+        self.controller = controller
+        self.value = value
+        self.timeOnlyPasses = timeOnlyPasses
+        self.staff = staff
+        self.placementToken = placementToken
+    }
 }
 
 struct MusicXMLMeasureSpan: Equatable, Identifiable {

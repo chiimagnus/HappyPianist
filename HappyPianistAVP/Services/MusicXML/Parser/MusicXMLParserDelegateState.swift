@@ -93,6 +93,7 @@ struct MusicXMLParserDelegateState {
         let quarterBPM: Double
         let source: TempoSource
         let staff: Int?
+        let placementToken: String?
     }
 
     var currentPartID = "P1"
@@ -139,6 +140,7 @@ struct MusicXMLParserDelegateState {
     var isInBarline = false
     var isInSound = false
     var currentDirectionStaff: Int?
+    var currentDirectionPlacementToken: String?
     var isInDirectionTypeDynamics = false
 
     var isInNote = false
@@ -177,6 +179,7 @@ struct MusicXMLParserDelegateState {
     var isInNoteArticulations = false
     var noteArticulations: Set<MusicXMLArticulation> = []
     var noteHasFermata = false
+    var noteFermataPlacementToken: String?
     var noteArpeggiate: MusicXMLArpeggiate?
     var notePerformanceNotations: [PendingPerformanceNotation] = []
     var currentPerformanceNotationIndexByElement: [String: Int] = [:]

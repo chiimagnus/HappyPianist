@@ -373,7 +373,8 @@ extension MusicXMLParserDelegate {
                         staff: state.noteStaff,
                         voice: state.noteVoice
                     ),
-                    source: .noteNotations
+                    source: .noteNotations,
+                    placementToken: state.noteFermataPlacementToken
                 )
             )
         }

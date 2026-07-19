@@ -91,6 +91,8 @@ struct GrandStaffNotationLayout: Equatable {
     let barlines: [GrandStaffNotationBarline]
     let beams: [GrandStaffNotationBeam]
     let ledgerLines: [GrandStaffNotationLedgerLine]
+    let marks: [GrandStaffNotationMark]
+    let attributeChanges: [GrandStaffNotationAttributeChange]
     let context: GrandStaffNotationContext?
 }
 
@@ -203,6 +205,82 @@ struct GrandStaffNotationLedgerLine: Equatable, Identifiable {
     let staffStep: Int
     let minXOffsetStaffSpaces: Double
     let maxXOffsetStaffSpaces: Double
+}
+
+enum GrandStaffNotationPlacement: Equatable {
+    case above
+    case below
+    case left
+}
+
+struct GrandStaffNotationMark: Equatable, Identifiable {
+    enum Kind: Equatable {
+        case dynamic
+        case tempo
+        case text
+        case pedalStart
+        case pedalStop
+        case pedalChange
+        case pedalContinue
+        case fermata
+        case repeatForward
+        case repeatBackward
+        case endingStart
+        case endingStop
+        case endingDiscontinue
+        case articulation(GrandStaffGlyphToken)
+        case arpeggio(GrandStaffGlyphToken)
+        case fingering
+    }
+
+    let id: String
+    let tick: Int
+    let xPosition: Double
+    let staffNumber: Int
+    let voice: Int
+    let kind: Kind
+    let text: String?
+    let placement: GrandStaffNotationPlacement
+    let collisionLevel: Int
+    let minimumStaffStep: Int?
+    let maximumStaffStep: Int?
+
+    var glyphToken: GrandStaffGlyphToken? {
+        switch kind {
+        case .pedalStart: .keyboardPedalPed
+        case .pedalStop, .pedalChange: .keyboardPedalUp
+        case .fermata: placement == .above ? .fermataAbove : .fermataBelow
+        case .dynamic, .tempo, .text, .pedalContinue,
+             .repeatForward, .repeatBackward,
+             .endingStart, .endingStop, .endingDiscontinue:
+            nil
+        case let .articulation(token), let .arpeggio(token):
+            token
+        case .fingering:
+            nil
+        }
+    }
+}
+
+struct GrandStaffNotationAttributeChange: Equatable, Identifiable {
+    let id: String
+    let tick: Int
+    let xPosition: Double
+    let staffNumber: Int
+    let clefSignToken: String?
+    let clefLine: Int?
+    let keySignatureFifths: Int?
+    let previousKeySignatureFifths: Int?
+    let timeSignatureText: String?
+
+    var clefGlyphToken: GrandStaffGlyphToken? {
+        switch clefSignToken?.uppercased() {
+        case "G": .gClef
+        case "F": .fClef
+        case "C": .cClef
+        default: nil
+        }
+    }
 }
 
 struct GrandStaffNotationContext: Equatable {

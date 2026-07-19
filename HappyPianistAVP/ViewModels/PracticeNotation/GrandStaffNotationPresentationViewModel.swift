@@ -46,6 +46,7 @@ struct GrandStaffNotationPresentationViewModel {
             items: notationLayout.items,
             chords: notationLayout.chords,
             beams: notationLayout.beams,
+            marks: notationLayout.marks,
             context: notationLayout.context,
             staffStepBounds: staffStepBounds
         )

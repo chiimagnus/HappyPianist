@@ -238,7 +238,8 @@ actor PracticePreparationService: PracticePreparationServiceProtocol {
         let buildResult = stepBuilder.buildSteps(from: performancePlan)
         let notationProjection = ScoreNotationProjection(
             plan: performancePlan,
-            sourceScore: sourceScore
+            sourceScore: sourceScore,
+            performedScore: practiceScore
         )
         let highlightGuides = PianoHighlightGuideBuilderService().buildGuides(
             input: PianoHighlightGuideBuildInput(

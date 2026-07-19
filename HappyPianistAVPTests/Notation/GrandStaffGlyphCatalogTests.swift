@@ -9,7 +9,7 @@ func glyphCatalogKeepsSupportedSMuFLCodePointsCentralized() {
     }
 
     #expect(snapshot == [
-        "gClef=E050", "fClef=E062", "cClef=E05C",
+        "brace=E000", "gClef=E050", "fClef=E062", "cClef=E05C",
         "noteheadWhole=E0A2", "noteheadHalf=E0A3", "noteheadBlack=E0A4",
         "flagEighthUp=E240", "flagEighthDown=E241",
         "flagSixteenthUp=E242", "flagSixteenthDown=E243",
@@ -21,6 +21,8 @@ func glyphCatalogKeepsSupportedSMuFLCodePointsCentralized() {
         "articulationAccentAbove=E4A0", "articulationStaccatoAbove=E4A2",
         "articulationTenutoAbove=E4A4", "articulationStaccatissimoAbove=E4A6",
         "articulationMarcatoAbove=E4AC", "fermataAbove=E4C0", "fermataBelow=E4C1",
+        "arpeggiato=E63C", "arpeggiatoUp=E634", "arpeggiatoDown=E635",
+        "keyboardPedalPed=E650", "keyboardPedalUp=E655",
         "timeSignature0=E080", "timeSignature1=E081", "timeSignature2=E082",
         "timeSignature3=E083", "timeSignature4=E084", "timeSignature5=E085",
         "timeSignature6=E086", "timeSignature7=E087", "timeSignature8=E088",

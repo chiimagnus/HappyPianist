@@ -73,7 +73,9 @@ struct GrandStaffHorizontalSpacingService {
     func makeLayout(
         rhythmicColumns: [RhythmicColumn],
         barlineTicks: Set<Int> = [],
-        attributeTicks: Set<Int> = []
+        attributeTicks: Set<Int> = [],
+        barlineExtentsByTick: [Int: Double] = [:],
+        attributeRightExtentsByTick: [Int: Double] = [:]
     ) -> Layout {
         let mergedRhythmicColumns = Dictionary(grouping: rhythmicColumns, by: \.tick).values.map { columns in
             RhythmicColumn(
@@ -98,8 +100,8 @@ struct GrandStaffHorizontalSpacingService {
                         tick: $0,
                         kind: .barline,
                         durationTicks: 0,
-                        leftExtent: barlineExtent,
-                        rightExtent: barlineExtent
+                        leftExtent: barlineExtentsByTick[$0] ?? barlineExtent,
+                        rightExtent: barlineExtentsByTick[$0] ?? barlineExtent
                     )
                 } +
                 attributeTicks.map {
@@ -108,7 +110,7 @@ struct GrandStaffHorizontalSpacingService {
                         kind: .attribute,
                         durationTicks: 0,
                         leftExtent: attributeExtent,
-                        rightExtent: attributeExtent
+                        rightExtent: attributeRightExtentsByTick[$0] ?? attributeExtent
                     )
                 }
         ).sorted {

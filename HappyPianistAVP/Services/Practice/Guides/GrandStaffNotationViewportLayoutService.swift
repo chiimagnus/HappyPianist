@@ -62,6 +62,7 @@ struct GrandStaffNotationViewportLayoutService {
         items: [GrandStaffNotationItem],
         chords: [GrandStaffNotationChord] = [],
         beams: [GrandStaffNotationBeam] = [],
+        marks: [GrandStaffNotationMark] = [],
         context: GrandStaffNotationContext?,
         staffStepBounds: StaffStepBounds? = nil
     ) -> Layout {
@@ -85,8 +86,10 @@ struct GrandStaffNotationViewportLayoutService {
         let trebleExtraBelowUnits = CGFloat(max(0, -bounds.minTrebleStep)) * 0.5
         let bassExtraAboveUnits = CGFloat(max(0, bounds.maxBassStep - 8)) * 0.5
 
-        let topPaddingUnits: CGFloat = 2.6
-        let bottomPaddingUnits: CGFloat = 1.8
+        let topMarkLevel = marks.filter { $0.placement == .above }.map(\.collisionLevel).max()
+        let bottomMarkLevel = marks.filter { $0.placement == .below }.map(\.collisionLevel).max()
+        let topPaddingUnits = max(2.6, topMarkLevel.map { 5.2 + CGFloat($0) * 1.35 } ?? 0)
+        let bottomPaddingUnits = max(1.8, bottomMarkLevel.map { 3.2 + CGFloat($0) * 1.35 } ?? 0)
         let staffHeightUnits: CGFloat = 4.0
         // In engraved piano music, the gap between treble/bass staves is typically
         // noticeably larger than the intra-staff line spacing, leaving room for

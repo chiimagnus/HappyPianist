@@ -413,7 +413,8 @@ struct MusicXMLStructureExpander {
                     performedOccurrenceIndex: occurrenceIndex,
                     tick: currentMeasureStartTick + (event.tick - span.startTick),
                     quarterBPM: event.quarterBPM,
-                    scope: shiftedScope(event.scope)
+                    scope: shiftedScope(event.scope),
+                    placementToken: event.placementToken
                 ))
             }
 
@@ -457,7 +458,9 @@ struct MusicXMLStructureExpander {
                     kind: event.kind,
                     controller: event.controller,
                     value: event.value,
-                    timeOnlyPasses: event.timeOnlyPasses
+                    timeOnlyPasses: event.timeOnlyPasses,
+                    staff: event.staff,
+                    placementToken: event.placementToken
                 ))
             }
 
@@ -470,7 +473,9 @@ struct MusicXMLStructureExpander {
                     tick: currentMeasureStartTick + (event.tick - span.startTick),
                     velocity: event.velocity,
                     scope: shiftedScope(event.scope),
-                    source: event.source
+                    source: event.source,
+                    markToken: event.markToken,
+                    placementToken: event.placementToken
                 ))
             }
             for event in original.wedgeEvents
@@ -493,7 +498,8 @@ struct MusicXMLStructureExpander {
                     performedOccurrenceIndex: occurrenceIndex,
                     tick: currentMeasureStartTick + (event.tick - span.startTick),
                     scope: shiftedScope(event.scope),
-                    source: event.source
+                    source: event.source,
+                    placementToken: event.placementToken
                 ))
             }
             for event in original.timeSignatureEvents
@@ -560,7 +566,8 @@ struct MusicXMLStructureExpander {
                     performedOccurrenceIndex: occurrenceIndex,
                     tick: currentMeasureStartTick + (event.tick - span.startTick),
                     text: event.text,
-                    scope: shiftedScope(event.scope)
+                    scope: shiftedScope(event.scope),
+                    placementToken: event.placementToken
                 ))
             }
 

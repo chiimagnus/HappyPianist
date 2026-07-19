@@ -46,6 +46,42 @@ struct ScoreNotationProjection: Equatable, Sendable {
         let numberToken: String?
     }
 
+    struct Mark: Equatable, Sendable {
+        enum Kind: Equatable, Sendable {
+            case dynamic
+            case tempo
+            case text
+            case pedalStart
+            case pedalStop
+            case pedalChange
+            case pedalContinue
+            case fermata
+            case repeatForward
+            case repeatBackward
+            case endingStart
+            case endingStop
+            case endingDiscontinue
+        }
+
+        let id: String
+        let tick: Int
+        let staff: Int?
+        let voice: Int?
+        let kind: Kind
+        let text: String?
+        let placementToken: String?
+    }
+
+    struct AttributeChange: Equatable, Sendable {
+        let id: String
+        let tick: Int
+        let staff: Int
+        let clef: ClefFact?
+        let keySignatureFifths: Int?
+        let previousKeySignatureFifths: Int?
+        let meterText: String?
+    }
+
     struct SourceNote: Equatable, Sendable {
         let id: MusicXMLSourceNoteID
         let chordID: MusicXMLSourceNoteID
@@ -93,23 +129,44 @@ struct ScoreNotationProjection: Equatable, Sendable {
 
     let sourceNotes: [SourceNote]
     let performedOccurrences: [PerformedOccurrence]
+    let marks: [Mark]
+    let attributeChanges: [AttributeChange]
 
     static let empty = ScoreNotationProjection(
         sourceNotes: [],
-        performedOccurrences: []
+        performedOccurrences: [],
+        marks: [],
+        attributeChanges: []
     )
 
     init(
         plan: ScorePerformancePlan,
-        sourceScore: MusicXMLScore
+        sourceScore: MusicXMLScore,
+        performedScore: MusicXMLScore? = nil
     ) {
-        let attributeTimeline = MusicXMLAttributeTimeline(
+        let performedScore = performedScore ?? sourceScore
+        let sourceAttributeTimeline = MusicXMLAttributeTimeline(
             timeSignatureEvents: sourceScore.timeSignatureEvents,
             keySignatureEvents: sourceScore.keySignatureEvents,
             clefEvents: sourceScore.clefEvents
         )
+        let performedAttributeTimeline = MusicXMLAttributeTimeline(
+            timeSignatureEvents: performedScore.timeSignatureEvents,
+            keySignatureEvents: performedScore.keySignatureEvents,
+            clefEvents: performedScore.clefEvents
+        )
         let canonicalSources = Self.canonicalSources(from: sourceScore.notes)
         let beamFactsBySourceID = Self.beamFactsBySourceID(from: canonicalSources)
+        marks = Self.marks(
+            from: performedScore,
+            structuralSourceScore: sourceScore,
+            performedMeasures: performedScore.measures
+        )
+        attributeChanges = Self.attributeChanges(
+            from: performedScore,
+            timeline: performedAttributeTimeline,
+            after: canonicalSources.map(\.note.tick).min() ?? 0
+        )
         sourceNotes = canonicalSources.map { canonical in
             let note = canonical.note
             let sourceID = canonical.sourceID
@@ -134,19 +191,19 @@ struct ScoreNotationProjection: Equatable, Sendable {
                 articulations: note.articulations,
                 arpeggiate: note.arpeggiate,
                 fingerings: note.fingerings,
-                keySignature: Self.keySignatureFact(for: note, in: attributeTimeline),
-                meter: attributeTimeline.meter(
+                keySignature: Self.keySignatureFact(for: note, in: sourceAttributeTimeline),
+                meter: sourceAttributeTimeline.meter(
                     atTick: note.tick,
                     partID: note.partID,
                     staffNumber: note.staff ?? 1
                 ),
-                clef: Self.clefFact(for: note, in: attributeTimeline),
+                clef: Self.clefFact(for: note, in: sourceAttributeTimeline),
                 transpose: Self.transposeFact(for: note, in: sourceScore),
                 octaveShifts: Self.octaveShiftFacts(for: note, in: sourceScore)
             )
         }
         let sourceNotesByID = Dictionary(uniqueKeysWithValues: sourceNotes.map { ($0.id, $0) })
-        let scoreNotesByPerformedID = Dictionary(uniqueKeysWithValues: sourceScore.notes.compactMap { note in
+        let scoreNotesByPerformedID = Dictionary(uniqueKeysWithValues: performedScore.notes.compactMap { note in
             note.performedID.map { ($0, note) }
         })
         var occurrencesByID: [MusicXMLPerformedNoteID: PerformedOccurrence] = [:]
@@ -204,6 +261,220 @@ struct ScoreNotationProjection: Equatable, Sendable {
         performedOccurrences = occurrencesByID.values.sorted { lhs, rhs in
             if lhs.writtenOnTick != rhs.writtenOnTick { return lhs.writtenOnTick < rhs.writtenOnTick }
             return lhs.id.description < rhs.id.description
+        }
+    }
+
+    private init(
+        sourceNotes: [SourceNote],
+        performedOccurrences: [PerformedOccurrence],
+        marks: [Mark],
+        attributeChanges: [AttributeChange]
+    ) {
+        self.sourceNotes = sourceNotes
+        self.performedOccurrences = performedOccurrences
+        self.marks = marks
+        self.attributeChanges = attributeChanges
+    }
+
+    private static func marks(
+        from score: MusicXMLScore,
+        structuralSourceScore: MusicXMLScore,
+        performedMeasures: [MusicXMLMeasureSpan]
+    ) -> [Mark] {
+        var marks: [Mark] = []
+        marks.append(contentsOf: score.dynamicEvents.enumerated().map { index, event in
+            Mark(
+                id: event.performedID?.description ?? "dynamic-\(event.tick)-\(index)",
+                tick: event.tick,
+                staff: event.scope.staff,
+                voice: event.scope.voice,
+                kind: .dynamic,
+                text: event.markToken ?? dynamicText(velocity: event.velocity),
+                placementToken: event.placementToken
+            )
+        })
+        marks.append(contentsOf: score.tempoEvents.enumerated().map { index, event in
+            Mark(
+                id: event.performedID?.description ?? "tempo-\(event.tick)-\(index)",
+                tick: event.tick,
+                staff: event.scope.staff,
+                voice: event.scope.voice,
+                kind: .tempo,
+                text: "♩ = \(event.quarterBPM.formatted(.number.precision(.fractionLength(0 ... 1))))",
+                placementToken: event.placementToken
+            )
+        })
+        marks.append(contentsOf: score.wordsEvents.enumerated().map { index, event in
+            Mark(
+                id: event.performedID?.description ?? "words-\(event.tick)-\(index)",
+                tick: event.tick,
+                staff: event.scope.staff,
+                voice: event.scope.voice,
+                kind: .text,
+                text: event.text,
+                placementToken: event.placementToken
+            )
+        })
+        marks.append(contentsOf: score.pedalEvents.enumerated().compactMap { index, event in
+            guard event.controller == .damper else { return nil }
+            let kind: Mark.Kind = switch event.kind {
+            case .start: .pedalStart
+            case .stop: .pedalStop
+            case .change: .pedalChange
+            case .continue: .pedalContinue
+            }
+            return Mark(
+                id: event.performedID?.description ?? "pedal-\(event.tick)-\(index)",
+                tick: event.tick,
+                staff: event.staff,
+                voice: nil,
+                kind: kind,
+                text: nil,
+                placementToken: event.placementToken
+            )
+        })
+        marks.append(contentsOf: score.fermataEvents.enumerated().map { index, event in
+            Mark(
+                id: event.performedID?.description ?? "fermata-\(event.tick)-\(index)",
+                tick: event.tick,
+                staff: event.scope.staff,
+                voice: event.scope.voice,
+                kind: .fermata,
+                text: nil,
+                placementToken: event.placementToken
+            )
+        })
+        for (index, directive) in structuralSourceScore.repeatDirectives.enumerated() {
+            guard let sourceMeasure = structuralSourceScore.measures.first(where: {
+                $0.partID == directive.partID && $0.measureNumber == directive.measureNumber
+            }) else { continue }
+            let measures = performedMeasures.filter {
+                $0.partID == directive.partID &&
+                    $0.sourceMeasureIndex == sourceMeasure.sourceMeasureIndex &&
+                    $0.sourceMeasureNumberToken == sourceMeasure.sourceMeasureNumberToken
+            }
+            for measure in measures.isEmpty ? [sourceMeasure] : measures {
+                marks.append(Mark(
+                    id: "repeat-\(directive.partID)-\(directive.measureNumber)-\(measure.occurrenceIndex)-\(index)",
+                    tick: directive.direction == .forward ? measure.startTick : measure.endTick,
+                    staff: nil,
+                    voice: nil,
+                    kind: directive.direction == .forward ? .repeatForward : .repeatBackward,
+                    text: directive.times.map { "×\($0)" },
+                    placementToken: nil
+                ))
+            }
+        }
+        for (index, directive) in structuralSourceScore.endingDirectives.enumerated() {
+            guard let sourceMeasure = structuralSourceScore.measures.first(where: {
+                $0.partID == directive.partID && $0.measureNumber == directive.measureNumber
+            }) else { continue }
+            let kind: Mark.Kind = switch directive.type {
+            case .start: .endingStart
+            case .stop: .endingStop
+            case .discontinue: .endingDiscontinue
+            }
+            let measures = performedMeasures.filter {
+                $0.partID == directive.partID &&
+                    $0.sourceMeasureIndex == sourceMeasure.sourceMeasureIndex &&
+                    $0.sourceMeasureNumberToken == sourceMeasure.sourceMeasureNumberToken
+            }
+            for measure in measures.isEmpty ? [sourceMeasure] : measures {
+                marks.append(Mark(
+                    id: "ending-\(directive.partID)-\(directive.measureNumber)-\(measure.occurrenceIndex)-\(index)",
+                    tick: directive.type == .start ? measure.startTick : measure.endTick,
+                    staff: 1,
+                    voice: nil,
+                    kind: kind,
+                    text: directive.number,
+                    placementToken: "above"
+                ))
+            }
+        }
+        return marks.sorted {
+            $0.tick == $1.tick ? $0.id < $1.id : $0.tick < $1.tick
+        }
+    }
+
+    private static func attributeChanges(
+        from score: MusicXMLScore,
+        timeline: MusicXMLAttributeTimeline,
+        after initialTick: Int
+    ) -> [AttributeChange] {
+        struct Key: Hashable {
+            let tick: Int
+            let staff: Int
+        }
+        struct ChangedKinds: OptionSet {
+            let rawValue: Int
+
+            static let clef = ChangedKinds(rawValue: 1 << 0)
+            static let key = ChangedKinds(rawValue: 1 << 1)
+            static let meter = ChangedKinds(rawValue: 1 << 2)
+        }
+
+        var changesByKey: [Key: ChangedKinds] = [:]
+        func record(tick: Int, staff: Int?, kind: ChangedKinds) {
+            guard tick > initialTick else { return }
+            for resolvedStaff in staff.map({ [$0] }) ?? [1, 2] {
+                changesByKey[Key(tick: tick, staff: resolvedStaff), default: []].formUnion(kind)
+            }
+        }
+        for event in score.clefEvents {
+            record(tick: event.tick, staff: event.scope.staff ?? event.numberToken.flatMap(Int.init), kind: .clef)
+        }
+        for event in score.keySignatureEvents {
+            record(tick: event.tick, staff: event.scope.staff, kind: .key)
+        }
+        for event in score.timeSignatureEvents {
+            record(tick: event.tick, staff: event.scope.staff, kind: .meter)
+        }
+
+        return changesByKey.map { key, kinds in
+            let partID = score.notes.first?.partID
+            let clefEvent = kinds.contains(.clef)
+                ? timeline.clef(atTick: key.tick, partID: partID, staffNumber: key.staff)
+                : nil
+            let keyEvent = kinds.contains(.key)
+                ? timeline.keySignature(atTick: key.tick, partID: partID, staffNumber: key.staff)
+                : nil
+            let previousKeyEvent = kinds.contains(.key)
+                ? timeline.keySignature(atTick: key.tick - 1, partID: partID, staffNumber: key.staff)
+                : nil
+            return AttributeChange(
+                id: "attribute-\(key.tick)-staff-\(key.staff)",
+                tick: key.tick,
+                staff: key.staff,
+                clef: clefEvent.map {
+                    ClefFact(
+                        signToken: $0.signToken,
+                        line: $0.line,
+                        octaveChange: $0.octaveChange,
+                        numberToken: $0.numberToken
+                    )
+                },
+                keySignatureFifths: keyEvent?.fifths,
+                previousKeySignatureFifths: previousKeyEvent?.fifths,
+                meterText: kinds.contains(.meter)
+                    ? timeline.meter(atTick: key.tick, partID: partID, staffNumber: key.staff)?.displayText
+                    : nil
+            )
+        }.sorted {
+            if $0.tick != $1.tick { return $0.tick < $1.tick }
+            return $0.staff < $1.staff
+        }
+    }
+
+    private static func dynamicText(velocity: UInt8) -> String {
+        switch velocity {
+        case ...34: "ppp"
+        case ...44: "pp"
+        case ...54: "p"
+        case ...67: "mp"
+        case ...82: "mf"
+        case ...97: "f"
+        case ...110: "ff"
+        default: "fff"
         }
     }
 
@@ -383,11 +654,4 @@ struct ScoreNotationProjection: Equatable, Sendable {
         (scope.staff == nil ? 0 : 1) + (scope.voice == nil ? 0 : 1)
     }
 
-    private init(
-        sourceNotes: [SourceNote],
-        performedOccurrences: [PerformedOccurrence]
-    ) {
-        self.sourceNotes = sourceNotes
-        self.performedOccurrences = performedOccurrences
-    }
 }

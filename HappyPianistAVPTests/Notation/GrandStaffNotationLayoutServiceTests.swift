@@ -1,3 +1,4 @@
+import Foundation
 @testable import HappyPianistAVP
 import Testing
 
@@ -28,6 +29,124 @@ func layoutEmitsBarlinesForMeasureSpansStartAndEndTicks() {
     )
 
     #expect(layout.barlines.map(\.tick) == [480, 960])
+}
+
+@Test
+func commonPianoMarksKeepSourcePlacementAndUseCollisionAwareLayout() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1">
+        <measure number="1">
+          <attributes>
+            <divisions>1</divisions>
+            <key><fifths>0</fifths></key>
+            <time><beats>4</beats><beat-type>4</beat-type></time>
+            <staves>2</staves>
+            <clef number="1"><sign>G</sign><line>2</line></clef>
+            <clef number="2"><sign>F</sign><line>4</line></clef>
+          </attributes>
+          <direction placement="below">
+            <direction-type><dynamics><ff/></dynamics></direction-type><staff>2</staff>
+          </direction>
+          <direction placement="above">
+            <direction-type><metronome><beat-unit>quarter</beat-unit><per-minute>88</per-minute></metronome></direction-type>
+            <staff>1</staff>
+          </direction>
+          <direction placement="below">
+            <direction-type><pedal type="start"/></direction-type><staff>2</staff>
+          </direction>
+          <note>
+            <pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type>
+            <voice>1</voice><staff>1</staff>
+            <notations>
+              <articulations><accent/></articulations>
+              <fermata placement="below"/>
+              <technical><fingering placement="above">3</fingering></technical>
+              <arpeggiate direction="up"/>
+            </notations>
+          </note>
+          <barline location="right"><ending number="1" type="start"/><repeat direction="backward" times="2"/></barline>
+        </measure>
+        <measure number="2">
+          <attributes>
+            <key><fifths>2</fifths></key>
+            <time><beats>3</beats><beat-type>4</beat-type></time>
+            <clef number="2"><sign>G</sign><line>2</line></clef>
+          </attributes>
+          <direction placement="above"><direction-type><words>dolce</words></direction-type><staff>1</staff></direction>
+          <note>
+            <pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type>
+            <voice>1</voice><staff>1</staff>
+          </note>
+          <barline location="right"><ending number="1" type="stop"/><repeat direction="forward"/></barline>
+        </measure>
+      </part>
+    </score-partwise>
+    """
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let projection = ScoreNotationProjection(
+        plan: makeTestScorePerformancePlan(from: score),
+        sourceScore: score
+    )
+    let layout = GrandStaffNotationLayoutService().makeLayout(
+        projection: projection,
+        measureSpans: score.measures,
+        viewportWidthStaffSpaces: 60,
+        scrollTick: 240
+    )
+
+    let dynamic = try #require(projection.marks.first { $0.kind == .dynamic })
+    let tempo = try #require(projection.marks.first { $0.kind == .tempo })
+    let pedal = try #require(projection.marks.first { $0.kind == .pedalStart })
+    #expect(dynamic.text == "ff")
+    #expect(dynamic.staff == 2)
+    #expect(dynamic.placementToken == "below")
+    #expect(tempo.staff == 1)
+    #expect(tempo.placementToken == "above")
+    #expect(pedal.staff == 2)
+    #expect(pedal.placementToken == "below")
+
+    #expect(projection.attributeChanges.map(\.tick) == [480, 480])
+    #expect(projection.attributeChanges.first { $0.staff == 1 }?.keySignatureFifths == 2)
+    #expect(projection.attributeChanges.first { $0.staff == 2 }?.clef?.signToken == "G")
+    #expect(layout.attributeChanges.count == 2)
+    #expect(layout.attributeChanges.allSatisfy { $0.xPosition != layout.items.last?.xPosition })
+
+    #expect(layout.marks.contains { $0.kind == .articulation(.articulationAccentAbove) })
+    #expect(layout.marks.contains { $0.kind == .arpeggio(.arpeggiatoUp) })
+    #expect(layout.marks.contains { $0.kind == .fingering && $0.text == "3" && $0.placement == .above })
+    #expect(layout.marks.contains { $0.kind == .fermata && $0.placement == .below })
+    #expect(layout.marks.contains { $0.kind == .repeatBackward })
+    #expect(layout.marks.contains { $0.kind == .repeatForward })
+    #expect(layout.marks.contains { $0.kind == .endingStart && $0.text == "1" })
+    #expect(layout.marks.contains { $0.kind == .endingStop })
+
+    let collidingBelowMarks = layout.marks.filter {
+        $0.tick == 0 && $0.staffNumber == 2 && $0.placement == .below
+    }
+    #expect(Set(collidingBelowMarks.map(\.collisionLevel)).count == collidingBelowMarks.count)
+
+    var performedScore = score
+    let sourceFirstMeasure = try #require(score.measures.first)
+    performedScore.measures.append(MusicXMLMeasureSpan(
+        partID: sourceFirstMeasure.partID,
+        measureNumber: 3,
+        sourceMeasureIndex: sourceFirstMeasure.sourceMeasureIndex,
+        sourceMeasureNumberToken: sourceFirstMeasure.sourceMeasureNumberToken,
+        occurrenceIndex: 7,
+        startTick: 960,
+        endTick: 1_440
+    ))
+    performedScore.repeatDirectives = []
+    performedScore.endingDirectives = []
+    let repeatedProjection = ScoreNotationProjection(
+        plan: makeTestScorePerformancePlan(from: score),
+        sourceScore: score,
+        performedScore: performedScore
+    )
+    #expect(repeatedProjection.marks.filter { $0.kind == .repeatBackward }.map(\.tick) == [480, 1_440])
+    #expect(repeatedProjection.marks.filter { $0.kind == .endingStart }.map(\.tick) == [0, 960])
 }
 
 @Test

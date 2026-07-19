@@ -67,6 +67,26 @@ struct GrandStaffEngravingMetrics: Equatable, Sendable {
             GrandStaffGlyphBounds(minX: -0.64, minY: -2.0, maxX: 0.64, maxY: 0.716)
         case .restThirtySecond:
             GrandStaffGlyphBounds(minX: -0.726, minY: -2.0, maxX: 0.726, maxY: 1.704)
+        case .articulationAccentAbove:
+            GrandStaffGlyphBounds(minX: -0.678, minY: -0.49, maxX: 0.678, maxY: 0.49)
+        case .articulationStaccatoAbove:
+            GrandStaffGlyphBounds(minX: -0.168, minY: -0.168, maxX: 0.168, maxY: 0.168)
+        case .articulationTenutoAbove:
+            GrandStaffGlyphBounds(minX: -0.592, minY: -0.09, maxX: 0.592, maxY: 0.09)
+        case .articulationStaccatissimoAbove:
+            GrandStaffGlyphBounds(minX: -0.168, minY: -0.02, maxX: 0.168, maxY: 0.872)
+        case .articulationMarcatoAbove:
+            GrandStaffGlyphBounds(minX: -0.72, minY: -0.03, maxX: 0.72, maxY: 1.012)
+        case .fermataAbove, .fermataBelow:
+            GrandStaffGlyphBounds(minX: -1.21, minY: -0.658, maxX: 1.21, maxY: 0.658)
+        case .arpeggiato:
+            GrandStaffGlyphBounds(minX: 0, minY: 0.036, maxX: 0.486, maxY: 5.47)
+        case .arpeggiatoUp, .arpeggiatoDown:
+            GrandStaffGlyphBounds(minX: 0, minY: -0.016, maxX: 0.916, maxY: 6.044)
+        case .keyboardPedalPed:
+            GrandStaffGlyphBounds(minX: 0, minY: -0.032, maxX: 4.076, maxY: 2.22)
+        case .keyboardPedalUp:
+            GrandStaffGlyphBounds(minX: 0, minY: 0, maxX: 1.8, maxY: 1.8)
         default:
             nil
         }
