@@ -75,6 +75,12 @@ Simulator 可以验收：
 
 来自 MuseScore、Dorico、Sibelius、Finale 或其他来源的文件，在授权和来源尚未确认时应标记为 blocked，不得伪造 provenance。
 
+### 合成手部触键轨迹
+
+`SyntheticHandContactTraces.json` 以琴键 MIDI 编号和相对键面高度描述确定性输入，直接重放到正式触键检测与虚拟琴发声链路。它覆盖轻触、重击、慢压、同时和弦、重复音、手掌经过、tracking loss、左右手交叉和琴键范围外位置；自动化断言力度单调性、误触发、释放、重触发与 unknown 行为。
+
+这些轨迹是人工构造的测试数据，不是真机录制，也不能证明真实手部追踪的精度或时延。修改 schema 或 calibration 时必须显式升级版本并同步 loader；禁止用缺省字段兼容旧 fixture。
+
 ## 真机证据最小记录
 
 每次运行至少记录：
@@ -86,6 +92,13 @@ Simulator 可以验收：
 - 失败步骤、复现方法和对应诊断事件。
 
 日志只保存低频计数、阶段、耗时桶和 capability；禁止导出原始曲谱、逐音 MIDI、音频、手部轨迹或绝对路径。
+
+手部触键真机校准还必须：
+
+- [ ] 从当前模式默认值开始，逐项记录键面偏移、释放滞回、最小/满量程击键速度、力度上下限、曲线指数和重复触键防抖；
+- [ ] 用轻触、重击、慢压、同时和弦、同指重复音、手掌经过、tracking loss 和左右手交叉各运行至少一轮；
+- [ ] 用同一外部时间基准记录 hand sample、note-on 与 audio onset 的聚合 p50 / p95 / p99，以及和弦 onset spread、漏触发和误触发计数；
+- [ ] 只保存 calibration ID/version、设备/OS/模式和聚合桶；不得录制、持久化或导出逐帧 finger、palm 或 world position。
 
 ## 人工证据边界
 

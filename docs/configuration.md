@@ -78,6 +78,22 @@
 
 修改手别、速度、循环和成功目标时，不得直接改变正在进行的一轮。
 
+## 手部触键校准
+
+`PianoTouchCalibration` 是真实钢琴和虚拟琴共用的版本化触键契约，但两种模式使用各自的保守默认值。真实钢琴的校准随现有 world-anchor JSON 保存；虚拟琴使用 composition root 注入的当前默认值。解码只接受当前版本，不提供旧字段或旧版本 fallback。
+
+| 参数 | 作用 | 调整依据 |
+| --- | --- | --- |
+| `planeOffsetMeters` | 键面下压触发距离 | 真机键面偏差与手部追踪噪声 |
+| `releaseHysteresisMeters` | 释放阈值相对触发阈值的滞回 | 消除键面附近抖动且不拖慢重复音 |
+| `minimumStrikeSpeedMetersPerSecond` | 可发声的最低向下速度 | 排除悬停和慢压误触发 |
+| `fullScaleStrikeSpeedMetersPerSecond` | 映射到最大力度的速度 | 设备与演奏者的重击样本 |
+| `minimumVelocity` / `maximumVelocity` | MIDI velocity 输出范围 | 目标音源的有效动态范围 |
+| `curveExponent` | 速度到力度的曲线形状 | 轻、中、重三档实测手感 |
+| `retriggerDebounceSeconds` | 同指再次触发的最短间隔 | 快速重复音与 tracking jitter |
+
+真机调整时记录 calibration ID/version、设备、OS、模式、聚合 velocity/latency 桶和误触发计数即可。原始逐帧 finger、palm、world position 属于隐私敏感数据，不得写入 JSON、诊断日志或导出文件。
+
 ## 发声路由
 
 | 路由 | 实现 | 说明 |

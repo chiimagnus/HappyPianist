@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "calibration": {
+    "id": "90000000-0000-0000-0000-000000000001",
+    "version": 1,
+    "planeOffsetMeters": 0.002,
+    "releaseHysteresisMeters": 0.006,
+    "minimumStrikeSpeedMetersPerSecond": 0.08,
+    "fullScaleStrikeSpeedMetersPerSecond": 1.2,
+    "minimumVelocity": 28,
+    "maximumVelocity": 118,
+    "curveExponent": 0.7,
+    "retriggerDebounceSeconds": 0.03
+  },
+  "traces": [
+    {
+      "id": "light-touch",
+      "frames": [
+        {
+          "seconds": 0,
+          "fingers": [
+            { "hand": "right", "finger": "index", "midiNote": 60, "heightMeters": 0.012 }
+          ]
+        },
+        {
+          "seconds": 0.05,
+          "fingers": [
+            { "hand": "right", "finger": "index", "midiNote": 60, "heightMeters": 0.001 }
+          ]
+        },
+        { "seconds": 0.1 }
+      ]
+    },
+    {
+      "id": "heavy-strike",
+      "frames": [
+        {
+          "seconds": 0,
+          "fingers": [
+            { "hand": "right", "finger": "index", "midiNote": 64, "heightMeters": 0.05 }
+          ]
+        },
+        {
+          "seconds": 0.05,
+          "fingers": [
+            { "hand": "right", "finger": "index", "midiNote": 64, "heightMeters": 0.001 }
+          ]
+        },
+        { "seconds": 0.1 }
+      ]
+    },
+    {
+      "id": "slow-press",
+      "frames": [
+        {
+          "seconds": 0,
+          "fingers": [
+            { "hand": "right", "finger": "index", "midiNote": 67, "heightMeters": 0.004 }
+          ]
+        },
+        {
+          "seconds": 0.1,
+          "fingers": [
+            { "hand": "right", "finger": "index", "midiNote": 67, "heightMeters": 0.001 }
+          ]
+        },
+        { "seconds": 0.15 }
+      ]
+    },
+    {
+      "id": "simultaneous-chord",
+      "frames": [
+        {
+          "seconds": 0,
+          "fingers": [
+            { "hand": "left", "finger": "index", "midiNote": 48, "heightMeters": 0.02 },
+            { "hand": "right", "finger": "middle", "midiNote": 64, "heightMeters": 0.04 }
+          ]
+        },
+        {
+          "seconds": 0.05,
+          "fingers": [
+            { "hand": "left", "finger": "index", "midiNote": 48, "heightMeters": 0.001 },
+            { "hand": "right", "finger": "middle", "midiNote": 64, "heightMeters": 0.001 }
+          ]
+        },
+        { "seconds": 0.1 }
+      ]
+    },
+    {
+      "id": "repeated-note",
+      "frames": [
+        {
+          "seconds": 0,
+          "fingers": [
+            { "hand": "right", "finger": "index", "midiNote": 60, "heightMeters": 0.02 }
+          ]
+        },
+        {
+          "seconds": 0.05,
+          "fingers": [
+            { "hand": "right", "finger": "index", "midiNote": 60, "heightMeters": 0.001 }
+          ]
+        },
+        {
+          "seconds": 0.1,
+          "fingers": [
+            { "hand": "right", "finger": "index", "midiNote": 60, "heightMeters": 0.012 }
+          ]
+        },
+        {
+          "seconds": 0.15,
+          "fingers": [
+            { "hand": "right", "finger": "index", "midiNote": 60, "heightMeters": 0.001 }
+          ]
+        },
+        { "seconds": 0.2 }
+      ]
+    },
+    {
+      "id": "palm-crossing",
+      "frames": [
+        {
+          "seconds": 0,
+          "palms": [
+            { "hand": "right", "midiNote": 60, "heightMeters": -0.001 }
+          ]
+        },
+        { "seconds": 0.05 }
+      ]
+    },
+    {
+      "id": "tracking-loss",
+      "frames": [
+        {
+          "seconds": 0,
+          "fingers": [
+            { "hand": "left", "finger": "middle", "midiNote": 55, "heightMeters": 0.02 }
+          ]
+        },
+        {
+          "seconds": 0.05,
+          "fingers": [
+            { "hand": "left", "finger": "middle", "midiNote": 55, "heightMeters": 0.001 }
+          ]
+        },
+        { "seconds": 0.1 }
+      ]
+    },
+    {
+      "id": "hand-crossing",
+      "frames": [
+        {
+          "seconds": 0,
+          "fingers": [
+            { "hand": "left", "finger": "index", "midiNote": 72, "heightMeters": 0.02 },
+            { "hand": "right", "finger": "index", "midiNote": 48, "heightMeters": 0.02 }
+          ]
+        },
+        {
+          "seconds": 0.05,
+          "fingers": [
+            { "hand": "left", "finger": "index", "midiNote": 72, "heightMeters": 0.001 },
+            { "hand": "right", "finger": "index", "midiNote": 48, "heightMeters": 0.001 }
+          ]
+        },
+        { "seconds": 0.1 }
+      ]
+    },
+    {
+      "id": "unknown-position",
+      "frames": [
+        {
+          "seconds": 0,
+          "fingers": [
+            { "hand": "right", "finger": "little", "worldPosition": [5, 0.001, 5] }
+          ]
+        },
+        { "seconds": 0.05 }
+      ]
+    }
+  ]
+}
