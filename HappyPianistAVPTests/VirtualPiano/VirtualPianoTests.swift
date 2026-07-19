@@ -177,6 +177,68 @@ func keyContactDetectionStartedEndedHysteresis() throws {
 
 @MainActor
 @Test
+func keyContactDetectionTracksSameKeyPerFingerAndDebouncesRetrigger() throws {
+    let service = KeyContactDetectionService()
+    let geometry = makeTestKeyboardGeometry()
+    let key = try #require(geometry.key(for: 60))
+    let position = SIMD3<Float>(key.hitCenterLocal.x, key.surfaceLocalY, key.hitCenterLocal.z)
+
+    let first = service.detect(
+        fingerTips: FingerTipsSnapshot(left: HandTips(index: position), right: HandTips(index: position)),
+        keyboardGeometry: geometry,
+        at: .init(seconds: 1)
+    )
+    #expect(first.count == 2)
+    #expect(first.allSatisfy { $0.phase == .started })
+    #expect(Set(first.map(\.id)).count == 2)
+    let leftID = try #require(first.first { $0.hand == .left }?.id)
+    let rightID = try #require(first.first { $0.hand == .right }?.id)
+
+    let second = service.detect(
+        fingerTips: FingerTipsSnapshot(left: HandTips(index: position)),
+        keyboardGeometry: geometry,
+        at: .init(seconds: 2)
+    )
+    #expect(second.activeMIDINotes == [60])
+    #expect(second.first { $0.phase == .held }?.id == leftID)
+    #expect(second.first { $0.phase == .ended }?.id == rightID)
+
+    let released = service.detect(
+        fingerTips: .empty,
+        keyboardGeometry: geometry,
+        at: .init(seconds: 3)
+    )
+    #expect(released.first?.phase == .ended)
+    #expect(released.first?.id == leftID)
+
+    let suppressedRetrigger = service.detect(
+        fingerTips: FingerTipsSnapshot(left: HandTips(index: position)),
+        keyboardGeometry: geometry,
+        at: .init(seconds: 3.01)
+    )
+    #expect(suppressedRetrigger.isEmpty)
+
+    let retriggered = service.detect(
+        fingerTips: FingerTipsSnapshot(left: HandTips(index: position)),
+        keyboardGeometry: geometry,
+        at: .init(seconds: 3.04)
+    )
+    #expect(retriggered.first?.phase == .started)
+    #expect(retriggered.first?.id != leftID)
+
+    let replacementGeometry = PianoKeyboardGeometry(frame: geometry.frame, keys: geometry.keys)
+    let placementReset = service.detect(
+        fingerTips: FingerTipsSnapshot(left: HandTips(index: position)),
+        keyboardGeometry: replacementGeometry,
+        at: .init(seconds: 4)
+    )
+    #expect(placementReset.count == 1)
+    #expect(placementReset.first?.phase == .ended)
+    #expect(placementReset.first?.calibrationID == geometry.cacheID)
+}
+
+@MainActor
+@Test
 func keyContactDetectionBlackKeyPriority() throws {
     let service = KeyContactDetectionService()
     let geometry = makeTestKeyboardGeometry()

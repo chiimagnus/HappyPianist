@@ -129,6 +129,86 @@ func virtualPianoPlaysLiveNotesWhenNotSuppressed() async {
 
 @Test
 @MainActor
+func releasingOneOfTwoContactsOnSameKeyKeepsPhysicalNoteOn() async {
+    let store = PracticeSessionStateStore()
+    let handGateController = PracticeHandGateController(
+        activityGate: HandPianoActivityGate(),
+        chordAttemptAccumulator: AlwaysMatchChordAttemptAccumulator(),
+        stateStore: store,
+        effectHandler: CapturingEffectHandler()
+    )
+    let calibrationID = UUID()
+    let left = makeTestKeyContactObservation(
+        midiNote: 60,
+        phase: .started,
+        hand: .left,
+        sequence: 1,
+        calibrationID: calibrationID
+    )
+    let right = makeTestKeyContactObservation(
+        midiNote: 60,
+        phase: .started,
+        hand: .right,
+        sequence: 2,
+        calibrationID: calibrationID
+    )
+    let detector = FakeKeyContactDetector(resultToReturn: [left, right])
+    let sequencer = FakeSequencerPlaybackService()
+    let controller = VirtualPianoInputController(
+        detector: detector,
+        sequencerPlaybackService: sequencer,
+        stateStore: store,
+        handGateController: handGateController
+    )
+    let geometry = makeMinimalKeyboardGeometry()
+
+    _ = controller.handleFingerTips(.empty, keyboardGeometry: geometry, at: .init(seconds: 1), practiceHandMode: .both)
+    await controller.waitForPendingPlayback()
+    #expect(sequencer.commands == [[
+        PracticePlaybackCommand(sourceEventID: "virtual-piano-60", kind: .noteOn(midi: 60, velocity: 96)),
+    ]])
+
+    detector.resultToReturn = [
+        makeTestKeyContactObservation(
+            midiNote: 60,
+            phase: .held,
+            hand: .left,
+            sequence: 1,
+            timestamp: .init(seconds: 2),
+            calibrationID: calibrationID
+        ),
+        makeTestKeyContactObservation(
+            midiNote: 60,
+            phase: .ended,
+            hand: .right,
+            sequence: 2,
+            timestamp: .init(seconds: 2),
+            calibrationID: calibrationID
+        ),
+    ]
+    _ = controller.handleFingerTips(.empty, keyboardGeometry: geometry, at: .init(seconds: 2), practiceHandMode: .both)
+    await controller.waitForPendingPlayback()
+    #expect(sequencer.commands.count == 1)
+
+    detector.resultToReturn = [
+        makeTestKeyContactObservation(
+            midiNote: 60,
+            phase: .ended,
+            hand: .left,
+            sequence: 1,
+            timestamp: .init(seconds: 3),
+            calibrationID: calibrationID
+        ),
+    ]
+    _ = controller.handleFingerTips(.empty, keyboardGeometry: geometry, at: .init(seconds: 3), practiceHandMode: .both)
+    await controller.waitForPendingPlayback()
+    #expect(sequencer.commands.last == [
+        PracticePlaybackCommand(sourceEventID: "virtual-piano-60", kind: .noteOff(midi: 60)),
+    ])
+}
+
+@Test
+@MainActor
 func virtualPianoDoesNotPlayLiveNotesDuringAutoplay() async {
     let store = PracticeSessionStateStore()
     store.autoplayState = .playing

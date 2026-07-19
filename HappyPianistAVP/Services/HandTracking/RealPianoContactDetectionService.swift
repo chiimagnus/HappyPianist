@@ -5,6 +5,7 @@ import simd
 final class RealPianoContactDetectionService {
     static let pressThresholdMeters: Float = 0.004
     static let releaseThresholdMeters: Float = 0.016
+    static let retriggerDebounceSeconds: TimeInterval = 0.03
 
     private var tracker = PianoKeyContactTracker()
 
@@ -22,7 +23,8 @@ final class RealPianoContactDetectionService {
             keyboardGeometry: keyboardGeometry,
             at: timestamp,
             pressThresholdMeters: Self.pressThresholdMeters,
-            releaseThresholdMeters: Self.releaseThresholdMeters
+            releaseThresholdMeters: Self.releaseThresholdMeters,
+            retriggerDebounceSeconds: Self.retriggerDebounceSeconds
         )
     }
 }

@@ -68,18 +68,19 @@ final class VirtualPianoInputController {
         stateStore.latestKeyContactObservations = result
         let activeMIDINotes = result.activeMIDINotes
         let startedMIDINotes = result.startedMIDINotes
-        let endedMIDINotes = result.endedMIDINotes
+        let transportNoteOns = activeMIDINotes.subtracting(stateStore.pressedNotes)
+        let transportNoteOffs = stateStore.pressedNotes.subtracting(activeMIDINotes)
         stateStore.latestNoteOnMIDINotes = startedMIDINotes
 
         let shouldPlayLiveNotes = stateStore.autoplayState == .off && stateStore.isManualReplayPlaying == false
         if shouldPlayLiveNotes {
             enqueuePlayback(
-                commands: endedMIDINotes.sorted().map {
+                commands: transportNoteOffs.sorted().map {
                     PracticePlaybackCommand(
                         sourceEventID: "virtual-piano-\($0)",
                         kind: .noteOff(midi: $0)
                     )
-                } + startedMIDINotes.sorted().map {
+                } + transportNoteOns.sorted().map {
                     PracticePlaybackCommand(
                         sourceEventID: "virtual-piano-\($0)",
                         kind: .noteOn(midi: $0, velocity: 96)
