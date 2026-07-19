@@ -24,6 +24,7 @@ protocol PracticeInputEventSourceProtocol: AnyObject {
     func stop()
 }
 
+@MainActor
 protocol PerformanceObservationStreamProviding: AnyObject {
     var capabilities: PerformanceInputCapabilities { get }
     func performanceObservationsStream() -> AsyncStream<PerformanceObservation>

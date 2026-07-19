@@ -239,3 +239,53 @@ func midiObservationAdapterKeepsMIDI2PrecisionUntilOutputBoundary() {
     #expect(number == 67)
     #expect(value.rawValue == 0x1234_5678)
 }
+
+@Test
+@MainActor
+func practiceMIDIInputPublishesOnlyCurrentGenerationObservations() async throws {
+    let source = FakeProtocolSeparatedPracticeInputEventSource()
+    let stateStore = PracticeSessionStateStore()
+    let service = PracticeMIDIInputService(
+        practiceInputEventSource: source,
+        matcher: MIDIPracticeStepMatcher(),
+        stateStore: stateStore,
+        effectHandler: CapturingPracticeSessionEffectHandler(),
+        consumeEvents: true
+    )
+    let stream = service.performanceObservationsStream()
+    service.refresh(
+        for: .init(
+            practiceState: .guiding(stepIndex: 0),
+            autoplayState: .off,
+            isManualReplayPlaying: false,
+            currentStepIndex: 0,
+            expectedNotes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]
+        )
+    )
+    let generation = stateStore.practiceInputGeneration
+    let task = Task<PerformanceObservation?, Never> { @MainActor in
+        for await observation in stream {
+            return observation
+        }
+        return nil
+    }
+
+    source.emitMIDI1(MIDI1InputEvent(
+        kind: .noteOn(note: 60, velocity: 87),
+        channel: 2,
+        group: 1,
+        source: .init(identifier: .sourceIndex(0), endpointName: nil),
+        receivedAt: .now,
+        receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime
+    ))
+
+    let observation = try #require(await task.value)
+    #expect(observation.source.generation == UInt64(generation))
+    #expect(observation.channel == 2)
+    guard case let .noteOn(note, velocity) = observation.event else {
+        Issue.record("Expected note-on observation")
+        return
+    }
+    #expect(note == 60)
+    #expect(velocity == PerformanceObservation.NormalizedValue(midi1: 87))
+}

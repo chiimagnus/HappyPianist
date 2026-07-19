@@ -1,6 +1,10 @@
 import Foundation
 
 extension PracticeSessionViewModel {
+    func performanceObservationsStream() -> AsyncStream<PerformanceObservation>? {
+        practiceMIDIInputService?.performanceObservationsStream()
+    }
+
     func refreshPracticeInputForCurrentState() {
         let expectedNotes = currentStepNotesForPracticeHandMode()
         practiceMIDIInputService?.refresh(

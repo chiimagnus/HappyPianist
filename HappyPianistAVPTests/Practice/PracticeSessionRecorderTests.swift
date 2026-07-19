@@ -134,6 +134,44 @@ func performanceClockSynchronizerFallsBackToHostForUncalibratedSource() {
     #expect(reading.correctedHost.seconds == 2.75)
 }
 
+@Test
+func sessionRecorderKeepsRawObservationsInMemoryWithoutWritingProgressJSON() async throws {
+    let repository = RecorderRepository()
+    let clock = try RecorderClock()
+    let recorder = makeRecorder(repository: repository, clock: clock)
+    await beginActiveVisit(recorder: recorder)
+    await recorder.setGuiding(true)
+    let reading = PerformanceClockReading(
+        host: PerformanceMonotonicInstant(seconds: 2),
+        source: nil,
+        correctedHost: PerformanceMonotonicInstant(seconds: 2),
+        mapping: nil,
+        provenance: .hostOnly
+    )
+    let source = PerformanceObservation.Source(kind: .midi1, id: "endpoint:1", generation: 1)
+
+    await recorder.record(PerformanceObservation(
+        source: source,
+        timing: reading,
+        event: .noteOn(note: 64, velocity: .init(midi1: 100))
+    ))
+    await recorder.record(PerformanceObservation(
+        source: source,
+        timing: reading,
+        event: .noteOff(note: 64, releaseVelocity: .init(midi1: 40))
+    ))
+    _ = await recorder.checkpoint()
+
+    let snapshot = await recorder.observationSnapshot()
+    #expect(snapshot.map(\.event) == [
+        .noteOn(note: 64, velocity: .init(midi1: 100)),
+        .noteOff(note: 64, releaseVelocity: .init(midi1: 40)),
+    ])
+    let progressRecord = try #require(await repository.records().last)
+    let data = try JSONEncoder().encode(progressRecord)
+    #expect(String(decoding: data, as: UTF8.self).contains("endpoint:1") == false)
+}
+
 private actor RecorderSleeper: SleeperProtocol {
     private var continuations: [CheckedContinuation<Void, Error>] = []
     private var durations: [Duration] = []

@@ -95,6 +95,7 @@ actor PracticeSessionRecorder {
     private var persistenceTask: Task<PracticeSessionRecorderSaveStatus, Never>?
     private var persistenceGeneration = 0
     private var didReportPendingFailure = false
+    private var performanceObservations: [PerformanceObservation] = []
 
     init(
         repository: any PracticeSessionRepositoryProtocol,
@@ -128,6 +129,7 @@ actor PracticeSessionRecorder {
         pendingRecord = nil
         saveStatus = .idle
         didReportPendingFailure = false
+        performanceObservations.removeAll(keepingCapacity: true)
         visit = VisitState(
             id: id,
             songID: songID,
@@ -281,9 +283,24 @@ actor PracticeSessionRecorder {
         visit = nil
         saveStatus = .idle
         didReportPendingFailure = false
+        performanceObservations.removeAll(keepingCapacity: false)
         if let abandonedSessionID {
             await repository.abandonLiveSession(id: abandonedSessionID)
         }
+    }
+
+    func record(_ observation: PerformanceObservation) {
+        guard let visit, visit.practiceStartedAt != nil, visit.isFinalized == false else { return }
+        performanceObservations.append(observation)
+    }
+
+    func observationSnapshot() -> [PerformanceObservation] {
+        performanceObservations.enumerated().sorted { lhs, rhs in
+            if lhs.element.timing.correctedHost != rhs.element.timing.correctedHost {
+                return lhs.element.timing.correctedHost < rhs.element.timing.correctedHost
+            }
+            return lhs.offset < rhs.offset
+        }.map(\.element)
     }
 
     private func advance(_ visit: inout VisitState) {

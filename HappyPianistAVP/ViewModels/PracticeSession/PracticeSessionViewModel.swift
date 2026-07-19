@@ -113,6 +113,7 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
             stateStore: stateStore,
             effectHandler: self,
             diagnosticsReporter: diagnosticsReporter,
+            observationRecorder: sessionRecorder,
             consumeEvents: true
         )
         audioRecognitionInputService = PracticeAudioRecognitionInputService(
