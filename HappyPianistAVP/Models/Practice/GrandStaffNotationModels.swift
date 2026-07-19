@@ -8,6 +8,39 @@ enum GrandStaffNoteValue: Equatable {
     case sixteenth
     case thirtySecond
     case unsupported(sourceTypeToken: String?)
+
+    var noteheadGlyphToken: GrandStaffGlyphToken? {
+        switch self {
+        case .whole: .noteheadWhole
+        case .half: .noteheadHalf
+        case .quarter, .eighth, .sixteenth, .thirtySecond: .noteheadBlack
+        case .unsupported: nil
+        }
+    }
+
+    var restGlyphToken: GrandStaffGlyphToken? {
+        switch self {
+        case .whole: .restWhole
+        case .half: .restHalf
+        case .quarter: .restQuarter
+        case .eighth: .restEighth
+        case .sixteenth: .restSixteenth
+        case .thirtySecond: .restThirtySecond
+        case .unsupported: nil
+        }
+    }
+
+    func flagGlyphToken(stemDirection: GrandStaffStemDirection) -> GrandStaffGlyphToken? {
+        switch (self, stemDirection) {
+        case (.eighth, .up): .flagEighthUp
+        case (.eighth, .down): .flagEighthDown
+        case (.sixteenth, .up): .flagSixteenthUp
+        case (.sixteenth, .down): .flagSixteenthDown
+        case (.thirtySecond, .up): .flagThirtySecondUp
+        case (.thirtySecond, .down): .flagThirtySecondDown
+        default: nil
+        }
+    }
 }
 
 enum GrandStaffStemDirection: Equatable {
@@ -28,6 +61,17 @@ struct GrandStaffAccidental: Equatable {
     let kind: Kind
     let sourceToken: String?
     let alter: Double
+
+    var glyphToken: GrandStaffGlyphToken? {
+        switch kind {
+        case .sharp: .accidentalSharp
+        case .flat: .accidentalFlat
+        case .natural: .accidentalNatural
+        case .doubleSharp: .accidentalDoubleSharp
+        case .doubleFlat: .accidentalDoubleFlat
+        case .unsupported: nil
+        }
+    }
 }
 
 struct GrandStaffNotationLayout: Equatable {
@@ -61,6 +105,8 @@ struct GrandStaffNotationRest: Equatable, Identifiable {
     let noteValue: GrandStaffNoteValue
     let dotCount: Int
     let isHighlighted: Bool
+
+    var glyphToken: GrandStaffGlyphToken? { noteValue.restGlyphToken }
 }
 
 struct GrandStaffNotationTie: Equatable, Identifiable {
@@ -129,9 +175,12 @@ struct GrandStaffNotationContext: Equatable {
     let keySignatureFifths: Int?
     let timeSignatureText: String?
 
+    var trebleClefGlyphToken: GrandStaffGlyphToken? { clefGlyphToken(signToken: trebleClefSignToken) }
+    var bassClefGlyphToken: GrandStaffGlyphToken? { clefGlyphToken(signToken: bassClefSignToken) }
+
     init(
-        trebleClefSymbol: String = "\u{E050}",
-        bassClefSymbol: String = "\u{E062}",
+        trebleClefSymbol: String = GrandStaffGlyphToken.gClef.glyph,
+        bassClefSymbol: String = GrandStaffGlyphToken.fClef.glyph,
         trebleClefSignToken: String? = "G",
         trebleClefLine: Int? = 2,
         bassClefSignToken: String? = "F",
@@ -149,6 +198,15 @@ struct GrandStaffNotationContext: Equatable {
         self.keySignatureText = keySignatureText
         self.keySignatureFifths = keySignatureFifths
         self.timeSignatureText = timeSignatureText
+    }
+
+    private func clefGlyphToken(signToken: String?) -> GrandStaffGlyphToken? {
+        switch signToken?.uppercased() {
+        case "G": .gClef
+        case "F": .fClef
+        case "C": .cClef
+        default: nil
+        }
     }
 }
 
@@ -178,4 +236,23 @@ struct GrandStaffNotationItem: Equatable, Identifiable {
     let articulations: Set<MusicXMLArticulation>
     let arpeggiate: MusicXMLArpeggiate?
     let dotCount: Int
+
+    var noteheadGlyphToken: GrandStaffGlyphToken? { noteValue.noteheadGlyphToken }
+    var flagGlyphToken: GrandStaffGlyphToken? { noteValue.flagGlyphToken(stemDirection: stemDirection) }
+    var articulationGlyphTokens: [GrandStaffGlyphToken] {
+        articulations.sorted { $0.rawValue < $1.rawValue }.compactMap(\.grandStaffGlyphToken)
+    }
+}
+
+private extension MusicXMLArticulation {
+    var grandStaffGlyphToken: GrandStaffGlyphToken? {
+        switch self {
+        case .accent: .articulationAccentAbove
+        case .staccato: .articulationStaccatoAbove
+        case .tenuto: .articulationTenutoAbove
+        case .staccatissimo: .articulationStaccatissimoAbove
+        case .marcato: .articulationMarcatoAbove
+        case .detachedLegato: nil
+        }
+    }
 }

@@ -46,12 +46,14 @@ extension PracticeSessionViewModel {
         let tick = self.currentPianoHighlightGuide?.tick ?? self.currentStep?.tick ?? 0
 
         let trebleClefEvent = attributeTimeline.clef(atTick: tick, staffNumber: 1)
-        let trebleClef = trebleClefEvent.flatMap { Self.notationClefSymbol(for: $0) } ?? "\u{E050}"
+        let trebleClef = trebleClefEvent.flatMap { Self.notationClefSymbol(for: $0) }
+            ?? GrandStaffGlyphToken.gClef.glyph
         let trebleClefSignToken = trebleClefEvent?.signToken
         let trebleClefLine = trebleClefEvent?.line
 
         let bassClefEvent = attributeTimeline.clef(atTick: tick, staffNumber: 2)
-        let bassClef = bassClefEvent.flatMap { Self.notationClefSymbol(for: $0) } ?? "\u{E062}"
+        let bassClef = bassClefEvent.flatMap { Self.notationClefSymbol(for: $0) }
+            ?? GrandStaffGlyphToken.fClef.glyph
         let bassClefSignToken = bassClefEvent?.signToken
         let bassClefLine = bassClefEvent?.line
 
@@ -78,11 +80,11 @@ extension PracticeSessionViewModel {
         guard let sign = event.signToken, sign.isEmpty == false else { return nil }
         switch sign.uppercased() {
         case "G":
-            return "\u{E050}" // SMuFL gClef
+            return GrandStaffGlyphToken.gClef.glyph
         case "F":
-            return "\u{E062}" // SMuFL fClef
+            return GrandStaffGlyphToken.fClef.glyph
         case "C":
-            return "\u{E05C}" // SMuFL cClef
+            return GrandStaffGlyphToken.cClef.glyph
         default:
             return nil
         }
@@ -93,9 +95,9 @@ extension PracticeSessionViewModel {
             return nil
         }
         if fifths > 0 {
-            return String(repeating: "\u{E262}", count: min(fifths, 7)) // SMuFL accidentalSharp
+            return String(repeating: GrandStaffGlyphToken.accidentalSharp.glyph, count: min(fifths, 7))
         }
-        return String(repeating: "\u{E260}", count: min(abs(fifths), 7)) // SMuFL accidentalFlat
+        return String(repeating: GrandStaffGlyphToken.accidentalFlat.glyph, count: min(abs(fifths), 7))
     }
 
     var manualAdvanceMode: ManualAdvanceMode {

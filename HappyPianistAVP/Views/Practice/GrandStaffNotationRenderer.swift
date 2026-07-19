@@ -173,7 +173,7 @@ struct GrandStaffNotationRenderer {
 
         let isSharp = clamped > 0
         let count = abs(clamped)
-        let glyph = isSharp ? "\u{E262}" : "\u{E260}"
+        let glyph = (isSharp ? GrandStaffGlyphToken.accidentalSharp : .accidentalFlat).glyph
         let steps: [Int] = if staffNumber >= 2 {
             isSharp ? stepsBassSharps : stepsBassFlats
         } else {
@@ -209,9 +209,7 @@ struct GrandStaffNotationRenderer {
         }
 
         func digitGlyph(_ digit: Int) -> String? {
-            guard (0 ... 9).contains(digit) else { return nil }
-            guard let scalar = UnicodeScalar(0xE080 + digit) else { return nil }
-            return String(scalar)
+            GrandStaffGlyphToken.timeSignatureDigit(digit)?.glyph
         }
 
         func glyphString(for number: Int) -> String? {
@@ -549,14 +547,7 @@ struct GrandStaffNotationRenderer {
     }
 
     private func accidentalGlyph(for accidental: GrandStaffAccidental?) -> String? {
-        switch accidental?.kind {
-        case .sharp: "\u{E262}"
-        case .flat: "\u{E260}"
-        case .natural: "\u{E261}"
-        case .doubleSharp: "\u{E263}"
-        case .doubleFlat: "\u{E264}"
-        case .unsupported, nil: nil
-        }
+        accidental?.glyphToken?.glyph
     }
 
     private func resolvedNoteColor(for item: GrandStaffNotationItem) -> Color {
