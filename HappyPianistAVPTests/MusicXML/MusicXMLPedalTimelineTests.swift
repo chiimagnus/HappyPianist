@@ -124,6 +124,30 @@ func pedalTimelinePreservesContinuousDamperSostenutoAndSoftValues() throws {
 }
 
 @Test
+func pedalTimelinePreservesSameTickControllerSourceOrder() {
+    let timeline = MusicXMLPedalTimeline(events: [
+        MusicXMLPedalEvent(
+            partID: "P1",
+            measureNumber: 1,
+            tick: 120,
+            kind: .start,
+            value: .on,
+            timeOnlyPasses: nil
+        ),
+        MusicXMLPedalEvent(
+            partID: "P1",
+            measureNumber: 1,
+            tick: 120,
+            kind: .stop,
+            value: .off,
+            timeOnlyPasses: nil
+        ),
+    ])
+
+    #expect(timeline.controllerChanges().map(\.value) == [127, 0])
+}
+
+@Test
 func parserReadsContinuousSoundPedalFacts() throws {
     let xml = """
     <score-partwise version="4.0">

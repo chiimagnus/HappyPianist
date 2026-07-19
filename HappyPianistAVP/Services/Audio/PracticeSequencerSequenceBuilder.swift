@@ -171,13 +171,15 @@ struct PracticeSequencerSequenceBuilder {
             throw PracticeSequencerSequenceBuilderError.musicTrackCreateFailed(status: newTrackStatus)
         }
 
-        let sortedSchedule = schedule.sorted { lhs, rhs in
-            if lhs.timeSeconds != rhs.timeSeconds { return lhs.timeSeconds < rhs.timeSeconds }
-            if eventPriority(lhs.kind) != eventPriority(rhs.kind) {
-                return eventPriority(lhs.kind) < eventPriority(rhs.kind)
+        let sortedSchedule = schedule.enumerated().sorted { lhs, rhs in
+            if lhs.element.timeSeconds != rhs.element.timeSeconds {
+                return lhs.element.timeSeconds < rhs.element.timeSeconds
             }
-            return tieBreaker(lhs) < tieBreaker(rhs)
-        }
+            if eventPriority(lhs.element.kind) != eventPriority(rhs.element.kind) {
+                return eventPriority(lhs.element.kind) < eventPriority(rhs.element.kind)
+            }
+            return lhs.offset < rhs.offset
+        }.map(\.element)
 
         var durationSeconds: TimeInterval = 0
         var outputApproximations: [PerformanceOutputApproximation] = []
@@ -303,23 +305,4 @@ struct PracticeSequencerSequenceBuilder {
         }
     }
 
-    private func tieBreaker(_ event: PracticeSequencerMIDIEvent) -> String {
-        let kind = switch event.kind {
-        case let .noteOn(midi, velocity):
-            "on-\(midi)-\(velocity)"
-        case let .noteOff(midi):
-            "off-\(midi)"
-        case let .controlChange(controller, value):
-            "cc-\(controller)-\(value)"
-        case let .pitchBend(value):
-            "pb-\(value)"
-        case let .programChange(program):
-            "pc-\(program)"
-        case let .channelPressure(value):
-            "cp-\(value)"
-        case let .polyPressure(midi, value):
-            "pp-\(midi)-\(value)"
-        }
-        return "\(kind)-\(event.sourceEventID ?? "unresolved")"
-    }
 }

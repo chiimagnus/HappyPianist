@@ -677,6 +677,21 @@ func autoplayPerformanceSnapshotPreservesSourceIdentityAndSortedPositions() {
 }
 
 @Test
+func autoplayTimelinePreservesSameTickControllerSourceOrder() {
+    let plan = makeTimelinePlan(notes: [], controllerEvents: [
+        timelineController(sourceID: directionID(ordinal: 1), tick: 120, value: 127),
+        timelineController(sourceID: directionID(ordinal: 2), tick: 120, value: 0),
+    ])
+
+    let timeline = makeTimeline(plan: plan)
+
+    #expect(timeline.events.map(\.kind) == [
+        .controlChange(controller: 64, value: 127),
+        .controlChange(controller: 64, value: 0),
+    ])
+}
+
+@Test
 @MainActor
 func offMainTimelineBuildMatchesCanonicalSynchronousProjection() async throws {
     let activeRange = try timelineActiveRange(startTick: 480, endTick: 960)

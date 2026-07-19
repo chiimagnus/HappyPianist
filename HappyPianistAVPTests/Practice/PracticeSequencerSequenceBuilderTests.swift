@@ -123,6 +123,26 @@ func sequenceBuilderPreservesCanonicalPedalValuesAndReportsLocalQuantization() t
 }
 
 @Test
+func sequenceBuilderPreservesSameTimeControllerSourceOrder() throws {
+    let schedule = [
+        PracticeSequencerMIDIEvent(
+            sourceEventID: "pedal-on",
+            timeSeconds: 0.5,
+            kind: .controlChange(controller: 64, value: 127)
+        ),
+        PracticeSequencerMIDIEvent(
+            sourceEventID: "pedal-off",
+            timeSeconds: 0.5,
+            kind: .controlChange(controller: 64, value: 0)
+        ),
+    ]
+
+    let sequence = try PracticeSequencerSequenceBuilder().buildSequence(from: schedule)
+
+    #expect(sequence.events == schedule)
+}
+
+@Test
 func sequenceBuilderKeepsPlanPauseBeforeClosingReplayBoundary() {
     let tempoMap = MusicXMLTempoMap(
         tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope)]

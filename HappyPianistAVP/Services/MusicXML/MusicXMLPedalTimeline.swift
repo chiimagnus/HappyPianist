@@ -29,27 +29,28 @@ struct MusicXMLPedalTimeline: Equatable {
         )
         releaseEdgeTicks = releaseEdges.sorted()
         controllers = events
-            .compactMap { event -> ControllerChange? in
+            .enumerated()
+            .compactMap { offset, event -> (offset: Int, change: ControllerChange)? in
                 guard let value = event.value else { return nil }
-                return ControllerChange(
-                    sourceDirectionID: event.sourceID,
-                    performedOccurrenceIndex: event.performedOccurrenceIndex,
-                    tick: event.tick,
-                    controllerNumber: event.controller.rawValue,
-                    value: value.midiValue
+                return (
+                    offset,
+                    ControllerChange(
+                        sourceDirectionID: event.sourceID,
+                        performedOccurrenceIndex: event.performedOccurrenceIndex,
+                        tick: event.tick,
+                        controllerNumber: event.controller.rawValue,
+                        value: value.midiValue
+                    )
                 )
             }
             .sorted { lhs, rhs in
-                if lhs.tick != rhs.tick { return lhs.tick < rhs.tick }
-                if lhs.controllerNumber != rhs.controllerNumber {
-                    return lhs.controllerNumber < rhs.controllerNumber
+                if lhs.change.tick != rhs.change.tick { return lhs.change.tick < rhs.change.tick }
+                if lhs.change.controllerNumber != rhs.change.controllerNumber {
+                    return lhs.change.controllerNumber < rhs.change.controllerNumber
                 }
-                if lhs.value != rhs.value { return lhs.value < rhs.value }
-                let lhsSource = lhs.sourceDirectionID?.description ?? ""
-                let rhsSource = rhs.sourceDirectionID?.description ?? ""
-                if lhsSource != rhsSource { return lhsSource < rhsSource }
-                return lhs.performedOccurrenceIndex < rhs.performedOccurrenceIndex
+                return lhs.offset < rhs.offset
             }
+            .map(\.change)
 
         let normalized = events
             .compactMap { event -> Change? in

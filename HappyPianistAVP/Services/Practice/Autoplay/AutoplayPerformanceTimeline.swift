@@ -340,16 +340,20 @@ struct AutoplayPerformanceTimeline: Equatable, Sendable {
         }
 
         let sortedEvents = rawEvents
+            .enumerated()
             .sorted { lhs, rhs in
-                if lhs.tick != rhs.tick { return lhs.tick < rhs.tick }
-                if lhs.priority != rhs.priority { return lhs.priority < rhs.priority }
-                let lhsTie = eventTieBreaker(lhs.kind, sourceEventID: lhs.sourceEventID)
-                let rhsTie = eventTieBreaker(rhs.kind, sourceEventID: rhs.sourceEventID)
-                return lhsTie < rhsTie
+                if lhs.element.tick != rhs.element.tick {
+                    return lhs.element.tick < rhs.element.tick
+                }
+                if lhs.element.priority != rhs.element.priority {
+                    return lhs.element.priority < rhs.element.priority
+                }
+                return lhs.offset < rhs.offset
             }
             .enumerated()
-            .map { offset, event in
-                Event(
+            .map { offset, indexedEvent in
+                let event = indexedEvent.element
+                return Event(
                     id: offset,
                     sourceEventID: event.sourceEventID,
                     tick: event.tick,
@@ -373,25 +377,6 @@ struct AutoplayPerformanceTimeline: Equatable, Sendable {
         return tick >= activeRange.tickRange.lowerBound && tick <= activeRange.tickRange.upperBound
     }
 
-    private static func eventTieBreaker(_ kind: EventKind, sourceEventID: String?) -> String {
-        let identity = sourceEventID ?? ""
-        return switch kind {
-        case let .noteOff(midi):
-            "noteOff-\(midi)-\(identity)"
-        case let .controlChange(controller, value):
-            "control-\(controller)-\(value)-\(identity)"
-        case let .tempo(quarterBPM, endTick, endQuarterBPM):
-            "tempo-\(quarterBPM)-\(endTick ?? -1)-\(endQuarterBPM ?? -1)-\(identity)"
-        case let .noteOn(midi, velocity):
-            "noteOn-\(midi)-\(velocity)-\(identity)"
-        case let .advanceStep(index):
-            "advanceStep-\(index)"
-        case let .advanceGuide(index, guideID):
-            "advanceGuide-\(index)-\(guideID)"
-        case let .pauseSeconds(seconds):
-            "pause-\(seconds)-\(identity)"
-        }
-    }
 }
 
 extension AutoplayPerformanceTimeline {
