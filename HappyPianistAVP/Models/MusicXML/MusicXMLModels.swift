@@ -355,6 +355,55 @@ struct MusicXMLTuplet: Equatable, Sendable {
     let placementToken: String?
 }
 
+enum MusicXMLStem: Equatable, Sendable {
+    case unspecified
+    case up
+    case down
+    case none
+    case double
+    case unsupported(sourceToken: String)
+
+    init(sourceToken: String?) {
+        let token = sourceToken?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+        self = switch token {
+        case "": .unspecified
+        case "up": .up
+        case "down": .down
+        case "none": .none
+        case "double": .double
+        default: .unsupported(sourceToken: token)
+        }
+    }
+}
+
+enum MusicXMLBeamValue: Equatable, Sendable {
+    case begin
+    case `continue`
+    case end
+    case forwardHook
+    case backwardHook
+    case unsupported(sourceToken: String)
+
+    init(sourceToken: String) {
+        let token = sourceToken.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        self = switch token {
+        case "begin": .begin
+        case "continue": .continue
+        case "end": .end
+        case "forward hook": .forwardHook
+        case "backward hook": .backwardHook
+        default: .unsupported(sourceToken: token)
+        }
+    }
+}
+
+struct MusicXMLBeam: Equatable, Sendable {
+    let numberToken: String?
+    let value: MusicXMLBeamValue
+    let repeaterToken: String?
+    let fanToken: String?
+}
+
 struct MusicXMLNoteEvent: Equatable, Identifiable {
     var id: MusicXMLPerformedNoteID? { performedID }
     var performedID: MusicXMLPerformedNoteID? {
@@ -381,6 +430,8 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
     let ties: [MusicXMLTie]
     let slurs: [MusicXMLSlur]
     let tuplets: [MusicXMLTuplet]
+    let stem: MusicXMLStem
+    let beams: [MusicXMLBeam]
     let staff: Int?
     let voice: Int?
     let attackTicks: Int?
@@ -419,6 +470,8 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         ties: [MusicXMLTie] = [],
         slurs: [MusicXMLSlur] = [],
         tuplets: [MusicXMLTuplet] = [],
+        stem: MusicXMLStem = .unspecified,
+        beams: [MusicXMLBeam] = [],
         staff: Int?,
         voice: Int?,
         attackTicks: Int? = nil,
@@ -449,6 +502,8 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         self.ties = ties
         self.slurs = slurs
         self.tuplets = tuplets
+        self.stem = stem
+        self.beams = beams
         self.staff = staff
         self.voice = voice
         self.attackTicks = attackTicks

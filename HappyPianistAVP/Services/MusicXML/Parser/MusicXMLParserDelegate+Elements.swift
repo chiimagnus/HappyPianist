@@ -79,6 +79,7 @@ extension MusicXMLParserDelegate {
                 state.timeBeatGroups = []
                 state.timeBeatTypes = []
                 state.timeSymbolToken = normalizedMetadataToken(attributeDict["symbol"])
+                state.timeNumberToken = normalizedMetadataToken(attributeDict["number"])
                 state.timeIsSenzaMisura = false
             }
         case "key":
@@ -86,6 +87,7 @@ extension MusicXMLParserDelegate {
                 state.isInKey = true
                 state.keyFifths = nil
                 state.keyModeToken = nil
+                state.keyNumberToken = normalizedMetadataToken(attributeDict["number"])
             }
         case "transpose":
             if state.isInAttributes {
@@ -217,6 +219,9 @@ extension MusicXMLParserDelegate {
             state.noteSlurs = []
             state.noteTuplets = []
             state.nextNoteNotationSourceOrdinal = 0
+            state.noteStem = .unspecified
+            state.noteBeams = []
+            state.currentBeamAttributes = [:]
             state.noteAttackTicks = parseNotePerformanceOffsetTicks(attributeDict["attack"])
             state.noteReleaseTicks = parseNotePerformanceOffsetTicks(attributeDict["release"])
             state.noteDynamicsOverrideVelocity = nil
@@ -292,6 +297,10 @@ extension MusicXMLParserDelegate {
         case "normal-dot":
             if state.isInNote && state.isInTimeModification {
                 state.noteTimeModificationNormalDotCount += 1
+            }
+        case "beam":
+            if state.isInNote {
+                state.currentBeamAttributes = attributeDict
             }
         case "rest":
             if state.isInNote {
@@ -379,7 +388,11 @@ extension MusicXMLParserDelegate {
                     MusicXMLTimeSignatureEvent(
                         tick: tick,
                         meter: meter,
-                        scope: MusicXMLEventScope(partID: state.currentPartID, staff: nil, voice: nil)
+                        scope: MusicXMLEventScope(
+                            partID: state.currentPartID,
+                            staff: state.timeNumberToken.flatMap(Int.init),
+                            voice: nil
+                        )
                     )
                 )
             }
@@ -397,7 +410,11 @@ extension MusicXMLParserDelegate {
                         tick: tick,
                         fifths: fifths,
                         modeToken: state.keyModeToken,
-                        scope: MusicXMLEventScope(partID: state.currentPartID, staff: nil, voice: nil)
+                        scope: MusicXMLEventScope(
+                            partID: state.currentPartID,
+                            staff: state.keyNumberToken.flatMap(Int.init),
+                            voice: nil
+                        )
                     )
                 )
             }
@@ -600,6 +617,16 @@ extension MusicXMLParserDelegate {
                     )
                 }
             }
+        case "stem" where state.isInNote:
+            state.noteStem = MusicXMLStem(sourceToken: text)
+        case "beam" where state.isInNote:
+            state.noteBeams.append(MusicXMLBeam(
+                numberToken: normalizedMetadataToken(state.currentBeamAttributes["number"]),
+                value: MusicXMLBeamValue(sourceToken: text),
+                repeaterToken: normalizedMetadataToken(state.currentBeamAttributes["repeater"]),
+                fanToken: normalizedMetadataToken(state.currentBeamAttributes["fan"])
+            ))
+            state.currentBeamAttributes = [:]
         case "voice" where state.isInNote:
             state.noteVoice = Int(text)
         case "note":

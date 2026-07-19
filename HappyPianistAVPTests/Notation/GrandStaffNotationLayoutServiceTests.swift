@@ -96,7 +96,7 @@ func projectionResolvesKeyAndMeasureAccidentalStateWithoutLosingPitchTransforms(
         .natural,
         .unsupported,
     ])
-    #expect(projection.sourceNotes.allSatisfy { $0.keySignatureFifths == 1 })
+    #expect(projection.sourceNotes.allSatisfy { $0.keySignature?.fifths == 1 })
     #expect(projection.sourceNotes.first?.transpose == .init(
         diatonic: -1,
         chromatic: -2,

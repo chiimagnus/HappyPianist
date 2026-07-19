@@ -15,92 +15,70 @@ struct MusicXMLAttributeTimeline: Equatable {
         self.clefEvents = clefEvents.sorted { $0.tick < $1.tick }
     }
 
-    func timeSignature(atTick tick: Int) -> MusicXMLTimeSignatureEvent? {
-        lastTimeSignature(atOrBeforeTick: tick, events: timeSignatureEvents)
-    }
-
-    func meter(atTick tick: Int) -> MusicXMLMeter? {
-        timeSignature(atTick: tick)?.meter
-    }
-
-    func keySignature(atTick tick: Int) -> MusicXMLKeySignatureEvent? {
-        lastKeySignature(atOrBeforeTick: tick, events: keySignatureEvents)
-    }
-
-    func clef(atTick tick: Int, staffNumber: Int) -> MusicXMLClefEvent? {
-        let filtered = clefEvents.filter { event in
-            guard let token = event.numberToken, let number = Int(token) else { return staffNumber == 1 }
-            return number == staffNumber
-        }
-        return lastClef(atOrBeforeTick: tick, events: filtered)
-    }
-
-    private func lastTimeSignature(
-        atOrBeforeTick tick: Int,
-        events: [MusicXMLTimeSignatureEvent]
+    func timeSignature(
+        atTick tick: Int,
+        partID: String? = nil,
+        staffNumber: Int? = nil
     ) -> MusicXMLTimeSignatureEvent? {
-        guard events.isEmpty == false else { return nil }
-
-        let clamped = max(0, tick)
-        var low = 0
-        var high = events.count - 1
-        var best = -1
-
-        while low <= high {
-            let mid = (low + high) / 2
-            if events[mid].tick <= clamped {
-                best = mid
-                low = mid + 1
-            } else {
-                high = mid - 1
-            }
-        }
-
-        return best >= 0 ? events[best] : nil
+        lastApplicable(
+            atOrBeforeTick: tick,
+            events: timeSignatureEvents,
+            partID: partID,
+            staffNumber: staffNumber,
+            scope: \.scope,
+            eventTick: \.tick
+        )
     }
 
-    private func lastKeySignature(
-        atOrBeforeTick tick: Int,
-        events: [MusicXMLKeySignatureEvent]
+    func meter(atTick tick: Int, partID: String? = nil, staffNumber: Int? = nil) -> MusicXMLMeter? {
+        timeSignature(atTick: tick, partID: partID, staffNumber: staffNumber)?.meter
+    }
+
+    func keySignature(
+        atTick tick: Int,
+        partID: String? = nil,
+        staffNumber: Int? = nil
     ) -> MusicXMLKeySignatureEvent? {
-        guard events.isEmpty == false else { return nil }
-
-        let clamped = max(0, tick)
-        var low = 0
-        var high = events.count - 1
-        var best = -1
-
-        while low <= high {
-            let mid = (low + high) / 2
-            if events[mid].tick <= clamped {
-                best = mid
-                low = mid + 1
-            } else {
-                high = mid - 1
-            }
-        }
-
-        return best >= 0 ? events[best] : nil
+        lastApplicable(
+            atOrBeforeTick: tick,
+            events: keySignatureEvents,
+            partID: partID,
+            staffNumber: staffNumber,
+            scope: \.scope,
+            eventTick: \.tick
+        )
     }
 
-    private func lastClef(atOrBeforeTick tick: Int, events: [MusicXMLClefEvent]) -> MusicXMLClefEvent? {
-        guard events.isEmpty == false else { return nil }
-
-        let clamped = max(0, tick)
-        var low = 0
-        var high = events.count - 1
-        var best = -1
-
-        while low <= high {
-            let mid = (low + high) / 2
-            if events[mid].tick <= clamped {
-                best = mid
-                low = mid + 1
-            } else {
-                high = mid - 1
-            }
+    func clef(atTick tick: Int, partID: String? = nil, staffNumber: Int) -> MusicXMLClefEvent? {
+        let filtered = clefEvents.filter { event in
+            let eventStaff = event.scope.staff ?? event.numberToken.flatMap(Int.init) ?? 1
+            return (partID == nil || event.scope.partID == partID) && eventStaff == staffNumber
         }
+        return filtered.last { $0.tick <= max(0, tick) }
+    }
 
-        return best >= 0 ? events[best] : nil
+    private func lastApplicable<Event>(
+        atOrBeforeTick tick: Int,
+        events: [Event],
+        partID: String?,
+        staffNumber: Int?,
+        scope: KeyPath<Event, MusicXMLEventScope>,
+        eventTick: KeyPath<Event, Int>
+    ) -> Event? {
+        let clamped = max(0, tick)
+        // ponytail: attribute changes are sparse; index per staff only if real-score profiling shows this scan matters.
+        return events
+            .filter { event in
+                let eventScope = event[keyPath: scope]
+                return event[keyPath: eventTick] <= clamped &&
+                    (partID == nil || eventScope.partID == partID) &&
+                    (staffNumber == nil ? eventScope.staff == nil : eventScope.staff == nil || eventScope.staff == staffNumber)
+            }
+            .max { lhs, rhs in
+                let lhsTick = lhs[keyPath: eventTick]
+                let rhsTick = rhs[keyPath: eventTick]
+                if lhsTick != rhsTick { return lhsTick < rhsTick }
+                return lhs[keyPath: scope].staff == nil && rhs[keyPath: scope].staff != nil
+            }
     }
 }

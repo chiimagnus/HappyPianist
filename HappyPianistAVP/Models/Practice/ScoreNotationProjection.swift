@@ -14,6 +14,18 @@ struct ScoreNotationProjection: Equatable, Sendable {
         let numberToken: String?
     }
 
+    struct KeySignatureFact: Equatable, Sendable {
+        let fifths: Int
+        let modeToken: String?
+    }
+
+    struct ClefFact: Equatable, Sendable {
+        let signToken: String?
+        let line: Int?
+        let octaveChange: Int?
+        let numberToken: String?
+    }
+
     struct SourceNote: Equatable, Sendable {
         let id: MusicXMLSourceNoteID
         let writtenOnTick: Int
@@ -29,10 +41,14 @@ struct ScoreNotationProjection: Equatable, Sendable {
         let ties: [MusicXMLTie]
         let slurs: [MusicXMLSlur]
         let tuplets: [MusicXMLTuplet]
+        let stem: MusicXMLStem
+        let beams: [MusicXMLBeam]
         let articulations: Set<MusicXMLArticulation>
         let arpeggiate: MusicXMLArpeggiate?
         let fingeringText: String?
-        let keySignatureFifths: Int
+        let keySignature: KeySignatureFact?
+        let meter: MusicXMLMeter?
+        let clef: ClefFact?
         let transpose: TransposeFact?
         let octaveShifts: [OctaveShiftFact]
     }
@@ -66,6 +82,11 @@ struct ScoreNotationProjection: Equatable, Sendable {
         plan: ScorePerformancePlan,
         sourceScore: MusicXMLScore
     ) {
+        let attributeTimeline = MusicXMLAttributeTimeline(
+            timeSignatureEvents: sourceScore.timeSignatureEvents,
+            keySignatureEvents: sourceScore.keySignatureEvents,
+            clefEvents: sourceScore.clefEvents
+        )
         sourceNotes = sourceScore.notes.compactMap { note in
             guard let sourceID = note.sourceID else { return nil }
             return SourceNote(
@@ -83,10 +104,18 @@ struct ScoreNotationProjection: Equatable, Sendable {
                 ties: note.ties,
                 slurs: note.slurs,
                 tuplets: note.tuplets,
+                stem: note.stem,
+                beams: note.beams,
                 articulations: note.articulations,
                 arpeggiate: note.arpeggiate,
                 fingeringText: note.fingeringText,
-                keySignatureFifths: Self.keySignatureFifths(for: note, in: sourceScore),
+                keySignature: Self.keySignatureFact(for: note, in: attributeTimeline),
+                meter: attributeTimeline.meter(
+                    atTick: note.tick,
+                    partID: note.partID,
+                    staffNumber: note.staff ?? 1
+                ),
+                clef: Self.clefFact(for: note, in: attributeTimeline),
                 transpose: Self.transposeFact(for: note, in: sourceScore),
                 octaveShifts: Self.octaveShiftFacts(for: note, in: sourceScore)
             )
@@ -151,15 +180,29 @@ struct ScoreNotationProjection: Equatable, Sendable {
         }
     }
 
-    private static func keySignatureFifths(for note: MusicXMLNoteEvent, in score: MusicXMLScore) -> Int {
-        score.keySignatureEvents
-            .filter { $0.tick <= note.tick && scope($0.scope, matches: note) }
-            .max { lhs, rhs in
-                lhs.tick == rhs.tick
-                    ? scopeSpecificity(lhs.scope) < scopeSpecificity(rhs.scope)
-                    : lhs.tick < rhs.tick
-            }?
-            .fifths ?? 0
+    private static func keySignatureFact(
+        for note: MusicXMLNoteEvent,
+        in timeline: MusicXMLAttributeTimeline
+    ) -> KeySignatureFact? {
+        timeline.keySignature(
+            atTick: note.tick,
+            partID: note.partID,
+            staffNumber: note.staff ?? 1
+        ).map { KeySignatureFact(fifths: $0.fifths, modeToken: $0.modeToken) }
+    }
+
+    private static func clefFact(
+        for note: MusicXMLNoteEvent,
+        in timeline: MusicXMLAttributeTimeline
+    ) -> ClefFact? {
+        timeline.clef(atTick: note.tick, partID: note.partID, staffNumber: note.staff ?? 1).map {
+            ClefFact(
+                signToken: $0.signToken,
+                line: $0.line,
+                octaveChange: $0.octaveChange,
+                numberToken: $0.numberToken
+            )
+        }
     }
 
     private static func transposeFact(for note: MusicXMLNoteEvent, in score: MusicXMLScore) -> TransposeFact? {

@@ -390,6 +390,8 @@ struct MusicXMLStructureExpander {
                         ties: note.ties,
                         slurs: note.slurs,
                         tuplets: note.tuplets,
+                        stem: note.stem,
+                        beams: note.beams,
                         staff: note.staff,
                         voice: note.voice,
                         attackTicks: note.attackTicks,

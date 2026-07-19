@@ -312,6 +312,8 @@ extension MusicXMLParserDelegate {
                 ties: ties,
                 slurs: slurs,
                 tuplets: tuplets,
+                stem: state.noteStem,
+                beams: state.noteBeams,
                 staff: state.noteStaff,
                 voice: state.noteVoice,
                 attackTicks: state.noteAttackTicks,

@@ -418,6 +418,8 @@ func structureExpanderPreservesParsedNoteAndScoreFieldsWhenMaterializing() {
                     bracketToken: "yes",
                     placementToken: "above"
                 )],
+                stem: .down,
+                beams: [.init(numberToken: "2", value: .backwardHook, repeaterToken: nil, fanToken: nil)],
                 staff: 1,
                 voice: 1,
                 attackTicks: -10,
@@ -482,6 +484,8 @@ func structureExpanderPreservesParsedNoteAndScoreFieldsWhenMaterializing() {
     #expect(preserved?.ties.first?.typeToken == "start")
     #expect(preserved?.slurs.first?.numberToken == "2")
     #expect(preserved?.tuplets.first?.bracketToken == "yes")
+    #expect(preserved?.stem == .down)
+    #expect(preserved?.beams.first?.value == .backwardHook)
     #expect(preserved?.attackTicks == -10)
     #expect(preserved?.releaseTicks == 20)
     #expect(preserved?.dynamicsOverrideVelocity == 88)

@@ -108,10 +108,12 @@ struct MusicXMLParserDelegateState {
     var timeBeatGroups: [[Int]] = []
     var timeBeatTypes: [Int] = []
     var timeSymbolToken: String?
+    var timeNumberToken: String?
     var timeIsSenzaMisura = false
     var isInKey = false
     var keyFifths: Int?
     var keyModeToken: String?
+    var keyNumberToken: String?
     var isInClef = false
     var clefSignToken: String?
     var clefLine: Int?
@@ -145,6 +147,9 @@ struct MusicXMLParserDelegateState {
     var noteSlurs: [PendingSlur] = []
     var noteTuplets: [PendingTuplet] = []
     var nextNoteNotationSourceOrdinal = 0
+    var noteStem: MusicXMLStem = .unspecified
+    var noteBeams: [MusicXMLBeam] = []
+    var currentBeamAttributes: [String: String] = [:]
     var noteAttackTicks: Int?
     var noteReleaseTicks: Int?
     var noteIsGrace = false

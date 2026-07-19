@@ -109,7 +109,7 @@ struct GrandStaffNotationLayoutService {
                 noteValue: noteValue(for: source.writtenRhythm),
                 durationTicks: writtenDurationTicks,
                 writtenPitch: writtenPitch,
-                keySignatureFifths: source.keySignatureFifths,
+                keySignatureFifths: source.keySignature?.fifths ?? 0,
                 displayedAccidental: nil,
                 isGrace: source.isGrace,
                 articulations: source.articulations,
