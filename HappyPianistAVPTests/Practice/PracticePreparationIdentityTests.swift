@@ -153,6 +153,37 @@ func splitPianoPreparationUsesThePartThatOwnsStructureDirectives() async throws 
 }
 
 @Test
+func underPressureSeedScorePreparesAndProjectsBothGrandStaffParts() async throws {
+    let repositoryRoot = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+    let directoryName = "Under_Pressure_-_David_Bowie,_David_Bowie_&_Queen,_Queen_(Piano_Solo)"
+    let url = repositoryRoot
+        .appending(path: "HappyPianistAVP/Resources/SeedScores")
+        .appending(path: directoryName)
+        .appending(path: "\(directoryName).musicxml")
+    let prepared = try await PracticePreparationService(
+        diagnosticsReporter: InMemoryDiagnosticsReporter()
+    ).prepare(
+        songID: UUID(),
+        from: url,
+        file: ImportedMusicXMLFile(fileName: url.lastPathComponent, storedURL: url, importedAt: .now)
+    )
+
+    #expect(prepared.scoreContext.logicalInstrument.memberPartIDs == [
+        "P36df1496bb2f1e2a36c8f68a99ab1838",
+        "Pc07d9683d7dd1310ce32aaf3db237f1b",
+    ])
+    #expect(prepared.scoreContext.logicalInstrument.evidence.contains {
+        $0.kind == .complementarySingleStaffClefs
+    })
+    #expect(Set(prepared.notationProjection.sourceNotes.map(\.staff)) == [1, 2])
+    #expect(prepared.steps.isEmpty == false)
+    #expect(prepared.measureSpans.isEmpty == false)
+}
+
+@Test
 func plainMusicXMLPreparationParsesTheAlreadyReadBytes() async throws {
     let url = FileManager.default.temporaryDirectory.appending(
         path: "single-read-\(UUID().uuidString).musicxml"

@@ -79,7 +79,7 @@ score import 只有 transaction service 一条写入路径；`.mxl` 在 preparat
 | --- | --- | --- |
 | 读取 | `SongLibraryEntryResolver`、`BundledSongLibraryProvider`、`SongFileStore` | 已验证的 score URL |
 | 解析 | `MusicXMLParser`、`MXLReader` | 保留 source part、staff、voice、written pitch 与 source identity 的 score model |
-| 逻辑乐器 | `MusicXMLPianoGrandStaffNormalizer`、`MusicXMLPracticePartSelector` | 不改写 source part 的 logical instrument 与显式 selection / ambiguity |
+| 逻辑乐器 | `MusicXMLPianoGrandStaffNormalizer`、`MusicXMLPracticePartSelector` | 不改写 source part/staff 的 logical instrument、分拆大谱表显示角色与显式 selection / ambiguity |
 | 顺序选择 | `MusicXMLStructureExpander`、`MusicXMLOrderSelection` | written score，或带 source + occurrence identity 的 performed score |
 | 演奏事实 | `ScoreTimingScheduleBuilder`、velocity / tempo / pedal / fermata 解释器、`ScorePerformancePlanBuilder` | 保留事件 identity、时值、力度、控制器与注释的唯一 `ScorePerformancePlan` |
 | hand 与 step | `MusicXMLHandRouter`、`PracticeStepBuilder` | 从 plan 投影、不改写 staff / voice 的 hand assignments 与 `PracticeStep[]` |
@@ -89,7 +89,7 @@ score import 只有 transaction service 一条写入路径；`.mxl` 在 preparat
 
 正式 preparation 结果必须同时有可演奏 steps 和 measure spans。解析失败或缺少小节结构时应返回具体错误，不进入推测性的兼容模式。
 
-`PreparedPractice.performancePlan` 是本轮所有本地 sampler、CoreMIDI 与手动重播共同消费的声音真源；会话中的 tempo map 只是 plan tempo events 的查询投影，不接受独立注入。`steps` 与 `highlightGuides` 只负责判定、导航和显示，不能反推音高、力度、时值或控制器；`notationProjection` 由 plan 与 source score 构成，layout 不从 guide 反推 written facts。`scoreContext` 保存本次选择的 source score、prepared score、logical instrument、structural part、order selection 与按 source-note identity 索引的 hand assignments。双 part 钢琴只形成一个 logical instrument；两个独立乐器即使分别使用高音与低音谱号也不得合并。staff 与 hand 是不同事实：跨谱表或多谱表材料保持原 staff / voice，无法从可靠证据确定 hand 时保留 `unknown`。
+`PreparedPractice.performancePlan` 是本轮所有本地 sampler、CoreMIDI 与手动重播共同消费的声音真源；会话中的 tempo map 只是 plan tempo events 的查询投影，不接受独立注入。`steps` 与 `highlightGuides` 只负责判定、导航和显示，不能反推音高、力度、时值或控制器；`notationProjection` 由 plan 与 source score 构成，layout 不从 guide 反推 written facts。`scoreContext` 保存本次选择的 source score、prepared score、logical instrument、structural part、order selection 与按 source-note identity 索引的 hand assignments。名称明确 RH/LH 的双 part 钢琴，或同名、各自只有一个 staff 且初始 G/F 谱号互补的双 part 钢琴，形成一个 logical instrument；名称不同的独立钢琴及非钢琴 G+F 组合不得合并。分拆 part 的 upper/lower 只在 `ScoreNotationProjection` 映射到大谱表显示位置，不改写 MusicXML 的 part 内 staff。staff 与 hand 是不同事实：跨谱表或多谱表材料保持原 staff / voice，无法从可靠证据确定 hand 时保留 `unknown`。
 
 五线谱内部继续保持单向：
 

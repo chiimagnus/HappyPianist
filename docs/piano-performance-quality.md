@@ -189,7 +189,7 @@ parser 现在读取 `<offset sound>`，默认 visual-only offset 不移动播放
 
 **状态：已修复｜证据：代码确认**
 
-`MusicXMLPianoGrandStaffNormalizer` 只建立 logical instrument 关系，不再改写 note 的 `partID`、staff 或 voice。`filtering(toLogicalInstrument:)` 同时保留成员 parts 的 notes、控制器、directions、attributes、measures 与结构事实；非钢琴 G+F duet 保持两个独立乐器。
+`MusicXMLPianoGrandStaffNormalizer` 只建立 logical instrument 关系，不再改写 note 的 `partID`、staff 或 voice。名称明确 RH/LH，或同名、各自为单 staff 且初始 G/F 谱号互补的钢琴 parts，会携带 upper/lower 显示角色；`ScoreNotationProjection` 用该角色投到大谱表，仍按原 part/staff 查询 written facts。`filtering(toLogicalInstrument:)` 同时保留成员 parts 的 notes、控制器、directions、attributes、measures 与结构事实；名称不同的独立钢琴及非钢琴 G+F duet 保持两个独立乐器。
 
 #### SCORE-004：主乐器选择使用元数据与歧义结果
 

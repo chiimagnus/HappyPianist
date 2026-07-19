@@ -19,7 +19,8 @@ struct MusicXMLPianoGrandStaffNormalizer {
 
         if let splitPair = splitKeyboardPair(
             partIDs: explicitPianoPartIDs,
-            metadataByPartID: metadataByPartID
+            metadataByPartID: metadataByPartID,
+            score: score
         ) {
             let members = [splitPair.upper, splitPair.lower].sorted()
             output.append(MusicXMLLogicalInstrument(
@@ -32,9 +33,13 @@ struct MusicXMLPianoGrandStaffNormalizer {
                         partIDs: members
                     ),
                     MusicXMLLogicalInstrumentEvidence(
-                        kind: .splitKeyboardPartNames,
+                        kind: splitPair.evidenceKind,
                         partIDs: members
                     ),
+                ],
+                grandStaffPartAssignments: [
+                    MusicXMLGrandStaffPartAssignment(partID: splitPair.upper, role: .upper),
+                    MusicXMLGrandStaffPartAssignment(partID: splitPair.lower, role: .lower),
                 ]
             ))
             consumed.formUnion(members)
@@ -95,8 +100,9 @@ struct MusicXMLPianoGrandStaffNormalizer {
 
     private func splitKeyboardPair(
         partIDs: [String],
-        metadataByPartID: [String: MusicXMLPartMetadata]
-    ) -> (upper: String, lower: String)? {
+        metadataByPartID: [String: MusicXMLPartMetadata],
+        score: MusicXMLScore
+    ) -> SplitKeyboardPair? {
         let roles = partIDs.compactMap { partID -> (String, KeyboardRole, String)? in
             guard let name = metadataByPartID[partID]?.name,
                   let role = keyboardRole(in: name)
@@ -108,8 +114,75 @@ struct MusicXMLPianoGrandStaffNormalizer {
               let lower = roles.first(where: { $0.1 == .lower }),
               upper.2.isEmpty == false,
               upper.2 == lower.2
+        else {
+            return splitKeyboardPairByClef(
+                partIDs: partIDs,
+                metadataByPartID: metadataByPartID,
+                score: score
+            )
+        }
+        return SplitKeyboardPair(
+            upper: upper.0,
+            lower: lower.0,
+            evidenceKind: .splitKeyboardPartNames
+        )
+    }
+
+    private func splitKeyboardPairByClef(
+        partIDs: [String],
+        metadataByPartID: [String: MusicXMLPartMetadata],
+        score: MusicXMLScore
+    ) -> SplitKeyboardPair? {
+        // ponytail: keep same-name piano parts ambiguous unless single-staff G/F clefs supply both display roles.
+        guard partIDs.count == 2,
+              let firstName = metadataByPartID[partIDs[0]]?.name.map(normalizedToken),
+              let secondName = metadataByPartID[partIDs[1]]?.name.map(normalizedToken),
+              firstName.isEmpty == false,
+              firstName == secondName,
+              partIDs.allSatisfy({ isPlayableSingleStaffPart($0, in: score) })
         else { return nil }
-        return (upper.0, lower.0)
+
+        let roles = partIDs.compactMap { partID -> (String, KeyboardRole)? in
+            guard let role = initialClefRole(partID: partID, in: score) else { return nil }
+            return (partID, role)
+        }
+        guard roles.count == 2,
+              let upper = roles.first(where: { $0.1 == .upper }),
+              let lower = roles.first(where: { $0.1 == .lower })
+        else { return nil }
+        return SplitKeyboardPair(
+            upper: upper.0,
+            lower: lower.0,
+            evidenceKind: .complementarySingleStaffClefs
+        )
+    }
+
+    private func isPlayableSingleStaffPart(_ partID: String, in score: MusicXMLScore) -> Bool {
+        let notes = score.notes.filter { $0.partID == partID }
+        return notes.contains { $0.isRest == false && $0.midiNote != nil }
+            && notes.allSatisfy { ($0.staff ?? 1) == 1 }
+            && score.clefEvents.filter { $0.scope.partID == partID }.allSatisfy {
+                ($0.scope.staff ?? $0.numberToken.flatMap(Int.init) ?? 1) == 1
+            }
+    }
+
+    private func initialClefRole(partID: String, in score: MusicXMLScore) -> KeyboardRole? {
+        let sign = score.clefEvents
+            .filter { $0.scope.partID == partID }
+            .min { $0.tick < $1.tick }?
+            .signToken?
+            .uppercased()
+        return switch sign {
+        case "G": .upper
+        case "F": .lower
+        default: nil
+        }
+    }
+
+    private struct SplitKeyboardPair {
+        let upper: String
+        let lower: String
+        let evidenceKind: MusicXMLLogicalInstrumentEvidenceKind
     }
 
     private enum KeyboardRole {

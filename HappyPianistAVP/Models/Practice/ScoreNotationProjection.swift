@@ -187,18 +187,26 @@ struct ScoreNotationProjection: Equatable, Sendable {
             keySignatureEvents: performedScore.keySignatureEvents,
             clefEvents: performedScore.clefEvents
         )
+        let grandStaffRoles = Dictionary(
+            sourceScore.logicalInstruments
+                .flatMap(\.grandStaffPartAssignments)
+                .map { ($0.partID, $0.role) },
+            uniquingKeysWith: { first, _ in first }
+        )
         let canonicalSources = Self.canonicalSources(from: sourceScore.notes)
         let beamFactsBySourceID = Self.beamFactsBySourceID(from: canonicalSources)
         fallbacks = Self.fallbacks(from: canonicalSources)
         marks = Self.marks(
             from: performedScore,
             structuralSourceScore: sourceScore,
-            performedMeasures: performedScore.measures
+            performedMeasures: performedScore.measures,
+            grandStaffRoles: grandStaffRoles
         )
         attributeChanges = Self.attributeChanges(
             from: performedScore,
             timeline: performedAttributeTimeline,
-            after: canonicalSources.map(\.note.tick).min() ?? 0
+            after: canonicalSources.map(\.note.tick).min() ?? 0,
+            grandStaffRoles: grandStaffRoles
         )
         sourceNotes = canonicalSources.map { canonical in
             let note = canonical.note
@@ -212,7 +220,11 @@ struct ScoreNotationProjection: Equatable, Sendable {
                 writtenRhythm: note.writtenRhythm,
                 isRest: note.isRest,
                 isPrintObjectVisible: note.isPrintObjectVisible,
-                staff: note.staff ?? 1,
+                staff: Self.displayStaff(
+                    sourceStaff: note.staff ?? 1,
+                    partID: note.partID,
+                    grandStaffRoles: grandStaffRoles
+                ),
                 voice: note.voice ?? 1,
                 isGrace: note.isGrace,
                 ties: note.ties,
@@ -307,14 +319,22 @@ struct ScoreNotationProjection: Equatable, Sendable {
     private static func marks(
         from score: MusicXMLScore,
         structuralSourceScore: MusicXMLScore,
-        performedMeasures: [MusicXMLMeasureSpan]
+        performedMeasures: [MusicXMLMeasureSpan],
+        grandStaffRoles: [String: MusicXMLGrandStaffPartRole]
     ) -> [Mark] {
         var marks: [Mark] = []
+        func projectedStaff(_ scope: MusicXMLEventScope) -> Int? {
+            displayStaff(
+                sourceStaff: scope.staff,
+                partID: scope.partID,
+                grandStaffRoles: grandStaffRoles
+            )
+        }
         marks.append(contentsOf: score.dynamicEvents.enumerated().map { index, event in
             Mark(
                 id: event.performedID?.description ?? "dynamic-\(event.tick)-\(index)",
                 tick: event.tick,
-                staff: event.scope.staff,
+                staff: projectedStaff(event.scope),
                 voice: event.scope.voice,
                 kind: .dynamic,
                 text: event.markToken ?? dynamicText(velocity: event.velocity),
@@ -325,7 +345,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
             Mark(
                 id: event.performedID?.description ?? "tempo-\(event.tick)-\(index)",
                 tick: event.tick,
-                staff: event.scope.staff,
+                staff: projectedStaff(event.scope),
                 voice: event.scope.voice,
                 kind: .tempo,
                 text: "♩ = \(event.quarterBPM.formatted(.number.precision(.fractionLength(0 ... 1))))",
@@ -336,7 +356,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
             Mark(
                 id: event.performedID?.description ?? "words-\(event.tick)-\(index)",
                 tick: event.tick,
-                staff: event.scope.staff,
+                staff: projectedStaff(event.scope),
                 voice: event.scope.voice,
                 kind: .text,
                 text: event.text,
@@ -365,7 +385,11 @@ struct ScoreNotationProjection: Equatable, Sendable {
             marks.append(Mark(
                 id: id,
                 tick: event.tick,
-                staff: event.staff,
+                staff: displayStaff(
+                    sourceStaff: event.staff,
+                    partID: event.partID,
+                    grandStaffRoles: grandStaffRoles
+                ),
                 voice: nil,
                 kind: kind,
                 text: nil,
@@ -376,7 +400,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
             Mark(
                 id: event.performedID?.description ?? "fermata-\(event.tick)-\(index)",
                 tick: event.tick,
-                staff: event.scope.staff,
+                staff: projectedStaff(event.scope),
                 voice: event.scope.voice,
                 kind: .fermata,
                 text: nil,
@@ -438,11 +462,14 @@ struct ScoreNotationProjection: Equatable, Sendable {
     private static func attributeChanges(
         from score: MusicXMLScore,
         timeline: MusicXMLAttributeTimeline,
-        after initialTick: Int
+        after initialTick: Int,
+        grandStaffRoles: [String: MusicXMLGrandStaffPartRole]
     ) -> [AttributeChange] {
         struct Key: Hashable {
             let tick: Int
-            let staff: Int
+            let partID: String
+            let sourceStaff: Int
+            let displayStaff: Int
         }
         struct ChangedKinds: OptionSet {
             let rawValue: Int
@@ -453,37 +480,53 @@ struct ScoreNotationProjection: Equatable, Sendable {
         }
 
         var changesByKey: [Key: ChangedKinds] = [:]
-        func record(tick: Int, staff: Int?, kind: ChangedKinds) {
+        func record(tick: Int, partID: String, staff: Int?, kind: ChangedKinds) {
             guard tick > initialTick else { return }
-            for resolvedStaff in staff.map({ [$0] }) ?? [1, 2] {
-                changesByKey[Key(tick: tick, staff: resolvedStaff), default: []].formUnion(kind)
+            let sourceStaves = staff.map { [$0] }
+                ?? (grandStaffRoles[partID] == nil ? [1, 2] : [1])
+            for sourceStaff in sourceStaves {
+                let displayStaff = displayStaff(
+                    sourceStaff: sourceStaff,
+                    partID: partID,
+                    grandStaffRoles: grandStaffRoles
+                )
+                changesByKey[Key(
+                    tick: tick,
+                    partID: partID,
+                    sourceStaff: sourceStaff,
+                    displayStaff: displayStaff
+                ), default: []].formUnion(kind)
             }
         }
         for event in score.clefEvents {
-            record(tick: event.tick, staff: event.scope.staff ?? event.numberToken.flatMap(Int.init), kind: .clef)
+            record(
+                tick: event.tick,
+                partID: event.scope.partID,
+                staff: event.scope.staff ?? event.numberToken.flatMap(Int.init),
+                kind: .clef
+            )
         }
         for event in score.keySignatureEvents {
-            record(tick: event.tick, staff: event.scope.staff, kind: .key)
+            record(tick: event.tick, partID: event.scope.partID, staff: event.scope.staff, kind: .key)
         }
         for event in score.timeSignatureEvents {
-            record(tick: event.tick, staff: event.scope.staff, kind: .meter)
+            record(tick: event.tick, partID: event.scope.partID, staff: event.scope.staff, kind: .meter)
         }
 
         return changesByKey.map { key, kinds in
-            let partID = score.notes.first?.partID
             let clefEvent = kinds.contains(.clef)
-                ? timeline.clef(atTick: key.tick, partID: partID, staffNumber: key.staff)
+                ? timeline.clef(atTick: key.tick, partID: key.partID, staffNumber: key.sourceStaff)
                 : nil
             let keyEvent = kinds.contains(.key)
-                ? timeline.keySignature(atTick: key.tick, partID: partID, staffNumber: key.staff)
+                ? timeline.keySignature(atTick: key.tick, partID: key.partID, staffNumber: key.sourceStaff)
                 : nil
             let previousKeyEvent = kinds.contains(.key)
-                ? timeline.keySignature(atTick: key.tick - 1, partID: partID, staffNumber: key.staff)
+                ? timeline.keySignature(atTick: key.tick - 1, partID: key.partID, staffNumber: key.sourceStaff)
                 : nil
             return AttributeChange(
-                id: "attribute-\(key.tick)-staff-\(key.staff)",
+                id: "attribute-\(key.partID)-\(key.tick)-staff-\(key.displayStaff)",
                 tick: key.tick,
-                staff: key.staff,
+                staff: key.displayStaff,
                 clef: clefEvent.map {
                     ClefFact(
                         signToken: $0.signToken,
@@ -495,13 +538,33 @@ struct ScoreNotationProjection: Equatable, Sendable {
                 keySignatureFifths: keyEvent?.fifths,
                 previousKeySignatureFifths: previousKeyEvent?.fifths,
                 meterText: kinds.contains(.meter)
-                    ? timeline.meter(atTick: key.tick, partID: partID, staffNumber: key.staff)?.displayText
+                    ? timeline.meter(
+                        atTick: key.tick,
+                        partID: key.partID,
+                        staffNumber: key.sourceStaff
+                    )?.displayText
                     : nil
             )
         }.sorted {
             if $0.tick != $1.tick { return $0.tick < $1.tick }
             return $0.staff < $1.staff
         }
+    }
+
+    private static func displayStaff(
+        sourceStaff: Int,
+        partID: String,
+        grandStaffRoles: [String: MusicXMLGrandStaffPartRole]
+    ) -> Int {
+        grandStaffRoles[partID]?.displayStaff ?? sourceStaff
+    }
+
+    private static func displayStaff(
+        sourceStaff: Int?,
+        partID: String,
+        grandStaffRoles: [String: MusicXMLGrandStaffPartRole]
+    ) -> Int? {
+        grandStaffRoles[partID]?.displayStaff ?? sourceStaff
     }
 
     private static func dynamicText(velocity: UInt8) -> String {
