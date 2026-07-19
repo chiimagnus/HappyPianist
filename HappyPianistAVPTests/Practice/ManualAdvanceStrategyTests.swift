@@ -54,7 +54,6 @@ private func makeManualAdvanceContext(currentStepIndex: Int) -> ManualAdvanceCon
 func appStatePassesMeasureSpansToPracticeSession() async {
     let playbackService = ManualAdvanceNoopPlaybackService()
     let sessionViewModel = PracticeSessionViewModel(
-        pressDetectionService: ManualAdvanceNoopPressDetectionService(),
         chordAttemptAccumulator: ManualAdvanceNoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playbackService,
@@ -107,16 +106,6 @@ private final class SinglePracticeSessionViewModelProvider: @unchecked Sendable 
     @MainActor
     func callAsFunction(_: String?) -> PracticeSessionViewModel {
         session
-    }
-}
-
-private struct ManualAdvanceNoopPressDetectionService: PressDetectionServiceProtocol {
-    func detectPressedNotes(
-        fingerTips _: FingerTipsSnapshot,
-        keyboardGeometry _: PianoKeyboardGeometry?,
-        at _: PerformanceMonotonicInstant
-    ) -> Set<Int> {
-        []
     }
 }
 

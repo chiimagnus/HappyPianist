@@ -8,7 +8,6 @@ import Testing
 func bluetoothMIDISessionDoesNotInjectAudioRecognition() {
     let makePracticeSessionViewModel: @MainActor (String?) -> PracticeSessionViewModel = { modeID in
         PracticeSessionViewModel(
-            pressDetectionService: NoopPressDetectionService(),
             chordAttemptAccumulator: NoopChordAttemptAccumulator(),
             sleeper: TaskSleeper(),
             sequencerPlaybackService: NoopPracticeSequencerPlaybackService(),
@@ -32,7 +31,6 @@ func bluetoothMIDISessionDoesNotInjectAudioRecognition() {
 func midiOnlyPracticeInputNoteOnAdvancesStep() async {
     let inputSource = FakeProtocolSeparatedPracticeInputEventSource()
     let session = PracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: NoopPracticeSequencerPlaybackService(),
@@ -71,7 +69,6 @@ func midiOnlyPracticeInputNoteOnAdvancesStep() async {
 func midiOnlyPracticeInputMIDI2NoteOnAdvancesStepEvenWithZeroVelocity() async {
     let inputSource = FakeProtocolSeparatedPracticeInputEventSource()
     let session = PracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: NoopPracticeSequencerPlaybackService(),
@@ -113,7 +110,6 @@ func midiOnlyPracticeInputMIDI2NoteOnAdvancesStepEvenWithZeroVelocity() async {
 func midiOnlyPracticeExitStopsInputAndDoesNotAdvanceStepAfterTeardown() async {
     let inputSource = FakeProtocolSeparatedPracticeInputEventSource()
     let session = PracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: NoopPracticeSequencerPlaybackService(),
@@ -161,7 +157,6 @@ func midiOnlyPracticeInputStartFailureThenReplacingSameIndexStepResetsMatcherExp
     let inputSource = FakeProtocolSeparatedPracticeInputEventSource()
     inputSource.shouldFailNextStart = true
     let session = PracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: NoopPracticeSequencerPlaybackService(),
@@ -212,16 +207,6 @@ func midiOnlyPracticeInputStartFailureThenReplacingSameIndexStepResetsMatcherExp
         await Task.yield()
     }
     #expect(session.currentStepIndex == 1)
-}
-
-private struct NoopPressDetectionService: PressDetectionServiceProtocol {
-    func detectPressedNotes(
-        fingerTips _: FingerTipsSnapshot,
-        keyboardGeometry _: PianoKeyboardGeometry?,
-        at _: PerformanceMonotonicInstant
-    ) -> Set<Int> {
-        []
-    }
 }
 
 private final class NoopChordAttemptAccumulator: ChordAttemptAccumulatorProtocol {

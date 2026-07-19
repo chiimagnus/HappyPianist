@@ -71,7 +71,6 @@ private func makeLearningLoopSession(
     coordinator: PracticeProgressCoordinator
 ) -> PracticeSessionViewModel {
     PracticeSessionViewModel(
-        pressDetectionService: LearningLoopPressDetector(),
         chordAttemptAccumulator: LearningLoopChordAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playback,
@@ -150,16 +149,6 @@ private final class LearningLoopPlaybackService: PracticeSequencerPlaybackServic
 
     func execute(commands _: [PracticePlaybackCommand]) throws {}
     func stopAllLiveNotes() {}
-}
-
-private struct LearningLoopPressDetector: PressDetectionServiceProtocol {
-    func detectPressedNotes(
-        fingerTips _: FingerTipsSnapshot,
-        keyboardGeometry _: PianoKeyboardGeometry?,
-        at _: PerformanceMonotonicInstant
-    ) -> Set<Int> {
-        []
-    }
 }
 
 private final class LearningLoopChordAccumulator: ChordAttemptAccumulatorProtocol {

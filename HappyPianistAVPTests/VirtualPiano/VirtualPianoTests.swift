@@ -8,7 +8,6 @@ import Testing
 func virtualPianoToggleOffStopsAllLiveNotes() async {
     let playbackService = LiveNoteCapturingPlaybackService()
     let viewModel = PracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playbackService
@@ -26,7 +25,6 @@ func virtualPianoToggleOffStopsAllLiveNotes() async {
 func autoplayEnabledStopsLiveNotes() async {
     let playbackService = LiveNoteCapturingPlaybackService()
     let viewModel = PracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playbackService
@@ -48,7 +46,6 @@ func virtualPianoNoteOnTriggersLiveStart() async throws {
     let playbackService = LiveNoteCapturingPlaybackService()
     let chordAccumulator = RecordingChordAttemptAccumulator()
     let viewModel = PracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: chordAccumulator,
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playbackService
@@ -89,10 +86,8 @@ func virtualPianoNoteOnTriggersLiveStart() async throws {
 @MainActor
 @Test
 func physicalPianoPathUnaffectedByVirtualPiano() {
-    let pressDetection = NoopPressDetectionService()
     let playbackService = LiveNoteCapturingPlaybackService()
     let viewModel = PracticeSessionViewModel(
-        pressDetectionService: pressDetection,
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playbackService
@@ -306,7 +301,6 @@ func keyContactDetectionNoFingerNoDown() {
 func virtualPianoDoesNotTriggerLiveNotesDuringAutoplay() throws {
     let playbackService = LiveNoteCapturingPlaybackService()
     let viewModel = PracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playbackService
@@ -336,7 +330,6 @@ func virtualPianoDoesNotTriggerLiveNotesDuringAutoplay() throws {
 func arGuideViewModelToggleOffClearsVirtualKeyboardAndStopsLiveNotes() async throws {
     let playbackService = LiveNoteCapturingPlaybackService()
     let session = PracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playbackService
@@ -383,7 +376,6 @@ func arGuideViewModelToggleOffClearsVirtualKeyboardAndStopsLiveNotes() async thr
 @Test
 func hidingVirtualPianoPreservesPlacedKeyboardForLaterPractice() async {
     let session = PracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: LiveNoteCapturingPlaybackService()
@@ -477,16 +469,6 @@ private final class LiveNoteCapturingPlaybackService: PracticeSequencerPlaybackS
 
     func stopAllLiveNotes() {
         stopAllLiveNotesCount += 1
-    }
-}
-
-private struct NoopPressDetectionService: PressDetectionServiceProtocol {
-    func detectPressedNotes(
-        fingerTips _: FingerTipsSnapshot,
-        keyboardGeometry _: PianoKeyboardGeometry?,
-        at _: PerformanceMonotonicInstant
-    ) -> Set<Int> {
-        []
     }
 }
 

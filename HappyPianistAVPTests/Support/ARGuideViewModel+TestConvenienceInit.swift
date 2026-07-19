@@ -10,7 +10,6 @@ extension ARGuideViewModel {
             pianoModeRegistry: registry,
             makePracticeSessionViewModel: { _ in
                 PracticeSessionViewModel(
-                    pressDetectionService: PressDetectionService(),
                     chordAttemptAccumulator: ChordAttemptAccumulator(),
                     sleeper: TaskSleeper()
                 )

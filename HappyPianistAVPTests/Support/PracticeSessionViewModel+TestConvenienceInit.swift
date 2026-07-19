@@ -4,10 +4,10 @@ import Foundation
 extension PracticeSessionViewModel {
     @MainActor
     convenience init(
-        pressDetectionService: PressDetectionServiceProtocol,
         chordAttemptAccumulator: ChordAttemptAccumulatorProtocol,
         sleeper: SleeperProtocol,
         sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol? = nil,
+        realPianoContactDetectionService: (any KeyContactDetectingProtocol)? = nil,
         audioRecognitionService: PracticeAudioRecognitionServiceProtocol? = nil,
         practiceInputEventSource: PracticeInputEventSourceProtocol? = nil,
         audioStepAttemptAccumulator: AudioStepAttemptAccumulator? = nil,
@@ -23,10 +23,10 @@ extension PracticeSessionViewModel {
             manualAdvanceMode: manualAdvanceMode
         )
         self.init(
-            pressDetectionService: pressDetectionService,
             chordAttemptAccumulator: chordAttemptAccumulator,
             sleeper: sleeper,
             sequencerPlaybackService: resolvedPlaybackService,
+            realPianoContactDetectionService: realPianoContactDetectionService,
             audioRecognitionService: audioRecognitionService,
             practiceInputEventSource: practiceInputEventSource,
             audioStepAttemptAccumulator: resolvedAudioStepAttemptAccumulator,

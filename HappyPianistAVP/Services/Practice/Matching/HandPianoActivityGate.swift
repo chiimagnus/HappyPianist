@@ -56,7 +56,7 @@ final class HandPianoActivityGate {
 
         fingerTips.forEachFinger { fingerID, worldPoint in
             observedFingerIDs.insert(fingerID)
-            let localPoint = PressDetectionService.transformPoint(keyboardFromWorld, worldPoint)
+            let localPoint = Self.transformPoint(keyboardFromWorld, worldPoint)
             let motion = motionEstimator.estimate(
                 fingerID: fingerID,
                 position: localPoint,
@@ -101,6 +101,14 @@ final class HandPianoActivityGate {
 
     func reset() {
         motionEstimator.reset()
+    }
+
+    private static func transformPoint(
+        _ matrix: simd_float4x4,
+        _ point: SIMD3<Float>
+    ) -> SIMD3<Float> {
+        let value = simd_mul(matrix, SIMD4<Float>(point, 1))
+        return SIMD3<Float>(value.x, value.y, value.z)
     }
 
     private func bounds(for geometry: PianoKeyboardGeometry) -> KeyboardBounds {

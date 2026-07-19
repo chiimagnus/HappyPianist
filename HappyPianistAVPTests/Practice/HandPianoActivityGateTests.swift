@@ -10,8 +10,8 @@ func nearKeyboardWithoutExactHitProducesBoostOnly() throws {
 
     let prevLocal = SIMD3<Float>(0, 0.06, -0.07)
     let currLocal = SIMD3<Float>(0, 0.02, -0.07)
-    let prevWorld = PressDetectionService.transformPoint(geometry.frame.worldFromKeyboard, prevLocal)
-    let currWorld = PressDetectionService.transformPoint(geometry.frame.worldFromKeyboard, currLocal)
+    let prevWorld = transformTestPoint(geometry.frame.worldFromKeyboard, prevLocal)
+    let currWorld = transformTestPoint(geometry.frame.worldFromKeyboard, currLocal)
 
     _ = gate.evaluate(
         fingerTips: FingerTipsSnapshot(right: HandTips(index: prevWorld)),
@@ -86,11 +86,11 @@ func fingerMotionEstimatorUsesDeltaTimeAndRejectsInvalidSamples() {
 @MainActor
 func palmCrossingKeySurfaceCannotCreateContactOrActivity() throws {
     let geometry = try makeKeyboardGeometry()
-    let palmAbove = PressDetectionService.transformPoint(
+    let palmAbove = transformTestPoint(
         geometry.frame.worldFromKeyboard,
         SIMD3<Float>(0, 0.02, -0.07)
     )
-    let palmBelow = PressDetectionService.transformPoint(
+    let palmBelow = transformTestPoint(
         geometry.frame.worldFromKeyboard,
         SIMD3<Float>(0, -0.01, -0.07)
     )
@@ -131,11 +131,13 @@ func palmCrossingKeySurfaceCannotCreateContactOrActivity() throws {
 
 @Test
 @MainActor
-func exactHitFallbackStillAdvancesStep() {
+func exactContactAdvancesStepWithoutLegacyPressedSet() {
     let viewModel = PracticeSessionViewModel(
-        pressDetectionService: ConstantPressDetectionService(pressedNotes: [60]),
         chordAttemptAccumulator: AlwaysMatchChordAttemptAccumulator(),
-        sleeper: TaskSleeper()
+        sleeper: TaskSleeper(),
+        realPianoContactDetectionService: TestKeyContactDetector(results: [[
+            makeTestKeyContactObservation(midiNote: 60, phase: .started),
+        ]])
     )
     viewModel.installTestPerformanceNotes(
         [
@@ -157,7 +159,6 @@ func exactHitFallbackStillAdvancesStep() {
 func gateInactiveStillAllowsAudioMatchedAdvance() async {
     let fakeService = FakePracticeAudioRecognitionService()
     let viewModel = PracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         audioRecognitionService: fakeService,
@@ -224,34 +225,12 @@ private func settleTaskQueue(iterations: Int = 4) async {
     }
 }
 
-private struct NoopPressDetectionService: PressDetectionServiceProtocol {
-    func detectPressedNotes(
-        fingerTips _: FingerTipsSnapshot,
-        keyboardGeometry _: PianoKeyboardGeometry?,
-        at _: PerformanceMonotonicInstant
-    ) -> Set<Int> {
-        []
-    }
-}
-
-private struct ConstantPressDetectionService: PressDetectionServiceProtocol {
-    let pressedNotes: Set<Int>
-
-    init(pressedNotes: Set<Int>) {
-        self.pressedNotes = pressedNotes
-    }
-
-    init(pressedNotes: [Int]) {
-        self.pressedNotes = Set(pressedNotes)
-    }
-
-    func detectPressedNotes(
-        fingerTips _: FingerTipsSnapshot,
-        keyboardGeometry _: PianoKeyboardGeometry?,
-        at _: PerformanceMonotonicInstant
-    ) -> Set<Int> {
-        pressedNotes
-    }
+private func transformTestPoint(
+    _ matrix: simd_float4x4,
+    _ point: SIMD3<Float>
+) -> SIMD3<Float> {
+    let value = simd_mul(matrix, SIMD4<Float>(point, 1))
+    return SIMD3<Float>(value.x, value.y, value.z)
 }
 
 private final class NoopChordAttemptAccumulator: ChordAttemptAccumulatorProtocol {

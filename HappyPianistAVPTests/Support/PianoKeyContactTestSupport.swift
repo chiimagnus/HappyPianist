@@ -1,6 +1,30 @@
 import Foundation
 @testable import HappyPianistAVP
 
+@MainActor
+final class TestKeyContactDetector: KeyContactDetectingProtocol {
+    private var resultIndex = 0
+    private let results: [[PianoKeyContactObservation]]
+
+    init(results: [[PianoKeyContactObservation]]) {
+        self.results = results
+    }
+
+    func reset() {
+        resultIndex = 0
+    }
+
+    func detect(
+        fingerTips _: FingerTipsSnapshot,
+        keyboardGeometry _: PianoKeyboardGeometry,
+        at _: PerformanceMonotonicInstant
+    ) -> [PianoKeyContactObservation] {
+        guard results.indices.contains(resultIndex) else { return [] }
+        defer { resultIndex += 1 }
+        return results[resultIndex]
+    }
+}
+
 func makeTestKeyContactObservation(
     midiNote: Int,
     phase: PianoKeyContactObservation.Phase,

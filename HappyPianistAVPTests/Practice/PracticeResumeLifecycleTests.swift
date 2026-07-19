@@ -29,7 +29,6 @@ func restoredPracticeStaysReadyAndSilentUntilExplicitStart() async throws {
     let coordinator = PracticeProgressCoordinator(repository: repository, checkpointDelay: .seconds(60))
     let playback = CapturingResumePlaybackService()
     let session = PracticeSessionViewModel(
-        pressDetectionService: ResumeNoopPressDetectionService(),
         chordAttemptAccumulator: ResumeNoopChordAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playback,
@@ -78,7 +77,6 @@ func exactProgressAppearingAfterHistoricalPolicySnapshotStillWins() async throws
     )
     let repository = ResumeRepository(progress: progress)
     let session = PracticeSessionViewModel(
-        pressDetectionService: ResumeNoopPressDetectionService(),
         chordAttemptAccumulator: ResumeNoopChordAccumulator(),
         sleeper: TaskSleeper(),
         progressCoordinator: PracticeProgressCoordinator(repository: repository)
@@ -135,7 +133,6 @@ func invalidRestoredPassageIsRepairedAndPersistedWithoutLosingFacts() async thro
     let repository = ResumeRepository(progress: progress)
     let playback = CapturingResumePlaybackService()
     let session = PracticeSessionViewModel(
-        pressDetectionService: ResumeNoopPressDetectionService(),
         chordAttemptAccumulator: ResumeNoopChordAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playback,
@@ -183,7 +180,6 @@ func invalidRestoredPassageUsesSafeFallbackWhenRepairCannotPersist() async throw
     )
     let repository = FailingRepairRepository(progress: storedProgress)
     let session = PracticeSessionViewModel(
-        pressDetectionService: ResumeNoopPressDetectionService(),
         chordAttemptAccumulator: ResumeNoopChordAccumulator(),
         sleeper: TaskSleeper(),
         progressCoordinator: PracticeProgressCoordinator(repository: repository)
@@ -237,7 +233,6 @@ func resumeOutsideValidActivePassageIsClearedAndPersistedWithoutLosingFacts() as
     )
     let repository = ResumeRepository(progress: storedProgress)
     let session = PracticeSessionViewModel(
-        pressDetectionService: ResumeNoopPressDetectionService(),
         chordAttemptAccumulator: ResumeNoopChordAccumulator(),
         sleeper: TaskSleeper(),
         progressCoordinator: PracticeProgressCoordinator(repository: repository)
@@ -281,7 +276,6 @@ func resumeWithoutSavedConfigurationIsClearedAndRepairedToFullPassage() async th
     )
     let repository = ResumeRepository(progress: storedProgress)
     let session = PracticeSessionViewModel(
-        pressDetectionService: ResumeNoopPressDetectionService(),
         chordAttemptAccumulator: ResumeNoopChordAccumulator(),
         sleeper: TaskSleeper(),
         progressCoordinator: PracticeProgressCoordinator(repository: repository)
@@ -310,7 +304,6 @@ func suspendedPracticeReturnsToPausedReadyAndCanRestartInput() async {
     let repository = ResumeRepository(progress: nil)
     let coordinator = PracticeProgressCoordinator(repository: repository, checkpointDelay: .seconds(60))
     let session = PracticeSessionViewModel(
-        pressDetectionService: ResumeNoopPressDetectionService(),
         chordAttemptAccumulator: ResumeNoopChordAccumulator(),
         sleeper: TaskSleeper(),
         progressCoordinator: coordinator
@@ -342,7 +335,6 @@ func suspendedPracticeReturnsToPausedReadyAndCanRestartInput() async {
 func pausedPracticeRejectsAdvanceEffectWithoutPlayback() {
     let playback = CapturingResumePlaybackService()
     let session = PracticeSessionViewModel(
-        pressDetectionService: ResumeNoopPressDetectionService(),
         chordAttemptAccumulator: ResumeNoopChordAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playback
@@ -364,7 +356,6 @@ func flushAndShutdownPersistsLatestResumePointBeforeTeardown() async {
     let repository = ResumeRepository(progress: nil)
     let coordinator = PracticeProgressCoordinator(repository: repository, checkpointDelay: .seconds(60))
     let session = PracticeSessionViewModel(
-        pressDetectionService: ResumeNoopPressDetectionService(),
         chordAttemptAccumulator: ResumeNoopChordAccumulator(),
         sleeper: TaskSleeper(),
         progressCoordinator: coordinator
@@ -390,7 +381,6 @@ func navigationWithoutAttemptPersistsLatestResumePoint() async {
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
     let repository = ResumeRepository(progress: nil)
     let session = PracticeSessionViewModel(
-        pressDetectionService: ResumeNoopPressDetectionService(),
         chordAttemptAccumulator: ResumeNoopChordAccumulator(),
         sleeper: TaskSleeper(),
         progressCoordinator: PracticeProgressCoordinator(repository: repository, checkpointDelay: .seconds(60))
@@ -418,7 +408,6 @@ func retryMeasureKeepsRepeatedOccurrenceInCurrentPassage() {
         MusicXMLMeasureSpan(partID: "P1", measureNumber: 3, sourceMeasureIndex: 0, sourceMeasureNumberToken: "1", occurrenceIndex: 2, startTick: 960, endTick: 1440),
     ]
     let session = PracticeSessionViewModel(
-        pressDetectionService: ResumeNoopPressDetectionService(),
         chordAttemptAccumulator: ResumeNoopChordAccumulator(),
         sleeper: TaskSleeper()
     )
@@ -448,7 +437,6 @@ func automaticLoopStartsANewAttemptRound() {
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
     let span = makeResumeSpans()[0]
     let session = PracticeSessionViewModel(
-        pressDetectionService: ResumeNoopPressDetectionService(),
         chordAttemptAccumulator: ResumeNoopChordAccumulator(),
         sleeper: TaskSleeper()
     )
@@ -478,7 +466,6 @@ func automaticLoopStopsWhenPassageReachesTarget() {
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
     let span = makeResumeSpans()[0]
     let session = PracticeSessionViewModel(
-        pressDetectionService: ResumeNoopPressDetectionService(),
         chordAttemptAccumulator: ResumeNoopChordAccumulator(),
         sleeper: TaskSleeper()
     )
@@ -506,7 +493,6 @@ func automaticLoopStopsWhenPassageReachesTarget() {
 func continuePassageStartsANewRoundInPractice() {
     let span = makeResumeSpans()[0]
     let session = PracticeSessionViewModel(
-        pressDetectionService: ResumeNoopPressDetectionService(),
         chordAttemptAccumulator: ResumeNoopChordAccumulator(),
         sleeper: TaskSleeper()
     )
@@ -644,16 +630,6 @@ private final class CapturingResumePlaybackService: PracticeSequencerPlaybackSer
 
     func execute(commands _: [PracticePlaybackCommand]) throws {}
     func stopAllLiveNotes() {}
-}
-
-private struct ResumeNoopPressDetectionService: PressDetectionServiceProtocol {
-    func detectPressedNotes(
-        fingerTips _: FingerTipsSnapshot,
-        keyboardGeometry _: PianoKeyboardGeometry?,
-        at _: PerformanceMonotonicInstant
-    ) -> Set<Int> {
-        []
-    }
 }
 
 private final class ResumeNoopChordAccumulator: ChordAttemptAccumulatorProtocol {

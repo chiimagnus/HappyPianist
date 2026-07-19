@@ -359,7 +359,7 @@
       "fixtures": [],
       "tests": [
         "HappyPianistAVPTests/VirtualPiano/VirtualPianoInputControllerTests.swift",
-        "HappyPianistAVPTests/HandTracking/PressDetectionServiceTests.swift"
+        "HappyPianistAVPTests/VirtualPiano/VirtualPianoTests.swift"
       ],
       "evidenceStatus": "characterizationPlanned"
     },
@@ -369,7 +369,7 @@
       "fixtures": [],
       "tests": [
         "HappyPianistAVPTests/Practice/HandPianoActivityGateTests.swift",
-        "HappyPianistAVPTests/HandTracking/PressDetectionServiceTests.swift"
+        "HappyPianistAVPTests/VirtualPiano/VirtualPianoTests.swift"
       ],
       "evidenceStatus": "characterizationPlanned"
     },

@@ -65,7 +65,6 @@ struct LiveAppGraph {
             diagnostics: diagnosticsReporter
         )
 
-        let makePressDetectionService: () -> PressDetectionServiceProtocol = { PressDetectionService() }
         let makeChordAttemptAccumulator: () -> ChordAttemptAccumulatorProtocol = {
             ChordAttemptAccumulator()
         }
@@ -142,7 +141,6 @@ struct LiveAppGraph {
                     }
 
                 return PracticeSessionViewModel(
-                    pressDetectionService: makePressDetectionService(),
                     chordAttemptAccumulator: makeChordAttemptAccumulator(),
                     sleeper: makeSleeper(),
                     sequencerPlaybackService: sequencerPlaybackService,
@@ -158,7 +156,6 @@ struct LiveAppGraph {
 
             case .virtualPiano:
                 return PracticeSessionViewModel(
-                    pressDetectionService: makePressDetectionService(),
                     chordAttemptAccumulator: makeChordAttemptAccumulator(),
                     sleeper: makeSleeper(),
                     sequencerPlaybackService: makeLocalSamplerPlaybackService(),
@@ -174,7 +171,6 @@ struct LiveAppGraph {
 
             default:
                 return PracticeSessionViewModel(
-                    pressDetectionService: makePressDetectionService(),
                     chordAttemptAccumulator: makeChordAttemptAccumulator(),
                     sleeper: makeSleeper(),
                     sequencerPlaybackService: makeLocalSamplerPlaybackService(),

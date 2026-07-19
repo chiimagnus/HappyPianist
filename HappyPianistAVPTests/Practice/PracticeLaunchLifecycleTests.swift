@@ -217,7 +217,6 @@ func stalePreparedPracticeApplyCannotOverwriteNewerLaunch() async throws {
         delays: [firstID: .milliseconds(80), secondID: .milliseconds(5)]
     )
     let session = PracticeSessionViewModel(
-        pressDetectionService: LaunchLifecyclePressDetectionService(),
         chordAttemptAccumulator: LaunchLifecycleChordAccumulator(),
         sleeper: TaskSleeper(),
         progressCoordinator: PracticeProgressCoordinator(repository: repository)
@@ -550,7 +549,6 @@ private func makeLaunchLifecycleSession(
     repository: LaunchLifecycleRepository
 ) -> PracticeSessionViewModel {
     PracticeSessionViewModel(
-        pressDetectionService: LaunchLifecyclePressDetectionService(),
         chordAttemptAccumulator: LaunchLifecycleChordAccumulator(),
         sleeper: TaskSleeper(),
         progressCoordinator: PracticeProgressCoordinator(
@@ -690,16 +688,6 @@ private func makeLaunchRacePreparedPractice(songID: UUID) -> PreparedPractice {
     )
 }
 
-private struct LaunchLifecyclePressDetectionService: PressDetectionServiceProtocol {
-    func detectPressedNotes(
-        fingerTips _: FingerTipsSnapshot,
-        keyboardGeometry _: PianoKeyboardGeometry?,
-        at _: PerformanceMonotonicInstant
-    ) -> Set<Int> {
-        []
-    }
-}
-
 private final class LaunchLifecycleChordAccumulator: ChordAttemptAccumulatorProtocol {
     func register(
         pressedNotes _: Set<Int>,
@@ -774,7 +762,6 @@ private final class LaunchLifecycleRecorderSessionProvider: @unchecked Sendable 
 
     func callAsFunction(_: String?) -> PracticeSessionViewModel {
         PracticeSessionViewModel(
-            pressDetectionService: LaunchLifecyclePressDetectionService(),
             chordAttemptAccumulator: LaunchLifecycleChordAccumulator(),
             sleeper: TaskSleeper(),
             sessionRecorder: recorder

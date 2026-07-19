@@ -9,10 +9,12 @@ func manualReplayBlocksGestureAdvance() async {
     let sleeper = PendingManualReplaySleeper()
     let playbackService = ManualReplaySequencerPlaybackService(currentSeconds: 0)
     let viewModel = PracticeSessionViewModel(
-        pressDetectionService: ManualReplayConstantPressDetectionService(pressedNotes: [60]),
         chordAttemptAccumulator: ManualReplayAlwaysMatchAccumulator(),
         sleeper: sleeper,
         sequencerPlaybackService: playbackService,
+        realPianoContactDetectionService: TestKeyContactDetector(results: [[
+            makeTestKeyContactObservation(midiNote: 60, phase: .started),
+        ]]),
         manualAdvanceMode: .measure
     )
     viewModel.installTestPerformanceNotes(
@@ -41,7 +43,6 @@ func manualReplayBlocksAudioRecognitionAdvance() async {
     let audioRecognitionService = FakePracticeAudioRecognitionService()
     let playbackService = ManualReplaySequencerPlaybackService(currentSeconds: 0)
     let viewModel = PracticeSessionViewModel(
-        pressDetectionService: ManualReplayNoopPressDetectionService(),
         chordAttemptAccumulator: ManualReplayAlwaysMatchAccumulator(),
         sleeper: sleeper,
         sequencerPlaybackService: playbackService,
@@ -82,7 +83,6 @@ func manualReplayBlocksAudioRecognitionAdvance() async {
 func completedManualReplayReturnsProgressToMeasureStart() async {
     let playbackService = ManualReplaySequencerPlaybackService(currentSeconds: 99)
     let viewModel = PracticeSessionViewModel(
-        pressDetectionService: ManualReplayNoopPressDetectionService(),
         chordAttemptAccumulator: ManualReplayAlwaysMatchAccumulator(),
         sleeper: ImmediateManualReplaySleeper(),
         sequencerPlaybackService: playbackService,
@@ -118,7 +118,6 @@ func restartingManualReplayDoesNotResumeAudioRecognitionBetweenGenerations() asy
     let audioRecognitionService = FakePracticeAudioRecognitionService()
     let playbackService = ManualReplaySequencerPlaybackService(currentSeconds: 0)
     let viewModel = PracticeSessionViewModel(
-        pressDetectionService: ManualReplayNoopPressDetectionService(),
         chordAttemptAccumulator: ManualReplayAlwaysMatchAccumulator(),
         sleeper: sleeper,
         sequencerPlaybackService: playbackService,
@@ -221,27 +220,6 @@ private final class ManualReplaySequencerPlaybackService: PracticeSequencerPlayb
     func playOneShot(commands _: [PracticePlaybackCommand], durationSeconds _: TimeInterval) throws {}
     func execute(commands _: [PracticePlaybackCommand]) throws {}
     func stopAllLiveNotes() {}
-}
-
-private struct ManualReplayNoopPressDetectionService: PressDetectionServiceProtocol {
-    func detectPressedNotes(
-        fingerTips _: FingerTipsSnapshot,
-        keyboardGeometry _: PianoKeyboardGeometry?,
-        at _: PerformanceMonotonicInstant
-    ) -> Set<Int> {
-        []
-    }
-}
-
-private struct ManualReplayConstantPressDetectionService: PressDetectionServiceProtocol {
-    let pressedNotes: Set<Int>
-    func detectPressedNotes(
-        fingerTips _: FingerTipsSnapshot,
-        keyboardGeometry _: PianoKeyboardGeometry?,
-        at _: PerformanceMonotonicInstant
-    ) -> Set<Int> {
-        pressedNotes
-    }
 }
 
 private final class ManualReplayAlwaysMatchAccumulator: ChordAttemptAccumulatorProtocol {

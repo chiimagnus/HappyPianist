@@ -18,32 +18,29 @@ extension PracticeSessionViewModel {
             ) ?? []
         }
 
-        let detected = pressDetectionService.detectPressedNotes(
+        let observations = realPianoContactDetectionService.detect(
             fingerTips: fingerTips,
             keyboardGeometry: keyboardGeometry,
             at: timestamp
         )
-        updateLatestNoteOnMIDINotes(detected)
-        self.latestKeyContactObservations = realPianoContactDetectionService.detect(
-            fingerTips: fingerTips,
-            keyboardGeometry: keyboardGeometry,
-            at: timestamp
-        )
+        self.latestKeyContactObservations = observations
+        let activeMIDINotes = observations.activeMIDINotes
+        updateLatestNoteOnMIDINotes(observations.startedMIDINotes)
 
         handGateController?.updateHandGateState(
             fingerTips: fingerTips,
             keyboardGeometry: keyboardGeometry,
-            exactPressedNotes: detected,
+            exactPressedNotes: activeMIDINotes,
             at: timestamp
         )
 
-        self.pressedNotes = detected
+        self.pressedNotes = activeMIDINotes
         handGateController?.registerChordAttemptIfNeeded(
-            observations: self.latestKeyContactObservations,
+            observations: observations,
             at: timestamp,
             practiceHandMode: practiceHandMode
         )
 
-        return detected
+        return activeMIDINotes
     }
 }

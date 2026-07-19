@@ -17,7 +17,6 @@ func appStateAppliesKeyboardGeometryWhenAvailable() throws {
 
     let service = CapturingKeyGeometryService(result: geometry)
     let practiceSessionViewModel = PracticeSessionViewModel(
-        pressDetectionService: PressDetectionService(),
         chordAttemptAccumulator: ChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: NoopSequencerPlaybackService(),
@@ -55,7 +54,6 @@ func appStateDoesNotApplyKeyboardGeometryWhenGenerationFails() {
 
     let service = CapturingKeyGeometryService(result: nil)
     let practiceSessionViewModel = PracticeSessionViewModel(
-        pressDetectionService: PressDetectionService(),
         chordAttemptAccumulator: ChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: NoopSequencerPlaybackService(),

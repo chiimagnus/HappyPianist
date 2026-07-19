@@ -344,7 +344,6 @@ func sessionProjectsCurrentGuideActivityOntoAuthoritativeNotation() throws {
         releasedMIDINotes: []
     )
     let session = PracticeSessionViewModel(
-        pressDetectionService: PressDetectionService(),
         chordAttemptAccumulator: ChordAttemptAccumulator(),
         sleeper: TaskSleeper()
     )
@@ -383,7 +382,6 @@ private func makeLifecycleGuide(
         pianoModeRegistry: PianoModeRegistryService(modes: []),
         makePracticeSessionViewModel: { _ in
             PracticeSessionViewModel(
-                pressDetectionService: PressDetectionService(),
                 chordAttemptAccumulator: ChordAttemptAccumulator(),
                 sleeper: TaskSleeper(),
                 progressCoordinator: progressCoordinator

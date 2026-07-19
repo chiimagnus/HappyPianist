@@ -9,7 +9,6 @@ private let defaultTempoScope = MusicXMLEventScope(partID: "P1", staff: nil, voi
 @MainActor
 func guidingStartBlockIsEnforcedAtSessionBoundary() {
     let viewModel = PracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper()
     )
@@ -91,7 +90,6 @@ func skipDuringAutoplayCancelsPendingEventsAndRestartsAtNextStep() async {
     )
     let pedalTimeline = MusicXMLPedalTimeline(events: [])
     let viewModel = PracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playbackService
@@ -136,7 +134,6 @@ func skipDoesNotLetCancelledAutoplayTaskClearNewTaskReference() async {
     )
     let pedalTimeline = MusicXMLPedalTimeline(events: [])
     let viewModel = PracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playbackService
@@ -197,9 +194,11 @@ func skipDoesNotLetCancelledAutoplayTaskClearNewTaskReference() async {
 func markCorrectSchedulesFeedbackResetWithExpectedDuration() async {
     let sleeper = ControllableSleeper()
     let viewModel = makePracticeSessionViewModel(
-        pressDetectionService: ConstantPressDetectionService(pressedNotes: [60]),
         chordAttemptAccumulator: AlwaysMatchChordAttemptAccumulator(),
-        sleeper: sleeper
+        sleeper: sleeper,
+        realPianoContactDetectionService: TestKeyContactDetector(results: [[
+            makeTestKeyContactObservation(midiNote: 60, phase: .started),
+        ]])
     )
 
     viewModel.installTestPerformanceNotes(
@@ -227,9 +226,12 @@ func markCorrectSchedulesFeedbackResetWithExpectedDuration() async {
 func secondFeedbackCancelsPreviousResetTaskDeterministically() async {
     let sleeper = ControllableSleeper()
     let viewModel = makePracticeSessionViewModel(
-        pressDetectionService: ConstantPressDetectionService(pressedNotes: [60]),
         chordAttemptAccumulator: AlwaysMatchChordAttemptAccumulator(),
-        sleeper: sleeper
+        sleeper: sleeper,
+        realPianoContactDetectionService: TestKeyContactDetector(results: [
+            [makeTestKeyContactObservation(midiNote: 60, phase: .started, sequence: 1)],
+            [makeTestKeyContactObservation(midiNote: 60, phase: .started, sequence: 2)],
+        ])
     )
 
     viewModel.installTestPerformanceNotes(
@@ -257,9 +259,11 @@ func secondFeedbackCancelsPreviousResetTaskDeterministically() async {
 func feedbackResetsToNoneAfterSleeperResumes() async {
     let sleeper = ControllableSleeper()
     let viewModel = makePracticeSessionViewModel(
-        pressDetectionService: ConstantPressDetectionService(pressedNotes: [60]),
         chordAttemptAccumulator: AlwaysMatchChordAttemptAccumulator(),
-        sleeper: sleeper
+        sleeper: sleeper,
+        realPianoContactDetectionService: TestKeyContactDetector(results: [[
+            makeTestKeyContactObservation(midiNote: 60, phase: .started),
+        ]])
     )
 
     viewModel.installTestPerformanceNotes(
@@ -282,7 +286,6 @@ func feedbackResetsToNoneAfterSleeperResumes() async {
 @MainActor
 func stepsOnlyGuidingStartsWithoutCalibration() {
     let viewModel = makePracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper()
     )
@@ -301,7 +304,6 @@ func stepsOnlyGuidingStartsWithoutCalibration() {
 @MainActor
 func skipAdvancesAndCompletesInStepsOnlyMode() {
     let viewModel = makePracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper()
     )
@@ -325,7 +327,6 @@ func skipAdvancesAndCompletesInStepsOnlyMode() {
 @MainActor
 func handleFingerTipPositionsIsNoopWithoutKeyboardGeometry() {
     let viewModel = makePracticeSessionViewModel(
-        pressDetectionService: ConstantPressDetectionService(pressedNotes: [60]),
         chordAttemptAccumulator: AlwaysMatchChordAttemptAccumulator(),
         sleeper: TaskSleeper()
     )
@@ -345,7 +346,6 @@ func handleFingerTipPositionsIsNoopWithoutKeyboardGeometry() {
 @MainActor
 func applyingCalibrationDoesNotResetProgress() {
     let viewModel = makePracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper()
     )
@@ -373,7 +373,6 @@ func applyingCalibrationDoesNotResetProgress() {
 func guidingStartUsesPerformancePlanInsteadOfStepSoundFacts() async {
     let playbackService = CapturingSequencerPlaybackService()
     let viewModel = makePracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playbackService
@@ -419,7 +418,6 @@ func guidingStartUsesPerformancePlanInsteadOfStepSoundFacts() async {
 @MainActor
 func guidingStartRecordsAudioErrorWhenAudioPlayerThrows() async {
     let viewModel = makePracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: ThrowingSequencerPlaybackService()
@@ -440,7 +438,6 @@ func guidingStartRecordsAudioErrorWhenAudioPlayerThrows() async {
 func advancingAutoPlaysNextStepSound() async {
     let playbackService = CapturingSequencerPlaybackService()
     let viewModel = makePracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playbackService
@@ -523,7 +520,6 @@ func autoplaySchedulesAndAdvancesStepsUsingTempoMap() async {
     ]
 
     let viewModel = makePracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playbackService
@@ -813,7 +809,6 @@ func autoplaySkipCancelsPendingSleepAndRestartsScheduling() async {
     ]
 
     let viewModel = makePracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playbackService
@@ -855,9 +850,11 @@ func autoplaySkipCancelsPendingSleepAndRestartsScheduling() async {
 func autoplayDoesNotAdvanceOnMatch() async {
     let sleeper = ControllableSleeper()
     let viewModel = makePracticeSessionViewModel(
-        pressDetectionService: ConstantPressDetectionService(pressedNotes: [60]),
         chordAttemptAccumulator: AlwaysMatchChordAttemptAccumulator(),
-        sleeper: sleeper
+        sleeper: sleeper,
+        realPianoContactDetectionService: TestKeyContactDetector(results: [[
+            makeTestKeyContactObservation(midiNote: 60, phase: .started),
+        ]])
     )
 
     viewModel.installTestPerformanceNotes(
@@ -884,7 +881,6 @@ func autoplayDoesNotAdvanceOnMatch() async {
 @MainActor
 func highlightGuideStartsAtFirstTriggerAfterStartGuiding() async {
     let viewModel = makePracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper()
     )
@@ -913,7 +909,6 @@ func highlightGuideStartsAtFirstTriggerAfterStartGuiding() async {
 @MainActor
 func resetSessionClearsCurrentHighlightGuide() async {
     let viewModel = makePracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper()
     )
@@ -941,7 +936,6 @@ func resetSessionClearsCurrentHighlightGuide() async {
 @MainActor
 func clearPreparedSongRemovesSongStateAndPreservesCalibration() async throws {
     let viewModel = makePracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper()
     )
@@ -997,7 +991,6 @@ func clearPreparedSongRemovesSongStateAndPreservesCalibration() async throws {
 func manualAdvanceShowsReleaseOrGapGuideBeforeNextTrigger() async {
     let sleeper = ControllableSleeper()
     let viewModel = makePracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: sleeper
     )
@@ -1042,7 +1035,6 @@ func manualAdvanceShowsReleaseOrGapGuideBeforeNextTrigger() async {
 func resetCancelsPendingManualHighlightTransition() async {
     let sleeper = ControllableSleeper()
     let viewModel = makePracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: sleeper
     )
@@ -1327,7 +1319,6 @@ func disablingAutoplayStopsAudioAndClearsPendingScheduling() async {
         ]
     )
     let viewModel = PracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playbackService
@@ -1389,7 +1380,6 @@ func disablingAutoplayStopsAudioAndClearsPendingScheduling() async {
 @MainActor
 func freshScoreDefaultsToFullScoreAtOneHundredPercent() {
     let viewModel = makePracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper()
     )
@@ -1422,7 +1412,6 @@ func freshScoreDefaultsToFullScoreAtOneHundredPercent() {
 @MainActor
 func changingSongWithEqualStepsReplacesCompletedPassage() {
     let viewModel = makePracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper()
     )
@@ -1470,16 +1459,16 @@ func changingSongWithEqualStepsReplacesCompletedPassage() {
 
 @MainActor
 private func makePracticeSessionViewModel(
-    pressDetectionService: PressDetectionServiceProtocol,
     chordAttemptAccumulator: ChordAttemptAccumulatorProtocol,
     sleeper: SleeperProtocol,
-    sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol? = nil
+    sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol? = nil,
+    realPianoContactDetectionService: (any KeyContactDetectingProtocol)? = nil
 ) -> PracticeSessionViewModel {
     PracticeSessionViewModel(
-        pressDetectionService: pressDetectionService,
         chordAttemptAccumulator: chordAttemptAccumulator,
         sleeper: sleeper,
-        sequencerPlaybackService: sequencerPlaybackService ?? CapturingSequencerPlaybackService()
+        sequencerPlaybackService: sequencerPlaybackService ?? CapturingSequencerPlaybackService(),
+        realPianoContactDetectionService: realPianoContactDetectionService
     )
 }
 
@@ -1588,7 +1577,6 @@ func enablingAutoplayStopsManualReplayWithoutResumingAudioRecognition() async {
     playbackService.currentSecondsValue = 0
 
     let viewModel = PracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: sleeper,
         sequencerPlaybackService: playbackService,
@@ -1640,39 +1628,9 @@ func enablingAutoplayStopsManualReplayWithoutResumingAudioRecognition() async {
     #expect(audioRecognitionService.stopCallCount > 0)
 }
 
-private struct NoopPressDetectionService: PressDetectionServiceProtocol {
-    func detectPressedNotes(
-        fingerTips _: FingerTipsSnapshot,
-        keyboardGeometry _: PianoKeyboardGeometry?,
-        at _: PerformanceMonotonicInstant
-    ) -> Set<Int> {
-        []
-    }
-}
-
 private struct PendingSleeper: SleeperProtocol {
     func sleep(for _: Duration) async throws {
         try await Task.sleep(for: .seconds(60))
-    }
-}
-
-private struct ConstantPressDetectionService: PressDetectionServiceProtocol {
-    let pressedNotes: Set<Int>
-
-    init(pressedNotes: Set<Int>) {
-        self.pressedNotes = pressedNotes
-    }
-
-    init(pressedNotes: [Int]) {
-        self.pressedNotes = Set(pressedNotes)
-    }
-
-    func detectPressedNotes(
-        fingerTips _: FingerTipsSnapshot,
-        keyboardGeometry _: PianoKeyboardGeometry?,
-        at _: PerformanceMonotonicInstant
-    ) -> Set<Int> {
-        pressedNotes
     }
 }
 
@@ -1843,7 +1801,6 @@ func reinstallingSamePreparedScoreDiscardsUnappliedDraftConfiguration() throws {
         TestScorePerformanceNote(midiNote: 60 + index, onTick: index * 480)
     }
     let session = makePracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper()
     )

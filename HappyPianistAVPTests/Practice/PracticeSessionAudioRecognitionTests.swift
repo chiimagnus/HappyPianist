@@ -282,7 +282,6 @@ private func makeViewModel(
 ) -> PracticeSessionViewModel {
     let playbackService = CapturingSequencerPlaybackService()
     return PracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playbackService,
@@ -293,16 +292,6 @@ private func makeViewModel(
 private func settleTaskQueue(iterations: Int = 4) async {
     for _ in 0 ..< iterations {
         await Task.yield()
-    }
-}
-
-private struct NoopPressDetectionService: PressDetectionServiceProtocol {
-    func detectPressedNotes(
-        fingerTips _: FingerTipsSnapshot,
-        keyboardGeometry _: PianoKeyboardGeometry?,
-        at _: PerformanceMonotonicInstant
-    ) -> Set<Int> {
-        []
     }
 }
 
@@ -346,7 +335,6 @@ func startGuidingPassesPlaybackSuppressDeadlineIntoAudioServiceStart() async {
     let fakeService = FakePracticeAudioRecognitionService()
     let playbackService = CapturingSequencerPlaybackService()
     let viewModel = PracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playbackService,
@@ -370,7 +358,6 @@ func microphonePermissionFailureDoesNotBlockPlaybackFallback() async {
     let fakeService = FakePracticeAudioRecognitionService()
     let playbackService = CapturingSequencerPlaybackService()
     let viewModel = PracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playbackService,

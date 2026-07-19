@@ -72,7 +72,6 @@ private func historicalApplicationSession(
     repository: HistoricalApplicationRepository?
 ) -> PracticeSessionViewModel {
     PracticeSessionViewModel(
-        pressDetectionService: HistoricalApplicationPressDetectionService(),
         chordAttemptAccumulator: HistoricalApplicationChordAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: HistoricalApplicationPlaybackService(),
@@ -179,16 +178,6 @@ private actor HistoricalApplicationRepository: PracticeProgressRepositoryProtoco
     func upsert(_: SongScorePracticeMetadata) {}
     func remove(songID: UUID) {
         if progress?.identity.songID == songID { progress = nil }
-    }
-}
-
-private struct HistoricalApplicationPressDetectionService: PressDetectionServiceProtocol {
-    func detectPressedNotes(
-        fingerTips _: FingerTipsSnapshot,
-        keyboardGeometry _: PianoKeyboardGeometry?,
-        at _: PerformanceMonotonicInstant
-    ) -> Set<Int> {
-        []
     }
 }
 

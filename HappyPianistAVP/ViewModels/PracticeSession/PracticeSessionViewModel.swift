@@ -14,7 +14,6 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
     let stateStore: PracticeSessionStateStore
     let stepNavigator: PracticeStepNavigator
 
-    let pressDetectionService: PressDetectionServiceProtocol
     let chordAttemptAccumulator: ChordAttemptAccumulatorProtocol
     let sleeper: SleeperProtocol
     let sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol
@@ -63,7 +62,6 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
     }
 
     init(
-        pressDetectionService: PressDetectionServiceProtocol,
         chordAttemptAccumulator: ChordAttemptAccumulatorProtocol,
         sleeper: SleeperProtocol,
         sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol,
@@ -84,7 +82,6 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
         stateStore = PracticeSessionStateStore()
         stepNavigator = PracticeStepNavigator()
 
-        self.pressDetectionService = pressDetectionService
         self.chordAttemptAccumulator = chordAttemptAccumulator
         self.sleeper = sleeper
         self.sequencerPlaybackService = sequencerPlaybackService
