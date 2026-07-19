@@ -41,6 +41,13 @@ enum GrandStaffNoteValue: Equatable {
         default: nil
         }
     }
+
+    var hasStem: Bool {
+        switch self {
+        case .half, .quarter, .eighth, .sixteenth, .thirtySecond: true
+        case .whole, .unsupported: false
+        }
+    }
 }
 
 enum GrandStaffStemDirection: Equatable {
@@ -107,6 +114,7 @@ struct GrandStaffNotationRest: Equatable, Identifiable {
     let isHighlighted: Bool
 
     var glyphToken: GrandStaffGlyphToken? { noteValue.restGlyphToken }
+    var staffStep: Int { noteValue == .whole ? 6 : 4 }
 }
 
 struct GrandStaffNotationTie: Equatable, Identifiable {

@@ -24,6 +24,7 @@ struct GrandStaffNotationViewportLayoutService {
         let lineSpacing: CGFloat
         let noteWidth: CGFloat
         let noteHeight: CGFloat
+        let smuflFontSize: CGFloat
 
         let contextMinX: CGFloat
         let contextWidth: CGFloat
@@ -63,6 +64,7 @@ struct GrandStaffNotationViewportLayoutService {
         staffStepBounds: StaffStepBounds? = nil
     ) -> Layout {
         let resolvedLineSpacing = max(8, min(22, lineSpacing))
+        let engravingMetrics = GrandStaffEngravingMetrics()
 
         let bounds = staffStepBounds ?? {
             let trebleSteps = items.filter { $0.staffNumber <= 1 }.map(\.staffStep)
@@ -103,8 +105,9 @@ struct GrandStaffNotationViewportLayoutService {
                 + bassExtraBelowUnits
                 + bottomPaddingUnits
 
-        let noteWidth = resolvedLineSpacing * 1.05
-        let noteHeight = resolvedLineSpacing * 0.70
+        let noteWidth = resolvedLineSpacing * engravingMetrics.noteheadViewportBounds.width
+        let noteHeight = resolvedLineSpacing * engravingMetrics.noteheadViewportBounds.height
+        let smuflFontSize = resolvedLineSpacing * engravingMetrics.smuflEmSize
 
         let contextMinX: CGFloat = 4
         let contextWidth: CGFloat = resolvedLineSpacing * 7.0
@@ -129,7 +132,8 @@ struct GrandStaffNotationViewportLayoutService {
             bassBottomLineY: bassBottomLineY,
             contextMinY: 0,
             contextMaxY: totalHeightUnits * resolvedLineSpacing,
-            staffStepBounds: bounds
+            staffStepBounds: bounds,
+            engravingMetrics: engravingMetrics
         )
 
         let trebleClefStep = clefAnchorStaffStep(
@@ -149,14 +153,6 @@ struct GrandStaffNotationViewportLayoutService {
             ? (bassBottomLineY - CGFloat(bassClefStep ?? 4) * resolvedLineSpacing / 2)
             : (bassBottomLineY - 4 * resolvedLineSpacing / 2)
 
-        // Clef glyphs are drawn via Unicode music symbols and can appear optically smaller than staff height
-        // when rendered by the system fallback font. Scale them based on staff spacing rather than keeping
-        // them close to the notehead size.
-        let trebleClefFontSize = resolvedLineSpacing * 3.8
-        let bassClefFontSize = resolvedLineSpacing * 3.3
-        let keySignatureFontSize = resolvedLineSpacing * 1.25
-        let timeSignatureFontSize = resolvedLineSpacing * 1.35
-
         return Layout(
             size: CGSize(width: size.width, height: canvasMetrics.requiredHeight),
             context: context,
@@ -165,6 +161,7 @@ struct GrandStaffNotationViewportLayoutService {
             lineSpacing: resolvedLineSpacing,
             noteWidth: noteWidth,
             noteHeight: noteHeight,
+            smuflFontSize: smuflFontSize,
             contextMinX: contextMinX,
             contextWidth: contextWidth,
             contentMinX: contentMinX,
@@ -175,10 +172,10 @@ struct GrandStaffNotationViewportLayoutService {
             bassBottomLineY: bassBottomLineY,
             trebleClefY: trebleClefY,
             bassClefY: bassClefY,
-            trebleClefFontSize: trebleClefFontSize,
-            bassClefFontSize: bassClefFontSize,
-            keySignatureFontSize: keySignatureFontSize,
-            timeSignatureFontSize: timeSignatureFontSize
+            trebleClefFontSize: smuflFontSize,
+            bassClefFontSize: smuflFontSize,
+            keySignatureFontSize: smuflFontSize,
+            timeSignatureFontSize: smuflFontSize
         )
     }
 
@@ -199,7 +196,8 @@ struct GrandStaffNotationViewportLayoutService {
         bassBottomLineY: CGFloat,
         contextMinY: CGFloat,
         contextMaxY: CGFloat,
-        staffStepBounds: StaffStepBounds
+        staffStepBounds: StaffStepBounds,
+        engravingMetrics: GrandStaffEngravingMetrics
     ) -> CanvasMetrics {
         var minY: CGFloat = contextMinY
         var maxY: CGFloat = contextMaxY
@@ -223,12 +221,12 @@ struct GrandStaffNotationViewportLayoutService {
 
         // Add deterministic headroom/footroom so stems and beams won't clip,
         // while keeping the scroll extents stable (no vertical jumping).
-        let beamStrokeWidth = max(2, lineSpacing * 0.42)
-        let maxBeamCount = 3
-        let stemLength = lineSpacing * 3.2
-        let beamGap = max(1.2, lineSpacing * 0.28)
-        let beamStackStride = beamStrokeWidth + beamGap
-        let headroom = stemLength + CGFloat(max(0, maxBeamCount - 1)) * beamStackStride + beamStrokeWidth
+        let beamStrokeWidth = lineSpacing * engravingMetrics.beamThickness
+        let stemLength = lineSpacing * engravingMetrics.defaultStemLength
+        let beamStackStride = lineSpacing * engravingMetrics.beamSpacing
+        let headroom = stemLength
+            + CGFloat(max(0, engravingMetrics.maximumBeamCount - 1)) * beamStackStride
+            + beamStrokeWidth
 
         minY -= headroom
         maxY += headroom * 0.65

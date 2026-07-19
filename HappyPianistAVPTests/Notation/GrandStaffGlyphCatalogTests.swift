@@ -1,3 +1,4 @@
+import CoreGraphics
 @testable import HappyPianistAVP
 import Testing
 
@@ -77,8 +78,34 @@ func engravingMetricsStayInStaffSpaceUnits() {
     #expect(metrics.beamThickness == 0.50)
     #expect(metrics.ledgerLineExtension == 0.40)
     #expect(metrics.defaultStemLength == 3.50)
+    #expect(metrics.smuflEmSize == 4)
+    #expect(metrics.glyphScale(isGrace: false) == 1)
+    #expect(metrics.glyphScale(isGrace: true) == 0.70)
     #expect(black?.width == 1.18)
     #expect(black?.height == 1.0)
     #expect((whole?.width ?? 0) > (black?.width ?? 0))
     #expect(metrics.bounds(for: .gClef) == nil)
+}
+
+@Test
+func rhythmicGlyphsExposeStemEligibilityAndViewportBounds() {
+    #expect(GrandStaffNoteValue.whole.hasStem == false)
+    #expect(GrandStaffNoteValue.half.hasStem)
+    #expect(GrandStaffNoteValue.quarter.hasStem)
+    #expect(GrandStaffNoteValue.eighth.hasStem)
+    #expect(GrandStaffNoteValue.sixteenth.hasStem)
+    #expect(GrandStaffNoteValue.thirtySecond.hasStem)
+    #expect(GrandStaffNoteValue.unsupported(sourceTypeToken: "breve").hasStem == false)
+
+    let metrics = GrandStaffEngravingMetrics()
+    let layout = GrandStaffNotationViewportLayoutService().makeLayout(
+        size: CGSize(width: 800, height: 220),
+        lineSpacing: 14,
+        items: [],
+        context: nil
+    )
+    #expect(abs(layout.noteWidth - 14 * metrics.noteheadViewportBounds.width) < 0.0001)
+    #expect(abs(layout.noteHeight - 14 * metrics.noteheadViewportBounds.height) < 0.0001)
+    #expect(abs(layout.smuflFontSize - 14 * metrics.smuflEmSize) < 0.0001)
+    #expect(layout.requiredHeight > layout.bassBottomLineY + layout.canvasYOffset)
 }
