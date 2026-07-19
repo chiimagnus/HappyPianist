@@ -114,47 +114,6 @@ final class AudioStepAttemptAccumulator {
         return .matched
     }
 
-    func evaluateHandSeparated(
-        expectedRightMIDINotes: [Int],
-        expectedLeftMIDINotes: [Int],
-        wrongCandidateMIDINotes: Set<Int>,
-        generation: Int,
-        at timestamp: PerformanceMonotonicInstant,
-        handGateBoost: Bool = false
-    ) -> StepAttemptMatchResult {
-        if generation != currentGeneration {
-            currentGeneration = generation
-            resetForNewStep(generation: generation)
-        }
-        pruneExpiredEvents(now: timestamp)
-
-        let expectedUnion = Set(expectedRightMIDINotes + expectedLeftMIDINotes)
-        guard expectedUnion.isEmpty == false else { return .insufficientEvidence }
-
-        let threshold = threshold(for: handGateBoost)
-        let activeEvidence = makeActiveEvidence(generation: generation, at: timestamp)
-        let targetConfidence = mergedConfidence(activeEvidence, keyPath: \.targetConfidenceByMIDINote)
-        let wrongConfidence = mergedConfidence(activeEvidence, keyPath: \.wrongConfidenceByMIDINote)
-        let observed = Set(targetConfidence.compactMap { midiNote, confidence in
-            confidence >= threshold && isRearmSatisfied(for: midiNote, at: timestamp) ? midiNote : nil
-        })
-        let strongestExpected = expectedUnion.compactMap { targetConfidence[$0] }.max() ?? 0
-        let strongestWrong = wrongCandidateMIDINotes.compactMap { wrongConfidence[$0] }.max() ?? 0
-
-        if strongestWrong >= configuration.wrongNoteThreshold,
-           strongestWrong >= max(strongestExpected, 0.01) * configuration.wrongDominanceRatio
-        {
-            if let lastMatchedAt, timestamp.seconds - lastMatchedAt.seconds <= configuration.wrongNoteGraceWindow {
-                return .insufficientEvidence
-            }
-            return .wrongNote
-        }
-
-        guard expectedUnion.isSubset(of: observed) else { return .insufficientEvidence }
-        lastMatchedAt = timestamp
-        return .matched
-    }
-
     func resetForNewStep(generation: Int) {
         currentGeneration = generation
         recentEvidence.removeAll()

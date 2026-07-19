@@ -283,8 +283,6 @@ private func guidingSnapshot(expectedMIDINotes: [Int])
         autoplayState: .off,
         isManualReplayPlaying: false,
         expectedMIDINotes: expectedMIDINotes,
-        expectedRightMIDINotes: expectedMIDINotes,
-        expectedLeftMIDINotes: [],
         wrongCandidateMIDINotes: [],
         handGateBoost: false,
         suppressUntil: nil

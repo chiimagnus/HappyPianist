@@ -7,8 +7,6 @@ final class PracticeAudioRecognitionInputService: PerformanceObservationStreamPr
         var autoplayState: PracticeSessionAutoplayState
         var isManualReplayPlaying: Bool
         var expectedMIDINotes: [Int]
-        var expectedRightMIDINotes: [Int]
-        var expectedLeftMIDINotes: [Int]
         var wrongCandidateMIDINotes: [Int]
         var handGateBoost: Bool
         var suppressUntil: Date?
@@ -209,9 +207,8 @@ final class PracticeAudioRecognitionInputService: PerformanceObservationStreamPr
 
         accumulator.register(evidence: evidence)
         let wrongCandidates = Set(snapshot.wrongCandidateMIDINotes)
-        let matchResult = accumulator.evaluateHandSeparated(
-            expectedRightMIDINotes: snapshot.expectedRightMIDINotes,
-            expectedLeftMIDINotes: snapshot.expectedLeftMIDINotes,
+        let matchResult = accumulator.evaluate(
+            expectedMIDINotes: snapshot.expectedMIDINotes,
             wrongCandidateMIDINotes: wrongCandidates,
             generation: stateStore.audioRecognitionGeneration,
             at: evidence.timestamp,

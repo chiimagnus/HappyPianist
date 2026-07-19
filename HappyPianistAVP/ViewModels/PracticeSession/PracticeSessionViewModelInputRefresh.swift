@@ -38,7 +38,6 @@ extension PracticeSessionViewModel {
         let expectedStepNotes = currentStepNotesForPracticeHandMode(step: currentStep)
         let ignoredMIDINotes = ignoredMIDINotesForPracticeHandMode(step: currentStep)
         let expectedMIDINotes = Set(expectedStepNotes.map(\.midiNote)).sorted()
-        let expectedByHand = uniqueMIDINotesByHand(notes: expectedStepNotes)
         let suppressUntil = self.audioRecognitionSuppressUntil.flatMap { $0 > .now ? $0 : nil }
         let handGateBoost = self.handGateState.isNearKeyboard || self.handGateState.hasDownwardMotion
 
@@ -48,8 +47,6 @@ extension PracticeSessionViewModel {
                 autoplayState: self.autoplayState,
                 isManualReplayPlaying: self.isManualReplayPlaying,
                 expectedMIDINotes: expectedMIDINotes,
-                expectedRightMIDINotes: expectedByHand.right,
-                expectedLeftMIDINotes: expectedByHand.left,
                 wrongCandidateMIDINotes: makeWrongCandidateMIDINotes(
                     expectedMIDINotes,
                     excluding: ignoredMIDINotes

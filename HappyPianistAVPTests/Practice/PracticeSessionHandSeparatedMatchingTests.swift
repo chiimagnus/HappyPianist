@@ -3,61 +3,6 @@ import Foundation
 import Testing
 
 @Test
-func audioAccumulatorRequiresBothHandsWhenEnabled() {
-    let accumulator = AudioStepAttemptAccumulator()
-    let generation = 1
-    let t0 = PerformanceMonotonicInstant(seconds: 1)
-
-    accumulator.resetForNewStep(generation: generation)
-
-    accumulator.register(evidence: TargetAudioEvidence(
-        targetMIDINotes: [60],
-        targetConfidenceByMIDINote: [60: 1],
-        wrongConfidenceByMIDINote: [:],
-        onsetScore: 1.0,
-        isOnset: true,
-        timestamp: t0,
-        generation: generation
-    ))
-
-    let rightOnly = accumulator.evaluateHandSeparated(
-        expectedRightMIDINotes: [60],
-        expectedLeftMIDINotes: [48],
-        wrongCandidateMIDINotes: [],
-        generation: generation,
-        at: t0
-    )
-    let rightOnlyMatched: Bool = {
-        if case .matched = rightOnly { return true }
-        return false
-    }()
-    #expect(rightOnlyMatched == false)
-
-    accumulator.register(evidence: TargetAudioEvidence(
-        targetMIDINotes: [48],
-        targetConfidenceByMIDINote: [48: 1],
-        wrongConfidenceByMIDINote: [:],
-        onsetScore: 1.0,
-        isOnset: true,
-        timestamp: t0,
-        generation: generation
-    ))
-
-    let both = accumulator.evaluateHandSeparated(
-        expectedRightMIDINotes: [60],
-        expectedLeftMIDINotes: [48],
-        wrongCandidateMIDINotes: [],
-        generation: generation,
-        at: t0
-    )
-    let bothMatched: Bool = {
-        if case .matched = both { return true }
-        return false
-    }()
-    #expect(bothMatched == true)
-}
-
-@Test
 func chordAccumulatorRequiresBothHandsWithinSameWindow() {
     let accumulator = ChordAttemptAccumulator(windowSeconds: 1.0)
     let t0 = PerformanceMonotonicInstant(seconds: 1)
