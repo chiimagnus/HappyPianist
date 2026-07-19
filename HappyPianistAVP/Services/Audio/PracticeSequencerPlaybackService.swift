@@ -42,6 +42,7 @@ struct PracticeAudioPlatformOperations: Sendable {
     let configureAudioSession: @Sendable () throws -> Void
     let loadSoundBank: @Sendable (AVAudioUnitSampler, URL, UInt8) throws -> Void
     let startEngine: @Sendable (AVAudioEngine) throws -> Void
+    let stopEngine: @Sendable (AVAudioEngine) -> Void
     let loadSequence: @Sendable (AVAudioSequencer, Data) throws -> Void
     let startSequence: @Sendable (AVAudioSequencer) throws -> Void
     let stopSequence: @Sendable (AVAudioSequencer) -> Void
@@ -67,6 +68,9 @@ struct PracticeAudioPlatformOperations: Sendable {
         startEngine: { engine in
             engine.prepare()
             try engine.start()
+        },
+        stopEngine: { engine in
+            engine.stop()
         },
         loadSequence: { sequencer, data in
             try sequencer.load(from: data, options: [])
@@ -147,10 +151,26 @@ actor AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackServiceP
         engine.mainMixerNode.outputVolume = initialVolume
     }
 
-    deinit {
+    isolated deinit {
         volumeObservationTask?.cancel()
         oneShotStopTask?.cancel()
         for task in audioSessionEventTasks { task.cancel() }
+        platform.stopSequence(sequencer)
+        if isReady {
+            let resetCommands = PerformanceTransportReducer.fullResetCommands
+            let resetFailure = executeReset(commands: resetCommands)
+            recordResetMetrics(resetFailure: resetFailure, commands: resetCommands)
+            if let resetFailure {
+                diagnosticsReporter?.recordSystem(
+                    severity: .error,
+                    category: .audio,
+                    stage: "audio.teardownReset",
+                    summary: "释放本地音频播放服务时复位失败",
+                    reason: "status=\(resetFailure)"
+                )
+            }
+        }
+        platform.stopEngine(engine)
     }
 
     func warmUp() throws {
@@ -170,7 +190,7 @@ actor AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackServiceP
             }
             return
         }
-        engine.stop()
+        platform.stopEngine(engine)
         isReady = false
         let error = PracticeAudioError.operationFailed(
             operation: .transportReset,
@@ -598,7 +618,7 @@ actor AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackServiceP
             resetFailure: resetFailure,
             commands: resetCommands
         )
-        engine.stop()
+        platform.stopEngine(engine)
         isReady = false
         if rebuildAudioGraph {
             self.rebuildAudioGraph()

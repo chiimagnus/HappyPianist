@@ -271,6 +271,30 @@ func missingSoundFontPublishesUnrecoverableFailure() async {
     #expect(error?.recovery == .unrecoverable)
 }
 
+@Test
+func playbackServiceTeardownStopsSequenceResetsAndStopsEngine() async throws {
+    let output = FakePerformanceOutput(capabilities: .localSampler)
+    var service: AVAudioSequencerPracticePlaybackService? = AVAudioSequencerPracticePlaybackService(
+        soundFontResourceName: "TestSoundFont",
+        platform: output.makeAudioPlatform()
+    )
+    try await service?.warmUp()
+    output.removeAllAudioEntries()
+
+    service = nil
+
+    #expect(await waitForAudioEntry(output, matching: .engineStopped))
+    #expect(output.audioEntriesSnapshot() == [
+        .sequenceStopped,
+        .midi(status: 0xB0, data1: 64, data2: 0),
+        .midi(status: 0xB0, data1: 66, data2: 0),
+        .midi(status: 0xB0, data1: 67, data2: 0),
+        .midi(status: 0xB0, data1: 123, data2: 0),
+        .midi(status: 0xB0, data1: 120, data2: 0),
+        .engineStopped,
+    ])
+}
+
 private func emptyPracticeSequence() -> PracticeSequencerSequence {
     PracticeSequencerSequence(
         midiData: Data(),
@@ -292,6 +316,23 @@ private func capturedAudioError(
         Issue.record("Unexpected error: \(error)")
         return nil
     }
+}
+
+private func waitForAudioEntry(
+    _ output: FakePerformanceOutput,
+    matching expected: FakePerformanceOutput.AudioEntry
+) async -> Bool {
+    let clock = ContinuousClock()
+    let deadline = clock.now + .seconds(1)
+    while clock.now < deadline {
+        if output.audioEntriesSnapshot().contains(expected) { return true }
+        do {
+            try await Task.sleep(for: .milliseconds(1))
+        } catch {
+            return output.audioEntriesSnapshot().contains(expected)
+        }
+    }
+    return output.audioEntriesSnapshot().contains(expected)
 }
 
 private func waitForAudioLifecycleDiagnostics(
