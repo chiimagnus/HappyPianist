@@ -318,9 +318,11 @@ func skipAdvancesAndCompletesInStepsOnlyMode() {
     viewModel.skip()
     #expect(viewModel.currentStepIndex == 1)
     #expect(viewModel.state == .guiding(stepIndex: 1))
+    #expect(viewModel.notationViewportTick() == 1)
 
     viewModel.skip()
     #expect(viewModel.state == .completed)
+    #expect(viewModel.notationViewportTick() == 1)
 }
 
 @Test
@@ -1021,6 +1023,7 @@ func manualAdvanceShowsReleaseOrGapGuideBeforeNextTrigger() async {
     await settleTaskQueue()
 
     #expect(viewModel.currentPianoHighlightGuide?.kind == .release)
+    #expect(viewModel.notationViewportTick() == 480)
     #expect(await sleeper.callCount() == 1)
 
     await sleeper.resumeOldestPending()

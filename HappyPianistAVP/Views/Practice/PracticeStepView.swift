@@ -29,9 +29,7 @@ struct PracticeStepView: View {
                 measureSpans: session.notationMeasureSpans,
                 context: session.currentGrandStaffNotationContext,
                 practiceHandMode: practiceHandMode,
-                scrollTickProvider: session.autoplayState == .playing ? {
-                    session.smoothNotationScrollTick()
-                } : nil
+                scrollTickProvider: session.notationViewportTick
             )
             .frame(height: 350)
 

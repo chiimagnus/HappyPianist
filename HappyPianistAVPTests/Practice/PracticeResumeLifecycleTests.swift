@@ -41,6 +41,7 @@ func restoredPracticeStaysReadyAndSilentUntilExplicitStart() async throws {
 
     #expect(session.state == .ready)
     #expect(session.currentStepIndex == 1)
+    #expect(session.notationViewportTick() == Double(makeResumePerformanceNotes()[1].onTick))
     #expect(session.activeRoundConfiguration == configuration)
     #expect(session.isRestoredSessionPaused)
     #expect(playback.oneShotCount == 0)
