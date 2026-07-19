@@ -1,20 +1,14 @@
 import Foundation
+@testable import HappyPianistAVP
+import Synchronization
 
-struct TestMonotonicInstant: Comparable, Equatable, Hashable, Sendable {
-    let seconds: TimeInterval
-
-    static func < (lhs: TestMonotonicInstant, rhs: TestMonotonicInstant) -> Bool {
-        lhs.seconds < rhs.seconds
-    }
-
-    func advanced(by interval: TimeInterval) -> TestMonotonicInstant {
-        TestMonotonicInstant(seconds: seconds + interval)
-    }
-
+extension PerformanceMonotonicInstant {
     var date: Date {
         Date(timeIntervalSince1970: seconds)
     }
 }
+
+typealias TestMonotonicInstant = PerformanceMonotonicInstant
 
 struct PerformanceReplayEvent<Payload> {
     let instant: TestMonotonicInstant
@@ -52,18 +46,22 @@ struct PerformanceInputReplayCursor<Payload> {
     }
 }
 
-final class DeterministicPerformanceClock {
-    private var instant: TestMonotonicInstant
+final class DeterministicPerformanceClock: Sendable {
+    private let instant: Mutex<TestMonotonicInstant>
 
     init(start: TestMonotonicInstant = TestMonotonicInstant(seconds: 0)) {
-        instant = start
+        instant = Mutex(start)
     }
 
     var now: TestMonotonicInstant {
-        instant
+        instant.withLock { $0 }
+    }
+
+    var performanceClock: PerformanceClock {
+        PerformanceClock { [self] in now }
     }
 
     func advance(by interval: TimeInterval) {
-        instant = instant.advanced(by: interval)
+        instant.withLock { $0 = $0.advanced(by: interval) }
     }
 }

@@ -1,17 +1,13 @@
 import Foundation
 
 struct PracticeSessionRecorderClock {
-    let monotonicMilliseconds: @Sendable () -> Int64
+    let monotonic: PerformanceClock
     let wallDate: @Sendable () -> Date
     let localDay: @Sendable (Date) -> PracticeLocalDay?
 
     static func live() -> Self {
-        let clock = ContinuousClock()
-        let origin = clock.now
         return Self(
-            monotonicMilliseconds: {
-                milliseconds(in: origin.duration(to: clock.now))
-            },
+            monotonic: .live(),
             wallDate: { .now },
             localDay: { date in
                 let timeZone = TimeZone.autoupdatingCurrent
@@ -34,15 +30,6 @@ struct PracticeSessionRecorderClock {
         )
     }
 
-    private static func milliseconds(in duration: Duration) -> Int64 {
-        let components = duration.components
-        guard components.seconds >= 0 else { return 0 }
-        let (wholeMilliseconds, multipliedOverflow) = components.seconds.multipliedReportingOverflow(by: 1000)
-        guard multipliedOverflow == false else { return .max }
-        let fractionalMilliseconds = max(0, components.attoseconds / 1_000_000_000_000_000)
-        let (milliseconds, addedOverflow) = wholeMilliseconds.addingReportingOverflow(fractionalMilliseconds)
-        return addedOverflow ? .max : milliseconds
-    }
 }
 
 enum PracticeSessionRecorderSaveStatus: Equatable {
@@ -146,7 +133,7 @@ actor PracticeSessionRecorder {
             songID: songID,
             windowOpenedAt: clock.wallDate(),
             scoreRevision: nil,
-            lastMonotonicMilliseconds: max(0, clock.monotonicMilliseconds()),
+            lastMonotonicMilliseconds: clock.monotonic.now().milliseconds,
             sceneIsActive: sceneIsActive
         )
         return .idle
@@ -300,7 +287,7 @@ actor PracticeSessionRecorder {
     }
 
     private func advance(_ visit: inout VisitState) {
-        let now = max(0, clock.monotonicMilliseconds())
+        let now = clock.monotonic.now().milliseconds
         let delta = now >= visit.lastMonotonicMilliseconds
             ? now - visit.lastMonotonicMilliseconds
             : 0

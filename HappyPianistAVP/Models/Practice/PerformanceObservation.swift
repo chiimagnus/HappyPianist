@@ -28,16 +28,6 @@ struct PerformanceObservation: Codable, Equatable, Sendable {
         }
     }
 
-    struct Timing: Codable, Equatable, Sendable {
-        let hostMonotonicSeconds: TimeInterval
-        let sourceSeconds: TimeInterval?
-
-        init(hostMonotonicSeconds: TimeInterval, sourceSeconds: TimeInterval? = nil) {
-            self.hostMonotonicSeconds = max(0, hostMonotonicSeconds)
-            self.sourceSeconds = sourceSeconds
-        }
-    }
-
     struct NormalizedValue: Codable, Equatable, Sendable {
         let rawValue: UInt32
 
@@ -67,7 +57,7 @@ struct PerformanceObservation: Codable, Equatable, Sendable {
 
     let id: UUID
     let source: Source
-    let timing: Timing
+    let timing: PerformanceClockReading
     let event: Event
     let channel: Int?
     let group: Int?
@@ -77,7 +67,7 @@ struct PerformanceObservation: Codable, Equatable, Sendable {
     init(
         id: UUID = UUID(),
         source: Source,
-        timing: Timing,
+        timing: PerformanceClockReading,
         event: Event,
         channel: Int? = nil,
         group: Int? = nil,

@@ -85,10 +85,10 @@ private final class RecorderClock: Sendable {
 
     func makeClock() -> PracticeSessionRecorderClock {
         PracticeSessionRecorderClock(
-            monotonicMilliseconds: { [self] in
+            monotonic: PerformanceClock { [self] in
                 state.withLock { state in
                     state.monotonicReadCount += 1
-                    return state.monotonicMilliseconds
+                    return PerformanceMonotonicInstant(milliseconds: state.monotonicMilliseconds)
                 }
             },
             wallDate: { [self] in
@@ -97,6 +97,41 @@ private final class RecorderClock: Sendable {
             localDay: { [practiceDay] _ in practiceDay }
         )
     }
+}
+
+@Test
+func performanceClockSynchronizerCalibratesOffsetLatencyAndDrift() throws {
+    var synchronizer = PerformanceClockSynchronizer(maximumDriftRatio: 0.05)
+    let first = synchronizer.reading(
+        source: PerformanceSourceTimestamp(clockID: "midi", seconds: 10),
+        receivedAt: PerformanceMonotonicInstant(seconds: 12.1),
+        estimatedLatencySeconds: 0.1
+    )
+    let second = synchronizer.reading(
+        source: PerformanceSourceTimestamp(clockID: "midi", seconds: 20),
+        receivedAt: PerformanceMonotonicInstant(seconds: 22.2),
+        estimatedLatencySeconds: 0.1
+    )
+
+    #expect(first.correctedHost.seconds == 12)
+    #expect(second.mapping?.sampleCount == 2)
+    #expect(second.mapping?.provenance == .offsetAndDriftSamples)
+    #expect(try #require(second.mapping?.rate) > 1)
+    #expect(abs(second.correctedHost.seconds - 22.1) < 0.000_001)
+}
+
+@Test
+func performanceClockSynchronizerFallsBackToHostForUncalibratedSource() {
+    var synchronizer = PerformanceClockSynchronizer()
+    let reading = synchronizer.reading(
+        source: nil,
+        receivedAt: PerformanceMonotonicInstant(seconds: 3),
+        estimatedLatencySeconds: 0.25
+    )
+
+    #expect(reading.mapping == nil)
+    #expect(reading.provenance == .latencyEstimate)
+    #expect(reading.correctedHost.seconds == 2.75)
 }
 
 private actor RecorderSleeper: SleeperProtocol {

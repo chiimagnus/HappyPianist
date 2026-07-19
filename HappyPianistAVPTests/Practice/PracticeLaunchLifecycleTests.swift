@@ -747,8 +747,8 @@ private final class LaunchLifecycleRecorderClock: Sendable {
 
     func makeClock() -> PracticeSessionRecorderClock {
         PracticeSessionRecorderClock(
-            monotonicMilliseconds: { [self] in
-                state.withLock(\.monotonicMilliseconds)
+            monotonic: PerformanceClock { [self] in
+                PerformanceMonotonicInstant(milliseconds: state.withLock(\.monotonicMilliseconds))
             },
             wallDate: { [self] in
                 state.withLock(\.wallDate)
