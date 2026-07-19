@@ -377,16 +377,21 @@ struct MusicXMLStructureExpander {
                         tick: shiftedTick,
                         durationTicks: note.durationTicks,
                         writtenPitch: note.writtenPitch,
+                        writtenRhythm: note.writtenRhythm,
                         midiNote: note.midiNote,
                         isRest: note.isRest,
+                        isPrintObjectVisible: note.isPrintObjectVisible,
                         isChord: note.isChord,
                         isGrace: note.isGrace,
                         graceSlash: note.graceSlash,
                         graceStealTimePrevious: note.graceStealTimePrevious,
                         graceStealTimeFollowing: note.graceStealTimeFollowing,
                         graceMakeTimeTicks: note.graceMakeTimeTicks,
-                        tieStart: note.tieStart,
-                        tieStop: note.tieStop,
+                        ties: note.ties,
+                        slurs: note.slurs,
+                        tuplets: note.tuplets,
+                        stem: note.stem,
+                        beams: note.beams,
                         staff: note.staff,
                         voice: note.voice,
                         attackTicks: note.attackTicks,
@@ -395,8 +400,7 @@ struct MusicXMLStructureExpander {
                         articulations: note.articulations,
                         arpeggiate: note.arpeggiate,
                         performanceNotations: note.performanceNotations,
-                        fingeringText: note.fingeringText,
-                        dotCount: note.dotCount
+                        fingerings: note.fingerings
                     )
                 )
             }
@@ -409,7 +413,8 @@ struct MusicXMLStructureExpander {
                     performedOccurrenceIndex: occurrenceIndex,
                     tick: currentMeasureStartTick + (event.tick - span.startTick),
                     quarterBPM: event.quarterBPM,
-                    scope: shiftedScope(event.scope)
+                    scope: shiftedScope(event.scope),
+                    placementToken: event.placementToken
                 ))
             }
 
@@ -453,7 +458,9 @@ struct MusicXMLStructureExpander {
                     kind: event.kind,
                     controller: event.controller,
                     value: event.value,
-                    timeOnlyPasses: event.timeOnlyPasses
+                    timeOnlyPasses: event.timeOnlyPasses,
+                    staff: event.staff,
+                    placementToken: event.placementToken
                 ))
             }
 
@@ -466,7 +473,9 @@ struct MusicXMLStructureExpander {
                     tick: currentMeasureStartTick + (event.tick - span.startTick),
                     velocity: event.velocity,
                     scope: shiftedScope(event.scope),
-                    source: event.source
+                    source: event.source,
+                    markToken: event.markToken,
+                    placementToken: event.placementToken
                 ))
             }
             for event in original.wedgeEvents
@@ -489,7 +498,8 @@ struct MusicXMLStructureExpander {
                     performedOccurrenceIndex: occurrenceIndex,
                     tick: currentMeasureStartTick + (event.tick - span.startTick),
                     scope: shiftedScope(event.scope),
-                    source: event.source
+                    source: event.source,
+                    placementToken: event.placementToken
                 ))
             }
             for event in original.timeSignatureEvents
@@ -556,7 +566,8 @@ struct MusicXMLStructureExpander {
                     performedOccurrenceIndex: occurrenceIndex,
                     tick: currentMeasureStartTick + (event.tick - span.startTick),
                     text: event.text,
-                    scope: shiftedScope(event.scope)
+                    scope: shiftedScope(event.scope),
+                    placementToken: event.placementToken
                 ))
             }
 

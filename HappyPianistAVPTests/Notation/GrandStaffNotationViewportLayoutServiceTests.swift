@@ -12,24 +12,21 @@ func viewportLayoutKeepsExtremeNotesWithinCanvasBounds() {
             staffNumber: staffNumber,
             voice: 1,
             hand: staffNumber >= 2 ? .left : .right,
-            midiNote: 60,
-            guideID: 1,
             tick: 0,
             xPosition: xPosition,
             staffStep: staffStep,
-            showsSharpAccidental: false,
+            displayedAccidental: nil,
             isHighlighted: false,
-            fingeringText: nil,
+            fingerings: [],
             noteValue: .quarter,
             chordID: nil,
-            noteHeadXOffset: 0,
-            stemDirection: .up,
+            noteheadXOffset: 0,
+            accidentalXOffsetStaffSpaces: nil,
+            dotXOffsetStaffSpaces: nil,
+            dotStaffStep: nil,
             beamID: nil,
             durationTicks: 480,
             isGrace: false,
-            tieStart: false,
-            tieStop: false,
-            tieEndXPosition: nil,
             articulations: [],
             arpeggiate: nil,
             dotCount: 0
@@ -81,4 +78,187 @@ func viewportLayoutUsesClefLineWhenProvided() {
     let bassLine4Y = layout.yPosition(staffStep: 6, staffNumber: 2)
     #expect(abs(layout.trebleClefY - trebleLine2Y) < 0.0001)
     #expect(abs(layout.bassClefY - bassLine4Y) < 0.0001)
+}
+
+@Test
+func crossStaffChordAndBeamKeepSourceIdentityInsteadOfHandRouting() throws {
+    let score = crossStaffNotationScore()
+    let sourceIDs = try score.notes.map { try #require($0.sourceID) }
+    let handAssignments = Dictionary(uniqueKeysWithValues: zip(sourceIDs, score.notes).map { sourceID, note in
+        let hand: ScoreHand = note.staff == 1 ? .left : .right
+        return (sourceID, ScoreHandAssignment(hand: hand, provenance: .teacher))
+    })
+    let projection = ScoreNotationProjection(
+        plan: makeTestScorePerformancePlan(from: score, handAssignments: handAssignments),
+        sourceScore: score
+    )
+
+    #expect(projection.sourceNotes.map(\.staff) == [1, 2, 2, 1])
+    #expect(projection.sourceNotes.map(\.voice) == [1, 1, 1, 1])
+    #expect(projection.sourceNotes.map(\.chordID) == [sourceIDs[0], sourceIDs[0], sourceIDs[2], sourceIDs[2]])
+    #expect(Set(projection.sourceNotes.flatMap(\.beams).map(\.groupID)).count == 1)
+
+    let notation = GrandStaffNotationLayoutService().makeLayout(projection: projection)
+    #expect(notation.chords.count == 2)
+    #expect(notation.chords.allSatisfy { $0.itemIDs.count == 2 })
+    #expect(notation.chords.allSatisfy { $0.stem.direction == .down })
+    #expect(notation.beams.count == 1)
+    #expect(notation.beams[0].chordIDs == notation.chords.map(\.id))
+    #expect(Set(notation.items.map(\.staffNumber)) == [1, 2])
+    #expect(Set(notation.items.map(\.hand)) == [.left, .right])
+
+    let viewport = GrandStaffNotationViewportLayoutService().makeLayout(
+        size: CGSize(width: 800, height: 220),
+        items: notation.items,
+        chords: notation.chords,
+        beams: notation.beams,
+        context: nil
+    )
+    let upperStaffItem = try #require(notation.items.first { $0.staffNumber == 1 })
+    let lowerStaffItem = try #require(notation.items.first { $0.staffNumber == 2 })
+    #expect(viewport.yPosition(staffStep: upperStaffItem.staffStep, staffNumber: 1) !=
+        viewport.yPosition(staffStep: upperStaffItem.staffStep, staffNumber: 2))
+    #expect(viewport.yPosition(staffStep: lowerStaffItem.staffStep, staffNumber: 2) !=
+        viewport.yPosition(staffStep: lowerStaffItem.staffStep, staffNumber: 1))
+}
+
+@Test
+func repeatedPerformedOccurrencesMapToOneSourceAndClipByOccurrenceTick() throws {
+    let score = repeatedNotationScore()
+    let plan = makeTestScorePerformancePlan(from: score)
+    let projection = ScoreNotationProjection(plan: plan, sourceScore: score)
+    let repeatedEvent = try #require(plan.noteEvents.first { $0.performedNoteID.occurrenceIndex == 1 })
+
+    #expect(projection.sourceNotes.count == 2)
+    #expect(Set(projection.sourceNotes.map(\.id)) == Set(score.notes.compactMap(\.sourceID)))
+    #expect(projection.performedOccurrences.count == 4)
+    #expect(Set(projection.performedOccurrences.map(\.id.occurrenceIndex)) == [0, 1])
+
+    let layout = GrandStaffNotationLayoutService().makeLayout(
+        projection: projection,
+        overlay: .init(
+            activeEventIDs: [repeatedEvent.id],
+            activeTickRange: 900 ..< 1_440
+        ),
+        viewportWidthStaffSpaces: 12,
+        scrollTick: 960
+    )
+    let note = try #require(layout.items.first)
+    let rest = try #require(layout.rests.first)
+    #expect(layout.items.count == 1)
+    #expect(layout.rests.count == 1)
+    #expect(note.occurrenceID.hasSuffix("@1"))
+    #expect(rest.id.hasSuffix("@1"))
+    #expect(note.isHighlighted)
+    #expect(rest.isHighlighted == false)
+}
+
+@Test
+func repeatedPerformedScoreKeepsEveryVisibleRestOccurrence() throws {
+    let performedScore = repeatedNotationScore()
+    let sourceScore = MusicXMLScore(notes: Array(performedScore.notes.prefix(2)))
+    let projection = ScoreNotationProjection(
+        plan: makeTestScorePerformancePlan(from: performedScore),
+        sourceScore: sourceScore,
+        performedScore: performedScore
+    )
+    let layout = GrandStaffNotationLayoutService().makeLayout(
+        projection: projection,
+        viewportWidthStaffSpaces: 60,
+        scrollTick: 480
+    )
+
+    #expect(projection.sourceNotes.count == 2)
+    #expect(projection.performedOccurrences.filter { occurrence in
+        projection.sourceNotes.first { $0.id == occurrence.sourceNoteID }?.isRest == true
+    }.map(\.id.occurrenceIndex) == [0, 1])
+    #expect(layout.rests.map(\.id).allSatisfy { $0.hasSuffix("@0") || $0.hasSuffix("@1") })
+    #expect(layout.rests.count == 2)
+}
+
+private func crossStaffNotationScore() -> MusicXMLScore {
+    let fixtures: [(tick: Int, staff: Int, isChord: Bool, beam: MusicXMLBeamValue, pitch: MusicXMLWrittenPitch)] = [
+        (0, 1, false, .begin, .init(step: "G", octave: 4)),
+        (0, 2, true, .begin, .init(step: "E", octave: 4)),
+        (240, 2, false, .end, .init(step: "F", octave: 4)),
+        (240, 1, true, .end, .init(step: "A", octave: 4)),
+    ]
+    return MusicXMLScore(notes: fixtures.enumerated().map { ordinal, fixture in
+        MusicXMLNoteEvent(
+            sourceID: MusicXMLSourceNoteID(
+                partID: "P1",
+                sourceMeasureIndex: 0,
+                sourceMeasureNumberToken: "1",
+                staff: fixture.staff,
+                voice: 1,
+                sourceOrdinal: ordinal
+            ),
+            partID: "P1",
+            measureNumber: 1,
+            tick: fixture.tick,
+            durationTicks: 240,
+            writtenPitch: fixture.pitch,
+            writtenRhythm: .init(typeToken: "eighth"),
+            midiNote: 60 + ordinal,
+            isRest: false,
+            isChord: fixture.isChord,
+            stem: .down,
+            beams: [.init(numberToken: "1", value: fixture.beam, repeaterToken: nil, fanToken: nil)],
+            staff: fixture.staff,
+            voice: 1
+        )
+    })
+}
+
+private func repeatedNotationScore() -> MusicXMLScore {
+    let noteID = MusicXMLSourceNoteID(
+        partID: "P1",
+        sourceMeasureIndex: 0,
+        sourceMeasureNumberToken: "1",
+        staff: 1,
+        voice: 1,
+        sourceOrdinal: 0
+    )
+    let restID = MusicXMLSourceNoteID(
+        partID: "P1",
+        sourceMeasureIndex: 0,
+        sourceMeasureNumberToken: "1",
+        staff: 2,
+        voice: 2,
+        sourceOrdinal: 1
+    )
+    return MusicXMLScore(notes: [0, 1].flatMap { occurrenceIndex in
+        let tick = occurrenceIndex * 960
+        return [
+            MusicXMLNoteEvent(
+                sourceID: noteID,
+                performedOccurrenceIndex: occurrenceIndex,
+                partID: "P1",
+                measureNumber: 1,
+                tick: tick,
+                durationTicks: 480,
+                writtenPitch: .init(step: "C", octave: 4),
+                writtenRhythm: .init(typeToken: "quarter"),
+                midiNote: 60,
+                isRest: false,
+                isChord: false,
+                staff: 1,
+                voice: 1
+            ),
+            MusicXMLNoteEvent(
+                sourceID: restID,
+                performedOccurrenceIndex: occurrenceIndex,
+                partID: "P1",
+                measureNumber: 1,
+                tick: tick,
+                durationTicks: 480,
+                writtenRhythm: .init(typeToken: "quarter"),
+                midiNote: nil,
+                isRest: true,
+                isChord: false,
+                staff: 2,
+                voice: 2
+            ),
+        ]
+    })
 }

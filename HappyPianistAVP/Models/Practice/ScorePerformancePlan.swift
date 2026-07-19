@@ -74,7 +74,7 @@ struct ScorePerformanceNoteEvent: Codable, Equatable, Sendable {
     let staff: Int
     let voice: Int
     let handAssignment: ScoreHandAssignment
-    let fingeringText: String?
+    let fingerings: [MusicXMLFingering]
     let timingProvenance: [ScorePerformanceProvenance]
 
     var velocity: UInt8 {

@@ -16,7 +16,7 @@ func buildStepsGroupsPlanNotesByPerformedOnsetAndPreservesScoreFacts() throws {
             voice: 1,
             velocity: 88,
             handAssignment: ScoreHandAssignment(hand: .right, provenance: .score),
-            fingeringText: "2"
+            fingerings: [MusicXMLFingering(text: "2", provenance: .score)]
         ),
         performanceNote(
             sourceID: bassID,
@@ -46,7 +46,7 @@ func buildStepsGroupsPlanNotesByPerformedOnsetAndPreservesScoreFacts() throws {
     let treble = try #require(result.steps[0].notes.last)
     #expect(treble.handAssignment.provenance == .score)
     #expect(treble.velocity == 88)
-    #expect(treble.fingeringText == "2")
+    #expect(treble.fingerings.map(\.text) == ["2"])
 }
 
 @Test
@@ -150,7 +150,7 @@ private func performanceNote(
     voice: Int = 1,
     velocity: UInt8 = 96,
     handAssignment: ScoreHandAssignment = .unknown,
-    fingeringText: String? = nil
+    fingerings: [MusicXMLFingering] = []
 ) -> ScorePerformanceNoteEvent {
     let performedID = MusicXMLPerformedNoteID(sourceID: sourceID, occurrenceIndex: 0)
     let contributingSourceIDs = contributingSourceIDs ?? [sourceID]
@@ -179,7 +179,7 @@ private func performanceNote(
         staff: staff,
         voice: voice,
         handAssignment: handAssignment,
-        fingeringText: fingeringText,
+        fingerings: fingerings,
         timingProvenance: []
     )
 }

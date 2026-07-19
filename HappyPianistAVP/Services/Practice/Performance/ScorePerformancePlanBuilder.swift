@@ -196,7 +196,7 @@ private extension ScorePerformancePlanBuilder {
             staff: note.staff ?? 1,
             voice: note.voice ?? 1,
             handAssignment: handAssignments[sourceNoteID] ?? .unknown,
-            fingeringText: note.fingeringText,
+            fingerings: note.fingerings,
             timingProvenance: timing.provenance.map(provenance)
         )
     }
@@ -264,7 +264,7 @@ private extension ScorePerformancePlanBuilder {
                 staff: primaryNote.staff ?? 1,
                 voice: primaryNote.voice ?? 1,
                 handAssignment: handAssignments[primarySourceID] ?? .unknown,
-                fingeringText: primaryNote.fingeringText,
+                fingerings: primaryNote.fingerings,
                 timingProvenance: [ScorePerformanceProvenance(
                     kind: .performanceNotation,
                     sourceIdentity: generated.sourceNotationID?.description,
@@ -441,15 +441,15 @@ private extension ScorePerformancePlanBuilder {
             staff: event.staff,
             voice: event.voice,
             handAssignment: event.handAssignment,
-            fingeringText: event.fingeringText,
+            fingerings: event.fingerings,
             timingProvenance: appendingUnique(event.timingProvenance, continuation.timingProvenance)
         )
     }
 
     func tieCategory(for note: MusicXMLNoteEvent) -> TieCategory {
-        if note.tieStart, note.tieStop { return .middle }
-        if note.tieStart { return .start }
-        if note.tieStop { return .end }
+        if note.startsTie, note.stopsTie { return .middle }
+        if note.startsTie { return .start }
+        if note.stopsTie { return .end }
         return .normal
     }
 

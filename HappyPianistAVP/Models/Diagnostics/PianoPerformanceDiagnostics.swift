@@ -236,3 +236,47 @@ struct PianoPerformancePlanBuildDiagnosticSample: Equatable, Sendable {
         return .succeeded
     }
 }
+
+struct PianoPerformanceNotationFallbackDiagnosticSample: Equatable, Sendable {
+    private struct Key: Hashable {
+        let kind: ScoreNotationProjection.Fallback.Kind
+        let reason: ScoreNotationProjection.Fallback.Reason
+    }
+
+    let kind: ScoreNotationProjection.Fallback.Kind
+    let reason: ScoreNotationProjection.Fallback.Reason
+    let count: Int
+
+    static func aggregated(
+        from fallbacks: [ScoreNotationProjection.Fallback]
+    ) -> [PianoPerformanceNotationFallbackDiagnosticSample] {
+        Dictionary(grouping: fallbacks) { fallback in
+            Key(kind: fallback.kind, reason: fallback.reason)
+        }.map { key, fallbacks in
+            PianoPerformanceNotationFallbackDiagnosticSample(
+                kind: key.kind,
+                reason: key.reason,
+                count: fallbacks.count
+            )
+        }.sorted {
+            if $0.kind.rawValue != $1.kind.rawValue { return $0.kind.rawValue < $1.kind.rawValue }
+            return $0.reason.rawValue < $1.reason.rawValue
+        }
+    }
+
+    var diagnosticEvent: DiagnosticEvent {
+        DiagnosticEvent(
+            severity: .warning,
+            code: .pianoPerformancePipeline,
+            category: .pianoPerformance,
+            stage: PianoPerformanceDiagnosticStage.plan.rawValue,
+            summary: "记谱降级聚合",
+            reason: [
+                "kind=\(kind.rawValue)",
+                "count=\(max(0, count))",
+                "reason=\(reason.rawValue)",
+            ].joined(separator: ";"),
+            persistence: .systemOnly
+        )
+    }
+}

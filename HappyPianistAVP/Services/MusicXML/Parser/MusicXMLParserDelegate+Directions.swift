@@ -42,7 +42,8 @@ extension MusicXMLParserDelegate {
         tick: Int,
         velocity: UInt8,
         source: MusicXMLDynamicEventSource,
-        staff: Int?
+        staff: Int?,
+        markToken: String? = nil
     ) {
         state.dynamicEvents.append(
             MusicXMLDynamicEvent(
@@ -50,7 +51,9 @@ extension MusicXMLParserDelegate {
                 tick: tick,
                 velocity: velocity,
                 scope: MusicXMLEventScope(partID: state.currentPartID, staff: staff, voice: nil),
-                source: source
+                source: source,
+                markToken: markToken,
+                placementToken: state.isInDirection ? state.currentDirectionPlacementToken : nil
             )
         )
     }
@@ -79,7 +82,8 @@ extension MusicXMLParserDelegate {
             tick: currentDirectionEventTick(),
             velocity: velocity,
             source: .directionDynamics,
-            staff: state.currentDirectionStaff
+            staff: state.currentDirectionStaff,
+            markToken: elementName.lowercased()
         )
     }
 
@@ -150,7 +154,8 @@ extension MusicXMLParserDelegate {
                 sourceID: state.currentDirectionSourceID,
                 tick: currentDirectionEventTick(),
                 scope: MusicXMLEventScope(partID: state.currentPartID, staff: state.currentDirectionStaff, voice: nil),
-                source: .directionType
+                source: .directionType,
+                placementToken: state.currentDirectionPlacementToken
             )
         )
     }
@@ -205,7 +210,9 @@ extension MusicXMLParserDelegate {
                 kind: kind,
                 controller: attribute.controller,
                 value: value,
-                timeOnlyPasses: timeOnlyPasses
+                timeOnlyPasses: timeOnlyPasses,
+                staff: state.isInDirection ? state.currentDirectionStaff : nil,
+                placementToken: state.isInDirection ? state.currentDirectionPlacementToken : nil
             ))
         }
     }
@@ -233,7 +240,9 @@ extension MusicXMLParserDelegate {
                     tick: base.tick,
                     kind: .start,
                     value: .on,
-                    timeOnlyPasses: timeOnlyPasses
+                    timeOnlyPasses: timeOnlyPasses,
+                    staff: state.currentDirectionStaff,
+                    placementToken: state.currentDirectionPlacementToken
                 )
             )
         case "stop":
@@ -245,7 +254,9 @@ extension MusicXMLParserDelegate {
                     tick: base.tick,
                     kind: .stop,
                     value: .off,
-                    timeOnlyPasses: timeOnlyPasses
+                    timeOnlyPasses: timeOnlyPasses,
+                    staff: state.currentDirectionStaff,
+                    placementToken: state.currentDirectionPlacementToken
                 )
             )
         case "change":
@@ -257,7 +268,9 @@ extension MusicXMLParserDelegate {
                     tick: base.tick,
                     kind: .change,
                     value: .off,
-                    timeOnlyPasses: timeOnlyPasses
+                    timeOnlyPasses: timeOnlyPasses,
+                    staff: state.currentDirectionStaff,
+                    placementToken: state.currentDirectionPlacementToken
                 )
             )
             state.pedalEvents.append(
@@ -268,7 +281,9 @@ extension MusicXMLParserDelegate {
                     tick: base.tick,
                     kind: .change,
                     value: .on,
-                    timeOnlyPasses: timeOnlyPasses
+                    timeOnlyPasses: timeOnlyPasses,
+                    staff: state.currentDirectionStaff,
+                    placementToken: state.currentDirectionPlacementToken
                 )
             )
         case "continue":
@@ -280,7 +295,9 @@ extension MusicXMLParserDelegate {
                     tick: base.tick,
                     kind: .continue,
                     value: nil,
-                    timeOnlyPasses: timeOnlyPasses
+                    timeOnlyPasses: timeOnlyPasses,
+                    staff: state.currentDirectionStaff,
+                    placementToken: state.currentDirectionPlacementToken
                 )
             )
         default:
@@ -305,7 +322,8 @@ extension MusicXMLParserDelegate {
                     tick: shifted,
                     quarterBPM: tempoEvents[i].quarterBPM,
                     source: tempoEvents[i].source,
-                    staff: tempoEvents[i].staff
+                    staff: tempoEvents[i].staff,
+                    placementToken: tempoEvents[i].placementToken
                 )
             }
             state.rawTempoEventsByPart[state.currentPartID] = tempoEvents
@@ -337,7 +355,9 @@ extension MusicXMLParserDelegate {
                 kind: state.pedalEvents[i].kind,
                 controller: state.pedalEvents[i].controller,
                 value: state.pedalEvents[i].value,
-                timeOnlyPasses: state.pedalEvents[i].timeOnlyPasses
+                timeOnlyPasses: state.pedalEvents[i].timeOnlyPasses,
+                staff: state.pedalEvents[i].staff,
+                placementToken: state.pedalEvents[i].placementToken
             )
         }
 
@@ -351,7 +371,9 @@ extension MusicXMLParserDelegate {
                 ),
                 velocity: event.velocity,
                 scope: event.scope,
-                source: event.source
+                source: event.source,
+                markToken: event.markToken,
+                placementToken: event.placementToken
             )
         }
 
@@ -378,7 +400,8 @@ extension MusicXMLParserDelegate {
                     offsetTicks: delta
                 ),
                 scope: event.scope,
-                source: event.source
+                source: event.source,
+                placementToken: event.placementToken
             )
         }
 
@@ -391,7 +414,8 @@ extension MusicXMLParserDelegate {
                     offsetTicks: delta
                 ),
                 text: event.text,
-                scope: event.scope
+                scope: event.scope,
+                placementToken: event.placementToken
             )
         }
 
@@ -435,7 +459,8 @@ extension MusicXMLParserDelegate {
                     tick: tick,
                     quarterBPM: tempoEvents[i].quarterBPM,
                     source: tempoEvents[i].source,
-                    staff: tempoEvents[i].staff
+                    staff: tempoEvents[i].staff,
+                    placementToken: tempoEvents[i].placementToken
                 )
             }
             state.rawTempoEventsByPart[state.currentPartID] = tempoEvents
@@ -468,7 +493,9 @@ extension MusicXMLParserDelegate {
                     kind: state.pedalEvents[i].kind,
                     controller: state.pedalEvents[i].controller,
                     value: state.pedalEvents[i].value,
-                    timeOnlyPasses: state.pedalEvents[i].timeOnlyPasses
+                    timeOnlyPasses: state.pedalEvents[i].timeOnlyPasses,
+                    staff: state.pedalEvents[i].staff,
+                    placementToken: state.pedalEvents[i].placementToken
                 )
             }
         }
@@ -503,7 +530,8 @@ extension MusicXMLParserDelegate {
             tick: tick,
             quarterBPM: quarterBPM,
             source: source,
-            staff: state.currentDirectionStaff
+            staff: state.currentDirectionStaff,
+            placementToken: state.isInDirection ? state.currentDirectionPlacementToken : nil
         )
         state.rawTempoEventsByPart[state.currentPartID, default: []].append(event)
     }
@@ -595,7 +623,8 @@ extension MusicXMLParserDelegate {
                     sourceID: $0.sourceID,
                     tick: $0.tick,
                     quarterBPM: $0.quarterBPM,
-                    scope: MusicXMLEventScope(partID: $0.partID, staff: $0.staff, voice: nil)
+                    scope: MusicXMLEventScope(partID: $0.partID, staff: $0.staff, voice: nil),
+                    placementToken: $0.placementToken
                 )
             })
         }

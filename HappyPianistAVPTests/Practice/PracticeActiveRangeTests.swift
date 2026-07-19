@@ -53,7 +53,7 @@ struct PracticeActiveRangeTests {
                         velocity: 80,
                         onTick: step.tick,
                         offTick: step.tick + 240,
-                        fingeringText: nil,
+                        fingerings: [],
                         handAssignment: ScoreHandAssignment(hand: .right, provenance: .score)
                     ),
                 ],

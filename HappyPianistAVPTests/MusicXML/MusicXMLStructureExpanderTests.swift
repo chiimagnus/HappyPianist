@@ -341,8 +341,6 @@ func structureExpanderFallsBackWhenJumpLimitsAreHit() {
                 midiNote: 60,
                 isRest: false,
                 isChord: false,
-                tieStart: false,
-                tieStop: false,
                 staff: 1,
                 voice: 1,
                 attackTicks: nil,
@@ -398,14 +396,30 @@ func structureExpanderPreservesParsedNoteAndScoreFieldsWhenMaterializing() {
                 durationTicks: 480,
                 midiNote: 60,
                 isRest: false,
+                isPrintObjectVisible: false,
                 isChord: false,
                 isGrace: true,
                 graceSlash: true,
                 graceStealTimePrevious: 0.2,
                 graceStealTimeFollowing: 0.3,
                 graceMakeTimeTicks: 90,
-                tieStart: false,
-                tieStop: false,
+                ties: [.init(
+                    sourceID: nil,
+                    sourceElement: .notation,
+                    typeToken: "start",
+                    numberToken: "1",
+                    placementToken: "above"
+                )],
+                slurs: [.init(sourceID: nil, typeToken: "start", numberToken: "2", placementToken: "below")],
+                tuplets: [.init(
+                    sourceID: nil,
+                    typeToken: "start",
+                    numberToken: "3",
+                    bracketToken: "yes",
+                    placementToken: "above"
+                )],
+                stem: .down,
+                beams: [.init(numberToken: "2", value: .backwardHook, repeaterToken: nil, fanToken: nil)],
                 staff: 1,
                 voice: 1,
                 attackTicks: -10,
@@ -413,7 +427,7 @@ func structureExpanderPreservesParsedNoteAndScoreFieldsWhenMaterializing() {
                 dynamicsOverrideVelocity: 88,
                 articulations: [.staccato],
                 arpeggiate: MusicXMLArpeggiate(numberToken: "1", directionToken: "up"),
-                fingeringText: "3"
+                fingerings: [MusicXMLFingering(text: "3", provenance: .score)]
             ),
             MusicXMLNoteEvent(
                 partID: "P1",
@@ -423,8 +437,6 @@ func structureExpanderPreservesParsedNoteAndScoreFieldsWhenMaterializing() {
                 midiNote: 62,
                 isRest: false,
                 isChord: false,
-                tieStart: false,
-                tieStop: false,
                 staff: 1,
                 voice: 1
             ),
@@ -468,12 +480,18 @@ func structureExpanderPreservesParsedNoteAndScoreFieldsWhenMaterializing() {
     #expect(preserved?.graceStealTimePrevious == 0.2)
     #expect(preserved?.graceStealTimeFollowing == 0.3)
     #expect(preserved?.graceMakeTimeTicks == 90)
+    #expect(preserved?.isPrintObjectVisible == false)
+    #expect(preserved?.ties.first?.typeToken == "start")
+    #expect(preserved?.slurs.first?.numberToken == "2")
+    #expect(preserved?.tuplets.first?.bracketToken == "yes")
+    #expect(preserved?.stem == .down)
+    #expect(preserved?.beams.first?.value == .backwardHook)
     #expect(preserved?.attackTicks == -10)
     #expect(preserved?.releaseTicks == 20)
     #expect(preserved?.dynamicsOverrideVelocity == 88)
     #expect(preserved?.articulations == [.staccato])
     #expect(preserved?.arpeggiate == MusicXMLArpeggiate(numberToken: "1", directionToken: "up"))
-    #expect(preserved?.fingeringText == "3")
+    #expect(preserved?.fingerings.map(\.text) == ["3"])
     #expect(expanded.dynamicEvents.isEmpty == false)
     #expect(expanded.wedgeEvents.isEmpty == false)
     #expect(expanded.fermataEvents.isEmpty == false)

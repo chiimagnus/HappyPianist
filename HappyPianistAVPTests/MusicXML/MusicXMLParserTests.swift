@@ -467,8 +467,9 @@ func parserParsesNoteTieElement() throws {
 
     let score = try MusicXMLParser().parse(data: Data(xml.utf8))
     #expect(score.notes.count == 1)
-    #expect(score.notes[0].tieStart == true)
-    #expect(score.notes[0].tieStop == false)
+    #expect(score.notes[0].startsTie)
+    #expect(score.notes[0].stopsTie == false)
+    #expect(score.notes[0].ties.map(\.sourceElement) == [.sound])
 }
 
 @Test
@@ -494,8 +495,9 @@ func parserParsesNotationsTiedElement() throws {
 
     let score = try MusicXMLParser().parse(data: Data(xml.utf8))
     #expect(score.notes.count == 1)
-    #expect(score.notes[0].tieStart == false)
-    #expect(score.notes[0].tieStop == true)
+    #expect(score.notes[0].startsTie == false)
+    #expect(score.notes[0].stopsTie)
+    #expect(score.notes[0].ties.map(\.sourceElement) == [.notation])
 }
 
 @Test
@@ -961,6 +963,51 @@ func parserPreservesTransposeAndOctaveShiftFacts() throws {
 }
 
 @Test
+func fingeringFactsPreserveMultiplicityPlacementHandAndProvenance() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1"><measure number="1">
+        <attributes><divisions>1</divisions></attributes>
+        <note>
+          <pitch><step>C</step><octave>4</octave></pitch><duration>1</duration>
+          <notations><technical>
+            <fingering substitution="yes" alternate="no" placement="above" hand="right">1</fingering>
+            <fingering substitution="no" alternate="yes" placement="below" hand="left">2</fingering>
+          </technical></notations>
+        </note>
+      </measure></part>
+    </score-partwise>
+    """
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let note = try #require(score.notes.first)
+
+    #expect(note.fingerings.map(\.text) == ["1", "2"])
+    #expect(note.fingerings.map(\.substitution) == [.enabled, .disabled])
+    #expect(note.fingerings.map(\.alternate) == [.disabled, .enabled])
+    #expect(note.fingerings.map(\.placementToken) == ["above", "below"])
+    #expect(note.fingerings.map(\.hand) == [.right, .left])
+    #expect(note.fingerings.allSatisfy { $0.provenance == .score && $0.sourceID != nil })
+
+    let projection = ScoreNotationProjection(
+        plan: makeTestScorePerformancePlan(from: score),
+        sourceScore: score
+    )
+    #expect(projection.sourceNotes.first?.fingerings == note.fingerings)
+
+    let authored = note.fingerings + [
+        MusicXMLFingering(text: "3", placementToken: "above", hand: .right, provenance: .teacher),
+        MusicXMLFingering(text: "4", placementToken: "below", hand: .left, provenance: .user),
+    ]
+    let roundTrip = try JSONDecoder().decode(
+        [MusicXMLFingering].self,
+        from: JSONEncoder().encode(authored)
+    )
+    #expect(roundTrip == authored)
+    #expect(roundTrip.map(\.provenance) == [.score, .score, .teacher, .user])
+}
+
+@Test
 func partSelectorPrefersTheOnlyExplicitPianoOverNoteCount() {
     let piano = MusicXMLLogicalInstrument(
         id: "piano:P2",
@@ -977,9 +1024,9 @@ func partSelectorPrefersTheOnlyExplicitPianoOverNoteCount() {
     let score = MusicXMLScore(
         logicalInstruments: [orchestra, piano],
         notes: [
-            MusicXMLNoteEvent(partID: "P1", measureNumber: 1, tick: 0, durationTicks: 1, midiNote: 60, isRest: false, isChord: false, tieStart: false, tieStop: false, staff: 1, voice: 1),
-            MusicXMLNoteEvent(partID: "P1", measureNumber: 1, tick: 1, durationTicks: 1, midiNote: 62, isRest: false, isChord: false, tieStart: false, tieStop: false, staff: 1, voice: 1),
-            MusicXMLNoteEvent(partID: "P2", measureNumber: 1, tick: 0, durationTicks: 1, midiNote: 48, isRest: false, isChord: false, tieStart: false, tieStop: false, staff: 1, voice: 1),
+            MusicXMLNoteEvent(partID: "P1", measureNumber: 1, tick: 0, durationTicks: 1, midiNote: 60, isRest: false, isChord: false, staff: 1, voice: 1),
+            MusicXMLNoteEvent(partID: "P1", measureNumber: 1, tick: 1, durationTicks: 1, midiNote: 62, isRest: false, isChord: false, staff: 1, voice: 1),
+            MusicXMLNoteEvent(partID: "P2", measureNumber: 1, tick: 0, durationTicks: 1, midiNote: 48, isRest: false, isChord: false, staff: 1, voice: 1),
         ]
     )
     #expect(MusicXMLPracticePartSelector().select(from: score) == .selected(piano))
@@ -998,8 +1045,8 @@ func partSelectorReportsAmbiguityInsteadOfPickingTheMostNotes() {
     let score = MusicXMLScore(
         logicalInstruments: [a, b],
         notes: [
-            MusicXMLNoteEvent(partID: "P1", measureNumber: 1, tick: 0, durationTicks: 1, midiNote: 60, isRest: false, isChord: false, tieStart: false, tieStop: false, staff: 1, voice: 1),
-            MusicXMLNoteEvent(partID: "P2", measureNumber: 1, tick: 0, durationTicks: 1, midiNote: 48, isRest: false, isChord: false, tieStart: false, tieStop: false, staff: 1, voice: 1),
+            MusicXMLNoteEvent(partID: "P1", measureNumber: 1, tick: 0, durationTicks: 1, midiNote: 60, isRest: false, isChord: false, staff: 1, voice: 1),
+            MusicXMLNoteEvent(partID: "P2", measureNumber: 1, tick: 0, durationTicks: 1, midiNote: 48, isRest: false, isChord: false, staff: 1, voice: 1),
         ]
     )
     #expect(MusicXMLPracticePartSelector().select(from: score) == .ambiguous(.init(

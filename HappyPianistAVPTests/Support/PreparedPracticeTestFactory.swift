@@ -151,7 +151,7 @@ struct TestScorePerformanceNote {
     let staff: Int
     let voice: Int
     let handAssignment: ScoreHandAssignment
-    let fingeringText: String?
+    let fingerings: [MusicXMLFingering]
 
     init(
         midiNote: Int,
@@ -161,7 +161,7 @@ struct TestScorePerformanceNote {
         staff: Int = 1,
         voice: Int = 1,
         handAssignment: ScoreHandAssignment = .unknown,
-        fingeringText: String? = nil
+        fingerings: [MusicXMLFingering] = []
     ) {
         self.midiNote = midiNote
         self.velocity = velocity
@@ -170,7 +170,7 @@ struct TestScorePerformanceNote {
         self.staff = staff
         self.voice = voice
         self.handAssignment = handAssignment
-        self.fingeringText = fingeringText
+        self.fingerings = fingerings
     }
 }
 
@@ -215,7 +215,7 @@ func makeTestScorePerformancePlan(
             staff: note.staff,
             voice: note.voice,
             handAssignment: note.handAssignment,
-            fingeringText: note.fingeringText,
+            fingerings: note.fingerings,
             timingProvenance: []
         )
     }
@@ -255,11 +255,9 @@ func makeTestMusicXMLScore(notes: [TestScorePerformanceNote]) -> MusicXMLScore {
             midiNote: note.midiNote,
             isRest: false,
             isChord: false,
-            tieStart: false,
-            tieStop: false,
             staff: note.staff,
             voice: note.voice,
-            fingeringText: note.fingeringText
+            fingerings: note.fingerings
         )
     })
 }

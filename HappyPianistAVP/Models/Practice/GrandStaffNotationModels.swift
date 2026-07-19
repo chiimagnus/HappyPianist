@@ -7,6 +7,47 @@ enum GrandStaffNoteValue: Equatable {
     case eighth
     case sixteenth
     case thirtySecond
+    case unsupported(sourceTypeToken: String?)
+
+    var noteheadGlyphToken: GrandStaffGlyphToken? {
+        switch self {
+        case .whole: .noteheadWhole
+        case .half: .noteheadHalf
+        case .quarter, .eighth, .sixteenth, .thirtySecond: .noteheadBlack
+        case .unsupported: nil
+        }
+    }
+
+    var restGlyphToken: GrandStaffGlyphToken? {
+        switch self {
+        case .whole: .restWhole
+        case .half: .restHalf
+        case .quarter: .restQuarter
+        case .eighth: .restEighth
+        case .sixteenth: .restSixteenth
+        case .thirtySecond: .restThirtySecond
+        case .unsupported: nil
+        }
+    }
+
+    func flagGlyphToken(stemDirection: GrandStaffStemDirection) -> GrandStaffGlyphToken? {
+        switch (self, stemDirection) {
+        case (.eighth, .up): .flagEighthUp
+        case (.eighth, .down): .flagEighthDown
+        case (.sixteenth, .up): .flagSixteenthUp
+        case (.sixteenth, .down): .flagSixteenthDown
+        case (.thirtySecond, .up): .flagThirtySecondUp
+        case (.thirtySecond, .down): .flagThirtySecondDown
+        default: nil
+        }
+    }
+
+    var hasStem: Bool {
+        switch self {
+        case .half, .quarter, .eighth, .sixteenth, .thirtySecond: true
+        case .whole, .unsupported: false
+        }
+    }
 }
 
 enum GrandStaffStemDirection: Equatable {
@@ -14,12 +55,44 @@ enum GrandStaffStemDirection: Equatable {
     case down
 }
 
+struct GrandStaffAccidental: Equatable {
+    enum Kind: Equatable {
+        case sharp
+        case flat
+        case natural
+        case doubleSharp
+        case doubleFlat
+        case unsupported
+    }
+
+    let kind: Kind
+    let sourceToken: String?
+    let alter: Double
+
+    var glyphToken: GrandStaffGlyphToken? {
+        switch kind {
+        case .sharp: .accidentalSharp
+        case .flat: .accidentalFlat
+        case .natural: .accidentalNatural
+        case .doubleSharp: .accidentalDoubleSharp
+        case .doubleFlat: .accidentalDoubleFlat
+        case .unsupported: nil
+        }
+    }
+}
+
 struct GrandStaffNotationLayout: Equatable {
     let items: [GrandStaffNotationItem]
     let chords: [GrandStaffNotationChord]
     let rests: [GrandStaffNotationRest]
+    let ties: [GrandStaffNotationTie]
+    let slurs: [GrandStaffNotationSlur]
+    let tuplets: [GrandStaffNotationTuplet]
     let barlines: [GrandStaffNotationBarline]
     let beams: [GrandStaffNotationBeam]
+    let ledgerLines: [GrandStaffNotationLedgerLine]
+    let marks: [GrandStaffNotationMark]
+    let attributeChanges: [GrandStaffNotationAttributeChange]
     let context: GrandStaffNotationContext?
 }
 
@@ -28,18 +101,75 @@ struct GrandStaffNotationChord: Equatable, Identifiable {
     let tick: Int
     let xPosition: Double
     let itemIDs: [String]
-    let stemDirection: GrandStaffStemDirection
+    let stem: GrandStaffNotationStem
     let noteValue: GrandStaffNoteValue
+}
+
+struct GrandStaffNotationStem: Equatable {
+    let direction: GrandStaffStemDirection
+    let isVisible: Bool
+    let startItemID: String
+    let endItemID: String
+    let xOffset: Double
 }
 
 struct GrandStaffNotationRest: Equatable, Identifiable {
     let id: String
     let staffNumber: Int
-    let guideID: Int
+    let voice: Int
     let tick: Int
     let xPosition: Double
     let noteValue: GrandStaffNoteValue
+    let dotCount: Int
     let isHighlighted: Bool
+
+    var glyphToken: GrandStaffGlyphToken? { noteValue.restGlyphToken }
+    var staffStep: Int { noteValue == .whole ? 6 : 4 }
+}
+
+struct GrandStaffNotationTie: Equatable, Identifiable {
+    let id: String
+    let staffNumber: Int
+    let voice: Int
+    let numberToken: String?
+    let placementToken: String?
+    let startOccurrenceID: String?
+    let endOccurrenceID: String?
+    let startXPosition: Double
+    let endXPosition: Double
+    let continuesFromPrevious: Bool
+    let continuesToNext: Bool
+}
+
+struct GrandStaffNotationSlur: Equatable, Identifiable {
+    let id: String
+    let staffNumber: Int
+    let voice: Int
+    let numberToken: String?
+    let placementToken: String?
+    let startOccurrenceID: String?
+    let endOccurrenceID: String?
+    let startXPosition: Double
+    let endXPosition: Double
+    let continuesFromPrevious: Bool
+    let continuesToNext: Bool
+}
+
+struct GrandStaffNotationTuplet: Equatable, Identifiable {
+    let id: String
+    let staffNumber: Int
+    let voice: Int
+    let numberToken: String?
+    let displayNumber: Int?
+    let bracketToken: String?
+    let placementToken: String?
+    let startOccurrenceID: String?
+    let endOccurrenceID: String?
+    let startXPosition: Double
+    let endXPosition: Double
+    let continuesFromPrevious: Bool
+    let continuesToNext: Bool
+    let nestingLevel: Int
 }
 
 struct GrandStaffNotationBarline: Equatable, Identifiable {
@@ -51,7 +181,105 @@ struct GrandStaffNotationBarline: Equatable, Identifiable {
 struct GrandStaffNotationBeam: Equatable, Identifiable {
     let id: String
     let chordIDs: [String]
-    let beamCount: Int
+    let segments: [GrandStaffNotationBeamSegment]
+}
+
+struct GrandStaffNotationBeamSegment: Equatable {
+    enum HookDirection: Equatable {
+        case forward
+        case backward
+    }
+
+    let level: Int
+    let startChordID: String
+    let endChordID: String
+    let hookDirection: HookDirection?
+}
+
+struct GrandStaffNotationLedgerLine: Equatable, Identifiable {
+    let id: String
+    let tick: Int
+    let xPosition: Double
+    let staffNumber: Int
+    let staffStep: Int
+    let minXOffsetStaffSpaces: Double
+    let maxXOffsetStaffSpaces: Double
+}
+
+enum GrandStaffNotationPlacement: Equatable {
+    case above
+    case below
+    case left
+}
+
+struct GrandStaffNotationMark: Equatable, Identifiable {
+    enum Kind: Equatable {
+        case dynamic
+        case tempo
+        case text
+        case pedalStart
+        case pedalStop
+        case pedalChange
+        case pedalContinue
+        case fermata
+        case repeatForward
+        case repeatBackward
+        case endingStart
+        case endingStop
+        case endingDiscontinue
+        case articulation(GrandStaffGlyphToken)
+        case arpeggio(GrandStaffGlyphToken)
+        case fingering
+    }
+
+    let id: String
+    let tick: Int
+    let xPosition: Double
+    let staffNumber: Int
+    let voice: Int
+    let kind: Kind
+    let text: String?
+    let placement: GrandStaffNotationPlacement
+    let collisionLevel: Int
+    let minimumStaffStep: Int?
+    let maximumStaffStep: Int?
+
+    var glyphToken: GrandStaffGlyphToken? {
+        switch kind {
+        case .pedalStart: .keyboardPedalPed
+        case .pedalStop, .pedalChange: .keyboardPedalUp
+        case .fermata: placement == .above ? .fermataAbove : .fermataBelow
+        case .dynamic, .tempo, .text, .pedalContinue,
+             .repeatForward, .repeatBackward,
+             .endingStart, .endingStop, .endingDiscontinue:
+            nil
+        case let .articulation(token), let .arpeggio(token):
+            token
+        case .fingering:
+            nil
+        }
+    }
+}
+
+struct GrandStaffNotationAttributeChange: Equatable, Identifiable {
+    let id: String
+    let tick: Int
+    let xPosition: Double
+    let staffNumber: Int
+    let clefSignToken: String?
+    let clefLine: Int?
+    let keySignatureFifths: Int?
+    let previousKeySignatureFifths: Int?
+    let timeSignatureText: String?
+
+    var clefGlyphToken: GrandStaffGlyphToken? {
+        switch clefSignToken?.uppercased() {
+        case "G": .gClef
+        case "F": .fClef
+        case "C": .cClef
+        default: nil
+        }
+    }
 }
 
 struct GrandStaffNotationContext: Equatable {
@@ -65,9 +293,12 @@ struct GrandStaffNotationContext: Equatable {
     let keySignatureFifths: Int?
     let timeSignatureText: String?
 
+    var trebleClefGlyphToken: GrandStaffGlyphToken? { clefGlyphToken(signToken: trebleClefSignToken) }
+    var bassClefGlyphToken: GrandStaffGlyphToken? { clefGlyphToken(signToken: bassClefSignToken) }
+
     init(
-        trebleClefSymbol: String = "\u{E050}",
-        bassClefSymbol: String = "\u{E062}",
+        trebleClefSymbol: String = GrandStaffGlyphToken.gClef.glyph,
+        bassClefSymbol: String = GrandStaffGlyphToken.fClef.glyph,
         trebleClefSignToken: String? = "G",
         trebleClefLine: Int? = 2,
         bassClefSignToken: String? = "F",
@@ -86,6 +317,15 @@ struct GrandStaffNotationContext: Equatable {
         self.keySignatureFifths = keySignatureFifths
         self.timeSignatureText = timeSignatureText
     }
+
+    private func clefGlyphToken(signToken: String?) -> GrandStaffGlyphToken? {
+        switch signToken?.uppercased() {
+        case "G": .gClef
+        case "F": .fClef
+        case "C": .cClef
+        default: nil
+        }
+    }
 }
 
 struct GrandStaffNotationItem: Equatable, Identifiable {
@@ -97,25 +337,40 @@ struct GrandStaffNotationItem: Equatable, Identifiable {
     let staffNumber: Int
     let voice: Int
     let hand: ScoreHand
-    let midiNote: Int
-    let guideID: Int
     let tick: Int
     let xPosition: Double
     let staffStep: Int
-    let showsSharpAccidental: Bool
+    let displayedAccidental: GrandStaffAccidental?
     let isHighlighted: Bool
-    let fingeringText: String?
+    let fingerings: [MusicXMLFingering]
     let noteValue: GrandStaffNoteValue
     let chordID: String?
-    let noteHeadXOffset: Double
-    let stemDirection: GrandStaffStemDirection
+    let noteheadXOffset: Double
+    let accidentalXOffsetStaffSpaces: Double?
+    let dotXOffsetStaffSpaces: Double?
+    let dotStaffStep: Int?
     let beamID: String?
     let durationTicks: Int
     let isGrace: Bool
-    let tieStart: Bool
-    let tieStop: Bool
-    let tieEndXPosition: Double?
     let articulations: Set<MusicXMLArticulation>
     let arpeggiate: MusicXMLArpeggiate?
     let dotCount: Int
+
+    var noteheadGlyphToken: GrandStaffGlyphToken? { noteValue.noteheadGlyphToken }
+    var articulationGlyphTokens: [GrandStaffGlyphToken] {
+        articulations.sorted { $0.rawValue < $1.rawValue }.compactMap(\.grandStaffGlyphToken)
+    }
+}
+
+private extension MusicXMLArticulation {
+    var grandStaffGlyphToken: GrandStaffGlyphToken? {
+        switch self {
+        case .accent: .articulationAccentAbove
+        case .staccato: .articulationStaccatoAbove
+        case .tenuto: .articulationTenutoAbove
+        case .staccatissimo: .articulationStaccatissimoAbove
+        case .marcato: .articulationMarcatoAbove
+        case .detachedLegato: nil
+        }
+    }
 }

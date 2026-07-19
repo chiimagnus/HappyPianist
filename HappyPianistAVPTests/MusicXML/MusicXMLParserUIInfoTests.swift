@@ -28,7 +28,7 @@ struct MusicXMLParserUIInfoTests {
 
         let score = try MusicXMLParser().parse(data: Data(xml.utf8))
         #expect(score.notes.count == 1)
-        #expect(score.notes.first?.fingeringText == "3")
+        #expect(score.notes.first?.fingerings.map(\.text) == ["3"])
     }
 
     @Test

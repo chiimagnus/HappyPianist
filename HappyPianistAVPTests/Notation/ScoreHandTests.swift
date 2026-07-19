@@ -48,7 +48,7 @@ func highlightNoteRequiresExplicitAssignment() {
         velocity: 96,
         onTick: 0,
         offTick: 1,
-        fingeringText: nil,
+        fingerings: [],
         handAssignment: .unknown
     )
 

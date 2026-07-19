@@ -178,8 +178,8 @@ struct MusicXMLScoreSnapshot {
             ("grace", encoder.encode(note.isGrace)),
             ("staff", encoder.encode(note.staff)),
             ("voice", encoder.encode(note.voice)),
-            ("tieStart", encoder.encode(note.tieStart)),
-            ("tieStop", encoder.encode(note.tieStop)),
+            ("tieStart", encoder.encode(note.startsTie)),
+            ("tieStop", encoder.encode(note.stopsTie)),
         ])
     }
 

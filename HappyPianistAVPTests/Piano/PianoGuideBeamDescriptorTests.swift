@@ -122,7 +122,7 @@ private func makeGuide(from step: PracticeStep) -> PianoHighlightGuide {
             velocity: note.velocity,
             onTick: step.tick + note.onTickOffset,
             offTick: step.tick + note.onTickOffset + 1,
-            fingeringText: note.fingeringText,
+            fingerings: note.fingerings,
             handAssignment: .unknown
         )
     }

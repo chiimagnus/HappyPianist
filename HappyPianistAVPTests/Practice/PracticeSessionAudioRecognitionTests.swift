@@ -185,7 +185,7 @@ func autoplayIsolationBlocksAudioAdvanceUntilAutoplayOff() async {
                     velocity: 96,
                     onTick: 0,
                     offTick: 1,
-                    fingeringText: nil,
+                    fingerings: [],
                     handAssignment: .unknown
                 ),
             ],
@@ -207,7 +207,7 @@ func autoplayIsolationBlocksAudioAdvanceUntilAutoplayOff() async {
                     velocity: 96,
                     onTick: 4800,
                     offTick: 4801,
-                    fingeringText: nil,
+                    fingerings: [],
                     handAssignment: .unknown
                 ),
             ],

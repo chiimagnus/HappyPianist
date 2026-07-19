@@ -238,7 +238,8 @@ actor PracticePreparationService: PracticePreparationServiceProtocol {
         let buildResult = stepBuilder.buildSteps(from: performancePlan)
         let notationProjection = ScoreNotationProjection(
             plan: performancePlan,
-            sourceScore: sourceScore
+            sourceScore: sourceScore,
+            performedScore: practiceScore
         )
         let highlightGuides = PianoHighlightGuideBuilderService().buildGuides(
             input: PianoHighlightGuideBuildInput(
@@ -272,6 +273,11 @@ actor PracticePreparationService: PracticePreparationServiceProtocol {
                 notationMismatchCount: mismatchCounts.notation
             ).diagnosticEvent
         )
+        for sample in PianoPerformanceNotationFallbackDiagnosticSample.aggregated(
+            from: notationProjection.fallbacks
+        ) {
+            _ = await diagnosticsReporter.record(sample.diagnosticEvent)
+        }
         try Task.checkCancellation()
         guard buildResult.steps.isEmpty == false else {
             throw PracticePreparationError.noPlayableNotes

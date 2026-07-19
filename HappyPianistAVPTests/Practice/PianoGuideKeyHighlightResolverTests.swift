@@ -11,7 +11,7 @@ func resolverMarksTriggeredNotesAsTriggered() {
         velocity: 96,
         onTick: 0,
         offTick: 1,
-        fingeringText: nil,
+        fingerings: [],
         handAssignment: ScoreHandAssignment(hand: .right, provenance: .score)
     )
 
@@ -40,7 +40,7 @@ func resolverKeepsConflictingStavesNeutralWhenNotesShareMIDINote() {
         velocity: 96,
         onTick: 0,
         offTick: 1,
-        fingeringText: nil,
+        fingerings: [],
         handAssignment: ScoreHandAssignment(hand: .right, provenance: .score)
     )
     let lower = PianoHighlightNote(
@@ -51,7 +51,7 @@ func resolverKeepsConflictingStavesNeutralWhenNotesShareMIDINote() {
         velocity: 96,
         onTick: 0,
         offTick: 1,
-        fingeringText: nil,
+        fingerings: [],
         handAssignment: ScoreHandAssignment(hand: .left, provenance: .score)
     )
 
@@ -80,7 +80,7 @@ func resolverUsesTriggeredNotesStaffBeforeActiveNotes() {
         velocity: 96,
         onTick: 0,
         offTick: 1,
-        fingeringText: nil,
+        fingerings: [],
         handAssignment: ScoreHandAssignment(hand: .right, provenance: .score)
     )
     let activeLower = PianoHighlightNote(
@@ -91,7 +91,7 @@ func resolverUsesTriggeredNotesStaffBeforeActiveNotes() {
         velocity: 96,
         onTick: 0,
         offTick: 1,
-        fingeringText: nil,
+        fingerings: [],
         handAssignment: ScoreHandAssignment(hand: .left, provenance: .score)
     )
 
@@ -120,7 +120,7 @@ func resolverKeepsAdditionalStaffNeutral() {
         velocity: 96,
         onTick: 0,
         offTick: 1,
-        fingeringText: nil,
+        fingerings: [],
         handAssignment: .unknown
     )
     let guide = PianoHighlightGuide(

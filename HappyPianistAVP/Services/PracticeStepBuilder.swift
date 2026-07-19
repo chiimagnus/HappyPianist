@@ -14,7 +14,7 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
     private struct StepNoteValue {
         let handAssignment: ScoreHandAssignment
         let velocity: UInt8
-        let fingeringText: String?
+        let fingerings: [MusicXMLFingering]
         var sourceNoteIDs: [MusicXMLSourceNoteID]
     }
 
@@ -42,7 +42,7 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
                 notesAtTick[key] = StepNoteValue(
                     handAssignment: event.handAssignment,
                     velocity: event.velocity,
-                    fingeringText: event.fingeringText,
+                    fingerings: event.fingerings,
                     sourceNoteIDs: event.contributingSourceNoteIDs
                 )
             }
@@ -62,7 +62,7 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
                     staff: key.staff,
                     voice: key.voice,
                     velocity: entry?.velocity ?? 96,
-                    fingeringText: entry?.fingeringText,
+                    fingerings: entry?.fingerings ?? [],
                     sourceNoteIDs: entry?.sourceNoteIDs ?? [],
                     handAssignment: entry?.handAssignment ?? .unknown
                 )

@@ -482,7 +482,7 @@ func autoplaySchedulesAndAdvancesStepsUsingTempoMap() async {
                 velocity: 80,
                 onTick: 0,
                 offTick: 480,
-                fingeringText: nil,
+                fingerings: [],
                 handAssignment: .unknown
             )],
             releasedMIDINotes: []
@@ -502,7 +502,7 @@ func autoplaySchedulesAndAdvancesStepsUsingTempoMap() async {
                 velocity: 80,
                 onTick: 480,
                 offTick: 960,
-                fingeringText: nil,
+                fingerings: [],
                 handAssignment: .unknown
             )],
             releasedMIDINotes: []
@@ -572,7 +572,7 @@ func autoplaySchedulesPendingOnsetsInsideCurrentStep() {
                     velocity: 96,
                     onTick: 0,
                     offTick: 480,
-                    fingeringText: nil,
+                    fingerings: [],
                     handAssignment: .unknown
                 ),
                 PianoHighlightNote(
@@ -583,7 +583,7 @@ func autoplaySchedulesPendingOnsetsInsideCurrentStep() {
                     velocity: 96,
                     onTick: 30,
                     offTick: 510,
-                    fingeringText: nil,
+                    fingerings: [],
                     handAssignment: .unknown
                 ),
             ],
@@ -648,7 +648,7 @@ func autoplayInsertsPlanPauseBeforeAdvancing() {
         velocity: 96,
         onTick: 0,
         offTick: 480,
-        fingeringText: nil,
+        fingerings: [],
         handAssignment: .unknown
     )
     let guides = [
@@ -1134,7 +1134,7 @@ func autoplaySchedulesNoteOffFromPerformancePlan() {
                     velocity: 96,
                     onTick: 0,
                     offTick: 480,
-                    fingeringText: nil,
+                    fingerings: [],
                     handAssignment: .unknown
                 ),
             ],
@@ -1347,7 +1347,7 @@ func disablingAutoplayStopsAudioAndClearsPendingScheduling() async {
                         velocity: 96,
                         onTick: 0,
                         offTick: 480,
-                        fingeringText: nil,
+                        fingerings: [],
                         handAssignment: .unknown
                     ),
                 ],
@@ -1541,7 +1541,7 @@ private func makeHighlightGuide(
             velocity: 96,
             onTick: tick,
             offTick: tick + max(1, noteDurationTicks),
-            fingeringText: nil,
+            fingerings: [],
             handAssignment: .unknown
         )
     }

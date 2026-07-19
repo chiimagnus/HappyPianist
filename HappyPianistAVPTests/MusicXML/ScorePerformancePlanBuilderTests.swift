@@ -12,8 +12,6 @@ func timingScheduleRecordsGenericInterpretationProfileForArticulation() {
         midiNote: 60,
         isRest: false,
         isChord: false,
-        tieStart: false,
-        tieStop: false,
         staff: 1,
         voice: 1,
         articulations: [.detachedLegato]
@@ -35,8 +33,6 @@ func timingScheduleKeepsFullTenutoDurationAndRecordsItsProfileRule() {
         midiNote: 60,
         isRest: false,
         isChord: false,
-        tieStart: false,
-        tieStop: false,
         staff: 1,
         voice: 1,
         articulations: [.tenuto]
@@ -60,11 +56,9 @@ func timingScheduleConnectsSlurReleaseWithoutPedalSemantics() {
             midiNote: 60,
             isRest: false,
             isChord: false,
-            tieStart: false,
-            tieStop: false,
+            slurs: [makeSlur(typeToken: "start", numberToken: "2")],
             staff: 1,
-            voice: 1,
-            performanceNotations: [makePerformanceNotation(kind: .slur, typeToken: "start", numberToken: "2")]
+            voice: 1
         ),
         MusicXMLNoteEvent(
             partID: "P1",
@@ -74,11 +68,9 @@ func timingScheduleConnectsSlurReleaseWithoutPedalSemantics() {
             midiNote: 62,
             isRest: false,
             isChord: false,
-            tieStart: false,
-            tieStop: false,
+            slurs: [makeSlur(typeToken: "stop", numberToken: "2")],
             staff: 1,
-            voice: 1,
-            performanceNotations: [makePerformanceNotation(kind: .slur, typeToken: "stop", numberToken: "2")]
+            voice: 1
         ),
     ]
 
@@ -102,8 +94,6 @@ func timingScheduleCreatesBreathGapAndCaesuraPauseDirective() {
         midiNote: 60,
         isRest: false,
         isChord: false,
-        tieStart: false,
-        tieStop: false,
         staff: 1,
         voice: 1,
         performanceNotations: [
@@ -137,12 +127,10 @@ func timingSchedulePreservesShortArticulationWhenItConflictsWithSlur() {
             midiNote: 60,
             isRest: false,
             isChord: false,
-            tieStart: false,
-            tieStop: false,
+            slurs: [makeSlur(typeToken: "start")],
             staff: 1,
             voice: 1,
-            articulations: [.staccato],
-            performanceNotations: [makePerformanceNotation(kind: .slur, typeToken: "start")]
+            articulations: [.staccato]
         ),
         MusicXMLNoteEvent(
             partID: "P1",
@@ -152,11 +140,9 @@ func timingSchedulePreservesShortArticulationWhenItConflictsWithSlur() {
             midiNote: 62,
             isRest: false,
             isChord: false,
-            tieStart: false,
-            tieStop: false,
+            slurs: [makeSlur(typeToken: "stop")],
             staff: 1,
-            voice: 1,
-            performanceNotations: [makePerformanceNotation(kind: .slur, typeToken: "stop")]
+            voice: 1
         ),
     ]
 
@@ -189,8 +175,8 @@ func performancePlanBuilderMergesTieChainWithoutLosingContributors() throws {
     let firstID = makeSourceNoteID(sourceOrdinal: 0, voice: 1)
     let secondID = makeSourceNoteID(sourceOrdinal: 1, voice: 1)
     let notes = [
-        makeIdentifiedNote(sourceID: firstID, occurrenceIndex: 0, tick: 0, voice: 1, tieStart: true),
-        makeIdentifiedNote(sourceID: secondID, occurrenceIndex: 0, tick: 480, voice: 1, tieStop: true),
+        makeIdentifiedNote(sourceID: firstID, occurrenceIndex: 0, tick: 0, voice: 1, ties: [makeTie(typeToken: "start")]),
+        makeIdentifiedNote(sourceID: secondID, occurrenceIndex: 0, tick: 480, voice: 1, ties: [makeTie(typeToken: "stop")]),
     ]
 
     let plan = try makePerformancePlan(notes: notes)
@@ -267,14 +253,14 @@ func performancePlanBuilderPublishesTimingApproximations() throws {
             tick: 0,
             voice: 1,
             articulations: [.staccato],
-            performanceNotations: [makePerformanceNotation(kind: .slur, typeToken: "start")]
+            slurs: [makeSlur(typeToken: "start")]
         ),
         makeIdentifiedNote(
             sourceID: secondID,
             occurrenceIndex: 0,
             tick: 480,
             voice: 1,
-            performanceNotations: [makePerformanceNotation(kind: .slur, typeToken: "stop")]
+            slurs: [makeSlur(typeToken: "stop")]
         ),
     ]
 
@@ -329,9 +315,9 @@ private func makeIdentifiedNote(
     occurrenceIndex: Int,
     tick: Int,
     voice: Int,
-    tieStart: Bool = false,
-    tieStop: Bool = false,
     articulations: Set<MusicXMLArticulation> = [],
+    ties: [MusicXMLTie] = [],
+    slurs: [MusicXMLSlur] = [],
     performanceNotations: [MusicXMLPerformanceNotation] = []
 ) -> MusicXMLNoteEvent {
     MusicXMLNoteEvent(
@@ -345,12 +331,31 @@ private func makeIdentifiedNote(
         midiNote: 60,
         isRest: false,
         isChord: false,
-        tieStart: tieStart,
-        tieStop: tieStop,
+        ties: ties,
+        slurs: slurs,
         staff: 1,
         voice: voice,
         articulations: articulations,
         performanceNotations: performanceNotations
+    )
+}
+
+private func makeTie(typeToken: String) -> MusicXMLTie {
+    MusicXMLTie(
+        sourceID: nil,
+        sourceElement: .notation,
+        typeToken: typeToken,
+        numberToken: nil,
+        placementToken: nil
+    )
+}
+
+private func makeSlur(typeToken: String, numberToken: String? = nil) -> MusicXMLSlur {
+    MusicXMLSlur(
+        sourceID: nil,
+        typeToken: typeToken,
+        numberToken: numberToken,
+        placementToken: nil
     )
 }
 
@@ -370,4 +375,3 @@ private func makePerformanceNotation(
         attributes: [:]
     )
 }
-

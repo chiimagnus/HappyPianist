@@ -61,6 +61,25 @@
       "snapshot": "musicxml-autoplay-regression"
     },
     {
+      "id": "notation-fidelity-piano",
+      "file": "NotationFidelityPiano.musicxml",
+      "source": "project-authored MusicXML notation fidelity fixture",
+      "license": "repository test asset",
+      "exporter": "hand-authored MusicXML 4.0",
+      "coverage": [
+        "enharmonic",
+        "accidental-state",
+        "note-values-and-rests",
+        "ties-slurs-tuplets",
+        "clef-change",
+        "voices-and-beams",
+        "cross-staff",
+        "piano-marks",
+        "fingering"
+      ],
+      "snapshot": "notation-fidelity-piano"
+    },
+    {
       "id": "practice-learning-loop-eight-measures",
       "file": "PracticeLearningLoopEightMeasures.musicxml",
       "source": "project regression fixture",

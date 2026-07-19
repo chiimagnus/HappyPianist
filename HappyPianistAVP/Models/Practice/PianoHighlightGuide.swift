@@ -21,7 +21,7 @@ struct PianoHighlightNote: Equatable, Hashable, Identifiable {
     let velocity: UInt8
     let onTick: Int
     let offTick: Int
-    let fingeringText: String?
+    let fingerings: [MusicXMLFingering]
     let isGrace: Bool
     let tieStart: Bool
     let tieStop: Bool
@@ -38,7 +38,7 @@ struct PianoHighlightNote: Equatable, Hashable, Identifiable {
         velocity: UInt8,
         onTick: Int,
         offTick: Int,
-        fingeringText: String?,
+        fingerings: [MusicXMLFingering],
         isGrace: Bool = false,
         tieStart: Bool = false,
         tieStop: Bool = false,
@@ -55,7 +55,7 @@ struct PianoHighlightNote: Equatable, Hashable, Identifiable {
         self.velocity = velocity
         self.onTick = onTick
         self.offTick = offTick
-        self.fingeringText = fingeringText
+        self.fingerings = fingerings
         self.isGrace = isGrace
         self.tieStart = tieStart
         self.tieStop = tieStop
@@ -85,7 +85,7 @@ struct PianoHighlightGuide: Equatable, Identifiable {
 
     var fingeringByMIDINote: [Int: String] {
         let items = (activeNotes + triggeredNotes).compactMap { note -> (Int, String)? in
-            guard let fingering = note.fingeringText, fingering.isEmpty == false else { return nil }
+            guard let fingering = note.fingerings.fingeringDisplayText else { return nil }
             return (note.midiNote, fingering)
         }
         return Dictionary(items, uniquingKeysWith: { first, _ in first })

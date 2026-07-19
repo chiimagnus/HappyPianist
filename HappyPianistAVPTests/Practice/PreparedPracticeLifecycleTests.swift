@@ -315,8 +315,6 @@ func sessionProjectsCurrentGuideActivityOntoAuthoritativeNotation() throws {
             midiNote: event.midiNote,
             isRest: false,
             isChord: false,
-            tieStart: false,
-            tieStop: false,
             staff: event.staff,
             voice: event.voice
         ),
@@ -337,7 +335,7 @@ func sessionProjectsCurrentGuideActivityOntoAuthoritativeNotation() throws {
                 velocity: event.velocity,
                 onTick: event.performedOnTick,
                 offTick: event.performedOffTick,
-                fingeringText: nil,
+                fingerings: [],
                 handAssignment: event.handAssignment
             ),
         ],
@@ -368,7 +366,7 @@ func sessionProjectsCurrentGuideActivityOntoAuthoritativeNotation() throws {
 
     session.startGuidingIfReady()
 
-    #expect(session.activeNotationProjection?.activeState.occurrenceIDs == [event.id])
+    #expect(session.activeNotationOverlay.activeEventIDs == [event.id])
 }
 
 @MainActor

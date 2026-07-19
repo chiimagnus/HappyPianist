@@ -47,6 +47,19 @@
 
 `PracticePreparationService` 先生成唯一 `ScorePerformancePlan`，再投影 `PracticeStep`、`PianoHighlightGuide`，并结合 source score 生成 `ScoreNotationProjection`。sampler、CoreMIDI、autoplay 和手动重播只消费 plan 事件；`PreparedPractice` 不再保存平行 tempo、pedal、fermata 或 note-span 声音事实。会话 tempo map 仅由 plan 自动派生，step/highlight/notation 不得反向生成声音。
 
+练习五线谱的唯一数据链是：
+
+```text
+MusicXMLScore written facts + ScorePerformancePlan occurrence identity
+-> ScoreNotationProjection
+-> GrandStaffNotationLayoutService / GrandStaffNotationViewportLayoutService
+-> GrandStaffNotationRenderer (Bravura / SMuFL)
+```
+
+`PianoHighlightGuide`、MIDI pitch 和 performed duration 都不是记谱输入；高亮 overlay 只用 plan event identity 标记当前 occurrence，不改写 written pitch、rhythm、staff、voice、stem 或 beam。当前 fidelity corpus 覆盖常见双谱表钢琴 MusicXML 的 whole 至 32nd note、附点、休止、升降与还原、voices、stems、beams、cross-staff、ties、slurs、tuplets、clef/key/meter change、repeat/ending 及常用演奏记号。缺少 source stem/beam 时只执行文档化的 voice/meter fallback；不支持的微分音、note/rest type、beam 或 mark 保留 source identity 与 reason，并采用省略 glyph 或保留节奏空间的中性降级，不猜成另一种记号。
+
+这里的“专业五线谱”指对上述常见语义做忠实、可测试的练习窗口重排版，不等于复刻原谱分页、字体、手工碰撞微调，也不覆盖 staff 3+、任意当代记谱或出版级制谱。
+
 `LiveAppGraph` 持有跨 `PracticeSessionViewModel` replacement 的 `PracticeSessionRecorder`。recorder 按 Practice window visit 建立会话，只有首次真实进入 guiding 才落一条 session；scene、guiding、设置、round 与退出边界 checkpoint，active duration 只累计 scene active、guiding 且设置未覆盖的单调时间。
 
 正式生产导入链只有：

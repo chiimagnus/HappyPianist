@@ -9,6 +9,7 @@ struct MusicXMLSoundEventStartIndices {
 struct MusicXMLParserDelegateState {
 
     struct PendingPerformanceNotation {
+        let sourceOrdinal: Int
         let kind: MusicXMLPerformanceNotationKind
         let rawElementToken: String
         let typeToken: String?
@@ -16,6 +17,38 @@ struct MusicXMLParserDelegateState {
         let placementToken: String?
         var textToken: String?
         let attributes: [String: String]
+    }
+
+    struct PendingTie {
+        let sourceOrdinal: Int
+        let sourceElement: MusicXMLTieSourceElement
+        let typeToken: String?
+        let numberToken: String?
+        let placementToken: String?
+    }
+
+    struct PendingSlur {
+        let sourceOrdinal: Int
+        let typeToken: String?
+        let numberToken: String?
+        let placementToken: String?
+    }
+
+    struct PendingTuplet {
+        let sourceOrdinal: Int
+        let typeToken: String?
+        let numberToken: String?
+        let bracketToken: String?
+        let placementToken: String?
+    }
+
+    struct PendingFingering {
+        let sourceOrdinal: Int
+        let substitution: MusicXMLFingeringOption
+        let alternate: MusicXMLFingeringOption
+        let placementToken: String?
+        let hand: MusicXMLFingeringHand
+        var text: String?
     }
 
     let normalizedTicksPerQuarter = 480
@@ -60,6 +93,7 @@ struct MusicXMLParserDelegateState {
         let quarterBPM: Double
         let source: TempoSource
         let staff: Int?
+        let placementToken: String?
     }
 
     var currentPartID = "P1"
@@ -84,10 +118,12 @@ struct MusicXMLParserDelegateState {
     var timeBeatGroups: [[Int]] = []
     var timeBeatTypes: [Int] = []
     var timeSymbolToken: String?
+    var timeNumberToken: String?
     var timeIsSenzaMisura = false
     var isInKey = false
     var keyFifths: Int?
     var keyModeToken: String?
+    var keyNumberToken: String?
     var isInClef = false
     var clefSignToken: String?
     var clefLine: Int?
@@ -104,10 +140,12 @@ struct MusicXMLParserDelegateState {
     var isInBarline = false
     var isInSound = false
     var currentDirectionStaff: Int?
+    var currentDirectionPlacementToken: String?
     var isInDirectionTypeDynamics = false
 
     var isInNote = false
     var noteIsRest = false
+    var noteIsPrintObjectVisible = true
     var noteIsChord = false
     var noteStep: String?
     var noteAlter: Double?
@@ -116,8 +154,13 @@ struct MusicXMLParserDelegateState {
     var noteDuration: Int?
     var noteStaff: Int?
     var noteVoice: Int?
-    var noteTieStart = false
-    var noteTieStop = false
+    var noteTies: [PendingTie] = []
+    var noteSlurs: [PendingSlur] = []
+    var noteTuplets: [PendingTuplet] = []
+    var nextNoteNotationSourceOrdinal = 0
+    var noteStem: MusicXMLStem = .unspecified
+    var noteBeams: [MusicXMLBeam] = []
+    var currentBeamAttributes: [String: String] = [:]
     var noteAttackTicks: Int?
     var noteReleaseTicks: Int?
     var noteIsGrace = false
@@ -130,16 +173,20 @@ struct MusicXMLParserDelegateState {
     var isInTimeModification = false
     var noteTimeModificationActualNotes: Int?
     var noteTimeModificationNormalNotes: Int?
+    var noteTimeModificationNormalType: String?
+    var noteTimeModificationNormalDotCount = 0
     var noteDynamicsOverrideVelocity: UInt8?
     var isInNoteArticulations = false
     var noteArticulations: Set<MusicXMLArticulation> = []
     var noteHasFermata = false
+    var noteFermataPlacementToken: String?
     var noteArpeggiate: MusicXMLArpeggiate?
     var notePerformanceNotations: [PendingPerformanceNotation] = []
     var currentPerformanceNotationIndexByElement: [String: Int] = [:]
     var isInNoteNotations = false
     var isInNoteOrnaments = false
-    var noteFingeringText: String?
+    var noteFingerings: [PendingFingering] = []
+    var currentFingeringIndex: Int?
     var isInTechnical = false
 
     var isInDirectionTypeMetronome = false

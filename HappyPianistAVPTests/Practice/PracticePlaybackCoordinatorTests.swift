@@ -128,7 +128,7 @@ private func makePlaybackCoordinatorFixture(
                 velocity: note.velocity,
                 onTick: note.performedOnTick,
                 offTick: note.performedOffTick,
-                fingeringText: note.fingeringText,
+                fingerings: note.fingerings,
                 handAssignment: note.handAssignment
             )
         }

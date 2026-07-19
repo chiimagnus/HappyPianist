@@ -25,8 +25,8 @@ func highlightGuideBuilderEmitsReleaseGapAndRetriggerForRepeatedNote() {
 @Test
 func highlightGuideBuilderUsesPlanTieOccurrenceWithoutRetriggeringContinuation() throws {
     let score = MusicXMLScore(notes: [
-        makeNote(tick: 0, duration: 2, midi: 60, tieStart: true),
-        makeNote(tick: 2, duration: 2, midi: 60, tieStop: true),
+        makeNote(tick: 0, duration: 2, midi: 60, ties: [makeTie("start")]),
+        makeNote(tick: 2, duration: 2, midi: 60, ties: [makeTie("stop")]),
     ])
     let plan = makeTestScorePerformancePlan(from: score)
 
@@ -198,8 +198,7 @@ private func makeNote(
     duration: Int,
     midi: Int,
     isChord: Bool = false,
-    tieStart: Bool = false,
-    tieStop: Bool = false,
+    ties: [MusicXMLTie] = [],
     staff: Int = 1,
     voice: Int = 1,
     isGrace: Bool = false,
@@ -231,14 +230,23 @@ private func makeNote(
         graceSlash: graceSlash,
         graceStealTimePrevious: graceStealTimePrevious,
         graceStealTimeFollowing: graceStealTimeFollowing,
-        tieStart: tieStart,
-        tieStop: tieStop,
+        ties: ties,
         staff: staff,
         voice: voice,
         attackTicks: attackTicks,
         releaseTicks: releaseTicks,
         articulations: articulations,
         arpeggiate: arpeggiate
+    )
+}
+
+private func makeTie(_ typeToken: String) -> MusicXMLTie {
+    MusicXMLTie(
+        sourceID: nil,
+        sourceElement: .notation,
+        typeToken: typeToken,
+        numberToken: nil,
+        placementToken: nil
     )
 }
 
@@ -251,8 +259,6 @@ private func makeRest(tick: Int, duration: Int) -> MusicXMLNoteEvent {
         midiNote: nil,
         isRest: true,
         isChord: false,
-        tieStart: false,
-        tieStop: false,
         staff: 1,
         voice: 1
     )

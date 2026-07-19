@@ -43,6 +43,28 @@ struct MusicXMLDynamicEvent: Equatable {
     let velocity: UInt8
     let scope: MusicXMLEventScope
     let source: MusicXMLDynamicEventSource
+    let markToken: String?
+    let placementToken: String?
+
+    init(
+        sourceID: MusicXMLDirectionSourceID? = nil,
+        performedOccurrenceIndex: Int = 0,
+        tick: Int,
+        velocity: UInt8,
+        scope: MusicXMLEventScope,
+        source: MusicXMLDynamicEventSource,
+        markToken: String? = nil,
+        placementToken: String? = nil
+    ) {
+        self.sourceID = sourceID
+        self.performedOccurrenceIndex = performedOccurrenceIndex
+        self.tick = tick
+        self.velocity = velocity
+        self.scope = scope
+        self.source = source
+        self.markToken = markToken
+        self.placementToken = placementToken
+    }
 }
 
 enum MusicXMLWedgeKind: Equatable, Sendable {
@@ -109,6 +131,23 @@ struct MusicXMLFermataEvent: Equatable {
     let tick: Int
     let scope: MusicXMLEventScope
     let source: MusicXMLFermataEventSource
+    let placementToken: String?
+
+    init(
+        sourceID: MusicXMLDirectionSourceID? = nil,
+        performedOccurrenceIndex: Int = 0,
+        tick: Int,
+        scope: MusicXMLEventScope,
+        source: MusicXMLFermataEventSource,
+        placementToken: String? = nil
+    ) {
+        self.sourceID = sourceID
+        self.performedOccurrenceIndex = performedOccurrenceIndex
+        self.tick = tick
+        self.scope = scope
+        self.source = source
+        self.placementToken = placementToken
+    }
 }
 
 enum MusicXMLArpeggiateDirection: String, Codable, Equatable, Hashable, Sendable {
@@ -200,6 +239,23 @@ struct MusicXMLWordsEvent: Equatable {
     let tick: Int
     let text: String
     let scope: MusicXMLEventScope
+    let placementToken: String?
+
+    init(
+        sourceID: MusicXMLDirectionSourceID? = nil,
+        performedOccurrenceIndex: Int = 0,
+        tick: Int,
+        text: String,
+        scope: MusicXMLEventScope,
+        placementToken: String? = nil
+    ) {
+        self.sourceID = sourceID
+        self.performedOccurrenceIndex = performedOccurrenceIndex
+        self.tick = tick
+        self.text = text
+        self.scope = scope
+        self.placementToken = placementToken
+    }
 }
 
 enum MusicXMLArticulation: String, CaseIterable, Equatable, Hashable {
@@ -220,6 +276,23 @@ struct MusicXMLTempoEvent: Equatable {
     let tick: Int
     let quarterBPM: Double
     let scope: MusicXMLEventScope
+    let placementToken: String?
+
+    init(
+        sourceID: MusicXMLDirectionSourceID? = nil,
+        performedOccurrenceIndex: Int = 0,
+        tick: Int,
+        quarterBPM: Double,
+        scope: MusicXMLEventScope,
+        placementToken: String? = nil
+    ) {
+        self.sourceID = sourceID
+        self.performedOccurrenceIndex = performedOccurrenceIndex
+        self.tick = tick
+        self.quarterBPM = quarterBPM
+        self.scope = scope
+        self.placementToken = placementToken
+    }
 }
 
 struct MusicXMLSoundDirective: Equatable {
@@ -259,6 +332,34 @@ struct MusicXMLPedalEvent: Equatable {
     var controller: MusicXMLPedalController = .damper
     let value: MusicXMLControllerValue?
     let timeOnlyPasses: [Int]?
+    let staff: Int?
+    let placementToken: String?
+
+    init(
+        sourceID: MusicXMLDirectionSourceID? = nil,
+        performedOccurrenceIndex: Int = 0,
+        partID: String,
+        measureNumber: Int,
+        tick: Int,
+        kind: MusicXMLPedalEventKind,
+        controller: MusicXMLPedalController = .damper,
+        value: MusicXMLControllerValue?,
+        timeOnlyPasses: [Int]?,
+        staff: Int? = nil,
+        placementToken: String? = nil
+    ) {
+        self.sourceID = sourceID
+        self.performedOccurrenceIndex = performedOccurrenceIndex
+        self.partID = partID
+        self.measureNumber = measureNumber
+        self.tick = tick
+        self.kind = kind
+        self.controller = controller
+        self.value = value
+        self.timeOnlyPasses = timeOnlyPasses
+        self.staff = staff
+        self.placementToken = placementToken
+    }
 }
 
 struct MusicXMLMeasureSpan: Equatable, Identifiable {
@@ -327,6 +428,83 @@ struct MusicXMLEndingDirective: Equatable {
     let type: MusicXMLEndingType
 }
 
+enum MusicXMLTieSourceElement: String, Equatable, Sendable {
+    case sound = "tie"
+    case notation = "tied"
+}
+
+struct MusicXMLTie: Equatable, Sendable {
+    let sourceID: MusicXMLPerformanceNotationSourceID?
+    let sourceElement: MusicXMLTieSourceElement
+    let typeToken: String?
+    let numberToken: String?
+    let placementToken: String?
+}
+
+struct MusicXMLSlur: Equatable, Sendable {
+    let sourceID: MusicXMLPerformanceNotationSourceID?
+    let typeToken: String?
+    let numberToken: String?
+    let placementToken: String?
+}
+
+struct MusicXMLTuplet: Equatable, Sendable {
+    let sourceID: MusicXMLPerformanceNotationSourceID?
+    let typeToken: String?
+    let numberToken: String?
+    let bracketToken: String?
+    let placementToken: String?
+}
+
+enum MusicXMLStem: Equatable, Sendable {
+    case unspecified
+    case up
+    case down
+    case none
+    case double
+    case unsupported(sourceToken: String)
+
+    init(sourceToken: String?) {
+        let token = sourceToken?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+        self = switch token {
+        case "": .unspecified
+        case "up": .up
+        case "down": .down
+        case "none": .none
+        case "double": .double
+        default: .unsupported(sourceToken: token)
+        }
+    }
+}
+
+enum MusicXMLBeamValue: Equatable, Sendable {
+    case begin
+    case `continue`
+    case end
+    case forwardHook
+    case backwardHook
+    case unsupported(sourceToken: String)
+
+    init(sourceToken: String) {
+        let token = sourceToken.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        self = switch token {
+        case "begin": .begin
+        case "continue": .continue
+        case "end": .end
+        case "forward hook": .forwardHook
+        case "backward hook": .backwardHook
+        default: .unsupported(sourceToken: token)
+        }
+    }
+}
+
+struct MusicXMLBeam: Equatable, Sendable {
+    let numberToken: String?
+    let value: MusicXMLBeamValue
+    let repeaterToken: String?
+    let fanToken: String?
+}
+
 struct MusicXMLNoteEvent: Equatable, Identifiable {
     var id: MusicXMLPerformedNoteID? { performedID }
     var performedID: MusicXMLPerformedNoteID? {
@@ -340,16 +518,21 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
     let tick: Int
     let durationTicks: Int
     let writtenPitch: MusicXMLWrittenPitch?
+    let writtenRhythm: MusicXMLWrittenRhythm?
     let midiNote: Int?
     let isRest: Bool
+    let isPrintObjectVisible: Bool
     let isChord: Bool
     let isGrace: Bool
     let graceSlash: Bool
     let graceStealTimePrevious: Double?
     let graceStealTimeFollowing: Double?
     let graceMakeTimeTicks: Int?
-    let tieStart: Bool
-    let tieStop: Bool
+    let ties: [MusicXMLTie]
+    let slurs: [MusicXMLSlur]
+    let tuplets: [MusicXMLTuplet]
+    let stem: MusicXMLStem
+    let beams: [MusicXMLBeam]
     let staff: Int?
     let voice: Int?
     let attackTicks: Int?
@@ -358,8 +541,14 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
     let articulations: Set<MusicXMLArticulation>
     let arpeggiate: MusicXMLArpeggiate?
     let performanceNotations: [MusicXMLPerformanceNotation]
-    let fingeringText: String?
-    let dotCount: Int
+    let fingerings: [MusicXMLFingering]
+
+    var startsTie: Bool {
+        ties.contains { $0.typeToken?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "start" }
+    }
+    var stopsTie: Bool {
+        ties.contains { $0.typeToken?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "stop" }
+    }
 
     init(
         sourceID: MusicXMLSourceNoteID? = nil,
@@ -369,16 +558,21 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         tick: Int,
         durationTicks: Int,
         writtenPitch: MusicXMLWrittenPitch? = nil,
+        writtenRhythm: MusicXMLWrittenRhythm? = nil,
         midiNote: Int?,
         isRest: Bool,
+        isPrintObjectVisible: Bool = true,
         isChord: Bool,
         isGrace: Bool = false,
         graceSlash: Bool = false,
         graceStealTimePrevious: Double? = nil,
         graceStealTimeFollowing: Double? = nil,
         graceMakeTimeTicks: Int? = nil,
-        tieStart: Bool,
-        tieStop: Bool,
+        ties: [MusicXMLTie] = [],
+        slurs: [MusicXMLSlur] = [],
+        tuplets: [MusicXMLTuplet] = [],
+        stem: MusicXMLStem = .unspecified,
+        beams: [MusicXMLBeam] = [],
         staff: Int?,
         voice: Int?,
         attackTicks: Int? = nil,
@@ -387,8 +581,7 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         articulations: Set<MusicXMLArticulation> = [],
         arpeggiate: MusicXMLArpeggiate? = nil,
         performanceNotations: [MusicXMLPerformanceNotation] = [],
-        fingeringText: String? = nil,
-        dotCount: Int = 0
+        fingerings: [MusicXMLFingering] = []
     ) {
         self.sourceID = sourceID
         self.performedOccurrenceIndex = max(0, performedOccurrenceIndex)
@@ -397,16 +590,21 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         self.tick = tick
         self.durationTicks = durationTicks
         self.writtenPitch = writtenPitch
+        self.writtenRhythm = writtenRhythm
         self.midiNote = midiNote
         self.isRest = isRest
+        self.isPrintObjectVisible = isPrintObjectVisible
         self.isChord = isChord
         self.isGrace = isGrace
         self.graceSlash = graceSlash
         self.graceStealTimePrevious = graceStealTimePrevious
         self.graceStealTimeFollowing = graceStealTimeFollowing
         self.graceMakeTimeTicks = graceMakeTimeTicks.map { max(0, $0) }
-        self.tieStart = tieStart
-        self.tieStop = tieStop
+        self.ties = ties
+        self.slurs = slurs
+        self.tuplets = tuplets
+        self.stem = stem
+        self.beams = beams
         self.staff = staff
         self.voice = voice
         self.attackTicks = attackTicks
@@ -415,7 +613,43 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         self.articulations = articulations
         self.arpeggiate = arpeggiate
         self.performanceNotations = performanceNotations
-        self.fingeringText = fingeringText
-        self.dotCount = dotCount
+        self.fingerings = fingerings
+    }
+}
+
+struct MusicXMLWrittenRhythm: Equatable, Sendable {
+    let typeToken: String?
+    let dotCount: Int
+    let timeModification: MusicXMLTimeModification?
+
+    init(
+        typeToken: String?,
+        dotCount: Int = 0,
+        timeModification: MusicXMLTimeModification? = nil
+    ) {
+        let trimmedType = typeToken?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.typeToken = trimmedType?.isEmpty == false ? trimmedType : nil
+        self.dotCount = max(0, dotCount)
+        self.timeModification = timeModification
+    }
+}
+
+struct MusicXMLTimeModification: Equatable, Sendable {
+    let actualNotes: Int?
+    let normalNotes: Int?
+    let normalTypeToken: String?
+    let normalDotCount: Int
+
+    init(
+        actualNotes: Int?,
+        normalNotes: Int?,
+        normalTypeToken: String? = nil,
+        normalDotCount: Int = 0
+    ) {
+        self.actualNotes = actualNotes
+        self.normalNotes = normalNotes
+        let trimmedType = normalTypeToken?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.normalTypeToken = trimmedType?.isEmpty == false ? trimmedType : nil
+        self.normalDotCount = max(0, normalDotCount)
     }
 }

@@ -31,7 +31,7 @@ func highlightGuide2DAnd3DUseSameMIDINoteSet() {
             velocity: 96,
             onTick: 0,
             offTick: 480,
-            fingeringText: nil,
+            fingerings: [],
             handAssignment: .unknown
         ),
         PianoHighlightNote(
@@ -42,7 +42,7 @@ func highlightGuide2DAnd3DUseSameMIDINoteSet() {
             velocity: 96,
             onTick: 0,
             offTick: 480,
-            fingeringText: nil,
+            fingerings: [],
             handAssignment: .unknown
         ),
     ]
@@ -72,6 +72,52 @@ func highlightGuide2DAnd3DUseSameMIDINoteSet() {
 }
 
 @Test
+func highlightGuide2D3DAndNotationUseSameMIDINoteSet() {
+    let score = MusicXMLScore(notes: [
+        consistencyNote(ordinal: 0, midiNote: 60, step: "C", octave: 4, staff: 1),
+        consistencyNote(ordinal: 1, midiNote: 64, step: "E", octave: 3, staff: 2),
+    ])
+    let plan = makeTestScorePerformancePlan(from: score)
+    let highlightNotes = plan.noteEvents.map {
+        PianoHighlightNote(
+            occurrenceID: $0.performedNoteID.description,
+            midiNote: $0.midiNote,
+            staff: $0.staff,
+            voice: $0.voice,
+            velocity: $0.velocityResolution.velocity,
+            onTick: $0.performedOnTick,
+            offTick: $0.performedOffTick,
+            fingerings: $0.fingerings,
+            handAssignment: $0.handAssignment
+        )
+    }
+    let guide = PianoHighlightGuide(
+        id: 42,
+        kind: .trigger,
+        tick: 0,
+        durationTicks: nil,
+        practiceStepIndex: 0,
+        activeNotes: highlightNotes,
+        triggeredNotes: highlightNotes,
+        releasedMIDINotes: []
+    )
+    let descriptors = PianoGuideBeamDescriptor.makeDescriptors(
+        highlightGuide: guide,
+        keyboardGeometry: makeGeometry(for: [60, 64])
+    )
+    let projection = ScoreNotationProjection(plan: plan, sourceScore: score)
+    let layout = GrandStaffNotationLayoutService().makeLayout(
+        projection: projection,
+        overlay: .init(activeEventIDs: Set(plan.noteEvents.map(\.id)), activeTickRange: nil)
+    )
+    let notationOccurrenceIDs = Set(layout.items.filter(\.isHighlighted).map(\.occurrenceID))
+    let plannedOccurrenceIDs = Set(plan.noteEvents.flatMap(\.contributingPerformedNoteIDs).map(\.description))
+
+    #expect(guide.highlightedMIDINotes == Set(descriptors.map(\.midiNote)))
+    #expect(notationOccurrenceIDs == plannedOccurrenceIDs)
+}
+
+@Test
 func repeatedOccurrenceChangesBoth2DKeyViewIDAnd3DDescriptorID() {
     let keyID1 = PianoKeyboard88View.highlightKeyViewID(
         isBlackKey: false,
@@ -95,7 +141,7 @@ func repeatedOccurrenceChangesBoth2DKeyViewIDAnd3DDescriptorID() {
         velocity: 96,
         onTick: 0,
         offTick: 1,
-        fingeringText: nil,
+        fingerings: [],
         handAssignment: .unknown
     )
     let geometry = makeGeometry(for: [60])
@@ -156,4 +202,34 @@ private func makeGeometry(for midiNotes: [Int]) -> PianoKeyboardGeometry {
     }
 
     return PianoKeyboardGeometry(frame: frame, keys: keys)
+}
+
+private func consistencyNote(
+    ordinal: Int,
+    midiNote: Int,
+    step: String,
+    octave: Int,
+    staff: Int
+) -> MusicXMLNoteEvent {
+    MusicXMLNoteEvent(
+        sourceID: MusicXMLSourceNoteID(
+            partID: "P1",
+            sourceMeasureIndex: 0,
+            sourceMeasureNumberToken: "1",
+            staff: staff,
+            voice: 1,
+            sourceOrdinal: ordinal
+        ),
+        partID: "P1",
+        measureNumber: 1,
+        tick: 0,
+        durationTicks: 480,
+        writtenPitch: MusicXMLWrittenPitch(step: step, octave: octave),
+        writtenRhythm: MusicXMLWrittenRhythm(typeToken: "quarter"),
+        midiNote: midiNote,
+        isRest: false,
+        isChord: false,
+        staff: staff,
+        voice: 1
+    )
 }
