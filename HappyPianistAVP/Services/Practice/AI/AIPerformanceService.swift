@@ -53,6 +53,7 @@ final class AIPerformanceService {
 
     private var noteContext = DuetPhraseBuffer()
     private var ccContext = DuetPhraseEventBuffer()
+    private var activeKeyContactIDsByMIDINote: [Int: Set<PianoKeyContactID>] = [:]
     private var controlEstimator = DuetTurnTakingCore()
 
     private var controlLoopTask: Task<Void, Never>?
@@ -115,6 +116,7 @@ final class AIPerformanceService {
             invalidateGeneration()
             noteContext.reset()
             ccContext.reset()
+            activeKeyContactIDsByMIDINote.removeAll(keepingCapacity: true)
             controlEstimator.reset()
             latestSchedule = []
             latestCandidateDiagnostics = nil
@@ -148,6 +150,7 @@ final class AIPerformanceService {
             isAIPlaybackActive = false
             noteContext.reset()
             ccContext.reset()
+            activeKeyContactIDsByMIDINote.removeAll(keepingCapacity: true)
             controlEstimator.reset()
             latestSchedule = []
             lastImprovStatusText = nil
@@ -167,6 +170,7 @@ final class AIPerformanceService {
         lastWindowRequestTimestampSeconds = nil
         noteContext.reset()
         ccContext.reset()
+        activeKeyContactIDsByMIDINote.removeAll(keepingCapacity: true)
         controlEstimator.reset()
         latestSchedule = []
         lastImprovStatusText = "AI 即兴：连续共演模式已启用"
@@ -252,12 +256,25 @@ final class AIPerformanceService {
             switch observation.phase {
             case .started:
                 guard let velocity = observation.resolvedVelocity else { continue }
+                var activeContactIDs = activeKeyContactIDsByMIDINote[note, default: []]
+                let shouldRecordNoteOn = activeContactIDs.isEmpty
+                guard activeContactIDs.insert(observation.id).inserted else { continue }
+                activeKeyContactIDsByMIDINote[note] = activeContactIDs
+                guard shouldRecordNoteOn else { continue }
                 noteContext.recordNoteOn(
                     midi: note,
                     velocity: Int(velocity),
                     timestampSeconds: observation.timestamp.seconds
                 )
             case .ended:
+                guard var activeContactIDs = activeKeyContactIDsByMIDINote[note],
+                      activeContactIDs.remove(observation.id) != nil
+                else { continue }
+                guard activeContactIDs.isEmpty else {
+                    activeKeyContactIDsByMIDINote[note] = activeContactIDs
+                    continue
+                }
+                activeKeyContactIDsByMIDINote.removeValue(forKey: note)
                 noteContext.recordNoteOff(
                     midi: note,
                     timestampSeconds: observation.timestamp.seconds,

@@ -292,6 +292,64 @@ func allNotesOffOnlyClosesItsSourceGroupAndChannel() {
 
 @Test
 @MainActor
+func keyContactRecordingCoalescesMultipleFingersOnTheSameMIDIKey() throws {
+    var nowUptime: TimeInterval = 0
+    var recordedTakes: [RecordingTake] = []
+    let state = MIDIRecordingState(
+        nowUptimeSeconds: { nowUptime },
+        nowDate: { Date(timeIntervalSince1970: nowUptime) },
+        onStateChanged: { _ in },
+        onTakeRecorded: { recordedTakes.append($0) }
+    )
+    state.startRecordingIfPossible(canRecord: true)
+
+    state.recordTakeFromKeyContactIfNeeded(
+        usesBluetoothMIDIInput: false,
+        isVirtualPianoEnabled: true,
+        observations: [
+            makeTestKeyContactObservation(
+                midiNote: 60,
+                phase: .started,
+                sequence: 1,
+                timestamp: .init(seconds: 0.1),
+                resolvedVelocity: 37
+            ),
+            makeTestKeyContactObservation(
+                midiNote: 60,
+                phase: .started,
+                hand: .left,
+                sequence: 2,
+                timestamp: .init(seconds: 0.2),
+                resolvedVelocity: 91
+            ),
+            makeTestKeyContactObservation(
+                midiNote: 60,
+                phase: .ended,
+                sequence: 1,
+                timestamp: .init(seconds: 0.3)
+            ),
+            makeTestKeyContactObservation(
+                midiNote: 60,
+                phase: .ended,
+                hand: .left,
+                sequence: 2,
+                timestamp: .init(seconds: 0.4)
+            ),
+        ]
+    )
+    nowUptime = 0.5
+    state.stopRecordingIfNeeded()
+
+    let take = try #require(recordedTakes.first)
+    #expect(take.events.map(\.kind) == [
+        .noteOn(midi: 60, velocity: 37),
+        .noteOff(midi: 60),
+    ])
+    #expect(take.events.map(\.time) == [0.1, 0.4])
+}
+
+@Test
+@MainActor
 func observationReplayDrivesMatcherRecorderAndLegacyCodec() throws {
     let fixture = try PerformanceObservationReplayFixtureLoader().load()
     #expect(fixture.observations.map(\.source.kind).contains(.midi1))

@@ -24,6 +24,7 @@ final class MIDIRecordingState {
     private var isRecording = false
     private var recordingStartDate: Date?
     private var recordingGeneration: UInt64 = 0
+    private var activeKeyContactIDsByMIDINote: [Int: Set<PianoKeyContactID>] = [:]
 
     init(
         nowUptimeSeconds: @escaping () -> TimeInterval = { ProcessInfo.processInfo.systemUptime },
@@ -87,6 +88,7 @@ final class MIDIRecordingState {
         guard canRecord else { return }
         let now = nowUptimeSeconds()
         recordingGeneration &+= 1
+        activeKeyContactIDsByMIDINote.removeAll(keepingCapacity: true)
         midiRecordingAdapter.beginRecording()
         takeRecorder.start(now: now, metadata: metadata)
         isRecording = true
@@ -102,6 +104,7 @@ final class MIDIRecordingState {
 
         isRecording = false
         recordingStartDate = nil
+        activeKeyContactIDsByMIDINote.removeAll(keepingCapacity: true)
         notifyStateChanged()
 
         guard take.events.isEmpty == false else { return }
@@ -125,6 +128,11 @@ final class MIDIRecordingState {
             switch contact.phase {
             case .started:
                 guard let velocity = contact.resolvedVelocity else { continue }
+                var activeContactIDs = activeKeyContactIDsByMIDINote[note, default: []]
+                let shouldRecordNoteOn = activeContactIDs.isEmpty
+                guard activeContactIDs.insert(contact.id).inserted else { continue }
+                activeKeyContactIDsByMIDINote[note] = activeContactIDs
+                guard shouldRecordNoteOn else { continue }
                 takeRecorder.recordNoteOn(
                     note: note,
                     velocity: Int(velocity),
@@ -132,6 +140,14 @@ final class MIDIRecordingState {
                     observation: observation
                 )
             case .ended:
+                guard var activeContactIDs = activeKeyContactIDsByMIDINote[note],
+                      activeContactIDs.remove(contact.id) != nil
+                else { continue }
+                guard activeContactIDs.isEmpty else {
+                    activeKeyContactIDsByMIDINote[note] = activeContactIDs
+                    continue
+                }
+                activeKeyContactIDsByMIDINote.removeValue(forKey: note)
                 takeRecorder.recordNoteOff(
                     note: note,
                     now: contact.timestamp.seconds,
