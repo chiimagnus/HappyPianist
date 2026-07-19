@@ -164,7 +164,7 @@ extension MusicXMLParserDelegate {
             if state.isInDirection {
                 state.isInDirectionTypeMetronome = true
                 state.metronomeBeatUnit = nil
-                state.metronomeHasDot = false
+                state.metronomeBeatUnitDotCount = 0
                 state.metronomePerMinute = nil
             }
         case "sound":
@@ -480,7 +480,7 @@ extension MusicXMLParserDelegate {
         case "beat-unit" where state.isInDirectionTypeMetronome:
             state.metronomeBeatUnit = text
         case "beat-unit-dot" where state.isInDirectionTypeMetronome:
-            state.metronomeHasDot = true
+            state.metronomeBeatUnitDotCount += 1
         case "per-minute" where state.isInDirectionTypeMetronome:
             state.metronomePerMinute = Double(text)
         case "metronome":
@@ -579,7 +579,10 @@ extension MusicXMLParserDelegate {
                             quarterBPM: tempoEvents[i].quarterBPM,
                             source: tempoEvents[i].source,
                             staff: staff,
-                            placementToken: tempoEvents[i].placementToken
+                            placementToken: tempoEvents[i].placementToken,
+                            notationBeatUnitToken: tempoEvents[i].notationBeatUnitToken,
+                            notationBeatUnitDotCount: tempoEvents[i].notationBeatUnitDotCount,
+                            notationPerMinute: tempoEvents[i].notationPerMinute
                         )
                     }
                     state.rawTempoEventsByPart[state.currentPartID] = tempoEvents

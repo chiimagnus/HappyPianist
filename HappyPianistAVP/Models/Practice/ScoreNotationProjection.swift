@@ -356,7 +356,8 @@ struct ScoreNotationProjection: Equatable, Sendable {
                 grandStaffRoles: grandStaffRoles
             )
         }
-        marks.append(contentsOf: score.dynamicEvents.enumerated().map { index, event in
+        marks.append(contentsOf: score.dynamicEvents.enumerated().compactMap { index, event in
+            guard event.source == .directionDynamics else { return nil }
             Mark(
                 id: event.performedID?.description ?? "dynamic-\(event.tick)-\(index)",
                 tick: event.tick,
@@ -367,14 +368,15 @@ struct ScoreNotationProjection: Equatable, Sendable {
                 placementToken: event.placementToken
             )
         })
-        marks.append(contentsOf: score.tempoEvents.enumerated().map { index, event in
+        marks.append(contentsOf: score.tempoEvents.enumerated().compactMap { index, event in
+            guard let text = tempoNotationText(event) else { return nil }
             Mark(
                 id: event.performedID?.description ?? "tempo-\(event.tick)-\(index)",
                 tick: event.tick,
                 staff: projectedStaff(event.scope),
                 voice: event.scope.voice,
                 kind: .tempo,
-                text: "♩ = \(event.quarterBPM.formatted(.number.precision(.fractionLength(0 ... 1))))",
+                text: text,
                 placementToken: event.placementToken
             )
         })
@@ -604,6 +606,24 @@ struct ScoreNotationProjection: Equatable, Sendable {
         case ...110: "ff"
         default: "fff"
         }
+    }
+
+    private static func tempoNotationText(_ event: MusicXMLTempoEvent) -> String? {
+        guard let beatUnitToken = event.notationBeatUnitToken,
+              let perMinute = event.notationPerMinute
+        else {
+            return nil
+        }
+        let beatUnit = switch beatUnitToken {
+        case "whole": "𝅝"
+        case "half": "𝅗𝅥"
+        case "quarter": "♩"
+        case "eighth": "♪"
+        default: beatUnitToken
+        }
+        let dots = String(repeating: ".", count: event.notationBeatUnitDotCount)
+        let tempo = perMinute.formatted(.number.precision(.fractionLength(0 ... 2)))
+        return "\(beatUnit)\(dots) = \(tempo)"
     }
 
     private struct CanonicalSource {

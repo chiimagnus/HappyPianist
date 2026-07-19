@@ -188,6 +188,7 @@ func commonPianoMarksKeepSourcePlacementAndUseCollisionAwareLayout() throws {
     #expect(dynamic.placementToken == "below")
     #expect(tempo.staff == 1)
     #expect(tempo.placementToken == "above")
+    #expect(tempo.text == "♩ = 88")
     #expect(pedal.staff == 2)
     #expect(pedal.placementToken == "below")
 
@@ -231,6 +232,64 @@ func commonPianoMarksKeepSourcePlacementAndUseCollisionAwareLayout() throws {
     )
     #expect(repeatedProjection.marks.filter { $0.kind == .repeatBackward }.map(\.tick) == [480, 1_440])
     #expect(repeatedProjection.marks.filter { $0.kind == .endingStart }.map(\.tick) == [0, 960])
+}
+
+@Test
+func projectionDoesNotRenderPlaybackOnlySoundTempoOrDynamics() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1"><measure number="1">
+        <attributes><divisions>1</divisions></attributes>
+        <direction><sound tempo="72" dynamics="80"/></direction>
+        <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      </measure></part>
+    </score-partwise>
+    """
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let projection = ScoreNotationProjection(
+        plan: makeTestScorePerformancePlan(from: score),
+        sourceScore: score
+    )
+
+    #expect(score.tempoEvents.map(\.quarterBPM) == [72])
+    #expect(score.dynamicEvents.count == 1)
+    #expect(projection.marks.contains { $0.kind == .tempo } == false)
+    #expect(projection.marks.contains { $0.kind == .dynamic } == false)
+}
+
+@Test
+func projectionKeepsMetronomeSpellingWhenSoundOverridesPlaybackTempo() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1"><measure number="1">
+        <attributes><divisions>1</divisions></attributes>
+        <direction placement="above">
+          <direction-type>
+            <metronome><beat-unit>eighth</beat-unit><beat-unit-dot/><per-minute>80</per-minute></metronome>
+          </direction-type>
+          <sound tempo="60"/>
+        </direction>
+        <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      </measure></part>
+    </score-partwise>
+    """
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let event = try #require(score.tempoEvents.first)
+    let projection = ScoreNotationProjection(
+        plan: makeTestScorePerformancePlan(from: score),
+        sourceScore: score
+    )
+    let mark = try #require(projection.marks.first { $0.kind == .tempo })
+
+    #expect(score.tempoEvents.count == 1)
+    #expect(event.quarterBPM == 60)
+    #expect(event.notationBeatUnitToken == "eighth")
+    #expect(event.notationBeatUnitDotCount == 1)
+    #expect(event.notationPerMinute == 80)
+    #expect(mark.text == "♪. = 80")
+    #expect(mark.placementToken == "above")
 }
 
 @Test

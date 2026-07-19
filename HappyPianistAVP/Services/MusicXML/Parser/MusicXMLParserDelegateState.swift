@@ -94,6 +94,9 @@ struct MusicXMLParserDelegateState {
         let source: TempoSource
         let staff: Int?
         let placementToken: String?
+        let notationBeatUnitToken: String?
+        let notationBeatUnitDotCount: Int
+        let notationPerMinute: Double?
     }
 
     var currentPartID = "P1"
@@ -193,7 +196,7 @@ struct MusicXMLParserDelegateState {
 
     var isInDirectionTypeMetronome = false
     var metronomeBeatUnit: String?
-    var metronomeHasDot = false
+    var metronomeBeatUnitDotCount = 0
     var metronomePerMinute: Double?
 
     var rawTempoEventsByPart: [String: [RawTempoEvent]] = [:]

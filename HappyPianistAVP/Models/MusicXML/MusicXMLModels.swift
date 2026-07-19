@@ -277,6 +277,13 @@ struct MusicXMLTempoEvent: Equatable {
     let quarterBPM: Double
     let scope: MusicXMLEventScope
     let placementToken: String?
+    let notationBeatUnitToken: String?
+    let notationBeatUnitDotCount: Int
+    let notationPerMinute: Double?
+
+    var hasVisibleNotationMark: Bool {
+        notationBeatUnitToken != nil && notationPerMinute != nil
+    }
 
     init(
         sourceID: MusicXMLDirectionSourceID? = nil,
@@ -284,7 +291,10 @@ struct MusicXMLTempoEvent: Equatable {
         tick: Int,
         quarterBPM: Double,
         scope: MusicXMLEventScope,
-        placementToken: String? = nil
+        placementToken: String? = nil,
+        notationBeatUnitToken: String? = nil,
+        notationBeatUnitDotCount: Int = 0,
+        notationPerMinute: Double? = nil
     ) {
         self.sourceID = sourceID
         self.performedOccurrenceIndex = performedOccurrenceIndex
@@ -292,6 +302,9 @@ struct MusicXMLTempoEvent: Equatable {
         self.quarterBPM = quarterBPM
         self.scope = scope
         self.placementToken = placementToken
+        self.notationBeatUnitToken = notationBeatUnitToken
+        self.notationBeatUnitDotCount = max(0, notationBeatUnitDotCount)
+        self.notationPerMinute = notationPerMinute
     }
 }
 

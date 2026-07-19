@@ -416,7 +416,10 @@ struct MusicXMLStructureExpander {
                     tick: currentMeasureStartTick + (event.tick - span.startTick),
                     quarterBPM: event.quarterBPM,
                     scope: shiftedScope(event.scope),
-                    placementToken: event.placementToken
+                    placementToken: event.placementToken,
+                    notationBeatUnitToken: event.notationBeatUnitToken,
+                    notationBeatUnitDotCount: event.notationBeatUnitDotCount,
+                    notationPerMinute: event.notationPerMinute
                 ))
             }
 
