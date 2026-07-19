@@ -92,8 +92,7 @@ struct GrandStaffNotationPresentationViewModel {
         projection: ScoreNotationProjection,
         activeTickRange: Range<Int>?
     ) -> GrandStaffNotationViewportLayoutService.StaffStepBounds {
-        let sourceNotesByID = Dictionary(grouping: projection.sourceNotes, by: \.id)
-            .compactMapValues { notes in notes.count == 1 ? notes[0] : nil }
+        let sourceNotesByID = Dictionary(uniqueKeysWithValues: projection.sourceNotes.map { ($0.id, $0) })
         let occurrences = projection.performedOccurrences.filter {
             activeTickRange?.contains($0.writtenOnTick) ?? true
         }

@@ -1,6 +1,26 @@
 import Foundation
 
 struct ScoreNotationProjection: Equatable, Sendable {
+    struct BeamGroupID: Equatable, Hashable, Sendable, CustomStringConvertible {
+        let partID: String
+        let voice: Int
+        let numberToken: String
+        let startSourceNoteID: MusicXMLSourceNoteID
+
+        var description: String {
+            "\(partID):voice-\(voice):beam-\(numberToken):\(startSourceNoteID.description)"
+        }
+    }
+
+    struct BeamFact: Equatable, Sendable {
+        let groupID: BeamGroupID
+        let sourceOrdinal: Int
+        let numberToken: String?
+        let value: MusicXMLBeamValue
+        let repeaterToken: String?
+        let fanToken: String?
+    }
+
     struct TransposeFact: Equatable, Sendable {
         let diatonic: Int?
         let chromatic: Int
@@ -28,6 +48,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
 
     struct SourceNote: Equatable, Sendable {
         let id: MusicXMLSourceNoteID
+        let chordID: MusicXMLSourceNoteID
         let writtenOnTick: Int
         let writtenDurationTicks: Int
         let writtenPitch: MusicXMLWrittenPitch?
@@ -42,7 +63,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
         let slurs: [MusicXMLSlur]
         let tuplets: [MusicXMLTuplet]
         let stem: MusicXMLStem
-        let beams: [MusicXMLBeam]
+        let beams: [BeamFact]
         let articulations: Set<MusicXMLArticulation>
         let arpeggiate: MusicXMLArpeggiate?
         let fingeringText: String?
@@ -87,10 +108,14 @@ struct ScoreNotationProjection: Equatable, Sendable {
             keySignatureEvents: sourceScore.keySignatureEvents,
             clefEvents: sourceScore.clefEvents
         )
-        sourceNotes = sourceScore.notes.compactMap { note in
-            guard let sourceID = note.sourceID else { return nil }
+        let canonicalSources = Self.canonicalSources(from: sourceScore.notes)
+        let beamFactsBySourceID = Self.beamFactsBySourceID(from: canonicalSources)
+        sourceNotes = canonicalSources.map { canonical in
+            let note = canonical.note
+            let sourceID = canonical.sourceID
             return SourceNote(
                 id: sourceID,
+                chordID: canonical.chordID,
                 writtenOnTick: note.tick,
                 writtenDurationTicks: note.durationTicks,
                 writtenPitch: note.writtenPitch,
@@ -105,7 +130,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
                 slurs: note.slurs,
                 tuplets: note.tuplets,
                 stem: note.stem,
-                beams: note.beams,
+                beams: beamFactsBySourceID[sourceID] ?? [],
                 articulations: note.articulations,
                 arpeggiate: note.arpeggiate,
                 fingeringText: note.fingeringText,
@@ -120,21 +145,19 @@ struct ScoreNotationProjection: Equatable, Sendable {
                 octaveShifts: Self.octaveShiftFacts(for: note, in: sourceScore)
             )
         }
-        let sourceNotesByID = Dictionary(grouping: sourceNotes, by: \.id)
-            .compactMapValues { notes in notes.count == 1 ? notes[0] : nil }
+        let sourceNotesByID = Dictionary(uniqueKeysWithValues: sourceNotes.map { ($0.id, $0) })
+        let scoreNotesByPerformedID = Dictionary(uniqueKeysWithValues: sourceScore.notes.compactMap { note in
+            note.performedID.map { ($0, note) }
+        })
         var occurrencesByID: [MusicXMLPerformedNoteID: PerformedOccurrence] = [:]
 
         for event in plan.noteEvents {
-            guard let primarySource = sourceNotesByID[event.sourceNoteID] else { continue }
-            for sourceNoteID in event.contributingSourceNoteIDs {
-                guard let source = sourceNotesByID[sourceNoteID],
-                      let performedNoteID = event.contributingPerformedNoteIDs.first(where: {
-                          $0.sourceID == sourceNoteID
-                      })
-                else {
+            for performedNoteID in event.contributingPerformedNoteIDs {
+                let sourceNoteID = performedNoteID.sourceID
+                guard sourceNotesByID[sourceNoteID] != nil else {
                     continue
                 }
-                let writtenOffset = source.writtenOnTick - primarySource.writtenOnTick
+                let writtenOnTick = scoreNotesByPerformedID[performedNoteID]?.tick ?? event.writtenOnTick
                 if let existing = occurrencesByID[performedNoteID] {
                     let eventIDs = existing.performanceEventIDs.contains(event.id)
                         ? existing.performanceEventIDs
@@ -143,7 +166,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
                         id: existing.id,
                         sourceNoteID: existing.sourceNoteID,
                         performanceEventIDs: eventIDs,
-                        writtenOnTick: min(existing.writtenOnTick, event.writtenOnTick + writtenOffset),
+                        writtenOnTick: min(existing.writtenOnTick, writtenOnTick),
                         performedOnTick: min(existing.performedOnTick, event.performedOnTick),
                         performedOffTick: max(existing.performedOffTick, event.performedOffTick),
                         handAssignment: existing.handAssignment
@@ -153,7 +176,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
                         id: performedNoteID,
                         sourceNoteID: sourceNoteID,
                         performanceEventIDs: [event.id],
-                        writtenOnTick: event.writtenOnTick + writtenOffset,
+                        writtenOnTick: writtenOnTick,
                         performedOnTick: event.performedOnTick,
                         performedOffTick: event.performedOffTick,
                         handAssignment: event.handAssignment
@@ -161,16 +184,20 @@ struct ScoreNotationProjection: Equatable, Sendable {
                 }
             }
         }
-        let linkedSourceNoteIDs = Set(occurrencesByID.values.map(\.sourceNoteID))
-        for source in sourceNotes where linkedSourceNoteIDs.contains(source.id) == false {
-            let performedID = MusicXMLPerformedNoteID(sourceID: source.id, occurrenceIndex: 0)
+        for note in sourceScore.notes {
+            guard let sourceID = note.sourceID,
+                  let performedID = note.performedID,
+                  occurrencesByID[performedID] == nil
+            else {
+                continue
+            }
             occurrencesByID[performedID] = PerformedOccurrence(
                 id: performedID,
-                sourceNoteID: source.id,
+                sourceNoteID: sourceID,
                 performanceEventIDs: [],
-                writtenOnTick: source.writtenOnTick,
-                performedOnTick: source.writtenOnTick,
-                performedOffTick: source.writtenOnTick + source.writtenDurationTicks,
+                writtenOnTick: note.tick,
+                performedOnTick: note.tick,
+                performedOffTick: note.tick + note.durationTicks,
                 handAssignment: .unknown
             )
         }
@@ -178,6 +205,112 @@ struct ScoreNotationProjection: Equatable, Sendable {
             if lhs.writtenOnTick != rhs.writtenOnTick { return lhs.writtenOnTick < rhs.writtenOnTick }
             return lhs.id.description < rhs.id.description
         }
+    }
+
+    private struct CanonicalSource {
+        let sourceID: MusicXMLSourceNoteID
+        let chordID: MusicXMLSourceNoteID
+        let note: MusicXMLNoteEvent
+    }
+
+    private struct BeamTrackKey: Hashable {
+        let partID: String
+        let voice: Int
+        let numberToken: String
+    }
+
+    private static func canonicalSources(from notes: [MusicXMLNoteEvent]) -> [CanonicalSource] {
+        var chordRootByPartID: [String: MusicXMLSourceNoteID] = [:]
+        var seenSourceIDs: Set<MusicXMLSourceNoteID> = []
+        var canonical: [CanonicalSource] = []
+
+        for note in notes {
+            guard let sourceID = note.sourceID else { continue }
+            let chordID: MusicXMLSourceNoteID
+            if note.isChord, let chordRoot = chordRootByPartID[note.partID] {
+                chordID = chordRoot
+            } else {
+                chordID = sourceID
+                chordRootByPartID[note.partID] = sourceID
+            }
+            guard seenSourceIDs.insert(sourceID).inserted else { continue }
+            canonical.append(CanonicalSource(sourceID: sourceID, chordID: chordID, note: note))
+        }
+        return canonical
+    }
+
+    private static func beamFactsBySourceID(
+        from sources: [CanonicalSource]
+    ) -> [MusicXMLSourceNoteID: [BeamFact]] {
+        var result: [MusicXMLSourceNoteID: [BeamFact]] = [:]
+        var activeGroups: [BeamTrackKey: BeamGroupID] = [:]
+        var startIndex = 0
+
+        while startIndex < sources.count {
+            let chordID = sources[startIndex].chordID
+            var endIndex = startIndex + 1
+            while endIndex < sources.count, sources[endIndex].chordID == chordID {
+                endIndex += 1
+            }
+            let chordSources = sources[startIndex ..< endIndex]
+            let factsByTrack = Dictionary(grouping: chordSources.flatMap { source in
+                source.note.beams.enumerated().map { beamOrdinal, beam in
+                    (source.sourceID, source.note, beamOrdinal, beam)
+                }
+            }) { entry in
+                BeamTrackKey(
+                    partID: entry.1.partID,
+                    voice: entry.1.voice ?? 1,
+                    numberToken: entry.3.numberToken ?? "1"
+                )
+            }
+
+            for (track, entries) in factsByTrack {
+                let values = entries.map(\.3.value)
+                let isHook = values.contains(.forwardHook) || values.contains(.backwardHook)
+                let groupID: BeamGroupID
+                if values.contains(.begin) || isHook {
+                    groupID = BeamGroupID(
+                        partID: track.partID,
+                        voice: track.voice,
+                        numberToken: track.numberToken,
+                        startSourceNoteID: chordID
+                    )
+                } else if let active = activeGroups[track] {
+                    groupID = active
+                } else {
+                    // ponytail: malformed continue/end still keeps a traceable group rooted at itself.
+                    groupID = BeamGroupID(
+                        partID: track.partID,
+                        voice: track.voice,
+                        numberToken: track.numberToken,
+                        startSourceNoteID: chordID
+                    )
+                }
+
+                for (sourceID, _, sourceOrdinal, beam) in entries {
+                    result[sourceID, default: []].append(BeamFact(
+                        groupID: groupID,
+                        sourceOrdinal: sourceOrdinal,
+                        numberToken: beam.numberToken,
+                        value: beam.value,
+                        repeaterToken: beam.repeaterToken,
+                        fanToken: beam.fanToken
+                    ))
+                }
+
+                if values.contains(.end) || isHook {
+                    activeGroups[track] = nil
+                } else {
+                    activeGroups[track] = groupID
+                }
+            }
+            startIndex = endIndex
+        }
+        for sourceID in result.keys {
+            result[sourceID]?.sort { $0.sourceOrdinal < $1.sourceOrdinal }
+        }
+        return result
     }
 
     private static func keySignatureFact(
