@@ -7,6 +7,5 @@ struct GrandStaffNotationPresentation {
     let chordsByID: [String: GrandStaffNotationChord]
     let itemsByChordID: [String: [GrandStaffNotationItem]]
     let beamedChordIDs: Set<String>
-    let ledgerStepsByItemID: [String: [Int]]
     let defaultScrollAnchorY: CGFloat
 }

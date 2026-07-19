@@ -45,6 +45,11 @@ struct GrandStaffNotationRenderer {
             practiceHandMode: practiceHandMode,
             layout: layout
         )
+        drawLedgerLines(
+            presentation.notationLayout.ledgerLines,
+            in: translatedContext,
+            layout: layout
+        )
         drawRests(
             presentation.notationLayout.rests,
             in: translatedContext,
@@ -52,7 +57,6 @@ struct GrandStaffNotationRenderer {
         )
         drawItems(
             presentation.notationLayout.items,
-            ledgerStepsByItemID: presentation.ledgerStepsByItemID,
             in: translatedContext,
             practiceHandMode: practiceHandMode,
             layout: layout
@@ -258,7 +262,6 @@ struct GrandStaffNotationRenderer {
 
     private func drawItems(
         _ items: [GrandStaffNotationItem],
-        ledgerStepsByItemID: [String: [Int]],
         in context: GraphicsContext,
         practiceHandMode: PracticeHandMode,
         layout: GrandStaffNotationViewportLayoutService.Layout
@@ -268,25 +271,47 @@ struct GrandStaffNotationRenderer {
         for item in items {
             let glyphScale = engravingMetrics.glyphScale(isGrace: item.isGrace)
             let x = layout.xPosition(item.xPosition)
-                + item.noteheadXOffset * layout.noteWidth * glyphScale
+                + item.noteheadXOffset * layout.noteheadColumnWidth * glyphScale
             let y = layout.yPosition(staffStep: item.staffStep, staffNumber: item.staffNumber)
             let fadeScale = handFadeScale(for: item.hand, practiceHandMode: practiceHandMode)
 
-            for step in ledgerStepsByItemID[item.id] ?? [] {
-                let ledgerY = alignedToPixel(layout.yPosition(staffStep: step, staffNumber: item.staffNumber))
-                let extensionWidth = CGFloat(engravingMetrics.ledgerLineExtension) * layout.lineSpacing
-                let halfWidth = layout.noteWidth * glyphScale / 2 + extensionWidth
-                var path = Path()
-                path.move(to: CGPoint(x: x - halfWidth, y: ledgerY))
-                path.addLine(to: CGPoint(x: x + halfWidth, y: ledgerY))
-                context.stroke(
-                    path,
-                    with: .color(Color.primary.opacity(0.22 * fadeScale)),
-                    style: .init(lineWidth: strokeWidth(engravingMetrics.ledgerLineThickness, layout: layout))
-                )
-            }
+            drawNoteHead(
+                item: item,
+                chordBaseX: layout.xPosition(item.xPosition),
+                x: x,
+                y: y,
+                in: context,
+                fadeScale: fadeScale,
+                layout: layout
+            )
+        }
+    }
 
-            drawNoteHead(item: item, x: x, y: y, in: context, fadeScale: fadeScale, layout: layout)
+    private func drawLedgerLines(
+        _ ledgerLines: [GrandStaffNotationLedgerLine],
+        in context: GraphicsContext,
+        layout: GrandStaffNotationViewportLayoutService.Layout
+    ) {
+        for ledgerLine in ledgerLines {
+            let baseX = layout.xPosition(ledgerLine.xPosition)
+            let y = alignedToPixel(layout.yPosition(
+                staffStep: ledgerLine.staffStep,
+                staffNumber: ledgerLine.staffNumber
+            ))
+            var path = Path()
+            path.move(to: CGPoint(
+                x: baseX + ledgerLine.minXOffsetStaffSpaces * layout.lineSpacing,
+                y: y
+            ))
+            path.addLine(to: CGPoint(
+                x: baseX + ledgerLine.maxXOffsetStaffSpaces * layout.lineSpacing,
+                y: y
+            ))
+            context.stroke(
+                path,
+                with: .color(Color.primary.opacity(0.22)),
+                style: .init(lineWidth: strokeWidth(engravingMetrics.ledgerLineThickness, layout: layout))
+            )
         }
     }
 
@@ -311,6 +336,29 @@ struct GrandStaffNotationRenderer {
                 in: context,
                 layout: layout
             )
+            if rest.dotCount > 0,
+               let restBounds = engravingMetrics.bounds(for: token),
+               let dotBounds = engravingMetrics.bounds(for: .augmentationDot) {
+                let dotStaffStep = rest.staffStep + 1
+                let firstDotOffset = restBounds.maxX + engravingMetrics.dotNoteheadGap - dotBounds.minX
+                for dotIndex in 0 ..< rest.dotCount {
+                    drawGlyph(
+                        .augmentationDot,
+                        baselineAt: CGPoint(
+                            x: layout.xPosition(rest.xPosition)
+                                + (firstDotOffset + Double(dotIndex) * engravingMetrics.dotSpacing)
+                                * layout.lineSpacing,
+                            y: layout.yPosition(staffStep: dotStaffStep, staffNumber: rest.staffNumber)
+                        ),
+                        centeredOnAdvance: true,
+                        scale: 1,
+                        color: color,
+                        opacity: rest.isHighlighted ? 1 : 0.55,
+                        in: context,
+                        layout: layout
+                    )
+                }
+            }
         }
     }
 
@@ -338,7 +386,7 @@ struct GrandStaffNotationRenderer {
             guard let stem = chordLayoutService.stemGeometry(
                 stem: chord.stem,
                 chordX: layout.xPosition(chord.xPosition),
-                noteheadWidth: layout.noteWidth * glyphScale,
+                noteheadWidth: layout.noteheadColumnWidth * glyphScale,
                 stemLength: layout.lineSpacing * engravingMetrics.defaultStemLength * glyphScale,
                 noteCentersByID: noteCenters(for: chordItems, layout: layout)
             ) else { continue }
@@ -405,7 +453,7 @@ struct GrandStaffNotationRenderer {
                 guard let stem = chordLayoutService.stemGeometry(
                     stem: chord.stem,
                     chordX: layout.xPosition(chord.xPosition),
-                    noteheadWidth: layout.noteWidth * glyphScale,
+                    noteheadWidth: layout.noteheadColumnWidth * glyphScale,
                     stemLength: layout.lineSpacing * engravingMetrics.defaultStemLength * glyphScale,
                     noteCentersByID: noteCenters(for: chordItems, layout: layout)
                 ) else { continue }
@@ -548,7 +596,7 @@ struct GrandStaffNotationRenderer {
         Dictionary(uniqueKeysWithValues: items.map { item in
             let scale = engravingMetrics.glyphScale(isGrace: item.isGrace)
             return (item.id, CGPoint(
-                x: layout.xPosition(item.xPosition) + item.noteheadXOffset * layout.noteWidth * scale,
+                x: layout.xPosition(item.xPosition) + item.noteheadXOffset * layout.noteheadColumnWidth * scale,
                 y: layout.yPosition(staffStep: item.staffStep, staffNumber: item.staffNumber)
             ))
         })
@@ -556,6 +604,7 @@ struct GrandStaffNotationRenderer {
 
     private func drawNoteHead(
         item: GrandStaffNotationItem,
+        chordBaseX: CGFloat,
         x: CGFloat,
         y: CGFloat,
         in context: GraphicsContext,
@@ -576,11 +625,12 @@ struct GrandStaffNotationRenderer {
             layout: layout
         )
 
-        if let accidentalToken = item.displayedAccidental?.glyphToken {
+        if let accidentalToken = item.displayedAccidental?.glyphToken,
+           let accidentalXOffset = item.accidentalXOffsetStaffSpaces {
             let accidentalOpacity = min(1.0, 0.85 * fadeScale)
             drawGlyph(
                 accidentalToken,
-                baselineAt: CGPoint(x: x - layout.noteWidth, y: y),
+                baselineAt: CGPoint(x: chordBaseX + accidentalXOffset * layout.lineSpacing, y: y),
                 centeredOnAdvance: true,
                 scale: engravingMetrics.glyphScale(isGrace: item.isGrace),
                 color: noteColor,
@@ -588,6 +638,27 @@ struct GrandStaffNotationRenderer {
                 in: context,
                 layout: layout
             )
+        }
+
+        if item.dotCount > 0,
+           let dotXOffset = item.dotXOffsetStaffSpaces,
+           let dotStaffStep = item.dotStaffStep {
+            for dotIndex in 0 ..< item.dotCount {
+                drawGlyph(
+                    .augmentationDot,
+                    baselineAt: CGPoint(
+                        x: chordBaseX + (dotXOffset + Double(dotIndex) * engravingMetrics.dotSpacing)
+                            * layout.lineSpacing,
+                        y: layout.yPosition(staffStep: dotStaffStep, staffNumber: item.staffNumber)
+                    ),
+                    centeredOnAdvance: true,
+                    scale: engravingMetrics.glyphScale(isGrace: item.isGrace),
+                    color: noteColor,
+                    opacity: baseOpacity * fadeScale,
+                    in: context,
+                    layout: layout
+                )
+            }
         }
     }
 

@@ -7,16 +7,128 @@ struct GrandStaffChordLayoutService {
         let staffStep: Int
         let voice: Int
         let sourceStem: MusicXMLStem
+        let noteheadToken: GrandStaffGlyphToken
+        let accidentalToken: GrandStaffGlyphToken?
+        let dotCount: Int
+        let isGrace: Bool
+        let ledgerStaffSteps: [Int]
+
+        init(
+            id: String,
+            staffNumber: Int,
+            staffStep: Int,
+            voice: Int,
+            sourceStem: MusicXMLStem,
+            noteheadToken: GrandStaffGlyphToken = .noteheadBlack,
+            accidentalToken: GrandStaffGlyphToken? = nil,
+            dotCount: Int = 0,
+            isGrace: Bool = false,
+            ledgerStaffSteps: [Int] = []
+        ) {
+            self.id = id
+            self.staffNumber = staffNumber
+            self.staffStep = staffStep
+            self.voice = voice
+            self.sourceStem = sourceStem
+            self.noteheadToken = noteheadToken
+            self.accidentalToken = accidentalToken
+            self.dotCount = dotCount
+            self.isGrace = isGrace
+            self.ledgerStaffSteps = ledgerStaffSteps
+        }
     }
 
     struct Chord: Equatable {
         let id: String
         let tick: Int
+        let xPosition: Double
         let notes: [Note]
+
+        init(id: String, tick: Int, xPosition: Double = 0.5, notes: [Note]) {
+            self.id = id
+            self.tick = tick
+            self.xPosition = xPosition
+            self.notes = notes
+        }
+    }
+
+    struct DotLayout: Equatable {
+        let xOffsetStaffSpaces: Double
+        let staffStep: Int
+    }
+
+    struct LedgerLine: Equatable {
+        let id: String
+        let tick: Int
+        let xPosition: Double
+        let staffNumber: Int
+        let staffStep: Int
+        let minXOffsetStaffSpaces: Double
+        let maxXOffsetStaffSpaces: Double
     }
 
     struct Layout: Equatable {
         let chordID: String
+        let direction: GrandStaffStemDirection
+        let isStemVisible: Bool
+        let noteheadXOffsets: [String: Double]
+        let accidentalXOffsetsStaffSpaces: [String: Double]
+        let dotLayouts: [String: DotLayout]
+        let stemStartItemID: String
+        let stemEndItemID: String
+        let stemXOffset: Double
+    }
+
+    struct Result: Equatable {
+        let chords: [Layout]
+        let ledgerLines: [LedgerLine]
+    }
+
+    struct StemGeometry: Equatable {
+        let start: CGPoint
+        let end: CGPoint
+    }
+
+    private struct Rect {
+        let minX: Double
+        let minY: Double
+        let maxX: Double
+        let maxY: Double
+
+        func intersects(_ other: Rect) -> Bool {
+            minX < other.maxX && maxX > other.minX && minY < other.maxY && maxY > other.minY
+        }
+    }
+
+    private struct PlacedNote {
+        let tick: Int
+        let staffNumber: Int
+        let rect: Rect
+    }
+
+    private struct NotePlacement {
+        let chordID: String
+        let chordXPosition: Double
+        let tick: Int
+        let note: Note
+        let centerX: Double
+        let rect: Rect
+    }
+
+    private struct PlacedMark {
+        let tick: Int
+        let staffNumber: Int
+        let rect: Rect
+    }
+
+    private struct LedgerKey: Hashable {
+        let tick: Int
+        let staffNumber: Int
+        let staffStep: Int
+    }
+
+    private struct BaseLayout {
+        let chord: Chord
         let direction: GrandStaffStemDirection
         let isStemVisible: Bool
         let noteheadXOffsets: [String: Double]
@@ -25,21 +137,14 @@ struct GrandStaffChordLayoutService {
         let stemXOffset: Double
     }
 
-    struct StemGeometry: Equatable {
-        let start: CGPoint
-        let end: CGPoint
-    }
-
-    private struct PlacedNote {
-        let tick: Int
-        let staffNumber: Int
-        let staffStep: Int
-        let xOffset: Double
-    }
-
     private let collisionStep = 1.15
+    private let metrics: GrandStaffEngravingMetrics
 
-    func makeLayouts(chords: [Chord]) -> [Layout] {
+    init(metrics: GrandStaffEngravingMetrics = GrandStaffEngravingMetrics()) {
+        self.metrics = metrics
+    }
+
+    func makeLayout(chords: [Chord]) -> Result {
         let sortedChords = chords.sorted { lhs, rhs in
             if lhs.tick != rhs.tick { return lhs.tick < rhs.tick }
             let lhsVoice = lhs.notes.map(\.voice).min() ?? 1
@@ -48,8 +153,8 @@ struct GrandStaffChordLayoutService {
             return lhs.id < rhs.id
         }
         var placedNotes: [PlacedNote] = []
-        var layouts: [Layout] = []
-        layouts.reserveCapacity(sortedChords.count)
+        var baseLayouts: [BaseLayout] = []
+        baseLayouts.reserveCapacity(sortedChords.count)
 
         for chord in sortedChords where chord.notes.isEmpty == false {
             let direction = resolvedDirection(for: chord, among: sortedChords)
@@ -66,8 +171,8 @@ struct GrandStaffChordLayoutService {
             let end = direction == .up ? highest : lowest
             let attachmentOffset = direction == .up ? 0.5 : -0.5
 
-            layouts.append(Layout(
-                chordID: chord.id,
+            baseLayouts.append(BaseLayout(
+                chord: chord,
                 direction: direction,
                 isStemVisible: chord.notes.contains { $0.sourceStem == .none } == false,
                 noteheadXOffsets: offsets,
@@ -75,17 +180,33 @@ struct GrandStaffChordLayoutService {
                 stemEndItemID: end.id,
                 stemXOffset: collisionShift + attachmentOffset
             ))
-
             placedNotes.append(contentsOf: chord.notes.map {
                 PlacedNote(
                     tick: chord.tick,
                     staffNumber: $0.staffNumber,
-                    staffStep: $0.staffStep,
-                    xOffset: offsets[$0.id] ?? collisionShift
+                    rect: noteheadRect(note: $0, xOffset: offsets[$0.id] ?? collisionShift)
                 )
             })
         }
-        return layouts
+
+        let notePlacements = baseLayouts.flatMap(makeNotePlacements)
+        let accidentalOffsets = accidentalOffsets(notePlacements: notePlacements)
+        let dotLayouts = dotLayouts(baseLayouts: baseLayouts, notePlacements: notePlacements)
+        let ledgerLines = ledgerLines(notePlacements: notePlacements)
+        let layouts = baseLayouts.map { base in
+            Layout(
+                chordID: base.chord.id,
+                direction: base.direction,
+                isStemVisible: base.isStemVisible,
+                noteheadXOffsets: base.noteheadXOffsets,
+                accidentalXOffsetsStaffSpaces: accidentalOffsets[base.chord.id] ?? [:],
+                dotLayouts: dotLayouts[base.chord.id] ?? [:],
+                stemStartItemID: base.stemStartItemID,
+                stemEndItemID: base.stemEndItemID,
+                stemXOffset: base.stemXOffset
+            )
+        }
+        return Result(chords: layouts, ledgerLines: ledgerLines)
     }
 
     func stemGeometry(
@@ -104,6 +225,177 @@ struct GrandStaffChordLayoutService {
             start: CGPoint(x: x, y: startCenter.y),
             end: CGPoint(x: x, y: endY)
         )
+    }
+
+    private func makeNotePlacements(base: BaseLayout) -> [NotePlacement] {
+        base.chord.notes.map { note in
+            let centerX = noteheadCenterX(note: note, xOffset: base.noteheadXOffsets[note.id] ?? 0)
+            return NotePlacement(
+                chordID: base.chord.id,
+                chordXPosition: base.chord.xPosition,
+                tick: base.chord.tick,
+                note: note,
+                centerX: centerX,
+                rect: noteheadRect(note: note, centerX: centerX)
+            )
+        }
+    }
+
+    private func accidentalOffsets(notePlacements: [NotePlacement]) -> [String: [String: Double]] {
+        var result: [String: [String: Double]] = [:]
+        var placedMarks: [PlacedMark] = []
+        let accidentalPlacements = notePlacements.filter { $0.note.accidentalToken != nil }.sorted {
+            if $0.tick != $1.tick { return $0.tick < $1.tick }
+            if $0.note.staffNumber != $1.note.staffNumber { return $0.note.staffNumber < $1.note.staffNumber }
+            if $0.note.staffStep != $1.note.staffStep { return $0.note.staffStep > $1.note.staffStep }
+            if $0.note.voice != $1.note.voice { return $0.note.voice < $1.note.voice }
+            return $0.note.id < $1.note.id
+        }
+
+        for placement in accidentalPlacements {
+            guard let token = placement.note.accidentalToken,
+                  let bounds = metrics.bounds(for: token)
+            else { continue }
+            let scale = metrics.glyphScale(isGrace: placement.note.isGrace)
+            let groupNotes = notePlacements.filter {
+                $0.tick == placement.tick && $0.note.staffNumber == placement.note.staffNumber
+            }
+            let baseRight = (groupNotes.map(\.rect.minX).min() ?? placement.rect.minX)
+                - metrics.accidentalNoteheadGap
+            let maximumWidth = accidentalPlacements
+                .filter { $0.tick == placement.tick && $0.note.staffNumber == placement.note.staffNumber }
+                .compactMap { $0.note.accidentalToken.flatMap(metrics.bounds) }
+                .map(\.width)
+                .max() ?? bounds.width
+            let centerY = Double(placement.note.staffStep) / 2
+
+            for column in 0 ... placedMarks.count + 1 {
+                let right = baseRight - Double(column) * (maximumWidth + metrics.accidentalColumnGap)
+                let centerX = right - bounds.maxX * scale
+                let rect = Rect(
+                    minX: centerX + bounds.minX * scale,
+                    minY: centerY + bounds.minY * scale,
+                    maxX: centerX + bounds.maxX * scale,
+                    maxY: centerY + bounds.maxY * scale
+                )
+                let collides = placedMarks.contains {
+                    $0.tick == placement.tick &&
+                        $0.staffNumber == placement.note.staffNumber &&
+                        $0.rect.intersects(rect)
+                }
+                if collides == false {
+                    result[placement.chordID, default: [:]][placement.note.id] = centerX
+                    placedMarks.append(PlacedMark(
+                        tick: placement.tick,
+                        staffNumber: placement.note.staffNumber,
+                        rect: rect
+                    ))
+                    break
+                }
+            }
+        }
+        return result
+    }
+
+    private func dotLayouts(
+        baseLayouts: [BaseLayout],
+        notePlacements: [NotePlacement]
+    ) -> [String: [String: DotLayout]] {
+        guard let dotBounds = metrics.bounds(for: .augmentationDot) else { return [:] }
+        let directionByChordID = Dictionary(uniqueKeysWithValues: baseLayouts.map { ($0.chord.id, $0.direction) })
+        var result: [String: [String: DotLayout]] = [:]
+        var placedDots: [PlacedMark] = []
+        let dottedNotes = notePlacements.filter { $0.note.dotCount > 0 }.sorted {
+            if $0.tick != $1.tick { return $0.tick < $1.tick }
+            if $0.note.staffNumber != $1.note.staffNumber { return $0.note.staffNumber < $1.note.staffNumber }
+            if $0.note.voice != $1.note.voice { return $0.note.voice < $1.note.voice }
+            if $0.note.staffStep != $1.note.staffStep { return $0.note.staffStep < $1.note.staffStep }
+            return $0.note.id < $1.note.id
+        }
+
+        for placement in dottedNotes {
+            let direction = directionByChordID[placement.chordID] ?? .up
+            let verticalDirection = direction == .up ? 1 : -1
+            let initialStep = placement.note.staffStep.isMultiple(of: 2)
+                ? placement.note.staffStep + verticalDirection
+                : placement.note.staffStep
+            let rightmostNote = notePlacements.filter {
+                $0.tick == placement.tick && $0.note.staffNumber == placement.note.staffNumber
+            }.map(\.rect.maxX).max() ?? placement.rect.maxX
+            let centerX = rightmostNote + metrics.dotNoteheadGap - dotBounds.minX
+
+            for attempt in 0 ... placedDots.count + 1 {
+                let staffStep = initialStep + attempt * 2 * verticalDirection
+                let centerY = Double(staffStep) / 2
+                let rect = Rect(
+                    minX: centerX + dotBounds.minX,
+                    minY: centerY + dotBounds.minY,
+                    maxX: centerX + dotBounds.maxX
+                        + Double(max(0, placement.note.dotCount - 1)) * metrics.dotSpacing,
+                    maxY: centerY + dotBounds.maxY
+                )
+                let collides = placedDots.contains {
+                    $0.tick == placement.tick &&
+                        $0.staffNumber == placement.note.staffNumber &&
+                        $0.rect.intersects(rect)
+                }
+                if collides == false {
+                    result[placement.chordID, default: [:]][placement.note.id] = DotLayout(
+                        xOffsetStaffSpaces: centerX,
+                        staffStep: staffStep
+                    )
+                    placedDots.append(PlacedMark(
+                        tick: placement.tick,
+                        staffNumber: placement.note.staffNumber,
+                        rect: rect
+                    ))
+                    break
+                }
+            }
+        }
+        return result
+    }
+
+    private func ledgerLines(notePlacements: [NotePlacement]) -> [LedgerLine] {
+        var segments: [LedgerKey: (xPosition: Double, minX: Double, maxX: Double)] = [:]
+        for placement in notePlacements {
+            let bounds = metrics.bounds(for: placement.note.noteheadToken) ?? metrics.noteheadViewportBounds
+            let scale = metrics.glyphScale(isGrace: placement.note.isGrace)
+            for staffStep in placement.note.ledgerStaffSteps {
+                let key = LedgerKey(
+                    tick: placement.tick,
+                    staffNumber: placement.note.staffNumber,
+                    staffStep: staffStep
+                )
+                let minX = placement.centerX + bounds.minX * scale - metrics.ledgerLineExtension
+                let maxX = placement.centerX + bounds.maxX * scale + metrics.ledgerLineExtension
+                if let existing = segments[key] {
+                    segments[key] = (
+                        xPosition: existing.xPosition,
+                        minX: min(existing.minX, minX),
+                        maxX: max(existing.maxX, maxX)
+                    )
+                } else {
+                    segments[key] = (placement.chordXPosition, minX, maxX)
+                }
+            }
+        }
+        return segments.keys.sorted {
+            if $0.tick != $1.tick { return $0.tick < $1.tick }
+            if $0.staffNumber != $1.staffNumber { return $0.staffNumber < $1.staffNumber }
+            return $0.staffStep < $1.staffStep
+        }.compactMap { key in
+            guard let segment = segments[key] else { return nil }
+            return LedgerLine(
+                id: "ledger-\(key.tick)-\(key.staffNumber)-\(key.staffStep)",
+                tick: key.tick,
+                xPosition: segment.xPosition,
+                staffNumber: key.staffNumber,
+                staffStep: key.staffStep,
+                minXOffsetStaffSpaces: segment.minX,
+                maxXOffsetStaffSpaces: segment.maxX
+            )
+        }
     }
 
     private func resolvedDirection(for chord: Chord, among chords: [Chord]) -> GrandStaffStemDirection {
@@ -176,11 +468,12 @@ struct GrandStaffChordLayoutService {
                 : [Double(distance) * collisionStep, -Double(distance) * collisionStep]
             if let shift = candidates.first(where: { candidate in
                 chord.notes.allSatisfy { note in
-                    let xOffset = (internalOffsets[note.id] ?? 0) + candidate
+                    let rect = noteheadRect(
+                        note: note,
+                        xOffset: (internalOffsets[note.id] ?? 0) + candidate
+                    )
                     return relevantNotes.allSatisfy { placed in
-                        placed.staffNumber != note.staffNumber ||
-                            abs(placed.staffStep - note.staffStep) > 1 ||
-                            abs(placed.xOffset - xOffset) >= collisionStep
+                        placed.staffNumber != note.staffNumber || placed.rect.intersects(rect) == false
                     }
                 }
             }) {
@@ -188,6 +481,26 @@ struct GrandStaffChordLayoutService {
             }
         }
         return Double(relevantNotes.count + 2) * collisionStep
+    }
+
+    private func noteheadCenterX(note: Note, xOffset: Double) -> Double {
+        xOffset * metrics.noteheadColumnWidth * metrics.glyphScale(isGrace: note.isGrace)
+    }
+
+    private func noteheadRect(note: Note, xOffset: Double) -> Rect {
+        noteheadRect(note: note, centerX: noteheadCenterX(note: note, xOffset: xOffset))
+    }
+
+    private func noteheadRect(note: Note, centerX: Double) -> Rect {
+        let bounds = metrics.bounds(for: note.noteheadToken) ?? metrics.noteheadViewportBounds
+        let scale = metrics.glyphScale(isGrace: note.isGrace)
+        let centerY = Double(note.staffStep) / 2
+        return Rect(
+            minX: centerX + bounds.minX * scale,
+            minY: centerY + bounds.minY * scale,
+            maxX: centerX + bounds.maxX * scale,
+            maxY: centerY + bounds.maxY * scale
+        )
     }
 
     private func isVisuallyHigher(_ lhs: Note, _ rhs: Note) -> Bool {

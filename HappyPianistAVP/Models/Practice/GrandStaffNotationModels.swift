@@ -90,6 +90,7 @@ struct GrandStaffNotationLayout: Equatable {
     let tuplets: [GrandStaffNotationTuplet]
     let barlines: [GrandStaffNotationBarline]
     let beams: [GrandStaffNotationBeam]
+    let ledgerLines: [GrandStaffNotationLedgerLine]
     let context: GrandStaffNotationContext?
 }
 
@@ -180,6 +181,16 @@ struct GrandStaffNotationBeam: Equatable, Identifiable {
     let beamCount: Int
 }
 
+struct GrandStaffNotationLedgerLine: Equatable, Identifiable {
+    let id: String
+    let tick: Int
+    let xPosition: Double
+    let staffNumber: Int
+    let staffStep: Int
+    let minXOffsetStaffSpaces: Double
+    let maxXOffsetStaffSpaces: Double
+}
+
 struct GrandStaffNotationContext: Equatable {
     let trebleClefSymbol: String
     let bassClefSymbol: String
@@ -245,6 +256,9 @@ struct GrandStaffNotationItem: Equatable, Identifiable {
     let noteValue: GrandStaffNoteValue
     let chordID: String?
     let noteheadXOffset: Double
+    let accidentalXOffsetStaffSpaces: Double?
+    let dotXOffsetStaffSpaces: Double?
+    let dotStaffStep: Int?
     let beamID: String?
     let durationTicks: Int
     let isGrace: Bool

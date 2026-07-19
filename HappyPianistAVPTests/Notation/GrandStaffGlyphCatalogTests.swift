@@ -78,12 +78,25 @@ func engravingMetricsStayInStaffSpaceUnits() {
     #expect(metrics.beamThickness == 0.50)
     #expect(metrics.ledgerLineExtension == 0.40)
     #expect(metrics.defaultStemLength == 3.50)
+    #expect(metrics.noteheadColumnWidth == 1.18)
     #expect(metrics.smuflEmSize == 4)
     #expect(metrics.glyphScale(isGrace: false) == 1)
     #expect(metrics.glyphScale(isGrace: true) == 0.70)
     #expect(black?.width == 1.18)
     #expect(black?.height == 1.0)
     #expect((whole?.width ?? 0) > (black?.width ?? 0))
+    #expect(metrics.bounds(for: .accidentalSharp) == .init(
+        minX: -0.498,
+        minY: -1.392,
+        maxX: 0.498,
+        maxY: 1.4
+    ))
+    #expect(metrics.bounds(for: .augmentationDot) == .init(
+        minX: -0.2,
+        minY: -0.2,
+        maxX: 0.2,
+        maxY: 0.2
+    ))
     #expect(metrics.bounds(for: .gClef) == nil)
 }
 
@@ -107,5 +120,6 @@ func rhythmicGlyphsExposeStemEligibilityAndViewportBounds() {
     #expect(abs(layout.noteWidth - 14 * metrics.noteheadViewportBounds.width) < 0.0001)
     #expect(abs(layout.noteHeight - 14 * metrics.noteheadViewportBounds.height) < 0.0001)
     #expect(abs(layout.smuflFontSize - 14 * metrics.smuflEmSize) < 0.0001)
+    #expect(abs(layout.noteheadColumnWidth - 14 * metrics.noteheadColumnWidth) < 0.0001)
     #expect(layout.requiredHeight > layout.bassBottomLineY + layout.canvasYOffset)
 }

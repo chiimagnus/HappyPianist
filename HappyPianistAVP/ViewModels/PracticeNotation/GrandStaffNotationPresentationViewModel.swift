@@ -55,11 +55,6 @@ struct GrandStaffNotationPresentationViewModel {
             chordsByID: Dictionary(uniqueKeysWithValues: notationLayout.chords.map { ($0.id, $0) }),
             itemsByChordID: Dictionary(grouping: notationLayout.items, by: { $0.chordID ?? "" }),
             beamedChordIDs: Set(notationLayout.beams.flatMap(\.chordIDs)),
-            ledgerStepsByItemID: Dictionary(
-                uniqueKeysWithValues: notationLayout.items.map { item in
-                    (item.id, layoutService.ledgerStaffSteps(for: item.staffStep))
-                }
-            ),
             defaultScrollAnchorY: resolvedDefaultScrollAnchorY(layout: viewportLayout)
         )
     }

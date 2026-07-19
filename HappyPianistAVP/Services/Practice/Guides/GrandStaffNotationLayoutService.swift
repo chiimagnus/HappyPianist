@@ -228,6 +228,9 @@ struct GrandStaffNotationLayoutService {
                 noteValue: note.noteValue,
                 chordID: nil,
                 noteheadXOffset: 0,
+                accidentalXOffsetStaffSpaces: nil,
+                dotXOffsetStaffSpaces: nil,
+                dotStaffStep: nil,
                 beamID: nil,
                 durationTicks: note.durationTicks,
                 isGrace: note.isGrace,
@@ -298,6 +301,7 @@ struct GrandStaffNotationLayoutService {
             tuplets: spanners.compactMap(makeTuplet),
             barlines: barlines,
             beams: chordBuild.beams,
+            ledgerLines: chordBuild.ledgerLines,
             context: context
         )
     }
@@ -601,7 +605,7 @@ struct GrandStaffNotationLayoutService {
         return octave * 7 + stepIndex
     }
 
-    func ledgerStaffSteps(for staffStep: Int) -> [Int] {
+    private func ledgerStaffSteps(for staffStep: Int) -> [Int] {
         guard staffStep < 0 || staffStep > 8 else { return [] }
 
         var steps: [Int] = []
@@ -660,8 +664,13 @@ struct GrandStaffNotationLayoutService {
         items: [GrandStaffNotationItem],
         notationFactsByOccurrenceID: [String: NotationFacts],
         measureSpans: [MusicXMLMeasureSpan]
-    ) -> (items: [GrandStaffNotationItem], chords: [GrandStaffNotationChord], beams: [GrandStaffNotationBeam]) {
-        guard items.isEmpty == false else { return (items, [], []) }
+    ) -> (
+        items: [GrandStaffNotationItem],
+        chords: [GrandStaffNotationChord],
+        beams: [GrandStaffNotationBeam],
+        ledgerLines: [GrandStaffNotationLedgerLine]
+    ) {
+        guard items.isEmpty == false else { return (items, [], [], []) }
 
         let barlineTicks = Set(measureSpans.map(\.startTick))
             .union([measureSpans.map(\.endTick).max()].compactMap(\.self))
@@ -689,22 +698,28 @@ struct GrandStaffNotationLayoutService {
                 noteValue: resolvedChordNoteValue(items: chordItems)
             )
         }
-        let chordLayouts = chordLayoutService.makeLayouts(chords: candidates.map { candidate in
+        let chordGeometry = chordLayoutService.makeLayout(chords: candidates.map { candidate in
             GrandStaffChordLayoutService.Chord(
                 id: candidate.id,
                 tick: candidate.tick,
+                xPosition: candidate.xPosition,
                 notes: candidate.items.map { item in
                     GrandStaffChordLayoutService.Note(
                         id: item.occurrenceID,
                         staffNumber: item.staffNumber,
                         staffStep: item.staffStep,
                         voice: item.voice,
-                        sourceStem: notationFactsByOccurrenceID[item.occurrenceID]?.stem ?? .unspecified
+                        sourceStem: notationFactsByOccurrenceID[item.occurrenceID]?.stem ?? .unspecified,
+                        noteheadToken: item.noteheadGlyphToken ?? .noteheadBlack,
+                        accidentalToken: item.displayedAccidental?.glyphToken,
+                        dotCount: item.dotCount,
+                        isGrace: item.isGrace,
+                        ledgerStaffSteps: ledgerStaffSteps(for: item.staffStep)
                     )
                 }
             )
         })
-        let chordLayoutByID = Dictionary(uniqueKeysWithValues: chordLayouts.map { ($0.chordID, $0) })
+        let chordLayoutByID = Dictionary(uniqueKeysWithValues: chordGeometry.chords.map { ($0.chordID, $0) })
         var chords: [GrandStaffNotationChord] = []
         var updatedItemsByOccurrenceID: [String: GrandStaffNotationItem] = [:]
         updatedItemsByOccurrenceID.reserveCapacity(items.count)
@@ -743,6 +758,9 @@ struct GrandStaffNotationLayoutService {
                     noteValue: item.noteValue,
                     chordID: candidate.id,
                     noteheadXOffset: chordLayout.noteheadXOffsets[item.occurrenceID] ?? 0,
+                    accidentalXOffsetStaffSpaces: chordLayout.accidentalXOffsetsStaffSpaces[item.occurrenceID],
+                    dotXOffsetStaffSpaces: chordLayout.dotLayouts[item.occurrenceID]?.xOffsetStaffSpaces,
+                    dotStaffStep: chordLayout.dotLayouts[item.occurrenceID]?.staffStep,
                     beamID: nil,
                     durationTicks: item.durationTicks,
                     isGrace: item.isGrace,
@@ -783,6 +801,9 @@ struct GrandStaffNotationLayoutService {
                 noteValue: item.noteValue,
                 chordID: item.chordID,
                 noteheadXOffset: item.noteheadXOffset,
+                accidentalXOffsetStaffSpaces: item.accidentalXOffsetStaffSpaces,
+                dotXOffsetStaffSpaces: item.dotXOffsetStaffSpaces,
+                dotStaffStep: item.dotStaffStep,
                 beamID: item.chordID.flatMap { beamIDByChordID[$0] },
                 durationTicks: item.durationTicks,
                 isGrace: item.isGrace,
@@ -792,7 +813,18 @@ struct GrandStaffNotationLayoutService {
             )
         }
 
-        return (normalizedItems, chords, beamsBuild.beams)
+        let ledgerLines = chordGeometry.ledgerLines.map {
+            GrandStaffNotationLedgerLine(
+                id: $0.id,
+                tick: $0.tick,
+                xPosition: $0.xPosition,
+                staffNumber: $0.staffNumber,
+                staffStep: $0.staffStep,
+                minXOffsetStaffSpaces: $0.minXOffsetStaffSpaces,
+                maxXOffsetStaffSpaces: $0.maxXOffsetStaffSpaces
+            )
+        }
+        return (normalizedItems, chords, beamsBuild.beams, ledgerLines)
     }
 
     private func resolvedChordNoteValue(items: [GrandStaffNotationItem]) -> GrandStaffNoteValue {

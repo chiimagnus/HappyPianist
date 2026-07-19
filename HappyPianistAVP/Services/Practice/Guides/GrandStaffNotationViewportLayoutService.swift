@@ -24,6 +24,7 @@ struct GrandStaffNotationViewportLayoutService {
         let lineSpacing: CGFloat
         let noteWidth: CGFloat
         let noteHeight: CGFloat
+        let noteheadColumnWidth: CGFloat
         let smuflFontSize: CGFloat
 
         let contextMinX: CGFloat
@@ -107,6 +108,7 @@ struct GrandStaffNotationViewportLayoutService {
 
         let noteWidth = resolvedLineSpacing * engravingMetrics.noteheadViewportBounds.width
         let noteHeight = resolvedLineSpacing * engravingMetrics.noteheadViewportBounds.height
+        let noteheadColumnWidth = resolvedLineSpacing * engravingMetrics.noteheadColumnWidth
         let smuflFontSize = resolvedLineSpacing * engravingMetrics.smuflEmSize
 
         let contextMinX: CGFloat = 4
@@ -161,6 +163,7 @@ struct GrandStaffNotationViewportLayoutService {
             lineSpacing: resolvedLineSpacing,
             noteWidth: noteWidth,
             noteHeight: noteHeight,
+            noteheadColumnWidth: noteheadColumnWidth,
             smuflFontSize: smuflFontSize,
             contextMinX: contextMinX,
             contextWidth: contextWidth,
