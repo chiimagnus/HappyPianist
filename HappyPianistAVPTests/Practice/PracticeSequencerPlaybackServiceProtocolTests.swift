@@ -90,7 +90,7 @@ func audioFailureResetsBeforePublishingAndRetryRecovers() async throws {
 
     try await service.warmUp()
     #expect(await service.currentPlaybackState() == .ready)
-    let events = await waitForDiagnostics(diagnostics, count: 2)
+    let events = await waitForAudioLifecycleDiagnostics(diagnostics, count: 2)
     #expect(events.contains { event in
         event.reason.contains("outcome=failed")
             && event.reason.contains("operation=audioSessionConfiguration")
@@ -192,10 +192,16 @@ func stopAttemptsEveryResetCommandAndPublishesResetFailure() async throws {
             detail: "MusicDeviceMIDIEvent failed: -1"
         )
     ))
-    let events = await waitForDiagnostics(diagnostics, count: 1)
+    let events = await waitForAudioLifecycleDiagnostics(diagnostics, count: 1)
     #expect(events.contains { event in
         event.reason.contains("operation=transportReset")
             && event.reason.contains("reset=failed")
+    })
+    let metricEvents = await waitForPracticeOutputMetrics(diagnostics)
+    #expect(metricEvents.contains { event in
+        event.reason.contains("capability=localSampler")
+            && event.reason.contains("resetFailed=1")
+            && event.reason.contains("stuckNotePrevention=1")
     })
     try await service.warmUp()
     #expect(await service.currentPlaybackState() == .ready)
@@ -377,14 +383,25 @@ private func capturedAudioError(
     }
 }
 
-private func waitForDiagnostics(
+private func waitForAudioLifecycleDiagnostics(
     _ reporter: InMemoryDiagnosticsReporter,
     count: Int
 ) async -> [DiagnosticEvent] {
     for _ in 0 ..< 100 {
-        let events = await reporter.events
+        let events = await reporter.events.filter { $0.stage == PianoPerformanceDiagnosticStage.playback.rawValue }
         if events.count >= count { return events }
         await Task.yield()
     }
-    return await reporter.events
+    return await reporter.events.filter { $0.stage == PianoPerformanceDiagnosticStage.playback.rawValue }
+}
+
+private func waitForPracticeOutputMetrics(
+    _ reporter: InMemoryDiagnosticsReporter
+) async -> [DiagnosticEvent] {
+    for _ in 0 ..< 100 {
+        let events = await reporter.events.filter { $0.stage == "playback.outputMetrics" }
+        if events.isEmpty == false { return events }
+        await Task.yield()
+    }
+    return await reporter.events.filter { $0.stage == "playback.outputMetrics" }
 }

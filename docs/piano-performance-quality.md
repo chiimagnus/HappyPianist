@@ -514,9 +514,11 @@ CoreMIDI scheduler 在每个目标时间点唤醒 Task 再发送，packet timest
 
 #### PERF-012：没有端到端时延、抖动和漏触发指标
 
-**严重度：P0（专业宣称前）｜证据：代码确认**
+**状态：软件输出边界已修复｜真机端到端基线待 P15｜证据：代码确认 + 自动化聚合测试**
 
-当前没有可证明的：
+当前实现按一次 output generation 聚合 scheduled、submitted 与平台可提供的 acknowledged monotonic timestamps，并记录 submission/acknowledgement latency、jitter 分桶、late、dropped、cancelled、reset 成败和 stuck-note prevention。聚合事件不包含逐音内容或路径，可进入现有七天诊断导出；主动取消与真正漏发分开计数。
+
+CoreMIDI 与本地 sampler 当前都没有硬件“已经发声”回执，因此 acknowledged 保持缺失，不把 API 提交成功伪装成端到端发声成功。仍需真机证明的项目是：
 
 - 事件到发声延迟分布。
 - 手指运动到虚拟琴发声延迟。
@@ -525,7 +527,7 @@ CoreMIDI scheduler 在每个目标时间点唤醒 Task 再发送，packet timest
 - 多音同时触发偏差。
 - 路由恢复成功率。
 
-验收不能写成“听起来没问题”。必须在指定 Vision Pro、音频路由、蓝牙 MIDI 设备和曲目上记录 p50 / p95 / p99、丢失率和复现条件；绝对门槛在取得基线后由真机体验决定。
+P15 验收不能写成“听起来没问题”。必须在指定 Vision Pro、音频路由、蓝牙 MIDI 设备和曲目上记录 p50 / p95 / p99、丢失率和复现条件；绝对门槛在取得基线后由真机体验决定。
 
 ### C. 记谱显示
 

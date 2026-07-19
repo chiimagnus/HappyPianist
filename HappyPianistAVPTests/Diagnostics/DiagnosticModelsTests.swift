@@ -123,3 +123,45 @@ func pianoPerformanceDurationBucketsAreStable() {
     #expect(PianoPerformanceDurationBucket(seconds: 0.5) == .underOneSecond)
     #expect(PianoPerformanceDurationBucket(seconds: 2) == .oneSecondOrMore)
 }
+
+@Test
+func pianoOutputMetricsAggregateTimingFailuresAndPrivacySafeFields() {
+    var metrics = PianoOutputMetricsAccumulator()
+    metrics.record(PianoOutputTimestampObservation(
+        scheduledAtSeconds: 1,
+        submittedAtSeconds: 0.95,
+        acknowledgedAtSeconds: 1.02
+    ))
+    metrics.record(PianoOutputTimestampObservation(
+        scheduledAtSeconds: 2,
+        submittedAtSeconds: 2.015,
+        acknowledgedAtSeconds: nil
+    ))
+    metrics.recordDropped(count: 2)
+    metrics.recordCancelled(count: 1)
+    metrics.recordReset(succeeded: false, preventsStuckNotes: true)
+
+    let snapshot = metrics.snapshot(capability: .externalMIDI)
+    #expect(snapshot.scheduledCount == 5)
+    #expect(snapshot.submittedCount == 2)
+    #expect(snapshot.acknowledgedCount == 1)
+    #expect(snapshot.lateCount == 1)
+    #expect(snapshot.droppedCount == 2)
+    #expect(snapshot.cancelledCount == 1)
+    #expect(snapshot.resetFailedCount == 1)
+    #expect(snapshot.stuckNotePreventionCount == 1)
+    #expect(snapshot.submissionLatencyBuckets[.underTenMilliseconds] == 1)
+    #expect(snapshot.submissionLatencyBuckets[.underFiftyMilliseconds] == 1)
+    #expect(snapshot.acknowledgementLatencyBuckets[.underFiftyMilliseconds] == 1)
+    #expect(snapshot.jitterBuckets[.underTwoHundredMilliseconds] == 1)
+
+    let event = snapshot.diagnosticEvent
+    #expect(event.persistence == .exportable)
+    #expect(event.stage == "playback.outputMetrics")
+    #expect(event.reason.contains("capability=externalMIDI"))
+    #expect(event.reason.contains("scheduled=5"))
+    #expect(event.reason.contains("dropped=2"))
+    #expect(event.reason.contains("cancelled=1"))
+    #expect(event.reason.contains("/Users/") == false)
+    #expect(event.reason.contains(".musicxml") == false)
+}

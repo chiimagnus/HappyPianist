@@ -155,6 +155,10 @@ actor AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackServiceP
 
     func stop(resetCommands: [PerformanceTransportCommand]) {
         let resetFailure = executeReset(commands: resetCommands)
+        recordResetMetrics(
+            resetFailure: resetFailure,
+            commands: resetCommands
+        )
         haltPlayback()
         guard let resetFailure else {
             if pendingRecoveryContext == nil {
@@ -478,6 +482,25 @@ actor AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackServiceP
         return firstFailure
     }
 
+    private func recordResetMetrics(
+        resetFailure: OSStatus?,
+        commands: [PerformanceTransportCommand]
+    ) {
+        var metrics = PianoOutputMetricsAccumulator()
+        metrics.recordReset(
+            succeeded: resetFailure == nil,
+            preventsStuckNotes: commands.contains { command in
+                switch command {
+                case .allNotesOff, .allSoundOff:
+                    true
+                case .noteOff, .controlChange:
+                    false
+                }
+            }
+        )
+        diagnosticsReporter?.recordOutputMetrics(metrics.snapshot(capability: .localSampler))
+    }
+
     private func ensureReady() throws {
         startObservingLifecycleIfNeeded()
 
@@ -564,7 +587,12 @@ actor AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackServiceP
         reason: PianoPerformanceAudioLifecycleReason = .operationError,
         rebuildAudioGraph: Bool = false
     ) -> PracticeAudioError {
-        let resetFailure = executeReset(commands: PerformanceTransportReducer.fullResetCommands)
+        let resetCommands = PerformanceTransportReducer.fullResetCommands
+        let resetFailure = executeReset(commands: resetCommands)
+        recordResetMetrics(
+            resetFailure: resetFailure,
+            commands: resetCommands
+        )
         haltPlayback()
         engine.stop()
         isReady = false

@@ -269,6 +269,7 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
     @Test func lookAheadSchedulerClampsLateEventToCurrentTransportTime() async {
         let output = FakeMIDIOutputService()
         let clock = FakeMIDILookAheadClock()
+        let diagnostics = InMemoryDiagnosticsReporter()
         let scheduler = MIDILookAheadScheduler(
             outputService: output,
             destinationUniqueID: 222,
@@ -279,7 +280,8 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
                 hostTicksPerSecond: 1_000
             ),
             clock: clock,
-            configuration: MIDILookAheadConfiguration(horizonSeconds: 0.1, refillIntervalSeconds: 0.025)
+            configuration: MIDILookAheadConfiguration(horizonSeconds: 0.1, refillIntervalSeconds: 0.025),
+            diagnosticsReporter: diagnostics
         )
         let task = scheduler.start(events: [
             PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 60, velocity: 80)),
@@ -291,6 +293,14 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
         #expect(await waitUntil { output.batchesSnapshot().count == 2 })
         await task.value
         #expect(output.batchesSnapshot()[1].first?.hostTime == 20_250)
+        let events = await waitForOutputMetrics(diagnostics)
+        #expect(events.contains { event in
+            event.stage == "playback.outputMetrics"
+                && event.reason.contains("scheduled=2")
+                && event.reason.contains("submitted=2")
+                && event.reason.contains("acknowledged=0")
+                && event.reason.contains("late=1")
+        })
     }
 
     @Test func cancellingLookAheadSchedulerPreventsUnsubmittedBatches() async {
@@ -570,6 +580,19 @@ private func waitForCoreMIDIResetDiagnostic(
     return await reporter.events
 }
 
+private func waitForOutputMetrics(
+    _ reporter: InMemoryDiagnosticsReporter
+) async -> [DiagnosticEvent] {
+    for _ in 0 ..< 100 {
+        let events = await reporter.events
+        if events.contains(where: { $0.stage == "playback.outputMetrics" }) {
+            return events
+        }
+        await Task.yield()
+    }
+    return await reporter.events
+}
+
 private final class FakeMIDILookAheadClock: MIDILookAheadClock, @unchecked Sendable {
     private struct Sleeper {
         let deadlineSeconds: TimeInterval
@@ -631,9 +654,15 @@ private final class FakeMIDILookAheadClock: MIDILookAheadClock, @unchecked Senda
 }
 
 private func waitUntil(_ condition: @escaping @Sendable () -> Bool) async -> Bool {
-    for _ in 0 ..< 1_000 {
+    let clock = ContinuousClock()
+    let deadline = clock.now + .seconds(1)
+    while clock.now < deadline {
         if condition() { return true }
-        await Task.yield()
+        do {
+            try await Task.sleep(for: .milliseconds(1))
+        } catch {
+            return condition()
+        }
     }
     return condition()
 }

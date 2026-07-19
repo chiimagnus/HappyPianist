@@ -93,6 +93,24 @@ func reporterKeepsAppRunningWhenFileStoreFails() async {
     #expect(systemSink.events.last?.code == .diagnosticsStoreWriteFailed)
 }
 
+@Test
+func reporterPersistsAggregatedOutputMetricsForRetainedExport() async {
+    let systemSink = RecordingSystemDiagnosticsSink()
+    let store = RecordingDiagnosticsStore()
+    let reporter = AppDiagnosticsReporter(systemSink: systemSink, exportStore: store)
+    var metrics = PianoOutputMetricsAccumulator()
+    metrics.recordReset(succeeded: true, preventsStuckNotes: true)
+
+    let result = await reporter.recordOutputMetrics(
+        metrics.snapshot(capability: .localSampler)
+    ).value
+
+    #expect(result.persistedForExport)
+    #expect(systemSink.events.count == 1)
+    #expect(await store.events.count == 1)
+    #expect(await store.events.first?.persistence == .exportable)
+}
+
 private func testReporterEvent(persistence: DiagnosticPersistence) -> DiagnosticEvent {
     DiagnosticEvent(
         severity: .error,

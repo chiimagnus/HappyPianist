@@ -126,59 +126,93 @@ actor MIDILookAheadScheduler {
         let startedAtSeconds = clock.nowSeconds()
         let hostTimeOrigin = hostTimeConverter.origin(atTransportSeconds: startSeconds)
         var nextEventIndex = 0
-
-        while nextEventIndex < pendingEvents.count {
-            try Task.checkCancellation()
-
-            let elapsedSeconds = max(0, clock.nowSeconds() - startedAtSeconds)
-            let transportNowSeconds = startSeconds + elapsedSeconds
-            let horizonEndSeconds = transportNowSeconds + configuration.horizonSeconds
-            var messages: [TimestampedMIDI1Message] = []
-
-            while nextEventIndex < pendingEvents.count,
-                  pendingEvents[nextEventIndex].timeSeconds <= horizonEndSeconds
-            {
-                let event = pendingEvents[nextEventIndex]
-                if let bytes = Self.messageBytes(
-                    for: event,
-                    channel: channel,
-                    outputCapabilities: outputCapabilities
-                ) {
-                    let scheduledSeconds = max(event.timeSeconds, transportNowSeconds)
-                    messages.append(TimestampedMIDI1Message(
-                        hostTime: hostTimeConverter.hostTime(
-                            atTransportSeconds: scheduledSeconds,
-                            relativeTo: hostTimeOrigin
-                        ),
-                        bytes: bytes
-                    ))
-                }
-                nextEventIndex += 1
+        var handledEventCount = 0
+        var metrics = PianoOutputMetricsAccumulator()
+        defer {
+            if metrics.hasActivity {
+                diagnosticsReporter?.recordOutputMetrics(metrics.snapshot(capability: .externalMIDI))
             }
+        }
 
-            if messages.isEmpty == false {
+        do {
+            while nextEventIndex < pendingEvents.count {
                 try Task.checkCancellation()
-                let batchMessages = messages
-                let sent = try generationGuard.performIfCurrent(generation) {
-                    try outputService.sendMIDI1Messages(
-                        batchMessages,
-                        destinationUniqueID: destinationUniqueID
-                    )
-                }
-                guard sent else { return }
-            }
 
-            guard nextEventIndex < pendingEvents.count else { return }
-            let nextRefillSeconds = min(
-                pendingEvents[nextEventIndex].timeSeconds - configuration.horizonSeconds,
-                transportNowSeconds + configuration.refillIntervalSeconds
-            )
-            let sleepSeconds = max(0, nextRefillSeconds - transportNowSeconds)
-            if sleepSeconds == 0 {
-                await Task.yield()
-            } else {
-                try await clock.sleep(for: sleepSeconds)
+                let elapsedSeconds = max(0, clock.nowSeconds() - startedAtSeconds)
+                let transportNowSeconds = startSeconds + elapsedSeconds
+                let horizonEndSeconds = transportNowSeconds + configuration.horizonSeconds
+                var messages: [TimestampedMIDI1Message] = []
+                var scheduledAtSeconds: [TimeInterval] = []
+
+                while nextEventIndex < pendingEvents.count,
+                      pendingEvents[nextEventIndex].timeSeconds <= horizonEndSeconds
+                {
+                    let event = pendingEvents[nextEventIndex]
+                    if let bytes = Self.messageBytes(
+                        for: event,
+                        channel: channel,
+                        outputCapabilities: outputCapabilities
+                    ) {
+                        let scheduledTransportSeconds = max(event.timeSeconds, transportNowSeconds)
+                        messages.append(TimestampedMIDI1Message(
+                            hostTime: hostTimeConverter.hostTime(
+                                atTransportSeconds: scheduledTransportSeconds,
+                                relativeTo: hostTimeOrigin
+                            ),
+                            bytes: bytes
+                        ))
+                        scheduledAtSeconds.append(
+                            startedAtSeconds + max(0, event.timeSeconds - startSeconds)
+                        )
+                    } else {
+                        metrics.recordDropped(count: 1)
+                        handledEventCount += 1
+                    }
+                    nextEventIndex += 1
+                }
+
+                if messages.isEmpty == false {
+                    try Task.checkCancellation()
+                    let batchMessages = messages
+                    let submittedAtSeconds = clock.nowSeconds()
+                    let sent = try generationGuard.performIfCurrent(generation) {
+                        try outputService.sendMIDI1Messages(
+                            batchMessages,
+                            destinationUniqueID: destinationUniqueID
+                        )
+                    }
+                    guard sent else {
+                        metrics.recordCancelled(count: pendingEvents.count - handledEventCount)
+                        return
+                    }
+                    for scheduledAtSeconds in scheduledAtSeconds {
+                        metrics.record(PianoOutputTimestampObservation(
+                            scheduledAtSeconds: scheduledAtSeconds,
+                            submittedAtSeconds: submittedAtSeconds,
+                            acknowledgedAtSeconds: nil
+                        ))
+                    }
+                    handledEventCount += messages.count
+                }
+
+                guard nextEventIndex < pendingEvents.count else { return }
+                let nextRefillSeconds = min(
+                    pendingEvents[nextEventIndex].timeSeconds - configuration.horizonSeconds,
+                    transportNowSeconds + configuration.refillIntervalSeconds
+                )
+                let sleepSeconds = max(0, nextRefillSeconds - transportNowSeconds)
+                if sleepSeconds == 0 {
+                    await Task.yield()
+                } else {
+                    try await clock.sleep(for: sleepSeconds)
+                }
             }
+        } catch is CancellationError {
+            metrics.recordCancelled(count: pendingEvents.count - handledEventCount)
+            throw CancellationError()
+        } catch {
+            metrics.recordDropped(count: pendingEvents.count - handledEventCount)
+            throw error
         }
     }
 

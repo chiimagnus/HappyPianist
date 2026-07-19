@@ -371,6 +371,21 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
                 failureCount += 1
             }
         }
+        if commands.isEmpty == false {
+            var metrics = PianoOutputMetricsAccumulator()
+            metrics.recordReset(
+                succeeded: failureCount == 0,
+                preventsStuckNotes: commands.contains { command in
+                    switch command {
+                    case .allNotesOff, .allSoundOff:
+                        true
+                    case .noteOff, .controlChange:
+                        false
+                    }
+                }
+            )
+            diagnosticsReporter?.recordOutputMetrics(metrics.snapshot(capability: .externalMIDI))
+        }
         guard failureCount > 0 else { return }
         diagnosticsReporter?.recordSystem(
             severity: .error,
