@@ -177,8 +177,71 @@ func projectionAndLayoutKeepVisibleRestsSameNumberSlursAndNestedTuplets() throws
     #expect(layout.slurs.map(\.placementToken) == ["above", "below"])
     #expect(layout.slurs.allSatisfy { !$0.continuesFromPrevious && !$0.continuesToNext })
     #expect(layout.tuplets.map(\.numberToken) == ["1", "2"])
+    #expect(layout.tuplets.map(\.displayNumber) == [3, 3])
     #expect(layout.tuplets.map(\.bracketToken) == ["yes", "no"])
+    #expect(layout.tuplets.map(\.nestingLevel) == [0, 1])
     #expect(layout.tuplets.allSatisfy { $0.startOccurrenceID != nil && $0.endOccurrenceID != nil })
+}
+
+@Test
+func sourceBeamValuesProducePrimarySecondaryAndHookSegments() throws {
+    let score = mixedSourceBeamScore()
+    let layout = GrandStaffNotationLayoutService().makeLayout(
+        projection: ScoreNotationProjection(
+            plan: makeTestScorePerformancePlan(from: score),
+            sourceScore: score
+        )
+    )
+
+    let beam = try #require(layout.beams.first)
+    let firstChordID = try #require(beam.chordIDs.first)
+    let lastChordID = try #require(beam.chordIDs.last)
+    #expect(layout.beams.count == 1)
+    #expect(beam.chordIDs.count == 4)
+    #expect(beam.segments.contains {
+        $0.level == 1 && $0.startChordID == firstChordID && $0.endChordID == lastChordID && $0.hookDirection == nil
+    })
+    #expect(beam.segments.contains {
+        $0.level == 2 && $0.startChordID == beam.chordIDs[0] && $0.endChordID == beam.chordIDs[0] && $0.hookDirection == .forward
+    })
+    #expect(beam.segments.contains {
+        $0.level == 2 && $0.startChordID == beam.chordIDs[2] && $0.endChordID == beam.chordIDs[3] && $0.hookDirection == nil
+    })
+}
+
+@Test
+func meterFallbackStopsAtBeatAndRestBoundaries() throws {
+    let score = fallbackBeamRestScore()
+    let layout = GrandStaffNotationLayoutService().makeLayout(
+        projection: ScoreNotationProjection(
+            plan: makeTestScorePerformancePlan(from: score),
+            sourceScore: score
+        )
+    )
+
+    let beam = try #require(layout.beams.first)
+    let chordsByID = Dictionary(uniqueKeysWithValues: layout.chords.map { ($0.id, $0) })
+    #expect(layout.beams.count == 1)
+    #expect(beam.chordIDs.compactMap { chordsByID[$0]?.tick } == [480, 720])
+    #expect(layout.items.filter { $0.tick < 480 }.allSatisfy { $0.beamID == nil })
+}
+
+@Test
+func spannersKeepNestedLevelsAndViewportContinuationSeparateByKind() throws {
+    let score = notationRestAndSpannerScore()
+    let layout = GrandStaffNotationLayoutService().makeLayout(
+        projection: ScoreNotationProjection(
+            plan: makeTestScorePerformancePlan(from: score),
+            sourceScore: score
+        ),
+        halfWindowTicks: 60,
+        scrollTick: 180
+    )
+
+    #expect(layout.ties.isEmpty)
+    #expect(layout.slurs.allSatisfy { $0.id.contains("slur") })
+    #expect(layout.tuplets.allSatisfy { $0.id.contains("tuplet") })
+    #expect(layout.tuplets.contains { $0.continuesFromPrevious || $0.continuesToNext })
 }
 
 @Test
@@ -278,6 +341,88 @@ private func notationProjectionScore() -> MusicXMLScore {
             voice: 1
         ),
     ])
+}
+
+private func mixedSourceBeamScore() -> MusicXMLScore {
+    let fixtures: [(tick: Int, duration: Int, type: String, beams: [MusicXMLBeam])] = [
+        (0, 120, "16th", [
+            .init(numberToken: "1", value: .begin, repeaterToken: nil, fanToken: nil),
+            .init(numberToken: "2", value: .forwardHook, repeaterToken: nil, fanToken: nil),
+        ]),
+        (120, 240, "eighth", [
+            .init(numberToken: "1", value: .continue, repeaterToken: nil, fanToken: nil),
+        ]),
+        (360, 120, "16th", [
+            .init(numberToken: "1", value: .continue, repeaterToken: nil, fanToken: nil),
+            .init(numberToken: "2", value: .begin, repeaterToken: nil, fanToken: nil),
+        ]),
+        (480, 120, "16th", [
+            .init(numberToken: "1", value: .end, repeaterToken: nil, fanToken: nil),
+            .init(numberToken: "2", value: .end, repeaterToken: nil, fanToken: nil),
+        ]),
+    ]
+    return MusicXMLScore(notes: fixtures.enumerated().map { ordinal, fixture in
+        notationRhythmEvent(
+            ordinal: ordinal,
+            tick: fixture.tick,
+            duration: fixture.duration,
+            type: fixture.type,
+            beams: fixture.beams
+        )
+    })
+}
+
+private func fallbackBeamRestScore() -> MusicXMLScore {
+    let notes = [
+        notationRhythmEvent(ordinal: 0, tick: 0, duration: 120, type: "16th"),
+        notationRhythmEvent(ordinal: 1, tick: 120, duration: 120, type: "16th", isRest: true),
+        notationRhythmEvent(ordinal: 2, tick: 240, duration: 120, type: "16th"),
+        notationRhythmEvent(ordinal: 3, tick: 480, duration: 240, type: "eighth"),
+        notationRhythmEvent(ordinal: 4, tick: 720, duration: 240, type: "eighth"),
+    ]
+    return MusicXMLScore(
+        notes: notes,
+        timeSignatureEvents: [
+            MusicXMLTimeSignatureEvent(
+                tick: 0,
+                beats: 4,
+                beatType: 4,
+                scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
+            ),
+        ]
+    )
+}
+
+private func notationRhythmEvent(
+    ordinal: Int,
+    tick: Int,
+    duration: Int,
+    type: String,
+    beams: [MusicXMLBeam] = [],
+    isRest: Bool = false
+) -> MusicXMLNoteEvent {
+    MusicXMLNoteEvent(
+        sourceID: MusicXMLSourceNoteID(
+            partID: "P1",
+            sourceMeasureIndex: tick / 1_920,
+            sourceMeasureNumberToken: String(tick / 1_920 + 1),
+            staff: 1,
+            voice: 1,
+            sourceOrdinal: ordinal
+        ),
+        partID: "P1",
+        measureNumber: tick / 1_920 + 1,
+        tick: tick,
+        durationTicks: duration,
+        writtenPitch: isRest ? nil : .init(step: ["C", "D", "E", "F", "G"][ordinal % 5], octave: 4),
+        writtenRhythm: .init(typeToken: type),
+        midiNote: isRest ? nil : 60 + ordinal,
+        isRest: isRest,
+        isChord: false,
+        beams: beams,
+        staff: 1,
+        voice: 1
+    )
 }
 
 private func accidentalStateScore() -> MusicXMLScore {

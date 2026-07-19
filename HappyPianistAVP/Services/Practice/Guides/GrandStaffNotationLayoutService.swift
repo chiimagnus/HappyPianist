@@ -14,14 +14,22 @@ struct GrandStaffNotationLayoutService {
     }
 
     private struct NotationFacts {
-        struct BeamMembership: Hashable {
+        struct BeamMembership: Equatable {
             let id: String
             let level: Int
+            let value: MusicXMLBeamValue
         }
 
         let chordID: String
         let stem: MusicXMLStem
         let beams: [BeamMembership]
+        let meter: MusicXMLMeter?
+    }
+
+    private struct RestBreak {
+        let tick: Int
+        let staffNumber: Int
+        let voice: Int
     }
 
     private struct AccidentalMeasureKey: Hashable {
@@ -62,6 +70,7 @@ struct GrandStaffNotationLayoutService {
         let numberToken: String?
         let placementToken: String?
         let bracketToken: String?
+        let tupletDisplayNumber: Int?
         let typeToken: String?
     }
 
@@ -135,9 +144,11 @@ struct GrandStaffNotationLayoutService {
                 beams: source.beams.map {
                     NotationFacts.BeamMembership(
                         id: "\($0.groupID.description)@\(occurrence.performedID.occurrenceIndex)",
-                        level: max(1, Int($0.numberToken ?? "1") ?? 1)
+                        level: max(1, Int($0.numberToken ?? "1") ?? 1),
+                        value: $0.value
                     )
                 },
+                meter: source.meter,
                 noteValue: noteValue(for: source.writtenRhythm),
                 durationTicks: writtenDurationTicks,
                 writtenPitch: writtenPitch,
@@ -187,6 +198,7 @@ struct GrandStaffNotationLayoutService {
         let chordID: String
         let stem: MusicXMLStem
         let beams: [NotationFacts.BeamMembership]
+        let meter: MusicXMLMeter?
         let noteValue: GrandStaffNoteValue
         let durationTicks: Int
         let writtenPitch: MusicXMLWrittenPitch
@@ -210,7 +222,15 @@ struct GrandStaffNotationLayoutService {
         let currentTick = scrollTick ?? Double(occurrences.first?.tick ?? 0)
         let safeHalfWindowTicks = max(1, halfWindowTicks)
         let notationFactsByOccurrenceID = Dictionary(uniqueKeysWithValues: notes.map { note in
-            (note.occurrenceID, NotationFacts(chordID: note.chordID, stem: note.stem, beams: note.beams))
+            (
+                note.occurrenceID,
+                NotationFacts(
+                    chordID: note.chordID,
+                    stem: note.stem,
+                    beams: note.beams,
+                    meter: note.meter
+                )
+            )
         })
         let rawItems = notes.map { note in
             GrandStaffNotationItem(
@@ -251,10 +271,19 @@ struct GrandStaffNotationLayoutService {
             return lhs.occurrenceID < rhs.occurrenceID
         }
 
+        let restBreaks = occurrences.compactMap { occurrence -> RestBreak? in
+            guard occurrence.source.isRest else { return nil }
+            return RestBreak(
+                tick: occurrence.tick,
+                staffNumber: occurrence.staffNumber,
+                voice: occurrence.voice
+            )
+        }
         let chordBuild = buildChordsAndBeams(
             items: rawItems,
             notationFactsByOccurrenceID: notationFactsByOccurrenceID,
-            measureSpans: measureSpans
+            measureSpans: measureSpans,
+            restBreaks: restBreaks
         )
         let rests = occurrences.compactMap { occurrence -> GrandStaffNotationRest? in
             let source = occurrence.source
@@ -298,7 +327,7 @@ struct GrandStaffNotationLayoutService {
             rests: rests,
             ties: spanners.compactMap(makeTie),
             slurs: spanners.compactMap(makeSlur),
-            tuplets: spanners.compactMap(makeTuplet),
+            tuplets: makeTuplets(spanners),
             barlines: barlines,
             beams: chordBuild.beams,
             ledgerLines: chordBuild.ledgerLines,
@@ -399,6 +428,7 @@ struct GrandStaffNotationLayoutService {
                 numberToken: tie.numberToken,
                 placementToken: tie.placementToken,
                 bracketToken: nil,
+                tupletDisplayNumber: nil,
                 occurrence: occurrence,
                 writtenPitch: source.writtenPitch
             )
@@ -412,6 +442,7 @@ struct GrandStaffNotationLayoutService {
                 numberToken: slur.numberToken,
                 placementToken: slur.placementToken,
                 bracketToken: nil,
+                tupletDisplayNumber: nil,
                 occurrence: occurrence,
                 writtenPitch: nil
             )
@@ -425,6 +456,7 @@ struct GrandStaffNotationLayoutService {
                 numberToken: tuplet.numberToken,
                 placementToken: tuplet.placementToken,
                 bracketToken: tuplet.bracketToken,
+                tupletDisplayNumber: source.writtenRhythm?.timeModification?.actualNotes,
                 occurrence: occurrence,
                 writtenPitch: nil
             )
@@ -440,6 +472,7 @@ struct GrandStaffNotationLayoutService {
         numberToken: String?,
         placementToken: String?,
         bracketToken: String?,
+        tupletDisplayNumber: Int?,
         occurrence: LayoutOccurrence,
         writtenPitch: MusicXMLWrittenPitch?
     ) -> SpannerEndpoint {
@@ -463,6 +496,7 @@ struct GrandStaffNotationLayoutService {
             numberToken: numberToken,
             placementToken: placementToken,
             bracketToken: bracketToken,
+            tupletDisplayNumber: tupletDisplayNumber,
             typeToken: typeToken
         )
     }
@@ -508,6 +542,7 @@ struct GrandStaffNotationLayoutService {
             staffNumber: endpoint.key.staffNumber,
             voice: endpoint.key.voice,
             numberToken: clipped.segment.start?.numberToken ?? clipped.segment.end?.numberToken,
+            displayNumber: clipped.segment.start?.tupletDisplayNumber ?? clipped.segment.end?.tupletDisplayNumber,
             bracketToken: clipped.segment.start?.bracketToken ?? clipped.segment.end?.bracketToken,
             placementToken: clipped.segment.start?.placementToken ?? clipped.segment.end?.placementToken,
             startOccurrenceID: clipped.continuesFromPrevious ? nil : clipped.segment.start?.occurrenceID,
@@ -515,8 +550,43 @@ struct GrandStaffNotationLayoutService {
             startXPosition: clipped.startXPosition,
             endXPosition: clipped.endXPosition,
             continuesFromPrevious: clipped.continuesFromPrevious,
-            continuesToNext: clipped.continuesToNext
+            continuesToNext: clipped.continuesToNext,
+            nestingLevel: 0
         )
+    }
+
+    private func makeTuplets(_ spanners: [ClippedSpannerSegment]) -> [GrandStaffNotationTuplet] {
+        let rawTuplets = spanners.compactMap(makeTuplet).sorted {
+            if $0.startXPosition != $1.startXPosition { return $0.startXPosition < $1.startXPosition }
+            if $0.endXPosition != $1.endXPosition { return $0.endXPosition > $1.endXPosition }
+            return $0.id < $1.id
+        }
+        var result: [GrandStaffNotationTuplet] = []
+        for tuplet in rawTuplets {
+            let nestingLevel = result.filter {
+                $0.staffNumber == tuplet.staffNumber &&
+                    $0.voice == tuplet.voice &&
+                    $0.startXPosition <= tuplet.startXPosition &&
+                    $0.endXPosition >= tuplet.endXPosition
+            }.count
+            result.append(GrandStaffNotationTuplet(
+                id: tuplet.id,
+                staffNumber: tuplet.staffNumber,
+                voice: tuplet.voice,
+                numberToken: tuplet.numberToken,
+                displayNumber: tuplet.displayNumber,
+                bracketToken: tuplet.bracketToken,
+                placementToken: tuplet.placementToken,
+                startOccurrenceID: tuplet.startOccurrenceID,
+                endOccurrenceID: tuplet.endOccurrenceID,
+                startXPosition: tuplet.startXPosition,
+                endXPosition: tuplet.endXPosition,
+                continuesFromPrevious: tuplet.continuesFromPrevious,
+                continuesToNext: tuplet.continuesToNext,
+                nestingLevel: nestingLevel
+            ))
+        }
+        return result
     }
 
     private func spannerID(_ segment: SpannerSegment) -> String {
@@ -663,7 +733,8 @@ struct GrandStaffNotationLayoutService {
     private func buildChordsAndBeams(
         items: [GrandStaffNotationItem],
         notationFactsByOccurrenceID: [String: NotationFacts],
-        measureSpans: [MusicXMLMeasureSpan]
+        measureSpans: [MusicXMLMeasureSpan],
+        restBreaks: [RestBreak]
     ) -> (
         items: [GrandStaffNotationItem],
         chords: [GrandStaffNotationChord],
@@ -671,9 +742,6 @@ struct GrandStaffNotationLayoutService {
         ledgerLines: [GrandStaffNotationLedgerLine]
     ) {
         guard items.isEmpty == false else { return (items, [], [], []) }
-
-        let barlineTicks = Set(measureSpans.map(\.startTick))
-            .union([measureSpans.map(\.endTick).max()].compactMap(\.self))
 
         let grouped = Dictionary(
             grouping: items,
@@ -775,7 +843,8 @@ struct GrandStaffNotationLayoutService {
             chords: chords,
             itemsByOccurrenceID: updatedItemsByOccurrenceID,
             notationFactsByOccurrenceID: notationFactsByOccurrenceID,
-            barlineTicks: barlineTicks
+            measureSpans: measureSpans,
+            restBreaks: restBreaks
         )
 
         var beamIDByChordID: [String: String] = [:]
@@ -855,99 +924,255 @@ struct GrandStaffNotationLayoutService {
         chords: [GrandStaffNotationChord],
         itemsByOccurrenceID: [String: GrandStaffNotationItem],
         notationFactsByOccurrenceID: [String: NotationFacts],
-        barlineTicks: Set<Int>
+        measureSpans: [MusicXMLMeasureSpan],
+        restBreaks: [RestBreak]
     ) -> (beams: [GrandStaffNotationBeam], beamChordIDsByBeamID: [String: [String]]) {
         if chords.isEmpty { return ([], [:]) }
 
+        let chordsByID = Dictionary(uniqueKeysWithValues: chords.map { ($0.id, $0) })
+        let membershipsByChordID = Dictionary(uniqueKeysWithValues: chords.map { chord in
+            let memberships = chord.itemIDs.flatMap { notationFactsByOccurrenceID[$0]?.beams ?? [] }
+            return (chord.id, memberships.reduce(into: [NotationFacts.BeamMembership]()) { result, membership in
+                if result.contains(membership) == false { result.append(membership) }
+            })
+        })
         var explicitChordIDsByBeamID: [String: Set<String>] = [:]
-        var maxLevelByBeamID: [String: Int] = [:]
         var chordsWithExplicitBeams: Set<String> = []
         for chord in chords {
-            let memberships = chord.itemIDs.flatMap {
-                notationFactsByOccurrenceID[$0]?.beams ?? []
-            }
+            let memberships = membershipsByChordID[chord.id] ?? []
             guard memberships.isEmpty == false else { continue }
             chordsWithExplicitBeams.insert(chord.id)
             for membership in memberships where membership.level == 1 {
                 explicitChordIDsByBeamID[membership.id, default: []].insert(chord.id)
-                let maxLevel = memberships.map(\.level).max() ?? 1
-                maxLevelByBeamID[membership.id] = max(maxLevelByBeamID[membership.id] ?? 1, maxLevel)
             }
         }
 
         var beams: [GrandStaffNotationBeam] = []
         var beamChordIDsByBeamID: [String: [String]] = [:]
         for beamID in explicitChordIDsByBeamID.keys.sorted() {
-            let chordIDs = (explicitChordIDsByBeamID[beamID] ?? []).sorted { lhs, rhs in
-                let lhsTick = chords.first { $0.id == lhs }?.tick ?? 0
-                let rhsTick = chords.first { $0.id == rhs }?.tick ?? 0
-                return lhsTick == rhsTick ? lhs < rhs : lhsTick < rhsTick
-            }
-            guard chordIDs.count >= 2 else { continue }
+            let chordIDs = sortedChordIDs(explicitChordIDsByBeamID[beamID] ?? [], chordsByID: chordsByID)
+            let segments = explicitBeamSegments(
+                chordIDs: chordIDs,
+                membershipsByChordID: membershipsByChordID,
+                chordsByID: chordsByID
+            )
+            guard segments.isEmpty == false else { continue }
             beamChordIDsByBeamID[beamID] = chordIDs
             beams.append(GrandStaffNotationBeam(
                 id: beamID,
                 chordIDs: chordIDs,
-                beamCount: maxLevelByBeamID[beamID] ?? 1
+                segments: segments
             ))
         }
 
-        let eligible = chords
-            .filter {
-                chordsWithExplicitBeams.contains($0.id) == false &&
-                    ($0.noteValue == .eighth || $0.noteValue == .sixteenth || $0.noteValue == .thirtySecond)
-            }
-            .sorted { lhs, rhs in
-                if lhs.tick != rhs.tick { return lhs.tick < rhs.tick }
-                return lhs.id < rhs.id
-            }
-
         var chordsByTrack: [String: [GrandStaffNotationChord]] = [:]
-        for chord in eligible {
+        for chord in chords {
             let track = chordTrackKey(chord: chord, itemsByOccurrenceID: itemsByOccurrenceID)
             chordsByTrack[track, default: []].append(chord)
         }
 
-        var beamCounter = 0
-
-        for (_, trackChords) in chordsByTrack {
+        for track in chordsByTrack.keys.sorted() {
+            let trackChords = chordsByTrack[track] ?? []
             var currentGroup: [GrandStaffNotationChord] = []
-            var lastTick: Int?
+            var currentCell: String?
 
             func flush() {
                 guard currentGroup.count >= 2 else {
                     currentGroup.removeAll(keepingCapacity: true)
+                    currentCell = nil
                     return
                 }
-                beamCounter += 1
-                let beamID = "fallback-beam-\(beamCounter)"
+                let beamID = "fallback-beam-\(track)-\(currentGroup[0].id)"
                 let chordIDs = currentGroup.map(\.id)
                 beamChordIDsByBeamID[beamID] = chordIDs
-                let maxBeamCount = currentGroup.map(\.noteValue).map(beamCount(for:)).max() ?? 1
-                beams.append(GrandStaffNotationBeam(id: beamID, chordIDs: chordIDs, beamCount: max(1, maxBeamCount)))
+                beams.append(GrandStaffNotationBeam(
+                    id: beamID,
+                    chordIDs: chordIDs,
+                    segments: fallbackBeamSegments(chords: currentGroup)
+                ))
                 currentGroup.removeAll(keepingCapacity: true)
-                lastTick = nil
+                currentCell = nil
             }
 
-            for chord in trackChords.sorted(by: { $0.tick < $1.tick }) {
-                if barlineTicks.contains(chord.tick), currentGroup.isEmpty == false {
+            for chord in trackChords.sorted(by: { $0.tick == $1.tick ? $0.id < $1.id : $0.tick < $1.tick }) {
+                guard chordsWithExplicitBeams.contains(chord.id) == false, beamCount(for: chord.noteValue) > 0 else {
+                    flush()
+                    continue
+                }
+                let cell = fallbackBeamCell(
+                    chord: chord,
+                    itemsByOccurrenceID: itemsByOccurrenceID,
+                    notationFactsByOccurrenceID: notationFactsByOccurrenceID,
+                    measureSpans: measureSpans
+                )
+                if currentCell != nil, currentCell != cell { flush() }
+                if let previous = currentGroup.last,
+                   let item = chord.itemIDs.compactMap({ itemsByOccurrenceID[$0] }).first,
+                   restBreaks.contains(where: {
+                       $0.staffNumber == item.staffNumber && $0.voice == item.voice &&
+                           $0.tick > previous.tick && $0.tick <= chord.tick
+                   }) {
                     flush()
                 }
 
-                if let lastTick {
-                    let delta = chord.tick - lastTick
-                    if delta > MusicXMLTempoMap.ticksPerQuarter {
-                        flush()
-                    }
-                }
-
                 currentGroup.append(chord)
-                lastTick = chord.tick
+                currentCell = cell
             }
             flush()
         }
 
-        return (beams, beamChordIDsByBeamID)
+        return (beams.sorted { $0.id < $1.id }, beamChordIDsByBeamID)
+    }
+
+    private func sortedChordIDs(
+        _ chordIDs: Set<String>,
+        chordsByID: [String: GrandStaffNotationChord]
+    ) -> [String] {
+        chordIDs.sorted { lhs, rhs in
+            let lhsTick = chordsByID[lhs]?.tick ?? 0
+            let rhsTick = chordsByID[rhs]?.tick ?? 0
+            return lhsTick == rhsTick ? lhs < rhs : lhsTick < rhsTick
+        }
+    }
+
+    private func explicitBeamSegments(
+        chordIDs: [String],
+        membershipsByChordID: [String: [NotationFacts.BeamMembership]],
+        chordsByID: [String: GrandStaffNotationChord]
+    ) -> [GrandStaffNotationBeamSegment] {
+        let chordIDSet = Set(chordIDs)
+        let memberships = chordIDs.flatMap { chordID in
+            (membershipsByChordID[chordID] ?? []).map { (chordID, $0) }
+        }
+        var segments: [GrandStaffNotationBeamSegment] = []
+
+        for level in Set(memberships.map { $0.1.level }).sorted() {
+            let grouped = Dictionary(grouping: memberships.filter { $0.1.level == level }, by: { $0.1.id })
+            for groupID in grouped.keys.sorted() {
+                let entries = grouped[groupID] ?? []
+                for (chordID, membership) in entries {
+                    let hookDirection: GrandStaffNotationBeamSegment.HookDirection? = switch membership.value {
+                    case .forwardHook: .forward
+                    case .backwardHook: .backward
+                    default: nil
+                    }
+                    if let hookDirection {
+                        segments.append(.init(
+                            level: level,
+                            startChordID: chordID,
+                            endChordID: chordID,
+                            hookDirection: hookDirection
+                        ))
+                    }
+                }
+                let connectedIDs = Set(entries.compactMap { chordID, membership in
+                    switch membership.value {
+                    case .begin, .continue, .end: chordIDSet.contains(chordID) ? chordID : nil
+                    default: nil
+                    }
+                })
+                let sortedIDs = sortedChordIDs(connectedIDs, chordsByID: chordsByID)
+                if let first = sortedIDs.first, let last = sortedIDs.last, first != last {
+                    segments.append(.init(
+                        level: level,
+                        startChordID: first,
+                        endChordID: last,
+                        hookDirection: nil
+                    ))
+                }
+            }
+        }
+        return segments.sorted {
+            if $0.level != $1.level { return $0.level < $1.level }
+            if $0.startChordID != $1.startChordID { return $0.startChordID < $1.startChordID }
+            return $0.endChordID < $1.endChordID
+        }
+    }
+
+    private func fallbackBeamSegments(chords: [GrandStaffNotationChord]) -> [GrandStaffNotationBeamSegment] {
+        guard let first = chords.first, let last = chords.last, first.id != last.id else { return [] }
+        var segments = [GrandStaffNotationBeamSegment(
+            level: 1,
+            startChordID: first.id,
+            endChordID: last.id,
+            hookDirection: nil
+        )]
+        let maximumLevel = chords.map(\.noteValue).map(beamCount(for:)).max() ?? 1
+        guard maximumLevel >= 2 else { return segments }
+
+        for level in 2 ... maximumLevel {
+            var run: [GrandStaffNotationChord] = []
+            func flushRun() {
+                guard let runFirst = run.first, let runLast = run.last else { return }
+                if runFirst.id == runLast.id {
+                    let index = chords.firstIndex { $0.id == runFirst.id } ?? 0
+                    segments.append(.init(
+                        level: level,
+                        startChordID: runFirst.id,
+                        endChordID: runFirst.id,
+                        hookDirection: index < chords.count - 1 ? .forward : .backward
+                    ))
+                } else {
+                    segments.append(.init(
+                        level: level,
+                        startChordID: runFirst.id,
+                        endChordID: runLast.id,
+                        hookDirection: nil
+                    ))
+                }
+                run.removeAll(keepingCapacity: true)
+            }
+            for chord in chords {
+                if beamCount(for: chord.noteValue) >= level {
+                    run.append(chord)
+                } else {
+                    flushRun()
+                }
+            }
+            flushRun()
+        }
+        return segments
+    }
+
+    private func fallbackBeamCell(
+        chord: GrandStaffNotationChord,
+        itemsByOccurrenceID: [String: GrandStaffNotationItem],
+        notationFactsByOccurrenceID: [String: NotationFacts],
+        measureSpans: [MusicXMLMeasureSpan]
+    ) -> String {
+        let meter = chord.itemIDs.compactMap { notationFactsByOccurrenceID[$0]?.meter }.first
+        let groupDurations = fallbackBeamGroupDurations(meter: meter)
+        let measureDuration = max(1, groupDurations.reduce(0, +))
+        let measureStart = measureSpans.first { $0.startTick <= chord.tick && chord.tick < $0.endTick }?.startTick
+            ?? (chord.tick / measureDuration) * measureDuration
+        let localTick = max(0, chord.tick - measureStart)
+        var boundary = 0
+        var groupIndex = 0
+        for (index, duration) in groupDurations.enumerated() {
+            boundary += duration
+            if localTick < boundary {
+                groupIndex = index
+                break
+            }
+            groupIndex = index + 1
+        }
+        return "\(chordTrackKey(chord: chord, itemsByOccurrenceID: itemsByOccurrenceID))-\(measureStart)-\(groupIndex)"
+    }
+
+    private func fallbackBeamGroupDurations(meter: MusicXMLMeter?) -> [Int] {
+        let components = meter?.components ?? [.init(beatGroups: [4], beatType: 4)]
+        let durations = components.flatMap { component -> [Int] in
+            let unit = max(1, MusicXMLTempoMap.ticksPerQuarter * 4 / max(1, component.beatType))
+            if component.beatGroups.count > 1 {
+                return component.beatGroups.map { max(1, $0) * unit }
+            }
+            let beats = max(1, component.beatGroups.first ?? 1)
+            if component.beatType == 8, beats > 3, beats.isMultiple(of: 3) {
+                return Array(repeating: 3 * unit, count: beats / 3)
+            }
+            return Array(repeating: unit, count: beats)
+        }
+        return durations.isEmpty ? [MusicXMLTempoMap.ticksPerQuarter] : durations
     }
 
     private func beamCount(for noteValue: GrandStaffNoteValue) -> Int {

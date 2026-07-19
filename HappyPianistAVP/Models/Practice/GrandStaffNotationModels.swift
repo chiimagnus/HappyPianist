@@ -159,6 +159,7 @@ struct GrandStaffNotationTuplet: Equatable, Identifiable {
     let staffNumber: Int
     let voice: Int
     let numberToken: String?
+    let displayNumber: Int?
     let bracketToken: String?
     let placementToken: String?
     let startOccurrenceID: String?
@@ -167,6 +168,7 @@ struct GrandStaffNotationTuplet: Equatable, Identifiable {
     let endXPosition: Double
     let continuesFromPrevious: Bool
     let continuesToNext: Bool
+    let nestingLevel: Int
 }
 
 struct GrandStaffNotationBarline: Equatable, Identifiable {
@@ -178,7 +180,19 @@ struct GrandStaffNotationBarline: Equatable, Identifiable {
 struct GrandStaffNotationBeam: Equatable, Identifiable {
     let id: String
     let chordIDs: [String]
-    let beamCount: Int
+    let segments: [GrandStaffNotationBeamSegment]
+}
+
+struct GrandStaffNotationBeamSegment: Equatable {
+    enum HookDirection: Equatable {
+        case forward
+        case backward
+    }
+
+    let level: Int
+    let startChordID: String
+    let endChordID: String
+    let hookDirection: HookDirection?
 }
 
 struct GrandStaffNotationLedgerLine: Equatable, Identifiable {
