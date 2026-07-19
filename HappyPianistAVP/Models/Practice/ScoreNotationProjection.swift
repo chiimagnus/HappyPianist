@@ -1,6 +1,39 @@
 import Foundation
 
 struct ScoreNotationProjection: Equatable, Sendable {
+    struct Fallback: Equatable, Sendable {
+        enum Kind: String, Equatable, Hashable, Sendable {
+            case accidental
+            case notehead
+            case rest
+            case beam
+            case mark
+        }
+
+        enum Reason: String, Equatable, Hashable, Sendable {
+            case microtonalAccidental
+            case unsupportedAccidentalValue
+            case unsupportedAccidentalToken
+            case missingNoteType
+            case unsupportedNoteType
+            case missingRestType
+            case unsupportedRestType
+            case unsupportedBeamValue
+            case unsupportedArticulation
+            case unsupportedArpeggioDirection
+        }
+
+        enum PlaceholderPolicy: String, Equatable, Sendable {
+            case omit
+            case reserveRhythmicSpace
+        }
+
+        let sourceID: MusicXMLSourceNoteID
+        let kind: Kind
+        let reason: Reason
+        let placeholderPolicy: PlaceholderPolicy
+    }
+
     struct BeamGroupID: Equatable, Hashable, Sendable, CustomStringConvertible {
         let partID: String
         let voice: Int
@@ -131,12 +164,14 @@ struct ScoreNotationProjection: Equatable, Sendable {
     let performedOccurrences: [PerformedOccurrence]
     let marks: [Mark]
     let attributeChanges: [AttributeChange]
+    let fallbacks: [Fallback]
 
     static let empty = ScoreNotationProjection(
         sourceNotes: [],
         performedOccurrences: [],
         marks: [],
-        attributeChanges: []
+        attributeChanges: [],
+        fallbacks: []
     )
 
     init(
@@ -157,6 +192,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
         )
         let canonicalSources = Self.canonicalSources(from: sourceScore.notes)
         let beamFactsBySourceID = Self.beamFactsBySourceID(from: canonicalSources)
+        fallbacks = Self.fallbacks(from: canonicalSources)
         marks = Self.marks(
             from: performedScore,
             structuralSourceScore: sourceScore,
@@ -268,12 +304,14 @@ struct ScoreNotationProjection: Equatable, Sendable {
         sourceNotes: [SourceNote],
         performedOccurrences: [PerformedOccurrence],
         marks: [Mark],
-        attributeChanges: [AttributeChange]
+        attributeChanges: [AttributeChange],
+        fallbacks: [Fallback]
     ) {
         self.sourceNotes = sourceNotes
         self.performedOccurrences = performedOccurrences
         self.marks = marks
         self.attributeChanges = attributeChanges
+        self.fallbacks = fallbacks
     }
 
     private static func marks(
@@ -508,6 +546,96 @@ struct ScoreNotationProjection: Equatable, Sendable {
             canonical.append(CanonicalSource(sourceID: sourceID, chordID: chordID, note: note))
         }
         return canonical
+    }
+
+    private static func fallbacks(from sources: [CanonicalSource]) -> [Fallback] {
+        let supportedRhythms = Set(["whole", "half", "quarter", "eighth", "16th", "32nd"])
+        let supportedAccidentals = Set([
+            "sharp", "flat", "natural", "double-sharp", "sharp-sharp", "flat-flat", "double-flat",
+        ])
+        var result: [Fallback] = []
+
+        for source in sources {
+            let note = source.note
+            let rhythmToken = note.writtenRhythm?.typeToken?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+            if rhythmToken == nil || rhythmToken?.isEmpty == true {
+                result.append(Fallback(
+                    sourceID: source.sourceID,
+                    kind: note.isRest ? .rest : .notehead,
+                    reason: note.isRest ? .missingRestType : .missingNoteType,
+                    placeholderPolicy: .reserveRhythmicSpace
+                ))
+            } else if supportedRhythms.contains(rhythmToken ?? "") == false {
+                result.append(Fallback(
+                    sourceID: source.sourceID,
+                    kind: note.isRest ? .rest : .notehead,
+                    reason: note.isRest ? .unsupportedRestType : .unsupportedNoteType,
+                    placeholderPolicy: .reserveRhythmicSpace
+                ))
+            }
+
+            if let pitch = note.writtenPitch {
+                let accidentalToken = pitch.accidentalToken?
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .lowercased()
+                if pitch.alter.isFinite == false || (-2.0 ... 2.0).contains(pitch.alter) == false {
+                    result.append(Fallback(
+                        sourceID: source.sourceID,
+                        kind: .accidental,
+                        reason: .unsupportedAccidentalValue,
+                        placeholderPolicy: .omit
+                    ))
+                } else if pitch.alter.rounded() != pitch.alter {
+                    result.append(Fallback(
+                        sourceID: source.sourceID,
+                        kind: .accidental,
+                        reason: .microtonalAccidental,
+                        placeholderPolicy: .omit
+                    ))
+                } else if let accidentalToken, supportedAccidentals.contains(accidentalToken) == false {
+                    result.append(Fallback(
+                        sourceID: source.sourceID,
+                        kind: .accidental,
+                        reason: .unsupportedAccidentalToken,
+                        placeholderPolicy: .omit
+                    ))
+                }
+            }
+
+            if note.beams.contains(where: {
+                if case .unsupported = $0.value { return true }
+                return false
+            }) {
+                result.append(Fallback(
+                    sourceID: source.sourceID,
+                    kind: .beam,
+                    reason: .unsupportedBeamValue,
+                    placeholderPolicy: .omit
+                ))
+            }
+            if note.articulations.contains(.detachedLegato) {
+                result.append(Fallback(
+                    sourceID: source.sourceID,
+                    kind: .mark,
+                    reason: .unsupportedArticulation,
+                    placeholderPolicy: .omit
+                ))
+            }
+            if let arpeggiate = note.arpeggiate,
+               arpeggiate.directionToken != nil,
+               arpeggiate.direction == nil
+            {
+                result.append(Fallback(
+                    sourceID: source.sourceID,
+                    kind: .mark,
+                    reason: .unsupportedArpeggioDirection,
+                    placeholderPolicy: .omit
+                ))
+            }
+        }
+        return result
     }
 
     private static func beamFactsBySourceID(

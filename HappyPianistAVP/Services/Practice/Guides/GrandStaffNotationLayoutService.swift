@@ -914,7 +914,10 @@ struct GrandStaffNotationLayoutService {
             }
         }
 
-        let arpeggioItems = Dictionary(grouping: items.filter { $0.arpeggiate != nil }) { item in
+        let arpeggioItems = Dictionary(grouping: items.filter { item in
+            guard let arpeggiate = item.arpeggiate else { return false }
+            return arpeggiate.directionToken == nil || arpeggiate.direction != nil
+        }) { item in
             "\(item.chordID ?? item.id):staff-\(item.staffNumber):\(item.arpeggiate?.normalizedNumberToken ?? "1")"
         }
         for (id, chordItems) in arpeggioItems {
@@ -1235,7 +1238,7 @@ struct GrandStaffNotationLayoutService {
                         staffStep: item.staffStep,
                         voice: item.voice,
                         sourceStem: notationFactsByOccurrenceID[item.occurrenceID]?.stem ?? .unspecified,
-                        noteheadToken: item.noteheadGlyphToken ?? .noteheadBlack,
+                        noteheadToken: item.noteheadGlyphToken,
                         accidentalToken: item.displayedAccidental?.glyphToken,
                         dotCount: item.dotCount,
                         isGrace: item.isGrace,

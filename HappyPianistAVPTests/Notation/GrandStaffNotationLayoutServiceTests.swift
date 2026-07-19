@@ -346,6 +346,61 @@ func meterFallbackStopsAtBeatAndRestBoundaries() throws {
 }
 
 @Test
+func unsupportedNotationUsesNeutralFallbacksWithoutChangingPerformanceFacts() throws {
+    let score = unsupportedNotationScore()
+    let plan = makeTestScorePerformancePlan(from: score)
+    let originalEvents = plan.noteEvents
+    let activeEvent = try #require(plan.noteEvents.first)
+    let projection = ScoreNotationProjection(plan: plan, sourceScore: score)
+    let layout = GrandStaffNotationLayoutService().makeLayout(
+        projection: projection,
+        overlay: .init(activeEventIDs: [activeEvent.id], activeTickRange: nil)
+    )
+
+    #expect(projection.fallbacks.count == 5)
+    #expect(Set(projection.fallbacks.map(\.sourceID)) == Set(score.notes.compactMap(\.sourceID)))
+    #expect(projection.fallbacks.contains {
+        $0.kind == .accidental && $0.reason == .microtonalAccidental && $0.placeholderPolicy == .omit
+    })
+    #expect(projection.fallbacks.contains {
+        $0.kind == .notehead && $0.reason == .unsupportedNoteType
+            && $0.placeholderPolicy == .reserveRhythmicSpace
+    })
+    #expect(projection.fallbacks.contains { $0.kind == .beam && $0.reason == .unsupportedBeamValue })
+    #expect(projection.fallbacks.filter { $0.kind == .mark }.count == 2)
+
+    let microtonal = try #require(layout.items.first { $0.tick == 0 })
+    let neutralNotehead = try #require(layout.items.first { $0.tick == 240 })
+    #expect(microtonal.displayedAccidental?.kind == .unsupported)
+    #expect(microtonal.displayedAccidental?.glyphToken == nil)
+    #expect(neutralNotehead.noteValue == .unsupported(sourceTypeToken: "breve"))
+    #expect(neutralNotehead.noteheadGlyphToken == nil)
+    #expect(neutralNotehead.xPosition.isFinite)
+    #expect(layout.beams.isEmpty)
+    #expect(layout.marks.allSatisfy {
+        if case .articulation = $0.kind { return false }
+        if case .arpeggio = $0.kind { return false }
+        return true
+    })
+    #expect(layout.items.filter(\.isHighlighted).map(\.occurrenceID) == [activeEvent.performedNoteID.description])
+    #expect(plan.noteEvents == originalEvents)
+
+    let samples = PianoPerformanceNotationFallbackDiagnosticSample.aggregated(from: projection.fallbacks)
+    let diagnosticText = samples.map(\.diagnosticEvent).map {
+        "\($0.summary);\($0.reason);\($0.persistence)"
+    }.joined(separator: "|")
+    #expect(samples.count == 5)
+    #expect(samples.allSatisfy { $0.count == 1 })
+    #expect(diagnosticText.contains("kind=accidental;count=1;reason=microtonalAccidental"))
+    #expect(diagnosticText.contains("SECRET-P1") == false)
+    #expect(diagnosticText.contains("quarter-sharp") == false)
+    #expect(diagnosticText.contains("breve") == false)
+    #expect(diagnosticText.contains("feathered") == false)
+    #expect(diagnosticText.contains("sideways") == false)
+    #expect(samples.allSatisfy { $0.diagnosticEvent.persistence == .systemOnly })
+}
+
+@Test
 func spannersKeepNestedLevelsAndViewportContinuationSeparateByKind() throws {
     let score = notationRestAndSpannerScore()
     let layout = GrandStaffNotationLayoutService().makeLayout(
@@ -510,6 +565,85 @@ private func fallbackBeamRestScore() -> MusicXMLScore {
             ),
         ]
     )
+}
+
+private func unsupportedNotationScore() -> MusicXMLScore {
+    let sourceID: (Int) -> MusicXMLSourceNoteID = { ordinal in
+        MusicXMLSourceNoteID(
+            partID: "SECRET-P1",
+            sourceMeasureIndex: 0,
+            sourceMeasureNumberToken: "1",
+            staff: 1,
+            voice: 1,
+            sourceOrdinal: ordinal
+        )
+    }
+    return MusicXMLScore(notes: [
+        MusicXMLNoteEvent(
+            sourceID: sourceID(0),
+            partID: "SECRET-P1",
+            measureNumber: 1,
+            tick: 0,
+            durationTicks: 240,
+            writtenPitch: .init(step: "C", octave: 4, alter: 0.5, accidentalToken: "quarter-sharp"),
+            writtenRhythm: .init(typeToken: "eighth"),
+            midiNote: 60,
+            isRest: false,
+            isChord: false,
+            staff: 1,
+            voice: 1
+        ),
+        MusicXMLNoteEvent(
+            sourceID: sourceID(1),
+            partID: "SECRET-P1",
+            measureNumber: 1,
+            tick: 240,
+            durationTicks: 240,
+            writtenPitch: .init(step: "D", octave: 4),
+            writtenRhythm: .init(typeToken: "breve"),
+            midiNote: 62,
+            isRest: false,
+            isChord: false,
+            staff: 1,
+            voice: 1
+        ),
+        MusicXMLNoteEvent(
+            sourceID: sourceID(2),
+            partID: "SECRET-P1",
+            measureNumber: 1,
+            tick: 480,
+            durationTicks: 240,
+            writtenPitch: .init(step: "E", octave: 4),
+            writtenRhythm: .init(typeToken: "eighth"),
+            midiNote: 64,
+            isRest: false,
+            isChord: false,
+            beams: [.init(
+                numberToken: "1",
+                value: .unsupported(sourceToken: "feathered"),
+                repeaterToken: nil,
+                fanToken: nil
+            )],
+            staff: 1,
+            voice: 1
+        ),
+        MusicXMLNoteEvent(
+            sourceID: sourceID(3),
+            partID: "SECRET-P1",
+            measureNumber: 1,
+            tick: 720,
+            durationTicks: 240,
+            writtenPitch: .init(step: "F", octave: 4),
+            writtenRhythm: .init(typeToken: "eighth"),
+            midiNote: 65,
+            isRest: false,
+            isChord: false,
+            staff: 1,
+            voice: 1,
+            articulations: [.detachedLegato],
+            arpeggiate: .init(numberToken: "1", directionToken: "sideways")
+        ),
+    ])
 }
 
 private func notationRhythmEvent(

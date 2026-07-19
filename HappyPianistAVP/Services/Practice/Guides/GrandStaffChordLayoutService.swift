@@ -7,7 +7,7 @@ struct GrandStaffChordLayoutService {
         let staffStep: Int
         let voice: Int
         let sourceStem: MusicXMLStem
-        let noteheadToken: GrandStaffGlyphToken
+        let noteheadToken: GrandStaffGlyphToken?
         let accidentalToken: GrandStaffGlyphToken?
         let dotCount: Int
         let isGrace: Bool
@@ -19,7 +19,7 @@ struct GrandStaffChordLayoutService {
             staffStep: Int,
             voice: Int,
             sourceStem: MusicXMLStem,
-            noteheadToken: GrandStaffGlyphToken = .noteheadBlack,
+            noteheadToken: GrandStaffGlyphToken? = .noteheadBlack,
             accidentalToken: GrandStaffGlyphToken? = nil,
             dotCount: Int = 0,
             isGrace: Bool = false,
@@ -352,7 +352,7 @@ struct GrandStaffChordLayoutService {
     private func ledgerLines(notePlacements: [NotePlacement]) -> [LedgerLine] {
         var segments: [LedgerKey: (xPosition: Double, minX: Double, maxX: Double)] = [:]
         for placement in notePlacements {
-            let bounds = metrics.bounds(for: placement.note.noteheadToken) ?? metrics.noteheadViewportBounds
+            let bounds = placement.note.noteheadToken.flatMap(metrics.bounds) ?? metrics.noteheadViewportBounds
             let scale = metrics.glyphScale(isGrace: placement.note.isGrace)
             for staffStep in placement.note.ledgerStaffSteps {
                 let key = LedgerKey(
@@ -484,7 +484,8 @@ struct GrandStaffChordLayoutService {
     }
 
     private func noteheadRect(note: Note, centerX: Double) -> Rect {
-        let bounds = metrics.bounds(for: note.noteheadToken) ?? metrics.noteheadViewportBounds
+        // ponytail: unknown glyphs reserve one neutral notehead box; add a real token before changing visible engraving.
+        let bounds = note.noteheadToken.flatMap(metrics.bounds) ?? metrics.noteheadViewportBounds
         let scale = metrics.glyphScale(isGrace: note.isGrace)
         let centerY = Double(note.staffStep) / 2
         return Rect(
