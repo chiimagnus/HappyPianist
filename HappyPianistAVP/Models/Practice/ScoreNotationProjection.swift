@@ -277,7 +277,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
                 }
             }
         }
-        for note in sourceScore.notes {
+        for note in performedScore.notes {
             guard let sourceID = note.sourceID,
                   let performedID = note.performedID,
                   occurrencesByID[performedID] == nil

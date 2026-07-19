@@ -153,6 +153,29 @@ func repeatedPerformedOccurrencesMapToOneSourceAndClipByOccurrenceTick() throws 
     #expect(rest.isHighlighted == false)
 }
 
+@Test
+func repeatedPerformedScoreKeepsEveryVisibleRestOccurrence() throws {
+    let performedScore = repeatedNotationScore()
+    let sourceScore = MusicXMLScore(notes: Array(performedScore.notes.prefix(2)))
+    let projection = ScoreNotationProjection(
+        plan: makeTestScorePerformancePlan(from: performedScore),
+        sourceScore: sourceScore,
+        performedScore: performedScore
+    )
+    let layout = GrandStaffNotationLayoutService().makeLayout(
+        projection: projection,
+        viewportWidthStaffSpaces: 60,
+        scrollTick: 480
+    )
+
+    #expect(projection.sourceNotes.count == 2)
+    #expect(projection.performedOccurrences.filter { occurrence in
+        projection.sourceNotes.first { $0.id == occurrence.sourceNoteID }?.isRest == true
+    }.map(\.id.occurrenceIndex) == [0, 1])
+    #expect(layout.rests.map(\.id).allSatisfy { $0.hasSuffix("@0") || $0.hasSuffix("@1") })
+    #expect(layout.rests.count == 2)
+}
+
 private func crossStaffNotationScore() -> MusicXMLScore {
     let fixtures: [(tick: Int, staff: Int, isChord: Bool, beam: MusicXMLBeamValue, pitch: MusicXMLWrittenPitch)] = [
         (0, 1, false, .begin, .init(step: "G", octave: 4)),
