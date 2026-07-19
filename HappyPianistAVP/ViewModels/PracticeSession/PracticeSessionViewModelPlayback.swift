@@ -9,8 +9,24 @@ extension PracticeSessionViewModel {
         playbackControlService?.stopAutoplayTask()
     }
 
-    func smoothNotationScrollTick() -> Double? {
-        playbackControlService?.smoothNotationScrollTick()
+    func notationViewportTick() -> Double? {
+        guard stateStore.isActiveRangeInvalid == false else { return nil }
+        if let autoplayTick = playbackControlService?.smoothNotationScrollTick() {
+            return autoplayTick
+        }
+
+        let stepIndex: Int? = if self.state == .completed {
+            self.activeRange?.stepRange.last ?? self.steps.indices.last
+        } else {
+            self.currentStepIndex
+        }
+        guard let stepIndex,
+              self.steps.indices.contains(stepIndex),
+              self.activeRange?.contains(stepIndex: stepIndex) ?? true
+        else {
+            return nil
+        }
+        return Double(self.steps[stepIndex].tick)
     }
 
     func rebuildAutoplayTimeline() {

@@ -1,3 +1,5 @@
+import Foundation
+
 struct PracticeRoundSummaryViewModel: Equatable {
     let configuration: PracticeRoundConfiguration
     let isStable: Bool
@@ -41,6 +43,18 @@ struct PracticeRoundSummaryViewModel: Equatable {
         case .expandPassage: "扩大练习片段"
         case .continuePassage: "继续"
         }
+    }
+
+    var detailText: String {
+        var lines = [
+            "练习片段：\(passageTitle)",
+            "练习手：\(configuration.handMode.title)",
+            "速度：\(configuration.tempoScale.formatted(.percent.precision(.fractionLength(0))))",
+        ]
+        if let hotspotTitle {
+            lines.append("可以再照顾\(hotspotTitle)")
+        }
+        return lines.joined(separator: "\n")
     }
 
     let passageTitle: String

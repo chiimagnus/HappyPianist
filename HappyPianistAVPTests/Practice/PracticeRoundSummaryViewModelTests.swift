@@ -25,6 +25,10 @@ func roundSummaryContainsOnlyOneHotspotAndAction() throws {
     #expect(summary.nextAction == .retryMeasure(source))
     #expect(summary.passageTitle == "第 1 小节")
     #expect(summary.hotspotTitle == "第 1 小节")
+    #expect(summary.detailText.contains("练习片段：第 1 小节"))
+    #expect(summary.detailText.contains("练习手：\(configuration.handMode.title)"))
+    #expect(summary.detailText.contains("速度：80%"))
+    #expect(summary.detailText.contains("可以再照顾第 1 小节"))
 }
 
 @Test
@@ -90,6 +94,7 @@ func roundSummaryIgnoresFactsOutsideActivePassage() throws {
     ))
     #expect(summary.hotspot == nil)
     #expect(summary.isStable)
+    #expect(summary.detailText.contains("可以再照顾") == false)
 }
 
 @Test

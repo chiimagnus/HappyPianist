@@ -93,6 +93,7 @@ func appStatePassesMeasureSpansToPracticeSession() async {
     sessionViewModel.skip()
 
     #expect(sessionViewModel.currentStepIndex == 2)
+    #expect(sessionViewModel.notationViewportTick() == 480)
 }
 
 @MainActor
