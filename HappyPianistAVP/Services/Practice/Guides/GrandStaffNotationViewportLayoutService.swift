@@ -31,6 +31,7 @@ struct GrandStaffNotationViewportLayoutService {
         let contextWidth: CGFloat
         let contentMinX: CGFloat
         let contentMaxX: CGFloat
+        let horizontalStaffSpaceCapacity: Double
 
         let trebleTopLineY: CGFloat
         let trebleBottomLineY: CGFloat
@@ -115,6 +116,10 @@ struct GrandStaffNotationViewportLayoutService {
         let contextWidth: CGFloat = resolvedLineSpacing * 7.0
         let contentMinX: CGFloat = contextMinX + contextWidth
         let contentMaxX: CGFloat = min(size.width - 18, size.width * 0.96)
+        let staffSpaceCapacity = horizontalStaffSpaceCapacity(
+            size: size,
+            lineSpacing: resolvedLineSpacing
+        )
 
         let topPadding = topPaddingUnits * resolvedLineSpacing
         let trebleTopLineY = topPadding + trebleExtraAboveUnits * resolvedLineSpacing
@@ -169,6 +174,7 @@ struct GrandStaffNotationViewportLayoutService {
             contextWidth: contextWidth,
             contentMinX: contentMinX,
             contentMaxX: contentMaxX,
+            horizontalStaffSpaceCapacity: staffSpaceCapacity,
             trebleTopLineY: trebleTopLineY,
             trebleBottomLineY: trebleBottomLineY,
             bassTopLineY: bassTopLineY,
@@ -180,6 +186,13 @@ struct GrandStaffNotationViewportLayoutService {
             keySignatureFontSize: smuflFontSize,
             timeSignatureFontSize: smuflFontSize
         )
+    }
+
+    func horizontalStaffSpaceCapacity(size: CGSize, lineSpacing: CGFloat) -> Double {
+        let resolvedLineSpacing = max(8, min(22, lineSpacing))
+        let contentMinX: CGFloat = 4 + resolvedLineSpacing * 7
+        let contentMaxX: CGFloat = min(size.width - 18, size.width * 0.96)
+        return Double(max(1, contentMaxX - contentMinX) / resolvedLineSpacing)
     }
 
     private struct CanvasMetrics: Equatable {

@@ -27,7 +27,7 @@ func layoutEmitsBarlinesForMeasureSpansStartAndEndTicks() {
         measureSpans: measureSpans
     )
 
-    #expect(layout.barlines.map(\.tick) == [0, 480, 960])
+    #expect(layout.barlines.map(\.tick) == [480, 960])
 }
 
 @Test
@@ -145,7 +145,7 @@ func layoutKeepsTieContinuationAcrossActiveRangeAndViewportBoundary() throws {
             sourceScore: score
         ),
         overlay: .init(activeEventIDs: [], activeTickRange: 240 ..< 960),
-        halfWindowTicks: 120,
+        viewportWidthStaffSpaces: 2,
         scrollTick: 480
     )
 
@@ -234,7 +234,7 @@ func spannersKeepNestedLevelsAndViewportContinuationSeparateByKind() throws {
             plan: makeTestScorePerformancePlan(from: score),
             sourceScore: score
         ),
-        halfWindowTicks: 60,
+        viewportWidthStaffSpaces: 2,
         scrollTick: 180
     )
 

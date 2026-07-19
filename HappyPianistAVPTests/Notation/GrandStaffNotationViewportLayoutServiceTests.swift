@@ -141,7 +141,7 @@ func repeatedPerformedOccurrencesMapToOneSourceAndClipByOccurrenceTick() throws 
             activeEventIDs: [repeatedEvent.id],
             activeTickRange: 900 ..< 1_440
         ),
-        halfWindowTicks: 480,
+        viewportWidthStaffSpaces: 12,
         scrollTick: 960
     )
     let note = try #require(layout.items.first)

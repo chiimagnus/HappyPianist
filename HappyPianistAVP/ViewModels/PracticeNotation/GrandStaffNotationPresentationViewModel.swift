@@ -22,8 +22,10 @@ struct GrandStaffNotationPresentationViewModel {
         practiceHandMode: PracticeHandMode,
         scrollTick: Double?
     ) -> GrandStaffNotationPresentation {
-        let contentWidth = resolvedContentWidth(for: size, lineSpacing: lineSpacing)
-        let halfWindowTicks = resolvedHalfWindowTicks(contentWidth: contentWidth, lineSpacing: lineSpacing)
+        let viewportWidthStaffSpaces = viewportLayoutService.horizontalStaffSpaceCapacity(
+            size: size,
+            lineSpacing: lineSpacing
+        )
         let staffStepBounds = resolvedStaffStepBounds(
             projection: projection,
             activeTickRange: overlay.activeTickRange
@@ -34,7 +36,7 @@ struct GrandStaffNotationPresentationViewModel {
             overlay: overlay,
             measureSpans: measureSpans,
             context: context,
-            halfWindowTicks: halfWindowTicks,
+            viewportWidthStaffSpaces: viewportWidthStaffSpaces,
             scrollTick: scrollTick
         )
 
@@ -66,21 +68,6 @@ struct GrandStaffNotationPresentationViewModel {
         let bassBottom = layout.bassBottomLineY + layout.canvasYOffset
         let center = (trebleTop + bassBottom) / 2
         return min(max(0, center), layout.requiredHeight)
-    }
-
-    private func resolvedContentWidth(for size: CGSize, lineSpacing: CGFloat) -> CGFloat {
-        let contextMinX: CGFloat = 4
-        let contextWidth: CGFloat = lineSpacing * 7.0
-        let contentMinX = contextMinX + contextWidth
-        let contentMaxX = min(size.width - 18, size.width * 0.96)
-        return max(1, contentMaxX - contentMinX)
-    }
-
-    private func resolvedHalfWindowTicks(contentWidth: CGFloat, lineSpacing: CGFloat) -> Int {
-        let pointsPerQuarter = max(1, lineSpacing * 6.0)
-        let ticksPerPoint = Double(MusicXMLTempoMap.ticksPerQuarter) / Double(pointsPerQuarter)
-        let half = Int((Double(contentWidth) * ticksPerPoint) / 2.0)
-        return max(MusicXMLTempoMap.ticksPerQuarter, half)
     }
 
     private func resolvedStaffStepBounds(
