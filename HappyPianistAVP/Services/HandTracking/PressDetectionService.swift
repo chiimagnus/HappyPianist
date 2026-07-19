@@ -35,7 +35,7 @@ final class PressDetectionService: PressDetectionServiceProtocol {
         var pressed: Set<Int> = []
         pressed.reserveCapacity(4)
 
-        fingerTips.forEachTrackedTip { fingerID, currentPosition in
+        fingerTips.forEachFinger { fingerID, currentPosition in
             guard let previousPosition = lastFingerTips.position(for: fingerID) else { return }
 
             let previousPoint = Self.transformPoint(keyboardFromWorld, previousPosition)

@@ -46,7 +46,7 @@ final class HandPianoActivityGate {
         var isNearKeyboard = false
         var hasDownwardMotion = false
 
-        fingerTips.forEachTrackedTip { fingerID, worldPoint in
+        fingerTips.forEachFinger { fingerID, worldPoint in
             let localPoint = PressDetectionService.transformPoint(keyboardFromWorld, worldPoint)
             if localPoint.y <= bounds.y.upperBound + nearDistance,
                localPoint.y >= bounds.y.lowerBound - nearDistance,

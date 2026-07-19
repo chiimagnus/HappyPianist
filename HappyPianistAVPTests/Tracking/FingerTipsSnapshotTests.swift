@@ -19,19 +19,20 @@ func fingerTipsSnapshotStoresTypedPositionsWithoutStringKeys() {
 }
 
 @Test
-func fingerTipsSnapshotIterationReturnsOnlyTrackedTips() {
+func fingerTipsSnapshotIterationExcludesPalm() {
     let snapshot = FingerTipsSnapshot(
         left: HandTips(index: SIMD3<Float>(1, 0, 0)),
-        right: HandTips(middle: SIMD3<Float>(2, 0, 0))
+        right: HandTips(middle: SIMD3<Float>(2, 0, 0), palm: SIMD3<Float>(3, 0, 0))
     )
-    var ids: Set<FingerTipID> = []
+    var ids: Set<TrackedFingerID> = []
 
-    snapshot.forEachTrackedTip { id, _ in
+    snapshot.forEachFinger { id, _ in
         ids.insert(id)
     }
 
     #expect(ids == [
-        FingerTipID(hand: .left, tip: .index),
-        FingerTipID(hand: .right, tip: .middle),
+        TrackedFingerID(hand: .left, finger: .index),
+        TrackedFingerID(hand: .right, finger: .middle),
     ])
+    #expect(snapshot.right.palm == SIMD3<Float>(3, 0, 0))
 }

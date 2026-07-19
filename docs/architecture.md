@@ -123,7 +123,7 @@ flowchart TD
 - 重复结构用 occurrence identity 定位播放位置，用 source identity 汇总学习事实。
 - 本轮 active configuration 在一轮中不可变；设置修改只影响下一轮。
 - 退出、后台、换 session 与完成流程必须先停止新 attempt，再 flush 进度，最后 teardown 输入、追踪、RealityKit task 和回放。
-- 手部热路径只传递 `FingerTipsSnapshot`；订阅使用 newest-only current-value relay，消费者不得恢复字符串字典协议。
+- 手部热路径只传递 `FingerTipsSnapshot`；订阅使用 newest-only current-value relay，`forEachFinger` 只遍历 thumb 到 little，palm 必须显式读取，消费者不得恢复混合遍历或字符串字典协议。
 - CoreMIDI 输入流必须有固定容量；发生溢出时以 channel-wide All Notes Off 作为状态恢复边界。
 - 曲库 bootstrap 固定先由唯一 `SongLibraryImportTransactionService` 恢复未完成事务，再读取 index，最后扫描 bundle；恢复被阻塞时不得发布任何新 snapshot，也不得放回 ViewModel 初始化或 SwiftUI `body`。
 - bootstrap loader、Library ViewModel 与后续 resolver 必须复用 composition root 注入的同一个 `SongLibraryIndexStore` 和 bundled provider；索引写入只能通过 actor 内 concern mutation，损坏 JSON 必须 fail closed 并保留原文件。

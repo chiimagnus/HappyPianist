@@ -105,7 +105,7 @@ struct PianoKeyContactTracker {
         var currentDownNotes: Set<Int> = []
         currentDownNotes.reserveCapacity(previousDownNotes.count + 4)
 
-        fingerTips.forEachTrackedTip { _, worldPosition in
+        fingerTips.forEachFinger { _, worldPosition in
             let localPoint = Self.transformPoint(keyboardFromWorld, worldPosition)
             guard let region = index.firstRegion(containingXZ: localPoint) else { return }
 

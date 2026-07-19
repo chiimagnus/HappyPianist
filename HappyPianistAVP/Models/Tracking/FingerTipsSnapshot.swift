@@ -1,24 +1,5 @@
 import simd
 
-enum TrackedHandSide: UInt8, CaseIterable {
-    case left
-    case right
-}
-
-enum TrackedFingerTip: UInt8, CaseIterable {
-    case thumb
-    case index
-    case middle
-    case ring
-    case little
-    case palm
-}
-
-struct FingerTipID: Hashable {
-    let hand: TrackedHandSide
-    let tip: TrackedFingerTip
-}
-
 struct HandTips: Equatable {
     var thumb: SIMD3<Float>?
     var index: SIMD3<Float>?
@@ -43,39 +24,36 @@ struct HandTips: Equatable {
         self.palm = palm
     }
 
-    subscript(_ tip: TrackedFingerTip) -> SIMD3<Float>? {
+    subscript(_ finger: TrackedFinger) -> SIMD3<Float>? {
         get {
-            switch tip {
+            switch finger {
             case .thumb: thumb
             case .index: index
             case .middle: middle
             case .ring: ring
             case .little: little
-            case .palm: palm
             }
         }
         set {
-            switch tip {
+            switch finger {
             case .thumb: thumb = newValue
             case .index: index = newValue
             case .middle: middle = newValue
             case .ring: ring = newValue
             case .little: little = newValue
-            case .palm: palm = newValue
             }
         }
     }
 
-    func forEachTrackedTip(
+    func forEachFinger(
         hand: TrackedHandSide,
-        _ body: (FingerTipID, SIMD3<Float>) -> Void
+        _ body: (TrackedFingerID, SIMD3<Float>) -> Void
     ) {
-        if let thumb { body(FingerTipID(hand: hand, tip: .thumb), thumb) }
-        if let index { body(FingerTipID(hand: hand, tip: .index), index) }
-        if let middle { body(FingerTipID(hand: hand, tip: .middle), middle) }
-        if let ring { body(FingerTipID(hand: hand, tip: .ring), ring) }
-        if let little { body(FingerTipID(hand: hand, tip: .little), little) }
-        if let palm { body(FingerTipID(hand: hand, tip: .palm), palm) }
+        if let thumb { body(TrackedFingerID(hand: hand, finger: .thumb), thumb) }
+        if let index { body(TrackedFingerID(hand: hand, finger: .index), index) }
+        if let middle { body(TrackedFingerID(hand: hand, finger: .middle), middle) }
+        if let ring { body(TrackedFingerID(hand: hand, finger: .ring), ring) }
+        if let little { body(TrackedFingerID(hand: hand, finger: .little), little) }
     }
 }
 
@@ -100,13 +78,13 @@ struct FingerTipsSnapshot: Equatable {
         }
     }
 
-    func position(for id: FingerTipID) -> SIMD3<Float>? {
-        self[id.hand][id.tip]
+    func position(for id: TrackedFingerID) -> SIMD3<Float>? {
+        self[id.hand][id.finger]
     }
 
-    func forEachTrackedTip(_ body: (FingerTipID, SIMD3<Float>) -> Void) {
-        left.forEachTrackedTip(hand: .left, body)
-        right.forEachTrackedTip(hand: .right, body)
+    func forEachFinger(_ body: (TrackedFingerID, SIMD3<Float>) -> Void) {
+        left.forEachFinger(hand: .left, body)
+        right.forEachFinger(hand: .right, body)
     }
 
     init(
