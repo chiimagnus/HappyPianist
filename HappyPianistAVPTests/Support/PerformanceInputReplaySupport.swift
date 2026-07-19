@@ -2,6 +2,56 @@ import Foundation
 @testable import HappyPianistAVP
 import Synchronization
 
+enum PerformanceObservationReplayFixtureError: Error, Equatable {
+    case unsupportedSchemaVersion(Int)
+}
+
+struct PerformanceObservationReplayFixture: Decodable {
+    static let currentSchemaVersion = 1
+
+    let schemaVersion: Int
+    let observations: [PerformanceObservation]
+    let legacyTake: RecordingTake
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        guard schemaVersion == Self.currentSchemaVersion else {
+            throw PerformanceObservationReplayFixtureError.unsupportedSchemaVersion(schemaVersion)
+        }
+        observations = try container.decode([PerformanceObservation].self, forKey: .observations)
+        legacyTake = try container.decode(RecordingTake.self, forKey: .legacyTake)
+    }
+
+    var replayEvents: [PerformanceReplayEvent<PerformanceObservation>] {
+        observations.map { observation in
+            PerformanceReplayEvent(
+                instant: observation.timing.correctedHost,
+                source: observation.source.id,
+                payload: observation
+            )
+        }
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion
+        case observations
+        case legacyTake
+    }
+}
+
+struct PerformanceObservationReplayFixtureLoader {
+    func load(filePath: StaticString = #filePath) throws -> PerformanceObservationReplayFixture {
+        let data = try Data(contentsOf: testFixtureURL(
+            "PerformanceObservationReplays.json",
+            filePath: filePath
+        ))
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(PerformanceObservationReplayFixture.self, from: data)
+    }
+}
+
 extension PerformanceMonotonicInstant {
     var date: Date {
         Date(timeIntervalSince1970: seconds)

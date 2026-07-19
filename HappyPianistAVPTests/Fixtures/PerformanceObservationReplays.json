@@ -1,0 +1,273 @@
+{
+  "schemaVersion": 1,
+  "observations": [
+    {
+      "id": "10000000-0000-0000-0000-000000000001",
+      "source": {
+        "kind": "midi1",
+        "id": "source-index:0",
+        "generation": 4,
+        "capabilities": {
+          "pitch": "observed",
+          "onset": "observed",
+          "release": "observed",
+          "velocity": "observed",
+          "controllers": "observed",
+          "polyphony": "observed",
+          "hand": "unavailable",
+          "finger": "unavailable",
+          "position": "unavailable",
+          "confidence": "unavailable"
+        }
+      },
+      "timing": {
+        "host": { "nanoseconds": 10000000000 },
+        "source": { "clockID": "core-midi-host", "seconds": 9.5 },
+        "correctedHost": { "nanoseconds": 9980000000 },
+        "mapping": {
+          "sourceClockID": "core-midi-host",
+          "offsetSeconds": 0.48,
+          "rate": 1.0,
+          "sampleCount": 4,
+          "estimatedLatencySeconds": 0.02,
+          "provenance": "offsetSample"
+        },
+        "provenance": "offsetSample"
+      },
+      "event": {
+        "noteOn": {
+          "note": 60,
+          "velocity": { "rawValue": 3043677610 }
+        }
+      },
+      "channel": 1,
+      "group": 0,
+      "calibrationReference": "midi-latency-v1"
+    },
+    {
+      "id": "10000000-0000-0000-0000-000000000002",
+      "source": {
+        "kind": "midi1",
+        "id": "source-index:0",
+        "generation": 4,
+        "capabilities": {
+          "pitch": "observed",
+          "onset": "observed",
+          "release": "observed",
+          "velocity": "observed",
+          "controllers": "observed",
+          "polyphony": "observed",
+          "hand": "unavailable",
+          "finger": "unavailable",
+          "position": "unavailable",
+          "confidence": "unavailable"
+        }
+      },
+      "timing": {
+        "host": { "nanoseconds": 10100000000 },
+        "correctedHost": { "nanoseconds": 10080000000 },
+        "provenance": "hostOnly"
+      },
+      "event": {
+        "controller": {
+          "_0": {
+            "controlChange": {
+              "number": 64,
+              "value": { "rawValue": 4294967295 }
+            }
+          }
+        }
+      },
+      "channel": 1,
+      "group": 0
+    },
+    {
+      "id": "10000000-0000-0000-0000-000000000003",
+      "source": {
+        "kind": "targetAudio",
+        "id": "target-audio:practice",
+        "generation": 4,
+        "capabilities": {
+          "pitch": "degraded",
+          "onset": "degraded",
+          "release": "unavailable",
+          "velocity": "unavailable",
+          "controllers": "unavailable",
+          "polyphony": "degraded",
+          "hand": "unavailable",
+          "finger": "unavailable",
+          "position": "unavailable",
+          "confidence": "observed"
+        }
+      },
+      "timing": {
+        "host": { "nanoseconds": 10400000000 },
+        "correctedHost": { "nanoseconds": 10370000000 },
+        "provenance": "latencyEstimate"
+      },
+      "event": {
+        "targetAudioDetection": {
+          "targetMIDINotes": [60, 64],
+          "detectedMIDINotes": [60],
+          "result": "mixed"
+        }
+      },
+      "confidence": 0.82,
+      "calibrationReference": "audio-calibration-v1"
+    },
+    {
+      "id": "10000000-0000-0000-0000-000000000004",
+      "source": {
+        "kind": "midi2",
+        "id": "endpoint:42",
+        "generation": 4,
+        "capabilities": {
+          "pitch": "observed",
+          "onset": "observed",
+          "release": "observed",
+          "velocity": "observed",
+          "controllers": "observed",
+          "polyphony": "observed",
+          "hand": "unavailable",
+          "finger": "unavailable",
+          "position": "unavailable",
+          "confidence": "unavailable"
+        }
+      },
+      "timing": {
+        "host": { "nanoseconds": 10200000000 },
+        "source": { "clockID": "ump-device", "seconds": 20.0 },
+        "correctedHost": { "nanoseconds": 10190000000 },
+        "provenance": "hostOnly"
+      },
+      "event": {
+        "noteOn": {
+          "note": 64,
+          "velocity": { "rawValue": 305402420 }
+        }
+      },
+      "channel": 2,
+      "group": 3
+    },
+    {
+      "id": "10000000-0000-0000-0000-000000000005",
+      "source": {
+        "kind": "midi2",
+        "id": "endpoint:42",
+        "generation": 4,
+        "capabilities": {
+          "pitch": "observed",
+          "onset": "observed",
+          "release": "observed",
+          "velocity": "observed",
+          "controllers": "observed",
+          "polyphony": "observed",
+          "hand": "unavailable",
+          "finger": "unavailable",
+          "position": "unavailable",
+          "confidence": "unavailable"
+        }
+      },
+      "timing": {
+        "host": { "nanoseconds": 10250000000 },
+        "correctedHost": { "nanoseconds": 10240000000 },
+        "provenance": "hostOnly"
+      },
+      "event": {
+        "controller": {
+          "_0": {
+            "controlChange": {
+              "number": 67,
+              "value": { "rawValue": 305419896 }
+            }
+          }
+        }
+      },
+      "channel": 2,
+      "group": 3
+    },
+    {
+      "id": "10000000-0000-0000-0000-000000000006",
+      "source": {
+        "kind": "midi2",
+        "id": "endpoint:42",
+        "generation": 4,
+        "capabilities": {
+          "pitch": "observed",
+          "onset": "observed",
+          "release": "observed",
+          "velocity": "observed",
+          "controllers": "observed",
+          "polyphony": "observed",
+          "hand": "unavailable",
+          "finger": "unavailable",
+          "position": "unavailable",
+          "confidence": "unavailable"
+        }
+      },
+      "timing": {
+        "host": { "nanoseconds": 10300000000 },
+        "correctedHost": { "nanoseconds": 10290000000 },
+        "provenance": "hostOnly"
+      },
+      "event": {
+        "noteOff": {
+          "note": 64,
+          "releaseVelocity": { "rawValue": 2882382797 }
+        }
+      },
+      "channel": 2,
+      "group": 3
+    },
+    {
+      "id": "10000000-0000-0000-0000-000000000007",
+      "source": {
+        "kind": "midi1",
+        "id": "source-index:0",
+        "generation": 4,
+        "capabilities": {
+          "pitch": "observed",
+          "onset": "observed",
+          "release": "observed",
+          "velocity": "observed",
+          "controllers": "observed",
+          "polyphony": "observed",
+          "hand": "unavailable",
+          "finger": "unavailable",
+          "position": "unavailable",
+          "confidence": "unavailable"
+        }
+      },
+      "timing": {
+        "host": { "nanoseconds": 10500000000 },
+        "correctedHost": { "nanoseconds": 10480000000 },
+        "provenance": "hostOnly"
+      },
+      "event": {
+        "noteOff": {
+          "note": 60,
+          "releaseVelocity": { "rawValue": 0 }
+        }
+      },
+      "channel": 1,
+      "group": 0
+    }
+  ],
+  "legacyTake": {
+    "id": "20000000-0000-0000-0000-000000000001",
+    "name": "Legacy Fixture",
+    "createdAt": "2024-01-01T00:00:00Z",
+    "events": [
+      {
+        "id": "20000000-0000-0000-0000-000000000002",
+        "time": 0.0,
+        "kind": { "noteOn": { "midi": 55, "velocity": 72 } }
+      },
+      {
+        "id": "20000000-0000-0000-0000-000000000003",
+        "time": 0.4,
+        "kind": { "noteOff": { "midi": 55 } }
+      }
+    ]
+  }
+}

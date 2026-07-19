@@ -150,11 +150,13 @@ active range 同时约束：
 
 | 模式 | 输入链路 | 判定 |
 | --- | --- | --- |
-| 真实钢琴（音频） | microphone -> recognition service -> accumulator | 目标音证据与 typed outcome |
-| 真实钢琴（蓝牙 MIDI） | CoreMIDI -> bounded MIDI1/2 stream -> decoder -> input service | deterministic note/chord matching |
-| 虚拟钢琴 | newest-only `FingerTipsSnapshot` -> indexed hand contact -> virtual input controller | 虚拟按键 note events |
+| 真实钢琴（音频） | microphone -> recognition service -> `PerformanceObservation.targetAudioDetection` | 有限能力的目标集合证据与 typed outcome |
+| 真实钢琴（蓝牙 MIDI） | CoreMIDI -> bounded MIDI1/2 stream -> decoder -> `MIDIPerformanceObservationAdapter` | 保留 velocity/release/controller/source clock 的 deterministic matching |
+| 虚拟钢琴 | newest-only `FingerTipsSnapshot` -> indexed hand contact -> virtual input controller -> `PerformanceObservation.contact` | 虚拟按键 contact evidence |
 
-手部 producer 只发布 typed snapshot；琴键几何变化时重建一次 hit-test index，每帧仅查询相邻候选键。CoreMIDI 缓冲溢出会发布 All Notes Off，统一复位 matcher、AI 持音上下文和录音中的开放音符。自动播放、手动回放、AI 输出、paused、suspended 与非 guiding 状态不会生成用户 attempt。
+输入统一携带 source/capabilities、host 单调时间、可选 source clock mapping、channel/group、confidence 与 calibration reference；matcher、录音和后续评价只消费这一份 observation，不从 wall clock 或降精度回放事件反推证据。音频只表达目标集合 detected/contradicted/mixed/unknown，不伪装成逐音多声部事件。
+
+手部 producer 只发布 typed snapshot；琴键几何变化时重建一次 hit-test index，每帧仅查询相邻候选键。CoreMIDI 缓冲溢出会发布 All Notes Off，统一复位 matcher、AI 持音上下文，并只关闭录音中同 source/group/channel 的开放音符。自动播放、手动回放、AI 输出、paused、suspended 与非 guiding 状态不会生成用户 attempt。
 
 ## 练习事实与恢复
 
@@ -213,16 +215,17 @@ flowchart LR
 
 ## 录制与回放
 
-蓝牙 MIDI 与虚拟键事件可进入：
+蓝牙 MIDI 与琴键 contact 可进入：
 
 ```text
-MIDIRecordingAdapter
+PerformanceObservation
+-> MIDIRecordingAdapter / contact projection
 -> RecordingTakeRecorder
 -> RecordingTakeStore
 -> Documents/TakeLibrary/takes.json
 ```
 
-`TakePlaybackController` 复用 sequencer 回放；`RecordingMIDIExportService` 导出 `.mid`。
+`RecordingTakeRecorder` 按 source/group/channel/note/event identity 管理开放音符，保存原始 observation，并在回放边界才投影为 MIDI 7/14-bit 事件。target audio 因不具备可靠逐音 release/velocity，不进入 MIDI take。`TakePlaybackController` 复用 sequencer 回放；`RecordingMIDIExportService` 导出 `.mid`。
 
 ## AI 对弹
 

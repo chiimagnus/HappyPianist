@@ -63,6 +63,26 @@ struct RecordingTakeRecorder {
         return RecordingTake(name: name, createdAt: createdAt, metadata: metadata, events: sortedEvents)
     }
 
+    mutating func record(_ observation: PerformanceObservation) {
+        let now = observation.timing.host.seconds
+        switch observation.event {
+        case let .noteOn(note, velocity):
+            // ponytail: a missing velocity remains explicit in observation; 64 is only the MIDI playback projection.
+            recordNoteOn(
+                note: note,
+                velocity: velocity.map(Self.midi7Bit) ?? 64,
+                now: now,
+                observation: observation
+            )
+        case let .noteOff(note, _):
+            recordNoteOff(note: note, now: now, observation: observation)
+        case let .controller(controller):
+            record(controller, now: now, observation: observation)
+        case .contact, .targetAudioDetection:
+            break
+        }
+    }
+
     mutating func recordNoteOn(
         note: Int,
         velocity: Int,
@@ -265,6 +285,50 @@ struct RecordingTakeRecorder {
             kind: kind,
             observation: observation
         ))
+    }
+
+    private mutating func record(
+        _ controller: PerformanceObservation.Controller,
+        now: TimeInterval,
+        observation: PerformanceObservation
+    ) {
+        switch controller {
+        case let .controlChange(number, value):
+            if number == 120 || number == 123 {
+                closeAllOpenNotes(now: now, matching: observation)
+            }
+            recordControlChange(
+                controller: number,
+                value: Self.midi7Bit(value),
+                now: now,
+                observation: observation
+            )
+        case let .pitchBend(value):
+            recordPitchBend(
+                value: MIDI2ValueMapping.pitchBend32To14Bit(value.rawValue),
+                now: now,
+                observation: observation
+            )
+        case let .programChange(program):
+            recordProgramChange(program: program, now: now, observation: observation)
+        case let .channelPressure(value):
+            recordChannelPressure(
+                value: Self.midi7Bit(value),
+                now: now,
+                observation: observation
+            )
+        case let .polyPressure(note, value):
+            recordPolyPressure(
+                note: note,
+                value: Self.midi7Bit(value),
+                now: now,
+                observation: observation
+            )
+        }
+    }
+
+    private static func midi7Bit(_ value: PerformanceObservation.NormalizedValue) -> Int {
+        MIDI2ValueMapping.value32To7Bit(value.rawValue)
     }
 
     private mutating func incorporateMetadata(from observation: PerformanceObservation?) {

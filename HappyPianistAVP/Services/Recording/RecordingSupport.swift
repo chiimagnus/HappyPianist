@@ -143,91 +143,11 @@ struct MIDIRecordingAdapter {
     }
 
     mutating func record(event: MIDI1InputEvent, into recorder: inout RecordingTakeRecorder) {
-        let now = event.receivedAtUptimeSeconds
-        let observation = observationAdapter.observation(for: event, generation: generation)
-        switch event.kind {
-        case let .noteOn(note, velocity) where velocity == 0:
-            recorder.recordNoteOff(note: note, now: now, observation: observation)
-        case let .noteOn(note, velocity):
-            recorder.recordNoteOn(
-                note: note,
-                velocity: velocity,
-                now: now,
-                observation: observation
-            )
-        case let .noteOff(note, _):
-            recorder.recordNoteOff(note: note, now: now, observation: observation)
-        case let .controlChange(controller, value):
-            if controller == 120 || controller == 123 {
-                recorder.closeAllOpenNotes(now: now, matching: observation)
-            }
-            recorder.recordControlChange(
-                controller: controller,
-                value: value,
-                now: now,
-                observation: observation
-            )
-        case let .pitchBend(value):
-            recorder.recordPitchBend(value: value, now: now, observation: observation)
-        case let .programChange(program):
-            recorder.recordProgramChange(program: program, now: now, observation: observation)
-        case let .channelPressure(value):
-            recorder.recordChannelPressure(value: value, now: now, observation: observation)
-        case let .polyPressure(note, value):
-            recorder.recordPolyPressure(
-                note: note,
-                value: value,
-                now: now,
-                observation: observation
-            )
-        }
+        recorder.record(observationAdapter.observation(for: event, generation: generation))
     }
 
     mutating func record(event: MIDI2InputEvent, into recorder: inout RecordingTakeRecorder) {
-        let now = event.receivedAtUptimeSeconds
-        let observation = observationAdapter.observation(for: event, generation: generation)
-        switch event.kind {
-        case let .noteOn(note, velocity16):
-            recorder.recordNoteOn(
-                note: note,
-                velocity: MIDI2ValueMapping.value16To7Bit(velocity16),
-                now: now,
-                observation: observation
-            )
-        case let .noteOff(note, _):
-            recorder.recordNoteOff(note: note, now: now, observation: observation)
-        case let .controlChange(controller, value32):
-            if controller == 120 || controller == 123 {
-                recorder.closeAllOpenNotes(now: now, matching: observation)
-            }
-            recorder.recordControlChange(
-                controller: controller,
-                value: MIDI2ValueMapping.value32To7Bit(value32),
-                now: now,
-                observation: observation
-            )
-        case let .pitchBend(value32):
-            recorder.recordPitchBend(
-                value: MIDI2ValueMapping.pitchBend32To14Bit(value32),
-                now: now,
-                observation: observation
-            )
-        case let .programChange(program):
-            recorder.recordProgramChange(program: program, now: now, observation: observation)
-        case let .channelPressure(value32):
-            recorder.recordChannelPressure(
-                value: MIDI2ValueMapping.value32To7Bit(value32),
-                now: now,
-                observation: observation
-            )
-        case let .polyPressure(note, pressure32):
-            recorder.recordPolyPressure(
-                note: note,
-                value: MIDI2ValueMapping.value32To7Bit(pressure32),
-                now: now,
-                observation: observation
-            )
-        }
+        recorder.record(observationAdapter.observation(for: event, generation: generation))
     }
 }
 

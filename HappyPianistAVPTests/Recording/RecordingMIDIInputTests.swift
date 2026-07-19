@@ -289,3 +289,51 @@ func allNotesOffOnlyClosesItsSourceGroupAndChannel() {
     #expect(noteOffs.contains { abs($0.time - 0.3) < 0.0001 && $0.observation?.channel == 1 })
     #expect(noteOffs.contains { abs($0.time - 1) < 0.0001 && $0.observation?.channel == 2 })
 }
+
+@Test
+@MainActor
+func observationReplayDrivesMatcherRecorderAndLegacyCodec() throws {
+    let fixture = try PerformanceObservationReplayFixtureLoader().load()
+    #expect(fixture.observations.map(\.source.kind).contains(.midi1))
+    #expect(fixture.observations.map(\.source.kind).contains(.midi2))
+    #expect(fixture.observations.map(\.source.kind).contains(.targetAudio))
+    #expect(zip(fixture.observations, fixture.observations.dropFirst()).contains {
+        $0.0.timing.host > $0.1.timing.host
+    })
+    #expect(fixture.observations.first?.timing.mapping?.offsetSeconds == 0.48)
+    #expect(fixture.observations.contains {
+        if case .controller = $0.event { true } else { false }
+    })
+
+    let matcher = MIDIPracticeStepMatcher()
+    matcher.reset(
+        stepIndex: 0,
+        expectedNotes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]
+    )
+    var matcherCursor = PerformanceInputReplayCursor(events: fixture.replayEvents)
+    var matchResults: [StepAttemptMatchResult] = []
+    matcherCursor.replay { event in
+        if let result = matcher.register(event.payload) {
+            matchResults.append(result)
+        }
+    }
+    #expect(matchResults.first == .matched)
+
+    var recorder = RecordingTakeRecorder()
+    recorder.start(now: 9.8)
+    var recorderCursor = PerformanceInputReplayCursor(events: fixture.replayEvents)
+    recorderCursor.replay { recorder.record($0.payload) }
+    let take = recorder.stop(now: 10.6, createdAt: Date(timeIntervalSince1970: 0))
+
+    #expect(take.events.count == 6)
+    #expect(take.events.allSatisfy { $0.observation != nil })
+    #expect(take.metadata.inputSources.map(\.kind) == [.midi1, .midi2])
+    #expect(take.metadata.clockMapping?.sourceClockID == "core-midi-host")
+    #expect(take.metadata.calibrationVersion == "midi-latency-v1")
+    #expect(fixture.legacyTake.metadata.provenance == .legacy)
+    #expect(fixture.legacyTake.events.map(\.kind) == [
+        .noteOn(midi: 55, velocity: 72),
+        .noteOff(midi: 55),
+    ])
+    #expect(fixture.legacyTake.events.allSatisfy { $0.observation == nil })
+}
