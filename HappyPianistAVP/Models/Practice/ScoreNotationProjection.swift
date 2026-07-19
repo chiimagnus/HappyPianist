@@ -22,11 +22,13 @@ struct ScoreNotationProjection: Equatable, Sendable {
         let writtenRhythm: MusicXMLWrittenRhythm?
         let midiNote: Int?
         let isRest: Bool
+        let isPrintObjectVisible: Bool
         let staff: Int
         let voice: Int
         let isGrace: Bool
-        let tieStart: Bool
-        let tieStop: Bool
+        let ties: [MusicXMLTie]
+        let slurs: [MusicXMLSlur]
+        let tuplets: [MusicXMLTuplet]
         let articulations: Set<MusicXMLArticulation>
         let arpeggiate: MusicXMLArpeggiate?
         let fingeringText: String?
@@ -74,11 +76,13 @@ struct ScoreNotationProjection: Equatable, Sendable {
                 writtenRhythm: note.writtenRhythm,
                 midiNote: note.midiNote,
                 isRest: note.isRest,
+                isPrintObjectVisible: note.isPrintObjectVisible,
                 staff: note.staff ?? 1,
                 voice: note.voice ?? 1,
                 isGrace: note.isGrace,
-                tieStart: note.tieStart,
-                tieStop: note.tieStop,
+                ties: note.ties,
+                slurs: note.slurs,
+                tuplets: note.tuplets,
                 articulations: note.articulations,
                 arpeggiate: note.arpeggiate,
                 fingeringText: note.fingeringText,

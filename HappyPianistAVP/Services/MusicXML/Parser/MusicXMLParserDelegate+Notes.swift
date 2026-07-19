@@ -103,6 +103,7 @@ extension MusicXMLParserDelegate {
         guard rawElementToken.isEmpty == false else { return }
         let kind = MusicXMLPerformanceNotationKind(rawValue: rawElementToken) ?? .other
         let pending = MusicXMLParserDelegateState.PendingPerformanceNotation(
+            sourceOrdinal: nextNoteNotationSourceOrdinal(),
             kind: kind,
             rawElementToken: rawElementToken,
             typeToken: normalizedNotationToken(attributes["type"]),
@@ -113,6 +114,43 @@ extension MusicXMLParserDelegate {
         )
         state.notePerformanceNotations.append(pending)
         state.currentPerformanceNotationIndexByElement[rawElementToken] = state.notePerformanceNotations.count - 1
+    }
+
+    func recordTie(sourceElement: MusicXMLTieSourceElement, attributes: [String: String]) {
+        guard state.isInNote else { return }
+        state.noteTies.append(.init(
+            sourceOrdinal: nextNoteNotationSourceOrdinal(),
+            sourceElement: sourceElement,
+            typeToken: normalizedNotationToken(attributes["type"]),
+            numberToken: normalizedNotationToken(attributes["number"]),
+            placementToken: normalizedNotationToken(attributes["placement"])
+        ))
+    }
+
+    func recordSlur(attributes: [String: String]) {
+        guard state.isInNote else { return }
+        state.noteSlurs.append(.init(
+            sourceOrdinal: nextNoteNotationSourceOrdinal(),
+            typeToken: normalizedNotationToken(attributes["type"]),
+            numberToken: normalizedNotationToken(attributes["number"]),
+            placementToken: normalizedNotationToken(attributes["placement"])
+        ))
+    }
+
+    func recordTuplet(attributes: [String: String]) {
+        guard state.isInNote else { return }
+        state.noteTuplets.append(.init(
+            sourceOrdinal: nextNoteNotationSourceOrdinal(),
+            typeToken: normalizedNotationToken(attributes["type"]),
+            numberToken: normalizedNotationToken(attributes["number"]),
+            bracketToken: normalizedNotationToken(attributes["bracket"]),
+            placementToken: normalizedNotationToken(attributes["placement"])
+        ))
+    }
+
+    private func nextNoteNotationSourceOrdinal() -> Int {
+        defer { state.nextNoteNotationSourceOrdinal += 1 }
+        return state.nextNoteNotationSourceOrdinal
     }
 
     func finalizePerformanceNotationText(elementName: String, text: String) {
@@ -211,12 +249,38 @@ extension MusicXMLParserDelegate {
         )
         state.currentSourceNoteOrdinal += 1
 
-        let performanceNotations = state.notePerformanceNotations.enumerated().map { ordinal, pending in
+        func notationSourceID(_ ordinal: Int) -> MusicXMLPerformanceNotationSourceID {
+            MusicXMLPerformanceNotationSourceID(sourceNoteID: sourceID, sourceOrdinal: ordinal)
+        }
+        let ties = state.noteTies.map { pending in
+            MusicXMLTie(
+                sourceID: notationSourceID(pending.sourceOrdinal),
+                sourceElement: pending.sourceElement,
+                typeToken: pending.typeToken,
+                numberToken: pending.numberToken,
+                placementToken: pending.placementToken
+            )
+        }
+        let slurs = state.noteSlurs.map { pending in
+            MusicXMLSlur(
+                sourceID: notationSourceID(pending.sourceOrdinal),
+                typeToken: pending.typeToken,
+                numberToken: pending.numberToken,
+                placementToken: pending.placementToken
+            )
+        }
+        let tuplets = state.noteTuplets.map { pending in
+            MusicXMLTuplet(
+                sourceID: notationSourceID(pending.sourceOrdinal),
+                typeToken: pending.typeToken,
+                numberToken: pending.numberToken,
+                bracketToken: pending.bracketToken,
+                placementToken: pending.placementToken
+            )
+        }
+        let performanceNotations = state.notePerformanceNotations.map { pending in
             MusicXMLPerformanceNotation(
-                sourceID: MusicXMLPerformanceNotationSourceID(
-                    sourceNoteID: sourceID,
-                    sourceOrdinal: ordinal
-                ),
+                sourceID: notationSourceID(pending.sourceOrdinal),
                 kind: pending.kind,
                 rawElementToken: pending.rawElementToken,
                 typeToken: pending.typeToken,
@@ -238,14 +302,16 @@ extension MusicXMLParserDelegate {
                 writtenRhythm: writtenRhythm,
                 midiNote: midiNote,
                 isRest: state.noteIsRest,
+                isPrintObjectVisible: state.noteIsPrintObjectVisible,
                 isChord: state.noteIsChord,
                 isGrace: state.noteIsGrace,
                 graceSlash: state.noteGraceSlash,
                 graceStealTimePrevious: state.noteGraceStealTimePrevious,
                 graceStealTimeFollowing: state.noteGraceStealTimeFollowing,
                 graceMakeTimeTicks: state.noteGraceMakeTimeTicks,
-                tieStart: state.noteTieStart,
-                tieStop: state.noteTieStop,
+                ties: ties,
+                slurs: slurs,
+                tuplets: tuplets,
                 staff: state.noteStaff,
                 voice: state.noteVoice,
                 attackTicks: state.noteAttackTicks,

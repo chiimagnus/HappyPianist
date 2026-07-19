@@ -184,8 +184,6 @@ struct MusicXMLParserGraceDetailsTests {
             graceStealTimePrevious: stealPrevious,
             graceStealTimeFollowing: stealFollowing,
             graceMakeTimeTicks: makeTime,
-            tieStart: false,
-            tieStop: false,
             staff: 1,
             voice: 1
         )

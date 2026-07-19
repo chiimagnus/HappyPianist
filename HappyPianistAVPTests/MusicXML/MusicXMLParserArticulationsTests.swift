@@ -37,6 +37,36 @@ struct MusicXMLParserArticulationsTests {
         #expect(note.articulations.contains(.accent))
         #expect(note.articulations.contains(.detachedLegato))
     }
+
+    @Test
+    func parserPreservesSourceRestVisibility() throws {
+        let xml = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <score-partwise version="4.0">
+          <part-list>
+            <score-part id="P1"><part-name>Piano</part-name></score-part>
+          </part-list>
+          <part id="P1">
+            <measure number="1">
+              <attributes><divisions>1</divisions></attributes>
+              <note print-object="no">
+                <rest/>
+                <duration>1</duration>
+                <type>quarter</type>
+                <voice>2</voice>
+                <staff>2</staff>
+              </note>
+            </measure>
+          </part>
+        </score-partwise>
+        """
+
+        let rest = try #require(MusicXMLParser().parse(data: Data(xml.utf8)).notes.first)
+        #expect(rest.isRest)
+        #expect(rest.isPrintObjectVisible == false)
+        #expect(rest.staff == 2)
+        #expect(rest.voice == 2)
+    }
 }
 
 @Test
@@ -57,6 +87,7 @@ func parserPreservesPerformanceNotationSourceContractsAndUnsupportedKinds() thro
             <staff>1</staff>
             <notations>
               <slur type="start" number="2" placement="above"/>
+              <tuplet type="start" number="3" bracket="yes" placement="below"/>
               <ornaments>
                 <trill-mark placement="above"/>
                 <mordent long="yes" approach="above"/>
@@ -83,7 +114,6 @@ func parserPreservesPerformanceNotationSourceContractsAndUnsupportedKinds() thro
     let notations = note.performanceNotations
 
     #expect(notations.map(\.kind) == [
-        .slur,
         .trillMark,
         .mordent,
         .invertedMordent,
@@ -96,13 +126,21 @@ func parserPreservesPerformanceNotationSourceContractsAndUnsupportedKinds() thro
         .caesura,
     ])
     #expect(notations.enumerated().allSatisfy { offset, notation in
-        notation.sourceID?.sourceNoteID == note.sourceID && notation.sourceID?.sourceOrdinal == offset
+        notation.sourceID?.sourceNoteID == note.sourceID && notation.sourceID?.sourceOrdinal == offset + 2
     })
 
-    let slur = try #require(notations.first { $0.kind == .slur })
+    let slur = try #require(note.slurs.first)
     #expect(slur.typeToken == "start")
     #expect(slur.numberToken == "2")
     #expect(slur.placementToken == "above")
+    #expect(slur.sourceID?.sourceOrdinal == 0)
+
+    let tuplet = try #require(note.tuplets.first)
+    #expect(tuplet.typeToken == "start")
+    #expect(tuplet.numberToken == "3")
+    #expect(tuplet.bracketToken == "yes")
+    #expect(tuplet.placementToken == "below")
+    #expect(tuplet.sourceID?.sourceOrdinal == 1)
 
     let mordent = try #require(notations.first { $0.kind == .mordent })
     #expect(mordent.attributes["long"] == "yes")
@@ -120,7 +158,7 @@ func parserPreservesPerformanceNotationSourceContractsAndUnsupportedKinds() thro
     let breath = try #require(notations.first { $0.kind == .breathMark })
     #expect(breath.textToken == "comma")
 
-    #expect(score.performanceNotationCountsByKind["slur"] == 1)
+    #expect(score.performanceNotationCountsByKind["slur"] == nil)
     #expect(score.performanceNotationCountsByKind["other-ornament"] == 1)
     #expect(score.unsupportedPerformanceNotationCountsByKind == ["other-ornament": 1])
 }

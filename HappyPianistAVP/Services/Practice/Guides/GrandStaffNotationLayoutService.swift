@@ -19,6 +19,49 @@ struct GrandStaffNotationLayoutService {
         let octave: Int
     }
 
+    private enum SpannerKind: String, Hashable {
+        case tie
+        case slur
+        case tuplet
+    }
+
+    private struct SpannerKey: Hashable {
+        let kind: SpannerKind
+        let partID: String
+        let staffNumber: Int
+        let voice: Int
+        let numberToken: String
+        let pitchStep: String?
+        let pitchOctave: Int?
+        let pitchAlter: Double?
+    }
+
+    private struct SpannerEndpoint {
+        let id: String
+        let sourceOrdinal: Int
+        let occurrenceID: String
+        let tick: Int
+        let key: SpannerKey
+        let numberToken: String?
+        let placementToken: String?
+        let bracketToken: String?
+        let typeToken: String?
+    }
+
+    private struct SpannerSegment {
+        let kind: SpannerKind
+        let start: SpannerEndpoint?
+        let end: SpannerEndpoint?
+    }
+
+    private struct ClippedSpannerSegment {
+        let segment: SpannerSegment
+        let startXPosition: Double
+        let endXPosition: Double
+        let continuesFromPrevious: Bool
+        let continuesToNext: Bool
+    }
+
     private let visibleOverscan: Double = 0.18
 
     func makeLayout(
@@ -31,24 +74,37 @@ struct GrandStaffNotationLayoutService {
     ) -> GrandStaffNotationLayout {
         let sourceNotesByID = Dictionary(grouping: projection.sourceNotes, by: \.id)
             .compactMapValues { notes in notes.count == 1 ? notes[0] : nil }
-        let unresolvedNotes = projection.performedOccurrences.enumerated().compactMap { index, occurrence -> LayoutNote? in
-            guard overlay.activeTickRange?.contains(occurrence.writtenOnTick) ?? true else { return nil }
-            guard let source = sourceNotesByID[occurrence.sourceNoteID],
-                  source.isRest == false,
+        let occurrences = projection.performedOccurrences.enumerated().compactMap { index, occurrence -> LayoutOccurrence? in
+            guard let source = sourceNotesByID[occurrence.sourceNoteID] else { return nil }
+            return LayoutOccurrence(
+                performedID: occurrence.id,
+                occurrenceID: occurrence.id.description,
+                source: source,
+                staffNumber: resolvedStaffNumber(source.staff),
+                voice: source.voice,
+                hand: occurrence.handAssignment.hand,
+                guideID: index + 1,
+                tick: occurrence.writtenOnTick,
+                isHighlighted: occurrence.performanceEventIDs.contains { overlay.activeEventIDs.contains($0) }
+            )
+        }
+        let unresolvedNotes = occurrences.compactMap { occurrence -> LayoutNote? in
+            let source = occurrence.source
+            guard source.isRest == false,
                   let writtenPitch = source.writtenPitch
             else {
                 return nil
             }
             let writtenDurationTicks = max(1, source.writtenDurationTicks)
             return LayoutNote(
-                performedID: occurrence.id,
-                occurrenceID: occurrence.id.description,
-                staffNumber: resolvedStaffNumber(source.staff),
-                voice: source.voice,
-                hand: occurrence.handAssignment.hand,
-                guideID: index + 1,
-                tick: occurrence.writtenOnTick,
-                isHighlighted: occurrence.performanceEventIDs.contains { overlay.activeEventIDs.contains($0) },
+                performedID: occurrence.performedID,
+                occurrenceID: occurrence.occurrenceID,
+                staffNumber: occurrence.staffNumber,
+                voice: occurrence.voice,
+                hand: occurrence.hand,
+                guideID: occurrence.guideID,
+                tick: occurrence.tick,
+                isHighlighted: occurrence.isHighlighted,
                 fingeringText: source.fingeringText,
                 noteValue: noteValue(for: source.writtenRhythm),
                 durationTicks: writtenDurationTicks,
@@ -56,8 +112,6 @@ struct GrandStaffNotationLayoutService {
                 keySignatureFifths: source.keySignatureFifths,
                 displayedAccidental: nil,
                 isGrace: source.isGrace,
-                tieStart: source.tieStart,
-                tieStop: source.tieStop,
                 articulations: source.articulations,
                 arpeggiate: source.arpeggiate,
                 dotCount: source.writtenRhythm?.dotCount ?? 0
@@ -67,11 +121,25 @@ struct GrandStaffNotationLayoutService {
 
         return makeLayout(
             notes: layoutNotes,
+            occurrences: occurrences,
+            activeTickRange: overlay.activeTickRange,
             measureSpans: measureSpans,
             context: context,
             halfWindowTicks: halfWindowTicks,
             scrollTick: scrollTick
         )
+    }
+
+    private struct LayoutOccurrence {
+        let performedID: MusicXMLPerformedNoteID
+        let occurrenceID: String
+        let source: ScoreNotationProjection.SourceNote
+        let staffNumber: Int
+        let voice: Int
+        let hand: ScoreHand
+        let guideID: Int
+        let tick: Int
+        let isHighlighted: Bool
     }
 
     private struct LayoutNote {
@@ -90,8 +158,6 @@ struct GrandStaffNotationLayoutService {
         let keySignatureFifths: Int
         var displayedAccidental: GrandStaffAccidental?
         let isGrace: Bool
-        let tieStart: Bool
-        let tieStop: Bool
         let articulations: Set<MusicXMLArticulation>
         let arpeggiate: MusicXMLArpeggiate?
         let dotCount: Int
@@ -99,12 +165,14 @@ struct GrandStaffNotationLayoutService {
 
     private func makeLayout(
         notes: [LayoutNote],
+        occurrences: [LayoutOccurrence],
+        activeTickRange: Range<Int>?,
         measureSpans: [MusicXMLMeasureSpan],
         context: GrandStaffNotationContext?,
         halfWindowTicks: Int,
         scrollTick: Double?
     ) -> GrandStaffNotationLayout {
-        let currentTick = scrollTick ?? Double(notes.first?.tick ?? 0)
+        let currentTick = scrollTick ?? Double(occurrences.first?.tick ?? 0)
         let safeHalfWindowTicks = max(1, halfWindowTicks)
         let rawItems = notes.map { note in
             GrandStaffNotationItem(
@@ -126,16 +194,14 @@ struct GrandStaffNotationLayoutService {
                 beamID: nil,
                 durationTicks: note.durationTicks,
                 isGrace: note.isGrace,
-                tieStart: note.tieStart,
-                tieStop: note.tieStop,
-                tieEndXPosition: nil,
                 articulations: note.articulations,
                 arpeggiate: note.arpeggiate,
                 dotCount: note.dotCount
             )
         }
         .filter { item in
-            item.xPosition >= -visibleOverscan && item.xPosition <= 1 + visibleOverscan
+            (activeTickRange?.contains(item.tick) ?? true) &&
+                item.xPosition >= -visibleOverscan && item.xPosition <= 1 + visibleOverscan
         }
         .sorted { lhs, rhs in
             if lhs.tick != rhs.tick { return lhs.tick < rhs.tick }
@@ -146,6 +212,35 @@ struct GrandStaffNotationLayoutService {
         }
 
         let chordBuild = buildChordsAndBeams(items: rawItems, measureSpans: measureSpans)
+        let rests = occurrences.compactMap { occurrence -> GrandStaffNotationRest? in
+            let source = occurrence.source
+            guard source.isRest, source.isPrintObjectVisible,
+                  activeTickRange?.contains(occurrence.tick) ?? true
+            else { return nil }
+            let xPosition = xPosition(
+                for: occurrence.tick,
+                currentTick: currentTick,
+                safeHalfWindowTicks: safeHalfWindowTicks
+            )
+            guard xPosition >= -visibleOverscan, xPosition <= 1 + visibleOverscan else { return nil }
+            return GrandStaffNotationRest(
+                id: occurrence.occurrenceID,
+                staffNumber: occurrence.staffNumber,
+                voice: occurrence.voice,
+                guideID: occurrence.guideID,
+                tick: occurrence.tick,
+                xPosition: xPosition,
+                noteValue: noteValue(for: source.writtenRhythm),
+                dotCount: source.writtenRhythm?.dotCount ?? 0,
+                isHighlighted: occurrence.isHighlighted
+            )
+        }
+        let spanners = clippedSpannerSegments(
+            occurrences: occurrences,
+            activeTickRange: activeTickRange,
+            currentTick: currentTick,
+            safeHalfWindowTicks: safeHalfWindowTicks
+        )
 
         let barlines = makeBarlines(
             measureSpans: measureSpans,
@@ -156,11 +251,240 @@ struct GrandStaffNotationLayoutService {
         return GrandStaffNotationLayout(
             items: chordBuild.items,
             chords: chordBuild.chords,
-            rests: [],
+            rests: rests,
+            ties: spanners.compactMap(makeTie),
+            slurs: spanners.compactMap(makeSlur),
+            tuplets: spanners.compactMap(makeTuplet),
             barlines: barlines,
             beams: chordBuild.beams,
             context: context
         )
+    }
+
+    private func clippedSpannerSegments(
+        occurrences: [LayoutOccurrence],
+        activeTickRange: Range<Int>?,
+        currentTick: Double,
+        safeHalfWindowTicks: Int
+    ) -> [ClippedSpannerSegment] {
+        let tickWidth = Double(safeHalfWindowTicks * 2)
+        let viewportLower = Int(floor(currentTick + (-visibleOverscan - 0.5) * tickWidth))
+        let viewportUpper = Int(ceil(currentTick + (1 + visibleOverscan - 0.5) * tickWidth))
+        let lowerTick = max(viewportLower, activeTickRange?.lowerBound ?? viewportLower)
+        let upperTick = min(viewportUpper, activeTickRange?.upperBound ?? viewportUpper)
+        guard lowerTick < upperTick else { return [] }
+
+        return pairedSpannerSegments(occurrences: occurrences).compactMap { segment in
+            let startTick = segment.start?.tick
+            let endTick = segment.end?.tick
+            guard (startTick ?? Int.min) < upperTick, (endTick ?? Int.max) >= lowerTick else {
+                return nil
+            }
+            let continuesFromPrevious = startTick == nil || startTick! < lowerTick
+            let continuesToNext = endTick == nil || endTick! >= upperTick
+            let clippedStartTick = max(startTick ?? lowerTick, lowerTick)
+            let clippedEndTick = min(endTick ?? upperTick, upperTick)
+            guard clippedStartTick <= clippedEndTick else { return nil }
+            return ClippedSpannerSegment(
+                segment: segment,
+                startXPosition: xPosition(
+                    for: clippedStartTick,
+                    currentTick: currentTick,
+                    safeHalfWindowTicks: safeHalfWindowTicks
+                ),
+                endXPosition: xPosition(
+                    for: clippedEndTick,
+                    currentTick: currentTick,
+                    safeHalfWindowTicks: safeHalfWindowTicks
+                ),
+                continuesFromPrevious: continuesFromPrevious,
+                continuesToNext: continuesToNext
+            )
+        }
+    }
+
+    private func pairedSpannerSegments(occurrences: [LayoutOccurrence]) -> [SpannerSegment] {
+        let endpoints = occurrences.flatMap(spannerEndpoints).sorted { lhs, rhs in
+            if lhs.tick != rhs.tick { return lhs.tick < rhs.tick }
+            if lhs.occurrenceID != rhs.occurrenceID { return lhs.occurrenceID < rhs.occurrenceID }
+            if lhs.sourceOrdinal != rhs.sourceOrdinal { return lhs.sourceOrdinal < rhs.sourceOrdinal }
+            return lhs.id < rhs.id
+        }
+        var activeByKey: [SpannerKey: [SpannerEndpoint]] = [:]
+        var segments: [SpannerSegment] = []
+
+        for endpoint in endpoints {
+            switch endpoint.typeToken?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+            case "start":
+                activeByKey[endpoint.key, default: []].append(endpoint)
+            case "stop":
+                let start = activeByKey[endpoint.key]?.popLast()
+                if activeByKey[endpoint.key]?.isEmpty == true {
+                    activeByKey.removeValue(forKey: endpoint.key)
+                }
+                segments.append(SpannerSegment(kind: endpoint.key.kind, start: start, end: endpoint))
+            case "continue":
+                continue
+            default:
+                continue
+            }
+        }
+        for endpoints in activeByKey.values {
+            segments.append(contentsOf: endpoints.map {
+                SpannerSegment(kind: $0.key.kind, start: $0, end: nil)
+            })
+        }
+        return segments.sorted { lhs, rhs in
+            let lhsTick = lhs.start?.tick ?? lhs.end?.tick ?? Int.min
+            let rhsTick = rhs.start?.tick ?? rhs.end?.tick ?? Int.min
+            if lhsTick != rhsTick { return lhsTick < rhsTick }
+            return spannerID(lhs) < spannerID(rhs)
+        }
+    }
+
+    private func spannerEndpoints(for occurrence: LayoutOccurrence) -> [SpannerEndpoint] {
+        let source = occurrence.source
+        let tieEndpoints = source.ties.enumerated().compactMap { ordinal, tie -> SpannerEndpoint? in
+            guard tie.sourceElement == .notation else { return nil }
+            return spannerEndpoint(
+                kind: .tie,
+                sourceID: tie.sourceID,
+                fallbackOrdinal: ordinal,
+                typeToken: tie.typeToken,
+                numberToken: tie.numberToken,
+                placementToken: tie.placementToken,
+                bracketToken: nil,
+                occurrence: occurrence,
+                writtenPitch: source.writtenPitch
+            )
+        }
+        let slurEndpoints = source.slurs.enumerated().map { ordinal, slur in
+            spannerEndpoint(
+                kind: .slur,
+                sourceID: slur.sourceID,
+                fallbackOrdinal: ordinal,
+                typeToken: slur.typeToken,
+                numberToken: slur.numberToken,
+                placementToken: slur.placementToken,
+                bracketToken: nil,
+                occurrence: occurrence,
+                writtenPitch: nil
+            )
+        }
+        let tupletEndpoints = source.tuplets.enumerated().map { ordinal, tuplet in
+            spannerEndpoint(
+                kind: .tuplet,
+                sourceID: tuplet.sourceID,
+                fallbackOrdinal: ordinal,
+                typeToken: tuplet.typeToken,
+                numberToken: tuplet.numberToken,
+                placementToken: tuplet.placementToken,
+                bracketToken: tuplet.bracketToken,
+                occurrence: occurrence,
+                writtenPitch: nil
+            )
+        }
+        return tieEndpoints + slurEndpoints + tupletEndpoints
+    }
+
+    private func spannerEndpoint(
+        kind: SpannerKind,
+        sourceID: MusicXMLPerformanceNotationSourceID?,
+        fallbackOrdinal: Int,
+        typeToken: String?,
+        numberToken: String?,
+        placementToken: String?,
+        bracketToken: String?,
+        occurrence: LayoutOccurrence,
+        writtenPitch: MusicXMLWrittenPitch?
+    ) -> SpannerEndpoint {
+        let normalizedNumber = normalizedSpannerNumber(numberToken)
+        let localID = sourceID?.description ?? "\(kind.rawValue):\(fallbackOrdinal)"
+        return SpannerEndpoint(
+            id: "\(occurrence.occurrenceID):\(localID)",
+            sourceOrdinal: sourceID?.sourceOrdinal ?? fallbackOrdinal,
+            occurrenceID: occurrence.occurrenceID,
+            tick: occurrence.tick,
+            key: SpannerKey(
+                kind: kind,
+                partID: occurrence.performedID.sourceID.partID,
+                staffNumber: occurrence.staffNumber,
+                voice: occurrence.voice,
+                numberToken: normalizedNumber,
+                pitchStep: writtenPitch?.step,
+                pitchOctave: writtenPitch?.octave,
+                pitchAlter: writtenPitch?.alter
+            ),
+            numberToken: numberToken,
+            placementToken: placementToken,
+            bracketToken: bracketToken,
+            typeToken: typeToken
+        )
+    }
+
+    private func makeTie(_ clipped: ClippedSpannerSegment) -> GrandStaffNotationTie? {
+        guard clipped.segment.kind == .tie, let endpoint = clipped.segment.start ?? clipped.segment.end else { return nil }
+        return GrandStaffNotationTie(
+            id: spannerID(clipped.segment),
+            staffNumber: endpoint.key.staffNumber,
+            voice: endpoint.key.voice,
+            numberToken: clipped.segment.start?.numberToken ?? clipped.segment.end?.numberToken,
+            placementToken: clipped.segment.start?.placementToken ?? clipped.segment.end?.placementToken,
+            startOccurrenceID: clipped.continuesFromPrevious ? nil : clipped.segment.start?.occurrenceID,
+            endOccurrenceID: clipped.continuesToNext ? nil : clipped.segment.end?.occurrenceID,
+            startXPosition: clipped.startXPosition,
+            endXPosition: clipped.endXPosition,
+            continuesFromPrevious: clipped.continuesFromPrevious,
+            continuesToNext: clipped.continuesToNext
+        )
+    }
+
+    private func makeSlur(_ clipped: ClippedSpannerSegment) -> GrandStaffNotationSlur? {
+        guard clipped.segment.kind == .slur, let endpoint = clipped.segment.start ?? clipped.segment.end else { return nil }
+        return GrandStaffNotationSlur(
+            id: spannerID(clipped.segment),
+            staffNumber: endpoint.key.staffNumber,
+            voice: endpoint.key.voice,
+            numberToken: clipped.segment.start?.numberToken ?? clipped.segment.end?.numberToken,
+            placementToken: clipped.segment.start?.placementToken ?? clipped.segment.end?.placementToken,
+            startOccurrenceID: clipped.continuesFromPrevious ? nil : clipped.segment.start?.occurrenceID,
+            endOccurrenceID: clipped.continuesToNext ? nil : clipped.segment.end?.occurrenceID,
+            startXPosition: clipped.startXPosition,
+            endXPosition: clipped.endXPosition,
+            continuesFromPrevious: clipped.continuesFromPrevious,
+            continuesToNext: clipped.continuesToNext
+        )
+    }
+
+    private func makeTuplet(_ clipped: ClippedSpannerSegment) -> GrandStaffNotationTuplet? {
+        guard clipped.segment.kind == .tuplet, let endpoint = clipped.segment.start ?? clipped.segment.end else { return nil }
+        return GrandStaffNotationTuplet(
+            id: spannerID(clipped.segment),
+            staffNumber: endpoint.key.staffNumber,
+            voice: endpoint.key.voice,
+            numberToken: clipped.segment.start?.numberToken ?? clipped.segment.end?.numberToken,
+            bracketToken: clipped.segment.start?.bracketToken ?? clipped.segment.end?.bracketToken,
+            placementToken: clipped.segment.start?.placementToken ?? clipped.segment.end?.placementToken,
+            startOccurrenceID: clipped.continuesFromPrevious ? nil : clipped.segment.start?.occurrenceID,
+            endOccurrenceID: clipped.continuesToNext ? nil : clipped.segment.end?.occurrenceID,
+            startXPosition: clipped.startXPosition,
+            endXPosition: clipped.endXPosition,
+            continuesFromPrevious: clipped.continuesFromPrevious,
+            continuesToNext: clipped.continuesToNext
+        )
+    }
+
+    private func spannerID(_ segment: SpannerSegment) -> String {
+        "\(segment.kind.rawValue):\(segment.start?.id ?? "boundary"):\(segment.end?.id ?? "boundary")"
+    }
+
+    private func normalizedSpannerNumber(_ numberToken: String?) -> String {
+        let trimmed = numberToken?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return trimmed.isEmpty ? "1" : trimmed
+    }
+
+    private func xPosition(for tick: Int, currentTick: Double, safeHalfWindowTicks: Int) -> Double {
+        0.5 + (Double(tick) - currentTick) / Double(safeHalfWindowTicks * 2)
     }
 
     func staffStep(for writtenPitch: MusicXMLWrittenPitch, staffNumber: Int) -> Int {
@@ -353,9 +677,6 @@ struct GrandStaffNotationLayoutService {
                     beamID: nil,
                     durationTicks: item.durationTicks,
                     isGrace: item.isGrace,
-                    tieStart: item.tieStart,
-                    tieStop: item.tieStop,
-                    tieEndXPosition: item.tieEndXPosition,
                     articulations: item.articulations,
                     arpeggiate: item.arpeggiate,
                     dotCount: item.dotCount
@@ -395,9 +716,6 @@ struct GrandStaffNotationLayoutService {
                             beamID: beamID,
                             durationTicks: existing.durationTicks,
                             isGrace: existing.isGrace,
-                            tieStart: existing.tieStart,
-                            tieStop: existing.tieStop,
-                            tieEndXPosition: existing.tieEndXPosition,
                             articulations: existing.articulations,
                             arpeggiate: existing.arpeggiate,
                             dotCount: existing.dotCount
@@ -437,9 +755,6 @@ struct GrandStaffNotationLayoutService {
                         beamID: existing.beamID,
                         durationTicks: existing.durationTicks,
                         isGrace: existing.isGrace,
-                        tieStart: existing.tieStart,
-                        tieStop: existing.tieStop,
-                        tieEndXPosition: existing.tieEndXPosition,
                         articulations: existing.articulations,
                         arpeggiate: existing.arpeggiate,
                         dotCount: existing.dotCount

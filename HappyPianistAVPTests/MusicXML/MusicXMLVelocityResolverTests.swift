@@ -28,8 +28,6 @@ struct MusicXMLVelocityResolverTests {
             midiNote: 60,
             isRest: false,
             isChord: false,
-            tieStart: false,
-            tieStop: false,
             staff: 1,
             voice: 1
         )
@@ -43,8 +41,6 @@ struct MusicXMLVelocityResolverTests {
             midiNote: 62,
             isRest: false,
             isChord: false,
-            tieStart: false,
-            tieStop: false,
             staff: 1,
             voice: 1,
             dynamicsOverrideVelocity: 100
@@ -59,8 +55,6 @@ struct MusicXMLVelocityResolverTests {
             midiNote: 64,
             isRest: false,
             isChord: false,
-            tieStart: false,
-            tieStop: false,
             staff: 2,
             voice: 1
         )
@@ -113,8 +107,6 @@ struct MusicXMLVelocityResolverTests {
             midiNote: 60,
             isRest: false,
             isChord: false,
-            tieStart: false,
-            tieStop: false,
             staff: 1,
             voice: 1
         )
@@ -134,8 +126,6 @@ struct MusicXMLVelocityResolverTests {
             midiNote: 60,
             isRest: false,
             isChord: false,
-            tieStart: false,
-            tieStop: false,
             staff: 1,
             voice: 1,
             articulations: [.accent]
@@ -150,8 +140,6 @@ struct MusicXMLVelocityResolverTests {
             midiNote: 62,
             isRest: false,
             isChord: false,
-            tieStart: false,
-            tieStop: false,
             staff: 1,
             voice: 1,
             articulations: [.marcato]
@@ -248,8 +236,6 @@ struct MusicXMLVelocityResolverTests {
             midiNote: 60,
             isRest: false,
             isChord: false,
-            tieStart: false,
-            tieStop: false,
             staff: staff,
             voice: voice
         )

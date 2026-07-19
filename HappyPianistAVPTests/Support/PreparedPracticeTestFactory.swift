@@ -255,8 +255,6 @@ func makeTestMusicXMLScore(notes: [TestScorePerformanceNote]) -> MusicXMLScore {
             midiNote: note.midiNote,
             isRest: false,
             isChord: false,
-            tieStart: false,
-            tieStop: false,
             staff: note.staff,
             voice: note.voice,
             fingeringText: note.fingeringText

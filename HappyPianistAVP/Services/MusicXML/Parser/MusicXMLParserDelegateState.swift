@@ -9,6 +9,7 @@ struct MusicXMLSoundEventStartIndices {
 struct MusicXMLParserDelegateState {
 
     struct PendingPerformanceNotation {
+        let sourceOrdinal: Int
         let kind: MusicXMLPerformanceNotationKind
         let rawElementToken: String
         let typeToken: String?
@@ -16,6 +17,29 @@ struct MusicXMLParserDelegateState {
         let placementToken: String?
         var textToken: String?
         let attributes: [String: String]
+    }
+
+    struct PendingTie {
+        let sourceOrdinal: Int
+        let sourceElement: MusicXMLTieSourceElement
+        let typeToken: String?
+        let numberToken: String?
+        let placementToken: String?
+    }
+
+    struct PendingSlur {
+        let sourceOrdinal: Int
+        let typeToken: String?
+        let numberToken: String?
+        let placementToken: String?
+    }
+
+    struct PendingTuplet {
+        let sourceOrdinal: Int
+        let typeToken: String?
+        let numberToken: String?
+        let bracketToken: String?
+        let placementToken: String?
     }
 
     let normalizedTicksPerQuarter = 480
@@ -108,6 +132,7 @@ struct MusicXMLParserDelegateState {
 
     var isInNote = false
     var noteIsRest = false
+    var noteIsPrintObjectVisible = true
     var noteIsChord = false
     var noteStep: String?
     var noteAlter: Double?
@@ -116,8 +141,10 @@ struct MusicXMLParserDelegateState {
     var noteDuration: Int?
     var noteStaff: Int?
     var noteVoice: Int?
-    var noteTieStart = false
-    var noteTieStop = false
+    var noteTies: [PendingTie] = []
+    var noteSlurs: [PendingSlur] = []
+    var noteTuplets: [PendingTuplet] = []
+    var nextNoteNotationSourceOrdinal = 0
     var noteAttackTicks: Int?
     var noteReleaseTicks: Int?
     var noteIsGrace = false

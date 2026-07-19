@@ -110,8 +110,6 @@ struct MusicXMLParserFermataArpeggiateTests {
                 midiNote: 64,
                 isRest: false,
                 isChord: true,
-                tieStart: false,
-                tieStop: false,
                 staff: 1,
                 voice: 1
             ),
@@ -140,8 +138,6 @@ struct MusicXMLParserFermataArpeggiateTests {
             midiNote: midi,
             isRest: false,
             isChord: midi != 60,
-            tieStart: false,
-            tieStop: false,
             staff: staff,
             voice: 1,
             arpeggiate: MusicXMLArpeggiate(numberToken: number, directionToken: direction)

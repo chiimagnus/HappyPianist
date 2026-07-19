@@ -76,7 +76,7 @@ func projectionLayoutUsesWrittenDurationAndAccidentalInsteadOfPerformanceOrMidi(
     #expect(sharp.displayedAccidental?.kind == .sharp)
     #expect(sharp.isHighlighted == false)
     #expect(flat.staffStep == -1)
-    #expect(sharp.staffStep == -2)
+    #expect(sharp.staffStep == 10)
 }
 
 @Test
@@ -121,14 +121,64 @@ func projectionLayoutKeepsEveryWrittenTieContributor() throws {
     #expect(projection.performedOccurrences.count == 2)
     #expect(projection.performedOccurrences.allSatisfy { $0.performanceEventIDs == [event.id] })
 
-    let items = GrandStaffNotationLayoutService().makeLayout(
+    let layout = GrandStaffNotationLayoutService().makeLayout(
         projection: projection,
         overlay: .init(activeEventIDs: [event.id], activeTickRange: nil)
-    ).items
+    )
+    let items = layout.items
     #expect(items.map(\.tick) == [0, 480])
-    #expect(items.map(\.tieStart) == [true, false])
-    #expect(items.map(\.tieStop) == [false, true])
     #expect(items.allSatisfy { $0.isHighlighted })
+    let tie = try #require(layout.ties.first)
+    #expect(layout.ties.count == 1)
+    #expect(tie.startOccurrenceID == items[0].occurrenceID)
+    #expect(tie.endOccurrenceID == items[1].occurrenceID)
+    #expect(tie.continuesFromPrevious == false)
+    #expect(tie.continuesToNext == false)
+}
+
+@Test
+func layoutKeepsTieContinuationAcrossActiveRangeAndViewportBoundary() throws {
+    let score = notationTieScore()
+    let layout = GrandStaffNotationLayoutService().makeLayout(
+        projection: ScoreNotationProjection(
+            plan: makeTestScorePerformancePlan(from: score),
+            sourceScore: score
+        ),
+        overlay: .init(activeEventIDs: [], activeTickRange: 240 ..< 960),
+        halfWindowTicks: 120,
+        scrollTick: 480
+    )
+
+    let tie = try #require(layout.ties.first)
+    #expect(tie.continuesFromPrevious)
+    #expect(tie.continuesToNext == false)
+    #expect(tie.startOccurrenceID == nil)
+    #expect(tie.endOccurrenceID == layout.items.first?.occurrenceID)
+}
+
+@Test
+func projectionAndLayoutKeepVisibleRestsSameNumberSlursAndNestedTuplets() throws {
+    let score = notationRestAndSpannerScore()
+    let projection = ScoreNotationProjection(
+        plan: makeTestScorePerformancePlan(from: score),
+        sourceScore: score
+    )
+    let layout = GrandStaffNotationLayoutService().makeLayout(projection: projection)
+
+    #expect(projection.sourceNotes.filter(\.isRest).map(\.isPrintObjectVisible) == [true, false])
+    let rest = try #require(layout.rests.first)
+    #expect(layout.rests.count == 1)
+    #expect(rest.staffNumber == 2)
+    #expect(rest.voice == 2)
+    #expect(rest.noteValue == .quarter)
+    #expect(rest.dotCount == 1)
+
+    #expect(layout.slurs.map(\.numberToken) == ["2", "2"])
+    #expect(layout.slurs.map(\.placementToken) == ["above", "below"])
+    #expect(layout.slurs.allSatisfy { !$0.continuesFromPrevious && !$0.continuesToNext })
+    #expect(layout.tuplets.map(\.numberToken) == ["1", "2"])
+    #expect(layout.tuplets.map(\.bracketToken) == ["yes", "no"])
+    #expect(layout.tuplets.allSatisfy { $0.startOccurrenceID != nil && $0.endOccurrenceID != nil })
 }
 
 @Test
@@ -189,7 +239,7 @@ private func notationProjectionScore() -> MusicXMLScore {
                 partID: "P1",
                 sourceMeasureIndex: 0,
                 sourceMeasureNumberToken: "1",
-                staff: 2,
+                staff: 1,
                 voice: 1,
                 sourceOrdinal: 0
             ),
@@ -202,8 +252,6 @@ private func notationProjectionScore() -> MusicXMLScore {
             midiNote: 61,
             isRest: false,
             isChord: false,
-            tieStart: false,
-            tieStop: false,
             staff: 1,
             voice: 1,
             articulations: [.staccato]
@@ -213,7 +261,7 @@ private func notationProjectionScore() -> MusicXMLScore {
                 partID: "P1",
                 sourceMeasureIndex: 0,
                 sourceMeasureNumberToken: "1",
-                staff: 1,
+                staff: 2,
                 voice: 1,
                 sourceOrdinal: 1
             ),
@@ -226,8 +274,6 @@ private func notationProjectionScore() -> MusicXMLScore {
             midiNote: 61,
             isRest: false,
             isChord: false,
-            tieStart: false,
-            tieStop: false,
             staff: 2,
             voice: 1
         ),
@@ -262,8 +308,6 @@ private func accidentalStateScore() -> MusicXMLScore {
             midiNote: fixture.midi,
             isRest: false,
             isChord: false,
-            tieStart: false,
-            tieStop: false,
             staff: 1,
             voice: 1
         )
@@ -320,8 +364,13 @@ private func notationTieScore() -> MusicXMLScore {
             midiNote: 60,
             isRest: false,
             isChord: false,
-            tieStart: true,
-            tieStop: false,
+            ties: [MusicXMLTie(
+                sourceID: nil,
+                sourceElement: .notation,
+                typeToken: "start",
+                numberToken: "1",
+                placementToken: "above"
+            )],
             staff: 1,
             voice: 1
         ),
@@ -343,10 +392,101 @@ private func notationTieScore() -> MusicXMLScore {
             midiNote: 60,
             isRest: false,
             isChord: false,
-            tieStart: false,
-            tieStop: true,
+            ties: [MusicXMLTie(
+                sourceID: nil,
+                sourceElement: .notation,
+                typeToken: "stop",
+                numberToken: "1",
+                placementToken: "above"
+            )],
             staff: 1,
             voice: 1
         ),
     ])
+}
+
+private func notationRestAndSpannerScore() -> MusicXMLScore {
+    let sourceID: (Int, Int, Int) -> MusicXMLSourceNoteID = { ordinal, staff, voice in
+        MusicXMLSourceNoteID(
+            partID: "P1",
+            sourceMeasureIndex: 0,
+            sourceMeasureNumberToken: "1",
+            staff: staff,
+            voice: voice,
+            sourceOrdinal: ordinal
+        )
+    }
+    let rests = [
+        MusicXMLNoteEvent(
+            sourceID: sourceID(0, 2, 2),
+            partID: "P1",
+            measureNumber: 1,
+            tick: 0,
+            durationTicks: 480,
+            writtenRhythm: .init(typeToken: "quarter", dotCount: 1),
+            midiNote: nil,
+            isRest: true,
+            isPrintObjectVisible: true,
+            isChord: false,
+            staff: 2,
+            voice: 2
+        ),
+        MusicXMLNoteEvent(
+            sourceID: sourceID(1, 2, 2),
+            partID: "P1",
+            measureNumber: 1,
+            tick: 480,
+            durationTicks: 480,
+            writtenRhythm: .init(typeToken: "quarter"),
+            midiNote: nil,
+            isRest: true,
+            isPrintObjectVisible: false,
+            isChord: false,
+            staff: 2,
+            voice: 2
+        ),
+    ]
+    let pitches = ["C", "D", "E", "F"]
+    let notes = pitches.enumerated().map { index, step in
+        let slurs: [MusicXMLSlur] = switch index {
+        case 0:
+            [.init(sourceID: nil, typeToken: "start", numberToken: "2", placementToken: "above")]
+        case 1:
+            [.init(sourceID: nil, typeToken: "stop", numberToken: "2", placementToken: "above")]
+        case 2:
+            [.init(sourceID: nil, typeToken: "start", numberToken: "2", placementToken: "below")]
+        default:
+            [.init(sourceID: nil, typeToken: "stop", numberToken: "2", placementToken: "below")]
+        }
+        let tuplets: [MusicXMLTuplet] = switch index {
+        case 0:
+            [.init(sourceID: nil, typeToken: "start", numberToken: "1", bracketToken: "yes", placementToken: "above")]
+        case 1:
+            [.init(sourceID: nil, typeToken: "start", numberToken: "2", bracketToken: "no", placementToken: "below")]
+        case 2:
+            [.init(sourceID: nil, typeToken: "stop", numberToken: "2", bracketToken: "no", placementToken: "below")]
+        default:
+            [.init(sourceID: nil, typeToken: "stop", numberToken: "1", bracketToken: "yes", placementToken: "above")]
+        }
+        return MusicXMLNoteEvent(
+            sourceID: sourceID(index + 2, 1, 1),
+            partID: "P1",
+            measureNumber: 1,
+            tick: index * 120,
+            durationTicks: 120,
+            writtenPitch: .init(step: step, octave: 4),
+            writtenRhythm: .init(
+                typeToken: "eighth",
+                timeModification: .init(actualNotes: 3, normalNotes: 2)
+            ),
+            midiNote: 60 + index * 2,
+            isRest: false,
+            isChord: false,
+            slurs: slurs,
+            tuplets: tuplets,
+            staff: 1,
+            voice: 1
+        )
+    }
+    return MusicXMLScore(notes: rests + notes)
 }

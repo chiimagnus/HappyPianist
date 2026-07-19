@@ -91,8 +91,6 @@ private func note(sourceOrdinal: Int, midiNote: Int, staff: Int = 1) -> MusicXML
         isRest: false,
         isChord: false,
         isGrace: false,
-        tieStart: false,
-        tieStop: false,
         staff: staff,
         voice: 1,
         attackTicks: 0,

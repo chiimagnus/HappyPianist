@@ -557,8 +557,7 @@ private extension ScoreTimingScheduleBuilder {
             var activeByNumber: [String: ActiveSlur] = [:]
 
             for (position, noteIndex) in ordered.enumerated() {
-                let slurs = notes[noteIndex].performanceNotations.filter { $0.kind == .slur }
-                for slur in slurs {
+                for slur in notes[noteIndex].slurs {
                     let numberToken = normalizedNumberToken(slur.numberToken)
                     let key = SlurKey(lane: lane, numberToken: numberToken)
                     switch slur.typeToken?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
@@ -634,7 +633,7 @@ private extension ScoreTimingScheduleBuilder {
             let nextOnTick = entries[nextIndex].performedOnTick
             guard nextOnTick > currentOnTick else { continue }
 
-            if notes[noteIndex].tieStart || notes[noteIndex].tieStop {
+            if notes[noteIndex].startsTie || notes[noteIndex].stopsTie {
                 entries[noteIndex].appendProvenance(provenance)
                 entries[noteIndex].appendProvenance(
                     .approximation(reason: "slur-release-deferred-to-tie")

@@ -447,9 +447,9 @@ private extension ScorePerformancePlanBuilder {
     }
 
     func tieCategory(for note: MusicXMLNoteEvent) -> TieCategory {
-        if note.tieStart, note.tieStop { return .middle }
-        if note.tieStart { return .start }
-        if note.tieStop { return .end }
+        if note.startsTie, note.stopsTie { return .middle }
+        if note.startsTie { return .start }
+        if note.stopsTie { return .end }
         return .normal
     }
 

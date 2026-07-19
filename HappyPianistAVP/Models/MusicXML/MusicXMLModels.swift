@@ -327,6 +327,34 @@ struct MusicXMLEndingDirective: Equatable {
     let type: MusicXMLEndingType
 }
 
+enum MusicXMLTieSourceElement: String, Equatable, Sendable {
+    case sound = "tie"
+    case notation = "tied"
+}
+
+struct MusicXMLTie: Equatable, Sendable {
+    let sourceID: MusicXMLPerformanceNotationSourceID?
+    let sourceElement: MusicXMLTieSourceElement
+    let typeToken: String?
+    let numberToken: String?
+    let placementToken: String?
+}
+
+struct MusicXMLSlur: Equatable, Sendable {
+    let sourceID: MusicXMLPerformanceNotationSourceID?
+    let typeToken: String?
+    let numberToken: String?
+    let placementToken: String?
+}
+
+struct MusicXMLTuplet: Equatable, Sendable {
+    let sourceID: MusicXMLPerformanceNotationSourceID?
+    let typeToken: String?
+    let numberToken: String?
+    let bracketToken: String?
+    let placementToken: String?
+}
+
 struct MusicXMLNoteEvent: Equatable, Identifiable {
     var id: MusicXMLPerformedNoteID? { performedID }
     var performedID: MusicXMLPerformedNoteID? {
@@ -343,14 +371,16 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
     let writtenRhythm: MusicXMLWrittenRhythm?
     let midiNote: Int?
     let isRest: Bool
+    let isPrintObjectVisible: Bool
     let isChord: Bool
     let isGrace: Bool
     let graceSlash: Bool
     let graceStealTimePrevious: Double?
     let graceStealTimeFollowing: Double?
     let graceMakeTimeTicks: Int?
-    let tieStart: Bool
-    let tieStop: Bool
+    let ties: [MusicXMLTie]
+    let slurs: [MusicXMLSlur]
+    let tuplets: [MusicXMLTuplet]
     let staff: Int?
     let voice: Int?
     let attackTicks: Int?
@@ -360,6 +390,13 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
     let arpeggiate: MusicXMLArpeggiate?
     let performanceNotations: [MusicXMLPerformanceNotation]
     let fingeringText: String?
+
+    var startsTie: Bool {
+        ties.contains { $0.typeToken?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "start" }
+    }
+    var stopsTie: Bool {
+        ties.contains { $0.typeToken?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "stop" }
+    }
 
     init(
         sourceID: MusicXMLSourceNoteID? = nil,
@@ -372,14 +409,16 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         writtenRhythm: MusicXMLWrittenRhythm? = nil,
         midiNote: Int?,
         isRest: Bool,
+        isPrintObjectVisible: Bool = true,
         isChord: Bool,
         isGrace: Bool = false,
         graceSlash: Bool = false,
         graceStealTimePrevious: Double? = nil,
         graceStealTimeFollowing: Double? = nil,
         graceMakeTimeTicks: Int? = nil,
-        tieStart: Bool,
-        tieStop: Bool,
+        ties: [MusicXMLTie] = [],
+        slurs: [MusicXMLSlur] = [],
+        tuplets: [MusicXMLTuplet] = [],
         staff: Int?,
         voice: Int?,
         attackTicks: Int? = nil,
@@ -400,14 +439,16 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         self.writtenRhythm = writtenRhythm
         self.midiNote = midiNote
         self.isRest = isRest
+        self.isPrintObjectVisible = isPrintObjectVisible
         self.isChord = isChord
         self.isGrace = isGrace
         self.graceSlash = graceSlash
         self.graceStealTimePrevious = graceStealTimePrevious
         self.graceStealTimeFollowing = graceStealTimeFollowing
         self.graceMakeTimeTicks = graceMakeTimeTicks.map { max(0, $0) }
-        self.tieStart = tieStart
-        self.tieStop = tieStop
+        self.ties = ties
+        self.slurs = slurs
+        self.tuplets = tuplets
         self.staff = staff
         self.voice = voice
         self.attackTicks = attackTicks

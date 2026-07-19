@@ -34,6 +34,9 @@ struct GrandStaffNotationLayout: Equatable {
     let items: [GrandStaffNotationItem]
     let chords: [GrandStaffNotationChord]
     let rests: [GrandStaffNotationRest]
+    let ties: [GrandStaffNotationTie]
+    let slurs: [GrandStaffNotationSlur]
+    let tuplets: [GrandStaffNotationTuplet]
     let barlines: [GrandStaffNotationBarline]
     let beams: [GrandStaffNotationBeam]
     let context: GrandStaffNotationContext?
@@ -51,11 +54,56 @@ struct GrandStaffNotationChord: Equatable, Identifiable {
 struct GrandStaffNotationRest: Equatable, Identifiable {
     let id: String
     let staffNumber: Int
+    let voice: Int
     let guideID: Int
     let tick: Int
     let xPosition: Double
     let noteValue: GrandStaffNoteValue
+    let dotCount: Int
     let isHighlighted: Bool
+}
+
+struct GrandStaffNotationTie: Equatable, Identifiable {
+    let id: String
+    let staffNumber: Int
+    let voice: Int
+    let numberToken: String?
+    let placementToken: String?
+    let startOccurrenceID: String?
+    let endOccurrenceID: String?
+    let startXPosition: Double
+    let endXPosition: Double
+    let continuesFromPrevious: Bool
+    let continuesToNext: Bool
+}
+
+struct GrandStaffNotationSlur: Equatable, Identifiable {
+    let id: String
+    let staffNumber: Int
+    let voice: Int
+    let numberToken: String?
+    let placementToken: String?
+    let startOccurrenceID: String?
+    let endOccurrenceID: String?
+    let startXPosition: Double
+    let endXPosition: Double
+    let continuesFromPrevious: Bool
+    let continuesToNext: Bool
+}
+
+struct GrandStaffNotationTuplet: Equatable, Identifiable {
+    let id: String
+    let staffNumber: Int
+    let voice: Int
+    let numberToken: String?
+    let bracketToken: String?
+    let placementToken: String?
+    let startOccurrenceID: String?
+    let endOccurrenceID: String?
+    let startXPosition: Double
+    let endXPosition: Double
+    let continuesFromPrevious: Bool
+    let continuesToNext: Bool
 }
 
 struct GrandStaffNotationBarline: Equatable, Identifiable {
@@ -127,9 +175,6 @@ struct GrandStaffNotationItem: Equatable, Identifiable {
     let beamID: String?
     let durationTicks: Int
     let isGrace: Bool
-    let tieStart: Bool
-    let tieStop: Bool
-    let tieEndXPosition: Double?
     let articulations: Set<MusicXMLArticulation>
     let arpeggiate: MusicXMLArpeggiate?
     let dotCount: Int

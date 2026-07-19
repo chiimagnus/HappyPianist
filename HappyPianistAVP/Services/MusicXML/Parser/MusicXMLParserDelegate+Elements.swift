@@ -188,6 +188,11 @@ extension MusicXMLParserDelegate {
         case "note":
             state.isInNote = true
             state.noteIsRest = false
+            let printObjectToken = attributeDict["print-object"]?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+                .lowercased()
+            state.noteIsPrintObjectVisible = printObjectToken != "no" &&
+                printObjectToken != "false" && printObjectToken != "0"
             state.noteIsChord = false
             state.noteIsGrace = false
             state.noteGraceSlash = false
@@ -208,8 +213,10 @@ extension MusicXMLParserDelegate {
             state.noteTimeModificationNormalDotCount = 0
             state.noteStaff = nil
             state.noteVoice = nil
-            state.noteTieStart = false
-            state.noteTieStop = false
+            state.noteTies = []
+            state.noteSlurs = []
+            state.noteTuplets = []
+            state.nextNoteNotationSourceOrdinal = 0
             state.noteAttackTicks = parseNotePerformanceOffsetTicks(attributeDict["attack"])
             state.noteReleaseTicks = parseNotePerformanceOffsetTicks(attributeDict["release"])
             state.noteDynamicsOverrideVelocity = nil
@@ -232,7 +239,11 @@ extension MusicXMLParserDelegate {
             if state.isInNote {
                 state.isInNoteOrnaments = true
             }
-        case "slur", "trill-mark", "mordent", "inverted-mordent", "turn", "inverted-turn",
+        case "slur":
+            recordSlur(attributes: attributeDict)
+        case "tuplet":
+            recordTuplet(attributes: attributeDict)
+        case "trill-mark", "mordent", "inverted-mordent", "turn", "inverted-turn",
              "tremolo", "glissando", "breath-mark", "caesura", "other-notation":
             recordPerformanceNotation(elementName: elementName, attributes: attributeDict)
         case "technical":
@@ -290,15 +301,10 @@ extension MusicXMLParserDelegate {
             if state.isInNote {
                 state.noteIsChord = true
             }
-        case "tie", "tied":
-            if state.isInNote {
-                let type = attributeDict["type"]?.lowercased()
-                if type == "start" {
-                    state.noteTieStart = true
-                } else if type == "stop" {
-                    state.noteTieStop = true
-                }
-            }
+        case "tie":
+            recordTie(sourceElement: .sound, attributes: attributeDict)
+        case "tied":
+            recordTie(sourceElement: .notation, attributes: attributeDict)
         case "articulations":
             if state.isInNote {
                 state.isInNoteArticulations = true

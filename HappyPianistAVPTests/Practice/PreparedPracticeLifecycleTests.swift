@@ -315,8 +315,6 @@ func sessionProjectsCurrentGuideActivityOntoAuthoritativeNotation() throws {
             midiNote: event.midiNote,
             isRest: false,
             isChord: false,
-            tieStart: false,
-            tieStop: false,
             staff: event.staff,
             voice: event.voice
         ),

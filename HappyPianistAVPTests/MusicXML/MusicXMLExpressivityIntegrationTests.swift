@@ -413,8 +413,6 @@ func dynamicCurvePreservesBaseAndAppliesAccentAfterInterpolation() {
         midiNote: 60,
         isRest: false,
         isChord: false,
-        tieStart: false,
-        tieStop: false,
         staff: 1,
         voice: 1,
         articulations: [.accent]
@@ -467,8 +465,6 @@ func velocityResolutionClampsAfterKeepingUnclampedArticulationResult() {
         midiNote: 60,
         isRest: false,
         isChord: false,
-        tieStart: false,
-        tieStop: false,
         staff: 1,
         voice: 1,
         articulations: [.marcato]
@@ -552,8 +548,6 @@ func expressivePianoFixtureLocksSourceNotationTimingAndProvenance() throws {
     expectSnapshot(
         expressivePianoSemanticsSnapshot(score: score, schedule: schedule),
         equals: """
-notation|note=1|source=P1:1:1:1:1:1:notation:0|kind=slur|type=start|number=1|placement=null|text=null
-notation|note=4|source=P1:1:1:1:1:4:notation:0|kind=slur|type=stop|number=1|placement=null|text=null
 notation|note=4|source=P1:1:1:1:1:4:notation:1|kind=breath-mark|type=null|number=null|placement=null|text=null
 notation|note=6|source=P1:2:2:1:1:0:notation:0|kind=trill-mark|type=null|number=null|placement=null|text=null
 notation|note=6|source=P1:2:2:1:1:0:notation:1|kind=accidental-mark|type=null|number=null|placement=above|text=natural

@@ -26,9 +26,6 @@ func viewportLayoutKeepsExtremeNotesWithinCanvasBounds() {
             beamID: nil,
             durationTicks: 480,
             isGrace: false,
-            tieStart: false,
-            tieStop: false,
-            tieEndXPosition: nil,
             articulations: [],
             arpeggiate: nil,
             dotCount: 0
