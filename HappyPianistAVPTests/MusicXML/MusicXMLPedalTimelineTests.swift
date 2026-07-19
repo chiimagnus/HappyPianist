@@ -3,7 +3,7 @@ import Foundation
 import Testing
 
 @Test
-func pedalTimelineComputesIsDownAndNextChange() {
+func pedalTimelinePreservesExactControllerValues() {
     let timeline = MusicXMLPedalTimeline(
         events: [
             MusicXMLPedalEvent(
@@ -25,24 +25,14 @@ func pedalTimelineComputesIsDownAndNextChange() {
         ]
     )
 
-    #expect(timeline.isDown(atTick: -1) == false)
-    #expect(timeline.isDown(atTick: 0) == true)
-    #expect(timeline.isDown(atTick: 479) == true)
-    #expect(timeline.isDown(atTick: 480) == false)
-
-    let change0 = timeline.nextChange(afterTick: -1)
-    #expect(change0?.tick == 0)
-    #expect(change0?.isDown == true)
-
-    let change1 = timeline.nextChange(afterTick: 0)
-    #expect(change1?.tick == 480)
-    #expect(change1?.isDown == false)
-
-    #expect(timeline.nextChange(afterTick: 480) == nil)
+    let changes = timeline.controllerChanges()
+    #expect(changes.map(\.tick) == [0, 480])
+    #expect(changes.map(\.controllerNumber) == [64, 64])
+    #expect(changes.map(\.value) == [127, 0])
 }
 
 @Test
-func pedalTimelineIgnoresContinueAndCoalescesSameTickChanges() {
+func pedalTimelineIgnoresValuelessContinueAndPreservesSameTickValues() {
     let timeline = MusicXMLPedalTimeline(
         events: [
             MusicXMLPedalEvent(
@@ -72,13 +62,9 @@ func pedalTimelineIgnoresContinueAndCoalescesSameTickChanges() {
         ]
     )
 
-    #expect(timeline.isDown(atTick: 0) == false)
-    #expect(timeline.isDown(atTick: 119) == false)
-    #expect(timeline.isDown(atTick: 120) == true)
-
-    let change = timeline.nextChange(afterTick: 0)
-    #expect(change?.tick == 120)
-    #expect(change?.isDown == true)
+    let changes = timeline.controllerChanges()
+    #expect(changes.map(\.tick) == [120, 120])
+    #expect(changes.map(\.value) == [0, 127])
 }
 
 @Test
@@ -116,7 +102,6 @@ func pedalTimelinePreservesContinuousDamperSostenutoAndSoftValues() throws {
 
     #expect(damper.percentage == Decimal(string: "42.5"))
     #expect(damper.midiValue == 54)
-    #expect(timeline.isDown(atTick: 0) == false)
     #expect(timeline.controllerChanges().map(\.controllerNumber) == [64, 66, 67])
     #expect(timeline.controllerChanges().map(\.value) == [54, 127, 32])
     #expect(MusicXMLControllerValue(musicXMLString: "-0.1") == nil)

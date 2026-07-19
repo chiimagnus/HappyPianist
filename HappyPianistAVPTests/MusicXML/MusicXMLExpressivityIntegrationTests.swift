@@ -78,7 +78,7 @@ func expressivityPipelineParsesAndPlumbsKeySignalsEndToEnd() throws {
         tempoEvents: score.tempoEvents
     )
     let pedalTimeline = MusicXMLPedalTimeline(events: score.pedalEvents + wordsSemantics.derivedPedalEvents)
-    #expect(pedalTimeline.isDown(atTick: 0) == true)
+    #expect(pedalTimeline.controllerChanges().map(\.value) == [127, 0])
 
     let attributeTimeline = MusicXMLAttributeTimeline(
         timeSignatureEvents: score.timeSignatureEvents,
@@ -386,7 +386,7 @@ func pedalChangePreservesBothControllerEdgesUnderOneDirectionSource() throws {
 
     let events = try MusicXMLParser().parse(data: Data(xml.utf8)).pedalEvents
     #expect(events.count == 2)
-    #expect(events.map { $0.value?.isEngaged } == [false, true])
+    #expect(events.compactMap(\.value?.midiValue) == [0, 127])
     #expect(events[0].sourceID != nil)
     #expect(events[0].sourceID == events[1].sourceID)
 }

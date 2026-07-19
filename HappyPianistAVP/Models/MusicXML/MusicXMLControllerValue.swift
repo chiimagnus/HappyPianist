@@ -35,10 +35,6 @@ struct MusicXMLControllerValue: Equatable, Sendable {
         }
     }
 
-    var isEngaged: Bool {
-        midiValue >= 64
-    }
-
     private init(percentage: Decimal, midiValue: UInt8) {
         self.percentage = percentage
         self.midiValue = midiValue

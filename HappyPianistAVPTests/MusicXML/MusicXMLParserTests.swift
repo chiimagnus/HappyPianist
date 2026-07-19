@@ -528,10 +528,10 @@ func parserParsesPedalStartAndStopEvents() throws {
     #expect(score.pedalEvents.count == 2)
     #expect(score.pedalEvents[0].tick == 0)
     #expect(score.pedalEvents[0].kind == .start)
-    #expect(score.pedalEvents[0].value?.isEngaged == true)
+    #expect(score.pedalEvents[0].value?.midiValue == 127)
     #expect(score.pedalEvents[1].tick == 480)
     #expect(score.pedalEvents[1].kind == .stop)
-    #expect(score.pedalEvents[1].value?.isEngaged == false)
+    #expect(score.pedalEvents[1].value?.midiValue == 0)
 }
 
 @Test
@@ -564,10 +564,10 @@ func parserParsesSoundDamperPedalEventsInsideDirection() throws {
     #expect(score.pedalEvents.count == 2)
     #expect(score.pedalEvents[0].tick == 0)
     #expect(score.pedalEvents[0].kind == .start)
-    #expect(score.pedalEvents[0].value?.isEngaged == true)
+    #expect(score.pedalEvents[0].value?.midiValue == 127)
     #expect(score.pedalEvents[1].tick == 480)
     #expect(score.pedalEvents[1].kind == .stop)
-    #expect(score.pedalEvents[1].value?.isEngaged == false)
+    #expect(score.pedalEvents[1].value?.midiValue == 0)
 }
 
 @Test
@@ -596,10 +596,10 @@ func parserParsesSoundDamperPedalEventsAtMeasureLevel() throws {
     #expect(score.pedalEvents.count == 2)
     #expect(score.pedalEvents[0].tick == 0)
     #expect(score.pedalEvents[0].kind == .start)
-    #expect(score.pedalEvents[0].value?.isEngaged == true)
+    #expect(score.pedalEvents[0].value?.midiValue == 127)
     #expect(score.pedalEvents[1].tick == 480)
     #expect(score.pedalEvents[1].kind == .stop)
-    #expect(score.pedalEvents[1].value?.isEngaged == false)
+    #expect(score.pedalEvents[1].value?.midiValue == 0)
 }
 
 @Test
@@ -629,10 +629,10 @@ func parserExpandsPedalChangeIntoUpThenDownAtSameTick() throws {
     #expect(score.pedalEvents.count == 2)
     #expect(score.pedalEvents[0].tick == 0)
     #expect(score.pedalEvents[0].kind == .change)
-    #expect(score.pedalEvents[0].value?.isEngaged == false)
+    #expect(score.pedalEvents[0].value?.midiValue == 0)
     #expect(score.pedalEvents[1].tick == 0)
     #expect(score.pedalEvents[1].kind == .change)
-    #expect(score.pedalEvents[1].value?.isEngaged == true)
+    #expect(score.pedalEvents[1].value?.midiValue == 127)
 }
 
 @Test

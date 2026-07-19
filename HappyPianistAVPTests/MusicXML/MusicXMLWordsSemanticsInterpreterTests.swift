@@ -15,9 +15,9 @@ func wordsSemanticsDerivesPedalEventsFromPedAndAsterisk() {
 
     #expect(result.derivedPedalEvents.count == 2)
     #expect(result.derivedPedalEvents[0].tick == 0)
-    #expect(result.derivedPedalEvents[0].value?.isEngaged == true)
+    #expect(result.derivedPedalEvents[0].value?.midiValue == 127)
     #expect(result.derivedPedalEvents[1].tick == 480)
-    #expect(result.derivedPedalEvents[1].value?.isEngaged == false)
+    #expect(result.derivedPedalEvents[1].value?.midiValue == 0)
 }
 
 @Test
