@@ -5,7 +5,7 @@ import os
 
 protocol MIDIOutputSendingProtocol: AnyObject, Sendable {
     var onDestinationRouteWillChange: (@Sendable () -> Void)? { get set }
-    var onDestinationRouteChange: (@Sendable () -> Void)? { get set }
+    var onDestinationRouteChange: (@Sendable () -> Task<Void, Never>)? { get set }
 
     func start() throws
     func stop()
@@ -72,7 +72,7 @@ final class CoreMIDIOutputService: MIDIOutputSendingProtocol {
         set { stateLock.withLock { $0.onDestinationRouteWillChange = newValue } }
     }
 
-    var onDestinationRouteChange: (@Sendable () -> Void)? {
+    var onDestinationRouteChange: (@Sendable () -> Task<Void, Never>)? {
         get { stateLock.withLock { $0.onDestinationRouteChange } }
         set { stateLock.withLock { $0.onDestinationRouteChange = newValue } }
     }
@@ -270,7 +270,7 @@ final class CoreMIDIOutputService: MIDIOutputSendingProtocol {
                 reason: "status=\(firstFailure)"
             )
         }
-        callbacks.1?()
+        _ = callbacks.1?()
         scheduleRefreshDestinations()
     }
 
@@ -377,7 +377,7 @@ private struct OutputState {
     var outputPortRef: MIDIPortRef = 0
     var destinationCache: [Int32: MIDIEndpointRef] = [:]
     var onDestinationRouteWillChange: (@Sendable () -> Void)?
-    var onDestinationRouteChange: (@Sendable () -> Void)?
+    var onDestinationRouteChange: (@Sendable () -> Task<Void, Never>)?
     var onDestinationListChange: (@Sendable ([MIDIDestinationInfo]) -> Void)?
     var onLastErrorMessageChange: (@Sendable (String?) -> Void)?
 }

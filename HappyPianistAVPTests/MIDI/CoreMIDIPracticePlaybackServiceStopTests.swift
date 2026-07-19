@@ -490,23 +490,21 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
         }
         #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 1 })
 
-        output.simulateDestinationDisconnect()
-        #expect(await waitUntil {
-            let calls = output.callsSnapshot()
-            return calls.contains(.flush(destination: destinationUniqueID)) &&
-                calls.contains(.controlChange(
-                    controller: 64,
-                    value: 0,
-                    channel: 0,
-                    destination: destinationUniqueID
-                )) &&
-                calls.contains(.controlChange(
-                    controller: 120,
-                    value: 0,
-                    channel: 0,
-                    destination: destinationUniqueID
-                ))
-        })
+        await output.simulateDestinationDisconnect()
+        let calls = output.callsSnapshot()
+        #expect(calls.contains(.flush(destination: destinationUniqueID)))
+        #expect(calls.contains(.controlChange(
+            controller: 64,
+            value: 0,
+            channel: 0,
+            destination: destinationUniqueID
+        )))
+        #expect(calls.contains(.controlChange(
+            controller: 120,
+            value: 0,
+            channel: 0,
+            destination: destinationUniqueID
+        )))
     }
 
     @Test func destinationRouteChangeResetsLiveOutputWithoutScheduler() async throws {
@@ -531,17 +529,15 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             ])
         }
 
-        output.simulateDestinationDisconnect()
+        await output.simulateDestinationDisconnect()
 
-        #expect(await waitUntil {
-            Array(output.callsSnapshot().suffix(5)) == [
-                .controlChange(controller: 64, value: 0, channel: 0, destination: destinationUniqueID),
-                .controlChange(controller: 66, value: 0, channel: 0, destination: destinationUniqueID),
-                .controlChange(controller: 67, value: 0, channel: 0, destination: destinationUniqueID),
-                .controlChange(controller: 123, value: 0, channel: 0, destination: destinationUniqueID),
-                .controlChange(controller: 120, value: 0, channel: 0, destination: destinationUniqueID),
-            ]
-        })
+        #expect(Array(output.callsSnapshot().suffix(5)) == [
+            .controlChange(controller: 64, value: 0, channel: 0, destination: destinationUniqueID),
+            .controlChange(controller: 66, value: 0, channel: 0, destination: destinationUniqueID),
+            .controlChange(controller: 67, value: 0, channel: 0, destination: destinationUniqueID),
+            .controlChange(controller: 123, value: 0, channel: 0, destination: destinationUniqueID),
+            .controlChange(controller: 120, value: 0, channel: 0, destination: destinationUniqueID),
+        ])
     }
 
     @Test func playbackServiceTeardownFlushesAndSendsFullResetBatch() async throws {
@@ -603,8 +599,7 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             .controlChange(controller: 120, value: 0, channel: 3, destination: destinationUniqueID),
         ])
         let callsAfterTeardown = output.callsSnapshot()
-        output.simulateDestinationDisconnect()
-        await Task.yield()
+        await output.simulateDestinationDisconnect()
         #expect(output.callsSnapshot() == callsAfterTeardown)
     }
 }

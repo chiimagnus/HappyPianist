@@ -41,7 +41,7 @@ final class FakePerformanceOutput: MIDIOutputSendingProtocol, @unchecked Sendabl
 
     private struct State {
         var onDestinationRouteWillChange: (@Sendable () -> Void)?
-        var onDestinationRouteChange: (@Sendable () -> Void)?
+        var onDestinationRouteChange: (@Sendable () -> Task<Void, Never>)?
         var calls: [Call] = []
         var timestampedBatches: [TimestampedBatch] = []
         var failingControllers: Set<UInt8>
@@ -75,7 +75,7 @@ final class FakePerformanceOutput: MIDIOutputSendingProtocol, @unchecked Sendabl
         set { lock.withLock { $0.onDestinationRouteWillChange = newValue } }
     }
 
-    var onDestinationRouteChange: (@Sendable () -> Void)? {
+    var onDestinationRouteChange: (@Sendable () -> Task<Void, Never>)? {
         get { lock.withLock { $0.onDestinationRouteChange } }
         set { lock.withLock { $0.onDestinationRouteChange = newValue } }
     }
@@ -226,12 +226,12 @@ final class FakePerformanceOutput: MIDIOutputSendingProtocol, @unchecked Sendabl
         lock.withLock { $0.calls.append(.flush(destination: destinationUniqueID)) }
     }
 
-    func simulateDestinationDisconnect() {
+    func simulateDestinationDisconnect() async {
         let callbacks = lock.withLock {
             ($0.onDestinationRouteWillChange, $0.onDestinationRouteChange)
         }
         callbacks.0?()
-        callbacks.1?()
+        await callbacks.1?().value
     }
 
     func sendNoteOn(

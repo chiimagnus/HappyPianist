@@ -46,8 +46,8 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
             generationGuard.invalidate()
         }
         self.outputService.onDestinationRouteChange = { [weak self] in
-            guard let self else { return }
-            Task { @MainActor in
+            guard let self else { return Task {} }
+            return Task { @MainActor in
                 self.handleDestinationRouteChange()
             }
         }
