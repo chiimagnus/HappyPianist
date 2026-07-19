@@ -91,12 +91,13 @@ struct PianoKeyContactTracker {
                 phase = .held
                 resolvedVelocity = previous.resolvedVelocity
             } else {
+                guard let strikeVelocity = velocityResolver.resolve(
+                    normalVelocityMetersPerSecond: motion.normalVelocityMetersPerSecond
+                ) else { return }
                 nextSequence &+= 1
                 contactID = PianoKeyContactID(finger: fingerID, sequence: nextSequence)
                 phase = .started
-                resolvedVelocity = velocityResolver.resolve(
-                    normalVelocityMetersPerSecond: motion.normalVelocityMetersPerSecond
-                )
+                resolvedVelocity = strikeVelocity
                 retriggerAllowedAt.removeValue(forKey: fingerID)
             }
 

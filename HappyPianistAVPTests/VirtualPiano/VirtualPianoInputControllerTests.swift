@@ -153,8 +153,7 @@ func virtualPianoPlaysLiveNotesWhenNotSuppressed() async throws {
     let detector = FakeKeyContactDetector(
         resultToReturn: makeTestKeyContactObservations(
             activeMIDINotes: [60],
-            startedMIDINotes: [60],
-            endedMIDINotes: [61]
+            startedMIDINotes: [60]
         )
     )
     let sequencer = FakeSequencerPlaybackService()
@@ -173,15 +172,8 @@ func virtualPianoPlaysLiveNotesWhenNotSuppressed() async throws {
     )
     await controller.waitForPendingPlayback()
 
-    let ended = try #require(detector.resultToReturn.first { $0.phase == .ended })
     let started = try #require(detector.resultToReturn.first { $0.phase == .started })
     #expect(sequencer.liveNoteEvents == [[
-        PracticeLiveNoteEvent(
-            contactID: ended.id,
-            midiNote: 61,
-            phase: .noteOff,
-            timestamp: .init(seconds: 1)
-        ),
         PracticeLiveNoteEvent(
             contactID: started.id,
             midiNote: 60,
@@ -190,6 +182,34 @@ func virtualPianoPlaysLiveNotesWhenNotSuppressed() async throws {
         ),
     ]])
     #expect(effectHandler.effects.contains(.advanceToNextStep))
+}
+
+@Test
+@MainActor
+func endedContactThatNeverSoundedDoesNotSendNoteOff() async {
+    let store = PracticeSessionStateStore()
+    let sequencer = FakeSequencerPlaybackService()
+    let controller = VirtualPianoInputController(
+        detector: FakeKeyContactDetector(resultToReturn: makeTestKeyContactObservations(endedMIDINotes: [60])),
+        sequencerPlaybackService: sequencer,
+        stateStore: store,
+        handGateController: PracticeHandGateController(
+            activityGate: HandPianoActivityGate(),
+            chordAttemptAccumulator: AlwaysMatchChordAttemptAccumulator(),
+            stateStore: store,
+            effectHandler: CapturingEffectHandler()
+        )
+    )
+
+    _ = controller.handleFingerTips(
+        .empty,
+        keyboardGeometry: makeMinimalKeyboardGeometry(),
+        at: .init(seconds: 1),
+        practiceHandMode: .both
+    )
+    await controller.waitForPendingPlayback()
+
+    #expect(sequencer.liveNoteEvents.isEmpty)
 }
 
 @Test
@@ -428,7 +448,8 @@ func syntheticHandContactTracesCoverVelocityLifecycleAndUncertainty() async thro
 
     let slowPress = try #require(resultByID["slow-press"])
     #expect(noteOnVelocities(in: slowPress.events).isEmpty)
-    #expect(slowPress.observations.contains { $0.phase == .started && $0.resolvedVelocity == nil })
+    #expect(slowPress.events.isEmpty)
+    #expect(slowPress.observations.isEmpty)
 
     let chord = try #require(resultByID["simultaneous-chord"])
     let chordNoteOns = chord.events.filter { event in

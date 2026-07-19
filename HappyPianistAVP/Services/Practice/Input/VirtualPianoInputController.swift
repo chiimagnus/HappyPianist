@@ -135,19 +135,6 @@ final class VirtualPianoInputController {
         }
 
         guard allowsNoteOn else { return events }
-        for (midiNote, observation) in endedByMIDI.sorted(by: { $0.key < $1.key })
-        where activeMIDINotes.contains(midiNote) == false
-            && events.contains(where: { $0.midiNote == midiNote && $0.phase == .noteOff }) == false {
-            events.append(
-                PracticeLiveNoteEvent(
-                    contactID: observation.id,
-                    midiNote: midiNote,
-                    phase: .noteOff,
-                    timestamp: observation.timestamp
-                )
-            )
-        }
-
         let startsByMIDI = Dictionary(
             observations.lazy.compactMap { observation -> (Int, PianoKeyContactObservation)? in
                 guard observation.phase == .started,

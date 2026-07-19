@@ -63,10 +63,22 @@ func virtualPianoNoteOnTriggersLiveStart() async throws {
     viewModel.applyVirtualKeyboardGeometry(geometry)
 
     let c4Key = try #require(geometry.key(for: 60))
+    let aboveSurface = FingerTipsSnapshot(
+        right: HandTips(index: SIMD3<Float>(c4Key.hitCenterLocal.x, 0.02, c4Key.hitCenterLocal.z))
+    )
+    _ = viewModel.handleFingerTipPositions(
+        aboveSurface,
+        isVirtualPiano: true,
+        at: .init(seconds: 1)
+    )
     let fingerTips = FingerTipsSnapshot(
         right: HandTips(index: SIMD3<Float>(c4Key.hitCenterLocal.x, -0.001, c4Key.hitCenterLocal.z))
     )
-    let detected = viewModel.handleFingerTipPositions(fingerTips, isVirtualPiano: true)
+    let detected = viewModel.handleFingerTipPositions(
+        fingerTips,
+        isVirtualPiano: true,
+        at: .init(seconds: 1.05)
+    )
     await Task.yield()
 
     #expect(detected.contains(60))
@@ -342,11 +354,21 @@ func arGuideViewModelToggleOffClearsVirtualKeyboardAndStopsLiveNotes() async thr
     session.applyVirtualKeyboardGeometry(geometry)
 
     let c4Key = try #require(geometry.key(for: 60))
+    let aboveKeyWorldPoint = transformPoint(
+        geometry.frame.worldFromKeyboard,
+        SIMD3<Float>(c4Key.hitCenterLocal.x, 0.02, c4Key.hitCenterLocal.z)
+    )
+    _ = session.handleFingerTipPositions(
+        FingerTipsSnapshot(right: HandTips(index: aboveKeyWorldPoint)),
+        isVirtualPiano: true,
+        at: .init(seconds: 1)
+    )
     let keyLocalPoint = SIMD3<Float>(c4Key.hitCenterLocal.x, -0.001, c4Key.hitCenterLocal.z)
     let keyWorldPoint = transformPoint(geometry.frame.worldFromKeyboard, keyLocalPoint)
     _ = session.handleFingerTipPositions(
         FingerTipsSnapshot(right: HandTips(index: keyWorldPoint)),
-        isVirtualPiano: true
+        isVirtualPiano: true,
+        at: .init(seconds: 1.05)
     )
     await Task.yield()
     #expect(playbackService.startedLiveNotes.contains(60))
