@@ -31,6 +31,7 @@ final class FakePerformanceOutput: MIDIOutputSendingProtocol, @unchecked Sendabl
     }
 
     enum AudioOperation: Hashable {
+        case audioGraphCreation
         case audioSessionConfiguration
         case soundBankLoad
         case engineStart
@@ -137,6 +138,19 @@ final class FakePerformanceOutput: MIDIOutputSendingProtocol, @unchecked Sendabl
 
     func makeAudioPlatform() -> PracticeAudioPlatformOperations {
         PracticeAudioPlatformOperations(
+            makeAudioGraph: { [weak self] in
+                self?.lock.withLock {
+                    $0.audioOperationCounts[.audioGraphCreation, default: 0] += 1
+                }
+                let engine = AVAudioEngine()
+                let sampler = AVAudioUnitSampler()
+                return PracticeAudioGraph(
+                    engine: engine,
+                    sampler: sampler,
+                    mixer: AVAudioMixerNode(),
+                    sequencer: AVAudioSequencer(audioEngine: engine)
+                )
+            },
             resolveSoundFontURL: { [weak self] _ in
                 guard let self, lock.withLock({ $0.isSoundFontAvailable }) else { return nil }
                 return URL(fileURLWithPath: "/tmp/TestSoundFont.sf2")

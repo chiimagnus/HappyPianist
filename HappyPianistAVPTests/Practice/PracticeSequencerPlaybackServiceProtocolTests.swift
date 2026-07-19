@@ -204,6 +204,7 @@ func interruptionRouteAndMediaResetRequireResetBeforeRecovery() async throws {
         platform: output.makeAudioPlatform(),
         stateHandler: output.record(state:)
     )
+    #expect(output.audioOperationCount(.audioGraphCreation) == 1)
     try await service.warmUp()
     output.removeAllAudioEntries()
 
@@ -244,6 +245,7 @@ func interruptionRouteAndMediaResetRequireResetBeforeRecovery() async throws {
 
     output.removeAllAudioEntries()
     await service.handleAudioSessionEvent(.mediaServicesReset)
+    #expect(output.audioOperationCount(.audioGraphCreation) == 2)
     #expect(await service.currentPlaybackState() == .failed(
         .operationFailed(
             operation: .mediaServicesReset,

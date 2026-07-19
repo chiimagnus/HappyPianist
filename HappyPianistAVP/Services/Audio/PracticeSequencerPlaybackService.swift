@@ -37,7 +37,29 @@ protocol PracticeSequencerPlaybackServiceProtocol: AnyObject {
     func stopAllLiveNotes() async
 }
 
+struct PracticeAudioGraph {
+    let engine: AVAudioEngine
+    let sampler: AVAudioUnitSampler
+    let mixer: AVAudioMixerNode
+    let sequencer: AVAudioSequencer
+
+    static func live() -> Self {
+        let engine = AVAudioEngine()
+        let sampler = AVAudioUnitSampler()
+        engine.attach(sampler)
+        let mixer = engine.mainMixerNode
+        engine.connect(sampler, to: mixer, format: nil)
+        return Self(
+            engine: engine,
+            sampler: sampler,
+            mixer: mixer,
+            sequencer: AVAudioSequencer(audioEngine: engine)
+        )
+    }
+}
+
 struct PracticeAudioPlatformOperations: Sendable {
+    let makeAudioGraph: @Sendable () -> PracticeAudioGraph
     let resolveSoundFontURL: @Sendable (String) -> URL?
     let configureAudioSession: @Sendable () throws -> Void
     let loadSoundBank: @Sendable (AVAudioUnitSampler, URL, UInt8) throws -> Void
@@ -50,6 +72,7 @@ struct PracticeAudioPlatformOperations: Sendable {
     let sendMIDIEvent: @Sendable (AudioUnit, UInt32, UInt32, UInt32) -> OSStatus
 
     static let live = PracticeAudioPlatformOperations(
+        makeAudioGraph: PracticeAudioGraph.live,
         resolveSoundFontURL: { resourceName in
             Bundle.main.url(forResource: resourceName, withExtension: "sf2")
         },
@@ -107,6 +130,7 @@ actor AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackServiceP
 
     private var engine: AVAudioEngine
     private var sampler: AVAudioUnitSampler
+    private var mixer: AVAudioMixerNode
     private var sequencer: AVAudioSequencer
     private let userDefaults: UserDefaults
     private let platform: PracticeAudioPlatformOperations
@@ -138,9 +162,10 @@ actor AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackServiceP
         diagnosticsReporter: (any DiagnosticsReporting)? = nil,
         stateHandler: @escaping @Sendable (PracticeAudioPlaybackState) -> Void = { _ in }
     ) {
-        let graph = Self.makeAudioGraph()
+        let graph = platform.makeAudioGraph()
         engine = graph.engine
         sampler = graph.sampler
+        mixer = graph.mixer
         sequencer = graph.sequencer
         self.userDefaults = userDefaults
         self.platform = platform
@@ -152,7 +177,7 @@ actor AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackServiceP
 
         let initialVolume = AudioOutputVolumeSettings.readAudioOutputVolume(from: userDefaults)
         currentAudioOutputVolume = initialVolume
-        engine.mainMixerNode.outputVolume = initialVolume
+        mixer.outputVolume = initialVolume
     }
 
     isolated deinit {
@@ -362,24 +387,13 @@ actor AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackServiceP
         }
     }
 
-    private static func makeAudioGraph() -> (
-        engine: AVAudioEngine,
-        sampler: AVAudioUnitSampler,
-        sequencer: AVAudioSequencer
-    ) {
-        let engine = AVAudioEngine()
-        let sampler = AVAudioUnitSampler()
-        engine.attach(sampler)
-        engine.connect(sampler, to: engine.mainMixerNode, format: nil)
-        return (engine, sampler, AVAudioSequencer(audioEngine: engine))
-    }
-
     private func rebuildAudioGraph() {
-        let graph = Self.makeAudioGraph()
+        let graph = platform.makeAudioGraph()
         engine = graph.engine
         sampler = graph.sampler
+        mixer = graph.mixer
         sequencer = graph.sequencer
-        engine.mainMixerNode.outputVolume = currentAudioOutputVolume
+        mixer.outputVolume = currentAudioOutputVolume
             ?? AudioOutputVolumeSettings.readAudioOutputVolume(from: userDefaults)
         oneShotNoteBySourceEventID.removeAll()
         liveNoteBySourceEventID.removeAll()
@@ -839,6 +853,6 @@ actor AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackServiceP
         let volume = AudioOutputVolumeSettings.readAudioOutputVolume(from: userDefaults)
         guard currentAudioOutputVolume != volume else { return }
         currentAudioOutputVolume = volume
-        engine.mainMixerNode.outputVolume = volume
+        mixer.outputVolume = volume
     }
 }
