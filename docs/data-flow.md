@@ -84,12 +84,26 @@ score import 只有 transaction service 一条写入路径；`.mxl` 在 preparat
 | 演奏事实 | `ScoreTimingScheduleBuilder`、velocity / tempo / pedal / fermata 解释器、`ScorePerformancePlanBuilder` | 保留事件 identity、时值、力度、控制器与注释的唯一 `ScorePerformancePlan` |
 | hand 与 step | `MusicXMLHandRouter`、`PracticeStepBuilder` | 从 plan 投影、不改写 staff / voice 的 hand assignments 与 `PracticeStep[]` |
 | 小节身份 | `MusicXMLMeasureSpan`、`PracticeMeasureIndex` | source / occurrence 映射 |
-| 高亮与谱面 | `PianoHighlightGuideBuilderService`、`ScoreNotationProjection` | 从 plan 与 source score 投影的键位 guide 与五线谱输入 |
+| 高亮与谱面 | `PianoHighlightGuideBuilderService`、`ScoreNotationProjection`、`GrandStaffNotationLayoutService` | 键位 guide 独立由 plan 投影；五线谱由 source written facts 与 performed occurrence identity 投影 |
 | session 注入 | `PracticeSessionViewModel` | 可开始的一轮练习 |
 
 正式 preparation 结果必须同时有可演奏 steps 和 measure spans。解析失败或缺少小节结构时应返回具体错误，不进入推测性的兼容模式。
 
 `PreparedPractice.performancePlan` 是本轮所有本地 sampler、CoreMIDI 与手动重播共同消费的声音真源；会话中的 tempo map 只是 plan tempo events 的查询投影，不接受独立注入。`steps` 与 `highlightGuides` 只负责判定、导航和显示，不能反推音高、力度、时值或控制器；`notationProjection` 由 plan 与 source score 构成，layout 不从 guide 反推 written facts。`scoreContext` 保存本次选择的 source score、prepared score、logical instrument、structural part、order selection 与按 source-note identity 索引的 hand assignments。双 part 钢琴只形成一个 logical instrument；两个独立乐器即使分别使用高音与低音谱号也不得合并。staff 与 hand 是不同事实：跨谱表或多谱表材料保持原 staff / voice，无法从可靠证据确定 hand 时保留 `unknown`。
+
+五线谱内部继续保持单向：
+
+```text
+MusicXML source written facts
+          +
+plan performed occurrence identity
+          ↓
+ScoreNotationProjection -> staff-space layout / collision geometry -> Bravura renderer
+                              ↑
+                 transient event-ID highlight overlay
+```
+
+layout 的音高位置来自 written pitch，音值来自 written rhythm，stem/beam/voice/staff 优先使用 source facts；performed on/off、MIDI 黑白键和 hand assignment 不得补写这些事实。source 缺失 stem/beam 时才使用明确的 voice/meter policy。unsupported projection 只保留中性节奏空间或省略未知 glyph，同时记录不含原谱正文的聚合 kind/reason 诊断；它不改变 playback、highlight 或 assessment。
 
 声音输出只有一条数据流：`ScorePerformancePlan` 先由 `PerformanceRangeStateResolver` 在 start/range 边界恢复精确 controller、held notes 与 pedal-latched notes，再由 `PerformanceTransportReducer` 按 event identity 产生 note edges，随后投影成 timeline 和 sequencer events。sequence builder 只做 tick-to-seconds 与边界封口，不扫描历史事件来猜测起点状态。stop、seek、loop、error、音频中断和 route change 使用同一组 reducer reset commands：逐 identity note-off、CC64/66/67 归零、all-notes-off、all-sound-off。
 

@@ -117,7 +117,6 @@ struct GrandStaffNotationRest: Equatable, Identifiable {
     let id: String
     let staffNumber: Int
     let voice: Int
-    let guideID: Int
     let tick: Int
     let xPosition: Double
     let noteValue: GrandStaffNoteValue
@@ -338,7 +337,6 @@ struct GrandStaffNotationItem: Equatable, Identifiable {
     let staffNumber: Int
     let voice: Int
     let hand: ScoreHand
-    let guideID: Int
     let tick: Int
     let xPosition: Double
     let staffStep: Int

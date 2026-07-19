@@ -109,7 +109,7 @@ struct GrandStaffNotationLayoutService {
         scrollTick: Double? = nil
     ) -> GrandStaffNotationLayout {
         let sourceNotesByID = Dictionary(uniqueKeysWithValues: projection.sourceNotes.map { ($0.id, $0) })
-        let occurrences = projection.performedOccurrences.enumerated().compactMap { index, occurrence -> LayoutOccurrence? in
+        let occurrences = projection.performedOccurrences.compactMap { occurrence -> LayoutOccurrence? in
             guard let source = sourceNotesByID[occurrence.sourceNoteID] else { return nil }
             return LayoutOccurrence(
                 performedID: occurrence.id,
@@ -118,7 +118,6 @@ struct GrandStaffNotationLayoutService {
                 staffNumber: resolvedStaffNumber(source.staff),
                 voice: source.voice,
                 hand: occurrence.handAssignment.hand,
-                guideID: index + 1,
                 tick: occurrence.writtenOnTick,
                 isHighlighted: occurrence.performanceEventIDs.contains { overlay.activeEventIDs.contains($0) }
             )
@@ -137,7 +136,6 @@ struct GrandStaffNotationLayoutService {
                 staffNumber: occurrence.staffNumber,
                 voice: occurrence.voice,
                 hand: occurrence.hand,
-                guideID: occurrence.guideID,
                 tick: occurrence.tick,
                 isHighlighted: occurrence.isHighlighted,
                 fingerings: source.fingerings,
@@ -187,7 +185,6 @@ struct GrandStaffNotationLayoutService {
         let staffNumber: Int
         let voice: Int
         let hand: ScoreHand
-        let guideID: Int
         let tick: Int
         let isHighlighted: Bool
     }
@@ -198,7 +195,6 @@ struct GrandStaffNotationLayoutService {
         let staffNumber: Int
         let voice: Int
         let hand: ScoreHand
-        let guideID: Int
         let tick: Int
         let isHighlighted: Bool
         let fingerings: [MusicXMLFingering]
@@ -248,7 +244,6 @@ struct GrandStaffNotationLayoutService {
                 staffNumber: note.staffNumber,
                 voice: note.voice,
                 hand: note.hand,
-                guideID: note.guideID,
                 tick: note.tick,
                 xPosition: 0,
                 staffStep: staffStep(for: note.writtenPitch, staffNumber: note.staffNumber),
@@ -299,7 +294,6 @@ struct GrandStaffNotationLayoutService {
                 id: occurrence.occurrenceID,
                 staffNumber: occurrence.staffNumber,
                 voice: occurrence.voice,
-                guideID: occurrence.guideID,
                 tick: occurrence.tick,
                 xPosition: 0,
                 noteValue: noteValue(for: source.writtenRhythm),
@@ -358,7 +352,6 @@ struct GrandStaffNotationLayoutService {
                 id: rest.id,
                 staffNumber: rest.staffNumber,
                 voice: rest.voice,
-                guideID: rest.guideID,
                 tick: rest.tick,
                 xPosition: normalizedTick(rest.tick),
                 noteValue: rest.noteValue,
@@ -1112,7 +1105,6 @@ struct GrandStaffNotationLayoutService {
             staffNumber: item.staffNumber,
             voice: item.voice,
             hand: item.hand,
-            guideID: item.guideID,
             tick: item.tick,
             xPosition: xPosition,
             staffStep: item.staffStep,
@@ -1276,7 +1268,6 @@ struct GrandStaffNotationLayoutService {
                     staffNumber: item.staffNumber,
                     voice: item.voice,
                     hand: item.hand,
-                    guideID: item.guideID,
                     tick: item.tick,
                     xPosition: item.xPosition,
                     staffStep: item.staffStep,
@@ -1320,7 +1311,6 @@ struct GrandStaffNotationLayoutService {
                 staffNumber: item.staffNumber,
                 voice: item.voice,
                 hand: item.hand,
-                guideID: item.guideID,
                 tick: item.tick,
                 xPosition: item.xPosition,
                 staffStep: item.staffStep,
