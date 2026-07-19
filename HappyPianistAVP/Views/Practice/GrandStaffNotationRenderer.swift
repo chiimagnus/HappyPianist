@@ -362,13 +362,17 @@ struct GrandStaffNotationRenderer {
                 continue
             case let .arpeggio(token):
                 guard let lowest = mark.minimumStaffStep, let highest = mark.maximumStaffStep else { continue }
+                let lowerStaffNumber = mark.minimumStaffNumber ?? mark.staffNumber
+                let upperStaffNumber = mark.maximumStaffNumber ?? mark.staffNumber
+                let lowerY = layout.yPosition(staffStep: lowest, staffNumber: lowerStaffNumber)
+                let upperY = layout.yPosition(staffStep: highest, staffNumber: upperStaffNumber)
                 let nativeHeight = engravingMetrics.bounds(for: token)?.height ?? 5.5
-                let requiredHeight = max(2.2, Double(highest - lowest) / 2 + 1)
+                let requiredHeight = max(2.2, Double(abs(lowerY - upperY) / layout.lineSpacing) + 1)
                 drawGlyph(
                     token,
                     baselineAt: CGPoint(
                         x: layout.xPosition(mark.xPosition) - layout.lineSpacing * 1.2,
-                        y: layout.yPosition(staffStep: lowest - 1, staffNumber: mark.staffNumber)
+                        y: lowerY + layout.lineSpacing * 0.5
                     ),
                     centeredOnAdvance: false,
                     scale: requiredHeight / nativeHeight,

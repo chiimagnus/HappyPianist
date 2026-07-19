@@ -244,6 +244,38 @@ struct GrandStaffNotationMark: Equatable, Identifiable {
     let collisionLevel: Int
     let minimumStaffStep: Int?
     let maximumStaffStep: Int?
+    let minimumStaffNumber: Int?
+    let maximumStaffNumber: Int?
+
+    init(
+        id: String,
+        tick: Int,
+        xPosition: Double,
+        staffNumber: Int,
+        voice: Int,
+        kind: Kind,
+        text: String?,
+        placement: GrandStaffNotationPlacement,
+        collisionLevel: Int,
+        minimumStaffStep: Int?,
+        maximumStaffStep: Int?,
+        minimumStaffNumber: Int? = nil,
+        maximumStaffNumber: Int? = nil
+    ) {
+        self.id = id
+        self.tick = tick
+        self.xPosition = xPosition
+        self.staffNumber = staffNumber
+        self.voice = voice
+        self.kind = kind
+        self.text = text
+        self.placement = placement
+        self.collisionLevel = collisionLevel
+        self.minimumStaffStep = minimumStaffStep
+        self.maximumStaffStep = maximumStaffStep
+        self.minimumStaffNumber = minimumStaffNumber
+        self.maximumStaffNumber = maximumStaffNumber
+    }
 
     var glyphToken: GrandStaffGlyphToken? {
         switch kind {

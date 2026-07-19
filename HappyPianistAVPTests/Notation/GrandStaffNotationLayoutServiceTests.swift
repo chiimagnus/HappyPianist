@@ -446,6 +446,99 @@ func projectionAndLayoutKeepVisibleRestsSameNumberSlursAndNestedTuplets() throws
 }
 
 @Test
+func layoutPairsTieSlurAndTupletAcrossGrandStaffStaves() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1"><measure number="1">
+        <attributes>
+          <divisions>1</divisions><staves>2</staves>
+          <clef number="1"><sign>G</sign><line>2</line></clef>
+          <clef number="2"><sign>F</sign><line>4</line></clef>
+        </attributes>
+        <note>
+          <pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type>
+          <voice>1</voice><staff>1</staff>
+          <time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>
+          <notations>
+            <tied type="start" number="1"/><slur type="start" number="1"/>
+            <tuplet type="start" number="1" bracket="yes"/>
+          </notations>
+        </note>
+        <note>
+          <pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type>
+          <voice>1</voice><staff>2</staff>
+          <time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>
+          <notations>
+            <tied type="stop" number="1"/><slur type="stop" number="1"/>
+            <tuplet type="stop" number="1"/>
+          </notations>
+        </note>
+      </measure></part>
+    </score-partwise>
+    """
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let layout = GrandStaffNotationLayoutService().makeLayout(
+        projection: ScoreNotationProjection(
+            plan: makeTestScorePerformancePlan(from: score),
+            sourceScore: score
+        )
+    )
+
+    #expect(layout.items.map(\.staffNumber) == [1, 2])
+    #expect(layout.ties.count == 1)
+    #expect(layout.slurs.count == 1)
+    #expect(layout.tuplets.count == 1)
+    #expect(layout.ties[0].startOccurrenceID != nil && layout.ties[0].endOccurrenceID != nil)
+    #expect(layout.slurs[0].startOccurrenceID != nil && layout.slurs[0].endOccurrenceID != nil)
+    #expect(layout.tuplets[0].startOccurrenceID != nil && layout.tuplets[0].endOccurrenceID != nil)
+}
+
+@Test
+func layoutUsesOneArpeggioMarkAcrossGrandStaffStaves() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1"><measure number="1">
+        <attributes>
+          <divisions>1</divisions><staves>2</staves>
+          <clef number="1"><sign>G</sign><line>2</line></clef>
+          <clef number="2"><sign>F</sign><line>4</line></clef>
+        </attributes>
+        <note>
+          <pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type>
+          <voice>1</voice><staff>1</staff><notations><arpeggiate number="1" direction="up"/></notations>
+        </note>
+        <note>
+          <chord/><pitch><step>E</step><octave>3</octave></pitch><duration>1</duration><type>quarter</type>
+          <voice>1</voice><staff>2</staff><notations><arpeggiate number="1" direction="up"/></notations>
+        </note>
+      </measure></part>
+    </score-partwise>
+    """
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let layout = GrandStaffNotationLayoutService().makeLayout(
+        projection: ScoreNotationProjection(
+            plan: makeTestScorePerformancePlan(from: score),
+            sourceScore: score
+        )
+    )
+    let arpeggio = try #require(layout.marks.first { mark in
+        if case .arpeggio = mark.kind { return true }
+        return false
+    })
+
+    #expect(layout.marks.filter { mark in
+        if case .arpeggio = mark.kind { return true }
+        return false
+    }.count == 1)
+    #expect(arpeggio.minimumStaffNumber == 2)
+    #expect(arpeggio.maximumStaffNumber == 1)
+    #expect(arpeggio.minimumStaffStep != nil)
+    #expect(arpeggio.maximumStaffStep != nil)
+}
+
+@Test
 func sourceBeamValuesProducePrimarySecondaryAndHookSegments() throws {
     let score = mixedSourceBeamScore()
     let layout = GrandStaffNotationLayoutService().makeLayout(

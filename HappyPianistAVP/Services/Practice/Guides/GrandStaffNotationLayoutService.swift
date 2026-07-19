@@ -53,7 +53,6 @@ struct GrandStaffNotationLayoutService {
     private struct SpannerKey: Hashable {
         let kind: SpannerKind
         let partID: String
-        let staffNumber: Int
         let voice: Int
         let numberToken: String
         let pitchStep: String?
@@ -66,6 +65,7 @@ struct GrandStaffNotationLayoutService {
         let sourceOrdinal: Int
         let occurrenceID: String
         let tick: Int
+        let staffNumber: Int
         let key: SpannerKey
         let numberToken: String?
         let placementToken: String?
@@ -610,10 +610,10 @@ struct GrandStaffNotationLayoutService {
             sourceOrdinal: sourceID?.sourceOrdinal ?? fallbackOrdinal,
             occurrenceID: occurrence.occurrenceID,
             tick: occurrence.tick,
+            staffNumber: occurrence.staffNumber,
             key: SpannerKey(
                 kind: kind,
                 partID: occurrence.performedID.sourceID.partID,
-                staffNumber: occurrence.staffNumber,
                 voice: occurrence.voice,
                 numberToken: normalizedNumber,
                 pitchStep: writtenPitch?.step,
@@ -632,7 +632,7 @@ struct GrandStaffNotationLayoutService {
         guard clipped.segment.kind == .tie, let endpoint = clipped.segment.start ?? clipped.segment.end else { return nil }
         return GrandStaffNotationTie(
             id: spannerID(clipped.segment),
-            staffNumber: endpoint.key.staffNumber,
+            staffNumber: endpoint.staffNumber,
             voice: endpoint.key.voice,
             numberToken: clipped.segment.start?.numberToken ?? clipped.segment.end?.numberToken,
             placementToken: clipped.segment.start?.placementToken ?? clipped.segment.end?.placementToken,
@@ -649,7 +649,7 @@ struct GrandStaffNotationLayoutService {
         guard clipped.segment.kind == .slur, let endpoint = clipped.segment.start ?? clipped.segment.end else { return nil }
         return GrandStaffNotationSlur(
             id: spannerID(clipped.segment),
-            staffNumber: endpoint.key.staffNumber,
+            staffNumber: endpoint.staffNumber,
             voice: endpoint.key.voice,
             numberToken: clipped.segment.start?.numberToken ?? clipped.segment.end?.numberToken,
             placementToken: clipped.segment.start?.placementToken ?? clipped.segment.end?.placementToken,
@@ -666,7 +666,7 @@ struct GrandStaffNotationLayoutService {
         guard clipped.segment.kind == .tuplet, let endpoint = clipped.segment.start ?? clipped.segment.end else { return nil }
         return GrandStaffNotationTuplet(
             id: spannerID(clipped.segment),
-            staffNumber: endpoint.key.staffNumber,
+            staffNumber: endpoint.staffNumber,
             voice: endpoint.key.voice,
             numberToken: clipped.segment.start?.numberToken ?? clipped.segment.end?.numberToken,
             displayNumber: clipped.segment.start?.tupletDisplayNumber ?? clipped.segment.end?.tupletDisplayNumber,
@@ -916,7 +916,9 @@ struct GrandStaffNotationLayoutService {
                 placement: placement,
                 collisionLevel: 0,
                 minimumStaffStep: anchorsToNote ? matchingItems.map(\.staffStep).min() : nil,
-                maximumStaffStep: anchorsToNote ? matchingItems.map(\.staffStep).max() : nil
+                maximumStaffStep: anchorsToNote ? matchingItems.map(\.staffStep).max() : nil,
+                minimumStaffNumber: anchorsToNote ? staffNumber : nil,
+                maximumStaffNumber: anchorsToNote ? staffNumber : nil
             )
         }
 
@@ -934,7 +936,9 @@ struct GrandStaffNotationLayoutService {
                     placement: placement,
                     collisionLevel: 0,
                     minimumStaffStep: item.staffStep,
-                    maximumStaffStep: item.staffStep
+                    maximumStaffStep: item.staffStep,
+                    minimumStaffNumber: item.staffNumber,
+                    maximumStaffNumber: item.staffNumber
                 ))
             }
             for (index, fingering) in item.fingerings.enumerated() where fingering.text.isEmpty == false {
@@ -954,7 +958,9 @@ struct GrandStaffNotationLayoutService {
                     placement: placement,
                     collisionLevel: 0,
                     minimumStaffStep: item.staffStep,
-                    maximumStaffStep: item.staffStep
+                    maximumStaffStep: item.staffStep,
+                    minimumStaffNumber: item.staffNumber,
+                    maximumStaffNumber: item.staffNumber
                 ))
             }
         }
@@ -963,10 +969,20 @@ struct GrandStaffNotationLayoutService {
             guard let arpeggiate = item.arpeggiate else { return false }
             return arpeggiate.directionToken == nil || arpeggiate.direction != nil
         }) { item in
-            "\(item.chordID ?? item.id):staff-\(item.staffNumber):\(item.arpeggiate?.normalizedNumberToken ?? "1")"
+            "\(item.chordID ?? item.id):\(item.arpeggiate?.normalizedNumberToken ?? "1")"
         }
         for (id, chordItems) in arpeggioItems {
             guard let first = chordItems.first, let arpeggiate = first.arpeggiate else { continue }
+            let lowerStaffNumber = chordItems.map(\.staffNumber).max() ?? first.staffNumber
+            let upperStaffNumber = chordItems.map(\.staffNumber).min() ?? first.staffNumber
+            let lowerStaffStep = chordItems
+                .filter { $0.staffNumber == lowerStaffNumber }
+                .map(\.staffStep)
+                .min()
+            let upperStaffStep = chordItems
+                .filter { $0.staffNumber == upperStaffNumber }
+                .map(\.staffStep)
+                .max()
             let token: GrandStaffGlyphToken = switch arpeggiate.direction {
             case .up: .arpeggiatoUp
             case .down: .arpeggiatoDown
@@ -982,8 +998,10 @@ struct GrandStaffNotationLayoutService {
                 text: nil,
                 placement: .left,
                 collisionLevel: 0,
-                minimumStaffStep: chordItems.map(\.staffStep).min(),
-                maximumStaffStep: chordItems.map(\.staffStep).max()
+                minimumStaffStep: lowerStaffStep,
+                maximumStaffStep: upperStaffStep,
+                minimumStaffNumber: lowerStaffNumber,
+                maximumStaffNumber: upperStaffNumber
             ))
         }
 
@@ -1007,7 +1025,9 @@ struct GrandStaffNotationLayoutService {
                 placement: mark.placement,
                 collisionLevel: level,
                 minimumStaffStep: mark.minimumStaffStep,
-                maximumStaffStep: mark.maximumStaffStep
+                maximumStaffStep: mark.maximumStaffStep,
+                minimumStaffNumber: mark.minimumStaffNumber,
+                maximumStaffNumber: mark.maximumStaffNumber
             )
         }
     }
@@ -1190,7 +1210,9 @@ struct GrandStaffNotationLayoutService {
             placement: mark.placement,
             collisionLevel: mark.collisionLevel,
             minimumStaffStep: mark.minimumStaffStep,
-            maximumStaffStep: mark.maximumStaffStep
+            maximumStaffStep: mark.maximumStaffStep,
+            minimumStaffNumber: mark.minimumStaffNumber,
+            maximumStaffNumber: mark.maximumStaffNumber
         )
     }
 
