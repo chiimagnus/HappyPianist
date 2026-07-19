@@ -6,7 +6,7 @@ struct AudioSpectrumFrame: Equatable, HarmonicBandEnergyProvidingProtocol {
     let rms: Double
     let onsetScore: Double
     let isOnset: Bool
-    let timestamp: Date
+    let timestamp: PerformanceMonotonicInstant
     private let frequencyBins: [Double]
     private let magnitudes: [Double]
 
@@ -16,7 +16,7 @@ struct AudioSpectrumFrame: Equatable, HarmonicBandEnergyProvidingProtocol {
         rms: Double,
         onsetScore: Double,
         isOnset: Bool,
-        timestamp: Date,
+        timestamp: PerformanceMonotonicInstant,
         frequencyBins: [Double] = [],
         magnitudes: [Double] = []
     ) {

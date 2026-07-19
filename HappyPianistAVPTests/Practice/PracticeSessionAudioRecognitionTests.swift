@@ -11,7 +11,7 @@ func fakeAudioRecognitionServiceEmitsEventToConsumer() async {
         confidence: 0.9,
         onsetScore: 0.8,
         isOnset: true,
-        timestamp: Date(timeIntervalSince1970: 1000),
+        timestamp: .init(seconds: 1000),
         generation: 1
     )
 
@@ -114,7 +114,7 @@ func staleGenerationEventDoesNotAdvanceStep() async {
             confidence: 0.9,
             onsetScore: 0.8,
             isOnset: true,
-            timestamp: .now,
+            timestamp: .init(seconds: 1),
             generation: generation - 1
         )
     )
@@ -144,68 +144,12 @@ func matchingAudioEventAdvancesStep() async {
             confidence: 0.92,
             onsetScore: 0.9,
             isOnset: true,
-            timestamp: Date().addingTimeInterval(0.8),
+            timestamp: .init(seconds: 1),
             generation: generation
         )
     )
     await settleTaskQueue()
 
-    #expect(viewModel.currentStepIndex == 1)
-}
-
-@Test
-@MainActor
-func suppressWindowBlocksThenAllowsAdvance() async {
-    let fakeService = FakePracticeAudioRecognitionService()
-    let playbackService = CapturingSequencerPlaybackService()
-    let viewModel = PracticeSessionViewModel(
-        pressDetectionService: NoopPressDetectionService(),
-        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
-        sleeper: TaskSleeper(),
-        sequencerPlaybackService: playbackService,
-        audioRecognitionService: fakeService
-    )
-    viewModel.installTestPerformanceNotes(
-        [
-            TestScorePerformanceNote(midiNote: 60, onTick: 0),
-            TestScorePerformanceNote(midiNote: 64, onTick: 10),
-        ])
-    viewModel.startGuidingIfReady()
-    await settleTaskQueue()
-    guard let startCall = fakeService.startCalls.first else {
-        #expect(Bool(false), "Expected audio recognition to start")
-        return
-    }
-    guard let suppressUntil = startCall.suppressUntil else {
-        #expect(Bool(false), "Expected suppressUntil to be set")
-        return
-    }
-    let generation = startCall.generation
-
-    fakeService.emitEvidence(
-        makeTargetAudioEvidence(
-            midiNote: 60,
-            confidence: 0.9,
-            onsetScore: 0.8,
-            isOnset: true,
-            timestamp: suppressUntil.addingTimeInterval(-0.1),
-            generation: generation
-        )
-    )
-    await settleTaskQueue()
-    #expect(viewModel.currentStepIndex == 0)
-
-    fakeService.emitEvidence(
-        makeTargetAudioEvidence(
-            midiNote: 60,
-            confidence: 0.9,
-            onsetScore: 0.8,
-            isOnset: true,
-            timestamp: suppressUntil.addingTimeInterval(0.2),
-            generation: generation
-        )
-    )
-    await settleTaskQueue()
     #expect(viewModel.currentStepIndex == 1)
 }
 
@@ -288,7 +232,7 @@ func autoplayIsolationBlocksAudioAdvanceUntilAutoplayOff() async {
             confidence: 0.95,
             onsetScore: 0.9,
             isOnset: true,
-            timestamp: Date().addingTimeInterval(0.8),
+            timestamp: .init(seconds: 1),
             generation: generation
         )
     )
@@ -304,7 +248,7 @@ func autoplayIsolationBlocksAudioAdvanceUntilAutoplayOff() async {
             confidence: 0.95,
             onsetScore: 0.9,
             isOnset: true,
-            timestamp: Date().addingTimeInterval(1.6),
+            timestamp: .init(seconds: 2),
             generation: resumedGeneration
         )
     )

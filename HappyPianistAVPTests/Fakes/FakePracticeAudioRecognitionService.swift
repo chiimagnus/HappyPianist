@@ -95,7 +95,7 @@ func makeTargetAudioEvidence(
     confidence: Double,
     onsetScore: Double,
     isOnset: Bool,
-    timestamp: Date,
+    timestamp: PerformanceMonotonicInstant,
     generation: Int,
     isWrongCandidate: Bool = false
 ) -> TargetAudioEvidence {

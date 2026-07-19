@@ -22,6 +22,8 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
     private struct AudioProcessingRequest {
         let samples: [Float]
         let sampleRate: Double
+        let capturedAt: PerformanceMonotonicInstant
+        let capturedWallTime: Date
         let epoch: Int
     }
 
@@ -128,10 +130,17 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
             generation: generation,
             suppressUntil: suppressUntil
         )
-        inputNode.installTap(onBus: 0, bufferSize: 2048, format: inputFormat) { [weak self] buffer, _ in
+        inputNode.installTap(onBus: 0, bufferSize: 2048, format: inputFormat) { [weak self] buffer, time in
             guard let self else { return }
+            let capturedAt = Self.monotonicInstant(from: time)
+            let capturedWallTime = Date.now
             guard let samples = Self.monoSamples(from: buffer), samples.isEmpty == false else { return }
-            scheduleProcessing(samples: samples, sampleRate: buffer.format.sampleRate)
+            scheduleProcessing(
+                samples: samples,
+                sampleRate: buffer.format.sampleRate,
+                capturedAt: capturedAt,
+                capturedWallTime: capturedWallTime
+            )
         }
         isTapInstalled = true
         do {
@@ -187,12 +196,23 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
         statusContinuation.yield(.stopped)
     }
 
-    private func scheduleProcessing(samples: [Float], sampleRate: Double) {
+    private func scheduleProcessing(
+        samples: [Float],
+        sampleRate: Double,
+        capturedAt: PerformanceMonotonicInstant,
+        capturedWallTime: Date
+    ) {
         lock.lock()
         let epoch = processingEpoch
         lock.unlock()
         processingContinuation.yield(
-            AudioProcessingRequest(samples: samples, sampleRate: sampleRate, epoch: epoch)
+            AudioProcessingRequest(
+                samples: samples,
+                sampleRate: sampleRate,
+                capturedAt: capturedAt,
+                capturedWallTime: capturedWallTime,
+                epoch: epoch
+            )
         )
     }
 
@@ -214,15 +234,15 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
         lock.unlock()
         guard let analysisWindow else { return }
 
-        let now = Date.now
-        let suppressing = suppressUntil.map { now < $0 } ?? false
+        let suppressing = suppressUntil.map { request.capturedWallTime < $0 } ?? false
         let evidence = detectEvidence(
             samples: analysisWindow,
             sampleRate: request.sampleRate,
             expectedMIDINotes: expectedMIDINotes,
             wrongCandidateMIDINotes: wrongCandidateMIDINotes,
             generation: generation,
-            suppressing: suppressing
+            suppressing: suppressing,
+            capturedAt: request.capturedAt
         )
         publish(evidence: evidence, processingEpoch: request.epoch)
     }
@@ -233,11 +253,12 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
         expectedMIDINotes: [Int],
         wrongCandidateMIDINotes: [Int],
         generation: Int,
-        suppressing: Bool
+        suppressing: Bool,
+        capturedAt: PerformanceMonotonicInstant
     ) -> TargetAudioEvidence? {
         do {
             let spectrum = try spectrumAnalyzer.analyze(
-                samples: samples, sampleRate: sampleRate, timestamp: .now
+                samples: samples, sampleRate: sampleRate, timestamp: capturedAt
             )
             return harmonicDetector.detect(
                 spectrumFrame: spectrum,
@@ -298,6 +319,11 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
             }
         }
         return result
+    }
+
+    private static func monotonicInstant(from time: AVAudioTime) -> PerformanceMonotonicInstant {
+        guard time.isHostTimeValid else { return PerformanceClock.live().now() }
+        return PerformanceMonotonicInstant(seconds: AVAudioTime.seconds(forHostTime: time.hostTime))
     }
 
     private func requestMicrophonePermission() async -> Bool {

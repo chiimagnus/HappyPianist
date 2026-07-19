@@ -65,7 +65,7 @@ func manualReplayBlocksAudioRecognitionAdvance() async {
             confidence: 1,
             onsetScore: 1,
             isOnset: true,
-            timestamp: Date(),
+            timestamp: .init(seconds: 1),
             generation: viewModel.audioRecognitionGenerationForTesting
         )
     )

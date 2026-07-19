@@ -79,7 +79,7 @@ func gateInactiveStillAllowsAudioMatchedAdvance() async {
             confidence: 0.95,
             onsetScore: 0.9,
             isOnset: true,
-            timestamp: Date().addingTimeInterval(0.9),
+            timestamp: .init(seconds: 1),
             generation: generation
         )
     )

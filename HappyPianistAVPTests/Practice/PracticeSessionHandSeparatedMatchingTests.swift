@@ -6,7 +6,7 @@ import Testing
 func audioAccumulatorRequiresBothHandsWhenEnabled() {
     let accumulator = AudioStepAttemptAccumulator()
     let generation = 1
-    let t0 = Date()
+    let t0 = PerformanceMonotonicInstant(seconds: 1)
 
     accumulator.resetForNewStep(generation: generation)
 

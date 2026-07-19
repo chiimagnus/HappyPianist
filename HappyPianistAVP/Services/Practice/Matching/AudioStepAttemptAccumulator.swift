@@ -50,10 +50,10 @@ final class AudioStepAttemptAccumulator {
     private(set) var configuration: AudioStepAttemptAccumulatorConfiguration
 
     private var recentEvidence: [TargetAudioEvidence] = []
-    private var rearmBlockedSince: [Int: Date] = [:]
+    private var rearmBlockedSince: [Int: PerformanceMonotonicInstant] = [:]
     private var currentGeneration: Int = 0
     private var recognitionMode: Step3AudioRecognitionMode = .lowLatency
-    private var lastMatchedAt: Date?
+    private var lastMatchedAt: PerformanceMonotonicInstant?
 
     init(configuration: AudioStepAttemptAccumulatorConfiguration = .init()) {
         self.configuration = configuration
@@ -78,7 +78,7 @@ final class AudioStepAttemptAccumulator {
         expectedMIDINotes: [Int],
         wrongCandidateMIDINotes: Set<Int>,
         generation: Int,
-        at timestamp: Date,
+        at timestamp: PerformanceMonotonicInstant,
         handGateBoost: Bool = false
     ) -> StepAttemptMatchResult {
         if generation != currentGeneration {
@@ -103,7 +103,7 @@ final class AudioStepAttemptAccumulator {
         if strongestWrong >= configuration.wrongNoteThreshold,
            strongestWrong >= max(strongestExpected, 0.01) * configuration.wrongDominanceRatio
         {
-            if let lastMatchedAt, timestamp.timeIntervalSince(lastMatchedAt) <= configuration.wrongNoteGraceWindow {
+            if let lastMatchedAt, timestamp.seconds - lastMatchedAt.seconds <= configuration.wrongNoteGraceWindow {
                 return .insufficientEvidence
             }
             return .wrongNote
@@ -119,7 +119,7 @@ final class AudioStepAttemptAccumulator {
         expectedLeftMIDINotes: [Int],
         wrongCandidateMIDINotes: Set<Int>,
         generation: Int,
-        at timestamp: Date,
+        at timestamp: PerformanceMonotonicInstant,
         handGateBoost: Bool = false
     ) -> StepAttemptMatchResult {
         if generation != currentGeneration {
@@ -144,7 +144,7 @@ final class AudioStepAttemptAccumulator {
         if strongestWrong >= configuration.wrongNoteThreshold,
            strongestWrong >= max(strongestExpected, 0.01) * configuration.wrongDominanceRatio
         {
-            if let lastMatchedAt, timestamp.timeIntervalSince(lastMatchedAt) <= configuration.wrongNoteGraceWindow {
+            if let lastMatchedAt, timestamp.seconds - lastMatchedAt.seconds <= configuration.wrongNoteGraceWindow {
                 return .insufficientEvidence
             }
             return .wrongNote
@@ -161,18 +161,21 @@ final class AudioStepAttemptAccumulator {
         lastMatchedAt = nil
     }
 
-    func markMatchedAndRequireRearm(expectedMIDINotes: [Int], at timestamp: Date) {
+    func markMatchedAndRequireRearm(
+        expectedMIDINotes: [Int],
+        at timestamp: PerformanceMonotonicInstant
+    ) {
         for midiNote in Set(expectedMIDINotes) {
             rearmBlockedSince[midiNote] = timestamp
         }
     }
 
-    private func pruneExpiredEvents(now: Date) {
+    private func pruneExpiredEvents(now: PerformanceMonotonicInstant) {
         recentEvidence.removeAll { evidence in
-            now.timeIntervalSince(evidence.timestamp) > configuration.eventTTL
+            now.seconds - evidence.timestamp.seconds > configuration.eventTTL
         }
         rearmBlockedSince = rearmBlockedSince.filter { _, blockedAt in
-            now.timeIntervalSince(blockedAt) < configuration.rearmSilenceWindow
+            now.seconds - blockedAt.seconds < configuration.rearmSilenceWindow
         }
     }
 
@@ -180,10 +183,13 @@ final class AudioStepAttemptAccumulator {
         handGateBoost ? configuration.handBoostedThreshold : configuration.singleNoteThreshold
     }
 
-    private func makeActiveEvidence(generation: Int, at timestamp: Date) -> [TargetAudioEvidence] {
+    private func makeActiveEvidence(
+        generation: Int,
+        at timestamp: PerformanceMonotonicInstant
+    ) -> [TargetAudioEvidence] {
         recentEvidence.filter { evidence in
             evidence.timestamp <= timestamp &&
-                timestamp.timeIntervalSince(evidence.timestamp) <= configuration.aggregationWindow &&
+                timestamp.seconds - evidence.timestamp.seconds <= configuration.aggregationWindow &&
                 evidence.generation == generation &&
                 (evidence.isOnset || evidence.onsetScore >= configuration.onsetThreshold)
         }
@@ -200,8 +206,11 @@ final class AudioStepAttemptAccumulator {
         }
     }
 
-    private func isRearmSatisfied(for midiNote: Int, at timestamp: Date) -> Bool {
+    private func isRearmSatisfied(
+        for midiNote: Int,
+        at timestamp: PerformanceMonotonicInstant
+    ) -> Bool {
         guard let blockedAt = rearmBlockedSince[midiNote] else { return true }
-        return timestamp.timeIntervalSince(blockedAt) >= configuration.rearmSilenceWindow
+        return timestamp.seconds - blockedAt.seconds >= configuration.rearmSilenceWindow
     }
 }

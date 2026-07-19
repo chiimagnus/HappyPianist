@@ -5,17 +5,19 @@ import Testing
 struct VDSPAudioSpectrumAnalyzerTests {
     @Test func attackWindowProducesOnset() throws {
         let samples = SyntheticAudioFixtures.harmonic(midiNote: 60, attack: true)
+        let capturedAt = PerformanceMonotonicInstant(seconds: 12.5)
         let frame = try VDSPAudioSpectrumAnalyzer().analyze(
-            samples: samples, sampleRate: 48000, timestamp: .now
+            samples: samples, sampleRate: 48000, timestamp: capturedAt
         )
         #expect(frame.isOnset)
         #expect(frame.onsetScore >= 0.25)
+        #expect(frame.timestamp == capturedAt)
     }
 
     @Test func sustainedWindowDoesNotBecomeOnset() throws {
         let samples = SyntheticAudioFixtures.harmonic(midiNote: 60, attack: false)
         let frame = try VDSPAudioSpectrumAnalyzer().analyze(
-            samples: samples, sampleRate: 48000, timestamp: .now
+            samples: samples, sampleRate: 48000, timestamp: .init(seconds: 1)
         )
         #expect(frame.isOnset == false)
         #expect(frame.onsetScore < 0.25)
@@ -28,7 +30,7 @@ struct VDSPAudioSpectrumAnalyzerTests {
             rms: 0.03,
             onsetScore: 1,
             isOnset: true,
-            timestamp: .now,
+            timestamp: .init(seconds: 1),
             frequencyBins: [250, 281.25, 312.5],
             magnitudes: [0.1, 10, 0.1]
         )

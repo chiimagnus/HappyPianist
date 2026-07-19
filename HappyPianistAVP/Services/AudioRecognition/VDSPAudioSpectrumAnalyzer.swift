@@ -5,7 +5,11 @@ import Foundation
 #endif
 
 protocol AudioSpectrumAnalyzingProtocol: Sendable {
-    func analyze(samples: [Float], sampleRate: Double, timestamp: Date) throws -> AudioSpectrumFrame
+    func analyze(
+        samples: [Float],
+        sampleRate: Double,
+        timestamp: PerformanceMonotonicInstant
+    ) throws -> AudioSpectrumFrame
 }
 
 struct VDSPAudioSpectrumAnalyzer: AudioSpectrumAnalyzingProtocol {
@@ -16,7 +20,11 @@ struct VDSPAudioSpectrumAnalyzer: AudioSpectrumAnalyzingProtocol {
         }
     }
 
-    func analyze(samples: [Float], sampleRate: Double, timestamp: Date) throws -> AudioSpectrumFrame {
+    func analyze(
+        samples: [Float],
+        sampleRate: Double,
+        timestamp: PerformanceMonotonicInstant
+    ) throws -> AudioSpectrumFrame {
         guard samples.isEmpty == false, sampleRate > 0 else { throw AnalyzerError.invalidInput }
         let rms = Self.rms(samples)
         let onsetScore = Self.localOnsetScore(samples)

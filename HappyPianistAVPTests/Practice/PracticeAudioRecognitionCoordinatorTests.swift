@@ -234,7 +234,6 @@ func microphoneUnknownPublishesLimitedObservationWithoutWrongNote() async {
         accumulator: AudioStepAttemptAccumulator(),
         stateStore: stateStore,
         effectHandler: effectHandler,
-        performanceClock: PerformanceClock(now: { .init(seconds: 42) }),
         consumeStreams: true
     )
     let observationTask = Task<PerformanceObservation?, Never> {
@@ -254,7 +253,7 @@ func microphoneUnknownPublishesLimitedObservationWithoutWrongNote() async {
         confidence: 0.4,
         onsetScore: 0.4,
         isOnset: true,
-        timestamp: .now,
+        timestamp: .init(seconds: 12),
         generation: generation
     ))
     await waitUntil { effectHandler.effects.isEmpty == false }
@@ -264,6 +263,8 @@ func microphoneUnknownPublishesLimitedObservationWithoutWrongNote() async {
     #expect(observation?.source.capabilities.release == .unavailable)
     #expect(observation?.source.capabilities.velocity == .unavailable)
     #expect(observation?.confidence == 0.4)
+    #expect(observation?.timing.host == .init(seconds: 12))
+    #expect(observation?.timing.correctedHost == .init(seconds: 12))
     guard case let .targetAudioDetection(targets, detected, result) = observation?.event else {
         Issue.record("Expected target-audio observation")
         return

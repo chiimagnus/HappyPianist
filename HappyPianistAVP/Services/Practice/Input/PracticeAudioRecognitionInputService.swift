@@ -19,7 +19,6 @@ final class PracticeAudioRecognitionInputService: PerformanceObservationStreamPr
     private let accumulator: AudioStepAttemptAccumulator
     private let stateStore: PracticeSessionStateStore
     private let observationRecorder: PracticeSessionRecorder?
-    private let performanceClock: PerformanceClock
     private weak var effectHandler: (any PracticeSessionEffectHandlerProtocol)?
     private let observationBroadcaster = AsyncStreamBroadcaster<PerformanceObservation>()
 
@@ -36,14 +35,12 @@ final class PracticeAudioRecognitionInputService: PerformanceObservationStreamPr
         effectHandler: any PracticeSessionEffectHandlerProtocol,
         diagnosticsReporter: (any DiagnosticsReporting)? = nil,
         observationRecorder: PracticeSessionRecorder? = nil,
-        performanceClock: PerformanceClock = .live(),
         consumeStreams: Bool
     ) {
         self.service = service
         self.accumulator = accumulator
         self.stateStore = stateStore
         self.observationRecorder = observationRecorder
-        self.performanceClock = performanceClock
         self.effectHandler = effectHandler
         self.diagnosticsReporter = diagnosticsReporter
         if consumeStreams { bindStreamsIfNeeded() }
@@ -204,12 +201,6 @@ final class PracticeAudioRecognitionInputService: PerformanceObservationStreamPr
         guard snapshot.autoplayState == .off else { return }
         guard snapshot.isManualReplayPlaying == false else { return }
         guard evidence.generation == stateStore.audioRecognitionGeneration else { return }
-        if let suppressUntil = stateStore.audioRecognitionSuppressUntil,
-           evidence.timestamp <= suppressUntil
-        {
-            return
-        }
-
         publishObservation(for: evidence)
         guard evidence.result != .unknown else {
             effectHandler?.handle(effect: .attemptEvaluated(.insufficientEvidence))
@@ -238,7 +229,7 @@ final class PracticeAudioRecognitionInputService: PerformanceObservationStreamPr
     }
 
     private func publishObservation(for evidence: TargetAudioEvidence) {
-        let host = performanceClock.now()
+        let host = evidence.timestamp
         let observation = PerformanceObservation(
             source: .init(
                 kind: .targetAudio,

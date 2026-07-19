@@ -40,7 +40,7 @@ struct TargetAudioEvidence: Equatable, Sendable {
     let confidence: Double?
     let onsetScore: Double
     let isOnset: Bool
-    let timestamp: Date
+    let timestamp: PerformanceMonotonicInstant
     let generation: Int
 
     init(
@@ -50,7 +50,7 @@ struct TargetAudioEvidence: Equatable, Sendable {
         confidence: Double? = nil,
         onsetScore: Double,
         isOnset: Bool,
-        timestamp: Date,
+        timestamp: PerformanceMonotonicInstant,
         generation: Int
     ) {
         self.targetMIDINotes = Set(targetMIDINotes).sorted()
