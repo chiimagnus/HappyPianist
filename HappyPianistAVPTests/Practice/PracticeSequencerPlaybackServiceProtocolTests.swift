@@ -70,6 +70,7 @@ func audioFailureResetsBeforePublishingAndRetryRecovers() async throws {
         if case .state(.failed) = $0 { return true }
         return false
     }
+    #expect(failedEntries.first == .sequenceStopped)
     #expect(failedStateIndex != nil)
     if let failedStateIndex {
         let resetControllers = failedEntries[..<failedStateIndex].compactMap { entry -> UInt32? in
@@ -167,6 +168,7 @@ func stopAttemptsEveryResetCommandAndPublishesResetFailure() async throws {
     await service.stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
 
     let entries = output.audioEntriesSnapshot()
+    #expect(entries.first == .sequenceStopped)
     let controllers = entries.compactMap { entry -> UInt32? in
         guard case let .midi(_, controller, _) = entry else { return nil }
         return controller

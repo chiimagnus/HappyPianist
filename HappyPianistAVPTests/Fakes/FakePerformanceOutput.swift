@@ -24,6 +24,7 @@ final class FakePerformanceOutput: MIDIOutputSendingProtocol, @unchecked Sendabl
     }
 
     enum AudioEntry: Equatable {
+        case sequenceStopped
         case midi(status: UInt32, data1: UInt32, data2: UInt32)
         case state(PracticeAudioPlaybackState)
     }
@@ -147,6 +148,9 @@ final class FakePerformanceOutput: MIDIOutputSendingProtocol, @unchecked Sendabl
             },
             startSequence: { [weak self] _ in
                 try self?.consumeAudioFailure(.sequenceStart)
+            },
+            stopSequence: { [weak self] _ in
+                self?.lock.withLock { $0.audioEntries.append(.sequenceStopped) }
             },
             sendMIDIEvent: { [weak self] _, status, data1, data2 in
                 self?.recordAudioMIDI(status: status, data1: data1, data2: data2) ?? -1

@@ -44,6 +44,7 @@ struct PracticeAudioPlatformOperations: Sendable {
     let startEngine: @Sendable (AVAudioEngine) throws -> Void
     let loadSequence: @Sendable (AVAudioSequencer, Data) throws -> Void
     let startSequence: @Sendable (AVAudioSequencer) throws -> Void
+    let stopSequence: @Sendable (AVAudioSequencer) -> Void
     let sendMIDIEvent: @Sendable (AudioUnit, UInt32, UInt32, UInt32) -> OSStatus
 
     static let live = PracticeAudioPlatformOperations(
@@ -72,6 +73,9 @@ struct PracticeAudioPlatformOperations: Sendable {
         },
         startSequence: { sequencer in
             try sequencer.start()
+        },
+        stopSequence: { sequencer in
+            sequencer.stop()
         },
         sendMIDIEvent: { audioUnit, status, data1, data2 in
             MusicDeviceMIDIEvent(audioUnit, status, data1, data2, 0)
@@ -154,12 +158,12 @@ actor AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackServiceP
     }
 
     func stop(resetCommands: [PerformanceTransportCommand]) {
+        haltPlayback()
         let resetFailure = executeReset(commands: resetCommands)
         recordResetMetrics(
             resetFailure: resetFailure,
             commands: resetCommands
         )
-        haltPlayback()
         guard let resetFailure else {
             if pendingRecoveryContext == nil {
                 publishState(.idle)
@@ -368,7 +372,7 @@ actor AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackServiceP
     private func haltPlayback() {
         oneShotStopTask?.cancel()
         oneShotStopTask = nil
-        sequencer.stop()
+        platform.stopSequence(sequencer)
         oneShotNoteBySourceEventID.removeAll()
         liveNoteBySourceEventID.removeAll()
     }
@@ -588,12 +592,12 @@ actor AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackServiceP
         rebuildAudioGraph: Bool = false
     ) -> PracticeAudioError {
         let resetCommands = PerformanceTransportReducer.fullResetCommands
+        haltPlayback()
         let resetFailure = executeReset(commands: resetCommands)
         recordResetMetrics(
             resetFailure: resetFailure,
             commands: resetCommands
         )
-        haltPlayback()
         engine.stop()
         isReady = false
         if rebuildAudioGraph {
