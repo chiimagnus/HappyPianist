@@ -24,6 +24,7 @@ private actor ControlledBackend: ImprovBackendProtocol {
     nonisolated let displayName: String
 
     private var continuation: CheckedContinuation<ImprovBackendPlaybackPlan, Error>?
+    private var callWaiters: [CheckedContinuation<Bool, Never>] = []
 
     init(kind: ImprovBackendKind, displayName: String = "Controlled") {
         self.kind = kind
@@ -34,17 +35,19 @@ private actor ControlledBackend: ImprovBackendProtocol {
         try Task.checkCancellation()
         return try await withCheckedThrowingContinuation { continuation in
             self.continuation = continuation
+            let waiters = callWaiters
+            callWaiters.removeAll()
+            for waiter in waiters {
+                waiter.resume(returning: true)
+            }
         }
     }
 
-    func waitForCall(timeout: Duration = .seconds(2)) async -> Bool {
-        let deadline = ContinuousClock.now + timeout
-        while ContinuousClock.now < deadline {
-            if continuation != nil { return true }
-            // ponytail: 1 ms polling keeps this test helper deterministic without a bespoke test clock.
-            try? await Task.sleep(for: .milliseconds(1))
+    func waitForCall() async -> Bool {
+        if continuation != nil { return true }
+        return await withCheckedContinuation { continuation in
+            callWaiters.append(continuation)
         }
-        return continuation != nil
     }
 
     func resume(with plan: ImprovBackendPlaybackPlan) {
@@ -88,6 +91,7 @@ private struct FakeSettingsProvider: PracticeSessionSettingsProviderProtocol {
 @MainActor
 func continuousDuetRequestsGenerationBeforeUserReleasesKey() async {
     var nowUptime: TimeInterval = 0
+    let controlClock = AIPerformanceControlClock()
 
     let selectedKind: ImprovBackendKind = .localRule
     let backend = ControlledBackend(kind: selectedKind)
@@ -100,7 +104,7 @@ func continuousDuetRequestsGenerationBeforeUserReleasesKey() async {
 
     let service = AIPerformanceService(
         nowUptimeSeconds: { nowUptime },
-        sleepFor: { _ in },
+        sleepFor: { duration in await controlClock.sleep(for: duration) },
         discoveryOrchestrator: FakeDiscoveryOrchestrator(),
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
@@ -118,6 +122,7 @@ func continuousDuetRequestsGenerationBeforeUserReleasesKey() async {
         nowUptimeSeconds: nowUptime
     )
     nowUptime = 0.2
+    await controlClock.advance()
 
     #expect(await backend.waitForCall())
 
@@ -134,6 +139,7 @@ func continuousDuetRequestsGenerationBeforeUserReleasesKey() async {
 @MainActor
 func continuousDuetRequestsGenerationForMIDI2Input() async {
     var nowUptime: TimeInterval = 0
+    let controlClock = AIPerformanceControlClock()
 
     let selectedKind: ImprovBackendKind = .localRule
     let backend = ControlledBackend(kind: selectedKind)
@@ -146,7 +152,7 @@ func continuousDuetRequestsGenerationForMIDI2Input() async {
 
     let service = AIPerformanceService(
         nowUptimeSeconds: { nowUptime },
-        sleepFor: { _ in },
+        sleepFor: { duration in await controlClock.sleep(for: duration) },
         discoveryOrchestrator: FakeDiscoveryOrchestrator(),
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
@@ -167,6 +173,7 @@ func continuousDuetRequestsGenerationForMIDI2Input() async {
         receivedAtUptimeSeconds: nowUptime
     ))
     nowUptime = 0.2
+    await controlClock.advance()
 
     #expect(await backend.waitForCall())
 

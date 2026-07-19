@@ -2,6 +2,24 @@ import Foundation
 @testable import HappyPianistAVP
 import Testing
 
+actor AIPerformanceControlClock {
+    private let ticks: AsyncStream<Void>
+    private let tickContinuation: AsyncStream<Void>.Continuation
+
+    init() {
+        (ticks, tickContinuation) = AsyncStream.makeStream()
+    }
+
+    func sleep(for _: Duration) async {
+        var iterator = ticks.makeAsyncIterator()
+        _ = await iterator.next()
+    }
+
+    func advance() {
+        tickContinuation.yield()
+    }
+}
+
 @MainActor
 private final class FakeDiscoveryOrchestrator: ImprovBackendDiscoveryOrchestrating {
     func start(for _: ImprovBackendKind) {}
@@ -34,6 +52,7 @@ private actor ControlledBackend: ImprovBackendProtocol {
 
     private var continuations: [CheckedContinuation<ImprovBackendPlaybackPlan, Error>] = []
     private var calls = 0
+    private var callWaiters: [(minimumCount: Int, continuation: CheckedContinuation<Bool, Never>)] = []
 
     init(kind: ImprovBackendKind, displayName: String = "Controlled") {
         self.kind = kind
@@ -45,17 +64,19 @@ private actor ControlledBackend: ImprovBackendProtocol {
         return try await withCheckedThrowingContinuation { continuation in
             calls += 1
             continuations.append(continuation)
+            let readyWaiters = callWaiters.filter { $0.minimumCount <= calls }
+            callWaiters.removeAll { $0.minimumCount <= calls }
+            for waiter in readyWaiters {
+                waiter.continuation.resume(returning: true)
+            }
         }
     }
 
-    func waitForCall(minimumCount: Int = 1, timeout: Duration = .seconds(2)) async -> Bool {
-        let deadline = ContinuousClock.now + timeout
-        while ContinuousClock.now < deadline {
-            if continuations.count >= minimumCount { return true }
-            // ponytail: 1 ms polling keeps this test helper deterministic without a bespoke test clock.
-            try? await Task.sleep(for: .milliseconds(1))
+    func waitForCall(minimumCount: Int = 1) async -> Bool {
+        if calls >= minimumCount { return true }
+        return await withCheckedContinuation { continuation in
+            callWaiters.append((minimumCount, continuation))
         }
-        return continuations.count >= minimumCount
     }
 
     func resume(with plan: ImprovBackendPlaybackPlan) {
@@ -133,6 +154,7 @@ func releasedServiceStopsItsControlLoop() async {
 @MainActor
 func disablingServiceDropsLateBackendResponses() async {
     var nowUptime: TimeInterval = 0
+    let controlClock = AIPerformanceControlClock()
 
     let selectedKind: ImprovBackendKind = .localRule
     let backend = ControlledBackend(kind: selectedKind)
@@ -146,7 +168,7 @@ func disablingServiceDropsLateBackendResponses() async {
     var didEnqueueAnySchedule = false
     let service = AIPerformanceService(
         nowUptimeSeconds: { nowUptime },
-        sleepFor: { _ in },
+        sleepFor: { duration in await controlClock.sleep(for: duration) },
         discoveryOrchestrator: FakeDiscoveryOrchestrator(),
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
@@ -166,6 +188,7 @@ func disablingServiceDropsLateBackendResponses() async {
         nowUptimeSeconds: nowUptime
     )
     nowUptime = 0.2
+    await controlClock.advance()
 
     #expect(await backend.waitForCall())
 
@@ -191,6 +214,7 @@ func disablingServiceDropsLateBackendResponses() async {
 @MainActor
 func newInputReevaluatesContinuousResponseAgainstLatestContext() async {
     var nowUptime: TimeInterval = 0
+    let controlClock = AIPerformanceControlClock()
     let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
     let backend = ControlledBackend(kind: selectedKind)
     let playbackService = NonAdvancingPlaybackService()
@@ -201,7 +225,7 @@ func newInputReevaluatesContinuousResponseAgainstLatestContext() async {
     var enqueuedSchedule = false
     let service = AIPerformanceService(
         nowUptimeSeconds: { nowUptime },
-        sleepFor: { _ in },
+        sleepFor: { duration in await controlClock.sleep(for: duration) },
         discoveryOrchestrator: FakeDiscoveryOrchestrator(),
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
@@ -217,6 +241,7 @@ func newInputReevaluatesContinuousResponseAgainstLatestContext() async {
         nowUptimeSeconds: 0
     )
     nowUptime = 0.2
+    await controlClock.advance()
     #expect(await backend.waitForCall())
 
     service.recordKeyContactForPhraseRecordingIfNeeded(
@@ -241,6 +266,7 @@ func newInputReevaluatesContinuousResponseAgainstLatestContext() async {
 @MainActor
 func changingBackendDoesNotWaitForSuspendedOldBackend() async {
     var nowUptime: TimeInterval = 0
+    let controlClock = AIPerformanceControlClock()
     let selectedKind = MutableBackendKind(.localRule)
     let oldBackend = ControlledBackend(kind: .localRule)
     let newBackend = ControlledBackend(kind: .networkBonjourHTTPAriaV2)
@@ -251,7 +277,7 @@ func changingBackendDoesNotWaitForSuspendedOldBackend() async {
     )
     let service = AIPerformanceService(
         nowUptimeSeconds: { nowUptime },
-        sleepFor: { _ in },
+        sleepFor: { duration in await controlClock.sleep(for: duration) },
         discoveryOrchestrator: FakeDiscoveryOrchestrator(),
         backendRegistry: ImprovBackendRegistry(backends: [oldBackend, newBackend]),
         selectedBackendKind: { selectedKind.value },
@@ -267,6 +293,7 @@ func changingBackendDoesNotWaitForSuspendedOldBackend() async {
         nowUptimeSeconds: 0
     )
     nowUptime = 0.2
+    await controlClock.advance()
     #expect(await oldBackend.waitForCall())
 
     selectedKind.value = .networkBonjourHTTPAriaV2
@@ -276,6 +303,7 @@ func changingBackendDoesNotWaitForSuspendedOldBackend() async {
         nowUptimeSeconds: nowUptime
     )
     nowUptime = 0.4
+    await controlClock.advance()
     #expect(await newBackend.waitForCall())
 
     await newBackend.resume(with: .schedule([], backendLatencyMS: nil))
@@ -287,6 +315,7 @@ func changingBackendDoesNotWaitForSuspendedOldBackend() async {
 @MainActor
 func replacingPracticeSessionInvalidatesOldResponse() async {
     var nowUptime: TimeInterval = 0
+    let controlClock = AIPerformanceControlClock()
     let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
     let backend = ControlledBackend(kind: selectedKind)
     let playbackService = NonAdvancingPlaybackService()
@@ -297,7 +326,7 @@ func replacingPracticeSessionInvalidatesOldResponse() async {
     var enqueuedSchedule = false
     let service = AIPerformanceService(
         nowUptimeSeconds: { nowUptime },
-        sleepFor: { _ in },
+        sleepFor: { duration in await controlClock.sleep(for: duration) },
         discoveryOrchestrator: FakeDiscoveryOrchestrator(),
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
@@ -314,6 +343,7 @@ func replacingPracticeSessionInvalidatesOldResponse() async {
         nowUptimeSeconds: 0
     )
     nowUptime = 0.2
+    await controlClock.advance()
     #expect(await backend.waitForCall())
 
     service.updatePracticeSession(replacementSession)
@@ -333,6 +363,7 @@ func replacingPracticeSessionInvalidatesOldResponse() async {
 @MainActor
 func silentContextDropsLateContinuousResponse() async {
     var nowUptime: TimeInterval = 0
+    let controlClock = AIPerformanceControlClock()
     let selectedKind: ImprovBackendKind = .localRule
     let backend = ControlledBackend(kind: selectedKind)
     let playbackService = NonAdvancingPlaybackService()
@@ -343,7 +374,7 @@ func silentContextDropsLateContinuousResponse() async {
     var enqueuedSchedule = false
     let service = AIPerformanceService(
         nowUptimeSeconds: { nowUptime },
-        sleepFor: { _ in },
+        sleepFor: { duration in await controlClock.sleep(for: duration) },
         discoveryOrchestrator: FakeDiscoveryOrchestrator(),
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
@@ -359,6 +390,7 @@ func silentContextDropsLateContinuousResponse() async {
         nowUptimeSeconds: 0
     )
     nowUptime = 0.2
+    await controlClock.advance()
     #expect(await backend.waitForCall())
 
     nowUptime = 2.0
@@ -378,6 +410,7 @@ func silentContextDropsLateContinuousResponse() async {
 @MainActor
 func disablingAndReenablingKeepsNewRequestTracked() async {
     var nowUptime: TimeInterval = 0
+    let controlClock = AIPerformanceControlClock()
     let selectedKind: ImprovBackendKind = .localRule
     let backend = ControlledBackend(kind: selectedKind)
     let playbackService = NonAdvancingPlaybackService()
@@ -387,7 +420,7 @@ func disablingAndReenablingKeepsNewRequestTracked() async {
     )
     let service = AIPerformanceService(
         nowUptimeSeconds: { nowUptime },
-        sleepFor: { _ in },
+        sleepFor: { duration in await controlClock.sleep(for: duration) },
         discoveryOrchestrator: FakeDiscoveryOrchestrator(),
         backendRegistry: ImprovBackendRegistry(backends: [backend]),
         selectedBackendKind: { selectedKind },
@@ -403,6 +436,7 @@ func disablingAndReenablingKeepsNewRequestTracked() async {
         nowUptimeSeconds: 0
     )
     nowUptime = 0.2
+    await controlClock.advance()
     #expect(await backend.waitForCall())
 
     service.setEnabled(false)
@@ -413,6 +447,7 @@ func disablingAndReenablingKeepsNewRequestTracked() async {
         nowUptimeSeconds: nowUptime
     )
     nowUptime = 0.4
+    await controlClock.advance()
     #expect(await backend.waitForCall(minimumCount: 2))
 
     await backend.resume(with: .schedule([], backendLatencyMS: nil))
