@@ -5,7 +5,7 @@ import Testing
 
 struct CoreMIDIPracticePlaybackServiceStopTests {
     @Test func stopExecutesReducerResetCommandsInOrder() async throws {
-        let output = FakeMIDIOutputService()
+        let output = FakePerformanceOutput()
         let destinationUniqueID: Int32 = 1234
         let plan = makeTestScorePerformancePlan(notes: [
             TestScorePerformanceNote(midiNote: 60, onTick: 0),
@@ -42,7 +42,7 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
     }
 
     @Test func stopContinuesResetAfterSendFailureAndReportsAggregate() async {
-        let output = FakeMIDIOutputService(failingControllers: [64, 120])
+        let output = FakePerformanceOutput(failingControllers: [64, 120])
         let diagnostics = InMemoryDiagnosticsReporter()
         let destinationUniqueID: Int32 = 1240
         let playback = await MainActor.run {
@@ -63,7 +63,9 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             return controller
         }
         #expect(controllers == [64, 66, 67, 123, 120])
-        let events = await waitForCoreMIDIResetDiagnostic(diagnostics)
+        let events = await waitForDiagnostics(diagnostics) { events in
+            events.contains { $0.stage == "coreMIDI.transportReset" }
+        }
         #expect(events.contains { event in
             event.stage == "coreMIDI.transportReset"
                 && event.reason == "failureCount=2"
@@ -71,7 +73,7 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
     }
 
     @Test func playbackSendsCanonicalSequenceEventsIncludingControllers() async throws {
-        let output = FakeMIDIOutputService()
+        let output = FakePerformanceOutput()
         let destinationUniqueID: Int32 = 5678
         let playback = await MainActor.run {
             CoreMIDIPracticePlaybackService(
@@ -103,7 +105,7 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
         }
         try await Task.sleep(for: .milliseconds(20))
 
-        let expected: [FakeMIDIOutputService.Call] = [
+        let expected: [FakePerformanceOutput.Call] = [
             .bytes([0xB2, 11, 72], destination: destinationUniqueID),
             .bytes([0x92, 60, 88], destination: destinationUniqueID),
         ]
@@ -112,7 +114,12 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
     }
 
     @Test func playbackQuantizesPedalsForBinaryOutputAndReportsAggregateApproximation() async throws {
-        let output = FakeMIDIOutputService()
+        let capabilities = PerformanceOutputCapabilities(
+            damper: .binary,
+            sostenuto: .binary,
+            soft: .binary
+        )
+        let output = FakePerformanceOutput(capabilities: capabilities)
         let diagnostics = InMemoryDiagnosticsReporter()
         let destinationUniqueID: Int32 = 6789
         let playback = await MainActor.run {
@@ -120,11 +127,7 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
                 destinationUniqueID: destinationUniqueID,
                 outputService: output,
                 diagnosticsReporter: diagnostics,
-                outputCapabilities: PerformanceOutputCapabilities(
-                    damper: .binary,
-                    sostenuto: .binary,
-                    soft: .binary
-                ),
+                outputCapabilities: capabilities,
                 channel: 1
             )
         }
@@ -161,7 +164,7 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
     }
 
     @Test func stopPreventsDelayedEventsFromEscapingAfterReset() async throws {
-        let output = FakeMIDIOutputService()
+        let output = FakePerformanceOutput()
         let destinationUniqueID: Int32 = 9012
         let playback = await MainActor.run {
             CoreMIDIPracticePlaybackService(
@@ -195,7 +198,7 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
     }
 
     @Test func loadAndPlayDoNotInjectResetCommands() async throws {
-        let output = FakeMIDIOutputService()
+        let output = FakePerformanceOutput()
         let destinationUniqueID: Int32 = 3456
         let playback = await MainActor.run {
             CoreMIDIPracticePlaybackService(
@@ -229,13 +232,13 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
     }
 
     @Test func lookAheadSchedulerKeepsStableOrderAcrossBatchBoundary() async {
-        let output = FakeMIDIOutputService()
+        let output = FakePerformanceOutput()
         let clock = FakeMIDILookAheadClock()
         let scheduler = MIDILookAheadScheduler(
             outputService: output,
             destinationUniqueID: 111,
             channel: 0,
-            outputCapabilities: .externalMIDI,
+            outputCapabilities: output.capabilities,
             hostTimeConverter: MIDIHostTimeConverter(
                 currentHostTime: { 10_000 },
                 hostTicksPerSecond: 1_000
@@ -250,31 +253,31 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             PracticeSequencerMIDIEvent(timeSeconds: 0.101, kind: .noteOff(midi: 60)),
         ], fromSeconds: 0)
 
-        #expect(await waitUntil { output.batchesSnapshot().count == 1 && clock.sleepingCount == 1 })
-        #expect(output.batchesSnapshot()[0].map(\.bytes) == [
+        #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 1 && clock.sleepingCount == 1 })
+        #expect(output.timestampedBatchesSnapshot()[0].messages.map(\.bytes) == [
             [0x90, 60, 80],
             [0xB0, 64, 90],
             [0x90, 62, 81],
         ])
-        #expect(output.batchesSnapshot()[0].map(\.hostTime) == [10_050, 10_100, 10_100])
+        #expect(output.timestampedBatchesSnapshot()[0].messages.map(\.hostTime) == [10_050, 10_100, 10_100])
 
-        clock.advance(by: 0.001)
-        #expect(await waitUntil { output.batchesSnapshot().count == 2 })
+        clock.advance(by: 0.002)
+        #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 2 })
         await task.value
-        #expect(output.batchesSnapshot()[1] == [
+        #expect(output.timestampedBatchesSnapshot()[1].messages == [
             TimestampedMIDI1Message(hostTime: 10_101, bytes: [0x80, 60, 0]),
         ])
     }
 
     @Test func lookAheadSchedulerClampsLateEventToCurrentTransportTime() async {
-        let output = FakeMIDIOutputService()
+        let output = FakePerformanceOutput()
         let clock = FakeMIDILookAheadClock()
         let diagnostics = InMemoryDiagnosticsReporter()
         let scheduler = MIDILookAheadScheduler(
             outputService: output,
             destinationUniqueID: 222,
             channel: 0,
-            outputCapabilities: .externalMIDI,
+            outputCapabilities: output.capabilities,
             hostTimeConverter: MIDIHostTimeConverter(
                 currentHostTime: { 20_000 },
                 hostTicksPerSecond: 1_000
@@ -288,12 +291,14 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOn(midi: 62, velocity: 81)),
         ], fromSeconds: 0)
 
-        #expect(await waitUntil { output.batchesSnapshot().count == 1 && clock.sleepingCount == 1 })
+        #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 1 && clock.sleepingCount == 1 })
         clock.advance(by: 0.25)
-        #expect(await waitUntil { output.batchesSnapshot().count == 2 })
+        #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 2 })
         await task.value
-        #expect(output.batchesSnapshot()[1].first?.hostTime == 20_250)
-        let events = await waitForOutputMetrics(diagnostics)
+        #expect(output.timestampedBatchesSnapshot()[1].messages.first?.hostTime == 20_250)
+        let events = await waitForDiagnostics(diagnostics) { events in
+            events.contains { $0.stage == "playback.outputMetrics" }
+        }
         #expect(events.contains { event in
             event.stage == "playback.outputMetrics"
                 && event.reason.contains("scheduled=2")
@@ -304,13 +309,13 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
     }
 
     @Test func cancellingLookAheadSchedulerPreventsUnsubmittedBatches() async {
-        let output = FakeMIDIOutputService()
+        let output = FakePerformanceOutput()
         let clock = FakeMIDILookAheadClock()
         let scheduler = MIDILookAheadScheduler(
             outputService: output,
             destinationUniqueID: 333,
             channel: 0,
-            outputCapabilities: .externalMIDI,
+            outputCapabilities: output.capabilities,
             hostTimeConverter: MIDIHostTimeConverter(
                 currentHostTime: { 30_000 },
                 hostTicksPerSecond: 1_000
@@ -323,23 +328,57 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             PracticeSequencerMIDIEvent(timeSeconds: 1, kind: .noteOff(midi: 60)),
         ], fromSeconds: 0)
 
-        #expect(await waitUntil { output.batchesSnapshot().count == 1 && clock.sleepingCount == 1 })
+        #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 1 && clock.sleepingCount == 1 })
         task.cancel()
         await task.value
         clock.advance(by: 2)
-        #expect(output.batchesSnapshot().count == 1)
+        #expect(output.timestampedBatchesSnapshot().count == 1)
+    }
+
+    @Test func lookAheadSendFailureDropsRemainingGenerationAndReportsMetrics() async {
+        let output = FakePerformanceOutput()
+        output.failNextMIDIBatch()
+        let diagnostics = InMemoryDiagnosticsReporter()
+        let scheduler = MIDILookAheadScheduler(
+            outputService: output,
+            destinationUniqueID: 334,
+            channel: 0,
+            outputCapabilities: output.capabilities,
+            hostTimeConverter: MIDIHostTimeConverter(
+                currentHostTime: { 35_000 },
+                hostTicksPerSecond: 1_000
+            ),
+            diagnosticsReporter: diagnostics
+        )
+
+        let task = scheduler.start(events: [
+            PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 60, velocity: 80)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.05, kind: .noteOff(midi: 60)),
+        ], fromSeconds: 0)
+        await task.value
+
+        #expect(output.timestampedBatchesSnapshot().count == 1)
+        let events = await waitForDiagnostics(diagnostics) { events in
+            events.contains { $0.stage == "playback.outputMetrics" }
+        }
+        #expect(events.contains { event in
+            event.stage == "playback.outputMetrics"
+                && event.reason.contains("scheduled=2")
+                && event.reason.contains("submitted=0")
+                && event.reason.contains("dropped=2")
+        })
     }
 
     @Test func invalidatedGenerationPreventsReadyBatchWithoutRelyingOnTaskCancellation() async {
-        let output = FakeMIDIOutputService()
-        let clock = FakeMIDILookAheadClock()
         let generationGuard = MIDIPlaybackGenerationGuard()
         let generation = generationGuard.beginGeneration()
+        let output = FakePerformanceOutput(generation: { generation })
+        let clock = FakeMIDILookAheadClock()
         let scheduler = MIDILookAheadScheduler(
             outputService: output,
             destinationUniqueID: 444,
             channel: 0,
-            outputCapabilities: .externalMIDI,
+            outputCapabilities: output.capabilities,
             hostTimeConverter: MIDIHostTimeConverter(
                 currentHostTime: { 40_000 },
                 hostTicksPerSecond: 1_000
@@ -354,15 +393,17 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 60)),
         ], fromSeconds: 0)
 
-        #expect(await waitUntil { output.batchesSnapshot().count == 1 && clock.sleepingCount == 1 })
+        #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 1 && clock.sleepingCount == 1 })
+        #expect(output.timestampedBatchesSnapshot().first?.generation == generation)
+        #expect(output.timestampedBatchesSnapshot().first?.capabilities == .externalMIDI)
         generationGuard.invalidate()
         clock.advance(by: 0.25)
         await task.value
-        #expect(output.batchesSnapshot().count == 1)
+        #expect(output.timestampedBatchesSnapshot().count == 1)
     }
 
     @Test func repeatedStartAndStopFlushOnlyActiveSchedulerGeneration() async throws {
-        let output = FakeMIDIOutputService()
+        let output = FakePerformanceOutput()
         let destinationUniqueID: Int32 = 555
         let playback = await MainActor.run {
             CoreMIDIPracticePlaybackService(
@@ -381,12 +422,12 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             ))
             try playback.play(fromSeconds: 0)
         }
-        #expect(await waitUntil { output.batchesSnapshot().count == 1 })
+        #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 1 })
 
         try await MainActor.run {
             try playback.play(fromSeconds: 0)
         }
-        #expect(await waitUntil { output.batchesSnapshot().count == 2 })
+        #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 2 })
         await MainActor.run {
             playback.stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
             playback.stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
@@ -403,7 +444,7 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
     }
 
     @Test func destinationRouteChangeCancelsFlushesAndResetsCurrentGeneration() async throws {
-        let output = FakeMIDIOutputService()
+        let output = FakePerformanceOutput()
         let destinationUniqueID: Int32 = 666
         let playback = await MainActor.run {
             CoreMIDIPracticePlaybackService(
@@ -422,9 +463,9 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             ))
             try playback.play(fromSeconds: 0)
         }
-        #expect(await waitUntil { output.batchesSnapshot().count == 1 })
+        #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 1 })
 
-        output.simulateDestinationRouteChange()
+        output.simulateDestinationDisconnect()
         #expect(await waitUntil {
             let calls = output.callsSnapshot()
             return calls.contains(.flush(destination: destinationUniqueID)) &&
@@ -444,7 +485,7 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
     }
 
     @Test func playbackServiceTeardownFlushesAndSendsFullResetBatch() async throws {
-        let output = FakeMIDIOutputService()
+        let output = FakePerformanceOutput()
         let destinationUniqueID: Int32 = 777
 
         try await MainActor.run {
@@ -466,8 +507,8 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
         }
 
         #expect(output.callsSnapshot().contains(.flush(destination: destinationUniqueID)))
-        #expect(output.batchesSnapshot().contains { batch in
-            batch.map(\.bytes) == [
+        #expect(output.timestampedBatchesSnapshot().contains { batch in
+            batch.messages.map(\.bytes) == [
                 [0xB2, 64, 0],
                 [0xB2, 66, 0],
                 [0xB2, 67, 0],
@@ -478,117 +519,20 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
     }
 }
 
-private final class FakeMIDIOutputService: MIDIOutputSendingProtocol, @unchecked Sendable {
-    var onDestinationRouteWillChange: (@Sendable () -> Void)?
-    var onDestinationRouteChange: (@Sendable () -> Void)?
-
-    enum Call: Equatable {
-        case start
-        case stop
-        case noteOn(note: UInt8, velocity: UInt8, channel: UInt8, destination: Int32)
-        case noteOff(note: UInt8, channel: UInt8, destination: Int32)
-        case controlChange(controller: UInt8, value: UInt8, channel: UInt8, destination: Int32)
-        case programChange(program: UInt8, channel: UInt8, destination: Int32)
-        case bytes([UInt8], destination: Int32)
-        case flush(destination: Int32)
-    }
-
-    private let lock = OSAllocatedUnfairLock(initialState: [Call]())
-    private let batchesLock = OSAllocatedUnfairLock(initialState: [[TimestampedMIDI1Message]]())
-    private let failingControllers: Set<UInt8>
-
-    init(failingControllers: Set<UInt8> = []) {
-        self.failingControllers = failingControllers
-    }
-
-    func callsSnapshot() -> [Call] {
-        lock.withLock { $0 }
-    }
-
-    func batchesSnapshot() -> [[TimestampedMIDI1Message]] {
-        batchesLock.withLock { $0 }
-    }
-
-    func start() throws {
-        lock.withLock { $0.append(.start) }
-    }
-
-    func stop() {
-        lock.withLock { $0.append(.stop) }
-    }
-
-    func listDestinations() -> [MIDIDestinationInfo] {
-        []
-    }
-
-    func sendMIDI1Messages(_ messages: [TimestampedMIDI1Message], destinationUniqueID: Int32) throws {
-        batchesLock.withLock { $0.append(messages) }
-        lock.withLock { calls in
-            calls.append(contentsOf: messages.map { .bytes($0.bytes, destination: destinationUniqueID) })
-        }
-    }
-
-    func flushScheduledMessages(destinationUniqueID: Int32) throws {
-        lock.withLock { $0.append(.flush(destination: destinationUniqueID)) }
-    }
-
-    func simulateDestinationRouteChange() {
-        onDestinationRouteWillChange?()
-        onDestinationRouteChange?()
-    }
-
-    func sendNoteOn(note: UInt8, velocity: UInt8, channel: UInt8, destinationUniqueID: Int32) throws {
-        lock.withLock { $0.append(.noteOn(note: note, velocity: velocity, channel: channel, destination: destinationUniqueID)) }
-    }
-
-    func sendNoteOff(note: UInt8, channel: UInt8, destinationUniqueID: Int32) throws {
-        lock.withLock { $0.append(.noteOff(note: note, channel: channel, destination: destinationUniqueID)) }
-    }
-
-    func sendControlChange(controller: UInt8, value: UInt8, channel: UInt8, destinationUniqueID: Int32) throws {
-        lock.withLock { $0.append(.controlChange(controller: controller, value: value, channel: channel, destination: destinationUniqueID)) }
-        if failingControllers.contains(controller) {
-            throw FakeMIDIOutputFailure()
-        }
-    }
-
-    func sendProgramChange(program: UInt8, channel: UInt8, destinationUniqueID: Int32) throws {
-        lock.withLock { $0.append(.programChange(program: program, channel: channel, destination: destinationUniqueID)) }
-    }
-
-    func sendAllNotesOff(channel: UInt8, destinationUniqueID: Int32) throws {
-        try sendControlChange(controller: 123, value: 0, channel: channel, destinationUniqueID: destinationUniqueID)
-    }
-
-    func sendAllSoundOff(channel: UInt8, destinationUniqueID: Int32) throws {
-        try sendControlChange(controller: 120, value: 0, channel: channel, destinationUniqueID: destinationUniqueID)
-    }
-}
-
-private struct FakeMIDIOutputFailure: Error {}
-
-private func waitForCoreMIDIResetDiagnostic(
-    _ reporter: InMemoryDiagnosticsReporter
+private func waitForDiagnostics(
+    _ reporter: InMemoryDiagnosticsReporter,
+    until condition: @escaping @Sendable ([DiagnosticEvent]) -> Bool
 ) async -> [DiagnosticEvent] {
-    for _ in 0 ..< 100 {
+    let clock = ContinuousClock()
+    let deadline = clock.now + .seconds(1)
+    while clock.now < deadline {
         let events = await reporter.events
-        if events.contains(where: { $0.stage == "coreMIDI.transportReset" }) {
+        if condition(events) { return events }
+        do {
+            try await Task.sleep(for: .milliseconds(1))
+        } catch {
             return events
         }
-        await Task.yield()
-    }
-    return await reporter.events
-}
-
-private func waitForOutputMetrics(
-    _ reporter: InMemoryDiagnosticsReporter
-) async -> [DiagnosticEvent] {
-    for _ in 0 ..< 100 {
-        let events = await reporter.events
-        if events.contains(where: { $0.stage == "playback.outputMetrics" }) {
-            return events
-        }
-        await Task.yield()
     }
     return await reporter.events
 }

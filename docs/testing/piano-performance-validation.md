@@ -37,6 +37,25 @@ xcodebuild test \
 
 `build-for-testing`、`swiftc -parse` 或 Linux 临时 harness 只能作为局部证据，不得记录成 `xcodebuild test` 已通过。
 
+## 输出可靠性验收边界
+
+Simulator 自动化使用统一 `FakePerformanceOutput` 捕获 timestamped batches、capabilities、generation、reset 与 AVAudio 状态，并注入 MIDI send、音频 operation/render 和 disconnect 故障。
+
+Simulator 可以验收：
+
+- timestamp 非零、批次顺序、look-ahead horizon、late clamp 与 generation guard；
+- CC64/66/67 capability 量化、reset 顺序、重复 stop 幂等和 disconnect 后无旧 generation 事件；
+- interruption、route change、media-services reset 的状态转换，以及 send/load/render 失败先 reset 再发布；
+- scheduled/submitted/acknowledged 缺失语义、latency/jitter 分桶、dropped/cancelled 区分和七天隐私安全导出。
+
+必须在 Apple Vision Pro 真机验收：
+
+- [ ] 本地 sampler 实际 audio onset 的 p50 / p95 / p99 与和弦 onset spread；
+- [ ] 指定 USB/Bluetooth MIDI 设备的实际接收时延、jitter、丢包与 endpoint 拔插恢复；
+- [ ] 扬声器、耳机和目标音频路由的 interruption / route / media-services 恢复与卡音检查；
+- [ ] 快速重复音、连续半踏板、长 sustain 和高密度和弦下的 CPU、漏触发与 stuck-note 结果；
+- [ ] 每次结果记录设备、OS、路由、fixture ID、score revision、复现步骤和对应聚合诊断。
+
 ## Snapshot 规则
 
 - 字段顺序、事件排序、数字精度和空值表示必须稳定。

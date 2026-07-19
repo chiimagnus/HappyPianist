@@ -1,8 +1,5 @@
-import AudioToolbox
-import AVFAudio
 import Foundation
 @testable import HappyPianistAVP
-import os
 import Testing
 
 @Test
@@ -52,20 +49,14 @@ func sequencerPlaybackServiceProtocolCarriesCanonicalCommandsAcrossActorBoundary
 
 @Test
 func audioFailureResetsBeforePublishingAndRetryRecovers() async throws {
-    let recorder = PracticeAudioEventRecorder()
-    let failureGate = PracticeAudioFailureGate()
+    let output = FakePerformanceOutput(capabilities: .localSampler)
+    output.failNextAudioOperation(.audioSessionConfiguration)
     let diagnostics = InMemoryDiagnosticsReporter()
     let service = AVAudioSequencerPracticePlaybackService(
         soundFontResourceName: "TestSoundFont",
-        platform: makeAudioPlatform(
-            configureAudioSession: { try failureGate.failFirstCall() },
-            sendMIDIEvent: { _, status, data1, data2 in
-                recorder.recordMIDI(status: status, data1: data1, data2: data2)
-                return noErr
-            }
-        ),
+        platform: output.makeAudioPlatform(),
         diagnosticsReporter: diagnostics,
-        stateHandler: recorder.record(state:)
+        stateHandler: output.record(state:)
     )
 
     let firstError = await capturedAudioError {
@@ -74,7 +65,7 @@ func audioFailureResetsBeforePublishingAndRetryRecovers() async throws {
     #expect(firstError?.operation == .audioSessionConfiguration)
     #expect(firstError?.recovery == .recoverable)
 
-    let failedEntries = recorder.snapshot()
+    let failedEntries = output.audioEntriesSnapshot()
     let failedStateIndex = failedEntries.firstIndex {
         if case .state(.failed) = $0 { return true }
         return false
@@ -104,9 +95,11 @@ func audioFailureResetsBeforePublishingAndRetryRecovers() async throws {
 
 @Test
 func engineSequenceAndRenderFailuresKeepTheirStructuredOperation() async throws {
+    let engineOutput = FakePerformanceOutput(capabilities: .localSampler)
+    engineOutput.failNextAudioOperation(.engineStart)
     let engineService = AVAudioSequencerPracticePlaybackService(
         soundFontResourceName: "TestSoundFont",
-        platform: makeAudioPlatform(startEngine: { _ in throw InjectedPracticeAudioFailure() })
+        platform: engineOutput.makeAudioPlatform()
     )
     let engineError = await capturedAudioError {
         try await engineService.warmUp()
@@ -114,11 +107,11 @@ func engineSequenceAndRenderFailuresKeepTheirStructuredOperation() async throws 
     #expect(engineError?.operation == .engineStart)
     #expect(engineError?.recovery == .recoverable)
 
+    let loadOutput = FakePerformanceOutput(capabilities: .localSampler)
+    loadOutput.failNextAudioOperation(.sequenceLoad)
     let loadService = AVAudioSequencerPracticePlaybackService(
         soundFontResourceName: "TestSoundFont",
-        platform: makeAudioPlatform(
-            loadSequence: { _, _ in throw InjectedPracticeAudioFailure() }
-        )
+        platform: loadOutput.makeAudioPlatform()
     )
     try await loadService.warmUp()
     let loadError = await capturedAudioError {
@@ -126,11 +119,11 @@ func engineSequenceAndRenderFailuresKeepTheirStructuredOperation() async throws 
     }
     #expect(loadError?.operation == .sequenceLoad)
 
+    let startOutput = FakePerformanceOutput(capabilities: .localSampler)
+    startOutput.failNextAudioOperation(.sequenceStart)
     let startService = AVAudioSequencerPracticePlaybackService(
         soundFontResourceName: "TestSoundFont",
-        platform: makeAudioPlatform(
-            startSequence: { _ in throw InjectedPracticeAudioFailure() }
-        )
+        platform: startOutput.makeAudioPlatform()
     )
     try await startService.warmUp()
     try await startService.load(sequence: emptyPracticeSequence())
@@ -139,13 +132,11 @@ func engineSequenceAndRenderFailuresKeepTheirStructuredOperation() async throws 
     }
     #expect(startError?.operation == .sequenceStart)
 
+    let renderOutput = FakePerformanceOutput(capabilities: .localSampler)
+    renderOutput.setFailingAudioStatusKinds([0xC0])
     let renderService = AVAudioSequencerPracticePlaybackService(
         soundFontResourceName: "TestSoundFont",
-        platform: makeAudioPlatform(
-            sendMIDIEvent: { _, status, _, _ in
-                status & 0xF0 == 0xC0 ? -1 : noErr
-            }
-        )
+        platform: renderOutput.makeAudioPlatform()
     )
     try await renderService.warmUp()
     let renderError = await capturedAudioError {
@@ -161,25 +152,21 @@ func engineSequenceAndRenderFailuresKeepTheirStructuredOperation() async throws 
 
 @Test
 func stopAttemptsEveryResetCommandAndPublishesResetFailure() async throws {
-    let recorder = PracticeAudioEventRecorder()
+    let output = FakePerformanceOutput(capabilities: .localSampler)
+    output.setFailingAudioControllers([64])
     let diagnostics = InMemoryDiagnosticsReporter()
     let service = AVAudioSequencerPracticePlaybackService(
         soundFontResourceName: "TestSoundFont",
-        platform: makeAudioPlatform(
-            sendMIDIEvent: { _, status, data1, data2 in
-                recorder.recordMIDI(status: status, data1: data1, data2: data2)
-                return data1 == 64 ? -1 : noErr
-            }
-        ),
+        platform: output.makeAudioPlatform(),
         diagnosticsReporter: diagnostics,
-        stateHandler: recorder.record(state:)
+        stateHandler: output.record(state:)
     )
     try await service.warmUp()
-    recorder.removeAll()
+    output.removeAllAudioEntries()
 
     await service.stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
 
-    let entries = recorder.snapshot()
+    let entries = output.audioEntriesSnapshot()
     let controllers = entries.compactMap { entry -> UInt32? in
         guard case let .midi(_, controller, _) = entry else { return nil }
         return controller
@@ -209,19 +196,14 @@ func stopAttemptsEveryResetCommandAndPublishesResetFailure() async throws {
 
 @Test
 func interruptionRouteAndMediaResetRequireResetBeforeRecovery() async throws {
-    let recorder = PracticeAudioEventRecorder()
+    let output = FakePerformanceOutput(capabilities: .localSampler)
     let service = AVAudioSequencerPracticePlaybackService(
         soundFontResourceName: "TestSoundFont",
-        platform: makeAudioPlatform(
-            sendMIDIEvent: { _, status, data1, data2 in
-                recorder.recordMIDI(status: status, data1: data1, data2: data2)
-                return noErr
-            }
-        ),
-        stateHandler: recorder.record(state:)
+        platform: output.makeAudioPlatform(),
+        stateHandler: output.record(state:)
     )
     try await service.warmUp()
-    recorder.removeAll()
+    output.removeAllAudioEntries()
 
     await service.handleAudioSessionEvent(
         .interruptionBegan(reason: .interruptionRouteDisconnected)
@@ -233,7 +215,7 @@ func interruptionRouteAndMediaResetRequireResetBeforeRecovery() async throws {
             detail: "Audio session interrupted"
         )
     ))
-    #expect(recorder.resetControllersBeforeLastState() == [64, 66, 67, 123, 120])
+    #expect(output.resetControllersBeforeLastAudioState() == [64, 66, 67, 123, 120])
 
     let blockedError = await capturedAudioError {
         try await service.execute(commands: [
@@ -245,7 +227,7 @@ func interruptionRouteAndMediaResetRequireResetBeforeRecovery() async throws {
     await service.handleAudioSessionEvent(.interruptionEnded(shouldResume: true))
     #expect(await service.currentPlaybackState() == .ready)
 
-    recorder.removeAll()
+    output.removeAllAudioEntries()
     await service.handleAudioSessionEvent(.routeChanged(reason: .routeOldDeviceUnavailable))
     #expect(await service.currentPlaybackState() == .failed(
         .operationFailed(
@@ -254,11 +236,11 @@ func interruptionRouteAndMediaResetRequireResetBeforeRecovery() async throws {
             detail: "Audio route changed"
         )
     ))
-    #expect(recorder.resetControllersBeforeLastState() == [64, 66, 67, 123, 120])
+    #expect(output.resetControllersBeforeLastAudioState() == [64, 66, 67, 123, 120])
     try await service.warmUp()
     #expect(await service.currentPlaybackState() == .ready)
 
-    recorder.removeAll()
+    output.removeAllAudioEntries()
     await service.handleAudioSessionEvent(.mediaServicesReset)
     #expect(await service.currentPlaybackState() == .failed(
         .operationFailed(
@@ -267,97 +249,24 @@ func interruptionRouteAndMediaResetRequireResetBeforeRecovery() async throws {
             detail: "Audio media services restarted"
         )
     ))
-    #expect(recorder.resetControllersBeforeLastState() == [64, 66, 67, 123, 120])
+    #expect(output.resetControllersBeforeLastAudioState() == [64, 66, 67, 123, 120])
     try await service.warmUp()
     #expect(await service.currentPlaybackState() == .ready)
 }
 
 @Test
 func missingSoundFontPublishesUnrecoverableFailure() async {
+    let output = FakePerformanceOutput(capabilities: .localSampler)
+    output.setSoundFontAvailable(false)
     let service = AVAudioSequencerPracticePlaybackService(
         soundFontResourceName: "MissingSoundFont",
-        platform: makeAudioPlatform(resolveSoundFontURL: { _ in nil })
+        platform: output.makeAudioPlatform()
     )
     let error = await capturedAudioError {
         try await service.warmUp()
     }
     #expect(error?.operation == .soundFontLoad)
     #expect(error?.recovery == .unrecoverable)
-}
-
-private struct InjectedPracticeAudioFailure: Error {}
-
-private final class PracticeAudioFailureGate: Sendable {
-    private let lock = OSAllocatedUnfairLock(initialState: true)
-
-    func failFirstCall() throws {
-        let shouldFail = lock.withLock { isFirstCall in
-            defer { isFirstCall = false }
-            return isFirstCall
-        }
-        if shouldFail {
-            throw InjectedPracticeAudioFailure()
-        }
-    }
-}
-
-private final class PracticeAudioEventRecorder: Sendable {
-    enum Entry: Equatable {
-        case midi(status: UInt32, data1: UInt32, data2: UInt32)
-        case state(PracticeAudioPlaybackState)
-    }
-
-    private let lock = OSAllocatedUnfairLock(initialState: [Entry]())
-
-    func recordMIDI(status: UInt32, data1: UInt32, data2: UInt32) {
-        lock.withLock { $0.append(.midi(status: status, data1: data1, data2: data2)) }
-    }
-
-    func record(state: PracticeAudioPlaybackState) {
-        lock.withLock { $0.append(.state(state)) }
-    }
-
-    func snapshot() -> [Entry] {
-        lock.withLock { $0 }
-    }
-
-    func removeAll() {
-        lock.withLock { $0.removeAll(keepingCapacity: true) }
-    }
-
-    func resetControllersBeforeLastState() -> [UInt32] {
-        let entries = snapshot()
-        guard let stateIndex = entries.lastIndex(where: {
-            if case .state = $0 { return true }
-            return false
-        }) else { return [] }
-        return entries[..<stateIndex].compactMap { entry in
-            guard case let .midi(_, data1, _) = entry else { return nil }
-            return data1
-        }
-    }
-}
-
-private func makeAudioPlatform(
-    resolveSoundFontURL: @escaping @Sendable (String) -> URL? = { _ in
-        URL(fileURLWithPath: "/tmp/TestSoundFont.sf2")
-    },
-    configureAudioSession: @escaping @Sendable () throws -> Void = {},
-    loadSoundBank: @escaping @Sendable (AVAudioUnitSampler, URL, UInt8) throws -> Void = { _, _, _ in },
-    startEngine: @escaping @Sendable (AVAudioEngine) throws -> Void = { _ in },
-    loadSequence: @escaping @Sendable (AVAudioSequencer, Data) throws -> Void = { _, _ in },
-    startSequence: @escaping @Sendable (AVAudioSequencer) throws -> Void = { _ in },
-    sendMIDIEvent: @escaping @Sendable (AudioUnit, UInt32, UInt32, UInt32) -> OSStatus = { _, _, _, _ in noErr }
-) -> PracticeAudioPlatformOperations {
-    PracticeAudioPlatformOperations(
-        resolveSoundFontURL: resolveSoundFontURL,
-        configureAudioSession: configureAudioSession,
-        loadSoundBank: loadSoundBank,
-        startEngine: startEngine,
-        loadSequence: loadSequence,
-        startSequence: startSequence,
-        sendMIDIEvent: sendMIDIEvent
-    )
 }
 
 private func emptyPracticeSequence() -> PracticeSequencerSequence {
@@ -387,10 +296,16 @@ private func waitForAudioLifecycleDiagnostics(
     _ reporter: InMemoryDiagnosticsReporter,
     count: Int
 ) async -> [DiagnosticEvent] {
-    for _ in 0 ..< 100 {
+    let clock = ContinuousClock()
+    let deadline = clock.now + .seconds(1)
+    while clock.now < deadline {
         let events = await reporter.events.filter { $0.stage == PianoPerformanceDiagnosticStage.playback.rawValue }
         if events.count >= count { return events }
-        await Task.yield()
+        do {
+            try await Task.sleep(for: .milliseconds(1))
+        } catch {
+            return events
+        }
     }
     return await reporter.events.filter { $0.stage == PianoPerformanceDiagnosticStage.playback.rawValue }
 }
@@ -398,10 +313,16 @@ private func waitForAudioLifecycleDiagnostics(
 private func waitForPracticeOutputMetrics(
     _ reporter: InMemoryDiagnosticsReporter
 ) async -> [DiagnosticEvent] {
-    for _ in 0 ..< 100 {
+    let clock = ContinuousClock()
+    let deadline = clock.now + .seconds(1)
+    while clock.now < deadline {
         let events = await reporter.events.filter { $0.stage == "playback.outputMetrics" }
         if events.isEmpty == false { return events }
-        await Task.yield()
+        do {
+            try await Task.sleep(for: .milliseconds(1))
+        } catch {
+            return events
+        }
     }
     return await reporter.events.filter { $0.stage == "playback.outputMetrics" }
 }
