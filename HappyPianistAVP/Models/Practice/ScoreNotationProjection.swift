@@ -19,6 +19,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
         let writtenOnTick: Int
         let writtenDurationTicks: Int
         let writtenPitch: MusicXMLWrittenPitch?
+        let writtenRhythm: MusicXMLWrittenRhythm?
         let midiNote: Int?
         let isRest: Bool
         let staff: Int
@@ -29,7 +30,6 @@ struct ScoreNotationProjection: Equatable, Sendable {
         let articulations: Set<MusicXMLArticulation>
         let arpeggiate: MusicXMLArpeggiate?
         let fingeringText: String?
-        let dotCount: Int
         let keySignatureFifths: Int
         let transpose: TransposeFact?
         let octaveShifts: [OctaveShiftFact]
@@ -71,6 +71,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
                 writtenOnTick: note.tick,
                 writtenDurationTicks: note.durationTicks,
                 writtenPitch: note.writtenPitch,
+                writtenRhythm: note.writtenRhythm,
                 midiNote: note.midiNote,
                 isRest: note.isRest,
                 staff: note.staff ?? 1,
@@ -81,7 +82,6 @@ struct ScoreNotationProjection: Equatable, Sendable {
                 articulations: note.articulations,
                 arpeggiate: note.arpeggiate,
                 fingeringText: note.fingeringText,
-                dotCount: note.dotCount,
                 keySignatureFifths: Self.keySignatureFifths(for: note, in: sourceScore),
                 transpose: Self.transposeFact(for: note, in: sourceScore),
                 octaveShifts: Self.octaveShiftFacts(for: note, in: sourceScore)

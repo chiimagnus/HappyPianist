@@ -7,6 +7,7 @@ enum GrandStaffNoteValue: Equatable {
     case eighth
     case sixteenth
     case thirtySecond
+    case unsupported(sourceTypeToken: String?)
 }
 
 enum GrandStaffStemDirection: Equatable {

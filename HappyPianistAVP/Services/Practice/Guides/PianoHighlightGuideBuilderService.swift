@@ -42,7 +42,7 @@ struct PianoHighlightGuideBuilderService {
                 tieStop: false,
                 articulations: source?.articulations ?? [],
                 arpeggiate: source?.arpeggiate,
-                dotCount: source?.dotCount ?? 0,
+                dotCount: source?.writtenRhythm?.dotCount ?? 0,
                 sourceNoteIDs: event.contributingSourceNoteIDs,
                 handAssignment: event.handAssignment
             )

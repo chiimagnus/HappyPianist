@@ -204,6 +204,8 @@ extension MusicXMLParserDelegate {
             state.isInTimeModification = false
             state.noteTimeModificationActualNotes = nil
             state.noteTimeModificationNormalNotes = nil
+            state.noteTimeModificationNormalType = nil
+            state.noteTimeModificationNormalDotCount = 0
             state.noteStaff = nil
             state.noteVoice = nil
             state.noteTieStart = false
@@ -273,6 +275,12 @@ extension MusicXMLParserDelegate {
                 state.isInTimeModification = true
                 state.noteTimeModificationActualNotes = nil
                 state.noteTimeModificationNormalNotes = nil
+                state.noteTimeModificationNormalType = nil
+                state.noteTimeModificationNormalDotCount = 0
+            }
+        case "normal-dot":
+            if state.isInNote && state.isInTimeModification {
+                state.noteTimeModificationNormalDotCount += 1
             }
         case "rest":
             if state.isInNote {
@@ -491,6 +499,8 @@ extension MusicXMLParserDelegate {
             state.noteTimeModificationActualNotes = Int(text)
         case "normal-notes" where state.isInNote && state.isInTimeModification:
             state.noteTimeModificationNormalNotes = Int(text)
+        case "normal-type" where state.isInNote && state.isInTimeModification:
+            state.noteTimeModificationNormalType = text
         case "time-modification":
             if state.isInNote {
                 state.isInTimeModification = false

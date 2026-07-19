@@ -50,7 +50,7 @@ struct GrandStaffNotationLayoutService {
                 tick: occurrence.writtenOnTick,
                 isHighlighted: occurrence.performanceEventIDs.contains { overlay.activeEventIDs.contains($0) },
                 fingeringText: source.fingeringText,
-                noteValue: noteValue(forDurationTicks: writtenDurationTicks),
+                noteValue: noteValue(for: source.writtenRhythm),
                 durationTicks: writtenDurationTicks,
                 writtenPitch: writtenPitch,
                 keySignatureFifths: source.keySignatureFifths,
@@ -60,7 +60,7 @@ struct GrandStaffNotationLayoutService {
                 tieStop: source.tieStop,
                 articulations: source.articulations,
                 arpeggiate: source.arpeggiate,
-                dotCount: source.dotCount
+                dotCount: source.writtenRhythm?.dotCount ?? 0
             )
         }
         let layoutNotes = resolvingDisplayedAccidentals(unresolvedNotes)
@@ -256,14 +256,17 @@ struct GrandStaffNotationLayoutService {
         return steps
     }
 
-    private func noteValue(forDurationTicks durationTicks: Int) -> GrandStaffNoteValue {
-        let ticks = max(1, durationTicks)
-        if ticks >= MusicXMLTempoMap.ticksPerQuarter * 4 { return .whole }
-        if ticks >= MusicXMLTempoMap.ticksPerQuarter * 2 { return .half }
-        if ticks >= MusicXMLTempoMap.ticksPerQuarter { return .quarter }
-        if ticks >= MusicXMLTempoMap.ticksPerQuarter / 2 { return .eighth }
-        if ticks >= MusicXMLTempoMap.ticksPerQuarter / 4 { return .sixteenth }
-        return .thirtySecond
+    private func noteValue(for rhythm: MusicXMLWrittenRhythm?) -> GrandStaffNoteValue {
+        let sourceTypeToken = rhythm?.typeToken
+        return switch sourceTypeToken?.lowercased() {
+        case "whole": .whole
+        case "half": .half
+        case "quarter": .quarter
+        case "eighth": .eighth
+        case "16th": .sixteenth
+        case "32nd": .thirtySecond
+        default: .unsupported(sourceTypeToken: sourceTypeToken)
+        }
     }
 
     private func makeBarlines(
@@ -464,6 +467,8 @@ struct GrandStaffNotationLayoutService {
 
     private func beamRank(for noteValue: GrandStaffNoteValue) -> Int {
         switch noteValue {
+        case .unsupported:
+            6
         case .thirtySecond:
             0
         case .sixteenth:

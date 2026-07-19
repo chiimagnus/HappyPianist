@@ -377,6 +377,7 @@ struct MusicXMLStructureExpander {
                         tick: shiftedTick,
                         durationTicks: note.durationTicks,
                         writtenPitch: note.writtenPitch,
+                        writtenRhythm: note.writtenRhythm,
                         midiNote: note.midiNote,
                         isRest: note.isRest,
                         isChord: note.isChord,
@@ -395,8 +396,7 @@ struct MusicXMLStructureExpander {
                         articulations: note.articulations,
                         arpeggiate: note.arpeggiate,
                         performanceNotations: note.performanceNotations,
-                        fingeringText: note.fingeringText,
-                        dotCount: note.dotCount
+                        fingeringText: note.fingeringText
                     )
                 )
             }

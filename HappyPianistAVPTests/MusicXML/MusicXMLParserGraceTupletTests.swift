@@ -56,6 +56,8 @@ struct MusicXMLParserGraceTupletTests {
                 <time-modification>
                   <actual-notes>3</actual-notes>
                   <normal-notes>2</normal-notes>
+                  <normal-type>eighth</normal-type>
+                  <normal-dot/>
                 </time-modification>
                 <type>eighth</type>
               </note>
@@ -75,6 +77,15 @@ struct MusicXMLParserGraceTupletTests {
         let score = try MusicXMLParser().parse(data: Data(xml.utf8))
         #expect(score.notes.count == 2)
         #expect(score.notes[0].durationTicks == 160)
+        #expect(score.notes[0].writtenRhythm == MusicXMLWrittenRhythm(
+            typeToken: "eighth",
+            timeModification: MusicXMLTimeModification(
+                actualNotes: 3,
+                normalNotes: 2,
+                normalTypeToken: "eighth",
+                normalDotCount: 1
+            )
+        ))
         #expect(score.notes[0].tick == 0)
         #expect(score.notes[1].tick == 160)
     }
@@ -105,5 +116,6 @@ struct MusicXMLParserGraceTupletTests {
 
         #expect(score.notes.count == 1)
         #expect(score.notes[0].durationTicks == 840)
+        #expect(score.notes[0].writtenRhythm == MusicXMLWrittenRhythm(typeToken: "quarter", dotCount: 2))
     }
 }

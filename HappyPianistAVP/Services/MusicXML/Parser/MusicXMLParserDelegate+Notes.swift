@@ -174,6 +174,32 @@ extension MusicXMLParserDelegate {
             nil
         }
         let midiNote = writtenPitch.flatMap(Self.makeMIDINote)
+        let timeModification: MusicXMLTimeModification? = if state.noteTimeModificationActualNotes != nil ||
+            state.noteTimeModificationNormalNotes != nil ||
+            state.noteTimeModificationNormalType != nil ||
+            state.noteTimeModificationNormalDotCount > 0
+        {
+            MusicXMLTimeModification(
+                actualNotes: state.noteTimeModificationActualNotes,
+                normalNotes: state.noteTimeModificationNormalNotes,
+                normalTypeToken: state.noteTimeModificationNormalType,
+                normalDotCount: state.noteTimeModificationNormalDotCount
+            )
+        } else {
+            nil
+        }
+        let writtenRhythm: MusicXMLWrittenRhythm? = if state.noteType != nil ||
+            state.noteDotCount > 0 ||
+            timeModification != nil
+        {
+            MusicXMLWrittenRhythm(
+                typeToken: state.noteType,
+                dotCount: state.noteDotCount,
+                timeModification: timeModification
+            )
+        } else {
+            nil
+        }
 
         let sourceID = MusicXMLSourceNoteID(
             partID: state.currentPartID,
@@ -209,6 +235,7 @@ extension MusicXMLParserDelegate {
                 tick: startTick,
                 durationTicks: duration,
                 writtenPitch: writtenPitch,
+                writtenRhythm: writtenRhythm,
                 midiNote: midiNote,
                 isRest: state.noteIsRest,
                 isChord: state.noteIsChord,
@@ -227,8 +254,7 @@ extension MusicXMLParserDelegate {
                 articulations: state.noteArticulations,
                 arpeggiate: state.noteArpeggiate,
                 performanceNotations: performanceNotations,
-                fingeringText: state.noteFingeringText,
-                dotCount: state.noteDotCount
+                fingeringText: state.noteFingeringText
             )
         )
 

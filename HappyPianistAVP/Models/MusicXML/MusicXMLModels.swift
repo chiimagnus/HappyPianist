@@ -340,6 +340,7 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
     let tick: Int
     let durationTicks: Int
     let writtenPitch: MusicXMLWrittenPitch?
+    let writtenRhythm: MusicXMLWrittenRhythm?
     let midiNote: Int?
     let isRest: Bool
     let isChord: Bool
@@ -359,7 +360,6 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
     let arpeggiate: MusicXMLArpeggiate?
     let performanceNotations: [MusicXMLPerformanceNotation]
     let fingeringText: String?
-    let dotCount: Int
 
     init(
         sourceID: MusicXMLSourceNoteID? = nil,
@@ -369,6 +369,7 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         tick: Int,
         durationTicks: Int,
         writtenPitch: MusicXMLWrittenPitch? = nil,
+        writtenRhythm: MusicXMLWrittenRhythm? = nil,
         midiNote: Int?,
         isRest: Bool,
         isChord: Bool,
@@ -387,8 +388,7 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         articulations: Set<MusicXMLArticulation> = [],
         arpeggiate: MusicXMLArpeggiate? = nil,
         performanceNotations: [MusicXMLPerformanceNotation] = [],
-        fingeringText: String? = nil,
-        dotCount: Int = 0
+        fingeringText: String? = nil
     ) {
         self.sourceID = sourceID
         self.performedOccurrenceIndex = max(0, performedOccurrenceIndex)
@@ -397,6 +397,7 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         self.tick = tick
         self.durationTicks = durationTicks
         self.writtenPitch = writtenPitch
+        self.writtenRhythm = writtenRhythm
         self.midiNote = midiNote
         self.isRest = isRest
         self.isChord = isChord
@@ -416,6 +417,42 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         self.arpeggiate = arpeggiate
         self.performanceNotations = performanceNotations
         self.fingeringText = fingeringText
-        self.dotCount = dotCount
+    }
+}
+
+struct MusicXMLWrittenRhythm: Equatable, Sendable {
+    let typeToken: String?
+    let dotCount: Int
+    let timeModification: MusicXMLTimeModification?
+
+    init(
+        typeToken: String?,
+        dotCount: Int = 0,
+        timeModification: MusicXMLTimeModification? = nil
+    ) {
+        let trimmedType = typeToken?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.typeToken = trimmedType?.isEmpty == false ? trimmedType : nil
+        self.dotCount = max(0, dotCount)
+        self.timeModification = timeModification
+    }
+}
+
+struct MusicXMLTimeModification: Equatable, Sendable {
+    let actualNotes: Int?
+    let normalNotes: Int?
+    let normalTypeToken: String?
+    let normalDotCount: Int
+
+    init(
+        actualNotes: Int?,
+        normalNotes: Int?,
+        normalTypeToken: String? = nil,
+        normalDotCount: Int = 0
+    ) {
+        self.actualNotes = actualNotes
+        self.normalNotes = normalNotes
+        let trimmedType = normalTypeToken?.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.normalTypeToken = trimmedType?.isEmpty == false ? trimmedType : nil
+        self.normalDotCount = max(0, normalDotCount)
     }
 }
