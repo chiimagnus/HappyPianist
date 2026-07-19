@@ -204,7 +204,11 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
         try execute(commands: commands, tracking: .oneShot)
 
         oneShotStopTask = Task.detached(priority: .userInitiated) { [weak self] in
-            try? await Task.sleep(for: .seconds(max(0, durationSeconds)))
+            do {
+                try await Task.sleep(for: .seconds(max(0, durationSeconds)))
+            } catch {
+                return
+            }
             guard Task.isCancelled == false else { return }
             await MainActor.run { [weak self] in
                 self?.stopOneShotNotes()
@@ -328,34 +332,53 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
     }
 
     private func execute(_ commands: [PerformanceTransportCommand]) {
+        var failureCount = 0
         for command in commands {
-            switch command {
-            case let .noteOff(eventID):
-                guard let note = loadedEvents?.lazy.compactMap({ event -> UInt8? in
-                    guard event.sourceEventID == eventID.description,
-                          case let .noteOn(midi, _) = event.kind
-                    else { return nil }
-                    return UInt8(exactly: midi)
-                }).first else { continue }
-                try? outputService.sendNoteOff(
-                    note: note,
-                    channel: channel,
-                    destinationUniqueID: destinationUniqueID
-                )
-            case let .controlChange(controller, value):
-                let resolution = outputCapabilities.resolve(controllerNumber: controller, value: value)
-                try? outputService.sendControlChange(
-                    controller: controller,
-                    value: resolution.value,
-                    channel: channel,
-                    destinationUniqueID: destinationUniqueID
-                )
-            case .allNotesOff:
-                try? outputService.sendAllNotesOff(channel: channel, destinationUniqueID: destinationUniqueID)
-            case .allSoundOff:
-                try? outputService.sendAllSoundOff(channel: channel, destinationUniqueID: destinationUniqueID)
+            do {
+                switch command {
+                case let .noteOff(eventID):
+                    guard let note = loadedEvents?.lazy.compactMap({ event -> UInt8? in
+                        guard event.sourceEventID == eventID.description,
+                              case let .noteOn(midi, _) = event.kind
+                        else { return nil }
+                        return UInt8(exactly: midi)
+                    }).first else { continue }
+                    try outputService.sendNoteOff(
+                        note: note,
+                        channel: channel,
+                        destinationUniqueID: destinationUniqueID
+                    )
+                case let .controlChange(controller, value):
+                    let resolution = outputCapabilities.resolve(controllerNumber: controller, value: value)
+                    try outputService.sendControlChange(
+                        controller: controller,
+                        value: resolution.value,
+                        channel: channel,
+                        destinationUniqueID: destinationUniqueID
+                    )
+                case .allNotesOff:
+                    try outputService.sendAllNotesOff(
+                        channel: channel,
+                        destinationUniqueID: destinationUniqueID
+                    )
+                case .allSoundOff:
+                    try outputService.sendAllSoundOff(
+                        channel: channel,
+                        destinationUniqueID: destinationUniqueID
+                    )
+                }
+            } catch {
+                failureCount += 1
             }
         }
+        guard failureCount > 0 else { return }
+        diagnosticsReporter?.recordSystem(
+            severity: .error,
+            category: .midi,
+            stage: "coreMIDI.transportReset",
+            summary: "外部 MIDI 停止复位未完全发送",
+            reason: "failureCount=\(failureCount)"
+        )
     }
 
     private func ensureReady() throws {

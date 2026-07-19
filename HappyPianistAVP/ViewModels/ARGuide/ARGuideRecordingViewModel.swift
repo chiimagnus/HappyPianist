@@ -36,7 +36,8 @@ final class ARGuideRecordingViewModel {
         takeLibraryViewModel: TakeLibraryViewModel? = nil,
         takePlaybackViewModel: TakePlaybackViewModel? = nil,
         onMIDI1Event: @escaping @MainActor (MIDI1InputEvent) -> Void = { _ in },
-        onMIDI2Event: @escaping @MainActor (MIDI2InputEvent) -> Void = { _ in }
+        onMIDI2Event: @escaping @MainActor (MIDI2InputEvent) -> Void = { _ in },
+        diagnosticsReporter: (any DiagnosticsReporting)? = nil
     ) {
         self.takeLibraryViewModel = takeLibraryViewModel ?? TakeLibraryViewModel()
         if let takePlaybackViewModel {
@@ -46,7 +47,10 @@ final class ARGuideRecordingViewModel {
             let playbackService: PracticeSequencerPlaybackServiceProtocol =
                 isRunningUnitTests
                     ? NoopPracticeSequencerPlaybackService()
-                    : AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2")
+                    : AVAudioSequencerPracticePlaybackService(
+                        soundFontResourceName: "SalC5Light2",
+                        diagnosticsReporter: diagnosticsReporter
+                    )
             self.takePlaybackViewModel = TakePlaybackViewModel(
                 controller: TakePlaybackController(playbackService: playbackService)
             )

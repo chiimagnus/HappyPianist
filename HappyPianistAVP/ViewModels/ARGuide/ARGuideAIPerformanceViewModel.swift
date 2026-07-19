@@ -78,7 +78,11 @@ final class ARGuideAIPerformanceViewModel {
                     let service: any PracticeSequencerPlaybackServiceProtocol =
                         isRunningUnitTests
                             ? NoopPracticeSequencerPlaybackService()
-                            : AVAudioSequencerPracticePlaybackService(soundFontResourceName: "SalC5Light2", channel: 1)
+                            : AVAudioSequencerPracticePlaybackService(
+                                soundFontResourceName: "SalC5Light2",
+                                channel: 1,
+                                diagnosticsReporter: diagnosticsReporter
+                            )
                     return service
                 },
                 makeExternalMIDIPlaybackService: { destinationUniqueID in

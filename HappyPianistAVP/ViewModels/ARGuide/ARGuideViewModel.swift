@@ -98,7 +98,8 @@ final class ARGuideViewModel: PracticeLaunchApplying {
             },
             onMIDI2Event: { [weak ai] event in
                 ai?.recordMIDI2EventForPhraseRecordingIfNeeded(event)
-            }
+            },
+            diagnosticsReporter: diagnosticsReporter
         )
         practiceViewModel = ARGuidePracticeViewModel(
             appState: appState,

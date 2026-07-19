@@ -41,6 +41,35 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
         ])
     }
 
+    @Test func stopContinuesResetAfterSendFailureAndReportsAggregate() async {
+        let output = FakeMIDIOutputService(failingControllers: [64, 120])
+        let diagnostics = InMemoryDiagnosticsReporter()
+        let destinationUniqueID: Int32 = 1240
+        let playback = await MainActor.run {
+            CoreMIDIPracticePlaybackService(
+                destinationUniqueID: destinationUniqueID,
+                outputService: output,
+                diagnosticsReporter: diagnostics,
+                channel: 0
+            )
+        }
+
+        await MainActor.run {
+            playback.stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
+        }
+
+        let controllers = output.callsSnapshot().compactMap { call -> UInt8? in
+            guard case let .controlChange(controller, _, _, _) = call else { return nil }
+            return controller
+        }
+        #expect(controllers == [64, 66, 67, 123, 120])
+        let events = await waitForCoreMIDIResetDiagnostic(diagnostics)
+        #expect(events.contains { event in
+            event.stage == "coreMIDI.transportReset"
+                && event.reason == "failureCount=2"
+        })
+    }
+
     @Test func playbackSendsCanonicalSequenceEventsIncludingControllers() async throws {
         let output = FakeMIDIOutputService()
         let destinationUniqueID: Int32 = 5678
@@ -387,21 +416,21 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
 
         output.simulateDestinationRouteChange()
         #expect(await waitUntil {
-            output.callsSnapshot().contains(.flush(destination: destinationUniqueID))
+            let calls = output.callsSnapshot()
+            return calls.contains(.flush(destination: destinationUniqueID)) &&
+                calls.contains(.controlChange(
+                    controller: 64,
+                    value: 0,
+                    channel: 0,
+                    destination: destinationUniqueID
+                )) &&
+                calls.contains(.controlChange(
+                    controller: 120,
+                    value: 0,
+                    channel: 0,
+                    destination: destinationUniqueID
+                ))
         })
-        let calls = output.callsSnapshot()
-        #expect(calls.contains(.controlChange(
-            controller: 64,
-            value: 0,
-            channel: 0,
-            destination: destinationUniqueID
-        )))
-        #expect(calls.contains(.controlChange(
-            controller: 120,
-            value: 0,
-            channel: 0,
-            destination: destinationUniqueID
-        )))
     }
 
     @Test func playbackServiceTeardownFlushesAndSendsFullResetBatch() async throws {
@@ -456,6 +485,11 @@ private final class FakeMIDIOutputService: MIDIOutputSendingProtocol, @unchecked
 
     private let lock = OSAllocatedUnfairLock(initialState: [Call]())
     private let batchesLock = OSAllocatedUnfairLock(initialState: [[TimestampedMIDI1Message]]())
+    private let failingControllers: Set<UInt8>
+
+    init(failingControllers: Set<UInt8> = []) {
+        self.failingControllers = failingControllers
+    }
 
     func callsSnapshot() -> [Call] {
         lock.withLock { $0 }
@@ -503,6 +537,9 @@ private final class FakeMIDIOutputService: MIDIOutputSendingProtocol, @unchecked
 
     func sendControlChange(controller: UInt8, value: UInt8, channel: UInt8, destinationUniqueID: Int32) throws {
         lock.withLock { $0.append(.controlChange(controller: controller, value: value, channel: channel, destination: destinationUniqueID)) }
+        if failingControllers.contains(controller) {
+            throw FakeMIDIOutputFailure()
+        }
     }
 
     func sendProgramChange(program: UInt8, channel: UInt8, destinationUniqueID: Int32) throws {
@@ -516,6 +553,21 @@ private final class FakeMIDIOutputService: MIDIOutputSendingProtocol, @unchecked
     func sendAllSoundOff(channel: UInt8, destinationUniqueID: Int32) throws {
         try sendControlChange(controller: 120, value: 0, channel: channel, destinationUniqueID: destinationUniqueID)
     }
+}
+
+private struct FakeMIDIOutputFailure: Error {}
+
+private func waitForCoreMIDIResetDiagnostic(
+    _ reporter: InMemoryDiagnosticsReporter
+) async -> [DiagnosticEvent] {
+    for _ in 0 ..< 100 {
+        let events = await reporter.events
+        if events.contains(where: { $0.stage == "coreMIDI.transportReset" }) {
+            return events
+        }
+        await Task.yield()
+    }
+    return await reporter.events
 }
 
 private final class FakeMIDILookAheadClock: MIDILookAheadClock, @unchecked Sendable {

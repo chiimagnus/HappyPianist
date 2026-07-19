@@ -502,16 +502,15 @@ CoreMIDI scheduler 在每个目标时间点唤醒 Task 再发送，packet timest
 
 #### PERF-011：音频会话与停止恢复不够可诊断
 
-**严重度：P1｜证据：代码确认**
+**状态：已修复｜证据：代码确认 + 自动化故障注入**
 
-当前部分 `AVAudioSession` 设置使用 `try?`，引擎或会话失败可能被弱化或被映射为不精确错误。停止路径没有在所有输出上统一发送 sustain up、reset controllers 和 all sound off。
+`AVAudioSession` 配置、engine start、soundfont/sequence load、sequence start 与可报告的 render 失败都映射为结构化 `PracticeAudioError`。失败路径先执行 reducer 的完整 reset，再发布可恢复或不可恢复状态和低基数诊断；reset 自身失败不会继续保留 ready 状态。CoreMIDI stop 继续尝试剩余 reset commands，并汇总发送失败，不再以 `try?` 静默丢弃。
 
-专业目标：
+已实现：
 
-- 明确处理 route change、interruption、media services reset。
-- 会话配置失败进入结构化诊断和用户可恢复状态。
-- stop / seek 统一复位 CC64、CC66、CC67、CC121、CC120/123 中实际需要的集合。
-- 避免卡音和残留踏板。
+- route change、interruption 与 media-services reset 使用同一失败/reset 状态机；media-services reset 重建全部 AVAudio 对象。
+- interruption 期间阻止调度，只在结束通知包含 `shouldResume` 时自动恢复。
+- stop / seek 统一复位 CC64、CC66、CC67、all-notes-off 与 all-sound-off；发送失败保持 failed 状态直到 warm-up 成功。
 
 #### PERF-012：没有端到端时延、抖动和漏触发指标
 

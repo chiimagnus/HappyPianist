@@ -29,6 +29,77 @@ enum PianoPerformanceDiagnosticCapability: String, Codable, CaseIterable, Sendab
     case performanceAssessment
 }
 
+enum PianoPerformanceAudioOperation: String, Codable, CaseIterable, Sendable {
+    case audioSessionConfiguration
+    case soundFontLoad
+    case engineStart
+    case sequenceLoad
+    case sequenceStart
+    case commandRender
+    case interruption
+    case routeChange
+    case mediaServicesReset
+    case transportReset
+}
+
+enum PianoPerformanceAudioRecovery: String, Codable, CaseIterable, Sendable {
+    case recoverable
+    case unrecoverable
+}
+
+enum PianoPerformanceAudioLifecycleReason: String, Codable, CaseIterable, Sendable {
+    case operationError
+    case interruptionDefault
+    case interruptionAppSuspended
+    case interruptionBuiltInMicMuted
+    case interruptionRouteDisconnected
+    case interruptionSceneBackgrounded
+    case interruptionUnknown
+    case routeUnknown
+    case routeNewDeviceAvailable
+    case routeOldDeviceUnavailable
+    case routeCategoryChange
+    case routeOverride
+    case routeWakeFromSleep
+    case routeNoSuitableRoute
+    case routeConfigurationChange
+    case mediaServicesReset
+}
+
+enum PianoPerformanceAudioResetOutcome: String, Codable, CaseIterable, Sendable {
+    case succeeded
+    case failed
+    case notRequired
+}
+
+struct PianoPerformanceAudioDiagnosticSample: Equatable, Sendable {
+    let outcome: PianoPerformanceDiagnosticOutcome
+    let operation: PianoPerformanceAudioOperation
+    let recovery: PianoPerformanceAudioRecovery
+    let reason: PianoPerformanceAudioLifecycleReason
+    let resetOutcome: PianoPerformanceAudioResetOutcome
+
+    var diagnosticEvent: DiagnosticEvent {
+        let fields = [
+            "outcome=\(outcome.rawValue)",
+            "capability=\(PianoPerformanceDiagnosticCapability.localSampler.rawValue)",
+            "operation=\(operation.rawValue)",
+            "recovery=\(recovery.rawValue)",
+            "reason=\(reason.rawValue)",
+            "reset=\(resetOutcome.rawValue)",
+        ]
+        return DiagnosticEvent(
+            severity: outcome == .succeeded ? .info : .error,
+            code: .pianoPerformancePipeline,
+            category: .pianoPerformance,
+            stage: PianoPerformanceDiagnosticStage.playback.rawValue,
+            summary: "本地音源恢复状态",
+            reason: fields.joined(separator: ";"),
+            persistence: .systemOnly
+        )
+    }
+}
+
 enum PianoPerformanceDurationBucket: String, Codable, CaseIterable, Sendable {
     case underTenMilliseconds
     case underFiftyMilliseconds
