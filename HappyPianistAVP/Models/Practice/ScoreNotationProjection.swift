@@ -353,24 +353,35 @@ struct ScoreNotationProjection: Equatable, Sendable {
                 placementToken: event.placementToken
             )
         })
-        marks.append(contentsOf: score.pedalEvents.enumerated().compactMap { index, event in
-            guard event.controller == .damper else { return nil }
+        var seenPedalMarkIDs: Set<String> = []
+        for event in score.pedalEvents where event.controller == .damper {
             let kind: Mark.Kind = switch event.kind {
             case .start: .pedalStart
             case .stop: .pedalStop
             case .change: .pedalChange
             case .continue: .pedalContinue
             }
-            return Mark(
-                id: event.performedID?.description ?? "pedal-\(event.tick)-\(index)",
+            let kindToken = switch kind {
+            case .pedalStart: "start"
+            case .pedalStop: "stop"
+            case .pedalChange: "change"
+            case .pedalContinue: "continue"
+            default: "unknown"
+            }
+            let id = event.performedID?.description
+                ?? "pedal-\(event.tick)-\(event.staff ?? 0)-\(kindToken)"
+            // ponytail: playback expands pedal change to off/on; notation owns one mark per source direction.
+            guard seenPedalMarkIDs.insert(id).inserted else { continue }
+            marks.append(Mark(
+                id: id,
                 tick: event.tick,
                 staff: event.staff,
                 voice: nil,
                 kind: kind,
                 text: nil,
                 placementToken: event.placementToken
-            )
-        })
+            ))
+        }
         marks.append(contentsOf: score.fermataEvents.enumerated().map { index, event in
             Mark(
                 id: event.performedID?.description ?? "fermata-\(event.tick)-\(index)",
