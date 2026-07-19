@@ -71,28 +71,8 @@ struct PerformanceClock: Sendable {
     let now: @Sendable () -> PerformanceMonotonicInstant
 
     static func live() -> Self {
-        let clock = ContinuousClock()
-        let origin = clock.now
         return Self {
-            PerformanceMonotonicInstant(duration: origin.duration(to: clock.now))
+            PerformanceMonotonicInstant(seconds: ProcessInfo.processInfo.systemUptime)
         }
-    }
-}
-
-private extension PerformanceMonotonicInstant {
-    init(duration: Duration) {
-        let components = duration.components
-        guard components.seconds >= 0 else {
-            self.init(nanoseconds: 0)
-            return
-        }
-        let (whole, multipliedOverflow) = components.seconds.multipliedReportingOverflow(by: 1_000_000_000)
-        guard multipliedOverflow == false else {
-            self.init(nanoseconds: .max)
-            return
-        }
-        let fractional = max(0, components.attoseconds / 1_000_000_000)
-        let (value, addedOverflow) = whole.addingReportingOverflow(fractional)
-        self.init(nanoseconds: addedOverflow ? .max : value)
     }
 }

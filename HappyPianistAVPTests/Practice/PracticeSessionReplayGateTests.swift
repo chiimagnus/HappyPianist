@@ -59,8 +59,8 @@ func manualReplayBlocksAudioRecognitionAdvance() async {
     await Task.yield()
 
     let before = viewModel.currentStepIndex
-    audioRecognitionService.emitEvent(
-        DetectedNoteEvent(
+    audioRecognitionService.emitEvidence(
+        makeTargetAudioEvidence(
             midiNote: 60,
             confidence: 1,
             onsetScore: 1,

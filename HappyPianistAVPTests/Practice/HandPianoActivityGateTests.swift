@@ -73,8 +73,8 @@ func gateInactiveStillAllowsAudioMatchedAdvance() async {
     await settleTaskQueue()
     let generation = fakeService.startCalls.first?.generation ?? 0
 
-    fakeService.emitEvent(
-        DetectedNoteEvent(
+    fakeService.emitEvidence(
+        makeTargetAudioEvidence(
             midiNote: 60,
             confidence: 0.95,
             onsetScore: 0.9,

@@ -53,15 +53,6 @@ enum PracticeHandMode: String, CaseIterable, Identifiable, Codable, Sendable {
     }
 }
 
-struct DetectedNoteEvent: Equatable {
-    let midiNote: Int
-    let confidence: Double
-    let onsetScore: Double
-    let isOnset: Bool
-    let timestamp: Date
-    let generation: Int
-}
-
 struct PracticeStepNote: Equatable, Hashable, Identifiable {
     var id: String {
         "\(midiNote)-\(hand.rawValue)-\(staff ?? -1)-\(voice ?? -1)-\(onTickOffset)"

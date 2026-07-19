@@ -64,12 +64,23 @@ struct PerformanceObservation: Codable, Equatable, Sendable {
         case ended
     }
 
+    enum TargetAudioDetectionResult: String, Codable, Sendable {
+        case detected
+        case contradicted
+        case mixed
+        case unknown
+    }
+
     enum Event: Codable, Equatable, Sendable {
         case noteOn(note: Int, velocity: NormalizedValue?)
         case noteOff(note: Int, releaseVelocity: NormalizedValue?)
         case controller(Controller)
         case contact(id: String, keyCandidate: Int?, phase: ContactPhase)
-        case targetAudioDetection(targetMIDINotes: [Int], isDetected: Bool)
+        case targetAudioDetection(
+            targetMIDINotes: [Int],
+            detectedMIDINotes: [Int],
+            result: TargetAudioDetectionResult
+        )
     }
 
     let id: UUID

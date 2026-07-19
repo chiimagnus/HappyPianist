@@ -49,7 +49,7 @@ struct AudioStepAttemptAccumulatorConfiguration: Equatable {
 final class AudioStepAttemptAccumulator {
     private(set) var configuration: AudioStepAttemptAccumulatorConfiguration
 
-    private var recentEvents: [DetectedNoteEvent] = []
+    private var recentEvidence: [TargetAudioEvidence] = []
     private var rearmBlockedSince: [Int: Date] = [:]
     private var currentGeneration: Int = 0
     private var recognitionMode: Step3AudioRecognitionMode = .lowLatency
@@ -59,12 +59,14 @@ final class AudioStepAttemptAccumulator {
         self.configuration = configuration
     }
 
-    func register(event: DetectedNoteEvent) {
-        guard event.generation == currentGeneration else { return }
-        if event.isOnset {
-            rearmBlockedSince[event.midiNote] = nil
+    func register(evidence: TargetAudioEvidence) {
+        guard evidence.generation == currentGeneration else { return }
+        if evidence.isOnset {
+            for midiNote in evidence.targetConfidenceByMIDINote.keys {
+                rearmBlockedSince[midiNote] = nil
+            }
         }
-        recentEvents.append(event)
+        recentEvidence.append(evidence)
     }
 
     func setMode(_ mode: Step3AudioRecognitionMode) {
@@ -89,16 +91,14 @@ final class AudioStepAttemptAccumulator {
         guard expectedSet.isEmpty == false else { return .insufficientEvidence }
 
         let threshold = threshold(for: handGateBoost)
-        let activeEvents = makeActiveEvents(generation: generation, at: timestamp, threshold: threshold)
-        let observed = Set(activeEvents.map(\.midiNote))
-        let strongestExpected = activeEvents
-            .filter { expectedSet.contains($0.midiNote) }
-            .map(\.confidence)
-            .max() ?? 0
-        let strongestWrong = activeEvents
-            .filter { wrongCandidateMIDINotes.contains($0.midiNote) }
-            .map(\.confidence)
-            .max() ?? 0
+        let activeEvidence = makeActiveEvidence(generation: generation, at: timestamp)
+        let targetConfidence = mergedConfidence(activeEvidence, keyPath: \.targetConfidenceByMIDINote)
+        let wrongConfidence = mergedConfidence(activeEvidence, keyPath: \.wrongConfidenceByMIDINote)
+        let observed = Set(targetConfidence.compactMap { midiNote, confidence in
+            confidence >= threshold && isRearmSatisfied(for: midiNote, at: timestamp) ? midiNote : nil
+        })
+        let strongestExpected = expectedSet.compactMap { targetConfidence[$0] }.max() ?? 0
+        let strongestWrong = wrongCandidateMIDINotes.compactMap { wrongConfidence[$0] }.max() ?? 0
 
         if strongestWrong >= configuration.wrongNoteThreshold,
            strongestWrong >= max(strongestExpected, 0.01) * configuration.wrongDominanceRatio
@@ -132,16 +132,14 @@ final class AudioStepAttemptAccumulator {
         guard expectedUnion.isEmpty == false else { return .insufficientEvidence }
 
         let threshold = threshold(for: handGateBoost)
-        let activeEvents = makeActiveEvents(generation: generation, at: timestamp, threshold: threshold)
-        let observed = Set(activeEvents.map(\.midiNote))
-        let strongestExpected = activeEvents
-            .filter { expectedUnion.contains($0.midiNote) }
-            .map(\.confidence)
-            .max() ?? 0
-        let strongestWrong = activeEvents
-            .filter { wrongCandidateMIDINotes.contains($0.midiNote) }
-            .map(\.confidence)
-            .max() ?? 0
+        let activeEvidence = makeActiveEvidence(generation: generation, at: timestamp)
+        let targetConfidence = mergedConfidence(activeEvidence, keyPath: \.targetConfidenceByMIDINote)
+        let wrongConfidence = mergedConfidence(activeEvidence, keyPath: \.wrongConfidenceByMIDINote)
+        let observed = Set(targetConfidence.compactMap { midiNote, confidence in
+            confidence >= threshold && isRearmSatisfied(for: midiNote, at: timestamp) ? midiNote : nil
+        })
+        let strongestExpected = expectedUnion.compactMap { targetConfidence[$0] }.max() ?? 0
+        let strongestWrong = wrongCandidateMIDINotes.compactMap { wrongConfidence[$0] }.max() ?? 0
 
         if strongestWrong >= configuration.wrongNoteThreshold,
            strongestWrong >= max(strongestExpected, 0.01) * configuration.wrongDominanceRatio
@@ -159,7 +157,7 @@ final class AudioStepAttemptAccumulator {
 
     func resetForNewStep(generation: Int) {
         currentGeneration = generation
-        recentEvents.removeAll()
+        recentEvidence.removeAll()
         lastMatchedAt = nil
     }
 
@@ -170,29 +168,35 @@ final class AudioStepAttemptAccumulator {
     }
 
     private func pruneExpiredEvents(now: Date) {
-        recentEvents.removeAll { event in
-            now.timeIntervalSince(event.timestamp) > configuration.eventTTL
+        recentEvidence.removeAll { evidence in
+            now.timeIntervalSince(evidence.timestamp) > configuration.eventTTL
         }
         rearmBlockedSince = rearmBlockedSince.filter { _, blockedAt in
             now.timeIntervalSince(blockedAt) < configuration.rearmSilenceWindow
         }
     }
 
-    private func isEventQualified(_ event: DetectedNoteEvent, threshold: Double) -> Bool {
-        event.confidence >= threshold && (event.isOnset || event.onsetScore >= configuration.onsetThreshold)
-    }
-
     private func threshold(for handGateBoost: Bool) -> Double {
         handGateBoost ? configuration.handBoostedThreshold : configuration.singleNoteThreshold
     }
 
-    private func makeActiveEvents(generation: Int, at timestamp: Date, threshold: Double) -> [DetectedNoteEvent] {
-        recentEvents.filter { event in
-            event.timestamp <= timestamp &&
-                timestamp.timeIntervalSince(event.timestamp) <= configuration.aggregationWindow &&
-                event.generation == generation &&
-                isEventQualified(event, threshold: threshold) &&
-                isRearmSatisfied(for: event.midiNote, at: timestamp)
+    private func makeActiveEvidence(generation: Int, at timestamp: Date) -> [TargetAudioEvidence] {
+        recentEvidence.filter { evidence in
+            evidence.timestamp <= timestamp &&
+                timestamp.timeIntervalSince(evidence.timestamp) <= configuration.aggregationWindow &&
+                evidence.generation == generation &&
+                (evidence.isOnset || evidence.onsetScore >= configuration.onsetThreshold)
+        }
+    }
+
+    private func mergedConfidence(
+        _ evidence: [TargetAudioEvidence],
+        keyPath: KeyPath<TargetAudioEvidence, [Int: Double]>
+    ) -> [Int: Double] {
+        evidence.reduce(into: [:]) { output, item in
+            for (midiNote, confidence) in item[keyPath: keyPath] {
+                output[midiNote] = max(output[midiNote] ?? 0, confidence)
+            }
         }
     }
 

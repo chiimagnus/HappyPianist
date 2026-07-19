@@ -2,7 +2,13 @@ import Foundation
 
 extension PracticeSessionViewModel {
     func performanceObservationsStream() -> AsyncStream<PerformanceObservation>? {
-        practiceMIDIInputService?.performanceObservationsStream()
+        if practiceInputEventSource != nil {
+            return practiceMIDIInputService?.performanceObservationsStream()
+        }
+        if audioRecognitionService != nil {
+            return audioRecognitionInputService?.performanceObservationsStream()
+        }
+        return nil
     }
 
     func refreshPracticeInputForCurrentState() {

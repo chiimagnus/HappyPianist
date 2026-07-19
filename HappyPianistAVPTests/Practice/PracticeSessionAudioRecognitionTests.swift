@@ -6,7 +6,7 @@ import Testing
 @Test
 func fakeAudioRecognitionServiceEmitsEventToConsumer() async {
     let service = FakePracticeAudioRecognitionService()
-    let event = DetectedNoteEvent(
+    let event = makeTargetAudioEvidence(
         midiNote: 60,
         confidence: 0.9,
         onsetScore: 0.8,
@@ -15,15 +15,15 @@ func fakeAudioRecognitionServiceEmitsEventToConsumer() async {
         generation: 1
     )
 
-    let stream = service.events
-    let consumeTask = Task<DetectedNoteEvent?, Never> {
+    let stream = service.targetEvidence
+    let consumeTask = Task<TargetAudioEvidence?, Never> {
         for await next in stream {
             return next
         }
         return nil
     }
 
-    service.emitEvent(event)
+    service.emitEvidence(event)
     let received = await consumeTask.value
 
     #expect(received == event)
@@ -108,8 +108,8 @@ func staleGenerationEventDoesNotAdvanceStep() async {
     await settleTaskQueue()
     let generation = fakeService.startCalls.first?.generation ?? 0
 
-    fakeService.emitEvent(
-        DetectedNoteEvent(
+    fakeService.emitEvidence(
+        makeTargetAudioEvidence(
             midiNote: 60,
             confidence: 0.9,
             onsetScore: 0.8,
@@ -138,8 +138,8 @@ func matchingAudioEventAdvancesStep() async {
     await settleTaskQueue()
     let generation = fakeService.startCalls.first?.generation ?? 0
 
-    fakeService.emitEvent(
-        DetectedNoteEvent(
+    fakeService.emitEvidence(
+        makeTargetAudioEvidence(
             midiNote: 60,
             confidence: 0.92,
             onsetScore: 0.9,
@@ -182,8 +182,8 @@ func suppressWindowBlocksThenAllowsAdvance() async {
     }
     let generation = startCall.generation
 
-    fakeService.emitEvent(
-        DetectedNoteEvent(
+    fakeService.emitEvidence(
+        makeTargetAudioEvidence(
             midiNote: 60,
             confidence: 0.9,
             onsetScore: 0.8,
@@ -195,8 +195,8 @@ func suppressWindowBlocksThenAllowsAdvance() async {
     await settleTaskQueue()
     #expect(viewModel.currentStepIndex == 0)
 
-    fakeService.emitEvent(
-        DetectedNoteEvent(
+    fakeService.emitEvidence(
+        makeTargetAudioEvidence(
             midiNote: 60,
             confidence: 0.9,
             onsetScore: 0.8,
@@ -282,8 +282,8 @@ func autoplayIsolationBlocksAudioAdvanceUntilAutoplayOff() async {
 
     viewModel.setAutoplayEnabled(true)
     await settleTaskQueue()
-    fakeService.emitEvent(
-        DetectedNoteEvent(
+    fakeService.emitEvidence(
+        makeTargetAudioEvidence(
             midiNote: 60,
             confidence: 0.95,
             onsetScore: 0.9,
@@ -298,8 +298,8 @@ func autoplayIsolationBlocksAudioAdvanceUntilAutoplayOff() async {
     viewModel.setAutoplayEnabled(false)
     await settleTaskQueue()
     let resumedGeneration = fakeService.startCalls.last?.generation ?? generation
-    fakeService.emitEvent(
-        DetectedNoteEvent(
+    fakeService.emitEvidence(
+        makeTargetAudioEvidence(
             midiNote: 60,
             confidence: 0.95,
             onsetScore: 0.9,

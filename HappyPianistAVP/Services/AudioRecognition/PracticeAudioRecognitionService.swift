@@ -37,8 +37,8 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
         }
     }
 
-    var events: AsyncStream<DetectedNoteEvent> {
-        eventsStream
+    var targetEvidence: AsyncStream<TargetAudioEvidence> {
+        evidenceStream
     }
 
     var statusUpdates: AsyncStream<PracticeAudioRecognitionStatus> {
@@ -52,10 +52,10 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
     private let diagnosticsReporter: (any DiagnosticsReporting)?
     private let lock = NSLock()
 
-    private let eventsStream: AsyncStream<DetectedNoteEvent>
+    private let evidenceStream: AsyncStream<TargetAudioEvidence>
     private let statusStream: AsyncStream<PracticeAudioRecognitionStatus>
     private let processingStream: AsyncStream<AudioProcessingRequest>
-    private let eventsContinuation: AsyncStream<DetectedNoteEvent>.Continuation
+    private let evidenceContinuation: AsyncStream<TargetAudioEvidence>.Continuation
     private let statusContinuation: AsyncStream<PracticeAudioRecognitionStatus>.Continuation
     private let processingContinuation: AsyncStream<AudioProcessingRequest>.Continuation
     private var processingTask: Task<Void, Never>?
@@ -80,7 +80,7 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
         self.harmonicDetector = harmonicDetector
         self.tuningProfile = tuningProfile
         self.diagnosticsReporter = diagnosticsReporter
-        (eventsStream, eventsContinuation) = AsyncStream.makeStream()
+        (evidenceStream, evidenceContinuation) = AsyncStream.makeStream()
         (statusStream, statusContinuation) = AsyncStream.makeStream()
         (processingStream, processingContinuation) = AsyncStream.makeStream(
             bufferingPolicy: .bufferingNewest(1)
@@ -96,7 +96,7 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
     }
 
     deinit {
-        eventsContinuation.finish()
+        evidenceContinuation.finish()
         statusContinuation.finish()
         processingContinuation.finish()
         processingTask?.cancel()
@@ -216,7 +216,7 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
 
         let now = Date.now
         let suppressing = suppressUntil.map { now < $0 } ?? false
-        let events = detectEvents(
+        let evidence = detectEvidence(
             samples: analysisWindow,
             sampleRate: request.sampleRate,
             expectedMIDINotes: expectedMIDINotes,
@@ -224,17 +224,17 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
             generation: generation,
             suppressing: suppressing
         )
-        publish(events: events, processingEpoch: request.epoch)
+        publish(evidence: evidence, processingEpoch: request.epoch)
     }
 
-    private func detectEvents(
+    private func detectEvidence(
         samples: [Float],
         sampleRate: Double,
         expectedMIDINotes: [Int],
         wrongCandidateMIDINotes: [Int],
         generation: Int,
         suppressing: Bool
-    ) -> [DetectedNoteEvent] {
+    ) -> TargetAudioEvidence? {
         do {
             let spectrum = try spectrumAnalyzer.analyze(
                 samples: samples, sampleRate: sampleRate, timestamp: .now
@@ -255,18 +255,16 @@ final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProt
                 summary: "谐波检测失败",
                 reason: error.localizedDescription
             )
-            return []
+            return nil
         }
     }
 
-    private func publish(events: [DetectedNoteEvent], processingEpoch: Int) {
+    private func publish(evidence: TargetAudioEvidence?, processingEpoch: Int) {
         lock.lock()
         let isCurrent = processingEpoch == self.processingEpoch
         lock.unlock()
-        guard isCurrent else { return }
-        for event in events {
-            eventsContinuation.yield(event)
-        }
+        guard isCurrent, let evidence else { return }
+        evidenceContinuation.yield(evidence)
     }
 
     private func replaceRecognitionTargets(

@@ -21,7 +21,7 @@ private final class FakePracticeAudioRecognitionInputServiceService:
         let generation: Int
     }
 
-    let events: AsyncStream<DetectedNoteEvent> = AsyncStream { _ in }
+    let targetEvidence: AsyncStream<TargetAudioEvidence>
     let statusUpdates: AsyncStream<PracticeAudioRecognitionStatus> = AsyncStream { _ in }
 
     var startCalls: [StartCall] {
@@ -42,9 +42,15 @@ private final class FakePracticeAudioRecognitionInputServiceService:
     private var _stopCallCount = 0
     private var firstStartContinuation: CheckedContinuation<Void, Never>?
     private var shouldSuspendFirstStart = false
+    private let evidenceContinuation: AsyncStream<TargetAudioEvidence>.Continuation
 
     init(suspendFirstStart: Bool = false) {
+        (targetEvidence, evidenceContinuation) = AsyncStream.makeStream()
         shouldSuspendFirstStart = suspendFirstStart
+    }
+
+    deinit {
+        evidenceContinuation.finish()
     }
 
     func start(
@@ -87,6 +93,10 @@ private final class FakePracticeAudioRecognitionInputServiceService:
             return firstStartContinuation
         }
         continuation?.resume()
+    }
+
+    func emit(_ evidence: TargetAudioEvidence) {
+        evidenceContinuation.yield(evidence)
     }
 
     private func withLock<T>(_ body: () -> T) -> T {
@@ -211,6 +221,56 @@ func practiceAudioRecognitionService_shutdownDoesNotRestartLateStart() async {
 
     #expect(backendService.startCalls.count == 1)
     #expect(stateStore.isAudioRecognitionRunning == false)
+}
+
+@Test
+@MainActor
+func microphoneUnknownPublishesLimitedObservationWithoutWrongNote() async {
+    let backendService = FakePracticeAudioRecognitionInputServiceService()
+    let stateStore = PracticeSessionStateStore()
+    let effectHandler = CapturingPracticeAudioRecognitionEffectHandler()
+    let inputService = PracticeAudioRecognitionInputService(
+        service: backendService,
+        accumulator: AudioStepAttemptAccumulator(),
+        stateStore: stateStore,
+        effectHandler: effectHandler,
+        performanceClock: PerformanceClock(now: { .init(seconds: 42) }),
+        consumeStreams: true
+    )
+    let observationTask = Task<PerformanceObservation?, Never> {
+        for await observation in inputService.performanceObservationsStream() {
+            return observation
+        }
+        return nil
+    }
+
+    inputService.refresh(for: guidingSnapshot(expectedMIDINotes: [60]))
+    await waitUntil { backendService.startCalls.isEmpty == false }
+    let generation = stateStore.audioRecognitionGeneration
+    backendService.emit(TargetAudioEvidence(
+        targetMIDINotes: [60],
+        targetConfidenceByMIDINote: [:],
+        wrongConfidenceByMIDINote: [:],
+        confidence: 0.4,
+        onsetScore: 0.4,
+        isOnset: true,
+        timestamp: .now,
+        generation: generation
+    ))
+    await waitUntil { effectHandler.effects.isEmpty == false }
+
+    let observation = await observationTask.value
+    #expect(effectHandler.effects == [.attemptEvaluated(.insufficientEvidence)])
+    #expect(observation?.source.capabilities.release == .unavailable)
+    #expect(observation?.source.capabilities.velocity == .unavailable)
+    #expect(observation?.confidence == 0.4)
+    guard case let .targetAudioDetection(targets, detected, result) = observation?.event else {
+        Issue.record("Expected target-audio observation")
+        return
+    }
+    #expect(targets == [60])
+    #expect(detected.isEmpty)
+    #expect(result == .unknown)
 }
 
 @MainActor

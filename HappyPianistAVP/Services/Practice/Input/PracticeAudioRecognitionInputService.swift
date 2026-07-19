@@ -1,7 +1,7 @@
 import Foundation
 
 @MainActor
-final class PracticeAudioRecognitionInputService {
+final class PracticeAudioRecognitionInputService: PerformanceObservationStreamProviding {
     struct Snapshot: Equatable {
         var practiceState: PracticeSessionState
         var autoplayState: PracticeSessionAutoplayState
@@ -18,12 +18,16 @@ final class PracticeAudioRecognitionInputService {
     private let service: PracticeAudioRecognitionServiceProtocol?
     private let accumulator: AudioStepAttemptAccumulator
     private let stateStore: PracticeSessionStateStore
+    private let observationRecorder: PracticeSessionRecorder?
+    private let performanceClock: PerformanceClock
     private weak var effectHandler: (any PracticeSessionEffectHandlerProtocol)?
+    private let observationBroadcaster = AsyncStreamBroadcaster<PerformanceObservation>()
 
     private var hasShutdown = false
     private var startTask: Task<Void, Never>?
     private var eventsTask: Task<Void, Never>?
     private var statusTask: Task<Void, Never>?
+    private var observationRecordingTask: Task<Void, Never>?
 
     init(
         service: PracticeAudioRecognitionServiceProtocol?,
@@ -31,11 +35,15 @@ final class PracticeAudioRecognitionInputService {
         stateStore: PracticeSessionStateStore,
         effectHandler: any PracticeSessionEffectHandlerProtocol,
         diagnosticsReporter: (any DiagnosticsReporting)? = nil,
+        observationRecorder: PracticeSessionRecorder? = nil,
+        performanceClock: PerformanceClock = .live(),
         consumeStreams: Bool
     ) {
         self.service = service
         self.accumulator = accumulator
         self.stateStore = stateStore
+        self.observationRecorder = observationRecorder
+        self.performanceClock = performanceClock
         self.effectHandler = effectHandler
         self.diagnosticsReporter = diagnosticsReporter
         if consumeStreams { bindStreamsIfNeeded() }
@@ -49,6 +57,7 @@ final class PracticeAudioRecognitionInputService {
         eventsTask = nil
         statusTask?.cancel()
         statusTask = nil
+        observationBroadcaster.finish()
     }
 
     func refreshForCurrentState() {
@@ -148,9 +157,9 @@ final class PracticeAudioRecognitionInputService {
         guard eventsTask == nil else { return }
 
         eventsTask = Task { [weak self] in
-            for await event in service.events {
+            for await evidence in service.targetEvidence {
                 await MainActor.run {
-                    self?.handle(event)
+                    self?.handle(evidence)
                 }
             }
         }
@@ -182,25 +191,39 @@ final class PracticeAudioRecognitionInputService {
         stateStore.audioRecognitionErrorMessage = String(describing: error)
     }
 
-    private func handle(_ event: DetectedNoteEvent) {
+    var capabilities: PerformanceInputCapabilities {
+        .targetAudio
+    }
+
+    func performanceObservationsStream() -> AsyncStream<PerformanceObservation> {
+        observationBroadcaster.makeStream(bufferingPolicy: .bufferingNewest(4096))
+    }
+
+    private func handle(_ evidence: TargetAudioEvidence) {
         guard let snapshot = latestSnapshot else { return }
         guard snapshot.autoplayState == .off else { return }
         guard snapshot.isManualReplayPlaying == false else { return }
-        guard event.generation == stateStore.audioRecognitionGeneration else { return }
+        guard evidence.generation == stateStore.audioRecognitionGeneration else { return }
         if let suppressUntil = stateStore.audioRecognitionSuppressUntil,
-           event.timestamp <= suppressUntil
+           evidence.timestamp <= suppressUntil
         {
             return
         }
 
-        accumulator.register(event: event)
+        publishObservation(for: evidence)
+        guard evidence.result != .unknown else {
+            effectHandler?.handle(effect: .attemptEvaluated(.insufficientEvidence))
+            return
+        }
+
+        accumulator.register(evidence: evidence)
         let wrongCandidates = Set(snapshot.wrongCandidateMIDINotes)
         let matchResult = accumulator.evaluateHandSeparated(
             expectedRightMIDINotes: snapshot.expectedRightMIDINotes,
             expectedLeftMIDINotes: snapshot.expectedLeftMIDINotes,
             wrongCandidateMIDINotes: wrongCandidates,
             generation: stateStore.audioRecognitionGeneration,
-            at: event.timestamp,
+            at: evidence.timestamp,
             handGateBoost: snapshot.handGateBoost
         )
 
@@ -208,9 +231,51 @@ final class PracticeAudioRecognitionInputService {
         if matchResult.isMatched {
             accumulator.markMatchedAndRequireRearm(
                 expectedMIDINotes: snapshot.expectedMIDINotes,
-                at: event.timestamp
+                at: evidence.timestamp
             )
             effectHandler?.handle(effect: .advanceToNextStep)
+        }
+    }
+
+    private func publishObservation(for evidence: TargetAudioEvidence) {
+        let host = performanceClock.now()
+        let observation = PerformanceObservation(
+            source: .init(
+                kind: .targetAudio,
+                id: "microphone-targeted-harmonic-template",
+                generation: UInt64(max(0, evidence.generation))
+            ),
+            timing: PerformanceClockReading(
+                host: host,
+                source: nil,
+                correctedHost: host,
+                mapping: nil,
+                provenance: .hostOnly
+            ),
+            event: .targetAudioDetection(
+                targetMIDINotes: evidence.targetMIDINotes,
+                detectedMIDINotes: evidence.targetConfidenceByMIDINote.keys.sorted(),
+                result: evidence.result.observationResult
+            ),
+            confidence: evidence.confidence
+        )
+        observationBroadcaster.yield(observation)
+        guard let observationRecorder else { return }
+        let previousTask = observationRecordingTask
+        observationRecordingTask = Task {
+            await previousTask?.value
+            await observationRecorder.record(observation)
+        }
+    }
+}
+
+private extension TargetAudioEvidence.Result {
+    var observationResult: PerformanceObservation.TargetAudioDetectionResult {
+        switch self {
+        case .detected: .detected
+        case .contradicted: .contradicted
+        case .mixed: .mixed
+        case .unknown: .unknown
         }
     }
 }

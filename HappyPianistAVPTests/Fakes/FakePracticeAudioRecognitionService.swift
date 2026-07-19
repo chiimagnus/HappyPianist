@@ -20,10 +20,10 @@ final class FakePracticeAudioRecognitionService: PracticeAudioRecognitionService
         let generation: Int
     }
 
-    let events: AsyncStream<DetectedNoteEvent>
+    let targetEvidence: AsyncStream<TargetAudioEvidence>
     let statusUpdates: AsyncStream<PracticeAudioRecognitionStatus>
 
-    private let eventsContinuation: AsyncStream<DetectedNoteEvent>.Continuation
+    private let evidenceContinuation: AsyncStream<TargetAudioEvidence>.Continuation
     private let statusContinuation: AsyncStream<PracticeAudioRecognitionStatus>.Continuation
 
     private(set) var startCalls: [StartCall] = []
@@ -33,12 +33,12 @@ final class FakePracticeAudioRecognitionService: PracticeAudioRecognitionService
     private var currentGeneration = 0
 
     init() {
-        (events, eventsContinuation) = AsyncStream.makeStream()
+        (targetEvidence, evidenceContinuation) = AsyncStream.makeStream()
         (statusUpdates, statusContinuation) = AsyncStream.makeStream()
     }
 
     deinit {
-        eventsContinuation.finish()
+        evidenceContinuation.finish()
         statusContinuation.finish()
     }
 
@@ -81,11 +81,31 @@ final class FakePracticeAudioRecognitionService: PracticeAudioRecognitionService
         stopCallCount += 1
     }
 
-    func emitEvent(_ event: DetectedNoteEvent) {
-        eventsContinuation.yield(event)
+    func emitEvidence(_ evidence: TargetAudioEvidence) {
+        evidenceContinuation.yield(evidence)
     }
 
     func emitStatus(_ status: PracticeAudioRecognitionStatus) {
         statusContinuation.yield(status)
     }
+}
+
+func makeTargetAudioEvidence(
+    midiNote: Int,
+    confidence: Double,
+    onsetScore: Double,
+    isOnset: Bool,
+    timestamp: Date,
+    generation: Int,
+    isWrongCandidate: Bool = false
+) -> TargetAudioEvidence {
+    TargetAudioEvidence(
+        targetMIDINotes: isWrongCandidate ? [] : [midiNote],
+        targetConfidenceByMIDINote: isWrongCandidate ? [:] : [midiNote: confidence],
+        wrongConfidenceByMIDINote: isWrongCandidate ? [midiNote: confidence] : [:],
+        onsetScore: onsetScore,
+        isOnset: isOnset,
+        timestamp: timestamp,
+        generation: generation
+    )
 }

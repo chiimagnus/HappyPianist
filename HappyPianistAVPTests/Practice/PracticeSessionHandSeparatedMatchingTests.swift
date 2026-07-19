@@ -10,9 +10,10 @@ func audioAccumulatorRequiresBothHandsWhenEnabled() {
 
     accumulator.resetForNewStep(generation: generation)
 
-    accumulator.register(event: DetectedNoteEvent(
-        midiNote: 60,
-        confidence: 1.0,
+    accumulator.register(evidence: TargetAudioEvidence(
+        targetMIDINotes: [60],
+        targetConfidenceByMIDINote: [60: 1],
+        wrongConfidenceByMIDINote: [:],
         onsetScore: 1.0,
         isOnset: true,
         timestamp: t0,
@@ -32,9 +33,10 @@ func audioAccumulatorRequiresBothHandsWhenEnabled() {
     }()
     #expect(rightOnlyMatched == false)
 
-    accumulator.register(event: DetectedNoteEvent(
-        midiNote: 48,
-        confidence: 1.0,
+    accumulator.register(evidence: TargetAudioEvidence(
+        targetMIDINotes: [48],
+        targetConfidenceByMIDINote: [48: 1],
+        wrongConfidenceByMIDINote: [:],
         onsetScore: 1.0,
         isOnset: true,
         timestamp: t0,

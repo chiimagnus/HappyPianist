@@ -8,7 +8,7 @@ protocol HarmonicTemplateDetectingProtocol: Sendable {
         generation: Int,
         suppressing: Bool,
         profile: HarmonicTemplateTuningProfile
-    ) -> [DetectedNoteEvent]
+    ) -> TargetAudioEvidence?
 }
 
 struct TargetedHarmonicTemplateDetector: HarmonicTemplateDetectingProtocol {
@@ -30,7 +30,7 @@ struct TargetedHarmonicTemplateDetector: HarmonicTemplateDetectingProtocol {
         generation: Int,
         suppressing: Bool,
         profile: HarmonicTemplateTuningProfile
-    ) -> [DetectedNoteEvent] {
+    ) -> TargetAudioEvidence? {
         let templates = templateProvider.makeTemplates(
             expectedMIDINotes: expectedMIDINotes,
             wrongCandidateMIDINotes: wrongCandidateMIDINotes,
@@ -41,40 +41,55 @@ struct TargetedHarmonicTemplateDetector: HarmonicTemplateDetectingProtocol {
             energyProvider: spectrumFrame,
             profile: profile
         )
-        return makeEvents(
+        return makeEvidence(
             from: results,
             spectrumFrame: spectrumFrame,
+            targetMIDINotes: expectedMIDINotes,
             generation: generation,
             suppressing: suppressing,
             profile: profile
         )
     }
 
-    private func makeEvents(
+    private func makeEvidence(
         from results: [TemplateMatchResult],
         spectrumFrame: AudioSpectrumFrame,
+        targetMIDINotes: [Int],
         generation: Int,
         suppressing: Bool,
         profile: HarmonicTemplateTuningProfile
-    ) -> [DetectedNoteEvent] {
-        guard suppressing == false else { return [] }
-        guard spectrumFrame.rms >= profile.minimumRMS else { return [] }
+    ) -> TargetAudioEvidence? {
+        guard suppressing == false else { return nil }
+        guard spectrumFrame.rms >= profile.minimumRMS else { return nil }
         guard spectrumFrame.isOnset || spectrumFrame.onsetScore >= profile.onsetThreshold else {
-            return []
+            return nil
         }
-        return results.compactMap { result in
-            guard result.role != .octaveDebug else { return nil }
-            guard result.confidence >= profile.minimumConfidence else { return nil }
-            guard result.tonalRatio >= profile.minimumTonalRatio else { return nil }
-            guard result.dominanceOverWrong >= profile.minimumDominance else { return nil }
-            return DetectedNoteEvent(
-                midiNote: result.midiNote,
-                confidence: result.confidence,
-                onsetScore: spectrumFrame.onsetScore,
-                isOnset: spectrumFrame.isOnset,
-                timestamp: spectrumFrame.timestamp,
-                generation: generation
-            )
+        let qualified = results.filter { result in
+            result.role != .octaveDebug
+                && result.confidence >= profile.minimumConfidence
+                && result.tonalRatio >= profile.minimumTonalRatio
+                && result.dominanceOverWrong >= profile.minimumDominance
         }
+        let targetConfidence = qualified.reduce(into: [Int: Double]()) { output, result in
+            guard result.role == .expected else { return }
+            output[result.midiNote] = max(output[result.midiNote] ?? 0, result.confidence)
+        }
+        let wrongConfidence = qualified.reduce(into: [Int: Double]()) { output, result in
+            guard result.role == .wrongCandidate else { return }
+            output[result.midiNote] = max(output[result.midiNote] ?? 0, result.confidence)
+        }
+        return TargetAudioEvidence(
+            targetMIDINotes: targetMIDINotes,
+            targetConfidenceByMIDINote: targetConfidence,
+            wrongConfidenceByMIDINote: wrongConfidence,
+            confidence: results
+                .filter { $0.role != .octaveDebug }
+                .map(\.confidence)
+                .max(),
+            onsetScore: spectrumFrame.onsetScore,
+            isOnset: spectrumFrame.isOnset,
+            timestamp: spectrumFrame.timestamp,
+            generation: generation
+        )
     }
 }
