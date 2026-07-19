@@ -11,19 +11,20 @@ func audioErrorText(for error: Error) -> String {
     return String(describing: error)
 }
 
-func uniqueMIDINotesByHand(notes: [PracticeStepNote]) -> (right: [Int], left: [Int]) {
+func uniqueMIDINotesByHand(notes: [PracticeStepNote]) -> (right: [Int], left: [Int], unknown: [Int]) {
     var right: Set<Int> = []
     var left: Set<Int> = []
+    var unknown: Set<Int> = []
 
     for note in notes {
-        if note.hand == .left {
-            left.insert(note.midiNote)
-        } else {
-            right.insert(note.midiNote)
+        switch note.hand {
+        case .right: right.insert(note.midiNote)
+        case .left: left.insert(note.midiNote)
+        case .unknown: unknown.insert(note.midiNote)
         }
     }
 
-    return (right: right.sorted(), left: left.sorted())
+    return (right: right.sorted(), left: left.sorted(), unknown: unknown.sorted())
 }
 
 // MARK: - StateStore convenience helpers

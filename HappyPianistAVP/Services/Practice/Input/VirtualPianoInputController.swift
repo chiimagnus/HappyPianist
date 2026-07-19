@@ -91,13 +91,11 @@ final class VirtualPianoInputController {
             at: timestamp
         )
 
-        if startedMIDINotes.isEmpty == false {
-            handGateController.registerChordAttemptIfNeeded(
-                pressedNotes: startedMIDINotes,
-                at: timestamp,
-                practiceHandMode: practiceHandMode
-            )
-        }
+        handGateController.registerChordAttemptIfNeeded(
+            observations: result,
+            at: timestamp,
+            practiceHandMode: practiceHandMode
+        )
 
         return activeMIDINotes
     }

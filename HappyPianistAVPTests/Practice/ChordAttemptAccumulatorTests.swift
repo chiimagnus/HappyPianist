@@ -7,17 +7,19 @@ func simultaneousChordUsesActualOnsetSpread() {
     let accumulator = ChordAttemptAccumulator(windowSeconds: 0.6, simultaneousSpreadSeconds: 0.08)
 
     let first = accumulator.registerHandSeparated(
-        pressedNotes: [60],
+        evidence: HandSeparatedNoteEvidence(right: [60]),
         expectedRightNotes: [60, 64],
         expectedLeftNotes: [],
+        expectedUnassignedNotes: [],
         tolerance: 0,
         onsetExpectation: .simultaneous,
         at: .init(seconds: 1)
     )
     let tooWide = accumulator.registerHandSeparated(
-        pressedNotes: [64],
+        evidence: HandSeparatedNoteEvidence(right: [64]),
         expectedRightNotes: [60, 64],
         expectedLeftNotes: [],
+        expectedUnassignedNotes: [],
         tolerance: 0,
         onsetExpectation: .simultaneous,
         at: .init(seconds: 1.2)
@@ -32,25 +34,28 @@ func rolledChordAcceptsOnsetsAcrossConfiguredSpan() {
     let accumulator = ChordAttemptAccumulator(windowSeconds: 0.6, simultaneousSpreadSeconds: 0.08)
 
     _ = accumulator.registerHandSeparated(
-        pressedNotes: [60],
+        evidence: HandSeparatedNoteEvidence(right: [60]),
         expectedRightNotes: [60, 64, 67],
         expectedLeftNotes: [],
+        expectedUnassignedNotes: [],
         tolerance: 0,
         onsetExpectation: .rolled,
         at: .init(seconds: 1)
     )
     _ = accumulator.registerHandSeparated(
-        pressedNotes: [64],
+        evidence: HandSeparatedNoteEvidence(right: [64]),
         expectedRightNotes: [60, 64, 67],
         expectedLeftNotes: [],
+        expectedUnassignedNotes: [],
         tolerance: 0,
         onsetExpectation: .rolled,
         at: .init(seconds: 1.2)
     )
     let result = accumulator.registerHandSeparated(
-        pressedNotes: [67],
+        evidence: HandSeparatedNoteEvidence(right: [67]),
         expectedRightNotes: [60, 64, 67],
         expectedLeftNotes: [],
+        expectedUnassignedNotes: [],
         tolerance: 0,
         onsetExpectation: .rolled,
         at: .init(seconds: 1.45)

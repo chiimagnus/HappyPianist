@@ -5,6 +5,33 @@ enum ChordOnsetExpectation: Equatable {
     case rolled
 }
 
+struct HandSeparatedNoteEvidence: Equatable {
+    let right: Set<Int>
+    let left: Set<Int>
+
+    var all: Set<Int> { right.union(left) }
+    var isEmpty: Bool { right.isEmpty && left.isEmpty }
+
+    init(right: Set<Int> = [], left: Set<Int> = []) {
+        self.right = right
+        self.left = left
+    }
+
+    init(startedContacts: [PianoKeyContactObservation]) {
+        var right: Set<Int> = []
+        var left: Set<Int> = []
+        for contact in startedContacts where contact.phase == .started {
+            guard let midiNote = contact.keyCandidate.exactMIDINote else { continue }
+            switch contact.hand {
+            case .right: right.insert(midiNote)
+            case .left: left.insert(midiNote)
+            }
+        }
+        self.right = right
+        self.left = left
+    }
+}
+
 protocol ChordAttemptAccumulatorProtocol {
     func register(
         pressedNotes: Set<Int>,
@@ -14,9 +41,10 @@ protocol ChordAttemptAccumulatorProtocol {
     ) -> StepAttemptMatchResult
 
     func registerHandSeparated(
-        pressedNotes: Set<Int>,
+        evidence: HandSeparatedNoteEvidence,
         expectedRightNotes: [Int],
         expectedLeftNotes: [Int],
+        expectedUnassignedNotes: [Int],
         tolerance: Int,
         at timestamp: PerformanceMonotonicInstant
     ) -> StepAttemptMatchResult
@@ -25,15 +53,16 @@ protocol ChordAttemptAccumulatorProtocol {
 
 extension ChordAttemptAccumulatorProtocol {
     func registerHandSeparated(
-        pressedNotes: Set<Int>,
+        evidence: HandSeparatedNoteEvidence,
         expectedRightNotes: [Int],
         expectedLeftNotes: [Int],
+        expectedUnassignedNotes: [Int],
         tolerance: Int,
         at timestamp: PerformanceMonotonicInstant
     ) -> StepAttemptMatchResult {
         register(
-            pressedNotes: pressedNotes,
-            expectedNotes: Set(expectedRightNotes + expectedLeftNotes).sorted(),
+            pressedNotes: evidence.all,
+            expectedNotes: Set(expectedRightNotes + expectedLeftNotes + expectedUnassignedNotes).sorted(),
             tolerance: tolerance,
             at: timestamp
         )
@@ -41,11 +70,21 @@ extension ChordAttemptAccumulatorProtocol {
 }
 
 final class ChordAttemptAccumulator: ChordAttemptAccumulatorProtocol {
+    private enum Hand: Hashable {
+        case right
+        case left
+    }
+
+    private struct HandNote: Hashable {
+        let hand: Hand
+        let midiNote: Int
+    }
+
     private let simultaneousSpreadSeconds: TimeInterval
     private let rolledSpanSeconds: TimeInterval
     private let matcher: StepMatcherProtocol
 
-    private var onsetByNote: [Int: PerformanceMonotonicInstant] = [:]
+    private var onsetByHandNote: [HandNote: PerformanceMonotonicInstant] = [:]
 
     init(
         windowSeconds: TimeInterval = 0.6,
@@ -63,70 +102,105 @@ final class ChordAttemptAccumulator: ChordAttemptAccumulatorProtocol {
         tolerance: Int,
         at timestamp: PerformanceMonotonicInstant
     ) -> StepAttemptMatchResult {
-        registerHandSeparated(
+        register(
             pressedNotes: pressedNotes,
-            expectedRightNotes: expectedNotes,
-            expectedLeftNotes: [],
+            expectedNotes: expectedNotes,
             tolerance: tolerance,
             onsetExpectation: .rolled,
             at: timestamp
         )
     }
 
-    func registerHandSeparated(
+    func register(
         pressedNotes: Set<Int>,
-        expectedRightNotes: [Int],
-        expectedLeftNotes: [Int],
-        tolerance: Int,
-        at timestamp: PerformanceMonotonicInstant
-    ) -> StepAttemptMatchResult {
-        registerHandSeparated(
-            pressedNotes: pressedNotes,
-            expectedRightNotes: expectedRightNotes,
-            expectedLeftNotes: expectedLeftNotes,
-            tolerance: tolerance,
-            onsetExpectation: .rolled,
-            at: timestamp
-        )
-    }
-
-    func registerHandSeparated(
-        pressedNotes: Set<Int>,
-        expectedRightNotes: [Int],
-        expectedLeftNotes: [Int],
+        expectedNotes: [Int],
         tolerance: Int,
         onsetExpectation: ChordOnsetExpectation,
         at timestamp: PerformanceMonotonicInstant
     ) -> StepAttemptMatchResult {
-        let expectedUnion = Set(expectedRightNotes + expectedLeftNotes)
-        guard pressedNotes.isEmpty == false, expectedUnion.isEmpty == false else {
+        registerHandSeparated(
+            evidence: HandSeparatedNoteEvidence(right: pressedNotes),
+            expectedRightNotes: expectedNotes,
+            expectedLeftNotes: [],
+            expectedUnassignedNotes: [],
+            tolerance: tolerance,
+            onsetExpectation: onsetExpectation,
+            at: timestamp
+        )
+    }
+
+    func registerHandSeparated(
+        evidence: HandSeparatedNoteEvidence,
+        expectedRightNotes: [Int],
+        expectedLeftNotes: [Int],
+        expectedUnassignedNotes: [Int],
+        tolerance: Int,
+        at timestamp: PerformanceMonotonicInstant
+    ) -> StepAttemptMatchResult {
+        registerHandSeparated(
+            evidence: evidence,
+            expectedRightNotes: expectedRightNotes,
+            expectedLeftNotes: expectedLeftNotes,
+            expectedUnassignedNotes: expectedUnassignedNotes,
+            tolerance: tolerance,
+            onsetExpectation: .rolled,
+            at: timestamp
+        )
+    }
+
+    func registerHandSeparated(
+        evidence: HandSeparatedNoteEvidence,
+        expectedRightNotes: [Int],
+        expectedLeftNotes: [Int],
+        expectedUnassignedNotes: [Int],
+        tolerance: Int,
+        onsetExpectation: ChordOnsetExpectation,
+        at timestamp: PerformanceMonotonicInstant
+    ) -> StepAttemptMatchResult {
+        let expectedUnion = Set(expectedRightNotes + expectedLeftNotes + expectedUnassignedNotes)
+        guard evidence.isEmpty == false, expectedUnion.isEmpty == false else {
             return .insufficientEvidence
         }
 
-        if let firstOnset = onsetByNote.values.min(),
+        if let firstOnset = onsetByHandNote.values.min(),
            timestamp < firstOnset || timestamp.seconds - firstOnset.seconds > maximumSpan(for: onsetExpectation)
         {
             reset()
         }
-        for note in pressedNotes where onsetByNote[note] == nil {
-            onsetByNote[note] = timestamp
+        for note in evidence.right {
+            onsetByHandNote[HandNote(hand: .right, midiNote: note)] =
+                onsetByHandNote[HandNote(hand: .right, midiNote: note)] ?? timestamp
+        }
+        for note in evidence.left {
+            onsetByHandNote[HandNote(hand: .left, midiNote: note)] =
+                onsetByHandNote[HandNote(hand: .left, midiNote: note)] ?? timestamp
         }
 
-        let observedNotes = Set(onsetByNote.keys)
+        let observedRight = Set(onsetByHandNote.keys.lazy.compactMap {
+            $0.hand == .right ? $0.midiNote : nil
+        })
+        let observedLeft = Set(onsetByHandNote.keys.lazy.compactMap {
+            $0.hand == .left ? $0.midiNote : nil
+        })
         let rightMatched = expectedRightNotes.isEmpty || matcher.matches(
             expectedNotes: expectedRightNotes,
-            pressedNotes: observedNotes,
+            pressedNotes: observedRight,
             tolerance: tolerance
         )
         let leftMatched = expectedLeftNotes.isEmpty || matcher.matches(
             expectedNotes: expectedLeftNotes,
-            pressedNotes: observedNotes,
+            pressedNotes: observedLeft,
+            tolerance: tolerance
+        )
+        let unassignedMatched = expectedUnassignedNotes.isEmpty || matcher.matches(
+            expectedNotes: expectedUnassignedNotes,
+            pressedNotes: observedRight.union(observedLeft),
             tolerance: tolerance
         )
 
-        guard rightMatched, leftMatched else { return .insufficientEvidence }
+        guard rightMatched, leftMatched, unassignedMatched else { return .insufficientEvidence }
         guard onsetSpread <= maximumSpan(for: onsetExpectation) else {
-            reset(keeping: pressedNotes, at: timestamp)
+            reset(keeping: evidence, at: timestamp)
             return .insufficientEvidence
         }
 
@@ -135,11 +209,11 @@ final class ChordAttemptAccumulator: ChordAttemptAccumulatorProtocol {
     }
 
     func reset() {
-        onsetByNote.removeAll(keepingCapacity: true)
+        onsetByHandNote.removeAll(keepingCapacity: true)
     }
 
     private var onsetSpread: TimeInterval {
-        guard let first = onsetByNote.values.min(), let last = onsetByNote.values.max() else { return 0 }
+        guard let first = onsetByHandNote.values.min(), let last = onsetByHandNote.values.max() else { return 0 }
         return last.seconds - first.seconds
     }
 
@@ -152,10 +226,13 @@ final class ChordAttemptAccumulator: ChordAttemptAccumulatorProtocol {
         }
     }
 
-    private func reset(keeping notes: Set<Int>, at timestamp: PerformanceMonotonicInstant) {
+    private func reset(keeping evidence: HandSeparatedNoteEvidence, at timestamp: PerformanceMonotonicInstant) {
         reset()
-        for note in notes {
-            onsetByNote[note] = timestamp
+        for note in evidence.right {
+            onsetByHandNote[HandNote(hand: .right, midiNote: note)] = timestamp
+        }
+        for note in evidence.left {
+            onsetByHandNote[HandNote(hand: .left, midiNote: note)] = timestamp
         }
     }
 }

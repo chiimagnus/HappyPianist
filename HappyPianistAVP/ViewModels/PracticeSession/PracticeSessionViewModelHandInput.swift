@@ -37,14 +37,12 @@ extension PracticeSessionViewModel {
             at: timestamp
         )
 
-        if detected.isEmpty == false {
-            self.pressedNotes = detected
-            handGateController?.registerChordAttemptIfNeeded(
-                pressedNotes: detected,
-                at: timestamp,
-                practiceHandMode: practiceHandMode
-            )
-        }
+        self.pressedNotes = detected
+        handGateController?.registerChordAttemptIfNeeded(
+            observations: self.latestKeyContactObservations,
+            at: timestamp,
+            practiceHandMode: practiceHandMode
+        )
 
         return detected
     }

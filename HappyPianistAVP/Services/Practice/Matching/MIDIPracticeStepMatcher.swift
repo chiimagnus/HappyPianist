@@ -24,8 +24,6 @@ final class MIDIPracticeStepMatcher: MIDIPracticeStepMatchingProtocol {
     private(set) var configuration: Configuration
     private let chordAccumulator: ChordAttemptAccumulator
 
-    private var expectedRight: Set<Int> = []
-    private var expectedLeft: Set<Int> = []
     private var expectedUnion: Set<Int> = []
     private var onsetExpectation: ChordOnsetExpectation = .simultaneous
     private var heldNotes: Set<NoteIdentity> = []
@@ -41,8 +39,6 @@ final class MIDIPracticeStepMatcher: MIDIPracticeStepMatchingProtocol {
 
     func reset(stepIndex: Int, expectedNotes: [PracticeStepNote]) {
         guard stepIndex >= 0 else {
-            expectedRight.removeAll(keepingCapacity: true)
-            expectedLeft.removeAll(keepingCapacity: true)
             expectedUnion.removeAll(keepingCapacity: true)
             heldNotes.removeAll(keepingCapacity: true)
             releaseRequiredBeforeOnset.removeAll(keepingCapacity: true)
@@ -51,16 +47,7 @@ final class MIDIPracticeStepMatcher: MIDIPracticeStepMatchingProtocol {
         }
 
         let previousExpected = expectedUnion
-        expectedRight.removeAll(keepingCapacity: true)
-        expectedLeft.removeAll(keepingCapacity: true)
-        for note in expectedNotes {
-            if note.hand == .left {
-                expectedLeft.insert(note.midiNote)
-            } else {
-                expectedRight.insert(note.midiNote)
-            }
-        }
-        expectedUnion = expectedRight.union(expectedLeft)
+        expectedUnion = Set(expectedNotes.map(\.midiNote))
         let repeatedNotes = previousExpected.intersection(expectedUnion)
         releaseRequiredBeforeOnset = heldNotes.filter { repeatedNotes.contains($0.note) }
         onsetExpectation = Set(expectedNotes.map(\.onTickOffset)).count > 1 ? .rolled : .simultaneous
@@ -98,10 +85,9 @@ final class MIDIPracticeStepMatcher: MIDIPracticeStepMatchingProtocol {
             chordAccumulator.reset()
             return .wrongNote
         }
-        return chordAccumulator.registerHandSeparated(
+        return chordAccumulator.register(
             pressedNotes: [note],
-            expectedRightNotes: expectedRight.sorted(),
-            expectedLeftNotes: expectedLeft.sorted(),
+            expectedNotes: expectedUnion.sorted(),
             tolerance: 0,
             onsetExpectation: onsetExpectation,
             at: observation.timing.correctedHost

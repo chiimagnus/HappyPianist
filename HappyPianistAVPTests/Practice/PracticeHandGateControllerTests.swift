@@ -47,7 +47,7 @@ func chordMatchAdvancesToNextStepViaEffect() {
     )
 
     controller.registerChordAttemptIfNeeded(
-        pressedNotes: [60],
+        observations: [makeTestKeyContactObservation(midiNote: 60, phase: .started)],
         at: .init(seconds: 1),
         practiceHandMode: .both
     )
@@ -79,7 +79,7 @@ func chordMatchDoesNotAdvanceWhileReady() {
     )
 
     controller.registerChordAttemptIfNeeded(
-        pressedNotes: [60],
+        observations: [makeTestKeyContactObservation(midiNote: 60, phase: .started)],
         at: .init(seconds: 1),
         practiceHandMode: .both
     )

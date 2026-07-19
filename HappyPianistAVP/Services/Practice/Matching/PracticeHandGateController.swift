@@ -53,11 +53,12 @@ final class PracticeHandGateController {
     }
 
     func registerChordAttemptIfNeeded(
-        pressedNotes: Set<Int>,
+        observations: [PianoKeyContactObservation],
         at timestamp: PerformanceMonotonicInstant,
         practiceHandMode: PracticeHandMode
     ) {
-        guard pressedNotes.isEmpty == false else { return }
+        let evidence = HandSeparatedNoteEvidence(startedContacts: observations)
+        guard evidence.isEmpty == false else { return }
         guard stateStore.acceptsPracticeAttempts else { return }
         guard case .guiding = stateStore.state else { return }
         guard stateStore.autoplayState == .off else { return }
@@ -74,9 +75,10 @@ final class PracticeHandGateController {
 
         let expectedByHand = uniqueMIDINotesByHand(notes: expectedNotes)
         let outcome = chordAttemptAccumulator.registerHandSeparated(
-            pressedNotes: pressedNotes,
+            evidence: evidence,
             expectedRightNotes: expectedByHand.right,
             expectedLeftNotes: expectedByHand.left,
+            expectedUnassignedNotes: expectedByHand.unknown,
             tolerance: stateStore.noteMatchTolerance,
             at: timestamp
         )
