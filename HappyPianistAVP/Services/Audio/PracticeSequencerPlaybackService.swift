@@ -220,6 +220,7 @@ actor AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackServiceP
                 )
             )
         }
+        recordControllerApproximations(count: sequence.outputApproximations.count)
 
         noteBySourceEventID = Dictionary(
             sequence.events.compactMap { event -> (String, UInt8)? in
@@ -406,6 +407,8 @@ actor AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackServiceP
         commands: [PracticePlaybackCommand],
         tracking: CommandTracking
     ) throws {
+        var controllerApproximationCount = 0
+        defer { recordControllerApproximations(count: controllerApproximationCount) }
         for command in commands {
             switch command.kind {
             case let .noteOn(midi, velocity):
@@ -430,7 +433,14 @@ actor AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackServiceP
                 sampler.stopNote(note, onChannel: channel)
 
             case let .controlChange(controller, value):
-                try sendMIDI(status: 0xB0 | channel, data1: controller, data2: value)
+                let resolution = PerformanceOutputCapabilities.localSampler.resolve(
+                    controllerNumber: controller,
+                    value: value
+                )
+                if resolution.approximation != nil {
+                    controllerApproximationCount += 1
+                }
+                try sendMIDI(status: 0xB0 | channel, data1: controller, data2: resolution.value)
             case let .programChange(program):
                 try sendMIDI(status: 0xC0 | channel, data1: program, data2: 0)
             case let .pitchBend(value):
@@ -523,6 +533,17 @@ actor AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackServiceP
             }
         )
         diagnosticsReporter?.recordOutputMetrics(metrics.snapshot(capability: .localSampler))
+    }
+
+    private func recordControllerApproximations(count: Int) {
+        guard count > 0 else { return }
+        diagnosticsReporter?.recordSystem(
+            severity: .info,
+            category: .audio,
+            stage: "audio.controllerCapability",
+            summary: "本地采样器控制器值已按输出能力量化",
+            reason: "approximationCount=\(count)"
+        )
     }
 
     private func ensureReady() throws {

@@ -295,6 +295,59 @@ func playbackServiceTeardownStopsSequenceResetsAndStopsEngine() async throws {
     ])
 }
 
+@Test
+func localSamplerReportsSequenceControllerApproximations() async throws {
+    let output = FakePerformanceOutput(capabilities: .localSampler)
+    let diagnostics = InMemoryDiagnosticsReporter()
+    let service = AVAudioSequencerPracticePlaybackService(
+        soundFontResourceName: "TestSoundFont",
+        platform: output.makeAudioPlatform(),
+        diagnosticsReporter: diagnostics
+    )
+    try await service.load(sequence: PracticeSequencerSequence(
+        midiData: Data(),
+        durationSeconds: 0,
+        events: [],
+        outputApproximations: [
+            PerformanceOutputApproximation(controllerNumber: 64, sourceValue: 96, renderedValue: 127),
+            PerformanceOutputApproximation(controllerNumber: 67, sourceValue: 20, renderedValue: 0),
+        ]
+    ))
+
+    let events = await waitForAudioControllerDiagnostics(diagnostics)
+    #expect(events.contains { event in
+        event.stage == "audio.controllerCapability"
+            && event.reason == "approximationCount=2"
+    })
+}
+
+@Test
+func localSamplerQuantizesLiveControllerAndReportsApproximation() async throws {
+    let output = FakePerformanceOutput(capabilities: .localSampler)
+    let diagnostics = InMemoryDiagnosticsReporter()
+    let service = AVAudioSequencerPracticePlaybackService(
+        soundFontResourceName: "TestSoundFont",
+        platform: output.makeAudioPlatform(),
+        diagnosticsReporter: diagnostics
+    )
+
+    try await service.execute(commands: [
+        PracticePlaybackCommand(
+            sourceEventID: "live-half-pedal",
+            kind: .controlChange(controller: 64, value: 96)
+        ),
+    ])
+
+    #expect(output.audioEntriesSnapshot().contains(
+        .midi(status: 0xB0, data1: 64, data2: 127)
+    ))
+    let events = await waitForAudioControllerDiagnostics(diagnostics)
+    #expect(events.contains { event in
+        event.stage == "audio.controllerCapability"
+            && event.reason == "approximationCount=1"
+    })
+}
+
 private func emptyPracticeSequence() -> PracticeSequencerSequence {
     PracticeSequencerSequence(
         midiData: Data(),
@@ -333,6 +386,23 @@ private func waitForAudioEntry(
         }
     }
     return output.audioEntriesSnapshot().contains(expected)
+}
+
+private func waitForAudioControllerDiagnostics(
+    _ reporter: InMemoryDiagnosticsReporter
+) async -> [DiagnosticEvent] {
+    let clock = ContinuousClock()
+    let deadline = clock.now + .seconds(1)
+    while clock.now < deadline {
+        let events = await reporter.events.filter { $0.stage == "audio.controllerCapability" }
+        if events.isEmpty == false { return events }
+        do {
+            try await Task.sleep(for: .milliseconds(1))
+        } catch {
+            return events
+        }
+    }
+    return await reporter.events.filter { $0.stage == "audio.controllerCapability" }
 }
 
 private func waitForAudioLifecycleDiagnostics(
