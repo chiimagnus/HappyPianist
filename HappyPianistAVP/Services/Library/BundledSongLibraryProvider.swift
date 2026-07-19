@@ -12,17 +12,16 @@ struct BundledSongLibraryProvider: BundledSongLibraryProviderProtocol {
     private static let bundledImportedAt = Date(timeIntervalSince1970: 0)
 
     private let bundle: Bundle
+    private let seedRootURLsOverride: [URL]?
 
-    init(bundle: Bundle = .main) {
+    init(bundle: Bundle = .main, seedRootURLs: [URL]? = nil) {
         self.bundle = bundle
+        seedRootURLsOverride = seedRootURLs
     }
 
     func bundledEntries() -> [SongLibraryEntry] {
-        let urls = (bundle.urls(forResourcesWithExtension: "musicxml", subdirectory: Self.seedSubdirectory) ?? [])
-            + (bundle.urls(forResourcesWithExtension: "musicxml", subdirectory: nil) ?? [])
-
         var byFileName: [String: URL] = [:]
-        for url in urls {
+        for url in resourceURLs(withExtension: "musicxml") {
             byFileName[url.lastPathComponent] = url
         }
 
@@ -35,7 +34,9 @@ struct BundledSongLibraryProvider: BundledSongLibraryProviderProtocol {
                 let fileName = musicXMLURL.lastPathComponent
                 let baseName = musicXMLURL.deletingPathExtension().lastPathComponent
                 let mp3FileName = "\(baseName).mp3"
-                let audioExists = audioURL(fileName: mp3FileName) != nil
+                let siblingAudioURL = musicXMLURL.deletingLastPathComponent().appending(path: mp3FileName)
+                let audioExists = FileManager.default.fileExists(atPath: siblingAudioURL.path)
+                    || audioURL(fileName: mp3FileName) != nil
 
                 return SongLibraryEntry(
                     id: DeterministicUUID.make(name: "bundled:\(fileName)"),
@@ -55,13 +56,85 @@ struct BundledSongLibraryProvider: BundledSongLibraryProviderProtocol {
     }
 
     func musicXMLURL(fileName: String) -> URL? {
-        bundle.url(forResource: fileName, withExtension: nil, subdirectory: Self.seedSubdirectory)
-            ?? bundle.url(forResource: fileName, withExtension: nil)
+        directResourceURL(fileName: fileName)
+            ?? resourceURLs(withExtension: "musicxml").first { $0.lastPathComponent == fileName }
     }
 
     func audioURL(fileName: String) -> URL? {
-        bundle.url(forResource: fileName, withExtension: nil, subdirectory: Self.seedSubdirectory)
+        directResourceURL(fileName: fileName)
+            ?? resourceURLs(withExtension: URL(fileURLWithPath: fileName).pathExtension)
+                .first { $0.lastPathComponent == fileName }
+    }
+
+    private func directResourceURL(fileName: String) -> URL? {
+        guard seedRootURLsOverride == nil else { return nil }
+        return bundle.url(forResource: fileName, withExtension: nil, subdirectory: Self.seedSubdirectory)
+            ?? bundle.url(forResource: fileName, withExtension: nil, subdirectory: "SeedScores")
             ?? bundle.url(forResource: fileName, withExtension: nil)
+    }
+
+    private func resourceURLs(withExtension fileExtension: String) -> [URL] {
+        let normalizedExtension = fileExtension.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard normalizedExtension.isEmpty == false else { return [] }
+
+        var urls = seedRootURLs().flatMap {
+            Self.recursiveResourceURLs(in: $0, withExtension: normalizedExtension)
+        }
+        if seedRootURLsOverride == nil {
+            urls.append(contentsOf: bundle.urls(
+                forResourcesWithExtension: normalizedExtension,
+                subdirectory: Self.seedSubdirectory
+            ) ?? [])
+            urls.append(contentsOf: bundle.urls(
+                forResourcesWithExtension: normalizedExtension,
+                subdirectory: "SeedScores"
+            ) ?? [])
+            urls.append(contentsOf: bundle.urls(
+                forResourcesWithExtension: normalizedExtension,
+                subdirectory: nil
+            ) ?? [])
+        }
+        var byPath: [String: URL] = [:]
+        for url in urls {
+            byPath[url.standardizedFileURL.path] = url
+        }
+        return byPath.values.sorted { $0.path < $1.path }
+    }
+
+    private func seedRootURLs() -> [URL] {
+        if let seedRootURLsOverride {
+            return seedRootURLsOverride
+        }
+        guard let resourceURL = bundle.resourceURL else { return [] }
+        let candidates = [
+            resourceURL.appending(path: Self.seedSubdirectory, directoryHint: .isDirectory),
+            resourceURL.appending(path: "SeedScores", directoryHint: .isDirectory),
+        ]
+        return candidates.filter { candidate in
+            var isDirectory: ObjCBool = false
+            return FileManager.default.fileExists(atPath: candidate.path, isDirectory: &isDirectory)
+                && isDirectory.boolValue
+        }
+    }
+
+    static func recursiveResourceURLs(in rootURL: URL, withExtension fileExtension: String) -> [URL] {
+        guard let enumerator = FileManager.default.enumerator(
+            at: rootURL,
+            includingPropertiesForKeys: [.isRegularFileKey],
+            options: [.skipsHiddenFiles]
+        ) else {
+            return []
+        }
+
+        return enumerator.compactMap { element -> URL? in
+            guard let url = element as? URL,
+                  url.pathExtension.localizedCaseInsensitiveCompare(fileExtension) == .orderedSame,
+                  (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true
+            else {
+                return nil
+            }
+            return url
+        }
     }
 
     static func scoreFileVersionID(
