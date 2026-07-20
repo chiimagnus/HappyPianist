@@ -154,7 +154,7 @@ struct GrandStaffNotationLayoutService {
                 },
                 meter: source.meter,
                 noteValue: isSupportedNotehead(source.noteheadToken)
-                    ? noteValue(for: source.writtenRhythm)
+                    ? GrandStaffNoteValue(sourceTypeToken: source.writtenRhythm?.typeToken)
                     : .unsupported(sourceTypeToken: source.noteheadToken),
                 durationTicks: writtenDurationTicks,
                 writtenPitch: writtenPitch,
@@ -305,7 +305,9 @@ struct GrandStaffNotationLayoutService {
                 voice: occurrence.voice,
                 tick: occurrence.tick,
                 xPosition: 0,
-                noteValue: source.isMeasureRest ? .whole : noteValue(for: source.writtenRhythm),
+                noteValue: source.isMeasureRest
+                    ? .whole
+                    : GrandStaffNoteValue(sourceTypeToken: source.writtenRhythm?.typeToken),
                 dotCount: source.isMeasureRest ? 0 : source.writtenRhythm?.dotCount ?? 0,
                 isMeasureRest: source.isMeasureRest,
                 isHighlighted: occurrence.isHighlighted
@@ -845,21 +847,6 @@ struct GrandStaffNotationLayoutService {
             }
         }
         return steps
-    }
-
-    private func noteValue(for rhythm: MusicXMLWrittenRhythm?) -> GrandStaffNoteValue {
-        let sourceTypeToken = rhythm?.typeToken
-        return switch sourceTypeToken?.lowercased() {
-        case "whole": .whole
-        case "half": .half
-        case "quarter": .quarter
-        case "eighth": .eighth
-        case "16th": .sixteenth
-        case "32nd": .thirtySecond
-        case "64th": .sixtyFourth
-        case "128th": .oneHundredTwentyEighth
-        default: .unsupported(sourceTypeToken: sourceTypeToken)
-        }
     }
 
     private func isSupportedNotehead(_ token: String?) -> Bool {

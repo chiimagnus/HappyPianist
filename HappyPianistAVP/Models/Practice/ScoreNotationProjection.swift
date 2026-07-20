@@ -659,7 +659,6 @@ struct ScoreNotationProjection: Equatable, Sendable {
     }
 
     private static func fallbacks(from sources: [CanonicalSource]) -> [Fallback] {
-        let supportedRhythms = Set(["whole", "half", "quarter", "eighth", "16th", "32nd"])
         let supportedAccidentals = Set([
             "sharp", "flat", "natural", "double-sharp", "sharp-sharp", "flat-flat", "double-flat",
         ])
@@ -679,7 +678,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
                     reason: note.isRest ? .missingRestType : .missingNoteType,
                     placeholderPolicy: .reserveRhythmicSpace
                 ))
-            } else if supportedRhythms.contains(rhythmToken ?? "") == false {
+            } else if GrandStaffNoteValue(sourceTypeToken: rhythmToken).isSupported == false {
                 result.append(Fallback(
                     sourceID: source.sourceID,
                     kind: note.isRest ? .rest : .notehead,

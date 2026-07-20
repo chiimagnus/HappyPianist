@@ -11,6 +11,25 @@ enum GrandStaffNoteValue: Equatable {
     case oneHundredTwentyEighth
     case unsupported(sourceTypeToken: String?)
 
+    init(sourceTypeToken: String?) {
+        switch sourceTypeToken?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "whole": self = .whole
+        case "half": self = .half
+        case "quarter": self = .quarter
+        case "eighth": self = .eighth
+        case "16th": self = .sixteenth
+        case "32nd": self = .thirtySecond
+        case "64th": self = .sixtyFourth
+        case "128th": self = .oneHundredTwentyEighth
+        default: self = .unsupported(sourceTypeToken: sourceTypeToken)
+        }
+    }
+
+    var isSupported: Bool {
+        if case .unsupported = self { return false }
+        return true
+    }
+
     var noteheadGlyphToken: GrandStaffGlyphToken? {
         switch self {
         case .whole: .noteheadWhole
