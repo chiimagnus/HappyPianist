@@ -1,6 +1,6 @@
 # ===== swift =====
 
-xcshareddata/
+xcuserdata/
 .build/
 **/build/
 .swiftpm/
