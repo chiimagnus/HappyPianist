@@ -15,7 +15,7 @@ permissions:
 env:
   PROJECT: HappyPianist.xcodeproj
   SCHEME: HappyPianistAVP
-  DEVELOPER_DIR: /Applications/Xcode_26.4.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_26.5.app/Contents/Developer
 
 jobs:
   test:
@@ -27,4 +27,15 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
-      -
+      - name: Show toolchain and destinations
+        run: |
+          set -euo pipefail
+          xcodebuild -version
+          swift --version
+          xcrun simctl list runtimes
+          xcodebuild -showdestinations \
+            -project "$PROJECT" \
+            -scheme "$SCHEME"
+
+      - name: Run all Swift tests
+        run: |
