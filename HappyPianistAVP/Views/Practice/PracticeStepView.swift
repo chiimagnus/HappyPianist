@@ -66,7 +66,7 @@ struct PracticeStepView: View {
                 lastImprovStatusText: viewModel.lastImprovStatusText,
                 recordingSourceText: viewModel.recordingSourceText,
                 isAIPerformanceActive: viewModel.isAIPerformanceActive,
-                isVirtualPianoMode: isVirtualPianoMode,
+                isVirtualPianoMode: viewModel.isVirtualPianoMode,
                 isBluetoothMIDIMode: viewModel.isBluetoothMIDIMode,
                 gazePlaneDiskStatusText: viewModel.gazePlaneDiskStatusText,
                 isRecording: viewModel.isRecording,
@@ -141,7 +141,7 @@ struct PracticeStepView: View {
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
 
-                if isVirtualPianoMode, let status = viewModel.gazePlaneDiskStatusText {
+                if viewModel.isVirtualPianoMode, let status = viewModel.gazePlaneDiskStatusText {
                     Text(status)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -156,7 +156,7 @@ struct PracticeStepView: View {
             Task { @MainActor in
                 let openHandler = makePracticeImmersiveOpenHandler(openImmersiveSpace)
                 let dismissHandler = makePracticeImmersiveDismissHandler(dismissImmersiveSpace)
-                viewModel.setPracticeVirtualPianoEnabled(isVirtualPianoMode)
+                viewModel.setPracticeVirtualPianoEnabled(viewModel.isVirtualPianoMode)
                 viewModel.setPracticeAutoplayEnabled(isAutoplayEnabled)
                 await viewModel.enterPracticeStep(
                     openImmersiveSpace: openHandler,
@@ -255,10 +255,6 @@ struct PracticeStepView: View {
         }
     }
 
-    private var isVirtualPianoMode: Bool {
-        viewModel.isVirtualPianoMode
-    }
-
     private var virtualPerformerEnabled: Binding<Bool> {
         Binding(
             get: { viewModel.aiPerformanceViewModel.isVirtualPerformerEnabled },
@@ -303,31 +299,4 @@ struct PracticeStepView: View {
             return (midiNote, PianoKeyboard88Highlight(fill: .guide(style)))
         })
     }
-}
-
-#Preview("Step 3") {
-    let worldAnchorCalibrationStore = WorldAnchorCalibrationStore()
-    let keyGeometryService = PianoKeyGeometryService()
-    let arTrackingService = ARTrackingService()
-    let calibrationCaptureService = CalibrationPointCaptureService()
-    let calibrationRepository = CalibrationRepository(worldAnchorCalibrationStore: worldAnchorCalibrationStore)
-    let pianoModeRegistry: PianoModeRegistryProtocol = PianoModeRegistryService(modes: [])
-    let makePracticeSessionViewModel: @MainActor (String?) -> PracticeSessionViewModel = { _ in fatalError("preview only") }
-    let practiceSetupState = PracticeSetupState()
-    let appState = AppState(
-        arTrackingService: arTrackingService,
-        calibrationCaptureService: calibrationCaptureService,
-        calibrationRepository: calibrationRepository,
-        keyGeometryService: keyGeometryService
-    )
-    let viewModel = ARGuideViewModel(
-        appState: appState,
-        practiceSetupState: practiceSetupState,
-        pianoModeRegistry: pianoModeRegistry,
-        makePracticeSessionViewModel: makePracticeSessionViewModel
-    )
-    PracticeStepView(
-        viewModel: viewModel,
-        onPracticeFinished: {}
-    )
 }
