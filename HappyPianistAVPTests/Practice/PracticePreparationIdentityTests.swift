@@ -45,6 +45,22 @@ private let identityDaCapoFixture = """
 </score-partwise>
 """
 
+private let underPressureSeedScoreURL: URL = {
+    let repositoryRoot = URL(fileURLWithPath: #filePath)
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+        .deletingLastPathComponent()
+    let directoryName = "Under_Pressure_-_David_Bowie,_David_Bowie_&_Queen,_Queen_(Piano_Solo)"
+    return repositoryRoot
+        .appending(path: "HappyPianistAVP/Resources/SeedScores")
+        .appending(path: directoryName)
+        .appending(path: "\(directoryName).musicxml")
+}()
+
+private let hasUnderPressureSeedScore = FileManager.default.fileExists(
+    atPath: underPressureSeedScoreURL.path()
+)
+
 @Test
 func preparationKeepsExactSongIDAndStableRevision() async throws {
     let directory = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString)
@@ -152,17 +168,12 @@ func splitPianoPreparationUsesThePartThatOwnsStructureDirectives() async throws 
     #expect(prepared.measureSpans.map(\.occurrenceIndex) == [0, 1, 2, 3])
 }
 
-@Test
+@Test(.enabled(
+    if: hasUnderPressureSeedScore,
+    "The private SeedScores fixture is not checked out."
+))
 func underPressureSeedScorePreparesAndProjectsBothGrandStaffParts() async throws {
-    let repositoryRoot = URL(fileURLWithPath: #filePath)
-        .deletingLastPathComponent()
-        .deletingLastPathComponent()
-        .deletingLastPathComponent()
-    let directoryName = "Under_Pressure_-_David_Bowie,_David_Bowie_&_Queen,_Queen_(Piano_Solo)"
-    let url = repositoryRoot
-        .appending(path: "HappyPianistAVP/Resources/SeedScores")
-        .appending(path: directoryName)
-        .appending(path: "\(directoryName).musicxml")
+    let url = underPressureSeedScoreURL
     let prepared = try await PracticePreparationService(
         diagnosticsReporter: InMemoryDiagnosticsReporter()
     ).prepare(

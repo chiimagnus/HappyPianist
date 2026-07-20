@@ -37,6 +37,8 @@ xcodebuild test \
 
 `build-for-testing`、`swiftc -parse` 或 Linux 临时 harness 只能作为局部证据，不得记录成 `xcodebuild test` 已通过。
 
+仓库不提交 `HappyPianistAVP/Resources/SeedScores/` 和 Core ML 模型。依赖这些私有资源的集成测试在资源缺失时会跳过；资源存在时仍会执行，不能把跳过记录为资源集成已通过。
+
 ## 输出可靠性验收边界
 
 Simulator 自动化使用统一 `FakePerformanceOutput` 捕获 timestamped batches、capabilities、generation、reset 与 AVAudio 状态，并注入 MIDI send、音频 operation/render 和 disconnect 故障。

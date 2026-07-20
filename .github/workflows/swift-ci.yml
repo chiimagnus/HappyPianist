@@ -33,3 +33,10 @@ jobs:
 
       - name: Run all Swift tests
         run: |
+          set -euo pipefail
+          xcodebuild test \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -destination 'platform=visionOS Simulator,name=Apple Vision Pro,OS=latest' \
+            CODE_SIGNING_ALLOWED=NO \
+            -parallel-testing-enabled NO
