@@ -123,7 +123,9 @@ func layoutSupportsSixtyFourthAndOneHundredTwentyEighthNotesAndRests() throws {
 
     #expect(projection.fallbacks.isEmpty)
     #expect(layout.items.map(\.noteValue) == [.sixtyFourth, .oneHundredTwentyEighth])
-    #expect(layout.items.map(\.flagGlyphToken) == [.flagSixtyFourthDown, .flagOneHundredTwentyEighthDown])
+    #expect(layout.chords.compactMap { chord in
+        chord.noteValue.flagGlyphToken(stemDirection: chord.stem.direction)
+    } == [.flagSixtyFourthDown, .flagOneHundredTwentyEighthDown])
     #expect(layout.rests.map(\.noteValue) == [.sixtyFourth, .oneHundredTwentyEighth])
     #expect(layout.rests.compactMap(\.glyphToken) == [.restSixtyFourth, .restOneHundredTwentyEighth])
 }
