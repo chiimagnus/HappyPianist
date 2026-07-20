@@ -358,7 +358,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
         }
         marks.append(contentsOf: score.dynamicEvents.enumerated().compactMap { index, event in
             guard event.source == .directionDynamics else { return nil }
-            Mark(
+            return Mark(
                 id: event.performedID?.description ?? "dynamic-\(event.tick)-\(index)",
                 tick: event.tick,
                 staff: projectedStaff(event.scope),
@@ -370,7 +370,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
         })
         marks.append(contentsOf: score.tempoEvents.enumerated().compactMap { index, event in
             guard let text = tempoNotationText(event) else { return nil }
-            Mark(
+            return Mark(
                 id: event.performedID?.description ?? "tempo-\(event.tick)-\(index)",
                 tick: event.tick,
                 staff: projectedStaff(event.scope),
