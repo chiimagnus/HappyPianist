@@ -7,11 +7,11 @@ HappyPianist 是一个面向 Apple Vision Pro 的钢琴练习应用。它把 Mus
 ## 当前能力
 
 - 批量导入 `.musicxml`、`.xml`、`.mxl` 曲谱，以原文件名同卷暂存并逐项建立曲库；同名冲突先停在确认边界，不会静默改名或覆盖。
-- App 启动后直接进入曲库；左上角“选择钢琴”和“开始练习”分别通过单层 `pushWindow` 打开准备窗口与练习窗口，关闭后恢复原曲库状态。曲库右侧 Ornament 只读展示当前曲目的真实练习事实；唯一的“开始练习”按钮仍位于主内容，曲谱准备与进度恢复只在练习窗口激活时发生。
+- App 启动后直接进入曲库；左上角“选择钢琴”和“开始练习”分别通过单层 `pushWindow` 打开准备窗口与练习窗口，关闭后恢复原曲库状态。
 - 记录小节级练习事实，恢复上次片段与位置。
 - 显示非模态即时反馈、练习总结与小节恢复地图。
 - 在沉浸空间显示键位高亮与轻量恢复效果。
-- 记录系统开发日志，并允许用户导出最近七天的安全诊断日志。
+- 记录结构化诊断事件，并允许用户导出最近七天的安全诊断日志。
 - 练习中录制、回放并导出 MIDI take。
 - AI 对弹支持本地规则、本地 CoreML，以及可选的 Mac 侧 Aria v2 网络后端。
 
@@ -26,7 +26,7 @@ python_backend/             可选的 Aria v2 本地服务与工具
 docs/                       项目知识库
 ```
 
-当前工程只有 `HappyPianistAVP` 与 `HappyPianistAVPTests` 两个 target；仓库中没有 macOS App target。
+当前工程只有 `HappyPianistAVP` 与 `HappyPianistAVPTests` 两个 target；仓库中没有 macOS App target。架构、数据流、配置和测试入口见 [`docs/overview.md`](docs/overview.md)。
 
 ## 环境要求
 
@@ -37,15 +37,15 @@ docs/                       项目知识库
 
 ## 资源状态
 
-源码归档不包含以下资源：
+仓库已包含 `HappyPianistAVP/Resources/Fonts/Bravura.otf`。以下私有或体积较大的资源不随源码分发：
 
 | 资源 | 影响 |
 | --- | --- |
-| `Bravura.otf` | `Info.plist` 已声明该字体；缺失时五线谱符号不能按预期显示。 |
+| `HappyPianistAVP/Resources/SeedScores/` | 没有内置生产曲目；依赖私有曲谱的资源集成测试会跳过。 |
 | `SalC5Light2.sf2` | 本地 sampler 无法加载钢琴音色。 |
 | `AIDuetPerformanceRNN.mlpackage` / `.mlmodelc` | 本地 CoreML 对弹不可用；仍可使用本地规则或网络后端。 |
 
-将资源加入 `HappyPianistAVP` target 后再进行相关验收。不要仅因 `Info.plist` 中存在声明就认定资源已经打包。
+将所需资源加入 `HappyPianistAVP` target 后再进行对应验收。测试跳过不等于资源集成通过。
 
 ## 构建与测试
 
@@ -67,6 +67,8 @@ xcodebuild test \
   CODE_SIGNING_ALLOWED=NO \
   -parallel-testing-enabled NO
 ```
+
+仓库还提供 `.github/workflows/swift-ci.yml`。本地与 CI 都必须实际运行 `xcodebuild test`；`build-for-testing`、解析检查或资源测试跳过不能作为完整通过证据。
 
 应用需要在 Xcode 中运行到 Simulator 或真机。ARKit、手部追踪、麦克风、蓝牙 MIDI、Local Network 与空间舒适度必须在对应设备环境中验证。
 
