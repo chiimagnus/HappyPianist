@@ -39,3 +39,24 @@ jobs:
 
       - name: Run all Swift tests
         run: |
+          set -euo pipefail
+          rm -rf "$RUNNER_TEMP/HappyPianistTests.xcresult"
+
+          xcodebuild clean test \
+            -project "$PROJECT" \
+            -scheme "$SCHEME" \
+            -configuration Debug \
+            -destination 'platform=visionOS Simulator,name=Apple Vision Pro,OS=latest' \
+            -derivedDataPath "$RUNNER_TEMP/DerivedData-Tests" \
+            -resultBundlePath "$RUNNER_TEMP/HappyPianistTests.xcresult" \
+            -parallel-testing-enabled NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: HappyPianistTests-xcresult
+          path: ${{ runner.temp }}/HappyPianistTests.xcresult
+          if-no-files-found: ignore
+          retention-days: 7
