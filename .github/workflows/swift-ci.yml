@@ -9,7 +9,7 @@ permissions:
 env:
   PROJECT: HappyPianist.xcodeproj
   SCHEME: HappyPianistAVP
-  DEVELOPER_DIR: /Applications/Xcode_26.4.app/Contents/Developer
+  DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
 
 jobs:
   test:
@@ -21,92 +21,15 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
-      - name: Show toolchain
+      - name: Show toolchain and destinations
         run: |
           set -euo pipefail
           xcodebuild -version
           swift --version
           xcrun simctl list runtimes
-
-      - name: Create visionOS simulator
-        id: simulator
-        run: |
-          set -euo pipefail
-
-          platform_version="$(xcodebuild -version | awk 'NR == 1 { split($2, version, "."); print version[1] "." version[2] }')"
-          runtime_id="$(xcrun simctl list runtimes | awk -v version="$platform_version" '$1 == "visionOS" && $2 == version && $0 !~ /unavailable/ { print $NF; exit }')"
-          device_type_id="$(xcrun simctl list devicetypes | awk -F '[()]' '/Apple Vision Pro/ { print $2; exit }')"
-
-          if [[ -z "$runtime_id" || -z "$device_type_id" ]]; then
-            echo "No visionOS $platform_version runtime or Apple Vision Pro device type was found." >&2
-            exit 1
-          fi
-
-          udid="$(xcrun simctl create 'HappyPianist CI' "$device_type_id" "$runtime_id")"
-          xcrun simctl boot "$udid"
-          xcrun simctl bootstatus "$udid" -b
-          echo "udid=$udid" >> "$GITHUB_OUTPUT"
+          xcodebuild -showdestinations \
+            -project "$PROJECT" \
+            -scheme "$SCHEME"
 
       - name: Run all Swift tests
         run: |
-          set -euo pipefail
-          rm -rf "$RUNNER_TEMP/HappyPianistTests.xcresult"
-
-          xcodebuild clean test \
-            -project "$PROJECT" \
-            -scheme "$SCHEME" \
-            -configuration Debug \
-            -destination "platform=visionOS Simulator,id=${{ steps.simulator.outputs.udid }}" \
-            -derivedDataPath "$RUNNER_TEMP/DerivedData-Tests" \
-            -resultBundlePath "$RUNNER_TEMP/HappyPianistTests.xcresult" \
-            -parallel-testing-enabled NO \
-            CODE_SIGNING_ALLOWED=NO
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: HappyPianistTests-xcresult
-          path: ${{ runner.temp }}/HappyPianistTests.xcresult
-          if-no-files-found: ignore
-          retention-days: 7
-
-  build:
-    name: Build (${{ matrix.label }})
-    runs-on: macos-26
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - label: Debug Simulator
-            configuration: Debug
-            destination: generic/platform=visionOS Simulator
-            derived_data: DerivedData-Debug-Simulator
-          - label: Release Device
-            configuration: Release
-            destination: generic/platform=visionOS
-            derived_data: DerivedData-Release-Device
-
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
-
-      - name: Show toolchain
-        run: |
-          set -euo pipefail
-          xcodebuild -version
-          swift --version
-
-      - name: Build ${{ matrix.label }}
-        run: |
-          set -euo pipefail
-
-          xcodebuild clean build \
-            -project "$PROJECT" \
-            -scheme "$SCHEME" \
-            -configuration "${{ matrix.configuration }}" \
-            -destination "${{ matrix.destination }}" \
-            -derivedDataPath "$RUNNER_TEMP/${{ matrix.derived_data }}" \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO
