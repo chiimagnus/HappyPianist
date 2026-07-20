@@ -358,18 +358,19 @@ struct GrandStaffNotationLayoutService {
             )
         }
         let positionedRests = rests.map { rest in
-            let position = if rest.isMeasureRest,
-                              let measure = measureSpans.first(where: {
-                                  $0.startTick <= rest.tick && rest.tick < $0.endTick
-                              })
+            let position: Double
+            if rest.isMeasureRest,
+               let measure = measureSpans.first(where: {
+                   $0.startTick <= rest.tick && rest.tick < $0.endTick
+               })
             {
-                let start = spacing.position(at: Double(measure.startTick))
-                let end = spacing.position(at: Double(measure.endTick))
-                normalized((start + end) / 2)
+                let startPosition = spacing.position(at: Double(measure.startTick))
+                let endPosition = spacing.position(at: Double(measure.endTick))
+                position = normalized((startPosition + endPosition) / 2)
             } else {
-                normalizedTick(rest.tick)
+                position = normalizedTick(rest.tick)
             }
-            GrandStaffNotationRest(
+            return GrandStaffNotationRest(
                 id: rest.id,
                 staffNumber: rest.staffNumber,
                 voice: rest.voice,
