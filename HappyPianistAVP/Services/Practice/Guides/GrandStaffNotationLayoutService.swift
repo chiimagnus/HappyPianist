@@ -364,8 +364,11 @@ struct GrandStaffNotationLayoutService {
                    $0.startTick <= rest.tick && rest.tick < $0.endTick
                })
             {
-                let startPosition = spacing.position(at: Double(measure.startTick))
-                let endPosition = spacing.position(at: Double(measure.endTick))
+                let startPosition = spacing.barlinePositionsByTick[measure.startTick]
+                    ?? spacing.rhythmicPositionsByTick[measure.startTick]
+                    ?? spacing.position(at: Double(measure.startTick))
+                let endPosition = spacing.barlinePositionsByTick[measure.endTick]
+                    ?? spacing.position(at: Double(measure.endTick))
                 position = normalized((startPosition + endPosition) / 2)
             } else {
                 position = normalizedTick(rest.tick)
