@@ -105,6 +105,8 @@ ScoreNotationProjection -> staff-space layout / collision geometry -> Bravura re
 
 layout 的音高位置来自 written pitch，音值来自 written rhythm，stem/beam/voice/staff 优先使用 source facts；performed on/off、MIDI 黑白键和 hand assignment 不得补写这些事实。source 缺失 stem/beam 时才使用明确的 voice/meter policy。unsupported projection 只保留中性节奏空间或省略未知 glyph，同时记录不含原谱正文的聚合 kind/reason 诊断；它不改变 playback、highlight 或 assessment。
 
+内置曲库递归发现 `Resources/SeedScores/`，并把相对 `SeedScores` 根的路径作为 bundle identity。MusicXML 与音频只按同一相对路径解析；不同曲目目录中的同名文件不得互相覆盖，也不保留 basename 回退分支。
+
 声音输出只有一条数据流：`ScorePerformancePlan` 先由 `PerformanceRangeStateResolver` 在 start/range 边界恢复精确 controller、held notes 与 pedal-latched notes，再由 `PerformanceTransportReducer` 按 event identity 产生 note edges，随后投影成 timeline 和 sequencer events。sequence builder 只做 tick-to-seconds 与边界封口，不扫描历史事件来猜测起点状态。stop、seek、loop、error、音频中断和 route change 使用同一组 reducer reset commands：逐 identity note-off、CC64/66/67 归零、all-notes-off、all-sound-off。
 
 “示范本节”把选定 step range 转成 tick range，并消费上述完整演奏时间线；“试听当前音”是明确的 pitch preview，只使用当前 step 的 plan pitches 和短 one-shot。preview 不承担参考演奏语义，steps / guides 也不生成任何参考声音事件。

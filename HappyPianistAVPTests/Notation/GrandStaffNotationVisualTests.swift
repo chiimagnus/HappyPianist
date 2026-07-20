@@ -1,4 +1,5 @@
 import CoreGraphics
+import CoreText
 import CryptoKit
 import Foundation
 import SwiftUI
@@ -109,6 +110,7 @@ private func visualSnapshot(
     dynamicTypeSize: DynamicTypeSize,
     differentiateWithoutColor: Bool
 ) throws -> VisualSnapshot {
+    try requireBundledBravura()
     let viewport = CGSize(width: 800, height: 320)
     let presentation = GrandStaffNotationPresentationViewModel().makePresentation(
         size: viewport,
@@ -159,6 +161,55 @@ private func visualSnapshot(
         snapshot = normalizedSnapshot(name: name, bitmap: bitmap, width: width, height: height)
     }
     return try #require(snapshot)
+}
+
+private func requireBundledBravura() throws {
+    let fontURL = try #require(
+        Bundle.main.url(forResource: "Bravura", withExtension: "otf"),
+        "Bravura.otf must be bundled in the HappyPianistAVP target before visual goldens are evaluated."
+    )
+    let provider = try #require(
+        CGDataProvider(url: fontURL as CFURL),
+        "Bravura.otf exists but cannot be opened as a font data provider."
+    )
+    let bundledFont = try #require(
+        CGFont(provider),
+        "Bravura.otf exists but is not a valid OpenType font."
+    )
+    try #require(
+        bundledFont.postScriptName as String? == "Bravura",
+        "The bundled font must use the Bravura PostScript name expected by GrandStaffNotationRenderer."
+    )
+
+    let registeredFont = CTFontCreateWithName("Bravura" as CFString, 64, nil)
+    try #require(
+        CTFontCopyPostScriptName(registeredFont) as String == "Bravura",
+        "Bravura.otf is bundled but is not registered under the Bravura family name."
+    )
+
+    let characters = GrandStaffGlyphToken.allCases.map {
+        UniChar(truncatingIfNeeded: $0.smuflCodePoint)
+    }
+    var glyphs = Array(repeating: CGGlyph(), count: characters.count)
+    let mappedAllGlyphs = characters.withUnsafeBufferPointer { characterBuffer in
+        glyphs.withUnsafeMutableBufferPointer { glyphBuffer in
+            guard let characterBase = characterBuffer.baseAddress,
+                  let glyphBase = glyphBuffer.baseAddress
+            else {
+                return false
+            }
+            return CTFontGetGlyphsForCharacters(
+                registeredFont,
+                characterBase,
+                glyphBase,
+                characterBuffer.count
+            )
+        }
+    }
+    try #require(
+        mappedAllGlyphs && glyphs.allSatisfy { $0 != 0 },
+        "The registered Bravura font does not contain the required SMuFL glyphs."
+    )
 }
 
 private func normalizedSnapshot(

@@ -22,13 +22,6 @@ struct PianoHighlightNote: Equatable, Hashable, Identifiable {
     let onTick: Int
     let offTick: Int
     let fingerings: [MusicXMLFingering]
-    let isGrace: Bool
-    let tieStart: Bool
-    let tieStop: Bool
-    let articulations: Set<MusicXMLArticulation>
-    let arpeggiate: MusicXMLArpeggiate?
-    let dotCount: Int
-    let sourceNoteIDs: [MusicXMLSourceNoteID]
 
     init(
         occurrenceID: String,
@@ -39,13 +32,6 @@ struct PianoHighlightNote: Equatable, Hashable, Identifiable {
         onTick: Int,
         offTick: Int,
         fingerings: [MusicXMLFingering],
-        isGrace: Bool = false,
-        tieStart: Bool = false,
-        tieStop: Bool = false,
-        articulations: Set<MusicXMLArticulation> = [],
-        arpeggiate: MusicXMLArpeggiate? = nil,
-        dotCount: Int = 0,
-        sourceNoteIDs: [MusicXMLSourceNoteID] = [],
         handAssignment: ScoreHandAssignment
     ) {
         self.occurrenceID = occurrenceID
@@ -56,13 +42,6 @@ struct PianoHighlightNote: Equatable, Hashable, Identifiable {
         self.onTick = onTick
         self.offTick = offTick
         self.fingerings = fingerings
-        self.isGrace = isGrace
-        self.tieStart = tieStart
-        self.tieStop = tieStop
-        self.articulations = articulations
-        self.arpeggiate = arpeggiate
-        self.dotCount = dotCount
-        self.sourceNoteIDs = sourceNoteIDs
         self.handAssignment = handAssignment
     }
 }

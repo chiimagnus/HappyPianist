@@ -378,8 +378,10 @@ struct MusicXMLStructureExpander {
                         durationTicks: note.durationTicks,
                         writtenPitch: note.writtenPitch,
                         writtenRhythm: note.writtenRhythm,
+                        noteheadToken: note.noteheadToken,
                         midiNote: note.midiNote,
                         isRest: note.isRest,
+                        isMeasureRest: note.isMeasureRest,
                         isPrintObjectVisible: note.isPrintObjectVisible,
                         isChord: note.isChord,
                         isGrace: note.isGrace,
@@ -414,7 +416,10 @@ struct MusicXMLStructureExpander {
                     tick: currentMeasureStartTick + (event.tick - span.startTick),
                     quarterBPM: event.quarterBPM,
                     scope: shiftedScope(event.scope),
-                    placementToken: event.placementToken
+                    placementToken: event.placementToken,
+                    notationBeatUnitToken: event.notationBeatUnitToken,
+                    notationBeatUnitDotCount: event.notationBeatUnitDotCount,
+                    notationPerMinute: event.notationPerMinute
                 ))
             }
 

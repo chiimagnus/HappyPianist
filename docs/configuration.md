@@ -42,7 +42,7 @@
 
 ## 外部资源
 
-当前源码归档中，`HappyPianistAVP/Resources/` 只有 `Info.plist`。以下文件必须由开发者自行加入 App target：
+当前源码归档的 `HappyPianistAVP/Resources/` 包含 `Info.plist` 与按曲目子目录组织的 `SeedScores/`。内置曲谱以 `SeedScores` 下的相对路径作为唯一身份，MusicXML 与同目录 MP3 成对发现；不要把目录展平后再按 basename 去重。以下二进制资源仍必须由开发者自行加入 App target：
 
 | 文件 | 消费方 | 缺失行为 |
 | --- | --- | --- |

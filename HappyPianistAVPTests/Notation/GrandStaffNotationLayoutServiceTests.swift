@@ -66,6 +66,71 @@ func layoutOmitsPitchedNotesMarkedPrintObjectNo() throws {
 }
 
 @Test
+func layoutRendersWholeMeasureRestWithoutTypeAtMeasureCenter() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1"><measure number="1">
+        <attributes>
+          <divisions>1</divisions>
+          <time><beats>4</beats><beat-type>4</beat-type></time>
+          <clef><sign>G</sign><line>2</line></clef>
+        </attributes>
+        <note><rest measure="yes"/><duration>4</duration><staff>1</staff><voice>1</voice></note>
+      </measure></part>
+    </score-partwise>
+    """
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let projection = ScoreNotationProjection(
+        plan: makeTestScorePerformancePlan(from: score),
+        sourceScore: score
+    )
+    let layout = GrandStaffNotationLayoutService().makeLayout(
+        projection: projection,
+        measureSpans: score.measures,
+        viewportWidthStaffSpaces: 36,
+        scrollTick: 0
+    )
+    let rest = try #require(layout.rests.first)
+
+    #expect(projection.fallbacks.isEmpty)
+    #expect(rest.noteValue == .whole)
+    #expect(rest.isMeasureRest)
+    #expect(rest.glyphToken == .restWhole)
+    #expect(rest.xPosition > 0.5)
+}
+
+@Test
+func layoutSupportsSixtyFourthAndOneHundredTwentyEighthNotesAndRests() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1"><measure number="1">
+        <attributes><divisions>32</divisions><clef><sign>G</sign><line>2</line></clef></attributes>
+        <note><pitch><step>C</step><octave>5</octave></pitch><duration>2</duration><type>64th</type></note>
+        <note><pitch><step>D</step><octave>5</octave></pitch><duration>1</duration><type>128th</type></note>
+        <note><rest/><duration>2</duration><type>64th</type></note>
+        <note><rest/><duration>1</duration><type>128th</type></note>
+      </measure></part>
+    </score-partwise>
+    """
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let projection = ScoreNotationProjection(
+        plan: makeTestScorePerformancePlan(from: score),
+        sourceScore: score
+    )
+    let layout = GrandStaffNotationLayoutService().makeLayout(projection: projection)
+
+    #expect(projection.fallbacks.isEmpty)
+    #expect(layout.items.map(\.noteValue) == [.sixtyFourth, .oneHundredTwentyEighth])
+    #expect(layout.chords.compactMap { chord in
+        chord.noteValue.flagGlyphToken(stemDirection: chord.stem.direction)
+    } == [.flagSixtyFourthDown, .flagOneHundredTwentyEighthDown])
+    #expect(layout.rests.map(\.noteValue) == [.sixtyFourth, .oneHundredTwentyEighth])
+    #expect(layout.rests.compactMap(\.glyphToken) == [.restSixtyFourth, .restOneHundredTwentyEighth])
+}
+
+@Test
 func layoutEmitsBarlinesForMeasureSpansStartAndEndTicks() {
     let measureSpans = [
         MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, sourceMeasureIndex: 1, sourceMeasureNumberToken: "1", occurrenceIndex: 0, startTick: 0, endTick: 480),
@@ -153,6 +218,7 @@ func commonPianoMarksKeepSourcePlacementAndUseCollisionAwareLayout() throws {
     #expect(dynamic.placementToken == "below")
     #expect(tempo.staff == 1)
     #expect(tempo.placementToken == "above")
+    #expect(tempo.text == "♩ = 88")
     #expect(pedal.staff == 2)
     #expect(pedal.placementToken == "below")
 
@@ -196,6 +262,64 @@ func commonPianoMarksKeepSourcePlacementAndUseCollisionAwareLayout() throws {
     )
     #expect(repeatedProjection.marks.filter { $0.kind == .repeatBackward }.map(\.tick) == [480, 1_440])
     #expect(repeatedProjection.marks.filter { $0.kind == .endingStart }.map(\.tick) == [0, 960])
+}
+
+@Test
+func projectionDoesNotRenderPlaybackOnlySoundTempoOrDynamics() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1"><measure number="1">
+        <attributes><divisions>1</divisions></attributes>
+        <direction><sound tempo="72" dynamics="80"/></direction>
+        <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      </measure></part>
+    </score-partwise>
+    """
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let projection = ScoreNotationProjection(
+        plan: makeTestScorePerformancePlan(from: score),
+        sourceScore: score
+    )
+
+    #expect(score.tempoEvents.map(\.quarterBPM) == [72])
+    #expect(score.dynamicEvents.count == 1)
+    #expect(projection.marks.contains { $0.kind == .tempo } == false)
+    #expect(projection.marks.contains { $0.kind == .dynamic } == false)
+}
+
+@Test
+func projectionKeepsMetronomeSpellingWhenSoundOverridesPlaybackTempo() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1"><measure number="1">
+        <attributes><divisions>1</divisions></attributes>
+        <direction placement="above">
+          <direction-type>
+            <metronome><beat-unit>eighth</beat-unit><beat-unit-dot/><per-minute>80</per-minute></metronome>
+          </direction-type>
+          <sound tempo="60"/>
+        </direction>
+        <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+      </measure></part>
+    </score-partwise>
+    """
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let event = try #require(score.tempoEvents.first)
+    let projection = ScoreNotationProjection(
+        plan: makeTestScorePerformancePlan(from: score),
+        sourceScore: score
+    )
+    let mark = try #require(projection.marks.first { $0.kind == .tempo })
+
+    #expect(score.tempoEvents.count == 1)
+    #expect(event.quarterBPM == 60)
+    #expect(event.notationBeatUnitToken == "eighth")
+    #expect(event.notationBeatUnitDotCount == 1)
+    #expect(event.notationPerMinute == 80)
+    #expect(mark.text == "♪. = 80")
+    #expect(mark.placementToken == "above")
 }
 
 @Test
@@ -352,6 +476,99 @@ func projectionAndLayoutKeepVisibleRestsSameNumberSlursAndNestedTuplets() throws
 }
 
 @Test
+func layoutPairsTieSlurAndTupletAcrossGrandStaffStaves() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1"><measure number="1">
+        <attributes>
+          <divisions>1</divisions><staves>2</staves>
+          <clef number="1"><sign>G</sign><line>2</line></clef>
+          <clef number="2"><sign>F</sign><line>4</line></clef>
+        </attributes>
+        <note>
+          <pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type>
+          <voice>1</voice><staff>1</staff>
+          <time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>
+          <notations>
+            <tied type="start" number="1"/><slur type="start" number="1"/>
+            <tuplet type="start" number="1" bracket="yes"/>
+          </notations>
+        </note>
+        <note>
+          <pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type>
+          <voice>1</voice><staff>2</staff>
+          <time-modification><actual-notes>3</actual-notes><normal-notes>2</normal-notes></time-modification>
+          <notations>
+            <tied type="stop" number="1"/><slur type="stop" number="1"/>
+            <tuplet type="stop" number="1"/>
+          </notations>
+        </note>
+      </measure></part>
+    </score-partwise>
+    """
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let layout = GrandStaffNotationLayoutService().makeLayout(
+        projection: ScoreNotationProjection(
+            plan: makeTestScorePerformancePlan(from: score),
+            sourceScore: score
+        )
+    )
+
+    #expect(layout.items.map(\.staffNumber) == [1, 2])
+    #expect(layout.ties.count == 1)
+    #expect(layout.slurs.count == 1)
+    #expect(layout.tuplets.count == 1)
+    #expect(layout.ties[0].startOccurrenceID != nil && layout.ties[0].endOccurrenceID != nil)
+    #expect(layout.slurs[0].startOccurrenceID != nil && layout.slurs[0].endOccurrenceID != nil)
+    #expect(layout.tuplets[0].startOccurrenceID != nil && layout.tuplets[0].endOccurrenceID != nil)
+}
+
+@Test
+func layoutUsesOneArpeggioMarkAcrossGrandStaffStaves() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1"><measure number="1">
+        <attributes>
+          <divisions>1</divisions><staves>2</staves>
+          <clef number="1"><sign>G</sign><line>2</line></clef>
+          <clef number="2"><sign>F</sign><line>4</line></clef>
+        </attributes>
+        <note>
+          <pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type>
+          <voice>1</voice><staff>1</staff><notations><arpeggiate number="1" direction="up"/></notations>
+        </note>
+        <note>
+          <chord/><pitch><step>E</step><octave>3</octave></pitch><duration>1</duration><type>quarter</type>
+          <voice>1</voice><staff>2</staff><notations><arpeggiate number="1" direction="up"/></notations>
+        </note>
+      </measure></part>
+    </score-partwise>
+    """
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let layout = GrandStaffNotationLayoutService().makeLayout(
+        projection: ScoreNotationProjection(
+            plan: makeTestScorePerformancePlan(from: score),
+            sourceScore: score
+        )
+    )
+    let arpeggio = try #require(layout.marks.first { mark in
+        if case .arpeggio = mark.kind { return true }
+        return false
+    })
+
+    #expect(layout.marks.filter { mark in
+        if case .arpeggio = mark.kind { return true }
+        return false
+    }.count == 1)
+    #expect(arpeggio.minimumStaffNumber == 2)
+    #expect(arpeggio.maximumStaffNumber == 1)
+    #expect(arpeggio.minimumStaffStep != nil)
+    #expect(arpeggio.maximumStaffStep != nil)
+}
+
+@Test
 func sourceBeamValuesProducePrimarySecondaryAndHookSegments() throws {
     let score = mixedSourceBeamScore()
     let layout = GrandStaffNotationLayoutService().makeLayout(
@@ -447,6 +664,71 @@ func unsupportedNotationUsesNeutralFallbacksWithoutChangingPerformanceFacts() th
     #expect(diagnosticText.contains("feathered") == false)
     #expect(diagnosticText.contains("sideways") == false)
     #expect(samples.allSatisfy { $0.diagnosticEvent.persistence == .systemOnly })
+}
+
+@Test
+func parserAndProjectionPreserveUnsupportedNoteheadAndPerformanceNotationIdentity() throws {
+    let xml = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1"><measure number="1">
+        <attributes><divisions>1</divisions></attributes>
+        <note>
+          <pitch><step>C</step><octave>4</octave></pitch>
+          <duration>1</duration><type>quarter</type><notehead>diamond</notehead>
+          <notations>
+            <ornaments><trill-mark/><mordent/></ornaments>
+            <glissando type="start" number="1">gliss.</glissando>
+            <breath-mark/>
+          </notations>
+        </note>
+      </measure></part>
+    </score-partwise>
+    """
+    let score = try MusicXMLParser().parse(data: Data(xml.utf8))
+    let sourceNote = try #require(score.notes.first)
+    let plan = makeTestScorePerformancePlan(from: score)
+    let originalEvents = plan.noteEvents
+    let projection = ScoreNotationProjection(plan: plan, sourceScore: score)
+    let projectedNote = try #require(projection.sourceNotes.first)
+    let layout = GrandStaffNotationLayoutService().makeLayout(projection: projection)
+    let item = try #require(layout.items.first)
+
+    #expect(sourceNote.noteheadToken == "diamond")
+    #expect(projectedNote.noteheadToken == "diamond")
+    #expect(projectedNote.performanceNotations.map(\.kind) == [
+        .trillMark,
+        .mordent,
+        .glissando,
+        .breathMark,
+    ])
+    #expect(projection.fallbacks.count == 5)
+    #expect(projection.fallbacks.contains {
+        $0.kind == .notehead && $0.sourceKindToken == "diamond"
+            && $0.reason == .unsupportedNoteheadToken
+            && $0.placeholderPolicy == .reserveRhythmicSpace
+    })
+    let markFallbacks = projection.fallbacks.filter { $0.reason == .unsupportedPerformanceNotation }
+    #expect(markFallbacks.count == 4)
+    #expect(Set(markFallbacks.compactMap(\.sourceNotationID)) == Set(sourceNote.performanceNotations.compactMap(\.sourceID)))
+    #expect(Set(markFallbacks.compactMap(\.sourceKindToken)) == [
+        "trill-mark",
+        "mordent",
+        "glissando",
+        "breath-mark",
+    ])
+    #expect(item.noteheadGlyphToken == nil)
+    #expect(item.xPosition.isFinite)
+    #expect(plan.noteEvents == originalEvents)
+
+    let samples = PianoPerformanceNotationFallbackDiagnosticSample.aggregated(from: projection.fallbacks)
+    #expect(Set(samples.compactMap(\.sourceKindToken)) == [
+        "diamond",
+        "trill-mark",
+        "mordent",
+        "glissando",
+        "breath-mark",
+    ])
 }
 
 @Test

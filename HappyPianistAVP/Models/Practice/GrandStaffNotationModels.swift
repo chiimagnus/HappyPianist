@@ -7,13 +7,35 @@ enum GrandStaffNoteValue: Equatable {
     case eighth
     case sixteenth
     case thirtySecond
+    case sixtyFourth
+    case oneHundredTwentyEighth
     case unsupported(sourceTypeToken: String?)
+
+    init(sourceTypeToken: String?) {
+        switch sourceTypeToken?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
+        case "whole": self = .whole
+        case "half": self = .half
+        case "quarter": self = .quarter
+        case "eighth": self = .eighth
+        case "16th": self = .sixteenth
+        case "32nd": self = .thirtySecond
+        case "64th": self = .sixtyFourth
+        case "128th": self = .oneHundredTwentyEighth
+        default: self = .unsupported(sourceTypeToken: sourceTypeToken)
+        }
+    }
+
+    var isSupported: Bool {
+        if case .unsupported = self { return false }
+        return true
+    }
 
     var noteheadGlyphToken: GrandStaffGlyphToken? {
         switch self {
         case .whole: .noteheadWhole
         case .half: .noteheadHalf
-        case .quarter, .eighth, .sixteenth, .thirtySecond: .noteheadBlack
+        case .quarter, .eighth, .sixteenth, .thirtySecond, .sixtyFourth, .oneHundredTwentyEighth:
+            .noteheadBlack
         case .unsupported: nil
         }
     }
@@ -26,6 +48,8 @@ enum GrandStaffNoteValue: Equatable {
         case .eighth: .restEighth
         case .sixteenth: .restSixteenth
         case .thirtySecond: .restThirtySecond
+        case .sixtyFourth: .restSixtyFourth
+        case .oneHundredTwentyEighth: .restOneHundredTwentyEighth
         case .unsupported: nil
         }
     }
@@ -38,13 +62,18 @@ enum GrandStaffNoteValue: Equatable {
         case (.sixteenth, .down): .flagSixteenthDown
         case (.thirtySecond, .up): .flagThirtySecondUp
         case (.thirtySecond, .down): .flagThirtySecondDown
+        case (.sixtyFourth, .up): .flagSixtyFourthUp
+        case (.sixtyFourth, .down): .flagSixtyFourthDown
+        case (.oneHundredTwentyEighth, .up): .flagOneHundredTwentyEighthUp
+        case (.oneHundredTwentyEighth, .down): .flagOneHundredTwentyEighthDown
         default: nil
         }
     }
 
     var hasStem: Bool {
         switch self {
-        case .half, .quarter, .eighth, .sixteenth, .thirtySecond: true
+        case .half, .quarter, .eighth, .sixteenth, .thirtySecond, .sixtyFourth, .oneHundredTwentyEighth:
+            true
         case .whole, .unsupported: false
         }
     }
@@ -121,6 +150,7 @@ struct GrandStaffNotationRest: Equatable, Identifiable {
     let xPosition: Double
     let noteValue: GrandStaffNoteValue
     let dotCount: Int
+    let isMeasureRest: Bool
     let isHighlighted: Bool
 
     var glyphToken: GrandStaffGlyphToken? { noteValue.restGlyphToken }
@@ -243,6 +273,38 @@ struct GrandStaffNotationMark: Equatable, Identifiable {
     let collisionLevel: Int
     let minimumStaffStep: Int?
     let maximumStaffStep: Int?
+    let minimumStaffNumber: Int?
+    let maximumStaffNumber: Int?
+
+    init(
+        id: String,
+        tick: Int,
+        xPosition: Double,
+        staffNumber: Int,
+        voice: Int,
+        kind: Kind,
+        text: String?,
+        placement: GrandStaffNotationPlacement,
+        collisionLevel: Int,
+        minimumStaffStep: Int?,
+        maximumStaffStep: Int?,
+        minimumStaffNumber: Int? = nil,
+        maximumStaffNumber: Int? = nil
+    ) {
+        self.id = id
+        self.tick = tick
+        self.xPosition = xPosition
+        self.staffNumber = staffNumber
+        self.voice = voice
+        self.kind = kind
+        self.text = text
+        self.placement = placement
+        self.collisionLevel = collisionLevel
+        self.minimumStaffStep = minimumStaffStep
+        self.maximumStaffStep = maximumStaffStep
+        self.minimumStaffNumber = minimumStaffNumber
+        self.maximumStaffNumber = maximumStaffNumber
+    }
 
     var glyphToken: GrandStaffGlyphToken? {
         switch kind {

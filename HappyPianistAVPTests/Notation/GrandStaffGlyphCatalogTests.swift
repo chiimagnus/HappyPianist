@@ -14,8 +14,11 @@ func glyphCatalogKeepsSupportedSMuFLCodePointsCentralized() {
         "flagEighthUp=E240", "flagEighthDown=E241",
         "flagSixteenthUp=E242", "flagSixteenthDown=E243",
         "flagThirtySecondUp=E244", "flagThirtySecondDown=E245",
+        "flagSixtyFourthUp=E246", "flagSixtyFourthDown=E247",
+        "flagOneHundredTwentyEighthUp=E248", "flagOneHundredTwentyEighthDown=E249",
         "restWhole=E4E3", "restHalf=E4E4", "restQuarter=E4E5",
         "restEighth=E4E6", "restSixteenth=E4E7", "restThirtySecond=E4E8",
+        "restSixtyFourth=E4E9", "restOneHundredTwentyEighth=E4EA",
         "accidentalFlat=E260", "accidentalNatural=E261", "accidentalSharp=E262",
         "accidentalDoubleSharp=E263", "accidentalDoubleFlat=E264", "augmentationDot=E1E7",
         "articulationAccentAbove=E4A0", "articulationStaccatoAbove=E4A2",
@@ -42,19 +45,23 @@ func timeSignatureDigitsResolveThroughCatalog() {
 @Test
 func notationModelResolvesHeadsFlagsRestsAndAccidentalsThroughCatalog() {
     let values: [GrandStaffNoteValue] = [
-        .whole, .half, .quarter, .eighth, .sixteenth, .thirtySecond,
+        .whole, .half, .quarter, .eighth, .sixteenth, .thirtySecond, .sixtyFourth, .oneHundredTwentyEighth,
     ]
     #expect(values.compactMap(\.noteheadGlyphToken) == [
-        .noteheadWhole, .noteheadHalf, .noteheadBlack, .noteheadBlack, .noteheadBlack, .noteheadBlack,
+        .noteheadWhole, .noteheadHalf, .noteheadBlack, .noteheadBlack,
+        .noteheadBlack, .noteheadBlack, .noteheadBlack, .noteheadBlack,
     ])
     #expect(values.compactMap(\.restGlyphToken) == [
         .restWhole, .restHalf, .restQuarter, .restEighth, .restSixteenth, .restThirtySecond,
+        .restSixtyFourth, .restOneHundredTwentyEighth,
     ])
     #expect(values.compactMap { $0.flagGlyphToken(stemDirection: .up) } == [
         .flagEighthUp, .flagSixteenthUp, .flagThirtySecondUp,
+        .flagSixtyFourthUp, .flagOneHundredTwentyEighthUp,
     ])
     #expect(values.compactMap { $0.flagGlyphToken(stemDirection: .down) } == [
         .flagEighthDown, .flagSixteenthDown, .flagThirtySecondDown,
+        .flagSixtyFourthDown, .flagOneHundredTwentyEighthDown,
     ])
 
     let accidentals: [GrandStaffAccidental.Kind] = [
@@ -80,6 +87,7 @@ func engravingMetricsStayInStaffSpaceUnits() {
     #expect(metrics.beamThickness == 0.50)
     #expect(metrics.ledgerLineExtension == 0.40)
     #expect(metrics.defaultStemLength == 3.50)
+    #expect(metrics.maximumBeamCount == 5)
     #expect(metrics.noteheadColumnWidth == 1.18)
     #expect(metrics.smuflEmSize == 4)
     #expect(metrics.glyphScale(isGrace: false) == 1)
@@ -110,6 +118,8 @@ func rhythmicGlyphsExposeStemEligibilityAndViewportBounds() {
     #expect(GrandStaffNoteValue.eighth.hasStem)
     #expect(GrandStaffNoteValue.sixteenth.hasStem)
     #expect(GrandStaffNoteValue.thirtySecond.hasStem)
+    #expect(GrandStaffNoteValue.sixtyFourth.hasStem)
+    #expect(GrandStaffNoteValue.oneHundredTwentyEighth.hasStem)
     #expect(GrandStaffNoteValue.unsupported(sourceTypeToken: "breve").hasStem == false)
 
     let metrics = GrandStaffEngravingMetrics()

@@ -16,11 +16,13 @@ struct ScoreNotationProjection: Equatable, Sendable {
             case unsupportedAccidentalToken
             case missingNoteType
             case unsupportedNoteType
+            case unsupportedNoteheadToken
             case missingRestType
             case unsupportedRestType
             case unsupportedBeamValue
             case unsupportedArticulation
             case unsupportedArpeggioDirection
+            case unsupportedPerformanceNotation
         }
 
         enum PlaceholderPolicy: String, Equatable, Sendable {
@@ -29,9 +31,27 @@ struct ScoreNotationProjection: Equatable, Sendable {
         }
 
         let sourceID: MusicXMLSourceNoteID
+        let sourceNotationID: MusicXMLPerformanceNotationSourceID?
         let kind: Kind
+        let sourceKindToken: String?
         let reason: Reason
         let placeholderPolicy: PlaceholderPolicy
+
+        init(
+            sourceID: MusicXMLSourceNoteID,
+            sourceNotationID: MusicXMLPerformanceNotationSourceID? = nil,
+            kind: Kind,
+            sourceKindToken: String? = nil,
+            reason: Reason,
+            placeholderPolicy: PlaceholderPolicy
+        ) {
+            self.sourceID = sourceID
+            self.sourceNotationID = sourceNotationID
+            self.kind = kind
+            self.sourceKindToken = sourceKindToken
+            self.reason = reason
+            self.placeholderPolicy = placeholderPolicy
+        }
     }
 
     struct BeamGroupID: Equatable, Hashable, Sendable, CustomStringConvertible {
@@ -122,7 +142,9 @@ struct ScoreNotationProjection: Equatable, Sendable {
         let writtenDurationTicks: Int
         let writtenPitch: MusicXMLWrittenPitch?
         let writtenRhythm: MusicXMLWrittenRhythm?
+        let noteheadToken: String?
         let isRest: Bool
+        let isMeasureRest: Bool
         let isPrintObjectVisible: Bool
         let staff: Int
         let voice: Int
@@ -134,6 +156,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
         let beams: [BeamFact]
         let articulations: Set<MusicXMLArticulation>
         let arpeggiate: MusicXMLArpeggiate?
+        let performanceNotations: [MusicXMLPerformanceNotation]
         let fingerings: [MusicXMLFingering]
         let keySignature: KeySignatureFact?
         let meter: MusicXMLMeter?
@@ -218,7 +241,9 @@ struct ScoreNotationProjection: Equatable, Sendable {
                 writtenDurationTicks: note.durationTicks,
                 writtenPitch: note.writtenPitch,
                 writtenRhythm: note.writtenRhythm,
+                noteheadToken: note.noteheadToken,
                 isRest: note.isRest,
+                isMeasureRest: note.isMeasureRest,
                 isPrintObjectVisible: note.isPrintObjectVisible,
                 staff: Self.displayStaff(
                     sourceStaff: note.staff ?? 1,
@@ -234,6 +259,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
                 beams: beamFactsBySourceID[sourceID] ?? [],
                 articulations: note.articulations,
                 arpeggiate: note.arpeggiate,
+                performanceNotations: note.performanceNotations,
                 fingerings: note.fingerings,
                 keySignature: Self.keySignatureFact(for: note, in: sourceAttributeTimeline),
                 meter: sourceAttributeTimeline.meter(
@@ -330,8 +356,9 @@ struct ScoreNotationProjection: Equatable, Sendable {
                 grandStaffRoles: grandStaffRoles
             )
         }
-        marks.append(contentsOf: score.dynamicEvents.enumerated().map { index, event in
-            Mark(
+        marks.append(contentsOf: score.dynamicEvents.enumerated().compactMap { index, event in
+            guard event.source == .directionDynamics else { return nil }
+            return Mark(
                 id: event.performedID?.description ?? "dynamic-\(event.tick)-\(index)",
                 tick: event.tick,
                 staff: projectedStaff(event.scope),
@@ -341,14 +368,15 @@ struct ScoreNotationProjection: Equatable, Sendable {
                 placementToken: event.placementToken
             )
         })
-        marks.append(contentsOf: score.tempoEvents.enumerated().map { index, event in
-            Mark(
+        marks.append(contentsOf: score.tempoEvents.enumerated().compactMap { index, event in
+            guard let text = tempoNotationText(event) else { return nil }
+            return Mark(
                 id: event.performedID?.description ?? "tempo-\(event.tick)-\(index)",
                 tick: event.tick,
                 staff: projectedStaff(event.scope),
                 voice: event.scope.voice,
                 kind: .tempo,
-                text: "♩ = \(event.quarterBPM.formatted(.number.precision(.fractionLength(0 ... 1))))",
+                text: text,
                 placementToken: event.placementToken
             )
         })
@@ -580,6 +608,24 @@ struct ScoreNotationProjection: Equatable, Sendable {
         }
     }
 
+    private static func tempoNotationText(_ event: MusicXMLTempoEvent) -> String? {
+        guard let beatUnitToken = event.notationBeatUnitToken,
+              let perMinute = event.notationPerMinute
+        else {
+            return nil
+        }
+        let beatUnit = switch beatUnitToken {
+        case "whole": "𝅝"
+        case "half": "𝅗𝅥"
+        case "quarter": "♩"
+        case "eighth": "♪"
+        default: beatUnitToken
+        }
+        let dots = String(repeating: ".", count: event.notationBeatUnitDotCount)
+        let tempo = perMinute.formatted(.number.precision(.fractionLength(0 ... 2)))
+        return "\(beatUnit)\(dots) = \(tempo)"
+    }
+
     private struct CanonicalSource {
         let sourceID: MusicXMLSourceNoteID
         let chordID: MusicXMLSourceNoteID
@@ -613,7 +659,6 @@ struct ScoreNotationProjection: Equatable, Sendable {
     }
 
     private static func fallbacks(from sources: [CanonicalSource]) -> [Fallback] {
-        let supportedRhythms = Set(["whole", "half", "quarter", "eighth", "16th", "32nd"])
         let supportedAccidentals = Set([
             "sharp", "flat", "natural", "double-sharp", "sharp-sharp", "flat-flat", "double-flat",
         ])
@@ -624,18 +669,30 @@ struct ScoreNotationProjection: Equatable, Sendable {
             let rhythmToken = note.writtenRhythm?.typeToken?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .lowercased()
-            if rhythmToken == nil || rhythmToken?.isEmpty == true {
+            if note.isMeasureRest {
+                // MusicXML whole-measure rests are valid without a <type> child.
+            } else if rhythmToken == nil || rhythmToken?.isEmpty == true {
                 result.append(Fallback(
                     sourceID: source.sourceID,
                     kind: note.isRest ? .rest : .notehead,
                     reason: note.isRest ? .missingRestType : .missingNoteType,
                     placeholderPolicy: .reserveRhythmicSpace
                 ))
-            } else if supportedRhythms.contains(rhythmToken ?? "") == false {
+            } else if GrandStaffNoteValue(sourceTypeToken: rhythmToken).isSupported == false {
                 result.append(Fallback(
                     sourceID: source.sourceID,
                     kind: note.isRest ? .rest : .notehead,
                     reason: note.isRest ? .unsupportedRestType : .unsupportedNoteType,
+                    placeholderPolicy: .reserveRhythmicSpace
+                ))
+            }
+
+            if let noteheadToken = normalizedToken(note.noteheadToken), noteheadToken != "normal" {
+                result.append(Fallback(
+                    sourceID: source.sourceID,
+                    kind: .notehead,
+                    sourceKindToken: noteheadToken,
+                    reason: .unsupportedNoteheadToken,
                     placeholderPolicy: .reserveRhythmicSpace
                 ))
             }
@@ -698,8 +755,23 @@ struct ScoreNotationProjection: Equatable, Sendable {
                     placeholderPolicy: .omit
                 ))
             }
+            result.append(contentsOf: note.performanceNotations.map { notation in
+                Fallback(
+                    sourceID: source.sourceID,
+                    sourceNotationID: notation.sourceID,
+                    kind: .mark,
+                    sourceKindToken: notation.diagnosticKindToken,
+                    reason: .unsupportedPerformanceNotation,
+                    placeholderPolicy: .omit
+                )
+            })
         }
         return result
+    }
+
+    private static func normalizedToken(_ token: String?) -> String? {
+        let normalized = token?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
+        return normalized.isEmpty ? nil : normalized
     }
 
     private static func beamFactsBySourceID(

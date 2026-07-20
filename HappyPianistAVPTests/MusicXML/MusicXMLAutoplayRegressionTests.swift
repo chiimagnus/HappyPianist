@@ -107,12 +107,7 @@ private func makeAutoplayRegressionModel() throws -> AutoplayRegressionModel {
         tempoRamps: wordsSemantics.derivedTempoRamps,
         partID: "P1"
     )
-    let guides = PianoHighlightGuideBuilderService().buildGuides(
-        input: PianoHighlightGuideBuildInput(
-            plan: plan,
-            sourceScore: score
-        )
-    )
+    let guides = PianoHighlightGuideBuilderService().buildGuides(plan: plan)
     let timeline = AutoplayPerformanceTimeline.build(
         plan: plan,
         guideProjection: guides,

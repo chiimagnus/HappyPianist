@@ -94,6 +94,9 @@ struct MusicXMLParserDelegateState {
         let source: TempoSource
         let staff: Int?
         let placementToken: String?
+        let notationBeatUnitToken: String?
+        let notationBeatUnitDotCount: Int
+        let notationPerMinute: Double?
     }
 
     var currentPartID = "P1"
@@ -145,6 +148,7 @@ struct MusicXMLParserDelegateState {
 
     var isInNote = false
     var noteIsRest = false
+    var noteIsMeasureRest = false
     var noteIsPrintObjectVisible = true
     var noteIsChord = false
     var noteStep: String?
@@ -152,6 +156,7 @@ struct MusicXMLParserDelegateState {
     var noteAccidentalToken: String?
     var noteOctave: Int?
     var noteDuration: Int?
+    var noteNoteheadToken: String?
     var noteStaff: Int?
     var noteVoice: Int?
     var noteTies: [PendingTie] = []
@@ -191,7 +196,7 @@ struct MusicXMLParserDelegateState {
 
     var isInDirectionTypeMetronome = false
     var metronomeBeatUnit: String?
-    var metronomeHasDot = false
+    var metronomeBeatUnitDotCount = 0
     var metronomePerMinute: Double?
 
     var rawTempoEventsByPart: [String: [RawTempoEvent]] = [:]

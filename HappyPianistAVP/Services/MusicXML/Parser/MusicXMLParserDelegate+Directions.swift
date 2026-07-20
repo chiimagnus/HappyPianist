@@ -323,7 +323,10 @@ extension MusicXMLParserDelegate {
                     quarterBPM: tempoEvents[i].quarterBPM,
                     source: tempoEvents[i].source,
                     staff: tempoEvents[i].staff,
-                    placementToken: tempoEvents[i].placementToken
+                    placementToken: tempoEvents[i].placementToken,
+                    notationBeatUnitToken: tempoEvents[i].notationBeatUnitToken,
+                    notationBeatUnitDotCount: tempoEvents[i].notationBeatUnitDotCount,
+                    notationPerMinute: tempoEvents[i].notationPerMinute
                 )
             }
             state.rawTempoEventsByPart[state.currentPartID] = tempoEvents
@@ -460,7 +463,10 @@ extension MusicXMLParserDelegate {
                     quarterBPM: tempoEvents[i].quarterBPM,
                     source: tempoEvents[i].source,
                     staff: tempoEvents[i].staff,
-                    placementToken: tempoEvents[i].placementToken
+                    placementToken: tempoEvents[i].placementToken,
+                    notationBeatUnitToken: tempoEvents[i].notationBeatUnitToken,
+                    notationBeatUnitDotCount: tempoEvents[i].notationBeatUnitDotCount,
+                    notationPerMinute: tempoEvents[i].notationPerMinute
                 )
             }
             state.rawTempoEventsByPart[state.currentPartID] = tempoEvents
@@ -520,7 +526,13 @@ extension MusicXMLParserDelegate {
         )
     }
 
-    func recordTempoEvent(quarterBPM: Double, source: TempoSource) {
+    func recordTempoEvent(
+        quarterBPM: Double,
+        source: TempoSource,
+        notationBeatUnitToken: String? = nil,
+        notationBeatUnitDotCount: Int = 0,
+        notationPerMinute: Double? = nil
+    ) {
         guard quarterBPM.isFinite, quarterBPM > 0 else { return }
 
         let tick = currentDirectionEventTick()
@@ -531,7 +543,10 @@ extension MusicXMLParserDelegate {
             quarterBPM: quarterBPM,
             source: source,
             staff: state.currentDirectionStaff,
-            placementToken: state.isInDirection ? state.currentDirectionPlacementToken : nil
+            placementToken: state.isInDirection ? state.currentDirectionPlacementToken : nil,
+            notationBeatUnitToken: notationBeatUnitToken,
+            notationBeatUnitDotCount: notationBeatUnitDotCount,
+            notationPerMinute: notationPerMinute
         )
         state.rawTempoEventsByPart[state.currentPartID, default: []].append(event)
     }
@@ -591,8 +606,16 @@ extension MusicXMLParserDelegate {
             return
         }
 
-        let dottedMultiplier = state.metronomeHasDot ? 1.5 : 1.0
-        recordTempoEvent(quarterBPM: perMinute * beatUnitInQuarters * dottedMultiplier, source: .metronome)
+        let dottedMultiplier = (0 ..< state.metronomeBeatUnitDotCount).reduce(1.0) { multiplier, dotIndex in
+            multiplier + pow(0.5, Double(dotIndex + 1))
+        }
+        recordTempoEvent(
+            quarterBPM: perMinute * beatUnitInQuarters * dottedMultiplier,
+            source: .metronome,
+            notationBeatUnitToken: beatUnit,
+            notationBeatUnitDotCount: state.metronomeBeatUnitDotCount,
+            notationPerMinute: perMinute
+        )
     }
 
     func finalizeTempoEvents() -> [MusicXMLTempoEvent] {
@@ -608,11 +631,22 @@ extension MusicXMLParserDelegate {
             var byTick: [Int: RawTempoEvent] = [:]
             for event in rawEvents {
                 if let existing = byTick[event.tick] {
-                    if event.source.rawValue > existing.source.rawValue {
-                        byTick[event.tick] = event
-                    } else if event.source == existing.source {
-                        byTick[event.tick] = event
-                    }
+                    let playbackEvent = event.source.rawValue >= existing.source.rawValue ? event : existing
+                    let notationEvent = event.notationBeatUnitToken != nil ? event : existing
+                    byTick[event.tick] = RawTempoEvent(
+                        sourceID: notationEvent.sourceID ?? playbackEvent.sourceID,
+                        partID: playbackEvent.partID,
+                        tick: playbackEvent.tick,
+                        quarterBPM: playbackEvent.quarterBPM,
+                        source: playbackEvent.source,
+                        staff: notationEvent.notationBeatUnitToken == nil ? playbackEvent.staff : notationEvent.staff,
+                        placementToken: notationEvent.notationBeatUnitToken == nil
+                            ? playbackEvent.placementToken
+                            : notationEvent.placementToken,
+                        notationBeatUnitToken: notationEvent.notationBeatUnitToken,
+                        notationBeatUnitDotCount: notationEvent.notationBeatUnitDotCount,
+                        notationPerMinute: notationEvent.notationPerMinute
+                    )
                 } else {
                     byTick[event.tick] = event
                 }
@@ -624,7 +658,10 @@ extension MusicXMLParserDelegate {
                     tick: $0.tick,
                     quarterBPM: $0.quarterBPM,
                     scope: MusicXMLEventScope(partID: $0.partID, staff: $0.staff, voice: nil),
-                    placementToken: $0.placementToken
+                    placementToken: $0.placementToken,
+                    notationBeatUnitToken: $0.notationBeatUnitToken,
+                    notationBeatUnitDotCount: $0.notationBeatUnitDotCount,
+                    notationPerMinute: $0.notationPerMinute
                 )
             })
         }

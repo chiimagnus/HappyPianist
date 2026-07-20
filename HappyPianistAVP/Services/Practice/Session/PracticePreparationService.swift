@@ -241,12 +241,7 @@ actor PracticePreparationService: PracticePreparationServiceProtocol {
             sourceScore: sourceScore,
             performedScore: practiceScore
         )
-        let highlightGuides = PianoHighlightGuideBuilderService().buildGuides(
-            input: PianoHighlightGuideBuildInput(
-                plan: performancePlan,
-                sourceScore: sourceScore
-            )
-        )
+        let highlightGuides = PianoHighlightGuideBuilderService().buildGuides(plan: performancePlan)
 
         let measureSpans = practiceScore.measures.filter { $0.partID == structuralPartID }
 

@@ -240,10 +240,12 @@ struct PianoPerformancePlanBuildDiagnosticSample: Equatable, Sendable {
 struct PianoPerformanceNotationFallbackDiagnosticSample: Equatable, Sendable {
     private struct Key: Hashable {
         let kind: ScoreNotationProjection.Fallback.Kind
+        let sourceKindToken: String?
         let reason: ScoreNotationProjection.Fallback.Reason
     }
 
     let kind: ScoreNotationProjection.Fallback.Kind
+    let sourceKindToken: String?
     let reason: ScoreNotationProjection.Fallback.Reason
     let count: Int
 
@@ -251,15 +253,19 @@ struct PianoPerformanceNotationFallbackDiagnosticSample: Equatable, Sendable {
         from fallbacks: [ScoreNotationProjection.Fallback]
     ) -> [PianoPerformanceNotationFallbackDiagnosticSample] {
         Dictionary(grouping: fallbacks) { fallback in
-            Key(kind: fallback.kind, reason: fallback.reason)
+            Key(kind: fallback.kind, sourceKindToken: fallback.sourceKindToken, reason: fallback.reason)
         }.map { key, fallbacks in
             PianoPerformanceNotationFallbackDiagnosticSample(
                 kind: key.kind,
+                sourceKindToken: key.sourceKindToken,
                 reason: key.reason,
                 count: fallbacks.count
             )
         }.sorted {
             if $0.kind.rawValue != $1.kind.rawValue { return $0.kind.rawValue < $1.kind.rawValue }
+            if ($0.sourceKindToken ?? "") != ($1.sourceKindToken ?? "") {
+                return ($0.sourceKindToken ?? "") < ($1.sourceKindToken ?? "")
+            }
             return $0.reason.rawValue < $1.reason.rawValue
         }
     }
@@ -275,6 +281,7 @@ struct PianoPerformanceNotationFallbackDiagnosticSample: Equatable, Sendable {
                 "kind=\(kind.rawValue)",
                 "count=\(max(0, count))",
                 "reason=\(reason.rawValue)",
+                "sourceKind=\(sourceKindToken ?? "unspecified")",
             ].joined(separator: ";"),
             persistence: .systemOnly
         )

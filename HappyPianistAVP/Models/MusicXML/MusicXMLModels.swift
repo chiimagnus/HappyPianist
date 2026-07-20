@@ -277,6 +277,13 @@ struct MusicXMLTempoEvent: Equatable {
     let quarterBPM: Double
     let scope: MusicXMLEventScope
     let placementToken: String?
+    let notationBeatUnitToken: String?
+    let notationBeatUnitDotCount: Int
+    let notationPerMinute: Double?
+
+    var hasVisibleNotationMark: Bool {
+        notationBeatUnitToken != nil && notationPerMinute != nil
+    }
 
     init(
         sourceID: MusicXMLDirectionSourceID? = nil,
@@ -284,7 +291,10 @@ struct MusicXMLTempoEvent: Equatable {
         tick: Int,
         quarterBPM: Double,
         scope: MusicXMLEventScope,
-        placementToken: String? = nil
+        placementToken: String? = nil,
+        notationBeatUnitToken: String? = nil,
+        notationBeatUnitDotCount: Int = 0,
+        notationPerMinute: Double? = nil
     ) {
         self.sourceID = sourceID
         self.performedOccurrenceIndex = performedOccurrenceIndex
@@ -292,6 +302,9 @@ struct MusicXMLTempoEvent: Equatable {
         self.quarterBPM = quarterBPM
         self.scope = scope
         self.placementToken = placementToken
+        self.notationBeatUnitToken = notationBeatUnitToken
+        self.notationBeatUnitDotCount = max(0, notationBeatUnitDotCount)
+        self.notationPerMinute = notationPerMinute
     }
 }
 
@@ -519,8 +532,10 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
     let durationTicks: Int
     let writtenPitch: MusicXMLWrittenPitch?
     let writtenRhythm: MusicXMLWrittenRhythm?
+    let noteheadToken: String?
     let midiNote: Int?
     let isRest: Bool
+    let isMeasureRest: Bool
     let isPrintObjectVisible: Bool
     let isChord: Bool
     let isGrace: Bool
@@ -559,8 +574,10 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         durationTicks: Int,
         writtenPitch: MusicXMLWrittenPitch? = nil,
         writtenRhythm: MusicXMLWrittenRhythm? = nil,
+        noteheadToken: String? = nil,
         midiNote: Int?,
         isRest: Bool,
+        isMeasureRest: Bool = false,
         isPrintObjectVisible: Bool = true,
         isChord: Bool,
         isGrace: Bool = false,
@@ -591,8 +608,10 @@ struct MusicXMLNoteEvent: Equatable, Identifiable {
         self.durationTicks = durationTicks
         self.writtenPitch = writtenPitch
         self.writtenRhythm = writtenRhythm
+        self.noteheadToken = noteheadToken
         self.midiNote = midiNote
         self.isRest = isRest
+        self.isMeasureRest = isMeasureRest
         self.isPrintObjectVisible = isPrintObjectVisible
         self.isChord = isChord
         self.isGrace = isGrace

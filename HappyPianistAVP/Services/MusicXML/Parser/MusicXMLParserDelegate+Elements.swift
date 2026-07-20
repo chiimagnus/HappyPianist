@@ -164,7 +164,7 @@ extension MusicXMLParserDelegate {
             if state.isInDirection {
                 state.isInDirectionTypeMetronome = true
                 state.metronomeBeatUnit = nil
-                state.metronomeHasDot = false
+                state.metronomeBeatUnitDotCount = 0
                 state.metronomePerMinute = nil
             }
         case "sound":
@@ -191,6 +191,7 @@ extension MusicXMLParserDelegate {
         case "note":
             state.isInNote = true
             state.noteIsRest = false
+            state.noteIsMeasureRest = false
             let printObjectToken = attributeDict["print-object"]?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
                 .lowercased()
@@ -207,6 +208,7 @@ extension MusicXMLParserDelegate {
             state.noteAccidentalToken = nil
             state.noteOctave = nil
             state.noteDuration = nil
+            state.noteNoteheadToken = nil
             state.noteType = nil
             state.noteDotCount = 0
             state.isInTimeModification = false
@@ -311,6 +313,9 @@ extension MusicXMLParserDelegate {
         case "rest":
             if state.isInNote {
                 state.noteIsRest = true
+                state.noteIsMeasureRest = attributeDict["measure"]?
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .lowercased() == "yes"
             }
         case "chord":
             if state.isInNote {
@@ -475,7 +480,7 @@ extension MusicXMLParserDelegate {
         case "beat-unit" where state.isInDirectionTypeMetronome:
             state.metronomeBeatUnit = text
         case "beat-unit-dot" where state.isInDirectionTypeMetronome:
-            state.metronomeHasDot = true
+            state.metronomeBeatUnitDotCount += 1
         case "per-minute" where state.isInDirectionTypeMetronome:
             state.metronomePerMinute = Double(text)
         case "metronome":
@@ -524,6 +529,9 @@ extension MusicXMLParserDelegate {
             }
         case "type" where state.isInNote:
             state.noteType = text
+        case "notehead" where state.isInNote:
+            let token = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            state.noteNoteheadToken = token.isEmpty ? nil : token
         case "actual-notes" where state.isInNote && state.isInTimeModification:
             state.noteTimeModificationActualNotes = Int(text)
         case "normal-notes" where state.isInNote && state.isInTimeModification:
@@ -571,7 +579,10 @@ extension MusicXMLParserDelegate {
                             quarterBPM: tempoEvents[i].quarterBPM,
                             source: tempoEvents[i].source,
                             staff: staff,
-                            placementToken: tempoEvents[i].placementToken
+                            placementToken: tempoEvents[i].placementToken,
+                            notationBeatUnitToken: tempoEvents[i].notationBeatUnitToken,
+                            notationBeatUnitDotCount: tempoEvents[i].notationBeatUnitDotCount,
+                            notationPerMinute: tempoEvents[i].notationPerMinute
                         )
                     }
                     state.rawTempoEventsByPart[state.currentPartID] = tempoEvents
