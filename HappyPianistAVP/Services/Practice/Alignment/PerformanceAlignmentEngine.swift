@@ -79,7 +79,11 @@ struct PerformanceAlignmentEngine: Sendable {
         activeTickRange: Range<Int>? = nil,
         generation: UInt64? = nil
     ) -> PerformanceAlignment {
-        let relevantObservations = observations.filter {
+        let acceptedObservations = observations.filter { observation in
+            observation.source.role != .systemPlayback
+                && (generation.map { observation.source.generation == $0 } ?? true)
+        }
+        let relevantObservations = acceptedObservations.filter {
             $0.alignmentOnsetMIDINote != nil || $0.alignmentUnknownReason != nil
         }
         let snapshots = candidates(
@@ -90,13 +94,13 @@ struct PerformanceAlignmentEngine: Sendable {
             generation: generation
         )
         let releaseMeasurements = Self.releaseMeasurements(
-            observations: observations,
+            observations: acceptedObservations,
         )
         let timeMap = PlanTimeMap(plan: plan)
         let eventByID = Dictionary(uniqueKeysWithValues: plan.noteEvents.map { ($0.id, $0) })
         var usedEvents: Set<ScorePerformanceNoteEventID> = []
         var links: [PerformanceAlignmentLink] = []
-        let observationByID = Dictionary(uniqueKeysWithValues: observations.map { ($0.id, $0) })
+        let observationByID = Dictionary(uniqueKeysWithValues: acceptedObservations.map { ($0.id, $0) })
 
         for snapshot in snapshots {
             if let observation = observationByID[snapshot.observation.observationID],
@@ -158,11 +162,11 @@ struct PerformanceAlignmentEngine: Sendable {
 
         return PerformanceAlignment(
             planID: plan.id,
-            sourceGeneration: generation ?? observations.first?.source.generation ?? 0,
+            sourceGeneration: generation ?? acceptedObservations.first?.source.generation ?? 0,
             links: links,
             controllerLinks: controllerLinks(
                 plan: plan,
-                observations: observations,
+                observations: acceptedObservations,
                 performanceStart: performanceStart,
                 activeTickRange: activeTickRange,
                 timeMap: timeMap

@@ -307,6 +307,55 @@ func incrementalAlignerRejectsStaleOutOfOrderAndSystemPlaybackAndResetsLifecycle
 }
 
 @Test
+func alignmentRejectsStaleAndSystemPlaybackAcrossNotesReleasesAndControllers() throws {
+    let note = makeAlignmentEvent(sourceID: makeAlignmentSourceID(ordinal: 0), occurrenceIndex: 0)
+    let controller = ScorePerformanceControllerEvent(
+        sourceDirectionID: nil,
+        performedOccurrenceIndex: 0,
+        tick: 0,
+        controllerNumber: 64,
+        value: 80,
+        outputCapabilityRequirement: .continuousControlChange
+    )
+    let plan = makeAlignmentPlan(noteEvents: [note], controllerEvents: [controller])
+    let accepted = makeAlignmentObservation(generation: 2, note: 60, seconds: 0)
+    let staleRelease = makeAlignmentObservation(
+        generation: 1,
+        note: 60,
+        seconds: 2,
+        event: .noteOff(note: 60, releaseVelocity: nil)
+    )
+    let stalePedal = makeAlignmentObservation(
+        generation: 1,
+        note: 0,
+        seconds: 0,
+        event: .controller(.controlChange(number: 64, value: .init(midi1: 80)))
+    )
+    let playback = makeAlignmentObservation(
+        generation: 2,
+        note: 61,
+        seconds: 0,
+        role: .systemPlayback
+    )
+
+    let result = PerformanceAlignmentEngine().align(
+        plan: plan,
+        observations: [accepted, staleRelease, stalePedal, playback],
+        performanceStart: .init(seconds: 0),
+        generation: 2
+    )
+
+    #expect(result.links.filter { if case .aligned = $0 { true } else { false } }.count == 1)
+    #expect(result.links.contains { if case .extra = $0 { true } else { false } } == false)
+    let releaseEvidence = result.links.flatMap { link -> [PerformanceAlignmentEvidence] in
+        guard case let .aligned(_, _, evidence) = link else { return [] }
+        return evidence.filter { $0.dimension == .release || $0.dimension == .duration }
+    }
+    #expect(releaseEvidence.allSatisfy { $0.deviationSeconds == nil })
+    #expect(result.controllerLinks == [.missing(score: .init(event: controller))])
+}
+
+@Test
 func recordedTakeReplayUsesSameIncrementalStateMachineAsOnlineAlignment() {
     let event = makeAlignmentEvent(sourceID: makeAlignmentSourceID(ordinal: 0), occurrenceIndex: 0)
     let plan = makeAlignmentPlan(noteEvents: [event])
