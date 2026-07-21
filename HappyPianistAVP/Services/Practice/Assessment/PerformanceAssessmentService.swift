@@ -546,12 +546,12 @@ struct PerformanceAssessmentService: Sendable {
                 guard next.event.performedOnTick > current.event.performedOnTick,
                       next.event.writtenOnTick <= current.event.writtenOffTick
                 else { continue }
-                guard let release = current.evidence.first(where: { $0.dimension == .release }),
+                guard let duration = current.evidence.first(where: { $0.dimension == .duration }),
                       let onset = next.evidence.first(where: { $0.dimension == .onset }),
-                      release.status != .notObserved,
+                      duration.status != .notObserved,
                       onset.status != .notObserved
                 else { continue }
-                guard let releaseDeviation = release.deviationSeconds else {
+                guard let durationDeviation = duration.deviationSeconds else {
                     hasIncompleteEvidence = true
                     continue
                 }
@@ -559,7 +559,7 @@ struct PerformanceAssessmentService: Sendable {
                 let targetDuration = timeMap.seconds(at: current.event.performedOffTick)
                     - timeMap.seconds(at: current.event.performedOnTick)
                 let actualRelease = current.observation.correctedTime.seconds
-                    + max(0, targetDuration + releaseDeviation)
+                    + max(0, targetDuration + durationDeviation)
                 let actualGap = next.observation.correctedTime.seconds - actualRelease
                 let targetGap = timeMap.seconds(at: next.event.performedOnTick)
                     - timeMap.seconds(at: current.event.performedOffTick)
@@ -567,14 +567,14 @@ struct PerformanceAssessmentService: Sendable {
                     gapSeconds: actualGap,
                     deviationSeconds: actualGap - targetGap,
                     status: aggregateStatus([
-                        assessmentStatus(release.status, event: current.event),
+                        assessmentStatus(duration.status, event: current.event),
                         assessmentStatus(onset.status, event: next.event),
                     ]),
                     evidence: [
                         .note(
                             score: current.score,
                             observationID: current.observation.observationID,
-                            dimension: .release
+                            dimension: .duration
                         ),
                         .note(
                             score: next.score,
@@ -589,9 +589,9 @@ struct PerformanceAssessmentService: Sendable {
         guard samples.isEmpty == false else {
             return unavailableResult(
                 dimension: .articulation,
-                alignmentDimension: .release,
+                alignmentDimension: .duration,
                 links: links,
-                fallbackEvidence: evidenceLinks(aligned, dimension: .release),
+                fallbackEvidence: evidenceLinks(aligned, dimension: .duration),
                 forceInsufficient: hasIncompleteEvidence
             )
         }
@@ -1318,8 +1318,10 @@ struct PerformanceAssessmentService: Sendable {
             .chordSpread
         case .duration:
             .duration
-        case .release, .articulation:
+        case .release:
             .release
+        case .articulation:
+            .duration
         case .velocity, .dynamicContour, .voicing:
             .velocity
         case .pedalTiming, .pedalValue:

@@ -204,11 +204,11 @@ func releaseDurationAndControllerEvidenceRespectCapabilities() throws {
         outputCapabilityRequirement: .continuousControlChange
     )
     let plan = makeAlignmentPlan(noteEvents: [event], controllerEvents: [controller])
-    let noteOn = makeAlignmentObservation(generation: 3, note: 60, seconds: 0)
+    let noteOn = makeAlignmentObservation(generation: 3, note: 60, seconds: 0.1)
     let noteOff = makeAlignmentObservation(
         generation: 3,
         note: 60,
-        seconds: 0.4,
+        seconds: 0.5,
         event: .noteOff(note: 60, releaseVelocity: nil)
     )
     let control = makeAlignmentObservation(
@@ -231,6 +231,9 @@ func releaseDurationAndControllerEvidenceRespectCapabilities() throws {
     }.first)
     #expect(evidence.contains {
         $0.dimension == .duration && abs(($0.deviationSeconds ?? 0) + 0.1) < 0.000_001
+    })
+    #expect(evidence.contains {
+        $0.dimension == .release && abs($0.deviationSeconds ?? 1) < 0.000_001
     })
     #expect(result.controllerLinks.count == 1)
     guard case let .aligned(_, _, timeDeviation, valueDeviation) = result.controllerLinks[0] else {

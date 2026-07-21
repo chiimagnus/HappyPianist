@@ -423,6 +423,32 @@ func durationAndReleaseExposePrematureReleaseWithoutCollapsingTheirUnits() throw
 }
 
 @Test
+func releaseIncludesOnsetDeviationWhileDurationDoesNot() throws {
+    let event = makeAssessmentEvent()
+    let plan = makeAssessmentPlan(events: [event])
+    let alignment = PerformanceAlignment(
+        planID: plan.id,
+        sourceGeneration: 7,
+        links: [makeAlignedLink(
+            event: event,
+            observation: makeAssessmentObservation(time: 0.12),
+            onsetDeviation: 0.12,
+            releaseDeviation: 0,
+            releaseStatus: .observed
+        )]
+    )
+
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    let duration = try assessmentResult(.duration, in: assessment)
+    let release = try assessmentResult(.release, in: assessment)
+
+    #expect(duration.outcome == .correct)
+    #expect(duration.measurement?.value == 1)
+    #expect(release.outcome == .incorrect)
+    #expect(abs((release.measurement?.value ?? 0) - 0.12) < 0.000_001)
+}
+
+@Test
 func articulationPreservesLegatoOverlapAndGapDirection() throws {
     let events = [
         makeAssessmentEvent(ordinal: 0, midiNote: 60, onTick: 0, offTick: 480),
@@ -1036,8 +1062,8 @@ private func makeAlignedLink(
             .init(
                 dimension: .release,
                 status: releaseStatus,
-                cost: releaseDeviation.map(abs),
-                deviationSeconds: releaseDeviation
+                cost: releaseDeviation.map { abs(onsetDeviation + $0) },
+                deviationSeconds: releaseDeviation.map { onsetDeviation + $0 }
             ),
             .init(
                 dimension: .duration,

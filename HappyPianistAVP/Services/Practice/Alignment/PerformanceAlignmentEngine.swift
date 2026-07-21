@@ -231,6 +231,9 @@ struct PerformanceAlignmentEngine: Sendable {
                     measurement: releaseMeasurements[snapshot.observation.observationID],
                     event: event,
                     timeMap: preparedPlan.timeMap,
+                    onsetDeviation: best.evidence.first {
+                        $0.dimension == .onset
+                    }?.deviationSeconds,
                     unmatchedCost: configuration.unmatchedCost
                 )
             } ?? []
@@ -531,6 +534,7 @@ struct PerformanceAlignmentEngine: Sendable {
         measurement: ReleaseMeasurement?,
         event: ScorePerformanceNoteEvent,
         timeMap: ScorePerformancePlanTimeMap,
+        onsetDeviation: TimeInterval?,
         unmatchedCost: Double
     ) -> [PerformanceAlignmentEvidence] {
         let capability = measurement?.capability ?? .unavailable
@@ -548,19 +552,20 @@ struct PerformanceAlignmentEngine: Sendable {
         }
         let expectedDuration = timeMap.seconds(at: event.performedOffTick)
             - timeMap.seconds(at: event.performedOnTick)
-        let deviation = actual - expectedDuration
+        let durationDeviation = actual - expectedDuration
+        let releaseDeviation = onsetDeviation.map { $0 + durationDeviation }
         return [
                 .init(
                     dimension: .release,
                     status: evidenceStatus(capability),
-                    cost: abs(deviation),
-                    deviationSeconds: deviation
+                    cost: releaseDeviation.map(abs) ?? unmatchedCost,
+                    deviationSeconds: releaseDeviation
                 ),
                 .init(
                     dimension: .duration,
                     status: evidenceStatus(capability),
-                    cost: abs(deviation),
-                    deviationSeconds: deviation
+                    cost: abs(durationDeviation),
+                    deviationSeconds: durationDeviation
                 ),
         ]
     }
