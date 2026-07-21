@@ -49,6 +49,35 @@ struct PerformanceAlignmentEngine: Sendable {
         fileprivate let chordEventsByTick: [Int: [ScorePerformanceNoteEvent]]
         fileprivate let eventByID: [ScorePerformanceNoteEventID: ScorePerformanceNoteEvent]
         fileprivate let controllerEvents: [ScorePerformanceControllerEvent]
+
+        fileprivate func notes(
+            near seconds: TimeInterval,
+            window: TimeInterval
+        ) -> ArraySlice<TimedNote> {
+            let lowerSeconds = seconds - window
+            let upperSeconds = seconds + window
+            var lower = 0
+            var upper = activeNotes.count
+            while lower < upper {
+                let middle = lower + (upper - lower) / 2
+                if activeNotes[middle].seconds < lowerSeconds {
+                    lower = middle + 1
+                } else {
+                    upper = middle
+                }
+            }
+            let start = lower
+            upper = activeNotes.count
+            while lower < upper {
+                let middle = lower + (upper - lower) / 2
+                if activeNotes[middle].seconds <= upperSeconds {
+                    lower = middle + 1
+                } else {
+                    upper = middle
+                }
+            }
+            return activeNotes[start ..< lower]
+        }
     }
 
     private let configuration: PerformanceAlignmentConfiguration
@@ -69,6 +98,9 @@ struct PerformanceAlignmentEngine: Sendable {
         let activeNotes = plan.noteEvents.compactMap { event -> TimedNote? in
             guard activeTickRange?.contains(event.performedOnTick) ?? true else { return nil }
             return TimedNote(event: event, seconds: timeMap.seconds(at: event.performedOnTick))
+        }.sorted { lhs, rhs in
+            if lhs.seconds != rhs.seconds { return lhs.seconds < rhs.seconds }
+            return lhs.event.id.description < rhs.event.id.description
         }
         return PreparedPlan(
             plan: plan,
@@ -115,8 +147,7 @@ struct PerformanceAlignmentEngine: Sendable {
         return observations.map { observation in
             candidateSnapshot(
                 for: observation,
-                activeNotes: preparedPlan.activeNotes,
-                chordEventsByTick: preparedPlan.chordEventsByTick,
+                preparedPlan: preparedPlan,
                 performanceStart: performanceStart,
                 generation: generation,
                 observedOnsetsByPitch: observedOnsetsByPitch
@@ -289,8 +320,7 @@ struct PerformanceAlignmentEngine: Sendable {
 
     private func candidateSnapshot(
         for observation: PerformanceObservation,
-        activeNotes: [TimedNote],
-        chordEventsByTick: [Int: [ScorePerformanceNoteEvent]],
+        preparedPlan: PreparedPlan,
         performanceStart: PerformanceMonotonicInstant,
         generation: UInt64?,
         observedOnsetsByPitch: [Int: [(Int, TimeInterval)]]
@@ -303,15 +333,15 @@ struct PerformanceAlignmentEngine: Sendable {
             return .init(observation: reference, candidates: [], noCandidateReason: .unsupportedObservation)
         }
 
-        guard activeNotes.isEmpty == false else {
+        guard preparedPlan.activeNotes.isEmpty == false else {
             return .init(observation: reference, candidates: [], noCandidateReason: .outsideActiveRange)
         }
 
         let observedSeconds = max(0, observation.alignmentTimestamp.seconds - performanceStart.seconds)
-        let temporal = activeNotes.filter { timedNote in
-            abs(timedNote.seconds - observedSeconds)
-                <= configuration.candidateWindowSeconds
-        }
+        let temporal = Array(preparedPlan.notes(
+            near: observedSeconds,
+            window: configuration.candidateWindowSeconds
+        ))
         guard temporal.isEmpty == false else {
             return .init(observation: reference, candidates: [], noCandidateReason: .noTemporalCandidate)
         }
@@ -343,7 +373,7 @@ struct PerformanceAlignmentEngine: Sendable {
         let candidates = matching.map { timedNote in
             let event = timedNote.event
             let onsetDeviation = observedSeconds - timedNote.seconds
-            let chordEvents = chordEventsByTick[event.performedOnTick] ?? []
+            let chordEvents = preparedPlan.chordEventsByTick[event.performedOnTick] ?? []
             let measuresChordSpread = chordEvents.count > 1
                 && chordEvents.contains { note in
                     note.timingProvenance.contains { $0.kind == .arpeggio }
