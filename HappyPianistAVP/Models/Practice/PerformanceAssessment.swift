@@ -24,13 +24,6 @@ enum PerformanceAssessmentDimension: String, CaseIterable, Equatable, Hashable, 
     case phraseContinuity
 }
 
-enum PerformanceAssessmentOutcome: String, Equatable, Hashable, Sendable {
-    case correct
-    case incorrect
-    case unknown
-    case insufficientEvidence
-}
-
 enum PerformanceAssessmentEvidenceStatus: String, Equatable, Hashable, Sendable {
     case observed
     case degraded
@@ -73,7 +66,7 @@ enum PerformanceAssessmentEvidenceLink: Equatable, Sendable {
 
 struct PerformanceAssessmentDimensionResult: Equatable, Sendable {
     let dimension: PerformanceAssessmentDimension
-    let outcome: PerformanceAssessmentOutcome
+    let outcome: PracticeEvidenceOutcome
     let evidenceStatus: PerformanceAssessmentEvidenceStatus
     let measurement: PerformanceAssessmentMeasurement?
     let sampleCount: Int
@@ -82,7 +75,7 @@ struct PerformanceAssessmentDimensionResult: Equatable, Sendable {
 
     init(
         dimension: PerformanceAssessmentDimension,
-        outcome: PerformanceAssessmentOutcome,
+        outcome: PracticeEvidenceOutcome,
         evidenceStatus: PerformanceAssessmentEvidenceStatus,
         measurement: PerformanceAssessmentMeasurement? = nil,
         sampleCount: Int,

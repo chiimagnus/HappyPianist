@@ -66,6 +66,29 @@ func dimensionResultSanitizesOnlyNumericBoundaries() {
     #expect(PerformanceAssessmentMeasurement(value: .infinity, unit: .seconds) == nil)
 }
 
+@Test
+func assessmentKeepsUnknownAndInsufficientSeparateFromIncorrect() {
+    let unknown = PerformanceAssessmentDimensionResult(
+        dimension: .voicing,
+        outcome: .unknown,
+        evidenceStatus: .notObserved,
+        sampleCount: 0,
+        evidence: []
+    )
+    let insufficient = PerformanceAssessmentDimensionResult(
+        dimension: .onset,
+        outcome: .insufficientEvidence,
+        evidenceStatus: .insufficient,
+        sampleCount: 1,
+        evidence: []
+    )
+
+    #expect(unknown.outcome == .unknown)
+    #expect(insufficient.outcome == .insufficientEvidence)
+    #expect(unknown.outcome != .incorrect)
+    #expect(insufficient.outcome != .incorrect)
+}
+
 private func makeAssessmentEvent() -> ScorePerformanceNoteEvent {
     let sourceID = MusicXMLSourceNoteID(
         partID: "P1",

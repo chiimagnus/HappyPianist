@@ -176,6 +176,24 @@ enum StepAttemptMatchResult: Equatable {
     var isMatched: Bool {
         self == .matched
     }
+
+    var evidenceOutcome: PracticeEvidenceOutcome {
+        switch self {
+        case .matched:
+            .correct
+        case .wrongNote, .missingNotes, .incompleteChord:
+            .incorrect
+        case .insufficientEvidence:
+            .insufficientEvidence
+        }
+    }
+}
+
+enum PracticeEvidenceOutcome: String, Equatable, Hashable, Sendable {
+    case correct
+    case incorrect
+    case unknown
+    case insufficientEvidence
 }
 
 enum PracticeSuccessSemantic: String, CaseIterable, Equatable, Hashable, Sendable {
