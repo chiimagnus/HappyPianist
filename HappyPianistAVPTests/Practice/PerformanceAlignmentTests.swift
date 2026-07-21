@@ -91,6 +91,47 @@ func recordedTakeAlignerRebasesV2ObservationsAndKeepsLegacyCapabilityUnknown() t
     #expect(aligner.candidateSnapshots(take: legacy, plan: plan).first?.candidates.count == 1)
 }
 
+@Test
+func alignmentSeparatesExactPitchOnsetChordSpreadExtraAndMissing() {
+    let c = makeAlignmentEvent(sourceID: makeAlignmentSourceID(ordinal: 0), occurrenceIndex: 0)
+    let e = makeAlignmentEvent(
+        sourceID: makeAlignmentSourceID(ordinal: 1),
+        occurrenceIndex: 0,
+        midiNote: 64
+    )
+    let missing = makeAlignmentEvent(
+        sourceID: makeAlignmentSourceID(ordinal: 2),
+        occurrenceIndex: 0,
+        midiNote: 67,
+        onTick: 480
+    )
+    let plan = makeAlignmentPlan(noteEvents: [c, e, missing])
+    let observations = [
+        makeAlignmentObservation(generation: 2, note: 60, seconds: 0),
+        makeAlignmentObservation(generation: 2, note: 64, seconds: 0.08),
+        makeAlignmentObservation(generation: 2, note: 61, seconds: 0.2),
+    ]
+
+    let result = PerformanceAlignmentEngine().align(
+        plan: plan,
+        observations: observations,
+        performanceStart: .init(seconds: 0),
+        generation: 2
+    )
+
+    let aligned = result.links.compactMap { link -> [PerformanceAlignmentEvidence]? in
+        guard case let .aligned(_, _, evidence) = link else { return nil }
+        return evidence
+    }
+    #expect(aligned.count == 2)
+    #expect(aligned.allSatisfy { evidence in
+        evidence.contains { $0.dimension == .pitch && $0.cost == 0 }
+            && evidence.contains { $0.dimension == .chordSpread && $0.deviationSeconds == 0.08 }
+    })
+    #expect(result.links.filter { if case .extra = $0 { true } else { false } }.count == 1)
+    #expect(result.links.filter { if case .missing = $0 { true } else { false } }.count == 1)
+}
+
 private func makeAlignmentObservation(
     generation: UInt64,
     note: Int = 60,
@@ -144,7 +185,9 @@ private func makeAlignmentPlan(
 
 private func makeAlignmentEvent(
     sourceID: MusicXMLSourceNoteID,
-    occurrenceIndex: Int
+    occurrenceIndex: Int,
+    midiNote: Int = 60,
+    onTick: Int = 0
 ) -> ScorePerformanceNoteEvent {
     let performedID = MusicXMLPerformedNoteID(
         sourceID: sourceID,
@@ -157,12 +200,12 @@ private func makeAlignmentEvent(
         contributingSourceNoteIDs: [sourceID],
         contributingPerformedNoteIDs: [performedID],
         purpose: .source,
-        writtenOnTick: 0,
-        writtenOffTick: 480,
-        performedOnTick: 0,
-        performedOffTick: 480,
+        writtenOnTick: onTick,
+        writtenOffTick: onTick + 480,
+        performedOnTick: onTick,
+        performedOffTick: onTick + 480,
         writtenPitch: .init(step: "C", octave: 4, alter: 0, accidentalToken: nil),
-        midiNote: 60,
+        midiNote: midiNote,
         velocityResolution: .init(
             baseVelocity: 90,
             curveVelocity: nil,

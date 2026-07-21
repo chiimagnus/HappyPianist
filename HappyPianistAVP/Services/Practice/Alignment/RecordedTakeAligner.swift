@@ -20,4 +20,17 @@ struct RecordedTakeAligner: Sendable {
             activeTickRange: activeTickRange
         )
     }
+
+    func align(
+        take: RecordingTake,
+        plan: ScorePerformancePlan,
+        activeTickRange: Range<Int>? = nil
+    ) -> PerformanceAlignment {
+        engine.align(
+            plan: plan,
+            observations: take.alignmentObservations(),
+            performanceStart: .init(seconds: 0),
+            activeTickRange: activeTickRange
+        )
+    }
 }

@@ -2,11 +2,32 @@ import Foundation
 
 struct PerformanceAlignmentConfiguration: Equatable, Sendable {
     let candidateWindowSeconds: TimeInterval
+    let ambiguityCostTolerance: Double
+    let pitchMismatchCost: Double
+    let onsetWeight: Double
+    let chordSpreadWeight: Double
+    let unmatchedCost: Double
 
-    init(candidateWindowSeconds: TimeInterval = 1.5) {
+    init(
+        candidateWindowSeconds: TimeInterval = 1.5,
+        ambiguityCostTolerance: Double = 0.01,
+        pitchMismatchCost: Double = 4,
+        onsetWeight: Double = 1,
+        chordSpreadWeight: Double = 0.5,
+        unmatchedCost: Double = 5
+    ) {
         self.candidateWindowSeconds = candidateWindowSeconds.isFinite
             ? max(0.01, candidateWindowSeconds)
             : 1.5
+        self.ambiguityCostTolerance = Self.nonnegative(ambiguityCostTolerance, fallback: 0.01)
+        self.pitchMismatchCost = Self.nonnegative(pitchMismatchCost, fallback: 4)
+        self.onsetWeight = Self.nonnegative(onsetWeight, fallback: 1)
+        self.chordSpreadWeight = Self.nonnegative(chordSpreadWeight, fallback: 0.5)
+        self.unmatchedCost = Self.nonnegative(unmatchedCost, fallback: 5)
+    }
+
+    private static func nonnegative(_ value: Double, fallback: Double) -> Double {
+        value.isFinite ? max(0, value) : fallback
     }
 }
 
@@ -25,6 +46,10 @@ struct PerformanceAlignmentEngine: Sendable {
         generation: UInt64? = nil
     ) -> [PerformanceAlignmentCandidateSnapshot] {
         let timeMap = PlanTimeMap(plan: plan)
+        let observedOnsets = observations.compactMap { observation -> (Int, TimeInterval)? in
+            guard case let .noteOn(note, _) = observation.event else { return nil }
+            return (note, max(0, observation.alignmentTimestamp.seconds - performanceStart.seconds))
+        }
         return observations.map { observation in
             candidateSnapshot(
                 for: observation,
@@ -32,9 +57,82 @@ struct PerformanceAlignmentEngine: Sendable {
                 timeMap: timeMap,
                 performanceStart: performanceStart,
                 activeTickRange: activeTickRange,
-                generation: generation
+                generation: generation,
+                observedOnsets: observedOnsets
             )
         }
+    }
+
+    func align(
+        plan: ScorePerformancePlan,
+        observations: [PerformanceObservation],
+        performanceStart: PerformanceMonotonicInstant,
+        activeTickRange: Range<Int>? = nil,
+        generation: UInt64? = nil
+    ) -> PerformanceAlignment {
+        let noteOnObservations = observations.filter {
+            if case .noteOn = $0.event { return true }
+            return false
+        }
+        let snapshots = candidates(
+            plan: plan,
+            observations: noteOnObservations,
+            performanceStart: performanceStart,
+            activeTickRange: activeTickRange,
+            generation: generation
+        )
+        var usedEvents: Set<ScorePerformanceNoteEventID> = []
+        var links: [PerformanceAlignmentLink] = []
+
+        for snapshot in snapshots {
+            let available = snapshot.candidates.filter { usedEvents.contains($0.score.eventID) == false }
+            guard let best = available.first else {
+                links.append(.extra(
+                    observation: snapshot.observation,
+                    evidence: [.init(
+                        dimension: .pitch,
+                        status: .observed,
+                        cost: configuration.unmatchedCost
+                    )]
+                ))
+                continue
+            }
+            let tied = available.prefix { candidate in
+                candidate.totalCost - best.totalCost <= configuration.ambiguityCostTolerance
+            }
+            if tied.count > 1 {
+                links.append(.ambiguous(observation: snapshot.observation, candidates: Array(tied)))
+                continue
+            }
+            usedEvents.insert(best.score.eventID)
+            links.append(.aligned(
+                score: best.score,
+                observation: snapshot.observation,
+                evidence: best.evidence
+            ))
+        }
+
+        let activeEvents = plan.noteEvents.filter {
+            activeTickRange?.contains($0.performedOnTick) ?? true
+        }
+        links.append(contentsOf: activeEvents
+            .filter { usedEvents.contains($0.id) == false }
+            .map { event in
+                .missing(
+                    score: .init(event: event),
+                    evidence: [.init(
+                        dimension: .pitch,
+                        status: .observed,
+                        cost: configuration.unmatchedCost
+                    )]
+                )
+            })
+
+        return PerformanceAlignment(
+            planID: plan.id,
+            sourceGeneration: generation ?? observations.first?.source.generation ?? 0,
+            links: links
+        )
     }
 
     private func candidateSnapshot(
@@ -43,7 +141,8 @@ struct PerformanceAlignmentEngine: Sendable {
         timeMap: PlanTimeMap,
         performanceStart: PerformanceMonotonicInstant,
         activeTickRange: Range<Int>?,
-        generation: UInt64?
+        generation: UInt64?,
+        observedOnsets: [(Int, TimeInterval)]
     ) -> PerformanceAlignmentCandidateSnapshot {
         let reference = PerformanceAlignmentObservationReference(observation: observation)
         if let generation, observation.source.generation != generation {
@@ -79,20 +178,38 @@ struct PerformanceAlignmentEngine: Sendable {
 
         let candidates = matching.map { event in
             let onsetDeviation = observedSeconds - timeMap.seconds(at: event.performedOnTick)
+            let chordPitches = Set(plan.noteEvents.lazy
+                .filter { $0.performedOnTick == event.performedOnTick }
+                .map(\.midiNote))
+            let chordOnsets = observedOnsets
+                .filter { chordPitches.contains($0.0) }
+                .map(\.1)
+            let chordSpread = (chordOnsets.max().flatMap { maximum in
+                chordOnsets.min().map { maximum - $0 }
+            }) ?? 0
+            let pitchCost = event.midiNote == observedNote ? 0 : configuration.pitchMismatchCost
+            let onsetCost = abs(onsetDeviation) * configuration.onsetWeight
+            let chordCost = chordSpread * configuration.chordSpreadWeight
             return PerformanceAlignmentCandidate(
                 score: .init(event: event),
-                totalCost: abs(onsetDeviation),
+                totalCost: pitchCost + onsetCost + chordCost,
                 evidence: [
                     .init(
                         dimension: .pitch,
                         status: Self.evidenceStatus(pitchEvidence),
-                        cost: event.midiNote == observedNote ? 0 : 1
+                        cost: pitchCost
                     ),
                     .init(
                         dimension: .onset,
                         status: Self.evidenceStatus(observation.source.capabilities.onset),
-                        cost: abs(onsetDeviation),
+                        cost: onsetCost,
                         deviationSeconds: onsetDeviation
+                    ),
+                    .init(
+                        dimension: .chordSpread,
+                        status: Self.evidenceStatus(observation.source.capabilities.polyphony),
+                        cost: chordCost,
+                        deviationSeconds: chordSpread
                     ),
                 ]
             )
