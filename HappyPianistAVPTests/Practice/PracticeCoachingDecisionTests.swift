@@ -177,6 +177,7 @@ func decisionServiceUsesMeasureEvidenceAndSkipsCorrectResults() {
     #expect(decisions.map(\.issue.kind) == [.onset, .evidence])
     #expect(decisions.map(\.action.kind) == [.onsetAlignment, .evidenceCheck])
     #expect(decisions.allSatisfy { $0.issue.scoreRange == 0 ..< 480 })
+    #expect(decisions.allSatisfy { $0.issue.measureOccurrenceIDs == [occurrenceID] })
     #expect(decisions.allSatisfy { $0.issue.provenance.sourceGeneration == 7 })
     #expect(decisions.contains { $0.issue.kind == .pitch } == false)
 }

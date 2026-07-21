@@ -2,7 +2,6 @@ import Foundation
 
 struct PracticeHotspot: Equatable {
     let sourceMeasureID: PracticeSourceMeasureID
-    let failedAttempts: Int
 }
 
 enum PracticeNextAction: Equatable {

@@ -15,7 +15,8 @@ struct PracticeMeasureMapViewModel: Equatable {
         progress: SongPracticeProgress?,
         handMode: PracticeHandMode,
         currentPassage: PracticePassage?,
-        currentMeasure: PracticeSourceMeasureID?
+        currentMeasure: PracticeSourceMeasureID?,
+        coachingDecision: CoachingDecision? = nil
     ) {
         let facts = progress?.measureFacts.filter { $0.handMode == handMode } ?? []
         let currentSourceMeasureIDs = Set(measureSpans.compactMap { span -> PracticeSourceMeasureID? in
@@ -25,10 +26,7 @@ struct PracticeMeasureMapViewModel: Equatable {
             else { return nil }
             return span.occurrenceID.sourceMeasureID
         })
-        let hotspotFacts = currentPassage == nil
-            ? facts
-            : facts.filter { currentSourceMeasureIDs.contains($0.sourceMeasureID) }
-        let hotspot = PracticeHotspotPolicy().hotspot(in: hotspotFacts)?.sourceMeasureID
+        let hotspot = PracticeHotspotPolicy().hotspot(for: coachingDecision)?.sourceMeasureID
         var seen: Set<PracticeSourceMeasureID> = []
         items = measureSpans.compactMap { span in
             let id = span.occurrenceID.sourceMeasureID

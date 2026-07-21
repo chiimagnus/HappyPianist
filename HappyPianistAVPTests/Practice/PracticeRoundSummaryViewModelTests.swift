@@ -19,7 +19,8 @@ func roundSummaryContainsOnlyOneHotspotAndAction() throws {
         progress: progress,
         configuration: configuration,
         passageOccurrences: [occurrence],
-        isFullPassage: true
+        isFullPassage: true,
+        coachingDecision: feedbackDecision(source: source)
     ))
     #expect(summary.hotspot?.sourceMeasureID == source)
     #expect(summary.nextAction == .retryMeasure(source))
@@ -64,7 +65,8 @@ func roundSummaryUsesSourceTokensForPassageAndHotspot() throws {
             PracticeMeasureOccurrenceID(sourceMeasureID: start, occurrenceIndex: 0),
             PracticeMeasureOccurrenceID(sourceMeasureID: end, occurrenceIndex: 1),
         ],
-        isFullPassage: false
+        isFullPassage: false,
+        coachingDecision: feedbackDecision(source: start)
     ))
     #expect(summary.passageTitle == "第 12A–13 小节")
     #expect(summary.hotspotTitle == "第 12A 小节")

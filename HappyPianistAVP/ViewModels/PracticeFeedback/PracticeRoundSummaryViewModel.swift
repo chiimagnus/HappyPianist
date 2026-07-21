@@ -10,7 +10,8 @@ struct PracticeRoundSummaryViewModel: Equatable {
         progress: SongPracticeProgress?,
         configuration: PracticeRoundConfiguration?,
         passageOccurrences: [PracticeMeasureOccurrenceID],
-        isFullPassage: Bool
+        isFullPassage: Bool,
+        coachingDecision: CoachingDecision? = nil
     ) {
         guard let progress,
               let configuration,
@@ -26,13 +27,15 @@ struct PracticeRoundSummaryViewModel: Equatable {
             facts: facts,
             sourceMeasureIDs: passageSourceMeasureIDs
         )
-        hotspot = PracticeHotspotPolicy().hotspot(in: facts)
-        nextAction = PracticeNextActionPolicy().nextAction(for: PracticeFeedbackContext(
+        let feedbackContext = PracticeFeedbackContext(
             passageFacts: facts,
             passageSourceMeasureIDs: passageSourceMeasureIDs,
             configuration: configuration,
-            isFullPassage: isFullPassage
-        ))
+            isFullPassage: isFullPassage,
+            coachingDecision: coachingDecision
+        )
+        hotspot = PracticeHotspotPolicy().hotspot(for: coachingDecision)
+        nextAction = PracticeNextActionPolicy().nextAction(for: feedbackContext)
     }
 
     var actionTitle: String {

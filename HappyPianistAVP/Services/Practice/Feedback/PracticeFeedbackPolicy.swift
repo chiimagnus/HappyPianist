@@ -19,7 +19,8 @@ struct PracticeFeedbackPolicy {
         previousProgress: SongPracticeProgress?,
         progress: SongPracticeProgress,
         eventSequence: Int,
-        passageSourceMeasureIDs: Set<PracticeSourceMeasureID>
+        passageSourceMeasureIDs: Set<PracticeSourceMeasureID>,
+        coachingDecision: CoachingDecision? = nil
     ) -> [PracticeFeedbackEvent] {
         guard let fact else { return [] }
         switch fact {
@@ -46,7 +47,9 @@ struct PracticeFeedbackPolicy {
                 event(
                     sequence: eventSequence,
                     sourceMeasureID: nil,
-                    kind: hasStablePitchSteps ? .passagePitchStepsStable : .roundSummaryReady
+                    kind: hasStablePitchSteps && coachingDecision == nil
+                        ? .passagePitchStepsStable
+                        : .roundSummaryReady
                 ),
             ]
         }

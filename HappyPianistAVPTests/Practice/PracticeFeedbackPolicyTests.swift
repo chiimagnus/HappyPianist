@@ -117,6 +117,32 @@ func passageCompletionRequiresEveryExpectedMeasure() {
 }
 
 @Test
+func passageCompletionPresentsCoachingDecisionInsteadOfParallelStableCue() {
+    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r")
+    let source = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 0)
+    let progress = SongPracticeProgress(
+        identity: identity,
+        measureFacts: [MeasurePracticeFacts(
+            sourceMeasureID: source,
+            handMode: .both,
+            state: .pitchStepStable
+        )],
+        updatedAt: .now
+    )
+
+    let events = PracticeFeedbackPolicy().events(
+        for: .passageCompleted(handMode: .both),
+        previousProgress: progress,
+        progress: progress,
+        eventSequence: 1,
+        passageSourceMeasureIDs: [source],
+        coachingDecision: feedbackDecision(source: source)
+    )
+
+    #expect(events.map(\.kind) == [.roundSummaryReady])
+}
+
+@Test
 func repeatedIssueEventsHaveDistinctSequenceIdentity() {
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r")
     let source = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 0)

@@ -30,6 +30,7 @@ struct CoachingDecisionService: Sendable {
             issues(
                 in: scope.dimensions,
                 scoreRange: scope.scoreRange,
+                measureOccurrenceIDs: scope.measureOccurrenceIDs,
                 provenance: MusicalIssueProvenance(
                     planID: assessment.planID,
                     sourceGeneration: assessment.sourceGeneration,
@@ -41,13 +42,21 @@ struct CoachingDecisionService: Sendable {
 
     private func assessmentScopes(
         _ assessment: PassagePerformanceAssessment
-    ) -> [(scoreRange: Range<Int>, dimensions: [PerformanceAssessmentDimensionResult])] {
+    ) -> [(
+        scoreRange: Range<Int>,
+        measureOccurrenceIDs: [PracticeMeasureOccurrenceID],
+        dimensions: [PerformanceAssessmentDimensionResult]
+    )] {
         guard assessment.measures.isEmpty == false else {
-            return [(assessment.tickRange, assessment.dimensions)]
+            return [(assessment.tickRange, [], assessment.dimensions)]
         }
         return Dictionary(grouping: assessment.measures, by: \.tickRange)
             .map { range, measures in
-                (range, measures.flatMap(\.dimensions))
+                (
+                    range,
+                    measures.map(\.occurrenceID).sorted(by: Self.occurrenceOrder),
+                    measures.flatMap(\.dimensions)
+                )
             }
             .sorted { lhs, rhs in
                 if lhs.0.lowerBound != rhs.0.lowerBound {
@@ -60,6 +69,7 @@ struct CoachingDecisionService: Sendable {
     private func issues(
         in dimensions: [PerformanceAssessmentDimensionResult],
         scoreRange: Range<Int>,
+        measureOccurrenceIDs: [PracticeMeasureOccurrenceID],
         provenance: MusicalIssueProvenance
     ) -> [MusicalIssue] {
         var orderedKinds: [MusicalIssueKind] = []
@@ -88,10 +98,24 @@ struct CoachingDecisionService: Sendable {
             return MusicalIssue(
                 kind: kind,
                 scoreRange: scoreRange,
+                measureOccurrenceIDs: measureOccurrenceIDs,
                 dimensionResults: results,
                 confidence: confidence,
                 provenance: provenance
             )
         }
+    }
+
+    private static func occurrenceOrder(
+        _ lhs: PracticeMeasureOccurrenceID,
+        _ rhs: PracticeMeasureOccurrenceID
+    ) -> Bool {
+        if lhs.occurrenceIndex != rhs.occurrenceIndex {
+            return lhs.occurrenceIndex < rhs.occurrenceIndex
+        }
+        if lhs.sourceMeasureID.partID != rhs.sourceMeasureID.partID {
+            return lhs.sourceMeasureID.partID < rhs.sourceMeasureID.partID
+        }
+        return lhs.sourceMeasureID.sourceMeasureIndex < rhs.sourceMeasureID.sourceMeasureIndex
     }
 }
