@@ -330,6 +330,45 @@ func ambiguousAlignmentProducesInsufficientEvidenceInsteadOfWrongNotes() throws 
 }
 
 @Test
+func mixedResolvedAndAmbiguousEvidenceCannotBecomeCorrect() throws {
+    let events = [
+        makeAssessmentEvent(ordinal: 0, midiNote: 60),
+        makeAssessmentEvent(ordinal: 1, midiNote: 64, onTick: 480, offTick: 960),
+    ]
+    let plan = makeAssessmentPlan(events: events)
+    let alignedObservation = makeAssessmentObservation(time: 0, note: 60)
+    let ambiguousObservation = makeAssessmentObservation(time: 0.5, note: 64)
+    let candidate = PerformanceAlignmentCandidate(
+        score: .init(event: events[1]),
+        totalCost: 0,
+        evidence: [
+            .init(dimension: .pitch, status: .observed, cost: 0),
+            .init(dimension: .onset, status: .observed, cost: 0, deviationSeconds: 0),
+        ]
+    )
+    let alignment = PerformanceAlignment(
+        planID: plan.id,
+        sourceGeneration: 7,
+        links: [
+            makeAlignedLink(event: events[0], observation: alignedObservation, onsetDeviation: 0),
+            .ambiguous(observation: .init(observation: ambiguousObservation), candidates: [candidate]),
+        ]
+    )
+
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    for dimension in [PerformanceAssessmentDimension.exactPitch, .extraNotes, .missingNotes, .onset] {
+        let result = try assessmentResult(dimension, in: assessment)
+        #expect(result.outcome == .insufficientEvidence)
+        #expect(result.evidenceStatus == .insufficient)
+        #expect(result.evidence.contains { evidence in
+            if case let .ambiguousObservation(id) = evidence { id == ambiguousObservation.id } else { false }
+        })
+    }
+    let measure = try #require(assessment.measures.first)
+    #expect(measure.dimensions.first { $0.dimension == .exactPitch }?.outcome == .insufficientEvidence)
+}
+
+@Test
 func durationUsesPerformedTargetAndKeepsStaccatoRatioSeparateFromWrittenDuration() throws {
     let event = makeAssessmentEvent(offTick: 480, performedOffTick: 240)
     let plan = makeAssessmentPlan(events: [event])

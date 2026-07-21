@@ -82,6 +82,7 @@ enum PerformanceAssessmentEvidenceLink: Equatable, Sendable {
         observationID: UUID?
     )
     case unmatchedObservation(observationID: UUID)
+    case ambiguousObservation(observationID: UUID)
     case unknownObservation(observationID: UUID, reason: PerformanceAlignmentUnknownReason)
 }
 

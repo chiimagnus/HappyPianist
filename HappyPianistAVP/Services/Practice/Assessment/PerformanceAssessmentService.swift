@@ -203,7 +203,10 @@ struct PerformanceAssessmentService: Sendable {
                 tolerance: rubric.tolerance(for: .phraseContinuity, capabilities: capabilities)
             ),
         ]
-        return rubric.select(results, capabilities: capabilities)
+        return rubric.select(
+            results.map { addingUnresolvedEvidence(to: $0, links: links) },
+            capabilities: capabilities
+        )
     }
 
     private func exactPitchResult(
@@ -1272,7 +1275,7 @@ struct PerformanceAssessmentService: Sendable {
         links.compactMap { link in
             switch link {
             case let .ambiguous(observation, _):
-                .unknownObservation(observationID: observation.observationID, reason: .ambiguousKeyCandidate)
+                .ambiguousObservation(observationID: observation.observationID)
             case let .unknown(observation, reason):
                 .unknownObservation(observationID: observation.observationID, reason: reason)
             case let .provisional(score, observation, _):
@@ -1280,6 +1283,47 @@ struct PerformanceAssessmentService: Sendable {
             case .aligned, .missing, .extra:
                 nil
             }
+        }
+    }
+
+    private func addingUnresolvedEvidence(
+        to result: PerformanceAssessmentDimensionResult,
+        links: [PerformanceAlignmentLink]
+    ) -> PerformanceAssessmentDimensionResult {
+        guard result.evidenceStatus != .insufficient,
+              let alignmentDimension = alignmentDimension(for: result.dimension)
+        else { return result }
+        let unresolved = unresolvedEvidence(in: links, dimension: alignmentDimension)
+        guard unresolved.isEmpty == false else { return result }
+        return PerformanceAssessmentDimensionResult(
+            dimension: result.dimension,
+            outcome: result.outcome == .incorrect ? .incorrect : .insufficientEvidence,
+            evidenceStatus: .insufficient,
+            measurement: result.measurement,
+            sampleCount: result.sampleCount,
+            confidence: result.confidence,
+            evidence: result.evidence + unresolved
+        )
+    }
+
+    private func alignmentDimension(
+        for dimension: PerformanceAssessmentDimension
+    ) -> PerformanceAlignmentEvidenceDimension? {
+        switch dimension {
+        case .exactPitch, .extraNotes, .missingNotes:
+            .pitch
+        case .onset, .tempoRelativeTiming, .tempoContinuity, .phraseContinuity:
+            .onset
+        case .chordSpread:
+            .chordSpread
+        case .duration:
+            .duration
+        case .release, .articulation:
+            .release
+        case .velocity, .dynamicContour, .voicing:
+            .velocity
+        case .pedalTiming, .pedalValue:
+            nil
         }
     }
 
@@ -1302,9 +1346,9 @@ struct PerformanceAssessmentService: Sendable {
     private func aggregateStatus(
         _ statuses: [PerformanceAssessmentEvidenceStatus]
     ) -> PerformanceAssessmentEvidenceStatus {
+        if statuses.contains(.insufficient) { return .insufficient }
         if statuses.contains(.degraded) { return .degraded }
         if statuses.contains(.observed) { return .observed }
-        if statuses.contains(.insufficient) { return .insufficient }
         return .notObserved
     }
 
