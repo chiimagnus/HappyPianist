@@ -3,7 +3,7 @@ struct PracticeNextActionPolicy {
 
     func nextAction(for context: PracticeFeedbackContext) -> PracticeNextAction {
         guard let hotspot = hotspotPolicy.hotspot(in: context.passageFacts) else {
-            guard PracticePassageCoverage.isStable(
+            guard PracticePassageCoverage.hasStablePitchSteps(
                 facts: context.passageFacts,
                 sourceMeasureIDs: context.passageSourceMeasureIDs
             ) else {

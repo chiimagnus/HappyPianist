@@ -50,12 +50,12 @@ private extension PracticeIssueKind {
 }
 
 @Test
-func measureStableUsesSourceAndHandCompositeIdentity() {
+func measurePitchStepStabilityUsesSourceAndHandCompositeIdentity() {
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r")
     let id = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 0)
-    let left = MeasurePracticeFacts(sourceMeasureID: id, handMode: .left, state: .stable)
+    let left = MeasurePracticeFacts(sourceMeasureID: id, handMode: .left, state: .pitchStepStable)
     let rightLearning = MeasurePracticeFacts(sourceMeasureID: id, handMode: .right, state: .learning)
-    let rightStable = MeasurePracticeFacts(sourceMeasureID: id, handMode: .right, state: .stable)
+    let rightStable = MeasurePracticeFacts(sourceMeasureID: id, handMode: .right, state: .pitchStepStable)
     let previous = SongPracticeProgress(identity: identity, measureFacts: [left, rightLearning], updatedAt: .now)
     let current = SongPracticeProgress(identity: identity, measureFacts: [left, rightStable], updatedAt: .now)
     let events = PracticeFeedbackPolicy().events(
@@ -65,7 +65,7 @@ func measureStableUsesSourceAndHandCompositeIdentity() {
         eventSequence: 1,
         passageSourceMeasureIDs: [id]
     )
-    #expect(events.map(\.kind) == [.measureStable])
+    #expect(events.map(\.kind) == [.measurePitchStepsStable])
 }
 
 @Test
@@ -77,8 +77,8 @@ func passageCompletionUsesResolvedOccurrenceSourceIDs() {
     let progress = SongPracticeProgress(
         identity: identity,
         measureFacts: [
-            MeasurePracticeFacts(sourceMeasureID: source0, handMode: .both, state: .stable),
-            MeasurePracticeFacts(sourceMeasureID: source6, handMode: .both, state: .stable),
+            MeasurePracticeFacts(sourceMeasureID: source0, handMode: .both, state: .pitchStepStable),
+            MeasurePracticeFacts(sourceMeasureID: source6, handMode: .both, state: .pitchStepStable),
             MeasurePracticeFacts(sourceMeasureID: unrelated, handMode: .both, state: .learning),
         ],
         updatedAt: .now
@@ -92,7 +92,7 @@ func passageCompletionUsesResolvedOccurrenceSourceIDs() {
         passageSourceMeasureIDs: [source6, source0]
     )
 
-    #expect(events.map(\.kind) == [.passageStable])
+    #expect(events.map(\.kind) == [.passagePitchStepsStable])
 }
 
 @Test
@@ -102,7 +102,7 @@ func passageCompletionRequiresEveryExpectedMeasure() {
     let second = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 1)
     let progress = SongPracticeProgress(
         identity: identity,
-        measureFacts: [MeasurePracticeFacts(sourceMeasureID: first, handMode: .both, state: .stable)],
+        measureFacts: [MeasurePracticeFacts(sourceMeasureID: first, handMode: .both, state: .pitchStepStable)],
         updatedAt: .now
     )
 

@@ -82,7 +82,7 @@ func roundSummaryIgnoresFactsOutsideActivePassage() throws {
         identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "r"),
         measureFacts: [
             feedbackFacts(index: 0, failures: 9, issue: .wrongNote),
-            feedbackFacts(index: 1, state: .stable),
+            feedbackFacts(index: 1, state: .pitchStepStable),
         ],
         updatedAt: .now
     )
@@ -93,7 +93,7 @@ func roundSummaryIgnoresFactsOutsideActivePassage() throws {
         isFullPassage: false
     ))
     #expect(summary.hotspot == nil)
-    #expect(summary.isStable)
+    #expect(summary.hasStablePitchSteps)
     #expect(summary.detailText.contains("可以再照顾") == false)
 }
 
@@ -114,7 +114,7 @@ func roundSummaryRequiresEveryExpectedMeasure() throws {
     )
     let progress = SongPracticeProgress(
         identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "r"),
-        measureFacts: [MeasurePracticeFacts(sourceMeasureID: first, handMode: .both, state: .stable)],
+        measureFacts: [MeasurePracticeFacts(sourceMeasureID: first, handMode: .both, state: .pitchStepStable)],
         updatedAt: .now
     )
     let summary = try #require(PracticeRoundSummaryViewModel(
@@ -126,7 +126,7 @@ func roundSummaryRequiresEveryExpectedMeasure() throws {
         ],
         isFullPassage: false
     ))
-    #expect(summary.isStable == false)
+    #expect(summary.hasStablePitchSteps == false)
     #expect(summary.nextAction == .continuePassage)
 }
 

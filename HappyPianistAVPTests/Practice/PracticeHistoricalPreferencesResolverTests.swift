@@ -21,7 +21,7 @@ struct PracticeHistoricalPreferencesResolverTests {
         let oldFacts = MeasurePracticeFacts(
             sourceMeasureID: sourceMeasureID,
             handMode: .right,
-            state: .stable,
+            state: .pitchStepStable,
             successfulAttempts: 9,
             lastAttemptAt: Date(timeIntervalSince1970: 30)
         )

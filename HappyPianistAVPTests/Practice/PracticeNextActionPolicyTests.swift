@@ -20,7 +20,7 @@ func nextActionLowersTempoWithoutInventingAProblemHand() throws {
 
 @Test
 func nextActionExpandsStableFocusedPassage() throws {
-    let facts = feedbackFacts(index: 2, state: .stable)
+    let facts = feedbackFacts(index: 2, state: .pitchStepStable)
     let context = try feedbackContext(facts: [facts], isFullPassage: false)
     #expect(PracticeNextActionPolicy().nextAction(for: context) == .expandPassage)
 }

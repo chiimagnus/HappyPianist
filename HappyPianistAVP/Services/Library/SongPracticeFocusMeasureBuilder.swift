@@ -38,7 +38,7 @@ struct SongPracticeFocusMeasureBuilder {
         sourceMeasureID: PracticeSourceMeasureID,
         facts: [MeasurePracticeFacts]
     ) -> Candidate? {
-        let stableHands = Set(facts.filter { $0.state == .stable }.map(\.handMode))
+        let stableHands = Set(facts.filter { $0.state == .pitchStepStable }.map(\.handMode))
         guard stableHands.contains(.both) == false,
               (stableHands.contains(.left) && stableHands.contains(.right)) == false
         else {
@@ -101,17 +101,17 @@ enum SongPracticeMeasureFactOrder {
         if lhs.consecutiveSuccesses != rhs.consecutiveSuccesses {
             return lhs.consecutiveSuccesses > rhs.consecutiveSuccesses
         }
-        if lhs.highestStableTempoScale != rhs.highestStableTempoScale {
-            return (lhs.highestStableTempoScale ?? 0) > (rhs.highestStableTempoScale ?? 0)
+        if lhs.highestPitchStepStableTempoScale != rhs.highestPitchStepStableTempoScale {
+            return (lhs.highestPitchStepStableTempoScale ?? 0) > (rhs.highestPitchStepStableTempoScale ?? 0)
         }
         return (lhs.recentIssue?.rawValue ?? "") > (rhs.recentIssue?.rawValue ?? "")
     }
 
-    private static func statePriority(_ state: MeasureLearningState) -> Int {
+    private static func statePriority(_ state: MeasurePitchStepLearningState) -> Int {
         switch state {
         case .notStarted: 0
         case .learning: 1
-        case .stable: 2
+        case .pitchStepStable: 2
         }
     }
 }

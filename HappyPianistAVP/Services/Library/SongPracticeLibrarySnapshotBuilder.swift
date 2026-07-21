@@ -139,7 +139,7 @@ struct SongPracticeLibrarySnapshotBuilder: SongPracticeLibrarySnapshotBuilding {
     ) -> SongPracticeMeasureProgress {
         let sourceGroups = Dictionary(grouping: facts, by: \.sourceMeasureID)
         let stableSourceIDs = Set(sourceGroups.compactMap { sourceID, facts in
-            let stableHands = Set(facts.filter { $0.state == .stable }.map(\.handMode))
+            let stableHands = Set(facts.filter { $0.state == .pitchStepStable }.map(\.handMode))
             return stableHands.contains(.both) || (stableHands.contains(.left) && stableHands.contains(.right))
                 ? sourceID
                 : nil

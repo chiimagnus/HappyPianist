@@ -27,7 +27,7 @@ func configuredAttemptPersistsAndRebuildsAsPausedResume() async throws {
     await firstSession.flushAndShutdown()
 
     let saved = try #require(await repository.progress(for: identity))
-    #expect(saved.measureFacts.first?.state == .stable)
+    #expect(saved.measureFacts.first?.state == .pitchStepStable)
     #expect(saved.resumePoint?.stepIndex == 0)
 
     let secondCoordinator = PracticeProgressCoordinator(repository: repository, checkpointDelay: .seconds(60))

@@ -28,7 +28,7 @@ func historicalPreferencesApplyToCurrentFullPassageWithoutPersistingDefaultsOrOl
         measureFacts: [MeasurePracticeFacts(
             sourceMeasureID: oldSource,
             handMode: .left,
-            state: .stable,
+            state: .pitchStepStable,
             successfulAttempts: 9
         )],
         updatedAt: .now

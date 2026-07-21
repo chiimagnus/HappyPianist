@@ -20,7 +20,7 @@ func hotspotNeedsTypedIssueEvidence() {
 func feedbackFacts(
     index: Int,
     handMode: PracticeHandMode = .both,
-    state: MeasureLearningState = .learning,
+    state: MeasurePitchStepLearningState = .learning,
     failures: Int = 0,
     issue: PracticeIssueKind? = nil,
     date: Date? = nil

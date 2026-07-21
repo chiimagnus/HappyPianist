@@ -29,7 +29,7 @@ func invitationDependsOnSessionsNotMeasureAttempts() async {
     let progress = makeSnapshotProgress(
         songID: entry.id,
         revision: "current",
-        facts: [snapshotFact(0, hand: .both, state: .stable)]
+        facts: [snapshotFact(0, hand: .both, state: .pitchStepStable)]
     )
 
     #expect(await buildSnapshot(
@@ -78,10 +78,10 @@ func overviewMergesCurrentRevisionHandsAndCompletesThreeWayTotal() async throws 
         songID: entry.id,
         revision: revision,
         facts: [
-            snapshotFact(0, hand: .both, state: .stable),
-            snapshotFact(1, hand: .left, state: .stable),
-            snapshotFact(1, hand: .right, state: .stable),
-            snapshotFact(2, hand: .left, state: .stable),
+            snapshotFact(0, hand: .both, state: .pitchStepStable),
+            snapshotFact(1, hand: .left, state: .pitchStepStable),
+            snapshotFact(1, hand: .right, state: .pitchStepStable),
+            snapshotFact(2, hand: .left, state: .pitchStepStable),
             snapshotFact(3, hand: .both, state: .learning, failed: 2),
         ]
     )
@@ -115,9 +115,9 @@ func overviewStatusIsStableOnlyWhenEveryCurrentMeasureIsStable() async throws {
         songID: entry.id,
         revision: "current",
         facts: [
-            snapshotFact(0, hand: .both, state: .stable),
-            snapshotFact(1, hand: .left, state: .stable),
-            snapshotFact(1, hand: .right, state: .stable),
+            snapshotFact(0, hand: .both, state: .pitchStepStable),
+            snapshotFact(1, hand: .left, state: .pitchStepStable),
+            snapshotFact(1, hand: .right, state: .pitchStepStable),
         ]
     )
 
@@ -331,7 +331,7 @@ func snapshotBuildIsOrderIndependentForDuplicateProgressAndMetadata() async thro
     let first = makeSnapshotProgress(
         songID: entry.id,
         revision: "a",
-        facts: [snapshotFact(0, hand: .both, state: .stable)]
+        facts: [snapshotFact(0, hand: .both, state: .pitchStepStable)]
     )
     let second = makeSnapshotProgress(
         songID: entry.id,
@@ -435,7 +435,7 @@ private func makeSnapshotProgress(
 private func snapshotFact(
     _ index: Int,
     hand: PracticeHandMode,
-    state: MeasureLearningState,
+    state: MeasurePitchStepLearningState,
     issue: PracticeIssueKind? = nil,
     failed: Int = 0
 ) -> MeasurePracticeFacts {
@@ -443,7 +443,7 @@ private func snapshotFact(
         sourceMeasureID: snapshotSource(index),
         handMode: hand,
         state: state,
-        successfulAttempts: state == .stable ? 1 : 0,
+        successfulAttempts: state == .pitchStepStable ? 1 : 0,
         failedAttempts: failed,
         recentIssue: issue,
         lastAttemptAt: Date(timeIntervalSince1970: Double(index + 1))

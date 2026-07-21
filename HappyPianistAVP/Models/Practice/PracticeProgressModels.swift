@@ -261,10 +261,10 @@ struct PracticeResumePoint: Codable, Equatable {
     }
 }
 
-enum MeasureLearningState: String, Codable, Equatable {
+enum MeasurePitchStepLearningState: String, Codable, Equatable {
     case notStarted
     case learning
-    case stable
+    case pitchStepStable = "stable"
 }
 
 enum PracticeIssueKind: String, Codable, Equatable {
@@ -273,27 +273,62 @@ enum PracticeIssueKind: String, Codable, Equatable {
     case incompleteChord
 }
 
+enum MeasurePerformanceMaturity: String, Codable, Equatable, Sendable {
+    case insufficientEvidence
+    case developing
+    case mature
+}
+
+struct MeasurePerformanceMaturitySummary: Codable, Equatable, Sendable {
+    let maturity: MeasurePerformanceMaturity
+    let rubricVersion: String
+    let assessedDimensionCount: Int
+    let sampleCount: Int
+    let evidenceCoverage: Double?
+    let assessedAt: Date
+
+    init(
+        maturity: MeasurePerformanceMaturity,
+        rubricVersion: String,
+        assessedDimensionCount: Int,
+        sampleCount: Int,
+        evidenceCoverage: Double?,
+        assessedAt: Date
+    ) {
+        self.maturity = maturity
+        self.rubricVersion = rubricVersion
+        self.assessedDimensionCount = max(0, assessedDimensionCount)
+        self.sampleCount = max(0, sampleCount)
+        self.evidenceCoverage = evidenceCoverage.flatMap { value in
+            value.isFinite ? min(max(value, 0), 1) : nil
+        }
+        self.assessedAt = assessedAt
+    }
+}
+
 struct MeasurePracticeFacts: Codable, Equatable {
     let sourceMeasureID: PracticeSourceMeasureID
     let handMode: PracticeHandMode
-    var state: MeasureLearningState
+    var state: MeasurePitchStepLearningState
     var successfulAttempts: Int
     var failedAttempts: Int
     var consecutiveSuccesses: Int
-    var highestStableTempoScale: Double?
+    var highestPitchStepStableTempoScale: Double?
     var recentIssue: PracticeIssueKind?
     var lastAttemptAt: Date?
+    var performanceMaturity: MeasurePerformanceMaturitySummary?
 
     init(
         sourceMeasureID: PracticeSourceMeasureID,
         handMode: PracticeHandMode,
-        state: MeasureLearningState = .notStarted,
+        state: MeasurePitchStepLearningState = .notStarted,
         successfulAttempts: Int = 0,
         failedAttempts: Int = 0,
         consecutiveSuccesses: Int = 0,
-        highestStableTempoScale: Double? = nil,
+        highestPitchStepStableTempoScale: Double? = nil,
         recentIssue: PracticeIssueKind? = nil,
-        lastAttemptAt: Date? = nil
+        lastAttemptAt: Date? = nil,
+        performanceMaturity: MeasurePerformanceMaturitySummary? = nil
     ) {
         self.sourceMeasureID = sourceMeasureID
         self.handMode = handMode
@@ -301,11 +336,25 @@ struct MeasurePracticeFacts: Codable, Equatable {
         self.successfulAttempts = max(0, successfulAttempts)
         self.failedAttempts = max(0, failedAttempts)
         self.consecutiveSuccesses = max(0, consecutiveSuccesses)
-        self.highestStableTempoScale = highestStableTempoScale.map {
+        self.highestPitchStepStableTempoScale = highestPitchStepStableTempoScale.map {
             min(max($0, PracticeRoundConfiguration.supportedTempoRange.lowerBound), PracticeRoundConfiguration.supportedTempoRange.upperBound)
         }
         self.recentIssue = recentIssue
         self.lastAttemptAt = lastAttemptAt
+        self.performanceMaturity = performanceMaturity
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case sourceMeasureID
+        case handMode
+        case state
+        case successfulAttempts
+        case failedAttempts
+        case consecutiveSuccesses
+        case highestPitchStepStableTempoScale = "highestStableTempoScale"
+        case recentIssue
+        case lastAttemptAt
+        case performanceMaturity
     }
 }
 

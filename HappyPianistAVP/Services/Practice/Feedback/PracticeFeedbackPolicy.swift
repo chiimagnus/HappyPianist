@@ -2,8 +2,8 @@ import Foundation
 
 enum PracticeFeedbackEventKind: Equatable {
     case retryInvitation(issue: PracticeIssueKind)
-    case measureStable
-    case passageStable
+    case measurePitchStepsStable
+    case passagePitchStepsStable
     case roundSummaryReady
 }
 
@@ -26,15 +26,19 @@ struct PracticeFeedbackPolicy {
         case let .attemptIssue(sourceMeasureID, issue):
             return [event(sequence: eventSequence, sourceMeasureID: sourceMeasureID, kind: .retryInvitation(issue: issue))]
         case let .attemptMatched(sourceMeasureID, handMode):
-            guard state(of: sourceMeasureID, handMode: handMode, in: previousProgress) != .stable,
-                  state(of: sourceMeasureID, handMode: handMode, in: progress) == .stable
+            guard state(of: sourceMeasureID, handMode: handMode, in: previousProgress) != .pitchStepStable,
+                  state(of: sourceMeasureID, handMode: handMode, in: progress) == .pitchStepStable
             else { return [] }
-            return [event(sequence: eventSequence, sourceMeasureID: sourceMeasureID, kind: .measureStable)]
+            return [event(
+                sequence: eventSequence,
+                sourceMeasureID: sourceMeasureID,
+                kind: .measurePitchStepsStable
+            )]
         case let .passageCompleted(handMode):
             let passageFacts = progress.measureFacts.filter {
                 $0.handMode == handMode && passageSourceMeasureIDs.contains($0.sourceMeasureID)
             }
-            let stable = PracticePassageCoverage.isStable(
+            let hasStablePitchSteps = PracticePassageCoverage.hasStablePitchSteps(
                 facts: passageFacts,
                 sourceMeasureIDs: passageSourceMeasureIDs
             )
@@ -42,7 +46,7 @@ struct PracticeFeedbackPolicy {
                 event(
                     sequence: eventSequence,
                     sourceMeasureID: nil,
-                    kind: stable ? .passageStable : .roundSummaryReady
+                    kind: hasStablePitchSteps ? .passagePitchStepsStable : .roundSummaryReady
                 ),
             ]
         }
@@ -52,7 +56,7 @@ struct PracticeFeedbackPolicy {
         of id: PracticeSourceMeasureID,
         handMode: PracticeHandMode,
         in progress: SongPracticeProgress?
-    ) -> MeasureLearningState? {
+    ) -> MeasurePitchStepLearningState? {
         progress?.measureFacts.first { $0.sourceMeasureID == id && $0.handMode == handMode }?.state
     }
 

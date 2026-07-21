@@ -1,7 +1,7 @@
 struct PracticeMeasureMapItem: Equatable, Identifiable {
     let id: PracticeSourceMeasureID
     let displayNumber: String
-    let state: MeasureLearningState
+    let state: MeasurePitchStepLearningState
     let isCurrentPassage: Bool
     let isCurrentMeasure: Bool
     let isHotspot: Bool

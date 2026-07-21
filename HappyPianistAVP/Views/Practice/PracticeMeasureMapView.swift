@@ -26,11 +26,11 @@ struct PracticeMeasureMapView: View {
         .scrollIndicators(.hidden)
     }
 
-    private func icon(for state: MeasureLearningState) -> String {
-        switch state { case .notStarted: "circle"; case .learning: "circle.lefthalf.filled"; case .stable: "checkmark.circle.fill" }
+    private func icon(for state: MeasurePitchStepLearningState) -> String {
+        switch state { case .notStarted: "circle"; case .learning: "circle.lefthalf.filled"; case .pitchStepStable: "checkmark.circle.fill" }
     }
 
-    private func label(for state: MeasureLearningState) -> String {
-        switch state { case .notStarted: "尚未开始"; case .learning: "正在练习"; case .stable: "已经稳定" }
+    private func label(for state: MeasurePitchStepLearningState) -> String {
+        switch state { case .notStarted: "尚未开始"; case .learning: "正在练习"; case .pitchStepStable: "音符步骤已稳定" }
     }
 }

@@ -772,7 +772,7 @@ extension PracticeSessionViewModel {
 
             recordPassageCompletion()
             if self.activeRoundConfiguration?.loopEnabled == true,
-               self.isActivePassageStable == false,
+               self.hasStablePitchStepsInActivePassage == false,
                let firstStepIndex = self.activeRange?.firstStepIndex
             {
                 enqueueSessionRecorderEvent(.checkpoint)
@@ -848,7 +848,7 @@ extension PracticeSessionViewModel {
     private func completeManualAdvance() {
         recordPassageCompletion()
         if self.activeRoundConfiguration?.loopEnabled == true,
-           self.isActivePassageStable == false,
+           self.hasStablePitchStepsInActivePassage == false,
            let firstStepIndex = self.activeRange?.firstStepIndex
         {
             enqueueSessionRecorderEvent(.checkpoint)
@@ -876,12 +876,12 @@ extension PracticeSessionViewModel {
         moveToStep(firstStepIndex, shouldPlaySound: self.autoplayState == .off)
     }
 
-    private var isActivePassageStable: Bool {
+    private var hasStablePitchStepsInActivePassage: Bool {
         guard let configuration = self.activeRoundConfiguration,
               let progress = self.sessionProgress
         else { return false }
         let facts = progress.measureFacts.filter { $0.handMode == configuration.handMode }
-        return PracticePassageCoverage.isStable(
+        return PracticePassageCoverage.hasStablePitchSteps(
             facts: facts,
             sourceMeasureIDs: self.activeRange?.sourceMeasureIDs ?? []
         )

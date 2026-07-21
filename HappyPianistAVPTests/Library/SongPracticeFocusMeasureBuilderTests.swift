@@ -32,10 +32,10 @@ func focusBuilderUsesDeterministicLexicographicRankingAndLimit() {
 @Test
 func focusBuilderExcludesStableBothOrStableSeparateHands() {
     let progress = focusProgress([
-        focusFact(0, hand: .both, state: .stable, attemptedAt: 10),
-        focusFact(1, hand: .left, state: .stable, attemptedAt: 10),
-        focusFact(1, hand: .right, state: .stable, attemptedAt: 11),
-        focusFact(2, hand: .left, state: .stable, attemptedAt: 12),
+        focusFact(0, hand: .both, state: .pitchStepStable, attemptedAt: 10),
+        focusFact(1, hand: .left, state: .pitchStepStable, attemptedAt: 10),
+        focusFact(1, hand: .right, state: .pitchStepStable, attemptedAt: 11),
+        focusFact(2, hand: .left, state: .pitchStepStable, attemptedAt: 12),
     ])
 
     #expect(focusBuilder.build(from: progress) == [
@@ -107,7 +107,7 @@ private func focusProgress(_ facts: [MeasurePracticeFacts]) -> SongPracticeProgr
 private func focusFact(
     _ index: Int,
     hand: PracticeHandMode = .both,
-    state: MeasureLearningState = .learning,
+    state: MeasurePitchStepLearningState = .learning,
     issue: PracticeIssueKind? = nil,
     failed: Int = 0,
     attemptedAt: TimeInterval
@@ -116,7 +116,7 @@ private func focusFact(
         sourceMeasureID: focusSource(index),
         handMode: hand,
         state: state,
-        successfulAttempts: state == .stable ? 1 : 0,
+        successfulAttempts: state == .pitchStepStable ? 1 : 0,
         failedAttempts: failed,
         recentIssue: issue,
         lastAttemptAt: Date(timeIntervalSince1970: attemptedAt)

@@ -21,12 +21,12 @@ struct PracticeFeedbackContext: Equatable {
 }
 
 enum PracticePassageCoverage {
-    static func isStable(
+    static func hasStablePitchSteps(
         facts: [MeasurePracticeFacts],
         sourceMeasureIDs: Set<PracticeSourceMeasureID>
     ) -> Bool {
         guard sourceMeasureIDs.isEmpty == false else { return false }
-        let stableIDs = Set(facts.lazy.filter { $0.state == .stable }.map(\.sourceMeasureID))
+        let stableIDs = Set(facts.lazy.filter { $0.state == .pitchStepStable }.map(\.sourceMeasureID))
         return sourceMeasureIDs.isSubset(of: stableIDs)
     }
 }

@@ -1195,7 +1195,7 @@ private func makeLaunchProgress(
         measureFacts: [MeasurePracticeFacts(
             sourceMeasureID: source,
             handMode: handMode,
-            state: .stable,
+            state: .pitchStepStable,
             successfulAttempts: 9
         )],
         updatedAt: Date(timeIntervalSince1970: 99)

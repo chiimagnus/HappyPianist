@@ -24,8 +24,8 @@ struct PracticeFeedbackCuePresentation: Equatable {
             case .missedNote: "还有一个音在等你"
             case .incompleteChord: "让和弦一起落下"
             }
-        case .measureStable: "这个小节已经点亮"
-        case .passageStable: "这一段已经连起来了"
+        case .measurePitchStepsStable: "这个小节的音符步骤已稳定"
+        case .passagePitchStepsStable: "这一段的音符步骤已稳定"
         case .roundSummaryReady: "来看看这一轮"
         }
         if let id = event.sourceMeasureID {
@@ -35,7 +35,7 @@ struct PracticeFeedbackCuePresentation: Equatable {
         }
         systemImage = switch event.kind {
         case .retryInvitation: "arrow.clockwise"
-        case .measureStable, .passageStable: "sparkles"
+        case .measurePitchStepsStable, .passagePitchStepsStable: "sparkles"
         case .roundSummaryReady: "list.bullet.clipboard"
         }
     }
