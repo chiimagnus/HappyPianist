@@ -37,9 +37,18 @@ struct PerformanceAlignmentEngine: Sendable {
         let capability: PerformanceInputCapabilities.Evidence
     }
 
-    private struct TimedNote {
+    fileprivate struct TimedNote: Sendable {
         let event: ScorePerformanceNoteEvent
         let seconds: TimeInterval
+    }
+
+    struct PreparedPlan: Sendable {
+        fileprivate let plan: ScorePerformancePlan
+        fileprivate let timeMap: PlanTimeMap
+        fileprivate let activeNotes: [TimedNote]
+        fileprivate let chordEventsByTick: [Int: [ScorePerformanceNoteEvent]]
+        fileprivate let eventByID: [ScorePerformanceNoteEventID: ScorePerformanceNoteEvent]
+        fileprivate let controllerEvents: [ScorePerformanceControllerEvent]
     }
 
     private let configuration: PerformanceAlignmentConfiguration
@@ -52,6 +61,27 @@ struct PerformanceAlignmentEngine: Sendable {
         PlanTimeMap(plan: plan).seconds(at: tick)
     }
 
+    func prepare(
+        plan: ScorePerformancePlan,
+        activeTickRange: Range<Int>? = nil
+    ) -> PreparedPlan {
+        let timeMap = PlanTimeMap(plan: plan)
+        let activeNotes = plan.noteEvents.compactMap { event -> TimedNote? in
+            guard activeTickRange?.contains(event.performedOnTick) ?? true else { return nil }
+            return TimedNote(event: event, seconds: timeMap.seconds(at: event.performedOnTick))
+        }
+        return PreparedPlan(
+            plan: plan,
+            timeMap: timeMap,
+            activeNotes: activeNotes,
+            chordEventsByTick: Dictionary(grouping: activeNotes.map(\.event), by: \.performedOnTick),
+            eventByID: Dictionary(uniqueKeysWithValues: plan.noteEvents.map { ($0.id, $0) }),
+            controllerEvents: plan.controllerEvents.filter {
+                activeTickRange?.contains($0.tick) ?? true
+            }
+        )
+    }
+
     func candidates(
         plan: ScorePerformancePlan,
         observations: [PerformanceObservation],
@@ -59,30 +89,21 @@ struct PerformanceAlignmentEngine: Sendable {
         activeTickRange: Range<Int>? = nil,
         generation: UInt64? = nil
     ) -> [PerformanceAlignmentCandidateSnapshot] {
-        let timeMap = PlanTimeMap(plan: plan)
+        let preparedPlan = prepare(plan: plan, activeTickRange: activeTickRange)
         return candidates(
-            plan: plan,
+            preparedPlan: preparedPlan,
             observations: observations,
-            timeMap: timeMap,
             performanceStart: performanceStart,
-            activeTickRange: activeTickRange,
             generation: generation
         )
     }
 
     private func candidates(
-        plan: ScorePerformancePlan,
+        preparedPlan: PreparedPlan,
         observations: [PerformanceObservation],
-        timeMap: PlanTimeMap,
         performanceStart: PerformanceMonotonicInstant,
-        activeTickRange: Range<Int>?,
         generation: UInt64?
     ) -> [PerformanceAlignmentCandidateSnapshot] {
-        let activeNotes = plan.noteEvents.compactMap { event -> TimedNote? in
-            guard activeTickRange?.contains(event.performedOnTick) ?? true else { return nil }
-            return TimedNote(event: event, seconds: timeMap.seconds(at: event.performedOnTick))
-        }
-        let chordEventsByTick = Dictionary(grouping: activeNotes.map(\.event), by: \.performedOnTick)
         let observedOnsets = observations.compactMap { observation -> (Int, TimeInterval)? in
             guard observation.source.role != .systemPlayback,
                   generation.map({ observation.source.generation == $0 }) ?? true,
@@ -94,8 +115,8 @@ struct PerformanceAlignmentEngine: Sendable {
         return observations.map { observation in
             candidateSnapshot(
                 for: observation,
-                activeNotes: activeNotes,
-                chordEventsByTick: chordEventsByTick,
+                activeNotes: preparedPlan.activeNotes,
+                chordEventsByTick: preparedPlan.chordEventsByTick,
                 performanceStart: performanceStart,
                 generation: generation,
                 observedOnsetsByPitch: observedOnsetsByPitch
@@ -108,7 +129,24 @@ struct PerformanceAlignmentEngine: Sendable {
         observations: [PerformanceObservation],
         performanceStart: PerformanceMonotonicInstant,
         activeTickRange: Range<Int>? = nil,
-        generation: UInt64? = nil
+        generation: UInt64? = nil,
+        includeMissing: Bool = true
+    ) -> PerformanceAlignment {
+        align(
+            preparedPlan: prepare(plan: plan, activeTickRange: activeTickRange),
+            observations: observations,
+            performanceStart: performanceStart,
+            generation: generation,
+            includeMissing: includeMissing
+        )
+    }
+
+    func align(
+        preparedPlan: PreparedPlan,
+        observations: [PerformanceObservation],
+        performanceStart: PerformanceMonotonicInstant,
+        generation: UInt64? = nil,
+        includeMissing: Bool = true
     ) -> PerformanceAlignment {
         let acceptedObservations = observations.filter { observation in
             observation.source.role != .systemPlayback
@@ -117,19 +155,15 @@ struct PerformanceAlignmentEngine: Sendable {
         let relevantObservations = acceptedObservations.filter {
             $0.alignmentOnsetMIDINote != nil || $0.alignmentUnknownReason != nil
         }
-        let timeMap = PlanTimeMap(plan: plan)
         let snapshots = candidates(
-            plan: plan,
+            preparedPlan: preparedPlan,
             observations: relevantObservations,
-            timeMap: timeMap,
             performanceStart: performanceStart,
-            activeTickRange: activeTickRange,
             generation: generation
         )
         let releaseMeasurements = Self.releaseMeasurements(
             observations: acceptedObservations,
         )
-        let eventByID = Dictionary(uniqueKeysWithValues: plan.noteEvents.map { ($0.id, $0) })
         var usedEvents: Set<ScorePerformanceNoteEventID> = []
         var links: [PerformanceAlignmentLink] = []
         let observationByID = Dictionary(uniqueKeysWithValues: acceptedObservations.map { ($0.id, $0) })
@@ -161,11 +195,11 @@ struct PerformanceAlignmentEngine: Sendable {
                 continue
             }
             usedEvents.insert(best.score.eventID)
-            let releaseEvidence = eventByID[best.score.eventID].map { event in
+            let releaseEvidence = preparedPlan.eventByID[best.score.eventID].map { event in
                 Self.releaseEvidence(
                     measurement: releaseMeasurements[snapshot.observation.observationID],
                     event: event,
-                    timeMap: timeMap,
+                    timeMap: preparedPlan.timeMap,
                     unmatchedCost: configuration.unmatchedCost
                 )
             } ?? []
@@ -176,46 +210,41 @@ struct PerformanceAlignmentEngine: Sendable {
             ))
         }
 
-        let activeEvents = plan.noteEvents.filter {
-            activeTickRange?.contains($0.performedOnTick) ?? true
+        if includeMissing {
+            links.append(contentsOf: preparedPlan.activeNotes
+                .map(\.event)
+                .filter { usedEvents.contains($0.id) == false }
+                .map { event in
+                    .missing(
+                        score: .init(event: event),
+                        evidence: [.init(
+                            dimension: .pitch,
+                            status: .observed,
+                            cost: configuration.unmatchedCost
+                        )]
+                    )
+                })
         }
-        links.append(contentsOf: activeEvents
-            .filter { usedEvents.contains($0.id) == false }
-            .map { event in
-                .missing(
-                    score: .init(event: event),
-                    evidence: [.init(
-                        dimension: .pitch,
-                        status: .observed,
-                        cost: configuration.unmatchedCost
-                    )]
-                )
-            })
 
         return PerformanceAlignment(
-            planID: plan.id,
+            planID: preparedPlan.plan.id,
             sourceGeneration: generation ?? acceptedObservations.first?.source.generation ?? 0,
             links: links,
             controllerLinks: controllerLinks(
-                plan: plan,
+                scoreEvents: preparedPlan.controllerEvents,
                 observations: acceptedObservations,
                 performanceStart: performanceStart,
-                activeTickRange: activeTickRange,
-                timeMap: timeMap
+                timeMap: preparedPlan.timeMap
             )
         )
     }
 
     private func controllerLinks(
-        plan: ScorePerformancePlan,
+        scoreEvents: [ScorePerformanceControllerEvent],
         observations: [PerformanceObservation],
         performanceStart: PerformanceMonotonicInstant,
-        activeTickRange: Range<Int>?,
         timeMap: PlanTimeMap
     ) -> [PerformanceAlignmentControllerLink] {
-        let scoreEvents = plan.controllerEvents.filter {
-            activeTickRange?.contains($0.tick) ?? true
-        }
         let observed = observations.compactMap { observation -> (PerformanceObservation, Int, UInt8)? in
             guard case let .controller(.controlChange(number, value)) = observation.event else { return nil }
             return (observation, number, Self.midi7Bit(value))

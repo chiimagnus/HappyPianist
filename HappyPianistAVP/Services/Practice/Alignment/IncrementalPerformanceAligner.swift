@@ -30,10 +30,10 @@ struct IncrementalPerformanceAligner: Sendable {
     private(set) var appendSnapshot: PerformanceAlignment?
     private(set) var discardedObservationCount = 0
     private var plan: ScorePerformancePlan?
+    private var preparedPlan: PerformanceAlignmentEngine.PreparedPlan?
     private var generation: UInt64?
     private var sourceGenerations: [SourceIdentity: UInt64] = [:]
     private var performanceStart = PerformanceMonotonicInstant(seconds: 0)
-    private var activeTickRange: Range<Int>?
     private var observations: [PerformanceObservation] = []
     private var lastTimestamp: PerformanceMonotonicInstant?
     private var committedLinks: [ScorePerformanceNoteEventID: PerformanceAlignmentLink] = [:]
@@ -56,9 +56,9 @@ struct IncrementalPerformanceAligner: Sendable {
     ) {
         reset()
         self.plan = plan
+        preparedPlan = engine.prepare(plan: plan, activeTickRange: activeTickRange)
         self.generation = generation
         self.performanceStart = performanceStart
-        self.activeTickRange = activeTickRange
         state = .running
         appendSnapshot = nil
     }
@@ -87,18 +87,17 @@ struct IncrementalPerformanceAligner: Sendable {
     }
 
     mutating func rangeChange(_ range: Range<Int>?) {
-        guard state == .running else { return }
-        activeTickRange = range
+        guard state == .running, let plan else { return }
+        preparedPlan = engine.prepare(plan: plan, activeTickRange: range)
         clearRunEvidence()
     }
 
     mutating func finish() -> PerformanceAlignment? {
-        guard state == .running, let plan else { return nil }
+        guard state == .running, let preparedPlan else { return nil }
         let final = engine.align(
-            plan: plan,
+            preparedPlan: preparedPlan,
             observations: observations,
             performanceStart: performanceStart,
-            activeTickRange: activeTickRange,
             generation: generation
         )
         state = .finished
@@ -111,21 +110,21 @@ struct IncrementalPerformanceAligner: Sendable {
         appendSnapshot = nil
         discardedObservationCount = 0
         plan = nil
+        preparedPlan = nil
         generation = nil
         sourceGenerations.removeAll(keepingCapacity: true)
         performanceStart = .init(seconds: 0)
-        activeTickRange = nil
         clearRunEvidence()
     }
 
     private func liveSnapshot() -> PerformanceAlignment? {
-        guard let plan else { return nil }
+        guard let preparedPlan else { return nil }
         let alignment = engine.align(
-            plan: plan,
+            preparedPlan: preparedPlan,
             observations: observations,
             performanceStart: performanceStart,
-            activeTickRange: activeTickRange,
-            generation: generation
+            generation: generation,
+            includeMissing: false
         )
         return mergingCommitted(into: provisionalizing(alignment), includeMissing: false)
     }
