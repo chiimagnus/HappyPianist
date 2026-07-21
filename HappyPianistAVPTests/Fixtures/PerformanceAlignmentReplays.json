@@ -1,0 +1,101 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "timing-chord-extra-missing",
+      "coverage": ["correct", "early", "late", "serial-chord", "extra", "missing"],
+      "notes": [
+        { "sourceOrdinal": 0, "occurrenceIndex": 0, "midiNote": 60, "onTick": 0 },
+        { "sourceOrdinal": 1, "occurrenceIndex": 0, "midiNote": 64, "onTick": 0 },
+        { "sourceOrdinal": 2, "occurrenceIndex": 0, "midiNote": 67, "onTick": 480 },
+        { "sourceOrdinal": 3, "occurrenceIndex": 0, "midiNote": 69, "onTick": 960 },
+        { "sourceOrdinal": 4, "occurrenceIndex": 0, "midiNote": 71, "onTick": 1440 }
+      ],
+      "observations": [
+        { "kind": "noteOn", "midiNote": 60, "seconds": 0.0 },
+        { "kind": "noteOn", "midiNote": 64, "seconds": 0.08 },
+        { "kind": "noteOn", "midiNote": 67, "seconds": 0.4 },
+        { "kind": "noteOn", "midiNote": 69, "seconds": 1.1 },
+        { "kind": "noteOn", "midiNote": 61, "seconds": 4.0 }
+      ],
+      "expected": {
+        "aligned": 4,
+        "missing": 1,
+        "extra": 1,
+        "ambiguous": 0,
+        "controllerLinks": 0,
+        "requiresEarly": true,
+        "requiresLate": true,
+        "requiresChordSpread": true,
+        "performedOccurrences": [0]
+      }
+    },
+    {
+      "id": "performed-repeat",
+      "coverage": ["repeat"],
+      "notes": [
+        { "sourceOrdinal": 0, "occurrenceIndex": 0, "midiNote": 60, "onTick": 0 },
+        { "sourceOrdinal": 0, "occurrenceIndex": 1, "midiNote": 60, "onTick": 960 }
+      ],
+      "observations": [
+        { "kind": "noteOn", "midiNote": 60, "seconds": 0.0 },
+        { "kind": "noteOn", "midiNote": 60, "seconds": 1.0 }
+      ],
+      "expected": {
+        "aligned": 2,
+        "missing": 0,
+        "extra": 0,
+        "ambiguous": 0,
+        "controllerLinks": 0,
+        "requiresEarly": false,
+        "requiresLate": false,
+        "requiresChordSpread": false,
+        "performedOccurrences": [0, 1]
+      }
+    },
+    {
+      "id": "polyphonic-unison-ambiguous",
+      "coverage": ["unison", "ambiguous"],
+      "notes": [
+        { "sourceOrdinal": 0, "occurrenceIndex": 0, "midiNote": 60, "onTick": 0 },
+        { "sourceOrdinal": 1, "occurrenceIndex": 0, "midiNote": 60, "onTick": 0 }
+      ],
+      "observations": [
+        { "kind": "noteOn", "midiNote": 60, "seconds": 0.0 }
+      ],
+      "expected": {
+        "aligned": 0,
+        "missing": 2,
+        "extra": 0,
+        "ambiguous": 1,
+        "controllerLinks": 0,
+        "requiresEarly": false,
+        "requiresLate": false,
+        "requiresChordSpread": false,
+        "performedOccurrences": [0]
+      }
+    },
+    {
+      "id": "sustain-pedal",
+      "coverage": ["pedal"],
+      "notes": [
+        { "sourceOrdinal": 0, "occurrenceIndex": 0, "midiNote": 60, "onTick": 0 }
+      ],
+      "observations": [
+        { "kind": "noteOn", "midiNote": 60, "seconds": 0.0 },
+        { "kind": "pedal", "seconds": 0.05, "value": 80 }
+      ],
+      "expected": {
+        "aligned": 1,
+        "missing": 0,
+        "extra": 0,
+        "ambiguous": 0,
+        "controllerLinks": 1,
+        "requiresEarly": false,
+        "requiresLate": false,
+        "requiresChordSpread": false,
+        "performedOccurrences": [0]
+      }
+    }
+  ]
+}

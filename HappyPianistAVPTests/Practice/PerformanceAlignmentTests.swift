@@ -427,7 +427,127 @@ func insufficientEvidenceIsUnknownAndLiveLinksStayProvisionalUntilCommitHorizon(
     #expect(final.links.contains { if case .provisional = $0 { true } else { false } } == false)
 }
 
+@Test
+func goldenAlignmentReplaysCoverRequiredPerformanceCases() throws {
+    let corpus = try PerformanceAlignmentReplayCorpusLoader().load()
+    let requiredCoverage: Set<String> = [
+        "correct", "early", "late", "serial-chord", "extra", "missing",
+        "repeat", "unison", "pedal", "ambiguous",
+    ]
+    #expect(Set(corpus.cases.flatMap(\.coverage)) == requiredCoverage)
+
+    for replayCase in corpus.cases {
+        let noteEvents = replayCase.notes.map { note in
+            makeAlignmentEvent(
+                sourceID: makeAlignmentSourceID(ordinal: note.sourceOrdinal),
+                occurrenceIndex: note.occurrenceIndex,
+                midiNote: note.midiNote,
+                onTick: note.onTick
+            )
+        }
+        let controllerEvents = replayCase.observations.contains { $0.kind == .pedal }
+            ? [ScorePerformanceControllerEvent(
+                sourceDirectionID: nil,
+                performedOccurrenceIndex: 0,
+                tick: 0,
+                controllerNumber: 64,
+                value: 80,
+                outputCapabilityRequirement: .continuousControlChange
+            )]
+            : []
+        let plan = makeAlignmentPlan(noteEvents: noteEvents, controllerEvents: controllerEvents)
+        let observations = replayCase.observations.map { observation in
+            let event: PerformanceObservation.Event = switch observation.kind {
+            case .noteOn:
+                .noteOn(note: observation.midiNote ?? 0, velocity: .init(midi1: 90))
+            case .pedal:
+                .controller(.controlChange(number: 64, value: .init(midi1: observation.value ?? 0)))
+            }
+            return makeAlignmentObservation(
+                generation: 1,
+                note: observation.midiNote ?? 0,
+                seconds: observation.seconds,
+                event: event
+            )
+        }
+        let alignment = PerformanceAlignmentEngine().align(
+            plan: plan,
+            observations: observations,
+            performanceStart: .init(seconds: 0),
+            generation: 1
+        )
+        let counts = alignment.links.reduce(into: [String: Int]()) { counts, link in
+            let key = switch link {
+            case .aligned: "aligned"
+            case .missing: "missing"
+            case .extra: "extra"
+            case .ambiguous: "ambiguous"
+            case .unknown: "unknown"
+            case .provisional: "provisional"
+            }
+            counts[key, default: 0] += 1
+        }
+        let expected = replayCase.expected
+        #expect(counts["aligned", default: 0] == expected.aligned, "case=\(replayCase.id)")
+        #expect(counts["missing", default: 0] == expected.missing, "case=\(replayCase.id)")
+        #expect(counts["extra", default: 0] == expected.extra, "case=\(replayCase.id)")
+        #expect(counts["ambiguous", default: 0] == expected.ambiguous, "case=\(replayCase.id)")
+        #expect(counts["unknown", default: 0] == 0, "case=\(replayCase.id)")
+        #expect(counts["provisional", default: 0] == 0, "case=\(replayCase.id)")
+        #expect(alignment.controllerLinks.count == expected.controllerLinks, "case=\(replayCase.id)")
+        #expect(Set(noteEvents.map(\.performedOccurrenceIndex)).sorted() == expected.performedOccurrences)
+
+        let evidence = alignment.links.flatMap { link -> [PerformanceAlignmentEvidence] in
+            guard case let .aligned(_, _, evidence) = link else { return [] }
+            return evidence
+        }
+        #expect(expected.requiresEarly == evidence.contains {
+            $0.dimension == .onset && ($0.deviationSeconds ?? 0) < -0.05
+        }, "case=\(replayCase.id)")
+        #expect(expected.requiresLate == evidence.contains {
+            $0.dimension == .onset && ($0.deviationSeconds ?? 0) > 0.05
+        }, "case=\(replayCase.id)")
+        #expect(expected.requiresChordSpread == evidence.contains {
+            $0.dimension == .chordSpread && abs($0.deviationSeconds ?? 0) > 0.05
+        }, "case=\(replayCase.id)")
+    }
+}
+
+@Test
+func incrementalAlignmentKeepsLongScoreReplayBounded() {
+    let eventCount = 512
+    let events = (0 ..< eventCount).map { index in
+        makeAlignmentEvent(
+            sourceID: makeAlignmentSourceID(ordinal: index),
+            occurrenceIndex: 0,
+            midiNote: 48 + index % 36,
+            onTick: index * 120
+        )
+    }
+    let plan = makeAlignmentPlan(noteEvents: events)
+    var aligner = IncrementalPerformanceAligner(
+        configuration: .init(maximumBufferedObservations: 32, commitHorizonSeconds: 0.2)
+    )
+    aligner.start(plan: plan, generation: 1, performanceStart: .init(seconds: 0))
+
+    let elapsed = ContinuousClock().measure {
+        for event in events {
+            _ = aligner.append(makeAlignmentObservation(
+                generation: 1,
+                note: event.midiNote,
+                seconds: Double(event.performedOnTick) / 960
+            ))
+        }
+    }
+    #expect(aligner.bufferedObservationCount <= 32)
+    _ = aligner.finish()
+
+    // ponytail: broad regression ceiling; replace with Instruments metrics if this debug-simulator check exceeds 5 seconds.
+    #expect(elapsed < .seconds(5))
+}
+
 private func makeAlignmentObservation(
+    id: UUID = UUID(),
     generation: UInt64,
     note: Int = 60,
     seconds: TimeInterval = 12,
@@ -437,7 +557,7 @@ private func makeAlignmentObservation(
     role: PerformanceObservation.Source.Role = .userPerformance
 ) -> PerformanceObservation {
     PerformanceObservation(
-        id: UUID(uuidString: "00000000-0000-0000-0000-000000000123")!,
+        id: id,
         source: .init(
             kind: .midi1,
             id: "midi:test",

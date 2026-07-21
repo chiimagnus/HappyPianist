@@ -37,6 +37,8 @@ struct IncrementalPerformanceAligner: Sendable {
     private var lastTimestamp: PerformanceMonotonicInstant?
     private var committedLinks: [ScorePerformanceNoteEventID: PerformanceAlignmentLink] = [:]
 
+    var bufferedObservationCount: Int { observations.count }
+
     init(
         engine: PerformanceAlignmentEngine = .init(),
         configuration: Configuration = .init()

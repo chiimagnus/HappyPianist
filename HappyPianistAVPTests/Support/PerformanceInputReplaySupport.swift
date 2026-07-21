@@ -53,6 +53,79 @@ struct PerformanceObservationReplayFixtureLoader {
     }
 }
 
+enum PerformanceAlignmentReplayCorpusError: Error, Equatable {
+    case unsupportedSchemaVersion(Int)
+}
+
+struct PerformanceAlignmentReplayCorpus: Decodable {
+    struct ReplayCase: Decodable {
+        struct Note: Decodable {
+            let sourceOrdinal: Int
+            let occurrenceIndex: Int
+            let midiNote: Int
+            let onTick: Int
+        }
+
+        struct Observation: Decodable {
+            enum Kind: String, Decodable {
+                case noteOn
+                case pedal
+            }
+
+            let kind: Kind
+            let midiNote: Int?
+            let seconds: TimeInterval
+            let value: Int?
+        }
+
+        struct Expected: Decodable {
+            let aligned: Int
+            let missing: Int
+            let extra: Int
+            let ambiguous: Int
+            let controllerLinks: Int
+            let requiresEarly: Bool
+            let requiresLate: Bool
+            let requiresChordSpread: Bool
+            let performedOccurrences: [Int]
+        }
+
+        let id: String
+        let coverage: [String]
+        let notes: [Note]
+        let observations: [Observation]
+        let expected: Expected
+    }
+
+    static let currentSchemaVersion = 1
+
+    let cases: [ReplayCase]
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let schemaVersion = try container.decode(Int.self, forKey: .schemaVersion)
+        guard schemaVersion == Self.currentSchemaVersion else {
+            throw PerformanceAlignmentReplayCorpusError.unsupportedSchemaVersion(schemaVersion)
+        }
+        cases = try container.decode([ReplayCase].self, forKey: .cases)
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion
+        case cases
+    }
+}
+
+struct PerformanceAlignmentReplayCorpusLoader {
+    func load(filePath: StaticString = #filePath) throws -> PerformanceAlignmentReplayCorpus {
+        let data = try Data(contentsOf: testFixtureURL(
+            "PerformanceAlignmentReplays.json",
+            filePath: filePath
+        ))
+        return try JSONDecoder().decode(PerformanceAlignmentReplayCorpus.self, from: data)
+    }
+}
+
 enum SyntheticHandContactTraceFixtureError: Error, Equatable {
     case unsupportedSchemaVersion(Int)
     case missingKey(Int)
