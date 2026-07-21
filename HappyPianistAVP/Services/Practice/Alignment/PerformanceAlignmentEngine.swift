@@ -37,6 +37,11 @@ struct PerformanceAlignmentEngine: Sendable {
         let capability: PerformanceInputCapabilities.Evidence
     }
 
+    private struct TimedNote {
+        let event: ScorePerformanceNoteEvent
+        let seconds: TimeInterval
+    }
+
     private let configuration: PerformanceAlignmentConfiguration
 
     init(configuration: PerformanceAlignmentConfiguration = .init()) {
@@ -55,6 +60,29 @@ struct PerformanceAlignmentEngine: Sendable {
         generation: UInt64? = nil
     ) -> [PerformanceAlignmentCandidateSnapshot] {
         let timeMap = PlanTimeMap(plan: plan)
+        return candidates(
+            plan: plan,
+            observations: observations,
+            timeMap: timeMap,
+            performanceStart: performanceStart,
+            activeTickRange: activeTickRange,
+            generation: generation
+        )
+    }
+
+    private func candidates(
+        plan: ScorePerformancePlan,
+        observations: [PerformanceObservation],
+        timeMap: PlanTimeMap,
+        performanceStart: PerformanceMonotonicInstant,
+        activeTickRange: Range<Int>?,
+        generation: UInt64?
+    ) -> [PerformanceAlignmentCandidateSnapshot] {
+        let activeNotes = plan.noteEvents.compactMap { event -> TimedNote? in
+            guard activeTickRange?.contains(event.performedOnTick) ?? true else { return nil }
+            return TimedNote(event: event, seconds: timeMap.seconds(at: event.performedOnTick))
+        }
+        let chordEventsByTick = Dictionary(grouping: activeNotes.map(\.event), by: \.performedOnTick)
         let observedOnsets = observations.compactMap { observation -> (Int, TimeInterval)? in
             guard observation.source.role != .systemPlayback,
                   generation.map({ observation.source.generation == $0 }) ?? true,
@@ -62,15 +90,15 @@ struct PerformanceAlignmentEngine: Sendable {
             else { return nil }
             return (note, max(0, observation.alignmentTimestamp.seconds - performanceStart.seconds))
         }
+        let observedOnsetsByPitch = Dictionary(grouping: observedOnsets, by: \.0)
         return observations.map { observation in
             candidateSnapshot(
                 for: observation,
-                plan: plan,
-                timeMap: timeMap,
+                activeNotes: activeNotes,
+                chordEventsByTick: chordEventsByTick,
                 performanceStart: performanceStart,
-                activeTickRange: activeTickRange,
                 generation: generation,
-                observedOnsets: observedOnsets
+                observedOnsetsByPitch: observedOnsetsByPitch
             )
         }
     }
@@ -89,9 +117,11 @@ struct PerformanceAlignmentEngine: Sendable {
         let relevantObservations = acceptedObservations.filter {
             $0.alignmentOnsetMIDINote != nil || $0.alignmentUnknownReason != nil
         }
+        let timeMap = PlanTimeMap(plan: plan)
         let snapshots = candidates(
             plan: plan,
             observations: relevantObservations,
+            timeMap: timeMap,
             performanceStart: performanceStart,
             activeTickRange: activeTickRange,
             generation: generation
@@ -99,7 +129,6 @@ struct PerformanceAlignmentEngine: Sendable {
         let releaseMeasurements = Self.releaseMeasurements(
             observations: acceptedObservations,
         )
-        let timeMap = PlanTimeMap(plan: plan)
         let eventByID = Dictionary(uniqueKeysWithValues: plan.noteEvents.map { ($0.id, $0) })
         var usedEvents: Set<ScorePerformanceNoteEventID> = []
         var links: [PerformanceAlignmentLink] = []
@@ -231,12 +260,11 @@ struct PerformanceAlignmentEngine: Sendable {
 
     private func candidateSnapshot(
         for observation: PerformanceObservation,
-        plan: ScorePerformancePlan,
-        timeMap: PlanTimeMap,
+        activeNotes: [TimedNote],
+        chordEventsByTick: [Int: [ScorePerformanceNoteEvent]],
         performanceStart: PerformanceMonotonicInstant,
-        activeTickRange: Range<Int>?,
         generation: UInt64?,
-        observedOnsets: [(Int, TimeInterval)]
+        observedOnsetsByPitch: [Int: [(Int, TimeInterval)]]
     ) -> PerformanceAlignmentCandidateSnapshot {
         let reference = PerformanceAlignmentObservationReference(observation: observation)
         if let generation, observation.source.generation != generation {
@@ -246,16 +274,13 @@ struct PerformanceAlignmentEngine: Sendable {
             return .init(observation: reference, candidates: [], noCandidateReason: .unsupportedObservation)
         }
 
-        let activeNotes = plan.noteEvents.filter { event in
-            activeTickRange?.contains(event.performedOnTick) ?? true
-        }
         guard activeNotes.isEmpty == false else {
             return .init(observation: reference, candidates: [], noCandidateReason: .outsideActiveRange)
         }
 
         let observedSeconds = max(0, observation.alignmentTimestamp.seconds - performanceStart.seconds)
-        let temporal = activeNotes.filter { event in
-            abs(timeMap.seconds(at: event.performedOnTick) - observedSeconds)
+        let temporal = activeNotes.filter { timedNote in
+            abs(timedNote.seconds - observedSeconds)
                 <= configuration.candidateWindowSeconds
         }
         guard temporal.isEmpty == false else {
@@ -267,12 +292,13 @@ struct PerformanceAlignmentEngine: Sendable {
             return .init(observation: reference, candidates: [], noCandidateReason: .noPitchCandidate)
         }
         let pitchMatching = pitchEvidence == .observed
-            ? temporal.filter { $0.midiNote == observedNote }
+            ? temporal.filter { $0.event.midiNote == observedNote }
             : temporal
-        let matching: [ScorePerformanceNoteEvent]
+        let matching: [TimedNote]
         if let observedHand = observation.hand {
-            matching = pitchMatching.filter { event in
-                event.handAssignment.hand == .unknown || event.handAssignment.hand == observedHand
+            matching = pitchMatching.filter { timedNote in
+                timedNote.event.handAssignment.hand == .unknown
+                    || timedNote.event.handAssignment.hand == observedHand
             }
         } else {
             matching = pitchMatching
@@ -285,19 +311,19 @@ struct PerformanceAlignmentEngine: Sendable {
             )
         }
 
-        let candidates = matching.map { event in
-            let onsetDeviation = observedSeconds - timeMap.seconds(at: event.performedOnTick)
-            let chordEvents = plan.noteEvents.filter { $0.performedOnTick == event.performedOnTick }
+        let candidates = matching.map { timedNote in
+            let event = timedNote.event
+            let onsetDeviation = observedSeconds - timedNote.seconds
+            let chordEvents = chordEventsByTick[event.performedOnTick] ?? []
             let measuresChordSpread = chordEvents.count > 1
                 && chordEvents.contains { note in
                     note.timingProvenance.contains { $0.kind == .arpeggio }
                 } == false
-            let chordSeconds = timeMap.seconds(at: event.performedOnTick)
+            let chordSeconds = timedNote.seconds
             let chordOnsets = measuresChordSpread ? chordEvents.compactMap { chordEvent in
-                observedOnsets
+                observedOnsetsByPitch[chordEvent.midiNote]?
                     .filter {
-                        $0.0 == chordEvent.midiNote
-                            && abs($0.1 - chordSeconds) <= configuration.candidateWindowSeconds
+                        abs($0.1 - chordSeconds) <= configuration.candidateWindowSeconds
                     }
                     .min { abs($0.1 - chordSeconds) < abs($1.1 - chordSeconds) }?
                     .1
