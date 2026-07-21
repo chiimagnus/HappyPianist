@@ -32,6 +32,11 @@ struct PerformanceAlignmentConfiguration: Equatable, Sendable {
 }
 
 struct PerformanceAlignmentEngine: Sendable {
+    private struct ReleaseMeasurement {
+        let duration: TimeInterval?
+        let capability: PerformanceInputCapabilities.Evidence
+    }
+
     private let configuration: PerformanceAlignmentConfiguration
 
     init(configuration: PerformanceAlignmentConfiguration = .init()) {
@@ -81,6 +86,11 @@ struct PerformanceAlignmentEngine: Sendable {
             activeTickRange: activeTickRange,
             generation: generation
         )
+        let releaseMeasurements = Self.releaseMeasurements(
+            observations: observations,
+        )
+        let timeMap = PlanTimeMap(plan: plan)
+        let eventByID = Dictionary(uniqueKeysWithValues: plan.noteEvents.map { ($0.id, $0) })
         var usedEvents: Set<ScorePerformanceNoteEventID> = []
         var links: [PerformanceAlignmentLink] = []
 
@@ -105,10 +115,18 @@ struct PerformanceAlignmentEngine: Sendable {
                 continue
             }
             usedEvents.insert(best.score.eventID)
+            let releaseEvidence = eventByID[best.score.eventID].map { event in
+                Self.releaseEvidence(
+                    measurement: releaseMeasurements[snapshot.observation.observationID],
+                    event: event,
+                    timeMap: timeMap,
+                    unmatchedCost: configuration.unmatchedCost
+                )
+            } ?? []
             links.append(.aligned(
                 score: best.score,
                 observation: snapshot.observation,
-                evidence: best.evidence
+                evidence: best.evidence + releaseEvidence
             ))
         }
 
@@ -131,8 +149,67 @@ struct PerformanceAlignmentEngine: Sendable {
         return PerformanceAlignment(
             planID: plan.id,
             sourceGeneration: generation ?? observations.first?.source.generation ?? 0,
-            links: links
+            links: links,
+            controllerLinks: controllerLinks(
+                plan: plan,
+                observations: observations,
+                performanceStart: performanceStart,
+                activeTickRange: activeTickRange,
+                timeMap: timeMap
+            )
         )
+    }
+
+    private func controllerLinks(
+        plan: ScorePerformancePlan,
+        observations: [PerformanceObservation],
+        performanceStart: PerformanceMonotonicInstant,
+        activeTickRange: Range<Int>?,
+        timeMap: PlanTimeMap
+    ) -> [PerformanceAlignmentControllerLink] {
+        let scoreEvents = plan.controllerEvents.filter {
+            activeTickRange?.contains($0.tick) ?? true
+        }
+        let observed = observations.compactMap { observation -> (PerformanceObservation, Int, UInt8)? in
+            guard case let .controller(.controlChange(number, value)) = observation.event else { return nil }
+            return (observation, number, Self.midi7Bit(value))
+        }
+        guard observations.contains(where: { $0.source.capabilities.controllers != .unavailable }) else {
+            return scoreEvents.map { .notObserved(score: .init(event: $0)) }
+        }
+
+        var used: Set<UUID> = []
+        var links: [PerformanceAlignmentControllerLink] = []
+        for scoreEvent in scoreEvents {
+            let scoreSeconds = timeMap.seconds(at: scoreEvent.tick)
+            let candidate = observed
+                .filter { used.contains($0.0.id) == false && $0.1 == Int(scoreEvent.controllerNumber) }
+                .map { item in
+                    (
+                        observation: item.0,
+                        value: item.2,
+                        deviation: item.0.alignmentTimestamp.seconds
+                            - performanceStart.seconds - scoreSeconds
+                    )
+                }
+                .filter { abs($0.deviation) <= configuration.candidateWindowSeconds }
+                .min { lhs, rhs in abs(lhs.deviation) < abs(rhs.deviation) }
+            guard let candidate else {
+                links.append(.missing(score: .init(event: scoreEvent)))
+                continue
+            }
+            used.insert(candidate.observation.id)
+            links.append(.aligned(
+                score: .init(event: scoreEvent),
+                observation: .init(observation: candidate.observation),
+                timeDeviationSeconds: candidate.deviation,
+                normalizedValueDeviation: abs(Double(candidate.value) - Double(scoreEvent.value)) / 127
+            ))
+        }
+        links.append(contentsOf: observed
+            .filter { used.contains($0.0.id) == false }
+            .map { .extra(observation: .init(observation: $0.0)) })
+        return links
     }
 
     private func candidateSnapshot(
@@ -228,6 +305,104 @@ struct PerformanceAlignmentEngine: Sendable {
         case .degraded: .degraded
         case .unavailable: .notObserved
         }
+    }
+
+    private static func releaseMeasurements(
+        observations: [PerformanceObservation]
+    ) -> [UUID: ReleaseMeasurement] {
+        struct Route: Hashable {
+            let source: PerformanceObservation.Source
+            let channel: Int?
+            let group: Int?
+            let note: Int
+        }
+        var open: [Route: [(UUID, TimeInterval, PerformanceInputCapabilities.Evidence)]] = [:]
+        var durationByOnID: [UUID: (TimeInterval, PerformanceInputCapabilities.Evidence)] = [:]
+        for observation in observations.sorted(by: { $0.alignmentTimestamp < $1.alignmentTimestamp }) {
+            switch observation.event {
+            case let .noteOn(note, _):
+                let route = Route(
+                    source: observation.source,
+                    channel: observation.channel,
+                    group: observation.group,
+                    note: note
+                )
+                open[route, default: []].append((
+                    observation.id,
+                    observation.alignmentTimestamp.seconds,
+                    observation.source.capabilities.release
+                ))
+            case let .noteOff(note, _):
+                let route = Route(
+                    source: observation.source,
+                    channel: observation.channel,
+                    group: observation.group,
+                    note: note
+                )
+                guard var notes = open[route], notes.isEmpty == false else { continue }
+                let noteOn = notes.removeFirst()
+                open[route] = notes
+                durationByOnID[noteOn.0] = (
+                    max(0, observation.alignmentTimestamp.seconds - noteOn.1),
+                    noteOn.2
+                )
+            default:
+                continue
+            }
+        }
+
+        var result: [UUID: ReleaseMeasurement] = [:]
+        for observation in observations {
+            guard case .noteOn = observation.event else { continue }
+            let capability = observation.source.capabilities.release
+            result[observation.id] = ReleaseMeasurement(
+                duration: durationByOnID[observation.id]?.0,
+                capability: capability
+            )
+        }
+        return result
+    }
+
+    private static func releaseEvidence(
+        measurement: ReleaseMeasurement?,
+        event: ScorePerformanceNoteEvent,
+        timeMap: PlanTimeMap,
+        unmatchedCost: Double
+    ) -> [PerformanceAlignmentEvidence] {
+        let capability = measurement?.capability ?? .unavailable
+        guard capability != .unavailable else {
+            return [
+                .init(dimension: .release, status: .notObserved),
+                .init(dimension: .duration, status: .notObserved),
+            ]
+        }
+        guard let actual = measurement?.duration else {
+            return [
+                .init(dimension: .release, status: evidenceStatus(capability), cost: unmatchedCost),
+                .init(dimension: .duration, status: evidenceStatus(capability), cost: unmatchedCost),
+            ]
+        }
+        let expectedDuration = timeMap.seconds(at: event.performedOffTick)
+            - timeMap.seconds(at: event.performedOnTick)
+        let deviation = actual - expectedDuration
+        return [
+                .init(
+                    dimension: .release,
+                    status: evidenceStatus(capability),
+                    cost: abs(deviation),
+                    deviationSeconds: deviation
+                ),
+                .init(
+                    dimension: .duration,
+                    status: evidenceStatus(capability),
+                    cost: abs(deviation),
+                    deviationSeconds: deviation
+                ),
+        ]
+    }
+
+    private static func midi7Bit(_ value: PerformanceObservation.NormalizedValue) -> UInt8 {
+        UInt8(MIDI2ValueMapping.value32To7Bit(value.rawValue))
     }
 }
 

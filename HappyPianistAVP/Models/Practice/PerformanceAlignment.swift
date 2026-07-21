@@ -111,8 +111,49 @@ enum PerformanceAlignmentLink: Codable, Equatable, Sendable {
     )
 }
 
+struct PerformanceAlignmentControllerScoreReference: Codable, Equatable, Hashable, Sendable {
+    let sourceDirectionID: MusicXMLDirectionSourceID?
+    let performedOccurrenceIndex: Int
+    let tick: Int
+    let controllerNumber: UInt8
+    let value: UInt8
+
+    init(event: ScorePerformanceControllerEvent) {
+        sourceDirectionID = event.sourceDirectionID
+        performedOccurrenceIndex = event.performedOccurrenceIndex
+        tick = event.tick
+        controllerNumber = event.controllerNumber
+        value = event.value
+    }
+}
+
+enum PerformanceAlignmentControllerLink: Codable, Equatable, Sendable {
+    case aligned(
+        score: PerformanceAlignmentControllerScoreReference,
+        observation: PerformanceAlignmentObservationReference,
+        timeDeviationSeconds: TimeInterval,
+        normalizedValueDeviation: Double
+    )
+    case missing(score: PerformanceAlignmentControllerScoreReference)
+    case extra(observation: PerformanceAlignmentObservationReference)
+    case notObserved(score: PerformanceAlignmentControllerScoreReference)
+}
+
 struct PerformanceAlignment: Codable, Equatable, Sendable {
     let planID: ScorePerformancePlanID
     let sourceGeneration: UInt64
     let links: [PerformanceAlignmentLink]
+    let controllerLinks: [PerformanceAlignmentControllerLink]
+
+    init(
+        planID: ScorePerformancePlanID,
+        sourceGeneration: UInt64,
+        links: [PerformanceAlignmentLink],
+        controllerLinks: [PerformanceAlignmentControllerLink] = []
+    ) {
+        self.planID = planID
+        self.sourceGeneration = sourceGeneration
+        self.links = links
+        self.controllerLinks = controllerLinks
+    }
 }

@@ -132,14 +132,114 @@ func alignmentSeparatesExactPitchOnsetChordSpreadExtraAndMissing() {
     #expect(result.links.filter { if case .missing = $0 { true } else { false } }.count == 1)
 }
 
+@Test
+func releaseDurationAndControllerEvidenceRespectCapabilities() throws {
+    let event = makeAlignmentEvent(sourceID: makeAlignmentSourceID(ordinal: 0), occurrenceIndex: 0)
+    let controller = ScorePerformanceControllerEvent(
+        sourceDirectionID: nil,
+        performedOccurrenceIndex: 0,
+        tick: 0,
+        controllerNumber: 64,
+        value: 80,
+        outputCapabilityRequirement: .continuousControlChange
+    )
+    let plan = makeAlignmentPlan(noteEvents: [event], controllerEvents: [controller])
+    let noteOn = makeAlignmentObservation(generation: 3, note: 60, seconds: 0)
+    let noteOff = makeAlignmentObservation(
+        generation: 3,
+        note: 60,
+        seconds: 0.4,
+        event: .noteOff(note: 60, releaseVelocity: nil)
+    )
+    let control = makeAlignmentObservation(
+        generation: 3,
+        note: 0,
+        seconds: 0.05,
+        event: .controller(.controlChange(number: 64, value: .init(midi1: 72)))
+    )
+
+    let result = PerformanceAlignmentEngine().align(
+        plan: plan,
+        observations: [noteOn, noteOff, control],
+        performanceStart: .init(seconds: 0),
+        generation: 3
+    )
+
+    let evidence = try #require(result.links.compactMap { link -> [PerformanceAlignmentEvidence]? in
+        guard case let .aligned(_, _, evidence) = link else { return nil }
+        return evidence
+    }.first)
+    #expect(evidence.contains {
+        $0.dimension == .duration && abs(($0.deviationSeconds ?? 0) + 0.1) < 0.000_001
+    })
+    #expect(result.controllerLinks.count == 1)
+    guard case let .aligned(_, _, timeDeviation, valueDeviation) = result.controllerLinks[0] else {
+        Issue.record("Expected aligned controller")
+        return
+    }
+    #expect(timeDeviation == 0.05)
+    #expect(abs(valueDeviation - 8.0 / 127.0) < 0.000_001)
+}
+
+@Test
+func unavailableReleaseAndControllerProduceNotObserved() throws {
+    let unavailable = PerformanceInputCapabilities(
+        pitch: .observed,
+        onset: .observed,
+        release: .unavailable,
+        velocity: .unavailable,
+        controllers: .unavailable,
+        polyphony: .observed,
+        hand: .unavailable,
+        finger: .unavailable,
+        position: .unavailable,
+        confidence: .unavailable
+    )
+    let event = makeAlignmentEvent(sourceID: makeAlignmentSourceID(ordinal: 0), occurrenceIndex: 0)
+    let controller = ScorePerformanceControllerEvent(
+        sourceDirectionID: nil,
+        performedOccurrenceIndex: 0,
+        tick: 0,
+        controllerNumber: 64,
+        value: 100,
+        outputCapabilityRequirement: .continuousControlChange
+    )
+    let plan = makeAlignmentPlan(noteEvents: [event], controllerEvents: [controller])
+    let note = makeAlignmentObservation(
+        generation: 1,
+        note: 60,
+        seconds: 0,
+        capabilities: unavailable
+    )
+    let result = PerformanceAlignmentEngine().align(
+        plan: plan,
+        observations: [note],
+        performanceStart: .init(seconds: 0)
+    )
+
+    let evidence = try #require(result.links.compactMap { link -> [PerformanceAlignmentEvidence]? in
+        guard case let .aligned(_, _, evidence) = link else { return nil }
+        return evidence
+    }.first)
+    #expect(evidence.contains { $0.dimension == .release && $0.status == .notObserved })
+    #expect(result.controllerLinks == [.notObserved(score: .init(event: controller))])
+}
+
 private func makeAlignmentObservation(
     generation: UInt64,
     note: Int = 60,
-    seconds: TimeInterval = 12
+    seconds: TimeInterval = 12,
+    event: PerformanceObservation.Event? = nil,
+    capabilities: PerformanceInputCapabilities? = nil
 ) -> PerformanceObservation {
     PerformanceObservation(
         id: UUID(uuidString: "00000000-0000-0000-0000-000000000123")!,
-        source: .init(kind: .midi1, id: "midi:test", generation: generation),
+        source: .init(
+            kind: .midi1,
+            id: "midi:test",
+            generation: generation,
+            capabilities: capabilities
+        ),
         timing: PerformanceClockReading(
             host: .init(seconds: seconds + 0.1),
             source: nil,
@@ -147,7 +247,7 @@ private func makeAlignmentObservation(
             mapping: nil,
             provenance: .latencyEstimate
         ),
-        event: .noteOn(note: note, velocity: .init(midi1: 90))
+        event: event ?? .noteOn(note: note, velocity: .init(midi1: 90))
     )
 }
 
@@ -164,7 +264,8 @@ private func makeAlignmentSourceID(ordinal: Int) -> MusicXMLSourceNoteID {
 
 private func makeAlignmentPlan(
     noteEvents: [ScorePerformanceNoteEvent],
-    ticksPerQuarter: Int = 480
+    ticksPerQuarter: Int = 480,
+    controllerEvents: [ScorePerformanceControllerEvent] = []
 ) -> ScorePerformancePlan {
     ScorePerformancePlan(
         id: .init(rawValue: "alignment-plan"),
@@ -177,7 +278,7 @@ private func makeAlignmentPlan(
         resolution: .init(ticksPerQuarter: ticksPerQuarter),
         noteEvents: noteEvents,
         tempoEvents: [],
-        controllerEvents: [],
+        controllerEvents: controllerEvents,
         annotations: [],
         approximations: []
     )
