@@ -104,17 +104,95 @@ func coachingActionCarriesExecutableParametersAndNormalizesBounds() {
     #expect(decision.action == action)
 }
 
-private func makeCoachingIssue() -> MusicalIssue {
-    let result = PerformanceAssessmentDimensionResult(
-        dimension: .onset,
-        outcome: .incorrect,
-        evidenceStatus: .observed,
-        sampleCount: 2,
-        confidence: 0.8,
-        evidence: []
+@Test
+func exercisePolicyMapsEveryIssueToASpecificRemeasurableAction() {
+    let expected: [(MusicalIssueKind, PerformanceAssessmentDimension, CoachingActionKind)] = [
+        (.pitch, .exactPitch, .pitchAccuracy),
+        (.onset, .onset, .onsetAlignment),
+        (.chordSpread, .chordSpread, .chordSynchronization),
+        (.duration, .duration, .durationControl),
+        (.articulation, .articulation, .articulationControl),
+        (.voicing, .voicing, .voiceBalance),
+        (.dynamicContour, .dynamicContour, .dynamicShaping),
+        (.pedal, .pedalTiming, .pedalCoordination),
+        (.tempo, .tempoContinuity, .tempoStability),
+        (.phrase, .phraseContinuity, .phraseContinuity),
+        (.evidence, .onset, .evidenceCheck),
+    ]
+    let policy = PracticeExercisePolicy()
+
+    #expect(expected.count == MusicalIssueKind.allCases.count)
+    for (issueKind, dimension, actionKind) in expected {
+        let outcome: PracticeEvidenceOutcome = issueKind == .evidence
+            ? .insufficientEvidence
+            : .incorrect
+        let issue = makeCoachingIssue(kind: issueKind, dimension: dimension, outcome: outcome)
+        let action = policy.action(for: issue)
+
+        #expect(action?.kind == actionKind)
+        #expect(action?.scoreRange == issue.scoreRange)
+        if issueKind == .evidence {
+            #expect(action?.completionCondition.target == .evidenceAvailable(dimension: dimension))
+        } else {
+            #expect(action?.completionCondition.target == .dimensionOutcome(
+                dimension: dimension,
+                outcome: .correct
+            ))
+        }
+    }
+}
+
+@Test
+func decisionServiceUsesMeasureEvidenceAndSkipsCorrectResults() {
+    let correctPitch = makeDimension(.exactPitch, outcome: .correct, confidence: 1)
+    let incorrectOnset = makeDimension(.onset, outcome: .incorrect, confidence: 0.8)
+    let insufficientPedal = makeDimension(
+        .pedalTiming,
+        outcome: .insufficientEvidence,
+        confidence: nil
+    )
+    let occurrenceID = PracticeMeasureOccurrenceID(
+        sourceMeasureID: PracticeSourceMeasureID(
+            partID: "P1",
+            sourceMeasureIndex: 0,
+            sourceNumberToken: "1"
+        ),
+        occurrenceIndex: 0
+    )
+    let assessment = PassagePerformanceAssessment(
+        planID: ScorePerformancePlanID(rawValue: "plan"),
+        sourceGeneration: 7,
+        tickRange: 0 ..< 960,
+        rubricVersion: .capabilityAware,
+        dimensions: [incorrectOnset],
+        measures: [MeasurePerformanceAssessment(
+            occurrenceID: occurrenceID,
+            tickRange: 0 ..< 480,
+            dimensions: [correctPitch, incorrectOnset, insufficientPedal]
+        )]
+    )
+
+    let decisions = CoachingDecisionService().decisions(for: assessment)
+
+    #expect(decisions.map(\.issue.kind) == [.onset, .evidence])
+    #expect(decisions.map(\.action.kind) == [.onsetAlignment, .evidenceCheck])
+    #expect(decisions.allSatisfy { $0.issue.scoreRange == 0 ..< 480 })
+    #expect(decisions.allSatisfy { $0.issue.provenance.sourceGeneration == 7 })
+    #expect(decisions.contains { $0.issue.kind == .pitch } == false)
+}
+
+private func makeCoachingIssue(
+    kind: MusicalIssueKind = .onset,
+    dimension: PerformanceAssessmentDimension = .onset,
+    outcome: PracticeEvidenceOutcome = .incorrect
+) -> MusicalIssue {
+    let result = makeDimension(
+        dimension,
+        outcome: outcome,
+        confidence: 0.8
     )
     return MusicalIssue(
-        kind: .onset,
+        kind: kind,
         scoreRange: 0 ..< 480,
         dimensionResults: [result],
         confidence: 0.8,
@@ -123,5 +201,20 @@ private func makeCoachingIssue() -> MusicalIssue {
             sourceGeneration: 1,
             rubricVersion: .capabilityAware
         )
+    )
+}
+
+private func makeDimension(
+    _ dimension: PerformanceAssessmentDimension,
+    outcome: PracticeEvidenceOutcome,
+    confidence: Double?
+) -> PerformanceAssessmentDimensionResult {
+    PerformanceAssessmentDimensionResult(
+        dimension: dimension,
+        outcome: outcome,
+        evidenceStatus: .observed,
+        sampleCount: 2,
+        confidence: confidence,
+        evidence: []
     )
 }
