@@ -1394,6 +1394,11 @@ struct PerformanceAssessmentService: Sendable {
                 occurrenceIndex: event.performedOccurrenceIndex
             )
         }
+        let hasSingleMeasure = grouped.count == 1
+        // ponytail: unmatched observations have no score tick; keep multi-measure locality insufficient until alignment supplies one.
+        let unlocalizedEvidence = hasSingleMeasure
+            ? [:]
+            : unlocalizedMeasureEvidence(links: links, controllerLinks: controllerLinks)
         return grouped.compactMap { occurrenceID, measureEvents -> MeasurePerformanceAssessment? in
             let eventIDs = Set(measureEvents.map(\.id))
             let lower = max(
@@ -1406,26 +1411,32 @@ struct PerformanceAssessmentService: Sendable {
                     ?? passageTickRange.upperBound
             )
             guard lower < upper else { return nil }
-            let measureLinks = links.filter { Self.belongs($0, toAny: eventIDs) }
-            let measureControllerLinks = controllerLinks.filter {
-                Self.belongs($0, tickRange: lower ..< upper)
-            }
+            let measureLinks = hasSingleMeasure
+                ? links
+                : links.filter { Self.belongs($0, toAny: eventIDs) }
+            let measureControllerLinks = hasSingleMeasure
+                ? controllerLinks
+                : controllerLinks.filter { Self.belongs($0, tickRange: lower ..< upper) }
             let eventByID = Dictionary(uniqueKeysWithValues: measureEvents.map { ($0.id, $0) })
             let measureCapabilities = inputCapabilities(
                 links: measureLinks,
                 controllerLinks: measureControllerLinks
             )
+            let measureDimensions = dimensions(
+                plan: plan,
+                events: measureEvents,
+                links: measureLinks,
+                controllerLinks: measureControllerLinks,
+                eventByID: eventByID,
+                timeMap: timeMap,
+                capabilities: measureCapabilities
+            )
             return MeasurePerformanceAssessment(
                 occurrenceID: occurrenceID,
                 tickRange: lower ..< upper,
-                dimensions: dimensions(
-                    plan: plan,
-                    events: measureEvents,
-                    links: measureLinks,
-                    controllerLinks: measureControllerLinks,
-                    eventByID: eventByID,
-                    timeMap: timeMap,
-                    capabilities: measureCapabilities
+                dimensions: addingUnlocalizedEvidence(
+                    unlocalizedEvidence,
+                    to: measureDimensions
                 )
             )
         }.sorted { lhs, rhs in
@@ -1437,6 +1448,75 @@ struct PerformanceAssessmentService: Sendable {
             }
             return lhs.occurrenceID.sourceMeasureID.sourceMeasureIndex
                 < rhs.occurrenceID.sourceMeasureID.sourceMeasureIndex
+        }
+    }
+
+    private func unlocalizedMeasureEvidence(
+        links: [PerformanceAlignmentLink],
+        controllerLinks: [PerformanceAlignmentControllerLink]
+    ) -> [PerformanceAssessmentDimension: [PerformanceAssessmentEvidenceLink]] {
+        var result: [PerformanceAssessmentDimension: [PerformanceAssessmentEvidenceLink]] = [:]
+        for link in links {
+            switch link {
+            case let .extra(observation, _):
+                result[.extraNotes, default: []].append(
+                    .unmatchedObservation(observationID: observation.observationID)
+                )
+            case let .unknown(observation, reason):
+                let evidence = PerformanceAssessmentEvidenceLink.unknownObservation(
+                    observationID: observation.observationID,
+                    reason: reason
+                )
+                for dimension in PerformanceAssessmentDimension.allCases
+                where rubric.evidence(for: dimension, capabilities: observation.source.capabilities) != .unavailable
+                    && dimension != .pedalTiming
+                    && dimension != .pedalValue
+                {
+                    result[dimension, default: []].append(evidence)
+                }
+            case .aligned, .missing, .ambiguous, .provisional:
+                continue
+            }
+        }
+        for link in controllerLinks {
+            guard case let .extra(observation) = link else { continue }
+            let evidence = PerformanceAssessmentEvidenceLink.unmatchedObservation(
+                observationID: observation.observationID
+            )
+            result[.pedalTiming, default: []].append(evidence)
+            result[.pedalValue, default: []].append(evidence)
+        }
+        return result
+    }
+
+    private func addingUnlocalizedEvidence(
+        _ evidenceByDimension: [PerformanceAssessmentDimension: [PerformanceAssessmentEvidenceLink]],
+        to dimensions: [PerformanceAssessmentDimensionResult]
+    ) -> [PerformanceAssessmentDimensionResult] {
+        guard evidenceByDimension.isEmpty == false else { return dimensions }
+        let existing = Dictionary(uniqueKeysWithValues: dimensions.map { ($0.dimension, $0) })
+        return PerformanceAssessmentDimension.allCases.compactMap { dimension in
+            guard let unresolved = evidenceByDimension[dimension], unresolved.isEmpty == false else {
+                return existing[dimension]
+            }
+            guard let result = existing[dimension] else {
+                return PerformanceAssessmentDimensionResult(
+                    dimension: dimension,
+                    outcome: .insufficientEvidence,
+                    evidenceStatus: .insufficient,
+                    sampleCount: 0,
+                    evidence: unresolved
+                )
+            }
+            return PerformanceAssessmentDimensionResult(
+                dimension: dimension,
+                outcome: result.outcome == .incorrect ? .incorrect : .insufficientEvidence,
+                evidenceStatus: .insufficient,
+                measurement: result.measurement,
+                sampleCount: result.sampleCount,
+                confidence: result.confidence,
+                evidence: result.evidence + unresolved
+            )
         }
     }
 

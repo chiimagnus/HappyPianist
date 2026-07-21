@@ -248,6 +248,47 @@ func assessmentKeepsExtraAndMissingNotesAsSeparateIncorrectFacts() throws {
     #expect(missing.outcome == .incorrect)
     #expect(missing.measurement?.value == 1)
     #expect(missing.sampleCount == 1)
+    #expect(assessment.measures.first?.dimensions.first { $0.dimension == .extraNotes }?.outcome == .incorrect)
+}
+
+@Test
+func unlocalizedExtraNotePreventsMultipleMeasuresFromClaimingCorrectness() throws {
+    let events = [
+        makeAssessmentEvent(ordinal: 0, onTick: 0, offTick: 480, sourceMeasureIndex: 0),
+        makeAssessmentEvent(ordinal: 1, onTick: 480, offTick: 960, sourceMeasureIndex: 1),
+    ]
+    let plan = makeAssessmentPlan(events: events)
+    let extra = makeAssessmentObservation(id: UUID(), time: 0.3, note: 67)
+    let alignment = PerformanceAlignment(
+        planID: plan.id,
+        sourceGeneration: 7,
+        links: [
+            makeAlignedLink(
+                event: events[0],
+                observation: makeAssessmentObservation(time: 0, note: 60),
+                onsetDeviation: 0
+            ),
+            makeAlignedLink(
+                event: events[1],
+                observation: makeAssessmentObservation(time: 0.5, note: 60),
+                onsetDeviation: 0
+            ),
+            .extra(
+                observation: .init(observation: extra),
+                evidence: [.init(dimension: .pitch, status: .observed, cost: 5)]
+            ),
+        ]
+    )
+
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    #expect(try assessmentResult(.extraNotes, in: assessment).outcome == .incorrect)
+    #expect(assessment.measures.count == 2)
+    for measure in assessment.measures {
+        let extraNotes = try #require(measure.dimensions.first { $0.dimension == .extraNotes })
+        #expect(extraNotes.outcome == .insufficientEvidence)
+        #expect(extraNotes.evidenceStatus == .insufficient)
+        #expect(measure.dimensions.allSatisfy { $0.outcome == .correct } == false)
+    }
 }
 
 @Test
