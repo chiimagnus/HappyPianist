@@ -28,6 +28,7 @@ struct IncrementalPerformanceAligner: Sendable {
     private let configuration: Configuration
     private(set) var state: State = .idle
     private(set) var appendSnapshot: PerformanceAlignment?
+    private(set) var discardedObservationCount = 0
     private var plan: ScorePerformancePlan?
     private var generation: UInt64?
     private var sourceGenerations: [SourceIdentity: UInt64] = [:]
@@ -108,6 +109,7 @@ struct IncrementalPerformanceAligner: Sendable {
     mutating func reset() {
         state = .idle
         appendSnapshot = nil
+        discardedObservationCount = 0
         plan = nil
         generation = nil
         sourceGenerations.removeAll(keepingCapacity: true)
@@ -185,6 +187,7 @@ struct IncrementalPerformanceAligner: Sendable {
 
     private mutating func trimBuffer() {
         guard observations.count > configuration.maximumBufferedObservations else { return }
+        discardedObservationCount += observations.count - configuration.maximumBufferedObservations
         // ponytail: bounded replay window; retain an explicit open-note registry if >4096 events per commit horizon becomes real.
         observations.removeFirst(observations.count - configuration.maximumBufferedObservations)
     }

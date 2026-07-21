@@ -213,7 +213,8 @@ private func makeRecorder(
 func recorderFeedsConfiguredPlanAndObservationsToTransientAnalyzer() async throws {
     let repository = RecorderRepository()
     let clock = try RecorderClock()
-    let analyzer = PracticePerformanceAnalyzer()
+    let reporter = InMemoryDiagnosticsReporter()
+    let analyzer = PracticePerformanceAnalyzer(diagnosticsReporter: reporter)
     let recorder = makeRecorder(
         repository: repository,
         clock: clock,
@@ -266,10 +267,16 @@ func recorderFeedsConfiguredPlanAndObservationsToTransientAnalyzer() async throw
     let snapshot = try #require(await recorder.analysisSnapshot())
     #expect(snapshot.acceptedObservationCount == 2)
     #expect(snapshot.rejectedObservationCount == 1)
+    #expect(snapshot.discardedObservationCount == 0)
+    #expect(snapshot.alignmentLatencyMilliseconds != nil)
     #expect(snapshot.isRunning == false)
     #expect(snapshot.alignment?.links.contains { if case .aligned = $0 { true } else { false } } == true)
     let data = try JSONEncoder().encode(try #require(await repository.records().last))
     #expect(String(decoding: data, as: UTF8.self).contains("alignment") == false)
+    let diagnostic = try #require(await reporter.events.first { $0.stage == "performanceAlignment" })
+    for token in ["discarded=", "latencyMs=", "candidates=", "aligned=", "missing=", "extra="] {
+        #expect(diagnostic.reason.contains(token))
+    }
 }
 
 @Test

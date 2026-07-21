@@ -740,6 +740,7 @@ func incrementalAlignmentKeepsLongScoreReplayBounded() {
         }
     }
     #expect(aligner.bufferedObservationCount <= 32)
+    #expect(aligner.discardedObservationCount == eventCount - 32)
     _ = aligner.finish()
 
     // ponytail: broad regression ceiling; replace with Instruments metrics if this debug-simulator check exceeds 5 seconds.
