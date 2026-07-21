@@ -189,6 +189,8 @@ final class MIDIRecordingState {
                 keyCandidate: contact.keyCandidate.exactMIDINote,
                 phase: phase
             ),
+            hand: contact.hand.scoreHand,
+            finger: Int(contact.finger.rawValue) + 1,
             confidence: Double(contact.confidence),
             calibrationReference: contact.calibrationID.uuidString
         )
@@ -222,6 +224,15 @@ final class MIDIRecordingState {
 
         if isRecording {
             midiRecordingAdapter.record(event: event, into: &takeRecorder)
+        }
+    }
+}
+
+private extension TrackedHandSide {
+    var scoreHand: ScoreHand {
+        switch self {
+        case .left: .left
+        case .right: .right
         }
     }
 }

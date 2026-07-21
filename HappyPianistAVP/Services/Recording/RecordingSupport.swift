@@ -243,6 +243,8 @@ private extension PerformanceObservation {
             event: event,
             channel: channel,
             group: group,
+            hand: hand,
+            finger: finger,
             confidence: confidence,
             calibrationReference: calibrationReference
         )

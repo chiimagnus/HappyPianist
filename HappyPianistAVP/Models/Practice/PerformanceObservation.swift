@@ -89,6 +89,8 @@ struct PerformanceObservation: Codable, Equatable, Sendable {
     let event: Event
     let channel: Int?
     let group: Int?
+    let hand: ScoreHand?
+    let finger: Int?
     let confidence: Double?
     let calibrationReference: String?
 
@@ -99,6 +101,8 @@ struct PerformanceObservation: Codable, Equatable, Sendable {
         event: Event,
         channel: Int? = nil,
         group: Int? = nil,
+        hand: ScoreHand? = nil,
+        finger: Int? = nil,
         confidence: Double? = nil,
         calibrationReference: String? = nil
     ) {
@@ -108,6 +112,8 @@ struct PerformanceObservation: Codable, Equatable, Sendable {
         self.event = event
         self.channel = channel.map { max(1, min(16, $0)) }
         self.group = group.map { max(0, min(15, $0)) }
+        self.hand = hand
+        self.finger = finger.map { max(1, min(5, $0)) }
         self.confidence = confidence.map { max(0, min(1, $0)) }
         self.calibrationReference = calibrationReference
     }

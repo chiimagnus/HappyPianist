@@ -54,11 +54,15 @@ struct PerformanceAlignmentObservationReference: Codable, Equatable, Sendable {
     let observationID: UUID
     let source: PerformanceObservation.Source
     let correctedTime: PerformanceMonotonicInstant
+    let hand: ScoreHand?
+    let finger: Int?
 
     init(observation: PerformanceObservation) {
         observationID = observation.id
         source = observation.source
         correctedTime = observation.alignmentTimestamp
+        hand = observation.hand
+        finger = observation.finger
     }
 }
 
@@ -84,6 +88,7 @@ enum PerformanceAlignmentNoCandidateReason: String, Codable, Equatable, Sendable
     case outsideActiveRange
     case noTemporalCandidate
     case noPitchCandidate
+    case noHandCandidate
 }
 
 struct PerformanceAlignmentCandidateSnapshot: Codable, Equatable, Sendable {

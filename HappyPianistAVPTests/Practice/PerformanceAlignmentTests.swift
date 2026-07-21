@@ -225,12 +225,67 @@ func unavailableReleaseAndControllerProduceNotObserved() throws {
     #expect(result.controllerLinks == [.notObserved(score: .init(event: controller))])
 }
 
+@Test
+func handEvidenceDisambiguatesPolyphonicUnisonWithoutUsingStaffAsHand() throws {
+    let right = makeAlignmentEvent(
+        sourceID: makeAlignmentSourceID(ordinal: 0),
+        occurrenceIndex: 0,
+        handAssignment: .init(hand: .right, provenance: .score)
+    )
+    let left = makeAlignmentEvent(
+        sourceID: makeAlignmentSourceID(ordinal: 1),
+        occurrenceIndex: 0,
+        handAssignment: .init(hand: .left, provenance: .teacher)
+    )
+    let plan = makeAlignmentPlan(noteEvents: [right, left])
+    let typed = makeAlignmentObservation(generation: 1, note: 60, seconds: 0, hand: .right)
+    let unknown = makeAlignmentObservation(generation: 1, note: 60, seconds: 0)
+
+    let typedResult = PerformanceAlignmentEngine().align(
+        plan: plan,
+        observations: [typed],
+        performanceStart: .init(seconds: 0)
+    )
+    guard case let .aligned(score, _, _) = typedResult.links.first else {
+        Issue.record("Expected typed hand to align")
+        return
+    }
+    #expect(score.eventID == right.id)
+
+    let unknownResult = PerformanceAlignmentEngine().align(
+        plan: plan,
+        observations: [unknown],
+        performanceStart: .init(seconds: 0)
+    )
+    #expect(unknownResult.links.contains { if case .ambiguous = $0 { true } else { false } })
+}
+
+@Test
+func performedTimeSelectsRepeatedOccurrenceWithoutChangingSourceIdentity() throws {
+    let sourceID = makeAlignmentSourceID(ordinal: 0)
+    let first = makeAlignmentEvent(sourceID: sourceID, occurrenceIndex: 0, onTick: 0)
+    let repeated = makeAlignmentEvent(sourceID: sourceID, occurrenceIndex: 1, onTick: 960)
+    let result = PerformanceAlignmentEngine().align(
+        plan: makeAlignmentPlan(noteEvents: [first, repeated]),
+        observations: [makeAlignmentObservation(generation: 1, note: 60, seconds: 1)],
+        performanceStart: .init(seconds: 0)
+    )
+
+    guard case let .aligned(score, _, _) = result.links.first else {
+        Issue.record("Expected repeated occurrence to align")
+        return
+    }
+    #expect(score.sourceNoteID == sourceID)
+    #expect(score.performedOccurrenceIndex == 1)
+}
+
 private func makeAlignmentObservation(
     generation: UInt64,
     note: Int = 60,
     seconds: TimeInterval = 12,
     event: PerformanceObservation.Event? = nil,
-    capabilities: PerformanceInputCapabilities? = nil
+    capabilities: PerformanceInputCapabilities? = nil,
+    hand: ScoreHand? = nil
 ) -> PerformanceObservation {
     PerformanceObservation(
         id: UUID(uuidString: "00000000-0000-0000-0000-000000000123")!,
@@ -247,7 +302,8 @@ private func makeAlignmentObservation(
             mapping: nil,
             provenance: .latencyEstimate
         ),
-        event: event ?? .noteOn(note: note, velocity: .init(midi1: 90))
+        event: event ?? .noteOn(note: note, velocity: .init(midi1: 90)),
+        hand: hand
     )
 }
 
@@ -288,7 +344,8 @@ private func makeAlignmentEvent(
     sourceID: MusicXMLSourceNoteID,
     occurrenceIndex: Int,
     midiNote: Int = 60,
-    onTick: Int = 0
+    onTick: Int = 0,
+    handAssignment: ScoreHandAssignment = .init(hand: .right, provenance: .score)
 ) -> ScorePerformanceNoteEvent {
     let performedID = MusicXMLPerformedNoteID(
         sourceID: sourceID,
@@ -316,7 +373,7 @@ private func makeAlignmentEvent(
         ),
         staff: 1,
         voice: 1,
-        handAssignment: .init(hand: .right, provenance: .score),
+        handAssignment: handAssignment,
         fingerings: [],
         timingProvenance: []
     )

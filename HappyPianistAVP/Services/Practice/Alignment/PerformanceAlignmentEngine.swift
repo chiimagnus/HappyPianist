@@ -52,7 +52,7 @@ struct PerformanceAlignmentEngine: Sendable {
     ) -> [PerformanceAlignmentCandidateSnapshot] {
         let timeMap = PlanTimeMap(plan: plan)
         let observedOnsets = observations.compactMap { observation -> (Int, TimeInterval)? in
-            guard case let .noteOn(note, _) = observation.event else { return nil }
+            guard let note = observation.alignmentOnsetMIDINote else { return nil }
             return (note, max(0, observation.alignmentTimestamp.seconds - performanceStart.seconds))
         }
         return observations.map { observation in
@@ -76,8 +76,7 @@ struct PerformanceAlignmentEngine: Sendable {
         generation: UInt64? = nil
     ) -> PerformanceAlignment {
         let noteOnObservations = observations.filter {
-            if case .noteOn = $0.event { return true }
-            return false
+            $0.alignmentOnsetMIDINote != nil
         }
         let snapshots = candidates(
             plan: plan,
@@ -225,7 +224,7 @@ struct PerformanceAlignmentEngine: Sendable {
         if let generation, observation.source.generation != generation {
             return .init(observation: reference, candidates: [], noCandidateReason: .staleGeneration)
         }
-        guard case let .noteOn(observedNote, _) = observation.event else {
+        guard let observedNote = observation.alignmentOnsetMIDINote else {
             return .init(observation: reference, candidates: [], noCandidateReason: .unsupportedObservation)
         }
 
@@ -246,11 +245,23 @@ struct PerformanceAlignmentEngine: Sendable {
         }
 
         let pitchEvidence = observation.source.capabilities.pitch
-        let matching = pitchEvidence == .observed
+        let pitchMatching = pitchEvidence == .observed
             ? temporal.filter { $0.midiNote == observedNote }
             : temporal
+        let matching: [ScorePerformanceNoteEvent]
+        if let observedHand = observation.hand {
+            matching = pitchMatching.filter { event in
+                event.handAssignment.hand == .unknown || event.handAssignment.hand == observedHand
+            }
+        } else {
+            matching = pitchMatching
+        }
         guard matching.isEmpty == false else {
-            return .init(observation: reference, candidates: [], noCandidateReason: .noPitchCandidate)
+            return .init(
+                observation: reference,
+                candidates: [],
+                noCandidateReason: pitchMatching.isEmpty ? .noPitchCandidate : .noHandCandidate
+            )
         }
 
         let candidates = matching.map { event in
@@ -288,6 +299,23 @@ struct PerformanceAlignmentEngine: Sendable {
                         cost: chordCost,
                         deviationSeconds: chordSpread
                     ),
+                    .init(
+                        dimension: .hand,
+                        status: observation.hand == nil ? .notObserved : .observed,
+                        cost: observation.hand.map {
+                            event.handAssignment.hand == .unknown || event.handAssignment.hand == $0 ? 0 : 1
+                        }
+                    ),
+                    .init(
+                        dimension: .voice,
+                        status: .observed,
+                        cost: 0
+                    ),
+                    .init(
+                        dimension: .occurrence,
+                        status: .observed,
+                        cost: 0
+                    ),
                 ]
             )
         }.sorted { lhs, rhs in
@@ -317,6 +345,7 @@ struct PerformanceAlignmentEngine: Sendable {
             let note: Int
         }
         var open: [Route: [(UUID, TimeInterval, PerformanceInputCapabilities.Evidence)]] = [:]
+        var openContacts: [String: (UUID, TimeInterval, PerformanceInputCapabilities.Evidence)] = [:]
         var durationByOnID: [UUID: (TimeInterval, PerformanceInputCapabilities.Evidence)] = [:]
         for observation in observations.sorted(by: { $0.alignmentTimestamp < $1.alignmentTimestamp }) {
             switch observation.event {
@@ -346,6 +375,18 @@ struct PerformanceAlignmentEngine: Sendable {
                     max(0, observation.alignmentTimestamp.seconds - noteOn.1),
                     noteOn.2
                 )
+            case let .contact(id, keyCandidate, .started) where keyCandidate != nil:
+                openContacts[id] = (
+                    observation.id,
+                    observation.alignmentTimestamp.seconds,
+                    observation.source.capabilities.release
+                )
+            case let .contact(id, _, .ended):
+                guard let started = openContacts.removeValue(forKey: id) else { continue }
+                durationByOnID[started.0] = (
+                    max(0, observation.alignmentTimestamp.seconds - started.1),
+                    started.2
+                )
             default:
                 continue
             }
@@ -353,7 +394,7 @@ struct PerformanceAlignmentEngine: Sendable {
 
         var result: [UUID: ReleaseMeasurement] = [:]
         for observation in observations {
-            guard case .noteOn = observation.event else { continue }
+            guard observation.alignmentOnsetMIDINote != nil else { continue }
             let capability = observation.source.capabilities.release
             result[observation.id] = ReleaseMeasurement(
                 duration: durationByOnID[observation.id]?.0,
@@ -403,6 +444,19 @@ struct PerformanceAlignmentEngine: Sendable {
 
     private static func midi7Bit(_ value: PerformanceObservation.NormalizedValue) -> UInt8 {
         UInt8(MIDI2ValueMapping.value32To7Bit(value.rawValue))
+    }
+}
+
+private extension PerformanceObservation {
+    var alignmentOnsetMIDINote: Int? {
+        switch event {
+        case let .noteOn(note, _):
+            note
+        case let .contact(_, keyCandidate, .started):
+            keyCandidate
+        default:
+            nil
+        }
     }
 }
 
