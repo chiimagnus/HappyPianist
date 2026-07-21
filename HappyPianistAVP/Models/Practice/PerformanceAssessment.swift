@@ -43,6 +43,31 @@ enum PerformanceAssessmentDimension: String, Codable, CaseIterable, Equatable, H
     case pedalValue
     case tempoContinuity
     case phraseContinuity
+
+    var musicalIssueKind: MusicalIssueKind {
+        switch self {
+        case .exactPitch, .extraNotes, .missingNotes:
+            .pitch
+        case .onset:
+            .onset
+        case .chordSpread:
+            .chordSpread
+        case .duration, .release:
+            .duration
+        case .articulation:
+            .articulation
+        case .velocity, .dynamicContour:
+            .dynamicContour
+        case .voicing:
+            .voicing
+        case .pedalTiming, .pedalValue:
+            .pedal
+        case .tempoRelativeTiming, .tempoContinuity:
+            .tempo
+        case .phraseContinuity:
+            .phrase
+        }
+    }
 }
 
 enum PerformanceAssessmentEvidenceStatus: String, Codable, Equatable, Hashable, Sendable {
