@@ -111,4 +111,8 @@ struct PerformanceObservation: Codable, Equatable, Sendable {
         self.confidence = confidence.map { max(0, min(1, $0)) }
         self.calibrationReference = calibrationReference
     }
+
+    var alignmentTimestamp: PerformanceMonotonicInstant {
+        timing.correctedHost
+    }
 }
