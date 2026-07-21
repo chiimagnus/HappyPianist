@@ -243,10 +243,6 @@ actor PracticeSessionRecorder {
 
         cancelPeriodicCheckpoint()
         advance(&visit)
-        if visit.isGuiding {
-            visit.isGuiding = false
-            _ = await performanceAnalyzer?.finishRound()
-        }
         guard visit.practiceStartedAt != nil else {
             visit.isFinalized = true
             self.visit = visit
@@ -282,6 +278,9 @@ actor PracticeSessionRecorder {
         currentVisit.endedAt = endedAt
         currentVisit.isFinalized = true
         self.visit = currentVisit
+        if currentVisit.isGuiding {
+            _ = await performanceAnalyzer?.finishRound()
+        }
         await reportPersistenceStatus(status)
         return status
     }
