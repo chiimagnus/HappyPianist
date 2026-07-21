@@ -278,6 +278,9 @@ struct PerformanceAlignmentEngine: Sendable {
     ) -> [PerformanceAlignmentControllerLink] {
         let observed = observations.compactMap { observation -> (PerformanceObservation, Int, UInt8)? in
             guard case let .controller(.controlChange(number, value)) = observation.event else { return nil }
+            guard let controllerNumber = UInt8(exactly: number),
+                  MusicXMLPedalController(rawValue: controllerNumber) != nil
+            else { return nil }
             return (observation, number, Self.midi7Bit(value))
         }
         guard observations.contains(where: { $0.source.capabilities.controllers != .unavailable }) else {

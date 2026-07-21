@@ -583,6 +583,158 @@ func unavailableVelocityCapabilityDoesNotScoreDynamicsAsZero() throws {
 }
 
 @Test
+func pedalAssessmentMeasuresChangeValueAndSignedOverlapGap() throws {
+    let events = [makeAssessmentEvent()]
+    let controllers = [
+        makeAssessmentController(tick: 0, value: 127),
+        makeAssessmentController(tick: 480, value: 0),
+    ]
+    let plan = makeAssessmentPlan(events: events, controllerEvents: controllers)
+    let observations = [
+        makeAssessmentControllerObservation(time: 0, value: 127),
+        makeAssessmentControllerObservation(time: 0.75, value: 25),
+    ]
+    let alignment = PerformanceAlignment(
+        planID: plan.id,
+        sourceGeneration: 7,
+        links: [],
+        controllerLinks: [
+            .aligned(
+                score: .init(event: controllers[0]),
+                observation: .init(observation: observations[0]),
+                timeDeviationSeconds: 0,
+                normalizedValueDeviation: 0
+            ),
+            .aligned(
+                score: .init(event: controllers[1]),
+                observation: .init(observation: observations[1]),
+                timeDeviationSeconds: 0.25,
+                normalizedValueDeviation: 25.0 / 127
+            ),
+        ]
+    )
+
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    let timing = try assessmentResult(.pedalTiming, in: assessment)
+    let value = try assessmentResult(.pedalValue, in: assessment)
+
+    #expect(timing.outcome == .incorrect)
+    #expect(timing.sampleCount == 3)
+    #expect(timing.measurement?.value == 0.25)
+    #expect(value.outcome == .incorrect)
+    #expect(value.sampleCount == 2)
+    #expect(value.measurement?.unit == .normalized)
+    #expect(timing.evidence.allSatisfy { evidence in
+        if case .controller = evidence { true } else { false }
+    })
+}
+
+@Test
+func unavailableControllerCapabilityLeavesPedalDimensionsNotObserved() throws {
+    let event = makeAssessmentEvent()
+    let controller = makeAssessmentController(tick: 0, value: 127)
+    let plan = makeAssessmentPlan(events: [event], controllerEvents: [controller])
+    let alignment = PerformanceAlignment(
+        planID: plan.id,
+        sourceGeneration: 7,
+        links: [],
+        controllerLinks: [.notObserved(score: .init(event: controller))]
+    )
+
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    for dimension in [PerformanceAssessmentDimension.pedalTiming, .pedalValue] {
+        let result = try assessmentResult(dimension, in: assessment)
+        #expect(result.outcome == .unknown)
+        #expect(result.evidenceStatus == .notObserved)
+        #expect(result.sampleCount == 0)
+    }
+}
+
+@Test
+func tempoAndPhraseContinuityAllowLinearRubatoAndMarkGenericBaselinesDegraded() throws {
+    let events = (0 ..< 4).map { index in
+        makeAssessmentEvent(
+            ordinal: index,
+            midiNote: 60 + index,
+            onTick: index * 480,
+            offTick: (index + 1) * 480
+        )
+    }
+    let plan = makeAssessmentPlan(events: events, tempoEvents: [])
+    let links = zip(events, [0.0, 0.1, 0.2, 0.3]).map { event, deviation in
+        makeAlignedLink(
+            event: event,
+            observation: makeAssessmentObservation(time: deviation, note: event.midiNote),
+            onsetDeviation: deviation
+        )
+    }
+    let alignment = PerformanceAlignment(planID: plan.id, sourceGeneration: 7, links: links)
+
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    let tempo = try assessmentResult(.tempoContinuity, in: assessment)
+    let phrase = try assessmentResult(.phraseContinuity, in: assessment)
+
+    #expect(tempo.outcome == .correct)
+    #expect(tempo.evidenceStatus == .degraded)
+    #expect(abs(tempo.measurement?.value ?? 1) < 0.000_001)
+    #expect(phrase.outcome == .correct)
+    #expect(phrase.evidenceStatus == .degraded)
+    #expect(abs(phrase.measurement?.value ?? 1) < 0.000_001)
+}
+
+@Test
+func tempoWordBoundaryDoesNotTurnRubatoIntoAContinuityError() throws {
+    let events = (0 ..< 6).map { index in
+        makeAssessmentEvent(
+            ordinal: index,
+            midiNote: 60 + index,
+            onTick: index * 240,
+            offTick: (index + 1) * 240
+        )
+    }
+    let annotation = ScorePerformanceAnnotation(
+        sourceDirectionID: nil,
+        performedOccurrenceIndex: 0,
+        tick: 720,
+        durationTicks: nil,
+        kind: .tempoWord,
+        text: "rubato",
+        provenance: [.init(kind: .score, sourceIdentity: nil, detail: nil)]
+    )
+    let plan = makeAssessmentPlan(events: events, annotations: [annotation])
+    let deviations = [0.0, 0, 0, 0.4, 0.6, 0.8]
+    let links = zip(events, deviations).map { event, deviation in
+        makeAlignedLink(
+            event: event,
+            observation: makeAssessmentObservation(time: deviation, note: event.midiNote),
+            onsetDeviation: deviation
+        )
+    }
+    let alignment = PerformanceAlignment(planID: plan.id, sourceGeneration: 7, links: links)
+
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+
+    #expect(try assessmentResult(.tempoContinuity, in: assessment).outcome == .correct)
+    #expect(try assessmentResult(.phraseContinuity, in: assessment).outcome == .correct)
+}
+
+@Test
+func alignmentIgnoresNonPedalControlChangesForPedalAssessment() {
+    let event = makeAssessmentEvent()
+    let plan = makeAssessmentPlan(events: [event])
+    let modulation = makeAssessmentControllerObservation(time: 0, number: 1, value: 127)
+
+    let alignment = PerformanceAlignmentEngine().align(
+        plan: plan,
+        observations: [modulation],
+        performanceStart: .init(seconds: 0),
+        generation: 7
+    )
+
+    #expect(alignment.controllerLinks.isEmpty)
+}
+
+@Test
 func analyzerImmediatelyPublishesAssessmentFromItsFinishedAlignment() async throws {
     let event = makeAssessmentEvent()
     let plan = makeAssessmentPlan(events: [event])
@@ -652,7 +804,13 @@ private func makeAssessmentEvent(
     )
 }
 
-private func makeAssessmentPlan(events: [ScorePerformanceNoteEvent]) -> ScorePerformancePlan {
+private func makeAssessmentPlan(
+    events: [ScorePerformanceNoteEvent],
+    tempoEvents: [ScorePerformanceTempoEvent]? = nil,
+    controllerEvents: [ScorePerformanceControllerEvent] = [],
+    annotations: [ScorePerformanceAnnotation] = [],
+    approximations: [ScorePerformanceApproximation] = []
+) -> ScorePerformancePlan {
     ScorePerformancePlan(
         id: .init(rawValue: "assessment-plan"),
         sourceScoreIdentity: .init(
@@ -663,7 +821,7 @@ private func makeAssessmentPlan(events: [ScorePerformanceNoteEvent]) -> ScorePer
         order: .init(requested: .written, applied: .written),
         resolution: .init(ticksPerQuarter: 480),
         noteEvents: events,
-        tempoEvents: [.init(
+        tempoEvents: tempoEvents ?? [.init(
             sourceDirectionID: nil,
             performedOccurrenceIndex: 0,
             tick: 0,
@@ -671,9 +829,43 @@ private func makeAssessmentPlan(events: [ScorePerformanceNoteEvent]) -> ScorePer
             endTick: nil,
             endQuarterBPM: nil
         )],
-        controllerEvents: [],
-        annotations: [],
-        approximations: []
+        controllerEvents: controllerEvents,
+        annotations: annotations,
+        approximations: approximations
+    )
+}
+
+private func makeAssessmentController(
+    tick: Int,
+    value: UInt8,
+    number: UInt8 = MusicXMLPedalController.damper.rawValue
+) -> ScorePerformanceControllerEvent {
+    ScorePerformanceControllerEvent(
+        sourceDirectionID: nil,
+        performedOccurrenceIndex: 0,
+        tick: tick,
+        controllerNumber: number,
+        value: value,
+        outputCapabilityRequirement: .continuousControlChange
+    )
+}
+
+private func makeAssessmentControllerObservation(
+    time: TimeInterval,
+    number: Int = Int(MusicXMLPedalController.damper.rawValue),
+    value: Int
+) -> PerformanceObservation {
+    let instant = PerformanceMonotonicInstant(seconds: time)
+    return PerformanceObservation(
+        source: .init(kind: .midi1, id: "assessment-midi", generation: 7),
+        timing: .init(
+            host: instant,
+            source: nil,
+            correctedHost: instant,
+            mapping: nil,
+            provenance: .hostOnly
+        ),
+        event: .controller(.controlChange(number: number, value: .init(midi1: value)))
     )
 }
 
