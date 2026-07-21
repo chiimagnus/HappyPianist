@@ -43,6 +43,10 @@ struct PerformanceAlignmentEngine: Sendable {
         self.configuration = configuration
     }
 
+    func performanceSeconds(plan: ScorePerformancePlan, atTick tick: Int) -> TimeInterval {
+        PlanTimeMap(plan: plan).seconds(at: tick)
+    }
+
     func candidates(
         plan: ScorePerformancePlan,
         observations: [PerformanceObservation],

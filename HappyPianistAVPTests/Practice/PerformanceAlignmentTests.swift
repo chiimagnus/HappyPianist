@@ -320,6 +320,57 @@ func recordedTakeReplayUsesSameIncrementalStateMachineAsOnlineAlignment() {
     #expect(online.finish() == RecordedTakeAligner().align(take: take, plan: plan))
 }
 
+@Test
+func recordedTakeAlignmentValidatesScoreAndReportsGlobalSegmentDiagnostics() throws {
+    let sourceID = makeAlignmentSourceID(ordinal: 0)
+    let first = makeAlignmentEvent(sourceID: sourceID, occurrenceIndex: 0, onTick: 0)
+    let repeated = makeAlignmentEvent(sourceID: sourceID, occurrenceIndex: 1, onTick: 960)
+    let plan = makeAlignmentPlan(noteEvents: [first, repeated])
+    let events = [
+        RecordingTakeEvent(
+            time: 0,
+            kind: .noteOn(midi: 60, velocity: 90),
+            observation: makeAlignmentObservation(generation: 1, note: 60, seconds: 0)
+        ),
+        RecordingTakeEvent(
+            time: 1,
+            kind: .noteOn(midi: 60, velocity: 90),
+            observation: makeAlignmentObservation(generation: 1, note: 60, seconds: 1)
+        ),
+    ]
+    let take = RecordingTake(
+        name: "repeats",
+        metadata: .init(scoreIdentity: plan.sourceScoreIdentity, inputSources: []),
+        events: events
+    )
+
+    let result = try RecordedTakeAligner().alignResult(
+        take: take,
+        plan: plan,
+        segmentTickRanges: [0 ..< 480, 960 ..< 1_440]
+    )
+    #expect(result.diagnostics.alignedCount == 2)
+    #expect(result.diagnostics.segmentCount == 2)
+    #expect(result.diagnostics.performedOccurrenceCount == 2)
+    #expect(result.segments.allSatisfy { segment in
+        segment.alignment.links.contains { if case .aligned = $0 { true } else { false } }
+    })
+
+    let otherIdentity = ScorePerformanceSourceIdentity(
+        songID: UUID(),
+        scoreRevision: "other",
+        logicalInstrumentID: "piano"
+    )
+    let wrongTake = RecordingTake(
+        name: "wrong",
+        metadata: .init(scoreIdentity: otherIdentity, inputSources: []),
+        events: events
+    )
+    #expect(throws: RecordedTakeAlignmentError.scoreIdentityMismatch) {
+        try RecordedTakeAligner().alignResult(take: wrongTake, plan: plan)
+    }
+}
+
 private func makeAlignmentObservation(
     generation: UInt64,
     note: Int = 60,

@@ -42,11 +42,13 @@ struct PerformanceAlignmentScoreReference: Codable, Equatable, Hashable, Sendabl
     let eventID: ScorePerformanceNoteEventID
     let sourceNoteID: MusicXMLSourceNoteID
     let performedOccurrenceIndex: Int
+    let performedOnTick: Int
 
     init(event: ScorePerformanceNoteEvent) {
         eventID = event.id
         sourceNoteID = event.sourceNoteID
         performedOccurrenceIndex = event.performedOccurrenceIndex
+        performedOnTick = event.performedOnTick
     }
 }
 
