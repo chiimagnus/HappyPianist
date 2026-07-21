@@ -2,6 +2,7 @@ import Foundation
 
 struct PracticePerformanceAnalyzerSnapshot: Equatable, Sendable {
     let alignment: PerformanceAlignment?
+    let assessment: PassagePerformanceAssessment?
     let acceptedObservationCount: Int
     let rejectedObservationCount: Int
     let discardedObservationCount: Int
@@ -11,17 +12,23 @@ struct PracticePerformanceAnalyzerSnapshot: Equatable, Sendable {
 
 actor PracticePerformanceAnalyzer {
     private let diagnosticsReporter: (any DiagnosticsReporting)?
+    private let assessmentService: PerformanceAssessmentService
     private var plan: ScorePerformancePlan?
     private var activeTickRange: Range<Int>?
     private var roundStart: PerformanceMonotonicInstant?
     private var aligner: IncrementalPerformanceAligner?
     private var latestAlignment: PerformanceAlignment?
+    private var latestAssessment: PassagePerformanceAssessment?
     private var acceptedObservationCount = 0
     private var rejectedObservationCount = 0
     private var alignmentLatencyMilliseconds: Int64?
 
-    init(diagnosticsReporter: (any DiagnosticsReporting)? = nil) {
+    init(
+        diagnosticsReporter: (any DiagnosticsReporting)? = nil,
+        assessmentService: PerformanceAssessmentService = PerformanceAssessmentService()
+    ) {
         self.diagnosticsReporter = diagnosticsReporter
+        self.assessmentService = assessmentService
     }
 
     func configure(plan: ScorePerformancePlan, activeTickRange: Range<Int>?) {
@@ -34,6 +41,7 @@ actor PracticePerformanceAnalyzer {
         roundStart = start
         aligner = nil
         latestAlignment = nil
+        latestAssessment = nil
         acceptedObservationCount = 0
         rejectedObservationCount = 0
         alignmentLatencyMilliseconds = nil
@@ -73,6 +81,7 @@ actor PracticePerformanceAnalyzer {
             }
             alignmentLatencyMilliseconds = Int64((elapsed / .milliseconds(1)).rounded())
             aligner = current
+            updateAssessment()
         }
         let snapshot = snapshot()
         await report(snapshot)
@@ -82,6 +91,7 @@ actor PracticePerformanceAnalyzer {
     func snapshot() -> PracticePerformanceAnalyzerSnapshot {
         PracticePerformanceAnalyzerSnapshot(
             alignment: latestAlignment,
+            assessment: latestAssessment,
             acceptedObservationCount: acceptedObservationCount,
             rejectedObservationCount: rejectedObservationCount,
             discardedObservationCount: aligner?.discardedObservationCount ?? 0,
@@ -96,9 +106,22 @@ actor PracticePerformanceAnalyzer {
         roundStart = nil
         aligner = nil
         latestAlignment = nil
+        latestAssessment = nil
         acceptedObservationCount = 0
         rejectedObservationCount = 0
         alignmentLatencyMilliseconds = nil
+    }
+
+    private func updateAssessment() {
+        guard let plan, let latestAlignment else {
+            latestAssessment = nil
+            return
+        }
+        latestAssessment = assessmentService.assess(
+            plan: plan,
+            alignment: latestAlignment,
+            tickRange: activeTickRange
+        )
     }
 
     private func report(_ snapshot: PracticePerformanceAnalyzerSnapshot) async {

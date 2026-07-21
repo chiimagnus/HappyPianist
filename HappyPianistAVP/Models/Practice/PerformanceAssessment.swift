@@ -11,6 +11,7 @@ enum PerformanceAssessmentDimension: String, CaseIterable, Equatable, Hashable, 
     case extraNotes
     case missingNotes
     case onset
+    case tempoRelativeTiming
     case chordSpread
     case duration
     case release

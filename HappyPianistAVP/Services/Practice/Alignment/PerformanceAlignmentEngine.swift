@@ -44,7 +44,7 @@ struct PerformanceAlignmentEngine: Sendable {
 
     struct PreparedPlan: Sendable {
         fileprivate let plan: ScorePerformancePlan
-        fileprivate let timeMap: PlanTimeMap
+        fileprivate let timeMap: ScorePerformancePlanTimeMap
         fileprivate let activeNotes: [TimedNote]
         fileprivate let chordEventsByTick: [Int: [ScorePerformanceNoteEvent]]
         fileprivate let eventByID: [ScorePerformanceNoteEventID: ScorePerformanceNoteEvent]
@@ -87,14 +87,14 @@ struct PerformanceAlignmentEngine: Sendable {
     }
 
     func performanceSeconds(plan: ScorePerformancePlan, atTick tick: Int) -> TimeInterval {
-        PlanTimeMap(plan: plan).seconds(at: tick)
+        ScorePerformancePlanTimeMap(plan: plan).seconds(at: tick)
     }
 
     func prepare(
         plan: ScorePerformancePlan,
         activeTickRange: Range<Int>? = nil
     ) -> PreparedPlan {
-        let timeMap = PlanTimeMap(plan: plan)
+        let timeMap = ScorePerformancePlanTimeMap(plan: plan)
         let activeNotes = plan.noteEvents.compactMap { event -> TimedNote? in
             guard activeTickRange?.contains(event.performedOnTick) ?? true else { return nil }
             return TimedNote(event: event, seconds: timeMap.seconds(at: event.performedOnTick))
@@ -274,7 +274,7 @@ struct PerformanceAlignmentEngine: Sendable {
         scoreEvents: [ScorePerformanceControllerEvent],
         observations: [PerformanceObservation],
         performanceStart: PerformanceMonotonicInstant,
-        timeMap: PlanTimeMap
+        timeMap: ScorePerformancePlanTimeMap
     ) -> [PerformanceAlignmentControllerLink] {
         let observed = observations.compactMap { observation -> (PerformanceObservation, Int, UInt8)? in
             guard case let .controller(.controlChange(number, value)) = observation.event else { return nil }
@@ -523,7 +523,7 @@ struct PerformanceAlignmentEngine: Sendable {
     private static func releaseEvidence(
         measurement: ReleaseMeasurement?,
         event: ScorePerformanceNoteEvent,
-        timeMap: PlanTimeMap,
+        timeMap: ScorePerformancePlanTimeMap,
         unmatchedCost: Double
     ) -> [PerformanceAlignmentEvidence] {
         let capability = measurement?.capability ?? .unavailable
@@ -592,7 +592,7 @@ private extension PerformanceObservation {
     }
 }
 
-private struct PlanTimeMap: Sendable {
+struct ScorePerformancePlanTimeMap: Sendable {
     private let scale: Double
     private let map: MusicXMLTempoMap
 
@@ -614,6 +614,13 @@ private struct PlanTimeMap: Sendable {
 
     func seconds(at tick: Int) -> TimeInterval {
         map.timeSeconds(atTick: Self.scaled(tick, by: scale))
+    }
+
+    func quarterDurationSeconds(at tick: Int, resolution: ScorePerformanceTickResolution) -> TimeInterval {
+        let start = seconds(at: tick)
+        let (endTick, overflow) = tick.addingReportingOverflow(max(1, resolution.ticksPerQuarter))
+        let end = seconds(at: overflow ? .max : endTick)
+        return max(0.000_1, end - start)
     }
 
     private static func scaled(_ tick: Int, by scale: Double) -> Int {
