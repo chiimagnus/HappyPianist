@@ -311,11 +311,14 @@ func handEvidenceDisambiguatesPolyphonicUnisonWithoutUsingStaffAsHand() throws {
         observations: [typed],
         performanceStart: .init(seconds: 0)
     )
-    guard case let .aligned(score, _, _) = typedResult.links.first else {
+    guard case let .aligned(score, _, evidence) = typedResult.links.first else {
         Issue.record("Expected typed hand to align")
         return
     }
     #expect(score.eventID == right.id)
+    #expect(evidence.contains {
+        $0.dimension == .voice && $0.status == .notObserved && $0.cost == nil
+    })
 
     let unknownResult = PerformanceAlignmentEngine().align(
         plan: plan,

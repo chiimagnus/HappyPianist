@@ -340,8 +340,7 @@ struct PerformanceAlignmentEngine: Sendable {
                     ),
                     .init(
                         dimension: .voice,
-                        status: .observed,
-                        cost: 0
+                        status: .notObserved
                     ),
                     .init(
                         dimension: .occurrence,
