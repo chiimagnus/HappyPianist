@@ -211,6 +211,7 @@ flowchart LR
 
 - `PracticeStep` 是即时判定单位。
 - source measure 是持久化学习单位。
+- 每个 passage round 在输入停止后结束 analyzer generation；完整 assessment 由当前 progress generation 认领一次并归约为小节 maturity/metric summaries，循环下一轮只在该边界完成后重启输入。取消、换谱与过期 generation 的结果直接丢弃。
 - `PracticeSessionRecorder` 由 `LiveAppGraph` 按 window visit 持有，跨 session ViewModel replacement 复用；首次真实 `ready -> guiding` 才写入一条会话事实，同一窗口多轮不增加次数。
 - recorder 使用单调时钟累计 window duration 与 active duration；后者仅覆盖 scene active、guiding、设置未展示的区间。首次 guiding、guiding/settings/scene 边界、round 结束与退出立即 checkpoint，连续 guiding 最多每 30 秒一次。
 - 显式返回必须先等待 progress flush，再终结 session recorder；任一步失败都留在 Practice，用户可确认只放弃尚未保存的增量。recorder 成功终结后只提交无 IO 的内存清理，不再复用启动前可失败的 progress clear。系统关闭走独立 best-effort finalize，不触发返回窗口导航。

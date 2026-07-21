@@ -50,7 +50,8 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
     private(set) var hasShutdown = false
     private(set) var guidingStartIsBlocked = false
     var lastProgressRestoreOutcome: PracticeProgressRestoreOutcome = .none
-    @ObservationIgnored private var sessionRecorderEventTask: Task<Void, Never>?
+    @ObservationIgnored var sessionRecorderEventTask: Task<Void, Never>?
+    @ObservationIgnored var performanceAssessmentLifecycleGeneration = 0
     @ObservationIgnored var autoplayTimelineBuildTask: Task<Void, Never>?
     @ObservationIgnored var autoplayTimelineBuildGeneration = 0
 
@@ -191,6 +192,12 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
 
     func enqueueSessionRecorderEvent(_ event: SessionRecorderEvent) {
         guard let sessionRecorder else { return }
+        switch event {
+        case .configureAnalysis, .resetAnalysis:
+            performanceAssessmentLifecycleGeneration += 1
+        case .guiding, .settingsPresented, .checkpoint:
+            break
+        }
         let previousTask = sessionRecorderEventTask
         sessionRecorderEventTask = Task { @MainActor in
             await previousTask?.value

@@ -1,6 +1,7 @@
 import Foundation
 
 struct PracticePerformanceAnalyzerSnapshot: Equatable, Sendable {
+    let roundGeneration: UInt64
     let alignment: PerformanceAlignment?
     let assessment: PassagePerformanceAssessment?
     let acceptedObservationCount: Int
@@ -22,6 +23,7 @@ actor PracticePerformanceAnalyzer {
     private var acceptedObservationCount = 0
     private var rejectedObservationCount = 0
     private var alignmentLatencyMilliseconds: Int64?
+    private var roundGeneration: UInt64 = 0
 
     init(
         diagnosticsReporter: (any DiagnosticsReporting)? = nil,
@@ -38,6 +40,7 @@ actor PracticePerformanceAnalyzer {
     }
 
     func beginRound(at start: PerformanceMonotonicInstant) {
+        roundGeneration += 1
         roundStart = start
         aligner = nil
         latestAlignment = nil
@@ -90,6 +93,7 @@ actor PracticePerformanceAnalyzer {
 
     func snapshot() -> PracticePerformanceAnalyzerSnapshot {
         PracticePerformanceAnalyzerSnapshot(
+            roundGeneration: roundGeneration,
             alignment: latestAlignment,
             assessment: latestAssessment,
             acceptedObservationCount: acceptedObservationCount,

@@ -24,6 +24,12 @@ struct PracticeProgressSession: Equatable {
     let isCurrent: Bool
 }
 
+struct PracticeProgressAssessmentID: Equatable, Hashable, Sendable {
+    let analyzerRoundGeneration: UInt64
+    let planID: ScorePerformancePlanID
+    let sourceGeneration: UInt64
+}
+
 actor PracticeProgressCoordinator {
     private let repository: any PracticeProgressRepositoryProtocol
     private let clock: any PracticeProgressClockProtocol
@@ -36,6 +42,7 @@ actor PracticeProgressCoordinator {
     private var delayedFlushTask: Task<Void, Never>?
     private var saveStatus: PracticeProgressSaveStatus = .idle
     private var lastAcceptedUpdatedAt: Date?
+    private var claimedAssessmentIDs: Set<PracticeProgressAssessmentID> = []
 
     init(
         repository: any PracticeProgressRepositoryProtocol,
@@ -53,6 +60,7 @@ actor PracticeProgressCoordinator {
         delayedFlushTask?.cancel()
         delayedFlushTask = nil
         pendingProgress = nil
+        claimedAssessmentIDs.removeAll(keepingCapacity: true)
         currentGeneration += 1
         currentIdentity = identity
         let generation = currentGeneration
@@ -86,6 +94,15 @@ actor PracticeProgressCoordinator {
             }
             await self.flush(generation: generation)
         }
+    }
+
+    func claimAssessment(
+        _ id: PracticeProgressAssessmentID,
+        identity: PracticeSongIdentity,
+        generation: Int
+    ) -> Bool {
+        guard generation == currentGeneration, identity == currentIdentity else { return false }
+        return claimedAssessmentIDs.insert(id).inserted
     }
 
     @discardableResult
@@ -137,6 +154,7 @@ actor PracticeProgressCoordinator {
         currentIdentity = nil
         pendingProgress = nil
         lastAcceptedUpdatedAt = nil
+        claimedAssessmentIDs.removeAll(keepingCapacity: true)
         currentGeneration += 1
         return status
     }
@@ -148,6 +166,7 @@ actor PracticeProgressCoordinator {
         currentIdentity = nil
         pendingProgress = nil
         lastAcceptedUpdatedAt = nil
+        claimedAssessmentIDs.removeAll(keepingCapacity: true)
         saveStatus = .idle
         currentGeneration += 1
     }

@@ -241,9 +241,13 @@ extension PracticeSessionViewModel {
     func checkpointProgress() {
         guard let progressCoordinator,
               let generation = self.progressGeneration,
-              let progress = self.sessionProgress
+              self.sessionProgress != nil
         else { return }
-        Task {
+        Task { @MainActor [weak self] in
+            guard let self,
+                  self.progressGeneration == generation,
+                  let progress = self.sessionProgress
+            else { return }
             await progressCoordinator.checkpoint(progress, generation: generation)
         }
     }
@@ -367,7 +371,10 @@ extension PracticeSessionViewModel {
         checkpointProgress()
     }
 
-    func recordPassageCompletion(at timestamp: Date = .now) {
+    func recordPassageCompletion(
+        at timestamp: Date = .now,
+        nextRoundStepIndex: Int? = nil
+    ) {
         guard let identity = self.songIdentity, let configuration = self.activeRoundConfiguration else { return }
         let previousProgress = self.sessionProgress
         let result = attemptReducer.reducePassageCompletion(
@@ -380,7 +387,121 @@ extension PracticeSessionViewModel {
         self.sessionProgress = result.progress
         self.attemptReductionState = result.reductionState
         publishFeedback(for: result.fact, previousProgress: previousProgress, progress: result.progress)
-        checkpointProgress()
+        if sessionRecorder == nil {
+            checkpointProgress()
+        }
+        enqueueCompletedPassageAnalysis(
+            identity: identity,
+            configuration: configuration,
+            timestamp: timestamp,
+            nextRoundStepIndex: nextRoundStepIndex
+        )
+    }
+
+    private func enqueueCompletedPassageAnalysis(
+        identity: PracticeSongIdentity,
+        configuration: PracticeRoundConfiguration,
+        timestamp: Date,
+        nextRoundStepIndex: Int?
+    ) {
+        guard let sessionRecorder else {
+            if let nextRoundStepIndex {
+                beginNextLoopRound(at: nextRoundStepIndex)
+            }
+            return
+        }
+        let lifecycleGeneration = performanceAssessmentLifecycleGeneration
+        let progressGeneration = self.progressGeneration
+        let planID = self.performancePlan?.id
+        let previousTask = sessionRecorderEventTask
+        sessionRecorderEventTask = Task { @MainActor [weak self] in
+            await previousTask?.value
+            guard let self else { return }
+            await sessionRecorder.setGuiding(false)
+            let snapshot = await sessionRecorder.analysisSnapshot()
+            guard self.acceptsCompletedPassageAnalysis(
+                identity: identity,
+                configuration: configuration,
+                progressGeneration: progressGeneration,
+                lifecycleGeneration: lifecycleGeneration
+            ) else { return }
+
+            if let snapshot,
+               let assessment = snapshot.assessment,
+               assessment.planID == planID
+            {
+                let assessmentID = PracticeProgressAssessmentID(
+                    analyzerRoundGeneration: snapshot.roundGeneration,
+                    planID: assessment.planID,
+                    sourceGeneration: assessment.sourceGeneration
+                )
+                var shouldApply = true
+                if let progressCoordinator, let progressGeneration {
+                    shouldApply = await progressCoordinator.claimAssessment(
+                        assessmentID,
+                        identity: identity,
+                        generation: progressGeneration
+                    )
+                }
+                guard self.acceptsCompletedPassageAnalysis(
+                    identity: identity,
+                    configuration: configuration,
+                    progressGeneration: progressGeneration,
+                    lifecycleGeneration: lifecycleGeneration
+                ) else { return }
+                if shouldApply, let progress = self.sessionProgress {
+                    var assessedProgress = self.attemptReducer.reducePerformanceAssessment(
+                        progress: progress,
+                        identity: identity,
+                        configuration: configuration,
+                        timestamp: timestamp,
+                        assessment: assessment
+                    )
+                    assessedProgress.updatedAt = max(assessedProgress.updatedAt, .now)
+                    self.sessionProgress = assessedProgress
+                }
+            }
+
+            if let progressCoordinator,
+               let progressGeneration,
+               let progress = self.sessionProgress
+            {
+                await progressCoordinator.checkpoint(progress, generation: progressGeneration)
+            }
+
+            guard let nextRoundStepIndex,
+                  self.state == .completed,
+                  self.acceptsCompletedPassageAnalysis(
+                      identity: identity,
+                      configuration: configuration,
+                      progressGeneration: progressGeneration,
+                      lifecycleGeneration: lifecycleGeneration
+                  )
+            else { return }
+            await sessionRecorder.setGuiding(true)
+            guard self.state == .completed,
+                  self.acceptsCompletedPassageAnalysis(
+                      identity: identity,
+                      configuration: configuration,
+                      progressGeneration: progressGeneration,
+                      lifecycleGeneration: lifecycleGeneration
+                  )
+            else { return }
+            self.beginNextLoopRound(at: nextRoundStepIndex)
+        }
+    }
+
+    private func acceptsCompletedPassageAnalysis(
+        identity: PracticeSongIdentity,
+        configuration: PracticeRoundConfiguration,
+        progressGeneration: Int?,
+        lifecycleGeneration: Int
+    ) -> Bool {
+        self.hasShutdown == false
+            && self.performanceAssessmentLifecycleGeneration == lifecycleGeneration
+            && self.songIdentity == identity
+            && self.activeRoundConfiguration == configuration
+            && self.progressGeneration == progressGeneration
     }
 
     private func publishFeedback(
@@ -770,23 +891,20 @@ extension PracticeSessionViewModel {
                 return
             }
 
-            recordPassageCompletion()
-            if self.activeRoundConfiguration?.loopEnabled == true,
-               self.hasStablePitchStepsInActivePassage == false,
-               let firstStepIndex = self.activeRange?.firstStepIndex
-            {
-                enqueueSessionRecorderEvent(.checkpoint)
-                beginNextLoopRound(at: firstStepIndex)
-                return
-            }
-
             self.currentStepIndex = navigation.currentStepIndex
             self.currentHighlightGuideIndex = nil
             self.pressedNotes.removeAll()
             self.state = navigation.state
             stopAutoplayTask()
             stopAudioRecognition()
-            enqueueSessionRecorderEvent(.guiding(false))
+            let nextRoundStepIndex: Int? = if self.activeRoundConfiguration?.loopEnabled == true,
+                                               self.hasStablePitchStepsInActivePassage == false
+            {
+                self.activeRange?.firstStepIndex
+            } else {
+                nil
+            }
+            recordPassageCompletion(nextRoundStepIndex: nextRoundStepIndex)
             return
         }
 
@@ -846,15 +964,6 @@ extension PracticeSessionViewModel {
     }
 
     private func completeManualAdvance() {
-        recordPassageCompletion()
-        if self.activeRoundConfiguration?.loopEnabled == true,
-           self.hasStablePitchStepsInActivePassage == false,
-           let firstStepIndex = self.activeRange?.firstStepIndex
-        {
-            enqueueSessionRecorderEvent(.checkpoint)
-            beginNextLoopRound(at: firstStepIndex)
-            return
-        }
         self.currentStepIndex = self.activeRange?.completionStepIndex ?? self.steps.count
         self.currentHighlightGuideIndex = nil
         self.pressedNotes.removeAll()
@@ -862,7 +971,14 @@ extension PracticeSessionViewModel {
         stopManualReplayTask()
         stopAutoplayTask()
         stopAudioRecognition()
-        enqueueSessionRecorderEvent(.guiding(false))
+        let nextRoundStepIndex: Int? = if self.activeRoundConfiguration?.loopEnabled == true,
+                                           self.hasStablePitchStepsInActivePassage == false
+        {
+            self.activeRange?.firstStepIndex
+        } else {
+            nil
+        }
+        recordPassageCompletion(nextRoundStepIndex: nextRoundStepIndex)
     }
 
     func setPracticeSettingsPresented(_ isPresented: Bool) {

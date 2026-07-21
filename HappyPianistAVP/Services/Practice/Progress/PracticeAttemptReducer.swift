@@ -162,11 +162,12 @@ struct PracticeAttemptReducer {
         updated.activeConfiguration = configuration
         updated.updatedAt = timestamp
         if let assessment {
-            reducePerformanceMaturity(
-                assessment,
-                handMode: configuration.handMode,
+            updated = reducePerformanceAssessment(
+                progress: updated,
+                identity: identity,
+                configuration: configuration,
                 timestamp: timestamp,
-                into: &updated
+                assessment: assessment
             )
         }
         return Result(
@@ -174,6 +175,26 @@ struct PracticeAttemptReducer {
             reductionState: reductionState,
             fact: .passageCompleted(handMode: configuration.handMode)
         )
+    }
+
+    func reducePerformanceAssessment(
+        progress: SongPracticeProgress,
+        identity: PracticeSongIdentity,
+        configuration: PracticeRoundConfiguration,
+        timestamp: Date,
+        assessment: PassagePerformanceAssessment
+    ) -> SongPracticeProgress {
+        guard progress.identity == identity else { return progress }
+        var updated = progress
+        updated.activeConfiguration = configuration
+        updated.updatedAt = max(progress.updatedAt, timestamp)
+        reducePerformanceMaturity(
+            assessment,
+            handMode: configuration.handMode,
+            timestamp: timestamp,
+            into: &updated
+        )
+        return updated
     }
 
     private func emptyProgress(

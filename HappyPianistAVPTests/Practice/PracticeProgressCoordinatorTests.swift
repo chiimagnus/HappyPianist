@@ -52,6 +52,44 @@ func progressCoordinatorDiscardsLateGenerationWrites() async {
 }
 
 @Test
+func progressCoordinatorClaimsEachAssessmentOncePerCurrentGeneration() async {
+    let repository = InMemoryPracticeProgressRepository()
+    let coordinator = PracticeProgressCoordinator(repository: repository)
+    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
+    let firstSession = await coordinator.begin(identity: identity)
+    let assessmentID = PracticeProgressAssessmentID(
+        analyzerRoundGeneration: 7,
+        planID: .init(rawValue: "plan"),
+        sourceGeneration: 3
+    )
+
+    #expect(await coordinator.claimAssessment(
+        assessmentID,
+        identity: identity,
+        generation: firstSession.generation
+    ))
+    #expect(await coordinator.claimAssessment(
+        assessmentID,
+        identity: identity,
+        generation: firstSession.generation
+    ) == false)
+
+    await coordinator.discardPendingProgress(generation: firstSession.generation)
+    #expect(await coordinator.claimAssessment(
+        assessmentID,
+        identity: identity,
+        generation: firstSession.generation
+    ) == false)
+
+    let resumedSession = await coordinator.begin(identity: identity)
+    #expect(await coordinator.claimAssessment(
+        assessmentID,
+        identity: identity,
+        generation: resumedSession.generation
+    ))
+}
+
+@Test
 func progressCoordinatorDiscardsLateBeginResult() async {
     let repository = SuspendedPracticeProgressRepository()
     let coordinator = PracticeProgressCoordinator(repository: repository)
