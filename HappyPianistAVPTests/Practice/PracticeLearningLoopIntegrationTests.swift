@@ -399,6 +399,7 @@ func performingCoachingActionPracticesTheDiagnosedMeasureAtTheRequestedTempo() t
             scoreRange: issue.scoreRange,
             tempoRatio: 0.7,
             repeatCount: 2,
+            referenceUse: .manualReplay,
             completionCondition: CoachingCompletionCondition(
                 target: .dimensionOutcome(dimension: .onset, outcome: .correct)
             )
@@ -414,6 +415,7 @@ func performingCoachingActionPracticesTheDiagnosedMeasureAtTheRequestedTempo() t
     #expect(session.activeRoundConfiguration?.tempoScale == 0.7)
     #expect(session.activeRange?.measureSpans == [secondSpan])
     #expect(session.state == .guiding(stepIndex: 1))
+    #expect(session.isManualReplayPlaying)
 }
 
 @MainActor

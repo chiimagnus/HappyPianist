@@ -51,7 +51,9 @@ func feedbackViewModelPresentsNeutralHandAndFingeringSources() throws {
             MusicXMLFingering(text: "1", hand: .right, provenance: .score),
             MusicXMLFingering(text: "2", hand: .right, provenance: .teacher),
         ],
+        voiceFocus: CoachingVoiceFocus(partID: "P1", staff: 1, voice: 2),
         repeatCount: 1,
+        referenceUse: .score,
         completionCondition: CoachingCompletionCondition(
             target: .dimensionOutcome(dimension: .exactPitch, outcome: .correct)
         )
@@ -67,6 +69,8 @@ func feedbackViewModelPresentsNeutralHandAndFingeringSources() throws {
     #expect(presentation.sourceLabel?.localizedStandardContains("推测") == true)
     #expect(presentation.sourceLabel?.localizedStandardContains("原谱") == true)
     #expect(presentation.sourceLabel?.localizedStandardContains("教师") == true)
+    #expect(presentation.sourceLabel?.localizedStandardContains("声部 2") == true)
+    #expect(presentation.sourceLabel?.localizedStandardContains("当前谱面") == true)
     viewModel.cancel()
     #expect(viewModel.coachingPresentation == nil)
 }

@@ -868,6 +868,11 @@ extension PracticeSessionViewModel {
             startGuidingIfReady()
         }
         if let coachingDecision {
+            if coachingDecision.action.referenceUse == .manualReplay,
+               let stepRange = self.activeRange?.stepRange
+            {
+                startManualReplay(with: ManualReplayPlan(stepRange: stepRange))
+            }
             enqueueCoachingDisposition {
                 await $0.accept(coachingDecision)
             }

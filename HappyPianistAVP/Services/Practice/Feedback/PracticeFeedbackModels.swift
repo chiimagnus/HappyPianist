@@ -41,6 +41,18 @@ struct PracticeCoachingPresentation: Equatable, Sendable {
         if fingeringLabels.isEmpty == false {
             sourceLabels.append("指法依据：\(fingeringLabels.joined(separator: "、"))")
         }
+        if let voice = decision.action.voiceFocus {
+            sourceLabels.append(
+                "目标声部：谱面 \(voice.partID) / 第 \(voice.staff) 谱表 / 声部 \(voice.voice)"
+            )
+        }
+        if let referenceUse = decision.action.referenceUse {
+            let referenceLabel = switch referenceUse {
+            case .score: "参考：当前谱面"
+            case .manualReplay: "参考：示范回放"
+            }
+            sourceLabels.append(referenceLabel)
+        }
         actionLabel = Self.actionLabel(decision.action)
         sourceLabel = sourceLabels.isEmpty ? nil : sourceLabels.joined(separator: "；")
         fingeringText = decision.action.fingerings.fingeringDisplayText

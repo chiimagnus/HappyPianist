@@ -95,7 +95,6 @@ func coachingActionCarriesExecutableParametersAndNormalizesBounds() {
         voiceFocus: CoachingVoiceFocus(partID: "P1", staff: 2, voice: 1),
         repeatCount: 0,
         referenceUse: .manualReplay,
-        cueUse: .metronome,
         completionCondition: completion
     )
     let decision = CoachingDecision(issue: issue, action: action)
@@ -106,9 +105,25 @@ func coachingActionCarriesExecutableParametersAndNormalizesBounds() {
     #expect(action.voiceFocus == CoachingVoiceFocus(partID: "P1", staff: 2, voice: 1))
     #expect(action.repeatCount == 1)
     #expect(action.referenceUse == .manualReplay)
-    #expect(action.cueUse == .metronome)
     #expect(decision.issue == issue)
     #expect(decision.action == action)
+}
+
+@Test
+func exercisePolicyUsesTheUniquelyProminentScoreVoice() throws {
+    let plan = makeTestScorePerformancePlan(notes: [
+        TestScorePerformanceNote(midiNote: 72, velocity: 112, onTick: 0, staff: 1, voice: 1),
+        TestScorePerformanceNote(midiNote: 60, velocity: 72, onTick: 0, staff: 1, voice: 2),
+    ])
+    let issue = makeCoachingIssue(kind: .voicing, dimension: .voicing)
+
+    let action = try #require(PracticeExercisePolicy().action(
+        for: issue,
+        scoreEvents: plan.noteEvents
+    ))
+
+    #expect(action.voiceFocus == CoachingVoiceFocus(partID: "P1", staff: 1, voice: 1))
+    #expect(action.referenceUse == .score)
 }
 
 @Test
