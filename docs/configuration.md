@@ -7,12 +7,13 @@
 | 工程 | `HappyPianist.xcodeproj` |
 | App target / scheme | `HappyPianistAVP` |
 | Test target | `HappyPianistAVPTests` |
-| Swift | 6.0 |
+| App / Test target Swift language mode | 6.0 |
+| RealityKitContent manifest | `swift-tools-version: 6.2`，visionOS 26 |
 | 部署目标 | visionOS 26.0 |
 | 支持平台 | `xros`、`xrsimulator` |
 | SwiftPM | 本地 `RealityKitContent`、远程 `ZIPFoundation` 0.9.20 |
 
-仓库没有 macOS App target。`.github/workflows/swift-ci.yml` 会在 visionOS Simulator 上运行 `xcodebuild test`；本地 `xcodebuild` 仍是开发阶段验证与复现失败的真源。
+仓库没有 macOS App target。`.github/workflows/swift-ci.yml` 仅支持手动触发，运行在 `macos-26`，通过 `DEVELOPER_DIR` 固定到 `/Applications/Xcode_26.6.app/Contents/Developer`，并使用名为 `Apple Vision Pro`、`OS=latest` 的 visionOS Simulator 执行测试；本地 `xcodebuild` 仍是开发阶段验证与复现失败的真源。
 
 ## 依赖边界
 

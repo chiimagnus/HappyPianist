@@ -26,7 +26,16 @@
 | 真实钢琴（蓝牙 MIDI） | 校准完成且至少一个 MIDI source | CoreMIDI MIDI 1.0/2.0。 |
 | 虚拟钢琴 | 虚拟键盘放置完成 | 手部接触虚拟琴键。 |
 
-准备 UI 位于 `HappyPianistAVP/Views/PianoChoose/`，由曲库左上角入口以单层 `pushWindow` 打开。模式差异通过 `PianoModeProtocol` 表达，不在 View 中维护平行的 mode switch。未完成 readiness 时曲库仍可浏览和导入，但不能进入 Practice。
+准备 UI 位于 `HappyPianistAVP/Views/PianoChoose/`，由曲库左上角入口以单层 `pushWindow` 打开。当前目录按模式拆分：
+
+| 目录 | 责任 |
+| --- | --- |
+| `PreparationWindowRootView.swift` | 准备窗口根视图与模式路由。 |
+| `Bluetooth/` | 蓝牙 MIDI 准备与连接区。 |
+| `RealPiano/` | 真实钢琴音频模式与触键校准视图。 |
+| `VirtualPiano/` | 虚拟钢琴放置与准备视图。 |
+
+模式差异通过 `PianoModeProtocol` 表达，不在 View 中维护平行的 mode switch。未完成 readiness 时曲库仍可浏览和导入，但不能进入 Practice。
 
 ## 曲库
 
@@ -72,7 +81,7 @@ Library View -> SongLibraryViewModel -> SongLibraryImportTransactionService -> S
 
 不要重新引入平行的 MusicXML import service。
 
-源码归档没有 bundled production score；`BundledSongLibraryProvider` 只有在 App target 实际包含 `.musicxml` 时才会产生内置曲目。
+当前仓库没有 bundled production score；`BundledSongLibraryProvider` 只有在 App target 实际包含 `.musicxml` 时才会产生内置曲目。
 
 
 ## 诊断
@@ -83,16 +92,13 @@ Library View -> SongLibraryViewModel -> SongLibraryImportTransactionService -> S
 
 ## 练习窗口
 
-`HappyPianistAVP/Views/Practice/PracticeWindowRootView.swift` 承载：
+`HappyPianistAVP/Views/Practice/PracticeWindowRootView.swift` 承载窗口生命周期与返回事务；练习内容按以下目录拆分：
 
-- launch loading / failure / retry 与唯一返回事务
-- 五线谱和 step 控制
-- 片段设置
-- 练习设置
-- 非模态 feedback cue
-- 本轮总结
-- 小节恢复地图
-- 录制库
+| 目录 | 责任 |
+| --- | --- |
+| `Launch/` | 曲谱准备 loading、失败、重试与 ready 门控。 |
+| `Step/` | 五线谱外壳、step 控制、设置、feedback cue、小节地图与录制入口。 |
+| `Step/Notation/` | Bravura / SMuFL 五线谱渲染与视图。 |
 
 业务状态由 `PracticeSessionViewModel`、反馈 view models 和 `ARGuideViewModel` 提供。View 不直接读写 repository 或设备服务。
 

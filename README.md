@@ -68,7 +68,7 @@ xcodebuild test \
   -parallel-testing-enabled NO
 ```
 
-仓库还提供 `.github/workflows/swift-ci.yml`。本地与 CI 都必须实际运行 `xcodebuild test`；`build-for-testing`、解析检查或资源测试跳过不能作为完整通过证据。
+仓库还提供 `.github/workflows/swift-ci.yml`，当前通过手动触发，在 `macos-26` 上固定使用 Xcode 26.6。无论本地还是 CI，都必须实际运行 `xcodebuild test`；`build-for-testing`、解析检查或资源测试跳过不能作为完整通过证据。具体配置见 [`docs/configuration.md`](docs/configuration.md)。
 
 应用需要在 Xcode 中运行到 Simulator 或真机。ARKit、手部追踪、麦克风、蓝牙 MIDI、Local Network 与空间舒适度必须在对应设备环境中验证。
 
