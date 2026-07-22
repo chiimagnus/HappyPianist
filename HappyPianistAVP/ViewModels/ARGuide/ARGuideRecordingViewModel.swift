@@ -15,7 +15,8 @@ final class ARGuideRecordingViewModel {
     private let onMIDI2Event: @MainActor (MIDI2InputEvent) -> Void
     private let alignRecordedTake: @Sendable (
         RecordingTake,
-        ScorePerformancePlan
+        ScorePerformancePlan,
+        [MusicXMLMeasureSpan]
     ) async -> RecordedTakeAlignmentDiagnostics?
 
     @ObservationIgnored
@@ -38,6 +39,7 @@ final class ARGuideRecordingViewModel {
     @ObservationIgnored private var playbackStopTask: Task<Void, Never>?
     @ObservationIgnored private var alignmentTasks: [UUID: Task<Void, Never>] = [:]
     @ObservationIgnored private var recordingPlan: ScorePerformancePlan?
+    @ObservationIgnored private var recordingMeasureSpans: [MusicXMLMeasureSpan] = []
 
     init(
         takeLibraryViewModel: TakeLibraryViewModel? = nil,
@@ -47,11 +49,16 @@ final class ARGuideRecordingViewModel {
         diagnosticsReporter: (any DiagnosticsReporting)? = nil,
         alignRecordedTake: @escaping @Sendable (
             RecordingTake,
-            ScorePerformancePlan
-        ) async -> RecordedTakeAlignmentDiagnostics? = { take, plan in
+            ScorePerformancePlan,
+            [MusicXMLMeasureSpan]
+        ) async -> RecordedTakeAlignmentDiagnostics? = { take, plan, measureSpans in
             let task = Task<RecordedTakeAlignmentDiagnostics?, Never>.detached(priority: .utility) {
                 guard Task.isCancelled == false,
-                      let result = try? RecordedTakeAligner().alignResult(take: take, plan: plan),
+                      let result = try? RecordedTakeAligner().alignResult(
+                          take: take,
+                          plan: plan,
+                          measureSpans: measureSpans
+                      ),
                       Task.isCancelled == false
                 else { return nil }
                 return result.diagnostics
@@ -126,12 +133,14 @@ final class ARGuideRecordingViewModel {
 
     func startRecording(
         canRecord: Bool,
-        performancePlan: ScorePerformancePlan?
+        performancePlan: ScorePerformancePlan?,
+        measureSpans: [MusicXMLMeasureSpan]
     ) async {
         guard canRecord else { return }
         await playbackStopTask?.value
         await takePlaybackViewModel.stop()
         recordingPlan = performancePlan
+        recordingMeasureSpans = measureSpans
         midiRecordingState.startRecordingIfPossible(
             canRecord: canRecord,
             metadata: RecordingTakeMetadata(
@@ -144,6 +153,7 @@ final class ARGuideRecordingViewModel {
     func stopRecording() {
         midiRecordingState.stopRecordingIfNeeded()
         recordingPlan = nil
+        recordingMeasureSpans = []
     }
 
     func dismissError() {
@@ -176,10 +186,11 @@ final class ARGuideRecordingViewModel {
     private func handleRecordedTake(_ take: RecordingTake) {
         takeLibraryViewModel.addTake(take)
         guard let recordingPlan else { return }
+        let measureSpans = recordingMeasureSpans
         let alignRecordedTake = alignRecordedTake
         alignmentTasks[take.id]?.cancel()
         alignmentTasks[take.id] = Task { [weak self] in
-            let diagnostics = await alignRecordedTake(take, recordingPlan)
+            let diagnostics = await alignRecordedTake(take, recordingPlan, measureSpans)
             guard Task.isCancelled == false, let self else { return }
             alignmentTasks.removeValue(forKey: take.id)
             if let diagnostics {
@@ -195,6 +206,7 @@ final class ARGuideRecordingViewModel {
     func stop() {
         midiRecordingState.stop()
         recordingPlan = nil
+        recordingMeasureSpans = []
         alignmentTasks.values.forEach { $0.cancel() }
         alignmentTasks.removeAll()
         let previousStopTask = playbackStopTask

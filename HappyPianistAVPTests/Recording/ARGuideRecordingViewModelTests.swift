@@ -18,7 +18,7 @@ func recordingTeardownCancelsPendingOfflineAlignment() async {
     let viewModel = ARGuideRecordingViewModel(
         takeLibraryViewModel: library,
         takePlaybackViewModel: playback,
-        alignRecordedTake: { _, _ in await probe.run() }
+        alignRecordedTake: { _, _, _ in await probe.run() }
     )
     let plan = ScorePerformancePlan(
         id: .init(rawValue: "recording-cancellation"),
@@ -36,7 +36,11 @@ func recordingTeardownCancelsPendingOfflineAlignment() async {
         approximations: []
     )
 
-    await viewModel.startRecording(canRecord: true, performancePlan: plan)
+    await viewModel.startRecording(
+        canRecord: true,
+        performancePlan: plan,
+        measureSpans: []
+    )
     viewModel.recordTakeFromKeyContactIfNeeded(
         usesBluetoothMIDIInput: false,
         isVirtualPianoEnabled: true,

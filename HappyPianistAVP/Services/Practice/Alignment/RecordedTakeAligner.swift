@@ -3,6 +3,7 @@ import Foundation
 enum RecordedTakeAlignmentError: Error, Equatable {
     case scoreIdentityMismatch
     case missingObservation
+    case assessmentUnavailable
 }
 
 struct RecordedTakeAlignmentSegment: Equatable, Sendable {
@@ -22,11 +23,16 @@ struct RecordedTakeAlignmentDiagnostics: Equatable, Sendable {
     let unknownCount: Int
     let controllerLinkCount: Int
     let performedOccurrenceCount: Int
+    let assessableDimensionCount: Int
+    let incorrectDimensionCount: Int
+    let insufficientDimensionCount: Int
+    let degradedDimensionCount: Int
 }
 
 struct RecordedTakeAlignmentResult: Equatable, Sendable {
     let global: PerformanceAlignment
     let segments: [RecordedTakeAlignmentSegment]
+    let assessment: PassagePerformanceAssessment
     let diagnostics: RecordedTakeAlignmentDiagnostics
 }
 
@@ -40,6 +46,7 @@ struct RecordedTakeAligner: Sendable {
     func alignResult(
         take: RecordingTake,
         plan: ScorePerformancePlan,
+        measureSpans: [MusicXMLMeasureSpan],
         segmentTickRanges: [Range<Int>] = []
     ) throws -> RecordedTakeAlignmentResult {
         let observations = try validatedObservations(from: take, plan: plan)
@@ -57,9 +64,18 @@ struct RecordedTakeAligner: Sendable {
             )
         }
         let counts = Self.linkCounts(global.links)
+        guard let assessment = PerformanceAssessmentService().assess(
+            plan: plan,
+            alignment: global,
+            measureSpans: measureSpans
+        ) else {
+            throw RecordedTakeAlignmentError.assessmentUnavailable
+        }
+        let dimensions = assessment.dimensions
         return RecordedTakeAlignmentResult(
             global: global,
             segments: segments,
+            assessment: assessment,
             diagnostics: RecordedTakeAlignmentDiagnostics(
                 takeSchemaVersion: take.schemaVersion,
                 eventCount: take.events.count,
@@ -71,7 +87,13 @@ struct RecordedTakeAligner: Sendable {
                 ambiguousCount: counts.ambiguous,
                 unknownCount: counts.unknown,
                 controllerLinkCount: global.controllerLinks.count,
-                performedOccurrenceCount: Set(plan.noteEvents.map(\.performedOccurrenceIndex)).count
+                performedOccurrenceCount: Set(plan.noteEvents.map(\.performedOccurrenceIndex)).count,
+                assessableDimensionCount: dimensions.count,
+                incorrectDimensionCount: dimensions.count(where: { $0.outcome == .incorrect }),
+                insufficientDimensionCount: dimensions.count(where: {
+                    $0.outcome == .insufficientEvidence || $0.outcome == .unknown
+                }),
+                degradedDimensionCount: dimensions.count(where: { $0.evidenceStatus == .degraded })
             )
         )
     }

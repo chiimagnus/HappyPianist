@@ -1156,7 +1156,7 @@ func recordedTakeReplayUsesSameIncrementalStateMachineAsOnlineAlignment() throws
     var online = IncrementalPerformanceAligner()
     online.start(plan: plan, generation: 2, performanceStart: .init(seconds: 0))
     _ = online.append(observation)
-    let offline = try RecordedTakeAligner().alignResult(take: take, plan: plan)
+    let offline = try RecordedTakeAligner().alignResult(take: take, plan: plan, measureSpans: makeTestMeasureSpans(for: plan))
 
     #expect(online.finish() == offline.global)
 }
@@ -1188,11 +1188,15 @@ func recordedTakeAlignmentValidatesScoreAndReportsGlobalSegmentDiagnostics() thr
     let result = try RecordedTakeAligner().alignResult(
         take: take,
         plan: plan,
+        measureSpans: makeTestMeasureSpans(for: plan),
         segmentTickRanges: [0 ..< 480, 960 ..< 1_440]
     )
     #expect(result.diagnostics.alignedCount == 2)
     #expect(result.diagnostics.segmentCount == 2)
     #expect(result.diagnostics.performedOccurrenceCount == 2)
+    #expect(result.assessment.planID == plan.id)
+    #expect(result.diagnostics.assessableDimensionCount == result.assessment.dimensions.count)
+    #expect(result.diagnostics.assessableDimensionCount > 0)
     #expect(result.segments.allSatisfy { segment in
         segment.alignment.links.contains { if case .aligned = $0 { true } else { false } }
     })
@@ -1208,11 +1212,11 @@ func recordedTakeAlignmentValidatesScoreAndReportsGlobalSegmentDiagnostics() thr
         events: events
     )
     #expect(throws: RecordedTakeAlignmentError.scoreIdentityMismatch) {
-        try RecordedTakeAligner().alignResult(take: wrongTake, plan: plan)
+        try RecordedTakeAligner().alignResult(take: wrongTake, plan: plan, measureSpans: makeTestMeasureSpans(for: plan))
     }
     let unattributed = RecordingTake(name: "unattributed", events: events)
     #expect(throws: RecordedTakeAlignmentError.scoreIdentityMismatch) {
-        try RecordedTakeAligner().alignResult(take: unattributed, plan: plan)
+        try RecordedTakeAligner().alignResult(take: unattributed, plan: plan, measureSpans: makeTestMeasureSpans(for: plan))
     }
     let untyped = RecordingTake(
         name: "untyped",
@@ -1220,7 +1224,7 @@ func recordedTakeAlignmentValidatesScoreAndReportsGlobalSegmentDiagnostics() thr
         events: [.init(time: 0, kind: .noteOn(midi: 60, velocity: 90))]
     )
     #expect(throws: RecordedTakeAlignmentError.missingObservation) {
-        try RecordedTakeAligner().alignResult(take: untyped, plan: plan)
+        try RecordedTakeAligner().alignResult(take: untyped, plan: plan, measureSpans: makeTestMeasureSpans(for: plan))
     }
 }
 
@@ -1258,6 +1262,7 @@ func recordedTakeReplaySortsEventsAndKeepsSegmentUpperBoundsExclusive() throws {
     let result = try RecordedTakeAligner().alignResult(
         take: take,
         plan: plan,
+        measureSpans: makeTestMeasureSpans(for: plan),
         segmentTickRanges: [0 ..< 480, 480 ..< 960]
     )
 
@@ -1294,7 +1299,7 @@ func recordedTakeAlignmentDoesNotTrimLongControllerSeries() throws {
         events: events
     )
 
-    let result = try RecordedTakeAligner().alignResult(take: take, plan: plan)
+    let result = try RecordedTakeAligner().alignResult(take: take, plan: plan, measureSpans: makeTestMeasureSpans(for: plan))
 
     #expect(result.global.controllerLinks.count == eventCount)
     #expect(result.diagnostics.controllerLinkCount == eventCount)

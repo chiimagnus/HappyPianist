@@ -51,7 +51,11 @@ func takeMetadataIncludesAlignmentDiagnostics() {
         ambiguousCount: 2,
         unknownCount: 1,
         controllerLinkCount: 0,
-        performedOccurrenceCount: 1
+        performedOccurrenceCount: 1,
+        assessableDimensionCount: 5,
+        incorrectDimensionCount: 2,
+        insufficientDimensionCount: 1,
+        degradedDimensionCount: 1
     )
 
     let text = TakeLibraryPresentationViewModel().metadataText(
@@ -60,6 +64,7 @@ func takeMetadataIncludesAlignmentDiagnostics() {
     )
 
     #expect(text.contains("对齐 8 · 漏 1 · 多 1 · 歧义 2 · 未知 1"))
+    #expect(text.contains("评价 5 · 待改进 2 · 证据不足 1"))
     #expect(text.contains("/10") == false)
 }
 

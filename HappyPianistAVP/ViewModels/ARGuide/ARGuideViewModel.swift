@@ -716,10 +716,12 @@ final class ARGuideViewModel: PracticeLaunchApplying {
 
     func startRecording() {
         let performancePlan = latestPreparedPractice?.performancePlan
+        let measureSpans = latestPreparedPractice?.measureSpans ?? []
         Task {
             await recordingViewModel.startRecording(
                 canRecord: canRecord,
-                performancePlan: performancePlan
+                performancePlan: performancePlan,
+                measureSpans: measureSpans
             )
         }
     }

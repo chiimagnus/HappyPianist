@@ -12,6 +12,13 @@ struct TakeLibraryPresentationViewModel {
         if alignment.extraCount > 0 { facts.append("多 \(alignment.extraCount)") }
         if alignment.ambiguousCount > 0 { facts.append("歧义 \(alignment.ambiguousCount)") }
         if alignment.unknownCount > 0 { facts.append("未知 \(alignment.unknownCount)") }
+        facts.append("评价 \(alignment.assessableDimensionCount)")
+        if alignment.incorrectDimensionCount > 0 {
+            facts.append("待改进 \(alignment.incorrectDimensionCount)")
+        }
+        if alignment.insufficientDimensionCount > 0 {
+            facts.append("证据不足 \(alignment.insufficientDimensionCount)")
+        }
         return "\(base) · \(facts.joined(separator: " · "))"
     }
 
