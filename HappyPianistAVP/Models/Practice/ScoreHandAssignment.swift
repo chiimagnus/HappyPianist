@@ -20,7 +20,7 @@ struct ScoreHandAssignment: Codable, Equatable, Hashable, Sendable {
     ) {
         self.hand = hand
         self.provenance = provenance
-        self.confidence = confidence.map { min(max($0, 0), 1) }
+        self.confidence = confidence.flatMap { $0.isFinite ? min(max($0, 0), 1) : nil }
     }
 
     static let unknown = ScoreHandAssignment(hand: .unknown, provenance: .unresolved)
