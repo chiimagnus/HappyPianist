@@ -25,6 +25,11 @@ struct PracticeFeedbackPolicy {
         guard let fact else { return [] }
         switch fact {
         case let .attemptIssue(sourceMeasureID, issue):
+            guard suppressesUncertainPitchRetry(
+                issue: issue,
+                sourceMeasureID: sourceMeasureID,
+                coachingDecision: coachingDecision
+            ) == false else { return [] }
             return [event(sequence: eventSequence, sourceMeasureID: sourceMeasureID, kind: .retryInvitation(issue: issue))]
         case let .attemptMatched(sourceMeasureID, handMode):
             guard state(of: sourceMeasureID, handMode: handMode, in: previousProgress) != .pitchStepStable,
@@ -53,6 +58,21 @@ struct PracticeFeedbackPolicy {
                 ),
             ]
         }
+    }
+
+    private func suppressesUncertainPitchRetry(
+        issue: PracticeIssueKind,
+        sourceMeasureID: PracticeSourceMeasureID,
+        coachingDecision: CoachingDecision?
+    ) -> Bool {
+        guard issue == .wrongNote,
+              let coachingDecision,
+              coachingDecision.action.kind == .evidenceCheck,
+              case let .evidenceAvailable(dimension) = coachingDecision.action.completionCondition.target,
+              [.exactPitch, .extraNotes, .missingNotes].contains(dimension)
+        else { return false }
+        let sourceIDs = coachingDecision.issue.measureOccurrenceIDs.map(\.sourceMeasureID)
+        return sourceIDs.isEmpty || sourceIDs.contains(sourceMeasureID)
     }
 
     private func state(

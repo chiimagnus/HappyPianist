@@ -28,14 +28,19 @@ struct CoachingPriorityContext: Equatable, Sendable {
 
 struct CoachingPriorityPolicy: Sendable {
     private let maximumUnimprovedAssessments = 2
+    // ponytail: below 0.6, request another observation; tune this threshold from field evidence.
+    private let minimumDiagnosticConfidence = 0.6
 
     func primaryDecision(
         from candidates: [CoachingDecision],
         context: CoachingPriorityContext = CoachingPriorityContext()
     ) -> CoachingDecision? {
-        var eligible = candidates.filter {
-            context.skippedDecisions.contains(CoachingDecisionSignature($0)) == false
-        }
+        var eligible = candidates
+            .compactMap(neutralizedForLimitedEvidence)
+            .filter { actionability(of: $0) > 0 }
+            .filter {
+                context.skippedDecisions.contains(CoachingDecisionSignature($0)) == false
+            }
         if context.consecutiveUnimprovedAssessments >= maximumUnimprovedAssessments,
            let previousDecision = context.previousDecision
         {
@@ -60,6 +65,46 @@ struct CoachingPriorityPolicy: Sendable {
 
         // ponytail: emit one primary action; add combinations only with an explicit shared-range prerequisite.
         return ordered(eligible).first
+    }
+
+    private func neutralizedForLimitedEvidence(
+        _ decision: CoachingDecision
+    ) -> CoachingDecision? {
+        guard decision.issue.kind != .evidence,
+              hasDiagnosticEvidence(decision.issue) == false
+        else { return decision }
+        guard let dimension = decision.issue.dimensionResults.first?.dimension else { return nil }
+
+        let issue = MusicalIssue(
+            kind: .evidence,
+            scoreRange: decision.issue.scoreRange,
+            measureOccurrenceIDs: decision.issue.measureOccurrenceIDs,
+            dimensionResults: decision.issue.dimensionResults,
+            confidence: decision.issue.confidence,
+            provenance: decision.issue.provenance
+        )
+        return CoachingDecision(
+            issue: issue,
+            action: CoachingAction(
+                kind: .evidenceCheck,
+                scoreRange: issue.scoreRange,
+                repeatCount: 1,
+                completionCondition: CoachingCompletionCondition(
+                    target: .evidenceAvailable(dimension: dimension)
+                )
+            )
+        )
+    }
+
+    private func hasDiagnosticEvidence(_ issue: MusicalIssue) -> Bool {
+        guard let confidence = issue.confidence,
+              confidence >= minimumDiagnosticConfidence
+        else { return false }
+        return issue.dimensionResults.allSatisfy {
+            $0.outcome == .incorrect
+                && $0.evidenceStatus != .notObserved
+                && $0.evidenceStatus != .insufficient
+        }
     }
 
     private func ordered(_ candidates: [CoachingDecision]) -> [CoachingDecision] {

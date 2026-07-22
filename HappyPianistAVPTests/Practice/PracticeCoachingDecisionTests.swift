@@ -264,7 +264,7 @@ func priorityPolicyRanksPrerequisitesSeverityConfidenceAndCoverage() {
         let pitch = makeDecision(
             kind: .pitch,
             dimension: .exactPitch,
-            confidence: 0.5,
+            confidence: 0.7,
             scoreRange: 0 ..< 480
         ),
         let phrase = makeDecision(
