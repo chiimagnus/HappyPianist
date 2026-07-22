@@ -234,6 +234,55 @@ func chordSpreadUsesCurrentOccurrenceAndRespectsArpeggioProvenance() throws {
 }
 
 @Test
+func chordSpreadDoesNotBorrowOnsetsAcrossSourcesOrRepeatedOccurrences() {
+    let events = [
+        makeAlignmentEvent(sourceID: makeAlignmentSourceID(ordinal: 0), occurrenceIndex: 0),
+        makeAlignmentEvent(
+            sourceID: makeAlignmentSourceID(ordinal: 1),
+            occurrenceIndex: 0,
+            midiNote: 64
+        ),
+        makeAlignmentEvent(
+            sourceID: makeAlignmentSourceID(ordinal: 0),
+            occurrenceIndex: 1,
+            onTick: 960
+        ),
+        makeAlignmentEvent(
+            sourceID: makeAlignmentSourceID(ordinal: 1),
+            occurrenceIndex: 1,
+            midiNote: 64,
+            onTick: 960
+        ),
+    ]
+    let plan = makeAlignmentPlan(noteEvents: events)
+    let splitSources = PerformanceAlignmentEngine().align(
+        plan: plan,
+        observations: [
+            makeAlignmentObservation(generation: 1, note: 60, seconds: 0, sourceID: "midi:left"),
+            makeAlignmentObservation(generation: 1, note: 64, seconds: 0.08, sourceID: "midi:right"),
+        ],
+        performanceStart: .init(seconds: 0)
+    )
+    let splitOccurrences = PerformanceAlignmentEngine().align(
+        plan: plan,
+        observations: [
+            makeAlignmentObservation(generation: 1, note: 60, seconds: 0),
+            makeAlignmentObservation(generation: 1, note: 64, seconds: 1.08),
+        ],
+        performanceStart: .init(seconds: 0)
+    )
+
+    for alignment in [splitSources, splitOccurrences] {
+        let chordEvidence = alignment.links.compactMap { link -> PerformanceAlignmentEvidence? in
+            guard case let .aligned(_, _, evidence) = link else { return nil }
+            return evidence.first { $0.dimension == .chordSpread }
+        }
+        #expect(chordEvidence.count == 2)
+        #expect(chordEvidence.allSatisfy { $0.status == .notObserved })
+    }
+}
+
+@Test
 func unisonChordSpreadUsesDistinctObservations() {
     let left = makeAlignmentEvent(
         sourceID: makeAlignmentSourceID(ordinal: 0),

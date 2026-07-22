@@ -39,6 +39,7 @@ struct PerformanceAlignmentEngine: Sendable {
 
     private struct ObservedOnset {
         let observationID: UUID
+        let source: PerformanceObservation.Source
         let pitch: Int
         let seconds: TimeInterval
     }
@@ -104,6 +105,7 @@ struct PerformanceAlignmentEngine: Sendable {
         fileprivate let timeMap: ScorePerformancePlanTimeMap
         fileprivate let activeNotes: [TimedNote]
         fileprivate let chordEventsByTick: [Int: [ScorePerformanceNoteEvent]]
+        fileprivate let onsetSecondsByPitch: [Int: [TimeInterval]]
         fileprivate let eventByID: [ScorePerformanceNoteEventID: ScorePerformanceNoteEvent]
         fileprivate let controllerEvents: [ScorePerformanceControllerEvent]
 
@@ -134,6 +136,19 @@ struct PerformanceAlignmentEngine: Sendable {
                 }
             }
             return activeNotes[start ..< lower]
+        }
+
+        fileprivate func isNearestScoreOnset(
+            pitch: Int,
+            observationSeconds: TimeInterval,
+            scoreSeconds: TimeInterval
+        ) -> Bool {
+            let distance = abs(observationSeconds - scoreSeconds)
+            let nearest = onsetSecondsByPitch[pitch, default: []]
+                .lazy
+                .map { abs(observationSeconds - $0) }
+                .min()
+            return nearest.map { distance <= $0 + .ulpOfOne } ?? false
         }
     }
 
@@ -173,6 +188,8 @@ struct PerformanceAlignmentEngine: Sendable {
             timeMap: timeMap,
             activeNotes: activeNotes,
             chordEventsByTick: Dictionary(grouping: activeNotes.map(\.event), by: \.performedOnTick),
+            onsetSecondsByPitch: Dictionary(grouping: activeNotes, by: { $0.event.midiNote })
+                .mapValues { $0.map(\.seconds) },
             eventByID: Dictionary(uniqueKeysWithValues: uniqueNoteEvents.map { ($0.id, $0) }),
             controllerEvents: controllerEvents
         )
@@ -196,6 +213,7 @@ struct PerformanceAlignmentEngine: Sendable {
             else { return nil }
             return ObservedOnset(
                 observationID: observation.id,
+                source: observation.source,
                 pitch: note,
                 seconds: max(0, observation.alignmentTimestamp.seconds - performanceStart.seconds)
             )
@@ -642,7 +660,13 @@ struct PerformanceAlignmentEngine: Sendable {
                 ? Dictionary(grouping: chordEvents, by: \.midiNote).flatMap { pitch, events in
                     observedOnsetsByPitch[pitch, default: []]
                         .filter {
-                            abs($0.seconds - chordSeconds) <= configuration.candidateWindowSeconds
+                            $0.source == observation.source
+                                && abs($0.seconds - chordSeconds) <= configuration.candidateWindowSeconds
+                                && preparedPlan.isNearestScoreOnset(
+                                    pitch: pitch,
+                                    observationSeconds: $0.seconds,
+                                    scoreSeconds: chordSeconds
+                                )
                         }
                         .sorted { lhs, rhs in
                             let lhsDistance = abs(lhs.seconds - chordSeconds)
