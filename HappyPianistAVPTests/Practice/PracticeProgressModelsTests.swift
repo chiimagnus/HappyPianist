@@ -73,6 +73,84 @@ func practiceProgressDocumentRoundTrips() throws {
 }
 
 @Test
+func practiceProgressV2RejectsInconsistentPerformanceMaturityFacts() throws {
+    let metric = PerformanceAssessmentDimensionResult(
+        dimension: .exactPitch,
+        outcome: .correct,
+        evidenceStatus: .observed,
+        measurement: PerformanceAssessmentMeasurement(value: 1, unit: .ratio),
+        sampleCount: 1,
+        confidence: 1,
+        evidence: []
+    )
+    let maturity = MeasurePerformanceMaturitySummary(
+        maturity: .mature,
+        rubricVersion: PerformanceAssessmentRubricVersion.capabilityAware.rawValue,
+        assessedDimensionCount: 1,
+        sampleCount: 1,
+        evidenceCoverage: 1,
+        metricSummaries: [MeasurePerformanceMetricSummary(metric)],
+        assessedAt: Date(timeIntervalSince1970: 100)
+    )
+    let document = PracticeProgressDocument(songs: [SongPracticeProgress(
+        identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "strict-v2"),
+        measureFacts: [MeasurePracticeFacts(
+            sourceMeasureID: makeOccurrence(0).sourceMeasureID,
+            handMode: .both,
+            performanceMaturity: maturity
+        )],
+        updatedAt: Date(timeIntervalSince1970: 100)
+    )])
+    let valid = try #require(
+        JSONSerialization.jsonObject(with: JSONEncoder().encode(document)) as? [String: Any]
+    )
+
+    for corruption in [
+        "missingMetrics",
+        "negativeMetricSamples",
+        "invalidConfidence",
+        "dimensionCountMismatch",
+        "sampleCountMismatch",
+        "coverageMismatch",
+        "duplicateDimension",
+        "maturityMismatch",
+    ] {
+        var root = valid
+        var songs = try #require(root["songs"] as? [[String: Any]])
+        var facts = try #require(songs[0]["measureFacts"] as? [[String: Any]])
+        var summary = try #require(facts[0]["performanceMaturity"] as? [String: Any])
+        var metrics = try #require(summary["metricSummaries"] as? [[String: Any]])
+        switch corruption {
+        case "missingMetrics": summary.removeValue(forKey: "metricSummaries")
+        case "negativeMetricSamples": metrics[0]["sampleCount"] = -1
+        case "invalidConfidence": metrics[0]["confidence"] = 2
+        case "dimensionCountMismatch": summary["assessedDimensionCount"] = 2
+        case "sampleCountMismatch": summary["sampleCount"] = 2
+        case "coverageMismatch": summary["evidenceCoverage"] = 0
+        case "duplicateDimension":
+            metrics.append(metrics[0])
+            summary["assessedDimensionCount"] = 2
+            summary["sampleCount"] = 2
+        case "maturityMismatch": summary["maturity"] = "developing"
+        default: break
+        }
+        if corruption != "missingMetrics" {
+            summary["metricSummaries"] = metrics
+        }
+        facts[0]["performanceMaturity"] = summary
+        songs[0]["measureFacts"] = facts
+        root["songs"] = songs
+
+        #expect(throws: DecodingError.self, "corruption=\(corruption)") {
+            try JSONDecoder().decode(
+                PracticeProgressDocument.self,
+                from: JSONSerialization.data(withJSONObject: root)
+            )
+        }
+    }
+}
+
+@Test
 func practiceProgressDocumentRequiresEveryTopLevelArray() {
     for json in [
         #"{"scoreMetadata":[],"sessions":[]}"#,

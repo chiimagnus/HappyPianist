@@ -307,14 +307,39 @@ struct MeasurePerformanceMetricSummary: Codable, Equatable, Sendable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
+        let decodedMeasurement = try container.decodeIfPresent(
+            PerformanceAssessmentMeasurement.self,
+            forKey: .measurement
+        )
+        let decodedSampleCount = try container.decode(Int.self, forKey: .sampleCount)
+        let decodedConfidence = try container.decodeIfPresent(Double.self, forKey: .confidence)
+        guard decodedSampleCount >= 0 else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .sampleCount,
+                in: container,
+                debugDescription: "Performance metric sample count must not be negative"
+            )
+        }
+        guard decodedMeasurement?.value.isFinite != false else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .measurement,
+                in: container,
+                debugDescription: "Performance metric measurement must be finite"
+            )
+        }
+        guard decodedConfidence.map({ $0.isFinite && (0 ... 1).contains($0) }) != false else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .confidence,
+                in: container,
+                debugDescription: "Performance metric confidence must be finite and between zero and one"
+            )
+        }
         dimension = try container.decode(PerformanceAssessmentDimension.self, forKey: .dimension)
         outcome = try container.decode(PracticeEvidenceOutcome.self, forKey: .outcome)
         evidenceStatus = try container.decode(PerformanceAssessmentEvidenceStatus.self, forKey: .evidenceStatus)
-        measurement = try container.decodeIfPresent(PerformanceAssessmentMeasurement.self, forKey: .measurement)
-        sampleCount = max(0, try container.decode(Int.self, forKey: .sampleCount))
-        confidence = try container.decodeIfPresent(Double.self, forKey: .confidence).flatMap { value in
-            value.isFinite ? min(max(value, 0), 1) : nil
-        }
+        measurement = decodedMeasurement
+        sampleCount = decodedSampleCount
+        confidence = decodedConfidence
     }
 }
 
@@ -359,18 +384,63 @@ struct MeasurePerformanceMaturitySummary: Codable, Equatable, Sendable {
 
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
-        self.init(
-            maturity: try container.decode(MeasurePerformanceMaturity.self, forKey: .maturity),
-            rubricVersion: try container.decode(String.self, forKey: .rubricVersion),
-            assessedDimensionCount: try container.decode(Int.self, forKey: .assessedDimensionCount),
-            sampleCount: try container.decode(Int.self, forKey: .sampleCount),
-            evidenceCoverage: try container.decodeIfPresent(Double.self, forKey: .evidenceCoverage),
-            metricSummaries: try container.decodeIfPresent(
-                [MeasurePerformanceMetricSummary].self,
-                forKey: .metricSummaries
-            ) ?? [],
-            assessedAt: try container.decode(Date.self, forKey: .assessedAt)
+        let decodedMaturity = try container.decode(MeasurePerformanceMaturity.self, forKey: .maturity)
+        let decodedRubricVersion = try container.decode(String.self, forKey: .rubricVersion)
+        let decodedDimensionCount = try container.decode(Int.self, forKey: .assessedDimensionCount)
+        let decodedSampleCount = try container.decode(Int.self, forKey: .sampleCount)
+        let decodedCoverage = try container.decode(Double.self, forKey: .evidenceCoverage)
+        let decodedMetrics = try container.decode(
+            [MeasurePerformanceMetricSummary].self,
+            forKey: .metricSummaries
         )
+        var summedSamples = 0
+        for metric in decodedMetrics {
+            let (sum, overflow) = summedSamples.addingReportingOverflow(metric.sampleCount)
+            guard overflow == false else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .sampleCount,
+                    in: container,
+                    debugDescription: "Performance maturity sample count overflow"
+                )
+            }
+            summedSamples = sum
+        }
+        let dimensions = Set(decodedMetrics.map(\.dimension))
+        let expectedCoverage = Double(decodedMetrics.count(where: {
+            $0.evidenceStatus == .observed || $0.evidenceStatus == .degraded
+        })) / Double(decodedMetrics.count)
+        let expectedMaturity: MeasurePerformanceMaturity = if decodedMetrics.allSatisfy({
+            $0.outcome == .correct
+        }) {
+            .mature
+        } else if decodedMetrics.contains(where: { $0.outcome == .incorrect }) {
+            .developing
+        } else {
+            .insufficientEvidence
+        }
+        guard decodedRubricVersion.isEmpty == false,
+              decodedDimensionCount == decodedMetrics.count,
+              decodedMetrics.isEmpty == false,
+              dimensions.count == decodedMetrics.count,
+              decodedSampleCount == summedSamples,
+              decodedCoverage.isFinite,
+              (0 ... 1).contains(decodedCoverage),
+              abs(decodedCoverage - expectedCoverage) <= 0.000_000_001,
+              decodedMaturity == expectedMaturity
+        else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .metricSummaries,
+                in: container,
+                debugDescription: "Performance maturity summary fields must agree with unique metric summaries"
+            )
+        }
+        maturity = decodedMaturity
+        rubricVersion = decodedRubricVersion
+        assessedDimensionCount = decodedDimensionCount
+        sampleCount = decodedSampleCount
+        evidenceCoverage = decodedCoverage
+        metricSummaries = decodedMetrics
+        assessedAt = try container.decode(Date.self, forKey: .assessedAt)
     }
 }
 
