@@ -47,32 +47,6 @@ docs/                       项目知识库
 
 将所需资源加入 `HappyPianistAVP` target 后再进行对应验收。测试跳过不等于资源集成通过。
 
-## 构建与测试
-
-日常开发优先使用根目录 Makefile：
-
-```bash
-make doctor
-make destinations
-make build
-make test
-```
-
-## 可选：启动 Aria v2 网络后端
-
-```bash
-cd python_backend/aria_server
-uv sync
-
-cd ..
-uv run --project aria_server \
-  python scripts/aria_server.py \
-  --host 0.0.0.0 \
-  --port 8766
-```
-
-模型权重默认路径是 `python_backend/aria/hf/model-demo.safetensors`，不会随仓库分发。详细说明见 [`python_backend/README.md`](python_backend/README.md)。
-
 ## 致谢
 
 - [Anticipation](https://github.com/jthickstun/anticipation) 与 [Anticipatory Music Transformer](https://arxiv.org/abs/2306.08620)
