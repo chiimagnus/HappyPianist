@@ -41,6 +41,8 @@ SwiftUI / RealityKit -> ViewModel -> Services -> Models
 - 新增 MIDI 文件、AI 序列或其他曲谱来源前，先定义明确的数据契约与产品模式，再扩展 preparation 管线。
 - 练习事实以小节为持久化单位，`PracticeStep` 只负责即时判定。
 - cue、summary、恢复地图、RealityKit 点亮效果等派生表现不得写入进度 JSON。
+- alignment、逐音 assessment evidence、target profile、`MusicalIssue`、coaching decision 与复测关联只存在于运行期；进度仅保存批准的小节级聚合事实。
+- 未观察、证据不足、低置信度与 degraded capability 不得改写成错误；指导每次最多选择一个有范围和完成条件的可复测动作。
 - AI 后端严格使用用户选择；失败时提示并停止该次生成，不自动切换后端。
 - 新实现替换旧实现时，在同一 task 删除旧 API、旧状态、旧测试入口和双轨分支。
 - 不为不确定的未来需求预埋兼容层。遵循 KISS、YAGNI；重复达到 2–3 次后再考虑抽象。

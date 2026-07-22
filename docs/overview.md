@@ -36,6 +36,8 @@ Xcode 工程只有 `HappyPianistAVP` 与 `HappyPianistAVPTests` 两个 target；
 -> 选择曲目、查看右侧只读事实并点击主内容中的唯一“开始练习”按钮
 -> 练习窗口准备曲谱并恢复精确版本的进度
 -> 演奏、判定并保存小节事实
+-> 完成本轮后生成 capability-aware assessment 与一个 coaching action
+-> 接受或跳过建议，再进入下一轮
 -> 查看即时反馈、总结和恢复地图
 ```
 
@@ -43,7 +45,7 @@ Xcode 工程只有 `HappyPianistAVP` 与 `HappyPianistAVPTests` 两个 target；
 
 ## 验证边界
 
-- 纯模型、reducer、range、matcher 等逻辑可在跨平台 Swift harness 中验证。
+- 纯模型、reducer、range、matcher、alignment、assessment 与 coaching policy 可用确定性 fixture 或 Swift harness 验证。
 - SwiftUI、RealityKit、AVFoundation、CoreMIDI 与资源集成必须使用 Xcode 和 visionOS SDK。
 - 手部追踪、麦克风、蓝牙 MIDI、空间对齐、Local Network 与舒适度需要 Apple Vision Pro 真机。
 - 当前源码归档缺少 SoundFont 和 CoreML 模型；缺少私有模型或 SeedScores 时，对应资源集成测试会跳过，不能标记为资源集成已通过。

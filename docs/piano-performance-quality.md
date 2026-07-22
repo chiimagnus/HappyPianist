@@ -13,7 +13,8 @@ HappyPianist 当前是：
 - 导入 MusicXML / MXL，并为常见双谱表钢琴谱生成练习步骤、五线谱投影和演奏计划。
 - 使用同一 `ScorePerformancePlan` 驱动本地 sampler、外部 MIDI、示范本节与显示投影。
 - 通过 Bluetooth MIDI、定向麦克风和已校准手部接触接收不同能力等级的练习证据。
-- 将连续 observation 对齐到 score event 与 performed occurrence，并按输入能力生成可追溯客观指标。
+- 将连续 observation 对齐到 score event 与 performed occurrence，并按输入能力与 target provenance 生成可追溯客观指标。
+- 从 assessment 生成一个有范围、完成条件和证据来源的练习动作；证据不足时只请求再次演奏。
 - 记录小节级练习事实、恢复点、录制 take、输出可靠性指标和安全诊断。
 
 当前不能安全宣称：
@@ -50,7 +51,8 @@ MusicXML / MXL
 ```text
 MIDI / target audio / real or virtual piano contact
 -> PerformanceObservation
--> current-step matcher / recording / hand gate / transient alignment + assessment
+-> current-step matcher / recording / hand gate
+-> transient alignment -> capability-aware assessment -> MusicalIssue -> one CoachingAction
 -> PracticeAttemptReducer
 -> source-measure facts
 ```
@@ -71,6 +73,8 @@ MIDI / target audio / real or virtual piano contact
 | MIDI 输出 | look-ahead scheduler 发送带 host-time timestamp 的批次，并用 generation guard 取消旧输出。 |
 | 虚拟琴力度 | 每次触键按法向速度和版本化校准曲线生成独立 velocity。 |
 | 输入契约 | MIDI、音频和手部共享 `PerformanceObservation`，但保留各自能力限制。 |
+| 客观分析 | bounded alignment 保留 occurrence、ambiguity 与 unknown；assessment 用带单位的 dimension、evidence status 和 target provenance 表达结果。 |
+| 虚拟指导 | `MusicalIssue` 到 `CoachingAction` 的规则映射只选择一个动作，保留范围、来源与可复测完成条件。 |
 | 录制 | take 保存来源、时钟、能力、校准与 observation，回放投影与原始证据分离。 |
 | 可靠性 | stop、seek、interruption、route change 和失败共享 reset 状态机与聚合指标。 |
 
@@ -141,8 +145,8 @@ MIDI / target audio / real or virtual piano contact
 
 1. 用真实 exporter corpus 关闭剩余 MusicXML 正确性与 unsupported 报告缺口。
 2. 在指定 Vision Pro、音频路由与 MIDI 设备上建立触键、输出、重复音和踏板基线。
-3. 用授权 MIDI take 与专家标注验证 alignment、rubric 阈值和证据不足边界。
-4. 只在可靠 metric、confidence、适用前提和退出条件齐全时增加 coaching rule。
+3. 用授权 MIDI take 与专家标注验证 alignment、rubric target band、问题优先级和证据不足边界。
+4. 由教师审查现有 coaching rule、动作可执行性与 accept/skip/remeasure 前后测，再决定是否扩展 taxonomy。
 5. 最后再做风格化参考 profile、教师参考演奏或更高级生成模型。
 
 ## 必须保留的架构边界
@@ -150,7 +154,8 @@ MIDI / target audio / real or virtual piano contact
 - `PracticeStep` 继续只负责即时判定。
 - source measure 继续是正式练习事实的持久化单位。
 - cue、summary、恢复地图、RealityKit 表现和原始逐帧传感数据不写入 progress JSON。
-- score alignment、逐音 assessment evidence 与完整 take assessment 保持运行期数据；progress JSON 只接受批准的小节级聚合事实。
+- score alignment、逐音 assessment evidence、target profile、`MusicalIssue`、coaching decision、复测关联与完整 take assessment 保持运行期数据；progress JSON 只接受批准的小节级聚合事实。
+- 指导必须保留 capability、confidence、target/hand/fingering provenance；证据不足时只做 evidence check，不给确定性错误结论。
 - AI 后端严格使用用户选择，失败即停止本次生成，不自动切换。
 - 新实现替换旧实现时，同一 task 删除旧 API、旧状态、旧测试和双轨分支。
 

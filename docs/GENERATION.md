@@ -4,11 +4,11 @@
 
 | Item | Value |
 | --- | --- |
-| Repository | `chiimagnus/Amoroso` |
-| Source branch | `main` |
-| Source commit | `98ecccb67a063f741c3a0dc8bf5c2a352e7b1d2f` |
-| Output branch | `docs/neat-freak-20260721` |
-| Generated at | 2026-07-21T04:32:08+09:00 |
+| Repository | archive snapshot |
+| Source archive | `HappyPianist-20260722-180030.zip` |
+| Source commit | unavailable (`.git` was not included) |
+| Local snapshot baseline | `621505b58b97a39362722e970bd28ba7494dd5aa` |
+| Generated at | 2026-07-22T10:06:08Z |
 | Output language | Chinese |
 | Generation mode | Canonical documentation reconciliation with `neat-freak` |
 
@@ -29,14 +29,13 @@
 
 ## Reconciliation summary
 
-- Replaced archive-only metadata with the audited Git commit and branch.
-- Reconciled resource documentation with the checked-in Bravura font and omitted private SeedScores, SoundFont and CoreML model.
-- Reconciled practice and quality documentation with the current `ScorePerformancePlan`, `PerformanceObservation`, hand-contact velocity, continuous controller and MIDI look-ahead implementations.
-- Removed historical fixed-issue backlog from the canonical professional-quality page; retained current claims, remaining gaps and evidence gates.
+- Reconciled the runtime chain from `PerformanceObservation` through bounded alignment, capability-aware assessment, `MusicalIssue`, and one `CoachingAction`.
+- Replaced the obsolete failed-count hotspot description with the product path that consumes `CoachingDecisionService` while retaining a basic typed-issue retry fallback.
+- Clarified target, hand and fingering provenance, evidence-check degradation, accept/skip/remeasure instrumentation, and the runtime-only persistence boundary.
+- Extended architecture and validation entry points without adding a new documentation page.
 
 ## Coverage gaps
 
-- The environment could inspect repository files through the connected GitHub service, but could not create a complete local clone because direct GitHub DNS access was unavailable.
-- `xcodebuild test`, visionOS Simulator and Apple Vision Pro were not run in this documentation pass.
-- Private `SeedScores`, `SalC5Light2.sf2`, the Performance RNN CoreML model and Aria weights were not available for resource integration or listening tests.
-- Hand tracking, microphone, Bluetooth MIDI, spatial alignment, output latency and comfort still require Apple Vision Pro and the target hardware.
+- The archive did not include `.git`; the original source commit and an exact diff from the previous generation commit could not be verified.
+- `xcodebuild test`, visionOS Simulator and Apple Vision Pro were not run during this documentation-only pass.
+- Real-device latency, listening quality, expert agreement and teaching effectiveness remain external evidence gates.

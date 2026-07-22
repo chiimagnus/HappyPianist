@@ -8,7 +8,7 @@
 | --- | --- | --- | --- | --- |
 | 确定性快照 | MusicXML 事实、演奏事件、来源与排序 | `MusicXMLScoreSnapshot`、`PerformanceEventSnapshot` | 同一输入产生稳定事实；字段没有静默丢失 | Swift 类型检查、平台集成、听感 |
 | Fixture manifest | 回归语料来源、授权、导出器和覆盖语义 | `PianoPerformanceFixtureManifest.json` | 专业 fixture 可追踪且没有未登记文件 | 真实制谱软件 corpus 和授权复核 |
-| 输入重放 | matcher、recording 和时钟逻辑 | `PerformanceInputReplaySupport` | 算法在确定性事件序列下可重复 | MIDI、麦克风或手部真机时延 |
+| 输入重放 | matcher、recording、alignment、assessment 和 coaching 生命周期 | `PerformanceInputReplaySupport`、alignment golden replay | occurrence、unknown/ambiguity、能力裁剪、target band、单一动作与复测在确定性事件序列下可重复 | MIDI、麦克风或手部真机时延与教师有效性 |
 | visionOS 自动化 | App target、测试 target 和平台 API 集成 | `xcodebuild test` | Swift 6 类型检查与 Simulator 集成 | 真机硬件、音频听感和教学效果 |
 | 真机测量 | MIDI、麦克风、手部、音频 transport | Apple Vision Pro + 真实钢琴/MIDI | 延迟、抖动、漏触发、资源恢复 | 钢琴家审美判断和教学有效性 |
 | 钢琴家盲听 | 参考演奏的音乐可信度 | 预先定义的曲目与匿名样本 | 声部、力度、踏板、乐句与风格是否可信 | 用户演奏评价正确性 |
@@ -36,6 +36,8 @@ xcodebuild test \
 ```
 
 `build-for-testing`、`swiftc -parse` 或 Linux 临时 harness 只能作为局部证据，不得记录成 `xcodebuild test` 已通过。
+
+alignment/assessment/coaching 自动化至少要覆盖：score/occurrence identity、bounded window、missing/extra/unknown/ambiguous、输入 capability、target provenance、evidence check、单一动作排序、accept/skip，以及同 source generation 的下一轮 remeasure。测试只能证明规则实现一致，不能证明建议具有音乐或教学有效性。
 
 仓库不提交 `HappyPianistAVP/Resources/SeedScores/` 和 Core ML 模型。依赖这些私有资源的集成测试在资源缺失时会跳过；资源存在时仍会执行，不能把跳过记录为资源集成已通过。
 

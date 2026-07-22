@@ -76,10 +76,15 @@ flowchart TD
   LAUNCH --> RECORDER[PracticeSessionRecorder actor]
   SESSION --> RECORDER
   RECORDER --> HISTORY
+  RECORDER --> ANALYZER[PracticePerformanceAnalyzer]
+  ANALYZER --> ALIGN[IncrementalPerformanceAligner]
+  ANALYZER --> ASSESS[PerformanceAssessmentService]
+  ANALYZER -->|assessment| SESSION
   SESSION --> INPUT[Audio / MIDI / Virtual Input]
   SESSION --> PLAYBACK[Playback Services]
   SESSION --> PROGRESS[PracticeProgressCoordinator]
-  SESSION --> FEEDBACK[Feedback Policies]
+  SESSION --> COACH[CoachingDecisionService]
+  COACH --> FEEDBACK[Feedback Policies / ViewModels]
   LIBRARY --> DIAGNOSTICS[AppDiagnosticsReporter]
   DIAGNOSTICS --> OSLOG[os.Logger]
   DIAGNOSTICS --> LOGSTORE[7-day JSONL Store]
@@ -107,10 +112,12 @@ flowchart TD
 | 曲谱准备 | `PreparedPractice`、`ScorePerformancePlan`、`PracticePreparationService` | MusicXML 到唯一演奏计划，再投影 steps、guide、notation projection 与 measure spans。 |
 | 练习配置 | `PracticeRoundConfigurationController` | pending 与 active round configuration。 |
 | 范围 | `PracticeMeasureIndex`、`PracticeActiveRange` | 小节、step、回放、谱面和完成边界的统一投影。 |
-| 判定 | `StepAttemptMatchResult`、matcher/accumulator | 输入证据转换为 typed attempt outcome。 |
+| 判定 | `StepAttemptMatchResult`、matcher/accumulator | 输入证据转换为当前 step 的 typed attempt outcome。 |
+| 连续演奏分析 | `PracticePerformanceAnalyzer`、`IncrementalPerformanceAligner`、`PerformanceAssessmentService` | 将同一 observation 流对齐到 plan，并按 capability 与 target profile 生成运行期客观 assessment。 |
 | 进度与会话 | `SongPracticeProgress`、`SongScorePracticeMetadata`、`PracticeSessionRecord` | 同一严格 JSON schema 内的小节事实、曲谱 metadata、恢复点与原始会话事实。 |
-| 会话记录 | `PracticeSessionRecorder` | composition root 持有的 window-visit actor；跨 `PracticeSessionViewModel` replacement 计时并 checkpoint。 |
-| 反馈 | feedback policies、view models | 从 durable facts 派生 cue、summary、map 和空间效果。 |
+| 会话记录 | `PracticeSessionRecorder` | composition root 持有的 window-visit actor；跨 `PracticeSessionViewModel` replacement 计时、checkpoint 并把 observation 送入 analyzer。 |
+| 练习指导 | `MusicalIssue`、`CoachingDecisionService`、`CoachingAction` | 从 assessment 选择一个可复测动作；证据不足时只请求补充证据。 |
+| 反馈 | feedback policies、view models | 从 durable facts 与当前 coaching decision 派生 cue、summary、map 和空间效果。 |
 | 录制 | `RecordingTakeRecorder`、`RecordingTakeStore` | 练习中的 MIDI 风格事件记录、回放与导出。 |
 | AI | `ImprovBackendRegistry`、`AIPerformanceService` | 严格使用用户选择的本地或网络后端。 |
 | 诊断 | `DiagnosticEvent`、`AppDiagnosticsReporter`、`FileDiagnosticsStore` | 单一事件入口分发到系统日志与受筛选的七天可导出日志。 |
@@ -120,6 +127,8 @@ flowchart TD
 - 正式曲谱来源是 MusicXML；可进入练习的 prepared result 必须同时有 steps 与 measure spans。
 - `ScorePerformancePlan` 是声音事件的唯一真源；tempo 查询只能从 plan 派生，steps 与 highlights 只负责判定、导航和显示，notation 则由 plan 与 source score 单向投影。
 - `PracticeStep` 是即时判定单位；持久化事实聚合到 source measure。
+- alignment、逐音 assessment evidence、`MusicalIssue`、coaching decision 与 before/after 关联只存在于运行期；进度只接受批准的小节级 maturity 与 metric summaries。
+- 未观察、证据不足、低置信度与 degraded capability 不得被改写成错误；coaching 每次最多选择一个可执行动作。
 - 重复结构用 occurrence identity 定位播放位置，用 source identity 汇总学习事实。
 - 本轮 active configuration 在一轮中不可变；设置修改只影响下一轮。
 - 退出、后台、换 session 与完成流程必须先停止新 attempt，再 flush 进度，最后 teardown 输入、追踪、RealityKit task 和回放。
@@ -151,6 +160,7 @@ flowchart TD
 | `PracticeProgressCoordinator` | 乱序 load/save、flush 与跨曲污染 | delayed repository tests |
 | `PracticePlaybackControlService` | tempo、片段边界、pedal 与输入抑制 | playback/autoplay tests |
 | MIDI/audio matcher | 错音、漏音、和弦与证据不足 | matcher tests |
+| analyzer / assessment / coaching | occurrence 对齐、能力裁剪、target provenance、单一动作与复测关联 | replay + assessment + coaching tests |
 | `ARGuideViewModel` / `ImmersiveView` | scenePhase、tracking 和 overlay 清理 | Simulator + Vision Pro |
 | `SongLibraryViewModel` | 导入、删除、试听、唯一 selection 与独立异步持久化 | library + selection tests |
 | `PracticeLaunchViewModel` | request generation、prepare/apply 竞态、失败、scene suspend 与 return 清理 | launch + lifecycle tests |

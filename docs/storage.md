@@ -53,6 +53,7 @@ index 文件缺失、零字节或仅包含空白时视为空库，首次 mutatio
 
 - SwiftUI presentation state
 - cue、summary、hotspot 或 restoration map
+- target profile、逐音 alignment/assessment evidence、`MusicalIssue`、coaching decision 或 before/after 关联
 - RealityKit entity 状态
 - AI 文案或生成内容
 - 原始逐帧麦克风、MIDI 或手部数据

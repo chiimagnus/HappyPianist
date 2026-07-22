@@ -219,7 +219,7 @@ flowchart LR
 - occurrence identity 只负责重复结构中的播放位置。
 - launch 先按 song UUID + score revision 查 exact progress；exact 不存在时，历史 resolver 只可继承 hand mode、tempo scale、loop enabled、required successes。passage、resume、measure facts 与任何 source/occurrence identity 不跨 revision。
 - 历史记录损坏时 launch 记录 warning 并使用 `historyUnavailable` policy；无可用配置则使用 `freshDefaults`，两者都不阻止 score preparation。
-- 小节连续成功仍按手别、速度与本轮条件隔离；Library 的连续练习天数只按当前 song 的持久化 `PracticeLocalDay` 聚合，“已连续/最近连续”则用最新会话绝对时间在当前查看时区判断。
+- 小节连续成功仍按手别、速度与本轮条件隔离；Library 的连续练习天数只按当前 song 的持久化 `PracticeLocalDay` 聚合，连续状态是否延续则用最新会话绝对时间在当前查看时区判断。
 - resume point 保存片段、配置与当前 step。
 - 恢复完成后停在 ready/paused，不自动发声。
 - back、background、换 session 与完成时等待 flush。
@@ -228,26 +228,30 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  A[typed attempt] --> B[Assessment]
-  B --> C[Coaching Decision]
-  C --> D[One Next Action]
-  D -->|accepted| E[Next assessment]
-  E --> F[Anonymous before/after metric]
-  B --> G[Measure Facts]
-  G --> H[Progress JSON]
-  A --> I[Feedback Event]
-  I --> J[Non-modal Cue]
-  I --> K[RealityKit Restoration Effect]
-  G --> L[Round Summary]
-  G --> M[Measure Map]
+  A[Performance Alignment] --> B[Assessment]
+  T[Optional target profile] --> B
+  B --> C[MusicalIssue taxonomy]
+  C --> D[Coaching Decision Service]
+  D --> E[One Next Action]
+  E -->|accepted| F[Next assessment]
+  F --> G[Anonymous before/after metric]
+  B --> H[Approved measure summaries]
+  H --> I[Progress JSON]
+  J[typed attempt] --> K[Feedback Event]
+  K --> L[Non-modal Cue]
+  K --> M[RealityKit Restoration Effect]
+  H --> N[Round Summary / Measure Map]
+  D --> N
 ```
 
 反馈是事实的派生表现：
 
-- 一次只选择一个主要卡点和一个下一步。
-- 无证据时不制造问题。
+- `PerformanceAssessmentRubric` 先按输入 capability 裁剪维度；服务边界可注入带 score、teacher 或 user-confirmed provenance 的 target band，live 默认未注入时明确使用 generic approximation。
+- `MusicalIssue` 保留 plan、source generation、rubric version、score range、occurrence 与 confidence；`CoachingPriorityPolicy` 每次只选择一个可复测动作。
+- 无观察、证据不足或置信度低于诊断边界时，只生成 `evidenceCheck`，不制造错音、力度或踏板问题。
+- action 可携带范围、速度上限、手别/指法/声部来源、谱面或手动回放参考和完成条件；产品只执行已有能力，不保留未接通参数。
 - 执行建议只记录匿名 decision accepted；只有下一轮 assessment 才用同一 ID 关联聚合 before/after metric 并判断 completion，点击本身不代表改善。诊断不含逐音事件、原谱正文或输入 payload。
-- assessment 只把安全的小节 maturity/metric summaries 归约为 measure facts；coaching decision 与其测量关联只存在于当前运行期。
+- assessment 只把安全的小节 maturity/metric summaries 归约为 measure facts；target profile、issue、decision 与其测量关联只存在于当前运行期。
 - cue、summary、map 与空间效果不写入 progress JSON。
 - 换曲、restart、进入后台、关闭窗口和退出沉浸空间会清理反馈 presentation。
 
