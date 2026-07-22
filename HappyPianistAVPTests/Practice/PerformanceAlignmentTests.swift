@@ -270,6 +270,105 @@ func unavailableCapabilitiesNeverFilterCandidatesOrContributeCosts() throws {
 }
 
 @Test
+func releaseDurationParticipatesInCandidateSelection() throws {
+    let short = makeAlignmentEvent(
+        sourceID: makeAlignmentSourceID(ordinal: 0),
+        occurrenceIndex: 0,
+        offTick: 240
+    )
+    let long = makeAlignmentEvent(
+        sourceID: makeAlignmentSourceID(ordinal: 1),
+        occurrenceIndex: 0,
+        offTick: 960
+    )
+    let noteOn = makeAlignmentObservation(generation: 1, seconds: 0)
+    let noteOff = makeAlignmentObservation(
+        generation: 1,
+        seconds: 1,
+        event: .noteOff(note: 60, releaseVelocity: nil)
+    )
+
+    let result = PerformanceAlignmentEngine().align(
+        plan: makeAlignmentPlan(noteEvents: [short, long]),
+        observations: [noteOn, noteOff],
+        performanceStart: .init(seconds: 0)
+    )
+
+    guard case let .aligned(score, _, evidence) = result.links.first else {
+        Issue.record("Release duration should resolve equal-onset candidates")
+        return
+    }
+    #expect(score.eventID == long.id)
+    #expect(evidence.contains {
+        $0.dimension == .duration && abs($0.deviationSeconds ?? 1) < 0.000_001
+    })
+}
+
+@Test
+func contactReleasePairingIncludesSourceIdentity() throws {
+    let first = makeAlignmentEvent(
+        sourceID: makeAlignmentSourceID(ordinal: 0),
+        occurrenceIndex: 0,
+        midiNote: 60,
+        offTick: 960
+    )
+    let second = makeAlignmentEvent(
+        sourceID: makeAlignmentSourceID(ordinal: 1),
+        occurrenceIndex: 0,
+        midiNote: 64,
+        onTick: 96,
+        offTick: 1_056
+    )
+    let firstOn = makeAlignmentObservation(
+        generation: 1,
+        seconds: 0,
+        event: .contact(id: "same", keyCandidate: 60, phase: .started),
+        capabilities: .handContact,
+        sourceID: "left"
+    )
+    let secondOn = makeAlignmentObservation(
+        generation: 1,
+        seconds: 0.1,
+        event: .contact(id: "same", keyCandidate: 64, phase: .started),
+        capabilities: .handContact,
+        sourceID: "right"
+    )
+    let observations = [
+        firstOn,
+        secondOn,
+        makeAlignmentObservation(
+            generation: 1,
+            seconds: 1,
+            event: .contact(id: "same", keyCandidate: 60, phase: .ended),
+            capabilities: .handContact,
+            sourceID: "left"
+        ),
+        makeAlignmentObservation(
+            generation: 1,
+            seconds: 1.1,
+            event: .contact(id: "same", keyCandidate: 64, phase: .ended),
+            capabilities: .handContact,
+            sourceID: "right"
+        ),
+    ]
+
+    let result = PerformanceAlignmentEngine().align(
+        plan: makeAlignmentPlan(noteEvents: [first, second]),
+        observations: observations,
+        performanceStart: .init(seconds: 0)
+    )
+    let durationByObservation = Dictionary(uniqueKeysWithValues: result.links.compactMap { link in
+        guard case let .aligned(_, observation, evidence) = link else { return nil }
+        return (observation.observationID, evidence.first {
+            $0.dimension == .duration
+        }?.deviationSeconds)
+    })
+
+    #expect(abs((durationByObservation[firstOn.id] ?? nil) ?? 1) < 0.000_001)
+    #expect(abs((durationByObservation[secondOn.id] ?? nil) ?? 1) < 0.000_001)
+}
+
+@Test
 func releaseDurationAndControllerEvidenceRespectCapabilities() throws {
     let event = makeAlignmentEvent(sourceID: makeAlignmentSourceID(ordinal: 0), occurrenceIndex: 0)
     let controller = ScorePerformanceControllerEvent(
@@ -835,13 +934,14 @@ private func makeAlignmentObservation(
     event: PerformanceObservation.Event? = nil,
     capabilities: PerformanceInputCapabilities? = nil,
     hand: ScoreHand? = nil,
-    role: PerformanceObservation.Source.Role = .userPerformance
+    role: PerformanceObservation.Source.Role = .userPerformance,
+    sourceID: String = "midi:test"
 ) -> PerformanceObservation {
     PerformanceObservation(
         id: id,
         source: .init(
             kind: .midi1,
-            id: "midi:test",
+            id: sourceID,
             generation: generation,
             capabilities: capabilities,
             role: role
@@ -896,6 +996,7 @@ private func makeAlignmentEvent(
     occurrenceIndex: Int,
     midiNote: Int = 60,
     onTick: Int = 0,
+    offTick: Int? = nil,
     handAssignment: ScoreHandAssignment = .init(hand: .right, provenance: .score),
     timingProvenance: [ScorePerformanceProvenance] = []
 ) -> ScorePerformanceNoteEvent {
@@ -911,9 +1012,9 @@ private func makeAlignmentEvent(
         contributingPerformedNoteIDs: [performedID],
         purpose: .source,
         writtenOnTick: onTick,
-        writtenOffTick: onTick + 480,
+        writtenOffTick: offTick ?? onTick + 480,
         performedOnTick: onTick,
-        performedOffTick: onTick + 480,
+        performedOffTick: offTick ?? onTick + 480,
         writtenPitch: .init(step: "C", octave: 4, alter: 0, accidentalToken: nil),
         midiNote: midiNote,
         velocityResolution: .init(

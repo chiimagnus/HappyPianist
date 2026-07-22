@@ -134,7 +134,8 @@ struct PerformanceAlignmentEngine: Sendable {
         preparedPlan: PreparedPlan,
         observations: [PerformanceObservation],
         performanceStart: PerformanceMonotonicInstant,
-        generation: UInt64?
+        generation: UInt64?,
+        releaseMeasurements: [UUID: ReleaseMeasurement] = [:]
     ) -> [PerformanceAlignmentCandidateSnapshot] {
         let observedOnsets = observations.compactMap { observation -> (Int, TimeInterval)? in
             let capabilities = observation.source.capabilities
@@ -154,7 +155,8 @@ struct PerformanceAlignmentEngine: Sendable {
                 preparedPlan: preparedPlan,
                 performanceStart: performanceStart,
                 generation: generation,
-                observedOnsetsByPitch: observedOnsetsByPitch
+                observedOnsetsByPitch: observedOnsetsByPitch,
+                releaseMeasurement: releaseMeasurements[observation.id]
             )
         }
     }
@@ -190,14 +192,13 @@ struct PerformanceAlignmentEngine: Sendable {
         let relevantObservations = acceptedObservations.filter {
             $0.alignmentOnsetMIDINote != nil || $0.alignmentUnknownReason != nil
         }
+        let releaseMeasurements = Self.releaseMeasurements(observations: acceptedObservations)
         let snapshots = candidates(
             preparedPlan: preparedPlan,
             observations: relevantObservations,
             performanceStart: performanceStart,
-            generation: generation
-        )
-        let releaseMeasurements = Self.releaseMeasurements(
-            observations: acceptedObservations,
+            generation: generation,
+            releaseMeasurements: releaseMeasurements
         )
         var usedEvents: Set<ScorePerformanceNoteEventID> = []
         var links: [PerformanceAlignmentLink] = []
@@ -230,21 +231,10 @@ struct PerformanceAlignmentEngine: Sendable {
                 continue
             }
             usedEvents.insert(best.score.eventID)
-            let releaseEvidence = preparedPlan.eventByID[best.score.eventID].map { event in
-                Self.releaseEvidence(
-                    measurement: releaseMeasurements[snapshot.observation.observationID],
-                    event: event,
-                    timeMap: preparedPlan.timeMap,
-                    onsetDeviation: best.evidence.first {
-                        $0.dimension == .onset
-                    }?.deviationSeconds,
-                    unmatchedCost: configuration.unmatchedCost
-                )
-            } ?? []
             links.append(.aligned(
                 score: best.score,
                 observation: snapshot.observation,
-                evidence: best.evidence + releaseEvidence
+                evidence: best.evidence
             ))
         }
 
@@ -335,7 +325,8 @@ struct PerformanceAlignmentEngine: Sendable {
         preparedPlan: PreparedPlan,
         performanceStart: PerformanceMonotonicInstant,
         generation: UInt64?,
-        observedOnsetsByPitch: [Int: [(Int, TimeInterval)]]
+        observedOnsetsByPitch: [Int: [(Int, TimeInterval)]],
+        releaseMeasurement: ReleaseMeasurement?
     ) -> PerformanceAlignmentCandidateSnapshot {
         let reference = PerformanceAlignmentObservationReference(observation: observation)
         if let generation, observation.source.generation != generation {
@@ -414,9 +405,17 @@ struct PerformanceAlignmentEngine: Sendable {
             let chordCost = measuresChordSpread
                 ? chordSpread * configuration.chordSpreadWeight
                 : 0
+            let releaseEvidence = Self.releaseEvidence(
+                measurement: releaseMeasurement,
+                event: event,
+                timeMap: preparedPlan.timeMap,
+                onsetDeviation: onsetEvidence == .unavailable ? nil : onsetDeviation,
+                unmatchedCost: configuration.unmatchedCost
+            )
             return PerformanceAlignmentCandidate(
                 score: .init(event: event),
-                totalCost: pitchCost + onsetCost + chordCost,
+                totalCost: pitchCost + onsetCost + chordCost
+                    + releaseEvidence.compactMap(\.cost).reduce(0, +),
                 evidence: [
                     .init(
                         dimension: .pitch,
@@ -457,7 +456,7 @@ struct PerformanceAlignmentEngine: Sendable {
                         dimension: .velocity,
                         status: Self.evidenceStatus(observation.source.capabilities.velocity)
                     ),
-                ]
+                ] + releaseEvidence
             )
         }.sorted { lhs, rhs in
             if lhs.totalCost != rhs.totalCost { return lhs.totalCost < rhs.totalCost }
@@ -486,7 +485,11 @@ struct PerformanceAlignmentEngine: Sendable {
             let note: Int
         }
         var open: [Route: [(UUID, TimeInterval, PerformanceInputCapabilities.Evidence)]] = [:]
-        var openContacts: [String: (UUID, TimeInterval, PerformanceInputCapabilities.Evidence)] = [:]
+        struct ContactRoute: Hashable {
+            let source: PerformanceObservation.Source
+            let id: String
+        }
+        var openContacts: [ContactRoute: (UUID, TimeInterval, PerformanceInputCapabilities.Evidence)] = [:]
         var durationByOnID: [UUID: (TimeInterval, PerformanceInputCapabilities.Evidence)] = [:]
         for observation in observations.sorted(by: { $0.alignmentTimestamp < $1.alignmentTimestamp }) {
             switch observation.event {
@@ -517,13 +520,15 @@ struct PerformanceAlignmentEngine: Sendable {
                     noteOn.2
                 )
             case let .contact(id, keyCandidate, .started) where keyCandidate != nil:
-                openContacts[id] = (
+                openContacts[ContactRoute(source: observation.source, id: id)] = (
                     observation.id,
                     observation.alignmentTimestamp.seconds,
                     observation.source.capabilities.release
                 )
             case let .contact(id, _, .ended):
-                guard let started = openContacts.removeValue(forKey: id) else { continue }
+                guard let started = openContacts.removeValue(
+                    forKey: ContactRoute(source: observation.source, id: id)
+                ) else { continue }
                 durationByOnID[started.0] = (
                     max(0, observation.alignmentTimestamp.seconds - started.1),
                     started.2
