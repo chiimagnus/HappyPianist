@@ -63,7 +63,7 @@ func improvQualityRubricDefaultFixtureIsVersionedAndEvidenceAware() {
         responseLatencySeconds: fixture.responseLatencySeconds
     )
 
-    #expect(assessment.thresholdVersion == ImprovQualityRubric.Thresholds.v1.version)
+    #expect(assessment.thresholdVersion == ImprovQualityRubric.Thresholds.v2.version)
     #expect(assessment.band == .acceptable)
     #expect(ImprovQualityRubric.Dimension.allCases.allSatisfy { assessment.dimensions[$0] != nil })
     #expect(assessment.dimensions[.harmonicFit] == .notObserved)
@@ -86,4 +86,18 @@ func improvQualityRubricRejectsUnusableResponseBeforePlayback() {
         leadInSeconds: 0
     )
     #expect(schedule.isEmpty)
+}
+
+@Test
+func improvQualityRubricPhraseFixturesRemainExplainable() {
+    for fixture in DuetQualityRegressionFixtures.rubricAll {
+        let assessment = ImprovQualityRubric().assess(fixture.response, context: fixture.context)
+        #expect(assessment.band == fixture.expectedBand, "fixture=\(fixture.name)")
+        if let expectedReason = fixture.expectedReason {
+            #expect(assessment.reasons.contains(expectedReason), "fixture=\(fixture.name)")
+        }
+        if let expectedCadenceEvidence = fixture.expectedCadenceEvidence {
+            #expect(assessment.dimensions[.cadence] == expectedCadenceEvidence, "fixture=\(fixture.name)")
+        }
+    }
 }

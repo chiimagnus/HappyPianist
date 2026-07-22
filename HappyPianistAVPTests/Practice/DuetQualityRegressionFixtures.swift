@@ -10,6 +10,15 @@ enum DuetQualityRegressionFixtures {
         let expectedBand: DuetPhrasePolicy.QualityAssessment.Band
     }
 
+    struct RubricFixture {
+        let name: String
+        let response: [PracticeSequencerMIDIEvent]
+        let context: ImprovQualityRubric.PhraseContext
+        let expectedBand: ImprovQualityRubric.Band
+        let expectedReason: ImprovQualityRubric.Reason?
+        let expectedCadenceEvidence: ImprovQualityRubric.Evidence?
+    }
+
     static let acceptableSupport = Fixture(
         name: "acceptableSupport",
         noteSnapshot: .init(
@@ -132,4 +141,87 @@ enum DuetQualityRegressionFixtures {
     )
 
     static let all: [Fixture] = [acceptableSupport, registerClash, denseBurst, fragmentedHint, riskyRepetition]
+
+    static let shortPhrase = RubricFixture(
+        name: "shortPhrase",
+        response: [
+            PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 60, velocity: 88)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 60)),
+        ],
+        context: .init(
+            allowedPitchClasses: [0],
+            cadencePitchClasses: [0]
+        ),
+        expectedBand: .acceptable,
+        expectedReason: nil,
+        expectedCadenceEvidence: .notObserved
+    )
+
+    static let denseChord = RubricFixture(
+        name: "denseChord",
+        response: [48, 52, 55, 60, 64].flatMap { midi in
+            [
+                PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: midi, velocity: 88)),
+                PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: midi)),
+            ]
+        },
+        context: .init(),
+        expectedBand: .reject,
+        expectedReason: .densityOverload,
+        expectedCadenceEvidence: nil
+    )
+
+    static let crossRegisterLeap = RubricFixture(
+        name: "crossRegisterLeap",
+        response: [
+            PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 48, velocity: 88)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.1, kind: .noteOff(midi: 48)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOn(midi: 84, velocity: 88)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.4, kind: .noteOff(midi: 84)),
+        ],
+        context: .init(
+            allowedPitchClasses: Set(0 ..< 12),
+            cadencePitchClasses: [0],
+            voicePairs: [.init(bass: 72, melody: 60)]
+        ),
+        expectedBand: .reject,
+        expectedReason: .voiceCrossing,
+        expectedCadenceEvidence: nil
+    )
+
+    static let harmonicMismatch = RubricFixture(
+        name: "harmonicMismatch",
+        response: [
+            PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 61, velocity: 88)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.1, kind: .noteOff(midi: 61)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.25, kind: .noteOn(midi: 65, velocity: 88)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.4, kind: .noteOff(midi: 65)),
+        ],
+        context: .init(
+            allowedPitchClasses: [0, 4, 7],
+            cadencePitchClasses: [5]
+        ),
+        expectedBand: .reject,
+        expectedReason: .harmonicMismatch,
+        expectedCadenceEvidence: nil
+    )
+
+    static let noTermination = RubricFixture(
+        name: "noTermination",
+        response: [
+            PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 60, velocity: 88)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.1, kind: .noteOff(midi: 60)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.25, kind: .noteOn(midi: 61, velocity: 88)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.4, kind: .noteOff(midi: 61)),
+        ],
+        context: .init(
+            allowedPitchClasses: Set(0 ..< 12),
+            cadencePitchClasses: [0, 4, 7]
+        ),
+        expectedBand: .reject,
+        expectedReason: .missingCadence,
+        expectedCadenceEvidence: nil
+    )
+
+    static let rubricAll = [shortPhrase, denseChord, crossRegisterLeap, harmonicMismatch, noTermination]
 }

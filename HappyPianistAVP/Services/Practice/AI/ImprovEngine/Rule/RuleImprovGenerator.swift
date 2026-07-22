@@ -158,6 +158,7 @@ public struct RuleImprovGenerator: Sendable {
 
         var output: [RuleNoteEvent] = []
         output.reserveCapacity(Int(max(16, responseSeconds * 8.0)))
+        var voicePairs: [ImprovQualityRubric.VoicePair] = []
 
         let promptFingerprints: Set<PitchFingerprint> = Set(notes.map { note in
             PitchFingerprint(
@@ -350,6 +351,9 @@ public struct RuleImprovGenerator: Sendable {
                 )
 
                 if bassUsed > 0 { prevBassPitch = bassUsed }
+                if bassUsed > 0 {
+                    voicePairs.append(.init(bass: bassUsed, melody: pitch))
+                }
                 prevChordRootPC = currentChord.rootPC
                 output.append(contentsOf: voicing)
             }
@@ -357,6 +361,7 @@ public struct RuleImprovGenerator: Sendable {
             cycleIndex += 1
         }
 
+        var finalMelodyPitch: Int?
         if output.isEmpty == false {
             let lastTime = output.map(\.time).max() ?? 0
             let lastNotes = output.filter { abs($0.time - lastTime) < 0.01 }
@@ -364,6 +369,7 @@ public struct RuleImprovGenerator: Sendable {
                 let finalChordPCs = measureChordPCs.last ?? chordPitchClasses
                 let finalAllowed = normalizedMode == "rhythm_lock" ? finalChordPCs : (predictedChords.last?.pitchClasses ?? strongPitchClasses)
                 let finalPitch = nearestPitch(target: melodyNote.note, allowedPitchClasses: finalAllowed, low: texture.melodyLow, high: texture.melodyHigh)
+                finalMelodyPitch = finalPitch
                 if let index = output.firstIndex(where: { note in
                     note.note == melodyNote.note
                         && note.velocity == melodyNote.velocity
@@ -389,6 +395,38 @@ public struct RuleImprovGenerator: Sendable {
             if lhs.time != rhs.time { return lhs.time < rhs.time }
             if lhs.note != rhs.note { return lhs.note < rhs.note }
             return lhs.duration < rhs.duration
+        }
+
+        let qualityResponse = output.flatMap { note in
+            [
+                PracticeSequencerMIDIEvent(
+                    timeSeconds: note.time,
+                    kind: .noteOn(midi: note.note, velocity: UInt8(clamping: note.velocity))
+                ),
+                PracticeSequencerMIDIEvent(
+                    timeSeconds: note.time + note.duration,
+                    kind: .noteOff(midi: note.note)
+                ),
+            ]
+        }
+        let quality = ImprovQualityRubric().assess(
+            qualityResponse,
+            context: .init(
+                allowedPitchClasses: Set(measureScales.flatMap { $0 } + measureChordPCs.flatMap { $0 }),
+                cadencePitchClasses: Set(measureChordPCs.last ?? chordPitchClasses),
+                finalMelodyPitch: finalMelodyPitch,
+                voicePairs: voicePairs
+            )
+        )
+        guard quality.isUsable else {
+            return RuleResult(
+                notes: [],
+                timings: [:],
+                debug: [
+                    "quality.band": quality.band.rawValue,
+                    "quality.reasons": quality.reasons.map(\.rawValue).joined(separator: ",")
+                ]
+            )
         }
 
         return RuleResult(notes: output, timings: [:], debug: [:])

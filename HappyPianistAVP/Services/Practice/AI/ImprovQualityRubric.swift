@@ -25,9 +25,13 @@ struct ImprovQualityRubric {
     enum Reason: String, Equatable {
         case densityOverload
         case excessiveRepetition
+        case excessiveMotivicRepetition
         case outOfPianoRegister
         case rhythmFragmentation
         case extremeVoiceLeap
+        case voiceCrossing
+        case harmonicMismatch
+        case missingCadence
         case internalNoteConflict
         case responseLatency
     }
@@ -49,19 +53,47 @@ struct ImprovQualityRubric {
         let maximumVoiceLeapSemitones: Int
         let riskyResponseLatencySeconds: TimeInterval
         let maximumResponseLatencySeconds: TimeInterval
+        let riskyMotifRepeatCount: Int
+        let maximumMotifRepeatCount: Int
 
-        static let v1 = Self(
-            version: "improv-quality-v1",
+        static let v2 = Self(
+            version: "improv-quality-v2",
             riskyDensityPerSecond: 6,
             maximumDensityPerSecond: 10,
             riskyRepeatedRunLength: 3,
-            maximumRepeatedRunLength: 4,
+            maximumRepeatedRunLength: 7,
             minimumRhythmicGapSeconds: 0.055,
             riskyVoiceLeapSemitones: 16,
             maximumVoiceLeapSemitones: 24,
             riskyResponseLatencySeconds: 0.18,
-            maximumResponseLatencySeconds: 0.35
+            maximumResponseLatencySeconds: 0.35,
+            riskyMotifRepeatCount: 4,
+            maximumMotifRepeatCount: 5
         )
+    }
+
+    struct VoicePair: Equatable {
+        let bass: Int
+        let melody: Int
+    }
+
+    struct PhraseContext: Equatable {
+        let allowedPitchClasses: Set<Int>?
+        let cadencePitchClasses: Set<Int>?
+        let finalMelodyPitch: Int?
+        let voicePairs: [VoicePair]
+
+        init(
+            allowedPitchClasses: Set<Int>? = nil,
+            cadencePitchClasses: Set<Int>? = nil,
+            finalMelodyPitch: Int? = nil,
+            voicePairs: [VoicePair] = []
+        ) {
+            self.allowedPitchClasses = allowedPitchClasses
+            self.cadencePitchClasses = cadencePitchClasses
+            self.finalMelodyPitch = finalMelodyPitch
+            self.voicePairs = voicePairs
+        }
     }
 
     struct Fixture {
@@ -93,13 +125,14 @@ struct ImprovQualityRubric {
 
     private let thresholds: Thresholds
 
-    init(thresholds: Thresholds = .v1) {
+    init(thresholds: Thresholds = .v2) {
         self.thresholds = thresholds
     }
 
     func assess(
         _ response: [PracticeSequencerMIDIEvent],
-        responseLatencySeconds: TimeInterval? = nil
+        responseLatencySeconds: TimeInterval? = nil,
+        context: PhraseContext? = nil
     ) -> Assessment {
         let noteOns = response.compactMap { event -> (time: TimeInterval, midi: Int)? in
             guard case let .noteOn(midi, _) = event.kind else { return nil }
@@ -110,9 +143,13 @@ struct ImprovQualityRubric {
 
         assessDensity(noteOns, response: response, dimensions: &dimensions, reasons: &reasons)
         assessRepetition(noteOns, dimensions: &dimensions, reasons: &reasons)
+        assessMotivicRepetition(noteOns, dimensions: &dimensions, reasons: &reasons)
         assessRegister(noteOns, dimensions: &dimensions, reasons: &reasons)
         assessRhythm(noteOns, dimensions: &dimensions, reasons: &reasons)
         assessVoiceLeading(noteOns, dimensions: &dimensions, reasons: &reasons)
+        assessVoiceCrossing(context, dimensions: &dimensions, reasons: &reasons)
+        assessHarmonicFit(noteOns, context: context, dimensions: &dimensions, reasons: &reasons)
+        assessCadence(noteOns, context: context, dimensions: &dimensions, reasons: &reasons)
         assessConflicts(response, noteOns: noteOns, dimensions: &dimensions, reasons: &reasons)
         assessLatency(responseLatencySeconds, dimensions: &dimensions, reasons: &reasons)
 
@@ -195,6 +232,39 @@ struct ImprovQualityRubric {
         }
     }
 
+    private func assessMotivicRepetition(
+        _ noteOns: [(time: TimeInterval, midi: Int)],
+        dimensions: inout [Dimension: Evidence],
+        reasons: inout [Reason]
+    ) {
+        let melody = onsetMelody(noteOns)
+        guard melody.count >= 9 else { return }
+        let intervals = zip(melody.dropFirst(), melody).map { $0 - $1 }
+        guard intervals.count >= 8 else { return }
+
+        var longestRepeat = 1
+        var currentRepeat = 1
+        for index in stride(from: 2, through: intervals.count - 2, by: 2) {
+            if intervals[index - 2] == intervals[index], intervals[index - 1] == intervals[index + 1] {
+                currentRepeat += 1
+            } else {
+                longestRepeat = max(longestRepeat, currentRepeat)
+                currentRepeat = 1
+            }
+        }
+        longestRepeat = max(longestRepeat, currentRepeat)
+
+        if longestRepeat >= thresholds.maximumMotifRepeatCount {
+            dimensions[.repetition] = .fail
+            reasons.append(.excessiveMotivicRepetition)
+        } else if longestRepeat >= thresholds.riskyMotifRepeatCount,
+                  dimensions[.repetition] != .fail
+        {
+            dimensions[.repetition] = .warning
+            reasons.append(.excessiveMotivicRepetition)
+        }
+    }
+
     private func assessRegister(
         _ noteOns: [(time: TimeInterval, midi: Int)],
         dimensions: inout [Dimension: Evidence],
@@ -235,11 +305,7 @@ struct ImprovQualityRubric {
         dimensions: inout [Dimension: Evidence],
         reasons: inout [Reason]
     ) {
-        let groups = Dictionary(grouping: noteOns, by: \.time)
-        let centers = groups.keys.sorted().compactMap { time -> Double? in
-            guard let group = groups[time], group.isEmpty == false else { return nil }
-            return Double(group.map(\.midi).reduce(0, +)) / Double(group.count)
-        }
+        let centers = onsetCenters(noteOns)
         guard centers.count >= 2 else { return }
         let maximumLeap = zip(centers.dropFirst(), centers)
             .map { Int(abs($0 - $1).rounded()) }
@@ -252,6 +318,57 @@ struct ImprovQualityRubric {
             reasons.append(.extremeVoiceLeap)
         } else {
             dimensions[.voiceLeading] = .pass
+        }
+    }
+
+    private func assessVoiceCrossing(
+        _ context: PhraseContext?,
+        dimensions: inout [Dimension: Evidence],
+        reasons: inout [Reason]
+    ) {
+        guard let context, context.voicePairs.isEmpty == false else { return }
+        if context.voicePairs.contains(where: { $0.bass >= $0.melody }) {
+            dimensions[.voiceLeading] = .fail
+            reasons.append(.voiceCrossing)
+        } else if dimensions[.voiceLeading] == .notObserved {
+            dimensions[.voiceLeading] = .pass
+        }
+    }
+
+    private func assessHarmonicFit(
+        _ noteOns: [(time: TimeInterval, midi: Int)],
+        context: PhraseContext?,
+        dimensions: inout [Dimension: Evidence],
+        reasons: inout [Reason]
+    ) {
+        guard let allowedPitchClasses = context?.allowedPitchClasses,
+              allowedPitchClasses.isEmpty == false,
+              noteOns.isEmpty == false
+        else { return }
+        if noteOns.contains(where: { allowedPitchClasses.contains(pitchClass($0.midi)) == false }) {
+            dimensions[.harmonicFit] = .fail
+            reasons.append(.harmonicMismatch)
+        } else {
+            dimensions[.harmonicFit] = .pass
+        }
+    }
+
+    private func assessCadence(
+        _ noteOns: [(time: TimeInterval, midi: Int)],
+        context: PhraseContext?,
+        dimensions: inout [Dimension: Evidence],
+        reasons: inout [Reason]
+    ) {
+        guard let cadencePitchClasses = context?.cadencePitchClasses,
+              cadencePitchClasses.isEmpty == false
+        else { return }
+        let melody = onsetMelody(noteOns)
+        guard let finalPitch = context?.finalMelodyPitch ?? (melody.count >= 2 ? melody.last : nil) else { return }
+        if cadencePitchClasses.contains(pitchClass(finalPitch)) {
+            dimensions[.cadence] = .pass
+        } else {
+            dimensions[.cadence] = .fail
+            reasons.append(.missingCadence)
         }
     }
 
@@ -308,6 +425,27 @@ struct ImprovQualityRubric {
         } else {
             dimensions[.responseLatency] = .pass
         }
+    }
+
+    private func onsetMelody(_ noteOns: [(time: TimeInterval, midi: Int)]) -> [Int] {
+        Dictionary(grouping: noteOns, by: \.time)
+            .keys
+            .sorted()
+            .compactMap { time in
+                noteOns.filter { $0.time == time }.map(\.midi).max()
+            }
+    }
+
+    private func onsetCenters(_ noteOns: [(time: TimeInterval, midi: Int)]) -> [Double] {
+        let groups = Dictionary(grouping: noteOns, by: \.time)
+        return groups.keys.sorted().compactMap { time -> Double? in
+            guard let group = groups[time], group.isEmpty == false else { return nil }
+            return Double(group.map(\.midi).reduce(0, +)) / Double(group.count)
+        }
+    }
+
+    private func pitchClass(_ midi: Int) -> Int {
+        ((midi % 12) + 12) % 12
     }
 
     private func ordered(_ events: [PracticeSequencerMIDIEvent]) -> [PracticeSequencerMIDIEvent] {
