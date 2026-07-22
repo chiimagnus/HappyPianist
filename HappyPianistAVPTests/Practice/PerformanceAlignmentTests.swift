@@ -451,6 +451,42 @@ func unavailableCapabilitiesNeverFilterCandidatesOrContributeCosts() throws {
 }
 
 @Test
+func unknownHandEvidenceDoesNotFilterKnownHandCandidates() throws {
+    let left = makeAlignmentEvent(
+        sourceID: makeAlignmentSourceID(ordinal: 0),
+        occurrenceIndex: 0,
+        handAssignment: .init(hand: .left, provenance: .score)
+    )
+    let right = makeAlignmentEvent(
+        sourceID: makeAlignmentSourceID(ordinal: 1),
+        occurrenceIndex: 0,
+        handAssignment: .init(hand: .right, provenance: .score)
+    )
+    let result = PerformanceAlignmentEngine().align(
+        plan: makeAlignmentPlan(noteEvents: [left, right]),
+        observations: [makeAlignmentObservation(
+            generation: 1,
+            seconds: 0,
+            capabilities: .handContact,
+            hand: .unknown
+        )],
+        performanceStart: .init(seconds: 0)
+    )
+
+    let candidateGroups = result.links.compactMap { link -> [PerformanceAlignmentCandidate]? in
+        guard case let .ambiguous(_, candidates) = link else { return nil }
+        return candidates
+    }
+    let candidates = try #require(candidateGroups.first)
+    #expect(candidates.count == 2)
+    #expect(candidates.allSatisfy { candidate in
+        candidate.evidence.contains {
+            $0.dimension == .hand && $0.status == .notObserved && $0.cost == nil
+        }
+    })
+}
+
+@Test
 func duplicateControllerScoreReferencesAreCollapsed() {
     let controller = ScorePerformanceControllerEvent(
         sourceDirectionID: nil,

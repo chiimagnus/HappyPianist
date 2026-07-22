@@ -626,7 +626,9 @@ struct PerformanceAlignmentEngine: Sendable {
             ? temporal.filter { $0.event.midiNote == observedNote }
             : temporal
         let handEvidence = observation.source.capabilities.hand
-        let observedHand = handEvidence == .unavailable ? nil : observation.hand
+        let observedHand = handEvidence == .unavailable || observation.hand == .unknown
+            ? nil
+            : observation.hand
         let matching: [TimedNote]
         if let observedHand {
             matching = pitchMatching.filter { timedNote in
