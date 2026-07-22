@@ -655,3 +655,43 @@ func allRejectedCandidatesPreferSilenceWithRejectStatus() async {
     #expect(states.last?.lastImprovStatusText?.contains("candidates=3") == true)
     #expect(states.last?.lastImprovStatusText?.contains("topReject=densityOverload") == true)
 }
+
+@Test
+func creativeDuetContractPreservesObservedInputAndGeneratedResponseProvenance() async throws {
+    let events = [
+        ImprovEvent.note(note: 60, velocity: 72, time: 0, duration: 0.4),
+        ImprovEvent.cc(controller: 64, value: 127, time: 0.1),
+    ]
+    let phrase = CreativeDuetPhrase(
+        events: events,
+        provenance: .observed(from: events)
+    )
+    let generation = CreativeDuetGeneration(
+        requestID: 7,
+        activationID: 3,
+        seed: 42,
+        sessionID: "test-session",
+        parameters: ImprovGenerateParams(topP: 0.95, maxTokens: 12, strategy: "continuous", seed: 42)
+    )
+    let schedule = [
+        PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 67, velocity: 88)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.3, kind: .noteOff(midi: 67)),
+    ]
+    let backend = FakeScheduleBackend(
+        kind: .localRule,
+        playbackPlan: .schedule(schedule, backendLatencyMS: 17)
+    )
+
+    let response = try await backend.generateCreativeResponse(
+        phrase: phrase,
+        generation: generation,
+        timeout: .seconds(1)
+    )
+
+    #expect(phrase.provenance.source == .observedLiveInput)
+    #expect(phrase.provenance.observedCapabilities == [.pitch, .onset, .velocity, .duration, .controller])
+    #expect(response.schedule == schedule)
+    #expect(response.provider == .localRule)
+    #expect(response.generation == generation)
+    #expect(response.provenance == .backendGenerated(latencyMS: 17))
+}

@@ -378,10 +378,14 @@ final class AIPerformanceService {
                 ccSnapshot: ccSnapshot,
                 policy: requestPolicy
             )
-            if promptEvents.contains(where: { $0.type == .note }) {
+            let phrase = CreativeDuetPhrase(
+                events: promptEvents,
+                provenance: .observed(from: promptEvents)
+            )
+            if phrase.events.contains(where: { $0.type == .note }) {
                 await requestContinuousWindow(
                     nowTimestampSeconds: now,
-                    promptEvents: promptEvents,
+                    phrase: phrase,
                     requestPolicy: requestPolicy
                 )
             }
@@ -410,7 +414,7 @@ final class AIPerformanceService {
 
     private func requestContinuousWindow(
         nowTimestampSeconds: TimeInterval,
-        promptEvents: [ImprovEvent],
+        phrase: CreativeDuetPhrase,
         requestPolicy: DuetPhrasePolicy.RequestPolicy
     ) async {
         let kind = selectedBackendKind()
@@ -433,7 +437,7 @@ final class AIPerformanceService {
                 requestID: requestID,
                 activationAtRequest: activationAtRequest,
                 kind: kind,
-                promptEvents: promptEvents,
+                phrase: phrase,
                 requestPolicy: requestPolicy
             )
         }
@@ -446,7 +450,7 @@ final class AIPerformanceService {
         requestID: Int,
         activationAtRequest: Int,
         kind: ImprovBackendKind,
-        promptEvents: [ImprovEvent],
+        phrase: CreativeDuetPhrase,
         requestPolicy: DuetPhrasePolicy.RequestPolicy
     ) async {
         guard isEnabled else { return }
@@ -461,14 +465,16 @@ final class AIPerformanceService {
 
         let seed = UInt64(activationAtRequest) << 32 | UInt64(requestID)
 
-        let rawCandidates: [[PracticeSequencerMIDIEvent]]
+        let responses: [CreativeDuetResponse]
         do {
-            rawCandidates = try await generatePlaybackCandidates(
+            responses = try await generateCreativeResponses(
                 backend: backend,
                 kind: kind,
-                promptEvents: promptEvents,
+                phrase: phrase,
                 requestPolicy: requestPolicy,
-                baseSeed: seed
+                baseSeed: seed,
+                requestID: requestID,
+                activationID: activationAtRequest
             )
         } catch {
             guard isEnabled, activationAtRequest == activationID, kind == selectedBackendKind() else { return }
@@ -502,9 +508,9 @@ final class AIPerformanceService {
         let decision = controlDecision(noteSnapshot: noteSnapshot, ccSnapshot: ccSnapshot)
         guard decision.shouldRequestGeneration else { return }
         let responsePolicy = DuetPhrasePolicy.requestPolicy(for: decision)
-        let evaluations = rawCandidates.map {
+        let evaluations = responses.map {
             evaluateCandidate(
-                rawSchedule: $0,
+                response: $0,
                 noteSnapshot: noteSnapshot,
                 controlMode: decision.mode,
                 horizonSeconds: responsePolicy.requestWindowSeconds
@@ -538,37 +544,42 @@ final class AIPerformanceService {
         notifyStateChanged()
     }
 
-    private func generatePlaybackCandidates(
+    private func generateCreativeResponses(
         backend: any ImprovBackendProtocol,
         kind: ImprovBackendKind,
-        promptEvents: [ImprovEvent],
+        phrase: CreativeDuetPhrase,
         requestPolicy: DuetPhrasePolicy.RequestPolicy,
-        baseSeed: UInt64
-    ) async throws -> [[PracticeSequencerMIDIEvent]] {
+        baseSeed: UInt64,
+        requestID: Int,
+        activationID: Int
+    ) async throws -> [CreativeDuetResponse] {
         let candidateCount = preferredCandidateCount(for: kind)
-        var candidates: [[PracticeSequencerMIDIEvent]] = []
+        var responses: [CreativeDuetResponse] = []
         var firstError: (any Error)?
-        candidates.reserveCapacity(candidateCount)
+        responses.reserveCapacity(candidateCount)
 
         for candidateIndex in 0 ..< candidateCount {
-            let request = makeGenerateRequest(
-                promptEvents: promptEvents,
+            let generation = makeCreativeDuetGeneration(
                 requestPolicy: requestPolicy,
+                requestID: requestID,
+                activationID: activationID,
                 seed: candidateSeed(baseSeed: baseSeed, candidateIndex: candidateIndex)
             )
             do {
-                let playbackPlan = try await backend.generatePlaybackPlan(request: request, timeout: backendTimeout)
-                if case let .schedule(schedule, _) = playbackPlan {
-                    candidates.append(schedule)
-                }
+                let response = try await backend.generateCreativeResponse(
+                    phrase: phrase,
+                    generation: generation,
+                    timeout: backendTimeout
+                )
+                responses.append(response)
             } catch {
                 if candidateCount == 1 { throw error }
                 if firstError == nil { firstError = error }
             }
         }
 
-        if candidates.isEmpty, let firstError { throw firstError }
-        return candidates
+        if responses.isEmpty, let firstError { throw firstError }
+        return responses
     }
 
     private func preferredCandidateCount(for kind: ImprovBackendKind) -> Int {
@@ -580,20 +591,23 @@ final class AIPerformanceService {
         }
     }
 
-    private func makeGenerateRequest(
-        promptEvents: [ImprovEvent],
+    private func makeCreativeDuetGeneration(
         requestPolicy: DuetPhrasePolicy.RequestPolicy,
+        requestID: Int,
+        activationID: Int,
         seed: UInt64
-    ) -> ImprovGenerateRequestV2 {
-        ImprovGenerateRequestV2(
-            events: promptEvents,
-            params: ImprovGenerateParams(
+    ) -> CreativeDuetGeneration {
+        CreativeDuetGeneration(
+            requestID: requestID,
+            activationID: activationID,
+            seed: seed,
+            sessionID: improvSessionID,
+            parameters: ImprovGenerateParams(
                 topP: 0.95,
                 maxTokens: max(1, requestPolicy.maxTokens),
                 strategy: "continuous",
                 seed: seed
-            ),
-            sessionID: improvSessionID
+            )
         )
     }
 
@@ -603,18 +617,18 @@ final class AIPerformanceService {
     }
 
     private func evaluateCandidate(
-        rawSchedule: [PracticeSequencerMIDIEvent],
+        response: CreativeDuetResponse,
         noteSnapshot: DuetPhraseBuffer.Snapshot,
         controlMode: DuetTurnTakingCore.Mode,
         horizonSeconds: TimeInterval
     ) -> CandidateEvaluation {
         let rawAssessment = DuetPhrasePolicy.assessSchedule(
-            rawSchedule,
+            response.schedule,
             noteSnapshot: noteSnapshot,
             horizonSeconds: horizonSeconds
         )
         let shapedSchedule = DuetPhrasePolicy.shapeSchedule(
-            rawSchedule,
+            response.schedule,
             noteSnapshot: noteSnapshot,
             controlMode: controlMode,
             horizonSeconds: horizonSeconds
