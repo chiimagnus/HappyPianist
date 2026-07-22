@@ -27,6 +27,5 @@ jobs:
             -project "$PROJECT" \
             -scheme "$SCHEME" \
             -destination 'platform=visionOS Simulator,name=Apple Vision Pro,OS=latest' \
-            -quiet \
             CODE_SIGNING_ALLOWED=NO \
             -parallel-testing-enabled NO
