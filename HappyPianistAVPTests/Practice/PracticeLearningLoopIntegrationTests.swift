@@ -67,6 +67,46 @@ func revisionMismatchDoesNotRestoreOldScoreProgress() async {
 
 @MainActor
 @Test
+func sessionShutdownResetsPerformanceAnalysis() async throws {
+    let analyzer = PracticePerformanceAnalyzer()
+    let recorder = PracticeSessionRecorder(
+        repository: LearningLoopSessionRepository(),
+        performanceAnalyzer: analyzer
+    )
+    let session = makeLearningLoopSession(
+        playback: LearningLoopPlaybackService(),
+        coordinator: PracticeProgressCoordinator(repository: LearningLoopRepository()),
+        recorder: recorder
+    )
+    session.installTestPerformanceNotes([
+        TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 480),
+    ])
+    await session.waitForSessionRecorderEvents()
+    let instant = PerformanceClock.live().now()
+    await analyzer.record(PerformanceObservation(
+        source: .init(kind: .midi1, id: "midi:shutdown", generation: 1),
+        timing: .init(
+            host: instant,
+            source: nil,
+            correctedHost: instant,
+            mapping: nil,
+            provenance: .hostOnly
+        ),
+        event: .noteOn(note: 60, velocity: .init(midi1: 90))
+    ))
+    #expect(await analyzer.snapshot().isRunning)
+
+    session.shutdown()
+    await session.waitForSessionRecorderEvents()
+
+    let reset = await analyzer.snapshot()
+    #expect(reset.isRunning == false)
+    #expect(reset.acceptedObservationCount == 0)
+    #expect(reset.alignment == nil)
+}
+
+@MainActor
+@Test
 func completedPassagePersistsAssessmentOnceAndFinishesAnalyzerRound() async throws {
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "assessment-r1")
     let diagnosticsReporter = InMemoryDiagnosticsReporter()

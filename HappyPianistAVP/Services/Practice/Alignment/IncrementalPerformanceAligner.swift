@@ -103,18 +103,6 @@ struct IncrementalPerformanceAligner: Sendable {
         }
     }
 
-    mutating func seek(to performanceStart: PerformanceMonotonicInstant) {
-        guard state == .running else { return }
-        self.performanceStart = performanceStart
-        clearRunEvidence()
-    }
-
-    mutating func rangeChange(_ range: Range<Int>?) {
-        guard state == .running, let plan else { return }
-        preparedPlan = engine.prepare(plan: plan, activeTickRange: range)
-        clearRunEvidence()
-    }
-
     mutating func finish() -> PerformanceAlignment? {
         guard state == .running, let preparedPlan else { return nil }
         let final = engine.align(

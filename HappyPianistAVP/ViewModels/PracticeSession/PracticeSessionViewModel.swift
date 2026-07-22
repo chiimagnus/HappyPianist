@@ -175,6 +175,7 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
     func shutdown() {
         guard hasShutdown == false else { return }
         hasShutdown = true
+        enqueueSessionRecorderEvent(.resetAnalysis)
 
         cancelAutoplayTimelineBuild()
         stopManualReplayTask(restoreAudioRecognition: false)
@@ -235,10 +236,6 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
 
     func waitForSessionRecorderEvents() async {
         await sessionRecorderEventTask?.value
-    }
-
-    func performanceAnalysisSnapshot() async -> PracticePerformanceAnalyzerSnapshot? {
-        await sessionRecorder?.analysisSnapshot()
     }
 
     func handle(effect: PracticeSessionEffect) {
