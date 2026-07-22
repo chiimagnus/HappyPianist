@@ -12,7 +12,8 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
         case configureAnalysis(
             plan: ScorePerformancePlan,
             measureSpans: [MusicXMLMeasureSpan],
-            activeTickRange: Range<Int>?
+            activeTickRange: Range<Int>?,
+            tempoScale: Double
         )
         case inputCapabilitiesAvailable(PerformanceInputCapabilities)
         case resetAnalysis
@@ -239,11 +240,12 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
                 await sessionRecorder.setSettingsPresented(isPresented)
             case .checkpoint:
                 await sessionRecorder.checkpoint()
-            case let .configureAnalysis(plan, measureSpans, activeTickRange):
+            case let .configureAnalysis(plan, measureSpans, activeTickRange, tempoScale):
                 await sessionRecorder.configureAnalysis(
                     plan: plan,
                     measureSpans: measureSpans,
-                    activeTickRange: activeTickRange
+                    activeTickRange: activeTickRange,
+                    tempoScale: tempoScale
                 )
             case let .inputCapabilitiesAvailable(capabilities):
                 await sessionRecorder.registerInputCapabilities(capabilities)

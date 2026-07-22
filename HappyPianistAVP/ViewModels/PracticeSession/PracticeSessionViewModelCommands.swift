@@ -562,7 +562,8 @@ extension PracticeSessionViewModel {
             enqueueSessionRecorderEvent(.configureAnalysis(
                 plan: performancePlan,
                 measureSpans: self.measureSpans,
-                activeTickRange: self.activeRange?.tickRange
+                activeTickRange: self.activeRange?.tickRange,
+                tempoScale: self.activeRoundConfiguration?.tempoScale ?? 1
             ))
         }
         self.currentStepIndex = self.activeRange?.firstStepIndex ?? 0
@@ -634,7 +635,8 @@ extension PracticeSessionViewModel {
         enqueueSessionRecorderEvent(.configureAnalysis(
             plan: performancePlan,
             measureSpans: measureSpans,
-            activeTickRange: self.activeRange?.tickRange
+            activeTickRange: self.activeRange?.tickRange,
+            tempoScale: self.activeRoundConfiguration?.tempoScale ?? 1
         ))
         rebuildAutoplayTimeline()
         self.currentHighlightGuideIndex = nil

@@ -1218,6 +1218,31 @@ func analyzerPublishesAssessmentFromCommittedAndFinishedAlignment() async throws
 }
 
 @Test
+func analyzerEvaluatesAgainstTheConfiguredPracticeTempo() async throws {
+    let first = makeAssessmentEvent(ordinal: 0, midiNote: 60, onTick: 0, offTick: 240)
+    let second = makeAssessmentEvent(ordinal: 1, midiNote: 62, onTick: 480, offTick: 720)
+    let plan = makeAssessmentPlan(events: [first, second])
+    let analyzer = PracticePerformanceAnalyzer()
+
+    await analyzer.configure(
+        plan: plan,
+        measureSpans: makeTestMeasureSpans(for: plan),
+        activeTickRange: nil,
+        tempoScale: 0.5
+    )
+    await analyzer.beginRound(at: .init(seconds: 5))
+    await analyzer.record(makeAssessmentObservation(time: 5, note: 60))
+    await analyzer.record(makeAssessmentObservation(time: 6, note: 62))
+    let alignment = try #require(await analyzer.finishRound().alignment)
+    let secondOnsetDeviation = alignment.links.compactMap { link -> TimeInterval? in
+        guard case let .aligned(score, _, evidence) = link, score.eventID == second.id else { return nil }
+        return evidence.first { $0.dimension == .onset }?.deviationSeconds
+    }.first
+
+    #expect(abs(try #require(secondOnsetDeviation)) < 0.000_001)
+}
+
+@Test
 func analyzerPublishesMissingAssessmentForSilentRoundAndFinishesIdempotently() async throws {
     let event = makeAssessmentEvent()
     let plan = makeAssessmentPlan(events: [event])

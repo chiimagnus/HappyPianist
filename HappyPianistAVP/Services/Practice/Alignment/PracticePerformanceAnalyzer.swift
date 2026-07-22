@@ -38,10 +38,11 @@ actor PracticePerformanceAnalyzer {
     func configure(
         plan: ScorePerformancePlan,
         measureSpans: [MusicXMLMeasureSpan],
-        activeTickRange: Range<Int>?
+        activeTickRange: Range<Int>?,
+        tempoScale: Double = 1
     ) {
         reset()
-        self.plan = plan
+        self.plan = Self.scaledPlan(plan, tempoScale: tempoScale)
         self.measureSpans = measureSpans
         self.activeTickRange = activeTickRange
     }
@@ -146,6 +147,36 @@ actor PracticePerformanceAnalyzer {
             activeTickRange: activeTickRange
         )
         return aligner
+    }
+
+    private static func scaledPlan(
+        _ plan: ScorePerformancePlan,
+        tempoScale: Double
+    ) -> ScorePerformancePlan {
+        guard tempoScale.isFinite, tempoScale > 0, tempoScale != 1 else { return plan }
+        let tempoEvents = MusicXMLTempoMap(performanceEvents: plan.tempoEvents)
+            .performanceEvents()
+            .map { event in
+                ScorePerformanceTempoEvent(
+                    sourceDirectionID: event.sourceDirectionID,
+                    performedOccurrenceIndex: event.performedOccurrenceIndex,
+                    tick: event.tick,
+                    quarterBPM: event.quarterBPM * tempoScale,
+                    endTick: event.endTick,
+                    endQuarterBPM: event.endQuarterBPM.map { $0 * tempoScale }
+                )
+            }
+        return ScorePerformancePlan(
+            id: plan.id,
+            sourceScoreIdentity: plan.sourceScoreIdentity,
+            order: plan.order,
+            resolution: plan.resolution,
+            noteEvents: plan.noteEvents,
+            tempoEvents: tempoEvents,
+            controllerEvents: plan.controllerEvents,
+            annotations: plan.annotations,
+            approximations: plan.approximations
+        )
     }
 
     private func report(_ snapshot: PracticePerformanceAnalyzerSnapshot) async {
