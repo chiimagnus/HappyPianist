@@ -58,6 +58,10 @@ struct PerformanceAssessmentRubric: Sendable {
         }
     }
 
+    func usesGenericTarget(for dimension: PerformanceAssessmentDimension) -> Bool {
+        targetProfile.bands(for: dimension).isEmpty
+    }
+
     func evidence(
         for dimension: PerformanceAssessmentDimension,
         capabilities: PerformanceInputCapabilities

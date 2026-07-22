@@ -1042,9 +1042,11 @@ func pedalAssessmentMeasuresChangeValueAndSignedOverlapGap() throws {
     let value = try assessmentResult(.pedalValue, in: assessment)
 
     #expect(timing.outcome == .incorrect)
+    #expect(timing.evidenceStatus == .degraded)
     #expect(timing.sampleCount == 3)
     #expect(timing.measurement?.value == 0.25)
     #expect(value.outcome == .incorrect)
+    #expect(value.evidenceStatus == .degraded)
     #expect(value.sampleCount == 2)
     #expect(value.measurement?.unit == .normalized)
     #expect(timing.evidence.allSatisfy { evidence in
@@ -1080,7 +1082,7 @@ func tempoAndPhraseContinuityAllowLinearRubatoAndMarkGenericBaselinesDegraded() 
             offTick: (index + 1) * 480
         )
     }
-    let plan = makeAssessmentPlan(events: events, tempoEvents: [])
+    let plan = makeAssessmentPlan(events: events)
     let links = zip(events, [0.0, 0.1, 0.2, 0.3]).map { event, deviation in
         makeAlignedLink(
             event: event,
@@ -1100,6 +1102,46 @@ func tempoAndPhraseContinuityAllowLinearRubatoAndMarkGenericBaselinesDegraded() 
     #expect(phrase.outcome == .correct)
     #expect(phrase.evidenceStatus == .degraded)
     #expect(abs(phrase.measurement?.value ?? 1) < 0.000_001)
+}
+
+@Test
+func explicitTempoSourceKeepsContinuityEvidenceObserved() throws {
+    let events = (0 ..< 4).map { index in
+        makeAssessmentEvent(
+            ordinal: index,
+            midiNote: 60 + index,
+            onTick: index * 480,
+            offTick: (index + 1) * 480
+        )
+    }
+    let sourceID = MusicXMLDirectionSourceID(
+        partID: "P1",
+        sourceMeasureIndex: 0,
+        sourceMeasureNumberToken: "1",
+        sourceOrdinal: 0
+    )
+    let plan = makeAssessmentPlan(events: events, tempoEvents: [.init(
+        sourceDirectionID: sourceID,
+        performedOccurrenceIndex: 0,
+        tick: 0,
+        quarterBPM: 120,
+        endTick: nil,
+        endQuarterBPM: nil
+    )])
+    let links = events.map { event in
+        makeAlignedLink(
+            event: event,
+            observation: makeAssessmentObservation(time: 0, note: event.midiNote),
+            onsetDeviation: 0
+        )
+    }
+    let assessment = try #require(PerformanceAssessmentService().assess(
+        plan: plan,
+        alignment: .init(planID: plan.id, sourceGeneration: 7, links: links),
+        measureSpans: makeTestMeasureSpans(for: plan)
+    ))
+
+    #expect(try assessmentResult(.tempoContinuity, in: assessment).evidenceStatus == .observed)
 }
 
 @Test

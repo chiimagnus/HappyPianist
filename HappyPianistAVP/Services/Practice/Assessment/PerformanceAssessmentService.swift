@@ -185,14 +185,10 @@ struct PerformanceAssessmentService: Sendable {
                 capabilities: capabilities
             ),
             pedalTimingResult(
-                plan: plan,
-                links: controllerLinks,
-                capabilities: capabilities
+                links: controllerLinks
             ),
             pedalValueResult(
-                plan: plan,
-                links: controllerLinks,
-                capabilities: capabilities
+                links: controllerLinks
             ),
             tempoContinuityResult(
                 plan: plan,
@@ -843,11 +839,9 @@ struct PerformanceAssessmentService: Sendable {
     }
 
     private func pedalTimingResult(
-        plan: ScorePerformancePlan,
-        links: [PerformanceAlignmentControllerLink],
-        capabilities: PerformanceInputCapabilities
+        links: [PerformanceAlignmentControllerLink]
     ) -> PerformanceAssessmentDimensionResult {
-        let isApproximation = plan.approximations.contains { $0.scope == .controller }
+        let isApproximation = rubric.usesGenericTarget(for: .pedalTiming)
         var samples: [MetricSample] = []
         var failures: [PerformanceAssessmentEvidenceLink] = []
         var unavailable: [PerformanceAssessmentEvidenceLink] = []
@@ -910,11 +904,9 @@ struct PerformanceAssessmentService: Sendable {
     }
 
     private func pedalValueResult(
-        plan: ScorePerformancePlan,
-        links: [PerformanceAlignmentControllerLink],
-        capabilities: PerformanceInputCapabilities
+        links: [PerformanceAlignmentControllerLink]
     ) -> PerformanceAssessmentDimensionResult {
-        let isApproximation = plan.approximations.contains { $0.scope == .controller }
+        let isApproximation = rubric.usesGenericTarget(for: .pedalValue)
         var samples: [MetricSample] = []
         var failures: [PerformanceAssessmentEvidenceLink] = []
         var unavailable: [PerformanceAssessmentEvidenceLink] = []
@@ -974,7 +966,7 @@ struct PerformanceAssessmentService: Sendable {
             case .performanceNotation: nil
             }
         })
-        let isApproximation = plan.tempoEvents.isEmpty
+        let isApproximation = plan.tempoEvents.allSatisfy { $0.sourceDirectionID == nil }
         var samples: [MetricSample] = []
 
         for index in 0 ..< max(0, onsets.count - 2) {
