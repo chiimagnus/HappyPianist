@@ -16,7 +16,7 @@
 
 仓库没有 macOS App target。日常本地构建和测试使用 Makefile：`make doctor` 检查工具链，`make config` 查看本机解析配置，`make destinations` 列出目标，`make test` 运行配置好的 visionOS Simulator 测试。Makefile 默认的 Simulator / Vision Pro ID 属于本机配置，运行时可覆盖 `SIMULATOR_ID` 或 `DEVICE_ID`。
 
-`.github/workflows/swift-ci.yml` 不经过 Makefile，仅支持手动触发，运行在 `macos-26`，通过 `DEVELOPER_DIR` 固定到 `/Applications/Xcode_26.6.app/Contents/Developer`，并使用名为 `Apple Vision Pro`、`OS=latest` 的 visionOS Simulator 执行原生 `xcodebuild test`；需要精确复现或 Makefile 未覆盖的场景时，本地也可直接调用 `xcodebuild`。
+`.github/workflows/swift-ci.yml` 通过 Makefile 执行测试：先在 runner 上解析可用的 `Apple Vision Pro` UDID，再注入 `SIMULATOR_ID` 调用 `make test`。workflow 仅支持手动触发，运行在 `macos-26`，通过 `DEVELOPER_DIR` 固定到 `/Applications/Xcode_26.6.app/Contents/Developer`；Makefile 内部实际调用原生 `xcodebuild test`。需要精确复现或 Makefile 未覆盖的场景时，本地仍可直接调用 `xcodebuild`。
 
 ## 依赖边界
 

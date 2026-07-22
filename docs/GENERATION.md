@@ -30,11 +30,11 @@
 
 - 对齐当前工程 target、Swift 版本、RealityKit 内容包工具版本与手动 CI 的实际配置。
 - 记录钢琴准备与练习视图当前的目录边界，移除已过期的文件组织假设。
-- 记录根目录 Makefile 作为本地 build/test/run 入口，并区分本地快捷命令与 CI 的原生 `xcodebuild`。
+- 记录根目录 Makefile 作为本地与 CI 的 build/test/run 入口；CI 动态注入 Simulator UDID，Makefile 内部调用原生 `xcodebuild`。
 - 保留代码标识、API、命令、协议名、文件名和上游专有名词的原始拼写。
 - 保持演奏分析链路、持久化边界和验证结论不变；本次代码变更仅涉及文件重组。
 
 ## 覆盖缺口
 
-- 未运行完整 `xcodebuild test`、visionOS Simulator 或 Apple Vision Pro 真机验证；本次只运行 `make help`，并核对 Makefile、Xcode/CI 配置与文档链接。
+- 未运行完整 `xcodebuild test`、visionOS Simulator 或 Apple Vision Pro 真机验证；本次只运行 `make help` / `make -n test`，并核对 Makefile、Xcode/CI 配置与文档链接。
 - `python_backend/aria/README.md` 属于上游 Aria 项目说明，保留其原始英文，避免维护一份会漂移的本地翻译。

@@ -9,6 +9,7 @@ permissions:
 env:
   PROJECT: HappyPianist.xcodeproj
   SCHEME: HappyPianistAVP
+  SIMULATOR_NAME: Apple Vision Pro
   DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
 
 jobs:
@@ -21,22 +22,28 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
-      - name: Show toolchain and destinations
+      - name: Resolve Makefile Simulator ID
+        id: simulator
         run: |
           set -euo pipefail
-          xcodebuild -version
+          simulator_id="$(xcrun simctl list devices available | awk -F '[()]' -v name="$SIMULATOR_NAME" '$1 ~ name { print $4; exit }')"
+          test -n "$simulator_id"
+          echo "id=$simulator_id" >> "$GITHUB_OUTPUT"
+
+      - name: Show toolchain and destinations
+        env:
+          SIMULATOR_ID: ${{ steps.simulator.outputs.id }}
+        run: |
+          set -euo pipefail
+          make doctor
           swift --version
           xcrun simctl list runtimes
-          xcodebuild -showdestinations \
-            -project "$PROJECT" \
-            -scheme "$SCHEME"
+          make config
+          make destinations
 
-      - name: Run all Swift tests
+      - name: Run all Swift tests through Makefile
+        env:
+          SIMULATOR_ID: ${{ steps.simulator.outputs.id }}
         run: |
           set -euo pipefail
-          xcodebuild test \
-            -project "$PROJECT" \
-            -scheme "$SCHEME" \
-            -destination 'platform=visionOS Simulator,name=Apple Vision Pro,OS=latest' \
-            CODE_SIGNING_ALLOWED=NO \
-            -parallel-testing-enabled NO
+          make test
