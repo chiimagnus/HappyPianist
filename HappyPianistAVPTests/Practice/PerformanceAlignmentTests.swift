@@ -638,6 +638,107 @@ func incrementalAlignerRejectsStaleOutOfOrderAndSystemPlaybackAndResetsLifecycle
 }
 
 @Test
+func incrementalTrimPreservesCompleteFinalFacts() throws {
+    let plan = makeAlignmentPlan(noteEvents: [])
+    var aligner = IncrementalPerformanceAligner(
+        configuration: .init(maximumBufferedObservations: 32, commitHorizonSeconds: 0.3)
+    )
+    aligner.start(plan: plan, generation: 1, performanceStart: .init(seconds: 0))
+    var observations: [PerformanceObservation] = []
+    for index in 0 ..< 40 {
+        let observation = makeAlignmentObservation(
+            generation: 1,
+            note: 60 + index % 2,
+            seconds: Double(index) * 0.01
+        )
+        observations.append(observation)
+        _ = aligner.append(observation)
+    }
+
+    let online = try #require(aligner.finish())
+    let offline = PerformanceAlignmentEngine().align(
+        plan: plan,
+        observations: observations,
+        performanceStart: .init(seconds: 0),
+        generation: 1
+    )
+
+    #expect(aligner.bufferedObservationCount == 32)
+    #expect(aligner.discardedObservationCount == 8)
+    #expect(online == offline)
+}
+
+@Test
+func committedScoreEventsCannotBeRematched() throws {
+    let first = makeAlignmentEvent(
+        sourceID: makeAlignmentSourceID(ordinal: 0),
+        occurrenceIndex: 0,
+        onTick: 0
+    )
+    let second = makeAlignmentEvent(
+        sourceID: makeAlignmentSourceID(ordinal: 1),
+        occurrenceIndex: 0,
+        onTick: 960
+    )
+    let plan = makeAlignmentPlan(noteEvents: [first, second])
+    var aligner = IncrementalPerformanceAligner(
+        configuration: .init(maximumBufferedObservations: 32, commitHorizonSeconds: 0.3)
+    )
+    aligner.start(plan: plan, generation: 1, performanceStart: .init(seconds: 0))
+    _ = aligner.append(makeAlignmentObservation(generation: 1, seconds: 0))
+    for index in 0 ..< 33 {
+        _ = aligner.append(makeAlignmentObservation(
+            generation: 1,
+            seconds: 0.31 + Double(index) * 0.001,
+            event: .controller(.programChange(program: index))
+        ))
+    }
+    _ = aligner.append(makeAlignmentObservation(generation: 1, seconds: 0.4))
+
+    let result = try #require(aligner.finish())
+    let aligned = result.links.compactMap { link -> ScorePerformanceNoteEventID? in
+        guard case let .aligned(score, _, _) = link else { return nil }
+        return score.eventID
+    }
+
+    #expect(Set(aligned) == Set([first.id, second.id]))
+}
+
+@Test
+func evictedOpenNoteKeepsReleaseEvidence() throws {
+    let event = makeAlignmentEvent(
+        sourceID: makeAlignmentSourceID(ordinal: 0),
+        occurrenceIndex: 0,
+        offTick: 960
+    )
+    let plan = makeAlignmentPlan(noteEvents: [event])
+    var aligner = IncrementalPerformanceAligner(
+        configuration: .init(maximumBufferedObservations: 32, commitHorizonSeconds: 0.3)
+    )
+    aligner.start(plan: plan, generation: 1, performanceStart: .init(seconds: 0))
+    _ = aligner.append(makeAlignmentObservation(generation: 1, seconds: 0))
+    for index in 0 ..< 32 {
+        _ = aligner.append(makeAlignmentObservation(
+            generation: 1,
+            seconds: 0.31 + Double(index) * 0.001,
+            event: .controller(.programChange(program: index))
+        ))
+    }
+    _ = aligner.append(makeAlignmentObservation(
+        generation: 1,
+        seconds: 1,
+        event: .noteOff(note: 60, releaseVelocity: nil)
+    ))
+
+    let result = try #require(aligner.finish())
+    let duration = try #require(result.links.compactMap { link -> TimeInterval? in
+        guard case let .aligned(_, _, evidence) = link else { return nil }
+        return evidence.first { $0.dimension == .duration }?.deviationSeconds
+    }.first)
+    #expect(abs(duration) < 0.000_001)
+}
+
+@Test
 func alignmentRejectsStaleAndSystemPlaybackAcrossNotesReleasesAndControllers() throws {
     let note = makeAlignmentEvent(sourceID: makeAlignmentSourceID(ordinal: 0), occurrenceIndex: 0)
     let controller = ScorePerformanceControllerEvent(

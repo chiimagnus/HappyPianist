@@ -228,14 +228,18 @@ struct PerformanceAlignmentEngine: Sendable {
         performanceStart: PerformanceMonotonicInstant,
         activeTickRange: Range<Int>? = nil,
         generation: UInt64? = nil,
-        includeMissing: Bool = true
+        includeMissing: Bool = true,
+        reservedScoreEventIDs: Set<ScorePerformanceNoteEventID> = [],
+        reservedControllerScores: Set<PerformanceAlignmentControllerScoreReference> = []
     ) -> PerformanceAlignment {
         align(
             preparedPlan: prepare(plan: plan, activeTickRange: activeTickRange),
             observations: observations,
             performanceStart: performanceStart,
             generation: generation,
-            includeMissing: includeMissing
+            includeMissing: includeMissing,
+            reservedScoreEventIDs: reservedScoreEventIDs,
+            reservedControllerScores: reservedControllerScores
         )
     }
 
@@ -244,7 +248,9 @@ struct PerformanceAlignmentEngine: Sendable {
         observations: [PerformanceObservation],
         performanceStart: PerformanceMonotonicInstant,
         generation: UInt64? = nil,
-        includeMissing: Bool = true
+        includeMissing: Bool = true,
+        reservedScoreEventIDs: Set<ScorePerformanceNoteEventID> = [],
+        reservedControllerScores: Set<PerformanceAlignmentControllerScoreReference> = []
     ) -> PerformanceAlignment {
         let acceptedObservations = observations.filter { observation in
             observation.source.role != .systemPlayback
@@ -260,7 +266,15 @@ struct PerformanceAlignmentEngine: Sendable {
             performanceStart: performanceStart,
             generation: generation,
             releaseMeasurements: releaseMeasurements
-        )
+        ).map { snapshot in
+            PerformanceAlignmentCandidateSnapshot(
+                observation: snapshot.observation,
+                candidates: snapshot.candidates.filter {
+                    reservedScoreEventIDs.contains($0.score.eventID) == false
+                },
+                noCandidateReason: snapshot.noCandidateReason
+            )
+        }
         let observationByID = Dictionary(uniqueKeysWithValues: acceptedObservations.map { ($0.id, $0) })
         var ambiguousSnapshots: [PerformanceAlignmentCandidateSnapshot] = []
         let assignableSnapshots = snapshots.filter { snapshot in
@@ -333,7 +347,10 @@ struct PerformanceAlignmentEngine: Sendable {
         if includeMissing {
             links.append(contentsOf: preparedPlan.activeNotes
                 .map(\.event)
-                .filter { usedEvents.contains($0.id) == false }
+                .filter {
+                    usedEvents.contains($0.id) == false
+                        && reservedScoreEventIDs.contains($0.id) == false
+                }
                 .map { event in
                     .missing(
                         score: .init(event: event),
@@ -354,7 +371,8 @@ struct PerformanceAlignmentEngine: Sendable {
                 scoreEvents: preparedPlan.controllerEvents,
                 observations: acceptedObservations,
                 performanceStart: performanceStart,
-                timeMap: preparedPlan.timeMap
+                timeMap: preparedPlan.timeMap,
+                reservedScores: reservedControllerScores
             )
         )
     }
@@ -478,7 +496,8 @@ struct PerformanceAlignmentEngine: Sendable {
         scoreEvents: [ScorePerformanceControllerEvent],
         observations: [PerformanceObservation],
         performanceStart: PerformanceMonotonicInstant,
-        timeMap: ScorePerformancePlanTimeMap
+        timeMap: ScorePerformancePlanTimeMap,
+        reservedScores: Set<PerformanceAlignmentControllerScoreReference>
     ) -> [PerformanceAlignmentControllerLink] {
         let observed = observations.compactMap { observation -> (PerformanceObservation, Int, UInt8)? in
             guard observation.source.capabilities.controllers != .unavailable,
@@ -489,13 +508,16 @@ struct PerformanceAlignmentEngine: Sendable {
             else { return nil }
             return (observation, number, Self.midi7Bit(value))
         }
+        let availableScoreEvents = scoreEvents.filter {
+            reservedScores.contains(.init(event: $0)) == false
+        }
         guard observations.contains(where: { $0.source.capabilities.controllers != .unavailable }) else {
-            return scoreEvents.map { .notObserved(score: .init(event: $0)) }
+            return availableScoreEvents.map { .notObserved(score: .init(event: $0)) }
         }
 
         var used: Set<UUID> = []
         var links: [PerformanceAlignmentControllerLink] = []
-        for scoreEvent in scoreEvents {
+        for scoreEvent in availableScoreEvents {
             let scoreSeconds = timeMap.seconds(at: scoreEvent.tick)
             let candidate = observed
                 .filter { used.contains($0.0.id) == false && $0.1 == Int(scoreEvent.controllerNumber) }
@@ -682,6 +704,30 @@ struct PerformanceAlignmentEngine: Sendable {
             return lhs.score.eventID.description < rhs.score.eventID.description
         }
         return .init(observation: reference, candidates: candidates, noCandidateReason: nil)
+    }
+
+    func updatingReleaseEvidence(
+        in link: PerformanceAlignmentLink,
+        duration: TimeInterval,
+        preparedPlan: PreparedPlan
+    ) -> PerformanceAlignmentLink {
+        guard case let .aligned(score, observation, evidence) = link,
+              let event = preparedPlan.eventByID[score.eventID]
+        else { return link }
+        let releaseEvidence = Self.releaseEvidence(
+            measurement: .init(duration: duration, capability: observation.source.capabilities.release),
+            event: event,
+            timeMap: preparedPlan.timeMap,
+            onsetDeviation: evidence.first { $0.dimension == .onset }?.deviationSeconds,
+            unmatchedCost: configuration.unmatchedCost
+        )
+        return .aligned(
+            score: score,
+            observation: observation,
+            evidence: evidence.filter {
+                $0.dimension != .release && $0.dimension != .duration
+            } + releaseEvidence
+        )
     }
 
     private static func evidenceStatus(
