@@ -87,13 +87,13 @@ uv run --project aria_server \
 
 模型权重默认路径是 `python_backend/aria/hf/model-demo.safetensors`，不会随仓库分发。详细说明见 [`python_backend/README.md`](python_backend/README.md)。
 
-## Acknowledgements
+## 致谢
 
 - [Anticipation](https://github.com/jthickstun/anticipation) 与 [Anticipatory Music Transformer](https://arxiv.org/abs/2306.08620)
 - [stanford-crfm/music-large-800k](https://huggingface.co/stanford-crfm/music-large-800k)
 - Apple CoreMIDI、RealityKit、ARKit 与 Salamander Grand Piano 音色采样
 - 感谢南客松 S2、`njuer勇闯互联网`、`罗恩`、`大宝哥` 对项目的支持
 
-## License
+## 许可证
 
 本项目基于 [AGPL-3.0](LICENSE.APGLv3) 开源。

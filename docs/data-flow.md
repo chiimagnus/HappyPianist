@@ -156,8 +156,8 @@ active range 同时约束：
 - step 导航
 - 当前谱面视口
 - 琴键高亮
-- autoplay
-- manual replay
+- 自动播放
+- 手动重播
 - 一轮完成边界
 
 手别、速度、循环和成功目标只在应用 pending 配置并开始新一轮时生效。

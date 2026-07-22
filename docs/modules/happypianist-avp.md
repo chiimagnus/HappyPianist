@@ -1,4 +1,4 @@
-# Module: HappyPianistAVP
+# HappyPianistAVP 模块
 
 `HappyPianistAVP/` 是 Apple Vision Pro App target，围绕 Library 主窗口、两个由 Library 单层 push 的钢琴准备 / Practice 窗口和一个 mixed immersive space 组织。
 
@@ -90,9 +90,9 @@ Library View -> SongLibraryViewModel -> SongLibraryImportTransactionService -> S
 - 片段设置
 - 练习设置
 - 非模态 feedback cue
-- round summary
-- measure restoration map
-- take library
+- 本轮总结
+- 小节恢复地图
+- 录制库
 
 业务状态由 `PracticeSessionViewModel`、反馈 view models 和 `ARGuideViewModel` 提供。View 不直接读写 repository 或设备服务。
 

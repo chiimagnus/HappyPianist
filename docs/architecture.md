@@ -96,10 +96,10 @@ flowchart TD
 
 `HappyPianistAVPApp` 声明：
 
-- `library` window
-- `preparation` window
-- `practice` window
-- mixed `ImmersiveSpace`
+- `library` 窗口
+- `preparation` 窗口
+- `practice` 窗口
+- 混合式 `ImmersiveSpace`
 
 `library` 是启动时主窗口。左上角“选择钢琴”使用 `pushWindow` 打开 `preparation`，“开始练习”使用 `pushWindow` 打开 `practice`；两个 pushed window 都通过 `dismissWindow` 恢复原 Library，因此无需维护来源、目标或待处理窗口切换状态。`PianoSetupCoordinator` 只持有钢琴模式 registry、readiness 状态与重置行为。`PracticeLaunchViewModel` 是曲谱准备 request、激活、失败、恢复与 prepared-song 清理的唯一 owner；`PracticeWindowRootView` 是练习 leave、immersive close/recover 与返回曲库的唯一 owner。`ARGuideViewModel` 协调沉浸空间、追踪、练习 session、录制与 AI 服务。`ARTrackingRequirements` 从当前流程推导最小 provider 集合；后台或退出沉浸空间时统一暂停追踪、输入消费者和 RealityKit 长生命周期任务，恢复 active 后按当前 request 重建。
 

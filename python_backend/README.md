@@ -1,22 +1,22 @@
-# Python Backend Workspace
+# Python 后端工作区
 
 本目录是 HappyPianist 的 **Mac 侧** Python 工作区：用于放置“可选”的本地服务/工具（例如给 AVP 真机提供网络即兴后端），**不是** AVP App 运行的必需依赖。
 
-## Services
+## 服务
 
 - 当前仓库 **没有** “A.I. Duet / Performance RNN” 的 Python 服务实现：
   - AVP 默认使用 **设备端 CoreML**（本地模型）与本地 rule 后端。
   - 网络后端（Bonjour + HTTP/WS）目前实现的是 **Aria v2**（在 Mac 上跑，用于 AVP 选择网络后端时连接）。
 - 新增/维护其他 Python 服务时：在 `python_backend/` 下新建独立目录（每个服务一个 project），并把可运行入口脚本放到 `python_backend/scripts/`。
 
-## Layout（目录约定）
+## 目录结构
 
 - `python_backend/aria/`：Aria 模型源码（用于本机推理；模型权重不入 git）。
 - `python_backend/aria_server/`：HappyPianist 的 Aria v2 本地服务工程（uv project）。
 - `python_backend/shared/`：Python 侧共享模块（Bonjour、v2 协议、CC policy、MIDI<->events 转换等）。
 - `python_backend/scripts/`：可运行入口与 smoketests（从这里启动服务/跑自检）。
 
-## Quickstart：给 AVP 真机跑 Aria v2 服务（Apple silicon）
+## 快速开始：为 AVP 真机运行 Aria v2 服务（Apple 芯片）
 
 前置条件：
 - 同一局域网：Vision Pro 与 Mac 连接到同一 Wi‑Fi。
@@ -39,7 +39,7 @@
   - `网络本地连接（Aria v2 Streaming）`（WS `/stream`）。
 - 首次使用会弹 Local Network 权限；需允许，才能 Bonjour 发现 `_lpduet._tcp` 服务并连接。
 
-## Troubleshooting
+## 故障排查
 
 - AVP 找不到服务：
   - 确认服务启动时输出的端口与 host（建议 `--host 0.0.0.0`）。
@@ -48,6 +48,6 @@
 - 请求报 checkpoint missing：
   - 缺少 `python_backend/aria/hf/model-demo.safetensors`；需自行下载并放到该路径，或启动时传 `--checkpoint <path>`。
 
-## Shared
+## 共享模块
 
 - `shared/`：通用模块（协议模型、Bonjour 等），用于支撑 Python 侧工具或服务复用。
