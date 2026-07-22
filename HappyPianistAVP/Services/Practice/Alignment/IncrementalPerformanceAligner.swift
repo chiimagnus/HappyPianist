@@ -303,6 +303,7 @@ struct IncrementalPerformanceAligner: Sendable {
     private mutating func accept(_ observation: PerformanceObservation) -> Bool {
         guard state == .running,
               observation.source.role != .systemPlayback,
+              observation.alignmentTimestamp >= performanceStart,
               acceptsGeneration(of: observation.source),
               lastTimestamp.map({ observation.alignmentTimestamp >= $0 }) ?? true,
               acceptedObservationIDs.insert(observation.id).inserted

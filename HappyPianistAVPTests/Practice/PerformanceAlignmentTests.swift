@@ -771,6 +771,26 @@ func incrementalAlignerRejectsStaleOutOfOrderAndSystemPlaybackAndResetsLifecycle
 }
 
 @Test
+func incrementalAlignerRejectsPreStartObservationBeforeItPinsSourceGeneration() throws {
+    let event = makeAlignmentEvent(sourceID: makeAlignmentSourceID(ordinal: 0), occurrenceIndex: 0)
+    let plan = makeAlignmentPlan(noteEvents: [event])
+    var aligner = IncrementalPerformanceAligner()
+    aligner.start(plan: plan, generation: nil, performanceStart: .init(seconds: 10))
+
+    #expect(aligner.append(makeAlignmentObservation(generation: 3, seconds: 9.9)) == nil)
+    let current = makeAlignmentObservation(generation: 4, seconds: 10)
+    #expect(aligner.append(current) != nil)
+    let finished = aligner.finish()
+    let result = try #require(finished)
+
+    #expect(result.sourceGeneration == 4)
+    #expect(result.links.contains { link in
+        guard case let .aligned(_, observation, _) = link else { return false }
+        return observation.observationID == current.id
+    })
+}
+
+@Test
 func incrementalAlignerWaitsForRepeatCandidateWindowsBeforeCommitting() throws {
     let sourceID = makeAlignmentSourceID(ordinal: 0)
     let firstEvent = makeAlignmentEvent(sourceID: sourceID, occurrenceIndex: 0)
