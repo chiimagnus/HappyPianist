@@ -6,13 +6,14 @@
 
 HappyPianist 当前是：
 
-> **以找键、和弦完成和小节练习为核心，具备可审查乐谱驱动回放与多来源输入观察的空间钢琴练习系统。**
+> **以找键、和弦完成和小节练习为核心，具备可审查乐谱驱动回放、多来源输入观察和 transient 客观演奏分析的空间钢琴练习系统。**
 
 当前可以安全宣称：
 
 - 导入 MusicXML / MXL，并为常见双谱表钢琴谱生成练习步骤、五线谱投影和演奏计划。
 - 使用同一 `ScorePerformancePlan` 驱动本地 sampler、外部 MIDI、示范本节与显示投影。
 - 通过 Bluetooth MIDI、定向麦克风和已校准手部接触接收不同能力等级的练习证据。
+- 将连续 observation 对齐到 score event 与 performed occurrence，并按输入能力生成可追溯客观指标。
 - 记录小节级练习事实、恢复点、录制 take、输出可靠性指标和安全诊断。
 
 当前不能安全宣称：
@@ -49,7 +50,7 @@ MusicXML / MXL
 ```text
 MIDI / target audio / real or virtual piano contact
 -> PerformanceObservation
--> current-step matcher / recording / hand gate
+-> current-step matcher / recording / hand gate / transient alignment + assessment
 -> PracticeAttemptReducer
 -> source-measure facts
 ```
@@ -97,16 +98,11 @@ MIDI / target audio / real or virtual piano contact
 
 在通过真实曲目事件对照、指定音源真机测量和多名钢琴家盲听前，不使用“钢琴家级”“替代真人示范”等措辞。
 
-### 3. 当前 matcher 不是连续演奏评价
+### 3. 连续演奏分析是客观证据，不是专业结论
 
-当前练习成功语义主要围绕当前 step 的目标音、和弦完成和有限输入窗口。系统尚未实现 `ScorePerformanceAlignment` 或 `PerformanceAssessment`，因此不能可靠评价：
+`PerformanceAlignmentEngine` 与有界增量状态机已处理连续演奏中的 missing、extra、重复音、同音多声部、performed occurrence 和 controller，并保留 score/observation identity、候选证据、ambiguous、provisional 与 unknown。`PerformanceAssessmentService` 从该证据生成带单位、置信度和适用条件的 pitch、timing、duration、velocity、voicing 与 pedal 等客观维度；没有能力或证据不足的维度保持 unavailable/insufficient，不用默认零分填补。
 
-- 连续演奏中的漏音、加音、重弹、跳过与回头。
-- rubato 下的局部 timing 与 duration。
-- 声部平衡、动态轮廓、踏板时机和 articulation。
-- 解释性差异与真正错误之间的边界。
-
-第一阶段完整评价应优先使用 MIDI，保留 evaluated、unavailable 和 uncertain 维度，不用默认零分填补不可观察数据。
+这些结果当前只存在于 session 或 take 分析内存中，不写入进度 JSON，也未通过足够的真实设备、授权曲目和钢琴专家一致性验证。因此仍不能把 rubric 阈值解释为艺术质量、身体技术或等同教师的诊断，rubato、风格表达与真正错误的边界仍需专家证据。
 
 ### 4. 三类输入不能共用一个准确率
 
@@ -139,13 +135,13 @@ MIDI / target audio / real or virtual piano contact
 | 手部空间练习 | 已校准键位、接触与有限手/指提示 | 低置信度下的正确手法结论 |
 | 乐谱驱动示范 | 可审查、可重复的 plan 事件回放 | 未经盲听验证的钢琴家诠释 |
 | AI 对弹 | 用户选择后端的创意响应与伴奏 | 原谱忠实示范和评分基准 |
-| 未来 MIDI 评价 | 可解释的 pitch/timing/duration/velocity/pedal 指标 | 唯一艺术解释和身体技术诊断 |
+| MIDI 客观分析 | 可解释的 pitch/timing/duration/velocity/pedal 指标 | 唯一艺术解释和身体技术诊断 |
 
 ## 后续优先级
 
 1. 用真实 exporter corpus 关闭剩余 MusicXML 正确性与 unsupported 报告缺口。
 2. 在指定 Vision Pro、音频路由与 MIDI 设备上建立触键、输出、重复音和踏板基线。
-3. 建立只面向 MIDI 的 score-performance alignment，再实现可追溯客观指标。
+3. 用授权 MIDI take 与专家标注验证 alignment、rubric 阈值和证据不足边界。
 4. 将批准的小节级评价事实交给现有 reducer，不新增第二套持久化体系。
 5. 只在可靠 metric、confidence、适用前提和退出条件齐全时增加 coaching rule。
 6. 最后再做风格化参考 profile、教师参考演奏或更高级生成模型。
