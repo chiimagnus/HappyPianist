@@ -82,7 +82,7 @@ final class PracticeFeedbackViewModel {
         }
         guard action.kind != .evidenceCheck else { return instruction }
         let tempo = action.tempoRatio.map {
-            "，速度调至 \($0.formatted(.percent.precision(.fractionLength(0))))"
+            "，速度不高于 \($0.formatted(.percent.precision(.fractionLength(0))))"
         } ?? ""
         return "\(instruction)\(tempo)，重复 \(action.repeatCount) 次"
     }
