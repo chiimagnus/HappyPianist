@@ -237,7 +237,7 @@ actor CoachingDecisionService {
         case let .dimensionOutcome(_, outcome):
             metric.outcome == outcome
         case .evidenceAvailable:
-            metric.evidenceStatus == .observed || metric.evidenceStatus == .degraded
+            metric.evidenceStatus == .observed
         }
     }
 

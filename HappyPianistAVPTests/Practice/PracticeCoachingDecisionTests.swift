@@ -498,6 +498,49 @@ func decisionServiceAggregatesMultipartRemeasurementConservatively() async throw
     #expect(event.reason.contains("completion=unmet"))
 }
 
+@Test
+func evidenceCheckCompletesOnlyWhenRemeasurementIsObserved() async throws {
+    let initial = makeCoachingAssessment(dimensions: [makeDimension(
+        .onset,
+        outcome: .insufficientEvidence,
+        confidence: nil,
+        evidenceStatus: .insufficient
+    )])
+
+    let degradedReporter = InMemoryDiagnosticsReporter()
+    let degradedService = CoachingDecisionService(diagnosticsReporter: degradedReporter)
+    let degradedDecision = try #require(await degradedService.decision(for: initial))
+    let degradedID = try #require(await degradedReporter.events.first?.operationID)
+    await degradedService.accept(degradedDecision)
+    _ = await degradedService.decision(for: makeCoachingAssessment(dimensions: [makeDimension(
+        .onset,
+        outcome: .incorrect,
+        confidence: 0.5,
+        evidenceStatus: .degraded
+    )]))
+    #expect(await degradedReporter.events.contains {
+        $0.operationID == degradedID
+            && $0.reason.contains("outcome=remeasured")
+            && $0.reason.contains("completion=unmet")
+    })
+
+    let observedReporter = InMemoryDiagnosticsReporter()
+    let observedService = CoachingDecisionService(diagnosticsReporter: observedReporter)
+    let observedDecision = try #require(await observedService.decision(for: initial))
+    let observedID = try #require(await observedReporter.events.first?.operationID)
+    await observedService.accept(observedDecision)
+    _ = await observedService.decision(for: makeCoachingAssessment(dimensions: [makeDimension(
+        .onset,
+        outcome: .incorrect,
+        confidence: 0.9
+    )]))
+    #expect(await observedReporter.events.contains {
+        $0.operationID == observedID
+            && $0.reason.contains("outcome=remeasured")
+            && $0.reason.contains("completion=met")
+    })
+}
+
 private func makeCoachingIssue(
     kind: MusicalIssueKind = .onset,
     dimension: PerformanceAssessmentDimension = .onset,
