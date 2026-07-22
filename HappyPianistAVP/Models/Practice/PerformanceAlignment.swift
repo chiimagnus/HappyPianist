@@ -113,7 +113,11 @@ enum PerformanceAlignmentLink: Codable, Equatable, Sendable {
         evidence: [PerformanceAlignmentEvidence]
     )
     case missing(score: PerformanceAlignmentScoreReference, evidence: [PerformanceAlignmentEvidence])
-    case extra(observation: PerformanceAlignmentObservationReference, evidence: [PerformanceAlignmentEvidence])
+    case extra(
+        observation: PerformanceAlignmentObservationReference,
+        evidence: [PerformanceAlignmentEvidence],
+        noCandidateReason: PerformanceAlignmentNoCandidateReason?
+    )
     case ambiguous(
         observation: PerformanceAlignmentObservationReference,
         candidates: [PerformanceAlignmentCandidate]

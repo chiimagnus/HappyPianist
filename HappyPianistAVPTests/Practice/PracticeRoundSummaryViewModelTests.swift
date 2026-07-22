@@ -30,6 +30,7 @@ func roundSummaryContainsOnlyOneHotspotAndAction() throws {
     #expect(summary.detailText.contains("练习手：\(configuration.handMode.title)"))
     #expect(summary.detailText.contains("速度：80%"))
     #expect(summary.detailText.contains("可以再照顾第 1 小节"))
+    #expect(summary.detailText.contains("下一步：确认音高后重练"))
 }
 
 @Test

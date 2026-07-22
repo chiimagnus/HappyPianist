@@ -270,7 +270,10 @@ func stalePreparedPracticeApplyCannotOverwriteNewerLaunch() async throws {
 @Test
 func practiceSessionReplacementKeepsWindowRecorderAndDoesNotSplitSession() async {
     let repository = LaunchLifecycleSessionRepository()
-    let recorder = PracticeSessionRecorder(repository: repository)
+    let recorder = PracticeSessionRecorder(
+        repository: repository,
+        performanceAnalyzer: PracticePerformanceAnalyzer()
+    )
     let provider = LaunchLifecycleRecorderSessionProvider(recorder: recorder)
     let appState = AppState()
     let guide = ARGuideViewModel(
@@ -303,7 +306,11 @@ func practiceSessionReplacementKeepsWindowRecorderAndDoesNotSplitSession() async
 func failedGuidingStartLeavesWindowWithoutSessionFact() async throws {
     let repository = LaunchLifecycleSessionRepository()
     let clock = try LaunchLifecycleRecorderClock()
-    let recorder = PracticeSessionRecorder(repository: repository, clock: clock.makeClock())
+    let recorder = PracticeSessionRecorder(
+        repository: repository,
+        clock: clock.makeClock(),
+        performanceAnalyzer: PracticePerformanceAnalyzer()
+    )
     let session = LaunchLifecycleRecorderSessionProvider(recorder: recorder).callAsFunction(nil)
     let visitID = UUID()
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "revision")
@@ -323,7 +330,11 @@ func failedGuidingStartLeavesWindowWithoutSessionFact() async throws {
 func multipleRoundsAndSettingsUseOneWindowSessionAndPauseActiveTime() async throws {
     let repository = LaunchLifecycleSessionRepository()
     let clock = try LaunchLifecycleRecorderClock()
-    let recorder = PracticeSessionRecorder(repository: repository, clock: clock.makeClock())
+    let recorder = PracticeSessionRecorder(
+        repository: repository,
+        clock: clock.makeClock(),
+        performanceAnalyzer: PracticePerformanceAnalyzer()
+    )
     let session = LaunchLifecycleRecorderSessionProvider(recorder: recorder).callAsFunction(nil)
     session.installTestPerformanceNotes(
         [TestScorePerformanceNote(midiNote: 60, onTick: 0)])
@@ -367,7 +378,11 @@ func multipleRoundsAndSettingsUseOneWindowSessionAndPauseActiveTime() async thro
 func inactiveSceneExcludesBackgroundTimeAndRequiresRealGuidingResume() async throws {
     let repository = LaunchLifecycleSessionRepository()
     let clock = try LaunchLifecycleRecorderClock()
-    let recorder = PracticeSessionRecorder(repository: repository, clock: clock.makeClock())
+    let recorder = PracticeSessionRecorder(
+        repository: repository,
+        clock: clock.makeClock(),
+        performanceAnalyzer: PracticePerformanceAnalyzer()
+    )
     let session = LaunchLifecycleRecorderSessionProvider(recorder: recorder).callAsFunction(nil)
     session.installTestPerformanceNotes(
         [TestScorePerformanceNote(midiNote: 60, onTick: 0)])

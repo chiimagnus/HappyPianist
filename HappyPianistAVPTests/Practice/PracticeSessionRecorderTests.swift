@@ -135,7 +135,7 @@ func performanceClockSynchronizerFallsBackToHostForUncalibratedSource() {
 }
 
 @Test
-func sessionRecorderKeepsRawObservationsInMemoryWithoutWritingProgressJSON() async throws {
+func sessionRecorderDoesNotWriteRawObservationsToProgressJSON() async throws {
     let repository = RecorderRepository()
     let clock = try RecorderClock()
     let recorder = makeRecorder(repository: repository, clock: clock)
@@ -162,11 +162,6 @@ func sessionRecorderKeepsRawObservationsInMemoryWithoutWritingProgressJSON() asy
     ))
     _ = await recorder.checkpoint()
 
-    let snapshot = await recorder.observationSnapshot()
-    #expect(snapshot.map(\.event) == [
-        .noteOn(note: 64, velocity: .init(midi1: 100)),
-        .noteOff(note: 64, releaseVelocity: .init(midi1: 40)),
-    ])
     let progressRecord = try #require(await repository.records().last)
     let data = try JSONEncoder().encode(progressRecord)
     #expect(String(decoding: data, as: UTF8.self).contains("endpoint:1") == false)
@@ -198,7 +193,7 @@ private func makeRecorder(
     clock: RecorderClock,
     sleeper: RecorderSleeper = RecorderSleeper(),
     diagnosticsReporter: (any DiagnosticsReporting)? = nil,
-    performanceAnalyzer: PracticePerformanceAnalyzer? = nil
+    performanceAnalyzer: PracticePerformanceAnalyzer = PracticePerformanceAnalyzer()
 ) -> PracticeSessionRecorder {
     PracticeSessionRecorder(
         repository: repository,
@@ -224,7 +219,7 @@ func recorderFeedsConfiguredPlanAndObservationsToTransientAnalyzer() async throw
         TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 480),
     ])
     await beginActiveVisit(recorder: recorder, songID: plan.sourceScoreIdentity.songID)
-    await recorder.configureAnalysis(plan: plan, activeTickRange: nil)
+    await recorder.configureAnalysis(plan: plan, measureSpans: makeTestMeasureSpans(for: plan), activeTickRange: nil)
     await recorder.setGuiding(true)
     let source = PerformanceObservation.Source(kind: .midi1, id: "midi:test", generation: 7)
     let secondSource = PerformanceObservation.Source(kind: .midi2, id: "midi:second", generation: 2)
@@ -264,7 +259,7 @@ func recorderFeedsConfiguredPlanAndObservationsToTransientAnalyzer() async throw
     ))
     _ = await recorder.finalize()
 
-    let snapshot = try #require(await recorder.analysisSnapshot())
+    let snapshot = await recorder.analysisSnapshot()
     #expect(snapshot.roundGeneration == 1)
     #expect(snapshot.acceptedObservationCount == 2)
     #expect(snapshot.rejectedObservationCount == 1)
@@ -278,6 +273,19 @@ func recorderFeedsConfiguredPlanAndObservationsToTransientAnalyzer() async throw
     for token in ["discarded=", "latencyMs=", "candidates=", "aligned=", "missing=", "extra="] {
         #expect(diagnostic.reason.contains(token))
     }
+    let assessmentDiagnostic = try #require(await reporter.events.first {
+        $0.stage == PianoPerformanceDiagnosticStage.assessment.rawValue
+    })
+    for token in [
+        "rubric=performance-assessment-v2", "dimensions=", "coverage=", "unknownRatio=",
+        "correct=", "incorrect=", "unknown=", "insufficient=", "observed=", "degraded=",
+    ] {
+        #expect(assessmentDiagnostic.reason.contains(token))
+    }
+    for privateToken in ["note=", "observationID", plan.id.rawValue, source.id] {
+        #expect(assessmentDiagnostic.reason.contains(privateToken) == false)
+    }
+    #expect(assessmentDiagnostic.persistence == .systemOnly)
 }
 
 @Test
@@ -293,7 +301,7 @@ func recorderStartsANewAnalyzerGenerationForEachGuidingRound() async throws {
         TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 480),
     ])
     await beginActiveVisit(recorder: recorder, songID: plan.sourceScoreIdentity.songID)
-    await recorder.configureAnalysis(plan: plan, activeTickRange: nil)
+    await recorder.configureAnalysis(plan: plan, measureSpans: makeTestMeasureSpans(for: plan), activeTickRange: nil)
     let source = PerformanceObservation.Source(kind: .midi1, id: "midi:test", generation: 1)
 
     await recorder.setGuiding(true)
@@ -309,7 +317,7 @@ func recorderStartsANewAnalyzerGenerationForEachGuidingRound() async throws {
         event: .noteOn(note: 60, velocity: .init(midi1: 90))
     ))
     await recorder.setGuiding(false)
-    let first = try #require(await recorder.analysisSnapshot())
+    let first = await recorder.analysisSnapshot()
 
     clock.advance(milliseconds: 1_000)
     await recorder.setGuiding(true)
@@ -325,7 +333,7 @@ func recorderStartsANewAnalyzerGenerationForEachGuidingRound() async throws {
         event: .noteOn(note: 60, velocity: .init(midi1: 90))
     ))
     await recorder.setGuiding(false)
-    let second = try #require(await recorder.analysisSnapshot())
+    let second = await recorder.analysisSnapshot()
 
     #expect(first.roundGeneration == 1)
     #expect(first.acceptedObservationCount == 1)
@@ -580,7 +588,8 @@ func recorderFinalizeUsesBoundaryAfterBlockedPersistenceAndInterleavedEvent() as
     let recorder = PracticeSessionRecorder(
         repository: repository,
         clock: clock.makeClock(),
-        sleeper: RecorderSleeper()
+        sleeper: RecorderSleeper(),
+        performanceAnalyzer: PracticePerformanceAnalyzer()
     )
     await beginActiveVisit(recorder: recorder)
     await recorder.setGuiding(true)
@@ -610,7 +619,8 @@ func recorderSemanticEventsReturnBeforeSlowPersistenceCompletes() async throws {
     let recorder = PracticeSessionRecorder(
         repository: repository,
         clock: clock.makeClock(),
-        sleeper: RecorderSleeper()
+        sleeper: RecorderSleeper(),
+        performanceAnalyzer: PracticePerformanceAnalyzer()
     )
     await beginActiveVisit(recorder: recorder)
     let guidingCompletion = RecorderCompletionProbe()

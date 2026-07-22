@@ -19,7 +19,7 @@ struct PerformanceObservation: Codable, Equatable, Sendable {
         let id: String
         let generation: UInt64
         let capabilities: PerformanceInputCapabilities
-        let role: Role?
+        let role: Role
 
         init(
             kind: Kind,

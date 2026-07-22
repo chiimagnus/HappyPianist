@@ -143,6 +143,35 @@ func makeTestScorePerformancePlan(
     )
 }
 
+func makeTestMeasureSpans(for plan: ScorePerformancePlan) -> [MusicXMLMeasureSpan] {
+    guard let structuralPartID = plan.noteEvents.first?.sourceNoteID.partID else { return [] }
+    let grouped = Dictionary(grouping: plan.noteEvents) { event in
+        let source = event.sourceNoteID
+        return "\(source.sourceMeasureIndex):\(source.sourceMeasureNumberToken ?? ""):\(event.performedOccurrenceIndex)"
+    }
+    return grouped.values.compactMap { events in
+        guard let first = events.first,
+              let startTick = events.map(\.performedOnTick).min(),
+              let endTick = events.map(\.performedOffTick).max(),
+              startTick < endTick
+        else { return nil }
+        let source = first.sourceNoteID
+        return MusicXMLMeasureSpan(
+            partID: structuralPartID,
+            measureNumber: Int(source.sourceMeasureNumberToken ?? "") ?? source.sourceMeasureIndex + 1,
+            sourceMeasureIndex: source.sourceMeasureIndex,
+            sourceMeasureNumberToken: source.sourceMeasureNumberToken,
+            occurrenceIndex: first.performedOccurrenceIndex,
+            startTick: startTick,
+            endTick: endTick
+        )
+    }.sorted { lhs, rhs in
+        lhs.startTick == rhs.startTick
+            ? lhs.sourceMeasureIndex < rhs.sourceMeasureIndex
+            : lhs.startTick < rhs.startTick
+    }
+}
+
 struct TestScorePerformanceNote {
     let midiNote: Int
     let velocity: UInt8
@@ -210,7 +239,8 @@ func makeTestScorePerformancePlan(
                 curveVelocity: nil,
                 articulationDelta: 0,
                 unclampedVelocity: Int(note.velocity),
-                velocity: note.velocity
+                velocity: note.velocity,
+                usesGenericDynamicBaseline: false
             ),
             staff: note.staff,
             voice: note.voice,

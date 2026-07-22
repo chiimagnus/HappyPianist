@@ -54,7 +54,10 @@ func practiceLaunchKeepsOneVisitIdentityForRetryAndCreatesAnotherForNewRequest()
 @Test
 func successfulLaunchBindsPreparedRevisionToWindowRecorder() async throws {
     let sessionRepository = PracticeLaunchSessionRepository()
-    let recorder = PracticeSessionRecorder(repository: sessionRepository)
+    let recorder = PracticeSessionRecorder(
+        repository: sessionRepository,
+        performanceAnalyzer: PracticePerformanceAnalyzer()
+    )
     let fixture = makePracticeLaunchFixture(sessionRecorder: recorder)
     fixture.owner.request(songID: fixture.songA)
     let visitID = try #require(fixture.owner.currentVisitID)
@@ -73,7 +76,10 @@ func successfulLaunchBindsPreparedRevisionToWindowRecorder() async throws {
 @Test
 func failedRecorderFinalizeBlocksReturnUntilUserDiscardsPendingDelta() async throws {
     let sessionRepository = PracticeLaunchSessionRepository()
-    let recorder = PracticeSessionRecorder(repository: sessionRepository)
+    let recorder = PracticeSessionRecorder(
+        repository: sessionRepository,
+        performanceAnalyzer: PracticePerformanceAnalyzer()
+    )
     let fixture = makePracticeLaunchFixture(sessionRecorder: recorder)
     fixture.owner.request(songID: fixture.songA)
     let visitID = try #require(fixture.owner.currentVisitID)
@@ -416,7 +422,10 @@ func practiceLaunchReturnFinishIsIdempotentAndRejectsStaleOperation() async {
 @Test
 func successfulPracticeReturnDoesNotReuseFallibleLaunchClearAfterRecorderFinalize() async throws {
     let sessionRepository = PracticeLaunchSessionRepository()
-    let recorder = PracticeSessionRecorder(repository: sessionRepository)
+    let recorder = PracticeSessionRecorder(
+        repository: sessionRepository,
+        performanceAnalyzer: PracticePerformanceAnalyzer()
+    )
     let fixture = makePracticeLaunchFixture(sessionRecorder: recorder)
     fixture.owner.request(songID: fixture.songA)
     await fixture.owner.activateCurrentRequest()

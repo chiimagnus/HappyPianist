@@ -290,15 +290,22 @@ struct PracticeAttemptReducerTests {
         )
         let timestamp = Date(timeIntervalSince1970: 100)
 
-        let result = PracticeAttemptReducer().reducePassageCompletion(
+        let reducer = PracticeAttemptReducer()
+        let completion = reducer.reducePassageCompletion(
             progress: progress,
             reductionState: .init(),
+            identity: fixture.identity,
+            configuration: fixture.configuration,
+            timestamp: timestamp
+        )
+        let result = reducer.reducePerformanceAssessment(
+            progress: completion.progress,
             identity: fixture.identity,
             configuration: fixture.configuration,
             timestamp: timestamp,
             assessment: assessment
         )
-        let facts = try #require(result.progress.measureFacts.first)
+        let facts = try #require(result.measureFacts.first)
 
         #expect(facts.state == .pitchStepStable)
         #expect(facts.performanceMaturity?.maturity == .mature)

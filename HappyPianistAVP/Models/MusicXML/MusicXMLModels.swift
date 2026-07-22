@@ -375,7 +375,7 @@ struct MusicXMLPedalEvent: Equatable {
     }
 }
 
-struct MusicXMLMeasureSpan: Equatable, Identifiable {
+struct MusicXMLMeasureSpan: Equatable, Identifiable, Sendable {
     var id: String {
         "\(partID)-\(sourceMeasureIndex)-\(occurrenceIndex)-\(startTick)-\(endTick)"
     }

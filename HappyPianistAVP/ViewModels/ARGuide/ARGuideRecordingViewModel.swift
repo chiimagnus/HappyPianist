@@ -9,9 +9,15 @@ final class ARGuideRecordingViewModel {
 
     var isRecording = false
     var recordingStartDate: Date?
+    private(set) var alignmentDiagnosticsByTakeID: [UUID: RecordedTakeAlignmentDiagnostics] = [:]
 
     private let onMIDI1Event: @MainActor (MIDI1InputEvent) -> Void
     private let onMIDI2Event: @MainActor (MIDI2InputEvent) -> Void
+    private let alignRecordedTake: @Sendable (
+        RecordingTake,
+        ScorePerformancePlan,
+        [MusicXMLMeasureSpan]
+    ) async -> RecordedTakeAlignmentDiagnostics?
 
     @ObservationIgnored
     private lazy var midiRecordingState: MIDIRecordingState = .init(
@@ -21,7 +27,7 @@ final class ARGuideRecordingViewModel {
             recordingStartDate = state.recordingStartDate
         },
         onTakeRecorded: { [weak self] take in
-            self?.takeLibraryViewModel.addTake(take)
+            self?.handleRecordedTake(take)
         },
         onMIDI1Event: { [weak self] event in
             self?.onMIDI1Event(event)
@@ -31,13 +37,38 @@ final class ARGuideRecordingViewModel {
         }
     )
     @ObservationIgnored private var playbackStopTask: Task<Void, Never>?
+    @ObservationIgnored private var alignmentTasks: [UUID: Task<Void, Never>] = [:]
+    @ObservationIgnored private var recordingPlan: ScorePerformancePlan?
+    @ObservationIgnored private var recordingMeasureSpans: [MusicXMLMeasureSpan] = []
 
     init(
         takeLibraryViewModel: TakeLibraryViewModel? = nil,
         takePlaybackViewModel: TakePlaybackViewModel? = nil,
         onMIDI1Event: @escaping @MainActor (MIDI1InputEvent) -> Void = { _ in },
         onMIDI2Event: @escaping @MainActor (MIDI2InputEvent) -> Void = { _ in },
-        diagnosticsReporter: (any DiagnosticsReporting)? = nil
+        diagnosticsReporter: (any DiagnosticsReporting)? = nil,
+        alignRecordedTake: @escaping @Sendable (
+            RecordingTake,
+            ScorePerformancePlan,
+            [MusicXMLMeasureSpan]
+        ) async -> RecordedTakeAlignmentDiagnostics? = { take, plan, measureSpans in
+            let task = Task<RecordedTakeAlignmentDiagnostics?, Never>.detached(priority: .utility) {
+                guard Task.isCancelled == false,
+                      let result = try? RecordedTakeAligner().alignResult(
+                          take: take,
+                          plan: plan,
+                          measureSpans: measureSpans
+                      ),
+                      Task.isCancelled == false
+                else { return nil }
+                return result.diagnostics
+            }
+            return await withTaskCancellationHandler {
+                await task.value
+            } onCancel: {
+                task.cancel()
+            }
+        }
     ) {
         self.takeLibraryViewModel = takeLibraryViewModel ?? TakeLibraryViewModel()
         if let takePlaybackViewModel {
@@ -57,6 +88,7 @@ final class ARGuideRecordingViewModel {
         }
         self.onMIDI1Event = onMIDI1Event
         self.onMIDI2Event = onMIDI2Event
+        self.alignRecordedTake = alignRecordedTake
     }
 
     var takes: [RecordingTake] {
@@ -101,15 +133,18 @@ final class ARGuideRecordingViewModel {
 
     func startRecording(
         canRecord: Bool,
-        scoreIdentity: ScorePerformanceSourceIdentity?
+        performancePlan: ScorePerformancePlan?,
+        measureSpans: [MusicXMLMeasureSpan]
     ) async {
         guard canRecord else { return }
         await playbackStopTask?.value
         await takePlaybackViewModel.stop()
+        recordingPlan = performancePlan
+        recordingMeasureSpans = measureSpans
         midiRecordingState.startRecordingIfPossible(
             canRecord: canRecord,
             metadata: RecordingTakeMetadata(
-                scoreIdentity: scoreIdentity,
+                scoreIdentity: performancePlan?.sourceScoreIdentity,
                 inputSources: RecordingTakeMetadata.unattributed.inputSources
             )
         )
@@ -117,6 +152,8 @@ final class ARGuideRecordingViewModel {
 
     func stopRecording() {
         midiRecordingState.stopRecordingIfNeeded()
+        recordingPlan = nil
+        recordingMeasureSpans = []
     }
 
     func dismissError() {
@@ -132,13 +169,34 @@ final class ARGuideRecordingViewModel {
         if takePlaybackViewModel.currentTakeID == id {
             await takePlaybackViewModel.stop()
         }
+        alignmentTasks.removeValue(forKey: id)?.cancel()
+        alignmentDiagnosticsByTakeID.removeValue(forKey: id)
         takeLibraryViewModel.delete(takeID: id)
     }
 
     func clearAllTakes() async {
         await playbackStopTask?.value
         await takePlaybackViewModel.stop()
+        alignmentTasks.values.forEach { $0.cancel() }
+        alignmentTasks.removeAll()
+        alignmentDiagnosticsByTakeID.removeAll()
         takeLibraryViewModel.clearAll()
+    }
+
+    private func handleRecordedTake(_ take: RecordingTake) {
+        takeLibraryViewModel.addTake(take)
+        guard let recordingPlan else { return }
+        let measureSpans = recordingMeasureSpans
+        let alignRecordedTake = alignRecordedTake
+        alignmentTasks[take.id]?.cancel()
+        alignmentTasks[take.id] = Task { [weak self] in
+            let diagnostics = await alignRecordedTake(take, recordingPlan, measureSpans)
+            guard Task.isCancelled == false, let self else { return }
+            alignmentTasks.removeValue(forKey: take.id)
+            if let diagnostics {
+                alignmentDiagnosticsByTakeID[take.id] = diagnostics
+            }
+        }
     }
 
     func makeMIDIExport(for take: RecordingTake) throws -> RecordingMIDIExport {
@@ -147,6 +205,10 @@ final class ARGuideRecordingViewModel {
 
     func stop() {
         midiRecordingState.stop()
+        recordingPlan = nil
+        recordingMeasureSpans = []
+        alignmentTasks.values.forEach { $0.cancel() }
+        alignmentTasks.removeAll()
         let previousStopTask = playbackStopTask
         let takePlaybackViewModel = takePlaybackViewModel
         playbackStopTask = Task {

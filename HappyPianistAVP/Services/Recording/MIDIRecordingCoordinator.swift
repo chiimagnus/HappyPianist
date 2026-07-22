@@ -15,6 +15,7 @@ final class MIDIRecordingState {
     private let onMIDI2Event: (@MainActor (MIDI2InputEvent) -> Void)?
 
     private var midiRecordingAdapter = MIDIRecordingAdapter()
+    private let contactObservationAdapter = PianoKeyContactPerformanceObservationAdapter()
     private var takeRecorder = RecordingTakeRecorder()
 
     private var midi1Task: Task<Void, Never>?
@@ -124,7 +125,11 @@ final class MIDIRecordingState {
 
         for contact in observations {
             guard let note = contact.keyCandidate.exactMIDINote else { continue }
-            let observation = performanceObservation(from: contact, sourceKind: sourceKind)
+            let observation = contactObservationAdapter.observation(
+                from: contact,
+                sourceKind: sourceKind,
+                generation: recordingGeneration
+            )
             switch contact.phase {
             case .started:
                 guard let velocity = contact.resolvedVelocity else { continue }
@@ -159,44 +164,6 @@ final class MIDIRecordingState {
         }
     }
 
-    private func performanceObservation(
-        from contact: PianoKeyContactObservation,
-        sourceKind: PerformanceObservation.Source.Kind
-    ) -> PerformanceObservation {
-        let phase: PerformanceObservation.ContactPhase = switch contact.phase {
-        case .started: .started
-        case .held: .held
-        case .ended: .ended
-        }
-        return PerformanceObservation(
-            source: PerformanceObservation.Source(
-                kind: sourceKind,
-                id: sourceKind == .virtualPianoContact
-                    ? "virtual-piano-key-contact"
-                    : "real-piano-key-contact",
-                generation: recordingGeneration,
-                capabilities: .handContact
-            ),
-            timing: PerformanceClockReading(
-                host: contact.timestamp,
-                source: nil,
-                correctedHost: contact.timestamp,
-                mapping: nil,
-                provenance: .hostOnly
-            ),
-            event: .contact(
-                id: "\(contact.hand)-\(contact.finger)-\(contact.id.sequence)",
-                keyCandidate: contact.keyCandidate.exactMIDINote,
-                phase: phase
-            ),
-            onsetVelocity: contact.resolvedVelocity.map { .init(midi1: Int($0)) },
-            hand: contact.hand.scoreHand,
-            finger: Int(contact.finger.rawValue) + 1,
-            confidence: Double(contact.confidence),
-            calibrationReference: contact.calibrationID.uuidString
-        )
-    }
-
     private func stopMIDISubscription() {
         midi1Task?.cancel()
         midi1Task = nil
@@ -225,15 +192,6 @@ final class MIDIRecordingState {
 
         if isRecording {
             midiRecordingAdapter.record(event: event, into: &takeRecorder)
-        }
-    }
-}
-
-private extension TrackedHandSide {
-    var scoreHand: ScoreHand {
-        switch self {
-        case .left: .left
-        case .right: .right
         }
     }
 }

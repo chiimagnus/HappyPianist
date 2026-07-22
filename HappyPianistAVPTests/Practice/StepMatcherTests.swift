@@ -30,12 +30,3 @@ func matcherSeparatesIncorrectFromInsufficientEvidence() {
     #expect(matcher.outcome(expectedNotes: [60, 64], pressedNotes: [59]) == .incorrect)
     #expect(matcher.outcome(expectedNotes: [60, 64], pressedNotes: [60, 64]) == .correct)
 }
-
-@Test
-func stepAttemptReasonsMapToSharedEvidenceOutcomes() {
-    #expect(StepAttemptMatchResult.matched.evidenceOutcome == .correct)
-    #expect(StepAttemptMatchResult.wrongNote.evidenceOutcome == .incorrect)
-    #expect(StepAttemptMatchResult.missingNotes.evidenceOutcome == .incorrect)
-    #expect(StepAttemptMatchResult.incompleteChord.evidenceOutcome == .incorrect)
-    #expect(StepAttemptMatchResult.insufficientEvidence.evidenceOutcome == .insufficientEvidence)
-}

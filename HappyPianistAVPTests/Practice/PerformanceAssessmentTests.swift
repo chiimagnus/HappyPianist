@@ -3,13 +3,6 @@ import Testing
 @testable import HappyPianistAVP
 
 @Test
-func practiceSuccessSemanticsRemainDistinctInternalFacts() {
-    #expect(Set(PracticeSuccessSemantic.allCases).count == 4)
-    #expect(PracticeSuccessSemantic.pitchStepCompletion != .passagePerformanceAssessment)
-    #expect(PracticeSuccessSemantic.referencePlaybackCompletion != .creativeDuetExchange)
-}
-
-@Test
 func passageAssessmentKeepsRubricDimensionsMeasuresAndTraceableEvidence() throws {
     let event = makeAssessmentEvent()
     let observationID = UUID()
@@ -34,13 +27,13 @@ func passageAssessmentKeepsRubricDimensionsMeasuresAndTraceableEvidence() throws
         planID: .init(rawValue: "plan"),
         sourceGeneration: 7,
         tickRange: 0 ..< 960,
-        rubricVersion: .initial,
+        rubricVersion: .capabilityAware,
         dimensions: [pitch],
         measures: [.init(occurrenceID: occurrence, tickRange: 0 ..< 960, dimensions: [pitch])]
     )
 
     #expect(assessment.sourceGeneration == 7)
-    #expect(assessment.rubricVersion == .initial)
+    #expect(assessment.rubricVersion == .capabilityAware)
     #expect(assessment.dimensions == [pitch])
     #expect(assessment.measures.first?.occurrenceID == occurrence)
     #expect(pitch.evidence == [.note(
@@ -223,8 +216,8 @@ func assessmentUsesInjectedTeacherTargetInsteadOfGenericTolerance() throws {
         targetProfile: PerformanceTargetProfile(bands: [teacherBand])
     ))
 
-    let generic = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
-    let teacher = try #require(teacherService.assess(plan: plan, alignment: alignment))
+    let generic = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
+    let teacher = try #require(teacherService.assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
 
     #expect(try assessmentResult(.onset, in: generic).outcome == .incorrect)
     #expect(try assessmentResult(.onset, in: teacher).outcome == .correct)
@@ -254,7 +247,7 @@ func measureRubricUsesOnlyThatMeasuresInputCapabilities() throws {
         ]
     )
 
-    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
     let midiMeasure = try #require(assessment.measures.first {
         $0.occurrenceID.sourceMeasureID.sourceMeasureIndex == 0
     })
@@ -264,6 +257,41 @@ func measureRubricUsesOnlyThatMeasuresInputCapabilities() throws {
 
     #expect(midiMeasure.dimensions.first { $0.dimension == .onset }?.outcome == .incorrect)
     #expect(audioMeasure.dimensions.first { $0.dimension == .onset }?.outcome == .correct)
+}
+
+@Test
+func mixedInputAppliesToleranceToEachSamplesEvidenceQuality() throws {
+    let events = [
+        makeAssessmentEvent(ordinal: 0, midiNote: 60),
+        makeAssessmentEvent(ordinal: 1, midiNote: 64),
+    ]
+    let plan = makeAssessmentPlan(events: events)
+    let alignment = PerformanceAlignment(
+        planID: plan.id,
+        sourceGeneration: 7,
+        links: [
+            makeAlignedLink(
+                event: events[0],
+                observation: makeAssessmentObservation(time: 0, note: 60, kind: .midi1),
+                onsetDeviation: 0
+            ),
+            makeAlignedLink(
+                event: events[1],
+                observation: makeAssessmentObservation(time: 0.1, note: 64, kind: .targetAudio),
+                onsetDeviation: 0.1
+            ),
+        ]
+    )
+
+    let assessment = try #require(PerformanceAssessmentService().assess(
+        plan: plan,
+        alignment: alignment,
+        measureSpans: makeTestMeasureSpans(for: plan)
+    ))
+    let onset = try assessmentResult(.onset, in: assessment)
+
+    #expect(onset.outcome == .correct)
+    #expect(onset.evidenceStatus == .degraded)
 }
 
 @Test
@@ -334,7 +362,7 @@ func assessmentCalculatesPitchOnsetAndTempoRelativeTimingFromAlignmentEvidence()
         links: [makeAlignedLink(event: event, observation: observation, onsetDeviation: 0.04)]
     )
 
-    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
     let pitch = try assessmentResult(.exactPitch, in: assessment)
     let onset = try assessmentResult(.onset, in: assessment)
     let relative = try assessmentResult(.tempoRelativeTiming, in: assessment)
@@ -365,12 +393,13 @@ func assessmentKeepsExtraAndMissingNotesAsSeparateIncorrectFacts() throws {
             ),
             .extra(
                 observation: .init(observation: extraObservation),
-                evidence: [.init(dimension: .pitch, status: .observed, cost: 5)]
+                evidence: [.init(dimension: .pitch, status: .observed, cost: 5)],
+                noCandidateReason: .noPitchCandidate
             ),
         ]
     )
 
-    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
     let extra = try assessmentResult(.extraNotes, in: assessment)
     let missing = try assessmentResult(.missingNotes, in: assessment)
 
@@ -384,7 +413,7 @@ func assessmentKeepsExtraAndMissingNotesAsSeparateIncorrectFacts() throws {
 }
 
 @Test
-func unlocalizedExtraNotePreventsMultipleMeasuresFromClaimingCorrectness() throws {
+func unlocalizedExtraNoteRemainsAPassageFactInsteadOfInventingMeasureEvidence() throws {
     let events = [
         makeAssessmentEvent(ordinal: 0, onTick: 0, offTick: 480, sourceMeasureIndex: 0),
         makeAssessmentEvent(ordinal: 1, onTick: 480, offTick: 960, sourceMeasureIndex: 1),
@@ -407,20 +436,52 @@ func unlocalizedExtraNotePreventsMultipleMeasuresFromClaimingCorrectness() throw
             ),
             .extra(
                 observation: .init(observation: extra),
-                evidence: [.init(dimension: .pitch, status: .observed, cost: 5)]
+                evidence: [.init(dimension: .pitch, status: .observed, cost: 5)],
+                noCandidateReason: nil
             ),
         ]
     )
 
-    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
     #expect(try assessmentResult(.extraNotes, in: assessment).outcome == .incorrect)
     #expect(assessment.measures.count == 2)
     for measure in assessment.measures {
-        let extraNotes = try #require(measure.dimensions.first { $0.dimension == .extraNotes })
-        #expect(extraNotes.outcome == .insufficientEvidence)
-        #expect(extraNotes.evidenceStatus == .insufficient)
-        #expect(measure.dimensions.allSatisfy { $0.outcome == .correct } == false)
+        #expect(measure.dimensions.contains { $0.dimension == .extraNotes } == false)
     }
+}
+
+@Test
+func multipartLogicalPianoUsesTheAuthoritativeStructuralMeasure() throws {
+    let right = makeAssessmentEvent(ordinal: 0, midiNote: 64, partID: "P1")
+    let left = makeAssessmentEvent(ordinal: 1, midiNote: 48, staff: 2, partID: "P2")
+    let plan = makeAssessmentPlan(events: [right, left])
+    let links = [right, left].map { event in
+        makeAlignedLink(
+            event: event,
+            observation: makeAssessmentObservation(time: 0, note: event.midiNote),
+            onsetDeviation: 0
+        )
+    }
+    let structuralSpan = MusicXMLMeasureSpan(
+        partID: "P1",
+        measureNumber: 1,
+        sourceMeasureIndex: 0,
+        sourceMeasureNumberToken: "1",
+        occurrenceIndex: 0,
+        startTick: 0,
+        endTick: 480
+    )
+
+    let assessment = try #require(PerformanceAssessmentService().assess(
+        plan: plan,
+        alignment: .init(planID: plan.id, sourceGeneration: 7, links: links),
+        measureSpans: [structuralSpan]
+    ))
+
+    #expect(assessment.measures.count == 1)
+    let measure = try #require(assessment.measures.first)
+    #expect(measure.occurrenceID == structuralSpan.occurrenceID)
+    #expect(measure.dimensions.first { $0.dimension == .exactPitch }?.sampleCount == 2)
 }
 
 @Test
@@ -435,7 +496,7 @@ func assessmentPreservesEarlyAndLateOnsetDirection() throws {
             links: [makeAlignedLink(event: event, observation: observation, onsetDeviation: deviation)]
         )
 
-        let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+        let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
         let onset = try assessmentResult(.onset, in: assessment)
         let relative = try assessmentResult(.tempoRelativeTiming, in: assessment)
 
@@ -463,7 +524,7 @@ func assessmentCountsOneChordSpreadSamplePerCompleteChord() throws {
     }
     let alignment = PerformanceAlignment(planID: plan.id, sourceGeneration: 7, links: links)
 
-    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
     let chordSpread = try assessmentResult(.chordSpread, in: assessment)
 
     #expect(chordSpread.outcome == .incorrect)
@@ -500,7 +561,7 @@ func assessmentUsesGracePlanTimingAndDoesNotTreatArpeggioAsChordSpread() throws 
     }
     let alignment = PerformanceAlignment(planID: plan.id, sourceGeneration: 7, links: links)
 
-    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
     let onset = try assessmentResult(.onset, in: assessment)
 
     #expect(onset.sampleCount == 3)
@@ -527,7 +588,7 @@ func ambiguousAlignmentProducesInsufficientEvidenceInsteadOfWrongNotes() throws 
         links: [.ambiguous(observation: .init(observation: observation), candidates: [candidate])]
     )
 
-    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
     let pitch = try assessmentResult(.exactPitch, in: assessment)
     let onset = try assessmentResult(.onset, in: assessment)
 
@@ -564,7 +625,7 @@ func mixedResolvedAndAmbiguousEvidenceCannotBecomeCorrect() throws {
         ]
     )
 
-    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
     for dimension in [PerformanceAssessmentDimension.exactPitch, .extraNotes, .missingNotes, .onset] {
         let result = try assessmentResult(dimension, in: assessment)
         #expect(result.outcome == .insufficientEvidence)
@@ -594,7 +655,7 @@ func durationUsesPerformedTargetAndKeepsStaccatoRatioSeparateFromWrittenDuration
         )]
     )
 
-    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
     let duration = try assessmentResult(.duration, in: assessment)
     let release = try assessmentResult(.release, in: assessment)
 
@@ -621,7 +682,7 @@ func durationAndReleaseExposePrematureReleaseWithoutCollapsingTheirUnits() throw
         )]
     )
 
-    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
     let duration = try assessmentResult(.duration, in: assessment)
     let release = try assessmentResult(.release, in: assessment)
 
@@ -647,7 +708,7 @@ func releaseIncludesOnsetDeviationWhileDurationDoesNot() throws {
         )]
     )
 
-    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
     let duration = try assessmentResult(.duration, in: assessment)
     let release = try assessmentResult(.release, in: assessment)
 
@@ -690,7 +751,7 @@ func articulationPreservesLegatoOverlapAndGapDirection() throws {
             ]
         )
 
-        let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+        let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
         let articulation = try assessmentResult(.articulation, in: assessment)
 
         #expect(articulation.outcome == expectedOutcome)
@@ -713,7 +774,7 @@ func unavailableNoteOffCapabilityLeavesDurationReleaseAndArticulationNotObserved
         )]
     )
 
-    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
     for dimension in [
         PerformanceAssessmentDimension.duration,
         .release,
@@ -738,7 +799,7 @@ func availableReleaseCapabilityWithoutNoteOffIsInsufficientRatherThanWrong() thr
         )]
     )
 
-    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
     #expect(try assessmentResult(.duration, in: assessment).outcome == .insufficientEvidence)
     #expect(try assessmentResult(.release, in: assessment).outcome == .insufficientEvidence)
 }
@@ -779,7 +840,7 @@ func velocityAndDynamicContourFollowPlanTargetsIncludingAccentDelta() throws {
             ]
         )
 
-        let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+        let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
         let contour = try assessmentResult(.dynamicContour, in: assessment)
 
         #expect(contour.outcome == expectedOutcome)
@@ -791,6 +852,35 @@ func velocityAndDynamicContourFollowPlanTargetsIncludingAccentDelta() throws {
             #expect(abs((contour.measurement?.value ?? 0) + 25) < 0.000_001)
         }
     }
+}
+
+@Test
+func genericDynamicBaselineDegradesVelocityConclusion() throws {
+    func velocityStatus(usesGenericBaseline: Bool) throws -> PerformanceAssessmentEvidenceStatus {
+        let event = makeAssessmentEvent(
+            velocity: 90,
+            usesGenericDynamicBaseline: usesGenericBaseline
+        )
+        let plan = makeAssessmentPlan(events: [event])
+        let alignment = PerformanceAlignment(
+            planID: plan.id,
+            sourceGeneration: 7,
+            links: [makeAlignedLink(
+                event: event,
+                observation: makeAssessmentObservation(time: 0, velocity: 90),
+                onsetDeviation: 0
+            )]
+        )
+        let assessment = try #require(PerformanceAssessmentService().assess(
+            plan: plan,
+            alignment: alignment,
+            measureSpans: makeTestMeasureSpans(for: plan)
+        ))
+        return try assessmentResult(.velocity, in: assessment).evidenceStatus
+    }
+
+    #expect(try velocityStatus(usesGenericBaseline: true) == .degraded)
+    #expect(try velocityStatus(usesGenericBaseline: false) == .observed)
 }
 
 @Test
@@ -832,13 +922,27 @@ func genericVoicingUsesTraceableVoiceHandAndFingeringInsteadOfHighestPitch() thr
         }
     )
 
-    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
     let voicing = try assessmentResult(.voicing, in: assessment)
 
     #expect(voicing.outcome == .correct)
     #expect(voicing.evidenceStatus == .degraded)
     #expect(voicing.sampleCount == 1)
     #expect(abs(voicing.measurement?.value ?? 1) < 0.000_001)
+
+    let teacherBand = try #require(PerformanceTargetBand(
+        dimension: .voicing,
+        lowerBound: 0,
+        upperBound: 1,
+        provenance: .teacher,
+        sourceID: "teacher:voice-balance"
+    ))
+    let teacherAssessment = try #require(PerformanceAssessmentService(
+        rubric: PerformanceAssessmentRubric(
+            targetProfile: PerformanceTargetProfile(bands: [teacherBand])
+        )
+    ).assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
+    #expect(try assessmentResult(.voicing, in: teacherAssessment).evidenceStatus == .observed)
 }
 
 @Test
@@ -858,7 +962,7 @@ func calibratedHandVelocitySurvivesCommittedAlignmentWithDegradedConfidence() th
         links: [makeAlignedLink(event: event, observation: observation, onsetDeviation: 0)]
     )
 
-    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
     let velocity = try assessmentResult(.velocity, in: assessment)
     let reference = PerformanceAlignmentObservationReference(observation: observation)
 
@@ -909,7 +1013,7 @@ func unavailableVelocityCapabilityDoesNotScoreDynamicsAsZero() throws {
         links: [makeAlignedLink(event: event, observation: observation, onsetDeviation: 0)]
     )
 
-    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
     #expect(assessment.dimensions.contains { $0.dimension == .velocity } == false)
     #expect(assessment.dimensions.contains { $0.dimension == .dynamicContour } == false)
     #expect(assessment.dimensions.contains { $0.dimension == .voicing } == false)
@@ -947,14 +1051,16 @@ func pedalAssessmentMeasuresChangeValueAndSignedOverlapGap() throws {
         ]
     )
 
-    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
     let timing = try assessmentResult(.pedalTiming, in: assessment)
     let value = try assessmentResult(.pedalValue, in: assessment)
 
     #expect(timing.outcome == .incorrect)
+    #expect(timing.evidenceStatus == .degraded)
     #expect(timing.sampleCount == 3)
     #expect(timing.measurement?.value == 0.25)
     #expect(value.outcome == .incorrect)
+    #expect(value.evidenceStatus == .degraded)
     #expect(value.sampleCount == 2)
     #expect(value.measurement?.unit == .normalized)
     #expect(timing.evidence.allSatisfy { evidence in
@@ -974,7 +1080,7 @@ func unavailableControllerCapabilityLeavesPedalDimensionsNotObserved() throws {
         controllerLinks: [.notObserved(score: .init(event: controller))]
     )
 
-    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
     for dimension in [PerformanceAssessmentDimension.pedalTiming, .pedalValue] {
         #expect(assessment.dimensions.contains { $0.dimension == dimension } == false)
     }
@@ -990,7 +1096,7 @@ func tempoAndPhraseContinuityAllowLinearRubatoAndMarkGenericBaselinesDegraded() 
             offTick: (index + 1) * 480
         )
     }
-    let plan = makeAssessmentPlan(events: events, tempoEvents: [])
+    let plan = makeAssessmentPlan(events: events)
     let links = zip(events, [0.0, 0.1, 0.2, 0.3]).map { event, deviation in
         makeAlignedLink(
             event: event,
@@ -1000,7 +1106,7 @@ func tempoAndPhraseContinuityAllowLinearRubatoAndMarkGenericBaselinesDegraded() 
     }
     let alignment = PerformanceAlignment(planID: plan.id, sourceGeneration: 7, links: links)
 
-    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
     let tempo = try assessmentResult(.tempoContinuity, in: assessment)
     let phrase = try assessmentResult(.phraseContinuity, in: assessment)
 
@@ -1010,6 +1116,46 @@ func tempoAndPhraseContinuityAllowLinearRubatoAndMarkGenericBaselinesDegraded() 
     #expect(phrase.outcome == .correct)
     #expect(phrase.evidenceStatus == .degraded)
     #expect(abs(phrase.measurement?.value ?? 1) < 0.000_001)
+}
+
+@Test
+func explicitTempoSourceKeepsContinuityEvidenceObserved() throws {
+    let events = (0 ..< 4).map { index in
+        makeAssessmentEvent(
+            ordinal: index,
+            midiNote: 60 + index,
+            onTick: index * 480,
+            offTick: (index + 1) * 480
+        )
+    }
+    let sourceID = MusicXMLDirectionSourceID(
+        partID: "P1",
+        sourceMeasureIndex: 0,
+        sourceMeasureNumberToken: "1",
+        sourceOrdinal: 0
+    )
+    let plan = makeAssessmentPlan(events: events, tempoEvents: [.init(
+        sourceDirectionID: sourceID,
+        performedOccurrenceIndex: 0,
+        tick: 0,
+        quarterBPM: 120,
+        endTick: nil,
+        endQuarterBPM: nil
+    )])
+    let links = events.map { event in
+        makeAlignedLink(
+            event: event,
+            observation: makeAssessmentObservation(time: 0, note: event.midiNote),
+            onsetDeviation: 0
+        )
+    }
+    let assessment = try #require(PerformanceAssessmentService().assess(
+        plan: plan,
+        alignment: .init(planID: plan.id, sourceGeneration: 7, links: links),
+        measureSpans: makeTestMeasureSpans(for: plan)
+    ))
+
+    #expect(try assessmentResult(.tempoContinuity, in: assessment).evidenceStatus == .observed)
 }
 
 @Test
@@ -1042,7 +1188,7 @@ func tempoWordBoundaryDoesNotTurnRubatoIntoAContinuityError() throws {
     }
     let alignment = PerformanceAlignment(planID: plan.id, sourceGeneration: 7, links: links)
 
-    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment))
+    let assessment = try #require(PerformanceAssessmentService().assess(plan: plan, alignment: alignment, measureSpans: makeTestMeasureSpans(for: plan)))
 
     #expect(try assessmentResult(.tempoContinuity, in: assessment).outcome == .correct)
     #expect(try assessmentResult(.phraseContinuity, in: assessment).outcome == .correct)
@@ -1065,21 +1211,87 @@ func alignmentIgnoresNonPedalControlChangesForPedalAssessment() {
 }
 
 @Test
-func analyzerImmediatelyPublishesAssessmentFromItsFinishedAlignment() async throws {
+func analyzerPublishesAssessmentFromCommittedAndFinishedAlignment() async throws {
     let event = makeAssessmentEvent()
     let plan = makeAssessmentPlan(events: [event])
     let analyzer = PracticePerformanceAnalyzer()
     let start = PerformanceMonotonicInstant(seconds: 5)
 
-    await analyzer.configure(plan: plan, activeTickRange: nil)
+    await analyzer.configure(plan: plan, measureSpans: makeTestMeasureSpans(for: plan), activeTickRange: nil)
     await analyzer.beginRound(at: start)
     await analyzer.record(makeAssessmentObservation(time: 5))
+    let runningSnapshot = await analyzer.snapshot()
     let snapshot = await analyzer.finishRound()
 
+    #expect(runningSnapshot.assessment != nil)
+    #expect(runningSnapshot.isRunning)
     let assessment = try #require(snapshot.assessment)
     #expect(snapshot.alignment != nil)
     #expect(try assessmentResult(.exactPitch, in: assessment).outcome == .correct)
     #expect(try assessmentResult(.velocity, in: assessment).outcome == .correct)
+}
+
+@Test
+func analyzerEvaluatesAgainstTheConfiguredPracticeTempo() async throws {
+    let first = makeAssessmentEvent(ordinal: 0, midiNote: 60, onTick: 0, offTick: 240)
+    let second = makeAssessmentEvent(ordinal: 1, midiNote: 62, onTick: 480, offTick: 720)
+    let plan = makeAssessmentPlan(events: [first, second])
+    let analyzer = PracticePerformanceAnalyzer()
+
+    await analyzer.configure(
+        plan: plan,
+        measureSpans: makeTestMeasureSpans(for: plan),
+        activeTickRange: nil,
+        tempoScale: 0.5
+    )
+    await analyzer.beginRound(at: .init(seconds: 5))
+    await analyzer.record(makeAssessmentObservation(time: 5, note: 60))
+    await analyzer.record(makeAssessmentObservation(time: 6, note: 62))
+    let alignment = try #require(await analyzer.finishRound().alignment)
+    let secondOnsetDeviation = alignment.links.compactMap { link -> TimeInterval? in
+        guard case let .aligned(score, _, evidence) = link, score.eventID == second.id else { return nil }
+        return evidence.first { $0.dimension == .onset }?.deviationSeconds
+    }.first
+
+    #expect(abs(try #require(secondOnsetDeviation)) < 0.000_001)
+}
+
+@Test
+func analyzerPublishesMissingAssessmentForSilentRoundAndFinishesIdempotently() async throws {
+    let event = makeAssessmentEvent()
+    let plan = makeAssessmentPlan(events: [event])
+    let analyzer = PracticePerformanceAnalyzer()
+
+    await analyzer.configure(plan: plan, measureSpans: makeTestMeasureSpans(for: plan), activeTickRange: nil)
+    await analyzer.beginRound(at: .init(seconds: 5))
+    await analyzer.registerInputCapabilities(.midi)
+    let first = await analyzer.finishRound()
+    let second = await analyzer.finishRound()
+
+    let alignment = try #require(first.alignment)
+    let assessment = try #require(first.assessment)
+    #expect(alignment.links.contains { link in
+        guard case let .missing(score, _) = link else { return false }
+        return score.eventID == event.id
+    })
+    #expect(assessment.planID == plan.id)
+    #expect(try assessmentResult(.missingNotes, in: assessment).outcome == .incorrect)
+    #expect(assessment.measures.first?.dimensions.first { $0.dimension == .missingNotes }?.outcome == .incorrect)
+    #expect(first == second)
+    #expect(first.isRunning == false)
+}
+
+@Test
+func analyzerDoesNotInventMissingFactsWhenNoInputActuallyStarted() async throws {
+    let event = makeAssessmentEvent()
+    let plan = makeAssessmentPlan(events: [event])
+    let analyzer = PracticePerformanceAnalyzer()
+
+    await analyzer.configure(plan: plan, measureSpans: makeTestMeasureSpans(for: plan), activeTickRange: nil)
+    await analyzer.beginRound(at: .init(seconds: 5))
+    let snapshot = await analyzer.finishRound()
+
+    #expect(try #require(snapshot.assessment).dimensions.isEmpty)
 }
 
 private func makeAssessmentEvent(
@@ -1090,16 +1302,18 @@ private func makeAssessmentEvent(
     writtenOffTick: Int? = nil,
     performedOffTick: Int? = nil,
     velocity: UInt8 = 90,
+    usesGenericDynamicBaseline: Bool = false,
     articulationDelta: Int = 0,
     staff: Int = 1,
     voice: Int = 1,
     handAssignment: ScoreHandAssignment = .unknown,
     fingerings: [MusicXMLFingering] = [],
     timingProvenance: [ScorePerformanceProvenance] = [],
-    sourceMeasureIndex: Int = 0
+    sourceMeasureIndex: Int = 0,
+    partID: String = "P1"
 ) -> ScorePerformanceNoteEvent {
     let sourceID = MusicXMLSourceNoteID(
-        partID: "P1",
+        partID: partID,
         sourceMeasureIndex: sourceMeasureIndex,
         sourceMeasureNumberToken: String(sourceMeasureIndex + 1),
         staff: staff,
@@ -1125,7 +1339,8 @@ private func makeAssessmentEvent(
             curveVelocity: nil,
             articulationDelta: articulationDelta,
             unclampedVelocity: Int(velocity),
-            velocity: velocity
+            velocity: velocity,
+            usesGenericDynamicBaseline: usesGenericDynamicBaseline
         ),
         staff: staff,
         voice: voice,
@@ -1247,6 +1462,16 @@ private func makeAlignedLink(
     releaseDeviation: TimeInterval? = nil,
     releaseStatus: PerformanceAlignmentEvidenceStatus = .notObserved
 ) -> PerformanceAlignmentLink {
+    let pitchStatus: PerformanceAlignmentEvidenceStatus = switch observation.source.capabilities.pitch {
+    case .observed: .observed
+    case .degraded: .degraded
+    case .unavailable: .notObserved
+    }
+    let onsetStatus: PerformanceAlignmentEvidenceStatus = switch observation.source.capabilities.onset {
+    case .observed: .observed
+    case .degraded: .degraded
+    case .unavailable: .notObserved
+    }
     let velocityStatus: PerformanceAlignmentEvidenceStatus = switch observation.source.capabilities.velocity {
     case .observed: .observed
     case .degraded: .degraded
@@ -1256,16 +1481,16 @@ private func makeAlignedLink(
         score: .init(event: event),
         observation: .init(observation: observation),
         evidence: [
-            .init(dimension: .pitch, status: .observed, cost: 0),
+            .init(dimension: .pitch, status: pitchStatus, cost: 0),
             .init(
                 dimension: .onset,
-                status: .observed,
+                status: onsetStatus,
                 cost: abs(onsetDeviation),
                 deviationSeconds: onsetDeviation
             ),
             .init(
                 dimension: .chordSpread,
-                status: chordSpread == nil ? .notObserved : .observed,
+                status: chordSpread == nil ? .notObserved : onsetStatus,
                 cost: chordSpread,
                 deviationSeconds: chordSpread
             ),

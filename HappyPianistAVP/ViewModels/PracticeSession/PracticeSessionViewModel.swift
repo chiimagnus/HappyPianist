@@ -9,7 +9,13 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
         case guiding(Bool)
         case settingsPresented(Bool)
         case checkpoint
-        case configureAnalysis(plan: ScorePerformancePlan, activeTickRange: Range<Int>?)
+        case configureAnalysis(
+            plan: ScorePerformancePlan,
+            measureSpans: [MusicXMLMeasureSpan],
+            activeTickRange: Range<Int>?,
+            tempoScale: Double
+        )
+        case inputCapabilitiesAvailable(PerformanceInputCapabilities)
         case resetAnalysis
     }
 
@@ -22,6 +28,7 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
     let playbackSequenceBuilder: any PlaybackSequenceBuildingProtocol
     let keyContactDetectionService: any KeyContactDetectingProtocol
     let realPianoContactDetectionService: any KeyContactDetectingProtocol
+    let handObservationSourceKind: PerformanceObservation.Source.Kind?
     let audioRecognitionService: PracticeAudioRecognitionServiceProtocol?
     let practiceInputEventSource: PracticeInputEventSourceProtocol?
     let audioStepAttemptAccumulator: AudioStepAttemptAccumulator
@@ -53,6 +60,8 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
     var lastProgressRestoreOutcome: PracticeProgressRestoreOutcome = .none
     @ObservationIgnored var sessionRecorderEventTask: Task<Void, Never>?
     @ObservationIgnored var performanceAssessmentLifecycleGeneration = 0
+    @ObservationIgnored var handObservationRecordingTask: Task<Void, Never>?
+    @ObservationIgnored var hasRegisteredHandCapabilities = false
     @ObservationIgnored var autoplayTimelineBuildTask: Task<Void, Never>?
     @ObservationIgnored var autoplayTimelineBuildGeneration = 0
 
@@ -72,6 +81,7 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
         playbackSequenceBuilder: (any PlaybackSequenceBuildingProtocol)? = nil,
         keyContactDetectionService: (any KeyContactDetectingProtocol)? = nil,
         realPianoContactDetectionService: (any KeyContactDetectingProtocol)? = nil,
+        handObservationSourceKind: PerformanceObservation.Source.Kind? = nil,
         midiPracticeStepMatcher: (any MIDIPracticeStepMatchingProtocol)? = nil,
         audioRecognitionService: PracticeAudioRecognitionServiceProtocol? = nil,
         practiceInputEventSource: PracticeInputEventSourceProtocol? = nil,
@@ -81,7 +91,7 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
         roundDefaultsStore: (any PracticeRoundDefaultsStoreProtocol)? = nil,
         progressCoordinator: PracticeProgressCoordinator? = nil,
         sessionRecorder: PracticeSessionRecorder? = nil,
-        coachingDecisionService: CoachingDecisionService? = nil,
+        coachingDecisionService: CoachingDecisionService,
         diagnosticsReporter: (any DiagnosticsReporting)? = nil
     ) {
         stateStore = PracticeSessionStateStore()
@@ -93,6 +103,7 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
         self.playbackSequenceBuilder = playbackSequenceBuilder ?? PlaybackSequenceBuilder()
         self.keyContactDetectionService = keyContactDetectionService ?? KeyContactDetectionService()
         self.realPianoContactDetectionService = realPianoContactDetectionService ?? RealPianoContactDetectionService()
+        self.handObservationSourceKind = handObservationSourceKind
         self.audioRecognitionService = audioRecognitionService
         self.practiceInputEventSource = practiceInputEventSource
         self.audioStepAttemptAccumulator = audioStepAttemptAccumulator
@@ -103,7 +114,6 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
         self.progressCoordinator = progressCoordinator
         self.sessionRecorder = sessionRecorder
         self.coachingDecisionService = coachingDecisionService
-            ?? CoachingDecisionService(diagnosticsReporter: diagnosticsReporter)
         self.diagnosticsReporter = diagnosticsReporter
         roundConfigurationController = PracticeRoundConfigurationController(
             stateStore: stateStore,
@@ -175,6 +185,7 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
     func shutdown() {
         guard hasShutdown == false else { return }
         hasShutdown = true
+        enqueueSessionRecorderEvent(.resetAnalysis)
 
         cancelAutoplayTimelineBuild()
         stopManualReplayTask(restoreAudioRecognition: false)
@@ -205,7 +216,7 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
             performanceAssessmentLifecycleGeneration += 1
             self.currentCoachingDecision = nil
             resetsCoaching = true
-        case .guiding, .settingsPresented, .checkpoint:
+        case .guiding, .settingsPresented, .checkpoint, .inputCapabilitiesAvailable:
             resetsCoaching = false
         }
         guard sessionRecorder != nil || resetsCoaching else { return }
@@ -220,13 +231,23 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
             guard let sessionRecorder else { return }
             switch event {
             case let .guiding(isGuiding):
+                if isGuiding == false {
+                    await waitForPendingPerformanceObservationRecording()
+                }
                 await sessionRecorder.setGuiding(isGuiding)
             case let .settingsPresented(isPresented):
                 await sessionRecorder.setSettingsPresented(isPresented)
             case .checkpoint:
                 await sessionRecorder.checkpoint()
-            case let .configureAnalysis(plan, activeTickRange):
-                await sessionRecorder.configureAnalysis(plan: plan, activeTickRange: activeTickRange)
+            case let .configureAnalysis(plan, measureSpans, activeTickRange, tempoScale):
+                await sessionRecorder.configureAnalysis(
+                    plan: plan,
+                    measureSpans: measureSpans,
+                    activeTickRange: activeTickRange,
+                    tempoScale: tempoScale
+                )
+            case let .inputCapabilitiesAvailable(capabilities):
+                await sessionRecorder.registerInputCapabilities(capabilities)
             case .resetAnalysis:
                 await sessionRecorder.resetAnalysis()
             }
@@ -237,8 +258,10 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
         await sessionRecorderEventTask?.value
     }
 
-    func performanceAnalysisSnapshot() async -> PracticePerformanceAnalyzerSnapshot? {
-        await sessionRecorder?.analysisSnapshot()
+    func waitForPendingPerformanceObservationRecording() async {
+        await practiceMIDIInputService?.waitForPendingObservationRecording()
+        await audioRecognitionInputService?.waitForPendingObservationRecording()
+        await handObservationRecordingTask?.value
     }
 
     func handle(effect: PracticeSessionEffect) {
@@ -260,6 +283,8 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
             stopAudioRecognition()
         case .stopPracticeInput:
             stopPracticeInput()
+        case let .inputCapabilitiesAvailable(capabilities):
+            enqueueSessionRecorderEvent(.inputCapabilitiesAvailable(capabilities))
         }
     }
 }

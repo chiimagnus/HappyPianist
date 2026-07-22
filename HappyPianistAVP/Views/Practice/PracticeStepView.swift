@@ -199,6 +199,11 @@ struct PracticeStepView: View {
             Button(summary.actionTitle) {
                 performRoundAction(summary.nextAction)
             }
+            if summary.coachingPresentation != nil {
+                Button("跳过建议并继续") {
+                    viewModel.practiceSessionViewModel.skipCoachingDecisionAndContinue()
+                }
+            }
             Button("返回曲库", action: onPracticeFinished)
         } message: { summary in
             Text(summary.detailText)
@@ -246,6 +251,7 @@ struct PracticeStepView: View {
                     playbackViewModel: viewModel.takePlaybackViewModel,
                     isRecording: viewModel.isRecording,
                     errorMessage: viewModel.takeLibraryErrorMessage,
+                    alignmentDiagnostics: viewModel.takeAlignmentDiagnostics,
                     onErrorDismiss: { viewModel.dismissTakeLibraryError() },
                     onRename: { id, name in viewModel.renameTake(id: id, name: name) },
                     onDelete: { id in viewModel.deleteTake(id: id) },

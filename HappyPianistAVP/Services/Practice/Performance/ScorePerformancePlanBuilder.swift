@@ -493,7 +493,8 @@ private extension ScorePerformancePlanBuilder {
             curveVelocity: resolution.curveVelocity,
             articulationDelta: resolution.articulationDelta,
             unclampedVelocity: resolution.unclampedVelocity,
-            velocity: resolution.velocity
+            velocity: resolution.velocity,
+            usesGenericDynamicBaseline: resolution.usesGenericDynamicBaseline
         )
     }
 

@@ -80,6 +80,7 @@ func practiceMIDIInputService_shutdownIsIdempotent() {
     )
     #expect(source.startCallCount == 1)
     #expect(source.isRunning == true)
+    #expect(effectHandler.effects == [.inputCapabilitiesAvailable(.midi)])
 
     service.shutdown()
     service.shutdown()

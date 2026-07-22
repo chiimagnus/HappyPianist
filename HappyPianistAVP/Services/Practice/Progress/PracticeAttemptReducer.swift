@@ -155,21 +155,11 @@ struct PracticeAttemptReducer {
         reductionState: PracticeAttemptReductionState,
         identity: PracticeSongIdentity,
         configuration: PracticeRoundConfiguration,
-        timestamp: Date,
-        assessment: PassagePerformanceAssessment? = nil
+        timestamp: Date
     ) -> Result {
         var updated = progress ?? emptyProgress(identity: identity, configuration: configuration, timestamp: timestamp)
         updated.activeConfiguration = configuration
         updated.updatedAt = timestamp
-        if let assessment {
-            updated = reducePerformanceAssessment(
-                progress: updated,
-                identity: identity,
-                configuration: configuration,
-                timestamp: timestamp,
-                assessment: assessment
-            )
-        }
         return Result(
             progress: updated,
             reductionState: reductionState,

@@ -710,12 +710,18 @@ final class ARGuideViewModel: PracticeLaunchApplying {
         recordingViewModel.errorMessage
     }
 
+    var takeAlignmentDiagnostics: [UUID: RecordedTakeAlignmentDiagnostics] {
+        recordingViewModel.alignmentDiagnosticsByTakeID
+    }
+
     func startRecording() {
-        let scoreIdentity = latestPreparedPractice?.performancePlan.sourceScoreIdentity
+        let performancePlan = latestPreparedPractice?.performancePlan
+        let measureSpans = latestPreparedPractice?.measureSpans ?? []
         Task {
             await recordingViewModel.startRecording(
                 canRecord: canRecord,
-                scoreIdentity: scoreIdentity
+                performancePlan: performancePlan,
+                measureSpans: measureSpans
             )
         }
     }

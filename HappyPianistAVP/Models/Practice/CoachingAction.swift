@@ -25,14 +25,6 @@ enum CoachingReferenceUse: String, Equatable, Hashable, Sendable {
     case manualReplay
 }
 
-enum CoachingCueUse: String, Equatable, Hashable, Sendable {
-    case metronome
-    case subdivision
-    case handHighlight
-    case voiceHighlight
-    case pedal
-}
-
 enum CoachingCompletionTarget: Equatable, Sendable {
     case dimensionOutcome(
         dimension: PerformanceAssessmentDimension,
@@ -58,7 +50,6 @@ struct CoachingAction: Equatable, Sendable {
     let voiceFocus: CoachingVoiceFocus?
     let repeatCount: Int
     let referenceUse: CoachingReferenceUse?
-    let cueUse: CoachingCueUse?
     let completionCondition: CoachingCompletionCondition
 
     init(
@@ -70,7 +61,6 @@ struct CoachingAction: Equatable, Sendable {
         voiceFocus: CoachingVoiceFocus? = nil,
         repeatCount: Int,
         referenceUse: CoachingReferenceUse? = nil,
-        cueUse: CoachingCueUse? = nil,
         completionCondition: CoachingCompletionCondition
     ) {
         self.kind = kind
@@ -85,7 +75,6 @@ struct CoachingAction: Equatable, Sendable {
         self.voiceFocus = voiceFocus
         self.repeatCount = max(1, repeatCount)
         self.referenceUse = referenceUse
-        self.cueUse = cueUse
         self.completionCondition = completionCondition
     }
 }

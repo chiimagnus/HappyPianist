@@ -86,6 +86,11 @@ func recordTakeFromKeyContactRequiresRecordingAndNonBluetooth() throws {
     #expect(recordedTakes[0].metadata.inputSources.first?.capabilities.velocity == .degraded)
     #expect(recordedTakes[0].events.allSatisfy { $0.observation?.source.kind == .realPianoContact })
     #expect(recordedTakes[0].events.first?.kind == .noteOn(midi: 60, velocity: 73))
+    let observation = try #require(recordedTakes[0].events.first?.observation)
+    #expect(observation.hand != nil)
+    #expect(observation.finger != nil)
+    #expect(observation.onsetVelocity == .init(midi1: 73))
+    #expect(observation.calibrationReference != nil)
 }
 
 @Test

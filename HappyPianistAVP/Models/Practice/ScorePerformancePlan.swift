@@ -55,6 +55,7 @@ struct ScorePerformanceVelocityResolution: Codable, Equatable, Sendable {
     let articulationDelta: Int
     let unclampedVelocity: Int
     let velocity: UInt8
+    let usesGenericDynamicBaseline: Bool
 }
 
 struct ScorePerformanceNoteEvent: Codable, Equatable, Sendable {

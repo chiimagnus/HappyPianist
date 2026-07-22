@@ -5,6 +5,7 @@ struct PracticeRoundSummaryViewModel: Equatable {
     let hasStablePitchSteps: Bool
     let hotspot: PracticeHotspot?
     let nextAction: PracticeNextAction
+    let coachingPresentation: PracticeCoachingPresentation?
 
     init?(
         progress: SongPracticeProgress?,
@@ -36,6 +37,7 @@ struct PracticeRoundSummaryViewModel: Equatable {
         )
         hotspot = PracticeHotspotPolicy().hotspot(for: coachingDecision)
         nextAction = PracticeNextActionPolicy().nextAction(for: feedbackContext)
+        coachingPresentation = coachingDecision.map(PracticeCoachingPresentation.init)
     }
 
     var actionTitle: String {
@@ -56,6 +58,15 @@ struct PracticeRoundSummaryViewModel: Equatable {
         ]
         if let hotspotTitle {
             lines.append("可以再照顾\(hotspotTitle)")
+        }
+        if let coachingPresentation {
+            lines.append("下一步：\(coachingPresentation.actionLabel)")
+            if let fingeringText = coachingPresentation.fingeringText {
+                lines.append("指法：\(fingeringText)")
+            }
+            if let sourceLabel = coachingPresentation.sourceLabel {
+                lines.append(sourceLabel)
+            }
         }
         return lines.joined(separator: "\n")
     }

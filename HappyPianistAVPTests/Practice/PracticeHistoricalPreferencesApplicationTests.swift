@@ -67,9 +67,57 @@ func historicalPreferencesApplyToCurrentFullPassageWithoutPersistingDefaultsOrOl
 }
 
 @MainActor
+@Test
+func historicalTempoRestoreReconfiguresTheLivePerformanceAnalyzer() async throws {
+    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "historical-tempo")
+    let analyzer = PracticePerformanceAnalyzer()
+    let recorder = PracticeSessionRecorder(
+        repository: HistoricalApplicationSessionRepository(),
+        performanceAnalyzer: analyzer
+    )
+    await recorder.beginVisit(id: UUID(), songID: identity.songID, sceneIsActive: true)
+    await recorder.bindIdentity(identity)
+    let session = historicalApplicationSession(
+        defaults: HistoricalApplicationDefaultsStore(),
+        repository: nil,
+        recorder: recorder
+    )
+    installHistoricalApplicationScore(
+        session,
+        identity: identity,
+        spans: historicalApplicationSpans()
+    )
+
+    await session.applyLaunchRestorePolicy(.historicalPreferences(
+        PracticeHistoricalPreferences(
+            handMode: .both,
+            tempoScale: 0.5,
+            loopEnabled: false,
+            requiredSuccesses: 1
+        )
+    ))
+    await session.waitForSessionRecorderEvents()
+    session.startGuidingIfReady()
+    await session.waitForSessionRecorderEvents()
+    let start = PerformanceClock.live().now()
+    await recorder.record(historicalApplicationObservation(note: 60, at: start))
+    await recorder.record(historicalApplicationObservation(note: 62, at: start.advanced(by: 1)))
+    let alignment = try #require(await analyzer.finishRound().alignment)
+    let secondOnsetDeviation = alignment.links.compactMap { link -> TimeInterval? in
+        guard case let .aligned(score, _, evidence) = link,
+              score.performedOnTick == 480
+        else { return nil }
+        return evidence.first { $0.dimension == .onset }?.deviationSeconds
+    }.first
+
+    #expect(abs(try #require(secondOnsetDeviation)) < 0.05)
+}
+
+@MainActor
 private func historicalApplicationSession(
     defaults: HistoricalApplicationDefaultsStore,
-    repository: HistoricalApplicationRepository?
+    repository: HistoricalApplicationRepository?,
+    recorder: PracticeSessionRecorder? = nil
 ) -> PracticeSessionViewModel {
     PracticeSessionViewModel(
         chordAttemptAccumulator: HistoricalApplicationChordAccumulator(),
@@ -81,7 +129,26 @@ private func historicalApplicationSession(
         roundDefaultsStore: defaults,
         progressCoordinator: repository.map {
             PracticeProgressCoordinator(repository: $0, checkpointDelay: .seconds(60))
-        }
+        },
+        sessionRecorder: recorder,
+        coachingDecisionService: CoachingDecisionService()
+    )
+}
+
+private func historicalApplicationObservation(
+    note: Int,
+    at instant: PerformanceMonotonicInstant
+) -> PerformanceObservation {
+    PerformanceObservation(
+        source: .init(kind: .midi1, id: "historical-tempo", generation: 1),
+        timing: .init(
+            host: instant,
+            source: nil,
+            correctedHost: instant,
+            mapping: nil,
+            provenance: .hostOnly
+        ),
+        event: .noteOn(note: note, velocity: .init(midi1: 90))
     )
 }
 
@@ -179,6 +246,11 @@ private actor HistoricalApplicationRepository: PracticeProgressRepositoryProtoco
     func remove(songID: UUID) {
         if progress?.identity.songID == songID { progress = nil }
     }
+}
+
+private actor HistoricalApplicationSessionRepository: PracticeSessionRepositoryProtocol {
+    func upsert(_: PracticeSessionRecord) {}
+    func abandonLiveSession(id _: UUID) {}
 }
 
 private final class HistoricalApplicationChordAccumulator: ChordAttemptAccumulatorProtocol {

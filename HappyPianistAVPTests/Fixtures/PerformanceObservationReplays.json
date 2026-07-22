@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "observations": [
     {
       "id": "10000000-0000-0000-0000-000000000001",
@@ -18,12 +18,20 @@
           "finger": "unavailable",
           "position": "unavailable",
           "confidence": "unavailable"
-        }
+        },
+        "role": "userPerformance"
       },
       "timing": {
-        "host": { "nanoseconds": 10000000000 },
-        "source": { "clockID": "core-midi-host", "seconds": 9.5 },
-        "correctedHost": { "nanoseconds": 9980000000 },
+        "host": {
+          "nanoseconds": 10000000000
+        },
+        "source": {
+          "clockID": "core-midi-host",
+          "seconds": 9.5
+        },
+        "correctedHost": {
+          "nanoseconds": 9980000000
+        },
         "mapping": {
           "sourceClockID": "core-midi-host",
           "offsetSeconds": 0.48,
@@ -37,7 +45,9 @@
       "event": {
         "noteOn": {
           "note": 60,
-          "velocity": { "rawValue": 3043677610 }
+          "velocity": {
+            "rawValue": 3043677610
+          }
         }
       },
       "channel": 1,
@@ -61,11 +71,16 @@
           "finger": "unavailable",
           "position": "unavailable",
           "confidence": "unavailable"
-        }
+        },
+        "role": "userPerformance"
       },
       "timing": {
-        "host": { "nanoseconds": 10100000000 },
-        "correctedHost": { "nanoseconds": 10080000000 },
+        "host": {
+          "nanoseconds": 10100000000
+        },
+        "correctedHost": {
+          "nanoseconds": 10080000000
+        },
         "provenance": "hostOnly"
       },
       "event": {
@@ -73,7 +88,9 @@
           "_0": {
             "controlChange": {
               "number": 64,
-              "value": { "rawValue": 4294967295 }
+              "value": {
+                "rawValue": 4294967295
+              }
             }
           }
         }
@@ -98,17 +115,27 @@
           "finger": "unavailable",
           "position": "unavailable",
           "confidence": "observed"
-        }
+        },
+        "role": "userPerformance"
       },
       "timing": {
-        "host": { "nanoseconds": 10400000000 },
-        "correctedHost": { "nanoseconds": 10370000000 },
+        "host": {
+          "nanoseconds": 10400000000
+        },
+        "correctedHost": {
+          "nanoseconds": 10370000000
+        },
         "provenance": "latencyEstimate"
       },
       "event": {
         "targetAudioDetection": {
-          "targetMIDINotes": [60, 64],
-          "detectedMIDINotes": [60],
+          "targetMIDINotes": [
+            60,
+            64
+          ],
+          "detectedMIDINotes": [
+            60
+          ],
           "result": "mixed"
         }
       },
@@ -132,18 +159,28 @@
           "finger": "unavailable",
           "position": "unavailable",
           "confidence": "unavailable"
-        }
+        },
+        "role": "userPerformance"
       },
       "timing": {
-        "host": { "nanoseconds": 10200000000 },
-        "source": { "clockID": "ump-device", "seconds": 20.0 },
-        "correctedHost": { "nanoseconds": 10190000000 },
+        "host": {
+          "nanoseconds": 10200000000
+        },
+        "source": {
+          "clockID": "ump-device",
+          "seconds": 20.0
+        },
+        "correctedHost": {
+          "nanoseconds": 10190000000
+        },
         "provenance": "hostOnly"
       },
       "event": {
         "noteOn": {
           "note": 64,
-          "velocity": { "rawValue": 305402420 }
+          "velocity": {
+            "rawValue": 305402420
+          }
         }
       },
       "channel": 2,
@@ -166,11 +203,16 @@
           "finger": "unavailable",
           "position": "unavailable",
           "confidence": "unavailable"
-        }
+        },
+        "role": "userPerformance"
       },
       "timing": {
-        "host": { "nanoseconds": 10250000000 },
-        "correctedHost": { "nanoseconds": 10240000000 },
+        "host": {
+          "nanoseconds": 10250000000
+        },
+        "correctedHost": {
+          "nanoseconds": 10240000000
+        },
         "provenance": "hostOnly"
       },
       "event": {
@@ -178,7 +220,9 @@
           "_0": {
             "controlChange": {
               "number": 67,
-              "value": { "rawValue": 305419896 }
+              "value": {
+                "rawValue": 305419896
+              }
             }
           }
         }
@@ -203,17 +247,24 @@
           "finger": "unavailable",
           "position": "unavailable",
           "confidence": "unavailable"
-        }
+        },
+        "role": "userPerformance"
       },
       "timing": {
-        "host": { "nanoseconds": 10300000000 },
-        "correctedHost": { "nanoseconds": 10290000000 },
+        "host": {
+          "nanoseconds": 10300000000
+        },
+        "correctedHost": {
+          "nanoseconds": 10290000000
+        },
         "provenance": "hostOnly"
       },
       "event": {
         "noteOff": {
           "note": 64,
-          "releaseVelocity": { "rawValue": 2882382797 }
+          "releaseVelocity": {
+            "rawValue": 2882382797
+          }
         }
       },
       "channel": 2,
@@ -236,17 +287,24 @@
           "finger": "unavailable",
           "position": "unavailable",
           "confidence": "unavailable"
-        }
+        },
+        "role": "userPerformance"
       },
       "timing": {
-        "host": { "nanoseconds": 10500000000 },
-        "correctedHost": { "nanoseconds": 10480000000 },
+        "host": {
+          "nanoseconds": 10500000000
+        },
+        "correctedHost": {
+          "nanoseconds": 10480000000
+        },
         "provenance": "hostOnly"
       },
       "event": {
         "noteOff": {
           "note": 60,
-          "releaseVelocity": { "rawValue": 0 }
+          "releaseVelocity": {
+            "rawValue": 0
+          }
         }
       },
       "channel": 1,

@@ -95,7 +95,6 @@ func coachingActionCarriesExecutableParametersAndNormalizesBounds() {
         voiceFocus: CoachingVoiceFocus(partID: "P1", staff: 2, voice: 1),
         repeatCount: 0,
         referenceUse: .manualReplay,
-        cueUse: .metronome,
         completionCondition: completion
     )
     let decision = CoachingDecision(issue: issue, action: action)
@@ -106,9 +105,25 @@ func coachingActionCarriesExecutableParametersAndNormalizesBounds() {
     #expect(action.voiceFocus == CoachingVoiceFocus(partID: "P1", staff: 2, voice: 1))
     #expect(action.repeatCount == 1)
     #expect(action.referenceUse == .manualReplay)
-    #expect(action.cueUse == .metronome)
     #expect(decision.issue == issue)
     #expect(decision.action == action)
+}
+
+@Test
+func exercisePolicyUsesTheUniquelyProminentScoreVoice() throws {
+    let plan = makeTestScorePerformancePlan(notes: [
+        TestScorePerformanceNote(midiNote: 72, velocity: 112, onTick: 0, staff: 1, voice: 1),
+        TestScorePerformanceNote(midiNote: 60, velocity: 72, onTick: 0, staff: 1, voice: 2),
+    ])
+    let issue = makeCoachingIssue(kind: .voicing, dimension: .voicing)
+
+    let action = try #require(PracticeExercisePolicy().action(
+        for: issue,
+        scoreEvents: plan.noteEvents
+    ))
+
+    #expect(action.voiceFocus == CoachingVoiceFocus(partID: "P1", staff: 1, voice: 1))
+    #expect(action.referenceUse == .score)
 }
 
 @Test
@@ -247,6 +262,42 @@ func decisionServiceUsesMeasureEvidenceAndSkipsCorrectResults() async {
     #expect(decisions.allSatisfy { $0.issue.measureOccurrenceIDs == [occurrenceID] })
     #expect(decisions.allSatisfy { $0.issue.provenance.sourceGeneration == 7 })
     #expect(decisions.contains { $0.issue.kind == .pitch } == false)
+}
+
+@Test
+func decisionServiceRetainsOnlyUnlocalizedPassageEvidenceAlongsideMeasures() async {
+    let measureOnset = makeDimension(.onset, outcome: .incorrect, confidence: 0.8)
+    let passageExtra = makeDimension(.extraNotes, outcome: .incorrect, confidence: 0.9)
+    let occurrenceID = PracticeMeasureOccurrenceID(
+        sourceMeasureID: PracticeSourceMeasureID(
+            partID: "P1",
+            sourceMeasureIndex: 0,
+            sourceNumberToken: "1"
+        ),
+        occurrenceIndex: 0
+    )
+    let assessment = PassagePerformanceAssessment(
+        planID: ScorePerformancePlanID(rawValue: "plan"),
+        sourceGeneration: 7,
+        tickRange: 0 ..< 960,
+        rubricVersion: .capabilityAware,
+        dimensions: [measureOnset, passageExtra],
+        measures: [MeasurePerformanceAssessment(
+            occurrenceID: occurrenceID,
+            tickRange: 0 ..< 480,
+            dimensions: [measureOnset]
+        )]
+    )
+
+    let decisions = await CoachingDecisionService().candidates(for: assessment)
+
+    #expect(decisions.count == 2)
+    #expect(decisions[0].issue.kind == .onset)
+    #expect(decisions[0].issue.scoreRange == 0 ..< 480)
+    #expect(decisions[0].issue.measureOccurrenceIDs == [occurrenceID])
+    #expect(decisions[1].issue.kind == .pitch)
+    #expect(decisions[1].issue.scoreRange == 0 ..< 960)
+    #expect(decisions[1].issue.measureOccurrenceIDs.isEmpty)
 }
 
 @Test
@@ -445,6 +496,49 @@ func decisionServiceAggregatesMultipartRemeasurementConservatively() async throw
     #expect(event.reason.contains("afterOutcome=incorrect"))
     #expect(event.reason.contains("afterSamples=5"))
     #expect(event.reason.contains("completion=unmet"))
+}
+
+@Test
+func evidenceCheckCompletesOnlyWhenRemeasurementIsObserved() async throws {
+    let initial = makeCoachingAssessment(dimensions: [makeDimension(
+        .onset,
+        outcome: .insufficientEvidence,
+        confidence: nil,
+        evidenceStatus: .insufficient
+    )])
+
+    let degradedReporter = InMemoryDiagnosticsReporter()
+    let degradedService = CoachingDecisionService(diagnosticsReporter: degradedReporter)
+    let degradedDecision = try #require(await degradedService.decision(for: initial))
+    let degradedID = try #require(await degradedReporter.events.first?.operationID)
+    await degradedService.accept(degradedDecision)
+    _ = await degradedService.decision(for: makeCoachingAssessment(dimensions: [makeDimension(
+        .onset,
+        outcome: .incorrect,
+        confidence: 0.5,
+        evidenceStatus: .degraded
+    )]))
+    #expect(await degradedReporter.events.contains {
+        $0.operationID == degradedID
+            && $0.reason.contains("outcome=remeasured")
+            && $0.reason.contains("completion=unmet")
+    })
+
+    let observedReporter = InMemoryDiagnosticsReporter()
+    let observedService = CoachingDecisionService(diagnosticsReporter: observedReporter)
+    let observedDecision = try #require(await observedService.decision(for: initial))
+    let observedID = try #require(await observedReporter.events.first?.operationID)
+    await observedService.accept(observedDecision)
+    _ = await observedService.decision(for: makeCoachingAssessment(dimensions: [makeDimension(
+        .onset,
+        outcome: .incorrect,
+        confidence: 0.9
+    )]))
+    #expect(await observedReporter.events.contains {
+        $0.operationID == observedID
+            && $0.reason.contains("outcome=remeasured")
+            && $0.reason.contains("completion=met")
+    })
 }
 
 private func makeCoachingIssue(

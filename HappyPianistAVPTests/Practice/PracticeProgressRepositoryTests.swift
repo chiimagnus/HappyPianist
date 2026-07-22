@@ -104,16 +104,23 @@ func progressRepositoryPersistsOnlyMeasureAssessmentSummaries() async throws {
             dimensions: [dimension]
         )]
     )
-    let reduced = PracticeAttemptReducer().reducePassageCompletion(
+    let reducer = PracticeAttemptReducer()
+    let completion = reducer.reducePassageCompletion(
         progress: progress,
         reductionState: .init(),
+        identity: progress.identity,
+        configuration: configuration,
+        timestamp: Date(timeIntervalSince1970: 200)
+    )
+    let reduced = reducer.reducePerformanceAssessment(
+        progress: completion.progress,
         identity: progress.identity,
         configuration: configuration,
         timestamp: Date(timeIntervalSince1970: 200),
         assessment: assessment
     )
 
-    try await repository.upsert(reduced.progress)
+    try await repository.upsert(reduced)
 
     let data = try Data(contentsOf: paths.fileURL)
     let root = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
@@ -133,7 +140,7 @@ func progressRepositoryPersistsOnlyMeasureAssessmentSummaries() async throws {
         "teacherPrompt", "tickRange", "toleranceProfile", "visuals",
     ]))
     #expect(String(decoding: data, as: UTF8.self).contains(observationID.uuidString) == false)
-    #expect(await repository.progress(for: progress.identity) == reduced.progress)
+    #expect(await repository.progress(for: progress.identity) == reduced)
 }
 
 @Test

@@ -99,6 +99,7 @@ final class PracticeAudioRecognitionInputService: PerformanceObservationStreamPr
         accumulator.resetForNewStep(generation: stateStore.audioRecognitionGeneration)
 
         if stateStore.isAudioRecognitionRunning {
+            effectHandler?.handle(effect: .inputCapabilitiesAvailable(.targetAudio))
             service.updateExpectedNotes(
                 snapshot.expectedMIDINotes,
                 wrongCandidateMIDINotes: snapshot.wrongCandidateMIDINotes,
@@ -128,6 +129,7 @@ final class PracticeAudioRecognitionInputService: PerformanceObservationStreamPr
                     return
                 }
                 startTask = nil
+                effectHandler?.handle(effect: .inputCapabilitiesAvailable(.targetAudio))
                 applyPendingSuppressIfNeeded(generation: startGeneration)
             } catch {
                 startTask = nil
@@ -192,6 +194,10 @@ final class PracticeAudioRecognitionInputService: PerformanceObservationStreamPr
 
     func performanceObservationsStream() -> AsyncStream<PerformanceObservation> {
         observationBroadcaster.makeStream(bufferingPolicy: .bufferingNewest(4096))
+    }
+
+    func waitForPendingObservationRecording() async {
+        await observationRecordingTask?.value
     }
 
     private func handle(_ evidence: TargetAudioEvidence) {

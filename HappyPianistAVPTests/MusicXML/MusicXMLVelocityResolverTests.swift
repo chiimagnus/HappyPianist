@@ -3,6 +3,31 @@ import Testing
 
 struct MusicXMLVelocityResolverTests {
     @Test
+    func velocityResolutionDistinguishesGenericAndExplicitDynamicTargets() {
+        let note = MusicXMLNoteEvent(
+            partID: "P1",
+            measureNumber: 1,
+            tick: 0,
+            durationTicks: 480,
+            midiNote: 60,
+            isRest: false,
+            isChord: false,
+            staff: 1,
+            voice: 1
+        )
+        let generic = MusicXMLVelocityResolver(dynamicEvents: []).resolution(for: note)
+        let explicit = MusicXMLVelocityResolver(dynamicEvents: [MusicXMLDynamicEvent(
+            tick: 0,
+            velocity: 80,
+            scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil),
+            source: .directionDynamics
+        )]).resolution(for: note)
+
+        #expect(generic.usesGenericDynamicBaseline)
+        #expect(explicit.usesGenericDynamicBaseline == false)
+    }
+
+    @Test
     func velocityPrefersNoteOverrideThenSoundThenDirection() {
         let events: [MusicXMLDynamicEvent] = [
             MusicXMLDynamicEvent(

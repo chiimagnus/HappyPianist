@@ -1,7 +1,6 @@
 import Foundation
 
 struct PerformanceAssessmentRubricVersion: Equatable, Hashable, Sendable {
-    static let initial = Self(rawValue: "performance-assessment-v1")
     static let capabilityAware = Self(rawValue: "performance-assessment-v2")
 
     let rawValue: String

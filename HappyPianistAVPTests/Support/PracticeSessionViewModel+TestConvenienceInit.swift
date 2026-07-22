@@ -8,12 +8,14 @@ extension PracticeSessionViewModel {
         sleeper: SleeperProtocol,
         sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol? = nil,
         realPianoContactDetectionService: (any KeyContactDetectingProtocol)? = nil,
+        handObservationSourceKind: PerformanceObservation.Source.Kind? = nil,
         audioRecognitionService: PracticeAudioRecognitionServiceProtocol? = nil,
         practiceInputEventSource: PracticeInputEventSourceProtocol? = nil,
         audioStepAttemptAccumulator: AudioStepAttemptAccumulator? = nil,
         handPianoActivityGate: HandPianoActivityGate? = nil,
         progressCoordinator: PracticeProgressCoordinator? = nil,
         sessionRecorder: PracticeSessionRecorder? = nil,
+        coachingDecisionService: CoachingDecisionService? = nil,
         diagnosticsReporter: (any DiagnosticsReporting)? = nil,
         manualAdvanceMode: ManualAdvanceMode = .step
     ) {
@@ -28,6 +30,7 @@ extension PracticeSessionViewModel {
             sleeper: sleeper,
             sequencerPlaybackService: resolvedPlaybackService,
             realPianoContactDetectionService: realPianoContactDetectionService,
+            handObservationSourceKind: handObservationSourceKind,
             audioRecognitionService: audioRecognitionService,
             practiceInputEventSource: practiceInputEventSource,
             audioStepAttemptAccumulator: resolvedAudioStepAttemptAccumulator,
@@ -36,6 +39,8 @@ extension PracticeSessionViewModel {
             roundDefaultsStore: TestPracticeRoundDefaultsStore(),
             progressCoordinator: progressCoordinator,
             sessionRecorder: sessionRecorder,
+            coachingDecisionService: coachingDecisionService
+                ?? CoachingDecisionService(diagnosticsReporter: diagnosticsReporter),
             diagnosticsReporter: diagnosticsReporter
         )
     }

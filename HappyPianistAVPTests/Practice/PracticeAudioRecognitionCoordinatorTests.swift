@@ -259,7 +259,10 @@ func microphoneUnknownPublishesLimitedObservationWithoutWrongNote() async {
     await waitUntil { effectHandler.effects.isEmpty == false }
 
     let observation = await observationTask.value
-    #expect(effectHandler.effects == [.attemptEvaluated(.insufficientEvidence)])
+    #expect(effectHandler.effects == [
+        .inputCapabilitiesAvailable(.targetAudio),
+        .attemptEvaluated(.insufficientEvidence),
+    ])
     #expect(observation?.source.capabilities.release == .unavailable)
     #expect(observation?.source.capabilities.velocity == .unavailable)
     #expect(observation?.confidence == 0.4)

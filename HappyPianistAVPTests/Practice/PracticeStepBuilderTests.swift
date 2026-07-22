@@ -174,7 +174,8 @@ private func performanceNote(
             curveVelocity: nil,
             articulationDelta: 0,
             unclampedVelocity: Int(velocity),
-            velocity: velocity
+            velocity: velocity,
+            usesGenericDynamicBaseline: false
         ),
         staff: staff,
         voice: voice,

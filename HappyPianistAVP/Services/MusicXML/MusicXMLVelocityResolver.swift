@@ -44,20 +44,21 @@ struct MusicXMLVelocityResolver {
         let baseVelocity: Int
         let selectedCurve: MusicXMLDynamicCurve?
         let curveVelocity: Double?
+        let usesGenericDynamicBaseline: Bool
 
         if let override = note.dynamicsOverrideVelocity {
             baseVelocity = Int(override)
             selectedCurve = nil
             curveVelocity = nil
+            usesGenericDynamicBaseline = false
         } else {
-            baseVelocity = Int(
-                resolvedDynamicEvent(
-                    partID: note.partID,
-                    tick: note.tick,
-                    staff: note.staff,
-                    voice: note.voice
-                )?.velocity ?? defaultVelocity
+            let dynamicEvent = resolvedDynamicEvent(
+                partID: note.partID,
+                tick: note.tick,
+                staff: note.staff,
+                voice: note.voice
             )
+            baseVelocity = Int(dynamicEvent?.velocity ?? defaultVelocity)
             selectedCurve = wedgeEnabled ? curve(
                 partID: note.partID,
                 tick: note.tick,
@@ -65,6 +66,7 @@ struct MusicXMLVelocityResolver {
                 voice: note.voice
             ) : nil
             curveVelocity = selectedCurve?.interpolatedVelocity(at: note.tick)
+            usesGenericDynamicBaseline = dynamicEvent == nil
         }
 
         let articulationDelta = articulationDelta(for: note)
@@ -78,7 +80,8 @@ struct MusicXMLVelocityResolver {
             articulationDelta: articulationDelta,
             unclampedVelocity: unclampedVelocity,
             velocity: output,
-            curve: selectedCurve
+            curve: selectedCurve,
+            usesGenericDynamicBaseline: usesGenericDynamicBaseline
         )
     }
 

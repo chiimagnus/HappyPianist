@@ -104,6 +104,9 @@ struct LiveAppGraph {
         let makeHandPianoActivityGate: () -> HandPianoActivityGate = {
             HandPianoActivityGate()
         }
+        let makeCoachingDecisionService: () -> CoachingDecisionService = {
+            CoachingDecisionService(diagnosticsReporter: diagnosticsReporter)
+        }
         let makeAudioRecognitionService: () -> PracticeAudioRecognitionServiceProtocol? = {
             #if targetEnvironment(simulator)
                 nil
@@ -148,6 +151,7 @@ struct LiveAppGraph {
                     chordAttemptAccumulator: makeChordAttemptAccumulator(),
                     sleeper: makeSleeper(),
                     sequencerPlaybackService: sequencerPlaybackService,
+                    handObservationSourceKind: nil,
                     audioRecognitionService: nil,
                     practiceInputEventSource: makeBluetoothMIDIEventSource(),
                     audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
@@ -155,6 +159,7 @@ struct LiveAppGraph {
                     settingsProvider: settingsProvider,
                     progressCoordinator: progressCoordinator,
                     sessionRecorder: practiceSessionRecorder,
+                    coachingDecisionService: makeCoachingDecisionService(),
                     diagnosticsReporter: diagnosticsReporter
                 )
 
@@ -164,12 +169,14 @@ struct LiveAppGraph {
                     sleeper: makeSleeper(),
                     sequencerPlaybackService: makeLocalSamplerPlaybackService(),
                     keyContactDetectionService: KeyContactDetectionService(calibration: touchCalibration),
+                    handObservationSourceKind: .virtualPianoContact,
                     audioRecognitionService: nil,
                     practiceInputEventSource: nil,
                     audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
                     handPianoActivityGate: makeHandPianoActivityGate(),
                     progressCoordinator: progressCoordinator,
                     sessionRecorder: practiceSessionRecorder,
+                    coachingDecisionService: makeCoachingDecisionService(),
                     diagnosticsReporter: diagnosticsReporter
                 )
 
@@ -181,12 +188,14 @@ struct LiveAppGraph {
                     realPianoContactDetectionService: RealPianoContactDetectionService(
                         calibration: touchCalibration
                     ),
+                    handObservationSourceKind: .realPianoContact,
                     audioRecognitionService: makeAudioRecognitionService(),
                     practiceInputEventSource: nil,
                     audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
                     handPianoActivityGate: makeHandPianoActivityGate(),
                     progressCoordinator: progressCoordinator,
                     sessionRecorder: practiceSessionRecorder,
+                    coachingDecisionService: makeCoachingDecisionService(),
                     diagnosticsReporter: diagnosticsReporter
                 )
             }

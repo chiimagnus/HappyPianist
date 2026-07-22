@@ -38,4 +38,5 @@ struct MusicXMLVelocityResolution: Equatable, Sendable {
     let unclampedVelocity: Int
     let velocity: UInt8
     let curve: MusicXMLDynamicCurve?
+    let usesGenericDynamicBaseline: Bool
 }

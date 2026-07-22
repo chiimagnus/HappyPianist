@@ -49,6 +49,8 @@ struct PerformanceAssessmentService: Sendable {
     func assess(
         plan: ScorePerformancePlan,
         alignment: PerformanceAlignment,
+        measureSpans: [MusicXMLMeasureSpan],
+        inputCapabilities operationalCapabilities: PerformanceInputCapabilities = .unavailable,
         tickRange: Range<Int>? = nil
     ) -> PassagePerformanceAssessment? {
         guard alignment.planID == plan.id else { return nil }
@@ -61,15 +63,15 @@ struct PerformanceAssessmentService: Sendable {
         let activeLinks = alignment.links.filter { link in
             Self.belongsToActiveRange(link, eventIDs: activeEventIDs)
         }
-        let resolvedTickRange = tickRange ?? Self.tickRange(for: activeEvents)
+        let resolvedTickRange = tickRange ?? Self.tickRange(for: measureSpans, events: activeEvents)
         let activeControllerLinks = alignment.controllerLinks.filter {
             Self.belongsToActiveRange($0, tickRange: tickRange)
         }
         let timeMap = ScorePerformancePlanTimeMap(plan: plan)
-        let capabilities = inputCapabilities(
+        let capabilities = operationalCapabilities.merging(inputCapabilities(
             links: activeLinks,
             controllerLinks: activeControllerLinks
-        )
+        ))
         let passageDimensions = dimensions(
             plan: plan,
             events: activeEvents,
@@ -91,6 +93,8 @@ struct PerformanceAssessmentService: Sendable {
                 events: activeEvents,
                 links: activeLinks,
                 controllerLinks: activeControllerLinks,
+                measureSpans: measureSpans,
+                operationalCapabilities: operationalCapabilities,
                 passageTickRange: resolvedTickRange,
                 timeMap: timeMap
             )
@@ -131,75 +135,60 @@ struct PerformanceAssessmentService: Sendable {
                 dimension: .onset,
                 samples: onsetSamples,
                 unit: .seconds,
-                capabilities: capabilities,
                 links: links
             ),
             timingResult(
                 dimension: .tempoRelativeTiming,
                 samples: tempoRelativeSamples,
                 unit: .normalized,
-                capabilities: capabilities,
                 links: links
             ),
             chordSpreadResult(
                 events: events,
                 aligned: aligned,
-                links: links,
-                capabilities: capabilities
+                links: links
             ),
             durationResult(
                 aligned: aligned,
                 links: links,
-                timeMap: timeMap,
-                capabilities: capabilities
+                timeMap: timeMap
             ),
             releaseResult(
                 aligned: aligned,
-                links: links,
-                capabilities: capabilities
+                links: links
             ),
             articulationResult(
                 aligned: aligned,
                 links: links,
-                timeMap: timeMap,
-                capabilities: capabilities
+                timeMap: timeMap
             ),
             velocityResult(
                 aligned: aligned,
-                links: links,
-                capabilities: capabilities
+                links: links
             ),
             dynamicContourResult(
                 aligned: aligned,
-                links: links,
-                capabilities: capabilities
+                links: links
             ),
             voicingResult(
                 events: events,
                 aligned: aligned,
-                links: links,
-                capabilities: capabilities
+                links: links
             ),
             pedalTimingResult(
-                plan: plan,
-                links: controllerLinks,
-                capabilities: capabilities
+                links: controllerLinks
             ),
             pedalValueResult(
-                plan: plan,
-                links: controllerLinks,
-                capabilities: capabilities
+                links: controllerLinks
             ),
             tempoContinuityResult(
                 plan: plan,
                 aligned: aligned,
-                timeMap: timeMap,
-                capabilities: capabilities
+                timeMap: timeMap
             ),
             phraseContinuityResult(
                 plan: plan,
-                aligned: aligned,
-                capabilities: capabilities
+                aligned: aligned
             ),
         ]
         return rubric.select(
@@ -263,7 +252,7 @@ struct PerformanceAssessmentService: Sendable {
             )
         }
         samples.append(contentsOf: links.compactMap { link -> MetricSample? in
-            guard case let .extra(observation, evidence) = link else { return nil }
+            guard case let .extra(observation, evidence, _) = link else { return nil }
             return MetricSample(
                 value: 1,
                 status: assessmentStatus(
@@ -336,7 +325,6 @@ struct PerformanceAssessmentService: Sendable {
         dimension: PerformanceAssessmentDimension,
         samples: [MetricSample],
         unit: PerformanceAssessmentMeasurementUnit,
-        capabilities: PerformanceInputCapabilities,
         links: [PerformanceAlignmentLink]
     ) -> PerformanceAssessmentDimensionResult {
         guard samples.isEmpty == false else {
@@ -352,7 +340,7 @@ struct PerformanceAssessmentService: Sendable {
             samples: samples,
             measurement: PerformanceAssessmentMeasurement(value: mean, unit: unit),
             passes: samples.allSatisfy {
-                rubric.accepts($0.value, for: dimension, capabilities: capabilities)
+                rubric.accepts($0.value, for: dimension, evidenceStatus: $0.status)
             }
         )
     }
@@ -360,8 +348,7 @@ struct PerformanceAssessmentService: Sendable {
     private func chordSpreadResult(
         events: [ScorePerformanceNoteEvent],
         aligned: [AlignedNote],
-        links: [PerformanceAlignmentLink],
-        capabilities: PerformanceInputCapabilities
+        links: [PerformanceAlignmentLink]
     ) -> PerformanceAssessmentDimensionResult {
         let eligibleChords = Dictionary(grouping: events, by: \.performedOnTick)
             .filter { _, chord in
@@ -419,7 +406,7 @@ struct PerformanceAssessmentService: Sendable {
             outcome: hasIncompleteChord
                 ? .insufficientEvidence
                 : (samples.allSatisfy {
-                    rubric.accepts($0.value, for: .chordSpread, capabilities: capabilities)
+                    rubric.accepts($0.value, for: .chordSpread, evidenceStatus: $0.status)
                 }
                     ? .correct
                     : .incorrect),
@@ -434,8 +421,7 @@ struct PerformanceAssessmentService: Sendable {
     private func durationResult(
         aligned: [AlignedNote],
         links: [PerformanceAlignmentLink],
-        timeMap: ScorePerformancePlanTimeMap,
-        capabilities: PerformanceInputCapabilities
+        timeMap: ScorePerformancePlanTimeMap
     ) -> PerformanceAssessmentDimensionResult {
         let samples = aligned.compactMap { note -> MetricSample? in
             guard let evidence = note.evidence.first(where: { $0.dimension == .duration }),
@@ -475,7 +461,7 @@ struct PerformanceAssessmentService: Sendable {
             outcome: hasIncompleteEvidence
                 ? .insufficientEvidence
                 : (samples.allSatisfy {
-                    rubric.accepts($0.value, for: .duration, capabilities: capabilities)
+                    rubric.accepts($0.value, for: .duration, evidenceStatus: $0.status)
                 }
                     ? .correct
                     : .incorrect),
@@ -489,8 +475,7 @@ struct PerformanceAssessmentService: Sendable {
 
     private func releaseResult(
         aligned: [AlignedNote],
-        links: [PerformanceAlignmentLink],
-        capabilities: PerformanceInputCapabilities
+        links: [PerformanceAlignmentLink]
     ) -> PerformanceAssessmentDimensionResult {
         let samples = aligned.compactMap { metricSample(for: $0, dimension: .release) }
         let hasIncompleteEvidence = aligned.contains { note in
@@ -513,7 +498,7 @@ struct PerformanceAssessmentService: Sendable {
             outcome: hasIncompleteEvidence
                 ? .insufficientEvidence
                 : (samples.allSatisfy {
-                    rubric.accepts($0.value, for: .release, capabilities: capabilities)
+                    rubric.accepts($0.value, for: .release, evidenceStatus: $0.status)
                 }
                     ? .correct
                     : .incorrect),
@@ -528,8 +513,7 @@ struct PerformanceAssessmentService: Sendable {
     private func articulationResult(
         aligned: [AlignedNote],
         links: [PerformanceAlignmentLink],
-        timeMap: ScorePerformancePlanTimeMap,
-        capabilities: PerformanceInputCapabilities
+        timeMap: ScorePerformancePlanTimeMap
     ) -> PerformanceAssessmentDimensionResult {
         let lanes = Dictionary(grouping: aligned) { note in
             VoiceLane(
@@ -611,7 +595,7 @@ struct PerformanceAssessmentService: Sendable {
                     rubric.accepts(
                         $0.deviationSeconds,
                         for: .articulation,
-                        capabilities: capabilities
+                        evidenceStatus: $0.status
                     )
                 } ? .correct : .incorrect),
             evidenceStatus: hasIncompleteEvidence
@@ -626,8 +610,7 @@ struct PerformanceAssessmentService: Sendable {
 
     private func velocityResult(
         aligned: [AlignedNote],
-        links: [PerformanceAlignmentLink],
-        capabilities: PerformanceInputCapabilities
+        links: [PerformanceAlignmentLink]
     ) -> PerformanceAssessmentDimensionResult {
         let samples = aligned.compactMap { note -> MetricSample? in
             guard let performed = performedVelocity(note) else { return nil }
@@ -657,7 +640,7 @@ struct PerformanceAssessmentService: Sendable {
             outcome: incomplete
                 ? .insufficientEvidence
                 : (samples.allSatisfy {
-                    rubric.accepts($0.value, for: .velocity, capabilities: capabilities)
+                    rubric.accepts($0.value, for: .velocity, evidenceStatus: $0.status)
                 }
                     ? .correct
                     : .incorrect),
@@ -671,8 +654,7 @@ struct PerformanceAssessmentService: Sendable {
 
     private func dynamicContourResult(
         aligned: [AlignedNote],
-        links: [PerformanceAlignmentLink],
-        capabilities: PerformanceInputCapabilities
+        links: [PerformanceAlignmentLink]
     ) -> PerformanceAssessmentDimensionResult {
         let lanes = Dictionary(grouping: aligned) { note in
             VoiceLane(
@@ -736,7 +718,7 @@ struct PerformanceAssessmentService: Sendable {
             outcome: incomplete
                 ? .insufficientEvidence
                 : (samples.allSatisfy {
-                    rubric.accepts($0.value, for: .dynamicContour, capabilities: capabilities)
+                    rubric.accepts($0.value, for: .dynamicContour, evidenceStatus: $0.status)
                 }
                     ? .correct
                     : .incorrect),
@@ -751,9 +733,11 @@ struct PerformanceAssessmentService: Sendable {
     private func voicingResult(
         events: [ScorePerformanceNoteEvent],
         aligned: [AlignedNote],
-        links: [PerformanceAlignmentLink],
-        capabilities: PerformanceInputCapabilities
+        links: [PerformanceAlignmentLink]
     ) -> PerformanceAssessmentDimensionResult {
+        let evidenceStatus: PerformanceAssessmentEvidenceStatus = rubric.usesGenericTarget(for: .voicing)
+            ? .degraded
+            : .observed
         let eligibleChords = Dictionary(grouping: events, by: \.performedOnTick)
             .filter { _, chord in
                 chord.count > 1 && chord.contains(where: Self.isArpeggiated) == false
@@ -799,8 +783,7 @@ struct PerformanceAssessmentService: Sendable {
 
             samples.append(MetricSample(
                 value: error,
-                // ponytail: generic voice/hand balance stays degraded until P12 supplies teacher targets.
-                status: .degraded,
+                status: evidenceStatus,
                 evidence: notes.map {
                     .note(
                         score: $0.score,
@@ -826,11 +809,11 @@ struct PerformanceAssessmentService: Sendable {
             outcome: incomplete
                 ? .insufficientEvidence
                 : (samples.allSatisfy {
-                    rubric.accepts($0.value, for: .voicing, capabilities: capabilities)
+                    rubric.accepts($0.value, for: .voicing, evidenceStatus: $0.status)
                 }
                     ? .correct
                     : .incorrect),
-            evidenceStatus: incomplete ? .insufficient : .degraded,
+            evidenceStatus: incomplete ? .insufficient : evidenceStatus,
             measurement: PerformanceAssessmentMeasurement(value: mean, unit: .midi7Bit),
             sampleCount: samples.count,
             confidence: confidence(for: samples),
@@ -839,11 +822,9 @@ struct PerformanceAssessmentService: Sendable {
     }
 
     private func pedalTimingResult(
-        plan: ScorePerformancePlan,
-        links: [PerformanceAlignmentControllerLink],
-        capabilities: PerformanceInputCapabilities
+        links: [PerformanceAlignmentControllerLink]
     ) -> PerformanceAssessmentDimensionResult {
-        let isApproximation = plan.approximations.contains { $0.scope == .controller }
+        let isApproximation = rubric.usesGenericTarget(for: .pedalTiming)
         var samples: [MetricSample] = []
         var failures: [PerformanceAssessmentEvidenceLink] = []
         var unavailable: [PerformanceAssessmentEvidenceLink] = []
@@ -893,7 +874,7 @@ struct PerformanceAssessmentService: Sendable {
         return PerformanceAssessmentDimensionResult(
             dimension: .pedalTiming,
             outcome: failures.isEmpty && samples.allSatisfy {
-                rubric.accepts($0.value, for: .pedalTiming, capabilities: capabilities)
+                rubric.accepts($0.value, for: .pedalTiming, evidenceStatus: $0.status)
             } ? .correct : .incorrect,
             evidenceStatus: isApproximation ? .degraded : aggregateStatus(samples.map(\.status) + [.observed]),
             measurement: worst.flatMap {
@@ -906,11 +887,9 @@ struct PerformanceAssessmentService: Sendable {
     }
 
     private func pedalValueResult(
-        plan: ScorePerformancePlan,
-        links: [PerformanceAlignmentControllerLink],
-        capabilities: PerformanceInputCapabilities
+        links: [PerformanceAlignmentControllerLink]
     ) -> PerformanceAssessmentDimensionResult {
-        let isApproximation = plan.approximations.contains { $0.scope == .controller }
+        let isApproximation = rubric.usesGenericTarget(for: .pedalValue)
         var samples: [MetricSample] = []
         var failures: [PerformanceAssessmentEvidenceLink] = []
         var unavailable: [PerformanceAssessmentEvidenceLink] = []
@@ -945,7 +924,7 @@ struct PerformanceAssessmentService: Sendable {
         return PerformanceAssessmentDimensionResult(
             dimension: .pedalValue,
             outcome: failures.isEmpty && samples.allSatisfy {
-                rubric.accepts($0.value, for: .pedalValue, capabilities: capabilities)
+                rubric.accepts($0.value, for: .pedalValue, evidenceStatus: $0.status)
             } ? .correct : .incorrect,
             evidenceStatus: isApproximation ? .degraded : aggregateStatus(samples.map(\.status) + [.observed]),
             measurement: mean.flatMap {
@@ -960,8 +939,7 @@ struct PerformanceAssessmentService: Sendable {
     private func tempoContinuityResult(
         plan: ScorePerformancePlan,
         aligned: [AlignedNote],
-        timeMap: ScorePerformancePlanTimeMap,
-        capabilities: PerformanceInputCapabilities
+        timeMap: ScorePerformancePlanTimeMap
     ) -> PerformanceAssessmentDimensionResult {
         let onsets = timedOnsets(aligned)
         let expressionBoundaries = Set(plan.annotations.compactMap { annotation in
@@ -970,7 +948,7 @@ struct PerformanceAssessmentService: Sendable {
             case .performanceNotation: nil
             }
         })
-        let isApproximation = plan.tempoEvents.isEmpty
+        let isApproximation = plan.tempoEvents.allSatisfy { $0.sourceDirectionID == nil }
         var samples: [MetricSample] = []
 
         for index in 0 ..< max(0, onsets.count - 2) {
@@ -1006,15 +984,14 @@ struct PerformanceAssessmentService: Sendable {
             samples: samples,
             measurement: PerformanceAssessmentMeasurement(value: mean, unit: .normalized),
             passes: samples.allSatisfy {
-                rubric.accepts($0.value, for: .tempoContinuity, capabilities: capabilities)
+                rubric.accepts($0.value, for: .tempoContinuity, evidenceStatus: $0.status)
             }
         )
     }
 
     private func phraseContinuityResult(
         plan: ScorePerformancePlan,
-        aligned: [AlignedNote],
-        capabilities: PerformanceInputCapabilities
+        aligned: [AlignedNote]
     ) -> PerformanceAssessmentDimensionResult {
         let phraseAnnotations = plan.annotations.filter { $0.kind == .phrase }
         let phraseBoundaries = Set(phraseAnnotations.map(\.tick))
@@ -1069,7 +1046,7 @@ struct PerformanceAssessmentService: Sendable {
             samples: samples,
             measurement: PerformanceAssessmentMeasurement(value: mean, unit: .seconds),
             passes: samples.allSatisfy {
-                rubric.accepts($0.value, for: .phraseContinuity, capabilities: capabilities)
+                rubric.accepts($0.value, for: .phraseContinuity, evidenceStatus: $0.status)
             }
         )
     }
@@ -1093,7 +1070,7 @@ struct PerformanceAssessmentService: Sendable {
         var capabilities: [PerformanceInputCapabilities] = links.compactMap { link in
             switch link {
             case let .aligned(_, observation, _),
-                 let .extra(observation, _),
+                 let .extra(observation, _, _),
                  let .ambiguous(observation, _),
                  let .provisional(_, observation, _),
                  let .unknown(observation, _):
@@ -1224,7 +1201,10 @@ struct PerformanceAssessmentService: Sendable {
     private func velocityStatus(_ note: AlignedNote) -> PerformanceAssessmentEvidenceStatus {
         let status = note.evidence.first(where: { $0.dimension == .velocity })?.status
             ?? alignmentStatus(note.observation.source.capabilities.velocity)
-        return assessmentStatus(status, event: note.event)
+        let assessed = assessmentStatus(status, event: note.event)
+        return assessed == .observed && note.event.velocityResolution.usesGenericDynamicBaseline
+            ? .degraded
+            : assessed
     }
 
     private func alignmentStatus(
@@ -1400,48 +1380,38 @@ struct PerformanceAssessmentService: Sendable {
         events: [ScorePerformanceNoteEvent],
         links: [PerformanceAlignmentLink],
         controllerLinks: [PerformanceAlignmentControllerLink],
+        measureSpans: [MusicXMLMeasureSpan],
+        operationalCapabilities: PerformanceInputCapabilities,
         passageTickRange: Range<Int>,
         timeMap: ScorePerformancePlanTimeMap
     ) -> [MeasurePerformanceAssessment] {
-        // ponytail: the plan has no rest-only spans; pass prepared spans if rest assessment becomes relevant.
-        let grouped = Dictionary(grouping: events) { event in
-            PracticeMeasureOccurrenceID(
-                sourceMeasureID: PracticeSourceMeasureID(
-                    partID: event.sourceNoteID.partID,
-                    sourceMeasureIndex: event.sourceNoteID.sourceMeasureIndex,
-                    sourceNumberToken: event.sourceNoteID.sourceMeasureNumberToken
-                ),
-                occurrenceIndex: event.performedOccurrenceIndex
-            )
+        let activeSpans = measureSpans.filter {
+            $0.startTick < passageTickRange.upperBound && $0.endTick > passageTickRange.lowerBound
         }
-        let hasSingleMeasure = grouped.count == 1
-        // ponytail: unmatched observations have no score tick; keep multi-measure locality insufficient until alignment supplies one.
-        let unlocalizedEvidence = hasSingleMeasure
-            ? [:]
-            : unlocalizedMeasureEvidence(links: links, controllerLinks: controllerLinks)
-        return grouped.compactMap { occurrenceID, measureEvents -> MeasurePerformanceAssessment? in
-            let eventIDs = Set(measureEvents.map(\.id))
-            let lower = max(
-                passageTickRange.lowerBound,
-                measureEvents.map(\.performedOnTick).min() ?? passageTickRange.lowerBound
-            )
-            let upper = min(
-                passageTickRange.upperBound,
-                measureEvents.map(Self.eventUpperTick).max()
-                    ?? passageTickRange.upperBound
-            )
+        let hasSingleMeasure = activeSpans.count == 1
+        let unlocalizedDimensions = hasSingleMeasure
+            ? []
+            : unlocalizedDimensions(links: links, controllerLinks: controllerLinks)
+        return activeSpans.compactMap { span -> MeasurePerformanceAssessment? in
+            let lower = max(passageTickRange.lowerBound, span.startTick)
+            let upper = min(passageTickRange.upperBound, span.endTick)
             guard lower < upper else { return nil }
+            let measureEvents = events.filter { (lower ..< upper).contains($0.performedOnTick) }
+            let eventIDs = Set(measureEvents.map(\.id))
             let measureLinks = hasSingleMeasure
                 ? links
                 : links.filter { Self.belongs($0, toAny: eventIDs) }
             let measureControllerLinks = hasSingleMeasure
                 ? controllerLinks
                 : controllerLinks.filter { Self.belongs($0, tickRange: lower ..< upper) }
+            guard measureEvents.isEmpty == false || measureControllerLinks.isEmpty == false else {
+                return nil
+            }
             let eventByID = Dictionary(uniqueKeysWithValues: measureEvents.map { ($0.id, $0) })
-            let measureCapabilities = inputCapabilities(
+            let measureCapabilities = operationalCapabilities.merging(inputCapabilities(
                 links: measureLinks,
                 controllerLinks: measureControllerLinks
-            )
+            ))
             let measureDimensions = dimensions(
                 plan: plan,
                 events: measureEvents,
@@ -1450,14 +1420,11 @@ struct PerformanceAssessmentService: Sendable {
                 eventByID: eventByID,
                 timeMap: timeMap,
                 capabilities: measureCapabilities
-            )
+            ).filter { unlocalizedDimensions.contains($0.dimension) == false }
             return MeasurePerformanceAssessment(
-                occurrenceID: occurrenceID,
+                occurrenceID: span.occurrenceID,
                 tickRange: lower ..< upper,
-                dimensions: addingUnlocalizedEvidence(
-                    unlocalizedEvidence,
-                    to: measureDimensions
-                )
+                dimensions: measureDimensions
             )
         }.sorted { lhs, rhs in
             if lhs.tickRange.lowerBound != rhs.tickRange.lowerBound {
@@ -1471,73 +1438,29 @@ struct PerformanceAssessmentService: Sendable {
         }
     }
 
-    private func unlocalizedMeasureEvidence(
+    private func unlocalizedDimensions(
         links: [PerformanceAlignmentLink],
         controllerLinks: [PerformanceAlignmentControllerLink]
-    ) -> [PerformanceAssessmentDimension: [PerformanceAssessmentEvidenceLink]] {
-        var result: [PerformanceAssessmentDimension: [PerformanceAssessmentEvidenceLink]] = [:]
+    ) -> Set<PerformanceAssessmentDimension> {
+        var result: Set<PerformanceAssessmentDimension> = []
         for link in links {
             switch link {
-            case let .extra(observation, _):
-                result[.extraNotes, default: []].append(
-                    .unmatchedObservation(observationID: observation.observationID)
-                )
-            case let .unknown(observation, reason):
-                let evidence = PerformanceAssessmentEvidenceLink.unknownObservation(
-                    observationID: observation.observationID,
-                    reason: reason
-                )
-                for dimension in PerformanceAssessmentDimension.allCases
-                where rubric.evidence(for: dimension, capabilities: observation.source.capabilities) != .unavailable
-                    && dimension != .pedalTiming
-                    && dimension != .pedalValue
-                {
-                    result[dimension, default: []].append(evidence)
-                }
+            case .extra:
+                result.insert(.extraNotes)
+            case let .unknown(observation, _):
+                result.formUnion(PerformanceAssessmentDimension.allCases.filter {
+                    $0 != .pedalTiming
+                        && $0 != .pedalValue
+                        && rubric.evidence(for: $0, capabilities: observation.source.capabilities) != .unavailable
+                })
             case .aligned, .missing, .ambiguous, .provisional:
-                continue
+                break
             }
         }
-        for link in controllerLinks {
-            guard case let .extra(observation) = link else { continue }
-            let evidence = PerformanceAssessmentEvidenceLink.unmatchedObservation(
-                observationID: observation.observationID
-            )
-            result[.pedalTiming, default: []].append(evidence)
-            result[.pedalValue, default: []].append(evidence)
+        if controllerLinks.contains(where: { if case .extra = $0 { true } else { false } }) {
+            result.formUnion([.pedalTiming, .pedalValue])
         }
         return result
-    }
-
-    private func addingUnlocalizedEvidence(
-        _ evidenceByDimension: [PerformanceAssessmentDimension: [PerformanceAssessmentEvidenceLink]],
-        to dimensions: [PerformanceAssessmentDimensionResult]
-    ) -> [PerformanceAssessmentDimensionResult] {
-        guard evidenceByDimension.isEmpty == false else { return dimensions }
-        let existing = Dictionary(uniqueKeysWithValues: dimensions.map { ($0.dimension, $0) })
-        return PerformanceAssessmentDimension.allCases.compactMap { dimension in
-            guard let unresolved = evidenceByDimension[dimension], unresolved.isEmpty == false else {
-                return existing[dimension]
-            }
-            guard let result = existing[dimension] else {
-                return PerformanceAssessmentDimensionResult(
-                    dimension: dimension,
-                    outcome: .insufficientEvidence,
-                    evidenceStatus: .insufficient,
-                    sampleCount: 0,
-                    evidence: unresolved
-                )
-            }
-            return PerformanceAssessmentDimensionResult(
-                dimension: dimension,
-                outcome: result.outcome == .incorrect ? .incorrect : .insufficientEvidence,
-                evidenceStatus: .insufficient,
-                measurement: result.measurement,
-                sampleCount: result.sampleCount,
-                confidence: result.confidence,
-                evidence: result.evidence + unresolved
-            )
-        }
     }
 
     private static func belongsToActiveRange(
@@ -1597,6 +1520,19 @@ struct PerformanceAssessmentService: Sendable {
         guard let lower = events.map(\.performedOnTick).min() else { return 0 ..< 0 }
         let upper = events.map(Self.eventUpperTick).max() ?? lower
         return lower ..< upper
+    }
+
+    private static func tickRange(
+        for measureSpans: [MusicXMLMeasureSpan],
+        events: [ScorePerformanceNoteEvent]
+    ) -> Range<Int> {
+        guard let first = measureSpans.min(by: { $0.startTick < $1.startTick }),
+              let last = measureSpans.max(by: { $0.endTick < $1.endTick }),
+              first.startTick < last.endTick
+        else {
+            return tickRange(for: events)
+        }
+        return first.startTick ..< last.endTick
     }
 
     private static func eventUpperTick(_ event: ScorePerformanceNoteEvent) -> Int {

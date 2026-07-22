@@ -8,7 +8,7 @@ enum PerformanceObservationReplayFixtureError: Error, Equatable {
 }
 
 struct PerformanceObservationReplayFixture: Decodable {
-    static let currentSchemaVersion = 1
+    static let currentSchemaVersion = 2
 
     let schemaVersion: Int
     let observations: [PerformanceObservation]

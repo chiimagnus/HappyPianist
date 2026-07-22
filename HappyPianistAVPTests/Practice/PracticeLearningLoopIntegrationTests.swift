@@ -67,6 +67,46 @@ func revisionMismatchDoesNotRestoreOldScoreProgress() async {
 
 @MainActor
 @Test
+func sessionShutdownResetsPerformanceAnalysis() async throws {
+    let analyzer = PracticePerformanceAnalyzer()
+    let recorder = PracticeSessionRecorder(
+        repository: LearningLoopSessionRepository(),
+        performanceAnalyzer: analyzer
+    )
+    let session = makeLearningLoopSession(
+        playback: LearningLoopPlaybackService(),
+        coordinator: PracticeProgressCoordinator(repository: LearningLoopRepository()),
+        recorder: recorder
+    )
+    session.installTestPerformanceNotes([
+        TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 480),
+    ])
+    await session.waitForSessionRecorderEvents()
+    let instant = PerformanceClock.live().now()
+    await analyzer.record(PerformanceObservation(
+        source: .init(kind: .midi1, id: "midi:shutdown", generation: 1),
+        timing: .init(
+            host: instant,
+            source: nil,
+            correctedHost: instant,
+            mapping: nil,
+            provenance: .hostOnly
+        ),
+        event: .noteOn(note: 60, velocity: .init(midi1: 90))
+    ))
+    #expect(await analyzer.snapshot().isRunning)
+
+    session.shutdown()
+    await session.waitForSessionRecorderEvents()
+
+    let reset = await analyzer.snapshot()
+    #expect(reset.isRunning == false)
+    #expect(reset.acceptedObservationCount == 0)
+    #expect(reset.alignment == nil)
+}
+
+@MainActor
+@Test
 func completedPassagePersistsAssessmentOnceAndFinishesAnalyzerRound() async throws {
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "assessment-r1")
     let diagnosticsReporter = InMemoryDiagnosticsReporter()
@@ -132,7 +172,7 @@ func completedPassagePersistsAssessmentOnceAndFinishesAnalyzerRound() async thro
     #expect(decision.issue.kind == .evidence)
     #expect(decision.action.kind == .evidenceCheck)
     #expect(session.latestFeedbackEvent?.kind == .roundSummaryReady)
-    #expect(try #require(await recorder.analysisSnapshot()).isRunning == false)
+    #expect(await recorder.analysisSnapshot().isRunning == false)
 
     let issuedEvent = try #require(await diagnosticsReporter.events.first {
         $0.stage == PianoPerformanceDiagnosticStage.coaching.rawValue
@@ -196,18 +236,186 @@ func completedPassagePersistsAssessmentOnceAndFinishesAnalyzerRound() async thro
     let saved = try #require(await progressRepository.progress(for: identity))
     #expect(saved.measureFacts.first?.performanceMaturity == remeasuredSummary)
 
-    let followupDecision = try #require(session.currentCoachingDecision)
+    #expect(session.currentCoachingDecision != nil)
     let followupIssuedEvent = try #require(await diagnosticsReporter.events.last {
         $0.operationID != decisionID && $0.reason.contains("outcome=issued")
     })
-    await session.coachingDecisionService.skip(followupDecision)
+    session.skipCoachingDecisionAndContinue()
+    await session.waitForSessionRecorderEvents()
     #expect(await diagnosticsReporter.events.contains {
         $0.operationID == followupIssuedEvent.operationID
             && $0.reason.contains("outcome=skipped")
     })
-
-    session.recordPassageRestart()
+    #expect(session.state == .guiding(stepIndex: 0))
     #expect(session.currentCoachingDecision == nil)
+}
+
+@MainActor
+@Test
+func passageCompletionDrainsTheLastMIDIObservationBeforeAssessment() async throws {
+    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "drain-r1")
+    let inputSource = FakeProtocolSeparatedPracticeInputEventSource()
+    let recorder = PracticeSessionRecorder(
+        repository: LearningLoopSessionRepository(),
+        performanceAnalyzer: PracticePerformanceAnalyzer()
+    )
+    await recorder.beginVisit(id: UUID(), songID: identity.songID, sceneIsActive: true)
+    await recorder.bindIdentity(identity)
+    let session = makeLearningLoopSession(
+        playback: LearningLoopPlaybackService(),
+        coordinator: PracticeProgressCoordinator(repository: LearningLoopRepository()),
+        recorder: recorder,
+        practiceInputEventSource: inputSource
+    )
+    session.songIdentity = identity
+    session.installTestPerformanceNotes(
+        [TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 480)],
+        measureSpans: [learningLoopSpan()]
+    )
+    session.roundConfigurationController.pendingRequiredSuccesses = 1
+    _ = session.applyPendingRoundConfiguration()
+    await session.applyLaunchRestorePolicy(.freshDefaults)
+    session.startGuidingIfReady()
+    await session.waitForSessionRecorderEvents()
+
+    inputSource.emitMIDI1(MIDI1InputEvent(
+        kind: .noteOn(note: 60, velocity: 100),
+        channel: 1,
+        group: 0,
+        source: .init(identifier: .sourceIndex(0), endpointName: "test"),
+        receivedAt: .now,
+        receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime
+    ))
+    for _ in 0 ..< 100 {
+        if await recorder.analysisSnapshot().isRunning == false { break }
+        await Task.yield()
+    }
+    await session.waitForSessionRecorderEvents()
+
+    let snapshot = await recorder.analysisSnapshot()
+    let pitch = try #require(snapshot.assessment?.dimensions.first { $0.dimension == .exactPitch })
+    #expect(snapshot.acceptedObservationCount == 1)
+    #expect(pitch.outcome == .correct)
+}
+
+@MainActor
+@Test
+func realPianoContactFlowsIntoTheSessionAssessment() async throws {
+    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "hand-r1")
+    let recorder = PracticeSessionRecorder(
+        repository: LearningLoopSessionRepository(),
+        performanceAnalyzer: PracticePerformanceAnalyzer()
+    )
+    await recorder.beginVisit(id: UUID(), songID: identity.songID, sceneIsActive: true)
+    await recorder.bindIdentity(identity)
+    let session = makeLearningLoopSession(
+        playback: LearningLoopPlaybackService(),
+        coordinator: PracticeProgressCoordinator(repository: LearningLoopRepository()),
+        recorder: recorder,
+        handObservationSourceKind: .realPianoContact
+    )
+    session.songIdentity = identity
+    session.installTestPerformanceNotes(
+        [TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 480)],
+        measureSpans: [learningLoopSpan()]
+    )
+    await session.applyLaunchRestorePolicy(.freshDefaults)
+    session.startGuidingIfReady()
+    await session.waitForSessionRecorderEvents()
+
+    let calibrationID = UUID()
+    session.recordHandPerformanceObservations([makeTestKeyContactObservation(
+        midiNote: 60,
+        phase: .started,
+        timestamp: PerformanceClock.live().now(),
+        resolvedVelocity: 73,
+        calibrationID: calibrationID
+    )])
+    session.recordPassageCompletion()
+    await session.waitForSessionRecorderEvents()
+
+    let snapshot = await recorder.analysisSnapshot()
+    let assessment = try #require(snapshot.assessment)
+    let pitch = try #require(assessment.dimensions.first { $0.dimension == .exactPitch })
+    #expect(snapshot.acceptedObservationCount == 1)
+    #expect(pitch.outcome == .correct)
+    #expect(pitch.evidence.contains { evidence in
+        guard case let .note(_, observationID, _) = evidence else { return false }
+        return snapshot.alignment?.links.contains { link in
+            guard case let .aligned(_, observation, _) = link else { return false }
+            return observation.observationID == observationID
+                && observation.hand == .right
+                && observation.finger == 2
+                && observation.calibrationReference == calibrationID.uuidString
+        } == true
+    })
+}
+
+@MainActor
+@Test
+func performingCoachingActionPracticesTheDiagnosedMeasureAtTheRequestedTempo() throws {
+    let session = makeLearningLoopSession(
+        playback: LearningLoopPlaybackService(),
+        coordinator: PracticeProgressCoordinator(repository: LearningLoopRepository())
+    )
+    let firstSpan = learningLoopSpan()
+    let secondSpan = MusicXMLMeasureSpan(
+        partID: "P1",
+        measureNumber: 2,
+        sourceMeasureIndex: 1,
+        sourceMeasureNumberToken: "2",
+        occurrenceIndex: 0,
+        startTick: 480,
+        endTick: 960
+    )
+    session.installTestPerformanceNotes([
+        TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 480),
+        TestScorePerformanceNote(midiNote: 62, onTick: 480, offTick: 960),
+    ], measureSpans: [firstSpan, secondSpan])
+    let dimension = PerformanceAssessmentDimensionResult(
+        dimension: .onset,
+        outcome: .incorrect,
+        evidenceStatus: .observed,
+        sampleCount: 2,
+        confidence: 0.9,
+        evidence: []
+    )
+    let issue = MusicalIssue(
+        kind: .onset,
+        scoreRange: 480 ..< 960,
+        measureOccurrenceIDs: [secondSpan.occurrenceID],
+        dimensionResults: [dimension],
+        confidence: 0.9,
+        provenance: MusicalIssueProvenance(
+            planID: try #require(session.performancePlan).id,
+            sourceGeneration: 1,
+            rubricVersion: .capabilityAware
+        )
+    )
+    session.currentCoachingDecision = CoachingDecision(
+        issue: issue,
+        action: CoachingAction(
+            kind: .onsetAlignment,
+            scoreRange: issue.scoreRange,
+            tempoRatio: 0.7,
+            repeatCount: 2,
+            referenceUse: .manualReplay,
+            completionCondition: CoachingCompletionCondition(
+                target: .dimensionOutcome(dimension: .onset, outcome: .correct)
+            )
+        )
+    )
+
+    #expect(session.perform(.lowerTempo(0.7)))
+
+    #expect(session.activeRoundConfiguration?.passage == PracticePassage(
+        start: secondSpan.occurrenceID,
+        end: secondSpan.occurrenceID
+    ))
+    #expect(session.activeRoundConfiguration?.tempoScale == 0.7)
+    #expect(session.activeRange?.measureSpans == [secondSpan])
+    #expect(session.state == .guiding(stepIndex: 1))
+    #expect(session.isManualReplayPlaying)
 }
 
 @MainActor
@@ -215,12 +423,16 @@ private func makeLearningLoopSession(
     playback: LearningLoopPlaybackService,
     coordinator: PracticeProgressCoordinator,
     recorder: PracticeSessionRecorder? = nil,
+    practiceInputEventSource: PracticeInputEventSourceProtocol? = nil,
+    handObservationSourceKind: PerformanceObservation.Source.Kind? = nil,
     diagnosticsReporter: (any DiagnosticsReporting)? = nil
 ) -> PracticeSessionViewModel {
     PracticeSessionViewModel(
         chordAttemptAccumulator: LearningLoopChordAccumulator(),
         sleeper: TaskSleeper(),
         sequencerPlaybackService: playback,
+        handObservationSourceKind: handObservationSourceKind,
+        practiceInputEventSource: practiceInputEventSource,
         progressCoordinator: coordinator,
         sessionRecorder: recorder,
         diagnosticsReporter: diagnosticsReporter

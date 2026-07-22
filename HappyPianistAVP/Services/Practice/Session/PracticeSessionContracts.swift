@@ -38,6 +38,7 @@ enum PracticeSessionEffect: Equatable {
     case stopTransientWork
     case stopAudioRecognition
     case stopPracticeInput
+    case inputCapabilitiesAvailable(PerformanceInputCapabilities)
 }
 
 enum PracticeImmersiveOpenResult: Equatable {

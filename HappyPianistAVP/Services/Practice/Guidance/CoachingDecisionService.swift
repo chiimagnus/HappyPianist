@@ -237,7 +237,7 @@ actor CoachingDecisionService {
         case let .dimensionOutcome(_, outcome):
             metric.outcome == outcome
         case .evidenceAvailable:
-            metric.evidenceStatus == .observed || metric.evidenceStatus == .degraded
+            metric.evidenceStatus == .observed
         }
     }
 
@@ -272,7 +272,7 @@ actor CoachingDecisionService {
         guard assessment.measures.isEmpty == false else {
             return [(assessment.tickRange, [], assessment.dimensions)]
         }
-        return Dictionary(grouping: assessment.measures, by: \.tickRange)
+        let measureScopes = Dictionary(grouping: assessment.measures, by: \.tickRange)
             .map { range, measures in
                 (
                     range,
@@ -286,6 +286,14 @@ actor CoachingDecisionService {
                 }
                 return lhs.0.upperBound < rhs.0.upperBound
             }
+        let localizedDimensions = Set(
+            assessment.measures.flatMap(\.dimensions).map(\.dimension)
+        )
+        let passageOnlyDimensions = assessment.dimensions.filter {
+            localizedDimensions.contains($0.dimension) == false
+        }
+        guard passageOnlyDimensions.isEmpty == false else { return measureScopes }
+        return measureScopes + [(assessment.tickRange, [], passageOnlyDimensions)]
     }
 
     private func issues(

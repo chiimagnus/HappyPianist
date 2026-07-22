@@ -226,6 +226,7 @@ extension PracticeSessionViewModel {
         setCurrentHighlightGuideForStepIndex(self.currentStepIndex)
         self.state = self.steps.isEmpty ? .idle : .ready
         self.isRestoredSessionPaused = self.steps.isEmpty == false
+        configurePerformanceAnalysisForActiveRound()
         rebuildAutoplayTimeline()
         refreshAudioRecognitionForCurrentState()
     }
@@ -235,6 +236,7 @@ extension PracticeSessionViewModel {
         setCurrentHighlightGuideForStepIndex(self.currentStepIndex)
         self.state = self.steps.isEmpty ? .idle : .ready
         self.isRestoredSessionPaused = false
+        configurePerformanceAnalysisForActiveRound()
         rebuildAutoplayTimeline()
         refreshAudioRecognitionForCurrentState()
     }
@@ -266,6 +268,7 @@ extension PracticeSessionViewModel {
     func suspendAndFlushProgress() async -> PracticeProgressSaveStatus {
         suspendPracticeWork()
         await waitForSessionRecorderEvents()
+        await waitForPendingPerformanceObservationRecording()
         await sessionRecorder?.setGuiding(false)
         return await flushProgress()
     }
@@ -424,6 +427,7 @@ extension PracticeSessionViewModel {
         sessionRecorderEventTask = Task { @MainActor [weak self] in
             await previousTask?.value
             guard let self else { return }
+            await self.waitForPendingPerformanceObservationRecording()
             await sessionRecorder.setGuiding(false)
             let snapshot = await sessionRecorder.analysisSnapshot()
             guard self.acceptsCompletedPassageAnalysis(
@@ -433,8 +437,7 @@ extension PracticeSessionViewModel {
                 lifecycleGeneration: lifecycleGeneration
             ) else { return }
 
-            if let snapshot,
-               let assessment = snapshot.assessment,
+            if let assessment = snapshot.assessment,
                assessment.planID == planID
             {
                 let assessmentID = PracticeProgressAssessmentID(
@@ -557,12 +560,7 @@ extension PracticeSessionViewModel {
         stopAudioRecognition()
         let routingChanged = roundConfigurationController.applyPending()
         rebuildActiveRange()
-        if let performancePlan = self.performancePlan {
-            enqueueSessionRecorderEvent(.configureAnalysis(
-                plan: performancePlan,
-                activeTickRange: self.activeRange?.tickRange
-            ))
-        }
+        configurePerformanceAnalysisForActiveRound()
         self.currentStepIndex = self.activeRange?.firstStepIndex ?? 0
         self.state = self.steps.isEmpty ? .idle : .ready
         self.isRestoredSessionPaused = false
@@ -574,6 +572,16 @@ extension PracticeSessionViewModel {
         refreshAudioRecognitionForCurrentState()
         refreshPracticeInputForCurrentState()
         return routingChanged
+    }
+
+    private func configurePerformanceAnalysisForActiveRound() {
+        guard let performancePlan = self.performancePlan else { return }
+        enqueueSessionRecorderEvent(.configureAnalysis(
+            plan: performancePlan,
+            measureSpans: self.measureSpans,
+            activeTickRange: self.activeRange?.tickRange,
+            tempoScale: self.activeRoundConfiguration?.tempoScale ?? 1
+        ))
     }
 
     func rebuildActiveRange() {
@@ -629,10 +637,7 @@ extension PracticeSessionViewModel {
         rebuildActiveRange()
         self.attributeTimeline = attributeTimeline
         self.highlightGuides = highlightGuides
-        enqueueSessionRecorderEvent(.configureAnalysis(
-            plan: performancePlan,
-            activeTickRange: self.activeRange?.tickRange
-        ))
+        configurePerformanceAnalysisForActiveRound()
         rebuildAutoplayTimeline()
         self.currentHighlightGuideIndex = nil
 
@@ -795,6 +800,7 @@ extension PracticeSessionViewModel {
         }
 
         guard case .guiding = self.state else { return }
+        self.hasRegisteredHandCapabilities = false
         enqueueSessionRecorderEvent(.guiding(true))
 
         if self.autoplayState == .playing {
@@ -825,9 +831,19 @@ extension PracticeSessionViewModel {
     @discardableResult
     func perform(_ action: PracticeNextAction) -> Bool {
         let coachingDecision = self.currentCoachingDecision
+        let passage = coachingDecision.flatMap(coachingPassage(for:))
+        if let passage {
+            roundConfigurationController.pendingPassage = passage
+        }
+        let usesCoachingPassage = passage != nil
         switch action {
         case let .retryMeasure(id):
-            retryMeasure(id)
+            if usesCoachingPassage {
+                _ = applyPendingRoundConfiguration()
+                startGuidingIfReady()
+            } else {
+                retryMeasure(id)
+            }
         case let .lowerTempo(scale):
             roundConfigurationController.pendingTempoScale = scale
             _ = applyPendingRoundConfiguration()
@@ -852,6 +868,11 @@ extension PracticeSessionViewModel {
             startGuidingIfReady()
         }
         if let coachingDecision {
+            if coachingDecision.action.referenceUse == .manualReplay,
+               let stepRange = self.activeRange?.stepRange
+            {
+                startManualReplay(with: ManualReplayPlan(stepRange: stepRange))
+            }
             enqueueCoachingDisposition {
                 await $0.accept(coachingDecision)
             }
@@ -859,13 +880,20 @@ extension PracticeSessionViewModel {
         return true
     }
 
+    private func coachingPassage(for decision: CoachingDecision) -> PracticePassage? {
+        let occurrenceIDs = Set(decision.issue.measureOccurrenceIDs)
+        let localizedSpans = self.measureSpans.filter { occurrenceIDs.contains($0.occurrenceID) }
+        let matchingSpans = localizedSpans.isEmpty ? self.measureSpans.filter { span in
+            span.startTick < decision.action.scoreRange.upperBound
+                && decision.action.scoreRange.lowerBound < span.endTick
+        } : localizedSpans
+        guard let first = matchingSpans.first else { return nil }
+        let samePartSpans = matchingSpans.filter { $0.partID == first.partID }
+        guard let last = samePartSpans.last else { return nil }
+        return PracticePassage(start: first.occurrenceID, end: last.occurrenceID)
+    }
+
     func skip() {
-        if let coachingDecision = self.currentCoachingDecision {
-            enqueueCoachingDisposition {
-                await $0.skip(coachingDecision)
-            }
-        }
-        self.currentCoachingDecision = nil
         if self.state == .ready {
             startGuidingIfReady()
             return
@@ -876,6 +904,16 @@ extension PracticeSessionViewModel {
 
         advanceToNextManualUnit()
         startAutoplayTaskIfNeeded()
+    }
+
+    func skipCoachingDecisionAndContinue() {
+        guard let coachingDecision = self.currentCoachingDecision else { return }
+        enqueueCoachingDisposition {
+            await $0.skip(coachingDecision)
+        }
+        self.currentCoachingDecision = nil
+        _ = applyPendingRoundConfiguration()
+        startGuidingIfReady()
     }
 
     private func enqueueCoachingDisposition(
@@ -1036,6 +1074,7 @@ extension PracticeSessionViewModel {
     }
 
     private func beginNextLoopRound(at firstStepIndex: Int) {
+        self.hasRegisteredHandCapabilities = false
         roundConfigurationController.beginNextRound()
         self.latestFeedbackEvent = nil
         recordPassageRestart()

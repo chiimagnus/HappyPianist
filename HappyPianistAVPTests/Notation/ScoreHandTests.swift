@@ -7,6 +7,7 @@ func handAssignmentPreservesProvenanceAndClampsConfidence() {
     #expect(assignment.hand == .left)
     #expect(assignment.provenance == .teacher)
     #expect(assignment.confidence == 1)
+    #expect(ScoreHandAssignment(hand: .right, provenance: .heuristic, confidence: .nan).confidence == nil)
     #expect(ScoreHandAssignment.unknown.hand == .unknown)
 }
 

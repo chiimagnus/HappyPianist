@@ -68,6 +68,41 @@ func takeStoreSaveAndLoadRoundTrip() throws {
 }
 
 @Test
+func recordingTakeRejectsPreviousSchemaVersion() throws {
+    let encoded = try JSONEncoder().encode(RecordingTake(name: "Legacy", events: []))
+    var object = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+    object["schemaVersion"] = RecordingTake.currentSchemaVersion - 1
+    let legacy = try JSONSerialization.data(withJSONObject: object)
+
+    do {
+        _ = try JSONDecoder().decode(RecordingTake.self, from: legacy)
+        Issue.record("Previous recording schema must not decode through a compatibility path")
+    } catch let error as RecordingTakeCodingError {
+        #expect(error == .unsupportedSchemaVersion(RecordingTake.currentSchemaVersion - 1))
+    }
+}
+
+@Test
+func performanceObservationSourceRequiresRole() throws {
+    let source = PerformanceObservation.Source(kind: .midi1, id: "midi:test", generation: 1)
+    let encoded = try JSONEncoder().encode(source)
+    var object = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+    object.removeValue(forKey: "role")
+    let legacy = try JSONSerialization.data(withJSONObject: object)
+
+    do {
+        _ = try JSONDecoder().decode(PerformanceObservation.Source.self, from: legacy)
+        Issue.record("Source role must be explicit at the persistence boundary")
+    } catch let error as DecodingError {
+        guard case let .keyNotFound(key, _) = error else {
+            Issue.record("Expected missing role key, got \(error)")
+            return
+        }
+        #expect(key.stringValue == "role")
+    }
+}
+
+@Test
 func takeStoreRejectsAbsolutePathsAndRawScoreMetadata() throws {
     let documentsURL = try makeTemporaryDirectory(prefix: "RecordingTakeStoreTests")
     defer { try? FileManager.default.removeItem(at: documentsURL) }

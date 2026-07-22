@@ -45,12 +45,15 @@ func feedbackViewModelPresentsNeutralHandAndFingeringSources() throws {
     let action = CoachingAction(
         kind: .pitchAccuracy,
         scoreRange: issue.scoreRange,
+        tempoRatio: 0.7,
         handFocus: ScoreHandAssignment(hand: .right, provenance: .heuristic, confidence: 0.8),
         fingerings: [
             MusicXMLFingering(text: "1", hand: .right, provenance: .score),
             MusicXMLFingering(text: "2", hand: .right, provenance: .teacher),
         ],
+        voiceFocus: CoachingVoiceFocus(partID: "P1", staff: 1, voice: 2),
         repeatCount: 1,
+        referenceUse: .score,
         completionCondition: CoachingCompletionCondition(
             target: .dimensionOutcome(dimension: .exactPitch, outcome: .correct)
         )
@@ -60,11 +63,14 @@ func feedbackViewModelPresentsNeutralHandAndFingeringSources() throws {
 
     let presentation = try #require(viewModel.coachingPresentation)
     #expect(presentation.actionLabel.localizedStandardContains("确认音高"))
+    #expect(presentation.actionLabel.localizedStandardContains("速度不高于 70%"))
     #expect(presentation.actionLabel.localizedStandardContains("重复 1 次"))
     #expect(presentation.fingeringText == "1–2")
     #expect(presentation.sourceLabel?.localizedStandardContains("推测") == true)
     #expect(presentation.sourceLabel?.localizedStandardContains("原谱") == true)
     #expect(presentation.sourceLabel?.localizedStandardContains("教师") == true)
+    #expect(presentation.sourceLabel?.localizedStandardContains("声部 2") == true)
+    #expect(presentation.sourceLabel?.localizedStandardContains("当前谱面") == true)
     viewModel.cancel()
     #expect(viewModel.coachingPresentation == nil)
 }
@@ -88,7 +94,7 @@ func coachingDecisionClearsOnGenerationSkipAndSceneInvalidation() {
     #expect(viewModel.practiceSessionViewModel.currentCoachingDecision == nil)
 
     viewModel.practiceSessionViewModel.currentCoachingDecision = decision
-    viewModel.practiceSessionViewModel.skip()
+    viewModel.practiceSessionViewModel.skipCoachingDecisionAndContinue()
     #expect(viewModel.practiceSessionViewModel.currentCoachingDecision == nil)
 
     viewModel.practiceFeedbackViewModel.present(event)
