@@ -195,9 +195,10 @@ final class PracticeAudioRecognitionInputService: PerformanceObservationStreamPr
     }
 
     private func handle(_ evidence: TargetAudioEvidence) {
+        guard stateStore.isAudioRecognitionRunning else { return }
+        guard stateStore.autoplayState == .off else { return }
+        guard stateStore.isManualReplayPlaying == false else { return }
         guard let snapshot = latestSnapshot else { return }
-        guard snapshot.autoplayState == .off else { return }
-        guard snapshot.isManualReplayPlaying == false else { return }
         guard evidence.generation == stateStore.audioRecognitionGeneration else { return }
         publishObservation(for: evidence)
         guard evidence.result != .unknown else {

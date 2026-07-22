@@ -80,6 +80,10 @@ struct ScorePerformanceNoteEvent: Codable, Equatable, Sendable {
     var velocity: UInt8 {
         velocityResolution.velocity
     }
+
+    var performedOccurrenceIndex: Int {
+        performedNoteID.occurrenceIndex
+    }
 }
 
 struct ScorePerformanceTempoEvent: Codable, Equatable, Sendable {

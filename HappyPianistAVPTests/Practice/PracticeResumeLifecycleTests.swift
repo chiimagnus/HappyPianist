@@ -486,7 +486,7 @@ func automaticLoopStopsWhenPassageReachesTarget() {
 
     #expect(session.state == .completed)
     #expect(session.roundGeneration == generation)
-    #expect(session.latestFeedbackEvent?.kind == .passageStable)
+    #expect(session.latestFeedbackEvent?.kind == .passagePitchStepsStable)
 }
 
 @MainActor

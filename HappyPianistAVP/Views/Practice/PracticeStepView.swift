@@ -46,7 +46,10 @@ struct PracticeStepView: View {
         .padding(.vertical, 30)
         .overlay(alignment: .top) {
             if let cue = viewModel.practiceFeedbackViewModel.cue {
-                PracticeFeedbackCueView(event: cue)
+                PracticeFeedbackCueView(
+                    event: cue,
+                    coachingPresentation: viewModel.practiceFeedbackViewModel.coachingPresentation
+                )
                     .transition(.opacity)
                     .accessibilityAddTraits(.updatesFrequently)
             }
@@ -100,7 +103,8 @@ struct PracticeStepView: View {
                     progress: session.sessionProgress,
                     handMode: session.practiceHandMode,
                     currentPassage: session.activeRoundConfiguration?.passage,
-                    currentMeasure: session.measureIndex?.occurrenceID(forStepIndex: session.currentStepIndex)?.sourceMeasureID
+                    currentMeasure: session.measureIndex?.occurrenceID(forStepIndex: session.currentStepIndex)?.sourceMeasureID,
+                    coachingDecision: session.currentCoachingDecision
                 )
             )
             .frame(width: 400, height: practiceViewHeight)
@@ -176,10 +180,16 @@ struct PracticeStepView: View {
             session.setPracticeSettingsPresented(isSettingsPresented)
         }
         .onChange(of: session.latestFeedbackEvent) {
-            viewModel.practiceFeedbackViewModel.present(session.latestFeedbackEvent)
+            viewModel.practiceFeedbackViewModel.present(
+                session.latestFeedbackEvent,
+                coachingDecision: session.currentCoachingDecision
+            )
+            isRoundCompletionAlertPresented = session.state == .completed
+                && session.latestFeedbackEvent != nil
         }
         .onChange(of: session.state, initial: true) { _, state in
             isRoundCompletionAlertPresented = state == .completed
+                && session.latestFeedbackEvent != nil
         }
         .alert(
             "这一轮练习完成",
@@ -269,7 +279,8 @@ struct PracticeStepView: View {
             progress: session.sessionProgress,
             configuration: session.activeRoundConfiguration,
             passageOccurrences: session.activeRange?.measureSpans.map(\.occurrenceID) ?? [],
-            isFullPassage: session.activeRange?.measureSpans.count == session.measureSpans.count
+            isFullPassage: session.activeRange?.measureSpans.count == session.measureSpans.count,
+            coachingDecision: session.currentCoachingDecision
         )
     }
 

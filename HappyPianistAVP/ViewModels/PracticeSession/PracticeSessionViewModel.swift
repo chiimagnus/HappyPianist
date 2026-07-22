@@ -9,6 +9,8 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
         case guiding(Bool)
         case settingsPresented(Bool)
         case checkpoint
+        case configureAnalysis(plan: ScorePerformancePlan, activeTickRange: Range<Int>?)
+        case resetAnalysis
     }
 
     let stateStore: PracticeSessionStateStore
@@ -30,6 +32,7 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
     let progressCoordinator: PracticeProgressCoordinator?
     let sessionRecorder: PracticeSessionRecorder?
     let diagnosticsReporter: (any DiagnosticsReporting)?
+    let coachingDecisionService: CoachingDecisionService
     let feedbackPolicy = PracticeFeedbackPolicy()
 
     var practiceMIDIInputService: PracticeMIDIInputService?
@@ -48,7 +51,8 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
     private(set) var hasShutdown = false
     private(set) var guidingStartIsBlocked = false
     var lastProgressRestoreOutcome: PracticeProgressRestoreOutcome = .none
-    @ObservationIgnored private var sessionRecorderEventTask: Task<Void, Never>?
+    @ObservationIgnored var sessionRecorderEventTask: Task<Void, Never>?
+    @ObservationIgnored var performanceAssessmentLifecycleGeneration = 0
     @ObservationIgnored var autoplayTimelineBuildTask: Task<Void, Never>?
     @ObservationIgnored var autoplayTimelineBuildGeneration = 0
 
@@ -77,6 +81,7 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
         roundDefaultsStore: (any PracticeRoundDefaultsStoreProtocol)? = nil,
         progressCoordinator: PracticeProgressCoordinator? = nil,
         sessionRecorder: PracticeSessionRecorder? = nil,
+        coachingDecisionService: CoachingDecisionService? = nil,
         diagnosticsReporter: (any DiagnosticsReporting)? = nil
     ) {
         stateStore = PracticeSessionStateStore()
@@ -97,6 +102,8 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
         self.settingsProvider = resolvedSettingsProvider
         self.progressCoordinator = progressCoordinator
         self.sessionRecorder = sessionRecorder
+        self.coachingDecisionService = coachingDecisionService
+            ?? CoachingDecisionService(diagnosticsReporter: diagnosticsReporter)
         self.diagnosticsReporter = diagnosticsReporter
         roundConfigurationController = PracticeRoundConfigurationController(
             stateStore: stateStore,
@@ -188,10 +195,29 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
     }
 
     func enqueueSessionRecorderEvent(_ event: SessionRecorderEvent) {
-        guard let sessionRecorder else { return }
+        let resetsCoaching: Bool
+        switch event {
+        case .configureAnalysis:
+            performanceAssessmentLifecycleGeneration += 1
+            self.currentCoachingDecision = nil
+            resetsCoaching = false
+        case .resetAnalysis:
+            performanceAssessmentLifecycleGeneration += 1
+            self.currentCoachingDecision = nil
+            resetsCoaching = true
+        case .guiding, .settingsPresented, .checkpoint:
+            resetsCoaching = false
+        }
+        guard sessionRecorder != nil || resetsCoaching else { return }
         let previousTask = sessionRecorderEventTask
+        let sessionRecorder = sessionRecorder
+        let coachingDecisionService = coachingDecisionService
         sessionRecorderEventTask = Task { @MainActor in
             await previousTask?.value
+            if resetsCoaching {
+                await coachingDecisionService.reset()
+            }
+            guard let sessionRecorder else { return }
             switch event {
             case let .guiding(isGuiding):
                 await sessionRecorder.setGuiding(isGuiding)
@@ -199,12 +225,20 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
                 await sessionRecorder.setSettingsPresented(isPresented)
             case .checkpoint:
                 await sessionRecorder.checkpoint()
+            case let .configureAnalysis(plan, activeTickRange):
+                await sessionRecorder.configureAnalysis(plan: plan, activeTickRange: activeTickRange)
+            case .resetAnalysis:
+                await sessionRecorder.resetAnalysis()
             }
         }
     }
 
     func waitForSessionRecorderEvents() async {
         await sessionRecorderEventTask?.value
+    }
+
+    func performanceAnalysisSnapshot() async -> PracticePerformanceAnalyzerSnapshot? {
+        await sessionRecorder?.analysisSnapshot()
     }
 
     func handle(effect: PracticeSessionEffect) {

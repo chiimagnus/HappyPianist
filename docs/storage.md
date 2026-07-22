@@ -37,13 +37,14 @@ index 文件缺失、零字节或仅包含空白时视为空库，首次 mutatio
 
 ## 练习进度
 
-`progress-v1.json` 是唯一练习事实文件，严格包含必填的 `songs`、`scoreMetadata`、`sessions` 三个数组。前者按 `song UUID + score revision digest` 区分小节事实版本；metadata 按 `song UUID + entry version token + score revision` 记录成功准备时的曲谱结构；session 按稳定 `song UUID` 保留跨 revision 历史。文件不存在表示全新空 store；非空文件缺少任一数组、字段非法或 JSON 损坏都返回 corruption，不保留旧 schema fallback。
+`progress-v1.json` 是唯一练习事实文件。当前 schema version 为 2，严格包含显式 `schemaVersion` 与必填的 `songs`、`scoreMetadata`、`sessions` 三个数组；缺版本的现有文件按 version 1 读取，并在下次写入时升级，未知版本 fail closed。songs 按 `song UUID + score revision digest` 区分小节事实版本；metadata 按 `song UUID + entry version token + score revision` 记录成功准备时的曲谱结构；session 按稳定 `song UUID` 保留跨 revision 历史。文件不存在表示全新空 store；非空文件缺少任一数组、字段非法或 JSON 损坏都返回 corruption。
 
 保存内容：
 
 - active round configuration
 - resume point
 - source-measure facts
+- 小节级 performance maturity、metric summaries、sample counts、rubric version 与 evidence coverage
 - 更新时间
 - 曲谱版本 token、revision、唯一 source measure 总数与准备时间
 - 原始 session identity、开始/结算时间、本地练习日、最后 checkpoint、window/active duration 与 termination

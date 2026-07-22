@@ -18,7 +18,7 @@ func restorationResetCannotBeRevivedByCancelledTask() async {
     let event = PracticeFeedbackEvent(
         sequence: 1,
         sourceMeasureID: nil,
-        kind: .measureStable
+        kind: .measurePitchStepsStable
     )
     renderer.update(event: event, parent: parent, reduceMotion: true)
     renderer.reset()
@@ -33,7 +33,7 @@ func clearingFeedbackEventRemovesRestorationEffect() async {
     let event = PracticeFeedbackEvent(
         sequence: 1,
         sourceMeasureID: nil,
-        kind: .measureStable
+        kind: .measurePitchStepsStable
     )
     renderer.update(event: event, parent: parent, reduceMotion: false)
     renderer.update(event: nil, parent: parent, reduceMotion: false)

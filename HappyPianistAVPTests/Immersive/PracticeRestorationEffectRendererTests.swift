@@ -9,7 +9,7 @@ func restorationRendererResetRemovesEffect() {
     let event = PracticeFeedbackEvent(
         sequence: 1,
         sourceMeasureID: nil,
-        kind: .measureStable
+        kind: .measurePitchStepsStable
     )
     let parent = Entity()
     renderer.update(event: event, parent: parent, reduceMotion: true)

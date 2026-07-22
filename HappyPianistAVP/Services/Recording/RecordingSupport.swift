@@ -215,3 +215,37 @@ struct RecordingTakeSequenceAdapter {
         return try builder.buildSequence(from: schedule)
     }
 }
+
+extension RecordingTake {
+    func alignmentObservations() -> [PerformanceObservation]? {
+        let observations = events.compactMap { event in
+            event.observation?.rebasedForAlignment(at: event.time)
+        }
+        return observations.count == events.count ? observations : nil
+    }
+}
+
+private extension PerformanceObservation {
+    func rebasedForAlignment(at seconds: TimeInterval) -> Self {
+        let instant = PerformanceMonotonicInstant(seconds: seconds)
+        return Self(
+            id: id,
+            source: source,
+            timing: .init(
+                host: instant,
+                source: nil,
+                correctedHost: instant,
+                mapping: nil,
+                provenance: .hostOnly
+            ),
+            event: event,
+            onsetVelocity: onsetVelocity,
+            channel: channel,
+            group: group,
+            hand: hand,
+            finger: finger,
+            confidence: confidence,
+            calibrationReference: calibrationReference
+        )
+    }
+}

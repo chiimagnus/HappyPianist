@@ -105,9 +105,9 @@ struct PracticeAttemptReducer {
                     facts.successfulAttempts += 1
                     facts.consecutiveSuccesses += 1
                     if facts.consecutiveSuccesses >= configuration.requiredSuccesses {
-                        facts.state = .stable
-                        facts.highestStableTempoScale = max(
-                            facts.highestStableTempoScale ?? 0,
+                        facts.state = .pitchStepStable
+                        facts.highestPitchStepStableTempoScale = max(
+                            facts.highestPitchStepStableTempoScale ?? 0,
                             configuration.tempoScale
                         )
                     }
@@ -155,16 +155,46 @@ struct PracticeAttemptReducer {
         reductionState: PracticeAttemptReductionState,
         identity: PracticeSongIdentity,
         configuration: PracticeRoundConfiguration,
-        timestamp: Date
+        timestamp: Date,
+        assessment: PassagePerformanceAssessment? = nil
     ) -> Result {
         var updated = progress ?? emptyProgress(identity: identity, configuration: configuration, timestamp: timestamp)
         updated.activeConfiguration = configuration
         updated.updatedAt = timestamp
+        if let assessment {
+            updated = reducePerformanceAssessment(
+                progress: updated,
+                identity: identity,
+                configuration: configuration,
+                timestamp: timestamp,
+                assessment: assessment
+            )
+        }
         return Result(
             progress: updated,
             reductionState: reductionState,
             fact: .passageCompleted(handMode: configuration.handMode)
         )
+    }
+
+    func reducePerformanceAssessment(
+        progress: SongPracticeProgress,
+        identity: PracticeSongIdentity,
+        configuration: PracticeRoundConfiguration,
+        timestamp: Date,
+        assessment: PassagePerformanceAssessment
+    ) -> SongPracticeProgress {
+        guard progress.identity == identity else { return progress }
+        var updated = progress
+        updated.activeConfiguration = configuration
+        updated.updatedAt = max(progress.updatedAt, timestamp)
+        reducePerformanceMaturity(
+            assessment,
+            handMode: configuration.handMode,
+            timestamp: timestamp,
+            into: &updated
+        )
+        return updated
     }
 
     private func emptyProgress(
@@ -179,13 +209,62 @@ struct PracticeAttemptReducer {
         )
     }
 
-    private func learningState(for facts: MeasurePracticeFacts, tempoScale: Double) -> MeasureLearningState {
-        if let highestStableTempoScale = facts.highestStableTempoScale,
-           highestStableTempoScale >= tempoScale
+    private func learningState(
+        for facts: MeasurePracticeFacts,
+        tempoScale: Double
+    ) -> MeasurePitchStepLearningState {
+        if let highestPitchStepStableTempoScale = facts.highestPitchStepStableTempoScale,
+           highestPitchStepStableTempoScale >= tempoScale
         {
-            return .stable
+            return .pitchStepStable
         }
         return facts.successfulAttempts == 0 && facts.failedAttempts == 0 ? .notStarted : .learning
+    }
+
+    private func reducePerformanceMaturity(
+        _ assessment: PassagePerformanceAssessment,
+        handMode: PracticeHandMode,
+        timestamp: Date,
+        into progress: inout SongPracticeProgress
+    ) {
+        let grouped = Dictionary(grouping: assessment.measures) {
+            $0.occurrenceID.sourceMeasureID
+        }
+        for (sourceMeasureID, assessments) in grouped {
+            let dimensions = PerformanceAssessmentDimensionResult.aggregated(
+                assessments.flatMap(\.dimensions)
+            )
+            guard dimensions.isEmpty == false else { continue }
+            let coverage = PerformanceAssessmentEvidenceCoverage(dimensions: dimensions)
+            let maturity: MeasurePerformanceMaturity
+            if dimensions.allSatisfy({ $0.outcome == .correct }) {
+                maturity = .mature
+            } else if dimensions.contains(where: { $0.outcome == .incorrect }) {
+                maturity = .developing
+            } else {
+                maturity = .insufficientEvidence
+            }
+            let summary = MeasurePerformanceMaturitySummary(
+                maturity: maturity,
+                rubricVersion: assessment.rubricVersion.rawValue,
+                assessedDimensionCount: dimensions.count,
+                sampleCount: dimensions.reduce(0) { $0 + $1.sampleCount },
+                evidenceCoverage: coverage.ratio,
+                metricSummaries: dimensions.map(MeasurePerformanceMetricSummary.init),
+                assessedAt: timestamp
+            )
+            if let index = progress.measureFacts.firstIndex(where: {
+                $0.sourceMeasureID == sourceMeasureID && $0.handMode == handMode
+            }) {
+                progress.measureFacts[index].performanceMaturity = summary
+            } else {
+                progress.measureFacts.append(MeasurePracticeFacts(
+                    sourceMeasureID: sourceMeasureID,
+                    handMode: handMode,
+                    performanceMaturity: summary
+                ))
+            }
+        }
     }
 
     private func stepRange(

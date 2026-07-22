@@ -20,3 +20,22 @@ func matcherAllowsExtraPressedNotesWhenExpectedSubsetMatches() {
     let matcher = StepMatcher()
     #expect(matcher.matches(expectedNotes: [60], pressedNotes: [60, 72]) == true)
 }
+
+@Test
+func matcherSeparatesIncorrectFromInsufficientEvidence() {
+    let matcher = StepMatcher()
+
+    #expect(matcher.outcome(expectedNotes: [60, 64], pressedNotes: []) == .insufficientEvidence)
+    #expect(matcher.outcome(expectedNotes: [60, 64], pressedNotes: [60]) == .insufficientEvidence)
+    #expect(matcher.outcome(expectedNotes: [60, 64], pressedNotes: [59]) == .incorrect)
+    #expect(matcher.outcome(expectedNotes: [60, 64], pressedNotes: [60, 64]) == .correct)
+}
+
+@Test
+func stepAttemptReasonsMapToSharedEvidenceOutcomes() {
+    #expect(StepAttemptMatchResult.matched.evidenceOutcome == .correct)
+    #expect(StepAttemptMatchResult.wrongNote.evidenceOutcome == .incorrect)
+    #expect(StepAttemptMatchResult.missingNotes.evidenceOutcome == .incorrect)
+    #expect(StepAttemptMatchResult.incompleteChord.evidenceOutcome == .incorrect)
+    #expect(StepAttemptMatchResult.insufficientEvidence.evidenceOutcome == .insufficientEvidence)
+}

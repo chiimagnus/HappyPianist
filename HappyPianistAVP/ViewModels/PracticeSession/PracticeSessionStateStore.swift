@@ -25,6 +25,7 @@ final class PracticeSessionStateStore {
     var sessionProgress: SongPracticeProgress?
     var attemptReductionState = PracticeAttemptReductionState()
     var latestFeedbackEvent: PracticeFeedbackEvent?
+    var currentCoachingDecision: CoachingDecision?
     var feedbackEventSequence = 0
     var songIdentity: PracticeSongIdentity?
     var progressGeneration: Int?

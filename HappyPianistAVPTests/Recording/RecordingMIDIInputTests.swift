@@ -388,10 +388,4 @@ func observationReplayDrivesMatcherRecorderAndLegacyCodec() throws {
     #expect(take.metadata.inputSources.map(\.kind) == [.midi1, .midi2])
     #expect(take.metadata.clockMapping?.sourceClockID == "core-midi-host")
     #expect(take.metadata.calibrationVersion == "midi-latency-v1")
-    #expect(fixture.legacyTake.metadata.provenance == .legacy)
-    #expect(fixture.legacyTake.events.map(\.kind) == [
-        .noteOn(midi: 55, velocity: 72),
-        .noteOff(midi: 55),
-    ])
-    #expect(fixture.legacyTake.events.allSatisfy { $0.observation == nil })
 }

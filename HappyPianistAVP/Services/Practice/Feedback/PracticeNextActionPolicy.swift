@@ -1,25 +1,40 @@
+import Foundation
+
 struct PracticeNextActionPolicy {
     private let hotspotPolicy = PracticeHotspotPolicy()
 
     func nextAction(for context: PracticeFeedbackContext) -> PracticeNextAction {
-        guard let hotspot = hotspotPolicy.hotspot(in: context.passageFacts) else {
-            guard PracticePassageCoverage.isStable(
-                facts: context.passageFacts,
-                sourceMeasureIDs: context.passageSourceMeasureIDs
-            ) else {
-                return .continuePassage
+        if let decision = context.coachingDecision {
+            if let tempoRatio = decision.action.tempoRatio,
+               tempoRatio < context.configuration.tempoScale
+            {
+                return .lowerTempo(tempoRatio)
             }
-            return context.isFullPassage ? .keepTempo : .expandPassage
+            if let hotspot = hotspotPolicy.hotspot(for: decision) {
+                return .retryMeasure(hotspot.sourceMeasureID)
+            }
+            return .continuePassage
         }
 
-        if hotspot.failedAttempts >= 2,
-           context.configuration.tempoScale > PracticeRoundConfiguration.supportedTempoRange.lowerBound
-        {
-            return .lowerTempo(max(
-                PracticeRoundConfiguration.supportedTempoRange.lowerBound,
-                context.configuration.tempoScale - 0.1
-            ))
+        if let retrySourceMeasureID = basicRetryMeasure(in: context.passageFacts) {
+            return .retryMeasure(retrySourceMeasureID)
         }
-        return .retryMeasure(hotspot.sourceMeasureID)
+        guard PracticePassageCoverage.hasStablePitchSteps(
+            facts: context.passageFacts,
+            sourceMeasureIDs: context.passageSourceMeasureIDs
+        ) else {
+            return .continuePassage
+        }
+        return context.isFullPassage ? .keepTempo : .expandPassage
+    }
+
+    private func basicRetryMeasure(in facts: [MeasurePracticeFacts]) -> PracticeSourceMeasureID? {
+        facts.enumerated().filter { $0.element.recentIssue != nil }.max { lhs, rhs in
+            if lhs.element.lastAttemptAt != rhs.element.lastAttemptAt {
+                return (lhs.element.lastAttemptAt ?? .distantPast)
+                    < (rhs.element.lastAttemptAt ?? .distantPast)
+            }
+            return lhs.offset < rhs.offset
+        }?.element.sourceMeasureID
     }
 }

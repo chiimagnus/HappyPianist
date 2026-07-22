@@ -68,38 +68,6 @@ func takeStoreSaveAndLoadRoundTrip() throws {
 }
 
 @Test
-func takeStoreDecodesLegacyJSONWithoutDroppingEvents() throws {
-    let documentsURL = try makeTemporaryDirectory(prefix: "RecordingTakeStoreTests")
-    defer { try? FileManager.default.removeItem(at: documentsURL) }
-
-    let fileManager = TestDocumentsFileManager(documentsURL: documentsURL)
-    let paths = RecordingTakeLibraryPaths(fileManager: fileManager)
-    let store = RecordingTakeStore(fileManager: fileManager, paths: paths)
-    try paths.ensureDirectoriesExist()
-    let takeID = try #require(UUID(uuidString: "22222222-2222-2222-2222-222222222222"))
-    let legacy = LegacyRecordingTake(
-        id: takeID,
-        name: "Legacy",
-        createdAt: Date(timeIntervalSince1970: 1_600_000_000),
-        events: [
-            RecordingTakeEvent(time: 0, kind: .noteOn(midi: 60, velocity: 91)),
-            RecordingTakeEvent(time: 0.4, kind: .noteOff(midi: 60)),
-        ]
-    )
-    let encoder = JSONEncoder()
-    encoder.dateEncodingStrategy = .iso8601
-    try encoder.encode([legacy]).write(to: paths.takesFileURL())
-
-    let loaded = try store.load()
-
-    #expect(loaded.count == 1)
-    #expect(loaded[0].schemaVersion == RecordingTake.currentSchemaVersion)
-    #expect(loaded[0].metadata.provenance == .legacy)
-    #expect(loaded[0].metadata.inputSources.first?.id == "legacy-unattributed")
-    #expect(loaded[0].events == legacy.events)
-}
-
-@Test
 func takeStoreRejectsAbsolutePathsAndRawScoreMetadata() throws {
     let documentsURL = try makeTemporaryDirectory(prefix: "RecordingTakeStoreTests")
     defer { try? FileManager.default.removeItem(at: documentsURL) }
@@ -263,13 +231,6 @@ private final class TestDocumentsFileManager: FileManager {
         }
         return super.urls(for: directory, in: domainMask)
     }
-}
-
-private struct LegacyRecordingTake: Encodable {
-    let id: UUID
-    let name: String
-    let createdAt: Date
-    let events: [RecordingTakeEvent]
 }
 
 @Test

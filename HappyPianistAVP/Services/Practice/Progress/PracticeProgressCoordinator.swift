@@ -24,6 +24,12 @@ struct PracticeProgressSession: Equatable {
     let isCurrent: Bool
 }
 
+struct PracticeProgressAssessmentID: Equatable, Hashable, Sendable {
+    let analyzerRoundGeneration: UInt64
+    let planID: ScorePerformancePlanID
+    let sourceGeneration: UInt64
+}
+
 actor PracticeProgressCoordinator {
     private let repository: any PracticeProgressRepositoryProtocol
     private let clock: any PracticeProgressClockProtocol
@@ -36,6 +42,8 @@ actor PracticeProgressCoordinator {
     private var delayedFlushTask: Task<Void, Never>?
     private var saveStatus: PracticeProgressSaveStatus = .idle
     private var lastAcceptedUpdatedAt: Date?
+    private var claimedAssessmentIDs: Set<PracticeProgressAssessmentID> = []
+    private var pendingRevision: UInt64 = 0
 
     init(
         repository: any PracticeProgressRepositoryProtocol,
@@ -53,6 +61,7 @@ actor PracticeProgressCoordinator {
         delayedFlushTask?.cancel()
         delayedFlushTask = nil
         pendingProgress = nil
+        claimedAssessmentIDs.removeAll(keepingCapacity: true)
         currentGeneration += 1
         currentIdentity = identity
         let generation = currentGeneration
@@ -75,6 +84,7 @@ actor PracticeProgressCoordinator {
         timestamped.updatedAt = max(progress.updatedAt, clock.now())
         lastAcceptedUpdatedAt = timestamped.updatedAt
         pendingProgress = timestamped
+        pendingRevision &+= 1
         saveStatus = .pending
 
         delayedFlushTask?.cancel()
@@ -88,6 +98,15 @@ actor PracticeProgressCoordinator {
         }
     }
 
+    func claimAssessment(
+        _ id: PracticeProgressAssessmentID,
+        identity: PracticeSongIdentity,
+        generation: Int
+    ) -> Bool {
+        guard generation == currentGeneration, identity == currentIdentity else { return false }
+        return claimedAssessmentIDs.insert(id).inserted
+    }
+
     @discardableResult
     func flush(generation: Int) async -> PracticeProgressSaveStatus {
         guard generation == currentGeneration else { return saveStatus }
@@ -96,17 +115,22 @@ actor PracticeProgressCoordinator {
         guard let progress = pendingProgress, accepts(progress: progress, generation: generation) else {
             return saveStatus
         }
+        let revision = pendingRevision
 
         do {
             try await repository.upsert(progress)
             guard generation == currentGeneration else { return saveStatus }
-            pendingProgress = nil
-            saveStatus = .saved
+            if pendingRevision == revision {
+                pendingProgress = nil
+                saveStatus = .saved
+            } else {
+                saveStatus = .pending
+            }
         } catch {
             guard generation == currentGeneration else { return saveStatus }
             let message = error.localizedDescription
             let failureStatus = PracticeProgressSaveStatus.failed(message: message)
-            saveStatus = failureStatus
+            saveStatus = pendingRevision == revision ? failureStatus : .pending
             if let diagnosticsReporter {
                 _ = await diagnosticsReporter.record(
                     DiagnosticEvent(
@@ -129,14 +153,20 @@ actor PracticeProgressCoordinator {
 
     @discardableResult
     func finish(generation: Int) async -> PracticeProgressSaveStatus {
-        let status = await flush(generation: generation)
+        var status = await flush(generation: generation)
         guard generation == currentGeneration else { return status }
+        while pendingProgress != nil {
+            if case .failed = status { return status }
+            status = await flush(generation: generation)
+            guard generation == currentGeneration else { return status }
+        }
         if case .failed = status { return status }
         delayedFlushTask?.cancel()
         delayedFlushTask = nil
         currentIdentity = nil
         pendingProgress = nil
         lastAcceptedUpdatedAt = nil
+        claimedAssessmentIDs.removeAll(keepingCapacity: true)
         currentGeneration += 1
         return status
     }
@@ -148,6 +178,7 @@ actor PracticeProgressCoordinator {
         currentIdentity = nil
         pendingProgress = nil
         lastAcceptedUpdatedAt = nil
+        claimedAssessmentIDs.removeAll(keepingCapacity: true)
         saveStatus = .idle
         currentGeneration += 1
     }

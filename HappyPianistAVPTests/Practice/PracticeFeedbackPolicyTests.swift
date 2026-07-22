@@ -50,12 +50,12 @@ private extension PracticeIssueKind {
 }
 
 @Test
-func measureStableUsesSourceAndHandCompositeIdentity() {
+func measurePitchStepStabilityUsesSourceAndHandCompositeIdentity() {
     let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r")
     let id = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 0)
-    let left = MeasurePracticeFacts(sourceMeasureID: id, handMode: .left, state: .stable)
+    let left = MeasurePracticeFacts(sourceMeasureID: id, handMode: .left, state: .pitchStepStable)
     let rightLearning = MeasurePracticeFacts(sourceMeasureID: id, handMode: .right, state: .learning)
-    let rightStable = MeasurePracticeFacts(sourceMeasureID: id, handMode: .right, state: .stable)
+    let rightStable = MeasurePracticeFacts(sourceMeasureID: id, handMode: .right, state: .pitchStepStable)
     let previous = SongPracticeProgress(identity: identity, measureFacts: [left, rightLearning], updatedAt: .now)
     let current = SongPracticeProgress(identity: identity, measureFacts: [left, rightStable], updatedAt: .now)
     let events = PracticeFeedbackPolicy().events(
@@ -65,7 +65,7 @@ func measureStableUsesSourceAndHandCompositeIdentity() {
         eventSequence: 1,
         passageSourceMeasureIDs: [id]
     )
-    #expect(events.map(\.kind) == [.measureStable])
+    #expect(events.map(\.kind) == [.measurePitchStepsStable])
 }
 
 @Test
@@ -77,8 +77,8 @@ func passageCompletionUsesResolvedOccurrenceSourceIDs() {
     let progress = SongPracticeProgress(
         identity: identity,
         measureFacts: [
-            MeasurePracticeFacts(sourceMeasureID: source0, handMode: .both, state: .stable),
-            MeasurePracticeFacts(sourceMeasureID: source6, handMode: .both, state: .stable),
+            MeasurePracticeFacts(sourceMeasureID: source0, handMode: .both, state: .pitchStepStable),
+            MeasurePracticeFacts(sourceMeasureID: source6, handMode: .both, state: .pitchStepStable),
             MeasurePracticeFacts(sourceMeasureID: unrelated, handMode: .both, state: .learning),
         ],
         updatedAt: .now
@@ -92,7 +92,7 @@ func passageCompletionUsesResolvedOccurrenceSourceIDs() {
         passageSourceMeasureIDs: [source6, source0]
     )
 
-    #expect(events.map(\.kind) == [.passageStable])
+    #expect(events.map(\.kind) == [.passagePitchStepsStable])
 }
 
 @Test
@@ -102,7 +102,7 @@ func passageCompletionRequiresEveryExpectedMeasure() {
     let second = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 1)
     let progress = SongPracticeProgress(
         identity: identity,
-        measureFacts: [MeasurePracticeFacts(sourceMeasureID: first, handMode: .both, state: .stable)],
+        measureFacts: [MeasurePracticeFacts(sourceMeasureID: first, handMode: .both, state: .pitchStepStable)],
         updatedAt: .now
     )
 
@@ -114,6 +114,97 @@ func passageCompletionRequiresEveryExpectedMeasure() {
         passageSourceMeasureIDs: [first, second]
     )
     #expect(events.map(\.kind) == [.roundSummaryReady])
+}
+
+@Test
+func passageCompletionPresentsCoachingDecisionInsteadOfParallelStableCue() {
+    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r")
+    let source = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 0)
+    let progress = SongPracticeProgress(
+        identity: identity,
+        measureFacts: [MeasurePracticeFacts(
+            sourceMeasureID: source,
+            handMode: .both,
+            state: .pitchStepStable
+        )],
+        updatedAt: .now
+    )
+
+    let events = PracticeFeedbackPolicy().events(
+        for: .passageCompleted(handMode: .both),
+        previousProgress: progress,
+        progress: progress,
+        eventSequence: 1,
+        passageSourceMeasureIDs: [source],
+        coachingDecision: feedbackDecision(source: source)
+    )
+
+    #expect(events.map(\.kind) == [.roundSummaryReady])
+}
+
+@Test
+func uncertainPitchCoachingRequestsEvidenceAndSuppressesFalseWrongNoteCue() throws {
+    let source = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 0)
+    let progress = SongPracticeProgress(
+        identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "r"),
+        updatedAt: .now
+    )
+    let policy = CoachingPriorityPolicy()
+
+    for candidate in [
+        uncertainPitchDecision(source: source, confidence: 0.5, evidenceStatus: .observed),
+        uncertainPitchDecision(source: source, confidence: 0.9, evidenceStatus: .insufficient),
+    ] {
+        let decision = try #require(policy.primaryDecision(from: [candidate]))
+        #expect(decision.issue.kind == .evidence)
+        #expect(decision.action.kind == .evidenceCheck)
+        #expect(decision.action.completionCondition.target == .evidenceAvailable(dimension: .exactPitch))
+        #expect(PracticeFeedbackPolicy().events(
+            for: .attemptIssue(sourceMeasureID: source, issue: .wrongNote),
+            previousProgress: progress,
+            progress: progress,
+            eventSequence: 1,
+            passageSourceMeasureIDs: [source],
+            coachingDecision: decision
+        ).isEmpty)
+    }
+}
+
+@Test
+func evidenceCheckDoesNotHideUnrelatedRetryAndEmptyRangeIsNotActionable() {
+    let source = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 0)
+    let progress = SongPracticeProgress(
+        identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "r"),
+        updatedAt: .now
+    )
+    let pedalDecision = CoachingDecision(
+        issue: evidenceIssue(source: source, dimension: .pedalTiming, scoreRange: 0 ..< 480),
+        action: CoachingAction(
+            kind: .evidenceCheck,
+            scoreRange: 0 ..< 480,
+            repeatCount: 1,
+            completionCondition: CoachingCompletionCondition(
+                target: .evidenceAvailable(dimension: .pedalTiming)
+            )
+        )
+    )
+    let events = PracticeFeedbackPolicy().events(
+        for: .attemptIssue(sourceMeasureID: source, issue: .wrongNote),
+        previousProgress: progress,
+        progress: progress,
+        eventSequence: 1,
+        passageSourceMeasureIDs: [source],
+        coachingDecision: pedalDecision
+    )
+    #expect(events.map(\.kind) == [.retryInvitation(issue: .wrongNote)])
+
+    let emptyRange = uncertainPitchDecision(
+        source: source,
+        confidence: 1,
+        evidenceStatus: .observed,
+        scoreRange: 0 ..< 0
+    )
+    #expect(CoachingPriorityPolicy().primaryDecision(from: [emptyRange]) == nil)
 }
 
 @Test
@@ -137,4 +228,67 @@ func repeatedIssueEventsHaveDistinctSequenceIdentity() {
         passageSourceMeasureIDs: [source]
     )
     #expect(first != second)
+}
+
+private func uncertainPitchDecision(
+    source: PracticeSourceMeasureID,
+    confidence: Double,
+    evidenceStatus: PerformanceAssessmentEvidenceStatus,
+    scoreRange: Range<Int> = 0 ..< 480
+) -> CoachingDecision {
+    let issue = MusicalIssue(
+        kind: .pitch,
+        scoreRange: scoreRange,
+        measureOccurrenceIDs: [PracticeMeasureOccurrenceID(sourceMeasureID: source, occurrenceIndex: 0)],
+        dimensionResults: [PerformanceAssessmentDimensionResult(
+            dimension: .exactPitch,
+            outcome: .incorrect,
+            evidenceStatus: evidenceStatus,
+            sampleCount: 1,
+            confidence: confidence,
+            evidence: []
+        )],
+        confidence: confidence,
+        provenance: MusicalIssueProvenance(
+            planID: ScorePerformancePlanID(rawValue: "feedback-test"),
+            sourceGeneration: 1,
+            rubricVersion: .capabilityAware
+        )
+    )
+    return CoachingDecision(
+        issue: issue,
+        action: CoachingAction(
+            kind: .pitchAccuracy,
+            scoreRange: scoreRange,
+            repeatCount: 1,
+            completionCondition: CoachingCompletionCondition(
+                target: .dimensionOutcome(dimension: .exactPitch, outcome: .correct)
+            )
+        )
+    )
+}
+
+private func evidenceIssue(
+    source: PracticeSourceMeasureID,
+    dimension: PerformanceAssessmentDimension,
+    scoreRange: Range<Int>
+) -> MusicalIssue {
+    MusicalIssue(
+        kind: .evidence,
+        scoreRange: scoreRange,
+        measureOccurrenceIDs: [PracticeMeasureOccurrenceID(sourceMeasureID: source, occurrenceIndex: 0)],
+        dimensionResults: [PerformanceAssessmentDimensionResult(
+            dimension: dimension,
+            outcome: .insufficientEvidence,
+            evidenceStatus: .insufficient,
+            sampleCount: 0,
+            evidence: []
+        )],
+        confidence: nil,
+        provenance: MusicalIssueProvenance(
+            planID: ScorePerformancePlanID(rawValue: "feedback-test"),
+            sourceGeneration: 1,
+            rubricVersion: .capabilityAware
+        )
+    )
 }

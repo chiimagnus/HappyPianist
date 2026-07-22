@@ -4,7 +4,7 @@ import Testing
 
 @Suite("Practice attempt reducer")
 struct PracticeAttemptReducerTests {
-    @Test func stableRequiresConfiguredConsecutiveSuccessfulMeasurePasses() throws {
+    @Test func pitchStepStabilityRequiresConfiguredConsecutiveSuccessfulMeasurePasses() throws {
         let fixture = try Fixture(requiredSuccesses: 2)
         let reducer = PracticeAttemptReducer()
         var progress: SongPracticeProgress?
@@ -41,8 +41,9 @@ struct PracticeAttemptReducerTests {
         let facts = try #require(progress?.measureFacts.first)
         #expect(facts.successfulAttempts == 2)
         #expect(facts.consecutiveSuccesses == 2)
-        #expect(facts.state == .stable)
-        #expect(facts.highestStableTempoScale == 0.6)
+        #expect(facts.state == .pitchStepStable)
+        #expect(facts.highestPitchStepStableTempoScale == 0.6)
+        #expect(facts.performanceMaturity == nil)
     }
 
     @Test func failureResetsStreakAndDoesNotEraseHistoricalSuccess() throws {
@@ -141,15 +142,15 @@ struct PracticeAttemptReducerTests {
         #expect(progress?.measureFacts.first?.recentIssue == nil)
     }
 
-    @Test func partialMatchDoesNotDowngradeStableMeasure() throws {
+    @Test func partialMatchDoesNotDowngradePitchStepStableMeasure() throws {
         let fixture = try Fixture(requiredSuccesses: 2)
         let reducer = PracticeAttemptReducer()
         let stable = MeasurePracticeFacts(
             sourceMeasureID: fixture.configuration.passage.start.sourceMeasureID,
             handMode: .right,
-            state: .stable,
+            state: .pitchStepStable,
             consecutiveSuccesses: 2,
-            highestStableTempoScale: 0.6
+            highestPitchStepStableTempoScale: 0.6
         )
         let progress = SongPracticeProgress(
             identity: fixture.identity,
@@ -167,7 +168,7 @@ struct PracticeAttemptReducerTests {
             measureIndex: fixture.measureIndex,
             timestamp: .now
         )
-        #expect(partial.progress.measureFacts.first?.state == .stable)
+        #expect(partial.progress.measureFacts.first?.state == .pitchStepStable)
 
         let failed = reducer.reduceAttempt(
             progress: partial.progress,
@@ -201,7 +202,7 @@ struct PracticeAttemptReducerTests {
         #expect(result.fact == nil)
     }
 
-    @Test func tempoChangeStartsANewStableStreak() throws {
+    @Test func tempoChangeStartsANewPitchStepStabilityStreak() throws {
         let fixture = try Fixture(requiredSuccesses: 2)
         let reducer = PracticeAttemptReducer()
         var progress: SongPracticeProgress?
@@ -250,6 +251,134 @@ struct PracticeAttemptReducerTests {
         #expect(facts.successfulAttempts == 2)
         #expect(facts.consecutiveSuccesses == 1)
         #expect(facts.state == .learning)
+    }
+
+    @Test func passageAssessmentUpdatesMaturityWithoutChangingPitchStepState() throws {
+        let fixture = try Fixture(requiredSuccesses: 2)
+        let sourceMeasureID = fixture.configuration.passage.start.sourceMeasureID
+        let progress = SongPracticeProgress(
+            identity: fixture.identity,
+            activeConfiguration: fixture.configuration,
+            measureFacts: [MeasurePracticeFacts(
+                sourceMeasureID: sourceMeasureID,
+                handMode: .right,
+                state: .pitchStepStable,
+                consecutiveSuccesses: 2,
+                highestPitchStepStableTempoScale: 0.6
+            )],
+            updatedAt: .now
+        )
+        let pitch = PerformanceAssessmentDimensionResult(
+            dimension: .exactPitch,
+            outcome: .correct,
+            evidenceStatus: .observed,
+            measurement: PerformanceAssessmentMeasurement(value: 1, unit: .ratio),
+            sampleCount: 2,
+            evidence: []
+        )
+        let assessment = PassagePerformanceAssessment(
+            planID: .init(rawValue: "assessment-plan"),
+            sourceGeneration: 1,
+            tickRange: 0 ..< 960,
+            rubricVersion: .capabilityAware,
+            dimensions: [pitch],
+            measures: [.init(
+                occurrenceID: fixture.configuration.passage.start,
+                tickRange: 0 ..< 960,
+                dimensions: [pitch]
+            )]
+        )
+        let timestamp = Date(timeIntervalSince1970: 100)
+
+        let result = PracticeAttemptReducer().reducePassageCompletion(
+            progress: progress,
+            reductionState: .init(),
+            identity: fixture.identity,
+            configuration: fixture.configuration,
+            timestamp: timestamp,
+            assessment: assessment
+        )
+        let facts = try #require(result.progress.measureFacts.first)
+
+        #expect(facts.state == .pitchStepStable)
+        #expect(facts.performanceMaturity?.maturity == .mature)
+        #expect(facts.performanceMaturity?.rubricVersion == "performance-assessment-v2")
+        #expect(facts.performanceMaturity?.assessedDimensionCount == 1)
+        #expect(facts.performanceMaturity?.sampleCount == 2)
+        #expect(facts.performanceMaturity?.evidenceCoverage == 1)
+        #expect(facts.performanceMaturity?.assessedAt == timestamp)
+    }
+
+    @Test func repeatedMeasureOccurrencesProduceOneConservativeMetricSummary() throws {
+        let fixture = try Fixture(requiredSuccesses: 2)
+        let sourceMeasureID = fixture.configuration.passage.start.sourceMeasureID
+        let correct = PerformanceAssessmentDimensionResult(
+            dimension: .exactPitch,
+            outcome: .correct,
+            evidenceStatus: .observed,
+            measurement: PerformanceAssessmentMeasurement(value: 0.5, unit: .ratio),
+            sampleCount: 2,
+            confidence: 0.8,
+            evidence: []
+        )
+        let incorrect = PerformanceAssessmentDimensionResult(
+            dimension: .exactPitch,
+            outcome: .incorrect,
+            evidenceStatus: .degraded,
+            measurement: PerformanceAssessmentMeasurement(value: 0.75, unit: .ratio),
+            sampleCount: 6,
+            confidence: 0.4,
+            evidence: []
+        )
+        let assessment = PassagePerformanceAssessment(
+            planID: .init(rawValue: "assessment-plan"),
+            sourceGeneration: 1,
+            tickRange: 0 ..< 1920,
+            rubricVersion: .capabilityAware,
+            dimensions: [incorrect],
+            measures: [
+                .init(
+                    occurrenceID: .init(sourceMeasureID: sourceMeasureID, occurrenceIndex: 0),
+                    tickRange: 0 ..< 960,
+                    dimensions: [correct]
+                ),
+                .init(
+                    occurrenceID: .init(sourceMeasureID: sourceMeasureID, occurrenceIndex: 1),
+                    tickRange: 960 ..< 1920,
+                    dimensions: [incorrect]
+                ),
+            ]
+        )
+        let progress = SongPracticeProgress(identity: fixture.identity, updatedAt: .distantPast)
+
+        let reduced = PracticeAttemptReducer().reducePerformanceAssessment(
+            progress: progress,
+            identity: fixture.identity,
+            configuration: fixture.configuration,
+            timestamp: .now,
+            assessment: assessment
+        )
+        let maturity = try #require(reduced.measureFacts.first?.performanceMaturity)
+        let metric = try #require(maturity.metricSummaries.first)
+
+        #expect(maturity.maturity == .developing)
+        #expect(maturity.assessedDimensionCount == 1)
+        #expect(maturity.sampleCount == 8)
+        #expect(maturity.metricSummaries.count == 1)
+        #expect(metric.dimension == .exactPitch)
+        #expect(metric.outcome == .incorrect)
+        #expect(metric.evidenceStatus == .degraded)
+        #expect(metric.measurement?.value == 0.6875)
+        #expect(metric.confidence == 0.5)
+    }
+
+    @Test func legacyStableTokenDecodesOnlyAsPitchStepStability() throws {
+        let state = try JSONDecoder().decode(
+            MeasurePitchStepLearningState.self,
+            from: Data("\"stable\"".utf8)
+        )
+
+        #expect(state == .pitchStepStable)
     }
 }
 

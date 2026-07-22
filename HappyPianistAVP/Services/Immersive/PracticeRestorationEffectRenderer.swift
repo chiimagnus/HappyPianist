@@ -21,9 +21,11 @@ final class PracticeRestorationEffectRenderer {
         }
         guard let event, event.kind.isRestorationEffect else { return }
         reset(clearEvent: false)
-        var material = UnlitMaterial(color: event.kind.isStable ? .systemYellow : .systemTeal)
+        var material = UnlitMaterial(
+            color: event.kind.representsPitchStepStability ? .systemYellow : .systemTeal
+        )
         material.blending = .transparent(opacity: .init(floatLiteral: reduceMotion ? 0.35 : 0.65))
-        let mesh: MeshResource = event.kind.isStable
+        let mesh: MeshResource = event.kind.representsPitchStepStability
             ? .generateSphere(radius: 0.025)
             : .generateBox(size: SIMD3<Float>(0.12, 0.002, 0.025))
         let effect = ModelEntity(mesh: mesh, materials: [material])
@@ -51,11 +53,14 @@ final class PracticeRestorationEffectRenderer {
 }
 
 private extension PracticeFeedbackEventKind {
-    var isStable: Bool {
-        switch self { case .measureStable, .passageStable: true; default: false }
+    var representsPitchStepStability: Bool {
+        switch self {
+        case .measurePitchStepsStable, .passagePitchStepsStable: true
+        default: false
+        }
     }
 
     var isRestorationEffect: Bool {
-        switch self { case .retryInvitation, .measureStable: true; default: false }
+        switch self { case .retryInvitation, .measurePitchStepsStable: true; default: false }
     }
 }

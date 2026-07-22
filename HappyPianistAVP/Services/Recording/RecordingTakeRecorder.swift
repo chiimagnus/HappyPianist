@@ -374,6 +374,8 @@ struct RecordingTakeRecorder {
             event: .noteOff(note: midi, releaseVelocity: nil),
             channel: observation.channel,
             group: observation.group,
+            hand: observation.hand,
+            finger: observation.finger,
             calibrationReference: observation.calibrationReference
         )
     }

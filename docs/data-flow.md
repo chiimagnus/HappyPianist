@@ -172,6 +172,20 @@ active range 同时约束：
 
 输入统一携带 source/capabilities、host 单调时间、可选 source clock mapping、channel/group、confidence 与 calibration reference；matcher、录音和后续评价只消费这一份 observation，不从 wall clock 或降精度回放事件反推证据。音频 host 时间取自 microphone tap 的采集时间并贯穿频谱、证据与 observation，异步处理时间不得覆盖它；音频只表达目标集合 detected/contradicted/mixed/unknown，不伪装成逐音多声部事件。
 
+演奏对齐保持一条 transient 数据流：
+
+```text
+ScorePerformancePlan + active tick range
+                       +
+typed user PerformanceObservation
+-> PracticeSessionRecorder
+-> PracticePerformanceAnalyzer
+-> bounded IncrementalPerformanceAligner
+-> PerformanceAlignment snapshot + system-only aggregate diagnostics
+```
+
+同一输入 source 的 generation 变化会被当前 round 拒绝，不同 source 各自维护 generation；system playback 不进入用户演奏对齐。stop、round change、取消和 teardown 结束或重置 analyzer。alignment 的 score/observation references、candidate evidence、provisional/ambiguous/unknown 只供即时分析与录音 replay，不写入 `SongPracticeProgress`、`PracticeSessionRecord` 或进度 JSON。
+
 手部 producer 只发布 typed snapshot；只有 thumb 到 little 五指可进入 contact、press cooldown 与 chord window，palm 仅保留为手势/活动上下文且不得产生命中。逐指 contact 的 started、held、ended 共享稳定 identity，并保留 hand、finger、host 单调时间、置信度、位置、键面距离、法向速度与 calibration ID；法向速度/加速度按 host 单调 delta-time 计算，异常间隔、tracking jump、低置信度与 tracking loss 会使该指证据 unknown/reset，不再比较相邻 frame 位移。每指独立去抖/重触发，同键多指只在首个 contact 开始和最后一个 contact 结束时改变物理输出。录音投影不得用后续 wall/uptime 采样覆盖事件时间。placement/calibration identity 变化先结束全部旧 contact，再重建 hit-test index；每帧仅查询相邻候选键。CoreMIDI 缓冲溢出会发布 All Notes Off，统一复位 matcher、AI 持音上下文，并只关闭录音中同 source/group/channel 的开放音符。自动播放、手动回放、AI 输出、paused、suspended 与非 guiding 状态不会生成用户 attempt。
 
 ## 练习事实与恢复
@@ -197,6 +211,7 @@ flowchart LR
 
 - `PracticeStep` 是即时判定单位。
 - source measure 是持久化学习单位。
+- 每个 passage round 在输入停止后结束 analyzer generation；完整 assessment 由当前 progress generation 认领一次并归约为小节 maturity/metric summaries，循环下一轮只在该边界完成后重启输入。取消、换谱与过期 generation 的结果直接丢弃。
 - `PracticeSessionRecorder` 由 `LiveAppGraph` 按 window visit 持有，跨 session ViewModel replacement 复用；首次真实 `ready -> guiding` 才写入一条会话事实，同一窗口多轮不增加次数。
 - recorder 使用单调时钟累计 window duration 与 active duration；后者仅覆盖 scene active、guiding、设置未展示的区间。首次 guiding、guiding/settings/scene 边界、round 结束与退出立即 checkpoint，连续 guiding 最多每 30 秒一次。
 - 显式返回必须先等待 progress flush，再终结 session recorder；任一步失败都留在 Practice，用户可确认只放弃尚未保存的增量。recorder 成功终结后只提交无 IO 的内存清理，不再复用启动前可失败的 progress clear。系统关闭走独立 best-effort finalize，不触发返回窗口导航。
@@ -213,19 +228,26 @@ flowchart LR
 
 ```mermaid
 flowchart LR
-  A[typed attempt] --> B[Feedback Event]
-  C[Measure Facts] --> D[Hotspot Policy]
-  D --> E[One Next Action]
-  B --> F[Non-modal Cue]
-  B --> G[RealityKit Restoration Effect]
-  C --> H[Round Summary]
-  C --> I[Measure Map]
+  A[typed attempt] --> B[Assessment]
+  B --> C[Coaching Decision]
+  C --> D[One Next Action]
+  D -->|accepted| E[Next assessment]
+  E --> F[Anonymous before/after metric]
+  B --> G[Measure Facts]
+  G --> H[Progress JSON]
+  A --> I[Feedback Event]
+  I --> J[Non-modal Cue]
+  I --> K[RealityKit Restoration Effect]
+  G --> L[Round Summary]
+  G --> M[Measure Map]
 ```
 
 反馈是事实的派生表现：
 
 - 一次只选择一个主要卡点和一个下一步。
 - 无证据时不制造问题。
+- 执行建议只记录匿名 decision accepted；只有下一轮 assessment 才用同一 ID 关联聚合 before/after metric 并判断 completion，点击本身不代表改善。诊断不含逐音事件、原谱正文或输入 payload。
+- assessment 只把安全的小节 maturity/metric summaries 归约为 measure facts；coaching decision 与其测量关联只存在于当前运行期。
 - cue、summary、map 与空间效果不写入 progress JSON。
 - 换曲、restart、进入后台、关闭窗口和退出沉浸空间会清理反馈 presentation。
 

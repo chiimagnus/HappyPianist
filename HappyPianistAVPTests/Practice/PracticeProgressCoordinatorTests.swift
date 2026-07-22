@@ -30,6 +30,36 @@ func progressCoordinatorCoalescesCheckpointsAndFlushesLatestValue() async {
 }
 
 @Test
+func progressCoordinatorKeepsCheckpointArrivingDuringAnInflightFlush() async {
+    let repository = SuspendedUpsertPracticeProgressRepository()
+    let clock = FixedPracticeProgressClock(date: Date(timeIntervalSince1970: 200))
+    let coordinator = PracticeProgressCoordinator(
+        repository: repository,
+        clock: clock,
+        checkpointDelay: .seconds(60)
+    )
+    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
+    let session = await coordinator.begin(identity: identity)
+    var first = SongPracticeProgress(identity: identity, updatedAt: clock.date)
+    first.measureFacts = [makeFacts(successes: 1)]
+    var second = first
+    second.measureFacts = [makeFacts(successes: 2)]
+
+    await coordinator.checkpoint(first, generation: session.generation)
+    async let firstStatus = coordinator.flush(generation: session.generation)
+    await repository.waitForUpsert(count: 1)
+    await coordinator.checkpoint(second, generation: session.generation)
+    await repository.resumeUpsert(at: 0)
+    #expect(await firstStatus == .pending)
+
+    async let secondStatus = coordinator.flush(generation: session.generation)
+    await repository.waitForUpsert(count: 2)
+    await repository.resumeUpsert(at: 1)
+    #expect(await secondStatus == .saved)
+    #expect(await repository.progress(for: identity)?.measureFacts.first?.successfulAttempts == 2)
+}
+
+@Test
 func progressCoordinatorDiscardsLateGenerationWrites() async {
     let repository = InMemoryPracticeProgressRepository()
     let coordinator = PracticeProgressCoordinator(
@@ -49,6 +79,44 @@ func progressCoordinatorDiscardsLateGenerationWrites() async {
 
     #expect(await repository.progress(for: firstIdentity) == nil)
     #expect(await repository.upsertCount == 0)
+}
+
+@Test
+func progressCoordinatorClaimsEachAssessmentOncePerCurrentGeneration() async {
+    let repository = InMemoryPracticeProgressRepository()
+    let coordinator = PracticeProgressCoordinator(repository: repository)
+    let identity = PracticeSongIdentity(songID: UUID(), scoreRevision: "r1")
+    let firstSession = await coordinator.begin(identity: identity)
+    let assessmentID = PracticeProgressAssessmentID(
+        analyzerRoundGeneration: 7,
+        planID: .init(rawValue: "plan"),
+        sourceGeneration: 3
+    )
+
+    #expect(await coordinator.claimAssessment(
+        assessmentID,
+        identity: identity,
+        generation: firstSession.generation
+    ))
+    #expect(await coordinator.claimAssessment(
+        assessmentID,
+        identity: identity,
+        generation: firstSession.generation
+    ) == false)
+
+    await coordinator.discardPendingProgress(generation: firstSession.generation)
+    #expect(await coordinator.claimAssessment(
+        assessmentID,
+        identity: identity,
+        generation: firstSession.generation
+    ) == false)
+
+    let resumedSession = await coordinator.begin(identity: identity)
+    #expect(await coordinator.claimAssessment(
+        assessmentID,
+        identity: identity,
+        generation: resumedSession.generation
+    ))
 }
 
 @Test
@@ -310,6 +378,49 @@ private actor SuspendedPracticeProgressRepository: PracticeProgressRepositoryPro
     }
 
     func upsert(_: SongPracticeProgress) {}
+    func upsert(_: SongScorePracticeMetadata) {}
+    func remove(songID _: UUID) {}
+}
+
+private actor SuspendedUpsertPracticeProgressRepository: PracticeProgressRepositoryProtocol {
+    private var values: [PracticeSongIdentity: SongPracticeProgress] = [:]
+    private var requests: [SongPracticeProgress] = []
+    private var continuations: [Int: CheckedContinuation<Void, Never>] = [:]
+
+    func load() -> PracticeProgressLoadResult {
+        .loaded(PracticeProgressDocument(songs: Array(values.values)))
+    }
+
+    func progress(for identity: PracticeSongIdentity) -> SongPracticeProgress? {
+        values[identity]
+    }
+
+    func history(for songID: UUID) -> PracticeSongHistoryLoadResult {
+        .loaded(PracticeSongHistory(
+            songID: songID,
+            progresses: values.values.filter { $0.identity.songID == songID },
+            scoreMetadata: [],
+            sessions: []
+        ))
+    }
+
+    func upsert(_ progress: SongPracticeProgress) async {
+        let index = requests.count
+        requests.append(progress)
+        await withCheckedContinuation { continuations[index] = $0 }
+        values[progress.identity] = progress
+    }
+
+    func waitForUpsert(count: Int) async {
+        while requests.count < count {
+            await Task.yield()
+        }
+    }
+
+    func resumeUpsert(at index: Int) {
+        continuations.removeValue(forKey: index)?.resume()
+    }
+
     func upsert(_: SongScorePracticeMetadata) {}
     func remove(songID _: UUID) {}
 }

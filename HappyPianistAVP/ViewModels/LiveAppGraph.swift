@@ -56,9 +56,13 @@ struct LiveAppGraph {
             store: diagnosticsStore,
             exporter: diagnosticsExporter
         )
+        let performanceAnalyzer = PracticePerformanceAnalyzer(
+            diagnosticsReporter: diagnosticsReporter
+        )
         let practiceSessionRecorder = PracticeSessionRecorder(
             repository: progressRepository,
-            diagnosticsReporter: diagnosticsReporter
+            diagnosticsReporter: diagnosticsReporter,
+            performanceAnalyzer: performanceAnalyzer
         )
         let importTransactionService = SongLibraryImportTransactionService(
             indexStore: songLibraryIndexStore,

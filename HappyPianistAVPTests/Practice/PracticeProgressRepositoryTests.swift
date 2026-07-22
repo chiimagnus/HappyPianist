@@ -59,6 +59,189 @@ func progressRepositoryReturnsEmptyOnFirstRunAndRoundTrips() async throws {
     #expect(await repository.progress(for: progress.identity) == progress)
 }
 
+@Test
+func progressRepositoryPersistsOnlyMeasureAssessmentSummaries() async throws {
+    let (repository, directory) = try makeRepositoryFixture()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let paths = PracticeProgressPaths(rootDirectoryURL: directory)
+    let progress = makeProgress()
+    let sourceMeasureID = PracticeSourceMeasureID(
+        partID: "P1",
+        sourceMeasureIndex: 0,
+        sourceNumberToken: "1"
+    )
+    let occurrenceID = PracticeMeasureOccurrenceID(
+        sourceMeasureID: sourceMeasureID,
+        occurrenceIndex: 0
+    )
+    let passage = try #require(PracticePassage(start: occurrenceID, end: occurrenceID))
+    let configuration = PracticeRoundConfiguration(
+        passage: passage,
+        handMode: .right,
+        tempoScale: 1,
+        loopEnabled: false,
+        requiredSuccesses: 1
+    )
+    let observationID = UUID()
+    let dimension = PerformanceAssessmentDimensionResult(
+        dimension: .exactPitch,
+        outcome: .incorrect,
+        evidenceStatus: .observed,
+        measurement: PerformanceAssessmentMeasurement(value: 0.75, unit: .ratio),
+        sampleCount: 4,
+        confidence: 0.8,
+        evidence: [.unmatchedObservation(observationID: observationID)]
+    )
+    let assessment = PassagePerformanceAssessment(
+        planID: .init(rawValue: "must-not-persist"),
+        sourceGeneration: 42,
+        tickRange: 0 ..< 480,
+        rubricVersion: .capabilityAware,
+        dimensions: [dimension],
+        measures: [.init(
+            occurrenceID: occurrenceID,
+            tickRange: 0 ..< 480,
+            dimensions: [dimension]
+        )]
+    )
+    let reduced = PracticeAttemptReducer().reducePassageCompletion(
+        progress: progress,
+        reductionState: .init(),
+        identity: progress.identity,
+        configuration: configuration,
+        timestamp: Date(timeIntervalSince1970: 200),
+        assessment: assessment
+    )
+
+    try await repository.upsert(reduced.progress)
+
+    let data = try Data(contentsOf: paths.fileURL)
+    let root = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+    #expect(root["schemaVersion"] as? Int == PracticeProgressDocument.currentSchemaVersion)
+    let songs = try #require(root["songs"] as? [[String: Any]])
+    let facts = try #require(songs.first?["measureFacts"] as? [[String: Any]])
+    let maturity = try #require(facts.first?["performanceMaturity"] as? [String: Any])
+    let metrics = try #require(maturity["metricSummaries"] as? [[String: Any]])
+    #expect(Set(metrics[0].keys) == [
+        "dimension", "outcome", "evidenceStatus", "measurement", "sampleCount", "confidence",
+    ])
+    #expect(metrics[0]["sampleCount"] as? Int == 4)
+    #expect(metrics[0]["confidence"] as? Double == 0.8)
+    #expect(allJSONKeys(in: root).isDisjoint(with: [
+        "alignment", "coachingAction", "coachingDecision", "cue", "evidence", "feedback",
+        "observationID", "planID", "sourceGeneration", "summary", "targetProfile",
+        "teacherPrompt", "tickRange", "toleranceProfile", "visuals",
+    ]))
+    #expect(String(decoding: data, as: UTF8.self).contains(observationID.uuidString) == false)
+    #expect(await repository.progress(for: progress.identity) == reduced.progress)
+}
+
+@Test
+func progressRepositoryDropsInjectedDerivedCoachingStateOnRewrite() async throws {
+    let (repository, directory) = try makeRepositoryFixture()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let paths = PracticeProgressPaths(rootDirectoryURL: directory)
+    let progress = makeProgress()
+    try await repository.upsert(progress)
+
+    let storedData = try Data(contentsOf: paths.fileURL)
+    var root = try #require(JSONSerialization.jsonObject(with: storedData) as? [String: Any])
+    var songs = try #require(root["songs"] as? [[String: Any]])
+    songs[0]["coachingDecision"] = ["kind": "pitchAccuracy"]
+    songs[0]["feedback"] = ["summary": "must-not-restore"]
+    songs[0]["targetProfile"] = ["provenance": "teacher"]
+    root["cue"] = ["kind": "handHighlight"]
+    root["summary"] = "must-not-restore"
+    try JSONSerialization.data(withJSONObject: root).write(to: paths.fileURL, options: .atomic)
+
+    guard case let .loaded(document) = await repository.load() else {
+        Issue.record("Expected derived fields to be ignored by the persistence whitelist")
+        return
+    }
+    let restored = try #require(document.songs.first)
+    #expect(restored == progress)
+    try await repository.upsert(restored)
+
+    let rewrittenData = try Data(contentsOf: paths.fileURL)
+    let rewritten = try JSONSerialization.jsonObject(with: rewrittenData)
+    #expect(allJSONKeys(in: rewritten).isDisjoint(with: [
+        "coachingAction", "coachingDecision", "cue", "feedback", "summary", "targetProfile",
+        "toleranceProfile",
+    ]))
+}
+
+@Test
+func progressRepositoryUpgradesVersionlessProgressWithoutLosingFacts() async throws {
+    let (repository, directory) = try makeRepositoryFixture()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let paths = PracticeProgressPaths(rootDirectoryURL: directory)
+    let songID = UUID()
+    let legacyJSON = """
+    {
+      "songs": [{
+        "identity": {
+          "songID": "\(songID.uuidString)",
+          "scoreRevision": "legacy"
+        },
+        "measureFacts": [{
+          "sourceMeasureID": {
+            "partID": "P1",
+            "sourceMeasureIndex": 0,
+            "sourceNumberToken": "1"
+          },
+          "handMode": "right",
+          "state": "stable",
+          "successfulAttempts": 3,
+          "failedAttempts": 1,
+          "consecutiveSuccesses": 2,
+          "highestStableTempoScale": 0.75,
+          "recentIssue": "wrongNote",
+          "lastAttemptAt": "1970-01-01T00:01:40Z"
+        }],
+        "updatedAt": "1970-01-01T00:01:40Z"
+      }],
+      "scoreMetadata": [],
+      "sessions": []
+    }
+    """
+    try Data(legacyJSON.utf8).write(to: paths.fileURL)
+
+    guard case let .loaded(document) = await repository.load() else {
+        Issue.record("Expected versionless progress to migrate")
+        return
+    }
+    let progress = try #require(document.songs.first)
+    let facts = try #require(progress.measureFacts.first)
+    #expect(document.schemaVersion == PracticeProgressDocument.currentSchemaVersion)
+    #expect(facts.state == .pitchStepStable)
+    #expect(facts.successfulAttempts == 3)
+    #expect(facts.failedAttempts == 1)
+    #expect(facts.consecutiveSuccesses == 2)
+    #expect(facts.highestPitchStepStableTempoScale == 0.75)
+    #expect(facts.recentIssue == .wrongNote)
+    #expect(facts.performanceMaturity == nil)
+
+    try await repository.upsert(progress)
+    let upgradedData = try Data(contentsOf: paths.fileURL)
+    let upgraded = try #require(JSONSerialization.jsonObject(with: upgradedData) as? [String: Any])
+    #expect(upgraded["schemaVersion"] as? Int == PracticeProgressDocument.currentSchemaVersion)
+    #expect(await repository.progress(for: progress.identity) == progress)
+}
+
+@Test
+func progressRepositoryRejectsUnknownFutureSchema() async throws {
+    let (repository, directory) = try makeRepositoryFixture()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let paths = PracticeProgressPaths(rootDirectoryURL: directory)
+    let json = #"{"schemaVersion":3,"songs":[],"scoreMetadata":[],"sessions":[]}"#
+    try Data(json.utf8).write(to: paths.fileURL)
+
+    guard case .corrupted = await repository.load() else {
+        Issue.record("Expected an unknown schema version to fail closed")
+        return
+    }
+}
+
 @Test(arguments: [Data("not-json".utf8), Data(), Data(" \n\t".utf8)])
 func progressRepositoryPreservesCorruptedFileAndRejectsEveryMutation(
     corruptedData: Data
@@ -424,6 +607,20 @@ private func makeMetadata(
         totalSourceMeasureCount: 8,
         preparedAt: Date(timeIntervalSince1970: 100)
     )
+}
+
+private func allJSONKeys(in value: Any) -> Set<String> {
+    if let object = value as? [String: Any] {
+        return object.reduce(into: Set(object.keys)) { keys, entry in
+            keys.formUnion(allJSONKeys(in: entry.value))
+        }
+    }
+    if let array = value as? [Any] {
+        return array.reduce(into: []) { keys, element in
+            keys.formUnion(allJSONKeys(in: element))
+        }
+    }
+    return []
 }
 
 private extension PracticeProgressRecoveryResult {

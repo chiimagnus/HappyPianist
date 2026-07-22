@@ -2,6 +2,11 @@ import Foundation
 
 struct PerformanceObservation: Codable, Equatable, Sendable {
     struct Source: Codable, Equatable, Hashable, Sendable {
+        enum Role: String, Codable, Sendable {
+            case userPerformance
+            case systemPlayback
+        }
+
         enum Kind: String, Codable, Sendable {
             case midi1
             case midi2
@@ -14,17 +19,20 @@ struct PerformanceObservation: Codable, Equatable, Sendable {
         let id: String
         let generation: UInt64
         let capabilities: PerformanceInputCapabilities
+        let role: Role?
 
         init(
             kind: Kind,
             id: String,
             generation: UInt64,
-            capabilities: PerformanceInputCapabilities? = nil
+            capabilities: PerformanceInputCapabilities? = nil,
+            role: Role = .userPerformance
         ) {
             self.kind = kind
             self.id = id
             self.generation = generation
             self.capabilities = capabilities ?? kind.defaultCapabilities
+            self.role = role
         }
     }
 
@@ -87,8 +95,11 @@ struct PerformanceObservation: Codable, Equatable, Sendable {
     let source: Source
     let timing: PerformanceClockReading
     let event: Event
+    let onsetVelocity: NormalizedValue?
     let channel: Int?
     let group: Int?
+    let hand: ScoreHand?
+    let finger: Int?
     let confidence: Double?
     let calibrationReference: String?
 
@@ -97,8 +108,11 @@ struct PerformanceObservation: Codable, Equatable, Sendable {
         source: Source,
         timing: PerformanceClockReading,
         event: Event,
+        onsetVelocity: NormalizedValue? = nil,
         channel: Int? = nil,
         group: Int? = nil,
+        hand: ScoreHand? = nil,
+        finger: Int? = nil,
         confidence: Double? = nil,
         calibrationReference: String? = nil
     ) {
@@ -106,9 +120,22 @@ struct PerformanceObservation: Codable, Equatable, Sendable {
         self.source = source
         self.timing = timing
         self.event = event
+        if let onsetVelocity {
+            self.onsetVelocity = onsetVelocity
+        } else if case let .noteOn(_, velocity) = event {
+            self.onsetVelocity = velocity
+        } else {
+            self.onsetVelocity = nil
+        }
         self.channel = channel.map { max(1, min(16, $0)) }
         self.group = group.map { max(0, min(15, $0)) }
+        self.hand = hand
+        self.finger = finger.map { max(1, min(5, $0)) }
         self.confidence = confidence.map { max(0, min(1, $0)) }
         self.calibrationReference = calibrationReference
+    }
+
+    var alignmentTimestamp: PerformanceMonotonicInstant {
+        timing.correctedHost
     }
 }

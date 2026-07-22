@@ -19,7 +19,8 @@ func roundSummaryContainsOnlyOneHotspotAndAction() throws {
         progress: progress,
         configuration: configuration,
         passageOccurrences: [occurrence],
-        isFullPassage: true
+        isFullPassage: true,
+        coachingDecision: feedbackDecision(source: source)
     ))
     #expect(summary.hotspot?.sourceMeasureID == source)
     #expect(summary.nextAction == .retryMeasure(source))
@@ -64,7 +65,8 @@ func roundSummaryUsesSourceTokensForPassageAndHotspot() throws {
             PracticeMeasureOccurrenceID(sourceMeasureID: start, occurrenceIndex: 0),
             PracticeMeasureOccurrenceID(sourceMeasureID: end, occurrenceIndex: 1),
         ],
-        isFullPassage: false
+        isFullPassage: false,
+        coachingDecision: feedbackDecision(source: start)
     ))
     #expect(summary.passageTitle == "第 12A–13 小节")
     #expect(summary.hotspotTitle == "第 12A 小节")
@@ -82,7 +84,7 @@ func roundSummaryIgnoresFactsOutsideActivePassage() throws {
         identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "r"),
         measureFacts: [
             feedbackFacts(index: 0, failures: 9, issue: .wrongNote),
-            feedbackFacts(index: 1, state: .stable),
+            feedbackFacts(index: 1, state: .pitchStepStable),
         ],
         updatedAt: .now
     )
@@ -93,7 +95,7 @@ func roundSummaryIgnoresFactsOutsideActivePassage() throws {
         isFullPassage: false
     ))
     #expect(summary.hotspot == nil)
-    #expect(summary.isStable)
+    #expect(summary.hasStablePitchSteps)
     #expect(summary.detailText.contains("可以再照顾") == false)
 }
 
@@ -114,7 +116,7 @@ func roundSummaryRequiresEveryExpectedMeasure() throws {
     )
     let progress = SongPracticeProgress(
         identity: PracticeSongIdentity(songID: UUID(), scoreRevision: "r"),
-        measureFacts: [MeasurePracticeFacts(sourceMeasureID: first, handMode: .both, state: .stable)],
+        measureFacts: [MeasurePracticeFacts(sourceMeasureID: first, handMode: .both, state: .pitchStepStable)],
         updatedAt: .now
     )
     let summary = try #require(PracticeRoundSummaryViewModel(
@@ -126,7 +128,7 @@ func roundSummaryRequiresEveryExpectedMeasure() throws {
         ],
         isFullPassage: false
     ))
-    #expect(summary.isStable == false)
+    #expect(summary.hasStablePitchSteps == false)
     #expect(summary.nextAction == .continuePassage)
 }
 

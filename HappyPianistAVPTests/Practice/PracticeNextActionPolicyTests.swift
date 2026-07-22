@@ -8,9 +8,13 @@ func nextActionDoesNotInventAdviceWithoutEvidence() throws {
 }
 
 @Test
-func nextActionLowersTempoWithoutInventingAProblemHand() throws {
-    let facts = feedbackFacts(index: 2, failures: 2, issue: .missedNote)
-    let context = try feedbackContext(facts: [facts])
+func nextActionUsesCoachingTempoWithoutReadingFailureCounts() throws {
+    let source = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 2)
+    let facts = feedbackFacts(index: 2, failures: 99, issue: .missedNote)
+    let context = try feedbackContext(
+        facts: [facts],
+        coachingDecision: feedbackDecision(source: source, tempoRatio: 0.7)
+    )
     guard case let .lowerTempo(scale) = PracticeNextActionPolicy().nextAction(for: context) else {
         Issue.record("Expected lower-tempo advice")
         return
@@ -19,15 +23,24 @@ func nextActionLowersTempoWithoutInventingAProblemHand() throws {
 }
 
 @Test
+func nextActionUsesExplicitBasicRetryWithoutAssessment() throws {
+    let facts = feedbackFacts(index: 2, failures: 1, issue: .missedNote)
+    let context = try feedbackContext(facts: [facts])
+
+    #expect(PracticeNextActionPolicy().nextAction(for: context) == .retryMeasure(facts.sourceMeasureID))
+}
+
+@Test
 func nextActionExpandsStableFocusedPassage() throws {
-    let facts = feedbackFacts(index: 2, state: .stable)
+    let facts = feedbackFacts(index: 2, state: .pitchStepStable)
     let context = try feedbackContext(facts: [facts], isFullPassage: false)
     #expect(PracticeNextActionPolicy().nextAction(for: context) == .expandPassage)
 }
 
 private func feedbackContext(
     facts: [MeasurePracticeFacts],
-    isFullPassage: Bool = false
+    isFullPassage: Bool = false,
+    coachingDecision: CoachingDecision? = nil
 ) throws -> PracticeFeedbackContext {
     let source = PracticeSourceMeasureID(partID: "P1", sourceMeasureIndex: 0)
     let occurrence = PracticeMeasureOccurrenceID(sourceMeasureID: source, occurrenceIndex: 0)
@@ -42,6 +55,7 @@ private func feedbackContext(
             loopEnabled: true,
             requiredSuccesses: 3
         ),
-        isFullPassage: isFullPassage
+        isFullPassage: isFullPassage,
+        coachingDecision: coachingDecision
     )
 }

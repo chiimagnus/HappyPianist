@@ -54,3 +54,42 @@ func highlightNoteRequiresExplicitAssignment() {
 
     #expect(note.hand == .unknown)
 }
+
+@Test
+func coachingPreservesHeuristicConfidenceButDoesNotInferUnknownStaffHand() throws {
+    let issue = MusicalIssue(
+        kind: .pitch,
+        scoreRange: 0 ..< 480,
+        dimensionResults: [PerformanceAssessmentDimensionResult(
+            dimension: .exactPitch,
+            outcome: .incorrect,
+            evidenceStatus: .observed,
+            sampleCount: 1,
+            confidence: 0.8,
+            evidence: []
+        )],
+        confidence: 0.8,
+        provenance: MusicalIssueProvenance(
+            planID: ScorePerformancePlanID(rawValue: "plan"),
+            sourceGeneration: 1,
+            rubricVersion: .capabilityAware
+        )
+    )
+    let heuristic = ScoreHandAssignment(hand: .right, provenance: .heuristic, confidence: 0.72)
+    let heuristicPlan = makeTestScorePerformancePlan(notes: [TestScorePerformanceNote(
+        midiNote: 72,
+        onTick: 0,
+        staff: 1,
+        handAssignment: heuristic
+    )])
+    let unknownPlan = makeTestScorePerformancePlan(notes: [TestScorePerformanceNote(
+        midiNote: 36,
+        onTick: 0,
+        staff: 2,
+        handAssignment: .unknown
+    )])
+    let policy = PracticeExercisePolicy()
+
+    #expect(policy.action(for: issue, scoreEvents: heuristicPlan.noteEvents)?.handFocus == heuristic)
+    #expect(policy.action(for: issue, scoreEvents: unknownPlan.noteEvents)?.handFocus == nil)
+}
