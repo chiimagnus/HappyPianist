@@ -174,5 +174,32 @@ actor PracticePerformanceAnalyzer {
             reason: "accepted=\(snapshot.acceptedObservationCount),rejected=\(snapshot.rejectedObservationCount),discarded=\(snapshot.discardedObservationCount),latencyMs=\(snapshot.alignmentLatencyMilliseconds ?? 0),candidates=\(candidates),aligned=\(aligned),missing=\(missing),extra=\(extra),ambiguous=\(ambiguous),unknown=\(unknown)",
             persistence: .systemOnly
         ))
+        guard let assessment = snapshot.assessment else { return }
+        let dimensions = assessment.dimensions
+        let unknownCount = dimensions.count(where: { $0.outcome == .unknown })
+        let coverage = assessment.evidenceCoverage.ratio
+        _ = await diagnosticsReporter.record(DiagnosticEvent(
+            severity: .info,
+            code: .pianoPerformancePipeline,
+            category: .practiceSession,
+            stage: PianoPerformanceDiagnosticStage.assessment.rawValue,
+            summary: "演奏评估已完成",
+            reason: "rubric=\(assessment.rubricVersion.rawValue),dimensions=\(dimensions.count),coverage=\(Self.ratioBucket(coverage)),unknownRatio=\(Self.ratioBucket(Self.ratio(unknownCount, dimensions.count))),correct=\(dimensions.count(where: { $0.outcome == .correct })),incorrect=\(dimensions.count(where: { $0.outcome == .incorrect })),unknown=\(unknownCount),insufficient=\(dimensions.count(where: { $0.outcome == .insufficientEvidence })),observed=\(dimensions.count(where: { $0.evidenceStatus == .observed })),degraded=\(dimensions.count(where: { $0.evidenceStatus == .degraded }))",
+            persistence: .systemOnly
+        ))
+    }
+
+    private static func ratio(_ numerator: Int, _ denominator: Int) -> Double? {
+        guard denominator > 0 else { return nil }
+        return Double(numerator) / Double(denominator)
+    }
+
+    private static func ratioBucket(_ ratio: Double?) -> String {
+        guard let ratio else { return "none" }
+        if ratio == 0 { return "zero" }
+        if ratio < 0.25 { return "low" }
+        if ratio < 0.75 { return "medium" }
+        if ratio < 1 { return "high" }
+        return "full"
     }
 }

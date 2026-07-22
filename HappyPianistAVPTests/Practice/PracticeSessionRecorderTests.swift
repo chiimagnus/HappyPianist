@@ -273,6 +273,19 @@ func recorderFeedsConfiguredPlanAndObservationsToTransientAnalyzer() async throw
     for token in ["discarded=", "latencyMs=", "candidates=", "aligned=", "missing=", "extra="] {
         #expect(diagnostic.reason.contains(token))
     }
+    let assessmentDiagnostic = try #require(await reporter.events.first {
+        $0.stage == PianoPerformanceDiagnosticStage.assessment.rawValue
+    })
+    for token in [
+        "rubric=performance-assessment-v2", "dimensions=", "coverage=", "unknownRatio=",
+        "correct=", "incorrect=", "unknown=", "insufficient=", "observed=", "degraded=",
+    ] {
+        #expect(assessmentDiagnostic.reason.contains(token))
+    }
+    for privateToken in ["note=", "observationID", plan.id.rawValue, source.id] {
+        #expect(assessmentDiagnostic.reason.contains(privateToken) == false)
+    }
+    #expect(assessmentDiagnostic.persistence == .systemOnly)
 }
 
 @Test
