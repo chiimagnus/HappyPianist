@@ -215,7 +215,7 @@ func disablingServiceDropsLateBackendResponses() async {
 
 @Test
 @MainActor
-func newInputReevaluatesContinuousResponseAgainstLatestContext() async {
+func newInputDropsStaleContinuousResponse() async {
     var nowUptime: TimeInterval = 0
     let controlClock = AIPerformanceControlClock()
     let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
@@ -258,12 +258,24 @@ func newInputReevaluatesContinuousResponseAgainstLatestContext() async {
             timestamp: .init(seconds: nowUptime)
         )
     )
-    nowUptime = 0.3
+    nowUptime = 0.4
+    await controlClock.advance()
+    #expect(await backend.waitForCall(minimumCount: 2))
+
     await backend.resume(with: .schedule([
         PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 72, velocity: 90)),
         PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 72)),
     ], backendLatencyMS: nil))
 
+    for _ in 0 ..< 200 {
+        await Task.yield()
+    }
+    #expect(enqueuedSchedule == false)
+
+    await backend.resume(with: .schedule([
+        PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 74, velocity: 90)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 74)),
+    ], backendLatencyMS: nil))
     for _ in 0 ..< 200 {
         await Task.yield()
     }

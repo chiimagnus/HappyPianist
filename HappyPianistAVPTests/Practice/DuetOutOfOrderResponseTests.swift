@@ -26,6 +26,7 @@ private actor ControlledBackend: ImprovBackendProtocol {
     private var continuation: CheckedContinuation<ImprovBackendPlaybackPlan, Error>?
     private var callWaiters: [CheckedContinuation<Bool, Never>] = []
     private var lastRequest: ImprovGenerateRequestV2?
+    private var generateCallCountValue = 0
 
     init(kind: ImprovBackendKind, displayName: String = "Controlled") {
         self.kind = kind
@@ -35,6 +36,7 @@ private actor ControlledBackend: ImprovBackendProtocol {
     func generatePlaybackPlan(request: ImprovGenerateRequestV2, timeout _: Duration) async throws -> ImprovBackendPlaybackPlan {
         try Task.checkCancellation()
         lastRequest = request
+        generateCallCountValue += 1
         return try await withCheckedThrowingContinuation { continuation in
             self.continuation = continuation
             let waiters = callWaiters
@@ -54,6 +56,10 @@ private actor ControlledBackend: ImprovBackendProtocol {
 
     func requestSnapshot() -> ImprovGenerateRequestV2? {
         lastRequest
+    }
+
+    func generateCallCount() -> Int {
+        generateCallCountValue
     }
 
     func resume(with plan: ImprovBackendPlaybackPlan) {
@@ -259,5 +265,59 @@ func continuousDuetRequestsGenerationForMIDI2Input() async {
         PracticeSequencerMIDIEvent(timeSeconds: 0.1, kind: .noteOff(midi: 67)),
     ], backendLatencyMS: nil))
 
+    service.setEnabled(false)
+}
+
+@Test
+@MainActor
+func systemPlaybackObservationDoesNotRequestContinuousDuet() async {
+    var nowUptime: TimeInterval = 0
+    let controlClock = AIPerformanceControlClock()
+    let selectedKind: ImprovBackendKind = .localRule
+    let backend = ControlledBackend(kind: selectedKind)
+    let playbackService = NonAdvancingPlaybackService()
+    let factory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { playbackService },
+        makeExternalMIDIPlaybackService: { _ in playbackService }
+    )
+    let service = AIPerformanceService(
+        nowUptimeSeconds: { nowUptime },
+        sleepFor: { duration in await controlClock.sleep(for: duration) },
+        discoveryOrchestrator: FakeDiscoveryOrchestrator(),
+        backendRegistry: ImprovBackendRegistry(backends: [backend]),
+        selectedBackendKind: { selectedKind },
+        aiPlaybackServiceFactory: { factory },
+        onStateChanged: { _ in }
+    )
+    let session = FakePracticeSession(settingsProvider: FakeSettingsProvider())
+    service.updatePracticeSession(session)
+    service.setEnabled(true)
+
+    let timestamp = PerformanceMonotonicInstant(seconds: nowUptime)
+    service.recordPerformanceObservationForPhraseRecordingIfNeeded(
+        PerformanceObservation(
+            source: .init(
+                kind: .midi1,
+                id: "continuous-duet-playback",
+                generation: 1,
+                role: .systemPlayback
+            ),
+            timing: .init(
+                host: timestamp,
+                source: nil,
+                correctedHost: timestamp,
+                mapping: nil,
+                provenance: .hostOnly
+            ),
+            event: .noteOn(note: 60, velocity: .init(midi1: 90))
+        )
+    )
+    nowUptime = 0.3
+    await controlClock.advance()
+    for _ in 0 ..< 200 {
+        await Task.yield()
+    }
+
+    #expect(await backend.generateCallCount() == 0)
     service.setEnabled(false)
 }

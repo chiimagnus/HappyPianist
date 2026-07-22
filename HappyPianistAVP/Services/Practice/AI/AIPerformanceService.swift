@@ -63,6 +63,7 @@ final class AIPerformanceService {
     private var inFlightGenerateTasks: [Int: Task<Void, Never>] = [:]
     private var nextRequestID = 0
     private var activationID = 0
+    private var phraseGeneration = 0
     private var lastWindowRequestTimestampSeconds: TimeInterval?
 
     private var isGenerating = false
@@ -116,14 +117,14 @@ final class AIPerformanceService {
            ObjectIdentifier(practiceSession) != ObjectIdentifier(session),
            isEnabled
         {
-            invalidateGeneration()
+            let invalidatedPhraseGeneration = invalidateGeneration()
             resetPhraseInput()
             controlEstimator.reset()
             latestSchedule = []
             latestCandidateDiagnostics = nil
             notifyStateChanged()
             Task { @MainActor [aiPlaybackQueue] in
-                await aiPlaybackQueue.stopAll()
+                await aiPlaybackQueue.stopAll(rejectingThrough: invalidatedPhraseGeneration)
             }
         }
         practiceSession = session
@@ -137,17 +138,12 @@ final class AIPerformanceService {
 
             isEnabled = false
             activationID += 1
+            let invalidatedPhraseGeneration = invalidatePhraseGeneration()
             controlLoopTask?.cancel()
             controlLoopTask = nil
             discoveryOrchestrator.stopAll()
             lastKnownBackendKind = nil
 
-            for task in inFlightGenerateTasks.values {
-                task.cancel()
-            }
-            inFlightGenerateTasks.removeAll(keepingCapacity: true)
-            lastWindowRequestTimestampSeconds = nil
-            isGenerating = false
             isAIPlaybackActive = false
             resetPhraseInput()
             controlEstimator.reset()
@@ -157,7 +153,7 @@ final class AIPerformanceService {
             notifyStateChanged()
 
             Task { @MainActor [weak self, aiPlaybackQueue] in
-                await aiPlaybackQueue.stopAll()
+                await aiPlaybackQueue.stopAll(rejectingThrough: invalidatedPhraseGeneration)
                 self?.stopPlaybackAndRestoreAudioRecognitionIfNeeded()
             }
             return
@@ -166,7 +162,7 @@ final class AIPerformanceService {
         guard isEnabled == false else { return }
         isEnabled = true
         activationID += 1
-        lastWindowRequestTimestampSeconds = nil
+        _ = invalidatePhraseGeneration()
         resetPhraseInput()
         controlEstimator.reset()
         latestSchedule = []
@@ -178,9 +174,7 @@ final class AIPerformanceService {
     }
 
     func recordMIDI1EventForPhraseRecordingIfNeeded(_ event: MIDI1InputEvent) {
-        guard isEnabled else { return }
-        syncBackendDiscoveryIfNeeded()
-        recordPhraseObservation(
+        recordPerformanceObservationForPhraseRecordingIfNeeded(
             midiObservationAdapter.observation(
                 for: event,
                 generation: UInt64(max(0, activationID))
@@ -189,9 +183,7 @@ final class AIPerformanceService {
     }
 
     func recordMIDI2EventForPhraseRecordingIfNeeded(_ event: MIDI2InputEvent) {
-        guard isEnabled else { return }
-        syncBackendDiscoveryIfNeeded()
-        recordPhraseObservation(
+        recordPerformanceObservationForPhraseRecordingIfNeeded(
             midiObservationAdapter.observation(
                 for: event,
                 generation: UInt64(max(0, activationID))
@@ -222,7 +214,7 @@ final class AIPerformanceService {
                 guard activeContactIDs.insert(contact.id).inserted else { continue }
                 activeKeyContactIDsByMIDINote[note] = activeContactIDs
                 guard shouldRecordNoteOn else { continue }
-                recordPhraseObservation(
+                recordPerformanceObservationForPhraseRecordingIfNeeded(
                     keyContactObservationAdapter.observation(
                         from: contact,
                         sourceKind: sourceKind,
@@ -238,7 +230,7 @@ final class AIPerformanceService {
                     continue
                 }
                 activeKeyContactIDsByMIDINote.removeValue(forKey: note)
-                recordPhraseObservation(
+                recordPerformanceObservationForPhraseRecordingIfNeeded(
                     keyContactObservationAdapter.observation(
                         from: contact,
                         sourceKind: sourceKind,
@@ -251,9 +243,22 @@ final class AIPerformanceService {
         }
     }
 
+    func recordPerformanceObservationForPhraseRecordingIfNeeded(_ observation: PerformanceObservation) {
+        guard isEnabled, observation.source.role == .userPerformance else { return }
+        syncBackendDiscoveryIfNeeded()
+        recordPhraseObservation(observation)
+    }
+
     private func recordPhraseObservation(_ observation: PerformanceObservation) {
-        guard let event = phraseObservationAdapter.phraseEvent(from: observation) else { return }
+        guard observation.source.role == .userPerformance,
+              let event = phraseObservationAdapter.phraseEvent(from: observation)
+        else { return }
+        let invalidatedPhraseGeneration = invalidatePhraseGeneration()
+        Task { [aiPlaybackQueue] in
+            await aiPlaybackQueue.invalidatePendingWindows(through: invalidatedPhraseGeneration)
+        }
         recordPhraseEvent(event)
+        notifyStateChanged()
     }
 
     private func recordPhraseEvent(_ event: PerformanceObservationPhraseAdapter.PhraseEvent) {
@@ -416,6 +421,7 @@ final class AIPerformanceService {
         let kind = selectedBackendKind()
         let requestID = nextRequestID
         let activationAtRequest = activationID
+        let phraseGenerationAtRequest = phraseGeneration
         nextRequestID += 1
         lastWindowRequestTimestampSeconds = nowTimestampSeconds
 
@@ -432,6 +438,7 @@ final class AIPerformanceService {
             await generateContinuousWindow(
                 requestID: requestID,
                 activationAtRequest: activationAtRequest,
+                phraseGenerationAtRequest: phraseGenerationAtRequest,
                 kind: kind,
                 phrase: phrase,
                 requestPolicy: requestPolicy
@@ -445,12 +452,14 @@ final class AIPerformanceService {
     private func generateContinuousWindow(
         requestID: Int,
         activationAtRequest: Int,
+        phraseGenerationAtRequest: Int,
         kind: ImprovBackendKind,
         phrase: CreativeDuetPhrase,
         requestPolicy: DuetPhrasePolicy.RequestPolicy
     ) async {
         guard isEnabled else { return }
         guard activationAtRequest == activationID else { return }
+        guard phraseGenerationAtRequest == phraseGeneration else { return }
         guard kind == selectedBackendKind() else { return }
         guard let practiceSession else { return }
         guard let backend = backendRegistry.backend(for: kind) else {
@@ -473,7 +482,11 @@ final class AIPerformanceService {
                 activationID: activationAtRequest
             )
         } catch {
-            guard isEnabled, activationAtRequest == activationID, kind == selectedBackendKind() else { return }
+            guard isEnabled,
+                  activationAtRequest == activationID,
+                  phraseGenerationAtRequest == phraseGeneration,
+                  kind == selectedBackendKind()
+            else { return }
             diagnosticsReporter?.recordSystem(
                 severity: .warning,
                 category: .ai,
@@ -488,6 +501,7 @@ final class AIPerformanceService {
 
         guard isEnabled else { return }
         guard activationAtRequest == activationID else { return }
+        guard phraseGenerationAtRequest == phraseGeneration else { return }
         guard kind == selectedBackendKind() else { return }
 
         let now = nowUptimeSeconds()
@@ -528,8 +542,15 @@ final class AIPerformanceService {
         let result = await aiPlaybackQueue.submitWindow(
             schedule: shapedSchedule,
             routing: practiceSession.settingsProvider.soundRoutingSettings,
-            submittedAtUptimeSeconds: now
+            submittedAtUptimeSeconds: now,
+            requestGeneration: phraseGenerationAtRequest
         )
+        guard result.wasAccepted,
+              isEnabled,
+              activationAtRequest == activationID,
+              phraseGenerationAtRequest == phraseGeneration,
+              kind == selectedBackendKind()
+        else { return }
         latestSchedule = result.shiftedSchedule
         latestCandidateDiagnostics = CandidateDiagnostics(
             band: bestCandidate.assessment.band,
@@ -678,25 +699,34 @@ final class AIPerformanceService {
         let kind = selectedBackendKind()
         guard kind != lastKnownBackendKind else { return }
         if lastKnownBackendKind != nil, isEnabled {
-            invalidateGeneration()
+            let invalidatedPhraseGeneration = invalidateGeneration()
             Task { [aiPlaybackQueue] in
-                await aiPlaybackQueue.clearPendingWindow()
+                await aiPlaybackQueue.stopAll(rejectingThrough: invalidatedPhraseGeneration)
             }
         }
         lastKnownBackendKind = kind
         discoveryOrchestrator.start(for: kind)
     }
 
-    private func invalidateGeneration() {
+    @discardableResult
+    private func invalidateGeneration() -> Int {
         activationID &+= 1
+        let invalidatedPhraseGeneration = invalidatePhraseGeneration()
+        latestCandidateDiagnostics = nil
+        notifyStateChanged()
+        return invalidatedPhraseGeneration
+    }
+
+    @discardableResult
+    private func invalidatePhraseGeneration() -> Int {
+        phraseGeneration &+= 1
         for task in inFlightGenerateTasks.values {
             task.cancel()
         }
         inFlightGenerateTasks.removeAll(keepingCapacity: true)
         lastWindowRequestTimestampSeconds = nil
         isGenerating = false
-        latestCandidateDiagnostics = nil
-        notifyStateChanged()
+        return phraseGeneration
     }
 
     private func makeStatusText(
