@@ -9,12 +9,11 @@ permissions:
 env:
   PROJECT: HappyPianist.xcodeproj
   SCHEME: HappyPianistAVP
-  DEVELOPER_DIR: /Applications/Xcode_26.5.app/Contents/Developer
 
 jobs:
   test:
     name: Test (visionOS Simulator)
-    runs-on: macos-26
+    runs-on: xcode-27
     timeout-minutes: 90
 
     steps:
