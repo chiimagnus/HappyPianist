@@ -796,7 +796,25 @@ func handEvidenceDisambiguatesPolyphonicUnisonWithoutUsingStaffAsHand() throws {
         handAssignment: .init(hand: .left, provenance: .teacher)
     )
     let plan = makeAlignmentPlan(noteEvents: [right, left])
-    let typed = makeAlignmentObservation(generation: 1, note: 60, seconds: 0, hand: .right)
+    let handAware = PerformanceInputCapabilities(
+        pitch: .observed,
+        onset: .observed,
+        release: .observed,
+        velocity: .observed,
+        controllers: .observed,
+        polyphony: .observed,
+        hand: .observed,
+        finger: .unavailable,
+        position: .unavailable,
+        confidence: .unavailable
+    )
+    let typed = makeAlignmentObservation(
+        generation: 1,
+        note: 60,
+        seconds: 0,
+        capabilities: handAware,
+        hand: .right
+    )
     let unknown = makeAlignmentObservation(generation: 1, note: 60, seconds: 0)
 
     let typedResult = PerformanceAlignmentEngine().align(

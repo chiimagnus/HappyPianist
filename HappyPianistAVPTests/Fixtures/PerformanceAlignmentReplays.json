@@ -65,7 +65,7 @@
       ],
       "expected": {
         "aligned": 0,
-        "missing": 2,
+        "missing": 1,
         "extra": 0,
         "ambiguous": 1,
         "controllerLinks": 0,
