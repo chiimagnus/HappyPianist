@@ -236,17 +236,17 @@ func completedPassagePersistsAssessmentOnceAndFinishesAnalyzerRound() async thro
     let saved = try #require(await progressRepository.progress(for: identity))
     #expect(saved.measureFacts.first?.performanceMaturity == remeasuredSummary)
 
-    let followupDecision = try #require(session.currentCoachingDecision)
+    #expect(session.currentCoachingDecision != nil)
     let followupIssuedEvent = try #require(await diagnosticsReporter.events.last {
         $0.operationID != decisionID && $0.reason.contains("outcome=issued")
     })
-    await session.coachingDecisionService.skip(followupDecision)
+    session.skipCoachingDecisionAndContinue()
+    await session.waitForSessionRecorderEvents()
     #expect(await diagnosticsReporter.events.contains {
         $0.operationID == followupIssuedEvent.operationID
             && $0.reason.contains("outcome=skipped")
     })
-
-    session.recordPassageRestart()
+    #expect(session.state == .guiding(stepIndex: 0))
     #expect(session.currentCoachingDecision == nil)
 }
 

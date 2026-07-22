@@ -90,7 +90,7 @@ func coachingDecisionClearsOnGenerationSkipAndSceneInvalidation() {
     #expect(viewModel.practiceSessionViewModel.currentCoachingDecision == nil)
 
     viewModel.practiceSessionViewModel.currentCoachingDecision = decision
-    viewModel.practiceSessionViewModel.skip()
+    viewModel.practiceSessionViewModel.skipCoachingDecisionAndContinue()
     #expect(viewModel.practiceSessionViewModel.currentCoachingDecision == nil)
 
     viewModel.practiceFeedbackViewModel.present(event)

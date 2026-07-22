@@ -199,6 +199,11 @@ struct PracticeStepView: View {
             Button(summary.actionTitle) {
                 performRoundAction(summary.nextAction)
             }
+            if summary.coachingPresentation != nil {
+                Button("跳过建议并继续") {
+                    viewModel.practiceSessionViewModel.skipCoachingDecisionAndContinue()
+                }
+            }
             Button("返回曲库", action: onPracticeFinished)
         } message: { summary in
             Text(summary.detailText)

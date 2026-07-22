@@ -889,12 +889,6 @@ extension PracticeSessionViewModel {
     }
 
     func skip() {
-        if let coachingDecision = self.currentCoachingDecision {
-            enqueueCoachingDisposition {
-                await $0.skip(coachingDecision)
-            }
-        }
-        self.currentCoachingDecision = nil
         if self.state == .ready {
             startGuidingIfReady()
             return
@@ -905,6 +899,16 @@ extension PracticeSessionViewModel {
 
         advanceToNextManualUnit()
         startAutoplayTaskIfNeeded()
+    }
+
+    func skipCoachingDecisionAndContinue() {
+        guard let coachingDecision = self.currentCoachingDecision else { return }
+        enqueueCoachingDisposition {
+            await $0.skip(coachingDecision)
+        }
+        self.currentCoachingDecision = nil
+        _ = applyPendingRoundConfiguration()
+        startGuidingIfReady()
     }
 
     private func enqueueCoachingDisposition(
