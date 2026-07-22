@@ -46,3 +46,41 @@ func improvScheduleBuilderEmptyNotesIsEmptySchedule() {
     let builder = ImprovScheduleBuilder()
     #expect(builder.buildSchedule(from: [ImprovDialogueNote](), leadInSeconds: 0).isEmpty)
 }
+
+@Test
+func improvScheduleBuilderRuleAndNetworkQualityCorpusUseTheSharedGate() {
+    let builder = ImprovScheduleBuilder()
+    let rubric = ImprovQualityRubric()
+
+    let rule = DuetQualityRegressionFixtures.ruleQualityCorpus
+    #expect(rule.provider == .localRule)
+    #expect(rule.parameters.seed == .some(rule.seed))
+    #expect(rule.parameters.strategy == "deterministic")
+    guard case .generatedRule = rule.response else {
+        Issue.record("Rule corpus must generate from its fixed seed.")
+        return
+    }
+
+    let ruleNotes = RuleImprovGenerator().generateRuleResponse(
+        notes: rule.promptNotes,
+        params: rule.parameters,
+        sessionID: nil,
+        seed: rule.seed
+    )
+    let ruleSchedule = builder.buildSchedule(from: ruleNotes, leadInSeconds: 0)
+    #expect(ruleSchedule.isEmpty == false)
+    #expect(rubric.assess(ruleSchedule).band == rule.expectedBand)
+
+    let network = DuetQualityRegressionFixtures.networkFakeQualityCorpus
+    #expect(network.provider == .networkBonjourHTTPAriaV2)
+    #expect(network.parameters.seed == .some(network.seed))
+    #expect(network.parameters.strategy == "network")
+    guard case let .networkFakeEvents(events) = network.response else {
+        Issue.record("Network corpus must use a protocol response fake.")
+        return
+    }
+
+    let networkSchedule = builder.buildSchedule(from: events, leadInSeconds: 0)
+    #expect(networkSchedule.isEmpty == false)
+    #expect(rubric.assess(networkSchedule).band == network.expectedBand)
+}

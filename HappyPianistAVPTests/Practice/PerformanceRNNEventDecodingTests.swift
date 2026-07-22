@@ -35,3 +35,21 @@ func performanceRNNEventCodec_decodesChordInStableOrder() {
     #expect(notes.allSatisfy { $0.time >= 0.0 })
     #expect(notes.allSatisfy { $0.duration > 0.0 })
 }
+
+@Test
+func performanceRNNEventCodecCoreMLQualityCorpusUsesTheSharedGate() {
+    let corpus = DuetQualityRegressionFixtures.coreMLQualityCorpus
+    #expect(corpus.provider == .localCoreMLDuet)
+    #expect(corpus.parameters.seed == .some(corpus.seed))
+    #expect(corpus.parameters.strategy == "model")
+    guard case let .coreMLEventIDs(eventIDs) = corpus.response else {
+        Issue.record("Core ML corpus must decode its golden event IDs.")
+        return
+    }
+
+    let notes = PerformanceRNNEventCodec().decode(eventIDs: eventIDs, promptEndTimeSeconds: 0)
+    let schedule = ImprovScheduleBuilder().buildSchedule(from: notes, leadInSeconds: 0)
+
+    #expect(schedule.isEmpty == false)
+    #expect(ImprovQualityRubric().assess(schedule).band == corpus.expectedBand)
+}

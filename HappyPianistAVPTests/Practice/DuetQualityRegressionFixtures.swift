@@ -19,6 +19,21 @@ enum DuetQualityRegressionFixtures {
         let expectedCadenceEvidence: ImprovQualityRubric.Evidence?
     }
 
+    struct BackendQualityCorpus {
+        enum Response {
+            case generatedRule
+            case coreMLEventIDs([Int])
+            case networkFakeEvents([ImprovEvent])
+        }
+
+        let provider: ImprovBackendKind
+        let seed: UInt64
+        let promptNotes: [ImprovDialogueNote]
+        let parameters: ImprovGenerateParams
+        let response: Response
+        let expectedBand: ImprovQualityRubric.Band
+    }
+
     static let acceptableSupport = Fixture(
         name: "acceptableSupport",
         noteSnapshot: .init(
@@ -224,4 +239,50 @@ enum DuetQualityRegressionFixtures {
     )
 
     static let rubricAll = [shortPhrase, denseChord, crossRegisterLeap, harmonicMismatch, noTermination]
+
+    static let ruleQualityCorpus = BackendQualityCorpus(
+        provider: .localRule,
+        seed: 1_234,
+        promptNotes: [
+            ImprovDialogueNote(note: 60, velocity: 92, time: 0, duration: 0.22),
+            ImprovDialogueNote(note: 62, velocity: 92, time: 0.25, duration: 0.18),
+            ImprovDialogueNote(note: 64, velocity: 92, time: 0.5, duration: 0.2),
+            ImprovDialogueNote(note: 65, velocity: 92, time: 0.75, duration: 0.2),
+            ImprovDialogueNote(note: 67, velocity: 92, time: 1, duration: 0.2),
+            ImprovDialogueNote(note: 69, velocity: 92, time: 1.25, duration: 0.22),
+            ImprovDialogueNote(note: 71, velocity: 92, time: 1.5, duration: 0.18),
+            ImprovDialogueNote(note: 72, velocity: 92, time: 1.75, duration: 0.25),
+        ],
+        parameters: .init(topP: 0.95, maxTokens: 256, strategy: "deterministic", seed: 1_234),
+        response: .generatedRule,
+        expectedBand: .risky
+    )
+
+    static let coreMLQualityCorpus = BackendQualityCorpus(
+        provider: .localCoreMLDuet,
+        seed: 7,
+        promptNotes: [
+            ImprovDialogueNote(note: 60, velocity: 80, time: 0, duration: 0.5),
+        ],
+        parameters: .init(topP: 0.95, maxTokens: 128, strategy: "model", seed: 7),
+        response: .coreMLEventIDs([375, 60, 64, 67, 330, 188, 192, 195]),
+        expectedBand: .acceptable
+    )
+
+    static let networkFakeQualityCorpus = BackendQualityCorpus(
+        provider: .networkBonjourHTTPAriaV2,
+        seed: 99,
+        promptNotes: [
+            ImprovDialogueNote(note: 60, velocity: 90, time: 0, duration: 0.2),
+        ],
+        parameters: .init(topP: 0.9, maxTokens: 64, strategy: "network", seed: 99),
+        response: .networkFakeEvents([
+            .cc(controller: 64, value: 127, time: 0),
+            .note(note: 67, velocity: 88, time: 0, duration: 0.2),
+            .note(note: 71, velocity: 84, time: 0.24, duration: 0.2),
+        ]),
+        expectedBand: .acceptable
+    )
+
+    static let backendQualityCorpus = [ruleQualityCorpus, coreMLQualityCorpus, networkFakeQualityCorpus]
 }
