@@ -48,8 +48,8 @@ func takeMetadataIncludesAlignmentDiagnostics() {
         alignedCount: 8,
         missingCount: 1,
         extraCount: 1,
-        ambiguousCount: 0,
-        unknownCount: 0,
+        ambiguousCount: 2,
+        unknownCount: 1,
         controllerLinkCount: 0,
         performedOccurrenceCount: 1
     )
@@ -59,7 +59,8 @@ func takeMetadataIncludesAlignmentDiagnostics() {
         alignment: diagnostics
     )
 
-    #expect(text.contains("对齐 8/10"))
+    #expect(text.contains("对齐 8 · 漏 1 · 多 1 · 歧义 2 · 未知 1"))
+    #expect(text.contains("/10") == false)
 }
 
 @Test

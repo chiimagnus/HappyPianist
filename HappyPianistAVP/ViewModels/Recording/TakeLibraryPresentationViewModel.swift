@@ -7,7 +7,12 @@ struct TakeLibraryPresentationViewModel {
     ) -> String {
         let base = "\(formattedDuration(take.durationSeconds)) · \(formattedDate(take.createdAt))"
         guard let alignment else { return base }
-        return "\(base) · 对齐 \(alignment.alignedCount)/\(alignment.observationCount)"
+        var facts = ["对齐 \(alignment.alignedCount)"]
+        if alignment.missingCount > 0 { facts.append("漏 \(alignment.missingCount)") }
+        if alignment.extraCount > 0 { facts.append("多 \(alignment.extraCount)") }
+        if alignment.ambiguousCount > 0 { facts.append("歧义 \(alignment.ambiguousCount)") }
+        if alignment.unknownCount > 0 { facts.append("未知 \(alignment.unknownCount)") }
+        return "\(base) · \(facts.joined(separator: " · "))"
     }
 
     func formattedDuration(_ seconds: TimeInterval) -> String {
