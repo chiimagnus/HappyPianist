@@ -37,6 +37,12 @@ struct PerformanceAlignmentEngine: Sendable {
         let capability: PerformanceInputCapabilities.Evidence
     }
 
+    private struct ObservedOnset {
+        let observationID: UUID
+        let pitch: Int
+        let seconds: TimeInterval
+    }
+
     fileprivate struct TimedNote: Sendable {
         let event: ScorePerformanceNoteEvent
         let seconds: TimeInterval
@@ -137,7 +143,7 @@ struct PerformanceAlignmentEngine: Sendable {
         generation: UInt64?,
         releaseMeasurements: [UUID: ReleaseMeasurement] = [:]
     ) -> [PerformanceAlignmentCandidateSnapshot] {
-        let observedOnsets = observations.compactMap { observation -> (Int, TimeInterval)? in
+        let observedOnsets = observations.compactMap { observation -> ObservedOnset? in
             let capabilities = observation.source.capabilities
             guard observation.source.role != .systemPlayback,
                   generation.map({ observation.source.generation == $0 }) ?? true,
@@ -146,9 +152,13 @@ struct PerformanceAlignmentEngine: Sendable {
                   capabilities.polyphony != .unavailable,
                   let note = observation.alignmentOnsetMIDINote
             else { return nil }
-            return (note, max(0, observation.alignmentTimestamp.seconds - performanceStart.seconds))
+            return ObservedOnset(
+                observationID: observation.id,
+                pitch: note,
+                seconds: max(0, observation.alignmentTimestamp.seconds - performanceStart.seconds)
+            )
         }
-        let observedOnsetsByPitch = Dictionary(grouping: observedOnsets, by: \.0)
+        let observedOnsetsByPitch = Dictionary(grouping: observedOnsets, by: \.pitch)
         return observations.map { observation in
             candidateSnapshot(
                 for: observation,
@@ -325,7 +335,7 @@ struct PerformanceAlignmentEngine: Sendable {
         preparedPlan: PreparedPlan,
         performanceStart: PerformanceMonotonicInstant,
         generation: UInt64?,
-        observedOnsetsByPitch: [Int: [(Int, TimeInterval)]],
+        observedOnsetsByPitch: [Int: [ObservedOnset]],
         releaseMeasurement: ReleaseMeasurement?
     ) -> PerformanceAlignmentCandidateSnapshot {
         let reference = PerformanceAlignmentObservationReference(observation: observation)
@@ -387,22 +397,34 @@ struct PerformanceAlignmentEngine: Sendable {
                     note.timingProvenance.contains { $0.kind == .arpeggio }
                 } == false
             let chordSeconds = timedNote.seconds
-            let chordOnsets = measuresChordSpread ? chordEvents.compactMap { chordEvent in
-                observedOnsetsByPitch[chordEvent.midiNote]?
-                    .filter {
-                        abs($0.1 - chordSeconds) <= configuration.candidateWindowSeconds
-                    }
-                    .min { abs($0.1 - chordSeconds) < abs($1.1 - chordSeconds) }?
-                    .1
-            } : []
-            let chordSpread = (chordOnsets.max().flatMap { maximum in
-                chordOnsets.min().map { maximum - $0 }
-            }) ?? 0
+            let chordOnsets = measuresChordSpread
+                ? Dictionary(grouping: chordEvents, by: \.midiNote).flatMap { pitch, events in
+                    observedOnsetsByPitch[pitch, default: []]
+                        .filter {
+                            abs($0.seconds - chordSeconds) <= configuration.candidateWindowSeconds
+                        }
+                        .sorted { lhs, rhs in
+                            let lhsDistance = abs(lhs.seconds - chordSeconds)
+                            let rhsDistance = abs(rhs.seconds - chordSeconds)
+                            if lhsDistance != rhsDistance { return lhsDistance < rhsDistance }
+                            return lhs.observationID.uuidString < rhs.observationID.uuidString
+                        }
+                        .prefix(events.count)
+                        .map(\.seconds)
+                }
+                : []
+            let hasCompleteChordMeasurement = measuresChordSpread
+                && chordOnsets.count == chordEvents.count
+            let chordSpread = hasCompleteChordMeasurement
+                ? (chordOnsets.max().flatMap { maximum in
+                    chordOnsets.min().map { maximum - $0 }
+                }) ?? 0
+                : 0
             let pitchCost = event.midiNote == observedNote ? 0 : configuration.pitchMismatchCost
             let onsetCost = onsetEvidence == .unavailable
                 ? 0
                 : abs(onsetDeviation) * configuration.onsetWeight
-            let chordCost = measuresChordSpread
+            let chordCost = hasCompleteChordMeasurement
                 ? chordSpread * configuration.chordSpreadWeight
                 : 0
             let releaseEvidence = Self.releaseEvidence(
@@ -430,11 +452,11 @@ struct PerformanceAlignmentEngine: Sendable {
                     ),
                     .init(
                         dimension: .chordSpread,
-                        status: measuresChordSpread
+                        status: hasCompleteChordMeasurement
                             ? Self.evidenceStatus(polyphonyEvidence)
                             : .notObserved,
-                        cost: measuresChordSpread ? chordCost : nil,
-                        deviationSeconds: measuresChordSpread ? chordSpread : nil
+                        cost: hasCompleteChordMeasurement ? chordCost : nil,
+                        deviationSeconds: hasCompleteChordMeasurement ? chordSpread : nil
                     ),
                     .init(
                         dimension: .hand,

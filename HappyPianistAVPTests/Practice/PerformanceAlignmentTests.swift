@@ -193,6 +193,45 @@ func chordSpreadUsesCurrentOccurrenceAndRespectsArpeggioProvenance() throws {
 }
 
 @Test
+func unisonChordSpreadUsesDistinctObservations() {
+    let left = makeAlignmentEvent(
+        sourceID: makeAlignmentSourceID(ordinal: 0),
+        occurrenceIndex: 0,
+        handAssignment: .init(hand: .left, provenance: .score)
+    )
+    let right = makeAlignmentEvent(
+        sourceID: makeAlignmentSourceID(ordinal: 1),
+        occurrenceIndex: 0,
+        handAssignment: .init(hand: .right, provenance: .score)
+    )
+    let result = PerformanceAlignmentEngine().align(
+        plan: makeAlignmentPlan(noteEvents: [left, right]),
+        observations: [
+            makeAlignmentObservation(
+                generation: 1,
+                seconds: 0,
+                capabilities: .handContact,
+                hand: .left
+            ),
+            makeAlignmentObservation(
+                generation: 1,
+                seconds: 0.2,
+                capabilities: .handContact,
+                hand: .right
+            ),
+        ],
+        performanceStart: .init(seconds: 0)
+    )
+    let spreads = result.links.compactMap { link -> TimeInterval? in
+        guard case let .aligned(_, _, evidence) = link else { return nil }
+        return evidence.first { $0.dimension == .chordSpread }?.deviationSeconds
+    }
+
+    #expect(spreads.count == 2)
+    #expect(spreads.allSatisfy { abs($0 - 0.2) < 0.000_001 })
+}
+
+@Test
 func unavailableCapabilitiesNeverFilterCandidatesOrContributeCosts() throws {
     let unavailable = PerformanceInputCapabilities(
         pitch: .observed,
