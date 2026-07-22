@@ -50,6 +50,7 @@ struct IncrementalPerformanceAligner: Sendable {
     private var preparedPlan: PerformanceAlignmentEngine.PreparedPlan?
     private var generation: UInt64?
     private var sourceGenerations: [SourceIdentity: UInt64] = [:]
+    private var acceptedObservationIDs: Set<UUID> = []
     private var performanceStart = PerformanceMonotonicInstant(seconds: 0)
     private var observations: [PerformanceObservation] = []
     private var lastTimestamp: PerformanceMonotonicInstant?
@@ -126,6 +127,7 @@ struct IncrementalPerformanceAligner: Sendable {
         preparedPlan = nil
         generation = nil
         sourceGenerations.removeAll(keepingCapacity: true)
+        acceptedObservationIDs.removeAll(keepingCapacity: true)
         performanceStart = .init(seconds: 0)
         clearRunEvidence()
     }
@@ -290,7 +292,8 @@ struct IncrementalPerformanceAligner: Sendable {
         guard state == .running,
               observation.source.role != .systemPlayback,
               acceptsGeneration(of: observation.source),
-              lastTimestamp.map({ observation.alignmentTimestamp >= $0 }) ?? true
+              lastTimestamp.map({ observation.alignmentTimestamp >= $0 }) ?? true,
+              acceptedObservationIDs.insert(observation.id).inserted
         else {
             return false
         }

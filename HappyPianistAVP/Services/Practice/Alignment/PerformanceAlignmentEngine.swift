@@ -152,7 +152,9 @@ struct PerformanceAlignmentEngine: Sendable {
         activeTickRange: Range<Int>? = nil
     ) -> PreparedPlan {
         let timeMap = ScorePerformancePlanTimeMap(plan: plan)
-        let activeNotes = plan.noteEvents.compactMap { event -> TimedNote? in
+        var seenEventIDs: Set<ScorePerformanceNoteEventID> = []
+        let uniqueNoteEvents = plan.noteEvents.filter { seenEventIDs.insert($0.id).inserted }
+        let activeNotes = uniqueNoteEvents.compactMap { event -> TimedNote? in
             guard activeTickRange?.contains(event.performedOnTick) ?? true else { return nil }
             return TimedNote(event: event, seconds: timeMap.seconds(at: event.performedOnTick))
         }.sorted { lhs, rhs in
@@ -164,7 +166,7 @@ struct PerformanceAlignmentEngine: Sendable {
             timeMap: timeMap,
             activeNotes: activeNotes,
             chordEventsByTick: Dictionary(grouping: activeNotes.map(\.event), by: \.performedOnTick),
-            eventByID: Dictionary(uniqueKeysWithValues: plan.noteEvents.map { ($0.id, $0) }),
+            eventByID: Dictionary(uniqueKeysWithValues: uniqueNoteEvents.map { ($0.id, $0) }),
             controllerEvents: plan.controllerEvents.filter {
                 activeTickRange?.contains($0.tick) ?? true
             }
@@ -236,9 +238,11 @@ struct PerformanceAlignmentEngine: Sendable {
         reservedScoreEventIDs: Set<ScorePerformanceNoteEventID> = [],
         reservedControllerScores: Set<PerformanceAlignmentControllerScoreReference> = []
     ) -> PerformanceAlignment {
+        var seenObservationIDs: Set<UUID> = []
         let acceptedObservations = observations.filter { observation in
             observation.source.role != .systemPlayback
                 && (generation.map { observation.source.generation == $0 } ?? true)
+                && seenObservationIDs.insert(observation.id).inserted
         }
         let relevantObservations = acceptedObservations.filter {
             $0.alignmentOnsetMIDINote != nil || $0.alignmentUnknownReason != nil

@@ -51,6 +51,34 @@ func alignmentEvidenceRejectsNonFiniteValuesWithoutInventingEvidence() {
 }
 
 @Test
+func duplicateStableIDsAreIgnoredAtAlignmentBoundaries() throws {
+    let event = makeAlignmentEvent(
+        sourceID: makeAlignmentSourceID(ordinal: 0),
+        occurrenceIndex: 0
+    )
+    let plan = makeAlignmentPlan(noteEvents: [event, event])
+    let observationID = UUID()
+    let first = makeAlignmentObservation(id: observationID, generation: 1, seconds: 0)
+    let duplicate = makeAlignmentObservation(id: observationID, generation: 1, seconds: 0.1)
+
+    let offline = PerformanceAlignmentEngine().align(
+        plan: plan,
+        observations: [first, duplicate],
+        performanceStart: .init(seconds: 0),
+        generation: 1
+    )
+    #expect(offline.links.filter { if case .aligned = $0 { true } else { false } }.count == 1)
+    #expect(offline.links.filter { if case .missing = $0 { true } else { false } }.isEmpty)
+    #expect(offline.links.filter { if case .extra = $0 { true } else { false } }.isEmpty)
+
+    var online = IncrementalPerformanceAligner()
+    online.start(plan: plan, generation: 1, performanceStart: .init(seconds: 0))
+    #expect(online.append(first) != nil)
+    #expect(online.append(duplicate) == nil)
+    #expect(online.finish() == offline)
+}
+
+@Test
 func alignmentEngineUsesCapabilitiesRangeGenerationAndPlanResolution() throws {
     let sourceID = makeAlignmentSourceID(ordinal: 0)
     let event = makeAlignmentEvent(
