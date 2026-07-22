@@ -246,6 +246,7 @@ struct PracticeStepView: View {
                     playbackViewModel: viewModel.takePlaybackViewModel,
                     isRecording: viewModel.isRecording,
                     errorMessage: viewModel.takeLibraryErrorMessage,
+                    alignmentDiagnostics: viewModel.takeAlignmentDiagnostics,
                     onErrorDismiss: { viewModel.dismissTakeLibraryError() },
                     onRename: { id, name in viewModel.renameTake(id: id, name: name) },
                     onDelete: { id in viewModel.deleteTake(id: id) },

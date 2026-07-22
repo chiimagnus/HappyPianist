@@ -1,8 +1,13 @@
 import Foundation
 
 struct TakeLibraryPresentationViewModel {
-    func metadataText(for take: RecordingTake) -> String {
-        "\(formattedDuration(take.durationSeconds)) · \(formattedDate(take.createdAt))"
+    func metadataText(
+        for take: RecordingTake,
+        alignment: RecordedTakeAlignmentDiagnostics? = nil
+    ) -> String {
+        let base = "\(formattedDuration(take.durationSeconds)) · \(formattedDate(take.createdAt))"
+        guard let alignment else { return base }
+        return "\(base) · 对齐 \(alignment.alignedCount)/\(alignment.observationCount)"
     }
 
     func formattedDuration(_ seconds: TimeInterval) -> String {

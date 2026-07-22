@@ -38,6 +38,31 @@ func takeWithMultipleNotesProducesValidMIDI() throws {
 }
 
 @Test
+func takeMetadataIncludesAlignmentDiagnostics() {
+    let take = RecordingTake(name: "Diagnosed", events: [])
+    let diagnostics = RecordedTakeAlignmentDiagnostics(
+        takeSchemaVersion: take.schemaVersion,
+        eventCount: 12,
+        observationCount: 10,
+        segmentCount: 0,
+        alignedCount: 8,
+        missingCount: 1,
+        extraCount: 1,
+        ambiguousCount: 0,
+        unknownCount: 0,
+        controllerLinkCount: 0,
+        performedOccurrenceCount: 1
+    )
+
+    let text = TakeLibraryPresentationViewModel().metadataText(
+        for: take,
+        alignment: diagnostics
+    )
+
+    #expect(text.contains("对齐 8/10"))
+}
+
+@Test
 func storeClearThenLoadIsEmpty() throws {
     let documentsURL = try makeTemporaryDirectory(prefix: "RecordingIntegrationTests")
     defer { try? FileManager.default.removeItem(at: documentsURL) }

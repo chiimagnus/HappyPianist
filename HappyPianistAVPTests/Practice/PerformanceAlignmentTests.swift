@@ -51,41 +51,54 @@ func alignmentEvidenceRejectsNonFiniteValuesWithoutInventingEvidence() {
 }
 
 @Test
-func candidateEngineUsesCapabilitiesRangeGenerationAndPlanResolution() throws {
+func alignmentEngineUsesCapabilitiesRangeGenerationAndPlanResolution() throws {
     let sourceID = makeAlignmentSourceID(ordinal: 0)
-    let event = makeAlignmentEvent(sourceID: sourceID, occurrenceIndex: 0)
+    let event = makeAlignmentEvent(
+        sourceID: sourceID,
+        occurrenceIndex: 0,
+        onTick: 960
+    )
     let plan = makeAlignmentPlan(noteEvents: [event], ticksPerQuarter: 960)
-    let exact = makeAlignmentObservation(generation: 9, note: 60, seconds: 0)
-    let wrong = makeAlignmentObservation(generation: 9, note: 61, seconds: 0)
-    let stale = makeAlignmentObservation(generation: 8, note: 60, seconds: 0)
-
-    let snapshots = PerformanceAlignmentEngine().candidates(
+    let engine = PerformanceAlignmentEngine()
+    let exact = engine.align(
         plan: plan,
-        observations: [exact, wrong, stale],
+        observations: [makeAlignmentObservation(generation: 9, note: 60, seconds: 0.5)],
+        performanceStart: .init(seconds: 0),
+        activeTickRange: 0 ..< 1_920,
+        generation: 9,
+        includeMissing: false
+    )
+    let wrong = engine.align(
+        plan: plan,
+        observations: [makeAlignmentObservation(generation: 9, note: 61, seconds: 0.5)],
+        performanceStart: .init(seconds: 0),
+        activeTickRange: 0 ..< 1_920,
+        generation: 9,
+        includeMissing: false
+    )
+    let stale = engine.align(
+        plan: plan,
+        observations: [makeAlignmentObservation(generation: 8, note: 60, seconds: 0.5)],
+        performanceStart: .init(seconds: 0),
+        activeTickRange: 0 ..< 1_920,
+        generation: 9,
+        includeMissing: false
+    )
+    let outsideRange = engine.align(
+        plan: plan,
+        observations: [makeAlignmentObservation(generation: 9, note: 60, seconds: 0.5)],
         performanceStart: .init(seconds: 0),
         activeTickRange: 0 ..< 960,
-        generation: 9
+        generation: 9,
+        includeMissing: false
     )
 
-    #expect(snapshots[0].candidates.map(\.score.eventID) == [event.id])
-    #expect(snapshots[1].noCandidateReason == .noPitchCandidate)
-    #expect(snapshots[2].noCandidateReason == .staleGeneration)
-}
-
-@Test
-func recordedTakeAlignerRebasesTypedObservations() throws {
-    let sourceID = makeAlignmentSourceID(ordinal: 0)
-    let plan = makeAlignmentPlan(noteEvents: [makeAlignmentEvent(sourceID: sourceID, occurrenceIndex: 0)])
-    let observation = makeAlignmentObservation(generation: 4, note: 60, seconds: 40)
-    let take = RecordingTake(
-        name: "typed",
-        metadata: .init(scoreIdentity: plan.sourceScoreIdentity, inputSources: []),
-        events: [.init(time: 0, kind: .noteOn(midi: 60, velocity: 80), observation: observation)]
-    )
-
-    let aligner = RecordedTakeAligner()
-    let snapshots = try aligner.candidateSnapshots(take: take, plan: plan)
-    #expect(snapshots.first?.candidates.count == 1)
+    #expect(exact.links.contains {
+        if case let .aligned(score, _, _) = $0 { score.eventID == event.id } else { false }
+    })
+    #expect(wrong.links.contains { if case .extra = $0 { true } else { false } })
+    #expect(stale.links.isEmpty)
+    #expect(outsideRange.links.contains { if case .extra = $0 { true } else { false } })
 }
 
 @Test

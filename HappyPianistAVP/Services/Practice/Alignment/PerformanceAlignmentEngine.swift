@@ -171,22 +171,6 @@ struct PerformanceAlignmentEngine: Sendable {
         )
     }
 
-    func candidates(
-        plan: ScorePerformancePlan,
-        observations: [PerformanceObservation],
-        performanceStart: PerformanceMonotonicInstant,
-        activeTickRange: Range<Int>? = nil,
-        generation: UInt64? = nil
-    ) -> [PerformanceAlignmentCandidateSnapshot] {
-        let preparedPlan = prepare(plan: plan, activeTickRange: activeTickRange)
-        return candidates(
-            preparedPlan: preparedPlan,
-            observations: observations,
-            performanceStart: performanceStart,
-            generation: generation
-        )
-    }
-
     private func candidates(
         preparedPlan: PreparedPlan,
         observations: [PerformanceObservation],

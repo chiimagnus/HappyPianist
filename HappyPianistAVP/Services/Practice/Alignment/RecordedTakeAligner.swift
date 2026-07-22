@@ -37,20 +37,6 @@ struct RecordedTakeAligner: Sendable {
         self.engine = engine
     }
 
-    func candidateSnapshots(
-        take: RecordingTake,
-        plan: ScorePerformancePlan,
-        activeTickRange: Range<Int>? = nil
-    ) throws -> [PerformanceAlignmentCandidateSnapshot] {
-        let observations = try validatedObservations(from: take, plan: plan)
-        return engine.candidates(
-            plan: plan,
-            observations: observations,
-            performanceStart: .init(seconds: 0),
-            activeTickRange: activeTickRange
-        )
-    }
-
     func alignResult(
         take: RecordingTake,
         plan: ScorePerformancePlan,

@@ -6,6 +6,7 @@ struct TakeLibraryView: View {
     @Bindable var playbackViewModel: TakePlaybackViewModel
     var isRecording: Bool = false
     var errorMessage: String?
+    let alignmentDiagnostics: [UUID: RecordedTakeAlignmentDiagnostics]
     let onErrorDismiss: () -> Void
     let onRename: (UUID, String) -> Void
     let onDelete: (UUID) -> Void
@@ -29,6 +30,7 @@ struct TakeLibraryView: View {
         playbackViewModel: TakePlaybackViewModel,
         isRecording: Bool = false,
         errorMessage: String? = nil,
+        alignmentDiagnostics: [UUID: RecordedTakeAlignmentDiagnostics] = [:],
         onErrorDismiss: @escaping () -> Void,
         onRename: @escaping (UUID, String) -> Void,
         onDelete: @escaping (UUID) -> Void,
@@ -40,6 +42,7 @@ struct TakeLibraryView: View {
         self.playbackViewModel = playbackViewModel
         self.isRecording = isRecording
         self.errorMessage = errorMessage
+        self.alignmentDiagnostics = alignmentDiagnostics
         self.onErrorDismiss = onErrorDismiss
         self.onRename = onRename
         self.onDelete = onDelete
@@ -61,7 +64,10 @@ struct TakeLibraryView: View {
                     ForEach(takes) { take in
                         TakeLibraryRowView(
                             take: take,
-                            metadataText: presentationViewModel.metadataText(for: take),
+                            metadataText: presentationViewModel.metadataText(
+                                for: take,
+                                alignment: alignmentDiagnostics[take.id]
+                            ),
                             isPlaying: playbackViewModel.isPlaying(takeID: take.id),
                             isDisabled: isRecording,
                             onPlayPause: { playOrPause(take) },
