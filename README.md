@@ -49,28 +49,14 @@ docs/                       项目知识库
 
 ## 构建与测试
 
-先查看可用 destination：
+日常开发优先使用根目录 Makefile：
 
 ```bash
-xcodebuild -showdestinations \
-  -project HappyPianist.xcodeproj \
-  -scheme HappyPianistAVP
+make doctor
+make destinations
+make build
+make test
 ```
-
-运行完整测试：
-
-```bash
-xcodebuild test \
-  -project HappyPianist.xcodeproj \
-  -scheme HappyPianistAVP \
-  -destination 'platform=visionOS Simulator,id=<device-id>' \
-  CODE_SIGNING_ALLOWED=NO \
-  -parallel-testing-enabled NO
-```
-
-仓库还提供 `.github/workflows/swift-ci.yml`，当前通过手动触发，在 `macos-26` 上固定使用 Xcode 26.6。无论本地还是 CI，都必须实际运行 `xcodebuild test`；`build-for-testing`、解析检查或资源测试跳过不能作为完整通过证据。具体配置见 [`docs/configuration.md`](docs/configuration.md)。
-
-应用需要在 Xcode 中运行到 Simulator 或真机。ARKit、手部追踪、麦克风、蓝牙 MIDI、Local Network 与空间舒适度必须在对应设备环境中验证。
 
 ## 可选：启动 Aria v2 网络后端
 

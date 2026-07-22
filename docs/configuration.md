@@ -12,8 +12,11 @@
 | 部署目标 | visionOS 26.0 |
 | 支持平台 | `xros`、`xrsimulator` |
 | SwiftPM | 本地 `RealityKitContent`、远程 `ZIPFoundation` 0.9.20 |
+| 本地开发入口 | 根目录 `Makefile`；结果包写入 `.build/TestResults/`，DerivedData 使用 Xcode 默认目录 |
 
-仓库没有 macOS App target。`.github/workflows/swift-ci.yml` 仅支持手动触发，运行在 `macos-26`，通过 `DEVELOPER_DIR` 固定到 `/Applications/Xcode_26.6.app/Contents/Developer`，并使用名为 `Apple Vision Pro`、`OS=latest` 的 visionOS Simulator 执行测试；本地 `xcodebuild` 仍是开发阶段验证与复现失败的真源。
+仓库没有 macOS App target。日常本地构建和测试使用 Makefile：`make doctor` 检查工具链，`make config` 查看本机解析配置，`make destinations` 列出目标，`make test` 运行配置好的 visionOS Simulator 测试。Makefile 默认的 Simulator / Vision Pro ID 属于本机配置，运行时可覆盖 `SIMULATOR_ID` 或 `DEVICE_ID`。
+
+`.github/workflows/swift-ci.yml` 不经过 Makefile，仅支持手动触发，运行在 `macos-26`，通过 `DEVELOPER_DIR` 固定到 `/Applications/Xcode_26.6.app/Contents/Developer`，并使用名为 `Apple Vision Pro`、`OS=latest` 的 visionOS Simulator 执行原生 `xcodebuild test`；需要精确复现或 Makefile 未覆盖的场景时，本地也可直接调用 `xcodebuild`。
 
 ## 依赖边界
 

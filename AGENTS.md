@@ -57,21 +57,13 @@ SwiftUI / RealityKit -> ViewModel -> Services -> Models
 
 ## 构建、测试与调试
 
-本仓库涉及 build/test/run 的操作统一使用原生 `xcodebuild`；Simulator、设备与日志使用 `xcrun simctl`、`log stream` 等原生工具。
-
 常用命令：
 
 ```bash
-xcodebuild -showdestinations \
-  -project HappyPianist.xcodeproj \
-  -scheme HappyPianistAVP
-
-xcodebuild test \
-  -project HappyPianist.xcodeproj \
-  -scheme HappyPianistAVP \
-  -destination 'platform=visionOS Simulator,id=<device-id>' \
-  CODE_SIGNING_ALLOWED=NO \
-  -parallel-testing-enabled NO
+make doctor
+make destinations
+make build
+make test
 ```
 
 规则：
