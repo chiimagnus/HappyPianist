@@ -161,15 +161,18 @@ struct PerformanceAlignmentEngine: Sendable {
             if lhs.seconds != rhs.seconds { return lhs.seconds < rhs.seconds }
             return lhs.event.id.description < rhs.event.id.description
         }
+        var seenControllerEvents: Set<PerformanceAlignmentControllerScoreReference> = []
+        let controllerEvents = plan.controllerEvents.filter { event in
+            (activeTickRange?.contains(event.tick) ?? true)
+                && seenControllerEvents.insert(.init(event: event)).inserted
+        }
         return PreparedPlan(
             plan: plan,
             timeMap: timeMap,
             activeNotes: activeNotes,
             chordEventsByTick: Dictionary(grouping: activeNotes.map(\.event), by: \.performedOnTick),
             eventByID: Dictionary(uniqueKeysWithValues: uniqueNoteEvents.map { ($0.id, $0) }),
-            controllerEvents: plan.controllerEvents.filter {
-                activeTickRange?.contains($0.tick) ?? true
-            }
+            controllerEvents: controllerEvents
         )
     }
 

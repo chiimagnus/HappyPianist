@@ -402,6 +402,44 @@ func unavailableCapabilitiesNeverFilterCandidatesOrContributeCosts() throws {
 }
 
 @Test
+func duplicateControllerScoreReferencesAreCollapsed() {
+    let controller = ScorePerformanceControllerEvent(
+        sourceDirectionID: nil,
+        performedOccurrenceIndex: 0,
+        tick: 0,
+        controllerNumber: 64,
+        value: 127,
+        outputCapabilityRequirement: .continuousControlChange
+    )
+    let observation = makeAlignmentObservation(
+        generation: 1,
+        note: 0,
+        seconds: 0,
+        event: .controller(.controlChange(number: 64, value: .init(midi1: 127)))
+    )
+    let plan = makeAlignmentPlan(
+        noteEvents: [],
+        controllerEvents: [controller, controller]
+    )
+
+    let offline = PerformanceAlignmentEngine().align(
+        plan: plan,
+        observations: [observation],
+        performanceStart: .init(seconds: 0),
+        generation: 1
+    )
+    #expect(offline.controllerLinks.count == 1)
+    #expect(offline.controllerLinks.contains {
+        if case .aligned = $0 { true } else { false }
+    })
+
+    var online = IncrementalPerformanceAligner()
+    online.start(plan: plan, generation: 1, performanceStart: .init(seconds: 0))
+    _ = online.append(observation)
+    #expect(online.finish() == offline)
+}
+
+@Test
 func controllerAssignmentMaximizesCoverageBeforeMinimizingCost() {
     let first = ScorePerformanceControllerEvent(
         sourceDirectionID: nil,
