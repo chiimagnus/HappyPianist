@@ -352,6 +352,71 @@ func realPianoContactFlowsIntoTheSessionAssessment() async throws {
 }
 
 @MainActor
+@Test
+func performingCoachingActionPracticesTheDiagnosedMeasureAtTheRequestedTempo() throws {
+    let session = makeLearningLoopSession(
+        playback: LearningLoopPlaybackService(),
+        coordinator: PracticeProgressCoordinator(repository: LearningLoopRepository())
+    )
+    let firstSpan = learningLoopSpan()
+    let secondSpan = MusicXMLMeasureSpan(
+        partID: "P1",
+        measureNumber: 2,
+        sourceMeasureIndex: 1,
+        sourceMeasureNumberToken: "2",
+        occurrenceIndex: 0,
+        startTick: 480,
+        endTick: 960
+    )
+    session.installTestPerformanceNotes([
+        TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 480),
+        TestScorePerformanceNote(midiNote: 62, onTick: 480, offTick: 960),
+    ], measureSpans: [firstSpan, secondSpan])
+    let dimension = PerformanceAssessmentDimensionResult(
+        dimension: .onset,
+        outcome: .incorrect,
+        evidenceStatus: .observed,
+        sampleCount: 2,
+        confidence: 0.9,
+        evidence: []
+    )
+    let issue = MusicalIssue(
+        kind: .onset,
+        scoreRange: 480 ..< 960,
+        measureOccurrenceIDs: [secondSpan.occurrenceID],
+        dimensionResults: [dimension],
+        confidence: 0.9,
+        provenance: MusicalIssueProvenance(
+            planID: try #require(session.performancePlan).id,
+            sourceGeneration: 1,
+            rubricVersion: .capabilityAware
+        )
+    )
+    session.currentCoachingDecision = CoachingDecision(
+        issue: issue,
+        action: CoachingAction(
+            kind: .onsetAlignment,
+            scoreRange: issue.scoreRange,
+            tempoRatio: 0.7,
+            repeatCount: 2,
+            completionCondition: CoachingCompletionCondition(
+                target: .dimensionOutcome(dimension: .onset, outcome: .correct)
+            )
+        )
+    )
+
+    #expect(session.perform(.lowerTempo(0.7)))
+
+    #expect(session.activeRoundConfiguration?.passage == PracticePassage(
+        start: secondSpan.occurrenceID,
+        end: secondSpan.occurrenceID
+    ))
+    #expect(session.activeRoundConfiguration?.tempoScale == 0.7)
+    #expect(session.activeRange?.measureSpans == [secondSpan])
+    #expect(session.state == .guiding(stepIndex: 1))
+}
+
+@MainActor
 private func makeLearningLoopSession(
     playback: LearningLoopPlaybackService,
     coordinator: PracticeProgressCoordinator,

@@ -831,9 +831,19 @@ extension PracticeSessionViewModel {
     @discardableResult
     func perform(_ action: PracticeNextAction) -> Bool {
         let coachingDecision = self.currentCoachingDecision
+        let passage = coachingDecision.flatMap(coachingPassage(for:))
+        if let passage {
+            roundConfigurationController.pendingPassage = passage
+        }
+        let usesCoachingPassage = passage != nil
         switch action {
         case let .retryMeasure(id):
-            retryMeasure(id)
+            if usesCoachingPassage {
+                _ = applyPendingRoundConfiguration()
+                startGuidingIfReady()
+            } else {
+                retryMeasure(id)
+            }
         case let .lowerTempo(scale):
             roundConfigurationController.pendingTempoScale = scale
             _ = applyPendingRoundConfiguration()
@@ -863,6 +873,19 @@ extension PracticeSessionViewModel {
             }
         }
         return true
+    }
+
+    private func coachingPassage(for decision: CoachingDecision) -> PracticePassage? {
+        let occurrenceIDs = Set(decision.issue.measureOccurrenceIDs)
+        let localizedSpans = self.measureSpans.filter { occurrenceIDs.contains($0.occurrenceID) }
+        let matchingSpans = localizedSpans.isEmpty ? self.measureSpans.filter { span in
+            span.startTick < decision.action.scoreRange.upperBound
+                && decision.action.scoreRange.lowerBound < span.endTick
+        } : localizedSpans
+        guard let first = matchingSpans.first else { return nil }
+        let samePartSpans = matchingSpans.filter { $0.partID == first.partID }
+        guard let last = samePartSpans.last else { return nil }
+        return PracticePassage(start: first.occurrenceID, end: last.occurrenceID)
     }
 
     func skip() {
