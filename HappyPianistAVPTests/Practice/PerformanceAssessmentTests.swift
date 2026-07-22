@@ -260,6 +260,41 @@ func measureRubricUsesOnlyThatMeasuresInputCapabilities() throws {
 }
 
 @Test
+func mixedInputAppliesToleranceToEachSamplesEvidenceQuality() throws {
+    let events = [
+        makeAssessmentEvent(ordinal: 0, midiNote: 60),
+        makeAssessmentEvent(ordinal: 1, midiNote: 64),
+    ]
+    let plan = makeAssessmentPlan(events: events)
+    let alignment = PerformanceAlignment(
+        planID: plan.id,
+        sourceGeneration: 7,
+        links: [
+            makeAlignedLink(
+                event: events[0],
+                observation: makeAssessmentObservation(time: 0, note: 60, kind: .midi1),
+                onsetDeviation: 0
+            ),
+            makeAlignedLink(
+                event: events[1],
+                observation: makeAssessmentObservation(time: 0.1, note: 64, kind: .targetAudio),
+                onsetDeviation: 0.1
+            ),
+        ]
+    )
+
+    let assessment = try #require(PerformanceAssessmentService().assess(
+        plan: plan,
+        alignment: alignment,
+        measureSpans: makeTestMeasureSpans(for: plan)
+    ))
+    let onset = try assessmentResult(.onset, in: assessment)
+
+    #expect(onset.outcome == .correct)
+    #expect(onset.evidenceStatus == .degraded)
+}
+
+@Test
 func evidenceCoverageReportsCoverageWithoutProducingATotalScore() {
     let dimensions = [
         PerformanceAssessmentDimensionResult(

@@ -12,8 +12,20 @@ struct PerformanceAssessmentRubric: Sendable {
         for dimension: PerformanceAssessmentDimension,
         capabilities: PerformanceInputCapabilities
     ) -> [PerformanceTargetBand] {
+        acceptableBands(
+            for: dimension,
+            evidenceStatus: evidence(for: dimension, capabilities: capabilities) == .degraded
+                ? .degraded
+                : .observed
+        )
+    }
+
+    func acceptableBands(
+        for dimension: PerformanceAssessmentDimension,
+        evidenceStatus: PerformanceAssessmentEvidenceStatus
+    ) -> [PerformanceTargetBand] {
         let configured = targetProfile.bands(for: dimension)
-        let isDegraded = evidence(for: dimension, capabilities: capabilities) == .degraded
+        let isDegraded = evidenceStatus == .degraded
         guard configured.isEmpty == false else {
             return [Self.genericBand(for: dimension, scale: isDegraded ? 1.5 : 1)]
         }
@@ -26,6 +38,14 @@ struct PerformanceAssessmentRubric: Sendable {
         capabilities: PerformanceInputCapabilities
     ) -> Bool {
         acceptableBands(for: dimension, capabilities: capabilities).contains { $0.contains(value) }
+    }
+
+    func accepts(
+        _ value: Double,
+        for dimension: PerformanceAssessmentDimension,
+        evidenceStatus: PerformanceAssessmentEvidenceStatus
+    ) -> Bool {
+        acceptableBands(for: dimension, evidenceStatus: evidenceStatus).contains { $0.contains(value) }
     }
 
     func select(

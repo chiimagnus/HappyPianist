@@ -356,7 +356,7 @@ struct PerformanceAssessmentService: Sendable {
             samples: samples,
             measurement: PerformanceAssessmentMeasurement(value: mean, unit: unit),
             passes: samples.allSatisfy {
-                rubric.accepts($0.value, for: dimension, capabilities: capabilities)
+                rubric.accepts($0.value, for: dimension, evidenceStatus: $0.status)
             }
         )
     }
@@ -423,7 +423,7 @@ struct PerformanceAssessmentService: Sendable {
             outcome: hasIncompleteChord
                 ? .insufficientEvidence
                 : (samples.allSatisfy {
-                    rubric.accepts($0.value, for: .chordSpread, capabilities: capabilities)
+                    rubric.accepts($0.value, for: .chordSpread, evidenceStatus: $0.status)
                 }
                     ? .correct
                     : .incorrect),
@@ -479,7 +479,7 @@ struct PerformanceAssessmentService: Sendable {
             outcome: hasIncompleteEvidence
                 ? .insufficientEvidence
                 : (samples.allSatisfy {
-                    rubric.accepts($0.value, for: .duration, capabilities: capabilities)
+                    rubric.accepts($0.value, for: .duration, evidenceStatus: $0.status)
                 }
                     ? .correct
                     : .incorrect),
@@ -517,7 +517,7 @@ struct PerformanceAssessmentService: Sendable {
             outcome: hasIncompleteEvidence
                 ? .insufficientEvidence
                 : (samples.allSatisfy {
-                    rubric.accepts($0.value, for: .release, capabilities: capabilities)
+                    rubric.accepts($0.value, for: .release, evidenceStatus: $0.status)
                 }
                     ? .correct
                     : .incorrect),
@@ -615,7 +615,7 @@ struct PerformanceAssessmentService: Sendable {
                     rubric.accepts(
                         $0.deviationSeconds,
                         for: .articulation,
-                        capabilities: capabilities
+                        evidenceStatus: $0.status
                     )
                 } ? .correct : .incorrect),
             evidenceStatus: hasIncompleteEvidence
@@ -661,7 +661,7 @@ struct PerformanceAssessmentService: Sendable {
             outcome: incomplete
                 ? .insufficientEvidence
                 : (samples.allSatisfy {
-                    rubric.accepts($0.value, for: .velocity, capabilities: capabilities)
+                    rubric.accepts($0.value, for: .velocity, evidenceStatus: $0.status)
                 }
                     ? .correct
                     : .incorrect),
@@ -740,7 +740,7 @@ struct PerformanceAssessmentService: Sendable {
             outcome: incomplete
                 ? .insufficientEvidence
                 : (samples.allSatisfy {
-                    rubric.accepts($0.value, for: .dynamicContour, capabilities: capabilities)
+                    rubric.accepts($0.value, for: .dynamicContour, evidenceStatus: $0.status)
                 }
                     ? .correct
                     : .incorrect),
@@ -830,7 +830,7 @@ struct PerformanceAssessmentService: Sendable {
             outcome: incomplete
                 ? .insufficientEvidence
                 : (samples.allSatisfy {
-                    rubric.accepts($0.value, for: .voicing, capabilities: capabilities)
+                    rubric.accepts($0.value, for: .voicing, evidenceStatus: $0.status)
                 }
                     ? .correct
                     : .incorrect),
@@ -897,7 +897,7 @@ struct PerformanceAssessmentService: Sendable {
         return PerformanceAssessmentDimensionResult(
             dimension: .pedalTiming,
             outcome: failures.isEmpty && samples.allSatisfy {
-                rubric.accepts($0.value, for: .pedalTiming, capabilities: capabilities)
+                rubric.accepts($0.value, for: .pedalTiming, evidenceStatus: $0.status)
             } ? .correct : .incorrect,
             evidenceStatus: isApproximation ? .degraded : aggregateStatus(samples.map(\.status) + [.observed]),
             measurement: worst.flatMap {
@@ -949,7 +949,7 @@ struct PerformanceAssessmentService: Sendable {
         return PerformanceAssessmentDimensionResult(
             dimension: .pedalValue,
             outcome: failures.isEmpty && samples.allSatisfy {
-                rubric.accepts($0.value, for: .pedalValue, capabilities: capabilities)
+                rubric.accepts($0.value, for: .pedalValue, evidenceStatus: $0.status)
             } ? .correct : .incorrect,
             evidenceStatus: isApproximation ? .degraded : aggregateStatus(samples.map(\.status) + [.observed]),
             measurement: mean.flatMap {
@@ -1010,7 +1010,7 @@ struct PerformanceAssessmentService: Sendable {
             samples: samples,
             measurement: PerformanceAssessmentMeasurement(value: mean, unit: .normalized),
             passes: samples.allSatisfy {
-                rubric.accepts($0.value, for: .tempoContinuity, capabilities: capabilities)
+                rubric.accepts($0.value, for: .tempoContinuity, evidenceStatus: $0.status)
             }
         )
     }
@@ -1073,7 +1073,7 @@ struct PerformanceAssessmentService: Sendable {
             samples: samples,
             measurement: PerformanceAssessmentMeasurement(value: mean, unit: .seconds),
             passes: samples.allSatisfy {
-                rubric.accepts($0.value, for: .phraseContinuity, capabilities: capabilities)
+                rubric.accepts($0.value, for: .phraseContinuity, evidenceStatus: $0.status)
             }
         )
     }
