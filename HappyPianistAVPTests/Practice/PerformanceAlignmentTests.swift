@@ -771,6 +771,38 @@ func incrementalAlignerRejectsStaleOutOfOrderAndSystemPlaybackAndResetsLifecycle
 }
 
 @Test
+func incrementalAlignerWaitsForRepeatCandidateWindowsBeforeCommitting() throws {
+    let sourceID = makeAlignmentSourceID(ordinal: 0)
+    let firstEvent = makeAlignmentEvent(sourceID: sourceID, occurrenceIndex: 0)
+    let repeatedEvent = makeAlignmentEvent(
+        sourceID: sourceID,
+        occurrenceIndex: 1,
+        onTick: 960
+    )
+    let plan = makeAlignmentPlan(noteEvents: [firstEvent, repeatedEvent])
+    let early = makeAlignmentObservation(generation: 1, seconds: 0.6)
+    let clockAdvance = makeAlignmentObservation(generation: 1, note: 72, seconds: 0.91)
+    let repeated = makeAlignmentObservation(generation: 1, seconds: 1)
+    let observations = [early, clockAdvance, repeated]
+    var incremental = IncrementalPerformanceAligner()
+    incremental.start(plan: plan, generation: 1, performanceStart: .init(seconds: 0))
+    for observation in observations {
+        _ = incremental.append(observation)
+    }
+
+    let finished = incremental.finish()
+    let online = try #require(finished)
+    let offline = PerformanceAlignmentEngine().align(
+        plan: plan,
+        observations: observations,
+        performanceStart: .init(seconds: 0),
+        generation: 1
+    )
+
+    #expect(online == offline)
+}
+
+@Test
 func incrementalTrimPreservesCompleteFinalFacts() throws {
     let plan = makeAlignmentPlan(noteEvents: [])
     var aligner = IncrementalPerformanceAligner(

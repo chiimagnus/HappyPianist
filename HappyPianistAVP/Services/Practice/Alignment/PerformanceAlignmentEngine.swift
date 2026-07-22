@@ -139,6 +139,8 @@ struct PerformanceAlignmentEngine: Sendable {
 
     private let configuration: PerformanceAlignmentConfiguration
 
+    var candidateWindowSeconds: TimeInterval { configuration.candidateWindowSeconds }
+
     init(configuration: PerformanceAlignmentConfiguration = .init()) {
         self.configuration = configuration
     }

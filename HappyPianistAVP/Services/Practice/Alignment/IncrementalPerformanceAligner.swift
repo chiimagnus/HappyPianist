@@ -153,10 +153,10 @@ struct IncrementalPerformanceAligner: Sendable {
     }
 
     private func provisionalizing(_ alignment: PerformanceAlignment) -> PerformanceAlignment {
-        let horizon = (lastTimestamp?.seconds ?? 0) - configuration.commitHorizonSeconds
+        let now = lastTimestamp ?? performanceStart
         let links = alignment.links.map { link -> PerformanceAlignmentLink in
             guard case let .aligned(score, observation, evidence) = link,
-                  observation.correctedTime.seconds > horizon
+                  isMature(observation: observation, now: now) == false
             else { return link }
             return .provisional(
                 score: score,
@@ -204,19 +204,31 @@ struct IncrementalPerformanceAligner: Sendable {
         now: PerformanceMonotonicInstant
     ) {
         guard let alignment else { return }
-        let horizon = now.seconds - configuration.commitHorizonSeconds
         for link in alignment.links {
             guard let observation = link.observationReference,
-                  observation.correctedTime.seconds <= horizon
+                  isMature(observation: observation, now: now)
             else { continue }
             commit(link)
         }
         for link in alignment.controllerLinks {
             guard let observation = link.observationReference,
-                  observation.correctedTime.seconds <= horizon
+                  isMature(observation: observation, now: now)
             else { continue }
             commit(link)
         }
+    }
+
+    private func isMature(
+        observation: PerformanceAlignmentObservationReference,
+        now: PerformanceMonotonicInstant
+    ) -> Bool {
+        // ponytail: an observation can compete with another one a score window later;
+        // keep two windows, then use per-candidate deadlines if live latency is measured as a problem.
+        let safeHorizon = max(
+            configuration.commitHorizonSeconds,
+            engine.candidateWindowSeconds * 2
+        )
+        return observation.correctedTime.seconds <= now.seconds - safeHorizon
     }
 
     private mutating func trimBuffer(using alignment: PerformanceAlignment?) {
