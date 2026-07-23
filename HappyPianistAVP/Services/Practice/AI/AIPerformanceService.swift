@@ -665,10 +665,6 @@ final class AIPerformanceService {
         controlMode: DuetTurnTakingCore.Mode,
         horizonSeconds: TimeInterval
     ) -> CandidateEvaluation {
-        let responseQualityAssessment = ImprovQualityRubric().assess(
-            response.schedule,
-            responseLatencySeconds: responseLatencySeconds(for: response)
-        )
         let rawAssessment = DuetPhrasePolicy.assessSchedule(
             response.schedule,
             noteSnapshot: noteSnapshot,
@@ -679,6 +675,11 @@ final class AIPerformanceService {
             noteSnapshot: noteSnapshot,
             controlMode: controlMode,
             horizonSeconds: horizonSeconds
+        )
+        let responseQualityAssessment = ImprovQualityRubric().assess(
+            shapedSchedule,
+            responseLatencySeconds: responseLatencySeconds(for: response),
+            context: ImprovQualityRubric.phraseContext(from: noteSnapshot)
         )
         let assessment: DuetPhrasePolicy.QualityAssessment = if shapedSchedule.isEmpty {
             rawAssessment.band == .reject

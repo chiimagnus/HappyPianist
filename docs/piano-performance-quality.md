@@ -145,7 +145,7 @@ MIDI / target audio / real or virtual piano contact
 
 AI 对弹只消费用户 `PerformanceObservation` 派生的 phrase，并保留 source capability、velocity、duration、controller、identity 与 monotonic timing；system playback 不会回灌为用户输入。输出只作为运行期 `CreativeDuetResponse` 播放，不改写 `ScorePerformancePlan`、不进入 assessment target、`MusicalIssue`、coaching decision 或 progress JSON。
 
-当前确定性 corpus 覆盖 Rule 真实固定 seed、CoreML event decoding 和 network protocol fake 的共同结构性质量门。它检查 response 的密度、重复、register、节奏、声部、和声、终止、冲突与延迟边界；它不要求三个 provider 生成相同音符，也不证明真实 CoreML 模型或外部 Aria 服务已经达到钢琴家参考、专业评分或教学质量。
+当前确定性 corpus 覆盖 Rule 真实固定 seed、CoreML event decoding 和 network protocol fake 的共同结构性质量门。它检查 response 的密度、重复、register、节奏、声部、和声、终止、冲突与延迟边界；和声、终止与声部仅在 response 或当前 phrase 有可观察证据时判定，缺证据保留为 `notObserved` 而不改写成错误。它不要求三个 provider 生成相同音符，也不证明真实 CoreML 模型或外部 Aria 服务已经达到钢琴家参考、专业评分或教学质量。
 
 用户选择的 provider unavailable、timeout、invalid response 或 quality gate failure 时，本次生成停止且不会 fallback。诊断只保留 provider kind 与 failure category，不保留 phrase、AI 正文、逐音 MIDI/音频/手部数据、路径或认证信息。
 

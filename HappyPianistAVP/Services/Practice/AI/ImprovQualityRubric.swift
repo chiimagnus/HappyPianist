@@ -80,19 +80,13 @@ struct ImprovQualityRubric {
     struct PhraseContext: Equatable {
         let allowedPitchClasses: Set<Int>?
         let cadencePitchClasses: Set<Int>?
-        let finalMelodyPitch: Int?
-        let voicePairs: [VoicePair]
 
         init(
             allowedPitchClasses: Set<Int>? = nil,
-            cadencePitchClasses: Set<Int>? = nil,
-            finalMelodyPitch: Int? = nil,
-            voicePairs: [VoicePair] = []
+            cadencePitchClasses: Set<Int>? = nil
         ) {
             self.allowedPitchClasses = allowedPitchClasses
             self.cadencePitchClasses = cadencePitchClasses
-            self.finalMelodyPitch = finalMelodyPitch
-            self.voicePairs = voicePairs
         }
     }
 
@@ -132,7 +126,8 @@ struct ImprovQualityRubric {
     func assess(
         _ response: [PracticeSequencerMIDIEvent],
         responseLatencySeconds: TimeInterval? = nil,
-        context: PhraseContext? = nil
+        context: PhraseContext? = nil,
+        voicePairs: [VoicePair] = []
     ) -> Assessment {
         let noteOns = response.compactMap { event -> (time: TimeInterval, midi: Int)? in
             guard case let .noteOn(midi, _) = event.kind else { return nil }
@@ -147,7 +142,7 @@ struct ImprovQualityRubric {
         assessRegister(noteOns, dimensions: &dimensions, reasons: &reasons)
         assessRhythm(noteOns, dimensions: &dimensions, reasons: &reasons)
         assessVoiceLeading(noteOns, dimensions: &dimensions, reasons: &reasons)
-        assessVoiceCrossing(context, dimensions: &dimensions, reasons: &reasons)
+        assessVoiceCrossing(voicePairs, dimensions: &dimensions, reasons: &reasons)
         assessHarmonicFit(noteOns, context: context, dimensions: &dimensions, reasons: &reasons)
         assessCadence(noteOns, context: context, dimensions: &dimensions, reasons: &reasons)
         assessConflicts(response, noteOns: noteOns, dimensions: &dimensions, reasons: &reasons)
@@ -322,12 +317,12 @@ struct ImprovQualityRubric {
     }
 
     private func assessVoiceCrossing(
-        _ context: PhraseContext?,
+        _ voicePairs: [VoicePair],
         dimensions: inout [Dimension: Evidence],
         reasons: inout [Reason]
     ) {
-        guard let context, context.voicePairs.isEmpty == false else { return }
-        if context.voicePairs.contains(where: { $0.bass >= $0.melody }) {
+        guard voicePairs.isEmpty == false else { return }
+        if voicePairs.contains(where: { $0.bass >= $0.melody }) {
             dimensions[.voiceLeading] = .fail
             reasons.append(.voiceCrossing)
         } else if dimensions[.voiceLeading] == .notObserved {
@@ -363,13 +358,19 @@ struct ImprovQualityRubric {
               cadencePitchClasses.isEmpty == false
         else { return }
         let melody = onsetMelody(noteOns)
-        guard let finalPitch = context?.finalMelodyPitch ?? (melody.count >= 2 ? melody.last : nil) else { return }
+        guard melody.count >= 2, let finalPitch = melody.last else { return }
         if cadencePitchClasses.contains(pitchClass(finalPitch)) {
             dimensions[.cadence] = .pass
         } else {
             dimensions[.cadence] = .fail
             reasons.append(.missingCadence)
         }
+    }
+
+    static func phraseContext(from noteSnapshot: DuetPhraseBuffer.Snapshot) -> PhraseContext? {
+        let pitchClasses = Set(noteSnapshot.heldNotes.map { $0.midi % 12 })
+        guard pitchClasses.count >= 3 else { return nil }
+        return PhraseContext(cadencePitchClasses: pitchClasses)
     }
 
     private func assessConflicts(

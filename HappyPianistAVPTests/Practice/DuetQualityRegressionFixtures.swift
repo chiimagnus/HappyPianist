@@ -17,6 +17,25 @@ enum DuetQualityRegressionFixtures {
         let expectedBand: ImprovQualityRubric.Band
         let expectedReason: ImprovQualityRubric.Reason?
         let expectedCadenceEvidence: ImprovQualityRubric.Evidence?
+        let voicePairs: [ImprovQualityRubric.VoicePair]
+
+        init(
+            name: String,
+            response: [PracticeSequencerMIDIEvent],
+            context: ImprovQualityRubric.PhraseContext,
+            expectedBand: ImprovQualityRubric.Band,
+            expectedReason: ImprovQualityRubric.Reason?,
+            expectedCadenceEvidence: ImprovQualityRubric.Evidence?,
+            voicePairs: [ImprovQualityRubric.VoicePair] = []
+        ) {
+            self.name = name
+            self.response = response
+            self.context = context
+            self.expectedBand = expectedBand
+            self.expectedReason = expectedReason
+            self.expectedCadenceEvidence = expectedCadenceEvidence
+            self.voicePairs = voicePairs
+        }
     }
 
     struct BackendQualityCorpus {
@@ -196,12 +215,12 @@ enum DuetQualityRegressionFixtures {
         ],
         context: .init(
             allowedPitchClasses: Set(0 ..< 12),
-            cadencePitchClasses: [0],
-            voicePairs: [.init(bass: 72, melody: 60)]
+            cadencePitchClasses: [0]
         ),
         expectedBand: .reject,
         expectedReason: .voiceCrossing,
-        expectedCadenceEvidence: nil
+        expectedCadenceEvidence: nil,
+        voicePairs: [.init(bass: 72, melody: 60)]
     )
 
     static let harmonicMismatch = RubricFixture(

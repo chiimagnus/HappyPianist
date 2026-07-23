@@ -361,7 +361,6 @@ public struct RuleImprovGenerator: Sendable {
             cycleIndex += 1
         }
 
-        var finalMelodyPitch: Int?
         if output.isEmpty == false {
             let lastTime = output.map(\.time).max() ?? 0
             let lastNotes = output.filter { abs($0.time - lastTime) < 0.01 }
@@ -369,7 +368,6 @@ public struct RuleImprovGenerator: Sendable {
                 let finalChordPCs = measureChordPCs.last ?? chordPitchClasses
                 let finalAllowed = normalizedMode == "rhythm_lock" ? finalChordPCs : (predictedChords.last?.pitchClasses ?? strongPitchClasses)
                 let finalPitch = nearestPitch(target: melodyNote.note, allowedPitchClasses: finalAllowed, low: texture.melodyLow, high: texture.melodyHigh)
-                finalMelodyPitch = finalPitch
                 if let index = output.firstIndex(where: { note in
                     note.note == melodyNote.note
                         && note.velocity == melodyNote.velocity
@@ -413,10 +411,9 @@ public struct RuleImprovGenerator: Sendable {
             qualityResponse,
             context: .init(
                 allowedPitchClasses: Set(measureScales.flatMap { $0 } + measureChordPCs.flatMap { $0 }),
-                cadencePitchClasses: Set(measureChordPCs.last ?? chordPitchClasses),
-                finalMelodyPitch: finalMelodyPitch,
-                voicePairs: voicePairs
-            )
+                cadencePitchClasses: Set(measureChordPCs.last ?? chordPitchClasses)
+            ),
+            voicePairs: voicePairs
         )
         guard quality.isUsable else {
             return RuleResult(
