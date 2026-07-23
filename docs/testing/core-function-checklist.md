@@ -311,6 +311,8 @@ MIDI 设备：
 
 详细运行方法见 [钢琴演奏专业化验证手册](piano-performance-validation.md)。
 
+Simulator 自动化入口与未覆盖边界见 [visionOS Simulator 钢琴演奏全链路矩阵](visionos-piano-performance-matrix.md)；只有附有该次 `xcodebuild test` 运行日志的记录才能标为通过。
+
 - [ ] MusicXML 与演奏事件快照稳定，差异已人工确认
 - [ ] fixture manifest 无重复、缺失或未登记文件
 - [ ] 已知偏差 manifest 覆盖全部审查编号，未把错误固化为正确快照
