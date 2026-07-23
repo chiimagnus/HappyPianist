@@ -45,6 +45,8 @@ alignment/assessment/coaching 自动化至少要覆盖：score/occurrence identi
 
 Simulator 自动化使用统一 `FakePerformanceOutput` 捕获 timestamped batches、capabilities、generation、reset 与 AVAudio 状态，并注入 MIDI send、音频 operation/render 和 disconnect 故障。
 
+真机的采样步骤、上下文元数据和 pending 语义见[钢琴硬件 latency、jitter 与可靠性协议](piano-hardware-latency-protocol.md)。该协议未实际执行前，不能把 Simulator bucket 或输出 metrics 当作真实音频 latency 证据。
+
 Simulator 可以验收：
 
 - timestamp 非零、批次顺序、look-ahead horizon、late clamp 与 generation guard；
