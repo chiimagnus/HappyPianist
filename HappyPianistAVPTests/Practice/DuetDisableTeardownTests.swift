@@ -50,7 +50,7 @@ private actor ControlledBackend: ImprovBackendProtocol {
     nonisolated let kind: ImprovBackendKind
     nonisolated let displayName: String
 
-    private var continuations: [CheckedContinuation<ImprovBackendPlaybackPlan, Error>] = []
+    private var continuations: [(continuation: CheckedContinuation<CreativeDuetResponse, Error>, generation: CreativeDuetGeneration)] = []
     private var calls = 0
     private var callWaiters: [(minimumCount: Int, continuation: CheckedContinuation<Bool, Never>)] = []
 
@@ -59,11 +59,15 @@ private actor ControlledBackend: ImprovBackendProtocol {
         self.displayName = displayName
     }
 
-    func generatePlaybackPlan(request _: ImprovGenerateRequestV2, timeout _: Duration) async throws -> ImprovBackendPlaybackPlan {
+    func generateCreativeResponse(
+        phrase _: CreativeDuetPhrase,
+        generation: CreativeDuetGeneration,
+        timeout _: Duration
+    ) async throws -> CreativeDuetResponse {
         try Task.checkCancellation()
         return try await withCheckedThrowingContinuation { continuation in
             calls += 1
-            continuations.append(continuation)
+            continuations.append((continuation, generation))
             let readyWaiters = callWaiters.filter { $0.minimumCount <= calls }
             callWaiters.removeAll { $0.minimumCount <= calls }
             for waiter in readyWaiters {
@@ -79,14 +83,48 @@ private actor ControlledBackend: ImprovBackendProtocol {
         }
     }
 
-    func resume(with plan: ImprovBackendPlaybackPlan) {
+    func resume(with schedule: [PracticeSequencerMIDIEvent], backendLatencyMS: Int? = nil) {
         guard continuations.isEmpty == false else { return }
-        let continuation = continuations.removeFirst()
-        continuation.resume(returning: plan)
+        let pendingResponse = continuations.removeFirst()
+        pendingResponse.continuation.resume(returning: CreativeDuetResponse(
+            schedule: schedule,
+            provider: kind,
+            generation: pendingResponse.generation,
+            provenance: .backendGenerated(latencyMS: backendLatencyMS)
+        ))
     }
 
     func generateCallCount() -> Int {
         calls
+    }
+}
+
+private actor CancellationAwareBackend: ImprovBackendProtocol {
+    nonisolated let kind: ImprovBackendKind
+    nonisolated let displayName = "Cancellation aware"
+
+    private var didReceiveCall = false
+    private var callWaiter: CheckedContinuation<Void, Never>?
+
+    init(kind: ImprovBackendKind) {
+        self.kind = kind
+    }
+
+    func generateCreativeResponse(
+        phrase _: CreativeDuetPhrase,
+        generation _: CreativeDuetGeneration,
+        timeout _: Duration
+    ) async throws -> CreativeDuetResponse {
+        didReceiveCall = true
+        callWaiter?.resume()
+        callWaiter = nil
+        try await Task.sleep(for: .seconds(60))
+        throw CancellationError()
+    }
+
+    func waitForCall() async {
+        guard didReceiveCall == false else { return }
+        await withCheckedContinuation { callWaiter = $0 }
     }
 }
 
@@ -202,7 +240,7 @@ func disablingServiceDropsLateBackendResponses() async {
         PracticeSequencerMIDIEvent(timeSeconds: 0.0, kind: .noteOn(midi: 60, velocity: 90)),
         PracticeSequencerMIDIEvent(timeSeconds: 0.1, kind: .noteOff(midi: 60)),
     ]
-    await backend.resume(with: .schedule(schedule, backendLatencyMS: nil))
+    await backend.resume(with: schedule)
 
     for _ in 0 ..< 200 {
         await Task.yield()
@@ -215,11 +253,12 @@ func disablingServiceDropsLateBackendResponses() async {
 
 @Test
 @MainActor
-func newInputReevaluatesContinuousResponseAgainstLatestContext() async {
+func newInputDropsStaleContinuousResponse() async {
     var nowUptime: TimeInterval = 0
     let controlClock = AIPerformanceControlClock()
     let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
     let backend = ControlledBackend(kind: selectedKind)
+    let diagnosticsReporter = InMemoryDiagnosticsReporter()
     let playbackService = NonAdvancingPlaybackService()
     let factory = DuetAIPlaybackServiceFactory(
         makeLocalSamplerPlaybackService: { playbackService },
@@ -227,6 +266,7 @@ func newInputReevaluatesContinuousResponseAgainstLatestContext() async {
     )
     var enqueuedSchedule = false
     let service = AIPerformanceService(
+        diagnosticsReporter: diagnosticsReporter,
         nowUptimeSeconds: { nowUptime },
         sleepFor: { duration in await controlClock.sleep(for: duration) },
         discoveryOrchestrator: FakeDiscoveryOrchestrator(),
@@ -258,17 +298,87 @@ func newInputReevaluatesContinuousResponseAgainstLatestContext() async {
             timestamp: .init(seconds: nowUptime)
         )
     )
-    nowUptime = 0.3
-    await backend.resume(with: .schedule([
+    nowUptime = 0.4
+    await controlClock.advance()
+    #expect(await backend.waitForCall(minimumCount: 2))
+
+    await backend.resume(with: [
         PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 72, velocity: 90)),
         PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 72)),
-    ], backendLatencyMS: nil))
+    ])
 
+    for _ in 0 ..< 200 {
+        await Task.yield()
+    }
+    #expect(enqueuedSchedule == false)
+    let staleResponseReason = "provider=network_bonjour_http_aria_v2;outcome=stale_phrase"
+    for _ in 0 ..< 200 {
+        await Task.yield()
+        let events = await diagnosticsReporter.events
+        if events.contains(where: { $0.reason == staleResponseReason }) { break }
+    }
+    let events = await diagnosticsReporter.events
+    #expect(events.contains(where: { $0.reason == staleResponseReason }))
+
+    await backend.resume(with: [
+        PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 74, velocity: 90)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 74)),
+    ])
     for _ in 0 ..< 200 {
         await Task.yield()
     }
     #expect(enqueuedSchedule)
     service.setEnabled(false)
+}
+
+@Test
+@MainActor
+func cancellingGenerationRecordsDiscardOutcome() async {
+    var nowUptime: TimeInterval = 0
+    let controlClock = AIPerformanceControlClock()
+    let selectedKind: ImprovBackendKind = .localRule
+    let backend = CancellationAwareBackend(kind: selectedKind)
+    let diagnosticsReporter = InMemoryDiagnosticsReporter()
+    let playbackService = NonAdvancingPlaybackService()
+    let factory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { playbackService },
+        makeExternalMIDIPlaybackService: { _ in playbackService }
+    )
+    let service = AIPerformanceService(
+        diagnosticsReporter: diagnosticsReporter,
+        nowUptimeSeconds: { nowUptime },
+        sleepFor: { duration in await controlClock.sleep(for: duration) },
+        discoveryOrchestrator: FakeDiscoveryOrchestrator(),
+        backendRegistry: ImprovBackendRegistry(backends: [backend]),
+        selectedBackendKind: { selectedKind },
+        aiPlaybackServiceFactory: { factory },
+        onStateChanged: { _ in }
+    )
+    let session = FakePracticeSession(settingsProvider: FakeSettingsProvider())
+    service.updatePracticeSession(session)
+    service.setEnabled(true)
+    service.recordKeyContactForPhraseRecordingIfNeeded(
+        usesBluetoothMIDIInput: false,
+        observations: makeTestKeyContactObservations(
+            activeMIDINotes: [60],
+            startedMIDINotes: [60],
+            timestamp: .init(seconds: nowUptime)
+        )
+    )
+    nowUptime = 0.2
+    await controlClock.advance()
+    await backend.waitForCall()
+
+    service.setEnabled(false)
+
+    let expectedReason = "provider=local_rule;outcome=cancelled"
+    for _ in 0 ..< 200 {
+        await Task.yield()
+        let events = await diagnosticsReporter.events
+        if events.contains(where: { $0.reason == expectedReason }) { break }
+    }
+    let events = await diagnosticsReporter.events
+    #expect(events.contains(where: { $0.reason == expectedReason }))
 }
 
 @Test
@@ -321,8 +431,8 @@ func changingBackendDoesNotWaitForSuspendedOldBackend() async {
     await controlClock.advance()
     #expect(await newBackend.waitForCall())
 
-    await newBackend.resume(with: .schedule([], backendLatencyMS: nil))
-    await oldBackend.resume(with: .schedule([], backendLatencyMS: nil))
+    await newBackend.resume(with: [])
+    await oldBackend.resume(with: [])
     service.setEnabled(false)
 }
 
@@ -365,10 +475,10 @@ func replacingPracticeSessionInvalidatesOldResponse() async {
     #expect(await backend.waitForCall())
 
     service.updatePracticeSession(replacementSession)
-    await backend.resume(with: .schedule([
+    await backend.resume(with: [
         PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 72, velocity: 90)),
         PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 72)),
-    ], backendLatencyMS: nil))
+    ])
     for _ in 0 ..< 200 {
         await Task.yield()
     }
@@ -415,10 +525,10 @@ func silentContextDropsLateContinuousResponse() async {
     #expect(await backend.waitForCall())
 
     nowUptime = 2.0
-    await backend.resume(with: .schedule([
+    await backend.resume(with: [
         PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 72, velocity: 90)),
         PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 72)),
-    ], backendLatencyMS: nil))
+    ])
 
     for _ in 0 ..< 200 {
         await Task.yield()
@@ -477,12 +587,12 @@ func disablingAndReenablingKeepsNewRequestTracked() async {
     await controlClock.advance()
     #expect(await backend.waitForCall(minimumCount: 2))
 
-    await backend.resume(with: .schedule([], backendLatencyMS: nil))
+    await backend.resume(with: [])
     for _ in 0 ..< 200 {
         await Task.yield()
     }
     #expect(await backend.generateCallCount() == 2)
 
-    await backend.resume(with: .schedule([], backendLatencyMS: nil))
+    await backend.resume(with: [])
     service.setEnabled(false)
 }

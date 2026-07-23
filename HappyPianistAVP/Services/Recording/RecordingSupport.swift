@@ -142,12 +142,24 @@ struct MIDIRecordingAdapter {
         observationAdapter.resetClockCalibration()
     }
 
+    mutating func observation(for event: MIDI1InputEvent) -> PerformanceObservation {
+        observationAdapter.observation(for: event, generation: generation)
+    }
+
+    mutating func observation(for event: MIDI2InputEvent) -> PerformanceObservation {
+        observationAdapter.observation(for: event, generation: generation)
+    }
+
+    mutating func record(_ observation: PerformanceObservation, into recorder: inout RecordingTakeRecorder) {
+        recorder.record(observation)
+    }
+
     mutating func record(event: MIDI1InputEvent, into recorder: inout RecordingTakeRecorder) {
-        recorder.record(observationAdapter.observation(for: event, generation: generation))
+        record(observation(for: event), into: &recorder)
     }
 
     mutating func record(event: MIDI2InputEvent, into recorder: inout RecordingTakeRecorder) {
-        recorder.record(observationAdapter.observation(for: event, generation: generation))
+        record(observation(for: event), into: &recorder)
     }
 }
 

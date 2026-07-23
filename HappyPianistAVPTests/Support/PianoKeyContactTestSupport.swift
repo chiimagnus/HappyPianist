@@ -28,6 +28,7 @@ final class TestKeyContactDetector: KeyContactDetectingProtocol {
 func makeTestKeyContactObservation(
     midiNote: Int,
     phase: PianoKeyContactObservation.Phase,
+    observationID: UUID = UUID(),
     hand: TrackedHandSide = .right,
     finger: TrackedFinger = .index,
     sequence: UInt64 = 1,
@@ -36,6 +37,7 @@ func makeTestKeyContactObservation(
     calibrationID: UUID = UUID()
 ) -> PianoKeyContactObservation {
     PianoKeyContactObservation(
+        observationID: observationID,
         id: PianoKeyContactID(finger: TrackedFingerID(hand: hand, finger: finger), sequence: sequence),
         phase: phase,
         keyCandidate: .exact(midiNote),

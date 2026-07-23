@@ -76,11 +76,17 @@ actor AriaNetworkBonjourWebSocketImprovBackend: ImprovBackendProtocol {
         return try await streamingClient.streamChunks(url: url, start: start, timeout: timeout)
     }
 
-    func generatePlaybackPlan(
-        request: ImprovGenerateRequestV2,
+    func generateCreativeResponse(
+        phrase: CreativeDuetPhrase,
+        generation: CreativeDuetGeneration,
         timeout: Duration
-    ) async throws -> ImprovBackendPlaybackPlan {
+    ) async throws -> CreativeDuetResponse {
         var events: [ImprovEvent] = []
+        let request = ImprovGenerateRequestV2(
+            events: phrase.events,
+            params: generation.parameters,
+            sessionID: generation.sessionID
+        )
         let stream = try await streamChunks(request: request, timeout: timeout)
         for try await chunk in stream {
             events.append(contentsOf: chunk.events)
@@ -91,7 +97,12 @@ actor AriaNetworkBonjourWebSocketImprovBackend: ImprovBackendProtocol {
             throw AriaNetworkBonjourWebSocketImprovBackendError.emptyReply
         }
 
-        return .schedule(schedule, backendLatencyMS: nil)
+        return CreativeDuetResponse(
+            schedule: schedule,
+            provider: kind,
+            generation: generation,
+            provenance: .backendGenerated(latencyMS: nil)
+        )
     }
 
     private func waitForResolvedEndpoint(timeout: Duration) async throws -> (host: String, port: Int, txtRecord: [String: String]) {

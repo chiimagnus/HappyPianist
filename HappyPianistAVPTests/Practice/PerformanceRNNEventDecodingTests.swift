@@ -1,6 +1,14 @@
 @testable import HappyPianistAVP
 import Testing
 
+private struct FixedPerformanceRNNModelLoader: PerformanceRNNCoreMLModelLoading {
+    let stepModel: any PerformanceRNNStepModeling
+
+    func loadStepModel() async throws -> any PerformanceRNNStepModeling {
+        stepModel
+    }
+}
+
 @Test
 func performanceRNNEventCodec_decodesSingleNoteWithVelocity() {
     let codec = PerformanceRNNEventCodec()
@@ -34,4 +42,41 @@ func performanceRNNEventCodec_decodesChordInStableOrder() {
     #expect(notes[2].note == 67)
     #expect(notes.allSatisfy { $0.time >= 0.0 })
     #expect(notes.allSatisfy { $0.duration > 0.0 })
+}
+
+@Test
+func localCoreMLDuetBackendQualityCorpusUsesNativeCreativeResponse() async throws {
+    let corpus = DuetQualityRegressionFixtures.coreMLQualityCorpus
+    #expect(corpus.provider == .localCoreMLDuet)
+    #expect(corpus.parameters.seed == .some(corpus.seed))
+    #expect(corpus.parameters.strategy == "model")
+    guard case let .scriptedCoreML(eventIDs) = corpus.response else {
+        Issue.record("Core ML corpus must use its scripted step-model sequence.")
+        return
+    }
+
+    let codec = PerformanceRNNEventCodec()
+    let warmupCalls = codec.encode(notes: corpus.promptNotes).count + 1
+    let backend = LocalCoreMLDuetImprovBackend(
+        modelLoader: FixedPerformanceRNNModelLoader(
+            stepModel: ScriptedStepModel(
+                warmupCallCount: warmupCalls,
+                scriptedNextEventIDs: eventIDs
+            )
+        ),
+        generator: PerformanceRNNImprovGenerator(codec: codec),
+        scheduleBuilder: ImprovScheduleBuilder()
+    )
+    let generation = corpus.creativeGeneration
+    let response = try await backend.generateCreativeResponse(
+        phrase: corpus.creativePhrase,
+        generation: generation,
+        timeout: .seconds(1)
+    )
+
+    #expect(response.provider == corpus.provider)
+    #expect(response.generation == generation)
+    #expect(response.provenance == .backendGenerated(latencyMS: nil))
+    #expect(response.schedule.isEmpty == false)
+    #expect(ImprovQualityRubric().assess(response.schedule).band == corpus.expectedBand)
 }

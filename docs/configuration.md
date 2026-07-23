@@ -83,6 +83,8 @@
 
 修改手别、速度、循环和成功目标时，不得直接改变正在进行的一轮。
 
+`practiceImprovBackendKind` 缺失时使用当前默认的本地 CoreML 选择；已有值若不是受支持的 provider token，应用显示“后端选择无效”并停止 AI 对弹，不静默改用本地规则、CoreML 或网络后端。切换后端必须由用户在设置中明确完成。
+
 ## 手部触键校准
 
 `PianoTouchCalibration` 是真实钢琴和虚拟琴共用的版本化触键契约，但两种模式使用各自的保守默认值。真实钢琴的校准随现有 world-anchor JSON 保存；虚拟琴使用 composition root 注入的当前默认值。解码只接受当前版本，不提供旧字段或旧版本 fallback。
@@ -144,6 +146,8 @@ uv run --project aria_server \
 - `python_backend/aria/hf/model-demo.safetensors`
 - Mac 与 Vision Pro 位于同一局域网
 - Vision Pro 允许 Local Network 权限
+
+Aria discovery、连接超时、无效响应或质量门拒绝只会停止当前一次 AI 对弹。应用不会自动切换到本地 Rule/CoreML；需要用户在设置中明确选择另一个 provider 后再试。
 
 ## 常见误配
 

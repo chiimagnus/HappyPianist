@@ -32,19 +32,20 @@ actor LocalCoreMLDuetImprovBackend: ImprovBackendProtocol {
         self.scheduleBuilder = scheduleBuilder
     }
 
-    func generatePlaybackPlan(
-        request: ImprovGenerateRequestV2,
+    func generateCreativeResponse(
+        phrase: CreativeDuetPhrase,
+        generation: CreativeDuetGeneration,
         timeout: Duration
-    ) async throws -> ImprovBackendPlaybackPlan {
+    ) async throws -> CreativeDuetResponse {
         let stepModel = try await modelLoader.loadStepModel()
         let generator = self.generator
-        let promptNotes = request.extractDialogueNotes()
+        let promptNotes = phrase.dialogueNotes
 
         let replyNotes = try await runWithTimeout(timeout) {
             try await generator.generateReplyNotes(
                 promptNotes: promptNotes,
-                params: request.params,
-                sessionID: request.sessionID,
+                params: generation.parameters,
+                sessionID: generation.sessionID,
                 stepModel: stepModel
             )
         }
@@ -53,7 +54,12 @@ actor LocalCoreMLDuetImprovBackend: ImprovBackendProtocol {
         guard schedule.isEmpty == false else {
             throw LocalCoreMLDuetImprovBackendError.emptyReply
         }
-        return .schedule(schedule, backendLatencyMS: nil)
+        return CreativeDuetResponse(
+            schedule: schedule,
+            provider: kind,
+            generation: generation,
+            provenance: .backendGenerated(latencyMS: nil)
+        )
     }
 
     private func runWithTimeout<T: Sendable>(

@@ -1,5 +1,9 @@
 import Foundation
 
+enum ImprovBackendRegistryError: Error, Equatable {
+    case unavailable(ImprovBackendKind)
+}
+
 struct ImprovBackendRegistry {
     private var backendsByKind: [ImprovBackendKind: any ImprovBackendProtocol] = [:]
 
@@ -9,7 +13,10 @@ struct ImprovBackendRegistry {
         }
     }
 
-    func backend(for kind: ImprovBackendKind) -> (any ImprovBackendProtocol)? {
-        backendsByKind[kind]
+    func backend(for kind: ImprovBackendKind) throws -> any ImprovBackendProtocol {
+        guard let backend = backendsByKind[kind] else {
+            throw ImprovBackendRegistryError.unavailable(kind)
+        }
+        return backend
     }
 }

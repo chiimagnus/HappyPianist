@@ -15,6 +15,7 @@ struct MIDIPerformanceObservationAdapter {
         generation: UInt64
     ) -> PerformanceObservation {
         PerformanceObservation(
+            id: event.observationID,
             source: source(kind: .midi1, midiSource: event.source, generation: generation),
             timing: timing(source: event.sourceTimestamp, hostSeconds: event.receivedAtUptimeSeconds),
             event: observationEvent(event.kind),
@@ -28,6 +29,7 @@ struct MIDIPerformanceObservationAdapter {
         generation: UInt64
     ) -> PerformanceObservation {
         PerformanceObservation(
+            id: event.observationID,
             source: source(kind: .midi2, midiSource: event.source, generation: generation),
             timing: timing(source: event.sourceTimestamp, hostSeconds: event.receivedAtUptimeSeconds),
             event: observationEvent(event.kind),

@@ -178,20 +178,22 @@ final class MIDIRecordingState {
     private func handleMIDI1TakeRecordingEvent(_ event: MIDI1InputEvent) {
         guard Task.isCancelled == false else { return }
 
+        let observation = midiRecordingAdapter.observation(for: event)
         onMIDI1Event?(event)
 
         if isRecording {
-            midiRecordingAdapter.record(event: event, into: &takeRecorder)
+            midiRecordingAdapter.record(observation, into: &takeRecorder)
         }
     }
 
     private func handleMIDI2TakeRecordingEvent(_ event: MIDI2InputEvent) {
         guard Task.isCancelled == false else { return }
 
+        let observation = midiRecordingAdapter.observation(for: event)
         onMIDI2Event?(event)
 
         if isRecording {
-            midiRecordingAdapter.record(event: event, into: &takeRecorder)
+            midiRecordingAdapter.record(observation, into: &takeRecorder)
         }
     }
 }

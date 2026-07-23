@@ -12,6 +12,7 @@ struct PianoKeyContactPerformanceObservationAdapter: Sendable {
         case .ended: .ended
         }
         return PerformanceObservation(
+            id: contact.observationID,
             source: PerformanceObservation.Source(
                 kind: sourceKind,
                 id: sourceKind == .virtualPianoContact

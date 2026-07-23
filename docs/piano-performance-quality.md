@@ -141,6 +141,14 @@ MIDI / target audio / real or virtual piano contact
 | AI 对弹 | 用户选择后端的创意响应与伴奏 | 原谱忠实示范和评分基准 |
 | MIDI 客观分析 | 可解释的 pitch/timing/duration/velocity/pedal 指标 | 唯一艺术解释和身体技术诊断 |
 
+### 6. AI 对弹是创意运行期响应，不是演奏真值
+
+AI 对弹只消费用户 `PerformanceObservation` 派生的 phrase，并保留 source capability、velocity、duration、controller、identity 与 monotonic timing；system playback 不会回灌为用户输入。输出只作为运行期 `CreativeDuetResponse` 播放，不改写 `ScorePerformancePlan`、不进入 assessment target、`MusicalIssue`、coaching decision 或 progress JSON。
+
+当前确定性 corpus 覆盖 Rule、CoreML、HTTP 与 WebSocket backend adapter：Rule 固定 seed，CoreML 使用 scripted step model，网络使用 fake discovery/transport。它检查 response 的密度、重复、register、节奏、声部、和声、终止、冲突与延迟边界；和声、终止与声部仅在 response 或当前 phrase 有可观察证据时判定，缺证据保留为 `notObserved` 而不改写成错误。它不要求各 provider 生成相同音符，也不证明真实 CoreML 模型或外部 Aria 服务已经达到钢琴家参考、专业评分或教学质量。
+
+用户选择的 provider unavailable、timeout、invalid response 或 quality gate failure 时，本次生成停止且不会 fallback。诊断只保留枚举化 provider、failure category、quality gate reason/latency bucket 与 cancel/stale outcome，不保留 phrase、AI 正文、逐音 MIDI/音频/手部数据、路径或认证信息。
+
 ## 后续优先级
 
 1. 用真实 exporter corpus 关闭剩余 MusicXML 正确性与 unsupported 报告缺口。
@@ -157,6 +165,7 @@ MIDI / target audio / real or virtual piano contact
 - score alignment、逐音 assessment evidence、target profile、`MusicalIssue`、coaching decision、复测关联与完整 take assessment 保持运行期数据；progress JSON 只接受批准的小节级聚合事实。
 - 指导必须保留 capability、confidence、target/hand/fingering provenance；证据不足时只做 evidence check，不给确定性错误结论。
 - AI 后端严格使用用户选择，失败即停止本次生成，不自动切换。
+- AI 对弹质量门只判断 creative response 可用性，不引用参考演奏或评分 rubric。
 - 新实现替换旧实现时，同一 task 删除旧 API、旧状态、旧测试和双轨分支。
 
 ## 完成定义

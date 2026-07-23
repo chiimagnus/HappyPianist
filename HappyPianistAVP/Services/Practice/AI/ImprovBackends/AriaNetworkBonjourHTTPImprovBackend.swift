@@ -38,10 +38,11 @@ actor AriaNetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
         self.scheduleBuilder = scheduleBuilder
     }
 
-    func generatePlaybackPlan(
-        request: ImprovGenerateRequestV2,
+    func generateCreativeResponse(
+        phrase: CreativeDuetPhrase,
+        generation: CreativeDuetGeneration,
         timeout: Duration
-    ) async throws -> ImprovBackendPlaybackPlan {
+    ) async throws -> CreativeDuetResponse {
         await MainActor.run {
             switch discoveryService.state {
             case .idle, .failed:
@@ -53,6 +54,11 @@ actor AriaNetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
 
         let resolved = try await waitForResolvedEndpoint(timeout: timeout)
         let timeoutSeconds = durationToTimeInterval(timeout)
+        let request = ImprovGenerateRequestV2(
+            events: phrase.events,
+            params: generation.parameters,
+            sessionID: generation.sessionID
+        )
 
         let response = try await backendClient.generateV2(
             host: resolved.host,
@@ -66,7 +72,12 @@ actor AriaNetworkBonjourHTTPImprovBackend: ImprovBackendProtocol {
             throw AriaNetworkBonjourHTTPImprovBackendError.emptyReply
         }
 
-        return .schedule(schedule, backendLatencyMS: response.latencyMS)
+        return CreativeDuetResponse(
+            schedule: schedule,
+            provider: kind,
+            generation: generation,
+            provenance: .backendGenerated(latencyMS: response.latencyMS)
+        )
     }
 
     private func waitForResolvedEndpoint(timeout: Duration) async throws -> (host: String, port: Int) {

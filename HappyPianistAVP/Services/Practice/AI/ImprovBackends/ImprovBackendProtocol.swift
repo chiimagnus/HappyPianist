@@ -4,8 +4,9 @@ protocol ImprovBackendProtocol: Sendable {
     var kind: ImprovBackendKind { get }
     var displayName: String { get }
 
-    func generatePlaybackPlan(
-        request: ImprovGenerateRequestV2,
+    func generateCreativeResponse(
+        phrase: CreativeDuetPhrase,
+        generation: CreativeDuetGeneration,
         timeout: Duration
-    ) async throws -> ImprovBackendPlaybackPlan
+    ) async throws -> CreativeDuetResponse
 }

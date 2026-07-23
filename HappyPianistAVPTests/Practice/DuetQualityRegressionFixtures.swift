@@ -10,6 +10,49 @@ enum DuetQualityRegressionFixtures {
         let expectedBand: DuetPhrasePolicy.QualityAssessment.Band
     }
 
+    struct RubricFixture {
+        let name: String
+        let response: [PracticeSequencerMIDIEvent]
+        let context: ImprovQualityRubric.PhraseContext
+        let expectedBand: ImprovQualityRubric.Band
+        let expectedReason: ImprovQualityRubric.Reason?
+        let expectedCadenceEvidence: ImprovQualityRubric.Evidence?
+        let voicePairs: [ImprovQualityRubric.VoicePair]
+
+        init(
+            name: String,
+            response: [PracticeSequencerMIDIEvent],
+            context: ImprovQualityRubric.PhraseContext,
+            expectedBand: ImprovQualityRubric.Band,
+            expectedReason: ImprovQualityRubric.Reason?,
+            expectedCadenceEvidence: ImprovQualityRubric.Evidence?,
+            voicePairs: [ImprovQualityRubric.VoicePair] = []
+        ) {
+            self.name = name
+            self.response = response
+            self.context = context
+            self.expectedBand = expectedBand
+            self.expectedReason = expectedReason
+            self.expectedCadenceEvidence = expectedCadenceEvidence
+            self.voicePairs = voicePairs
+        }
+    }
+
+    struct BackendQualityCorpus {
+        enum Response {
+            case generatedRule
+            case scriptedCoreML([Int])
+            case networkFakeEvents([ImprovEvent])
+        }
+
+        let provider: ImprovBackendKind
+        let seed: UInt64
+        let promptNotes: [ImprovDialogueNote]
+        let parameters: ImprovGenerateParams
+        let response: Response
+        let expectedBand: ImprovQualityRubric.Band
+    }
+
     static let acceptableSupport = Fixture(
         name: "acceptableSupport",
         noteSnapshot: .init(
@@ -132,4 +175,168 @@ enum DuetQualityRegressionFixtures {
     )
 
     static let all: [Fixture] = [acceptableSupport, registerClash, denseBurst, fragmentedHint, riskyRepetition]
+
+    static let shortPhrase = RubricFixture(
+        name: "shortPhrase",
+        response: [
+            PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 60, velocity: 88)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 60)),
+        ],
+        context: .init(
+            allowedPitchClasses: [0],
+            cadencePitchClasses: [0]
+        ),
+        expectedBand: .acceptable,
+        expectedReason: nil,
+        expectedCadenceEvidence: .notObserved
+    )
+
+    static let denseChord = RubricFixture(
+        name: "denseChord",
+        response: [48, 52, 55, 60, 64].flatMap { midi in
+            [
+                PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: midi, velocity: 88)),
+                PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: midi)),
+            ]
+        },
+        context: .init(),
+        expectedBand: .reject,
+        expectedReason: .densityOverload,
+        expectedCadenceEvidence: nil
+    )
+
+    static let crossRegisterLeap = RubricFixture(
+        name: "crossRegisterLeap",
+        response: [
+            PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 48, velocity: 88)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.1, kind: .noteOff(midi: 48)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOn(midi: 84, velocity: 88)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.4, kind: .noteOff(midi: 84)),
+        ],
+        context: .init(
+            allowedPitchClasses: Set(0 ..< 12),
+            cadencePitchClasses: [0]
+        ),
+        expectedBand: .reject,
+        expectedReason: .voiceCrossing,
+        expectedCadenceEvidence: nil,
+        voicePairs: [.init(bass: 72, melody: 60)]
+    )
+
+    static let harmonicMismatch = RubricFixture(
+        name: "harmonicMismatch",
+        response: [
+            PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 61, velocity: 88)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.1, kind: .noteOff(midi: 61)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.25, kind: .noteOn(midi: 65, velocity: 88)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.4, kind: .noteOff(midi: 65)),
+        ],
+        context: .init(
+            allowedPitchClasses: [0, 4, 7],
+            cadencePitchClasses: [5]
+        ),
+        expectedBand: .reject,
+        expectedReason: .harmonicMismatch,
+        expectedCadenceEvidence: nil
+    )
+
+    static let noTermination = RubricFixture(
+        name: "noTermination",
+        response: [
+            PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 60, velocity: 88)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.1, kind: .noteOff(midi: 60)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.25, kind: .noteOn(midi: 61, velocity: 88)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.4, kind: .noteOff(midi: 61)),
+        ],
+        context: .init(
+            allowedPitchClasses: Set(0 ..< 12),
+            cadencePitchClasses: [0, 4, 7]
+        ),
+        expectedBand: .reject,
+        expectedReason: .missingCadence,
+        expectedCadenceEvidence: nil
+    )
+
+    static let rubricAll = [shortPhrase, denseChord, crossRegisterLeap, harmonicMismatch, noTermination]
+
+    static let ruleQualityCorpus = BackendQualityCorpus(
+        provider: .localRule,
+        seed: 1_234,
+        promptNotes: [
+            ImprovDialogueNote(note: 60, velocity: 92, time: 0, duration: 0.22),
+            ImprovDialogueNote(note: 62, velocity: 92, time: 0.25, duration: 0.18),
+            ImprovDialogueNote(note: 64, velocity: 92, time: 0.5, duration: 0.2),
+            ImprovDialogueNote(note: 65, velocity: 92, time: 0.75, duration: 0.2),
+            ImprovDialogueNote(note: 67, velocity: 92, time: 1, duration: 0.2),
+            ImprovDialogueNote(note: 69, velocity: 92, time: 1.25, duration: 0.22),
+            ImprovDialogueNote(note: 71, velocity: 92, time: 1.5, duration: 0.18),
+            ImprovDialogueNote(note: 72, velocity: 92, time: 1.75, duration: 0.25),
+        ],
+        parameters: .init(topP: 0.95, maxTokens: 256, strategy: "deterministic", seed: 1_234),
+        response: .generatedRule,
+        expectedBand: .risky
+    )
+
+    static let coreMLQualityCorpus = BackendQualityCorpus(
+        provider: .localCoreMLDuet,
+        seed: 7,
+        promptNotes: [
+            ImprovDialogueNote(note: 60, velocity: 80, time: 0, duration: 0.5),
+        ],
+        parameters: .init(topP: 0.95, maxTokens: 128, strategy: "model", seed: 7),
+        response: .scriptedCoreML([64, 305, 192, 355, 305]),
+        expectedBand: .acceptable
+    )
+
+    static let networkFakeQualityCorpus = BackendQualityCorpus(
+        provider: .networkBonjourHTTPAriaV2,
+        seed: 99,
+        promptNotes: [
+            ImprovDialogueNote(note: 60, velocity: 90, time: 0, duration: 0.2),
+        ],
+        parameters: .init(topP: 0.9, maxTokens: 64, strategy: "network", seed: 99),
+        response: .networkFakeEvents([
+            .cc(controller: 64, value: 127, time: 0),
+            .note(note: 67, velocity: 88, time: 0, duration: 0.2),
+            .note(note: 71, velocity: 84, time: 0.24, duration: 0.2),
+        ]),
+        expectedBand: .acceptable
+    )
+
+    static let networkWebSocketFakeQualityCorpus = BackendQualityCorpus(
+        provider: .networkBonjourWebSocketAriaV2,
+        seed: 100,
+        promptNotes: [
+            ImprovDialogueNote(note: 64, velocity: 86, time: 0, duration: 0.2),
+        ],
+        parameters: .init(topP: 0.9, maxTokens: 64, strategy: "network-stream", seed: 100),
+        response: .networkFakeEvents([
+            .cc(controller: 64, value: 127, time: 0),
+            .note(note: 67, velocity: 88, time: 0, duration: 0.2),
+            .note(note: 71, velocity: 84, time: 0.24, duration: 0.2),
+        ]),
+        expectedBand: .acceptable
+    )
+
+}
+
+extension DuetQualityRegressionFixtures.BackendQualityCorpus {
+    var creativePhrase: CreativeDuetPhrase {
+        CreativeDuetPhrase(
+            events: promptNotes.map {
+                .note(note: $0.note, velocity: $0.velocity, time: $0.time, duration: $0.duration)
+            },
+            provenance: .empty
+        )
+    }
+
+    var creativeGeneration: CreativeDuetGeneration {
+        CreativeDuetGeneration(
+            requestID: 1,
+            activationID: 1,
+            seed: seed,
+            sessionID: "quality-corpus",
+            parameters: parameters
+        )
+    }
 }

@@ -24,6 +24,8 @@ struct PianoKeyContactObservation: Equatable, Sendable {
         case ended
     }
 
+    /// One detected contact sample may feed playback, take recording, and AI phrase input.
+    let observationID: UUID
     let id: PianoKeyContactID
     let phase: Phase
     let keyCandidate: PianoKeyCandidate
@@ -34,6 +36,32 @@ struct PianoKeyContactObservation: Equatable, Sendable {
     let normalVelocityMetersPerSecond: Float?
     let resolvedVelocity: UInt8?
     let calibrationID: UUID
+
+    init(
+        observationID: UUID = UUID(),
+        id: PianoKeyContactID,
+        phase: Phase,
+        keyCandidate: PianoKeyCandidate,
+        timestamp: PerformanceMonotonicInstant,
+        confidence: Float,
+        worldPosition: SIMD3<Float>,
+        planeDistanceMeters: Float,
+        normalVelocityMetersPerSecond: Float?,
+        resolvedVelocity: UInt8?,
+        calibrationID: UUID
+    ) {
+        self.observationID = observationID
+        self.id = id
+        self.phase = phase
+        self.keyCandidate = keyCandidate
+        self.timestamp = timestamp
+        self.confidence = confidence
+        self.worldPosition = worldPosition
+        self.planeDistanceMeters = planeDistanceMeters
+        self.normalVelocityMetersPerSecond = normalVelocityMetersPerSecond
+        self.resolvedVelocity = resolvedVelocity
+        self.calibrationID = calibrationID
+    }
 
     var hand: TrackedHandSide { id.finger.hand }
     var finger: TrackedFinger { id.finger.finger }

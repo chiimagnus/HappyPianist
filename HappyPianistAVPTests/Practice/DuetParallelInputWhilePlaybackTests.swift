@@ -30,18 +30,34 @@ private actor CountingScheduleBackend: ImprovBackendProtocol {
     nonisolated let kind: ImprovBackendKind
     nonisolated let displayName: String
 
-    private let playbackPlan: ImprovBackendPlaybackPlan
+    private let schedule: [PracticeSequencerMIDIEvent]
+    private let backendLatencyMS: Int?
     private var generateCallCountValue = 0
 
-    init(kind: ImprovBackendKind, displayName: String = "Fake", playbackPlan: ImprovBackendPlaybackPlan) {
+    init(
+        kind: ImprovBackendKind,
+        displayName: String = "Fake",
+        schedule: [PracticeSequencerMIDIEvent],
+        backendLatencyMS: Int? = nil
+    ) {
         self.kind = kind
         self.displayName = displayName
-        self.playbackPlan = playbackPlan
+        self.schedule = schedule
+        self.backendLatencyMS = backendLatencyMS
     }
 
-    func generatePlaybackPlan(request _: ImprovGenerateRequestV2, timeout _: Duration) async throws -> ImprovBackendPlaybackPlan {
+    func generateCreativeResponse(
+        phrase _: CreativeDuetPhrase,
+        generation: CreativeDuetGeneration,
+        timeout _: Duration
+    ) async throws -> CreativeDuetResponse {
         generateCallCountValue += 1
-        return playbackPlan
+        return CreativeDuetResponse(
+            schedule: schedule,
+            provider: kind,
+            generation: generation,
+            provenance: .backendGenerated(latencyMS: backendLatencyMS)
+        )
     }
 
     func generateCallCount() -> Int {
@@ -97,7 +113,7 @@ func aiPlaybackDoesNotBlockSecondContinuousWindowRequest() async {
         PracticeSequencerMIDIEvent(timeSeconds: 10.0, kind: .noteOff(midi: 60)),
     ]
 
-    let backend = CountingScheduleBackend(kind: selectedKind, playbackPlan: .schedule(schedule, backendLatencyMS: nil))
+    let backend = CountingScheduleBackend(kind: selectedKind, schedule: schedule)
 
     let aiPlaybackService = NonAdvancingPlaybackService()
     let aiPlaybackFactory = DuetAIPlaybackServiceFactory(

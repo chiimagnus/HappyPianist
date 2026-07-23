@@ -280,21 +280,27 @@ PerformanceObservation
 
 ```mermaid
 sequenceDiagram
-  participant Session as Practice Session
+  participant Input as User Observation
   participant Service as AIPerformanceService
   participant Registry as ImprovBackendRegistry
   participant Backend as Selected Backend
   participant Queue as DuetAIPlaybackQueue
 
-  Session->>Service: rolling note/CC context
+  Input->>Service: performance observation / capability
+  Service->>Service: CreativeDuetPhrase（仅用户事件）
   Service->>Registry: resolve selected backend
   Registry-->>Service: backend
-  Service->>Backend: generate request
-  Backend-->>Service: events / schedule input
-  Service->>Queue: shaped playback plan
+  Service->>Backend: creative response request
+  Backend-->>Service: runtime response schedule
+  Service->>Service: structural quality gate
+  Service->>Queue: shaped playback schedule
 ```
 
-后端失败只更新状态并停止该次生成，不自动降级到另一个后端，也不写入练习进度。
+`AIPerformanceService` 与 `RecordingTakeRecorder` 从同一份 canonical `PerformanceObservation` 分支；`PerformanceObservationPhraseAdapter` 只把用户 MIDI 与手部 observation 投影为 phrase schema，并保留 monotonic timing、velocity、duration、controller、source identity、capability 与 approximation。只有 `userPerformance` 事件可进入 phrase；AI/self playback、disable 后事件和旧 request/playback generation 一律丢弃。
+
+`CreativeDuetPhrase` 与 `CreativeDuetResponse` 只存在于运行期。它们不修改 `ScorePerformancePlan`、不成为 assessment target、不写入进度 JSON，也不代表忠实示范、钢琴家参考或教师结论。确定性 corpus 通过真实 Rule、CoreML、HTTP 与 WebSocket backend adapter：CoreML 使用 scripted step model，网络使用 fake discovery/transport；它验证 response 可用性和协议边界，不宣称已验证真实 CoreML 模型或外部 Aria 服务的音乐质量。
+
+后端 unavailable、timeout、invalid response 或 quality gate failure 都只终止本次生成并显示明确状态；不会自动降级到另一个 provider。诊断只记录安全枚举化的 `provider=<kind>;failure=<category>`，以及 quality gate 的 `quality`/`latency` 桶或 cancel/stale response 的 `outcome`；不包含 prompt、AI 正文、原始 MIDI/音频/手部数据或认证信息。
 
 
 ## 诊断事件与导出

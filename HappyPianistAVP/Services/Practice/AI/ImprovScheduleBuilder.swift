@@ -1,6 +1,12 @@
 import Foundation
 
 struct ImprovScheduleBuilder {
+    private let qualityRubric: ImprovQualityRubric
+
+    init(qualityRubric: ImprovQualityRubric = .init()) {
+        self.qualityRubric = qualityRubric
+    }
+
     func buildSchedule(
         from notes: [ImprovDialogueNote],
         leadInSeconds: TimeInterval = 0.05
@@ -58,7 +64,7 @@ struct ImprovScheduleBuilder {
             }
         }
 
-        return schedule.enumerated().sorted { lhs, rhs in
+        let sortedSchedule = schedule.enumerated().sorted { lhs, rhs in
             if lhs.element.timeSeconds != rhs.element.timeSeconds {
                 return lhs.element.timeSeconds < rhs.element.timeSeconds
             }
@@ -67,6 +73,7 @@ struct ImprovScheduleBuilder {
             }
             return lhs.offset < rhs.offset
         }.map(\.element)
+        return qualityRubric.assess(sortedSchedule).isUsable ? sortedSchedule : []
     }
 
     private func eventPriority(_ kind: PracticeSequencerMIDIEvent.Kind) -> Int {

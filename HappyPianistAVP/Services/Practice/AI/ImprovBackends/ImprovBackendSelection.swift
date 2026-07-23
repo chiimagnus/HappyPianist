@@ -15,11 +15,11 @@ struct ImprovBackendSelection {
         self.userDefaults = userDefaults
     }
 
-    func selectedKind() -> ImprovBackendKind {
+    func selectedKind() -> ImprovBackendKind? {
         guard let rawValue = userDefaults.string(forKey: Self.userDefaultsKey) else {
             return Self.defaultKind
         }
 
-        return ImprovBackendKind(rawValue: rawValue) ?? Self.defaultKind
+        return ImprovBackendKind(rawValue: rawValue)
     }
 }

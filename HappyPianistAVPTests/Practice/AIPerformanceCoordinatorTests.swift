@@ -48,19 +48,56 @@ private actor FakeScheduleBackend: ImprovBackendProtocol {
     nonisolated let kind: ImprovBackendKind
     nonisolated let displayName: String
 
-    private let playbackPlan: ImprovBackendPlaybackPlan
+    private let schedule: [PracticeSequencerMIDIEvent]
+    private let backendLatencyMS: Int?
+    private let responseDelay: Duration?
+    private let responseProvider: ImprovBackendKind?
+    private let responseGenerationRequestIDOffset: Int?
 
-    init(kind: ImprovBackendKind, displayName: String = "Fake", playbackPlan: ImprovBackendPlaybackPlan) {
+    init(
+        kind: ImprovBackendKind,
+        displayName: String = "Fake",
+        schedule: [PracticeSequencerMIDIEvent],
+        backendLatencyMS: Int? = nil,
+        responseDelay: Duration? = nil,
+        responseProvider: ImprovBackendKind? = nil,
+        responseGenerationRequestIDOffset: Int? = nil
+    ) {
         self.kind = kind
         self.displayName = displayName
-        self.playbackPlan = playbackPlan
+        self.schedule = schedule
+        self.backendLatencyMS = backendLatencyMS
+        self.responseDelay = responseDelay
+        self.responseProvider = responseProvider
+        self.responseGenerationRequestIDOffset = responseGenerationRequestIDOffset
     }
 
-    func generatePlaybackPlan(
-        request _: ImprovGenerateRequestV2,
+    func generateCreativeResponse(
+        phrase _: CreativeDuetPhrase,
+        generation: CreativeDuetGeneration,
         timeout _: Duration
-    ) async throws -> ImprovBackendPlaybackPlan {
-        playbackPlan
+    ) async throws -> CreativeDuetResponse {
+        if let responseDelay {
+            try await Task.sleep(for: responseDelay)
+        }
+        let responseGeneration: CreativeDuetGeneration
+        if let responseGenerationRequestIDOffset {
+            responseGeneration = CreativeDuetGeneration(
+                requestID: generation.requestID + responseGenerationRequestIDOffset,
+                activationID: generation.activationID,
+                seed: generation.seed,
+                sessionID: generation.sessionID,
+                parameters: generation.parameters
+            )
+        } else {
+            responseGeneration = generation
+        }
+        return CreativeDuetResponse(
+            schedule: schedule,
+            provider: responseProvider ?? kind,
+            generation: responseGeneration,
+            provenance: .backendGenerated(latencyMS: backendLatencyMS)
+        )
     }
 }
 
@@ -68,23 +105,67 @@ private actor RecordingSeedBackend: ImprovBackendProtocol {
     nonisolated let kind: ImprovBackendKind
     nonisolated let displayName: String
 
-    private let playbackPlan: ImprovBackendPlaybackPlan
+    private let schedule: [PracticeSequencerMIDIEvent]
+    private let backendLatencyMS: Int?
     private(set) var requestedSeeds: [UInt64] = []
 
-    init(kind: ImprovBackendKind, displayName: String = "Recording", playbackPlan: ImprovBackendPlaybackPlan) {
+    init(
+        kind: ImprovBackendKind,
+        displayName: String = "Recording",
+        schedule: [PracticeSequencerMIDIEvent],
+        backendLatencyMS: Int? = nil
+    ) {
         self.kind = kind
         self.displayName = displayName
-        self.playbackPlan = playbackPlan
+        self.schedule = schedule
+        self.backendLatencyMS = backendLatencyMS
     }
 
-    func generatePlaybackPlan(
-        request: ImprovGenerateRequestV2,
+    func generateCreativeResponse(
+        phrase _: CreativeDuetPhrase,
+        generation: CreativeDuetGeneration,
         timeout _: Duration
-    ) async throws -> ImprovBackendPlaybackPlan {
-        if let seed = request.params.seed {
-            requestedSeeds.append(seed)
+    ) async throws -> CreativeDuetResponse {
+        requestedSeeds.append(generation.seed)
+        return CreativeDuetResponse(
+            schedule: schedule,
+            provider: kind,
+            generation: generation,
+            provenance: .backendGenerated(latencyMS: backendLatencyMS)
+        )
+    }
+}
+
+private actor ThrowingBackend: ImprovBackendProtocol {
+    enum Failure: Sendable {
+        case timeout
+        case invalidResponse
+    }
+
+    nonisolated let kind: ImprovBackendKind
+    nonisolated let displayName: String
+
+    private let failure: Failure
+    private(set) var callCount = 0
+
+    init(kind: ImprovBackendKind, failure: Failure, displayName: String = "Throwing") {
+        self.kind = kind
+        self.failure = failure
+        self.displayName = displayName
+    }
+
+    func generateCreativeResponse(
+        phrase _: CreativeDuetPhrase,
+        generation _: CreativeDuetGeneration,
+        timeout _: Duration
+    ) async throws -> CreativeDuetResponse {
+        callCount += 1
+        switch failure {
+        case .timeout:
+            throw URLError(.timedOut)
+        case .invalidResponse:
+            throw ImprovBackendClientError.invalidResponse
         }
-        return playbackPlan
     }
 }
 
@@ -93,32 +174,32 @@ private actor SequencedCandidateBackend: ImprovBackendProtocol {
     nonisolated let displayName: String
 
     private let schedules: [[PracticeSequencerMIDIEvent]]
-    private let failingIndices: Set<Int>
     private(set) var callCount = 0
 
     init(
         kind: ImprovBackendKind,
         displayName: String = "Sequenced",
-        schedules: [[PracticeSequencerMIDIEvent]],
-        failingIndices: Set<Int> = []
+        schedules: [[PracticeSequencerMIDIEvent]]
     ) {
         self.kind = kind
         self.displayName = displayName
         self.schedules = schedules
-        self.failingIndices = failingIndices
     }
 
-    func generatePlaybackPlan(
-        request _: ImprovGenerateRequestV2,
+    func generateCreativeResponse(
+        phrase _: CreativeDuetPhrase,
+        generation: CreativeDuetGeneration,
         timeout _: Duration
-    ) async throws -> ImprovBackendPlaybackPlan {
+    ) async throws -> CreativeDuetResponse {
         let requestIndex = callCount
         let index = min(requestIndex, max(0, schedules.count - 1))
         callCount += 1
-        if failingIndices.contains(requestIndex) {
-            throw CancellationError()
-        }
-        return .schedule(schedules[index], backendLatencyMS: nil)
+        return CreativeDuetResponse(
+            schedule: schedules[index],
+            provider: kind,
+            generation: generation,
+            provenance: .backendGenerated(latencyMS: nil)
+        )
     }
 }
 
@@ -176,6 +257,37 @@ private struct FakeSettingsProvider: PracticeSessionSettingsProviderProtocol {
         PracticeSoundRoutingSettings(outputRoute: .localSampler, midiDestinationUniqueID: nil, sendLocalControlOff: false)
     }
 }
+
+@MainActor
+private func recordDuetTestPhrase(_ service: AIPerformanceService) {
+    service.recordMIDI1EventForPhraseRecordingIfNeeded(
+        MIDI1InputEvent(
+            kind: .noteOn(note: 60, velocity: 90),
+            channel: 1,
+            group: 0,
+            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: nil),
+            receivedAt: Date(timeIntervalSince1970: 0),
+            receivedAtUptimeSeconds: 0
+        )
+    )
+    service.recordMIDI1EventForPhraseRecordingIfNeeded(
+        MIDI1InputEvent(
+            kind: .noteOff(note: 60, velocity: 0),
+            channel: 1,
+            group: 0,
+            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: nil),
+            receivedAt: Date(timeIntervalSince1970: 0),
+            receivedAtUptimeSeconds: 3.2
+        )
+    )
+}
+
+private let latencyGateSchedule = [
+    PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 72, velocity: 90)),
+    PracticeSequencerMIDIEvent(timeSeconds: 0.25, kind: .noteOff(midi: 72)),
+    PracticeSequencerMIDIEvent(timeSeconds: 0.4, kind: .noteOn(midi: 76, velocity: 88)),
+    PracticeSequencerMIDIEvent(timeSeconds: 0.65, kind: .noteOff(midi: 76)),
+]
 
 @Test
 @MainActor
@@ -237,7 +349,7 @@ func disableCancelsPendingPlaybackAndStopsSequencer() async {
         PracticeSequencerMIDIEvent(timeSeconds: 0.0, kind: .noteOn(midi: 60, velocity: 90)),
         PracticeSequencerMIDIEvent(timeSeconds: 10.0, kind: .noteOff(midi: 60)),
     ]
-    let fakeBackend = FakeScheduleBackend(kind: selectedKind, playbackPlan: .schedule(schedule, backendLatencyMS: nil))
+    let fakeBackend = FakeScheduleBackend(kind: selectedKind, schedule: schedule)
 
     let service = AIPerformanceService(
         nowUptimeSeconds: { nowUptime },
@@ -348,6 +460,329 @@ func shutdownPreventsFurtherEnable() async {
 
 @Test
 @MainActor
+func invalidStoredBackendSelectionStopsWithoutFallback() async {
+    let suiteName = "AIPerformanceCoordinatorTests-\(UUID().uuidString)"
+    guard let defaults = UserDefaults(suiteName: suiteName) else {
+        Issue.record("Unable to create isolated user defaults.")
+        return
+    }
+    defer { defaults.removePersistentDomain(forName: suiteName) }
+    defaults.set("removed_backend", forKey: ImprovBackendSelection.userDefaultsKey)
+
+    let selection = ImprovBackendSelection(userDefaults: defaults)
+    #expect(selection.selectedKind() == nil)
+
+    var states: [AIPerformanceService.State] = []
+    let diagnosticsReporter = InMemoryDiagnosticsReporter()
+    let backendService = FakeBackendDiscoveryService()
+    let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
+    let playbackService = FakeSequencerPlaybackService()
+    let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { playbackService },
+        makeExternalMIDIPlaybackService: { _ in playbackService }
+    )
+    let service = AIPerformanceService(
+        diagnosticsReporter: diagnosticsReporter,
+        nowUptimeSeconds: { 0 },
+        sleepFor: { _ in },
+        discoveryOrchestrator: orchestrator,
+        backendRegistry: ImprovBackendRegistry(),
+        selectedBackendKind: { selection.selectedKind() },
+        aiPlaybackServiceFactory: { aiPlaybackFactory },
+        onStateChanged: { states.append($0) }
+    )
+    defer { service.setEnabled(false) }
+
+    let session = FakePracticeSession()
+    service.updatePracticeSession(session)
+    service.setEnabled(true)
+
+    for _ in 0 ..< 500 {
+        await Task.yield()
+        let events = await diagnosticsReporter.events
+        if events.contains(where: { $0.reason == "provider=none;failure=invalid_selection" }) { break }
+    }
+
+    #expect(orchestrator.startCallCount == 0)
+    #expect(states.last?.lastImprovStatusText?.contains("后端选择无效") == true)
+    let events = await diagnosticsReporter.events
+    #expect(events.contains(where: { $0.reason == "provider=none;failure=invalid_selection" }))
+}
+
+@Test
+@MainActor
+func selectedUnavailableBackendStopsWithoutLocalSubstitution() async {
+    let nowUptime: TimeInterval = 0
+    var states: [AIPerformanceService.State] = []
+    let diagnosticsReporter = InMemoryDiagnosticsReporter()
+    let backendService = FakeBackendDiscoveryService()
+    let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
+    let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
+    let localFallback = RecordingSeedBackend(
+        kind: .localRule,
+        schedule: [
+            PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 72, velocity: 90)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 72)),
+        ]
+    )
+    let playbackService = FakeSequencerPlaybackService()
+    let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { playbackService },
+        makeExternalMIDIPlaybackService: { _ in playbackService }
+    )
+    let service = AIPerformanceService(
+        diagnosticsReporter: diagnosticsReporter,
+        nowUptimeSeconds: { nowUptime },
+        sleepFor: { _ in },
+        discoveryOrchestrator: orchestrator,
+        backendRegistry: ImprovBackendRegistry(backends: [localFallback]),
+        selectedBackendKind: { selectedKind },
+        aiPlaybackServiceFactory: { aiPlaybackFactory },
+        onStateChanged: { states.append($0) }
+    )
+    defer { service.setEnabled(false) }
+
+    let session = FakePracticeSession()
+    service.updatePracticeSession(session)
+    service.setEnabled(true)
+    recordDuetTestPhrase(service)
+
+    let expectedReason = "provider=network_bonjour_http_aria_v2;failure=unavailable"
+    for _ in 0 ..< 500 {
+        await Task.yield()
+        let events = await diagnosticsReporter.events
+        if events.contains(where: { $0.reason == expectedReason }) { break }
+    }
+
+    let fallbackSeeds = await localFallback.requestedSeeds
+    #expect(fallbackSeeds.isEmpty)
+    #expect(playbackService.playCallCount == 0)
+    #expect(states.last?.lastImprovStatusText?.contains("后端不可用") == true)
+    let events = await diagnosticsReporter.events
+    #expect(events.contains(where: { $0.reason == expectedReason }))
+}
+
+@Test
+@MainActor
+func selectedBackendTimeoutAndInvalidResponseStopWithClassifiedDiagnostics() async {
+    let scenarios: [(ThrowingBackend.Failure, String, String)] = [
+        (.timeout, "timeout", "生成超时"),
+        (.invalidResponse, "invalid_response", "响应无效"),
+    ]
+
+    for (failure, category, statusText) in scenarios {
+        let nowUptime: TimeInterval = 0
+        var states: [AIPerformanceService.State] = []
+        let diagnosticsReporter = InMemoryDiagnosticsReporter()
+        let backendService = FakeBackendDiscoveryService()
+        let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
+        let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
+        let backend = ThrowingBackend(kind: selectedKind, failure: failure)
+        let playbackService = FakeSequencerPlaybackService()
+        let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
+            makeLocalSamplerPlaybackService: { playbackService },
+            makeExternalMIDIPlaybackService: { _ in playbackService }
+        )
+        let service = AIPerformanceService(
+            diagnosticsReporter: diagnosticsReporter,
+            nowUptimeSeconds: { nowUptime },
+            sleepFor: { _ in },
+            discoveryOrchestrator: orchestrator,
+            backendRegistry: ImprovBackendRegistry(backends: [backend]),
+            selectedBackendKind: { selectedKind },
+            aiPlaybackServiceFactory: { aiPlaybackFactory },
+            onStateChanged: { states.append($0) }
+        )
+        defer { service.setEnabled(false) }
+
+        let session = FakePracticeSession()
+        service.updatePracticeSession(session)
+        service.setEnabled(true)
+        recordDuetTestPhrase(service)
+
+        let expectedReason = "provider=network_bonjour_http_aria_v2;failure=\(category)"
+        for _ in 0 ..< 500 {
+            await Task.yield()
+            let events = await diagnosticsReporter.events
+            if events.contains(where: { $0.reason == expectedReason }) { break }
+        }
+
+        let callCount = await backend.callCount
+        #expect(callCount > 0)
+        #expect(playbackService.playCallCount == 0)
+        #expect(states.last?.lastImprovStatusText?.contains(statusText) == true)
+        let events = await diagnosticsReporter.events
+        #expect(events.contains(where: { $0.reason == expectedReason }))
+    }
+}
+
+@Test
+@MainActor
+func mismatchedCreativeResponseMetadataStopsWithInvalidResponseDiagnostics() async {
+    let scenarios: [(provider: ImprovBackendKind?, requestIDOffset: Int?)] = [
+        (.localRule, nil),
+        (nil, 1),
+    ]
+
+    for scenario in scenarios {
+        let nowUptime: TimeInterval = 0
+        var states: [AIPerformanceService.State] = []
+        let diagnosticsReporter = InMemoryDiagnosticsReporter()
+        let backendService = FakeBackendDiscoveryService()
+        let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
+        let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
+        let backend = FakeScheduleBackend(
+            kind: selectedKind,
+            schedule: [
+                PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 72, velocity: 90)),
+                PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 72)),
+            ],
+            responseProvider: scenario.provider,
+            responseGenerationRequestIDOffset: scenario.requestIDOffset
+        )
+        let playbackService = FakeSequencerPlaybackService()
+        let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
+            makeLocalSamplerPlaybackService: { playbackService },
+            makeExternalMIDIPlaybackService: { _ in playbackService }
+        )
+        let service = AIPerformanceService(
+            diagnosticsReporter: diagnosticsReporter,
+            nowUptimeSeconds: { nowUptime },
+            sleepFor: { _ in },
+            discoveryOrchestrator: orchestrator,
+            backendRegistry: ImprovBackendRegistry(backends: [backend]),
+            selectedBackendKind: { selectedKind },
+            aiPlaybackServiceFactory: { aiPlaybackFactory },
+            onStateChanged: { states.append($0) }
+        )
+        defer { service.setEnabled(false) }
+
+        let session = FakePracticeSession()
+        service.updatePracticeSession(session)
+        service.setEnabled(true)
+        recordDuetTestPhrase(service)
+
+        let expectedReason = "provider=network_bonjour_http_aria_v2;failure=invalid_response"
+        for _ in 0 ..< 500 {
+            await Task.yield()
+            let events = await diagnosticsReporter.events
+            if events.contains(where: { $0.reason == expectedReason }) { break }
+        }
+
+        #expect(playbackService.playCallCount == 0)
+        #expect(states.last?.lastImprovStatusText?.contains("响应无效") == true)
+        let events = await diagnosticsReporter.events
+        #expect(events.contains(where: { $0.reason == expectedReason }))
+    }
+}
+
+@Test
+@MainActor
+func responseLatencyQualityGateStopsSelectedBackend() async {
+    let nowUptime: TimeInterval = 0
+    var states: [AIPerformanceService.State] = []
+    let diagnosticsReporter = InMemoryDiagnosticsReporter()
+    let backendService = FakeBackendDiscoveryService()
+    let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
+    let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
+    let backend = FakeScheduleBackend(
+        kind: selectedKind,
+        schedule: latencyGateSchedule,
+        backendLatencyMS: 400
+    )
+    let playbackService = FakeSequencerPlaybackService()
+    let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { playbackService },
+        makeExternalMIDIPlaybackService: { _ in playbackService }
+    )
+    let service = AIPerformanceService(
+        diagnosticsReporter: diagnosticsReporter,
+        nowUptimeSeconds: { nowUptime },
+        sleepFor: { _ in },
+        discoveryOrchestrator: orchestrator,
+        backendRegistry: ImprovBackendRegistry(backends: [backend]),
+        selectedBackendKind: { selectedKind },
+        aiPlaybackServiceFactory: { aiPlaybackFactory },
+        onStateChanged: { states.append($0) }
+    )
+    defer { service.setEnabled(false) }
+
+    let session = FakePracticeSession()
+    service.updatePracticeSession(session)
+    service.setEnabled(true)
+    recordDuetTestPhrase(service)
+
+    let expectedReason = "provider=network_bonjour_http_aria_v2;failure=quality_gate;quality=responseLatency;latency=underOneSecond"
+    for _ in 0 ..< 500 {
+        await Task.yield()
+        let events = await diagnosticsReporter.events
+        if events.contains(where: { $0.reason == expectedReason }) { break }
+    }
+
+    #expect(playbackService.playCallCount == 0)
+    #expect(states.contains { $0.lastImprovStatusText?.contains("质量门拒绝") == true })
+    let events = await diagnosticsReporter.events
+    #expect(events.contains(where: { $0.reason == expectedReason }))
+}
+
+@Test
+@MainActor
+func observedResponseLatencyQualityGateStopsBackendWithoutReportedLatency() async {
+    var states: [AIPerformanceService.State] = []
+    let diagnosticsReporter = InMemoryDiagnosticsReporter()
+    let backendService = FakeBackendDiscoveryService()
+    let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
+    let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
+    let backend = FakeScheduleBackend(
+        kind: selectedKind,
+        schedule: latencyGateSchedule,
+        responseDelay: .milliseconds(400)
+    )
+    let playbackService = FakeSequencerPlaybackService()
+    let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { playbackService },
+        makeExternalMIDIPlaybackService: { _ in playbackService }
+    )
+    let service = AIPerformanceService(
+        diagnosticsReporter: diagnosticsReporter,
+        discoveryOrchestrator: orchestrator,
+        backendRegistry: ImprovBackendRegistry(backends: [backend]),
+        selectedBackendKind: { selectedKind },
+        aiPlaybackServiceFactory: { aiPlaybackFactory },
+        onStateChanged: { states.append($0) }
+    )
+    defer { service.setEnabled(false) }
+
+    let session = FakePracticeSession()
+    service.updatePracticeSession(session)
+    service.setEnabled(true)
+    let now = ProcessInfo.processInfo.systemUptime
+    service.recordMIDI1EventForPhraseRecordingIfNeeded(
+        MIDI1InputEvent(
+            kind: .noteOn(note: 60, velocity: 90),
+            channel: 1,
+            group: 0,
+            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: nil),
+            receivedAt: .now,
+            receivedAtUptimeSeconds: now
+        )
+    )
+
+    let expectedReason = "provider=network_bonjour_http_aria_v2;failure=quality_gate;quality=responseLatency;latency=underOneSecond"
+    for _ in 0 ..< 100 {
+        let events = await diagnosticsReporter.events
+        if events.contains(where: { $0.reason == expectedReason }) { break }
+        try? await Task.sleep(for: .milliseconds(10))
+    }
+
+    #expect(playbackService.playCallCount == 0)
+    #expect(states.contains { $0.lastImprovStatusText?.contains("质量门拒绝") == true })
+    let events = await diagnosticsReporter.events
+    #expect(events.contains(where: { $0.reason == expectedReason }))
+}
+
+@Test
+@MainActor
 func localRuleBackendUsesDeterministicMultiCandidateSeeds() async {
     let nowUptime: TimeInterval = 0
 
@@ -358,7 +793,7 @@ func localRuleBackendUsesDeterministicMultiCandidateSeeds() async {
         PracticeSequencerMIDIEvent(timeSeconds: 0.0, kind: .noteOn(midi: 72, velocity: 90)),
         PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 72)),
     ]
-    let backend = RecordingSeedBackend(kind: selectedKind, playbackPlan: .schedule(schedule, backendLatencyMS: nil))
+    let backend = RecordingSeedBackend(kind: selectedKind, schedule: schedule)
 
     let playbackService = FakeSequencerPlaybackService()
     let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
@@ -426,7 +861,7 @@ func networkBackendRemainsSingleCandidate() async {
         PracticeSequencerMIDIEvent(timeSeconds: 0.0, kind: .noteOn(midi: 72, velocity: 90)),
         PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 72)),
     ]
-    let backend = RecordingSeedBackend(kind: selectedKind, playbackPlan: .schedule(schedule, backendLatencyMS: nil))
+    let backend = RecordingSeedBackend(kind: selectedKind, schedule: schedule)
 
     let playbackService = FakeSequencerPlaybackService()
     let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
@@ -510,99 +945,6 @@ func localRuleCandidateSelectionPrefersHigherQualityWindow() async {
                 PracticeSequencerMIDIEvent(timeSeconds: 0.18, kind: .noteOff(midi: 79)),
                 PracticeSequencerMIDIEvent(timeSeconds: 0.20, kind: .noteOn(midi: 79, velocity: 90)),
             ],
-        ],
-        failingIndices: [0]
-    )
-
-    let playbackService = FakeSequencerPlaybackService()
-    let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
-        makeLocalSamplerPlaybackService: { playbackService },
-        makeExternalMIDIPlaybackService: { _ in playbackService }
-    )
-    let service = AIPerformanceService(
-        nowUptimeSeconds: { nowUptime },
-        sleepFor: { _ in },
-        discoveryOrchestrator: orchestrator,
-        backendRegistry: ImprovBackendRegistry(backends: [backend]),
-        selectedBackendKind: { selectedKind },
-        aiPlaybackServiceFactory: { aiPlaybackFactory },
-        onStateChanged: { states.append($0) }
-    )
-    let session = FakePracticeSession()
-    service.updatePracticeSession(session)
-
-    service.setEnabled(true)
-    service.recordMIDI1EventForPhraseRecordingIfNeeded(
-        MIDI1InputEvent(
-            kind: .noteOn(note: 60, velocity: 90),
-            channel: 1,
-            group: 0,
-            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: nil),
-            receivedAt: Date(timeIntervalSince1970: 0),
-            receivedAtUptimeSeconds: 0.0
-        )
-    )
-    service.recordMIDI1EventForPhraseRecordingIfNeeded(
-        MIDI1InputEvent(
-            kind: .noteOff(note: 60, velocity: 0),
-            channel: 1,
-            group: 0,
-            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: nil),
-            receivedAt: Date(timeIntervalSince1970: 0),
-            receivedAtUptimeSeconds: 3.2
-        )
-    )
-
-    for _ in 0 ..< 500 {
-        await Task.yield()
-        if playbackService.playCallCount > 0,
-           states.last?.lastImprovStatusText?.contains("candidates=2") == true
-        {
-            break
-        }
-    }
-
-    let latestSchedule = states.last?.latestSchedule ?? []
-    let firstNoteOn = latestSchedule.first { if case .noteOn = $0.kind { true } else { false } }
-    #expect(playbackService.playCallCount > 0)
-    #expect(firstNoteOn != nil)
-    if let firstNoteOn, case let .noteOn(midi, _) = firstNoteOn.kind {
-        #expect(midi == 72)
-    }
-    #expect(states.last?.lastImprovStatusText?.contains("q=acceptable") == true)
-    #expect(states.last?.lastImprovStatusText?.contains("candidates=2") == true)
-}
-
-@Test
-@MainActor
-func allRejectedCandidatesPreferSilenceWithRejectStatus() async {
-    let nowUptime: TimeInterval = 0
-    var states: [AIPerformanceService.State] = []
-
-    let backendService = FakeBackendDiscoveryService()
-    let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
-    let selectedKind: ImprovBackendKind = .localRule
-    let backend = SequencedCandidateBackend(
-        kind: selectedKind,
-        schedules: [
-            [
-                PracticeSequencerMIDIEvent(timeSeconds: 0.00, kind: .noteOn(midi: 61, velocity: 100)),
-                PracticeSequencerMIDIEvent(timeSeconds: 0.03, kind: .noteOn(midi: 62, velocity: 100)),
-                PracticeSequencerMIDIEvent(timeSeconds: 0.06, kind: .noteOn(midi: 63, velocity: 100)),
-                PracticeSequencerMIDIEvent(timeSeconds: 0.09, kind: .noteOn(midi: 64, velocity: 100)),
-                PracticeSequencerMIDIEvent(timeSeconds: 0.12, kind: .noteOn(midi: 65, velocity: 100)),
-            ],
-            [
-                PracticeSequencerMIDIEvent(timeSeconds: 0.00, kind: .noteOn(midi: 60, velocity: 100)),
-                PracticeSequencerMIDIEvent(timeSeconds: 0.03, kind: .noteOff(midi: 60)),
-            ],
-            [
-                PracticeSequencerMIDIEvent(timeSeconds: 0.00, kind: .noteOn(midi: 62, velocity: 100)),
-                PracticeSequencerMIDIEvent(timeSeconds: 0.03, kind: .noteOn(midi: 63, velocity: 100)),
-                PracticeSequencerMIDIEvent(timeSeconds: 0.06, kind: .noteOn(midi: 64, velocity: 100)),
-                PracticeSequencerMIDIEvent(timeSeconds: 0.09, kind: .noteOn(midi: 65, velocity: 100)),
-                PracticeSequencerMIDIEvent(timeSeconds: 0.12, kind: .noteOn(midi: 66, velocity: 100)),
-            ],
         ]
     )
 
@@ -647,11 +989,152 @@ func allRejectedCandidatesPreferSilenceWithRejectStatus() async {
 
     for _ in 0 ..< 500 {
         await Task.yield()
-        if states.last?.lastImprovStatusText?.contains("q=reject") == true { break }
+        if playbackService.playCallCount > 0,
+           states.last?.lastImprovStatusText?.contains("candidates=3") == true
+        {
+            break
+        }
+    }
+
+    let latestSchedule = states.last?.latestSchedule ?? []
+    let firstNoteOn = latestSchedule.first { if case .noteOn = $0.kind { true } else { false } }
+    #expect(playbackService.playCallCount > 0)
+    #expect(firstNoteOn != nil)
+    if let firstNoteOn, case let .noteOn(midi, _) = firstNoteOn.kind {
+        #expect(midi == 72)
+    }
+    #expect(states.last?.lastImprovStatusText?.contains("q=acceptable") == true)
+    #expect(states.last?.lastImprovStatusText?.contains("candidates=3") == true)
+}
+
+@Test
+@MainActor
+func allRejectedCandidatesPreferSilenceWithRejectStatus() async {
+    let nowUptime: TimeInterval = 0
+    var states: [AIPerformanceService.State] = []
+    let diagnosticsReporter = InMemoryDiagnosticsReporter()
+
+    let backendService = FakeBackendDiscoveryService()
+    let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
+    let selectedKind: ImprovBackendKind = .localRule
+    let backend = SequencedCandidateBackend(
+        kind: selectedKind,
+        schedules: [
+            [
+                PracticeSequencerMIDIEvent(timeSeconds: 0.00, kind: .noteOn(midi: 61, velocity: 100)),
+                PracticeSequencerMIDIEvent(timeSeconds: 0.03, kind: .noteOn(midi: 62, velocity: 100)),
+                PracticeSequencerMIDIEvent(timeSeconds: 0.06, kind: .noteOn(midi: 63, velocity: 100)),
+                PracticeSequencerMIDIEvent(timeSeconds: 0.09, kind: .noteOn(midi: 64, velocity: 100)),
+                PracticeSequencerMIDIEvent(timeSeconds: 0.12, kind: .noteOn(midi: 65, velocity: 100)),
+            ],
+            [
+                PracticeSequencerMIDIEvent(timeSeconds: 0.00, kind: .noteOn(midi: 60, velocity: 100)),
+                PracticeSequencerMIDIEvent(timeSeconds: 0.03, kind: .noteOff(midi: 60)),
+            ],
+            [
+                PracticeSequencerMIDIEvent(timeSeconds: 0.00, kind: .noteOn(midi: 62, velocity: 100)),
+                PracticeSequencerMIDIEvent(timeSeconds: 0.03, kind: .noteOn(midi: 63, velocity: 100)),
+                PracticeSequencerMIDIEvent(timeSeconds: 0.06, kind: .noteOn(midi: 64, velocity: 100)),
+                PracticeSequencerMIDIEvent(timeSeconds: 0.09, kind: .noteOn(midi: 65, velocity: 100)),
+                PracticeSequencerMIDIEvent(timeSeconds: 0.12, kind: .noteOn(midi: 66, velocity: 100)),
+            ],
+        ]
+    )
+
+    let playbackService = FakeSequencerPlaybackService()
+    let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { playbackService },
+        makeExternalMIDIPlaybackService: { _ in playbackService }
+    )
+    let service = AIPerformanceService(
+        diagnosticsReporter: diagnosticsReporter,
+        nowUptimeSeconds: { nowUptime },
+        sleepFor: { _ in },
+        discoveryOrchestrator: orchestrator,
+        backendRegistry: ImprovBackendRegistry(backends: [backend]),
+        selectedBackendKind: { selectedKind },
+        aiPlaybackServiceFactory: { aiPlaybackFactory },
+        onStateChanged: { states.append($0) }
+    )
+    let session = FakePracticeSession()
+    service.updatePracticeSession(session)
+
+    service.setEnabled(true)
+    service.recordMIDI1EventForPhraseRecordingIfNeeded(
+        MIDI1InputEvent(
+            kind: .noteOn(note: 60, velocity: 90),
+            channel: 1,
+            group: 0,
+            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: nil),
+            receivedAt: Date(timeIntervalSince1970: 0),
+            receivedAtUptimeSeconds: 0.0
+        )
+    )
+    service.recordMIDI1EventForPhraseRecordingIfNeeded(
+        MIDI1InputEvent(
+            kind: .noteOff(note: 60, velocity: 0),
+            channel: 1,
+            group: 0,
+            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: nil),
+            receivedAt: Date(timeIntervalSince1970: 0),
+            receivedAtUptimeSeconds: 3.2
+        )
+    )
+
+    for _ in 0 ..< 500 {
+        await Task.yield()
+        let events = await diagnosticsReporter.events
+        if events.contains(where: { $0.reason.hasPrefix("provider=local_rule;failure=quality_gate;quality=") }) { break }
     }
 
     #expect(playbackService.playCallCount == 0)
-    #expect(states.last?.lastImprovStatusText?.contains("q=reject") == true)
-    #expect(states.last?.lastImprovStatusText?.contains("candidates=3") == true)
-    #expect(states.last?.lastImprovStatusText?.contains("topReject=densityOverload") == true)
+    #expect(states.last?.lastImprovStatusText?.contains("质量门拒绝") == true)
+    let events = await diagnosticsReporter.events
+    #expect(events.contains(where: { $0.reason.hasPrefix("provider=local_rule;failure=quality_gate;quality=") }))
+}
+
+@Test
+func creativeDuetContractPreservesObservedInputAndGeneratedResponseProvenance() async throws {
+    let events = [
+        ImprovEvent.note(note: 60, velocity: 72, time: 0, duration: 0.4),
+        ImprovEvent.cc(controller: 64, value: 127, time: 0.1),
+    ]
+    let observation = CreativeDuetPhraseProvenance.Observation(
+        id: UUID(),
+        source: .init(kind: .midi1, id: "creative-duet-test", generation: 1),
+        timingProvenance: .hostOnly
+    )
+    let phrase = CreativeDuetPhrase(
+        events: events,
+        provenance: .init(observations: [observation])
+    )
+    let generation = CreativeDuetGeneration(
+        requestID: 7,
+        activationID: 3,
+        seed: 42,
+        sessionID: "test-session",
+        parameters: ImprovGenerateParams(topP: 0.95, maxTokens: 12, strategy: "continuous", seed: 42)
+    )
+    let schedule = [
+        PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 67, velocity: 88)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.3, kind: .noteOff(midi: 67)),
+    ]
+    let backend = FakeScheduleBackend(
+        kind: .localRule,
+        schedule: schedule,
+        backendLatencyMS: 17
+    )
+
+    let response = try await backend.generateCreativeResponse(
+        phrase: phrase,
+        generation: generation,
+        timeout: .seconds(1)
+    )
+
+    #expect(phrase.provenance.observations == [observation])
+    #expect(phrase.provenance.observations.first?.capabilities == .midi)
+    #expect(response.schedule == schedule)
+    #expect(response.provider == .localRule)
+    #expect(response.generation == generation)
+    #expect(response.provenance == .backendGenerated(latencyMS: 17))
 }

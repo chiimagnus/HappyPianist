@@ -11,6 +11,8 @@ struct MIDI1InputEvent: Equatable, Sendable {
         case polyPressure(note: Int, value: Int)
     }
 
+    /// Stable while the same raw input event is routed to matching, recording, and AI.
+    let observationID: UUID
     let kind: Kind
     let channel: Int
     let group: Int
@@ -20,6 +22,7 @@ struct MIDI1InputEvent: Equatable, Sendable {
     let sourceTimestamp: PerformanceSourceTimestamp?
 
     init(
+        observationID: UUID = UUID(),
         kind: Kind,
         channel: Int,
         group: Int,
@@ -28,6 +31,7 @@ struct MIDI1InputEvent: Equatable, Sendable {
         receivedAtUptimeSeconds: TimeInterval,
         sourceTimestamp: PerformanceSourceTimestamp? = nil
     ) {
+        self.observationID = observationID
         self.kind = Self.clamp(kind)
         self.channel = Self.clamp(channel, min: 1, max: 16)
         self.group = Self.clamp(group, min: 0, max: 15)

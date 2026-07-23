@@ -2,12 +2,31 @@ import Foundation
 @testable import HappyPianistAVP
 import Testing
 
+private let duetPhrasePolicyTestSource = PerformanceObservation.Source(
+    kind: .midi1,
+    id: "duet-phrase-policy-test",
+    generation: 1
+)
+
+private func duetPhraseEvent(
+    _ kind: PerformanceObservationPhraseAdapter.PhraseEvent.Kind,
+    at timestampSeconds: TimeInterval
+) -> PerformanceObservationPhraseAdapter.PhraseEvent {
+    .init(
+        observationID: UUID(),
+        source: duetPhrasePolicyTestSource,
+        timestamp: .init(seconds: timestampSeconds),
+        timingProvenance: .hostOnly,
+        kind: kind
+    )
+}
+
 @Test
 func duetPhraseBufferSnapshotProjectsHeldNotesAndRecentStats() {
     var buffer = DuetPhraseBuffer()
-    buffer.recordNoteOn(midi: 60, velocity: 80, timestampSeconds: 0.0)
-    buffer.recordNoteOff(midi: 60, timestampSeconds: 0.4, sustainIsDown: false)
-    buffer.recordNoteOn(midi: 64, velocity: 92, timestampSeconds: 0.6)
+    buffer.record(duetPhraseEvent(.noteOn(midi: 60, velocity: 80), at: 0), sustainIsDown: false)
+    buffer.record(duetPhraseEvent(.noteOff(midi: 60), at: 0.4), sustainIsDown: false)
+    buffer.record(duetPhraseEvent(.noteOn(midi: 64, velocity: 92), at: 0.6), sustainIsDown: false)
 
     let snapshot = buffer.snapshot(nowTimestampSeconds: 1.0, lookbackSeconds: 4.0, maxPromptSeconds: 3.0)
 
@@ -22,8 +41,8 @@ func duetPhraseBufferSnapshotProjectsHeldNotesAndRecentStats() {
 @Test
 func duetPhraseBufferKeepsReleasedNotesWhileSustainIsDown() {
     var buffer = DuetPhraseBuffer()
-    buffer.recordNoteOn(midi: 60, velocity: 88, timestampSeconds: 0)
-    buffer.recordNoteOff(midi: 60, timestampSeconds: 0.2, sustainIsDown: true)
+    buffer.record(duetPhraseEvent(.noteOn(midi: 60, velocity: 88), at: 0), sustainIsDown: false)
+    buffer.record(duetPhraseEvent(.noteOff(midi: 60), at: 0.2), sustainIsDown: true)
 
     let sustained = buffer.snapshot(nowTimestampSeconds: 0.3, lookbackSeconds: 4, maxPromptSeconds: 3)
     #expect(sustained.heldNoteMIDIs == [60])
@@ -36,13 +55,13 @@ func duetPhraseBufferKeepsReleasedNotesWhileSustainIsDown() {
 @Test
 func duetPhrasePolicyBuildPromptEventsMergesCCAndNotesInTimeOrder() {
     var noteBuffer = DuetPhraseBuffer()
-    noteBuffer.recordNoteOn(midi: 60, velocity: 90, timestampSeconds: 1.0)
-    noteBuffer.recordNoteOff(midi: 60, timestampSeconds: 1.2, sustainIsDown: false)
+    noteBuffer.record(duetPhraseEvent(.noteOn(midi: 60, velocity: 90), at: 1), sustainIsDown: false)
+    noteBuffer.record(duetPhraseEvent(.noteOff(midi: 60), at: 1.2), sustainIsDown: false)
     let noteSnapshot = noteBuffer.snapshot(nowTimestampSeconds: 1.5, lookbackSeconds: 4.0, maxPromptSeconds: 3.0)
 
     var ccBuffer = DuetPhraseEventBuffer()
-    ccBuffer.recordControlChange(controller: 64, value: 127, timestampSeconds: 0.9)
-    ccBuffer.recordControlChange(controller: 64, value: 0, timestampSeconds: 1.1)
+    ccBuffer.record(duetPhraseEvent(.controlChange(controller: 64, value: 127), at: 0.9))
+    ccBuffer.record(duetPhraseEvent(.controlChange(controller: 64, value: 0), at: 1.1))
     let ccSnapshot = ccBuffer.snapshot(nowTimestampSeconds: 1.5, lookbackSeconds: 4.0, maxPromptSeconds: 3.0)
 
     let events = DuetPhrasePolicy.buildPromptEvents(
@@ -59,7 +78,7 @@ func duetPhrasePolicyBuildPromptEventsMergesCCAndNotesInTimeOrder() {
 @Test
 func duetPhrasePolicyShapeScheduleDropsHeldConflictsAndClipsHorizon() {
     var noteBuffer = DuetPhraseBuffer()
-    noteBuffer.recordNoteOn(midi: 60, velocity: 88, timestampSeconds: 10.0)
+    noteBuffer.record(duetPhraseEvent(.noteOn(midi: 60, velocity: 88), at: 10), sustainIsDown: false)
     let snapshot = noteBuffer.snapshot(nowTimestampSeconds: 10.2, lookbackSeconds: 4.0, maxPromptSeconds: 3.0)
 
     let schedule = [

@@ -31,19 +31,23 @@ actor LocalRuleImprovBackend: ImprovBackendProtocol {
         seedResolver = ImprovSeedResolver()
     }
 
-    func generatePlaybackPlan(
-        request: ImprovGenerateRequestV2,
+    func generateCreativeResponse(
+        phrase: CreativeDuetPhrase,
+        generation: CreativeDuetGeneration,
         timeout: Duration
-    ) async throws -> ImprovBackendPlaybackPlan {
-        let seed = seedResolver.resolveSeed(explicitSeed: request.params.seed, sessionID: request.sessionID)
+    ) async throws -> CreativeDuetResponse {
+        let seed = seedResolver.resolveSeed(
+            explicitSeed: generation.parameters.seed,
+            sessionID: generation.sessionID
+        )
         let generator = self.generator
-        let promptNotes = request.extractDialogueNotes()
+        let promptNotes = phrase.dialogueNotes
 
         let replyNotes = try await runWithTimeout(timeout) {
             generator.generateRuleResponse(
                 notes: promptNotes,
-                params: request.params,
-                sessionID: request.sessionID,
+                params: generation.parameters,
+                sessionID: generation.sessionID,
                 seed: seed
             )
         }
@@ -53,7 +57,12 @@ actor LocalRuleImprovBackend: ImprovBackendProtocol {
             throw LocalRuleImprovBackendError.emptyReply
         }
 
-        return .schedule(schedule, backendLatencyMS: nil)
+        return CreativeDuetResponse(
+            schedule: schedule,
+            provider: kind,
+            generation: generation,
+            provenance: .backendGenerated(latencyMS: nil)
+        )
     }
 
     private func runWithTimeout<T: Sendable>(

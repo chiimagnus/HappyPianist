@@ -1,7 +1,7 @@
 @testable import HappyPianistAVP
 import Testing
 
-private actor ScriptedStepModel: PerformanceRNNStepModeling {
+actor ScriptedStepModel: PerformanceRNNStepModeling {
     private var warmupRemainingCalls: Int
     private var scriptedNextEventIDs: [Int]
     private var index = 0

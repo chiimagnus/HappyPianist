@@ -884,6 +884,7 @@ final class ARGuideViewModel: PracticeLaunchApplying {
     private func recordPhraseIfNeeded() {
         aiPerformanceViewModel.recordKeyContactForPhraseRecordingIfNeeded(
             usesBluetoothMIDIInput: selectedPianoMode?.usesBluetoothMIDIInput == true,
+            isVirtualPianoEnabled: isVirtualPianoEnabled,
             observations: practiceSessionViewModel.latestKeyContactObservations
         )
     }
