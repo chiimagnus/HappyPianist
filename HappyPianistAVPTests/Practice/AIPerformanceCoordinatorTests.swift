@@ -710,7 +710,7 @@ func responseLatencyQualityGateStopsSelectedBackend() async {
     service.setEnabled(true)
     recordDuetTestPhrase(service)
 
-    let expectedReason = "provider=network_bonjour_http_aria_v2;failure=quality_gate"
+    let expectedReason = "provider=network_bonjour_http_aria_v2;failure=quality_gate;quality=responseLatency;latency=underOneSecond"
     for _ in 0 ..< 500 {
         await Task.yield()
         let events = await diagnosticsReporter.events
@@ -773,7 +773,7 @@ func observedResponseLatencyQualityGateStopsBackendWithoutReportedLatency() asyn
 
     try? await Task.sleep(for: .seconds(1))
 
-    let expectedReason = "provider=network_bonjour_http_aria_v2;failure=quality_gate"
+    let expectedReason = "provider=network_bonjour_http_aria_v2;failure=quality_gate;quality=responseLatency;latency=underOneSecond"
     #expect(playbackService.playCallCount == 0)
     #expect(states.last?.lastImprovStatusText?.contains("质量门拒绝") == true)
     let events = await diagnosticsReporter.events
@@ -1083,13 +1083,13 @@ func allRejectedCandidatesPreferSilenceWithRejectStatus() async {
     for _ in 0 ..< 500 {
         await Task.yield()
         let events = await diagnosticsReporter.events
-        if events.contains(where: { $0.reason == "provider=local_rule;failure=quality_gate" }) { break }
+        if events.contains(where: { $0.reason.hasPrefix("provider=local_rule;failure=quality_gate;quality=") }) { break }
     }
 
     #expect(playbackService.playCallCount == 0)
     #expect(states.last?.lastImprovStatusText?.contains("质量门拒绝") == true)
     let events = await diagnosticsReporter.events
-    #expect(events.contains(where: { $0.reason == "provider=local_rule;failure=quality_gate" }))
+    #expect(events.contains(where: { $0.reason.hasPrefix("provider=local_rule;failure=quality_gate;quality=") }))
 }
 
 @Test

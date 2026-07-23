@@ -27,6 +27,11 @@ final class AIPerformanceService {
         let shapedSchedule: [PracticeSequencerMIDIEvent]
         let assessment: DuetPhrasePolicy.QualityAssessment
         let responseQualityAssessment: ImprovQualityRubric.Assessment
+        let responseLatencyBucket: PianoPerformanceDurationBucket?
+
+        var qualityGateReason: String? {
+            assessment.primaryReason?.rawValue ?? responseQualityAssessment.reasons.first?.rawValue
+        }
     }
 
     private struct CandidateDiagnostics {
@@ -560,14 +565,27 @@ final class AIPerformanceService {
             .filter { $0.assessment.band == .reject }
             .compactMap(\.assessment.primaryReason)
             .first
+        let rejectedCandidate = evaluations.first {
+            $0.assessment.band == .reject || $0.responseQualityAssessment.isUsable == false
+        }
         guard let bestCandidate = selectBestCandidate(from: evaluations) else {
             latestCandidateDiagnostics = CandidateDiagnostics(band: .reject, candidateCount: evaluations.count, topRejectReason: topRejectReason)
-            reportGenerationFailure(provider: kind, category: .qualityGate)
+            reportGenerationFailure(
+                provider: kind,
+                category: .qualityGate,
+                qualityGateReason: rejectedCandidate?.qualityGateReason,
+                latencyBucket: rejectedCandidate?.responseLatencyBucket
+            )
             return
         }
         let shapedSchedule = bestCandidate.shapedSchedule
         guard shapedSchedule.isEmpty == false else {
-            reportGenerationFailure(provider: kind, category: .qualityGate)
+            reportGenerationFailure(
+                provider: kind,
+                category: .qualityGate,
+                qualityGateReason: bestCandidate.qualityGateReason,
+                latencyBucket: bestCandidate.responseLatencyBucket
+            )
             return
         }
 
@@ -680,9 +698,10 @@ final class AIPerformanceService {
             controlMode: controlMode,
             horizonSeconds: horizonSeconds
         )
+        let responseLatencySeconds = responseLatencySeconds(for: response)
         let responseQualityAssessment = ImprovQualityRubric().assess(
             shapedSchedule,
-            responseLatencySeconds: responseLatencySeconds(for: response),
+            responseLatencySeconds: responseLatencySeconds,
             context: ImprovQualityRubric.phraseContext(from: noteSnapshot)
         )
         let assessment: DuetPhrasePolicy.QualityAssessment = if shapedSchedule.isEmpty {
@@ -705,7 +724,8 @@ final class AIPerformanceService {
         return CandidateEvaluation(
             shapedSchedule: shapedSchedule,
             assessment: assessment,
-            responseQualityAssessment: responseQualityAssessment
+            responseQualityAssessment: responseQualityAssessment,
+            responseLatencyBucket: responseLatencySeconds.map { .init(seconds: $0) }
         )
     }
 
@@ -830,18 +850,30 @@ final class AIPerformanceService {
 
     private func reportGenerationFailure(
         provider: ImprovBackendKind?,
-        category: GenerationFailureCategory
+        category: GenerationFailureCategory,
+        qualityGateReason: String? = nil,
+        latencyBucket: PianoPerformanceDurationBucket? = nil
     ) {
         let providerToken = provider?.rawValue ?? "none"
         let statusText = "AI 即兴：\(category.statusText)（\(providerToken)）"
         guard generationFailureStatusText != statusText else { return }
+        let reason = if category == .qualityGate {
+            [
+                "provider=\(providerToken)",
+                "failure=\(category.rawValue)",
+                "quality=\(qualityGateReason ?? "unknown")",
+                "latency=\(latencyBucket?.rawValue ?? "none")",
+            ].joined(separator: ";")
+        } else {
+            "provider=\(providerToken);failure=\(category.rawValue)"
+        }
 
         diagnosticsReporter?.recordSystem(
             severity: .warning,
             category: .ai,
             stage: "continuousDuet.generate",
             summary: "AI 即兴生成失败",
-            reason: "provider=\(providerToken);failure=\(category.rawValue)"
+            reason: reason
         )
         generationFailureStatusText = statusText
         lastImprovStatusText = statusText
