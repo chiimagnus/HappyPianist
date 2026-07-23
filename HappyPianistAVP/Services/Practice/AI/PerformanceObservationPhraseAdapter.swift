@@ -72,40 +72,6 @@ struct PerformanceObservationPhraseAdapter {
         }
     }
 
-    func phraseEvent(
-        from recordingEvent: RecordingTakeEvent,
-        source: PerformanceObservation.Source,
-        startTime: PerformanceMonotonicInstant
-    ) -> PhraseEvent? {
-        let observation = recordingEvent.observation
-        let eventSource = observation?.source ?? source
-        let timingProvenance = observation?.timing.provenance ?? .hostOnly
-        let timestamp = startTime.advanced(by: max(0, recordingEvent.time))
-        let makeEvent: (PhraseEvent.Kind) -> PhraseEvent = { kind in
-            PhraseEvent(
-                observationID: observation?.id ?? recordingEvent.id,
-                source: eventSource,
-                timestamp: timestamp,
-                timingProvenance: timingProvenance,
-                kind: kind
-            )
-        }
-
-        switch recordingEvent.kind {
-        case let .noteOn(midi, velocity):
-            return makeEvent(.noteOn(midi: clamp7Bit(midi), velocity: clamp7Bit(velocity)))
-        case let .noteOff(midi):
-            return makeEvent(.noteOff(midi: clamp7Bit(midi)))
-        case let .controlChange(controller, value):
-            if controller == 120 || controller == 123 {
-                return makeEvent(.allNotesOff)
-            }
-            return makeEvent(.controlChange(controller: clamp7Bit(controller), value: clamp7Bit(value)))
-        case .pitchBend, .programChange, .channelPressure, .polyPressure:
-            return nil
-        }
-    }
-
     private func midi7Bit(_ value: PerformanceObservation.NormalizedValue) -> Int {
         MIDI2ValueMapping.value32To7Bit(value.rawValue)
     }

@@ -99,12 +99,20 @@ func performanceObservationPhraseAdapterUnifiesMIDIRecordingAndHandEvidence() {
     #expect(midiPhraseEvent != nil)
     guard let midiPhraseEvent else { return }
 
-    let recordingSource = PerformanceObservation.Source(kind: .midi2, id: "recording-source", generation: 2)
-    let recordingPhraseEvent = adapter.phraseEvent(
-        from: RecordingTakeEvent(time: 0.4, kind: .noteOff(midi: 60)),
-        source: recordingSource,
-        startTime: .init(seconds: 10)
+    let recordingID = UUID()
+    let recordingObservation = PerformanceObservation(
+        id: recordingID,
+        source: PerformanceObservation.Source(kind: .midi2, id: "recording-source", generation: 2),
+        timing: .init(
+            host: .init(seconds: 10.4),
+            source: nil,
+            correctedHost: .init(seconds: 10.4),
+            mapping: nil,
+            provenance: .hostOnly
+        ),
+        event: .noteOff(note: 60, releaseVelocity: .init(midi2: 0))
     )
+    let recordingPhraseEvent = adapter.phraseEvent(from: recordingObservation)
     #expect(recordingPhraseEvent != nil)
     guard let recordingPhraseEvent else { return }
 
@@ -179,6 +187,7 @@ func performanceObservationPhraseAdapterUnifiesMIDIRecordingAndHandEvidence() {
     #expect(snapshot.phraseProvenance.observations.contains {
         $0.id == handID && $0.capabilities == .handContact
     })
+    #expect(recordingPhraseEvent.observationID == recordingID)
     #expect(recordingPhraseEvent.timestamp == .init(seconds: 10.4))
     #expect(midiPhraseEvent.sustainObservation == .observed)
     #expect(handPhraseEvent.sustainObservation == .notObserved)

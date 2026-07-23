@@ -296,7 +296,7 @@ sequenceDiagram
   Service->>Queue: shaped playback plan
 ```
 
-`PerformanceObservationPhraseAdapter` 将 MIDI、录制与手部 observation 归一为同一 phrase schema，并保留 monotonic timing、velocity、duration、controller、source identity、capability 与 approximation。只有 `userPerformance` 事件可进入 phrase；AI/self playback、disable 后事件和旧 request/playback generation 一律丢弃。
+`AIPerformanceService` 与 `RecordingTakeRecorder` 从同一份 canonical `PerformanceObservation` 分支；`PerformanceObservationPhraseAdapter` 只把用户 MIDI 与手部 observation 投影为 phrase schema，并保留 monotonic timing、velocity、duration、controller、source identity、capability 与 approximation。只有 `userPerformance` 事件可进入 phrase；AI/self playback、disable 后事件和旧 request/playback generation 一律丢弃。
 
 `CreativeDuetPhrase` 与 `CreativeDuetResponse` 只存在于运行期。它们不修改 `ScorePerformancePlan`、不成为 assessment target、不写入进度 JSON，也不代表忠实示范、钢琴家参考或教师结论。Rule 的真实确定性生成、CoreML event decoding 与 network protocol fake 都经过同一结构性 quality gate；这只验证 response 可用性和协议边界，不宣称已验证真实 CoreML 模型或外部 Aria 服务的音乐质量。
 
