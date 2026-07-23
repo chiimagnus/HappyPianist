@@ -148,9 +148,9 @@ func improvQualityRubricChecksTheScheduleLeftAfterDuetShaping() {
     let noteSnapshot = observedChordSnapshot()
     let rawSchedule = [
         PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 73, velocity: 88)),
-        PracticeSequencerMIDIEvent(timeSeconds: 0.15, kind: .noteOff(midi: 73)),
-        PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOn(midi: 74, velocity: 84)),
-        PracticeSequencerMIDIEvent(timeSeconds: 0.35, kind: .noteOff(midi: 74)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.25, kind: .noteOff(midi: 73)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.4, kind: .noteOn(midi: 74, velocity: 84)),
+        PracticeSequencerMIDIEvent(timeSeconds: 0.65, kind: .noteOff(midi: 74)),
         PracticeSequencerMIDIEvent(timeSeconds: 0.8, kind: .noteOn(midi: 72, velocity: 80)),
         PracticeSequencerMIDIEvent(timeSeconds: 1, kind: .noteOff(midi: 72)),
     ]

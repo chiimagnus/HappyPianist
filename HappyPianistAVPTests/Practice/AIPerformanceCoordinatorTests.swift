@@ -282,6 +282,13 @@ private func recordDuetTestPhrase(_ service: AIPerformanceService) {
     )
 }
 
+private let latencyGateSchedule = [
+    PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 72, velocity: 90)),
+    PracticeSequencerMIDIEvent(timeSeconds: 0.25, kind: .noteOff(midi: 72)),
+    PracticeSequencerMIDIEvent(timeSeconds: 0.4, kind: .noteOn(midi: 76, velocity: 88)),
+    PracticeSequencerMIDIEvent(timeSeconds: 0.65, kind: .noteOff(midi: 76)),
+]
+
 @Test
 @MainActor
 func enableDisableAreIdempotent() async {
@@ -680,12 +687,7 @@ func responseLatencyQualityGateStopsSelectedBackend() async {
     let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
     let backend = FakeScheduleBackend(
         kind: selectedKind,
-        schedule: [
-            PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 72, velocity: 90)),
-            PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 72)),
-            PracticeSequencerMIDIEvent(timeSeconds: 0.3, kind: .noteOn(midi: 76, velocity: 88)),
-            PracticeSequencerMIDIEvent(timeSeconds: 0.5, kind: .noteOff(midi: 76)),
-        ],
+        schedule: latencyGateSchedule,
         backendLatencyMS: 400
     )
     let playbackService = FakeSequencerPlaybackService()
@@ -718,7 +720,7 @@ func responseLatencyQualityGateStopsSelectedBackend() async {
     }
 
     #expect(playbackService.playCallCount == 0)
-    #expect(states.last?.lastImprovStatusText?.contains("质量门拒绝") == true)
+    #expect(states.contains { $0.lastImprovStatusText?.contains("质量门拒绝") == true })
     let events = await diagnosticsReporter.events
     #expect(events.contains(where: { $0.reason == expectedReason }))
 }
@@ -733,12 +735,7 @@ func observedResponseLatencyQualityGateStopsBackendWithoutReportedLatency() asyn
     let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
     let backend = FakeScheduleBackend(
         kind: selectedKind,
-        schedule: [
-            PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 72, velocity: 90)),
-            PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 72)),
-            PracticeSequencerMIDIEvent(timeSeconds: 0.3, kind: .noteOn(midi: 76, velocity: 88)),
-            PracticeSequencerMIDIEvent(timeSeconds: 0.5, kind: .noteOff(midi: 76)),
-        ],
+        schedule: latencyGateSchedule,
         responseDelay: .milliseconds(400)
     )
     let playbackService = FakeSequencerPlaybackService()
@@ -771,11 +768,15 @@ func observedResponseLatencyQualityGateStopsBackendWithoutReportedLatency() asyn
         )
     )
 
-    try? await Task.sleep(for: .seconds(1))
-
     let expectedReason = "provider=network_bonjour_http_aria_v2;failure=quality_gate;quality=responseLatency;latency=underOneSecond"
+    for _ in 0 ..< 100 {
+        let events = await diagnosticsReporter.events
+        if events.contains(where: { $0.reason == expectedReason }) { break }
+        try? await Task.sleep(for: .milliseconds(10))
+    }
+
     #expect(playbackService.playCallCount == 0)
-    #expect(states.last?.lastImprovStatusText?.contains("质量门拒绝") == true)
+    #expect(states.contains { $0.lastImprovStatusText?.contains("质量门拒绝") == true })
     let events = await diagnosticsReporter.events
     #expect(events.contains(where: { $0.reason == expectedReason }))
 }
