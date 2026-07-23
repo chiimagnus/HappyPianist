@@ -66,6 +66,15 @@ final class AIPerformanceService {
         }
     }
 
+    private enum GenerationDiscardOutcome: String {
+        case cancelled
+        case staleDisabled = "stale_disabled"
+        case staleActivation = "stale_activation"
+        case stalePhrase = "stale_phrase"
+        case staleBackend = "stale_backend"
+        case stalePlayback = "stale_playback"
+    }
+
     private let diagnosticsReporter: (any DiagnosticsReporting)?
     private let nowUptimeSeconds: () -> TimeInterval
     private let sleepFor: @Sendable (Duration) async -> Void
@@ -523,21 +532,29 @@ final class AIPerformanceService {
                 activationID: activationAtRequest
             )
         } catch is CancellationError {
+            reportGenerationDiscard(provider: kind, outcome: .cancelled)
             return
         } catch {
-            guard isEnabled,
-                  activationAtRequest == activationID,
-                  phraseGenerationAtRequest == phraseGeneration,
-                  selectedBackendKind() == kind
-            else { return }
+            if let outcome = staleGenerationOutcome(
+                activationAtRequest: activationAtRequest,
+                phraseGenerationAtRequest: phraseGenerationAtRequest,
+                kind: kind
+            ) {
+                reportGenerationDiscard(provider: kind, outcome: outcome)
+                return
+            }
             reportGenerationFailure(provider: kind, category: failureCategory(for: error))
             return
         }
 
-        guard isEnabled else { return }
-        guard activationAtRequest == activationID else { return }
-        guard phraseGenerationAtRequest == phraseGeneration else { return }
-        guard selectedBackendKind() == kind else { return }
+        if let outcome = staleGenerationOutcome(
+            activationAtRequest: activationAtRequest,
+            phraseGenerationAtRequest: phraseGenerationAtRequest,
+            kind: kind
+        ) {
+            reportGenerationDiscard(provider: kind, outcome: outcome)
+            return
+        }
 
         let now = nowUptimeSeconds()
         let noteSnapshot = noteContext.snapshot(
@@ -596,12 +613,18 @@ final class AIPerformanceService {
             provider: kind,
             requestGeneration: phraseGenerationAtRequest
         )
-        guard result.wasAccepted,
-              isEnabled,
-              activationAtRequest == activationID,
-              phraseGenerationAtRequest == phraseGeneration,
-              selectedBackendKind() == kind
-        else { return }
+        guard result.wasAccepted else {
+            reportGenerationDiscard(provider: kind, outcome: .stalePlayback)
+            return
+        }
+        if let outcome = staleGenerationOutcome(
+            activationAtRequest: activationAtRequest,
+            phraseGenerationAtRequest: phraseGenerationAtRequest,
+            kind: kind
+        ) {
+            reportGenerationDiscard(provider: kind, outcome: outcome)
+            return
+        }
         latestSchedule = result.shiftedSchedule
         latestCandidateDiagnostics = CandidateDiagnostics(
             band: bestCandidate.assessment.band,
@@ -878,6 +901,31 @@ final class AIPerformanceService {
         generationFailureStatusText = statusText
         lastImprovStatusText = statusText
         notifyStateChanged()
+    }
+
+    private func staleGenerationOutcome(
+        activationAtRequest: Int,
+        phraseGenerationAtRequest: Int,
+        kind: ImprovBackendKind
+    ) -> GenerationDiscardOutcome? {
+        guard isEnabled else { return .staleDisabled }
+        guard activationAtRequest == activationID else { return .staleActivation }
+        guard phraseGenerationAtRequest == phraseGeneration else { return .stalePhrase }
+        guard selectedBackendKind() == kind else { return .staleBackend }
+        return nil
+    }
+
+    private func reportGenerationDiscard(
+        provider: ImprovBackendKind,
+        outcome: GenerationDiscardOutcome
+    ) {
+        diagnosticsReporter?.recordSystem(
+            severity: .info,
+            category: .ai,
+            stage: "continuousDuet.discard",
+            summary: "AI 即兴响应已丢弃",
+            reason: "provider=\(provider.rawValue);outcome=\(outcome.rawValue)"
+        )
     }
 
     @discardableResult

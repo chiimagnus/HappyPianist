@@ -99,6 +99,35 @@ private actor ControlledBackend: ImprovBackendProtocol {
     }
 }
 
+private actor CancellationAwareBackend: ImprovBackendProtocol {
+    nonisolated let kind: ImprovBackendKind
+    nonisolated let displayName = "Cancellation aware"
+
+    private var didReceiveCall = false
+    private var callWaiter: CheckedContinuation<Void, Never>?
+
+    init(kind: ImprovBackendKind) {
+        self.kind = kind
+    }
+
+    func generateCreativeResponse(
+        phrase _: CreativeDuetPhrase,
+        generation _: CreativeDuetGeneration,
+        timeout _: Duration
+    ) async throws -> CreativeDuetResponse {
+        didReceiveCall = true
+        callWaiter?.resume()
+        callWaiter = nil
+        try await Task.sleep(for: .seconds(60))
+        throw CancellationError()
+    }
+
+    func waitForCall() async {
+        guard didReceiveCall == false else { return }
+        await withCheckedContinuation { callWaiter = $0 }
+    }
+}
+
 @MainActor
 private final class NonAdvancingPlaybackService: PracticeSequencerPlaybackServiceProtocol {
     func warmUp() throws {}
@@ -229,6 +258,7 @@ func newInputDropsStaleContinuousResponse() async {
     let controlClock = AIPerformanceControlClock()
     let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
     let backend = ControlledBackend(kind: selectedKind)
+    let diagnosticsReporter = InMemoryDiagnosticsReporter()
     let playbackService = NonAdvancingPlaybackService()
     let factory = DuetAIPlaybackServiceFactory(
         makeLocalSamplerPlaybackService: { playbackService },
@@ -236,6 +266,7 @@ func newInputDropsStaleContinuousResponse() async {
     )
     var enqueuedSchedule = false
     let service = AIPerformanceService(
+        diagnosticsReporter: diagnosticsReporter,
         nowUptimeSeconds: { nowUptime },
         sleepFor: { duration in await controlClock.sleep(for: duration) },
         discoveryOrchestrator: FakeDiscoveryOrchestrator(),
@@ -280,6 +311,14 @@ func newInputDropsStaleContinuousResponse() async {
         await Task.yield()
     }
     #expect(enqueuedSchedule == false)
+    let staleResponseReason = "provider=network_bonjour_http_aria_v2;outcome=stale_phrase"
+    for _ in 0 ..< 200 {
+        await Task.yield()
+        let events = await diagnosticsReporter.events
+        if events.contains(where: { $0.reason == staleResponseReason }) { break }
+    }
+    let events = await diagnosticsReporter.events
+    #expect(events.contains(where: { $0.reason == staleResponseReason }))
 
     await backend.resume(with: [
         PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 74, velocity: 90)),
@@ -290,6 +329,56 @@ func newInputDropsStaleContinuousResponse() async {
     }
     #expect(enqueuedSchedule)
     service.setEnabled(false)
+}
+
+@Test
+@MainActor
+func cancellingGenerationRecordsDiscardOutcome() async {
+    var nowUptime: TimeInterval = 0
+    let controlClock = AIPerformanceControlClock()
+    let selectedKind: ImprovBackendKind = .localRule
+    let backend = CancellationAwareBackend(kind: selectedKind)
+    let diagnosticsReporter = InMemoryDiagnosticsReporter()
+    let playbackService = NonAdvancingPlaybackService()
+    let factory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { playbackService },
+        makeExternalMIDIPlaybackService: { _ in playbackService }
+    )
+    let service = AIPerformanceService(
+        diagnosticsReporter: diagnosticsReporter,
+        nowUptimeSeconds: { nowUptime },
+        sleepFor: { duration in await controlClock.sleep(for: duration) },
+        discoveryOrchestrator: FakeDiscoveryOrchestrator(),
+        backendRegistry: ImprovBackendRegistry(backends: [backend]),
+        selectedBackendKind: { selectedKind },
+        aiPlaybackServiceFactory: { factory },
+        onStateChanged: { _ in }
+    )
+    let session = FakePracticeSession(settingsProvider: FakeSettingsProvider())
+    service.updatePracticeSession(session)
+    service.setEnabled(true)
+    service.recordKeyContactForPhraseRecordingIfNeeded(
+        usesBluetoothMIDIInput: false,
+        observations: makeTestKeyContactObservations(
+            activeMIDINotes: [60],
+            startedMIDINotes: [60],
+            timestamp: .init(seconds: nowUptime)
+        )
+    )
+    nowUptime = 0.2
+    await controlClock.advance()
+    await backend.waitForCall()
+
+    service.setEnabled(false)
+
+    let expectedReason = "provider=local_rule;outcome=cancelled"
+    for _ in 0 ..< 200 {
+        await Task.yield()
+        let events = await diagnosticsReporter.events
+        if events.contains(where: { $0.reason == expectedReason }) { break }
+    }
+    let events = await diagnosticsReporter.events
+    #expect(events.contains(where: { $0.reason == expectedReason }))
 }
 
 @Test
