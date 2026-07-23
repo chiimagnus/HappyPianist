@@ -50,17 +50,20 @@ private actor FakeScheduleBackend: ImprovBackendProtocol {
 
     private let schedule: [PracticeSequencerMIDIEvent]
     private let backendLatencyMS: Int?
+    private let responseDelay: Duration?
 
     init(
         kind: ImprovBackendKind,
         displayName: String = "Fake",
         schedule: [PracticeSequencerMIDIEvent],
-        backendLatencyMS: Int? = nil
+        backendLatencyMS: Int? = nil,
+        responseDelay: Duration? = nil
     ) {
         self.kind = kind
         self.displayName = displayName
         self.schedule = schedule
         self.backendLatencyMS = backendLatencyMS
+        self.responseDelay = responseDelay
     }
 
     func generateCreativeResponse(
@@ -68,7 +71,10 @@ private actor FakeScheduleBackend: ImprovBackendProtocol {
         generation: CreativeDuetGeneration,
         timeout _: Duration
     ) async throws -> CreativeDuetResponse {
-        CreativeDuetResponse(
+        if let responseDelay {
+            try await Task.sleep(for: responseDelay)
+        }
+        return CreativeDuetResponse(
             schedule: schedule,
             provider: kind,
             generation: generation,
@@ -633,6 +639,63 @@ func responseLatencyQualityGateStopsSelectedBackend() async {
         if events.contains(where: { $0.reason == expectedReason }) { break }
     }
 
+    #expect(playbackService.playCallCount == 0)
+    #expect(states.last?.lastImprovStatusText?.contains("质量门拒绝") == true)
+    let events = await diagnosticsReporter.events
+    #expect(events.contains(where: { $0.reason == expectedReason }))
+}
+
+@Test
+@MainActor
+func observedResponseLatencyQualityGateStopsBackendWithoutReportedLatency() async {
+    var states: [AIPerformanceService.State] = []
+    let diagnosticsReporter = InMemoryDiagnosticsReporter()
+    let backendService = FakeBackendDiscoveryService()
+    let orchestrator = FakeDiscoveryOrchestrator(service: backendService)
+    let selectedKind: ImprovBackendKind = .networkBonjourHTTPAriaV2
+    let backend = FakeScheduleBackend(
+        kind: selectedKind,
+        schedule: [
+            PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 72, velocity: 90)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 72)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.3, kind: .noteOn(midi: 76, velocity: 88)),
+            PracticeSequencerMIDIEvent(timeSeconds: 0.5, kind: .noteOff(midi: 76)),
+        ],
+        responseDelay: .milliseconds(400)
+    )
+    let playbackService = FakeSequencerPlaybackService()
+    let aiPlaybackFactory = DuetAIPlaybackServiceFactory(
+        makeLocalSamplerPlaybackService: { playbackService },
+        makeExternalMIDIPlaybackService: { _ in playbackService }
+    )
+    let service = AIPerformanceService(
+        diagnosticsReporter: diagnosticsReporter,
+        discoveryOrchestrator: orchestrator,
+        backendRegistry: ImprovBackendRegistry(backends: [backend]),
+        selectedBackendKind: { selectedKind },
+        aiPlaybackServiceFactory: { aiPlaybackFactory },
+        onStateChanged: { states.append($0) }
+    )
+    defer { service.setEnabled(false) }
+
+    let session = FakePracticeSession()
+    service.updatePracticeSession(session)
+    service.setEnabled(true)
+    let now = ProcessInfo.processInfo.systemUptime
+    service.recordMIDI1EventForPhraseRecordingIfNeeded(
+        MIDI1InputEvent(
+            kind: .noteOn(note: 60, velocity: 90),
+            channel: 1,
+            group: 0,
+            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: nil),
+            receivedAt: .now,
+            receivedAtUptimeSeconds: now
+        )
+    )
+
+    try? await Task.sleep(for: .seconds(1))
+
+    let expectedReason = "provider=network_bonjour_http_aria_v2;failure=quality_gate"
     #expect(playbackService.playCallCount == 0)
     #expect(states.last?.lastImprovStatusText?.contains("质量门拒绝") == true)
     let events = await diagnosticsReporter.events

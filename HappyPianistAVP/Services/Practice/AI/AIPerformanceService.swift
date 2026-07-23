@@ -614,12 +614,13 @@ final class AIPerformanceService {
                 activationID: activationID,
                 seed: candidateSeed(baseSeed: baseSeed, candidateIndex: candidateIndex)
             )
+            let startedAt = nowUptimeSeconds()
             let response = try await backend.generateCreativeResponse(
                 phrase: phrase,
                 generation: generation,
                 timeout: backendTimeout
             )
-            responses.append(response)
+            responses.append(applyingObservedLatency(to: response, startedAt: startedAt))
         }
 
         return responses
@@ -727,6 +728,25 @@ final class AIPerformanceService {
         switch response.provenance {
         case let .backendGenerated(latencyMS):
             latencyMS.map { TimeInterval($0) / 1_000 }
+        }
+    }
+
+    private func applyingObservedLatency(
+        to response: CreativeDuetResponse,
+        startedAt: TimeInterval
+    ) -> CreativeDuetResponse {
+        let elapsedSeconds = nowUptimeSeconds() - startedAt
+        guard elapsedSeconds.isFinite else { return response }
+        let observedLatencyMS = Int((max(0, elapsedSeconds) * 1_000).rounded(.awayFromZero))
+
+        switch response.provenance {
+        case let .backendGenerated(latencyMS):
+            return CreativeDuetResponse(
+                schedule: response.schedule,
+                provider: response.provider,
+                generation: response.generation,
+                provenance: .backendGenerated(latencyMS: max(latencyMS ?? 0, observedLatencyMS))
+            )
         }
     }
 
