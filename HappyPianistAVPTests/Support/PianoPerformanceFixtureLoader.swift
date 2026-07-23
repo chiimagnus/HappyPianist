@@ -3,6 +3,7 @@ import Testing
 
 struct PianoPerformanceFixtureManifest: Decodable, Equatable {
     let version: Int
+    let professionalCorpusManifest: String?
     let fixtures: [PianoPerformanceFixture]
 }
 

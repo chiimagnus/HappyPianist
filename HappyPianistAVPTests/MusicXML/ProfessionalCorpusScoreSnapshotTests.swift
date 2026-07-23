@@ -5,7 +5,7 @@ import Testing
 
 @Test
 func professionalCorpusScoreSnapshotsMatchReviewedFingerprints() throws {
-    let fixtures = try corpusFixtures()
+    let fixtures = try PianoPerformanceCorpusFixtureLoader().load()
     let actual = try fixtures.map(makeSnapshotBaseline).sorted { $0.fixtureID < $1.fixtureID }
 
     let expected = try JSONDecoder().decode(
@@ -24,22 +24,6 @@ func professionalCorpusScoreSnapshotsMatchReviewedFingerprints() throws {
         try assertFingerprint(baseline.performedOrder, snapshot.performedOrder, snapshot: "performedOrder", for: snapshot)
         try assertFingerprint(baseline.notation, snapshot.notation, snapshot: "notation", for: snapshot)
     }
-}
-
-private struct CorpusFixture {
-    let id: String
-    let requirementID: String
-    let url: URL
-}
-
-private struct ProfessionalCorpusIndex: Decodable {
-    struct Fixture: Decodable {
-        let id: String
-        let status: String
-        let file: String?
-    }
-
-    let fixtures: [Fixture]
 }
 
 private struct CorpusScoreSnapshotBaseline: Codable {
@@ -62,8 +46,6 @@ private struct CorpusSnapshotFingerprint: Codable, Equatable {
 }
 
 private enum CorpusScoreSnapshotError: Error, LocalizedError {
-    case duplicateFixtureID(String)
-    case missingProfessionalFixtureFile(String)
     case mismatch(
         fixtureID: String,
         requirementID: String,
@@ -74,51 +56,13 @@ private enum CorpusScoreSnapshotError: Error, LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case let .duplicateFixtureID(id):
-            "duplicate corpus fixture id: \(id)"
-        case let .missingProfessionalFixtureFile(id):
-            "available professional corpus fixture has no file: \(id)"
         case let .mismatch(fixtureID, requirementID, snapshot, expected, actual):
             "fixture=\(fixtureID) requirement=\(requirementID) snapshot=\(snapshot) expected(lines=\(expected.lineCount),sha256=\(expected.sha256)) actual(lines=\(actual.lineCount),sha256=\(actual.sha256))"
         }
     }
 }
 
-private func corpusFixtures() throws -> [CorpusFixture] {
-    let rootFixtures = try PianoPerformanceFixtureLoader().load().fixtures.map { fixture in
-        CorpusFixture(
-            id: fixture.id,
-            requirementID: "P15-CORPUS-SCORE-\(fixture.id)",
-            url: testFixtureURL(fixture.file)
-        )
-    }
-    let professionalRoot = testFixtureURL("ProfessionalCorpus")
-    let professional = try JSONDecoder().decode(
-        ProfessionalCorpusIndex.self,
-        from: Data(contentsOf: professionalRoot.appending(path: "manifest.json"))
-    )
-    let professionalFixtures = try professional.fixtures
-        .filter { $0.status == "available" }
-        .map { fixture in
-            guard let file = fixture.file else {
-                throw CorpusScoreSnapshotError.missingProfessionalFixtureFile(fixture.id)
-            }
-            return CorpusFixture(
-                id: fixture.id,
-                requirementID: "P15-CORPUS-SCORE-\(fixture.id)",
-                url: professionalRoot.appending(path: file)
-            )
-        }
-    let fixtures = rootFixtures + professionalFixtures
-    guard Set(fixtures.map(\.id)).count == fixtures.count else {
-        throw CorpusScoreSnapshotError.duplicateFixtureID(
-            Dictionary(grouping: fixtures, by: \.id).first { $0.value.count > 1 }?.key ?? "unknown"
-        )
-    }
-    return fixtures
-}
-
-private func makeSnapshotBaseline(_ fixture: CorpusFixture) throws -> FixtureScoreSnapshotBaseline {
+private func makeSnapshotBaseline(_ fixture: PianoPerformanceCorpusFixture) throws -> FixtureScoreSnapshotBaseline {
     let parsed = try MusicXMLParser().parse(fileURL: fixture.url)
     let normalized = MusicXMLPianoGrandStaffNormalizer().normalize(score: parsed)
     let includedPartIDs = Set(normalized.notes.map(\.partID))
@@ -139,7 +83,7 @@ private func makeSnapshotBaseline(_ fixture: CorpusFixture) throws -> FixtureSco
 
     return FixtureScoreSnapshotBaseline(
         fixtureID: fixture.id,
-        requirementID: fixture.requirementID,
+        requirementID: "P15-CORPUS-SCORE-\(fixture.id)",
         sourceFacts: fingerprint(snapshot.encode(parsed)),
         normalization: fingerprint(snapshot.encodeNormalization(normalized)),
         performedOrder: fingerprint(snapshot.encodePerformedOrder(performedOrder)),
