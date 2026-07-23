@@ -111,3 +111,5 @@ Simulator 可以验收：
 钢琴家盲听和教学有效性实验必须使用预先写明的 rubric。参与者身份、样本顺序和预期答案不能泄露给评分者。人工证据只能补充自动化与真机证据，不能覆盖未通过的代码或平台验证。
 
 钢琴家盲听的曲目覆盖、随机化、匿名 participant ID、设备/版本记录与分维度评分见[钢琴家盲听与演奏验证协议](pianist-blind-evaluation-protocol.md)。在协议实际执行并留下聚合证据前，状态始终是 `pending evidence`。
+
+用户演奏 assessment 与独立教师标注的语料、agreement、分维度 precision/recall/correlation，以及 `unknown` 与 `insufficient` 的处理见[演奏 assessment 与教师标注一致性协议](performance-assessment-validity-protocol.md)。未完成该协议不能把 assessment 的规则实现称为评价有效性。
