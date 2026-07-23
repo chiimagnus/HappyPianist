@@ -113,3 +113,5 @@ Simulator 可以验收：
 钢琴家盲听的曲目覆盖、随机化、匿名 participant ID、设备/版本记录与分维度评分见[钢琴家盲听与演奏验证协议](pianist-blind-evaluation-protocol.md)。在协议实际执行并留下聚合证据前，状态始终是 `pending evidence`。
 
 用户演奏 assessment 与独立教师标注的语料、agreement、分维度 precision/recall/correlation，以及 `unknown` 与 `insufficient` 的处理见[演奏 assessment 与教师标注一致性协议](performance-assessment-validity-protocol.md)。未完成该协议不能把 assessment 的规则实现称为评价有效性。
+
+指导动作的 before/after、练习剂量、对照、完整段落迁移与副作用记录见[coaching 教学有效性协议](coaching-efficacy-protocol.md)。动作被点击、接受或复测并不等于教学有效。
