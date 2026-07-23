@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "professionalCorpusManifest": "ProfessionalCorpus/manifest.json",
   "fixtures": [
     {
       "id": "cross-staff-hand-assignment",

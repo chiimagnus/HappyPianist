@@ -5,7 +5,28 @@ struct PerformanceEventSnapshot {
     private let encoder = PianoPerformanceSnapshotEncoder()
 
     func encode(_ timeline: AutoplayPerformanceTimeline) -> String {
-        encoder.encode(lines: timeline.events.enumerated().map { position, event in
+        encoder.encode(lines: timelineLines(timeline))
+    }
+
+    func encodePerformanceContract(_ timeline: AutoplayPerformanceTimeline) -> String {
+        var lines = timelineLines(timeline)
+        lines.append(contentsOf: timeline.rangeStartApproximations.map { approximation in
+            encoder.encode(fields: [
+                ("kind", "rangeStartApproximation"),
+                ("value", rangeApproximation(approximation)),
+            ])
+        })
+        lines.append(encoder.encode(fields: [
+            ("kind", "transportMetrics"),
+            ("retriggered", String(timeline.transportMetrics.retriggeredEventCount)),
+            ("preventedStaleOff", String(timeline.transportMetrics.preventedStaleOffCount)),
+            ("orphanOff", String(timeline.transportMetrics.orphanOffCount)),
+        ]))
+        return encoder.encode(lines: lines)
+    }
+
+    private func timelineLines(_ timeline: AutoplayPerformanceTimeline) -> [String] {
+        timeline.events.enumerated().map { position, event in
             encoder.encode(fields: [
                 ("position", String(position)),
                 ("eventID", String(event.id)),
@@ -13,7 +34,7 @@ struct PerformanceEventSnapshot {
                 ("tick", String(event.tick)),
                 ("kind", timelineKind(event.kind)),
             ])
-        })
+        }
     }
 
     func encode(_ events: [PracticeSequencerMIDIEvent]) -> String {
@@ -62,6 +83,15 @@ struct PerformanceEventSnapshot {
             "channelPressure:\(value)"
         case let .polyPressure(midi, value):
             "polyPressure:\(midi):\(value)"
+        }
+    }
+
+    private func rangeApproximation(_ approximation: PerformanceRangeStateResolver.Approximation) -> String {
+        switch approximation {
+        case let .reattackedHeldNote(eventID):
+            "reattackedHeldNote:\(eventID.description)"
+        case let .reattackedSustainedNote(eventID):
+            "reattackedSustainedNote:\(eventID.description)"
         }
     }
 }

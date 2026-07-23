@@ -10,6 +10,8 @@ HappyPianist 当前是：
 
 当前可以安全宣称：
 
+以下是已实现的产品边界，不是专业能力 gate 的通过结论；四项专业声明的状态以[钢琴能力声明证据门](testing/piano-capability-claim-gates.md)为准。
+
 - 导入 MusicXML / MXL，并为常见双谱表钢琴谱生成练习步骤、五线谱投影和演奏计划。
 - 使用同一 `ScorePerformancePlan` 驱动本地 sampler、外部 MIDI、示范本节与显示投影。
 - 通过 Bluetooth MIDI、定向麦克风和已校准手部接触接收不同能力等级的练习证据。
@@ -128,7 +130,7 @@ MIDI / target audio / real or virtual piano contact
 - 钢琴家盲听，区分谱面忠实度与风格自然度。
 - 教学建议的教师审查和前后测。
 
-具体运行规则见 [钢琴演奏专业化验证手册](testing/piano-performance-validation.md)。
+具体运行规则见 [钢琴演奏专业化验证手册](testing/piano-performance-validation.md) 与 [钢琴能力声明证据门](testing/piano-capability-claim-gates.md)。
 
 ## 产品模式与承诺
 
@@ -168,11 +170,13 @@ AI 对弹只消费用户 `PerformanceObservation` 派生的 phrase，并保留 s
 - AI 对弹质量门只判断 creative response 可用性，不引用参考演奏或评分 rubric。
 - 新实现替换旧实现时，同一 task 删除旧 API、旧状态、旧测试和双轨分支。
 
-## 完成定义
+## 能力声明完成定义
 
-只有满足对应证据门后，才升级产品措辞：
+四项专业能力的完整门槛、需求编号、证据文件、版本和状态语义都以[钢琴能力声明证据门](testing/piano-capability-claim-gates.md)为准。当前四项均是 `pending evidence`：自动化与实现边界不能替代授权多 exporter corpus、真机测量、钢琴家盲评、教师标注或教学有效性研究。
 
-- **乐谱忠实示范**：golden corpus、事件 dump、unsupported 报告、输出等价性和盲听通过。
-- **MIDI 演奏评价**：alignment 可追溯，metric 有单位，未知不计错，专家一致性达到预设门槛。
-- **虚拟琴具有表现力**：每音 velocity、release、重复音、和弦、踏板和真机时延达到批准阈值。
-- **专业虚拟指导**：每条建议有可靠证据、置信度、教师审查和用户前后测。
+| 能力声明 | 当前允许措辞 |
+| --- | --- |
+| 乐谱忠实示范 | 已覆盖语义的可审查 MusicXML 驱动示范，不是钢琴家参考演奏。 |
+| MIDI 演奏评价 | capability-aware 的客观指标，不是专业级评分或教师诊断。 |
+| 表现力虚拟琴 | 使用校准的独立 velocity 映射，不是已经过真机验证的表现力乐器。 |
+| 专业虚拟指导 | 有范围与完成条件的练习动作，不是专业教师替代品。 |

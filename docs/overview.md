@@ -25,7 +25,11 @@ Xcode 工程只有 `HappyPianistAVP` 与 `HappyPianistAVPTests` 两个 target；
 | App 窗口、钢琴模式、曲库与沉浸空间 | [modules/happypianist-avp.md](modules/happypianist-avp.md) |
 | 练习 session、判定、进度、反馈与回放 | [modules/happypianist-avp-practice.md](modules/happypianist-avp-practice.md) |
 | 日常需要验证的核心功能 | [testing/core-function-checklist.md](testing/core-function-checklist.md) |
-| 钢琴演奏专业化的快照、真机、盲听与教学证据 | [testing/piano-performance-validation.md](testing/piano-performance-validation.md) |
+| 钢琴演奏专业化的证据层级与总规则 | [testing/piano-performance-validation.md](testing/piano-performance-validation.md) |
+| 自动化覆盖与实际 Simulator run 记录规则 | [testing/visionos-piano-performance-matrix.md](testing/visionos-piano-performance-matrix.md) |
+| 真机 latency、jitter、可靠性与 calibration 记录 | [testing/piano-hardware-latency-protocol.md](testing/piano-hardware-latency-protocol.md) |
+| 钢琴家盲评、教师标注一致性与 coaching 有效性 | [testing/pianist-blind-evaluation-protocol.md](testing/pianist-blind-evaluation-protocol.md)、[assessment 协议](testing/performance-assessment-validity-protocol.md)、[coaching 协议](testing/coaching-efficacy-protocol.md) |
+| 专业能力的通过条件与 pending / blocked 语义 | [testing/piano-capability-claim-gates.md](testing/piano-capability-claim-gates.md) |
 
 ## 产品主流程
 
@@ -42,6 +46,8 @@ Xcode 工程只有 `HappyPianistAVP` 与 `HappyPianistAVPTests` 两个 target；
 ```
 
 练习输入支持真实钢琴麦克风、蓝牙 MIDI 与空间虚拟钢琴。AI 对弹支持本地规则、本地 CoreML，以及可选的 Aria v2 网络后端。
+
+这些是当前实现边界，不是专业能力通过结论。乐谱忠实示范、MIDI 演奏评价、表现力虚拟琴和专业虚拟指导仍以证据门为准；真机、钢琴家与研究协议未实际执行时必须保持 `pending evidence`，合法 exporter fixture 缺失时为 `blocked evidence`。
 
 ## 验证边界
 

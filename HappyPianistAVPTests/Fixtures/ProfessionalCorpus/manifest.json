@@ -1,0 +1,108 @@
+{
+  "version": 1,
+  "fixtures": [
+    {
+      "id": "musescore-cross-staff-pedal-repeat",
+      "status": "blocked",
+      "exporter": {
+        "name": "MuseScore",
+        "version": "not installed on execution host"
+      },
+      "source": "No redistributable MuseScore export is present in this repository.",
+      "license": "not acquired",
+      "semanticTags": [
+        "cross-staff",
+        "voice",
+        "pedal",
+        "repeat",
+        "transpose",
+        "meter"
+      ],
+      "expectedOutputs": [
+        "source-facts",
+        "normalization",
+        "performed-order",
+        "notation",
+        "performance-events"
+      ],
+      "distributionScope": "none",
+      "blockedReason": "MuseScore is not installed on this execution host, and no score with verified source and redistribution terms is available locally."
+    },
+    {
+      "id": "dorico-grace-ornament-tuplet",
+      "status": "blocked",
+      "exporter": {
+        "name": "Dorico",
+        "version": "not installed on execution host"
+      },
+      "source": "No redistributable Dorico export is present in this repository.",
+      "license": "not acquired",
+      "semanticTags": [
+        "grace",
+        "ornament",
+        "tuplet",
+        "voice"
+      ],
+      "expectedOutputs": [
+        "source-facts",
+        "normalization",
+        "performed-order",
+        "notation",
+        "performance-events"
+      ],
+      "distributionScope": "none",
+      "blockedReason": "Dorico is not installed on this execution host, and no score with verified source and redistribution terms is available locally."
+    },
+    {
+      "id": "sibelius-cross-staff-transpose-endings",
+      "status": "blocked",
+      "exporter": {
+        "name": "Sibelius",
+        "version": "not installed on execution host"
+      },
+      "source": "No redistributable Sibelius export is present in this repository.",
+      "license": "not acquired",
+      "semanticTags": [
+        "cross-staff",
+        "repeat",
+        "ending",
+        "transpose",
+        "meter"
+      ],
+      "expectedOutputs": [
+        "source-facts",
+        "normalization",
+        "performed-order",
+        "notation",
+        "performance-events"
+      ],
+      "distributionScope": "none",
+      "blockedReason": "Sibelius is not installed on this execution host, and no score with verified source and redistribution terms is available locally."
+    },
+    {
+      "id": "finale-pedal-arpeggio-ornament",
+      "status": "blocked",
+      "exporter": {
+        "name": "Finale",
+        "version": "not installed on execution host"
+      },
+      "source": "No redistributable Finale export is present in this repository.",
+      "license": "not acquired",
+      "semanticTags": [
+        "pedal",
+        "arpeggio",
+        "ornament",
+        "transpose"
+      ],
+      "expectedOutputs": [
+        "source-facts",
+        "normalization",
+        "performed-order",
+        "notation",
+        "performance-events"
+      ],
+      "distributionScope": "none",
+      "blockedReason": "Finale is not installed on this execution host, and no score with verified source and redistribution terms is available locally."
+    }
+  ]
+}

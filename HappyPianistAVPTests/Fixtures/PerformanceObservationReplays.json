@@ -134,7 +134,8 @@
             64
           ],
           "detectedMIDINotes": [
-            60
+            60,
+            65
           ],
           "result": "mixed"
         }
@@ -184,7 +185,8 @@
         }
       },
       "channel": 2,
-      "group": 3
+      "group": 3,
+      "calibrationReference": "midi-latency-v1"
     },
     {
       "id": "10000000-0000-0000-0000-000000000005",
@@ -228,7 +230,8 @@
         }
       },
       "channel": 2,
-      "group": 3
+      "group": 3,
+      "calibrationReference": "midi-latency-v1"
     },
     {
       "id": "10000000-0000-0000-0000-000000000006",
@@ -268,7 +271,8 @@
         }
       },
       "channel": 2,
-      "group": 3
+      "group": 3,
+      "calibrationReference": "midi-latency-v1"
     },
     {
       "id": "10000000-0000-0000-0000-000000000007",
@@ -310,5 +314,47 @@
       "channel": 1,
       "group": 0
     }
-  ]
+  ],
+  "confusionMatrix": {
+    "schemaVersion": 1,
+    "cases": [
+      {
+        "id": "midi-observed-latency-v1",
+        "source": "midi",
+        "capability": "observed",
+        "calibrationVersion": "midi-latency-v1",
+        "observationIDs": [
+          "10000000-0000-0000-0000-000000000001",
+          "10000000-0000-0000-0000-000000000004"
+        ],
+        "expectedMIDINotes": [60, 64],
+        "expected": {
+          "hit": 2,
+          "miss": 0,
+          "falsePositive": 0,
+          "ambiguous": 0,
+          "insufficient": 0
+        },
+        "rationale": "MIDI note-on evidence is observed; this row changes only when MIDI normalization or calibration handling changes."
+      },
+      {
+        "id": "target-audio-degraded-calibration-v1",
+        "source": "targetAudio",
+        "capability": "degraded",
+        "calibrationVersion": "audio-calibration-v1",
+        "observationIDs": [
+          "10000000-0000-0000-0000-000000000003"
+        ],
+        "expectedMIDINotes": [60, 64],
+        "expected": {
+          "hit": 1,
+          "miss": 1,
+          "falsePositive": 1,
+          "ambiguous": 1,
+          "insufficient": 0
+        },
+        "rationale": "The mixed target-audio detection intentionally retains its ambiguity while exposing one missed target and one extra detection."
+      }
+    ]
+  }
 }

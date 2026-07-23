@@ -141,7 +141,18 @@ func pianoOutputMetricsAggregateTimingFailuresAndPrivacySafeFields() {
     metrics.recordCancelled(count: 1)
     metrics.recordReset(succeeded: false, preventsStuckNotes: true)
 
-    let snapshot = metrics.snapshot(capability: .externalMIDI)
+    let measurementMetadata = PianoOutputMeasurementMetadata(
+        calibrationID: UUID(uuidString: "00000000-0000-0000-0000-000000000010"),
+        calibrationVersion: 2,
+        sampleCount: 48,
+        deviceModel: "Apple Vision Pro",
+        operatingSystemVersion: "visionOS 26.4",
+        audioRoute: .usb
+    )
+    let snapshot = metrics.snapshot(
+        capability: .externalMIDI,
+        measurementMetadata: measurementMetadata
+    )
     #expect(snapshot.scheduledCount == 5)
     #expect(snapshot.submittedCount == 2)
     #expect(snapshot.acknowledgedCount == 1)
@@ -162,8 +173,19 @@ func pianoOutputMetricsAggregateTimingFailuresAndPrivacySafeFields() {
     #expect(event.reason.contains("scheduled=5"))
     #expect(event.reason.contains("dropped=2"))
     #expect(event.reason.contains("cancelled=1"))
+    #expect(event.reason.contains("calibrationVersion=2"))
+    #expect(event.reason.contains("sampleCount=48"))
+    #expect(event.reason.contains("deviceModel=Apple Vision Pro"))
+    #expect(event.reason.contains("osVersion=visionOS 26.4"))
+    #expect(event.reason.contains("audioRoute=usb"))
     #expect(event.reason.contains("/Users/") == false)
     #expect(event.reason.contains(".musicxml") == false)
+
+    let unsafeMetadata = PianoOutputMeasurementMetadata(
+        deviceModel: "/Users/test",
+        operatingSystemVersion: "visionOS 26.4"
+    )
+    #expect(unsafeMetadata.deviceModel == nil)
 
     metrics.recordReset(succeeded: true, preventsStuckNotes: true)
     let successfulResetSnapshot = metrics.snapshot(capability: .externalMIDI)

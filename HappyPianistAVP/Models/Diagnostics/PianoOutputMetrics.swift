@@ -6,6 +6,58 @@ struct PianoOutputTimestampObservation: Equatable, Sendable {
     let acknowledgedAtSeconds: TimeInterval?
 }
 
+enum PianoOutputAudioRoute: String, Equatable, Sendable {
+    case builtIn
+    case wired
+    case bluetooth
+    case usb
+    case unknown
+}
+
+struct PianoOutputMeasurementMetadata: Equatable, Sendable {
+    let calibrationID: UUID?
+    let calibrationVersion: Int?
+    let sampleCount: Int?
+    let deviceModel: String?
+    let operatingSystemVersion: String?
+    let audioRoute: PianoOutputAudioRoute?
+
+    init(
+        calibrationID: UUID? = nil,
+        calibrationVersion: Int? = nil,
+        sampleCount: Int? = nil,
+        deviceModel: String? = nil,
+        operatingSystemVersion: String? = nil,
+        audioRoute: PianoOutputAudioRoute? = nil
+    ) {
+        self.calibrationID = calibrationID
+        self.calibrationVersion = calibrationVersion.flatMap { $0 > 0 ? $0 : nil }
+        self.sampleCount = sampleCount.flatMap { $0 > 0 ? $0 : nil }
+        self.deviceModel = Self.safeLabel(deviceModel)
+        self.operatingSystemVersion = Self.safeLabel(operatingSystemVersion)
+        self.audioRoute = audioRoute
+    }
+
+    var fields: [String] {
+        [
+            calibrationID.map { "calibrationID=\($0.uuidString.lowercased())" },
+            calibrationVersion.map { "calibrationVersion=\($0)" },
+            sampleCount.map { "sampleCount=\($0)" },
+            deviceModel.map { "deviceModel=\($0)" },
+            operatingSystemVersion.map { "osVersion=\($0)" },
+            audioRoute.map { "audioRoute=\($0.rawValue)" },
+        ].compactMap(\.self)
+    }
+
+    private static func safeLabel(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty == false, trimmed.count <= 64 else { return nil }
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: " ._-"))
+        return trimmed.unicodeScalars.allSatisfy(allowed.contains) ? trimmed : nil
+    }
+}
+
 struct PianoOutputMetricsSnapshot: Equatable, Sendable {
     let capability: PianoPerformanceDiagnosticCapability
     let scheduledCount: Int
@@ -20,6 +72,7 @@ struct PianoOutputMetricsSnapshot: Equatable, Sendable {
     let submissionLatencyBuckets: [PianoPerformanceDurationBucket: Int]
     let acknowledgementLatencyBuckets: [PianoPerformanceDurationBucket: Int]
     let jitterBuckets: [PianoPerformanceDurationBucket: Int]
+    let measurementMetadata: PianoOutputMeasurementMetadata?
 
     var diagnosticEvent: DiagnosticEvent {
         let fields = [
@@ -36,6 +89,7 @@ struct PianoOutputMetricsSnapshot: Equatable, Sendable {
         ] + bucketFields(prefix: "submissionLatency", counts: submissionLatencyBuckets)
             + bucketFields(prefix: "acknowledgementLatency", counts: acknowledgementLatencyBuckets)
             + bucketFields(prefix: "jitter", counts: jitterBuckets)
+            + (measurementMetadata?.fields ?? [])
 
         return DiagnosticEvent(
             severity: severity,
@@ -143,7 +197,10 @@ struct PianoOutputMetricsAccumulator: Sendable {
         }
     }
 
-    func snapshot(capability: PianoPerformanceDiagnosticCapability) -> PianoOutputMetricsSnapshot {
+    func snapshot(
+        capability: PianoPerformanceDiagnosticCapability,
+        measurementMetadata: PianoOutputMeasurementMetadata? = nil
+    ) -> PianoOutputMetricsSnapshot {
         PianoOutputMetricsSnapshot(
             capability: capability,
             scheduledCount: scheduledCount,
@@ -157,7 +214,8 @@ struct PianoOutputMetricsAccumulator: Sendable {
             stuckNotePreventionCount: stuckNotePreventionCount,
             submissionLatencyBuckets: submissionLatencyBuckets,
             acknowledgementLatencyBuckets: acknowledgementLatencyBuckets,
-            jitterBuckets: jitterBuckets
+            jitterBuckets: jitterBuckets,
+            measurementMetadata: measurementMetadata
         )
     }
 

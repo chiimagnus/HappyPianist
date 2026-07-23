@@ -45,6 +45,8 @@ alignment/assessment/coaching 自动化至少要覆盖：score/occurrence identi
 
 Simulator 自动化使用统一 `FakePerformanceOutput` 捕获 timestamped batches、capabilities、generation、reset 与 AVAudio 状态，并注入 MIDI send、音频 operation/render 和 disconnect 故障。
 
+真机的采样步骤、上下文元数据和 pending 语义见[钢琴硬件 latency、jitter 与可靠性协议](piano-hardware-latency-protocol.md)。该协议未实际执行前，不能把 Simulator bucket 或输出 metrics 当作真实音频 latency 证据。
+
 Simulator 可以验收：
 
 - timestamp 非零、批次顺序、look-ahead horizon、late clamp 与 generation guard；
@@ -107,3 +109,9 @@ Simulator 可以验收：
 ## 人工证据边界
 
 钢琴家盲听和教学有效性实验必须使用预先写明的 rubric。参与者身份、样本顺序和预期答案不能泄露给评分者。人工证据只能补充自动化与真机证据，不能覆盖未通过的代码或平台验证。
+
+钢琴家盲听的曲目覆盖、随机化、匿名 participant ID、设备/版本记录与分维度评分见[钢琴家盲听与演奏验证协议](pianist-blind-evaluation-protocol.md)。在协议实际执行并留下聚合证据前，状态始终是 `pending evidence`。
+
+用户演奏 assessment 与独立教师标注的语料、agreement、分维度 precision/recall/correlation，以及 `unknown` 与 `insufficient` 的处理见[演奏 assessment 与教师标注一致性协议](performance-assessment-validity-protocol.md)。未完成该协议不能把 assessment 的规则实现称为评价有效性。
+
+指导动作的 before/after、练习剂量、对照、完整段落迁移与副作用记录见[coaching 教学有效性协议](coaching-efficacy-protocol.md)。动作被点击、接受或复测并不等于教学有效。

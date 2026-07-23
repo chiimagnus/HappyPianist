@@ -163,6 +163,121 @@ struct MusicXMLScoreSnapshot {
         return encoder.encode(lines: lines)
     }
 
+    func encodeNormalization(_ score: MusicXMLScore) -> String {
+        encoder.encode(lines: score.logicalInstruments
+            .sorted { $0.id < $1.id }
+            .map { instrument in
+                encoder.encode(fields: [
+                    ("kind", "logicalInstrument"),
+                    ("id", instrument.id),
+                    ("parts", instrument.memberPartIDs.sorted().joined(separator: ",")),
+                    ("classification", String(describing: instrument.classification)),
+                    ("evidence", instrument.evidence.map(String.init(describing:)).sorted().joined(separator: ",")),
+                    (
+                        "grandStaffAssignments",
+                        instrument.grandStaffPartAssignments
+                            .map(String.init(describing:))
+                            .sorted()
+                            .joined(separator: ",")
+                    ),
+                ])
+            })
+    }
+
+    func encodePerformedOrder(_ result: MusicXMLStructureExpansionResult) -> String {
+        var lines = [encoder.encode(fields: [
+            ("kind", "performedOrder"),
+            ("approximation", result.approximationReason),
+        ])]
+        lines.append(contentsOf: result.score.measures
+            .sorted(by: measureOrdering)
+            .map { measure in
+                encoder.encode(fields: [
+                    ("kind", "measure"),
+                    ("sourceMeasureID", sourceMeasureID(measure.sourceMeasureID)),
+                    ("occurrenceID", occurrenceID(measure.occurrenceID)),
+                    ("part", measure.partID),
+                    ("start", String(measure.startTick)),
+                    ("end", String(measure.endTick)),
+                ])
+            })
+        lines.append(contentsOf: result.score.notes
+            .sorted { lhs, rhs in
+                let lhsID = lhs.performedID?.description ?? lhs.sourceID?.description ?? "unresolved"
+                let rhsID = rhs.performedID?.description ?? rhs.sourceID?.description ?? "unresolved"
+                return lhsID == rhsID ? lhs.tick < rhs.tick : lhsID < rhsID
+            }
+            .map { note in
+                encoder.encode(fields: [
+                    ("kind", "note"),
+                    ("sourceNoteID", note.sourceID?.description ?? "unresolved"),
+                    ("performedNoteID", note.performedID?.description ?? "unresolved"),
+                    ("tick", String(note.tick)),
+                    ("duration", String(note.durationTicks)),
+                ])
+            })
+        return encoder.encode(lines: lines)
+    }
+
+    func encodeNotation(_ projection: ScoreNotationProjection) -> String {
+        var lines = projection.sourceNotes
+            .sorted { $0.id.description < $1.id.description }
+            .map { note in
+                encoder.encode(fields: [
+                    ("kind", "sourceNote"),
+                    ("id", note.id.description),
+                    ("tick", String(note.writtenOnTick)),
+                    ("duration", String(note.writtenDurationTicks)),
+                    ("pitch", String(describing: note.writtenPitch)),
+                    ("rest", encoder.encode(note.isRest)),
+                    ("grace", encoder.encode(note.isGrace)),
+                    ("staff", String(note.staff)),
+                    ("voice", String(note.voice)),
+                    ("marks", String(note.performanceNotations.count)),
+                ])
+            }
+        lines.append(contentsOf: projection.performedOccurrences
+            .sorted { $0.id.description < $1.id.description }
+            .map { occurrence in
+                encoder.encode(fields: [
+                    ("kind", "occurrence"),
+                    ("id", occurrence.id.description),
+                    ("sourceNoteID", occurrence.sourceNoteID.description),
+                    ("events", occurrence.performanceEventIDs.map(\.description).sorted().joined(separator: ",")),
+                    ("tick", String(occurrence.writtenOnTick)),
+                    ("hand", String(describing: occurrence.handAssignment)),
+                ])
+            })
+        lines.append(contentsOf: projection.marks
+            .sorted { $0.id < $1.id }
+            .map { mark in
+                encoder.encode(fields: [
+                    ("kind", "mark"),
+                    ("id", mark.id),
+                    ("tick", String(mark.tick)),
+                    ("staff", encoder.encode(mark.staff)),
+                    ("voice", encoder.encode(mark.voice)),
+                    ("value", String(describing: mark.kind)),
+                    ("text", mark.text),
+                ])
+            })
+        lines.append(contentsOf: projection.attributeChanges
+            .sorted { $0.id < $1.id }
+            .map { attribute in
+                encoder.encode(fields: [
+                    ("kind", "attribute"),
+                    ("id", attribute.id),
+                    ("tick", String(attribute.tick)),
+                    ("staff", String(attribute.staff)),
+                    ("clef", String(describing: attribute.clef)),
+                    ("key", encoder.encode(attribute.keySignatureFifths)),
+                    ("previousKey", encoder.encode(attribute.previousKeySignatureFifths)),
+                    ("meter", attribute.meterText),
+                ])
+            })
+        return encoder.encode(lines: lines)
+    }
+
     private func noteLine(index: Int, note: MusicXMLNoteEvent) -> String {
         encoder.encode(fields: [
             ("kind", "note"),

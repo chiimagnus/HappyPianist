@@ -179,5 +179,42 @@
         { "seconds": 0.05 }
       ]
     }
-  ]
+  ],
+  "confusionMatrix": {
+    "schemaVersion": 1,
+    "cases": [
+      {
+        "id": "hand-contact-calibration-v1",
+        "capability": "degraded",
+        "calibrationVersion": 1,
+        "traceIDs": ["light-touch", "heavy-strike", "slow-press"],
+        "expectedMIDINotes": [60, 64, 67],
+        "insufficient": false,
+        "expected": {
+          "hit": 2,
+          "miss": 1,
+          "falsePositive": 0,
+          "ambiguous": 0,
+          "insufficient": 0
+        },
+        "rationale": "The configured contact calibration accepts the two downward strikes and rejects the slow press."
+      },
+      {
+        "id": "hand-contact-unknown-position-v1",
+        "capability": "degraded",
+        "calibrationVersion": 1,
+        "traceIDs": ["unknown-position"],
+        "expectedMIDINotes": [],
+        "insufficient": true,
+        "expected": {
+          "hit": 0,
+          "miss": 0,
+          "falsePositive": 0,
+          "ambiguous": 0,
+          "insufficient": 1
+        },
+        "rationale": "An unresolvable world position remains insufficient evidence instead of being recorded as a missed key."
+      }
+    ]
+  }
 }

@@ -99,7 +99,9 @@
 | `curveExponent` | 速度到力度的曲线形状 | 轻、中、重三档实测手感 |
 | `retriggerDebounceSeconds` | 同指再次触发的最短间隔 | 快速重复音与 tracking jitter |
 
-真机调整时记录 calibration ID/version、设备、OS、模式、聚合 velocity/latency 桶和误触发计数即可。原始逐帧 finger、palm、world position 属于隐私敏感数据，不得写入 JSON、诊断日志或导出文件。
+真机调整时记录 calibration ID/version、设备、OS、模式、聚合 velocity/latency 桶和误触发计数即可。`PianoOutputMeasurementMetadata` 只允许把 calibration ID/version、sample count、设备/OS 和枚举 audio route 附到聚合输出指标；它不保存设备序列号、路由显示名、绝对路径或原始演奏数据。原始逐帧 finger、palm、world position 属于隐私敏感数据，不得写入 JSON、诊断日志或导出文件。
+
+真实阈值不写在静态配置中。先按[钢琴硬件 latency、jitter 与可靠性协议](testing/piano-hardware-latency-protocol.md)分设备、路由和 calibration 建立 baseline，再由产品验收批准对应 capability gate。
 
 ## 发声路由
 

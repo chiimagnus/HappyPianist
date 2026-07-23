@@ -1,0 +1,265 @@
+{
+  "snapshots" : [
+    {
+      "fixtureID" : "cross-staff-hand-assignment",
+      "normalization" : {
+        "lineCount" : 2,
+        "sha256" : "5618db2bc76bd89fe0c0fa4de5c0193508bd5e1b23fd7c9a6f08edb8b48e1e0e"
+      },
+      "notation" : {
+        "lineCount" : 9,
+        "sha256" : "5cd8f99d781ff2eec61b887bc64fd6960afed2b8e7e8d462f5e3deb88e2ccfe5"
+      },
+      "performedOrder" : {
+        "lineCount" : 7,
+        "sha256" : "f6e1b55c0cc7cf25e25d0a94278034df6e90bd8f98688a6f91072c74487d314d"
+      },
+      "requirementID" : "P15-CORPUS-SCORE-cross-staff-hand-assignment",
+      "sourceFacts" : {
+        "lineCount" : 7,
+        "sha256" : "56d83e5fe0b48ae4d23e23bc901e42eac4c2b71d7e57bdbd123a0bced38970f2"
+      }
+    },
+    {
+      "fixtureID" : "despacito-highlight-regression",
+      "normalization" : {
+        "lineCount" : 2,
+        "sha256" : "5618db2bc76bd89fe0c0fa4de5c0193508bd5e1b23fd7c9a6f08edb8b48e1e0e"
+      },
+      "notation" : {
+        "lineCount" : 18,
+        "sha256" : "da674b35243ae53f0912698c4277a4090316ae2cf1bf84eba9872785ac54ae25"
+      },
+      "performedOrder" : {
+        "lineCount" : 11,
+        "sha256" : "b1c441392d74830b82e376d21b1b8293b5d59a7df8fb27aa850c66e3e97df8f8"
+      },
+      "requirementID" : "P15-CORPUS-SCORE-despacito-highlight-regression",
+      "sourceFacts" : {
+        "lineCount" : 13,
+        "sha256" : "97063c16013caf8270c37a7653453b347cdd4ab191fec9383c223f982a88e0f5"
+      }
+    },
+    {
+      "fixtureID" : "expressive-piano-semantics",
+      "normalization" : {
+        "lineCount" : 2,
+        "sha256" : "5618db2bc76bd89fe0c0fa4de5c0193508bd5e1b23fd7c9a6f08edb8b48e1e0e"
+      },
+      "notation" : {
+        "lineCount" : 31,
+        "sha256" : "20bb177c932d1cfeb4cd5e68cd056916e039ac228c6e8c617a32dc9193d5d24b"
+      },
+      "performedOrder" : {
+        "lineCount" : 18,
+        "sha256" : "ba1eee7cf2ea0bc2597f6eb447b153ae4eaf0115464cc95d2ddc69ead01ae823"
+      },
+      "requirementID" : "P15-CORPUS-SCORE-expressive-piano-semantics",
+      "sourceFacts" : {
+        "lineCount" : 27,
+        "sha256" : "834dcc00f7162b962d54a9af4a75687764ad52b39e06ffbb7557b522fe23e510"
+      }
+    },
+    {
+      "fixtureID" : "musicxml-autoplay-regression",
+      "normalization" : {
+        "lineCount" : 2,
+        "sha256" : "5618db2bc76bd89fe0c0fa4de5c0193508bd5e1b23fd7c9a6f08edb8b48e1e0e"
+      },
+      "notation" : {
+        "lineCount" : 8,
+        "sha256" : "2a62c822e570b658e941ca038c4303bc7843026c24340beb2a32ee3e3eea42c4"
+      },
+      "performedOrder" : {
+        "lineCount" : 5,
+        "sha256" : "572cdc03a687469c9f7cbb3d6a461d2cbcfab3cfd0b1fc7ce96ecf60d54c0495"
+      },
+      "requirementID" : "P15-CORPUS-SCORE-musicxml-autoplay-regression",
+      "sourceFacts" : {
+        "lineCount" : 11,
+        "sha256" : "52c566d389c129cd2b90b52efd5e4eadff6a678d64c8ecd4ff1870f368575140"
+      }
+    },
+    {
+      "fixtureID" : "notation-fidelity-piano",
+      "normalization" : {
+        "lineCount" : 2,
+        "sha256" : "5618db2bc76bd89fe0c0fa4de5c0193508bd5e1b23fd7c9a6f08edb8b48e1e0e"
+      },
+      "notation" : {
+        "lineCount" : 91,
+        "sha256" : "ddd39fc682627beda80260d45bba98335c1b9411fb7226ad8f2c18134ee2b720"
+      },
+      "performedOrder" : {
+        "lineCount" : 45,
+        "sha256" : "3b986cd16d2b9dc539632247e5c704c9acf6b7aafe2b32c9ba8a0441f7ab46f9"
+      },
+      "requirementID" : "P15-CORPUS-SCORE-notation-fidelity-piano",
+      "sourceFacts" : {
+        "lineCount" : 56,
+        "sha256" : "a009c4a81185388f2ce99f714c4642e7d5b3293cbef50af07ce70b4c6859ef98"
+      }
+    },
+    {
+      "fixtureID" : "polyphonic-unison-retrigger",
+      "normalization" : {
+        "lineCount" : 2,
+        "sha256" : "5618db2bc76bd89fe0c0fa4de5c0193508bd5e1b23fd7c9a6f08edb8b48e1e0e"
+      },
+      "notation" : {
+        "lineCount" : 19,
+        "sha256" : "a753ba83395bbdd3a1e085331dbc984d9ab7eab5a63cb67a8a202e96fabb99fd"
+      },
+      "performedOrder" : {
+        "lineCount" : 12,
+        "sha256" : "1039ab6fd74824b1fc64247ce45e7d99b5b63a99995bd4125f349ebe2e4b17f0"
+      },
+      "requirementID" : "P15-CORPUS-SCORE-polyphonic-unison-retrigger",
+      "sourceFacts" : {
+        "lineCount" : 16,
+        "sha256" : "201dd62b71990db1b62bd00bff9526ceb50746f2763fed7d2b512acb7f7d5349"
+      }
+    },
+    {
+      "fixtureID" : "practice-learning-loop-eight-measures",
+      "normalization" : {
+        "lineCount" : 2,
+        "sha256" : "5618db2bc76bd89fe0c0fa4de5c0193508bd5e1b23fd7c9a6f08edb8b48e1e0e"
+      },
+      "notation" : {
+        "lineCount" : 56,
+        "sha256" : "922a08dbbfd03eeafd6465b0ead20394de9aba497f9028770a1bbc871a0844f7"
+      },
+      "performedOrder" : {
+        "lineCount" : 33,
+        "sha256" : "a84620ec5eddc47bc9f5a36c1ba973322ba6d97a798a905ec4e54f21f686c0df"
+      },
+      "requirementID" : "P15-CORPUS-SCORE-practice-learning-loop-eight-measures",
+      "sourceFacts" : {
+        "lineCount" : 32,
+        "sha256" : "49d290356d07a6d5276de9fc27c10b45a88acc869e1d9b49706336a8066fc12f"
+      }
+    },
+    {
+      "fixtureID" : "practice-measure-identity-repeats",
+      "normalization" : {
+        "lineCount" : 2,
+        "sha256" : "5618db2bc76bd89fe0c0fa4de5c0193508bd5e1b23fd7c9a6f08edb8b48e1e0e"
+      },
+      "notation" : {
+        "lineCount" : 16,
+        "sha256" : "1a0bc92c8dfc77be0ad7737dbe4b7a155463f3fefb51922c1bcde24c75639b06"
+      },
+      "performedOrder" : {
+        "lineCount" : 10,
+        "sha256" : "f833f8e19c7f1b57917d2488a5fccc3da2b77abb8cf23dc274169c18d7155fa0"
+      },
+      "requirementID" : "P15-CORPUS-SCORE-practice-measure-identity-repeats",
+      "sourceFacts" : {
+        "lineCount" : 14,
+        "sha256" : "0bab19ed17dbef18fbc12fc62c869f7e8d11fe33fb4e131a6fa3e5e445be117c"
+      }
+    },
+    {
+      "fixtureID" : "range-start-held-notes",
+      "normalization" : {
+        "lineCount" : 2,
+        "sha256" : "5618db2bc76bd89fe0c0fa4de5c0193508bd5e1b23fd7c9a6f08edb8b48e1e0e"
+      },
+      "notation" : {
+        "lineCount" : 18,
+        "sha256" : "a16daee55f6d831ac3256a3f5d25fb341cf5dd477689235f19401c9107858895"
+      },
+      "performedOrder" : {
+        "lineCount" : 11,
+        "sha256" : "968109cf16a4c7558f09249b2b86dcc72ef8d4383da9d209292bed56a42743a9"
+      },
+      "requirementID" : "P15-CORPUS-SCORE-range-start-held-notes",
+      "sourceFacts" : {
+        "lineCount" : 15,
+        "sha256" : "ff8d66f6d63f76cfcb19a27beae2ed6a9dddb6fa8b497ace406f1fc4c114228f"
+      }
+    },
+    {
+      "fixtureID" : "single-staff-hand-routing-clear",
+      "normalization" : {
+        "lineCount" : 2,
+        "sha256" : "5618db2bc76bd89fe0c0fa4de5c0193508bd5e1b23fd7c9a6f08edb8b48e1e0e"
+      },
+      "notation" : {
+        "lineCount" : 5,
+        "sha256" : "3f6f02d589e1eedc839d109f54a55f0ebbc62592d4a9bcaef8a896898f10de7d"
+      },
+      "performedOrder" : {
+        "lineCount" : 5,
+        "sha256" : "7d2d3793b65fc83cdc6d6d0a4f45ef69ac5bd7055deb98eb2599dfea159f40a9"
+      },
+      "requirementID" : "P15-CORPUS-SCORE-single-staff-hand-routing-clear",
+      "sourceFacts" : {
+        "lineCount" : 6,
+        "sha256" : "03ccd2457a31d069b20318c3ae10aa08120f3b713716aeb57b40af7a217cff0d"
+      }
+    },
+    {
+      "fixtureID" : "single-staff-hand-routing-interleaving",
+      "normalization" : {
+        "lineCount" : 2,
+        "sha256" : "5618db2bc76bd89fe0c0fa4de5c0193508bd5e1b23fd7c9a6f08edb8b48e1e0e"
+      },
+      "notation" : {
+        "lineCount" : 9,
+        "sha256" : "cdbbd1515d7b98465fa2622292e821d466b9ff82c2fb02eb33fdd4719ec56b89"
+      },
+      "performedOrder" : {
+        "lineCount" : 7,
+        "sha256" : "914c9513f0fc644b968e512f4c5210a23ea34e22a52773e18299539d6514c6d9"
+      },
+      "requirementID" : "P15-CORPUS-SCORE-single-staff-hand-routing-interleaving",
+      "sourceFacts" : {
+        "lineCount" : 8,
+        "sha256" : "02974c28e818181eb39b9fd25efadbbdbf7d57713abe3dc8a80e747fe05f5952"
+      }
+    },
+    {
+      "fixtureID" : "split-part-grand-staff-piano",
+      "normalization" : {
+        "lineCount" : 2,
+        "sha256" : "c4b35210d8c769b12325419857e069e90595e0e9195acd4c033f59fa3248d169"
+      },
+      "notation" : {
+        "lineCount" : 14,
+        "sha256" : "8a3793d572443b6c094b7b07d2cde52e6b1cadc2fcfb615697c38641e4b1aba4"
+      },
+      "performedOrder" : {
+        "lineCount" : 10,
+        "sha256" : "81f171d312573f60a7806aacd6c316da73934468e1d18eb5bc29d92dcaac5313"
+      },
+      "requirementID" : "P15-CORPUS-SCORE-split-part-grand-staff-piano",
+      "sourceFacts" : {
+        "lineCount" : 16,
+        "sha256" : "8b5450b7b91c92eefd670e4b01dd28f58fd906b1622847d169f3a192d4c9ec59"
+      }
+    },
+    {
+      "fixtureID" : "two-instrument-not-piano",
+      "normalization" : {
+        "lineCount" : 3,
+        "sha256" : "352f79790df875829b2fc453a2ec7f1a9b26697298fd77b527ae1414bdc4b08e"
+      },
+      "notation" : {
+        "lineCount" : 5,
+        "sha256" : "0d2f4548fb99d3ad6d31be4770cc2ac9bcc359d2328f876653504081a69e558e"
+      },
+      "performedOrder" : {
+        "lineCount" : 6,
+        "sha256" : "712d46e001b40eb085ab616aaee7670491136b2ecba27a5e27f359948269a894"
+      },
+      "requirementID" : "P15-CORPUS-SCORE-two-instrument-not-piano",
+      "sourceFacts" : {
+        "lineCount" : 6,
+        "sha256" : "bfbe41210a9812519bdd894e8ca0558eac8ab0d98e6837ef09c3a7b1b48f4389"
+      }
+    }
+  ],
+  "version" : 1
+}

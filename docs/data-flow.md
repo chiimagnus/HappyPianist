@@ -107,7 +107,15 @@ layout 的音高位置来自 written pitch，音值来自 written rhythm，stem/
 
 内置曲库递归发现 `Resources/SeedScores/`，并把相对 `SeedScores` 根的路径作为 bundle identity。MusicXML 与音频只按同一相对路径解析；不同曲目目录中的同名文件不得互相覆盖，也不保留 basename 回退分支。
 
-声音输出只有一条数据流：`ScorePerformancePlan` 先由 `PerformanceRangeStateResolver` 在 start/range 边界恢复精确 controller、held notes 与 pedal-latched notes，再由 `PerformanceTransportReducer` 按 event identity 产生 note edges，随后投影成 timeline 和 sequencer events。sequence builder 只做 tick-to-seconds 与边界封口，不扫描历史事件来猜测起点状态。stop、seek、loop、error、音频中断和 route change 使用同一组 reducer reset commands：逐 identity note-off、CC64/66/67 归零、all-notes-off、all-sound-off。
+声音输出只有一条数据流：`ScorePerformancePlan` 先由 `PerformanceRangeStateResolver` 在 start/range 边界恢复精确 controller、held notes 与 pedal-latched notes，再由 `PerformanceTransportReducer` 按 event identity 产生 note edges，随后投影成 `AutoplayPerformanceTimeline` 与 `PlaybackSequenceBuilder` 的 events，最后交给 `AVAudioSequencerPracticePlaybackService` 或 `CoreMIDIPracticePlaybackService`。sequence builder 只做 tick-to-seconds 与边界封口，不扫描历史事件来猜测起点状态。stop、seek、loop、error、音频中断和 route change 使用同一组 reducer reset commands：逐 identity note-off、CC64/66/67 归零、all-notes-off、all-sound-off。
+
+```text
+ScorePerformancePlan
+-> range state / transport reducer
+-> timeline + sequence projection
+-> AVAudioSequencerPracticePlaybackService | CoreMIDIPracticePlaybackService
+-> aggregate PianoOutputMetricsSnapshot + DiagnosticsReporting
+```
 
 “示范本节”把选定 step range 转成 tick range，并消费上述完整演奏时间线；“试听当前音”是明确的 pitch preview，只使用当前 step 的 plan pitches 和短 one-shot。preview 不承担参考演奏语义，steps / guides 也不生成任何参考声音事件。
 
@@ -171,6 +179,8 @@ active range 同时约束：
 | 虚拟钢琴 | newest-only `FingerTipsSnapshot` -> indexed per-finger contact -> `PianoKeyContactObservation` -> virtual input controller | 带 contact identity、手/指、host 时间、位置、置信度与 calibration reference 的虚拟按键证据 |
 
 输入统一携带 source/capabilities、host 单调时间、可选 source clock mapping、channel/group、confidence 与 calibration reference；matcher、录音和后续评价只消费这一份 observation，不从 wall clock 或降精度回放事件反推证据。音频 host 时间取自 microphone tap 的采集时间并贯穿频谱、证据与 observation，异步处理时间不得覆盖它；音频只表达目标集合 detected/contradicted/mixed/unknown，不伪装成逐音多声部事件。
+
+`PracticeAudioRecognitionInputService`、`MIDIPerformanceObservationAdapter` 与 `PianoKeyContactPerformanceObservationAdapter` 是这三条输入链的唯一平台适配边界。它们把 source-specific 事实写入同一 `PerformanceObservation`；matcher、录制、AI phrase 和 `PracticeSessionRecorder` 各自消费该 observation，recorder 只把它送入 `PracticePerformanceAnalyzer`。消费者不得各自重新取时、伪造 capability 或从系统回放反推用户输入。
 
 演奏对齐保持一条 transient 数据流：
 
@@ -316,3 +326,5 @@ Typed domain failure
 曲谱准备失败使用同一个 `PracticeLaunchFailure` 生成练习窗口错误界面、可选择复制的技术详情和诊断事件。重试创建新的 generation 与事件 ID；取消或 stale generation 不记录失败。无效的同版本 passage/resume 会在内存回退到安全整首配置；落盘成功记录 `practiceSavedConfigurationRepaired`，落盘失败则记录 `practiceSavedConfigurationRepairFailed`，两者都允许 launch 进入 ready，但后者明确提示下次可能再次修复。
 
 用户通过曲库顶部“诊断”入口管理日志。导出动作在本地生成 ZIP，不自动上传。日志默认保留7 个日历日，并排除绝对路径、原始 MusicXML、逐音 MIDI、音频样本、手部帧、AI 正文和凭据。
+
+输出测量只以聚合 `PianoOutputMetricsSnapshot` 进入诊断。可选 `PianoOutputMeasurementMetadata` 仅包含安全的 calibration ID/version、样本数、设备/OS 和枚举 audio route；没有真机 run 时这些字段不是 latency 或可靠性通过证据，具体采样按[硬件 latency、jitter 与可靠性协议](testing/piano-hardware-latency-protocol.md)执行。

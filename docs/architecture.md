@@ -70,6 +70,8 @@ flowchart TD
   PLAN --> STEPS[PracticeStepBuilder]
   PLAN --> GUIDES[PianoHighlightGuideBuilderService]
   PLAN --> NOTATION[ScoreNotationProjection]
+  PLAN --> TIMELINE[AutoplayPerformanceTimeline / PlaybackSequenceBuilder]
+  TIMELINE --> OUTPUT[AVAudio Sequencer / CoreMIDI adapters]
   PREP --> NOTATION
 
   ARGUIDE --> SESSION[PracticeSessionViewModel]
@@ -80,7 +82,10 @@ flowchart TD
   ANALYZER --> ALIGN[IncrementalPerformanceAligner]
   ANALYZER --> ASSESS[PerformanceAssessmentService]
   ANALYZER -->|assessment| SESSION
-  SESSION --> INPUT[Audio / MIDI / Virtual Input]
+  SESSION --> INPUT[Platform input services]
+  INPUT --> OBS[PerformanceObservation adapters]
+  OBS --> RECORDER
+  OBS --> OBS_CONSUMERS[Matcher / Recording / AI phrase]
   SESSION --> PLAYBACK[Playback Services]
   SESSION --> PROGRESS[PracticeProgressCoordinator]
   SESSION --> COACH[CoachingDecisionService]
@@ -110,6 +115,8 @@ flowchart TD
 | 曲库 | `SongLibraryEntry`、`SongLibraryIndex` | bundled 与用户导入曲目的统一索引；entry version token 标识文件版本。 |
 | 曲库练习展示 | `SongPracticeLibraryPresentationState`、`LibraryPracticeProgressOrnamentView` | 从单曲 history 纯派生四态最终 presentation，并在 trailing Ornament 只读展示；不持久化 UI summary。 |
 | 曲谱准备 | `PreparedPractice`、`ScorePerformancePlan`、`PracticePreparationService` | MusicXML 到唯一演奏计划，再投影 steps、guide、notation projection 与 measure spans。 |
+| 平台输入 | `PracticeAudioRecognitionInputService`、`MIDIPerformanceObservationAdapter`、`PianoKeyContactPerformanceObservationAdapter` | 麦克风、MIDI 与触键各自适配为同一 `PerformanceObservation`；能力、单调时钟、generation 与 calibration reference 不降级。 |
+| 平台输出 | `AutoplayPerformanceTimeline`、`PlaybackSequenceBuilder`、`AVAudioSequencerPracticePlaybackService`、`CoreMIDIPracticePlaybackService` | 从 plan 投影 timeline/sequence，再由音频或 MIDI adapter 输出；range state、reset 与诊断不从 step 或 guide 重建。 |
 | 练习配置 | `PracticeRoundConfigurationController` | pending 与 active round configuration。 |
 | 范围 | `PracticeMeasureIndex`、`PracticeActiveRange` | 小节、step、回放、谱面和完成边界的统一投影。 |
 | 判定 | `StepAttemptMatchResult`、matcher/accumulator | 输入证据转换为当前 step 的 typed attempt outcome。 |
@@ -128,6 +135,7 @@ flowchart TD
 - `ScorePerformancePlan` 是声音事件的唯一真源；tempo 查询只能从 plan 派生，steps 与 highlights 只负责判定、导航和显示，notation 则由 plan 与 source score 单向投影。
 - `PracticeStep` 是即时判定单位；持久化事实聚合到 source measure。
 - alignment、逐音 assessment evidence、`MusicalIssue`、coaching decision 与 before/after 关联只存在于运行期；进度只接受批准的小节级 maturity 与 metric summaries。
+- 输出测量的 `PianoOutputMeasurementMetadata` 只可携带 calibration ID/version、样本数、设备/OS 与枚举 audio route；它服务于聚合诊断和真机协议，不进入 progress JSON，也不保存原始 MIDI、音频或手部数据。
 - 未观察、证据不足、低置信度与 degraded capability 不得被改写成错误；coaching 每次最多选择一个可执行动作。
 - 重复结构用 occurrence identity 定位播放位置，用 source identity 汇总学习事实。
 - 本轮 active configuration 在一轮中不可变；设置修改只影响下一轮。

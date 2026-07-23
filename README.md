@@ -15,6 +15,12 @@ HappyPianist 是一个面向 Apple Vision Pro 的钢琴练习应用。它把 Mus
 - 练习中录制、回放并导出 MIDI take。
 - AI 对弹提供用户选择后端的运行期创意响应（本地规则、本地 CoreML、可选 Mac Aria v2）；它不是原谱示范或评分基准，失败不会自动切换后端。
 
+## 能力与验证边界
+
+当前的乐谱回放、MIDI objective assessment、虚拟琴力度和练习建议都是已实现的练习能力，不是“钢琴家级示范”“专业评分”“表现力乐器”或“教师替代品”的通过声明。多 exporter 授权曲库、真机 latency/reliability、钢琴家盲评、教师标注与教学有效性证据尚未完成；对应能力保持 `pending evidence`，缺少合法 exporter 语料的项目为 `blocked evidence`。
+
+完整的当前边界见[钢琴演奏与专业质量边界](docs/piano-performance-quality.md)，每项可升级措辞的条件见[钢琴能力声明证据门](docs/testing/piano-capability-claim-gates.md)。
+
 ## 资源状态
 
 仓库已包含 `HappyPianistAVP/Resources/Fonts/Bravura.otf`。以下私有或体积较大的资源不随源码分发：
