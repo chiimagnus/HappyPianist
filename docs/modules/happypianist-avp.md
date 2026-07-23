@@ -65,11 +65,17 @@ MusicXMLScore written facts + ScorePerformancePlan occurrence identity
 -> GrandStaffNotationRenderer (Bravura / SMuFL)
 ```
 
-`PianoHighlightGuide`、MIDI pitch 和 performed duration 都不是记谱输入；高亮 overlay 只保留 plan event identity、琴键位置和瞬时显示所需信息，不复制 grace、tie、articulation、arpeggio、dot 或 source-note 记谱事实。当前 fidelity corpus 与生产 SeedScores 覆盖常见双谱表钢琴 MusicXML 的 whole 至 128th note、附点、普通及整小节休止、升降与还原、voices、stems、beams、cross-staff、ties、slurs、tuplets、clef/key/meter change、repeat/ending 及常用演奏记号。缺少 source stem/beam 时只执行文档化的 voice/meter fallback；不支持的微分音、note/rest type、notehead、beam 或 mark 保留 source identity、kind 与 reason，并采用省略 glyph 或保留节奏空间的中性降级，不猜成另一种记号。
+`PianoHighlightGuide`、MIDI pitch 和 performed duration 都不是记谱输入；高亮 overlay 只保留 plan event identity、琴键位置和瞬时显示所需信息，不复制 grace、tie、articulation、arpeggio、dot 或 source-note 记谱事实。已登记 snapshot fixture 覆盖常见双谱表钢琴 MusicXML 的 whole 至 128th note、附点、普通及整小节休止、升降与还原、voices、stems、beams、cross-staff、ties、slurs、tuplets、clef/key/meter change、repeat/ending 及常用演奏记号。它是自动化回归范围，不是多 exporter 或专业曲库通过结论；缺少 source stem/beam 时只执行文档化的 voice/meter fallback，不支持的微分音、note/rest type、notehead、beam 或 mark 保留 source identity、kind 与 reason，并采用省略 glyph 或保留节奏空间的中性降级，不猜成另一种记号。
 
-这里的“专业五线谱”指对上述常见语义做忠实、可测试的练习窗口重排版，不等于复刻原谱分页、字体、手工碰撞微调，也不覆盖 staff 3+、任意当代记谱或出版级制谱。
+这里的“五线谱投影”指对上述常见语义做忠实、可测试的练习窗口重排版，不等于复刻原谱分页、字体、手工碰撞微调，也不覆盖 staff 3+、任意当代记谱或出版级制谱。
 
 `LiveAppGraph` 持有跨 `PracticeSessionViewModel` replacement 的 `PracticeSessionRecorder`。recorder 按 Practice window visit 建立会话，只有首次真实进入 guiding 才落一条 session；scene、guiding、设置、round 与退出边界 checkpoint，active duration 只累计 scene active、guiding 且设置未覆盖的单调时间。
+
+## 演奏、输入与评价
+
+`ScorePerformancePlan` 经 range state 与 transport reducer 投影为 `AutoplayPerformanceTimeline` / `PlaybackSequenceBuilder`，再由 `AVAudioSequencerPracticePlaybackService` 或 `CoreMIDIPracticePlaybackService` 输出。音频、MIDI 和琴键 contact 分别经过 `PracticeAudioRecognitionInputService`、`MIDIPerformanceObservationAdapter`、`PianoKeyContactPerformanceObservationAdapter`，统一形成 `PerformanceObservation`；matcher、录制、AI phrase 和 `PracticeSessionRecorder` 消费同一 observation，recorder 只将它送入 `PracticePerformanceAnalyzer`。
+
+analyzer 在运行期组合 plan、active range、measure spans 与输入 capability，产出 alignment 和 assessment；`CoachingDecisionService` 只从 assessment 选择一个带范围、provenance 与 completion condition 的动作。alignment、逐音 evidence、target profile、issue、decision 与 remeasure 关联不落盘，`PracticeAttemptReducer` 只把批准的小节 maturity 与 metric summaries 提交到 progress JSON。平台输出只导出安全的聚合诊断；`PianoOutputMeasurementMetadata` 不能替代真机测量或人工评审。
 
 正式生产导入链只有：
 
@@ -86,7 +92,7 @@ Library View -> SongLibraryViewModel -> SongLibraryImportTransactionService -> S
 
 ## 诊断
 
-曲库顶部“诊断”入口打开全局诊断管理界面，可查看日志覆盖范围、清除日志并导出7 天的诊断 ZIP。业务代码只写 `DiagnosticEvent`；`AppDiagnosticsReporter` 同时负责 `os.Logger` 与受隐私规则约束的 JSONL 存储。实时 MIDI、音频和空间渲染路径使用同步 `recordSystem`，只进入系统日志，避免为每条事件创建并发任务。
+曲库顶部“诊断”入口打开全局诊断管理界面，可查看日志覆盖范围、清除日志并导出7 天的诊断 ZIP。业务代码只写 `DiagnosticEvent`；`AppDiagnosticsReporter` 同时负责 `os.Logger` 与受隐私规则约束的 JSONL 存储。实时 MIDI、音频和空间渲染路径使用同步 `recordSystem`，只进入系统日志，避免为每条事件创建并发任务。输出指标可带 `PianoOutputMeasurementMetadata` 的安全聚合上下文，但不记录序列号、原始 MIDI/音频/手部数据或绝对路径。
 
 曲谱准备失败在练习窗口中显示具体标题、解释、错误代码、阶段、文件名、App 内相对路径和可用的行列。技术详情可通过系统文本选择菜单复制。
 
