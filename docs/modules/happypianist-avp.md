@@ -32,8 +32,8 @@
 | --- | --- |
 | `PreparationWindowRootView.swift` | 准备窗口根视图与模式路由。 |
 | `Bluetooth/` | 蓝牙 MIDI 准备与连接区。 |
-| `RealPiano/` | 真实钢琴音频模式与触键校准视图。 |
-| `VirtualPiano/` | 虚拟钢琴放置与准备视图。 |
+| `PianoMode/RealPiano/` | 真实钢琴音频模式与触键校准视图。 |
+| `PianoMode/VirtualPiano/` | 虚拟钢琴放置与准备视图。 |
 
 模式差异通过 `PianoModeProtocol` 表达，不在 View 中维护平行的 mode switch。未完成 readiness 时曲库仍可浏览和导入，但不能进入 Practice。
 
