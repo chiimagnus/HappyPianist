@@ -50,7 +50,7 @@
 | `HappyPianistAVP/Services/Library/SongLibraryIndexStore.swift` | actor 内按 concern 原子更新用户曲库索引。 |
 | `HappyPianistAVP/Services/Library/BundledSongLibraryProvider.swift` | 扫描 App bundle 中的 `.musicxml`。 |
 | `HappyPianistAVP/Services/Library/AudioImportService.swift` | 绑定 `.mp3` / `.m4a` 试听音频。 |
-| `HappyPianistAVP/Services/Practice/Session/PracticePreparationService.swift` | 把所选曲谱转换成 `PreparedPractice`。 |
+| `HappyPianistAVP/Services/Practice/Preparation/PracticePreparationService.swift` | 把所选曲谱转换成 `PreparedPractice`。 |
 
 支持 `.musicxml`、`.xml`、`.mxl`。切换唱片只更新 selection 并异步读取同曲 history JSON；点击主内容中唯一的“开始练习”才登记 request 并 push 练习窗口，曲谱解析、进度恢复和失败展示都由练习窗口拥有。presentation generation 同时绑定 song UUID 与 entry token，旧结果不能覆盖新选择；Library/Ornament 不访问 score URL、preparation 服务或 Practice session controller。Ornament 没有隐藏配置或练习入口。
 
