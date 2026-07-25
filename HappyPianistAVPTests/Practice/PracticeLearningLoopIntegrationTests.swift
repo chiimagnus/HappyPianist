@@ -67,7 +67,7 @@ func revisionMismatchDoesNotRestoreOldScoreProgress() async {
 
 @MainActor
 @Test
-func sessionShutdownResetsPerformanceAnalysis() async throws {
+func sessionShutdownResetsPerformanceAnalysis() async {
     let analyzer = PracticePerformanceAnalyzer()
     let recorder = PracticeSessionRecorder(
         repository: LearningLoopSessionRepository(),
@@ -380,14 +380,14 @@ func performingCoachingActionPracticesTheDiagnosedMeasureAtTheRequestedTempo() t
         confidence: 0.9,
         evidence: []
     )
-    let issue = MusicalIssue(
+    let issue = try MusicalIssue(
         kind: .onset,
         scoreRange: 480 ..< 960,
         measureOccurrenceIDs: [secondSpan.occurrenceID],
         dimensionResults: [dimension],
         confidence: 0.9,
         provenance: MusicalIssueProvenance(
-            planID: try #require(session.performancePlan).id,
+            planID: #require(session.performancePlan).id,
             sourceGeneration: 1,
             rubricVersion: .capabilityAware
         )

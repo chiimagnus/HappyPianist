@@ -696,12 +696,12 @@ struct GrandStaffNotationLayoutService {
         }
         var result: [GrandStaffNotationTuplet] = []
         for tuplet in rawTuplets {
-            let nestingLevel = result.filter {
+            let nestingLevel = result.count(where: {
                 $0.staffNumber == tuplet.staffNumber &&
                     $0.voice == tuplet.voice &&
                     $0.startXPosition <= tuplet.startXPosition &&
                     $0.endXPosition >= tuplet.endXPosition
-            }.count
+            })
             result.append(GrandStaffNotationTuplet(
                 id: tuplet.id,
                 staffNumber: tuplet.staffNumber,
@@ -1080,13 +1080,15 @@ struct GrandStaffNotationLayoutService {
             var maxX = noteheadCenter + noteheadBounds.maxX * scale
             if let token = item.displayedAccidental?.glyphToken,
                let center = item.accidentalXOffsetStaffSpaces,
-               let bounds = metrics.bounds(for: token) {
+               let bounds = metrics.bounds(for: token)
+            {
                 minX = min(minX, center + bounds.minX * scale)
                 maxX = max(maxX, center + bounds.maxX * scale)
             }
             if item.dotCount > 0,
                let center = item.dotXOffsetStaffSpaces,
-               let bounds = metrics.bounds(for: .augmentationDot) {
+               let bounds = metrics.bounds(for: .augmentationDot)
+            {
                 maxX = max(
                     maxX,
                     center + bounds.maxX * scale + Double(item.dotCount - 1) * metrics.dotSpacing
@@ -1534,7 +1536,8 @@ struct GrandStaffNotationLayoutService {
                    restBreaks.contains(where: {
                        $0.staffNumber == item.staffNumber && $0.voice == item.voice &&
                            $0.tick > previous.tick && $0.tick <= chord.tick
-                   }) {
+                   })
+                {
                     flush()
                 }
 
@@ -1569,7 +1572,7 @@ struct GrandStaffNotationLayoutService {
         }
         var segments: [GrandStaffNotationBeamSegment] = []
 
-        for level in Set(memberships.map { $0.1.level }).sorted() {
+        for level in Set(memberships.map(\.1.level)).sorted() {
             let grouped = Dictionary(grouping: memberships.filter { $0.1.level == level }, by: { $0.1.id })
             for groupID in grouped.keys.sorted() {
                 let entries = grouped[groupID] ?? []
@@ -1724,5 +1727,4 @@ struct GrandStaffNotationLayoutService {
         let voice = items.map(\.voice).min() ?? 1
         return "\(staff)-\(voice)"
     }
-
 }

@@ -1,6 +1,6 @@
 import Foundation
 
-struct PianoTouchVelocityResolver: Sendable {
+struct PianoTouchVelocityResolver {
     let calibration: PianoTouchCalibration
 
     func resolve(normalVelocityMetersPerSecond: Float?) -> UInt8? {

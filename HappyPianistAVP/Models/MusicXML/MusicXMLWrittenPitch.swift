@@ -1,6 +1,6 @@
 import Foundation
 
-struct MusicXMLWrittenPitch: Equatable, Hashable, Sendable {
+struct MusicXMLWrittenPitch: Equatable, Hashable {
     let step: String
     let octave: Int
     let alter: Double

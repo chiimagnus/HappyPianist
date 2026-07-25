@@ -5,13 +5,13 @@ enum PianoGuideHighlightPhase: String, Equatable, Hashable {
     case triggered
 }
 
-enum ScoreHand: String, CaseIterable, Codable, Sendable {
+enum ScoreHand: String, CaseIterable, Codable {
     case right
     case left
     case unknown
 }
 
-enum PracticeHandMode: String, CaseIterable, Identifiable, Codable, Sendable {
+enum PracticeHandMode: String, CaseIterable, Identifiable, Codable {
     case both
     case right
     case left
@@ -60,7 +60,10 @@ struct PracticeStepNote: Equatable, Hashable, Identifiable {
 
     let midiNote: Int
     let handAssignment: ScoreHandAssignment
-    var hand: ScoreHand { handAssignment.hand }
+    var hand: ScoreHand {
+        handAssignment.hand
+    }
+
     let staff: Int?
     let voice: Int?
     let velocity: UInt8
@@ -178,7 +181,7 @@ enum StepAttemptMatchResult: Equatable {
     }
 }
 
-enum PracticeEvidenceOutcome: String, Codable, Equatable, Hashable, Sendable {
+enum PracticeEvidenceOutcome: String, Codable, Equatable, Hashable {
     case correct
     case incorrect
     case unknown

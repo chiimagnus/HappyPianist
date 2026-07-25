@@ -1,6 +1,6 @@
 import Foundation
 
-enum PracticeAudioError: LocalizedError, Equatable, Sendable {
+enum PracticeAudioError: LocalizedError, Equatable {
     case soundFontMissing(resourceName: String)
     case operationFailed(
         operation: PianoPerformanceAudioOperation,
@@ -36,7 +36,7 @@ enum PracticeAudioError: LocalizedError, Equatable, Sendable {
     }
 }
 
-enum PracticeAudioPlaybackState: Equatable, Sendable {
+enum PracticeAudioPlaybackState: Equatable {
     case idle
     case ready
     case failed(PracticeAudioError)

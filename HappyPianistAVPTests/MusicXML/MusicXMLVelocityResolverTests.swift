@@ -265,5 +265,4 @@ struct MusicXMLVelocityResolverTests {
             voice: voice
         )
     }
-
 }

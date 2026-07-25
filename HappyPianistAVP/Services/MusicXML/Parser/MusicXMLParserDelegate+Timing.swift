@@ -24,7 +24,6 @@ extension MusicXMLParserDelegate {
         return sign * normalized
     }
 
-
     func parseMeterBeatGroups(_ raw: String) -> [Int]? {
         let groups = raw.split(separator: "+").compactMap { token -> Int? in
             let value = Int(token.trimmingCharacters(in: .whitespacesAndNewlines))

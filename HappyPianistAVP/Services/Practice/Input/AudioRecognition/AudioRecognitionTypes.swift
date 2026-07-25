@@ -26,8 +26,8 @@ protocol PracticeAudioRecognitionServiceProtocol: AnyObject {
     func stop()
 }
 
-struct TargetAudioEvidence: Equatable, Sendable {
-    enum Result: Equatable, Sendable {
+struct TargetAudioEvidence: Equatable {
+    enum Result: Equatable {
         case detected
         case contradicted
         case mixed
@@ -58,11 +58,10 @@ struct TargetAudioEvidence: Equatable, Sendable {
         let wrongConfidence = Self.clamped(wrongConfidenceByMIDINote)
         self.targetConfidenceByMIDINote = targetConfidence
         self.wrongConfidenceByMIDINote = wrongConfidence
-        let strongestConfidence: Double?
-        if let confidence {
-            strongestConfidence = confidence
+        let strongestConfidence: Double? = if let confidence {
+            confidence
         } else {
-            strongestConfidence = Self.strongest(
+            Self.strongest(
                 targetConfidence: targetConfidence,
                 wrongConfidence: wrongConfidence
             )

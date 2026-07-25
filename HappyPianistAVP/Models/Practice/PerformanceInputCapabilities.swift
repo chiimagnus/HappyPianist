@@ -1,5 +1,5 @@
-struct PerformanceInputCapabilities: Codable, Equatable, Hashable, Sendable {
-    enum Evidence: String, Codable, Sendable {
+struct PerformanceInputCapabilities: Codable, Equatable, Hashable {
+    enum Evidence: String, Codable {
         case observed
         case unavailable
         case degraded

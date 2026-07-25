@@ -2,7 +2,6 @@ import CoreGraphics
 @testable import HappyPianistAVP
 import Testing
 
-@Suite
 struct GrandStaffChordLayoutServiceTests {
     private let service = GrandStaffChordLayoutService()
 
@@ -30,7 +29,7 @@ struct GrandStaffChordLayoutServiceTests {
     }
 
     @Test
-    func sourceOverrideWinsThenFallbackUsesMiddleLineAndVoicePolicy() throws {
+    func sourceOverrideWinsThenFallbackUsesMiddleLineAndVoicePolicy() {
         let layouts = service.makeLayout(chords: [
             chord(id: "forced", tick: 0, notes: [note("forced", step: 8, stem: .up)]),
             chord(id: "low", tick: 240, notes: [note("low", step: 2)]),
@@ -48,7 +47,7 @@ struct GrandStaffChordLayoutServiceTests {
     }
 
     @Test
-    func unisonCollisionIsDeterministicAcrossInputOrder() throws {
+    func unisonCollisionIsDeterministicAcrossInputOrder() {
         let voice1 = chord(id: "voice-1", notes: [note("v1", step: 4, voice: 1)])
         let voice2 = chord(id: "voice-2", notes: [note("v2", step: 4, voice: 2)])
         let forward = service.makeLayout(chords: [voice1, voice2]).chords

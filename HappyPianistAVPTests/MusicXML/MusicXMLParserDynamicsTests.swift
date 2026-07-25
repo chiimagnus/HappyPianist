@@ -94,7 +94,6 @@ struct MusicXMLParserDynamicsTests {
     }
 }
 
-
 @Test
 func parserUsesMusicXMLDynamicsPercentageForDecimalAndBoundaryValues() throws {
     let xml = """

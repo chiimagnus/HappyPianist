@@ -12,12 +12,12 @@ enum PracticeNextAction: Equatable {
     case continuePassage
 }
 
-struct CoachingDecision: Equatable, Sendable {
+struct CoachingDecision: Equatable {
     let issue: MusicalIssue
     let action: CoachingAction
 }
 
-struct PracticeCoachingPresentation: Equatable, Sendable {
+struct PracticeCoachingPresentation: Equatable {
     let actionLabel: String
     let sourceLabel: String?
     let fingeringText: String?

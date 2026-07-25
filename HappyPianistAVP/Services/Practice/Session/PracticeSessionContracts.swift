@@ -1,6 +1,6 @@
 import Foundation
 
-struct PracticePreparationOptions: Equatable, Sendable {
+struct PracticePreparationOptions: Equatable {
     let scoreOrder: MusicXMLScoreOrder
 
     static let practice = PracticePreparationOptions(

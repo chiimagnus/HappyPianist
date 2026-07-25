@@ -986,7 +986,7 @@ extension PracticeSessionViewModel {
             stopAutoplayTask()
             stopAudioRecognition()
             let nextRoundStepIndex: Int? = if self.activeRoundConfiguration?.loopEnabled == true,
-                                               self.hasStablePitchStepsInActivePassage == false
+                                              self.hasStablePitchStepsInActivePassage == false
             {
                 self.activeRange?.firstStepIndex
             } else {
@@ -1060,7 +1060,7 @@ extension PracticeSessionViewModel {
         stopAutoplayTask()
         stopAudioRecognition()
         let nextRoundStepIndex: Int? = if self.activeRoundConfiguration?.loopEnabled == true,
-                                           self.hasStablePitchStepsInActivePassage == false
+                                          self.hasStablePitchStepsInActivePassage == false
         {
             self.activeRange?.firstStepIndex
         } else {

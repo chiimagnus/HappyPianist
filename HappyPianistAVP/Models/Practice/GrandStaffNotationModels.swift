@@ -153,8 +153,13 @@ struct GrandStaffNotationRest: Equatable, Identifiable {
     let isMeasureRest: Bool
     let isHighlighted: Bool
 
-    var glyphToken: GrandStaffGlyphToken? { noteValue.restGlyphToken }
-    var staffStep: Int { noteValue == .whole ? 6 : 4 }
+    var glyphToken: GrandStaffGlyphToken? {
+        noteValue.restGlyphToken
+    }
+
+    var staffStep: Int {
+        noteValue == .whole ? 6 : 4
+    }
 }
 
 struct GrandStaffNotationTie: Equatable, Identifiable {
@@ -355,8 +360,13 @@ struct GrandStaffNotationContext: Equatable {
     let keySignatureFifths: Int?
     let timeSignatureText: String?
 
-    var trebleClefGlyphToken: GrandStaffGlyphToken? { clefGlyphToken(signToken: trebleClefSignToken) }
-    var bassClefGlyphToken: GrandStaffGlyphToken? { clefGlyphToken(signToken: bassClefSignToken) }
+    var trebleClefGlyphToken: GrandStaffGlyphToken? {
+        clefGlyphToken(signToken: trebleClefSignToken)
+    }
+
+    var bassClefGlyphToken: GrandStaffGlyphToken? {
+        clefGlyphToken(signToken: bassClefSignToken)
+    }
 
     init(
         trebleClefSymbol: String = GrandStaffGlyphToken.gClef.glyph,
@@ -418,7 +428,10 @@ struct GrandStaffNotationItem: Equatable, Identifiable {
     let arpeggiate: MusicXMLArpeggiate?
     let dotCount: Int
 
-    var noteheadGlyphToken: GrandStaffGlyphToken? { noteValue.noteheadGlyphToken }
+    var noteheadGlyphToken: GrandStaffGlyphToken? {
+        noteValue.noteheadGlyphToken
+    }
+
     var articulationGlyphTokens: [GrandStaffGlyphToken] {
         articulations.sorted { $0.rawValue < $1.rawValue }.compactMap(\.grandStaffGlyphToken)
     }

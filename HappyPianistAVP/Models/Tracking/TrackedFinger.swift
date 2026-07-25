@@ -1,9 +1,9 @@
-enum TrackedHandSide: UInt8, CaseIterable, Sendable {
+enum TrackedHandSide: UInt8, CaseIterable {
     case left
     case right
 }
 
-enum TrackedFinger: UInt8, CaseIterable, Sendable {
+enum TrackedFinger: UInt8, CaseIterable {
     case thumb
     case index
     case middle
@@ -11,7 +11,7 @@ enum TrackedFinger: UInt8, CaseIterable, Sendable {
     case little
 }
 
-struct TrackedFingerID: Hashable, Sendable {
+struct TrackedFingerID: Hashable {
     let hand: TrackedHandSide
     let finger: TrackedFinger
 }

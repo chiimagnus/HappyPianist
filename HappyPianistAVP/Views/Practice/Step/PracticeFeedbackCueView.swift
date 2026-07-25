@@ -30,10 +30,10 @@ struct PracticeFeedbackCueView: View {
                 }
             }
         }
-            .padding()
-            .glassBackgroundEffect()
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(accessibilityLabel(for: presentation))
+        .padding()
+        .glassBackgroundEffect()
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(accessibilityLabel(for: presentation))
     }
 
     private func accessibilityLabel(for presentation: PracticeFeedbackCuePresentation) -> String {
@@ -42,7 +42,7 @@ struct PracticeFeedbackCueView: View {
             coachingPresentation?.actionLabel,
             coachingPresentation?.fingeringText.map { "指法 \($0)" },
             coachingPresentation?.sourceLabel,
-        ].compactMap { $0 }.joined(separator: "，")
+        ].compactMap(\.self).joined(separator: "，")
     }
 }
 

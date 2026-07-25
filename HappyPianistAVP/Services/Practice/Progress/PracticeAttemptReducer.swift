@@ -226,13 +226,12 @@ struct PracticeAttemptReducer {
             )
             guard dimensions.isEmpty == false else { continue }
             let coverage = PerformanceAssessmentEvidenceCoverage(dimensions: dimensions)
-            let maturity: MeasurePerformanceMaturity
-            if dimensions.allSatisfy({ $0.outcome == .correct }) {
-                maturity = .mature
+            let maturity: MeasurePerformanceMaturity = if dimensions.allSatisfy({ $0.outcome == .correct }) {
+                .mature
             } else if dimensions.contains(where: { $0.outcome == .incorrect }) {
-                maturity = .developing
+                .developing
             } else {
-                maturity = .insufficientEvidence
+                .insufficientEvidence
             }
             let summary = MeasurePerformanceMaturitySummary(
                 maturity: maturity,

@@ -1,12 +1,12 @@
 import Foundation
 
-struct PianoOutputTimestampObservation: Equatable, Sendable {
+struct PianoOutputTimestampObservation: Equatable {
     let scheduledAtSeconds: TimeInterval
     let submittedAtSeconds: TimeInterval?
     let acknowledgedAtSeconds: TimeInterval?
 }
 
-enum PianoOutputAudioRoute: String, Equatable, Sendable {
+enum PianoOutputAudioRoute: String, Equatable {
     case builtIn
     case wired
     case bluetooth
@@ -14,7 +14,7 @@ enum PianoOutputAudioRoute: String, Equatable, Sendable {
     case unknown
 }
 
-struct PianoOutputMeasurementMetadata: Equatable, Sendable {
+struct PianoOutputMeasurementMetadata: Equatable {
     let calibrationID: UUID?
     let calibrationVersion: Int?
     let sampleCount: Int?
@@ -58,7 +58,7 @@ struct PianoOutputMeasurementMetadata: Equatable, Sendable {
     }
 }
 
-struct PianoOutputMetricsSnapshot: Equatable, Sendable {
+struct PianoOutputMetricsSnapshot: Equatable {
     let capability: PianoPerformanceDiagnosticCapability
     let scheduledCount: Int
     let submittedCount: Int
@@ -118,7 +118,7 @@ struct PianoOutputMetricsSnapshot: Equatable, Sendable {
     }
 }
 
-struct PianoOutputMetricsAccumulator: Sendable {
+struct PianoOutputMetricsAccumulator {
     private(set) var scheduledCount = 0
     private(set) var submittedCount = 0
     private(set) var acknowledgedCount = 0
@@ -192,7 +192,7 @@ struct PianoOutputMetricsAccumulator: Sendable {
         } else {
             resetFailedCount += 1
         }
-        if succeeded && preventsStuckNotes {
+        if succeeded, preventsStuckNotes {
             stuckNotePreventionCount += 1
         }
     }

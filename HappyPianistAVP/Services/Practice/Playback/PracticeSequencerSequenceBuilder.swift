@@ -1,8 +1,8 @@
 import AudioToolbox
 import Foundation
 
-struct PracticeSequencerMIDIEvent: Equatable, Sendable {
-    enum Kind: Equatable, Sendable {
+struct PracticeSequencerMIDIEvent: Equatable {
+    enum Kind: Equatable {
         case noteOn(midi: Int, velocity: UInt8)
         case noteOff(midi: Int)
         case controlChange(controller: UInt8, value: UInt8)
@@ -304,5 +304,4 @@ struct PracticeSequencerSequenceBuilder {
             2
         }
     }
-
 }

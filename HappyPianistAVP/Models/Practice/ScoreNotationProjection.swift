@@ -1,8 +1,8 @@
 import Foundation
 
-struct ScoreNotationProjection: Equatable, Sendable {
-    struct Fallback: Equatable, Sendable {
-        enum Kind: String, Equatable, Hashable, Sendable {
+struct ScoreNotationProjection: Equatable {
+    struct Fallback: Equatable {
+        enum Kind: String, Equatable, Hashable {
             case accidental
             case notehead
             case rest
@@ -10,7 +10,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
             case mark
         }
 
-        enum Reason: String, Equatable, Hashable, Sendable {
+        enum Reason: String, Equatable, Hashable {
             case microtonalAccidental
             case unsupportedAccidentalValue
             case unsupportedAccidentalToken
@@ -25,7 +25,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
             case unsupportedPerformanceNotation
         }
 
-        enum PlaceholderPolicy: String, Equatable, Sendable {
+        enum PlaceholderPolicy: String, Equatable {
             case omit
             case reserveRhythmicSpace
         }
@@ -54,7 +54,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
         }
     }
 
-    struct BeamGroupID: Equatable, Hashable, Sendable, CustomStringConvertible {
+    struct BeamGroupID: Equatable, Hashable, CustomStringConvertible {
         let partID: String
         let voice: Int
         let numberToken: String
@@ -65,7 +65,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
         }
     }
 
-    struct BeamFact: Equatable, Sendable {
+    struct BeamFact: Equatable {
         let groupID: BeamGroupID
         let sourceOrdinal: Int
         let numberToken: String?
@@ -74,33 +74,33 @@ struct ScoreNotationProjection: Equatable, Sendable {
         let fanToken: String?
     }
 
-    struct TransposeFact: Equatable, Sendable {
+    struct TransposeFact: Equatable {
         let diatonic: Int?
         let chromatic: Int
         let octaveChange: Int
         let isDouble: Bool
     }
 
-    struct OctaveShiftFact: Equatable, Sendable {
+    struct OctaveShiftFact: Equatable {
         let kind: MusicXMLOctaveShiftKind
         let size: Int
         let numberToken: String?
     }
 
-    struct KeySignatureFact: Equatable, Sendable {
+    struct KeySignatureFact: Equatable {
         let fifths: Int
         let modeToken: String?
     }
 
-    struct ClefFact: Equatable, Sendable {
+    struct ClefFact: Equatable {
         let signToken: String?
         let line: Int?
         let octaveChange: Int?
         let numberToken: String?
     }
 
-    struct Mark: Equatable, Sendable {
-        enum Kind: Equatable, Sendable {
+    struct Mark: Equatable {
+        enum Kind: Equatable {
             case dynamic
             case tempo
             case text
@@ -125,7 +125,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
         let placementToken: String?
     }
 
-    struct AttributeChange: Equatable, Sendable {
+    struct AttributeChange: Equatable {
         let id: String
         let tick: Int
         let staff: Int
@@ -135,7 +135,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
         let meterText: String?
     }
 
-    struct SourceNote: Equatable, Sendable {
+    struct SourceNote: Equatable {
         let id: MusicXMLSourceNoteID
         let chordID: MusicXMLSourceNoteID
         let writtenOnTick: Int
@@ -165,7 +165,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
         let octaveShifts: [OctaveShiftFact]
     }
 
-    struct PerformedOccurrence: Equatable, Sendable {
+    struct PerformedOccurrence: Equatable {
         let id: MusicXMLPerformedNoteID
         let sourceNoteID: MusicXMLSourceNoteID
         let performanceEventIDs: [ScorePerformanceNoteEventID]
@@ -173,7 +173,7 @@ struct ScoreNotationProjection: Equatable, Sendable {
         let handAssignment: ScoreHandAssignment
     }
 
-    struct Overlay: Equatable, Sendable {
+    struct Overlay: Equatable {
         let activeEventIDs: Set<ScorePerformanceNoteEventID>
         let activeTickRange: Range<Int>?
 
@@ -803,19 +803,18 @@ struct ScoreNotationProjection: Equatable, Sendable {
             for (track, entries) in factsByTrack {
                 let values = entries.map(\.3.value)
                 let isHook = values.contains(.forwardHook) || values.contains(.backwardHook)
-                let groupID: BeamGroupID
-                if values.contains(.begin) || isHook {
-                    groupID = BeamGroupID(
+                let groupID: BeamGroupID = if values.contains(.begin) || isHook {
+                    BeamGroupID(
                         partID: track.partID,
                         voice: track.voice,
                         numberToken: track.numberToken,
                         startSourceNoteID: chordID
                     )
                 } else if let active = activeGroups[track] {
-                    groupID = active
+                    active
                 } else {
                     // ponytail: malformed continue/end still keeps a traceable group rooted at itself.
-                    groupID = BeamGroupID(
+                    BeamGroupID(
                         partID: track.partID,
                         voice: track.voice,
                         numberToken: track.numberToken,
@@ -917,5 +916,4 @@ struct ScoreNotationProjection: Equatable, Sendable {
     private static func scopeSpecificity(_ scope: MusicXMLEventScope) -> Int {
         (scope.staff == nil ? 0 : 1) + (scope.voice == nil ? 0 : 1)
     }
-
 }

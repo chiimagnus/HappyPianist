@@ -1,6 +1,6 @@
 import Foundation
 
-struct MusicXMLOrnamentScheduleResult: Equatable, Sendable {
+struct MusicXMLOrnamentScheduleResult: Equatable {
     let generatedNotes: [ScoreGeneratedNoteEvent]
     let resolutions: [ScorePerformanceNotationResolution]
 }
@@ -145,7 +145,7 @@ private extension MusicXMLOrnamentScheduler {
                     count += 1
                 }
                 count = min(max(3, count), max(3, duration))
-                pitchesResult = .pitches((0..<count).map { $0.isMultiple(of: 2) ? mainPitch : upper })
+                pitchesResult = .pitches((0 ..< count).map { $0.isMultiple(of: 2) ? mainPitch : upper })
             case let .unsupported(reason):
                 pitchesResult = .unsupported(reason)
             }
@@ -238,7 +238,7 @@ private extension MusicXMLOrnamentScheduler {
         if type == "unmeasured" {
             subdivision = max(1, profile.unmeasuredTremoloSubdivisionTicks)
         } else {
-            guard let marks = tremoloMarks(notation), (1...8).contains(marks) else {
+            guard let marks = tremoloMarks(notation), (1 ... 8).contains(marks) else {
                 return unsupported(
                     notation: notation,
                     noteIndices: [noteIndex],
@@ -364,7 +364,7 @@ private extension MusicXMLOrnamentScheduler {
             )
         }
         guard let marks = tremoloMarks(start.notation) ?? tremoloMarks(stop.notation),
-              (1...8).contains(marks)
+              (1 ... 8).contains(marks)
         else {
             return unsupportedPair(
                 start: start,
@@ -395,7 +395,7 @@ private extension MusicXMLOrnamentScheduler {
                 profile: profile
             )
         }
-        let pitches = (0..<count).map { $0.isMultiple(of: 2) ? firstPitch : secondPitch }
+        let pitches = (0 ..< count).map { $0.isMultiple(of: 2) ? firstPitch : secondPitch }
         let events = generatedEvents(
             pitches: pitches,
             sourceNoteIndices: indices,
@@ -578,9 +578,9 @@ private extension MusicXMLOrnamentScheduler {
     ) -> PitchSequenceResolution {
         switch neighbor {
         case let .pitch(neighborPitch):
-            return .pitches([mainPitch, neighborPitch, mainPitch])
+            .pitches([mainPitch, neighborPitch, mainPitch])
         case let .unsupported(reason):
-            return .unsupported(reason)
+            .unsupported(reason)
         }
     }
 
@@ -594,15 +594,14 @@ private extension MusicXMLOrnamentScheduler {
         }
         let accidentalMarks = note.performanceNotations.filter { $0.kind == .accidentalMark }
         let expectedPlacement = direction == .upper ? "above" : "below"
-        let selected: MusicXMLPerformanceNotation?
-        if let placed = accidentalMarks.first(where: {
+        let selected: MusicXMLPerformanceNotation? = if let placed = accidentalMarks.first(where: {
             normalized($0.placementToken) == expectedPlacement
         }) {
-            selected = placed
+            placed
         } else if requiresPlacement == false, accidentalMarks.count == 1 {
-            selected = accidentalMarks[0]
+            accidentalMarks[0]
         } else {
-            selected = nil
+            nil
         }
         guard let selected else {
             return .unsupported("ornament-accidental-unavailable")
@@ -635,7 +634,7 @@ private extension MusicXMLOrnamentScheduler {
         }
         let semitoneByStep = [0, 2, 4, 5, 7, 9, 11]
         let midi = (octave + 1) * 12 + semitoneByStep[targetIndex] + alter
-        return (0...127).contains(midi) ? midi : nil
+        return (0 ... 127).contains(midi) ? midi : nil
     }
 
     func accidentalAlter(_ token: String?) -> Int? {
@@ -685,7 +684,7 @@ private extension MusicXMLOrnamentScheduler {
         let base = duration / count
         let remainder = duration % count
         var cursor = onTick
-        return (0..<count).map { index in
+        return (0 ..< count).map { index in
             let length = base + (index < remainder ? 1 : 0)
             let interval = (onTick: cursor, offTick: cursor + length)
             cursor += length

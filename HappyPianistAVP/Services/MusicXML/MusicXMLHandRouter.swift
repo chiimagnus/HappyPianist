@@ -1,6 +1,6 @@
 import Foundation
 
-struct MusicXMLHandRoutingResult: Equatable, Sendable {
+struct MusicXMLHandRoutingResult: Equatable {
     let assignmentsBySourceNoteID: [MusicXMLSourceNoteID: ScoreHandAssignment]
 
     func assignment(for note: MusicXMLNoteEvent) -> ScoreHandAssignment {

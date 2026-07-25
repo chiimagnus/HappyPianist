@@ -1,5 +1,5 @@
-@testable import HappyPianistAVP
 import Foundation
+@testable import HappyPianistAVP
 import Testing
 
 @Test
@@ -114,17 +114,24 @@ private actor SuspendingTakePlaybackService: PracticeSequencerPlaybackServicePro
         playCount += 1
     }
 
-    func currentSeconds() async -> TimeInterval { 0 }
+    func currentSeconds() async -> TimeInterval {
+        0
+    }
+
     func playOneShot(commands _: [PracticePlaybackCommand], durationSeconds _: TimeInterval) async throws {}
     func execute(commands _: [PracticePlaybackCommand]) async throws {}
     func stopAllLiveNotes() async {}
 
     func waitForFirstStop() async {
-        while stopCount == 0 { await Task.yield() }
+        while stopCount == 0 {
+            await Task.yield()
+        }
     }
 
     func waitForStopCount(_ expectedCount: Int) async {
-        while stopCount < expectedCount { await Task.yield() }
+        while stopCount < expectedCount {
+            await Task.yield()
+        }
     }
 
     func resumeFirstStop() {

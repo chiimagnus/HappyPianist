@@ -56,6 +56,7 @@ final class PracticeSessionStateStore {
             )
         }
     }
+
     private(set) var performanceEventIDByDescription: [String: ScorePerformanceNoteEventID] = [:]
     var notationProjection: ScoreNotationProjection?
     var steps: [PracticeStep] = []

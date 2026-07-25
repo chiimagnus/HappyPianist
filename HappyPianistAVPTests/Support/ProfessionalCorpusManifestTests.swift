@@ -55,7 +55,7 @@ func professionalCorpusManifestRejectsIncompleteDuplicateAndUnregisteredFixtures
                     blockedReason: valid.blockedReason
                 ),
             ]),
-            discoveredFiles: [valid.file!],
+            discoveredFiles: [#require(valid.file)],
             fileExists: { _ in true }
         )
     }
@@ -63,7 +63,7 @@ func professionalCorpusManifestRejectsIncompleteDuplicateAndUnregisteredFixtures
     #expect(throws: ProfessionalCorpusManifestError.duplicateID("fixture")) {
         try ProfessionalCorpusManifestValidator.validate(
             .init(version: 1, fixtures: [valid, valid]),
-            discoveredFiles: [valid.file!],
+            discoveredFiles: [#require(valid.file)],
             fileExists: { _ in true }
         )
     }

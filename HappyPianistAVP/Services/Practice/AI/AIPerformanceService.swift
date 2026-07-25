@@ -773,7 +773,7 @@ final class AIPerformanceService {
     private func responseLatencySeconds(for response: CreativeDuetResponse) -> TimeInterval? {
         switch response.provenance {
         case let .backendGenerated(latencyMS):
-            latencyMS.map { TimeInterval($0) / 1_000 }
+            latencyMS.map { TimeInterval($0) / 1000 }
         }
     }
 
@@ -783,7 +783,7 @@ final class AIPerformanceService {
     ) -> CreativeDuetResponse {
         let elapsedSeconds = nowUptimeSeconds() - startedAt
         guard elapsedSeconds.isFinite else { return response }
-        let observedLatencyMS = Int((max(0, elapsedSeconds) * 1_000).rounded(.awayFromZero))
+        let observedLatencyMS = Int((max(0, elapsedSeconds) * 1000).rounded(.awayFromZero))
 
         switch response.provenance {
         case let .backendGenerated(latencyMS):

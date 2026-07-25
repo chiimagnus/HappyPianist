@@ -1,6 +1,6 @@
 import Foundation
 
-struct PracticeExercisePolicy: Sendable {
+struct PracticeExercisePolicy {
     func action(
         for issue: MusicalIssue,
         scoreEvents: [ScorePerformanceNoteEvent] = []

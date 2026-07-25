@@ -1,6 +1,6 @@
 import Foundation
 
-struct PianoTouchCalibration: Codable, Equatable, Sendable {
+struct PianoTouchCalibration: Codable, Equatable {
     static let currentVersion = 1
 
     let id: UUID

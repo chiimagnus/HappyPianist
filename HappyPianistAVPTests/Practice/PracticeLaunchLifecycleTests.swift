@@ -337,7 +337,8 @@ func multipleRoundsAndSettingsUseOneWindowSessionAndPauseActiveTime() async thro
     )
     let session = LaunchLifecycleRecorderSessionProvider(recorder: recorder).callAsFunction(nil)
     session.installTestPerformanceNotes(
-        [TestScorePerformanceNote(midiNote: 60, onTick: 0)])
+        [TestScorePerformanceNote(midiNote: 60, onTick: 0)]
+    )
     let identity = try #require(session.songIdentity)
     let visitID = UUID()
     await recorder.beginVisit(id: visitID, songID: identity.songID, sceneIsActive: true)
@@ -385,7 +386,8 @@ func inactiveSceneExcludesBackgroundTimeAndRequiresRealGuidingResume() async thr
     )
     let session = LaunchLifecycleRecorderSessionProvider(recorder: recorder).callAsFunction(nil)
     session.installTestPerformanceNotes(
-        [TestScorePerformanceNote(midiNote: 60, onTick: 0)])
+        [TestScorePerformanceNote(midiNote: 60, onTick: 0)]
+    )
     let identity = try #require(session.songIdentity)
     let visitID = UUID()
     await recorder.beginVisit(id: visitID, songID: identity.songID, sceneIsActive: true)

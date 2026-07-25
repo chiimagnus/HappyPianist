@@ -209,7 +209,6 @@ final class PracticeManualReplayService {
         }
         stateStore.currentHighlightGuideIndex = stateStore.strictTriggerGuideIndex(forStepIndex: stepIndex)
     }
-
 }
 
 private struct ManualReplayTimeCursor: Equatable {

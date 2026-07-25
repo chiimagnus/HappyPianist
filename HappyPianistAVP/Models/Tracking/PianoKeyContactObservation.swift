@@ -1,12 +1,12 @@
 import Foundation
 import simd
 
-struct PianoKeyContactID: Hashable, Sendable {
+struct PianoKeyContactID: Hashable {
     let finger: TrackedFingerID
     let sequence: UInt64
 }
 
-enum PianoKeyCandidate: Equatable, Sendable {
+enum PianoKeyCandidate: Equatable {
     case exact(Int)
     case ambiguous([Int])
     case unknown
@@ -17,8 +17,8 @@ enum PianoKeyCandidate: Equatable, Sendable {
     }
 }
 
-struct PianoKeyContactObservation: Equatable, Sendable {
-    enum Phase: Hashable, Sendable {
+struct PianoKeyContactObservation: Equatable {
+    enum Phase: Hashable {
         case started
         case held
         case ended
@@ -63,11 +63,16 @@ struct PianoKeyContactObservation: Equatable, Sendable {
         self.calibrationID = calibrationID
     }
 
-    var hand: TrackedHandSide { id.finger.hand }
-    var finger: TrackedFinger { id.finger.finger }
+    var hand: TrackedHandSide {
+        id.finger.hand
+    }
+
+    var finger: TrackedFinger {
+        id.finger.finger
+    }
 }
 
-extension Collection where Element == PianoKeyContactObservation {
+extension Collection<PianoKeyContactObservation> {
     var activeMIDINotes: Set<Int> {
         exactMIDINotes(for: [.started, .held])
     }

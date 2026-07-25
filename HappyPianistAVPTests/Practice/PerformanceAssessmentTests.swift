@@ -1,9 +1,9 @@
 import Foundation
-import Testing
 @testable import HappyPianistAVP
+import Testing
 
 @Test
-func passageAssessmentKeepsRubricDimensionsMeasuresAndTraceableEvidence() throws {
+func passageAssessmentKeepsRubricDimensionsMeasuresAndTraceableEvidence() {
     let event = makeAssessmentEvent()
     let observationID = UUID()
     let pitch = PerformanceAssessmentDimensionResult(
@@ -1253,7 +1253,7 @@ func analyzerEvaluatesAgainstTheConfiguredPracticeTempo() async throws {
         return evidence.first { $0.dimension == .onset }?.deviationSeconds
     }.first
 
-    #expect(abs(try #require(secondOnsetDeviation)) < 0.000_001)
+    #expect(try abs(#require(secondOnsetDeviation)) < 0.000_001)
 }
 
 @Test

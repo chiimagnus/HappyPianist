@@ -79,9 +79,10 @@ struct MusicXMLStructureExpander {
         }
         guard indexedRepeats.count == repeats.count,
               let endingSpans = resolveEndingSpans(
-            directives: endings,
-            measureIndexByNumber: measureIndexByNumber
-        ) else {
+                  directives: endings,
+                  measureIndexByNumber: measureIndexByNumber
+              )
+        else {
             return repeatExpansionFallback(score: score, reason: "structure-expansion-invalid-repeat-ending")
         }
 

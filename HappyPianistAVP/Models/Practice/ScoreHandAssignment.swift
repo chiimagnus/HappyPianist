@@ -1,6 +1,6 @@
 import Foundation
 
-enum ScoreHandAssignmentProvenance: String, Codable, Equatable, Hashable, Sendable {
+enum ScoreHandAssignmentProvenance: String, Codable, Equatable, Hashable {
     case score
     case user
     case teacher
@@ -8,7 +8,7 @@ enum ScoreHandAssignmentProvenance: String, Codable, Equatable, Hashable, Sendab
     case unresolved
 }
 
-struct ScoreHandAssignment: Codable, Equatable, Hashable, Sendable {
+struct ScoreHandAssignment: Codable, Equatable, Hashable {
     let hand: ScoreHand
     let provenance: ScoreHandAssignmentProvenance
     let confidence: Double?

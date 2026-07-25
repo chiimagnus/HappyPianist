@@ -1,6 +1,6 @@
 import Foundation
 
-enum ScoreTimingReleasePolicy: String, Codable, Equatable, Sendable {
+enum ScoreTimingReleasePolicy: String, Codable, Equatable {
     case writtenDuration
     case performanceOffsets
     case graceStealPrevious
@@ -13,14 +13,14 @@ enum ScoreTimingReleasePolicy: String, Codable, Equatable, Sendable {
     case breathGap
 }
 
-enum ScoreGraceTimingKind: String, Codable, Equatable, Sendable {
+enum ScoreGraceTimingKind: String, Codable, Equatable {
     case stealPrevious
     case stealFollowing
     case stealPreviousAndFollowing
     case makeTime
 }
 
-enum ScoreTimingProvenance: Equatable, Sendable {
+enum ScoreTimingProvenance: Equatable {
     case score
     case performanceOffset
     case grace(kind: ScoreGraceTimingKind)
@@ -34,7 +34,7 @@ enum ScoreTimingProvenance: Equatable, Sendable {
     case approximation(reason: String)
 }
 
-struct ScoreTimingEntry: Equatable, Sendable {
+struct ScoreTimingEntry: Equatable {
     let noteIndex: Int
     let sourceNoteID: MusicXMLSourceNoteID?
     let performedNoteID: MusicXMLPerformedNoteID?
@@ -48,14 +48,13 @@ struct ScoreTimingEntry: Equatable, Sendable {
     let provenance: [ScoreTimingProvenance]
 }
 
-
-enum ScoreGeneratedNotePurpose: String, Codable, Equatable, Sendable {
+enum ScoreGeneratedNotePurpose: String, Codable, Equatable {
     case ornament
     case tremolo
     case glissando
 }
 
-struct ScoreGeneratedNoteEvent: Equatable, Sendable {
+struct ScoreGeneratedNoteEvent: Equatable {
     let sourceNoteIndices: [Int]
     let sourceNotationID: MusicXMLPerformanceNotationSourceID?
     let notationKind: MusicXMLPerformanceNotationKind
@@ -67,12 +66,12 @@ struct ScoreGeneratedNoteEvent: Equatable, Sendable {
     let interpretationProfileID: String
 }
 
-enum ScorePerformanceNotationResolutionStatus: Equatable, Sendable {
+enum ScorePerformanceNotationResolutionStatus: Equatable {
     case generated
     case unsupported(reason: String)
 }
 
-struct ScorePerformanceNotationResolution: Equatable, Sendable {
+struct ScorePerformanceNotationResolution: Equatable {
     let sourceNotationID: MusicXMLPerformanceNotationSourceID?
     let notationKind: MusicXMLPerformanceNotationKind
     let sourceNoteIndices: [Int]
@@ -81,11 +80,11 @@ struct ScorePerformanceNotationResolution: Equatable, Sendable {
     let interpretationProfileID: String
 }
 
-enum ScoreTimingDirectiveKind: String, Codable, Equatable, Sendable {
+enum ScoreTimingDirectiveKind: String, Codable, Equatable {
     case caesuraPause
 }
 
-struct ScoreTimingDirective: Equatable, Sendable {
+struct ScoreTimingDirective: Equatable {
     let kind: ScoreTimingDirectiveKind
     let tick: Int
     let durationTicks: Int
@@ -93,7 +92,7 @@ struct ScoreTimingDirective: Equatable, Sendable {
     let interpretationProfileID: String
 }
 
-struct ScoreTimingSchedule: Equatable, Sendable {
+struct ScoreTimingSchedule: Equatable {
     let entries: [ScoreTimingEntry]
     let directives: [ScoreTimingDirective]
     let generatedNotes: [ScoreGeneratedNoteEvent]

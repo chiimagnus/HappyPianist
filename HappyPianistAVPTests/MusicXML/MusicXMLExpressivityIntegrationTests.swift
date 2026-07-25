@@ -371,7 +371,6 @@ func parserAssignsStableDirectionIdentityAcrossEventKinds() throws {
     #expect(scoreA.wordsEvents.first?.sourceID != sharedID)
 }
 
-
 @Test
 func pedalChangePreservesBothControllerEdgesUnderOneDirectionSource() throws {
     let xml = """
@@ -527,11 +526,10 @@ func ornamentSchedulerGeneratesOnlyFromExplicitPerformanceFacts() throws {
     #expect(tremoloNotes.allSatisfy { $0.midiNote == 67 })
 
     let glissandoNotes = schedule.generatedNotes.filter { $0.notationKind == .glissando }
-    #expect(glissandoNotes.map(\.midiNote) == Array(60..<72))
-    #expect(glissandoNotes.first?.onTick == 1_440)
-    #expect(glissandoNotes.last?.offTick == 1_920)
+    #expect(glissandoNotes.map(\.midiNote) == Array(60 ..< 72))
+    #expect(glissandoNotes.first?.onTick == 1440)
+    #expect(glissandoNotes.last?.offTick == 1920)
 }
-
 
 @Test
 func expressivePianoFixtureLocksSourceNotationTimingAndProvenance() throws {
@@ -548,39 +546,39 @@ func expressivePianoFixtureLocksSourceNotationTimingAndProvenance() throws {
     expectSnapshot(
         expressivePianoSemanticsSnapshot(score: score, schedule: schedule),
         equals: """
-notation|note=4|source=P1:1:1:1:1:4:notation:1|kind=breath-mark|type=null|number=null|placement=null|text=null
-notation|note=6|source=P1:2:2:1:1:0:notation:0|kind=trill-mark|type=null|number=null|placement=null|text=null
-notation|note=6|source=P1:2:2:1:1:0:notation:1|kind=accidental-mark|type=null|number=null|placement=above|text=natural
-notation|note=7|source=P1:2:2:1:1:1:notation:0|kind=trill-mark|type=null|number=null|placement=null|text=null
-notation|note=8|source=P1:2:2:1:1:2:notation:0|kind=tremolo|type=single|number=null|placement=null|text=3
-notation|note=9|source=P1:2:2:1:1:3:notation:0|kind=glissando|type=start|number=1|placement=null|text=null
-notation|note=10|source=P1:3:3:1:1:0:notation:0|kind=glissando|type=stop|number=1|placement=null|text=null
-notation|note=11|source=P1:3:3:1:1:1:notation:0|kind=schleifer|type=null|number=null|placement=null|text=null
-timing|note=0|source=P1:1:1:1:1:0|written=0-0|performed=0-120|policy=graceMakeTime|provenance=score,grace:makeTime
-timing|note=1|source=P1:1:1:1:1:1|written=0-480|performed=120-135|policy=slurLegato|provenance=score,grace:makeTime,notation:slur:P1:1:1:1:1:1:notation:0:generic-score-v1
-timing|note=2|source=P1:1:1:1:1:2|written=0-480|performed=135-150|policy=slurLegato|provenance=score,grace:makeTime,arpeggio:1:up,notation:slur:P1:1:1:1:1:1:notation:0:generic-score-v1
-timing|note=3|source=P1:1:1:1:1:3|written=0-480|performed=150-600|policy=slurLegato|provenance=score,grace:makeTime,arpeggio:1:up,notation:slur:P1:1:1:1:1:1:notation:0:generic-score-v1
-timing|note=4|source=P1:1:1:1:1:4|written=480-960|performed=600-1020|policy=breathGap|provenance=score,grace:makeTime,notation:breath-mark:P1:1:1:1:1:4:notation:1:generic-score-v1
-timing|note=5|source=P1:1:1:1:1:5|written=960-1920|performed=1080-2040|policy=graceMakeTime|provenance=score,grace:makeTime
-timing|note=6|source=P1:2:2:1:1:0|written=1920-2400|performed=2040-2520|policy=graceMakeTime|provenance=score,grace:makeTime
-timing|note=7|source=P1:2:2:1:1:1|written=2400-2880|performed=2520-3000|policy=graceMakeTime|provenance=score,grace:makeTime
-timing|note=8|source=P1:2:2:1:1:2|written=2880-3360|performed=3000-3480|policy=graceMakeTime|provenance=score,grace:makeTime
-timing|note=9|source=P1:2:2:1:1:3|written=3360-3840|performed=3480-3960|policy=graceMakeTime|provenance=score,grace:makeTime
-timing|note=10|source=P1:3:3:1:1:0|written=3840-4320|performed=3960-4440|policy=graceMakeTime|provenance=score,grace:makeTime
-timing|note=11|source=P1:3:3:1:1:1|written=4320-4800|performed=4440-4920|policy=graceMakeTime|provenance=score,grace:makeTime
-timing|note=12|source=P1:3:3:1:1:2|written=4800-5760|performed=4920-5880|policy=graceMakeTime|provenance=score,grace:makeTime
-generated|kind=trill-mark|count=9|pitches=72,74,72,74,72,74,72,74,72|ticks=2040-2520|profile=generic-score-v1
-generated|kind=tremolo|count=8|pitches=67,67,67,67,67,67,67,67|ticks=3000-3480|profile=generic-score-v1
-generated|kind=glissando|count=12|pitches=60,61,62,63,64,65,66,67,68,69,70,71|ticks=3480-3960|profile=generic-score-v1
-resolution|source=P1:2:2:1:1:0:notation:0|kind=trill-mark|notes=6|replaces=6|status=generated
-resolution|source=P1:2:2:1:1:1:notation:0|kind=trill-mark|notes=7|replaces=|status=unsupported:ornament-accidental-unavailable
-resolution|source=P1:2:2:1:1:2:notation:0|kind=tremolo|notes=8|replaces=8|status=generated
-resolution|source=P1:2:2:1:1:3:notation:0|kind=glissando|notes=9,10|replaces=9|status=generated
-resolution|source=P1:3:3:1:1:0:notation:0|kind=glissando|notes=9,10|replaces=|status=generated
-dynamic|ticks=0-480|velocity=50-90|number=1
-tempo-ramp|ticks=1920-3840|bpm=120-90
-unsupported|kind=schleifer|count=1
-"""
+        notation|note=4|source=P1:1:1:1:1:4:notation:1|kind=breath-mark|type=null|number=null|placement=null|text=null
+        notation|note=6|source=P1:2:2:1:1:0:notation:0|kind=trill-mark|type=null|number=null|placement=null|text=null
+        notation|note=6|source=P1:2:2:1:1:0:notation:1|kind=accidental-mark|type=null|number=null|placement=above|text=natural
+        notation|note=7|source=P1:2:2:1:1:1:notation:0|kind=trill-mark|type=null|number=null|placement=null|text=null
+        notation|note=8|source=P1:2:2:1:1:2:notation:0|kind=tremolo|type=single|number=null|placement=null|text=3
+        notation|note=9|source=P1:2:2:1:1:3:notation:0|kind=glissando|type=start|number=1|placement=null|text=null
+        notation|note=10|source=P1:3:3:1:1:0:notation:0|kind=glissando|type=stop|number=1|placement=null|text=null
+        notation|note=11|source=P1:3:3:1:1:1:notation:0|kind=schleifer|type=null|number=null|placement=null|text=null
+        timing|note=0|source=P1:1:1:1:1:0|written=0-0|performed=0-120|policy=graceMakeTime|provenance=score,grace:makeTime
+        timing|note=1|source=P1:1:1:1:1:1|written=0-480|performed=120-135|policy=slurLegato|provenance=score,grace:makeTime,notation:slur:P1:1:1:1:1:1:notation:0:generic-score-v1
+        timing|note=2|source=P1:1:1:1:1:2|written=0-480|performed=135-150|policy=slurLegato|provenance=score,grace:makeTime,arpeggio:1:up,notation:slur:P1:1:1:1:1:1:notation:0:generic-score-v1
+        timing|note=3|source=P1:1:1:1:1:3|written=0-480|performed=150-600|policy=slurLegato|provenance=score,grace:makeTime,arpeggio:1:up,notation:slur:P1:1:1:1:1:1:notation:0:generic-score-v1
+        timing|note=4|source=P1:1:1:1:1:4|written=480-960|performed=600-1020|policy=breathGap|provenance=score,grace:makeTime,notation:breath-mark:P1:1:1:1:1:4:notation:1:generic-score-v1
+        timing|note=5|source=P1:1:1:1:1:5|written=960-1920|performed=1080-2040|policy=graceMakeTime|provenance=score,grace:makeTime
+        timing|note=6|source=P1:2:2:1:1:0|written=1920-2400|performed=2040-2520|policy=graceMakeTime|provenance=score,grace:makeTime
+        timing|note=7|source=P1:2:2:1:1:1|written=2400-2880|performed=2520-3000|policy=graceMakeTime|provenance=score,grace:makeTime
+        timing|note=8|source=P1:2:2:1:1:2|written=2880-3360|performed=3000-3480|policy=graceMakeTime|provenance=score,grace:makeTime
+        timing|note=9|source=P1:2:2:1:1:3|written=3360-3840|performed=3480-3960|policy=graceMakeTime|provenance=score,grace:makeTime
+        timing|note=10|source=P1:3:3:1:1:0|written=3840-4320|performed=3960-4440|policy=graceMakeTime|provenance=score,grace:makeTime
+        timing|note=11|source=P1:3:3:1:1:1|written=4320-4800|performed=4440-4920|policy=graceMakeTime|provenance=score,grace:makeTime
+        timing|note=12|source=P1:3:3:1:1:2|written=4800-5760|performed=4920-5880|policy=graceMakeTime|provenance=score,grace:makeTime
+        generated|kind=trill-mark|count=9|pitches=72,74,72,74,72,74,72,74,72|ticks=2040-2520|profile=generic-score-v1
+        generated|kind=tremolo|count=8|pitches=67,67,67,67,67,67,67,67|ticks=3000-3480|profile=generic-score-v1
+        generated|kind=glissando|count=12|pitches=60,61,62,63,64,65,66,67,68,69,70,71|ticks=3480-3960|profile=generic-score-v1
+        resolution|source=P1:2:2:1:1:0:notation:0|kind=trill-mark|notes=6|replaces=6|status=generated
+        resolution|source=P1:2:2:1:1:1:notation:0|kind=trill-mark|notes=7|replaces=|status=unsupported:ornament-accidental-unavailable
+        resolution|source=P1:2:2:1:1:2:notation:0|kind=tremolo|notes=8|replaces=8|status=generated
+        resolution|source=P1:2:2:1:1:3:notation:0|kind=glissando|notes=9,10|replaces=9|status=generated
+        resolution|source=P1:3:3:1:1:0:notation:0|kind=glissando|notes=9,10|replaces=|status=generated
+        dynamic|ticks=0-480|velocity=50-90|number=1
+        tempo-ramp|ticks=1920-3840|bpm=120-90
+        unsupported|kind=schleifer|count=1
+        """
     )
 }
 

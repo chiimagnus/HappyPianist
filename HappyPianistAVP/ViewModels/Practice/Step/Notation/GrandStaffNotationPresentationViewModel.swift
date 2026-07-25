@@ -111,5 +111,4 @@ struct GrandStaffNotationPresentationViewModel {
             maxBassStep: maxBassStep
         )
     }
-
 }

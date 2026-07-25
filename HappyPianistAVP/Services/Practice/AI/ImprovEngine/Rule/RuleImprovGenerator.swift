@@ -410,7 +410,7 @@ public struct RuleImprovGenerator: Sendable {
         let quality = ImprovQualityRubric().assess(
             qualityResponse,
             context: .init(
-                allowedPitchClasses: Set(measureScales.flatMap { $0 } + measureChordPCs.flatMap { $0 }),
+                allowedPitchClasses: Set(measureScales.flatMap(\.self) + measureChordPCs.flatMap(\.self)),
                 cadencePitchClasses: Set(measureChordPCs.last ?? chordPitchClasses)
             ),
             voicePairs: voicePairs
@@ -421,7 +421,7 @@ public struct RuleImprovGenerator: Sendable {
                 timings: [:],
                 debug: [
                     "quality.band": quality.band.rawValue,
-                    "quality.reasons": quality.reasons.map(\.rawValue).joined(separator: ",")
+                    "quality.reasons": quality.reasons.map(\.rawValue).joined(separator: ","),
                 ]
             )
         }

@@ -148,7 +148,7 @@ func takeStoreRejectsAbsolutePathsAndRawScoreMetadata() throws {
     } catch let error as RecordingTakeCodingError {
         #expect(error == .unsafeMetadata(field: "calibrationVersion"))
     }
-    #expect(fileManager.fileExists(atPath: try paths.takesFileURL().path()) == false)
+    #expect(try fileManager.fileExists(atPath: paths.takesFileURL().path()) == false)
 }
 
 @Test

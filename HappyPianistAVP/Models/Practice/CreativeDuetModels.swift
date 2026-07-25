@@ -4,7 +4,7 @@ import Foundation
 ///
 /// This deliberately contains no `ScorePerformancePlan`, reference performance,
 /// assessment target, or teacher fact. It is only the user's observable input.
-struct CreativeDuetPhrase: Equatable, Sendable {
+struct CreativeDuetPhrase: Equatable {
     let events: [ImprovEvent]
     let provenance: CreativeDuetPhraseProvenance
 
@@ -21,9 +21,9 @@ struct CreativeDuetPhrase: Equatable, Sendable {
     }
 }
 
-struct CreativeDuetPhraseProvenance: Equatable, Sendable {
-    struct Observation: Equatable, Sendable {
-        enum SustainObservation: Equatable, Sendable {
+struct CreativeDuetPhraseProvenance: Equatable {
+    struct Observation: Equatable {
+        enum SustainObservation: Equatable {
             case observed
             case notObserved
         }
@@ -61,7 +61,7 @@ struct CreativeDuetPhraseProvenance: Equatable, Sendable {
 }
 
 /// Identifies one cancellable creative generation, never a score-derived target.
-struct CreativeDuetGeneration: Equatable, Sendable {
+struct CreativeDuetGeneration: Equatable {
     let requestID: Int
     let activationID: Int
     let seed: UInt64
@@ -69,13 +69,13 @@ struct CreativeDuetGeneration: Equatable, Sendable {
     let parameters: ImprovGenerateParams
 }
 
-struct CreativeDuetResponse: Equatable, Sendable {
+struct CreativeDuetResponse: Equatable {
     let schedule: [PracticeSequencerMIDIEvent]
     let provider: ImprovBackendKind
     let generation: CreativeDuetGeneration
     let provenance: CreativeDuetResponseProvenance
 }
 
-enum CreativeDuetResponseProvenance: Equatable, Sendable {
+enum CreativeDuetResponseProvenance: Equatable {
     case backendGenerated(latencyMS: Int?)
 }

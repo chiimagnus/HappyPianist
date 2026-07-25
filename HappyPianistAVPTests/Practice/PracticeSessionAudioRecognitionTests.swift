@@ -62,7 +62,8 @@ func guidingStartsAudioRecognitionService() async {
     viewModel.installTestPerformanceNotes(
         [
             TestScorePerformanceNote(midiNote: 60, onTick: 0),
-        ])
+        ]
+    )
 
     viewModel.startGuidingIfReady()
     await settleTaskQueue()
@@ -80,7 +81,8 @@ func switchingStepUpdatesGenerationAndExpectedNotes() async {
         [
             TestScorePerformanceNote(midiNote: 60, onTick: 0),
             TestScorePerformanceNote(midiNote: 64, onTick: 10),
-        ])
+        ]
+    )
 
     viewModel.startGuidingIfReady()
     await settleTaskQueue()
@@ -102,7 +104,8 @@ func staleGenerationEventDoesNotAdvanceStep() async {
         [
             TestScorePerformanceNote(midiNote: 60, onTick: 0),
             TestScorePerformanceNote(midiNote: 64, onTick: 10),
-        ])
+        ]
+    )
 
     viewModel.startGuidingIfReady()
     await settleTaskQueue()
@@ -132,7 +135,8 @@ func matchingAudioEventAdvancesStep() async {
         [
             TestScorePerformanceNote(midiNote: 60, onTick: 0),
             TestScorePerformanceNote(midiNote: 64, onTick: 10),
-        ])
+        ]
+    )
 
     viewModel.startGuidingIfReady()
     await settleTaskQueue()
@@ -265,7 +269,8 @@ func permissionFailureStatusDoesNotAdvanceAndSetsError() async {
         [
             TestScorePerformanceNote(midiNote: 60, onTick: 0),
             TestScorePerformanceNote(midiNote: 64, onTick: 10),
-        ])
+        ]
+    )
 
     viewModel.startGuidingIfReady()
     await settleTaskQueue()
@@ -343,7 +348,8 @@ func startGuidingPassesPlaybackSuppressDeadlineIntoAudioServiceStart() async {
     viewModel.installTestPerformanceNotes(
         [
             TestScorePerformanceNote(midiNote: 60, onTick: 0),
-        ])
+        ]
+    )
 
     viewModel.startGuidingIfReady()
     await settleTaskQueue()
@@ -366,7 +372,8 @@ func microphonePermissionFailureDoesNotBlockPlaybackFallback() async {
     viewModel.installTestPerformanceNotes(
         [
             TestScorePerformanceNote(midiNote: 60, onTick: 0),
-        ])
+        ]
+    )
 
     viewModel.startGuidingIfReady()
     await settleTaskQueue()

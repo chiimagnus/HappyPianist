@@ -157,12 +157,11 @@ private func assertFullTimelineContract(_ performance: CorpusPerformance) throws
         )
     })
     let expectedNotes = transport.commands.map { command in
-        let kind: ExpectedTimelineEventKind
-        switch command.kind {
+        let kind: ExpectedTimelineEventKind = switch command.kind {
         case let .noteOn(velocity):
-            kind = .noteOn(midi: command.midiNote, velocity: velocity)
+            .noteOn(midi: command.midiNote, velocity: velocity)
         case .noteOff:
-            kind = .noteOff(midi: command.midiNote)
+            .noteOff(midi: command.midiNote)
         }
         return ExpectedTimelineEvent(
             sourceEventID: command.eventID.description,
@@ -296,7 +295,7 @@ private func makeActiveRange(for performance: CorpusPerformance) throws -> Pract
 }
 
 private func isHighRiskFixture(_ fixture: PianoPerformanceCorpusFixture) -> Bool {
-    let highRiskTags: Set<String> = [
+    let highRiskTags: Set = [
         "autoplay", "fermata", "held-note", "measure-identity", "pedal", "polyphony", "range-start",
         "repeat", "repeats", "repedal", "retrigger", "sustain-latched-note", "tempo", "unison",
     ]

@@ -251,7 +251,7 @@ func commonPianoMarksKeepSourcePlacementAndUseCollisionAwareLayout() throws {
         sourceMeasureNumberToken: sourceFirstMeasure.sourceMeasureNumberToken,
         occurrenceIndex: 7,
         startTick: 960,
-        endTick: 1_440
+        endTick: 1440
     ))
     performedScore.repeatDirectives = []
     performedScore.endingDirectives = []
@@ -260,7 +260,7 @@ func commonPianoMarksKeepSourcePlacementAndUseCollisionAwareLayout() throws {
         sourceScore: score,
         performedScore: performedScore
     )
-    #expect(repeatedProjection.marks.filter { $0.kind == .repeatBackward }.map(\.tick) == [480, 1_440])
+    #expect(repeatedProjection.marks.filter { $0.kind == .repeatBackward }.map(\.tick) == [480, 1440])
     #expect(repeatedProjection.marks.filter { $0.kind == .endingStart }.map(\.tick) == [0, 960])
 }
 
@@ -372,7 +372,7 @@ func projectionLayoutUsesWrittenDurationAndAccidentalInsteadOfPerformanceOrMidi(
 }
 
 @Test
-func projectionResolvesKeyAndMeasureAccidentalStateWithoutLosingPitchTransforms() throws {
+func projectionResolvesKeyAndMeasureAccidentalStateWithoutLosingPitchTransforms() {
     let score = accidentalStateScore()
     let projection = ScoreNotationProjection(
         plan: makeTestScorePerformancePlan(from: score),
@@ -419,7 +419,7 @@ func projectionLayoutKeepsEveryWrittenTieContributor() throws {
     )
     let items = layout.items
     #expect(items.map(\.tick) == [0, 480])
-    #expect(items.allSatisfy { $0.isHighlighted })
+    #expect(items.allSatisfy(\.isHighlighted))
     let tie = try #require(layout.ties.first)
     #expect(layout.ties.count == 1)
     #expect(tie.startOccurrenceID == items[0].occurrenceID)
@@ -558,10 +558,10 @@ func layoutUsesOneArpeggioMarkAcrossGrandStaffStaves() throws {
         return false
     })
 
-    #expect(layout.marks.filter { mark in
+    #expect(layout.marks.count(where: { mark in
         if case .arpeggio = mark.kind { return true }
         return false
-    }.count == 1)
+    }) == 1)
     #expect(arpeggio.minimumStaffNumber == 2)
     #expect(arpeggio.maximumStaffNumber == 1)
     #expect(arpeggio.minimumStaffStep != nil)
@@ -633,7 +633,7 @@ func unsupportedNotationUsesNeutralFallbacksWithoutChangingPerformanceFacts() th
             && $0.placeholderPolicy == .reserveRhythmicSpace
     })
     #expect(projection.fallbacks.contains { $0.kind == .beam && $0.reason == .unsupportedBeamValue })
-    #expect(projection.fallbacks.filter { $0.kind == .mark }.count == 2)
+    #expect(projection.fallbacks.count(where: { $0.kind == .mark }) == 2)
 
     let microtonal = try #require(layout.items.first { $0.tick == 0 })
     let neutralNotehead = try #require(layout.items.first { $0.tick == 240 })
@@ -732,7 +732,7 @@ func parserAndProjectionPreserveUnsupportedNoteheadAndPerformanceNotationIdentit
 }
 
 @Test
-func spannersKeepNestedLevelsAndViewportContinuationSeparateByKind() throws {
+func spannersKeepNestedLevelsAndViewportContinuationSeparateByKind() {
     let score = notationRestAndSpannerScore()
     let layout = GrandStaffNotationLayoutService().makeLayout(
         projection: ScoreNotationProjection(
@@ -988,14 +988,14 @@ private func notationRhythmEvent(
     MusicXMLNoteEvent(
         sourceID: MusicXMLSourceNoteID(
             partID: "P1",
-            sourceMeasureIndex: tick / 1_920,
-            sourceMeasureNumberToken: String(tick / 1_920 + 1),
+            sourceMeasureIndex: tick / 1920,
+            sourceMeasureNumberToken: String(tick / 1920 + 1),
             staff: 1,
             voice: 1,
             sourceOrdinal: ordinal
         ),
         partID: "P1",
-        measureNumber: tick / 1_920 + 1,
+        measureNumber: tick / 1920 + 1,
         tick: tick,
         durationTicks: duration,
         writtenPitch: isRest ? nil : .init(step: ["C", "D", "E", "F", "G"][ordinal % 5], octave: 4),

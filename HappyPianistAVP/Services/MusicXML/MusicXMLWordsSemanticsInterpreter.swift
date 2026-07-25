@@ -1,6 +1,6 @@
 import Foundation
 
-enum MusicXMLTempoWordKind: String, Equatable, Sendable {
+enum MusicXMLTempoWordKind: String, Equatable {
     case ritardando
     case rallentando
     case accelerando
@@ -11,14 +11,14 @@ enum MusicXMLTempoWordKind: String, Equatable, Sendable {
     case menoMosso
 }
 
-enum MusicXMLTempoWordResolution: Equatable, Sendable {
+enum MusicXMLTempoWordResolution: Equatable {
     case tempoRamp
     case tempoEvent
     case explicitEventAtMarker
     case approximation(reason: String)
 }
 
-struct MusicXMLTempoWordAnnotation: Equatable, Sendable {
+struct MusicXMLTempoWordAnnotation: Equatable {
     let sourceID: MusicXMLDirectionSourceID?
     let performedOccurrenceIndex: Int
     let tick: Int
@@ -422,11 +422,12 @@ private extension MusicXMLWordsSemanticsInterpreter {
             tempoEvents: explicitTempoEvents,
             partID: scope.partID
         ),
-        let endEvent = nextExplicitTempo(
-            afterTick: startTick,
-            tempoEvents: explicitTempoEvents,
-            partID: scope.partID
-        ) else {
+            let endEvent = nextExplicitTempo(
+                afterTick: startTick,
+                tempoEvents: explicitTempoEvents,
+                partID: scope.partID
+            )
+        else {
             return nil
         }
 

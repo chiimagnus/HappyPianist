@@ -1,6 +1,6 @@
 import Foundation
 
-struct MusicXMLDirectionOffsetResolver: Sendable {
+struct MusicXMLDirectionOffsetResolver {
     let ticksPerQuarter: Int
 
     init(ticksPerQuarter: Int = 480) {

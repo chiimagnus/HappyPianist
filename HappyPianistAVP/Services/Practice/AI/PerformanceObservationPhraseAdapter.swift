@@ -3,8 +3,8 @@ import Foundation
 /// Converts the app's canonical, capability-aware observation into the subset
 /// that an AI creative-duet prompt can represent.
 struct PerformanceObservationPhraseAdapter {
-    struct PhraseEvent: Equatable, Sendable {
-        enum Kind: Equatable, Sendable {
+    struct PhraseEvent: Equatable {
+        enum Kind: Equatable {
             case noteOn(midi: Int, velocity: Int?)
             case noteOff(midi: Int)
             case controlChange(controller: Int, value: Int)

@@ -1,7 +1,7 @@
 import Foundation
 
 struct PerformanceTransportReducer {
-    struct TransportState: Equatable, Sendable {
+    struct TransportState: Equatable {
         let generation: Int
         let startTick: Int?
         let activeEventIDs: Set<ScorePerformanceNoteEventID>
@@ -17,14 +17,14 @@ struct PerformanceTransportReducer {
         )
     }
 
-    enum ResetReason: Equatable, Sendable {
+    enum ResetReason: Equatable {
         case seek
         case loop
         case end
         case stop
     }
 
-    enum Boundary: Equatable, Sendable {
+    enum Boundary: Equatable {
         case start(tick: Int, activeEventIDs: Set<ScorePerformanceNoteEventID>)
         case seek(tick: Int, activeEventIDs: Set<ScorePerformanceNoteEventID>)
         case loop(tick: Int, activeEventIDs: Set<ScorePerformanceNoteEventID>)
@@ -32,7 +32,7 @@ struct PerformanceTransportReducer {
         case stop
     }
 
-    enum LifecycleCommand: Equatable, Sendable {
+    enum LifecycleCommand: Equatable {
         case reset(
             eventIDs: [ScorePerformanceNoteEventID],
             transportCommands: [PerformanceTransportCommand],
@@ -46,12 +46,12 @@ struct PerformanceTransportReducer {
         )
     }
 
-    struct Transition: Equatable, Sendable {
+    struct Transition: Equatable {
         let state: TransportState
         let commands: [LifecycleCommand]
     }
 
-    struct Note: Equatable, Sendable {
+    struct Note: Equatable {
         let eventID: ScorePerformanceNoteEventID
         let midiNote: Int
         let velocity: UInt8
@@ -59,8 +59,8 @@ struct PerformanceTransportReducer {
         let offTick: Int
     }
 
-    struct Command: Equatable, Sendable {
-        enum Kind: Equatable, Sendable {
+    struct Command: Equatable {
+        enum Kind: Equatable {
             case noteOff
             case noteOn(velocity: UInt8)
         }
@@ -71,7 +71,7 @@ struct PerformanceTransportReducer {
         let kind: Kind
     }
 
-    struct Reduction: Equatable, Sendable {
+    struct Reduction: Equatable {
         let commands: [Command]
         let retriggeredEventCount: Int
         let preventedStaleOffCount: Int

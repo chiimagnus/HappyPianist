@@ -1,6 +1,6 @@
 import Foundation
 
-enum MusicalIssueKind: String, CaseIterable, Equatable, Hashable, Sendable {
+enum MusicalIssueKind: String, CaseIterable, Equatable, Hashable {
     case pitch
     case onset
     case chordSpread
@@ -14,13 +14,13 @@ enum MusicalIssueKind: String, CaseIterable, Equatable, Hashable, Sendable {
     case evidence
 }
 
-struct MusicalIssueProvenance: Equatable, Sendable {
+struct MusicalIssueProvenance: Equatable {
     let planID: ScorePerformancePlanID
     let sourceGeneration: UInt64
     let rubricVersion: PerformanceAssessmentRubricVersion
 }
 
-struct MusicalIssue: Equatable, Sendable {
+struct MusicalIssue: Equatable {
     let kind: MusicalIssueKind
     let scoreRange: Range<Int>
     let measureOccurrenceIDs: [PracticeMeasureOccurrenceID]

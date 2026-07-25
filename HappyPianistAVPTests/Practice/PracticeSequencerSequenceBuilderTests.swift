@@ -81,7 +81,7 @@ func sequenceBuilderConsumesControllerStateProjectedAtStartTick() {
         startTick: 480
     )
 
-    #expect(schedule.filter { $0.kind == .controlChange(controller: 64, value: 127) }.count == 1)
+    #expect(schedule.count(where: { $0.kind == .controlChange(controller: 64, value: 127) }) == 1)
 }
 
 @Test

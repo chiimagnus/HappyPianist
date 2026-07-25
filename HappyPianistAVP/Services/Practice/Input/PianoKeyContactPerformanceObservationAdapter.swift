@@ -1,6 +1,6 @@
 import Foundation
 
-struct PianoKeyContactPerformanceObservationAdapter: Sendable {
+struct PianoKeyContactPerformanceObservationAdapter {
     func observation(
         from contact: PianoKeyContactObservation,
         sourceKind: PerformanceObservation.Source.Kind,

@@ -2,8 +2,8 @@ import CoreGraphics
 import CoreText
 import CryptoKit
 import Foundation
-import SwiftUI
 @testable import HappyPianistAVP
+import SwiftUI
 import Testing
 
 @MainActor

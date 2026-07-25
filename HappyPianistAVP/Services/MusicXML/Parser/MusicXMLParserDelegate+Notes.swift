@@ -96,7 +96,6 @@ extension MusicXMLParserDelegate {
         return ticks > 0 ? ticks : nil
     }
 
-
     func recordPerformanceNotation(elementName: String, attributes: [String: String]) {
         guard state.isInNote else { return }
         let rawElementToken = elementName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -398,6 +397,6 @@ extension MusicXMLParserDelegate {
         ]
         guard let base = stepBase[pitch.step] else { return nil }
         let value = (pitch.octave + 1) * 12 + base + Int(roundedAlter)
-        return (0...127).contains(value) ? value : nil
+        return (0 ... 127).contains(value) ? value : nil
     }
 }

@@ -1,6 +1,6 @@
 import Foundation
 
-enum CoachingActionKind: String, CaseIterable, Equatable, Hashable, Sendable {
+enum CoachingActionKind: String, CaseIterable, Equatable, Hashable {
     case pitchAccuracy
     case onsetAlignment
     case chordSynchronization
@@ -14,18 +14,18 @@ enum CoachingActionKind: String, CaseIterable, Equatable, Hashable, Sendable {
     case evidenceCheck
 }
 
-struct CoachingVoiceFocus: Equatable, Hashable, Sendable {
+struct CoachingVoiceFocus: Equatable, Hashable {
     let partID: String
     let staff: Int
     let voice: Int
 }
 
-enum CoachingReferenceUse: String, Equatable, Hashable, Sendable {
+enum CoachingReferenceUse: String, Equatable, Hashable {
     case score
     case manualReplay
 }
 
-enum CoachingCompletionTarget: Equatable, Sendable {
+enum CoachingCompletionTarget: Equatable {
     case dimensionOutcome(
         dimension: PerformanceAssessmentDimension,
         outcome: PracticeEvidenceOutcome
@@ -33,15 +33,11 @@ enum CoachingCompletionTarget: Equatable, Sendable {
     case evidenceAvailable(dimension: PerformanceAssessmentDimension)
 }
 
-struct CoachingCompletionCondition: Equatable, Sendable {
+struct CoachingCompletionCondition: Equatable {
     let target: CoachingCompletionTarget
-
-    init(target: CoachingCompletionTarget) {
-        self.target = target
-    }
 }
 
-struct CoachingAction: Equatable, Sendable {
+struct CoachingAction: Equatable {
     let kind: CoachingActionKind
     let scoreRange: Range<Int>
     let tempoRatio: Double?

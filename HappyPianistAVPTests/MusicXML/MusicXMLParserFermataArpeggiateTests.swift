@@ -143,7 +143,6 @@ struct MusicXMLParserFermataArpeggiateTests {
             arpeggiate: MusicXMLArpeggiate(numberToken: number, directionToken: direction)
         )
     }
-
 }
 
 @Test

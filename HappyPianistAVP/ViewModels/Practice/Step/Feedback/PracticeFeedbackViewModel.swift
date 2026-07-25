@@ -39,5 +39,4 @@ final class PracticeFeedbackViewModel {
         cue = nil
         coachingPresentation = nil
     }
-
 }

@@ -60,6 +60,7 @@ private final class FakeSequencerPlaybackService: PracticeSequencerPlaybackServi
     func execute(commands: [PracticePlaybackCommand]) throws {
         self.commands.append(commands)
     }
+
     func execute(liveNoteEvents: [PracticeLiveNoteEvent]) throws {
         self.liveNoteEvents.append(liveNoteEvents)
     }
@@ -110,8 +111,8 @@ private func replaySyntheticTrace(
     var observations: [PianoKeyContactObservation] = []
 
     for frame in trace.frames {
-        _ = controller.handleFingerTips(
-            try frame.snapshot(keyboardGeometry: keyboardGeometry),
+        _ = try controller.handleFingerTips(
+            frame.snapshot(keyboardGeometry: keyboardGeometry),
             keyboardGeometry: keyboardGeometry,
             at: .init(seconds: frame.seconds),
             practiceHandMode: .both
@@ -122,7 +123,7 @@ private func replaySyntheticTrace(
 
     return SyntheticTraceReplayResult(
         observations: observations,
-        events: sequencer.liveNoteEvents.flatMap { $0 }
+        events: sequencer.liveNoteEvents.flatMap(\.self)
     )
 }
 

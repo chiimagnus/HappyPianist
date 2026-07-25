@@ -7,7 +7,6 @@ struct MusicXMLSoundEventStartIndices {
 }
 
 struct MusicXMLParserDelegateState {
-
     struct PendingPerformanceNotation {
         let sourceOrdinal: Int
         let kind: MusicXMLPerformanceNotationKind

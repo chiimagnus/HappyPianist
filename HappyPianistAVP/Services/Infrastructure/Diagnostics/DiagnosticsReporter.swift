@@ -23,6 +23,7 @@ extension DiagnosticsReporting {
     func recordSystem(_ event: DiagnosticEvent) {
         Task { _ = await record(event) }
     }
+
     func recordSystem(
         severity: DiagnosticSeverity,
         category: DiagnosticCategory,

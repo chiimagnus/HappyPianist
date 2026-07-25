@@ -1,6 +1,6 @@
 import Foundation
 
-struct MusicXMLFingeringSourceID: Codable, Equatable, Hashable, Sendable, CustomStringConvertible {
+struct MusicXMLFingeringSourceID: Codable, Equatable, Hashable, CustomStringConvertible {
     let sourceNoteID: MusicXMLSourceNoteID
     let sourceOrdinal: Int
 
@@ -9,7 +9,7 @@ struct MusicXMLFingeringSourceID: Codable, Equatable, Hashable, Sendable, Custom
     }
 }
 
-enum MusicXMLFingeringOption: Codable, Equatable, Hashable, Sendable {
+enum MusicXMLFingeringOption: Codable, Equatable, Hashable {
     case unspecified
     case enabled
     case disabled
@@ -26,7 +26,7 @@ enum MusicXMLFingeringOption: Codable, Equatable, Hashable, Sendable {
     }
 }
 
-enum MusicXMLFingeringHand: Codable, Equatable, Hashable, Sendable {
+enum MusicXMLFingeringHand: Codable, Equatable, Hashable {
     case unspecified
     case left
     case right
@@ -43,13 +43,13 @@ enum MusicXMLFingeringHand: Codable, Equatable, Hashable, Sendable {
     }
 }
 
-enum MusicXMLFingeringProvenance: String, Codable, Equatable, Hashable, Sendable {
+enum MusicXMLFingeringProvenance: String, Codable, Equatable, Hashable {
     case score
     case teacher
     case user
 }
 
-struct MusicXMLFingering: Codable, Equatable, Hashable, Sendable {
+struct MusicXMLFingering: Codable, Equatable, Hashable {
     let sourceID: MusicXMLFingeringSourceID?
     let text: String
     let substitution: MusicXMLFingeringOption
@@ -78,7 +78,7 @@ struct MusicXMLFingering: Codable, Equatable, Hashable, Sendable {
     }
 }
 
-extension Collection where Element == MusicXMLFingering {
+extension Collection<MusicXMLFingering> {
     var fingeringDisplayText: String? {
         let values = map(\.text).filter { $0.isEmpty == false }
         return values.isEmpty ? nil : values.joined(separator: "–")

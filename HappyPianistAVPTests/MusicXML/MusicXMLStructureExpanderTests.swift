@@ -220,7 +220,7 @@ func structureExpanderSelectsCommaSeparatedAndThirdEndingsByRepeatPass() throws 
 
     #expect(result.approximationReason == nil)
     #expect(result.score.notes.compactMap(\.midiNote) == [60, 62, 60, 62, 60, 64, 65])
-    #expect(result.score.pedalEvents.map(\.tick) == [2_400])
+    #expect(result.score.pedalEvents.map(\.tick) == [2400])
 }
 
 @Test

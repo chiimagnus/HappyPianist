@@ -2,12 +2,12 @@ import CoreMIDI
 import Darwin
 import Foundation
 
-struct MIDIHostTimeOrigin: Equatable, Sendable {
+struct MIDIHostTimeOrigin: Equatable {
     let transportSeconds: TimeInterval
     let hostTime: MIDITimeStamp
 }
 
-struct MIDIHostTimeConverter: Sendable {
+struct MIDIHostTimeConverter {
     private let currentHostTime: @Sendable () -> MIDITimeStamp
     private let hostTicksPerSecond: Double
 

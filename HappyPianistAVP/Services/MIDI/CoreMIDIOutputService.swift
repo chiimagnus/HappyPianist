@@ -30,7 +30,7 @@ extension MIDIOutputSendingProtocol {
     }
 }
 
-struct TimestampedMIDI1Message: Equatable, Sendable {
+struct TimestampedMIDI1Message: Equatable {
     let hostTime: MIDITimeStamp
     let bytes: [UInt8]
 }

@@ -2,7 +2,7 @@ import AudioToolbox
 import AVFAudio
 import Foundation
 
-struct PracticeSequencerSequence: Sendable {
+struct PracticeSequencerSequence {
     let midiData: Data
     let durationSeconds: TimeInterval
     let events: [PracticeSequencerMIDIEvent]
@@ -21,13 +21,13 @@ struct PracticeSequencerSequence: Sendable {
     }
 }
 
-struct PracticePlaybackCommand: Equatable, Sendable {
+struct PracticePlaybackCommand: Equatable {
     let sourceEventID: String
     let kind: PracticeSequencerMIDIEvent.Kind
 }
 
-struct PracticeLiveNoteEvent: Equatable, Sendable {
-    enum Phase: Equatable, Sendable {
+struct PracticeLiveNoteEvent: Equatable {
+    enum Phase: Equatable {
         case noteOn(velocity: UInt8)
         case noteOff
     }
@@ -88,7 +88,7 @@ struct PracticeAudioGraph {
     }
 }
 
-struct PracticeAudioPlatformOperations: Sendable {
+struct PracticeAudioPlatformOperations {
     let makeAudioGraph: @Sendable () -> PracticeAudioGraph
     let resolveSoundFontURL: @Sendable (String) -> URL?
     let configureAudioSession: @Sendable () throws -> Void
@@ -144,7 +144,7 @@ struct PracticeAudioPlatformOperations: Sendable {
     )
 }
 
-enum PracticeAudioSessionEvent: Equatable, Sendable {
+enum PracticeAudioSessionEvent: Equatable {
     case interruptionBegan(reason: PianoPerformanceAudioLifecycleReason)
     case interruptionEnded(shouldResume: Bool)
     case routeChanged(reason: PianoPerformanceAudioLifecycleReason)
@@ -213,7 +213,9 @@ actor AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackServiceP
     isolated deinit {
         volumeObservationTask?.cancel()
         oneShotStopTask?.cancel()
-        for task in audioSessionEventTasks { task.cancel() }
+        for task in audioSessionEventTasks {
+            task.cancel()
+        }
         platform.stopSequence(sequencer)
         if isReady {
             let resetCommands = PerformanceTransportReducer.fullResetCommands
@@ -468,18 +470,15 @@ actor AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackServiceP
                 case .oneShot:
                     oneShotNoteBySourceEventID[command.sourceEventID] = note
                 }
-
             case let .noteOff(midi):
-                let trackedNote: UInt8?
-                switch tracking {
+                let trackedNote: UInt8? = switch tracking {
                 case .live:
-                    trackedNote = liveNoteBySourceEventID.removeValue(forKey: command.sourceEventID)
+                    liveNoteBySourceEventID.removeValue(forKey: command.sourceEventID)
                 case .oneShot:
-                    trackedNote = oneShotNoteBySourceEventID.removeValue(forKey: command.sourceEventID)
+                    oneShotNoteBySourceEventID.removeValue(forKey: command.sourceEventID)
                 }
                 guard let note = trackedNote ?? UInt8(exactly: midi) else { continue }
                 sampler.stopNote(note, onChannel: channel)
-
             case let .controlChange(controller, value):
                 let resolution = PerformanceOutputCapabilities.localSampler.resolve(
                     controllerNumber: controller,

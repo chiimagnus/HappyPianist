@@ -1,6 +1,6 @@
 import Foundation
 
-struct PerformanceAssessmentRubric: Sendable {
+struct PerformanceAssessmentRubric {
     let version = PerformanceAssessmentRubricVersion.capabilityAware
     private let targetProfile: PerformanceTargetProfile
 

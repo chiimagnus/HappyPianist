@@ -13,7 +13,8 @@ func guidingStartBlockIsEnforcedAtSessionBoundary() {
         sleeper: TaskSleeper()
     )
     viewModel.installTestPerformanceNotes(
-        [TestScorePerformanceNote(midiNote: 60, onTick: 0)])
+        [TestScorePerformanceNote(midiNote: 60, onTick: 0)]
+    )
     viewModel.setGuidingStartBlocked(true)
 
     viewModel.startGuidingIfReady()
@@ -204,7 +205,8 @@ func markCorrectSchedulesFeedbackResetWithExpectedDuration() async {
     viewModel.installTestPerformanceNotes(
         [
             TestScorePerformanceNote(midiNote: 60, onTick: 0),
-        ])
+        ]
+    )
     viewModel.startGuidingIfReady()
     viewModel.applyKeyboardGeometry(
         makeDummyKeyboardGeometry(),
@@ -238,7 +240,8 @@ func secondFeedbackCancelsPreviousResetTaskDeterministically() async {
         [
             TestScorePerformanceNote(midiNote: 60, onTick: 0),
             TestScorePerformanceNote(midiNote: 60, onTick: 1),
-        ])
+        ]
+    )
     viewModel.startGuidingIfReady()
     viewModel.applyKeyboardGeometry(
         makeDummyKeyboardGeometry(),
@@ -269,7 +272,8 @@ func feedbackResetsToNoneAfterSleeperResumes() async {
     viewModel.installTestPerformanceNotes(
         [
             TestScorePerformanceNote(midiNote: 60, onTick: 0),
-        ])
+        ]
+    )
     viewModel.startGuidingIfReady()
     viewModel.applyKeyboardGeometry(
         makeDummyKeyboardGeometry(),
@@ -293,7 +297,8 @@ func stepsOnlyGuidingStartsWithoutCalibration() {
     viewModel.installTestPerformanceNotes(
         [
             TestScorePerformanceNote(midiNote: 60, onTick: 0),
-        ])
+        ]
+    )
     viewModel.startGuidingIfReady()
 
     #expect(viewModel.currentStep != nil)
@@ -312,7 +317,8 @@ func skipAdvancesAndCompletesInStepsOnlyMode() {
         [
             TestScorePerformanceNote(midiNote: 60, onTick: 0),
             TestScorePerformanceNote(midiNote: 62, onTick: 1),
-        ])
+        ]
+    )
     viewModel.startGuidingIfReady()
 
     viewModel.skip()
@@ -336,7 +342,8 @@ func handleFingerTipPositionsIsNoopWithoutKeyboardGeometry() {
     viewModel.installTestPerformanceNotes(
         [
             TestScorePerformanceNote(midiNote: 60, onTick: 0),
-        ])
+        ]
+    )
     viewModel.startGuidingIfReady()
 
     let detected = viewModel.handleFingerTipPositions(FingerTipsSnapshot.empty)
@@ -356,7 +363,8 @@ func applyingCalibrationDoesNotResetProgress() {
         [
             TestScorePerformanceNote(midiNote: 60, onTick: 0),
             TestScorePerformanceNote(midiNote: 62, onTick: 1),
-        ])
+        ]
+    )
     viewModel.startGuidingIfReady()
     viewModel.skip()
     #expect(viewModel.currentStepIndex == 1)
@@ -428,7 +436,8 @@ func guidingStartRecordsAudioErrorWhenAudioPlayerThrows() async {
     viewModel.installTestPerformanceNotes(
         [
             TestScorePerformanceNote(midiNote: 60, onTick: 0),
-        ])
+        ]
+    )
     viewModel.startGuidingIfReady()
     await settleTaskQueue()
 
@@ -449,7 +458,8 @@ func advancingAutoPlaysNextStepSound() async {
         [
             TestScorePerformanceNote(midiNote: 60, onTick: 0),
             TestScorePerformanceNote(midiNote: 62, onTick: 1),
-        ])
+        ]
+    )
     viewModel.startGuidingIfReady()
     viewModel.skip()
     await settleTaskQueue()
@@ -863,7 +873,8 @@ func autoplayDoesNotAdvanceOnMatch() async {
         [
             TestScorePerformanceNote(midiNote: 60, onTick: 0),
             TestScorePerformanceNote(midiNote: 62, onTick: 480),
-        ])
+        ]
+    )
     viewModel.setAutoplayEnabled(true)
     viewModel.applyKeyboardGeometry(
         makeDummyKeyboardGeometry(),

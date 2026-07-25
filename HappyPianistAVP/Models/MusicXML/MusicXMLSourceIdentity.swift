@@ -1,6 +1,6 @@
 import Foundation
 
-struct MusicXMLSourceNoteID: Codable, Equatable, Hashable, Sendable, CustomStringConvertible {
+struct MusicXMLSourceNoteID: Codable, Equatable, Hashable, CustomStringConvertible {
     let partID: String
     let sourceMeasureIndex: Int
     let sourceMeasureNumberToken: String?

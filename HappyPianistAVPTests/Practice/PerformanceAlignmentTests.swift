@@ -51,7 +51,7 @@ func alignmentEvidenceRejectsNonFiniteValuesWithoutInventingEvidence() {
 }
 
 @Test
-func duplicateStableIDsAreIgnoredAtAlignmentBoundaries() throws {
+func duplicateStableIDsAreIgnoredAtAlignmentBoundaries() {
     let event = makeAlignmentEvent(
         sourceID: makeAlignmentSourceID(ordinal: 0),
         occurrenceIndex: 0
@@ -67,7 +67,7 @@ func duplicateStableIDsAreIgnoredAtAlignmentBoundaries() throws {
         performanceStart: .init(seconds: 0),
         generation: 1
     )
-    #expect(offline.links.filter { if case .aligned = $0 { true } else { false } }.count == 1)
+    #expect(offline.links.count(where: { if case .aligned = $0 { true } else { false } }) == 1)
     #expect(offline.links.filter { if case .missing = $0 { true } else { false } }.isEmpty)
     #expect(offline.links.filter { if case .extra = $0 { true } else { false } }.isEmpty)
 
@@ -92,7 +92,7 @@ func alignmentEngineUsesCapabilitiesRangeGenerationAndPlanResolution() throws {
         plan: plan,
         observations: [makeAlignmentObservation(generation: 9, note: 60, seconds: 0.5)],
         performanceStart: .init(seconds: 0),
-        activeTickRange: 0 ..< 1_920,
+        activeTickRange: 0 ..< 1920,
         generation: 9,
         includeMissing: false
     )
@@ -100,7 +100,7 @@ func alignmentEngineUsesCapabilitiesRangeGenerationAndPlanResolution() throws {
         plan: plan,
         observations: [makeAlignmentObservation(generation: 9, note: 61, seconds: 0.5)],
         performanceStart: .init(seconds: 0),
-        activeTickRange: 0 ..< 1_920,
+        activeTickRange: 0 ..< 1920,
         generation: 9,
         includeMissing: false
     )
@@ -108,7 +108,7 @@ func alignmentEngineUsesCapabilitiesRangeGenerationAndPlanResolution() throws {
         plan: plan,
         observations: [makeAlignmentObservation(generation: 8, note: 60, seconds: 0.5)],
         performanceStart: .init(seconds: 0),
-        activeTickRange: 0 ..< 1_920,
+        activeTickRange: 0 ..< 1920,
         generation: 9,
         includeMissing: false
     )
@@ -176,8 +176,8 @@ func alignmentSeparatesExactPitchOnsetChordSpreadExtraAndMissing() {
         evidence.contains { $0.dimension == .pitch && $0.cost == 0 }
             && evidence.contains { $0.dimension == .chordSpread && $0.deviationSeconds == 0.08 }
     })
-    #expect(result.links.filter { if case .extra = $0 { true } else { false } }.count == 1)
-    #expect(result.links.filter { if case .missing = $0 { true } else { false } }.count == 1)
+    #expect(result.links.count(where: { if case .extra = $0 { true } else { false } }) == 1)
+    #expect(result.links.count(where: { if case .missing = $0 { true } else { false } }) == 1)
 }
 
 @Test
@@ -347,8 +347,8 @@ func ambiguityConsumesOneMissingCandidate() {
         performanceStart: .init(seconds: 0)
     )
 
-    #expect(result.links.filter { if case .ambiguous = $0 { true } else { false } }.count == 1)
-    #expect(result.links.filter { if case .missing = $0 { true } else { false } }.count == 1)
+    #expect(result.links.count(where: { if case .ambiguous = $0 { true } else { false } }) == 1)
+    #expect(result.links.count(where: { if case .missing = $0 { true } else { false } }) == 1)
 }
 
 @Test
@@ -384,7 +384,7 @@ func globalAssignmentDoesNotStealScarceCandidate() {
 }
 
 @Test
-func unavailableCapabilitiesNeverFilterCandidatesOrContributeCosts() throws {
+func unavailableCapabilitiesNeverFilterCandidatesOrContributeCosts() {
     let unavailable = PerformanceInputCapabilities(
         pitch: .observed,
         onset: .unavailable,
@@ -547,7 +547,7 @@ func controllerAssignmentMaximizesCoverageBeforeMinimizingCost() {
     let second = ScorePerformanceControllerEvent(
         sourceDirectionID: nil,
         performedOccurrenceIndex: 0,
-        tick: 1_920,
+        tick: 1920,
         controllerNumber: 64,
         value: 127,
         outputCapabilityRequirement: .continuousControlChange
@@ -574,9 +574,9 @@ func controllerAssignmentMaximizesCoverageBeforeMinimizingCost() {
         performanceStart: .init(seconds: 0)
     )
 
-    #expect(result.controllerLinks.filter {
+    #expect(result.controllerLinks.count(where: {
         if case .aligned = $0 { true } else { false }
-    }.count == 2)
+    }) == 2)
     #expect(result.controllerLinks.contains {
         if case .missing = $0 { true } else { false }
     } == false)
@@ -586,7 +586,7 @@ func controllerAssignmentMaximizesCoverageBeforeMinimizingCost() {
 }
 
 @Test
-func releaseDurationParticipatesInCandidateSelection() throws {
+func releaseDurationParticipatesInCandidateSelection() {
     let short = makeAlignmentEvent(
         sourceID: makeAlignmentSourceID(ordinal: 0),
         occurrenceIndex: 0,
@@ -621,7 +621,7 @@ func releaseDurationParticipatesInCandidateSelection() throws {
 }
 
 @Test
-func contactReleasePairingIncludesSourceIdentity() throws {
+func contactReleasePairingIncludesSourceIdentity() {
     let first = makeAlignmentEvent(
         sourceID: makeAlignmentSourceID(ordinal: 0),
         occurrenceIndex: 0,
@@ -633,7 +633,7 @@ func contactReleasePairingIncludesSourceIdentity() throws {
         occurrenceIndex: 0,
         midiNote: 64,
         onTick: 96,
-        offTick: 1_056
+        offTick: 1056
     )
     let firstOn = makeAlignmentObservation(
         generation: 1,
@@ -784,7 +784,7 @@ func unavailableReleaseAndControllerProduceNotObserved() throws {
 }
 
 @Test
-func handEvidenceDisambiguatesPolyphonicUnisonWithoutUsingStaffAsHand() throws {
+func handEvidenceDisambiguatesPolyphonicUnisonWithoutUsingStaffAsHand() {
     let right = makeAlignmentEvent(
         sourceID: makeAlignmentSourceID(ordinal: 0),
         occurrenceIndex: 0,
@@ -840,7 +840,7 @@ func handEvidenceDisambiguatesPolyphonicUnisonWithoutUsingStaffAsHand() throws {
 }
 
 @Test
-func performedTimeSelectsRepeatedOccurrenceWithoutChangingSourceIdentity() throws {
+func performedTimeSelectsRepeatedOccurrenceWithoutChangingSourceIdentity() {
     let sourceID = makeAlignmentSourceID(ordinal: 0)
     let first = makeAlignmentEvent(sourceID: sourceID, occurrenceIndex: 0, onTick: 0)
     let repeated = makeAlignmentEvent(sourceID: sourceID, occurrenceIndex: 1, onTick: 960)
@@ -859,7 +859,7 @@ func performedTimeSelectsRepeatedOccurrenceWithoutChangingSourceIdentity() throw
 }
 
 @Test
-func incrementalAlignerRejectsStaleOutOfOrderAndSystemPlaybackAndResetsLifecycle() throws {
+func incrementalAlignerRejectsStaleOutOfOrderAndSystemPlaybackAndResetsLifecycle() {
     let event = makeAlignmentEvent(sourceID: makeAlignmentSourceID(ordinal: 0), occurrenceIndex: 0)
     let plan = makeAlignmentPlan(noteEvents: [event])
     var aligner = IncrementalPerformanceAligner(
@@ -1095,7 +1095,7 @@ func evictedOpenNoteKeepsReleaseEvidence() throws {
 }
 
 @Test
-func alignmentRejectsStaleAndSystemPlaybackAcrossNotesReleasesAndControllers() throws {
+func alignmentRejectsStaleAndSystemPlaybackAcrossNotesReleasesAndControllers() {
     let note = makeAlignmentEvent(sourceID: makeAlignmentSourceID(ordinal: 0), occurrenceIndex: 0)
     let controller = ScorePerformanceControllerEvent(
         sourceDirectionID: nil,
@@ -1133,7 +1133,7 @@ func alignmentRejectsStaleAndSystemPlaybackAcrossNotesReleasesAndControllers() t
         generation: 2
     )
 
-    #expect(result.links.filter { if case .aligned = $0 { true } else { false } }.count == 1)
+    #expect(result.links.count(where: { if case .aligned = $0 { true } else { false } }) == 1)
     #expect(result.links.contains { if case .extra = $0 { true } else { false } } == false)
     let releaseEvidence = result.links.flatMap { link -> [PerformanceAlignmentEvidence] in
         guard case let .aligned(_, _, evidence) = link else { return [] }
@@ -1189,7 +1189,7 @@ func recordedTakeAlignmentValidatesScoreAndReportsGlobalSegmentDiagnostics() thr
         take: take,
         plan: plan,
         measureSpans: makeTestMeasureSpans(for: plan),
-        segmentTickRanges: [0 ..< 480, 960 ..< 1_440]
+        segmentTickRanges: [0 ..< 480, 960 ..< 1440]
     )
     #expect(result.diagnostics.alignedCount == 2)
     #expect(result.diagnostics.segmentCount == 2)
@@ -1269,7 +1269,7 @@ func recordedTakeReplaySortsEventsAndKeepsSegmentUpperBoundsExclusive() throws {
     #expect(result.diagnostics.alignedCount == 2)
     #expect(result.segments.count == 2)
     #expect(result.segments.allSatisfy { segment in
-        segment.alignment.links.filter { if case .aligned = $0 { true } else { false } }.count == 1
+        segment.alignment.links.count(where: { if case .aligned = $0 { true } else { false } }) == 1
             && segment.alignment.links.contains { if case .extra = $0 { true } else { false } } == false
     })
 }
@@ -1278,9 +1278,9 @@ func recordedTakeReplaySortsEventsAndKeepsSegmentUpperBoundsExclusive() throws {
 func recordedTakeAlignmentDoesNotTrimLongControllerSeries() throws {
     let event = makeAlignmentEvent(sourceID: makeAlignmentSourceID(ordinal: 0), occurrenceIndex: 0)
     let plan = makeAlignmentPlan(noteEvents: [event])
-    let eventCount = 4_097
+    let eventCount = 4097
     let events = (0 ..< eventCount).map { index in
-        let seconds = Double(index) / 1_000
+        let seconds = Double(index) / 1000
         let observation = makeAlignmentObservation(
             generation: 1,
             note: 0,
@@ -1362,7 +1362,7 @@ func insufficientEvidenceIsUnknownAndLiveLinksStayProvisionalUntilCommitHorizon(
 @Test
 func goldenAlignmentReplaysCoverRequiredPerformanceCases() throws {
     let corpus = try PerformanceAlignmentReplayCorpusLoader().load()
-    let requiredCoverage: Set<String> = [
+    let requiredCoverage: Set = [
         "correct", "early", "late", "serial-chord", "extra", "missing",
         "repeat", "unison", "pedal", "ambiguous",
     ]

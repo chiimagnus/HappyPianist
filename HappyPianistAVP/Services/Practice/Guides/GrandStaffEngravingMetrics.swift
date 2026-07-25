@@ -1,16 +1,21 @@
 import Foundation
 
-struct GrandStaffGlyphBounds: Equatable, Sendable {
+struct GrandStaffGlyphBounds: Equatable {
     let minX: Double
     let minY: Double
     let maxX: Double
     let maxY: Double
 
-    var width: Double { maxX - minX }
-    var height: Double { maxY - minY }
+    var width: Double {
+        maxX - minX
+    }
+
+    var height: Double {
+        maxY - minY
+    }
 }
 
-struct GrandStaffEngravingMetrics: Equatable, Sendable {
+struct GrandStaffEngravingMetrics: Equatable {
     // All values are expressed in staff spaces; the viewport applies the display scale once.
     let smuflEmSize = 4.0
     let graceNoteScale = 0.70

@@ -1,6 +1,6 @@
 import Foundation
 
-struct PracticePerformanceAnalyzerSnapshot: Equatable, Sendable {
+struct PracticePerformanceAnalyzerSnapshot: Equatable {
     let roundGeneration: UInt64
     let alignment: PerformanceAlignment?
     let assessment: PassagePerformanceAssessment?
@@ -181,11 +181,11 @@ actor PracticePerformanceAnalyzer {
 
     private func report(_ snapshot: PracticePerformanceAnalyzerSnapshot) async {
         guard let diagnosticsReporter, let alignment = snapshot.alignment else { return }
-        let aligned = alignment.links.filter { if case .aligned = $0 { true } else { false } }.count
-        let missing = alignment.links.filter { if case .missing = $0 { true } else { false } }.count
-        let extra = alignment.links.filter { if case .extra = $0 { true } else { false } }.count
-        let ambiguous = alignment.links.filter { if case .ambiguous = $0 { true } else { false } }.count
-        let unknown = alignment.links.filter { if case .unknown = $0 { true } else { false } }.count
+        let aligned = alignment.links.count(where: { if case .aligned = $0 { true } else { false } })
+        let missing = alignment.links.count(where: { if case .missing = $0 { true } else { false } })
+        let extra = alignment.links.count(where: { if case .extra = $0 { true } else { false } })
+        let ambiguous = alignment.links.count(where: { if case .ambiguous = $0 { true } else { false } })
+        let unknown = alignment.links.count(where: { if case .unknown = $0 { true } else { false } })
         let candidates = alignment.links.reduce(into: 0) { count, link in
             switch link {
             case let .ambiguous(_, values), let .provisional(_, _, values):

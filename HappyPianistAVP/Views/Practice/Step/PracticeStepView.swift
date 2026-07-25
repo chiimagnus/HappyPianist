@@ -50,8 +50,8 @@ struct PracticeStepView: View {
                     event: cue,
                     coachingPresentation: viewModel.practiceFeedbackViewModel.coachingPresentation
                 )
-                    .transition(.opacity)
-                    .accessibilityAddTraits(.updatesFrequently)
+                .transition(.opacity)
+                .accessibilityAddTraits(.updatesFrequently)
             }
         }
         .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { height in

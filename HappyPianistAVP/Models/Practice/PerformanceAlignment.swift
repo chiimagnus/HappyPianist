@@ -1,6 +1,6 @@
 import Foundation
 
-enum PerformanceAlignmentEvidenceDimension: String, Codable, Equatable, Hashable, Sendable {
+enum PerformanceAlignmentEvidenceDimension: String, Codable, Equatable, Hashable {
     case pitch
     case onset
     case chordSpread
@@ -14,13 +14,13 @@ enum PerformanceAlignmentEvidenceDimension: String, Codable, Equatable, Hashable
     case confidence
 }
 
-enum PerformanceAlignmentEvidenceStatus: String, Codable, Equatable, Hashable, Sendable {
+enum PerformanceAlignmentEvidenceStatus: String, Codable, Equatable, Hashable {
     case observed
     case degraded
     case notObserved
 }
 
-struct PerformanceAlignmentEvidence: Codable, Equatable, Sendable {
+struct PerformanceAlignmentEvidence: Codable, Equatable {
     let dimension: PerformanceAlignmentEvidenceDimension
     let status: PerformanceAlignmentEvidenceStatus
     let cost: Double?
@@ -39,7 +39,7 @@ struct PerformanceAlignmentEvidence: Codable, Equatable, Sendable {
     }
 }
 
-struct PerformanceAlignmentScoreReference: Codable, Equatable, Hashable, Sendable {
+struct PerformanceAlignmentScoreReference: Codable, Equatable, Hashable {
     let eventID: ScorePerformanceNoteEventID
     let sourceNoteID: MusicXMLSourceNoteID
     let performedOccurrenceIndex: Int
@@ -53,7 +53,7 @@ struct PerformanceAlignmentScoreReference: Codable, Equatable, Hashable, Sendabl
     }
 }
 
-struct PerformanceAlignmentObservationReference: Codable, Equatable, Sendable {
+struct PerformanceAlignmentObservationReference: Codable, Equatable {
     let observationID: UUID
     let source: PerformanceObservation.Source
     let correctedTime: PerformanceMonotonicInstant
@@ -75,7 +75,7 @@ struct PerformanceAlignmentObservationReference: Codable, Equatable, Sendable {
     }
 }
 
-struct PerformanceAlignmentCandidate: Codable, Equatable, Sendable {
+struct PerformanceAlignmentCandidate: Codable, Equatable {
     let score: PerformanceAlignmentScoreReference
     let totalCost: Double
     let evidence: [PerformanceAlignmentEvidence]
@@ -91,7 +91,7 @@ struct PerformanceAlignmentCandidate: Codable, Equatable, Sendable {
     }
 }
 
-enum PerformanceAlignmentNoCandidateReason: String, Codable, Equatable, Sendable {
+enum PerformanceAlignmentNoCandidateReason: String, Codable, Equatable {
     case unsupportedObservation
     case staleGeneration
     case outsideActiveRange
@@ -100,13 +100,13 @@ enum PerformanceAlignmentNoCandidateReason: String, Codable, Equatable, Sendable
     case noHandCandidate
 }
 
-struct PerformanceAlignmentCandidateSnapshot: Codable, Equatable, Sendable {
+struct PerformanceAlignmentCandidateSnapshot: Codable, Equatable {
     let observation: PerformanceAlignmentObservationReference
     let candidates: [PerformanceAlignmentCandidate]
     let noCandidateReason: PerformanceAlignmentNoCandidateReason?
 }
 
-enum PerformanceAlignmentLink: Codable, Equatable, Sendable {
+enum PerformanceAlignmentLink: Codable, Equatable {
     case aligned(
         score: PerformanceAlignmentScoreReference,
         observation: PerformanceAlignmentObservationReference,
@@ -133,14 +133,14 @@ enum PerformanceAlignmentLink: Codable, Equatable, Sendable {
     )
 }
 
-enum PerformanceAlignmentUnknownReason: String, Codable, Equatable, Sendable {
+enum PerformanceAlignmentUnknownReason: String, Codable, Equatable {
     case unavailablePitchEvidence
     case ambiguousKeyCandidate
     case aggregateAudioEvidence
     case unsupportedObservation
 }
 
-struct PerformanceAlignmentControllerScoreReference: Codable, Equatable, Hashable, Sendable {
+struct PerformanceAlignmentControllerScoreReference: Codable, Equatable, Hashable {
     let sourceDirectionID: MusicXMLDirectionSourceID?
     let performedOccurrenceIndex: Int
     let tick: Int
@@ -156,7 +156,7 @@ struct PerformanceAlignmentControllerScoreReference: Codable, Equatable, Hashabl
     }
 }
 
-enum PerformanceAlignmentControllerLink: Codable, Equatable, Sendable {
+enum PerformanceAlignmentControllerLink: Codable, Equatable {
     case aligned(
         score: PerformanceAlignmentControllerScoreReference,
         observation: PerformanceAlignmentObservationReference,
@@ -168,7 +168,7 @@ enum PerformanceAlignmentControllerLink: Codable, Equatable, Sendable {
     case notObserved(score: PerformanceAlignmentControllerScoreReference)
 }
 
-struct PerformanceAlignment: Codable, Equatable, Sendable {
+struct PerformanceAlignment: Codable, Equatable {
     let planID: ScorePerformancePlanID
     let sourceGeneration: UInt64
     let links: [PerformanceAlignmentLink]

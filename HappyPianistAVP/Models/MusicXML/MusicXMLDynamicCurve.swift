@@ -1,6 +1,6 @@
 import Foundation
 
-enum MusicXMLDynamicCurveProvenance: Equatable, Sendable {
+enum MusicXMLDynamicCurveProvenance: Equatable {
     case explicitWedge(
         startSourceID: MusicXMLDirectionSourceID?,
         stopSourceID: MusicXMLDirectionSourceID?,
@@ -9,7 +9,7 @@ enum MusicXMLDynamicCurveProvenance: Equatable, Sendable {
     case approximation(reason: String)
 }
 
-struct MusicXMLDynamicCurve: Equatable, Sendable {
+struct MusicXMLDynamicCurve: Equatable {
     let startTick: Int
     let endTick: Int
     let startVelocity: Int
@@ -31,7 +31,7 @@ struct MusicXMLDynamicCurve: Equatable, Sendable {
     }
 }
 
-struct MusicXMLVelocityResolution: Equatable, Sendable {
+struct MusicXMLVelocityResolution: Equatable {
     let baseVelocity: Int
     let curveVelocity: Double?
     let articulationDelta: Int

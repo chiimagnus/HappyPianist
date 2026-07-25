@@ -43,7 +43,7 @@ struct SystemMIDILookAheadClock: MIDILookAheadClock {
     }
 }
 
-struct MIDILookAheadConfiguration: Equatable, Sendable {
+struct MIDILookAheadConfiguration: Equatable {
     let horizonSeconds: TimeInterval
     let refillIntervalSeconds: TimeInterval
 

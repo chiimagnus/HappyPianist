@@ -4,22 +4,22 @@ import Testing
 
 @Test
 func notationFidelitySourceFactsMatchGolden() throws {
-    try assertNotationGolden("source-facts", actual: sourceFactsSnapshot(try notationFidelityModel().projection))
+    try assertNotationGolden("source-facts", actual: sourceFactsSnapshot(notationFidelityModel().projection))
 }
 
 @Test
 func notationFidelityGlyphTokensMatchGolden() throws {
-    try assertNotationGolden("glyph-tokens", actual: glyphTokenSnapshot(try notationFidelityModel().layout))
+    try assertNotationGolden("glyph-tokens", actual: glyphTokenSnapshot(notationFidelityModel().layout))
 }
 
 @Test
 func notationFidelityGeometryMatchesGolden() throws {
-    try assertNotationGolden("geometry", actual: geometrySnapshot(try notationFidelityModel().layout))
+    try assertNotationGolden("geometry", actual: geometrySnapshot(notationFidelityModel().layout))
 }
 
 @Test
 func notationFidelityLayoutMatchesGolden() throws {
-    try assertNotationGolden("layout", actual: layoutSnapshot(try notationFidelityModel().layout))
+    try assertNotationGolden("layout", actual: layoutSnapshot(notationFidelityModel().layout))
 }
 
 private struct NotationFidelityModel {

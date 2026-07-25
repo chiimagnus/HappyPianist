@@ -24,7 +24,9 @@ private final class CapturingMIDIPracticeStepMatcher: MIDIPracticeStepMatchingPr
         resetCalls.append(ResetCall(stepIndex: stepIndex, expectedNotes: expectedNotes))
     }
 
-    func register(_: PerformanceObservation) -> StepAttemptMatchResult? { .insufficientEvidence }
+    func register(_: PerformanceObservation) -> StepAttemptMatchResult? {
+        .insufficientEvidence
+    }
 }
 
 @Test

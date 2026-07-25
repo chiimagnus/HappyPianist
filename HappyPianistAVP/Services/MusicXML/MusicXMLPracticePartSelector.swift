@@ -61,5 +61,4 @@ struct MusicXMLPracticePartSelector {
             score.measures.contains { $0.partID == partID }
         }
     }
-
 }

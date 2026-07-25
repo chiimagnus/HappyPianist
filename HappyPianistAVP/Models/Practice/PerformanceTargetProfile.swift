@@ -1,13 +1,13 @@
 import Foundation
 
-enum PerformanceTargetProvenance: String, Equatable, Hashable, Sendable {
+enum PerformanceTargetProvenance: String, Equatable, Hashable {
     case scoreDefault
     case teacher
     case userConfirmed
     case genericApproximation
 }
 
-struct PerformanceTargetBand: Equatable, Hashable, Sendable {
+struct PerformanceTargetBand: Equatable, Hashable {
     let dimension: PerformanceAssessmentDimension
     let lowerBound: Double
     let upperBound: Double
@@ -47,7 +47,7 @@ struct PerformanceTargetBand: Equatable, Hashable, Sendable {
     }
 }
 
-struct PerformanceTargetProfile: Equatable, Sendable {
+struct PerformanceTargetProfile: Equatable {
     let bands: [PerformanceTargetBand]
 
     init(bands: [PerformanceTargetBand] = []) {

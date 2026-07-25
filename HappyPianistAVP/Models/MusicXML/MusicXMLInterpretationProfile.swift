@@ -1,10 +1,10 @@
 import Foundation
 
-enum MusicXMLGlissandoPitchPolicy: String, Codable, Equatable, Sendable {
+enum MusicXMLGlissandoPitchPolicy: String, Codable, Equatable {
     case chromatic
 }
 
-struct MusicXMLInterpretationProfile: Equatable, Sendable {
+struct MusicXMLInterpretationProfile: Equatable {
     static let generic = MusicXMLInterpretationProfile(
         id: "generic-score-v1",
         staccatissimoDurationMultiplier: 0.25,

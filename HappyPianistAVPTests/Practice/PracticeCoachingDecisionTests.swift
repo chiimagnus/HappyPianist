@@ -308,7 +308,7 @@ func priorityPolicyRanksPrerequisitesSeverityConfidenceAndCoverage() {
             dimension: .pedalTiming,
             confidence: nil,
             evidenceStatus: .insufficient,
-            scoreRange: 960 ..< 1_440
+            scoreRange: 960 ..< 1440
         ),
         let pitch = makeDecision(
             kind: .pitch,
@@ -332,14 +332,14 @@ func priorityPolicyRanksPrerequisitesSeverityConfidenceAndCoverage() {
             kind: .onset,
             dimension: .onset,
             confidence: 0.9,
-            scoreRange: 960 ..< 1_440
+            scoreRange: 960 ..< 1440
         ),
         let degradedOnset = makeDecision(
             kind: .onset,
             dimension: .onset,
             confidence: 0.9,
             evidenceStatus: .degraded,
-            scoreRange: 1_440 ..< 1_920
+            scoreRange: 1440 ..< 1920
         )
     else {
         Issue.record("Expected actionable coaching decisions")
@@ -441,7 +441,7 @@ func decisionServiceDoesNotRemeasureAcrossSourceGenerations() async throws {
     let events = await reporter.events
 
     #expect(next.issue.provenance.sourceGeneration == 2)
-    #expect(events.filter { $0.reason.contains("outcome=issued") }.count == 2)
+    #expect(events.count(where: { $0.reason.contains("outcome=issued") }) == 2)
     #expect(events.contains {
         $0.operationID == firstDecisionID && $0.reason.contains("outcome=remeasured")
     } == false)

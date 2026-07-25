@@ -100,14 +100,14 @@ func wordsSemanticsRecognizesControlledTempoVocabulary() {
             MusicXMLWordsEvent(tick: 0, text: "rallentando", scope: scope),
             MusicXMLWordsEvent(tick: 480, text: "stringendo", scope: scope),
             MusicXMLWordsEvent(tick: 960, text: "tempo primo", scope: scope),
-            MusicXMLWordsEvent(tick: 1_440, text: "doppio movimento", scope: scope),
-            MusicXMLWordsEvent(tick: 1_920, text: "meno mosso", scope: scope),
+            MusicXMLWordsEvent(tick: 1440, text: "doppio movimento", scope: scope),
+            MusicXMLWordsEvent(tick: 1920, text: "meno mosso", scope: scope),
         ],
         tempoEvents: [
             MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: scope),
             MusicXMLTempoEvent(tick: 480, quarterBPM: 90, scope: scope),
             MusicXMLTempoEvent(tick: 960, quarterBPM: 130, scope: scope),
-            MusicXMLTempoEvent(tick: 2_400, quarterBPM: 80, scope: scope),
+            MusicXMLTempoEvent(tick: 2400, quarterBPM: 80, scope: scope),
         ]
     )
 
@@ -119,7 +119,7 @@ func wordsSemanticsRecognizesControlledTempoVocabulary() {
         .menoMosso,
     ])
     #expect(result.derivedTempoRamps.count == 3)
-    #expect(result.derivedTempoEvents.contains { $0.tick == 1_440 && $0.quarterBPM == 260 })
+    #expect(result.derivedTempoEvents.contains { $0.tick == 1440 && $0.quarterBPM == 260 })
 }
 
 @Test

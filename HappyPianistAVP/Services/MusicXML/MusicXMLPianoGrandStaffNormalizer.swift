@@ -95,7 +95,7 @@ struct MusicXMLPianoGrandStaffNormalizer {
     private func isExplicitPiano(_ metadata: MusicXMLPartMetadata) -> Bool {
         let tokens = [metadata.name, metadata.abbreviation]
             + metadata.scoreInstruments.map(\.name)
-        return tokens.compactMap { $0 }.contains { normalizedToken($0).contains("piano") }
+        return tokens.compactMap(\.self).contains { normalizedToken($0).contains("piano") }
     }
 
     private func splitKeyboardPair(

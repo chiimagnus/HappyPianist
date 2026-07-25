@@ -235,12 +235,12 @@ func midiRecordingKeepsRoutesIndependentAndPreservesMIDI2Evidence() {
     #expect(channel1On?.observation?.group == 3)
     #expect(channel1On?.observation?.timing.source?.clockID == "core-midi-host")
     if case let .noteOn(_, velocity)? = channel1On?.observation?.event {
-        #expect(velocity?.rawValue == UInt32(0x1234) * 65_537)
+        #expect(velocity?.rawValue == UInt32(0x1234) * 65537)
     } else {
         Issue.record("MIDI 2 note-on evidence was not retained")
     }
     if case let .noteOff(_, releaseVelocity)? = channel1Off?.observation?.event {
-        #expect(releaseVelocity?.rawValue == UInt32(0xABCD) * 65_537)
+        #expect(releaseVelocity?.rawValue == UInt32(0xABCD) * 65537)
     } else {
         Issue.record("MIDI 2 release evidence was not retained")
     }

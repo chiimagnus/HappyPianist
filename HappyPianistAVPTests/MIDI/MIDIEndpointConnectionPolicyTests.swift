@@ -25,9 +25,9 @@ func endpointPolicyUsesMIDI2WhenEndpointReportsMIDI2AndPortAvailable() {
 @Test
 func coreMIDIOutputPacketListPreservesOrderedMessagesAndHostTimes() {
     let messages = [
-        TimestampedMIDI1Message(hostTime: 10_000, bytes: [0x90, 60, 100]),
-        TimestampedMIDI1Message(hostTime: 10_000, bytes: [0xB0, 64, 96]),
-        TimestampedMIDI1Message(hostTime: 20_000, bytes: [0x80, 60, 0]),
+        TimestampedMIDI1Message(hostTime: 10000, bytes: [0x90, 60, 100]),
+        TimestampedMIDI1Message(hostTime: 10000, bytes: [0xB0, 64, 96]),
+        TimestampedMIDI1Message(hostTime: 20000, bytes: [0x80, 60, 0]),
     ]
 
     let packets = CoreMIDIOutputService.withPacketList(messages) { packetList in
@@ -49,8 +49,8 @@ func coreMIDIOutputPacketListPreservesOrderedMessagesAndHostTimes() {
 func coreMIDIOutputRejectsOutOfOrderHostTimesBeforeSending() {
     #expect(throws: CoreMIDIOutputServiceError.self) {
         try CoreMIDIOutputService.validate([
-            TimestampedMIDI1Message(hostTime: 20_000, bytes: [0x90, 60, 100]),
-            TimestampedMIDI1Message(hostTime: 10_000, bytes: [0x80, 60, 0]),
+            TimestampedMIDI1Message(hostTime: 20000, bytes: [0x90, 60, 100]),
+            TimestampedMIDI1Message(hostTime: 10000, bytes: [0x80, 60, 0]),
         ])
     }
 }

@@ -1,6 +1,6 @@
 import Foundation
 
-struct PerformanceAssessmentService: Sendable {
+struct PerformanceAssessmentService {
     private struct AlignedNote {
         let score: PerformanceAlignmentScoreReference
         let observation: PerformanceAlignmentObservationReference
@@ -376,7 +376,7 @@ struct PerformanceAssessmentService: Sendable {
                 hasIncompleteChord = true
                 continue
             }
-            let spread = chordEvidence.compactMap { $0.1.deviationSeconds }.max() ?? 0
+            let spread = chordEvidence.compactMap(\.1.deviationSeconds).max() ?? 0
             samples.append(MetricSample(
                 value: spread,
                 status: aggregateStatus(chordEvidence.map {
@@ -674,7 +674,8 @@ struct PerformanceAssessmentService: Sendable {
                 return lhs.event.id.description < rhs.event.id.description
             }
             for (current, next) in zip(ordered, ordered.dropFirst())
-            where next.event.performedOnTick > current.event.performedOnTick {
+                where next.event.performedOnTick > current.event.performedOnTick
+            {
                 guard let currentVelocity = performedVelocity(current),
                       let nextVelocity = performedVelocity(next)
                 else {
@@ -760,9 +761,8 @@ struct PerformanceAssessmentService: Sendable {
             let grouped = Dictionary(grouping: notes) { note in
                 VoicingRole(hand: explicitVoicingHand(note.event), voice: note.event.voice)
             }
-            let values: [(performed: Double, target: Double)]
-            if grouped.count > 1 {
-                values = grouped.values.map { roleNotes in
+            let values: [(performed: Double, target: Double)] = if grouped.count > 1 {
+                grouped.values.map { roleNotes in
                     (
                         performed: roleNotes.compactMap(performedVelocity).reduce(0, +)
                             / Double(roleNotes.count),
@@ -771,7 +771,7 @@ struct PerformanceAssessmentService: Sendable {
                     )
                 }
             } else {
-                values = notes.compactMap { note in
+                notes.compactMap { note in
                     performedVelocity(note).map { ($0, Double(note.event.velocity)) }
                 }
             }
@@ -1508,7 +1508,7 @@ struct PerformanceAssessmentService: Sendable {
         _ link: PerformanceAlignmentControllerLink,
         tickRange: Range<Int>
     ) -> Bool {
-        return switch link {
+        switch link {
         case let .aligned(score, _, _, _), let .missing(score), let .notObserved(score):
             tickRange.contains(score.tick)
         case .extra:

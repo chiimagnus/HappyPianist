@@ -129,6 +129,6 @@ func tempoMapDerivedFromPerformancePlanKeepsRampEndpointTempo() {
 
     #expect(map.quarterBPM(atTick: 720) == 90)
     #expect(map.quarterBPM(atTick: 960) == 60)
-    #expect(map.quarterBPM(atTick: 1_440) == 60)
-    #expect(abs(map.durationSeconds(fromTick: 960, toTick: 1_440) - 1) < 0.000_1)
+    #expect(map.quarterBPM(atTick: 1440) == 60)
+    #expect(abs(map.durationSeconds(fromTick: 960, toTick: 1440) - 1) < 0.000_1)
 }

@@ -1,12 +1,12 @@
 import Foundation
 
-struct RecordingTakeEvent: Codable, Equatable, Identifiable, Sendable {
+struct RecordingTakeEvent: Codable, Equatable, Identifiable {
     let id: UUID
     let time: TimeInterval
     let kind: Kind
     let observation: PerformanceObservation?
 
-    enum Kind: Codable, Equatable, Sendable {
+    enum Kind: Codable, Equatable {
         case noteOn(midi: Int, velocity: Int)
         case noteOff(midi: Int)
         case controlChange(controller: Int, value: Int)
@@ -55,14 +55,14 @@ struct RecordingTakeEvent: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
-struct RecordingInputSourceDescriptor: Codable, Equatable, Sendable {
+struct RecordingInputSourceDescriptor: Codable, Equatable {
     let kind: PerformanceObservation.Source.Kind?
     let id: String
     let capabilities: PerformanceInputCapabilities
 }
 
-struct RecordingTakeMetadata: Codable, Equatable, Sendable {
-    enum Provenance: String, Codable, Sendable {
+struct RecordingTakeMetadata: Codable, Equatable {
+    enum Provenance: String, Codable {
         case recorded
     }
 
@@ -134,7 +134,7 @@ enum RecordingTakeCodingError: Error, Equatable {
     case unsafeMetadata(field: String)
 }
 
-struct RecordingTake: Codable, Equatable, Identifiable, Sendable {
+struct RecordingTake: Codable, Equatable, Identifiable {
     static let currentSchemaVersion = 3
 
     let schemaVersion: Int

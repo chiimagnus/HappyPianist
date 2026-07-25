@@ -388,7 +388,7 @@ struct ImprovQualityRubric {
                 hasConflict = hasConflict || (openDepthByMIDINote[midi, default: 0] > 0)
                 openDepthByMIDINote[midi, default: 0] += 1
             case let .noteOff(midi):
-                guard (openDepthByMIDINote[midi, default: 0] > 0) else {
+                guard openDepthByMIDINote[midi, default: 0] > 0 else {
                     hasConflict = true
                     continue
                 }

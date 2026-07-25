@@ -110,7 +110,7 @@ func historicalTempoRestoreReconfiguresTheLivePerformanceAnalyzer() async throws
         return evidence.first { $0.dimension == .onset }?.deviationSeconds
     }.first
 
-    #expect(abs(try #require(secondOnsetDeviation)) < 0.05)
+    #expect(try abs(#require(secondOnsetDeviation)) < 0.05)
 }
 
 @MainActor

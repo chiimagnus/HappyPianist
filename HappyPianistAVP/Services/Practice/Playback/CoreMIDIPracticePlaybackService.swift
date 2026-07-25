@@ -260,14 +260,12 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
                 case .oneShot:
                     oneShotNoteBySourceEventID[command.sourceEventID] = note
                 }
-
             case let .noteOff(midi):
-                let trackedNote: UInt8?
-                switch tracking {
+                let trackedNote: UInt8? = switch tracking {
                 case .live:
-                    trackedNote = liveNoteBySourceEventID.removeValue(forKey: command.sourceEventID)
+                    liveNoteBySourceEventID.removeValue(forKey: command.sourceEventID)
                 case .oneShot:
-                    trackedNote = oneShotNoteBySourceEventID.removeValue(forKey: command.sourceEventID)
+                    oneShotNoteBySourceEventID.removeValue(forKey: command.sourceEventID)
                 }
                 guard let note = trackedNote ?? UInt8(exactly: midi) else { continue }
                 try outputService.sendNoteOff(
@@ -275,7 +273,6 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
                     channel: channel,
                     destinationUniqueID: destinationUniqueID
                 )
-
             case let .controlChange(controller, value):
                 let resolution = outputCapabilities.resolve(controllerNumber: controller, value: value)
                 try outputService.sendControlChange(

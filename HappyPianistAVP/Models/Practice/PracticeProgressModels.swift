@@ -165,7 +165,7 @@ struct PracticeSessionRecord: Codable, Equatable {
     }
 }
 
-struct PracticeSourceMeasureID: Codable, Equatable, Hashable, Sendable {
+struct PracticeSourceMeasureID: Codable, Equatable, Hashable {
     let partID: String
     let sourceMeasureIndex: Int
     let sourceNumberToken: String?
@@ -177,7 +177,7 @@ struct PracticeSourceMeasureID: Codable, Equatable, Hashable, Sendable {
     }
 }
 
-struct PracticeMeasureOccurrenceID: Codable, Equatable, Hashable, Sendable {
+struct PracticeMeasureOccurrenceID: Codable, Equatable, Hashable {
     let sourceMeasureID: PracticeSourceMeasureID
     let occurrenceIndex: Int
 
@@ -273,13 +273,13 @@ enum PracticeIssueKind: String, Codable, Equatable {
     case incompleteChord
 }
 
-enum MeasurePerformanceMaturity: String, Codable, Equatable, Sendable {
+enum MeasurePerformanceMaturity: String, Codable, Equatable {
     case insufficientEvidence
     case developing
     case mature
 }
 
-struct MeasurePerformanceMetricSummary: Codable, Equatable, Sendable {
+struct MeasurePerformanceMetricSummary: Codable, Equatable {
     let dimension: PerformanceAssessmentDimension
     let outcome: PracticeEvidenceOutcome
     let evidenceStatus: PerformanceAssessmentEvidenceStatus
@@ -343,7 +343,7 @@ struct MeasurePerformanceMetricSummary: Codable, Equatable, Sendable {
     }
 }
 
-struct MeasurePerformanceMaturitySummary: Codable, Equatable, Sendable {
+struct MeasurePerformanceMaturitySummary: Codable, Equatable {
     let maturity: MeasurePerformanceMaturity
     let rubricVersion: String
     let assessedDimensionCount: Int

@@ -1,6 +1,6 @@
 import Foundation
 
-struct PerformanceMonotonicInstant: Codable, Comparable, Hashable, Sendable {
+struct PerformanceMonotonicInstant: Codable, Comparable, Hashable {
     let nanoseconds: Int64
 
     init(nanoseconds: Int64) {
@@ -38,19 +38,19 @@ struct PerformanceMonotonicInstant: Codable, Comparable, Hashable, Sendable {
     }
 }
 
-struct PerformanceSourceTimestamp: Codable, Equatable, Sendable {
+struct PerformanceSourceTimestamp: Codable, Equatable {
     let clockID: String
     let seconds: TimeInterval
 }
 
-enum PerformanceClockCorrectionProvenance: String, Codable, Sendable {
+enum PerformanceClockCorrectionProvenance: String, Codable {
     case hostOnly
     case latencyEstimate
     case offsetSample
     case offsetAndDriftSamples
 }
 
-struct PerformanceClockMapping: Codable, Equatable, Sendable {
+struct PerformanceClockMapping: Codable, Equatable {
     let sourceClockID: String
     let offsetSeconds: TimeInterval
     let rate: Double
@@ -59,7 +59,7 @@ struct PerformanceClockMapping: Codable, Equatable, Sendable {
     let provenance: PerformanceClockCorrectionProvenance
 }
 
-struct PerformanceClockReading: Codable, Equatable, Sendable {
+struct PerformanceClockReading: Codable, Equatable {
     let host: PerformanceMonotonicInstant
     let source: PerformanceSourceTimestamp?
     let correctedHost: PerformanceMonotonicInstant
@@ -67,11 +67,11 @@ struct PerformanceClockReading: Codable, Equatable, Sendable {
     let provenance: PerformanceClockCorrectionProvenance
 }
 
-struct PerformanceClock: Sendable {
+struct PerformanceClock {
     let now: @Sendable () -> PerformanceMonotonicInstant
 
     static func live() -> Self {
-        return Self {
+        Self {
             PerformanceMonotonicInstant(seconds: ProcessInfo.processInfo.systemUptime)
         }
     }

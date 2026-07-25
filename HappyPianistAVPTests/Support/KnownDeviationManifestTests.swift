@@ -39,7 +39,6 @@ func knownDeviationManifestCoversEveryProfessionalAuditRequirementExactlyOnce() 
             #expect(FileManager.default.fileExists(atPath: repositoryRoot.appending(path: path).path()))
         }
     }
-
 }
 
 private func repositoryRootURL(filePath: StaticString = #filePath) -> URL {

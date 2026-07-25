@@ -80,9 +80,8 @@ private actor FakeScheduleBackend: ImprovBackendProtocol {
         if let responseDelay {
             try await Task.sleep(for: responseDelay)
         }
-        let responseGeneration: CreativeDuetGeneration
-        if let responseGenerationRequestIDOffset {
-            responseGeneration = CreativeDuetGeneration(
+        let responseGeneration: CreativeDuetGeneration = if let responseGenerationRequestIDOffset {
+            CreativeDuetGeneration(
                 requestID: generation.requestID + responseGenerationRequestIDOffset,
                 activationID: generation.activationID,
                 seed: generation.seed,
@@ -90,7 +89,7 @@ private actor FakeScheduleBackend: ImprovBackendProtocol {
                 parameters: generation.parameters
             )
         } else {
-            responseGeneration = generation
+            generation
         }
         return CreativeDuetResponse(
             schedule: schedule,
@@ -137,7 +136,7 @@ private actor RecordingSeedBackend: ImprovBackendProtocol {
 }
 
 private actor ThrowingBackend: ImprovBackendProtocol {
-    enum Failure: Sendable {
+    enum Failure {
         case timeout
         case invalidResponse
     }

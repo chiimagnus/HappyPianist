@@ -24,7 +24,7 @@ struct PracticeProgressSession: Equatable {
     let isCurrent: Bool
 }
 
-struct PracticeProgressAssessmentID: Equatable, Hashable, Sendable {
+struct PracticeProgressAssessmentID: Equatable, Hashable {
     let analyzerRoundGeneration: UInt64
     let planID: ScorePerformancePlanID
     let sourceGeneration: UInt64

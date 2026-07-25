@@ -15,7 +15,10 @@ struct PianoHighlightNote: Equatable, Hashable, Identifiable {
     let occurrenceID: String
     let midiNote: Int
     let handAssignment: ScoreHandAssignment
-    var hand: ScoreHand { handAssignment.hand }
+    var hand: ScoreHand {
+        handAssignment.hand
+    }
+
     let staff: Int?
     let voice: Int?
     let velocity: UInt8

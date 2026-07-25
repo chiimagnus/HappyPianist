@@ -1,13 +1,13 @@
 import Foundation
 
-struct PerformanceObservation: Codable, Equatable, Sendable {
-    struct Source: Codable, Equatable, Hashable, Sendable {
-        enum Role: String, Codable, Sendable {
+struct PerformanceObservation: Codable, Equatable {
+    struct Source: Codable, Equatable, Hashable {
+        enum Role: String, Codable {
             case userPerformance
             case systemPlayback
         }
 
-        enum Kind: String, Codable, Sendable {
+        enum Kind: String, Codable {
             case midi1
             case midi2
             case targetAudio
@@ -36,7 +36,7 @@ struct PerformanceObservation: Codable, Equatable, Sendable {
         }
     }
 
-    struct NormalizedValue: Codable, Equatable, Sendable {
+    struct NormalizedValue: Codable, Equatable {
         let rawValue: UInt32
 
         init(rawValue: UInt32) {
@@ -49,16 +49,16 @@ struct PerformanceObservation: Codable, Equatable, Sendable {
         }
 
         init(midi2 value: UInt16) {
-            self.rawValue = UInt32(value) * 65_537
+            self.rawValue = UInt32(value) * 65537
         }
 
         init(midi14 value: Int) {
-            let clamped = UInt32(max(0, min(16_383, value)))
-            self.rawValue = clamped * (UInt32.max / 16_383) + clamped * (UInt32.max % 16_383) / 16_383
+            let clamped = UInt32(max(0, min(16383, value)))
+            self.rawValue = clamped * (UInt32.max / 16383) + clamped * (UInt32.max % 16383) / 16383
         }
     }
 
-    enum Controller: Codable, Equatable, Sendable {
+    enum Controller: Codable, Equatable {
         case controlChange(number: Int, value: NormalizedValue)
         case pitchBend(value: NormalizedValue)
         case programChange(program: Int)
@@ -66,20 +66,20 @@ struct PerformanceObservation: Codable, Equatable, Sendable {
         case polyPressure(note: Int, value: NormalizedValue)
     }
 
-    enum ContactPhase: String, Codable, Sendable {
+    enum ContactPhase: String, Codable {
         case started
         case held
         case ended
     }
 
-    enum TargetAudioDetectionResult: String, Codable, Sendable {
+    enum TargetAudioDetectionResult: String, Codable {
         case detected
         case contradicted
         case mixed
         case unknown
     }
 
-    enum Event: Codable, Equatable, Sendable {
+    enum Event: Codable, Equatable {
         case noteOn(note: Int, velocity: NormalizedValue?)
         case noteOff(note: Int, releaseVelocity: NormalizedValue?)
         case controller(Controller)

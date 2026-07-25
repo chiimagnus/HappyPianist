@@ -265,8 +265,8 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             channel: 0,
             outputCapabilities: output.capabilities,
             hostTimeConverter: MIDIHostTimeConverter(
-                currentHostTime: { 10_000 },
-                hostTicksPerSecond: 1_000
+                currentHostTime: { 10000 },
+                hostTicksPerSecond: 1000
             ),
             clock: clock,
             configuration: MIDILookAheadConfiguration(horizonSeconds: 0.1, refillIntervalSeconds: 0.025)
@@ -284,13 +284,13 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             [0xB0, 64, 90],
             [0x90, 62, 81],
         ])
-        #expect(output.timestampedBatchesSnapshot()[0].messages.map(\.hostTime) == [10_050, 10_100, 10_100])
+        #expect(output.timestampedBatchesSnapshot()[0].messages.map(\.hostTime) == [10050, 10100, 10100])
 
         clock.advance(by: 0.002)
         #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 2 })
         await task.value
         #expect(output.timestampedBatchesSnapshot()[1].messages == [
-            TimestampedMIDI1Message(hostTime: 10_101, bytes: [0x80, 60, 0]),
+            TimestampedMIDI1Message(hostTime: 10101, bytes: [0x80, 60, 0]),
         ])
     }
 
@@ -304,8 +304,8 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             channel: 0,
             outputCapabilities: output.capabilities,
             hostTimeConverter: MIDIHostTimeConverter(
-                currentHostTime: { 20_000 },
-                hostTicksPerSecond: 1_000
+                currentHostTime: { 20000 },
+                hostTicksPerSecond: 1000
             ),
             clock: clock,
             configuration: MIDILookAheadConfiguration(horizonSeconds: 0.1, refillIntervalSeconds: 0.025),
@@ -320,7 +320,7 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
         clock.advance(by: 0.25)
         #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 2 })
         await task.value
-        #expect(output.timestampedBatchesSnapshot()[1].messages.first?.hostTime == 20_250)
+        #expect(output.timestampedBatchesSnapshot()[1].messages.first?.hostTime == 20250)
         let events = await waitForDiagnostics(diagnostics) { events in
             events.contains { $0.stage == "playback.outputMetrics" }
         }
@@ -342,8 +342,8 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             channel: 0,
             outputCapabilities: output.capabilities,
             hostTimeConverter: MIDIHostTimeConverter(
-                currentHostTime: { 30_000 },
-                hostTicksPerSecond: 1_000
+                currentHostTime: { 30000 },
+                hostTicksPerSecond: 1000
             ),
             clock: clock,
             configuration: MIDILookAheadConfiguration(horizonSeconds: 0.1, refillIntervalSeconds: 0.025)
@@ -370,8 +370,8 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             channel: 0,
             outputCapabilities: output.capabilities,
             hostTimeConverter: MIDIHostTimeConverter(
-                currentHostTime: { 35_000 },
-                hostTicksPerSecond: 1_000
+                currentHostTime: { 35000 },
+                hostTicksPerSecond: 1000
             ),
             diagnosticsReporter: diagnostics
         )
@@ -405,8 +405,8 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             channel: 0,
             outputCapabilities: output.capabilities,
             hostTimeConverter: MIDIHostTimeConverter(
-                currentHostTime: { 40_000 },
-                hostTicksPerSecond: 1_000
+                currentHostTime: { 40000 },
+                hostTicksPerSecond: 1000
             ),
             clock: clock,
             configuration: MIDILookAheadConfiguration(horizonSeconds: 0.1, refillIntervalSeconds: 0.025),

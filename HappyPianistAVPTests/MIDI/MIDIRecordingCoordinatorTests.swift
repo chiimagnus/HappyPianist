@@ -32,8 +32,8 @@ func shutdownIsIdempotentAndEmitsAtMostOneTake() {
 @MainActor
 func recordTakeFromKeyContactRequiresRecordingAndNonBluetooth() throws {
     var recordedTakes: [RecordingTake] = []
-    let scoreIdentity = ScorePerformanceSourceIdentity(
-        songID: try #require(UUID(uuidString: "11111111-1111-1111-1111-111111111111")),
+    let scoreIdentity = try ScorePerformanceSourceIdentity(
+        songID: #require(UUID(uuidString: "11111111-1111-1111-1111-111111111111")),
         scoreRevision: "sha256:test-score",
         logicalInstrumentID: "P1:piano"
     )

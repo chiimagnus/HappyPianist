@@ -1,22 +1,22 @@
 import Foundation
 
-enum PerformanceControllerValueSupport: Equatable, Sendable {
+enum PerformanceControllerValueSupport: Equatable {
     case binary
     case continuous
 }
 
-struct PerformanceOutputApproximation: Equatable, Sendable {
+struct PerformanceOutputApproximation: Equatable {
     let controllerNumber: UInt8
     let sourceValue: UInt8
     let renderedValue: UInt8
 }
 
-struct PerformanceControllerValueResolution: Equatable, Sendable {
+struct PerformanceControllerValueResolution: Equatable {
     let value: UInt8
     let approximation: PerformanceOutputApproximation?
 }
 
-struct PerformanceOutputCapabilities: Equatable, Sendable {
+struct PerformanceOutputCapabilities: Equatable {
     static let localSampler = PerformanceOutputCapabilities(
         damper: .binary,
         sostenuto: .binary,

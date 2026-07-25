@@ -6,12 +6,12 @@ enum RecordedTakeAlignmentError: Error, Equatable {
     case assessmentUnavailable
 }
 
-struct RecordedTakeAlignmentSegment: Equatable, Sendable {
+struct RecordedTakeAlignmentSegment: Equatable {
     let tickRange: Range<Int>
     let alignment: PerformanceAlignment
 }
 
-struct RecordedTakeAlignmentDiagnostics: Equatable, Sendable {
+struct RecordedTakeAlignmentDiagnostics: Equatable {
     let takeSchemaVersion: Int
     let eventCount: Int
     let observationCount: Int
@@ -29,14 +29,14 @@ struct RecordedTakeAlignmentDiagnostics: Equatable, Sendable {
     let degradedDimensionCount: Int
 }
 
-struct RecordedTakeAlignmentResult: Equatable, Sendable {
+struct RecordedTakeAlignmentResult: Equatable {
     let global: PerformanceAlignment
     let segments: [RecordedTakeAlignmentSegment]
     let assessment: PassagePerformanceAssessment
     let diagnostics: RecordedTakeAlignmentDiagnostics
 }
 
-struct RecordedTakeAligner: Sendable {
+struct RecordedTakeAligner {
     private let engine: PerformanceAlignmentEngine
 
     init(engine: PerformanceAlignmentEngine = .init()) {

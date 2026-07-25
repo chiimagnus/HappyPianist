@@ -74,7 +74,7 @@ func highlightGuideBuilderPreservesSamePitchOccurrencesAndHands() throws {
     #expect(trigger.triggeredNotes.count == 2)
     #expect(Set(trigger.triggeredNotes.compactMap(\.staff)) == [1, 2])
     #expect(Set(trigger.triggeredNotes.map(\.hand)) == [.right, .left])
-    #expect(Set(trigger.triggeredNotes.map(\.occurrenceID)) == Set(plan.noteEvents.map { $0.id.description }))
+    #expect(Set(trigger.triggeredNotes.map(\.occurrenceID)) == Set(plan.noteEvents.map(\.id.description)))
 }
 
 @Test
@@ -197,7 +197,7 @@ private func makeNote(
             sourceMeasureNumberToken: "1",
             staff: staff,
             voice: voice,
-            sourceOrdinal: tick * 1_000_000 + midi * 1_000 + staff * 100 + voice
+            sourceOrdinal: tick * 1_000_000 + midi * 1000 + staff * 100 + voice
         ),
         partID: "P1",
         measureNumber: 1,

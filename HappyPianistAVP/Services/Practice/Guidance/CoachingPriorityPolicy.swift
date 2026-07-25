@@ -1,6 +1,6 @@
 import Foundation
 
-struct CoachingDecisionSignature: Equatable, Hashable, Sendable {
+struct CoachingDecisionSignature: Equatable, Hashable {
     let actionKind: CoachingActionKind
     let scoreRange: Range<Int>
 
@@ -10,7 +10,7 @@ struct CoachingDecisionSignature: Equatable, Hashable, Sendable {
     }
 }
 
-struct CoachingPriorityContext: Equatable, Sendable {
+struct CoachingPriorityContext: Equatable {
     let skippedDecisions: Set<CoachingDecisionSignature>
     let previousDecision: CoachingDecision?
     let consecutiveUnimprovedAssessments: Int
@@ -26,7 +26,7 @@ struct CoachingPriorityContext: Equatable, Sendable {
     }
 }
 
-struct CoachingPriorityPolicy: Sendable {
+struct CoachingPriorityPolicy {
     private let maximumUnimprovedAssessments = 2
     // ponytail: below 0.6, request another observation; tune this threshold from field evidence.
     private let minimumDiagnosticConfidence = 0.6

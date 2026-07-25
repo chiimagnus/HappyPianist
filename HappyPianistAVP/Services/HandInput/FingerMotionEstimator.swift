@@ -1,8 +1,8 @@
 import Foundation
 import simd
 
-struct FingerMotionEstimate: Equatable, Sendable {
-    enum Status: Equatable, Sendable {
+struct FingerMotionEstimate: Equatable {
+    enum Status: Equatable {
         case initializing
         case valid
         case invalidInterval

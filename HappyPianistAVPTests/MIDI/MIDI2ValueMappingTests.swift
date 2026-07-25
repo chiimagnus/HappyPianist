@@ -51,14 +51,14 @@ func midiHostTimeConverterConsumesTempoPauseAndSeekAdjustedTransportTime() {
         startTick: 0
     )
     let converter = MIDIHostTimeConverter(
-        currentHostTime: { 10_000 },
-        hostTicksPerSecond: 1_000
+        currentHostTime: { 10000 },
+        hostTicksPerSecond: 1000
     )
     let origin = converter.origin(atTransportSeconds: schedule[1].timeSeconds)
 
     #expect(schedule.map(\.timeSeconds) == [0, 1.5, 2.5])
-    #expect(converter.hostTime(atTransportSeconds: schedule[1].timeSeconds, relativeTo: origin) == 10_000)
-    #expect(converter.hostTime(atTransportSeconds: schedule[2].timeSeconds, relativeTo: origin) == 11_000)
+    #expect(converter.hostTime(atTransportSeconds: schedule[1].timeSeconds, relativeTo: origin) == 10000)
+    #expect(converter.hostTime(atTransportSeconds: schedule[2].timeSeconds, relativeTo: origin) == 11000)
 }
 
 @Test

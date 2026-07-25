@@ -139,7 +139,7 @@ func polyphonicUnisonFixturePreservesIdentityAcrossRetriggerAndTie() throws {
     })
 
     #expect(tiedNote.performedOnTick == 0)
-    #expect(tiedNote.performedOffTick == 2_400)
+    #expect(tiedNote.performedOffTick == 2400)
 
     let eventsAtStart = makeTimeline(plan: plan).events.filter { $0.tick == 0 }
     let eventsAtRetrigger = makeTimeline(plan: plan).events.filter { $0.tick == 480 }
@@ -374,7 +374,7 @@ func autoplayTimelineDoesNotReviveBoundaryOffBeforeSameTickPedalDown() throws {
 func autoplayTimelineRestoresHalfPedalAndClosesRangeAfterRepedal() throws {
     let activeRange = try timelineActiveRange(startTick: 480, endTick: 960)
     let plan = makeTimelinePlan(
-        notes: [TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 1_440)],
+        notes: [TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 1440)],
         controllerEvents: [
             timelineController(sourceID: directionID(ordinal: 11), tick: 0, value: 48),
             timelineController(sourceID: directionID(ordinal: 12), tick: 600, value: 0),
@@ -439,7 +439,7 @@ func autoplayTimelineReconstructsPedalLatchedNoteUntilRelease() throws {
 @Test
 func rangeStartFixtureRestoresHeldLatchedAndRepedalStateWithResetSnapshot() throws {
     let plan = try timelineFixturePlan(id: "range-start-held-notes")
-    let activeRange = try timelineActiveRange(startTick: 1_920, endTick: 3_840)
+    let activeRange = try timelineActiveRange(startTick: 1920, endTick: 3840)
     let heldNote = try #require(plan.noteEvents.first { $0.midiNote == 60 })
     let latchedNote = try #require(plan.noteEvents.first { $0.midiNote == 64 })
     let rangeNote = try #require(plan.noteEvents.first { $0.midiNote == 67 })
@@ -450,7 +450,7 @@ func rangeStartFixtureRestoresHeldLatchedAndRepedalStateWithResetSnapshot() thro
         if case .noteOff = $0.kind { return true }
         return false
     }
-    #expect(soundEvents.map(\.tick) == [1_920, 1_920, 2_400, 2_400, 2_880, 3_360])
+    #expect(soundEvents.map(\.tick) == [1920, 1920, 2400, 2400, 2880, 3360])
     #expect(soundEvents.map(\.kind) == [
         .noteOn(midi: 60, velocity: heldNote.velocity),
         .noteOn(midi: 64, velocity: latchedNote.velocity),
@@ -476,7 +476,7 @@ func rangeStartFixtureRestoresHeldLatchedAndRepedalStateWithResetSnapshot() thro
         if case .controlChange = $0.kind { return true }
         return false
     }
-    #expect(controllers.map(\.tick) == [1_920, 2_400, 2_880, 3_840])
+    #expect(controllers.map(\.tick) == [1920, 2400, 2880, 3840])
     #expect(controllers.map(\.kind) == [
         .controlChange(controller: 64, value: 127),
         .controlChange(controller: 64, value: 0),
@@ -487,7 +487,7 @@ func rangeStartFixtureRestoresHeldLatchedAndRepedalStateWithResetSnapshot() thro
     let reducer = PerformanceTransportReducer()
     let start = reducer.transition(
         from: .idle,
-        at: .start(tick: 1_920, activeEventIDs: [heldNote.id, latchedNote.id])
+        at: .start(tick: 1920, activeEventIDs: [heldNote.id, latchedNote.id])
     )
     let stop = reducer.transition(from: start.state, at: .stop)
     let resetCommands = try #require(stop.commands.compactMap { command -> [PerformanceTransportCommand]? in
@@ -509,9 +509,9 @@ func rangeStartFixtureRestoresHeldLatchedAndRepedalStateWithResetSnapshot() thro
 func autoplayTimelineClosesHeldAndRangeNotesAfterSamePitchRetrigger() throws {
     let activeRange = try timelineActiveRange(startTick: 480, endTick: 960)
     let plan = makeTimelinePlan(notes: [
-        TestScorePerformanceNote(midiNote: 60, velocity: 72, onTick: 0, offTick: 1_440),
-        TestScorePerformanceNote(midiNote: 64, velocity: 80, onTick: 600, offTick: 1_440),
-        TestScorePerformanceNote(midiNote: 60, velocity: 88, onTick: 720, offTick: 1_200),
+        TestScorePerformanceNote(midiNote: 60, velocity: 72, onTick: 0, offTick: 1440),
+        TestScorePerformanceNote(midiNote: 64, velocity: 80, onTick: 600, offTick: 1440),
+        TestScorePerformanceNote(midiNote: 60, velocity: 88, onTick: 720, offTick: 1200),
     ])
 
     let timeline = makeTimeline(plan: plan, activeRange: activeRange)
@@ -549,8 +549,8 @@ func autoplayTimelineClosesHeldAndRangeNotesAfterSamePitchRetrigger() throws {
 func transportDiagnosticsContainOnlyAggregateTimelineAndResetMetrics() async throws {
     let activeRange = try timelineActiveRange(startTick: 480, endTick: 960)
     let plan = makeTimelinePlan(notes: [
-        TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 1_440),
-        TestScorePerformanceNote(midiNote: 60, onTick: 720, offTick: 1_200),
+        TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 1440),
+        TestScorePerformanceNote(midiNote: 60, onTick: 720, offTick: 1200),
     ])
     let timeline = makeTimeline(plan: plan, activeRange: activeRange)
     let reporter = InMemoryDiagnosticsReporter()
@@ -619,7 +619,7 @@ func autoplayTimelinePrefersExplicitTempoAtActiveRangeStart() throws {
 }
 
 @Test
-func autoplayTimelineHoldsPlanPauseAtNoteOffBoundary() throws {
+func autoplayTimelineHoldsPlanPauseAtNoteOffBoundary() {
     let plan = makeTimelinePlan(
         notes: [TestScorePerformanceNote(midiNote: 60, velocity: 80, onTick: 0, offTick: 240)],
         annotations: [ScorePerformanceAnnotation(

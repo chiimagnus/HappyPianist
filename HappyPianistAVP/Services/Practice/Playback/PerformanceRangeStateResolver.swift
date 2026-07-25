@@ -1,12 +1,12 @@
 import Foundation
 
 struct PerformanceRangeStateResolver {
-    enum Approximation: Equatable, Sendable {
+    enum Approximation: Equatable {
         case reattackedHeldNote(eventID: ScorePerformanceNoteEventID)
         case reattackedSustainedNote(eventID: ScorePerformanceNoteEventID)
     }
 
-    struct StartState: Equatable, Sendable {
+    struct StartState: Equatable {
         let tick: Int
         let tempo: ScorePerformanceTempoEvent?
         let controllers: [ScorePerformanceControllerEvent]
@@ -14,7 +14,7 @@ struct PerformanceRangeStateResolver {
         let approximations: [Approximation]
     }
 
-    struct EndState: Equatable, Sendable {
+    struct EndState: Equatable {
         let tick: Int
         let controllerResets: [ScorePerformanceControllerEvent]
     }
@@ -76,9 +76,8 @@ struct PerformanceRangeStateResolver {
             .filter { $0.element.controllerNumber == 64 && $0.element.tick < endTick }
             .max(by: indexedControllerOrder)?
             .element
-        let controllerResets: [ScorePerformanceControllerEvent]
-        if let sustain, sustain.value != 0 {
-            controllerResets = [ScorePerformanceControllerEvent(
+        let controllerResets: [ScorePerformanceControllerEvent] = if let sustain, sustain.value != 0 {
+            [ScorePerformanceControllerEvent(
                 sourceDirectionID: nil,
                 performedOccurrenceIndex: sustain.performedOccurrenceIndex,
                 tick: endTick,
@@ -87,7 +86,7 @@ struct PerformanceRangeStateResolver {
                 outputCapabilityRequirement: sustain.outputCapabilityRequirement
             )]
         } else {
-            controllerResets = []
+            []
         }
         return EndState(tick: endTick, controllerResets: controllerResets)
     }
@@ -108,7 +107,8 @@ struct PerformanceRangeStateResolver {
         let quarterBPM: Double
         if let endTick = event.endTick,
            let endQuarterBPM = event.endQuarterBPM,
-           endTick > event.tick {
+           endTick > event.tick
+        {
             let progress = min(1, Double(startTick - event.tick) / Double(endTick - event.tick))
             quarterBPM = event.quarterBPM + (endQuarterBPM - event.quarterBPM) * progress
         } else {

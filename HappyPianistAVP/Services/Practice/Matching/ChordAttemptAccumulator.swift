@@ -10,8 +10,13 @@ struct HandSeparatedNoteEvidence: Equatable {
     let left: Set<Int>
     let hasUncertainCandidate: Bool
 
-    var all: Set<Int> { right.union(left) }
-    var isEmpty: Bool { right.isEmpty && left.isEmpty }
+    var all: Set<Int> {
+        right.union(left)
+    }
+
+    var isEmpty: Bool {
+        right.isEmpty && left.isEmpty
+    }
 
     init(right: Set<Int> = [], left: Set<Int> = [], hasUncertainCandidate: Bool = false) {
         self.right = right

@@ -42,7 +42,7 @@ actor CoachingDecisionService {
         scoreEvents: [ScorePerformanceNoteEvent] = []
     ) async -> CoachingDecision? {
         prepareSession(for: assessment)
-        updatePriorityContext(with: await remeasureAcceptedDecision(with: assessment))
+        await updatePriorityContext(with: remeasureAcceptedDecision(with: assessment))
         let context = CoachingPriorityContext(
             skippedDecisions: skippedDecisions,
             previousDecision: previousDecision,

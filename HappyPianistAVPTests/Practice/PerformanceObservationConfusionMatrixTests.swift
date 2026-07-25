@@ -1,6 +1,6 @@
 import Foundation
-import simd
 @testable import HappyPianistAVP
+import simd
 import Testing
 
 @Test
@@ -119,8 +119,8 @@ func syntheticHandReplayConfusionMatrixPreservesInsufficientEvidence() throws {
             let detector = KeyContactDetectionService(calibration: fixture.calibration)
             let adapter = PianoKeyContactPerformanceObservationAdapter()
             for frame in trace.frames {
-                let contacts = detector.detect(
-                    fingerTips: try frame.snapshot(keyboardGeometry: keyboardGeometry),
+                let contacts = try detector.detect(
+                    fingerTips: frame.snapshot(keyboardGeometry: keyboardGeometry),
                     keyboardGeometry: keyboardGeometry,
                     at: .init(seconds: frame.seconds)
                 )

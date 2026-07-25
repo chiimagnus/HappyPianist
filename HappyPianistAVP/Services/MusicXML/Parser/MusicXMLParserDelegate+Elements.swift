@@ -303,7 +303,7 @@ extension MusicXMLParserDelegate {
                 state.noteTimeModificationNormalDotCount = 0
             }
         case "normal-dot":
-            if state.isInNote && state.isInTimeModification {
+            if state.isInNote, state.isInTimeModification {
                 state.noteTimeModificationNormalDotCount += 1
             }
         case "beam":
@@ -589,7 +589,7 @@ extension MusicXMLParserDelegate {
                 }
                 for i in state.pedalEvents.indices
                     where state.pedalEvents[i].sourceID == state.currentDirectionSourceID
-                        && state.pedalEvents[i].staff == nil
+                    && state.pedalEvents[i].staff == nil
                 {
                     let event = state.pedalEvents[i]
                     state.pedalEvents[i] = MusicXMLPedalEvent(
@@ -608,7 +608,7 @@ extension MusicXMLParserDelegate {
                 }
                 for i in state.dynamicEvents.indices
                     where state.dynamicEvents[i].sourceID == state.currentDirectionSourceID
-                        && state.dynamicEvents[i].scope.staff == nil
+                    && state.dynamicEvents[i].scope.staff == nil
                 {
                     state.dynamicEvents[i] = MusicXMLDynamicEvent(
                         sourceID: state.dynamicEvents[i].sourceID,
@@ -626,7 +626,7 @@ extension MusicXMLParserDelegate {
                 }
                 for i in state.wedgeEvents.indices
                     where state.wedgeEvents[i].sourceID == state.currentDirectionSourceID
-                        && state.wedgeEvents[i].scope.staff == nil
+                    && state.wedgeEvents[i].scope.staff == nil
                 {
                     state.wedgeEvents[i] = MusicXMLWedgeEvent(
                         sourceID: state.wedgeEvents[i].sourceID,
@@ -642,7 +642,7 @@ extension MusicXMLParserDelegate {
                 }
                 for i in state.fermataEvents.indices
                     where state.fermataEvents[i].sourceID == state.currentDirectionSourceID
-                        && state.fermataEvents[i].scope.staff == nil
+                    && state.fermataEvents[i].scope.staff == nil
                 {
                     state.fermataEvents[i] = MusicXMLFermataEvent(
                         sourceID: state.fermataEvents[i].sourceID,
@@ -658,7 +658,7 @@ extension MusicXMLParserDelegate {
                 }
                 for i in state.wordsEvents.indices
                     where state.wordsEvents[i].sourceID == state.currentDirectionSourceID
-                        && state.wordsEvents[i].scope.staff == nil
+                    && state.wordsEvents[i].scope.staff == nil
                 {
                     state.wordsEvents[i] = MusicXMLWordsEvent(
                         sourceID: state.wordsEvents[i].sourceID,

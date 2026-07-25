@@ -1,20 +1,20 @@
 import Foundation
 
-struct ScorePerformancePlanID: Codable, Equatable, Hashable, Sendable {
+struct ScorePerformancePlanID: Codable, Equatable, Hashable {
     let rawValue: String
 }
 
-struct ScorePerformanceSourceIdentity: Codable, Equatable, Hashable, Sendable {
+struct ScorePerformanceSourceIdentity: Codable, Equatable, Hashable {
     let songID: UUID
     let scoreRevision: String
     let logicalInstrumentID: String
 }
 
-struct ScorePerformanceTickResolution: Codable, Equatable, Hashable, Sendable {
+struct ScorePerformanceTickResolution: Codable, Equatable, Hashable {
     let ticksPerQuarter: Int
 }
 
-struct ScorePerformancePlan: Codable, Equatable, Sendable {
+struct ScorePerformancePlan: Codable, Equatable {
     let id: ScorePerformancePlanID
     let sourceScoreIdentity: ScorePerformanceSourceIdentity
     let order: MusicXMLOrderSelection
@@ -26,7 +26,7 @@ struct ScorePerformancePlan: Codable, Equatable, Sendable {
     let approximations: [ScorePerformanceApproximation]
 }
 
-struct ScorePerformanceNoteEventID: Codable, Equatable, Hashable, Sendable, CustomStringConvertible {
+struct ScorePerformanceNoteEventID: Codable, Equatable, Hashable, CustomStringConvertible {
     let performedNoteID: MusicXMLPerformedNoteID
     let generatedOrdinal: Int?
 
@@ -35,21 +35,21 @@ struct ScorePerformanceNoteEventID: Codable, Equatable, Hashable, Sendable, Cust
     }
 }
 
-enum ScorePerformanceNotePurpose: String, Codable, Equatable, Hashable, Sendable {
+enum ScorePerformanceNotePurpose: String, Codable, Equatable, Hashable {
     case source
     case ornament
     case tremolo
     case glissando
 }
 
-struct ScorePerformanceWrittenPitch: Codable, Equatable, Hashable, Sendable {
+struct ScorePerformanceWrittenPitch: Codable, Equatable, Hashable {
     let step: String
     let octave: Int
     let alter: Double
     let accidentalToken: String?
 }
 
-struct ScorePerformanceVelocityResolution: Codable, Equatable, Sendable {
+struct ScorePerformanceVelocityResolution: Codable, Equatable {
     let baseVelocity: Int
     let curveVelocity: Double?
     let articulationDelta: Int
@@ -58,7 +58,7 @@ struct ScorePerformanceVelocityResolution: Codable, Equatable, Sendable {
     let usesGenericDynamicBaseline: Bool
 }
 
-struct ScorePerformanceNoteEvent: Codable, Equatable, Sendable {
+struct ScorePerformanceNoteEvent: Codable, Equatable {
     let id: ScorePerformanceNoteEventID
     let sourceNoteID: MusicXMLSourceNoteID
     let performedNoteID: MusicXMLPerformedNoteID
@@ -87,7 +87,7 @@ struct ScorePerformanceNoteEvent: Codable, Equatable, Sendable {
     }
 }
 
-struct ScorePerformanceTempoEvent: Codable, Equatable, Sendable {
+struct ScorePerformanceTempoEvent: Codable, Equatable {
     let sourceDirectionID: MusicXMLDirectionSourceID?
     let performedOccurrenceIndex: Int
     let tick: Int
@@ -96,11 +96,11 @@ struct ScorePerformanceTempoEvent: Codable, Equatable, Sendable {
     let endQuarterBPM: Double?
 }
 
-enum ScorePerformanceOutputCapabilityRequirement: String, Codable, Equatable, Hashable, Sendable {
+enum ScorePerformanceOutputCapabilityRequirement: String, Codable, Equatable, Hashable {
     case continuousControlChange
 }
 
-struct ScorePerformanceControllerEvent: Codable, Equatable, Sendable {
+struct ScorePerformanceControllerEvent: Codable, Equatable {
     let sourceDirectionID: MusicXMLDirectionSourceID?
     let performedOccurrenceIndex: Int
     let tick: Int
@@ -109,14 +109,14 @@ struct ScorePerformanceControllerEvent: Codable, Equatable, Sendable {
     let outputCapabilityRequirement: ScorePerformanceOutputCapabilityRequirement
 }
 
-enum ScorePerformanceAnnotationKind: String, Codable, Equatable, Hashable, Sendable {
+enum ScorePerformanceAnnotationKind: String, Codable, Equatable, Hashable {
     case pause
     case phrase
     case tempoWord
     case performanceNotation
 }
 
-struct ScorePerformanceAnnotation: Codable, Equatable, Sendable {
+struct ScorePerformanceAnnotation: Codable, Equatable {
     let sourceDirectionID: MusicXMLDirectionSourceID?
     let performedOccurrenceIndex: Int
     let tick: Int
@@ -126,7 +126,7 @@ struct ScorePerformanceAnnotation: Codable, Equatable, Sendable {
     let provenance: [ScorePerformanceProvenance]
 }
 
-enum ScorePerformanceProvenanceKind: String, Codable, Equatable, Hashable, Sendable {
+enum ScorePerformanceProvenanceKind: String, Codable, Equatable, Hashable {
     case score
     case performanceOffset
     case grace
@@ -136,13 +136,13 @@ enum ScorePerformanceProvenanceKind: String, Codable, Equatable, Hashable, Senda
     case approximation
 }
 
-struct ScorePerformanceProvenance: Codable, Equatable, Hashable, Sendable {
+struct ScorePerformanceProvenance: Codable, Equatable, Hashable {
     let kind: ScorePerformanceProvenanceKind
     let sourceIdentity: String?
     let detail: String?
 }
 
-enum ScorePerformanceApproximationScope: String, Codable, Equatable, Hashable, Sendable {
+enum ScorePerformanceApproximationScope: String, Codable, Equatable, Hashable {
     case plan
     case note
     case tempo
@@ -150,7 +150,7 @@ enum ScorePerformanceApproximationScope: String, Codable, Equatable, Hashable, S
     case annotation
 }
 
-struct ScorePerformanceApproximation: Codable, Equatable, Hashable, Sendable {
+struct ScorePerformanceApproximation: Codable, Equatable, Hashable {
     let scope: ScorePerformanceApproximationScope
     let eventIdentity: String?
     let reason: String

@@ -248,11 +248,10 @@ private extension ScoreTimingScheduleBuilder {
             let explicitDurations = group.noteIndices.compactMap { notes[$0].graceMakeTimeTicks }.filter { $0 > 0 }
             guard explicitDurations.isEmpty == false else { return nil }
 
-            let requestedDuration: Int
-            if explicitDurations.count == group.noteIndices.count {
-                requestedDuration = explicitDurations.reduce(0, +)
+            let requestedDuration: Int = if explicitDurations.count == group.noteIndices.count {
+                explicitDurations.reduce(0, +)
             } else {
-                requestedDuration = explicitDurations[0]
+                explicitDurations[0]
             }
             return MakeTimeGroup(
                 group: group,
@@ -408,7 +407,6 @@ private extension ScoreTimingScheduleBuilder {
                 notes: notes,
                 entries: &entries
             )
-
         }
     }
 
@@ -454,7 +452,7 @@ private extension ScoreTimingScheduleBuilder {
 
         for (key, candidates) in candidatesByGroup {
             guard candidates.isEmpty == false else { continue }
-            let explicitDirections = Set(candidates.compactMap { $0.arpeggiate.direction })
+            let explicitDirections = Set(candidates.compactMap(\.arpeggiate.direction))
             let direction = explicitDirections.sorted { $0.rawValue < $1.rawValue }.first ?? .up
             let provenance = ScoreTimingProvenance.arpeggio(
                 numberToken: key.numberToken,
@@ -587,7 +585,7 @@ private extension ScoreTimingScheduleBuilder {
                             continue
                         }
                         connectSlur(
-                            noteIndices: Array(ordered[active.startPosition...position]),
+                            noteIndices: Array(ordered[active.startPosition ... position]),
                             sourceID: active.sourceID ?? slur.sourceID,
                             profile: profile,
                             notes: notes,
@@ -799,7 +797,7 @@ private extension ScoreTimingScheduleBuilder {
         let total = max(count, durationTicks)
         let base = total / count
         let remainder = total % count
-        return (0..<count).map { index in
+        return (0 ..< count).map { index in
             base + (index < remainder ? 1 : 0)
         }
     }

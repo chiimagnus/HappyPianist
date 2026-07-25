@@ -261,7 +261,7 @@ enum DuetQualityRegressionFixtures {
 
     static let ruleQualityCorpus = BackendQualityCorpus(
         provider: .localRule,
-        seed: 1_234,
+        seed: 1234,
         promptNotes: [
             ImprovDialogueNote(note: 60, velocity: 92, time: 0, duration: 0.22),
             ImprovDialogueNote(note: 62, velocity: 92, time: 0.25, duration: 0.18),
@@ -272,7 +272,7 @@ enum DuetQualityRegressionFixtures {
             ImprovDialogueNote(note: 71, velocity: 92, time: 1.5, duration: 0.18),
             ImprovDialogueNote(note: 72, velocity: 92, time: 1.75, duration: 0.25),
         ],
-        parameters: .init(topP: 0.95, maxTokens: 256, strategy: "deterministic", seed: 1_234),
+        parameters: .init(topP: 0.95, maxTokens: 256, strategy: "deterministic", seed: 1234),
         response: .generatedRule,
         expectedBand: .risky
     )
@@ -317,7 +317,6 @@ enum DuetQualityRegressionFixtures {
         ]),
         expectedBand: .acceptable
     )
-
 }
 
 extension DuetQualityRegressionFixtures.BackendQualityCorpus {

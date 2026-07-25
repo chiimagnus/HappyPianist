@@ -244,7 +244,7 @@ func recorderFeedsConfiguredPlanAndObservationsToTransientAnalyzer() async throw
             mapping: nil,
             provenance: .hostOnly
         ),
-        event: .noteOn(note: 60, velocity: .init(midi2: 40_000))
+        event: .noteOn(note: 60, velocity: .init(midi2: 40000))
     ))
     await recorder.record(PerformanceObservation(
         source: .init(kind: .midi1, id: "midi:test", generation: 6),
@@ -267,7 +267,7 @@ func recorderFeedsConfiguredPlanAndObservationsToTransientAnalyzer() async throw
     #expect(snapshot.alignmentLatencyMilliseconds != nil)
     #expect(snapshot.isRunning == false)
     #expect(snapshot.alignment?.links.contains { if case .aligned = $0 { true } else { false } } == true)
-    let data = try JSONEncoder().encode(try #require(await repository.records().last))
+    let data = try JSONEncoder().encode(#require(await repository.records().last))
     #expect(String(decoding: data, as: UTF8.self).contains("alignment") == false)
     let diagnostic = try #require(await reporter.events.first { $0.stage == "performanceAlignment" })
     for token in ["discarded=", "latencyMs=", "candidates=", "aligned=", "missing=", "extra="] {
@@ -319,7 +319,7 @@ func recorderStartsANewAnalyzerGenerationForEachGuidingRound() async throws {
     await recorder.setGuiding(false)
     let first = await recorder.analysisSnapshot()
 
-    clock.advance(milliseconds: 1_000)
+    clock.advance(milliseconds: 1000)
     await recorder.setGuiding(true)
     await recorder.record(.init(
         source: source,

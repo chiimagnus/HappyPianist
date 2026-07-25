@@ -6,7 +6,7 @@ struct PracticeSessionRecorderClock {
     let localDay: @Sendable (Date) -> PracticeLocalDay?
 
     static func live() -> Self {
-        return Self(
+        Self(
             monotonic: .live(),
             wallDate: { .now },
             localDay: { date in
@@ -29,7 +29,6 @@ struct PracticeSessionRecorderClock {
             }
         )
     }
-
 }
 
 enum PracticeSessionRecorderSaveStatus: Equatable {

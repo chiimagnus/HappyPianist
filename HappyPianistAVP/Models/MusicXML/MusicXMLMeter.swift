@@ -1,12 +1,17 @@
 import Foundation
 
-struct MusicXMLMeter: Equatable, Hashable, Sendable {
-    struct Component: Equatable, Hashable, Sendable {
+struct MusicXMLMeter: Equatable, Hashable {
+    struct Component: Equatable, Hashable {
         let beatGroups: [Int]
         let beatType: Int
 
-        var beats: Int { beatGroups.reduce(0, +) }
-        var displayText: String { "\(beatGroups.map(String.init).joined(separator: "+"))/\(beatType)" }
+        var beats: Int {
+            beatGroups.reduce(0, +)
+        }
+
+        var displayText: String {
+            "\(beatGroups.map(String.init).joined(separator: "+"))/\(beatType)"
+        }
     }
 
     let components: [Component]
@@ -19,6 +24,11 @@ struct MusicXMLMeter: Equatable, Hashable, Sendable {
         return components.map(\.displayText).joined(separator: " + ")
     }
 
-    var totalBeats: Int { components.reduce(0) { $0 + $1.beats } }
-    var primaryBeatType: Int { components.first?.beatType ?? 4 }
+    var totalBeats: Int {
+        components.reduce(0) { $0 + $1.beats }
+    }
+
+    var primaryBeatType: Int {
+        components.first?.beatType ?? 4
+    }
 }

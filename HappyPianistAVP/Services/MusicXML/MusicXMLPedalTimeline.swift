@@ -1,7 +1,7 @@
 import Foundation
 
 struct MusicXMLPedalTimeline: Equatable {
-    struct ControllerChange: Equatable, Sendable {
+    struct ControllerChange: Equatable {
         let sourceDirectionID: MusicXMLDirectionSourceID?
         let performedOccurrenceIndex: Int
         let tick: Int

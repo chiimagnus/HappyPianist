@@ -1,5 +1,5 @@
-struct MIDIInputSource: Equatable, Hashable, Sendable {
-    enum Identifier: Equatable, Hashable, Sendable {
+struct MIDIInputSource: Equatable, Hashable {
+    enum Identifier: Equatable, Hashable {
         case endpointUniqueID(Int32)
         case sourceIndex(Int)
     }

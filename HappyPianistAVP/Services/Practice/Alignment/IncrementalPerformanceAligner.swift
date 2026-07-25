@@ -1,39 +1,39 @@
 import Foundation
 
-struct IncrementalPerformanceAligner: Sendable {
-    private struct SourceIdentity: Hashable, Sendable {
+struct IncrementalPerformanceAligner {
+    private struct SourceIdentity: Hashable {
         let kind: String
         let id: String
     }
 
-    private struct NoteReleaseRoute: Hashable, Sendable {
+    private struct NoteReleaseRoute: Hashable {
         let source: PerformanceObservation.Source
         let channel: Int?
         let group: Int?
         let note: Int
     }
 
-    private struct ContactReleaseRoute: Hashable, Sendable {
+    private struct ContactReleaseRoute: Hashable {
         let source: PerformanceObservation.Source
         let id: String
     }
 
-    private struct OpenRelease: Sendable {
+    private struct OpenRelease {
         let observationID: UUID
         let seconds: TimeInterval
     }
 
-    enum State: Equatable, Sendable {
+    enum State: Equatable {
         case idle
         case running
         case finished
     }
 
-    struct Configuration: Equatable, Sendable {
+    struct Configuration: Equatable {
         let maximumBufferedObservations: Int
         let commitHorizonSeconds: TimeInterval
 
-        init(maximumBufferedObservations: Int = 4_096, commitHorizonSeconds: TimeInterval = 0.3) {
+        init(maximumBufferedObservations: Int = 4096, commitHorizonSeconds: TimeInterval = 0.3) {
             self.maximumBufferedObservations = max(32, maximumBufferedObservations)
             self.commitHorizonSeconds = commitHorizonSeconds.isFinite
                 ? max(0, commitHorizonSeconds)
@@ -63,7 +63,9 @@ struct IncrementalPerformanceAligner: Sendable {
     private var openNotes: [NoteReleaseRoute: [OpenRelease]] = [:]
     private var openContacts: [ContactReleaseRoute: OpenRelease] = [:]
 
-    var bufferedObservationCount: Int { observations.count }
+    var bufferedObservationCount: Int {
+        observations.count
+    }
 
     init(
         engine: PerformanceAlignmentEngine = .init(),
@@ -404,7 +406,9 @@ private extension PerformanceAlignmentLink {
         }
     }
 
-    var observationID: UUID? { observationReference?.observationID }
+    var observationID: UUID? {
+        observationReference?.observationID
+    }
 }
 
 private extension PerformanceAlignmentControllerLink {
@@ -418,5 +422,7 @@ private extension PerformanceAlignmentControllerLink {
         }
     }
 
-    var observationID: UUID? { observationReference?.observationID }
+    var observationID: UUID? {
+        observationReference?.observationID
+    }
 }

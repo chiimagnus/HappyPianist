@@ -820,7 +820,8 @@ struct GrandStaffNotationRenderer {
             )
             if rest.dotCount > 0,
                let restBounds = engravingMetrics.bounds(for: token),
-               let dotBounds = engravingMetrics.bounds(for: .augmentationDot) {
+               let dotBounds = engravingMetrics.bounds(for: .augmentationDot)
+            {
                 let dotStaffStep = rest.staffStep + 1
                 let firstDotOffset = restBounds.maxX + engravingMetrics.dotNoteheadGap - dotBounds.minX
                 for dotIndex in 0 ..< rest.dotCount {
@@ -1088,7 +1089,8 @@ struct GrandStaffNotationRenderer {
         }
 
         if let accidentalToken = item.displayedAccidental?.glyphToken,
-           let accidentalXOffset = item.accidentalXOffsetStaffSpaces {
+           let accidentalXOffset = item.accidentalXOffsetStaffSpaces
+        {
             let accidentalOpacity = min(1.0, 0.85 * fadeScale)
             drawGlyph(
                 accidentalToken,
@@ -1104,7 +1106,8 @@ struct GrandStaffNotationRenderer {
 
         if item.dotCount > 0,
            let dotXOffset = item.dotXOffsetStaffSpaces,
-           let dotStaffStep = item.dotStaffStep {
+           let dotStaffStep = item.dotStaffStep
+        {
             for dotIndex in 0 ..< item.dotCount {
                 drawGlyph(
                     .augmentationDot,

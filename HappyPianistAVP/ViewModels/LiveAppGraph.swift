@@ -127,7 +127,7 @@ struct LiveAppGraph {
             let touchCalibration = modeID == .virtualPiano
                 ? PianoModeTouchCalibrationService.conservativeDefault(for: .virtualPiano)
                 : appState.storedCalibration?.touchCalibration
-                    ?? PianoModeTouchCalibrationService.conservativeDefault(for: .realAudio)
+                ?? PianoModeTouchCalibrationService.conservativeDefault(for: .realAudio)
             switch modeID {
             case .bluetoothMIDI:
                 let settingsProvider = UserDefaultsPracticeSessionSettingsProvider()

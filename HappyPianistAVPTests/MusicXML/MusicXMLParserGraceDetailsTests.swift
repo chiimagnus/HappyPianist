@@ -188,5 +188,4 @@ struct MusicXMLParserGraceDetailsTests {
             voice: 1
         )
     }
-
 }

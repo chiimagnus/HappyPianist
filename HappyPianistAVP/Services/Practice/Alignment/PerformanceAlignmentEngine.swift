@@ -1,6 +1,6 @@
 import Foundation
 
-struct PerformanceAlignmentConfiguration: Equatable, Sendable {
+struct PerformanceAlignmentConfiguration: Equatable {
     let candidateWindowSeconds: TimeInterval
     let ambiguityCostTolerance: Double
     let pitchMismatchCost: Double
@@ -31,7 +31,7 @@ struct PerformanceAlignmentConfiguration: Equatable, Sendable {
     }
 }
 
-struct PerformanceAlignmentEngine: Sendable {
+struct PerformanceAlignmentEngine {
     private struct ReleaseMeasurement {
         let duration: TimeInterval?
         let capability: PerformanceInputCapabilities.Evidence
@@ -95,12 +95,12 @@ struct PerformanceAlignmentEngine: Sendable {
         }
     }
 
-    fileprivate struct TimedNote: Sendable {
+    fileprivate struct TimedNote {
         let event: ScorePerformanceNoteEvent
         let seconds: TimeInterval
     }
 
-    struct PreparedPlan: Sendable {
+    struct PreparedPlan {
         fileprivate let plan: ScorePerformancePlan
         fileprivate let timeMap: ScorePerformancePlanTimeMap
         fileprivate let activeNotes: [TimedNote]
@@ -154,7 +154,9 @@ struct PerformanceAlignmentEngine: Sendable {
 
     private let configuration: PerformanceAlignmentConfiguration
 
-    var candidateWindowSeconds: TimeInterval { configuration.candidateWindowSeconds }
+    var candidateWindowSeconds: TimeInterval {
+        configuration.candidateWindowSeconds
+    }
 
     init(configuration: PerformanceAlignmentConfiguration = .init()) {
         self.configuration = configuration
@@ -487,7 +489,8 @@ struct PerformanceAlignmentEngine: Sendable {
         for observationIndex in costs.indices {
             let node = observationOffset + observationIndex
             for edge in graph[node]
-            where edge.to >= targetOffset && edge.to < sink && edge.capacity == 0 {
+                where edge.to >= targetOffset && edge.to < sink && edge.capacity == 0
+            {
                 result[observationIndex] = edge.to - targetOffset
                 break
             }
@@ -631,14 +634,13 @@ struct PerformanceAlignmentEngine: Sendable {
         let observedHand = handEvidence == .unavailable || observation.hand == .unknown
             ? nil
             : observation.hand
-        let matching: [TimedNote]
-        if let observedHand {
-            matching = pitchMatching.filter { timedNote in
+        let matching: [TimedNote] = if let observedHand {
+            pitchMatching.filter { timedNote in
                 timedNote.event.handAssignment.hand == .unknown
                     || timedNote.event.handAssignment.hand == observedHand
             }
         } else {
-            matching = pitchMatching
+            pitchMatching
         }
         guard matching.isEmpty == false else {
             return .init(
@@ -890,18 +892,18 @@ struct PerformanceAlignmentEngine: Sendable {
         let durationDeviation = actual - expectedDuration
         let releaseDeviation = onsetDeviation.map { $0 + durationDeviation }
         return [
-                .init(
-                    dimension: .release,
-                    status: evidenceStatus(capability),
-                    cost: releaseDeviation.map(abs) ?? unmatchedCost,
-                    deviationSeconds: releaseDeviation
-                ),
-                .init(
-                    dimension: .duration,
-                    status: evidenceStatus(capability),
-                    cost: abs(durationDeviation),
-                    deviationSeconds: durationDeviation
-                ),
+            .init(
+                dimension: .release,
+                status: evidenceStatus(capability),
+                cost: releaseDeviation.map(abs) ?? unmatchedCost,
+                deviationSeconds: releaseDeviation
+            ),
+            .init(
+                dimension: .duration,
+                status: evidenceStatus(capability),
+                cost: abs(durationDeviation),
+                deviationSeconds: durationDeviation
+            ),
         ]
     }
 
@@ -922,7 +924,6 @@ private extension PerformanceObservation {
         }
     }
 
-
     var alignmentUnknownReason: PerformanceAlignmentUnknownReason? {
         switch event {
         case .noteOn where source.capabilities.pitch == .unavailable:
@@ -939,7 +940,7 @@ private extension PerformanceObservation {
     }
 }
 
-struct ScorePerformancePlanTimeMap: Sendable {
+struct ScorePerformancePlanTimeMap {
     private let scale: Double
     private let map: MusicXMLTempoMap
 

@@ -57,7 +57,7 @@ func highlightNoteRequiresExplicitAssignment() {
 }
 
 @Test
-func coachingPreservesHeuristicConfidenceButDoesNotInferUnknownStaffHand() throws {
+func coachingPreservesHeuristicConfidenceButDoesNotInferUnknownStaffHand() {
     let issue = MusicalIssue(
         kind: .pitch,
         scoreRange: 0 ..< 480,

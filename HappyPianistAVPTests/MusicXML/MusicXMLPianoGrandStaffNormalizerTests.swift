@@ -72,8 +72,8 @@ func normalizerDoesNotMergeDistinctNamedPianosFromComplementaryClefs() throws {
     </score-partwise>
     """
 
-    let normalized = MusicXMLPianoGrandStaffNormalizer().normalize(
-        score: try MusicXMLParser().parse(data: Data(xml.utf8))
+    let normalized = try MusicXMLPianoGrandStaffNormalizer().normalize(
+        score: MusicXMLParser().parse(data: Data(xml.utf8))
     )
 
     #expect(normalized.logicalInstruments.count == 2)
@@ -96,8 +96,8 @@ func normalizerDoesNotMergeIndependentTrebleAndBassInstruments() throws {
       </measure></part>
     </score-partwise>
     """
-    let normalized = MusicXMLPianoGrandStaffNormalizer().normalize(
-        score: try MusicXMLParser().parse(data: Data(xml.utf8))
+    let normalized = try MusicXMLPianoGrandStaffNormalizer().normalize(
+        score: MusicXMLParser().parse(data: Data(xml.utf8))
     )
     #expect(normalized.logicalInstruments.count == 2)
     #expect(normalized.logicalInstruments.allSatisfy { $0.memberPartIDs.count == 1 })
@@ -105,7 +105,9 @@ func normalizerDoesNotMergeIndependentTrebleAndBassInstruments() throws {
 }
 
 private extension Collection {
-    var only: Element? { count == 1 ? first : nil }
+    var only: Element? {
+        count == 1 ? first : nil
+    }
 }
 
 @Test

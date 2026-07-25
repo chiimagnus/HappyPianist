@@ -1,11 +1,11 @@
-import Foundation
 import CoreML
+import Foundation
 @testable import HappyPianistAVP
 import Testing
 
 private let hasBundledPerformanceRNNModel =
     Bundle.main.url(forResource: "AIDuetPerformanceRNN", withExtension: "mlmodelc") != nil
-    || Bundle.main.url(forResource: "AIDuetPerformanceRNN", withExtension: "mlpackage") != nil
+        || Bundle.main.url(forResource: "AIDuetPerformanceRNN", withExtension: "mlpackage") != nil
 
 struct PerformanceRNNCoreMLModelLoaderTests {
     @Test func defaultConfigurationExcludesGPU() {

@@ -12,6 +12,7 @@ func sequencerPlaybackServiceProtocolCarriesCanonicalCommandsAcrossActorBoundary
         func stop(resetCommands: [PerformanceTransportCommand]) async {
             self.resetCommands = resetCommands
         }
+
         func load(sequence _: PracticeSequencerSequence) async throws {}
         func play(fromSeconds _: TimeInterval) async throws {}
         func currentSeconds() async -> TimeInterval {
@@ -22,6 +23,7 @@ func sequencerPlaybackServiceProtocolCarriesCanonicalCommandsAcrossActorBoundary
         func execute(commands: [PracticePlaybackCommand]) async throws {
             self.commands.append(contentsOf: commands)
         }
+
         func stopAllLiveNotes() async {}
 
         func snapshot() -> (commands: [PracticePlaybackCommand], reset: [PerformanceTransportCommand]) {

@@ -1,6 +1,6 @@
 import Foundation
 
-enum PianoPerformanceDiagnosticStage: String, Codable, CaseIterable, Sendable {
+enum PianoPerformanceDiagnosticStage: String, Codable, CaseIterable {
     case preparation
     case plan
     case playback
@@ -10,7 +10,7 @@ enum PianoPerformanceDiagnosticStage: String, Codable, CaseIterable, Sendable {
     case coaching
 }
 
-enum PianoPerformanceDiagnosticOutcome: String, Codable, CaseIterable, Sendable {
+enum PianoPerformanceDiagnosticOutcome: String, Codable, CaseIterable {
     case started
     case succeeded
     case failed
@@ -18,7 +18,7 @@ enum PianoPerformanceDiagnosticOutcome: String, Codable, CaseIterable, Sendable 
     case mismatch
 }
 
-enum PianoPerformanceDiagnosticCapability: String, Codable, CaseIterable, Sendable {
+enum PianoPerformanceDiagnosticCapability: String, Codable, CaseIterable {
     case scoreParsing
     case performancePlan
     case localSampler
@@ -30,7 +30,7 @@ enum PianoPerformanceDiagnosticCapability: String, Codable, CaseIterable, Sendab
     case performanceAssessment
 }
 
-enum PianoPerformanceAudioOperation: String, Codable, CaseIterable, Sendable {
+enum PianoPerformanceAudioOperation: String, Codable, CaseIterable {
     case audioSessionConfiguration
     case soundFontLoad
     case engineStart
@@ -43,12 +43,12 @@ enum PianoPerformanceAudioOperation: String, Codable, CaseIterable, Sendable {
     case transportReset
 }
 
-enum PianoPerformanceAudioRecovery: String, Codable, CaseIterable, Sendable {
+enum PianoPerformanceAudioRecovery: String, Codable, CaseIterable {
     case recoverable
     case unrecoverable
 }
 
-enum PianoPerformanceAudioLifecycleReason: String, Codable, CaseIterable, Sendable {
+enum PianoPerformanceAudioLifecycleReason: String, Codable, CaseIterable {
     case operationError
     case interruptionDefault
     case interruptionAppSuspended
@@ -67,13 +67,13 @@ enum PianoPerformanceAudioLifecycleReason: String, Codable, CaseIterable, Sendab
     case mediaServicesReset
 }
 
-enum PianoPerformanceAudioResetOutcome: String, Codable, CaseIterable, Sendable {
+enum PianoPerformanceAudioResetOutcome: String, Codable, CaseIterable {
     case succeeded
     case failed
     case notRequired
 }
 
-struct PianoPerformanceAudioDiagnosticSample: Equatable, Sendable {
+struct PianoPerformanceAudioDiagnosticSample: Equatable {
     let outcome: PianoPerformanceDiagnosticOutcome
     let operation: PianoPerformanceAudioOperation
     let recovery: PianoPerformanceAudioRecovery
@@ -101,7 +101,7 @@ struct PianoPerformanceAudioDiagnosticSample: Equatable, Sendable {
     }
 }
 
-enum PianoPerformanceDurationBucket: String, Codable, CaseIterable, Sendable {
+enum PianoPerformanceDurationBucket: String, Codable, CaseIterable {
     case underTenMilliseconds
     case underFiftyMilliseconds
     case underTwoHundredMilliseconds
@@ -132,7 +132,7 @@ enum PianoPerformanceDurationBucket: String, Codable, CaseIterable, Sendable {
     }
 }
 
-struct PianoPerformanceDiagnosticSample: Equatable, Sendable {
+struct PianoPerformanceDiagnosticSample: Equatable {
     let stage: PianoPerformanceDiagnosticStage
     let outcome: PianoPerformanceDiagnosticOutcome
     let capability: PianoPerformanceDiagnosticCapability
@@ -186,7 +186,7 @@ struct PianoPerformanceDiagnosticSample: Equatable, Sendable {
     }
 }
 
-struct PianoPerformancePlanBuildDiagnosticSample: Equatable, Sendable {
+struct PianoPerformancePlanBuildDiagnosticSample: Equatable {
     let songID: UUID
     let scoreRevision: String
     let durationBucket: PianoPerformanceDurationBucket
@@ -238,7 +238,7 @@ struct PianoPerformancePlanBuildDiagnosticSample: Equatable, Sendable {
     }
 }
 
-struct PianoPerformanceNotationFallbackDiagnosticSample: Equatable, Sendable {
+struct PianoPerformanceNotationFallbackDiagnosticSample: Equatable {
     private struct Key: Hashable {
         let kind: ScoreNotationProjection.Fallback.Kind
         let sourceKindToken: String?
@@ -289,14 +289,14 @@ struct PianoPerformanceNotationFallbackDiagnosticSample: Equatable, Sendable {
     }
 }
 
-enum PianoPerformanceCoachingDiagnosticOutcome: String, Equatable, Sendable {
+enum PianoPerformanceCoachingDiagnosticOutcome: String, Equatable {
     case issued
     case accepted
     case skipped
     case remeasured
 }
 
-enum PianoPerformanceConfidenceBucket: String, Equatable, Sendable {
+enum PianoPerformanceConfidenceBucket: String, Equatable {
     case unavailable
     case low
     case medium
@@ -318,7 +318,7 @@ enum PianoPerformanceConfidenceBucket: String, Equatable, Sendable {
     }
 }
 
-struct PianoPerformanceCoachingMetricSnapshot: Equatable, Sendable {
+struct PianoPerformanceCoachingMetricSnapshot: Equatable {
     let dimension: PerformanceAssessmentDimension
     let outcome: PracticeEvidenceOutcome
     let evidenceStatus: PerformanceAssessmentEvidenceStatus
@@ -334,7 +334,7 @@ struct PianoPerformanceCoachingMetricSnapshot: Equatable, Sendable {
     }
 }
 
-struct PianoPerformanceCoachingDiagnosticSample: Equatable, Sendable {
+struct PianoPerformanceCoachingDiagnosticSample: Equatable {
     let decisionID: UUID
     let outcome: PianoPerformanceCoachingDiagnosticOutcome
     let issueKind: MusicalIssueKind

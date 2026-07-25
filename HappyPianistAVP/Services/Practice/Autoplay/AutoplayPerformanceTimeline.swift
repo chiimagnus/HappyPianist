@@ -1,7 +1,7 @@
 import Foundation
 
-struct AutoplayPerformanceTimeline: Equatable, Sendable {
-    struct TransportMetrics: Equatable, Sendable {
+struct AutoplayPerformanceTimeline: Equatable {
+    struct TransportMetrics: Equatable {
         static let empty = TransportMetrics(
             retriggeredEventCount: 0,
             preventedStaleOffCount: 0,
@@ -13,7 +13,7 @@ struct AutoplayPerformanceTimeline: Equatable, Sendable {
         let orphanOffCount: Int
     }
 
-    enum EventKind: Equatable, Sendable {
+    enum EventKind: Equatable {
         case pauseSeconds(TimeInterval)
         case noteOff(midi: Int)
         case controlChange(controller: UInt8, value: UInt8)
@@ -23,7 +23,7 @@ struct AutoplayPerformanceTimeline: Equatable, Sendable {
         case advanceGuide(index: Int, guideID: Int)
     }
 
-    struct Event: Equatable, Identifiable, Sendable {
+    struct Event: Equatable, Identifiable {
         let id: Int
         let sourceEventID: String?
         let tick: Int
@@ -35,7 +35,6 @@ struct AutoplayPerformanceTimeline: Equatable, Sendable {
             self.tick = tick
             self.kind = kind
         }
-
     }
 
     private struct RawEvent {
@@ -45,18 +44,18 @@ struct AutoplayPerformanceTimeline: Equatable, Sendable {
         let kind: EventKind
     }
 
-    private struct BuildGuide: Sendable {
+    private struct BuildGuide {
         let index: Int
         let id: Int
         let tick: Int
     }
 
-    private struct BuildStep: Sendable {
+    private struct BuildStep {
         let index: Int
         let tick: Int
     }
 
-    private struct ActiveRangeSnapshot: Sendable {
+    private struct ActiveRangeSnapshot {
         let stepRange: Range<Int>
         let tickRange: Range<Int>
 
@@ -69,7 +68,7 @@ struct AutoplayPerformanceTimeline: Equatable, Sendable {
         }
     }
 
-    private struct BuildInput: Sendable {
+    private struct BuildInput {
         let plan: ScorePerformancePlan
         let guides: [BuildGuide]
         let steps: [BuildStep]
@@ -376,7 +375,6 @@ struct AutoplayPerformanceTimeline: Equatable, Sendable {
         guard let activeRange else { return true }
         return tick >= activeRange.tickRange.lowerBound && tick <= activeRange.tickRange.upperBound
     }
-
 }
 
 extension AutoplayPerformanceTimeline {

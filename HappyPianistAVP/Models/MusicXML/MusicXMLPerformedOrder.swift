@@ -1,11 +1,11 @@
 import Foundation
 
-enum MusicXMLScoreOrder: String, Codable, Equatable, Sendable {
+enum MusicXMLScoreOrder: String, Codable, Equatable {
     case written
     case performed
 }
 
-struct MusicXMLOrderSelection: Codable, Equatable, Sendable {
+struct MusicXMLOrderSelection: Codable, Equatable {
     let requested: MusicXMLScoreOrder
     let applied: MusicXMLScoreOrder
     let approximationReason: String?
@@ -28,12 +28,12 @@ struct MusicXMLOrderSelection: Codable, Equatable, Sendable {
     }
 }
 
-struct MusicXMLStructureExpansionResult: Equatable, Sendable {
+struct MusicXMLStructureExpansionResult: Equatable {
     let score: MusicXMLScore
     let approximationReason: String?
 }
 
-struct MusicXMLPerformedNoteID: Codable, Equatable, Hashable, Sendable, CustomStringConvertible {
+struct MusicXMLPerformedNoteID: Codable, Equatable, Hashable, CustomStringConvertible {
     let sourceID: MusicXMLSourceNoteID
     let occurrenceIndex: Int
 
@@ -42,7 +42,7 @@ struct MusicXMLPerformedNoteID: Codable, Equatable, Hashable, Sendable, CustomSt
     }
 }
 
-struct MusicXMLPerformedDirectionID: Codable, Equatable, Hashable, Sendable, CustomStringConvertible {
+struct MusicXMLPerformedDirectionID: Codable, Equatable, Hashable, CustomStringConvertible {
     let sourceID: MusicXMLDirectionSourceID
     let occurrenceIndex: Int
 

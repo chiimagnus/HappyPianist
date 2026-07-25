@@ -122,7 +122,8 @@ final class VirtualPianoInputController {
         )
 
         for midiNote in soundingContactByMIDINote.keys.sorted()
-        where allowsNoteOn == false || activeMIDINotes.contains(midiNote) == false {
+            where allowsNoteOn == false || activeMIDINotes.contains(midiNote) == false
+        {
             guard let contactID = soundingContactByMIDINote.removeValue(forKey: midiNote) else { continue }
             events.append(
                 PracticeLiveNoteEvent(

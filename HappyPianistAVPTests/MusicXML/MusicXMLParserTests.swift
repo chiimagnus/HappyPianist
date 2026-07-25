@@ -131,7 +131,7 @@ func parserPreservesWholeMeasureRestWithoutWrittenType() throws {
     #expect(rest.isRest)
     #expect(rest.isMeasureRest)
     #expect(rest.writtenRhythm == nil)
-    #expect(rest.durationTicks == 1_440)
+    #expect(rest.durationTicks == 1440)
 }
 
 @Test
@@ -867,10 +867,10 @@ func parserPreservesPartListAndMIDIInstrumentMetadata() throws {
     #expect(score.partMetadata[0].name == "Concert Grand Piano")
     #expect(score.partMetadata[0].abbreviation == "Pno.")
     #expect(score.partMetadata[0].scoreInstruments == [
-        MusicXMLScoreInstrumentMetadata(id: "P1-I1", name: "Grand Piano")
+        MusicXMLScoreInstrumentMetadata(id: "P1-I1", name: "Grand Piano"),
     ])
     #expect(score.partMetadata[0].midiInstruments == [
-        MusicXMLMIDIInstrumentMetadata(id: "P1-I1", channel: 1, program: 1, bank: 1)
+        MusicXMLMIDIInstrumentMetadata(id: "P1-I1", channel: 1, program: 1, bank: 1),
     ])
 }
 
@@ -979,7 +979,7 @@ func parserPreservesTransposeAndOctaveShiftFacts() throws {
             octaveChange: 0,
             isDouble: false,
             scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
-        )
+        ),
     ])
     #expect(score.notes.first?.writtenPitch?.step == "C")
     #expect(score.octaveShiftEvents.map(\.kind) == [.up, .stop])

@@ -92,8 +92,13 @@ private actor RecordingAlignmentCancellationProbe {
 private final class InMemoryRecordingTakeStore: RecordingTakeStoreProtocol {
     private var takes: [RecordingTake] = []
 
-    func load() throws -> [RecordingTake] { takes }
-    func save(_ takes: [RecordingTake]) throws { self.takes = takes }
+    func load() throws -> [RecordingTake] {
+        takes
+    }
+
+    func save(_ takes: [RecordingTake]) throws {
+        self.takes = takes
+    }
 }
 
 private struct StubRecordingMIDIExportService: RecordingMIDIExportServiceProtocol {

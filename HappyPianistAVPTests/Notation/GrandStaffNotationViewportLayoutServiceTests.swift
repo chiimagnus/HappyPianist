@@ -138,7 +138,7 @@ func repeatedPerformedOccurrencesMapToOneSourceAndClipByOccurrenceTick() throws 
         projection: projection,
         overlay: .init(
             activeEventIDs: [repeatedEvent.id],
-            activeTickRange: 900 ..< 1_440
+            activeTickRange: 900 ..< 1440
         ),
         viewportWidthStaffSpaces: 12,
         scrollTick: 960
@@ -154,7 +154,7 @@ func repeatedPerformedOccurrencesMapToOneSourceAndClipByOccurrenceTick() throws 
 }
 
 @Test
-func repeatedPerformedScoreKeepsEveryVisibleRestOccurrence() throws {
+func repeatedPerformedScoreKeepsEveryVisibleRestOccurrence() {
     let performedScore = repeatedNotationScore()
     let sourceScore = MusicXMLScore(notes: Array(performedScore.notes.prefix(2)))
     let projection = ScoreNotationProjection(

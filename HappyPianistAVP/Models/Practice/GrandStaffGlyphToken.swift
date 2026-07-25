@@ -1,6 +1,6 @@
 import Foundation
 
-enum GrandStaffGlyphToken: String, CaseIterable, Equatable, Hashable, Sendable {
+enum GrandStaffGlyphToken: String, CaseIterable, Equatable, Hashable {
     case brace
     case gClef
     case fClef

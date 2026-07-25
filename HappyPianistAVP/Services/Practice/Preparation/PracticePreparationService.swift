@@ -54,6 +54,7 @@ extension PracticePreparationServiceProtocol {
         try await prepare(songID: songID, from: scoreURL, file: file, options: .practice)
     }
 }
+
 actor PracticePreparationService: PracticePreparationServiceProtocol {
     private let parser: MusicXMLParserProtocol
     private let stepBuilder: PracticeStepBuilderProtocol
@@ -339,7 +340,7 @@ actor PracticePreparationService: PracticePreparationServiceProtocol {
                 )
             }
         })
-        let expectedHighlightIDs = playableEvents.map { $0.id.description }
+        let expectedHighlightIDs = playableEvents.map(\.id.description)
         let projectedHighlightIDs = highlightGuides.flatMap(\.triggeredNotes).map(\.occurrenceID)
         let expectedNotationIDs = Set(plan.noteEvents.map(\.id))
         let projectedNotationIDs = Set(

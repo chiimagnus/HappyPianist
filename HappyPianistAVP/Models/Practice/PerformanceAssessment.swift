@@ -1,12 +1,12 @@
 import Foundation
 
-struct PerformanceAssessmentRubricVersion: Equatable, Hashable, Sendable {
+struct PerformanceAssessmentRubricVersion: Equatable, Hashable {
     static let capabilityAware = Self(rawValue: "performance-assessment-v2")
 
     let rawValue: String
 }
 
-struct PerformanceAssessmentEvidenceCoverage: Equatable, Sendable {
+struct PerformanceAssessmentEvidenceCoverage: Equatable {
     let dimensionCount: Int
     let observedCount: Int
     let degradedCount: Int
@@ -25,7 +25,7 @@ struct PerformanceAssessmentEvidenceCoverage: Equatable, Sendable {
     }
 }
 
-enum PerformanceAssessmentDimension: String, Codable, CaseIterable, Equatable, Hashable, Sendable {
+enum PerformanceAssessmentDimension: String, Codable, CaseIterable, Equatable, Hashable {
     case exactPitch
     case extraNotes
     case missingNotes
@@ -69,14 +69,14 @@ enum PerformanceAssessmentDimension: String, Codable, CaseIterable, Equatable, H
     }
 }
 
-enum PerformanceAssessmentEvidenceStatus: String, Codable, Equatable, Hashable, Sendable {
+enum PerformanceAssessmentEvidenceStatus: String, Codable, Equatable, Hashable {
     case observed
     case degraded
     case notObserved
     case insufficient
 }
 
-enum PerformanceAssessmentMeasurementUnit: String, Codable, Equatable, Hashable, Sendable {
+enum PerformanceAssessmentMeasurementUnit: String, Codable, Equatable, Hashable {
     case count
     case ratio
     case seconds
@@ -84,7 +84,7 @@ enum PerformanceAssessmentMeasurementUnit: String, Codable, Equatable, Hashable,
     case midi7Bit
 }
 
-struct PerformanceAssessmentMeasurement: Codable, Equatable, Sendable {
+struct PerformanceAssessmentMeasurement: Codable, Equatable {
     let value: Double
     let unit: PerformanceAssessmentMeasurementUnit
 
@@ -95,7 +95,7 @@ struct PerformanceAssessmentMeasurement: Codable, Equatable, Sendable {
     }
 }
 
-enum PerformanceAssessmentEvidenceLink: Equatable, Sendable {
+enum PerformanceAssessmentEvidenceLink: Equatable {
     case note(
         score: PerformanceAlignmentScoreReference,
         observationID: UUID?,
@@ -110,7 +110,7 @@ enum PerformanceAssessmentEvidenceLink: Equatable, Sendable {
     case unknownObservation(observationID: UUID, reason: PerformanceAlignmentUnknownReason)
 }
 
-struct PerformanceAssessmentDimensionResult: Equatable, Sendable {
+struct PerformanceAssessmentDimensionResult: Equatable {
     let dimension: PerformanceAssessmentDimension
     let outcome: PracticeEvidenceOutcome
     let evidenceStatus: PerformanceAssessmentEvidenceStatus
@@ -190,7 +190,7 @@ extension PerformanceAssessmentDimensionResult {
         else { return nil }
         let value: Double?
         if unit == .count {
-            let total = measurements.map { $0.0.value }.reduce(0, +)
+            let total = measurements.map(\.0.value).reduce(0, +)
             value = total.isFinite ? total : nil
         } else {
             value = weightedMean(measurements.map { ($0.0.value, $0.1) })
@@ -215,7 +215,7 @@ extension PerformanceAssessmentDimensionResult {
     }
 }
 
-struct MeasurePerformanceAssessment: Equatable, Sendable {
+struct MeasurePerformanceAssessment: Equatable {
     let occurrenceID: PracticeMeasureOccurrenceID
     let tickRange: Range<Int>
     let dimensions: [PerformanceAssessmentDimensionResult]
@@ -225,7 +225,7 @@ struct MeasurePerformanceAssessment: Equatable, Sendable {
     }
 }
 
-struct PassagePerformanceAssessment: Equatable, Sendable {
+struct PassagePerformanceAssessment: Equatable {
     let planID: ScorePerformancePlanID
     let sourceGeneration: UInt64
     let tickRange: Range<Int>

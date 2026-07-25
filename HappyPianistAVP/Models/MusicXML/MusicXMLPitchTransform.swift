@@ -1,6 +1,6 @@
 import Foundation
 
-struct MusicXMLTransposeEvent: Equatable, Sendable {
+struct MusicXMLTransposeEvent: Equatable {
     let tick: Int
     let diatonic: Int?
     let chromatic: Int
@@ -9,19 +9,20 @@ struct MusicXMLTransposeEvent: Equatable, Sendable {
     let scope: MusicXMLEventScope
 }
 
-enum MusicXMLOctaveShiftKind: String, Equatable, Sendable {
+enum MusicXMLOctaveShiftKind: String, Equatable {
     case up
     case down
     case stop
     case `continue`
 }
 
-struct MusicXMLOctaveShiftEvent: Equatable, Sendable {
-    var sourceID: MusicXMLDirectionSourceID? = nil
+struct MusicXMLOctaveShiftEvent: Equatable {
+    var sourceID: MusicXMLDirectionSourceID?
     var performedOccurrenceIndex: Int = 0
     var performedID: MusicXMLPerformedDirectionID? {
         sourceID.map { MusicXMLPerformedDirectionID(sourceID: $0, occurrenceIndex: performedOccurrenceIndex) }
     }
+
     let tick: Int
     let kind: MusicXMLOctaveShiftKind
     let size: Int
