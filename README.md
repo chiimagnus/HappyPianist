@@ -1,6 +1,8 @@
-# HappyPianist
+# Amoroso
 
-HappyPianist 是一个面向 Apple Vision Pro 的钢琴练习应用。它把 MusicXML 转成空间练习引导，并支持音频、蓝牙 MIDI 与虚拟钢琴三种输入方式。
+Amoroso（原 HappyPianist）是一个面向 Apple Vision Pro 的钢琴练习应用。它把 MusicXML 转成空间练习引导，并支持音频、蓝牙 MIDI 与虚拟钢琴三种输入方式。
+
+> 说明：仓库已更名为 Amoroso，Xcode 工程、target 与源码目录仍沿用 `HappyPianist*` 命名。
 
 ![scene](docs/assets/scene1.jpg)
 

@@ -1,13 +1,15 @@
-# 🎹 HappyPianist
+# 🎹 Amoroso
 
 An AI piano companion for Apple Vision Pro that guides you step-by-step through playing sheet music, and lets you enjoy relay improvisation with an AI partner.
+
+> Note: the repository was renamed to Amoroso. The Xcode project, targets and source directories still use the `HappyPianist*` naming.
 
 [**中文**](./README.md) | English
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 ![Platform](https://img.shields.io/badge/visionOS-lightgrey)
 ![Swift](https://img.shields.io/badge/Swift-6-orange)
-[![Last Update](https://img.shields.io/github/last-commit/chiimagnus/happypianist?label=Last%20update&style=classic)](https://github.com/chiimagnus/happypianist)
+[![Last Update](https://img.shields.io/github/last-commit/chiimagnus/Amoroso?label=Last%20update&style=classic)](https://github.com/chiimagnus/Amoroso)
 
 ![scene1](docs/assets/scene1.jpg)
 
@@ -33,7 +35,7 @@ Those professional claims remain `pending evidence` until licensed multi-exporte
 
 - The repo is primarily source-code based: **requires local Xcode build** — no pre-built notarized app is provided.
 
-- The soundfont `SalC5Light2.sf2` for `HappyPianistAVP` is large and not included in the repo by default. You can download it from [GitHub Releases](https://github.com/chiimagnus/HappyPianist/releases/tag/v0.1.6-beta2) and place it at:
+- The soundfont `SalC5Light2.sf2` for `HappyPianistAVP` is large and not included in the repo by default. You can download it from [GitHub Releases](https://github.com/chiimagnus/Amoroso/releases/tag/v0.1.6-beta2) and place it at:
   - `HappyPianistAVP/Resources/Audio/SoundFonts/SalC5Light2.sf2`
 
 - Seed scores and the CoreML model are also private resources. Tests skipped because those resources are absent are not evidence that their integrations passed.
