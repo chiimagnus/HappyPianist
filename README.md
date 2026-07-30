@@ -1,5 +1,7 @@
 # HappyPianist
 
+[English](./README.en.md) | 中文
+
 HappyPianist 是一个面向 Apple Vision Pro 的钢琴练习应用。它把 MusicXML 转成空间练习引导，并支持音频、蓝牙 MIDI 与虚拟钢琴三种输入方式。
 
 ![scene](docs/assets/scene1.jpg)

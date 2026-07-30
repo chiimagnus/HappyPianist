@@ -1,5 +1,7 @@
 # HappyPianist
 
+[中文](./README.md) | English
+
 HappyPianist is a piano practice app for Apple Vision Pro. It converts MusicXML into spatial practice guidance and supports three input methods: audio, Bluetooth MIDI, and a virtual piano.
 
 ![scene](docs/assets/scene1.jpg)
