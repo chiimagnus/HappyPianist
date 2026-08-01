@@ -1,4 +1,5 @@
 import Foundation
+import HappyPianistShared
 @testable import HappyPianistAVP
 import Testing
 
@@ -8,7 +9,7 @@ func songFileStoreDeleteRemovesScoreAndAudioFiles() async throws {
     defer { try? FileManager.default.removeItem(at: documentsURL) }
 
     let fileManager: FileManager = TestDocumentsFileManager(documentsURL: documentsURL)
-    let paths = SongLibraryPaths(fileManager: fileManager)
+    let paths = SongLibraryPaths(documentsDirectoryURL: documentsURL)
     try paths.ensureDirectoriesExist()
 
     let scoreFileName = "to-delete.musicxml"
@@ -36,7 +37,7 @@ func songFileStoreRejectsUnsafeIndexFileNames(fileName: String) async throws {
     let fileManager: FileManager = TestDocumentsFileManager(documentsURL: documentsURL)
     let fileStore = SongFileStore(
         fileManager: fileManager,
-        paths: SongLibraryPaths(fileManager: fileManager)
+        paths: SongLibraryPaths(documentsDirectoryURL: documentsURL)
     )
 
     await #expect(throws: SongFileStoreError.invalidFileName(fileName)) {

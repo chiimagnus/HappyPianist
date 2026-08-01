@@ -1,4 +1,5 @@
 import Foundation
+import HappyPianistShared
 @testable import HappyPianistAVP
 
 @MainActor

@@ -1,4 +1,5 @@
 import Foundation
+import HappyPianistShared
 @testable import HappyPianistAVP
 import Testing
 
@@ -72,20 +73,14 @@ private struct TransactionRecoveryFixture {
             directoryHint: .isDirectory
         )
         try FileManager.default.createDirectory(at: documentsURL, withIntermediateDirectories: true)
-        paths = SongLibraryPaths(
-            fileManager: TransactionRecoveryDocumentsFileManager(documentsURL: documentsURL)
-        )
+        paths = SongLibraryPaths(documentsDirectoryURL: documentsURL)
         let indexStore = SongLibraryIndexStore(
             fileManager: TransactionRecoveryDocumentsFileManager(documentsURL: documentsURL),
-            paths: SongLibraryPaths(
-                fileManager: TransactionRecoveryDocumentsFileManager(documentsURL: documentsURL)
-            )
+            paths: SongLibraryPaths(documentsDirectoryURL: documentsURL)
         )
         service = SongLibraryImportTransactionService(
             indexStore: indexStore,
-            paths: SongLibraryPaths(
-                fileManager: TransactionRecoveryDocumentsFileManager(documentsURL: documentsURL)
-            ),
+            paths: SongLibraryPaths(documentsDirectoryURL: documentsURL),
             fileManager: TransactionRecoveryDocumentsFileManager(documentsURL: documentsURL),
             diagnostics: TransactionRecoveryDiagnosticsReporter()
         )

@@ -1,4 +1,5 @@
 import Foundation
+import HappyPianistShared
 
 enum SongLibraryImportOperationKind: String, Codable, Equatable {
     case unclassified

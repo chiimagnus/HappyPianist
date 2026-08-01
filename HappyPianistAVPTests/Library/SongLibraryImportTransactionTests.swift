@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import HappyPianistShared
 @testable import HappyPianistAVP
 import Testing
 
@@ -951,22 +952,16 @@ struct ImportTransactionFixture {
         )
         try FileManager.default.createDirectory(at: documentsURL, withIntermediateDirectories: true)
         try FileManager.default.createDirectory(at: externalURL, withIntermediateDirectories: true)
-        paths = SongLibraryPaths(
-            fileManager: ImportTransactionDocumentsFileManager(documentsURL: documentsURL)
-        )
+        paths = SongLibraryPaths(documentsDirectoryURL: documentsURL)
         let resolvedIndexStore: any SongLibraryImportIndexStoreProtocol = suppliedIndexStore
             ?? SongLibraryIndexStore(
                 fileManager: ImportTransactionDocumentsFileManager(documentsURL: documentsURL),
-                paths: SongLibraryPaths(
-                    fileManager: ImportTransactionDocumentsFileManager(documentsURL: documentsURL)
-                )
+                paths: SongLibraryPaths(documentsDirectoryURL: documentsURL)
             )
         indexStore = resolvedIndexStore
         service = SongLibraryImportTransactionService(
             indexStore: resolvedIndexStore,
-            paths: SongLibraryPaths(
-                fileManager: ImportTransactionDocumentsFileManager(documentsURL: documentsURL)
-            ),
+            paths: SongLibraryPaths(documentsDirectoryURL: documentsURL),
             fileManager: ImportTransactionDocumentsFileManager(documentsURL: documentsURL),
             now: { now },
             diagnostics: diagnostics,

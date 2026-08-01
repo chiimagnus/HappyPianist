@@ -1,4 +1,5 @@
 import Foundation
+import HappyPianistShared
 
 enum SongLibraryIndexStoreError: LocalizedError, Equatable {
     case corrupted
@@ -52,9 +53,9 @@ actor SongLibraryIndexStore: SongLibraryImportIndexStoreProtocol {
     private let fileManager: FileManager
     private let paths: SongLibraryPaths
 
-    init(fileManager: FileManager = .default, paths: SongLibraryPaths? = nil) {
+    init(fileManager: FileManager = .default, paths: SongLibraryPaths) {
         self.fileManager = fileManager
-        self.paths = paths ?? SongLibraryPaths(fileManager: fileManager)
+        self.paths = paths
     }
 
     func load() throws -> SongLibraryIndex {
@@ -144,7 +145,7 @@ actor SongLibraryIndexStore: SongLibraryImportIndexStoreProtocol {
     }
 
     private func loadLatest() throws -> SongLibraryIndex {
-        try paths.ensureDirectoriesExist()
+        try paths.ensureDirectoriesExist(fileManager: fileManager)
         let indexFileURL = try paths.indexFileURL()
 
         guard fileManager.fileExists(atPath: indexFileURL.path(percentEncoded: false)) else {
@@ -177,7 +178,7 @@ actor SongLibraryIndexStore: SongLibraryImportIndexStoreProtocol {
     }
 
     private func write(_ index: SongLibraryIndex) throws {
-        try paths.ensureDirectoriesExist()
+        try paths.ensureDirectoriesExist(fileManager: fileManager)
         let indexFileURL = try paths.indexFileURL()
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601

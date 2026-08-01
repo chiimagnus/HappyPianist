@@ -1,4 +1,5 @@
 import Foundation
+import HappyPianistShared
 
 protocol SongPracticeLibrarySnapshotBuilding: Sendable {
     @concurrent

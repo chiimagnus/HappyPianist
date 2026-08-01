@@ -1,4 +1,5 @@
 import Foundation
+import HappyPianistShared
 
 protocol AudioImportServiceProtocol: Actor {
     func importAudio(from sourceURL: URL) async throws -> String
@@ -11,11 +12,11 @@ actor AudioImportService: AudioImportServiceProtocol {
 
     init(
         fileManager: FileManager = .default,
-        paths: SongLibraryPaths? = nil,
+        paths: SongLibraryPaths,
         now: @escaping @Sendable () -> Date = Date.init
     ) {
         self.fileManager = fileManager
-        self.paths = paths ?? SongLibraryPaths(fileManager: fileManager)
+        self.paths = paths
         self.now = now
     }
 
@@ -24,7 +25,7 @@ actor AudioImportService: AudioImportServiceProtocol {
         defer {
             if hasScopedAccess { sourceURL.stopAccessingSecurityScopedResource() }
         }
-        try paths.ensureDirectoriesExist()
+        try paths.ensureDirectoriesExist(fileManager: fileManager)
         let sourceFileName = sourceURL.lastPathComponent
         guard sourceFileName.isEmpty == false,
               sourceFileName != ".",

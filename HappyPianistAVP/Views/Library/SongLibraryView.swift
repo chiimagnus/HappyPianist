@@ -1,5 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import HappyPianistShared
 
 struct SongLibraryView: View {
     @Bindable var viewModel: SongLibraryViewModel

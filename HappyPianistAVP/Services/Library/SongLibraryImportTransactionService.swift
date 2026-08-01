@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import HappyPianistShared
 
 protocol SongLibraryImportTransactionRecovering: Actor {
     func recoverPendingTransactions() async -> SongLibraryTransactionRecoveryResult
@@ -40,7 +41,7 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
 
     init(
         indexStore: any SongLibraryImportIndexStoreProtocol,
-        paths: SongLibraryPaths? = nil,
+        paths: SongLibraryPaths,
         fileManager: FileManager = .default,
         now: @escaping @Sendable () -> Date = { .now },
         makeUUID: @escaping @Sendable () -> UUID = { UUID() },
@@ -48,7 +49,7 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
         securityScopedResourceAccessor: any SecurityScopedResourceAccessing = LiveSecurityScopedResourceAccessor()
     ) {
         self.indexStore = indexStore
-        self.paths = paths ?? SongLibraryPaths(fileManager: fileManager)
+        self.paths = paths
         self.fileManager = fileManager
         self.now = now
         self.makeUUID = makeUUID

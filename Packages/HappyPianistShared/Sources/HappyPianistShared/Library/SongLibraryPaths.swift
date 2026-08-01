@@ -1,75 +1,83 @@
 import Foundation
 
-enum SongLibraryPathsError: Error {
-    case documentsUnavailable
+public enum SongLibraryPathsError: Error {
     case invalidPathComponent
 }
 
-struct SongLibraryPaths {
-    private let fileManager: FileManager
+public struct SongLibraryPaths: Sendable {
+    private let documentsDirectoryURL: URL
 
-    init(fileManager: FileManager = .default) {
-        self.fileManager = fileManager
+    public init(documentsDirectoryURL: URL) {
+        self.documentsDirectoryURL = documentsDirectoryURL
     }
 
-    func rootDirectoryURL() throws -> URL {
-        try documentsDirectoryURL().appending(path: SongLibraryLayout.rootDirectoryName, directoryHint: .isDirectory)
+    public func rootDirectoryURL() throws -> URL {
+        documentsDirectoryURL.appending(
+            path: SongLibraryLayout.rootDirectoryName,
+            directoryHint: .isDirectory
+        )
     }
 
-    func scoresDirectoryURL() throws -> URL {
-        try rootDirectoryURL().appending(path: SongLibraryLayout.scoresDirectoryName, directoryHint: .isDirectory)
+    public func scoresDirectoryURL() throws -> URL {
+        try rootDirectoryURL().appending(
+            path: SongLibraryLayout.scoresDirectoryName,
+            directoryHint: .isDirectory
+        )
     }
 
-    func audioDirectoryURL() throws -> URL {
-        try rootDirectoryURL().appending(path: SongLibraryLayout.audioDirectoryName, directoryHint: .isDirectory)
+    public func audioDirectoryURL() throws -> URL {
+        try rootDirectoryURL().appending(
+            path: SongLibraryLayout.audioDirectoryName,
+            directoryHint: .isDirectory
+        )
     }
 
-    func indexFileURL() throws -> URL {
+    public func indexFileURL() throws -> URL {
         try rootDirectoryURL().appending(path: SongLibraryLayout.indexFileName)
     }
 
-    func transactionsDirectoryURL() throws -> URL {
+    public func transactionsDirectoryURL() throws -> URL {
         try rootDirectoryURL().appending(
             path: SongLibraryLayout.transactionsDirectoryName,
             directoryHint: .isDirectory
         )
     }
 
-    func transactionOperationDirectoryURL(operationID: UUID) throws -> URL {
+    public func transactionOperationDirectoryURL(operationID: UUID) throws -> URL {
         try transactionsDirectoryURL().appending(
             path: operationID.uuidString.lowercased(),
             directoryHint: .isDirectory
         )
     }
 
-    func transactionStageFileURL(operationID: UUID, safeFileName: String) throws -> URL {
+    public func transactionStageFileURL(operationID: UUID, safeFileName: String) throws -> URL {
         try transactionOperationDirectoryURL(operationID: operationID)
             .appending(path: "stage", directoryHint: .isDirectory)
             .appending(path: validatedComponent(safeFileName))
     }
 
-    func transactionPartialStageFileURL(operationID: UUID) throws -> URL {
+    public func transactionPartialStageFileURL(operationID: UUID) throws -> URL {
         try transactionOperationDirectoryURL(operationID: operationID)
             .appending(path: "stage", directoryHint: .isDirectory)
             .appending(path: ".partial")
     }
 
-    func transactionBackupFileURL(operationID: UUID, safeFileName: String) throws -> URL {
+    public func transactionBackupFileURL(operationID: UUID, safeFileName: String) throws -> URL {
         try transactionOperationDirectoryURL(operationID: operationID)
             .appending(path: "backup", directoryHint: .isDirectory)
             .appending(path: validatedComponent(safeFileName))
     }
 
-    func transactionJournalFileURL(operationID: UUID) throws -> URL {
+    public func transactionJournalFileURL(operationID: UUID) throws -> URL {
         try transactionOperationDirectoryURL(operationID: operationID)
             .appending(path: "journal.json")
     }
 
-    func scoreFileURL(safeFileName: String) throws -> URL {
+    public func scoreFileURL(safeFileName: String) throws -> URL {
         try scoresDirectoryURL().appending(path: validatedComponent(safeFileName))
     }
 
-    func ensureDirectoriesExist() throws {
+    public func ensureDirectoriesExist(fileManager: FileManager = .default) throws {
         try fileManager.createDirectory(at: rootDirectoryURL(), withIntermediateDirectories: true)
         try fileManager.createDirectory(at: scoresDirectoryURL(), withIntermediateDirectories: true)
         try fileManager.createDirectory(at: audioDirectoryURL(), withIntermediateDirectories: true)
@@ -89,10 +97,4 @@ struct SongLibraryPaths {
         return component
     }
 
-    private func documentsDirectoryURL() throws -> URL {
-        guard let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
-            throw SongLibraryPathsError.documentsUnavailable
-        }
-        return documentsURL
-    }
 }

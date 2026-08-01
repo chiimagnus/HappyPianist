@@ -1,4 +1,5 @@
 import Foundation
+import HappyPianistShared
 @testable import HappyPianistAVP
 import Testing
 
@@ -415,7 +416,7 @@ private struct SongLibraryIndexStoreFixture {
             .appending(path: SongLibraryLayout.rootDirectoryName, directoryHint: .isDirectory)
             .appending(path: SongLibraryLayout.indexFileName)
         let fileManager: FileManager = TestDocumentsFileManager(documentsURL: documentsURL)
-        let paths = SongLibraryPaths(fileManager: fileManager)
+        let paths = SongLibraryPaths(documentsDirectoryURL: documentsURL)
         store = SongLibraryIndexStore(fileManager: fileManager, paths: paths)
     }
 

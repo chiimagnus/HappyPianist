@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import HappyPianistShared
 
 @MainActor
 protocol PracticeLaunchApplying: AnyObject, Sendable {

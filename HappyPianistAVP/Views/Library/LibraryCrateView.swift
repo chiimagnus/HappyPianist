@@ -1,4 +1,5 @@
 import SwiftUI
+import HappyPianistShared
 
 private let libraryRecordScrollCoordinateSpace = "LibraryRecordScroll"
 
