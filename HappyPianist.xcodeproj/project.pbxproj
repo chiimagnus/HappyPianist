@@ -133,10 +133,10 @@
 			isa = PBXGroup;
 			children = (
 				D85596AA2F83FF72005BE7FE /* HappyPianistAVP */,
-				D85596AB2F83FF72005BE7FE /* Packages */,
 				D85596BF2F83FF74005BE7FE /* HappyPianistAVPTests */,
 				D8FE6818301E22C200C99D42 /* HappyPianistMac */,
 				D8FE6828301E22C300C99D42 /* HappyPianistMacTests */,
+				D85596AB2F83FF72005BE7FE /* Packages */,
 			);
 			sourceTree = "<group>";
 		};
