@@ -1,5 +1,4 @@
 import Foundation
-import HappyPianistShared
 
 struct SongLibraryBootstrapSnapshot: Equatable {
     let index: SongLibraryIndex

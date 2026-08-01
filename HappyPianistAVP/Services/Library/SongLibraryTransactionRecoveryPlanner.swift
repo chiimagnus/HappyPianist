@@ -1,5 +1,4 @@
 import Foundation
-import HappyPianistShared
 
 struct SongLibraryImportTargetVolumeFacts: Equatable {
     let candidateExists: Bool

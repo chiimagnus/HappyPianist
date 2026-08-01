@@ -1,5 +1,4 @@
 import Foundation
-import HappyPianistShared
 @testable import HappyPianistAVP
 import Testing
 
@@ -35,7 +34,7 @@ func entryResolverReadsLatestUserEntryWithoutCaching() async throws {
     let documentsURL = try resolverTemporaryDirectory(prefix: "resolver-latest")
     defer { try? FileManager.default.removeItem(at: documentsURL) }
     let fileManager: FileManager = ResolverDocumentsFileManager(documentsURL: documentsURL)
-    let paths = SongLibraryPaths(documentsDirectoryURL: documentsURL)
+    let paths = SongLibraryPaths(fileManager: fileManager)
     try paths.ensureDirectoriesExist()
     let firstFileName = "first.musicxml"
     let secondFileName = "second.musicxml"
@@ -171,7 +170,7 @@ func songFileStoreRejectsSymbolicLinkScore() async throws {
         try? FileManager.default.removeItem(at: outsideURL)
     }
     let fileManager: FileManager = ResolverDocumentsFileManager(documentsURL: documentsURL)
-    let paths = SongLibraryPaths(documentsDirectoryURL: documentsURL)
+    let paths = SongLibraryPaths(fileManager: fileManager)
     try paths.ensureDirectoriesExist()
     let targetURL = outsideURL.appending(path: "target.musicxml")
     try Data("score".utf8).write(to: targetURL)

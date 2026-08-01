@@ -1,6 +1,5 @@
 import CryptoKit
 import Foundation
-import HappyPianistShared
 @testable import HappyPianistAVP
 import Testing
 

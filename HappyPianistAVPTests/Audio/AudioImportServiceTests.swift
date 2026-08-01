@@ -1,5 +1,4 @@
 import Foundation
-import HappyPianistShared
 @testable import HappyPianistAVP
 import Testing
 
@@ -16,7 +15,7 @@ func audioImportServiceCopiesFileIntoAudioDirectory() async throws {
     try Data("audio".utf8).write(to: sourceURL)
 
     let fileManager: FileManager = TestDocumentsFileManager(documentsURL: documentsURL)
-    let paths = SongLibraryPaths(documentsDirectoryURL: documentsURL)
+    let paths = SongLibraryPaths(fileManager: fileManager)
     let audioDirectoryURL = documentsURL
         .appending(path: SongLibraryLayout.rootDirectoryName, directoryHint: .isDirectory)
         .appending(path: SongLibraryLayout.audioDirectoryName, directoryHint: .isDirectory)

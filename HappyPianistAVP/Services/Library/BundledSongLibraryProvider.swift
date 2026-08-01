@@ -1,6 +1,5 @@
 import CryptoKit
 import Foundation
-import HappyPianistShared
 
 protocol BundledSongLibraryProviderProtocol: Sendable {
     func bundledEntries() -> [SongLibraryEntry]

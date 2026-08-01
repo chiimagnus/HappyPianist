@@ -1,5 +1,4 @@
 import Foundation
-import HappyPianistShared
 
 @MainActor
 struct LiveAppGraph {
@@ -34,10 +33,9 @@ struct LiveAppGraph {
                 parser: parser,
                 stepBuilder: stepBuilder
             )
-        let songLibraryPaths = SongLibraryPaths(documentsDirectoryURL: .documentsDirectory)
-        let songLibraryIndexStore = SongLibraryIndexStore(paths: songLibraryPaths)
-        let songFileStore: SongFileStoreProtocol = SongFileStore(paths: songLibraryPaths)
-        let audioImportService: AudioImportServiceProtocol = AudioImportService(paths: songLibraryPaths)
+        let songLibraryIndexStore = SongLibraryIndexStore()
+        let songFileStore: SongFileStoreProtocol = SongFileStore()
+        let audioImportService: AudioImportServiceProtocol = AudioImportService()
         let bundledSongLibraryProvider: BundledSongLibraryProviderProtocol =
             BundledSongLibraryProvider()
         let songLibraryEntryResolver: any SongLibraryEntryResolving = SongLibraryEntryResolver(
@@ -68,7 +66,6 @@ struct LiveAppGraph {
         )
         let importTransactionService = SongLibraryImportTransactionService(
             indexStore: songLibraryIndexStore,
-            paths: songLibraryPaths,
             diagnostics: diagnosticsReporter
         )
 

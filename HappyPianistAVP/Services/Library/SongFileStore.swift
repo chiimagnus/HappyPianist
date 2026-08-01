@@ -1,5 +1,4 @@
 import Foundation
-import HappyPianistShared
 
 enum SongFileStoreError: LocalizedError, Equatable {
     case invalidFileName(String)
@@ -28,10 +27,10 @@ actor SongFileStore: SongFileStoreProtocol {
 
     init(
         fileManager: FileManager = .default,
-        paths: SongLibraryPaths
+        paths: SongLibraryPaths? = nil
     ) {
         self.fileManager = fileManager
-        self.paths = paths
+        self.paths = paths ?? SongLibraryPaths(fileManager: fileManager)
     }
 
     func scoreFileURL(fileName: String) async throws -> URL {

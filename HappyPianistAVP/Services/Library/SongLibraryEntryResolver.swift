@@ -1,5 +1,4 @@
 import Foundation
-import HappyPianistShared
 
 struct ResolvedSongLibraryEntry: Equatable {
     let entry: SongLibraryEntry
