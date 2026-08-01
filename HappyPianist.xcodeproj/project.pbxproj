@@ -37,11 +37,11 @@
 
 /* Begin PBXFileReference section */
 		D85596AC2F83FF72005BE7FE /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = text; path = RealityKitContent; sourceTree = "<group>"; };
-		D8C8848D2FC3623C00F1D94F /* HappyPianistAVP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = HappyPianistAVP.app; path = "/Users/chii_magnus/Github_OpenSource/HappyPianist/build/Debug-xros/HappyPianistAVP.app"; sourceTree = "<absolute>"; };
-		D8C8848F2FC3623C00F1D94F /* HappyPianistAVPTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = HappyPianistAVPTests.xctest; path = "/Users/chii_magnus/Github_OpenSource/HappyPianist/build/Debug-xros/HappyPianistAVP.app/PlugIns/HappyPianistAVPTests.xctest"; sourceTree = "<absolute>"; };
-		D8FE6817301E22C200C99D42 /* HappyPianistMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = HappyPianistMac.app; path = /Users/chii_magnus/Github_OpenSource/HappyPianist/build/Debug/HappyPianistMac.app; sourceTree = "<absolute>"; };
-		D8FE6825301E22C300C99D42 /* HappyPianistMacTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = HappyPianistMacTests.xctest; path = /Users/chii_magnus/Github_OpenSource/HappyPianist/build/Debug/HappyPianistMac.app/Contents/PlugIns/HappyPianistMacTests.xctest; sourceTree = "<absolute>"; };
-		D8FE682F301E22C300C99D42 /* HappyPianistMacUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; name = HappyPianistMacUITests.xctest; path = "/Users/chii_magnus/Github_OpenSource/HappyPianist/build/Debug/HappyPianistMacUITests-Runner.app/Contents/PlugIns/HappyPianistMacUITests.xctest"; sourceTree = "<absolute>"; };
+		D8C8848D2FC3623C00F1D94F /* HappyPianistAVP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HappyPianistAVP.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D8C8848F2FC3623C00F1D94F /* HappyPianistAVPTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HappyPianistAVPTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D8FE6817301E22C200C99D42 /* HappyPianistMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HappyPianistMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D8FE6825301E22C300C99D42 /* HappyPianistMacTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HappyPianistMacTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D8FE682F301E22C300C99D42 /* HappyPianistMacUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HappyPianistMacUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -135,8 +135,13 @@
 				D85596AA2F83FF72005BE7FE /* HappyPianistAVP */,
 				D85596AB2F83FF72005BE7FE /* Packages */,
 				D85596BF2F83FF74005BE7FE /* HappyPianistAVPTests */,
+				D8C8848D2FC3623C00F1D94F /* HappyPianistAVP.app */,
+				D8C8848F2FC3623C00F1D94F /* HappyPianistAVPTests.xctest */,
+				D8FE6817301E22C200C99D42 /* HappyPianistMac.app */,
 				D8FE6818301E22C200C99D42 /* HappyPianistMac */,
+				D8FE6825301E22C300C99D42 /* HappyPianistMacTests.xctest */,
 				D8FE6828301E22C300C99D42 /* HappyPianistMacTests */,
+				D8FE682F301E22C300C99D42 /* HappyPianistMacUITests.xctest */,
 			);
 			sourceTree = "<group>";
 		};
