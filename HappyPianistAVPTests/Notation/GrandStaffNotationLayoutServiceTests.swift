@@ -419,7 +419,7 @@ func projectionLayoutKeepsEveryWrittenTieContributor() throws {
     )
     let items = layout.items
     #expect(items.map(\.tick) == [0, 480])
-    #expect(items.allSatisfy(\.isHighlighted))
+    #expect(items.allSatisfy { $0.isHighlighted })
     let tie = try #require(layout.ties.first)
     #expect(layout.ties.count == 1)
     #expect(tie.startOccurrenceID == items[0].occurrenceID)
