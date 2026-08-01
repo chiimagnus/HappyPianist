@@ -19,12 +19,29 @@
 			remoteGlobalIDString = D85596A82F83FF72005BE7FE;
 			remoteInfo = HappyPianistAVP;
 		};
+		D8FE6826301E22C300C99D42 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D8D428052F4DFD3800EC9C9B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D8FE6816301E22C200C99D42;
+			remoteInfo = HappyPianistMac;
+		};
+		D8FE6830301E22C300C99D42 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = D8D428052F4DFD3800EC9C9B /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = D8FE6816301E22C200C99D42;
+			remoteInfo = HappyPianistMac;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		D85596AC2F83FF72005BE7FE /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = text; path = RealityKitContent; sourceTree = "<group>"; };
 		D8C8848D2FC3623C00F1D94F /* HappyPianistAVP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HappyPianistAVP.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D8C8848F2FC3623C00F1D94F /* HappyPianistAVPTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HappyPianistAVPTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D8FE6817301E22C200C99D42 /* HappyPianistMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HappyPianistMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		D8FE6825301E22C300C99D42 /* HappyPianistMacTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HappyPianistMacTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D8FE682F301E22C300C99D42 /* HappyPianistMacUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HappyPianistMacUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -51,6 +68,16 @@
 			path = HappyPianistAVPTests;
 			sourceTree = "<group>";
 		};
+		D8FE6818301E22C200C99D42 /* HappyPianistMac */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = HappyPianistMac;
+			sourceTree = "<group>";
+		};
+		D8FE6828301E22C300C99D42 /* HappyPianistMacTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = HappyPianistMacTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -64,6 +91,27 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		D85596B92F83FF74005BE7FE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D8FE6814301E22C200C99D42 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D8FE6822301E22C300C99D42 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D8FE682C301E22C300C99D42 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -89,6 +137,11 @@
 				D85596BF2F83FF74005BE7FE /* HappyPianistAVPTests */,
 				D8C8848D2FC3623C00F1D94F /* HappyPianistAVP.app */,
 				D8C8848F2FC3623C00F1D94F /* HappyPianistAVPTests.xctest */,
+				D8FE6817301E22C200C99D42 /* HappyPianistMac.app */,
+				D8FE6818301E22C200C99D42 /* HappyPianistMac */,
+				D8FE6825301E22C300C99D42 /* HappyPianistMacTests.xctest */,
+				D8FE6828301E22C300C99D42 /* HappyPianistMacTests */,
+				D8FE682F301E22C300C99D42 /* HappyPianistMacUITests.xctest */,
 			);
 			sourceTree = "<group>";
 		};
@@ -142,6 +195,71 @@
 			productReference = D8C8848F2FC3623C00F1D94F /* HappyPianistAVPTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		D8FE6816301E22C200C99D42 /* HappyPianistMac */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D8FE683B301E22C300C99D42 /* Build configuration list for PBXNativeTarget "HappyPianistMac" */;
+			buildPhases = (
+				D8FE6813301E22C200C99D42 /* Sources */,
+				D8FE6814301E22C200C99D42 /* Frameworks */,
+				D8FE6815301E22C200C99D42 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				D8FE6818301E22C200C99D42 /* HappyPianistMac */,
+			);
+			name = HappyPianistMac;
+			packageProductDependencies = (
+			);
+			productName = HappyPianistMac;
+			productReference = D8FE6817301E22C200C99D42 /* HappyPianistMac.app */;
+			productType = "com.apple.product-type.application";
+		};
+		D8FE6824301E22C300C99D42 /* HappyPianistMacTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D8FE683C301E22C300C99D42 /* Build configuration list for PBXNativeTarget "HappyPianistMacTests" */;
+			buildPhases = (
+				D8FE6821301E22C300C99D42 /* Sources */,
+				D8FE6822301E22C300C99D42 /* Frameworks */,
+				D8FE6823301E22C300C99D42 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D8FE6827301E22C300C99D42 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				D8FE6828301E22C300C99D42 /* HappyPianistMacTests */,
+			);
+			name = HappyPianistMacTests;
+			packageProductDependencies = (
+			);
+			productName = HappyPianistMacTests;
+			productReference = D8FE6825301E22C300C99D42 /* HappyPianistMacTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		D8FE682E301E22C300C99D42 /* HappyPianistMacUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D8FE683D301E22C300C99D42 /* Build configuration list for PBXNativeTarget "HappyPianistMacUITests" */;
+			buildPhases = (
+				D8FE682B301E22C300C99D42 /* Sources */,
+				D8FE682C301E22C300C99D42 /* Frameworks */,
+				D8FE682D301E22C300C99D42 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				D8FE6831301E22C300C99D42 /* PBXTargetDependency */,
+			);
+			name = HappyPianistMacUITests;
+			packageProductDependencies = (
+			);
+			productName = HappyPianistMacUITests;
+			productReference = D8FE682F301E22C300C99D42 /* HappyPianistMacUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -149,7 +267,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = 1;
-				LastSwiftUpdateCheck = 2640;
+				LastSwiftUpdateCheck = 2700;
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
 					D85596A82F83FF72005BE7FE = {
@@ -158,6 +276,17 @@
 					D85596BB2F83FF74005BE7FE = {
 						CreatedOnToolsVersion = 26.4;
 						TestTargetID = D85596A82F83FF72005BE7FE;
+					};
+					D8FE6816301E22C200C99D42 = {
+						CreatedOnToolsVersion = 27.0;
+					};
+					D8FE6824301E22C300C99D42 = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = D8FE6816301E22C200C99D42;
+					};
+					D8FE682E301E22C300C99D42 = {
+						CreatedOnToolsVersion = 27.0;
+						TestTargetID = D8FE6816301E22C200C99D42;
 					};
 				};
 			};
@@ -180,6 +309,9 @@
 			targets = (
 				D85596A82F83FF72005BE7FE /* HappyPianistAVP */,
 				D85596BB2F83FF74005BE7FE /* HappyPianistAVPTests */,
+				D8FE6816301E22C200C99D42 /* HappyPianistMac */,
+				D8FE6824301E22C300C99D42 /* HappyPianistMacTests */,
+				D8FE682E301E22C300C99D42 /* HappyPianistMacUITests */,
 			);
 		};
 /* End PBXProject section */
@@ -193,6 +325,27 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		D85596BA2F83FF74005BE7FE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D8FE6815301E22C200C99D42 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D8FE6823301E22C300C99D42 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D8FE682D301E22C300C99D42 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -216,6 +369,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		D8FE6813301E22C200C99D42 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D8FE6821301E22C300C99D42 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D8FE682B301E22C300C99D42 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -223,6 +397,16 @@
 			isa = PBXTargetDependency;
 			target = D85596A82F83FF72005BE7FE /* HappyPianistAVP */;
 			targetProxy = D85596BD2F83FF74005BE7FE /* PBXContainerItemProxy */;
+		};
+		D8FE6827301E22C300C99D42 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D8FE6816301E22C200C99D42 /* HappyPianistMac */;
+			targetProxy = D8FE6826301E22C300C99D42 /* PBXContainerItemProxy */;
+		};
+		D8FE6831301E22C300C99D42 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = D8FE6816301E22C200C99D42 /* HappyPianistMac */;
+			targetProxy = D8FE6830301E22C300C99D42 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -481,6 +665,154 @@
 			};
 			name = Release;
 		};
+		D8FE6835301E22C300C99D42 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = RDQHYSDFFG;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.chiimagnus.HappyPianistMac;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		D8FE6836301E22C300C99D42 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = RDQHYSDFFG;
+				ENABLE_APP_SANDBOX = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SELECTED_FILES = readonly;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.chiimagnus.HappyPianistMac;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		D8FE6837301E22C300C99D42 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = RDQHYSDFFG;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.chiimagnus.HappyPianistMacTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HappyPianistMac.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/HappyPianistMac";
+			};
+			name = Debug;
+		};
+		D8FE6838301E22C300C99D42 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = RDQHYSDFFG;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.chiimagnus.HappyPianistMacTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HappyPianistMac.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/HappyPianistMac";
+			};
+			name = Release;
+		};
+		D8FE6839301E22C300C99D42 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = RDQHYSDFFG;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.chiimagnus.HappyPianistMacUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = HappyPianistMac;
+			};
+			name = Debug;
+		};
+		D8FE683A301E22C300C99D42 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = RDQHYSDFFG;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 27.0;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.chiimagnus.HappyPianistMacUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = HappyPianistMac;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -507,6 +839,33 @@
 			buildConfigurations = (
 				D8D428162F4DFD3900EC9C9B /* Debug */,
 				D8D428172F4DFD3900EC9C9B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D8FE683B301E22C300C99D42 /* Build configuration list for PBXNativeTarget "HappyPianistMac" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D8FE6835301E22C300C99D42 /* Debug */,
+				D8FE6836301E22C300C99D42 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D8FE683C301E22C300C99D42 /* Build configuration list for PBXNativeTarget "HappyPianistMacTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D8FE6837301E22C300C99D42 /* Debug */,
+				D8FE6838301E22C300C99D42 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		D8FE683D301E22C300C99D42 /* Build configuration list for PBXNativeTarget "HappyPianistMacUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				D8FE6839301E22C300C99D42 /* Debug */,
+				D8FE683A301E22C300C99D42 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
