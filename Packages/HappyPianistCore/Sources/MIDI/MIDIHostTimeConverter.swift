@@ -18,10 +18,10 @@ public struct MIDIHostTimeConverter: Sendable {
 
     public init(
         currentHostTime: @escaping @Sendable () -> MIDITimeStamp = { mach_absolute_time() },
-        hostTicksPerSecond: Double = MIDIHostTimeConverter.systemHostTicksPerSecond()
+        hostTicksPerSecond: Double? = nil
     ) {
         self.currentHostTime = currentHostTime
-        self.hostTicksPerSecond = hostTicksPerSecond
+        self.hostTicksPerSecond = hostTicksPerSecond ?? Self.systemHostTicksPerSecond()
     }
 
     public func origin(atTransportSeconds transportSeconds: TimeInterval) -> MIDIHostTimeOrigin {
