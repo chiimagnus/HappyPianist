@@ -1,4 +1,6 @@
 import Foundation
+import MusicXML
+import Practice
 
 protocol SongPracticeLibrarySnapshotBuilding: Sendable {
     @concurrent

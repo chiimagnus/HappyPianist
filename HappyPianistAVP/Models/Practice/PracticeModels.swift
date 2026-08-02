@@ -28,20 +28,3 @@ enum ManualAdvanceMode: String, CaseIterable, Identifiable, Codable, Equatable {
         return ManualAdvanceMode(rawValue: rawValue) ?? .step
     }
 }
-
-enum StepAttemptMatchResult: Equatable {
-    case matched
-    case wrongNote
-    case missingNotes
-    case incompleteChord
-    case insufficientEvidence
-
-    var isMatched: Bool { self == .matched }
-}
-
-enum PracticeEvidenceOutcome: String, Codable, Equatable, Hashable {
-    case correct
-    case incorrect
-    case unknown
-    case insufficientEvidence
-}

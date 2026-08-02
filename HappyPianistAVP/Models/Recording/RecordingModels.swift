@@ -1,4 +1,5 @@
 import Foundation
+import MIDI
 import Practice
 
 struct RecordingTakeEvent: Codable, Equatable, Identifiable {

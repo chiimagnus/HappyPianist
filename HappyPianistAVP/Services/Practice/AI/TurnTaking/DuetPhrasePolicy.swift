@@ -1,4 +1,5 @@
 import Foundation
+import Practice
 
 /// Continuous-duet helpers for prompt extraction, short-window policy, and response shaping.
 enum DuetPhrasePolicy {

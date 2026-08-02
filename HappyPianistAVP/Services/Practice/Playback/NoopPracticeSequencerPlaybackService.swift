@@ -1,4 +1,5 @@
 import Foundation
+import Practice
 
 @MainActor
 final class NoopPracticeSequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol {

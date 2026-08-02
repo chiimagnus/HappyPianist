@@ -1,0 +1,646 @@
+import Foundation
+import MusicXML
+
+public struct PracticeLocalDay: Codable, Equatable, Hashable, Sendable {
+    public let year: Int
+    public let month: Int
+    public let day: Int
+    public let timeZoneIdentifier: String
+
+    public init?(year: Int, month: Int, day: Int, timeZoneIdentifier: String) {
+        guard let timeZone = TimeZone(identifier: timeZoneIdentifier) else {
+            return nil
+        }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let components = DateComponents(
+            calendar: calendar,
+            timeZone: timeZone,
+            year: year,
+            month: month,
+            day: day
+        )
+        guard let date = calendar.date(from: components) else {
+            return nil
+        }
+        let validated = calendar.dateComponents([.year, .month, .day], from: date)
+        guard validated.year == year, validated.month == month, validated.day == day else {
+            return nil
+        }
+        self.year = year
+        self.month = month
+        self.day = day
+        self.timeZoneIdentifier = timeZoneIdentifier
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case year
+        case month
+        case day
+        case timeZoneIdentifier
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let year = try container.decode(Int.self, forKey: .year)
+        let month = try container.decode(Int.self, forKey: .month)
+        let day = try container.decode(Int.self, forKey: .day)
+        let timeZoneIdentifier = try container.decode(String.self, forKey: .timeZoneIdentifier)
+        guard let localDay = Self(
+            year: year,
+            month: month,
+            day: day,
+            timeZoneIdentifier: timeZoneIdentifier
+        ) else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .day,
+                in: container,
+                debugDescription: "PracticeLocalDay must be a valid Gregorian date and time zone"
+            )
+        }
+        self = localDay
+    }
+}
+
+public enum PracticeSessionTermination: String, Codable, Equatable, Sendable {
+    case open
+    case normal
+    case recoveredAfterInterruption
+}
+
+public struct PracticeSessionRecord: Codable, Equatable, Sendable {
+    public let id: UUID
+    public let songID: UUID
+    public let scoreRevision: String
+    public let windowOpenedAt: Date
+    public let practiceStartedAt: Date
+    public let practiceDay: PracticeLocalDay
+    public let endedAt: Date?
+    public let lastPersistedAt: Date
+    public let practiceWindowDurationMilliseconds: Int64
+    public let activePracticeDurationMilliseconds: Int64
+    public let termination: PracticeSessionTermination
+
+    public init?(
+        id: UUID,
+        songID: UUID,
+        scoreRevision: String,
+        windowOpenedAt: Date,
+        practiceStartedAt: Date,
+        practiceDay: PracticeLocalDay,
+        endedAt: Date?,
+        lastPersistedAt: Date,
+        practiceWindowDurationMilliseconds: Int64,
+        activePracticeDurationMilliseconds: Int64,
+        termination: PracticeSessionTermination
+    ) {
+        guard (termination == .open) == (endedAt == nil) else {
+            return nil
+        }
+        let windowDuration = max(0, practiceWindowDurationMilliseconds)
+        let activeDuration = max(0, activePracticeDurationMilliseconds)
+        guard activeDuration <= windowDuration else {
+            return nil
+        }
+        self.id = id
+        self.songID = songID
+        self.scoreRevision = scoreRevision
+        self.windowOpenedAt = windowOpenedAt
+        self.practiceStartedAt = practiceStartedAt
+        self.practiceDay = practiceDay
+        self.endedAt = endedAt
+        self.lastPersistedAt = lastPersistedAt
+        self.practiceWindowDurationMilliseconds = windowDuration
+        self.activePracticeDurationMilliseconds = activeDuration
+        self.termination = termination
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case songID
+        case scoreRevision
+        case windowOpenedAt
+        case practiceStartedAt
+        case practiceDay
+        case endedAt
+        case lastPersistedAt
+        case practiceWindowDurationMilliseconds
+        case activePracticeDurationMilliseconds
+        case termination
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let termination = try container.decode(PracticeSessionTermination.self, forKey: .termination)
+        guard let record = try Self(
+            id: container.decode(UUID.self, forKey: .id),
+            songID: container.decode(UUID.self, forKey: .songID),
+            scoreRevision: container.decode(String.self, forKey: .scoreRevision),
+            windowOpenedAt: container.decode(Date.self, forKey: .windowOpenedAt),
+            practiceStartedAt: container.decode(Date.self, forKey: .practiceStartedAt),
+            practiceDay: container.decode(PracticeLocalDay.self, forKey: .practiceDay),
+            endedAt: container.decodeIfPresent(Date.self, forKey: .endedAt),
+            lastPersistedAt: container.decode(Date.self, forKey: .lastPersistedAt),
+            practiceWindowDurationMilliseconds: container.decode(
+                Int64.self,
+                forKey: .practiceWindowDurationMilliseconds
+            ),
+            activePracticeDurationMilliseconds: container.decode(
+                Int64.self,
+                forKey: .activePracticeDurationMilliseconds
+            ),
+            termination: termination
+        ) else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .termination,
+                in: container,
+                debugDescription: "Open sessions must not have endedAt; terminated sessions must have endedAt"
+            )
+        }
+        self = record
+    }
+}
+
+public struct PracticePassage: Codable, Equatable, Sendable {
+    public let start: PracticeMeasureOccurrenceID
+    public let end: PracticeMeasureOccurrenceID
+
+    public init?(start: PracticeMeasureOccurrenceID, end: PracticeMeasureOccurrenceID) {
+        guard start.sourceMeasureID.partID == end.sourceMeasureID.partID,
+              start.occurrenceIndex <= end.occurrenceIndex
+        else {
+            return nil
+        }
+        self.start = start
+        self.end = end
+    }
+}
+
+public struct PracticeRoundConfiguration: Codable, Equatable, Sendable {
+    public static let supportedTempoRange = 0.5 ... 1.0
+    public static let supportedSuccessRange = 1 ... 5
+
+    public let passage: PracticePassage
+    public let handMode: PracticeHandMode
+    public let tempoScale: Double
+    public let loopEnabled: Bool
+    public let requiredSuccesses: Int
+
+    public init(
+        passage: PracticePassage,
+        handMode: PracticeHandMode,
+        tempoScale: Double,
+        loopEnabled: Bool,
+        requiredSuccesses: Int
+    ) {
+        self.passage = passage
+        self.handMode = handMode
+        self.tempoScale = min(max(tempoScale, Self.supportedTempoRange.lowerBound), Self.supportedTempoRange.upperBound)
+        self.loopEnabled = loopEnabled
+        self.requiredSuccesses = min(
+            max(requiredSuccesses, Self.supportedSuccessRange.lowerBound),
+            Self.supportedSuccessRange.upperBound
+        )
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case passage
+        case handMode
+        case tempoScale
+        case loopEnabled
+        case requiredSuccesses
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        try self.init(
+            passage: container.decode(PracticePassage.self, forKey: .passage),
+            handMode: container.decode(PracticeHandMode.self, forKey: .handMode),
+            tempoScale: container.decode(Double.self, forKey: .tempoScale),
+            loopEnabled: container.decode(Bool.self, forKey: .loopEnabled),
+            requiredSuccesses: container.decode(Int.self, forKey: .requiredSuccesses)
+        )
+    }
+}
+
+public struct PracticeResumePoint: Codable, Equatable, Sendable {
+    public let occurrenceID: PracticeMeasureOccurrenceID
+    public let stepIndex: Int
+    public let updatedAt: Date
+
+    public init(occurrenceID: PracticeMeasureOccurrenceID, stepIndex: Int, updatedAt: Date) {
+        self.occurrenceID = occurrenceID
+        self.stepIndex = max(0, stepIndex)
+        self.updatedAt = updatedAt
+    }
+}
+
+public enum MeasurePitchStepLearningState: String, Codable, Equatable, Sendable {
+    case notStarted
+    case learning
+    case pitchStepStable = "stable"
+}
+
+public enum PracticeIssueKind: String, Codable, Equatable, Sendable {
+    case wrongNote
+    case missedNote
+    case incompleteChord
+}
+
+public enum MeasurePerformanceMaturity: String, Codable, Equatable, Sendable {
+    case insufficientEvidence
+    case developing
+    case mature
+}
+
+public struct MeasurePerformanceMetricSummary: Codable, Equatable, Sendable {
+    public let dimension: PerformanceAssessmentDimension
+    public let outcome: PracticeEvidenceOutcome
+    public let evidenceStatus: PerformanceAssessmentEvidenceStatus
+    public let measurement: PerformanceAssessmentMeasurement?
+    public let sampleCount: Int
+    public let confidence: Double?
+
+    init(_ result: PerformanceAssessmentDimensionResult) {
+        dimension = result.dimension
+        outcome = result.outcome
+        evidenceStatus = result.evidenceStatus
+        measurement = result.measurement
+        sampleCount = result.sampleCount
+        confidence = result.confidence
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case dimension
+        case outcome
+        case evidenceStatus
+        case measurement
+        case sampleCount
+        case confidence
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let decodedMeasurement = try container.decodeIfPresent(
+            PerformanceAssessmentMeasurement.self,
+            forKey: .measurement
+        )
+        let decodedSampleCount = try container.decode(Int.self, forKey: .sampleCount)
+        let decodedConfidence = try container.decodeIfPresent(Double.self, forKey: .confidence)
+        guard decodedSampleCount >= 0 else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .sampleCount,
+                in: container,
+                debugDescription: "Performance metric sample count must not be negative"
+            )
+        }
+        guard decodedMeasurement?.value.isFinite != false else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .measurement,
+                in: container,
+                debugDescription: "Performance metric measurement must be finite"
+            )
+        }
+        guard decodedConfidence.map({ $0.isFinite && (0 ... 1).contains($0) }) != false else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .confidence,
+                in: container,
+                debugDescription: "Performance metric confidence must be finite and between zero and one"
+            )
+        }
+        dimension = try container.decode(PerformanceAssessmentDimension.self, forKey: .dimension)
+        outcome = try container.decode(PracticeEvidenceOutcome.self, forKey: .outcome)
+        evidenceStatus = try container.decode(PerformanceAssessmentEvidenceStatus.self, forKey: .evidenceStatus)
+        measurement = decodedMeasurement
+        sampleCount = decodedSampleCount
+        confidence = decodedConfidence
+    }
+}
+
+public struct MeasurePerformanceMaturitySummary: Codable, Equatable, Sendable {
+    public let maturity: MeasurePerformanceMaturity
+    public let rubricVersion: String
+    public let assessedDimensionCount: Int
+    public let sampleCount: Int
+    public let evidenceCoverage: Double?
+    public let metricSummaries: [MeasurePerformanceMetricSummary]
+    public let assessedAt: Date
+
+    public init(
+        maturity: MeasurePerformanceMaturity,
+        rubricVersion: String,
+        assessedDimensionCount: Int,
+        sampleCount: Int,
+        evidenceCoverage: Double?,
+        metricSummaries: [MeasurePerformanceMetricSummary] = [],
+        assessedAt: Date
+    ) {
+        self.maturity = maturity
+        self.rubricVersion = rubricVersion
+        self.assessedDimensionCount = max(0, assessedDimensionCount)
+        self.sampleCount = max(0, sampleCount)
+        self.evidenceCoverage = evidenceCoverage.flatMap { value in
+            value.isFinite ? min(max(value, 0), 1) : nil
+        }
+        self.metricSummaries = metricSummaries
+        self.assessedAt = assessedAt
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case maturity
+        case rubricVersion
+        case assessedDimensionCount
+        case sampleCount
+        case evidenceCoverage
+        case metricSummaries
+        case assessedAt
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let decodedMaturity = try container.decode(MeasurePerformanceMaturity.self, forKey: .maturity)
+        let decodedRubricVersion = try container.decode(String.self, forKey: .rubricVersion)
+        let decodedDimensionCount = try container.decode(Int.self, forKey: .assessedDimensionCount)
+        let decodedSampleCount = try container.decode(Int.self, forKey: .sampleCount)
+        let decodedCoverage = try container.decode(Double.self, forKey: .evidenceCoverage)
+        let decodedMetrics = try container.decode(
+            [MeasurePerformanceMetricSummary].self,
+            forKey: .metricSummaries
+        )
+        var summedSamples = 0
+        for metric in decodedMetrics {
+            let (sum, overflow) = summedSamples.addingReportingOverflow(metric.sampleCount)
+            guard overflow == false else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .sampleCount,
+                    in: container,
+                    debugDescription: "Performance maturity sample count overflow"
+                )
+            }
+            summedSamples = sum
+        }
+        let dimensions = Set(decodedMetrics.map(\.dimension))
+        let expectedCoverage = Double(decodedMetrics.count(where: {
+            $0.evidenceStatus == .observed || $0.evidenceStatus == .degraded
+        })) / Double(decodedMetrics.count)
+        let expectedMaturity: MeasurePerformanceMaturity = if decodedMetrics.allSatisfy({
+            $0.outcome == .correct
+        }) {
+            .mature
+        } else if decodedMetrics.contains(where: { $0.outcome == .incorrect }) {
+            .developing
+        } else {
+            .insufficientEvidence
+        }
+        guard decodedRubricVersion.isEmpty == false,
+              decodedDimensionCount == decodedMetrics.count,
+              decodedMetrics.isEmpty == false,
+              dimensions.count == decodedMetrics.count,
+              decodedSampleCount == summedSamples,
+              decodedCoverage.isFinite,
+              (0 ... 1).contains(decodedCoverage),
+              abs(decodedCoverage - expectedCoverage) <= 0.000_000_001,
+              decodedMaturity == expectedMaturity
+        else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .metricSummaries,
+                in: container,
+                debugDescription: "Performance maturity summary fields must agree with unique metric summaries"
+            )
+        }
+        maturity = decodedMaturity
+        rubricVersion = decodedRubricVersion
+        assessedDimensionCount = decodedDimensionCount
+        sampleCount = decodedSampleCount
+        evidenceCoverage = decodedCoverage
+        metricSummaries = decodedMetrics
+        assessedAt = try container.decode(Date.self, forKey: .assessedAt)
+    }
+}
+
+public struct MeasurePracticeFacts: Codable, Equatable, Sendable {
+    public let sourceMeasureID: PracticeSourceMeasureID
+    public let handMode: PracticeHandMode
+    public var state: MeasurePitchStepLearningState
+    public var successfulAttempts: Int
+    public var failedAttempts: Int
+    public var consecutiveSuccesses: Int
+    public var highestPitchStepStableTempoScale: Double?
+    public var recentIssue: PracticeIssueKind?
+    public var lastAttemptAt: Date?
+    public var performanceMaturity: MeasurePerformanceMaturitySummary?
+
+    public init(
+        sourceMeasureID: PracticeSourceMeasureID,
+        handMode: PracticeHandMode,
+        state: MeasurePitchStepLearningState = .notStarted,
+        successfulAttempts: Int = 0,
+        failedAttempts: Int = 0,
+        consecutiveSuccesses: Int = 0,
+        highestPitchStepStableTempoScale: Double? = nil,
+        recentIssue: PracticeIssueKind? = nil,
+        lastAttemptAt: Date? = nil,
+        performanceMaturity: MeasurePerformanceMaturitySummary? = nil
+    ) {
+        self.sourceMeasureID = sourceMeasureID
+        self.handMode = handMode
+        self.state = state
+        self.successfulAttempts = max(0, successfulAttempts)
+        self.failedAttempts = max(0, failedAttempts)
+        self.consecutiveSuccesses = max(0, consecutiveSuccesses)
+        self.highestPitchStepStableTempoScale = highestPitchStepStableTempoScale.map {
+            min(max($0, PracticeRoundConfiguration.supportedTempoRange.lowerBound), PracticeRoundConfiguration.supportedTempoRange.upperBound)
+        }
+        self.recentIssue = recentIssue
+        self.lastAttemptAt = lastAttemptAt
+        self.performanceMaturity = performanceMaturity
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case sourceMeasureID
+        case handMode
+        case state
+        case successfulAttempts
+        case failedAttempts
+        case consecutiveSuccesses
+        case highestPitchStepStableTempoScale = "highestStableTempoScale"
+        case recentIssue
+        case lastAttemptAt
+        case performanceMaturity
+    }
+}
+
+public struct SongPracticeProgress: Codable, Equatable, Sendable {
+    public let identity: PracticeSongIdentity
+    public var activeConfiguration: PracticeRoundConfiguration?
+    public var resumePoint: PracticeResumePoint?
+    public var measureFacts: [MeasurePracticeFacts]
+    public var updatedAt: Date
+
+    public init(
+        identity: PracticeSongIdentity,
+        activeConfiguration: PracticeRoundConfiguration? = nil,
+        resumePoint: PracticeResumePoint? = nil,
+        measureFacts: [MeasurePracticeFacts] = [],
+        updatedAt: Date
+    ) {
+        self.identity = identity
+        self.activeConfiguration = activeConfiguration
+        self.resumePoint = resumePoint
+        self.measureFacts = measureFacts
+        self.updatedAt = updatedAt
+    }
+}
+
+public struct SongScorePracticeMetadata: Codable, Equatable, Sendable {
+    public let songID: UUID
+    public let scoreFileVersionID: UUID
+    public let scoreRevision: String
+    public let totalSourceMeasureCount: Int
+    public let preparedAt: Date
+
+    public init(
+        songID: UUID,
+        scoreFileVersionID: UUID,
+        scoreRevision: String,
+        totalSourceMeasureCount: Int,
+        preparedAt: Date
+    ) {
+        self.songID = songID
+        self.scoreFileVersionID = scoreFileVersionID
+        self.scoreRevision = scoreRevision
+        self.totalSourceMeasureCount = max(0, totalSourceMeasureCount)
+        self.preparedAt = preparedAt
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case songID
+        case scoreFileVersionID
+        case scoreRevision
+        case totalSourceMeasureCount
+        case preparedAt
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        try self.init(
+            songID: container.decode(UUID.self, forKey: .songID),
+            scoreFileVersionID: container.decode(
+                UUID.self,
+                forKey: .scoreFileVersionID
+            ),
+            scoreRevision: container.decode(String.self, forKey: .scoreRevision),
+            totalSourceMeasureCount: container.decode(
+                Int.self,
+                forKey: .totalSourceMeasureCount
+            ),
+            preparedAt: container.decode(Date.self, forKey: .preparedAt)
+        )
+    }
+}
+
+public struct PracticeSongHistory: Equatable, Sendable {
+    public let songID: UUID
+    public let progresses: [SongPracticeProgress]
+    public let scoreMetadata: [SongScorePracticeMetadata]
+    public let sessions: [PracticeSessionRecord]
+
+    public init(
+        songID: UUID,
+        progresses: [SongPracticeProgress],
+        scoreMetadata: [SongScorePracticeMetadata],
+        sessions: [PracticeSessionRecord]
+    ) {
+        self.songID = songID
+        self.progresses = progresses
+        self.scoreMetadata = scoreMetadata
+        self.sessions = sessions
+    }
+}
+
+public enum PracticeSongHistoryLoadResult: Equatable, Sendable {
+    case loaded(PracticeSongHistory)
+    case unavailable(description: String)
+    case corrupted(description: String)
+}
+
+public enum PracticeProgressRecordOrder {
+    public static func preferred(
+        _ lhs: SongPracticeProgress,
+        over rhs: SongPracticeProgress
+    ) -> Bool {
+        if lhs.updatedAt != rhs.updatedAt { return lhs.updatedAt > rhs.updatedAt }
+        let lhsData = canonicalData(lhs)
+        let rhsData = canonicalData(rhs)
+        return lhsData != rhsData && rhsData.lexicographicallyPrecedes(lhsData)
+    }
+
+    public static func preferred(in progresses: [SongPracticeProgress]) -> SongPracticeProgress? {
+        progresses.reduce(nil) { current, candidate in
+            guard let current else { return candidate }
+            return preferred(candidate, over: current) ? candidate : current
+        }
+    }
+
+    public static func sorted(_ progresses: [SongPracticeProgress]) -> [SongPracticeProgress] {
+        progresses.sorted { lhs, rhs in
+            if lhs.identity.songID != rhs.identity.songID {
+                return lhs.identity.songID.uuidString < rhs.identity.songID.uuidString
+            }
+            if lhs.identity.scoreRevision != rhs.identity.scoreRevision {
+                return lhs.identity.scoreRevision < rhs.identity.scoreRevision
+            }
+            return preferred(lhs, over: rhs)
+        }
+    }
+
+    private static func canonicalData(_ progress: SongPracticeProgress) -> Data {
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .deferredToDate
+        encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
+        return (try? encoder.encode(progress)) ?? Data()
+    }
+}
+
+public struct PracticeProgressDocument: Codable, Equatable, Sendable {
+    public static let currentSchemaVersion = 2
+
+    public let schemaVersion: Int
+    public var songs: [SongPracticeProgress]
+    public var scoreMetadata: [SongScorePracticeMetadata]
+    public var sessions: [PracticeSessionRecord]
+
+    public init(
+        songs: [SongPracticeProgress] = [],
+        scoreMetadata: [SongScorePracticeMetadata] = [],
+        sessions: [PracticeSessionRecord] = []
+    ) {
+        schemaVersion = Self.currentSchemaVersion
+        self.songs = songs
+        self.scoreMetadata = scoreMetadata
+        self.sessions = sessions
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case schemaVersion
+        case songs
+        case scoreMetadata
+        case sessions
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let storedVersion = try container.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 1
+        guard (1 ... Self.currentSchemaVersion).contains(storedVersion) else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .schemaVersion,
+                in: container,
+                debugDescription: "Unsupported practice progress schema version"
+            )
+        }
+        schemaVersion = Self.currentSchemaVersion
+        songs = try container.decode([SongPracticeProgress].self, forKey: .songs)
+        scoreMetadata = try container.decode([SongScorePracticeMetadata].self, forKey: .scoreMetadata)
+        sessions = try container.decode([PracticeSessionRecord].self, forKey: .sessions)
+    }
+}

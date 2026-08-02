@@ -60,7 +60,7 @@ final class PracticeHandGateController {
     ) {
         let startedContacts = observations.filter { $0.phase == .started }
         guard startedContacts.isEmpty == false else { return }
-        let evidence = HandSeparatedNoteEvidence(startedContacts: startedContacts)
+        let evidence = handSeparatedEvidence(from: startedContacts)
         guard stateStore.acceptsPracticeAttempts else { return }
         guard case .guiding = stateStore.state else { return }
         guard stateStore.autoplayState == .off else { return }
@@ -102,5 +102,29 @@ final class PracticeHandGateController {
     ) -> [PracticeStepNote] {
         if mode == .both { return notes }
         return notes.filter { mode.allows(hand: $0.hand) }
+    }
+
+    private func handSeparatedEvidence(
+        from startedContacts: [PianoKeyContactObservation]
+    ) -> HandSeparatedNoteEvidence {
+        var right: Set<Int> = []
+        var left: Set<Int> = []
+        var hasUncertainCandidate = false
+        for contact in startedContacts {
+            switch contact.keyCandidate {
+            case let .exact(midiNote):
+                switch contact.hand {
+                case .right: right.insert(midiNote)
+                case .left: left.insert(midiNote)
+                }
+            case .ambiguous, .unknown:
+                hasUncertainCandidate = true
+            }
+        }
+        return HandSeparatedNoteEvidence(
+            right: right,
+            left: left,
+            hasUncertainCandidate: hasUncertainCandidate
+        )
     }
 }

@@ -1,5 +1,7 @@
 import Foundation
-import MusicXML
+@testable import MusicXML
+@testable import Practice
+import Diagnostics
 @testable import HappyPianistAVP
 import simd
 import Testing
@@ -187,6 +189,7 @@ private struct PendingManualReplaySleeper: SleeperProtocol {
     }
 }
 
+@MainActor
 private final class ManualReplaySequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol {
     private let currentSecondsValue: TimeInterval
     private(set) var warmUpCount = 0

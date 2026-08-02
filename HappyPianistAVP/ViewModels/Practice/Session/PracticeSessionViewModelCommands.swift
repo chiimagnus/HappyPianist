@@ -305,10 +305,47 @@ extension PracticeSessionViewModel {
         self.state = .ready
         setCurrentHighlightGuideForStepIndex(self.currentStepIndex)
         refreshAudioRecognitionForCurrentState()
+        refreshPracticeInputForCurrentState()
     }
 
     @discardableResult
     func flushAndShutdown() async -> PracticeProgressSaveStatus {
+        if let practiceMIDIInputService {
+            self.acceptsPracticeAttempts = false
+            invalidateFeedbackPresentation()
+            cancelAutoplayTimelineBuild()
+            var finalStatus: PracticeProgressSaveStatus = .idle
+            let didFinish = await practiceMIDIInputService.finish(termination: .init(
+                resetOutput: { [weak self] in
+                    guard let self else { return }
+                    await self.manualReplayService?.resetAndFlushOutput()
+                    await self.playbackControlService?.resetAndFlushOutput()
+                    self.stopAudioRecognition()
+                },
+                flushProgress: { [weak self] in
+                    guard let self else { return true }
+                    await self.waitForPendingPerformanceObservationRecording()
+                    await self.waitForSessionRecorderEvents()
+                    await self.sessionRecorder?.setGuiding(false)
+
+                    let flushStatus = await self.flushProgress()
+                    if case .failed = flushStatus {
+                        finalStatus = flushStatus
+                        return false
+                    }
+                    finalStatus = await self.finishProgressSession()
+                    if case .failed = finalStatus { return false }
+                    return true
+                }
+            ))
+            guard didFinish else {
+                resumeAfterSuspension()
+                return finalStatus
+            }
+            shutdown()
+            return finalStatus
+        }
+
         let flushStatus = await suspendAndFlushProgress()
         if case .failed = flushStatus {
             resumeAfterSuspension()

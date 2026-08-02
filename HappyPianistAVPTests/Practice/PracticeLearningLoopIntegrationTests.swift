@@ -1,7 +1,8 @@
 import Foundation
 import Diagnostics
 import MIDI
-import MusicXML
+@testable import MusicXML
+@testable import Practice
 @testable import HappyPianistAVP
 import Testing
 
@@ -498,6 +499,7 @@ private actor LearningLoopRepository: PracticeProgressRepositoryProtocol {
     }
 }
 
+@MainActor
 private final class LearningLoopPlaybackService: PracticeSequencerPlaybackServiceProtocol {
     private(set) var oneShotCount = 0
     private(set) var playCount = 0

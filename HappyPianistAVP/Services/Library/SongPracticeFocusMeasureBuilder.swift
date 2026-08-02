@@ -1,4 +1,5 @@
 import Foundation
+import MusicXML
 import Practice
 
 struct SongPracticeFocusMeasureBuilder {

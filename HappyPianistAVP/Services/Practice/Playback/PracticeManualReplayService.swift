@@ -205,6 +205,11 @@ final class PracticeManualReplayService {
         stateStore.shouldResumeAudioRecognitionAfterManualReplay = false
     }
 
+    func resetAndFlushOutput() async {
+        stopManualReplayTask(restoreAudioRecognition: false)
+        await pendingStopTask?.value
+    }
+
     private func setCurrentHighlightGuideForStepIndex(_ stepIndex: Int) {
         guard stateStore.steps.indices.contains(stepIndex) else {
             stateStore.currentHighlightGuideIndex = nil

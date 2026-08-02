@@ -1,5 +1,6 @@
 import Foundation
 import MIDI
+import Practice
 
 /// Converts the app's canonical, capability-aware observation into the subset
 /// that an AI creative-duet prompt can represent.

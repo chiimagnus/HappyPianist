@@ -32,7 +32,7 @@ fileImporter
 - 导入先写同卷 `.partial` 和 journal，再以字节数/SHA-256 校验后提交 target/index；冲突停在用户确认边界。
 - bootstrap 先恢复未完成事务，再读取 index，最后扫描 bundle；损坏的非空 JSON fail closed，不得按空库覆盖。
 - `PracticePreparationService` 先生成唯一 `ScorePerformancePlan`，再单向投影 `PracticeStep`、`PianoHighlightGuide`、notation projection、timeline 和 sequence。
-- `Practice` 是 preparation 的共享包边界，只依赖 `MusicXML` 与 `Diagnostics`；曲库、会话、播放与 SwiftUI/RealityKit 不得被它反向引用。
+- `Practice` 是 preparation 与共享 runtime 的包边界，依赖 `MusicXML`、`MIDI` 和 `Diagnostics`；曲库、SwiftUI/RealityKit、AVAudio、音频识别与手部/虚拟琴不得被它反向引用。
 - prepared result 必须同时有可演奏 steps 与 `MusicXMLMeasureSpan`；缺少小节结构时返回 typed failure，不建立 legacy fallback。
 - preparation failure 的 UI、技术详情和诊断事件来自同一 typed failure；stale generation 不发布旧结果。
 
@@ -86,7 +86,7 @@ typed attempt
   → PracticeAttemptReducer
   → source-measure fact
   → PracticeProgressCoordinator
-  → FilePracticeProgressRepository actor
+  → FilePracticeProgressRepository actor（AVP Services/Library 临时 owner）
   → progress-v1.json
 ```
 
@@ -101,7 +101,7 @@ Practice window visit
 - progress、score metadata 和 sessions 是同一 JSON schema 内的独立数组；每次 mutation 读取磁盘最新版本，只改自己的 concern。
 - progress 保存当前配置、resume point、小节 maturity/metric summaries 和必要 session facts；不保存 cue、summary、map、RealityKit entity、逐音 evidence、原始输入或 AI 内容。
 - `PracticeSessionRecorder` 以 Practice window visit 复用；首次真实进入 guiding 才创建 session。scene、guiding、settings、round、退出边界立即 checkpoint，连续 guiding 最多每 30 秒一次。
-- 显式返回顺序：失效新 generation → 停止输入/输出 → flush progress → 终结 recorder → 关闭 immersive → 返回 Library。失败时留在当前窗口，不静默丢增量。
+- MIDI-only 显式返回顺序：失效输入 generation → 停止输入 → reset/flush 输出 → 等待已接受 observation 的 recorder 写入 → flush progress → 终结 session → 关闭 immersive → 返回 Library。失败时留在当前窗口，不静默丢增量。
 
 ## 回放、录制与 AI
 

@@ -1,6 +1,7 @@
 import Foundation
 import Diagnostics
 import MIDI
+@testable import Practice
 @testable import HappyPianistAVP
 import os
 import Testing
@@ -262,7 +263,10 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             PracticeSequencerMIDIEvent(timeSeconds: 0.101, kind: .noteOff(midi: 60)),
         ], fromSeconds: 0)
 
-        #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 1 && await clock.sleepingCount == 1 })
+        #expect(await waitUntil {
+            let sleepingCount = await clock.sleepingCount
+            return output.timestampedBatchesSnapshot().count == 1 && sleepingCount == 1
+        })
         #expect(output.timestampedBatchesSnapshot()[0].messages.map(\.bytes) == [
             [0x90, 60, 80],
             [0xB0, 64, 90],
@@ -300,7 +304,10 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOn(midi: 62, velocity: 81)),
         ], fromSeconds: 0)
 
-        #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 1 && await clock.sleepingCount == 1 })
+        #expect(await waitUntil {
+            let sleepingCount = await clock.sleepingCount
+            return output.timestampedBatchesSnapshot().count == 1 && sleepingCount == 1
+        })
         await clock.advance(by: 0.25)
         #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 2 })
         await task.value
@@ -337,7 +344,10 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             PracticeSequencerMIDIEvent(timeSeconds: 1, kind: .noteOff(midi: 60)),
         ], fromSeconds: 0)
 
-        #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 1 && await clock.sleepingCount == 1 })
+        #expect(await waitUntil {
+            let sleepingCount = await clock.sleepingCount
+            return output.timestampedBatchesSnapshot().count == 1 && sleepingCount == 1
+        })
         task.cancel()
         await task.value
         await clock.advance(by: 2)
@@ -402,7 +412,10 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 60)),
         ], fromSeconds: 0)
 
-        #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 1 && await clock.sleepingCount == 1 })
+        #expect(await waitUntil {
+            let sleepingCount = await clock.sleepingCount
+            return output.timestampedBatchesSnapshot().count == 1 && sleepingCount == 1
+        })
         #expect(output.timestampedBatchesSnapshot().first?.generation == generation)
         #expect(output.timestampedBatchesSnapshot().first?.capabilities == .externalMIDI)
         generationGate.invalidate()
@@ -638,8 +651,9 @@ private actor FakeMIDILookAheadClock: MIDILookAheadClock {
     func sleep(for seconds: TimeInterval) async throws {
         let id = UUID()
         let deadlineSeconds = state.nowSeconds + max(0, seconds)
-        try await withTaskCancellationHandler {
-            try await withCheckedThrowingContinuation { continuation in
+        try await withTaskCancellationHandler(
+            operation: { () async throws -> Void in
+                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, any Error>) in
                 guard Task.isCancelled == false else {
                     continuation.resume(throwing: CancellationError())
                     return
@@ -648,10 +662,12 @@ private actor FakeMIDILookAheadClock: MIDILookAheadClock {
                     deadlineSeconds: deadlineSeconds,
                     continuation: continuation
                 )
+                }
+            },
+            onCancel: {
+                Task { await self.cancelSleep(id: id) }
             }
-        } onCancel: {
-            Task { await self.cancelSleep(id: id) }
-        }
+        )
     }
 
     func advance(by seconds: TimeInterval) {

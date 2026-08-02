@@ -1,5 +1,8 @@
 import Foundation
 import MIDI
+import Practice
+import MusicXML
+import Diagnostics
 @testable import HappyPianistAVP
 import Testing
 
@@ -262,7 +265,6 @@ func practiceMIDIInputPublishesOnlyCurrentGenerationObservations() async throws 
             expectedNotes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]
         )
     )
-    let generation = stateStore.practiceInputGeneration
     let task = Task<PerformanceObservation?, Never> { @MainActor in
         for await observation in stream {
             return observation
@@ -280,7 +282,7 @@ func practiceMIDIInputPublishesOnlyCurrentGenerationObservations() async throws 
     ))
 
     let observation = try #require(await task.value)
-    #expect(observation.source.generation == UInt64(generation))
+    #expect(observation.source.generation == 1)
     #expect(observation.channel == 2)
     guard case let .noteOn(note, velocity) = observation.event else {
         Issue.record("Expected note-on observation")

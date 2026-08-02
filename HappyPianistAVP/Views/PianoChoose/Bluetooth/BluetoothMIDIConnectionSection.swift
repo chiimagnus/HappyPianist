@@ -1,5 +1,6 @@
 import CoreAudioKit
 import SwiftUI
+import MIDI
 
 struct BluetoothMIDIConnectionSection: View {
     @Environment(\.openURL) private var openURL

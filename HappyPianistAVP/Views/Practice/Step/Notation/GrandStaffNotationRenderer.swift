@@ -1,4 +1,5 @@
 import SwiftUI
+import MusicXML
 import Practice
 
 struct GrandStaffNotationRenderer {

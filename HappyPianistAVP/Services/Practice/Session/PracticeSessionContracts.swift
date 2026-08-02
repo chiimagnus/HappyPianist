@@ -1,5 +1,6 @@
 import Foundation
 import MIDI
+import Practice
 
 @MainActor
 protocol PracticeSessionEffectHandlerProtocol: AnyObject {

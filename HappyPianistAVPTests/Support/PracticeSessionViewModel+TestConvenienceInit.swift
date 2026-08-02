@@ -1,7 +1,8 @@
 import Foundation
 import Diagnostics
 import MIDI
-import MusicXML
+@testable import MusicXML
+import Practice
 @testable import HappyPianistAVP
 
 extension PracticeSessionViewModel {

@@ -1,4 +1,6 @@
 import Foundation
+import MusicXML
+import Practice
 @testable import HappyPianistAVP
 import simd
 import Testing
@@ -12,6 +14,7 @@ private final class CapturingEffectHandler: PracticeSessionEffectHandlerProtocol
     }
 }
 
+@MainActor
 private final class AlwaysMatchChordAttemptAccumulator: ChordAttemptAccumulatorProtocol {
     func register(
         pressedNotes _: Set<Int>,

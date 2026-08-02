@@ -1,4 +1,5 @@
 import Foundation
+import Diagnostics
 import Practice
 
 struct ResolvedSongLibraryEntry: Equatable {

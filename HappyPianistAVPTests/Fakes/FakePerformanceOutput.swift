@@ -2,6 +2,7 @@ import AudioToolbox
 import AVFAudio
 import Foundation
 import MIDI
+import Practice
 @testable import HappyPianistAVP
 import os
 

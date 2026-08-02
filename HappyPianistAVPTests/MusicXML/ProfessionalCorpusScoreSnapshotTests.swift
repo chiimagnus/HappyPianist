@@ -1,6 +1,7 @@
 import CryptoKit
 import Foundation
-import MusicXML
+@testable import MusicXML
+@testable import Practice
 @testable import HappyPianistAVP
 import Testing
 

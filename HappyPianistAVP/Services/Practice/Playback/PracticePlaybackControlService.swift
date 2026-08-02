@@ -63,6 +63,16 @@ final class PracticePlaybackControlService {
         stopAutoplayTask()
     }
 
+    func resetAndFlushOutput() async {
+        stateStore.autoplayState = .off
+        stopAutoplayTask()
+        await pendingResetTask?.value
+        await sequencerPlaybackService.stop(
+            resetCommands: PerformanceTransportReducer.fullResetCommands
+        )
+        await sequencerPlaybackService.stopAllLiveNotes()
+    }
+
     func setAutoplayEnabled(_ isEnabled: Bool) {
         if isEnabled {
             guard stateStore.isManualReplayPlaying == false else { return }

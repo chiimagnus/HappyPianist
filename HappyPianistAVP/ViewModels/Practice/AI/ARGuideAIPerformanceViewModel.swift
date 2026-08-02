@@ -2,6 +2,7 @@ import Foundation
 import Diagnostics
 import MIDI
 import Observation
+import Practice
 
 @MainActor
 @Observable

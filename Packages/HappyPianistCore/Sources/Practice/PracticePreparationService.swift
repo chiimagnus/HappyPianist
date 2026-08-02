@@ -38,7 +38,7 @@ public enum PracticePreparationErrorDetails {
     }
 }
 
-public protocol PracticePreparationServiceProtocol {
+public protocol PracticePreparationServiceProtocol: Sendable {
     func prepare(
         songID: UUID,
         from scoreURL: URL,

@@ -1,4 +1,5 @@
 import Foundation
+import Practice
 @testable import HappyPianistAVP
 import simd
 import Testing
@@ -425,7 +426,7 @@ func hidingVirtualPianoPreservesPlacedKeyboardForLaterPractice() async {
 }
 
 @MainActor
-private final class SinglePracticeSessionViewModelProvider: @unchecked Sendable {
+private final class SinglePracticeSessionViewModelProvider {
     private let session: PracticeSessionViewModel
 
     init(session: PracticeSessionViewModel) {
@@ -461,6 +462,7 @@ private func makeTestKeyboardGeometry() -> PianoKeyboardGeometry {
     return service.generateKeyboardGeometry(from: frame)!
 }
 
+@MainActor
 private final class LiveNoteCapturingPlaybackService: PracticeSequencerPlaybackServiceProtocol {
     private(set) var stopAllLiveNotesCount = 0
     private(set) var startedLiveNotes: Set<Int> = []
@@ -494,6 +496,7 @@ private final class LiveNoteCapturingPlaybackService: PracticeSequencerPlaybackS
     }
 }
 
+@MainActor
 private final class NoopChordAttemptAccumulator: ChordAttemptAccumulatorProtocol {
     func register(pressedNotes _: Set<Int>, expectedNotes _: [Int], at _: PerformanceMonotonicInstant) -> StepAttemptMatchResult {
         testAttemptOutcome(matched: false)
@@ -502,6 +505,7 @@ private final class NoopChordAttemptAccumulator: ChordAttemptAccumulatorProtocol
     func reset() {}
 }
 
+@MainActor
 private final class RecordingChordAttemptAccumulator: ChordAttemptAccumulatorProtocol {
     private(set) var registerCallCount = 0
     private(set) var lastPressedNotes: Set<Int> = []

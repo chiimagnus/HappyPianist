@@ -1,4 +1,6 @@
 import Foundation
+import Diagnostics
+import Practice
 @testable import HappyPianistAVP
 import Testing
 

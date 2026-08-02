@@ -1,4 +1,6 @@
 import SwiftUI
+import MusicXML
+import Practice
 
 struct PracticeFeedbackCueView: View {
     let event: PracticeFeedbackEvent

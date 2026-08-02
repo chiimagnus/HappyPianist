@@ -1,5 +1,6 @@
 import Foundation
 import Diagnostics
+import Practice
 
 @MainActor
 final class PracticeAudioRecognitionInputService: PerformanceObservationStreamProviding {

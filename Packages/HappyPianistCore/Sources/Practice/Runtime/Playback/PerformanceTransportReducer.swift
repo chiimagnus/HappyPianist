@@ -1,0 +1,322 @@
+import Foundation
+import Diagnostics
+
+public struct PerformanceTransportReducer {
+    public struct TransportState: Equatable, Sendable {
+        public let generation: Int
+        public let startTick: Int?
+        public let activeEventIDs: Set<ScorePerformanceNoteEventID>
+
+        public var isPlaying: Bool {
+            startTick != nil
+        }
+
+        public static let idle = TransportState(
+            generation: 0,
+            startTick: nil,
+            activeEventIDs: []
+        )
+    }
+
+    public enum ResetReason: Equatable, Sendable {
+        case seek
+        case loop
+        case end
+        case stop
+    }
+
+    public enum Boundary: Equatable {
+        case start(tick: Int, activeEventIDs: Set<ScorePerformanceNoteEventID>)
+        case seek(tick: Int, activeEventIDs: Set<ScorePerformanceNoteEventID>)
+        case loop(tick: Int, activeEventIDs: Set<ScorePerformanceNoteEventID>)
+        case end
+        case stop
+    }
+
+    public enum LifecycleCommand: Equatable {
+        case reset(
+            eventIDs: [ScorePerformanceNoteEventID],
+            transportCommands: [PerformanceTransportCommand],
+            reason: ResetReason,
+            generation: Int
+        )
+        case apply(
+            tick: Int,
+            eventIDs: [ScorePerformanceNoteEventID],
+            generation: Int
+        )
+    }
+
+    public struct Transition: Equatable {
+        public let state: TransportState
+        public let commands: [LifecycleCommand]
+    }
+
+    struct Note: Equatable {
+        let eventID: ScorePerformanceNoteEventID
+        let midiNote: Int
+        let velocity: UInt8
+        let onTick: Int
+        let offTick: Int
+    }
+
+    struct Command: Equatable {
+        enum Kind: Equatable {
+            case noteOff
+            case noteOn(velocity: UInt8)
+        }
+
+        let eventID: ScorePerformanceNoteEventID
+        let midiNote: Int
+        let tick: Int
+        let kind: Kind
+    }
+
+    struct Reduction: Equatable {
+        let commands: [Command]
+        let retriggeredEventCount: Int
+        let preventedStaleOffCount: Int
+        let orphanOffCount: Int
+    }
+
+    public init() {}
+
+    public func transition(from state: TransportState, at boundary: Boundary) -> Transition {
+        switch boundary {
+        case let .start(tick, activeEventIDs):
+            guard state.isPlaying == false else {
+                return Transition(state: state, commands: [])
+            }
+            return applyingState(
+                from: state,
+                tick: tick,
+                activeEventIDs: activeEventIDs,
+                resetReason: nil
+            )
+
+        case let .seek(tick, activeEventIDs):
+            return applyingState(
+                from: state,
+                tick: tick,
+                activeEventIDs: activeEventIDs,
+                resetReason: .seek
+            )
+
+        case let .loop(tick, activeEventIDs):
+            return applyingState(
+                from: state,
+                tick: tick,
+                activeEventIDs: activeEventIDs,
+                resetReason: .loop
+            )
+
+        case .end:
+            return stopping(from: state, reason: .end)
+
+        case .stop:
+            return stopping(from: state, reason: .stop)
+        }
+    }
+
+    public static let fullResetCommands = resetCommands(eventIDs: [])
+
+    public static func resetCommands(
+        eventIDs: [ScorePerformanceNoteEventID]
+    ) -> [PerformanceTransportCommand] {
+        eventIDs
+            .sorted { $0.description < $1.description }
+            .map(PerformanceTransportCommand.noteOff)
+            + [
+                .controlChange(controller: 64, value: 0),
+                .controlChange(controller: 66, value: 0),
+                .controlChange(controller: 67, value: 0),
+                .allNotesOff,
+                .allSoundOff,
+            ]
+    }
+
+    func reduce(notes: [Note]) -> Reduction {
+        let edges = notes.flatMap { note in
+            [
+                Edge(eventID: note.eventID, midiNote: note.midiNote, tick: note.onTick, kind: .on(note.velocity)),
+                Edge(eventID: note.eventID, midiNote: note.midiNote, tick: note.offTick, kind: .off),
+            ]
+        }.sorted(by: edgeOrder)
+        var activeByMIDI: [Int: [ScorePerformanceNoteEventID: Int]] = [:]
+        var supersededEventIDs: Set<ScorePerformanceNoteEventID> = []
+        var commands: [Command] = []
+        var retriggeredEventCount = 0
+        var preventedStaleOffCount = 0
+        var orphanOffCount = 0
+
+        for edge in edges {
+            switch edge.kind {
+            case .off:
+                if supersededEventIDs.remove(edge.eventID) != nil {
+                    preventedStaleOffCount += 1
+                } else if activeByMIDI[edge.midiNote]?.removeValue(forKey: edge.eventID) != nil {
+                    commands.append(Command(
+                        eventID: edge.eventID,
+                        midiNote: edge.midiNote,
+                        tick: edge.tick,
+                        kind: .noteOff
+                    ))
+                } else {
+                    orphanOffCount += 1
+                }
+                if activeByMIDI[edge.midiNote]?.isEmpty == true {
+                    activeByMIDI[edge.midiNote] = nil
+                }
+
+            case let .on(velocity):
+                let retriggeredEventIDs = (activeByMIDI[edge.midiNote] ?? [:])
+                    .filter { $0.value < edge.tick }
+                    .map(\.key)
+                    .sorted { $0.description < $1.description }
+                for eventID in retriggeredEventIDs {
+                    activeByMIDI[edge.midiNote]?[eventID] = nil
+                    supersededEventIDs.insert(eventID)
+                    retriggeredEventCount += 1
+                    commands.append(Command(
+                        eventID: eventID,
+                        midiNote: edge.midiNote,
+                        tick: edge.tick,
+                        kind: .noteOff
+                    ))
+                }
+                activeByMIDI[edge.midiNote, default: [:]][edge.eventID] = edge.tick
+                commands.append(Command(
+                    eventID: edge.eventID,
+                    midiNote: edge.midiNote,
+                    tick: edge.tick,
+                    kind: .noteOn(velocity: velocity)
+                ))
+            }
+        }
+
+        return Reduction(
+            commands: commands,
+            retriggeredEventCount: retriggeredEventCount,
+            preventedStaleOffCount: preventedStaleOffCount,
+            orphanOffCount: orphanOffCount
+        )
+    }
+}
+
+public extension PerformanceTransportReducer.Transition {
+    func recordResetDiagnostics(
+        using reporter: (any DiagnosticsReporting)?,
+        stage: String
+    ) {
+        for command in commands {
+            guard case let .reset(eventIDs, transportCommands, reason, _) = command else { continue }
+            reporter?.recordSystem(
+                severity: .info,
+                category: .pianoPerformance,
+                stage: stage,
+                summary: "演奏 transport 已执行边界复位",
+                reason: "reason=\(reason.diagnosticName); activeEventCount=\(eventIDs.count); "
+                    + "commandCount=\(transportCommands.count)"
+            )
+        }
+    }
+}
+
+private extension PerformanceTransportReducer.ResetReason {
+    var diagnosticName: String {
+        switch self {
+        case .seek: "seek"
+        case .loop: "loop"
+        case .end: "end"
+        case .stop: "stop"
+        }
+    }
+}
+
+private extension PerformanceTransportReducer {
+    func applyingState(
+        from state: TransportState,
+        tick: Int,
+        activeEventIDs: Set<ScorePerformanceNoteEventID>,
+        resetReason: ResetReason?
+    ) -> Transition {
+        let generation = state.generation + 1
+        let sortedTargetEventIDs = sorted(activeEventIDs)
+        var commands: [LifecycleCommand] = []
+        if let resetReason {
+            commands.append(.reset(
+                eventIDs: sorted(state.activeEventIDs),
+                transportCommands: Self.resetCommands(eventIDs: sorted(state.activeEventIDs)),
+                reason: resetReason,
+                generation: generation
+            ))
+        }
+        commands.append(.apply(
+            tick: tick,
+            eventIDs: sortedTargetEventIDs,
+            generation: generation
+        ))
+        return Transition(
+            state: TransportState(
+                generation: generation,
+                startTick: tick,
+                activeEventIDs: activeEventIDs
+            ),
+            commands: commands
+        )
+    }
+
+    func stopping(from state: TransportState, reason: ResetReason) -> Transition {
+        guard state.isPlaying else {
+            return Transition(state: state, commands: [])
+        }
+        let generation = state.generation + 1
+        return Transition(
+            state: TransportState(
+                generation: generation,
+                startTick: nil,
+                activeEventIDs: []
+            ),
+            commands: [
+                .reset(
+                    eventIDs: sorted(state.activeEventIDs),
+                    transportCommands: Self.resetCommands(eventIDs: sorted(state.activeEventIDs)),
+                    reason: reason,
+                    generation: generation
+                ),
+            ]
+        )
+    }
+
+    func sorted(_ eventIDs: Set<ScorePerformanceNoteEventID>) -> [ScorePerformanceNoteEventID] {
+        eventIDs.sorted { $0.description < $1.description }
+    }
+
+    struct Edge {
+        enum Kind {
+            case off
+            case on(UInt8)
+        }
+
+        let eventID: ScorePerformanceNoteEventID
+        let midiNote: Int
+        let tick: Int
+        let kind: Kind
+    }
+
+    func edgeOrder(_ lhs: Edge, _ rhs: Edge) -> Bool {
+        if lhs.tick != rhs.tick { return lhs.tick < rhs.tick }
+        let lhsPriority = edgePriority(lhs.kind)
+        let rhsPriority = edgePriority(rhs.kind)
+        if lhsPriority != rhsPriority { return lhsPriority < rhsPriority }
+        if lhs.midiNote != rhs.midiNote { return lhs.midiNote < rhs.midiNote }
+        return lhs.eventID.description < rhs.eventID.description
+    }
+
+    func edgePriority(_ kind: Edge.Kind) -> Int {
+        switch kind {
+        case .off: 0
+        case .on: 1
+        }
+    }
+}

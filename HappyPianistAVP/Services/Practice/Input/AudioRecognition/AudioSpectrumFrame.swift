@@ -1,4 +1,5 @@
 import Foundation
+import Practice
 
 struct AudioSpectrumFrame: Equatable, HarmonicBandEnergyProvidingProtocol {
     let sampleRate: Double

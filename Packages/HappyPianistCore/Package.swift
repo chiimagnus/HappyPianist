@@ -5,8 +5,8 @@ import PackageDescription
 let package = Package(
     name: "HappyPianistCore",
     platforms: [
-        .macOS(.v13),
-        .visionOS(.v1),
+        .macOS(.v26),
+        .visionOS(.v26),
     ],
     products: [
         .library(name: "Diagnostics", targets: ["Diagnostics"]),
@@ -49,6 +49,7 @@ let package = Package(
             dependencies: [
                 "Diagnostics",
                 "MusicXML",
+                "MIDI",
             ]
         ),
         .target(

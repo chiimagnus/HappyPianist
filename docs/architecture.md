@@ -25,7 +25,7 @@ Models / Contracts
 
 `MIDI` 只依赖 `Diagnostics`，拥有 CoreMIDI transport 与稳定端点契约；Practice、录制和 AI 只消费其事件/输出协议，不得反向依赖 CoreMIDI 实现。
 
-`Practice` 只依赖 `MusicXML` 与 `Diagnostics`：它拥有准备输入契约、唯一的 `ScorePerformancePlan` 及 steps、琴键和记谱投影。它不得引用 App、Library、Notation、MIDI、SwiftUI、RealityKit 或设备框架；App 的会话、播放和界面仅消费这些投影。
+`Practice` 依赖 `MusicXML`、`MIDI` 与 `Diagnostics`：它拥有准备输入契约、唯一的 `ScorePerformancePlan` 及 steps、琴键和记谱投影，以及匹配、对齐、assessment、coaching、transport、progress contracts、session recorder 和共享 MIDI-only lifecycle。它只通过 `MIDI` 的契约工作，不直接导入 CoreMIDI；不得引用 App、Library、Notation、SwiftUI、RealityKit、AVAudio、音频识别或手部/虚拟琴实现。
 
 新增服务先定义稳定协议，再由 `LiveAppGraph.make()` 注入并接入 consumer。单一实现不提前建 factory、manager 或兼容层。
 
@@ -38,10 +38,10 @@ Models / Contracts
 | 诊断根 | `Packages/HappyPianistCore/Sources/Diagnostics/` | `DiagnosticEvent`、reporter、七日文件 store、OSLog sink 与用户归档；不包含音频、AR、Practice 投影或输出指标。 |
 | 曲谱根 | `Packages/HappyPianistCore/Sources/MusicXML/` | MusicXML/MXL 解析、结构扩展、模型与安全限制；输入失败以本模块 typed error 表示，不反向依赖 Practice。 |
 | MIDI 根 | `Packages/HappyPianistCore/Sources/MIDI/` | 输入/输出 transport、endpoint ID、CoreMIDI route 与输出指标；不包含练习匹配、录制、AI 或界面。 |
-| 练习准备根 | `Packages/HappyPianistCore/Sources/Practice/` | MusicXML preparation、performance plan 和步骤/琴键/记谱投影；不包含 session runtime、曲库、SwiftUI 或 RealityKit。 |
+| 练习核心 | `Packages/HappyPianistCore/Sources/Practice/` | MusicXML preparation、performance plan、步骤/琴键/记谱投影、运行时 facts/reducers、MIDI-only lifecycle 和 progress contracts；不包含曲库文件实现、SwiftUI、RealityKit、AVAudio、音频识别或手部/虚拟琴。 |
 | 曲库 | `SongLibraryViewModel`、`SongLibraryImportTransactionService` | selection 只是内存 intent；导入、替换、恢复和删除由 actor 事务 owner 处理。 |
 | 曲谱准备 | `PracticePreparationService` | MusicXML 先形成唯一 `ScorePerformancePlan`，再投影 steps、guides 与 notation；播放运行时消费 plan。 |
-| 练习会话 | `PracticeSessionViewModel`、`PracticeSessionRecorder` | active configuration 在一轮内不可变；退出顺序是停止新输入、flush 事实、终结会话、teardown 设备。 |
+| 练习会话 | `MIDIPracticeSession`、`PracticeSessionViewModel` | active configuration 在一轮内不可变；MIDI 结束顺序是失效输入、停止输入、reset/flush 输出、drain recorder、flush facts、终结 session；AVP view model 只编排 presentation/platform adapters。 |
 | 输入与评价 | platform adapters、`PerformanceObservation`、analyzer | 音频、MIDI、手部证据共用 observation 契约，但保留各自 capability 和 unknown 边界。 |
 | 反馈与指导 | assessment、`CoachingDecisionService`、feedback policies | 每次最多一个有范围和完成条件的动作；表现层是持久化事实的派生物。 |
 | AI 对弹 | `AIPerformanceService`、`ImprovBackendRegistry` | 严格使用用户选择的 provider；response 是运行期创意内容，不是谱面真值或评分依据。 |

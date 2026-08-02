@@ -1,6 +1,7 @@
 import Foundation
 import Diagnostics
 import Observation
+import Practice
 
 @MainActor
 @Observable

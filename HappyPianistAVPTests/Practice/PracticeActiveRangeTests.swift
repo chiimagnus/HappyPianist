@@ -1,6 +1,7 @@
 import Foundation
-import MusicXML
-@testable import HappyPianistAVP
+@testable import MusicXML
+import Diagnostics
+import Practice
 import Testing
 
 @Suite("Practice active range")

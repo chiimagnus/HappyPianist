@@ -1,4 +1,5 @@
 import SwiftUI
+import MIDI
 import Practice
 
 struct PracticeSettingsView: View {

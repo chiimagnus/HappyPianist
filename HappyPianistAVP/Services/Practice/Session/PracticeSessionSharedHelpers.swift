@@ -1,4 +1,5 @@
 import Foundation
+import MusicXML
 import Practice
 
 // MARK: - Pure helpers shared across PracticeSession services & ViewModel

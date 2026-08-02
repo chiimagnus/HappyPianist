@@ -1,4 +1,5 @@
 import Foundation
+import Practice
 
 protocol HarmonicTemplateDetectingProtocol: Sendable {
     func detect(

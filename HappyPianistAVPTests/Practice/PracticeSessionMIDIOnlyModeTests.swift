@@ -1,5 +1,8 @@
 import Foundation
 import MIDI
+import Practice
+import MusicXML
+import Diagnostics
 @testable import HappyPianistAVP
 import simd
 import Testing

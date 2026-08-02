@@ -3,30 +3,7 @@ import AVFAudio
 import Foundation
 import Diagnostics
 import MIDI
-
-struct PracticeSequencerSequence {
-    let midiData: Data
-    let durationSeconds: TimeInterval
-    let events: [PracticeSequencerMIDIEvent]
-    let outputApproximations: [PerformanceOutputApproximation]
-
-    init(
-        midiData: Data,
-        durationSeconds: TimeInterval,
-        events: [PracticeSequencerMIDIEvent],
-        outputApproximations: [PerformanceOutputApproximation] = []
-    ) {
-        self.midiData = midiData
-        self.durationSeconds = durationSeconds
-        self.events = events
-        self.outputApproximations = outputApproximations
-    }
-}
-
-struct PracticePlaybackCommand: Equatable {
-    let sourceEventID: String
-    let kind: PracticeSequencerMIDIEvent.Kind
-}
+import Practice
 
 struct PracticeLiveNoteEvent: Equatable {
     enum Phase: Equatable {
@@ -49,18 +26,6 @@ struct PracticeLiveNoteEvent: Equatable {
             kind: kind
         )
     }
-}
-
-protocol PracticeSequencerPlaybackServiceProtocol: AnyObject {
-    func warmUp() async throws
-    func stop(resetCommands: [PerformanceTransportCommand]) async
-    func load(sequence: PracticeSequencerSequence) async throws
-    func play(fromSeconds start: TimeInterval) async throws
-    func currentSeconds() async -> TimeInterval
-    func playOneShot(commands: [PracticePlaybackCommand], durationSeconds: TimeInterval) async throws
-    func execute(commands: [PracticePlaybackCommand]) async throws
-    func execute(liveNoteEvents: [PracticeLiveNoteEvent]) async throws
-    func stopAllLiveNotes() async
 }
 
 extension PracticeSequencerPlaybackServiceProtocol {

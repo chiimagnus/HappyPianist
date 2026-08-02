@@ -8,7 +8,7 @@
 Diagnostics → ∅
 MusicXML → ∅
 MIDI → Diagnostics
-Practice → Diagnostics, MusicXML
+Practice → Diagnostics, MIDI, MusicXML
 HappyPianistAVP → Diagnostics, MusicXML, MIDI, Practice
 HappyPianistAVPTests → Diagnostics, MusicXML, MIDI, Practice, HappyPianistTestFixtures
 ```
@@ -25,7 +25,11 @@ HappyPianistAVPTests → Diagnostics, MusicXML, MIDI, Practice, HappyPianistTest
 
 `MusicXML` 拥有 MusicXML/MXL 模型、解析、结构扩展与谱面语义计算；它不依赖 Practice、Library、MIDI 或 Diagnostics。
 
-`Practice` 依赖 `MusicXML` 与 `Diagnostics`，拥有 `PracticePreparationService`、`ScorePerformancePlanBuilder`、`ScorePerformancePlan`、`PracticeStepBuilder`、琴键高亮与记谱投影。它的公开值契约可跨 actor 安全传递；它不保留 App/Notation 的类型，也不引入「有 steps、无小节」的兼容结果。App 的 session runtime、playback、曲库与视图保留在 App，单向消费 preparation 结果。
+`Practice` 依赖 `MusicXML`、`MIDI` 与 `Diagnostics`，拥有 `PracticePreparationService`、`ScorePerformancePlanBuilder`、`ScorePerformancePlan`、steps、琴键和记谱投影，以及 matcher、对齐、assessment、coaching、transport、session recorder、progress contracts 和 `MIDIPracticeSession`。它只消费 MIDI 的输入/输出契约，绝不直接导入 CoreMIDI；它的公开值契约可跨 actor 安全传递，不保留 App/Notation 的类型，也不引入「有 steps、无小节」的兼容结果。
+
+`MIDIPracticeSession` 是可复用的 MIDI-only 生命周期 owner：它独占输入 start/stop、generation、stale-event rejection、observation mapping/matching 和 recorder drain；host 注入输出 reset 与 progress flush。结束严格按“失效输入 → 停止输入 → reset/flush 输出 → 等待已接受 observation 的记录 → flush progress → 终结 session”进行；save 失败时 session 保持可恢复。AVP 的 `PracticeMIDIInputService` 仅做 presentation adapter；AVAudio、audio recognition、手部/虚拟琴、AR 和 SwiftUI 保留在 App。
+
+progress 的事实与 repository contracts 属于 `Practice`；文件路径和 `FilePracticeProgressRepository` 目前由 AVP 的 `Services/Library` 临时 owner 持有，直到 Library product 在下一 task 接管。
 
 用户文件先经过单一 `MusicXMLImportSafetyPolicy`：只接受有限大小的常规文件；MXL 在读取 central directory 和每次 extraction 前检查 entry 数量、声明解压大小、总大小、压缩比与安全的相对 archive name。拒绝结果是无路径的 typed reason，不返回部分 score。
 

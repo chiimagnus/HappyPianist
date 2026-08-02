@@ -1,4 +1,5 @@
 import Foundation
+import Practice
 @testable import HappyPianistAVP
 
 final class FakePracticeAudioRecognitionService: PracticeAudioRecognitionServiceProtocol {

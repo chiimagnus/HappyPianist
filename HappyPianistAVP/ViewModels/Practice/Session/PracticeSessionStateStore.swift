@@ -3,13 +3,6 @@ import Observation
 import MusicXML
 import Practice
 
-enum PracticeSessionState: Equatable {
-    case idle
-    case ready
-    case guiding(stepIndex: Int)
-    case completed
-}
-
 enum PracticeSessionAutoplayState: Equatable {
     case off
     case playing
@@ -109,9 +102,6 @@ final class PracticeSessionStateStore {
 
     var audioRecognitionGeneration = 0
     var isAudioRecognitionRunning = false
-    var practiceInputGeneration = 0
     var isPracticeInputRunning = false
-    var practiceInputActiveSinceUptimeSeconds: TimeInterval?
-    var practiceInputLastResetStepIndex: Int?
     var audioRecognitionSuppressUntil: Date?
 }

@@ -1,5 +1,7 @@
 import Foundation
-import MusicXML
+@testable import MusicXML
+import Practice
+import Diagnostics
 @testable import HappyPianistAVP
 import simd
 import Testing
@@ -313,26 +315,27 @@ private final class NoopChordAttemptAccumulator: ChordAttemptAccumulatorProtocol
     func reset() {}
 }
 
+@MainActor
 private final class CapturingSequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol {
     private(set) var oneShots: [[Int]] = []
 
-    func warmUp() throws {}
-    func stop(resetCommands _: [PerformanceTransportCommand]) {}
-    func load(sequence _: PracticeSequencerSequence) throws {}
-    func play(fromSeconds _: TimeInterval) throws {}
-    func currentSeconds() -> TimeInterval {
+    func warmUp() async throws {}
+    func stop(resetCommands _: [PerformanceTransportCommand]) async {}
+    func load(sequence _: PracticeSequencerSequence) async throws {}
+    func play(fromSeconds _: TimeInterval) async throws {}
+    func currentSeconds() async -> TimeInterval {
         0
     }
 
-    func playOneShot(commands: [PracticePlaybackCommand], durationSeconds _: TimeInterval) throws {
+    func playOneShot(commands: [PracticePlaybackCommand], durationSeconds _: TimeInterval) async throws {
         oneShots.append(commands.compactMap {
             guard case let .noteOn(midi, _) = $0.kind else { return nil }
             return midi
         })
     }
 
-    func execute(commands _: [PracticePlaybackCommand]) throws {}
-    func stopAllLiveNotes() {}
+    func execute(commands _: [PracticePlaybackCommand]) async throws {}
+    func stopAllLiveNotes() async {}
 }
 
 @Test

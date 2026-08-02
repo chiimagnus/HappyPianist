@@ -1,4 +1,6 @@
 import Foundation
+import MusicXML
+import Practice
 
 struct PracticeRoundSummaryViewModel: Equatable {
     let configuration: PracticeRoundConfiguration

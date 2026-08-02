@@ -6,6 +6,12 @@ public struct ImportedMusicXMLFile: Equatable, Sendable {
     public let fileName: String
     public let storedURL: URL
     public let importedAt: Date
+
+    public init(fileName: String, storedURL: URL, importedAt: Date) {
+        self.fileName = fileName
+        self.storedURL = storedURL
+        self.importedAt = importedAt
+    }
 }
 
 extension UTType {

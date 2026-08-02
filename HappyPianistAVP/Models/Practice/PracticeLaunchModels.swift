@@ -28,37 +28,6 @@ enum PracticeLaunchApplyOutcome: Equatable {
     case appliedWithUnpersistedRepair
 }
 
-struct PracticeHistoricalPreferences: Equatable {
-    let handMode: PracticeHandMode
-    let tempoScale: Double
-    let loopEnabled: Bool
-    let requiredSuccesses: Int
-
-    init(
-        handMode: PracticeHandMode,
-        tempoScale: Double,
-        loopEnabled: Bool,
-        requiredSuccesses: Int
-    ) {
-        self.handMode = handMode
-        self.tempoScale = min(
-            max(tempoScale, PracticeRoundConfiguration.supportedTempoRange.lowerBound),
-            PracticeRoundConfiguration.supportedTempoRange.upperBound
-        )
-        self.loopEnabled = loopEnabled
-        self.requiredSuccesses = min(
-            max(requiredSuccesses, PracticeRoundConfiguration.supportedSuccessRange.lowerBound),
-            PracticeRoundConfiguration.supportedSuccessRange.upperBound
-        )
-    }
-}
-
-enum PracticeLaunchRestorePolicy: Equatable {
-    case exactAvailable
-    case historicalPreferences(PracticeHistoricalPreferences)
-    case freshDefaults
-}
-
 enum PracticeLaunchRecoveryAction: Equatable {
     case retry
     case backupAndResetCorruptedProgress

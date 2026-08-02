@@ -1,3 +1,4 @@
+import Foundation
 import HappyPianistTestFixtures
 
 func testFixtureURL(_ name: String) -> URL {

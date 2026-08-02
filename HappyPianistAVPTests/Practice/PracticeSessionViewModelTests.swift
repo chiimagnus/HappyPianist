@@ -1,5 +1,7 @@
 import Foundation
-import MusicXML
+@testable import MusicXML
+import Practice
+import Diagnostics
 @testable import HappyPianistAVP
 import simd
 import Testing
@@ -1673,6 +1675,7 @@ private final class AlwaysMatchChordAttemptAccumulator: ChordAttemptAccumulatorP
     func reset() {}
 }
 
+@MainActor
 private final class CapturingSequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol {
     struct OneShot: Equatable {
         let midiNotes: [Int]

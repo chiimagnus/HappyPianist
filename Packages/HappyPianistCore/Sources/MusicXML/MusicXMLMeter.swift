@@ -3,14 +3,19 @@ import Foundation
 
 public struct MusicXMLMeter: Equatable, Hashable, Sendable {
     public struct Component: Equatable, Hashable, Sendable {
-        let beatGroups: [Int]
-        let beatType: Int
+        public let beatGroups: [Int]
+        public let beatType: Int
 
-        var beats: Int {
+        public init(beatGroups: [Int], beatType: Int) {
+            self.beatGroups = beatGroups
+            self.beatType = beatType
+        }
+
+        public var beats: Int {
             beatGroups.reduce(0, +)
         }
 
-        var displayText: String {
+        public var displayText: String {
             "\(beatGroups.map(String.init).joined(separator: "+"))/\(beatType)"
         }
     }

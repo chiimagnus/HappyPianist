@@ -1,5 +1,7 @@
 import Foundation
-import MusicXML
+@testable import MusicXML
+import Practice
+import Diagnostics
 @testable import HappyPianistAVP
 import Testing
 
@@ -597,6 +599,7 @@ private actor FailingRepairRepository: PracticeProgressRepositoryProtocol {
     func remove(songID _: UUID) {}
 }
 
+@MainActor
 private final class CapturingResumePlaybackService: PracticeSequencerPlaybackServiceProtocol {
     private(set) var oneShotCount = 0
     private(set) var playCount = 0
