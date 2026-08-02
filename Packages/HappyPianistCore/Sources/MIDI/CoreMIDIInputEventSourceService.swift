@@ -183,7 +183,7 @@ public final class CoreMIDIInputEventSourceService: MIDIInputEventSource, Sendab
             "HappyPianistAVPCoreMIDIEventsClient" as CFString,
             &state.clientRef
         ) { [weak self] message in
-            self?.handleMIDINotification(message.pointee)
+            self?.handleMIDINotification(message)
         }
 
         guard status == noErr else {
@@ -234,11 +234,8 @@ public final class CoreMIDIInputEventSourceService: MIDIInputEventSource, Sendab
         }
     }
 
-    private func handleMIDINotification(_ notification: MIDINotification) {
-        let affectsSources = withUnsafePointer(to: notification) { pointer in
-            MIDIEndpointRouteNotificationPolicy.affectsSources(pointer)
-        }
-        guard affectsSources else {
+    private func handleMIDINotification(_ notification: UnsafePointer<MIDINotification>) {
+        guard MIDIEndpointRouteNotificationPolicy.affectsSources(notification) else {
             return
         }
         scheduleRefreshSources()
