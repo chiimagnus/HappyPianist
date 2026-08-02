@@ -180,6 +180,9 @@ func midiOnlyPracticeInputStartFailureThenReplacingSameIndexStepResetsMatcherExp
     session.installTestPerformanceNotes([TestScorePerformanceNote(midiNote: 61, onTick: 0)])
     session.startGuidingIfReady()
     #expect(inputSource.startCallCount == 2)
+    for _ in 0 ..< 100 where session.isPracticeInputRunning == false {
+        await Task.yield()
+    }
     #expect(session.isPracticeInputRunning)
     #expect(inputSource.isRunning)
     #expect(session.currentStepIndex == 0)

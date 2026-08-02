@@ -63,7 +63,7 @@ func refreshInNonGuidingStateStopsInput() {
 
 @Test
 @MainActor
-func practiceMIDIInputService_shutdownIsIdempotent() {
+func practiceMIDIInputService_shutdownIsIdempotent() async {
     let source = FakeProtocolSeparatedPracticeInputEventSource()
     let stateStore = PracticeSessionStateStore()
     let effectHandler = CapturingPracticeSessionEffectHandler()
@@ -86,6 +86,9 @@ func practiceMIDIInputService_shutdownIsIdempotent() {
     )
     #expect(source.startCallCount == 1)
     #expect(source.isRunning == true)
+    for _ in 0 ..< 100 where effectHandler.effects.isEmpty {
+        await Task.yield()
+    }
     #expect(effectHandler.effects == [.inputCapabilitiesAvailable(.midi)])
 
     service.shutdown()
