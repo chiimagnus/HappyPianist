@@ -18,6 +18,8 @@
 		A10400000000000000000002 /* Practice in Frameworks */ = {isa = PBXBuildFile; productRef = A10400000000000000000004 /* Practice */; };
 		A10500000000000000000001 /* Notation in Frameworks */ = {isa = PBXBuildFile; productRef = A10500000000000000000003 /* Notation */; };
 		A10500000000000000000002 /* Notation in Frameworks */ = {isa = PBXBuildFile; productRef = A10500000000000000000004 /* Notation */; };
+		A10600000000000000000001 /* Library in Frameworks */ = {isa = PBXBuildFile; productRef = A10600000000000000000003 /* Library */; };
+		A10600000000000000000002 /* Library in Frameworks */ = {isa = PBXBuildFile; productRef = A10600000000000000000004 /* Library */; };
 		D85596AE2F83FF72005BE7FE /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = D85596AD2F83FF72005BE7FE /* RealityKitContent */; };
 /* End PBXBuildFile section */
 
@@ -74,6 +76,7 @@
 				A10300000000000000000001 /* MIDI in Frameworks */,
 				A10400000000000000000001 /* Practice in Frameworks */,
 				A10500000000000000000001 /* Notation in Frameworks */,
+				A10600000000000000000001 /* Library in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -87,6 +90,7 @@
 				A10300000000000000000002 /* MIDI in Frameworks */,
 				A10400000000000000000002 /* Practice in Frameworks */,
 				A10500000000000000000002 /* Notation in Frameworks */,
+				A10600000000000000000002 /* Library in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -138,6 +142,7 @@
 				A10300000000000000000003 /* MIDI */,
 				A10400000000000000000003 /* Practice */,
 				A10500000000000000000003 /* Notation */,
+				A10600000000000000000003 /* Library */,
 			);
 			productName = HappyPianistAVP;
 			productReference = D8C8848D2FC3623C00F1D94F /* HappyPianistAVP.app */;
@@ -167,6 +172,7 @@
 				A10300000000000000000004 /* MIDI */,
 				A10400000000000000000004 /* Practice */,
 				A10500000000000000000004 /* Notation */,
+				A10600000000000000000004 /* Library */,
 			);
 			productName = HappyPianistAVPTests;
 			productReference = D8C8848F2FC3623C00F1D94F /* HappyPianistAVPTests.xctest */;
@@ -605,6 +611,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
 			productName = Notation;
+		};
+		A10600000000000000000003 /* Library */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
+			productName = Library;
+		};
+		A10600000000000000000004 /* Library */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
+			productName = Library;
 		};
 		D85596AD2F83FF72005BE7FE /* RealityKitContent */ = {
 			isa = XCSwiftPackageProductDependency;

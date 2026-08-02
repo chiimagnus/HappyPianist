@@ -197,3 +197,23 @@ func readerRejectsFileBeforeOpeningAnOversizedArchive() throws {
         _ = try MXLReader(safetyPolicy: .init(maximumRawFileBytes: 1)).readScoreXMLData(from: fileURL)
     }
 }
+
+@Test
+func importCandidateValidationUsesTheSameArchiveSafetyPolicyBeforeParsing() throws {
+    let baseURL = FileManager.default.temporaryDirectory
+        .appending(path: "MXLImportCandidateSafetyTests")
+        .appending(path: UUID().uuidString)
+    try FileManager.default.createDirectory(at: baseURL, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: baseURL) }
+
+    let unsafeEntryURL = baseURL.deletingLastPathComponent().appending(path: "outside.xml")
+    try Data("<score-partwise/>".utf8).write(to: unsafeEntryURL)
+    defer { try? FileManager.default.removeItem(at: unsafeEntryURL) }
+    let mxlURL = baseURL.appending(path: "unsafe.mxl")
+    let archive = try Archive(url: mxlURL, accessMode: .create)
+    try archive.addEntry(with: "../outside.xml", relativeTo: baseURL, compressionMethod: .deflate)
+
+    #expect(throws: MXLReaderError.rejectedBySafetyPolicy(.archiveEntryNameIsUnsafe)) {
+        try validateMusicXMLImportCandidate(at: mxlURL)
+    }
+}

@@ -8,7 +8,7 @@ enum SongLibraryImportOperationKind: String, Codable, Equatable {
     case orphanAdopt
 }
 
-enum SongLibraryImportConflictKind: Equatable {
+public enum SongLibraryImportConflictKind: Equatable, Sendable {
     case none
     case indexedTarget(entry: SongLibraryEntry)
     case indexedMissingTarget(entry: SongLibraryEntry)
@@ -166,72 +166,104 @@ struct SongLibraryImportJournal: Codable, Equatable {
     }
 }
 
-struct SongLibraryPendingImport: Equatable, Identifiable {
-    let id: UUID
-    let fileName: String
-    let conflict: SongLibraryImportConflictKind
+public struct SongLibraryPendingImport: Equatable, Identifiable, Sendable {
+    public let id: UUID
+    public let fileName: String
+    public let conflict: SongLibraryImportConflictKind
+
+    public init(id: UUID, fileName: String, conflict: SongLibraryImportConflictKind) {
+        self.id = id
+        self.fileName = fileName
+        self.conflict = conflict
+    }
 }
 
-struct SongLibraryStagedImport: Equatable, Identifiable {
-    let id: UUID
-    let fileName: String
+public struct SongLibraryStagedImport: Equatable, Identifiable, Sendable {
+    public let id: UUID
+    public let fileName: String
+
+    public init(id: UUID, fileName: String) {
+        self.id = id
+        self.fileName = fileName
+    }
 }
 
-struct SongLibraryImportItemFailure: Equatable {
-    let fileName: String
-    let message: String
+public struct SongLibraryImportItemFailure: Equatable, Sendable {
+    public let fileName: String
+    public let message: String
+
+    public init(fileName: String, message: String) {
+        self.fileName = fileName
+        self.message = message
+    }
 }
 
-enum SongLibraryImportBatchItem: Equatable {
+public enum SongLibraryImportBatchItem: Equatable, Sendable {
     case staged(SongLibraryStagedImport)
     case failure(SongLibraryImportItemFailure)
 }
 
-struct SongLibraryImportBatchStageResult: Equatable {
-    let items: [SongLibraryImportBatchItem]
-    let blocked: SongLibraryBlockedImport?
+public struct SongLibraryImportBatchStageResult: Equatable, Sendable {
+    public let items: [SongLibraryImportBatchItem]
+    public let blocked: SongLibraryBlockedImport?
+
+    public init(items: [SongLibraryImportBatchItem], blocked: SongLibraryBlockedImport?) {
+        self.items = items
+        self.blocked = blocked
+    }
 }
 
-enum SongLibraryImportProcessResult: Equatable {
+public enum SongLibraryImportProcessResult: Equatable, Sendable {
     case committed(index: SongLibraryIndex, entry: SongLibraryEntry)
     case requiresConfirmation(SongLibraryPendingImport)
     case itemFailure(SongLibraryImportItemFailure)
     case blocked(SongLibraryBlockedImport)
 }
 
-enum SongLibraryImportState: Equatable {
+public enum SongLibraryImportState: Equatable, Sendable {
     case idle
     case staging(count: Int)
     case processing(operationID: UUID, index: Int, count: Int)
     case awaitingConfirmation(SongLibraryPendingImport, index: Int, count: Int)
     case itemFailure(SongLibraryImportItemFailure, index: Int, count: Int)
 
-    var isActive: Bool {
+    public var isActive: Bool {
         self != .idle
     }
 }
 
-struct SongLibraryBlockedImport: Equatable {
-    let operationID: UUID?
-    let message: String
+public struct SongLibraryBlockedImport: Equatable, Sendable {
+    public let operationID: UUID?
+    public let message: String
+
+    public init(operationID: UUID?, message: String) {
+        self.operationID = operationID
+        self.message = message
+    }
 }
 
-enum SongLibraryTransactionRecoveryResult: Equatable {
+public enum SongLibraryTransactionRecoveryResult: Equatable, Sendable {
     case recovered
     case blocked(SongLibraryBlockedImport)
 }
 
-struct SongLibraryScoreReplacement: Equatable {
-    let musicXMLFileName: String
-    let importedAt: Date
-    let scoreFileVersionID: UUID
+public struct SongLibraryScoreReplacement: Equatable, Sendable {
+    public let musicXMLFileName: String
+    public let importedAt: Date
+    public let scoreFileVersionID: UUID
+
+    public init(musicXMLFileName: String, importedAt: Date, scoreFileVersionID: UUID) {
+        self.musicXMLFileName = musicXMLFileName
+        self.importedAt = importedAt
+        self.scoreFileVersionID = scoreFileVersionID
+    }
 }
 
-enum SongLibraryScoreReplacementResult: Equatable {
+public enum SongLibraryScoreReplacementResult: Equatable, Sendable {
     case applied(index: SongLibraryIndex, entry: SongLibraryEntry)
     case conflict(index: SongLibraryIndex, matchingEntries: [SongLibraryEntry])
 
-    var index: SongLibraryIndex {
+    public var index: SongLibraryIndex {
         switch self {
         case let .applied(index, _), let .conflict(index, _):
             index

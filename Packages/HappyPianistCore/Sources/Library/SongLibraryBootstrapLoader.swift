@@ -1,20 +1,25 @@
 import Foundation
 
-struct SongLibraryBootstrapSnapshot: Equatable {
-    let index: SongLibraryIndex
-    let bundledEntries: [SongLibraryEntry]
+public struct SongLibraryBootstrapSnapshot: Equatable, Sendable {
+    public let index: SongLibraryIndex
+    public let bundledEntries: [SongLibraryEntry]
+
+    public init(index: SongLibraryIndex, bundledEntries: [SongLibraryEntry]) {
+        self.index = index
+        self.bundledEntries = bundledEntries
+    }
 }
 
-protocol SongLibraryBootstrapLoading: Actor {
+public protocol SongLibraryBootstrapLoading: Actor {
     func load() async -> SongLibraryBootstrapSnapshot?
 }
 
-actor LiveSongLibraryBootstrapLoader: SongLibraryBootstrapLoading {
+public actor LiveSongLibraryBootstrapLoader: SongLibraryBootstrapLoading {
     private let transactionRecovery: any SongLibraryImportTransactionRecovering
     private let indexStore: any SongLibraryIndexStoreProtocol
     private let bundledProvider: any BundledSongLibraryProviderProtocol
 
-    init(
+    public init(
         transactionRecovery: any SongLibraryImportTransactionRecovering,
         indexStore: any SongLibraryIndexStoreProtocol,
         bundledProvider: any BundledSongLibraryProviderProtocol
@@ -24,7 +29,7 @@ actor LiveSongLibraryBootstrapLoader: SongLibraryBootstrapLoading {
         self.bundledProvider = bundledProvider
     }
 
-    func load() async -> SongLibraryBootstrapSnapshot? {
+    public func load() async -> SongLibraryBootstrapSnapshot? {
         let recoveryResult = await transactionRecovery.recoverPendingTransactions()
         guard case .recovered = recoveryResult else { return nil }
         do {

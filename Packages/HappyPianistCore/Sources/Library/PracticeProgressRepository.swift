@@ -1,17 +1,17 @@
 import Foundation
 import Practice
 
-typealias PracticeProgressFileReplacement = @Sendable (
+public typealias PracticeProgressFileReplacement = @Sendable (
     _ fileManager: FileManager,
     _ originalURL: URL,
     _ stagingURL: URL,
     _ backupName: String
 ) throws -> Void
 
-typealias PracticeProgressDocumentWriter = @Sendable (_ data: Data, _ url: URL) throws -> Void
+public typealias PracticeProgressDocumentWriter = @Sendable (_ data: Data, _ url: URL) throws -> Void
 
-enum SongScorePracticeMetadataOrder {
-    static func preferred(
+public enum SongScorePracticeMetadataOrder {
+    public static func preferred(
         _ lhs: SongScorePracticeMetadata,
         over rhs: SongScorePracticeMetadata
     ) -> Bool {
@@ -23,7 +23,7 @@ enum SongScorePracticeMetadataOrder {
         return canonicalKey(lhs) > canonicalKey(rhs)
     }
 
-    static func preferred(in metadata: [SongScorePracticeMetadata]) -> SongScorePracticeMetadata? {
+    public static func preferred(in metadata: [SongScorePracticeMetadata]) -> SongScorePracticeMetadata? {
         metadata.reduce(nil) { current, candidate in
             guard let current else { return candidate }
             return preferred(candidate, over: current) ? candidate : current
@@ -47,7 +47,7 @@ private enum PracticeSessionRecordOrder {
     }
 }
 
-actor FilePracticeProgressRepository:
+public actor FilePracticeProgressRepository:
     PracticeProgressRepositoryProtocol,
     PracticeProgressRecoveryProtocol,
     PracticeSessionRepositoryProtocol
@@ -58,7 +58,7 @@ actor FilePracticeProgressRepository:
     private let writeDocument: PracticeProgressDocumentWriter
     private var liveSessionIDs: Set<UUID> = []
 
-    init(
+    public init(
         fileManager: FileManager = .default,
         paths: PracticeProgressPaths = PracticeProgressPaths(),
         replaceFile: @escaping PracticeProgressFileReplacement = { fileManager, originalURL, stagingURL, backupName in
@@ -79,7 +79,7 @@ actor FilePracticeProgressRepository:
         self.writeDocument = writeDocument
     }
 
-    func load() -> PracticeProgressLoadResult {
+    public func load() -> PracticeProgressLoadResult {
         do {
             return try .loaded(loadDocument())
         } catch let error as PracticeProgressRepositoryError {
@@ -94,14 +94,14 @@ actor FilePracticeProgressRepository:
         }
     }
 
-    func progress(for identity: PracticeSongIdentity) -> SongPracticeProgress? {
+    public func progress(for identity: PracticeSongIdentity) -> SongPracticeProgress? {
         guard case let .loaded(document) = load() else { return nil }
         return PracticeProgressRecordOrder.preferred(
             in: document.songs.filter { $0.identity == identity }
         )
     }
 
-    func history(for songID: UUID) -> PracticeSongHistoryLoadResult {
+    public func history(for songID: UUID) -> PracticeSongHistoryLoadResult {
         switch load() {
         case let .loaded(document):
             .loaded(
@@ -125,7 +125,7 @@ actor FilePracticeProgressRepository:
         }
     }
 
-    func upsert(_ progress: SongPracticeProgress) throws {
+    public func upsert(_ progress: SongPracticeProgress) throws {
         var document = try loadDocument()
         document.songs.removeAll { $0.identity == progress.identity }
         document.songs.append(progress)
@@ -133,7 +133,7 @@ actor FilePracticeProgressRepository:
         try saveDocument(document)
     }
 
-    func upsert(_ metadata: SongScorePracticeMetadata) throws {
+    public func upsert(_ metadata: SongScorePracticeMetadata) throws {
         var document = try loadDocument()
         let sameIdentity = document.scoreMetadata.filter {
             $0.songID == metadata.songID
@@ -152,7 +152,7 @@ actor FilePracticeProgressRepository:
         try saveDocument(document)
     }
 
-    func upsert(_ session: PracticeSessionRecord) throws {
+    public func upsert(_ session: PracticeSessionRecord) throws {
         let startedTracking = session.termination == .open
             ? liveSessionIDs.insert(session.id).inserted
             : false
@@ -180,11 +180,11 @@ actor FilePracticeProgressRepository:
         }
     }
 
-    func abandonLiveSession(id: UUID) {
+    public func abandonLiveSession(id: UUID) {
         liveSessionIDs.remove(id)
     }
 
-    func remove(songID: UUID) throws {
+    public func remove(songID: UUID) throws {
         var document = try loadDocument()
         let removedSessionIDs = Set(
             document.sessions.lazy.filter { $0.songID == songID }.map(\.id)
@@ -196,7 +196,7 @@ actor FilePracticeProgressRepository:
         liveSessionIDs.subtract(removedSessionIDs)
     }
 
-    func recoverFromCorruption() throws -> PracticeProgressRecoveryResult {
+    public func recoverFromCorruption() throws -> PracticeProgressRecoveryResult {
         do {
             _ = try loadDocument()
             return .notNeeded

@@ -2,11 +2,12 @@ import CryptoKit
 import Diagnostics
 import Foundation
 import Practice
+@testable import Library
 @testable import HappyPianistAVP
 import Testing
 
 @Test
-func batchStagingPreservesOrderAndBalancesSecurityScope() async throws {
+func batchStagingRejectsMalformedMXLBeforeCopyingAndBalancesSecurityScope() async throws {
     let security = ImportSecurityScopeSpy(startResult: true)
     let fixture = try ImportTransactionFixture(security: security)
     defer { fixture.remove() }
@@ -19,19 +20,39 @@ func batchStagingPreservesOrderAndBalancesSecurityScope() async throws {
     #expect(result.blocked == nil)
     #expect(result.items.count == 3)
     guard case let .staged(firstDescriptor) = result.items[0],
-          case let .failure(failure) = result.items[1],
-          case let .staged(secondDescriptor) = result.items[2]
+          case let .failure(directoryFailure) = result.items[1],
+          case let .failure(mxlFailure) = result.items[2]
     else {
-        Issue.record("Expected staged/failure/staged order")
+        Issue.record("Expected staged/failure/failure order")
         return
     }
     #expect(firstDescriptor.fileName == "first.musicxml")
-    #expect(failure.fileName == "folder.xml")
-    #expect(secondDescriptor.fileName == "second.mxl")
+    #expect(directoryFailure.fileName == "folder.xml")
+    #expect(mxlFailure.fileName == "second.mxl")
     #expect(security.startedNames == ["first.musicxml", "folder.xml", "second.mxl"])
     #expect(security.stoppedNames == security.startedNames)
     #expect(await fixture.service.cancel(operationID: firstDescriptor.id))
-    #expect(await fixture.service.cancel(operationID: secondDescriptor.id))
+}
+
+@Test
+func malformedMXLDoesNotCreateAnImportTransaction() async throws {
+    let fixture = try ImportTransactionFixture()
+    defer { fixture.remove() }
+    let malformedMXL = try fixture.makeSource(name: "malformed.mxl", contents: "not-a-zip")
+
+    let result = await fixture.service.stageImports(from: [malformedMXL])
+
+    guard case let .failure(failure)? = result.items.first else {
+        Issue.record("Expected malformed MXL to be rejected")
+        return
+    }
+    #expect(failure.fileName == "malformed.mxl")
+    #expect(
+        try FileManager.default.contentsOfDirectory(
+            at: fixture.paths.transactionsDirectoryURL(),
+            includingPropertiesForKeys: nil
+        ).isEmpty
+    )
 }
 
 @Test

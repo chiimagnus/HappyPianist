@@ -10,8 +10,9 @@ MusicXML → ∅
 MIDI → Diagnostics
 Practice → Diagnostics, MIDI, MusicXML
 Notation → MusicXML, Practice
-HappyPianistAVP → Diagnostics, MusicXML, MIDI, Practice, Notation
-HappyPianistAVPTests → Diagnostics, MusicXML, MIDI, Practice, Notation, HappyPianistTestFixtures
+Library → Diagnostics, MusicXML, Practice
+HappyPianistAVP → Diagnostics, Library, MusicXML, MIDI, Practice, Notation
+HappyPianistAVPTests → Diagnostics, Library, MusicXML, MIDI, Practice, Notation, HappyPianistTestFixtures
 ```
 
 ## Diagnostics
@@ -30,7 +31,13 @@ HappyPianistAVPTests → Diagnostics, MusicXML, MIDI, Practice, Notation, HappyP
 
 `MIDIPracticeSession` 是可复用的 MIDI-only 生命周期 owner：它独占输入 start/stop、generation、stale-event rejection、observation mapping/matching 和 recorder drain；host 注入输出 reset 与 progress flush。结束严格按“失效输入 → 停止输入 → reset/flush 输出 → 等待已接受 observation 的记录 → flush progress → 终结 session”进行；save 失败时 session 保持可恢复。AVP 的 `PracticeMIDIInputService` 仅做 presentation adapter；AVAudio、audio recognition、手部/虚拟琴、AR 和 SwiftUI 保留在 App。
 
-progress 的事实与 repository contracts 属于 `Practice`；文件路径和 `FilePracticeProgressRepository` 目前由 AVP 的 `Services/Library` 临时 owner 持有，直到 Library product 在下一 task 接管。
+progress 的事实与 repository contracts 属于 `Practice`；`Library` 通过这些契约拥有 Documents 路径和 `FilePracticeProgressRepository`。`progress-v1.json` 的 schema 与字节兼容性不因 rehome 改变。
+
+## Library
+
+`Library` 依赖 `Practice`、`MusicXML` 与 `Diagnostics`，拥有 `SongLibraryEntry`/index、Documents layout、文件 store、导入与恢复 journal、bootstrap loader、entry resolver 和 file-backed progress repository。它在 security scope 内先拒绝非普通或 symlink 文件，再调用 `validateMusicXMLImportCandidate` 检查 MXL central directory，随后才 copy 到 app container；parser extraction 仍会重复相同 policy。Library 永不保存外部 URL、bookmark、绝对路径或原始曲谱到 index/progress。
+
+AVP 只保留 `BundledSongLibraryProvider` 的 `Bundle.main` 实现、audio import/player/settings 和 Library presentation/focus/summary builders；它们消费 Library protocol/value types，不能反向迁入该 product。
 
 ## Notation
 

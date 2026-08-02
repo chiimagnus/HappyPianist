@@ -1,12 +1,13 @@
 import CryptoKit
 import Diagnostics
 import Foundation
+import MusicXML
 
-protocol SongLibraryImportTransactionRecovering: Actor {
+public protocol SongLibraryImportTransactionRecovering: Actor {
     func recoverPendingTransactions() async -> SongLibraryTransactionRecoveryResult
 }
 
-protocol SongLibraryImportTransactionServicing: SongLibraryImportTransactionRecovering {
+public protocol SongLibraryImportTransactionServicing: SongLibraryImportTransactionRecovering {
     func stageImports(from selectedURLs: [URL]) async -> SongLibraryImportBatchStageResult
     func process(operationID: UUID) async -> SongLibraryImportProcessResult
     func confirm(operationID: UUID) async -> SongLibraryImportProcessResult
@@ -28,7 +29,7 @@ struct LiveSecurityScopedResourceAccessor: SecurityScopedResourceAccessing {
     }
 }
 
-actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing {
+public actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing {
     private static let supportedScoreExtensions = Set(["xml", "musicxml", "mxl"])
 
     private let indexStore: any SongLibraryImportIndexStoreProtocol
@@ -38,6 +39,25 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
     private let makeUUID: @Sendable () -> UUID
     private let diagnostics: any DiagnosticsReporting
     private let securityScopedResourceAccessor: any SecurityScopedResourceAccessing
+
+    public init(
+        indexStore: any SongLibraryImportIndexStoreProtocol,
+        paths: SongLibraryPaths? = nil,
+        fileManager: FileManager = .default,
+        now: @escaping @Sendable () -> Date = { .now },
+        makeUUID: @escaping @Sendable () -> UUID = { UUID() },
+        diagnostics: any DiagnosticsReporting
+    ) {
+        self.init(
+            indexStore: indexStore,
+            paths: paths,
+            fileManager: fileManager,
+            now: now,
+            makeUUID: makeUUID,
+            diagnostics: diagnostics,
+            securityScopedResourceAccessor: LiveSecurityScopedResourceAccessor()
+        )
+    }
 
     init(
         indexStore: any SongLibraryImportIndexStoreProtocol,
@@ -57,7 +77,7 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
         self.securityScopedResourceAccessor = securityScopedResourceAccessor
     }
 
-    func stageImports(from selectedURLs: [URL]) async -> SongLibraryImportBatchStageResult {
+    public func stageImports(from selectedURLs: [URL]) async -> SongLibraryImportBatchStageResult {
         guard selectedURLs.isEmpty == false else {
             return SongLibraryImportBatchStageResult(items: [], blocked: nil)
         }
@@ -124,7 +144,7 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
         )
     }
 
-    func process(operationID: UUID) async -> SongLibraryImportProcessResult {
+    public func process(operationID: UUID) async -> SongLibraryImportProcessResult {
         do {
             let journal = try loadJournal(operationID: operationID)
             guard journal.kind == .unclassified,
@@ -170,7 +190,7 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
         }
     }
 
-    func confirm(operationID: UUID) async -> SongLibraryImportProcessResult {
+    public func confirm(operationID: UUID) async -> SongLibraryImportProcessResult {
         do {
             let journal = try loadJournal(operationID: operationID)
             guard journal.kind == .unclassified,
@@ -233,7 +253,7 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
         return blockedImport(journal, message: message)
     }
 
-    func cancel(operationID: UUID) async -> Bool {
+    public func cancel(operationID: UUID) async -> Bool {
         do {
             let operationDirectory = try paths.transactionOperationDirectoryURL(operationID: operationID)
             guard fileManager.fileExists(atPath: operationDirectory.path(percentEncoded: false)) else { return true }
@@ -266,11 +286,46 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
         safeFileName: String,
         operationID: UUID
     ) async -> SongLibraryStageOneResult {
-        let preparingJournal: SongLibraryImportJournal
+        let hasScopedAccess = securityScopedResourceAccessor.startAccessing(sourceURL)
+        defer {
+            if hasScopedAccess {
+                securityScopedResourceAccessor.stopAccessing(sourceURL)
+            }
+        }
+        await recordStageDiagnostic(
+            operationID: operationID,
+            safeFileName: safeFileName,
+            phase: .preparing,
+            stage: "stageImport.access",
+            result: "accessAcquired=\(hasScopedAccess)"
+        )
+
+        do {
+            try validateImportSource(at: sourceURL)
+        } catch SongLibraryStageError.unsupportedSource {
+            await recordStageDiagnostic(
+                operationID: operationID,
+                safeFileName: safeFileName,
+                phase: .preparing,
+                stage: "stageImport.result",
+                result: "unsupportedSource"
+            )
+            return .itemFailure(itemFailure(fileName: safeFileName, message: "所选项目不是可读取的普通文件。"))
+        } catch {
+            await recordStageDiagnostic(
+                operationID: operationID,
+                safeFileName: safeFileName,
+                phase: .preparing,
+                stage: "stageImport.result",
+                result: "sourceValidationFailed"
+            )
+            return .itemFailure(itemFailure(fileName: safeFileName, message: "无法读取或暂存该曲谱。"))
+        }
+
         do {
             let operationDirectory = try paths.transactionOperationDirectoryURL(operationID: operationID)
             try fileManager.createDirectory(at: operationDirectory, withIntermediateDirectories: false)
-            preparingJournal = try SongLibraryImportJournal(
+            let preparingJournal = try SongLibraryImportJournal(
                 operationID: operationID,
                 kind: .unclassified,
                 phase: .preparing,
@@ -299,18 +354,9 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
             )
         }
 
-        let hasScopedAccess = securityScopedResourceAccessor.startAccessing(sourceURL)
         let stageResult: Result<Void, Error>
         do {
-            let values = try sourceURL.resourceValues(
-                forKeys: [.isDirectoryKey, .isRegularFileKey, .isSymbolicLinkKey]
-            )
-            guard values.isDirectory != true,
-                  values.isRegularFile == true,
-                  values.isSymbolicLink != true
-            else {
-                throw SongLibraryStageError.unsupportedSource
-            }
+            try validateImportSource(at: sourceURL)
 
             let partialURL = try paths.transactionPartialStageFileURL(operationID: operationID)
             try fileManager.copyItem(at: sourceURL, to: partialURL)
@@ -350,17 +396,6 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
         } catch {
             stageResult = .failure(error)
         }
-        if hasScopedAccess {
-            securityScopedResourceAccessor.stopAccessing(sourceURL)
-        }
-        await recordStageDiagnostic(
-            operationID: operationID,
-            safeFileName: safeFileName,
-            phase: .preparing,
-            stage: "stageImport.access",
-            result: "accessAcquired=\(hasScopedAccess)"
-        )
-
         switch stageResult {
         case .success:
             await recordStageDiagnostic(
@@ -418,6 +453,19 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
             await discardFailedStage(operationID: operationID)
             return .itemFailure(itemFailure(fileName: safeFileName, message: "无法读取或暂存该曲谱。"))
         }
+    }
+
+    private func validateImportSource(at sourceURL: URL) throws {
+        let values = try sourceURL.resourceValues(
+            forKeys: [.isDirectoryKey, .isRegularFileKey, .isSymbolicLinkKey]
+        )
+        guard values.isDirectory != true,
+              values.isRegularFile == true,
+              values.isSymbolicLink != true
+        else {
+            throw SongLibraryStageError.unsupportedSource
+        }
+        try validateMusicXMLImportCandidate(at: sourceURL)
     }
 
     private func recordStageDiagnostic(
@@ -1050,7 +1098,7 @@ actor SongLibraryImportTransactionService: SongLibraryImportTransactionServicing
         return journal
     }
 
-    func recoverPendingTransactions() async -> SongLibraryTransactionRecoveryResult {
+    public func recoverPendingTransactions() async -> SongLibraryTransactionRecoveryResult {
         do {
             try ensureRecoveryDirectoriesAreSafe()
             let root = try paths.transactionsDirectoryURL()

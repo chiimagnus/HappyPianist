@@ -1,5 +1,6 @@
 import Foundation
 import Diagnostics
+import Library
 @testable import MusicXML
 @testable import Practice
 @testable import HappyPianistAVP

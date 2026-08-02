@@ -1,5 +1,5 @@
 import Foundation
-@testable import HappyPianistAVP
+@testable import Library
 import Testing
 
 @Test(arguments: [Data(), Data(" \n\t".utf8)])

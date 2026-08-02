@@ -1,5 +1,6 @@
 import Foundation
 import Diagnostics
+import Library
 import MIDI
 import MusicXML
 import Practice

@@ -1,4 +1,5 @@
 import Foundation
+import Library
 
 protocol AudioImportServiceProtocol: Actor {
     func importAudio(from sourceURL: URL) async throws -> String

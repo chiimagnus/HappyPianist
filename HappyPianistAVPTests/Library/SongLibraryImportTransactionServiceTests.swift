@@ -1,6 +1,6 @@
 import Foundation
 import Diagnostics
-@testable import HappyPianistAVP
+@testable import Library
 import Testing
 
 @Test

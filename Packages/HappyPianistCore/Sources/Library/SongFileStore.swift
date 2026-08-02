@@ -1,10 +1,10 @@
 import Foundation
 
-enum SongFileStoreError: LocalizedError, Equatable {
+public enum SongFileStoreError: LocalizedError, Equatable {
     case invalidFileName(String)
     case unreadableScoreFile
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .invalidFileName:
             "曲库文件名无效。"
@@ -14,18 +14,18 @@ enum SongFileStoreError: LocalizedError, Equatable {
     }
 }
 
-protocol SongFileStoreProtocol: Actor {
+public protocol SongFileStoreProtocol: Actor {
     func scoreFileURL(fileName: String) async throws -> URL
     func audioFileURL(fileName: String) async throws -> URL
     func deleteScoreFile(named fileName: String) async throws
     func deleteAudioFile(named fileName: String) async throws
 }
 
-actor SongFileStore: SongFileStoreProtocol {
+public actor SongFileStore: SongFileStoreProtocol {
     private let fileManager: FileManager
     private let paths: SongLibraryPaths
 
-    init(
+    public init(
         fileManager: FileManager = .default,
         paths: SongLibraryPaths? = nil
     ) {
@@ -33,7 +33,7 @@ actor SongFileStore: SongFileStoreProtocol {
         self.paths = paths ?? SongLibraryPaths(fileManager: fileManager)
     }
 
-    func scoreFileURL(fileName: String) async throws -> URL {
+    public func scoreFileURL(fileName: String) async throws -> URL {
         let fileURL = try paths.scoresDirectoryURL().appending(path: validatedFileName(fileName))
         let attributes = try fileManager.attributesOfItem(atPath: fileURL.path(percentEncoded: false))
         guard attributes[.type] as? FileAttributeType == .typeRegular,
@@ -44,17 +44,17 @@ actor SongFileStore: SongFileStoreProtocol {
         return fileURL
     }
 
-    func audioFileURL(fileName: String) async throws -> URL {
+    public func audioFileURL(fileName: String) async throws -> URL {
         try paths.audioDirectoryURL().appending(path: validatedFileName(fileName))
     }
 
-    func deleteScoreFile(named fileName: String) async throws {
+    public func deleteScoreFile(named fileName: String) async throws {
         try removeFileIfExists(
             at: paths.scoresDirectoryURL().appending(path: validatedFileName(fileName))
         )
     }
 
-    func deleteAudioFile(named fileName: String) async throws {
+    public func deleteAudioFile(named fileName: String) async throws {
         try removeFileIfExists(
             at: paths.audioDirectoryURL().appending(path: validatedFileName(fileName))
         )

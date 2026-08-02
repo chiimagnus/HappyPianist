@@ -29,6 +29,8 @@ Models / Contracts
 
 `Notation` 只依赖 `Practice` 与 `MusicXML`：它拥有 Grand Staff 的 glyph、layout、Canvas/SwiftUI renderer 和 accessibility overlay，只接收 projection、overlay、measure spans、context 与 hand mode。它不得引用 session navigation、progress、Library、AR/RealityKit 或 piano-key tint types；Practice 不得反向引用 Notation。
 
+`Library` 只依赖 `Practice`、`MusicXML` 与 `Diagnostics`：它拥有曲库 index、路径、文件 store、导入/恢复事务、entry resolver、bootstrap loader 与 `FilePracticeProgressRepository`。导入在 security scope 内先通过 MusicXML 的公开 archive safety validation，再复制到 app container；它不得引用 `Bundle.main`、AVAudio、SwiftUI、RealityKit 或 Library presentation。Practice 只声明进度契约，绝不反向引用 Library。
+
 新增服务先定义稳定协议，再由 `LiveAppGraph.make()` 注入并接入 consumer。单一实现不提前建 factory、manager 或兼容层。
 
 ## 运行边界
@@ -42,7 +44,8 @@ Models / Contracts
 | MIDI 根 | `Packages/HappyPianistCore/Sources/MIDI/` | 输入/输出 transport、endpoint ID、CoreMIDI route 与输出指标；不包含练习匹配、录制、AI 或界面。 |
 | 练习核心 | `Packages/HappyPianistCore/Sources/Practice/` | MusicXML preparation、performance plan、步骤/琴键/记谱投影、运行时 facts/reducers、MIDI-only lifecycle 和 progress contracts；不包含曲库文件实现、SwiftUI、RealityKit、AVAudio、音频识别或手部/虚拟琴。 |
 | 记谱根 | `Packages/HappyPianistCore/Sources/Notation/` | Grand Staff 的 glyph、layout、rendering、SwiftUI view 与无障碍描述；仅消费 Practice/MusicXML projection，不反向进入 session、progress、Library 或空间功能。 |
-| 曲库 | `SongLibraryViewModel`、`SongLibraryImportTransactionService` | selection 只是内存 intent；导入、替换、恢复和删除由 actor 事务 owner 处理。 |
+| 曲库核心 | `Packages/HappyPianistCore/Sources/Library/` | index、路径、文件、导入/恢复、entry resolver、bootstrap 与 `progress-v1.json` file repository；只依赖 Practice/MusicXML/Diagnostics。 |
+| 曲库 App 边界 | `SongLibraryViewModel`、`BundledSongLibraryProvider`、audio services、presentation builders | selection 是内存 intent；`Bundle.main`、音频和 SwiftUI presentation 留在 App，所有持久化事务委托 Library actors。 |
 | 曲谱准备 | `PracticePreparationService` | MusicXML 先形成唯一 `ScorePerformancePlan`，再投影 steps、guides 与 notation；播放运行时消费 plan。 |
 | 练习会话 | `MIDIPracticeSession`、`PracticeSessionViewModel` | active configuration 在一轮内不可变；MIDI 结束顺序是失效输入、停止输入、reset/flush 输出、drain recorder、flush facts、终结 session；AVP view model 只编排 presentation/platform adapters。 |
 | 输入与评价 | platform adapters、`PerformanceObservation`、analyzer | 音频、MIDI、手部证据共用 observation 契约，但保留各自 capability 和 unknown 边界。 |

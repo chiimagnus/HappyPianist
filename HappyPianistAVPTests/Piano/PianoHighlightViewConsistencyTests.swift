@@ -1,4 +1,6 @@
-import MusicXML
+@testable import MusicXML
+@testable import Notation
+@testable import Practice
 @testable import HappyPianistAVP
 import simd
 import Testing

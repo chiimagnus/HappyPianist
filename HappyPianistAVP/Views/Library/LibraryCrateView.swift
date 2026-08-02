@@ -1,4 +1,5 @@
 import SwiftUI
+import Library
 
 private let libraryRecordScrollCoordinateSpace = "LibraryRecordScroll"
 

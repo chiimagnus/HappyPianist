@@ -14,6 +14,7 @@ let package = Package(
         .library(name: "MIDI", targets: ["MIDI"]),
         .library(name: "Practice", targets: ["Practice"]),
         .library(name: "Notation", targets: ["Notation"]),
+        .library(name: "Library", targets: ["Library"]),
         .library(name: "HappyPianistTestFixtures", targets: ["HappyPianistTestFixtures"]),
     ],
     dependencies: [
@@ -61,6 +62,14 @@ let package = Package(
             ]
         ),
         .target(
+            name: "Library",
+            dependencies: [
+                "Diagnostics",
+                "MusicXML",
+                "Practice",
+            ]
+        ),
+        .target(
             name: "HappyPianistTestFixtures",
             resources: [
                 .copy("Resources/Fixtures"),
@@ -94,6 +103,16 @@ let package = Package(
             name: "NotationTests",
             dependencies: [
                 "Notation",
+                "MusicXML",
+                "Practice",
+                "HappyPianistTestFixtures",
+            ]
+        ),
+        .testTarget(
+            name: "LibraryTests",
+            dependencies: [
+                "Library",
+                "Diagnostics",
                 "MusicXML",
                 "Practice",
                 "HappyPianistTestFixtures",

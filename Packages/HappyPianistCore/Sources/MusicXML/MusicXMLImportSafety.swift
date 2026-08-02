@@ -33,6 +33,29 @@ public enum MusicXMLImportSafetyRejection: String, Error, Equatable, Sendable {
     case archiveEntryNameIsUnsafe
 }
 
+/// Validates an import candidate before a host persists it. Parsing repeats
+/// the same checks before extraction, so neither boundary can be bypassed.
+public func validateMusicXMLImportCandidate(
+    at fileURL: URL,
+    safetyPolicy: MusicXMLImportSafetyPolicy = .init()
+) throws {
+    let validator = MusicXMLImportSafetyValidator(policy: safetyPolicy)
+    try validator.validateRegularFile(at: fileURL)
+    guard fileURL.pathExtension.localizedLowercase == "mxl" else { return }
+
+    let archive: Archive
+    do {
+        archive = try Archive(url: fileURL, accessMode: .read)
+    } catch {
+        throw MXLReaderError.invalidArchive
+    }
+    do {
+        try validator.validateArchive(archive)
+    } catch let rejection as MusicXMLImportSafetyRejection {
+        throw MXLReaderError.rejectedBySafetyPolicy(rejection)
+    }
+}
+
 enum MusicXMLImportErrorDetails {
     static func safeParserErrorSummary(_: Error) -> String {
         "XMLParser reported a parse error."

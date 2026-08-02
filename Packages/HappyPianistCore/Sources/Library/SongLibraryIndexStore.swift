@@ -11,12 +11,12 @@ enum SongLibraryIndexStoreError: LocalizedError, Equatable {
     }
 }
 
-enum SongLibraryEntryMutationResult: Equatable {
+public enum SongLibraryEntryMutationResult: Equatable, Sendable {
     case applied(index: SongLibraryIndex, entry: SongLibraryEntry)
     case notFound(index: SongLibraryIndex)
     case conflict(index: SongLibraryIndex, entry: SongLibraryEntry)
 
-    var index: SongLibraryIndex {
+    public var index: SongLibraryIndex {
         switch self {
         case let .applied(index, _), let .notFound(index), let .conflict(index, _):
             index
@@ -24,7 +24,7 @@ enum SongLibraryEntryMutationResult: Equatable {
     }
 }
 
-protocol SongLibraryIndexStoreProtocol: Actor {
+public protocol SongLibraryIndexStoreProtocol: Actor {
     func load() throws -> SongLibraryIndex
     func setLastSelectedEntryID(_ entryID: UUID?) throws -> SongLibraryIndex
     func appendUserEntry(_ entry: SongLibraryEntry) throws -> SongLibraryIndex
@@ -39,7 +39,7 @@ protocol SongLibraryIndexStoreProtocol: Actor {
     ) throws -> SongLibraryEntryMutationResult
 }
 
-protocol SongLibraryImportIndexStoreProtocol: SongLibraryIndexStoreProtocol {
+public protocol SongLibraryImportIndexStoreProtocol: SongLibraryIndexStoreProtocol {
     func replaceUserScore(
         expectedSongID: UUID,
         expectedScoreFileVersionID: UUID,
@@ -48,34 +48,34 @@ protocol SongLibraryImportIndexStoreProtocol: SongLibraryIndexStoreProtocol {
     ) throws -> SongLibraryScoreReplacementResult
 }
 
-actor SongLibraryIndexStore: SongLibraryImportIndexStoreProtocol {
+public actor SongLibraryIndexStore: SongLibraryImportIndexStoreProtocol {
     private let fileManager: FileManager
     private let paths: SongLibraryPaths
 
-    init(fileManager: FileManager = .default, paths: SongLibraryPaths? = nil) {
+    public init(fileManager: FileManager = .default, paths: SongLibraryPaths? = nil) {
         self.fileManager = fileManager
         self.paths = paths ?? SongLibraryPaths(fileManager: fileManager)
     }
 
-    func load() throws -> SongLibraryIndex {
+    public func load() throws -> SongLibraryIndex {
         try loadLatest()
     }
 
-    func setLastSelectedEntryID(_ entryID: UUID?) throws -> SongLibraryIndex {
+    public func setLastSelectedEntryID(_ entryID: UUID?) throws -> SongLibraryIndex {
         var index = try loadLatest()
         index.lastSelectedEntryID = entryID
         try write(index)
         return index
     }
 
-    func appendUserEntry(_ entry: SongLibraryEntry) throws -> SongLibraryIndex {
+    public func appendUserEntry(_ entry: SongLibraryEntry) throws -> SongLibraryIndex {
         var index = try loadLatest()
         index.entries.append(entry)
         try write(index)
         return index
     }
 
-    func replaceUserScore(
+    public func replaceUserScore(
         expectedSongID: UUID,
         expectedScoreFileVersionID: UUID,
         expectedMusicXMLFileName: String,
@@ -107,7 +107,7 @@ actor SongLibraryIndexStore: SongLibraryImportIndexStoreProtocol {
         return .applied(index: index, entry: updatedEntry)
     }
 
-    func removeUserEntry(
+    public func removeUserEntry(
         id: UUID,
         fallbackLastSelectedEntryID: UUID?
     ) throws -> SongLibraryEntryMutationResult {
@@ -124,7 +124,7 @@ actor SongLibraryIndexStore: SongLibraryImportIndexStoreProtocol {
         return .applied(index: index, entry: removedEntry)
     }
 
-    func updateAudioFileName(
+    public func updateAudioFileName(
         entryID: UUID,
         expectedCurrentFileName: String?,
         newFileName: String?

@@ -2,28 +2,46 @@ import Foundation
 import Diagnostics
 import Practice
 
-struct ResolvedSongLibraryEntry: Equatable {
-    let entry: SongLibraryEntry
-    let scoreURL: URL
-    let diagnosticFileReference: DiagnosticFileReference?
+public struct ResolvedSongLibraryEntry: Equatable, Sendable {
+    public let entry: SongLibraryEntry
+    public let scoreURL: URL
+    public let diagnosticFileReference: DiagnosticFileReference?
+
+    public init(
+        entry: SongLibraryEntry,
+        scoreURL: URL,
+        diagnosticFileReference: DiagnosticFileReference?
+    ) {
+        self.entry = entry
+        self.scoreURL = scoreURL
+        self.diagnosticFileReference = diagnosticFileReference
+    }
 }
 
-struct SongLibraryEntryResolutionError: Error, Equatable {
-    let preparationError: PracticePreparationError
-    let diagnosticFileReference: DiagnosticFileReference?
+public struct SongLibraryEntryResolutionError: Error, Equatable, Sendable {
+    public let preparationError: PracticePreparationError
+    public let diagnosticFileReference: DiagnosticFileReference?
+
+    public init(
+        preparationError: PracticePreparationError,
+        diagnosticFileReference: DiagnosticFileReference?
+    ) {
+        self.preparationError = preparationError
+        self.diagnosticFileReference = diagnosticFileReference
+    }
 }
 
-protocol SongLibraryEntryResolving: Sendable {
+public protocol SongLibraryEntryResolving: Sendable {
     func resolve(songID: UUID) async throws -> ResolvedSongLibraryEntry
 }
 
-actor SongLibraryEntryResolver: SongLibraryEntryResolving {
+public actor SongLibraryEntryResolver: SongLibraryEntryResolving {
     private let indexStore: any SongLibraryIndexStoreProtocol
     private let bundledProvider: any BundledSongLibraryProviderProtocol
     private let fileStore: any SongFileStoreProtocol
     private let fileManager: FileManager
 
-    init(
+    public init(
         indexStore: any SongLibraryIndexStoreProtocol,
         bundledProvider: any BundledSongLibraryProviderProtocol,
         fileStore: any SongFileStoreProtocol,
@@ -35,7 +53,7 @@ actor SongLibraryEntryResolver: SongLibraryEntryResolving {
         self.fileManager = fileManager
     }
 
-    func resolve(songID: UUID) async throws -> ResolvedSongLibraryEntry {
+    public func resolve(songID: UUID) async throws -> ResolvedSongLibraryEntry {
         if let entry = bundledProvider.bundledEntries().first(where: { $0.id == songID }) {
             let fileReference = diagnosticReference(entry: entry, location: "Bundle")
             guard let scoreURL = bundledProvider.musicXMLURL(fileName: entry.musicXMLFileName) else {
