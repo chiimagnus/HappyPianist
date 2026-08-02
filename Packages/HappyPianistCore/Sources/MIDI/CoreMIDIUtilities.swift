@@ -78,7 +78,7 @@ public enum MIDI2ValueMapping {
     }
 }
 
-public struct MIDI1MessageDecoder {
+public struct MIDI1MessageDecoder: Sendable {
     public init() {}
 
     public func decode(_ message: MIDIUniversalMessage) -> MIDI1InputEvent.Kind? {
@@ -125,7 +125,7 @@ public struct MIDI1MessageDecoder {
     }
 }
 
-public struct MIDI2MessageDecoder {
+public struct MIDI2MessageDecoder: Sendable {
     public init() {}
 
     public func decode(_ message: MIDIUniversalMessage) -> MIDI2InputEvent.Kind? {
