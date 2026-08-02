@@ -11,7 +11,7 @@ public enum HappyPianistTestFixtures {
             preconditionFailure("Test fixture bundle has no resource directory.")
         }
         return resourceURL
-            .appending(path: "Fixtures", directoryHint: .isDirectory)
-            .appending(path: relativePath)
+            .appendingPathComponent("Fixtures", isDirectory: true)
+            .appendingPathComponent(relativePath)
     }
 }
