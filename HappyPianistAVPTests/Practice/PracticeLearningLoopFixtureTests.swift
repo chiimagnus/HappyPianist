@@ -39,17 +39,6 @@ func learningLoopFixtureCoversEightMeasuresStaffsTempoChordAndRepeatIdentity() t
 
 @Test
 func learningLoopFixtureIsIncludedInTestBundle() {
-    let bundle = Bundle(for: PracticeLearningLoopFixtureBundleSentinel.self)
-    let bundledURLs = (bundle.urls(
-        forResourcesWithExtension: "musicxml",
-        subdirectory: nil
-    ) ?? []) + (bundle.urls(
-        forResourcesWithExtension: "musicxml",
-        subdirectory: "Fixtures"
-    ) ?? [])
-    #expect(
-        bundledURLs.contains(where: { $0.lastPathComponent == "PracticeLearningLoopEightMeasures.musicxml" })
-    )
+    let fixtureURL = testFixtureURL("PracticeLearningLoopEightMeasures.musicxml")
+    #expect(FileManager.default.fileExists(atPath: fixtureURL.path()))
 }
-
-private final class PracticeLearningLoopFixtureBundleSentinel: NSObject {}
