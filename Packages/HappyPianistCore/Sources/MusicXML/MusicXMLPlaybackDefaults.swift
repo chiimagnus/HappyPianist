@@ -1,4 +1,4 @@
-public struct MusicXMLExpressivityOptions: Equatable {
+public struct MusicXMLExpressivityOptions: Equatable, Sendable {
     public var wedgeEnabled: Bool = false
     public var graceEnabled: Bool = false
     public var fermataEnabled: Bool = false

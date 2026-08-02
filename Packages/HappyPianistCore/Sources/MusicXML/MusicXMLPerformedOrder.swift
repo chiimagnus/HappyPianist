@@ -1,7 +1,7 @@
 import Foundation
 
 
-public enum MusicXMLScoreOrder: String, Codable, Equatable {
+public enum MusicXMLScoreOrder: String, Codable, Equatable, Sendable {
     case written
     case performed
 }
