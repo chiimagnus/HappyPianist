@@ -2,7 +2,7 @@ import Foundation
 import os
 
 /// Owns the fan-out needed by CoreMIDI's separate callback thread.
-private final class MIDIAsyncStreamBroadcaster<Element: Sendable>: Sendable {
+final class MIDIAsyncStreamBroadcaster<Element: Sendable>: Sendable {
     private struct State {
         var continuations: [UUID: AsyncStream<Element>.Continuation] = [:]
         var isFinished = false

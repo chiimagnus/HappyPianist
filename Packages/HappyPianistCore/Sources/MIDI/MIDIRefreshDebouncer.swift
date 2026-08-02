@@ -2,7 +2,7 @@ import Foundation
 import os
 
 /// Coalesces CoreMIDI route notifications without depending on App infrastructure.
-private final class MIDIRefreshDebouncer: Sendable {
+final class MIDIRefreshDebouncer: Sendable {
     private struct State {
         var generation: UInt64 = 0
         var task: Task<Void, Never>?
