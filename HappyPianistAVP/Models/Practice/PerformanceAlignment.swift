@@ -1,4 +1,5 @@
 import Foundation
+import MusicXML
 
 enum PerformanceAlignmentEvidenceDimension: String, Codable, Equatable, Hashable {
     case pitch

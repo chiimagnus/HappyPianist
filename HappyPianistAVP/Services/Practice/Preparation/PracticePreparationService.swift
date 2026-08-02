@@ -1,6 +1,7 @@
 import CryptoKit
 import Diagnostics
 import Foundation
+import MusicXML
 
 enum PracticePreparationError: Error, Equatable {
     case scoreFileNotFound

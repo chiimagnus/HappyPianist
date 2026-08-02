@@ -1,4 +1,5 @@
 import Foundation
+import MusicXML
 
 protocol PlaybackSequenceBuildingProtocol: Sendable {
     func buildPerformanceSequence(

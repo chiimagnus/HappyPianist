@@ -1,4 +1,5 @@
 import CoreGraphics
+import MusicXML
 
 struct GrandStaffChordLayoutService {
     struct Note: Equatable {

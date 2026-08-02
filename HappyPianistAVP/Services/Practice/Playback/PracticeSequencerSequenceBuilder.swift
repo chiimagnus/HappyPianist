@@ -1,5 +1,6 @@
 import AudioToolbox
 import Foundation
+import MusicXML
 
 struct PracticeSequencerMIDIEvent: Equatable {
     enum Kind: Equatable {

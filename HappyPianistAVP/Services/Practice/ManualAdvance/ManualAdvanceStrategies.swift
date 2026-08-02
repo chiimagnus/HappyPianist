@@ -1,3 +1,4 @@
+import MusicXML
 struct ManualAdvanceContext {
     let currentStepIndex: Int
     let steps: [PracticeStep]

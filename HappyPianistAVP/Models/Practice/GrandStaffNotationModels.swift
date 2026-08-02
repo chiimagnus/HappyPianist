@@ -1,4 +1,5 @@
 import Foundation
+import MusicXML
 
 enum GrandStaffNoteValue: Equatable {
     case whole

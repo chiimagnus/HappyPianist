@@ -1,4 +1,5 @@
 import Foundation
+import MusicXML
 
 enum CoachingActionKind: String, CaseIterable, Equatable, Hashable {
     case pitchAccuracy

@@ -1,4 +1,5 @@
 import Foundation
+import MusicXML
 
 struct ScorePerformancePlanID: Codable, Equatable, Hashable {
     let rawValue: String

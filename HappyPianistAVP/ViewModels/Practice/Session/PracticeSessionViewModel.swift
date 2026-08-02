@@ -1,6 +1,7 @@
 import Foundation
 import Diagnostics
 import Observation
+import MusicXML
 
 @dynamicMemberLookup
 @MainActor

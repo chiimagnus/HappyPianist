@@ -9,6 +9,9 @@
 /* Begin PBXBuildFile section */
 		A10100000000000000000001 /* Diagnostics in Frameworks */ = {isa = PBXBuildFile; productRef = A10100000000000000000003 /* Diagnostics */; };
 		A10100000000000000000002 /* Diagnostics in Frameworks */ = {isa = PBXBuildFile; productRef = A10100000000000000000004 /* Diagnostics */; };
+		A10200000000000000000001 /* MusicXML in Frameworks */ = {isa = PBXBuildFile; productRef = A10200000000000000000004 /* MusicXML */; };
+		A10200000000000000000002 /* MusicXML in Frameworks */ = {isa = PBXBuildFile; productRef = A10200000000000000000005 /* MusicXML */; };
+		A10200000000000000000003 /* HappyPianistTestFixtures in Frameworks */ = {isa = PBXBuildFile; productRef = A10200000000000000000006 /* HappyPianistTestFixtures */; };
 		D85596AE2F83FF72005BE7FE /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = D85596AD2F83FF72005BE7FE /* RealityKitContent */; };
 /* End PBXBuildFile section */
 
@@ -61,6 +64,7 @@
 			files = (
 				D85596AE2F83FF72005BE7FE /* RealityKitContent in Frameworks */,
 				A10100000000000000000001 /* Diagnostics in Frameworks */,
+				A10200000000000000000001 /* MusicXML in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -69,6 +73,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				A10100000000000000000002 /* Diagnostics in Frameworks */,
+				A10200000000000000000002 /* MusicXML in Frameworks */,
+				A10200000000000000000003 /* HappyPianistTestFixtures in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -116,6 +122,7 @@
 			packageProductDependencies = (
 				D85596AD2F83FF72005BE7FE /* RealityKitContent */,
 				A10100000000000000000003 /* Diagnostics */,
+				A10200000000000000000004 /* MusicXML */,
 			);
 			productName = HappyPianistAVP;
 			productReference = D8C8848D2FC3623C00F1D94F /* HappyPianistAVP.app */;
@@ -140,6 +147,8 @@
 			name = HappyPianistAVPTests;
 			packageProductDependencies = (
 				A10100000000000000000004 /* Diagnostics */,
+				A10200000000000000000005 /* MusicXML */,
+				A10200000000000000000006 /* HappyPianistTestFixtures */,
 			);
 			productName = HappyPianistAVPTests;
 			productReference = D8C8848F2FC3623C00F1D94F /* HappyPianistAVPTests.xctest */;
@@ -174,7 +183,7 @@
 			mainGroup = D8D428042F4DFD3800EC9C9B;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
-				A10100000000000000000005 /* XCLocalSwiftPackageReference "HappyPianistCore" */,
+				A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = D8D428042F4DFD3800EC9C9B;
@@ -517,7 +526,7 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
-		A10100000000000000000005 /* XCLocalSwiftPackageReference "HappyPianistCore" */ = {
+		A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = Packages/HappyPianistCore;
 		};
@@ -526,13 +535,28 @@
 /* Begin XCSwiftPackageProductDependency section */
 		A10100000000000000000003 /* Diagnostics */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "HappyPianistCore" */;
+			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
 			productName = Diagnostics;
 		};
 		A10100000000000000000004 /* Diagnostics */ = {
 			isa = XCSwiftPackageProductDependency;
-			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "HappyPianistCore" */;
+			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
 			productName = Diagnostics;
+		};
+		A10200000000000000000004 /* MusicXML */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
+			productName = MusicXML;
+		};
+		A10200000000000000000005 /* MusicXML */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
+			productName = MusicXML;
+		};
+		A10200000000000000000006 /* HappyPianistTestFixtures */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
+			productName = HappyPianistTestFixtures;
 		};
 		D85596AD2F83FF72005BE7FE /* RealityKitContent */ = {
 			isa = XCSwiftPackageProductDependency;

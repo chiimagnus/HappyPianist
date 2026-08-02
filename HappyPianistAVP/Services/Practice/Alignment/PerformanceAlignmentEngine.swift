@@ -1,4 +1,5 @@
 import Foundation
+import MusicXML
 
 struct PerformanceAlignmentConfiguration: Equatable {
     let candidateWindowSeconds: TimeInterval

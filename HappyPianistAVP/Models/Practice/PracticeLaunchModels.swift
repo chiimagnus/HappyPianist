@@ -1,5 +1,6 @@
 import Foundation
 import Diagnostics
+import MusicXML
 
 enum PracticeLaunchState: Equatable {
     case requested(songID: UUID)

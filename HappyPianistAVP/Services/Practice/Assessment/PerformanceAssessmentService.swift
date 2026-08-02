@@ -1,4 +1,5 @@
 import Foundation
+import MusicXML
 
 struct PerformanceAssessmentService {
     private struct AlignedNote {

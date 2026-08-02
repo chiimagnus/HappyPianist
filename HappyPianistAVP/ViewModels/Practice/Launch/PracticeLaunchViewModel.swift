@@ -1,6 +1,7 @@
 import Foundation
 import Diagnostics
 import Observation
+import MusicXML
 
 @MainActor
 protocol PracticeLaunchApplying: AnyObject, Sendable {

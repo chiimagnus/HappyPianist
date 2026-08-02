@@ -1,4 +1,5 @@
 import Foundation
+import MusicXML
 
 struct ScoreNotationProjection: Equatable {
     struct Fallback: Equatable {

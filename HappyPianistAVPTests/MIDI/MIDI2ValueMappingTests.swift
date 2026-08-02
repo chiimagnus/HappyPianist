@@ -1,3 +1,4 @@
+import MusicXML
 @testable import HappyPianistAVP
 import Testing
 

@@ -1,4 +1,5 @@
 import Foundation
+import MusicXML
 
 struct GrandStaffNotationLayoutService {
     private struct ChordKey: Hashable {

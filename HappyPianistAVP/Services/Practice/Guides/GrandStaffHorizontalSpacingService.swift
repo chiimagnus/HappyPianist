@@ -1,4 +1,5 @@
 import Foundation
+import MusicXML
 
 struct GrandStaffHorizontalSpacingService {
     struct Anchor: Equatable {

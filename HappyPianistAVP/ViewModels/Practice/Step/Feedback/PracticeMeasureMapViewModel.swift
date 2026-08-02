@@ -1,3 +1,4 @@
+import MusicXML
 struct PracticeMeasureMapItem: Equatable, Identifiable {
     let id: PracticeSourceMeasureID
     let displayNumber: String

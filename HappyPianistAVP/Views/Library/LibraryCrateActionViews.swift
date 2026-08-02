@@ -1,4 +1,5 @@
 import SwiftUI
+import MusicXML
 
 struct LibraryImportLiftView: View {
     let liftOffset: CGFloat

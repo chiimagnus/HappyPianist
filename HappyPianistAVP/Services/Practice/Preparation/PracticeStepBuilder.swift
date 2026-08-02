@@ -1,4 +1,5 @@
 import Foundation
+import MusicXML
 
 protocol PracticeStepBuilderProtocol {
     func buildSteps(from plan: ScorePerformancePlan) -> PracticeStepBuildResult

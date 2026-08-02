@@ -1,4 +1,5 @@
 import Foundation
+import MusicXML
 
 enum PracticeMeasureIndexDiagnostic: Error, Equatable {
     case passageBoundaryNotFound

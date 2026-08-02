@@ -1,5 +1,6 @@
 import Foundation
 import Diagnostics
+import MusicXML
 
 struct PracticeSessionRecorderClock {
     let monotonic: PerformanceClock

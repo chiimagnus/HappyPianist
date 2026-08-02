@@ -2,6 +2,7 @@ import CoreGraphics
 import CoreText
 import CryptoKit
 import Foundation
+import MusicXML
 @testable import HappyPianistAVP
 import SwiftUI
 import Testing

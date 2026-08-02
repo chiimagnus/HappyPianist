@@ -25,26 +25,24 @@ enum PianoPerformanceFixtureLoaderError: Error, Equatable {
 }
 
 struct PianoPerformanceFixtureLoader {
-    func load(filePath: StaticString = #filePath) throws -> PianoPerformanceFixtureManifest {
-        let manifestURL = testFixtureURL("PianoPerformanceFixtureManifest.json", filePath: filePath)
+    func load() throws -> PianoPerformanceFixtureManifest {
+        let manifestURL = testFixtureURL("PianoPerformanceFixtureManifest.json")
         let data = try Data(contentsOf: manifestURL)
         let manifest = try JSONDecoder().decode(PianoPerformanceFixtureManifest.self, from: data)
-        try validate(manifest, filePath: filePath)
+        try validate(manifest)
         return manifest
     }
 
     func fixture(
-        id: String,
-        filePath: StaticString = #filePath
+        id: String
     ) throws -> (metadata: PianoPerformanceFixture, url: URL) {
-        let manifest = try load(filePath: filePath)
+        let manifest = try load()
         let metadata = try #require(manifest.fixtures.first { $0.id == id })
-        return (metadata, testFixtureURL(metadata.file, filePath: filePath))
+        return (metadata, testFixtureURL(metadata.file))
     }
 
     private func validate(
-        _ manifest: PianoPerformanceFixtureManifest,
-        filePath: StaticString
+        _ manifest: PianoPerformanceFixtureManifest
     ) throws {
         var ids: Set<String> = []
         var files: Set<String> = []
@@ -56,13 +54,13 @@ struct PianoPerformanceFixtureLoader {
                 throw PianoPerformanceFixtureLoaderError.duplicateFile(fixture.file)
             }
             guard FileManager.default.fileExists(
-                atPath: testFixtureURL(fixture.file, filePath: filePath).path
+                atPath: testFixtureURL(fixture.file).path
             ) else {
                 throw PianoPerformanceFixtureLoaderError.missingFixture(fixture.file)
             }
         }
 
-        let fixtureDirectory = testFixtureURL("PianoPerformanceFixtureManifest.json", filePath: filePath)
+        let fixtureDirectory = testFixtureURL("PianoPerformanceFixtureManifest.json")
             .deletingLastPathComponent()
         let discoveredFiles = try FileManager.default.contentsOfDirectory(
             at: fixtureDirectory,

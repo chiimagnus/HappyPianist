@@ -1,4 +1,5 @@
 import Foundation
+import MusicXML
 
 struct PracticeHotspot: Equatable {
     let sourceMeasureID: PracticeSourceMeasureID

@@ -1,4 +1,5 @@
 import Foundation
+import MusicXML
 
 enum PerformanceControllerValueSupport: Equatable {
     case binary

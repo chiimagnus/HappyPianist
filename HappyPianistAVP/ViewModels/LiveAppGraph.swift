@@ -1,5 +1,6 @@
 import Foundation
 import Diagnostics
+import MusicXML
 
 @MainActor
 struct LiveAppGraph {

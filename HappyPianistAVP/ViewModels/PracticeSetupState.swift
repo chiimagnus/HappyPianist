@@ -1,4 +1,5 @@
 import Observation
+import MusicXML
 
 @MainActor
 @Observable

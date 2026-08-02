@@ -28,6 +28,7 @@ fileImporter
 ```
 
 - 支持 `.musicxml`、`.xml`、`.mxl`；正式练习来源不是 MIDI 或 AI 序列。
+- preparation 读取 MusicXML/MXL 时，先校验常规文件；MXL 在解包前及实际 extraction 前都校验 entry 数、单 entry/总声明解压大小、压缩比和 archive 相对路径，任一拒绝不产生部分 score。
 - 导入先写同卷 `.partial` 和 journal，再以字节数/SHA-256 校验后提交 target/index；冲突停在用户确认边界。
 - bootstrap 先恢复未完成事务，再读取 index，最后扫描 bundle；损坏的非空 JSON fail closed，不得按空库覆盖。
 - `PracticePreparationService` 先生成唯一 `ScorePerformancePlan`，再单向投影 `PracticeStep`、`PianoHighlightGuide`、notation projection、timeline 和 sequence。

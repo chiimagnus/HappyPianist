@@ -1,5 +1,6 @@
 import Foundation
 import Diagnostics
+import MusicXML
 
 struct PracticePerformanceAnalyzerSnapshot: Equatable {
     let roundGeneration: UInt64

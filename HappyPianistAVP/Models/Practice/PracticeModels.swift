@@ -1,4 +1,5 @@
 import Foundation
+import MusicXML
 
 enum PianoGuideHighlightPhase: String, Equatable, Hashable {
     case active

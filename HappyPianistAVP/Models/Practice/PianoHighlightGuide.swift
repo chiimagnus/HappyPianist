@@ -1,4 +1,5 @@
 import Foundation
+import MusicXML
 
 enum PianoHighlightGuideKind: String, Equatable, Hashable {
     case trigger

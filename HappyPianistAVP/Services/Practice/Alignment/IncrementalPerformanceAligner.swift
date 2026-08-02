@@ -1,4 +1,5 @@
 import Foundation
+import MusicXML
 
 struct IncrementalPerformanceAligner {
     private struct SourceIdentity: Hashable {
