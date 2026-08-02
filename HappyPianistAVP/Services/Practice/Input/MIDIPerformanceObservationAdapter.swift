@@ -1,3 +1,5 @@
+import MIDI
+
 struct MIDIPerformanceObservationAdapter {
     private var synchronizer: PerformanceClockSynchronizer
     private let estimatedLatencySeconds: Double?
@@ -61,8 +63,8 @@ struct MIDIPerformanceObservationAdapter {
         let id = switch midiSource.identifier {
         case let .endpointUniqueID(value):
             "endpoint:\(value)"
-        case let .sourceIndex(value):
-            "source-index:\(value)"
+        case .unidentified:
+            "endpoint:unidentified"
         }
         return PerformanceObservation.Source(kind: kind, id: id, generation: generation)
     }

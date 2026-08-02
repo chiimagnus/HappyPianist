@@ -1,5 +1,6 @@
 import Foundation
 import Diagnostics
+import MIDI
 @testable import HappyPianistAVP
 import os
 import Testing
@@ -16,21 +17,17 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             CoreMIDIPracticePlaybackService(destinationUniqueID: destinationUniqueID, outputService: output, channel: 0)
         }
 
-        try await MainActor.run {
-            try playback.load(sequence: PracticeSequencerSequence(
-                midiData: Data(),
-                durationSeconds: 1,
-                events: [PracticeSequencerMIDIEvent(
-                    sourceEventID: eventID.description,
-                    timeSeconds: 0,
-                    kind: .noteOn(midi: 60, velocity: 96)
-                )]
-            ))
-        }
+        try await playback.load(sequence: PracticeSequencerSequence(
+            midiData: Data(),
+            durationSeconds: 1,
+            events: [PracticeSequencerMIDIEvent(
+                sourceEventID: eventID.description,
+                timeSeconds: 0,
+                kind: .noteOn(midi: 60, velocity: 96)
+            )]
+        ))
         let callCountBeforeStop = output.callsSnapshot().count
-        await MainActor.run {
-            playback.stop(resetCommands: PerformanceTransportReducer.resetCommands(eventIDs: [eventID]))
-        }
+        await playback.stop(resetCommands: PerformanceTransportReducer.resetCommands(eventIDs: [eventID]))
 
         #expect(Array(output.callsSnapshot().dropFirst(callCountBeforeStop)) == [
             .noteOff(note: 60, channel: 0, destination: destinationUniqueID),
@@ -55,9 +52,7 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             )
         }
 
-        await MainActor.run {
-            playback.stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
-        }
+        await playback.stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
 
         let controllers = output.callsSnapshot().compactMap { call -> UInt8? in
             guard case let .controlChange(controller, _, _, _) = call else { return nil }
@@ -100,10 +95,8 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             ]
         )
 
-        try await MainActor.run {
-            try playback.load(sequence: sequence)
-            try playback.play(fromSeconds: 0)
-        }
+        try await playback.load(sequence: sequence)
+        try await playback.play(fromSeconds: 0)
         try await Task.sleep(for: .milliseconds(20))
 
         let expected: [FakePerformanceOutput.Call] = [
@@ -142,10 +135,8 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             ]
         )
 
-        try await MainActor.run {
-            try playback.load(sequence: sequence)
-            try playback.play(fromSeconds: 0)
-        }
+        try await playback.load(sequence: sequence)
+        try await playback.play(fromSeconds: 0)
         try await Task.sleep(for: .milliseconds(20))
 
         let controllerCalls = output.callsSnapshot().filter {
@@ -180,15 +171,13 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             kind: .noteOn(midi: 72, velocity: 80)
         )
 
-        try await MainActor.run {
-            try playback.load(sequence: PracticeSequencerSequence(
-                midiData: Data(),
-                durationSeconds: 0.2,
-                events: [delayedNote]
-            ))
-            try playback.play(fromSeconds: 0)
-            playback.stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
-        }
+        try await playback.load(sequence: PracticeSequencerSequence(
+            midiData: Data(),
+            durationSeconds: 0.2,
+            events: [delayedNote]
+        ))
+        try await playback.play(fromSeconds: 0)
+        await playback.stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
         let callsAfterStop = output.callsSnapshot()
         try await Task.sleep(for: .milliseconds(300))
 
@@ -209,27 +198,23 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             )
         }
 
-        try await MainActor.run {
-            try playback.load(sequence: PracticeSequencerSequence(
-                midiData: Data(),
-                durationSeconds: 1,
-                events: [PracticeSequencerMIDIEvent(
-                    sourceEventID: "later",
-                    timeSeconds: 1,
-                    kind: .noteOn(midi: 60, velocity: 70)
-                )]
-            ))
-            try playback.play(fromSeconds: 0)
-        }
+        try await playback.load(sequence: PracticeSequencerSequence(
+            midiData: Data(),
+            durationSeconds: 1,
+            events: [PracticeSequencerMIDIEvent(
+                sourceEventID: "later",
+                timeSeconds: 1,
+                kind: .noteOn(midi: 60, velocity: 70)
+            )]
+        ))
+        try await playback.play(fromSeconds: 0)
 
         #expect(output.callsSnapshot().allSatisfy { call in
             if case .start = call { return true }
             return false
         })
 
-        await MainActor.run {
-            playback.stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
-        }
+        await playback.stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
     }
 
     @Test func readyCoreMIDIOutputStartsOnlyOnceAcrossHotPaths() async throws {
@@ -238,21 +223,19 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             CoreMIDIPracticePlaybackService(destinationUniqueID: 3457, outputService: output)
         }
 
-        try await MainActor.run {
-            try playback.warmUp()
-            try playback.load(sequence: PracticeSequencerSequence(
-                midiData: Data(),
-                durationSeconds: 0,
-                events: []
-            ))
-            try playback.play(fromSeconds: 0)
-            try playback.execute(commands: [
-                PracticePlaybackCommand(
-                    sourceEventID: "live-program",
-                    kind: .programChange(program: 1)
-                ),
-            ])
-        }
+        try await playback.warmUp()
+        try await playback.load(sequence: PracticeSequencerSequence(
+            midiData: Data(),
+            durationSeconds: 0,
+            events: []
+        ))
+        try await playback.play(fromSeconds: 0)
+        try await playback.execute(commands: [
+            PracticePlaybackCommand(
+                sourceEventID: "live-program",
+                kind: .programChange(program: 1)
+            ),
+        ])
 
         #expect(output.callsSnapshot().count(where: { $0 == .start }) == 1)
     }
@@ -279,7 +262,7 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             PracticeSequencerMIDIEvent(timeSeconds: 0.101, kind: .noteOff(midi: 60)),
         ], fromSeconds: 0)
 
-        #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 1 && clock.sleepingCount == 1 })
+        #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 1 && await clock.sleepingCount == 1 })
         #expect(output.timestampedBatchesSnapshot()[0].messages.map(\.bytes) == [
             [0x90, 60, 80],
             [0xB0, 64, 90],
@@ -287,7 +270,7 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
         ])
         #expect(output.timestampedBatchesSnapshot()[0].messages.map(\.hostTime) == [10050, 10100, 10100])
 
-        clock.advance(by: 0.002)
+        await clock.advance(by: 0.002)
         #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 2 })
         await task.value
         #expect(output.timestampedBatchesSnapshot()[1].messages == [
@@ -317,8 +300,8 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOn(midi: 62, velocity: 81)),
         ], fromSeconds: 0)
 
-        #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 1 && clock.sleepingCount == 1 })
-        clock.advance(by: 0.25)
+        #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 1 && await clock.sleepingCount == 1 })
+        await clock.advance(by: 0.25)
         #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 2 })
         await task.value
         #expect(output.timestampedBatchesSnapshot()[1].messages.first?.hostTime == 20250)
@@ -354,10 +337,10 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             PracticeSequencerMIDIEvent(timeSeconds: 1, kind: .noteOff(midi: 60)),
         ], fromSeconds: 0)
 
-        #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 1 && clock.sleepingCount == 1 })
+        #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 1 && await clock.sleepingCount == 1 })
         task.cancel()
         await task.value
-        clock.advance(by: 2)
+        await clock.advance(by: 2)
         #expect(output.timestampedBatchesSnapshot().count == 1)
     }
 
@@ -396,8 +379,8 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
     }
 
     @Test func invalidatedGenerationPreventsReadyBatchWithoutRelyingOnTaskCancellation() async {
-        let generationGuard = MIDIPlaybackGenerationGuard()
-        let generation = generationGuard.beginGeneration()
+        let generationGate = MIDIPlaybackGenerationGate()
+        let generation = await generationGate.beginGeneration()
         let output = FakePerformanceOutput(generation: { generation })
         let clock = FakeMIDILookAheadClock()
         let scheduler = MIDILookAheadScheduler(
@@ -411,7 +394,7 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             ),
             clock: clock,
             configuration: MIDILookAheadConfiguration(horizonSeconds: 0.1, refillIntervalSeconds: 0.025),
-            generationGuard: generationGuard,
+            generationGate: generationGate,
             generation: generation
         )
         let task = scheduler.start(events: [
@@ -419,11 +402,11 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
             PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOff(midi: 60)),
         ], fromSeconds: 0)
 
-        #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 1 && clock.sleepingCount == 1 })
+        #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 1 && await clock.sleepingCount == 1 })
         #expect(output.timestampedBatchesSnapshot().first?.generation == generation)
         #expect(output.timestampedBatchesSnapshot().first?.capabilities == .externalMIDI)
-        generationGuard.invalidate()
-        clock.advance(by: 0.25)
+        await generationGate.invalidate()
+        await clock.advance(by: 0.25)
         await task.value
         #expect(output.timestampedBatchesSnapshot().count == 1)
     }
@@ -437,27 +420,21 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
                 outputService: output
             )
         }
-        try await MainActor.run {
-            try playback.load(sequence: PracticeSequencerSequence(
-                midiData: Data(),
-                durationSeconds: 1,
-                events: [PracticeSequencerMIDIEvent(
-                    timeSeconds: 0.05,
-                    kind: .noteOn(midi: 60, velocity: 80)
-                )]
-            ))
-            try playback.play(fromSeconds: 0)
-        }
+        try await playback.load(sequence: PracticeSequencerSequence(
+            midiData: Data(),
+            durationSeconds: 1,
+            events: [PracticeSequencerMIDIEvent(
+                timeSeconds: 0.05,
+                kind: .noteOn(midi: 60, velocity: 80)
+            )]
+        ))
+        try await playback.play(fromSeconds: 0)
         #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 1 })
 
-        try await MainActor.run {
-            try playback.play(fromSeconds: 0)
-        }
+        try await playback.play(fromSeconds: 0)
         #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 2 })
-        await MainActor.run {
-            playback.stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
-            playback.stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
-        }
+        await playback.stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
+        await playback.stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
 
         let flushCalls = output.callsSnapshot().filter {
             if case .flush = $0 { return true }
@@ -478,17 +455,15 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
                 outputService: output
             )
         }
-        try await MainActor.run {
-            try playback.load(sequence: PracticeSequencerSequence(
-                midiData: Data(),
-                durationSeconds: 1,
-                events: [
-                    PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 60, velocity: 80)),
-                    PracticeSequencerMIDIEvent(timeSeconds: 0.5, kind: .noteOff(midi: 60)),
-                ]
-            ))
-            try playback.play(fromSeconds: 0)
-        }
+        try await playback.load(sequence: PracticeSequencerSequence(
+            midiData: Data(),
+            durationSeconds: 1,
+            events: [
+                PracticeSequencerMIDIEvent(timeSeconds: 0, kind: .noteOn(midi: 60, velocity: 80)),
+                PracticeSequencerMIDIEvent(timeSeconds: 0.5, kind: .noteOff(midi: 60)),
+            ]
+        ))
+        try await playback.play(fromSeconds: 0)
         #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 1 })
 
         await output.simulateDestinationDisconnect()
@@ -517,18 +492,16 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
                 outputService: output
             )
         }
-        try await MainActor.run {
-            try playback.execute(commands: [
-                PracticePlaybackCommand(
-                    sourceEventID: "live-note",
-                    kind: .noteOn(midi: 60, velocity: 80)
-                ),
-                PracticePlaybackCommand(
-                    sourceEventID: "live-pedal",
-                    kind: .controlChange(controller: 64, value: 127)
-                ),
-            ])
-        }
+        try await playback.execute(commands: [
+            PracticePlaybackCommand(
+                sourceEventID: "live-note",
+                kind: .noteOn(midi: 60, velocity: 80)
+            ),
+            PracticePlaybackCommand(
+                sourceEventID: "live-pedal",
+                kind: .controlChange(controller: 64, value: 127)
+            ),
+        ])
 
         await output.simulateDestinationDisconnect()
 
@@ -545,23 +518,10 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
         let output = FakePerformanceOutput()
         let destinationUniqueID: Int32 = 777
 
-        try await MainActor.run {
-            var playback: CoreMIDIPracticePlaybackService? = CoreMIDIPracticePlaybackService(
-                destinationUniqueID: destinationUniqueID,
-                outputService: output,
-                channel: 2
-            )
-            try playback?.load(sequence: PracticeSequencerSequence(
-                midiData: Data(),
-                durationSeconds: 1,
-                events: [PracticeSequencerMIDIEvent(
-                    timeSeconds: 0.5,
-                    kind: .noteOn(midi: 60, velocity: 80)
-                )]
-            ))
-            try playback?.play(fromSeconds: 0)
-            playback = nil
-        }
+        try await createAndReleaseScheduledPlayback(
+            destinationUniqueID: destinationUniqueID,
+            output: output
+        )
 
         #expect(output.callsSnapshot().contains(.flush(destination: destinationUniqueID)))
         #expect(Array(output.callsSnapshot().suffix(5)) == [
@@ -577,20 +537,10 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
         let output = FakePerformanceOutput()
         let destinationUniqueID: Int32 = 778
 
-        try await MainActor.run {
-            var playback: CoreMIDIPracticePlaybackService? = CoreMIDIPracticePlaybackService(
-                destinationUniqueID: destinationUniqueID,
-                outputService: output,
-                channel: 3
-            )
-            try playback?.execute(commands: [
-                PracticePlaybackCommand(
-                    sourceEventID: "preview-note",
-                    kind: .noteOn(midi: 65, velocity: 70)
-                ),
-            ])
-            playback = nil
-        }
+        try await createAndReleaseLivePlayback(
+            destinationUniqueID: destinationUniqueID,
+            output: output
+        )
 
         #expect(Array(output.callsSnapshot().suffix(5)) == [
             .controlChange(controller: 64, value: 0, channel: 3, destination: destinationUniqueID),
@@ -603,6 +553,47 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
         await output.simulateDestinationDisconnect()
         #expect(output.callsSnapshot() == callsAfterTeardown)
     }
+}
+
+@MainActor
+private func createAndReleaseScheduledPlayback(
+    destinationUniqueID: Int32,
+    output: FakePerformanceOutput
+) async throws {
+    var playback: CoreMIDIPracticePlaybackService? = CoreMIDIPracticePlaybackService(
+        destinationUniqueID: destinationUniqueID,
+        outputService: output,
+        channel: 2
+    )
+    try await playback?.load(sequence: PracticeSequencerSequence(
+        midiData: Data(),
+        durationSeconds: 1,
+        events: [PracticeSequencerMIDIEvent(
+            timeSeconds: 0.5,
+            kind: .noteOn(midi: 60, velocity: 80)
+        )]
+    ))
+    try await playback?.play(fromSeconds: 0)
+    playback = nil
+}
+
+@MainActor
+private func createAndReleaseLivePlayback(
+    destinationUniqueID: Int32,
+    output: FakePerformanceOutput
+) async throws {
+    var playback: CoreMIDIPracticePlaybackService? = CoreMIDIPracticePlaybackService(
+        destinationUniqueID: destinationUniqueID,
+        outputService: output,
+        channel: 3
+    )
+    try await playback?.execute(commands: [
+        PracticePlaybackCommand(
+            sourceEventID: "preview-note",
+            kind: .noteOn(midi: 65, velocity: 70)
+        ),
+    ])
+    playback = nil
 }
 
 private func waitForDiagnostics(
@@ -623,7 +614,7 @@ private func waitForDiagnostics(
     return await reporter.events
 }
 
-private final class FakeMIDILookAheadClock: MIDILookAheadClock, @unchecked Sendable {
+private actor FakeMIDILookAheadClock: MIDILookAheadClock {
     private struct Sleeper {
         let deadlineSeconds: TimeInterval
         let continuation: CheckedContinuation<Void, any Error>
@@ -634,65 +625,61 @@ private final class FakeMIDILookAheadClock: MIDILookAheadClock, @unchecked Senda
         var sleepers: [UUID: Sleeper] = [:]
     }
 
-    private let lock = OSAllocatedUnfairLock(initialState: State())
+    private var state = State()
 
     var sleepingCount: Int {
-        lock.withLock { $0.sleepers.count }
+        state.sleepers.count
     }
 
     func nowSeconds() -> TimeInterval {
-        lock.withLock { $0.nowSeconds }
+        state.nowSeconds
     }
 
     func sleep(for seconds: TimeInterval) async throws {
         let id = UUID()
-        let deadlineSeconds = nowSeconds() + max(0, seconds)
+        let deadlineSeconds = state.nowSeconds + max(0, seconds)
         try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
-                let isCancelled = lock.withLock { state in
-                    guard Task.isCancelled == false else { return true }
-                    state.sleepers[id] = Sleeper(
-                        deadlineSeconds: deadlineSeconds,
-                        continuation: continuation
-                    )
-                    return false
-                }
-                if isCancelled {
+                guard Task.isCancelled == false else {
                     continuation.resume(throwing: CancellationError())
+                    return
                 }
+                state.sleepers[id] = Sleeper(
+                    deadlineSeconds: deadlineSeconds,
+                    continuation: continuation
+                )
             }
         } onCancel: {
-            let continuation = self.lock.withLock { state in
-                state.sleepers.removeValue(forKey: id)?.continuation
-            }
-            continuation?.resume(throwing: CancellationError())
+            Task { await self.cancelSleep(id: id) }
         }
     }
 
     func advance(by seconds: TimeInterval) {
-        let continuations = lock.withLock { state -> [CheckedContinuation<Void, any Error>] in
-            state.nowSeconds += max(0, seconds)
-            let readyIDs = state.sleepers.compactMap { id, sleeper in
-                sleeper.deadlineSeconds <= state.nowSeconds ? id : nil
-            }
-            return readyIDs.compactMap { state.sleepers.removeValue(forKey: $0)?.continuation }
+        state.nowSeconds += max(0, seconds)
+        let readyIDs = state.sleepers.compactMap { id, sleeper in
+            sleeper.deadlineSeconds <= state.nowSeconds ? id : nil
         }
+        let continuations = readyIDs.compactMap { state.sleepers.removeValue(forKey: $0)?.continuation }
         for continuation in continuations {
             continuation.resume()
         }
     }
+
+    private func cancelSleep(id: UUID) {
+        state.sleepers.removeValue(forKey: id)?.continuation.resume(throwing: CancellationError())
+    }
 }
 
-private func waitUntil(_ condition: @escaping @Sendable () -> Bool) async -> Bool {
+private func waitUntil(_ condition: @escaping @Sendable () async -> Bool) async -> Bool {
     let clock = ContinuousClock()
     let deadline = clock.now + .seconds(1)
     while clock.now < deadline {
-        if condition() { return true }
+        if await condition() { return true }
         do {
             try await Task.sleep(for: .milliseconds(1))
         } catch {
-            return condition()
+            return await condition()
         }
     }
-    return condition()
+    return await condition()
 }

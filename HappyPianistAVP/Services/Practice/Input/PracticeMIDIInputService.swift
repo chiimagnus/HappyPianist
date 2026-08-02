@@ -1,5 +1,6 @@
 import Foundation
 import Diagnostics
+import MIDI
 
 @MainActor
 final class PracticeMIDIInputService: PerformanceObservationStreamProviding {
@@ -12,7 +13,7 @@ final class PracticeMIDIInputService: PerformanceObservationStreamProviding {
     }
 
     private let diagnosticsReporter: (any DiagnosticsReporting)?
-    private let practiceInputEventSource: PracticeInputEventSourceProtocol?
+    private let practiceInputEventSource: (any MIDIInputEventSource)?
     private let matcher: any MIDIPracticeStepMatchingProtocol
     private let stateStore: PracticeSessionStateStore
     private let observationRecorder: PracticeSessionRecorder?
@@ -27,7 +28,7 @@ final class PracticeMIDIInputService: PerformanceObservationStreamProviding {
     private var hasShutdown = false
 
     init(
-        practiceInputEventSource: PracticeInputEventSourceProtocol?,
+        practiceInputEventSource: (any MIDIInputEventSource)?,
         matcher: any MIDIPracticeStepMatchingProtocol,
         stateStore: PracticeSessionStateStore,
         effectHandler: any PracticeSessionEffectHandlerProtocol,
@@ -142,7 +143,7 @@ final class PracticeMIDIInputService: PerformanceObservationStreamProviding {
         }
     }
 
-    private func stopSourceIfNeeded(_ practiceInputEventSource: PracticeInputEventSourceProtocol) {
+    private func stopSourceIfNeeded(_ practiceInputEventSource: any MIDIInputEventSource) {
         guard stateStore.isPracticeInputRunning else { return }
         practiceInputEventSource.stop()
         stateStore.isPracticeInputRunning = false

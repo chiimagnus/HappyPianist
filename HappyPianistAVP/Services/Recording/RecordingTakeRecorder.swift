@@ -1,4 +1,5 @@
 import Foundation
+import MIDI
 
 struct RecordingTakeRecorder {
     private struct NoteRoute: Hashable {

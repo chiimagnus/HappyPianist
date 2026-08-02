@@ -1,5 +1,6 @@
 import Foundation
 import Diagnostics
+import MIDI
 @testable import HappyPianistAVP
 import Synchronization
 import Testing

@@ -68,7 +68,7 @@ MIDI / target audio / hand contact
 
 | 输入 | 能提供的证据 | 明确不能推导 |
 | --- | --- | --- |
-| Bluetooth MIDI | pitch、onset、release、velocity、controller、polyphony | hand、finger、姿势 |
+| CoreMIDI 输入 | pitch、onset、release、velocity、controller、polyphony | hand、finger、姿势 |
 | 定向麦克风 | 目标音集合、有限 onset/confidence | 逐音 release、velocity、复杂复调、完整踏板 |
 | 手部接触 | 键位、onset/release、hand/finger、位置、估算 velocity | 未经真机验证的精确力度、姿势质量、踏板 |
 
@@ -114,6 +114,7 @@ ScorePerformancePlan
 
 - range、seek、loop、stop、interruption 和 route change 共享 reset 规则：逐 identity note-off、踏板归零、all-notes-off、all-sound-off。
 - `RecordingTakeRecorder` 从 canonical observation 记录可重放事件；target audio 因缺少可靠逐音 release/velocity 不进入 MIDI take。
+- visionOS 的 CoreMIDI 输入明确使用 `.allCurrentSources`；单端点模式只接受稳定的 endpoint unique ID，设备枚举 index 不参与选择或持久化。端点 route 变化会重连并报告所选端点不可用。
 - take 保留 source/capability/clock/calibration 事实；MIDI 7/14-bit 事件只在回放或导出边界生成。
 - AI phrase 只来自用户 observation；用户选择的 backend 失败、超时、invalid response 或 quality gate failure 时停止本次生成，不自动 fallback。
 - `CreativeDuetResponse` 只在运行期存在，不改写 score plan、assessment target 或 progress。

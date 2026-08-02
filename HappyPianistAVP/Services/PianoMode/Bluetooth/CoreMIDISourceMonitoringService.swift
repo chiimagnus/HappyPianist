@@ -1,5 +1,6 @@
 import CoreMIDI
 import Foundation
+import MIDI
 
 enum CoreMIDISourceMonitoringServiceError: LocalizedError {
     case clientCreate(OSStatus)

@@ -1,6 +1,6 @@
 import CoreMIDI
 import Foundation
-@testable import HappyPianistAVP
+import MIDI
 import Testing
 
 @Test

@@ -1,5 +1,6 @@
 import Foundation
 import Diagnostics
+import MIDI
 import MusicXML
 @testable import HappyPianistAVP
 import Testing
@@ -284,7 +285,7 @@ func passageCompletionDrainsTheLastMIDIObservationBeforeAssessment() async throw
         kind: .noteOn(note: 60, velocity: 100),
         channel: 1,
         group: 0,
-        source: .init(identifier: .sourceIndex(0), endpointName: "test"),
+        source: .init(identifier: .endpointUniqueID(0), endpointName: "test"),
         receivedAt: .now,
         receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime
     ))
@@ -425,7 +426,7 @@ private func makeLearningLoopSession(
     playback: LearningLoopPlaybackService,
     coordinator: PracticeProgressCoordinator,
     recorder: PracticeSessionRecorder? = nil,
-    practiceInputEventSource: PracticeInputEventSourceProtocol? = nil,
+    practiceInputEventSource: (any MIDIInputEventSource)? = nil,
     handObservationSourceKind: PerformanceObservation.Source.Kind? = nil,
     diagnosticsReporter: (any DiagnosticsReporting)? = nil
 ) -> PracticeSessionViewModel {

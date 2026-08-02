@@ -1,4 +1,5 @@
 import MusicXML
+import MIDI
 @testable import HappyPianistAVP
 import Testing
 

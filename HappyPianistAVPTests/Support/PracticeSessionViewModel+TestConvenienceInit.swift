@@ -1,5 +1,6 @@
 import Foundation
 import Diagnostics
+import MIDI
 import MusicXML
 @testable import HappyPianistAVP
 
@@ -12,7 +13,7 @@ extension PracticeSessionViewModel {
         realPianoContactDetectionService: (any KeyContactDetectingProtocol)? = nil,
         handObservationSourceKind: PerformanceObservation.Source.Kind? = nil,
         audioRecognitionService: PracticeAudioRecognitionServiceProtocol? = nil,
-        practiceInputEventSource: PracticeInputEventSourceProtocol? = nil,
+        practiceInputEventSource: (any MIDIInputEventSource)? = nil,
         audioStepAttemptAccumulator: AudioStepAttemptAccumulator? = nil,
         handPianoActivityGate: HandPianoActivityGate? = nil,
         progressCoordinator: PracticeProgressCoordinator? = nil,

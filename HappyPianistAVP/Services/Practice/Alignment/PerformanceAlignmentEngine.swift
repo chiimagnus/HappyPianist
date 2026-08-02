@@ -1,4 +1,5 @@
 import Foundation
+import MIDI
 import MusicXML
 
 struct PerformanceAlignmentConfiguration: Equatable {

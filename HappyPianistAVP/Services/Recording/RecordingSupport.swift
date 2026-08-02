@@ -1,4 +1,5 @@
 import Foundation
+import MIDI
 
 enum RecordingTakeLibraryPathsError: Error {
     case documentsUnavailable

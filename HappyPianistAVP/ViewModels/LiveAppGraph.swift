@@ -1,5 +1,6 @@
 import Foundation
 import Diagnostics
+import MIDI
 import MusicXML
 
 @MainActor
@@ -116,8 +117,11 @@ struct LiveAppGraph {
                 PracticeAudioRecognitionService(diagnosticsReporter: diagnosticsReporter)
             #endif
         }
-        let makeBluetoothMIDIEventSource: () -> PracticeInputEventSourceProtocol = {
-            BluetoothMIDIInputEventSourceService(diagnosticsReporter: diagnosticsReporter)
+        let makeCoreMIDIEventSource: () -> any MIDIInputEventSource = {
+            CoreMIDIInputEventSourceService(
+                selection: .allCurrentSources,
+                diagnosticsReporter: diagnosticsReporter
+            )
         }
 
         let registry: PianoModeRegistryProtocol = PianoModeRegistryService(
@@ -155,7 +159,7 @@ struct LiveAppGraph {
                     sequencerPlaybackService: sequencerPlaybackService,
                     handObservationSourceKind: nil,
                     audioRecognitionService: nil,
-                    practiceInputEventSource: makeBluetoothMIDIEventSource(),
+                    practiceInputEventSource: makeCoreMIDIEventSource(),
                     audioStepAttemptAccumulator: makeAudioStepAttemptAccumulator(),
                     handPianoActivityGate: makeHandPianoActivityGate(),
                     settingsProvider: settingsProvider,

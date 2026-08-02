@@ -7,6 +7,7 @@ let package = Package(
     products: [
         .library(name: "Diagnostics", targets: ["Diagnostics"]),
         .library(name: "MusicXML", targets: ["MusicXML"]),
+        .library(name: "MIDI", targets: ["MIDI"]),
         .library(name: "HappyPianistTestFixtures", targets: ["HappyPianistTestFixtures"]),
     ],
     dependencies: [
@@ -33,6 +34,12 @@ let package = Package(
             ]
         ),
         .target(
+            name: "MIDI",
+            dependencies: [
+                "Diagnostics",
+            ]
+        ),
+        .target(
             name: "HappyPianistTestFixtures",
             resources: [
                 .copy("Resources/Fixtures"),
@@ -44,6 +51,13 @@ let package = Package(
                 "MusicXML",
                 "HappyPianistTestFixtures",
                 .product(name: "ZIPFoundation", package: "ZIPFoundation"),
+            ]
+        ),
+        .testTarget(
+            name: "MIDITests",
+            dependencies: [
+                "MIDI",
+                "Diagnostics",
             ]
         ),
     ]

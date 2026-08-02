@@ -4,7 +4,7 @@ import Diagnostics
 import Foundation
 import os
 
-protocol MIDIOutputSendingProtocol: AnyObject, Sendable {
+public protocol MIDIOutputSendingProtocol: AnyObject, Sendable {
     var onDestinationRouteWillChange: (@Sendable () -> Void)? { get set }
     var onDestinationRouteChange: (@Sendable () -> Task<Void, Never>)? { get set }
 
@@ -22,7 +22,7 @@ protocol MIDIOutputSendingProtocol: AnyObject, Sendable {
     func sendAllSoundOff(channel: UInt8, destinationUniqueID: Int32) throws
 }
 
-extension MIDIOutputSendingProtocol {
+public extension MIDIOutputSendingProtocol {
     func sendMIDI1Bytes(_ bytes: [UInt8], destinationUniqueID: Int32) throws {
         try sendMIDI1Messages(
             [TimestampedMIDI1Message(hostTime: mach_absolute_time(), bytes: bytes)],
@@ -31,17 +31,27 @@ extension MIDIOutputSendingProtocol {
     }
 }
 
-struct TimestampedMIDI1Message: Equatable {
-    let hostTime: MIDITimeStamp
-    let bytes: [UInt8]
+public struct TimestampedMIDI1Message: Equatable, Sendable {
+    public let hostTime: MIDITimeStamp
+    public let bytes: [UInt8]
+
+    public init(hostTime: MIDITimeStamp, bytes: [UInt8]) {
+        self.hostTime = hostTime
+        self.bytes = bytes
+    }
 }
 
-struct MIDIDestinationInfo: Identifiable, Equatable {
-    let id: Int32
-    let name: String
+public struct MIDIDestinationInfo: Identifiable, Equatable, Sendable {
+    public let id: Int32
+    public let name: String
+
+    public init(id: Int32, name: String) {
+        self.id = id
+        self.name = name
+    }
 }
 
-enum CoreMIDIOutputServiceError: LocalizedError {
+public enum CoreMIDIOutputServiceError: LocalizedError {
     case clientCreate(OSStatus)
     case outputPortCreate(OSStatus)
     case destinationNotFound(Int32)
@@ -49,7 +59,7 @@ enum CoreMIDIOutputServiceError: LocalizedError {
     case flush(OSStatus)
     case send(OSStatus)
 
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case let .clientCreate(status):
             "Failed to create MIDI client: \(status)"
@@ -67,32 +77,32 @@ enum CoreMIDIOutputServiceError: LocalizedError {
     }
 }
 
-final class CoreMIDIOutputService: MIDIOutputSendingProtocol {
-    var onDestinationRouteWillChange: (@Sendable () -> Void)? {
+public final class CoreMIDIOutputService: MIDIOutputSendingProtocol {
+    public var onDestinationRouteWillChange: (@Sendable () -> Void)? {
         get { stateLock.withLock { $0.onDestinationRouteWillChange } }
         set { stateLock.withLock { $0.onDestinationRouteWillChange = newValue } }
     }
 
-    var onDestinationRouteChange: (@Sendable () -> Task<Void, Never>)? {
+    public var onDestinationRouteChange: (@Sendable () -> Task<Void, Never>)? {
         get { stateLock.withLock { $0.onDestinationRouteChange } }
         set { stateLock.withLock { $0.onDestinationRouteChange = newValue } }
     }
 
-    var onDestinationListChange: (@Sendable ([MIDIDestinationInfo]) -> Void)? {
+    public var onDestinationListChange: (@Sendable ([MIDIDestinationInfo]) -> Void)? {
         get { stateLock.withLock { $0.onDestinationListChange } }
         set { stateLock.withLock { $0.onDestinationListChange = newValue } }
     }
 
-    var onLastErrorMessageChange: (@Sendable (String?) -> Void)? {
+    public var onLastErrorMessageChange: (@Sendable (String?) -> Void)? {
         get { stateLock.withLock { $0.onLastErrorMessageChange } }
         set { stateLock.withLock { $0.onLastErrorMessageChange = newValue } }
     }
 
     private let diagnosticsReporter: (any DiagnosticsReporting)?
-    private let refreshScheduler = DebouncedActionScheduler(debounce: .milliseconds(200))
+    private let refreshScheduler = MIDIRefreshDebouncer(debounce: .milliseconds(200))
     private let stateLock = OSAllocatedUnfairLock(initialState: OutputState())
 
-    init(diagnosticsReporter: (any DiagnosticsReporting)? = nil) {
+    public init(diagnosticsReporter: (any DiagnosticsReporting)? = nil) {
         self.diagnosticsReporter = diagnosticsReporter
     }
 
@@ -100,12 +110,12 @@ final class CoreMIDIOutputService: MIDIOutputSendingProtocol {
         _ = disposeResources()
     }
 
-    func start() throws {
+    public func start() throws {
         try ensureClientAndPort()
         refreshDestinations()
     }
 
-    func stop() {
+    public func stop() {
         let callbacks = disposeResources()
         callbacks.0?(nil)
         callbacks.1?([])
@@ -130,12 +140,12 @@ final class CoreMIDIOutputService: MIDIOutputSendingProtocol {
         }
     }
 
-    func listDestinations() -> [MIDIDestinationInfo] {
+    public func listDestinations() -> [MIDIDestinationInfo] {
         refreshDestinations()
     }
 
     @discardableResult
-    func refreshDestinations() -> [MIDIDestinationInfo] {
+    public func refreshDestinations() -> [MIDIDestinationInfo] {
         var destinationCache: [Int32: MIDIEndpointRef] = [:]
         let count = MIDIGetNumberOfDestinations()
         var results: [MIDIDestinationInfo] = []
@@ -159,7 +169,7 @@ final class CoreMIDIOutputService: MIDIOutputSendingProtocol {
         return results
     }
 
-    func sendMIDI1Messages(_ messages: [TimestampedMIDI1Message], destinationUniqueID: Int32) throws {
+    public func sendMIDI1Messages(_ messages: [TimestampedMIDI1Message], destinationUniqueID: Int32) throws {
         guard messages.isEmpty == false else { return }
         try Self.validate(messages)
         try ensureClientAndPort()
@@ -167,7 +177,7 @@ final class CoreMIDIOutputService: MIDIOutputSendingProtocol {
         try sendMessages(messages, destination: destination)
     }
 
-    func flushScheduledMessages(destinationUniqueID: Int32) throws {
+    public func flushScheduledMessages(destinationUniqueID: Int32) throws {
         let result = stateLock.withLock { state -> (OSStatus, (@Sendable (String?) -> Void)?) in
             guard let destination = state.destinationCache[destinationUniqueID], destination != 0 else {
                 return (noErr, state.onLastErrorMessageChange)
@@ -187,27 +197,27 @@ final class CoreMIDIOutputService: MIDIOutputSendingProtocol {
         }
     }
 
-    func sendNoteOn(note: UInt8, velocity: UInt8, channel: UInt8, destinationUniqueID: Int32) throws {
+    public func sendNoteOn(note: UInt8, velocity: UInt8, channel: UInt8, destinationUniqueID: Int32) throws {
         try sendMIDI1Bytes([0x90 | (channel & 0x0F), note, velocity], destinationUniqueID: destinationUniqueID)
     }
 
-    func sendNoteOff(note: UInt8, channel: UInt8, destinationUniqueID: Int32) throws {
+    public func sendNoteOff(note: UInt8, channel: UInt8, destinationUniqueID: Int32) throws {
         try sendMIDI1Bytes([0x80 | (channel & 0x0F), note, 0], destinationUniqueID: destinationUniqueID)
     }
 
-    func sendControlChange(controller: UInt8, value: UInt8, channel: UInt8, destinationUniqueID: Int32) throws {
+    public func sendControlChange(controller: UInt8, value: UInt8, channel: UInt8, destinationUniqueID: Int32) throws {
         try sendMIDI1Bytes([0xB0 | (channel & 0x0F), controller, value], destinationUniqueID: destinationUniqueID)
     }
 
-    func sendProgramChange(program: UInt8, channel: UInt8, destinationUniqueID: Int32) throws {
+    public func sendProgramChange(program: UInt8, channel: UInt8, destinationUniqueID: Int32) throws {
         try sendMIDI1Bytes([0xC0 | (channel & 0x0F), program], destinationUniqueID: destinationUniqueID)
     }
 
-    func sendAllNotesOff(channel: UInt8, destinationUniqueID: Int32) throws {
+    public func sendAllNotesOff(channel: UInt8, destinationUniqueID: Int32) throws {
         try sendControlChange(controller: 123, value: 0, channel: channel, destinationUniqueID: destinationUniqueID)
     }
 
-    func sendAllSoundOff(channel: UInt8, destinationUniqueID: Int32) throws {
+    public func sendAllSoundOff(channel: UInt8, destinationUniqueID: Int32) throws {
         try sendControlChange(controller: 120, value: 0, channel: channel, destinationUniqueID: destinationUniqueID)
     }
 
@@ -320,7 +330,7 @@ final class CoreMIDIOutputService: MIDIOutputSendingProtocol {
         }
     }
 
-    static func withPacketList<Result>(
+    public static func withPacketList<Result>(
         _ messages: [TimestampedMIDI1Message],
         perform body: (UnsafePointer<MIDIPacketList>) throws -> Result
     ) rethrows -> Result {
@@ -353,7 +363,7 @@ final class CoreMIDIOutputService: MIDIOutputSendingProtocol {
         return try body(UnsafePointer(packetListPointer))
     }
 
-    static func validate(_ messages: [TimestampedMIDI1Message]) throws {
+    public static func validate(_ messages: [TimestampedMIDI1Message]) throws {
         guard messages.allSatisfy({ $0.bytes.isEmpty == false && $0.bytes.count <= UInt16.max }) else {
             throw CoreMIDIOutputServiceError.invalidPacketBatch("messages must contain 1...65535 bytes")
         }

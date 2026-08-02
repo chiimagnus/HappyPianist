@@ -1,4 +1,5 @@
 import Foundation
+import MIDI
 @testable import HappyPianistAVP
 import Testing
 
@@ -127,7 +128,7 @@ func shutdownDoesNotCancelOtherConsumers() async {
             kind: .noteOn(note: 60, velocity: 1),
             channel: 1,
             group: 0,
-            source: .init(identifier: .sourceIndex(0), endpointName: "test"),
+            source: .init(identifier: .endpointUniqueID(0), endpointName: "test"),
             receivedAt: .now,
             receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime
         )
@@ -171,7 +172,7 @@ func allNotesOffResetsActiveMatcherWithoutStoppingInput() async {
             kind: .controlChange(controller: 123, value: 0),
             channel: 1,
             group: 0,
-            source: .init(identifier: .sourceIndex(0), endpointName: "test"),
+            source: .init(identifier: .endpointUniqueID(0), endpointName: "test"),
             receivedAt: .now,
             receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime
         )
@@ -224,7 +225,7 @@ func midiObservationAdapterKeepsMIDI2PrecisionUntilOutputBoundary() {
             kind: .controlChange(controller: 67, value32: 0x1234_5678),
             channel: 1,
             group: 15,
-            source: .init(identifier: .sourceIndex(2), endpointName: nil),
+            source: .init(identifier: .endpointUniqueID(2), endpointName: nil),
             receivedAt: .now,
             receivedAtUptimeSeconds: 1
         ),
@@ -273,7 +274,7 @@ func practiceMIDIInputPublishesOnlyCurrentGenerationObservations() async throws 
         kind: .noteOn(note: 60, velocity: 87),
         channel: 2,
         group: 1,
-        source: .init(identifier: .sourceIndex(0), endpointName: nil),
+        source: .init(identifier: .endpointUniqueID(0), endpointName: nil),
         receivedAt: .now,
         receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime
     ))

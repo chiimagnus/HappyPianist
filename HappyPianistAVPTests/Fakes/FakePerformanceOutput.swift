@@ -1,10 +1,11 @@
 import AudioToolbox
 import AVFAudio
 import Foundation
+import MIDI
 @testable import HappyPianistAVP
 import os
 
-final class FakePerformanceOutput: MIDIOutputSendingProtocol, @unchecked Sendable {
+final class FakePerformanceOutput: MIDIOutputSendingProtocol {
     enum Call: Equatable {
         case start
         case stop

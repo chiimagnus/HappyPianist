@@ -1,6 +1,6 @@
-import CoreMIDI
 import Foundation
 import Diagnostics
+import MIDI
 
 @MainActor
 final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServiceProtocol {
@@ -9,7 +9,7 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
     private let outputCapabilities: PerformanceOutputCapabilities
     private let diagnosticsReporter: (any DiagnosticsReporting)?
     private let hostTimeConverter: MIDIHostTimeConverter
-    private let generationGuard = MIDIPlaybackGenerationGuard()
+    private let generationGate = MIDIPlaybackGenerationGate()
 
     private let channel: UInt8
 
@@ -42,14 +42,14 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
         self.hostTimeConverter = hostTimeConverter
         self.channel = channel
 
-        let generationGuard = self.generationGuard
+        let generationGate = self.generationGate
         self.outputService.onDestinationRouteWillChange = {
-            generationGuard.invalidate()
+            Task { await generationGate.invalidate() }
         }
         self.outputService.onDestinationRouteChange = { [weak self] in
             guard let self else { return Task {} }
             return Task { @MainActor in
-                self.handleDestinationRouteChange()
+                await self.handleDestinationRouteChange()
             }
         }
     }
@@ -58,7 +58,7 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
         let hadScheduledPlayback = schedulerTask != nil
         outputService.onDestinationRouteWillChange = nil
         outputService.onDestinationRouteChange = nil
-        generationGuard.invalidate()
+        Task { await generationGate.invalidate() }
         oneShotStopTask?.cancel()
         schedulerTask?.cancel()
         guard ownsOutputLifecycle else { return }
@@ -79,35 +79,35 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
         execute(PerformanceTransportReducer.fullResetCommands)
     }
 
-    func warmUp() throws {
+    func warmUp() async throws {
         try ensureReady()
     }
 
-    func stop(resetCommands: [PerformanceTransportCommand]) {
-        haltPlayback()
+    func stop(resetCommands: [PerformanceTransportCommand]) async {
+        await haltPlayback()
         execute(resetCommands)
     }
 
-    func load(sequence: PracticeSequencerSequence) throws {
+    func load(sequence: PracticeSequencerSequence) async throws {
         try ensureReady()
-        haltPlayback()
+        await haltPlayback()
         loadedDurationSeconds = sequence.durationSeconds
         loadedEvents = sequence.events
         lastKnownSeconds = 0
         recordControllerApproximations(in: sequence.events)
     }
 
-    func play(fromSeconds start: TimeInterval) throws {
+    func play(fromSeconds start: TimeInterval) async throws {
         try ensureReady()
         guard let events = loadedEvents else { return }
 
-        haltPlayback()
+        await haltPlayback()
 
         let startSeconds = max(0, start)
         lastKnownSeconds = startSeconds
         playbackStartSeconds = startSeconds
         playbackStartedAtUptimeSeconds = ProcessInfo.processInfo.systemUptime
-        let generation = generationGuard.beginGeneration()
+        let generation = await generationGate.beginGeneration()
 
         let scheduler = MIDILookAheadScheduler(
             outputService: outputService,
@@ -116,15 +116,15 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
             outputCapabilities: outputCapabilities,
             hostTimeConverter: hostTimeConverter,
             diagnosticsReporter: diagnosticsReporter,
-            generationGuard: generationGuard,
+            generationGate: generationGate,
             generation: generation
         )
         self.scheduler = scheduler
         schedulerTask = scheduler.start(events: events, fromSeconds: startSeconds)
     }
 
-    private func haltPlayback() {
-        generationGuard.invalidate()
+    private func haltPlayback() async {
+        await generationGate.invalidate()
         oneShotStopTask?.cancel()
         oneShotStopTask = nil
 
@@ -156,13 +156,13 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
         oneShotNoteBySourceEventID.removeAll()
     }
 
-    private func handleDestinationRouteChange() {
+    private func handleDestinationRouteChange() async {
         guard ownsOutputLifecycle else { return }
-        haltPlayback()
+        await haltPlayback()
         execute(PerformanceTransportReducer.fullResetCommands)
     }
 
-    func currentSeconds() -> TimeInterval {
+    func currentSeconds() async -> TimeInterval {
         guard let playbackStartedAtUptimeSeconds else { return lastKnownSeconds }
         let now = ProcessInfo.processInfo.systemUptime
         let seconds = playbackStartSeconds + max(0, now - playbackStartedAtUptimeSeconds)
@@ -172,7 +172,7 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
         return seconds
     }
 
-    func playOneShot(commands: [PracticePlaybackCommand], durationSeconds: TimeInterval) throws {
+    func playOneShot(commands: [PracticePlaybackCommand], durationSeconds: TimeInterval) async throws {
         guard commands.isEmpty == false else { return }
 
         try ensureReady()
@@ -197,12 +197,12 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
         }
     }
 
-    func execute(commands: [PracticePlaybackCommand]) throws {
+    func execute(commands: [PracticePlaybackCommand]) async throws {
         try ensureReady()
         try execute(commands: commands, tracking: .live)
     }
 
-    func stopAllLiveNotes() {
+    func stopAllLiveNotes() async {
         for note in Set(liveNoteBySourceEventID.values) {
             do {
                 try outputService.sendNoteOff(note: note, channel: channel, destinationUniqueID: destinationUniqueID)

@@ -1,5 +1,6 @@
 import Foundation
 import Diagnostics
+import MIDI
 import Observation
 import MusicXML
 
@@ -32,7 +33,7 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
     let realPianoContactDetectionService: any KeyContactDetectingProtocol
     let handObservationSourceKind: PerformanceObservation.Source.Kind?
     let audioRecognitionService: PracticeAudioRecognitionServiceProtocol?
-    let practiceInputEventSource: PracticeInputEventSourceProtocol?
+    let practiceInputEventSource: (any MIDIInputEventSource)?
     let audioStepAttemptAccumulator: AudioStepAttemptAccumulator
     let midiPracticeStepMatcher: any MIDIPracticeStepMatchingProtocol
     let settingsProvider: any PracticeSessionSettingsProviderProtocol
@@ -86,7 +87,7 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
         handObservationSourceKind: PerformanceObservation.Source.Kind? = nil,
         midiPracticeStepMatcher: (any MIDIPracticeStepMatchingProtocol)? = nil,
         audioRecognitionService: PracticeAudioRecognitionServiceProtocol? = nil,
-        practiceInputEventSource: PracticeInputEventSourceProtocol? = nil,
+        practiceInputEventSource: (any MIDIInputEventSource)? = nil,
         audioStepAttemptAccumulator: AudioStepAttemptAccumulator,
         handPianoActivityGate: HandPianoActivityGate,
         settingsProvider: (any PracticeSessionSettingsProviderProtocol)? = nil,

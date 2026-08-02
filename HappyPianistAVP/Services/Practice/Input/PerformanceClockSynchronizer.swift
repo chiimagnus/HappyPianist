@@ -1,4 +1,5 @@
 import Foundation
+import MIDI
 
 struct PerformanceClockSynchronizer {
     private struct Sample {

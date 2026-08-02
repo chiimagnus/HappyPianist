@@ -1,13 +1,23 @@
 import Diagnostics
 import Foundation
 
-struct PianoOutputTimestampObservation: Equatable {
-    let scheduledAtSeconds: TimeInterval
-    let submittedAtSeconds: TimeInterval?
-    let acknowledgedAtSeconds: TimeInterval?
+public struct PianoOutputTimestampObservation: Equatable, Sendable {
+    public let scheduledAtSeconds: TimeInterval
+    public let submittedAtSeconds: TimeInterval?
+    public let acknowledgedAtSeconds: TimeInterval?
+
+    public init(
+        scheduledAtSeconds: TimeInterval,
+        submittedAtSeconds: TimeInterval?,
+        acknowledgedAtSeconds: TimeInterval?
+    ) {
+        self.scheduledAtSeconds = scheduledAtSeconds
+        self.submittedAtSeconds = submittedAtSeconds
+        self.acknowledgedAtSeconds = acknowledgedAtSeconds
+    }
 }
 
-enum PianoOutputAudioRoute: String, Equatable {
+public enum PianoOutputAudioRoute: String, Equatable, Sendable {
     case builtIn
     case wired
     case bluetooth
@@ -15,15 +25,15 @@ enum PianoOutputAudioRoute: String, Equatable {
     case unknown
 }
 
-struct PianoOutputMeasurementMetadata: Equatable {
-    let calibrationID: UUID?
-    let calibrationVersion: Int?
-    let sampleCount: Int?
-    let deviceModel: String?
-    let operatingSystemVersion: String?
-    let audioRoute: PianoOutputAudioRoute?
+public struct PianoOutputMeasurementMetadata: Equatable, Sendable {
+    public let calibrationID: UUID?
+    public let calibrationVersion: Int?
+    public let sampleCount: Int?
+    public let deviceModel: String?
+    public let operatingSystemVersion: String?
+    public let audioRoute: PianoOutputAudioRoute?
 
-    init(
+    public init(
         calibrationID: UUID? = nil,
         calibrationVersion: Int? = nil,
         sampleCount: Int? = nil,
@@ -39,7 +49,7 @@ struct PianoOutputMeasurementMetadata: Equatable {
         self.audioRoute = audioRoute
     }
 
-    var fields: [String] {
+    public var fields: [String] {
         [
             calibrationID.map { "calibrationID=\($0.uuidString.lowercased())" },
             calibrationVersion.map { "calibrationVersion=\($0)" },
@@ -59,23 +69,55 @@ struct PianoOutputMeasurementMetadata: Equatable {
     }
 }
 
-struct PianoOutputMetricsSnapshot: Equatable {
-    let capability: PianoPerformanceDiagnosticCapability
-    let scheduledCount: Int
-    let submittedCount: Int
-    let acknowledgedCount: Int
-    let lateCount: Int
-    let droppedCount: Int
-    let cancelledCount: Int
-    let resetSucceededCount: Int
-    let resetFailedCount: Int
-    let stuckNotePreventionCount: Int
-    let submissionLatencyBuckets: [PianoPerformanceDurationBucket: Int]
-    let acknowledgementLatencyBuckets: [PianoPerformanceDurationBucket: Int]
-    let jitterBuckets: [PianoPerformanceDurationBucket: Int]
-    let measurementMetadata: PianoOutputMeasurementMetadata?
+public struct PianoOutputMetricsSnapshot: Equatable, Sendable {
+    public let capability: PianoPerformanceDiagnosticCapability
+    public let scheduledCount: Int
+    public let submittedCount: Int
+    public let acknowledgedCount: Int
+    public let lateCount: Int
+    public let droppedCount: Int
+    public let cancelledCount: Int
+    public let resetSucceededCount: Int
+    public let resetFailedCount: Int
+    public let stuckNotePreventionCount: Int
+    public let submissionLatencyBuckets: [PianoPerformanceDurationBucket: Int]
+    public let acknowledgementLatencyBuckets: [PianoPerformanceDurationBucket: Int]
+    public let jitterBuckets: [PianoPerformanceDurationBucket: Int]
+    public let measurementMetadata: PianoOutputMeasurementMetadata?
 
-    var diagnosticEvent: DiagnosticEvent {
+    public init(
+        capability: PianoPerformanceDiagnosticCapability,
+        scheduledCount: Int,
+        submittedCount: Int,
+        acknowledgedCount: Int,
+        lateCount: Int,
+        droppedCount: Int,
+        cancelledCount: Int,
+        resetSucceededCount: Int,
+        resetFailedCount: Int,
+        stuckNotePreventionCount: Int,
+        submissionLatencyBuckets: [PianoPerformanceDurationBucket: Int],
+        acknowledgementLatencyBuckets: [PianoPerformanceDurationBucket: Int],
+        jitterBuckets: [PianoPerformanceDurationBucket: Int],
+        measurementMetadata: PianoOutputMeasurementMetadata?
+    ) {
+        self.capability = capability
+        self.scheduledCount = scheduledCount
+        self.submittedCount = submittedCount
+        self.acknowledgedCount = acknowledgedCount
+        self.lateCount = lateCount
+        self.droppedCount = droppedCount
+        self.cancelledCount = cancelledCount
+        self.resetSucceededCount = resetSucceededCount
+        self.resetFailedCount = resetFailedCount
+        self.stuckNotePreventionCount = stuckNotePreventionCount
+        self.submissionLatencyBuckets = submissionLatencyBuckets
+        self.acknowledgementLatencyBuckets = acknowledgementLatencyBuckets
+        self.jitterBuckets = jitterBuckets
+        self.measurementMetadata = measurementMetadata
+    }
+
+    public var diagnosticEvent: DiagnosticEvent {
         let fields = [
             "capability=\(capability.rawValue)",
             "scheduled=\(scheduledCount)",
@@ -113,7 +155,7 @@ struct PianoOutputMetricsSnapshot: Equatable {
     }
 }
 
-struct PianoOutputMetricsAccumulator {
+public struct PianoOutputMetricsAccumulator: Sendable {
     private(set) var scheduledCount = 0
     private(set) var submittedCount = 0
     private(set) var acknowledgedCount = 0
@@ -128,9 +170,11 @@ struct PianoOutputMetricsAccumulator {
     private var jitterBuckets: [PianoPerformanceDurationBucket: Int] = [:]
     private var previousSubmissionOffset: TimeInterval?
 
-    var hasActivity: Bool { scheduledCount > 0 || resetSucceededCount > 0 || resetFailedCount > 0 }
+    public init() {}
 
-    mutating func record(_ observation: PianoOutputTimestampObservation) {
+    public var hasActivity: Bool { scheduledCount > 0 || resetSucceededCount > 0 || resetFailedCount > 0 }
+
+    public mutating func record(_ observation: PianoOutputTimestampObservation) {
         guard observation.scheduledAtSeconds.isFinite else { return }
         scheduledCount += 1
         guard let submittedAtSeconds = observation.submittedAtSeconds, submittedAtSeconds.isFinite else {
@@ -150,24 +194,24 @@ struct PianoOutputMetricsAccumulator {
         Self.increment(&acknowledgementLatencyBuckets, seconds: max(0, acknowledgedAtSeconds - observation.scheduledAtSeconds))
     }
 
-    mutating func recordDropped(count: Int) {
+    public mutating func recordDropped(count: Int) {
         let count = max(0, count)
         scheduledCount += count
         droppedCount += count
     }
 
-    mutating func recordCancelled(count: Int) {
+    public mutating func recordCancelled(count: Int) {
         let count = max(0, count)
         scheduledCount += count
         cancelledCount += count
     }
 
-    mutating func recordReset(succeeded: Bool, preventsStuckNotes: Bool) {
+    public mutating func recordReset(succeeded: Bool, preventsStuckNotes: Bool) {
         if succeeded { resetSucceededCount += 1 } else { resetFailedCount += 1 }
         if succeeded, preventsStuckNotes { stuckNotePreventionCount += 1 }
     }
 
-    func snapshot(
+    public func snapshot(
         capability: PianoPerformanceDiagnosticCapability,
         measurementMetadata: PianoOutputMeasurementMetadata? = nil
     ) -> PianoOutputMetricsSnapshot {

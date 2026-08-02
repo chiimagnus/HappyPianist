@@ -1,4 +1,5 @@
 import Foundation
+import MIDI
 @testable import HappyPianistAVP
 import Testing
 
@@ -263,7 +264,7 @@ func continuousDuetRequestsGenerationForMIDI2Input() async {
         kind: .noteOn(note: 60, velocity16: .max),
         channel: 1,
         group: 0,
-        source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: "test"),
+        source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: "test"),
         receivedAt: Date(timeIntervalSince1970: 0),
         receivedAtUptimeSeconds: nowUptime
     ))

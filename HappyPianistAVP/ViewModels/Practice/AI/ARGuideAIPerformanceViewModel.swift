@@ -1,5 +1,6 @@
 import Foundation
 import Diagnostics
+import MIDI
 import Observation
 
 @MainActor
@@ -153,7 +154,7 @@ final class ARGuideAIPerformanceViewModel {
             let baseUptime = ProcessInfo.processInfo.systemUptime
             let baseDate = Date.now
             let source = MIDIInputSource(
-                identifier: .sourceIndex(-1),
+                identifier: .unidentified,
                 endpointName: "DEBUG"
             )
 

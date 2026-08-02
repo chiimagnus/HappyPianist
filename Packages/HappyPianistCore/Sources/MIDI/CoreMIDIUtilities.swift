@@ -1,8 +1,8 @@
 import CoreMIDI
 import Foundation
 
-enum MIDIEndpointConnectionPolicy {
-    static func subscribedProtocol(endpointProtocolID: MIDIProtocolID?, midi2PortAvailable: Bool) -> MIDIProtocolID {
+public enum MIDIEndpointConnectionPolicy {
+    public static func subscribedProtocol(endpointProtocolID: MIDIProtocolID?, midi2PortAvailable: Bool) -> MIDIProtocolID {
         guard endpointProtocolID == ._2_0, midi2PortAvailable else {
             return ._1_0
         }
@@ -10,15 +10,15 @@ enum MIDIEndpointConnectionPolicy {
     }
 }
 
-enum MIDIEndpointRouteNotificationPolicy {
-    static func affectsSources(_ notification: UnsafePointer<MIDINotification>) -> Bool {
+public enum MIDIEndpointRouteNotificationPolicy {
+    public static func affectsSources(_ notification: UnsafePointer<MIDINotification>) -> Bool {
         affectsRoute(
             notification,
             endpointTypes: [.source, .externalSource]
         )
     }
 
-    static func affectsDestinations(_ notification: UnsafePointer<MIDINotification>) -> Bool {
+    public static func affectsDestinations(_ notification: UnsafePointer<MIDINotification>) -> Bool {
         affectsRoute(
             notification,
             endpointTypes: [.destination, .externalDestination]
@@ -57,46 +57,31 @@ enum MIDIEndpointRouteNotificationPolicy {
     }
 }
 
-enum MIDISourceMonitoringConnectionState: Equatable {
-    case idle
-    case connected(sourceCount: Int)
-    case failed(message: String)
-}
-
-@MainActor
-protocol MIDISourceMonitoringServiceProtocol: AnyObject {
-    var onConnectionStateChange: ((MIDISourceMonitoringConnectionState) -> Void)? { get set }
-    var onSourceNamesChange: (([String]) -> Void)? { get set }
-    var onLastErrorMessageChange: ((String?) -> Void)? { get set }
-
-    func start() throws
-    func stop()
-    func refreshSources() throws
-}
-
-enum MIDI2ValueMapping {
-    static func value16To7Bit(_ value: UInt16) -> Int {
+public enum MIDI2ValueMapping {
+    public static func value16To7Bit(_ value: UInt16) -> Int {
         let scaled = (Double(value) / 65535.0 * 127.0).rounded()
         let resolved = max(0, min(127, Int(scaled)))
         guard value != 0 else { return 0 }
         return max(1, resolved)
     }
 
-    static func value32To7Bit(_ value: UInt32) -> Int {
+    public static func value32To7Bit(_ value: UInt32) -> Int {
         let scaled = (Double(value) / Double(UInt32.max) * 127.0).rounded()
         let resolved = max(0, min(127, Int(scaled)))
         guard value != 0 else { return 0 }
         return max(1, resolved)
     }
 
-    static func pitchBend32To14Bit(_ value: UInt32) -> Int {
+    public static func pitchBend32To14Bit(_ value: UInt32) -> Int {
         let scaled = (Double(value) / Double(UInt32.max) * 16383.0).rounded()
         return max(0, min(16383, Int(scaled)))
     }
 }
 
-struct MIDI1MessageDecoder {
-    func decode(_ message: MIDIUniversalMessage) -> MIDI1InputEvent.Kind? {
+public struct MIDI1MessageDecoder {
+    public init() {}
+
+    public func decode(_ message: MIDIUniversalMessage) -> MIDI1InputEvent.Kind? {
         guard message.type == .channelVoice1 else { return nil }
 
         let voice = message.channelVoice1
@@ -140,8 +125,10 @@ struct MIDI1MessageDecoder {
     }
 }
 
-struct MIDI2MessageDecoder {
-    func decode(_ message: MIDIUniversalMessage) -> MIDI2InputEvent.Kind? {
+public struct MIDI2MessageDecoder {
+    public init() {}
+
+    public func decode(_ message: MIDIUniversalMessage) -> MIDI2InputEvent.Kind? {
         guard message.type == .channelVoice2 else { return nil }
 
         let voice = message.channelVoice2
@@ -179,12 +166,20 @@ struct MIDI2MessageDecoder {
     }
 }
 
-struct MIDIEndpointPropertyReader {
-    struct Adapter {
-        var getStringProperty: @Sendable (MIDIEndpointRef, CFString) -> (OSStatus, Unmanaged<CFString>?)
-        var getIntegerProperty: @Sendable (MIDIEndpointRef, CFString) -> (OSStatus, Int32)
+public struct MIDIEndpointPropertyReader {
+    public struct Adapter: Sendable {
+        public var getStringProperty: @Sendable (MIDIEndpointRef, CFString) -> (OSStatus, Unmanaged<CFString>?)
+        public var getIntegerProperty: @Sendable (MIDIEndpointRef, CFString) -> (OSStatus, Int32)
 
-        static let coreMIDI = Adapter(
+        public init(
+            getStringProperty: @escaping @Sendable (MIDIEndpointRef, CFString) -> (OSStatus, Unmanaged<CFString>?),
+            getIntegerProperty: @escaping @Sendable (MIDIEndpointRef, CFString) -> (OSStatus, Int32)
+        ) {
+            self.getStringProperty = getStringProperty
+            self.getIntegerProperty = getIntegerProperty
+        }
+
+        public static let coreMIDI = Adapter(
             getStringProperty: { endpoint, property in
                 var unmanagedValue: Unmanaged<CFString>?
                 let status = MIDIObjectGetStringProperty(endpoint, property, &unmanagedValue)
@@ -200,11 +195,11 @@ struct MIDIEndpointPropertyReader {
 
     private let adapter: Adapter
 
-    init(adapter: Adapter = .coreMIDI) {
+    public init(adapter: Adapter = .coreMIDI) {
         self.adapter = adapter
     }
 
-    func stringProperty(_ endpoint: MIDIEndpointRef, _ property: CFString) -> String? {
+    public func stringProperty(_ endpoint: MIDIEndpointRef, _ property: CFString) -> String? {
         let (status, unmanagedValue) = adapter.getStringProperty(endpoint, property)
         guard status == noErr, let unmanagedValue else { return nil }
 
@@ -213,17 +208,17 @@ struct MIDIEndpointPropertyReader {
         return unmanagedValue.takeRetainedValue() as String
     }
 
-    func int32Property(_ endpoint: MIDIEndpointRef, _ property: CFString) -> Int32? {
+    public func int32Property(_ endpoint: MIDIEndpointRef, _ property: CFString) -> Int32? {
         let (status, value) = adapter.getIntegerProperty(endpoint, property)
         guard status == noErr else { return nil }
         return value
     }
 
-    static func stringProperty(_ endpoint: MIDIEndpointRef, _ property: CFString) -> String? {
+    public static func stringProperty(_ endpoint: MIDIEndpointRef, _ property: CFString) -> String? {
         MIDIEndpointPropertyReader().stringProperty(endpoint, property)
     }
 
-    static func int32Property(_ endpoint: MIDIEndpointRef, _ property: CFString) -> Int32? {
+    public static func int32Property(_ endpoint: MIDIEndpointRef, _ property: CFString) -> Int32? {
         MIDIEndpointPropertyReader().int32Property(endpoint, property)
     }
 }

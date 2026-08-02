@@ -1,4 +1,5 @@
 import Foundation
+import MIDI
 import MusicXML
 
 struct PracticePreparationOptions: Equatable {
@@ -15,14 +16,6 @@ struct PracticePreparationOptions: Equatable {
 @MainActor
 protocol PracticeSessionEffectHandlerProtocol: AnyObject {
     func handle(effect: PracticeSessionEffect)
-}
-
-protocol PracticeInputEventSourceProtocol: AnyObject {
-    func midi1EventsStream() -> AsyncStream<MIDI1InputEvent>
-    func midi2EventsStream() -> AsyncStream<MIDI2InputEvent>
-
-    func start() throws
-    func stop()
 }
 
 @MainActor

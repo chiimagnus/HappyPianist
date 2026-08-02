@@ -2,16 +2,21 @@ import CoreMIDI
 import Darwin
 import Foundation
 
-struct MIDIHostTimeOrigin: Equatable {
-    let transportSeconds: TimeInterval
-    let hostTime: MIDITimeStamp
+public struct MIDIHostTimeOrigin: Equatable, Sendable {
+    public let transportSeconds: TimeInterval
+    public let hostTime: MIDITimeStamp
+
+    public init(transportSeconds: TimeInterval, hostTime: MIDITimeStamp) {
+        self.transportSeconds = transportSeconds
+        self.hostTime = hostTime
+    }
 }
 
-struct MIDIHostTimeConverter {
+public struct MIDIHostTimeConverter: Sendable {
     private let currentHostTime: @Sendable () -> MIDITimeStamp
     private let hostTicksPerSecond: Double
 
-    init(
+    public init(
         currentHostTime: @escaping @Sendable () -> MIDITimeStamp = { mach_absolute_time() },
         hostTicksPerSecond: Double = MIDIHostTimeConverter.systemHostTicksPerSecond()
     ) {
@@ -19,14 +24,14 @@ struct MIDIHostTimeConverter {
         self.hostTicksPerSecond = hostTicksPerSecond
     }
 
-    func origin(atTransportSeconds transportSeconds: TimeInterval) -> MIDIHostTimeOrigin {
+    public func origin(atTransportSeconds transportSeconds: TimeInterval) -> MIDIHostTimeOrigin {
         MIDIHostTimeOrigin(
             transportSeconds: max(0, transportSeconds),
             hostTime: currentHostTime()
         )
     }
 
-    func hostTime(
+    public func hostTime(
         atTransportSeconds transportSeconds: TimeInterval,
         relativeTo origin: MIDIHostTimeOrigin
     ) -> MIDITimeStamp {

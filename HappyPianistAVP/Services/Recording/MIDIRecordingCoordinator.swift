@@ -1,4 +1,5 @@
 import Foundation
+import MIDI
 
 @MainActor
 final class MIDIRecordingState {
@@ -56,7 +57,7 @@ final class MIDIRecordingState {
 
     func refreshMIDISubscriptionIfNeeded(
         usesBluetoothMIDIInput: Bool,
-        eventSource: PracticeInputEventSourceProtocol?
+        eventSource: (any MIDIInputEventSource)?
     ) {
         stopMIDISubscription()
 

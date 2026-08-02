@@ -1,4 +1,5 @@
 import Foundation
+import MIDI
 
 struct PerformanceMonotonicInstant: Codable, Comparable, Hashable {
     let nanoseconds: Int64
@@ -36,11 +37,6 @@ struct PerformanceMonotonicInstant: Codable, Comparable, Hashable {
     func advanced(by interval: TimeInterval) -> Self {
         Self(seconds: seconds + interval)
     }
-}
-
-struct PerformanceSourceTimestamp: Codable, Equatable {
-    let clockID: String
-    let seconds: TimeInterval
 }
 
 enum PerformanceClockCorrectionProvenance: String, Codable {

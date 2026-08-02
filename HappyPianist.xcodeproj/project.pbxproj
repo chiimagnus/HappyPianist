@@ -12,6 +12,8 @@
 		A10200000000000000000001 /* MusicXML in Frameworks */ = {isa = PBXBuildFile; productRef = A10200000000000000000004 /* MusicXML */; };
 		A10200000000000000000002 /* MusicXML in Frameworks */ = {isa = PBXBuildFile; productRef = A10200000000000000000005 /* MusicXML */; };
 		A10200000000000000000003 /* HappyPianistTestFixtures in Frameworks */ = {isa = PBXBuildFile; productRef = A10200000000000000000006 /* HappyPianistTestFixtures */; };
+		A10300000000000000000001 /* MIDI in Frameworks */ = {isa = PBXBuildFile; productRef = A10300000000000000000003 /* MIDI */; };
+		A10300000000000000000002 /* MIDI in Frameworks */ = {isa = PBXBuildFile; productRef = A10300000000000000000004 /* MIDI */; };
 		D85596AE2F83FF72005BE7FE /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = D85596AD2F83FF72005BE7FE /* RealityKitContent */; };
 /* End PBXBuildFile section */
 
@@ -65,6 +67,7 @@
 				D85596AE2F83FF72005BE7FE /* RealityKitContent in Frameworks */,
 				A10100000000000000000001 /* Diagnostics in Frameworks */,
 				A10200000000000000000001 /* MusicXML in Frameworks */,
+				A10300000000000000000001 /* MIDI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -75,6 +78,7 @@
 				A10100000000000000000002 /* Diagnostics in Frameworks */,
 				A10200000000000000000002 /* MusicXML in Frameworks */,
 				A10200000000000000000003 /* HappyPianistTestFixtures in Frameworks */,
+				A10300000000000000000002 /* MIDI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -123,6 +127,7 @@
 				D85596AD2F83FF72005BE7FE /* RealityKitContent */,
 				A10100000000000000000003 /* Diagnostics */,
 				A10200000000000000000004 /* MusicXML */,
+				A10300000000000000000003 /* MIDI */,
 			);
 			productName = HappyPianistAVP;
 			productReference = D8C8848D2FC3623C00F1D94F /* HappyPianistAVP.app */;
@@ -149,6 +154,7 @@
 				A10100000000000000000004 /* Diagnostics */,
 				A10200000000000000000005 /* MusicXML */,
 				A10200000000000000000006 /* HappyPianistTestFixtures */,
+				A10300000000000000000004 /* MIDI */,
 			);
 			productName = HappyPianistAVPTests;
 			productReference = D8C8848F2FC3623C00F1D94F /* HappyPianistAVPTests.xctest */;
@@ -557,6 +563,16 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
 			productName = HappyPianistTestFixtures;
+		};
+		A10300000000000000000003 /* MIDI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
+			productName = MIDI;
+		};
+		A10300000000000000000004 /* MIDI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
+			productName = MIDI;
 		};
 		D85596AD2F83FF72005BE7FE /* RealityKitContent */ = {
 			isa = XCSwiftPackageProductDependency;

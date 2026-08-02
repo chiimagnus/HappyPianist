@@ -1,5 +1,6 @@
 import Foundation
 import Diagnostics
+import MIDI
 
 @MainActor
 protocol AIPerformancePracticeSessionProtocol: AnyObject {

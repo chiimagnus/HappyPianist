@@ -1,41 +1,37 @@
-import CoreMIDI
 import Foundation
 import Diagnostics
+import MIDI
 import os
 
-final class MIDIPlaybackGenerationGuard: @unchecked Sendable {
-    private let generation = OSAllocatedUnfairLock(initialState: UInt64(0))
+actor MIDIPlaybackGenerationGate {
+    private var generation: UInt64 = 0
 
     func beginGeneration() -> UInt64 {
-        generation.withLock { value in
-            value &+= 1
-            return value
-        }
+        generation &+= 1
+        return generation
     }
 
     func invalidate() {
-        generation.withLock { $0 &+= 1 }
+        generation &+= 1
     }
 
     func performIfCurrent(
         _ expectedGeneration: UInt64,
         operation: @Sendable () throws -> Void
     ) rethrows -> Bool {
-        try generation.withLock { currentGeneration in
-            guard currentGeneration == expectedGeneration else { return false }
-            try operation()
-            return true
-        }
+        guard generation == expectedGeneration else { return false }
+        try operation()
+        return true
     }
 }
 
 protocol MIDILookAheadClock: Sendable {
-    func nowSeconds() -> TimeInterval
+    func nowSeconds() async -> TimeInterval
     func sleep(for seconds: TimeInterval) async throws
 }
 
 struct SystemMIDILookAheadClock: MIDILookAheadClock {
-    func nowSeconds() -> TimeInterval {
+    func nowSeconds() async -> TimeInterval {
         ProcessInfo.processInfo.systemUptime
     }
 
@@ -63,7 +59,7 @@ actor MIDILookAheadScheduler {
     private let clock: any MIDILookAheadClock
     private let configuration: MIDILookAheadConfiguration
     private let diagnosticsReporter: (any DiagnosticsReporting)?
-    private let generationGuard: MIDIPlaybackGenerationGuard
+    private let generationGate: MIDIPlaybackGenerationGate
     private let generation: UInt64
 
     init(
@@ -75,7 +71,7 @@ actor MIDILookAheadScheduler {
         clock: any MIDILookAheadClock = SystemMIDILookAheadClock(),
         configuration: MIDILookAheadConfiguration = .standard,
         diagnosticsReporter: (any DiagnosticsReporting)? = nil,
-        generationGuard: MIDIPlaybackGenerationGuard = MIDIPlaybackGenerationGuard(),
+        generationGate: MIDIPlaybackGenerationGate = MIDIPlaybackGenerationGate(),
         generation: UInt64 = 0
     ) {
         self.outputService = outputService
@@ -89,7 +85,7 @@ actor MIDILookAheadScheduler {
             refillIntervalSeconds: max(0.001, configuration.refillIntervalSeconds)
         )
         self.diagnosticsReporter = diagnosticsReporter
-        self.generationGuard = generationGuard
+        self.generationGate = generationGate
         self.generation = generation
     }
 
@@ -124,7 +120,7 @@ actor MIDILookAheadScheduler {
             .map(\.element)
         guard pendingEvents.isEmpty == false else { return }
 
-        let startedAtSeconds = clock.nowSeconds()
+        let startedAtSeconds = await clock.nowSeconds()
         let hostTimeOrigin = hostTimeConverter.origin(atTransportSeconds: startSeconds)
         var nextEventIndex = 0
         var handledEventCount = 0
@@ -139,7 +135,7 @@ actor MIDILookAheadScheduler {
             while nextEventIndex < pendingEvents.count {
                 try Task.checkCancellation()
 
-                let elapsedSeconds = max(0, clock.nowSeconds() - startedAtSeconds)
+                let elapsedSeconds = max(0, await clock.nowSeconds() - startedAtSeconds)
                 let transportNowSeconds = startSeconds + elapsedSeconds
                 let horizonEndSeconds = transportNowSeconds + configuration.horizonSeconds
                 var messages: [TimestampedMIDI1Message] = []
@@ -175,8 +171,8 @@ actor MIDILookAheadScheduler {
                 if messages.isEmpty == false {
                     try Task.checkCancellation()
                     let batchMessages = messages
-                    let submittedAtSeconds = clock.nowSeconds()
-                    let sent = try generationGuard.performIfCurrent(generation) {
+                    let submittedAtSeconds = await clock.nowSeconds()
+                    let sent = try await generationGate.performIfCurrent(generation) {
                         try outputService.sendMIDI1Messages(
                             batchMessages,
                             destinationUniqueID: destinationUniqueID
