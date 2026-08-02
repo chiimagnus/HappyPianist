@@ -1,5 +1,6 @@
 import Foundation
 import MusicXML
+import Notation
 import Practice
 
 extension PracticeSessionViewModel {

@@ -1,4 +1,4 @@
-@testable import HappyPianistAVP
+@testable import Notation
 import Testing
 
 struct GrandStaffHorizontalSpacingServiceTests {

@@ -1,7 +1,8 @@
 import Foundation
-import MusicXML
-import Practice
-@testable import HappyPianistAVP
+import HappyPianistTestFixtures
+@testable import MusicXML
+@testable import Notation
+@testable import Practice
 import Testing
 
 @Test
@@ -30,8 +31,7 @@ private struct NotationFidelityModel {
 }
 
 private func notationFidelityModel() throws -> NotationFidelityModel {
-    let fixture = try PianoPerformanceFixtureLoader().fixture(id: "notation-fidelity-piano")
-    let score = try MusicXMLParser().parse(fileURL: fixture.url)
+    let score = try MusicXMLParser().parse(fileURL: testFixtureURL("NotationFidelityPiano.musicxml"))
     let projection = ScoreNotationProjection(
         plan: makeTestScorePerformancePlan(from: score),
         sourceScore: score

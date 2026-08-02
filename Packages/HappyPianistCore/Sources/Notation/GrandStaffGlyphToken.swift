@@ -1,6 +1,6 @@
 import Foundation
 
-enum GrandStaffGlyphToken: String, CaseIterable, Equatable, Hashable {
+public enum GrandStaffGlyphToken: String, CaseIterable, Equatable, Hashable {
     case brace
     case gClef
     case fClef
@@ -55,7 +55,7 @@ enum GrandStaffGlyphToken: String, CaseIterable, Equatable, Hashable {
     case timeSignature8
     case timeSignature9
 
-    var smuflCodePoint: UInt32 {
+    public var smuflCodePoint: UInt32 {
         switch self {
         case .brace: 0xE000
         case .gClef: 0xE050
@@ -113,11 +113,11 @@ enum GrandStaffGlyphToken: String, CaseIterable, Equatable, Hashable {
         }
     }
 
-    var glyph: String {
+    public var glyph: String {
         UnicodeScalar(smuflCodePoint).map(String.init) ?? ""
     }
 
-    static func timeSignatureDigit(_ digit: Int) -> Self? {
+    public static func timeSignatureDigit(_ digit: Int) -> Self? {
         switch digit {
         case 0: .timeSignature0
         case 1: .timeSignature1

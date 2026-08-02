@@ -350,7 +350,7 @@ struct GrandStaffNotationAttributeChange: Equatable, Identifiable {
     }
 }
 
-struct GrandStaffNotationContext: Equatable {
+public struct GrandStaffNotationContext: Equatable {
     let trebleClefSymbol: String
     let bassClefSymbol: String
     let trebleClefSignToken: String?
@@ -369,7 +369,7 @@ struct GrandStaffNotationContext: Equatable {
         clefGlyphToken(signToken: bassClefSignToken)
     }
 
-    init(
+    public init(
         trebleClefSymbol: String = GrandStaffGlyphToken.gClef.glyph,
         bassClefSymbol: String = GrandStaffGlyphToken.fClef.glyph,
         trebleClefSignToken: String? = "G",

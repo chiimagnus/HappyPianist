@@ -9,8 +9,9 @@ Diagnostics → ∅
 MusicXML → ∅
 MIDI → Diagnostics
 Practice → Diagnostics, MIDI, MusicXML
-HappyPianistAVP → Diagnostics, MusicXML, MIDI, Practice
-HappyPianistAVPTests → Diagnostics, MusicXML, MIDI, Practice, HappyPianistTestFixtures
+Notation → MusicXML, Practice
+HappyPianistAVP → Diagnostics, MusicXML, MIDI, Practice, Notation
+HappyPianistAVPTests → Diagnostics, MusicXML, MIDI, Practice, Notation, HappyPianistTestFixtures
 ```
 
 ## Diagnostics
@@ -30,6 +31,12 @@ HappyPianistAVPTests → Diagnostics, MusicXML, MIDI, Practice, HappyPianistTest
 `MIDIPracticeSession` 是可复用的 MIDI-only 生命周期 owner：它独占输入 start/stop、generation、stale-event rejection、observation mapping/matching 和 recorder drain；host 注入输出 reset 与 progress flush。结束严格按“失效输入 → 停止输入 → reset/flush 输出 → 等待已接受 observation 的记录 → flush progress → 终结 session”进行；save 失败时 session 保持可恢复。AVP 的 `PracticeMIDIInputService` 仅做 presentation adapter；AVAudio、audio recognition、手部/虚拟琴、AR 和 SwiftUI 保留在 App。
 
 progress 的事实与 repository contracts 属于 `Practice`；文件路径和 `FilePracticeProgressRepository` 目前由 AVP 的 `Services/Library` 临时 owner 持有，直到 Library product 在下一 task 接管。
+
+## Notation
+
+`Notation` 只依赖 `Practice` 与 `MusicXML`，拥有 `GrandStaffNotationContext`、glyph catalog、engraving metrics、chord/horizontal/viewport layout、presentation、Canvas renderer、SwiftUI view 和 VoiceOver overlay。它只接收 `ScoreNotationProjection`、overlay、measure spans 与 hand mode；不接收 session navigation、progress、AR piano guide 或 Library。
+
+当前 App 仅构造 context 和向 `GrandStaffNotationView` 传入 projection；renderer 的高亮色在 Notation 内按谱表解析，不复用 Piano key 的 SwiftUI/UIKit tint token。`Practice` 不引用 Notation，旧 App `GrandStaff*` source 和非视觉测试入口均不存在；visual golden 继续在 AVP target 检验实际 `ImageRenderer` 路径。
 
 用户文件先经过单一 `MusicXMLImportSafetyPolicy`：只接受有限大小的常规文件；MXL 在读取 central directory 和每次 extraction 前检查 entry 数量、声明解压大小、总大小、压缩比与安全的相对 archive name。拒绝结果是无路径的 typed reason，不返回部分 score。
 

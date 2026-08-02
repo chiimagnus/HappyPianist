@@ -1186,10 +1186,7 @@ struct GrandStaffNotationRenderer {
 
     private func resolvedNotationColor(isHighlighted: Bool, staffNumber: Int) -> Color {
         guard isHighlighted else { return .primary }
-        return PianoGuideHighlightTintToken.resolve(
-            staffNumber: staffNumber,
-            keyKind: .white
-        ).swiftUIColor
+        return staffNumber >= 2 ? .cyan : .yellow
     }
 
     private func handFadeScale(for hand: ScoreHand, practiceHandMode: PracticeHandMode) -> Double {

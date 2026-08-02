@@ -1,5 +1,5 @@
 import CoreGraphics
-@testable import HappyPianistAVP
+@testable import Notation
 import Testing
 
 @Test

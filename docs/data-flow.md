@@ -9,6 +9,7 @@ MusicXML / MXL
   → 曲库事务与索引
   → PracticePreparationService
   → ScorePerformancePlan + measure spans
+  → Notation renderer projection
   → practice session
   → typed observation / playback
   → assessment / coaching
@@ -35,6 +36,17 @@ fileImporter
 - `Practice` 是 preparation 与共享 runtime 的包边界，依赖 `MusicXML`、`MIDI` 和 `Diagnostics`；曲库、SwiftUI/RealityKit、AVAudio、音频识别与手部/虚拟琴不得被它反向引用。
 - prepared result 必须同时有可演奏 steps 与 `MusicXMLMeasureSpan`；缺少小节结构时返回 typed failure，不建立 legacy fallback。
 - preparation failure 的 UI、技术详情和诊断事件来自同一 typed failure；stale generation 不发布旧结果。
+
+## 记谱渲染
+
+```text
+ScoreNotationProjection + overlay + measure spans + hand mode
+  → Notation layout / accessibility descriptor
+  → Canvas renderer + VoiceOver overlay
+```
+
+- `Notation` 只消费 Practice/MusicXML 的事实；session 仅提供当前 context 与 transient overlay，不能把导航、progress 或 AR guide 传入 renderer。
+- 记谱高亮、Dynamic Type、Differentiate Without Color 和 VoiceOver 描述是派生表现，不写入 progress。
 
 ## 练习启动与本轮配置
 

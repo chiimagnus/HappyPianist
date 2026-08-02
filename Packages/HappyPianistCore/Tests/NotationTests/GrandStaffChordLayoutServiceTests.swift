@@ -1,6 +1,6 @@
 import CoreGraphics
-import MusicXML
-@testable import HappyPianistAVP
+@testable import MusicXML
+@testable import Notation
 import Testing
 
 struct GrandStaffChordLayoutServiceTests {

@@ -2,7 +2,7 @@ import SwiftUI
 import MusicXML
 import Practice
 
-struct GrandStaffNotationView: View {
+public struct GrandStaffNotationView: View {
     let projection: ScoreNotationProjection
     let overlay: ScoreNotationProjection.Overlay
     let measureSpans: [MusicXMLMeasureSpan]
@@ -18,13 +18,34 @@ struct GrandStaffNotationView: View {
     @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
     @State private var centeredForFirstOccurrenceID: String?
 
-    init(
+    public init(
         projection: ScoreNotationProjection,
         overlay: ScoreNotationProjection.Overlay = .empty,
         measureSpans: [MusicXMLMeasureSpan],
         context: GrandStaffNotationContext?,
         practiceHandMode: PracticeHandMode = .both,
-        scrollTickProvider: (() -> Double?)? = nil,
+        scrollTickProvider: (() -> Double?)? = nil
+    ) {
+        self.init(
+            projection: projection,
+            overlay: overlay,
+            measureSpans: measureSpans,
+            context: context,
+            practiceHandMode: practiceHandMode,
+            scrollTickProvider: scrollTickProvider,
+            layoutService: GrandStaffNotationLayoutService(),
+            viewportLayoutService: GrandStaffNotationViewportLayoutService(),
+            renderer: GrandStaffNotationRenderer()
+        )
+    }
+
+    init(
+        projection: ScoreNotationProjection,
+        overlay: ScoreNotationProjection.Overlay,
+        measureSpans: [MusicXMLMeasureSpan],
+        context: GrandStaffNotationContext?,
+        practiceHandMode: PracticeHandMode,
+        scrollTickProvider: (() -> Double?)?,
         layoutService: GrandStaffNotationLayoutService = GrandStaffNotationLayoutService(),
         viewportLayoutService: GrandStaffNotationViewportLayoutService = GrandStaffNotationViewportLayoutService(),
         renderer: GrandStaffNotationRenderer = GrandStaffNotationRenderer()
@@ -42,7 +63,7 @@ struct GrandStaffNotationView: View {
         self.renderer = renderer
     }
 
-    var body: some View {
+    public var body: some View {
         // KEEP_GEOMETRYREADER: needs exact viewport size for notation layout + scroll anchoring.
         GeometryReader { proxy in
             let scrollTick = scrollTickProvider?()

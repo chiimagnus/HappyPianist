@@ -3,6 +3,7 @@ import CoreText
 import CryptoKit
 import Foundation
 import MusicXML
+@testable import Notation
 import Practice
 @testable import HappyPianistAVP
 import SwiftUI
