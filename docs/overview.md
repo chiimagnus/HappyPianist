@@ -10,6 +10,7 @@ HappyPianist 是一个面向 Apple Vision Pro 的钢琴练习应用。仓库包�
 | --- | --- | --- |
 | visionOS App | `HappyPianistAVP/` | 准备、曲库、练习、录制、AI 对弹与沉浸空间。 |
 | visionOS Tests | `HappyPianistAVPTests/` | MusicXML、练习、输入、回放、反馈、窗口与服务测试。 |
+| 共享 Swift 包 | `Packages/HappyPianistCore/` | 可复用的 Diagnostics 根模块；App 通过显式产品依赖使用它。 |
 | RealityKit 内容包 | `Packages/RealityKitContent/` | Reality Composer Pro 资产与 bundle。 |
 | Aria v2 服务（可选） | `python_backend/aria_server/` | Bonjour + HTTP/WS 网络即兴后端。 |
 
@@ -20,6 +21,7 @@ Xcode 工程只有 `HappyPianistAVP` 与 `HappyPianistAVPTests` 两个 target；
 | 想了解什么 | 文档 |
 | --- | --- |
 | 模块、依赖方向、运行时边界和危险修改区 | [architecture.md](architecture.md) |
+| 共享包的产品边界与依赖图 | [modules/shared-core.md](modules/shared-core.md) |
 | MusicXML、输入、练习、反馈、录制与 AI 的数据流 | [data-flow.md](data-flow.md) |
 | 曲谱真值、参考演奏、输入证据、演奏评价、虚拟指导与专业验收路线 | [piano-performance-quality.md](piano-performance-quality.md) |
 | Xcode、权限、依赖、资源、设置与可选服务 | [configuration.md](configuration.md) |

@@ -1,4 +1,5 @@
 import ARKit
+import Diagnostics
 import Foundation
 import Observation
 import simd

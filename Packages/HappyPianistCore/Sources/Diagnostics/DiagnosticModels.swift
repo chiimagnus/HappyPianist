@@ -1,13 +1,13 @@
 import Foundation
 
-enum DiagnosticSeverity: String, Codable, CaseIterable {
+public enum DiagnosticSeverity: String, Codable, CaseIterable, Sendable {
     case debug
     case info
     case warning
     case error
 }
 
-enum DiagnosticCategory: String, Codable, CaseIterable {
+public enum DiagnosticCategory: String, Codable, CaseIterable, Sendable {
     case general
     case library
     case practicePreparation
@@ -21,12 +21,12 @@ enum DiagnosticCategory: String, Codable, CaseIterable {
     case pianoPerformance
 }
 
-enum DiagnosticPersistence: String, Codable {
+public enum DiagnosticPersistence: String, Codable, Sendable {
     case systemOnly
     case exportable
 }
 
-enum DiagnosticCode: String, Codable, CaseIterable {
+public enum DiagnosticCode: String, Codable, CaseIterable, Sendable {
     case runtimeEvent = "RUNTIME_EVENT"
     case practicePreparationStarted = "PRACTICE_PREPARATION_STARTED"
     case practicePreparationSucceeded = "PRACTICE_PREPARATION_SUCCEEDED"
@@ -68,11 +68,11 @@ enum DiagnosticCode: String, Codable, CaseIterable {
     case pianoPerformancePipeline = "PIANO_PERFORMANCE_PIPELINE"
 }
 
-struct DiagnosticFileReference: Codable, Equatable {
-    let fileName: String
-    let relativePath: String
+public struct DiagnosticFileReference: Codable, Equatable, Sendable {
+    public let fileName: String
+    public let relativePath: String
 
-    init?(fileName: String, relativePath: String) {
+    public init?(fileName: String, relativePath: String) {
         let normalizedFileName = URL(fileURLWithPath: fileName).lastPathComponent
         let normalizedPath = relativePath.replacing("\\", with: "/")
         let components = normalizedPath.split(separator: "/", omittingEmptySubsequences: true)
@@ -88,39 +88,39 @@ struct DiagnosticFileReference: Codable, Equatable {
     }
 }
 
-struct DiagnosticSourceLocation: Codable, Equatable {
-    let line: Int?
-    let column: Int?
-    let measure: String?
+public struct DiagnosticSourceLocation: Codable, Equatable, Sendable {
+    public let line: Int?
+    public let column: Int?
+    public let measure: String?
 
-    init(line: Int? = nil, column: Int? = nil, measure: String? = nil) {
+    public init(line: Int? = nil, column: Int? = nil, measure: String? = nil) {
         self.line = line.flatMap { $0 > 0 ? $0 : nil }
         self.column = column.flatMap { $0 > 0 ? $0 : nil }
         self.measure = measure?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
     }
 }
 
-struct DiagnosticEvent: Codable, Equatable, Identifiable {
-    let id: UUID
-    let timestamp: Date
-    let severity: DiagnosticSeverity
-    let code: DiagnosticCode
-    let category: DiagnosticCategory
-    let stage: String
-    let summary: String
-    let reason: String
-    let songID: UUID?
-    let scoreRevision: String?
-    let operationID: UUID?
-    let safeFileName: String?
-    let transactionKind: String?
-    let transactionPhase: String?
-    let scoreFileVersionID: UUID?
-    let file: DiagnosticFileReference?
-    let sourceLocation: DiagnosticSourceLocation?
-    let persistence: DiagnosticPersistence
+public struct DiagnosticEvent: Codable, Equatable, Identifiable, Sendable {
+    public let id: UUID
+    public let timestamp: Date
+    public let severity: DiagnosticSeverity
+    public let code: DiagnosticCode
+    public let category: DiagnosticCategory
+    public let stage: String
+    public let summary: String
+    public let reason: String
+    public let songID: UUID?
+    public let scoreRevision: String?
+    public let operationID: UUID?
+    public let safeFileName: String?
+    public let transactionKind: String?
+    public let transactionPhase: String?
+    public let scoreFileVersionID: UUID?
+    public let file: DiagnosticFileReference?
+    public let sourceLocation: DiagnosticSourceLocation?
+    public let persistence: DiagnosticPersistence
 
-    init(
+    public init(
         id: UUID = UUID(),
         timestamp: Date = .now,
         severity: DiagnosticSeverity,
@@ -162,7 +162,7 @@ struct DiagnosticEvent: Codable, Equatable, Identifiable {
         self.persistence = persistence
     }
 
-    var textRepresentation: String {
+    public var textRepresentation: String {
         var lines = [
             "timestamp: \(DiagnosticsDateText.iso8601(timestamp))",
             "level: \(severity.rawValue)",
@@ -172,57 +172,38 @@ struct DiagnosticEvent: Codable, Equatable, Identifiable {
             "summary: \(summary)",
             "reason: \(reason)",
         ]
-        if let songID {
-            lines.append("songID: \(songID.uuidString)")
-        }
-        if let scoreRevision {
-            lines.append("scoreRevision: \(scoreRevision)")
-        }
-        if let operationID {
-            lines.append("operationID: \(operationID.uuidString)")
-        }
-        if let safeFileName {
-            lines.append("safeFileName: \(safeFileName)")
-        }
-        if let transactionKind {
-            lines.append("transactionKind: \(transactionKind)")
-        }
-        if let transactionPhase {
-            lines.append("transactionPhase: \(transactionPhase)")
-        }
-        if let scoreFileVersionID {
-            lines.append("scoreFileVersionID: \(scoreFileVersionID.uuidString)")
-        }
+        if let songID { lines.append("songID: \(songID.uuidString)") }
+        if let scoreRevision { lines.append("scoreRevision: \(scoreRevision)") }
+        if let operationID { lines.append("operationID: \(operationID.uuidString)") }
+        if let safeFileName { lines.append("safeFileName: \(safeFileName)") }
+        if let transactionKind { lines.append("transactionKind: \(transactionKind)") }
+        if let transactionPhase { lines.append("transactionPhase: \(transactionPhase)") }
+        if let scoreFileVersionID { lines.append("scoreFileVersionID: \(scoreFileVersionID.uuidString)") }
         if let file {
             lines.append("file: \(file.fileName)")
             lines.append("relativePath: \(file.relativePath)")
         }
-        if let measure = sourceLocation?.measure {
-            lines.append("measure: \(measure)")
-        }
-        if let line = sourceLocation?.line {
-            lines.append("line: \(line)")
-        }
-        if let column = sourceLocation?.column {
-            lines.append("column: \(column)")
-        }
+        if let measure = sourceLocation?.measure { lines.append("measure: \(measure)") }
+        if let line = sourceLocation?.line { lines.append("line: \(line)") }
+        if let column = sourceLocation?.column { lines.append("column: \(column)") }
         return lines.joined(separator: "\n")
     }
 }
 
-private extension String {
-    var nilIfEmpty: String? {
-        isEmpty ? nil : self
+public struct DiagnosticLogSummary: Equatable, Sendable {
+    public let eventCount: Int
+    public let totalBytes: Int64
+    public let coverageStart: Date?
+    public let coverageEnd: Date?
+
+    public init(eventCount: Int, totalBytes: Int64, coverageStart: Date?, coverageEnd: Date?) {
+        self.eventCount = eventCount
+        self.totalBytes = totalBytes
+        self.coverageStart = coverageStart
+        self.coverageEnd = coverageEnd
     }
-}
 
-struct DiagnosticLogSummary: Equatable {
-    let eventCount: Int
-    let totalBytes: Int64
-    let coverageStart: Date?
-    let coverageEnd: Date?
-
-    static let empty = DiagnosticLogSummary(
+    public static let empty = DiagnosticLogSummary(
         eventCount: 0,
         totalBytes: 0,
         coverageStart: nil,
@@ -268,4 +249,8 @@ enum DiagnosticsDateText {
         let text = String(max(0, component ?? 0))
         return String(repeating: "0", count: max(0, width - text.count)) + text
     }
+}
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
 }

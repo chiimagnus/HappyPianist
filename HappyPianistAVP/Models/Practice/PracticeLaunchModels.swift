@@ -1,4 +1,5 @@
 import Foundation
+import Diagnostics
 
 enum PracticeLaunchState: Equatable {
     case requested(songID: UUID)

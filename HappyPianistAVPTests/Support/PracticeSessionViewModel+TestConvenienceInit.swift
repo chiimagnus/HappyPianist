@@ -1,4 +1,5 @@
 import Foundation
+import Diagnostics
 @testable import HappyPianistAVP
 
 extension PracticeSessionViewModel {

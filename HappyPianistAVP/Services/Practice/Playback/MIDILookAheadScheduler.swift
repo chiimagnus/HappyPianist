@@ -1,5 +1,6 @@
 import CoreMIDI
 import Foundation
+import Diagnostics
 import os
 
 final class MIDIPlaybackGenerationGuard: @unchecked Sendable {

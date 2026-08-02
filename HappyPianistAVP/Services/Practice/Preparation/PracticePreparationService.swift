@@ -1,4 +1,5 @@
 import CryptoKit
+import Diagnostics
 import Foundation
 
 enum PracticePreparationError: Error, Equatable {

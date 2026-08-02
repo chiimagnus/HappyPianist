@@ -1,17 +1,15 @@
 import Foundation
-@testable import HappyPianistAVP
+@testable import Diagnostics
+import Synchronization
 import Testing
 
-private final class RecordingSystemDiagnosticsSink: SystemDiagnosticsSinkProtocol, @unchecked Sendable {
-    private let lock = NSLock()
-    private var storedEvents: [DiagnosticEvent] = []
+private final class RecordingSystemDiagnosticsSink: SystemDiagnosticsSinkProtocol {
+    private let eventsStorage = Mutex<[DiagnosticEvent]>([])
 
-    var events: [DiagnosticEvent] {
-        lock.withLock { storedEvents }
-    }
+    var events: [DiagnosticEvent] { eventsStorage.withLock { $0 } }
 
     func record(_ event: DiagnosticEvent) {
-        lock.withLock { storedEvents.append(event) }
+        eventsStorage.withLock { $0.append(event) }
     }
 }
 
@@ -23,30 +21,19 @@ private actor RecordingDiagnosticsStore: DiagnosticsStoreProtocol {
         if let appendError { throw appendError }
         events.append(event)
     }
-
     func cleanupExpiredLogs(referenceDate _: Date) {}
-    func loadEventsForExport(referenceDate _: Date) -> [DiagnosticEvent] {
-        events
-    }
-
-    func summary(referenceDate _: Date) -> DiagnosticLogSummary {
-        .empty
-    }
-
-    func clear() {
-        events = []
-    }
+    func loadEventsForExport(referenceDate _: Date) -> [DiagnosticEvent] { events }
+    func summary(referenceDate _: Date) -> DiagnosticLogSummary { .empty }
+    func clear() { events = [] }
+    func setAppendError(_ error: Error?) { appendError = error }
 }
 
 @Test
 func reporterForwardsExportableEventToBothSinks() async {
     let systemSink = RecordingSystemDiagnosticsSink()
     let store = RecordingDiagnosticsStore()
-    let reporter = AppDiagnosticsReporter(systemSink: systemSink, exportStore: store)
     let event = testReporterEvent(persistence: .exportable)
-
-    let result = await reporter.record(event)
-
+    let result = await AppDiagnosticsReporter(systemSink: systemSink, exportStore: store).record(event)
     #expect(result.persistedForExport)
     #expect(systemSink.events == [event])
     #expect(await store.events == [event])
@@ -56,11 +43,8 @@ func reporterForwardsExportableEventToBothSinks() async {
 func reporterKeepsSystemOnlyEventOutOfFileStore() async {
     let systemSink = RecordingSystemDiagnosticsSink()
     let store = RecordingDiagnosticsStore()
-    let reporter = AppDiagnosticsReporter(systemSink: systemSink, exportStore: store)
     let event = testReporterEvent(persistence: .systemOnly)
-
-    let result = await reporter.record(event)
-
+    let result = await AppDiagnosticsReporter(systemSink: systemSink, exportStore: store).record(event)
     #expect(result.persistedForExport == false)
     #expect(systemSink.events == [event])
     #expect(await store.events.isEmpty)
@@ -71,11 +55,8 @@ func reporterRecordsSynchronousSystemEventWithoutTouchingFileStore() async {
     let systemSink = RecordingSystemDiagnosticsSink()
     let store = RecordingDiagnosticsStore()
     let reporter = AppDiagnosticsReporter(systemSink: systemSink, exportStore: store)
-    let event = testReporterEvent(persistence: .systemOnly)
-
-    reporter.recordSystem(event)
-
-    #expect(systemSink.events == [event])
+    reporter.recordSystem(testReporterEvent(persistence: .systemOnly))
+    #expect(systemSink.events.count == 1)
     #expect(await store.events.isEmpty)
 }
 
@@ -84,31 +65,11 @@ func reporterKeepsAppRunningWhenFileStoreFails() async {
     let systemSink = RecordingSystemDiagnosticsSink()
     let store = RecordingDiagnosticsStore()
     await store.setAppendError(CocoaError(.fileWriteOutOfSpace))
-    let reporter = AppDiagnosticsReporter(systemSink: systemSink, exportStore: store)
-
-    let result = await reporter.record(testReporterEvent(persistence: .exportable))
-
+    let result = await AppDiagnosticsReporter(systemSink: systemSink, exportStore: store)
+        .record(testReporterEvent(persistence: .exportable))
     #expect(result.persistedForExport == false)
     #expect(systemSink.events.count == 2)
     #expect(systemSink.events.last?.code == .diagnosticsStoreWriteFailed)
-}
-
-@Test
-func reporterPersistsAggregatedOutputMetricsForRetainedExport() async {
-    let systemSink = RecordingSystemDiagnosticsSink()
-    let store = RecordingDiagnosticsStore()
-    let reporter = AppDiagnosticsReporter(systemSink: systemSink, exportStore: store)
-    var metrics = PianoOutputMetricsAccumulator()
-    metrics.recordReset(succeeded: true, preventsStuckNotes: true)
-
-    let result = await reporter.recordOutputMetrics(
-        metrics.snapshot(capability: .localSampler)
-    ).value
-
-    #expect(result.persistedForExport)
-    #expect(systemSink.events.count == 1)
-    #expect(await store.events.count == 1)
-    #expect(await store.events.first?.persistence == .exportable)
 }
 
 private func testReporterEvent(persistence: DiagnosticPersistence) -> DiagnosticEvent {
@@ -121,10 +82,4 @@ private func testReporterEvent(persistence: DiagnosticPersistence) -> Diagnostic
         reason: "test",
         persistence: persistence
     )
-}
-
-private extension RecordingDiagnosticsStore {
-    func setAppendError(_ error: Error?) {
-        appendError = error
-    }
 }

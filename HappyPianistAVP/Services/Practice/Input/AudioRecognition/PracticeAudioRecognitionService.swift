@@ -1,5 +1,6 @@
 import AVFoundation
 import Foundation
+import Diagnostics
 
 final class PracticeAudioRecognitionService: PracticeAudioRecognitionServiceProtocol {
     private enum ServiceError: LocalizedError {

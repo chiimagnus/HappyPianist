@@ -1,4 +1,5 @@
 import Foundation
+import Diagnostics
 
 struct AutoplayPerformanceTimeline: Equatable {
     struct TransportMetrics: Equatable {

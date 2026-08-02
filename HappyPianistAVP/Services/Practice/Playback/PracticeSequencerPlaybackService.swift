@@ -1,6 +1,7 @@
 import AudioToolbox
 import AVFAudio
 import Foundation
+import Diagnostics
 
 struct PracticeSequencerSequence {
     let midiData: Data

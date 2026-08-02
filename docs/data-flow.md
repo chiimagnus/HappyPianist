@@ -122,7 +122,7 @@ ScorePerformancePlan
 ```text
 typed domain failure / aggregate output metric
   → DiagnosticEvent
-  → AppDiagnosticsReporter
+  → Diagnostics.AppDiagnosticsReporter
   → os.Logger
   → exportable JSONL（仅低频安全事件）
 ```
@@ -131,3 +131,4 @@ typed domain failure / aggregate output metric
 - 可导出事件只能包含枚举、阶段、计数、耗时桶、capability、calibration ID/version、设备/OS 和枚举 route。
 - 禁止写入绝对路径、MusicXML 正文、逐音 MIDI/音频/手部数据、设备序列号、路由显示名、AI prompt/正文、密钥或认证信息。
 - 日志默认保留七个日历日；导出由用户触发，不自动上传。
+- `Diagnostics` 是独立 Swift package 的根产品；其 archive 使用 ZIPFoundation，但 App target 不直接链接 ZIPFoundation。

@@ -1,4 +1,5 @@
 import Foundation
+import Diagnostics
 
 struct PerformanceTransportReducer {
     struct TransportState: Equatable {

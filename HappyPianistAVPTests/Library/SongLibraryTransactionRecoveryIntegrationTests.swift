@@ -1,4 +1,5 @@
 import CryptoKit
+import Diagnostics
 import Foundation
 @testable import HappyPianistAVP
 import Testing

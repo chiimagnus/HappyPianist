@@ -1,5 +1,6 @@
 import CoreMIDI
 import Foundation
+import Diagnostics
 
 @MainActor
 final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServiceProtocol {

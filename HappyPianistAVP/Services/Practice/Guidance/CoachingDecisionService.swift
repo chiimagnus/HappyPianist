@@ -1,4 +1,5 @@
 import Foundation
+import Diagnostics
 
 actor CoachingDecisionService {
     private struct SessionKey: Equatable {

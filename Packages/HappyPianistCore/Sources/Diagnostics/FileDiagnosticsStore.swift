@@ -1,6 +1,6 @@
 import Foundation
 
-protocol DiagnosticsStoreProtocol: Sendable {
+public protocol DiagnosticsStoreProtocol: Sendable {
     func append(_ event: DiagnosticEvent) async throws
     func cleanupExpiredLogs(referenceDate: Date) async throws
     func loadEventsForExport(referenceDate: Date) async throws -> [DiagnosticEvent]
@@ -8,7 +8,7 @@ protocol DiagnosticsStoreProtocol: Sendable {
     func clear() async throws
 }
 
-actor FileDiagnosticsStore: DiagnosticsStoreProtocol {
+public actor FileDiagnosticsStore: DiagnosticsStoreProtocol {
     private let fileManager: FileManager
     private let paths: DiagnosticsPaths
     private let calendar: Calendar
@@ -18,7 +18,7 @@ actor FileDiagnosticsStore: DiagnosticsStoreProtocol {
     private let decoder: JSONDecoder
     private var lastCleanupDay: Date?
 
-    init(
+    public init(
         fileManager: FileManager = .default,
         paths: DiagnosticsPaths = DiagnosticsPaths(),
         calendar: Calendar = .current,
@@ -37,7 +37,7 @@ actor FileDiagnosticsStore: DiagnosticsStoreProtocol {
         decoder.dateDecodingStrategy = .iso8601
     }
 
-    func append(_ event: DiagnosticEvent) throws {
+    public func append(_ event: DiagnosticEvent) throws {
         let referenceDate = now()
         try cleanupIfNeeded(referenceDate: referenceDate)
         try ensureDirectoryExists()
@@ -45,7 +45,6 @@ actor FileDiagnosticsStore: DiagnosticsStoreProtocol {
         let encoded = try encoder.encode(event)
         var line = encoded
         line.append(0x0A)
-
         if fileManager.fileExists(atPath: fileURL.path()) {
             let handle = try FileHandle(forWritingTo: fileURL)
             defer { try? handle.close() }
@@ -56,24 +55,22 @@ actor FileDiagnosticsStore: DiagnosticsStoreProtocol {
         }
     }
 
-    func cleanupExpiredLogs(referenceDate: Date) throws {
+    public func cleanupExpiredLogs(referenceDate: Date) throws {
         try ensureDirectoryExists()
         let cutoff = retentionCutoff(referenceDate: referenceDate)
         for url in try diagnosticFileURLs() {
             guard let date = dateFromFileName(url.lastPathComponent) else { continue }
-            if date < cutoff {
-                try fileManager.removeItem(at: url)
-            }
+            if date < cutoff { try fileManager.removeItem(at: url) }
         }
         lastCleanupDay = calendar.startOfDay(for: referenceDate)
     }
 
-    func loadEventsForExport(referenceDate: Date) throws -> [DiagnosticEvent] {
+    public func loadEventsForExport(referenceDate: Date) throws -> [DiagnosticEvent] {
         try cleanupExpiredLogs(referenceDate: referenceDate)
         return try loadEvents()
     }
 
-    func summary(referenceDate: Date) throws -> DiagnosticLogSummary {
+    public func summary(referenceDate: Date) throws -> DiagnosticLogSummary {
         try cleanupExpiredLogs(referenceDate: referenceDate)
         let urls = try diagnosticFileURLs()
         let events = try loadEvents(from: urls)
@@ -89,12 +86,10 @@ actor FileDiagnosticsStore: DiagnosticsStoreProtocol {
         )
     }
 
-    func clear() throws {
+    public func clear() throws {
         let root = try paths.rootDirectoryURL(using: fileManager)
         guard fileManager.fileExists(atPath: root.path()) else { return }
-        for url in try diagnosticFileURLs() {
-            try fileManager.removeItem(at: url)
-        }
+        for url in try diagnosticFileURLs() { try fileManager.removeItem(at: url) }
         lastCleanupDay = nil
     }
 
@@ -118,17 +113,12 @@ actor FileDiagnosticsStore: DiagnosticsStoreProtocol {
         for url in urls.sorted(by: { $0.lastPathComponent < $1.lastPathComponent }) {
             let data = try Data(contentsOf: url)
             for line in data.split(separator: 0x0A) where line.isEmpty == false {
-                guard let event = try? decoder.decode(DiagnosticEvent.self, from: Data(line)) else {
-                    continue
-                }
+                guard let event = try? decoder.decode(DiagnosticEvent.self, from: Data(line)) else { continue }
                 events.append(event)
             }
         }
-        return events.sorted { lhs, rhs in
-            if lhs.timestamp == rhs.timestamp {
-                return lhs.id.uuidString < rhs.id.uuidString
-            }
-            return lhs.timestamp < rhs.timestamp
+        return events.sorted {
+            $0.timestamp == $1.timestamp ? $0.id.uuidString < $1.id.uuidString : $0.timestamp < $1.timestamp
         }
     }
 
@@ -146,21 +136,17 @@ actor FileDiagnosticsStore: DiagnosticsStoreProtocol {
             at: root,
             includingPropertiesForKeys: [.fileSizeKey],
             options: [.skipsHiddenFiles]
-        ).filter { url in
-            url.pathExtension == "jsonl" && url.lastPathComponent.hasPrefix("diagnostics-")
-        }
+        ).filter { $0.pathExtension == "jsonl" && $0.lastPathComponent.hasPrefix("diagnostics-") }
     }
 
     private func dailyFileURL(for date: Date) throws -> URL {
-        let token = DiagnosticsDateText.dayToken(date, calendar: calendar)
-        return try paths.rootDirectoryURL(using: fileManager).appending(path: "diagnostics-\(token).jsonl")
+        try paths.rootDirectoryURL(using: fileManager)
+            .appending(path: "diagnostics-\(DiagnosticsDateText.dayToken(date, calendar: calendar)).jsonl")
     }
 
     private func dateFromFileName(_ fileName: String) -> Date? {
         guard fileName.hasPrefix("diagnostics-"), fileName.hasSuffix(".jsonl") else { return nil }
-        let token = fileName
-            .replacing("diagnostics-", with: "")
-            .replacing(".jsonl", with: "")
+        let token = fileName.replacing("diagnostics-", with: "").replacing(".jsonl", with: "")
         let parts = token.split(separator: "-").compactMap { Int($0) }
         guard parts.count == 3 else { return nil }
         return calendar.date(from: DateComponents(year: parts[0], month: parts[1], day: parts[2]))

@@ -1,4 +1,5 @@
 import Foundation
+import Diagnostics
 
 protocol PracticeProgressClockProtocol: Sendable {
     func now() -> Date

@@ -1,22 +1,20 @@
 import Foundation
 
-enum DiagnosticsPathsError: Error {
+public enum DiagnosticsPathsError: Error, Sendable {
     case documentsUnavailable
 }
 
-struct DiagnosticsPaths {
-    static let directoryName = "Diagnostics"
+public struct DiagnosticsPaths: Sendable {
+    public static let directoryName = "Diagnostics"
 
     private let rootOverride: URL?
 
-    init(rootDirectoryURL: URL? = nil) {
+    public init(rootDirectoryURL: URL? = nil) {
         rootOverride = rootDirectoryURL
     }
 
-    func rootDirectoryURL(using fileManager: FileManager) throws -> URL {
-        if let rootOverride {
-            return rootOverride
-        }
+    public func rootDirectoryURL(using fileManager: FileManager) throws -> URL {
+        if let rootOverride { return rootOverride }
         guard let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
             throw DiagnosticsPathsError.documentsUnavailable
         }

@@ -1,3 +1,4 @@
+import Diagnostics
 @testable import HappyPianistAVP
 
 actor InMemoryDiagnosticsReporter: DiagnosticsReporting {

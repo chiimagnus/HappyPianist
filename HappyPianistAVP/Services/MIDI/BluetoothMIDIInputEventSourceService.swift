@@ -1,5 +1,6 @@
 import CoreMIDI
 import Darwin
+import Diagnostics
 import Foundation
 import os
 

@@ -1,3 +1,4 @@
+import Diagnostics
 import Foundation
 
 struct PianoOutputTimestampObservation: Equatable {
@@ -90,7 +91,6 @@ struct PianoOutputMetricsSnapshot: Equatable {
             + bucketFields(prefix: "acknowledgementLatency", counts: acknowledgementLatencyBuckets)
             + bucketFields(prefix: "jitter", counts: jitterBuckets)
             + (measurementMetadata?.fields ?? [])
-
         return DiagnosticEvent(
             severity: severity,
             code: .pianoPerformancePipeline,
@@ -108,13 +108,8 @@ struct PianoOutputMetricsSnapshot: Equatable {
         return .info
     }
 
-    private func bucketFields(
-        prefix: String,
-        counts: [PianoPerformanceDurationBucket: Int]
-    ) -> [String] {
-        PianoPerformanceDurationBucket.allCases.map { bucket in
-            "\(prefix).\(bucket.rawValue)=\(counts[bucket, default: 0])"
-        }
+    private func bucketFields(prefix: String, counts: [PianoPerformanceDurationBucket: Int]) -> [String] {
+        PianoPerformanceDurationBucket.allCases.map { "\(prefix).\($0.rawValue)=\(counts[$0, default: 0])" }
     }
 }
 
@@ -128,50 +123,31 @@ struct PianoOutputMetricsAccumulator {
     private(set) var resetSucceededCount = 0
     private(set) var resetFailedCount = 0
     private(set) var stuckNotePreventionCount = 0
-
     private var submissionLatencyBuckets: [PianoPerformanceDurationBucket: Int] = [:]
     private var acknowledgementLatencyBuckets: [PianoPerformanceDurationBucket: Int] = [:]
     private var jitterBuckets: [PianoPerformanceDurationBucket: Int] = [:]
     private var previousSubmissionOffset: TimeInterval?
 
-    var hasActivity: Bool {
-        scheduledCount > 0 || resetSucceededCount > 0 || resetFailedCount > 0
-    }
+    var hasActivity: Bool { scheduledCount > 0 || resetSucceededCount > 0 || resetFailedCount > 0 }
 
     mutating func record(_ observation: PianoOutputTimestampObservation) {
         guard observation.scheduledAtSeconds.isFinite else { return }
         scheduledCount += 1
-
-        guard let submittedAtSeconds = observation.submittedAtSeconds,
-              submittedAtSeconds.isFinite
-        else {
+        guard let submittedAtSeconds = observation.submittedAtSeconds, submittedAtSeconds.isFinite else {
             droppedCount += 1
             return
         }
-
         submittedCount += 1
         let submissionOffset = submittedAtSeconds - observation.scheduledAtSeconds
         if submissionOffset > 0 { lateCount += 1 }
-        Self.increment(
-            &submissionLatencyBuckets,
-            seconds: max(0, submissionOffset)
-        )
+        Self.increment(&submissionLatencyBuckets, seconds: max(0, submissionOffset))
         if let previousSubmissionOffset {
-            Self.increment(
-                &jitterBuckets,
-                seconds: abs(submissionOffset - previousSubmissionOffset)
-            )
+            Self.increment(&jitterBuckets, seconds: abs(submissionOffset - previousSubmissionOffset))
         }
         self.previousSubmissionOffset = submissionOffset
-
-        guard let acknowledgedAtSeconds = observation.acknowledgedAtSeconds,
-              acknowledgedAtSeconds.isFinite
-        else { return }
+        guard let acknowledgedAtSeconds = observation.acknowledgedAtSeconds, acknowledgedAtSeconds.isFinite else { return }
         acknowledgedCount += 1
-        Self.increment(
-            &acknowledgementLatencyBuckets,
-            seconds: max(0, acknowledgedAtSeconds - observation.scheduledAtSeconds)
-        )
+        Self.increment(&acknowledgementLatencyBuckets, seconds: max(0, acknowledgedAtSeconds - observation.scheduledAtSeconds))
     }
 
     mutating func recordDropped(count: Int) {
@@ -187,14 +163,8 @@ struct PianoOutputMetricsAccumulator {
     }
 
     mutating func recordReset(succeeded: Bool, preventsStuckNotes: Bool) {
-        if succeeded {
-            resetSucceededCount += 1
-        } else {
-            resetFailedCount += 1
-        }
-        if succeeded, preventsStuckNotes {
-            stuckNotePreventionCount += 1
-        }
+        if succeeded { resetSucceededCount += 1 } else { resetFailedCount += 1 }
+        if succeeded, preventsStuckNotes { stuckNotePreventionCount += 1 }
     }
 
     func snapshot(
@@ -219,10 +189,7 @@ struct PianoOutputMetricsAccumulator {
         )
     }
 
-    private static func increment(
-        _ buckets: inout [PianoPerformanceDurationBucket: Int],
-        seconds: TimeInterval
-    ) {
+    private static func increment(_ buckets: inout [PianoPerformanceDurationBucket: Int], seconds: TimeInterval) {
         buckets[PianoPerformanceDurationBucket(seconds: seconds), default: 0] += 1
     }
 }

@@ -1,4 +1,5 @@
 import Foundation
+import Diagnostics
 
 actor DuetAIPlaybackQueue {
     struct SubmitResult: Equatable {

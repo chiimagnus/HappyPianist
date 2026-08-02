@@ -19,6 +19,8 @@ Models / Contracts
 - **ViewModel**：编排状态、生命周期和依赖，不复制服务事实。
 - **Service / Repository**：隔离文件、MusicXML、音频、MIDI、ARKit、AI 与诊断副作用。
 
+共享根模块的依赖只能向下：`Diagnostics` 不依赖 App、Practice、Library、MusicXML、MIDI 或任何 UI/设备框架；App 仅通过其公开契约注入 reporter、store 与 exporter。
+
 新增服务先定义稳定协议，再由 `LiveAppGraph.make()` 注入并接入 consumer。单一实现不提前建 factory、manager 或兼容层。
 
 ## 运行边界
@@ -27,6 +29,7 @@ Models / Contracts
 | --- | --- | --- |
 | App 与窗口 | `HappyPianistAVPApp`、`AppState` | Library 是入口；preparation 与 practice 是单层 pushed window；immersive space 只承载空间内容。 |
 | 组合根 | `LiveAppGraph` | 共享的 index store、曲库 provider、progress repository、diagnostics reporter 与 practice recorder 不在 ViewModel 内重新创建。 |
+| 诊断根 | `Packages/HappyPianistCore/Sources/Diagnostics/` | `DiagnosticEvent`、reporter、七日文件 store、OSLog sink 与用户归档；不包含音频、AR、Practice 投影或输出指标。 |
 | 曲库 | `SongLibraryViewModel`、`SongLibraryImportTransactionService` | selection 只是内存 intent；导入、替换、恢复和删除由 actor 事务 owner 处理。 |
 | 曲谱准备 | `PracticePreparationService` | MusicXML 先形成唯一 `ScorePerformancePlan`，再投影 steps、guides、notation 和 playback。 |
 | 练习会话 | `PracticeSessionViewModel`、`PracticeSessionRecorder` | active configuration 在一轮内不可变；退出顺序是停止新输入、flush 事实、终结会话、teardown 设备。 |

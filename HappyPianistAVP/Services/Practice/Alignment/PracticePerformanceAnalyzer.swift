@@ -1,4 +1,5 @@
 import Foundation
+import Diagnostics
 
 struct PracticePerformanceAnalyzerSnapshot: Equatable {
     let roundGeneration: UInt64
