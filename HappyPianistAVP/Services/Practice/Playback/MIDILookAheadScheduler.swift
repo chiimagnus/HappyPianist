@@ -2,26 +2,33 @@ import Foundation
 import Diagnostics
 import MIDI
 import os
+import Synchronization
 
-actor MIDIPlaybackGenerationGate {
-    private var generation: UInt64 = 0
+final class MIDIPlaybackGenerationGate: Sendable {
+    // ponytail: this mutex is the one synchronous bridge from CoreMIDI's route callback to
+    // look-ahead submission. Holding it through the send makes invalidation and submission atomic.
+    private let generation = Mutex<UInt64>(0)
 
     func beginGeneration() -> UInt64 {
-        generation &+= 1
-        return generation
+        generation.withLock { currentGeneration in
+            currentGeneration &+= 1
+            return currentGeneration
+        }
     }
 
     func invalidate() {
-        generation &+= 1
+        generation.withLock { $0 &+= 1 }
     }
 
     func performIfCurrent(
         _ expectedGeneration: UInt64,
         operation: @Sendable () throws -> Void
     ) rethrows -> Bool {
-        guard generation == expectedGeneration else { return false }
-        try operation()
-        return true
+        try generation.withLock { currentGeneration in
+            guard currentGeneration == expectedGeneration else { return false }
+            try operation()
+            return true
+        }
     }
 }
 
@@ -172,7 +179,7 @@ actor MIDILookAheadScheduler {
                     try Task.checkCancellation()
                     let batchMessages = messages
                     let submittedAtSeconds = await clock.nowSeconds()
-                    let sent = try await generationGate.performIfCurrent(generation) {
+                    let sent = try generationGate.performIfCurrent(generation) {
                         try outputService.sendMIDI1Messages(
                             batchMessages,
                             destinationUniqueID: destinationUniqueID

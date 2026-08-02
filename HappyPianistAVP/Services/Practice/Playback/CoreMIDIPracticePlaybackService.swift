@@ -44,7 +44,7 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
 
         let generationGate = self.generationGate
         self.outputService.onDestinationRouteWillChange = {
-            Task { await generationGate.invalidate() }
+            generationGate.invalidate()
         }
         self.outputService.onDestinationRouteChange = { [weak self] in
             guard let self else { return Task {} }
@@ -58,7 +58,7 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
         let hadScheduledPlayback = schedulerTask != nil
         outputService.onDestinationRouteWillChange = nil
         outputService.onDestinationRouteChange = nil
-        Task { await generationGate.invalidate() }
+        generationGate.invalidate()
         oneShotStopTask?.cancel()
         schedulerTask?.cancel()
         guard ownsOutputLifecycle else { return }
@@ -107,7 +107,7 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
         lastKnownSeconds = startSeconds
         playbackStartSeconds = startSeconds
         playbackStartedAtUptimeSeconds = ProcessInfo.processInfo.systemUptime
-        let generation = await generationGate.beginGeneration()
+        let generation = generationGate.beginGeneration()
 
         let scheduler = MIDILookAheadScheduler(
             outputService: outputService,
@@ -124,7 +124,7 @@ final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackServicePro
     }
 
     private func haltPlayback() async {
-        await generationGate.invalidate()
+        generationGate.invalidate()
         oneShotStopTask?.cancel()
         oneShotStopTask = nil
 

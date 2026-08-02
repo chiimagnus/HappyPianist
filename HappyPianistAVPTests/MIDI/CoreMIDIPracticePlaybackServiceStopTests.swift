@@ -380,7 +380,7 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
 
     @Test func invalidatedGenerationPreventsReadyBatchWithoutRelyingOnTaskCancellation() async {
         let generationGate = MIDIPlaybackGenerationGate()
-        let generation = await generationGate.beginGeneration()
+        let generation = generationGate.beginGeneration()
         let output = FakePerformanceOutput(generation: { generation })
         let clock = FakeMIDILookAheadClock()
         let scheduler = MIDILookAheadScheduler(
@@ -405,7 +405,7 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
         #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 1 && await clock.sleepingCount == 1 })
         #expect(output.timestampedBatchesSnapshot().first?.generation == generation)
         #expect(output.timestampedBatchesSnapshot().first?.capabilities == .externalMIDI)
-        await generationGate.invalidate()
+        generationGate.invalidate()
         await clock.advance(by: 0.25)
         await task.value
         #expect(output.timestampedBatchesSnapshot().count == 1)
