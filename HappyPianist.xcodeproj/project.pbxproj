@@ -84,11 +84,11 @@
 		D8D428042F4DFD3800EC9C9B = {
 			isa = PBXGroup;
 			children = (
-				D85596AA2F83FF72005BE7FE /* HappyPianistAVP */,
-				D85596AB2F83FF72005BE7FE /* Packages */,
-				D85596BF2F83FF74005BE7FE /* HappyPianistAVPTests */,
 				D8C8848D2FC3623C00F1D94F /* HappyPianistAVP.app */,
 				D8C8848F2FC3623C00F1D94F /* HappyPianistAVPTests.xctest */,
+				D85596AA2F83FF72005BE7FE /* HappyPianistAVP */,
+				D85596BF2F83FF74005BE7FE /* HappyPianistAVPTests */,
+				D85596AB2F83FF72005BE7FE /* Packages */,
 			);
 			sourceTree = "<group>";
 		};
