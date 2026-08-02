@@ -6,12 +6,6 @@ enum PianoGuideHighlightPhase: String, Equatable, Hashable {
     case triggered
 }
 
-enum ScoreHand: String, CaseIterable, Codable {
-    case right
-    case left
-    case unknown
-}
-
 enum PracticeHandMode: String, CaseIterable, Identifiable, Codable {
     case both
     case right

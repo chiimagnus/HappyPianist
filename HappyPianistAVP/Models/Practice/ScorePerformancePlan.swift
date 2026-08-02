@@ -88,15 +88,6 @@ struct ScorePerformanceNoteEvent: Codable, Equatable {
     }
 }
 
-struct ScorePerformanceTempoEvent: Codable, Equatable {
-    let sourceDirectionID: MusicXMLDirectionSourceID?
-    let performedOccurrenceIndex: Int
-    let tick: Int
-    let quarterBPM: Double
-    let endTick: Int?
-    let endQuarterBPM: Double?
-}
-
 enum ScorePerformanceOutputCapabilityRequirement: String, Codable, Equatable, Hashable {
     case continuousControlChange
 }

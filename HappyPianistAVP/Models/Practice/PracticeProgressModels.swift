@@ -1,4 +1,5 @@
 import Foundation
+import MusicXML
 
 struct PracticeSongIdentity: Codable, Equatable, Hashable {
     let songID: UUID
@@ -162,28 +163,6 @@ struct PracticeSessionRecord: Codable, Equatable {
             )
         }
         self = record
-    }
-}
-
-struct PracticeSourceMeasureID: Codable, Equatable, Hashable {
-    let partID: String
-    let sourceMeasureIndex: Int
-    let sourceNumberToken: String?
-
-    init(partID: String, sourceMeasureIndex: Int, sourceNumberToken: String? = nil) {
-        self.partID = partID
-        self.sourceMeasureIndex = max(0, sourceMeasureIndex)
-        self.sourceNumberToken = sourceNumberToken
-    }
-}
-
-struct PracticeMeasureOccurrenceID: Codable, Equatable, Hashable {
-    let sourceMeasureID: PracticeSourceMeasureID
-    let occurrenceIndex: Int
-
-    init(sourceMeasureID: PracticeSourceMeasureID, occurrenceIndex: Int) {
-        self.sourceMeasureID = sourceMeasureID
-        self.occurrenceIndex = max(0, occurrenceIndex)
     }
 }
 
