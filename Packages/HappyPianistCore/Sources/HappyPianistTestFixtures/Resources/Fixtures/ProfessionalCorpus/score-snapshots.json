@@ -4,11 +4,11 @@
       "fixtureID" : "cross-staff-hand-assignment",
       "normalization" : {
         "lineCount" : 2,
-        "sha256" : "5618db2bc76bd89fe0c0fa4de5c0193508bd5e1b23fd7c9a6f08edb8b48e1e0e"
+        "sha256" : "a7e8195bffb69fb0c3c0194b3c5d416f97098f3e9fdb16f7ead8fb0ffca5755b"
       },
       "notation" : {
         "lineCount" : 9,
-        "sha256" : "5cd8f99d781ff2eec61b887bc64fd6960afed2b8e7e8d462f5e3deb88e2ccfe5"
+        "sha256" : "d995eda942f24db36e71f073b4e962b95d25c448e46e3c6a69d1e3f84fc9616b"
       },
       "performedOrder" : {
         "lineCount" : 7,
@@ -24,11 +24,11 @@
       "fixtureID" : "despacito-highlight-regression",
       "normalization" : {
         "lineCount" : 2,
-        "sha256" : "5618db2bc76bd89fe0c0fa4de5c0193508bd5e1b23fd7c9a6f08edb8b48e1e0e"
+        "sha256" : "a7e8195bffb69fb0c3c0194b3c5d416f97098f3e9fdb16f7ead8fb0ffca5755b"
       },
       "notation" : {
         "lineCount" : 18,
-        "sha256" : "da674b35243ae53f0912698c4277a4090316ae2cf1bf84eba9872785ac54ae25"
+        "sha256" : "0e41179a3fa6ca4cb444c9b8ee298cb3a95f8f064de8fcb9abeef6bfd59ee520"
       },
       "performedOrder" : {
         "lineCount" : 11,
@@ -44,11 +44,11 @@
       "fixtureID" : "expressive-piano-semantics",
       "normalization" : {
         "lineCount" : 2,
-        "sha256" : "5618db2bc76bd89fe0c0fa4de5c0193508bd5e1b23fd7c9a6f08edb8b48e1e0e"
+        "sha256" : "a7e8195bffb69fb0c3c0194b3c5d416f97098f3e9fdb16f7ead8fb0ffca5755b"
       },
       "notation" : {
         "lineCount" : 31,
-        "sha256" : "20bb177c932d1cfeb4cd5e68cd056916e039ac228c6e8c617a32dc9193d5d24b"
+        "sha256" : "583f686a45bde91392f8156e432eadb959faaeb6632ba26bee1324201431dfca"
       },
       "performedOrder" : {
         "lineCount" : 18,
@@ -64,11 +64,11 @@
       "fixtureID" : "musicxml-autoplay-regression",
       "normalization" : {
         "lineCount" : 2,
-        "sha256" : "5618db2bc76bd89fe0c0fa4de5c0193508bd5e1b23fd7c9a6f08edb8b48e1e0e"
+        "sha256" : "a7e8195bffb69fb0c3c0194b3c5d416f97098f3e9fdb16f7ead8fb0ffca5755b"
       },
       "notation" : {
         "lineCount" : 8,
-        "sha256" : "2a62c822e570b658e941ca038c4303bc7843026c24340beb2a32ee3e3eea42c4"
+        "sha256" : "45c5b6d9fe4cdade5d2645e8a41a54b69959d5c07f5140fba0a4542db2dabb5a"
       },
       "performedOrder" : {
         "lineCount" : 5,
@@ -84,11 +84,11 @@
       "fixtureID" : "notation-fidelity-piano",
       "normalization" : {
         "lineCount" : 2,
-        "sha256" : "5618db2bc76bd89fe0c0fa4de5c0193508bd5e1b23fd7c9a6f08edb8b48e1e0e"
+        "sha256" : "a7e8195bffb69fb0c3c0194b3c5d416f97098f3e9fdb16f7ead8fb0ffca5755b"
       },
       "notation" : {
         "lineCount" : 91,
-        "sha256" : "ddd39fc682627beda80260d45bba98335c1b9411fb7226ad8f2c18134ee2b720"
+        "sha256" : "141e0447608f322ac63b51b0bb93b6431c8cc10e61438b59d009e840fd5ac315"
       },
       "performedOrder" : {
         "lineCount" : 45,
@@ -104,11 +104,11 @@
       "fixtureID" : "polyphonic-unison-retrigger",
       "normalization" : {
         "lineCount" : 2,
-        "sha256" : "5618db2bc76bd89fe0c0fa4de5c0193508bd5e1b23fd7c9a6f08edb8b48e1e0e"
+        "sha256" : "a7e8195bffb69fb0c3c0194b3c5d416f97098f3e9fdb16f7ead8fb0ffca5755b"
       },
       "notation" : {
         "lineCount" : 19,
-        "sha256" : "a753ba83395bbdd3a1e085331dbc984d9ab7eab5a63cb67a8a202e96fabb99fd"
+        "sha256" : "7382a7c37c900f7b7ac9507fb8dfec23ece16070b8c21b32fa840b9242dc1b94"
       },
       "performedOrder" : {
         "lineCount" : 12,
@@ -124,11 +124,11 @@
       "fixtureID" : "practice-learning-loop-eight-measures",
       "normalization" : {
         "lineCount" : 2,
-        "sha256" : "5618db2bc76bd89fe0c0fa4de5c0193508bd5e1b23fd7c9a6f08edb8b48e1e0e"
+        "sha256" : "a7e8195bffb69fb0c3c0194b3c5d416f97098f3e9fdb16f7ead8fb0ffca5755b"
       },
       "notation" : {
         "lineCount" : 56,
-        "sha256" : "922a08dbbfd03eeafd6465b0ead20394de9aba497f9028770a1bbc871a0844f7"
+        "sha256" : "18fda0a356fe11894b8a87bc5573a081303bd2397790946427983c2d88fbb235"
       },
       "performedOrder" : {
         "lineCount" : 33,
@@ -144,11 +144,11 @@
       "fixtureID" : "practice-measure-identity-repeats",
       "normalization" : {
         "lineCount" : 2,
-        "sha256" : "5618db2bc76bd89fe0c0fa4de5c0193508bd5e1b23fd7c9a6f08edb8b48e1e0e"
+        "sha256" : "a7e8195bffb69fb0c3c0194b3c5d416f97098f3e9fdb16f7ead8fb0ffca5755b"
       },
       "notation" : {
         "lineCount" : 16,
-        "sha256" : "1a0bc92c8dfc77be0ad7737dbe4b7a155463f3fefb51922c1bcde24c75639b06"
+        "sha256" : "653027c8236436884d3b3bad50421b441deb30e63a68ac7f7493cc9aa8724434"
       },
       "performedOrder" : {
         "lineCount" : 10,
@@ -164,11 +164,11 @@
       "fixtureID" : "range-start-held-notes",
       "normalization" : {
         "lineCount" : 2,
-        "sha256" : "5618db2bc76bd89fe0c0fa4de5c0193508bd5e1b23fd7c9a6f08edb8b48e1e0e"
+        "sha256" : "a7e8195bffb69fb0c3c0194b3c5d416f97098f3e9fdb16f7ead8fb0ffca5755b"
       },
       "notation" : {
         "lineCount" : 18,
-        "sha256" : "a16daee55f6d831ac3256a3f5d25fb341cf5dd477689235f19401c9107858895"
+        "sha256" : "6cc6d18e708ccd08273000fa751722e2a87eba765f510c2d6d33667c8698a9e3"
       },
       "performedOrder" : {
         "lineCount" : 11,
@@ -184,11 +184,11 @@
       "fixtureID" : "single-staff-hand-routing-clear",
       "normalization" : {
         "lineCount" : 2,
-        "sha256" : "5618db2bc76bd89fe0c0fa4de5c0193508bd5e1b23fd7c9a6f08edb8b48e1e0e"
+        "sha256" : "a7e8195bffb69fb0c3c0194b3c5d416f97098f3e9fdb16f7ead8fb0ffca5755b"
       },
       "notation" : {
         "lineCount" : 5,
-        "sha256" : "3f6f02d589e1eedc839d109f54a55f0ebbc62592d4a9bcaef8a896898f10de7d"
+        "sha256" : "4b65e04e22ef30beda7b14920eb430b626a2d4d34e495be69654c705d3f6c4a8"
       },
       "performedOrder" : {
         "lineCount" : 5,
@@ -204,11 +204,11 @@
       "fixtureID" : "single-staff-hand-routing-interleaving",
       "normalization" : {
         "lineCount" : 2,
-        "sha256" : "5618db2bc76bd89fe0c0fa4de5c0193508bd5e1b23fd7c9a6f08edb8b48e1e0e"
+        "sha256" : "a7e8195bffb69fb0c3c0194b3c5d416f97098f3e9fdb16f7ead8fb0ffca5755b"
       },
       "notation" : {
         "lineCount" : 9,
-        "sha256" : "cdbbd1515d7b98465fa2622292e821d466b9ff82c2fb02eb33fdd4719ec56b89"
+        "sha256" : "b112a947c9c144d9c9a971014d8ec8db0254ddf4fdff0a8b77c4f93a3e76a806"
       },
       "performedOrder" : {
         "lineCount" : 7,
@@ -224,11 +224,11 @@
       "fixtureID" : "split-part-grand-staff-piano",
       "normalization" : {
         "lineCount" : 2,
-        "sha256" : "c4b35210d8c769b12325419857e069e90595e0e9195acd4c033f59fa3248d169"
+        "sha256" : "77d84ecf667936df3d2592248b09833eb9aa53a533c15b7bdd11c881d4e072d9"
       },
       "notation" : {
         "lineCount" : 14,
-        "sha256" : "8a3793d572443b6c094b7b07d2cde52e6b1cadc2fcfb615697c38641e4b1aba4"
+        "sha256" : "47a658cebf583b008fbdda0c5a1e199b7099455fb9ca5872e14bf6823cfd13b4"
       },
       "performedOrder" : {
         "lineCount" : 10,
@@ -244,11 +244,11 @@
       "fixtureID" : "two-instrument-not-piano",
       "normalization" : {
         "lineCount" : 3,
-        "sha256" : "352f79790df875829b2fc453a2ec7f1a9b26697298fd77b527ae1414bdc4b08e"
+        "sha256" : "722f836e930c7e13b8ee16a36298b1151c11545e2dc92b3896a9ef70442cf98c"
       },
       "notation" : {
         "lineCount" : 5,
-        "sha256" : "0d2f4548fb99d3ad6d31be4770cc2ac9bcc359d2328f876653504081a69e558e"
+        "sha256" : "42769af23d9d202401d1795b6fe2955410ebb679e0662dea74bc2a6a3462cb4e"
       },
       "performedOrder" : {
         "lineCount" : 6,

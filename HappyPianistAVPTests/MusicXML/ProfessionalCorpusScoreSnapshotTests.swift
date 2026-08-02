@@ -21,10 +21,10 @@ func professionalCorpusScoreSnapshotsMatchReviewedFingerprints() throws {
     for snapshot in actual {
         let baseline = try #require(expectedByFixture[snapshot.fixtureID])
         #expect(baseline.requirementID == snapshot.requirementID)
-        try assertFingerprint(baseline.sourceFacts, snapshot.sourceFacts, snapshot: "sourceFacts", for: snapshot)
-        try assertFingerprint(baseline.normalization, snapshot.normalization, snapshot: "normalization", for: snapshot)
-        try assertFingerprint(baseline.performedOrder, snapshot.performedOrder, snapshot: "performedOrder", for: snapshot)
-        try assertFingerprint(baseline.notation, snapshot.notation, snapshot: "notation", for: snapshot)
+        assertFingerprint(baseline.sourceFacts, snapshot.sourceFacts, snapshot: "sourceFacts", for: snapshot)
+        assertFingerprint(baseline.normalization, snapshot.normalization, snapshot: "normalization", for: snapshot)
+        assertFingerprint(baseline.performedOrder, snapshot.performedOrder, snapshot: "performedOrder", for: snapshot)
+        assertFingerprint(baseline.notation, snapshot.notation, snapshot: "notation", for: snapshot)
     }
 }
 
@@ -110,14 +110,15 @@ private func assertFingerprint(
     _ actual: CorpusSnapshotFingerprint,
     snapshot: String,
     for fixture: FixtureScoreSnapshotBaseline
-) throws {
+) {
     guard expected == actual else {
-        throw CorpusScoreSnapshotError.mismatch(
+        Issue.record(CorpusScoreSnapshotError.mismatch(
             fixtureID: fixture.fixtureID,
             requirementID: fixture.requirementID,
             snapshot: snapshot,
             expected: expected,
             actual: actual
-        )
+        ))
+        return
     }
 }
