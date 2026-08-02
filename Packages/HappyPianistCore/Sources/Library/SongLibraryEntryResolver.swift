@@ -32,7 +32,7 @@ public struct SongLibraryEntryResolutionError: Error, Equatable, Sendable {
 }
 
 public protocol SongLibraryEntryResolving: Sendable {
-    func resolve(songID: UUID) async throws -> ResolvedSongLibraryEntry
+    func resolve(songID: UUID) async -> Result<ResolvedSongLibraryEntry, SongLibraryEntryResolutionError>
 }
 
 public actor SongLibraryEntryResolver: SongLibraryEntryResolving {
@@ -53,61 +53,61 @@ public actor SongLibraryEntryResolver: SongLibraryEntryResolving {
         self.fileManager = fileManager
     }
 
-    public func resolve(songID: UUID) async throws -> ResolvedSongLibraryEntry {
+    public func resolve(songID: UUID) async -> Result<ResolvedSongLibraryEntry, SongLibraryEntryResolutionError> {
         if let entry = bundledProvider.bundledEntries().first(where: { $0.id == songID }) {
             let fileReference = diagnosticReference(entry: entry, location: "Bundle")
             guard let scoreURL = bundledProvider.musicXMLURL(fileName: entry.musicXMLFileName) else {
-                throw SongLibraryEntryResolutionError(
+                return .failure(SongLibraryEntryResolutionError(
                     preparationError: .scoreFileNotFound,
                     diagnosticFileReference: fileReference
-                )
+                ))
             }
             do {
                 try validateBundledScore(at: scoreURL)
             } catch {
-                throw SongLibraryEntryResolutionError(
+                return .failure(SongLibraryEntryResolutionError(
                     preparationError: (error as? PracticePreparationError) ?? mapFileAccessError(error),
                     diagnosticFileReference: fileReference
-                )
+                ))
             }
-            return ResolvedSongLibraryEntry(
+            return .success(ResolvedSongLibraryEntry(
                 entry: entry,
                 scoreURL: scoreURL,
                 diagnosticFileReference: fileReference
-            )
+            ))
         }
 
         let index: SongLibraryIndex
         do {
             index = try await indexStore.load()
         } catch {
-            throw SongLibraryEntryResolutionError(
+            return .failure(SongLibraryEntryResolutionError(
                 preparationError: .scoreFileUnreadable(
                     reason: PracticePreparationErrorDetails.safeErrorSummary(error)
                 ),
                 diagnosticFileReference: nil
-            )
+            ))
         }
         guard let entry = index.entries.first(where: { $0.id == songID }) else {
-            throw SongLibraryEntryResolutionError(
+            return .failure(SongLibraryEntryResolutionError(
                 preparationError: .scoreFileNotFound,
                 diagnosticFileReference: nil
-            )
+            ))
         }
 
         let fileReference = diagnosticReference(entry: entry, location: "SongLibrary/scores")
         do {
             let scoreURL = try await fileStore.scoreFileURL(fileName: entry.musicXMLFileName)
-            return ResolvedSongLibraryEntry(
+            return .success(ResolvedSongLibraryEntry(
                 entry: entry,
                 scoreURL: scoreURL,
                 diagnosticFileReference: fileReference
-            )
+            ))
         } catch {
-            throw SongLibraryEntryResolutionError(
+            return .failure(SongLibraryEntryResolutionError(
                 preparationError: mapFileAccessError(error),
                 diagnosticFileReference: fileReference
-            )
+            ))
         }
     }
 

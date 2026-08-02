@@ -1257,24 +1257,27 @@ private actor PracticeLaunchResolver: SongLibraryEntryResolving {
         })
     }
 
-    func resolve(songID: UUID) throws -> ResolvedSongLibraryEntry {
+    func resolve(songID: UUID) -> Result<ResolvedSongLibraryEntry, SongLibraryEntryResolutionError> {
         guard let entry = entries[songID] else {
-            throw SongLibraryEntryResolutionError(preparationError: .scoreFileNotFound, diagnosticFileReference: nil)
+            return .failure(SongLibraryEntryResolutionError(
+                preparationError: .scoreFileNotFound,
+                diagnosticFileReference: nil
+            ))
         }
-        return ResolvedSongLibraryEntry(
+        return .success(ResolvedSongLibraryEntry(
             entry: entry,
             scoreURL: URL(fileURLWithPath: "/tmp/\(entry.musicXMLFileName)"),
             diagnosticFileReference: DiagnosticFileReference(
                 fileName: entry.musicXMLFileName,
                 relativePath: "Bundle/\(entry.musicXMLFileName)"
             )
-        )
+        ))
     }
 }
 
 private actor ControlledPracticeLaunchResolver: SongLibraryEntryResolving {
     let entries: [UUID: SongLibraryEntry]
-    private var continuations: [UUID: CheckedContinuation<ResolvedSongLibraryEntry, Error>] = [:]
+    private var continuations: [UUID: CheckedContinuation<ResolvedSongLibraryEntry, Never>] = [:]
     private var requestedSongIDs: Set<UUID> = []
 
     init(songIDs: [UUID]) {
@@ -1291,11 +1294,18 @@ private actor ControlledPracticeLaunchResolver: SongLibraryEntryResolving {
         })
     }
 
-    func resolve(songID: UUID) async throws -> ResolvedSongLibraryEntry {
+    func resolve(songID: UUID) async -> Result<ResolvedSongLibraryEntry, SongLibraryEntryResolutionError> {
         requestedSongIDs.insert(songID)
-        return try await withCheckedThrowingContinuation { continuation in
+        guard entries[songID] != nil else {
+            return .failure(SongLibraryEntryResolutionError(
+                preparationError: .scoreFileNotFound,
+                diagnosticFileReference: nil
+            ))
+        }
+        let resolved = await withCheckedContinuation { continuation in
             continuations[songID] = continuation
         }
+        return .success(resolved)
     }
 
     func waitUntilRequested(songID: UUID) async {

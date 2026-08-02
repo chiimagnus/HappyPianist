@@ -20,13 +20,13 @@ func entryResolverResolvesBundledEntryByIDWithSafeReference() async throws {
         fileStore: ResolverFileStore(result: .url(URL(fileURLWithPath: "/tmp/user.musicxml")))
     )
 
-    let resolved = try await resolver.resolve(songID: bundled.id)
+    let resolved = try (await resolver.resolve(songID: bundled.id)).get()
 
     #expect(resolved.entry == bundled)
     #expect(resolved.scoreURL == scoreURL)
     #expect(resolved.diagnosticFileReference?.relativePath == "Bundle/\(scoreURL.lastPathComponent)")
 
-    let resolvedUser = try await resolver.resolve(songID: user.id)
+    let resolvedUser = try (await resolver.resolve(songID: user.id)).get()
     #expect(resolvedUser.entry == user)
     #expect(resolvedUser.diagnosticFileReference?.relativePath == "SongLibrary/scores/user.musicxml")
 }
@@ -66,9 +66,9 @@ func entryResolverReadsLatestUserEntryWithoutCaching() async throws {
         fileStore: SongFileStore(fileManager: fileManager, paths: paths)
     )
 
-    let first = try await resolver.resolve(songID: songID)
+    let first = try (await resolver.resolve(songID: songID)).get()
     await indexStore.replace(entries: [secondEntry])
-    let second = try await resolver.resolve(songID: songID)
+    let second = try (await resolver.resolve(songID: songID)).get()
 
     #expect(first.entry == firstEntry)
     #expect(second.entry == secondEntry)
@@ -85,9 +85,7 @@ func entryResolverMapsMissingEntryAndBundledResource() async {
         bundledProvider: ResolverBundledProvider(entries: [], scoreURL: nil),
         fileStore: ResolverFileStore(result: .missing)
     )
-    let missingEntryError = await resolutionError {
-        try await emptyResolver.resolve(songID: missingID)
-    }
+    let missingEntryError = resolutionError(await emptyResolver.resolve(songID: missingID))
     #expect(missingEntryError?.preparationError == .scoreFileNotFound)
     #expect(missingEntryError?.diagnosticFileReference == nil)
 
@@ -97,9 +95,7 @@ func entryResolverMapsMissingEntryAndBundledResource() async {
         bundledProvider: ResolverBundledProvider(entries: [bundled], scoreURL: nil),
         fileStore: ResolverFileStore(result: .missing)
     )
-    let missingFileError = await resolutionError {
-        try await bundledResolver.resolve(songID: bundled.id)
-    }
+    let missingFileError = resolutionError(await bundledResolver.resolve(songID: bundled.id))
     #expect(missingFileError?.preparationError == .scoreFileNotFound)
     #expect(missingFileError?.diagnosticFileReference?.relativePath == "Bundle/missing.musicxml")
 
@@ -110,9 +106,7 @@ func entryResolverMapsMissingEntryAndBundledResource() async {
         bundledProvider: ResolverBundledProvider(entries: [], scoreURL: nil),
         fileStore: ResolverFileStore(result: .missing)
     )
-    let missingUserFileError = await resolutionError {
-        try await userResolver.resolve(songID: user.id)
-    }
+    let missingUserFileError = resolutionError(await userResolver.resolve(songID: user.id))
     #expect(missingUserFileError?.preparationError == .scoreFileNotFound)
     #expect(
         missingUserFileError?.diagnosticFileReference?.relativePath ==
@@ -131,9 +125,7 @@ func entryResolverRejectsBundledNonRegularResource() async throws {
         fileStore: ResolverFileStore(result: .missing)
     )
 
-    let error = await resolutionError {
-        try await resolver.resolve(songID: bundled.id)
-    }
+    let error = resolutionError(await resolver.resolve(songID: bundled.id))
 
     guard case .scoreFileUnreadable = error?.preparationError else {
         Issue.record("Expected a non-regular bundled resource to be rejected")
@@ -151,9 +143,7 @@ func entryResolverRejectsUnsafeUserFileNameWithoutLeakingPath() async {
         fileStore: ResolverFileStore(result: .error(.invalidFileName("../private.musicxml")))
     )
 
-    let error = await resolutionError {
-        try await resolver.resolve(songID: entry.id)
-    }
+    let error = resolutionError(await resolver.resolve(songID: entry.id))
 
     guard case .scoreFileUnreadable = error?.preparationError else {
         Issue.record("Expected unreadable score error")
@@ -185,9 +175,7 @@ func songFileStoreRejectsSymbolicLinkScore() async throws {
         fileStore: SongFileStore(fileManager: fileManager, paths: paths)
     )
 
-    let error = await resolutionError {
-        try await resolver.resolve(songID: entry.id)
-    }
+    let error = resolutionError(await resolver.resolve(songID: entry.id))
 
     guard case .scoreFileUnreadable = error?.preparationError else {
         Issue.record("Expected symbolic link to be rejected")
@@ -196,18 +184,13 @@ func songFileStoreRejectsSymbolicLinkScore() async throws {
 }
 
 private func resolutionError(
-    operation: () async throws -> ResolvedSongLibraryEntry
-) async -> SongLibraryEntryResolutionError? {
-    do {
-        _ = try await operation()
+    _ result: Result<ResolvedSongLibraryEntry, SongLibraryEntryResolutionError>
+) -> SongLibraryEntryResolutionError? {
+    guard case let .failure(error) = result else {
         Issue.record("Expected entry resolution to fail")
         return nil
-    } catch let error as SongLibraryEntryResolutionError {
-        return error
-    } catch {
-        Issue.record("Unexpected error: \(error)")
-        return nil
     }
+    return error
 }
 
 private func resolverEntry(
