@@ -1,13 +1,13 @@
 import Foundation
 
 
-public enum MusicXMLPedalController: UInt8, Equatable {
+public enum MusicXMLPedalController: UInt8, Equatable, Sendable {
     case damper = 64
     case sostenuto = 66
     case soft = 67
 }
 
-public struct MusicXMLControllerValue: Equatable {
+public struct MusicXMLControllerValue: Equatable, Sendable {
     public static let off = MusicXMLControllerValue(percentage: 0, midiValue: 0)
     public static let on = MusicXMLControllerValue(percentage: 100, midiValue: 127)
 
