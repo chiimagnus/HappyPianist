@@ -16,7 +16,7 @@ struct PracticeLiveNoteEvent: Equatable {
     let phase: Phase
     let timestamp: PerformanceMonotonicInstant
 
-    fileprivate var playbackCommand: PracticePlaybackCommand {
+    var playbackCommand: PracticePlaybackCommand {
         let kind: PracticeSequencerMIDIEvent.Kind = switch phase {
         case let .noteOn(velocity): .noteOn(midi: midiNote, velocity: velocity)
         case .noteOff: .noteOff(midi: midiNote)

@@ -49,7 +49,6 @@ private final class FakeKeyContactDetector: KeyContactDetectingProtocol {
 @MainActor
 private final class FakeSequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol {
     private(set) var commands: [[PracticePlaybackCommand]] = []
-    private(set) var liveNoteEvents: [[PracticeLiveNoteEvent]] = []
 
     func warmUp() throws {}
     func stop(resetCommands _: [PerformanceTransportCommand]) {}
@@ -62,10 +61,6 @@ private final class FakeSequencerPlaybackService: PracticeSequencerPlaybackServi
     func playOneShot(commands _: [PracticePlaybackCommand], durationSeconds _: TimeInterval) throws {}
     func execute(commands: [PracticePlaybackCommand]) throws {
         self.commands.append(commands)
-    }
-
-    func execute(liveNoteEvents: [PracticeLiveNoteEvent]) throws {
-        self.liveNoteEvents.append(liveNoteEvents)
     }
 
     func stopAllLiveNotes() {}
@@ -89,7 +84,7 @@ private func makeMinimalKeyboardGeometry() -> PianoKeyboardGeometry {
 
 private struct SyntheticTraceReplayResult {
     let observations: [PianoKeyContactObservation]
-    let events: [PracticeLiveNoteEvent]
+    let commands: [PracticePlaybackCommand]
 }
 
 @MainActor
@@ -126,15 +121,28 @@ private func replaySyntheticTrace(
 
     return SyntheticTraceReplayResult(
         observations: observations,
-        events: sequencer.liveNoteEvents.flatMap(\.self)
+        commands: sequencer.commands.flatMap(\.self)
     )
 }
 
-private func noteOnVelocities(in events: [PracticeLiveNoteEvent]) -> [UInt8] {
-    events.compactMap { event in
-        guard case let .noteOn(velocity) = event.phase else { return nil }
+private func noteOnVelocities(in commands: [PracticePlaybackCommand]) -> [UInt8] {
+    commands.compactMap { command in
+        guard case let .noteOn(_, velocity) = command.kind else { return nil }
         return velocity
     }
+}
+
+private func midiNote(in command: PracticePlaybackCommand) -> Int? {
+    switch command.kind {
+    case let .noteOn(midi, _), let .noteOff(midi):
+        midi
+    case .controlChange, .programChange, .pitchBend, .channelPressure, .polyPressure:
+        nil
+    }
+}
+
+private func sourceEventPrefix(for hand: TrackedHandSide) -> String {
+    "hand-\(hand.rawValue)-"
 }
 
 @Test
@@ -177,14 +185,14 @@ func virtualPianoPlaysLiveNotesWhenNotSuppressed() async throws {
     await controller.waitForPendingPlayback()
 
     let started = try #require(detector.resultToReturn.first { $0.phase == .started })
-    #expect(sequencer.liveNoteEvents == [[
+    #expect(sequencer.commands == [[
         PracticeLiveNoteEvent(
             contactID: started.id,
             midiNote: 60,
             phase: .noteOn(velocity: 90),
             timestamp: .init(seconds: 1)
         ),
-    ]])
+    ].map(\.playbackCommand)])
     #expect(effectHandler.effects.contains(.advanceToNextStep))
 }
 
@@ -213,7 +221,7 @@ func endedContactThatNeverSoundedDoesNotSendNoteOff() async {
     )
     await controller.waitForPendingPlayback()
 
-    #expect(sequencer.liveNoteEvents.isEmpty)
+    #expect(sequencer.commands.isEmpty)
 }
 
 @Test
@@ -253,14 +261,14 @@ func releasingOneOfTwoContactsOnSameKeyKeepsPhysicalNoteOn() async {
 
     _ = controller.handleFingerTips(.empty, keyboardGeometry: geometry, at: .init(seconds: 1), practiceHandMode: .both)
     await controller.waitForPendingPlayback()
-    #expect(sequencer.liveNoteEvents == [[
+    #expect(sequencer.commands == [[
         PracticeLiveNoteEvent(
             contactID: left.id,
             midiNote: 60,
             phase: .noteOn(velocity: 90),
             timestamp: .init(seconds: 1)
         ),
-    ]])
+    ].map(\.playbackCommand)])
 
     detector.resultToReturn = [
         makeTestKeyContactObservation(
@@ -282,7 +290,7 @@ func releasingOneOfTwoContactsOnSameKeyKeepsPhysicalNoteOn() async {
     ]
     _ = controller.handleFingerTips(.empty, keyboardGeometry: geometry, at: .init(seconds: 2), practiceHandMode: .both)
     await controller.waitForPendingPlayback()
-    #expect(sequencer.liveNoteEvents.count == 1)
+    #expect(sequencer.commands.count == 1)
 
     detector.resultToReturn = [
         makeTestKeyContactObservation(
@@ -296,14 +304,14 @@ func releasingOneOfTwoContactsOnSameKeyKeepsPhysicalNoteOn() async {
     ]
     _ = controller.handleFingerTips(.empty, keyboardGeometry: geometry, at: .init(seconds: 3), practiceHandMode: .both)
     await controller.waitForPendingPlayback()
-    #expect(sequencer.liveNoteEvents.last == [
+    #expect(sequencer.commands.last == [
         PracticeLiveNoteEvent(
             contactID: left.id,
             midiNote: 60,
             phase: .noteOff,
             timestamp: .init(seconds: 3)
         ),
-    ])
+    ].map(\.playbackCommand))
 }
 
 @Test
@@ -344,7 +352,7 @@ func virtualPianoDoesNotPlayLiveNotesDuringAutoplay() async {
     )
     await controller.waitForPendingPlayback()
 
-    #expect(sequencer.liveNoteEvents.isEmpty)
+    #expect(sequencer.commands.isEmpty)
 }
 
 @Test
@@ -398,7 +406,7 @@ func virtualPianoPreservesIndependentChordVelocityAndRejectsSlowPress() async {
     )
     await controller.waitForPendingPlayback()
 
-    #expect(sequencer.liveNoteEvents == [[
+    #expect(sequencer.commands == [[
         PracticeLiveNoteEvent(
             contactID: soft.id,
             midiNote: 60,
@@ -411,7 +419,7 @@ func virtualPianoPreservesIndependentChordVelocityAndRejectsSlowPress() async {
             phase: .noteOn(velocity: 111),
             timestamp: .init(seconds: 2.01)
         ),
-    ]])
+    ].map(\.playbackCommand)])
 }
 
 @Test
@@ -446,48 +454,51 @@ func syntheticHandContactTracesCoverVelocityLifecycleAndUncertainty() async thro
 
     let light = try #require(resultByID["light-touch"])
     let heavy = try #require(resultByID["heavy-strike"])
-    let lightVelocity = try #require(noteOnVelocities(in: light.events).first)
-    let heavyVelocity = try #require(noteOnVelocities(in: heavy.events).first)
+    let lightVelocity = try #require(noteOnVelocities(in: light.commands).first)
+    let heavyVelocity = try #require(noteOnVelocities(in: heavy.commands).first)
     #expect(heavyVelocity > lightVelocity)
 
     let slowPress = try #require(resultByID["slow-press"])
-    #expect(noteOnVelocities(in: slowPress.events).isEmpty)
-    #expect(slowPress.events.isEmpty)
+    #expect(noteOnVelocities(in: slowPress.commands).isEmpty)
+    #expect(slowPress.commands.isEmpty)
     #expect(slowPress.observations.isEmpty)
 
     let chord = try #require(resultByID["simultaneous-chord"])
-    let chordNoteOns = chord.events.filter { event in
-        if case .noteOn = event.phase { true } else { false }
+    let chordNoteOns = chord.commands.filter { command in
+        if case .noteOn = command.kind { true } else { false }
     }
-    #expect(Set(chordNoteOns.map(\.midiNote)) == [48, 64])
+    #expect(Set(chordNoteOns.compactMap(midiNote)) == [48, 64])
     #expect(Set(noteOnVelocities(in: chordNoteOns)).count == 2)
-    #expect(chordNoteOns.first { $0.midiNote == 48 }?.contactID.finger.hand == .left)
-    #expect(chordNoteOns.first { $0.midiNote == 64 }?.contactID.finger.hand == .right)
+    #expect(chordNoteOns.first { midiNote(in: $0) == 48 }?.sourceEventID.hasPrefix(sourceEventPrefix(for: .left)) == true)
+    #expect(chordNoteOns.first { midiNote(in: $0) == 64 }?.sourceEventID.hasPrefix(sourceEventPrefix(for: .right)) == true)
 
     let repeated = try #require(resultByID["repeated-note"])
-    #expect(repeated.events.map(\.midiNote) == [60, 60, 60, 60])
-    #expect(repeated.events.map { event in
-        if case .noteOn = event.phase { true } else { false }
+    #expect(repeated.commands.compactMap(midiNote) == [60, 60, 60, 60])
+    #expect(repeated.commands.map { command in
+        if case .noteOn = command.kind { true } else { false }
     } == [true, false, true, false])
-    let repeatedStarts = repeated.events.filter { event in
-        if case .noteOn = event.phase { true } else { false }
+    let repeatedStarts = repeated.commands.filter { command in
+        if case .noteOn = command.kind { true } else { false }
     }
     let firstRepeatedStart = try #require(repeatedStarts.first)
     let lastRepeatedStart = try #require(repeatedStarts.last)
-    #expect(firstRepeatedStart.contactID != lastRepeatedStart.contactID)
+    #expect(firstRepeatedStart.sourceEventID != lastRepeatedStart.sourceEventID)
 
     let trackingLoss = try #require(resultByID["tracking-loss"])
-    #expect(trackingLoss.events.last?.phase == .noteOff)
+    guard case .noteOff = trackingLoss.commands.last?.kind else {
+        Issue.record("Expected tracking loss to release its sounding note")
+        return
+    }
     #expect(trackingLoss.observations.last?.phase == .ended)
     #expect(trackingLoss.observations.last?.confidence == 0)
 
     let handCrossing = try #require(resultByID["hand-crossing"])
-    #expect(handCrossing.events.first { $0.midiNote == 72 }?.contactID.finger.hand == .left)
-    #expect(handCrossing.events.first { $0.midiNote == 48 }?.contactID.finger.hand == .right)
+    #expect(handCrossing.commands.first { midiNote(in: $0) == 72 }?.sourceEventID.hasPrefix(sourceEventPrefix(for: .left)) == true)
+    #expect(handCrossing.commands.first { midiNote(in: $0) == 48 }?.sourceEventID.hasPrefix(sourceEventPrefix(for: .right)) == true)
 
     for id in ["palm-crossing", "unknown-position"] {
         let result = try #require(resultByID[id])
-        #expect(result.events.isEmpty)
+        #expect(result.commands.isEmpty)
         #expect(result.observations.isEmpty)
     }
 }
