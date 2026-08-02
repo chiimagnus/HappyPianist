@@ -1,8 +1,10 @@
 import Foundation
 import MusicXML
 
-struct ScorePerformancePlanBuilder {
-    func build(
+public struct ScorePerformancePlanBuilder {
+    public init() {}
+
+    public func build(
         sourceIdentity: ScorePerformanceSourceIdentity,
         order: MusicXMLOrderSelection,
         logicalInstrument: MusicXMLLogicalInstrument,

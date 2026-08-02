@@ -3,6 +3,7 @@ import Diagnostics
 import Foundation
 import Observation
 import simd
+import Practice
 
 enum PracticeSessionReplacementResult: Equatable {
     case replaced

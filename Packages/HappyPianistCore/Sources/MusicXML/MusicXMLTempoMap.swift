@@ -4,7 +4,7 @@ import Foundation
 public struct MusicXMLTempoMap {
     public static let ticksPerQuarter = 480
 
-    public struct TempoRamp: Equatable {
+    public struct TempoRamp: Equatable, Sendable {
         let startTick: Int
         let endTick: Int
         let startQuarterBPM: Double
@@ -32,13 +32,13 @@ public struct MusicXMLTempoMap {
         }
     }
 
-    public struct PerformanceEvent: Equatable {
-        let sourceDirectionID: MusicXMLDirectionSourceID?
-        let performedOccurrenceIndex: Int
-        let tick: Int
-        let quarterBPM: Double
-        let endTick: Int?
-        let endQuarterBPM: Double?
+    public struct PerformanceEvent: Equatable, Sendable {
+        public let sourceDirectionID: MusicXMLDirectionSourceID?
+        public let performedOccurrenceIndex: Int
+        public let tick: Int
+        public let quarterBPM: Double
+        public let endTick: Int?
+        public let endQuarterBPM: Double?
     }
 
     private struct Segment {

@@ -1,4 +1,5 @@
 import Foundation
+import Practice
 
 enum PracticeSessionSettingsKeys {
     static let manualAdvanceMode = "practiceManualAdvanceMode"

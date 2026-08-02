@@ -1,10 +1,6 @@
 import Foundation
 import MusicXML
-
-struct PracticeSongIdentity: Codable, Equatable, Hashable {
-    let songID: UUID
-    let scoreRevision: String
-}
+import Practice
 
 struct PracticeLocalDay: Codable, Equatable, Hashable {
     let year: Int

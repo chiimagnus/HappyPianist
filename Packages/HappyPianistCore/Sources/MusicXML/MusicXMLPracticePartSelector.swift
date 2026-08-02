@@ -2,6 +2,8 @@ import Foundation
 
 
 public struct MusicXMLPracticePartSelector {
+    public init() {}
+
     public func select(from score: MusicXMLScore) -> MusicXMLPracticePartSelection {
         let playable = score.logicalInstruments.filter { instrument in
             score.notes.contains { note in

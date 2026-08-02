@@ -1,4 +1,5 @@
 import Foundation
+import Practice
 
 enum PracticeFeedbackEventKind: Equatable {
     case retryInvitation(issue: PracticeIssueKind)

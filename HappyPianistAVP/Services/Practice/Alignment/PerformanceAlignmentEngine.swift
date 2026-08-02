@@ -1,6 +1,7 @@
 import Foundation
 import MIDI
 import MusicXML
+import Practice
 
 struct PerformanceAlignmentConfiguration: Equatable {
     let candidateWindowSeconds: TimeInterval

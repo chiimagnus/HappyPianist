@@ -1,4 +1,5 @@
 import SwiftUI
+import Practice
 
 struct GrandStaffNotationRenderer {
     private let displayScale: CGFloat

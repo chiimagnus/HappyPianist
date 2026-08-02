@@ -1,4 +1,5 @@
 import Foundation
+import Practice
 
 struct SongPracticeFocusMeasureBuilder {
     func build(from progress: SongPracticeProgress?) -> [SongPracticeFocusMeasure] {

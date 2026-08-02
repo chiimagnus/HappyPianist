@@ -1,4 +1,5 @@
 import Foundation
+import Practice
 
 struct PerformanceAssessmentRubricVersion: Equatable, Hashable {
     static let capabilityAware = Self(rawValue: "performance-assessment-v2")

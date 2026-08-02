@@ -1,4 +1,5 @@
 import SwiftUI
+import Practice
 
 struct PracticeSettingsView: View {
     private enum SettingsTab: String, CaseIterable {

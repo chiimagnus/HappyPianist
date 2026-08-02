@@ -2,6 +2,8 @@ import Foundation
 
 
 public struct ScoreTimingScheduleBuilder {
+    public init() {}
+
     public func build(
         notes: [MusicXMLNoteEvent],
         performanceTimingEnabled: Bool = false,

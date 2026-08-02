@@ -1,4 +1,5 @@
 import Foundation
+import Practice
 
 struct PracticeExercisePolicy {
     func action(

@@ -1,7 +1,7 @@
 import Foundation
 
 
-public struct MusicXMLPartMetadata: Equatable {
+public struct MusicXMLPartMetadata: Equatable, Sendable {
     public let partID: String
     public var name: String?
     public var abbreviation: String?
@@ -23,12 +23,12 @@ public struct MusicXMLPartMetadata: Equatable {
     }
 }
 
-public struct MusicXMLScoreInstrumentMetadata: Equatable {
+public struct MusicXMLScoreInstrumentMetadata: Equatable, Sendable {
     public let id: String
     public var name: String?
 }
 
-public struct MusicXMLMIDIInstrumentMetadata: Equatable {
+public struct MusicXMLMIDIInstrumentMetadata: Equatable, Sendable {
     public let id: String
     public var channel: Int?
     public var program: Int?

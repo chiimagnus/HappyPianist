@@ -1,7 +1,7 @@
 import Foundation
 
 
-public enum MusicXMLPerformanceNotationKind: String, CaseIterable, Codable, Equatable, Hashable {
+public enum MusicXMLPerformanceNotationKind: String, CaseIterable, Codable, Equatable, Hashable, Sendable {
     case slur
     case trillMark = "trill-mark"
     case mordent
@@ -16,16 +16,21 @@ public enum MusicXMLPerformanceNotationKind: String, CaseIterable, Codable, Equa
     case other
 }
 
-public struct MusicXMLPerformanceNotationSourceID: Codable, Equatable, Hashable, CustomStringConvertible {
+public struct MusicXMLPerformanceNotationSourceID: Codable, Equatable, Hashable, CustomStringConvertible, Sendable {
     public let sourceNoteID: MusicXMLSourceNoteID
     public let sourceOrdinal: Int
+
+    public init(sourceNoteID: MusicXMLSourceNoteID, sourceOrdinal: Int) {
+        self.sourceNoteID = sourceNoteID
+        self.sourceOrdinal = sourceOrdinal
+    }
 
     public var description: String {
         "\(sourceNoteID.description):notation:\(max(0, sourceOrdinal))"
     }
 }
 
-public struct MusicXMLPerformanceNotation: Equatable {
+public struct MusicXMLPerformanceNotation: Equatable, Sendable {
     public let sourceID: MusicXMLPerformanceNotationSourceID?
     public let kind: MusicXMLPerformanceNotationKind
     public let rawElementToken: String

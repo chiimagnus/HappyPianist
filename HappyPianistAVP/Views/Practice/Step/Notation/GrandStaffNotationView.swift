@@ -1,5 +1,6 @@
 import SwiftUI
 import MusicXML
+import Practice
 
 struct GrandStaffNotationView: View {
     let projection: ScoreNotationProjection

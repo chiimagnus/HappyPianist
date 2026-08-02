@@ -8,8 +8,9 @@
 Diagnostics → ∅
 MusicXML → ∅
 MIDI → Diagnostics
-HappyPianistAVP → Diagnostics, MusicXML, MIDI
-HappyPianistAVPTests → Diagnostics, MusicXML, MIDI, HappyPianistTestFixtures
+Practice → Diagnostics, MusicXML
+HappyPianistAVP → Diagnostics, MusicXML, MIDI, Practice
+HappyPianistAVPTests → Diagnostics, MusicXML, MIDI, Practice, HappyPianistTestFixtures
 ```
 
 ## Diagnostics
@@ -20,9 +21,11 @@ HappyPianistAVPTests → Diagnostics, MusicXML, MIDI, HappyPianistTestFixtures
 
 音频恢复、记谱 fallback 和 coaching diagnostics 仍在各自 App owner 中；`MIDI` 的输出指标和其余 owner 都只向 `Diagnostics` 生成低基数、可过滤的 `DiagnosticEvent`。可导出记录不得包含绝对路径、原始谱面、逐音输入、AI 正文、凭据或设备显示名。
 
-## MusicXML 与测试 fixture
+## MusicXML、Practice 与测试 fixture
 
-`MusicXML` 拥有 MusicXML/MXL 模型、解析、结构扩展与谱面语义计算；它不依赖 Practice、Library、MIDI 或 Diagnostics。`ScorePerformancePlanBuilder` 属于 Practice，仍在 App，直到 P2 迁移时才移动。
+`MusicXML` 拥有 MusicXML/MXL 模型、解析、结构扩展与谱面语义计算；它不依赖 Practice、Library、MIDI 或 Diagnostics。
+
+`Practice` 依赖 `MusicXML` 与 `Diagnostics`，拥有 `PracticePreparationService`、`ScorePerformancePlanBuilder`、`ScorePerformancePlan`、`PracticeStepBuilder`、琴键高亮与记谱投影。它的公开值契约可跨 actor 安全传递；它不保留 App/Notation 的类型，也不引入「有 steps、无小节」的兼容结果。App 的 session runtime、playback、曲库与视图保留在 App，单向消费 preparation 结果。
 
 用户文件先经过单一 `MusicXMLImportSafetyPolicy`：只接受有限大小的常规文件；MXL 在读取 central directory 和每次 extraction 前检查 entry 数量、声明解压大小、总大小、压缩比与安全的相对 archive name。拒绝结果是无路径的 typed reason，不返回部分 score。
 

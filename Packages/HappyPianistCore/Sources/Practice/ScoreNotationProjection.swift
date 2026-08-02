@@ -1,9 +1,9 @@
 import Foundation
 import MusicXML
 
-struct ScoreNotationProjection: Equatable {
-    struct Fallback: Equatable {
-        enum Kind: String, Equatable, Hashable {
+public struct ScoreNotationProjection: Equatable, Sendable {
+    public struct Fallback: Equatable, Sendable {
+        public enum Kind: String, Equatable, Hashable, Sendable {
             case accidental
             case notehead
             case rest
@@ -11,7 +11,7 @@ struct ScoreNotationProjection: Equatable {
             case mark
         }
 
-        enum Reason: String, Equatable, Hashable {
+        public enum Reason: String, Equatable, Hashable, Sendable {
             case microtonalAccidental
             case unsupportedAccidentalValue
             case unsupportedAccidentalToken
@@ -26,19 +26,19 @@ struct ScoreNotationProjection: Equatable {
             case unsupportedPerformanceNotation
         }
 
-        enum PlaceholderPolicy: String, Equatable {
+        public enum PlaceholderPolicy: String, Equatable, Sendable {
             case omit
             case reserveRhythmicSpace
         }
 
-        let sourceID: MusicXMLSourceNoteID
-        let sourceNotationID: MusicXMLPerformanceNotationSourceID?
-        let kind: Kind
-        let sourceKindToken: String?
-        let reason: Reason
-        let placeholderPolicy: PlaceholderPolicy
+        public let sourceID: MusicXMLSourceNoteID
+        public let sourceNotationID: MusicXMLPerformanceNotationSourceID?
+        public let kind: Kind
+        public let sourceKindToken: String?
+        public let reason: Reason
+        public let placeholderPolicy: PlaceholderPolicy
 
-        init(
+        public init(
             sourceID: MusicXMLSourceNoteID,
             sourceNotationID: MusicXMLPerformanceNotationSourceID? = nil,
             kind: Kind,
@@ -55,53 +55,53 @@ struct ScoreNotationProjection: Equatable {
         }
     }
 
-    struct BeamGroupID: Equatable, Hashable, CustomStringConvertible {
-        let partID: String
-        let voice: Int
-        let numberToken: String
-        let startSourceNoteID: MusicXMLSourceNoteID
+    public struct BeamGroupID: Equatable, Hashable, CustomStringConvertible, Sendable {
+        public let partID: String
+        public let voice: Int
+        public let numberToken: String
+        public let startSourceNoteID: MusicXMLSourceNoteID
 
-        var description: String {
+        public var description: String {
             "\(partID):voice-\(voice):beam-\(numberToken):\(startSourceNoteID.description)"
         }
     }
 
-    struct BeamFact: Equatable {
-        let groupID: BeamGroupID
-        let sourceOrdinal: Int
-        let numberToken: String?
-        let value: MusicXMLBeamValue
-        let repeaterToken: String?
-        let fanToken: String?
+    public struct BeamFact: Equatable, Sendable {
+        public let groupID: BeamGroupID
+        public let sourceOrdinal: Int
+        public let numberToken: String?
+        public let value: MusicXMLBeamValue
+        public let repeaterToken: String?
+        public let fanToken: String?
     }
 
-    struct TransposeFact: Equatable {
-        let diatonic: Int?
-        let chromatic: Int
-        let octaveChange: Int
-        let isDouble: Bool
+    public struct TransposeFact: Equatable, Sendable {
+        public let diatonic: Int?
+        public let chromatic: Int
+        public let octaveChange: Int
+        public let isDouble: Bool
     }
 
-    struct OctaveShiftFact: Equatable {
-        let kind: MusicXMLOctaveShiftKind
-        let size: Int
-        let numberToken: String?
+    public struct OctaveShiftFact: Equatable, Sendable {
+        public let kind: MusicXMLOctaveShiftKind
+        public let size: Int
+        public let numberToken: String?
     }
 
-    struct KeySignatureFact: Equatable {
-        let fifths: Int
-        let modeToken: String?
+    public struct KeySignatureFact: Equatable, Sendable {
+        public let fifths: Int
+        public let modeToken: String?
     }
 
-    struct ClefFact: Equatable {
-        let signToken: String?
-        let line: Int?
-        let octaveChange: Int?
-        let numberToken: String?
+    public struct ClefFact: Equatable, Sendable {
+        public let signToken: String?
+        public let line: Int?
+        public let octaveChange: Int?
+        public let numberToken: String?
     }
 
-    struct Mark: Equatable {
-        enum Kind: Equatable {
+    public struct Mark: Equatable, Sendable {
+        public enum Kind: Equatable, Sendable {
             case dynamic
             case tempo
             case text
@@ -117,85 +117,94 @@ struct ScoreNotationProjection: Equatable {
             case endingDiscontinue
         }
 
-        let id: String
-        let tick: Int
-        let staff: Int?
-        let voice: Int?
-        let kind: Kind
-        let text: String?
-        let placementToken: String?
+        public let id: String
+        public let tick: Int
+        public let staff: Int?
+        public let voice: Int?
+        public let kind: Kind
+        public let text: String?
+        public let placementToken: String?
     }
 
-    struct AttributeChange: Equatable {
-        let id: String
-        let tick: Int
-        let staff: Int
-        let clef: ClefFact?
-        let keySignatureFifths: Int?
-        let previousKeySignatureFifths: Int?
-        let meterText: String?
+    public struct AttributeChange: Equatable, Sendable {
+        public let id: String
+        public let tick: Int
+        public let staff: Int
+        public let clef: ClefFact?
+        public let keySignatureFifths: Int?
+        public let previousKeySignatureFifths: Int?
+        public let meterText: String?
     }
 
-    struct SourceNote: Equatable {
-        let id: MusicXMLSourceNoteID
-        let chordID: MusicXMLSourceNoteID
-        let writtenOnTick: Int
-        let writtenDurationTicks: Int
-        let writtenPitch: MusicXMLWrittenPitch?
-        let writtenRhythm: MusicXMLWrittenRhythm?
-        let noteheadToken: String?
-        let isRest: Bool
-        let isMeasureRest: Bool
-        let isPrintObjectVisible: Bool
-        let staff: Int
-        let voice: Int
-        let isGrace: Bool
-        let ties: [MusicXMLTie]
-        let slurs: [MusicXMLSlur]
-        let tuplets: [MusicXMLTuplet]
-        let stem: MusicXMLStem
-        let beams: [BeamFact]
-        let articulations: Set<MusicXMLArticulation>
-        let arpeggiate: MusicXMLArpeggiate?
-        let performanceNotations: [MusicXMLPerformanceNotation]
-        let fingerings: [MusicXMLFingering]
-        let keySignature: KeySignatureFact?
-        let meter: MusicXMLMeter?
-        let clef: ClefFact?
-        let transpose: TransposeFact?
-        let octaveShifts: [OctaveShiftFact]
+    public struct SourceNote: Equatable, Sendable {
+        public let id: MusicXMLSourceNoteID
+        public let chordID: MusicXMLSourceNoteID
+        public let writtenOnTick: Int
+        public let writtenDurationTicks: Int
+        public let writtenPitch: MusicXMLWrittenPitch?
+        public let writtenRhythm: MusicXMLWrittenRhythm?
+        public let noteheadToken: String?
+        public let isRest: Bool
+        public let isMeasureRest: Bool
+        public let isPrintObjectVisible: Bool
+        public let staff: Int
+        public let voice: Int
+        public let isGrace: Bool
+        public let ties: [MusicXMLTie]
+        public let slurs: [MusicXMLSlur]
+        public let tuplets: [MusicXMLTuplet]
+        public let stem: MusicXMLStem
+        public let beams: [BeamFact]
+        public let articulations: Set<MusicXMLArticulation>
+        public let arpeggiate: MusicXMLArpeggiate?
+        public let performanceNotations: [MusicXMLPerformanceNotation]
+        public let fingerings: [MusicXMLFingering]
+        public let keySignature: KeySignatureFact?
+        public let meter: MusicXMLMeter?
+        public let clef: ClefFact?
+        public let transpose: TransposeFact?
+        public let octaveShifts: [OctaveShiftFact]
     }
 
-    struct PerformedOccurrence: Equatable {
-        let id: MusicXMLPerformedNoteID
-        let sourceNoteID: MusicXMLSourceNoteID
-        let performanceEventIDs: [ScorePerformanceNoteEventID]
-        let writtenOnTick: Int
-        let handAssignment: ScoreHandAssignment
+    public struct PerformedOccurrence: Equatable, Sendable {
+        public let id: MusicXMLPerformedNoteID
+        public let sourceNoteID: MusicXMLSourceNoteID
+        public let performanceEventIDs: [ScorePerformanceNoteEventID]
+        public let writtenOnTick: Int
+        public let handAssignment: ScoreHandAssignment
     }
 
-    struct Overlay: Equatable {
-        let activeEventIDs: Set<ScorePerformanceNoteEventID>
-        let activeTickRange: Range<Int>?
+    public struct Overlay: Equatable, Sendable {
+        public let activeEventIDs: Set<ScorePerformanceNoteEventID>
+        public let activeTickRange: Range<Int>?
 
-        static let empty = Overlay(activeEventIDs: [], activeTickRange: nil)
+        public static var empty: Overlay {
+            Overlay(activeEventIDs: [], activeTickRange: nil)
+        }
+
+        public init(activeEventIDs: Set<ScorePerformanceNoteEventID>, activeTickRange: Range<Int>?) {
+            self.activeEventIDs = activeEventIDs
+            self.activeTickRange = activeTickRange
+        }
     }
 
-    let sourceNotes: [SourceNote]
-    let performedOccurrences: [PerformedOccurrence]
-    let marks: [Mark]
-    let attributeChanges: [AttributeChange]
-    let fallbacks: [Fallback]
+    public let sourceNotes: [SourceNote]
+    public let performedOccurrences: [PerformedOccurrence]
+    public let marks: [Mark]
+    public let attributeChanges: [AttributeChange]
+    public let fallbacks: [Fallback]
 
-    static let empty = ScoreNotationProjection(
-        sourceNotes: [],
-        performedOccurrences: [],
-        marks: [],
-        attributeChanges: [],
-        fallbacks: []
-    )
+    public static var empty: ScoreNotationProjection {
+        ScoreNotationProjection(
+            sourceNotes: [],
+            performedOccurrences: [],
+            marks: [],
+            attributeChanges: [],
+            fallbacks: []
+        )
+    }
 
-    init(
+    public init(
         plan: ScorePerformancePlan,
         sourceScore: MusicXMLScore,
         performedScore: MusicXMLScore? = nil
@@ -679,7 +688,7 @@ struct ScoreNotationProjection: Equatable {
                     reason: note.isRest ? .missingRestType : .missingNoteType,
                     placeholderPolicy: .reserveRhythmicSpace
                 ))
-            } else if GrandStaffNoteValue(sourceTypeToken: rhythmToken).isSupported == false {
+            } else if isSupportedNotationDurationType(rhythmToken ?? "") == false {
                 result.append(Fallback(
                     sourceID: source.sourceID,
                     kind: note.isRest ? .rest : .notehead,
@@ -773,6 +782,15 @@ struct ScoreNotationProjection: Equatable {
     private static func normalizedToken(_ token: String?) -> String? {
         let normalized = token?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
         return normalized.isEmpty ? nil : normalized
+    }
+
+    private static func isSupportedNotationDurationType(_ token: String) -> Bool {
+        switch token {
+        case "whole", "half", "quarter", "eighth", "16th", "32nd", "64th", "128th":
+            true
+        default:
+            false
+        }
     }
 
     private static func beamFactsBySourceID(

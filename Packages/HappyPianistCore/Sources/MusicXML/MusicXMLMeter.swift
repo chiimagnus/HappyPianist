@@ -1,8 +1,8 @@
 import Foundation
 
 
-public struct MusicXMLMeter: Equatable, Hashable {
-    public struct Component: Equatable, Hashable {
+public struct MusicXMLMeter: Equatable, Hashable, Sendable {
+    public struct Component: Equatable, Hashable, Sendable {
         let beatGroups: [Int]
         let beatType: Int
 

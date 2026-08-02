@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Practice
 
 protocol PracticeRoundDefaultsStoreProtocol {
     var tempoScale: Double { get }

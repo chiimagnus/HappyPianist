@@ -2,6 +2,7 @@ import Foundation
 import Diagnostics
 import MIDI
 import MusicXML
+import Practice
 
 @MainActor
 struct LiveAppGraph {

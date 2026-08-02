@@ -55,6 +55,8 @@ public struct MusicXMLWordsSemanticsResult: Equatable {
 }
 
 public struct MusicXMLWordsSemanticsInterpreter {
+    public init() {}
+
     public func interpret(
         wordsEvents: [MusicXMLWordsEvent],
         tempoEvents: [MusicXMLTempoEvent]

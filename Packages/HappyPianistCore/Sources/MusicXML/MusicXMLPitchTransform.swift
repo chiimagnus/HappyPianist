@@ -1,7 +1,7 @@
 import Foundation
 
 
-public struct MusicXMLTransposeEvent: Equatable {
+public struct MusicXMLTransposeEvent: Equatable, Sendable {
     public let tick: Int
     public let diatonic: Int?
     public let chromatic: Int
@@ -10,14 +10,14 @@ public struct MusicXMLTransposeEvent: Equatable {
     public let scope: MusicXMLEventScope
 }
 
-public enum MusicXMLOctaveShiftKind: String, Equatable {
+public enum MusicXMLOctaveShiftKind: String, Equatable, Sendable {
     case up
     case down
     case stop
     case `continue`
 }
 
-public struct MusicXMLOctaveShiftEvent: Equatable {
+public struct MusicXMLOctaveShiftEvent: Equatable, Sendable {
     public var sourceID: MusicXMLDirectionSourceID?
     public var performedOccurrenceIndex: Int = 0
     public var performedID: MusicXMLPerformedDirectionID? {

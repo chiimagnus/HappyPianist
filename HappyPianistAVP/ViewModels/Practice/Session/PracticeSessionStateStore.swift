@@ -1,6 +1,7 @@
 import Foundation
 import Observation
 import MusicXML
+import Practice
 
 enum PracticeSessionState: Equatable {
     case idle

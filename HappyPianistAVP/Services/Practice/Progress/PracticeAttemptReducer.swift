@@ -1,4 +1,5 @@
 import Foundation
+import Practice
 
 enum PracticeSessionFact: Equatable {
     case attemptMatched(sourceMeasureID: PracticeSourceMeasureID, handMode: PracticeHandMode)

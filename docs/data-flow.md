@@ -32,6 +32,7 @@ fileImporter
 - 导入先写同卷 `.partial` 和 journal，再以字节数/SHA-256 校验后提交 target/index；冲突停在用户确认边界。
 - bootstrap 先恢复未完成事务，再读取 index，最后扫描 bundle；损坏的非空 JSON fail closed，不得按空库覆盖。
 - `PracticePreparationService` 先生成唯一 `ScorePerformancePlan`，再单向投影 `PracticeStep`、`PianoHighlightGuide`、notation projection、timeline 和 sequence。
+- `Practice` 是 preparation 的共享包边界，只依赖 `MusicXML` 与 `Diagnostics`；曲库、会话、播放与 SwiftUI/RealityKit 不得被它反向引用。
 - prepared result 必须同时有可演奏 steps 与 `MusicXMLMeasureSpan`；缺少小节结构时返回 typed failure，不建立 legacy fallback。
 - preparation failure 的 UI、技术详情和诊断事件来自同一 typed failure；stale generation 不发布旧结果。
 

@@ -1,4 +1,5 @@
 import Foundation
+import Practice
 
 struct PracticeHistoricalPreferencesResolver {
     nonisolated func resolve(

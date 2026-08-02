@@ -1,5 +1,6 @@
 import Foundation
 import MusicXML
+import Practice
 
 enum RecordedTakeAlignmentError: Error, Equatable {
     case scoreIdentityMismatch

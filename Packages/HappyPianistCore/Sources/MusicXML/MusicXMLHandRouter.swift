@@ -15,6 +15,8 @@ public struct MusicXMLHandRouter {
     private let minimumSplitGap = 5
     private let uncertaintyRadius = 1
 
+    public init() {}
+
     public func assignments(for score: MusicXMLScore) -> MusicXMLHandRoutingResult {
         let pitchedNotes = score.notes.filter { note in
             note.isRest == false && note.midiNote != nil

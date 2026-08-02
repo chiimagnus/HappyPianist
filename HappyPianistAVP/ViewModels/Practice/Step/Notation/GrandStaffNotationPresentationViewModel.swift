@@ -1,5 +1,6 @@
 import CoreGraphics
 import MusicXML
+import Practice
 
 struct GrandStaffNotationPresentationViewModel {
     private let layoutService: GrandStaffNotationLayoutService

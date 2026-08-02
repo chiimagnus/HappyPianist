@@ -6,7 +6,7 @@ public enum MusicXMLScoreOrder: String, Codable, Equatable, Sendable {
     case performed
 }
 
-public struct MusicXMLOrderSelection: Codable, Equatable {
+public struct MusicXMLOrderSelection: Codable, Equatable, Sendable {
     public let requested: MusicXMLScoreOrder
     public let applied: MusicXMLScoreOrder
     public let approximationReason: String?
@@ -29,23 +29,33 @@ public struct MusicXMLOrderSelection: Codable, Equatable {
     }
 }
 
-public struct MusicXMLStructureExpansionResult: Equatable {
+public struct MusicXMLStructureExpansionResult: Equatable, Sendable {
     public let score: MusicXMLScore
     public let approximationReason: String?
 }
 
-public struct MusicXMLPerformedNoteID: Codable, Equatable, Hashable, CustomStringConvertible {
+public struct MusicXMLPerformedNoteID: Codable, Equatable, Hashable, CustomStringConvertible, Sendable {
     public let sourceID: MusicXMLSourceNoteID
     public let occurrenceIndex: Int
+
+    public init(sourceID: MusicXMLSourceNoteID, occurrenceIndex: Int) {
+        self.sourceID = sourceID
+        self.occurrenceIndex = occurrenceIndex
+    }
 
     public var description: String {
         "\(sourceID.description)@\(occurrenceIndex)"
     }
 }
 
-public struct MusicXMLPerformedDirectionID: Codable, Equatable, Hashable, CustomStringConvertible {
+public struct MusicXMLPerformedDirectionID: Codable, Equatable, Hashable, CustomStringConvertible, Sendable {
     public let sourceID: MusicXMLDirectionSourceID
     public let occurrenceIndex: Int
+
+    public init(sourceID: MusicXMLDirectionSourceID, occurrenceIndex: Int) {
+        self.sourceID = sourceID
+        self.occurrenceIndex = occurrenceIndex
+    }
 
     public var description: String {
         "\(sourceID.description)@\(occurrenceIndex)"

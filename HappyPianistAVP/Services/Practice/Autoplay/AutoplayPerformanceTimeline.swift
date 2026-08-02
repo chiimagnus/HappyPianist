@@ -1,6 +1,7 @@
 import Foundation
 import Diagnostics
 import MusicXML
+import Practice
 
 struct AutoplayPerformanceTimeline: Equatable {
     struct TransportMetrics: Equatable {

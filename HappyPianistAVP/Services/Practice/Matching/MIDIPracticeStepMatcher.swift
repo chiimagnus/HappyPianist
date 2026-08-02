@@ -1,4 +1,5 @@
 import Foundation
+import Practice
 
 @MainActor
 protocol MIDIPracticeStepMatchingProtocol: AnyObject {

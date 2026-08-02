@@ -1,11 +1,11 @@
 import Foundation
 import MusicXML
 
-protocol PracticeStepBuilderProtocol {
+public protocol PracticeStepBuilderProtocol: Sendable {
     func buildSteps(from plan: ScorePerformancePlan) -> PracticeStepBuildResult
 }
 
-struct PracticeStepBuilder: PracticeStepBuilderProtocol {
+public struct PracticeStepBuilder: PracticeStepBuilderProtocol {
     private struct StepNoteKey: Hashable {
         let midiNote: Int
         let staff: Int
@@ -21,7 +21,9 @@ struct PracticeStepBuilder: PracticeStepBuilderProtocol {
 
     private let playableRange = 21 ... 108
 
-    func buildSteps(from plan: ScorePerformancePlan) -> PracticeStepBuildResult {
+    public init() {}
+
+    public func buildSteps(from plan: ScorePerformancePlan) -> PracticeStepBuildResult {
         var grouped: [Int: [StepNoteKey: StepNoteValue]] = [:]
         var unsupportedNoteCount = 0
 

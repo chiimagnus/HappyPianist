@@ -1,7 +1,7 @@
 import Foundation
 
 
-public struct MusicXMLScore: Equatable {
+public struct MusicXMLScore: Equatable, Sendable {
     public var scoreVersion: String?
     public var partMetadata: [MusicXMLPartMetadata] = []
     public var logicalInstruments: [MusicXMLLogicalInstrument] = []
@@ -23,18 +23,18 @@ public struct MusicXMLScore: Equatable {
     public var endingDirectives: [MusicXMLEndingDirective] = []
 }
 
-public struct MusicXMLEventScope: Equatable {
+public struct MusicXMLEventScope: Equatable, Sendable {
     public let partID: String
     public let staff: Int?
     public let voice: Int?
 }
 
-public enum MusicXMLDynamicEventSource: Equatable {
+public enum MusicXMLDynamicEventSource: Equatable, Sendable {
     case directionDynamics
     case soundDynamicsAttribute
 }
 
-public struct MusicXMLDynamicEvent: Equatable {
+public struct MusicXMLDynamicEvent: Equatable, Sendable {
     public var sourceID: MusicXMLDirectionSourceID?
     public var performedOccurrenceIndex: Int = 0
     public var performedID: MusicXMLPerformedDirectionID? {
@@ -69,13 +69,13 @@ public struct MusicXMLDynamicEvent: Equatable {
     }
 }
 
-public enum MusicXMLWedgeKind: Equatable {
+public enum MusicXMLWedgeKind: Equatable, Sendable {
     case crescendoStart
     case diminuendoStart
     case stop
 }
 
-public struct MusicXMLWedgeEvent: Equatable {
+public struct MusicXMLWedgeEvent: Equatable, Sendable {
     public var sourceID: MusicXMLDirectionSourceID?
     public var performedOccurrenceIndex: Int = 0
     public var performedID: MusicXMLPerformedDirectionID? {
@@ -88,7 +88,7 @@ public struct MusicXMLWedgeEvent: Equatable {
     public let scope: MusicXMLEventScope
 }
 
-public struct MusicXMLWedgePairKey: Equatable, Hashable {
+public struct MusicXMLWedgePairKey: Equatable, Hashable, Sendable {
     public let partID: String
     public let staff: Int?
     public let voice: Int?
@@ -115,17 +115,17 @@ extension MusicXMLWedgeEvent {
     }
 }
 
-public struct MusicXMLWedgeApproximation: Equatable {
+public struct MusicXMLWedgeApproximation: Equatable, Sendable {
     public let sourceID: MusicXMLDirectionSourceID?
     public let reason: String
 }
 
-public enum MusicXMLFermataEventSource: Equatable {
+public enum MusicXMLFermataEventSource: Equatable, Sendable {
     case noteNotations
     case directionType
 }
 
-public struct MusicXMLFermataEvent: Equatable {
+public struct MusicXMLFermataEvent: Equatable, Sendable {
     public var sourceID: MusicXMLDirectionSourceID?
     public var performedOccurrenceIndex: Int = 0
     public var performedID: MusicXMLPerformedDirectionID? {
@@ -154,12 +154,12 @@ public struct MusicXMLFermataEvent: Equatable {
     }
 }
 
-public enum MusicXMLArpeggiateDirection: String, Codable, Equatable, Hashable {
+public enum MusicXMLArpeggiateDirection: String, Codable, Equatable, Hashable, Sendable {
     case up
     case down
 }
 
-public struct MusicXMLArpeggiate: Equatable, Hashable {
+public struct MusicXMLArpeggiate: Equatable, Hashable, Sendable {
     public let numberToken: String?
     public let directionToken: String?
 
@@ -180,7 +180,7 @@ public struct MusicXMLArpeggiate: Equatable, Hashable {
     }
 }
 
-public struct MusicXMLTimeSignatureEvent: Equatable, Identifiable {
+public struct MusicXMLTimeSignatureEvent: Equatable, Identifiable, Sendable {
     public var id: String {
         "\(tick)-\(meter.displayText)-\(scope.partID)"
     }
@@ -217,7 +217,7 @@ public struct MusicXMLTimeSignatureEvent: Equatable, Identifiable {
     }
 }
 
-public struct MusicXMLKeySignatureEvent: Equatable, Identifiable {
+public struct MusicXMLKeySignatureEvent: Equatable, Identifiable, Sendable {
     public var id: String {
         "\(tick)-\(fifths)-\(modeToken ?? "")-\(scope.partID)"
     }
@@ -228,7 +228,7 @@ public struct MusicXMLKeySignatureEvent: Equatable, Identifiable {
     public let scope: MusicXMLEventScope
 }
 
-public struct MusicXMLClefEvent: Equatable, Identifiable {
+public struct MusicXMLClefEvent: Equatable, Identifiable, Sendable {
     public var id: String {
         "\(tick)-\(signToken ?? "")-\(line ?? -1)-\(octaveChange ?? 0)-\(numberToken ?? "")-\(scope.partID)"
     }
@@ -241,7 +241,7 @@ public struct MusicXMLClefEvent: Equatable, Identifiable {
     public let scope: MusicXMLEventScope
 }
 
-public struct MusicXMLWordsEvent: Equatable {
+public struct MusicXMLWordsEvent: Equatable, Sendable {
     public var sourceID: MusicXMLDirectionSourceID?
     public var performedOccurrenceIndex: Int = 0
     public var performedID: MusicXMLPerformedDirectionID? {
@@ -270,7 +270,7 @@ public struct MusicXMLWordsEvent: Equatable {
     }
 }
 
-public enum MusicXMLArticulation: String, CaseIterable, Equatable, Hashable {
+public enum MusicXMLArticulation: String, CaseIterable, Equatable, Hashable, Sendable {
     case staccato
     case accent
     case tenuto
@@ -279,7 +279,7 @@ public enum MusicXMLArticulation: String, CaseIterable, Equatable, Hashable {
     case detachedLegato = "detached-legato"
 }
 
-public struct MusicXMLTempoEvent: Equatable {
+public struct MusicXMLTempoEvent: Equatable, Sendable {
     public var sourceID: MusicXMLDirectionSourceID?
     public var performedOccurrenceIndex: Int = 0
     public var performedID: MusicXMLPerformedDirectionID? {
@@ -321,7 +321,7 @@ public struct MusicXMLTempoEvent: Equatable {
     }
 }
 
-public struct MusicXMLSoundDirective: Equatable {
+public struct MusicXMLSoundDirective: Equatable, Sendable {
     public var sourceID: MusicXMLDirectionSourceID?
     public var performedOccurrenceIndex: Int = 0
     public var performedID: MusicXMLPerformedDirectionID? {
@@ -339,14 +339,14 @@ public struct MusicXMLSoundDirective: Equatable {
     public let timeOnlyPasses: [Int]?
 }
 
-public enum MusicXMLPedalEventKind: String, Equatable {
+public enum MusicXMLPedalEventKind: String, Equatable, Sendable {
     case start
     case stop
     case change
     case `continue`
 }
 
-public struct MusicXMLPedalEvent: Equatable {
+public struct MusicXMLPedalEvent: Equatable, Sendable {
     public var sourceID: MusicXMLDirectionSourceID?
     public var performedOccurrenceIndex: Int = 0
     public var performedID: MusicXMLPerformedDirectionID? {
@@ -390,7 +390,7 @@ public struct MusicXMLPedalEvent: Equatable {
     }
 }
 
-public struct MusicXMLMeasureSpan: Equatable, Identifiable {
+public struct MusicXMLMeasureSpan: Equatable, Identifiable, Sendable {
     public var id: String {
         "\(partID)-\(sourceMeasureIndex)-\(occurrenceIndex)-\(startTick)-\(endTick)"
     }
@@ -419,12 +419,12 @@ public struct MusicXMLMeasureSpan: Equatable, Identifiable {
     }
 }
 
-public enum MusicXMLRepeatDirection: String, Equatable {
+public enum MusicXMLRepeatDirection: String, Equatable, Sendable {
     case forward
     case backward
 }
 
-public struct MusicXMLRepeatDirective: Equatable {
+public struct MusicXMLRepeatDirective: Equatable, Sendable {
     public let partID: String
     public let measureNumber: Int
     public let direction: MusicXMLRepeatDirection
@@ -443,25 +443,25 @@ public struct MusicXMLRepeatDirective: Equatable {
     }
 }
 
-public enum MusicXMLEndingType: String, Equatable {
+public enum MusicXMLEndingType: String, Equatable, Sendable {
     case start
     case stop
     case discontinue
 }
 
-public struct MusicXMLEndingDirective: Equatable {
+public struct MusicXMLEndingDirective: Equatable, Sendable {
     public let partID: String
     public let measureNumber: Int
     public let number: String
     public let type: MusicXMLEndingType
 }
 
-public enum MusicXMLTieSourceElement: String, Equatable {
+public enum MusicXMLTieSourceElement: String, Equatable, Sendable {
     case sound = "tie"
     case notation = "tied"
 }
 
-public struct MusicXMLTie: Equatable {
+public struct MusicXMLTie: Equatable, Sendable {
     public let sourceID: MusicXMLPerformanceNotationSourceID?
     public let sourceElement: MusicXMLTieSourceElement
     public let typeToken: String?
@@ -469,14 +469,14 @@ public struct MusicXMLTie: Equatable {
     public let placementToken: String?
 }
 
-public struct MusicXMLSlur: Equatable {
+public struct MusicXMLSlur: Equatable, Sendable {
     public let sourceID: MusicXMLPerformanceNotationSourceID?
     public let typeToken: String?
     public let numberToken: String?
     public let placementToken: String?
 }
 
-public struct MusicXMLTuplet: Equatable {
+public struct MusicXMLTuplet: Equatable, Sendable {
     public let sourceID: MusicXMLPerformanceNotationSourceID?
     public let typeToken: String?
     public let numberToken: String?
@@ -484,7 +484,7 @@ public struct MusicXMLTuplet: Equatable {
     public let placementToken: String?
 }
 
-public enum MusicXMLStem: Equatable {
+public enum MusicXMLStem: Equatable, Sendable {
     case unspecified
     case up
     case down
@@ -505,7 +505,7 @@ public enum MusicXMLStem: Equatable {
     }
 }
 
-public enum MusicXMLBeamValue: Equatable {
+public enum MusicXMLBeamValue: Equatable, Sendable {
     case begin
     case `continue`
     case end
@@ -526,14 +526,14 @@ public enum MusicXMLBeamValue: Equatable {
     }
 }
 
-public struct MusicXMLBeam: Equatable {
+public struct MusicXMLBeam: Equatable, Sendable {
     public let numberToken: String?
     public let value: MusicXMLBeamValue
     public let repeaterToken: String?
     public let fanToken: String?
 }
 
-public struct MusicXMLNoteEvent: Equatable, Identifiable {
+public struct MusicXMLNoteEvent: Equatable, Identifiable, Sendable {
     public var id: MusicXMLPerformedNoteID? {
         performedID
     }
@@ -655,7 +655,7 @@ public struct MusicXMLNoteEvent: Equatable, Identifiable {
     }
 }
 
-public struct MusicXMLWrittenRhythm: Equatable {
+public struct MusicXMLWrittenRhythm: Equatable, Sendable {
     public let typeToken: String?
     public let dotCount: Int
     public let timeModification: MusicXMLTimeModification?
@@ -672,7 +672,7 @@ public struct MusicXMLWrittenRhythm: Equatable {
     }
 }
 
-public struct MusicXMLTimeModification: Equatable {
+public struct MusicXMLTimeModification: Equatable, Sendable {
     public let actualNotes: Int?
     public let normalNotes: Int?
     public let normalTypeToken: String?

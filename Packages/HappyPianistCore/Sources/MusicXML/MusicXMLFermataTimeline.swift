@@ -1,14 +1,14 @@
 import Foundation
 
 
-public struct MusicXMLFermataTimeline: Equatable {
-    public struct Hold: Equatable {
-        let tick: Int
-        let performedOccurrenceIndex: Int
-        let extraTicks: Int
-        let sourceDirectionID: MusicXMLDirectionSourceID?
-        let contributingPerformedNoteIDs: [MusicXMLPerformedNoteID]
-        let provenanceSourceIdentities: [String]
+public struct MusicXMLFermataTimeline: Equatable, Sendable {
+    public struct Hold: Equatable, Sendable {
+        public let tick: Int
+        public let performedOccurrenceIndex: Int
+        public let extraTicks: Int
+        public let sourceDirectionID: MusicXMLDirectionSourceID?
+        public let contributingPerformedNoteIDs: [MusicXMLPerformedNoteID]
+        public let provenanceSourceIdentities: [String]
     }
 
     public let holds: [Hold]

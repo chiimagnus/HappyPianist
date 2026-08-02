@@ -1,7 +1,7 @@
 import Foundation
 
 
-public struct MusicXMLAttributeTimeline: Equatable {
+public struct MusicXMLAttributeTimeline: Equatable, Sendable {
     private let timeSignatureEvents: [MusicXMLTimeSignatureEvent]
     private let keySignatureEvents: [MusicXMLKeySignatureEvent]
     private let clefEvents: [MusicXMLClefEvent]

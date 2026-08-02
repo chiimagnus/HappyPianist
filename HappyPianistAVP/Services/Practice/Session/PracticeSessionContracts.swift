@@ -1,17 +1,5 @@
 import Foundation
 import MIDI
-import MusicXML
-
-struct PracticePreparationOptions: Equatable {
-    let scoreOrder: MusicXMLScoreOrder
-
-    static let practice = PracticePreparationOptions(
-        scoreOrder: MusicXMLRealisticPlaybackDefaults.practiceScoreOrder
-    )
-    static let referencePlayback = PracticePreparationOptions(
-        scoreOrder: MusicXMLRealisticPlaybackDefaults.referencePlaybackScoreOrder
-    )
-}
 
 @MainActor
 protocol PracticeSessionEffectHandlerProtocol: AnyObject {

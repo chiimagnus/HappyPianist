@@ -3,7 +3,7 @@ import Diagnostics
 import Foundation
 import MusicXML
 
-enum PracticePreparationError: Error, Equatable {
+public enum PracticePreparationError: Error, Equatable, Sendable {
     case scoreFileNotFound
     case scoreFileUnreadable(reason: String)
     case invalidMXLArchive
@@ -18,13 +18,13 @@ enum PracticePreparationError: Error, Equatable {
     case unexpected(stage: String, reason: String)
 }
 
-enum PracticePreparationErrorDetails {
-    static func safeErrorSummary(_ error: Error) -> String {
+public enum PracticePreparationErrorDetails {
+    public static func safeErrorSummary(_ error: Error) -> String {
         let nsError = error as NSError
         return "\(String(reflecting: type(of: error))) [\(nsError.domain):\(nsError.code)]"
     }
 
-    static func safeArchiveEntry(_ path: String) -> String {
+    public static func safeArchiveEntry(_ path: String) -> String {
         let normalized = path.replacing("\\", with: "/")
         let components = normalized.split(separator: "/", omittingEmptySubsequences: true)
         let isSafeRelativePath = normalized.hasPrefix("/") == false &&
@@ -38,7 +38,7 @@ enum PracticePreparationErrorDetails {
     }
 }
 
-protocol PracticePreparationServiceProtocol {
+public protocol PracticePreparationServiceProtocol {
     func prepare(
         songID: UUID,
         from scoreURL: URL,
@@ -47,7 +47,7 @@ protocol PracticePreparationServiceProtocol {
     ) async throws -> PreparedPractice
 }
 
-extension PracticePreparationServiceProtocol {
+public extension PracticePreparationServiceProtocol {
     func prepare(
         songID: UUID,
         from scoreURL: URL,
@@ -57,13 +57,13 @@ extension PracticePreparationServiceProtocol {
     }
 }
 
-actor PracticePreparationService: PracticePreparationServiceProtocol {
+public actor PracticePreparationService: PracticePreparationServiceProtocol {
     private let parser: MusicXMLParserProtocol
     private let stepBuilder: PracticeStepBuilderProtocol
     private let structureExpander: MusicXMLStructureExpander
     private let diagnosticsReporter: any DiagnosticsReporting
 
-    init(
+    public init(
         diagnosticsReporter: any DiagnosticsReporting,
         parser: MusicXMLParserProtocol? = nil,
         stepBuilder: PracticeStepBuilderProtocol? = nil,
@@ -75,7 +75,7 @@ actor PracticePreparationService: PracticePreparationServiceProtocol {
         self.structureExpander = structureExpander
     }
 
-    func prepare(
+    public func prepare(
         songID: UUID,
         from scoreURL: URL,
         file: ImportedMusicXMLFile,
@@ -381,6 +381,8 @@ actor PracticePreparationService: PracticePreparationServiceProtocol {
     private static func mapMXLReaderError(_ error: MXLReaderError) -> PracticePreparationError {
         switch error {
         case .invalidArchive:
+            .invalidMXLArchive
+        case .rejectedBySafetyPolicy:
             .invalidMXLArchive
         case .missingContainerXML:
             .missingMXLContainer

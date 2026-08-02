@@ -1,4 +1,5 @@
 import Foundation
+import Practice
 
 struct RecordingTakeEvent: Codable, Equatable, Identifiable {
     let id: UUID

@@ -2,6 +2,8 @@ import Foundation
 
 
 public struct MusicXMLPianoGrandStaffNormalizer {
+    public init() {}
+
     public func normalize(score: MusicXMLScore) -> MusicXMLScore {
         var copy = score
         copy.logicalInstruments = classifyLogicalInstruments(in: score)

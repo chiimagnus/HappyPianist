@@ -2,7 +2,7 @@ import Foundation
 
 import UniformTypeIdentifiers
 
-public struct ImportedMusicXMLFile: Equatable {
+public struct ImportedMusicXMLFile: Equatable, Sendable {
     public let fileName: String
     public let storedURL: URL
     public let importedAt: Date

@@ -1,7 +1,7 @@
 import Foundation
 
 
-public struct MusicXMLFingeringSourceID: Codable, Equatable, Hashable, CustomStringConvertible {
+public struct MusicXMLFingeringSourceID: Codable, Equatable, Hashable, CustomStringConvertible, Sendable {
     public let sourceNoteID: MusicXMLSourceNoteID
     public let sourceOrdinal: Int
 
@@ -10,7 +10,7 @@ public struct MusicXMLFingeringSourceID: Codable, Equatable, Hashable, CustomStr
     }
 }
 
-public enum MusicXMLFingeringOption: Codable, Equatable, Hashable {
+public enum MusicXMLFingeringOption: Codable, Equatable, Hashable, Sendable {
     case unspecified
     case enabled
     case disabled
@@ -27,7 +27,7 @@ public enum MusicXMLFingeringOption: Codable, Equatable, Hashable {
     }
 }
 
-public enum MusicXMLFingeringHand: Codable, Equatable, Hashable {
+public enum MusicXMLFingeringHand: Codable, Equatable, Hashable, Sendable {
     case unspecified
     case left
     case right
@@ -44,13 +44,13 @@ public enum MusicXMLFingeringHand: Codable, Equatable, Hashable {
     }
 }
 
-public enum MusicXMLFingeringProvenance: String, Codable, Equatable, Hashable {
+public enum MusicXMLFingeringProvenance: String, Codable, Equatable, Hashable, Sendable {
     case score
     case teacher
     case user
 }
 
-public struct MusicXMLFingering: Codable, Equatable, Hashable {
+public struct MusicXMLFingering: Codable, Equatable, Hashable, Sendable {
     public let sourceID: MusicXMLFingeringSourceID?
     public let text: String
     public let substitution: MusicXMLFingeringOption

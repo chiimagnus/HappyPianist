@@ -1,13 +1,13 @@
 import Foundation
 
 
-public enum MusicXMLLogicalInstrumentClassification: String, Codable, Equatable, Hashable {
+public enum MusicXMLLogicalInstrumentClassification: String, Codable, Equatable, Hashable, Sendable {
     case piano
     case other
     case unknown
 }
 
-public enum MusicXMLLogicalInstrumentEvidenceKind: String, Codable, Equatable, Hashable {
+public enum MusicXMLLogicalInstrumentEvidenceKind: String, Codable, Equatable, Hashable, Sendable {
     case explicitPianoMetadata
     case splitKeyboardPartNames
     case complementarySingleStaffClefs
@@ -15,7 +15,7 @@ public enum MusicXMLLogicalInstrumentEvidenceKind: String, Codable, Equatable, H
     case unresolvedMetadata
 }
 
-public enum MusicXMLGrandStaffPartRole: String, Codable, Equatable, Hashable {
+public enum MusicXMLGrandStaffPartRole: String, Codable, Equatable, Hashable, Sendable {
     case upper
     case lower
 
@@ -24,17 +24,17 @@ public enum MusicXMLGrandStaffPartRole: String, Codable, Equatable, Hashable {
     }
 }
 
-public struct MusicXMLGrandStaffPartAssignment: Codable, Equatable, Hashable {
+public struct MusicXMLGrandStaffPartAssignment: Codable, Equatable, Hashable, Sendable {
     public let partID: String
     public let role: MusicXMLGrandStaffPartRole
 }
 
-public struct MusicXMLLogicalInstrumentEvidence: Codable, Equatable, Hashable {
+public struct MusicXMLLogicalInstrumentEvidence: Codable, Equatable, Hashable, Sendable {
     public let kind: MusicXMLLogicalInstrumentEvidenceKind
     public let partIDs: [String]
 }
 
-public struct MusicXMLLogicalInstrument: Codable, Equatable, Hashable, Identifiable {
+public struct MusicXMLLogicalInstrument: Codable, Equatable, Hashable, Identifiable, Sendable {
     public let id: String
     public let memberPartIDs: [String]
     public let classification: MusicXMLLogicalInstrumentClassification
@@ -56,12 +56,12 @@ public struct MusicXMLLogicalInstrument: Codable, Equatable, Hashable, Identifia
     }
 }
 
-public struct MusicXMLPartSelectionAmbiguity: Codable, Equatable {
+public struct MusicXMLPartSelectionAmbiguity: Codable, Equatable, Sendable {
     public let candidateInstrumentIDs: [String]
     public let reason: String
 }
 
-public enum MusicXMLPracticePartSelection: Equatable {
+public enum MusicXMLPracticePartSelection: Equatable, Sendable {
     case selected(MusicXMLLogicalInstrument)
     case ambiguous(MusicXMLPartSelectionAmbiguity)
     case unavailable

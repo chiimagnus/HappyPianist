@@ -1,9 +1,11 @@
 import Foundation
 
-struct PianoHighlightGuideBuilderService {
+public struct PianoHighlightGuideBuilderService {
     private let playableRange = 21 ... 108
 
-    func buildGuides(plan: ScorePerformancePlan) -> [PianoHighlightGuide] {
+    public init() {}
+
+    public func buildGuides(plan: ScorePerformancePlan) -> [PianoHighlightGuide] {
         let playableEvents = plan.noteEvents.filter { playableRange.contains($0.midiNote) }
         guard playableEvents.isEmpty == false else { return [] }
         let stepIndexByTick = Dictionary(uniqueKeysWithValues: Set(playableEvents.map(\.performedOnTick))

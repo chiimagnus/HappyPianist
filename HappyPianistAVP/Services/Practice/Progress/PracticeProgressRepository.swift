@@ -1,4 +1,5 @@
 import Foundation
+import Practice
 
 enum PracticeProgressLoadResult: Equatable {
     case loaded(PracticeProgressDocument)

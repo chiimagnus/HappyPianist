@@ -2,12 +2,12 @@ import Foundation
 
 
 public struct MusicXMLPedalTimeline: Equatable {
-    public struct ControllerChange: Equatable {
-        let sourceDirectionID: MusicXMLDirectionSourceID?
-        let performedOccurrenceIndex: Int
-        let tick: Int
-        let controllerNumber: UInt8
-        let value: UInt8
+    public struct ControllerChange: Equatable, Sendable {
+        public let sourceDirectionID: MusicXMLDirectionSourceID?
+        public let performedOccurrenceIndex: Int
+        public let tick: Int
+        public let controllerNumber: UInt8
+        public let value: UInt8
     }
 
     private let controllers: [ControllerChange]

@@ -1,6 +1,7 @@
 import Foundation
 import Diagnostics
 import MIDI
+import Practice
 
 @MainActor
 final class PracticeMIDIInputService: PerformanceObservationStreamProviding {
