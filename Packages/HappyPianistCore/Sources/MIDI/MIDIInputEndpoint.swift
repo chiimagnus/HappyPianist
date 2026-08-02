@@ -13,6 +13,20 @@ public enum MIDIInputSourceSelection: Equatable, Sendable {
             selectedID == endpointUniqueID
         }
     }
+
+    func availability(
+        connectedSourceCount: Int,
+        selectedEndpointIsPresent: Bool
+    ) -> MIDIInputSourceAvailability {
+        switch self {
+        case .allCurrentSources:
+            .connected(selection: self, sourceCount: max(0, connectedSourceCount))
+        case let .endpointUniqueID(endpointID):
+            selectedEndpointIsPresent
+                ? .connected(selection: self, sourceCount: max(0, connectedSourceCount))
+                : .selectedEndpointUnavailable(endpointID)
+        }
+    }
 }
 
 public struct MIDIInputEndpoint: Identifiable, Equatable, Sendable {

@@ -160,20 +160,16 @@ public final class CoreMIDIInputEventSourceService: MIDIInputEventSource, Sendab
             }
         }
 
-        let availability: MIDIInputSourceAvailability = switch selection {
-        case .allCurrentSources:
-            .connected(selection: selection, sourceCount: state.connectedSources.count)
-        case let .endpointUniqueID(endpointID):
-            selectedEndpointWasPresent
-                ? .connected(selection: selection, sourceCount: state.connectedSources.count)
-                : .selectedEndpointUnavailable(endpointID)
-        }
-        let callback = stateLock.withLock { $0.onSourceAvailabilityChange }
-        callback?(availability)
-
         if state.connectedSources.isEmpty, let failedStatus {
             throw CoreMIDIInputEventSourceServiceError.sourceRefresh(failedStatus)
         }
+
+        let availability = selection.availability(
+            connectedSourceCount: state.connectedSources.count,
+            selectedEndpointIsPresent: selectedEndpointWasPresent
+        )
+        let callback = stateLock.withLock { $0.onSourceAvailabilityChange }
+        callback?(availability)
     }
 
     private func createClientIfNeeded(state: inout CoreMIDILifecycleState) throws {
