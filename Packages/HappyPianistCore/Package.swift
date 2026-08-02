@@ -4,6 +4,10 @@ import PackageDescription
 
 let package = Package(
     name: "HappyPianistCore",
+    platforms: [
+        .macOS(.v13),
+        .visionOS(.v1),
+    ],
     products: [
         .library(name: "Diagnostics", targets: ["Diagnostics"]),
         .library(name: "MusicXML", targets: ["MusicXML"]),
