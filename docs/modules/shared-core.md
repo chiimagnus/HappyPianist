@@ -32,4 +32,4 @@ HappyPianistAVPTests → Diagnostics, MusicXML, MIDI, HappyPianistTestFixtures
 
 `MIDI` 拥有 MIDI 1/2 输入事件、稳定 endpoint ID、host-time 转换、CoreMIDI 输入/输出 transport、端点路由通知和输出指标。它只依赖 `Diagnostics`，不依赖 Practice、录制、AI、SwiftUI 或 RealityKit。
 
-visionOS composition root 显式选择 `.allCurrentSources`，以保留当前所有来源订阅行为；以后平台选择单个端点时只保存 `endpointUniqueID`。旧的 Bluetooth 命名和可变 `sourceIndex` 身份均不存在。输入在 route 变化后重新连接，并通过 availability callback 报告所选端点不可用；播放的取消与发送经 actor gate 串行化。
+visionOS composition root 显式选择 `.allCurrentSources`，以保留当前所有来源订阅行为；以后平台选择单个端点时只保存 `endpointUniqueID`。旧的 Bluetooth 命名和可变 `sourceIndex` 身份均不存在。输入在 route 变化后重新连接，并通过 availability callback 报告所选端点不可用；播放取消与 look-ahead 发送由同一 mutex generation gate 原子化。
