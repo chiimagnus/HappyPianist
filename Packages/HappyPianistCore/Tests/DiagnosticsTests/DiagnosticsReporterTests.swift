@@ -1,10 +1,10 @@
 import Foundation
 @testable import Diagnostics
-import Synchronization
+import os
 import Testing
 
 private final class RecordingSystemDiagnosticsSink: SystemDiagnosticsSinkProtocol {
-    private let eventsStorage = Mutex<[DiagnosticEvent]>([])
+    private let eventsStorage = OSAllocatedUnfairLock(initialState: [DiagnosticEvent]())
 
     var events: [DiagnosticEvent] { eventsStorage.withLock { $0 } }
 
