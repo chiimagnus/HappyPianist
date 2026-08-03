@@ -93,7 +93,7 @@ private func replaySyntheticTrace(
     calibration: PianoTouchCalibration,
     keyboardGeometry: PianoKeyboardGeometry
 ) async throws -> SyntheticTraceReplayResult {
-    let store = PracticeSessionStateStore()
+    let store = PracticeSessionHostState()
     let sequencer = FakeSequencerPlaybackService()
     let controller = VirtualPianoInputController(
         detector: KeyContactDetectionService(calibration: calibration),
@@ -148,7 +148,7 @@ private func sourceEventPrefix(for hand: TrackedHandSide) -> String {
 @Test
 @MainActor
 func virtualPianoPlaysLiveNotesWhenNotSuppressed() async throws {
-    let store = PracticeSessionStateStore()
+    let store = PracticeSessionHostState()
     store.autoplayState = .off
     store.isManualReplayPlaying = false
     store.steps = [PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)])]
@@ -199,7 +199,7 @@ func virtualPianoPlaysLiveNotesWhenNotSuppressed() async throws {
 @Test
 @MainActor
 func endedContactThatNeverSoundedDoesNotSendNoteOff() async {
-    let store = PracticeSessionStateStore()
+    let store = PracticeSessionHostState()
     let sequencer = FakeSequencerPlaybackService()
     let controller = VirtualPianoInputController(
         detector: FakeKeyContactDetector(resultToReturn: makeTestKeyContactObservations(endedMIDINotes: [60])),
@@ -227,7 +227,7 @@ func endedContactThatNeverSoundedDoesNotSendNoteOff() async {
 @Test
 @MainActor
 func releasingOneOfTwoContactsOnSameKeyKeepsPhysicalNoteOn() async {
-    let store = PracticeSessionStateStore()
+    let store = PracticeSessionHostState()
     let handGateController = PracticeHandGateController(
         activityGate: HandPianoActivityGate(),
         chordAttemptAccumulator: AlwaysMatchChordAttemptAccumulator(),
@@ -317,7 +317,7 @@ func releasingOneOfTwoContactsOnSameKeyKeepsPhysicalNoteOn() async {
 @Test
 @MainActor
 func virtualPianoDoesNotPlayLiveNotesDuringAutoplay() async {
-    let store = PracticeSessionStateStore()
+    let store = PracticeSessionHostState()
     store.autoplayState = .playing
     store.isManualReplayPlaying = false
 
@@ -358,7 +358,7 @@ func virtualPianoDoesNotPlayLiveNotesDuringAutoplay() async {
 @Test
 @MainActor
 func virtualPianoPreservesIndependentChordVelocityAndRejectsSlowPress() async {
-    let store = PracticeSessionStateStore()
+    let store = PracticeSessionHostState()
     let handGateController = PracticeHandGateController(
         activityGate: HandPianoActivityGate(),
         chordAttemptAccumulator: AlwaysMatchChordAttemptAccumulator(),

@@ -59,7 +59,7 @@ func manualReplayProjectsCanonicalPlanAndRestoresRecognitionAfterCompletion() as
     let sequencer = FakeSequencerPlaybackService()
     sequencer.currentSecondsValue = 999
 
-    let stateStore = PracticeSessionStateStore()
+    let stateStore = PracticeSessionHostState()
     stateStore.steps = [
         PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
         PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
@@ -174,7 +174,7 @@ func practiceManualReplayService_shutdownIsIdempotent() async {
     let sequencer = FakeSequencerPlaybackService()
     sequencer.currentSecondsValue = 0
 
-    let stateStore = PracticeSessionStateStore()
+    let stateStore = PracticeSessionHostState()
     stateStore.steps = [
         PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
         PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),

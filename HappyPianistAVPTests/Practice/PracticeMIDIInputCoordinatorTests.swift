@@ -37,7 +37,7 @@ private final class CapturingMIDIPracticeStepMatcher: MIDIPracticeStepMatchingPr
 @MainActor
 func refreshInNonGuidingStateStopsInput() {
     let source = FakeProtocolSeparatedPracticeInputEventSource()
-    let stateStore = PracticeSessionStateStore()
+    let stateStore = PracticeSessionHostState()
     let effectHandler = CapturingPracticeSessionEffectHandler()
     let service = PracticeMIDIInputService(
         practiceInputEventSource: source,
@@ -65,7 +65,7 @@ func refreshInNonGuidingStateStopsInput() {
 @MainActor
 func practiceMIDIInputService_shutdownIsIdempotent() async {
     let source = FakeProtocolSeparatedPracticeInputEventSource()
-    let stateStore = PracticeSessionStateStore()
+    let stateStore = PracticeSessionHostState()
     let effectHandler = CapturingPracticeSessionEffectHandler()
     let service = PracticeMIDIInputService(
         practiceInputEventSource: source,
@@ -101,7 +101,7 @@ func practiceMIDIInputService_shutdownIsIdempotent() async {
 @MainActor
 func shutdownDoesNotCancelOtherConsumers() async {
     let source = FakeProtocolSeparatedPracticeInputEventSource()
-    let stateStore = PracticeSessionStateStore()
+    let stateStore = PracticeSessionHostState()
     let effectHandler = CapturingPracticeSessionEffectHandler()
     let service = PracticeMIDIInputService(
         practiceInputEventSource: source,
@@ -151,7 +151,7 @@ func shutdownDoesNotCancelOtherConsumers() async {
 func allNotesOffResetsActiveMatcherWithoutStoppingInput() async {
     let source = FakeProtocolSeparatedPracticeInputEventSource()
     let matcher = CapturingMIDIPracticeStepMatcher()
-    let stateStore = PracticeSessionStateStore()
+    let stateStore = PracticeSessionHostState()
     let effectHandler = CapturingPracticeSessionEffectHandler()
     let expectedNotes = [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]
     let service = PracticeMIDIInputService(
@@ -250,7 +250,7 @@ func midiObservationAdapterKeepsMIDI2PrecisionUntilOutputBoundary() {
 @MainActor
 func practiceMIDIInputPublishesOnlyCurrentGenerationObservations() async throws {
     let source = FakeProtocolSeparatedPracticeInputEventSource()
-    let stateStore = PracticeSessionStateStore()
+    let stateStore = PracticeSessionHostState()
     let service = PracticeMIDIInputService(
         practiceInputEventSource: source,
         matcher: MIDIPracticeStepMatcher(),

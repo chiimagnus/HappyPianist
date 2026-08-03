@@ -71,7 +71,7 @@ private struct YieldingSleeper: SleeperProtocol {
 private struct PlaybackCoordinatorFixture {
     let service: PracticePlaybackControlService
     let sequencer: FakeSequencerPlaybackService
-    let stateStore: PracticeSessionStateStore
+    let stateStore: PracticeSessionHostState
     let effectHandler: CapturingPracticeSessionEffectHandler
     let plan: ScorePerformancePlan
 }
@@ -84,7 +84,7 @@ private func makePlaybackCoordinatorFixture(
     let sequencer = FakeSequencerPlaybackService()
     sequencer.currentSecondsValue = currentSeconds
 
-    let stateStore = PracticeSessionStateStore()
+    let stateStore = PracticeSessionHostState()
     let effectHandler = CapturingPracticeSessionEffectHandler()
 
     let pedalEvents = [

@@ -30,7 +30,7 @@ private actor ControllableSleeper: SleeperProtocol {
 @MainActor
 func transitionGuideSchedulesDelayedSwitchToTrigger() async {
     let sleeper = ControllableSleeper()
-    let store = PracticeSessionStateStore()
+    let store = PracticeSessionHostState()
     store.autoplayState = .off
     store.steps = [
         PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
@@ -94,7 +94,7 @@ func transitionGuideSchedulesDelayedSwitchToTrigger() async {
 @MainActor
 func shutdownCancelsPendingTransitionTaskAndClearsGuide() async {
     let sleeper = ControllableSleeper()
-    let store = PracticeSessionStateStore()
+    let store = PracticeSessionHostState()
     store.autoplayState = .off
     store.steps = [
         PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),

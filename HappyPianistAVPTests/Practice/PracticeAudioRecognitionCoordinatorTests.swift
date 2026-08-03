@@ -112,7 +112,7 @@ private final class FakePracticeAudioRecognitionInputServiceService:
 @Test
 @MainActor
 func practiceAudioRecognitionService_serviceNilHasNoSideEffects() async {
-    let stateStore = PracticeSessionStateStore()
+    let stateStore = PracticeSessionHostState()
     let effectHandler = CapturingPracticeAudioRecognitionEffectHandler()
     let service = PracticeAudioRecognitionInputService(
         service: nil,
@@ -134,7 +134,7 @@ func practiceAudioRecognitionService_serviceNilHasNoSideEffects() async {
 @MainActor
 func practiceAudioRecognitionService_shutdownIsIdempotent() {
     let backendService = FakePracticeAudioRecognitionInputServiceService()
-    let stateStore = PracticeSessionStateStore()
+    let stateStore = PracticeSessionHostState()
     let effectHandler = CapturingPracticeAudioRecognitionEffectHandler()
     let inputService = PracticeAudioRecognitionInputService(
         service: backendService,
@@ -154,7 +154,7 @@ func practiceAudioRecognitionService_shutdownIsIdempotent() {
 @MainActor
 func practiceAudioRecognitionService_refreshOutsideGuidingStopsService() {
     let backendService = FakePracticeAudioRecognitionInputServiceService()
-    let stateStore = PracticeSessionStateStore()
+    let stateStore = PracticeSessionHostState()
     let effectHandler = CapturingPracticeAudioRecognitionEffectHandler()
     stateStore.isAudioRecognitionRunning = true
     let inputService = PracticeAudioRecognitionInputService(
@@ -177,7 +177,7 @@ func practiceAudioRecognitionService_refreshOutsideGuidingStopsService() {
 @MainActor
 func practiceAudioRecognitionService_lateStartRestartsWithLatestStep() async {
     let backendService = FakePracticeAudioRecognitionInputServiceService(suspendFirstStart: true)
-    let stateStore = PracticeSessionStateStore()
+    let stateStore = PracticeSessionHostState()
     let effectHandler = CapturingPracticeAudioRecognitionEffectHandler()
     let inputService = PracticeAudioRecognitionInputService(
         service: backendService,
@@ -205,7 +205,7 @@ func practiceAudioRecognitionService_lateStartRestartsWithLatestStep() async {
 @MainActor
 func practiceAudioRecognitionService_shutdownDoesNotRestartLateStart() async {
     let backendService = FakePracticeAudioRecognitionInputServiceService(suspendFirstStart: true)
-    let stateStore = PracticeSessionStateStore()
+    let stateStore = PracticeSessionHostState()
     let effectHandler = CapturingPracticeAudioRecognitionEffectHandler()
     let inputService = PracticeAudioRecognitionInputService(
         service: backendService,
@@ -230,7 +230,7 @@ func practiceAudioRecognitionService_shutdownDoesNotRestartLateStart() async {
 @MainActor
 func microphoneUnknownPublishesLimitedObservationWithoutWrongNote() async {
     let backendService = FakePracticeAudioRecognitionInputServiceService()
-    let stateStore = PracticeSessionStateStore()
+    let stateStore = PracticeSessionHostState()
     let effectHandler = CapturingPracticeAudioRecognitionEffectHandler()
     let inputService = PracticeAudioRecognitionInputService(
         service: backendService,
