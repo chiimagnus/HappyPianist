@@ -4,7 +4,7 @@ import Practice
 
 @MainActor
 @Observable
-final class PracticeSessionStateStore: PracticeSessionRuntimeState {
+final class PracticeSessionHostState: PracticeSessionRuntimeState {
     var calibration: PianoCalibration?
     var keyboardGeometry: PianoKeyboardGeometry?
     var pressedNotes: Set<Int> = []

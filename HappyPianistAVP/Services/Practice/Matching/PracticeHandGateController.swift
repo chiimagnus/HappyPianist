@@ -6,14 +6,14 @@ import Practice
 final class PracticeHandGateController {
     private let activityGate: HandPianoActivityGate
     private let chordAttemptAccumulator: ChordAttemptAccumulatorProtocol
-    private let stateStore: PracticeSessionStateStore
+    private let stateStore: PracticeSessionHostState
     private weak var effectHandler: (any PracticeSessionEffectHandlerProtocol)?
     private var hasShutdown = false
 
     init(
         activityGate: HandPianoActivityGate,
         chordAttemptAccumulator: ChordAttemptAccumulatorProtocol,
-        stateStore: PracticeSessionStateStore,
+        stateStore: PracticeSessionHostState,
         effectHandler: any PracticeSessionEffectHandlerProtocol
     ) {
         self.activityGate = activityGate

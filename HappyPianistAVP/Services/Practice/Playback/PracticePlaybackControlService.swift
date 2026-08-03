@@ -9,7 +9,7 @@ final class PracticePlaybackControlService {
     private let sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol
     private let playbackSequenceBuilder: any PlaybackSequenceBuildingProtocol
     private let chordAttemptAccumulator: ChordAttemptAccumulatorProtocol
-    private let stateStore: PracticeSessionStateStore
+    private let stateStore: PracticeSessionHostState
     private let audioRecognitionService: PracticeAudioRecognitionServiceProtocol?
     private weak var effectHandler: (any PracticeSessionEffectHandlerProtocol)?
     private let audioRecognitionSuppressDuration: TimeInterval
@@ -33,7 +33,7 @@ final class PracticePlaybackControlService {
         sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol,
         playbackSequenceBuilder: any PlaybackSequenceBuildingProtocol,
         chordAttemptAccumulator: ChordAttemptAccumulatorProtocol,
-        stateStore: PracticeSessionStateStore,
+        stateStore: PracticeSessionHostState,
         audioRecognitionService: PracticeAudioRecognitionServiceProtocol?,
         effectHandler: any PracticeSessionEffectHandlerProtocol,
         audioRecognitionSuppressDuration: TimeInterval,

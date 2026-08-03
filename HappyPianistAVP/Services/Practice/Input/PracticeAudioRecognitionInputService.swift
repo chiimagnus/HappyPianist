@@ -17,7 +17,7 @@ final class PracticeAudioRecognitionInputService: PerformanceObservationStreamPr
     private let diagnosticsReporter: (any DiagnosticsReporting)?
     private let service: PracticeAudioRecognitionServiceProtocol?
     private let accumulator: AudioStepAttemptAccumulator
-    private let stateStore: PracticeSessionStateStore
+    private let stateStore: PracticeSessionHostState
     private let observationRecorder: PracticeSessionRecorder?
     private weak var effectHandler: (any PracticeSessionEffectHandlerProtocol)?
     private let observationBroadcaster = AsyncStreamBroadcaster<PerformanceObservation>()
@@ -31,7 +31,7 @@ final class PracticeAudioRecognitionInputService: PerformanceObservationStreamPr
     init(
         service: PracticeAudioRecognitionServiceProtocol?,
         accumulator: AudioStepAttemptAccumulator,
-        stateStore: PracticeSessionStateStore,
+        stateStore: PracticeSessionHostState,
         effectHandler: any PracticeSessionEffectHandlerProtocol,
         diagnosticsReporter: (any DiagnosticsReporting)? = nil,
         observationRecorder: PracticeSessionRecorder? = nil,

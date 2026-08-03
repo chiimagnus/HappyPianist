@@ -19,7 +19,7 @@ extension RealPianoContactDetectionService: KeyContactDetectingProtocol {}
 final class VirtualPianoInputController {
     private let detector: any KeyContactDetectingProtocol
     private let sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol
-    private let stateStore: PracticeSessionStateStore
+    private let stateStore: PracticeSessionHostState
     private let handGateController: PracticeHandGateController
     private var playbackTask: Task<Void, Never>?
     private var soundingContactByMIDINote: [Int: PianoKeyContactID] = [:]
@@ -28,7 +28,7 @@ final class VirtualPianoInputController {
     init(
         detector: any KeyContactDetectingProtocol,
         sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol,
-        stateStore: PracticeSessionStateStore,
+        stateStore: PracticeSessionHostState,
         handGateController: PracticeHandGateController
     ) {
         self.detector = detector

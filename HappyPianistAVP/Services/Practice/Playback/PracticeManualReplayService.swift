@@ -8,7 +8,7 @@ final class PracticeManualReplayService {
     private let sleeper: SleeperProtocol
     private let sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol
     private let playbackSequenceBuilder: any PlaybackSequenceBuildingProtocol
-    private let stateStore: PracticeSessionStateStore
+    private let stateStore: PracticeSessionHostState
     private let diagnosticsReporter: (any DiagnosticsReporting)?
     private weak var effectHandler: (any PracticeSessionEffectHandlerProtocol)?
 
@@ -20,7 +20,7 @@ final class PracticeManualReplayService {
         sleeper: SleeperProtocol,
         sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol,
         playbackSequenceBuilder: any PlaybackSequenceBuildingProtocol,
-        stateStore: PracticeSessionStateStore,
+        stateStore: PracticeSessionHostState,
         effectHandler: any PracticeSessionEffectHandlerProtocol,
         diagnosticsReporter: (any DiagnosticsReporting)? = nil
     ) {

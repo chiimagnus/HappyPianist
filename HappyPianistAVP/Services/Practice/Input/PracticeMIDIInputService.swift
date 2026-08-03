@@ -14,7 +14,7 @@ final class PracticeMIDIInputService: PerformanceObservationStreamProviding {
         var expectedNotes: [PracticeStepNote]
     }
 
-    private let stateStore: PracticeSessionStateStore
+    private let stateStore: PracticeSessionHostState
     private weak var effectHandler: (any PracticeSessionEffectHandlerProtocol)?
     private let midiSession: MIDIPracticeSession
     private var eventTask: Task<Void, Never>?
@@ -23,7 +23,7 @@ final class PracticeMIDIInputService: PerformanceObservationStreamProviding {
     init(
         practiceInputEventSource: (any MIDIInputEventSource)?,
         matcher: any MIDIPracticeStepMatchingProtocol,
-        stateStore: PracticeSessionStateStore,
+        stateStore: PracticeSessionHostState,
         effectHandler: any PracticeSessionEffectHandlerProtocol,
         diagnosticsReporter: (any DiagnosticsReporting)? = nil,
         observationRecorder: PracticeSessionRecorder? = nil,

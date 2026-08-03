@@ -315,7 +315,7 @@ struct PracticeSettingsView: View {
 }
 
 #Preview("练习设置") {
-    let stateStore = PracticeSessionStateStore()
+    let stateStore = PracticeSessionHostState()
     let controller = PracticeRoundConfigurationController(
         stateStore: stateStore,
         settingsProvider: UserDefaultsPracticeSessionSettingsProvider()

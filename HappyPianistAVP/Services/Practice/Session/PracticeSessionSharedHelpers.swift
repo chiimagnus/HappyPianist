@@ -22,7 +22,7 @@ func uniqueMIDINotesByHand(notes: [PracticeStepNote]) -> (right: [Int], left: [I
 
 // MARK: - StateStore convenience helpers
 
-extension PracticeSessionStateStore {
+extension PracticeSessionHostState {
     func strictTriggerGuideIndex(forStepIndex stepIndex: Int) -> Int? {
         highlightGuides.firstIndex { guide in
             guide.practiceStepIndex == stepIndex && guide.kind == .trigger

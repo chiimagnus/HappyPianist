@@ -4,14 +4,14 @@ import Practice
 @MainActor
 final class PracticeHighlightGuideController {
     private let sleeper: SleeperProtocol
-    private let stateStore: PracticeSessionStateStore
+    private let stateStore: PracticeSessionHostState
 
     private var transitionTask: Task<Void, Never>?
     private var hasShutdown = false
 
     init(
         sleeper: SleeperProtocol,
-        stateStore: PracticeSessionStateStore
+        stateStore: PracticeSessionHostState
     ) {
         self.sleeper = sleeper
         self.stateStore = stateStore
