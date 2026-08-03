@@ -279,9 +279,6 @@ final class MacPracticeViewModel {
             case .completed:
                 state = .completed
                 midiSession?.stop()
-                Task { [sessionRecorder] in
-                    _ = await sessionRecorder.setGuiding(false)
-                }
             default:
                 break
             }

@@ -296,8 +296,8 @@ public actor FilePracticeProgressRepository:
     ) throws {
         guard existing.songID == replacement.songID,
               existing.scoreRevision == replacement.scoreRevision,
-              existing.windowOpenedAt == replacement.windowOpenedAt,
-              existing.practiceStartedAt == replacement.practiceStartedAt,
+              Self.samePersistedTimestamp(existing.windowOpenedAt, replacement.windowOpenedAt),
+              Self.samePersistedTimestamp(existing.practiceStartedAt, replacement.practiceStartedAt),
               existing.practiceDay == replacement.practiceDay
         else {
             throw PracticeSessionMutationError.identityMismatch(id: replacement.id)
@@ -312,6 +312,11 @@ public actor FilePracticeProgressRepository:
         guard existing.termination == .open || replacement.termination != .open else {
             throw PracticeSessionMutationError.cannotReopen(id: replacement.id)
         }
+    }
+
+    private static func samePersistedTimestamp(_ lhs: Date, _ rhs: Date) -> Bool {
+        // ponytail: JSONEncoder.iso8601 persists whole seconds; compare identity at that wire precision.
+        lhs.timeIntervalSince1970.rounded(.down) == rhs.timeIntervalSince1970.rounded(.down)
     }
 
     private func saveDocument(_ document: PracticeProgressDocument) throws {

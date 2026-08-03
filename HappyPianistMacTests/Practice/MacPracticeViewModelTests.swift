@@ -16,11 +16,11 @@ struct MacPracticeViewModelTests {
 
         #expect(fixture.viewModel.state == .guiding)
         fixture.input.yield(note: 61)
-        await Task.yield()
+        #expect(await eventually { fixture.viewModel.lastAttempt == .wrongNote })
         #expect(fixture.viewModel.lastAttempt == .wrongNote)
 
         fixture.input.yield(note: 60)
-        await Task.yield()
+        #expect(await eventually { fixture.viewModel.state == .completed })
         #expect(fixture.viewModel.state == .completed)
 
         let identity = try #require(fixture.viewModel.preparedPractice?.identity)
@@ -37,13 +37,23 @@ struct MacPracticeViewModelTests {
         #expect(fixture.viewModel.state == .guiding)
 
         fixture.input.emit(.selectedEndpointUnavailable(7))
-        await Task.yield()
-        await Task.yield()
+        #expect(await eventually { fixture.viewModel.state == .inputUnavailable })
 
         #expect(fixture.viewModel.state == .inputUnavailable)
         #expect(fixture.settingsViewModel.selectedInputEndpointID == 7)
         #expect(fixture.input.stopCount > 0)
     }
+}
+
+@MainActor
+private func eventually(
+    _ condition: @MainActor () -> Bool
+) async -> Bool {
+    for _ in 0 ..< 100 {
+        if condition() { return true }
+        await Task.yield()
+    }
+    return condition()
 }
 
 @MainActor
