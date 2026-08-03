@@ -54,6 +54,30 @@ struct MacPracticeViewModelTests {
         #expect(fixture.input.stopCount > 0)
     }
 
+    @Test func selectedOutputEnablesCurrentStepReferenceAndReturnStopsIt() async throws {
+        let fixture = try MacPracticeFixture(hasSelectedOutput: true)
+        defer { fixture.removeTemporaryRoot() }
+
+        await fixture.viewModel.load(songID: fixture.songID)
+        #expect(fixture.viewModel.canPlayCurrentStepReference)
+
+        await fixture.viewModel.playCurrentStepReference()
+
+        #expect(fixture.referencePlayback.oneShotCommands.map(\.kind) == [.noteOn(midi: 60, velocity: 96)])
+        #expect(await fixture.viewModel.returnToLibrary())
+        #expect(fixture.referencePlayback.stopCount == 1)
+    }
+
+    @Test func missingOutputHidesCurrentStepReferenceWithoutBlockingMIDIPractice() async throws {
+        let fixture = try MacPracticeFixture()
+        defer { fixture.removeTemporaryRoot() }
+
+        await fixture.viewModel.load(songID: fixture.songID)
+
+        #expect(fixture.viewModel.state == .guiding)
+        #expect(fixture.viewModel.canPlayCurrentStepReference == false)
+    }
+
     @Test func reloadingPracticePreservesApprovedMeasureFacts() async throws {
         let fixture = try MacPracticeFixture()
         defer { fixture.removeTemporaryRoot() }
@@ -95,8 +119,9 @@ private final class MacPracticeFixture {
     let settingsViewModel: MIDISettingsViewModel
     let progressRepository: FilePracticeProgressRepository
     let viewModel: MacPracticeViewModel
+    let referencePlayback = PracticeFakePlaybackService()
 
-    init() throws {
+    init(hasSelectedOutput: Bool = false) throws {
         temporaryRoot = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: temporaryRoot, withIntermediateDirectories: true)
         let scoreURL = temporaryRoot.appending(path: "fixture.musicxml")
@@ -112,13 +137,16 @@ private final class MacPracticeFixture {
         progressRepository = FilePracticeProgressRepository(
             paths: PracticeProgressPaths(rootDirectoryURL: temporaryRoot.appending(path: "progress", directoryHint: .isDirectory))
         )
-        let settingsStore = PracticeFakeSettingsStore(
-            settings: MIDIEndpointSettings(inputEndpointUniqueID: 7, outputEndpointUniqueID: nil)
-        )
+        let settingsStore = PracticeFakeSettingsStore(settings: MIDIEndpointSettings(
+            inputEndpointUniqueID: 7,
+            outputEndpointUniqueID: hasSelectedOutput ? 9 : nil
+        ))
         settingsViewModel = MIDISettingsViewModel(
             settingsStore: settingsStore,
             inputEndpointDiscovery: { [MIDIInputEndpoint(id: 7, name: "Fixture Keyboard")] },
-            outputEndpointDiscovery: { [] },
+            outputEndpointDiscovery: {
+                hasSelectedOutput ? [MIDIDestinationInfo(id: 9, name: "Fixture Synth")] : []
+            },
             makeInputService: { [input] _ in input },
             outputService: CoreMIDIOutputService()
         )
@@ -139,7 +167,8 @@ private final class MacPracticeFixture {
             progressRepository: progressRepository,
             progressRecovery: progressRepository,
             sessionRecorder: recorder,
-            midiSettingsViewModel: settingsViewModel
+            midiSettingsViewModel: settingsViewModel,
+            makeReferencePlaybackService: { [referencePlayback] _ in referencePlayback }
         )
     }
 
@@ -204,6 +233,27 @@ private final class PracticeFakeInput: MacSelectedMIDIInputControlling {
 
     func emit(_ availability: MIDIInputSourceAvailability) {
         onSourceAvailabilityChange?(availability)
+    }
+}
+
+@MainActor
+private final class PracticeFakePlaybackService: PracticeSequencerPlaybackServiceProtocol {
+    private(set) var oneShotCommands: [PracticePlaybackCommand] = []
+    private(set) var stopCount = 0
+
+    func warmUp() async throws {}
+    func load(sequence _: PracticeSequencerSequence) async throws {}
+    func play(fromSeconds _: TimeInterval) async throws {}
+    func currentSeconds() async -> TimeInterval { 0 }
+    func execute(commands _: [PracticePlaybackCommand]) async throws {}
+    func stopAllLiveNotes() async {}
+
+    func stop(resetCommands _: [PerformanceTransportCommand]) async {
+        stopCount += 1
+    }
+
+    func playOneShot(commands: [PracticePlaybackCommand], durationSeconds _: TimeInterval) async throws {
+        oneShotCommands = commands
     }
 }
 

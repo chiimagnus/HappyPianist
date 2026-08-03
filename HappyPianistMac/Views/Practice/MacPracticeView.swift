@@ -94,6 +94,13 @@ struct MacPracticeView: View {
                     .foregroundStyle(.secondary)
                     .accessibilityLabel("最近一次判定")
             }
+
+            if viewModel.canPlayCurrentStepReference {
+                Button("播放当前步骤", systemImage: "speaker.wave.2") {
+                    Task { await viewModel.playCurrentStepReference() }
+                }
+                .buttonStyle(.bordered)
+            }
         }
         .padding()
     }

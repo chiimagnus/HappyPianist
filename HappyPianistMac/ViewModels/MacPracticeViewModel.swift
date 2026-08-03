@@ -26,6 +26,7 @@ final class MacPracticeViewModel {
     private let progressRecovery: (any PracticeProgressRecoveryProtocol)?
     private let sessionRecorder: PracticeSessionRecorder
     private let midiSettingsViewModel: MIDISettingsViewModel
+    private let makeReferencePlaybackService: (Int32) -> any PracticeSequencerPlaybackServiceProtocol
     private let diagnosticsReporter: (any DiagnosticsReporting)?
 
     private let stepNavigator = PracticeStepNavigator()
@@ -35,6 +36,7 @@ final class MacPracticeViewModel {
     private var configuration: PracticeRoundConfiguration?
     private var progress: SongPracticeProgress?
     private var midiSession: MIDIPracticeSession?
+    private var referencePlaybackService: (any PracticeSequencerPlaybackServiceProtocol)?
     @ObservationIgnored private var midiEventTask: Task<Void, Never>?
     private var loadedSongID: UUID?
     private var loadGeneration = 0
@@ -45,6 +47,13 @@ final class MacPracticeViewModel {
     private(set) var lastAttempt: StepAttemptMatchResult?
     private(set) var errorMessage: String?
 
+    var canPlayCurrentStepReference: Bool {
+        state == .guiding &&
+            referencePlaybackService != nil &&
+            midiSettingsViewModel.selectedAvailableOutputEndpointID != nil &&
+            preparedPractice?.steps.indices.contains(currentStepIndex) == true
+    }
+
     init(
         resolveEntry: @escaping @Sendable (UUID) async -> Result<ResolvedSongLibraryEntry, SongLibraryEntryResolutionError>,
         preparationService: any PracticePreparationServiceProtocol,
@@ -52,6 +61,7 @@ final class MacPracticeViewModel {
         progressRecovery: (any PracticeProgressRecoveryProtocol)? = nil,
         sessionRecorder: PracticeSessionRecorder,
         midiSettingsViewModel: MIDISettingsViewModel,
+        makeReferencePlaybackService: @escaping (Int32) -> any PracticeSequencerPlaybackServiceProtocol,
         diagnosticsReporter: (any DiagnosticsReporting)? = nil
     ) {
         self.resolveEntry = resolveEntry
@@ -60,6 +70,7 @@ final class MacPracticeViewModel {
         self.progressRecovery = progressRecovery
         self.sessionRecorder = sessionRecorder
         self.midiSettingsViewModel = midiSettingsViewModel
+        self.makeReferencePlaybackService = makeReferencePlaybackService
         self.diagnosticsReporter = diagnosticsReporter
     }
 
@@ -203,6 +214,9 @@ final class MacPracticeViewModel {
             errorMessage = "请选择可用的 MIDI 输入后再开始练习。"
             return
         }
+        referencePlaybackService = midiSettingsViewModel.selectedAvailableOutputEndpointID.map(
+            makeReferencePlaybackService
+        )
         state = .guiding
         errorMessage = nil
         let session = MIDIPracticeSession(
@@ -240,6 +254,28 @@ final class MacPracticeViewModel {
             currentStepIndex: currentStepIndex,
             expectedNotes: prepared.steps[currentStepIndex].notes
         ))
+    }
+
+    func playCurrentStepReference() async {
+        guard canPlayCurrentStepReference,
+              let prepared = preparedPractice,
+              let playbackService = referencePlaybackService
+        else { return }
+
+        let commands = prepared.steps[currentStepIndex].notes.compactMap { note -> PracticePlaybackCommand? in
+            guard UInt8(exactly: note.midiNote) != nil else { return nil }
+            return PracticePlaybackCommand(
+                sourceEventID: "mac-reference-\(currentStepIndex)-\(note.id)",
+                kind: .noteOn(midi: note.midiNote, velocity: note.velocity)
+            )
+        }
+        guard commands.isEmpty == false else { return }
+
+        do {
+            try await playbackService.playOneShot(commands: commands, durationSeconds: 0.5)
+        } catch {
+            errorMessage = "无法播放当前步骤参考音。请检查所选 MIDI 输出。"
+        }
     }
 
     private func bind(session: MIDIPracticeSession) {
@@ -306,7 +342,8 @@ final class MacPracticeViewModel {
     private func finishCurrentPractice() async -> Bool {
         guard let midiSession else { return true }
         let finished = await midiSession.finish(termination: .init(
-            resetOutput: { [midiSettingsViewModel] in
+            resetOutput: { [weak self, midiSettingsViewModel] in
+                await self?.stopReferencePlayback()
                 midiSettingsViewModel.resetSelectedOutput()
             },
             flushProgress: { [weak self] in
@@ -342,6 +379,7 @@ final class MacPracticeViewModel {
         loadGeneration &+= 1
         midiEventTask?.cancel()
         midiEventTask = nil
+        await stopReferencePlayback()
         midiSession?.shutdown()
         midiSession = nil
         midiSettingsViewModel.onSelectedInputLoss = nil
@@ -356,5 +394,13 @@ final class MacPracticeViewModel {
         currentStepIndex = 0
         lastAttempt = nil
         state = .idle
+    }
+
+    private func stopReferencePlayback() async {
+        guard let referencePlaybackService else { return }
+        await referencePlaybackService.stop(
+            resetCommands: PerformanceTransportReducer.fullResetCommands
+        )
+        self.referencePlaybackService = nil
     }
 }

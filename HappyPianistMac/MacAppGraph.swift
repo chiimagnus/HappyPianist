@@ -89,6 +89,13 @@ struct MacAppGraph {
                 progressRecovery: progressRepository,
                 sessionRecorder: sessionRecorder,
                 midiSettingsViewModel: midiSettingsViewModel,
+                makeReferencePlaybackService: { endpointUniqueID in
+                    CoreMIDIPracticePlaybackService(
+                        destinationUniqueID: endpointUniqueID,
+                        outputService: outputService,
+                        diagnosticsReporter: diagnosticsReporter
+                    )
+                },
                 diagnosticsReporter: diagnosticsReporter
             ),
             midiOutputService: outputService,
