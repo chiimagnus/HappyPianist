@@ -1,18 +1,19 @@
 import Foundation
 import Diagnostics
-import Practice
 
-protocol PracticeProgressClockProtocol: Sendable {
+public protocol PracticeProgressClockProtocol: Sendable {
     func now() -> Date
 }
 
-struct SystemPracticeProgressClock: PracticeProgressClockProtocol {
-    func now() -> Date {
+public struct SystemPracticeProgressClock: PracticeProgressClockProtocol {
+    public init() {}
+
+    public func now() -> Date {
         .now
     }
 }
 
-enum PracticeProgressSaveStatus: Equatable {
+public enum PracticeProgressSaveStatus: Equatable, Sendable {
     case idle
     case loaded
     case pending
@@ -20,19 +21,31 @@ enum PracticeProgressSaveStatus: Equatable {
     case failed(message: String)
 }
 
-struct PracticeProgressSession: Equatable {
-    let generation: Int
-    let progress: SongPracticeProgress?
-    let isCurrent: Bool
+public struct PracticeProgressSession: Equatable, Sendable {
+    public let generation: Int
+    public let progress: SongPracticeProgress?
+    public let isCurrent: Bool
+
+    public init(generation: Int, progress: SongPracticeProgress?, isCurrent: Bool) {
+        self.generation = generation
+        self.progress = progress
+        self.isCurrent = isCurrent
+    }
 }
 
-struct PracticeProgressAssessmentID: Equatable, Hashable {
-    let analyzerRoundGeneration: UInt64
-    let planID: ScorePerformancePlanID
-    let sourceGeneration: UInt64
+public struct PracticeProgressAssessmentID: Equatable, Hashable, Sendable {
+    public let analyzerRoundGeneration: UInt64
+    public let planID: ScorePerformancePlanID
+    public let sourceGeneration: UInt64
+
+    public init(analyzerRoundGeneration: UInt64, planID: ScorePerformancePlanID, sourceGeneration: UInt64) {
+        self.analyzerRoundGeneration = analyzerRoundGeneration
+        self.planID = planID
+        self.sourceGeneration = sourceGeneration
+    }
 }
 
-actor PracticeProgressCoordinator {
+public actor PracticeProgressCoordinator {
     private let repository: any PracticeProgressRepositoryProtocol
     private let clock: any PracticeProgressClockProtocol
     private let checkpointDelay: Duration
@@ -47,7 +60,7 @@ actor PracticeProgressCoordinator {
     private var claimedAssessmentIDs: Set<PracticeProgressAssessmentID> = []
     private var pendingRevision: UInt64 = 0
 
-    init(
+    public init(
         repository: any PracticeProgressRepositoryProtocol,
         clock: any PracticeProgressClockProtocol = SystemPracticeProgressClock(),
         checkpointDelay: Duration = .milliseconds(350),
@@ -59,7 +72,7 @@ actor PracticeProgressCoordinator {
         self.diagnosticsReporter = diagnosticsReporter
     }
 
-    func begin(identity: PracticeSongIdentity) async -> PracticeProgressSession {
+    public func begin(identity: PracticeSongIdentity) async -> PracticeProgressSession {
         delayedFlushTask?.cancel()
         delayedFlushTask = nil
         pendingProgress = nil
@@ -77,11 +90,9 @@ actor PracticeProgressCoordinator {
         return PracticeProgressSession(generation: generation, progress: progress, isCurrent: true)
     }
 
-    func checkpoint(_ progress: SongPracticeProgress, generation: Int) {
+    public func checkpoint(_ progress: SongPracticeProgress, generation: Int) {
         guard accepts(progress: progress, generation: generation) else { return }
-        if let lastAcceptedUpdatedAt, progress.updatedAt < lastAcceptedUpdatedAt {
-            return
-        }
+        if let lastAcceptedUpdatedAt, progress.updatedAt < lastAcceptedUpdatedAt { return }
         var timestamped = progress
         timestamped.updatedAt = max(progress.updatedAt, clock.now())
         lastAcceptedUpdatedAt = timestamped.updatedAt
@@ -100,7 +111,7 @@ actor PracticeProgressCoordinator {
         }
     }
 
-    func claimAssessment(
+    public func claimAssessment(
         _ id: PracticeProgressAssessmentID,
         identity: PracticeSongIdentity,
         generation: Int
@@ -110,7 +121,7 @@ actor PracticeProgressCoordinator {
     }
 
     @discardableResult
-    func flush(generation: Int) async -> PracticeProgressSaveStatus {
+    public func flush(generation: Int) async -> PracticeProgressSaveStatus {
         guard generation == currentGeneration else { return saveStatus }
         delayedFlushTask?.cancel()
         delayedFlushTask = nil
@@ -130,8 +141,7 @@ actor PracticeProgressCoordinator {
             }
         } catch {
             guard generation == currentGeneration else { return saveStatus }
-            let message = error.localizedDescription
-            let failureStatus = PracticeProgressSaveStatus.failed(message: message)
+            let failureStatus = PracticeProgressSaveStatus.failed(message: error.localizedDescription)
             saveStatus = pendingRevision == revision ? failureStatus : .pending
             if let diagnosticsReporter {
                 _ = await diagnosticsReporter.record(
@@ -154,7 +164,7 @@ actor PracticeProgressCoordinator {
     }
 
     @discardableResult
-    func finish(generation: Int) async -> PracticeProgressSaveStatus {
+    public func finish(generation: Int) async -> PracticeProgressSaveStatus {
         var status = await flush(generation: generation)
         guard generation == currentGeneration else { return status }
         while pendingProgress != nil {
@@ -173,7 +183,7 @@ actor PracticeProgressCoordinator {
         return status
     }
 
-    func discardPendingProgress(generation: Int) {
+    public func discardPendingProgress(generation: Int) {
         guard generation == currentGeneration else { return }
         delayedFlushTask?.cancel()
         delayedFlushTask = nil
