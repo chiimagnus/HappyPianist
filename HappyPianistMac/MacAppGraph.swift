@@ -56,6 +56,8 @@ struct MacAppGraph {
             diagnosticsReporter: diagnosticsReporter,
             performanceAnalyzer: PracticePerformanceAnalyzer(diagnosticsReporter: diagnosticsReporter)
         )
+        let takeLibraryViewModel = TakeLibraryViewModel()
+        let takePlaybackViewModel = TakePlaybackViewModel()
         let entryResolver = SongLibraryEntryResolver(
             indexStore: indexStore,
             bundledProvider: bundledProvider,
@@ -109,6 +111,8 @@ struct MacAppGraph {
                 },
                 settingsProvider: practiceSettingsProvider,
                 roundDefaultsStore: practiceRoundDefaultsStore,
+                takeLibraryViewModel: takeLibraryViewModel,
+                takePlaybackViewModel: takePlaybackViewModel,
                 diagnosticsReporter: diagnosticsReporter
             )
         )

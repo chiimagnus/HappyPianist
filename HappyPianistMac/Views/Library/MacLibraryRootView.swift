@@ -16,6 +16,8 @@ struct MacLibraryRootView: View {
     @Bindable var midiSettingsViewModel: MIDISettingsViewModel
     @Bindable var diagnosticsViewModel: DiagnosticsViewModel
     @Bindable var practiceViewModel: MacPracticeViewModel
+    @State private var path: [MacLibraryRoute] = []
+    @State private var isFinishingPracticeNavigation = false
 
     private var audioImporterTypes: [UTType] {
         let types = AudioImportService.supportedFileExtensions.compactMap {
@@ -25,7 +27,7 @@ struct MacLibraryRootView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: navigationPath) {
             Group {
                 switch viewModel.loadState {
                 case .idle, .loading:
@@ -54,7 +56,11 @@ struct MacLibraryRootView: View {
                 case .midiSettings:
                     MIDISettingsView(viewModel: midiSettingsViewModel)
                 case let .practice(songID):
-                    MacPracticeView(songID: songID, viewModel: practiceViewModel)
+                    MacPracticeView(
+                        songID: songID,
+                        viewModel: practiceViewModel,
+                        onExit: leavePractice
+                    )
                 }
             }
             .toolbar {
@@ -97,6 +103,44 @@ struct MacLibraryRootView: View {
                 }
             }
         }
+    }
+
+    private var navigationPath: Binding<[MacLibraryRoute]> {
+        Binding(
+            get: { path },
+            set: { requestedPath in
+                guard path.contains(where: { $0.isPractice }), requestedPath != path else {
+                    path = requestedPath
+                    return
+                }
+                guard isFinishingPracticeNavigation == false else { return }
+                isFinishingPracticeNavigation = true
+                Task { @MainActor in
+                    defer { isFinishingPracticeNavigation = false }
+                    guard await practiceViewModel.returnToLibrary() else { return }
+                    path = requestedPath
+                }
+            }
+        )
+    }
+
+    private func leavePractice() async {
+        guard isFinishingPracticeNavigation == false else { return }
+        isFinishingPracticeNavigation = true
+        defer { isFinishingPracticeNavigation = false }
+        guard await practiceViewModel.returnToLibrary() else { return }
+        if path.last?.isPractice == true {
+            path.removeLast()
+        } else {
+            path.removeAll()
+        }
+    }
+}
+
+private extension MacLibraryRoute {
+    var isPractice: Bool {
+        if case .practice = self { return true }
+        return false
     }
 }
 

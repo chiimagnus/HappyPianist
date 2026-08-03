@@ -499,7 +499,7 @@
       "plannedTask": "P8-T9",
       "fixtures": [],
       "tests": [
-        "HappyPianistAVPTests/Recording/RecordingTakeRecorderTests.swift",
+        "Packages/HappyPianistCore/Tests/PracticeTests/RecordingTakeCoreTests.swift",
         "HappyPianistAVPTests/MIDI/MIDIRecordingCoordinatorTests.swift"
       ],
       "evidenceStatus": "characterizationPlanned"

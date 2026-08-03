@@ -7,8 +7,19 @@ import SwiftUI
 struct MacPracticeView: View {
     let songID: UUID
     @Bindable var viewModel: MacPracticeViewModel
-    @Environment(\.dismiss) private var dismiss
+    let onExit: @MainActor () async -> Void
     @State private var isSettingsPresented = false
+    @State private var isTakeLibraryPresented = false
+
+    init(
+        songID: UUID,
+        viewModel: MacPracticeViewModel,
+        onExit: @escaping @MainActor () async -> Void
+    ) {
+        self.songID = songID
+        self.viewModel = viewModel
+        self.onExit = onExit
+    }
 
     var body: some View {
         Group {
@@ -50,17 +61,17 @@ struct MacPracticeView: View {
             }
             .disabled(viewModel.preparedPractice == nil)
 
+            Button("录制库", systemImage: "music.note.list") {
+                isTakeLibraryPresented = true
+            }
+            .disabled(viewModel.preparedPractice == nil)
+
             Button("返回曲库") {
                 Task { await returnToLibrary() }
             }
         }
         .task(id: songID) {
             await viewModel.load(songID: songID)
-        }
-        .onDisappear {
-            Task {
-                _ = await viewModel.returnToLibrary()
-            }
         }
         .sheet(isPresented: $isSettingsPresented) {
             if let prepared = viewModel.preparedPractice {
@@ -70,6 +81,24 @@ struct MacPracticeView: View {
                     onApply: { await viewModel.applyPendingRoundConfiguration() }
                 )
             }
+        }
+        .sheet(isPresented: $isTakeLibraryPresented) {
+            MacTakeLibraryView(
+                takeLibraryViewModel: viewModel.takeLibraryViewModel,
+                takePlaybackViewModel: viewModel.takePlaybackViewModel,
+                isRecording: viewModel.isRecordingTake,
+                canPlayTakes: viewModel.canPlayTakes,
+                errorMessage: viewModel.errorMessage ?? viewModel.takeLibraryViewModel.errorMessage,
+                dismissError: viewModel.dismissError,
+                playOrPause: { take in await viewModel.playOrPauseTake(take) },
+                togglePlayback: { await viewModel.toggleCurrentTakePlayback() },
+                stopPlayback: { await viewModel.stopTakePlayback() },
+                seek: { seconds in await viewModel.seekTakePlayback(to: seconds) },
+                rename: { take, name in viewModel.renameTake(take, to: name) },
+                delete: { take in await viewModel.deleteTake(take) },
+                clearAll: { await viewModel.clearAllTakes() },
+                makeMIDIExport: viewModel.makeMIDIExport
+            )
         }
     }
 
@@ -130,6 +159,29 @@ struct MacPracticeView: View {
                 }
                 .buttonStyle(.bordered)
             }
+
+            if viewModel.state == .guiding {
+                Button(
+                    viewModel.isRecordingTake ? "停止录制" : "开始录制",
+                    systemImage: viewModel.isRecordingTake ? "stop.circle" : "record.circle"
+                ) {
+                    Task {
+                        if viewModel.isRecordingTake {
+                            _ = await viewModel.stopTakeRecording()
+                        } else {
+                            await viewModel.startTakeRecording()
+                        }
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .disabled(viewModel.canToggleTakeRecording == false)
+            }
+
+            if let errorMessage = viewModel.errorMessage {
+                Text(errorMessage)
+                    .foregroundStyle(.secondary)
+                    .accessibilityLabel("练习错误")
+            }
         }
         .padding()
     }
@@ -172,13 +224,11 @@ struct MacPracticeView: View {
     }
 
     private func returnToLibrary() async {
-        guard await viewModel.returnToLibrary() else { return }
-        dismiss()
+        await onExit()
     }
 
     private func returnAfterSaving() async {
-        guard await viewModel.retrySavingAndReturn() else { return }
-        dismiss()
+        await onExit()
     }
 }
 

@@ -136,6 +136,7 @@ ScorePerformancePlan
 - macOS 输出是可选的 stable endpoint unique ID：缺失或断开只禁用回放，不影响输入判定。manual replay 以 `AutoplayPerformanceTimeline` 与 `PlaybackSequenceBuilder` 输出完整 active range，含 tempo、controller、边界 note-off 与 full reset；开始时关闭 attempt acceptance，取消/结束后按 generation 恢复。更换输出前先取消旧目标未来事件，并向全部通道发送 all-notes-off 与 all-sound-off 后释放旧输出；设备显示名和原始 MIDI 不写入设置或进度。
 - macOS selected-input loss 先使 session 不再接受 observation，再经共享 session 完成 reset/flush、已接受 observation drain 与 approved measure facts flush；完成或明确返回后只恢复所选端点监测，不自动恢复练习。系统可见 endpoint 只能证明路由存在，wired/BLE、断连、输出 reset 与物理 loopback 仍需单独硬件证据。
 - take 保留 source/capability/clock/calibration 事实；MIDI 7/14-bit 事件只在回放或导出边界生成。
+- macOS take 只订阅 selected MIDI input 的 canonical observation；manual replay、take playback 和任何后续 AI output 都不会写入 take。退出和受控 route change 的唯一顺序是停止 input → full reset output → drain observation → 原子写入 take → flush progress → finalize session；take/progress 任一写入失败就保留当前 route 和 pending data 供重试。导出 URL 只在用户 action 中交给系统 document exporter，不进入持久化或诊断。
 - AI phrase 只来自用户 observation；用户选择的 backend 失败、超时、invalid response 或 quality gate failure 时停止本次生成，不自动 fallback。
 - `CreativeDuetResponse` 只在运行期存在，不改写 score plan、assessment target 或 progress。
 

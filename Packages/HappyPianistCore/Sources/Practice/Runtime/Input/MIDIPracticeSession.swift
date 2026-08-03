@@ -33,13 +33,16 @@ public final class MIDIPracticeSession {
     /// coupling the shared input lifecycle to a specific UI or persistence implementation.
     public struct Termination {
         fileprivate let resetOutput: @MainActor () async -> Void
+        fileprivate let flushInputEffects: @MainActor () async -> Bool
         fileprivate let flushProgress: @MainActor () async -> Bool
 
         public init(
             resetOutput: @escaping @MainActor () async -> Void,
-            flushProgress: @escaping @MainActor () async -> Bool
+            flushProgress: @escaping @MainActor () async -> Bool,
+            flushInputEffects: @escaping @MainActor () async -> Bool = { true }
         ) {
             self.resetOutput = resetOutput
+            self.flushInputEffects = flushInputEffects
             self.flushProgress = flushProgress
         }
     }
@@ -48,6 +51,7 @@ public final class MIDIPracticeSession {
     private let matcher: any MIDIPracticeStepMatchingProtocol
     private let diagnosticsReporter: (any DiagnosticsReporting)?
     private let observationRecorder: PracticeSessionRecorder?
+    private let onObservation: (@MainActor (PerformanceObservation) -> Void)?
 
     private var eventContinuations: [UUID: AsyncStream<Event>.Continuation] = [:]
     private var observationContinuations: [UUID: AsyncStream<PerformanceObservation>.Continuation] = [:]
@@ -67,12 +71,14 @@ public final class MIDIPracticeSession {
         matcher: any MIDIPracticeStepMatchingProtocol = MIDIPracticeStepMatcher(),
         diagnosticsReporter: (any DiagnosticsReporting)? = nil,
         observationRecorder: PracticeSessionRecorder? = nil,
+        onObservation: (@MainActor (PerformanceObservation) -> Void)? = nil,
         consumeEvents: Bool = true
     ) {
         self.inputEventSource = inputEventSource
         self.matcher = matcher
         self.diagnosticsReporter = diagnosticsReporter
         self.observationRecorder = observationRecorder
+        self.onObservation = onObservation
         if consumeEvents { bindStreamsIfNeeded() }
     }
 
@@ -165,14 +171,15 @@ public final class MIDIPracticeSession {
     }
 
     /// Stops accepting input before output reset, drains accepted observations,
-    /// then lets the host persist approved facts. A failed flush leaves the
-    /// session resumable rather than silently discarding progress.
+    /// then lets the host persist input-derived effects and approved facts. A
+    /// failed flush leaves the session resumable rather than silently discarding data.
     @discardableResult
     public func finish(termination: Termination) async -> Bool {
         guard hasShutdown == false else { return true }
         stop()
         await termination.resetOutput()
         await waitForPendingObservationRecording()
+        guard await termination.flushInputEffects() else { return false }
         guard await termination.flushProgress() else { return false }
         hasShutdown = true
         finishStreams()
@@ -250,6 +257,7 @@ public final class MIDIPracticeSession {
 
     private func handle(_ observation: PerformanceObservation) {
         observationContinuations.values.forEach { $0.yield(observation) }
+        onObservation?(observation)
         if let observationRecorder {
             let previousTask = observationRecordingTask
             observationRecordingTask = Task {

@@ -60,7 +60,7 @@ rtk xcodebuild test \
   CODE_SIGNING_ALLOWED=NO
 ```
 
-它覆盖持久化只含 unique ID、所选输入断开后停止且不回退、输出切换的 flush/reset/stop 顺序；`HappyPianistMacTests/MacPracticeViewModelTests` 还覆盖 fixed-score MIDI match/wrong evidence、measure facts reload、passage/hand/tempo/loop 的 exact restore、invalid repair 与 selected-input loss；`HappyPianistMacTests/MacDiagnosticsViewModelTests` 验证诊断 export/clear 和 archive 隐私脱敏。仍需在真实设备上确认所选输出未通过 MIDI-Thru 或 loopback 回灌到所选输入。
+它覆盖持久化只含 unique ID、所选输入断开后停止且不回退、输出切换的 flush/reset/stop 顺序；`HappyPianistMacTests/MacPracticeViewModelTests` 还覆盖 fixed-score MIDI match/wrong evidence、measure facts reload、passage/hand/tempo/loop 的 exact restore、invalid repair 与 selected-input loss；`HappyPianistMacTests/MacRecordingWorkflowTests` 覆盖 take 的 open-note close、return/input-loss/save-failure 重试、CRUD、export、no-output 与 stale playback reset；`HappyPianistMacTests/MacDiagnosticsViewModelTests` 验证诊断 export/clear 和 archive 隐私脱敏。仍需在真实设备上确认所选输出未通过 MIDI-Thru 或 loopback 回灌到所选输入。
 
 记录提交 SHA、Xcode、visionOS、destination、命令和完整退出结果。`build-for-testing`、`swiftc -parse` 或 Linux harness 只能作为局部证据，不是 `xcodebuild test` 通过证据。
 
@@ -121,7 +121,8 @@ Simulator 不证明真实 MIDI、麦克风、手部追踪、audio onset、route 
 ### 存储与体验
 
 - [ ] progress 只含小节聚合、配置、metadata、session facts；不含 cue、summary、逐音 evidence、AI 或原始传感数据。
-- [ ] take 可回放/导出；target audio 不进入逐音 MIDI take。
+- [ ] macOS take 可开始/停止、重命名、删除、清空、回放、seek 和用户触发的 MIDI 导出；无 output 时浏览/编辑/导出仍可用，只有发声 control 禁用。
+- [ ] take 可回放/导出；target audio 不进入逐音 MIDI take，return、route change 或 input loss 会在 progress 前先关闭 open note 并写入 take，写入失败可重试且不离开当前 route。
 - [ ] Library Ornament 只读展示事实，没有第二个练习入口或隐藏配置。
 - [ ] Reduce Motion、VoiceOver、Dynamic Type、Differentiate Without Color 和增强对比度下主流程可完成。
 

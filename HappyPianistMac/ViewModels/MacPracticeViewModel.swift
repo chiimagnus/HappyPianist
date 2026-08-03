@@ -32,9 +32,14 @@ final class MacPracticeViewModel {
     private let playbackSequenceBuilder = PlaybackSequenceBuilder()
 
     let roundConfigurationController: PracticeRoundConfigurationController
+    let takeLibraryViewModel: TakeLibraryViewModel
+    let takePlaybackViewModel: TakePlaybackViewModel
 
     private var midiSession: MIDIPracticeSession?
     private var referencePlaybackService: (any PracticeSequencerPlaybackServiceProtocol)?
+    private var takeRecorder = RecordingTakeRecorder()
+    private var pendingTake: RecordingTake?
+    private var takePlaybackOutputEndpointID: Int32?
     @ObservationIgnored private var midiEventTask: Task<Void, Never>?
     @ObservationIgnored private var manualReplayTask: Task<Void, Never>?
     @ObservationIgnored private var passageAnalysisTask: Task<Void, Never>?
@@ -45,6 +50,8 @@ final class MacPracticeViewModel {
 
     private(set) var state: MacPracticeState = .idle
     private(set) var errorMessage: String?
+    private(set) var isRecordingTake = false
+    private(set) var recordingTakeStartedAt: Date?
 
     var preparedPractice: PreparedPractice? {
         sessionController.preparedPractice
@@ -85,6 +92,14 @@ final class MacPracticeViewModel {
             activeRange != nil
     }
 
+    var canPlayTakes: Bool {
+        midiSettingsViewModel.selectedAvailableOutputEndpointID != nil
+    }
+
+    var canToggleTakeRecording: Bool {
+        state == .guiding && (isRecordingTake || sessionController.state.isManualReplayPlaying == false)
+    }
+
     init(
         resolveEntry: @escaping @Sendable (UUID) async -> Result<ResolvedSongLibraryEntry, SongLibraryEntryResolutionError>,
         preparationService: any PracticePreparationServiceProtocol,
@@ -95,6 +110,8 @@ final class MacPracticeViewModel {
         makeReferencePlaybackService: @escaping (Int32) -> any PracticeSequencerPlaybackServiceProtocol,
         settingsProvider: any PracticeSessionSettingsProviderProtocol,
         roundDefaultsStore: any PracticeRoundDefaultsStoreProtocol,
+        takeLibraryViewModel: TakeLibraryViewModel = TakeLibraryViewModel(),
+        takePlaybackViewModel: TakePlaybackViewModel = TakePlaybackViewModel(),
         diagnosticsReporter: (any DiagnosticsReporting)? = nil
     ) {
         self.resolveEntry = resolveEntry
@@ -105,6 +122,8 @@ final class MacPracticeViewModel {
         self.midiSettingsViewModel = midiSettingsViewModel
         self.makeReferencePlaybackService = makeReferencePlaybackService
         self.diagnosticsReporter = diagnosticsReporter
+        self.takeLibraryViewModel = takeLibraryViewModel
+        self.takePlaybackViewModel = takePlaybackViewModel
         let sessionController = PracticeRoundSessionController(
             settingsProvider: settingsProvider,
             defaultsStore: roundDefaultsStore
@@ -119,6 +138,9 @@ final class MacPracticeViewModel {
 
     func load(songID: UUID) async {
         guard loadedSongID != songID || preparedPractice == nil else { return }
+        if state != .idle {
+            guard await finishCurrentPractice() else { return }
+        }
         await discardCurrentPractice()
         loadGeneration &+= 1
         let generation = loadGeneration
@@ -206,14 +228,6 @@ final class MacPracticeViewModel {
         return true
     }
 
-    func retrySavingAndReturn() async -> Bool {
-        guard state == .saveFailed else { return false }
-        let finished = await finishCurrentPractice()
-        guard finished else { return false }
-        await discardCurrentPractice()
-        return true
-    }
-
     private func install(
         _ prepared: PreparedPractice,
         restoredProgress: SongPracticeProgress?,
@@ -286,7 +300,10 @@ final class MacPracticeViewModel {
         let session = MIDIPracticeSession(
             inputEventSource: input,
             diagnosticsReporter: diagnosticsReporter,
-            observationRecorder: sessionRecorder
+            observationRecorder: sessionRecorder,
+            onObservation: { [weak self] observation in
+                self?.recordTakeObservation(observation)
+            }
         )
         midiSession = session
         let sessionInputGeneration = bind(session: session)
@@ -330,6 +347,11 @@ final class MacPracticeViewModel {
               let stepRange = activeRange.clampedStepRange(prepared.steps.indices),
               prepared.steps.indices.contains(stepRange.lowerBound)
         else { return }
+        guard await stopTakeRecordingIfNeeded() else {
+            state = .saveFailed
+            errorMessage = "录制 take 尚未保存；请重试保存后再回放。"
+            return
+        }
 
         let startIndex = stepRange.lowerBound
         let startTick = prepared.steps[startIndex].tick
@@ -457,6 +479,11 @@ final class MacPracticeViewModel {
     @discardableResult
     func applyPendingRoundConfiguration() async -> Bool {
         guard let prepared = preparedPractice else { return false }
+        guard await stopTakeRecordingIfNeeded() else {
+            state = .saveFailed
+            errorMessage = "录制 take 尚未保存；请重试后再调整练习设置。"
+            return false
+        }
 
         await stopActiveInputForRoundReconfiguration()
         let resolvedRange: PracticeActiveRange
@@ -495,22 +522,35 @@ final class MacPracticeViewModel {
         if let midiSession {
             let finished = await midiSession.finish(termination: .init(
                 resetOutput: { [weak self, midiSettingsViewModel] in
+                    await self?.takePlaybackViewModel.stop()
                     await self?.stopReferencePlayback()
                     midiSettingsViewModel.resetSelectedOutput()
                 },
                 flushProgress: { [weak self] in
                     await self?.flushProgress() ?? true
+                },
+                flushInputEffects: { [weak self] in
+                    await self?.stopTakeRecordingIfNeeded() ?? true
                 }
             ))
             guard finished else {
                 state = .saveFailed
+                errorMessage = pendingTake == nil
+                    ? "练习进度尚未保存；请重试保存后再返回。"
+                    : "录制 take 尚未保存；请重试保存后再返回。"
+                return false
+            }
+        } else {
+            guard await stopTakeRecordingIfNeeded() else {
+                state = .saveFailed
+                errorMessage = "录制 take 尚未保存；请重试保存后再返回。"
+                return false
+            }
+            guard await flushProgress() else {
+                state = .saveFailed
                 errorMessage = "练习进度尚未保存；请重试保存后再返回。"
                 return false
             }
-        } else if await flushProgress() == false {
-            state = .saveFailed
-            errorMessage = "练习进度尚未保存；请重试保存后再返回。"
-            return false
         }
         _ = await sessionRecorder.setGuiding(false)
         let recorderStatus = await sessionRecorder.finalize()
@@ -538,12 +578,18 @@ final class MacPracticeViewModel {
         await cancelPassageAnalysis()
         midiEventTask?.cancel()
         midiEventTask = nil
+        await takePlaybackViewModel.stop()
+        await takePlaybackViewModel.replaceController(nil)
+        takePlaybackOutputEndpointID = nil
         await stopReferencePlayback()
         midiSession?.shutdown()
         midiSession = nil
         midiSettingsViewModel.onSelectedInputLoss = nil
         midiSettingsViewModel.resumeSelectedInputMonitoring()
         await sessionRecorder.discardPendingDelta()
+        isRecordingTake = false
+        recordingTakeStartedAt = nil
+        pendingTake = nil
         sessionController.reset()
         loadedSongID = nil
         state = .idle
@@ -569,6 +615,154 @@ final class MacPracticeViewModel {
             resetCommands: PerformanceTransportReducer.fullResetCommands
         )
         self.referencePlaybackService = nil
+    }
+
+    func startTakeRecording() async {
+        guard canToggleTakeRecording else { return }
+        guard pendingTake == nil else {
+            errorMessage = "上一段录制尚未保存；请先重试保存。"
+            return
+        }
+        await takePlaybackViewModel.stop()
+        takeRecorder.start(
+            now: ProcessInfo.processInfo.systemUptime,
+            metadata: RecordingTakeMetadata(
+                scoreIdentity: preparedPractice?.performancePlan.sourceScoreIdentity,
+                inputSources: RecordingTakeMetadata.unattributed.inputSources
+            )
+        )
+        isRecordingTake = true
+        recordingTakeStartedAt = .now
+        errorMessage = nil
+    }
+
+    @discardableResult
+    func stopTakeRecording() async -> Bool {
+        await stopTakeRecordingIfNeeded()
+    }
+
+    func playOrPauseTake(_ take: RecordingTake) async {
+        guard isRecordingTake == false else {
+            errorMessage = "请先停止录制，再播放 MIDI take。"
+            return
+        }
+        guard let outputEndpointID = midiSettingsViewModel.selectedAvailableOutputEndpointID else {
+            errorMessage = "请选择可用的 MIDI 输出后再播放录制。"
+            return
+        }
+        await cancelManualReplay(restorePracticeInput: false)
+        if takePlaybackOutputEndpointID != outputEndpointID {
+            await takePlaybackViewModel.replaceController(TakePlaybackController(
+                playbackService: makeReferencePlaybackService(outputEndpointID)
+            ))
+            takePlaybackOutputEndpointID = outputEndpointID
+        }
+        do {
+            try await takePlaybackViewModel.playOrPause(take: take)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func stopTakePlayback() async {
+        await takePlaybackViewModel.stop()
+    }
+
+    func toggleCurrentTakePlayback() async {
+        guard await matchesSelectedTakePlaybackOutput() else { return }
+        do {
+            try await takePlaybackViewModel.toggleCurrentPlayback()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func seekTakePlayback(to seconds: TimeInterval) async {
+        guard await matchesSelectedTakePlaybackOutput() else { return }
+        do {
+            try await takePlaybackViewModel.seek(toSeconds: seconds)
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func deleteTake(_ take: RecordingTake) async {
+        if takePlaybackViewModel.currentTakeID == take.id {
+            await takePlaybackViewModel.stop()
+        }
+        guard takeLibraryViewModel.delete(takeID: take.id) else {
+            errorMessage = takeLibraryViewModel.errorMessage
+            return
+        }
+    }
+
+    func renameTake(_ take: RecordingTake, to proposedName: String) {
+        let name = proposedName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard name.isEmpty == false else {
+            errorMessage = "录制名称不能为空。"
+            return
+        }
+        guard takeLibraryViewModel.rename(takeID: take.id, to: name) else {
+            errorMessage = takeLibraryViewModel.errorMessage
+            return
+        }
+    }
+
+    func clearAllTakes() async {
+        await takePlaybackViewModel.stop()
+        guard takeLibraryViewModel.clearAll() else {
+            errorMessage = takeLibraryViewModel.errorMessage
+            return
+        }
+    }
+
+    func makeMIDIExport(for take: RecordingTake) -> RecordingMIDIExport? {
+        do {
+            return try takeLibraryViewModel.makeMIDIExport(for: take)
+        } catch {
+            errorMessage = "无法导出该录制：\(error.localizedDescription)"
+            return nil
+        }
+    }
+
+    func dismissError() {
+        errorMessage = nil
+        takeLibraryViewModel.dismissError()
+    }
+
+    private func recordTakeObservation(_ observation: PerformanceObservation) {
+        guard isRecordingTake else { return }
+        takeRecorder.record(observation)
+    }
+
+    private func matchesSelectedTakePlaybackOutput() async -> Bool {
+        guard let outputEndpointID = midiSettingsViewModel.selectedAvailableOutputEndpointID else {
+            errorMessage = "请选择可用的 MIDI 输出后再播放录制。"
+            return false
+        }
+        guard takePlaybackOutputEndpointID == outputEndpointID else {
+            await takePlaybackViewModel.replaceController(nil)
+            takePlaybackOutputEndpointID = nil
+            errorMessage = "MIDI 输出已改变；请重新播放录制。"
+            return false
+        }
+        return true
+    }
+
+    private func stopTakeRecordingIfNeeded() async -> Bool {
+        if isRecordingTake {
+            isRecordingTake = false
+            recordingTakeStartedAt = nil
+            let take = takeRecorder.stop(now: ProcessInfo.processInfo.systemUptime)
+            pendingTake = take.events.isEmpty ? nil : take
+        }
+        guard let pendingTake else { return true }
+        guard takeLibraryViewModel.addTake(pendingTake) else {
+            errorMessage = takeLibraryViewModel.errorMessage
+            return false
+        }
+        self.pendingTake = nil
+        return true
     }
 
     private func cancelManualReplay(restorePracticeInput: Bool) async {

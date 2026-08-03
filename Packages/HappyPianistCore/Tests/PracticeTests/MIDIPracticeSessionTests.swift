@@ -85,12 +85,16 @@ func midiSessionFinishesInInputOutputRecordingProgressOrder() async {
         flushProgress: {
             probe.events.append("progress")
             return true
+        },
+        flushInputEffects: {
+            probe.events.append("inputEffects")
+            return true
         }
     ))
 
     #expect(didFinish)
     #expect(probe.inputWasStoppedBeforeOutput)
-    #expect(probe.events == ["output", "progress"])
+    #expect(probe.events == ["output", "inputEffects", "progress"])
     #expect(source.stopCount == 1)
 }
 
@@ -104,6 +108,27 @@ func midiSessionKeepsLifecycleResumableWhenProgressFlushFails() async {
     let didFinish = await session.finish(termination: .init(
         resetOutput: {},
         flushProgress: { false }
+    ))
+
+    #expect(didFinish == false)
+    #expect(source.stopCount == 1)
+
+    session.update(configuration: configuration(stepIndex: 0, note: 60))
+    #expect(source.startCount == 2)
+    session.shutdown()
+}
+
+@Test
+@MainActor
+func midiSessionKeepsLifecycleResumableWhenInputEffectsFlushFails() async {
+    let source = TestMIDIInputEventSource()
+    let session = MIDIPracticeSession(inputEventSource: source)
+
+    session.update(configuration: configuration(stepIndex: 0, note: 60))
+    let didFinish = await session.finish(termination: .init(
+        resetOutput: {},
+        flushProgress: { true },
+        flushInputEffects: { false }
     ))
 
     #expect(didFinish == false)

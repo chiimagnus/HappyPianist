@@ -252,7 +252,7 @@ private func eventually(
 }
 
 @MainActor
-private final class MacPracticeFixture {
+final class MacPracticeFixture {
     let temporaryRoot: URL
     let songID = UUID()
     let input = PracticeFakeInput()
@@ -260,11 +260,14 @@ private final class MacPracticeFixture {
     let progressRepository: FilePracticeProgressRepository
     let viewModel: MacPracticeViewModel
     let referencePlayback = PracticeFakePlaybackService()
+    let takeStore: MacPracticeTakeStore
 
     init(
         hasSelectedOutput: Bool = false,
-        hasTwoMeasures: Bool = false
+        hasTwoMeasures: Bool = false,
+        takeStore: MacPracticeTakeStore = MacPracticeTakeStore()
     ) throws {
+        self.takeStore = takeStore
         temporaryRoot = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: temporaryRoot, withIntermediateDirectories: true)
         let scoreURL = temporaryRoot.appending(path: "fixture.musicxml")
@@ -314,7 +317,8 @@ private final class MacPracticeFixture {
             midiSettingsViewModel: settingsViewModel,
             makeReferencePlaybackService: { [referencePlayback] _ in referencePlayback },
             settingsProvider: PracticeFakeSessionSettingsProvider(),
-            roundDefaultsStore: PracticeFakeRoundDefaultsStore()
+            roundDefaultsStore: PracticeFakeRoundDefaultsStore(),
+            takeLibraryViewModel: TakeLibraryViewModel(store: takeStore)
         )
     }
 
@@ -379,7 +383,7 @@ private final class PracticeFakeSettingsStore: MIDIEndpointSettingsStoring {
 }
 
 @MainActor
-private final class PracticeFakeInput: MacSelectedMIDIInputControlling {
+final class PracticeFakeInput: MacSelectedMIDIInputControlling {
     var onSourceAvailabilityChange: (@Sendable (MIDIInputSourceAvailability) -> Void)?
     private var midi1Continuation: AsyncStream<MIDI1InputEvent>.Continuation?
     private var midi2Continuation: AsyncStream<MIDI2InputEvent>.Continuation?
@@ -419,7 +423,7 @@ private final class PracticeFakeInput: MacSelectedMIDIInputControlling {
 }
 
 @MainActor
-private final class PracticeFakePlaybackService: PracticeSequencerPlaybackServiceProtocol {
+final class PracticeFakePlaybackService: PracticeSequencerPlaybackServiceProtocol {
     private(set) var loadedSequences: [PracticeSequencerSequence] = []
     private(set) var playCount = 0
     private(set) var stopCount = 0
@@ -441,6 +445,20 @@ private final class PracticeFakePlaybackService: PracticeSequencerPlaybackServic
     }
 
     func playOneShot(commands _: [PracticePlaybackCommand], durationSeconds _: TimeInterval) async throws {}
+}
+
+final class MacPracticeTakeStore: RecordingTakeStoreProtocol {
+    var takes: [RecordingTake] = []
+    var isSaveFailing = false
+
+    func load() throws -> [RecordingTake] {
+        takes
+    }
+
+    func save(_ takes: [RecordingTake]) throws {
+        if isSaveFailing { throw CocoaError(.fileWriteUnknown) }
+        self.takes = takes
+    }
 }
 
 private struct PracticeNoopDiagnosticsReporter: DiagnosticsReporting {
