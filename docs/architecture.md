@@ -19,6 +19,8 @@ Models / Contracts
 - **ViewModel**：编排状态、生命周期和依赖，不复制服务事实。
 - **Service / Repository**：隔离文件、MusicXML、音频、MIDI、ARKit、AI 与诊断副作用。
 
+`HappyPianistAVP` 与 `HappyPianistMac` 是独立 composition root 与 App Sandbox container。两者只能经由共享 package products 复用业务核心，不能共享 App service、persistent Documents、platform adapter 或窗口/空间 UI。Mac host 只包含 2D 曲库、系统可见 CoreMIDI 与共享 MIDI-only lifecycle；AR/RealityKit、手部/虚拟琴、音频识别、AVFoundation 与 AI 仍只在 AVP host。
+
 共享根模块的依赖只能向下：`Diagnostics` 不依赖 App、Practice、Library、MusicXML、MIDI 或任何 UI/设备框架；App 仅通过其公开契约注入 reporter、store 与 exporter。
 
 `MusicXML` 同样是根模块，仅依赖 Foundation、UniformTypeIdentifiers 与其单次声明的 ZIPFoundation；它不得引用 Practice preparation error、Library、MIDI、Diagnostics 或任何 UI/设备框架。
@@ -39,6 +41,7 @@ Models / Contracts
 | --- | --- | --- |
 | App 与窗口 | `HappyPianistAVPApp`、`AppState` | Library 是入口；preparation 与 practice 是单层 pushed window；immersive space 只承载空间内容。 |
 | 组合根 | `LiveAppGraph` | 共享的 index store、曲库 provider、progress repository、diagnostics reporter 与 practice recorder 不在 ViewModel 内重新创建。 |
+| macOS host | `HappyPianistMacApp`、`MacAppGraph` | 独立沙盒、空 bundled library 和初始导入入口；不复制 `LiveAppGraph` 或任一 AVP lifecycle。 |
 | 诊断根 | `Packages/HappyPianistCore/Sources/Diagnostics/` | `DiagnosticEvent`、reporter、七日文件 store、OSLog sink 与用户归档；不包含音频、AR、Practice 投影或输出指标。 |
 | 曲谱根 | `Packages/HappyPianistCore/Sources/MusicXML/` | MusicXML/MXL 解析、结构扩展、模型与安全限制；输入失败以本模块 typed error 表示，不反向依赖 Practice。 |
 | MIDI 根 | `Packages/HappyPianistCore/Sources/MIDI/` | 输入/输出 transport、endpoint ID、CoreMIDI route 与输出指标；不包含练习匹配、录制、AI 或界面。 |
