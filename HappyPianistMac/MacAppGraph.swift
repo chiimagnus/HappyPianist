@@ -28,6 +28,8 @@ struct MacAppGraph {
         let bundledProvider: any BundledSongLibraryProviderProtocol = EmptyMacBundledSongLibraryProvider()
         let indexStore = SongLibraryIndexStore()
         let fileStore = SongFileStore()
+        let audioImportService: any AudioImportServiceProtocol = AudioImportService()
+        let songAudioPlayer: SongAudioPlayerProtocol = SongAudioPlayer()
         let importTransactionService = SongLibraryImportTransactionService(
             indexStore: indexStore,
             diagnostics: diagnosticsReporter
@@ -68,7 +70,12 @@ struct MacAppGraph {
             songLibraryViewModel: MacLibraryViewModel(
                 indexStore: indexStore,
                 importTransactionService: importTransactionService,
-                bundledProvider: bundledProvider
+                fileStore: fileStore,
+                audioImportService: audioImportService,
+                bundledProvider: bundledProvider,
+                audioPlayer: songAudioPlayer,
+                progressRepository: progressRepository,
+                diagnosticsReporter: diagnosticsReporter
             ),
             midiSettingsViewModel: midiSettingsViewModel,
             practiceViewModel: MacPracticeViewModel(

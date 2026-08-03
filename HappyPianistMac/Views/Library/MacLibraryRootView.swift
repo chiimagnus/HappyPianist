@@ -14,6 +14,13 @@ struct MacLibraryRootView: View {
     @Bindable var midiSettingsViewModel: MIDISettingsViewModel
     @Bindable var practiceViewModel: MacPracticeViewModel
 
+    private var audioImporterTypes: [UTType] {
+        let types = MacLibraryViewModel.supportedAudioFileExtensions.compactMap {
+            UTType(filenameExtension: $0)
+        }
+        return types.isEmpty ? [.audio] : types
+    }
+
     var body: some View {
         NavigationStack {
             Group {
@@ -65,6 +72,20 @@ struct MacLibraryRootView: View {
                     }
                 case .failure:
                     viewModel.receiveImporterFailure()
+                }
+            }
+            .fileImporter(
+                isPresented: $viewModel.isAudioImporterPresented,
+                allowedContentTypes: audioImporterTypes,
+                allowsMultipleSelection: false
+            ) { result in
+                switch result {
+                case let .success(urls):
+                    Task {
+                        await viewModel.importAudio(from: urls)
+                    }
+                case .failure:
+                    viewModel.receiveAudioImporterFailure()
                 }
             }
         }
@@ -125,6 +146,34 @@ private struct MacLibraryView: View {
                                     .foregroundStyle(.tint)
                                     .accessibilityHidden(true)
                             }
+                            Button {
+                                Task {
+                                    await viewModel.toggleListening(entryID: entry.id)
+                                }
+                            } label: {
+                                if entry.audioFileName == nil, entry.isBundled != true {
+                                    Label("绑定音频", systemImage: "waveform.badge.plus")
+                                } else {
+                                    Label(
+                                        viewModel.isListeningPlaying(entryID: entry.id) ? "暂停试听" : "试听",
+                                        systemImage: viewModel.isListeningPlaying(entryID: entry.id)
+                                            ? "pause.fill" : "play.fill"
+                                    )
+                                }
+                            }
+                            .disabled(viewModel.importState.isActive)
+                            if entry.isBundled != true {
+                                Button("替换音频", systemImage: "arrow.triangle.2.circlepath") {
+                                    viewModel.presentAudioImporter(for: entry.id)
+                                }
+                                .disabled(viewModel.importState.isActive)
+                                Button("删除曲目", systemImage: "trash", role: .destructive) {
+                                    Task {
+                                        await viewModel.deleteEntry(entryID: entry.id)
+                                    }
+                                }
+                                .disabled(viewModel.importState.isActive)
+                            }
                         }
                     }
                     .buttonStyle(.plain)
@@ -147,6 +196,9 @@ private struct MacLibraryView: View {
             }
         }
         .padding()
+        .onDisappear {
+            viewModel.stopListening()
+        }
     }
 }
 

@@ -1,6 +1,8 @@
+import Diagnostics
 import Foundation
 import Library
 import Observation
+import Practice
 
 enum MacLibraryLoadState: Equatable {
     case idle
@@ -15,25 +17,51 @@ enum MacLibraryLoadState: Equatable {
 final class MacLibraryViewModel {
     private let indexStore: any SongLibraryIndexStoreProtocol
     private let importTransactionService: any SongLibraryImportTransactionServicing
+    private let fileStore: any SongFileStoreProtocol
+    private let audioImportService: any AudioImportServiceProtocol
     private let bundledProvider: any BundledSongLibraryProviderProtocol
+    private let audioPlaybackController: SongAudioPlaybackStateController
+    private let progressRepository: any PracticeProgressRepositoryProtocol
+    private let diagnosticsReporter: any DiagnosticsReporting
     private var importQueue: [SongLibraryImportBatchItem] = []
     private var importQueueIndex = 0
+    @ObservationIgnored private var audioIntentGeneration = 0
+    @ObservationIgnored private var pendingAudioBindingEntryID: UUID?
+
+    static let supportedAudioFileExtensions = ["mp3", "m4a"]
+    private static let supportedAudioFileExtensionSet = Set(supportedAudioFileExtensions)
 
     private(set) var entries: [SongLibraryEntry] = []
     var selectedEntryID: UUID?
     private(set) var loadState: MacLibraryLoadState = .idle
     private(set) var importState: SongLibraryImportState = .idle
     var isMusicXMLImporterPresented = false
+    var isAudioImporterPresented = false
+    private(set) var currentListeningEntryID: UUID?
+    private(set) var isCurrentListeningPlaying = false
     private(set) var errorMessage: String?
 
     init(
         indexStore: any SongLibraryIndexStoreProtocol,
         importTransactionService: any SongLibraryImportTransactionServicing,
-        bundledProvider: any BundledSongLibraryProviderProtocol
+        fileStore: any SongFileStoreProtocol,
+        audioImportService: any AudioImportServiceProtocol,
+        bundledProvider: any BundledSongLibraryProviderProtocol,
+        audioPlayer: SongAudioPlayerProtocol,
+        progressRepository: any PracticeProgressRepositoryProtocol,
+        diagnosticsReporter: any DiagnosticsReporting
     ) {
         self.indexStore = indexStore
         self.importTransactionService = importTransactionService
+        self.fileStore = fileStore
+        self.audioImportService = audioImportService
         self.bundledProvider = bundledProvider
+        self.progressRepository = progressRepository
+        self.diagnosticsReporter = diagnosticsReporter
+        audioPlaybackController = SongAudioPlaybackStateController(player: audioPlayer)
+        audioPlaybackController.onStateChanged = { [weak self] _ in
+            self?.syncListeningState()
+        }
     }
 
     func loadLibrary() async {
@@ -124,7 +152,189 @@ final class MacLibraryViewModel {
 
     func selectEntry(_ entryID: UUID) async {
         guard entries.contains(where: { $0.id == entryID }) else { return }
+        stopListening()
+        selectedEntryID = entryID
         await persistSelection(entryID)
+    }
+
+    func presentAudioImporter(for entryID: UUID) {
+        guard entry(for: entryID)?.isBundled != true else {
+            errorMessage = "内置曲目不支持绑定外部音频文件。"
+            return
+        }
+        pendingAudioBindingEntryID = entryID
+        isAudioImporterPresented = true
+    }
+
+    func receiveAudioImporterFailure() {
+        pendingAudioBindingEntryID = nil
+        errorMessage = "无法选择音频文件，请重试。"
+    }
+
+    func importAudio(from selectedURLs: [URL]) async {
+        guard selectedURLs.count == 1, let entryID = pendingAudioBindingEntryID else { return }
+        pendingAudioBindingEntryID = nil
+        await bindAudio(entryID: entryID, from: selectedURLs[0])
+    }
+
+    func bindAudio(entryID: UUID, from sourceURL: URL) async {
+        guard let targetEntry = entry(for: entryID) else { return }
+        guard targetEntry.isBundled != true else {
+            errorMessage = "内置曲目不支持绑定外部音频文件。"
+            return
+        }
+        guard Self.supportedAudioFileExtensionSet.contains(sourceURL.pathExtension.lowercased()) else {
+            errorMessage = "仅支持导入 mp3 或 m4a 音频文件。"
+            return
+        }
+
+        audioIntentGeneration += 1
+        let generation = audioIntentGeneration
+        do {
+            let importedAudioFileName = try await audioImportService.importAudio(from: sourceURL)
+            guard generation == audioIntentGeneration,
+                  let currentEntry = entry(for: entryID),
+                  currentEntry.audioFileName == targetEntry.audioFileName
+            else {
+                try? await fileStore.deleteAudioFile(named: importedAudioFileName)
+                return
+            }
+
+            do {
+                let mutation = try await indexStore.updateAudioFileName(
+                    entryID: entryID,
+                    expectedCurrentFileName: targetEntry.audioFileName,
+                    newFileName: importedAudioFileName
+                )
+                guard generation == audioIntentGeneration else {
+                    try? await fileStore.deleteAudioFile(named: importedAudioFileName)
+                    return
+                }
+                guard case let .applied(index, _) = mutation else {
+                    _ = install(mutation.index)
+                    try? await fileStore.deleteAudioFile(named: importedAudioFileName)
+                    errorMessage = "曲目已发生变化，请重试导入音频。"
+                    return
+                }
+                if currentListeningEntryID == entryID {
+                    stopListening()
+                }
+                _ = install(index)
+                if let previousAudioFileName = targetEntry.audioFileName {
+                    try? await fileStore.deleteAudioFile(named: previousAudioFileName)
+                }
+            } catch {
+                try? await fileStore.deleteAudioFile(named: importedAudioFileName)
+                throw error
+            }
+        } catch {
+            guard generation == audioIntentGeneration else { return }
+            errorMessage = "导入音频失败：\(error.localizedDescription)"
+        }
+    }
+
+    func toggleListening(entryID: UUID) async {
+        guard let targetEntry = entry(for: entryID) else { return }
+        guard let audioFileName = targetEntry.audioFileName else {
+            if targetEntry.isBundled == true {
+                errorMessage = "此内置曲目没有可播放的音频。"
+            } else {
+                presentAudioImporter(for: entryID)
+            }
+            return
+        }
+
+        audioIntentGeneration += 1
+        let generation = audioIntentGeneration
+        do {
+            let audioURL: URL
+            if targetEntry.isBundled == true {
+                guard let bundledURL = bundledProvider.audioURL(fileName: audioFileName) else {
+                    errorMessage = "未在应用资源中找到该音频文件。"
+                    return
+                }
+                audioURL = bundledURL
+            } else {
+                audioURL = try await fileStore.audioFileURL(fileName: audioFileName)
+            }
+            guard generation == audioIntentGeneration,
+                  entry(for: entryID)?.audioFileName == audioFileName
+            else { return }
+            try audioPlaybackController.toggle(entryID: entryID, url: audioURL)
+            syncListeningState()
+        } catch {
+            guard generation == audioIntentGeneration,
+                  entry(for: entryID)?.audioFileName == audioFileName
+            else { return }
+            errorMessage = "播放失败：\(error.localizedDescription)"
+        }
+    }
+
+    func stopListening() {
+        audioIntentGeneration += 1
+        audioPlaybackController.stop()
+        syncListeningState()
+    }
+
+    func isListeningPlaying(entryID: UUID) -> Bool {
+        currentListeningEntryID == entryID && isCurrentListeningPlaying
+    }
+
+    func deleteEntry(entryID: UUID) async {
+        guard importState.isActive == false else {
+            errorMessage = "曲谱导入完成或取消后才能删除曲目。"
+            return
+        }
+        guard let entry = entry(for: entryID), entry.isBundled != true else {
+            errorMessage = "内置曲目无法删除。"
+            return
+        }
+
+        stopListening()
+        do {
+            let fallbackID = entries.last(where: { $0.id != entryID })?.id
+            let mutation = try await indexStore.removeUserEntry(
+                id: entryID,
+                fallbackLastSelectedEntryID: fallbackID
+            )
+            guard case let .applied(index, removedEntry) = mutation else {
+                _ = install(mutation.index)
+                return
+            }
+            _ = install(index)
+
+            var cleanupDiagnostic: DiagnosticEvent?
+            do {
+                try await progressRepository.remove(songID: removedEntry.id)
+            } catch {
+                errorMessage = "曲目已删除，但练习进度清理失败：\(error.localizedDescription)"
+                cleanupDiagnostic = DiagnosticEvent(
+                    severity: .warning,
+                    code: .libraryPracticeHistoryCleanupFailed,
+                    category: .library,
+                    stage: "practiceHistoryCleanup",
+                    summary: "删除曲目后无法清理练习历史",
+                    reason: PracticePreparationErrorDetails.safeErrorSummary(error),
+                    songID: removedEntry.id,
+                    scoreFileVersionID: removedEntry.scoreFileVersionID,
+                    persistence: .exportable
+                )
+            }
+
+            do {
+                try await fileStore.deleteScoreFile(named: removedEntry.musicXMLFileName)
+                if let audioFileName = removedEntry.audioFileName {
+                    try await fileStore.deleteAudioFile(named: audioFileName)
+                }
+            } catch {
+                errorMessage = "曲目已从索引移除，但文件删除失败：\(error.localizedDescription)"
+            }
+            if let cleanupDiagnostic {
+                _ = await diagnosticsReporter.record(cleanupDiagnostic)
+            }
+        } catch {
+            errorMessage = "删除失败：\(error.localizedDescription)"
+        }
     }
 
     private func persistSelection(_ entryID: UUID) async {
@@ -208,5 +418,18 @@ final class MacLibraryViewModel {
             return entries.first?.id
         }
         return nil
+    }
+
+    private func entry(for entryID: UUID) -> SongLibraryEntry? {
+        entries.first(where: { $0.id == entryID })
+    }
+
+    private func syncListeningState() {
+        currentListeningEntryID = audioPlaybackController.currentEntryID
+        if let currentListeningEntryID {
+            isCurrentListeningPlaying = audioPlaybackController.isPlaying(entryID: currentListeningEntryID)
+        } else {
+            isCurrentListeningPlaying = false
+        }
     }
 }

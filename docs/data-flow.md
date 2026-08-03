@@ -34,6 +34,7 @@ fileImporter
 - 导入在 security scope 内拒绝非普通文件、symlink、超出大小限制或 unsafe MXL central directory；仅通过 MusicXML 公开验证后才写同卷 `.partial` 和 journal，再以字节数/SHA-256 校验后提交 target/index；冲突停在用户确认边界。
 - bootstrap 先恢复未完成事务，再读取 index，最后扫描 bundle；损坏的非空 JSON fail closed，不得按空库覆盖。
 - macOS host 使用同一 transaction actor：`fileImporter` 提供的 security-scoped URL 只在 `stageImports` 内获取和释放，成功后只保留 sandbox `SongLibrary` 内的副本、相对文件名与 fingerprint；不保存外部 URL、bookmark 或绝对路径，也不尝试读取 visionOS container。
+- macOS 绑定或替换用户曲目的 mp3/m4a 时，同样只把 `fileImporter` URL 交给 `Library.AudioImportService`；它在 security scope 内复制到 `SongLibrary/audio/` 并只把相对文件名写入 index。旧的异步 URL 解析、选择变化或曲目删除后不得启动试听；删除先停止试听，再从 index、score、audio 和 progress 依次清理，后续清理失败只报告事实而不回滚已提交的 index mutation。
 - macOS 从已选 Library entry 解析沙盒副本，经 `PracticePreparationService` 生成同时具备 steps 与 measure spans 的 `PreparedPractice`，再交给 `MIDIPracticeSession`、小节事实 reducer 与 `GrandStaffNotationView`；准备或 progress corruption 停在可恢复 UI，不建立 steps-without-measures fallback。
 - `PracticePreparationService` 先生成唯一 `ScorePerformancePlan`，再单向投影 `PracticeStep`、`PianoHighlightGuide`、notation projection、timeline 和 sequence。
 - `Practice` 是 preparation 与共享 runtime 的包边界，依赖 `MusicXML`、`MIDI` 和 `Diagnostics`；曲库、SwiftUI/RealityKit、AVAudio、音频识别与手部/虚拟琴不得被它反向引用。

@@ -24,6 +24,7 @@ bundled MusicXML、字体、SoundFont 和 CoreML 资源属于 App bundle，不�
 - 冲突在 target/index mutation 前暂停，用户确认只回传 operation ID；actor 重新读取最新事实后再决定 replace、repair 或 orphan adopt。
 - bootstrap 先恢复未完成 transaction，再读 index，最后扫描 bundle。journal 只含相对文件名、phase、identity 和 fingerprint，不含 URL、曲谱正文或完整 index。
 - macOS 通过 `fileImporter` 只在暂存副本期间持有 security scope；index、journal、score metadata 与 progress 均不得写入选中的外部 URL、bookmark 或绝对路径。
+- macOS 试听音频也由 `Library.AudioImportService` 在同一 sandbox 规则下复制到 `SongLibrary/audio/`；index 只保存安全相对文件名。替换成功后 best-effort 删除旧 audio，删除曲目时先停止试听再清理关联 score/audio/progress。
 - 删除用户曲目时同时删除 score、绑定 audio 和该 song UUID 的三类练习记录；进度清理失败不回滚已完成的曲目删除。
 
 ## 练习 progress
