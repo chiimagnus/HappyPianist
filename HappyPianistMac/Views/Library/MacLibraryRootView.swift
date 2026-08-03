@@ -4,46 +4,64 @@ import Observation
 import SwiftUI
 import UniformTypeIdentifiers
 
+private enum MacLibraryRoute: Hashable {
+    case midiSettings
+}
+
 struct MacLibraryRootView: View {
     @Bindable var viewModel: MacLibraryViewModel
+    @Bindable var midiSettingsViewModel: MIDISettingsViewModel
 
     var body: some View {
-        Group {
-            switch viewModel.loadState {
-            case .idle, .loading:
-                ProgressView("正在恢复曲库")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-            case .ready:
-                MacLibraryView(viewModel: viewModel)
-            case let .recoveryBlocked(message):
-                MacLibraryUnavailableView(
-                    title: "曲库恢复需要处理",
-                    message: message,
-                    retry: { await viewModel.loadLibrary() }
-                )
-            case .unavailable:
-                MacLibraryUnavailableView(
-                    title: "暂时无法读取曲库",
-                    message: "请检查存储后重试。",
-                    retry: { await viewModel.loadLibrary() }
-                )
-            }
-        }
-        .task {
-            await viewModel.loadLibrary()
-        }
-        .fileImporter(
-            isPresented: $viewModel.isMusicXMLImporterPresented,
-            allowedContentTypes: [.xml, .musicXML, .compressedMusicXML],
-            allowsMultipleSelection: true
-        ) { result in
-            switch result {
-            case let .success(urls):
-                Task {
-                    await viewModel.importMusicXML(from: urls)
+        NavigationStack {
+            Group {
+                switch viewModel.loadState {
+                case .idle, .loading:
+                    ProgressView("正在恢复曲库")
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                case .ready:
+                    MacLibraryView(viewModel: viewModel)
+                case let .recoveryBlocked(message):
+                    MacLibraryUnavailableView(
+                        title: "曲库恢复需要处理",
+                        message: message,
+                        retry: { await viewModel.loadLibrary() }
+                    )
+                case .unavailable:
+                    MacLibraryUnavailableView(
+                        title: "暂时无法读取曲库",
+                        message: "请检查存储后重试。",
+                        retry: { await viewModel.loadLibrary() }
+                    )
                 }
-            case .failure:
-                viewModel.receiveImporterFailure()
+            }
+            .navigationDestination(for: MacLibraryRoute.self) { route in
+                switch route {
+                case .midiSettings:
+                    MIDISettingsView(viewModel: midiSettingsViewModel)
+                }
+            }
+            .toolbar {
+                NavigationLink(value: MacLibraryRoute.midiSettings) {
+                    Label("MIDI 设备", systemImage: "pianokeys")
+                }
+            }
+            .task {
+                await viewModel.loadLibrary()
+            }
+            .fileImporter(
+                isPresented: $viewModel.isMusicXMLImporterPresented,
+                allowedContentTypes: [.xml, .musicXML, .compressedMusicXML],
+                allowsMultipleSelection: true
+            ) { result in
+                switch result {
+                case let .success(urls):
+                    Task {
+                        await viewModel.importMusicXML(from: urls)
+                    }
+                case .failure:
+                    viewModel.receiveImporterFailure()
+                }
             }
         }
     }

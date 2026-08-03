@@ -40,6 +40,19 @@ xcodebuild test \
   -parallel-testing-enabled NO
 ```
 
+macOS MIDI host 的确定性覆盖使用：
+
+```bash
+rtk xcodebuild test \
+  -project HappyPianist.xcodeproj \
+  -scheme HappyPianistMac \
+  -destination 'platform=macOS,arch=arm64' \
+  -only-testing:HappyPianistMacTests/MIDISettingsViewModelTests \
+  CODE_SIGNING_ALLOWED=NO
+```
+
+它覆盖持久化只含 unique ID、所选输入断开后停止且不回退、输出切换的 flush/reset/stop 顺序；仍需在真实设备上确认所选输出未通过 MIDI-Thru 或 loopback 回灌到所选输入。
+
 记录提交 SHA、Xcode、visionOS、destination、命令和完整退出结果。`build-for-testing`、`swiftc -parse` 或 Linux harness 只能作为局部证据，不是 `xcodebuild test` 通过证据。
 
 Simulator 至少覆盖：
@@ -79,6 +92,7 @@ Simulator 不证明真实 MIDI、麦克风、手部追踪、audio onset、route 
 ### 输入、输出与生命周期
 
 - [ ] MIDI 首音、和弦、velocity、release、controller、timestamp、generation 正确。
+- [ ] macOS 仅启动所选输入；断开后不自动切换或恢复，需用户显式重新选择；切换输出后无残留发声，且输出 loopback 不回灌到输入。
 - [ ] 麦克风无声、错音、权限拒绝、切换模式和旧结果不会推进新 step。
 - [ ] 手部保留 hand/finger identity；palm、tracking loss、低置信度、calibration 变化不误触发。
 - [ ] stop、seek、loop、interruption、route change、断连和重启后无 stuck note 或旧输出。

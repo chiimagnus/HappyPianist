@@ -10,7 +10,10 @@ struct HappyPianistMacApp: App {
 
     var body: some Scene {
         WindowGroup("HappyPianist") {
-            MacLibraryRootView(viewModel: graph.songLibraryViewModel)
+            MacLibraryRootView(
+                viewModel: graph.songLibraryViewModel,
+                midiSettingsViewModel: graph.midiSettingsViewModel
+            )
         }
     }
 }

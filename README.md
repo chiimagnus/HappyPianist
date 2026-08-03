@@ -2,7 +2,7 @@
 
 [English](./README.en.md) | 中文
 
-HappyPianist 是一个钢琴练习应用：visionOS App 将 MusicXML 转成空间练习引导；macOS App 专注于沙盒内的 2D MusicXML 导入与系统可见 MIDI 练习。Mac 导入只在 `fileImporter` 的临时 security scope 内复制曲谱，不保存外部 URL 或 bookmark。
+HappyPianist 是一个钢琴练习应用：visionOS App 将 MusicXML 转成空间练习引导；macOS App 专注于沙盒内的 2D MusicXML 导入与系统可见 MIDI 练习。Mac 导入只在 `fileImporter` 的临时 security scope 内复制曲谱，不保存外部 URL 或 bookmark；MIDI 设置只保存所选输入/输出的 stable unique ID，不保存设备名或枚举位置。所选输入断开会停止练习且不自动切换设备；没有输出时仍可评估输入，但不提供回放。
 
 ![scene](docs/assets/scene1.jpg)
 
