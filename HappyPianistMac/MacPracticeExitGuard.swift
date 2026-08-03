@@ -68,7 +68,7 @@ final class MacPracticeWindowCloseCoordinator: NSObject, NSWindowDelegate {
 
     func windowShouldClose(_ sender: NSWindow) -> Bool {
         if MainActor.assumeIsolated({ state.isCompletingClose }) {
-            return forwarding.delegate?.windowShouldClose?(sender) ?? true
+            return true
         }
         let forwardedDelegateAllowsClose = forwarding.delegate?.windowShouldClose?(sender) ?? true
         return MainActor.assumeIsolated {

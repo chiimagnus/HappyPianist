@@ -25,6 +25,28 @@ struct MacPracticeExitGuardTests {
         #expect(window.isVisible)
     }
 
+    @Test func windowCloseForwardsPermissionOnlyOnceBeforeFinishing() async {
+        let probe = ExitProbe(result: true)
+        let forwardedDelegate = CountingWindowDelegate()
+        let window = NSWindow(
+            contentRect: .init(x: 0, y: 0, width: 320, height: 240),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false
+        )
+        window.delegate = forwardedDelegate
+        window.orderFront(nil)
+        defer { window.close() }
+        let coordinator = MacPracticeWindowCloseCoordinator {
+            probe.calls += 1
+            return probe.result
+        }
+        coordinator.install(on: window)
+
+        #expect(coordinator.windowShouldClose(window) == false)
+        #expect(await settles { probe.calls == 1 && forwardedDelegate.shouldCloseCalls == 1 })
+    }
+
     @Test func applicationTerminationUsesTheSameAsyncFinishGate() async {
         let delegate = MacApplicationTerminationDelegate()
         var calls = 0
@@ -45,6 +67,16 @@ private final class ExitProbe {
 
     init(result: Bool) {
         self.result = result
+    }
+}
+
+@MainActor
+private final class CountingWindowDelegate: NSObject, NSWindowDelegate {
+    var shouldCloseCalls = 0
+
+    func windowShouldClose(_: NSWindow) -> Bool {
+        shouldCloseCalls += 1
+        return true
     }
 }
 
