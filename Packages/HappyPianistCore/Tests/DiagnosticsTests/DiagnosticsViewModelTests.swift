@@ -1,6 +1,5 @@
-import Foundation
 import Diagnostics
-@testable import HappyPianistAVP
+import Foundation
 import Testing
 
 private actor DiagnosticsViewModelStore: DiagnosticsStoreProtocol {

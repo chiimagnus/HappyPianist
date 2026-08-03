@@ -42,7 +42,7 @@ public actor FileDiagnosticsStore: DiagnosticsStoreProtocol {
         try cleanupIfNeeded(referenceDate: referenceDate)
         try ensureDirectoryExists()
         let fileURL = try dailyFileURL(for: event.timestamp)
-        let encoded = try encoder.encode(event)
+        let encoded = try encoder.encode(event.redactedForExport())
         var line = encoded
         line.append(0x0A)
         if fileManager.fileExists(atPath: fileURL.path()) {

@@ -9,14 +9,17 @@ struct MacAppGraph {
     let songLibraryViewModel: MacLibraryViewModel
     let midiSettingsViewModel: MIDISettingsViewModel
     let practiceViewModel: MacPracticeViewModel
+    let diagnosticsViewModel: DiagnosticsViewModel
 
     init(
         songLibraryViewModel: MacLibraryViewModel,
         midiSettingsViewModel: MIDISettingsViewModel,
+        diagnosticsViewModel: DiagnosticsViewModel,
         practiceViewModel: MacPracticeViewModel
     ) {
         self.songLibraryViewModel = songLibraryViewModel
         self.midiSettingsViewModel = midiSettingsViewModel
+        self.diagnosticsViewModel = diagnosticsViewModel
         self.practiceViewModel = practiceViewModel
     }
 
@@ -24,6 +27,13 @@ struct MacAppGraph {
         let diagnosticsStore = FileDiagnosticsStore()
         let diagnosticsReporter: any DiagnosticsReporting = AppDiagnosticsReporter(
             exportStore: diagnosticsStore
+        )
+        let diagnosticsExporter: any DiagnosticsArchiveExporting = DiagnosticsArchiveExporter(
+            store: diagnosticsStore
+        )
+        let diagnosticsViewModel = DiagnosticsViewModel(
+            store: diagnosticsStore,
+            exporter: diagnosticsExporter
         )
         let bundledProvider: any BundledSongLibraryProviderProtocol = EmptyMacBundledSongLibraryProvider()
         let indexStore = SongLibraryIndexStore()
@@ -80,6 +90,7 @@ struct MacAppGraph {
                 diagnosticsReporter: diagnosticsReporter
             ),
             midiSettingsViewModel: midiSettingsViewModel,
+            diagnosticsViewModel: diagnosticsViewModel,
             practiceViewModel: MacPracticeViewModel(
                 resolveEntry: { songID in
                     await entryResolver.resolve(songID: songID)

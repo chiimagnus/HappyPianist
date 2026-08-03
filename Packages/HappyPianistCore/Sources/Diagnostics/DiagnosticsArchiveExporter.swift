@@ -65,6 +65,7 @@ public actor DiagnosticsArchiveExporter: DiagnosticsArchiveExporting {
 
     public func makeArchive(referenceDate: Date = .now) async throws -> DiagnosticArchive {
         let events = try await store.loadEventsForExport(referenceDate: referenceDate)
+            .map { $0.redactedForExport() }
         let root = fileManager.temporaryDirectory
             .appending(path: "HappyPianist-Diagnostics-\(UUID().uuidString)", directoryHint: .isDirectory)
         try fileManager.createDirectory(at: root, withIntermediateDirectories: true)

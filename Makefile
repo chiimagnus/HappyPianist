@@ -107,7 +107,7 @@ help: ## Show available commands.
 		'  make run:device DEVICE_ID=<udid>' \
 		'  make test:simulator ONLY_TESTING=HappyPianistAVPTests/GrandStaffNotationVisualTests' \
 		'  make build:device CONFIGURATION=Release' \
-		'  make test:mac MAC_ONLY_TESTING=HappyPianistMacTests/Practice' \
+		'  make test:mac MAC_ONLY_TESTING=HappyPianistMacTests/MacPracticeViewModelTests' \
 		'  make dev LOG_LEVEL=debug    Include app debug diagnostics' \
 		'  make build XCODEBUILD_FLAGS=  Show full xcodebuild output (quiet is default)'
 

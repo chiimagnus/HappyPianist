@@ -1,6 +1,7 @@
+import Diagnostics
+import MusicXML
 import SwiftUI
 import UniformTypeIdentifiers
-import MusicXML
 
 struct LibraryWindowRootView: View {
     @Environment(PianoSetupCoordinator.self) private var pianoSetupCoordinator

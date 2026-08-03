@@ -162,6 +162,29 @@ public struct DiagnosticEvent: Codable, Equatable, Identifiable, Sendable {
         self.persistence = persistence
     }
 
+    func redactedForExport() -> Self {
+        Self(
+            id: id,
+            timestamp: timestamp,
+            severity: severity,
+            code: code,
+            category: category,
+            stage: DiagnosticsExportPrivacy.redactedText(from: stage),
+            summary: DiagnosticsExportPrivacy.redactedText(from: summary),
+            reason: DiagnosticsExportPrivacy.redactedText(from: reason),
+            songID: songID,
+            scoreRevision: scoreRevision.map { DiagnosticsExportPrivacy.redactedText(from: $0) },
+            operationID: operationID,
+            safeFileName: safeFileName.map { DiagnosticsExportPrivacy.redactedText(from: $0) },
+            transactionKind: transactionKind.map { DiagnosticsExportPrivacy.redactedText(from: $0) },
+            transactionPhase: transactionPhase.map { DiagnosticsExportPrivacy.redactedText(from: $0) },
+            scoreFileVersionID: scoreFileVersionID,
+            file: file.flatMap(DiagnosticsExportPrivacy.redactedFileReference),
+            sourceLocation: sourceLocation.map(DiagnosticsExportPrivacy.redactedSourceLocation),
+            persistence: persistence
+        )
+    }
+
     public var textRepresentation: String {
         var lines = [
             "timestamp: \(DiagnosticsDateText.iso8601(timestamp))",
@@ -187,6 +210,77 @@ public struct DiagnosticEvent: Codable, Equatable, Identifiable, Sendable {
         if let line = sourceLocation?.line { lines.append("line: \(line)") }
         if let column = sourceLocation?.column { lines.append("column: \(column)") }
         return lines.joined(separator: "\n")
+    }
+}
+
+private enum DiagnosticsExportPrivacy {
+    private static let maximumTextLength = 240
+
+    static func redactedFileReference(_ reference: DiagnosticFileReference) -> DiagnosticFileReference? {
+        DiagnosticFileReference(
+            fileName: redactedText(from: reference.fileName),
+            relativePath: redactedText(from: reference.relativePath)
+        )
+    }
+
+    static func redactedSourceLocation(_ location: DiagnosticSourceLocation) -> DiagnosticSourceLocation {
+        DiagnosticSourceLocation(
+            line: location.line,
+            column: location.column,
+            measure: location.measure.map { redactedText(from: $0) }
+        )
+    }
+
+    static func redactedText(from text: String) -> String {
+        guard text.utf8.count <= maximumTextLength,
+              text.contains(where: { $0.isNewline }) == false,
+              containsUnsafeContent(text) == false
+        else {
+            return "[redacted]"
+        }
+        return text
+    }
+
+    private static func containsUnsafeContent(_ text: String) -> Bool {
+        let lowercased = text.lowercased()
+        let literalMarkers = [
+            "file://",
+            "<?xml",
+            "<score-partwise",
+            "<score-timewise",
+            "midi",
+            "pcm",
+            "performanceobservation",
+            "creativeduetresponse",
+            "prompt",
+            "response",
+            "assistant",
+            "endpoint",
+            "authorization",
+            "api key",
+            "bearer ",
+            "access_token",
+            "refresh_token",
+            "password=",
+            "secret=",
+            "credential",
+        ]
+        if text.contains("<") || text.contains(">") || literalMarkers.contains(where: { lowercased.contains($0) }) {
+            return true
+        }
+        if text.range(
+            of: #"(?:^|[\s=:(])/[^\s]+"#,
+            options: .regularExpression
+        ) != nil {
+            return true
+        }
+        if text.range(of: #"(?:^|[\s=:(])[A-Za-z]:[\\/]"#, options: .regularExpression) != nil {
+            return true
+        }
+        return text.range(
+            of: #"(?:[0-9A-Fa-f]{2}[\s,;:]){4,}[0-9A-Fa-f]{2}"#,
+            options: .regularExpression
+        ) != nil
     }
 }
 

@@ -1,3 +1,4 @@
+import Diagnostics
 import Library
 import MusicXML
 import Observation
@@ -5,6 +6,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 private enum MacLibraryRoute: Hashable {
+    case diagnostics
     case midiSettings
     case practice(UUID)
 }
@@ -12,6 +14,7 @@ private enum MacLibraryRoute: Hashable {
 struct MacLibraryRootView: View {
     @Bindable var viewModel: MacLibraryViewModel
     @Bindable var midiSettingsViewModel: MIDISettingsViewModel
+    @Bindable var diagnosticsViewModel: DiagnosticsViewModel
     @Bindable var practiceViewModel: MacPracticeViewModel
 
     private var audioImporterTypes: [UTType] {
@@ -46,6 +49,8 @@ struct MacLibraryRootView: View {
             }
             .navigationDestination(for: MacLibraryRoute.self) { route in
                 switch route {
+                case .diagnostics:
+                    MacDiagnosticsView(viewModel: diagnosticsViewModel)
                 case .midiSettings:
                     MIDISettingsView(viewModel: midiSettingsViewModel)
                 case let .practice(songID):
@@ -53,6 +58,9 @@ struct MacLibraryRootView: View {
                 }
             }
             .toolbar {
+                NavigationLink(value: MacLibraryRoute.diagnostics) {
+                    Label("诊断", systemImage: "stethoscope")
+                }
                 NavigationLink(value: MacLibraryRoute.midiSettings) {
                     Label("MIDI 设备", systemImage: "pianokeys")
                 }

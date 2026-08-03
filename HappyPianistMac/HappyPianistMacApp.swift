@@ -13,6 +13,7 @@ struct HappyPianistMacApp: App {
             MacLibraryRootView(
                 viewModel: graph.songLibraryViewModel,
                 midiSettingsViewModel: graph.midiSettingsViewModel,
+                diagnosticsViewModel: graph.diagnosticsViewModel,
                 practiceViewModel: graph.practiceViewModel
             )
         }

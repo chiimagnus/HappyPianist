@@ -53,6 +53,28 @@ func diagnosticsStoreClearRemovesDailyFiles() async throws {
     #expect(try await store.summary(referenceDate: current) == .empty)
 }
 
+@Test
+func diagnosticsStoreRedactsUnsafeEventsAppendedWithoutAReporter() async throws {
+    let root = FileManager.default.temporaryDirectory.appending(path: "DiagnosticsStoreTests-\(UUID().uuidString)", directoryHint: .isDirectory)
+    defer { try? FileManager.default.removeItem(at: root) }
+    let current = Date(timeIntervalSince1970: 1_720_742_400)
+    let store = FileDiagnosticsStore(paths: DiagnosticsPaths(rootDirectoryURL: root), now: { current })
+    try await store.append(DiagnosticEvent(
+        timestamp: current,
+        severity: .error,
+        code: .practicePreparationFailed,
+        category: .practicePreparation,
+        stage: "test",
+        summary: "<score-partwise>private score</score-partwise>",
+        reason: "/Users/example/private.musicxml MIDI1InputEvent(note: 60)",
+        persistence: .exportable
+    ))
+
+    let event = try #require(await store.loadEventsForExport(referenceDate: current).first)
+    #expect(event.summary == "[redacted]")
+    #expect(event.reason == "[redacted]")
+}
+
 private func testDiagnosticEvent(at date: Date) -> DiagnosticEvent {
     DiagnosticEvent(timestamp: date, severity: .error, code: .practicePreparationFailed, category: .practicePreparation, stage: "test", summary: "test", reason: "test", persistence: .exportable)
 }

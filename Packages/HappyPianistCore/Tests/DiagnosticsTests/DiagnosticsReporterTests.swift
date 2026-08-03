@@ -51,6 +51,41 @@ func reporterKeepsSystemOnlyEventOutOfFileStore() async {
 }
 
 @Test
+func reporterRedactsUnsafeExportableTextBeforeWritingTheArchiveStore() async throws {
+    let store = RecordingDiagnosticsStore()
+    let event = DiagnosticEvent(
+        severity: .error,
+        code: .practicePreparationFailed,
+        category: .practicePreparation,
+        stage: "endpoint=Private MIDI Device",
+        summary: "score=<score-partwise version=\"4.0\">",
+        reason: "input=/Users/example/Downloads/private.musicxml MIDI1InputEvent(note: 60)",
+        scoreRevision: "C:\\Users\\example\\private.musicxml",
+        safeFileName: "prompt=private request.txt",
+        transactionKind: "response=private AI answer",
+        transactionPhase: "90 3C 7F 80 3C 00",
+        file: DiagnosticFileReference(
+            fileName: "private.musicxml",
+            relativePath: "<score-partwise>private score</score-partwise>"
+        ),
+        sourceLocation: DiagnosticSourceLocation(measure: "Authorization: Bearer private-token"),
+        persistence: .exportable
+    )
+
+    #expect(await AppDiagnosticsReporter(exportStore: store).record(event).persistedForExport)
+    let storedEvent = try #require(await store.events.first)
+    #expect(storedEvent.scoreRevision == "[redacted]")
+    #expect(storedEvent.safeFileName == "[redacted]")
+    #expect(storedEvent.transactionKind == "[redacted]")
+    #expect(storedEvent.transactionPhase == "[redacted]")
+    #expect(storedEvent.file?.relativePath == "[redacted]")
+    #expect(storedEvent.sourceLocation?.measure == "[redacted]")
+    #expect(storedEvent.textRepresentation.contains("MIDI1InputEvent") == false)
+    #expect(storedEvent.textRepresentation.contains("<score-partwise>") == false)
+    #expect(storedEvent.textRepresentation.contains("[redacted]"))
+}
+
+@Test
 func reporterRecordsSynchronousSystemEventWithoutTouchingFileStore() async {
     let systemSink = RecordingSystemDiagnosticsSink()
     let store = RecordingDiagnosticsStore()

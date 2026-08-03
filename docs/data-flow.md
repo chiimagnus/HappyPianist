@@ -151,6 +151,7 @@ typed domain failure / aggregate output metric
 
 - 业务代码不直接调用 `os.Logger` 或文件 store；统一入口决定事件是否可导出。
 - 可导出事件只能包含枚举、阶段、计数、耗时桶、capability、calibration ID/version、设备/OS 和枚举 route。
+- exportable event 的自由文本在写入 JSONL 前经过统一隐私闸门；绝对路径、曲谱 XML、逐音 MIDI/observation、AI response、认证标记、换行原文或超长内容会替换为 `[redacted]`，system log 不会反向成为 archive 来源。
 - 禁止写入绝对路径、MusicXML 正文、逐音 MIDI/音频/手部数据、设备序列号、路由显示名、AI prompt/正文、密钥或认证信息。
 - 日志默认保留七个日历日；导出由用户触发，不自动上传。
 - `Diagnostics` 是独立 Swift package 的根产品；其 archive 使用 ZIPFoundation，但 App target 不直接链接 ZIPFoundation。

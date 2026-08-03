@@ -1,21 +1,20 @@
 import Foundation
-import Diagnostics
 import Observation
 
 @MainActor
 @Observable
-final class DiagnosticsViewModel {
+public final class DiagnosticsViewModel {
     private let store: any DiagnosticsStoreProtocol
     private let exporter: any DiagnosticsArchiveExporting
     private let now: @Sendable () -> Date
 
-    var summary: DiagnosticLogSummary = .empty
-    var pendingArchive: DiagnosticArchive?
-    var isLoading = false
-    var isExporting = false
-    var errorMessage: String?
+    public private(set) var summary: DiagnosticLogSummary = .empty
+    public private(set) var pendingArchive: DiagnosticArchive?
+    public private(set) var isLoading = false
+    public private(set) var isExporting = false
+    public private(set) var errorMessage: String?
 
-    init(
+    public init(
         store: any DiagnosticsStoreProtocol,
         exporter: any DiagnosticsArchiveExporting,
         now: @escaping @Sendable () -> Date = { .now }
@@ -25,7 +24,7 @@ final class DiagnosticsViewModel {
         self.now = now
     }
 
-    func reload() async {
+    public func reload() async {
         isLoading = true
         defer { isLoading = false }
         do {
@@ -35,7 +34,7 @@ final class DiagnosticsViewModel {
         }
     }
 
-    func prepareExport() async -> Bool {
+    public func prepareExport() async -> Bool {
         isExporting = true
         pendingArchive = nil
         defer { isExporting = false }
@@ -48,7 +47,7 @@ final class DiagnosticsViewModel {
         }
     }
 
-    func clearLogs() async {
+    public func clearLogs() async {
         do {
             try await store.clear()
             pendingArchive = nil
@@ -58,7 +57,7 @@ final class DiagnosticsViewModel {
         }
     }
 
-    func finishExport(_ result: Result<URL, Error>) {
+    public func finishExport(_ result: Result<URL, Error>) {
         pendingArchive = nil
         guard case let .failure(error) = result,
               (error as? CocoaError)?.code != .userCancelled
@@ -68,7 +67,7 @@ final class DiagnosticsViewModel {
         errorMessage = "保存诊断日志失败：\(error.localizedDescription)"
     }
 
-    func dismissError() {
+    public func dismissError() {
         errorMessage = nil
     }
 }

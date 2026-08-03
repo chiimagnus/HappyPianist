@@ -32,6 +32,36 @@ func diagnosticsExporterContainsOnlyExpectedEntries() async throws {
     #expect(environmentText.contains("MusicXML") == false)
 }
 
+@Test
+func diagnosticsExporterRedactsUnsafeCustomStoreEvents() async throws {
+    let store = RecordingExportStore(events: [
+        DiagnosticEvent(
+            timestamp: Date(timeIntervalSince1970: 1_720_742_400),
+            severity: .error,
+            code: .practiceXMLParseFailed,
+            category: .practicePreparation,
+            stage: "test",
+            summary: "<note>private score</note>",
+            reason: "path=/Users/example/private.musicxml MIDI1InputEvent(note: 60)",
+            persistence: .exportable
+        ),
+    ])
+    let result = try await DiagnosticsArchiveExporter(store: store)
+        .makeArchive(referenceDate: Date(timeIntervalSince1970: 1_720_742_400))
+    let zipURL = FileManager.default.temporaryDirectory.appending(path: "DiagnosticsArchiveExporterTests-\(UUID().uuidString).zip")
+    defer { try? FileManager.default.removeItem(at: zipURL) }
+    try result.data.write(to: zipURL)
+    let archive = try Archive(url: zipURL, accessMode: .read)
+    let jsonl = try extract(path: "diagnostics.jsonl", from: archive)
+    let text = try extract(path: "diagnostics.txt", from: archive)
+    let exported = try #require(String(data: jsonl + text, encoding: .utf8))
+
+    #expect(exported.contains("/Users/example") == false)
+    #expect(exported.contains("<note>") == false)
+    #expect(exported.contains("MIDI1InputEvent") == false)
+    #expect(exported.contains("[redacted]"))
+}
+
 private actor RecordingExportStore: DiagnosticsStoreProtocol {
     let events: [DiagnosticEvent]
     init(events: [DiagnosticEvent]) { self.events = events }

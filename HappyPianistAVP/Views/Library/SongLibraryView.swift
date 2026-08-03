@@ -1,7 +1,8 @@
-import SwiftUI
+import Diagnostics
 import Library
-import UniformTypeIdentifiers
 import MusicXML
+import SwiftUI
+import UniformTypeIdentifiers
 
 struct SongLibraryView: View {
     @Bindable var viewModel: SongLibraryViewModel

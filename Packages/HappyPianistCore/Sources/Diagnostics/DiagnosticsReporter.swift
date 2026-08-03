@@ -90,7 +90,7 @@ public actor AppDiagnosticsReporter: DiagnosticsReporting {
             return DiagnosticRecordResult(persistedForExport: false)
         }
         do {
-            try await exportStore.append(event)
+            try await exportStore.append(event.redactedForExport())
             return DiagnosticRecordResult(persistedForExport: true)
         } catch {
             systemSink.record(
