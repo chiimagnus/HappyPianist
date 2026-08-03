@@ -180,24 +180,9 @@ final class MIDISettingsViewModel {
         errorMessage = nil
     }
 
-    var activeInputEventSource: (any MIDIInputEventSource)? {
-        activeInputService
-    }
-
     var selectedAvailableOutputEndpointID: Int32? {
         guard outputSelectionState == .available else { return nil }
         return selectedOutputEndpointID
-    }
-
-    func stopSelectedInput() {
-        retireActiveInput()
-        if let selectedInputEndpointID {
-            inputSelectionState = inputEndpoints.contains(where: { $0.id == selectedInputEndpointID })
-                ? .connected
-                : .unavailable(selectedInputEndpointID)
-        } else {
-            inputSelectionState = .notSelected
-        }
     }
 
     func selectedInputForPractice() -> (any MIDIInputEventSource)? {

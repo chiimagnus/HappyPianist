@@ -9,24 +9,15 @@ struct MacAppGraph {
     let songLibraryViewModel: MacLibraryViewModel
     let midiSettingsViewModel: MIDISettingsViewModel
     let practiceViewModel: MacPracticeViewModel
-    let midiOutputService: any MIDIOutputSendingProtocol
-    let songLibraryEntryResolver: any SongLibraryEntryResolving
-    let practiceProgressRepository: FilePracticeProgressRepository
 
     init(
         songLibraryViewModel: MacLibraryViewModel,
         midiSettingsViewModel: MIDISettingsViewModel,
-        practiceViewModel: MacPracticeViewModel,
-        midiOutputService: any MIDIOutputSendingProtocol,
-        songLibraryEntryResolver: any SongLibraryEntryResolving,
-        practiceProgressRepository: FilePracticeProgressRepository
+        practiceViewModel: MacPracticeViewModel
     ) {
         self.songLibraryViewModel = songLibraryViewModel
         self.midiSettingsViewModel = midiSettingsViewModel
         self.practiceViewModel = practiceViewModel
-        self.midiOutputService = midiOutputService
-        self.songLibraryEntryResolver = songLibraryEntryResolver
-        self.practiceProgressRepository = practiceProgressRepository
     }
 
     static func make() -> Self {
@@ -97,10 +88,7 @@ struct MacAppGraph {
                     )
                 },
                 diagnosticsReporter: diagnosticsReporter
-            ),
-            midiOutputService: outputService,
-            songLibraryEntryResolver: entryResolver,
-            practiceProgressRepository: progressRepository
+            )
         )
     }
 }
