@@ -110,7 +110,13 @@ final class MacPracticeViewModel {
                 options: .practice
             )
             guard generation == loadGeneration else { return }
-            try await install(prepared, generation: generation)
+            let restoredProgress = await progressRepository.progress(for: prepared.identity)
+            guard generation == loadGeneration else { return }
+            try await install(
+                prepared,
+                restoredProgress: restoredProgress,
+                generation: generation
+            )
         } catch is CancellationError {
             return
         } catch {
@@ -154,7 +160,11 @@ final class MacPracticeViewModel {
         return true
     }
 
-    private func install(_ prepared: PreparedPractice, generation: Int) async throws {
+    private func install(
+        _ prepared: PreparedPractice,
+        restoredProgress: SongPracticeProgress?,
+        generation: Int
+    ) async throws {
         let measureIndex = PracticeMeasureIndex(steps: prepared.steps, measureSpans: prepared.measureSpans)
         guard let first = measureIndex.measureSpans.first?.occurrenceID,
               let last = measureIndex.measureSpans.last?.occurrenceID,
@@ -174,7 +184,7 @@ final class MacPracticeViewModel {
         )
         self.measureIndex = measureIndex
         self.configuration = configuration
-        progress = nil
+        progress = restoredProgress
         attemptReductionState = PracticeAttemptReductionState()
         preparedPractice = prepared
         currentStepIndex = activeRange.firstStepIndex
@@ -187,6 +197,7 @@ final class MacPracticeViewModel {
         activeRange: PracticeActiveRange,
         generation: Int
     ) async {
+        midiSettingsViewModel.load()
         guard let input = midiSettingsViewModel.selectedInputForPractice() else {
             state = .inputUnavailable
             errorMessage = "请选择可用的 MIDI 输入后再开始练习。"

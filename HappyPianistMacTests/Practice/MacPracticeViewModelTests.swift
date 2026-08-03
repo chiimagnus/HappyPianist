@@ -8,6 +8,16 @@ import Testing
 
 @MainActor
 struct MacPracticeViewModelTests {
+    @Test func startsFromThePersistedInputWithoutOpeningSettings() async throws {
+        let fixture = try MacPracticeFixture()
+        defer { fixture.removeTemporaryRoot() }
+
+        await fixture.viewModel.load(songID: fixture.songID)
+
+        #expect(fixture.viewModel.state == .guiding)
+        #expect(fixture.input.startCount > 0)
+    }
+
     @Test func midiPracticeRecordsOnlyMeasureFactsAndReloadsProgress() async throws {
         let fixture = try MacPracticeFixture()
         defer { fixture.removeTemporaryRoot() }
@@ -42,6 +52,27 @@ struct MacPracticeViewModelTests {
         #expect(fixture.viewModel.state == .inputUnavailable)
         #expect(fixture.settingsViewModel.selectedInputEndpointID == 7)
         #expect(fixture.input.stopCount > 0)
+    }
+
+    @Test func reloadingPracticePreservesApprovedMeasureFacts() async throws {
+        let fixture = try MacPracticeFixture()
+        defer { fixture.removeTemporaryRoot() }
+
+        await fixture.viewModel.load(songID: fixture.songID)
+        fixture.input.yield(note: 60)
+        #expect(await eventually { fixture.viewModel.state == .completed })
+        let identity = try #require(fixture.viewModel.preparedPractice?.identity)
+        #expect(await fixture.viewModel.returnToLibrary())
+
+        await fixture.viewModel.load(songID: fixture.songID)
+        fixture.input.yield(note: 61)
+        #expect(await eventually { fixture.viewModel.lastAttempt == .wrongNote })
+        #expect(await fixture.viewModel.returnToLibrary())
+
+        let progress = await fixture.progressRepository.progress(for: identity)
+        let facts = try #require(progress?.measureFacts.first)
+        #expect(facts.successfulAttempts == 1)
+        #expect(facts.failedAttempts == 1)
     }
 }
 
@@ -81,7 +112,9 @@ private final class MacPracticeFixture {
         progressRepository = FilePracticeProgressRepository(
             paths: PracticeProgressPaths(rootDirectoryURL: temporaryRoot.appending(path: "progress", directoryHint: .isDirectory))
         )
-        let settingsStore = PracticeFakeSettingsStore()
+        let settingsStore = PracticeFakeSettingsStore(
+            settings: MIDIEndpointSettings(inputEndpointUniqueID: 7, outputEndpointUniqueID: nil)
+        )
         settingsViewModel = MIDISettingsViewModel(
             settingsStore: settingsStore,
             inputEndpointDiscovery: { [MIDIInputEndpoint(id: 7, name: "Fixture Keyboard")] },
@@ -89,7 +122,6 @@ private final class MacPracticeFixture {
             makeInputService: { [input] _ in input },
             outputService: CoreMIDIOutputService()
         )
-        settingsViewModel.selectInput(endpointUniqueID: 7)
         let recorder = PracticeSessionRecorder(
             repository: progressRepository,
             performanceAnalyzer: PracticePerformanceAnalyzer()
@@ -125,7 +157,11 @@ private final class MacPracticeFixture {
 
 @MainActor
 private final class PracticeFakeSettingsStore: MIDIEndpointSettingsStoring {
-    private var settings = MIDIEndpointSettings()
+    private var settings: MIDIEndpointSettings
+
+    init(settings: MIDIEndpointSettings) {
+        self.settings = settings
+    }
 
     func load() -> MIDIEndpointSettings { settings }
     func save(_ settings: MIDIEndpointSettings) { self.settings = settings }
@@ -136,6 +172,7 @@ private final class PracticeFakeInput: MacSelectedMIDIInputControlling {
     var onSourceAvailabilityChange: (@Sendable (MIDIInputSourceAvailability) -> Void)?
     private var midi1Continuation: AsyncStream<MIDI1InputEvent>.Continuation?
     private var midi2Continuation: AsyncStream<MIDI2InputEvent>.Continuation?
+    private(set) var startCount = 0
     private(set) var stopCount = 0
 
     func midi1EventsStream() -> AsyncStream<MIDI1InputEvent> {
@@ -146,12 +183,12 @@ private final class PracticeFakeInput: MacSelectedMIDIInputControlling {
         AsyncStream { midi2Continuation = $0 }
     }
 
-    func start() throws {}
+    func start() throws {
+        startCount += 1
+    }
 
     func stop() {
         stopCount += 1
-        midi1Continuation?.finish()
-        midi2Continuation?.finish()
     }
 
     func yield(note: Int) {

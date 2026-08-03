@@ -136,10 +136,15 @@ final class MIDISettingsViewModel {
         updateOutputSelectionState()
 
         if let selectedInputEndpointID,
-           activeInputService == nil,
            inputEndpoints.contains(where: { $0.id == selectedInputEndpointID }) == false
         {
+            let hadActiveInput = activeInputService != nil
+            retireActiveInput()
             inputSelectionState = .unavailable(selectedInputEndpointID)
+            if hadActiveInput {
+                errorMessage = "所选 MIDI 输入已断开。请重新连接或重新选择设备。"
+                onSelectedInputLoss?()
+            }
         }
     }
 

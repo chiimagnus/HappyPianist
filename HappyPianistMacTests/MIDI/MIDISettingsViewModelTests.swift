@@ -107,6 +107,22 @@ struct MIDISettingsViewModelTests {
         #expect(fixture.output.calls.isEmpty)
     }
 
+    @Test func refreshingAfterSelectedInputDisappearsStopsTheOldService() async {
+        let fixture = MIDISettingsFixture(
+            settings: MIDIEndpointSettings(inputEndpointUniqueID: 7, outputEndpointUniqueID: nil),
+            inputEndpoints: [MIDIInputEndpoint(id: 7, name: "Selected Keyboard")]
+        )
+        fixture.viewModel.load()
+
+        fixture.setInputEndpoints([])
+        fixture.viewModel.refreshEndpoints()
+        await Task.yield()
+
+        #expect(fixture.viewModel.inputSelectionState == .unavailable(7))
+        #expect(fixture.input(for: 7)?.stopCount == 1)
+        #expect(fixture.createdInputEndpointIDs == [7])
+    }
+
     @Test func userDefaultsStorePersistsOnlyOptionalEndpointIDs() throws {
         let suiteName = "HappyPianistMacTests-\(UUID().uuidString)"
         let userDefaults = try #require(UserDefaults(suiteName: suiteName))
@@ -127,6 +143,7 @@ private final class MIDISettingsFixture {
     let output: FakeMIDIOutputService
     let viewModel: MIDISettingsViewModel
     private let inputFactory: FakeMIDIInputFactory
+    private let endpointCatalog: FakeMIDIEndpointCatalog
 
     var createdInputEndpointIDs: [Int32] {
         inputFactory.createdInputEndpointIDs
@@ -138,13 +155,18 @@ private final class MIDISettingsFixture {
         outputEndpoints: [MIDIDestinationInfo] = []
     ) {
         let inputFactory = FakeMIDIInputFactory()
+        let endpointCatalog = FakeMIDIEndpointCatalog(
+            inputEndpoints: inputEndpoints,
+            outputEndpoints: outputEndpoints
+        )
         settingsStore = FakeMIDIEndpointSettingsStore(settings: settings)
         output = FakeMIDIOutputService()
         self.inputFactory = inputFactory
+        self.endpointCatalog = endpointCatalog
         viewModel = MIDISettingsViewModel(
             settingsStore: settingsStore,
-            inputEndpointDiscovery: { inputEndpoints },
-            outputEndpointDiscovery: { outputEndpoints },
+            inputEndpointDiscovery: { [endpointCatalog] in endpointCatalog.inputEndpoints },
+            outputEndpointDiscovery: { [endpointCatalog] in endpointCatalog.outputEndpoints },
             makeInputService: { [inputFactory] endpointUniqueID in
                 inputFactory.make(endpointUniqueID: endpointUniqueID)
             },
@@ -154,6 +176,20 @@ private final class MIDISettingsFixture {
 
     func input(for endpointUniqueID: Int32) -> FakeMIDIInputService? {
         inputFactory.input(for: endpointUniqueID)
+    }
+
+    func setInputEndpoints(_ endpoints: [MIDIInputEndpoint]) {
+        endpointCatalog.inputEndpoints = endpoints
+    }
+}
+
+private final class FakeMIDIEndpointCatalog {
+    var inputEndpoints: [MIDIInputEndpoint]
+    var outputEndpoints: [MIDIDestinationInfo]
+
+    init(inputEndpoints: [MIDIInputEndpoint], outputEndpoints: [MIDIDestinationInfo]) {
+        self.inputEndpoints = inputEndpoints
+        self.outputEndpoints = outputEndpoints
     }
 }
 
