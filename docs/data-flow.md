@@ -132,7 +132,7 @@ ScorePerformancePlan
 - `RecordingTakeRecorder` 从 canonical observation 记录可重放事件；target audio 因缺少可靠逐音 release/velocity 不进入 MIDI take。
 - visionOS 的 CoreMIDI 输入明确使用 `.allCurrentSources`；macOS 只启动用户选定的单个稳定 endpoint unique ID，设备枚举 index 和显示名不参与选择或持久化。所选输入断开即停止、递增 generation 并要求用户重新连接或重新选择，绝不回退到别的输入。
 - macOS 输出是可选的 stable endpoint unique ID：缺失或断开只禁用回放/参考，不影响输入判定。更换输出前先取消旧目标未来事件，并向全部通道发送 all-notes-off 与 all-sound-off 后释放旧输出；设备显示名和原始 MIDI 不写入设置或进度。
-- macOS selected-input loss 先使 session 不再接受 observation，再经共享 session 完成 reset/flush、已接受 observation drain 与 approved measure facts flush；完成或明确返回后只恢复所选端点监测，不自动恢复练习。
+- macOS selected-input loss 先使 session 不再接受 observation，再经共享 session 完成 reset/flush、已接受 observation drain 与 approved measure facts flush；完成或明确返回后只恢复所选端点监测，不自动恢复练习。系统可见 endpoint 只能证明路由存在，wired/BLE、断连、输出 reset 与物理 loopback 仍需单独硬件证据。
 - take 保留 source/capability/clock/calibration 事实；MIDI 7/14-bit 事件只在回放或导出边界生成。
 - AI phrase 只来自用户 observation；用户选择的 backend 失败、超时、invalid response 或 quality gate failure 时停止本次生成，不自动 fallback。
 - `CreativeDuetResponse` 只在运行期存在，不改写 score plan、assessment target 或 progress。

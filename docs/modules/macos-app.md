@@ -7,3 +7,5 @@
 composition root 是 `MacAppGraph`：它显式提供空的 bundled-library provider，因此首次启动一定从用户导入开始。`MacLibraryViewModel` 先恢复未完成事务再读 index，且仅编排 `Library` actors；`MIDISettingsViewModel` 持有输入选择与共享输出生命周期，View 不直接访问文件或 CoreMIDI。`MacPracticeViewModel` 从 resolver 取得沙盒曲谱，调用 shared preparation、`MIDIPracticeSession`、recorder 与 progress repository，View 仅展示 `Notation` 与状态。设置只保存可选输入/输出 endpoint unique ID，显示名与枚举位置只用于本次列表；所选输入断开就停止且不自动 fallback，输出变更先 flush、all-notes-off/all-sound-off 再释放。曲库、端点设置与 MIDI-only practice 会在同一 host 内逐步接入共享 core；没有 AVP 的 `LiveAppGraph`、seed score、audio player 或 singleton 兼容路径。
 
 macOS App 仅声明 App Sandbox。后续 `fileImporter` 接收 security-scoped URL，并在本地副本完成后释放 scope；它不保存外部 URL 或 bookmark，也不申请 Bluetooth、USB 或全盘文件权限。
+
+验证入口是 `make build:mac` 与 `make test:mac`；两者只用 `HappyPianistMac`、`platform=macOS` 与独立 result bundle。自动化不构成硬件兼容性声明，wired/BLE route、物理 loopback 与 MIDI-Thru 仍保持 `pending evidence`，直到按测试协议观察并记录。

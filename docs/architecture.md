@@ -79,6 +79,7 @@ Models / Contracts
 ## 验证分层
 
 - 纯 Model、reducer、range、matcher、alignment、assessment 和 coaching policy：确定性 Swift Testing fixture。
+- macOS host：`make build:mac`、`make test:mac` 使用独立 macOS scheme/destination/result bundle；它们不读取或启动 visionOS Simulator。
 - SwiftUI、RealityKit、AVFoundation、CoreMIDI 和资源：Xcode / visionOS SDK 与 Simulator。
 - 手部追踪、麦克风、真实 MIDI、音频 onset、空间舒适度：Apple Vision Pro 真机。
 - 专业能力措辞：遵循[钢琴演奏与专业质量边界](piano-performance-quality.md)和[验证与测试](testing.md)。

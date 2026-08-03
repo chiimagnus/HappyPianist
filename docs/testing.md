@@ -25,6 +25,15 @@ make build
 make test
 ```
 
+macOS host 使用完全独立的入口：
+
+```bash
+make build:mac
+make test:mac
+```
+
+它们只使用 `HappyPianistMac`、`platform=macOS` 和自己的 result bundle；不读取 `SIMULATOR_ID`，也不 boot visionOS Simulator。共享包仍单独运行 `swift test --package-path Packages/HappyPianistCore`，visionOS 仍使用 `make build` 与 `make test`。
+
 需要完整运行日志时：
 
 ```bash
@@ -51,7 +60,7 @@ rtk xcodebuild test \
   CODE_SIGNING_ALLOWED=NO
 ```
 
-它覆盖持久化只含 unique ID、所选输入断开后停止且不回退、输出切换的 flush/reset/stop 顺序；仍需在真实设备上确认所选输出未通过 MIDI-Thru 或 loopback 回灌到所选输入。
+它覆盖持久化只含 unique ID、所选输入断开后停止且不回退、输出切换的 flush/reset/stop 顺序；`HappyPianistMacTests/Practice` 还覆盖 fixed-score MIDI match/wrong evidence、measure facts reload 与 selected-input loss。仍需在真实设备上确认所选输出未通过 MIDI-Thru 或 loopback 回灌到所选输入。
 
 记录提交 SHA、Xcode、visionOS、destination、命令和完整退出结果。`build-for-testing`、`swiftc -parse` 或 Linux harness 只能作为局部证据，不是 `xcodebuild test` 通过证据。
 
@@ -98,6 +107,16 @@ Simulator 不证明真实 MIDI、麦克风、手部追踪、audio onset、route 
 - [ ] stop、seek、loop、interruption、route change、断连和重启后无 stuck note 或旧输出。
 - [ ] 后台、窗口关闭、退出 immersive、切曲和 session replacement 取消长任务并释放输入。
 - [ ] 返回前等待 progress flush 和 session finalization；失败时留在当前窗口。
+
+### macOS MIDI 硬件（`pending evidence`）
+
+每一项记录 commit、日期、macOS/Xcode、route 类型与结果；不记录设备显示名、序列号、绝对路径或原始 MIDI。
+
+- [ ] 连接一个 wired MIDI endpoint，选定该输入并完成首音、和弦、release、controller 与 timestamp 检查。
+- [ ] 通过系统设置配对一个 BLE MIDI endpoint，再选定它完成同样检查；App 不扫描或配对设备。
+- [ ] 在 guiding 中断开所选输入并重新连接：确认立即停止、无自动 fallback 或自动恢复，随后由用户手动重新选择。
+- [ ] 选定输出后切换或断开它：确认 flush、all-notes-off、all-sound-off 后无残留发声；无输出时输入判定仍可完成。
+- [ ] 负向测试 MIDI-Thru/软件 loopback：在受控测试中确认回灌会成为输入事件后立即停止该配置，并在真实练习前物理断开。软件不声称能识别物理回灌。
 
 ### 存储与体验
 
