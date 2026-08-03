@@ -1,6 +1,5 @@
 import Foundation
-import Library
-@testable import HappyPianistAVP
+@testable import Library
 import Testing
 
 @Test
@@ -15,7 +14,7 @@ func audioImportServiceCopiesFileIntoAudioDirectory() async throws {
     let sourceURL = externalURL.appending(path: "sample.mp3")
     try Data("audio".utf8).write(to: sourceURL)
 
-    let fileManager: FileManager = TestDocumentsFileManager(documentsURL: documentsURL)
+    let fileManager: FileManager = AudioImportTestDocumentsFileManager(documentsURL: documentsURL)
     let paths = SongLibraryPaths(fileManager: fileManager)
     let audioDirectoryURL = documentsURL
         .appending(path: SongLibraryLayout.rootDirectoryName, directoryHint: .isDirectory)
@@ -40,7 +39,7 @@ private func makeTemporaryDirectory(prefix: String) throws -> URL {
     return directoryURL
 }
 
-private final class TestDocumentsFileManager: FileManager {
+private final class AudioImportTestDocumentsFileManager: FileManager {
     private let documentsURL: URL
 
     init(documentsURL: URL) {

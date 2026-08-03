@@ -1,10 +1,10 @@
 import Foundation
 
-enum AudioOutputVolumeSettings {
-    static let userDefaultsKey = "audioOutputVolume"
-    static let defaultValue: Float = 1.0
+public enum AudioOutputVolumeSettings {
+    public static let userDefaultsKey = "audioOutputVolume"
+    public static let defaultValue: Float = 1.0
 
-    static func readAudioOutputVolume(from userDefaults: UserDefaults = .standard) -> Float {
+    public static func readAudioOutputVolume(from userDefaults: UserDefaults = .standard) -> Float {
         guard let number = userDefaults.object(forKey: userDefaultsKey) as? NSNumber else {
             return defaultValue
         }

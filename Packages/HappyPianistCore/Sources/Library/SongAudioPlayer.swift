@@ -1,7 +1,9 @@
 import AVFAudio
 import Foundation
+import Practice
 
-protocol SongAudioPlayerProtocol: AnyObject {
+@MainActor
+public protocol SongAudioPlayerProtocol: AnyObject {
     var onPlaybackFinished: ((UUID?) -> Void)? { get set }
     var currentEntryID: UUID? { get }
     var currentTime: TimeInterval { get }
@@ -14,18 +16,19 @@ protocol SongAudioPlayerProtocol: AnyObject {
     func isPlaying(entryID: UUID) -> Bool
 }
 
-enum SongAudioPlayerStateError: Error {
+public enum SongAudioPlayerStateError: Error {
     case cannotCreatePlayer
 }
 
-final class SongAudioPlayer: NSObject, SongAudioPlayerProtocol, AVAudioPlayerDelegate {
-    var onPlaybackFinished: ((UUID?) -> Void)?
-    private(set) var currentEntryID: UUID?
-    var currentTime: TimeInterval {
+@MainActor
+public final class SongAudioPlayer: NSObject, SongAudioPlayerProtocol, AVAudioPlayerDelegate {
+    public var onPlaybackFinished: ((UUID?) -> Void)?
+    public private(set) var currentEntryID: UUID?
+    public var currentTime: TimeInterval {
         audioPlayer?.currentTime ?? 0
     }
 
-    var duration: TimeInterval {
+    public var duration: TimeInterval {
         audioPlayer?.duration ?? 0
     }
 
@@ -33,7 +36,7 @@ final class SongAudioPlayer: NSObject, SongAudioPlayerProtocol, AVAudioPlayerDel
     private var audioPlayer: AVAudioPlayer?
     private var currentAudioOutputVolume: Float?
 
-    init(userDefaults: UserDefaults = .standard) {
+    public init(userDefaults: UserDefaults = .standard) {
         self.userDefaults = userDefaults
         super.init()
 
@@ -52,7 +55,7 @@ final class SongAudioPlayer: NSObject, SongAudioPlayerProtocol, AVAudioPlayerDel
         )
     }
 
-    func play(entryID: UUID, url: URL) throws {
+    public func play(entryID: UUID, url: URL) throws {
         if currentEntryID != entryID {
             stop()
             audioPlayer = try AVAudioPlayer(contentsOf: url)
@@ -74,27 +77,27 @@ final class SongAudioPlayer: NSObject, SongAudioPlayerProtocol, AVAudioPlayerDel
         audioPlayer.play()
     }
 
-    func pause() {
+    public func pause() {
         audioPlayer?.pause()
     }
 
-    func stop() {
+    public func stop() {
         audioPlayer?.stop()
         audioPlayer?.currentTime = 0
         audioPlayer = nil
         currentEntryID = nil
     }
 
-    func seek(to time: TimeInterval) {
+    public func seek(to time: TimeInterval) {
         guard let audioPlayer else { return }
         audioPlayer.currentTime = min(max(time, 0), audioPlayer.duration)
     }
 
-    func isPlaying(entryID: UUID) -> Bool {
+    public func isPlaying(entryID: UUID) -> Bool {
         currentEntryID == entryID && (audioPlayer?.isPlaying ?? false)
     }
 
-    func audioPlayerDidFinishPlaying(_: AVAudioPlayer, successfully _: Bool) {
+    public func audioPlayerDidFinishPlaying(_: AVAudioPlayer, successfully _: Bool) {
         let finishedEntryID = currentEntryID
         audioPlayer = nil
         currentEntryID = nil
@@ -114,12 +117,13 @@ final class SongAudioPlayer: NSObject, SongAudioPlayerProtocol, AVAudioPlayerDel
     }
 }
 
-final class SongAudioPlaybackStateController {
+@MainActor
+public final class SongAudioPlaybackStateController {
     private let player: SongAudioPlayerProtocol
-    private(set) var currentEntryID: UUID?
-    var onStateChanged: ((UUID?) -> Void)?
+    public private(set) var currentEntryID: UUID?
+    public var onStateChanged: ((UUID?) -> Void)?
 
-    init(player: SongAudioPlayerProtocol) {
+    public init(player: SongAudioPlayerProtocol) {
         self.player = player
         currentEntryID = nil
         self.player.onPlaybackFinished = { [weak self] finishedEntryID in
@@ -131,7 +135,7 @@ final class SongAudioPlaybackStateController {
         }
     }
 
-    func toggle(entryID: UUID, url: URL) throws {
+    public func toggle(entryID: UUID, url: URL) throws {
         if currentEntryID == entryID {
             if player.isPlaying(entryID: entryID) {
                 player.pause()
@@ -152,27 +156,27 @@ final class SongAudioPlaybackStateController {
         onStateChanged?(currentEntryID)
     }
 
-    func stop() {
+    public func stop() {
         player.stop()
         currentEntryID = nil
         onStateChanged?(currentEntryID)
     }
 
-    var currentTime: TimeInterval {
+    public var currentTime: TimeInterval {
         player.currentTime
     }
 
-    var duration: TimeInterval {
+    public var duration: TimeInterval {
         player.duration
     }
 
-    func seek(toProgress progress: Double) {
+    public func seek(toProgress progress: Double) {
         guard duration > 0 else { return }
         player.seek(to: min(max(progress, 0), 1) * duration)
         onStateChanged?(currentEntryID)
     }
 
-    func isPlaying(entryID: UUID) -> Bool {
+    public func isPlaying(entryID: UUID) -> Bool {
         currentEntryID == entryID && player.isPlaying(entryID: entryID)
     }
 }

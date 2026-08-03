@@ -1,16 +1,15 @@
 import Foundation
-import Library
 
-protocol AudioImportServiceProtocol: Actor {
+public protocol AudioImportServiceProtocol: Actor {
     func importAudio(from sourceURL: URL) async throws -> String
 }
 
-actor AudioImportService: AudioImportServiceProtocol {
+public actor AudioImportService: AudioImportServiceProtocol {
     private let fileManager: FileManager
     private let paths: SongLibraryPaths
     private let now: @Sendable () -> Date
 
-    init(
+    public init(
         fileManager: FileManager = .default,
         paths: SongLibraryPaths? = nil,
         now: @escaping @Sendable () -> Date = Date.init
@@ -20,7 +19,7 @@ actor AudioImportService: AudioImportServiceProtocol {
         self.now = now
     }
 
-    func importAudio(from sourceURL: URL) async throws -> String {
+    public func importAudio(from sourceURL: URL) async throws -> String {
         let hasScopedAccess = sourceURL.startAccessingSecurityScopedResource()
         defer {
             if hasScopedAccess { sourceURL.stopAccessingSecurityScopedResource() }
