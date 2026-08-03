@@ -1281,13 +1281,15 @@ struct GrandStaffNotationLayoutService {
         }
 
         let candidates = sortedKeys.compactMap { key -> ChordCandidate? in
-            guard let chordItems = grouped[key], chordItems.isEmpty == false else { return nil }
+            guard let chordItems = grouped[key],
+                  let noteType = resolvedChordNoteType(items: chordItems)
+            else { return nil }
             return ChordCandidate(
                 id: "chord-\(key.performedSourceID)",
                 tick: chordItems.map(\.tick).min() ?? 0,
                 xPosition: chordItems.map(\.xPosition).reduce(0.0, +) / Double(chordItems.count),
                 items: chordItems,
-                noteType: resolvedChordNoteType(items: chordItems)
+                noteType: noteType
             )
         }
         let chordGeometry = chordLayoutService.makeLayout(chords: candidates.map { candidate in
@@ -1421,9 +1423,8 @@ struct GrandStaffNotationLayoutService {
         return (normalizedItems, chords, beamsBuild.beams, ledgerLines)
     }
 
-    private func resolvedChordNoteType(items: [GrandStaffNotationItem]) -> MusicXMLNoteType {
+    private func resolvedChordNoteType(items: [GrandStaffNotationItem]) -> MusicXMLNoteType? {
         items.max(by: { $0.noteType.grandStaffBeamCount < $1.noteType.grandStaffBeamCount })?.noteType
-            ?? .quarter
     }
 
     private func buildBeams(

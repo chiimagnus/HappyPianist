@@ -118,6 +118,24 @@ func engravingMetricsStayInStaffSpaceUnits() {
         maxX: 0.2,
         maxY: 0.2
     ))
+    #expect(metrics.bounds(for: .mensuralWhiteMaxima) == .init(
+        minX: -1.25,
+        minY: -3.548,
+        maxX: 1.25,
+        maxY: 0.684
+    ))
+    #expect(metrics.bounds(for: .mensuralWhiteLonga) == .init(
+        minX: -0.65,
+        minY: -3.548,
+        maxX: 0.65,
+        maxY: 0.684
+    ))
+    #expect(metrics.bounds(for: .noteheadDoubleWhole) == .init(
+        minX: -1.198,
+        minY: -0.62,
+        maxX: 1.198,
+        maxY: 0.62
+    ))
     #expect(metrics.bounds(for: .gClef) == nil)
 }
 
