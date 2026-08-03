@@ -34,6 +34,7 @@ fileImporter
 - 导入在 security scope 内拒绝非普通文件、symlink、超出大小限制或 unsafe MXL central directory；仅通过 MusicXML 公开验证后才写同卷 `.partial` 和 journal，再以字节数/SHA-256 校验后提交 target/index；冲突停在用户确认边界。
 - bootstrap 先恢复未完成事务，再读取 index，最后扫描 bundle；损坏的非空 JSON fail closed，不得按空库覆盖。
 - macOS host 使用同一 transaction actor：`fileImporter` 提供的 security-scoped URL 只在 `stageImports` 内获取和释放，成功后只保留 sandbox `SongLibrary` 内的副本、相对文件名与 fingerprint；不保存外部 URL、bookmark 或绝对路径，也不尝试读取 visionOS container。
+- macOS 从已选 Library entry 解析沙盒副本，经 `PracticePreparationService` 生成同时具备 steps 与 measure spans 的 `PreparedPractice`，再交给 `MIDIPracticeSession`、小节事实 reducer 与 `GrandStaffNotationView`；准备或 progress corruption 停在可恢复 UI，不建立 steps-without-measures fallback。
 - `PracticePreparationService` 先生成唯一 `ScorePerformancePlan`，再单向投影 `PracticeStep`、`PianoHighlightGuide`、notation projection、timeline 和 sequence。
 - `Practice` 是 preparation 与共享 runtime 的包边界，依赖 `MusicXML`、`MIDI` 和 `Diagnostics`；曲库、SwiftUI/RealityKit、AVAudio、音频识别与手部/虚拟琴不得被它反向引用。
 - prepared result 必须同时有可演奏 steps 与 `MusicXMLMeasureSpan`；缺少小节结构时返回 typed failure，不建立 legacy fallback。
@@ -131,6 +132,7 @@ ScorePerformancePlan
 - `RecordingTakeRecorder` 从 canonical observation 记录可重放事件；target audio 因缺少可靠逐音 release/velocity 不进入 MIDI take。
 - visionOS 的 CoreMIDI 输入明确使用 `.allCurrentSources`；macOS 只启动用户选定的单个稳定 endpoint unique ID，设备枚举 index 和显示名不参与选择或持久化。所选输入断开即停止、递增 generation 并要求用户重新连接或重新选择，绝不回退到别的输入。
 - macOS 输出是可选的 stable endpoint unique ID：缺失或断开只禁用回放/参考，不影响输入判定。更换输出前先取消旧目标未来事件，并向全部通道发送 all-notes-off 与 all-sound-off 后释放旧输出；设备显示名和原始 MIDI 不写入设置或进度。
+- macOS selected-input loss 先使 session 不再接受 observation，再经共享 session 完成 reset/flush、已接受 observation drain 与 approved measure facts flush；完成或明确返回后只恢复所选端点监测，不自动恢复练习。
 - take 保留 source/capability/clock/calibration 事实；MIDI 7/14-bit 事件只在回放或导出边界生成。
 - AI phrase 只来自用户 observation；用户选择的 backend 失败、超时、invalid response 或 quality gate failure 时停止本次生成，不自动 fallback。
 - `CreativeDuetResponse` 只在运行期存在，不改写 score plan、assessment target 或 progress。

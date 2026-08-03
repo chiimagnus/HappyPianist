@@ -92,6 +92,7 @@ final class MIDISettingsViewModel {
     private(set) var outputSelectionState: MIDIOutputSelectionState = .notSelected
     private(set) var sessionGeneration: UInt64 = 0
     private(set) var errorMessage: String?
+    var onSelectedInputLoss: (@MainActor () -> Void)?
 
     init(
         settingsStore: any MIDIEndpointSettingsStoring,
@@ -186,10 +187,40 @@ final class MIDISettingsViewModel {
     func stopSelectedInput() {
         retireActiveInput()
         if let selectedInputEndpointID {
-            inputSelectionState = .unavailable(selectedInputEndpointID)
+            inputSelectionState = inputEndpoints.contains(where: { $0.id == selectedInputEndpointID })
+                ? .connected
+                : .unavailable(selectedInputEndpointID)
         } else {
             inputSelectionState = .notSelected
         }
+    }
+
+    func selectedInputForPractice() -> (any MIDIInputEventSource)? {
+        guard inputSelectionState == .connected else { return nil }
+        return activeInputService
+    }
+
+    func resumeSelectedInputMonitoring() {
+        refreshEndpoints()
+        guard let selectedInputEndpointID else {
+            inputSelectionState = .notSelected
+            return
+        }
+        guard inputEndpoints.contains(where: { $0.id == selectedInputEndpointID }) else {
+            inputSelectionState = .unavailable(selectedInputEndpointID)
+            return
+        }
+        retireActiveInput()
+        activateSelectedInput(endpointUniqueID: selectedInputEndpointID)
+    }
+
+    func resetSelectedOutput() {
+        guard let selectedOutputEndpointID,
+              outputSelectionState == .available
+        else {
+            return
+        }
+        retireOutput(endpointUniqueID: selectedOutputEndpointID)
     }
 
     func handleInputAvailabilityChange(
@@ -209,6 +240,7 @@ final class MIDISettingsViewModel {
             activeInputGeneration = nil
             inputSelectionState = .unavailable(endpointUniqueID)
             errorMessage = "所选 MIDI 输入已断开。请重新连接或重新选择设备。"
+            onSelectedInputLoss?()
         }
     }
 

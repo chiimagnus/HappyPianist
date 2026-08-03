@@ -6,11 +6,13 @@ import UniformTypeIdentifiers
 
 private enum MacLibraryRoute: Hashable {
     case midiSettings
+    case practice(UUID)
 }
 
 struct MacLibraryRootView: View {
     @Bindable var viewModel: MacLibraryViewModel
     @Bindable var midiSettingsViewModel: MIDISettingsViewModel
+    @Bindable var practiceViewModel: MacPracticeViewModel
 
     var body: some View {
         NavigationStack {
@@ -39,6 +41,8 @@ struct MacLibraryRootView: View {
                 switch route {
                 case .midiSettings:
                     MIDISettingsView(viewModel: midiSettingsViewModel)
+                case let .practice(songID):
+                    MacPracticeView(songID: songID, viewModel: practiceViewModel)
                 }
             }
             .toolbar {
@@ -85,6 +89,12 @@ private struct MacLibraryView: View {
                     viewModel.presentMusicXMLImporter()
                 }
                 .buttonStyle(.borderedProminent)
+                if let selectedEntryID = viewModel.selectedEntryID {
+                    NavigationLink(value: MacLibraryRoute.practice(selectedEntryID)) {
+                        Label("开始 MIDI 练习", systemImage: "play.fill")
+                    }
+                    .buttonStyle(.bordered)
+                }
             }
 
             if viewModel.entries.isEmpty {

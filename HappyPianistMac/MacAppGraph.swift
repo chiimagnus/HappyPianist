@@ -2,11 +2,13 @@ import Diagnostics
 import Foundation
 import Library
 import MIDI
+import Practice
 
 @MainActor
 struct MacAppGraph {
     let songLibraryViewModel: MacLibraryViewModel
     let midiSettingsViewModel: MIDISettingsViewModel
+    let practiceViewModel: MacPracticeViewModel
     let midiOutputService: any MIDIOutputSendingProtocol
     let songLibraryEntryResolver: any SongLibraryEntryResolving
     let practiceProgressRepository: FilePracticeProgressRepository
@@ -14,12 +16,14 @@ struct MacAppGraph {
     init(
         songLibraryViewModel: MacLibraryViewModel,
         midiSettingsViewModel: MIDISettingsViewModel,
+        practiceViewModel: MacPracticeViewModel,
         midiOutputService: any MIDIOutputSendingProtocol,
         songLibraryEntryResolver: any SongLibraryEntryResolving,
         practiceProgressRepository: FilePracticeProgressRepository
     ) {
         self.songLibraryViewModel = songLibraryViewModel
         self.midiSettingsViewModel = midiSettingsViewModel
+        self.practiceViewModel = practiceViewModel
         self.midiOutputService = midiOutputService
         self.songLibraryEntryResolver = songLibraryEntryResolver
         self.practiceProgressRepository = practiceProgressRepository
@@ -39,6 +43,19 @@ struct MacAppGraph {
         )
         let progressRepository = FilePracticeProgressRepository()
         let outputService = CoreMIDIOutputService(diagnosticsReporter: diagnosticsReporter)
+        let preparationService: any PracticePreparationServiceProtocol = PracticePreparationService(
+            diagnosticsReporter: diagnosticsReporter
+        )
+        let sessionRecorder = PracticeSessionRecorder(
+            repository: progressRepository,
+            diagnosticsReporter: diagnosticsReporter,
+            performanceAnalyzer: PracticePerformanceAnalyzer(diagnosticsReporter: diagnosticsReporter)
+        )
+        let entryResolver = SongLibraryEntryResolver(
+            indexStore: indexStore,
+            bundledProvider: bundledProvider,
+            fileStore: fileStore
+        )
         let midiSettingsViewModel = MIDISettingsViewModel(
             settingsStore: UserDefaultsMIDIEndpointSettingsStore(),
             inputEndpointDiscovery: {
@@ -63,12 +80,19 @@ struct MacAppGraph {
                 bundledProvider: bundledProvider
             ),
             midiSettingsViewModel: midiSettingsViewModel,
-            midiOutputService: outputService,
-            songLibraryEntryResolver: SongLibraryEntryResolver(
-                indexStore: indexStore,
-                bundledProvider: bundledProvider,
-                fileStore: fileStore
+            practiceViewModel: MacPracticeViewModel(
+                resolveEntry: { songID in
+                    await entryResolver.resolve(songID: songID)
+                },
+                preparationService: preparationService,
+                progressRepository: progressRepository,
+                progressRecovery: progressRepository,
+                sessionRecorder: sessionRecorder,
+                midiSettingsViewModel: midiSettingsViewModel,
+                diagnosticsReporter: diagnosticsReporter
             ),
+            midiOutputService: outputService,
+            songLibraryEntryResolver: entryResolver,
             practiceProgressRepository: progressRepository
         )
     }

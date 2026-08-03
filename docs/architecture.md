@@ -41,7 +41,7 @@ Models / Contracts
 | --- | --- | --- |
 | App 与窗口 | `HappyPianistAVPApp`、`AppState` | Library 是入口；preparation 与 practice 是单层 pushed window；immersive space 只承载空间内容。 |
 | 组合根 | `LiveAppGraph` | 共享的 index store、曲库 provider、progress repository、diagnostics reporter 与 practice recorder 不在 ViewModel 内重新创建。 |
-| macOS host | `HappyPianistMacApp`、`MacAppGraph` | 独立沙盒、空 bundled library 和初始导入入口；不复制 `LiveAppGraph` 或任一 AVP lifecycle。 |
+| macOS host | `HappyPianistMacApp`、`MacAppGraph`、`MacPracticeViewModel` | 独立沙盒、空 bundled library 和初始导入入口；Mac ViewModel 只组合 Library resolver、shared preparation/`MIDIPracticeSession`、recorder 与 Notation，不复制 `LiveAppGraph` 或任一 AVP lifecycle。 |
 | 诊断根 | `Packages/HappyPianistCore/Sources/Diagnostics/` | `DiagnosticEvent`、reporter、七日文件 store、OSLog sink 与用户归档；不包含音频、AR、Practice 投影或输出指标。 |
 | 曲谱根 | `Packages/HappyPianistCore/Sources/MusicXML/` | MusicXML/MXL 解析、结构扩展、模型与安全限制；输入失败以本模块 typed error 表示，不反向依赖 Practice。 |
 | MIDI 根 | `Packages/HappyPianistCore/Sources/MIDI/` | 输入/输出 transport、endpoint ID、CoreMIDI route 与输出指标；不包含练习匹配、录制、AI 或界面。 |

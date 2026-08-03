@@ -12,7 +12,8 @@ struct HappyPianistMacApp: App {
         WindowGroup("HappyPianist") {
             MacLibraryRootView(
                 viewModel: graph.songLibraryViewModel,
-                midiSettingsViewModel: graph.midiSettingsViewModel
+                midiSettingsViewModel: graph.midiSettingsViewModel,
+                practiceViewModel: graph.practiceViewModel
             )
         }
     }
