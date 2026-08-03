@@ -19,10 +19,12 @@ struct MusicXMLParserGraceTupletTests {
               <note>
                 <grace/>
                 <pitch><step>D</step><octave>4</octave></pitch>
+                <type>eighth</type>
               </note>
               <note>
                 <pitch><step>C</step><octave>4</octave></pitch>
                 <duration>1</duration>
+                <type>quarter</type>
               </note>
             </measure>
           </part>
@@ -43,7 +45,7 @@ struct MusicXMLParserGraceTupletTests {
     }
 
     @Test
-    func parserDerivesTupletDurationFromTypeAndTimeModificationWhenDurationIsMissing() throws {
+    func parserRejectsMissingDurationInsteadOfDerivingTupletTiming() {
         let xml = """
         <?xml version="1.0" encoding="UTF-8"?>
         <score-partwise version="4.0">
@@ -76,24 +78,13 @@ struct MusicXMLParserGraceTupletTests {
         </score-partwise>
         """
 
-        let score = try MusicXMLParser().parse(data: Data(xml.utf8))
-        #expect(score.notes.count == 2)
-        #expect(score.notes[0].durationTicks == 160)
-        #expect(score.notes[0].writtenRhythm == MusicXMLWrittenRhythm(
-            typeToken: "eighth",
-            timeModification: MusicXMLTimeModification(
-                actualNotes: 3,
-                normalNotes: 2,
-                normalTypeToken: "eighth",
-                normalDotCount: 1
-            )
-        ))
-        #expect(score.notes[0].tick == 0)
-        #expect(score.notes[1].tick == 160)
+        #expect(throws: MusicXMLParserError.invalidWrittenRhythm(.missingDuration)) {
+            try MusicXMLParser().parse(data: Data(xml.utf8))
+        }
     }
 
     @Test
-    func parserDerivesDoubleDottedDurationFromTypeWhenDurationIsMissing() throws {
+    func parserRejectsMissingDurationInsteadOfDerivingDottedTiming() {
         let xml = """
         <?xml version="1.0" encoding="UTF-8"?>
         <score-partwise version="4.0">
@@ -114,10 +105,8 @@ struct MusicXMLParserGraceTupletTests {
         </score-partwise>
         """
 
-        let score = try MusicXMLParser().parse(data: Data(xml.utf8))
-
-        #expect(score.notes.count == 1)
-        #expect(score.notes[0].durationTicks == 840)
-        #expect(score.notes[0].writtenRhythm == MusicXMLWrittenRhythm(typeToken: "quarter", dotCount: 2))
+        #expect(throws: MusicXMLParserError.invalidWrittenRhythm(.missingDuration)) {
+            try MusicXMLParser().parse(data: Data(xml.utf8))
+        }
     }
 }

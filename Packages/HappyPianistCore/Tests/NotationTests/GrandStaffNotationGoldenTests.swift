@@ -64,7 +64,7 @@ private func sourceFactsSnapshot(_ projection: ScoreNotationProjection) -> Strin
             let ratio = $0.timeModification.map {
                 "\($0.actualNotes.map(String.init) ?? "-"):\($0.normalNotes.map(String.init) ?? "-")"
             } ?? "-"
-            return "\($0.typeToken ?? "-"):dots=\($0.dotCount):ratio=\(ratio)"
+            return "\($0.noteType.rawValue):dots=\($0.dotCount):ratio=\(ratio)"
         } ?? "-"
         let beams = note.beams.map {
             "\($0.numberToken ?? "1"):\(String(describing: $0.value))"
@@ -101,7 +101,7 @@ private func glyphTokenSnapshot(_ layout: GrandStaffNotationLayout) -> String {
     let items = layout.items.sorted(by: notationItemOrder).map { item in
         let chord = item.chordID.flatMap { chordsByID[$0] }
         let flag = item.beamID == nil
-            ? chord?.noteValue.flagGlyphToken(stemDirection: chord?.stem.direction ?? .up)
+            ? chord?.noteType.grandStaffFlagGlyphToken(stemDirection: chord?.stem.direction ?? .up)
             : nil
         return [
             "note@\(item.tick):s\(item.staffNumber):v\(item.voice)",
@@ -174,7 +174,7 @@ private func layoutSnapshot(_ layout: GrandStaffNotationLayout) -> String {
         "note@\($0.tick):s\($0.staffNumber):v\($0.voice):hand=\(String(describing: $0.hand)):beam=\($0.beamID == nil ? "no" : "yes")"
     }
     let rests = layout.rests.sorted(by: restOrder).map {
-        "rest@\($0.tick):s\($0.staffNumber):v\($0.voice):\(noteValue($0.noteValue))"
+        "rest@\($0.tick):s\($0.staffNumber):v\($0.voice):\($0.noteType.rawValue)"
     }
     let barlines = layout.barlines.sorted { $0.tick < $1.tick }.map { "barline@\($0.tick)" }
     let attributes = layout.attributeChanges.sorted(by: attributeOrder).map {
@@ -228,20 +228,6 @@ private func markKind(_ kind: GrandStaffNotationMark.Kind) -> String {
     case let .articulation(token): "articulation:\(token.rawValue)"
     case let .arpeggio(token): "arpeggio:\(token.rawValue)"
     case .fingering: "fingering"
-    }
-}
-
-private func noteValue(_ value: GrandStaffNoteValue) -> String {
-    switch value {
-    case .whole: "whole"
-    case .half: "half"
-    case .quarter: "quarter"
-    case .eighth: "eighth"
-    case .sixteenth: "16th"
-    case .thirtySecond: "32nd"
-    case .sixtyFourth: "64th"
-    case .oneHundredTwentyEighth: "128th"
-    case let .unsupported(token): "unsupported:\(token ?? "-")"
     }
 }
 

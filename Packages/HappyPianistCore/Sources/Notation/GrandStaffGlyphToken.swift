@@ -5,6 +5,9 @@ public enum GrandStaffGlyphToken: String, CaseIterable, Equatable, Hashable {
     case gClef
     case fClef
     case cClef
+    case mensuralWhiteMaxima
+    case mensuralWhiteLonga
+    case noteheadDoubleWhole
     case noteheadWhole
     case noteheadHalf
     case noteheadBlack
@@ -18,6 +21,15 @@ public enum GrandStaffGlyphToken: String, CaseIterable, Equatable, Hashable {
     case flagSixtyFourthDown
     case flagOneHundredTwentyEighthUp
     case flagOneHundredTwentyEighthDown
+    case flagTwoHundredFiftySixthUp
+    case flagTwoHundredFiftySixthDown
+    case flagFiveHundredTwelfthUp
+    case flagFiveHundredTwelfthDown
+    case flagOneThousandTwentyFourthUp
+    case flagOneThousandTwentyFourthDown
+    case restMaxima
+    case restLonga
+    case restDoubleWhole
     case restWhole
     case restHalf
     case restQuarter
@@ -26,6 +38,9 @@ public enum GrandStaffGlyphToken: String, CaseIterable, Equatable, Hashable {
     case restThirtySecond
     case restSixtyFourth
     case restOneHundredTwentyEighth
+    case restTwoHundredFiftySixth
+    case restFiveHundredTwelfth
+    case restOneThousandTwentyFourth
     case accidentalFlat
     case accidentalNatural
     case accidentalSharp
@@ -61,6 +76,9 @@ public enum GrandStaffGlyphToken: String, CaseIterable, Equatable, Hashable {
         case .gClef: 0xE050
         case .fClef: 0xE062
         case .cClef: 0xE05C
+        case .mensuralWhiteMaxima: 0xE95C
+        case .mensuralWhiteLonga: 0xE95D
+        case .noteheadDoubleWhole: 0xE0A0
         case .noteheadWhole: 0xE0A2
         case .noteheadHalf: 0xE0A3
         case .noteheadBlack: 0xE0A4
@@ -74,6 +92,15 @@ public enum GrandStaffGlyphToken: String, CaseIterable, Equatable, Hashable {
         case .flagSixtyFourthDown: 0xE247
         case .flagOneHundredTwentyEighthUp: 0xE248
         case .flagOneHundredTwentyEighthDown: 0xE249
+        case .flagTwoHundredFiftySixthUp: 0xE24A
+        case .flagTwoHundredFiftySixthDown: 0xE24B
+        case .flagFiveHundredTwelfthUp: 0xE24C
+        case .flagFiveHundredTwelfthDown: 0xE24D
+        case .flagOneThousandTwentyFourthUp: 0xE24E
+        case .flagOneThousandTwentyFourthDown: 0xE24F
+        case .restMaxima: 0xE4E0
+        case .restLonga: 0xE4E1
+        case .restDoubleWhole: 0xE4E2
         case .restWhole: 0xE4E3
         case .restHalf: 0xE4E4
         case .restQuarter: 0xE4E5
@@ -82,6 +109,9 @@ public enum GrandStaffGlyphToken: String, CaseIterable, Equatable, Hashable {
         case .restThirtySecond: 0xE4E8
         case .restSixtyFourth: 0xE4E9
         case .restOneHundredTwentyEighth: 0xE4EA
+        case .restTwoHundredFiftySixth: 0xE4EB
+        case .restFiveHundredTwelfth: 0xE4EC
+        case .restOneThousandTwentyFourth: 0xE4ED
         case .accidentalFlat: 0xE260
         case .accidentalNatural: 0xE261
         case .accidentalSharp: 0xE262

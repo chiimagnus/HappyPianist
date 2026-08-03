@@ -15,13 +15,13 @@
   <part id="FL">
     <measure number="1">
       <attributes><divisions>1</divisions><clef><sign>G</sign><line>2</line></clef></attributes>
-      <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff></note>
+      <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type><voice>1</voice><staff>1</staff></note>
     </measure>
   </part>
   <part id="VC">
     <measure number="1">
       <attributes><divisions>1</divisions><clef><sign>F</sign><line>4</line></clef></attributes>
-      <note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff></note>
+      <note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration><type>quarter</type><voice>1</voice><staff>1</staff></note>
     </measure>
   </part>
 </score-partwise>

@@ -96,7 +96,8 @@ func layoutRendersWholeMeasureRestWithoutTypeAtMeasureCenter() throws {
     let rest = try #require(layout.rests.first)
 
     #expect(projection.fallbacks.isEmpty)
-    #expect(rest.noteValue == .whole)
+    #expect(score.notes.first?.writtenRhythm == nil)
+    #expect(rest.noteType == .whole)
     #expect(rest.isMeasureRest)
     #expect(rest.glyphToken == .restWhole)
     #expect(rest.xPosition > 0.5)
@@ -124,11 +125,11 @@ func layoutSupportsSixtyFourthAndOneHundredTwentyEighthNotesAndRests() throws {
     let layout = GrandStaffNotationLayoutService().makeLayout(projection: projection)
 
     #expect(projection.fallbacks.isEmpty)
-    #expect(layout.items.map(\.noteValue) == [.sixtyFourth, .oneHundredTwentyEighth])
+    #expect(layout.items.map(\.noteType) == [.sixtyFourth, .oneHundredTwentyEighth])
     #expect(layout.chords.compactMap { chord in
-        chord.noteValue.flagGlyphToken(stemDirection: chord.stem.direction)
+        chord.noteType.grandStaffFlagGlyphToken(stemDirection: chord.stem.direction)
     } == [.flagSixtyFourthDown, .flagOneHundredTwentyEighthDown])
-    #expect(layout.rests.map(\.noteValue) == [.sixtyFourth, .oneHundredTwentyEighth])
+    #expect(layout.rests.map(\.noteType) == [.sixtyFourth, .oneHundredTwentyEighth])
     #expect(layout.rests.compactMap(\.glyphToken) == [.restSixtyFourth, .restOneHundredTwentyEighth])
 }
 
@@ -224,7 +225,10 @@ func commonPianoMarksKeepSourcePlacementAndUseCollisionAwareLayout() throws {
     #expect(pedal.staff == 2)
     #expect(pedal.placementToken == "below")
 
-    #expect(projection.attributeChanges.map(\.tick) == [480, 480])
+    #expect(projection.attributeChanges.map(\.tick) == [
+        MusicXMLTempoMap.ticksPerQuarter,
+        MusicXMLTempoMap.ticksPerQuarter,
+    ])
     #expect(projection.attributeChanges.first { $0.staff == 1 }?.keySignatureFifths == 2)
     #expect(projection.attributeChanges.first { $0.staff == 2 }?.clef?.signToken == "G")
     #expect(layout.attributeChanges.count == 2)
@@ -252,8 +256,8 @@ func commonPianoMarksKeepSourcePlacementAndUseCollisionAwareLayout() throws {
         sourceMeasureIndex: sourceFirstMeasure.sourceMeasureIndex,
         sourceMeasureNumberToken: sourceFirstMeasure.sourceMeasureNumberToken,
         occurrenceIndex: 7,
-        startTick: 960,
-        endTick: 1440
+        startTick: MusicXMLTempoMap.ticksPerQuarter * 2,
+        endTick: MusicXMLTempoMap.ticksPerQuarter * 3
     ))
     performedScore.repeatDirectives = []
     performedScore.endingDirectives = []
@@ -262,8 +266,14 @@ func commonPianoMarksKeepSourcePlacementAndUseCollisionAwareLayout() throws {
         sourceScore: score,
         performedScore: performedScore
     )
-    #expect(repeatedProjection.marks.filter { $0.kind == .repeatBackward }.map(\.tick) == [480, 1440])
-    #expect(repeatedProjection.marks.filter { $0.kind == .endingStart }.map(\.tick) == [0, 960])
+    #expect(repeatedProjection.marks.filter { $0.kind == .repeatBackward }.map(\.tick) == [
+        MusicXMLTempoMap.ticksPerQuarter,
+        MusicXMLTempoMap.ticksPerQuarter * 3,
+    ])
+    #expect(repeatedProjection.marks.filter { $0.kind == .endingStart }.map(\.tick) == [
+        0,
+        MusicXMLTempoMap.ticksPerQuarter * 2,
+    ])
 }
 
 @Test
@@ -364,7 +374,7 @@ func projectionLayoutUsesWrittenDurationAndAccidentalInsteadOfPerformanceOrMidi(
 
     #expect(activeEvent.performedOffTick - activeEvent.performedOnTick == 480)
     #expect(flat.durationTicks == 960)
-    #expect(flat.noteValue == .half)
+    #expect(flat.noteType == .half)
     #expect(flat.displayedAccidental?.kind == .flat)
     #expect(flat.isHighlighted)
     #expect(sharp.displayedAccidental?.kind == .sharp)
@@ -464,7 +474,7 @@ func projectionAndLayoutKeepVisibleRestsSameNumberSlursAndNestedTuplets() throws
     #expect(layout.rests.count == 1)
     #expect(rest.staffNumber == 2)
     #expect(rest.voice == 2)
-    #expect(rest.noteValue == .quarter)
+    #expect(rest.noteType == .quarter)
     #expect(rest.dotCount == 1)
 
     #expect(layout.slurs.map(\.numberToken) == ["2", "2"])
@@ -609,12 +619,15 @@ func meterFallbackStopsAtBeatAndRestBoundaries() throws {
     let beam = try #require(layout.beams.first)
     let chordsByID = Dictionary(uniqueKeysWithValues: layout.chords.map { ($0.id, $0) })
     #expect(layout.beams.count == 1)
-    #expect(beam.chordIDs.compactMap { chordsByID[$0]?.tick } == [480, 720])
-    #expect(layout.items.filter { $0.tick < 480 }.allSatisfy { $0.beamID == nil })
+    #expect(beam.chordIDs.compactMap { chordsByID[$0]?.tick } == [
+        MusicXMLTempoMap.ticksPerQuarter,
+        MusicXMLTempoMap.ticksPerQuarter + MusicXMLTempoMap.ticksPerQuarter / 2,
+    ])
+    #expect(layout.items.filter { $0.tick < MusicXMLTempoMap.ticksPerQuarter }.allSatisfy { $0.beamID == nil })
 }
 
 @Test
-func unsupportedNotationUsesNeutralFallbacksWithoutChangingPerformanceFacts() throws {
+func unsupportedNotationKeepsStandardRhythmsWithoutChangingPerformanceFacts() throws {
     let score = unsupportedNotationScore()
     let plan = makeTestScorePerformancePlan(from: score)
     let originalEvents = plan.noteEvents
@@ -625,25 +638,21 @@ func unsupportedNotationUsesNeutralFallbacksWithoutChangingPerformanceFacts() th
         overlay: .init(activeEventIDs: [activeEvent.id], activeTickRange: nil)
     )
 
-    #expect(projection.fallbacks.count == 5)
-    #expect(Set(projection.fallbacks.map(\.sourceID)) == Set(score.notes.compactMap(\.sourceID)))
+    #expect(projection.fallbacks.count == 4)
+    #expect(projection.fallbacks.allSatisfy { $0.sourceID != score.notes[1].sourceID })
     #expect(projection.fallbacks.contains {
         $0.kind == .accidental && $0.reason == .microtonalAccidental && $0.placeholderPolicy == .omit
-    })
-    #expect(projection.fallbacks.contains {
-        $0.kind == .notehead && $0.reason == .unsupportedNoteType
-            && $0.placeholderPolicy == .reserveRhythmicSpace
     })
     #expect(projection.fallbacks.contains { $0.kind == .beam && $0.reason == .unsupportedBeamValue })
     #expect(projection.fallbacks.count(where: { $0.kind == .mark }) == 2)
 
     let microtonal = try #require(layout.items.first { $0.tick == 0 })
-    let neutralNotehead = try #require(layout.items.first { $0.tick == 240 })
+    let breve = try #require(layout.items.first { $0.tick == 240 })
     #expect(microtonal.displayedAccidental?.kind == .unsupported)
     #expect(microtonal.displayedAccidental?.glyphToken == nil)
-    #expect(neutralNotehead.noteValue == .unsupported(sourceTypeToken: "breve"))
-    #expect(neutralNotehead.noteheadGlyphToken == nil)
-    #expect(neutralNotehead.xPosition.isFinite)
+    #expect(breve.noteType == .breve)
+    #expect(breve.noteheadGlyphToken == .noteheadDoubleWhole)
+    #expect(breve.xPosition.isFinite)
     #expect(layout.beams.isEmpty)
     #expect(layout.marks.allSatisfy {
         if case .articulation = $0.kind { return false }
@@ -657,12 +666,11 @@ func unsupportedNotationUsesNeutralFallbacksWithoutChangingPerformanceFacts() th
     let diagnosticText = samples.map(\.diagnosticEvent).map {
         "\($0.summary);\($0.reason);\($0.persistence)"
     }.joined(separator: "|")
-    #expect(samples.count == 5)
+    #expect(samples.count == 4)
     #expect(samples.allSatisfy { $0.count == 1 })
     #expect(diagnosticText.contains("kind=accidental;count=1;reason=microtonalAccidental"))
     #expect(diagnosticText.contains("SECRET-P1") == false)
     #expect(diagnosticText.contains("quarter-sharp") == false)
-    #expect(diagnosticText.contains("breve") == false)
     #expect(diagnosticText.contains("feathered") == false)
     #expect(diagnosticText.contains("sideways") == false)
     #expect(samples.allSatisfy { $0.diagnosticEvent.persistence == .systemOnly })
@@ -818,7 +826,7 @@ private func notationProjectionScore() -> MusicXMLScore {
             tick: 0,
             durationTicks: 960,
             writtenPitch: MusicXMLWrittenPitch(step: "D", octave: 4, alter: -1, accidentalToken: "flat"),
-            writtenRhythm: MusicXMLWrittenRhythm(typeToken: "half"),
+            writtenRhythm: MusicXMLWrittenRhythm(noteType: .half),
             midiNote: 61,
             isRest: false,
             isChord: false,
@@ -840,7 +848,7 @@ private func notationProjectionScore() -> MusicXMLScore {
             tick: 960,
             durationTicks: 480,
             writtenPitch: MusicXMLWrittenPitch(step: "C", octave: 4, alter: 1, accidentalToken: "sharp"),
-            writtenRhythm: MusicXMLWrittenRhythm(typeToken: "quarter"),
+            writtenRhythm: MusicXMLWrittenRhythm(noteType: .quarter),
             midiNote: 61,
             isRest: false,
             isChord: false,
@@ -851,19 +859,19 @@ private func notationProjectionScore() -> MusicXMLScore {
 }
 
 private func mixedSourceBeamScore() -> MusicXMLScore {
-    let fixtures: [(tick: Int, duration: Int, type: String, beams: [MusicXMLBeam])] = [
-        (0, 120, "16th", [
+    let fixtures: [(tick: Int, duration: Int, noteType: MusicXMLNoteType, beams: [MusicXMLBeam])] = [
+        (0, 120, .sixteenth, [
             .init(numberToken: "1", value: .begin, repeaterToken: nil, fanToken: nil),
             .init(numberToken: "2", value: .forwardHook, repeaterToken: nil, fanToken: nil),
         ]),
-        (120, 240, "eighth", [
+        (120, 240, .eighth, [
             .init(numberToken: "1", value: .continue, repeaterToken: nil, fanToken: nil),
         ]),
-        (360, 120, "16th", [
+        (360, 120, .sixteenth, [
             .init(numberToken: "1", value: .continue, repeaterToken: nil, fanToken: nil),
             .init(numberToken: "2", value: .begin, repeaterToken: nil, fanToken: nil),
         ]),
-        (480, 120, "16th", [
+        (480, 120, .sixteenth, [
             .init(numberToken: "1", value: .end, repeaterToken: nil, fanToken: nil),
             .init(numberToken: "2", value: .end, repeaterToken: nil, fanToken: nil),
         ]),
@@ -873,7 +881,7 @@ private func mixedSourceBeamScore() -> MusicXMLScore {
             ordinal: ordinal,
             tick: fixture.tick,
             duration: fixture.duration,
-            type: fixture.type,
+            noteType: fixture.noteType,
             beams: fixture.beams
         )
     })
@@ -881,11 +889,11 @@ private func mixedSourceBeamScore() -> MusicXMLScore {
 
 private func fallbackBeamRestScore() -> MusicXMLScore {
     let notes = [
-        notationRhythmEvent(ordinal: 0, tick: 0, duration: 120, type: "16th"),
-        notationRhythmEvent(ordinal: 1, tick: 120, duration: 120, type: "16th", isRest: true),
-        notationRhythmEvent(ordinal: 2, tick: 240, duration: 120, type: "16th"),
-        notationRhythmEvent(ordinal: 3, tick: 480, duration: 240, type: "eighth"),
-        notationRhythmEvent(ordinal: 4, tick: 720, duration: 240, type: "eighth"),
+        notationRhythmEvent(ordinal: 0, tick: 0, duration: MusicXMLTempoMap.ticksPerQuarter / 16, noteType: .sixteenth),
+        notationRhythmEvent(ordinal: 1, tick: MusicXMLTempoMap.ticksPerQuarter / 16, duration: MusicXMLTempoMap.ticksPerQuarter / 16, noteType: .sixteenth, isRest: true),
+        notationRhythmEvent(ordinal: 2, tick: MusicXMLTempoMap.ticksPerQuarter / 8, duration: MusicXMLTempoMap.ticksPerQuarter / 16, noteType: .sixteenth),
+        notationRhythmEvent(ordinal: 3, tick: MusicXMLTempoMap.ticksPerQuarter, duration: MusicXMLTempoMap.ticksPerQuarter / 2, noteType: .eighth),
+        notationRhythmEvent(ordinal: 4, tick: MusicXMLTempoMap.ticksPerQuarter + MusicXMLTempoMap.ticksPerQuarter / 2, duration: MusicXMLTempoMap.ticksPerQuarter / 2, noteType: .eighth),
     ]
     return MusicXMLScore(
         notes: notes,
@@ -919,7 +927,7 @@ private func unsupportedNotationScore() -> MusicXMLScore {
             tick: 0,
             durationTicks: 240,
             writtenPitch: .init(step: "C", octave: 4, alter: 0.5, accidentalToken: "quarter-sharp"),
-            writtenRhythm: .init(typeToken: "eighth"),
+            writtenRhythm: .init(noteType: .eighth),
             midiNote: 60,
             isRest: false,
             isChord: false,
@@ -933,7 +941,7 @@ private func unsupportedNotationScore() -> MusicXMLScore {
             tick: 240,
             durationTicks: 240,
             writtenPitch: .init(step: "D", octave: 4),
-            writtenRhythm: .init(typeToken: "breve"),
+            writtenRhythm: .init(noteType: .breve),
             midiNote: 62,
             isRest: false,
             isChord: false,
@@ -947,7 +955,7 @@ private func unsupportedNotationScore() -> MusicXMLScore {
             tick: 480,
             durationTicks: 240,
             writtenPitch: .init(step: "E", octave: 4),
-            writtenRhythm: .init(typeToken: "eighth"),
+            writtenRhythm: .init(noteType: .eighth),
             midiNote: 64,
             isRest: false,
             isChord: false,
@@ -967,7 +975,7 @@ private func unsupportedNotationScore() -> MusicXMLScore {
             tick: 720,
             durationTicks: 240,
             writtenPitch: .init(step: "F", octave: 4),
-            writtenRhythm: .init(typeToken: "eighth"),
+            writtenRhythm: .init(noteType: .eighth),
             midiNote: 65,
             isRest: false,
             isChord: false,
@@ -983,7 +991,7 @@ private func notationRhythmEvent(
     ordinal: Int,
     tick: Int,
     duration: Int,
-    type: String,
+    noteType: MusicXMLNoteType,
     beams: [MusicXMLBeam] = [],
     isRest: Bool = false
 ) -> MusicXMLNoteEvent {
@@ -1001,7 +1009,7 @@ private func notationRhythmEvent(
         tick: tick,
         durationTicks: duration,
         writtenPitch: isRest ? nil : .init(step: ["C", "D", "E", "F", "G"][ordinal % 5], octave: 4),
-        writtenRhythm: .init(typeToken: type),
+        writtenRhythm: .init(noteType: noteType),
         midiNote: isRest ? nil : 60 + ordinal,
         isRest: isRest,
         isChord: false,
@@ -1035,7 +1043,7 @@ private func accidentalStateScore() -> MusicXMLScore {
             tick: fixture.tick,
             durationTicks: 120,
             writtenPitch: fixture.pitch,
-            writtenRhythm: MusicXMLWrittenRhythm(typeToken: "16th"),
+            writtenRhythm: MusicXMLWrittenRhythm(noteType: .sixteenth),
             midiNote: fixture.midi,
             isRest: false,
             isChord: false,
@@ -1091,7 +1099,7 @@ private func notationTieScore() -> MusicXMLScore {
             tick: 0,
             durationTicks: 480,
             writtenPitch: MusicXMLWrittenPitch(step: "C", octave: 4),
-            writtenRhythm: MusicXMLWrittenRhythm(typeToken: "quarter"),
+            writtenRhythm: MusicXMLWrittenRhythm(noteType: .quarter),
             midiNote: 60,
             isRest: false,
             isChord: false,
@@ -1119,7 +1127,7 @@ private func notationTieScore() -> MusicXMLScore {
             tick: 480,
             durationTicks: 480,
             writtenPitch: MusicXMLWrittenPitch(step: "C", octave: 4),
-            writtenRhythm: MusicXMLWrittenRhythm(typeToken: "quarter"),
+            writtenRhythm: MusicXMLWrittenRhythm(noteType: .quarter),
             midiNote: 60,
             isRest: false,
             isChord: false,
@@ -1154,7 +1162,7 @@ private func notationRestAndSpannerScore() -> MusicXMLScore {
             measureNumber: 1,
             tick: 0,
             durationTicks: 480,
-            writtenRhythm: .init(typeToken: "quarter", dotCount: 1),
+            writtenRhythm: .init(noteType: .quarter, dotCount: 1),
             midiNote: nil,
             isRest: true,
             isPrintObjectVisible: true,
@@ -1168,7 +1176,7 @@ private func notationRestAndSpannerScore() -> MusicXMLScore {
             measureNumber: 1,
             tick: 480,
             durationTicks: 480,
-            writtenRhythm: .init(typeToken: "quarter"),
+            writtenRhythm: .init(noteType: .quarter),
             midiNote: nil,
             isRest: true,
             isPrintObjectVisible: false,
@@ -1207,7 +1215,7 @@ private func notationRestAndSpannerScore() -> MusicXMLScore {
             durationTicks: 120,
             writtenPitch: .init(step: step, octave: 4),
             writtenRhythm: .init(
-                typeToken: "eighth",
+                noteType: .eighth,
                 timeModification: .init(actualNotes: 3, normalNotes: 2)
             ),
             midiNote: 60 + index * 2,

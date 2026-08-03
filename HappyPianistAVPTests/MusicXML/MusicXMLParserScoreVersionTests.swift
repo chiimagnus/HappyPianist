@@ -17,7 +17,7 @@ struct MusicXMLParserScoreVersionTests {
               <attributes><divisions>1</divisions></attributes>
               <note>
                 <pitch><step>C</step><octave>4</octave></pitch>
-                <duration>1</duration>
+                <duration>1</duration><type>quarter</type>
               </note>
             </measure>
           </part>
@@ -41,7 +41,7 @@ struct MusicXMLParserScoreVersionTests {
               <attributes><divisions>1</divisions></attributes>
               <note>
                 <pitch><step>C</step><octave>4</octave></pitch>
-                <duration>1</duration>
+                <duration>1</duration><type>quarter</type>
               </note>
             </part>
           </measure>

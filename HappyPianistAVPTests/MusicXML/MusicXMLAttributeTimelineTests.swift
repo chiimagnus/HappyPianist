@@ -15,7 +15,7 @@ func attributeTimelineResolvesLastEventsAtOrBeforeTick() {
                 scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
             ),
             MusicXMLTimeSignatureEvent(
-                tick: 480,
+                tick: MusicXMLTempoMap.ticksPerQuarter,
                 beats: 3,
                 beatType: 4,
                 scope: MusicXMLEventScope(partID: "P1", staff: nil, voice: nil)
@@ -50,12 +50,12 @@ func attributeTimelineResolvesLastEventsAtOrBeforeTick() {
     )
 
     #expect(timeline.timeSignature(atTick: 0)?.beats == 4)
-    #expect(timeline.timeSignature(atTick: 479)?.beats == 4)
-    #expect(timeline.timeSignature(atTick: 480)?.beats == 3)
-    #expect(timeline.meter(atTick: 480)?.displayText == "3/4")
+    #expect(timeline.timeSignature(atTick: MusicXMLTempoMap.ticksPerQuarter - 1)?.beats == 4)
+    #expect(timeline.timeSignature(atTick: MusicXMLTempoMap.ticksPerQuarter)?.beats == 3)
+    #expect(timeline.meter(atTick: MusicXMLTempoMap.ticksPerQuarter)?.displayText == "3/4")
 
     #expect(timeline.keySignature(atTick: 0)?.fifths == -3)
-    #expect(timeline.keySignature(atTick: 960)?.fifths == -3)
+    #expect(timeline.keySignature(atTick: MusicXMLTempoMap.ticksPerQuarter * 2)?.fifths == -3)
 
     #expect(timeline.clef(atTick: 0, staffNumber: 1)?.signToken == "G")
     #expect(timeline.clef(atTick: 0, staffNumber: 2)?.signToken == "F")
@@ -136,10 +136,10 @@ func parserAndProjectionPreserveStaffAttributeTimelineStemAndBeamFacts() throws 
     #expect(timeline.meter(atTick: 0, partID: "P1", staffNumber: 1)?.displayText == "3+2/8")
     #expect(timeline.meter(atTick: 0, partID: "P1", staffNumber: 2)?.isSenzaMisura == true)
     #expect(timeline.clef(atTick: 0, partID: "P1", staffNumber: 2)?.signToken == "F")
-    #expect(timeline.keySignature(atTick: 480, partID: "P1", staffNumber: 1)?.fifths == -1)
-    #expect(timeline.meter(atTick: 480, partID: "P1", staffNumber: 1)?.displayText == "3/4")
-    #expect(timeline.clef(atTick: 480, partID: "P1", staffNumber: 1)?.signToken == "C")
-    #expect(timeline.keySignature(atTick: 480, partID: "P1", staffNumber: 2)?.fifths == -2)
+    #expect(timeline.keySignature(atTick: MusicXMLTempoMap.ticksPerQuarter, partID: "P1", staffNumber: 1)?.fifths == -1)
+    #expect(timeline.meter(atTick: MusicXMLTempoMap.ticksPerQuarter, partID: "P1", staffNumber: 1)?.displayText == "3/4")
+    #expect(timeline.clef(atTick: MusicXMLTempoMap.ticksPerQuarter, partID: "P1", staffNumber: 1)?.signToken == "C")
+    #expect(timeline.keySignature(atTick: MusicXMLTempoMap.ticksPerQuarter, partID: "P1", staffNumber: 2)?.fifths == -2)
 
     #expect(score.notes[0].voice == 1)
     #expect(score.notes[0].stem == .down)

@@ -12,7 +12,7 @@ struct GrandStaffNotationLayoutService {
         let tick: Int
         let xPosition: Double
         let items: [GrandStaffNotationItem]
-        let noteValue: GrandStaffNoteValue
+        let noteType: MusicXMLNoteType
     }
 
     private struct NotationFacts {
@@ -128,11 +128,11 @@ struct GrandStaffNotationLayoutService {
             let source = occurrence.source
             guard source.isRest == false,
                   source.isPrintObjectVisible,
-                  let writtenPitch = source.writtenPitch
+                  let writtenPitch = source.writtenPitch,
+                  let noteType = source.writtenRhythm?.noteType
             else {
                 return nil
             }
-            let writtenDurationTicks = max(1, source.writtenDurationTicks)
             return LayoutNote(
                 performedID: occurrence.performedID,
                 occurrenceID: occurrence.occurrenceID,
@@ -155,10 +155,11 @@ struct GrandStaffNotationLayoutService {
                     )
                 },
                 meter: source.meter,
-                noteValue: isSupportedNotehead(source.noteheadToken)
-                    ? GrandStaffNoteValue(sourceTypeToken: source.writtenRhythm?.typeToken)
-                    : .unsupported(sourceTypeToken: source.noteheadToken),
-                durationTicks: writtenDurationTicks,
+                noteType: noteType,
+                noteheadGlyphToken: isSupportedNotehead(source.noteheadToken)
+                    ? noteType.grandStaffNoteheadGlyphToken
+                    : nil,
+                durationTicks: source.writtenDurationTicks,
                 writtenPitch: writtenPitch,
                 clef: source.clef,
                 keySignatureFifths: source.keySignature?.fifths ?? 0,
@@ -208,7 +209,8 @@ struct GrandStaffNotationLayoutService {
         let stem: MusicXMLStem
         let beams: [NotationFacts.BeamMembership]
         let meter: MusicXMLMeter?
-        let noteValue: GrandStaffNoteValue
+        let noteType: MusicXMLNoteType
+        let noteheadGlyphToken: GrandStaffGlyphToken?
         let durationTicks: Int
         let writtenPitch: MusicXMLWrittenPitch
         let clef: ScoreNotationProjection.ClefFact?
@@ -261,7 +263,8 @@ struct GrandStaffNotationLayoutService {
                 displayedAccidental: note.displayedAccidental,
                 isHighlighted: note.isHighlighted,
                 fingerings: note.fingerings,
-                noteValue: note.noteValue,
+                noteType: note.noteType,
+                noteheadGlyphToken: note.noteheadGlyphToken,
                 chordID: nil,
                 noteheadXOffset: 0,
                 accidentalXOffsetStaffSpaces: nil,
@@ -301,15 +304,22 @@ struct GrandStaffNotationLayoutService {
             let source = occurrence.source
             guard source.isRest, source.isPrintObjectVisible
             else { return nil }
+            let noteType: MusicXMLNoteType
+            if source.isMeasureRest {
+                noteType = .whole
+            } else if let sourceType = source.writtenRhythm?.noteType {
+                noteType = sourceType
+            } else {
+                return nil
+            }
             return GrandStaffNotationRest(
                 id: occurrence.occurrenceID,
                 staffNumber: occurrence.staffNumber,
                 voice: occurrence.voice,
                 tick: occurrence.tick,
                 xPosition: 0,
-                noteValue: source.isMeasureRest
-                    ? .whole
-                    : GrandStaffNoteValue(sourceTypeToken: source.writtenRhythm?.typeToken),
+                noteType: noteType,
+                durationTicks: source.writtenDurationTicks,
                 dotCount: source.isMeasureRest ? 0 : source.writtenRhythm?.dotCount ?? 0,
                 isMeasureRest: source.isMeasureRest,
                 isHighlighted: occurrence.isHighlighted
@@ -358,7 +368,7 @@ struct GrandStaffNotationLayoutService {
                 xPosition: normalizedTick(chord.tick),
                 itemIDs: chord.itemIDs.filter { visibleItemIDs.contains($0) },
                 stem: chord.stem,
-                noteValue: chord.noteValue
+                noteType: chord.noteType
             )
         }
         let positionedRests = rests.map { rest in
@@ -383,7 +393,8 @@ struct GrandStaffNotationLayoutService {
                 voice: rest.voice,
                 tick: rest.tick,
                 xPosition: position,
-                noteValue: rest.noteValue,
+                noteType: rest.noteType,
+                durationTicks: rest.durationTicks,
                 dotCount: rest.dotCount,
                 isMeasureRest: rest.isMeasureRest,
                 isHighlighted: rest.isHighlighted
@@ -1109,7 +1120,7 @@ struct GrandStaffNotationLayoutService {
                 + Double(rest.dotCount) * metrics.dotSpacing
             columns.append(.init(
                 tick: rest.tick,
-                durationTicks: durationTicks(for: rest.noteValue),
+                durationTicks: rest.durationTicks,
                 leftExtent: max(0, -bounds.minX),
                 rightExtent: max(bounds.maxX, dottedRight)
             ))
@@ -1157,19 +1168,6 @@ struct GrandStaffNotationLayoutService {
         }
     }
 
-    private func durationTicks(for noteValue: GrandStaffNoteValue) -> Int {
-        switch noteValue {
-        case .whole: MusicXMLTempoMap.ticksPerQuarter * 4
-        case .half: MusicXMLTempoMap.ticksPerQuarter * 2
-        case .quarter, .unsupported: MusicXMLTempoMap.ticksPerQuarter
-        case .eighth: MusicXMLTempoMap.ticksPerQuarter / 2
-        case .sixteenth: MusicXMLTempoMap.ticksPerQuarter / 4
-        case .thirtySecond: MusicXMLTempoMap.ticksPerQuarter / 8
-        case .sixtyFourth: MusicXMLTempoMap.ticksPerQuarter / 16
-        case .oneHundredTwentyEighth: MusicXMLTempoMap.ticksPerQuarter / 32
-        }
-    }
-
     private func copy(item: GrandStaffNotationItem, xPosition: Double) -> GrandStaffNotationItem {
         GrandStaffNotationItem(
             occurrenceID: item.occurrenceID,
@@ -1182,7 +1180,8 @@ struct GrandStaffNotationLayoutService {
             displayedAccidental: item.displayedAccidental,
             isHighlighted: item.isHighlighted,
             fingerings: item.fingerings,
-            noteValue: item.noteValue,
+            noteType: item.noteType,
+            noteheadGlyphToken: item.noteheadGlyphToken,
             chordID: item.chordID,
             noteheadXOffset: item.noteheadXOffset,
             accidentalXOffsetStaffSpaces: item.accidentalXOffsetStaffSpaces,
@@ -1288,7 +1287,7 @@ struct GrandStaffNotationLayoutService {
                 tick: chordItems.map(\.tick).min() ?? 0,
                 xPosition: chordItems.map(\.xPosition).reduce(0.0, +) / Double(chordItems.count),
                 items: chordItems,
-                noteValue: resolvedChordNoteValue(items: chordItems)
+                noteType: resolvedChordNoteType(items: chordItems)
             )
         }
         let chordGeometry = chordLayoutService.makeLayout(chords: candidates.map { candidate in
@@ -1303,6 +1302,7 @@ struct GrandStaffNotationLayoutService {
                         staffStep: item.staffStep,
                         voice: item.voice,
                         sourceStem: notationFactsByOccurrenceID[item.occurrenceID]?.stem ?? .unspecified,
+                        noteTypeHasStem: candidate.noteType.grandStaffHasStem,
                         noteheadToken: item.noteheadGlyphToken,
                         accidentalToken: item.displayedAccidental?.glyphToken,
                         dotCount: item.dotCount,
@@ -1332,7 +1332,7 @@ struct GrandStaffNotationLayoutService {
                 xPosition: candidate.xPosition,
                 itemIDs: candidate.items.map(\.occurrenceID),
                 stem: stem,
-                noteValue: candidate.noteValue
+                noteType: candidate.noteType
             ))
 
             for item in candidate.items {
@@ -1347,7 +1347,8 @@ struct GrandStaffNotationLayoutService {
                     displayedAccidental: item.displayedAccidental,
                     isHighlighted: item.isHighlighted,
                     fingerings: item.fingerings,
-                    noteValue: item.noteValue,
+                    noteType: item.noteType,
+                    noteheadGlyphToken: item.noteheadGlyphToken,
                     chordID: candidate.id,
                     noteheadXOffset: chordLayout.noteheadXOffsets[item.occurrenceID] ?? 0,
                     accidentalXOffsetStaffSpaces: chordLayout.accidentalXOffsetsStaffSpaces[item.occurrenceID],
@@ -1390,7 +1391,8 @@ struct GrandStaffNotationLayoutService {
                 displayedAccidental: item.displayedAccidental,
                 isHighlighted: item.isHighlighted,
                 fingerings: item.fingerings,
-                noteValue: item.noteValue,
+                noteType: item.noteType,
+                noteheadGlyphToken: item.noteheadGlyphToken,
                 chordID: item.chordID,
                 noteheadXOffset: item.noteheadXOffset,
                 accidentalXOffsetStaffSpaces: item.accidentalXOffsetStaffSpaces,
@@ -1419,32 +1421,9 @@ struct GrandStaffNotationLayoutService {
         return (normalizedItems, chords, beamsBuild.beams, ledgerLines)
     }
 
-    private func resolvedChordNoteValue(items: [GrandStaffNotationItem]) -> GrandStaffNoteValue {
-        guard items.isEmpty == false else { return .quarter }
-        return items.map(\.noteValue).min(by: { beamRank(for: $0) < beamRank(for: $1) }) ?? items[0].noteValue
-    }
-
-    private func beamRank(for noteValue: GrandStaffNoteValue) -> Int {
-        switch noteValue {
-        case .unsupported:
-            8
-        case .oneHundredTwentyEighth:
-            0
-        case .sixtyFourth:
-            1
-        case .thirtySecond:
-            2
-        case .sixteenth:
-            3
-        case .eighth:
-            4
-        case .quarter:
-            5
-        case .half:
-            6
-        case .whole:
-            7
-        }
+    private func resolvedChordNoteType(items: [GrandStaffNotationItem]) -> MusicXMLNoteType {
+        items.max(by: { $0.noteType.grandStaffBeamCount < $1.noteType.grandStaffBeamCount })?.noteType
+            ?? .quarter
     }
 
     private func buildBeams(
@@ -1522,7 +1501,10 @@ struct GrandStaffNotationLayoutService {
             }
 
             for chord in trackChords.sorted(by: { $0.tick == $1.tick ? $0.id < $1.id : $0.tick < $1.tick }) {
-                guard chordsWithExplicitBeams.contains(chord.id) == false, beamCount(for: chord.noteValue) > 0 else {
+                guard chordsWithExplicitBeams.contains(chord.id) == false,
+                      chord.stem.isVisible,
+                      chord.noteType.grandStaffBeamCount > 0
+                else {
                     flush()
                     continue
                 }
@@ -1625,7 +1607,7 @@ struct GrandStaffNotationLayoutService {
             endChordID: last.id,
             hookDirection: nil
         )]
-        let maximumLevel = chords.map(\.noteValue).map(beamCount(for:)).max() ?? 1
+        let maximumLevel = chords.map(\.noteType.grandStaffBeamCount).max() ?? 1
         guard maximumLevel >= 2 else { return segments }
 
         for level in 2 ... maximumLevel {
@@ -1651,7 +1633,7 @@ struct GrandStaffNotationLayoutService {
                 run.removeAll(keepingCapacity: true)
             }
             for chord in chords {
-                if beamCount(for: chord.noteValue) >= level {
+                if chord.noteType.grandStaffBeamCount >= level {
                     run.append(chord)
                 } else {
                     flushRun()
@@ -1701,23 +1683,6 @@ struct GrandStaffNotationLayoutService {
             return Array(repeating: unit, count: beats)
         }
         return durations.isEmpty ? [MusicXMLTempoMap.ticksPerQuarter] : durations
-    }
-
-    private func beamCount(for noteValue: GrandStaffNoteValue) -> Int {
-        switch noteValue {
-        case .eighth:
-            1
-        case .sixteenth:
-            2
-        case .thirtySecond:
-            3
-        case .sixtyFourth:
-            4
-        case .oneHundredTwentyEighth:
-            5
-        default:
-            0
-        }
     }
 
     private func chordTrackKey(

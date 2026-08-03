@@ -37,6 +37,7 @@ fileImporter
 - macOS 绑定或替换用户曲目的 mp3/m4a 时，同样只把 `fileImporter` URL 交给 `Library.AudioImportService`；它在 security scope 内复制到 `SongLibrary/audio/` 并只把相对文件名写入 index。旧的异步 URL 解析、选择变化或曲目删除后不得启动试听；删除先停止试听，再从 index、score、audio 和 progress 依次清理，后续清理失败只报告事实而不回滚已提交的 index mutation。
 - macOS 从已选 Library entry 解析沙盒副本，经 `PracticePreparationService` 生成同时具备 steps 与 measure spans 的 `PreparedPractice`，再交给 `PracticeRoundSessionController`、`MIDIPracticeSession` 与 `GrandStaffNotationView`；controller 是 range、resume、attempt facts、assessment/coaching 与 feedback 的唯一 non-spatial owner，准备或 progress corruption 停在可恢复 UI，不建立 steps-without-measures fallback。
 - `PracticePreparationService` 先生成唯一 `ScorePerformancePlan`，再单向投影 `PracticeStep`、`PianoHighlightGuide`、notation projection、timeline 和 sequence。
+- 在 preparation 进入计划构建前，MusicXML 的每个普通 note/rest 必须有 14 项标准 `MusicXMLNoteType` 之一，非 grace note 还必须有显式 duration；不完整或非标准谱面以 typed failure 停止。整小节 rest 的无 type 例外由 `isMeasureRest` 语义字段决定，不能由字符串或 duration fallback 推断。
 - `Practice` 是 preparation 与共享 runtime 的包边界，依赖 `MusicXML`、`MIDI` 和 `Diagnostics`；曲库、SwiftUI/RealityKit、AVAudio、音频识别与手部/虚拟琴不得被它反向引用。
 - prepared result 必须同时有可演奏 steps 与 `MusicXMLMeasureSpan`；缺少小节结构时返回 typed failure，不建立 legacy fallback。
 - preparation failure 的 UI、技术详情和诊断事件来自同一 typed failure；stale generation 不发布旧结果。
@@ -50,6 +51,7 @@ ScoreNotationProjection + overlay + measure spans + hand mode
 ```
 
 - `Notation` 只消费 Practice/MusicXML 的事实；session 仅提供当前 context 与 transient overlay，不能把导航、progress 或 AR guide 传入 renderer。
+- 音符、休止符、flag 和 beam 的 14 项时值映射由 `MusicXMLNoteType` 单向提供；layout 使用 MusicXML 已解析的 3840 ticks/quarter 时间轴，不保存或重建原始 type token。
 - 记谱高亮、Dynamic Type、Differentiate Without Color 和 VoiceOver 描述是派生表现，不写入 progress。
 
 ## 练习启动与本轮配置

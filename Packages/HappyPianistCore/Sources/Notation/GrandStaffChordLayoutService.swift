@@ -8,6 +8,7 @@ struct GrandStaffChordLayoutService {
         let staffStep: Int
         let voice: Int
         let sourceStem: MusicXMLStem
+        let noteTypeHasStem: Bool
         let noteheadToken: GrandStaffGlyphToken?
         let accidentalToken: GrandStaffGlyphToken?
         let dotCount: Int
@@ -20,6 +21,7 @@ struct GrandStaffChordLayoutService {
             staffStep: Int,
             voice: Int,
             sourceStem: MusicXMLStem,
+            noteTypeHasStem: Bool = true,
             noteheadToken: GrandStaffGlyphToken? = .noteheadBlack,
             accidentalToken: GrandStaffGlyphToken? = nil,
             dotCount: Int = 0,
@@ -31,6 +33,7 @@ struct GrandStaffChordLayoutService {
             self.staffStep = staffStep
             self.voice = voice
             self.sourceStem = sourceStem
+            self.noteTypeHasStem = noteTypeHasStem
             self.noteheadToken = noteheadToken
             self.accidentalToken = accidentalToken
             self.dotCount = dotCount
@@ -178,7 +181,9 @@ struct GrandStaffChordLayoutService {
             baseLayouts.append(BaseLayout(
                 chord: chord,
                 direction: direction,
-                isStemVisible: chord.notes.contains { $0.sourceStem == .none } == false,
+                isStemVisible: chord.notes.contains { $0.sourceStem == .none } == false &&
+                    chord.notes.allSatisfy(\.noteTypeHasStem) &&
+                    chord.notes.contains { $0.noteheadToken != nil },
                 noteheadXOffsets: offsets,
                 stemStartItemID: start.id,
                 stemEndItemID: end.id,

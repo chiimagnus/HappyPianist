@@ -55,7 +55,7 @@ struct MusicXMLParserMXLTests {
 
         #expect(score.notes.count == 1)
         #expect(score.notes.first?.midiNote == 60)
-        #expect(score.notes.first?.durationTicks == 480)
+        #expect(score.notes.first?.durationTicks == MusicXMLTempoMap.ticksPerQuarter)
     }
 }
 
@@ -72,7 +72,7 @@ func repeatedMXLParsingKeepsSourceIdentityAndWrittenPitchStable() throws {
         .write(to: metaInfURL.appending(path: "container.xml"))
     let xml = """
     <score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
-    <part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes><note><pitch><step>C</step><alter>1</alter><octave>4</octave></pitch><duration>1</duration></note></measure></part></score-partwise>
+    <part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes><note><pitch><step>C</step><alter>1</alter><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>
     """
     try Data(xml.utf8).write(to: baseURL.appending(path: "score.xml"))
     let mxlURL = baseURL.appending(path: "identity.mxl")

@@ -108,7 +108,7 @@ func historicalTempoRestoreReconfiguresTheLivePerformanceAnalyzer() async throws
     let alignment = try #require(await analyzer.finishRound().alignment)
     let secondOnsetDeviation = alignment.links.compactMap { link -> TimeInterval? in
         guard case let .aligned(score, _, evidence) = link,
-              score.performedOnTick == 480
+              score.performedOnTick == MusicXMLTempoMap.ticksPerQuarter
         else { return nil }
         return evidence.first { $0.dimension == .onset }?.deviationSeconds
     }.first
@@ -178,14 +178,14 @@ private func installHistoricalApplicationScore(
 private func historicalApplicationPerformanceNotes() -> [TestScorePerformanceNote] {
     [
         TestScorePerformanceNote(midiNote: 60, onTick: 0),
-        TestScorePerformanceNote(midiNote: 62, onTick: 480, staff: 2),
+        TestScorePerformanceNote(midiNote: 62, onTick: MusicXMLTempoMap.ticksPerQuarter, staff: 2),
     ]
 }
 
 private func historicalApplicationSpans() -> [MusicXMLMeasureSpan] {
     [
-        MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, sourceMeasureIndex: 0, sourceMeasureNumberToken: "1", occurrenceIndex: 0, startTick: 0, endTick: 480),
-        MusicXMLMeasureSpan(partID: "P1", measureNumber: 2, sourceMeasureIndex: 1, sourceMeasureNumberToken: "2", occurrenceIndex: 1, startTick: 480, endTick: 960),
+        MusicXMLMeasureSpan(partID: "P1", measureNumber: 1, sourceMeasureIndex: 0, sourceMeasureNumberToken: "1", occurrenceIndex: 0, startTick: 0, endTick: MusicXMLTempoMap.ticksPerQuarter),
+        MusicXMLMeasureSpan(partID: "P1", measureNumber: 2, sourceMeasureIndex: 1, sourceMeasureNumberToken: "2", occurrenceIndex: 1, startTick: MusicXMLTempoMap.ticksPerQuarter, endTick: MusicXMLTempoMap.ticksPerQuarter * 2),
     ]
 }
 

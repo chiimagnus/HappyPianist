@@ -24,10 +24,10 @@ private let identityRepeatFixture = """
     <measure number="1">
       <attributes><divisions>1</divisions></attributes>
       <barline location="left"><repeat direction="forward"/></barline>
-      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
     </measure>
     <measure number="2">
-      <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
       <barline location="right"><repeat direction="backward"/></barline>
     </measure>
   </part>
@@ -41,7 +41,7 @@ private let identityDaCapoFixture = """
   <part id="P1">
     <measure number="1">
       <attributes><divisions>1</divisions></attributes>
-      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
       <direction><sound dacapo="yes"/></direction>
     </measure>
   </part>

@@ -38,6 +38,43 @@ func preparationKeepsSongIdentityAndChangesRevisionWithScoreBytes() async throws
 }
 
 @Test
+func preparationKeepsAllFourteenStandardWrittenRhythms() async throws {
+    let url = try writePreparationFixture(named: "fourteen-rhythms", contents: fourteenRhythmFixture)
+    defer { try? FileManager.default.removeItem(at: url) }
+
+    let prepared = try await PracticePreparationService(
+        diagnosticsReporter: PreparationDiagnosticsReporter()
+    ).prepare(
+        songID: UUID(),
+        from: url,
+        file: ImportedMusicXMLFile(fileName: "Fourteen Rhythms", storedURL: url, importedAt: .now),
+        options: .practice
+    )
+
+    #expect(prepared.scoreContext.sourceScore.notes.compactMap { $0.writtenRhythm?.noteType } == MusicXMLNoteType.allCases)
+    #expect(prepared.scoreContext.sourceScore.notes.first?.durationTicks == 15)
+    #expect(prepared.steps.count == MusicXMLNoteType.allCases.count)
+}
+
+@Test
+func preparationMapsInvalidWrittenRhythmToTypedFailure() async throws {
+    let invalidFixture = preparationFixture.replacing("<type>quarter</type>", with: "")
+    let url = try writePreparationFixture(named: "missing-rhythm", contents: invalidFixture)
+    defer { try? FileManager.default.removeItem(at: url) }
+
+    await #expect(throws: PracticePreparationError.invalidWrittenRhythm(.missingType)) {
+        _ = try await PracticePreparationService(
+            diagnosticsReporter: PreparationDiagnosticsReporter()
+        ).prepare(
+            songID: UUID(),
+            from: url,
+            file: ImportedMusicXMLFile(fileName: "Missing Rhythm", storedURL: url, importedAt: .now),
+            options: .practice
+        )
+    }
+}
+
+@Test
 func cancelledPreparationDoesNotProducePreparedPractice() async throws {
     let url = try writePreparationFixture(named: "cancelled")
     defer { try? FileManager.default.removeItem(at: url) }
@@ -97,11 +134,31 @@ func preparationRejectsMissingMeasureStructure() async throws {
     }
 }
 
-private func writePreparationFixture(named name: String) throws -> URL {
+private func writePreparationFixture(named name: String, contents: String = preparationFixture) throws -> URL {
     let url = FileManager.default.temporaryDirectory.appending(path: "\(name)-\(UUID().uuidString).musicxml")
-    try Data(preparationFixture.utf8).write(to: url)
+    try Data(contents.utf8).write(to: url)
     return url
 }
+
+private let fourteenRhythmFixture = """
+<score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+<part id="P1"><measure number="1"><attributes><divisions>256</divisions></attributes>
+<note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>1024th</type></note>
+<note><pitch><step>D</step><octave>4</octave></pitch><duration>2</duration><type>512th</type></note>
+<note><pitch><step>E</step><octave>4</octave></pitch><duration>4</duration><type>256th</type></note>
+<note><pitch><step>F</step><octave>4</octave></pitch><duration>8</duration><type>128th</type></note>
+<note><pitch><step>G</step><octave>4</octave></pitch><duration>16</duration><type>64th</type></note>
+<note><pitch><step>A</step><octave>4</octave></pitch><duration>32</duration><type>32nd</type></note>
+<note><pitch><step>B</step><octave>4</octave></pitch><duration>64</duration><type>16th</type></note>
+<note><pitch><step>C</step><octave>5</octave></pitch><duration>128</duration><type>eighth</type></note>
+<note><pitch><step>D</step><octave>5</octave></pitch><duration>256</duration><type>quarter</type></note>
+<note><pitch><step>E</step><octave>5</octave></pitch><duration>512</duration><type>half</type></note>
+<note><pitch><step>F</step><octave>5</octave></pitch><duration>1024</duration><type>whole</type></note>
+<note><pitch><step>G</step><octave>5</octave></pitch><duration>2048</duration><type>breve</type></note>
+<note><pitch><step>A</step><octave>5</octave></pitch><duration>4096</duration><type>long</type></note>
+<note><pitch><step>B</step><octave>5</octave></pitch><duration>8192</duration><type>maxima</type></note>
+</measure></part></score-partwise>
+"""
 
 private struct EmptyStepBuilder: PracticeStepBuilderProtocol {
     func buildSteps(from _: ScorePerformancePlan) -> PracticeStepBuildResult {

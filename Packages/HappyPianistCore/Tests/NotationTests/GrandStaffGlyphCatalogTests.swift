@@ -1,4 +1,5 @@
 import CoreGraphics
+@testable import MusicXML
 @testable import Notation
 import Testing
 
@@ -10,15 +11,20 @@ func glyphCatalogKeepsSupportedSMuFLCodePointsCentralized() {
 
     #expect(snapshot == [
         "brace=E000", "gClef=E050", "fClef=E062", "cClef=E05C",
+        "mensuralWhiteMaxima=E95C", "mensuralWhiteLonga=E95D", "noteheadDoubleWhole=E0A0",
         "noteheadWhole=E0A2", "noteheadHalf=E0A3", "noteheadBlack=E0A4",
         "flagEighthUp=E240", "flagEighthDown=E241",
         "flagSixteenthUp=E242", "flagSixteenthDown=E243",
         "flagThirtySecondUp=E244", "flagThirtySecondDown=E245",
         "flagSixtyFourthUp=E246", "flagSixtyFourthDown=E247",
         "flagOneHundredTwentyEighthUp=E248", "flagOneHundredTwentyEighthDown=E249",
-        "restWhole=E4E3", "restHalf=E4E4", "restQuarter=E4E5",
+        "flagTwoHundredFiftySixthUp=E24A", "flagTwoHundredFiftySixthDown=E24B",
+        "flagFiveHundredTwelfthUp=E24C", "flagFiveHundredTwelfthDown=E24D",
+        "flagOneThousandTwentyFourthUp=E24E", "flagOneThousandTwentyFourthDown=E24F",
+        "restMaxima=E4E0", "restLonga=E4E1", "restDoubleWhole=E4E2", "restWhole=E4E3", "restHalf=E4E4", "restQuarter=E4E5",
         "restEighth=E4E6", "restSixteenth=E4E7", "restThirtySecond=E4E8",
-        "restSixtyFourth=E4E9", "restOneHundredTwentyEighth=E4EA",
+        "restSixtyFourth=E4E9", "restOneHundredTwentyEighth=E4EA", "restTwoHundredFiftySixth=E4EB",
+        "restFiveHundredTwelfth=E4EC", "restOneThousandTwentyFourth=E4ED",
         "accidentalFlat=E260", "accidentalNatural=E261", "accidentalSharp=E262",
         "accidentalDoubleSharp=E263", "accidentalDoubleFlat=E264", "augmentationDot=E1E7",
         "articulationAccentAbove=E4A0", "articulationStaccatoAbove=E4A2",
@@ -44,24 +50,30 @@ func timeSignatureDigitsResolveThroughCatalog() {
 
 @Test
 func notationModelResolvesHeadsFlagsRestsAndAccidentalsThroughCatalog() {
-    let values: [GrandStaffNoteValue] = [
-        .whole, .half, .quarter, .eighth, .sixteenth, .thirtySecond, .sixtyFourth, .oneHundredTwentyEighth,
+    let values = MusicXMLNoteType.allCases
+    #expect(values.map(\.grandStaffNoteheadGlyphToken) == [
+        .noteheadBlack, .noteheadBlack, .noteheadBlack, .noteheadBlack, .noteheadBlack,
+        .noteheadBlack, .noteheadBlack, .noteheadBlack, .noteheadBlack, .noteheadHalf,
+        .noteheadWhole, .noteheadDoubleWhole, .mensuralWhiteLonga, .mensuralWhiteMaxima,
+    ])
+    #expect(values.map(\.grandStaffRestGlyphToken) == [
+        .restOneThousandTwentyFourth, .restFiveHundredTwelfth, .restTwoHundredFiftySixth,
+        .restOneHundredTwentyEighth, .restSixtyFourth, .restThirtySecond, .restSixteenth,
+        .restEighth, .restQuarter, .restHalf, .restWhole, .restDoubleWhole, .restLonga, .restMaxima,
+    ])
+    let flaggedValues: [MusicXMLNoteType] = [
+        .eighth, .sixteenth, .thirtySecond, .sixtyFourth, .oneHundredTwentyEighth,
+        .twoHundredFiftySixth, .fiveHundredTwelfth, .oneThousandTwentyFourth,
     ]
-    #expect(values.compactMap(\.noteheadGlyphToken) == [
-        .noteheadWhole, .noteheadHalf, .noteheadBlack, .noteheadBlack,
-        .noteheadBlack, .noteheadBlack, .noteheadBlack, .noteheadBlack,
+    #expect(flaggedValues.compactMap { $0.grandStaffFlagGlyphToken(stemDirection: .up) } == [
+        .flagEighthUp, .flagSixteenthUp, .flagThirtySecondUp, .flagSixtyFourthUp,
+        .flagOneHundredTwentyEighthUp, .flagTwoHundredFiftySixthUp,
+        .flagFiveHundredTwelfthUp, .flagOneThousandTwentyFourthUp,
     ])
-    #expect(values.compactMap(\.restGlyphToken) == [
-        .restWhole, .restHalf, .restQuarter, .restEighth, .restSixteenth, .restThirtySecond,
-        .restSixtyFourth, .restOneHundredTwentyEighth,
-    ])
-    #expect(values.compactMap { $0.flagGlyphToken(stemDirection: .up) } == [
-        .flagEighthUp, .flagSixteenthUp, .flagThirtySecondUp,
-        .flagSixtyFourthUp, .flagOneHundredTwentyEighthUp,
-    ])
-    #expect(values.compactMap { $0.flagGlyphToken(stemDirection: .down) } == [
-        .flagEighthDown, .flagSixteenthDown, .flagThirtySecondDown,
-        .flagSixtyFourthDown, .flagOneHundredTwentyEighthDown,
+    #expect(flaggedValues.compactMap { $0.grandStaffFlagGlyphToken(stemDirection: .down) } == [
+        .flagEighthDown, .flagSixteenthDown, .flagThirtySecondDown, .flagSixtyFourthDown,
+        .flagOneHundredTwentyEighthDown, .flagTwoHundredFiftySixthDown,
+        .flagFiveHundredTwelfthDown, .flagOneThousandTwentyFourthDown,
     ])
 
     let accidentals: [GrandStaffAccidental.Kind] = [
@@ -73,7 +85,6 @@ func notationModelResolvesHeadsFlagsRestsAndAccidentalsThroughCatalog() {
         .accidentalSharp, .accidentalFlat, .accidentalNatural,
         .accidentalDoubleSharp, .accidentalDoubleFlat, nil,
     ])
-    #expect(GrandStaffNoteValue.unsupported(sourceTypeToken: "breve").noteheadGlyphToken == nil)
 }
 
 @Test
@@ -87,7 +98,7 @@ func engravingMetricsStayInStaffSpaceUnits() {
     #expect(metrics.beamThickness == 0.50)
     #expect(metrics.ledgerLineExtension == 0.40)
     #expect(metrics.defaultStemLength == 3.50)
-    #expect(metrics.maximumBeamCount == 5)
+    #expect(metrics.maximumBeamCount == 8)
     #expect(metrics.noteheadColumnWidth == 1.18)
     #expect(metrics.smuflEmSize == 4)
     #expect(metrics.glyphScale(isGrace: false) == 1)
@@ -112,15 +123,12 @@ func engravingMetricsStayInStaffSpaceUnits() {
 
 @Test
 func rhythmicGlyphsExposeStemEligibilityAndViewportBounds() {
-    #expect(GrandStaffNoteValue.whole.hasStem == false)
-    #expect(GrandStaffNoteValue.half.hasStem)
-    #expect(GrandStaffNoteValue.quarter.hasStem)
-    #expect(GrandStaffNoteValue.eighth.hasStem)
-    #expect(GrandStaffNoteValue.sixteenth.hasStem)
-    #expect(GrandStaffNoteValue.thirtySecond.hasStem)
-    #expect(GrandStaffNoteValue.sixtyFourth.hasStem)
-    #expect(GrandStaffNoteValue.oneHundredTwentyEighth.hasStem)
-    #expect(GrandStaffNoteValue.unsupported(sourceTypeToken: "breve").hasStem == false)
+    #expect(MusicXMLNoteType.maxima.grandStaffHasStem == false)
+    #expect(MusicXMLNoteType.long.grandStaffHasStem == false)
+    #expect(MusicXMLNoteType.breve.grandStaffHasStem == false)
+    #expect(MusicXMLNoteType.whole.grandStaffHasStem == false)
+    #expect(MusicXMLNoteType.half.grandStaffHasStem)
+    #expect(MusicXMLNoteType.oneThousandTwentyFourth.grandStaffHasStem)
 
     let metrics = GrandStaffEngravingMetrics()
     let layout = GrandStaffNotationViewportLayoutService().makeLayout(

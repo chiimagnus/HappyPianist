@@ -1,9 +1,10 @@
 import Foundation
 
 
-public enum MusicXMLParserError: Error, Equatable {
+public enum MusicXMLParserError: Error, Equatable, Sendable {
     case parseFailed(line: Int?, column: Int?, reason: String)
     case invalidPartMetadata(reason: String)
+    case invalidWrittenRhythm(MusicXMLWrittenRhythmFailure)
 }
 
 public protocol MusicXMLParserProtocol: Sendable {
@@ -50,6 +51,9 @@ public struct MusicXMLParser: MusicXMLParserProtocol {
             )
         }
         try Task.checkCancellation()
+        if let writtenRhythmError = delegate.writtenRhythmError {
+            throw writtenRhythmError
+        }
         if let metadataError = delegate.metadataError {
             throw metadataError
         }

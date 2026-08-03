@@ -1,8 +1,8 @@
 import Foundation
 
-
 public struct MusicXMLTempoMap: Sendable {
-    public static let ticksPerQuarter = 480
+    /// 3840 is divisible by 256, so a 1024th note is exactly 15 ticks.
+    public static let ticksPerQuarter = 3_840
 
     public struct TempoRamp: Equatable, Sendable {
         let startTick: Int

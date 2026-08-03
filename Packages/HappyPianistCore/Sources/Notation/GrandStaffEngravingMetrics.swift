@@ -26,7 +26,7 @@ struct GrandStaffEngravingMetrics: Equatable {
     let ledgerLineThickness = 0.16
     let ledgerLineExtension = 0.40
     let defaultStemLength = 3.50
-    let maximumBeamCount = 5
+    let maximumBeamCount = 8
     let accidentalNoteheadGap = 0.25
     let accidentalColumnGap = 0.20
     let dotNoteheadGap = 0.35
@@ -44,6 +44,12 @@ struct GrandStaffEngravingMetrics: Equatable {
 
     func bounds(for token: GrandStaffGlyphToken) -> GrandStaffGlyphBounds? {
         switch token {
+        case .mensuralWhiteMaxima:
+            GrandStaffGlyphBounds(minX: -1.25, minY: -3.548, maxX: 1.25, maxY: 0.684)
+        case .mensuralWhiteLonga:
+            GrandStaffGlyphBounds(minX: -0.65, minY: -3.548, maxX: 0.65, maxY: 0.684)
+        case .noteheadDoubleWhole:
+            GrandStaffGlyphBounds(minX: -1.198, minY: -0.62, maxX: 1.198, maxY: 0.62)
         case .noteheadWhole:
             noteheadViewportBounds
         case .noteheadHalf, .noteheadBlack:
@@ -60,6 +66,12 @@ struct GrandStaffEngravingMetrics: Equatable {
             GrandStaffGlyphBounds(minX: -0.494, minY: -0.50, maxX: 0.494, maxY: 0.508)
         case .accidentalDoubleFlat:
             GrandStaffGlyphBounds(minX: -0.822, minY: -0.70, maxX: 0.822, maxY: 1.748)
+        case .restMaxima:
+            GrandStaffGlyphBounds(minX: -0.762, minY: -0.996, maxX: 0.762, maxY: 1)
+        case .restLonga:
+            GrandStaffGlyphBounds(minX: -0.25, minY: -0.996, maxX: 0.25, maxY: 1)
+        case .restDoubleWhole:
+            GrandStaffGlyphBounds(minX: -0.25, minY: 0, maxX: 0.25, maxY: 1)
         case .restWhole:
             GrandStaffGlyphBounds(minX: -0.564, minY: -0.54, maxX: 0.564, maxY: 0.036)
         case .restHalf:
@@ -76,6 +88,12 @@ struct GrandStaffEngravingMetrics: Equatable {
             GrandStaffGlyphBounds(minX: -0.78, minY: -2.0, maxX: 0.78, maxY: 2.70)
         case .restOneHundredTwentyEighth:
             GrandStaffGlyphBounds(minX: -0.82, minY: -2.0, maxX: 0.82, maxY: 3.70)
+        case .restTwoHundredFiftySixth:
+            GrandStaffGlyphBounds(minX: -1.082, minY: -4, maxX: 1.082, maxY: 2.784)
+        case .restFiveHundredTwelfth:
+            GrandStaffGlyphBounds(minX: -1.208, minY: -4, maxX: 1.208, maxY: 3.776)
+        case .restOneThousandTwentyFourth:
+            GrandStaffGlyphBounds(minX: -1.336, minY: -3.972, maxX: 1.336, maxY: 4.788)
         case .articulationAccentAbove:
             GrandStaffGlyphBounds(minX: -0.678, minY: -0.49, maxX: 0.678, maxY: 0.49)
         case .articulationStaccatoAbove:

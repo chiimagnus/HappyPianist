@@ -98,8 +98,8 @@ private func makePlaybackCoordinatorFixture(
         ),
     ]
     let notes = [
-        TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 960),
-        TestScorePerformanceNote(midiNote: 62, onTick: 480, offTick: 720),
+        TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: MusicXMLTempoMap.ticksPerQuarter * 2),
+        TestScorePerformanceNote(midiNote: 62, onTick: MusicXMLTempoMap.ticksPerQuarter, offTick: MusicXMLTempoMap.ticksPerQuarter * 3 / 2),
     ]
     let plan = makeTestScorePerformancePlan(
         identity: PracticeSongIdentity(songID: UUID(), scoreRevision: scoreRevision),

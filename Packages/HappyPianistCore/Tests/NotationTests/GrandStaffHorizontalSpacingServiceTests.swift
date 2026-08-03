@@ -1,3 +1,4 @@
+@testable import MusicXML
 @testable import Notation
 import Testing
 
@@ -7,13 +8,13 @@ struct GrandStaffHorizontalSpacingServiceTests {
     @Test
     func writtenDurationControlsRhythmicDistance() throws {
         let layout = service.makeLayout(rhythmicColumns: [
-            column(tick: 0, duration: 120),
-            column(tick: 120, duration: 480),
-            column(tick: 600, duration: 120),
+            column(tick: 0, duration: MusicXMLTempoMap.ticksPerQuarter / 16),
+            column(tick: MusicXMLTempoMap.ticksPerQuarter / 16, duration: MusicXMLTempoMap.ticksPerQuarter),
+            column(tick: MusicXMLTempoMap.ticksPerQuarter + MusicXMLTempoMap.ticksPerQuarter / 16, duration: MusicXMLTempoMap.ticksPerQuarter / 16),
         ])
         let first = try #require(layout.rhythmicPositionsByTick[0])
-        let second = try #require(layout.rhythmicPositionsByTick[120])
-        let third = try #require(layout.rhythmicPositionsByTick[600])
+        let second = try #require(layout.rhythmicPositionsByTick[MusicXMLTempoMap.ticksPerQuarter / 16])
+        let third = try #require(layout.rhythmicPositionsByTick[MusicXMLTempoMap.ticksPerQuarter + MusicXMLTempoMap.ticksPerQuarter / 16])
 
         #expect(third - second > second - first)
     }

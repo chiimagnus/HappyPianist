@@ -872,7 +872,7 @@ struct GrandStaffNotationRenderer {
 
         for chord in chords {
             if beamedChordIDs.contains(chord.id) { continue }
-            guard chord.noteValue.hasStem, chord.stem.isVisible else { continue }
+            guard chord.noteType.grandStaffHasStem, chord.stem.isVisible else { continue }
             guard let chordItems = itemsByChordID[chord.id], chordItems.isEmpty == false else { continue }
 
             let fadeScale = chordFadeScale(for: chordItems, practiceHandMode: practiceHandMode)
@@ -891,7 +891,7 @@ struct GrandStaffNotationRenderer {
             path.addLine(to: stem.end)
             context.stroke(path, with: .color(Color.primary.opacity(0.45 * fadeScale)), style: stemStroke)
 
-            if let flagToken = chord.noteValue.flagGlyphToken(stemDirection: chord.stem.direction) {
+            if let flagToken = chord.noteType.grandStaffFlagGlyphToken(stemDirection: chord.stem.direction) {
                 drawFlag(
                     token: flagToken,
                     stemEnd: stem.end,
@@ -941,7 +941,7 @@ struct GrandStaffNotationRenderer {
             stemByChordID.reserveCapacity(chords.count)
 
             for chord in chords {
-                guard chord.stem.isVisible, chord.noteValue.hasStem,
+                guard chord.stem.isVisible, chord.noteType.grandStaffHasStem,
                       let chordItems = itemsByChordID[chord.id], chordItems.isEmpty == false
                 else { continue }
                 let glyphScale = engravingMetrics.glyphScale(isGrace: chordItems.allSatisfy(\.isGrace))

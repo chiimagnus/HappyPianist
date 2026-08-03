@@ -548,6 +548,7 @@ public struct MusicXMLNoteEvent: Equatable, Identifiable, Sendable {
     public let measureNumber: Int
     public let tick: Int
     public let durationTicks: Int
+    public let hasExplicitDuration: Bool
     public let writtenPitch: MusicXMLWrittenPitch?
     public let writtenRhythm: MusicXMLWrittenRhythm?
     public let noteheadToken: String?
@@ -591,6 +592,7 @@ public struct MusicXMLNoteEvent: Equatable, Identifiable, Sendable {
         measureNumber: Int,
         tick: Int,
         durationTicks: Int,
+        hasExplicitDuration: Bool = true,
         writtenPitch: MusicXMLWrittenPitch? = nil,
         writtenRhythm: MusicXMLWrittenRhythm? = nil,
         noteheadToken: String? = nil,
@@ -625,6 +627,7 @@ public struct MusicXMLNoteEvent: Equatable, Identifiable, Sendable {
         self.measureNumber = measureNumber
         self.tick = tick
         self.durationTicks = durationTicks
+        self.hasExplicitDuration = hasExplicitDuration
         self.writtenPitch = writtenPitch
         self.writtenRhythm = writtenRhythm
         self.noteheadToken = noteheadToken
@@ -655,18 +658,45 @@ public struct MusicXMLNoteEvent: Equatable, Identifiable, Sendable {
     }
 }
 
+public enum MusicXMLNoteType: String, CaseIterable, Codable, Equatable, Hashable, Sendable {
+    case oneThousandTwentyFourth = "1024th"
+    case fiveHundredTwelfth = "512th"
+    case twoHundredFiftySixth = "256th"
+    case oneHundredTwentyEighth = "128th"
+    case sixtyFourth = "64th"
+    case thirtySecond = "32nd"
+    case sixteenth = "16th"
+    case eighth
+    case quarter
+    case half
+    case whole
+    case breve
+    case long
+    case maxima
+
+    public init?(musicXMLToken: String) {
+        self.init(rawValue: musicXMLToken.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+}
+
+public enum MusicXMLWrittenRhythmFailure: Error, Equatable, Sendable {
+    case missingType
+    case unsupportedType
+    case missingDuration
+    case invalidDuration
+}
+
 public struct MusicXMLWrittenRhythm: Equatable, Sendable {
-    public let typeToken: String?
+    public let noteType: MusicXMLNoteType
     public let dotCount: Int
     public let timeModification: MusicXMLTimeModification?
 
     public init(
-        typeToken: String?,
+        noteType: MusicXMLNoteType,
         dotCount: Int = 0,
         timeModification: MusicXMLTimeModification? = nil
     ) {
-        let trimmedType = typeToken?.trimmingCharacters(in: .whitespacesAndNewlines)
-        self.typeToken = trimmedType?.isEmpty == false ? trimmedType : nil
+        self.noteType = noteType
         self.dotCount = max(0, dotCount)
         self.timeModification = timeModification
     }

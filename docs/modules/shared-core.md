@@ -27,6 +27,8 @@ HappyPianistAVPTests → Diagnostics, Library, MusicXML, MIDI, Practice, Notatio
 
 `MusicXML` 拥有 MusicXML/MXL 模型、解析、结构扩展与谱面语义计算；它不依赖 Practice、Library、MIDI 或 Diagnostics。
 
+`MusicXMLNoteType` 是 `<note><type>` 的唯一强类型真源，完整覆盖 1024th 至 maxima 的 14 个标准值。解析的时间轴统一使用每四分音符 3840 ticks，因此 `divisions=1024` 的显式 1024 分音符精确为 15 ticks；普通音符缺少/使用非标准 type、或非 grace 音符缺少 duration，都会作为 typed preparation failure 停止流程。仅语义上标记为整小节的 rest 可以没有 type。
+
 `Practice` 依赖 `MusicXML`、`MIDI` 与 `Diagnostics`，拥有 `PracticePreparationService`、`ScorePerformancePlanBuilder`、`ScorePerformancePlan`、steps、琴键和记谱投影，以及 matcher、对齐、assessment、coaching、transport、session recorder、progress contracts 和 `MIDIPracticeSession`。它只消费 MIDI 的输入/输出契约，绝不直接导入 CoreMIDI；它的公开值契约可跨 actor 安全传递，不保留 App/Notation 的类型，也不引入「有 steps、无小节」的兼容结果。
 
 `MIDIPracticeSession` 是可复用的 MIDI-only 生命周期 owner：它独占输入 start/stop、generation、stale-event rejection、observation mapping/matching 和 recorder drain；host 注入输出 reset 与 progress flush。结束严格按“失效输入 → 停止输入 → reset/flush 输出 → 等待已接受 observation 的记录 → flush progress → 终结 session”进行；save 失败时 session 保持可恢复。AVP 的 `PracticeMIDIInputService` 仅做 presentation adapter；AVAudio、audio recognition、手部/虚拟琴、AR 和 SwiftUI 保留在 App。
@@ -42,6 +44,8 @@ AVP 只保留 `BundledSongLibraryProvider` 的 `Bundle.main` 实现、audio impo
 ## Notation
 
 `Notation` 只依赖 `Practice` 与 `MusicXML`，拥有 `GrandStaffNotationContext`、glyph catalog、engraving metrics、chord/horizontal/viewport layout、presentation、Canvas renderer、SwiftUI view 和 VoiceOver overlay。它只接收 `ScoreNotationProjection`、overlay、measure spans 与 hand mode；不接收 session navigation、progress、AR piano guide 或 Library。
+
+Notation 直接消费 `MusicXMLNoteType`，以 Bravura glyph/metrics 渲染 14 项 notehead、rest、flag 和 0–8 层 beam；横向间距只使用 source 的已解析 duration，不从 type、dot 或 tuplet 猜测时间。
 
 当前 App 仅构造 context 和向 `GrandStaffNotationView` 传入 projection；renderer 的高亮色在 Notation 内按谱表解析，不复用 Piano key 的 SwiftUI/UIKit tint token。`Practice` 不引用 Notation，旧 App `GrandStaff*` source 和非视觉测试入口均不存在；visual golden 继续在 AVP target 检验实际 `ImageRenderer` 路径。
 

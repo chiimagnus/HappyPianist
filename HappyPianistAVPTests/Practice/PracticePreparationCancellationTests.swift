@@ -10,7 +10,7 @@ func cancelledPreparationDoesNotProducePreparedPractice() async throws {
     let url = FileManager.default.temporaryDirectory.appending(path: "cancelled-\(UUID().uuidString).musicxml")
     let xml = """
     <?xml version="1.0" encoding="UTF-8"?>
-    <score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes><note><rest/><duration>1</duration></note></measure></part></score-partwise>
+    <score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list><part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes><note><rest/><duration>1</duration><type>quarter</type></note></measure></part></score-partwise>
     """
     try Data(xml.utf8).write(to: url)
     defer { try? FileManager.default.removeItem(at: url) }

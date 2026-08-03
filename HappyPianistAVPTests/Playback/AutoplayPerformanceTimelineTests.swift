@@ -138,14 +138,14 @@ func polyphonicUnisonFixturePreservesIdentityAcrossRetriggerAndTie() throws {
         $0.voice == 2 && $0.performedOnTick == 0
     })
     let retriggeredNote = try #require(unisonNotes.first {
-        $0.voice == 2 && $0.performedOnTick == 480
+        $0.voice == 2 && $0.performedOnTick == MusicXMLTempoMap.ticksPerQuarter
     })
 
     #expect(tiedNote.performedOnTick == 0)
-    #expect(tiedNote.performedOffTick == 2400)
+    #expect(tiedNote.performedOffTick == MusicXMLTempoMap.ticksPerQuarter * 5)
 
     let eventsAtStart = makeTimeline(plan: plan).events.filter { $0.tick == 0 }
-    let eventsAtRetrigger = makeTimeline(plan: plan).events.filter { $0.tick == 480 }
+    let eventsAtRetrigger = makeTimeline(plan: plan).events.filter { $0.tick == MusicXMLTempoMap.ticksPerQuarter }
     #expect(eventsAtStart.compactMap { event -> String? in
         if case .noteOn(midi: 60, _) = event.kind { event.sourceEventID } else { nil }
     } == [tiedNote.id.description, firstVoiceTwoNote.id.description].sorted())
@@ -442,7 +442,7 @@ func autoplayTimelineReconstructsPedalLatchedNoteUntilRelease() throws {
 @Test
 func rangeStartFixtureRestoresHeldLatchedAndRepedalStateWithResetSnapshot() throws {
     let plan = try timelineFixturePlan(id: "range-start-held-notes")
-    let activeRange = try timelineActiveRange(startTick: 1920, endTick: 3840)
+    let activeRange = try timelineActiveRange(startTick: MusicXMLTempoMap.ticksPerQuarter * 4, endTick: MusicXMLTempoMap.ticksPerQuarter * 8)
     let heldNote = try #require(plan.noteEvents.first { $0.midiNote == 60 })
     let latchedNote = try #require(plan.noteEvents.first { $0.midiNote == 64 })
     let rangeNote = try #require(plan.noteEvents.first { $0.midiNote == 67 })
@@ -453,7 +453,7 @@ func rangeStartFixtureRestoresHeldLatchedAndRepedalStateWithResetSnapshot() thro
         if case .noteOff = $0.kind { return true }
         return false
     }
-    #expect(soundEvents.map(\.tick) == [1920, 1920, 2400, 2400, 2880, 3360])
+    #expect(soundEvents.map(\.tick) == [MusicXMLTempoMap.ticksPerQuarter * 4, MusicXMLTempoMap.ticksPerQuarter * 4, MusicXMLTempoMap.ticksPerQuarter * 5, MusicXMLTempoMap.ticksPerQuarter * 5, MusicXMLTempoMap.ticksPerQuarter * 6, MusicXMLTempoMap.ticksPerQuarter * 7])
     #expect(soundEvents.map(\.kind) == [
         .noteOn(midi: 60, velocity: heldNote.velocity),
         .noteOn(midi: 64, velocity: latchedNote.velocity),
@@ -479,7 +479,7 @@ func rangeStartFixtureRestoresHeldLatchedAndRepedalStateWithResetSnapshot() thro
         if case .controlChange = $0.kind { return true }
         return false
     }
-    #expect(controllers.map(\.tick) == [1920, 2400, 2880, 3840])
+    #expect(controllers.map(\.tick) == [MusicXMLTempoMap.ticksPerQuarter * 4, MusicXMLTempoMap.ticksPerQuarter * 5, MusicXMLTempoMap.ticksPerQuarter * 6, MusicXMLTempoMap.ticksPerQuarter * 8])
     #expect(controllers.map(\.kind) == [
         .controlChange(controller: 64, value: 127),
         .controlChange(controller: 64, value: 0),
@@ -490,7 +490,7 @@ func rangeStartFixtureRestoresHeldLatchedAndRepedalStateWithResetSnapshot() thro
     let reducer = PerformanceTransportReducer()
     let start = reducer.transition(
         from: .idle,
-        at: .start(tick: 1920, activeEventIDs: [heldNote.id, latchedNote.id])
+        at: .start(tick: MusicXMLTempoMap.ticksPerQuarter * 4, activeEventIDs: [heldNote.id, latchedNote.id])
     )
     let stop = reducer.transition(from: start.state, at: .stop)
     let resetCommands = try #require(stop.commands.compactMap { command -> [PerformanceTransportCommand]? in
@@ -624,12 +624,12 @@ func autoplayTimelinePrefersExplicitTempoAtActiveRangeStart() throws {
 @Test
 func autoplayTimelineHoldsPlanPauseAtNoteOffBoundary() {
     let plan = makeTimelinePlan(
-        notes: [TestScorePerformanceNote(midiNote: 60, velocity: 80, onTick: 0, offTick: 240)],
+        notes: [TestScorePerformanceNote(midiNote: 60, velocity: 80, onTick: 0, offTick: MusicXMLTempoMap.ticksPerQuarter / 2)],
         annotations: [ScorePerformanceAnnotation(
             sourceDirectionID: directionID(ordinal: 5),
             performedOccurrenceIndex: 0,
-            tick: 240,
-            durationTicks: 120,
+            tick: MusicXMLTempoMap.ticksPerQuarter / 2,
+            durationTicks: MusicXMLTempoMap.ticksPerQuarter / 4,
             kind: .pause,
             text: "fermata",
             provenance: []
@@ -650,7 +650,7 @@ func autoplayTimelineHoldsPlanPauseAtNoteOffBoundary() {
         tempoMap: tempoMap,
         practiceHandMode: .both
     )
-    let eventsAtRelease = timeline.events.filter { $0.tick == 240 }
+    let eventsAtRelease = timeline.events.filter { $0.tick == MusicXMLTempoMap.ticksPerQuarter / 2 }
 
     #expect(eventsAtRelease.count == 2)
     if case let .pauseSeconds(seconds) = eventsAtRelease[0].kind {

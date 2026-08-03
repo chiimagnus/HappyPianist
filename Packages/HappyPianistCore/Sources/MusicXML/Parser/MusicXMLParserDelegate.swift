@@ -33,6 +33,10 @@ final class MusicXMLParserDelegate: NSObject {
         state.metadataError
     }
 
+    var writtenRhythmError: MusicXMLParserError? {
+        state.writtenRhythmError
+    }
+
     var notes: [MusicXMLNoteEvent] {
         state.notes
     }

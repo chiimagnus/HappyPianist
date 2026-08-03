@@ -235,6 +235,16 @@ struct PracticeLaunchFailure: Equatable, Identifiable {
                 sourceLocation: DiagnosticSourceLocation(line: line, column: column),
                 reason: reason
             )
+        case .invalidWrittenRhythm:
+            PracticeLaunchFailure(
+                entryID: entryID,
+                code: .practicePreparationFailed,
+                title: "曲谱时值不完整或不受支持",
+                explanation: "这份曲谱缺少必需的时值信息，或使用了当前不支持的时值标记。请修复文件后重新导入。",
+                stage: "musicXMLRhythmValidation",
+                file: file,
+                reason: "MusicXML contains a missing, invalid, or unsupported written rhythm."
+            )
         case let .unsupportedRootElement(reason):
             PracticeLaunchFailure(
                 entryID: entryID,

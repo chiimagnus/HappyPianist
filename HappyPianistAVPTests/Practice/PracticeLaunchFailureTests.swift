@@ -13,6 +13,7 @@ import Testing
     (PracticePreparationError.missingMXLContainer, DiagnosticCode.practiceMXLMissingContainer, "压缩曲谱缺少入口文件"),
     (PracticePreparationError.missingMXLRootfile, DiagnosticCode.practiceMXLMissingRootfile, "压缩曲谱没有指定主曲谱"),
     (PracticePreparationError.invalidMXLContainer, DiagnosticCode.practiceMXLInvalidContainer, "压缩曲谱入口文件无效"),
+    (PracticePreparationError.invalidWrittenRhythm(.unsupportedType), DiagnosticCode.practicePreparationFailed, "曲谱时值不完整或不受支持"),
     (PracticePreparationError.noPlayableNotes, DiagnosticCode.practiceNoPlayableNotes, "曲谱中没有可练习的音符"),
     (PracticePreparationError.missingMeasureStructure, DiagnosticCode.practiceMissingMeasureStructure, "曲谱的小节结构不完整"),
     (PracticePreparationError.unsupportedRootElement(reason: "score-custom"), DiagnosticCode.practicePreparationFailed, "不支持这份 MusicXML 结构"),

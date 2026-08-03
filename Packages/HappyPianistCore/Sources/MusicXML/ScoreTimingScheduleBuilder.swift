@@ -498,7 +498,7 @@ private extension ScoreTimingScheduleBuilder {
 
             let totalSpreadTicks = max(
                 1,
-                min(shortestDuration - 1, min(480 / 16, shortestDuration / 4))
+                min(shortestDuration - 1, min(MusicXMLTempoMap.ticksPerQuarter / 16, shortestDuration / 4))
             )
             let stepTicks = max(1, totalSpreadTicks / (ordered.count - 1))
             var offsetTicks = 0

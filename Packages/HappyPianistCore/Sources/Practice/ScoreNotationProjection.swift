@@ -15,11 +15,7 @@ public struct ScoreNotationProjection: Equatable, Sendable {
             case microtonalAccidental
             case unsupportedAccidentalValue
             case unsupportedAccidentalToken
-            case missingNoteType
-            case unsupportedNoteType
             case unsupportedNoteheadToken
-            case missingRestType
-            case unsupportedRestType
             case unsupportedBeamValue
             case unsupportedArticulation
             case unsupportedArpeggioDirection
@@ -676,27 +672,6 @@ public struct ScoreNotationProjection: Equatable, Sendable {
 
         for source in sources {
             let note = source.note
-            let rhythmToken = note.writtenRhythm?.typeToken?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .lowercased()
-            if note.isMeasureRest {
-                // MusicXML whole-measure rests are valid without a <type> child.
-            } else if rhythmToken == nil || rhythmToken?.isEmpty == true {
-                result.append(Fallback(
-                    sourceID: source.sourceID,
-                    kind: note.isRest ? .rest : .notehead,
-                    reason: note.isRest ? .missingRestType : .missingNoteType,
-                    placeholderPolicy: .reserveRhythmicSpace
-                ))
-            } else if isSupportedNotationDurationType(rhythmToken ?? "") == false {
-                result.append(Fallback(
-                    sourceID: source.sourceID,
-                    kind: note.isRest ? .rest : .notehead,
-                    reason: note.isRest ? .unsupportedRestType : .unsupportedNoteType,
-                    placeholderPolicy: .reserveRhythmicSpace
-                ))
-            }
-
             if let noteheadToken = normalizedToken(note.noteheadToken), noteheadToken != "normal" {
                 result.append(Fallback(
                     sourceID: source.sourceID,
@@ -782,15 +757,6 @@ public struct ScoreNotationProjection: Equatable, Sendable {
     private static func normalizedToken(_ token: String?) -> String? {
         let normalized = token?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() ?? ""
         return normalized.isEmpty ? nil : normalized
-    }
-
-    private static func isSupportedNotationDurationType(_ token: String) -> Bool {
-        switch token {
-        case "whole", "half", "quarter", "eighth", "16th", "32nd", "64th", "128th":
-            true
-        default:
-            false
-        }
     }
 
     private static func beamFactsBySourceID(

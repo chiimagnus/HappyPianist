@@ -56,7 +56,7 @@ struct MusicXMLParserGraceDetailsTests {
         """
 
         let note = try #require(MusicXMLParser().parse(data: Data(xml.utf8)).notes.first)
-        #expect(note.graceMakeTimeTicks == 180)
+        #expect(note.graceMakeTimeTicks == MusicXMLTempoMap.ticksPerQuarter * 3 / 8)
     }
 
     @Test

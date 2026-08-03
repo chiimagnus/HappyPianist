@@ -17,16 +17,16 @@ func despacitoFixtureBuildsGuidesWithGapAndRetrigger() throws {
         guide.kind == .trigger && guide.triggeredNotes.contains(where: { $0.midiNote == 60 })
     }
     #expect(c4Triggers.count == 2)
-    #expect(Set(c4Triggers.map(\.tick)) == [0, 720])
+    #expect(Set(c4Triggers.map(\.tick)) == [0, MusicXMLTempoMap.ticksPerQuarter * 3 / 2])
 
     let gapOrRelease = guides.first { guide in
-        guide.tick == 480 && (guide.kind == .gap || guide.kind == .release)
+        guide.tick == MusicXMLTempoMap.ticksPerQuarter && (guide.kind == .gap || guide.kind == .release)
     }
     #expect(gapOrRelease?.releasedMIDINotes.contains(60) == true)
     #expect(gapOrRelease?.highlightedMIDINotes.contains(60) == false)
 
     let chordTrigger = guides.first { guide in
-        guide.kind == .trigger && guide.tick == 720
+        guide.kind == .trigger && guide.tick == MusicXMLTempoMap.ticksPerQuarter * 3 / 2
     }
     #expect(chordTrigger?.highlightedMIDINotes == [60, 64])
 

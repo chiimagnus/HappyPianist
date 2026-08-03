@@ -12,6 +12,7 @@ public enum PracticePreparationError: Error, Equatable, Sendable {
     case missingMXLScore(path: String)
     case invalidMXLContainer
     case xmlParseFailed(line: Int?, column: Int?, reason: String)
+    case invalidWrittenRhythm(MusicXMLWrittenRhythmFailure)
     case unsupportedRootElement(reason: String)
     case noPlayableNotes
     case missingMeasureStructure
@@ -114,6 +115,8 @@ public actor PracticePreparationService: PracticePreparationServiceProtocol {
                     column: nil,
                     reason: reason
                 )
+            case let .invalidWrittenRhythm(failure):
+                throw PracticePreparationError.invalidWrittenRhythm(failure)
             }
         } catch MusicXMLTimewiseConverterError.invalidXML {
             throw PracticePreparationError.xmlParseFailed(
@@ -133,6 +136,7 @@ public actor PracticePreparationService: PracticePreparationServiceProtocol {
                 reason: PracticePreparationErrorDetails.safeErrorSummary(error)
             )
         }
+        try Self.validateWrittenRhythm(in: rawScore)
         let normalizedScore = MusicXMLPianoGrandStaffNormalizer().normalize(score: rawScore)
         let selectedInstrument: MusicXMLLogicalInstrument
         switch MusicXMLPracticePartSelector().select(from: normalizedScore) {
@@ -376,6 +380,22 @@ public actor PracticePreparationService: PracticePreparationServiceProtocol {
             return .scoreFileNotFound
         }
         return .scoreFileUnreadable(reason: PracticePreparationErrorDetails.safeErrorSummary(error))
+    }
+
+    private static func validateWrittenRhythm(in score: MusicXMLScore) throws {
+        for note in score.notes {
+            if note.isMeasureRest == false, note.writtenRhythm == nil {
+                throw PracticePreparationError.invalidWrittenRhythm(.missingType)
+            }
+            if note.isGrace == false {
+                guard note.hasExplicitDuration else {
+                    throw PracticePreparationError.invalidWrittenRhythm(.missingDuration)
+                }
+                guard note.durationTicks > 0 else {
+                    throw PracticePreparationError.invalidWrittenRhythm(.invalidDuration)
+                }
+            }
+        }
     }
 
     private static func mapMXLReaderError(_ error: MXLReaderError) -> PracticePreparationError {

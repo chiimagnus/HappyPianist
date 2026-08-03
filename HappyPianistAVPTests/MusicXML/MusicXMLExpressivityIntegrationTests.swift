@@ -94,15 +94,15 @@ func expressivityPipelineParsesAndPlumbsKeySignalsEndToEnd() throws {
 
     let plan = makeTestScorePerformancePlan(from: score, expressivity: expressivity)
     let steps = PracticeStepBuilder().buildSteps(from: plan).steps
-    #expect(steps.map(\.tick) == [0, 30])
+    #expect(steps.map(\.tick) == [0, MusicXMLTempoMap.ticksPerQuarter / 16])
     #expect(steps.flatMap(\.notes).map(\.midiNote) == [60, 64])
     #expect(steps[0].notes.first(where: { $0.midiNote == 60 })?.fingerings.map(\.text) == ["1"])
 
     let c4 = plan.noteEvents.first(where: { $0.midiNote == 60 })
     let e4 = plan.noteEvents.first(where: { $0.midiNote == 64 })
     #expect(c4?.performedOnTick == 0)
-    #expect(e4?.performedOnTick == 30)
-    #expect(c4?.performedOffTick == 480)
+    #expect(e4?.performedOnTick == MusicXMLTempoMap.ticksPerQuarter / 16)
+    #expect(c4?.performedOffTick == MusicXMLTempoMap.ticksPerQuarter)
 }
 
 @Test
@@ -114,12 +114,12 @@ func performancePlanKeepsTempoControllersAndAnnotationsInCanonicalTickDomain() t
         <attributes><divisions>1</divisions></attributes>
         <direction><sound tempo="120" damper-pedal="yes"/></direction>
         <note>
-          <pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff>
+          <pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><voice>1</voice><staff>1</staff>
           <notations><fermata/><breath-mark/></notations>
         </note>
         <direction><direction-type><words>rit.</words></direction-type></direction>
         <direction><direction-type><pedal type="change"/></direction-type></direction>
-        <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff></note>
+        <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><voice>1</voice><staff>1</staff></note>
         <direction><sound tempo="90"/></direction>
       </measure></part>
     </score-partwise>
@@ -192,17 +192,17 @@ func performancePlanKeepsTempoControllersAndAnnotationsInCanonicalTickDomain() t
         fermataTimeline: fermataTimeline
     )
 
-    #expect(plan.tempoEvents.map(\.tick) == [0, 480, 960])
+    #expect(plan.tempoEvents.map(\.tick) == [0, MusicXMLTempoMap.ticksPerQuarter, MusicXMLTempoMap.ticksPerQuarter * 2])
     #expect(plan.tempoEvents.map(\.performedOccurrenceIndex) == [2, 2, 2])
-    #expect(plan.tempoEvents.first(where: { $0.endTick != nil })?.endTick == 960)
+    #expect(plan.tempoEvents.first(where: { $0.endTick != nil })?.endTick == MusicXMLTempoMap.ticksPerQuarter * 2)
     #expect(plan.tempoEvents.first(where: { $0.endTick != nil })?.endQuarterBPM == 90)
     #expect(plan.controllerEvents.map(\.value) == [127, 0, 127])
     #expect(plan.controllerEvents.allSatisfy { $0.controllerNumber == 64 })
     #expect(plan.controllerEvents.allSatisfy { $0.performedOccurrenceIndex == 2 })
-    #expect(plan.annotations.contains { $0.kind == .phrase && $0.tick == 420 })
-    #expect(plan.annotations.contains { $0.kind == .pause && $0.text == "fermata" && $0.tick == 420 })
+    #expect(plan.annotations.contains { $0.kind == .phrase && $0.tick == MusicXMLTempoMap.ticksPerQuarter - MusicXMLTempoMap.ticksPerQuarter / 8 })
+    #expect(plan.annotations.contains { $0.kind == .pause && $0.text == "fermata" && $0.tick == MusicXMLTempoMap.ticksPerQuarter - MusicXMLTempoMap.ticksPerQuarter / 8 })
     #expect(plan.annotations.contains {
-        $0.kind == .tempoWord && $0.tick == 480 && $0.performedOccurrenceIndex == 2
+        $0.kind == .tempoWord && $0.tick == MusicXMLTempoMap.ticksPerQuarter && $0.performedOccurrenceIndex == 2
     })
 }
 
@@ -214,14 +214,14 @@ func fermataAcrossVoicesAndStaffsAddsOneTotalHold() throws {
       <part id="P1"><measure number="1">
         <attributes><divisions>1</divisions><staves>2</staves></attributes>
         <note>
-          <pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff>
+          <pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><voice>1</voice><staff>1</staff>
           <notations><fermata/></notations>
         </note>
         <note>
-          <chord/><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><voice>2</voice><staff>2</staff>
+          <chord/><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><voice>2</voice><staff>2</staff>
           <notations><fermata/></notations>
         </note>
-        <note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff></note>
+        <note><pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><voice>1</voice><staff>1</staff></note>
       </measure></part>
     </score-partwise>
     """
@@ -235,10 +235,10 @@ func fermataAcrossVoicesAndStaffsAddsOneTotalHold() throws {
     let plan = makeTestScorePerformancePlan(from: score, expressivity: expressivity)
     let fermataAnnotations = plan.annotations.filter { $0.kind == .pause && $0.text == "fermata" }
 
-    #expect(schedule.entries.prefix(2).map(\.performedOffTick) == [480, 480])
+    #expect(schedule.entries.prefix(2).map(\.performedOffTick) == [MusicXMLTempoMap.ticksPerQuarter, MusicXMLTempoMap.ticksPerQuarter])
     #expect(fermataAnnotations.count == 1)
-    #expect(fermataAnnotations.first?.tick == 480)
-    #expect(fermataAnnotations.first?.durationTicks == 240)
+    #expect(fermataAnnotations.first?.tick == MusicXMLTempoMap.ticksPerQuarter)
+    #expect(fermataAnnotations.first?.durationTicks == MusicXMLTempoMap.ticksPerQuarter / 2)
     #expect(fermataAnnotations.first?.provenance.count == 2)
 
     let tempoMap = MusicXMLTempoMap(tempoEvents: [
@@ -286,7 +286,7 @@ func musicXMLScoreSnapshotCapturesSourceFactsWithoutHeuristics() throws {
       <part id="P1"><measure number="1">
         <attributes><divisions>1</divisions></attributes>
         <direction><direction-type><dynamics><mf/></dynamics></direction-type></direction>
-        <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff></note>
+        <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><voice>1</voice><staff>1</staff></note>
       </measure></part>
     </score-partwise>
     """
@@ -313,7 +313,7 @@ func musicXMLScoreSnapshotIsIndependentOfFactArrayOrder() throws {
             <direction-type><dynamics><p/></dynamics><wedge type="crescendo"/><words>dolce</words><fermata/></direction-type>
             <sound tempo="80" damper-pedal="yes" segno="s1"/>
           </direction>
-          <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+          <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
         </measure>
         <measure number="2">
           <attributes><time><beats>3</beats><beat-type>4</beat-type></time></attributes>
@@ -321,7 +321,7 @@ func musicXMLScoreSnapshotIsIndependentOfFactArrayOrder() throws {
             <direction-type><dynamics><f/></dynamics><wedge type="stop"/><words>cantabile</words><fermata/></direction-type>
             <sound tempo="100" damper-pedal="no" coda="c1"/>
           </direction>
-          <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration></note>
+          <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
           <barline location="right"><ending number="1" type="stop"/><repeat direction="backward"/></barline>
         </measure>
       </part>
@@ -356,7 +356,7 @@ func parserAssignsStableDirectionIdentityAcrossEventKinds() throws {
           <sound tempo="90" damper-pedal="yes" segno="s1"/>
         </direction>
         <direction><direction-type><words>dolce</words></direction-type></direction>
-        <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+        <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
       </measure></part>
     </score-partwise>
     """
@@ -380,7 +380,7 @@ func pedalChangePreservesBothControllerEdgesUnderOneDirectionSource() throws {
       <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
       <part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes>
         <direction><direction-type><pedal type="change"/></direction-type></direction>
-        <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+        <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
       </measure></part>
     </score-partwise>
     """
@@ -485,23 +485,23 @@ func ornamentSchedulerGeneratesOnlyFromExplicitPerformanceFacts() throws {
       <part id="P1"><measure number="1">
         <attributes><divisions>1</divisions></attributes>
         <note>
-          <pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff>
+          <pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><voice>1</voice><staff>1</staff>
           <notations><ornaments><trill-mark/><accidental-mark placement="above">natural</accidental-mark></ornaments></notations>
         </note>
         <note>
-          <pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff>
+          <pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><voice>1</voice><staff>1</staff>
           <notations><ornaments><trill-mark/></ornaments></notations>
         </note>
         <note>
-          <pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff>
+          <pitch><step>G</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><voice>1</voice><staff>1</staff>
           <notations><ornaments><tremolo type="single">3</tremolo></ornaments></notations>
         </note>
         <note>
-          <pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff>
+          <pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type><voice>1</voice><staff>1</staff>
           <notations><glissando type="start" number="1"/></notations>
         </note>
         <note>
-          <pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><voice>1</voice><staff>1</staff>
+          <pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type><voice>1</voice><staff>1</staff>
           <notations><glissando type="stop" number="1"/></notations>
         </note>
       </measure></part>
@@ -529,8 +529,8 @@ func ornamentSchedulerGeneratesOnlyFromExplicitPerformanceFacts() throws {
 
     let glissandoNotes = schedule.generatedNotes.filter { $0.notationKind == .glissando }
     #expect(glissandoNotes.map(\.midiNote) == Array(60 ..< 72))
-    #expect(glissandoNotes.first?.onTick == 1440)
-    #expect(glissandoNotes.last?.offTick == 1920)
+    #expect(glissandoNotes.first?.onTick == MusicXMLTempoMap.ticksPerQuarter * 3)
+    #expect(glissandoNotes.last?.offTick == MusicXMLTempoMap.ticksPerQuarter * 4)
 }
 
 @Test
@@ -556,29 +556,29 @@ func expressivePianoFixtureLocksSourceNotationTimingAndProvenance() throws {
         notation|note=9|source=P1:2:2:1:1:3:notation:0|kind=glissando|type=start|number=1|placement=null|text=null
         notation|note=10|source=P1:3:3:1:1:0:notation:0|kind=glissando|type=stop|number=1|placement=null|text=null
         notation|note=11|source=P1:3:3:1:1:1:notation:0|kind=schleifer|type=null|number=null|placement=null|text=null
-        timing|note=0|source=P1:1:1:1:1:0|written=0-0|performed=0-120|policy=graceMakeTime|provenance=score,grace:makeTime
-        timing|note=1|source=P1:1:1:1:1:1|written=0-480|performed=120-135|policy=slurLegato|provenance=score,grace:makeTime,notation:slur:P1:1:1:1:1:1:notation:0:generic-score-v1
-        timing|note=2|source=P1:1:1:1:1:2|written=0-480|performed=135-150|policy=slurLegato|provenance=score,grace:makeTime,arpeggio:1:up,notation:slur:P1:1:1:1:1:1:notation:0:generic-score-v1
-        timing|note=3|source=P1:1:1:1:1:3|written=0-480|performed=150-600|policy=slurLegato|provenance=score,grace:makeTime,arpeggio:1:up,notation:slur:P1:1:1:1:1:1:notation:0:generic-score-v1
-        timing|note=4|source=P1:1:1:1:1:4|written=480-960|performed=600-1020|policy=breathGap|provenance=score,grace:makeTime,notation:breath-mark:P1:1:1:1:1:4:notation:1:generic-score-v1
-        timing|note=5|source=P1:1:1:1:1:5|written=960-1920|performed=1080-2040|policy=graceMakeTime|provenance=score,grace:makeTime
-        timing|note=6|source=P1:2:2:1:1:0|written=1920-2400|performed=2040-2520|policy=graceMakeTime|provenance=score,grace:makeTime
-        timing|note=7|source=P1:2:2:1:1:1|written=2400-2880|performed=2520-3000|policy=graceMakeTime|provenance=score,grace:makeTime
-        timing|note=8|source=P1:2:2:1:1:2|written=2880-3360|performed=3000-3480|policy=graceMakeTime|provenance=score,grace:makeTime
-        timing|note=9|source=P1:2:2:1:1:3|written=3360-3840|performed=3480-3960|policy=graceMakeTime|provenance=score,grace:makeTime
-        timing|note=10|source=P1:3:3:1:1:0|written=3840-4320|performed=3960-4440|policy=graceMakeTime|provenance=score,grace:makeTime
-        timing|note=11|source=P1:3:3:1:1:1|written=4320-4800|performed=4440-4920|policy=graceMakeTime|provenance=score,grace:makeTime
-        timing|note=12|source=P1:3:3:1:1:2|written=4800-5760|performed=4920-5880|policy=graceMakeTime|provenance=score,grace:makeTime
-        generated|kind=trill-mark|count=9|pitches=72,74,72,74,72,74,72,74,72|ticks=2040-2520|profile=generic-score-v1
-        generated|kind=tremolo|count=8|pitches=67,67,67,67,67,67,67,67|ticks=3000-3480|profile=generic-score-v1
-        generated|kind=glissando|count=12|pitches=60,61,62,63,64,65,66,67,68,69,70,71|ticks=3480-3960|profile=generic-score-v1
+        timing|note=0|source=P1:1:1:1:1:0|written=0-0|performed=0-960|policy=graceMakeTime|provenance=score,grace:makeTime
+        timing|note=1|source=P1:1:1:1:1:1|written=0-3840|performed=960-1080|policy=slurLegato|provenance=score,grace:makeTime,notation:slur:P1:1:1:1:1:1:notation:0:generic-score-v1
+        timing|note=2|source=P1:1:1:1:1:2|written=0-3840|performed=1080-1200|policy=slurLegato|provenance=score,grace:makeTime,arpeggio:1:up,notation:slur:P1:1:1:1:1:1:notation:0:generic-score-v1
+        timing|note=3|source=P1:1:1:1:1:3|written=0-3840|performed=1200-4800|policy=slurLegato|provenance=score,grace:makeTime,arpeggio:1:up,notation:slur:P1:1:1:1:1:1:notation:0:generic-score-v1
+        timing|note=4|source=P1:1:1:1:1:4|written=3840-7680|performed=4800-8160|policy=breathGap|provenance=score,grace:makeTime,notation:breath-mark:P1:1:1:1:1:4:notation:1:generic-score-v1
+        timing|note=5|source=P1:1:1:1:1:5|written=7680-15360|performed=8640-16320|policy=graceMakeTime|provenance=score,grace:makeTime
+        timing|note=6|source=P1:2:2:1:1:0|written=15360-19200|performed=16320-20160|policy=graceMakeTime|provenance=score,grace:makeTime
+        timing|note=7|source=P1:2:2:1:1:1|written=19200-23040|performed=20160-24000|policy=graceMakeTime|provenance=score,grace:makeTime
+        timing|note=8|source=P1:2:2:1:1:2|written=23040-26880|performed=24000-27840|policy=graceMakeTime|provenance=score,grace:makeTime
+        timing|note=9|source=P1:2:2:1:1:3|written=26880-30720|performed=27840-31680|policy=graceMakeTime|provenance=score,grace:makeTime
+        timing|note=10|source=P1:3:3:1:1:0|written=30720-34560|performed=31680-35520|policy=graceMakeTime|provenance=score,grace:makeTime
+        timing|note=11|source=P1:3:3:1:1:1|written=34560-38400|performed=35520-39360|policy=graceMakeTime|provenance=score,grace:makeTime
+        timing|note=12|source=P1:3:3:1:1:2|written=38400-46080|performed=39360-47040|policy=graceMakeTime|provenance=score,grace:makeTime
+        generated|kind=trill-mark|count=9|pitches=72,74,72,74,72,74,72,74,72|ticks=16320-20160|profile=generic-score-v1
+        generated|kind=tremolo|count=8|pitches=67,67,67,67,67,67,67,67|ticks=24000-27840|profile=generic-score-v1
+        generated|kind=glissando|count=12|pitches=60,61,62,63,64,65,66,67,68,69,70,71|ticks=27840-31680|profile=generic-score-v1
         resolution|source=P1:2:2:1:1:0:notation:0|kind=trill-mark|notes=6|replaces=6|status=generated
         resolution|source=P1:2:2:1:1:1:notation:0|kind=trill-mark|notes=7|replaces=|status=unsupported:ornament-accidental-unavailable
         resolution|source=P1:2:2:1:1:2:notation:0|kind=tremolo|notes=8|replaces=8|status=generated
         resolution|source=P1:2:2:1:1:3:notation:0|kind=glissando|notes=9,10|replaces=9|status=generated
         resolution|source=P1:3:3:1:1:0:notation:0|kind=glissando|notes=9,10|replaces=|status=generated
-        dynamic|ticks=0-480|velocity=50-90|number=1
-        tempo-ramp|ticks=1920-3840|bpm=120-90
+        dynamic|ticks=0-3840|velocity=50-90|number=1
+        tempo-ramp|ticks=15360-30720|bpm=120-90
         unsupported|kind=schleifer|count=1
         """
     )

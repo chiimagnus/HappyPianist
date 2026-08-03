@@ -51,14 +51,15 @@ struct MusicXMLParserDelegateState {
         var text: String?
     }
 
-    let normalizedTicksPerQuarter = 480
-    let directionOffsetResolver = MusicXMLDirectionOffsetResolver(ticksPerQuarter: 480)
+    let normalizedTicksPerQuarter = MusicXMLTempoMap.ticksPerQuarter
+    let directionOffsetResolver = MusicXMLDirectionOffsetResolver()
 
     var scoreVersion: String?
     var partMetadataByID: [String: MusicXMLPartMetadata] = [:]
     var partMetadataOrder: [String] = []
     var bodyPartIDs: Set<String> = []
     var metadataError: MusicXMLParserError?
+    var writtenRhythmError: MusicXMLParserError?
     var isInPartList = false
     var currentScorePartMetadata: MusicXMLPartMetadata?
     var currentScoreInstrumentMetadata: MusicXMLScoreInstrumentMetadata?

@@ -34,6 +34,8 @@ make test:mac
 
 它们只使用 `HappyPianistMac`、`platform=macOS` 和自己的 result bundle；不读取 `SIMULATOR_ID`，也不 boot visionOS Simulator。共享包仍单独运行 `swift test --package-path Packages/HappyPianistCore`，visionOS 仍使用 `make build` 与 `make test`。
 
+MusicXML fixture 必须为每个普通 note/rest 提供标准 `<type>` 和非 grace 的显式 `<duration>`；package tests 覆盖 14 个标准 type 从 parser 到 `PreparedPractice` 和 notation layout、1024 分音符的 15-tick 精度、0–8 层 beam，以及缺失/非标准 type 的 typed failure。无 type 只在语义整小节 rest fixture 中合法。
+
 需要完整运行日志时：
 
 ```bash

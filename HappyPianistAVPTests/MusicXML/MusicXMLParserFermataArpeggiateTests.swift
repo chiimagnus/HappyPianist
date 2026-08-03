@@ -17,7 +17,7 @@ struct MusicXMLParserFermataArpeggiateTests {
               <attributes><divisions>1</divisions></attributes>
               <note>
                 <pitch><step>C</step><octave>4</octave></pitch>
-                <duration>1</duration>
+                <duration>1</duration><type>quarter</type>
                 <staff>1</staff>
                 <voice>1</voice>
                 <notations>
@@ -93,7 +93,7 @@ struct MusicXMLParserFermataArpeggiateTests {
         )
 
         #expect(schedule[1].performedOnTick == 0)
-        #expect(schedule[0].performedOnTick == 30)
+        #expect(schedule[0].performedOnTick == MusicXMLTempoMap.ticksPerQuarter / 16)
         #expect(schedule[0].provenance.contains(.arpeggio(numberToken: "7", direction: .down)))
     }
 
@@ -107,7 +107,7 @@ struct MusicXMLParserFermataArpeggiateTests {
                 partID: "P1",
                 measureNumber: 1,
                 tick: 0,
-                durationTicks: 480,
+                durationTicks: MusicXMLTempoMap.ticksPerQuarter,
                 midiNote: 64,
                 isRest: false,
                 isChord: true,
@@ -119,7 +119,7 @@ struct MusicXMLParserFermataArpeggiateTests {
         let schedule = ScoreTimingScheduleBuilder().build(notes: notes, arpeggiateEnabled: true)
 
         #expect(schedule[0].performedOnTick == 0)
-        #expect(schedule[1].performedOnTick == 30)
+        #expect(schedule[1].performedOnTick == MusicXMLTempoMap.ticksPerQuarter / 16)
         #expect(schedule[2].performedOnTick == 0)
         #expect(schedule[3].performedOnTick == 0)
     }
@@ -135,7 +135,7 @@ struct MusicXMLParserFermataArpeggiateTests {
             partID: partID,
             measureNumber: 1,
             tick: 0,
-            durationTicks: 480,
+            durationTicks: MusicXMLTempoMap.ticksPerQuarter,
             midiNote: midi,
             isRest: false,
             isChord: midi != 60,
@@ -151,9 +151,9 @@ func directionOffsetMovesDirectionFermata() throws {
     let xml = """
     <score-partwise version="4.0"><part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
     <part id="P1"><measure number="1"><attributes><divisions>2</divisions></attributes>
-      <note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration></note>
+      <note><pitch><step>C</step><octave>4</octave></pitch><duration>2</duration><type>quarter</type></note>
       <direction><direction-type><fermata/></direction-type><offset sound="yes">-1</offset></direction>
     </measure></part></score-partwise>
     """
-    #expect(try MusicXMLParser().parse(data: Data(xml.utf8)).fermataEvents.first?.tick == 240)
+    #expect(try MusicXMLParser().parse(data: Data(xml.utf8)).fermataEvents.first?.tick == MusicXMLTempoMap.ticksPerQuarter / 2)
 }

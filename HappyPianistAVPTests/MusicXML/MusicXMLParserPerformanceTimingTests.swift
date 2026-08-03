@@ -17,7 +17,7 @@ struct MusicXMLParserPerformanceTimingTests {
               <attributes><divisions>2</divisions></attributes>
               <note attack="1" release="1">
                 <pitch><step>C</step><octave>4</octave></pitch>
-                <duration>2</duration>
+                <duration>2</duration><type>quarter</type>
               </note>
             </measure>
           </part>
@@ -26,8 +26,8 @@ struct MusicXMLParserPerformanceTimingTests {
 
         let score = try MusicXMLParser().parse(data: Data(xml.utf8))
         #expect(score.notes.count == 1)
-        #expect(score.notes.first?.attackTicks == 240)
-        #expect(score.notes.first?.releaseTicks == 240)
+        #expect(score.notes.first?.attackTicks == MusicXMLTempoMap.ticksPerQuarter / 2)
+        #expect(score.notes.first?.releaseTicks == MusicXMLTempoMap.ticksPerQuarter / 2)
     }
 }
 
@@ -50,10 +50,10 @@ func directionOffsetCanMovePlaybackFactIntoPreviousMeasure() throws {
       <part id="P1">
         <measure number="1">
           <attributes><divisions>1</divisions></attributes>
-          <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+          <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
         </measure>
         <measure number="2">
-          <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration></note>
+          <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
           <direction>
             <direction-type><words>dolce</words></direction-type>
             <offset sound="yes">-2</offset>

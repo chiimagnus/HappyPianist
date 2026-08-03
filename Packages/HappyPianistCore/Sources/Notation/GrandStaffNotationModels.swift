@@ -1,48 +1,26 @@
 import Foundation
 import MusicXML
 
-enum GrandStaffNoteValue: Equatable {
-    case whole
-    case half
-    case quarter
-    case eighth
-    case sixteenth
-    case thirtySecond
-    case sixtyFourth
-    case oneHundredTwentyEighth
-    case unsupported(sourceTypeToken: String?)
-
-    init(sourceTypeToken: String?) {
-        switch sourceTypeToken?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() {
-        case "whole": self = .whole
-        case "half": self = .half
-        case "quarter": self = .quarter
-        case "eighth": self = .eighth
-        case "16th": self = .sixteenth
-        case "32nd": self = .thirtySecond
-        case "64th": self = .sixtyFourth
-        case "128th": self = .oneHundredTwentyEighth
-        default: self = .unsupported(sourceTypeToken: sourceTypeToken)
-        }
-    }
-
-    var isSupported: Bool {
-        if case .unsupported = self { return false }
-        return true
-    }
-
-    var noteheadGlyphToken: GrandStaffGlyphToken? {
+extension MusicXMLNoteType {
+    var grandStaffNoteheadGlyphToken: GrandStaffGlyphToken {
         switch self {
+        case .maxima: .mensuralWhiteMaxima
+        case .long: .mensuralWhiteLonga
+        case .breve: .noteheadDoubleWhole
         case .whole: .noteheadWhole
         case .half: .noteheadHalf
-        case .quarter, .eighth, .sixteenth, .thirtySecond, .sixtyFourth, .oneHundredTwentyEighth:
+        case .quarter, .eighth, .sixteenth, .thirtySecond, .sixtyFourth,
+             .oneHundredTwentyEighth, .twoHundredFiftySixth,
+             .fiveHundredTwelfth, .oneThousandTwentyFourth:
             .noteheadBlack
-        case .unsupported: nil
         }
     }
 
-    var restGlyphToken: GrandStaffGlyphToken? {
+    var grandStaffRestGlyphToken: GrandStaffGlyphToken {
         switch self {
+        case .maxima: .restMaxima
+        case .long: .restLonga
+        case .breve: .restDoubleWhole
         case .whole: .restWhole
         case .half: .restHalf
         case .quarter: .restQuarter
@@ -51,11 +29,13 @@ enum GrandStaffNoteValue: Equatable {
         case .thirtySecond: .restThirtySecond
         case .sixtyFourth: .restSixtyFourth
         case .oneHundredTwentyEighth: .restOneHundredTwentyEighth
-        case .unsupported: nil
+        case .twoHundredFiftySixth: .restTwoHundredFiftySixth
+        case .fiveHundredTwelfth: .restFiveHundredTwelfth
+        case .oneThousandTwentyFourth: .restOneThousandTwentyFourth
         }
     }
 
-    func flagGlyphToken(stemDirection: GrandStaffStemDirection) -> GrandStaffGlyphToken? {
+    func grandStaffFlagGlyphToken(stemDirection: GrandStaffStemDirection) -> GrandStaffGlyphToken? {
         switch (self, stemDirection) {
         case (.eighth, .up): .flagEighthUp
         case (.eighth, .down): .flagEighthDown
@@ -67,15 +47,38 @@ enum GrandStaffNoteValue: Equatable {
         case (.sixtyFourth, .down): .flagSixtyFourthDown
         case (.oneHundredTwentyEighth, .up): .flagOneHundredTwentyEighthUp
         case (.oneHundredTwentyEighth, .down): .flagOneHundredTwentyEighthDown
+        case (.twoHundredFiftySixth, .up): .flagTwoHundredFiftySixthUp
+        case (.twoHundredFiftySixth, .down): .flagTwoHundredFiftySixthDown
+        case (.fiveHundredTwelfth, .up): .flagFiveHundredTwelfthUp
+        case (.fiveHundredTwelfth, .down): .flagFiveHundredTwelfthDown
+        case (.oneThousandTwentyFourth, .up): .flagOneThousandTwentyFourthUp
+        case (.oneThousandTwentyFourth, .down): .flagOneThousandTwentyFourthDown
         default: nil
         }
     }
 
-    var hasStem: Bool {
+    var grandStaffHasStem: Bool {
         switch self {
-        case .half, .quarter, .eighth, .sixteenth, .thirtySecond, .sixtyFourth, .oneHundredTwentyEighth:
+        case .half, .quarter, .eighth, .sixteenth, .thirtySecond, .sixtyFourth,
+             .oneHundredTwentyEighth, .twoHundredFiftySixth,
+             .fiveHundredTwelfth, .oneThousandTwentyFourth:
             true
-        case .whole, .unsupported: false
+        case .maxima, .long, .breve, .whole:
+            false
+        }
+    }
+
+    var grandStaffBeamCount: Int {
+        switch self {
+        case .eighth: 1
+        case .sixteenth: 2
+        case .thirtySecond: 3
+        case .sixtyFourth: 4
+        case .oneHundredTwentyEighth: 5
+        case .twoHundredFiftySixth: 6
+        case .fiveHundredTwelfth: 7
+        case .oneThousandTwentyFourth: 8
+        case .maxima, .long, .breve, .whole, .half, .quarter: 0
         }
     }
 }
@@ -132,7 +135,7 @@ struct GrandStaffNotationChord: Equatable, Identifiable {
     let xPosition: Double
     let itemIDs: [String]
     let stem: GrandStaffNotationStem
-    let noteValue: GrandStaffNoteValue
+    let noteType: MusicXMLNoteType
 }
 
 struct GrandStaffNotationStem: Equatable {
@@ -149,17 +152,21 @@ struct GrandStaffNotationRest: Equatable, Identifiable {
     let voice: Int
     let tick: Int
     let xPosition: Double
-    let noteValue: GrandStaffNoteValue
+    let noteType: MusicXMLNoteType
+    let durationTicks: Int
     let dotCount: Int
     let isMeasureRest: Bool
     let isHighlighted: Bool
 
     var glyphToken: GrandStaffGlyphToken? {
-        noteValue.restGlyphToken
+        noteType.grandStaffRestGlyphToken
     }
 
     var staffStep: Int {
-        noteValue == .whole ? 6 : 4
+        switch noteType {
+        case .whole, .breve: 6
+        default: 4
+        }
     }
 }
 
@@ -416,7 +423,8 @@ struct GrandStaffNotationItem: Equatable, Identifiable {
     let displayedAccidental: GrandStaffAccidental?
     let isHighlighted: Bool
     let fingerings: [MusicXMLFingering]
-    let noteValue: GrandStaffNoteValue
+    let noteType: MusicXMLNoteType
+    let noteheadGlyphToken: GrandStaffGlyphToken?
     let chordID: String?
     let noteheadXOffset: Double
     let accidentalXOffsetStaffSpaces: Double?
@@ -428,10 +436,6 @@ struct GrandStaffNotationItem: Equatable, Identifiable {
     let articulations: Set<MusicXMLArticulation>
     let arpeggiate: MusicXMLArpeggiate?
     let dotCount: Int
-
-    var noteheadGlyphToken: GrandStaffGlyphToken? {
-        noteValue.noteheadGlyphToken
-    }
 
     var articulationGlyphTokens: [GrandStaffGlyphToken] {
         articulations.sorted { $0.rawValue < $1.rawValue }.compactMap(\.grandStaffGlyphToken)

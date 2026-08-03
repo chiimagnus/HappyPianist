@@ -47,56 +47,6 @@ extension MusicXMLParserDelegate {
         return offsetTicks == 0 ? nil : offsetTicks
     }
 
-    func deriveDurationTicksFromTypeAndTupletIfPossible() -> Int? {
-        guard let rawType = state.noteType?.trimmingCharacters(in: .whitespacesAndNewlines),
-              rawType.isEmpty == false
-        else {
-            return nil
-        }
-
-        let type = rawType.lowercased()
-        let quarters: Double? = switch type {
-        case "whole":
-            4
-        case "half":
-            2
-        case "quarter":
-            1
-        case "eighth":
-            0.5
-        case "16th":
-            0.25
-        case "32nd":
-            0.125
-        case "64th":
-            0.0625
-        case "128th":
-            0.03125
-        default:
-            nil
-        }
-
-        guard let quarters else { return nil }
-
-        var durationTicks = quarters * Double(state.normalizedTicksPerQuarter)
-        if state.noteDotCount > 0 {
-            let dots = min(6, state.noteDotCount)
-            let multiplier = 2.0 - (1.0 / pow(2.0, Double(dots)))
-            durationTicks *= multiplier
-        }
-
-        if let actual = state.noteTimeModificationActualNotes,
-           let normal = state.noteTimeModificationNormalNotes,
-           actual > 0,
-           normal > 0
-        {
-            durationTicks *= Double(normal) / Double(actual)
-        }
-
-        let ticks = Int(durationTicks.rounded())
-        return ticks > 0 ? ticks : nil
-    }
-
     func recordPerformanceNotation(elementName: String, attributes: [String: String]) {
         guard state.isInNote else { return }
         let rawElementToken = elementName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
@@ -199,15 +149,43 @@ extension MusicXMLParserDelegate {
     }
 
     func finalizeNote() {
-        let duration: Int
-        if let rawDuration = state.noteDuration {
-            duration = rawDuration
-        } else if state.noteIsGrace {
-            duration = 0
-        } else if let derivedDuration = deriveDurationTicksFromTypeAndTupletIfPossible() {
-            duration = derivedDuration
+        let noteType: MusicXMLNoteType?
+        if let typeToken = state.noteType {
+            guard let parsedType = MusicXMLNoteType(musicXMLToken: typeToken) else {
+                recordWrittenRhythmError(.unsupportedType)
+                return
+            }
+            noteType = parsedType
         } else {
+            noteType = nil
+        }
+        guard state.noteIsMeasureRest || noteType != nil else {
+            recordWrittenRhythmError(.missingType)
             return
+        }
+
+        let duration: Int
+        if state.noteIsGrace {
+            duration = 0
+        } else {
+            guard let parsedDuration = state.noteDuration else {
+                recordWrittenRhythmError(.missingDuration)
+                return
+            }
+            guard parsedDuration > 0 else {
+                recordWrittenRhythmError(.invalidDuration)
+                return
+            }
+            duration = parsedDuration
+        }
+
+        let timeModification = timeModification()
+        let writtenRhythm: MusicXMLWrittenRhythm? = noteType.map {
+            MusicXMLWrittenRhythm(
+                noteType: $0,
+                dotCount: state.noteDotCount,
+                timeModification: timeModification
+            )
         }
 
         let currentTick = state.partTick[state.currentPartID] ?? state.currentMeasureStartTick
@@ -235,32 +213,6 @@ extension MusicXMLParserDelegate {
             nil
         }
         let midiNote = writtenPitch.flatMap(Self.makeMIDINote)
-        let timeModification: MusicXMLTimeModification? = if state.noteTimeModificationActualNotes != nil ||
-            state.noteTimeModificationNormalNotes != nil ||
-            state.noteTimeModificationNormalType != nil ||
-            state.noteTimeModificationNormalDotCount > 0
-        {
-            MusicXMLTimeModification(
-                actualNotes: state.noteTimeModificationActualNotes,
-                normalNotes: state.noteTimeModificationNormalNotes,
-                normalTypeToken: state.noteTimeModificationNormalType,
-                normalDotCount: state.noteTimeModificationNormalDotCount
-            )
-        } else {
-            nil
-        }
-        let writtenRhythm: MusicXMLWrittenRhythm? = if state.noteType != nil ||
-            state.noteDotCount > 0 ||
-            timeModification != nil
-        {
-            MusicXMLWrittenRhythm(
-                typeToken: state.noteType,
-                dotCount: state.noteDotCount,
-                timeModification: timeModification
-            )
-        } else {
-            nil
-        }
 
         let sourceID = MusicXMLSourceNoteID(
             partID: state.currentPartID,
@@ -336,6 +288,7 @@ extension MusicXMLParserDelegate {
                 measureNumber: state.currentMeasureNumber,
                 tick: startTick,
                 durationTicks: duration,
+                hasExplicitDuration: state.noteDuration != nil,
                 writtenPitch: writtenPitch,
                 writtenRhythm: writtenRhythm,
                 noteheadToken: state.noteNoteheadToken,
@@ -388,6 +341,29 @@ extension MusicXMLParserDelegate {
             noteEndTick,
             state.partTick[state.currentPartID] ?? currentTick
         )
+    }
+
+    private func timeModification() -> MusicXMLTimeModification? {
+        if state.noteTimeModificationActualNotes != nil ||
+            state.noteTimeModificationNormalNotes != nil ||
+            state.noteTimeModificationNormalType != nil ||
+            state.noteTimeModificationNormalDotCount > 0
+        {
+            MusicXMLTimeModification(
+                actualNotes: state.noteTimeModificationActualNotes,
+                normalNotes: state.noteTimeModificationNormalNotes,
+                normalTypeToken: state.noteTimeModificationNormalType,
+                normalDotCount: state.noteTimeModificationNormalDotCount
+            )
+        } else {
+            nil
+        }
+    }
+
+    private func recordWrittenRhythmError(_ failure: MusicXMLWrittenRhythmFailure) {
+        if state.writtenRhythmError == nil {
+            state.writtenRhythmError = .invalidWrittenRhythm(failure)
+        }
     }
 
     static func makeMIDINote(_ pitch: MusicXMLWrittenPitch) -> Int? {

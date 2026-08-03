@@ -2,6 +2,7 @@ import AppKit
 @testable import HappyPianistMac
 import Testing
 
+@Suite(.serialized)
 @MainActor
 struct MacPracticeExitGuardTests {
     @Test func windowCloseWaitsForFinishAndKeepsTheWindowOpenOnFailure() async {

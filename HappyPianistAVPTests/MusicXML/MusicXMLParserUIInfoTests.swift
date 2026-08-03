@@ -18,6 +18,7 @@ struct MusicXMLParserUIInfoTests {
               <note>
                 <pitch><step>C</step><octave>4</octave></pitch>
                 <duration>1</duration>
+                <type>quarter</type>
                 <notations>
                   <technical><fingering>3</fingering></technical>
                 </notations>
@@ -51,6 +52,7 @@ struct MusicXMLParserUIInfoTests {
               <note>
                 <pitch><step>C</step><octave>4</octave></pitch>
                 <duration>1</duration>
+                <type>quarter</type>
               </note>
             </measure>
           </part>
