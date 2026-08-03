@@ -52,6 +52,7 @@ public final class MIDIPracticeSession {
     private let diagnosticsReporter: (any DiagnosticsReporting)?
     private let observationRecorder: PracticeSessionRecorder?
     private let onObservation: (@MainActor (PerformanceObservation) -> Void)?
+    private let onEvent: (@MainActor (Event) -> Void)?
 
     private var eventContinuations: [UUID: AsyncStream<Event>.Continuation] = [:]
     private var observationContinuations: [UUID: AsyncStream<PerformanceObservation>.Continuation] = [:]
@@ -72,6 +73,7 @@ public final class MIDIPracticeSession {
         diagnosticsReporter: (any DiagnosticsReporting)? = nil,
         observationRecorder: PracticeSessionRecorder? = nil,
         onObservation: (@MainActor (PerformanceObservation) -> Void)? = nil,
+        onEvent: (@MainActor (Event) -> Void)? = nil,
         consumeEvents: Bool = true
     ) {
         self.inputEventSource = inputEventSource
@@ -79,6 +81,7 @@ public final class MIDIPracticeSession {
         self.diagnosticsReporter = diagnosticsReporter
         self.observationRecorder = observationRecorder
         self.onObservation = onObservation
+        self.onEvent = onEvent
         if consumeEvents { bindStreamsIfNeeded() }
     }
 
@@ -296,6 +299,7 @@ public final class MIDIPracticeSession {
     }
 
     private func emit(_ event: Event) {
+        onEvent?(event)
         eventContinuations.values.forEach { $0.yield(event) }
     }
 }

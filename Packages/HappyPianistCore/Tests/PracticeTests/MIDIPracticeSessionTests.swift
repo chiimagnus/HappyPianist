@@ -139,6 +139,26 @@ func midiSessionKeepsLifecycleResumableWhenInputEffectsFlushFails() async {
     session.shutdown()
 }
 
+@Test
+@MainActor
+func midiSessionInvokesInjectedHostEffectsForAcceptedEvents() async {
+    let source = TestMIDIInputEventSource()
+    let matcher = RecordingMIDIPracticeMatcher()
+    let probe = EventProbe()
+    let session = MIDIPracticeSession(
+        inputEventSource: source,
+        matcher: matcher,
+        onEvent: { probe.record($0) }
+    )
+
+    session.update(configuration: configuration(stepIndex: 0, note: 60))
+    probe.events.removeAll()
+    source.send(noteOn: 60, uptimeSeconds: ProcessInfo.processInfo.systemUptime + 1)
+
+    #expect(await settles { probe.events == [.attemptEvaluated, .advanceToNextStep] })
+    session.shutdown()
+}
+
 @MainActor
 private func configuration(stepIndex: Int, note: Int) -> MIDIPracticeSession.Configuration {
     MIDIPracticeSession.Configuration(
@@ -169,6 +189,27 @@ private func settles(_ condition: @MainActor () -> Bool) async -> Bool {
 private final class TerminationProbe {
     var inputWasStoppedBeforeOutput = false
     var events: [String] = []
+}
+
+@MainActor
+private final class EventProbe {
+    enum Event: Equatable {
+        case attemptEvaluated
+        case advanceToNextStep
+    }
+
+    var events: [Event] = []
+
+    func record(_ event: MIDIPracticeSession.Event) {
+        switch event {
+        case .attemptEvaluated:
+            events.append(.attemptEvaluated)
+        case .advanceToNextStep:
+            events.append(.advanceToNextStep)
+        case .inputRunning, .inputCapabilitiesAvailable, .inputDiscontinuity:
+            break
+        }
+    }
 }
 
 @MainActor

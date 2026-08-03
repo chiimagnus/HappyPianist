@@ -40,7 +40,6 @@ final class MacPracticeViewModel {
     private var takeRecorder = RecordingTakeRecorder()
     private var pendingTake: RecordingTake?
     private var takePlaybackOutputEndpointID: Int32?
-    @ObservationIgnored private var midiEventTask: Task<Void, Never>?
     @ObservationIgnored private var manualReplayTask: Task<Void, Never>?
     @ObservationIgnored private var passageAnalysisTask: Task<Void, Never>?
     private var loadedSongID: UUID?
@@ -297,16 +296,21 @@ final class MacPracticeViewModel {
         )
         state = .guiding
         errorMessage = nil
+        inputGeneration &+= 1
+        let sessionInputGeneration = inputGeneration
         let session = MIDIPracticeSession(
             inputEventSource: input,
             diagnosticsReporter: diagnosticsReporter,
             observationRecorder: sessionRecorder,
             onObservation: { [weak self] observation in
                 self?.recordTakeObservation(observation)
+            },
+            onEvent: { [weak self] event in
+                guard let self, self.inputGeneration == sessionInputGeneration else { return }
+                self.handle(event)
             }
         )
         midiSession = session
-        let sessionInputGeneration = bind(session: session)
         midiSettingsViewModel.onSelectedInputLoss = { [weak self, weak session] in
             Task { @MainActor [weak self] in
                 guard let self,
@@ -425,24 +429,6 @@ final class MacPracticeViewModel {
                 self.errorMessage = "无法回放所选练习范围。请检查所选 MIDI 输出。"
             }
         }
-    }
-
-    @discardableResult
-    private func bind(session: MIDIPracticeSession) -> Int {
-        midiEventTask?.cancel()
-        inputGeneration &+= 1
-        let generation = inputGeneration
-        midiEventTask = Task { [weak self, weak session] in
-            guard let session else { return }
-            for await event in session.events() {
-                guard let self,
-                      self.inputGeneration == generation,
-                      self.midiSession === session
-                else { return }
-                self.handle(event)
-            }
-        }
-        return generation
     }
 
     private func handle(_ event: MIDIPracticeSession.Event) {
@@ -576,8 +562,6 @@ final class MacPracticeViewModel {
         loadGeneration &+= 1
         inputGeneration &+= 1
         await cancelPassageAnalysis()
-        midiEventTask?.cancel()
-        midiEventTask = nil
         await takePlaybackViewModel.stop()
         await takePlaybackViewModel.replaceController(nil)
         takePlaybackOutputEndpointID = nil
@@ -598,8 +582,6 @@ final class MacPracticeViewModel {
     private func stopActiveInputForRoundReconfiguration() async {
         await cancelPassageAnalysis()
         inputGeneration &+= 1
-        midiEventTask?.cancel()
-        midiEventTask = nil
         await stopReferencePlayback()
         midiSession?.shutdown()
         midiSession = nil
@@ -875,8 +857,6 @@ final class MacPracticeViewModel {
     private func retireCompletedInput(_ midiSession: MIDIPracticeSession) {
         guard self.midiSession === midiSession else { return }
         inputGeneration &+= 1
-        midiEventTask?.cancel()
-        midiEventTask = nil
         midiSession.shutdown()
         self.midiSession = nil
         midiSettingsViewModel.onSelectedInputLoss = nil
