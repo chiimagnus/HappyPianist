@@ -36,6 +36,8 @@ struct MacAppGraph {
         )
         let progressRepository = FilePracticeProgressRepository()
         let outputService = CoreMIDIOutputService(diagnosticsReporter: diagnosticsReporter)
+        let practiceSettingsProvider: any PracticeSessionSettingsProviderProtocol = UserDefaultsPracticeSessionSettingsProvider()
+        let practiceRoundDefaultsStore: any PracticeRoundDefaultsStoreProtocol = UserDefaultsPracticeRoundDefaultsStore()
         let preparationService: any PracticePreparationServiceProtocol = PracticePreparationService(
             diagnosticsReporter: diagnosticsReporter
         )
@@ -94,6 +96,8 @@ struct MacAppGraph {
                         diagnosticsReporter: diagnosticsReporter
                     )
                 },
+                settingsProvider: practiceSettingsProvider,
+                roundDefaultsStore: practiceRoundDefaultsStore,
                 diagnosticsReporter: diagnosticsReporter
             )
         )

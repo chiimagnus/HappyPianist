@@ -8,6 +8,7 @@ struct MacPracticeView: View {
     let songID: UUID
     @Bindable var viewModel: MacPracticeViewModel
     @Environment(\.dismiss) private var dismiss
+    @State private var isSettingsPresented = false
 
     var body: some View {
         Group {
@@ -44,6 +45,11 @@ struct MacPracticeView: View {
         }
         .navigationTitle("MIDI 练习")
         .toolbar {
+            Button("练习设置", systemImage: "slider.horizontal.3") {
+                isSettingsPresented = true
+            }
+            .disabled(viewModel.preparedPractice == nil)
+
             Button("返回曲库") {
                 Task { await returnToLibrary() }
             }
@@ -56,6 +62,15 @@ struct MacPracticeView: View {
                 _ = await viewModel.returnToLibrary()
             }
         }
+        .sheet(isPresented: $isSettingsPresented) {
+            if let prepared = viewModel.preparedPractice {
+                MacPracticeSettingsView(
+                    roundConfigurationController: viewModel.roundConfigurationController,
+                    measureSpans: prepared.measureSpans,
+                    onApply: { await viewModel.applyPendingRoundConfiguration() }
+                )
+            }
+        }
     }
 
     private var practiceContent: some View {
@@ -65,7 +80,13 @@ struct MacPracticeView: View {
                     projection: prepared.notationProjection,
                     measureSpans: prepared.measureSpans,
                     context: GrandStaffNotationContext(),
-                    scrollTickProvider: { Double(prepared.steps[viewModel.currentStepIndex].tick) }
+                    scrollTickProvider: {
+                        let lastStepIndex = prepared.steps.index(before: prepared.steps.endIndex)
+                        let stepIndex = prepared.steps.indices.contains(viewModel.currentStepIndex)
+                            ? viewModel.currentStepIndex
+                            : lastStepIndex
+                        return Double(prepared.steps[stepIndex].tick)
+                    }
                 )
                 .containerRelativeFrame(.vertical, count: 3, span: 2, spacing: 16)
 

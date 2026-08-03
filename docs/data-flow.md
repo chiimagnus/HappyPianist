@@ -69,6 +69,7 @@ Library selection
 - active configuration 在一轮中不可变；pending 设置只影响下一轮。
 - active range 同时约束 step 导航、谱面 viewport、琴键高亮、autoplay、manual replay 和完成边界。
 - 恢复后停在 ready/paused，不自动发声；无效 passage/resume 回退到当前曲谱整首并 checkpoint。
+- macOS 通过共享 `PracticeRoundConfigurationController` 应用 passage、hand、tempo、loop 和 required successes；应用时先失效旧 MIDI generation、停止旧输入，再从新 active range 的首步重建同一 visit。exact configuration/resume 直接恢复；无效状态按同一共享规则修复并写回，且不丢失已批准的小节 facts。macOS 不接入麦克风音频识别；没有 selected output 只隐藏参考音，不阻断 MIDI 输入。
 
 ## 输入、对齐与指导
 

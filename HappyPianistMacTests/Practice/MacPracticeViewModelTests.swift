@@ -2,6 +2,7 @@ import Diagnostics
 import Foundation
 import Library
 import MIDI
+import MusicXML
 import Practice
 @testable import HappyPianistMac
 import Testing
@@ -98,6 +99,141 @@ struct MacPracticeViewModelTests {
         #expect(facts.successfulAttempts == 1)
         #expect(facts.failedAttempts == 1)
     }
+
+    @Test func appliedRoundConfigurationRestartsTheSelectedPassageAndRestoresExactly() async throws {
+        let fixture = try MacPracticeFixture(hasSelectedOutput: true, hasTwoMeasures: true)
+        defer { fixture.removeTemporaryRoot() }
+
+        await fixture.viewModel.load(songID: fixture.songID)
+        let prepared = try #require(fixture.viewModel.preparedPractice)
+        let selectedPassage = try #require(PracticePassage(
+            start: prepared.measureSpans[1].occurrenceID,
+            end: prepared.measureSpans[1].occurrenceID
+        ))
+        let expectedConfiguration = PracticeRoundConfiguration(
+            passage: selectedPassage,
+            handMode: .right,
+            tempoScale: 0.75,
+            loopEnabled: false,
+            requiredSuccesses: 3
+        )
+        let controller = fixture.viewModel.roundConfigurationController
+        controller.pendingPassage = selectedPassage
+        controller.pendingHandMode = expectedConfiguration.handMode
+        controller.pendingTempoScale = expectedConfiguration.tempoScale
+        controller.pendingLoopEnabled = expectedConfiguration.loopEnabled
+        controller.pendingRequiredSuccesses = expectedConfiguration.requiredSuccesses
+
+        #expect(await fixture.viewModel.applyPendingRoundConfiguration())
+        #expect(fixture.viewModel.currentStepIndex == 1)
+
+        await fixture.viewModel.playCurrentStepReference()
+        #expect(fixture.referencePlayback.oneShotCommands.map(\.kind) == [.noteOn(midi: 72, velocity: 96)])
+
+        let identity = prepared.identity
+        #expect(await fixture.viewModel.returnToLibrary())
+        let saved = try #require(await fixture.progressRepository.progress(for: identity))
+        #expect(saved.activeConfiguration == expectedConfiguration)
+        #expect(saved.resumePoint == nil)
+
+        await fixture.viewModel.load(songID: fixture.songID)
+        #expect(fixture.viewModel.state == .guiding)
+        #expect(fixture.viewModel.currentStepIndex == 1)
+    }
+
+    @Test func loopedPassageRestartsAndPersistsItsFirstStepAsTheResumePoint() async throws {
+        let fixture = try MacPracticeFixture(hasTwoMeasures: true)
+        defer { fixture.removeTemporaryRoot() }
+
+        await fixture.viewModel.load(songID: fixture.songID)
+        let prepared = try #require(fixture.viewModel.preparedPractice)
+        let fullPassage = try #require(PracticePassage(
+            start: prepared.measureSpans[0].occurrenceID,
+            end: prepared.measureSpans[1].occurrenceID
+        ))
+        let controller = fixture.viewModel.roundConfigurationController
+        controller.pendingPassage = fullPassage
+        controller.pendingHandMode = .both
+        controller.pendingLoopEnabled = true
+        controller.pendingRequiredSuccesses = 1
+
+        #expect(await fixture.viewModel.applyPendingRoundConfiguration())
+        fixture.input.yield(note: 48)
+        #expect(await eventually { fixture.viewModel.currentStepIndex == 1 })
+        fixture.input.yield(note: 72)
+        #expect(await eventually { fixture.viewModel.currentStepIndex == 0 })
+        #expect(fixture.viewModel.state == .guiding)
+
+        #expect(await fixture.viewModel.returnToLibrary())
+        let progress = try #require(await fixture.progressRepository.progress(for: prepared.identity))
+        #expect(progress.resumePoint?.occurrenceID == prepared.measureSpans[0].occurrenceID)
+        #expect(progress.resumePoint?.stepIndex == 0)
+    }
+
+    @Test func invalidExactRestoreRepairsConfigurationWithoutDiscardingMeasureFacts() async throws {
+        let fixture = try MacPracticeFixture(hasTwoMeasures: true)
+        defer { fixture.removeTemporaryRoot() }
+
+        await fixture.viewModel.load(songID: fixture.songID)
+        let prepared = try #require(fixture.viewModel.preparedPractice)
+        #expect(await fixture.viewModel.returnToLibrary())
+
+        let missingSource = PracticeSourceMeasureID(
+            partID: "P1",
+            sourceMeasureIndex: 99,
+            sourceNumberToken: "100"
+        )
+        let missingOccurrence = PracticeMeasureOccurrenceID(
+            sourceMeasureID: missingSource,
+            occurrenceIndex: 99
+        )
+        let invalidPassage = try #require(PracticePassage(
+            start: missingOccurrence,
+            end: missingOccurrence
+        ))
+        let retainedFact = MeasurePracticeFacts(
+            sourceMeasureID: prepared.measureSpans[0].occurrenceID.sourceMeasureID,
+            handMode: .both,
+            state: .learning,
+            successfulAttempts: 1
+        )
+        try await fixture.progressRepository.upsert(SongPracticeProgress(
+            identity: prepared.identity,
+            activeConfiguration: PracticeRoundConfiguration(
+                passage: invalidPassage,
+                handMode: .left,
+                tempoScale: 0.75,
+                loopEnabled: true,
+                requiredSuccesses: 3
+            ),
+            resumePoint: PracticeResumePoint(
+                occurrenceID: missingOccurrence,
+                stepIndex: 99,
+                updatedAt: .now
+            ),
+            measureFacts: [retainedFact],
+            updatedAt: .now
+        ))
+
+        await fixture.viewModel.load(songID: fixture.songID)
+
+        let fullPassage = try #require(PracticePassage(
+            start: prepared.measureSpans[0].occurrenceID,
+            end: prepared.measureSpans[1].occurrenceID
+        ))
+        let repaired = try #require(await fixture.progressRepository.progress(for: prepared.identity))
+        #expect(fixture.viewModel.state == .guiding)
+        #expect(fixture.viewModel.currentStepIndex == 0)
+        #expect(repaired.activeConfiguration == PracticeRoundConfiguration(
+            passage: fullPassage,
+            handMode: .both,
+            tempoScale: 1,
+            loopEnabled: false,
+            requiredSuccesses: 1
+        ))
+        #expect(repaired.resumePoint == nil)
+        #expect(repaired.measureFacts == [retainedFact])
+    }
 }
 
 @MainActor
@@ -121,11 +257,11 @@ private final class MacPracticeFixture {
     let viewModel: MacPracticeViewModel
     let referencePlayback = PracticeFakePlaybackService()
 
-    init(hasSelectedOutput: Bool = false) throws {
+    init(hasSelectedOutput: Bool = false, hasTwoMeasures: Bool = false) throws {
         temporaryRoot = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: temporaryRoot, withIntermediateDirectories: true)
         let scoreURL = temporaryRoot.appending(path: "fixture.musicxml")
-        try Data(Self.score.utf8).write(to: scoreURL)
+        try Data((hasTwoMeasures ? Self.twoMeasureScore : Self.score).utf8).write(to: scoreURL)
         let entry = SongLibraryEntry(
             id: songID,
             displayName: "Fixture",
@@ -168,7 +304,9 @@ private final class MacPracticeFixture {
             progressRecovery: progressRepository,
             sessionRecorder: recorder,
             midiSettingsViewModel: settingsViewModel,
-            makeReferencePlaybackService: { [referencePlayback] _ in referencePlayback }
+            makeReferencePlaybackService: { [referencePlayback] _ in referencePlayback },
+            settingsProvider: PracticeFakeSessionSettingsProvider(),
+            roundDefaultsStore: PracticeFakeRoundDefaultsStore()
         )
     }
 
@@ -182,6 +320,41 @@ private final class MacPracticeFixture {
       <part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes><note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note></measure></part>
     </score-partwise>
     """
+
+    private static let twoMeasureScore = """
+    <score-partwise version="4.0">
+      <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
+      <part id="P1">
+        <measure number="1"><attributes><divisions>1</divisions></attributes><note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration><type>quarter</type></note></measure>
+        <measure number="2"><note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note></measure>
+      </part>
+    </score-partwise>
+    """
+}
+
+private struct PracticeFakeSessionSettingsProvider: PracticeSessionSettingsProviderProtocol {
+    let manualAdvanceMode: ManualAdvanceMode = .step
+    let practiceHandMode: PracticeHandMode = .both
+    let soundRoutingSettings = PracticeSoundRoutingSettings(
+        outputRoute: .localSampler,
+        midiDestinationUniqueID: nil,
+        sendLocalControlOff: false
+    )
+}
+
+private final class PracticeFakeRoundDefaultsStore: PracticeRoundDefaultsStoreProtocol {
+    let tempoScale = 1.0
+    let loopEnabled = false
+    let requiredSuccesses = 1
+
+    func save(
+        handMode _: PracticeHandMode,
+        manualAdvanceMode _: ManualAdvanceMode,
+        soundRoutingSettings _: PracticeSoundRoutingSettings,
+        tempoScale _: Double,
+        loopEnabled _: Bool,
+        requiredSuccesses _: Int
+    ) {}
 }
 
 @MainActor
