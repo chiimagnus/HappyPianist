@@ -29,6 +29,22 @@ func midiSessionRejectsStaleEventsAfterConfigurationGenerationChanges() async {
 
 @Test
 @MainActor
+func midiSessionResetsMatcherWhenExpectedNotesChangeWithinTheSameStep() {
+    let source = TestMIDIInputEventSource()
+    let matcher = RecordingMIDIPracticeMatcher()
+    let session = MIDIPracticeSession(inputEventSource: source, matcher: matcher)
+
+    session.update(configuration: configuration(stepIndex: 0, note: 60))
+    session.update(configuration: configuration(stepIndex: 0, note: 62))
+
+    #expect(source.startCount == 1)
+    #expect(matcher.resetNotes == [[60], [62]])
+
+    session.shutdown()
+}
+
+@Test
+@MainActor
 func midiSessionResetsOnDiscontinuityAndFinishesOnShutdown() async {
     let source = TestMIDIInputEventSource()
     let matcher = RecordingMIDIPracticeMatcher()
@@ -133,6 +149,7 @@ private final class TerminationProbe {
 @MainActor
 private final class RecordingMIDIPracticeMatcher: MIDIPracticeStepMatchingProtocol {
     private(set) var resets: [Int] = []
+    private(set) var resetNotes: [[Int]] = []
     private(set) var observations: [PerformanceObservation] = []
 
     var observedMIDINotes: [Int] {
@@ -142,8 +159,9 @@ private final class RecordingMIDIPracticeMatcher: MIDIPracticeStepMatchingProtoc
         }
     }
 
-    func reset(stepIndex: Int, expectedNotes _: [PracticeStepNote]) {
+    func reset(stepIndex: Int, expectedNotes: [PracticeStepNote]) {
         resets.append(stepIndex)
+        resetNotes.append(expectedNotes.map(\.midiNote))
     }
 
     func register(_ observation: PerformanceObservation) -> StepAttemptMatchResult? {

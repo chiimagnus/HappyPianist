@@ -58,7 +58,7 @@ public final class MIDIPracticeSession {
     private var configuration: Configuration?
     private var activeSourceGeneration: UInt64?
     private var activeSinceUptimeSeconds: TimeInterval?
-    private var lastResetStepIndex: Int?
+    private var lastMatcherConfiguration: Configuration?
     private var isInputRunning = false
     private var hasShutdown = false
 
@@ -116,7 +116,7 @@ public final class MIDIPracticeSession {
         }
         guard let inputEventSource else { return }
 
-        if lastResetStepIndex != configuration.currentStepIndex {
+        if lastMatcherConfiguration != configuration {
             resetMatcher(
                 stepIndex: configuration.currentStepIndex,
                 expectedNotes: configuration.expectedNotes
@@ -217,13 +217,13 @@ public final class MIDIPracticeSession {
         activeSinceUptimeSeconds = ProcessInfo.processInfo.systemUptime
         activeSourceGeneration = UInt64(max(0, generation))
         matcher.reset(stepIndex: stepIndex, expectedNotes: expectedNotes)
-        lastResetStepIndex = stepIndex
+        lastMatcherConfiguration = configuration
     }
 
     private func resetMatchingState() {
-        guard activeSinceUptimeSeconds != nil || lastResetStepIndex != nil || isInputRunning else { return }
+        guard activeSinceUptimeSeconds != nil || lastMatcherConfiguration != nil || isInputRunning else { return }
         activeSinceUptimeSeconds = nil
-        lastResetStepIndex = nil
+        lastMatcherConfiguration = nil
         generation &+= 1
         observationAdapter.resetClockCalibration()
         matcher.reset(stepIndex: -1, expectedNotes: [])
