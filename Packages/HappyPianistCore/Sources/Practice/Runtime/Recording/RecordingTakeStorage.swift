@@ -1,34 +1,34 @@
+import Diagnostics
 import Foundation
 import MIDI
-import Practice
 
-enum RecordingTakeLibraryPathsError: Error {
+public enum RecordingTakeLibraryPathsError: Error {
     case documentsUnavailable
 }
 
-enum RecordingTakeLibraryLayout {
-    static let rootDirectoryName = "TakeLibrary"
-    static let takesFileName = "takes.json"
-}
+public struct RecordingTakeLibraryPaths {
+    private enum Layout {
+        static let rootDirectoryName = "TakeLibrary"
+        static let takesFileName = "takes.json"
+    }
 
-struct RecordingTakeLibraryPaths {
     private let fileManager: FileManager
 
-    init(fileManager: FileManager = .default) {
+    public init(fileManager: FileManager = .default) {
         self.fileManager = fileManager
     }
 
-    func rootDirectoryURL() throws -> URL {
+    public func rootDirectoryURL() throws -> URL {
         try documentsDirectoryURL()
-            .appending(path: RecordingTakeLibraryLayout.rootDirectoryName, directoryHint: .isDirectory)
+            .appending(path: Layout.rootDirectoryName, directoryHint: .isDirectory)
     }
 
-    func takesFileURL() throws -> URL {
+    public func takesFileURL() throws -> URL {
         try rootDirectoryURL()
-            .appending(path: RecordingTakeLibraryLayout.takesFileName)
+            .appending(path: Layout.takesFileName)
     }
 
-    func ensureDirectoriesExist() throws {
+    public func ensureDirectoriesExist() throws {
         try fileManager.createDirectory(at: rootDirectoryURL(), withIntermediateDirectories: true)
     }
 
@@ -40,21 +40,21 @@ struct RecordingTakeLibraryPaths {
     }
 }
 
-protocol RecordingTakeStoreProtocol {
+public protocol RecordingTakeStoreProtocol {
     func load() throws -> [RecordingTake]
     func save(_ takes: [RecordingTake]) throws
 }
 
-struct RecordingTakeStore: RecordingTakeStoreProtocol {
+public struct RecordingTakeStore: RecordingTakeStoreProtocol {
     private let fileManager: FileManager
     private let paths: RecordingTakeLibraryPaths
 
-    init(fileManager: FileManager = .default, paths: RecordingTakeLibraryPaths? = nil) {
+    public init(fileManager: FileManager = .default, paths: RecordingTakeLibraryPaths? = nil) {
         self.fileManager = fileManager
         self.paths = paths ?? RecordingTakeLibraryPaths(fileManager: fileManager)
     }
 
-    func load() throws -> [RecordingTake] {
+    public func load() throws -> [RecordingTake] {
         try paths.ensureDirectoriesExist()
         let takesFileURL = try paths.takesFileURL()
 
@@ -83,7 +83,7 @@ struct RecordingTakeStore: RecordingTakeStoreProtocol {
         }
     }
 
-    func save(_ takes: [RecordingTake]) throws {
+    public func save(_ takes: [RecordingTake]) throws {
         try paths.ensureDirectoriesExist()
         let takesFileURL = try paths.takesFileURL()
 
@@ -100,23 +100,28 @@ struct RecordingTakeStore: RecordingTakeStoreProtocol {
     }
 }
 
-struct RecordingMIDIExport: Equatable {
-    let data: Data
-    let fileName: String
+public struct RecordingMIDIExport: Equatable {
+    public let data: Data
+    public let fileName: String
+
+    public init(data: Data, fileName: String) {
+        self.data = data
+        self.fileName = fileName
+    }
 }
 
-protocol RecordingMIDIExportServiceProtocol {
+public protocol RecordingMIDIExportServiceProtocol {
     func makeMIDIExport(from take: RecordingTake) throws -> RecordingMIDIExport
 }
 
-struct RecordingMIDIExportService: RecordingMIDIExportServiceProtocol {
+public struct RecordingMIDIExportService: RecordingMIDIExportServiceProtocol {
     private let sequenceAdapter: RecordingTakeSequenceAdapter
 
-    init(sequenceAdapter: RecordingTakeSequenceAdapter = RecordingTakeSequenceAdapter()) {
+    public init(sequenceAdapter: RecordingTakeSequenceAdapter = RecordingTakeSequenceAdapter()) {
         self.sequenceAdapter = sequenceAdapter
     }
 
-    func makeMIDIExport(from take: RecordingTake) throws -> RecordingMIDIExport {
+    public func makeMIDIExport(from take: RecordingTake) throws -> RecordingMIDIExport {
         let sequence = try sequenceAdapter.buildSequence(from: take)
         return RecordingMIDIExport(
             data: sequence.midiData,
@@ -133,46 +138,46 @@ struct RecordingMIDIExportService: RecordingMIDIExportServiceProtocol {
     }
 }
 
-struct MIDIRecordingAdapter {
+public struct MIDIRecordingAdapter {
     private var observationAdapter = MIDIPerformanceObservationAdapter()
     private var generation: UInt64 = 0
 
-    init() {}
+    public init() {}
 
-    mutating func beginRecording() {
+    public mutating func beginRecording() {
         generation &+= 1
         observationAdapter.resetClockCalibration()
     }
 
-    mutating func observation(for event: MIDI1InputEvent) -> PerformanceObservation {
+    public mutating func observation(for event: MIDI1InputEvent) -> PerformanceObservation {
         observationAdapter.observation(for: event, generation: generation)
     }
 
-    mutating func observation(for event: MIDI2InputEvent) -> PerformanceObservation {
+    public mutating func observation(for event: MIDI2InputEvent) -> PerformanceObservation {
         observationAdapter.observation(for: event, generation: generation)
     }
 
-    mutating func record(_ observation: PerformanceObservation, into recorder: inout RecordingTakeRecorder) {
+    public mutating func record(_ observation: PerformanceObservation, into recorder: inout RecordingTakeRecorder) {
         recorder.record(observation)
     }
 
-    mutating func record(event: MIDI1InputEvent, into recorder: inout RecordingTakeRecorder) {
+    public mutating func record(event: MIDI1InputEvent, into recorder: inout RecordingTakeRecorder) {
         record(observation(for: event), into: &recorder)
     }
 
-    mutating func record(event: MIDI2InputEvent, into recorder: inout RecordingTakeRecorder) {
+    public mutating func record(event: MIDI2InputEvent, into recorder: inout RecordingTakeRecorder) {
         record(observation(for: event), into: &recorder)
     }
 }
 
-struct RecordingTakeSequenceAdapter {
+public struct RecordingTakeSequenceAdapter {
     private let builder: PracticeSequencerSequenceBuilder
 
-    init(builder: PracticeSequencerSequenceBuilder = PracticeSequencerSequenceBuilder()) {
+    public init(builder: PracticeSequencerSequenceBuilder = PracticeSequencerSequenceBuilder()) {
         self.builder = builder
     }
 
-    func makeMIDISchedule(from take: RecordingTake) -> [PracticeSequencerMIDIEvent] {
+    public func makeMIDISchedule(from take: RecordingTake) -> [PracticeSequencerMIDIEvent] {
         take.events.map { event in
             switch event.kind {
             case let .noteOn(midi, velocity):
@@ -224,13 +229,13 @@ struct RecordingTakeSequenceAdapter {
         }
     }
 
-    func buildSequence(from take: RecordingTake) throws -> PracticeSequencerSequence {
+    public func buildSequence(from take: RecordingTake) throws -> PracticeSequencerSequence {
         let schedule = makeMIDISchedule(from: take)
         return try builder.buildSequence(from: schedule)
     }
 }
 
-extension RecordingTake {
+public extension RecordingTake {
     func alignmentObservations() -> [PerformanceObservation]? {
         let observations = events.compactMap { event in
             event.observation?.rebasedForAlignment(at: event.time)

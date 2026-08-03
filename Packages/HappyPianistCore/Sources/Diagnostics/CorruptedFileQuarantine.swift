@@ -1,8 +1,8 @@
 import Foundation
 
-enum CorruptedFileQuarantine {
+public enum CorruptedFileQuarantine {
     @discardableResult
-    static func move(
+    public static func move(
         _ fileURL: URL,
         fileManager: FileManager = .default
     ) throws -> URL {

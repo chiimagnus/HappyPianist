@@ -27,7 +27,7 @@ Models / Contracts
 
 `MIDI` 只依赖 `Diagnostics`，拥有 CoreMIDI transport 与稳定端点契约；Practice、录制和 AI 只消费其事件/输出协议，不得反向依赖 CoreMIDI 实现。
 
-`Practice` 依赖 `MusicXML`、`MIDI` 与 `Diagnostics`：它拥有准备输入契约、唯一的 `ScorePerformancePlan` 及 steps、琴键和记谱投影，以及匹配、对齐、assessment、coaching、transport、progress contracts、session recorder 和共享 MIDI-only lifecycle。它只通过 `MIDI` 的契约工作，不直接导入 CoreMIDI；不得引用 App、Library、Notation、SwiftUI、RealityKit、AVAudio、音频识别或手部/虚拟琴实现。
+`Practice` 依赖 `MusicXML`、`MIDI` 与 `Diagnostics`：它拥有准备输入契约、唯一的 `ScorePerformancePlan` 及 steps、琴键和记谱投影，以及匹配、对齐、assessment、coaching、transport、progress contracts、session recorder、MIDI take（模型、JSON store、replay/export）和共享 MIDI-only lifecycle。它只通过 `MIDI` 的契约工作，不直接导入 CoreMIDI；不得引用 App、Library、Notation、SwiftUI、RealityKit、AVAudio、音频识别或手部/虚拟琴实现。
 
 `Notation` 只依赖 `Practice` 与 `MusicXML`：它拥有 Grand Staff 的 glyph、layout、Canvas/SwiftUI renderer 和 accessibility overlay，只接收 projection、overlay、measure spans、context 与 hand mode。它不得引用 session navigation、progress、Library、AR/RealityKit 或 piano-key tint types；Practice 不得反向引用 Notation。
 
@@ -42,10 +42,10 @@ Models / Contracts
 | App 与窗口 | `HappyPianistAVPApp`、`AppState` | Library 是入口；preparation 与 practice 是单层 pushed window；immersive space 只承载空间内容。 |
 | 组合根 | `LiveAppGraph` | 共享的 index store、曲库 provider、progress repository、diagnostics reporter 与 practice recorder 不在 ViewModel 内重新创建。 |
 | macOS host | `HappyPianistMacApp`、`MacAppGraph`、`MacPracticeViewModel` | 独立沙盒、空 bundled library 和初始导入入口；Mac ViewModel 只绑定 Library resolver、`PracticeRoundSessionController`、MIDI endpoint effect 与 Notation，不复制 reducer、progress 或 playback lifecycle。 |
-| 诊断根 | `Packages/HappyPianistCore/Sources/Diagnostics/` | `DiagnosticEvent`、reporter、七日文件 store、OSLog sink 与用户归档；不包含音频、AR、Practice 投影或输出指标。 |
+| 诊断根 | `Packages/HappyPianistCore/Sources/Diagnostics/` | `DiagnosticEvent`、reporter、七日文件 store、OSLog sink、损坏文件隔离与用户归档；不包含音频、AR、Practice 投影或输出指标。 |
 | 曲谱根 | `Packages/HappyPianistCore/Sources/MusicXML/` | MusicXML/MXL 解析、结构扩展、模型与安全限制；输入失败以本模块 typed error 表示，不反向依赖 Practice。 |
 | MIDI 根 | `Packages/HappyPianistCore/Sources/MIDI/` | 输入/输出 transport、endpoint ID、CoreMIDI route 与输出指标；不包含练习匹配、录制、AI 或界面。 |
-| 练习核心 | `Packages/HappyPianistCore/Sources/Practice/` | MusicXML preparation、performance plan、步骤/琴键/记谱投影、运行时 facts/reducers、MIDI-only lifecycle 和 progress contracts；不包含曲库文件实现、SwiftUI、RealityKit、AVAudio、音频识别或手部/虚拟琴。 |
+| 练习核心 | `Packages/HappyPianistCore/Sources/Practice/` | MusicXML preparation、performance plan、步骤/琴键/记谱投影、运行时 facts/reducers、MIDI-only lifecycle、take 录制/持久化/回放/导出和 progress contracts；不包含曲库文件实现、SwiftUI、RealityKit、AVAudio、音频识别或手部/虚拟琴。 |
 | 记谱根 | `Packages/HappyPianistCore/Sources/Notation/` | Grand Staff 的 glyph、layout、rendering、SwiftUI view 与无障碍描述；仅消费 Practice/MusicXML projection，不反向进入 session、progress、Library 或空间功能。 |
 | 曲库核心 | `Packages/HappyPianistCore/Sources/Library/` | index、路径、文件、导入/恢复、entry resolver、bootstrap 与 `progress-v1.json` file repository；只依赖 Practice/MusicXML/Diagnostics。 |
 | 曲库 App 边界 | `SongLibraryViewModel`、`BundledSongLibraryProvider`、audio services、presentation builders | selection 是内存 intent；`Bundle.main`、音频和 SwiftUI presentation 留在 App，所有持久化事务委托 Library actors。 |

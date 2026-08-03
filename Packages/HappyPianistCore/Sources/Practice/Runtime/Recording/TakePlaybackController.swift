@@ -1,19 +1,18 @@
 import Foundation
-import Practice
 
 @MainActor
-final class TakePlaybackController {
+public final class TakePlaybackController {
     private let playbackService: PracticeSequencerPlaybackServiceProtocol
     private let adapter: RecordingTakeSequenceAdapter
 
-    private(set) var isPlaying = false
-    private(set) var currentTakeID: UUID?
+    public private(set) var isPlaying = false
+    public private(set) var currentTakeID: UUID?
     private var cachedSequence: PracticeSequencerSequence?
     private var cachedTakeID: UUID?
     private var transportGeneration = 0
-    var pausePositionSeconds: TimeInterval?
+    public var pausePositionSeconds: TimeInterval?
 
-    init(
+    public init(
         playbackService: PracticeSequencerPlaybackServiceProtocol,
         adapter: RecordingTakeSequenceAdapter = RecordingTakeSequenceAdapter()
     ) {
@@ -21,7 +20,7 @@ final class TakePlaybackController {
         self.adapter = adapter
     }
 
-    func play(take: RecordingTake) async throws {
+    public func play(take: RecordingTake) async throws {
         transportGeneration &+= 1
         let generation = transportGeneration
         let sequence = try cachedSequence(for: take)
@@ -36,7 +35,7 @@ final class TakePlaybackController {
         pausePositionSeconds = nil
     }
 
-    func pause() async {
+    public func pause() async {
         guard isPlaying else { return }
         transportGeneration &+= 1
         let generation = transportGeneration
@@ -48,7 +47,7 @@ final class TakePlaybackController {
         isPlaying = false
     }
 
-    func resume() async throws {
+    public func resume() async throws {
         guard let position = pausePositionSeconds else { return }
         transportGeneration &+= 1
         let generation = transportGeneration
@@ -58,7 +57,7 @@ final class TakePlaybackController {
         pausePositionSeconds = nil
     }
 
-    func stop() async {
+    public func stop() async {
         transportGeneration &+= 1
         isPlaying = false
         currentTakeID = nil
@@ -66,7 +65,7 @@ final class TakePlaybackController {
         await playbackService.stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
     }
 
-    func seek(toSeconds seconds: TimeInterval) async throws {
+    public func seek(toSeconds seconds: TimeInterval) async throws {
         guard let takeID = currentTakeID, let sequence = cachedSequence, cachedTakeID == takeID
         else { return }
         transportGeneration &+= 1
@@ -81,7 +80,7 @@ final class TakePlaybackController {
         pausePositionSeconds = nil
     }
 
-    func currentSeconds() async -> TimeInterval {
+    public func currentSeconds() async -> TimeInterval {
         guard isPlaying else { return pausePositionSeconds ?? 0 }
         let generation = transportGeneration
         let position = await playbackService.currentSeconds()

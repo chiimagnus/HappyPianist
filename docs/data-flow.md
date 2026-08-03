@@ -131,7 +131,7 @@ ScorePerformancePlan
 ```
 
 - range、seek、loop、stop、interruption 和 route change 共享 reset 规则：逐 identity note-off、踏板归零、all-notes-off、all-sound-off。
-- `RecordingTakeRecorder` 从 canonical observation 记录可重放事件；target audio 因缺少可靠逐音 release/velocity 不进入 MIDI take。
+- `Practice` 的 `RecordingTakeRecorder` 从 canonical observation 记录可重放事件；`TakePlaybackController` 用同一 transport generation 在取消后阻止过期 load/play。target audio 因缺少可靠逐音 release/velocity 不进入 MIDI take。
 - visionOS 的 CoreMIDI 输入明确使用 `.allCurrentSources`；macOS 只启动用户选定的单个稳定 endpoint unique ID，设备枚举 index 和显示名不参与选择或持久化。所选输入断开即停止、递增 generation 并要求用户重新连接或重新选择，绝不回退到别的输入。
 - macOS 输出是可选的 stable endpoint unique ID：缺失或断开只禁用回放，不影响输入判定。manual replay 以 `AutoplayPerformanceTimeline` 与 `PlaybackSequenceBuilder` 输出完整 active range，含 tempo、controller、边界 note-off 与 full reset；开始时关闭 attempt acceptance，取消/结束后按 generation 恢复。更换输出前先取消旧目标未来事件，并向全部通道发送 all-notes-off 与 all-sound-off 后释放旧输出；设备显示名和原始 MIDI 不写入设置或进度。
 - macOS selected-input loss 先使 session 不再接受 observation，再经共享 session 完成 reset/flush、已接受 observation drain 与 approved measure facts flush；完成或明确返回后只恢复所选端点监测，不自动恢复练习。系统可见 endpoint 只能证明路由存在，wired/BLE、断连、输出 reset 与物理 loopback 仍需单独硬件证据。

@@ -1,8 +1,7 @@
 import Foundation
 import MIDI
-import Practice
 
-struct RecordingTakeRecorder {
+public struct RecordingTakeRecorder {
     private struct NoteRoute: Hashable {
         let sourceKind: String?
         let sourceID: String
@@ -16,20 +15,20 @@ struct RecordingTakeRecorder {
         let eventID: UUID
     }
 
-    struct OpenNote: Equatable {
+    private struct OpenNote {
         let startTime: TimeInterval
         let observation: PerformanceObservation?
     }
 
-    private(set) var isRecording = false
+    public private(set) var isRecording = false
     private var takeStart: TimeInterval = 0
     private var openNotes: [OpenNoteKey: OpenNote] = [:]
     private var events: [RecordingTakeEvent] = []
     private var metadata = RecordingTakeMetadata.unattributed
 
-    init() {}
+    public init() {}
 
-    mutating func start(
+    public mutating func start(
         now: TimeInterval,
         metadata: RecordingTakeMetadata = .unattributed
     ) {
@@ -39,7 +38,7 @@ struct RecordingTakeRecorder {
         self.metadata = metadata
     }
 
-    mutating func stop(now: TimeInterval, createdAt: Date = .now) -> RecordingTake {
+    public mutating func stop(now: TimeInterval, createdAt: Date = .now) -> RecordingTake {
         let relativeNow = max(0, now - takeStart)
 
         for (key, open) in openNotes {
@@ -57,15 +56,14 @@ struct RecordingTakeRecorder {
             )
         }
         openNotes.removeAll(keepingCapacity: true)
-
         isRecording = false
 
         let sortedEvents = events.sorted { $0.time < $1.time }
-        let name = "Take \(formattedDate(createdAt))"
+        let name = "Take \(createdAt.formatted(.dateTime.year().month(.twoDigits).day(.twoDigits).hour(.twoDigits(amPM: .omitted)).minute(.twoDigits).second(.twoDigits)))"
         return RecordingTake(name: name, createdAt: createdAt, metadata: metadata, events: sortedEvents)
     }
 
-    mutating func record(_ observation: PerformanceObservation) {
+    public mutating func record(_ observation: PerformanceObservation) {
         let now = observation.timing.host.seconds
         switch observation.event {
         case let .noteOn(note, velocity):
@@ -85,7 +83,7 @@ struct RecordingTakeRecorder {
         }
     }
 
-    mutating func recordNoteOn(
+    public mutating func recordNoteOn(
         note: Int,
         velocity: Int,
         now: TimeInterval,
@@ -125,7 +123,7 @@ struct RecordingTakeRecorder {
         )
     }
 
-    mutating func recordNoteOff(
+    public mutating func recordNoteOff(
         note: Int,
         now: TimeInterval,
         observation: PerformanceObservation? = nil
@@ -148,7 +146,7 @@ struct RecordingTakeRecorder {
         )
     }
 
-    mutating func closeAllOpenNotes(
+    public mutating func closeAllOpenNotes(
         now: TimeInterval,
         matching observation: PerformanceObservation? = nil
     ) {
@@ -177,7 +175,7 @@ struct RecordingTakeRecorder {
         }
     }
 
-    mutating func recordControlChange(
+    public mutating func recordControlChange(
         controller: Int,
         value: Int,
         now: TimeInterval,
@@ -194,7 +192,7 @@ struct RecordingTakeRecorder {
         )
     }
 
-    mutating func recordPitchBend(
+    public mutating func recordPitchBend(
         value: Int,
         now: TimeInterval,
         observation: PerformanceObservation? = nil
@@ -209,7 +207,7 @@ struct RecordingTakeRecorder {
         )
     }
 
-    mutating func recordProgramChange(
+    public mutating func recordProgramChange(
         program: Int,
         now: TimeInterval,
         observation: PerformanceObservation? = nil
@@ -224,7 +222,7 @@ struct RecordingTakeRecorder {
         )
     }
 
-    mutating func recordChannelPressure(
+    public mutating func recordChannelPressure(
         value: Int,
         now: TimeInterval,
         observation: PerformanceObservation? = nil
@@ -239,7 +237,7 @@ struct RecordingTakeRecorder {
         )
     }
 
-    mutating func recordPolyPressure(
+    public mutating func recordPolyPressure(
         note: Int,
         value: Int,
         now: TimeInterval,
@@ -380,12 +378,5 @@ struct RecordingTakeRecorder {
             finger: observation.finger,
             calibrationReference: observation.calibrationReference
         )
-    }
-
-    private func formattedDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter.string(from: date)
     }
 }

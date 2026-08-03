@@ -1,14 +1,13 @@
 import Foundation
 import MIDI
-import Practice
 
-struct RecordingTakeEvent: Codable, Equatable, Identifiable {
-    let id: UUID
-    let time: TimeInterval
-    let kind: Kind
-    let observation: PerformanceObservation?
+public struct RecordingTakeEvent: Codable, Equatable, Identifiable, Sendable {
+    public let id: UUID
+    public let time: TimeInterval
+    public let kind: Kind
+    public let observation: PerformanceObservation?
 
-    enum Kind: Codable, Equatable {
+    public enum Kind: Codable, Equatable, Sendable {
         case noteOn(midi: Int, velocity: Int)
         case noteOff(midi: Int)
         case controlChange(controller: Int, value: Int)
@@ -18,7 +17,7 @@ struct RecordingTakeEvent: Codable, Equatable, Identifiable {
         case polyPressure(midi: Int, value: Int)
     }
 
-    init(
+    public init(
         id: UUID = UUID(),
         time: TimeInterval,
         kind: Kind,
@@ -30,7 +29,7 @@ struct RecordingTakeEvent: Codable, Equatable, Identifiable {
         self.observation = observation
     }
 
-    func validatePrivacy() throws {
+    public func validatePrivacy() throws {
         guard let observation else { return }
         try RecordingTakeMetadata.validatePersistenceValue(
             observation.source.id,
@@ -57,25 +56,35 @@ struct RecordingTakeEvent: Codable, Equatable, Identifiable {
     }
 }
 
-struct RecordingInputSourceDescriptor: Codable, Equatable {
-    let kind: PerformanceObservation.Source.Kind?
-    let id: String
-    let capabilities: PerformanceInputCapabilities
+public struct RecordingInputSourceDescriptor: Codable, Equatable, Sendable {
+    public let kind: PerformanceObservation.Source.Kind?
+    public let id: String
+    public let capabilities: PerformanceInputCapabilities
+
+    public init(
+        kind: PerformanceObservation.Source.Kind?,
+        id: String,
+        capabilities: PerformanceInputCapabilities
+    ) {
+        self.kind = kind
+        self.id = id
+        self.capabilities = capabilities
+    }
 }
 
-struct RecordingTakeMetadata: Codable, Equatable {
-    enum Provenance: String, Codable {
+public struct RecordingTakeMetadata: Codable, Equatable, Sendable {
+    public enum Provenance: String, Codable, Sendable {
         case recorded
     }
 
-    let provenance: Provenance
-    let scoreIdentity: ScorePerformanceSourceIdentity?
-    let inputSources: [RecordingInputSourceDescriptor]
-    let clockMapping: PerformanceClockMapping?
-    let latencyCorrectionSeconds: TimeInterval?
-    let calibrationVersion: String?
+    public let provenance: Provenance
+    public let scoreIdentity: ScorePerformanceSourceIdentity?
+    public let inputSources: [RecordingInputSourceDescriptor]
+    public let clockMapping: PerformanceClockMapping?
+    public let latencyCorrectionSeconds: TimeInterval?
+    public let calibrationVersion: String?
 
-    init(
+    public init(
         provenance: Provenance = .recorded,
         scoreIdentity: ScorePerformanceSourceIdentity? = nil,
         inputSources: [RecordingInputSourceDescriptor],
@@ -93,7 +102,7 @@ struct RecordingTakeMetadata: Codable, Equatable {
         self.calibrationVersion = calibrationVersion
     }
 
-    static let unattributed = Self(
+    public static let unattributed = Self(
         inputSources: [RecordingInputSourceDescriptor(
             kind: nil,
             id: "unattributed-recording",
@@ -101,7 +110,7 @@ struct RecordingTakeMetadata: Codable, Equatable {
         )]
     )
 
-    func validatePrivacy() throws {
+    public func validatePrivacy() throws {
         try Self.validatePersistenceValue(scoreIdentity?.scoreRevision, field: "scoreIdentity.scoreRevision")
         try Self.validatePersistenceValue(scoreIdentity?.logicalInstrumentID, field: "scoreIdentity.logicalInstrumentID")
         for source in inputSources {
@@ -131,22 +140,22 @@ struct RecordingTakeMetadata: Codable, Equatable {
     }
 }
 
-enum RecordingTakeCodingError: Error, Equatable {
+public enum RecordingTakeCodingError: Error, Equatable, Sendable {
     case unsupportedSchemaVersion(Int)
     case unsafeMetadata(field: String)
 }
 
-struct RecordingTake: Codable, Equatable, Identifiable {
-    static let currentSchemaVersion = 3
+public struct RecordingTake: Codable, Equatable, Identifiable, Sendable {
+    public static let currentSchemaVersion = 3
 
-    let schemaVersion: Int
-    let id: UUID
-    var name: String
-    let createdAt: Date
-    let metadata: RecordingTakeMetadata
-    let events: [RecordingTakeEvent]
+    public let schemaVersion: Int
+    public let id: UUID
+    public var name: String
+    public let createdAt: Date
+    public let metadata: RecordingTakeMetadata
+    public let events: [RecordingTakeEvent]
 
-    init(
+    public init(
         id: UUID = UUID(),
         name: String,
         createdAt: Date = .now,
@@ -161,7 +170,7 @@ struct RecordingTake: Codable, Equatable, Identifiable {
         self.events = events
     }
 
-    var durationSeconds: TimeInterval {
+    public var durationSeconds: TimeInterval {
         events.map(\.time).max() ?? 0
     }
 
@@ -174,7 +183,7 @@ struct RecordingTake: Codable, Equatable, Identifiable {
         case events
     }
 
-    init(from decoder: Decoder) throws {
+    public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let sourceVersion = try container.decode(Int.self, forKey: .schemaVersion)
         guard sourceVersion == Self.currentSchemaVersion else {
@@ -202,7 +211,7 @@ struct RecordingTake: Codable, Equatable, Identifiable {
         }
     }
 
-    func encode(to encoder: Encoder) throws {
+    public func encode(to encoder: Encoder) throws {
         try metadata.validatePrivacy()
         try RecordingTakeMetadata.validatePersistenceValue(name, field: "name")
         for event in events {

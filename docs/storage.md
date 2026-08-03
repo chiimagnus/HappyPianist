@@ -11,7 +11,7 @@
 | 用户曲谱 / 试听音频 | `SongLibraryImportTransactionService`、`SongFileStore`、`AudioImportService` | `Documents/SongLibrary/scores/`、`audio/` |
 | 导入事务 | `SongLibraryImportTransactionService` | `Documents/SongLibrary/transactions/<operation-id>/` |
 | 练习 progress / session | `FilePracticeProgressRepository` | `Documents/PracticeProgress/progress-v1.json` |
-| MIDI take | `RecordingTakeStore` | `Documents/TakeLibrary/takes.json` |
+| MIDI take | `Practice.RecordingTakeStore` | `Documents/TakeLibrary/takes.json` |
 | 可导出诊断 | `FileDiagnosticsStore` | `Documents/Diagnostics/diagnostics-YYYY-MM-DD.jsonl` |
 
 bundled MusicXML、字体、SoundFont 和 CoreML 资源属于 App bundle，不写入 Documents。
