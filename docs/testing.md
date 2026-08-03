@@ -60,7 +60,7 @@ rtk xcodebuild test \
   CODE_SIGNING_ALLOWED=NO
 ```
 
-它覆盖持久化只含 unique ID、所选输入断开后停止且不回退、输出切换的 flush/reset/stop 顺序；`HappyPianistMacTests/MacPracticeViewModelTests` 还覆盖 fixed-score MIDI match/wrong evidence、measure facts reload、passage/hand/tempo/loop 的 exact restore、invalid repair 与 selected-input loss；`HappyPianistMacTests/MacRecordingWorkflowTests` 覆盖 take 的 open-note close、return/input-loss/save-failure 重试、CRUD、export、no-output 与 stale playback reset；`HappyPianistMacTests/MacDiagnosticsViewModelTests` 验证诊断 export/clear 和 archive 隐私脱敏。仍需在真实设备上确认所选输出未通过 MIDI-Thru 或 loopback 回灌到所选输入。
+它覆盖持久化只含 unique ID、所选输入断开后停止且不回退、输出切换的 flush/reset/stop 顺序；`HappyPianistMacTests/MacPracticeViewModelTests` 还覆盖 fixed-score MIDI match/wrong evidence、measure facts reload、passage/hand/tempo/loop 的 exact restore、invalid repair 与 selected-input loss；`HappyPianistMacTests/MacRecordingWorkflowTests` 覆盖 take 的 open-note close、return/input-loss/save-failure 重试、CRUD、export、no-output 与 stale playback reset；`HappyPianistMacTests/MacPracticeExitGuardTests` 覆盖原生窗口关闭与应用退出必须先经过异步 finish gate；`HappyPianistMacTests/MacDiagnosticsViewModelTests` 验证诊断 export/clear 和 archive 隐私脱敏。仍需在真实设备上确认所选输出未通过 MIDI-Thru 或 loopback 回灌到所选输入。
 
 记录提交 SHA、Xcode、visionOS、destination、命令和完整退出结果。`build-for-testing`、`swiftc -parse` 或 Linux harness 只能作为局部证据，不是 `xcodebuild test` 通过证据。
 

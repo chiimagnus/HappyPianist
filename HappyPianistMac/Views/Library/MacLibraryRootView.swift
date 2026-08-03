@@ -102,6 +102,10 @@ struct MacLibraryRootView: View {
                     viewModel.receiveAudioImporterFailure()
                 }
             }
+            .background {
+                MacPracticeWindowCloseGuard(finishPractice: finishPracticeForWindowClose)
+                    .frame(width: 0, height: 0)
+            }
         }
     }
 
@@ -134,6 +138,14 @@ struct MacLibraryRootView: View {
         } else {
             path.removeAll()
         }
+    }
+
+    private func finishPracticeForWindowClose() async -> Bool {
+        guard practiceViewModel.state != .idle else { return true }
+        guard isFinishingPracticeNavigation == false else { return false }
+        isFinishingPracticeNavigation = true
+        defer { isFinishingPracticeNavigation = false }
+        return await practiceViewModel.returnToLibrary()
     }
 }
 

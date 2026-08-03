@@ -50,7 +50,7 @@ progress、metadata、session mutation 在 actor 内读取磁盘最新文档，�
 
 ## take 与诊断
 
-- take 保存 source/capability/clock/calibration 和可重放 observation；MIDI 7/14-bit 投影只在回放或导出边界生成。录制停止时先关闭仍打开的音符，再以原子 JSON 写入当前 App host 自己的 `TakeLibrary`；macOS 与 visionOS 永不共享该 container。
+- take 保存 source/capability/clock/calibration 和可重放 observation；MIDI 7/14-bit 投影只在回放或导出边界生成。录制停止时先关闭仍打开的音符，再以原子 JSON 写入当前 App host 自己的 `TakeLibrary`；macOS 的显式返回、窗口关闭和应用退出都等待该写入成功，失败则取消离开；macOS 与 visionOS 永不共享该 container。
 - target audio 因缺少可靠逐音 release/velocity 不进入 MIDI take。
 - MIDI 导出只在用户 action 的 `fileExporter` 中取得目的地；目的 URL、bookmark、逐事件内容都不得写入 take store 或诊断。
 - 诊断事件先进入系统日志，只有明确 exportable 的低频事件写入 JSONL；默认保留七个日历日，导出由用户触发。
