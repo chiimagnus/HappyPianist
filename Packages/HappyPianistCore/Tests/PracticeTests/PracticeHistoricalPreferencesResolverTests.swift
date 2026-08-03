@@ -1,26 +1,25 @@
 import Foundation
-import Diagnostics
 import MusicXML
 import Practice
-@testable import HappyPianistAVP
 import Testing
 
 @Suite("Practice historical preferences resolver")
 struct PracticeHistoricalPreferencesResolverTests {
     private let resolver = PracticeHistoricalPreferencesResolver()
-    private let songID = UUID(uuidString: "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA")!
+    private let songID = UUID()
 
-    @Test func exactIdentityWinsWithoutReturningHistoricalPreferences() async {
+    @Test func exactIdentityWinsWithoutReturningHistoricalPreferences() async throws {
         let current = identity("current")
+        let oldConfiguration = try configuration(hand: .left)
         let result = await resolve(current, progresses: [
-            progress(revision: "old", updatedAt: 20, configuration: configuration(hand: .left)),
+            progress(revision: "old", updatedAt: 20, configuration: oldConfiguration),
             progress(revision: "current", updatedAt: 10, configuration: nil),
         ])
 
         #expect(result == .exactAvailable)
     }
 
-    @Test func latestConfiguredIdentitySuppliesOnlyClampedUniversalValues() async {
+    @Test func latestConfiguredIdentitySuppliesOnlyClampedUniversalValues() async throws {
         let oldFacts = MeasurePracticeFacts(
             sourceMeasureID: sourceMeasureID,
             handMode: .right,
@@ -28,17 +27,19 @@ struct PracticeHistoricalPreferencesResolverTests {
             successfulAttempts: 9,
             lastAttemptAt: Date(timeIntervalSince1970: 30)
         )
+        let olderConfiguration = try configuration(hand: .right)
+        let latestConfiguration = try configuration(
+            hand: .left,
+            tempo: 9,
+            loop: true,
+            successes: 99
+        )
         let result = await resolve(identity("current"), progresses: [
-            progress(revision: "older", updatedAt: 10, configuration: configuration(hand: .right)),
+            progress(revision: "older", updatedAt: 10, configuration: olderConfiguration),
             progress(
                 revision: "latest",
                 updatedAt: 20,
-                configuration: configuration(
-                    hand: .left,
-                    tempo: 9,
-                    loop: true,
-                    successes: 99
-                ),
+                configuration: latestConfiguration,
                 resumePoint: PracticeResumePoint(
                     occurrenceID: occurrenceID,
                     stepIndex: 88,
@@ -56,11 +57,13 @@ struct PracticeHistoricalPreferencesResolverTests {
         )))
     }
 
-    @Test func duplicateIdentityUsesSharedRecordOrderAfterFilteringNilConfigurations() async {
+    @Test func duplicateIdentityUsesSharedRecordOrderAfterFilteringNilConfigurations() async throws {
+        let leftConfiguration = try configuration(hand: .left)
+        let rightConfiguration = try configuration(hand: .right)
         let result = await resolve(identity("current"), progresses: [
             progress(revision: "old", updatedAt: 30, configuration: nil),
-            progress(revision: "old", updatedAt: 20, configuration: configuration(hand: .left)),
-            progress(revision: "old", updatedAt: 10, configuration: configuration(hand: .right)),
+            progress(revision: "old", updatedAt: 20, configuration: leftConfiguration),
+            progress(revision: "old", updatedAt: 10, configuration: rightConfiguration),
         ])
 
         #expect(result == .historicalPreferences(PracticeHistoricalPreferences(
@@ -71,16 +74,16 @@ struct PracticeHistoricalPreferencesResolverTests {
         )))
     }
 
-    @Test func tiesAreDeterministicAcrossInputOrder() async {
+    @Test func tiesAreDeterministicAcrossInputOrder() async throws {
         let lowerRevision = progress(
             revision: "a",
             updatedAt: 20,
-            configuration: configuration(hand: .right)
+            configuration: try configuration(hand: .right)
         )
         let higherRevision = progress(
             revision: "z",
             updatedAt: 20,
-            configuration: configuration(hand: .left)
+            configuration: try configuration(hand: .left)
         )
 
         let forward = await resolve(identity("current"), progresses: [lowerRevision, higherRevision])
@@ -144,9 +147,9 @@ struct PracticeHistoricalPreferencesResolverTests {
         tempo: Double = 0.8,
         loop: Bool = false,
         successes: Int = 2
-    ) -> PracticeRoundConfiguration {
+    ) throws -> PracticeRoundConfiguration {
         PracticeRoundConfiguration(
-            passage: PracticePassage(start: occurrenceID, end: occurrenceID)!,
+            passage: try #require(PracticePassage(start: occurrenceID, end: occurrenceID)),
             handMode: hand,
             tempoScale: tempo,
             loopEnabled: loop,

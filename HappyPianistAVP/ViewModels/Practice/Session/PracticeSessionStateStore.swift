@@ -105,3 +105,5 @@ final class PracticeSessionStateStore {
     var isPracticeInputRunning = false
     var audioRecognitionSuppressUntil: Date?
 }
+
+extension PracticeSessionStateStore: PracticeRoundConfigurationStateStoring {}

@@ -1,16 +1,15 @@
 import Foundation
-import Practice
 import MusicXML
-import Diagnostics
-@testable import HappyPianistAVP
+import Practice
 import Testing
 
 @MainActor
-struct PracticeRoundConfigurationControllerTests {
+struct PracticeConfigurationSettingsTests {
     @Test func emptyDefaultsUseApprovedFreshValues() throws {
         let suiteName = "PracticeRoundDefaults-\(UUID().uuidString)"
         let userDefaults = try #require(UserDefaults(suiteName: suiteName))
         defer { userDefaults.removePersistentDomain(forName: suiteName) }
+
         let store = UserDefaultsPracticeRoundDefaultsStore(userDefaults: userDefaults)
 
         #expect(store.tempoScale == 0.6)
@@ -24,7 +23,7 @@ struct PracticeRoundConfigurationControllerTests {
     }
 
     @Test func pendingChangesDoNotMutateActiveRoundUntilApply() throws {
-        let stateStore = PracticeSessionStateStore()
+        let stateStore = TestRoundConfigurationStateStore()
         let defaults = CapturingRoundDefaultsStore()
         let controller = PracticeRoundConfigurationController(
             stateStore: stateStore,
@@ -58,7 +57,7 @@ struct PracticeRoundConfigurationControllerTests {
     }
 
     @Test func routeChangeRequestsSessionRebuildOnlyWhenApplied() throws {
-        let stateStore = PracticeSessionStateStore()
+        let stateStore = TestRoundConfigurationStateStore()
         let controller = PracticeRoundConfigurationController(
             stateStore: stateStore,
             settingsProvider: FixedPracticeSettingsProvider(),
@@ -77,27 +76,8 @@ struct PracticeRoundConfigurationControllerTests {
         #expect(controller.applyPending())
     }
 
-    @Test func freshConfigurationAlwaysReplacesPendingAndActivePassage() throws {
-        let stateStore = PracticeSessionStateStore()
-        let controller = PracticeRoundConfigurationController(
-            stateStore: stateStore,
-            settingsProvider: FixedPracticeSettingsProvider(),
-            defaultsStore: CapturingRoundDefaultsStore()
-        )
-        let passageA = try #require(makePassage(partID: "A", sourceIndex: 0))
-        let passageB = try #require(makePassage(partID: "B", sourceIndex: 8))
-        controller.installFreshFullScoreConfiguration(passage: passageA)
-        controller.pendingPassage = passageA
-        _ = controller.applyPending()
-
-        controller.installFreshFullScoreConfiguration(passage: passageB)
-
-        #expect(controller.pendingPassage == passageB)
-        #expect(stateStore.activeRoundConfiguration?.passage == passageB)
-    }
-
     @Test func historicalPreferencesInstallWithoutWritingDefaults() throws {
-        let stateStore = PracticeSessionStateStore()
+        let stateStore = TestRoundConfigurationStateStore()
         let defaults = CapturingRoundDefaultsStore()
         let controller = PracticeRoundConfigurationController(
             stateStore: stateStore,
@@ -122,6 +102,60 @@ struct PracticeRoundConfigurationControllerTests {
         #expect(defaults.saveCount == 0)
     }
 
+    @Test func defaultsToLocalSamplerAndParsesTheSavedRoute() throws {
+        let suiteName = "PracticeSoundRoutingSettingsTests.\(UUID().uuidString)"
+        let userDefaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { userDefaults.removePersistentDomain(forName: suiteName) }
+
+        let defaults = UserDefaultsPracticeSessionSettingsProvider(userDefaults: userDefaults)
+        #expect(defaults.soundRoutingSettings.outputRoute == .localSampler)
+        #expect(defaults.soundRoutingSettings.midiDestinationUniqueID == nil)
+        #expect(defaults.soundRoutingSettings.sendLocalControlOff == false)
+
+        userDefaults.set(
+            PracticeSoundOutputRoute.externalMIDIDestination.rawValue,
+            forKey: PracticeSessionSettingsKeys.soundOutputRoute
+        )
+        userDefaults.set(-1234, forKey: PracticeSessionSettingsKeys.midiDestinationUniqueID)
+        userDefaults.set(true, forKey: PracticeSessionSettingsKeys.sendLocalControlOff)
+
+        let restored = UserDefaultsPracticeSessionSettingsProvider(userDefaults: userDefaults)
+        #expect(restored.soundRoutingSettings.outputRoute == .externalMIDIDestination)
+        #expect(restored.soundRoutingSettings.midiDestinationUniqueID == -1234)
+        #expect(restored.soundRoutingSettings.sendLocalControlOff)
+    }
+
+    @Test func zeroDestinationIsIgnoredAndRoundDefaultsKeepTheExistingKeys() throws {
+        let suiteName = "PracticeSoundRoutingSettingsTests.\(UUID().uuidString)"
+        let userDefaults = try #require(UserDefaults(suiteName: suiteName))
+        defer { userDefaults.removePersistentDomain(forName: suiteName) }
+
+        userDefaults.set(0, forKey: PracticeSessionSettingsKeys.midiDestinationUniqueID)
+        let provider = UserDefaultsPracticeSessionSettingsProvider(userDefaults: userDefaults)
+        #expect(provider.soundRoutingSettings.midiDestinationUniqueID == nil)
+
+        let store = UserDefaultsPracticeRoundDefaultsStore(userDefaults: userDefaults)
+        store.save(
+            handMode: .left,
+            manualAdvanceMode: .measure,
+            soundRoutingSettings: PracticeSoundRoutingSettings(
+                outputRoute: .externalMIDIDestination,
+                midiDestinationUniqueID: 99,
+                sendLocalControlOff: true
+            ),
+            tempoScale: 0.75,
+            loopEnabled: true,
+            requiredSuccesses: 4
+        )
+
+        #expect(provider.practiceHandMode == .left)
+        #expect(provider.manualAdvanceMode == .measure)
+        #expect(provider.soundRoutingSettings.midiDestinationUniqueID == 99)
+        #expect(store.tempoScale == 0.75)
+        #expect(store.loopEnabled)
+        #expect(store.requiredSuccesses == 4)
+    }
+
     private func makePassage(partID: String = "P1", sourceIndex: Int = 0) -> PracticePassage? {
         let source = PracticeSourceMeasureID(
             partID: partID,
@@ -133,6 +167,18 @@ struct PracticeRoundConfigurationControllerTests {
             end: PracticeMeasureOccurrenceID(sourceMeasureID: source, occurrenceIndex: 0)
         )
     }
+}
+
+@MainActor
+private final class TestRoundConfigurationStateStore: PracticeRoundConfigurationStateStoring {
+    var activeRoundConfiguration: PracticeRoundConfiguration?
+    var activeManualAdvanceMode: ManualAdvanceMode = .step
+    var activeSoundRoutingSettings = PracticeSoundRoutingSettings(
+        outputRoute: .localSampler,
+        midiDestinationUniqueID: nil,
+        sendLocalControlOff: false
+    )
+    var roundGeneration = 0
 }
 
 private struct FixedPracticeSettingsProvider: PracticeSessionSettingsProviderProtocol {
