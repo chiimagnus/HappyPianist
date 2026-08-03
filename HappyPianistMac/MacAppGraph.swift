@@ -1,29 +1,50 @@
+import Diagnostics
 import Foundation
 import Library
 
 @MainActor
 struct MacAppGraph {
-    let bundledLibraryProvider: any BundledSongLibraryProviderProtocol
-    let libraryEntryState: MacLibraryEntryState
+    let songLibraryViewModel: MacLibraryViewModel
+    let songLibraryEntryResolver: any SongLibraryEntryResolving
+    let practiceProgressRepository: FilePracticeProgressRepository
 
     init(
-        bundledLibraryProvider: any BundledSongLibraryProviderProtocol,
-        libraryEntryState: MacLibraryEntryState = .empty
+        songLibraryViewModel: MacLibraryViewModel,
+        songLibraryEntryResolver: any SongLibraryEntryResolving,
+        practiceProgressRepository: FilePracticeProgressRepository
     ) {
-        self.bundledLibraryProvider = bundledLibraryProvider
-        self.libraryEntryState = libraryEntryState
+        self.songLibraryViewModel = songLibraryViewModel
+        self.songLibraryEntryResolver = songLibraryEntryResolver
+        self.practiceProgressRepository = practiceProgressRepository
     }
 
     static func make() -> Self {
-        Self(bundledLibraryProvider: EmptyMacBundledSongLibraryProvider())
-    }
-}
+        let diagnosticsStore = FileDiagnosticsStore()
+        let diagnosticsReporter: any DiagnosticsReporting = AppDiagnosticsReporter(
+            exportStore: diagnosticsStore
+        )
+        let bundledProvider: any BundledSongLibraryProviderProtocol = EmptyMacBundledSongLibraryProvider()
+        let indexStore = SongLibraryIndexStore()
+        let fileStore = SongFileStore()
+        let importTransactionService = SongLibraryImportTransactionService(
+            indexStore: indexStore,
+            diagnostics: diagnosticsReporter
+        )
+        let progressRepository = FilePracticeProgressRepository()
 
-enum MacLibraryEntryState: Equatable {
-    case empty
-
-    var message: String {
-        "从本机选择 MusicXML 或 MXL 曲谱后开始练习。"
+        return Self(
+            songLibraryViewModel: MacLibraryViewModel(
+                indexStore: indexStore,
+                importTransactionService: importTransactionService,
+                bundledProvider: bundledProvider
+            ),
+            songLibraryEntryResolver: SongLibraryEntryResolver(
+                indexStore: indexStore,
+                bundledProvider: bundledProvider,
+                fileStore: fileStore
+            ),
+            practiceProgressRepository: progressRepository
+        )
     }
 }
 

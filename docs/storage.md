@@ -1,6 +1,6 @@
 # 存储
 
-AVP 业务数据使用 Documents 下的 JSON 和用户导入文件，不使用 SwiftData。路径、schema 和删除行为必须一起修改。
+每个 App host 在自己的 sandbox Documents 下使用 JSON 和用户导入文件，不使用 SwiftData。路径、schema 和删除行为必须一起修改；macOS host 不迁移或共享 visionOS container。
 
 ## 文件布局
 
@@ -23,6 +23,7 @@ bundled MusicXML、字体、SoundFont 和 CoreML 资源属于 App bundle，不�
 - 导入按 operation ID 排队：同卷 `.partial` → 字节数/SHA-256 fingerprint → staged journal → target/index commit。
 - 冲突在 target/index mutation 前暂停，用户确认只回传 operation ID；actor 重新读取最新事实后再决定 replace、repair 或 orphan adopt。
 - bootstrap 先恢复未完成 transaction，再读 index，最后扫描 bundle。journal 只含相对文件名、phase、identity 和 fingerprint，不含 URL、曲谱正文或完整 index。
+- macOS 通过 `fileImporter` 只在暂存副本期间持有 security scope；index、journal、score metadata 与 progress 均不得写入选中的外部 URL、bookmark 或绝对路径。
 - 删除用户曲目时同时删除 score、绑定 audio 和该 song UUID 的三类练习记录；进度清理失败不回滚已完成的曲目删除。
 
 ## 练习 progress

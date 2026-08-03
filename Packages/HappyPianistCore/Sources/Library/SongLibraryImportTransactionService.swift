@@ -14,17 +14,19 @@ public protocol SongLibraryImportTransactionServicing: SongLibraryImportTransact
     func cancel(operationID: UUID) async -> Bool
 }
 
-protocol SecurityScopedResourceAccessing: Sendable {
+public protocol SecurityScopedResourceAccessing: Sendable {
     func startAccessing(_ url: URL) -> Bool
     func stopAccessing(_ url: URL)
 }
 
-struct LiveSecurityScopedResourceAccessor: SecurityScopedResourceAccessing {
-    func startAccessing(_ url: URL) -> Bool {
+public struct LiveSecurityScopedResourceAccessor: SecurityScopedResourceAccessing {
+    public init() {}
+
+    public func startAccessing(_ url: URL) -> Bool {
         url.startAccessingSecurityScopedResource()
     }
 
-    func stopAccessing(_ url: URL) {
+    public func stopAccessing(_ url: URL) {
         url.stopAccessingSecurityScopedResource()
     }
 }
@@ -41,25 +43,6 @@ public actor SongLibraryImportTransactionService: SongLibraryImportTransactionSe
     private let securityScopedResourceAccessor: any SecurityScopedResourceAccessing
 
     public init(
-        indexStore: any SongLibraryImportIndexStoreProtocol,
-        paths: SongLibraryPaths? = nil,
-        fileManager: FileManager = .default,
-        now: @escaping @Sendable () -> Date = { .now },
-        makeUUID: @escaping @Sendable () -> UUID = { UUID() },
-        diagnostics: any DiagnosticsReporting
-    ) {
-        self.init(
-            indexStore: indexStore,
-            paths: paths,
-            fileManager: fileManager,
-            now: now,
-            makeUUID: makeUUID,
-            diagnostics: diagnostics,
-            securityScopedResourceAccessor: LiveSecurityScopedResourceAccessor()
-        )
-    }
-
-    init(
         indexStore: any SongLibraryImportIndexStoreProtocol,
         paths: SongLibraryPaths? = nil,
         fileManager: FileManager = .default,
