@@ -35,7 +35,7 @@ fileImporter
 - bootstrap 先恢复未完成事务，再读取 index，最后扫描 bundle；损坏的非空 JSON fail closed，不得按空库覆盖。
 - macOS host 使用同一 transaction actor：`fileImporter` 提供的 security-scoped URL 只在 `stageImports` 内获取和释放，成功后只保留 sandbox `SongLibrary` 内的副本、相对文件名与 fingerprint；不保存外部 URL、bookmark 或绝对路径，也不尝试读取 visionOS container。
 - macOS 绑定或替换用户曲目的 mp3/m4a 时，同样只把 `fileImporter` URL 交给 `Library.AudioImportService`；它在 security scope 内复制到 `SongLibrary/audio/` 并只把相对文件名写入 index。旧的异步 URL 解析、选择变化或曲目删除后不得启动试听；删除先停止试听，再从 index、score、audio 和 progress 依次清理，后续清理失败只报告事实而不回滚已提交的 index mutation。
-- macOS 从已选 Library entry 解析沙盒副本，经 `PracticePreparationService` 生成同时具备 steps 与 measure spans 的 `PreparedPractice`，再交给 `MIDIPracticeSession`、小节事实 reducer 与 `GrandStaffNotationView`；准备或 progress corruption 停在可恢复 UI，不建立 steps-without-measures fallback。
+- macOS 从已选 Library entry 解析沙盒副本，经 `PracticePreparationService` 生成同时具备 steps 与 measure spans 的 `PreparedPractice`，再交给 `PracticeRoundSessionController`、`MIDIPracticeSession` 与 `GrandStaffNotationView`；controller 是 range、resume、attempt facts、assessment/coaching 与 feedback 的唯一 non-spatial owner，准备或 progress corruption 停在可恢复 UI，不建立 steps-without-measures fallback。
 - `PracticePreparationService` 先生成唯一 `ScorePerformancePlan`，再单向投影 `PracticeStep`、`PianoHighlightGuide`、notation projection、timeline 和 sequence。
 - `Practice` 是 preparation 与共享 runtime 的包边界，依赖 `MusicXML`、`MIDI` 和 `Diagnostics`；曲库、SwiftUI/RealityKit、AVAudio、音频识别与手部/虚拟琴不得被它反向引用。
 - prepared result 必须同时有可演奏 steps 与 `MusicXMLMeasureSpan`；缺少小节结构时返回 typed failure，不建立 legacy fallback。
@@ -69,7 +69,7 @@ Library selection
 - active configuration 在一轮中不可变；pending 设置只影响下一轮。
 - active range 同时约束 step 导航、谱面 viewport、琴键高亮、autoplay、manual replay 和完成边界。
 - 恢复后停在 ready/paused，不自动发声；无效 passage/resume 回退到当前曲谱整首并 checkpoint。
-- macOS 通过共享 `PracticeRoundConfigurationController` 应用 passage、hand、tempo、loop 和 required successes；应用时先失效旧 MIDI generation、停止旧输入，再从新 active range 的首步重建同一 visit。exact configuration/resume 直接恢复；无效状态按同一共享规则修复并写回，且不丢失已批准的小节 facts。macOS 不接入麦克风音频识别；没有 selected output 只隐藏参考音，不阻断 MIDI 输入。
+- macOS 通过 `PracticeRoundSessionController` 及其共享 `PracticeRoundConfigurationController` 应用 passage、hand、tempo、loop 和 required successes；应用时先失效旧 MIDI generation、停止旧输入，再从新 active range 的首步重建同一 visit。exact configuration/resume 直接恢复；无效状态按同一共享规则修复并写回，且不丢失已批准的小节 facts。macOS 不接入麦克风音频识别；没有 selected output 只隐藏回放，不阻断 MIDI 输入。
 
 ## 输入、对齐与指导
 
@@ -118,7 +118,7 @@ Practice window visit
 - progress、score metadata 和 sessions 是同一 JSON schema 内的独立数组；每次 mutation 读取磁盘最新版本，只改自己的 concern。
 - progress 保存当前配置、resume point、小节 maturity/metric summaries 和必要 session facts；不保存 cue、summary、map、RealityKit entity、逐音 evidence、原始输入或 AI 内容。
 - `PracticeSessionRecorder` 以 Practice window visit 复用；首次真实进入 guiding 才创建 session。scene、guiding、settings、round、退出边界立即 checkpoint，连续 guiding 最多每 30 秒一次。
-- MIDI-only 显式返回顺序：失效输入 generation → 停止输入 → reset/flush 输出 → 等待已接受 observation 的 recorder 写入 → flush progress → 终结 session → 关闭 immersive → 返回 Library。失败时留在当前窗口，不静默丢增量。
+- MIDI-only 完成/返回顺序：失效输入 generation → 停止输入 → reset/flush 输出 → 等待已接受 observation 的 recorder 写入 → 完成 capability-aware assessment 与最多一个 coaching action → flush progress → 终结 session → 返回 Library。loop 也必须在 assessment/flush 后才开始下一轮；失败时留在当前窗口，不静默丢增量。
 
 ## 回放、录制与 AI
 
@@ -133,7 +133,7 @@ ScorePerformancePlan
 - range、seek、loop、stop、interruption 和 route change 共享 reset 规则：逐 identity note-off、踏板归零、all-notes-off、all-sound-off。
 - `RecordingTakeRecorder` 从 canonical observation 记录可重放事件；target audio 因缺少可靠逐音 release/velocity 不进入 MIDI take。
 - visionOS 的 CoreMIDI 输入明确使用 `.allCurrentSources`；macOS 只启动用户选定的单个稳定 endpoint unique ID，设备枚举 index 和显示名不参与选择或持久化。所选输入断开即停止、递增 generation 并要求用户重新连接或重新选择，绝不回退到别的输入。
-- macOS 输出是可选的 stable endpoint unique ID：缺失或断开只禁用回放/参考，不影响输入判定。更换输出前先取消旧目标未来事件，并向全部通道发送 all-notes-off 与 all-sound-off 后释放旧输出；设备显示名和原始 MIDI 不写入设置或进度。
+- macOS 输出是可选的 stable endpoint unique ID：缺失或断开只禁用回放，不影响输入判定。manual replay 以 `AutoplayPerformanceTimeline` 与 `PlaybackSequenceBuilder` 输出完整 active range，含 tempo、controller、边界 note-off 与 full reset；开始时关闭 attempt acceptance，取消/结束后按 generation 恢复。更换输出前先取消旧目标未来事件，并向全部通道发送 all-notes-off 与 all-sound-off 后释放旧输出；设备显示名和原始 MIDI 不写入设置或进度。
 - macOS selected-input loss 先使 session 不再接受 observation，再经共享 session 完成 reset/flush、已接受 observation drain 与 approved measure facts flush；完成或明确返回后只恢复所选端点监测，不自动恢复练习。系统可见 endpoint 只能证明路由存在，wired/BLE、断连、输出 reset 与物理 loopback 仍需单独硬件证据。
 - take 保留 source/capability/clock/calibration 事实；MIDI 7/14-bit 事件只在回放或导出边界生成。
 - AI phrase 只来自用户 observation；用户选择的 backend 失败、超时、invalid response 或 quality gate failure 时停止本次生成，不自动 fallback。

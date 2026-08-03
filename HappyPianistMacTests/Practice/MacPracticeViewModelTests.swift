@@ -33,6 +33,8 @@ struct MacPracticeViewModelTests {
         fixture.input.yield(note: 60)
         #expect(await eventually { fixture.viewModel.state == .completed })
         #expect(fixture.viewModel.state == .completed)
+        #expect(await eventually { fixture.viewModel.latestFeedbackEvent != nil })
+        #expect(fixture.viewModel.latestFeedbackEvent?.kind == .roundSummaryReady)
 
         let identity = try #require(fixture.viewModel.preparedPractice?.identity)
         #expect(await fixture.viewModel.returnToLibrary())
@@ -55,28 +57,30 @@ struct MacPracticeViewModelTests {
         #expect(fixture.input.stopCount > 0)
     }
 
-    @Test func selectedOutputEnablesCurrentStepReferenceAndReturnStopsIt() async throws {
+    @Test func selectedOutputReplaysTheActiveRangeAndReturnStopsIt() async throws {
         let fixture = try MacPracticeFixture(hasSelectedOutput: true)
         defer { fixture.removeTemporaryRoot() }
 
         await fixture.viewModel.load(songID: fixture.songID)
-        #expect(fixture.viewModel.canPlayCurrentStepReference)
+        #expect(fixture.viewModel.canReplayActiveRange)
 
-        await fixture.viewModel.playCurrentStepReference()
+        await fixture.viewModel.replayActiveRange()
 
-        #expect(fixture.referencePlayback.oneShotCommands.map(\.kind) == [.noteOn(midi: 60, velocity: 96)])
+        #expect(await eventually { fixture.referencePlayback.loadedSequences.isEmpty == false })
+        #expect(fixture.referencePlayback.playCount == 1)
         #expect(await fixture.viewModel.returnToLibrary())
-        #expect(fixture.referencePlayback.stopCount == 1)
+        #expect(fixture.referencePlayback.stopCount >= 2)
+        #expect(fixture.viewModel.state == .idle)
     }
 
-    @Test func missingOutputHidesCurrentStepReferenceWithoutBlockingMIDIPractice() async throws {
+    @Test func missingOutputHidesReplayWithoutBlockingMIDIPractice() async throws {
         let fixture = try MacPracticeFixture()
         defer { fixture.removeTemporaryRoot() }
 
         await fixture.viewModel.load(songID: fixture.songID)
 
         #expect(fixture.viewModel.state == .guiding)
-        #expect(fixture.viewModel.canPlayCurrentStepReference == false)
+        #expect(fixture.viewModel.canReplayActiveRange == false)
     }
 
     @Test func reloadingPracticePreservesApprovedMeasureFacts() async throws {
@@ -127,8 +131,8 @@ struct MacPracticeViewModelTests {
         #expect(await fixture.viewModel.applyPendingRoundConfiguration())
         #expect(fixture.viewModel.currentStepIndex == 1)
 
-        await fixture.viewModel.playCurrentStepReference()
-        #expect(fixture.referencePlayback.oneShotCommands.map(\.kind) == [.noteOn(midi: 72, velocity: 96)])
+        await fixture.viewModel.replayActiveRange()
+        #expect(await eventually { fixture.referencePlayback.loadedSequences.isEmpty == false })
 
         let identity = prepared.identity
         #expect(await fixture.viewModel.returnToLibrary())
@@ -242,7 +246,7 @@ private func eventually(
 ) async -> Bool {
     for _ in 0 ..< 100 {
         if condition() { return true }
-        await Task.yield()
+        try? await Task.sleep(for: .milliseconds(10))
     }
     return condition()
 }
@@ -257,11 +261,15 @@ private final class MacPracticeFixture {
     let viewModel: MacPracticeViewModel
     let referencePlayback = PracticeFakePlaybackService()
 
-    init(hasSelectedOutput: Bool = false, hasTwoMeasures: Bool = false) throws {
+    init(
+        hasSelectedOutput: Bool = false,
+        hasTwoMeasures: Bool = false
+    ) throws {
         temporaryRoot = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: temporaryRoot, withIntermediateDirectories: true)
         let scoreURL = temporaryRoot.appending(path: "fixture.musicxml")
-        try Data((hasTwoMeasures ? Self.twoMeasureScore : Self.score).utf8).write(to: scoreURL)
+        let score = hasTwoMeasures ? Self.twoMeasureScore : Self.score
+        try Data(score.utf8).write(to: scoreURL)
         let entry = SongLibraryEntry(
             id: songID,
             displayName: "Fixture",
@@ -330,6 +338,7 @@ private final class MacPracticeFixture {
       </part>
     </score-partwise>
     """
+
 }
 
 private struct PracticeFakeSessionSettingsProvider: PracticeSessionSettingsProviderProtocol {
@@ -411,12 +420,18 @@ private final class PracticeFakeInput: MacSelectedMIDIInputControlling {
 
 @MainActor
 private final class PracticeFakePlaybackService: PracticeSequencerPlaybackServiceProtocol {
-    private(set) var oneShotCommands: [PracticePlaybackCommand] = []
+    private(set) var loadedSequences: [PracticeSequencerSequence] = []
+    private(set) var playCount = 0
     private(set) var stopCount = 0
 
     func warmUp() async throws {}
-    func load(sequence _: PracticeSequencerSequence) async throws {}
-    func play(fromSeconds _: TimeInterval) async throws {}
+    func load(sequence: PracticeSequencerSequence) async throws {
+        loadedSequences.append(sequence)
+    }
+
+    func play(fromSeconds _: TimeInterval) async throws {
+        playCount += 1
+    }
     func currentSeconds() async -> TimeInterval { 0 }
     func execute(commands _: [PracticePlaybackCommand]) async throws {}
     func stopAllLiveNotes() async {}
@@ -425,9 +440,7 @@ private final class PracticeFakePlaybackService: PracticeSequencerPlaybackServic
         stopCount += 1
     }
 
-    func playOneShot(commands: [PracticePlaybackCommand], durationSeconds _: TimeInterval) async throws {
-        oneShotCommands = commands
-    }
+    func playOneShot(commands _: [PracticePlaybackCommand], durationSeconds _: TimeInterval) async throws {}
 }
 
 private struct PracticeNoopDiagnosticsReporter: DiagnosticsReporting {

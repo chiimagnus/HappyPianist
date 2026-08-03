@@ -5,7 +5,7 @@ import Practice
 
 extension PracticeSessionViewModel {
     var audioErrorMessage: String? {
-        self.audioRecognitionErrorMessage ?? self.audioPlaybackErrorMessage
+        self.audioRecognitionErrorMessage ?? self.playbackErrorMessage
     }
 
     var currentStep: PracticeStep? {
@@ -764,7 +764,7 @@ extension PracticeSessionViewModel {
         self.audioRecognitionSuppressUntil = nil
 
         self.audioRecognitionErrorMessage = nil
-        self.audioPlaybackErrorMessage = nil
+        self.playbackErrorMessage = nil
         self.autoplayErrorMessage = nil
 
         self.currentStepIndex = 0
@@ -793,7 +793,7 @@ extension PracticeSessionViewModel {
 
     func clearAudioError() {
         self.audioRecognitionErrorMessage = nil
-        self.audioPlaybackErrorMessage = nil
+        self.playbackErrorMessage = nil
     }
 
     func stopVirtualPianoInput() {

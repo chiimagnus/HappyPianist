@@ -41,7 +41,7 @@ Models / Contracts
 | --- | --- | --- |
 | App 与窗口 | `HappyPianistAVPApp`、`AppState` | Library 是入口；preparation 与 practice 是单层 pushed window；immersive space 只承载空间内容。 |
 | 组合根 | `LiveAppGraph` | 共享的 index store、曲库 provider、progress repository、diagnostics reporter 与 practice recorder 不在 ViewModel 内重新创建。 |
-| macOS host | `HappyPianistMacApp`、`MacAppGraph`、`MacPracticeViewModel` | 独立沙盒、空 bundled library 和初始导入入口；Mac ViewModel 只组合 Library resolver、shared preparation/`MIDIPracticeSession`、recorder 与 Notation，不复制 `LiveAppGraph` 或任一 AVP lifecycle。 |
+| macOS host | `HappyPianistMacApp`、`MacAppGraph`、`MacPracticeViewModel` | 独立沙盒、空 bundled library 和初始导入入口；Mac ViewModel 只绑定 Library resolver、`PracticeRoundSessionController`、MIDI endpoint effect 与 Notation，不复制 reducer、progress 或 playback lifecycle。 |
 | 诊断根 | `Packages/HappyPianistCore/Sources/Diagnostics/` | `DiagnosticEvent`、reporter、七日文件 store、OSLog sink 与用户归档；不包含音频、AR、Practice 投影或输出指标。 |
 | 曲谱根 | `Packages/HappyPianistCore/Sources/MusicXML/` | MusicXML/MXL 解析、结构扩展、模型与安全限制；输入失败以本模块 typed error 表示，不反向依赖 Practice。 |
 | MIDI 根 | `Packages/HappyPianistCore/Sources/MIDI/` | 输入/输出 transport、endpoint ID、CoreMIDI route 与输出指标；不包含练习匹配、录制、AI 或界面。 |
@@ -50,7 +50,7 @@ Models / Contracts
 | 曲库核心 | `Packages/HappyPianistCore/Sources/Library/` | index、路径、文件、导入/恢复、entry resolver、bootstrap 与 `progress-v1.json` file repository；只依赖 Practice/MusicXML/Diagnostics。 |
 | 曲库 App 边界 | `SongLibraryViewModel`、`BundledSongLibraryProvider`、audio services、presentation builders | selection 是内存 intent；`Bundle.main`、音频和 SwiftUI presentation 留在 App，所有持久化事务委托 Library actors。 |
 | 曲谱准备 | `PracticePreparationService` | MusicXML 先形成唯一 `ScorePerformancePlan`，再投影 steps、guides 与 notation；播放运行时消费 plan。 |
-| 练习会话 | `MIDIPracticeSession`、`PracticeSessionViewModel` | active configuration 在一轮内不可变；MIDI 结束顺序是失效输入、停止输入、reset/flush 输出、drain recorder、flush facts、终结 session；AVP view model 只编排 presentation/platform adapters。 |
+| 练习会话 | `PracticeRoundSessionController`、`MIDIPracticeSession` | shared controller 唯一拥有 non-spatial range、attempt/progress、feedback 与 assessment/coaching state；host 只编排 presentation/platform adapters。结束顺序是失效输入、停止输入、reset/flush 输出、drain recorder、flush facts、终结 session。 |
 | 输入与评价 | platform adapters、`PerformanceObservation`、analyzer | 音频、MIDI、手部证据共用 observation 契约，但保留各自 capability 和 unknown 边界。 |
 | 反馈与指导 | assessment、`CoachingDecisionService`、feedback policies | 每次最多一个有范围和完成条件的动作；表现层是持久化事实的派生物。 |
 | AI 对弹 | `AIPerformanceService`、`ImprovBackendRegistry` | 严格使用用户选择的 provider；response 是运行期创意内容，不是谱面真值或评分依据。 |

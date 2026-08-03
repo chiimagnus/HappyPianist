@@ -116,9 +116,17 @@ struct MacPracticeView: View {
                     .accessibilityLabel("最近一次判定")
             }
 
-            if viewModel.canPlayCurrentStepReference {
-                Button("播放当前步骤", systemImage: "speaker.wave.2") {
-                    Task { await viewModel.playCurrentStepReference() }
+            if let decision = viewModel.currentCoachingDecision {
+                MacPracticeCoachingCard(
+                    decision: decision,
+                    apply: { _ = await viewModel.applyCurrentCoachingAction() },
+                    skip: { await viewModel.skipCurrentCoachingAction() }
+                )
+            }
+
+            if viewModel.canReplayActiveRange {
+                Button("回放所选范围", systemImage: "play.rectangle") {
+                    Task { await viewModel.replayActiveRange() }
                 }
                 .buttonStyle(.bordered)
             }
@@ -171,5 +179,66 @@ struct MacPracticeView: View {
     private func returnAfterSaving() async {
         guard await viewModel.retrySavingAndReturn() else { return }
         dismiss()
+    }
+}
+
+private struct MacPracticeCoachingCard: View {
+    let decision: CoachingDecision
+    let apply: @MainActor () async -> Void
+    let skip: @MainActor () async -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("可复测练习建议")
+                .font(.headline)
+            Text("聚焦 (actionTitle)，重复 (decision.action.repeatCount.formatted()) 次。")
+            Text(completionText)
+                .foregroundStyle(.secondary)
+            HStack {
+                Button("按建议重新练习") {
+                    Task { await apply() }
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button("暂不采用") {
+                    Task { await skip() }
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+        .padding()
+        .background(.quaternary, in: .rect(cornerRadius: 12))
+        .accessibilityElement(children: .contain)
+    }
+
+    private var actionTitle: String {
+        switch decision.action.kind {
+        case .pitchAccuracy: "音高准确性"
+        case .onsetAlignment: "起音对齐"
+        case .chordSynchronization: "和弦同步"
+        case .durationControl: "时值控制"
+        case .articulationControl: "触键连贯性"
+        case .voiceBalance: "声部平衡"
+        case .dynamicShaping: "力度塑形"
+        case .pedalCoordination: "踏板配合"
+        case .tempoStability: "速度稳定性"
+        case .phraseContinuity: "乐句连贯性"
+        case .evidenceCheck: "输入证据"
+        }
+    }
+
+    private var completionText: String {
+        switch decision.action.completionCondition.target {
+        case let .dimensionOutcome(_, outcome):
+            let expectation = switch outcome {
+            case .correct: "达到正确"
+            case .incorrect: "仍需继续调整"
+            case .unknown: "获得可判定结果"
+            case .insufficientEvidence: "补足判定证据"
+            }
+            return "完成条件：再次演奏该范围后，此维度" + expectation + "。"
+        case .evidenceAvailable:
+            return "完成条件：再次演奏该范围后，获得足够的输入证据。"
+        }
     }
 }

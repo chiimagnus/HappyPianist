@@ -93,7 +93,7 @@ final class PracticePlaybackControlService {
         guard stateStore.isActiveRangeInvalid == false else { return }
         guard let currentStep else { return }
         guard stateStore.activeRange?.contains(stepIndex: stateStore.currentStepIndex) ?? true else { return }
-        guard stateStore.audioPlaybackErrorMessage == nil else { return }
+        guard stateStore.playbackErrorMessage == nil else { return }
 
         if applyRecognitionSuppress {
             _ = prepareAudioRecognitionSuppressWindowForPlayback()
@@ -205,7 +205,7 @@ final class PracticePlaybackControlService {
                 )
             } catch {
                 stateStore.recordPlaybackError(error)
-                stopAutoplayWithError(stateStore.audioPlaybackErrorMessage ?? "无法自动播放：播放任务异常。")
+                stopAutoplayWithError(stateStore.playbackErrorMessage ?? "无法自动播放：播放任务异常。")
             }
         }
     }
@@ -404,7 +404,7 @@ final class PracticePlaybackControlService {
             try await sequencerPlaybackService.warmUp()
         } catch {
             stateStore.recordPlaybackError(error)
-            stopAutoplayWithError(stateStore.audioPlaybackErrorMessage ?? "无法自动播放：音频服务初始化失败。")
+            stopAutoplayWithError(stateStore.playbackErrorMessage ?? "无法自动播放：音频服务初始化失败。")
             return
         }
 
@@ -428,7 +428,7 @@ final class PracticePlaybackControlService {
             )
         } catch {
             stateStore.recordPlaybackError(error)
-            stopAutoplayWithError(stateStore.audioPlaybackErrorMessage ?? "无法自动播放：构建 MIDI 序列失败。")
+            stopAutoplayWithError(stateStore.playbackErrorMessage ?? "无法自动播放：构建 MIDI 序列失败。")
             return
         }
 
@@ -441,7 +441,7 @@ final class PracticePlaybackControlService {
             playbackPositionSeconds = 0
         } catch {
             stateStore.recordPlaybackError(error)
-            stopAutoplayWithError(stateStore.audioPlaybackErrorMessage ?? "无法自动播放：播放服务启动失败。")
+            stopAutoplayWithError(stateStore.playbackErrorMessage ?? "无法自动播放：播放服务启动失败。")
             return
         }
 

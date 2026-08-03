@@ -11,7 +11,7 @@ func runtimeStateKeepsTheFirstPlaybackFailureForTheCurrentRound() {
     state.recordPlaybackError(RuntimeStateTestError.first)
     state.recordPlaybackError(RuntimeStateTestError.second)
 
-    #expect(state.audioPlaybackErrorMessage == "first")
+    #expect(state.playbackErrorMessage == "first")
 }
 
 @Test

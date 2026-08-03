@@ -16,6 +16,7 @@ open class PracticeSessionRuntimeState {
     public var latestFeedbackEvent: PracticeFeedbackEvent?
     public var currentCoachingDecision: CoachingDecision?
     public var feedbackEventSequence = 0
+    public var lastAttempt: StepAttemptMatchResult?
     public var songIdentity: PracticeSongIdentity?
     public var progressGeneration: Int?
     public var isRestoredSessionPaused = false
@@ -62,7 +63,7 @@ open class PracticeSessionRuntimeState {
 
     public var autoplayState: PracticeSessionAutoplayState = .off
     public var isSustainPedalDown = false
-    public var audioPlaybackErrorMessage: String?
+    public var playbackErrorMessage: String?
     public var autoplayErrorMessage: String?
     public private(set) var tempoMap = MusicXMLTempoMap(performanceEvents: [])
     public var measureSpans: [MusicXMLMeasureSpan] = []
@@ -79,14 +80,14 @@ extension PracticeSessionRuntimeState: PracticeRoundConfigurationStateStoring {}
 
 public extension PracticeSessionRuntimeState {
     func recordPlaybackError(_ error: Error) {
-        guard audioPlaybackErrorMessage == nil else { return }
+        guard playbackErrorMessage == nil else { return }
         if let localized = error as? LocalizedError,
            let description = localized.errorDescription,
            description.isEmpty == false
         {
-            audioPlaybackErrorMessage = description
+            playbackErrorMessage = description
         } else {
-            audioPlaybackErrorMessage = String(describing: error)
+            playbackErrorMessage = String(describing: error)
         }
     }
 }

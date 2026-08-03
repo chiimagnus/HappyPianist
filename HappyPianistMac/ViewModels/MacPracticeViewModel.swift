@@ -28,35 +28,61 @@ final class MacPracticeViewModel {
     private let midiSettingsViewModel: MIDISettingsViewModel
     private let makeReferencePlaybackService: (Int32) -> any PracticeSequencerPlaybackServiceProtocol
     private let diagnosticsReporter: (any DiagnosticsReporting)?
-    private let roundState: MacPracticeRoundStateStore
+    private let sessionController: PracticeRoundSessionController
+    private let playbackSequenceBuilder = PlaybackSequenceBuilder()
 
     let roundConfigurationController: PracticeRoundConfigurationController
 
-    private let stepNavigator = PracticeStepNavigator()
-    private let attemptReducer = PracticeAttemptReducer()
-    private var attemptReductionState = PracticeAttemptReductionState()
-    private var measureIndex: PracticeMeasureIndex?
-    private var activeRange: PracticeActiveRange?
-    private var progress: SongPracticeProgress?
     private var midiSession: MIDIPracticeSession?
     private var referencePlaybackService: (any PracticeSequencerPlaybackServiceProtocol)?
     @ObservationIgnored private var midiEventTask: Task<Void, Never>?
+    @ObservationIgnored private var manualReplayTask: Task<Void, Never>?
+    @ObservationIgnored private var passageAnalysisTask: Task<Void, Never>?
     private var loadedSongID: UUID?
     private var loadGeneration = 0
     private var inputGeneration = 0
+    private var passageAnalysisGeneration = 0
 
     private(set) var state: MacPracticeState = .idle
-    private(set) var preparedPractice: PreparedPractice?
-    private(set) var currentStepIndex = 0
-    private(set) var lastAttempt: StepAttemptMatchResult?
     private(set) var errorMessage: String?
 
-    var canPlayCurrentStepReference: Bool {
+    var preparedPractice: PreparedPractice? {
+        sessionController.preparedPractice
+    }
+
+    private var activeRange: PracticeActiveRange? {
+        get { sessionController.state.activeRange }
+        set { sessionController.state.activeRange = newValue }
+    }
+
+    private var progress: SongPracticeProgress? {
+        get { sessionController.state.sessionProgress }
+        set { sessionController.state.sessionProgress = newValue }
+    }
+
+    private(set) var currentStepIndex: Int {
+        get { sessionController.state.currentStepIndex }
+        set { sessionController.state.currentStepIndex = newValue }
+    }
+
+    var lastAttempt: StepAttemptMatchResult? {
+        sessionController.state.lastAttempt
+    }
+
+    var latestFeedbackEvent: PracticeFeedbackEvent? {
+        sessionController.state.latestFeedbackEvent
+    }
+
+    var currentCoachingDecision: CoachingDecision? {
+        sessionController.state.currentCoachingDecision
+    }
+
+    var canReplayActiveRange: Bool {
         state == .guiding &&
             referencePlaybackService != nil &&
             midiSettingsViewModel.selectedAvailableOutputEndpointID != nil &&
-            preparedPractice?.steps.indices.contains(currentStepIndex) == true &&
-            activeRange?.contains(stepIndex: currentStepIndex) == true
+            preparedPractice != nil &&
+            activeRange != nil
     }
 
     init(
@@ -79,17 +105,16 @@ final class MacPracticeViewModel {
         self.midiSettingsViewModel = midiSettingsViewModel
         self.makeReferencePlaybackService = makeReferencePlaybackService
         self.diagnosticsReporter = diagnosticsReporter
-        let roundState = MacPracticeRoundStateStore()
-        self.roundState = roundState
-        roundConfigurationController = PracticeRoundConfigurationController(
-            stateStore: roundState,
+        let sessionController = PracticeRoundSessionController(
             settingsProvider: settingsProvider,
             defaultsStore: roundDefaultsStore
         )
+        self.sessionController = sessionController
+        roundConfigurationController = sessionController.roundConfigurationController
     }
 
     private var configuration: PracticeRoundConfiguration? {
-        roundState.activeRoundConfiguration
+        sessionController.configuration
     }
 
     func load(songID: UUID) async {
@@ -194,58 +219,23 @@ final class MacPracticeViewModel {
         restoredProgress: SongPracticeProgress?,
         generation: Int
     ) async throws {
-        let measureIndex = PracticeMeasureIndex(steps: prepared.steps, measureSpans: prepared.measureSpans)
-        guard let first = measureIndex.measureSpans.first?.occurrenceID,
-              let last = measureIndex.measureSpans.last?.occurrenceID,
-              let passage = PracticePassage(start: first, end: last)
-        else {
-            state = .preparationFailed
-            errorMessage = "曲谱缺少可练习的小节结构。"
-            return
-        }
-        self.measureIndex = measureIndex
-        roundConfigurationController.installFreshFullScoreConfiguration(passage: passage)
-        guard let freshConfiguration = configuration else {
-            state = .preparationFailed
-            errorMessage = "无法创建练习配置。"
-            return
-        }
-
-        var resolvedRange = try measureIndex.resolve(freshConfiguration.passage)
-        var effectiveProgress = restoredProgress
-        if let restoredProgress {
-            let restoration = PracticeExactProgressRestorer.restore(
-                restoredProgress,
-                freshConfiguration: freshConfiguration,
-                measureIndex: measureIndex
-            )
-            effectiveProgress = restoration.progress
-            if let restoredConfiguration = restoration.progress.activeConfiguration {
-                roundConfigurationController.restoreActiveConfiguration(restoredConfiguration)
-                if let restoredRange = restoration.activeRange {
-                    resolvedRange = restoredRange
-                }
-            }
-            if restoration.didRepairSavedState {
-                do {
-                    try await progressRepository.upsert(restoration.progress)
-                } catch {
-                    guard generation == loadGeneration else { return }
-                    state = .saveFailed
-                    errorMessage = "已修复的练习状态暂时无法保存；请恢复后重试。"
-                    return
-                }
+        let installation = try sessionController.install(
+            preparedPractice: prepared,
+            restoredProgress: restoredProgress
+        )
+        if let repairedProgress = installation.repairedProgress {
+            do {
+                try await progressRepository.upsert(repairedProgress)
+            } catch {
+                guard generation == loadGeneration else { return }
+                state = .saveFailed
+                errorMessage = "已修复的练习状态暂时无法保存；请恢复后重试。"
+                return
             }
         }
 
         guard generation == loadGeneration else { return }
-        activeRange = resolvedRange
-        progress = effectiveProgress
-        attemptReductionState = PracticeAttemptReductionState()
-        preparedPractice = prepared
-        currentStepIndex = effectiveProgress?.resumePoint?.stepIndex ?? resolvedRange.firstStepIndex
-        lastAttempt = nil
-        await start(prepared: prepared, activeRange: resolvedRange, generation: generation)
+        await start(prepared: prepared, activeRange: installation.activeRange, generation: generation)
     }
 
     private func start(
@@ -327,33 +317,91 @@ final class MacPracticeViewModel {
         session.update(configuration: MIDIPracticeSession.Configuration(
             acceptsInput: true,
             currentStepIndex: currentStepIndex,
-            expectedNotes: expectedNotesForCurrentStep(in: prepared, configuration: configuration)
+            expectedNotes: sessionController.expectedNotesForCurrentStep()
         ))
     }
 
-    func playCurrentStepReference() async {
-        guard canPlayCurrentStepReference,
+    func replayActiveRange() async {
+        guard canReplayActiveRange,
               let prepared = preparedPractice,
               let playbackService = referencePlaybackService,
-              let configuration
+              let configuration,
+              let activeRange,
+              let stepRange = activeRange.clampedStepRange(prepared.steps.indices),
+              prepared.steps.indices.contains(stepRange.lowerBound)
         else { return }
 
-        let commands = expectedNotesForCurrentStep(in: prepared, configuration: configuration).compactMap { note -> PracticePlaybackCommand? in
-            guard UInt8(exactly: note.midiNote) != nil else { return nil }
-            return PracticePlaybackCommand(
-                sourceEventID: "mac-reference-\(currentStepIndex)-\(note.id)",
-                kind: .noteOn(midi: note.midiNote, velocity: note.velocity)
-            )
-        }
-        guard commands.isEmpty == false else { return }
+        let startIndex = stepRange.lowerBound
+        let startTick = prepared.steps[startIndex].tick
+        let endTick = prepared.steps.indices.contains(stepRange.upperBound)
+            ? prepared.steps[stepRange.upperBound].tick
+            : activeRange.tickRange.upperBound
 
-        do {
-            try await playbackService.playOneShot(
-                commands: commands,
-                durationSeconds: 0.5 / configuration.tempoScale
+        await cancelManualReplay(restorePracticeInput: false)
+        sessionController.state.manualReplayGeneration &+= 1
+        let generation = sessionController.state.manualReplayGeneration
+        sessionController.state.isManualReplayPlaying = true
+        sessionController.state.acceptsPracticeAttempts = false
+        currentStepIndex = startIndex
+        midiSession?.update(configuration: MIDIPracticeSession.Configuration(
+            acceptsInput: false,
+            currentStepIndex: currentStepIndex,
+            expectedNotes: []
+        ))
+        manualReplayTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            var completedReplay = false
+            defer {
+                if self.sessionController.state.manualReplayGeneration == generation {
+                    if completedReplay {
+                        self.currentStepIndex = startIndex
+                    }
+                    self.manualReplayTask = nil
+                    self.sessionController.state.isManualReplayPlaying = false
+                    self.restorePracticeInputAfterManualReplay()
+                }
+            }
+
+            let timeline = await AutoplayPerformanceTimeline.buildOffMain(
+                plan: prepared.performancePlan,
+                guideProjection: [],
+                stepProjection: [],
+                tempoMap: self.sessionController.state.tempoMap,
+                practiceHandMode: configuration.handMode,
+                activeRange: activeRange,
+                transportStartTick: startTick
             )
-        } catch {
-            errorMessage = "无法播放当前步骤参考音。请检查所选 MIDI 输出。"
+            guard Task.isCancelled == false,
+                  self.sessionController.state.manualReplayGeneration == generation
+            else { return }
+
+            do {
+                try await playbackService.warmUp()
+                let sequence = try await self.playbackSequenceBuilder.buildPerformanceSequence(
+                    timeline: timeline,
+                    tempoMap: self.sessionController.state.tempoMap,
+                    startTick: startTick,
+                    endTick: endTick,
+                    leadInSeconds: 0.05
+                )
+                guard Task.isCancelled == false,
+                      self.sessionController.state.manualReplayGeneration == generation
+                else { return }
+                await playbackService.stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
+                try await playbackService.load(sequence: sequence)
+                try await playbackService.play(fromSeconds: 0)
+                try await Task.sleep(for: .seconds(max(0, sequence.durationSeconds)))
+                guard Task.isCancelled == false,
+                      self.sessionController.state.manualReplayGeneration == generation
+                else { return }
+                await playbackService.stop(resetCommands: PerformanceTransportReducer.fullResetCommands)
+                completedReplay = true
+            } catch is CancellationError {
+                return
+            } catch {
+                self.sessionController.state.recordPlaybackError(error)
+                self.errorMessage = "无法回放所选练习范围。请检查所选 MIDI 输出。"
+            }
         }
     }
 
@@ -376,99 +424,50 @@ final class MacPracticeViewModel {
     }
 
     private func handle(_ event: MIDIPracticeSession.Event) {
-        guard state == .guiding,
-              let prepared = preparedPractice,
-              let configuration,
-              let measureIndex,
-              let activeRange
-        else { return }
+        guard state == .guiding else { return }
         switch event {
-        case .inputRunning, .inputCapabilitiesAvailable, .inputDiscontinuity:
+        case let .inputRunning(isRunning):
+            sessionController.state.isPracticeInputRunning = isRunning
+        case let .inputCapabilitiesAvailable(capabilities):
+            Task { [sessionRecorder] in
+                await sessionRecorder.registerInputCapabilities(capabilities)
+            }
+        case .inputDiscontinuity:
             break
         case let .attemptEvaluated(outcome):
-            lastAttempt = outcome
-            let result = attemptReducer.reduceAttempt(
-                progress: progress,
-                reductionState: attemptReductionState,
-                outcome: outcome,
-                stepIndex: currentStepIndex,
-                identity: prepared.identity,
-                configuration: configuration,
-                measureIndex: measureIndex,
-                timestamp: .now
-            )
-            progress = result.progress
-            attemptReductionState = result.reductionState
+            sessionController.recordAttempt(outcome)
         case .advanceToNextStep:
-            let navigation = stepNavigator.advance(
-                steps: prepared.steps,
-                currentStepIndex: currentStepIndex,
-                activeRange: activeRange
-            )
-            currentStepIndex = navigation.currentStepIndex
-            switch navigation.state {
-            case .guiding:
-                updateResumePoint()
+            switch sessionController.advance() {
+            case let .guiding(currentStepIndex, expectedNotes):
                 midiSession?.update(configuration: MIDIPracticeSession.Configuration(
                     acceptsInput: true,
                     currentStepIndex: currentStepIndex,
-                    expectedNotes: expectedNotesForCurrentStep(in: prepared, configuration: configuration)
+                    expectedNotes: expectedNotes
                 ))
-            case .completed:
-                recordPassageCompletion(configuration: configuration, identity: prepared.identity)
-                if configuration.loopEnabled {
-                    beginNextLoopRound(
-                        prepared: prepared,
-                        configuration: configuration,
-                        activeRange: activeRange
-                    )
-                } else {
-                    state = .completed
-                    midiSession?.stop()
+            case let .completed(waitingForAssessment):
+                state = .completed
+                midiSession?.stop()
+                if waitingForAssessment, let midiSession {
+                    startPassageAnalysis(for: midiSession)
                 }
-            default:
-                break
             }
         }
     }
 
     @discardableResult
     func applyPendingRoundConfiguration() async -> Bool {
-        guard let prepared = preparedPractice,
-              let measureIndex
-        else { return false }
+        guard let prepared = preparedPractice else { return false }
 
         await stopActiveInputForRoundReconfiguration()
-        _ = roundConfigurationController.applyPending()
-        guard let configuration else {
-            state = .preparationFailed
-            errorMessage = "练习配置无效。"
-            return false
-        }
-
         let resolvedRange: PracticeActiveRange
         do {
-            resolvedRange = try measureIndex.resolve(configuration.passage)
+            resolvedRange = try sessionController.applyPendingConfiguration()
         } catch {
             state = .preparationFailed
             errorMessage = "所选练习范围无效。"
             return false
         }
 
-        activeRange = resolvedRange
-        currentStepIndex = resolvedRange.firstStepIndex
-        attemptReductionState = PracticeAttemptReductionState()
-        lastAttempt = nil
-        let restart = attemptReducer.reducePassageRestart(
-            progress: progress,
-            identity: prepared.identity,
-            configuration: configuration,
-            timestamp: .now
-        )
-        var restartedProgress = restart.progress
-        restartedProgress.resumePoint = nil
-        progress = restartedProgress
-        attemptReductionState = restart.reductionState
         guard await flushProgress() else {
             state = .saveFailed
             errorMessage = "新的练习配置暂时无法保存；请重试。"
@@ -492,6 +491,7 @@ final class MacPracticeViewModel {
     }
 
     private func finishCurrentPractice() async -> Bool {
+        await waitForPassageAnalysis()
         if let midiSession {
             let finished = await midiSession.finish(termination: .init(
                 resetOutput: { [weak self, midiSettingsViewModel] in
@@ -535,6 +535,7 @@ final class MacPracticeViewModel {
     private func discardCurrentPractice() async {
         loadGeneration &+= 1
         inputGeneration &+= 1
+        await cancelPassageAnalysis()
         midiEventTask?.cancel()
         midiEventTask = nil
         await stopReferencePlayback()
@@ -543,19 +544,13 @@ final class MacPracticeViewModel {
         midiSettingsViewModel.onSelectedInputLoss = nil
         midiSettingsViewModel.resumeSelectedInputMonitoring()
         await sessionRecorder.discardPendingDelta()
-        measureIndex = nil
-        activeRange = nil
-        roundConfigurationController.resetSong()
-        progress = nil
-        preparedPractice = nil
+        sessionController.reset()
         loadedSongID = nil
-        attemptReductionState = PracticeAttemptReductionState()
-        currentStepIndex = 0
-        lastAttempt = nil
         state = .idle
     }
 
     private func stopActiveInputForRoundReconfiguration() async {
+        await cancelPassageAnalysis()
         inputGeneration &+= 1
         midiEventTask?.cancel()
         midiEventTask = nil
@@ -567,87 +562,143 @@ final class MacPracticeViewModel {
         _ = await sessionRecorder.setGuiding(false)
     }
 
-    private func expectedNotesForCurrentStep(
-        in prepared: PreparedPractice,
-        configuration: PracticeRoundConfiguration
-    ) -> [PracticeStepNote] {
-        guard prepared.steps.indices.contains(currentStepIndex) else { return [] }
-        let notes = prepared.steps[currentStepIndex].notes
-        guard configuration.handMode != .both else { return notes }
-        return notes.filter { configuration.handMode.allows(hand: $0.hand) }
-    }
-
-    private func updateResumePoint() {
-        guard let measureIndex,
-              let occurrenceID = measureIndex.occurrenceID(forStepIndex: currentStepIndex),
-              var progress
-        else { return }
-        progress.resumePoint = PracticeResumePoint(
-            occurrenceID: occurrenceID,
-            stepIndex: currentStepIndex,
-            updatedAt: .now
-        )
-        progress.updatedAt = .now
-        self.progress = progress
-    }
-
-    private func recordPassageCompletion(
-        configuration: PracticeRoundConfiguration,
-        identity: PracticeSongIdentity
-    ) {
-        let result = attemptReducer.reducePassageCompletion(
-            progress: progress,
-            reductionState: attemptReductionState,
-            identity: identity,
-            configuration: configuration,
-            timestamp: .now
-        )
-        progress = result.progress
-        attemptReductionState = result.reductionState
-    }
-
-    private func beginNextLoopRound(
-        prepared: PreparedPractice,
-        configuration: PracticeRoundConfiguration,
-        activeRange: PracticeActiveRange
-    ) {
-        roundConfigurationController.beginNextRound()
-        let restart = attemptReducer.reducePassageRestart(
-            progress: progress,
-            identity: prepared.identity,
-            configuration: configuration,
-            timestamp: .now
-        )
-        progress = restart.progress
-        attemptReductionState = restart.reductionState
-        currentStepIndex = activeRange.firstStepIndex
-        updateResumePoint()
-        lastAttempt = nil
-        midiSession?.update(configuration: MIDIPracticeSession.Configuration(
-            acceptsInput: true,
-            currentStepIndex: currentStepIndex,
-            expectedNotes: expectedNotesForCurrentStep(in: prepared, configuration: configuration)
-        ))
-    }
-
     private func stopReferencePlayback() async {
+        await cancelManualReplay(restorePracticeInput: false)
         guard let referencePlaybackService else { return }
         await referencePlaybackService.stop(
             resetCommands: PerformanceTransportReducer.fullResetCommands
         )
         self.referencePlaybackService = nil
     }
-}
 
-@MainActor
-@Observable
-private final class MacPracticeRoundStateStore: PracticeRoundConfigurationStateStoring {
-    var activeRoundConfiguration: PracticeRoundConfiguration?
-    var activeManualAdvanceMode: ManualAdvanceMode = .step
-    var activeSoundRoutingSettings = PracticeSoundRoutingSettings(
-        outputRoute: .localSampler,
-        midiDestinationUniqueID: nil,
-        sendLocalControlOff: false
-    )
-    var roundGeneration = 0
+    private func cancelManualReplay(restorePracticeInput: Bool) async {
+        let wasReplaying = sessionController.state.isManualReplayPlaying
+        sessionController.state.manualReplayGeneration &+= 1
+        let task = manualReplayTask
+        manualReplayTask = nil
+        task?.cancel()
+        await task?.value
+        sessionController.state.isManualReplayPlaying = false
+        if wasReplaying, let referencePlaybackService {
+            await referencePlaybackService.stop(
+                resetCommands: PerformanceTransportReducer.fullResetCommands
+            )
+        }
+        if restorePracticeInput {
+            restorePracticeInputAfterManualReplay()
+        }
+    }
+
+    private func restorePracticeInputAfterManualReplay() {
+        sessionController.state.acceptsPracticeAttempts = true
+        guard state == .guiding else { return }
+        midiSession?.update(configuration: MIDIPracticeSession.Configuration(
+            acceptsInput: true,
+            currentStepIndex: currentStepIndex,
+            expectedNotes: sessionController.expectedNotesForCurrentStep()
+        ))
+    }
+
+    @discardableResult
+    func applyCurrentCoachingAction() async -> Bool {
+        guard let decision = currentCoachingDecision,
+              sessionController.stageCurrentCoachingRound()
+        else { return false }
+
+        guard await applyPendingRoundConfiguration() else { return false }
+        await sessionController.acceptCoachingDecision(decision)
+        if decision.action.referenceUse == .manualReplay {
+            await replayActiveRange()
+        }
+        return true
+    }
+
+    func skipCurrentCoachingAction() async {
+        await sessionController.skipCurrentCoachingDecision()
+    }
+
+    private func startPassageAnalysis(for midiSession: MIDIPracticeSession) {
+        passageAnalysisGeneration &+= 1
+        let generation = passageAnalysisGeneration
+        let sessionGeneration = loadGeneration
+        passageAnalysisTask?.cancel()
+        passageAnalysisTask = Task { @MainActor [weak self, weak midiSession] in
+            guard let self, let midiSession else { return }
+            await midiSession.waitForPendingObservationRecording()
+            guard Task.isCancelled == false,
+                  self.passageAnalysisGeneration == generation,
+                  self.loadGeneration == sessionGeneration,
+                  self.midiSession === midiSession,
+                  self.state == .completed
+            else { return }
+
+            _ = await self.sessionRecorder.setGuiding(false)
+            let snapshot = await self.sessionRecorder.analysisSnapshot()
+            guard Task.isCancelled == false,
+                  self.passageAnalysisGeneration == generation,
+                  self.loadGeneration == sessionGeneration,
+                  self.midiSession === midiSession,
+                  self.state == .completed
+            else { return }
+
+            self.retireCompletedInput(midiSession)
+            let advance = await self.sessionController.completePassageAnalysis(
+                assessment: snapshot.assessment,
+                analyzerRoundGeneration: snapshot.roundGeneration
+            )
+            guard Task.isCancelled == false,
+                  self.passageAnalysisGeneration == generation,
+                  self.loadGeneration == sessionGeneration
+            else { return }
+            guard await self.flushProgress() else {
+                self.state = .saveFailed
+                self.errorMessage = "本轮评估结果暂时无法保存；请重试。"
+                return
+            }
+
+            switch advance {
+            case let .guiding(currentStepIndex, _):
+                guard let prepared = self.preparedPractice,
+                      let activeRange = self.activeRange
+                else { return }
+                self.currentStepIndex = currentStepIndex
+                await self.startGuidingInput(
+                    prepared: prepared,
+                    activeRange: activeRange,
+                    generation: sessionGeneration,
+                    startsVisit: false
+                )
+            case .completed:
+                self.state = .completed
+            }
+
+            if self.passageAnalysisGeneration == generation {
+                self.passageAnalysisTask = nil
+            }
+        }
+    }
+
+    private func retireCompletedInput(_ midiSession: MIDIPracticeSession) {
+        guard self.midiSession === midiSession else { return }
+        inputGeneration &+= 1
+        midiEventTask?.cancel()
+        midiEventTask = nil
+        midiSession.shutdown()
+        self.midiSession = nil
+        midiSettingsViewModel.onSelectedInputLoss = nil
+        midiSettingsViewModel.resumeSelectedInputMonitoring()
+        sessionController.state.isPracticeInputRunning = false
+    }
+
+    private func waitForPassageAnalysis() async {
+        await passageAnalysisTask?.value
+    }
+
+    private func cancelPassageAnalysis() async {
+        passageAnalysisGeneration &+= 1
+        let task = passageAnalysisTask
+        passageAnalysisTask = nil
+        task?.cancel()
+        await task?.value
+    }
 }
