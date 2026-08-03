@@ -18,7 +18,7 @@ struct MacLibraryRootView: View {
     @Bindable var practiceViewModel: MacPracticeViewModel
 
     private var audioImporterTypes: [UTType] {
-        let types = MacLibraryViewModel.supportedAudioFileExtensions.compactMap {
+        let types = AudioImportService.supportedFileExtensions.compactMap {
             UTType(filenameExtension: $0)
         }
         return types.isEmpty ? [.audio] : types

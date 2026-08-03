@@ -28,9 +28,6 @@ final class MacLibraryViewModel {
     @ObservationIgnored private var audioIntentGeneration = 0
     @ObservationIgnored private var pendingAudioBindingEntryID: UUID?
 
-    static let supportedAudioFileExtensions = ["mp3", "m4a"]
-    private static let supportedAudioFileExtensionSet = Set(supportedAudioFileExtensions)
-
     private(set) var entries: [SongLibraryEntry] = []
     var selectedEntryID: UUID?
     private(set) var loadState: MacLibraryLoadState = .idle
@@ -183,7 +180,7 @@ final class MacLibraryViewModel {
             errorMessage = "内置曲目不支持绑定外部音频文件。"
             return
         }
-        guard Self.supportedAudioFileExtensionSet.contains(sourceURL.pathExtension.lowercased()) else {
+        guard AudioImportService.isSupported(sourceURL) else {
             errorMessage = "仅支持导入 mp3 或 m4a 音频文件。"
             return
         }

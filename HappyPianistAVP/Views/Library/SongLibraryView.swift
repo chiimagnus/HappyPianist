@@ -19,7 +19,7 @@ struct SongLibraryView: View {
     @State private var libraryViewHeight = LibraryWindowLayout.idealHeight
 
     private var audioImporterTypes: [UTType] {
-        let types = SongLibraryViewModel.supportedAudioFileExtensions.compactMap {
+        let types = AudioImportService.supportedFileExtensions.compactMap {
             UTType(filenameExtension: $0)
         }
         return types.isEmpty ? [.audio] : types
