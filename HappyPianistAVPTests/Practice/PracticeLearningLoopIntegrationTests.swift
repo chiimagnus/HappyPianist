@@ -1,4 +1,8 @@
 import Foundation
+import Diagnostics
+import MIDI
+@testable import MusicXML
+@testable import Practice
 @testable import HappyPianistAVP
 import Testing
 
@@ -282,7 +286,7 @@ func passageCompletionDrainsTheLastMIDIObservationBeforeAssessment() async throw
         kind: .noteOn(note: 60, velocity: 100),
         channel: 1,
         group: 0,
-        source: .init(identifier: .sourceIndex(0), endpointName: "test"),
+        source: .init(identifier: .endpointUniqueID(0), endpointName: "test"),
         receivedAt: .now,
         receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime
     ))
@@ -423,7 +427,7 @@ private func makeLearningLoopSession(
     playback: LearningLoopPlaybackService,
     coordinator: PracticeProgressCoordinator,
     recorder: PracticeSessionRecorder? = nil,
-    practiceInputEventSource: PracticeInputEventSourceProtocol? = nil,
+    practiceInputEventSource: (any MIDIInputEventSource)? = nil,
     handObservationSourceKind: PerformanceObservation.Source.Kind? = nil,
     diagnosticsReporter: (any DiagnosticsReporting)? = nil
 ) -> PracticeSessionViewModel {
@@ -495,6 +499,7 @@ private actor LearningLoopRepository: PracticeProgressRepositoryProtocol {
     }
 }
 
+@MainActor
 private final class LearningLoopPlaybackService: PracticeSequencerPlaybackServiceProtocol {
     private(set) var oneShotCount = 0
     private(set) var playCount = 0

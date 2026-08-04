@@ -1,4 +1,5 @@
 import Foundation
+import Practice
 
 /// Observed musical material supplied to an AI creative-duet backend.
 ///

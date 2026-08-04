@@ -4,6 +4,7 @@ xcuserdata/
 .build/
 **/build/
 .swiftpm/
+Packages/HappyPianistCore/Package.resolved
 
 .derivedData
 .derivedData-avp

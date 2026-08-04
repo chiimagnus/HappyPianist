@@ -1,4 +1,7 @@
 import Foundation
+@testable import MusicXML
+import Practice
+import Diagnostics
 @testable import HappyPianistAVP
 import simd
 import Testing
@@ -522,7 +525,7 @@ func autoplaySchedulesAndAdvancesStepsUsingTempoMap() async {
         PianoHighlightGuide(
             id: 3,
             kind: .trigger,
-            tick: 960,
+            tick: MusicXMLTempoMap.ticksPerQuarter * 2,
             durationTicks: nil,
             practiceStepIndex: 2,
             activeNotes: [],
@@ -583,18 +586,18 @@ func autoplaySchedulesPendingOnsetsInsideCurrentStep() {
                     voice: 1,
                     velocity: 96,
                     onTick: 0,
-                    offTick: 480,
+                    offTick: MusicXMLTempoMap.ticksPerQuarter,
                     fingerings: [],
                     handAssignment: .unknown
                 ),
                 PianoHighlightNote(
-                    occurrenceID: "t30-64",
+                    occurrenceID: "t240-64",
                     midiNote: 64,
                     staff: 1,
                     voice: 1,
                     velocity: 96,
-                    onTick: 30,
-                    offTick: 510,
+                    onTick: MusicXMLTempoMap.ticksPerQuarter / 16,
+                    offTick: MusicXMLTempoMap.ticksPerQuarter + MusicXMLTempoMap.ticksPerQuarter / 16,
                     fingerings: [],
                     handAssignment: .unknown
                 ),
@@ -604,7 +607,7 @@ func autoplaySchedulesPendingOnsetsInsideCurrentStep() {
         PianoHighlightGuide(
             id: 2,
             kind: .trigger,
-            tick: 480,
+            tick: MusicXMLTempoMap.ticksPerQuarter,
             durationTicks: nil,
             practiceStepIndex: 1,
             activeNotes: [],
@@ -615,13 +618,13 @@ func autoplaySchedulesPendingOnsetsInsideCurrentStep() {
 
     let timeline = AutoplayPerformanceTimeline.build(
         plan: makeTestScorePerformancePlan(notes: [
-            TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 480),
-            TestScorePerformanceNote(midiNote: 64, onTick: 30, offTick: 510),
+            TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: MusicXMLTempoMap.ticksPerQuarter),
+            TestScorePerformanceNote(midiNote: 64, onTick: MusicXMLTempoMap.ticksPerQuarter / 16, offTick: MusicXMLTempoMap.ticksPerQuarter + MusicXMLTempoMap.ticksPerQuarter / 16),
         ]),
         guideProjection: highlightGuides,
         stepProjection: [
             PracticeStep(tick: 0, notes: []),
-            PracticeStep(tick: 480, notes: []),
+            PracticeStep(tick: MusicXMLTempoMap.ticksPerQuarter, notes: []),
         ],
         tempoMap: tempoMap,
         practiceHandMode: .both
@@ -653,13 +656,13 @@ func autoplayInsertsPlanPauseBeforeAdvancing() {
         ]
     )
     let highlightedNote = PianoHighlightNote(
-        occurrenceID: "fermata-60-0-480",
+        occurrenceID: "fermata-60-0-3840",
         midiNote: 60,
         staff: 1,
         voice: 1,
         velocity: 96,
         onTick: 0,
-        offTick: 480,
+        offTick: MusicXMLTempoMap.ticksPerQuarter,
         fingerings: [],
         handAssignment: .unknown
     )
@@ -677,7 +680,7 @@ func autoplayInsertsPlanPauseBeforeAdvancing() {
         PianoHighlightGuide(
             id: 2,
             kind: .trigger,
-            tick: 480,
+            tick: MusicXMLTempoMap.ticksPerQuarter,
             durationTicks: nil,
             practiceStepIndex: 1,
             activeNotes: [],
@@ -688,12 +691,12 @@ func autoplayInsertsPlanPauseBeforeAdvancing() {
 
     let timeline = AutoplayPerformanceTimeline.build(
         plan: makeTestScorePerformancePlan(
-            notes: [TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 480)],
+            notes: [TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: MusicXMLTempoMap.ticksPerQuarter)],
             annotations: [ScorePerformanceAnnotation(
                 sourceDirectionID: nil,
                 performedOccurrenceIndex: 0,
-                tick: 480,
-                durationTicks: 240,
+                tick: MusicXMLTempoMap.ticksPerQuarter,
+                durationTicks: MusicXMLTempoMap.ticksPerQuarter / 2,
                 kind: .pause,
                 text: "fermata",
                 provenance: []
@@ -702,21 +705,21 @@ func autoplayInsertsPlanPauseBeforeAdvancing() {
         guideProjection: guides,
         stepProjection: [
             PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
-            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
+            PracticeStep(tick: MusicXMLTempoMap.ticksPerQuarter, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
         ],
         tempoMap: tempoMap,
         practiceHandMode: .both
     )
 
-    let pauseAt480 = timeline.events.first { event in
-        event.tick == 480 && {
+    let pauseAtQuarter = timeline.events.first { event in
+        event.tick == MusicXMLTempoMap.ticksPerQuarter && {
             if case .pauseSeconds = event.kind { return true }
             return false
         }()
     }
 
-    #expect(pauseAt480 != nil)
-    if case let .pauseSeconds(seconds)? = pauseAt480?.kind {
+    #expect(pauseAtQuarter != nil)
+    if case let .pauseSeconds(seconds)? = pauseAtQuarter?.kind {
         #expect(abs(seconds - 0.25) < 1e-9)
     }
 }
@@ -743,7 +746,7 @@ func autoplaySchedulesPedalChangesBetweenSteps() {
         PianoHighlightGuide(
             id: 2,
             kind: .trigger,
-            tick: 960,
+            tick: MusicXMLTempoMap.ticksPerQuarter * 2,
             durationTicks: nil,
             practiceStepIndex: 1,
             activeNotes: [],
@@ -755,12 +758,12 @@ func autoplaySchedulesPedalChangesBetweenSteps() {
     let timeline = AutoplayPerformanceTimeline.build(
         plan: makeTestScorePerformancePlan(
             notes: [],
-            controllerEvents: [testPerformanceController(tick: 480, value: 127)]
+            controllerEvents: [testPerformanceController(tick: MusicXMLTempoMap.ticksPerQuarter, value: 127)]
         ),
         guideProjection: guides,
         stepProjection: [
             PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: nil, handAssignment: .unknown)]),
-            PracticeStep(tick: 960, notes: [PracticeStepNote(midiNote: 62, staff: nil, handAssignment: .unknown)]),
+            PracticeStep(tick: MusicXMLTempoMap.ticksPerQuarter * 2, notes: [PracticeStepNote(midiNote: 62, staff: nil, handAssignment: .unknown)]),
         ],
         tempoMap: tempoMap,
         practiceHandMode: .both
@@ -1093,20 +1096,20 @@ func autoplayAdvancesHighlightGuidesByTick() {
             tick: 0,
             practiceStepIndex: 0,
             midiNotes: [60],
-            noteDurationTicks: 480
+            noteDurationTicks: MusicXMLTempoMap.ticksPerQuarter
         ),
-        makeHighlightGuide(id: 2, kind: .gap, tick: 120, practiceStepIndex: nil, midiNotes: [], released: [60]),
-        makeHighlightGuide(id: 3, kind: .trigger, tick: 480, practiceStepIndex: 1, midiNotes: [62]),
+        makeHighlightGuide(id: 2, kind: .gap, tick: MusicXMLTempoMap.ticksPerQuarter / 4, practiceStepIndex: nil, midiNotes: [], released: [60]),
+        makeHighlightGuide(id: 3, kind: .trigger, tick: MusicXMLTempoMap.ticksPerQuarter, practiceStepIndex: 1, midiNotes: [62]),
     ]
 
     let timeline = AutoplayPerformanceTimeline.build(
         plan: makeTestScorePerformancePlan(notes: [
-            TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 480),
+            TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: MusicXMLTempoMap.ticksPerQuarter),
         ]),
         guideProjection: guides,
         stepProjection: [
             PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, voice: 1, handAssignment: .unknown)]),
-            PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, voice: 1, handAssignment: .unknown)]),
+            PracticeStep(tick: MusicXMLTempoMap.ticksPerQuarter, notes: [PracticeStepNote(midiNote: 62, staff: 1, voice: 1, handAssignment: .unknown)]),
         ],
         tempoMap: tempoMap,
         practiceHandMode: .both
@@ -1147,7 +1150,7 @@ func autoplaySchedulesNoteOffFromPerformancePlan() {
                     voice: 1,
                     velocity: 96,
                     onTick: 0,
-                    offTick: 480,
+                    offTick: MusicXMLTempoMap.ticksPerQuarter,
                     fingerings: [],
                     handAssignment: .unknown
                 ),
@@ -1157,7 +1160,7 @@ func autoplaySchedulesNoteOffFromPerformancePlan() {
         PianoHighlightGuide(
             id: 2,
             kind: .trigger,
-            tick: 1440,
+            tick: MusicXMLTempoMap.ticksPerQuarter * 3,
             durationTicks: nil,
             practiceStepIndex: 1,
             activeNotes: [],
@@ -1168,12 +1171,12 @@ func autoplaySchedulesNoteOffFromPerformancePlan() {
 
     let timeline = AutoplayPerformanceTimeline.build(
         plan: makeTestScorePerformancePlan(notes: [
-            TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 480),
+            TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: MusicXMLTempoMap.ticksPerQuarter),
         ]),
         guideProjection: guides,
         stepProjection: [
             PracticeStep(tick: 0, notes: []),
-            PracticeStep(tick: 1440, notes: []),
+            PracticeStep(tick: MusicXMLTempoMap.ticksPerQuarter * 3, notes: []),
         ],
         tempoMap: tempoMap,
         practiceHandMode: .both
@@ -1208,12 +1211,12 @@ func autoplayDefersNoteOffWhilePedalIsDownAndReleasesOnPedalUp() {
             tick: 0,
             practiceStepIndex: 0,
             midiNotes: [60],
-            noteDurationTicks: 480
+            noteDurationTicks: MusicXMLTempoMap.ticksPerQuarter
         ),
         PianoHighlightGuide(
             id: 2,
             kind: .trigger,
-            tick: 1440,
+            tick: MusicXMLTempoMap.ticksPerQuarter * 3,
             durationTicks: nil,
             practiceStepIndex: 1,
             activeNotes: [],
@@ -1224,16 +1227,16 @@ func autoplayDefersNoteOffWhilePedalIsDownAndReleasesOnPedalUp() {
 
     let timeline = AutoplayPerformanceTimeline.build(
         plan: makeTestScorePerformancePlan(
-            notes: [TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 480)],
+            notes: [TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: MusicXMLTempoMap.ticksPerQuarter)],
             controllerEvents: [
                 testPerformanceController(tick: 0, value: 127),
-                testPerformanceController(tick: 960, value: 0),
+                testPerformanceController(tick: MusicXMLTempoMap.ticksPerQuarter * 2, value: 0),
             ]
         ),
         guideProjection: guides,
         stepProjection: [
             PracticeStep(tick: 0, notes: []),
-            PracticeStep(tick: 1440, notes: []),
+            PracticeStep(tick: MusicXMLTempoMap.ticksPerQuarter * 3, notes: []),
         ],
         tempoMap: tempoMap,
         practiceHandMode: .both
@@ -1272,12 +1275,12 @@ func autoplayReleasesPendingNotesOnPedalChangeTickEvenIfPedalStaysDown() {
             tick: 0,
             practiceStepIndex: 0,
             midiNotes: [60],
-            noteDurationTicks: 480
+            noteDurationTicks: MusicXMLTempoMap.ticksPerQuarter
         ),
         PianoHighlightGuide(
             id: 2,
             kind: .trigger,
-            tick: 1440,
+            tick: MusicXMLTempoMap.ticksPerQuarter * 3,
             durationTicks: nil,
             practiceStepIndex: 1,
             activeNotes: [],
@@ -1288,17 +1291,17 @@ func autoplayReleasesPendingNotesOnPedalChangeTickEvenIfPedalStaysDown() {
 
     let timeline = AutoplayPerformanceTimeline.build(
         plan: makeTestScorePerformancePlan(
-            notes: [TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 480)],
+            notes: [TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: MusicXMLTempoMap.ticksPerQuarter)],
             controllerEvents: [
                 testPerformanceController(tick: 0, value: 127),
-                testPerformanceController(tick: 480, value: 0),
-                testPerformanceController(tick: 480, value: 127),
+                testPerformanceController(tick: MusicXMLTempoMap.ticksPerQuarter, value: 0),
+                testPerformanceController(tick: MusicXMLTempoMap.ticksPerQuarter, value: 127),
             ]
         ),
         guideProjection: guides,
         stepProjection: [
             PracticeStep(tick: 0, notes: []),
-            PracticeStep(tick: 1440, notes: []),
+            PracticeStep(tick: MusicXMLTempoMap.ticksPerQuarter * 3, notes: []),
         ],
         tempoMap: tempoMap,
         practiceHandMode: .both
@@ -1672,6 +1675,7 @@ private final class AlwaysMatchChordAttemptAccumulator: ChordAttemptAccumulatorP
     func reset() {}
 }
 
+@MainActor
 private final class CapturingSequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol {
     struct OneShot: Equatable {
         let midiNotes: [Int]

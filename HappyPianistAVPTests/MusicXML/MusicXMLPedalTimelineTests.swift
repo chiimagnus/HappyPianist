@@ -1,4 +1,5 @@
 import Foundation
+@testable import MusicXML
 @testable import HappyPianistAVP
 import Testing
 
@@ -140,7 +141,7 @@ func parserReadsContinuousSoundPedalFacts() throws {
       <part id="P1"><measure number="1">
         <attributes><divisions>1</divisions></attributes>
         <direction><sound damper-pedal="42.5" sostenuto-pedal="yes" soft-pedal="25"/></direction>
-        <note><rest/><duration>1</duration></note>
+        <note><rest/><duration>1</duration><type>quarter</type></note>
       </measure></part>
     </score-partwise>
     """

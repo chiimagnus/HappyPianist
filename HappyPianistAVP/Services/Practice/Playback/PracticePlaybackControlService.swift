@@ -1,4 +1,7 @@
 import Foundation
+import Diagnostics
+import MusicXML
+import Practice
 
 @MainActor
 final class PracticePlaybackControlService {
@@ -6,7 +9,7 @@ final class PracticePlaybackControlService {
     private let sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol
     private let playbackSequenceBuilder: any PlaybackSequenceBuildingProtocol
     private let chordAttemptAccumulator: ChordAttemptAccumulatorProtocol
-    private let stateStore: PracticeSessionStateStore
+    private let stateStore: PracticeSessionHostState
     private let audioRecognitionService: PracticeAudioRecognitionServiceProtocol?
     private weak var effectHandler: (any PracticeSessionEffectHandlerProtocol)?
     private let audioRecognitionSuppressDuration: TimeInterval
@@ -30,7 +33,7 @@ final class PracticePlaybackControlService {
         sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol,
         playbackSequenceBuilder: any PlaybackSequenceBuildingProtocol,
         chordAttemptAccumulator: ChordAttemptAccumulatorProtocol,
-        stateStore: PracticeSessionStateStore,
+        stateStore: PracticeSessionHostState,
         audioRecognitionService: PracticeAudioRecognitionServiceProtocol?,
         effectHandler: any PracticeSessionEffectHandlerProtocol,
         audioRecognitionSuppressDuration: TimeInterval,
@@ -60,6 +63,16 @@ final class PracticePlaybackControlService {
         stopAutoplayTask()
     }
 
+    func resetAndFlushOutput() async {
+        stateStore.autoplayState = .off
+        stopAutoplayTask()
+        await pendingResetTask?.value
+        await sequencerPlaybackService.stop(
+            resetCommands: PerformanceTransportReducer.fullResetCommands
+        )
+        await sequencerPlaybackService.stopAllLiveNotes()
+    }
+
     func setAutoplayEnabled(_ isEnabled: Bool) {
         if isEnabled {
             guard stateStore.isManualReplayPlaying == false else { return }
@@ -80,7 +93,7 @@ final class PracticePlaybackControlService {
         guard stateStore.isActiveRangeInvalid == false else { return }
         guard let currentStep else { return }
         guard stateStore.activeRange?.contains(stepIndex: stateStore.currentStepIndex) ?? true else { return }
-        guard stateStore.audioPlaybackErrorMessage == nil else { return }
+        guard stateStore.playbackErrorMessage == nil else { return }
 
         if applyRecognitionSuppress {
             _ = prepareAudioRecognitionSuppressWindowForPlayback()
@@ -192,7 +205,7 @@ final class PracticePlaybackControlService {
                 )
             } catch {
                 stateStore.recordPlaybackError(error)
-                stopAutoplayWithError(stateStore.audioPlaybackErrorMessage ?? "无法自动播放：播放任务异常。")
+                stopAutoplayWithError(stateStore.playbackErrorMessage ?? "无法自动播放：播放任务异常。")
             }
         }
     }
@@ -391,7 +404,7 @@ final class PracticePlaybackControlService {
             try await sequencerPlaybackService.warmUp()
         } catch {
             stateStore.recordPlaybackError(error)
-            stopAutoplayWithError(stateStore.audioPlaybackErrorMessage ?? "无法自动播放：音频服务初始化失败。")
+            stopAutoplayWithError(stateStore.playbackErrorMessage ?? "无法自动播放：音频服务初始化失败。")
             return
         }
 
@@ -415,7 +428,7 @@ final class PracticePlaybackControlService {
             )
         } catch {
             stateStore.recordPlaybackError(error)
-            stopAutoplayWithError(stateStore.audioPlaybackErrorMessage ?? "无法自动播放：构建 MIDI 序列失败。")
+            stopAutoplayWithError(stateStore.playbackErrorMessage ?? "无法自动播放：构建 MIDI 序列失败。")
             return
         }
 
@@ -428,7 +441,7 @@ final class PracticePlaybackControlService {
             playbackPositionSeconds = 0
         } catch {
             stateStore.recordPlaybackError(error)
-            stopAutoplayWithError(stateStore.audioPlaybackErrorMessage ?? "无法自动播放：播放服务启动失败。")
+            stopAutoplayWithError(stateStore.playbackErrorMessage ?? "无法自动播放：播放服务启动失败。")
             return
         }
 

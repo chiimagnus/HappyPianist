@@ -1,4 +1,5 @@
 import Foundation
+@testable import MusicXML
 @testable import HappyPianistAVP
 import Testing
 
@@ -20,7 +21,7 @@ func structureExpanderExpandsRepeatWithEndingsAndTempoEvents() throws {
           <direction><sound tempo="120"/></direction>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
         </measure>
         <measure number="2">
@@ -28,7 +29,7 @@ func structureExpanderExpandsRepeatWithEndingsAndTempoEvents() throws {
           <direction><sound tempo="60"/></direction>
           <note>
             <pitch><step>E</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
           <barline location="right">
             <ending number="1" type="stop"/>
@@ -39,7 +40,7 @@ func structureExpanderExpandsRepeatWithEndingsAndTempoEvents() throws {
           <barline location="left"><ending number="2" type="start"/></barline>
           <note>
             <pitch><step>D</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
           <barline location="right"><ending number="2" type="stop"/></barline>
         </measure>
@@ -55,11 +56,11 @@ func structureExpanderExpandsRepeatWithEndingsAndTempoEvents() throws {
 
     let tempoTicks = expanded.tempoEvents.map(\.tick)
     let tempoBpms = expanded.tempoEvents.map(\.quarterBPM)
-    #expect(tempoTicks == [0, 480, 960])
+    #expect(tempoTicks == [0, MusicXMLTempoMap.ticksPerQuarter, MusicXMLTempoMap.ticksPerQuarter * 2])
     #expect(tempoBpms == [120, 60, 120])
 
     let pedalTicks = expanded.pedalEvents.map(\.tick)
-    #expect(pedalTicks == [0, 960])
+    #expect(pedalTicks == [0, MusicXMLTempoMap.ticksPerQuarter * 2])
 
     #expect(expanded.notes.map(\.performedOccurrenceIndex) == [0, 1, 2, 3])
     #expect(Set(expanded.notes.compactMap(\.performedID)).count == expanded.notes.count)
@@ -84,13 +85,13 @@ func structureExpanderFiltersTimeOnlyPedalEventsByPass() throws {
           <direction><sound damper-pedal="yes" time-only="2"/></direction>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
         </measure>
         <measure number="2">
           <note>
             <pitch><step>D</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
           <barline location="right"><repeat direction="backward"/></barline>
         </measure>
@@ -102,7 +103,7 @@ func structureExpanderFiltersTimeOnlyPedalEventsByPass() throws {
     let expanded = MusicXMLStructureExpander().expandRepeatAndEndingIfPossible(score: score)
 
     #expect(expanded.pedalEvents.count == 1)
-    #expect(expanded.pedalEvents.first?.tick == 960)
+    #expect(expanded.pedalEvents.first?.tick == MusicXMLTempoMap.ticksPerQuarter * 2)
     #expect(expanded.pedalEvents.first?.measureNumber == 3)
 }
 
@@ -114,18 +115,18 @@ func structureExpanderHandlesImplicitStartAndMultipleSequentialRepeats() throws 
       <part id="P1">
         <measure number="1">
           <attributes><divisions>1</divisions></attributes>
-          <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+          <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
         </measure>
         <measure number="2">
-          <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration></note>
+          <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
           <barline location="right"><repeat direction="backward"/></barline>
         </measure>
         <measure number="3">
           <barline location="left"><repeat direction="forward"/></barline>
-          <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration></note>
+          <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
         </measure>
         <measure number="4">
-          <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration></note>
+          <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
           <barline location="right"><repeat direction="backward"/></barline>
         </measure>
       </part>
@@ -149,18 +150,18 @@ func structureExpanderHonorsRepeatTimesAndNestedRepeats() throws {
         <measure number="1">
           <attributes><divisions>1</divisions></attributes>
           <barline location="left"><repeat direction="forward"/></barline>
-          <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+          <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
         </measure>
         <measure number="2">
           <barline location="left"><repeat direction="forward"/></barline>
-          <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration></note>
+          <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
         </measure>
         <measure number="3">
-          <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration></note>
+          <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
           <barline location="right"><repeat direction="backward" times="3"/></barline>
         </measure>
         <measure number="4">
-          <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration></note>
+          <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
           <barline location="right"><repeat direction="backward"/></barline>
         </measure>
       </part>
@@ -192,11 +193,11 @@ func structureExpanderSelectsCommaSeparatedAndThirdEndingsByRepeatPass() throws 
         <measure number="1">
           <attributes><divisions>1</divisions></attributes>
           <barline location="left"><repeat direction="forward"/></barline>
-          <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+          <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
         </measure>
         <measure number="2">
           <barline location="left"><ending number="1, 2" type="start"/></barline>
-          <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration></note>
+          <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
           <barline location="right">
             <ending number="1, 2" type="stop"/>
             <repeat direction="backward" times="3"/>
@@ -205,11 +206,11 @@ func structureExpanderSelectsCommaSeparatedAndThirdEndingsByRepeatPass() throws 
         <measure number="3">
           <barline location="left"><ending number="3" type="start"/></barline>
           <direction><sound damper-pedal="yes" time-only="3"/></direction>
-          <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration></note>
+          <note><pitch><step>E</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
           <barline location="right"><ending number="3" type="stop"/></barline>
         </measure>
         <measure number="4">
-          <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration></note>
+          <note><pitch><step>F</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
         </measure>
       </part>
     </score-partwise>
@@ -220,7 +221,7 @@ func structureExpanderSelectsCommaSeparatedAndThirdEndingsByRepeatPass() throws 
 
     #expect(result.approximationReason == nil)
     #expect(result.score.notes.compactMap(\.midiNote) == [60, 62, 60, 62, 60, 64, 65])
-    #expect(result.score.pedalEvents.map(\.tick) == [2400])
+    #expect(result.score.pedalEvents.map(\.tick) == [MusicXMLTempoMap.ticksPerQuarter * 5])
 }
 
 @Test
@@ -232,7 +233,7 @@ func structureExpanderReportsMalformedEndingInsteadOfSilentlyIgnoringIt() throws
         <measure number="1">
           <attributes><divisions>1</divisions></attributes>
           <barline location="left"><ending number="1" type="start"/></barline>
-          <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+          <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
           <barline location="right"><ending number="1" type="stop"/></barline>
         </measure>
       </part>
@@ -260,20 +261,20 @@ func structureExpanderExpandsDalSegnoJumpOnce() throws {
           <direction><sound segno="S1"/></direction>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
         </measure>
         <measure number="2">
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
         </measure>
         <measure number="3">
           <direction><sound dalsegno="S1"/></direction>
           <note>
             <pitch><step>D</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
         </measure>
       </part>
@@ -301,20 +302,20 @@ func structureExpanderAssociatesBarlineSoundDirectiveWithPreviousMeasure() throw
           <direction><sound segno="S1"/></direction>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
         </measure>
         <measure number="2">
           <note>
             <pitch><step>D</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
           <direction><sound dalsegno="S1"/></direction>
         </measure>
         <measure number="3">
           <note>
             <pitch><step>E</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
         </measure>
       </part>

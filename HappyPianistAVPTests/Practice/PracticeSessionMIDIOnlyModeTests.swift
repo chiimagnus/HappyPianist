@@ -1,4 +1,8 @@
 import Foundation
+import MIDI
+import Practice
+import MusicXML
+import Diagnostics
 @testable import HappyPianistAVP
 import simd
 import Testing
@@ -53,7 +57,7 @@ func midiOnlyPracticeInputNoteOnAdvancesStep() async {
         kind: .noteOn(note: 60, velocity: 100),
         channel: 1,
         group: 0,
-        source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: "fake"),
+        source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: "fake"),
         receivedAt: Date(),
         receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime
     ))
@@ -94,7 +98,7 @@ func midiOnlyPracticeInputMIDI2NoteOnAdvancesStepEvenWithZeroVelocity() async {
         kind: .noteOn(note: 60, velocity16: 0),
         channel: 1,
         group: 0,
-        source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: "fake"),
+        source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: "fake"),
         receivedAt: Date(),
         receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime
     ))
@@ -139,7 +143,7 @@ func midiOnlyPracticeExitStopsInputAndDoesNotAdvanceStepAfterTeardown() async {
         kind: .noteOn(note: 60, velocity: 100),
         channel: 1,
         group: 0,
-        source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: "fake"),
+        source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: "fake"),
         receivedAt: Date(),
         receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime
     ))
@@ -176,6 +180,9 @@ func midiOnlyPracticeInputStartFailureThenReplacingSameIndexStepResetsMatcherExp
     session.installTestPerformanceNotes([TestScorePerformanceNote(midiNote: 61, onTick: 0)])
     session.startGuidingIfReady()
     #expect(inputSource.startCallCount == 2)
+    for _ in 0 ..< 100 where session.isPracticeInputRunning == false {
+        await Task.yield()
+    }
     #expect(session.isPracticeInputRunning)
     #expect(inputSource.isRunning)
     #expect(session.currentStepIndex == 0)
@@ -184,7 +191,7 @@ func midiOnlyPracticeInputStartFailureThenReplacingSameIndexStepResetsMatcherExp
         kind: .noteOn(note: 60, velocity: 100),
         channel: 1,
         group: 0,
-        source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: "fake"),
+        source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: "fake"),
         receivedAt: Date(),
         receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime
     ))
@@ -198,7 +205,7 @@ func midiOnlyPracticeInputStartFailureThenReplacingSameIndexStepResetsMatcherExp
         kind: .noteOn(note: 61, velocity: 100),
         channel: 1,
         group: 0,
-        source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: "fake"),
+        source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: "fake"),
         receivedAt: Date(),
         receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime
     ))

@@ -1,0 +1,350 @@
+import Foundation
+
+public enum DiagnosticSeverity: String, Codable, CaseIterable, Sendable {
+    case debug
+    case info
+    case warning
+    case error
+}
+
+public enum DiagnosticCategory: String, Codable, CaseIterable, Sendable {
+    case general
+    case library
+    case practicePreparation
+    case practiceSession
+    case persistence
+    case audio
+    case midi
+    case immersiveSpace
+    case ai
+    case diagnostics
+    case pianoPerformance
+}
+
+public enum DiagnosticPersistence: String, Codable, Sendable {
+    case systemOnly
+    case exportable
+}
+
+public enum DiagnosticCode: String, Codable, CaseIterable, Sendable {
+    case runtimeEvent = "RUNTIME_EVENT"
+    case practicePreparationStarted = "PRACTICE_PREPARATION_STARTED"
+    case practicePreparationSucceeded = "PRACTICE_PREPARATION_SUCCEEDED"
+    case practiceScoreFileNotFound = "PRACTICE_SCORE_FILE_NOT_FOUND"
+    case practiceScoreFileUnreadable = "PRACTICE_SCORE_FILE_UNREADABLE"
+    case practiceMXLInvalidArchive = "PRACTICE_MXL_INVALID_ARCHIVE"
+    case practiceMXLMissingContainer = "PRACTICE_MXL_MISSING_CONTAINER"
+    case practiceMXLMissingRootfile = "PRACTICE_MXL_MISSING_ROOTFILE"
+    case practiceMXLMissingScore = "PRACTICE_MXL_MISSING_SCORE"
+    case practiceMXLInvalidContainer = "PRACTICE_MXL_INVALID_CONTAINER"
+    case practiceXMLParseFailed = "PRACTICE_XML_PARSE_FAILED"
+    case practiceNoPlayableNotes = "PRACTICE_NO_PLAYABLE_NOTES"
+    case practiceMissingMeasureStructure = "PRACTICE_MISSING_MEASURE_STRUCTURE"
+    case practicePreparationFailed = "PRACTICE_PREPARATION_FAILED"
+    case practiceSavedConfigurationRepaired = "PRACTICE_SAVED_CONFIGURATION_REPAIRED"
+    case practiceSavedConfigurationRepairFailed = "PRACTICE_SAVED_CONFIGURATION_REPAIR_FAILED"
+    case libraryPracticeHistoryLoadFailed = "LIBRARY_PRACTICE_HISTORY_LOAD_FAILED"
+    case libraryPracticeHistoryAction = "LIBRARY_PRACTICE_HISTORY_ACTION"
+    case libraryPracticeHistoryCleanupFailed = "LIBRARY_PRACTICE_HISTORY_CLEANUP_FAILED"
+    case libraryImportRecoveryBlocked = "LIBRARY_IMPORT_RECOVERY_BLOCKED"
+    case libraryImportRecoveryAction = "LIBRARY_IMPORT_RECOVERY_ACTION"
+    case libraryImportStage = "LIBRARY_IMPORT_STAGE"
+    case libraryImportCleanupFailed = "LIBRARY_IMPORT_CLEANUP_FAILED"
+    case libraryImportConflictAmbiguous = "LIBRARY_IMPORT_CONFLICT_AMBIGUOUS"
+    case practiceHistoryResolution = "PRACTICE_HISTORY_RESOLUTION"
+    case practiceScoreMetadataWriteFailed = "PRACTICE_SCORE_METADATA_WRITE_FAILED"
+    case practiceProgressSaveFailed = "PRACTICE_PROGRESS_SAVE_FAILED"
+    case practiceProgressStoreUnavailable = "PRACTICE_PROGRESS_STORE_UNAVAILABLE"
+    case practiceProgressStoreCorrupted = "PRACTICE_PROGRESS_STORE_CORRUPTED"
+    case practiceProgressStoreReset = "PRACTICE_PROGRESS_STORE_RESET"
+    case practiceSessionCreated = "PRACTICE_SESSION_CREATED"
+    case practiceSessionCheckpointFailed = "PRACTICE_SESSION_CHECKPOINT_FAILED"
+    case practiceSessionFinalized = "PRACTICE_SESSION_FINALIZED"
+    case practiceSessionRecovered = "PRACTICE_SESSION_RECOVERED"
+    case diagnosticsStoreWriteFailed = "DIAGNOSTICS_STORE_WRITE_FAILED"
+    case diagnosticsRetentionCleanupFailed = "DIAGNOSTICS_RETENTION_CLEANUP_FAILED"
+    case diagnosticsExportFailed = "DIAGNOSTICS_EXPORT_FAILED"
+    case diagnosticsCleared = "DIAGNOSTICS_CLEARED"
+    case pianoPerformancePipeline = "PIANO_PERFORMANCE_PIPELINE"
+}
+
+public struct DiagnosticFileReference: Codable, Equatable, Sendable {
+    public let fileName: String
+    public let relativePath: String
+
+    public init?(fileName: String, relativePath: String) {
+        let normalizedFileName = URL(fileURLWithPath: fileName).lastPathComponent
+        let normalizedPath = relativePath.replacing("\\", with: "/")
+        let components = normalizedPath.split(separator: "/", omittingEmptySubsequences: true)
+        guard normalizedFileName.isEmpty == false,
+              normalizedPath.hasPrefix("/") == false,
+              normalizedPath.contains("://") == false,
+              components.allSatisfy({ $0 != "." && $0 != ".." })
+        else {
+            return nil
+        }
+        self.fileName = normalizedFileName
+        self.relativePath = components.joined(separator: "/")
+    }
+}
+
+public struct DiagnosticSourceLocation: Codable, Equatable, Sendable {
+    public let line: Int?
+    public let column: Int?
+    public let measure: String?
+
+    public init(line: Int? = nil, column: Int? = nil, measure: String? = nil) {
+        self.line = line.flatMap { $0 > 0 ? $0 : nil }
+        self.column = column.flatMap { $0 > 0 ? $0 : nil }
+        self.measure = measure?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+    }
+}
+
+public struct DiagnosticEvent: Codable, Equatable, Identifiable, Sendable {
+    public let id: UUID
+    public let timestamp: Date
+    public let severity: DiagnosticSeverity
+    public let code: DiagnosticCode
+    public let category: DiagnosticCategory
+    public let stage: String
+    public let summary: String
+    public let reason: String
+    public let songID: UUID?
+    public let scoreRevision: String?
+    public let operationID: UUID?
+    public let safeFileName: String?
+    public let transactionKind: String?
+    public let transactionPhase: String?
+    public let scoreFileVersionID: UUID?
+    public let file: DiagnosticFileReference?
+    public let sourceLocation: DiagnosticSourceLocation?
+    public let persistence: DiagnosticPersistence
+
+    public init(
+        id: UUID = UUID(),
+        timestamp: Date = .now,
+        severity: DiagnosticSeverity,
+        code: DiagnosticCode,
+        category: DiagnosticCategory,
+        stage: String,
+        summary: String,
+        reason: String,
+        songID: UUID? = nil,
+        scoreRevision: String? = nil,
+        operationID: UUID? = nil,
+        safeFileName: String? = nil,
+        transactionKind: String? = nil,
+        transactionPhase: String? = nil,
+        scoreFileVersionID: UUID? = nil,
+        file: DiagnosticFileReference? = nil,
+        sourceLocation: DiagnosticSourceLocation? = nil,
+        persistence: DiagnosticPersistence
+    ) {
+        self.id = id
+        self.timestamp = timestamp
+        self.severity = severity
+        self.code = code
+        self.category = category
+        self.stage = stage.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.summary = summary.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.reason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        self.songID = songID
+        self.scoreRevision = scoreRevision?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        self.operationID = operationID
+        self.safeFileName = safeFileName.flatMap {
+            URL(fileURLWithPath: $0).lastPathComponent == $0 ? $0 : nil
+        }
+        self.transactionKind = transactionKind?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        self.transactionPhase = transactionPhase?.trimmingCharacters(in: .whitespacesAndNewlines).nilIfEmpty
+        self.scoreFileVersionID = scoreFileVersionID
+        self.file = file
+        self.sourceLocation = sourceLocation
+        self.persistence = persistence
+    }
+
+    func redactedForExport() -> Self {
+        Self(
+            id: id,
+            timestamp: timestamp,
+            severity: severity,
+            code: code,
+            category: category,
+            stage: DiagnosticsExportPrivacy.redactedText(from: stage),
+            summary: DiagnosticsExportPrivacy.redactedText(from: summary),
+            reason: DiagnosticsExportPrivacy.redactedText(from: reason),
+            songID: songID,
+            scoreRevision: scoreRevision.map { DiagnosticsExportPrivacy.redactedText(from: $0) },
+            operationID: operationID,
+            safeFileName: safeFileName.map { DiagnosticsExportPrivacy.redactedText(from: $0) },
+            transactionKind: transactionKind.map { DiagnosticsExportPrivacy.redactedText(from: $0) },
+            transactionPhase: transactionPhase.map { DiagnosticsExportPrivacy.redactedText(from: $0) },
+            scoreFileVersionID: scoreFileVersionID,
+            file: file.flatMap(DiagnosticsExportPrivacy.redactedFileReference),
+            sourceLocation: sourceLocation.map(DiagnosticsExportPrivacy.redactedSourceLocation),
+            persistence: persistence
+        )
+    }
+
+    public var textRepresentation: String {
+        var lines = [
+            "timestamp: \(DiagnosticsDateText.iso8601(timestamp))",
+            "level: \(severity.rawValue)",
+            "code: \(code.rawValue)",
+            "category: \(category.rawValue)",
+            "stage: \(stage)",
+            "summary: \(summary)",
+            "reason: \(reason)",
+        ]
+        if let songID { lines.append("songID: \(songID.uuidString)") }
+        if let scoreRevision { lines.append("scoreRevision: \(scoreRevision)") }
+        if let operationID { lines.append("operationID: \(operationID.uuidString)") }
+        if let safeFileName { lines.append("safeFileName: \(safeFileName)") }
+        if let transactionKind { lines.append("transactionKind: \(transactionKind)") }
+        if let transactionPhase { lines.append("transactionPhase: \(transactionPhase)") }
+        if let scoreFileVersionID { lines.append("scoreFileVersionID: \(scoreFileVersionID.uuidString)") }
+        if let file {
+            lines.append("file: \(file.fileName)")
+            lines.append("relativePath: \(file.relativePath)")
+        }
+        if let measure = sourceLocation?.measure { lines.append("measure: \(measure)") }
+        if let line = sourceLocation?.line { lines.append("line: \(line)") }
+        if let column = sourceLocation?.column { lines.append("column: \(column)") }
+        return lines.joined(separator: "\n")
+    }
+}
+
+private enum DiagnosticsExportPrivacy {
+    private static let maximumTextLength = 240
+
+    static func redactedFileReference(_ reference: DiagnosticFileReference) -> DiagnosticFileReference? {
+        DiagnosticFileReference(
+            fileName: redactedText(from: reference.fileName),
+            relativePath: redactedText(from: reference.relativePath)
+        )
+    }
+
+    static func redactedSourceLocation(_ location: DiagnosticSourceLocation) -> DiagnosticSourceLocation {
+        DiagnosticSourceLocation(
+            line: location.line,
+            column: location.column,
+            measure: location.measure.map { redactedText(from: $0) }
+        )
+    }
+
+    static func redactedText(from text: String) -> String {
+        guard text.utf8.count <= maximumTextLength,
+              text.contains(where: { $0.isNewline }) == false,
+              containsUnsafeContent(text) == false
+        else {
+            return "[redacted]"
+        }
+        return text
+    }
+
+    private static func containsUnsafeContent(_ text: String) -> Bool {
+        let lowercased = text.lowercased()
+        let literalMarkers = [
+            "file://",
+            "<?xml",
+            "<score-partwise",
+            "<score-timewise",
+            "midi",
+            "pcm",
+            "performanceobservation",
+            "creativeduetresponse",
+            "prompt",
+            "response",
+            "assistant",
+            "endpoint",
+            "authorization",
+            "api key",
+            "bearer ",
+            "access_token",
+            "refresh_token",
+            "password=",
+            "secret=",
+            "credential",
+        ]
+        if text.contains("<") || text.contains(">") || literalMarkers.contains(where: { lowercased.contains($0) }) {
+            return true
+        }
+        if text.range(
+            of: #"(?:^|[\s=:(])/[^\s]+"#,
+            options: .regularExpression
+        ) != nil {
+            return true
+        }
+        if text.range(of: #"(?:^|[\s=:(])[A-Za-z]:[\\/]"#, options: .regularExpression) != nil {
+            return true
+        }
+        return text.range(
+            of: #"(?:[0-9A-Fa-f]{2}[\s,;:]){4,}[0-9A-Fa-f]{2}"#,
+            options: .regularExpression
+        ) != nil
+    }
+}
+
+public struct DiagnosticLogSummary: Equatable, Sendable {
+    public let eventCount: Int
+    public let totalBytes: Int64
+    public let coverageStart: Date?
+    public let coverageEnd: Date?
+
+    public init(eventCount: Int, totalBytes: Int64, coverageStart: Date?, coverageEnd: Date?) {
+        self.eventCount = eventCount
+        self.totalBytes = totalBytes
+        self.coverageStart = coverageStart
+        self.coverageEnd = coverageEnd
+    }
+
+    public static let empty = DiagnosticLogSummary(
+        eventCount: 0,
+        totalBytes: 0,
+        coverageStart: nil,
+        coverageEnd: nil
+    )
+}
+
+enum DiagnosticsDateText {
+    static func iso8601(_ date: Date) -> String {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter.string(from: date)
+    }
+
+    static func dayToken(_ date: Date, calendar: Calendar) -> String {
+        let components = calendar.dateComponents([.year, .month, .day], from: date)
+        return [
+            padded(components.year, width: 4),
+            padded(components.month, width: 2),
+            padded(components.day, width: 2),
+        ].joined(separator: "-")
+    }
+
+    static func archiveToken(_ date: Date, calendar: Calendar) -> String {
+        let components = calendar.dateComponents(
+            [.year, .month, .day, .hour, .minute, .second],
+            from: date
+        )
+        let day = [
+            padded(components.year, width: 4),
+            padded(components.month, width: 2),
+            padded(components.day, width: 2),
+        ].joined()
+        let time = [
+            padded(components.hour, width: 2),
+            padded(components.minute, width: 2),
+            padded(components.second, width: 2),
+        ].joined()
+        return "\(day)-\(time)"
+    }
+
+    private static func padded(_ component: Int?, width: Int) -> String {
+        let text = String(max(0, component ?? 0))
+        return String(repeating: "0", count: max(0, width - text.count)) + text
+    }
+}
+
+private extension String {
+    var nilIfEmpty: String? { isEmpty ? nil : self }
+}

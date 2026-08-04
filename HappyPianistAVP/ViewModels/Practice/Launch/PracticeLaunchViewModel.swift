@@ -1,5 +1,9 @@
 import Foundation
+import Diagnostics
+import Library
 import Observation
+import MusicXML
+import Practice
 
 @MainActor
 protocol PracticeLaunchApplying: AnyObject, Sendable {
@@ -299,7 +303,14 @@ final class PracticeLaunchViewModel {
 
         var fileReference: DiagnosticFileReference?
         do {
-            let resolved = try await resolver.resolve(songID: songID)
+            let resolved: ResolvedSongLibraryEntry
+            switch await resolver.resolve(songID: songID) {
+            case let .success(value):
+                resolved = value
+            case let .failure(error):
+                fileReference = error.diagnosticFileReference
+                throw error.preparationError
+            }
             fileReference = resolved.diagnosticFileReference
             let history = await progressRepository.history(for: songID)
             guard isCurrent(songID: songID, generation: generation) else { return }
@@ -501,16 +512,10 @@ final class PracticeLaunchViewModel {
             return
         } catch {
             guard isCurrent(songID: songID, generation: generation) else { return }
-            let preparationError: PracticePreparationError
-            if let resolutionError = error as? SongLibraryEntryResolutionError {
-                preparationError = resolutionError.preparationError
-                fileReference = resolutionError.diagnosticFileReference
-            } else {
-                preparationError = (error as? PracticePreparationError) ?? .unexpected(
-                    stage: "practiceLaunchActivation",
-                    reason: PracticePreparationErrorDetails.safeErrorSummary(error)
-                )
-            }
+            let preparationError = (error as? PracticePreparationError) ?? .unexpected(
+                stage: "practiceLaunchActivation",
+                reason: PracticePreparationErrorDetails.safeErrorSummary(error)
+            )
             let failure = PracticeLaunchFailure.map(
                 preparationError,
                 entryID: songID,

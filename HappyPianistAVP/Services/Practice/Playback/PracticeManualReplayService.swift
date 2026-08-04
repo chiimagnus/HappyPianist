@@ -1,11 +1,14 @@
 import Foundation
+import Diagnostics
+import MusicXML
+import Practice
 
 @MainActor
 final class PracticeManualReplayService {
     private let sleeper: SleeperProtocol
     private let sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol
     private let playbackSequenceBuilder: any PlaybackSequenceBuildingProtocol
-    private let stateStore: PracticeSessionStateStore
+    private let stateStore: PracticeSessionHostState
     private let diagnosticsReporter: (any DiagnosticsReporting)?
     private weak var effectHandler: (any PracticeSessionEffectHandlerProtocol)?
 
@@ -17,7 +20,7 @@ final class PracticeManualReplayService {
         sleeper: SleeperProtocol,
         sequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol,
         playbackSequenceBuilder: any PlaybackSequenceBuildingProtocol,
-        stateStore: PracticeSessionStateStore,
+        stateStore: PracticeSessionHostState,
         effectHandler: any PracticeSessionEffectHandlerProtocol,
         diagnosticsReporter: (any DiagnosticsReporting)? = nil
     ) {
@@ -200,6 +203,11 @@ final class PracticeManualReplayService {
         }
 
         stateStore.shouldResumeAudioRecognitionAfterManualReplay = false
+    }
+
+    func resetAndFlushOutput() async {
+        stopManualReplayTask(restoreAudioRecognition: false)
+        await pendingStopTask?.value
     }
 
     private func setCurrentHighlightGuideForStepIndex(_ stepIndex: Int) {

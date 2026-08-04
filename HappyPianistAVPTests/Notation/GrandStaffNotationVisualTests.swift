@@ -2,6 +2,9 @@ import CoreGraphics
 import CoreText
 import CryptoKit
 import Foundation
+import MusicXML
+@testable import Notation
+import Practice
 @testable import HappyPianistAVP
 import SwiftUI
 import Testing
@@ -59,7 +62,7 @@ private func visualGoldenLines() throws -> [String] {
 }
 
 @Test
-func grandStaffNotationAccessibilityDescribesMeasureNotationAndFallbacks() throws {
+func grandStaffNotationAccessibilityDescribesMeasureNotation() throws {
     let model = try visualNotationModel()
     let layout = GrandStaffNotationLayoutService().makeLayout(
         projection: model.projection,
@@ -82,7 +85,7 @@ func grandStaffNotationAccessibilityDescribesMeasureNotationAndFallbacks() throw
     #expect(labels.contains { $0.contains("下谱表") && $0.contains("当前高亮") })
     #expect(labels.contains { $0.contains("指法 1") })
     #expect(labels.contains { $0.contains("休止符") })
-    #expect(labels.contains { $0.contains("不支持的记谱内容") && $0.contains("节奏占位") })
+    #expect(labels.contains { $0.contains("不支持的记谱内容") } == false)
 }
 
 private struct VisualNotationModel {

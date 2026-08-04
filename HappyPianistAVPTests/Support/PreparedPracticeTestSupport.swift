@@ -1,3 +1,5 @@
+@testable import MusicXML
+import Practice
 @testable import HappyPianistAVP
 
 func makeTestPreparedPracticeScoreContext(

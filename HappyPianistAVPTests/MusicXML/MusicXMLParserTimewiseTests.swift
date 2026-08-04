@@ -1,4 +1,5 @@
 import Foundation
+@testable import MusicXML
 @testable import HappyPianistAVP
 import Testing
 
@@ -16,7 +17,7 @@ struct MusicXMLParserTimewiseTests {
               <attributes><divisions>1</divisions></attributes>
               <note>
                 <pitch><step>C</step><octave>4</octave></pitch>
-                <duration>1</duration>
+                <duration>1</duration><type>quarter</type>
               </note>
             </part>
           </measure>
@@ -24,7 +25,7 @@ struct MusicXMLParserTimewiseTests {
             <part id="P1">
               <note>
                 <pitch><step>D</step><octave>4</octave></pitch>
-                <duration>1</duration>
+                <duration>1</duration><type>quarter</type>
               </note>
             </part>
           </measure>
@@ -34,7 +35,7 @@ struct MusicXMLParserTimewiseTests {
         let score = try MusicXMLParser().parse(data: Data(xml.utf8))
 
         #expect(score.notes.map(\.midiNote) == [60, 62])
-        #expect(score.notes.map(\.tick) == [0, 480])
+        #expect(score.notes.map(\.tick) == [0, MusicXMLTempoMap.ticksPerQuarter])
     }
 
     @Test
@@ -51,6 +52,7 @@ struct MusicXMLParserTimewiseTests {
               <mxl:note>
                 <mxl:pitch><mxl:step>C</mxl:step><mxl:octave>4</mxl:octave></mxl:pitch>
                 <mxl:duration>1</mxl:duration>
+                <mxl:type>quarter</mxl:type>
               </mxl:note>
             </mxl:part>
           </mxl:measure>
@@ -69,13 +71,13 @@ func timewiseConversionPreservesMetadataWrittenPitchAndSourceIdentity() throws {
     let timewise = """
     <score-timewise version="4.0">
       <part-list><score-part id="P1"><part-name>Grand Piano</part-name><score-instrument id="P1-I1"><instrument-name>Piano</instrument-name></score-instrument></score-part></part-list>
-      <measure number="A"><part id="P1"><attributes><divisions>1</divisions></attributes><direction><sound tempo="90"/></direction><note><pitch><step>D</step><alter>-1</alter><octave>4</octave></pitch><accidental>flat</accidental><duration>1</duration></note></part></measure>
+      <measure number="A"><part id="P1"><attributes><divisions>1</divisions></attributes><direction><sound tempo="90"/></direction><note><pitch><step>D</step><alter>-1</alter><octave>4</octave></pitch><accidental>flat</accidental><duration>1</duration><type>quarter</type></note></part></measure>
     </score-timewise>
     """
     let partwise = """
     <score-partwise version="4.0">
       <part-list><score-part id="P1"><part-name>Grand Piano</part-name><score-instrument id="P1-I1"><instrument-name>Piano</instrument-name></score-instrument></score-part></part-list>
-      <part id="P1"><measure number="A"><attributes><divisions>1</divisions></attributes><direction><sound tempo="90"/></direction><note><pitch><step>D</step><alter>-1</alter><octave>4</octave></pitch><accidental>flat</accidental><duration>1</duration></note></measure></part>
+      <part id="P1"><measure number="A"><attributes><divisions>1</divisions></attributes><direction><sound tempo="90"/></direction><note><pitch><step>D</step><alter>-1</alter><octave>4</octave></pitch><accidental>flat</accidental><duration>1</duration><type>quarter</type></note></measure></part>
     </score-partwise>
     """
 

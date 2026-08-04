@@ -1,3 +1,6 @@
+@testable import MusicXML
+import MIDI
+@testable import Practice
 @testable import HappyPianistAVP
 import Testing
 
@@ -37,13 +40,13 @@ func midi2PitchBendMapsTo14BitRange() {
 func midiHostTimeConverterConsumesTempoPauseAndSeekAdjustedTransportTime() {
     let tempoMap = MusicXMLTempoMap(tempoEvents: [
         MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: hostTimeTestScope),
-        MusicXMLTempoEvent(tick: 480, quarterBPM: 60, scope: hostTimeTestScope),
+        MusicXMLTempoEvent(tick: MusicXMLTempoMap.ticksPerQuarter, quarterBPM: 60, scope: hostTimeTestScope),
     ])
     let timeline = AutoplayPerformanceTimeline(events: [
         .init(id: 0, tick: 0, kind: .noteOn(midi: 60, velocity: 90)),
-        .init(id: 1, tick: 480, kind: .pauseSeconds(1)),
-        .init(id: 2, tick: 480, kind: .noteOn(midi: 62, velocity: 90)),
-        .init(id: 3, tick: 960, kind: .noteOff(midi: 62)),
+        .init(id: 1, tick: MusicXMLTempoMap.ticksPerQuarter, kind: .pauseSeconds(1)),
+        .init(id: 2, tick: MusicXMLTempoMap.ticksPerQuarter, kind: .noteOn(midi: 62, velocity: 90)),
+        .init(id: 3, tick: MusicXMLTempoMap.ticksPerQuarter * 2, kind: .noteOff(midi: 62)),
     ])
     let schedule = PracticeSequencerSequenceBuilder().buildPerformanceEventSchedule(
         timeline: timeline,

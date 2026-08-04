@@ -1,6 +1,6 @@
 # 项目概览
 
-HappyPianist 是一个面向 Apple Vision Pro 的钢琴练习应用。仓库包含 visionOS App、测试、RealityKit 内容包，以及可选的 Mac 侧 Aria v2 Python 服务。
+HappyPianist 包含空间练习的 visionOS App，以及独立、沙盒化的 macOS MusicXML/MIDI 练习 App；仓库还包含测试、RealityKit 内容包和可选的 Mac 侧 Aria v2 Python 服务。
 
 源码目录、符号定义和调用关系以 CodeGraph 为准；本知识库只保留代码图无法表达的产品意图、数据契约、运行边界与验证规则。
 
@@ -10,16 +10,22 @@ HappyPianist 是一个面向 Apple Vision Pro 的钢琴练习应用。仓库包�
 | --- | --- | --- |
 | visionOS App | `HappyPianistAVP/` | 准备、曲库、练习、录制、AI 对弹与沉浸空间。 |
 | visionOS Tests | `HappyPianistAVPTests/` | MusicXML、练习、输入、回放、反馈、窗口与服务测试。 |
+| macOS App | `HappyPianistMac/` | 2D 曲库、系统可见 MIDI 端点和 MIDI-only 练习；不包含空间、音频识别或 AI。 |
+| macOS Tests | `HappyPianistMacTests/` | macOS host、曲库、端点与练习流程测试。 |
+| 共享 Swift 包 | `Packages/HappyPianistCore/` | 可复用的 Diagnostics、MusicXML、MIDI、Practice、Notation 与 Library 模块；App 通过显式产品依赖使用它。 |
 | RealityKit 内容包 | `Packages/RealityKitContent/` | Reality Composer Pro 资产与 bundle。 |
 | Aria v2 服务（可选） | `python_backend/aria_server/` | Bonjour + HTTP/WS 网络即兴后端。 |
 
-Xcode 工程只有 `HappyPianistAVP` 与 `HappyPianistAVPTests` 两个 target；仓库中不存在 macOS App target。
+Xcode 工程包含隔离的 `HappyPianistAVP` / `HappyPianistAVPTests` 与 `HappyPianistMac` / `HappyPianistMacTests` target。两个 host 不共享 App container、视图或平台服务，只消费 [共享核心模块](modules/shared-core.md) 的公开产品；macOS host 边界见 [macOS App](modules/macos-app.md)。
+
+`make build:mac` 与 `make test:mac` 只使用 macOS scheme/destination；visionOS 仍使用既有 `make build`、`make test`。
 
 ## 按问题导航
 
 | 想了解什么 | 文档 |
 | --- | --- |
 | 模块、依赖方向、运行时边界和危险修改区 | [architecture.md](architecture.md) |
+| 共享包的产品边界与依赖图 | [modules/shared-core.md](modules/shared-core.md) |
 | MusicXML、输入、练习、反馈、录制与 AI 的数据流 | [data-flow.md](data-flow.md) |
 | 曲谱真值、参考演奏、输入证据、演奏评价、虚拟指导与专业验收路线 | [piano-performance-quality.md](piano-performance-quality.md) |
 | Xcode、权限、依赖、资源、设置与可选服务 | [configuration.md](configuration.md) |

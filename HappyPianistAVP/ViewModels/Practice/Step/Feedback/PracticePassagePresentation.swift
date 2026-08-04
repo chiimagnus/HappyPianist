@@ -1,4 +1,6 @@
 import Foundation
+import MusicXML
+import Practice
 
 enum PracticePassagePresentation {
     static func title(for occurrences: [PracticeMeasureOccurrenceID]) -> String {

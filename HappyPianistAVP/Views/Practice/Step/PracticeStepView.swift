@@ -1,4 +1,7 @@
 import SwiftUI
+import MusicXML
+import Notation
+import Practice
 
 struct PracticeStepView: View {
     @Bindable var viewModel: ARGuideViewModel

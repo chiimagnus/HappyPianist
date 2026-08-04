@@ -1,4 +1,5 @@
 import Foundation
+@testable import MusicXML
 @testable import HappyPianistAVP
 import Testing
 
@@ -30,11 +31,11 @@ func normalizerGroupsExplicitSplitPianoWithoutRewritingSourceParts() throws {
         <score-part id="LH"><part-name>Piano LH</part-name></score-part>
       </part-list>
       <part id="RH"><measure number="1"><attributes><divisions>1</divisions><clef><sign>G</sign><line>2</line></clef></attributes>
-        <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration></note>
+        <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note>
       </measure></part>
       <part id="LH"><measure number="1"><attributes><divisions>1</divisions><clef><sign>F</sign><line>4</line></clef></attributes>
         <direction><direction-type><dynamics><p/></dynamics></direction-type></direction>
-        <note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration></note>
+        <note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration><type>quarter</type></note>
       </measure></part>
     </score-partwise>
     """
@@ -64,10 +65,10 @@ func normalizerDoesNotMergeDistinctNamedPianosFromComplementaryClefs() throws {
         <score-part id="P2"><part-name>Piano 2</part-name></score-part>
       </part-list>
       <part id="P1"><measure number="1"><attributes><divisions>1</divisions><clef><sign>G</sign><line>2</line></clef></attributes>
-        <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration></note>
+        <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note>
       </measure></part>
       <part id="P2"><measure number="1"><attributes><divisions>1</divisions><clef><sign>F</sign><line>4</line></clef></attributes>
-        <note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration></note>
+        <note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration><type>quarter</type></note>
       </measure></part>
     </score-partwise>
     """
@@ -89,10 +90,10 @@ func normalizerDoesNotMergeIndependentTrebleAndBassInstruments() throws {
         <score-part id="P2"><part-name>Cello</part-name></score-part>
       </part-list>
       <part id="P1"><measure number="1"><attributes><divisions>1</divisions><clef><sign>G</sign><line>2</line></clef></attributes>
-        <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration></note>
+        <note><pitch><step>C</step><octave>5</octave></pitch><duration>1</duration><type>quarter</type></note>
       </measure></part>
       <part id="P2"><measure number="1"><attributes><divisions>1</divisions><clef><sign>F</sign><line>4</line></clef></attributes>
-        <note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration></note>
+        <note><pitch><step>C</step><octave>3</octave></pitch><duration>1</duration><type>quarter</type></note>
       </measure></part>
     </score-partwise>
     """

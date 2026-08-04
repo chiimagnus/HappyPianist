@@ -1,4 +1,6 @@
 import Observation
+import MusicXML
+import Practice
 
 @MainActor
 @Observable

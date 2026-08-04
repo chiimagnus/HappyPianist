@@ -1,5 +1,6 @@
 import Foundation
 import simd
+import Practice
 
 struct HandGateState: Equatable {
     let isNearKeyboard: Bool

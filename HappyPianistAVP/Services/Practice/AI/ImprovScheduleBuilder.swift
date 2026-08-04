@@ -1,4 +1,5 @@
 import Foundation
+import Practice
 
 struct ImprovScheduleBuilder {
     private let qualityRubric: ImprovQualityRubric

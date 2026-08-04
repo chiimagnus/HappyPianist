@@ -1,3 +1,6 @@
+@testable import MusicXML
+@testable import Notation
+@testable import Practice
 @testable import HappyPianistAVP
 import simd
 import Testing
@@ -225,7 +228,7 @@ private func consistencyNote(
         tick: 0,
         durationTicks: 480,
         writtenPitch: MusicXMLWrittenPitch(step: step, octave: octave),
-        writtenRhythm: MusicXMLWrittenRhythm(typeToken: "quarter"),
+        writtenRhythm: MusicXMLWrittenRhythm(noteType: .quarter),
         midiNote: midiNote,
         isRest: false,
         isChord: false,

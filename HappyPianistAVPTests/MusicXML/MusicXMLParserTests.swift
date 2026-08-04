@@ -1,4 +1,6 @@
 import Foundation
+@testable import MusicXML
+import Practice
 @testable import HappyPianistAVP
 import os
 import Testing
@@ -12,8 +14,8 @@ func parserCancellationAbortsDuringElementProcessing() {
       <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
       <part id="P1">
         <measure number="1">
-          <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
-          <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration></note>
+          <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
+          <note><pitch><step>D</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
         </measure>
       </part>
     </score-partwise>
@@ -67,21 +69,21 @@ func parserHandlesChordAndBackupTimeline() throws {
           <attributes><divisions>2</divisions></attributes>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>2</duration>
+            <duration>2</duration><type>quarter</type>
           </note>
           <note>
             <chord/>
             <pitch><step>E</step><octave>4</octave></pitch>
-            <duration>2</duration>
+            <duration>2</duration><type>quarter</type>
           </note>
           <note>
             <rest/>
-            <duration>2</duration>
+            <duration>2</duration><type>quarter</type>
           </note>
           <backup><duration>4</duration></backup>
           <note>
             <pitch><step>G</step><octave>3</octave></pitch>
-            <duration>4</duration>
+            <duration>4</duration><type>quarter</type>
             <staff>2</staff>
             <voice>2</voice>
           </note>
@@ -101,7 +103,7 @@ func parserHandlesChordAndBackupTimeline() throws {
     #expect(score.notes[1].midiNote == 64)
     #expect(score.notes[1].isChord == true)
 
-    #expect(score.notes[2].tick == 480)
+    #expect(score.notes[2].tick == MusicXMLTempoMap.ticksPerQuarter)
     #expect(score.notes[2].isRest == true)
 
     #expect(score.notes[3].tick == 0)
@@ -131,7 +133,7 @@ func parserPreservesWholeMeasureRestWithoutWrittenType() throws {
     #expect(rest.isRest)
     #expect(rest.isMeasureRest)
     #expect(rest.writtenRhythm == nil)
-    #expect(rest.durationTicks == 1440)
+    #expect(rest.durationTicks == MusicXMLTempoMap.ticksPerQuarter * 3)
 }
 
 @Test
@@ -147,14 +149,14 @@ func parserHandlesForwardAcrossMeasures() throws {
           <attributes><divisions>1</divisions></attributes>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>2</duration>
+            <duration>2</duration><type>quarter</type>
           </note>
         </measure>
         <measure number="2">
           <forward><duration>2</duration></forward>
           <note>
             <pitch><step>D</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
         </measure>
       </part>
@@ -164,7 +166,7 @@ func parserHandlesForwardAcrossMeasures() throws {
     let score = try MusicXMLParser().parse(data: Data(xml.utf8))
     #expect(score.notes.count == 2)
     #expect(score.notes[0].tick == 0)
-    #expect(score.notes[1].tick == 1920)
+    #expect(score.notes[1].tick == MusicXMLTempoMap.ticksPerQuarter * 4)
     #expect(score.notes[1].midiNote == 62)
 }
 
@@ -184,7 +186,7 @@ func parserParsesSoundTempoEvents() throws {
           </direction>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
         </measure>
       </part>
@@ -211,7 +213,7 @@ func parserParsesMeasureLevelSoundTempoEvents() throws {
           <sound tempo="120"/>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
           <sound tempo="60"/>
         </measure>
@@ -223,7 +225,7 @@ func parserParsesMeasureLevelSoundTempoEvents() throws {
     #expect(score.tempoEvents.count == 2)
     #expect(score.tempoEvents[0].tick == 0)
     #expect(score.tempoEvents[0].quarterBPM == 120)
-    #expect(score.tempoEvents[1].tick == 480)
+    #expect(score.tempoEvents[1].tick == MusicXMLTempoMap.ticksPerQuarter)
     #expect(score.tempoEvents[1].quarterBPM == 60)
 }
 
@@ -240,13 +242,13 @@ func parserTracksMeasureIndexAndNumberToken() throws {
           <attributes><divisions>1</divisions></attributes>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
         </measure>
         <measure number="2">
           <note>
             <pitch><step>D</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
         </measure>
       </part>
@@ -284,7 +286,7 @@ func parserParsesMetronomeTempoWhenSoundIsMissing() throws {
           </direction>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
         </measure>
       </part>
@@ -319,7 +321,7 @@ func parserParsesDottedMetronomeTempo() throws {
           </direction>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
         </measure>
       </part>
@@ -354,7 +356,7 @@ func parserPrefersSoundTempoOverMetronomeAtSameTick() throws {
           </direction>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
         </measure>
       </part>
@@ -380,12 +382,12 @@ func parserTracksTempoChangeTickUsingPartTimeline() throws {
           <direction><sound tempo="120"/></direction>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
           <direction><sound tempo="60"/></direction>
           <note>
             <pitch><step>D</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
         </measure>
       </part>
@@ -395,7 +397,7 @@ func parserTracksTempoChangeTickUsingPartTimeline() throws {
     let score = try MusicXMLParser().parse(data: Data(xml.utf8))
     #expect(score.tempoEvents.count == 2)
     #expect(score.tempoEvents[0].tick == 0)
-    #expect(score.tempoEvents[1].tick == 480)
+    #expect(score.tempoEvents[1].tick == MusicXMLTempoMap.ticksPerQuarter)
 }
 
 @Test
@@ -419,7 +421,7 @@ func parserParsesMetronomeEighthBeatUnitTempo() throws {
           </direction>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
         </measure>
       </part>
@@ -446,7 +448,7 @@ func parserFallsBackToOtherPartsWhenP1HasNoTempo() throws {
           <attributes><divisions>1</divisions></attributes>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
         </measure>
       </part>
@@ -456,7 +458,7 @@ func parserFallsBackToOtherPartsWhenP1HasNoTempo() throws {
           <direction><sound tempo="140"/></direction>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
         </measure>
       </part>
@@ -482,7 +484,7 @@ func parserParsesNoteTieElement() throws {
           <note>
             <tie type="start"/>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
         </measure>
       </part>
@@ -510,7 +512,7 @@ func parserParsesNotationsTiedElement() throws {
           <note>
             <notations><tied type="stop"/></notations>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
         </measure>
       </part>
@@ -540,7 +542,7 @@ func parserParsesPedalStartAndStopEvents() throws {
           </direction>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
           <direction>
             <direction-type><pedal type="stop"/></direction-type>
@@ -555,7 +557,7 @@ func parserParsesPedalStartAndStopEvents() throws {
     #expect(score.pedalEvents[0].tick == 0)
     #expect(score.pedalEvents[0].kind == .start)
     #expect(score.pedalEvents[0].value?.midiValue == 127)
-    #expect(score.pedalEvents[1].tick == 480)
+    #expect(score.pedalEvents[1].tick == MusicXMLTempoMap.ticksPerQuarter)
     #expect(score.pedalEvents[1].kind == .stop)
     #expect(score.pedalEvents[1].value?.midiValue == 0)
 }
@@ -576,7 +578,7 @@ func parserParsesSoundDamperPedalEventsInsideDirection() throws {
           </direction>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
           <direction>
             <sound damper-pedal="no"/>
@@ -591,7 +593,7 @@ func parserParsesSoundDamperPedalEventsInsideDirection() throws {
     #expect(score.pedalEvents[0].tick == 0)
     #expect(score.pedalEvents[0].kind == .start)
     #expect(score.pedalEvents[0].value?.midiValue == 127)
-    #expect(score.pedalEvents[1].tick == 480)
+    #expect(score.pedalEvents[1].tick == MusicXMLTempoMap.ticksPerQuarter)
     #expect(score.pedalEvents[1].kind == .stop)
     #expect(score.pedalEvents[1].value?.midiValue == 0)
 }
@@ -610,7 +612,7 @@ func parserParsesSoundDamperPedalEventsAtMeasureLevel() throws {
           <sound damper-pedal="100"/>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
           <sound damper-pedal="0"/>
         </measure>
@@ -623,7 +625,7 @@ func parserParsesSoundDamperPedalEventsAtMeasureLevel() throws {
     #expect(score.pedalEvents[0].tick == 0)
     #expect(score.pedalEvents[0].kind == .start)
     #expect(score.pedalEvents[0].value?.midiValue == 127)
-    #expect(score.pedalEvents[1].tick == 480)
+    #expect(score.pedalEvents[1].tick == MusicXMLTempoMap.ticksPerQuarter)
     #expect(score.pedalEvents[1].kind == .stop)
     #expect(score.pedalEvents[1].value?.midiValue == 0)
 }
@@ -644,7 +646,7 @@ func parserExpandsPedalChangeIntoUpThenDownAtSameTick() throws {
           </direction>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
         </measure>
       </part>
@@ -677,7 +679,7 @@ func parserRecordsPedalContinueWithoutChangingState() throws {
           </direction>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
         </measure>
       </part>
@@ -706,7 +708,7 @@ func parserIgnoresUnknownPedalType() throws {
           </direction>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>1</duration>
+            <duration>1</duration><type>quarter</type>
           </note>
         </measure>
       </part>
@@ -730,7 +732,7 @@ func parserAppliesDirectionOffsetToSoundTempoAndPedalEvents() throws {
           <attributes><divisions>48</divisions></attributes>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>48</duration>
+            <duration>48</duration><type>quarter</type>
           </note>
           <direction>
             <direction-type><pedal type="start"/></direction-type>
@@ -744,12 +746,12 @@ func parserAppliesDirectionOffsetToSoundTempoAndPedalEvents() throws {
 
     let score = try MusicXMLParser().parse(data: Data(xml.utf8))
     #expect(score.tempoEvents.count == 1)
-    #expect(score.tempoEvents[0].tick == 240)
+    #expect(score.tempoEvents[0].tick == MusicXMLTempoMap.ticksPerQuarter / 2)
     #expect(score.tempoEvents[0].quarterBPM == 60)
 
     #expect(score.pedalEvents.count == 1)
     #expect(score.pedalEvents[0].kind == .start)
-    #expect(score.pedalEvents[0].tick == 240)
+    #expect(score.pedalEvents[0].tick == MusicXMLTempoMap.ticksPerQuarter / 2)
 }
 
 @Test
@@ -765,7 +767,7 @@ func parserIgnoresDirectionOffsetWhenSoundGateIsNotYes() throws {
           <attributes><divisions>48</divisions></attributes>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>48</duration>
+            <duration>48</duration><type>quarter</type>
           </note>
           <direction>
             <direction-type><pedal type="start"/></direction-type>
@@ -779,12 +781,12 @@ func parserIgnoresDirectionOffsetWhenSoundGateIsNotYes() throws {
 
     let score = try MusicXMLParser().parse(data: Data(xml.utf8))
     #expect(score.tempoEvents.count == 1)
-    #expect(score.tempoEvents[0].tick == 480)
+    #expect(score.tempoEvents[0].tick == MusicXMLTempoMap.ticksPerQuarter)
     #expect(score.tempoEvents[0].quarterBPM == 60)
 
     #expect(score.pedalEvents.count == 1)
     #expect(score.pedalEvents[0].kind == .start)
-    #expect(score.pedalEvents[0].tick == 480)
+    #expect(score.pedalEvents[0].tick == MusicXMLTempoMap.ticksPerQuarter)
 }
 
 @Test
@@ -800,7 +802,7 @@ func parserSoundOffsetOverridesDirectionOffsetForSoundEvents() throws {
           <attributes><divisions>48</divisions></attributes>
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
-            <duration>48</duration>
+            <duration>48</duration><type>quarter</type>
           </note>
           <direction>
             <offset sound="yes">-24</offset>
@@ -816,7 +818,7 @@ func parserSoundOffsetOverridesDirectionOffsetForSoundEvents() throws {
     let score = try MusicXMLParser().parse(data: Data(xml.utf8))
     #expect(score.tempoEvents.count == 1)
     #expect(score.tempoEvents[0].quarterBPM == 60)
-    #expect(score.tempoEvents[0].tick == 480)
+    #expect(score.tempoEvents[0].tick == MusicXMLTempoMap.ticksPerQuarter)
 }
 
 @Test
@@ -826,7 +828,7 @@ func parserSnapshotSupportUsesStableFieldOrdering() throws {
       <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
       <part id="P1"><measure number="1">
         <attributes><divisions>1</divisions></attributes>
-        <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+        <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
       </measure></part>
     </score-partwise>
     """
@@ -931,11 +933,11 @@ func parserPreservesWrittenPitchSpellingAndDecimalAlter() throws {
     <score-partwise version="4.0">
       <part-list><score-part id="P1"><part-name>Piano</part-name></score-part></part-list>
       <part id="P1"><measure number="1"><attributes><divisions>1</divisions></attributes>
-        <note><pitch><step>C</step><alter>1</alter><octave>4</octave></pitch><accidental>sharp</accidental><duration>1</duration></note>
-        <note><pitch><step>D</step><alter>-1</alter><octave>4</octave></pitch><accidental>flat</accidental><duration>1</duration></note>
-        <note><pitch><step>F</step><alter>2</alter><octave>4</octave></pitch><accidental>double-sharp</accidental><duration>1</duration></note>
-        <note><pitch><step>G</step><alter>0.5</alter><octave>4</octave></pitch><accidental>quarter-sharp</accidental><duration>1</duration></note>
-        <note><rest/><duration>1</duration></note>
+        <note><pitch><step>C</step><alter>1</alter><octave>4</octave></pitch><accidental>sharp</accidental><duration>1</duration><type>quarter</type></note>
+        <note><pitch><step>D</step><alter>-1</alter><octave>4</octave></pitch><accidental>flat</accidental><duration>1</duration><type>quarter</type></note>
+        <note><pitch><step>F</step><alter>2</alter><octave>4</octave></pitch><accidental>double-sharp</accidental><duration>1</duration><type>quarter</type></note>
+        <note><pitch><step>G</step><alter>0.5</alter><octave>4</octave></pitch><accidental>quarter-sharp</accidental><duration>1</duration><type>quarter</type></note>
+        <note><rest/><duration>1</duration><type>quarter</type></note>
       </measure></part>
     </score-partwise>
     """
@@ -962,7 +964,7 @@ func parserPreservesTransposeAndOctaveShiftFacts() throws {
         <measure number="1">
           <attributes><divisions>1</divisions><transpose><diatonic>-1</diatonic><chromatic>-2</chromatic><octave-change>0</octave-change></transpose></attributes>
           <direction><direction-type><octave-shift type="up" size="8" number="1"/></direction-type></direction>
-          <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration></note>
+          <note><pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type></note>
         </measure>
         <measure number="2"><direction><direction-type><octave-shift type="stop" size="8" number="1"/></direction-type></direction></measure>
       </part>
@@ -983,7 +985,7 @@ func parserPreservesTransposeAndOctaveShiftFacts() throws {
     ])
     #expect(score.notes.first?.writtenPitch?.step == "C")
     #expect(score.octaveShiftEvents.map(\.kind) == [.up, .stop])
-    #expect(score.octaveShiftEvents.map(\.tick) == [0, 480])
+    #expect(score.octaveShiftEvents.map(\.tick) == [0, MusicXMLTempoMap.ticksPerQuarter])
 }
 
 @Test
@@ -994,7 +996,7 @@ func fingeringFactsPreserveMultiplicityPlacementHandAndProvenance() throws {
       <part id="P1"><measure number="1">
         <attributes><divisions>1</divisions></attributes>
         <note>
-          <pitch><step>C</step><octave>4</octave></pitch><duration>1</duration>
+          <pitch><step>C</step><octave>4</octave></pitch><duration>1</duration><type>quarter</type>
           <notations><technical>
             <fingering substitution="yes" alternate="no" placement="above" hand="right">1</fingering>
             <fingering substitution="no" alternate="yes" placement="below" hand="left">2</fingering>

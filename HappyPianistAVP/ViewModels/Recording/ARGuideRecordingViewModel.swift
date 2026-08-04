@@ -1,5 +1,9 @@
 import Foundation
+import Diagnostics
+import MIDI
 import Observation
+import MusicXML
+import Practice
 
 @MainActor
 @Observable
@@ -111,7 +115,7 @@ final class ARGuideRecordingViewModel {
 
     func refreshMIDISubscriptionIfNeeded(
         usesBluetoothMIDIInput: Bool,
-        eventSource: (any PracticeInputEventSourceProtocol)?
+        eventSource: (any MIDIInputEventSource)?
     ) {
         midiRecordingState.refreshMIDISubscriptionIfNeeded(
             usesBluetoothMIDIInput: usesBluetoothMIDIInput,

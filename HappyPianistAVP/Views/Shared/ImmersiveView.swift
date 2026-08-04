@@ -1,4 +1,5 @@
 import RealityKit
+import Practice
 import SwiftUI
 
 struct ImmersiveView: View {

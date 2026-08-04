@@ -1,4 +1,8 @@
 import Foundation
+import Library
+@testable import Practice
+import MusicXML
+import Diagnostics
 @testable import HappyPianistAVP
 import Testing
 
@@ -22,6 +26,8 @@ private func makeSession(
     id: UUID = UUID(),
     songID: UUID = UUID(),
     revision: String = "r1",
+    windowOpenedAt: Date = Date(timeIntervalSince1970: 100),
+    practiceStartedAt: Date = Date(timeIntervalSince1970: 120),
     persistedAt: Date = Date(timeIntervalSince1970: 200),
     windowDuration: Int64 = 5000,
     activeDuration: Int64 = 3000,
@@ -37,8 +43,8 @@ private func makeSession(
         id: id,
         songID: songID,
         scoreRevision: revision,
-        windowOpenedAt: Date(timeIntervalSince1970: 100),
-        practiceStartedAt: Date(timeIntervalSince1970: 120),
+        windowOpenedAt: windowOpenedAt,
+        practiceStartedAt: practiceStartedAt,
         practiceDay: day,
         endedAt: termination == .open ? nil : persistedAt,
         lastPersistedAt: persistedAt,
@@ -410,6 +416,44 @@ func progressRepositoryUpsertsAndFinalizesOneSessionWithoutDuplicatingCheckpoint
         return
     }
     #expect(finalizedDocument.sessions == [finalized])
+}
+
+@Test
+func progressRepositoryPreservesSubsecondSessionIdentityAcrossCheckpoints() async throws {
+    let (repository, directory) = try makeRepositoryFixture()
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let id = UUID()
+    let songID = UUID()
+    let windowOpenedAt = Date(timeIntervalSince1970: 100.987)
+    let practiceStartedAt = Date(timeIntervalSince1970: 120.654)
+    let opened = try makeSession(
+        id: id,
+        songID: songID,
+        windowOpenedAt: windowOpenedAt,
+        practiceStartedAt: practiceStartedAt,
+        persistedAt: Date(timeIntervalSince1970: 200.123)
+    )
+    let checkpoint = try makeSession(
+        id: id,
+        songID: songID,
+        windowOpenedAt: windowOpenedAt,
+        practiceStartedAt: practiceStartedAt,
+        persistedAt: Date(timeIntervalSince1970: 201.456),
+        windowDuration: 6000,
+        activeDuration: 4000
+    )
+
+    try await repository.upsert(opened)
+    try await repository.upsert(checkpoint)
+
+    guard case let .loaded(document) = await repository.load() else {
+        Issue.record("Expected a readable live session")
+        return
+    }
+    let savedSession = try #require(document.sessions.first)
+    #expect(savedSession.id == id)
+    #expect(savedSession.practiceWindowDurationMilliseconds == checkpoint.practiceWindowDurationMilliseconds)
+    #expect(savedSession.activePracticeDurationMilliseconds == checkpoint.activePracticeDurationMilliseconds)
 }
 
 @Test

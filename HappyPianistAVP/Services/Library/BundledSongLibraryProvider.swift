@@ -1,11 +1,6 @@
 import CryptoKit
 import Foundation
-
-protocol BundledSongLibraryProviderProtocol: Sendable {
-    func bundledEntries() -> [SongLibraryEntry]
-    func musicXMLURL(fileName: String) -> URL?
-    func audioURL(fileName: String) -> URL?
-}
+import Library
 
 struct BundledSongLibraryProvider: BundledSongLibraryProviderProtocol {
     private static let seedSubdirectory = "Resources/SeedScores"

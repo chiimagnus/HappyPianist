@@ -1,4 +1,6 @@
 import Foundation
+import MusicXML
+import Practice
 
 struct SongPracticeLibrarySelectionIdentity: Equatable {
     let songID: UUID

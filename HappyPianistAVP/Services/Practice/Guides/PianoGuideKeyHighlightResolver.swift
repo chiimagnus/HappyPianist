@@ -1,4 +1,5 @@
 import Foundation
+import Practice
 
 struct PianoGuideKeyHighlightResolver {
     func resolveHighlights(guide: PianoHighlightGuide) -> [Int: PianoGuideKeyHighlight] {

@@ -1,4 +1,5 @@
 import Foundation
+import Practice
 
 extension PracticeSessionViewModel {
     func currentFingeringByMIDINote(isAutoplayEnabled: Bool) -> [Int: String] {

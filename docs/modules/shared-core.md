@@ -1,0 +1,60 @@
+# 共享核心模块
+
+`Packages/HappyPianistCore` 是跨 App 的唯一低层 Swift Package。每个 product 只暴露其 consumer 需要的稳定契约；App target 不保留同名实现或兼容副本。
+
+## 当前依赖图
+
+```text
+Diagnostics → ∅
+MusicXML → ∅
+MIDI → Diagnostics
+Practice → Diagnostics, MIDI, MusicXML
+Notation → MusicXML, Practice
+Library → Diagnostics, MusicXML, Practice
+HappyPianistAVP → Diagnostics, Library, MusicXML, MIDI, Practice, Notation
+HappyPianistAVPTests → Diagnostics, Library, MusicXML, MIDI, Practice, Notation, HappyPianistTestFixtures
+```
+
+## Diagnostics
+
+`Diagnostics` 拥有 `DiagnosticEvent` 及其安全引用、结构化 reporting、OSLog sink、七日 JSONL store 和用户主动导出的 ZIP archive。它不知晓 Practice、MusicXML、Library、MIDI、SwiftUI、RealityKit、ARKit 或 AVFoundation。
+
+环境信息通过 `DiagnosticsEnvironmentProviding` 注入；默认 provider 只读取当前 host bundle 的版本与系统版本。ZIPFoundation 由这个本地 package 单次声明并被 archive implementation 使用，App target 不直接链接它。
+
+音频恢复、记谱 fallback 和 coaching diagnostics 仍在各自 App owner 中；`MIDI` 的输出指标和其余 owner 都只向 `Diagnostics` 生成低基数、可过滤的 `DiagnosticEvent`。可导出记录不得包含绝对路径、原始谱面、逐音输入、AI 正文、凭据或设备显示名。
+
+## MusicXML、Practice 与测试 fixture
+
+`MusicXML` 拥有 MusicXML/MXL 模型、解析、结构扩展与谱面语义计算；它不依赖 Practice、Library、MIDI 或 Diagnostics。
+
+`MusicXMLNoteType` 是 `<note><type>` 的唯一强类型真源，完整覆盖 1024th 至 maxima 的 14 个标准值。解析的时间轴统一使用每四分音符 3840 ticks，因此 `divisions=1024` 的显式 1024 分音符精确为 15 ticks；普通音符缺少/使用非标准 type、或非 grace 音符缺少 duration，都会作为 typed preparation failure 停止流程。仅语义上标记为整小节的 rest 可以没有 type。
+
+`Practice` 依赖 `MusicXML`、`MIDI` 与 `Diagnostics`，拥有 `PracticePreparationService`、`ScorePerformancePlanBuilder`、`ScorePerformancePlan`、steps、琴键和记谱投影，以及 matcher、对齐、assessment、coaching、transport、session recorder、progress contracts 和 `MIDIPracticeSession`。它只消费 MIDI 的输入/输出契约，绝不直接导入 CoreMIDI；它的公开值契约可跨 actor 安全传递，不保留 App/Notation 的类型，也不引入「有 steps、无小节」的兼容结果。
+
+`MIDIPracticeSession` 是可复用的 MIDI-only 生命周期 owner：它独占输入 start/stop、generation、stale-event rejection、observation mapping/matching 和 recorder drain；host 注入输出 reset 与 progress flush。结束严格按“失效输入 → 停止输入 → reset/flush 输出 → 等待已接受 observation 的记录 → flush progress → 终结 session”进行；save 失败时 session 保持可恢复。AVP 的 `PracticeMIDIInputService` 仅做 presentation adapter；AVAudio、audio recognition、手部/虚拟琴、AR 和 SwiftUI 保留在 App。
+
+progress 的事实与 repository contracts 属于 `Practice`；`Library` 通过这些契约拥有 Documents 路径和 `FilePracticeProgressRepository`。`progress-v1.json` 的 schema 与字节兼容性不因 rehome 改变。
+
+## Library
+
+`Library` 依赖 `Practice`、`MusicXML` 与 `Diagnostics`，拥有 `SongLibraryEntry`/index、Documents layout、文件 store、导入与恢复 journal、bootstrap loader、entry resolver 和 file-backed progress repository。它在 security scope 内先拒绝非普通或 symlink 文件，再调用 `validateMusicXMLImportCandidate` 检查 MXL central directory，随后才 copy 到 app container；parser extraction 仍会重复相同 policy。Library 永不保存外部 URL、bookmark、绝对路径或原始曲谱到 index/progress。
+
+AVP 只保留 `BundledSongLibraryProvider` 的 `Bundle.main` 实现、audio import/player/settings 和 Library presentation/focus/summary builders；它们消费 Library protocol/value types，不能反向迁入该 product。
+
+## Notation
+
+`Notation` 只依赖 `Practice` 与 `MusicXML`，拥有 `GrandStaffNotationContext`、glyph catalog、engraving metrics、chord/horizontal/viewport layout、presentation、Canvas renderer、SwiftUI view 和 VoiceOver overlay。它只接收 `ScoreNotationProjection`、overlay、measure spans 与 hand mode；不接收 session navigation、progress、AR piano guide 或 Library。
+
+Notation 直接消费 `MusicXMLNoteType`，以 Bravura glyph/metrics 渲染 14 项 notehead、rest、flag 和 0–8 层 beam；横向间距只使用 source 的已解析 duration，不从 type、dot 或 tuplet 猜测时间。
+
+当前 App 仅构造 context 和向 `GrandStaffNotationView` 传入 projection；renderer 的高亮色在 Notation 内按谱表解析，不复用 Piano key 的 SwiftUI/UIKit tint token。`Practice` 不引用 Notation，旧 App `GrandStaff*` source 和非视觉测试入口均不存在；visual golden 继续在 AVP target 检验实际 `ImageRenderer` 路径。
+
+用户文件先经过单一 `MusicXMLImportSafetyPolicy`：只接受有限大小的常规文件；MXL 在读取 central directory 和每次 extraction 前检查 entry 数量、声明解压大小、总大小、压缩比与安全的相对 archive name。拒绝结果是无路径的 typed reason，不返回部分 score。
+
+`HappyPianistTestFixtures` 只提供测试 bundle 内的 fixture URL；App production target 不链接它，原 `HappyPianistAVPTests/Fixtures` 路径不存在。
+
+## MIDI
+
+`MIDI` 拥有 MIDI 1/2 输入事件、稳定 endpoint ID、host-time 转换、CoreMIDI 输入/输出 transport、端点路由通知和输出指标。它只依赖 `Diagnostics`，不依赖 Practice、录制、AI、SwiftUI 或 RealityKit。
+
+visionOS composition root 显式选择 `.allCurrentSources`，以保留当前所有来源订阅行为；以后平台选择单个端点时只保存 `endpointUniqueID`。旧的 Bluetooth 命名和可变 `sourceIndex` 身份均不存在。输入在 route 变化后重新连接，并通过 availability callback 报告所选端点不可用；播放取消与 look-ahead 发送由同一 mutex generation gate 原子化。

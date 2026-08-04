@@ -1,4 +1,7 @@
 import Foundation
+import MusicXML
+import Practice
+import Diagnostics
 @testable import HappyPianistAVP
 import Testing
 
@@ -68,7 +71,7 @@ private struct YieldingSleeper: SleeperProtocol {
 private struct PlaybackCoordinatorFixture {
     let service: PracticePlaybackControlService
     let sequencer: FakeSequencerPlaybackService
-    let stateStore: PracticeSessionStateStore
+    let stateStore: PracticeSessionHostState
     let effectHandler: CapturingPracticeSessionEffectHandler
     let plan: ScorePerformancePlan
 }
@@ -81,7 +84,7 @@ private func makePlaybackCoordinatorFixture(
     let sequencer = FakeSequencerPlaybackService()
     sequencer.currentSecondsValue = currentSeconds
 
-    let stateStore = PracticeSessionStateStore()
+    let stateStore = PracticeSessionHostState()
     let effectHandler = CapturingPracticeSessionEffectHandler()
 
     let pedalEvents = [
@@ -95,8 +98,8 @@ private func makePlaybackCoordinatorFixture(
         ),
     ]
     let notes = [
-        TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 960),
-        TestScorePerformanceNote(midiNote: 62, onTick: 480, offTick: 720),
+        TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: MusicXMLTempoMap.ticksPerQuarter * 2),
+        TestScorePerformanceNote(midiNote: 62, onTick: MusicXMLTempoMap.ticksPerQuarter, offTick: MusicXMLTempoMap.ticksPerQuarter * 3 / 2),
     ]
     let plan = makeTestScorePerformancePlan(
         identity: PracticeSongIdentity(songID: UUID(), scoreRevision: scoreRevision),

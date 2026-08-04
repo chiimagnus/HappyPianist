@@ -1,4 +1,5 @@
 import Foundation
+import Practice
 @testable import HappyPianistAVP
 import simd
 import Synchronization
@@ -39,11 +40,8 @@ struct PerformanceObservationReplayFixture: Decodable {
 }
 
 struct PerformanceObservationReplayFixtureLoader {
-    func load(filePath: StaticString = #filePath) throws -> PerformanceObservationReplayFixture {
-        let data = try Data(contentsOf: testFixtureURL(
-            "PerformanceObservationReplays.json",
-            filePath: filePath
-        ))
+    func load() throws -> PerformanceObservationReplayFixture {
+        let data = try Data(contentsOf: testFixtureURL("PerformanceObservationReplays.json"))
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
         return try decoder.decode(PerformanceObservationReplayFixture.self, from: data)
@@ -114,11 +112,8 @@ struct PerformanceAlignmentReplayCorpus: Decodable {
 }
 
 struct PerformanceAlignmentReplayCorpusLoader {
-    func load(filePath: StaticString = #filePath) throws -> PerformanceAlignmentReplayCorpus {
-        let data = try Data(contentsOf: testFixtureURL(
-            "PerformanceAlignmentReplays.json",
-            filePath: filePath
-        ))
+    func load() throws -> PerformanceAlignmentReplayCorpus {
+        let data = try Data(contentsOf: testFixtureURL("PerformanceAlignmentReplays.json"))
         return try JSONDecoder().decode(PerformanceAlignmentReplayCorpus.self, from: data)
     }
 }
@@ -192,11 +187,8 @@ struct SyntheticHandContactFrame: Decodable {
 }
 
 struct SyntheticHandContactTraceFixtureLoader {
-    func load(filePath: StaticString = #filePath) throws -> SyntheticHandContactTraceFixture {
-        let data = try Data(contentsOf: testFixtureURL(
-            "SyntheticHandContactTraces.json",
-            filePath: filePath
-        ))
+    func load() throws -> SyntheticHandContactTraceFixture {
+        let data = try Data(contentsOf: testFixtureURL("SyntheticHandContactTraces.json"))
         return try JSONDecoder().decode(SyntheticHandContactTraceFixture.self, from: data)
     }
 }

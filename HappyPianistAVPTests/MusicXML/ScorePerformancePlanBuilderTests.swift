@@ -1,4 +1,6 @@
 import Foundation
+@testable import MusicXML
+@testable import Practice
 @testable import HappyPianistAVP
 import Testing
 
@@ -8,7 +10,7 @@ func timingScheduleRecordsGenericInterpretationProfileForArticulation() {
         partID: "P1",
         measureNumber: 1,
         tick: 0,
-        durationTicks: 480,
+        durationTicks: MusicXMLTempoMap.ticksPerQuarter,
         midiNote: 60,
         isRest: false,
         isChord: false,
@@ -18,7 +20,7 @@ func timingScheduleRecordsGenericInterpretationProfileForArticulation() {
     )
 
     let entry = ScoreTimingScheduleBuilder().build(notes: [note])[0]
-    #expect(entry.performedOffTick == 360)
+    #expect(entry.performedOffTick == MusicXMLTempoMap.ticksPerQuarter * 3 / 4)
     #expect(entry.releasePolicy == .interpretationProfile)
     #expect(entry.provenance.contains(.interpretationProfile(id: MusicXMLInterpretationProfile.generic.id)))
 }
@@ -29,7 +31,7 @@ func timingScheduleKeepsFullTenutoDurationAndRecordsItsProfileRule() {
         partID: "P1",
         measureNumber: 1,
         tick: 0,
-        durationTicks: 480,
+        durationTicks: MusicXMLTempoMap.ticksPerQuarter,
         midiNote: 60,
         isRest: false,
         isChord: false,
@@ -40,7 +42,7 @@ func timingScheduleKeepsFullTenutoDurationAndRecordsItsProfileRule() {
 
     let entry = ScoreTimingScheduleBuilder().build(notes: [note])[0]
     #expect(entry.performedOnTick == 0)
-    #expect(entry.performedOffTick == 480)
+    #expect(entry.performedOffTick == MusicXMLTempoMap.ticksPerQuarter)
     #expect(entry.releasePolicy == .interpretationProfile)
     #expect(entry.provenance.contains(.interpretationProfile(id: MusicXMLInterpretationProfile.generic.id)))
 }
@@ -90,7 +92,7 @@ func timingScheduleCreatesBreathGapAndCaesuraPauseDirective() {
         partID: "P1",
         measureNumber: 1,
         tick: 0,
-        durationTicks: 480,
+        durationTicks: MusicXMLTempoMap.ticksPerQuarter,
         midiNote: 60,
         isRest: false,
         isChord: false,
@@ -103,13 +105,13 @@ func timingScheduleCreatesBreathGapAndCaesuraPauseDirective() {
     )
 
     let schedule = ScoreTimingScheduleBuilder().build(notes: [note])
-    #expect(schedule[0].performedOffTick == 420)
+    #expect(schedule[0].performedOffTick == MusicXMLTempoMap.ticksPerQuarter - MusicXMLTempoMap.ticksPerQuarter / 8)
     #expect(schedule[0].releasePolicy == .breathGap)
     #expect(schedule.directives == [
         ScoreTimingDirective(
             kind: .caesuraPause,
-            tick: 420,
-            durationTicks: 240,
+            tick: MusicXMLTempoMap.ticksPerQuarter - MusicXMLTempoMap.ticksPerQuarter / 8,
+            durationTicks: MusicXMLTempoMap.ticksPerQuarter / 2,
             sourceNotationID: nil,
             interpretationProfileID: MusicXMLInterpretationProfile.generic.id
         ),

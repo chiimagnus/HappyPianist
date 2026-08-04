@@ -1,4 +1,7 @@
 import Foundation
+@testable import MusicXML
+@testable import Practice
+import Diagnostics
 @testable import HappyPianistAVP
 import Testing
 
@@ -12,12 +15,12 @@ func sequenceBuilderAppliesPauseBeforeSameTickAudioEvents() {
     let timeline = AutoplayPerformanceTimeline(
         events: [
             AutoplayPerformanceTimeline.Event(id: 0, tick: 0, kind: .noteOn(midi: 60, velocity: 96)),
-            AutoplayPerformanceTimeline.Event(id: 1, tick: 480, kind: .pauseSeconds(1.0)),
-            AutoplayPerformanceTimeline.Event(id: 2, tick: 480, kind: .noteOff(midi: 60)),
-            AutoplayPerformanceTimeline.Event(id: 3, tick: 480, kind: .controlChange(controller: 64, value: 0)),
-            AutoplayPerformanceTimeline.Event(id: 4, tick: 480, kind: .controlChange(controller: 64, value: 127)),
-            AutoplayPerformanceTimeline.Event(id: 5, tick: 480, kind: .noteOn(midi: 62, velocity: 96)),
-            AutoplayPerformanceTimeline.Event(id: 6, tick: 960, kind: .noteOff(midi: 62)),
+            AutoplayPerformanceTimeline.Event(id: 1, tick: MusicXMLTempoMap.ticksPerQuarter, kind: .pauseSeconds(1.0)),
+            AutoplayPerformanceTimeline.Event(id: 2, tick: MusicXMLTempoMap.ticksPerQuarter, kind: .noteOff(midi: 60)),
+            AutoplayPerformanceTimeline.Event(id: 3, tick: MusicXMLTempoMap.ticksPerQuarter, kind: .controlChange(controller: 64, value: 0)),
+            AutoplayPerformanceTimeline.Event(id: 4, tick: MusicXMLTempoMap.ticksPerQuarter, kind: .controlChange(controller: 64, value: 127)),
+            AutoplayPerformanceTimeline.Event(id: 5, tick: MusicXMLTempoMap.ticksPerQuarter, kind: .noteOn(midi: 62, velocity: 96)),
+            AutoplayPerformanceTimeline.Event(id: 6, tick: MusicXMLTempoMap.ticksPerQuarter * 2, kind: .noteOff(midi: 62)),
         ]
     )
 
@@ -149,15 +152,15 @@ func sequenceBuilderKeepsPlanPauseBeforeClosingReplayBoundary() {
     )
     let timeline = AutoplayPerformanceTimeline(events: [
         .init(id: 0, sourceEventID: "note-1", tick: 0, kind: .noteOn(midi: 60, velocity: 96)),
-        .init(id: 1, sourceEventID: "pause-1", tick: 240, kind: .pauseSeconds(1)),
-        .init(id: 2, sourceEventID: "note-1", tick: 480, kind: .noteOff(midi: 60)),
+        .init(id: 1, sourceEventID: "pause-1", tick: MusicXMLTempoMap.ticksPerQuarter / 2, kind: .pauseSeconds(1)),
+        .init(id: 2, sourceEventID: "note-1", tick: MusicXMLTempoMap.ticksPerQuarter, kind: .noteOff(midi: 60)),
     ])
 
     let schedule = PracticeSequencerSequenceBuilder().buildPerformanceEventSchedule(
         timeline: timeline,
         tempoMap: tempoMap,
         startTick: 0,
-        endTick: 240
+        endTick: MusicXMLTempoMap.ticksPerQuarter / 2
     )
 
     #expect(schedule.map(\.kind) == [

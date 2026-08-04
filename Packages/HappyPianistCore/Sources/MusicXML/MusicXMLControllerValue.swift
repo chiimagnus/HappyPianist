@@ -1,0 +1,43 @@
+import Foundation
+
+
+public enum MusicXMLPedalController: UInt8, Equatable, Sendable {
+    case damper = 64
+    case sostenuto = 66
+    case soft = 67
+}
+
+public struct MusicXMLControllerValue: Equatable, Sendable {
+    public static let off = MusicXMLControllerValue(percentage: 0, midiValue: 0)
+    public static let on = MusicXMLControllerValue(percentage: 100, midiValue: 127)
+
+    public let percentage: Decimal
+    public let midiValue: UInt8
+
+    public init?(percentage: Decimal) {
+        guard percentage >= 0, percentage <= 100 else { return nil }
+        self.percentage = percentage
+        midiValue = UInt8((NSDecimalNumber(decimal: percentage).doubleValue * 1.27).rounded())
+    }
+
+    public init?(musicXMLString: String) {
+        let token = musicXMLString.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        switch token {
+        case "yes":
+            self = .on
+        case "no":
+            self = .off
+        default:
+            guard let percentage = Decimal(
+                string: token,
+                locale: Locale(identifier: "en_US_POSIX")
+            ) else { return nil }
+            self.init(percentage: percentage)
+        }
+    }
+
+    private init(percentage: Decimal, midiValue: UInt8) {
+        self.percentage = percentage
+        self.midiValue = midiValue
+    }
+}

@@ -1,4 +1,8 @@
 import Foundation
+import MIDI
+import Practice
+import MusicXML
+import Diagnostics
 @testable import HappyPianistAVP
 import Testing
 
@@ -196,7 +200,7 @@ func performanceObservationPhraseAdapterUnifiesMIDIRecordingAndHandEvidence() {
 
 @Test
 func phraseAndRecordingReuseInputObservationIdentity() throws {
-    let source = MIDIInputSource(identifier: .sourceIndex(9), endpointName: "identity")
+    let source = MIDIInputSource(identifier: .endpointUniqueID(9), endpointName: "identity")
     let inputID = try #require(UUID(uuidString: "11111111-1111-1111-1111-111111111111"))
     let input = MIDI1InputEvent(
         observationID: inputID,

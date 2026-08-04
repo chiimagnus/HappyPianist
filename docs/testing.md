@@ -25,6 +25,17 @@ make build
 make test
 ```
 
+macOS host 使用完全独立的入口：
+
+```bash
+make build:mac
+make test:mac
+```
+
+它们只使用 `HappyPianistMac`、`platform=macOS` 和自己的 result bundle；不读取 `SIMULATOR_ID`，也不 boot visionOS Simulator。共享包仍单独运行 `swift test --package-path Packages/HappyPianistCore`，visionOS 仍使用 `make build` 与 `make test`。
+
+MusicXML fixture 必须为每个普通 note/rest 提供标准 `<type>` 和非 grace 的显式 `<duration>`；package tests 覆盖 14 个标准 type 从 parser 到 `PreparedPractice` 和 notation layout、1024 分音符的 15-tick 精度、0–8 层 beam，以及缺失/非标准 type 的 typed failure。无 type 只在语义整小节 rest fixture 中合法。
+
 需要完整运行日志时：
 
 ```bash
@@ -39,6 +50,19 @@ xcodebuild test \
   CODE_SIGNING_ALLOWED=NO \
   -parallel-testing-enabled NO
 ```
+
+macOS MIDI host 的确定性覆盖使用：
+
+```bash
+rtk xcodebuild test \
+  -project HappyPianist.xcodeproj \
+  -scheme HappyPianistMac \
+  -destination 'platform=macOS,arch=arm64' \
+  -only-testing:HappyPianistMacTests/MIDISettingsViewModelTests \
+  CODE_SIGNING_ALLOWED=NO
+```
+
+它覆盖持久化只含 unique ID、所选输入断开后停止且不回退、输出切换的 flush/reset/stop 顺序；`HappyPianistMacTests/MacPracticeViewModelTests` 还覆盖 fixed-score MIDI match/wrong evidence、measure facts reload、passage/hand/tempo/loop 的 exact restore、invalid repair 与 selected-input loss；`HappyPianistMacTests/MacRecordingWorkflowTests` 覆盖 take 的 open-note close、return/input-loss/save-failure 重试、CRUD、export、no-output 与 stale playback reset；`HappyPianistMacTests/MacPracticeExitGuardTests` 覆盖原生窗口关闭与应用退出必须先经过异步 finish gate；`HappyPianistMacTests/MacDiagnosticsViewModelTests` 验证诊断 export/clear 和 archive 隐私脱敏。仍需在真实设备上确认所选输出未通过 MIDI-Thru 或 loopback 回灌到所选输入。
 
 记录提交 SHA、Xcode、visionOS、destination、命令和完整退出结果。`build-for-testing`、`swiftc -parse` 或 Linux harness 只能作为局部证据，不是 `xcodebuild test` 通过证据。
 
@@ -79,16 +103,28 @@ Simulator 不证明真实 MIDI、麦克风、手部追踪、audio onset、route 
 ### 输入、输出与生命周期
 
 - [ ] MIDI 首音、和弦、velocity、release、controller、timestamp、generation 正确。
+- [ ] macOS 仅启动所选输入；断开后不自动切换或恢复，需用户显式重新选择；切换输出后无残留发声，且输出 loopback 不回灌到输入。
 - [ ] 麦克风无声、错音、权限拒绝、切换模式和旧结果不会推进新 step。
 - [ ] 手部保留 hand/finger identity；palm、tracking loss、低置信度、calibration 变化不误触发。
 - [ ] stop、seek、loop、interruption、route change、断连和重启后无 stuck note 或旧输出。
 - [ ] 后台、窗口关闭、退出 immersive、切曲和 session replacement 取消长任务并释放输入。
 - [ ] 返回前等待 progress flush 和 session finalization；失败时留在当前窗口。
 
+### macOS MIDI 硬件（`pending evidence`）
+
+每一项记录 commit、日期、macOS/Xcode、route 类型与结果；不记录设备显示名、序列号、绝对路径或原始 MIDI。
+
+- [ ] 连接一个 wired MIDI endpoint，选定该输入并完成首音、和弦、release、controller 与 timestamp 检查。
+- [ ] 通过系统设置配对一个 BLE MIDI endpoint，再选定它完成同样检查；App 不扫描或配对设备。
+- [ ] 在 guiding 中断开所选输入并重新连接：确认立即停止、无自动 fallback 或自动恢复，随后由用户手动重新选择。
+- [ ] 选定输出后切换或断开它：确认 flush、all-notes-off、all-sound-off 后无残留发声；无输出时输入判定仍可完成。
+- [ ] 负向测试 MIDI-Thru/软件 loopback：在受控测试中确认回灌会成为输入事件后立即停止该配置，并在真实练习前物理断开。软件不声称能识别物理回灌。
+
 ### 存储与体验
 
 - [ ] progress 只含小节聚合、配置、metadata、session facts；不含 cue、summary、逐音 evidence、AI 或原始传感数据。
-- [ ] take 可回放/导出；target audio 不进入逐音 MIDI take。
+- [ ] macOS take 可开始/停止、重命名、删除、清空、回放、seek 和用户触发的 MIDI 导出；无 output 时浏览/编辑/导出仍可用，只有发声 control 禁用。
+- [ ] take 可回放/导出；target audio 不进入逐音 MIDI take，return、route change 或 input loss 会在 progress 前先关闭 open note 并写入 take，写入失败可重试且不离开当前 route。
 - [ ] Library Ornament 只读展示事实，没有第二个练习入口或隐藏配置。
 - [ ] Reduce Motion、VoiceOver、Dynamic Type、Differentiate Without Color 和增强对比度下主流程可完成。
 

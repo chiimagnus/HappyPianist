@@ -1,5 +1,6 @@
 import RealityKit
 import UIKit
+import Practice
 
 @MainActor
 final class PracticeRestorationEffectRenderer {

@@ -1,0 +1,239 @@
+import Diagnostics
+import Foundation
+
+public struct PianoOutputTimestampObservation: Equatable, Sendable {
+    public let scheduledAtSeconds: TimeInterval
+    public let submittedAtSeconds: TimeInterval?
+    public let acknowledgedAtSeconds: TimeInterval?
+
+    public init(
+        scheduledAtSeconds: TimeInterval,
+        submittedAtSeconds: TimeInterval?,
+        acknowledgedAtSeconds: TimeInterval?
+    ) {
+        self.scheduledAtSeconds = scheduledAtSeconds
+        self.submittedAtSeconds = submittedAtSeconds
+        self.acknowledgedAtSeconds = acknowledgedAtSeconds
+    }
+}
+
+public enum PianoOutputAudioRoute: String, Equatable, Sendable {
+    case builtIn
+    case wired
+    case bluetooth
+    case usb
+    case unknown
+}
+
+public struct PianoOutputMeasurementMetadata: Equatable, Sendable {
+    public let calibrationID: UUID?
+    public let calibrationVersion: Int?
+    public let sampleCount: Int?
+    public let deviceModel: String?
+    public let operatingSystemVersion: String?
+    public let audioRoute: PianoOutputAudioRoute?
+
+    public init(
+        calibrationID: UUID? = nil,
+        calibrationVersion: Int? = nil,
+        sampleCount: Int? = nil,
+        deviceModel: String? = nil,
+        operatingSystemVersion: String? = nil,
+        audioRoute: PianoOutputAudioRoute? = nil
+    ) {
+        self.calibrationID = calibrationID
+        self.calibrationVersion = calibrationVersion.flatMap { $0 > 0 ? $0 : nil }
+        self.sampleCount = sampleCount.flatMap { $0 > 0 ? $0 : nil }
+        self.deviceModel = Self.safeLabel(deviceModel)
+        self.operatingSystemVersion = Self.safeLabel(operatingSystemVersion)
+        self.audioRoute = audioRoute
+    }
+
+    public var fields: [String] {
+        [
+            calibrationID.map { "calibrationID=\($0.uuidString.lowercased())" },
+            calibrationVersion.map { "calibrationVersion=\($0)" },
+            sampleCount.map { "sampleCount=\($0)" },
+            deviceModel.map { "deviceModel=\($0)" },
+            operatingSystemVersion.map { "osVersion=\($0)" },
+            audioRoute.map { "audioRoute=\($0.rawValue)" },
+        ].compactMap(\.self)
+    }
+
+    private static func safeLabel(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.isEmpty == false, trimmed.count <= 64 else { return nil }
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: " ._-"))
+        return trimmed.unicodeScalars.allSatisfy(allowed.contains) ? trimmed : nil
+    }
+}
+
+public struct PianoOutputMetricsSnapshot: Equatable, Sendable {
+    public let capability: PianoPerformanceDiagnosticCapability
+    public let scheduledCount: Int
+    public let submittedCount: Int
+    public let acknowledgedCount: Int
+    public let lateCount: Int
+    public let droppedCount: Int
+    public let cancelledCount: Int
+    public let resetSucceededCount: Int
+    public let resetFailedCount: Int
+    public let stuckNotePreventionCount: Int
+    public let submissionLatencyBuckets: [PianoPerformanceDurationBucket: Int]
+    public let acknowledgementLatencyBuckets: [PianoPerformanceDurationBucket: Int]
+    public let jitterBuckets: [PianoPerformanceDurationBucket: Int]
+    public let measurementMetadata: PianoOutputMeasurementMetadata?
+
+    public init(
+        capability: PianoPerformanceDiagnosticCapability,
+        scheduledCount: Int,
+        submittedCount: Int,
+        acknowledgedCount: Int,
+        lateCount: Int,
+        droppedCount: Int,
+        cancelledCount: Int,
+        resetSucceededCount: Int,
+        resetFailedCount: Int,
+        stuckNotePreventionCount: Int,
+        submissionLatencyBuckets: [PianoPerformanceDurationBucket: Int],
+        acknowledgementLatencyBuckets: [PianoPerformanceDurationBucket: Int],
+        jitterBuckets: [PianoPerformanceDurationBucket: Int],
+        measurementMetadata: PianoOutputMeasurementMetadata?
+    ) {
+        self.capability = capability
+        self.scheduledCount = scheduledCount
+        self.submittedCount = submittedCount
+        self.acknowledgedCount = acknowledgedCount
+        self.lateCount = lateCount
+        self.droppedCount = droppedCount
+        self.cancelledCount = cancelledCount
+        self.resetSucceededCount = resetSucceededCount
+        self.resetFailedCount = resetFailedCount
+        self.stuckNotePreventionCount = stuckNotePreventionCount
+        self.submissionLatencyBuckets = submissionLatencyBuckets
+        self.acknowledgementLatencyBuckets = acknowledgementLatencyBuckets
+        self.jitterBuckets = jitterBuckets
+        self.measurementMetadata = measurementMetadata
+    }
+
+    public var diagnosticEvent: DiagnosticEvent {
+        let fields = [
+            "capability=\(capability.rawValue)",
+            "scheduled=\(scheduledCount)",
+            "submitted=\(submittedCount)",
+            "acknowledged=\(acknowledgedCount)",
+            "late=\(lateCount)",
+            "dropped=\(droppedCount)",
+            "cancelled=\(cancelledCount)",
+            "resetSucceeded=\(resetSucceededCount)",
+            "resetFailed=\(resetFailedCount)",
+            "stuckNotePrevention=\(stuckNotePreventionCount)",
+        ] + bucketFields(prefix: "submissionLatency", counts: submissionLatencyBuckets)
+            + bucketFields(prefix: "acknowledgementLatency", counts: acknowledgementLatencyBuckets)
+            + bucketFields(prefix: "jitter", counts: jitterBuckets)
+            + (measurementMetadata?.fields ?? [])
+        return DiagnosticEvent(
+            severity: severity,
+            code: .pianoPerformancePipeline,
+            category: .pianoPerformance,
+            stage: "playback.outputMetrics",
+            summary: "钢琴输出聚合指标",
+            reason: fields.joined(separator: ";"),
+            persistence: .exportable
+        )
+    }
+
+    private var severity: DiagnosticSeverity {
+        if droppedCount > 0 || resetFailedCount > 0 { return .error }
+        if lateCount > 0 { return .warning }
+        return .info
+    }
+
+    private func bucketFields(prefix: String, counts: [PianoPerformanceDurationBucket: Int]) -> [String] {
+        PianoPerformanceDurationBucket.allCases.map { "\(prefix).\($0.rawValue)=\(counts[$0, default: 0])" }
+    }
+}
+
+public struct PianoOutputMetricsAccumulator: Sendable {
+    private(set) var scheduledCount = 0
+    private(set) var submittedCount = 0
+    private(set) var acknowledgedCount = 0
+    private(set) var lateCount = 0
+    private(set) var droppedCount = 0
+    private(set) var cancelledCount = 0
+    private(set) var resetSucceededCount = 0
+    private(set) var resetFailedCount = 0
+    private(set) var stuckNotePreventionCount = 0
+    private var submissionLatencyBuckets: [PianoPerformanceDurationBucket: Int] = [:]
+    private var acknowledgementLatencyBuckets: [PianoPerformanceDurationBucket: Int] = [:]
+    private var jitterBuckets: [PianoPerformanceDurationBucket: Int] = [:]
+    private var previousSubmissionOffset: TimeInterval?
+
+    public init() {}
+
+    public var hasActivity: Bool { scheduledCount > 0 || resetSucceededCount > 0 || resetFailedCount > 0 }
+
+    public mutating func record(_ observation: PianoOutputTimestampObservation) {
+        guard observation.scheduledAtSeconds.isFinite else { return }
+        scheduledCount += 1
+        guard let submittedAtSeconds = observation.submittedAtSeconds, submittedAtSeconds.isFinite else {
+            droppedCount += 1
+            return
+        }
+        submittedCount += 1
+        let submissionOffset = submittedAtSeconds - observation.scheduledAtSeconds
+        if submissionOffset > 0 { lateCount += 1 }
+        Self.increment(&submissionLatencyBuckets, seconds: max(0, submissionOffset))
+        if let previousSubmissionOffset {
+            Self.increment(&jitterBuckets, seconds: abs(submissionOffset - previousSubmissionOffset))
+        }
+        self.previousSubmissionOffset = submissionOffset
+        guard let acknowledgedAtSeconds = observation.acknowledgedAtSeconds, acknowledgedAtSeconds.isFinite else { return }
+        acknowledgedCount += 1
+        Self.increment(&acknowledgementLatencyBuckets, seconds: max(0, acknowledgedAtSeconds - observation.scheduledAtSeconds))
+    }
+
+    public mutating func recordDropped(count: Int) {
+        let count = max(0, count)
+        scheduledCount += count
+        droppedCount += count
+    }
+
+    public mutating func recordCancelled(count: Int) {
+        let count = max(0, count)
+        scheduledCount += count
+        cancelledCount += count
+    }
+
+    public mutating func recordReset(succeeded: Bool, preventsStuckNotes: Bool) {
+        if succeeded { resetSucceededCount += 1 } else { resetFailedCount += 1 }
+        if succeeded, preventsStuckNotes { stuckNotePreventionCount += 1 }
+    }
+
+    public func snapshot(
+        capability: PianoPerformanceDiagnosticCapability,
+        measurementMetadata: PianoOutputMeasurementMetadata? = nil
+    ) -> PianoOutputMetricsSnapshot {
+        PianoOutputMetricsSnapshot(
+            capability: capability,
+            scheduledCount: scheduledCount,
+            submittedCount: submittedCount,
+            acknowledgedCount: acknowledgedCount,
+            lateCount: lateCount,
+            droppedCount: droppedCount,
+            cancelledCount: cancelledCount,
+            resetSucceededCount: resetSucceededCount,
+            resetFailedCount: resetFailedCount,
+            stuckNotePreventionCount: stuckNotePreventionCount,
+            submissionLatencyBuckets: submissionLatencyBuckets,
+            acknowledgementLatencyBuckets: acknowledgementLatencyBuckets,
+            jitterBuckets: jitterBuckets,
+            measurementMetadata: measurementMetadata
+        )
+    }
+
+    private static func increment(_ buckets: inout [PianoPerformanceDurationBucket: Int], seconds: TimeInterval) {
+        buckets[PianoPerformanceDurationBucket(seconds: seconds), default: 0] += 1
+    }
+}

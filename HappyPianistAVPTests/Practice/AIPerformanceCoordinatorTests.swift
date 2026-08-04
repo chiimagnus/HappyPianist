@@ -1,4 +1,8 @@
 import Foundation
+import MIDI
+import Practice
+import MusicXML
+import Diagnostics
 @testable import HappyPianistAVP
 import Testing
 
@@ -264,7 +268,7 @@ private func recordDuetTestPhrase(_ service: AIPerformanceService) {
             kind: .noteOn(note: 60, velocity: 90),
             channel: 1,
             group: 0,
-            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: nil),
+            source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: nil),
             receivedAt: Date(timeIntervalSince1970: 0),
             receivedAtUptimeSeconds: 0
         )
@@ -274,7 +278,7 @@ private func recordDuetTestPhrase(_ service: AIPerformanceService) {
             kind: .noteOff(note: 60, velocity: 0),
             channel: 1,
             group: 0,
-            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: nil),
+            source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: nil),
             receivedAt: Date(timeIntervalSince1970: 0),
             receivedAtUptimeSeconds: 3.2
         )
@@ -370,7 +374,7 @@ func disableCancelsPendingPlaybackAndStopsSequencer() async {
             kind: .noteOn(note: 60, velocity: 90),
             channel: 1,
             group: 0,
-            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: nil),
+            source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: nil),
             receivedAt: Date(timeIntervalSince1970: 0),
             receivedAtUptimeSeconds: 0
         )
@@ -380,7 +384,7 @@ func disableCancelsPendingPlaybackAndStopsSequencer() async {
             kind: .noteOff(note: 60, velocity: 0),
             channel: 1,
             group: 0,
-            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: nil),
+            source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: nil),
             receivedAt: Date(timeIntervalSince1970: 0),
             receivedAtUptimeSeconds: 0.1
         )
@@ -761,7 +765,7 @@ func observedResponseLatencyQualityGateStopsBackendWithoutReportedLatency() asyn
             kind: .noteOn(note: 60, velocity: 90),
             channel: 1,
             group: 0,
-            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: nil),
+            source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: nil),
             receivedAt: .now,
             receivedAtUptimeSeconds: now
         )
@@ -817,7 +821,7 @@ func localRuleBackendUsesDeterministicMultiCandidateSeeds() async {
             kind: .noteOn(note: 60, velocity: 90),
             channel: 1,
             group: 0,
-            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: nil),
+            source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: nil),
             receivedAt: Date(timeIntervalSince1970: 0),
             receivedAtUptimeSeconds: 0.0
         )
@@ -827,7 +831,7 @@ func localRuleBackendUsesDeterministicMultiCandidateSeeds() async {
             kind: .noteOff(note: 60, velocity: 0),
             channel: 1,
             group: 0,
-            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: nil),
+            source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: nil),
             receivedAt: Date(timeIntervalSince1970: 0),
             receivedAtUptimeSeconds: 3.2
         )
@@ -885,7 +889,7 @@ func networkBackendRemainsSingleCandidate() async {
             kind: .noteOn(note: 60, velocity: 90),
             channel: 1,
             group: 0,
-            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: nil),
+            source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: nil),
             receivedAt: Date(timeIntervalSince1970: 0),
             receivedAtUptimeSeconds: 0.0
         )
@@ -895,7 +899,7 @@ func networkBackendRemainsSingleCandidate() async {
             kind: .noteOff(note: 60, velocity: 0),
             channel: 1,
             group: 0,
-            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: nil),
+            source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: nil),
             receivedAt: Date(timeIntervalSince1970: 0),
             receivedAtUptimeSeconds: 3.2
         )
@@ -970,7 +974,7 @@ func localRuleCandidateSelectionPrefersHigherQualityWindow() async {
             kind: .noteOn(note: 60, velocity: 90),
             channel: 1,
             group: 0,
-            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: nil),
+            source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: nil),
             receivedAt: Date(timeIntervalSince1970: 0),
             receivedAtUptimeSeconds: 0.0
         )
@@ -980,7 +984,7 @@ func localRuleCandidateSelectionPrefersHigherQualityWindow() async {
             kind: .noteOff(note: 60, velocity: 0),
             channel: 1,
             group: 0,
-            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: nil),
+            source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: nil),
             receivedAt: Date(timeIntervalSince1970: 0),
             receivedAtUptimeSeconds: 3.2
         )
@@ -1064,7 +1068,7 @@ func allRejectedCandidatesPreferSilenceWithRejectStatus() async {
             kind: .noteOn(note: 60, velocity: 90),
             channel: 1,
             group: 0,
-            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: nil),
+            source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: nil),
             receivedAt: Date(timeIntervalSince1970: 0),
             receivedAtUptimeSeconds: 0.0
         )
@@ -1074,7 +1078,7 @@ func allRejectedCandidatesPreferSilenceWithRejectStatus() async {
             kind: .noteOff(note: 60, velocity: 0),
             channel: 1,
             group: 0,
-            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: nil),
+            source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: nil),
             receivedAt: Date(timeIntervalSince1970: 0),
             receivedAtUptimeSeconds: 3.2
         )

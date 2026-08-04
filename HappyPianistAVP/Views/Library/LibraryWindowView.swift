@@ -1,3 +1,5 @@
+import Diagnostics
+import MusicXML
 import SwiftUI
 import UniformTypeIdentifiers
 

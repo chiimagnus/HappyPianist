@@ -1,8 +1,11 @@
 import Foundation
+import MusicXML
+import Notation
+import Practice
 
 extension PracticeSessionViewModel {
     var audioErrorMessage: String? {
-        self.audioRecognitionErrorMessage ?? self.audioPlaybackErrorMessage
+        self.audioRecognitionErrorMessage ?? self.playbackErrorMessage
     }
 
     var currentStep: PracticeStep? {
@@ -173,38 +176,21 @@ extension PracticeSessionViewModel {
         session: PracticeProgressSession,
         progressCoordinator: PracticeProgressCoordinator
     ) async {
-        var restoredProgress = progress
-        var repairedSavedState = false
-        if progress.activeConfiguration == nil, progress.resumePoint != nil {
-            restoredProgress.activeConfiguration = freshConfiguration
-            restoredProgress.resumePoint = nil
-            repairedSavedState = true
-        }
-        if let configuration = progress.activeConfiguration {
-            roundConfigurationController.restoreActiveConfiguration(configuration)
-            rebuildActiveRange()
-            if self.activeRange == nil || self.activeRangeDiagnostic != nil {
-                restoredProgress.activeConfiguration = freshConfiguration
-                restoredProgress.resumePoint = nil
-                repairedSavedState = true
-                if let freshConfiguration {
-                    roundConfigurationController.restoreActiveConfiguration(freshConfiguration)
-                } else {
-                    roundConfigurationController.resetSong()
-                }
-                rebuildActiveRange()
-            }
-        }
+        let restoration = PracticeExactProgressRestorer.restore(
+            progress,
+            freshConfiguration: freshConfiguration,
+            measureIndex: self.measureIndex
+        )
+        let restoredProgress = restoration.progress
+        let repairedSavedState = restoration.didRepairSavedState
 
-        let resumePoint = restoredProgress.resumePoint
-        let hasValidResumePoint = resumePoint.map {
-            self.measureIndex?.occurrenceID(forStepIndex: $0.stepIndex) == $0.occurrenceID &&
-                (self.activeRange?.contains(stepIndex: $0.stepIndex) ?? true)
-        } ?? false
-        if resumePoint != nil, hasValidResumePoint == false {
-            restoredProgress.resumePoint = nil
-            repairedSavedState = true
+        if let configuration = restoredProgress.activeConfiguration {
+            roundConfigurationController.restoreActiveConfiguration(configuration)
+        } else {
+            roundConfigurationController.resetSong()
         }
+        self.activeRange = restoration.activeRange
+        self.activeRangeDiagnostic = restoration.activeRangeDiagnostic
         self.sessionProgress = restoredProgress
         if repairedSavedState {
             await progressCoordinator.checkpoint(restoredProgress, generation: session.generation)
@@ -218,7 +204,7 @@ extension PracticeSessionViewModel {
             self.lastProgressRestoreOutcome = .restored
         }
 
-        if let resumePoint = restoredProgress.resumePoint, hasValidResumePoint {
+        if let resumePoint = restoredProgress.resumePoint {
             self.currentStepIndex = resumePoint.stepIndex
         } else {
             self.currentStepIndex = self.activeRange?.firstStepIndex ?? 0
@@ -303,10 +289,47 @@ extension PracticeSessionViewModel {
         self.state = .ready
         setCurrentHighlightGuideForStepIndex(self.currentStepIndex)
         refreshAudioRecognitionForCurrentState()
+        refreshPracticeInputForCurrentState()
     }
 
     @discardableResult
     func flushAndShutdown() async -> PracticeProgressSaveStatus {
+        if let practiceMIDIInputService {
+            self.acceptsPracticeAttempts = false
+            invalidateFeedbackPresentation()
+            cancelAutoplayTimelineBuild()
+            var finalStatus: PracticeProgressSaveStatus = .idle
+            let didFinish = await practiceMIDIInputService.finish(termination: .init(
+                resetOutput: { [weak self] in
+                    guard let self else { return }
+                    await self.manualReplayService?.resetAndFlushOutput()
+                    await self.playbackControlService?.resetAndFlushOutput()
+                    self.stopAudioRecognition()
+                },
+                flushProgress: { [weak self] in
+                    guard let self else { return true }
+                    await self.waitForPendingPerformanceObservationRecording()
+                    await self.waitForSessionRecorderEvents()
+                    await self.sessionRecorder?.setGuiding(false)
+
+                    let flushStatus = await self.flushProgress()
+                    if case .failed = flushStatus {
+                        finalStatus = flushStatus
+                        return false
+                    }
+                    finalStatus = await self.finishProgressSession()
+                    if case .failed = finalStatus { return false }
+                    return true
+                }
+            ))
+            guard didFinish else {
+                resumeAfterSuspension()
+                return finalStatus
+            }
+            shutdown()
+            return finalStatus
+        }
+
         let flushStatus = await suspendAndFlushProgress()
         if case .failed = flushStatus {
             resumeAfterSuspension()
@@ -741,7 +764,7 @@ extension PracticeSessionViewModel {
         self.audioRecognitionSuppressUntil = nil
 
         self.audioRecognitionErrorMessage = nil
-        self.audioPlaybackErrorMessage = nil
+        self.playbackErrorMessage = nil
         self.autoplayErrorMessage = nil
 
         self.currentStepIndex = 0
@@ -770,7 +793,7 @@ extension PracticeSessionViewModel {
 
     func clearAudioError() {
         self.audioRecognitionErrorMessage = nil
-        self.audioPlaybackErrorMessage = nil
+        self.playbackErrorMessage = nil
     }
 
     func stopVirtualPianoInput() {

@@ -1,5 +1,9 @@
 import Foundation
+import Diagnostics
+import MIDI
 import Observation
+import MusicXML
+import Practice
 
 @dynamicMemberLookup
 @MainActor
@@ -19,7 +23,7 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
         case resetAnalysis
     }
 
-    let stateStore: PracticeSessionStateStore
+    let stateStore: PracticeSessionHostState
     let stepNavigator: PracticeStepNavigator
 
     let chordAttemptAccumulator: ChordAttemptAccumulatorProtocol
@@ -30,7 +34,7 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
     let realPianoContactDetectionService: any KeyContactDetectingProtocol
     let handObservationSourceKind: PerformanceObservation.Source.Kind?
     let audioRecognitionService: PracticeAudioRecognitionServiceProtocol?
-    let practiceInputEventSource: PracticeInputEventSourceProtocol?
+    let practiceInputEventSource: (any MIDIInputEventSource)?
     let audioStepAttemptAccumulator: AudioStepAttemptAccumulator
     let midiPracticeStepMatcher: any MIDIPracticeStepMatchingProtocol
     let settingsProvider: any PracticeSessionSettingsProviderProtocol
@@ -69,7 +73,7 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
         stateStore.activeRoundConfiguration?.handMode ?? .both
     }
 
-    subscript<Value>(dynamicMember keyPath: ReferenceWritableKeyPath<PracticeSessionStateStore, Value>) -> Value {
+    subscript<Value>(dynamicMember keyPath: ReferenceWritableKeyPath<PracticeSessionHostState, Value>) -> Value {
         get { stateStore[keyPath: keyPath] }
         set { stateStore[keyPath: keyPath] = newValue }
     }
@@ -84,7 +88,7 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
         handObservationSourceKind: PerformanceObservation.Source.Kind? = nil,
         midiPracticeStepMatcher: (any MIDIPracticeStepMatchingProtocol)? = nil,
         audioRecognitionService: PracticeAudioRecognitionServiceProtocol? = nil,
-        practiceInputEventSource: PracticeInputEventSourceProtocol? = nil,
+        practiceInputEventSource: (any MIDIInputEventSource)? = nil,
         audioStepAttemptAccumulator: AudioStepAttemptAccumulator,
         handPianoActivityGate: HandPianoActivityGate,
         settingsProvider: (any PracticeSessionSettingsProviderProtocol)? = nil,
@@ -94,7 +98,7 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
         coachingDecisionService: CoachingDecisionService,
         diagnosticsReporter: (any DiagnosticsReporting)? = nil
     ) {
-        stateStore = PracticeSessionStateStore()
+        stateStore = PracticeSessionHostState()
         stepNavigator = PracticeStepNavigator()
 
         self.chordAttemptAccumulator = chordAttemptAccumulator

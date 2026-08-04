@@ -1,4 +1,5 @@
 import SwiftUI
+import Practice
 
 struct PracticeMeasureMapView: View {
     let viewModel: PracticeMeasureMapViewModel

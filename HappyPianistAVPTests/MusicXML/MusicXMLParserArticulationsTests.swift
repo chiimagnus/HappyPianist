@@ -1,4 +1,5 @@
 import Foundation
+@testable import MusicXML
 @testable import HappyPianistAVP
 import Testing
 
@@ -17,6 +18,7 @@ struct MusicXMLParserArticulationsTests {
               <note>
                 <pitch><step>C</step><octave>4</octave></pitch>
                 <duration>1</duration>
+                <type>quarter</type>
                 <notations>
                   <articulations>
                     <staccato/>
@@ -83,6 +85,7 @@ func parserPreservesPerformanceNotationSourceContractsAndUnsupportedKinds() thro
           <note>
             <pitch><step>C</step><octave>4</octave></pitch>
             <duration>1</duration>
+            <type>quarter</type>
             <voice>1</voice>
             <staff>1</staff>
             <notations>

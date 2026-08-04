@@ -10,8 +10,11 @@ SCHEME ?= HappyPianistAVP
 APP_NAME ?= HappyPianistAVP
 BUNDLE_ID ?= com.chiimagnus.HappyPianistAVP
 CONFIGURATION ?= Debug
+MAC_SCHEME ?= HappyPianistMac
+MAC_DESTINATION ?= platform=macOS
+MAC_ONLY_TESTING ?=
 
-SIMULATOR_ID ?= 86364D5F-BCCF-48C5-AF79-8154E5689FA3
+SIMULATOR_ID ?= 00CB80CD-6875-4CBB-BA94-63A58C2728EC
 SIMULATOR_NAME ?= Apple Vision Pro
 DEVICE_ID ?= A687F5B3-44BC-5C55-B5C4-22A807A27C6F
 
@@ -26,6 +29,7 @@ SIMULATOR_HOST_APP ?= $(firstword $(wildcard $(DEVICE_HUB_APP) $(SIMULATOR_APP))
 RESULT_BUNDLE_DIR ?= .build/TestResults
 SIMULATOR_RESULT_BUNDLE ?= $(RESULT_BUNDLE_DIR)/HappyPianistAVP-Simulator.xcresult
 DEVICE_RESULT_BUNDLE ?= $(RESULT_BUNDLE_DIR)/HappyPianistAVP-Device.xcresult
+MAC_RESULT_BUNDLE ?= $(RESULT_BUNDLE_DIR)/HappyPianistMac.xcresult
 
 PARALLEL_TESTING ?= NO
 ONLY_TESTING ?=
@@ -41,6 +45,7 @@ LOG_PREDICATE ?= subsystem == "$(BUNDLE_ID)"
 SIMULATOR_DESTINATION = platform=visionOS Simulator,id=$(SIMULATOR_ID)
 DEVICE_DESTINATION = platform=visionOS,id=$(DEVICE_ID)
 TEST_SELECTION = $(if $(strip $(ONLY_TESTING)),-only-testing:$(ONLY_TESTING),)
+MAC_TEST_SELECTION = $(if $(strip $(MAC_ONLY_TESTING)),-only-testing:$(MAC_ONLY_TESTING),)
 
 # Deliberately omit -derivedDataPath. This makes xcodebuild use the same default
 # DerivedData tree as Xcode for this project path.
@@ -49,7 +54,13 @@ XCODEBUILD_COMMON = \
 	-scheme "$(SCHEME)" \
 	-configuration "$(CONFIGURATION)"
 
+MAC_XCODEBUILD_COMMON = \
+	-project "$(PROJECT)" \
+	-scheme "$(MAC_SCHEME)" \
+	-configuration "$(CONFIGURATION)"
+
 .PHONY: help doctor config destinations clean build test dev
+.PHONY: build\:mac test\:mac
 .PHONY: list\:simulator open\:simulator boot\:simulator shutdown\:simulator
 .PHONY: build\:simulator test\:simulator install\:simulator launch\:simulator
 .PHONY: run\:simulator terminate\:simulator logs\:simulator
@@ -63,6 +74,8 @@ help: ## Show available commands.
 		'Development shortcuts:' \
 		'  make build                  Build for the configured Simulator' \
 		'  make test                   Run all tests on the configured Simulator' \
+		'  make build:mac              Build the isolated macOS host' \
+		'  make test:mac               Run isolated macOS host tests' \
 		'  make dev                    Build, install, launch, then stream app logs only' \
 		'  make clean                  Run Xcode clean and remove local test reports' \
 		'' \
@@ -94,6 +107,7 @@ help: ## Show available commands.
 		'  make run:device DEVICE_ID=<udid>' \
 		'  make test:simulator ONLY_TESTING=HappyPianistAVPTests/GrandStaffNotationVisualTests' \
 		'  make build:device CONFIGURATION=Release' \
+		'  make test:mac MAC_ONLY_TESTING=HappyPianistMacTests/MacPracticeViewModelTests' \
 		'  make dev LOG_LEVEL=debug    Include app debug diagnostics' \
 		'  make build XCODEBUILD_FLAGS=  Show full xcodebuild output (quiet is default)'
 
@@ -102,6 +116,27 @@ build: ## Build for the configured Vision Pro Simulator.
 
 test: ## Run all tests on the configured Vision Pro Simulator.
 	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'test:simulator'
+
+build\:mac: doctor ## Build HappyPianistMac without a Simulator.
+	@xcodebuild $(MAC_XCODEBUILD_COMMON) \
+		-destination '$(MAC_DESTINATION)' \
+		CODE_SIGNING_ALLOWED=NO \
+		$(XCODEBUILD_FLAGS) \
+		build
+	@echo 'build:mac: BUILD SUCCEEDED'
+
+test\:mac: doctor ## Run HappyPianistMac tests without a Simulator.
+	@mkdir -p "$(RESULT_BUNDLE_DIR)"
+	@rm -rf "$(MAC_RESULT_BUNDLE)"
+	@xcodebuild $(MAC_XCODEBUILD_COMMON) \
+		-destination '$(MAC_DESTINATION)' \
+		CODE_SIGNING_ALLOWED=NO \
+		-parallel-testing-enabled "$(PARALLEL_TESTING)" \
+		-resultBundlePath "$(MAC_RESULT_BUNDLE)" \
+		$(MAC_TEST_SELECTION) \
+		$(XCODEBUILD_FLAGS) \
+		test
+	@echo 'test:mac: TEST SUCCEEDED'
 
 dev: ## Build, install, launch, then stream Simulator logs.
 	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'open:simulator'
@@ -121,6 +156,8 @@ config: ## Print the resolved Make configuration.
 	@printf '%-26s %s\n' \
 		'PROJECT' '$(PROJECT)' \
 		'SCHEME' '$(SCHEME)' \
+		'MAC_SCHEME' '$(MAC_SCHEME)' \
+		'MAC_DESTINATION' '$(MAC_DESTINATION)' \
 		'CONFIGURATION' '$(CONFIGURATION)' \
 		'SIMULATOR_NAME' '$(SIMULATOR_NAME)' \
 		'SIMULATOR_ID' '$(SIMULATOR_ID)' \
@@ -133,8 +170,10 @@ config: ## Print the resolved Make configuration.
 		'SIMULATOR_HOST_APP' '$(SIMULATOR_HOST_APP)' \
 		'DERIVED_DATA' '~/Library/Developer/Xcode/DerivedData (Xcode default)' \
 		'RESULT_BUNDLE_DIR' '$(RESULT_BUNDLE_DIR)' \
+		'MAC_RESULT_BUNDLE' '$(MAC_RESULT_BUNDLE)' \
 		'PARALLEL_TESTING' '$(PARALLEL_TESTING)' \
 		'ONLY_TESTING' '$(ONLY_TESTING)' \
+		'MAC_ONLY_TESTING' '$(MAC_ONLY_TESTING)' \
 		'LOG_STYLE' '$(LOG_STYLE)' \
 		'LOG_LEVEL' '$(LOG_LEVEL)' \
 		'LOG_PREDICATE' '$(LOG_PREDICATE)'

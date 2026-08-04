@@ -1,4 +1,5 @@
 import Foundation
+import Practice
 
 /// Response-only quality gate shared by every creative-duet backend.
 /// It deliberately does not grade the player's performance or invent harmonic evidence.

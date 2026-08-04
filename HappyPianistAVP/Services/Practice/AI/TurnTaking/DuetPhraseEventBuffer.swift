@@ -1,4 +1,5 @@
 import Foundation
+import Practice
 
 /// Continuous-duet CC context. Records rolling control changes instead of phrase-bounded events.
 struct DuetPhraseEventBuffer {

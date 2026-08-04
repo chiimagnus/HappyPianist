@@ -1,27 +1,10 @@
 import Foundation
-
-struct PracticePreparationOptions: Equatable {
-    let scoreOrder: MusicXMLScoreOrder
-
-    static let practice = PracticePreparationOptions(
-        scoreOrder: MusicXMLRealisticPlaybackDefaults.practiceScoreOrder
-    )
-    static let referencePlayback = PracticePreparationOptions(
-        scoreOrder: MusicXMLRealisticPlaybackDefaults.referencePlaybackScoreOrder
-    )
-}
+import MIDI
+import Practice
 
 @MainActor
 protocol PracticeSessionEffectHandlerProtocol: AnyObject {
     func handle(effect: PracticeSessionEffect)
-}
-
-protocol PracticeInputEventSourceProtocol: AnyObject {
-    func midi1EventsStream() -> AsyncStream<MIDI1InputEvent>
-    func midi2EventsStream() -> AsyncStream<MIDI2InputEvent>
-
-    func start() throws
-    func stop()
 }
 
 @MainActor

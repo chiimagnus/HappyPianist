@@ -1,4 +1,6 @@
 import Foundation
+@testable import MusicXML
+@testable import Practice
 @testable import HappyPianistAVP
 import simd
 import Testing
@@ -64,23 +66,24 @@ func realScoreAutoplaySkipCancelsPendingEventsWithAllNotesOff() async throws {
     #expect(playbackService.stopCount == beforeSkip + 1)
 }
 
+@MainActor
 private final class RegressionCapturingSequencerPlaybackService: PracticeSequencerPlaybackServiceProtocol {
     private(set) var stopCount = 0
 
-    func warmUp() throws {}
-    func stop(resetCommands _: [PerformanceTransportCommand]) {
+    func warmUp() async throws {}
+    func stop(resetCommands _: [PerformanceTransportCommand]) async {
         stopCount += 1
     }
 
-    func load(sequence _: PracticeSequencerSequence) throws {}
-    func play(fromSeconds _: TimeInterval) throws {}
-    func currentSeconds() -> TimeInterval {
+    func load(sequence _: PracticeSequencerSequence) async throws {}
+    func play(fromSeconds _: TimeInterval) async throws {}
+    func currentSeconds() async -> TimeInterval {
         0
     }
 
-    func playOneShot(commands _: [PracticePlaybackCommand], durationSeconds _: TimeInterval) throws {}
-    func execute(commands _: [PracticePlaybackCommand]) throws {}
-    func stopAllLiveNotes() {}
+    func playOneShot(commands _: [PracticePlaybackCommand], durationSeconds _: TimeInterval) async throws {}
+    func execute(commands _: [PracticePlaybackCommand]) async throws {}
+    func stopAllLiveNotes() async {}
 }
 
 private struct AutoplayRegressionModel {

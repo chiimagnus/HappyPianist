@@ -1,4 +1,8 @@
 import Foundation
+import Diagnostics
+import MIDI
+@testable import Practice
+@testable import MusicXML
 @testable import HappyPianistAVP
 import Synchronization
 import Testing

@@ -1,5 +1,6 @@
 import Foundation
 import simd
+import Practice
 
 extension PracticeSessionViewModel {
     func handleFingerTipPositions(

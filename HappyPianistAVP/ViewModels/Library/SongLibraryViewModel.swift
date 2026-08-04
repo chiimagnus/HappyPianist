@@ -1,5 +1,8 @@
 import Foundation
+import Diagnostics
+import Library
 import Observation
+import Practice
 
 @MainActor
 @Observable
@@ -36,9 +39,6 @@ final class SongLibraryViewModel {
     @ObservationIgnored private var importQueueGeneration = 0
     private var desiredPersistedSelection: UUID?
     private var persistedSelection: UUID?
-
-    static let supportedAudioFileExtensions = ["mp3", "m4a"]
-    private static let supportedAudioFileExtensionSet = Set(supportedAudioFileExtensions)
 
     var index: SongLibraryIndex = .empty
     var errorMessage: String?
@@ -640,8 +640,7 @@ final class SongLibraryViewModel {
             return
         }
 
-        let fileExtension = sourceURL.pathExtension.lowercased()
-        guard Self.supportedAudioFileExtensionSet.contains(fileExtension) else {
+        guard AudioImportService.isSupported(sourceURL) else {
             errorMessage = "仅支持导入 mp3 或 m4a 音频文件。"
             return
         }

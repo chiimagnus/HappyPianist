@@ -1,0 +1,44 @@
+import Foundation
+
+
+public struct MusicXMLPedalTimeline: Equatable {
+    public struct ControllerChange: Equatable, Sendable {
+        public let sourceDirectionID: MusicXMLDirectionSourceID?
+        public let performedOccurrenceIndex: Int
+        public let tick: Int
+        public let controllerNumber: UInt8
+        public let value: UInt8
+    }
+
+    private let controllers: [ControllerChange]
+
+    public init(events: [MusicXMLPedalEvent]) {
+        controllers = events
+            .enumerated()
+            .compactMap { offset, event -> (offset: Int, change: ControllerChange)? in
+                guard let value = event.value else { return nil }
+                return (
+                    offset,
+                    ControllerChange(
+                        sourceDirectionID: event.sourceID,
+                        performedOccurrenceIndex: event.performedOccurrenceIndex,
+                        tick: event.tick,
+                        controllerNumber: event.controller.rawValue,
+                        value: value.midiValue
+                    )
+                )
+            }
+            .sorted { lhs, rhs in
+                if lhs.change.tick != rhs.change.tick { return lhs.change.tick < rhs.change.tick }
+                if lhs.change.controllerNumber != rhs.change.controllerNumber {
+                    return lhs.change.controllerNumber < rhs.change.controllerNumber
+                }
+                return lhs.offset < rhs.offset
+            }
+            .map(\.change)
+    }
+
+    public func controllerChanges() -> [ControllerChange] {
+        controllers
+    }
+}

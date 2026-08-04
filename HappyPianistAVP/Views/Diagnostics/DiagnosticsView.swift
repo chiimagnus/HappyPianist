@@ -1,5 +1,6 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import Diagnostics
 
 struct DiagnosticsView: View {
     @Bindable var viewModel: DiagnosticsViewModel

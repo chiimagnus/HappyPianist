@@ -1,6 +1,6 @@
 # 存储
 
-AVP 业务数据使用 Documents 下的 JSON 和用户导入文件，不使用 SwiftData。路径、schema 和删除行为必须一起修改。
+每个 App host 在自己的 sandbox Documents 下使用 JSON 和用户导入文件，不使用 SwiftData。路径、schema 和删除行为必须一起修改；macOS host 不迁移或共享 visionOS container。
 
 ## 文件布局
 
@@ -11,7 +11,7 @@ AVP 业务数据使用 Documents 下的 JSON 和用户导入文件，不使用 S
 | 用户曲谱 / 试听音频 | `SongLibraryImportTransactionService`、`SongFileStore`、`AudioImportService` | `Documents/SongLibrary/scores/`、`audio/` |
 | 导入事务 | `SongLibraryImportTransactionService` | `Documents/SongLibrary/transactions/<operation-id>/` |
 | 练习 progress / session | `FilePracticeProgressRepository` | `Documents/PracticeProgress/progress-v1.json` |
-| MIDI take | `RecordingTakeStore` | `Documents/TakeLibrary/takes.json` |
+| MIDI take | `Practice.RecordingTakeStore` | `Documents/TakeLibrary/takes.json` |
 | 可导出诊断 | `FileDiagnosticsStore` | `Documents/Diagnostics/diagnostics-YYYY-MM-DD.jsonl` |
 
 bundled MusicXML、字体、SoundFont 和 CoreML 资源属于 App bundle，不写入 Documents。
@@ -23,6 +23,8 @@ bundled MusicXML、字体、SoundFont 和 CoreML 资源属于 App bundle，不�
 - 导入按 operation ID 排队：同卷 `.partial` → 字节数/SHA-256 fingerprint → staged journal → target/index commit。
 - 冲突在 target/index mutation 前暂停，用户确认只回传 operation ID；actor 重新读取最新事实后再决定 replace、repair 或 orphan adopt。
 - bootstrap 先恢复未完成 transaction，再读 index，最后扫描 bundle。journal 只含相对文件名、phase、identity 和 fingerprint，不含 URL、曲谱正文或完整 index。
+- macOS 通过 `fileImporter` 只在暂存副本期间持有 security scope；index、journal、score metadata 与 progress 均不得写入选中的外部 URL、bookmark 或绝对路径。
+- macOS 试听音频也由 `Library.AudioImportService` 在同一 sandbox 规则下复制到 `SongLibrary/audio/`；index 只保存安全相对文件名。替换成功后 best-effort 删除旧 audio，删除曲目时先停止试听再清理关联 score/audio/progress。
 - 删除用户曲目时同时删除 score、绑定 audio 和该 song UUID 的三类练习记录；进度清理失败不回滚已完成的曲目删除。
 
 ## 练习 progress
@@ -48,8 +50,9 @@ progress、metadata、session mutation 在 actor 内读取磁盘最新文档，�
 
 ## take 与诊断
 
-- take 保存 source/capability/clock/calibration 和可重放 observation；MIDI 7/14-bit 投影只在回放或导出边界生成。
+- take 保存 source/capability/clock/calibration 和可重放 observation；MIDI 7/14-bit 投影只在回放或导出边界生成。录制停止时先关闭仍打开的音符，再以原子 JSON 写入当前 App host 自己的 `TakeLibrary`；macOS 的显式返回、窗口关闭和应用退出都等待该写入成功，失败则取消离开；macOS 与 visionOS 永不共享该 container。
 - target audio 因缺少可靠逐音 release/velocity 不进入 MIDI take。
+- MIDI 导出只在用户 action 的 `fileExporter` 中取得目的地；目的 URL、bookmark、逐事件内容都不得写入 take store 或诊断。
 - 诊断事件先进入系统日志，只有明确 exportable 的低频事件写入 JSONL；默认保留七个日历日，导出由用户触发。
 - 任何导出文件不得包含绝对路径、原谱正文、逐音输入、音频样本、手部帧、AI prompt/正文、密钥或认证信息。
 

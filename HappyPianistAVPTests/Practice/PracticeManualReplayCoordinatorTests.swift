@@ -1,4 +1,7 @@
 import Foundation
+import Practice
+import MusicXML
+import Diagnostics
 @testable import HappyPianistAVP
 import Testing
 
@@ -56,16 +59,16 @@ func manualReplayProjectsCanonicalPlanAndRestoresRecognitionAfterCompletion() as
     let sequencer = FakeSequencerPlaybackService()
     sequencer.currentSecondsValue = 999
 
-    let stateStore = PracticeSessionStateStore()
+    let stateStore = PracticeSessionHostState()
     stateStore.steps = [
         PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
-        PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
-        PracticeStep(tick: 960, notes: [PracticeStepNote(midiNote: 67, staff: 1, handAssignment: .unknown)]),
+        PracticeStep(tick: MusicXMLTempoMap.ticksPerQuarter, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),
+        PracticeStep(tick: MusicXMLTempoMap.ticksPerQuarter * 2, notes: [PracticeStepNote(midiNote: 67, staff: 1, handAssignment: .unknown)]),
     ]
     stateStore.performancePlan = makeTestScorePerformancePlan(notes: [
-        TestScorePerformanceNote(midiNote: 55, velocity: 70, onTick: 0, offTick: 720),
-        TestScorePerformanceNote(midiNote: 62, velocity: 31, onTick: 480, offTick: 600),
-        TestScorePerformanceNote(midiNote: 65, velocity: 99, onTick: 540, offTick: 720),
+        TestScorePerformanceNote(midiNote: 55, velocity: 70, onTick: 0, offTick: MusicXMLTempoMap.ticksPerQuarter * 3 / 2),
+        TestScorePerformanceNote(midiNote: 62, velocity: 31, onTick: MusicXMLTempoMap.ticksPerQuarter, offTick: MusicXMLTempoMap.ticksPerQuarter * 5 / 4),
+        TestScorePerformanceNote(midiNote: 65, velocity: 99, onTick: MusicXMLTempoMap.ticksPerQuarter * 9 / 8, offTick: MusicXMLTempoMap.ticksPerQuarter * 3 / 2),
     ], tempoEvents: [
         ScorePerformanceTempoEvent(
             sourceDirectionID: nil,
@@ -79,7 +82,7 @@ func manualReplayProjectsCanonicalPlanAndRestoresRecognitionAfterCompletion() as
         ScorePerformanceControllerEvent(
             sourceDirectionID: nil,
             performedOccurrenceIndex: 0,
-            tick: 240,
+            tick: MusicXMLTempoMap.ticksPerQuarter / 2,
             controllerNumber: 64,
             value: 48,
             outputCapabilityRequirement: .continuousControlChange
@@ -87,7 +90,7 @@ func manualReplayProjectsCanonicalPlanAndRestoresRecognitionAfterCompletion() as
         ScorePerformanceControllerEvent(
             sourceDirectionID: nil,
             performedOccurrenceIndex: 0,
-            tick: 600,
+            tick: MusicXMLTempoMap.ticksPerQuarter * 5 / 4,
             controllerNumber: 64,
             value: 100,
             outputCapabilityRequirement: .continuousControlChange
@@ -96,8 +99,8 @@ func manualReplayProjectsCanonicalPlanAndRestoresRecognitionAfterCompletion() as
         ScorePerformanceAnnotation(
             sourceDirectionID: nil,
             performedOccurrenceIndex: 0,
-            tick: 720,
-            durationTicks: 240,
+            tick: MusicXMLTempoMap.ticksPerQuarter * 3 / 2,
+            durationTicks: MusicXMLTempoMap.ticksPerQuarter / 2,
             kind: .pause,
             text: "fermata",
             provenance: []
@@ -120,7 +123,7 @@ func manualReplayProjectsCanonicalPlanAndRestoresRecognitionAfterCompletion() as
         PianoHighlightGuide(
             id: 1,
             kind: .trigger,
-            tick: 480,
+            tick: MusicXMLTempoMap.ticksPerQuarter,
             durationTicks: nil,
             practiceStepIndex: 1,
             activeNotes: [],
@@ -171,7 +174,7 @@ func practiceManualReplayService_shutdownIsIdempotent() async {
     let sequencer = FakeSequencerPlaybackService()
     sequencer.currentSecondsValue = 0
 
-    let stateStore = PracticeSessionStateStore()
+    let stateStore = PracticeSessionHostState()
     stateStore.steps = [
         PracticeStep(tick: 0, notes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]),
         PracticeStep(tick: 480, notes: [PracticeStepNote(midiNote: 62, staff: 1, handAssignment: .unknown)]),

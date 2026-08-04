@@ -19,6 +19,20 @@ Models / Contracts
 - **ViewModel**：编排状态、生命周期和依赖，不复制服务事实。
 - **Service / Repository**：隔离文件、MusicXML、音频、MIDI、ARKit、AI 与诊断副作用。
 
+`HappyPianistAVP` 与 `HappyPianistMac` 是独立 composition root 与 App Sandbox container。两者只能经由共享 package products 复用业务核心，不能共享 App service、persistent Documents、platform adapter 或窗口/空间 UI。Mac host 只包含 2D 曲库、系统可见 CoreMIDI 与共享 MIDI-only lifecycle；AR/RealityKit、手部/虚拟琴、音频识别、AVFoundation 与 AI 仍只在 AVP host。
+
+共享根模块的依赖只能向下：`Diagnostics` 不依赖 App、Practice、Library、MusicXML、MIDI 或任何 UI/设备框架；App 仅通过其公开契约注入 reporter、store 与 exporter。
+
+`MusicXML` 同样是根模块，仅依赖 Foundation、UniformTypeIdentifiers 与其单次声明的 ZIPFoundation；它不得引用 Practice preparation error、Library、MIDI、Diagnostics 或任何 UI/设备框架。
+
+`MIDI` 只依赖 `Diagnostics`，拥有 CoreMIDI transport 与稳定端点契约；Practice、录制和 AI 只消费其事件/输出协议，不得反向依赖 CoreMIDI 实现。
+
+`Practice` 依赖 `MusicXML`、`MIDI` 与 `Diagnostics`：它拥有准备输入契约、唯一的 `ScorePerformancePlan` 及 steps、琴键和记谱投影，以及匹配、对齐、assessment、coaching、transport、progress contracts、session recorder、MIDI take（模型、JSON store、replay/export）和共享 MIDI-only lifecycle。它只通过 `MIDI` 的契约工作，不直接导入 CoreMIDI；不得引用 App、Library、Notation、SwiftUI、RealityKit、AVAudio、音频识别或手部/虚拟琴实现。
+
+`Notation` 只依赖 `Practice` 与 `MusicXML`：它拥有 Grand Staff 的 glyph、layout、Canvas/SwiftUI renderer 和 accessibility overlay，只接收 projection、overlay、measure spans、context 与 hand mode。它不得引用 session navigation、progress、Library、AR/RealityKit 或 piano-key tint types；Practice 不得反向引用 Notation。
+
+`Library` 只依赖 `Practice`、`MusicXML` 与 `Diagnostics`：它拥有曲库 index、路径、文件 store、导入/恢复事务、entry resolver、bootstrap loader 与 `FilePracticeProgressRepository`。导入在 security scope 内先通过 MusicXML 的公开 archive safety validation，再复制到 app container；它不得引用 `Bundle.main`、AVAudio、SwiftUI、RealityKit 或 Library presentation。Practice 只声明进度契约，绝不反向引用 Library。
+
 新增服务先定义稳定协议，再由 `LiveAppGraph.make()` 注入并接入 consumer。单一实现不提前建 factory、manager 或兼容层。
 
 ## 运行边界
@@ -27,9 +41,16 @@ Models / Contracts
 | --- | --- | --- |
 | App 与窗口 | `HappyPianistAVPApp`、`AppState` | Library 是入口；preparation 与 practice 是单层 pushed window；immersive space 只承载空间内容。 |
 | 组合根 | `LiveAppGraph` | 共享的 index store、曲库 provider、progress repository、diagnostics reporter 与 practice recorder 不在 ViewModel 内重新创建。 |
-| 曲库 | `SongLibraryViewModel`、`SongLibraryImportTransactionService` | selection 只是内存 intent；导入、替换、恢复和删除由 actor 事务 owner 处理。 |
-| 曲谱准备 | `PracticePreparationService` | MusicXML 先形成唯一 `ScorePerformancePlan`，再投影 steps、guides、notation 和 playback。 |
-| 练习会话 | `PracticeSessionViewModel`、`PracticeSessionRecorder` | active configuration 在一轮内不可变；退出顺序是停止新输入、flush 事实、终结会话、teardown 设备。 |
+| macOS host | `HappyPianistMacApp`、`MacAppGraph`、`MacPracticeViewModel` | 独立沙盒、空 bundled library 和初始导入入口；Mac ViewModel 只绑定 Library resolver、`PracticeRoundSessionController`、MIDI endpoint effect 与 Notation，不复制 reducer、progress 或 playback lifecycle。 |
+| 诊断根 | `Packages/HappyPianistCore/Sources/Diagnostics/` | `DiagnosticEvent`、reporter、七日文件 store、OSLog sink、损坏文件隔离与用户归档；不包含音频、AR、Practice 投影或输出指标。 |
+| 曲谱根 | `Packages/HappyPianistCore/Sources/MusicXML/` | MusicXML/MXL 解析、结构扩展、模型与安全限制；输入失败以本模块 typed error 表示，不反向依赖 Practice。 |
+| MIDI 根 | `Packages/HappyPianistCore/Sources/MIDI/` | 输入/输出 transport、endpoint ID、CoreMIDI route 与输出指标；不包含练习匹配、录制、AI 或界面。 |
+| 练习核心 | `Packages/HappyPianistCore/Sources/Practice/` | MusicXML preparation、performance plan、步骤/琴键/记谱投影、运行时 facts/reducers、MIDI-only lifecycle、take 录制/持久化/回放/导出和 progress contracts；不包含曲库文件实现、SwiftUI、RealityKit、AVAudio、音频识别或手部/虚拟琴。 |
+| 记谱根 | `Packages/HappyPianistCore/Sources/Notation/` | Grand Staff 的 glyph、layout、rendering、SwiftUI view 与无障碍描述；仅消费 Practice/MusicXML projection，不反向进入 session、progress、Library 或空间功能。 |
+| 曲库核心 | `Packages/HappyPianistCore/Sources/Library/` | index、路径、文件、导入/恢复、entry resolver、bootstrap 与 `progress-v1.json` file repository；只依赖 Practice/MusicXML/Diagnostics。 |
+| 曲库 App 边界 | `SongLibraryViewModel`、`BundledSongLibraryProvider`、audio services、presentation builders | selection 是内存 intent；`Bundle.main`、音频和 SwiftUI presentation 留在 App，所有持久化事务委托 Library actors。 |
+| 曲谱准备 | `PracticePreparationService` | MusicXML 先形成唯一 `ScorePerformancePlan`，再投影 steps、guides 与 notation；播放运行时消费 plan。 |
+| 练习会话 | `PracticeRoundSessionController`、`MIDIPracticeSession` | shared controller 唯一拥有 non-spatial range、attempt/progress、feedback 与 assessment/coaching state；host 只编排 presentation/platform adapters。结束顺序是失效输入、停止输入、reset/flush 输出、drain recorder、flush facts、终结 session。 |
 | 输入与评价 | platform adapters、`PerformanceObservation`、analyzer | 音频、MIDI、手部证据共用 observation 契约，但保留各自 capability 和 unknown 边界。 |
 | 反馈与指导 | assessment、`CoachingDecisionService`、feedback policies | 每次最多一个有范围和完成条件的动作；表现层是持久化事实的派生物。 |
 | AI 对弹 | `AIPerformanceService`、`ImprovBackendRegistry` | 严格使用用户选择的 provider；response 是运行期创意内容，不是谱面真值或评分依据。 |
@@ -58,6 +79,7 @@ Models / Contracts
 ## 验证分层
 
 - 纯 Model、reducer、range、matcher、alignment、assessment 和 coaching policy：确定性 Swift Testing fixture。
+- macOS host：`make build:mac`、`make test:mac` 使用独立 macOS scheme/destination/result bundle；它们不读取或启动 visionOS Simulator。
 - SwiftUI、RealityKit、AVFoundation、CoreMIDI 和资源：Xcode / visionOS SDK 与 Simulator。
 - 手部追踪、麦克风、真实 MIDI、音频 onset、空间舒适度：Apple Vision Pro 真机。
 - 专业能力措辞：遵循[钢琴演奏与专业质量边界](piano-performance-quality.md)和[验证与测试](testing.md)。

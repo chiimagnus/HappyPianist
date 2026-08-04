@@ -1,4 +1,6 @@
 import Foundation
+import Diagnostics
+import Practice
 import RealityKit
 import RealityKitContent
 import simd

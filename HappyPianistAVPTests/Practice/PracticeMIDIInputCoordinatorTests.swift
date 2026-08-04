@@ -1,4 +1,8 @@
 import Foundation
+import MIDI
+import Practice
+import MusicXML
+import Diagnostics
 @testable import HappyPianistAVP
 import Testing
 
@@ -33,7 +37,7 @@ private final class CapturingMIDIPracticeStepMatcher: MIDIPracticeStepMatchingPr
 @MainActor
 func refreshInNonGuidingStateStopsInput() {
     let source = FakeProtocolSeparatedPracticeInputEventSource()
-    let stateStore = PracticeSessionStateStore()
+    let stateStore = PracticeSessionHostState()
     let effectHandler = CapturingPracticeSessionEffectHandler()
     let service = PracticeMIDIInputService(
         practiceInputEventSource: source,
@@ -59,9 +63,9 @@ func refreshInNonGuidingStateStopsInput() {
 
 @Test
 @MainActor
-func practiceMIDIInputService_shutdownIsIdempotent() {
+func practiceMIDIInputService_shutdownIsIdempotent() async {
     let source = FakeProtocolSeparatedPracticeInputEventSource()
-    let stateStore = PracticeSessionStateStore()
+    let stateStore = PracticeSessionHostState()
     let effectHandler = CapturingPracticeSessionEffectHandler()
     let service = PracticeMIDIInputService(
         practiceInputEventSource: source,
@@ -82,6 +86,9 @@ func practiceMIDIInputService_shutdownIsIdempotent() {
     )
     #expect(source.startCallCount == 1)
     #expect(source.isRunning == true)
+    for _ in 0 ..< 100 where effectHandler.effects.isEmpty {
+        await Task.yield()
+    }
     #expect(effectHandler.effects == [.inputCapabilitiesAvailable(.midi)])
 
     service.shutdown()
@@ -94,7 +101,7 @@ func practiceMIDIInputService_shutdownIsIdempotent() {
 @MainActor
 func shutdownDoesNotCancelOtherConsumers() async {
     let source = FakeProtocolSeparatedPracticeInputEventSource()
-    let stateStore = PracticeSessionStateStore()
+    let stateStore = PracticeSessionHostState()
     let effectHandler = CapturingPracticeSessionEffectHandler()
     let service = PracticeMIDIInputService(
         practiceInputEventSource: source,
@@ -127,7 +134,7 @@ func shutdownDoesNotCancelOtherConsumers() async {
             kind: .noteOn(note: 60, velocity: 1),
             channel: 1,
             group: 0,
-            source: .init(identifier: .sourceIndex(0), endpointName: "test"),
+            source: .init(identifier: .endpointUniqueID(0), endpointName: "test"),
             receivedAt: .now,
             receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime
         )
@@ -144,7 +151,7 @@ func shutdownDoesNotCancelOtherConsumers() async {
 func allNotesOffResetsActiveMatcherWithoutStoppingInput() async {
     let source = FakeProtocolSeparatedPracticeInputEventSource()
     let matcher = CapturingMIDIPracticeStepMatcher()
-    let stateStore = PracticeSessionStateStore()
+    let stateStore = PracticeSessionHostState()
     let effectHandler = CapturingPracticeSessionEffectHandler()
     let expectedNotes = [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]
     let service = PracticeMIDIInputService(
@@ -171,7 +178,7 @@ func allNotesOffResetsActiveMatcherWithoutStoppingInput() async {
             kind: .controlChange(controller: 123, value: 0),
             channel: 1,
             group: 0,
-            source: .init(identifier: .sourceIndex(0), endpointName: "test"),
+            source: .init(identifier: .endpointUniqueID(0), endpointName: "test"),
             receivedAt: .now,
             receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime
         )
@@ -224,7 +231,7 @@ func midiObservationAdapterKeepsMIDI2PrecisionUntilOutputBoundary() {
             kind: .controlChange(controller: 67, value32: 0x1234_5678),
             channel: 1,
             group: 15,
-            source: .init(identifier: .sourceIndex(2), endpointName: nil),
+            source: .init(identifier: .endpointUniqueID(2), endpointName: nil),
             receivedAt: .now,
             receivedAtUptimeSeconds: 1
         ),
@@ -243,7 +250,7 @@ func midiObservationAdapterKeepsMIDI2PrecisionUntilOutputBoundary() {
 @MainActor
 func practiceMIDIInputPublishesOnlyCurrentGenerationObservations() async throws {
     let source = FakeProtocolSeparatedPracticeInputEventSource()
-    let stateStore = PracticeSessionStateStore()
+    let stateStore = PracticeSessionHostState()
     let service = PracticeMIDIInputService(
         practiceInputEventSource: source,
         matcher: MIDIPracticeStepMatcher(),
@@ -261,7 +268,6 @@ func practiceMIDIInputPublishesOnlyCurrentGenerationObservations() async throws 
             expectedNotes: [PracticeStepNote(midiNote: 60, staff: 1, handAssignment: .unknown)]
         )
     )
-    let generation = stateStore.practiceInputGeneration
     let task = Task<PerformanceObservation?, Never> { @MainActor in
         for await observation in stream {
             return observation
@@ -273,13 +279,13 @@ func practiceMIDIInputPublishesOnlyCurrentGenerationObservations() async throws 
         kind: .noteOn(note: 60, velocity: 87),
         channel: 2,
         group: 1,
-        source: .init(identifier: .sourceIndex(0), endpointName: nil),
+        source: .init(identifier: .endpointUniqueID(0), endpointName: nil),
         receivedAt: .now,
         receivedAtUptimeSeconds: ProcessInfo.processInfo.systemUptime
     ))
 
     let observation = try #require(await task.value)
-    #expect(observation.source.generation == UInt64(generation))
+    #expect(observation.source.generation == 1)
     #expect(observation.channel == 2)
     guard case let .noteOn(note, velocity) = observation.event else {
         Issue.record("Expected note-on observation")

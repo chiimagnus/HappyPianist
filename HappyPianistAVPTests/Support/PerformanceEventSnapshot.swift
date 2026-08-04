@@ -1,4 +1,5 @@
 import Foundation
+@testable import Practice
 @testable import HappyPianistAVP
 
 struct PerformanceEventSnapshot {

@@ -1,7 +1,9 @@
 import Foundation
+import Diagnostics
 import RealityKit
 import SwiftUI
 import UIKit
+import Practice
 
 @MainActor
 final class PianoGuideOverlayController {

@@ -1,4 +1,7 @@
 import Foundation
+import MIDI
+import MusicXML
+@testable import Practice
 @testable import HappyPianistAVP
 import Testing
 
@@ -14,7 +17,7 @@ func midiRecordingAdapterRecordsNoteEventsAndClosesOpenNotes() {
             kind: .noteOn(note: 60, velocity: 100),
             channel: 1,
             group: 0,
-            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: "fake"),
+            source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: "fake"),
             receivedAt: Date(),
             receivedAtUptimeSeconds: 1001.0
         ),
@@ -25,7 +28,7 @@ func midiRecordingAdapterRecordsNoteEventsAndClosesOpenNotes() {
             kind: .noteOff(note: 60, velocity: 0),
             channel: 1,
             group: 0,
-            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: "fake"),
+            source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: "fake"),
             receivedAt: Date(),
             receivedAtUptimeSeconds: 1001.5
         ),
@@ -52,7 +55,7 @@ func midiRecordingAdapterConvertsChannelVoiceEventsIntoTakeEvents() {
             kind: .controlChange(controller: 64, value: 127),
             channel: 1,
             group: 0,
-            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: "fake"),
+            source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: "fake"),
             receivedAt: Date(),
             receivedAtUptimeSeconds: 2000.2
         ),
@@ -63,7 +66,7 @@ func midiRecordingAdapterConvertsChannelVoiceEventsIntoTakeEvents() {
             kind: .pitchBend(value: 8192),
             channel: 1,
             group: 0,
-            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: "fake"),
+            source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: "fake"),
             receivedAt: Date(),
             receivedAtUptimeSeconds: 2000.3
         ),
@@ -74,7 +77,7 @@ func midiRecordingAdapterConvertsChannelVoiceEventsIntoTakeEvents() {
             kind: .programChange(program: 10),
             channel: 1,
             group: 0,
-            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: "fake"),
+            source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: "fake"),
             receivedAt: Date(),
             receivedAtUptimeSeconds: 2000.4
         ),
@@ -111,7 +114,7 @@ func repeatedNoteOnForSamePitchGeneratesClosingNoteOff() {
             kind: .noteOn(note: 60, velocity: 100),
             channel: 1,
             group: 0,
-            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: "fake"),
+            source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: "fake"),
             receivedAt: Date(),
             receivedAtUptimeSeconds: 3000.1
         ),
@@ -122,7 +125,7 @@ func repeatedNoteOnForSamePitchGeneratesClosingNoteOff() {
             kind: .noteOn(note: 60, velocity: 100),
             channel: 1,
             group: 0,
-            source: MIDIInputSource(identifier: .sourceIndex(0), endpointName: "fake"),
+            source: MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: "fake"),
             receivedAt: Date(),
             receivedAtUptimeSeconds: 3000.3
         ),
@@ -142,7 +145,7 @@ func repeatedNoteOnForSamePitchGeneratesClosingNoteOff() {
 func midiRecordingAdapterAllNotesOffClosesOpenNotesAtDiscontinuity() {
     var recorder = RecordingTakeRecorder()
     var adapter = MIDIRecordingAdapter()
-    let source = MIDIInputSource(identifier: .sourceIndex(0), endpointName: "fake")
+    let source = MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: "fake")
 
     recorder.start(now: 4000)
     adapter.record(
@@ -255,7 +258,7 @@ func midiRecordingKeepsRoutesIndependentAndPreservesMIDI2Evidence() {
 func allNotesOffOnlyClosesItsSourceGroupAndChannel() {
     var recorder = RecordingTakeRecorder()
     var adapter = MIDIRecordingAdapter()
-    let source = MIDIInputSource(identifier: .sourceIndex(0), endpointName: "fake")
+    let source = MIDIInputSource(identifier: .endpointUniqueID(0), endpointName: "fake")
 
     recorder.start(now: 6000)
     for channel in [1, 2] {

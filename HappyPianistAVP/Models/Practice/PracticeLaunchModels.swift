@@ -1,4 +1,7 @@
 import Foundation
+import Diagnostics
+import MusicXML
+import Practice
 
 enum PracticeLaunchState: Equatable {
     case requested(songID: UUID)
@@ -23,37 +26,6 @@ enum PracticeLaunchApplyOutcome: Equatable {
     case applied
     case appliedWithRepairedSavedState
     case appliedWithUnpersistedRepair
-}
-
-struct PracticeHistoricalPreferences: Equatable {
-    let handMode: PracticeHandMode
-    let tempoScale: Double
-    let loopEnabled: Bool
-    let requiredSuccesses: Int
-
-    init(
-        handMode: PracticeHandMode,
-        tempoScale: Double,
-        loopEnabled: Bool,
-        requiredSuccesses: Int
-    ) {
-        self.handMode = handMode
-        self.tempoScale = min(
-            max(tempoScale, PracticeRoundConfiguration.supportedTempoRange.lowerBound),
-            PracticeRoundConfiguration.supportedTempoRange.upperBound
-        )
-        self.loopEnabled = loopEnabled
-        self.requiredSuccesses = min(
-            max(requiredSuccesses, PracticeRoundConfiguration.supportedSuccessRange.lowerBound),
-            PracticeRoundConfiguration.supportedSuccessRange.upperBound
-        )
-    }
-}
-
-enum PracticeLaunchRestorePolicy: Equatable {
-    case exactAvailable
-    case historicalPreferences(PracticeHistoricalPreferences)
-    case freshDefaults
 }
 
 enum PracticeLaunchRecoveryAction: Equatable {
@@ -262,6 +234,16 @@ struct PracticeLaunchFailure: Equatable, Identifiable {
                 file: file,
                 sourceLocation: DiagnosticSourceLocation(line: line, column: column),
                 reason: reason
+            )
+        case .invalidWrittenRhythm:
+            PracticeLaunchFailure(
+                entryID: entryID,
+                code: .practicePreparationFailed,
+                title: "曲谱时值不完整或不受支持",
+                explanation: "这份曲谱缺少必需的时值信息，或使用了当前不支持的时值标记。请修复文件后重新导入。",
+                stage: "musicXMLRhythmValidation",
+                file: file,
+                reason: "MusicXML contains a missing, invalid, or unsupported written rhythm."
             )
         case let .unsupportedRootElement(reason):
             PracticeLaunchFailure(

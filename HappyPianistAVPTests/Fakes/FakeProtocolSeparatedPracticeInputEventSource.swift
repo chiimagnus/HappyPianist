@@ -1,7 +1,8 @@
 import Foundation
+import MIDI
 @testable import HappyPianistAVP
 
-final class FakeProtocolSeparatedPracticeInputEventSource: PracticeInputEventSourceProtocol {
+final class FakeProtocolSeparatedPracticeInputEventSource: MIDIInputEventSource {
     enum StartError: Error {
         case simulatedFailure
     }
