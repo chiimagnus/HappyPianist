@@ -72,9 +72,9 @@ help: ## Show available commands.
 		'HappyPianistAVP visionOS Make targets' \
 		'' \
 		'Development shortcuts:' \
-		'  make build                  Build, install, and launch on the configured Simulator' \
+		'  make build                  Build for the configured Simulator' \
 		'  make test                   Run all tests on the configured Simulator' \
-		'  make build:mac              Build and launch the isolated macOS host' \
+		'  make build:mac              Build the isolated macOS host' \
 		'  make test:mac               Run isolated macOS host tests' \
 		'  make dev                    Build, install, launch, then stream app logs only' \
 		'  make clean                  Run Xcode clean and remove local test reports' \
@@ -111,27 +111,18 @@ help: ## Show available commands.
 		'  make dev LOG_LEVEL=debug    Include app debug diagnostics' \
 		'  make build XCODEBUILD_FLAGS=  Show full xcodebuild output (quiet is default)'
 
-build: ## Build, install, and launch on the configured Vision Pro Simulator.
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'open:simulator'
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'run:simulator'
+build: ## Build for the configured Vision Pro Simulator.
+	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'build:simulator'
 
 test: ## Run all tests on the configured Vision Pro Simulator.
 	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'test:simulator'
 
-build\:mac: doctor ## Build and launch HappyPianistMac without a Simulator.
+build\:mac: doctor ## Build HappyPianistMac without a Simulator.
 	@xcodebuild $(MAC_XCODEBUILD_COMMON) \
 		-destination '$(MAC_DESTINATION)' \
 		CODE_SIGNING_ALLOWED=NO \
 		$(XCODEBUILD_FLAGS) \
 		build
-	@APP_PATH="$$(xcodebuild $(MAC_XCODEBUILD_COMMON) \
-		-destination '$(MAC_DESTINATION)' \
-		CODE_SIGNING_ALLOWED=NO \
-		-showBuildSettings 2>/dev/null | \
-		awk -F ' = ' '/^[[:space:]]*TARGET_BUILD_DIR = / { dir=$$2 } /^[[:space:]]*FULL_PRODUCT_NAME = / { name=$$2 } END { if (dir != "" && name != "") print dir "/" name }')"; \
-		test -n "$$APP_PATH" && test -d "$$APP_PATH" || { echo "error: unable to locate built app: $$APP_PATH"; exit 1; }; \
-		echo "Launching $$APP_PATH"; \
-		open "$$APP_PATH"
 	@echo 'build:mac: BUILD SUCCEEDED'
 
 test\:mac: doctor ## Run HappyPianistMac tests without a Simulator.
@@ -148,7 +139,8 @@ test\:mac: doctor ## Run HappyPianistMac tests without a Simulator.
 	@echo 'test:mac: TEST SUCCEEDED'
 
 dev: ## Build, install, launch, then stream Simulator logs.
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" build
+	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'open:simulator'
+	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'run:simulator'
 	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'logs:simulator'
 
 doctor: ## Verify the required Apple command-line tools and project are present.
@@ -218,8 +210,7 @@ build\:simulator: doctor ## Build HappyPianistAVP for visionOS Simulator.
 		build
 	@echo 'build:simulator: BUILD SUCCEEDED'
 
-test\:simulator: doctor ## Run Swift Testing tests on visionOS Simulator.
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'boot:simulator'
+test\:simulator: doctor boot\:simulator ## Run Swift Testing tests on visionOS Simulator.
 	@mkdir -p "$(RESULT_BUNDLE_DIR)"
 	@rm -rf "$(SIMULATOR_RESULT_BUNDLE)"
 	@xcodebuild $(XCODEBUILD_COMMON) \
@@ -232,9 +223,7 @@ test\:simulator: doctor ## Run Swift Testing tests on visionOS Simulator.
 		test
 	@echo 'test:simulator: TEST SUCCEEDED'
 
-install\:simulator: ## Install the built app in Simulator.
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'build:simulator'
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'boot:simulator'
+install\:simulator: build\:simulator boot\:simulator ## Install the built app in Simulator.
 	@APP_PATH="$$(xcodebuild $(XCODEBUILD_COMMON) \
 		-destination '$(SIMULATOR_DESTINATION)' \
 		CODE_SIGNING_ALLOWED=NO \
@@ -244,19 +233,16 @@ install\:simulator: ## Install the built app in Simulator.
 		echo "Installing $$APP_PATH"; \
 		xcrun simctl install "$(SIMULATOR_ID)" "$$APP_PATH"
 
-launch\:simulator: ## Launch the installed app in Simulator.
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'boot:simulator'
+launch\:simulator: boot\:simulator ## Launch the installed app in Simulator.
 	xcrun simctl launch --terminate-running-process "$(SIMULATOR_ID)" "$(BUNDLE_ID)"
 
-run\:simulator: ## Build, install, and launch in Simulator.
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'install:simulator'
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'launch:simulator'
+run\:simulator: install\:simulator ## Build, install, and launch in Simulator.
+	xcrun simctl launch --terminate-running-process "$(SIMULATOR_ID)" "$(BUNDLE_ID)"
 
 terminate\:simulator: ## Terminate the app in Simulator.
 	@xcrun simctl terminate "$(SIMULATOR_ID)" "$(BUNDLE_ID)" >/dev/null 2>&1 || true
 
-logs\:simulator: ## Stream app-owned structured logs from the configured Simulator.
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'boot:simulator'
+logs\:simulator: boot\:simulator ## Stream app-owned structured logs from the configured Simulator.
 	xcrun simctl spawn "$(SIMULATOR_ID)" log stream \
 		--style "$(LOG_STYLE)" \
 		--level "$(LOG_LEVEL)" \
@@ -288,8 +274,7 @@ test\:device: doctor ## Build, sign, and run tests on the configured physical Vi
 		test
 	@echo 'test:device: TEST SUCCEEDED'
 
-install\:device: ## Install the signed app on the configured physical Vision Pro.
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'build:device'
+install\:device: build\:device ## Install the signed app on the configured physical Vision Pro.
 	@APP_PATH="$$(xcodebuild $(XCODEBUILD_COMMON) \
 		-destination '$(DEVICE_DESTINATION)' \
 		$(DEVICE_XCODEBUILD_FLAGS) \
@@ -303,12 +288,10 @@ launch\:device: ## Launch the installed app on the configured physical Vision Pr
 	@test -n "$(DEVICE_ID)" || { echo 'error: set DEVICE_ID=<vision-pro-udid>'; exit 1; }
 	xcrun devicectl device process launch --device "$(DEVICE_ID)" "$(BUNDLE_ID)"
 
-run\:device: ## Build, install, and launch on the physical Vision Pro.
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'install:device'
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'launch:device'
+run\:device: install\:device ## Build, install, and launch on the physical Vision Pro.
+	xcrun devicectl device process launch --device "$(DEVICE_ID)" "$(BUNDLE_ID)"
 
-console\:device: ## Launch on device and attach stdout/stderr until exit.
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'install:device'
+console\:device: install\:device ## Launch on device and attach stdout/stderr until exit.
 	xcrun devicectl device process launch --console --device "$(DEVICE_ID)" "$(BUNDLE_ID)"
 
 clean: doctor ## Clean this scheme in Xcode's default DerivedData and remove local test reports.
