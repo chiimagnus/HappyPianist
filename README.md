@@ -9,9 +9,9 @@ HappyPianist 是一个钢琴练习应用。
 ## 快速开始
 
 ```bash
-make build      # visionOS Simulator
+make build      # visionOS Simulator，构建后启动 App
 make test       # visionOS Simulator tests
-make build:mac  # 独立 macOS MusicXML/MIDI/曲目音频 host
+make build:mac  # 独立 macOS MusicXML/MIDI/曲目音频 host，构建后启动 App
 make test:mac   # macOS host tests
 ```
 
