@@ -187,9 +187,9 @@ final class ARTrackingService: ARTrackingServiceProtocol {
         sessionGeneration += 1
         stopProviderRuntime()
         activeRequirements = []
+        clearAllTrackingState()
         fingerTipUpdates.finishSubscribers()
         handSkeletonUpdates.finishSubscribers()
-        clearAllTrackingState()
         markRunningProvidersStopped()
     }
 

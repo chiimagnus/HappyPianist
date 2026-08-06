@@ -28,11 +28,14 @@ func restartingTrackingReplacesStoppedARKitProviders() {
 @Test
 func stoppingTrackingClearsHandSkeletonSnapshot() async {
     let service = ARTrackingService()
+    var iterator = service.handSkeletonUpdatesStream().makeAsyncIterator()
+
+    #expect(await iterator.next() == .empty)
     service.start(requirements: [.hand])
+    #expect(await iterator.next() == .empty)
     service.stop()
 
     #expect(service.handSkeletonSnapshot == .empty)
-
-    var iterator = service.handSkeletonUpdatesStream().makeAsyncIterator()
     #expect(await iterator.next() == .empty)
+    #expect(await iterator.next() == nil)
 }
