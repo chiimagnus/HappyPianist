@@ -1,8 +1,21 @@
+import RealityKit
 import Testing
 
 @testable import HappyPianistAVP
 
 #if targetEnvironment(simulator)
+    @MainActor
+    @Test
+    func neonHandOverlayResetRemovesRetainedHandEntities() {
+        let root = Entity()
+        root.addChild(Entity())
+        root.addChild(Entity())
+
+        NeonHandOverlayController(rootEntity: root).reset()
+
+        #expect(root.children.isEmpty)
+    }
+
     @Test
     func neonHandSimulatorPoseProvidesTwoRenderableHands() {
         let snapshot = NeonHandSimulatorPose.snapshot(phase: 0)

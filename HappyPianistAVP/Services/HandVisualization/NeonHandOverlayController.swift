@@ -36,12 +36,16 @@ final class NeonHandOverlayController {
         let entity: ModelEntity
     }
 
-    private let rootEntity = Entity()
+    private let rootEntity: Entity
     private var leftHand: HandRuntime?
     private var rightHand: HandRuntime?
     private var updateTask: Task<Void, Never>?
     private var hasAttachedRoot = false
     private var reduceMotionEnabled = false
+
+    init(rootEntity: Entity = Entity()) {
+        self.rootEntity = rootEntity
+    }
 
     func update(
         isEnabled: Bool,
@@ -72,6 +76,9 @@ final class NeonHandOverlayController {
 
     func reset() {
         stopUpdates()
+        while let child = rootEntity.children.first {
+            rootEntity.children.remove(child)
+        }
         rootEntity.removeFromParent()
         leftHand = nil
         rightHand = nil
