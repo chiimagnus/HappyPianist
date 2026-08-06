@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>NSHandsTrackingUsageDescription</key>
-	<string>HappyPianist uses hand tracking to detect which piano keys you press and to advance practice steps.</string>
+	<string>HappyPianist uses hand tracking to detect piano-key contact, guide practice steps, and display your live fluorescent hand visualization.</string>
 	<key>NSWorldSensingUsageDescription</key>
 	<string>用于在 Step3 虚拟钢琴模式中检测平面位置，并在平面上显示放双手引导与虚拟键盘。</string>
 	<key>NSMicrophoneUsageDescription</key>

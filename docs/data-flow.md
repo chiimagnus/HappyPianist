@@ -98,6 +98,20 @@ MIDI / target audio / hand contact
 - alignment、逐音证据、target、issue、decision 和 before/after 只存在运行期；只有批准的小节聚合进入 progress。
 - coaching 每次最多选择一个有范围、来源和 completion condition 的 action；点击或 accept 不代表改善。
 
+## 手部可视化
+
+```text
+HandTrackingProvider
+  → ARTrackingService
+  → HandSkeletonSnapshot current-value async stream
+  → NeonHandOverlayController
+  → fixed-capacity LowLevelMesh / fluorescent glove
+```
+
+- 手套只在 practice 的 `.mixed` `ImmersiveSpace` 自动显示；不进入 `.full`，也不隐藏系统手部，因此真实钢琴、双手和荧光半透明轮廓可同时可见。
+- `ARTrackingService` 是唯一的真机骨骼来源；拒绝授权、不支持、停止或关节不完整时 controller 只隐藏对应手套。原始关节和派生 mesh 均不写入 progress、文件或诊断。
+- Simulator 以条件编译的合成双手仅驱动 controller 渲染，供不佩戴设备时调整视觉效果；它绝不回灌 AR service、触键判定、练习 observation 或真机降级路径。真机的追踪精度、舒适度和实时表现仍需 Apple Vision Pro 验收。
+
 ## 进度与会话
 
 ```text

@@ -54,7 +54,7 @@
   entity.components.set(CollisionComponent(shapes: [.generateBox(size: [0.1, 0.1, 0.1])]))
   entity.components.set(InputTargetComponent())
   ```
-- **Mesh 资源:** 仅允许生成：`box`、`sphere`、`plane`、`cylinder`、`cone`。
+- **Mesh 资源:** 默认仅生成：`box`、`sphere`、`plane`、`cylinder`、`cone`。唯一例外是 `HandVisualization` 的固定容量 `LowLevelMesh`：它只更新荧光手套的既定顶点，不能在 `RealityView.update` 分配网格、加入资产/纹理，或把手部数据传出渲染边界。
 
 ### 3. 交互与输入
 - **手势:**
@@ -83,7 +83,7 @@
   - `WorldTrackingProvider`: 用于 device pose 与 world anchors。
   - `PlaneDetectionProvider`: 用于检测桌面/地面/墙等平面。
   - `SceneReconstructionProvider`: 用于环境网格与遮挡（meshing/occlusion）。
-  - `HandTrackingProvider`: 用于手部追踪（可能需要特定 entitlements）。
+  - `HandTrackingProvider`: 用于手部追踪；标准 ARKit hand tracking 通过 `NSHandsTrackingUsageDescription` 请求用户授权，不添加企业 entitlement。荧光手套保持 `.mixed` 透视与系统手部可见；追踪缺失/拒绝时仅隐藏。Simulator 的合成姿态只能留在 `HandVisualization` 的条件编译渲染路径，绝不进入 ARKit service、练习输入、持久化或诊断。
 - **Anchors:** 使用 ARKit anchor 的 `UUID` 来关联 RealityKit entities。
  
 ## RealityKit 组件参考
