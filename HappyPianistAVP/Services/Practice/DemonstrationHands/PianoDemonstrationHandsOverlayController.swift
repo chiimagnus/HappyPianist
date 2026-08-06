@@ -73,6 +73,10 @@ final class PianoDemonstrationHandsOverlayController {
     }
 
     func reset() {
+        rootEntity.stopAllAnimations()
+        for rig in rigs.values {
+            rig.hide()
+        }
         rigs.removeAll()
         activeMIDINotesByHand.removeAll()
         lastTargets = .empty
