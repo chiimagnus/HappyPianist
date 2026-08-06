@@ -1,7 +1,7 @@
-import SwiftUI
 import MusicXML
 import Notation
 import Practice
+import SwiftUI
 
 struct PracticeStepView: View {
     @Bindable var viewModel: ARGuideViewModel
@@ -19,6 +19,8 @@ struct PracticeStepView: View {
     @State private var isSettingsPresented = false
     @State private var practiceViewHeight: CGFloat = 640
     @State private var isAutoplayEnabled = false
+    @AppStorage(PianoDemonstrationHandsSettings.userDefaultsKey)
+    private var pianoDemonstrationHandsEnabled = PianoDemonstrationHandsSettings.defaultValue
 
     var body: some View {
         let session = viewModel.practiceSessionViewModel
@@ -68,6 +70,7 @@ struct PracticeStepView: View {
             PracticeSettingsView(
                 roundConfigurationController: session.roundConfigurationController,
                 virtualPerformerEnabled: virtualPerformerEnabled,
+                pianoDemonstrationHandsEnabled: $pianoDemonstrationHandsEnabled,
                 backendStatusText: viewModel.backendStatusText,
                 lastImprovStatusText: viewModel.lastImprovStatusText,
                 recordingSourceText: viewModel.recordingSourceText,

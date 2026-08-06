@@ -1,5 +1,6 @@
 import RealityKit
 import simd
+import SwiftUI
 import UIKit
 
 @MainActor
@@ -43,11 +44,26 @@ final class PianoDemonstrationHandRig {
         1 + PianoDemonstrationFinger.allCases.count * 4
     }
 
-    func apply(pose: PianoDemonstrationHandPose) {
-        palmEntity.transform = Transform(
-            scale: SIMD3<Float>(0.092, 0.018, 0.070),
-            rotation: .init(),
-            translation: pose.palmCenterLocal
+    func apply(pose: PianoDemonstrationHandPose, animated: Bool) {
+        if animated == false {
+            rootEntity.stopAllAnimations()
+        }
+        let startsLifted = animated && rootEntity.isEnabled == false
+        rootEntity.isEnabled = true
+        if animated, rootEntity.transform.translation.y > 0.0001 {
+            apply(.identity, to: rootEntity, animated: true)
+        } else {
+            rootEntity.transform = .identity
+        }
+        apply(
+            Transform(
+                scale: SIMD3<Float>(0.092, 0.018, 0.070),
+                rotation: .init(),
+                translation: pose.palmCenterLocal
+            ),
+            to: palmEntity,
+            animated: animated,
+            startsLifted: startsLifted
         )
 
         for fingerPose in pose.fingers {
@@ -60,25 +76,73 @@ final class PianoDemonstrationHandRig {
 
             var jointPositions = fingerPose.jointPositionsLocal
             jointPositions[3].y += fingertipRadius(for: fingerPose.finger)
+            let animationDelay = animationDelay(for: fingerPose.finger)
             for index in segments.indices {
-                segments[index].transform = segmentTransform(
-                    from: jointPositions[index],
-                    to: jointPositions[index + 1],
-                    finger: fingerPose.finger
+                apply(
+                    segmentTransform(
+                        from: jointPositions[index],
+                        to: jointPositions[index + 1],
+                        finger: fingerPose.finger
+                    ),
+                    to: segments[index],
+                    animated: animated,
+                    startsLifted: startsLifted,
+                    delay: animationDelay
                 )
             }
-            fingertip.transform = Transform(
-                scale: SIMD3<Float>(repeating: fingertipDiameter(for: fingerPose.finger)),
-                rotation: .init(),
-                translation: jointPositions[3]
+            apply(
+                Transform(
+                    scale: SIMD3<Float>(repeating: fingertipDiameter(for: fingerPose.finger)),
+                    rotation: .init(),
+                    translation: jointPositions[3]
+                ),
+                to: fingertip,
+                animated: animated,
+                startsLifted: startsLifted,
+                delay: animationDelay
             )
         }
+    }
 
+    func lift(animated: Bool) {
+        rootEntity.stopAllAnimations()
         rootEntity.isEnabled = true
+        apply(
+            Transform(translation: SIMD3<Float>(0, 0.035, 0)),
+            to: rootEntity,
+            animated: animated
+        )
     }
 
     func hide() {
+        rootEntity.stopAllAnimations()
         rootEntity.isEnabled = false
+    }
+
+    private func apply(
+        _ transform: Transform,
+        to entity: Entity,
+        animated: Bool,
+        startsLifted: Bool = false,
+        delay: Double = 0
+    ) {
+        if startsLifted {
+            var liftedTransform = transform
+            liftedTransform.translation.y += 0.028
+            entity.transform = liftedTransform
+        }
+        guard animated else {
+            entity.transform = transform
+            return
+        }
+
+        Entity.animate(.easeInOut(duration: 0.15).delay(delay)) {
+            entity.components.set(transform)
+        }
+    }
+
+    private func animationDelay(for finger: PianoDemonstrationFinger) -> Double {
+        Double(finger.rawValue - PianoDemonstrationFinger.thumb.rawValue) * 0.008
     }
 
     private static func makeMaterial() -> PhysicallyBasedMaterial {

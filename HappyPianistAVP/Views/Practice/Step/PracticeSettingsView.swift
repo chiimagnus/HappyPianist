@@ -1,6 +1,6 @@
-import SwiftUI
 import MIDI
 import Practice
+import SwiftUI
 
 struct PracticeSettingsView: View {
     private enum SettingsTab: String, CaseIterable {
@@ -19,6 +19,7 @@ struct PracticeSettingsView: View {
 
     @Bindable var roundConfigurationController: PracticeRoundConfigurationController
     @Binding var virtualPerformerEnabled: Bool
+    @Binding var pianoDemonstrationHandsEnabled: Bool
     let backendStatusText: String?
     let lastImprovStatusText: String?
     let recordingSourceText: String?
@@ -150,6 +151,9 @@ struct PracticeSettingsView: View {
                         .disabled(roundConfigurationController.hasPendingChanges == false)
                     }
                     .disabled(isAIPerformanceActive)
+
+                    Toggle("演示手替代引导键高亮", isOn: $pianoDemonstrationHandsEnabled)
+                        .accessibilityHint("只在沉浸空间显示左右演示手；二维键盘高亮保持不变。")
 
                     DisclosureGroup(isExpanded: $isAdvancedFeaturesExpanded) {
                         VStack(alignment: .leading, spacing: 16) {
@@ -323,6 +327,7 @@ struct PracticeSettingsView: View {
     PracticeSettingsView(
         roundConfigurationController: controller,
         virtualPerformerEnabled: .constant(false),
+        pianoDemonstrationHandsEnabled: .constant(false),
         backendStatusText: nil,
         lastImprovStatusText: nil,
         recordingSourceText: "录制来源：Bluetooth MIDI（弹奏琴键即可录制）",

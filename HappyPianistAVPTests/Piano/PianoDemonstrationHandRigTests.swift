@@ -1,5 +1,5 @@
-import RealityKit
 @testable import HappyPianistAVP
+import RealityKit
 import simd
 import Testing
 
@@ -23,7 +23,7 @@ func handRigCreatesAndReusesItsFixedPrimitiveEntities() throws {
     ))
 
     #expect(rig.rootEntity.children.count == rig.renderedEntityCount)
-    rig.apply(pose: pose)
+    rig.apply(pose: pose, animated: false)
     #expect(rig.rootEntity.isEnabled)
     #expect(rig.rootEntity.children.count == rig.renderedEntityCount)
     let middleTip = Array(rig.rootEntity.children)[12]

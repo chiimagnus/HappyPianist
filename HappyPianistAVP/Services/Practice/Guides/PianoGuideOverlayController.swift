@@ -1,9 +1,9 @@
-import Foundation
 import Diagnostics
+import Foundation
+import Practice
 import RealityKit
 import SwiftUI
 import UIKit
-import Practice
 
 @MainActor
 final class PianoGuideOverlayController {
@@ -24,12 +24,19 @@ final class PianoGuideOverlayController {
     }
 
     func updateHighlights(
+        isEnabled: Bool,
         highlightGuide: PianoHighlightGuide?,
         keyboardGeometry: PianoKeyboardGeometry?,
         differentiateWithoutColor: Bool,
         content: RealityViewContent
     ) {
         attachRootIfNeeded(to: content)
+
+        guard isEnabled else {
+            clearBeams()
+            return
+        }
+
         startDecalTextureLoadIfNeeded()
 
         guard let keyboardGeometry else {
