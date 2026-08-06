@@ -32,6 +32,7 @@ func immersiveSuspendAndResumeAreIdempotentAndRebuildTrackingFromRequirements() 
 @MainActor
 private final class LifecycleTrackingService: ARTrackingServiceProtocol {
     var fingerTipsSnapshot = FingerTipsSnapshot.empty
+    var handSkeletonSnapshot = HandSkeletonSnapshot.empty
     var worldAnchorsByID: [UUID: WorldAnchor] = [:]
     var planeAnchorsByID: [UUID: PlaneAnchor] = [:]
     var detectedPlanes: [DetectedPlane] = []
@@ -41,11 +42,16 @@ private final class LifecycleTrackingService: ARTrackingServiceProtocol {
     var isWorldTrackingSupported = true
 
     private let relay = CurrentValueAsyncStreamRelay(FingerTipsSnapshot.empty)
+    private let handSkeletonRelay = CurrentValueAsyncStreamRelay(HandSkeletonSnapshot.empty)
     private(set) var startCalls: [ARTrackingRequirements] = []
     private(set) var stopCallCount = 0
 
     func fingerTipUpdatesStream() -> AsyncStream<FingerTipsSnapshot> {
         relay.makeStream()
+    }
+
+    func handSkeletonUpdatesStream() -> AsyncStream<HandSkeletonSnapshot> {
+        handSkeletonRelay.makeStream()
     }
 
     func deviceWorldTransform(atTimestamp _: TimeInterval) -> simd_float4x4? {
@@ -67,5 +73,6 @@ private final class LifecycleTrackingService: ARTrackingServiceProtocol {
         activeRequirements = []
         stopCallCount += 1
         relay.finishSubscribers()
+        handSkeletonRelay.finishSubscribers()
     }
 }

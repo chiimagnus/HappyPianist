@@ -24,6 +24,7 @@ final class ARTrackingService: ARTrackingServiceProtocol {
     }
 
     private(set) var fingerTipsSnapshot = FingerTipsSnapshot.empty
+    private(set) var handSkeletonSnapshot = HandSkeletonSnapshot.empty
     private(set) var worldAnchorsByID: [UUID: WorldAnchor] = [:]
     private(set) var planeAnchorsByID: [UUID: PlaneAnchor] = [:]
     private(set) var detectedPlanes: [DetectedPlane] = []
@@ -40,6 +41,7 @@ final class ARTrackingService: ARTrackingServiceProtocol {
     }
 
     private let fingerTipUpdates = CurrentValueAsyncStreamRelay(FingerTipsSnapshot.empty)
+    private let handSkeletonUpdates = CurrentValueAsyncStreamRelay(HandSkeletonSnapshot.empty)
 
     private(set) var activeRuntime: Runtime?
     private var sessionTask: Task<Void, Never>?
@@ -51,6 +53,10 @@ final class ARTrackingService: ARTrackingServiceProtocol {
 
     func fingerTipUpdatesStream() -> AsyncStream<FingerTipsSnapshot> {
         fingerTipUpdates.makeStream()
+    }
+
+    func handSkeletonUpdatesStream() -> AsyncStream<HandSkeletonSnapshot> {
+        handSkeletonUpdates.makeStream()
     }
 
     func deviceWorldTransform(atTimestamp timestamp: TimeInterval) -> simd_float4x4? {
@@ -181,6 +187,7 @@ final class ARTrackingService: ARTrackingServiceProtocol {
         stopProviderRuntime()
         activeRequirements = []
         fingerTipUpdates.finishSubscribers()
+        handSkeletonUpdates.finishSubscribers()
         clearAllTrackingState()
         markRunningProvidersStopped()
     }
@@ -204,6 +211,8 @@ final class ARTrackingService: ARTrackingServiceProtocol {
     private func clearAllTrackingState() {
         fingerTipsSnapshot = .empty
         fingerTipUpdates.yield(.empty)
+        handSkeletonSnapshot = .empty
+        handSkeletonUpdates.yield(.empty)
         worldAnchorsByID.removeAll(keepingCapacity: false)
         planeAnchorsByID.removeAll(keepingCapacity: false)
         detectedPlanes.removeAll(keepingCapacity: false)
@@ -213,6 +222,8 @@ final class ARTrackingService: ARTrackingServiceProtocol {
         if requirements.contains(.hand) == false {
             fingerTipsSnapshot = .empty
             fingerTipUpdates.yield(.empty)
+            handSkeletonSnapshot = .empty
+            handSkeletonUpdates.yield(.empty)
         }
         if requirements.contains(.world) == false {
             worldAnchorsByID.removeAll(keepingCapacity: false)
@@ -275,7 +286,7 @@ final class ARTrackingService: ARTrackingServiceProtocol {
                 guard let self else { return }
                 for await update in runtime.handTrackingProvider.anchorUpdates {
                     guard Task.isCancelled == false, sessionGeneration == generation else { return }
-                    updateFingerTips(from: update.anchor)
+                    updateHandTracking(from: update.anchor)
                 }
             }
         }
@@ -316,7 +327,7 @@ final class ARTrackingService: ARTrackingServiceProtocol {
         }
     }
 
-    private func updateFingerTips(from anchor: HandAnchor) {
+    private func updateHandTracking(from anchor: HandAnchor) {
         let side: TrackedHandSide
         switch anchor.chirality {
         case .left:
@@ -329,6 +340,24 @@ final class ARTrackingService: ARTrackingServiceProtocol {
 
         fingerTipsSnapshot[side] = anchor.isTracked ? extractHandTips(from: anchor) : HandTips()
         fingerTipUpdates.yield(fingerTipsSnapshot)
+        handSkeletonSnapshot[side] = extractHandSkeleton(from: anchor)
+        handSkeletonUpdates.yield(handSkeletonSnapshot)
+    }
+
+    private func extractHandSkeleton(from anchor: HandAnchor) -> TrackedHandSkeleton {
+        guard anchor.isTracked, let handSkeleton = anchor.handSkeleton else {
+            return TrackedHandSkeleton()
+        }
+
+        var joints: [TrackedHandJoint: SIMD3<Float>] = [:]
+        joints.reserveCapacity(TrackedHandJoint.allCases.count)
+        for jointName in TrackedHandJoint.allCases {
+            let joint = handSkeleton.joint(jointName.arkitName)
+            guard joint.isTracked else { continue }
+            let transform = anchor.originFromAnchorTransform * joint.anchorFromJointTransform
+            joints[jointName] = SIMD3<Float>(transform.columns.3.x, transform.columns.3.y, transform.columns.3.z)
+        }
+        return TrackedHandSkeleton(isTracked: true, joints: joints)
     }
 
     private func rebuildDetectedPlanes() {
@@ -400,5 +429,39 @@ final class ARTrackingService: ARTrackingServiceProtocol {
             tips.palm = palmSum / palmCount
         }
         return tips
+    }
+}
+
+private extension TrackedHandJoint {
+    var arkitName: HandSkeleton.JointName {
+        switch self {
+        case .forearmArm: .forearmArm
+        case .forearmWrist: .forearmWrist
+        case .wrist: .wrist
+        case .thumbKnuckle: .thumbKnuckle
+        case .thumbIntermediateBase: .thumbIntermediateBase
+        case .thumbIntermediateTip: .thumbIntermediateTip
+        case .thumbTip: .thumbTip
+        case .indexFingerMetacarpal: .indexFingerMetacarpal
+        case .indexFingerKnuckle: .indexFingerKnuckle
+        case .indexFingerIntermediateBase: .indexFingerIntermediateBase
+        case .indexFingerIntermediateTip: .indexFingerIntermediateTip
+        case .indexFingerTip: .indexFingerTip
+        case .middleFingerMetacarpal: .middleFingerMetacarpal
+        case .middleFingerKnuckle: .middleFingerKnuckle
+        case .middleFingerIntermediateBase: .middleFingerIntermediateBase
+        case .middleFingerIntermediateTip: .middleFingerIntermediateTip
+        case .middleFingerTip: .middleFingerTip
+        case .ringFingerMetacarpal: .ringFingerMetacarpal
+        case .ringFingerKnuckle: .ringFingerKnuckle
+        case .ringFingerIntermediateBase: .ringFingerIntermediateBase
+        case .ringFingerIntermediateTip: .ringFingerIntermediateTip
+        case .ringFingerTip: .ringFingerTip
+        case .littleFingerMetacarpal: .littleFingerMetacarpal
+        case .littleFingerKnuckle: .littleFingerKnuckle
+        case .littleFingerIntermediateBase: .littleFingerIntermediateBase
+        case .littleFingerIntermediateTip: .littleFingerIntermediateTip
+        case .littleFingerTip: .littleFingerTip
+        }
     }
 }
