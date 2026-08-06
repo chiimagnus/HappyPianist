@@ -1,5 +1,5 @@
-import Foundation
 import Diagnostics
+import Foundation
 import Practice
 import RealityKit
 import RealityKitContent
@@ -492,7 +492,7 @@ final class VirtualPerformerOverlayController {
 
                 fitXiaochengToPlaceholder(entity: entity)
 
-                guard let modelEntity = findFirstSkinnedModelEntity(in: entity),
+                guard let modelEntity = entity.firstSkinnedModelEntity(),
                       let rig = XiaochengRigBuilder.makeRig(modelEntity: modelEntity)
                 else {
                     return
@@ -524,19 +524,6 @@ final class VirtualPerformerOverlayController {
         let scaledBounds = entity.visualBounds(recursive: true, relativeTo: entity)
         let minY = scaledBounds.center.y - scaledBounds.extents.y / 2
         entity.position.y -= minY
-    }
-
-    private func findFirstSkinnedModelEntity(in root: Entity) -> ModelEntity? {
-        if let model = root as? ModelEntity, model.jointNames.isEmpty == false {
-            return model
-        }
-
-        for child in root.children {
-            if let found = findFirstSkinnedModelEntity(in: child) {
-                return found
-            }
-        }
-        return nil
     }
 
     private func animateHead(isPerforming: Bool) {

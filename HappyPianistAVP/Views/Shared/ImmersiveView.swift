@@ -1,5 +1,5 @@
-import RealityKit
 import Practice
+import RealityKit
 import SwiftUI
 
 struct ImmersiveView: View {
@@ -8,10 +8,13 @@ struct ImmersiveView: View {
     @State private var calibrationOverlayController = CalibrationOverlayController()
     @State private var keyboardAxesDebugOverlayController = KeyboardAxesDebugOverlayController()
     @State private var neonHandOverlayController = NeonHandOverlayController()
+    @State private var pianoDemonstrationHandsOverlayController: PianoDemonstrationHandsOverlayController?
     @State private var virtualPianoOverlayController: VirtualPianoOverlayController
     @State private var gazePlaneDiskOverlayController = GazePlaneDiskOverlayController()
     @State private var virtualPerformerOverlayController: VirtualPerformerOverlayController
     @AppStorage("debugKeyboardAxesOverlayEnabled") private var debugKeyboardAxesOverlayEnabled = false
+    @AppStorage(PianoDemonstrationHandsSettings.userDefaultsKey)
+    private var pianoDemonstrationHandsEnabled = PianoDemonstrationHandsSettings.defaultValue
     @Environment(\.accessibilityDifferentiateWithoutColor) private var differentiateWithoutColor
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.scenePhase) private var scenePhase
@@ -52,6 +55,7 @@ struct ImmersiveView: View {
             updateOverlays(content: content)
         }
         .onAppear {
+            updateDemonstrationHandsOverlayController()
             viewModel.onImmersiveAppear()
         }
         .onDisappear {
@@ -61,6 +65,7 @@ struct ImmersiveView: View {
         .onChange(of: scenePhase) { _, newPhase in
             switch newPhase {
             case .active:
+                updateDemonstrationHandsOverlayController()
                 viewModel.resumeImmersiveRuntimeIfNeeded()
             case .inactive, .background:
                 resetOverlayControllers()
@@ -70,11 +75,16 @@ struct ImmersiveView: View {
                 viewModel.suspendImmersiveRuntime()
             }
         }
+        .onChange(of: pianoDemonstrationHandsEnabled) {
+            updateDemonstrationHandsOverlayController()
+        }
     }
 
     private func updateOverlays(content: RealityViewContent) {
         let session = viewModel.practiceSessionViewModel
         let keyboardGeometry = session.keyboardGeometry
+        let shouldShowPianoDemonstrationHands = pianoDemonstrationHandsEnabled
+            && viewModel.immersiveMode == .practice
 
         calibrationOverlayController.update(
             showsReticle: shouldShowCalibrationReticle,
@@ -95,7 +105,15 @@ struct ImmersiveView: View {
             reduceMotion: reduceMotion,
             content: content
         )
+        pianoDemonstrationHandsOverlayController?.update(
+            isEnabled: shouldShowPianoDemonstrationHands,
+            highlightGuide: session.currentPianoHighlightGuide,
+            keyboardGeometry: keyboardGeometry,
+            reduceMotion: reduceMotion,
+            content: content
+        )
         overlayController.updateHighlights(
+            isEnabled: shouldShowPianoDemonstrationHands == false,
             highlightGuide: session.currentPianoHighlightGuide,
             keyboardGeometry: keyboardGeometry,
             differentiateWithoutColor: differentiateWithoutColor,
@@ -130,9 +148,28 @@ struct ImmersiveView: View {
         calibrationOverlayController.reset()
         keyboardAxesDebugOverlayController.reset()
         neonHandOverlayController.reset()
+        pianoDemonstrationHandsOverlayController?.reset()
+        pianoDemonstrationHandsOverlayController = nil
         virtualPianoOverlayController.reset()
         gazePlaneDiskOverlayController.reset()
         virtualPerformerOverlayController.reset()
+    }
+
+    private func updateDemonstrationHandsOverlayController() {
+        guard pianoDemonstrationHandsEnabled else {
+            pianoDemonstrationHandsOverlayController?.reset()
+            pianoDemonstrationHandsOverlayController = nil
+            return
+        }
+
+        if pianoDemonstrationHandsOverlayController?.requiresReplacement == true {
+            pianoDemonstrationHandsOverlayController = nil
+        }
+        if pianoDemonstrationHandsOverlayController == nil {
+            pianoDemonstrationHandsOverlayController = PianoDemonstrationHandsOverlayController(
+                diagnosticsReporter: viewModel.diagnosticsReporter
+            )
+        }
     }
 }
 

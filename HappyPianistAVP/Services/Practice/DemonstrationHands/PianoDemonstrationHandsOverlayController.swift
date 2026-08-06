@@ -1,0 +1,234 @@
+import Diagnostics
+import Foundation
+import Practice
+import RealityKit
+import SwiftUI
+
+@MainActor
+final class PianoDemonstrationHandsOverlayController {
+    private let rootEntity: Entity
+    private let diagnosticsReporter: (any DiagnosticsReporting)?
+    private let targetResolver = PianoDemonstrationHandTargetResolver()
+    private let poseResolver = PianoDemonstrationHandPoseResolver()
+    private let strikeTimeline = PianoDemonstrationStrikeTimeline()
+    private var rigs: [PianoDemonstrationHand: PianoDemonstrationHandRig]
+    private var lastTargets = PianoDemonstrationHandTargets.empty
+    private var activeMIDINotesByHand: [PianoDemonstrationHand: Set<Int>] = [:]
+    private var loadTask: Task<Void, Never>?
+    private var strokeTask: Task<Void, Never>?
+    private var strokeGeneration = 0
+    private var activeStrikeOccurrenceIDs = Set<String>()
+    private var currentStrikeProgress: Float = 1
+    private var hasAttachedRoot = false
+    private var reduceMotionEnabled = false
+    private(set) var requiresReplacement = false
+
+    init(
+        rootEntity: Entity = Entity(),
+        diagnosticsReporter: (any DiagnosticsReporting)? = nil,
+        preloadedRigs: [PianoDemonstrationHand: PianoDemonstrationHandRig]? = nil
+    ) {
+        self.rootEntity = rootEntity
+        self.diagnosticsReporter = diagnosticsReporter
+        rigs = preloadedRigs ?? [:]
+        for (hand, rig) in rigs {
+            install(rig: rig, for: hand)
+        }
+        if preloadedRigs == nil {
+            startLoadingRigs()
+        }
+    }
+
+    func update(
+        isEnabled: Bool,
+        highlightGuide: PianoHighlightGuide?,
+        keyboardGeometry: PianoKeyboardGeometry?,
+        reduceMotion: Bool,
+        content: RealityViewContent?
+    ) {
+        guard requiresReplacement == false, isEnabled, let keyboardGeometry else {
+            hide()
+            return
+        }
+
+        if let content {
+            attachRootIfNeeded(to: content)
+        }
+        rootEntity.transform = Transform(matrix: keyboardGeometry.frame.worldFromKeyboard)
+
+        let targets = targetResolver.resolve(
+            highlightGuide: highlightGuide,
+            keyboardGeometry: keyboardGeometry
+        )
+        let didEnableReduceMotion = reduceMotion && reduceMotionEnabled == false
+        reduceMotionEnabled = reduceMotion
+        guard targets != lastTargets || didEnableReduceMotion else { return }
+        lastTargets = targets
+
+        if targets.targets.isEmpty {
+            stopStroke(resetTriggerIDs: true)
+            applyCurrentTargets(strikeProgress: 1)
+            return
+        }
+        if reduceMotion {
+            stopStroke(resetTriggerIDs: false)
+            currentStrikeProgress = 1
+            applyCurrentTargets(strikeProgress: 1)
+            return
+        }
+
+        let triggeredOccurrenceIDs = Set(
+            targets.targets.lazy
+                .filter { $0.phase == .triggered }
+                .map(\.occurrenceID)
+        )
+        if triggeredOccurrenceIDs.isEmpty == false,
+           triggeredOccurrenceIDs != activeStrikeOccurrenceIDs
+        {
+            activeStrikeOccurrenceIDs = triggeredOccurrenceIDs
+            startStroke(velocity: targets.targets.map(\.velocity).max() ?? 64)
+        } else {
+            applyCurrentTargets(strikeProgress: currentStrikeProgress)
+        }
+    }
+
+    func reset() {
+        loadTask?.cancel()
+        loadTask = nil
+        stopStroke(resetTriggerIDs: true)
+        rootEntity.stopAllAnimations()
+        for rig in rigs.values {
+            rig.hide()
+        }
+        rigs.removeAll()
+        activeMIDINotesByHand.removeAll()
+        lastTargets = .empty
+        reduceMotionEnabled = false
+        rootEntity.children.removeAll(preservingWorldTransforms: false)
+        rootEntity.removeFromParent()
+        hasAttachedRoot = false
+        requiresReplacement = true
+    }
+
+    private func startLoadingRigs() {
+        loadTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer { loadTask = nil }
+            for hand in PianoDemonstrationHand.allCases {
+                guard Task.isCancelled == false else { return }
+                do {
+                    let rig = try await PianoDemonstrationHandRig.load(hand: hand)
+                    guard Task.isCancelled == false, requiresReplacement == false else { return }
+                    install(rig: rig, for: hand)
+                    applyCurrentTargets(strikeProgress: currentStrikeProgress, hand: hand)
+                } catch is CancellationError {
+                    return
+                } catch {
+                    guard Task.isCancelled == false else { return }
+                    diagnosticsReporter?.recordSystem(
+                        severity: .error,
+                        category: .immersiveSpace,
+                        stage: "pianoDemonstrationHands.loadAsset",
+                        summary: "演示手资源加载失败",
+                        reason: "hand=\(hand), error=\(String(describing: type(of: error)))"
+                    )
+                }
+            }
+        }
+    }
+
+    private func install(rig: PianoDemonstrationHandRig, for hand: PianoDemonstrationHand) {
+        rig.rootEntity.name = "pianoDemonstrationHand.\(hand)"
+        rootEntity.addChild(rig.rootEntity)
+        rigs[hand] = rig
+    }
+
+    private func startStroke(velocity: UInt8) {
+        stopStroke(resetTriggerIDs: false)
+        strokeGeneration += 1
+        let generation = strokeGeneration
+        currentStrikeProgress = 0
+        applyCurrentTargets(strikeProgress: 0)
+
+        strokeTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            let startUptime = ProcessInfo.processInfo.systemUptime
+            while Task.isCancelled == false {
+                let elapsed = ProcessInfo.processInfo.systemUptime - startUptime
+                let sample = strikeTimeline.sample(elapsed: elapsed, velocity: velocity)
+                currentStrikeProgress = sample.contactProgress
+                applyCurrentTargets(strikeProgress: sample.contactProgress)
+                if sample.isComplete { break }
+                try? await Task.sleep(for: .milliseconds(16))
+            }
+            guard Task.isCancelled == false, strokeGeneration == generation else { return }
+            currentStrikeProgress = 1
+            applyCurrentTargets(strikeProgress: 1)
+            strokeTask = nil
+        }
+    }
+
+    private func stopStroke(resetTriggerIDs: Bool) {
+        strokeGeneration += 1
+        strokeTask?.cancel()
+        strokeTask = nil
+        if resetTriggerIDs {
+            activeStrikeOccurrenceIDs.removeAll()
+        }
+    }
+
+    private func applyCurrentTargets(
+        strikeProgress: Float,
+        hand selectedHand: PianoDemonstrationHand? = nil
+    ) {
+        for hand in PianoDemonstrationHand.allCases where selectedHand == nil || selectedHand == hand {
+            let targetsForHand = lastTargets.targets(for: hand)
+            let handStrikeProgress = targetsForHand.contains {
+                $0.phase == .triggered && activeStrikeOccurrenceIDs.contains($0.occurrenceID)
+            } ? strikeProgress : 1
+            if let pose = poseResolver.resolve(
+                hand: hand,
+                targets: targetsForHand,
+                strikeProgress: handStrikeProgress
+            ) {
+                rigs[hand]?.apply(pose: pose)
+                activeMIDINotesByHand[hand] = Set(targetsForHand.map(\.midiNote))
+            } else if shouldLift(hand: hand, releasedMIDINotes: lastTargets.releasedMIDINotes) {
+                rigs[hand]?.lift(animated: reduceMotionEnabled == false)
+                activeMIDINotesByHand[hand] = []
+            } else {
+                rigs[hand]?.hide()
+                activeMIDINotesByHand[hand] = []
+            }
+        }
+    }
+
+    private func attachRootIfNeeded(to content: RealityViewContent) {
+        guard hasAttachedRoot == false else { return }
+        content.add(rootEntity)
+        hasAttachedRoot = true
+    }
+
+    private func shouldLift(
+        hand: PianoDemonstrationHand,
+        releasedMIDINotes: Set<Int>
+    ) -> Bool {
+        guard let activeMIDINotes = activeMIDINotesByHand[hand], activeMIDINotes.isEmpty == false else {
+            return false
+        }
+        return activeMIDINotes.isDisjoint(with: releasedMIDINotes) == false
+    }
+
+    private func hide() {
+        stopStroke(resetTriggerIDs: true)
+        for rig in rigs.values {
+            rig.hide()
+        }
+        activeMIDINotesByHand.removeAll()
+        lastTargets = .empty
+        currentStrikeProgress = 1
+        reduceMotionEnabled = false
+        rootEntity.removeFromParent()
+        hasAttachedRoot = false
+    }
+}
