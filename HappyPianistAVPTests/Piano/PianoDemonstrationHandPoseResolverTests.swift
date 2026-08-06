@@ -11,11 +11,24 @@ func poseResolverPlacesTargetedFingertipsOnKeyContacts() throws {
 
     let pose = try #require(PianoDemonstrationHandPoseResolver().resolve(hand: .right, targets: targets))
 
-    #expect(pose.fingerPose(for: .thumb)?.jointPositionsLocal.last == targets[0].contactPositionLocal)
-    #expect(pose.fingerPose(for: .middle)?.jointPositionsLocal.last == targets[1].contactPositionLocal)
+    let thumbTip = try #require(pose.fingerPose(for: .thumb)?.jointPositionsLocal.last)
+    let middleTip = try #require(pose.fingerPose(for: .middle)?.jointPositionsLocal.last)
+    #expect(simd_distance(thumbTip, targets[0].contactPositionLocal) < 0.0001)
+    #expect(simd_distance(middleTip, targets[1].contactPositionLocal) < 0.0001)
     #expect(pose.fingers.allSatisfy { finger in
         finger.jointPositionsLocal.allSatisfy { $0.x.isFinite && $0.y.isFinite && $0.z.isFinite }
     })
+}
+
+@Test
+func poseResolverKeepsFingerRootsAttachedToTheAuthoredPalm() throws {
+    let target = makeTarget(hand: .right, finger: .thumb, midiNote: 60, point: [0.10, 0, -0.07])
+    let pose = try #require(PianoDemonstrationHandPoseResolver().resolve(hand: .right, targets: [target]))
+    let thumbRoot = try #require(pose.fingerPose(for: .thumb)?.jointPositionsLocal.first)
+    let indexRoot = try #require(pose.fingerPose(for: .index)?.jointPositionsLocal.first)
+
+    #expect(simd_distance(thumbRoot - pose.palmCenterLocal, [-0.030, -0.004, -0.004]) < 0.0001)
+    #expect(simd_distance(indexRoot - pose.palmCenterLocal, [-0.016, 0, -0.027]) < 0.0001)
 }
 
 @Test

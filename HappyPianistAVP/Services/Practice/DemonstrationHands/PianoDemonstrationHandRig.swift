@@ -103,20 +103,17 @@ final class PianoDemonstrationHandRig {
             for jointSlot in jointIndices.indices {
                 let jointIndex = jointIndices[jointSlot]
                 guard jointIndex < transforms.count else { continue }
-
-                if jointSlot == 0 {
-                    transforms[jointIndex].translation = wristRotation.inverse.act(
-                        positions[0] - pose.palmCenterLocal
-                    )
-                }
                 guard jointSlot + 1 < jointIndices.count else { continue }
 
                 let childIndex = jointIndices[jointSlot + 1]
                 guard childIndex < restJointTransforms.count else { continue }
-                let desiredDirectionInHand = normalized(
-                    positions[jointSlot + 1] - positions[jointSlot]
+                let desiredDirectionInModel = normalized(
+                    modelEntity.convert(
+                        direction: positions[jointSlot + 1] - positions[jointSlot],
+                        from: rootEntity
+                    )
                 )
-                let desiredDirectionInParent = parentRotationInHand.inverse.act(desiredDirectionInHand)
+                let desiredDirectionInParent = parentRotationInHand.inverse.act(desiredDirectionInModel)
                 let restChildTranslation = restJointTransforms[childIndex].translation
                 let restDirectionInParent = normalized(
                     restJointTransforms[jointIndex].rotation.act(restChildTranslation)

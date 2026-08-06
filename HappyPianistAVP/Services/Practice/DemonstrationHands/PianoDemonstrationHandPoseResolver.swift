@@ -74,8 +74,8 @@ struct PianoDemonstrationHandPoseResolver {
 
         return SIMD3<Float>(
             palmX,
-            surfaceY + 0.052 + (1 - strikeProgress) * 0.012,
-            averageZ + 0.060 + (1 - strikeProgress) * 0.004
+            surfaceY + 0.045 + (1 - strikeProgress) * 0.012,
+            averageZ + 0.050 + (1 - strikeProgress) * 0.004
         )
     }
 
@@ -86,11 +86,7 @@ struct PianoDemonstrationHandPoseResolver {
         target: PianoDemonstrationHandTarget?,
         strikeProgress: Float
     ) -> PianoDemonstrationFingerPose {
-        let knuckle = palmCenter + SIMD3<Float>(
-            fingerOffsetX(finger, hand: hand),
-            finger == .thumb ? -0.009 : 0,
-            finger == .thumb ? -0.004 : -0.019
-        )
+        let knuckle = palmCenter + fingerRootOffset(finger, hand: hand)
         let tip: SIMD3<Float>
         if let target {
             let velocity = Float(target.velocity) / 127
@@ -119,26 +115,45 @@ struct PianoDemonstrationHandPoseResolver {
         hand: PianoDemonstrationHand,
         palmCenter: SIMD3<Float>
     ) -> SIMD3<Float> {
-        palmCenter + SIMD3<Float>(
-            fingerOffsetX(finger, hand: hand),
-            finger == .thumb ? -0.032 : -0.036,
-            finger == .thumb ? -0.062 : -0.094
-        )
+        let rightHandOffset: SIMD3<Float> = switch finger {
+        case .thumb: [-0.053, -0.014, -0.058]
+        case .index: [-0.017, -0.016, -0.101]
+        case .middle: [0, -0.018, -0.115]
+        case .ring: [0.019, -0.018, -0.104]
+        case .little: [0.038, -0.015, -0.082]
+        }
+        return palmCenter + mirrored(rightHandOffset, for: hand)
+    }
+
+    private func fingerRootOffset(
+        _ finger: PianoDemonstrationFinger,
+        hand: PianoDemonstrationHand
+    ) -> SIMD3<Float> {
+        // ponytail: these are the authored MCP locations in the packaged Blender rig.
+        let rightHandOffset: SIMD3<Float> = switch finger {
+        case .thumb: [-0.030, -0.004, -0.004]
+        case .index: [-0.016, 0, -0.027]
+        case .middle: [0, 0.001, -0.031]
+        case .ring: [0.017, 0, -0.028]
+        case .little: [0.033, -0.001, -0.022]
+        }
+        return mirrored(rightHandOffset, for: hand)
+    }
+
+    private func mirrored(
+        _ rightHandOffset: SIMD3<Float>,
+        for hand: PianoDemonstrationHand
+    ) -> SIMD3<Float> {
+        hand == .right
+            ? rightHandOffset
+            : SIMD3<Float>(-rightHandOffset.x, rightHandOffset.y, rightHandOffset.z)
     }
 
     private func fingerOffsetX(
         _ finger: PianoDemonstrationFinger,
         hand: PianoDemonstrationHand
     ) -> Float {
-        let rightHandOffsets: [PianoDemonstrationFinger: Float] = [
-            .thumb: -0.031,
-            .index: -0.016,
-            .middle: 0,
-            .ring: 0.017,
-            .little: 0.033,
-        ]
-        let offset = rightHandOffsets[finger] ?? 0
-        return hand == .right ? offset : -offset
+        fingerRootOffset(finger, hand: hand).x
     }
 
     private func segmentLengths(for finger: PianoDemonstrationFinger) -> [Float] {
@@ -163,9 +178,7 @@ struct PianoDemonstrationHandPoseResolver {
         let initialRootToTip = tip - root
         let initialDistance = simd_length(initialRootToTip)
         let direction = normalized(initialRootToTip, fallback: [0, -1, 0])
-        let solvedRoot = initialDistance < totalLength * 0.97
-            ? root
-            : tip - direction * totalLength * 0.97
+        let solvedTip = root + direction * min(initialDistance, totalLength * 0.99)
 
         let vertical = SIMD3<Float>(0, 1, 0)
         let archDirection = normalized(
@@ -173,23 +186,25 @@ struct PianoDemonstrationHandPoseResolver {
             fallback: [0, 0, 1]
         )
         var joints = [
-            solvedRoot,
-            solvedRoot + direction * segmentLengths[0] + archDirection * archHeight,
-            solvedRoot + direction * (segmentLengths[0] + segmentLengths[1]) + archDirection * archHeight * 0.72,
-            tip,
+            root,
+            root + direction * segmentLengths[0] + archDirection * archHeight,
+            root + direction * (segmentLengths[0] + segmentLengths[1]) + archDirection * archHeight * 0.72,
+            solvedTip,
         ]
 
-        for _ in 0 ..< 10 {
-            joints[3] = tip
+        // ponytail: a tiny fixed FABRIK budget is deterministic; add joint limits only if authored poses need them.
+        for _ in 0 ..< 24 {
+            joints[3] = solvedTip
             for index in stride(from: 2, through: 0, by: -1) {
                 let towardParent = normalized(joints[index] - joints[index + 1], fallback: -direction)
                 joints[index] = joints[index + 1] + towardParent * segmentLengths[index]
             }
-            joints[0] = solvedRoot
+            joints[0] = root
             for index in 0 ..< 3 {
                 let towardChild = normalized(joints[index + 1] - joints[index], fallback: direction)
                 joints[index + 1] = joints[index] + towardChild * segmentLengths[index]
             }
+            if simd_distance(joints[3], solvedTip) < 0.000_05 { break }
         }
         return joints
     }

@@ -24,9 +24,14 @@ func handRigLoadsPackaged21JointAssetAndAppliesPose() async throws {
 
     #expect(rig.jointCount == 21)
     #expect(rig.rootEntity.children.count == 1)
+    let skinnedModel = try #require(rig.rootEntity.firstSkinnedModelEntity())
+    let restTranslations = skinnedModel.jointTransforms.map(\.translation)
     rig.apply(pose: pose)
     #expect(rig.rootEntity.isEnabled)
     #expect(simd_distance(rig.rootEntity.position, pose.palmCenterLocal) < 0.0001)
+    #expect(zip(restTranslations, skinnedModel.jointTransforms.map(\.translation)).allSatisfy {
+        simd_distance($0, $1) < 0.000_001
+    })
 
     rig.hide()
     #expect(rig.rootEntity.isEnabled == false)
