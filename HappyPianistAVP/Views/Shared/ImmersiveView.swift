@@ -7,6 +7,7 @@ struct ImmersiveView: View {
     @State private var overlayController: PianoGuideOverlayController
     @State private var calibrationOverlayController = CalibrationOverlayController()
     @State private var keyboardAxesDebugOverlayController = KeyboardAxesDebugOverlayController()
+    @State private var neonHandOverlayController = NeonHandOverlayController()
     @State private var virtualPianoOverlayController: VirtualPianoOverlayController
     @State private var gazePlaneDiskOverlayController = GazePlaneDiskOverlayController()
     @State private var virtualPerformerOverlayController: VirtualPerformerOverlayController
@@ -88,6 +89,12 @@ struct ImmersiveView: View {
             keyboardFrame: session.calibration?.keyboardFrame,
             content: content
         )
+        neonHandOverlayController.update(
+            isEnabled: viewModel.immersiveMode == .practice,
+            trackingService: viewModel.appState.arTrackingService,
+            reduceMotion: reduceMotion,
+            content: content
+        )
         overlayController.updateHighlights(
             highlightGuide: session.currentPianoHighlightGuide,
             keyboardGeometry: keyboardGeometry,
@@ -122,6 +129,7 @@ struct ImmersiveView: View {
         overlayController.reset()
         calibrationOverlayController.reset()
         keyboardAxesDebugOverlayController.reset()
+        neonHandOverlayController.reset()
         virtualPianoOverlayController.reset()
         gazePlaneDiskOverlayController.reset()
         virtualPerformerOverlayController.reset()
