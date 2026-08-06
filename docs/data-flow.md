@@ -112,6 +112,21 @@ HandTrackingProvider
 - `ARTrackingService` 是唯一的真机骨骼来源；拒绝授权、不支持、停止或关节不完整时 controller 只隐藏对应手套。原始关节和派生 mesh 均不写入 progress、文件或诊断。
 - Simulator 以条件编译的合成双手仅驱动 controller 渲染，供不佩戴设备时调整视觉效果；它绝不回灌 AR service、触键判定、练习 observation 或真机降级路径。真机的追踪精度、舒适度和实时表现仍需 Apple Vision Pro 验收。
 
+## 示范手引导
+
+```text
+PianoHighlightGuide + PianoKeyboardGeometry
+  → PianoDemonstrationHandTargetResolver
+  → PianoDemonstrationHandPoseResolver
+  → PianoDemonstrationHandsOverlayController
+  → fixed primitive left/right rigs
+```
+
+- `pianoDemonstrationHandsEnabled` 默认 `false`，只保存展示偏好；设置页的开关即时改变沉浸空间，绝不写入 round configuration、progress 或 session JSON。
+- 开启时示范手和 `PianoGuideOverlayController` 的键面贴片严格二选一；二维 `PianoKeyboard88View` 继续从同一个 guide 渲染高亮。
+- controller 只消费当前 guide 与已经标定的键盘坐标：不读 ARKit、不挂 `InputTargetComponent`/碰撞、不产生 observation。两手 primitive rig 在开关启用的生命周期外于 `RealityView.update` 创建，更新只改 transform；reset 会取消动画并移除所有子实体。
+- Reduce Motion 直接显示终态。Simulator 使用现有虚拟钢琴的 geometry 与 guide，所以能预览此渲染；真机仍需人工检查坐姿舒适度、键面接触、遮挡和视觉比例。
+
 ## 进度与会话
 
 ```text

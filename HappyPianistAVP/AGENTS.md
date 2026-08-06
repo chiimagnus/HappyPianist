@@ -54,7 +54,7 @@
   entity.components.set(CollisionComponent(shapes: [.generateBox(size: [0.1, 0.1, 0.1])]))
   entity.components.set(InputTargetComponent())
   ```
-- **Mesh 资源:** 默认仅生成：`box`、`sphere`、`plane`、`cylinder`、`cone`。唯一例外是 `HandVisualization` 的固定容量 `LowLevelMesh`：它只更新荧光手套的既定顶点，不能在 `RealityView.update` 分配网格、加入资产/纹理，或把手部数据传出渲染边界。
+- **Mesh 资源:** 默认仅生成：`box`、`sphere`、`plane`、`cylinder`、`cone`。唯一例外是 `HandVisualization` 的固定容量 `LowLevelMesh`：它只更新荧光手套的既定顶点，不能在 `RealityView.update` 分配网格、加入资产/纹理，或把手部数据传出渲染边界。`PianoDemonstrationHandsOverlayController` 的虚拟示范手只能用一次创建的基础 mesh；它不读 ARKit、不使用 `LowLevelMesh`、不含输入/碰撞组件，开关启用时在 update 之外构建，reset 必须移除所有子实体与动画。
 
 ### 3. 交互与输入
 - **手势:**

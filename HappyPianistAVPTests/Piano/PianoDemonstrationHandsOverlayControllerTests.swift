@@ -29,6 +29,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
         let rightHand = try #require(root.findEntity(named: "pianoDemonstrationHand.right"))
         #expect(root.children.count == 2)
         #expect(rightHand.isEnabled)
+        #expect(abs(rightHand.position.y) < 0.0001)
 
         controller.update(
             isEnabled: true,
