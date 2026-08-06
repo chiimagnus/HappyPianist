@@ -7,7 +7,6 @@ struct PianoDemonstrationFingerPose: Equatable {
 
 struct PianoDemonstrationHandPose: Equatable {
     let hand: PianoDemonstrationHand
-    let wristPositionLocal: SIMD3<Float>
     let palmCenterLocal: SIMD3<Float>
     let fingers: [PianoDemonstrationFingerPose]
 
@@ -39,18 +38,14 @@ struct PianoDemonstrationHandPoseResolver {
                 target: targetByFinger[finger]
             )
         }
-        let wristPosition = palmCenter + SIMD3<Float>(0, -0.017, 0.047)
-
         guard targetPositions.allSatisfy(Self.isFinite),
-              Self.isFinite(palmCenter),
-              Self.isFinite(wristPosition)
+              Self.isFinite(palmCenter)
         else {
             return nil
         }
 
         return PianoDemonstrationHandPose(
             hand: hand,
-            wristPositionLocal: wristPosition,
             palmCenterLocal: palmCenter,
             fingers: fingers
         )
