@@ -90,6 +90,7 @@ final class ARTrackingService: ARTrackingServiceProtocol {
         sessionGeneration += 1
         let generation = sessionGeneration
         stopProviderRuntime()
+        clearHandTrackingState()
         activeRequirements = requirements
         clearStateForDisabledProviders(requirements: requirements)
         configureInitialProviderStates(requirements: requirements)
@@ -209,21 +210,22 @@ final class ARTrackingService: ARTrackingServiceProtocol {
     }
 
     private func clearAllTrackingState() {
-        fingerTipsSnapshot = .empty
-        fingerTipUpdates.yield(.empty)
-        handSkeletonSnapshot = .empty
-        handSkeletonUpdates.yield(.empty)
+        clearHandTrackingState()
         worldAnchorsByID.removeAll(keepingCapacity: false)
         planeAnchorsByID.removeAll(keepingCapacity: false)
         detectedPlanes.removeAll(keepingCapacity: false)
     }
 
+    private func clearHandTrackingState() {
+        fingerTipsSnapshot = .empty
+        fingerTipUpdates.yield(.empty)
+        handSkeletonSnapshot = .empty
+        handSkeletonUpdates.yield(.empty)
+    }
+
     private func clearStateForDisabledProviders(requirements: ARTrackingRequirements) {
         if requirements.contains(.hand) == false {
-            fingerTipsSnapshot = .empty
-            fingerTipUpdates.yield(.empty)
-            handSkeletonSnapshot = .empty
-            handSkeletonUpdates.yield(.empty)
+            clearHandTrackingState()
         }
         if requirements.contains(.world) == false {
             worldAnchorsByID.removeAll(keepingCapacity: false)
