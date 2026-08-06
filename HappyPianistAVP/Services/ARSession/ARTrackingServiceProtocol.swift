@@ -5,6 +5,7 @@ import simd
 @MainActor
 protocol ARTrackingServiceProtocol: AnyObject {
     var fingerTipsSnapshot: FingerTipsSnapshot { get }
+    var handSkeletonSnapshot: HandSkeletonSnapshot { get }
     var worldAnchorsByID: [UUID: WorldAnchor] { get }
     var planeAnchorsByID: [UUID: PlaneAnchor] { get }
     var detectedPlanes: [DetectedPlane] { get }
@@ -14,6 +15,7 @@ protocol ARTrackingServiceProtocol: AnyObject {
     var isWorldTrackingSupported: Bool { get }
 
     func fingerTipUpdatesStream() -> AsyncStream<FingerTipsSnapshot>
+    func handSkeletonUpdatesStream() -> AsyncStream<HandSkeletonSnapshot>
     func deviceWorldTransform(atTimestamp timestamp: TimeInterval) -> simd_float4x4?
     func addWorldAnchor(originFromAnchorTransform: simd_float4x4) async throws -> UUID
     func removeWorldAnchor(id: UUID) async throws

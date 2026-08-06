@@ -41,6 +41,7 @@ Models / Contracts
 | --- | --- | --- |
 | App 与窗口 | `HappyPianistAVPApp`、`AppState` | Library 是入口；preparation 与 practice 是单层 pushed window；immersive space 只承载空间内容。 |
 | 组合根 | `LiveAppGraph` | 共享的 index store、曲库 provider、progress repository、diagnostics reporter 与 practice recorder 不在 ViewModel 内重新创建。 |
+| 手部可视化 | `ARTrackingService`、`NeonHandOverlayController` | service 将实时骨骼归一为运行期快照并以 current-value async stream 发布；controller 在 `.mixed` immersive practice 中复用固定容量网格渲染荧光手套。Simulator 合成姿态只存在于 controller 的条件编译渲染路径；它不是 AR 输入、练习证据、持久化或诊断。 |
 | macOS host | `HappyPianistMacApp`、`MacAppGraph`、`MacPracticeViewModel` | 独立沙盒、空 bundled library 和初始导入入口；Mac ViewModel 只绑定 Library resolver、`PracticeRoundSessionController`、MIDI endpoint effect 与 Notation，不复制 reducer、progress 或 playback lifecycle。 |
 | 诊断根 | `Packages/HappyPianistCore/Sources/Diagnostics/` | `DiagnosticEvent`、reporter、七日文件 store、OSLog sink、损坏文件隔离与用户归档；不包含音频、AR、Practice 投影或输出指标。 |
 | 曲谱根 | `Packages/HappyPianistCore/Sources/MusicXML/` | MusicXML/MXL 解析、结构扩展、模型与安全限制；输入失败以本模块 typed error 表示，不反向依赖 Practice。 |
@@ -64,6 +65,7 @@ Models / Contracts
 - alignment、逐音 evidence、target profile、`MusicalIssue`、coaching decision 和复测关联只存在运行期。
 - 未观察、低置信度、unknown、insufficient 与 degraded capability 不得被改写成用户错误。
 - AI/system playback、旧 generation 和后台期间的事件不得进入用户 observation 或 progress。
+- 手部骨骼快照与荧光手套均为运行期渲染状态；追踪授权被拒绝、provider 不支持或手部不完整时隐藏，不以假数据替代。只有 Simulator 的渲染分支可生成合成姿态。
 - progress、metadata、session 是同一 JSON 文件中的独立 concern；调用方不得整份覆盖另两个 concern。
 - 诊断只通过 `DiagnosticsReporting` 进入系统日志和筛选后的导出日志；导出不得包含原谱、逐音输入、绝对路径、凭据或 AI 正文。
 - 主 Actor 不执行 MusicXML 解析、文件 IO、设备重活；长生命周期任务在 teardown 时取消。

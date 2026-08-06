@@ -140,6 +140,7 @@ func worldTrackingUnsupportedFailsAndRequestsClose() async {
 @MainActor
 private final class FakeARTrackingService: ARTrackingServiceProtocol {
     var fingerTipsSnapshot = FingerTipsSnapshot.empty
+    var handSkeletonSnapshot = HandSkeletonSnapshot.empty
     var worldAnchorsByID: [UUID: WorldAnchor] = [:]
     var planeAnchorsByID: [UUID: PlaneAnchor] = [:]
     var detectedPlanes: [DetectedPlane] = []
@@ -157,6 +158,13 @@ private final class FakeARTrackingService: ARTrackingServiceProtocol {
     }
 
     func fingerTipUpdatesStream() -> AsyncStream<FingerTipsSnapshot> {
+        AsyncStream { continuation in
+            continuation.yield(.empty)
+            continuation.finish()
+        }
+    }
+
+    func handSkeletonUpdatesStream() -> AsyncStream<HandSkeletonSnapshot> {
         AsyncStream { continuation in
             continuation.yield(.empty)
             continuation.finish()
