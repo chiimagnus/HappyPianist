@@ -1,6 +1,6 @@
+@testable import HappyPianistAVP
 import MusicXML
 import Practice
-@testable import HappyPianistAVP
 import simd
 import Testing
 
@@ -22,6 +22,24 @@ func resolverUsesScoreFingeringForBothHands() {
     #expect(targets.targets(for: .left).first?.finger == .little)
     #expect(targets.targets(for: .right).first?.phase == .triggered)
     #expect(targets.targets(for: .right).first?.contactPositionLocal.y == 0)
+}
+
+@Test
+func resolverUsesGrandStaffForUnassignedDemonstrationHands() {
+    let guide = makeGuide(
+        triggered: [
+            makeNote(id: "upper", midiNote: 60, hand: .unknown, staff: 1),
+            makeNote(id: "lower", midiNote: 48, hand: .unknown, staff: 2),
+        ]
+    )
+
+    let targets = PianoDemonstrationHandTargetResolver().resolve(
+        highlightGuide: guide,
+        keyboardGeometry: makeGeometry(notes: [48, 60])
+    )
+
+    #expect(targets.targets(for: .right).map(\.midiNote) == [60])
+    #expect(targets.targets(for: .left).map(\.midiNote) == [48])
 }
 
 @Test
@@ -65,8 +83,8 @@ func resolverKeepsHeldTargetsAndReportsReleasedNotes() {
 }
 
 @Test
-func resolverSkipsUnknownAndOverloadedHandsWithoutInventingTargets() {
-    let unknown = makeNote(id: "unknown", midiNote: 60, hand: .unknown)
+func resolverSkipsUnsupportedStaffAndOverloadedHandsWithoutInventingTargets() {
+    let unknown = makeNote(id: "unknown", midiNote: 60, hand: .unknown, staff: 3)
     let overloaded = (0 ... 5).map { index in
         makeNote(id: "right-\(index)", midiNote: 61 + index, hand: .right)
     }
@@ -145,7 +163,8 @@ private func makeNote(
     id: String,
     midiNote: Int,
     hand: ScoreHand,
-    fingering: String? = nil
+    fingering: String? = nil,
+    staff: Int? = nil
 ) -> PianoHighlightNote {
     let fingerings = fingering.map {
         [MusicXMLFingering(text: $0, provenance: .score)]
@@ -153,7 +172,7 @@ private func makeNote(
     return PianoHighlightNote(
         occurrenceID: id,
         midiNote: midiNote,
-        staff: hand == .left ? 2 : 1,
+        staff: staff ?? (hand == .left ? 2 : 1),
         voice: nil,
         velocity: 96,
         onTick: 0,

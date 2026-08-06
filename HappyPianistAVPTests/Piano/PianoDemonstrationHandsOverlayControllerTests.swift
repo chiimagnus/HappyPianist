@@ -15,7 +15,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
             id: 1,
             kind: .trigger,
             active: [],
-            triggered: [makeNote(id: "right", midiNote: 60, hand: .right)],
+            triggered: [makeNote(id: "right", midiNote: 60, hand: .unknown)],
             released: []
         )
 
@@ -109,7 +109,10 @@ private func makeNote(id: String, midiNote: Int, hand: ScoreHand) -> PianoHighli
         onTick: 0,
         offTick: 1,
         fingerings: [],
-        handAssignment: ScoreHandAssignment(hand: hand, provenance: .score)
+        handAssignment: ScoreHandAssignment(
+            hand: hand,
+            provenance: hand == .unknown ? .unresolved : .score
+        )
     )
 }
 

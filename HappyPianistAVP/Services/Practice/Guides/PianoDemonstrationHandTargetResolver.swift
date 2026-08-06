@@ -53,7 +53,7 @@ struct PianoDemonstrationHandTargetResolver {
         }
 
         return noteByOccurrenceID.values.compactMap { item in
-            guard let hand = PianoDemonstrationHand(scoreHand: item.note.handAssignment.hand) else {
+            guard let hand = demonstrationHand(for: item.note) else {
                 return nil
             }
             guard let key = keyboardGeometry.key(for: item.note.midiNote) else {
@@ -70,6 +70,22 @@ struct PianoDemonstrationHandTargetResolver {
                     key.localCenter.z
                 )
             )
+        }
+    }
+
+    private func demonstrationHand(for note: PianoHighlightNote) -> PianoDemonstrationHand? {
+        if let assignedHand = PianoDemonstrationHand(scoreHand: note.handAssignment.hand) {
+            return assignedHand
+        }
+
+        // Grand-staff routing is visual-only: it never changes the score's unresolved hand fact.
+        return switch note.staff {
+        case 1:
+            .right
+        case 2:
+            .left
+        default:
+            nil
         }
     }
 
