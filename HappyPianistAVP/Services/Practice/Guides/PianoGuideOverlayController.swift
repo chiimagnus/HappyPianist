@@ -19,8 +19,14 @@ final class PianoGuideOverlayController {
     private var decalTexture: TextureResource?
     private let restorationRenderer = PracticeRestorationEffectRenderer()
 
-    init(diagnosticsReporter: (any DiagnosticsReporting)? = nil) {
+    init(
+        diagnosticsReporter: (any DiagnosticsReporting)? = nil,
+        rootEntity: Entity = Entity(),
+        keyboardRootEntity: Entity = Entity()
+    ) {
         self.diagnosticsReporter = diagnosticsReporter
+        self.rootEntity = rootEntity
+        self.keyboardRootEntity = keyboardRootEntity
     }
 
     func updateHighlights(
@@ -28,9 +34,15 @@ final class PianoGuideOverlayController {
         highlightGuide: PianoHighlightGuide?,
         keyboardGeometry: PianoKeyboardGeometry?,
         differentiateWithoutColor: Bool,
-        content: RealityViewContent
+        content: RealityViewContent?
     ) {
-        attachRootIfNeeded(to: content)
+        if let content {
+            attachRootIfNeeded(to: content)
+        }
+
+        if let keyboardGeometry {
+            keyboardRootEntity.transform = Transform(matrix: keyboardGeometry.frame.worldFromKeyboard)
+        }
 
         guard isEnabled else {
             clearBeams()
@@ -43,8 +55,6 @@ final class PianoGuideOverlayController {
             clearBeams()
             return
         }
-
-        keyboardRootEntity.transform = Transform(matrix: keyboardGeometry.frame.worldFromKeyboard)
 
         let descriptors = PianoGuideBeamDescriptor.makeDescriptors(
             highlightGuide: highlightGuide,
