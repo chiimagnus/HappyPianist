@@ -49,6 +49,11 @@ final class NeonHandOverlayController {
         reduceMotion: Bool,
         content: RealityViewContent
     ) {
+        #if targetEnvironment(simulator)
+            if reduceMotionEnabled != reduceMotion {
+                stopUpdates()
+            }
+        #endif
         reduceMotionEnabled = reduceMotion
         guard isEnabled else {
             stopUpdates()
@@ -77,11 +82,14 @@ final class NeonHandOverlayController {
         guard updateTask == nil else { return }
 
         #if targetEnvironment(simulator)
+            guard reduceMotionEnabled == false else {
+                apply(snapshot: NeonHandSimulatorPose.snapshot(phase: 0))
+                return
+            }
             updateTask = Task { @MainActor [weak self] in
                 guard let self else { return }
                 while Task.isCancelled == false {
-                    let phase: Float = reduceMotionEnabled ? 0 : Float(ProcessInfo.processInfo.systemUptime)
-                    apply(snapshot: NeonHandSimulatorPose.snapshot(phase: phase))
+                    apply(snapshot: NeonHandSimulatorPose.snapshot(phase: Float(ProcessInfo.processInfo.systemUptime)))
                     do {
                         try await Task.sleep(for: .milliseconds(33))
                     } catch {
