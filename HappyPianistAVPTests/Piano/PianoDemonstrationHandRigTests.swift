@@ -26,6 +26,8 @@ func handRigCreatesAndReusesItsFixedPrimitiveEntities() throws {
     rig.apply(pose: pose)
     #expect(rig.rootEntity.isEnabled)
     #expect(rig.rootEntity.children.count == rig.renderedEntityCount)
+    let middleTip = Array(rig.rootEntity.children)[12]
+    #expect(abs(middleTip.position.y - 0.00896) < 0.0001)
 
     rig.hide()
     #expect(rig.rootEntity.isEnabled == false)

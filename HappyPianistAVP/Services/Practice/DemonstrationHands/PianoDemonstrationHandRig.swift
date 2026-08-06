@@ -58,17 +58,19 @@ final class PianoDemonstrationHandRig {
                 continue
             }
 
+            var jointPositions = fingerPose.jointPositionsLocal
+            jointPositions[3].y += fingertipRadius(for: fingerPose.finger)
             for index in segments.indices {
                 segments[index].transform = segmentTransform(
-                    from: fingerPose.jointPositionsLocal[index],
-                    to: fingerPose.jointPositionsLocal[index + 1],
+                    from: jointPositions[index],
+                    to: jointPositions[index + 1],
                     finger: fingerPose.finger
                 )
             }
             fingertip.transform = Transform(
                 scale: SIMD3<Float>(repeating: fingertipDiameter(for: fingerPose.finger)),
                 rotation: .init(),
-                translation: fingerPose.jointPositionsLocal[3]
+                translation: jointPositions[3]
             )
         }
 
@@ -122,5 +124,9 @@ final class PianoDemonstrationHandRig {
 
     private func fingertipDiameter(for finger: PianoDemonstrationFinger) -> Float {
         segmentDiameter(for: finger) * 1.12
+    }
+
+    private func fingertipRadius(for finger: PianoDemonstrationFinger) -> Float {
+        fingertipDiameter(for: finger) / 2
     }
 }
