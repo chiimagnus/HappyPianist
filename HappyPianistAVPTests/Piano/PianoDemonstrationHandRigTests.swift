@@ -5,8 +5,8 @@ import Testing
 
 @MainActor
 @Test
-func handRigCreatesAndReusesItsFixedPrimitiveEntities() throws {
-    let rig = PianoDemonstrationHandRig()
+func handRigLoadsPackaged21JointAssetAndAppliesPose() async throws {
+    let rig = try await PianoDemonstrationHandRig.load(hand: .right)
     let pose = try #require(PianoDemonstrationHandPoseResolver().resolve(
         hand: .right,
         targets: [
@@ -22,12 +22,11 @@ func handRigCreatesAndReusesItsFixedPrimitiveEntities() throws {
         ]
     ))
 
-    #expect(rig.rootEntity.children.count == rig.renderedEntityCount)
-    rig.apply(pose: pose, animated: false)
+    #expect(rig.jointCount == 21)
+    #expect(rig.rootEntity.children.count == 1)
+    rig.apply(pose: pose)
     #expect(rig.rootEntity.isEnabled)
-    #expect(rig.rootEntity.children.count == rig.renderedEntityCount)
-    let middleTip = Array(rig.rootEntity.children)[12]
-    #expect(abs(middleTip.position.y - 0.00896) < 0.0001)
+    #expect(simd_distance(rig.rootEntity.position, pose.palmCenterLocal) < 0.0001)
 
     rig.hide()
     #expect(rig.rootEntity.isEnabled == false)

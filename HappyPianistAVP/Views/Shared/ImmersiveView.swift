@@ -166,7 +166,9 @@ struct ImmersiveView: View {
             pianoDemonstrationHandsOverlayController = nil
         }
         if pianoDemonstrationHandsOverlayController == nil {
-            pianoDemonstrationHandsOverlayController = PianoDemonstrationHandsOverlayController()
+            pianoDemonstrationHandsOverlayController = PianoDemonstrationHandsOverlayController(
+                diagnosticsReporter: viewModel.diagnosticsReporter
+            )
         }
     }
 }

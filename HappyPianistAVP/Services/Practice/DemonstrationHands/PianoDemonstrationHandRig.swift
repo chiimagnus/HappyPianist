@@ -1,117 +1,151 @@
 import RealityKit
+import RealityKitContent
 import simd
 import SwiftUI
 import UIKit
+
+enum PianoDemonstrationHandRigError: Error {
+    case missingSkinnedModel
+    case invalidJointSet
+}
 
 @MainActor
 final class PianoDemonstrationHandRig {
     let rootEntity: Entity
 
-    private let palmEntity: ModelEntity
-    private let fingerSegments: [PianoDemonstrationFinger: [ModelEntity]]
-    private let fingertipEntities: [PianoDemonstrationFinger: ModelEntity]
+    private let modelEntity: ModelEntity
+    private let restJointTransforms: [Transform]
+    private let jointIndicesByFinger: [PianoDemonstrationFinger: [Int]]
+    private let wristJointIndex: Int
 
-    init(rootEntity: Entity = Entity()) {
+    private init(
+        rootEntity: Entity,
+        modelEntity: ModelEntity,
+        jointIndicesByFinger: [PianoDemonstrationFinger: [Int]],
+        wristJointIndex: Int
+    ) {
         self.rootEntity = rootEntity
-
-        let material = Self.makeMaterial()
-        let palmMesh = MeshResource.generateBox(size: SIMD3<Float>(repeating: 1))
-        let segmentMesh = MeshResource.generateCylinder(height: 1, radius: 0.5)
-        let fingertipMesh = MeshResource.generateSphere(radius: 0.5)
-        let palm = ModelEntity(mesh: palmMesh, materials: [material])
-        palmEntity = palm
-        rootEntity.addChild(palm)
-
-        var segmentsByFinger: [PianoDemonstrationFinger: [ModelEntity]] = [:]
-        var tipsByFinger: [PianoDemonstrationFinger: ModelEntity] = [:]
-        for finger in PianoDemonstrationFinger.allCases {
-            let segments = (0 ..< 3).map { _ in
-                let segment = ModelEntity(mesh: segmentMesh, materials: [material])
-                rootEntity.addChild(segment)
-                return segment
-            }
-            let fingertip = ModelEntity(mesh: fingertipMesh, materials: [material])
-            rootEntity.addChild(fingertip)
-            segmentsByFinger[finger] = segments
-            tipsByFinger[finger] = fingertip
-        }
-        fingerSegments = segmentsByFinger
-        fingertipEntities = tipsByFinger
+        self.modelEntity = modelEntity
+        restJointTransforms = modelEntity.jointTransforms
+        self.jointIndicesByFinger = jointIndicesByFinger
+        self.wristJointIndex = wristJointIndex
         rootEntity.isEnabled = false
     }
 
-    var renderedEntityCount: Int {
-        1 + PianoDemonstrationFinger.allCases.count * 4
+    static func load(hand: PianoDemonstrationHand) async throws -> PianoDemonstrationHandRig {
+        let assetName = switch hand {
+        case .left: "PianoDemonstrationHandLeft"
+        case .right: "PianoDemonstrationHandRight"
+        }
+        let asset = try await Entity(named: assetName, in: realityKitContentBundle)
+        guard let modelEntity = asset.firstSkinnedModelEntity() else {
+            throw PianoDemonstrationHandRigError.missingSkinnedModel
+        }
+
+        let indicesByName = Dictionary(
+            uniqueKeysWithValues: modelEntity.jointNames.enumerated().map { index, name in
+                (name.split(separator: "/").last.map(String.init) ?? name, index)
+            }
+        )
+        guard let wristJointIndex = indicesByName["wrist"] else {
+            throw PianoDemonstrationHandRigError.invalidJointSet
+        }
+
+        var jointIndicesByFinger: [PianoDemonstrationFinger: [Int]] = [:]
+        for finger in PianoDemonstrationFinger.allCases {
+            let name = finger.jointName
+            let indices = (0 ..< 4).compactMap { indicesByName["\(name)_\($0)"] }
+            guard indices.count == 4 else {
+                throw PianoDemonstrationHandRigError.invalidJointSet
+            }
+            jointIndicesByFinger[finger] = indices
+        }
+        guard modelEntity.jointNames.count == 21,
+              modelEntity.jointTransforms.count == 21
+        else {
+            throw PianoDemonstrationHandRigError.invalidJointSet
+        }
+
+        modelEntity.model?.materials = [makeMaterial(for: hand)]
+        let rootEntity = Entity()
+        rootEntity.addChild(asset)
+        return PianoDemonstrationHandRig(
+            rootEntity: rootEntity,
+            modelEntity: modelEntity,
+            jointIndicesByFinger: jointIndicesByFinger,
+            wristJointIndex: wristJointIndex
+        )
     }
 
-    func apply(pose: PianoDemonstrationHandPose, animated: Bool) {
-        if animated == false {
-            rootEntity.stopAllAnimations()
-        }
-        let startsLifted = animated && rootEntity.isEnabled == false
+    var jointCount: Int {
+        modelEntity.jointNames.count
+    }
+
+    func apply(pose: PianoDemonstrationHandPose) {
+        rootEntity.stopAllAnimations()
         rootEntity.isEnabled = true
-        if animated, rootEntity.transform.translation.y > 0.0001 {
-            apply(.identity, to: rootEntity, animated: true)
-        } else {
-            rootEntity.transform = .identity
-        }
-        apply(
-            Transform(
-                scale: SIMD3<Float>(0.092, 0.018, 0.070),
-                rotation: .init(),
-                translation: pose.palmCenterLocal
-            ),
-            to: palmEntity,
-            animated: animated,
-            startsLifted: startsLifted
-        )
+        rootEntity.transform = Transform(translation: pose.palmCenterLocal)
+
+        var transforms = restJointTransforms
+        guard wristJointIndex < transforms.count else { return }
+        let wristRotation = transforms[wristJointIndex].rotation
 
         for fingerPose in pose.fingers {
             guard fingerPose.jointPositionsLocal.count == 4,
-                  let segments = fingerSegments[fingerPose.finger],
-                  let fingertip = fingertipEntities[fingerPose.finger]
+                  let jointIndices = jointIndicesByFinger[fingerPose.finger],
+                  jointIndices.count == 4
             else {
                 continue
             }
 
-            var jointPositions = fingerPose.jointPositionsLocal
-            jointPositions[3].y += fingertipRadius(for: fingerPose.finger)
-            let animationDelay = animationDelay(for: fingerPose.finger)
-            for index in segments.indices {
-                apply(
-                    segmentTransform(
-                        from: jointPositions[index],
-                        to: jointPositions[index + 1],
-                        finger: fingerPose.finger
-                    ),
-                    to: segments[index],
-                    animated: animated,
-                    startsLifted: startsLifted,
-                    delay: animationDelay
+            let positions = fingerPose.jointPositionsLocal
+            var parentRotationInHand = wristRotation
+            for jointSlot in jointIndices.indices {
+                let jointIndex = jointIndices[jointSlot]
+                guard jointIndex < transforms.count else { continue }
+
+                if jointSlot == 0 {
+                    transforms[jointIndex].translation = wristRotation.inverse.act(
+                        positions[0] - pose.palmCenterLocal
+                    )
+                }
+                guard jointSlot + 1 < jointIndices.count else { continue }
+
+                let childIndex = jointIndices[jointSlot + 1]
+                guard childIndex < restJointTransforms.count else { continue }
+                let desiredDirectionInHand = normalized(
+                    positions[jointSlot + 1] - positions[jointSlot]
                 )
+                let desiredDirectionInParent = parentRotationInHand.inverse.act(desiredDirectionInHand)
+                let restChildTranslation = restJointTransforms[childIndex].translation
+                let restDirectionInParent = normalized(
+                    restJointTransforms[jointIndex].rotation.act(restChildTranslation)
+                )
+                let rotationDelta = simd_quatf(
+                    from: restDirectionInParent,
+                    to: desiredDirectionInParent
+                )
+                transforms[jointIndex].rotation = rotationDelta * restJointTransforms[jointIndex].rotation
+                parentRotationInHand *= transforms[jointIndex].rotation
             }
-            apply(
-                Transform(
-                    scale: SIMD3<Float>(repeating: fingertipDiameter(for: fingerPose.finger)),
-                    rotation: .init(),
-                    translation: jointPositions[3]
-                ),
-                to: fingertip,
-                animated: animated,
-                startsLifted: startsLifted,
-                delay: animationDelay
-            )
         }
+        modelEntity.jointTransforms = transforms
     }
 
     func lift(animated: Bool) {
         rootEntity.stopAllAnimations()
         rootEntity.isEnabled = true
-        apply(
-            Transform(translation: SIMD3<Float>(0, 0.035, 0)),
-            to: rootEntity,
-            animated: animated
+        let liftedTransform = Transform(
+            rotation: rootEntity.transform.rotation,
+            translation: rootEntity.transform.translation + SIMD3<Float>(0, 0.035, 0)
         )
+        guard animated else {
+            rootEntity.transform = liftedTransform
+            return
+        }
+        Entity.animate(.easeInOut(duration: 0.16)) {
+            rootEntity.components.set(liftedTransform)
+        }
     }
 
     func hide() {
@@ -119,78 +153,40 @@ final class PianoDemonstrationHandRig {
         rootEntity.isEnabled = false
     }
 
-    private func apply(
-        _ transform: Transform,
-        to entity: Entity,
-        animated: Bool,
-        startsLifted: Bool = false,
-        delay: Double = 0
-    ) {
-        if startsLifted {
-            var liftedTransform = transform
-            liftedTransform.translation.y += 0.028
-            entity.transform = liftedTransform
+    private static func makeMaterial(for hand: PianoDemonstrationHand) -> PhysicallyBasedMaterial {
+        let baseColor = switch hand {
+        case .left: UIColor(red: 0.08, green: 0.78, blue: 1.00, alpha: 1)
+        case .right: UIColor(red: 1.00, green: 0.72, blue: 0.16, alpha: 1)
         }
-        guard animated else {
-            entity.transform = transform
-            return
+        let emissiveColor = switch hand {
+        case .left: UIColor(red: 0.34, green: 0.42, blue: 1.00, alpha: 1)
+        case .right: UIColor(red: 1.00, green: 0.30, blue: 0.22, alpha: 1)
         }
-
-        Entity.animate(.easeInOut(duration: 0.15).delay(delay)) {
-            entity.components.set(transform)
-        }
-    }
-
-    private func animationDelay(for finger: PianoDemonstrationFinger) -> Double {
-        Double(finger.rawValue - PianoDemonstrationFinger.thumb.rawValue) * 0.008
-    }
-
-    private static func makeMaterial() -> PhysicallyBasedMaterial {
         var material = PhysicallyBasedMaterial()
-        material.baseColor = .init(tint: UIColor(red: 0.98, green: 0.90, blue: 0.76, alpha: 1))
-        material.blending = .transparent(opacity: 0.72)
+        material.baseColor = .init(tint: baseColor)
+        material.blending = .transparent(opacity: 0.58)
         material.sheen = .init(tint: .white)
-        material.roughness = 0.30
-        material.metallic = 0.03
+        material.emissiveColor = .init(color: emissiveColor)
+        material.emissiveIntensity = 1.15
+        material.roughness = 0.22
+        material.metallic = 0.06
         return material
     }
 
-    private func segmentTransform(
-        from start: SIMD3<Float>,
-        to end: SIMD3<Float>,
-        finger: PianoDemonstrationFinger
-    ) -> Transform {
-        let vector = end - start
-        let length = simd_length(vector)
-        guard length > 0.0001 else {
-            return Transform(
-                scale: SIMD3<Float>(repeating: 0.001),
-                rotation: .init(),
-                translation: start
-            )
+    private func normalized(_ value: SIMD3<Float>) -> SIMD3<Float> {
+        let length = simd_length(value)
+        return length > 0.0001 ? value / length : SIMD3<Float>(0, 0, -1)
+    }
+}
+
+private extension PianoDemonstrationFinger {
+    var jointName: String {
+        switch self {
+        case .thumb: "thumb"
+        case .index: "index"
+        case .middle: "middle"
+        case .ring: "ring"
+        case .little: "little"
         }
-
-        return Transform(
-            scale: SIMD3<Float>(segmentDiameter(for: finger), length, segmentDiameter(for: finger)),
-            rotation: simd_quatf(from: SIMD3<Float>(0, 1, 0), to: vector / length),
-            translation: (start + end) / 2
-        )
-    }
-
-    private func segmentDiameter(for finger: PianoDemonstrationFinger) -> Float {
-        switch finger {
-        case .thumb: 0.018
-        case .index, .middle: 0.016
-        case .ring: 0.015
-        case .little: 0.013
-        }
-    }
-
-    private func fingertipDiameter(for finger: PianoDemonstrationFinger) -> Float {
-        segmentDiameter(for: finger) * 1.12
-    }
-
-    private func fingertipRadius(for finger: PianoDemonstrationFinger) -> Float {
-        fingertipDiameter(for: finger) / 2
     }
 }

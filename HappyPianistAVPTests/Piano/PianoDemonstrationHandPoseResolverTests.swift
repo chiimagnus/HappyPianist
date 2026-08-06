@@ -38,18 +38,74 @@ func poseResolverRejectsAnEmptyHand() {
     #expect(PianoDemonstrationHandPoseResolver().resolve(hand: .left, targets: []) == nil)
 }
 
+@Test
+func poseResolverLiftsTheWristAndStrikingFingerBeforeContact() throws {
+    let target = makeTarget(hand: .right, finger: .index, midiNote: 64, point: [0.12, 0, -0.07])
+    let resolver = PianoDemonstrationHandPoseResolver()
+
+    let prepared = try #require(resolver.resolve(hand: .right, targets: [target], strikeProgress: 0))
+    let contact = try #require(resolver.resolve(hand: .right, targets: [target], strikeProgress: 1))
+    let preparedTip = try #require(prepared.fingerPose(for: .index)?.jointPositionsLocal.last)
+    let contactTip = try #require(contact.fingerPose(for: .index)?.jointPositionsLocal.last)
+
+    #expect(prepared.palmCenterLocal.y > contact.palmCenterLocal.y)
+    #expect(preparedTip.y > contactTip.y)
+    #expect(simd_distance(contactTip, target.contactPositionLocal) < 0.0001)
+}
+
+@Test
+func poseResolverKeepsHeldFingerOnItsKeyWhileAnotherFingerStrikes() throws {
+    let held = makeTarget(
+        hand: .right,
+        finger: .middle,
+        midiNote: 64,
+        point: [0.12, 0, -0.07],
+        phase: .held
+    )
+    let triggered = makeTarget(
+        hand: .right,
+        finger: .index,
+        midiNote: 67,
+        point: [0.15, 0, -0.07]
+    )
+
+    let prepared = try #require(PianoDemonstrationHandPoseResolver().resolve(
+        hand: .right,
+        targets: [held, triggered],
+        strikeProgress: 0
+    ))
+    let heldTip = try #require(prepared.fingerPose(for: .middle)?.jointPositionsLocal.last)
+    let triggeredTip = try #require(prepared.fingerPose(for: .index)?.jointPositionsLocal.last)
+
+    #expect(simd_distance(heldTip, held.contactPositionLocal) < 0.0001)
+    #expect(triggeredTip.y > triggered.contactPositionLocal.y)
+}
+
+@Test
+func strikeTimelineIncludesAttackReboundAndSettledContact() {
+    let timeline = PianoDemonstrationStrikeTimeline()
+
+    #expect(timeline.sample(elapsed: 0, velocity: 90).contactProgress == 0)
+    #expect(timeline.sample(elapsed: 0.22, velocity: 90).contactProgress > 0.95)
+    #expect(timeline.sample(elapsed: 0.29, velocity: 90).contactProgress < 1)
+    let complete = timeline.sample(elapsed: 1, velocity: 90)
+    #expect(complete.contactProgress == 1)
+    #expect(complete.isComplete)
+}
+
 private func makeTarget(
     hand: PianoDemonstrationHand,
     finger: PianoDemonstrationFinger,
     midiNote: Int,
-    point: SIMD3<Float>
+    point: SIMD3<Float>,
+    phase: PianoDemonstrationTouchPhase = .triggered
 ) -> PianoDemonstrationHandTarget {
     PianoDemonstrationHandTarget(
         occurrenceID: "\(hand)-\(midiNote)",
         hand: hand,
         finger: finger,
         midiNote: midiNote,
-        phase: .triggered,
+        phase: phase,
         contactPositionLocal: point,
         velocity: 96
     )

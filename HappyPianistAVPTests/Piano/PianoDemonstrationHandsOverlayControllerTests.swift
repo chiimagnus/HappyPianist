@@ -7,9 +7,12 @@ import Testing
 
 @MainActor
 struct PianoDemonstrationHandsOverlayControllerTests {
-    @Test func reusesFixedHandsAndLiftsReleasedNotesWithoutARKitInput() throws {
+    @Test func reusesLoadedHandsAndLiftsReleasedNotesWithoutARKitInput() async throws {
         let root = Entity()
-        let controller = PianoDemonstrationHandsOverlayController(rootEntity: root)
+        let controller = try await PianoDemonstrationHandsOverlayController(
+            rootEntity: root,
+            preloadedRigs: makeRigs()
+        )
         let geometry = makeGeometry()
         let triggered = makeGuide(
             id: 1,
@@ -29,7 +32,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
         let rightHand = try #require(root.findEntity(named: "pianoDemonstrationHand.right"))
         #expect(root.children.count == 2)
         #expect(rightHand.isEnabled)
-        #expect(abs(rightHand.position.y) < 0.0001)
+        let contactY = rightHand.position.y
 
         controller.update(
             isEnabled: true,
@@ -53,7 +56,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
             reduceMotion: true,
             content: nil
         )
-        #expect(abs(rightHand.position.y - 0.035) < 0.0001)
+        #expect(abs(rightHand.position.y - contactY - 0.035) < 0.0001)
 
         controller.update(
             isEnabled: false,
@@ -65,10 +68,13 @@ struct PianoDemonstrationHandsOverlayControllerTests {
         #expect(rightHand.isEnabled == false)
     }
 
-    @Test func resetRemovesRetainedHandEntities() {
+    @Test func resetRemovesRetainedHandEntities() async throws {
         let root = Entity()
         root.addChild(Entity())
-        let controller = PianoDemonstrationHandsOverlayController(rootEntity: root)
+        let controller = try await PianoDemonstrationHandsOverlayController(
+            rootEntity: root,
+            preloadedRigs: makeRigs()
+        )
 
         #expect(root.children.count == 3)
 
@@ -78,6 +84,15 @@ struct PianoDemonstrationHandsOverlayControllerTests {
         #expect(root.parent == nil)
         #expect(controller.requiresReplacement)
     }
+}
+
+@MainActor
+private func makeRigs() async throws -> [PianoDemonstrationHand: PianoDemonstrationHandRig] {
+    var rigs: [PianoDemonstrationHand: PianoDemonstrationHandRig] = [:]
+    for hand in PianoDemonstrationHand.allCases {
+        rigs[hand] = try await PianoDemonstrationHandRig.load(hand: hand)
+    }
+    return rigs
 }
 
 private func makeGuide(
