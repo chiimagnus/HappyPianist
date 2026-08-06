@@ -81,6 +81,23 @@ func resolverSkipsUnknownAndOverloadedHandsWithoutInventingTargets() {
 }
 
 @Test
+func resolverSkipsAChordThatExceedsOneHandSpan() {
+    let guide = makeGuide(
+        triggered: [
+            makeNote(id: "low", midiNote: 48, hand: .left),
+            makeNote(id: "high", midiNote: 60, hand: .left),
+        ]
+    )
+
+    let targets = PianoDemonstrationHandTargetResolver().resolve(
+        highlightGuide: guide,
+        keyboardGeometry: makeGeometry(notes: [48, 60], spacing: 0.24)
+    )
+
+    #expect(targets.targets.isEmpty)
+}
+
+@Test
 func resolverRejectsInvalidOrConflictingFingerings() {
     let guide = makeGuide(
         triggered: [
@@ -149,7 +166,7 @@ private func makeNote(
     )
 }
 
-private func makeGeometry(notes: [Int]) -> PianoKeyboardGeometry {
+private func makeGeometry(notes: [Int], spacing: Float = 0.024) -> PianoKeyboardGeometry {
     let frame = KeyboardFrame(
         a0World: SIMD3<Float>(0, 0.5, 0),
         c8World: SIMD3<Float>(1, 0.5, 0),
@@ -159,12 +176,12 @@ private func makeGeometry(notes: [Int]) -> PianoKeyboardGeometry {
         PianoKeyGeometry(
             midiNote: midiNote,
             kind: .white,
-            localCenter: SIMD3<Float>(Float(index) * 0.024, -0.015, -0.07),
+            localCenter: SIMD3<Float>(Float(index) * spacing, -0.015, -0.07),
             localSize: SIMD3<Float>(0.022, 0.03, 0.14),
             surfaceLocalY: 0,
-            hitCenterLocal: SIMD3<Float>(Float(index) * 0.024, -0.015, -0.07),
+            hitCenterLocal: SIMD3<Float>(Float(index) * spacing, -0.015, -0.07),
             hitSizeLocal: SIMD3<Float>(0.022, 0.03, 0.14),
-            beamFootprintCenterLocal: SIMD3<Float>(Float(index) * 0.024, 0, -0.07),
+            beamFootprintCenterLocal: SIMD3<Float>(Float(index) * spacing, 0, -0.07),
             beamFootprintSizeLocal: SIMD2<Float>(0.022, 0.14)
         )
     }

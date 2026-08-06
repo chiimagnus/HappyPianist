@@ -2,6 +2,8 @@ import MusicXML
 import Practice
 
 struct PianoDemonstrationHandTargetResolver {
+    private static let maximumHandSpanMeters: Float = 0.20
+
     func resolve(
         highlightGuide: PianoHighlightGuide?,
         keyboardGeometry: PianoKeyboardGeometry?
@@ -18,7 +20,11 @@ struct PianoDemonstrationHandTargetResolver {
 
         for hand in PianoDemonstrationHand.allCases {
             let handCandidates = candidates.filter { $0.hand == hand }
-            guard handCandidates.count <= PianoDemonstrationFinger.allCases.count else { continue }
+            guard handCandidates.count <= PianoDemonstrationFinger.allCases.count,
+                  handSpanMeters(for: handCandidates) <= Self.maximumHandSpanMeters
+            else {
+                continue
+            }
             resolvedTargets += targets(for: hand, candidates: handCandidates)
         }
 
@@ -99,6 +105,15 @@ struct PianoDemonstrationHandTargetResolver {
         }
 
         return targets
+    }
+
+    private func handSpanMeters(for candidates: [Candidate]) -> Float {
+        guard let minimumX = candidates.map(\.contactPositionLocal.x).min(),
+              let maximumX = candidates.map(\.contactPositionLocal.x).max()
+        else {
+            return 0
+        }
+        return maximumX - minimumX
     }
 
     private func explicitFinger(
