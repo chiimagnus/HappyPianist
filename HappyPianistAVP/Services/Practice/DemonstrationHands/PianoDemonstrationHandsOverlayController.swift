@@ -21,7 +21,7 @@ final class PianoDemonstrationHandsOverlayController {
     private let suppressionMinimumResidence: TimeInterval
     private let targetResolver = PianoDemonstrationHandTargetResolver()
     private let poseResolver = PianoDemonstrationHandPoseResolver()
-    private let strikeTimeline = PianoDemonstrationStrikeTimeline()
+    private let strikeScheduler: PianoDemonstrationStrikeScheduler
     private var rigs: [PianoDemonstrationHand: PianoDemonstrationHandRig]
     private var lastResolvedCoverage = PianoDemonstrationHandCoverage()
     private var lastCoverage = PianoDemonstrationHandCoverage()
@@ -45,6 +45,7 @@ final class PianoDemonstrationHandsOverlayController {
         self.diagnosticsReporter = diagnosticsReporter
         self.rigLoader = rigLoader
         self.performanceClock = performanceClock
+        self.strikeScheduler = PianoDemonstrationStrikeScheduler(performanceClock: performanceClock)
         self.suppressionMinimumResidence = max(0, suppressionMinimumResidence)
         rigs = preloadedRigs ?? [:]
         for (hand, rig) in rigs {
@@ -199,15 +200,30 @@ final class PianoDemonstrationHandsOverlayController {
         strokeRuntimeByHand[hand] = runtime
         applyCurrentTargets(hand: hand)
 
+        let startUptime = ProcessInfo.processInfo.systemUptime
+        let startInstant = PerformanceMonotonicInstant(seconds: startUptime)
+        let onset = startInstant.advanced(by: strikeScheduler.preRollDuration(
+            velocity: runtime.velocity,
+            handTravelDistanceMeters: 0
+        ))
+        let occurrence = PianoDemonstrationStrikeScheduler.Occurrence(
+            id: runtime.occurrenceIDs.sorted().joined(separator: "|"),
+            hand: hand,
+            onset: onset,
+            release: onset,
+            velocity: runtime.velocity,
+            handTravelDistanceMeters: 0
+        )
         let task = Task { @MainActor [weak self] in
             guard let self else { return }
-            let startUptime = ProcessInfo.processInfo.systemUptime
             while Task.isCancelled == false {
                 guard var runtime = strokeRuntimeByHand[hand], runtime.generation == generation else {
                     return
                 }
-                let elapsed = ProcessInfo.processInfo.systemUptime - startUptime
-                let sample = strikeTimeline.sample(elapsed: elapsed, velocity: runtime.velocity)
+                let instant = PerformanceMonotonicInstant(
+                    seconds: ProcessInfo.processInfo.systemUptime
+                )
+                let sample = strikeScheduler.sample(occurrence, at: instant)
                 runtime.progress = sample.contactProgress
                 strokeRuntimeByHand[hand] = runtime
                 applyCurrentTargets(hand: hand)

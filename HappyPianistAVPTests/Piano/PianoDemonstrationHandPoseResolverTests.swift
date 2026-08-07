@@ -94,18 +94,6 @@ func poseResolverKeepsHeldFingerOnItsKeyWhileAnotherFingerStrikes() throws {
     #expect(triggeredTip.y > triggered.contactPositionLocal.y)
 }
 
-@Test
-func strikeTimelineIncludesAttackReboundAndSettledContact() {
-    let timeline = PianoDemonstrationStrikeTimeline()
-
-    #expect(timeline.sample(elapsed: 0, velocity: 90).contactProgress == 0)
-    #expect(timeline.sample(elapsed: 0.22, velocity: 90).contactProgress > 0.95)
-    #expect(timeline.sample(elapsed: 0.29, velocity: 90).contactProgress < 1)
-    let complete = timeline.sample(elapsed: 1, velocity: 90)
-    #expect(complete.contactProgress == 1)
-    #expect(complete.isComplete)
-}
-
 private func makeTarget(
     hand: PianoDemonstrationHand,
     finger: PianoDemonstrationFinger,
