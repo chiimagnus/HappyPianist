@@ -13,15 +13,16 @@ func resolverUsesScoreFingeringForBothHands() {
         ]
     )
 
-    let targets = PianoDemonstrationHandTargetResolver().resolve(
+    let coverage = PianoDemonstrationHandTargetResolver().resolve(
         highlightGuide: guide,
         keyboardGeometry: makeGeometry(notes: [48, 60])
     )
 
-    #expect(targets.targets(for: .right).first?.finger == .thumb)
-    #expect(targets.targets(for: .left).first?.finger == .little)
-    #expect(targets.targets(for: .right).first?.phase == .triggered)
-    #expect(targets.targets(for: .right).first?.contactPositionLocal.y == 0)
+    #expect(coverage.coveredTargets(for: .right).first?.finger == .thumb)
+    #expect(coverage.coveredTargets(for: .left).first?.finger == .little)
+    #expect(coverage.coveredTargets(for: .right).first?.phase == .triggered)
+    #expect(coverage.coveredTargets(for: .right).first?.contactPositionLocal.y == 0)
+    #expect(coverage.uncoveredKeys.isEmpty)
 }
 
 @Test
@@ -33,13 +34,13 @@ func resolverUsesGrandStaffForUnassignedDemonstrationHands() {
         ]
     )
 
-    let targets = PianoDemonstrationHandTargetResolver().resolve(
+    let coverage = PianoDemonstrationHandTargetResolver().resolve(
         highlightGuide: guide,
         keyboardGeometry: makeGeometry(notes: [48, 60])
     )
 
-    #expect(targets.targets(for: .right).map(\.midiNote) == [60])
-    #expect(targets.targets(for: .left).map(\.midiNote) == [48])
+    #expect(coverage.coveredTargets(for: .right).map(\.midiNote) == [60])
+    #expect(coverage.coveredTargets(for: .left).map(\.midiNote) == [48])
 }
 
 @Test
@@ -60,8 +61,8 @@ func resolverUsesStableMirrorAwareFallbackForChord() {
     let second = resolver.resolve(highlightGuide: guide, keyboardGeometry: geometry)
 
     #expect(first == second)
-    #expect(first.targets(for: .right).map(\.finger) == [.thumb, .index, .middle])
-    #expect(first.targets(for: .left).map(\.finger) == [.little, .ring])
+    #expect(first.coveredTargets(for: .right).map(\.finger) == [.thumb, .index, .middle])
+    #expect(first.coveredTargets(for: .left).map(\.finger) == [.little, .ring])
 }
 
 @Test
@@ -72,34 +73,36 @@ func resolverKeepsHeldTargetsAndReportsReleasedNotes() {
         released: [55]
     )
 
-    let targets = PianoDemonstrationHandTargetResolver().resolve(
+    let coverage = PianoDemonstrationHandTargetResolver().resolve(
         highlightGuide: guide,
         keyboardGeometry: makeGeometry(notes: [60, 64])
     )
 
-    #expect(targets.targets.first { $0.occurrenceID == "held" }?.phase == .held)
-    #expect(targets.targets.first { $0.occurrenceID == "triggered" }?.phase == .triggered)
-    #expect(targets.releasedMIDINotes == [55])
+    #expect(coverage.coveredTargets.first { $0.occurrenceID == "held" }?.phase == .held)
+    #expect(coverage.coveredTargets.first { $0.occurrenceID == "triggered" }?.phase == .triggered)
+    #expect(coverage.releasedMIDINotes == [55])
 }
 
 @Test
-func resolverSkipsUnsupportedStaffAndOverloadedHandsWithoutInventingTargets() {
+func resolverReportsUnsupportedStaffAndOverloadedHands() {
     let unknown = makeNote(id: "unknown", midiNote: 60, hand: .unknown, staff: 3)
     let overloaded = (0 ... 5).map { index in
         makeNote(id: "right-\(index)", midiNote: 61 + index, hand: .right)
     }
     let guide = makeGuide(triggered: [unknown] + overloaded)
 
-    let targets = PianoDemonstrationHandTargetResolver().resolve(
+    let coverage = PianoDemonstrationHandTargetResolver().resolve(
         highlightGuide: guide,
         keyboardGeometry: makeGeometry(notes: [60] + overloaded.map(\.midiNote))
     )
 
-    #expect(targets.targets.isEmpty)
+    #expect(coverage.coveredTargets.isEmpty)
+    #expect(coverage.uncoveredKeys.first { $0.occurrenceID == "unknown" }?.reason == .unknownHand)
+    #expect(coverage.uncoveredKeys.filter { $0.reason == .tooManyFingers }.count == 6)
 }
 
 @Test
-func resolverSkipsAChordThatExceedsOneHandSpan() {
+func resolverReportsAChordThatExceedsOneHandSpan() {
     let guide = makeGuide(
         triggered: [
             makeNote(id: "low", midiNote: 48, hand: .left),
@@ -107,16 +110,17 @@ func resolverSkipsAChordThatExceedsOneHandSpan() {
         ]
     )
 
-    let targets = PianoDemonstrationHandTargetResolver().resolve(
+    let coverage = PianoDemonstrationHandTargetResolver().resolve(
         highlightGuide: guide,
         keyboardGeometry: makeGeometry(notes: [48, 60], spacing: 0.24)
     )
 
-    #expect(targets.targets.isEmpty)
+    #expect(coverage.coveredTargets.isEmpty)
+    #expect(coverage.uncoveredKeys.map(\.reason) == [.spanExceeded, .spanExceeded])
 }
 
 @Test
-func resolverRejectsInvalidOrConflictingFingerings() {
+func resolverReportsConflictingFingeringsWithoutDroppingOtherTargets() {
     let guide = makeGuide(
         triggered: [
             makeNote(id: "invalid", midiNote: 60, hand: .right, fingering: "9"),
@@ -125,21 +129,33 @@ func resolverRejectsInvalidOrConflictingFingerings() {
         ]
     )
 
-    let targets = PianoDemonstrationHandTargetResolver().resolve(
+    let coverage = PianoDemonstrationHandTargetResolver().resolve(
         highlightGuide: guide,
         keyboardGeometry: makeGeometry(notes: [60, 62, 64])
     )
 
-    #expect(targets.targets.map(\.occurrenceID) == ["invalid", "first"])
-    #expect(targets.targets.map(\.finger) == [.index, .thumb])
+    #expect(coverage.coveredTargets.map(\.occurrenceID) == ["invalid", "first"])
+    #expect(coverage.coveredTargets.map(\.finger) == [.index, .thumb])
+    #expect(coverage.uncoveredKeys.map(\.occurrenceID) == ["conflict"])
+    #expect(coverage.uncoveredKeys.map(\.reason) == [.fingeringConflict])
 }
 
 @Test
-func resolverReturnsEmptyWithoutGuideOrGeometry() {
+func resolverReportsMissingGeometryAndReturnsEmptyWithoutGuide() {
     let resolver = PianoDemonstrationHandTargetResolver()
 
-    #expect(resolver.resolve(highlightGuide: nil, keyboardGeometry: makeGeometry(notes: [60])) == .empty)
-    #expect(resolver.resolve(highlightGuide: makeGuide(triggered: []), keyboardGeometry: nil) == .empty)
+    #expect(
+        resolver.resolve(highlightGuide: nil, keyboardGeometry: makeGeometry(notes: [60]))
+            == PianoDemonstrationHandCoverage()
+    )
+
+    let missingGeometry = resolver.resolve(
+        highlightGuide: makeGuide(triggered: [makeNote(id: "missing", midiNote: 60, hand: .right)]),
+        keyboardGeometry: nil
+    )
+    #expect(missingGeometry.coveredTargets.isEmpty)
+    #expect(missingGeometry.uncoveredKeys.map(\.occurrenceID) == ["missing"])
+    #expect(missingGeometry.uncoveredKeys.map(\.reason) == [.missingGeometry])
 }
 
 private func makeGuide(

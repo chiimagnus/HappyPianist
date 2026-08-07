@@ -7,60 +7,99 @@ struct PianoDemonstrationHandTargetResolver {
     func resolve(
         highlightGuide: PianoHighlightGuide?,
         keyboardGeometry: PianoKeyboardGeometry?
-    ) -> PianoDemonstrationHandTargets {
-        guard let highlightGuide, let keyboardGeometry else {
-            return .empty
+    ) -> PianoDemonstrationHandCoverage {
+        guard let highlightGuide else {
+            return PianoDemonstrationHandCoverage()
+        }
+        guard let keyboardGeometry else {
+            return PianoDemonstrationHandCoverage(
+                guideID: highlightGuide.id,
+                uncoveredKeys: currentNotes(in: highlightGuide).map {
+                    uncoveredKey(for: $0.note, reason: .missingGeometry)
+                },
+                releasedMIDINotes: highlightGuide.releasedMIDINotes
+            )
         }
 
-        let candidates = currentCandidates(
+        let candidateResolution = currentCandidates(
             highlightGuide: highlightGuide,
             keyboardGeometry: keyboardGeometry
         )
-        var resolvedTargets: [PianoDemonstrationHandTarget] = []
+        var coveredTargets: [PianoDemonstrationHandTarget] = []
+        var uncoveredKeys = candidateResolution.uncoveredKeys
 
         for hand in PianoDemonstrationHand.allCases {
-            let handCandidates = candidates.filter { $0.hand == hand }
-            guard handCandidates.count <= PianoDemonstrationFinger.allCases.count,
-                  handSpanMeters(for: handCandidates) <= Self.maximumHandSpanMeters
-            else {
+            let handCandidates = candidateResolution.candidates.filter { $0.hand == hand }
+            if handCandidates.count > PianoDemonstrationFinger.allCases.count {
+                uncoveredKeys += handCandidates.map {
+                    uncoveredKey(for: $0.note, reason: .tooManyFingers)
+                }
                 continue
             }
-            resolvedTargets += targets(for: hand, candidates: handCandidates)
+            if handSpanMeters(for: handCandidates) > Self.maximumHandSpanMeters {
+                uncoveredKeys += handCandidates.map {
+                    uncoveredKey(for: $0.note, reason: .spanExceeded)
+                }
+                continue
+            }
+
+            let handResolution = targets(for: hand, candidates: handCandidates)
+            coveredTargets += handResolution.targets
+            uncoveredKeys += handResolution.uncoveredKeys
         }
 
-        return PianoDemonstrationHandTargets(
+        return PianoDemonstrationHandCoverage(
             guideID: highlightGuide.id,
-            targets: resolvedTargets.sorted { lhs, rhs in
+            coveredTargets: coveredTargets.sorted { lhs, rhs in
                 if lhs.hand != rhs.hand { return lhs.hand == .left }
                 if lhs.midiNote != rhs.midiNote { return lhs.midiNote < rhs.midiNote }
                 return lhs.occurrenceID < rhs.occurrenceID
+            },
+            uncoveredKeys: uncoveredKeys.sorted { lhs, rhs in
+                if lhs.midiNote != rhs.midiNote { return lhs.midiNote < rhs.midiNote }
+                if lhs.occurrenceID != rhs.occurrenceID { return lhs.occurrenceID < rhs.occurrenceID }
+                return lhs.reason.rawValue < rhs.reason.rawValue
             },
             releasedMIDINotes: highlightGuide.releasedMIDINotes
         )
     }
 
+    private func currentNotes(in highlightGuide: PianoHighlightGuide) -> [NoteState] {
+        var noteByOccurrenceID: [String: NoteState] = [:]
+
+        for note in highlightGuide.activeNotes {
+            noteByOccurrenceID[note.occurrenceID] = NoteState(note: note, phase: .held)
+        }
+        for note in highlightGuide.triggeredNotes {
+            noteByOccurrenceID[note.occurrenceID] = NoteState(note: note, phase: .triggered)
+        }
+
+        return noteByOccurrenceID.values.sorted { lhs, rhs in
+            if lhs.note.midiNote != rhs.note.midiNote {
+                return lhs.note.midiNote < rhs.note.midiNote
+            }
+            return lhs.note.occurrenceID < rhs.note.occurrenceID
+        }
+    }
+
     private func currentCandidates(
         highlightGuide: PianoHighlightGuide,
         keyboardGeometry: PianoKeyboardGeometry
-    ) -> [Candidate] {
-        var noteByOccurrenceID: [String: (note: PianoHighlightNote, phase: PianoDemonstrationTouchPhase)] = [:]
+    ) -> CandidateResolution {
+        var candidates: [Candidate] = []
+        var uncoveredKeys: [PianoDemonstrationHandCoverage.UncoveredKey] = []
 
-        for note in highlightGuide.activeNotes {
-            noteByOccurrenceID[note.occurrenceID] = (note, .held)
-        }
-        for note in highlightGuide.triggeredNotes {
-            noteByOccurrenceID[note.occurrenceID] = (note, .triggered)
-        }
-
-        return noteByOccurrenceID.values.compactMap { item in
+        for item in currentNotes(in: highlightGuide) {
             guard let hand = demonstrationHand(for: item.note) else {
-                return nil
+                uncoveredKeys.append(uncoveredKey(for: item.note, reason: .unknownHand))
+                continue
             }
             guard let key = keyboardGeometry.key(for: item.note.midiNote) else {
-                return nil
+                uncoveredKeys.append(uncoveredKey(for: item.note, reason: .missingGeometry))
+                continue
             }
 
-            return Candidate(
+            candidates.append(Candidate(
                 note: item.note,
                 hand: hand,
                 phase: item.phase,
@@ -69,8 +108,10 @@ struct PianoDemonstrationHandTargetResolver {
                     key.surfaceLocalY,
                     key.localCenter.z
                 )
-            )
+            ))
         }
+
+        return CandidateResolution(candidates: candidates, uncoveredKeys: uncoveredKeys)
     }
 
     private func demonstrationHand(for note: PianoHighlightNote) -> PianoDemonstrationHand? {
@@ -92,7 +133,7 @@ struct PianoDemonstrationHandTargetResolver {
     private func targets(
         for hand: PianoDemonstrationHand,
         candidates: [Candidate]
-    ) -> [PianoDemonstrationHandTarget] {
+    ) -> HandResolution {
         let sortedCandidates = candidates.sorted { lhs, rhs in
             if lhs.note.midiNote != rhs.note.midiNote { return lhs.note.midiNote < rhs.note.midiNote }
             return lhs.note.occurrenceID < rhs.note.occurrenceID
@@ -101,26 +142,33 @@ struct PianoDemonstrationHandTargetResolver {
             ? PianoDemonstrationFinger.allCases
             : Array(PianoDemonstrationFinger.allCases.reversed())
         var usedFingers = Set<PianoDemonstrationFinger>()
-        var targets: [PianoDemonstrationHandTarget] = []
+        var resolvedTargets: [PianoDemonstrationHandTarget] = []
+        var uncoveredKeys: [PianoDemonstrationHandCoverage.UncoveredKey] = []
 
         for candidate in sortedCandidates {
             guard let finger = explicitFinger(for: candidate.note, hand: hand) else { continue }
-            guard usedFingers.insert(finger).inserted else { continue }
-            targets.append(target(for: candidate, finger: finger))
+            guard usedFingers.insert(finger).inserted else {
+                uncoveredKeys.append(uncoveredKey(for: candidate.note, reason: .fingeringConflict))
+                continue
+            }
+            resolvedTargets.append(target(for: candidate, finger: finger))
         }
 
-        for (index, candidate) in sortedCandidates.enumerated() where explicitFinger(for: candidate.note, hand: hand) == nil {
+        for (index, candidate) in sortedCandidates.enumerated()
+            where explicitFinger(for: candidate.note, hand: hand) == nil
+        {
             guard let finger = nearestUnusedFinger(
                 to: fingerOrder[min(index, fingerOrder.count - 1)],
                 usedFingers: usedFingers
             ) else {
+                uncoveredKeys.append(uncoveredKey(for: candidate.note, reason: .fingeringConflict))
                 continue
             }
             usedFingers.insert(finger)
-            targets.append(target(for: candidate, finger: finger))
+            resolvedTargets.append(target(for: candidate, finger: finger))
         }
 
-        return targets
+        return HandResolution(targets: resolvedTargets, uncoveredKeys: uncoveredKeys)
     }
 
     private func handSpanMeters(for candidates: [Candidate]) -> Float {
@@ -183,6 +231,17 @@ struct PianoDemonstrationHandTargetResolver {
             velocity: candidate.note.velocity
         )
     }
+
+    private func uncoveredKey(
+        for note: PianoHighlightNote,
+        reason: PianoDemonstrationHandCoverage.Reason
+    ) -> PianoDemonstrationHandCoverage.UncoveredKey {
+        PianoDemonstrationHandCoverage.UncoveredKey(
+            midiNote: note.midiNote,
+            occurrenceID: note.occurrenceID,
+            reason: reason
+        )
+    }
 }
 
 private extension PianoDemonstrationHand {
@@ -198,9 +257,24 @@ private extension PianoDemonstrationHand {
     }
 }
 
+private struct NoteState {
+    let note: PianoHighlightNote
+    let phase: PianoDemonstrationTouchPhase
+}
+
 private struct Candidate {
     let note: PianoHighlightNote
     let hand: PianoDemonstrationHand
     let phase: PianoDemonstrationTouchPhase
     let contactPositionLocal: SIMD3<Float>
+}
+
+private struct CandidateResolution {
+    let candidates: [Candidate]
+    let uncoveredKeys: [PianoDemonstrationHandCoverage.UncoveredKey]
+}
+
+private struct HandResolution {
+    let targets: [PianoDemonstrationHandTarget]
+    let uncoveredKeys: [PianoDemonstrationHandCoverage.UncoveredKey]
 }

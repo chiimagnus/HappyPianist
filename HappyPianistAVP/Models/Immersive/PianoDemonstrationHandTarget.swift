@@ -31,25 +31,3 @@ struct PianoDemonstrationHandTarget: Equatable, Identifiable {
     let contactPositionLocal: SIMD3<Float>
     let velocity: UInt8
 }
-
-struct PianoDemonstrationHandTargets: Equatable {
-    static let empty = PianoDemonstrationHandTargets()
-
-    let guideID: Int?
-    let targets: [PianoDemonstrationHandTarget]
-    let releasedMIDINotes: Set<Int>
-
-    init(
-        guideID: Int? = nil,
-        targets: [PianoDemonstrationHandTarget] = [],
-        releasedMIDINotes: Set<Int> = []
-    ) {
-        self.guideID = guideID
-        self.targets = targets
-        self.releasedMIDINotes = releasedMIDINotes
-    }
-
-    func targets(for hand: PianoDemonstrationHand) -> [PianoDemonstrationHandTarget] {
-        targets.filter { $0.hand == hand }
-    }
-}

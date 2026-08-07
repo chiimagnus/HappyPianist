@@ -12,7 +12,7 @@ final class PianoDemonstrationHandsOverlayController {
     private let poseResolver = PianoDemonstrationHandPoseResolver()
     private let strikeTimeline = PianoDemonstrationStrikeTimeline()
     private var rigs: [PianoDemonstrationHand: PianoDemonstrationHandRig]
-    private var lastTargets = PianoDemonstrationHandTargets.empty
+    private var lastCoverage = PianoDemonstrationHandCoverage()
     private var activeMIDINotesByHand: [PianoDemonstrationHand: Set<Int>] = [:]
     private var loadTask: Task<Void, Never>?
     private var strokeTask: Task<Void, Never>?
@@ -56,16 +56,16 @@ final class PianoDemonstrationHandsOverlayController {
         }
         rootEntity.transform = Transform(matrix: keyboardGeometry.frame.worldFromKeyboard)
 
-        let targets = targetResolver.resolve(
+        let coverage = targetResolver.resolve(
             highlightGuide: highlightGuide,
             keyboardGeometry: keyboardGeometry
         )
         let didEnableReduceMotion = reduceMotion && reduceMotionEnabled == false
         reduceMotionEnabled = reduceMotion
-        guard targets != lastTargets || didEnableReduceMotion else { return }
-        lastTargets = targets
+        guard coverage != lastCoverage || didEnableReduceMotion else { return }
+        lastCoverage = coverage
 
-        if targets.targets.isEmpty {
+        if coverage.coveredTargets.isEmpty {
             stopStroke(resetTriggerIDs: true)
             applyCurrentTargets(strikeProgress: 1)
             return
@@ -78,7 +78,7 @@ final class PianoDemonstrationHandsOverlayController {
         }
 
         let triggeredOccurrenceIDs = Set(
-            targets.targets.lazy
+            coverage.coveredTargets.lazy
                 .filter { $0.phase == .triggered }
                 .map(\.occurrenceID)
         )
@@ -86,7 +86,7 @@ final class PianoDemonstrationHandsOverlayController {
            triggeredOccurrenceIDs != activeStrikeOccurrenceIDs
         {
             activeStrikeOccurrenceIDs = triggeredOccurrenceIDs
-            startStroke(velocity: targets.targets.map(\.velocity).max() ?? 64)
+            startStroke(velocity: coverage.coveredTargets.map(\.velocity).max() ?? 64)
         } else {
             applyCurrentTargets(strikeProgress: currentStrikeProgress)
         }
@@ -102,7 +102,7 @@ final class PianoDemonstrationHandsOverlayController {
         }
         rigs.removeAll()
         activeMIDINotesByHand.removeAll()
-        lastTargets = .empty
+        lastCoverage = PianoDemonstrationHandCoverage()
         reduceMotionEnabled = false
         rootEntity.children.removeAll(preservingWorldTransforms: false)
         rootEntity.removeFromParent()
@@ -182,7 +182,7 @@ final class PianoDemonstrationHandsOverlayController {
         hand selectedHand: PianoDemonstrationHand? = nil
     ) {
         for hand in PianoDemonstrationHand.allCases where selectedHand == nil || selectedHand == hand {
-            let targetsForHand = lastTargets.targets(for: hand)
+            let targetsForHand = lastCoverage.coveredTargets(for: hand)
             let handStrikeProgress = targetsForHand.contains {
                 $0.phase == .triggered && activeStrikeOccurrenceIDs.contains($0.occurrenceID)
             } ? strikeProgress : 1
@@ -193,7 +193,7 @@ final class PianoDemonstrationHandsOverlayController {
             ) {
                 rigs[hand]?.apply(pose: pose)
                 activeMIDINotesByHand[hand] = Set(targetsForHand.map(\.midiNote))
-            } else if shouldLift(hand: hand, releasedMIDINotes: lastTargets.releasedMIDINotes) {
+            } else if shouldLift(hand: hand, releasedMIDINotes: lastCoverage.releasedMIDINotes) {
                 rigs[hand]?.lift(animated: reduceMotionEnabled == false)
                 activeMIDINotesByHand[hand] = []
             } else {
@@ -225,7 +225,7 @@ final class PianoDemonstrationHandsOverlayController {
             rig.hide()
         }
         activeMIDINotesByHand.removeAll()
-        lastTargets = .empty
+        lastCoverage = PianoDemonstrationHandCoverage()
         currentStrikeProgress = 1
         reduceMotionEnabled = false
         rootEntity.removeFromParent()
