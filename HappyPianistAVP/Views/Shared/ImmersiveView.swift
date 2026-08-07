@@ -105,15 +105,15 @@ struct ImmersiveView: View {
             reduceMotion: reduceMotion,
             content: content
         )
-        pianoDemonstrationHandsOverlayController?.update(
+        let suppressedMIDINotes = pianoDemonstrationHandsOverlayController?.update(
             isEnabled: shouldShowPianoDemonstrationHands,
             highlightGuide: session.currentPianoHighlightGuide,
             keyboardGeometry: keyboardGeometry,
             reduceMotion: reduceMotion,
             content: content
-        )
+        ) ?? []
         overlayController.updateHighlights(
-            isEnabled: shouldShowPianoDemonstrationHands == false,
+            suppressedMIDINotes: suppressedMIDINotes,
             highlightGuide: session.currentPianoHighlightGuide,
             keyboardGeometry: keyboardGeometry,
             differentiateWithoutColor: differentiateWithoutColor,

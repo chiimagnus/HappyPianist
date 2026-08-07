@@ -124,7 +124,7 @@ PianoHighlightGuide + PianoKeyboardGeometry
 ```
 
 - `pianoDemonstrationHandsEnabled` 默认 `false`，只保存展示偏好；设置页的开关即时改变沉浸空间，绝不写入 round configuration、progress 或 session JSON。
-- 开启时示范手和 `PianoGuideOverlayController` 的键面贴片严格二选一；二维 `PianoKeyboard88View` 继续从同一个 guide 渲染高亮。
+- 开启时按音符混合示范手与 `PianoGuideOverlayController` 键面贴片：只有已经成功提交给 21 关节 rig 的音符会短暂抑制对应贴片；未知手别、指法冲突、超出跨度、缺少几何或尚未加载资产的音符继续显示贴片。二维 `PianoKeyboard88View` 继续从同一个 guide 渲染高亮。
 - 示范手优先采用 guide 的明确左右手事实；未分配时仅在此渲染层按第 1/2 谱表临时显示右/左手，绝不回写曲谱、plan 或手部分配。
 - controller 只消费当前 guide 与已经标定的键盘坐标：不读 ARKit、不挂 `InputTargetComponent`/碰撞、不产生 observation。两手从 RealityKitContent 异步加载 Blender 生成的骨骼资产，渲染期只旋转既有 21 关节并移动整手 root，始终保留绑定姿态的局部平移与骨长；reset 会取消资产加载和击键动作并移除所有子实体，不回退到旧基础体手型。
 - Reduce Motion 直接显示终态。Simulator 使用现有虚拟钢琴的 geometry 与 guide，所以能预览此渲染；真机仍需人工检查坐姿舒适度、键面接触、遮挡和视觉比例。

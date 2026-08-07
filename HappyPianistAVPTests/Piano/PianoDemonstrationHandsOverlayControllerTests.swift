@@ -3,6 +3,7 @@ import MusicXML
 import Practice
 import RealityKit
 import simd
+import Synchronization
 import Testing
 
 @MainActor
@@ -66,6 +67,60 @@ struct PianoDemonstrationHandsOverlayControllerTests {
             content: nil
         )
         #expect(rightHand.isEnabled == false)
+    }
+
+    @Test func suppressionResidencePreventsSingleFrameGuideFlicker() async throws {
+        let now = Mutex(PerformanceMonotonicInstant(seconds: 1))
+        let controller = try await PianoDemonstrationHandsOverlayController(
+            preloadedRigs: makeRigs(),
+            performanceClock: PerformanceClock {
+                now.withLock { $0 }
+            },
+            suppressionMinimumResidence: 0.12
+        )
+        let geometry = makeGeometry()
+        let triggered = makeGuide(
+            id: 1,
+            kind: .trigger,
+            active: [],
+            triggered: [makeNote(id: "right", midiNote: 60, hand: .right)],
+            released: []
+        )
+
+        let triggeredSuppression = controller.update(
+            isEnabled: true,
+            highlightGuide: triggered,
+            keyboardGeometry: geometry,
+            reduceMotion: true,
+            content: nil
+        )
+        #expect(triggeredSuppression == [60])
+
+        let release = makeGuide(
+            id: 2,
+            kind: .release,
+            active: [],
+            triggered: [],
+            released: [60]
+        )
+        let releaseSuppression = controller.update(
+            isEnabled: true,
+            highlightGuide: release,
+            keyboardGeometry: geometry,
+            reduceMotion: true,
+            content: nil
+        )
+        #expect(releaseSuppression == [60])
+
+        now.withLock { $0 = PerformanceMonotonicInstant(seconds: 1.13) }
+        let expiredSuppression = controller.update(
+            isEnabled: true,
+            highlightGuide: release,
+            keyboardGeometry: geometry,
+            reduceMotion: true,
+            content: nil
+        )
+        #expect(expiredSuppression.isEmpty)
     }
 
     @Test func resetRemovesRetainedHandEntities() async throws {

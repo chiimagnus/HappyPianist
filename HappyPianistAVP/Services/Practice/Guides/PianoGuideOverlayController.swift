@@ -30,7 +30,7 @@ final class PianoGuideOverlayController {
     }
 
     func updateHighlights(
-        isEnabled: Bool,
+        suppressedMIDINotes: Set<Int>,
         highlightGuide: PianoHighlightGuide?,
         keyboardGeometry: PianoKeyboardGeometry?,
         differentiateWithoutColor: Bool,
@@ -44,11 +44,6 @@ final class PianoGuideOverlayController {
             keyboardRootEntity.transform = Transform(matrix: keyboardGeometry.frame.worldFromKeyboard)
         }
 
-        guard isEnabled else {
-            clearBeams()
-            return
-        }
-
         startDecalTextureLoadIfNeeded()
 
         guard let keyboardGeometry else {
@@ -59,7 +54,7 @@ final class PianoGuideOverlayController {
         let descriptors = PianoGuideBeamDescriptor.makeDescriptors(
             highlightGuide: highlightGuide,
             keyboardGeometry: keyboardGeometry
-        )
+        ).filter { suppressedMIDINotes.contains($0.midiNote) == false }
         guard descriptors.isEmpty == false else {
             clearBeams()
             return

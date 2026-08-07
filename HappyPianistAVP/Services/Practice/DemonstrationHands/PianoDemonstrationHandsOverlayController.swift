@@ -8,12 +8,15 @@ import SwiftUI
 final class PianoDemonstrationHandsOverlayController {
     private let rootEntity: Entity
     private let diagnosticsReporter: (any DiagnosticsReporting)?
+    private let performanceClock: PerformanceClock
+    private let suppressionMinimumResidence: TimeInterval
     private let targetResolver = PianoDemonstrationHandTargetResolver()
     private let poseResolver = PianoDemonstrationHandPoseResolver()
     private let strikeTimeline = PianoDemonstrationStrikeTimeline()
     private var rigs: [PianoDemonstrationHand: PianoDemonstrationHandRig]
     private var lastCoverage = PianoDemonstrationHandCoverage()
     private var activeMIDINotesByHand: [PianoDemonstrationHand: Set<Int>] = [:]
+    private var suppressionExpiryByMIDINote: [Int: PerformanceMonotonicInstant] = [:]
     private var loadTask: Task<Void, Never>?
     private var strokeTask: Task<Void, Never>?
     private var strokeGeneration = 0
@@ -26,10 +29,14 @@ final class PianoDemonstrationHandsOverlayController {
     init(
         rootEntity: Entity = Entity(),
         diagnosticsReporter: (any DiagnosticsReporting)? = nil,
-        preloadedRigs: [PianoDemonstrationHand: PianoDemonstrationHandRig]? = nil
+        preloadedRigs: [PianoDemonstrationHand: PianoDemonstrationHandRig]? = nil,
+        performanceClock: PerformanceClock = .live(),
+        suppressionMinimumResidence: TimeInterval = 0.12
     ) {
         self.rootEntity = rootEntity
         self.diagnosticsReporter = diagnosticsReporter
+        self.performanceClock = performanceClock
+        self.suppressionMinimumResidence = max(0, suppressionMinimumResidence)
         rigs = preloadedRigs ?? [:]
         for (hand, rig) in rigs {
             install(rig: rig, for: hand)
@@ -39,16 +46,17 @@ final class PianoDemonstrationHandsOverlayController {
         }
     }
 
+    @discardableResult
     func update(
         isEnabled: Bool,
         highlightGuide: PianoHighlightGuide?,
         keyboardGeometry: PianoKeyboardGeometry?,
         reduceMotion: Bool,
         content: RealityViewContent?
-    ) {
+    ) -> Set<Int> {
         guard requiresReplacement == false, isEnabled, let keyboardGeometry else {
             hide()
-            return
+            return []
         }
 
         if let content {
@@ -62,19 +70,21 @@ final class PianoDemonstrationHandsOverlayController {
         )
         let didEnableReduceMotion = reduceMotion && reduceMotionEnabled == false
         reduceMotionEnabled = reduceMotion
-        guard coverage != lastCoverage || didEnableReduceMotion else { return }
+        guard coverage != lastCoverage || didEnableReduceMotion else {
+            return currentSuppressedMIDINotes()
+        }
         lastCoverage = coverage
 
         if coverage.coveredTargets.isEmpty {
             stopStroke(resetTriggerIDs: true)
             applyCurrentTargets(strikeProgress: 1)
-            return
+            return currentSuppressedMIDINotes()
         }
         if reduceMotion {
             stopStroke(resetTriggerIDs: false)
             currentStrikeProgress = 1
             applyCurrentTargets(strikeProgress: 1)
-            return
+            return currentSuppressedMIDINotes()
         }
 
         let triggeredOccurrenceIDs = Set(
@@ -90,6 +100,7 @@ final class PianoDemonstrationHandsOverlayController {
         } else {
             applyCurrentTargets(strikeProgress: currentStrikeProgress)
         }
+        return currentSuppressedMIDINotes()
     }
 
     func reset() {
@@ -102,6 +113,7 @@ final class PianoDemonstrationHandsOverlayController {
         }
         rigs.removeAll()
         activeMIDINotesByHand.removeAll()
+        suppressionExpiryByMIDINote.removeAll()
         lastCoverage = PianoDemonstrationHandCoverage()
         reduceMotionEnabled = false
         rootEntity.children.removeAll(preservingWorldTransforms: false)
@@ -190,8 +202,8 @@ final class PianoDemonstrationHandsOverlayController {
                 hand: hand,
                 targets: targetsForHand,
                 strikeProgress: handStrikeProgress
-            ) {
-                rigs[hand]?.apply(pose: pose)
+            ), let rig = rigs[hand] {
+                rig.apply(pose: pose)
                 activeMIDINotesByHand[hand] = Set(targetsForHand.map(\.midiNote))
             } else if shouldLift(hand: hand, releasedMIDINotes: lastCoverage.releasedMIDINotes) {
                 rigs[hand]?.lift(animated: reduceMotionEnabled == false)
@@ -201,6 +213,23 @@ final class PianoDemonstrationHandsOverlayController {
                 activeMIDINotesByHand[hand] = []
             }
         }
+    }
+
+    private func currentSuppressedMIDINotes() -> Set<Int> {
+        let now = performanceClock.now()
+        let activeMIDINotes = activeMIDINotesByHand.values.reduce(into: Set<Int>()) {
+            $0.formUnion($1)
+        }
+        for midiNote in activeMIDINotes {
+            suppressionExpiryByMIDINote[midiNote] = now.advanced(by: suppressionMinimumResidence)
+        }
+        let expiredMIDINotes = suppressionExpiryByMIDINote.compactMap { midiNote, expiry in
+            activeMIDINotes.contains(midiNote) == false && expiry <= now ? midiNote : nil
+        }
+        for midiNote in expiredMIDINotes {
+            suppressionExpiryByMIDINote[midiNote] = nil
+        }
+        return Set(suppressionExpiryByMIDINote.keys)
     }
 
     private func attachRootIfNeeded(to content: RealityViewContent) {
@@ -225,6 +254,7 @@ final class PianoDemonstrationHandsOverlayController {
             rig.hide()
         }
         activeMIDINotesByHand.removeAll()
+        suppressionExpiryByMIDINote.removeAll()
         lastCoverage = PianoDemonstrationHandCoverage()
         currentStrikeProgress = 1
         reduceMotionEnabled = false
