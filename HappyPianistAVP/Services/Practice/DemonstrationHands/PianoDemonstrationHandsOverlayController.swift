@@ -8,12 +8,14 @@ import SwiftUI
 final class PianoDemonstrationHandsOverlayController {
     private let rootEntity: Entity
     private let diagnosticsReporter: (any DiagnosticsReporting)?
+    private let rigLoader: any PianoDemonstrationHandRigLoading
     private let performanceClock: PerformanceClock
     private let suppressionMinimumResidence: TimeInterval
     private let targetResolver = PianoDemonstrationHandTargetResolver()
     private let poseResolver = PianoDemonstrationHandPoseResolver()
     private let strikeTimeline = PianoDemonstrationStrikeTimeline()
     private var rigs: [PianoDemonstrationHand: PianoDemonstrationHandRig]
+    private var lastResolvedCoverage = PianoDemonstrationHandCoverage()
     private var lastCoverage = PianoDemonstrationHandCoverage()
     private var activeMIDINotesByHand: [PianoDemonstrationHand: Set<Int>] = [:]
     private var suppressionExpiryByMIDINote: [Int: PerformanceMonotonicInstant] = [:]
@@ -30,11 +32,13 @@ final class PianoDemonstrationHandsOverlayController {
         rootEntity: Entity = Entity(),
         diagnosticsReporter: (any DiagnosticsReporting)? = nil,
         preloadedRigs: [PianoDemonstrationHand: PianoDemonstrationHandRig]? = nil,
+        rigLoader: any PianoDemonstrationHandRigLoading = PackagedPianoDemonstrationHandRigLoader(),
         performanceClock: PerformanceClock = .live(),
         suppressionMinimumResidence: TimeInterval = 0.12
     ) {
         self.rootEntity = rootEntity
         self.diagnosticsReporter = diagnosticsReporter
+        self.rigLoader = rigLoader
         self.performanceClock = performanceClock
         self.suppressionMinimumResidence = max(0, suppressionMinimumResidence)
         rigs = preloadedRigs ?? [:]
@@ -64,10 +68,12 @@ final class PianoDemonstrationHandsOverlayController {
         }
         rootEntity.transform = Transform(matrix: keyboardGeometry.frame.worldFromKeyboard)
 
-        let coverage = targetResolver.resolve(
+        let resolvedCoverage = targetResolver.resolve(
             highlightGuide: highlightGuide,
             keyboardGeometry: keyboardGeometry
         )
+        lastResolvedCoverage = resolvedCoverage
+        let coverage = resolvedCoverage.limitedToAvailableHands(Set(rigs.keys))
         let didEnableReduceMotion = reduceMotion && reduceMotionEnabled == false
         reduceMotionEnabled = reduceMotion
         guard coverage != lastCoverage || didEnableReduceMotion else {
@@ -114,6 +120,7 @@ final class PianoDemonstrationHandsOverlayController {
         rigs.removeAll()
         activeMIDINotesByHand.removeAll()
         suppressionExpiryByMIDINote.removeAll()
+        lastResolvedCoverage = PianoDemonstrationHandCoverage()
         lastCoverage = PianoDemonstrationHandCoverage()
         reduceMotionEnabled = false
         rootEntity.children.removeAll(preservingWorldTransforms: false)
@@ -129,20 +136,22 @@ final class PianoDemonstrationHandsOverlayController {
             for hand in PianoDemonstrationHand.allCases {
                 guard Task.isCancelled == false else { return }
                 do {
-                    let rig = try await PianoDemonstrationHandRig.load(hand: hand)
+                    let rig = try await rigLoader.load(hand: hand)
                     guard Task.isCancelled == false, requiresReplacement == false else { return }
                     install(rig: rig, for: hand)
+                    lastCoverage = lastResolvedCoverage.limitedToAvailableHands(Set(rigs.keys))
                     applyCurrentTargets(strikeProgress: currentStrikeProgress, hand: hand)
                 } catch is CancellationError {
                     return
                 } catch {
                     guard Task.isCancelled == false else { return }
+                    lastCoverage = lastResolvedCoverage.limitedToAvailableHands(Set(rigs.keys))
                     diagnosticsReporter?.recordSystem(
                         severity: .error,
                         category: .immersiveSpace,
                         stage: "pianoDemonstrationHands.loadAsset",
                         summary: "演示手资源加载失败",
-                        reason: "hand=\(hand), error=\(String(describing: type(of: error)))"
+                        reason: "hand=\(hand), reason=assetUnavailable, error=\(String(describing: type(of: error)))"
                     )
                 }
             }
@@ -255,6 +264,7 @@ final class PianoDemonstrationHandsOverlayController {
         }
         activeMIDINotesByHand.removeAll()
         suppressionExpiryByMIDINote.removeAll()
+        lastResolvedCoverage = PianoDemonstrationHandCoverage()
         lastCoverage = PianoDemonstrationHandCoverage()
         currentStrikeProgress = 1
         reduceMotionEnabled = false

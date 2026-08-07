@@ -6,7 +6,7 @@ import Testing
 @MainActor
 @Test
 func handRigLoadsPackaged21JointAssetAndAppliesPose() async throws {
-    let rig = try await PianoDemonstrationHandRig.load(hand: .right)
+    let rig = try await PackagedPianoDemonstrationHandRigLoader().load(hand: .right)
     let pose = try #require(PianoDemonstrationHandPoseResolver().resolve(
         hand: .right,
         targets: [

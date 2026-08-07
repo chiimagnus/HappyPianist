@@ -10,6 +10,18 @@ enum PianoDemonstrationHandRigError: Error {
 }
 
 @MainActor
+protocol PianoDemonstrationHandRigLoading {
+    func load(hand: PianoDemonstrationHand) async throws -> PianoDemonstrationHandRig
+}
+
+@MainActor
+struct PackagedPianoDemonstrationHandRigLoader: PianoDemonstrationHandRigLoading {
+    func load(hand: PianoDemonstrationHand) async throws -> PianoDemonstrationHandRig {
+        try await PianoDemonstrationHandRig.load(hand: hand)
+    }
+}
+
+@MainActor
 final class PianoDemonstrationHandRig {
     let rootEntity: Entity
 

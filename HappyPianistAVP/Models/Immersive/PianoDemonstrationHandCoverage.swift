@@ -15,6 +15,7 @@ struct PianoDemonstrationHandCoverage: Equatable {
         case tooManyFingers
         case spanExceeded
         case missingGeometry
+        case assetUnavailable
     }
 
     let guideID: Int?
@@ -37,4 +38,28 @@ struct PianoDemonstrationHandCoverage: Equatable {
     func coveredTargets(for hand: PianoDemonstrationHand) -> [PianoDemonstrationHandTarget] {
         coveredTargets.filter { $0.hand == hand }
     }
+
+    func limitedToAvailableHands(
+        _ availableHands: Set<PianoDemonstrationHand>
+    ) -> PianoDemonstrationHandCoverage {
+        let unavailableTargets = coveredTargets.filter { availableHands.contains($0.hand) == false }
+        let assetFailures = unavailableTargets.map {
+            UncoveredKey(
+                midiNote: $0.midiNote,
+                occurrenceID: $0.occurrenceID,
+                reason: .assetUnavailable
+            )
+        }
+        return PianoDemonstrationHandCoverage(
+            guideID: guideID,
+            coveredTargets: coveredTargets.filter { availableHands.contains($0.hand) },
+            uncoveredKeys: (uncoveredKeys + assetFailures).sorted { lhs, rhs in
+                if lhs.midiNote != rhs.midiNote { return lhs.midiNote < rhs.midiNote }
+                if lhs.occurrenceID != rhs.occurrenceID { return lhs.occurrenceID < rhs.occurrenceID }
+                return lhs.reason.rawValue < rhs.reason.rawValue
+            },
+            releasedMIDINotes: releasedMIDINotes
+        )
+    }
 }
+
