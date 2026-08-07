@@ -70,6 +70,84 @@ struct PianoDemonstrationHandsOverlayControllerTests {
         #expect(rightHand.isEnabled == false)
     }
 
+    @Test func rightHandTriggerDoesNotResetAnOverlappingLeftStroke() async throws {
+        let root = Entity()
+        let controller = try await PianoDemonstrationHandsOverlayController(
+            rootEntity: root,
+            preloadedRigs: makeRigs()
+        )
+        let geometry = makeGeometry(notes: [48, 60])
+        let leftNote = makeNote(id: "left", midiNote: 48, hand: .left, velocity: 96)
+
+        controller.update(
+            isEnabled: true,
+            highlightGuide: makeGuide(
+                id: 1,
+                kind: .trigger,
+                active: [],
+                triggered: [leftNote],
+                released: []
+            ),
+            keyboardGeometry: geometry,
+            reduceMotion: false,
+            content: nil
+        )
+        try await Task.sleep(for: .milliseconds(160))
+        let leftHand = try #require(root.findEntity(named: "pianoDemonstrationHand.left"))
+        let leftPositionBeforeRightTrigger = leftHand.position
+
+        controller.update(
+            isEnabled: true,
+            highlightGuide: makeGuide(
+                id: 2,
+                kind: .trigger,
+                active: [],
+                triggered: [
+                    leftNote,
+                    makeNote(id: "right", midiNote: 60, hand: .right, velocity: 96),
+                ],
+                released: []
+            ),
+            keyboardGeometry: geometry,
+            reduceMotion: false,
+            content: nil
+        )
+
+        #expect(simd_distance(leftHand.position, leftPositionBeforeRightTrigger) < 0.001)
+        controller.reset()
+    }
+
+    @Test func handsUseTheirOwnStrikeVelocity() async throws {
+        let root = Entity()
+        let controller = try await PianoDemonstrationHandsOverlayController(
+            rootEntity: root,
+            preloadedRigs: makeRigs()
+        )
+
+        controller.update(
+            isEnabled: true,
+            highlightGuide: makeGuide(
+                id: 1,
+                kind: .trigger,
+                active: [],
+                triggered: [
+                    makeNote(id: "left", midiNote: 48, hand: .left, velocity: 120),
+                    makeNote(id: "right", midiNote: 60, hand: .right, velocity: 30),
+                ],
+                released: []
+            ),
+            keyboardGeometry: makeGeometry(notes: [48, 60]),
+            reduceMotion: false,
+            content: nil
+        )
+        try await Task.sleep(for: .milliseconds(160))
+
+        let leftHand = try #require(root.findEntity(named: "pianoDemonstrationHand.left"))
+        let rightHand = try #require(root.findEntity(named: "pianoDemonstrationHand.right"))
+        #expect(leftHand.position.y + 0.0005 < rightHand.position.y)
+        controller.reset()
+    }
+
     @Test func assetFailureFallsBackToGuideForOnlyTheUnavailableHand() async throws {
         let root = Entity()
         let diagnostics = InMemoryDiagnosticsReporter()
@@ -266,13 +344,18 @@ private func makeGuide(
     )
 }
 
-private func makeNote(id: String, midiNote: Int, hand: ScoreHand) -> PianoHighlightNote {
+private func makeNote(
+    id: String,
+    midiNote: Int,
+    hand: ScoreHand,
+    velocity: UInt8 = 96
+) -> PianoHighlightNote {
     PianoHighlightNote(
         occurrenceID: id,
         midiNote: midiNote,
         staff: hand == .left ? 2 : 1,
         voice: nil,
-        velocity: 96,
+        velocity: velocity,
         onTick: 0,
         offTick: 1,
         fingerings: [],

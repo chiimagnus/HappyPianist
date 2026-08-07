@@ -6,6 +6,14 @@ import SwiftUI
 
 @MainActor
 final class PianoDemonstrationHandsOverlayController {
+    private struct HandStrokeRuntime {
+        var task: Task<Void, Never>?
+        var generation = 0
+        var progress: Float = 1
+        var occurrenceIDs = Set<String>()
+        var velocity: UInt8 = 64
+    }
+
     private let rootEntity: Entity
     private let diagnosticsReporter: (any DiagnosticsReporting)?
     private let rigLoader: any PianoDemonstrationHandRigLoading
@@ -19,11 +27,8 @@ final class PianoDemonstrationHandsOverlayController {
     private var lastCoverage = PianoDemonstrationHandCoverage()
     private var activeMIDINotesByHand: [PianoDemonstrationHand: Set<Int>] = [:]
     private var suppressionExpiryByMIDINote: [Int: PerformanceMonotonicInstant] = [:]
+    private var strokeRuntimeByHand: [PianoDemonstrationHand: HandStrokeRuntime] = [:]
     private var loadTask: Task<Void, Never>?
-    private var strokeTask: Task<Void, Never>?
-    private var strokeGeneration = 0
-    private var activeStrikeOccurrenceIDs = Set<String>()
-    private var currentStrikeProgress: Float = 1
     private var hasAttachedRoot = false
     private var reduceMotionEnabled = false
     private(set) var requiresReplacement = false
@@ -82,29 +87,41 @@ final class PianoDemonstrationHandsOverlayController {
         lastCoverage = coverage
 
         if coverage.coveredTargets.isEmpty {
-            stopStroke(resetTriggerIDs: true)
-            applyCurrentTargets(strikeProgress: 1)
+            stopAllStrokes(resetTriggerIDs: true)
+            applyCurrentTargets()
             return currentSuppressedMIDINotes()
         }
         if reduceMotion {
-            stopStroke(resetTriggerIDs: false)
-            currentStrikeProgress = 1
-            applyCurrentTargets(strikeProgress: 1)
+            stopAllStrokes(resetTriggerIDs: false)
+            for hand in PianoDemonstrationHand.allCases {
+                var runtime = strokeRuntime(for: hand)
+                runtime.progress = 1
+                strokeRuntimeByHand[hand] = runtime
+            }
+            applyCurrentTargets()
             return currentSuppressedMIDINotes()
         }
 
-        let triggeredOccurrenceIDs = Set(
-            coverage.coveredTargets.lazy
-                .filter { $0.phase == .triggered }
-                .map(\.occurrenceID)
-        )
-        if triggeredOccurrenceIDs.isEmpty == false,
-           triggeredOccurrenceIDs != activeStrikeOccurrenceIDs
-        {
-            activeStrikeOccurrenceIDs = triggeredOccurrenceIDs
-            startStroke(velocity: coverage.coveredTargets.map(\.velocity).max() ?? 64)
-        } else {
-            applyCurrentTargets(strikeProgress: currentStrikeProgress)
+        for hand in PianoDemonstrationHand.allCases {
+            let targetsForHand = coverage.coveredTargets(for: hand)
+            guard targetsForHand.isEmpty == false else {
+                stopStroke(for: hand, resetTriggerIDs: true)
+                applyCurrentTargets(hand: hand)
+                continue
+            }
+
+            let triggeredOccurrenceIDs = Set(
+                targetsForHand.lazy
+                    .filter { $0.phase == .triggered }
+                    .map(\.occurrenceID)
+            )
+            if triggeredOccurrenceIDs.isEmpty == false,
+               triggeredOccurrenceIDs != strokeRuntime(for: hand).occurrenceIDs
+            {
+                startStroke(for: hand, targets: targetsForHand)
+            } else {
+                applyCurrentTargets(hand: hand)
+            }
         }
         return currentSuppressedMIDINotes()
     }
@@ -112,7 +129,8 @@ final class PianoDemonstrationHandsOverlayController {
     func reset() {
         loadTask?.cancel()
         loadTask = nil
-        stopStroke(resetTriggerIDs: true)
+        stopAllStrokes(resetTriggerIDs: true)
+        strokeRuntimeByHand.removeAll()
         rootEntity.stopAllAnimations()
         for rig in rigs.values {
             rig.hide()
@@ -140,7 +158,7 @@ final class PianoDemonstrationHandsOverlayController {
                     guard Task.isCancelled == false, requiresReplacement == false else { return }
                     install(rig: rig, for: hand)
                     lastCoverage = lastResolvedCoverage.limitedToAvailableHands(Set(rigs.keys))
-                    applyCurrentTargets(strikeProgress: currentStrikeProgress, hand: hand)
+                    applyCurrentTargets(hand: hand)
                 } catch is CancellationError {
                     return
                 } catch {
@@ -164,49 +182,92 @@ final class PianoDemonstrationHandsOverlayController {
         rigs[hand] = rig
     }
 
-    private func startStroke(velocity: UInt8) {
-        stopStroke(resetTriggerIDs: false)
-        strokeGeneration += 1
-        let generation = strokeGeneration
-        currentStrikeProgress = 0
-        applyCurrentTargets(strikeProgress: 0)
+    private func startStroke(
+        for hand: PianoDemonstrationHand,
+        targets: [PianoDemonstrationHandTarget]
+    ) {
+        stopStroke(for: hand, resetTriggerIDs: false)
+        var runtime = strokeRuntime(for: hand)
+        runtime.progress = 0
+        runtime.occurrenceIDs = Set(
+            targets.lazy
+                .filter { $0.phase == .triggered }
+                .map(\.occurrenceID)
+        )
+        runtime.velocity = targets.map(\.velocity).max() ?? 64
+        let generation = runtime.generation
+        strokeRuntimeByHand[hand] = runtime
+        applyCurrentTargets(hand: hand)
 
-        strokeTask = Task { @MainActor [weak self] in
+        let task = Task { @MainActor [weak self] in
             guard let self else { return }
             let startUptime = ProcessInfo.processInfo.systemUptime
             while Task.isCancelled == false {
+                guard var runtime = strokeRuntimeByHand[hand], runtime.generation == generation else {
+                    return
+                }
                 let elapsed = ProcessInfo.processInfo.systemUptime - startUptime
-                let sample = strikeTimeline.sample(elapsed: elapsed, velocity: velocity)
-                currentStrikeProgress = sample.contactProgress
-                applyCurrentTargets(strikeProgress: sample.contactProgress)
+                let sample = strikeTimeline.sample(elapsed: elapsed, velocity: runtime.velocity)
+                runtime.progress = sample.contactProgress
+                strokeRuntimeByHand[hand] = runtime
+                applyCurrentTargets(hand: hand)
                 if sample.isComplete { break }
                 try? await Task.sleep(for: .milliseconds(16))
             }
-            guard Task.isCancelled == false, strokeGeneration == generation else { return }
-            currentStrikeProgress = 1
-            applyCurrentTargets(strikeProgress: 1)
-            strokeTask = nil
+            guard Task.isCancelled == false,
+                  var runtime = strokeRuntimeByHand[hand],
+                  runtime.generation == generation
+            else {
+                return
+            }
+            runtime.progress = 1
+            runtime.task = nil
+            strokeRuntimeByHand[hand] = runtime
+            applyCurrentTargets(hand: hand)
         }
+
+        runtime = strokeRuntime(for: hand)
+        guard runtime.generation == generation else {
+            task.cancel()
+            return
+        }
+        runtime.task = task
+        strokeRuntimeByHand[hand] = runtime
     }
 
-    private func stopStroke(resetTriggerIDs: Bool) {
-        strokeGeneration += 1
-        strokeTask?.cancel()
-        strokeTask = nil
-        if resetTriggerIDs {
-            activeStrikeOccurrenceIDs.removeAll()
-        }
-    }
-
-    private func applyCurrentTargets(
-        strikeProgress: Float,
-        hand selectedHand: PianoDemonstrationHand? = nil
+    private func stopStroke(
+        for hand: PianoDemonstrationHand,
+        resetTriggerIDs: Bool
     ) {
+        var runtime = strokeRuntime(for: hand)
+        runtime.generation &+= 1
+        runtime.task?.cancel()
+        runtime.task = nil
+        if resetTriggerIDs {
+            runtime.progress = 1
+            runtime.occurrenceIDs.removeAll()
+            runtime.velocity = 64
+        }
+        strokeRuntimeByHand[hand] = runtime
+    }
+
+    private func stopAllStrokes(resetTriggerIDs: Bool) {
+        for hand in PianoDemonstrationHand.allCases {
+            stopStroke(for: hand, resetTriggerIDs: resetTriggerIDs)
+        }
+    }
+
+    private func strokeRuntime(for hand: PianoDemonstrationHand) -> HandStrokeRuntime {
+        strokeRuntimeByHand[hand] ?? HandStrokeRuntime()
+    }
+
+    private func applyCurrentTargets(hand selectedHand: PianoDemonstrationHand? = nil) {
         for hand in PianoDemonstrationHand.allCases where selectedHand == nil || selectedHand == hand {
             let targetsForHand = lastCoverage.coveredTargets(for: hand)
+            let runtime = strokeRuntime(for: hand)
             let handStrikeProgress = targetsForHand.contains {
-                $0.phase == .triggered && activeStrikeOccurrenceIDs.contains($0.occurrenceID)
-            } ? strikeProgress : 1
+                $0.phase == .triggered && runtime.occurrenceIDs.contains($0.occurrenceID)
+            } ? runtime.progress : 1
             if let pose = poseResolver.resolve(
                 hand: hand,
                 targets: targetsForHand,
@@ -258,7 +319,8 @@ final class PianoDemonstrationHandsOverlayController {
     }
 
     private func hide() {
-        stopStroke(resetTriggerIDs: true)
+        stopAllStrokes(resetTriggerIDs: true)
+        strokeRuntimeByHand.removeAll()
         for rig in rigs.values {
             rig.hide()
         }
@@ -266,7 +328,6 @@ final class PianoDemonstrationHandsOverlayController {
         suppressionExpiryByMIDINote.removeAll()
         lastResolvedCoverage = PianoDemonstrationHandCoverage()
         lastCoverage = PianoDemonstrationHandCoverage()
-        currentStrikeProgress = 1
         reduceMotionEnabled = false
         rootEntity.removeFromParent()
         hasAttachedRoot = false
