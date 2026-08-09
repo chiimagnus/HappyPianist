@@ -12,6 +12,7 @@ struct PianoDemonstrationTransportTiming: Equatable {
     let playbackPositionSeconds: TimeInterval
     let capturedAt: PerformanceMonotonicInstant
     let timeSchedule: AutoplayTimelineTimeSchedule
+    let contactTimeline: PianoKeyContactTimeline
     let guides: [PianoHighlightGuide]
 
     func playbackPosition(at instant: PerformanceMonotonicInstant) -> TimeInterval {

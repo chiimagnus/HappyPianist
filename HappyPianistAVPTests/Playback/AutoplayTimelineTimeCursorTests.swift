@@ -32,8 +32,8 @@ func timeCursorAdvancesStepsAndGuidesBySecondsWithoutDuplicates() {
     #expect(schedule.timeSeconds(forEventID: 5) == 1.5)
     #expect(schedule.timeSeconds(atTick: 480) == 1.5)
     #expect(schedule.timeSeconds(atTick: 960) == 2.0)
-    #expect(schedule.noteOnTimeSeconds(forSourceEventID: "note-60") == 1.5)
-    #expect(schedule.noteOffTimeSeconds(forSourceEventID: "note-60") == 2.0)
+    #expect(schedule.timeSeconds(forEventID: 3) == 1.5)
+    #expect(schedule.timeSeconds(forEventID: 6) == 2.0)
 
     #expect(cursor.advance(toSeconds: 0) == [.step(index: 0), .guide(index: 0, guideID: 100)])
     #expect(cursor.advance(toSeconds: 0) == [])

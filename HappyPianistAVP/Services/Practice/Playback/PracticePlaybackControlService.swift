@@ -25,6 +25,7 @@ final class PracticePlaybackControlService {
     private var playbackPositionSeconds: TimeInterval = 0
     private var playbackPositionCapturedAt: PerformanceMonotonicInstant?
     private var autoplayTimeSchedule: AutoplayTimelineTimeSchedule?
+    private var autoplayContactTimeline: PianoKeyContactTimeline?
     private var autoplayGuideSnapshot: [PianoHighlightGuide]?
     private var hasShutdown = false
 
@@ -74,6 +75,7 @@ final class PracticePlaybackControlService {
               autoplayTask != nil,
               let capturedAt = playbackPositionCapturedAt,
               let timeSchedule = autoplayTimeSchedule,
+              let contactTimeline = autoplayContactTimeline,
               let guides = autoplayGuideSnapshot
         else {
             return nil
@@ -83,6 +85,7 @@ final class PracticePlaybackControlService {
             playbackPositionSeconds: playbackPositionSeconds,
             capturedAt: capturedAt,
             timeSchedule: timeSchedule,
+            contactTimeline: contactTimeline,
             guides: guides
         )
     }
@@ -222,8 +225,10 @@ final class PracticePlaybackControlService {
             do {
                 try await runAutoplayTask(
                     generation: generation,
+                    plan: performancePlan,
                     timeline: timelineSnapshot,
                     guides: guideProjectionSnapshot,
+                    steps: stepProjectionSnapshot,
                     tempoMap: tempoMapSnapshot,
                     timingBaseTick: timingBaseTick,
                     resetBeforeLoad: resetBeforeLoad
@@ -256,6 +261,7 @@ final class PracticePlaybackControlService {
         playbackPositionSeconds = 0
         playbackPositionCapturedAt = nil
         autoplayTimeSchedule = nil
+        autoplayContactTimeline = nil
         autoplayGuideSnapshot = nil
 
         stateStore.autoplayTimingBaseTick = nil
@@ -419,8 +425,10 @@ final class PracticePlaybackControlService {
 
     private func runAutoplayTask(
         generation: Int,
+        plan: ScorePerformancePlan,
         timeline: AutoplayPerformanceTimeline,
         guides: [PianoHighlightGuide],
+        steps: [PracticeStep],
         tempoMap: MusicXMLTempoMap,
         timingBaseTick: Int,
         resetBeforeLoad: Bool
@@ -469,12 +477,20 @@ final class PracticePlaybackControlService {
             startTick: timingBaseTick,
             leadInSeconds: leadInSeconds
         )
+        let contactTimeline = PianoKeyContactTimeline(
+            plan: plan,
+            timeline: timeline,
+            schedule: timeSchedule,
+            guideProjection: guides,
+            stepProjection: steps
+        )
 
         do {
             try await sequencerPlaybackService.load(sequence: sequence)
             try await sequencerPlaybackService.play(fromSeconds: 0)
             requiresResetBeforeLoad = true
             autoplayTimeSchedule = timeSchedule
+            autoplayContactTimeline = contactTimeline
             autoplayGuideSnapshot = guides
             recordPlaybackPosition(0)
         } catch {
@@ -529,6 +545,7 @@ final class PracticePlaybackControlService {
             autoplayTask = nil
             playbackPositionCapturedAt = nil
             autoplayTimeSchedule = nil
+            autoplayContactTimeline = nil
             autoplayGuideSnapshot = nil
         }
     }

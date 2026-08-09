@@ -316,7 +316,9 @@ struct PianoDemonstrationHandsOverlayControllerTests {
             playbackPositionSeconds: 0,
             capturedAtSeconds: 100
         )
-        let secondOnset = try #require(timing.timeSchedule.noteOnTimeSeconds(forSourceEventID: "second"))
+        let secondOnset = try #require(
+            timing.contactTimeline.contact(forOccurrenceID: "second")?.onsetSeconds
+        )
         now.withLock {
             $0 = PerformanceMonotonicInstant(seconds: 100 + secondOnset - 0.05)
         }
@@ -775,16 +777,54 @@ private func makeTransportTiming(
         return $0.id < $1.id
     }
     let timeline = AutoplayPerformanceTimeline(events: events)
+    let schedule = AutoplayTimelineTimeSchedule(
+        timeline: timeline,
+        tickToSeconds: { tempoMap.timeSeconds(atTick: $0) },
+        startTick: 0,
+        leadInSeconds: 0.05
+    )
+    let contactTimeline = PianoKeyContactTimeline(contacts: guides.flatMap { guide in
+        guide.triggeredNotes.map { note in
+            let noteOnEvent = events.first {
+                guard $0.sourceEventID == note.occurrenceID else { return false }
+                if case .noteOn = $0.kind { return true }
+                return false
+            }
+            let noteOffEvent = events.first {
+                guard $0.sourceEventID == note.occurrenceID else { return false }
+                if case .noteOff = $0.kind { return true }
+                return false
+            }
+            let timing: PianoKeyContactTimeline.Timing
+            if let noteOnEvent,
+               let noteOffEvent,
+               let onsetSeconds = schedule.timeSeconds(forEventID: noteOnEvent.id),
+               let releaseSeconds = schedule.timeSeconds(forEventID: noteOffEvent.id)
+            {
+                timing = .scheduled(onsetSeconds: onsetSeconds, releaseSeconds: releaseSeconds)
+            } else {
+                timing = .unplannable(.missingNoteOff)
+            }
+            return PianoKeyContactTimeline.Contact(
+                occurrenceID: note.occurrenceID,
+                midiNote: note.midiNote,
+                staff: note.staff ?? 0,
+                handAssignment: note.handAssignment,
+                fingerings: note.fingerings,
+                velocity: note.velocity,
+                guideID: guide.id,
+                stepIndex: guide.practiceStepIndex,
+                carriedIn: false,
+                timing: timing
+            )
+        }
+    })
     return PianoDemonstrationTransportTiming(
         generation: 1,
         playbackPositionSeconds: playbackPositionSeconds,
         capturedAt: PerformanceMonotonicInstant(seconds: capturedAtSeconds),
-        timeSchedule: AutoplayTimelineTimeSchedule(
-            timeline: timeline,
-            tickToSeconds: { tempoMap.timeSeconds(atTick: $0) },
-            startTick: 0,
-            leadInSeconds: 0.05
-        ),
+        timeSchedule: schedule,
+        contactTimeline: contactTimeline,
         guides: guides
     )
 }

@@ -237,6 +237,10 @@ func pianoDemonstrationHandsTimingDoesNotLeakTransportAcrossRestart() async {
         Issue.record("loaded autoplay must expose its current transport")
         return
     }
+    #expect(initialTiming.contactTimeline.contacts.map(\.midiNote) == [60, 62])
+    #expect(initialTiming.contactTimeline.contacts.allSatisfy {
+        $0.onsetSeconds != nil && $0.releaseSeconds != nil && $0.carriedIn == false
+    })
 
     viewModel.skip()
     await waitUntil("replacement demonstration transport") {
@@ -246,6 +250,7 @@ func pianoDemonstrationHandsTimingDoesNotLeakTransportAcrossRestart() async {
     case let .transport(replacement):
         #expect(replacement.generation > initialTiming.generation)
         #expect(replacement.playbackPositionSeconds == 0)
+        #expect(replacement.contactTimeline.contacts.map(\.midiNote) == [62])
     case .manual, .transportPending:
         Issue.record("restart must replace, not retain, demonstration timing")
     }

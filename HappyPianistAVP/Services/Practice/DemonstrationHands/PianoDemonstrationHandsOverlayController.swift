@@ -239,9 +239,10 @@ final class PianoDemonstrationHandsOverlayController {
             )
 
             for target in upcomingCoverage.coveredTargets where target.phase == .triggered {
-                guard let onsetSeconds = transport.timeSchedule.noteOnTimeSeconds(
-                    forSourceEventID: target.occurrenceID
-                ) else {
+                guard let onsetSeconds = transport.contactTimeline
+                    .contact(forOccurrenceID: target.occurrenceID)?
+                    .onsetSeconds
+                else {
                     continue
                 }
                 let preRoll = strikeScheduler.preRollDuration(
@@ -336,11 +337,10 @@ final class PianoDemonstrationHandsOverlayController {
         handTravelDistanceMeters: Float,
         timing: PianoDemonstrationTransportTiming
     ) -> PianoDemonstrationStrikeScheduler.Occurrence? {
-        guard let onsetSeconds = timing.timeSchedule.noteOnTimeSeconds(
-            forSourceEventID: target.occurrenceID
-        ), let releaseSeconds = timing.timeSchedule.noteOffTimeSeconds(
-            forSourceEventID: target.occurrenceID
-        ) else {
+        guard let contact = timing.contactTimeline.contact(forOccurrenceID: target.occurrenceID),
+              let onsetSeconds = contact.onsetSeconds,
+              let releaseSeconds = contact.releaseSeconds
+        else {
             return nil
         }
         return PianoDemonstrationStrikeScheduler.Occurrence(

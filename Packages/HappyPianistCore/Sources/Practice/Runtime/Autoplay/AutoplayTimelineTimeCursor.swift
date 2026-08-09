@@ -15,8 +15,6 @@ public struct AutoplayTimelineTimeSchedule: Equatable, Sendable {
     public let scheduledCursorEvents: [ScheduledCursorEvent]
     private let timeSecondsByEventID: [Int: TimeInterval]
     private let timeSecondsByTick: [Int: TimeInterval]
-    private let noteOnTimeSecondsBySourceEventID: [String: TimeInterval]
-    private let noteOffTimeSecondsBySourceEventID: [String: TimeInterval]
 
     public init(
         timeline: AutoplayPerformanceTimeline,
@@ -32,8 +30,6 @@ public struct AutoplayTimelineTimeSchedule: Equatable, Sendable {
         var cursorEvents: [ScheduledCursorEvent] = []
         var eventTimes: [Int: TimeInterval] = [:]
         var tickTimes: [Int: TimeInterval] = [:]
-        var noteOnTimes: [String: TimeInterval] = [:]
-        var noteOffTimes: [String: TimeInterval] = [:]
         cursorEvents.reserveCapacity(128)
         eventTimes.reserveCapacity(max(16, timeline.events.count - startIndex))
 
@@ -44,17 +40,6 @@ public struct AutoplayTimelineTimeSchedule: Equatable, Sendable {
             let timeSeconds = tickToSeconds(event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds
             eventTimes[event.id] = timeSeconds
             tickTimes[event.tick] = timeSeconds
-
-            if let sourceEventID = event.sourceEventID {
-                switch event.kind {
-                case .noteOn:
-                    noteOnTimes[sourceEventID] = timeSeconds
-                case .noteOff:
-                    noteOffTimes[sourceEventID] = timeSeconds
-                case .pauseSeconds, .controlChange, .tempo, .advanceStep, .advanceGuide:
-                    break
-                }
-            }
 
             switch event.kind {
             case let .advanceStep(index):
@@ -77,8 +62,6 @@ public struct AutoplayTimelineTimeSchedule: Equatable, Sendable {
         scheduledCursorEvents = cursorEvents
         timeSecondsByEventID = eventTimes
         timeSecondsByTick = tickTimes
-        noteOnTimeSecondsBySourceEventID = noteOnTimes
-        noteOffTimeSecondsBySourceEventID = noteOffTimes
     }
 
     public func timeSeconds(forEventID eventID: Int) -> TimeInterval? {
@@ -89,13 +72,6 @@ public struct AutoplayTimelineTimeSchedule: Equatable, Sendable {
         timeSecondsByTick[tick]
     }
 
-    public func noteOnTimeSeconds(forSourceEventID sourceEventID: String) -> TimeInterval? {
-        noteOnTimeSecondsBySourceEventID[sourceEventID]
-    }
-
-    public func noteOffTimeSeconds(forSourceEventID sourceEventID: String) -> TimeInterval? {
-        noteOffTimeSecondsBySourceEventID[sourceEventID]
-    }
 }
 
 public struct AutoplayTimelineTimeCursor: Equatable {
