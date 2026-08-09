@@ -401,10 +401,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
     @Test func assetFailureFallsBackToGuideForOnlyTheUnavailableHand() async throws {
         let root = Entity()
         let diagnostics = InMemoryDiagnosticsReporter()
-        let loader = SelectiveRigLoader(
-            rigs: try await makeRigs(),
-            failingHand: .left
-        )
+        let loader = ControllableRigLoader(rigs: try await makeRigs())
         let controller = PianoDemonstrationHandsOverlayController(
             rootEntity: root,
             diagnosticsReporter: diagnostics,
@@ -441,10 +438,13 @@ struct PianoDemonstrationHandsOverlayControllerTests {
         )
         #expect(initialSuppression.isEmpty)
 
-        for _ in 0 ..< 20 {
-            if loader.requestedHands.count == PianoDemonstrationHand.allCases.count { break }
-            await Task.yield()
-        }
+        await loader.waitForRequest(for: .left)
+        loader.resume(hand: .left, with: .failure(ControllableRigLoader.Failure.injected))
+        await loader.waitForRequest(for: .right)
+        let rightRig = try #require(loader.rig(for: .right))
+        loader.resume(hand: .right, with: .success(rightRig))
+        await processPendingMainActorWork()
+
         let suppression = controller.update(
             isEnabled: true,
             highlightGuide: guide,
@@ -457,16 +457,97 @@ struct PianoDemonstrationHandsOverlayControllerTests {
         #expect(root.findEntity(named: "pianoDemonstrationHand.left") == nil)
         #expect(root.findEntity(named: "pianoDemonstrationHand.right")?.isEnabled == true)
 
-        for _ in 0 ..< 20 {
-            if await diagnostics.events.isEmpty == false { break }
-            await Task.yield()
-        }
         let loadEvents = await diagnostics.events.filter {
             $0.stage == "pianoDemonstrationHands.loadAsset"
         }
         #expect(loadEvents.count == 1)
         #expect(loadEvents.first?.reason.contains("reason=assetUnavailable") == true)
         #expect(loadEvents.first?.reason.contains("/") == false)
+    }
+
+    @Test func resetRejectsALateAssetLoadWithoutRestoringHandsOrSuppression() async throws {
+        let root = Entity()
+        let loader = ControllableRigLoader(rigs: try await makeRigs())
+        let controller = PianoDemonstrationHandsOverlayController(rootEntity: root, rigLoader: loader)
+        let guide = makeGuide(
+            id: 1,
+            kind: .trigger,
+            active: [],
+            triggered: [makeNote(id: "late", midiNote: 60, hand: .right)],
+            released: []
+        )
+
+        await loader.waitForRequest(for: .left)
+        #expect(controller.update(
+            isEnabled: true,
+            highlightGuide: guide,
+            timing: .manual,
+            keyboardGeometry: makeGeometry(),
+            reduceMotion: true,
+            content: nil
+        ).isEmpty)
+
+        controller.reset()
+        let leftRig = try #require(loader.rig(for: .left))
+        loader.resume(hand: .left, with: .success(leftRig))
+        await processPendingMainActorWork()
+
+        #expect(root.children.isEmpty)
+        #expect(controller.requiresReplacement)
+        #expect(controller.update(
+            isEnabled: true,
+            highlightGuide: guide,
+            timing: .manual,
+            keyboardGeometry: makeGeometry(),
+            reduceMotion: true,
+            content: nil
+        ).isEmpty)
+    }
+
+    @Test func repeatedMIDINoteOccurrencesAndReduceMotionLeaveNoAnimatingState() async throws {
+        let now = Mutex(PerformanceMonotonicInstant(seconds: 1))
+        let root = Entity()
+        let controller = try await PianoDemonstrationHandsOverlayController(
+            rootEntity: root,
+            preloadedRigs: makeRigs(),
+            performanceClock: PerformanceClock { now.withLock { $0 } }
+        )
+        let guide = makeGuide(
+            id: 1,
+            kind: .trigger,
+            active: [],
+            triggered: [
+                makeNote(id: "first-60", midiNote: 60, hand: .right),
+                makeNote(id: "second-60", midiNote: 60, hand: .right),
+            ],
+            released: []
+        )
+
+        let initialSuppression = controller.update(
+            isEnabled: true,
+            highlightGuide: guide,
+            timing: .manual,
+            keyboardGeometry: makeGeometry(),
+            reduceMotion: true,
+            content: nil
+        )
+        let rightHand = try #require(root.findEntity(named: "pianoDemonstrationHand.right"))
+        let staticPosition = rightHand.position
+        now.withLock { $0 = PerformanceMonotonicInstant(seconds: 2) }
+
+        let laterSuppression = controller.update(
+            isEnabled: true,
+            highlightGuide: guide,
+            timing: .manual,
+            keyboardGeometry: makeGeometry(),
+            reduceMotion: true,
+            content: nil
+        )
+
+        #expect(initialSuppression == [60])
+        #expect(laterSuppression == [60])
+        #expect(simd_distance(rightHand.position, staticPosition) < 0.0001)
+        controller.reset()
     }
 
     @Test func suppressionResidencePreventsSingleFrameGuideFlicker() async throws {
@@ -545,30 +626,54 @@ struct PianoDemonstrationHandsOverlayControllerTests {
 }
 
 @MainActor
-private final class SelectiveRigLoader: PianoDemonstrationHandRigLoading {
+private final class ControllableRigLoader: PianoDemonstrationHandRigLoading {
     enum Failure: Error {
         case injected
-        case missingRig
     }
 
     private let rigs: [PianoDemonstrationHand: PianoDemonstrationHandRig]
-    private let failingHand: PianoDemonstrationHand
-    private(set) var requestedHands: [PianoDemonstrationHand] = []
+    private var continuationByHand: [
+        PianoDemonstrationHand: CheckedContinuation<Result<PianoDemonstrationHandRig, Error>, Never>
+    ] = [:]
+    private var requestWaiterByHand: [PianoDemonstrationHand: CheckedContinuation<Void, Never>] = [:]
+    private var requestedHands = Set<PianoDemonstrationHand>()
 
-    init(
-        rigs: [PianoDemonstrationHand: PianoDemonstrationHandRig],
-        failingHand: PianoDemonstrationHand
-    ) {
+    init(rigs: [PianoDemonstrationHand: PianoDemonstrationHandRig]) {
         self.rigs = rigs
-        self.failingHand = failingHand
     }
 
     func load(hand: PianoDemonstrationHand) async throws -> PianoDemonstrationHandRig {
-        requestedHands.append(hand)
-        guard hand != failingHand else { throw Failure.injected }
-        guard let rig = rigs[hand] else { throw Failure.missingRig }
-        return rig
+        let result: Result<PianoDemonstrationHandRig, Error> = await withCheckedContinuation { continuation in
+            continuationByHand[hand] = continuation
+            requestedHands.insert(hand)
+            requestWaiterByHand.removeValue(forKey: hand)?.resume()
+        }
+        return try result.get()
     }
+
+    func waitForRequest(for hand: PianoDemonstrationHand) async {
+        guard requestedHands.contains(hand) == false else { return }
+        await withCheckedContinuation { continuation in
+            requestWaiterByHand[hand] = continuation
+        }
+    }
+
+    func rig(for hand: PianoDemonstrationHand) -> PianoDemonstrationHandRig? {
+        rigs[hand]
+    }
+
+    func resume(
+        hand: PianoDemonstrationHand,
+        with result: Result<PianoDemonstrationHandRig, Error>
+    ) {
+        precondition(continuationByHand[hand] != nil, "load was not waiting for \(hand)")
+        continuationByHand.removeValue(forKey: hand)?.resume(returning: result)
+    }
+}
+
+@MainActor
+private func processPendingMainActorWork() async {
+    await Task { @MainActor in }.value
 }
 
 @MainActor

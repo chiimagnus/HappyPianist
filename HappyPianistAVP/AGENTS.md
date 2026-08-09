@@ -54,7 +54,7 @@
   entity.components.set(CollisionComponent(shapes: [.generateBox(size: [0.1, 0.1, 0.1])]))
   entity.components.set(InputTargetComponent())
   ```
-- **Mesh 资源:** 默认仅生成：`box`、`sphere`、`plane`、`cylinder`、`cone`。唯一例外是 `HandVisualization` 的固定容量 `LowLevelMesh`：它只更新荧光手套的既定顶点，不能在 `RealityView.update` 分配网格、加入资产/纹理，或把手部数据传出渲染边界。`PianoDemonstrationHandsOverlayController` 只异步加载 RealityKitContent 中 Blender 生成的 21 关节左右手资产，不保留基础 mesh fallback；它不读 ARKit、不使用 `LowLevelMesh`、不含输入/碰撞组件，加载与动作任务必须在 update 之外创建，reset 必须取消任务并移除所有子实体。
+- **Mesh 资源:** 默认仅生成：`box`、`sphere`、`plane`、`cylinder`、`cone`。唯一例外是 `HandVisualization` 的固定容量 `LowLevelMesh`：它只更新荧光手套的既定顶点，不能在 `RealityView.update` 分配网格、加入资产/纹理，或把手部数据传出渲染边界。`PianoDemonstrationHandsOverlayController` 只异步加载 RealityKitContent 中 Blender 生成的 21 关节左右手资产，不保留基础 mesh fallback；它不读 ARKit、不使用 `LowLevelMesh`、不含输入/碰撞组件。左右手和每个 occurrence 的时序状态必须独立，`RealityView.update` 只按注入时钟采样既有 state；coverage、资产或接触残差失败时只交回对应键面贴片，不能静默隐藏引导。加载与动作任务必须在 update 之外创建，reset 必须取消任务、拒绝迟到完成并移除所有子实体。
 
 ### 3. 交互与输入
 - **手势:**
