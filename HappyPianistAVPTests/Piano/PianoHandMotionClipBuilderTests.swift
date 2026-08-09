@@ -37,13 +37,64 @@ func builderCreatesOneDeterministicClipPerPlannedHandOffMain() async throws {
     #expect(result.clips[1].coverage.map(\.finger) == [1, 2, 2])
     #expect(result.clips[1].frames.map(\.timeSeconds).contains(0.2))
     #expect(result.clips[1].frames.map(\.timeSeconds).contains(0.4))
+    #expect(try #require(result.clips[1].frames.first).timeSeconds < 0.2)
     #expect(result.clips[1].frames.allSatisfy {
         $0.rootTransform.rotation != SIMD4<Float>(0, 0, 0, 1)
     })
-    #expect(result.clips[1].frames[0].jointRotations[1].z != 0)
+    #expect(try #require(result.clips[1].frames.first {
+        $0.timeSeconds == 0.2
+    }).jointRotations[1].z != 0)
     #expect(result.clips.allSatisfy { clip in
         clip.frames.allSatisfy { $0.jointRotations.count == PianoHandMotionClip.jointCount }
     })
+}
+
+@Test
+func builderKeepsHeldFingertipsOnTheirKeysDuringTheNextAttack() throws {
+    let heldKey = SIMD3<Float>(0.10, 0, -0.07)
+    let attackKey = SIMD3<Float>(0.12, 0, -0.07)
+    let result = try PianoHandMotionClipBuilder().build(input: .init(
+        contacts: .init(contacts: [
+            contact(id: "held", midiNote: 60, onset: 0.2, release: 0.6),
+            contact(id: "attack", midiNote: 62, onset: 0.4, release: 0.5),
+        ]),
+        fingeringPlan: .init(results: [
+            .init(occurrenceID: "held", resolution: .planned(hand: .right, finger: 2, source: .planned)),
+            .init(occurrenceID: "attack", resolution: .planned(hand: .right, finger: 3, source: .planned)),
+        ]),
+        keyboardLayout: .init(keys: [
+            key(midiNote: 60, position: heldKey),
+            key(midiNote: 62, position: attackKey),
+        ]),
+        scoreRevision: "test-score"
+    ))
+
+    #expect(result.rejectedOccurrenceIDs.isEmpty)
+    let clip = try #require(result.clips.first)
+    let attackFrame = try #require(clip.frames.first { $0.timeSeconds == 0.4 })
+    let heldTip = try #require(PianoDemonstrationHandSkeleton.fingerJointPositions(
+        finger: 2,
+        hand: .right,
+        rootTransform: attackFrame.rootTransform,
+        jointRotations: attackFrame.jointRotations
+    )?.last)
+    #expect(simd_distance(heldTip, heldKey) <= 0.005)
+}
+
+@Test
+func builderAddsAValidatedPreparationFrameBeforeTheFirstOnset() throws {
+    let result = try PianoHandMotionClipBuilder().build(input: .init(
+        contacts: .init(contacts: [contact(id: "first", midiNote: 60, onset: 0.4)]),
+        fingeringPlan: .init(results: [
+            .init(occurrenceID: "first", resolution: .planned(hand: .right, finger: 2, source: .planned)),
+        ]),
+        keyboardLayout: .init(keys: [key(midiNote: 60, position: [0.10, 0, -0.07])]),
+        scoreRevision: "test-score"
+    ))
+
+    let frames = try #require(result.clips.first?.frames)
+    #expect(try #require(frames.first).timeSeconds == 0.2)
+    #expect(frames.contains { $0.timeSeconds == 0.4 })
 }
 
 @Test
@@ -231,7 +282,8 @@ func builderLiftsThePalmByOnlyTheRequiredKeyboardClearance() throws {
 private func contact(
     id: String,
     midiNote: Int,
-    onset: TimeInterval
+    onset: TimeInterval,
+    release: TimeInterval? = nil
 ) -> PianoKeyContactTimeline.Contact {
     PianoKeyContactTimeline.Contact(
         occurrenceID: id,
@@ -243,7 +295,7 @@ private func contact(
         guideID: nil,
         stepIndex: nil,
         carriedIn: false,
-        timing: .scheduled(onsetSeconds: onset, releaseSeconds: onset + 0.1)
+        timing: .scheduled(onsetSeconds: onset, releaseSeconds: release ?? onset + 0.1)
     )
 }
 

@@ -28,7 +28,7 @@ platform adapter → typed PerformanceObservation → matcher / alignment
 ## 空间引导与示范手
 
 - AR service 将真实骨骼作为运行期快照发布；授权拒绝、能力不支持或手部不完整时隐藏，绝不伪造为练习证据。Simulator 合成姿态只能用于条件编译的渲染路径。
-- 荧光手套、示范手骨骼、键面贴片、cue 和恢复地图均是当前 guide 与 transport 的派生状态，不进入输入、reducer 或 progress。缺资产、规划、coverage 或质量校验时只回退对应键面贴片。
+- 荧光手套、示范手骨骼、键面贴片、cue 和恢复地图均是当前 guide 与 transport 的派生状态，不进入输入、reducer 或 progress。示范手 clip 在首个 onset 前进入准备姿态，且逐段验证 held contact、接触残差与碰撞；缺资产、规划、coverage 或质量校验时只回退对应键面贴片。
 
 ## 持久化、回放与 AI
 

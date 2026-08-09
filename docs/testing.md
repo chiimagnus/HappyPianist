@@ -41,7 +41,7 @@ swift test --package-path Packages/HappyPianistCore
 
 ### 示范手纯值 Gate
 
-`HandMotionCorpus/manifest.json` 覆盖音阶、琶音、密集和弦、重复音、大跳进、跨手和 pause/range 孔。`PianoHandMotionQualityTests` 对运行期同一纯值 clip builder 断言每个 fixture/occurrence 的 coverage、P95 接触残差不大于 5 mm、P95 时序误差不大于 50 ms、最大时序误差不大于 100 ms、单位四元数和无 collision 降级。
+`HandMotionCorpus/manifest.json` 覆盖音阶、琶音、密集和弦、重复音、大跳进、跨手和 pause/range 用例。`PianoHandMotionQualityTests` 对运行期同一纯值 clip builder 断言每个 fixture/occurrence 的 coverage、P95 接触残差不大于 5 mm、P95 时序误差不大于 50 ms、最大时序误差不大于 100 ms、单位四元数和无 collision 降级；builder 专属测试覆盖首击准备、held contact 与过渡约束。
 
 这只验证程序化 skeleton，不能证明 Blender 网格真机接触、遮挡、舒适度或音画同步；缺资产时回退键面贴片必须仍可见。
 

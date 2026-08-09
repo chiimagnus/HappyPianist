@@ -22,6 +22,8 @@ struct PianoHandMotionClipBuilder: Sendable {
     private static let fingerCapsuleRadiusMeters: Float = 0.0025
     private static let palmCapsuleRadiusMeters: Float = 0.014
     private static let tipContactAllowanceMeters: Float = 0.006
+    private static let initialPreparationDuration: TimeInterval = 0.20
+    private static let transitionValidationInterval: TimeInterval = 1.0 / 120.0
     struct KeyboardLayout: Equatable, Sendable {
         struct Key: Equatable, Sendable {
             let midiNote: Int
@@ -162,7 +164,7 @@ struct PianoHandMotionClipBuilder: Sendable {
 
         for onsetSeconds in contactsByOnset.keys.sorted() {
             try Task.checkCancellation()
-            let contactsAtOnset = contactsByOnset[onsetSeconds] ?? []
+            let contactsAtOnset = Self.activeContacts(in: contacts, at: onsetSeconds)
             guard let initialJointAngles = Self.targetJointAngles(
                 for: contactsAtOnset,
                 palmCenter: Self.palmCenter(for: contactsAtOnset),
@@ -172,26 +174,73 @@ struct PianoHandMotionClipBuilder: Sendable {
                 hand: hand,
                 contacts: contactsAtOnset,
                 initialJointAngles: initialJointAngles
-            ),
-            let targetRootTransform = Self.minimumCollisionFreeRootTransform(
-                solvedPose.rootTransform,
-                hand: hand,
-                jointRotations: solvedPose.jointAngles.map(Self.jointRotation),
-                keyboardKeys: keyboardKeys
             )
             else {
                 throw MotionConstraintError()
             }
-            guard Self.satisfiesKinematicConstraints(
+            let targetJointRotations = solvedPose.jointAngles.map(Self.jointRotation)
+            guard let targetRootTransform = Self.minimumCollisionFreeRootTransform(
+                solvedPose.rootTransform,
+                hand: hand,
+                jointRotations: targetJointRotations,
+                keyboardKeys: keyboardKeys
+            ), Self.satisfiesKinematicConstraints(
                 hand: hand,
                 contacts: contactsAtOnset,
                 rootTransform: targetRootTransform,
-                jointAngles: solvedPose.jointAngles,
+                jointRotations: targetJointRotations,
                 keyboardKeys: keyboardKeys
             ) else {
                 throw MotionConstraintError()
             }
-            let availableSeconds = previousOnset.map { max(0, Float(onsetSeconds - $0)) } ?? .infinity
+            let targetFrame = PianoHandMotionClip.Frame(
+                timeSeconds: onsetSeconds,
+                rootTransform: targetRootTransform,
+                jointRotations: targetJointRotations
+            )
+
+            if previousOnset == nil {
+                let preparationFrame = PianoHandMotionClip.Frame(
+                    timeSeconds: onsetSeconds - Self.initialPreparationDuration,
+                    rootTransform: .init(
+                        translation: targetRootTransform.translation + SIMD3<Float>(0, 0.035, 0),
+                        rotation: targetRootTransform.rotation
+                    ),
+                    jointRotations: Array(
+                        repeating: SIMD4<Float>(0, 0, 0, 1),
+                        count: PianoHandMotionClip.jointCount
+                    )
+                )
+                guard Self.satisfiesKinematicConstraints(
+                    hand: hand,
+                    contacts: [],
+                    rootTransform: preparationFrame.rootTransform,
+                    jointRotations: preparationFrame.jointRotations,
+                    keyboardKeys: keyboardKeys
+                ), Self.validatesTransition(
+                    from: preparationFrame,
+                    to: targetFrame,
+                    hand: hand,
+                    contacts: contacts,
+                    keyboardKeys: keyboardKeys
+                ) else {
+                    throw MotionConstraintError()
+                }
+                frames.append(preparationFrame)
+            }
+
+            let transitionStartFloor = previousOnset.map { previousOnset in
+                contacts.lazy.filter {
+                    $0.onsetSeconds <= previousOnset
+                        && $0.releaseSeconds > previousOnset
+                        && $0.releaseSeconds < onsetSeconds
+                }
+                .map(\.releaseSeconds)
+                .max() ?? previousOnset
+            }
+            let availableSeconds = transitionStartFloor.map {
+                max(0, Float(onsetSeconds - $0))
+            } ?? .infinity
             let maximumDelta = availableSeconds * Self.maximumJointAngularVelocityRadiansPerSecond
             guard zip(previousJointAngles, solvedPose.jointAngles).allSatisfy({ previous, target in
                 Self.isWithinAngularVelocityLimit(
@@ -203,7 +252,7 @@ struct PianoHandMotionClipBuilder: Sendable {
                 throw MotionConstraintError()
             }
 
-            if let previousRootTransform, let previousOnset {
+            if let previousRootTransform, let previousOnset, let transitionStartFloor {
                 let transitionSeconds = Self.requiredWristTransitionSeconds(
                     from: previousRootTransform,
                     to: targetRootTransform
@@ -211,7 +260,10 @@ struct PianoHandMotionClipBuilder: Sendable {
                 guard transitionSeconds <= availableSeconds else {
                     throw MotionConstraintError()
                 }
-                let transitionStartSeconds = onsetSeconds - TimeInterval(transitionSeconds)
+                let transitionStartSeconds = max(
+                    transitionStartFloor,
+                    onsetSeconds - TimeInterval(transitionSeconds)
+                )
                 if transitionStartSeconds > previousOnset {
                     frames.append(PianoHandMotionClip.Frame(
                         timeSeconds: transitionStartSeconds,
@@ -219,16 +271,23 @@ struct PianoHandMotionClipBuilder: Sendable {
                         jointRotations: previousJointAngles.map { Self.jointRotation(for: $0) }
                     ))
                 }
+                guard let transitionFrame = frames.last,
+                      Self.validatesTransition(
+                          from: transitionFrame,
+                          to: targetFrame,
+                          hand: hand,
+                          contacts: contacts,
+                          keyboardKeys: keyboardKeys
+                      )
+                else {
+                    throw MotionConstraintError()
+                }
             }
 
             previousJointAngles = solvedPose.jointAngles
             previousRootTransform = targetRootTransform
             previousOnset = onsetSeconds
-            frames.append(PianoHandMotionClip.Frame(
-                timeSeconds: onsetSeconds,
-                rootTransform: targetRootTransform,
-                jointRotations: solvedPose.jointAngles.map { Self.jointRotation(for: $0) }
-            ))
+            frames.append(targetFrame)
         }
         return try PianoHandMotionClip(
             metadata: metadata,
@@ -259,6 +318,74 @@ struct PianoHandMotionClipBuilder: Sendable {
             && isFinite(key.topSurfaceSizeLocal)
             && key.topSurfaceSizeLocal.x > 0
             && key.topSurfaceSizeLocal.y > 0
+    }
+
+    private static func activeContacts(
+        in contacts: [PlannedContact],
+        at timeSeconds: TimeInterval
+    ) -> [PlannedContact] {
+        contacts.filter {
+            $0.onsetSeconds <= timeSeconds && timeSeconds <= $0.releaseSeconds
+        }
+    }
+
+    private static func validatesTransition(
+        from lower: PianoHandMotionClip.Frame,
+        to upper: PianoHandMotionClip.Frame,
+        hand: ScoreHand,
+        contacts: [PlannedContact],
+        keyboardKeys: [KeyboardLayout.Key]
+    ) -> Bool {
+        let duration = upper.timeSeconds - lower.timeSeconds
+        guard duration >= 0 else { return false }
+        let samples = max(1, Int((duration / Self.transitionValidationInterval).rounded(.up)))
+        for index in 1 ..< samples {
+            let progress = Float(index) / Float(samples)
+            let timeSeconds = lower.timeSeconds + duration * TimeInterval(progress)
+            let frame = PianoHandMotionClip.Frame(
+                timeSeconds: timeSeconds,
+                rootTransform: .init(
+                    translation: simd_mix(
+                        lower.rootTransform.translation,
+                        upper.rootTransform.translation,
+                        SIMD3(repeating: progress)
+                    ),
+                    rotation: simd_slerp(
+                        simd_quatf(vector: lower.rootTransform.rotation),
+                        simd_quatf(vector: upper.rootTransform.rotation),
+                        progress
+                    ).vector
+                ),
+                jointRotations: zip(lower.jointRotations, upper.jointRotations).map { lower, upper in
+                    simd_slerp(
+                        simd_quatf(vector: lower),
+                        simd_quatf(vector: upper),
+                        progress
+                    ).vector
+                }
+            )
+            guard Self.satisfiesKinematicConstraints(
+                hand: hand,
+                contacts: Self.activeContacts(in: contacts, at: timeSeconds),
+                rootTransform: frame.rootTransform,
+                jointRotations: frame.jointRotations,
+                keyboardKeys: keyboardKeys
+            ) else {
+                return false
+            }
+        }
+        return true
+    }
+
+    private static func isValidRotation(_ rotation: SIMD4<Float>) -> Bool {
+        guard rotation.x.isFinite,
+              rotation.y.isFinite,
+              rotation.z.isFinite,
+              rotation.w.isFinite
+        else {
+            return false
+        }
+        return abs(simd_length_squared(rotation) - 1) <= 0.001
     }
 
     private static func palmCenter(for contacts: [PlannedContact]) -> SIMD3<Float> {
@@ -514,17 +641,16 @@ struct PianoHandMotionClipBuilder: Sendable {
         hand: ScoreHand,
         contacts: [PlannedContact],
         rootTransform: PianoHandMotionClip.RootTransform,
-        jointAngles: [SIMD2<Float>],
+        jointRotations: [SIMD4<Float>],
         keyboardKeys: [KeyboardLayout.Key]
     ) -> Bool {
-        guard jointAngles.count == PianoHandMotionClip.jointCount,
-              jointAngles.allSatisfy(Self.isFinite),
+        guard jointRotations.count == PianoHandMotionClip.jointCount,
+              jointRotations.allSatisfy(Self.isValidRotation),
               keyboardKeys.allSatisfy(Self.isValid),
               Set(contacts.map(\.finger)).count == contacts.count
         else {
             return false
         }
-        let jointRotations = jointAngles.map(Self.jointRotation)
         guard let positions = PianoDemonstrationHandSkeleton.jointPositions(
             hand: hand,
             rootTransform: rootTransform,
