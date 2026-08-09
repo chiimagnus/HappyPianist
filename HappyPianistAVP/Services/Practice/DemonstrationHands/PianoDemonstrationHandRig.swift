@@ -3,7 +3,6 @@ import RealityKitContent
 import MusicXML
 import Practice
 import simd
-import SwiftUI
 import UIKit
 
 enum PianoDemonstrationHandRigError: Error {
@@ -90,7 +89,6 @@ final class PianoDemonstrationHandRig {
 
     func apply(frame: PianoHandMotionClip.Frame) {
         guard frame.jointRotations.count == restJointTransforms.count else { return }
-        rootEntity.stopAllAnimations()
         rootEntity.isEnabled = true
         rootEntity.transform = Transform(
             rotation: simd_quatf(vector: frame.rootTransform.rotation),
@@ -105,24 +103,7 @@ final class PianoDemonstrationHandRig {
         modelEntity.jointTransforms = transforms
     }
 
-    func lift(animated: Bool) {
-        rootEntity.stopAllAnimations()
-        rootEntity.isEnabled = true
-        let liftedTransform = Transform(
-            rotation: rootEntity.transform.rotation,
-            translation: rootEntity.transform.translation + SIMD3<Float>(0, 0.035, 0)
-        )
-        guard animated else {
-            rootEntity.transform = liftedTransform
-            return
-        }
-        Entity.animate(.easeInOut(duration: 0.16)) {
-            rootEntity.components.set(liftedTransform)
-        }
-    }
-
     func hide() {
-        rootEntity.stopAllAnimations()
         rootEntity.isEnabled = false
     }
 
