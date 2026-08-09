@@ -1,4 +1,5 @@
 @testable import HappyPianistAVP
+@testable import Practice
 import RealityKit
 import simd
 import Testing
@@ -28,7 +29,11 @@ func handRigLoadsPackaged21JointAssetAndAppliesPose() async throws {
     let restTranslations = skinnedModel.jointTransforms.map(\.translation)
     rig.apply(pose: pose)
     #expect(rig.rootEntity.isEnabled)
-    #expect(simd_distance(rig.rootEntity.position, pose.palmCenterLocal) < 0.0001)
+    #expect(simd_distance(rig.rootEntity.position, pose.rootTransform.translation) < 0.0001)
+    #expect(abs(simd_dot(
+        rig.rootEntity.transform.rotation.vector,
+        pose.rootTransform.rotation
+    )) > 0.999)
     #expect(zip(restTranslations, skinnedModel.jointTransforms.map(\.translation)).allSatisfy {
         simd_distance($0, $1) < 0.000_001
     })

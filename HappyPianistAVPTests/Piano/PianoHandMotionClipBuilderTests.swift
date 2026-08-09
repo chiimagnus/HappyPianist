@@ -35,7 +35,11 @@ func builderCreatesOneDeterministicClipPerPlannedHandOffMain() async throws {
     #expect(result.clips.map(\.hand) == [.left, .right])
     #expect(result.clips[0].coverage.map(\.occurrenceID) == ["left"])
     #expect(result.clips[1].coverage.map(\.finger) == [1, 2, 2])
-    #expect(result.clips[1].frames.map(\.timeSeconds) == [0.2, 0.4])
+    #expect(result.clips[1].frames.map(\.timeSeconds).contains(0.2))
+    #expect(result.clips[1].frames.map(\.timeSeconds).contains(0.4))
+    #expect(result.clips[1].frames.allSatisfy {
+        $0.rootTransform.rotation != SIMD4<Float>(0, 0, 0, 1)
+    })
     #expect(result.clips[1].frames[0].jointRotations[1].z != 0)
     #expect(result.clips.allSatisfy { clip in
         clip.frames.allSatisfy { $0.jointRotations.count == PianoHandMotionClip.jointCount }
@@ -87,6 +91,28 @@ func builderRejectsAHandPoseThatWouldExceedJointVelocityLimit() throws {
 
     #expect(result.clips.isEmpty)
     #expect(result.rejectedOccurrenceIDs == ["first-index", "first-thumb", "next-thumb"])
+}
+
+@Test
+func builderRejectsWristTravelThatCannotFinishBeforeTheNextOnset() throws {
+    let result = try PianoHandMotionClipBuilder().build(input: .init(
+        contacts: PianoKeyContactTimeline(contacts: [
+            contact(id: "near", midiNote: 60, onset: 0),
+            contact(id: "far", midiNote: 72, onset: 0.1),
+        ]),
+        fingeringPlan: PianoFingeringPlanner.Plan(results: [
+            .init(occurrenceID: "near", resolution: .planned(hand: .right, finger: 1, source: .planned)),
+            .init(occurrenceID: "far", resolution: .planned(hand: .right, finger: 1, source: .planned)),
+        ]),
+        keyboardLayout: .init(keys: [
+            .init(midiNote: 60, contactPositionLocal: [0, 0, -0.07]),
+            .init(midiNote: 72, contactPositionLocal: [0.60, 0, -0.07]),
+        ]),
+        scoreRevision: "test-score"
+    ))
+
+    #expect(result.clips.isEmpty)
+    #expect(result.rejectedOccurrenceIDs == ["far", "near"])
 }
 
 @Test

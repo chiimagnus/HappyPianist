@@ -35,9 +35,11 @@ final class PianoDemonstrationHandsOverlayController {
     private var lastResolvedCoverage = PianoDemonstrationHandCoverage()
     private var lastCoverage = PianoDemonstrationHandCoverage()
     private var activeMIDINotesByHand: [PianoDemonstrationHand: Set<Int>] = [:]
-    private var suppressionExpiryByMIDINote: [Int: PerformanceMonotonicInstant] = [:]
+    private var suppressionExpiryByHand: [PianoDemonstrationHand: [Int: PerformanceMonotonicInstant]] = [:]
     private var strokeRuntimeByHand: [PianoDemonstrationHand: HandStrokeRuntime] = [:]
-    private var lastSubmittedPalmCenterByHand: [PianoDemonstrationHand: SIMD3<Float>] = [:]
+    private var lastSubmittedRootTransformByHand: [
+        PianoDemonstrationHand: PianoHandMotionClip.RootTransform
+    ] = [:]
     private var loadTask: Task<Void, Never>?
     private var hasReportedManualTimingFallback = false
     private var hasAttachedRoot = false
@@ -137,8 +139,8 @@ final class PianoDemonstrationHandsOverlayController {
         }
         rigs.removeAll()
         activeMIDINotesByHand.removeAll()
-        suppressionExpiryByMIDINote.removeAll()
-        lastSubmittedPalmCenterByHand.removeAll()
+        suppressionExpiryByHand.removeAll()
+        lastSubmittedRootTransformByHand.removeAll()
         lastResolvedCoverage = PianoDemonstrationHandCoverage()
         lastCoverage = PianoDemonstrationHandCoverage()
         reduceMotionEnabled = false
@@ -238,24 +240,23 @@ final class PianoDemonstrationHandsOverlayController {
                 keyboardGeometry: keyboardGeometry,
                 fingeringPlan: fingeringPlan
             )
-            let travelDistanceByHand = Dictionary(
-                uniqueKeysWithValues: PianoDemonstrationHand.allCases.map { hand in
-                    (hand, handTravelDistance(for: hand, targets: upcomingCoverage.coveredTargets(for: hand)))
-                }
-            )
-
-            for target in upcomingCoverage.coveredTargets where target.phase == .triggered {
-                guard let onsetSeconds = transport.contactTimeline
-                    .contact(forOccurrenceID: target.occurrenceID)?
-                    .onsetSeconds
+            let preparedTargets = upcomingCoverage.coveredTargets.filter { target in
+                guard target.phase == .triggered,
+                      let onsetSeconds = transport.contactTimeline
+                          .contact(forOccurrenceID: target.occurrenceID)?
+                          .onsetSeconds
                 else {
-                    continue
+                    return false
                 }
-                let preRoll = strikeScheduler.preRollDuration(
-                    velocity: target.velocity,
-                    handTravelDistanceMeters: travelDistanceByHand[target.hand] ?? 0
-                )
-                guard playbackPosition >= onsetSeconds - preRoll else { continue }
+                return playbackPosition >= onsetSeconds
+                    - PianoDemonstrationStrikeScheduler.maximumPreRollDuration
+            }
+            guard preparedTargets.isEmpty == false else { continue }
+
+            // A hand cannot prepare the next guide while retaining strike targets from the
+            // previous one. Held notes stay in `activeByOccurrenceID`; only stale attacks go.
+            triggeredByOccurrenceID.removeAll()
+            for target in preparedTargets {
                 guard let note = upcoming.triggeredNotes.first(where: {
                     $0.occurrenceID == target.occurrenceID
                 }) else {
@@ -435,7 +436,7 @@ final class PianoDemonstrationHandsOverlayController {
             if let pose = resolution.pose, let rig = rigs[hand] {
                 rig.apply(pose: pose)
                 activeMIDINotesByHand[hand] = Set(submittedTargets.map(\.midiNote))
-                lastSubmittedPalmCenterByHand[hand] = pose.palmCenterLocal
+                lastSubmittedRootTransformByHand[hand] = pose.rootTransform
             } else if shouldLift(hand: hand, releasedMIDINotes: lastCoverage.releasedMIDINotes) {
                 rigs[hand]?.lift(animated: reduceMotionEnabled == false)
                 activeMIDINotesByHand[hand] = []
@@ -451,29 +452,41 @@ final class PianoDemonstrationHandsOverlayController {
         for hand: PianoDemonstrationHand,
         targets: [PianoDemonstrationHandTarget]
     ) -> Float {
-        guard let previousPalmCenter = lastSubmittedPalmCenterByHand[hand],
-              let nextPalmCenter = poseResolver.resolve(hand: hand, targets: targets).pose?.palmCenterLocal
+        guard let previousRootTransform = lastSubmittedRootTransformByHand[hand],
+              let nextRootTransform = PianoDemonstrationHandRootPlanner.rootTransform(
+                  for: hand,
+                  targets: targets
+              )
         else {
             return 0
         }
-        return simd_distance(previousPalmCenter, nextPalmCenter)
+        return simd_distance(previousRootTransform.translation, nextRootTransform.translation)
     }
 
     private func currentSuppressedMIDINotes() -> Set<Int> {
         let now = performanceClock.now()
-        let activeMIDINotes = activeMIDINotesByHand.values.reduce(into: Set<Int>()) {
-            $0.formUnion($1)
+        var suppressedMIDINotes = Set<Int>()
+        for hand in PianoDemonstrationHand.allCases {
+            let activeMIDINotes = activeMIDINotesByHand[hand, default: []]
+            if activeMIDINotes.isEmpty == false {
+                suppressionExpiryByHand[hand] = Dictionary(uniqueKeysWithValues: activeMIDINotes.map {
+                    ($0, now.advanced(by: suppressionMinimumResidence))
+                })
+            } else {
+                let remainingExpiryByMIDINote = suppressionExpiryByHand[hand, default: [:]].filter {
+                    $0.value > now
+                }
+                if remainingExpiryByMIDINote.isEmpty {
+                    suppressionExpiryByHand[hand] = nil
+                } else {
+                    suppressionExpiryByHand[hand] = remainingExpiryByMIDINote
+                }
+            }
+            if let expiryByMIDINote = suppressionExpiryByHand[hand] {
+                suppressedMIDINotes.formUnion(expiryByMIDINote.keys)
+            }
         }
-        for midiNote in activeMIDINotes {
-            suppressionExpiryByMIDINote[midiNote] = now.advanced(by: suppressionMinimumResidence)
-        }
-        let expiredMIDINotes = suppressionExpiryByMIDINote.compactMap { midiNote, expiry in
-            activeMIDINotes.contains(midiNote) == false && expiry <= now ? midiNote : nil
-        }
-        for midiNote in expiredMIDINotes {
-            suppressionExpiryByMIDINote[midiNote] = nil
-        }
-        return Set(suppressionExpiryByMIDINote.keys)
+        return suppressedMIDINotes
     }
 
     private func attachRootIfNeeded(to content: RealityViewContent) {
@@ -498,8 +511,8 @@ final class PianoDemonstrationHandsOverlayController {
             rig.hide()
         }
         activeMIDINotesByHand.removeAll()
-        suppressionExpiryByMIDINote.removeAll()
-        lastSubmittedPalmCenterByHand.removeAll()
+        suppressionExpiryByHand.removeAll()
+        lastSubmittedRootTransformByHand.removeAll()
         lastResolvedCoverage = PianoDemonstrationHandCoverage()
         lastCoverage = PianoDemonstrationHandCoverage()
         reduceMotionEnabled = false

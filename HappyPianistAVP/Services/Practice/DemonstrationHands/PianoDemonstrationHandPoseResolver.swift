@@ -1,4 +1,5 @@
 import Foundation
+import Practice
 import simd
 
 struct PianoDemonstrationFingerPose: Equatable {
@@ -8,7 +9,7 @@ struct PianoDemonstrationFingerPose: Equatable {
 
 struct PianoDemonstrationHandPose: Equatable {
     let hand: PianoDemonstrationHand
-    let palmCenterLocal: SIMD3<Float>
+    let rootTransform: PianoHandMotionClip.RootTransform
     let fingers: [PianoDemonstrationFingerPose]
 
     func fingerPose(for finger: PianoDemonstrationFinger) -> PianoDemonstrationFingerPose? {
@@ -102,30 +103,27 @@ struct PianoDemonstrationHandPoseResolver {
         targetsByFinger: [PianoDemonstrationFinger: PianoDemonstrationHandTarget],
         strikeProgressByOccurrenceID: [String: Float]
     ) -> PianoDemonstrationHandPose? {
-        let palmCenter = makePalmCenter(
-            hand: hand,
-            targetsByFinger: targetsByFinger,
+        guard let rootTransform = PianoDemonstrationHandRootPlanner.rootTransform(
+            for: hand,
+            targets: Array(targetsByFinger.values),
             strikeProgressByOccurrenceID: strikeProgressByOccurrenceID
-        )
+        ) else {
+            return nil
+        }
         let fingers = PianoDemonstrationFinger.allCases.map { finger in
             makeFingerPose(
                 finger: finger,
                 hand: hand,
-                palmCenter: palmCenter,
+                rootTransform: rootTransform,
                 target: targetsByFinger[finger],
                 strikeProgress: targetsByFinger[finger].map {
                     strikeProgressByOccurrenceID[$0.occurrenceID] ?? 1
                 } ?? 1
             )
         }
-        guard Self.isFinite(palmCenter)
-        else {
-            return nil
-        }
-
         return PianoDemonstrationHandPose(
             hand: hand,
-            palmCenterLocal: palmCenter,
+            rootTransform: rootTransform,
             fingers: fingers
         )
     }
@@ -167,41 +165,20 @@ struct PianoDemonstrationHandPoseResolver {
         occurrences.sorted { $0.occurrenceID < $1.occurrenceID }
     }
 
-    private func makePalmCenter(
-        hand: PianoDemonstrationHand,
-        targetsByFinger: [PianoDemonstrationFinger: PianoDemonstrationHandTarget],
-        strikeProgressByOccurrenceID: [String: Float]
-    ) -> SIMD3<Float> {
-        let palmX = targetsByFinger.reduce(into: Float.zero) { partial, item in
-            partial += item.value.contactPositionLocal.x - fingerOffsetX(item.key, hand: hand)
-        } / Float(targetsByFinger.count)
-        let averageZ = targetsByFinger.values.reduce(into: Float.zero) { partial, target in
-            partial += target.contactPositionLocal.z
-        } / Float(targetsByFinger.count)
-        let surfaceY = targetsByFinger.values.map(\.contactPositionLocal.y).max() ?? 0
-        let palmStrikeProgress = targetsByFinger.values
-            .filter { $0.phase == .triggered }
-            .map { min(1, max(0, strikeProgressByOccurrenceID[$0.occurrenceID] ?? 1)) }
-            .min() ?? 1
-
-        return SIMD3<Float>(
-            palmX,
-            surfaceY + 0.045 + (1 - palmStrikeProgress) * 0.012,
-            averageZ + 0.050 + (1 - palmStrikeProgress) * 0.004
-        )
-    }
-
     private func makeFingerPose(
         finger: PianoDemonstrationFinger,
         hand: PianoDemonstrationHand,
-        palmCenter: SIMD3<Float>,
+        rootTransform: PianoHandMotionClip.RootTransform,
         target: PianoDemonstrationHandTarget?,
         strikeProgress: Float
     ) -> PianoDemonstrationFingerPose {
-        let knuckle = palmCenter + fingerRootOffset(finger, hand: hand)
+        let rootRotation = simd_quatf(vector: rootTransform.rotation)
+        let knuckle = rootTransform.translation + rootRotation.act(
+            PianoDemonstrationHandRootPlanner.fingerRootOffset(finger, hand: hand)
+        )
         let tip = target.map {
             desiredTip(for: $0, strikeProgress: strikeProgress)
-        } ?? naturalTip(finger: finger, hand: hand, palmCenter: palmCenter)
+        } ?? naturalTip(finger: finger, hand: hand, rootTransform: rootTransform)
         let joints = solveFingerChain(
             root: knuckle,
             tip: tip,
@@ -230,7 +207,7 @@ struct PianoDemonstrationHandPoseResolver {
     private func naturalTip(
         finger: PianoDemonstrationFinger,
         hand: PianoDemonstrationHand,
-        palmCenter: SIMD3<Float>
+        rootTransform: PianoHandMotionClip.RootTransform
     ) -> SIMD3<Float> {
         let rightHandOffset: SIMD3<Float> = switch finger {
         case .thumb: [-0.053, -0.014, -0.058]
@@ -239,22 +216,9 @@ struct PianoDemonstrationHandPoseResolver {
         case .ring: [0.019, -0.018, -0.104]
         case .little: [0.038, -0.015, -0.082]
         }
-        return palmCenter + mirrored(rightHandOffset, for: hand)
-    }
-
-    private func fingerRootOffset(
-        _ finger: PianoDemonstrationFinger,
-        hand: PianoDemonstrationHand
-    ) -> SIMD3<Float> {
-        // ponytail: these are the authored MCP locations in the packaged Blender rig.
-        let rightHandOffset: SIMD3<Float> = switch finger {
-        case .thumb: [-0.030, -0.004, -0.004]
-        case .index: [-0.016, 0, -0.027]
-        case .middle: [0, 0.001, -0.031]
-        case .ring: [0.017, 0, -0.028]
-        case .little: [0.033, -0.001, -0.022]
-        }
-        return mirrored(rightHandOffset, for: hand)
+        return rootTransform.translation + simd_quatf(vector: rootTransform.rotation).act(
+            mirrored(rightHandOffset, for: hand)
+        )
     }
 
     private func mirrored(
@@ -264,13 +228,6 @@ struct PianoDemonstrationHandPoseResolver {
         hand == .right
             ? rightHandOffset
             : SIMD3<Float>(-rightHandOffset.x, rightHandOffset.y, rightHandOffset.z)
-    }
-
-    private func fingerOffsetX(
-        _ finger: PianoDemonstrationFinger,
-        hand: PianoDemonstrationHand
-    ) -> Float {
-        fingerRootOffset(finger, hand: hand).x
     }
 
     private func segmentLengths(for finger: PianoDemonstrationFinger) -> [Float] {

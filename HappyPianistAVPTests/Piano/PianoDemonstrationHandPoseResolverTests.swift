@@ -1,4 +1,5 @@
 @testable import HappyPianistAVP
+@testable import Practice
 import simd
 import Testing
 
@@ -28,9 +29,16 @@ func poseResolverKeepsFingerRootsAttachedToTheAuthoredPalm() throws {
     let pose = try #require(resolution.pose)
     let thumbRoot = try #require(pose.fingerPose(for: .thumb)?.jointPositionsLocal.first)
     let indexRoot = try #require(pose.fingerPose(for: .index)?.jointPositionsLocal.first)
+    let rootRotation = simd_quatf(vector: pose.rootTransform.rotation)
 
-    #expect(simd_distance(thumbRoot - pose.palmCenterLocal, [-0.030, -0.004, -0.004]) < 0.0001)
-    #expect(simd_distance(indexRoot - pose.palmCenterLocal, [-0.016, 0, -0.027]) < 0.0001)
+    #expect(simd_distance(
+        thumbRoot - pose.rootTransform.translation,
+        rootRotation.act([-0.030, -0.004, -0.004])
+    ) < 0.0001)
+    #expect(simd_distance(
+        indexRoot - pose.rootTransform.translation,
+        rootRotation.act([-0.016, 0, -0.027])
+    ) < 0.0001)
 }
 
 @Test
@@ -44,8 +52,10 @@ func poseResolverMirrorsUntargetedFingerSpread() throws {
     let rightThumb = try #require(right.fingerPose(for: .thumb)?.jointPositionsLocal.first)
     let leftThumb = try #require(left.fingerPose(for: .thumb)?.jointPositionsLocal.first)
 
-    #expect(rightThumb.x < right.palmCenterLocal.x)
-    #expect(leftThumb.x > left.palmCenterLocal.x)
+    #expect(rightThumb.x < right.rootTransform.translation.x)
+    #expect(leftThumb.x > left.rootTransform.translation.x)
+    #expect(abs(right.rootTransform.rotation.y) > 0)
+    #expect(right.rootTransform.rotation.y.sign != left.rootTransform.rotation.y.sign)
 }
 
 @Test
@@ -71,7 +81,7 @@ func poseResolverLiftsTheWristAndStrikingFingerBeforeContact() throws {
     let preparedTip = try #require(prepared.fingerPose(for: .index)?.jointPositionsLocal.last)
     let contactTip = try #require(contact.fingerPose(for: .index)?.jointPositionsLocal.last)
 
-    #expect(prepared.palmCenterLocal.y > contact.palmCenterLocal.y)
+    #expect(prepared.rootTransform.translation.y > contact.rootTransform.translation.y)
     #expect(preparedTip.y > contactTip.y)
     #expect(simd_distance(contactTip, target.contactPositionLocal) < 0.0001)
 }

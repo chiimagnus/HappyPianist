@@ -1,5 +1,6 @@
 import RealityKit
 import RealityKitContent
+import Practice
 import simd
 import SwiftUI
 import UIKit
@@ -96,7 +97,10 @@ final class PianoDemonstrationHandRig {
     func apply(pose: PianoDemonstrationHandPose) {
         rootEntity.stopAllAnimations()
         rootEntity.isEnabled = true
-        rootEntity.transform = Transform(translation: pose.palmCenterLocal)
+        rootEntity.transform = Transform(
+            rotation: simd_quatf(vector: pose.rootTransform.rotation),
+            translation: pose.rootTransform.translation
+        )
 
         var transforms = restJointTransforms
         guard wristJointIndex < transforms.count else { return }
