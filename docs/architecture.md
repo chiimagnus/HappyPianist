@@ -42,7 +42,7 @@ Models / Contracts
 | App 与窗口 | `HappyPianistAVPApp`、`AppState` | Library 是入口；preparation 与 practice 是单层 pushed window；immersive space 只承载空间内容。 |
 | 组合根 | `LiveAppGraph` | 共享的 index store、曲库 provider、progress repository、diagnostics reporter 与 practice recorder 不在 ViewModel 内重新创建。 |
 | 手部可视化 | `ARTrackingService`、`NeonHandOverlayController` | service 将实时骨骼归一为运行期快照并以 current-value async stream 发布；controller 在 `.mixed` immersive practice 中复用固定容量网格渲染荧光手套。Simulator 合成姿态只存在于 controller 的条件编译渲染路径；它不是 AR 输入、练习证据、持久化或诊断。 |
-| 示范手引导 | `PianoDemonstrationHandsOverlayController`、`PianoGuideOverlayController` | 默认关闭的 AppStorage 偏好在沉浸空间按 occurrence 混合 Blender 生成的 21 关节骨骼双手与键面贴片；示范手从当前 transport schedule 按绝对时刻预备、落键、回弹和保持，无法提交的键立即交回贴片。它不参与 ARKit、输入或进度，二维键盘始终保留高亮。 |
+| 示范手引导 | `PianoDemonstrationHandsOverlayController`、`PianoGuideOverlayController` | 默认关闭的 AppStorage 偏好在沉浸空间按 occurrence 混合 Blender 生成的 21 关节骨骼双手与键面贴片；Core 的 `PianoFingeringPlanner` 只消费 transport contact、校准后的纯值键盘快照和可调的 `MotionLimits`，在主 Actor 外以有界确定性 DP 生成指法或显式无解。示范手从当前 transport schedule 按绝对时刻预备、落键、回弹和保持，无法提交的键立即交回贴片。它不参与 ARKit、输入或进度，二维键盘始终保留高亮。 |
 | macOS host | `HappyPianistMacApp`、`MacAppGraph`、`MacPracticeViewModel` | 独立沙盒、空 bundled library 和初始导入入口；Mac ViewModel 只绑定 Library resolver、`PracticeRoundSessionController`、MIDI endpoint effect 与 Notation，不复制 reducer、progress 或 playback lifecycle。 |
 | 诊断根 | `Packages/HappyPianistCore/Sources/Diagnostics/` | `DiagnosticEvent`、reporter、七日文件 store、OSLog sink、损坏文件隔离与用户归档；不包含音频、AR、Practice 投影或输出指标。 |
 | 曲谱根 | `Packages/HappyPianistCore/Sources/MusicXML/` | MusicXML/MXL 解析、结构扩展、模型与安全限制；输入失败以本模块 typed error 表示，不反向依赖 Practice。 |
