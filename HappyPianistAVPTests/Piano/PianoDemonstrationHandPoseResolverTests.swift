@@ -9,7 +9,8 @@ func poseResolverPlacesTargetedFingertipsOnKeyContacts() throws {
         makeTarget(hand: .right, finger: .middle, midiNote: 64, point: [0.15, 0.006, -0.07]),
     ]
 
-    let pose = try #require(PianoDemonstrationHandPoseResolver().resolve(hand: .right, targets: targets))
+    let resolution = PianoDemonstrationHandPoseResolver().resolve(hand: .right, targets: targets)
+    let pose = try #require(resolution.pose)
 
     let thumbTip = try #require(pose.fingerPose(for: .thumb)?.jointPositionsLocal.last)
     let middleTip = try #require(pose.fingerPose(for: .middle)?.jointPositionsLocal.last)
@@ -23,7 +24,8 @@ func poseResolverPlacesTargetedFingertipsOnKeyContacts() throws {
 @Test
 func poseResolverKeepsFingerRootsAttachedToTheAuthoredPalm() throws {
     let target = makeTarget(hand: .right, finger: .thumb, midiNote: 60, point: [0.10, 0, -0.07])
-    let pose = try #require(PianoDemonstrationHandPoseResolver().resolve(hand: .right, targets: [target]))
+    let resolution = PianoDemonstrationHandPoseResolver().resolve(hand: .right, targets: [target])
+    let pose = try #require(resolution.pose)
     let thumbRoot = try #require(pose.fingerPose(for: .thumb)?.jointPositionsLocal.first)
     let indexRoot = try #require(pose.fingerPose(for: .index)?.jointPositionsLocal.first)
 
@@ -37,8 +39,8 @@ func poseResolverMirrorsUntargetedFingerSpread() throws {
     let leftTarget = makeTarget(hand: .left, finger: .middle, midiNote: 52, point: [0.12, 0, -0.07])
     let resolver = PianoDemonstrationHandPoseResolver()
 
-    let right = try #require(resolver.resolve(hand: .right, targets: [rightTarget]))
-    let left = try #require(resolver.resolve(hand: .left, targets: [leftTarget]))
+    let right = try #require(resolver.resolve(hand: .right, targets: [rightTarget]).pose)
+    let left = try #require(resolver.resolve(hand: .left, targets: [leftTarget]).pose)
     let rightThumb = try #require(right.fingerPose(for: .thumb)?.jointPositionsLocal.first)
     let leftThumb = try #require(left.fingerPose(for: .thumb)?.jointPositionsLocal.first)
 
@@ -48,7 +50,7 @@ func poseResolverMirrorsUntargetedFingerSpread() throws {
 
 @Test
 func poseResolverRejectsAnEmptyHand() {
-    #expect(PianoDemonstrationHandPoseResolver().resolve(hand: .left, targets: []) == nil)
+    #expect(PianoDemonstrationHandPoseResolver().resolve(hand: .left, targets: []) == .empty)
 }
 
 @Test
@@ -60,12 +62,12 @@ func poseResolverLiftsTheWristAndStrikingFingerBeforeContact() throws {
         hand: .right,
         targets: [target],
         strikeProgressByOccurrenceID: [target.occurrenceID: 0]
-    ))
+    ).pose)
     let contact = try #require(resolver.resolve(
         hand: .right,
         targets: [target],
         strikeProgressByOccurrenceID: [target.occurrenceID: 1]
-    ))
+    ).pose)
     let preparedTip = try #require(prepared.fingerPose(for: .index)?.jointPositionsLocal.last)
     let contactTip = try #require(contact.fingerPose(for: .index)?.jointPositionsLocal.last)
 
@@ -94,7 +96,7 @@ func poseResolverKeepsHeldFingerOnItsKeyWhileAnotherFingerStrikes() throws {
         hand: .right,
         targets: [held, triggered],
         strikeProgressByOccurrenceID: [triggered.occurrenceID: 0]
-    ))
+    ).pose)
     let heldTip = try #require(prepared.fingerPose(for: .middle)?.jointPositionsLocal.last)
     let triggeredTip = try #require(prepared.fingerPose(for: .index)?.jointPositionsLocal.last)
 
@@ -111,12 +113,43 @@ func poseResolverSamplesEachTriggeredOccurrenceIndependently() throws {
         hand: .right,
         targets: [first, second],
         strikeProgressByOccurrenceID: [first.occurrenceID: 0, second.occurrenceID: 1]
-    ))
+    ).pose)
     let firstTip = try #require(pose.fingerPose(for: .index)?.jointPositionsLocal.last)
     let secondTip = try #require(pose.fingerPose(for: .middle)?.jointPositionsLocal.last)
 
     #expect(firstTip.y > first.contactPositionLocal.y)
     #expect(simd_distance(secondTip, second.contactPositionLocal) < 0.0001)
+}
+
+@Test
+func poseResolverReturnsOnlyReachableTargetsAndTheirContactResiduals() throws {
+    let reachableTargets = [
+        makeTarget(hand: .right, finger: .thumb, midiNote: 60, point: [0.10, 0, -0.07]),
+        makeTarget(hand: .right, finger: .index, midiNote: 61, point: [0.12, 0, -0.07]),
+        makeTarget(hand: .right, finger: .middle, midiNote: 62, point: [0.14, 0, -0.07]),
+        makeTarget(hand: .right, finger: .ring, midiNote: 63, point: [0.16, 0, -0.07]),
+    ]
+    let unreachableTarget = makeTarget(
+        hand: .right,
+        finger: .little,
+        midiNote: 64,
+        point: [0.18, 0, -0.40]
+    )
+
+    let resolution = PianoDemonstrationHandPoseResolver().resolve(
+        hand: .right,
+        targets: reachableTargets + [unreachableTarget]
+    )
+    let pose = try #require(resolution.pose)
+    let unreachable = try #require(resolution.unreachableOccurrences.first)
+
+    #expect(unreachable.occurrenceID == unreachableTarget.occurrenceID)
+    #expect(unreachable.contactErrorMeters > PianoDemonstrationHandPoseResolver.maximumContactErrorMeters)
+    #expect(resolution.reachableOccurrenceIDs == Set(reachableTargets.map(\.occurrenceID)))
+    for target in reachableTargets {
+        let tip = try #require(pose.fingerPose(for: target.finger)?.jointPositionsLocal.last)
+        #expect(simd_distance(tip, target.contactPositionLocal) < 0.0001)
+    }
 }
 
 private func makeTarget(

@@ -20,7 +20,7 @@ func handRigLoadsPackaged21JointAssetAndAppliesPose() async throws {
                 velocity: 96
             ),
         ]
-    ))
+    ).pose)
 
     #expect(rig.jointCount == 21)
     #expect(rig.rootEntity.children.count == 1)

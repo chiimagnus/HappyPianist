@@ -104,7 +104,8 @@ final class PianoDemonstrationHandsOverlayController {
 
         if reduceMotion {
             resetAllStrokeRuntimes()
-            applyCurrentTargets(at: now)
+            let unreachableOccurrenceIDs = applyCurrentTargets(at: now)
+            lastCoverage = lastCoverage.markingUnreachable(occurrenceIDs: unreachableOccurrenceIDs)
             return currentSuppressedMIDINotes()
         }
 
@@ -116,7 +117,8 @@ final class PianoDemonstrationHandsOverlayController {
                 timing: timing,
                 at: now
             )
-            applyCurrentTargets(hand: hand, at: now)
+            let unreachableOccurrenceIDs = applyCurrentTargets(hand: hand, at: now)
+            lastCoverage = lastCoverage.markingUnreachable(occurrenceIDs: unreachableOccurrenceIDs)
         }
         return currentSuppressedMIDINotes()
     }
@@ -154,7 +156,13 @@ final class PianoDemonstrationHandsOverlayController {
                     guard Task.isCancelled == false, requiresReplacement == false else { return }
                     install(rig: rig, for: hand)
                     lastCoverage = lastResolvedCoverage.limitedToAvailableHands(Set(rigs.keys))
-                    applyCurrentTargets(hand: hand, at: performanceClock.now())
+                    let unreachableOccurrenceIDs = applyCurrentTargets(
+                        hand: hand,
+                        at: performanceClock.now()
+                    )
+                    lastCoverage = lastCoverage.markingUnreachable(
+                        occurrenceIDs: unreachableOccurrenceIDs
+                    )
                 } catch is CancellationError {
                     return
                 } catch {
@@ -385,10 +393,12 @@ final class PianoDemonstrationHandsOverlayController {
         strokeRuntimeByHand[hand] ?? HandStrokeRuntime()
     }
 
+    @discardableResult
     private func applyCurrentTargets(
         hand selectedHand: PianoDemonstrationHand? = nil,
         at now: PerformanceMonotonicInstant
-    ) {
+    ) -> Set<String> {
+        var unreachableOccurrenceIDs = Set<String>()
         for hand in PianoDemonstrationHand.allCases where selectedHand == nil || selectedHand == hand {
             let runtime = strokeRuntime(for: hand)
             var targetsByOccurrenceID = Dictionary(
@@ -406,13 +416,19 @@ final class PianoDemonstrationHandsOverlayController {
                     ($0.key, strikeScheduler.sample($0.value.schedule, at: now).contactProgress)
                 }
             )
-            if let pose = poseResolver.resolve(
+            let resolution = poseResolver.resolve(
                 hand: hand,
                 targets: targetsForHand,
                 strikeProgressByOccurrenceID: strikeProgressByOccurrenceID
-            ), let rig = rigs[hand] {
+            )
+            let failedOccurrenceIDs = Set(resolution.unreachableOccurrences.map(\.occurrenceID))
+            unreachableOccurrenceIDs.formUnion(failedOccurrenceIDs)
+            let submittedTargets = targetsForHand.filter {
+                resolution.reachableOccurrenceIDs.contains($0.occurrenceID)
+            }
+            if let pose = resolution.pose, let rig = rigs[hand] {
                 rig.apply(pose: pose)
-                activeMIDINotesByHand[hand] = Set(targetsForHand.map(\.midiNote))
+                activeMIDINotesByHand[hand] = Set(submittedTargets.map(\.midiNote))
                 lastSubmittedPalmCenterByHand[hand] = pose.palmCenterLocal
             } else if shouldLift(hand: hand, releasedMIDINotes: lastCoverage.releasedMIDINotes) {
                 rigs[hand]?.lift(animated: reduceMotionEnabled == false)
@@ -422,6 +438,7 @@ final class PianoDemonstrationHandsOverlayController {
                 activeMIDINotesByHand[hand] = []
             }
         }
+        return unreachableOccurrenceIDs
     }
 
     private func handTravelDistance(
@@ -429,7 +446,7 @@ final class PianoDemonstrationHandsOverlayController {
         targets: [PianoDemonstrationHandTarget]
     ) -> Float {
         guard let previousPalmCenter = lastSubmittedPalmCenterByHand[hand],
-              let nextPalmCenter = poseResolver.resolve(hand: hand, targets: targets)?.palmCenterLocal
+              let nextPalmCenter = poseResolver.resolve(hand: hand, targets: targets).pose?.palmCenterLocal
         else {
             return 0
         }

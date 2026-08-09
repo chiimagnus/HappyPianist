@@ -335,6 +335,34 @@ struct PianoDemonstrationHandsOverlayControllerTests {
         controller.reset()
     }
 
+    @Test func unreachableTargetFallsBackToItsKeyWhileReachableTargetsStayOnTheRig() async throws {
+        let controller = try await PianoDemonstrationHandsOverlayController(preloadedRigs: makeRigs())
+        let guide = makeGuide(
+            id: 1,
+            kind: .trigger,
+            active: [],
+            triggered: [60, 61, 62, 63, 64].map { midiNote in
+                makeNote(id: "target-\(midiNote)", midiNote: midiNote, hand: .right)
+            },
+            released: []
+        )
+
+        let suppression = controller.update(
+            isEnabled: true,
+            highlightGuide: guide,
+            timing: .manual,
+            keyboardGeometry: makeGeometry(
+                notes: [60, 61, 62, 63, 64],
+                keyDepths: [64: -0.40]
+            ),
+            reduceMotion: true,
+            content: nil
+        )
+
+        #expect(suppression == Set([60, 61, 62, 63]))
+        controller.reset()
+    }
+
     @Test func manualTimingFallbackIsReportedOncePerGuide() async throws {
         let now = Mutex(PerformanceMonotonicInstant(seconds: 1))
         let diagnostics = InMemoryDiagnosticsReporter()
@@ -656,13 +684,19 @@ private func makeTransportTiming(
     )
 }
 
-private func makeGeometry(notes: [Int] = [60]) -> PianoKeyboardGeometry {
+private func makeGeometry(
+    notes: [Int] = [60],
+    keyDepths: [Int: Float] = [:]
+) -> PianoKeyboardGeometry {
     makeGeometry(keyCenters: Dictionary(uniqueKeysWithValues: notes.enumerated().map { index, midiNote in
         (midiNote, 0.12 + Float(index) * 0.024)
-    }))
+    }), keyDepths: keyDepths)
 }
 
-private func makeGeometry(keyCenters: [Int: Float]) -> PianoKeyboardGeometry {
+private func makeGeometry(
+    keyCenters: [Int: Float],
+    keyDepths: [Int: Float] = [:]
+) -> PianoKeyboardGeometry {
     let frame = KeyboardFrame(
         a0World: SIMD3<Float>(0, 0.5, 0),
         c8World: SIMD3<Float>(1, 0.5, 0),
@@ -670,15 +704,16 @@ private func makeGeometry(keyCenters: [Int: Float]) -> PianoKeyboardGeometry {
     )!
     let keys = keyCenters.keys.sorted().compactMap { midiNote -> PianoKeyGeometry? in
         guard let x = keyCenters[midiNote] else { return nil }
+        let z = keyDepths[midiNote] ?? -0.07
         return PianoKeyGeometry(
             midiNote: midiNote,
             kind: .white,
-            localCenter: SIMD3<Float>(x, -0.015, -0.07),
+            localCenter: SIMD3<Float>(x, -0.015, z),
             localSize: SIMD3<Float>(0.022, 0.03, 0.14),
             surfaceLocalY: 0,
-            hitCenterLocal: SIMD3<Float>(x, -0.015, -0.07),
+            hitCenterLocal: SIMD3<Float>(x, -0.015, z),
             hitSizeLocal: SIMD3<Float>(0.022, 0.03, 0.14),
-            beamFootprintCenterLocal: SIMD3<Float>(x, 0, -0.07),
+            beamFootprintCenterLocal: SIMD3<Float>(x, 0, z),
             beamFootprintSizeLocal: SIMD2<Float>(0.022, 0.14)
         )
     }

@@ -16,24 +16,95 @@ struct PianoDemonstrationHandPose: Equatable {
     }
 }
 
+struct PianoDemonstrationHandPoseResolution: Equatable {
+    struct Unreachable: Equatable {
+        let occurrenceID: String
+        let contactErrorMeters: Float
+    }
+
+    let pose: PianoDemonstrationHandPose?
+    let reachableOccurrenceIDs: Set<String>
+    let unreachableOccurrences: [Unreachable]
+
+    static let empty = PianoDemonstrationHandPoseResolution(
+        pose: nil,
+        reachableOccurrenceIDs: [],
+        unreachableOccurrences: []
+    )
+}
+
 struct PianoDemonstrationHandPoseResolver {
+    static let maximumContactErrorMeters: Float = 0.005
+
     func resolve(
         hand: PianoDemonstrationHand,
         targets: [PianoDemonstrationHandTarget],
         strikeProgressByOccurrenceID: [String: Float] = [:]
-    ) -> PianoDemonstrationHandPose? {
-        guard targets.isEmpty == false else { return nil }
+    ) -> PianoDemonstrationHandPoseResolution {
+        let handTargets = targets.filter { $0.hand == hand }
+        guard handTargets.isEmpty == false else {
+            return .empty
+        }
 
         var targetByFinger: [PianoDemonstrationFinger: PianoDemonstrationHandTarget] = [:]
-        for target in targets where target.hand == hand {
+        var unreachableOccurrences: [PianoDemonstrationHandPoseResolution.Unreachable] = []
+        for target in handTargets {
+            guard Self.isFinite(target.contactPositionLocal) else {
+                unreachableOccurrences.append(unreachable(for: target, error: .infinity))
+                continue
+            }
+            guard targetByFinger[target.finger] == nil else {
+                unreachableOccurrences.append(unreachable(for: target, error: .infinity))
+                continue
+            }
             targetByFinger[target.finger] = target
         }
-        guard targetByFinger.isEmpty == false else { return nil }
+        while targetByFinger.isEmpty == false {
+            guard let pose = makePose(
+                hand: hand,
+                targetsByFinger: targetByFinger,
+                strikeProgressByOccurrenceID: strikeProgressByOccurrenceID
+            ) else {
+                unreachableOccurrences += targetByFinger.values.map {
+                    unreachable(for: $0, error: .infinity)
+                }
+                targetByFinger.removeAll()
+                break
+            }
+            let failures = reachabilityFailures(
+                in: pose,
+                targetsByFinger: targetByFinger,
+                strikeProgressByOccurrenceID: strikeProgressByOccurrenceID
+            )
+            guard failures.isEmpty == false else {
+                return PianoDemonstrationHandPoseResolution(
+                    pose: pose,
+                    reachableOccurrenceIDs: Set(targetByFinger.values.map(\.occurrenceID)),
+                    unreachableOccurrences: sorted(unreachableOccurrences)
+                )
+            }
+            unreachableOccurrences += failures
+            let failedOccurrenceIDs = Set(failures.map(\.occurrenceID))
+            targetByFinger = targetByFinger.filter {
+                failedOccurrenceIDs.contains($0.value.occurrenceID) == false
+            }
+        }
 
-        let targetPositions = targetByFinger.values.map(\.contactPositionLocal)
+        return PianoDemonstrationHandPoseResolution(
+            pose: nil,
+            reachableOccurrenceIDs: [],
+            unreachableOccurrences: sorted(unreachableOccurrences)
+        )
+    }
+
+    private func makePose(
+        hand: PianoDemonstrationHand,
+        targetsByFinger: [PianoDemonstrationFinger: PianoDemonstrationHandTarget],
+        strikeProgressByOccurrenceID: [String: Float]
+    ) -> PianoDemonstrationHandPose? {
         let palmCenter = makePalmCenter(
             hand: hand,
-            targetsByFinger: targetByFinger,
+            targetsByFinger: targetsByFinger,
             strikeProgressByOccurrenceID: strikeProgressByOccurrenceID
         )
         let fingers = PianoDemonstrationFinger.allCases.map { finger in
@@ -41,14 +112,13 @@ struct PianoDemonstrationHandPoseResolver {
                 finger: finger,
                 hand: hand,
                 palmCenter: palmCenter,
-                target: targetByFinger[finger],
-                strikeProgress: targetByFinger[finger].map {
+                target: targetsByFinger[finger],
+                strikeProgress: targetsByFinger[finger].map {
                     strikeProgressByOccurrenceID[$0.occurrenceID] ?? 1
                 } ?? 1
             )
         }
-        guard targetPositions.allSatisfy(Self.isFinite),
-              Self.isFinite(palmCenter)
+        guard Self.isFinite(palmCenter)
         else {
             return nil
         }
@@ -58,6 +128,43 @@ struct PianoDemonstrationHandPoseResolver {
             palmCenterLocal: palmCenter,
             fingers: fingers
         )
+    }
+
+    private func reachabilityFailures(
+        in pose: PianoDemonstrationHandPose,
+        targetsByFinger: [PianoDemonstrationFinger: PianoDemonstrationHandTarget],
+        strikeProgressByOccurrenceID: [String: Float]
+    ) -> [PianoDemonstrationHandPoseResolution.Unreachable] {
+        targetsByFinger.compactMap { finger, target in
+            guard let actualTip = pose.fingerPose(for: finger)?.jointPositionsLocal.last else {
+                return unreachable(for: target, error: .infinity)
+            }
+            let expectedTip = desiredTip(
+                for: target,
+                strikeProgress: strikeProgressByOccurrenceID[target.occurrenceID] ?? 1
+            )
+            let error = simd_distance(actualTip, expectedTip)
+            guard error.isFinite, error > Self.maximumContactErrorMeters else {
+                return nil
+            }
+            return unreachable(for: target, error: error)
+        }
+    }
+
+    private func unreachable(
+        for target: PianoDemonstrationHandTarget,
+        error: Float
+    ) -> PianoDemonstrationHandPoseResolution.Unreachable {
+        PianoDemonstrationHandPoseResolution.Unreachable(
+            occurrenceID: target.occurrenceID,
+            contactErrorMeters: error
+        )
+    }
+
+    private func sorted(
+        _ occurrences: [PianoDemonstrationHandPoseResolution.Unreachable]
+    ) -> [PianoDemonstrationHandPoseResolution.Unreachable] {
+        occurrences.sorted { $0.occurrenceID < $1.occurrenceID }
     }
 
     private func makePalmCenter(
@@ -92,17 +199,9 @@ struct PianoDemonstrationHandPoseResolver {
         strikeProgress: Float
     ) -> PianoDemonstrationFingerPose {
         let knuckle = palmCenter + fingerRootOffset(finger, hand: hand)
-        let tip: SIMD3<Float>
-        let clampedStrikeProgress = min(1, max(0, strikeProgress))
-        if let target {
-            let velocity = Float(target.velocity) / 127
-            let strikeLift = target.phase == .triggered
-                ? (1 - clampedStrikeProgress) * (0.018 + velocity * 0.008)
-                : 0
-            tip = target.contactPositionLocal + SIMD3<Float>(0, strikeLift, 0)
-        } else {
-            tip = naturalTip(finger: finger, hand: hand, palmCenter: palmCenter)
-        }
+        let tip = target.map {
+            desiredTip(for: $0, strikeProgress: strikeProgress)
+        } ?? naturalTip(finger: finger, hand: hand, palmCenter: palmCenter)
         let joints = solveFingerChain(
             root: knuckle,
             tip: tip,
@@ -114,6 +213,18 @@ struct PianoDemonstrationHandPoseResolver {
             finger: finger,
             jointPositionsLocal: joints
         )
+    }
+
+    private func desiredTip(
+        for target: PianoDemonstrationHandTarget,
+        strikeProgress: Float
+    ) -> SIMD3<Float> {
+        let clampedStrikeProgress = min(1, max(0, strikeProgress))
+        let velocity = Float(target.velocity) / 127
+        let strikeLift = target.phase == .triggered
+            ? (1 - clampedStrikeProgress) * (0.018 + velocity * 0.008)
+            : 0
+        return target.contactPositionLocal + SIMD3<Float>(0, strikeLift, 0)
     }
 
     private func naturalTip(

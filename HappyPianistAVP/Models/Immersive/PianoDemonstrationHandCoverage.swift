@@ -16,6 +16,7 @@ struct PianoDemonstrationHandCoverage: Equatable {
         case spanExceeded
         case missingGeometry
         case assetUnavailable
+        case unreachable
     }
 
     let guideID: Int?
@@ -61,5 +62,33 @@ struct PianoDemonstrationHandCoverage: Equatable {
             releasedMIDINotes: releasedMIDINotes
         )
     }
-}
 
+    func markingUnreachable(
+        occurrenceIDs: Set<String>
+    ) -> PianoDemonstrationHandCoverage {
+        guard occurrenceIDs.isEmpty == false else { return self }
+        let unreachableTargets = coveredTargets.filter {
+            occurrenceIDs.contains($0.occurrenceID)
+        }
+        guard unreachableTargets.isEmpty == false else { return self }
+        let unreachableKeys = unreachableTargets.map {
+            UncoveredKey(
+                midiNote: $0.midiNote,
+                occurrenceID: $0.occurrenceID,
+                reason: .unreachable
+            )
+        }
+        return PianoDemonstrationHandCoverage(
+            guideID: guideID,
+            coveredTargets: coveredTargets.filter {
+                occurrenceIDs.contains($0.occurrenceID) == false
+            },
+            uncoveredKeys: (uncoveredKeys + unreachableKeys).sorted { lhs, rhs in
+                if lhs.midiNote != rhs.midiNote { return lhs.midiNote < rhs.midiNote }
+                if lhs.occurrenceID != rhs.occurrenceID { return lhs.occurrenceID < rhs.occurrenceID }
+                return lhs.reason.rawValue < rhs.reason.rawValue
+            },
+            releasedMIDINotes: releasedMIDINotes
+        )
+    }
+}

@@ -127,6 +127,7 @@ PianoHighlightGuide + AutoplayTimelineTimeSchedule + PianoKeyboardGeometry
 - 开启时按音符混合示范手与 `PianoGuideOverlayController` 键面贴片：只有已经成功提交给 21 关节 rig 的音符会短暂抑制对应贴片；未知手别、指法冲突、超出跨度、缺少几何或尚未加载资产的音符继续显示贴片。二维 `PianoKeyboard88View` 继续从同一个 guide 渲染高亮。
 - 示范手优先采用 guide 的明确左右手事实；未分配时仅在此渲染层按第 1/2 谱表临时显示右/左手，绝不回写曲谱、plan 或手部分配。
 - 自动播放把同一份 `AutoplayTimelineTimeSchedule`、transport generation 与采样时刻交给示范手；controller 按注入的 `PerformanceClock` 逐帧采样，按 `hand → occurrenceID` 保留每个音符自己的 onset、release 与进度。预备窗口取该 occurrence 的实际 pre-roll（最多 `0.45 s`），时刻由 note 的 source event 查得，因此 lead-in、pause、seek 与 loop 不会另走一套时间线。`RealityView.update` 只采样和应用既有 rig，不启动轮询或动画 task。
+- pose resolver 在提交 rig 前核对每个 occurrence 的指尖残差；超过 `5 mm` 的是明确降级红线，标记为 `unreachable` 并交回键面贴片，绝不静默截断后继续抑制该键。可达目标仍保持 `< 0.0001 m` 的接触精度；`5 mm` 不是放宽后的精度目标。
 - controller 不读 ARKit、不挂 `InputTargetComponent`/碰撞、不产生 observation。两手从 RealityKitContent 异步加载 Blender 生成的骨骼资产，渲染期只旋转既有 21 关节并移动整手 root，始终保留绑定姿态的局部平移与骨长；reset 会取消资产加载和击键动作并移除所有子实体，不回退到旧基础体手型。
 - 手动练习没有未来 onset，示范手以 guide 出现时刻开始预备并记录一次未对齐时序诊断；它不声称与音频 onset 对齐。
 - Reduce Motion 直接显示终态。Simulator 使用现有虚拟钢琴的 geometry 与 guide，所以能预览此渲染；真机仍需人工检查坐姿舒适度、键面接触、遮挡和视觉比例。
