@@ -692,6 +692,7 @@ extension PracticeSessionViewModel {
     func applyKeyboardGeometry(_ keyboardGeometry: PianoKeyboardGeometry, calibration: PianoCalibration) {
         self.calibration = calibration
         self.keyboardGeometry = keyboardGeometry
+        startPianoDemonstrationFingeringPlanForAutoplayTimeline()
         if self.steps.isEmpty == false, self.state != .completed, self.state != .guiding(stepIndex: self.currentStepIndex) {
             self.state = .ready
         }
@@ -699,6 +700,7 @@ extension PracticeSessionViewModel {
 
     func applyVirtualKeyboardGeometry(_ keyboardGeometry: PianoKeyboardGeometry) {
         self.keyboardGeometry = keyboardGeometry
+        startPianoDemonstrationFingeringPlanForAutoplayTimeline()
         if self.steps.isEmpty == false, self.state != .completed, self.state != .guiding(stepIndex: self.currentStepIndex) {
             self.state = .ready
         }
@@ -709,6 +711,7 @@ extension PracticeSessionViewModel {
     }
 
     func clearCalibration() {
+        cancelPianoDemonstrationFingeringPlan()
         self.calibration = nil
         self.keyboardGeometry = nil
         self.pressedNotes.removeAll()

@@ -85,15 +85,20 @@ public struct PianoKeyContactTimeline: Equatable, Sendable {
         guideProjection: [PianoHighlightGuide],
         stepProjection: [PracticeStep]
     ) {
-        let sourceEventIDs = Set(timeline.events.compactMap { event -> String? in
-            guard let sourceEventID = event.sourceEventID else { return nil }
+        var noteEventsByOccurrenceID: [String: (noteOn: AutoplayPerformanceTimeline.Event?, noteOff: AutoplayPerformanceTimeline.Event?)] = [:]
+        for event in timeline.events {
+            guard let occurrenceID = event.sourceEventID else { continue }
+            var events = noteEventsByOccurrenceID[occurrenceID] ?? (noteOn: nil, noteOff: nil)
             switch event.kind {
-            case .noteOn, .noteOff:
-                return sourceEventID
-            case .pauseSeconds, .controlChange, .tempo, .advanceStep, .advanceGuide:
-                return nil
+            case .noteOn where events.noteOn == nil:
+                events.noteOn = event
+            case .noteOff where events.noteOff == nil:
+                events.noteOff = event
+            case .pauseSeconds, .controlChange, .tempo, .advanceStep, .advanceGuide, .noteOn, .noteOff:
+                continue
             }
-        })
+            noteEventsByOccurrenceID[occurrenceID] = events
+        }
         let guideIDByOccurrenceID = Self.guideIDByOccurrenceID(
             guides: guideProjection,
             timeline: timeline
@@ -109,14 +114,9 @@ public struct PianoKeyContactTimeline: Equatable, Sendable {
 
         contacts = plan.noteEvents.compactMap { note in
             let occurrenceID = note.id.description
-            guard sourceEventIDs.contains(occurrenceID) else { return nil }
-
-            let noteOnEvent = timeline.events.first { event in
-                event.sourceEventID == occurrenceID && event.isNoteOn
-            }
-            let noteOffEvent = timeline.events.first { event in
-                event.sourceEventID == occurrenceID && event.isNoteOff
-            }
+            guard let events = noteEventsByOccurrenceID[occurrenceID] else { return nil }
+            let noteOnEvent = events.noteOn
+            let noteOffEvent = events.noteOff
             let timing = Self.timing(
                 noteOnEvent: noteOnEvent,
                 noteOffEvent: noteOffEvent,
@@ -132,7 +132,7 @@ public struct PianoKeyContactTimeline: Equatable, Sendable {
                 fingerings: note.fingerings,
                 velocity: note.velocity,
                 guideID: guideIDByOccurrenceID[occurrenceID],
-                stepIndex: stepEvents.last(where: { $0.tick <= contactTick })?.index,
+                stepIndex: Self.stepIndex(atOrBefore: contactTick, from: stepEvents),
                 carriedIn: noteOnEvent.map { $0.tick != note.performedOnTick } ?? false,
                 timing: timing
             )
@@ -180,6 +180,23 @@ public struct PianoKeyContactTimeline: Equatable, Sendable {
         return .scheduled(onsetSeconds: onsetSeconds, releaseSeconds: releaseSeconds)
     }
 
+    private static func stepIndex(
+        atOrBefore tick: Int,
+        from stepEvents: [(tick: Int, index: Int)]
+    ) -> Int? {
+        var lowerBound = 0
+        var upperBound = stepEvents.count
+        while lowerBound < upperBound {
+            let midpoint = lowerBound + (upperBound - lowerBound) / 2
+            if stepEvents[midpoint].tick <= tick {
+                lowerBound = midpoint + 1
+            } else {
+                upperBound = midpoint
+            }
+        }
+        return lowerBound == 0 ? nil : stepEvents[lowerBound - 1].index
+    }
+
     private static func areInPresentationOrder(_ lhs: Contact, _ rhs: Contact) -> Bool {
         switch (lhs.onsetSeconds, rhs.onsetSeconds) {
         case let (lhsOnset?, rhsOnset?) where lhsOnset != rhsOnset:
@@ -191,17 +208,5 @@ public struct PianoKeyContactTimeline: Equatable, Sendable {
         default:
             lhs.occurrenceID < rhs.occurrenceID
         }
-    }
-}
-
-private extension AutoplayPerformanceTimeline.Event {
-    var isNoteOn: Bool {
-        if case .noteOn = kind { return true }
-        return false
-    }
-
-    var isNoteOff: Bool {
-        if case .noteOff = kind { return true }
-        return false
     }
 }

@@ -212,6 +212,10 @@ func pianoDemonstrationHandsTimingDoesNotLeakTransportAcrossRestart() async {
             makeHighlightGuide(id: 2, kind: .trigger, tick: 480, practiceStepIndex: 1, midiNotes: [62]),
         ]
     )
+    viewModel.applyVirtualKeyboardGeometry(makeFingeringKeyboardGeometry(notes: [60, 62]))
+    await waitUntil("manual fingering plan for restart") {
+        viewModel.pianoDemonstrationReadyFingeringPlan(for: .manual) != nil
+    }
 
     guard case .manual = viewModel.pianoDemonstrationHandsTiming() else {
         Issue.record("inactive session must not expose a transport")
@@ -241,6 +245,13 @@ func pianoDemonstrationHandsTimingDoesNotLeakTransportAcrossRestart() async {
     #expect(initialTiming.contactTimeline.contacts.allSatisfy {
         $0.onsetSeconds != nil && $0.releaseSeconds != nil && $0.carriedIn == false
     })
+    await waitUntil("initial demonstration fingering plan") {
+        viewModel.pianoDemonstrationReadyFingeringPlan(for: viewModel.pianoDemonstrationHandsTiming()) != nil
+    }
+    #expect(viewModel.pianoDemonstrationReadyFingeringPlan(for: viewModel.pianoDemonstrationHandsTiming())?.results.allSatisfy {
+        if case .planned = $0.resolution { return true }
+        return false
+    } == true)
 
     viewModel.skip()
     await waitUntil("replacement demonstration transport") {
@@ -254,12 +265,16 @@ func pianoDemonstrationHandsTimingDoesNotLeakTransportAcrossRestart() async {
     case .manual, .transportPending:
         Issue.record("restart must replace, not retain, demonstration timing")
     }
+    await waitUntil("replacement demonstration fingering plan") {
+        viewModel.pianoDemonstrationReadyFingeringPlan(for: viewModel.pianoDemonstrationHandsTiming())?.results.count == 1
+    }
 
     viewModel.setAutoplayEnabled(false)
     guard case .manual = viewModel.pianoDemonstrationHandsTiming() else {
         Issue.record("stopped autoplay must not expose its cancelled transport")
         return
     }
+    #expect(viewModel.pianoDemonstrationReadyFingeringPlan(for: .manual) == nil)
     viewModel.shutdown()
 }
 
@@ -1653,6 +1668,28 @@ private func makeDummyKeyboardGeometry() -> PianoKeyboardGeometry {
         planeHeight: 0.0
     )!
     return PianoKeyboardGeometry(frame: frame, keys: [])
+}
+
+private func makeFingeringKeyboardGeometry(notes: [Int]) -> PianoKeyboardGeometry {
+    let frame = KeyboardFrame(
+        a0World: SIMD3<Float>(0.0, 0.0, 0.0),
+        c8World: SIMD3<Float>(1.0, 0.0, 0.0),
+        planeHeight: 0.0
+    )!
+    let keys = notes.enumerated().map { index, midiNote in
+        PianoKeyGeometry(
+            midiNote: midiNote,
+            kind: .white,
+            localCenter: SIMD3<Float>(Float(index) * 0.024, -0.015, -0.07),
+            localSize: SIMD3<Float>(0.022, 0.03, 0.14),
+            surfaceLocalY: 0,
+            hitCenterLocal: SIMD3<Float>(Float(index) * 0.024, -0.015, -0.07),
+            hitSizeLocal: SIMD3<Float>(0.022, 0.03, 0.14),
+            beamFootprintCenterLocal: SIMD3<Float>(Float(index) * 0.024, 0, -0.07),
+            beamFootprintSizeLocal: SIMD2<Float>(0.022, 0.14)
+        )
+    }
+    return PianoKeyboardGeometry(frame: frame, keys: keys)
 }
 
 @Test

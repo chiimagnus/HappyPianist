@@ -10,6 +10,47 @@ import Testing
 
 @MainActor
 struct PianoDemonstrationHandsOverlayControllerTests {
+    @Test func pendingFingeringPlanNeverSuppressesAReadyGuideKey() async throws {
+        let root = Entity()
+        let controller = try await PianoDemonstrationHandsOverlayController(
+            rootEntity: root,
+            preloadedRigs: makeRigs()
+        )
+        let guide = makeGuide(
+            id: 1,
+            kind: .trigger,
+            active: [],
+            triggered: [makeNote(id: "planned", midiNote: 60, hand: .right)],
+            released: []
+        )
+        let readyPlan = PianoFingeringPlanner.Plan(results: [
+            .init(
+                occurrenceID: "planned",
+                resolution: .planned(hand: .right, finger: 1, source: .planned)
+            ),
+        ])
+
+        #expect(controller.update(
+            isEnabled: true,
+            highlightGuide: guide,
+            timing: .manual,
+            fingeringPlan: nil,
+            keyboardGeometry: makeGeometry(),
+            reduceMotion: true,
+            content: nil
+        ).isEmpty)
+        #expect(controller.update(
+            isEnabled: true,
+            highlightGuide: guide,
+            timing: .manual,
+            fingeringPlan: readyPlan,
+            keyboardGeometry: makeGeometry(),
+            reduceMotion: true,
+            content: nil
+        ) == [60])
+        controller.reset()
+    }
+
     @Test func reusesLoadedHandsAndLiftsReleasedNotesWithoutARKitInput() async throws {
         let root = Entity()
         let controller = try await PianoDemonstrationHandsOverlayController(
@@ -29,6 +70,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
             isEnabled: true,
             highlightGuide: triggered,
             timing: .manual,
+            fingeringPlan: readyFingeringPlan(for: [triggered]),
             keyboardGeometry: geometry,
             reduceMotion: true,
             content: nil
@@ -42,6 +84,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
             isEnabled: true,
             highlightGuide: triggered,
             timing: .manual,
+            fingeringPlan: readyFingeringPlan(for: [triggered]),
             keyboardGeometry: geometry,
             reduceMotion: true,
             content: nil
@@ -58,6 +101,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
                 released: [60]
             ),
             timing: .manual,
+            fingeringPlan: PianoFingeringPlanner.Plan(results: []),
             keyboardGeometry: geometry,
             reduceMotion: true,
             content: nil
@@ -97,6 +141,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
             isEnabled: true,
             highlightGuide: leftGuide,
             timing: .manual,
+            fingeringPlan: readyFingeringPlan(for: [leftGuide]),
             keyboardGeometry: geometry,
             reduceMotion: false,
             content: nil
@@ -106,6 +151,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
             isEnabled: true,
             highlightGuide: leftGuide,
             timing: .manual,
+            fingeringPlan: readyFingeringPlan(for: [leftGuide]),
             keyboardGeometry: geometry,
             reduceMotion: false,
             content: nil
@@ -113,19 +159,21 @@ struct PianoDemonstrationHandsOverlayControllerTests {
         let leftHand = try #require(root.findEntity(named: "pianoDemonstrationHand.left"))
         let leftPositionBeforeRightTrigger = leftHand.position
 
+        let bothHandsGuide = makeGuide(
+            id: 2,
+            kind: .trigger,
+            active: [],
+            triggered: [
+                leftNote,
+                makeNote(id: "right", midiNote: 60, hand: .right, velocity: 96),
+            ],
+            released: []
+        )
         controller.update(
             isEnabled: true,
-            highlightGuide: makeGuide(
-                id: 2,
-                kind: .trigger,
-                active: [],
-                triggered: [
-                    leftNote,
-                    makeNote(id: "right", midiNote: 60, hand: .right, velocity: 96),
-                ],
-                released: []
-            ),
+            highlightGuide: bothHandsGuide,
             timing: .manual,
+            fingeringPlan: readyFingeringPlan(for: [bothHandsGuide]),
             keyboardGeometry: geometry,
             reduceMotion: false,
             content: nil
@@ -159,6 +207,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
             isEnabled: true,
             highlightGuide: guide,
             timing: .manual,
+            fingeringPlan: readyFingeringPlan(for: [guide]),
             keyboardGeometry: geometry,
             reduceMotion: false,
             content: nil
@@ -168,6 +217,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
             isEnabled: true,
             highlightGuide: guide,
             timing: .manual,
+            fingeringPlan: readyFingeringPlan(for: [guide]),
             keyboardGeometry: geometry,
             reduceMotion: false,
             content: nil
@@ -212,6 +262,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
             isEnabled: true,
             highlightGuide: nil,
             timing: .transport(timing),
+            fingeringPlan: readyFingeringPlan(for: timing.guides),
             keyboardGeometry: geometry,
             reduceMotion: false,
             content: nil
@@ -224,6 +275,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
             isEnabled: true,
             highlightGuide: nil,
             timing: .transport(timing),
+            fingeringPlan: readyFingeringPlan(for: timing.guides),
             keyboardGeometry: geometry,
             reduceMotion: false,
             content: nil
@@ -268,6 +320,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
             isEnabled: true,
             highlightGuide: current,
             timing: .manual,
+            fingeringPlan: readyFingeringPlan(for: [current]),
             keyboardGeometry: geometry,
             reduceMotion: true,
             content: nil
@@ -283,6 +336,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
             isEnabled: true,
             highlightGuide: nil,
             timing: .transport(timing),
+            fingeringPlan: readyFingeringPlan(for: timing.guides),
             keyboardGeometry: geometry,
             reduceMotion: false,
             content: nil
@@ -327,6 +381,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
             isEnabled: true,
             highlightGuide: guide,
             timing: .transport(timing),
+            fingeringPlan: readyFingeringPlan(for: timing.guides),
             keyboardGeometry: makeGeometry(notes: [60, 64]),
             reduceMotion: false,
             content: nil
@@ -353,6 +408,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
             isEnabled: true,
             highlightGuide: guide,
             timing: .manual,
+            fingeringPlan: readyFingeringPlan(for: [guide]),
             keyboardGeometry: makeGeometry(
                 notes: [60, 61, 62, 63, 64],
                 keyDepths: [64: -0.40]
@@ -386,6 +442,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
                 isEnabled: true,
                 highlightGuide: guide,
                 timing: .manual,
+                fingeringPlan: readyFingeringPlan(for: [guide]),
                 keyboardGeometry: makeGeometry(),
                 reduceMotion: false,
                 content: nil
@@ -423,7 +480,8 @@ struct PianoDemonstrationHandsOverlayControllerTests {
 
         let rawCoverage = PianoDemonstrationHandTargetResolver().resolve(
             highlightGuide: guide,
-            keyboardGeometry: geometry
+            keyboardGeometry: geometry,
+            fingeringPlan: readyFingeringPlan(for: [guide])
         )
         let availableCoverage = rawCoverage.limitedToAvailableHands([.right])
         #expect(availableCoverage.coveredTargets(for: .left).isEmpty)
@@ -434,6 +492,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
             isEnabled: true,
             highlightGuide: guide,
             timing: .manual,
+            fingeringPlan: readyFingeringPlan(for: [guide]),
             keyboardGeometry: geometry,
             reduceMotion: true,
             content: nil
@@ -451,6 +510,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
             isEnabled: true,
             highlightGuide: guide,
             timing: .manual,
+            fingeringPlan: readyFingeringPlan(for: [guide]),
             keyboardGeometry: geometry,
             reduceMotion: true,
             content: nil
@@ -484,6 +544,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
             isEnabled: true,
             highlightGuide: guide,
             timing: .manual,
+            fingeringPlan: readyFingeringPlan(for: [guide]),
             keyboardGeometry: makeGeometry(),
             reduceMotion: true,
             content: nil
@@ -529,6 +590,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
             isEnabled: true,
             highlightGuide: guide,
             timing: .manual,
+            fingeringPlan: readyFingeringPlan(for: [guide]),
             keyboardGeometry: makeGeometry(),
             reduceMotion: true,
             content: nil
@@ -541,6 +603,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
             isEnabled: true,
             highlightGuide: guide,
             timing: .manual,
+            fingeringPlan: readyFingeringPlan(for: [guide]),
             keyboardGeometry: makeGeometry(),
             reduceMotion: true,
             content: nil
@@ -574,6 +637,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
             isEnabled: true,
             highlightGuide: triggered,
             timing: .manual,
+            fingeringPlan: readyFingeringPlan(for: [triggered]),
             keyboardGeometry: geometry,
             reduceMotion: true,
             content: nil
@@ -591,6 +655,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
             isEnabled: true,
             highlightGuide: release,
             timing: .manual,
+            fingeringPlan: PianoFingeringPlanner.Plan(results: []),
             keyboardGeometry: geometry,
             reduceMotion: true,
             content: nil
@@ -602,6 +667,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
             isEnabled: true,
             highlightGuide: release,
             timing: .manual,
+            fingeringPlan: PianoFingeringPlanner.Plan(results: []),
             keyboardGeometry: geometry,
             reduceMotion: true,
             content: nil
@@ -729,6 +795,49 @@ private func makeNote(
             provenance: hand == .unknown ? .unresolved : .score
         )
     )
+}
+
+private func readyFingeringPlan(
+    for guides: [PianoHighlightGuide]
+) -> PianoFingeringPlanner.Plan {
+    let notes = guides
+        .flatMap { $0.activeNotes + $0.triggeredNotes }
+        .reduce(into: [String: PianoHighlightNote]()) { notesByOccurrenceID, note in
+            notesByOccurrenceID[note.occurrenceID] = note
+        }
+        .values
+        .sorted {
+            if $0.handAssignment.hand != $1.handAssignment.hand {
+                return $0.handAssignment.hand.rawValue < $1.handAssignment.hand.rawValue
+            }
+            if $0.midiNote != $1.midiNote { return $0.midiNote < $1.midiNote }
+            return $0.occurrenceID < $1.occurrenceID
+        }
+    var fingerByOccurrenceID: [String: Int] = [:]
+    for hand in [ScoreHand.left, .right] {
+        for (index, note) in notes.filter({ resolvedHand(for: $0) == hand }).enumerated() {
+            fingerByOccurrenceID[note.occurrenceID] = index % 5 + 1
+        }
+    }
+    return PianoFingeringPlanner.Plan(results: notes.map { note in
+        let hand = resolvedHand(for: note)
+        guard let finger = fingerByOccurrenceID[note.occurrenceID] else {
+            return .init(occurrenceID: note.occurrenceID, resolution: .unplanned(.unknownHand))
+        }
+        return .init(
+            occurrenceID: note.occurrenceID,
+            resolution: .planned(hand: hand, finger: finger, source: .planned)
+        )
+    })
+}
+
+private func resolvedHand(for note: PianoHighlightNote) -> ScoreHand {
+    switch note.handAssignment.hand {
+    case .left, .right:
+        return note.handAssignment.hand
+    case .unknown:
+        return note.staff == 2 ? .left : .right
+    }
 }
 
 private func makeTransportTiming(

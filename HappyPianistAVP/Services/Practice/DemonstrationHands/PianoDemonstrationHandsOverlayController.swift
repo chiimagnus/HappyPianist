@@ -72,6 +72,7 @@ final class PianoDemonstrationHandsOverlayController {
         isEnabled: Bool,
         highlightGuide: PianoHighlightGuide?,
         timing: PianoDemonstrationHandsTiming,
+        fingeringPlan: PianoFingeringPlanner.Plan? = nil,
         keyboardGeometry: PianoKeyboardGeometry?,
         reduceMotion: Bool,
         content: RealityViewContent?
@@ -90,12 +91,14 @@ final class PianoDemonstrationHandsOverlayController {
         let presentationGuide = presentationGuide(
             current: highlightGuide,
             timing: timing,
+            fingeringPlan: fingeringPlan,
             keyboardGeometry: keyboardGeometry,
             at: now
         )
         let resolvedCoverage = targetResolver.resolve(
             highlightGuide: presentationGuide,
-            keyboardGeometry: keyboardGeometry
+            keyboardGeometry: keyboardGeometry,
+            fingeringPlan: fingeringPlan
         )
         lastResolvedCoverage = resolvedCoverage
         let coverage = resolvedCoverage.limitedToAvailableHands(Set(rigs.keys))
@@ -189,6 +192,7 @@ final class PianoDemonstrationHandsOverlayController {
     private func presentationGuide(
         current: PianoHighlightGuide?,
         timing: PianoDemonstrationHandsTiming,
+        fingeringPlan: PianoFingeringPlanner.Plan?,
         keyboardGeometry: PianoKeyboardGeometry,
         at now: PerformanceMonotonicInstant
     ) -> PianoHighlightGuide? {
@@ -230,7 +234,8 @@ final class PianoDemonstrationHandsOverlayController {
             guard upcoming.triggeredNotes.isEmpty == false else { continue }
             let upcomingCoverage = targetResolver.resolve(
                 highlightGuide: upcoming,
-                keyboardGeometry: keyboardGeometry
+                keyboardGeometry: keyboardGeometry,
+                fingeringPlan: fingeringPlan
             )
             let travelDistanceByHand = Dictionary(
                 uniqueKeysWithValues: PianoDemonstrationHand.allCases.map { hand in

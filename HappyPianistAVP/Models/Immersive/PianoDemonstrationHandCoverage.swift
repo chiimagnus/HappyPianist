@@ -1,3 +1,12 @@
+import Foundation
+import Practice
+
+struct PianoDemonstrationFingeringPlan: Equatable {
+    let transportGeneration: Int?
+    let geometryCacheID: UUID
+    let plan: PianoFingeringPlanner.Plan
+}
+
 struct PianoDemonstrationHandCoverage: Equatable {
     struct UncoveredKey: Equatable, Identifiable {
         var id: String {
@@ -15,6 +24,7 @@ struct PianoDemonstrationHandCoverage: Equatable {
         case tooManyFingers
         case spanExceeded
         case missingGeometry
+        case fingeringUnplanned
         case assetUnavailable
         case unreachable
     }

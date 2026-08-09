@@ -5,77 +5,73 @@ import simd
 import Testing
 
 @Test
-func resolverUsesScoreFingeringForBothHands() {
-    let guide = makeGuide(
-        triggered: [
-            makeNote(id: "right", midiNote: 60, hand: .right, fingering: "1"),
-            makeNote(id: "left", midiNote: 48, hand: .left, fingering: "5"),
-        ]
-    )
-
+func resolverUsesOnlyTheReadyPlanForHandAndFingerAssignments() {
+    let guide = makeGuide(triggered: [
+        makeNote(id: "right", midiNote: 60, hand: .right),
+        makeNote(id: "left", midiNote: 48, hand: .left),
+    ])
     let coverage = PianoDemonstrationHandTargetResolver().resolve(
         highlightGuide: guide,
-        keyboardGeometry: makeGeometry(notes: [48, 60])
+        keyboardGeometry: makeGeometry(notes: [48, 60]),
+        fingeringPlan: plan([
+            ("right", .right, 3),
+            ("left", .left, 5),
+        ])
     )
 
-    #expect(coverage.coveredTargets(for: .right).first?.finger == .thumb)
+    #expect(coverage.coveredTargets(for: .right).first?.finger == .middle)
     #expect(coverage.coveredTargets(for: .left).first?.finger == .little)
-    #expect(coverage.coveredTargets(for: .right).first?.phase == .triggered)
-    #expect(coverage.coveredTargets(for: .right).first?.contactPositionLocal.y == 0)
     #expect(coverage.uncoveredKeys.isEmpty)
 }
 
 @Test
-func resolverUsesGrandStaffForUnassignedDemonstrationHands() {
-    let guide = makeGuide(
-        triggered: [
-            makeNote(id: "upper", midiNote: 60, hand: .unknown, staff: 1),
-            makeNote(id: "lower", midiNote: 48, hand: .unknown, staff: 2),
-        ]
-    )
-
-    let coverage = PianoDemonstrationHandTargetResolver().resolve(
-        highlightGuide: guide,
-        keyboardGeometry: makeGeometry(notes: [48, 60])
-    )
-
-    #expect(coverage.coveredTargets(for: .right).map(\.midiNote) == [60])
-    #expect(coverage.coveredTargets(for: .left).map(\.midiNote) == [48])
-}
-
-@Test
-func resolverUsesStableMirrorAwareFallbackForChord() {
-    let guide = makeGuide(
-        triggered: [
-            makeNote(id: "r0", midiNote: 60, hand: .right),
-            makeNote(id: "r1", midiNote: 64, hand: .right),
-            makeNote(id: "r2", midiNote: 67, hand: .right),
-            makeNote(id: "l0", midiNote: 48, hand: .left),
-            makeNote(id: "l1", midiNote: 52, hand: .left),
-        ]
-    )
+func resolverKeepsEveryKeyHighlightedUntilItsPlanIsReadyOrPlannable() {
+    let guide = makeGuide(triggered: [
+        makeNote(id: "pending", midiNote: 60, hand: .right),
+        makeNote(id: "unplanned", midiNote: 62, hand: .right),
+    ])
     let resolver = PianoDemonstrationHandTargetResolver()
-    let geometry = makeGeometry(notes: [48, 52, 60, 64, 67])
 
-    let first = resolver.resolve(highlightGuide: guide, keyboardGeometry: geometry)
-    let second = resolver.resolve(highlightGuide: guide, keyboardGeometry: geometry)
+    let pending = resolver.resolve(
+        highlightGuide: guide,
+        keyboardGeometry: makeGeometry(notes: [60, 62])
+    )
+    let unplanned = resolver.resolve(
+        highlightGuide: guide,
+        keyboardGeometry: makeGeometry(notes: [60, 62]),
+        fingeringPlan: PianoFingeringPlanner.Plan(results: [
+            .init(
+                occurrenceID: "pending",
+                resolution: .planned(hand: .right, finger: 1, source: .planned)
+            ),
+            .init(occurrenceID: "unplanned", resolution: .unplanned(.noSolution)),
+        ])
+    )
 
-    #expect(first == second)
-    #expect(first.coveredTargets(for: .right).map(\.finger) == [.thumb, .index, .middle])
-    #expect(first.coveredTargets(for: .left).map(\.finger) == [.little, .ring])
+    #expect(pending.coveredTargets.isEmpty)
+    #expect(pending.uncoveredKeys.map(\.reason) == [
+        PianoDemonstrationHandCoverage.Reason.fingeringUnplanned,
+        .fingeringUnplanned,
+    ])
+    #expect(unplanned.coveredTargets.map(\.occurrenceID) == ["pending"])
+    #expect(unplanned.uncoveredKeys.map(\.occurrenceID) == ["unplanned"])
+    #expect(unplanned.uncoveredKeys.map(\.reason) == [PianoDemonstrationHandCoverage.Reason.fingeringUnplanned])
 }
 
 @Test
-func resolverKeepsHeldTargetsAndReportsReleasedNotes() {
+func resolverPreservesHeldAndReleasedGuideFactsWithoutReplanning() {
     let guide = makeGuide(
         active: [makeNote(id: "held", midiNote: 60, hand: .right)],
         triggered: [makeNote(id: "triggered", midiNote: 64, hand: .right)],
         released: [55]
     )
-
     let coverage = PianoDemonstrationHandTargetResolver().resolve(
         highlightGuide: guide,
-        keyboardGeometry: makeGeometry(notes: [60, 64])
+        keyboardGeometry: makeGeometry(notes: [60, 64]),
+        fingeringPlan: plan([
+            ("held", .right, 1),
+            ("triggered", .right, 3),
+        ])
     )
 
     #expect(coverage.coveredTargets.first { $0.occurrenceID == "held" }?.phase == .held)
@@ -84,78 +80,15 @@ func resolverKeepsHeldTargetsAndReportsReleasedNotes() {
 }
 
 @Test
-func resolverReportsUnsupportedStaffAndOverloadedHands() {
-    let unknown = makeNote(id: "unknown", midiNote: 60, hand: .unknown, staff: 3)
-    let overloaded = (0 ... 5).map { index in
-        makeNote(id: "right-\(index)", midiNote: 61 + index, hand: .right)
-    }
-    let guide = makeGuide(triggered: [unknown] + overloaded)
-
+func resolverReportsMissingGeometryBeforeItCanSubmitARigTarget() {
     let coverage = PianoDemonstrationHandTargetResolver().resolve(
-        highlightGuide: guide,
-        keyboardGeometry: makeGeometry(notes: [60] + overloaded.map(\.midiNote))
-    )
-
-    #expect(coverage.coveredTargets.isEmpty)
-    #expect(coverage.uncoveredKeys.first { $0.occurrenceID == "unknown" }?.reason == .unknownHand)
-    #expect(coverage.uncoveredKeys.filter { $0.reason == .tooManyFingers }.count == 6)
-}
-
-@Test
-func resolverReportsAChordThatExceedsOneHandSpan() {
-    let guide = makeGuide(
-        triggered: [
-            makeNote(id: "low", midiNote: 48, hand: .left),
-            makeNote(id: "high", midiNote: 60, hand: .left),
-        ]
-    )
-
-    let coverage = PianoDemonstrationHandTargetResolver().resolve(
-        highlightGuide: guide,
-        keyboardGeometry: makeGeometry(notes: [48, 60], spacing: 0.24)
-    )
-
-    #expect(coverage.coveredTargets.isEmpty)
-    #expect(coverage.uncoveredKeys.map(\.reason) == [.spanExceeded, .spanExceeded])
-}
-
-@Test
-func resolverReportsConflictingFingeringsWithoutDroppingOtherTargets() {
-    let guide = makeGuide(
-        triggered: [
-            makeNote(id: "invalid", midiNote: 60, hand: .right, fingering: "9"),
-            makeNote(id: "first", midiNote: 62, hand: .right, fingering: "1"),
-            makeNote(id: "conflict", midiNote: 64, hand: .right, fingering: "1"),
-        ]
-    )
-
-    let coverage = PianoDemonstrationHandTargetResolver().resolve(
-        highlightGuide: guide,
-        keyboardGeometry: makeGeometry(notes: [60, 62, 64])
-    )
-
-    #expect(coverage.coveredTargets.map(\.occurrenceID) == ["invalid", "first"])
-    #expect(coverage.coveredTargets.map(\.finger) == [.index, .thumb])
-    #expect(coverage.uncoveredKeys.map(\.occurrenceID) == ["conflict"])
-    #expect(coverage.uncoveredKeys.map(\.reason) == [.fingeringConflict])
-}
-
-@Test
-func resolverReportsMissingGeometryAndReturnsEmptyWithoutGuide() {
-    let resolver = PianoDemonstrationHandTargetResolver()
-
-    #expect(
-        resolver.resolve(highlightGuide: nil, keyboardGeometry: makeGeometry(notes: [60]))
-            == PianoDemonstrationHandCoverage()
-    )
-
-    let missingGeometry = resolver.resolve(
         highlightGuide: makeGuide(triggered: [makeNote(id: "missing", midiNote: 60, hand: .right)]),
-        keyboardGeometry: nil
+        keyboardGeometry: nil,
+        fingeringPlan: plan([("missing", .right, 1)])
     )
-    #expect(missingGeometry.coveredTargets.isEmpty)
-    #expect(missingGeometry.uncoveredKeys.map(\.occurrenceID) == ["missing"])
-    #expect(missingGeometry.uncoveredKeys.map(\.reason) == [.missingGeometry])
+
+    #expect(coverage.coveredTargets.isEmpty)
+    #expect(coverage.uncoveredKeys.map(\.reason) == [.missingGeometry])
 }
 
 private func makeGuide(
@@ -175,25 +108,16 @@ private func makeGuide(
     )
 }
 
-private func makeNote(
-    id: String,
-    midiNote: Int,
-    hand: ScoreHand,
-    fingering: String? = nil,
-    staff: Int? = nil
-) -> PianoHighlightNote {
-    let fingerings = fingering.map {
-        [MusicXMLFingering(text: $0, provenance: .score)]
-    } ?? []
-    return PianoHighlightNote(
+private func makeNote(id: String, midiNote: Int, hand: ScoreHand) -> PianoHighlightNote {
+    PianoHighlightNote(
         occurrenceID: id,
         midiNote: midiNote,
-        staff: staff ?? (hand == .left ? 2 : 1),
+        staff: hand == .left ? 2 : 1,
         voice: nil,
         velocity: 96,
         onTick: 0,
         offTick: 1,
-        fingerings: fingerings,
+        fingerings: [],
         handAssignment: ScoreHandAssignment(
             hand: hand,
             provenance: hand == .unknown ? .unresolved : .score
@@ -201,7 +125,18 @@ private func makeNote(
     )
 }
 
-private func makeGeometry(notes: [Int], spacing: Float = 0.024) -> PianoKeyboardGeometry {
+private func plan(
+    _ assignments: [(occurrenceID: String, hand: ScoreHand, finger: Int)]
+) -> PianoFingeringPlanner.Plan {
+    PianoFingeringPlanner.Plan(results: assignments.map {
+        .init(
+            occurrenceID: $0.occurrenceID,
+            resolution: .planned(hand: $0.hand, finger: $0.finger, source: .planned)
+        )
+    })
+}
+
+private func makeGeometry(notes: [Int]) -> PianoKeyboardGeometry {
     let frame = KeyboardFrame(
         a0World: SIMD3<Float>(0, 0.5, 0),
         c8World: SIMD3<Float>(1, 0.5, 0),
@@ -211,12 +146,12 @@ private func makeGeometry(notes: [Int], spacing: Float = 0.024) -> PianoKeyboard
         PianoKeyGeometry(
             midiNote: midiNote,
             kind: .white,
-            localCenter: SIMD3<Float>(Float(index) * spacing, -0.015, -0.07),
+            localCenter: SIMD3<Float>(Float(index) * 0.024, -0.015, -0.07),
             localSize: SIMD3<Float>(0.022, 0.03, 0.14),
             surfaceLocalY: 0,
-            hitCenterLocal: SIMD3<Float>(Float(index) * spacing, -0.015, -0.07),
+            hitCenterLocal: SIMD3<Float>(Float(index) * 0.024, -0.015, -0.07),
             hitSizeLocal: SIMD3<Float>(0.022, 0.03, 0.14),
-            beamFootprintCenterLocal: SIMD3<Float>(Float(index) * spacing, 0, -0.07),
+            beamFootprintCenterLocal: SIMD3<Float>(Float(index) * 0.024, 0, -0.07),
             beamFootprintSizeLocal: SIMD2<Float>(0.022, 0.14)
         )
     }

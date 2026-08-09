@@ -28,6 +28,7 @@ final class PracticePlaybackControlService {
     private var autoplayContactTimeline: PianoKeyContactTimeline?
     private var autoplayGuideSnapshot: [PianoHighlightGuide]?
     private var hasShutdown = false
+    var onPianoDemonstrationContactTimelineChange: ((Int?, PianoKeyContactTimeline?) -> Void)?
 
     private var autoplayTaskGeneration: Int {
         transportState.generation
@@ -263,6 +264,7 @@ final class PracticePlaybackControlService {
         autoplayTimeSchedule = nil
         autoplayContactTimeline = nil
         autoplayGuideSnapshot = nil
+        onPianoDemonstrationContactTimelineChange?(nil, nil)
 
         stateStore.autoplayTimingBaseTick = nil
         stateStore.notationGuideScrollSchedule.removeAll()
@@ -492,6 +494,7 @@ final class PracticePlaybackControlService {
             autoplayTimeSchedule = timeSchedule
             autoplayContactTimeline = contactTimeline
             autoplayGuideSnapshot = guides
+            onPianoDemonstrationContactTimelineChange?(generation, contactTimeline)
             recordPlaybackPosition(0)
         } catch {
             stateStore.recordPlaybackError(error)
@@ -547,6 +550,7 @@ final class PracticePlaybackControlService {
             autoplayTimeSchedule = nil
             autoplayContactTimeline = nil
             autoplayGuideSnapshot = nil
+            onPianoDemonstrationContactTimelineChange?(nil, nil)
         }
     }
 
