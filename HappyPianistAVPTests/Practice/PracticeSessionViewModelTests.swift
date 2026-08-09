@@ -196,6 +196,7 @@ func skipDoesNotLetCancelledAutoplayTaskClearNewTaskReference() async {
 @Test
 @MainActor
 func pianoDemonstrationHandsTimingDoesNotLeakTransportAcrossRestart() async {
+    let quarter = MusicXMLTempoMap.ticksPerQuarter
     let playbackService = CapturingSequencerPlaybackService()
     let viewModel = PracticeSessionViewModel(
         chordAttemptAccumulator: NoopChordAttemptAccumulator(),
@@ -204,12 +205,12 @@ func pianoDemonstrationHandsTimingDoesNotLeakTransportAcrossRestart() async {
     )
     viewModel.installTestPerformanceNotes(
         [
-            TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 480),
-            TestScorePerformanceNote(midiNote: 62, onTick: 480, offTick: 960),
+            TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: quarter),
+            TestScorePerformanceNote(midiNote: 62, onTick: quarter, offTick: quarter * 2),
         ],
         highlightGuides: [
             makeHighlightGuide(id: 1, kind: .trigger, tick: 0, practiceStepIndex: 0, midiNotes: [60]),
-            makeHighlightGuide(id: 2, kind: .trigger, tick: 480, practiceStepIndex: 1, midiNotes: [62]),
+            makeHighlightGuide(id: 2, kind: .trigger, tick: quarter, practiceStepIndex: 1, midiNotes: [62]),
         ]
     )
     viewModel.applyVirtualKeyboardGeometry(makeFingeringKeyboardGeometry(notes: [60, 62]))
