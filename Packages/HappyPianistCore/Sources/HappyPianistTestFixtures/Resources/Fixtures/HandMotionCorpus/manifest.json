@@ -1,0 +1,60 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "scale",
+      "notes": [
+        { "midiNote": 60, "hand": "right", "finger": 1, "onsetSeconds": 0.0, "position": [0.000, 0.000, -0.070] },
+        { "midiNote": 61, "hand": "right", "finger": 2, "onsetSeconds": 0.2, "position": [0.010, 0.000, -0.070] },
+        { "midiNote": 62, "hand": "right", "finger": 3, "onsetSeconds": 0.4, "position": [0.020, 0.000, -0.070] },
+        { "midiNote": 63, "hand": "right", "finger": 4, "onsetSeconds": 0.6, "position": [0.030, 0.000, -0.070] },
+        { "midiNote": 64, "hand": "right", "finger": 5, "onsetSeconds": 0.8, "position": [0.040, 0.000, -0.070] }
+      ]
+    },
+    {
+      "id": "arpeggio",
+      "notes": [
+        { "midiNote": 60, "hand": "right", "finger": 1, "onsetSeconds": 0.0, "position": [0.000, 0.000, -0.070] },
+        { "midiNote": 64, "hand": "right", "finger": 3, "onsetSeconds": 0.3, "position": [0.030, 0.000, -0.070] },
+        { "midiNote": 67, "hand": "right", "finger": 5, "onsetSeconds": 0.6, "position": [0.060, 0.000, -0.070] }
+      ]
+    },
+    {
+      "id": "dense-chord",
+      "notes": [
+        { "midiNote": 60, "hand": "right", "finger": 1, "onsetSeconds": 0.0, "position": [-0.018, 0.000, -0.070] },
+        { "midiNote": 64, "hand": "right", "finger": 2, "onsetSeconds": 0.0, "position": [0.000, 0.000, -0.070] },
+        { "midiNote": 67, "hand": "right", "finger": 3, "onsetSeconds": 0.0, "position": [0.018, 0.000, -0.070] }
+      ]
+    },
+    {
+      "id": "repeated-note",
+      "notes": [
+        { "midiNote": 72, "hand": "right", "finger": 2, "onsetSeconds": 0.0, "position": [0.020, 0.000, -0.070] },
+        { "midiNote": 72, "hand": "right", "finger": 2, "onsetSeconds": 0.2, "position": [0.020, 0.000, -0.070] },
+        { "midiNote": 72, "hand": "right", "finger": 2, "onsetSeconds": 0.4, "position": [0.020, 0.000, -0.070] }
+      ]
+    },
+    {
+      "id": "large-jump",
+      "notes": [
+        { "midiNote": 60, "hand": "right", "finger": 1, "onsetSeconds": 0.0, "position": [0.000, 0.000, -0.070] },
+        { "midiNote": 84, "hand": "right", "finger": 1, "onsetSeconds": 0.5, "position": [0.200, 0.000, -0.070] }
+      ]
+    },
+    {
+      "id": "cross-hand",
+      "notes": [
+        { "midiNote": 48, "hand": "left", "finger": 5, "onsetSeconds": 0.0, "position": [-0.120, 0.000, -0.070] },
+        { "midiNote": 72, "hand": "right", "finger": 1, "onsetSeconds": 0.0, "position": [0.120, 0.000, -0.070] }
+      ]
+    },
+    {
+      "id": "pause-range",
+      "notes": [
+        { "midiNote": 60, "hand": "right", "finger": 2, "onsetSeconds": 0.0, "position": [0.010, 0.000, -0.070] },
+        { "midiNote": 62, "hand": "right", "finger": 3, "onsetSeconds": 1.0, "position": [0.020, 0.000, -0.070] }
+      ]
+    }
+  ]
+}

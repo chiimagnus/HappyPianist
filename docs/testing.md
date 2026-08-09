@@ -79,6 +79,12 @@ Simulator 至少覆盖：
 
 Simulator 不证明真实 MIDI、麦克风、手部追踪、audio onset、route recovery 或钢琴听感。
 
+### 教师手纯值质量 Gate
+
+`HappyPianistTestFixtures/Resources/Fixtures/HandMotionCorpus/manifest.json` 固定音阶、琶音、密集和弦、重复音、大跳进、跨手与 pause/range 时间孔。`PianoHandMotionQualityTests` 通过 session 在运行期同样使用的唯一纯值 clip builder 断言每个 fixture/occurrence 的完整 coverage、P95 接触残差 ≤ 5 mm、P95 时序误差 ≤ 50 ms、最大时序误差 ≤ 100 ms、单位四元数与无 collision 降级；失败信息必须包含 fixture 和 occurrence。clip/session cancellation 与 player generation 继续由对应 session/player 回归测试覆盖。
+
+这只是程序化 skeleton 的确定性 Gate，不证明 Blender 网格在真机的实际接触、遮挡、舒适度或音画同步；这些仍按下方真机协议记录为独立证据。
+
 资源缺失时，依赖 `SeedScores/`、`SalC5Light2.sf2` 或 CoreML 模型的测试可以跳过；跳过不等于资源集成通过。
 
 ## 日常 smoke checklist
