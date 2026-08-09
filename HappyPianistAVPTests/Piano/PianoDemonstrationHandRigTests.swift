@@ -38,3 +38,13 @@ func handRigLoadsPackaged21JointAssetAndAppliesClipFrame() async throws {
     rig.hide()
     #expect(rig.rootEntity.isEnabled == false)
 }
+
+@MainActor
+@Test
+func bothPackagedHandRigsMatchTheAuthoredSkeletonContract() async throws {
+    for hand in [PianoDemonstrationHand.left, .right] {
+        let rig = try await PackagedPianoDemonstrationHandRigLoader().load(hand: hand)
+        #expect(rig.jointCount == 21, "hand=\(hand)")
+        #expect(rig.rootEntity.children.count == 1, "hand=\(hand)")
+    }
+}
