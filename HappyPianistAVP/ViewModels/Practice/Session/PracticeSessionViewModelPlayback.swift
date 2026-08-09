@@ -1,6 +1,7 @@
 import Foundation
 import MusicXML
 import Practice
+import simd
 
 extension PracticeSessionViewModel {
     func pianoDemonstrationHandsTiming() -> PianoDemonstrationHandsTiming {
@@ -157,11 +158,14 @@ extension PracticeSessionViewModel {
                 else {
                     return
                 }
-                self.replacePianoDemonstrationFingeringPlan(PianoDemonstrationFingeringPlan(
+                let fingeringPlan = PianoDemonstrationFingeringPlan(
                     transportGeneration: transportGeneration,
                     geometryCacheID: geometryCacheID,
+                    contacts: contacts,
                     plan: plan
-                ))
+                )
+                self.replacePianoDemonstrationFingeringPlan(fingeringPlan)
+                self.startPianoHandMotionClipBuild(for: fingeringPlan)
             } catch is CancellationError {
                 return
             } catch {
@@ -175,6 +179,64 @@ extension PracticeSessionViewModel {
         pianoDemonstrationFingeringPlanTask?.cancel()
         pianoDemonstrationFingeringPlanTask = nil
         replacePianoDemonstrationFingeringPlan(nil)
+        cancelPianoHandMotionClipBuild()
+    }
+
+    func startPianoHandMotionClipBuild(for fingeringPlan: PianoDemonstrationFingeringPlan) {
+        cancelPianoHandMotionClipBuild()
+        guard let keyboardGeometry = self.keyboardGeometry, let songIdentity = self.songIdentity else { return }
+        let generation = pianoHandMotionClipBuildGeneration
+        let fingeringPlanGeneration = pianoDemonstrationFingeringPlanGeneration
+        let geometryCacheID = keyboardGeometry.cacheID
+        let activeRange = self.activeRange
+        let handMode = self.practiceHandMode
+        let tempoScale = self.activeRoundConfiguration?.tempoScale ?? 1
+        let input = PianoHandMotionClipBuilder.Input(
+            contacts: fingeringPlan.contacts,
+            fingeringPlan: fingeringPlan.plan,
+            keyboardLayout: .init(keyboardGeometry: keyboardGeometry),
+            scoreRevision: songIdentity.scoreRevision
+        )
+
+        pianoHandMotionClipBuildTask = Task { @MainActor [weak self] in
+            defer {
+                if let self, self.pianoHandMotionClipBuildGeneration == generation {
+                    self.pianoHandMotionClipBuildTask = nil
+                }
+            }
+            do {
+                let result = try await PianoHandMotionClipBuilder().buildOffMain(input: input)
+                guard let self,
+                      Task.isCancelled == false,
+                      self.pianoHandMotionClipBuildGeneration == generation,
+                      self.pianoDemonstrationFingeringPlanGeneration == fingeringPlanGeneration,
+                      self.pianoDemonstrationFingeringPlan == fingeringPlan,
+                      self.songIdentity == songIdentity,
+                      self.activeRange == activeRange,
+                      self.practiceHandMode == handMode,
+                      (self.activeRoundConfiguration?.tempoScale ?? 1) == tempoScale,
+                      self.keyboardGeometry?.cacheID == geometryCacheID
+                else {
+                    return
+                }
+                self.replacePianoDemonstrationMotionClipSet(PianoDemonstrationMotionClipSet(
+                    transportGeneration: fingeringPlan.transportGeneration,
+                    geometryCacheID: geometryCacheID,
+                    clips: result.clips
+                ))
+            } catch is CancellationError {
+                return
+            } catch {
+                return
+            }
+        }
+    }
+
+    func cancelPianoHandMotionClipBuild() {
+        pianoHandMotionClipBuildGeneration &+= 1
+        pianoHandMotionClipBuildTask?.cancel()
+        pianoHandMotionClipBuildTask = nil
+        replacePianoDemonstrationMotionClipSet(nil)
     }
 
     func startManualReplay(with plan: ManualReplayPlan) {
@@ -201,6 +263,21 @@ private extension PianoFingeringKeyboardLayout {
                 midiNote: key.midiNote,
                 kind: kind,
                 localX: Double(key.localCenter.x)
+            )
+        })
+    }
+}
+
+private extension PianoHandMotionClipBuilder.KeyboardLayout {
+    init(keyboardGeometry: PianoKeyboardGeometry) {
+        self.init(keys: keyboardGeometry.keys.map {
+            .init(
+                midiNote: $0.midiNote,
+                contactPositionLocal: SIMD3<Float>(
+                    $0.localCenter.x,
+                    $0.surfaceLocalY,
+                    $0.localCenter.z
+                )
             )
         })
     }

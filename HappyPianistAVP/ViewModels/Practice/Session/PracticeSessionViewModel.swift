@@ -71,6 +71,9 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
     @ObservationIgnored var pianoDemonstrationFingeringPlanTask: Task<Void, Never>?
     @ObservationIgnored var pianoDemonstrationFingeringPlanGeneration = 0
     private(set) var pianoDemonstrationFingeringPlan: PianoDemonstrationFingeringPlan?
+    @ObservationIgnored var pianoHandMotionClipBuildTask: Task<Void, Never>?
+    @ObservationIgnored var pianoHandMotionClipBuildGeneration = 0
+    private(set) var pianoDemonstrationMotionClipSet: PianoDemonstrationMotionClipSet?
 
     var practiceHandMode: PracticeHandMode {
         stateStore.activeRoundConfiguration?.handMode ?? .both
@@ -223,6 +226,12 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
         _ plan: PianoDemonstrationFingeringPlan?
     ) {
         pianoDemonstrationFingeringPlan = plan
+    }
+
+    func replacePianoDemonstrationMotionClipSet(
+        _ clipSet: PianoDemonstrationMotionClipSet?
+    ) {
+        pianoDemonstrationMotionClipSet = clipSet
     }
 
     func setGuidingStartBlocked(_ isBlocked: Bool) {

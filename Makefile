@@ -31,6 +31,17 @@ SIMULATOR_RESULT_BUNDLE ?= $(RESULT_BUNDLE_DIR)/HappyPianistAVP-Simulator.xcresu
 DEVICE_RESULT_BUNDLE ?= $(RESULT_BUNDLE_DIR)/HappyPianistAVP-Device.xcresult
 MAC_RESULT_BUNDLE ?= $(RESULT_BUNDLE_DIR)/HappyPianistMac.xcresult
 
+define remove_result_bundle
+	@attempt=0; while [ $$attempt -lt 5 ]; do \
+		rtk rm -rf -- "$(1)" 2>/dev/null || true; \
+		test ! -e "$(1)" && exit 0; \
+		attempt=$$((attempt + 1)); \
+		rtk sleep 1; \
+	done; \
+	echo "error: could not remove stale result bundle $(1)" >&2; \
+	exit 1
+endef
+
 PARALLEL_TESTING ?= NO
 ONLY_TESTING ?=
 XCODEBUILD_FLAGS ?= -quiet
@@ -127,7 +138,7 @@ build\:mac: doctor ## Build HappyPianistMac without a Simulator.
 
 test\:mac: doctor ## Run HappyPianistMac tests without a Simulator.
 	@mkdir -p "$(RESULT_BUNDLE_DIR)"
-	@rm -rf "$(MAC_RESULT_BUNDLE)"
+	$(call remove_result_bundle,$(MAC_RESULT_BUNDLE))
 	@xcodebuild $(MAC_XCODEBUILD_COMMON) \
 		-destination '$(MAC_DESTINATION)' \
 		CODE_SIGNING_ALLOWED=NO \
@@ -212,7 +223,7 @@ build\:simulator: doctor ## Build HappyPianistAVP for visionOS Simulator.
 
 test\:simulator: doctor boot\:simulator ## Run Swift Testing tests on visionOS Simulator.
 	@mkdir -p "$(RESULT_BUNDLE_DIR)"
-	@rm -rf "$(SIMULATOR_RESULT_BUNDLE)"
+	$(call remove_result_bundle,$(SIMULATOR_RESULT_BUNDLE))
 	@xcodebuild $(XCODEBUILD_COMMON) \
 		-destination '$(SIMULATOR_DESTINATION)' \
 		CODE_SIGNING_ALLOWED=NO \
@@ -263,7 +274,7 @@ build\:device: doctor ## Build and sign HappyPianistAVP for the configured physi
 test\:device: doctor ## Build, sign, and run tests on the configured physical Vision Pro.
 	@test -n "$(DEVICE_ID)" || { echo 'error: set DEVICE_ID=<vision-pro-udid>'; exit 1; }
 	@mkdir -p "$(RESULT_BUNDLE_DIR)"
-	@rm -rf "$(DEVICE_RESULT_BUNDLE)"
+	$(call remove_result_bundle,$(DEVICE_RESULT_BUNDLE))
 	@xcodebuild $(XCODEBUILD_COMMON) \
 		-destination '$(DEVICE_DESTINATION)' \
 		-parallel-testing-enabled "$(PARALLEL_TESTING)" \

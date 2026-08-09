@@ -216,6 +216,9 @@ func pianoDemonstrationHandsTimingDoesNotLeakTransportAcrossRestart() async {
     await waitUntil("manual fingering plan for restart") {
         viewModel.pianoDemonstrationReadyFingeringPlan(for: .manual) != nil
     }
+    await waitUntil("manual motion clip for restart") {
+        viewModel.pianoDemonstrationMotionClipSet?.transportGeneration == nil
+    }
 
     guard case .manual = viewModel.pianoDemonstrationHandsTiming() else {
         Issue.record("inactive session must not expose a transport")
@@ -252,6 +255,9 @@ func pianoDemonstrationHandsTimingDoesNotLeakTransportAcrossRestart() async {
         if case .planned = $0.resolution { return true }
         return false
     } == true)
+    await waitUntil("initial demonstration motion clip") {
+        viewModel.pianoDemonstrationMotionClipSet?.transportGeneration == initialTiming.generation
+    }
 
     viewModel.skip()
     await waitUntil("replacement demonstration transport") {
@@ -268,6 +274,10 @@ func pianoDemonstrationHandsTimingDoesNotLeakTransportAcrossRestart() async {
     await waitUntil("replacement demonstration fingering plan") {
         viewModel.pianoDemonstrationReadyFingeringPlan(for: viewModel.pianoDemonstrationHandsTiming())?.results.count == 1
     }
+    await waitUntil("replacement demonstration motion clip") {
+        guard case let .transport(timing) = viewModel.pianoDemonstrationHandsTiming() else { return false }
+        return viewModel.pianoDemonstrationMotionClipSet?.transportGeneration == timing.generation
+    }
 
     viewModel.setAutoplayEnabled(false)
     guard case .manual = viewModel.pianoDemonstrationHandsTiming() else {
@@ -275,6 +285,7 @@ func pianoDemonstrationHandsTimingDoesNotLeakTransportAcrossRestart() async {
         return
     }
     #expect(viewModel.pianoDemonstrationReadyFingeringPlan(for: .manual) == nil)
+    #expect(viewModel.pianoDemonstrationMotionClipSet == nil)
     viewModel.shutdown()
 }
 
