@@ -1097,8 +1097,8 @@ private actor RecordingPracticeLaunchProgressRepository:
     }
 
     func waitForMetadataCount(_ count: Int) async {
-        while metadata.count < count {
-            await Task.yield()
+        await TestAsyncWait.until("score metadata write \(count)") { [self] in
+            self.metadata.count >= count
         }
     }
 
@@ -1108,8 +1108,8 @@ private actor RecordingPracticeLaunchProgressRepository:
     }
 
     func waitUntilHistoryRequested() async {
-        while historyRequestCount == 0 {
-            await Task.yield()
+        await TestAsyncWait.until("practice history request") { [self] in
+            self.historyRequestCount > 0
         }
     }
 }
@@ -1124,8 +1124,8 @@ private actor ControlledPracticeProgressRecovery: PracticeProgressRecoveryProtoc
     }
 
     func waitUntilRequested() async {
-        while isRequested == false {
-            await Task.yield()
+        await TestAsyncWait.until("progress corruption recovery request") { [self] in
+            self.isRequested
         }
     }
 
@@ -1162,8 +1162,8 @@ private actor SuspendedMetadataPracticeLaunchRepository: PracticeProgressReposit
     func remove(songID _: UUID) {}
 
     func waitUntilMetadataWriteStarts() async {
-        while didStartMetadataWrite == false {
-            await Task.yield()
+        await TestAsyncWait.until("score metadata write start") { [self] in
+            self.didStartMetadataWrite
         }
     }
 
@@ -1309,8 +1309,8 @@ private actor ControlledPracticeLaunchResolver: SongLibraryEntryResolving {
     }
 
     func waitUntilRequested(songID: UUID) async {
-        while requestedSongIDs.contains(songID) == false {
-            await Task.yield()
+        await TestAsyncWait.until("song resolution for \(songID)") { [self] in
+            self.requestedSongIDs.contains(songID)
         }
     }
 
@@ -1370,8 +1370,8 @@ private actor ControlledPracticeLaunchPreparationService: PracticePreparationSer
     }
 
     func waitUntilRequested(songID: UUID) async {
-        while continuations[songID] == nil {
-            await Task.yield()
+        await TestAsyncWait.until("practice preparation for \(songID)") { [self] in
+            self.continuations[songID] != nil
         }
     }
 
@@ -1484,8 +1484,8 @@ private final class ControlledPracticeLaunchApplicator: PracticeLaunchApplying {
     }
 
     func waitUntilApplyStarted() async {
-        while applyContinuation == nil {
-            await Task.yield()
+        await TestAsyncWait.until("prepared practice application") { @MainActor [self] in
+            self.applyContinuation != nil
         }
     }
 
@@ -1519,8 +1519,8 @@ private final class AppliedThenSuspendedPracticeLaunchApplicator: PracticeLaunch
     }
 
     func waitUntilApplyStarted() async {
-        while continuation == nil {
-            await Task.yield()
+        await TestAsyncWait.until("suspended prepared practice application") { @MainActor [self] in
+            self.continuation != nil
         }
     }
 

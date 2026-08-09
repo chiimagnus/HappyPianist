@@ -96,8 +96,8 @@ private actor ControlledListeningFileStore: SongFileStoreProtocol {
     }
 
     func waitForRequestCount(_ count: Int) async {
-        while requests.count < count {
-            await Task.yield()
+        await TestAsyncWait.until("audio file request \(count)") { [self] in
+            self.requests.count >= count
         }
     }
 

@@ -371,8 +371,8 @@ private actor SuspendedPracticeProgressRepository: PracticeProgressRepositoryPro
     }
 
     func waitForRequest(identity: PracticeSongIdentity) async {
-        while continuations[identity] == nil {
-            await Task.yield()
+        await TestAsyncWait.until("progress request for \(identity)") { [self] in
+            self.continuations[identity] != nil
         }
     }
 
@@ -415,8 +415,8 @@ private actor SuspendedUpsertPracticeProgressRepository: PracticeProgressReposit
     }
 
     func waitForUpsert(count: Int) async {
-        while requests.count < count {
-            await Task.yield()
+        await TestAsyncWait.until("progress upsert \(count)") { [self] in
+            self.requests.count >= count
         }
     }
 
@@ -439,8 +439,8 @@ private actor SuspendedProgressDiagnosticsReporter: DiagnosticsReporting {
     }
 
     func waitUntilRecording() async {
-        while isRecording == false {
-            await Task.yield()
+        await TestAsyncWait.until("progress diagnostics recording") { [self] in
+            self.isRecording
         }
     }
 
