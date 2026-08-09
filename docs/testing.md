@@ -34,7 +34,7 @@ make test:mac
 
 它们只使用 `HappyPianistMac`、`platform=macOS` 和自己的 result bundle；不读取 `SIMULATOR_ID`，也不 boot visionOS Simulator。共享包仍单独运行 `swift test --package-path Packages/HappyPianistCore`，visionOS 仍使用 `make build` 与 `make test`。
 
-`make test` 会将 Simulator boot 限制为 180 秒、destination 查找限制为 60 秒，并启用 Xcode 的单测试 timeout（默认 120 秒、上限 300 秒）。受控异步测试还必须通过 `TestAsyncWait` 等待；不得再写无界 `Task.yield()` 轮询或依赖重启 Simulator 解除阻塞。需要为极慢测试调整时只覆盖相应 Make 变量，不要移除 timeout。
+`make test` 会将 Simulator boot 限制为 180 秒、destination 查找限制为 60 秒、整次 test action 限制为 900 秒，并启用 Xcode 的单测试 timeout（默认 120 秒、上限 300 秒）。action 超时时会结束其独立进程组并把不含 app container 的 Simulator 诊断写入 `.build/TestResults`；受控异步测试还必须通过 `TestAsyncWait` 等待，不得再写无界 `Task.yield()` 轮询或依赖重启 Simulator 解除阻塞。需要为极慢测试调整时只覆盖相应 Make 变量，不要移除 timeout。
 
 MusicXML fixture 必须为每个普通 note/rest 提供标准 `<type>` 和非 grace 的显式 `<duration>`；package tests 覆盖 14 个标准 type 从 parser 到 `PreparedPractice` 和 notation layout、1024 分音符的 15-tick 精度、0–8 层 beam，以及缺失/非标准 type 的 typed failure。无 type 只在语义整小节 rest fixture 中合法。
 

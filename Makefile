@@ -21,6 +21,7 @@ SIMULATOR_BOOT_TIMEOUT_SECONDS ?= 180
 DESTINATION_TIMEOUT_SECONDS ?= 60
 TEST_EXECUTION_TIMEOUT_SECONDS ?= 120
 TEST_MAXIMUM_EXECUTION_TIMEOUT_SECONDS ?= 300
+TEST_RUN_TIMEOUT_SECONDS ?= 900
 
 XCODE_DEVELOPER_DIR ?= $(shell xcode-select -p 2>/dev/null)
 XCODE_CONTENTS_DIR ?= $(patsubst %/Developer,%,$(XCODE_DEVELOPER_DIR))
@@ -180,6 +181,7 @@ config: ## Print the resolved Make configuration.
 		'DESTINATION_TIMEOUT_SECONDS' '$(DESTINATION_TIMEOUT_SECONDS)' \
 		'TEST_EXECUTION_TIMEOUT_SECONDS' '$(TEST_EXECUTION_TIMEOUT_SECONDS)' \
 		'TEST_MAXIMUM_EXECUTION_TIMEOUT_SECONDS' '$(TEST_MAXIMUM_EXECUTION_TIMEOUT_SECONDS)' \
+		'TEST_RUN_TIMEOUT_SECONDS' '$(TEST_RUN_TIMEOUT_SECONDS)' \
 		'DEVICE_ID' '$(DEVICE_ID)' \
 		'BUNDLE_ID' '$(BUNDLE_ID)' \
 		'XCODE_DEVELOPER_DIR' '$(XCODE_DEVELOPER_DIR)' \
@@ -245,7 +247,10 @@ build\:simulator: doctor ## Build HappyPianistAVP for visionOS Simulator.
 test\:simulator: doctor boot\:simulator ## Run Swift Testing tests on visionOS Simulator.
 	@mkdir -p "$(RESULT_BUNDLE_DIR)"
 	$(call remove_result_bundle,$(SIMULATOR_RESULT_BUNDLE))
-	@xcodebuild $(XCODEBUILD_COMMON) \
+	@set -eum; \
+		echo "test:simulator: running with a $(TEST_RUN_TIMEOUT_SECONDS)s action limit"; \
+		trap 'if [ -n "$${test_pid:-}" ]; then kill -TERM -- "-$$test_pid" 2>/dev/null || true; wait "$$test_pid" 2>/dev/null || true; fi; exit 130' INT TERM HUP; \
+		xcodebuild $(XCODEBUILD_COMMON) \
 		-destination '$(SIMULATOR_DESTINATION)' \
 		-destination-timeout "$(DESTINATION_TIMEOUT_SECONDS)" \
 		CODE_SIGNING_ALLOWED=NO \
@@ -256,7 +261,21 @@ test\:simulator: doctor boot\:simulator ## Run Swift Testing tests on visionOS S
 		-resultBundlePath "$(SIMULATOR_RESULT_BUNDLE)" \
 		$(TEST_SELECTION) \
 		$(XCODEBUILD_FLAGS) \
-		test
+		test & test_pid=$$!; set +m; \
+		deadline=$$(($$(date +%s) + $(TEST_RUN_TIMEOUT_SECONDS))); \
+		while kill -0 "$$test_pid" 2>/dev/null; do \
+			if [ $$(date +%s) -ge "$$deadline" ]; then \
+				echo "error: simulator test action exceeded $(TEST_RUN_TIMEOUT_SECONDS)s" >&2; \
+				kill -TERM -- "-$$test_pid" 2>/dev/null || true; \
+				sleep 5; \
+				kill -KILL -- "-$$test_pid" 2>/dev/null || true; \
+				wait "$$test_pid" 2>/dev/null || true; \
+				xcrun simctl diagnose -b --timeout=60 --output "$(RESULT_BUNDLE_DIR)" --udid "$(SIMULATOR_ID)" || true; \
+				exit 124; \
+			fi; \
+			sleep 1; \
+		done; \
+		wait "$$test_pid"
 	@echo 'test:simulator: TEST SUCCEEDED'
 
 install\:simulator: build\:simulator boot\:simulator ## Install the built app in Simulator.
