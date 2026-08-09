@@ -347,6 +347,34 @@ struct PianoDemonstrationHandsOverlayControllerTests {
         controller.reset()
     }
 
+    @Test func rejectedMotionOccurrenceKeepsItsKeyboardHighlight() async throws {
+        let controller = try await PianoDemonstrationHandsOverlayController(
+            rootEntity: Entity(),
+            preloadedRigs: makeRigs()
+        )
+        let guide = makeGuide(
+            id: 1,
+            kind: .trigger,
+            active: [],
+            triggered: [makeNote(id: "rejected", midiNote: 60, hand: .right)],
+            released: []
+        )
+
+        let suppression = controller.update(
+            isEnabled: true,
+            highlightGuide: guide,
+            timing: .manual,
+            fingeringPlan: readyFingeringPlan(for: [guide]),
+            unreachableOccurrenceIDs: ["rejected"],
+            keyboardGeometry: makeGeometry(keyCenters: [60: 0.12]),
+            reduceMotion: true,
+            content: nil
+        )
+
+        #expect(suppression.isEmpty)
+        controller.reset()
+    }
+
     @Test func sameHandOccurrencesKeepTheirOwnTransportProgress() async throws {
         let now = Mutex(PerformanceMonotonicInstant(seconds: 100))
         let root = Entity()

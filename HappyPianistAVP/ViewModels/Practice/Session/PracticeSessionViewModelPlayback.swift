@@ -30,6 +30,28 @@ extension PracticeSessionViewModel {
         }
     }
 
+    func pianoDemonstrationRejectedMotionOccurrences(
+        for timing: PianoDemonstrationHandsTiming
+    ) -> Set<String> {
+        guard let clipSet = pianoDemonstrationMotionClipSet,
+              clipSet.geometryCacheID == self.keyboardGeometry?.cacheID
+        else {
+            return []
+        }
+        switch timing {
+        case .manual:
+            return clipSet.transportGeneration == nil
+                ? Set(clipSet.rejectedOccurrenceIDs)
+                : []
+        case .transportPending:
+            return []
+        case let .transport(transport):
+            return clipSet.transportGeneration == transport.generation
+                ? Set(clipSet.rejectedOccurrenceIDs)
+                : []
+        }
+    }
+
     func startAutoplayTaskIfNeeded() {
         playbackControlService?.startAutoplayTaskIfNeeded()
     }
@@ -222,7 +244,8 @@ extension PracticeSessionViewModel {
                 self.replacePianoDemonstrationMotionClipSet(PianoDemonstrationMotionClipSet(
                     transportGeneration: fingeringPlan.transportGeneration,
                     geometryCacheID: geometryCacheID,
-                    clips: result.clips
+                    clips: result.clips,
+                    rejectedOccurrenceIDs: result.rejectedOccurrenceIDs
                 ))
             } catch is CancellationError {
                 return

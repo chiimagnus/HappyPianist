@@ -113,6 +113,9 @@ struct ImmersiveView: View {
             fingeringPlan: session.pianoDemonstrationReadyFingeringPlan(
                 for: pianoDemonstrationHandsTiming
             ),
+            unreachableOccurrenceIDs: session.pianoDemonstrationRejectedMotionOccurrences(
+                for: pianoDemonstrationHandsTiming
+            ),
             keyboardGeometry: keyboardGeometry,
             reduceMotion: reduceMotion,
             content: content

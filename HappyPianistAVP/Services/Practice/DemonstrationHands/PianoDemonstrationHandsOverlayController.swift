@@ -73,6 +73,7 @@ final class PianoDemonstrationHandsOverlayController {
         highlightGuide: PianoHighlightGuide?,
         timing: PianoDemonstrationHandsTiming,
         fingeringPlan: PianoFingeringPlanner.Plan? = nil,
+        unreachableOccurrenceIDs: Set<String> = [],
         keyboardGeometry: PianoKeyboardGeometry?,
         reduceMotion: Bool,
         content: RealityViewContent?
@@ -99,7 +100,7 @@ final class PianoDemonstrationHandsOverlayController {
             highlightGuide: presentationGuide,
             keyboardGeometry: keyboardGeometry,
             fingeringPlan: fingeringPlan
-        )
+        ).markingUnreachable(occurrenceIDs: unreachableOccurrenceIDs)
         lastResolvedCoverage = resolvedCoverage
         let coverage = resolvedCoverage.limitedToAvailableHands(Set(rigs.keys))
         reduceMotionEnabled = reduceMotion

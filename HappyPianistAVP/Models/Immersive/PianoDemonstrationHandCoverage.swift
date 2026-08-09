@@ -12,6 +12,7 @@ struct PianoDemonstrationMotionClipSet: Equatable {
     let transportGeneration: Int?
     let geometryCacheID: UUID
     let clips: [PianoHandMotionClip]
+    let rejectedOccurrenceIDs: [String]
 }
 
 struct PianoDemonstrationHandCoverage: Equatable {

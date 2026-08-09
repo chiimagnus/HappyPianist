@@ -8,6 +8,11 @@ import simd
 /// This builder deliberately has no RealityKit dependency so its work can stay outside
 /// `RealityView.update` and the main actor.
 struct PianoHandMotionClipBuilder: Sendable {
+    private static let maximumThumbFlexionRadians: Float = 1.05
+    private static let maximumFingerFlexionRadians: Float = 1.35
+    private static let maximumThumbAbductionRadians: Float = 0.50
+    private static let maximumFingerAbductionRadians: Float = 0.35
+    private static let maximumJointAngularVelocityRadiansPerSecond: Float = 8
     struct KeyboardLayout: Equatable, Sendable {
         struct Key: Equatable, Sendable {
             let midiNote: Int
@@ -69,6 +74,9 @@ struct PianoHandMotionClipBuilder: Sendable {
                   hand == .left || hand == .right,
                   let onsetSeconds = contact.onsetSeconds,
                   let releaseSeconds = contact.releaseSeconds,
+                  onsetSeconds.isFinite,
+                  releaseSeconds.isFinite,
+                  releaseSeconds >= onsetSeconds,
                   input.keyboardLayout.duplicateMIDINotes.contains(contact.midiNote) == false,
                   let contactPositionLocal = keyByMIDINote[contact.midiNote],
                   Self.isFinite(contactPositionLocal)
@@ -87,19 +95,26 @@ struct PianoHandMotionClipBuilder: Sendable {
         }
 
         let metadata = PianoHandMotionClip.Metadata(
-            generatorRevision: "p2-t4",
+            generatorRevision: "p2-t5",
             skeletonRevision: "piano-demonstration-21-joint-v1",
             scoreRevision: input.scoreRevision
         )
-        let clips: [PianoHandMotionClip] = try [ScoreHand.left, .right].compactMap { hand throws -> PianoHandMotionClip? in
+        var clips: [PianoHandMotionClip] = []
+        for hand in [ScoreHand.left, .right] {
             try Task.checkCancellation()
             let contacts = plannedContacts.filter { $0.hand == hand }
-            guard contacts.isEmpty == false else { return nil }
-            return try makeClip(metadata: metadata, hand: hand, contacts: contacts)
+            guard contacts.isEmpty == false else { continue }
+            do {
+                clips.append(try makeClip(metadata: metadata, hand: hand, contacts: contacts))
+            } catch is MotionConstraintError {
+                // A clip is atomic per hand: never publish a partial pose sequence whose
+                // coverage claims motions it cannot safely produce.
+                rejectedOccurrenceIDs += contacts.map(\.occurrenceID)
+            }
         }
         return Result(
             clips: clips,
-            rejectedOccurrenceIDs: rejectedOccurrenceIDs.sorted()
+            rejectedOccurrenceIDs: Array(Set(rejectedOccurrenceIDs)).sorted()
         )
     }
 
@@ -121,21 +136,47 @@ struct PianoHandMotionClipBuilder: Sendable {
     ) throws -> PianoHandMotionClip {
         let contactsByOnset = Dictionary(grouping: contacts, by: \.onsetSeconds)
         let identityRotation = SIMD4<Float>(0, 0, 0, 1)
+        var previousJointAngles = Array(
+            repeating: SIMD2<Float>.zero,
+            count: PianoHandMotionClip.jointCount
+        )
+        var previousOnset: TimeInterval?
         let frames = try contactsByOnset.keys.sorted().map { onsetSeconds in
             try Task.checkCancellation()
             let contactsAtOnset = contactsByOnset[onsetSeconds] ?? []
             let averagePosition = contactsAtOnset.reduce(into: SIMD3<Float>.zero) { position, contact in
                 position += contact.contactPositionLocal
             } / Float(contactsAtOnset.count)
+            guard let targetJointAngles = Self.targetJointAngles(
+                for: contactsAtOnset,
+                palmCenter: averagePosition,
+                hand: hand
+            )
+            else {
+                throw MotionConstraintError()
+            }
+            let maximumDelta = previousOnset.map {
+                max(0, Float(onsetSeconds - $0) * Self.maximumJointAngularVelocityRadiansPerSecond)
+            } ?? .infinity
+            guard zip(previousJointAngles, targetJointAngles).allSatisfy({ previous, target in
+                Self.isWithinAngularVelocityLimit(
+                    from: previous,
+                    to: target,
+                    maximumDelta: maximumDelta
+                )
+            }) else {
+                throw MotionConstraintError()
+            }
+            previousJointAngles = targetJointAngles
+            previousOnset = onsetSeconds
 
-            // ponytail: T4 emits immutable contact-aligned root frames; T5–T7 add the physical joint solver before T8 can play them.
             return PianoHandMotionClip.Frame(
                 timeSeconds: onsetSeconds,
                 rootTransform: .init(
                     translation: averagePosition + SIMD3<Float>(0, 0.045, 0.050),
                     rotation: identityRotation
                 ),
-                jointRotations: Array(repeating: identityRotation, count: PianoHandMotionClip.jointCount)
+                jointRotations: targetJointAngles.map { Self.jointRotation(for: $0) }
             )
         }
         return try PianoHandMotionClip(
@@ -156,9 +197,73 @@ struct PianoHandMotionClipBuilder: Sendable {
     private static func isFinite(_ vector: SIMD3<Float>) -> Bool {
         vector.x.isFinite && vector.y.isFinite && vector.z.isFinite
     }
+
+    private static func targetJointAngles(
+        for contacts: [PlannedContact],
+        palmCenter: SIMD3<Float>,
+        hand: ScoreHand
+    ) -> [SIMD2<Float>]? {
+        guard Set(contacts.map(\.finger)).count == contacts.count else { return nil }
+        var jointAngles = Array(
+            repeating: SIMD2<Float>.zero,
+            count: PianoHandMotionClip.jointCount
+        )
+        for contact in contacts {
+            let startIndex = 1 + (contact.finger - 1) * 4
+            guard (1 ... 5).contains(contact.finger),
+                  jointAngles.indices.contains(startIndex + 3)
+            else {
+                return nil
+            }
+
+            let isThumb = contact.finger == 1
+            let lateralOffset = contact.contactPositionLocal.x - palmCenter.x
+            let flexion = (isThumb ? 0.25 : 0.35) + abs(lateralOffset) * 6
+            let abduction = lateralOffset * (hand == .right ? 3 : -3)
+            let maximumFlexion = isThumb
+                ? Self.maximumThumbFlexionRadians
+                : Self.maximumFingerFlexionRadians
+            let maximumAbduction = isThumb
+                ? Self.maximumThumbAbductionRadians
+                : Self.maximumFingerAbductionRadians
+            guard flexion <= maximumFlexion,
+                  abs(abduction) <= maximumAbduction
+            else {
+                return nil
+            }
+
+            let flexionWeights: [Float] = isThumb
+                ? [0.32, 0.42, 0.20, 0.06]
+                : [0.18, 0.42, 0.28, 0.12]
+            for (offset, weight) in flexionWeights.enumerated() {
+                jointAngles[startIndex + offset] = SIMD2(
+                    flexion * weight,
+                    offset == 0 ? abduction : 0
+                )
+            }
+        }
+        return jointAngles
+    }
+
+    private static func isWithinAngularVelocityLimit(
+        from previous: SIMD2<Float>,
+        to target: SIMD2<Float>,
+        maximumDelta: Float
+    ) -> Bool {
+        abs(target.x - previous.x) <= maximumDelta
+            && abs(target.y - previous.y) <= maximumDelta
+    }
+
+    private static func jointRotation(for angles: SIMD2<Float>) -> SIMD4<Float> {
+        let flexion = simd_quatf(angle: angles.x, axis: SIMD3<Float>(1, 0, 0))
+        let abduction = simd_quatf(angle: angles.y, axis: SIMD3<Float>(0, 0, 1))
+        return (abduction * flexion).vector
+    }
 }
 
 private extension PianoHandMotionClipBuilder {
+    struct MotionConstraintError: Error {}
+
     struct PlannedContact: Sendable {
         let occurrenceID: String
         let hand: ScoreHand
