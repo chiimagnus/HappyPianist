@@ -45,6 +45,25 @@ func plannerMotionLimitsRejectNonFiniteValuesConservatively() {
 }
 
 @Test
+func plannerUsesAttackIntervalForAdjacentNoteHandoffs() throws {
+    let plan = try PianoFingeringPlanner().plan(
+        contacts: PianoKeyContactTimeline(contacts: [
+            contact(id: "held", midi: 60, onset: 0, release: 0.5),
+            contact(id: "next", midi: 67, onset: 0.5),
+        ]),
+        keyboardLayout: layout([
+            (60, .white, 0),
+            (67, .white, 0.096),
+        ])
+    )
+
+    #expect(plan.results.allSatisfy { result in
+        if case .planned = result.resolution { return true }
+        return false
+    })
+}
+
+@Test
 func plannerPreservesManualFingeringAndRewardsRepeatedNotes() throws {
     let contacts = PianoKeyContactTimeline(contacts: [
         contact(id: "c", midi: 60, onset: 0),

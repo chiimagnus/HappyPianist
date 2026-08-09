@@ -334,7 +334,9 @@ public struct PianoFingeringPlanner: Sendable {
     }
 
     private func transitionCost(from previous: Shape, to current: Shape, hand: ScoreHand) -> Double? {
-        let availableSeconds = max(0.01, current.onsetSeconds - previous.releaseSeconds)
+        // The hand begins preparing after the previous attack, not only after its note-off.
+        // Held-target feasibility is checked later by the clip builder with the full pose.
+        let availableSeconds = max(0.01, current.onsetSeconds - previous.onsetSeconds)
         let travel = abs(current.anchorX - previous.anchorX)
         guard travel / availableSeconds <= motionLimits.maximumHandTravelMetersPerSecond else { return nil }
         var cost = travel / availableSeconds * 0.02
