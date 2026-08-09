@@ -17,6 +17,10 @@ MAC_ONLY_TESTING ?=
 SIMULATOR_ID ?= 00CB80CD-6875-4CBB-BA94-63A58C2728EC
 SIMULATOR_NAME ?= Apple Vision Pro
 DEVICE_ID ?= A687F5B3-44BC-5C55-B5C4-22A807A27C6F
+SIMULATOR_BOOT_TIMEOUT_SECONDS ?= 180
+DESTINATION_TIMEOUT_SECONDS ?= 60
+TEST_EXECUTION_TIMEOUT_SECONDS ?= 120
+TEST_MAXIMUM_EXECUTION_TIMEOUT_SECONDS ?= 300
 
 XCODE_DEVELOPER_DIR ?= $(shell xcode-select -p 2>/dev/null)
 XCODE_CONTENTS_DIR ?= $(patsubst %/Developer,%,$(XCODE_DEVELOPER_DIR))
@@ -172,6 +176,10 @@ config: ## Print the resolved Make configuration.
 		'CONFIGURATION' '$(CONFIGURATION)' \
 		'SIMULATOR_NAME' '$(SIMULATOR_NAME)' \
 		'SIMULATOR_ID' '$(SIMULATOR_ID)' \
+		'SIMULATOR_BOOT_TIMEOUT_SECONDS' '$(SIMULATOR_BOOT_TIMEOUT_SECONDS)' \
+		'DESTINATION_TIMEOUT_SECONDS' '$(DESTINATION_TIMEOUT_SECONDS)' \
+		'TEST_EXECUTION_TIMEOUT_SECONDS' '$(TEST_EXECUTION_TIMEOUT_SECONDS)' \
+		'TEST_MAXIMUM_EXECUTION_TIMEOUT_SECONDS' '$(TEST_MAXIMUM_EXECUTION_TIMEOUT_SECONDS)' \
 		'DEVICE_ID' '$(DEVICE_ID)' \
 		'BUNDLE_ID' '$(BUNDLE_ID)' \
 		'XCODE_DEVELOPER_DIR' '$(XCODE_DEVELOPER_DIR)' \
@@ -207,8 +215,21 @@ open\:simulator: ## Open DeviceHub (new Xcode) or Simulator (older Xcode).
 	open "$(SIMULATOR_HOST_APP)"
 
 boot\:simulator: ## Boot and wait for the configured Vision Pro Simulator.
-	@xcrun simctl boot "$(SIMULATOR_ID)" >/dev/null 2>&1 || true
-	xcrun simctl bootstatus "$(SIMULATOR_ID)" -b
+	@set -eu; \
+		xcrun simctl boot "$(SIMULATOR_ID)" >/dev/null 2>&1 || true; \
+		xcrun simctl bootstatus "$(SIMULATOR_ID)" -b & bootstatus_pid=$$!; \
+		deadline=$$(($$(date +%s) + $(SIMULATOR_BOOT_TIMEOUT_SECONDS))); \
+		while kill -0 "$$bootstatus_pid" 2>/dev/null; do \
+			if [ $$(date +%s) -ge "$$deadline" ]; then \
+				kill "$$bootstatus_pid" 2>/dev/null || true; \
+				wait "$$bootstatus_pid" 2>/dev/null || true; \
+				echo "error: Simulator $(SIMULATOR_ID) did not finish booting within $(SIMULATOR_BOOT_TIMEOUT_SECONDS)s" >&2; \
+				xcrun simctl list devices | grep -F "$(SIMULATOR_ID)" || true; \
+				exit 1; \
+			fi; \
+			sleep 1; \
+		done; \
+		wait "$$bootstatus_pid"
 
 shutdown\:simulator: ## Shut down the configured Simulator.
 	@xcrun simctl shutdown "$(SIMULATOR_ID)" >/dev/null 2>&1 || true
@@ -226,8 +247,12 @@ test\:simulator: doctor boot\:simulator ## Run Swift Testing tests on visionOS S
 	$(call remove_result_bundle,$(SIMULATOR_RESULT_BUNDLE))
 	@xcodebuild $(XCODEBUILD_COMMON) \
 		-destination '$(SIMULATOR_DESTINATION)' \
+		-destination-timeout "$(DESTINATION_TIMEOUT_SECONDS)" \
 		CODE_SIGNING_ALLOWED=NO \
 		-parallel-testing-enabled "$(PARALLEL_TESTING)" \
+		-test-timeouts-enabled YES \
+		-default-test-execution-time-allowance "$(TEST_EXECUTION_TIMEOUT_SECONDS)" \
+		-maximum-test-execution-time-allowance "$(TEST_MAXIMUM_EXECUTION_TIMEOUT_SECONDS)" \
 		-resultBundlePath "$(SIMULATOR_RESULT_BUNDLE)" \
 		$(TEST_SELECTION) \
 		$(XCODEBUILD_FLAGS) \
