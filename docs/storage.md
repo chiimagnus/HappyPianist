@@ -1,71 +1,24 @@
-# 存储
+# 存储与隐私
 
-每个 App host 在自己的 sandbox Documents 下使用 JSON 和用户导入文件，不使用 SwiftData。路径、schema 和删除行为必须一起修改；macOS host 不迁移或共享 visionOS container。
+每个 App host 只读写自己的 sandbox。曲库导入后只保留 sandbox 副本、相对文件名与 fingerprint；不保存外部 URL、security-scoped bookmark 或绝对路径。
 
-## 文件布局
+## 持久化边界
 
-| 数据 | owner | 默认位置 |
+| 数据 | 位置 | 保留内容 |
 | --- | --- | --- |
-| 真实钢琴 world-anchor 校准 | `WorldAnchorCalibrationStore` | `Documents/piano-worldanchor-calibration.json` |
-| 用户曲库索引 | `SongLibraryIndexStore` | `Documents/SongLibrary/index.json` |
-| 用户曲谱 / 试听音频 | `SongLibraryImportTransactionService`、`SongFileStore`、`AudioImportService` | `Documents/SongLibrary/scores/`、`audio/` |
-| 导入事务 | `SongLibraryImportTransactionService` | `Documents/SongLibrary/transactions/<operation-id>/` |
-| 练习 progress / session | `FilePracticeProgressRepository` | `Documents/PracticeProgress/progress-v1.json` |
-| MIDI take | `Practice.RecordingTakeStore` | `Documents/TakeLibrary/takes.json` |
-| 可导出诊断 | `FileDiagnosticsStore` | `Documents/Diagnostics/diagnostics-YYYY-MM-DD.jsonl` |
+| 曲库 | `Documents/SongLibrary/` | MusicXML、副本索引、可选曲目音频。 |
+| 进度 | `Documents/PracticeProgress/` | song/revision、不可变 round 配置、source-measure 聚合事实、resume/checkpoint、metadata、session facts。 |
+| Take | `Documents/TakeLibrary/` | 可重放 observation 及其 capability、clock、calibration。 |
+| 诊断 | `Documents/Diagnostics/` | 仅 exportable 的低频结构化事件，默认七个日历日。 |
+| 空间校准 | `Documents/piano-worldanchor-calibration.json` | 校准数据。 |
 
-bundled MusicXML、字体、SoundFont 和 CoreML 资源属于 App bundle，不写入 Documents。
+文件版本未知或损坏时 fail closed；所有写入使用 actor/原子替换。progress、metadata 与 session 必须分别读取磁盘最新文档后更新自己的 concern，不能整份覆盖。重置只删除对应 Documents 数据，绝不删除 bundle 资源或 test fixture。
 
-## 曲库索引与导入
+## 不得持久化
 
-- index 只保存用户 entry 和最后选择项；bundled entry 每次由 provider 扫描并合并。
-- entry 用 `song UUID + scoreFileVersionID` 区分曲谱版本；版本缺失或非空 index 无法解码时 fail closed，保留原文件。
-- 导入按 operation ID 排队：同卷 `.partial` → 字节数/SHA-256 fingerprint → staged journal → target/index commit。
-- 冲突在 target/index mutation 前暂停，用户确认只回传 operation ID；actor 重新读取最新事实后再决定 replace、repair 或 orphan adopt。
-- bootstrap 先恢复未完成 transaction，再读 index，最后扫描 bundle。journal 只含相对文件名、phase、identity 和 fingerprint，不含 URL、曲谱正文或完整 index。
-- macOS 通过 `fileImporter` 只在暂存副本期间持有 security scope；index、journal、score metadata 与 progress 均不得写入选中的外部 URL、bookmark 或绝对路径。
-- macOS 试听音频也由 `Library.AudioImportService` 在同一 sandbox 规则下复制到 `SongLibrary/audio/`；index 只保存安全相对文件名。替换成功后 best-effort 删除旧 audio，删除曲目时先停止试听再清理关联 score/audio/progress。
-- 删除用户曲目时同时删除 score、绑定 audio 和该 song UUID 的三类练习记录；进度清理失败不回滚已完成的曲目删除。
+- SwiftUI/RealityKit 状态、cue、summary、恢复地图、键面/手部渲染；
+- alignment、逐音 evidence、target profile、`MusicalIssue`、coaching decision 与 before/after 关联；
+- 原始 MusicXML、音频、MIDI、手部帧、设备序列号、route 显示名、导出目的地；
+- AI prompt/正文、密钥、认证信息和绝对路径。
 
-## 练习 progress
-
-`progress-v1.json` 是唯一练习事实文件。当前 schema 为 2，包含 `schemaVersion`、`songs`、`scoreMetadata`、`sessions` 三个数组；缺版本的旧文件仅在读取边界按 version 1 解码并在下次写入升级，未知版本 fail closed。
-
-保存：
-
-- song UUID、score revision、entry version token；
-- immutable round configuration 与 resume point；
-- source-measure facts、maturity、metric summaries、sample count、rubric version、evidence coverage；
-- score metadata；
-- session identity、开始/结算时间、本地练习日、checkpoint、window/active duration、termination。
-
-不保存：
-
-- SwiftUI 状态、cue、summary、hotspot、恢复地图、RealityKit entity；
-- alignment、逐音 assessment evidence、target profile、`MusicalIssue`、coaching decision、before/after 关联；
-- `PianoOutputMeasurementMetadata` 的原始测量、设备序列号、路由显示名；
-- AI 内容、原始 MusicXML、逐帧音频/MIDI/手部数据。
-
-progress、metadata、session mutation 在 actor 内读取磁盘最新文档，只更新自己的 concern；调用方不得整份覆盖。checkpoint 必须用 song identity、round generation 和 progress generation 防止旧任务回写。
-
-## take 与诊断
-
-- take 保存 source/capability/clock/calibration 和可重放 observation；MIDI 7/14-bit 投影只在回放或导出边界生成。录制停止时先关闭仍打开的音符，再以原子 JSON 写入当前 App host 自己的 `TakeLibrary`；macOS 的显式返回、窗口关闭和应用退出都等待该写入成功，失败则取消离开；macOS 与 visionOS 永不共享该 container。
-- target audio 因缺少可靠逐音 release/velocity 不进入 MIDI take。
-- MIDI 导出只在用户 action 的 `fileExporter` 中取得目的地；目的 URL、bookmark、逐事件内容都不得写入 take store 或诊断。
-- 诊断事件先进入系统日志，只有明确 exportable 的低频事件写入 JSONL；默认保留七个日历日，导出由用户触发。
-- 任何导出文件不得包含绝对路径、原谱正文、逐音输入、音频样本、手部帧、AI prompt/正文、密钥或认证信息。
-
-## 清理
-
-重置用户数据时按需清理：
-
-```text
-Documents/SongLibrary/
-Documents/TakeLibrary/
-Documents/PracticeProgress/
-Documents/Diagnostics/
-Documents/piano-worldanchor-calibration.json
-```
-
-不要删除 App bundle 资源，也不要把测试 fixture 当作用户数据。
+take 回放或 MIDI 导出仅在用户动作边界生成需要的投影；导出目标 URL 不回写 store。诊断先进入系统日志，导出的字段仍遵循上述脱敏规则。
