@@ -1,5 +1,6 @@
 import RealityKit
 import RealityKitContent
+import MusicXML
 import Practice
 import simd
 import SwiftUI
@@ -61,8 +62,15 @@ final class PianoDemonstrationHandRig {
         let jointPathSuffixes = modelEntity.jointNames.map {
             $0.split(separator: "/").last.map(String.init) ?? ""
         }
+        let expectedRestJoints = PianoDemonstrationHandSkeleton.restJoints(
+            for: hand == .left ? .left : .right
+        )
         guard jointPathSuffixes == expectedJointPathSuffixes,
-              modelEntity.jointTransforms.count == expectedJointPathSuffixes.count
+              modelEntity.jointTransforms.count == expectedJointPathSuffixes.count,
+              zip(modelEntity.jointTransforms, expectedRestJoints).allSatisfy({ transform, joint in
+                  simd_distance(transform.translation, joint.translation) < 0.000_1
+                      && abs(simd_dot(transform.rotation.vector, joint.rotation)) > 0.999_9
+              })
         else {
             throw PianoDemonstrationHandRigError.invalidJointSet
         }

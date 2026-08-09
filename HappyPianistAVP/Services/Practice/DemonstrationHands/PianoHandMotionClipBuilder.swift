@@ -163,20 +163,20 @@ struct PianoHandMotionClipBuilder: Sendable {
         for onsetSeconds in contactsByOnset.keys.sorted() {
             try Task.checkCancellation()
             let contactsAtOnset = contactsByOnset[onsetSeconds] ?? []
-            guard let targetJointAngles = Self.targetJointAngles(
+            guard let initialJointAngles = Self.targetJointAngles(
                 for: contactsAtOnset,
                 palmCenter: Self.palmCenter(for: contactsAtOnset),
                 hand: hand
             ),
-            let plannedRootTransform = PianoDemonstrationHandRootPlanner.rootTransform(
-                for: hand,
-                targets: contactsAtOnset.map {
-                    .init(finger: $0.finger, contactPositionLocal: $0.contactPositionLocal)
-                }
+            let solvedPose = Self.solvePose(
+                hand: hand,
+                contacts: contactsAtOnset,
+                initialJointAngles: initialJointAngles
             ),
             let targetRootTransform = Self.minimumCollisionFreeRootTransform(
-                plannedRootTransform,
+                solvedPose.rootTransform,
                 hand: hand,
+                jointRotations: solvedPose.jointAngles.map(Self.jointRotation),
                 keyboardKeys: keyboardKeys
             )
             else {
@@ -186,14 +186,14 @@ struct PianoHandMotionClipBuilder: Sendable {
                 hand: hand,
                 contacts: contactsAtOnset,
                 rootTransform: targetRootTransform,
-                jointAngles: targetJointAngles,
+                jointAngles: solvedPose.jointAngles,
                 keyboardKeys: keyboardKeys
             ) else {
                 throw MotionConstraintError()
             }
             let availableSeconds = previousOnset.map { max(0, Float(onsetSeconds - $0)) } ?? .infinity
             let maximumDelta = availableSeconds * Self.maximumJointAngularVelocityRadiansPerSecond
-            guard zip(previousJointAngles, targetJointAngles).allSatisfy({ previous, target in
+            guard zip(previousJointAngles, solvedPose.jointAngles).allSatisfy({ previous, target in
                 Self.isWithinAngularVelocityLimit(
                     from: previous,
                     to: target,
@@ -221,13 +221,13 @@ struct PianoHandMotionClipBuilder: Sendable {
                 }
             }
 
-            previousJointAngles = targetJointAngles
+            previousJointAngles = solvedPose.jointAngles
             previousRootTransform = targetRootTransform
             previousOnset = onsetSeconds
             frames.append(PianoHandMotionClip.Frame(
                 timeSeconds: onsetSeconds,
                 rootTransform: targetRootTransform,
-                jointRotations: targetJointAngles.map { Self.jointRotation(for: $0) }
+                jointRotations: solvedPose.jointAngles.map { Self.jointRotation(for: $0) }
             ))
         }
         return try PianoHandMotionClip(
@@ -314,6 +314,132 @@ struct PianoHandMotionClipBuilder: Sendable {
         return jointAngles
     }
 
+    /// Solves the authored skeleton, rather than an idealized proxy chain, before a frame can be published.
+    private static func solvePose(
+        hand: ScoreHand,
+        contacts: [PlannedContact],
+        initialJointAngles: [SIMD2<Float>]
+    ) -> SolvedPose? {
+        let targets = contacts.map {
+            PianoDemonstrationHandRootPlanner.Target(
+                finger: $0.finger,
+                contactPositionLocal: $0.contactPositionLocal
+            )
+        }
+        guard var rootTransform = PianoDemonstrationHandRootPlanner.rootTransform(
+            for: hand,
+            targets: targets
+        ), initialJointAngles.count == PianoHandMotionClip.jointCount
+        else {
+            return nil
+        }
+        var jointAngles = initialJointAngles
+
+        // ponytail: fixed coordinate descent is deterministic for this 21-joint hand; replace it
+        // with a general IK solver only when the authored rig gains coupled or extra joints.
+        for step: Float in [0.32, 0.16, 0.08, 0.04, 0.02, 0.01] {
+            for _ in 0 ..< 8 {
+                guard let alignedRootTransform = PianoDemonstrationHandRootPlanner.alignedRootTransform(
+                    rootTransform,
+                    hand: hand,
+                    targets: targets,
+                    jointRotations: jointAngles.map(Self.jointRotation)
+                ) else {
+                    return nil
+                }
+                rootTransform = alignedRootTransform
+
+                for contact in contacts {
+                    let startIndex = 1 + (contact.finger - 1) * 4
+                    for jointIndex in startIndex ..< startIndex + 3 {
+                        for component in 0 ... 1 {
+                            let original = jointAngles[jointIndex][component]
+                            var bestValue = original
+                            var bestError = Self.contactErrorSquared(
+                                for: contact,
+                                hand: hand,
+                                rootTransform: rootTransform,
+                                jointAngles: jointAngles
+                            )
+                            for candidate in [original - step, original + step] {
+                                let constrained = Self.constrainedJointAngle(
+                                    candidate,
+                                    component: component,
+                                    finger: contact.finger
+                                )
+                                jointAngles[jointIndex][component] = constrained
+                                let error = Self.contactErrorSquared(
+                                    for: contact,
+                                    hand: hand,
+                                    rootTransform: rootTransform,
+                                    jointAngles: jointAngles
+                                )
+                                if error < bestError {
+                                    bestError = error
+                                    bestValue = constrained
+                                }
+                            }
+                            jointAngles[jointIndex][component] = bestValue
+                        }
+                    }
+                }
+            }
+        }
+
+        guard let alignedRootTransform = PianoDemonstrationHandRootPlanner.alignedRootTransform(
+            rootTransform,
+            hand: hand,
+            targets: targets,
+            jointRotations: jointAngles.map(Self.jointRotation)
+        ), contacts.allSatisfy({
+            Self.contactErrorSquared(
+                for: $0,
+                hand: hand,
+                rootTransform: alignedRootTransform,
+                jointAngles: jointAngles
+            ) <= pow(Self.maximumContactErrorMeters, 2)
+        })
+        else {
+            return nil
+        }
+        return SolvedPose(rootTransform: alignedRootTransform, jointAngles: jointAngles)
+    }
+
+    private static func constrainedJointAngle(
+        _ value: Float,
+        component: Int,
+        finger: Int
+    ) -> Float {
+        if component == 0 {
+            let maximum = finger == 1
+                ? Self.maximumThumbFlexionRadians
+                : Self.maximumFingerFlexionRadians
+            return min(max(value, 0), maximum)
+        }
+        let maximum = finger == 1
+            ? Self.maximumThumbAbductionRadians
+            : Self.maximumFingerAbductionRadians
+        return min(max(value, -maximum), maximum)
+    }
+
+    private static func contactErrorSquared(
+        for contact: PlannedContact,
+        hand: ScoreHand,
+        rootTransform: PianoHandMotionClip.RootTransform,
+        jointAngles: [SIMD2<Float>]
+    ) -> Float {
+        guard let tip = PianoDemonstrationHandSkeleton.fingerJointPositions(
+            finger: contact.finger,
+            hand: hand,
+            rootTransform: rootTransform,
+            jointRotations: jointAngles.map(Self.jointRotation)
+        )?.last
+        else {
+            return .infinity
+        }
+        return simd_distance_squared(tip, contact.contactPositionLocal)
+    }
+
     private static func isWithinAngularVelocityLimit(
         from previous: SIMD2<Float>,
         to target: SIMD2<Float>,
@@ -352,15 +478,18 @@ struct PianoHandMotionClipBuilder: Sendable {
     private static func minimumCollisionFreeRootTransform(
         _ rootTransform: PianoHandMotionClip.RootTransform,
         hand: ScoreHand,
+        jointRotations: [SIMD4<Float>],
         keyboardKeys: [KeyboardLayout.Key]
     ) -> PianoHandMotionClip.RootTransform? {
-        let rootRotation = simd_quatf(vector: rootTransform.rotation)
-        let thumb = rootTransform.translation + rootRotation.act(
-            PianoDemonstrationHandRootPlanner.fingerRootOffset(1, hand: hand)
-        )
-        let little = rootTransform.translation + rootRotation.act(
-            PianoDemonstrationHandRootPlanner.fingerRootOffset(5, hand: hand)
-        )
+        guard let positions = PianoDemonstrationHandSkeleton.jointPositions(
+            hand: hand,
+            rootTransform: rootTransform,
+            jointRotations: jointRotations
+        ), positions.indices.contains(17) else {
+            return nil
+        }
+        let thumb = positions[1]
+        let little = positions[17]
         let palm = Capsule(start: thumb, end: little, radius: Self.palmCapsuleRadiusMeters)
         let requiredLift = keyboardKeys.reduce(into: Float.zero) { lift, key in
             guard palm.overlapsHorizontally(key) else { return }
@@ -395,25 +524,23 @@ struct PianoHandMotionClipBuilder: Sendable {
         else {
             return false
         }
+        let jointRotations = jointAngles.map(Self.jointRotation)
+        guard let positions = PianoDemonstrationHandSkeleton.jointPositions(
+            hand: hand,
+            rootTransform: rootTransform,
+            jointRotations: jointRotations
+        ) else {
+            return false
+        }
 
         let contactsByFinger = Dictionary(
             uniqueKeysWithValues: contacts.map { ($0.finger, $0) }
         )
         let fingers = (1 ... 5).compactMap { finger -> FingerGeometry? in
-            let tip = contactsByFinger[finger]?.contactPositionLocal
-                ?? PianoDemonstrationHandRootPlanner.naturalTip(
-                    finger: finger,
-                    hand: hand,
-                    rootTransform: rootTransform
-                )
-            guard let joints = PianoDemonstrationHandRootPlanner.fingerJointPositions(
-                finger: finger,
-                hand: hand,
-                rootTransform: rootTransform,
-                tip: tip
-            ),
-            joints.count == 4,
-            Self.hasValidBoneLengths(joints, finger: finger)
+            let start = 1 + (finger - 1) * 4
+            guard positions.indices.contains(start + 3) else { return nil }
+            let joints = Array(positions[start ... start + 3])
+            guard Self.hasValidBoneLengths(joints, finger: finger, hand: hand)
             else {
                 return nil
             }
@@ -444,14 +571,9 @@ struct PianoHandMotionClipBuilder: Sendable {
             }
         }
 
-        let rootRotation = simd_quatf(vector: rootTransform.rotation)
         let palm = Capsule(
-            start: rootTransform.translation + rootRotation.act(
-                PianoDemonstrationHandRootPlanner.fingerRootOffset(1, hand: hand)
-            ),
-            end: rootTransform.translation + rootRotation.act(
-                PianoDemonstrationHandRootPlanner.fingerRootOffset(5, hand: hand)
-            ),
+            start: positions[1],
+            end: positions[17],
             radius: Self.palmCapsuleRadiusMeters
         )
         guard Self.hasNoFingerSelfIntersections(fingerCapsules, palm: palm) else { return false }
@@ -462,8 +584,12 @@ struct PianoHandMotionClipBuilder: Sendable {
         )
     }
 
-    private static func hasValidBoneLengths(_ joints: [SIMD3<Float>], finger: Int) -> Bool {
-        guard let segmentLengths = PianoDemonstrationHandRootPlanner.fingerSegmentLengths(finger),
+    private static func hasValidBoneLengths(
+        _ joints: [SIMD3<Float>],
+        finger: Int,
+        hand: ScoreHand
+    ) -> Bool {
+        guard let segmentLengths = PianoDemonstrationHandSkeleton.fingerSegmentLengths(finger, hand: hand),
               joints.count == segmentLengths.count + 1
         else {
             return false
@@ -589,6 +715,11 @@ private extension PianoHandMotionClipBuilder {
         }
     }
 
+    struct SolvedPose {
+        let rootTransform: PianoHandMotionClip.RootTransform
+        let jointAngles: [SIMD2<Float>]
+    }
+
     struct FingerGeometry {
         let finger: Int
         let joints: [SIMD3<Float>]
@@ -675,18 +806,13 @@ struct PianoDemonstrationHandRootPlanner {
         let contactPositionLocal: SIMD3<Float>
     }
 
-    private static let wristHeightMeters: Float = 0.045
-    private static let wristDepthMeters: Float = 0.050
-    private static let preparedWristLiftMeters: Float = 0.012
-    private static let preparedWristDepthMeters: Float = 0.004
-
     static func rootTransform(
         for hand: ScoreHand,
-        targets: [Target],
-        strikeProgress: Float = 1
+        targets: [Target]
     ) -> PianoHandMotionClip.RootTransform? {
         guard (hand == .left || hand == .right),
               targets.isEmpty == false,
+              Set(targets.map(\.finger)).count == targets.count,
               targets.allSatisfy({
                   (1 ... 5).contains($0.finger) && isFinite($0.contactPositionLocal)
               })
@@ -695,77 +821,54 @@ struct PianoDemonstrationHandRootPlanner {
         }
 
         let rotation = rootRotation(for: hand, targets: targets)
-        let rootRotation = simd_quatf(vector: rotation)
-        let palmX = targets.reduce(into: Float.zero) { partial, target in
-            partial += target.contactPositionLocal.x
-                - rootRotation.act(fingerRootOffset(target.finger, hand: hand)).x
-        } / Float(targets.count)
-        let surfaceY = targets.map(\.contactPositionLocal.y).max() ?? 0
-        let averageZ = targets.reduce(into: Float.zero) { partial, target in
-            partial += target.contactPositionLocal.z
-        } / Float(targets.count)
-        let progress = min(1, max(0, strikeProgress.isFinite ? strikeProgress : 1))
-        let translation = SIMD3<Float>(
-            palmX,
-            surfaceY + Self.wristHeightMeters + (1 - progress) * Self.preparedWristLiftMeters,
-            averageZ + Self.wristDepthMeters + (1 - progress) * Self.preparedWristDepthMeters
+        let restRotations = Array(
+            repeating: SIMD4<Float>(0, 0, 0, 1),
+            count: PianoHandMotionClip.jointCount
         )
+        return alignedRootTransform(
+            .init(translation: .zero, rotation: rotation),
+            hand: hand,
+            targets: targets,
+            jointRotations: restRotations
+        )
+    }
+
+    static func alignedRootTransform(
+        _ rootTransform: PianoHandMotionClip.RootTransform,
+        hand: ScoreHand,
+        targets: [Target],
+        jointRotations: [SIMD4<Float>]
+    ) -> PianoHandMotionClip.RootTransform? {
+        guard let positions = PianoDemonstrationHandSkeleton.jointPositions(
+            hand: hand,
+            rootTransform: rootTransform,
+            jointRotations: jointRotations
+        ), targets.allSatisfy({
+            (1 ... 5).contains($0.finger) && isFinite($0.contactPositionLocal)
+        })
+        else {
+            return nil
+        }
+        let translationCorrection = targets.reduce(into: SIMD3<Float>.zero) { correction, target in
+            correction += target.contactPositionLocal - positions[1 + (target.finger - 1) * 4 + 3]
+        } / Float(targets.count)
+        let translation = rootTransform.translation + translationCorrection
         guard isFinite(translation) else { return nil }
-        return .init(translation: translation, rotation: rotation)
+        return .init(translation: translation, rotation: rootTransform.rotation)
     }
 
     static func fingerJointPositions(
         finger: Int,
         hand: ScoreHand,
         rootTransform: PianoHandMotionClip.RootTransform,
-        tip: SIMD3<Float>
+        jointRotations: [SIMD4<Float>]
     ) -> [SIMD3<Float>]? {
-        guard let segmentLengths = fingerSegmentLengths(finger),
-              isFinite(tip)
-        else {
-            return nil
-        }
-        let root = rootTransform.translation + simd_quatf(vector: rootTransform.rotation).act(
-            fingerRootOffset(finger, hand: hand)
+        PianoDemonstrationHandSkeleton.fingerJointPositions(
+            finger: finger,
+            hand: hand,
+            rootTransform: rootTransform,
+            jointRotations: jointRotations
         )
-        guard isFinite(root) else { return nil }
-        return solveFingerChain(
-            root: root,
-            tip: tip,
-            segmentLengths: segmentLengths,
-            archHeight: finger == 1 ? 0.006 : 0.013
-        )
-    }
-
-    static func fingerSegmentLengths(_ finger: Int) -> [Float]? {
-        // ponytail: these three lengths match the Blender-authored 21-joint rig.
-        switch finger {
-        case 1: [0.02526, 0.02311, 0.02012]
-        case 2: [0.03407, 0.02402, 0.02010]
-        case 3: [0.03905, 0.02702, 0.02322]
-        case 4: [0.03607, 0.02504, 0.02012]
-        case 5: [0.02818, 0.02002, 0.01616]
-        default: nil
-        }
-    }
-
-    static func naturalTip(
-        finger: Int,
-        hand: ScoreHand,
-        rootTransform: PianoHandMotionClip.RootTransform
-    ) -> SIMD3<Float> {
-        let rightHandOffset: SIMD3<Float> = switch finger {
-        case 1: [-0.053, -0.014, -0.058]
-        case 2: [-0.017, -0.016, -0.101]
-        case 3: [0, -0.018, -0.115]
-        case 4: [0.019, -0.018, -0.104]
-        case 5: [0.038, -0.015, -0.082]
-        default: .zero
-        }
-        let offset = hand == .right
-            ? rightHandOffset
-            : SIMD3<Float>(-rightHandOffset.x, rightHandOffset.y, rightHandOffset.z)
-        return rootTransform.translation + simd_quatf(vector: rootTransform.rotation).act(offset)
     }
 
     private static func rootRotation(
@@ -776,71 +879,12 @@ struct PianoDemonstrationHandRootPlanner {
             - (targets.map(\.contactPositionLocal.x).min() ?? 0)
         let side: Float = hand == .right ? -1 : 1
         let yaw = side * min(0.08, 0.02 + horizontalSpan * 0.2)
-        return simd_quatf(angle: yaw, axis: SIMD3<Float>(0, 1, 0)).vector
-    }
-
-    static func fingerRootOffset(_ finger: Int, hand: ScoreHand) -> SIMD3<Float> {
-        let rightHandOffset: SIMD3<Float> = switch finger {
-        case 1: [-0.030, -0.004, -0.004]
-        case 2: [-0.016, 0, -0.027]
-        case 3: [0, 0.001, -0.031]
-        case 4: [0.017, 0, -0.028]
-        case 5: [0.033, -0.001, -0.022]
-        default: .zero
-        }
-        return hand == .right
-            ? rightHandOffset
-            : SIMD3<Float>(-rightHandOffset.x, rightHandOffset.y, rightHandOffset.z)
+        let keyboardFacingRotation = simd_quatf(angle: .pi, axis: SIMD3<Float>(1, 0, 0))
+        let yawRotation = simd_quatf(angle: yaw, axis: SIMD3<Float>(0, 1, 0))
+        return (keyboardFacingRotation * yawRotation).vector
     }
 
     private static func isFinite(_ value: SIMD3<Float>) -> Bool {
         value.x.isFinite && value.y.isFinite && value.z.isFinite
-    }
-
-    private static func solveFingerChain(
-        root: SIMD3<Float>,
-        tip: SIMD3<Float>,
-        segmentLengths: [Float],
-        archHeight: Float
-    ) -> [SIMD3<Float>]? {
-        guard segmentLengths.count == 3 else { return nil }
-        let totalLength = segmentLengths.reduce(0, +)
-        let initialRootToTip = tip - root
-        let initialDistance = simd_length(initialRootToTip)
-        let direction = normalized(initialRootToTip, fallback: [0, -1, 0])
-        let solvedTip = root + direction * min(initialDistance, totalLength * 0.99)
-
-        let vertical = SIMD3<Float>(0, 1, 0)
-        let archDirection = normalized(
-            vertical - direction * simd_dot(vertical, direction),
-            fallback: [0, 0, 1]
-        )
-        var joints = [
-            root,
-            root + direction * segmentLengths[0] + archDirection * archHeight,
-            root + direction * (segmentLengths[0] + segmentLengths[1]) + archDirection * archHeight * 0.72,
-            solvedTip,
-        ]
-
-        // ponytail: a tiny fixed FABRIK budget is deterministic; add joint limits only if authored poses need them.
-        for _ in 0 ..< 24 {
-            joints[3] = solvedTip
-            for index in stride(from: 2, through: 0, by: -1) {
-                let towardParent = normalized(joints[index] - joints[index + 1], fallback: -direction)
-                joints[index] = joints[index + 1] + towardParent * segmentLengths[index]
-            }
-            joints[0] = root
-            for index in 0 ..< 3 {
-                let towardChild = normalized(joints[index + 1] - joints[index], fallback: direction)
-                joints[index + 1] = joints[index] + towardChild * segmentLengths[index]
-            }
-            if simd_distance(joints[3], solvedTip) < 0.000_05 { break }
-        }
-        return joints
-    }
-
-    private static func normalized(_ value: SIMD3<Float>, fallback: SIMD3<Float>) -> SIMD3<Float> {
-        let length = simd_length(value)
-        return length > 0.0001 ? value / length : fallback
     }
 }

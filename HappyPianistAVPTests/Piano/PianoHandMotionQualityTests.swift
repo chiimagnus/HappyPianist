@@ -34,7 +34,7 @@ func handMotionCorpusMeetsCoverageTimingAndContactGates() throws {
                 finger: note.finger,
                 hand: note.scoreHand,
                 rootTransform: frame.rootTransform,
-                tip: note.position
+                jointRotations: frame.jointRotations
             ), "fixture=\(fixture.id), occurrence=\(occurrenceID)")
             contactErrors.append(simd_distance(try #require(joints.last), note.position))
             #expect(frame.jointRotations.allSatisfy {

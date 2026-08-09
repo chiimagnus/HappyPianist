@@ -47,6 +47,29 @@ func builderCreatesOneDeterministicClipPerPlannedHandOffMain() async throws {
 }
 
 @Test
+func builderValidatesThePublishedSkeletonAtTheContactPoint() throws {
+    let target = SIMD3<Float>(0, 0, -0.07)
+    let result = try PianoHandMotionClipBuilder().build(input: .init(
+        contacts: .init(contacts: [contact(id: "contact", midiNote: 60, onset: 0)]),
+        fingeringPlan: .init(results: [
+            .init(occurrenceID: "contact", resolution: .planned(hand: .right, finger: 2, source: .planned)),
+        ]),
+        keyboardLayout: .init(keys: [key(midiNote: 60, position: target)]),
+        scoreRevision: "test-score"
+    ))
+
+    #expect(result.rejectedOccurrenceIDs.isEmpty)
+    let frame = try #require(result.clips.first?.frames.first)
+    let joints = try #require(PianoDemonstrationHandSkeleton.fingerJointPositions(
+        finger: 2,
+        hand: .right,
+        rootTransform: frame.rootTransform,
+        jointRotations: frame.jointRotations
+    ))
+    #expect(simd_distance(try #require(joints.last), target) <= 0.005)
+}
+
+@Test
 func builderRejectsAnImpossibleHandPoseInsteadOfClampingIt() throws {
     let result = try PianoHandMotionClipBuilder().build(input: .init(
         contacts: PianoKeyContactTimeline(contacts: [
