@@ -56,8 +56,8 @@ final class PianoDemonstrationHandsOverlayController {
               let keyboardGeometry,
               let motionClipSet
         else {
-            hideRenderedHands()
-            return currentSuppressedMIDINotes()
+            hideRenderedHands(clearSuppression: true)
+            return []
         }
         if let content {
             attachRootIfNeeded(to: content)
@@ -164,9 +164,12 @@ final class PianoDemonstrationHandsOverlayController {
         return suppressedMIDINotes
     }
 
-    private func hideRenderedHands() {
+    private func hideRenderedHands(clearSuppression: Bool = false) {
         lastSamples.removeAll()
         activeMIDINotesByHand.removeAll()
+        if clearSuppression {
+            suppressionExpiryByHand.removeAll()
+        }
         for rig in rigs.values {
             rig.hide()
         }
