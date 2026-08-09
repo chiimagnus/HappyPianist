@@ -14,6 +14,7 @@ final class PracticePlaybackControlService {
     private weak var effectHandler: (any PracticeSessionEffectHandlerProtocol)?
     private let audioRecognitionSuppressDuration: TimeInterval
     private let leadInSeconds: TimeInterval
+    private let performanceClock: PerformanceClock
     private let diagnosticsReporter: (any DiagnosticsReporting)?
     private let transportReducer = PerformanceTransportReducer()
 
@@ -22,6 +23,9 @@ final class PracticePlaybackControlService {
     private var transportState = PerformanceTransportReducer.TransportState.idle
     private var requiresResetBeforeLoad = true
     private var playbackPositionSeconds: TimeInterval = 0
+    private var playbackPositionCapturedAt: PerformanceMonotonicInstant?
+    private var autoplayTimeSchedule: AutoplayTimelineTimeSchedule?
+    private var autoplayGuideSnapshot: [PianoHighlightGuide]?
     private var hasShutdown = false
 
     private var autoplayTaskGeneration: Int {
@@ -38,6 +42,7 @@ final class PracticePlaybackControlService {
         effectHandler: any PracticeSessionEffectHandlerProtocol,
         audioRecognitionSuppressDuration: TimeInterval,
         leadInSeconds: TimeInterval,
+        performanceClock: PerformanceClock = .live(),
         diagnosticsReporter: (any DiagnosticsReporting)? = nil
     ) {
         self.sleeper = sleeper
@@ -49,6 +54,7 @@ final class PracticePlaybackControlService {
         self.effectHandler = effectHandler
         self.audioRecognitionSuppressDuration = audioRecognitionSuppressDuration
         self.leadInSeconds = leadInSeconds
+        self.performanceClock = performanceClock
         self.diagnosticsReporter = diagnosticsReporter
     }
 
@@ -61,6 +67,24 @@ final class PracticePlaybackControlService {
 
     func stopTransientWork() {
         stopAutoplayTask()
+    }
+
+    func pianoDemonstrationTransportTiming() -> PianoDemonstrationTransportTiming? {
+        guard stateStore.autoplayState == .playing,
+              autoplayTask != nil,
+              let capturedAt = playbackPositionCapturedAt,
+              let timeSchedule = autoplayTimeSchedule,
+              let guides = autoplayGuideSnapshot
+        else {
+            return nil
+        }
+        return PianoDemonstrationTransportTiming(
+            generation: autoplayTaskGeneration,
+            playbackPositionSeconds: playbackPositionSeconds,
+            capturedAt: capturedAt,
+            timeSchedule: timeSchedule,
+            guides: guides
+        )
     }
 
     func resetAndFlushOutput() async {
@@ -199,6 +223,7 @@ final class PracticePlaybackControlService {
                 try await runAutoplayTask(
                     generation: generation,
                     timeline: timelineSnapshot,
+                    guides: guideProjectionSnapshot,
                     tempoMap: tempoMapSnapshot,
                     timingBaseTick: timingBaseTick,
                     resetBeforeLoad: resetBeforeLoad
@@ -229,6 +254,9 @@ final class PracticePlaybackControlService {
         autoplayTask?.cancel()
         autoplayTask = nil
         playbackPositionSeconds = 0
+        playbackPositionCapturedAt = nil
+        autoplayTimeSchedule = nil
+        autoplayGuideSnapshot = nil
 
         stateStore.autoplayTimingBaseTick = nil
         stateStore.notationGuideScrollSchedule.removeAll()
@@ -392,6 +420,7 @@ final class PracticePlaybackControlService {
     private func runAutoplayTask(
         generation: Int,
         timeline: AutoplayPerformanceTimeline,
+        guides: [PianoHighlightGuide],
         tempoMap: MusicXMLTempoMap,
         timingBaseTick: Int,
         resetBeforeLoad: Bool
@@ -434,11 +463,20 @@ final class PracticePlaybackControlService {
 
         guard Task.isCancelled == false, autoplayTaskGeneration == generation else { return }
 
+        let timeSchedule = AutoplayTimelineTimeSchedule(
+            timeline: timeline,
+            tickToSeconds: { tempoMap.timeSeconds(atTick: $0) },
+            startTick: timingBaseTick,
+            leadInSeconds: leadInSeconds
+        )
+
         do {
             try await sequencerPlaybackService.load(sequence: sequence)
             try await sequencerPlaybackService.play(fromSeconds: 0)
             requiresResetBeforeLoad = true
-            playbackPositionSeconds = 0
+            autoplayTimeSchedule = timeSchedule
+            autoplayGuideSnapshot = guides
+            recordPlaybackPosition(0)
         } catch {
             stateStore.recordPlaybackError(error)
             stopAutoplayWithError(stateStore.playbackErrorMessage ?? "无法自动播放：播放服务启动失败。")
@@ -447,19 +485,12 @@ final class PracticePlaybackControlService {
 
         guard Task.isCancelled == false, autoplayTaskGeneration == generation else { return }
 
-        var cursor = AutoplayTimelineTimeCursor(
-            timeline: timeline,
-            tickToSeconds: { tempoMap.timeSeconds(atTick: $0) },
-            startTick: timingBaseTick,
-            leadInSeconds: leadInSeconds
-        )
+        var cursor = AutoplayTimelineTimeCursor(schedule: timeSchedule)
 
         var pedalCursor = AutoplayTimelinePedalTimeCursor(
             timeline: timeline,
-            tickToSeconds: { tempoMap.timeSeconds(atTick: $0) },
-            startTick: timingBaseTick,
-            initialIsDown: stateStore.isSustainPedalDown,
-            leadInSeconds: leadInSeconds
+            timeSchedule: timeSchedule,
+            initialIsDown: stateStore.isSustainPedalDown
         )
 
         let sequenceEndSeconds = max(0, sequence.durationSeconds)
@@ -469,7 +500,7 @@ final class PracticePlaybackControlService {
             guard case .guiding = stateStore.state else { break }
 
             let nowSeconds = await sequencerPlaybackService.currentSeconds()
-            playbackPositionSeconds = nowSeconds
+            recordPlaybackPosition(nowSeconds)
 
             if let isDown = pedalCursor.advance(toSeconds: nowSeconds) {
                 stateStore.isSustainPedalDown = isDown
@@ -496,7 +527,16 @@ final class PracticePlaybackControlService {
             transportState = transition.state
             executeResetIfNeeded(transition)
             autoplayTask = nil
+            playbackPositionCapturedAt = nil
+            autoplayTimeSchedule = nil
+            autoplayGuideSnapshot = nil
         }
+    }
+
+    private func recordPlaybackPosition(_ seconds: TimeInterval) {
+        guard seconds.isFinite else { return }
+        playbackPositionSeconds = max(0, seconds)
+        playbackPositionCapturedAt = performanceClock.now()
     }
 
     private func advanceAutoplayStep(to stepIndex: Int) {
@@ -515,31 +555,19 @@ final class PracticePlaybackControlService {
             return stateStore.notationGuideScrollSchedule
         }
 
-        let safeBaseTick = max(0, baseTick)
-        let baseSeconds = stateStore.tempoMap.timeSeconds(atTick: safeBaseTick)
-        let startIndex = stateStore.autoplayTimeline.firstEventIndex(atOrAfter: safeBaseTick)
-
-        var pausePrefixSeconds: TimeInterval = 0
-        var points: [PracticeSessionNotationGuideScrollPoint] = []
-        points.reserveCapacity(max(16, stateStore.highlightGuides.count))
-
-        for event in stateStore.autoplayTimeline.events[startIndex...] {
-            switch event.kind {
-            case let .pauseSeconds(seconds):
-                pausePrefixSeconds += seconds
-
-            case .advanceGuide:
-                points.append(
-                    PracticeSessionNotationGuideScrollPoint(
-                        timeSeconds: stateStore.tempoMap.timeSeconds(atTick: event.tick) - baseSeconds +
-                            pausePrefixSeconds + leadInSeconds,
-                        tick: event.tick
-                    )
-                )
-
-            case .noteOn, .noteOff, .controlChange, .tempo, .advanceStep:
-                continue
-            }
+        let schedule = autoplayTimeSchedule ?? AutoplayTimelineTimeSchedule(
+            timeline: stateStore.autoplayTimeline,
+            tickToSeconds: { stateStore.tempoMap.timeSeconds(atTick: $0) },
+            startTick: baseTick,
+            leadInSeconds: leadInSeconds
+        )
+        let points: [PracticeSessionNotationGuideScrollPoint] = schedule.scheduledCursorEvents.compactMap {
+            scheduledEvent -> PracticeSessionNotationGuideScrollPoint? in
+            guard case .guide(_, _) = scheduledEvent.event else { return nil }
+            return PracticeSessionNotationGuideScrollPoint(
+                timeSeconds: scheduledEvent.timeSeconds,
+                tick: scheduledEvent.tick
+            )
         }
 
         stateStore.notationGuideScrollSchedule = points
@@ -562,36 +590,23 @@ private struct AutoplayTimelinePedalTimeCursor: Equatable {
 
     init(
         timeline: AutoplayPerformanceTimeline,
-        tickToSeconds: (Int) -> TimeInterval,
-        startTick: Int,
-        initialIsDown: Bool,
-        leadInSeconds: TimeInterval = 0
+        timeSchedule: AutoplayTimelineTimeSchedule,
+        initialIsDown: Bool
     ) {
-        let baseTick = max(0, startTick)
-        let baseSeconds = tickToSeconds(baseTick)
-
-        let startIndex = timeline.firstEventIndex(atOrAfter: baseTick)
-        var pausePrefixSeconds: TimeInterval = 0
-
         var scheduled: [TimedPedal] = []
         scheduled.reserveCapacity(32)
 
-        for event in timeline.events[startIndex...] {
-            switch event.kind {
-            case let .pauseSeconds(seconds):
-                pausePrefixSeconds += seconds
-
-            case let .controlChange(controller, value) where controller == 64:
-                scheduled.append(
-                    TimedPedal(
-                        timeSeconds: tickToSeconds(event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
-                        isDown: value >= 64
-                    )
-                )
-
-            case .noteOn, .noteOff, .controlChange, .tempo, .advanceStep, .advanceGuide:
+        for event in timeline.events {
+            guard case let .controlChange(controller, value) = event.kind,
+                  controller == 64,
+                  let timeSeconds = timeSchedule.timeSeconds(forEventID: event.id)
+            else {
                 continue
             }
+            scheduled.append(TimedPedal(
+                timeSeconds: timeSeconds,
+                isDown: value >= 64
+            ))
         }
 
         self.scheduled = scheduled

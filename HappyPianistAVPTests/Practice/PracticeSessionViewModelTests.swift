@@ -195,6 +195,71 @@ func skipDoesNotLetCancelledAutoplayTaskClearNewTaskReference() async {
 
 @Test
 @MainActor
+func pianoDemonstrationHandsTimingDoesNotLeakTransportAcrossRestart() async {
+    let playbackService = CapturingSequencerPlaybackService()
+    let viewModel = PracticeSessionViewModel(
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: TaskSleeper(),
+        sequencerPlaybackService: playbackService
+    )
+    viewModel.installTestPerformanceNotes(
+        [
+            TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: 480),
+            TestScorePerformanceNote(midiNote: 62, onTick: 480, offTick: 960),
+        ],
+        highlightGuides: [
+            makeHighlightGuide(id: 1, kind: .trigger, tick: 0, practiceStepIndex: 0, midiNotes: [60]),
+            makeHighlightGuide(id: 2, kind: .trigger, tick: 480, practiceStepIndex: 1, midiNotes: [62]),
+        ]
+    )
+
+    guard case .manual = viewModel.pianoDemonstrationHandsTiming() else {
+        Issue.record("inactive session must not expose a transport")
+        return
+    }
+
+    viewModel.setAutoplayEnabled(true)
+    viewModel.startGuidingIfReady()
+
+    guard case .transportPending = viewModel.pianoDemonstrationHandsTiming() else {
+        Issue.record("autoplay must not expose timing before its schedule is loaded")
+        return
+    }
+
+    await waitUntil("initial demonstration transport") {
+        playbackService.loadedSequences.count == 1
+    }
+    let initialTiming: PianoDemonstrationTransportTiming
+    switch viewModel.pianoDemonstrationHandsTiming() {
+    case let .transport(timing):
+        initialTiming = timing
+    case .manual, .transportPending:
+        Issue.record("loaded autoplay must expose its current transport")
+        return
+    }
+
+    viewModel.skip()
+    await waitUntil("replacement demonstration transport") {
+        playbackService.loadedSequences.count == 2
+    }
+    switch viewModel.pianoDemonstrationHandsTiming() {
+    case let .transport(replacement):
+        #expect(replacement.generation > initialTiming.generation)
+        #expect(replacement.playbackPositionSeconds == 0)
+    case .manual, .transportPending:
+        Issue.record("restart must replace, not retain, demonstration timing")
+    }
+
+    viewModel.setAutoplayEnabled(false)
+    guard case .manual = viewModel.pianoDemonstrationHandsTiming() else {
+        Issue.record("stopped autoplay must not expose its cancelled transport")
+        return
+    }
+    viewModel.shutdown()
+}
+
+@Test
+@MainActor
 func markCorrectSchedulesFeedbackResetWithExpectedDuration() async {
     let sleeper = ControllableSleeper()
     let viewModel = makePracticeSessionViewModel(

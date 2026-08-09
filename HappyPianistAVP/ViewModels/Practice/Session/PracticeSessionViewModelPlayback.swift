@@ -2,6 +2,14 @@ import Foundation
 import Practice
 
 extension PracticeSessionViewModel {
+    func pianoDemonstrationHandsTiming() -> PianoDemonstrationHandsTiming {
+        guard autoplayState == .playing else { return .manual }
+        guard let timing = playbackControlService?.pianoDemonstrationTransportTiming() else {
+            return .transportPending
+        }
+        return .transport(timing)
+    }
+
     func startAutoplayTaskIfNeeded() {
         playbackControlService?.startAutoplayTaskIfNeeded()
     }

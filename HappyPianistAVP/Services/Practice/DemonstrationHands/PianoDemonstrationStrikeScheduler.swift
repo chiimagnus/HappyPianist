@@ -1,6 +1,30 @@
 import Foundation
 import Practice
 
+enum PianoDemonstrationHandsTiming {
+    case transport(PianoDemonstrationTransportTiming)
+    case transportPending
+    case manual
+}
+
+struct PianoDemonstrationTransportTiming: Equatable {
+    let generation: Int
+    let playbackPositionSeconds: TimeInterval
+    let capturedAt: PerformanceMonotonicInstant
+    let timeSchedule: AutoplayTimelineTimeSchedule
+    let guides: [PianoHighlightGuide]
+
+    func playbackPosition(at instant: PerformanceMonotonicInstant) -> TimeInterval {
+        max(0, playbackPositionSeconds + instant.seconds - capturedAt.seconds)
+    }
+
+    func performanceInstant(atPlaybackSeconds seconds: TimeInterval) -> PerformanceMonotonicInstant {
+        PerformanceMonotonicInstant(
+            seconds: capturedAt.seconds - playbackPositionSeconds + seconds
+        )
+    }
+}
+
 struct PianoDemonstrationStrikeScheduler {
     enum Phase: Equatable {
         case idle

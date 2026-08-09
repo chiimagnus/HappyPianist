@@ -56,8 +56,16 @@ func poseResolverLiftsTheWristAndStrikingFingerBeforeContact() throws {
     let target = makeTarget(hand: .right, finger: .index, midiNote: 64, point: [0.12, 0, -0.07])
     let resolver = PianoDemonstrationHandPoseResolver()
 
-    let prepared = try #require(resolver.resolve(hand: .right, targets: [target], strikeProgress: 0))
-    let contact = try #require(resolver.resolve(hand: .right, targets: [target], strikeProgress: 1))
+    let prepared = try #require(resolver.resolve(
+        hand: .right,
+        targets: [target],
+        strikeProgressByOccurrenceID: [target.occurrenceID: 0]
+    ))
+    let contact = try #require(resolver.resolve(
+        hand: .right,
+        targets: [target],
+        strikeProgressByOccurrenceID: [target.occurrenceID: 1]
+    ))
     let preparedTip = try #require(prepared.fingerPose(for: .index)?.jointPositionsLocal.last)
     let contactTip = try #require(contact.fingerPose(for: .index)?.jointPositionsLocal.last)
 
@@ -85,13 +93,30 @@ func poseResolverKeepsHeldFingerOnItsKeyWhileAnotherFingerStrikes() throws {
     let prepared = try #require(PianoDemonstrationHandPoseResolver().resolve(
         hand: .right,
         targets: [held, triggered],
-        strikeProgress: 0
+        strikeProgressByOccurrenceID: [triggered.occurrenceID: 0]
     ))
     let heldTip = try #require(prepared.fingerPose(for: .middle)?.jointPositionsLocal.last)
     let triggeredTip = try #require(prepared.fingerPose(for: .index)?.jointPositionsLocal.last)
 
     #expect(simd_distance(heldTip, held.contactPositionLocal) < 0.0001)
     #expect(triggeredTip.y > triggered.contactPositionLocal.y)
+}
+
+@Test
+func poseResolverSamplesEachTriggeredOccurrenceIndependently() throws {
+    let first = makeTarget(hand: .right, finger: .index, midiNote: 62, point: [0.11, 0, -0.07])
+    let second = makeTarget(hand: .right, finger: .middle, midiNote: 64, point: [0.14, 0, -0.07])
+
+    let pose = try #require(PianoDemonstrationHandPoseResolver().resolve(
+        hand: .right,
+        targets: [first, second],
+        strikeProgressByOccurrenceID: [first.occurrenceID: 0, second.occurrenceID: 1]
+    ))
+    let firstTip = try #require(pose.fingerPose(for: .index)?.jointPositionsLocal.last)
+    let secondTip = try #require(pose.fingerPose(for: .middle)?.jointPositionsLocal.last)
+
+    #expect(firstTip.y > first.contactPositionLocal.y)
+    #expect(simd_distance(secondTip, second.contactPositionLocal) < 0.0001)
 }
 
 private func makeTarget(

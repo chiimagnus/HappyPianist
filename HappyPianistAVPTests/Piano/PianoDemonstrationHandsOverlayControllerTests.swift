@@ -1,7 +1,8 @@
 @testable import HappyPianistAVP
 import Diagnostics
+import Foundation
 import MusicXML
-import Practice
+@testable import Practice
 import RealityKit
 import simd
 import Synchronization
@@ -27,6 +28,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
         controller.update(
             isEnabled: true,
             highlightGuide: triggered,
+            timing: .manual,
             keyboardGeometry: geometry,
             reduceMotion: true,
             content: nil
@@ -39,6 +41,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
         controller.update(
             isEnabled: true,
             highlightGuide: triggered,
+            timing: .manual,
             keyboardGeometry: geometry,
             reduceMotion: true,
             content: nil
@@ -54,6 +57,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
                 triggered: [],
                 released: [60]
             ),
+            timing: .manual,
             keyboardGeometry: geometry,
             reduceMotion: true,
             content: nil
@@ -63,6 +67,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
         controller.update(
             isEnabled: false,
             highlightGuide: nil,
+            timing: .manual,
             keyboardGeometry: nil,
             reduceMotion: true,
             content: nil
@@ -71,28 +76,40 @@ struct PianoDemonstrationHandsOverlayControllerTests {
     }
 
     @Test func rightHandTriggerDoesNotResetAnOverlappingLeftStroke() async throws {
+        let now = Mutex(PerformanceMonotonicInstant(seconds: 1))
         let root = Entity()
         let controller = try await PianoDemonstrationHandsOverlayController(
             rootEntity: root,
-            preloadedRigs: makeRigs()
+            preloadedRigs: makeRigs(),
+            performanceClock: PerformanceClock { now.withLock { $0 } }
         )
         let geometry = makeGeometry(notes: [48, 60])
         let leftNote = makeNote(id: "left", midiNote: 48, hand: .left, velocity: 96)
+        let leftGuide = makeGuide(
+            id: 1,
+            kind: .trigger,
+            active: [],
+            triggered: [leftNote],
+            released: []
+        )
 
         controller.update(
             isEnabled: true,
-            highlightGuide: makeGuide(
-                id: 1,
-                kind: .trigger,
-                active: [],
-                triggered: [leftNote],
-                released: []
-            ),
+            highlightGuide: leftGuide,
+            timing: .manual,
             keyboardGeometry: geometry,
             reduceMotion: false,
             content: nil
         )
-        try await Task.sleep(for: .milliseconds(160))
+        now.withLock { $0 = PerformanceMonotonicInstant(seconds: 1.16) }
+        controller.update(
+            isEnabled: true,
+            highlightGuide: leftGuide,
+            timing: .manual,
+            keyboardGeometry: geometry,
+            reduceMotion: false,
+            content: nil
+        )
         let leftHand = try #require(root.findEntity(named: "pianoDemonstrationHand.left"))
         let leftPositionBeforeRightTrigger = leftHand.position
 
@@ -108,6 +125,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
                 ],
                 released: []
             ),
+            timing: .manual,
             keyboardGeometry: geometry,
             reduceMotion: false,
             content: nil
@@ -118,33 +136,237 @@ struct PianoDemonstrationHandsOverlayControllerTests {
     }
 
     @Test func handsUseTheirOwnStrikeVelocity() async throws {
+        let now = Mutex(PerformanceMonotonicInstant(seconds: 1))
         let root = Entity()
         let controller = try await PianoDemonstrationHandsOverlayController(
             rootEntity: root,
-            preloadedRigs: makeRigs()
+            preloadedRigs: makeRigs(),
+            performanceClock: PerformanceClock { now.withLock { $0 } }
         )
+        let guide = makeGuide(
+            id: 1,
+            kind: .trigger,
+            active: [],
+            triggered: [
+                makeNote(id: "left", midiNote: 48, hand: .left, velocity: 120),
+                makeNote(id: "right", midiNote: 60, hand: .right, velocity: 30),
+            ],
+            released: []
+        )
+        let geometry = makeGeometry(notes: [48, 60])
 
         controller.update(
             isEnabled: true,
-            highlightGuide: makeGuide(
-                id: 1,
-                kind: .trigger,
-                active: [],
-                triggered: [
-                    makeNote(id: "left", midiNote: 48, hand: .left, velocity: 120),
-                    makeNote(id: "right", midiNote: 60, hand: .right, velocity: 30),
-                ],
-                released: []
-            ),
-            keyboardGeometry: makeGeometry(notes: [48, 60]),
+            highlightGuide: guide,
+            timing: .manual,
+            keyboardGeometry: geometry,
             reduceMotion: false,
             content: nil
         )
-        try await Task.sleep(for: .milliseconds(160))
+        now.withLock { $0 = PerformanceMonotonicInstant(seconds: 1.16) }
+        controller.update(
+            isEnabled: true,
+            highlightGuide: guide,
+            timing: .manual,
+            keyboardGeometry: geometry,
+            reduceMotion: false,
+            content: nil
+        )
 
         let leftHand = try #require(root.findEntity(named: "pianoDemonstrationHand.left"))
         let rightHand = try #require(root.findEntity(named: "pianoDemonstrationHand.right"))
         #expect(leftHand.position.y + 0.0005 < rightHand.position.y)
+        controller.reset()
+    }
+
+    @Test func transportSamplingContactsAtThePlannedOnset() async throws {
+        let now = Mutex(PerformanceMonotonicInstant(seconds: 100))
+        let root = Entity()
+        let controller = try await PianoDemonstrationHandsOverlayController(
+            rootEntity: root,
+            preloadedRigs: makeRigs(),
+            performanceClock: PerformanceClock { now.withLock { $0 } }
+        )
+        let guide = makeGuide(
+            id: 10,
+            kind: .trigger,
+            tick: 1_920,
+            active: [],
+            triggered: [makeNote(
+                id: "timed-right",
+                midiNote: 60,
+                hand: .right,
+                onTick: 1_920,
+                offTick: 3_840
+            )],
+            released: []
+        )
+        let timing = makeTransportTiming(
+            guide: guide,
+            playbackPositionSeconds: 0.1,
+            capturedAtSeconds: 100
+        )
+        let geometry = makeGeometry()
+
+        controller.update(
+            isEnabled: true,
+            highlightGuide: nil,
+            timing: .transport(timing),
+            keyboardGeometry: geometry,
+            reduceMotion: false,
+            content: nil
+        )
+        let rightHand = try #require(root.findEntity(named: "pianoDemonstrationHand.right"))
+        let preparedY = rightHand.position.y
+
+        now.withLock { $0 = PerformanceMonotonicInstant(seconds: 100.2) }
+        controller.update(
+            isEnabled: true,
+            highlightGuide: nil,
+            timing: .transport(timing),
+            keyboardGeometry: geometry,
+            reduceMotion: false,
+            content: nil
+        )
+
+        #expect(preparedY > rightHand.position.y + 0.005)
+        controller.reset()
+    }
+
+    @Test func transportPreparesAtMaximumTravelLookaheadInsteadOfAudioHorizon() async throws {
+        let now = Mutex(PerformanceMonotonicInstant(seconds: 100))
+        let root = Entity()
+        let controller = try await PianoDemonstrationHandsOverlayController(
+            rootEntity: root,
+            preloadedRigs: makeRigs(),
+            performanceClock: PerformanceClock { now.withLock { $0 } }
+        )
+        let current = makeGuide(
+            id: 1,
+            kind: .trigger,
+            active: [],
+            triggered: [makeNote(id: "current", midiNote: 60, hand: .right)],
+            released: []
+        )
+        let upcoming = makeGuide(
+            id: 2,
+            kind: .trigger,
+            tick: 480,
+            active: [],
+            triggered: [makeNote(
+                id: "upcoming",
+                midiNote: 72,
+                hand: .right,
+                onTick: 480,
+                offTick: 960
+            )],
+            released: []
+        )
+        let geometry = makeGeometry(keyCenters: [60: 0.12, 72: 0.60])
+
+        controller.update(
+            isEnabled: true,
+            highlightGuide: current,
+            timing: .manual,
+            keyboardGeometry: geometry,
+            reduceMotion: true,
+            content: nil
+        )
+        let timing = makeTransportTiming(
+            guides: [current, upcoming],
+            playbackPositionSeconds: 0,
+            capturedAtSeconds: 100
+        )
+        now.withLock { $0 = PerformanceMonotonicInstant(seconds: 100.11) }
+
+        let suppression = controller.update(
+            isEnabled: true,
+            highlightGuide: nil,
+            timing: .transport(timing),
+            keyboardGeometry: geometry,
+            reduceMotion: false,
+            content: nil
+        )
+
+        #expect(suppression == [72])
+        #expect(root.findEntity(named: "pianoDemonstrationHand.right")?.isEnabled == true)
+        controller.reset()
+    }
+
+    @Test func sameHandOccurrencesKeepTheirOwnTransportProgress() async throws {
+        let now = Mutex(PerformanceMonotonicInstant(seconds: 100))
+        let root = Entity()
+        let controller = try await PianoDemonstrationHandsOverlayController(
+            rootEntity: root,
+            preloadedRigs: makeRigs(),
+            performanceClock: PerformanceClock { now.withLock { $0 } }
+        )
+        let guide = makeGuide(
+            id: 1,
+            kind: .trigger,
+            active: [],
+            triggered: [
+                makeNote(id: "first", midiNote: 60, hand: .right, onTick: 0, offTick: 120),
+                makeNote(id: "second", midiNote: 64, hand: .right, onTick: 480, offTick: 960),
+            ],
+            released: []
+        )
+        let timing = makeTransportTiming(
+            guide: guide,
+            playbackPositionSeconds: 0,
+            capturedAtSeconds: 100
+        )
+        let secondOnset = try #require(timing.timeSchedule.noteOnTimeSeconds(forSourceEventID: "second"))
+        now.withLock {
+            $0 = PerformanceMonotonicInstant(seconds: 100 + secondOnset - 0.05)
+        }
+
+        controller.update(
+            isEnabled: true,
+            highlightGuide: guide,
+            timing: .transport(timing),
+            keyboardGeometry: makeGeometry(notes: [60, 64]),
+            reduceMotion: false,
+            content: nil
+        )
+
+        let rightHand = try #require(root.findEntity(named: "pianoDemonstrationHand.right"))
+        #expect(rightHand.position.y > 0.046)
+        controller.reset()
+    }
+
+    @Test func manualTimingFallbackIsReportedOncePerGuide() async throws {
+        let now = Mutex(PerformanceMonotonicInstant(seconds: 1))
+        let diagnostics = InMemoryDiagnosticsReporter()
+        let guide = makeGuide(
+            id: 42,
+            kind: .trigger,
+            active: [],
+            triggered: [makeNote(id: "manual", midiNote: 60, hand: .right)],
+            released: []
+        )
+        let controller = try await PianoDemonstrationHandsOverlayController(
+            diagnosticsReporter: diagnostics,
+            preloadedRigs: makeRigs(),
+            performanceClock: PerformanceClock { now.withLock { $0 } }
+        )
+
+        for _ in 0 ..< 2 {
+            controller.update(
+                isEnabled: true,
+                highlightGuide: guide,
+                timing: .manual,
+                keyboardGeometry: makeGeometry(),
+                reduceMotion: false,
+                content: nil
+            )
+        }
+
+        let events = await diagnostics.events.filter {
+            $0.stage == "pianoDemonstrationHands.timing"
+        }
+        #expect(events.count == 1)
+        #expect(events.first?.reason == "mode=manual;reason=transportUnavailable")
         controller.reset()
     }
 
@@ -184,6 +406,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
         let initialSuppression = controller.update(
             isEnabled: true,
             highlightGuide: guide,
+            timing: .manual,
             keyboardGeometry: geometry,
             reduceMotion: true,
             content: nil
@@ -197,6 +420,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
         let suppression = controller.update(
             isEnabled: true,
             highlightGuide: guide,
+            timing: .manual,
             keyboardGeometry: geometry,
             reduceMotion: true,
             content: nil
@@ -238,6 +462,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
         let triggeredSuppression = controller.update(
             isEnabled: true,
             highlightGuide: triggered,
+            timing: .manual,
             keyboardGeometry: geometry,
             reduceMotion: true,
             content: nil
@@ -254,6 +479,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
         let releaseSuppression = controller.update(
             isEnabled: true,
             highlightGuide: release,
+            timing: .manual,
             keyboardGeometry: geometry,
             reduceMotion: true,
             content: nil
@@ -264,6 +490,7 @@ struct PianoDemonstrationHandsOverlayControllerTests {
         let expiredSuppression = controller.update(
             isEnabled: true,
             highlightGuide: release,
+            timing: .manual,
             keyboardGeometry: geometry,
             reduceMotion: true,
             content: nil
@@ -328,6 +555,7 @@ private func makeRigs() async throws -> [PianoDemonstrationHand: PianoDemonstrat
 private func makeGuide(
     id: Int,
     kind: PianoHighlightGuideKind,
+    tick: Int? = nil,
     active: [PianoHighlightNote],
     triggered: [PianoHighlightNote],
     released: Set<Int>
@@ -335,7 +563,7 @@ private func makeGuide(
     PianoHighlightGuide(
         id: id,
         kind: kind,
-        tick: id,
+        tick: tick ?? id,
         durationTicks: 1,
         practiceStepIndex: nil,
         activeNotes: active,
@@ -348,7 +576,9 @@ private func makeNote(
     id: String,
     midiNote: Int,
     hand: ScoreHand,
-    velocity: UInt8 = 96
+    velocity: UInt8 = 96,
+    onTick: Int = 0,
+    offTick: Int = 1
 ) -> PianoHighlightNote {
     PianoHighlightNote(
         occurrenceID: id,
@@ -356,8 +586,8 @@ private func makeNote(
         staff: hand == .left ? 2 : 1,
         voice: nil,
         velocity: velocity,
-        onTick: 0,
-        offTick: 1,
+        onTick: onTick,
+        offTick: offTick,
         fingerings: [],
         handAssignment: ScoreHandAssignment(
             hand: hand,
@@ -366,14 +596,80 @@ private func makeNote(
     )
 }
 
+private func makeTransportTiming(
+    guide: PianoHighlightGuide,
+    playbackPositionSeconds: TimeInterval,
+    capturedAtSeconds: TimeInterval
+) -> PianoDemonstrationTransportTiming {
+    makeTransportTiming(
+        guides: [guide],
+        playbackPositionSeconds: playbackPositionSeconds,
+        capturedAtSeconds: capturedAtSeconds
+    )
+}
+
+private func makeTransportTiming(
+    guides: [PianoHighlightGuide],
+    playbackPositionSeconds: TimeInterval,
+    capturedAtSeconds: TimeInterval
+) -> PianoDemonstrationTransportTiming {
+    let tempoMap = MusicXMLTempoMap(tempoEvents: [])
+    var events = guides.flatMap(\.triggeredNotes).enumerated().flatMap { index, note in
+        [
+            AutoplayPerformanceTimeline.Event(
+                id: index * 2,
+                sourceEventID: note.occurrenceID,
+                tick: note.onTick,
+                kind: .noteOn(midi: note.midiNote, velocity: note.velocity)
+            ),
+            AutoplayPerformanceTimeline.Event(
+                id: index * 2 + 1,
+                sourceEventID: note.occurrenceID,
+                tick: note.offTick,
+                kind: .noteOff(midi: note.midiNote)
+            ),
+        ]
+    }
+    for (index, guide) in guides.enumerated() {
+        events.append(AutoplayPerformanceTimeline.Event(
+            id: events.count,
+            tick: guide.tick,
+            kind: .advanceGuide(index: index, guideID: guide.id)
+        ))
+    }
+    events.sort {
+        if $0.tick != $1.tick { return $0.tick < $1.tick }
+        return $0.id < $1.id
+    }
+    let timeline = AutoplayPerformanceTimeline(events: events)
+    return PianoDemonstrationTransportTiming(
+        generation: 1,
+        playbackPositionSeconds: playbackPositionSeconds,
+        capturedAt: PerformanceMonotonicInstant(seconds: capturedAtSeconds),
+        timeSchedule: AutoplayTimelineTimeSchedule(
+            timeline: timeline,
+            tickToSeconds: { tempoMap.timeSeconds(atTick: $0) },
+            startTick: 0,
+            leadInSeconds: 0.05
+        ),
+        guides: guides
+    )
+}
+
 private func makeGeometry(notes: [Int] = [60]) -> PianoKeyboardGeometry {
+    makeGeometry(keyCenters: Dictionary(uniqueKeysWithValues: notes.enumerated().map { index, midiNote in
+        (midiNote, 0.12 + Float(index) * 0.024)
+    }))
+}
+
+private func makeGeometry(keyCenters: [Int: Float]) -> PianoKeyboardGeometry {
     let frame = KeyboardFrame(
         a0World: SIMD3<Float>(0, 0.5, 0),
         c8World: SIMD3<Float>(1, 0.5, 0),
         planeHeight: 0.5
     )!
-    let keys = notes.enumerated().map { index, midiNote in
-        let x = 0.12 + Float(index) * 0.024
+    let keys = keyCenters.keys.sorted().compactMap { midiNote -> PianoKeyGeometry? in
+        guard let x = keyCenters[midiNote] else { return nil }
         return PianoKeyGeometry(
             midiNote: midiNote,
             kind: .white,

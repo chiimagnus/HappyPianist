@@ -2,16 +2,25 @@ import Diagnostics
 import Foundation
 import Practice
 import RealityKit
+import simd
 import SwiftUI
 
 @MainActor
 final class PianoDemonstrationHandsOverlayController {
+    private enum StrokeTimingIdentity: Equatable {
+        case manual
+        case transportPending
+        case transport(Int)
+    }
+
     private struct HandStrokeRuntime {
-        var task: Task<Void, Never>?
-        var generation = 0
-        var progress: Float = 1
-        var occurrenceIDs = Set<String>()
-        var velocity: UInt8 = 64
+        struct Occurrence {
+            let target: PianoDemonstrationHandTarget
+            let schedule: PianoDemonstrationStrikeScheduler.Occurrence
+        }
+
+        var occurrences: [String: Occurrence] = [:]
+        var timingIdentity: StrokeTimingIdentity?
     }
 
     private let rootEntity: Entity
@@ -28,7 +37,9 @@ final class PianoDemonstrationHandsOverlayController {
     private var activeMIDINotesByHand: [PianoDemonstrationHand: Set<Int>] = [:]
     private var suppressionExpiryByMIDINote: [Int: PerformanceMonotonicInstant] = [:]
     private var strokeRuntimeByHand: [PianoDemonstrationHand: HandStrokeRuntime] = [:]
+    private var lastSubmittedPalmCenterByHand: [PianoDemonstrationHand: SIMD3<Float>] = [:]
     private var loadTask: Task<Void, Never>?
+    private var hasReportedManualTimingFallback = false
     private var hasAttachedRoot = false
     private var reduceMotionEnabled = false
     private(set) var requiresReplacement = false
@@ -60,6 +71,7 @@ final class PianoDemonstrationHandsOverlayController {
     func update(
         isEnabled: Bool,
         highlightGuide: PianoHighlightGuide?,
+        timing: PianoDemonstrationHandsTiming,
         keyboardGeometry: PianoKeyboardGeometry?,
         reduceMotion: Bool,
         content: RealityViewContent?
@@ -74,55 +86,37 @@ final class PianoDemonstrationHandsOverlayController {
         }
         rootEntity.transform = Transform(matrix: keyboardGeometry.frame.worldFromKeyboard)
 
+        let now = performanceClock.now()
+        let presentationGuide = presentationGuide(
+            current: highlightGuide,
+            timing: timing,
+            keyboardGeometry: keyboardGeometry,
+            at: now
+        )
         let resolvedCoverage = targetResolver.resolve(
-            highlightGuide: highlightGuide,
+            highlightGuide: presentationGuide,
             keyboardGeometry: keyboardGeometry
         )
         lastResolvedCoverage = resolvedCoverage
         let coverage = resolvedCoverage.limitedToAvailableHands(Set(rigs.keys))
-        let didEnableReduceMotion = reduceMotion && reduceMotionEnabled == false
         reduceMotionEnabled = reduceMotion
-        guard coverage != lastCoverage || didEnableReduceMotion else {
-            return currentSuppressedMIDINotes()
-        }
         lastCoverage = coverage
 
-        if coverage.coveredTargets.isEmpty {
-            stopAllStrokes(resetTriggerIDs: true)
-            applyCurrentTargets()
-            return currentSuppressedMIDINotes()
-        }
         if reduceMotion {
-            stopAllStrokes(resetTriggerIDs: false)
-            for hand in PianoDemonstrationHand.allCases {
-                var runtime = strokeRuntime(for: hand)
-                runtime.progress = 1
-                strokeRuntimeByHand[hand] = runtime
-            }
-            applyCurrentTargets()
+            resetAllStrokeRuntimes()
+            applyCurrentTargets(at: now)
             return currentSuppressedMIDINotes()
         }
 
         for hand in PianoDemonstrationHand.allCases {
             let targetsForHand = coverage.coveredTargets(for: hand)
-            guard targetsForHand.isEmpty == false else {
-                stopStroke(for: hand, resetTriggerIDs: true)
-                applyCurrentTargets(hand: hand)
-                continue
-            }
-
-            let triggeredOccurrenceIDs = Set(
-                targetsForHand.lazy
-                    .filter { $0.phase == .triggered }
-                    .map(\.occurrenceID)
+            updateStrokeRuntime(
+                for: hand,
+                targets: targetsForHand,
+                timing: timing,
+                at: now
             )
-            if triggeredOccurrenceIDs.isEmpty == false,
-               triggeredOccurrenceIDs != strokeRuntime(for: hand).occurrenceIDs
-            {
-                startStroke(for: hand, targets: targetsForHand)
-            } else {
-                applyCurrentTargets(hand: hand)
-            }
+            applyCurrentTargets(hand: hand, at: now)
         }
         return currentSuppressedMIDINotes()
     }
@@ -130,8 +124,7 @@ final class PianoDemonstrationHandsOverlayController {
     func reset() {
         loadTask?.cancel()
         loadTask = nil
-        stopAllStrokes(resetTriggerIDs: true)
-        strokeRuntimeByHand.removeAll()
+        resetAllStrokeRuntimes()
         rootEntity.stopAllAnimations()
         for rig in rigs.values {
             rig.hide()
@@ -139,9 +132,11 @@ final class PianoDemonstrationHandsOverlayController {
         rigs.removeAll()
         activeMIDINotesByHand.removeAll()
         suppressionExpiryByMIDINote.removeAll()
+        lastSubmittedPalmCenterByHand.removeAll()
         lastResolvedCoverage = PianoDemonstrationHandCoverage()
         lastCoverage = PianoDemonstrationHandCoverage()
         reduceMotionEnabled = false
+        hasReportedManualTimingFallback = false
         rootEntity.children.removeAll(preservingWorldTransforms: false)
         rootEntity.removeFromParent()
         hasAttachedRoot = false
@@ -159,7 +154,7 @@ final class PianoDemonstrationHandsOverlayController {
                     guard Task.isCancelled == false, requiresReplacement == false else { return }
                     install(rig: rig, for: hand)
                     lastCoverage = lastResolvedCoverage.limitedToAvailableHands(Set(rigs.keys))
-                    applyCurrentTargets(hand: hand)
+                    applyCurrentTargets(hand: hand, at: performanceClock.now())
                 } catch is CancellationError {
                     return
                 } catch {
@@ -183,114 +178,242 @@ final class PianoDemonstrationHandsOverlayController {
         rigs[hand] = rig
     }
 
-    private func startStroke(
-        for hand: PianoDemonstrationHand,
-        targets: [PianoDemonstrationHandTarget]
-    ) {
-        stopStroke(for: hand, resetTriggerIDs: false)
-        var runtime = strokeRuntime(for: hand)
-        runtime.progress = 0
-        runtime.occurrenceIDs = Set(
-            targets.lazy
-                .filter { $0.phase == .triggered }
-                .map(\.occurrenceID)
-        )
-        runtime.velocity = targets.map(\.velocity).max() ?? 64
-        let generation = runtime.generation
-        strokeRuntimeByHand[hand] = runtime
-        applyCurrentTargets(hand: hand)
+    private func presentationGuide(
+        current: PianoHighlightGuide?,
+        timing: PianoDemonstrationHandsTiming,
+        keyboardGeometry: PianoKeyboardGeometry,
+        at now: PerformanceMonotonicInstant
+    ) -> PianoHighlightGuide? {
+        guard case let .transport(transport) = timing else { return current }
+        let playbackPosition = transport.playbackPosition(at: now)
+        let scheduledEvents = transport.timeSchedule.scheduledCursorEvents
+        let earliestRelevantTime = playbackPosition - PianoDemonstrationStrikeScheduler.maximumPreRollDuration
+        var low = 0
+        var high = scheduledEvents.count
+        while low < high {
+            let middle = (low + high) / 2
+            if scheduledEvents[middle].timeSeconds < earliestRelevantTime {
+                low = middle + 1
+            } else {
+                high = middle
+            }
+        }
 
-        let startUptime = ProcessInfo.processInfo.systemUptime
-        let startInstant = PerformanceMonotonicInstant(seconds: startUptime)
-        let onset = startInstant.advanced(by: strikeScheduler.preRollDuration(
-            velocity: runtime.velocity,
-            handTravelDistanceMeters: 0
+        var activeByOccurrenceID = Dictionary(
+            uniqueKeysWithValues: (current?.activeNotes ?? []).map { ($0.occurrenceID, $0) }
+        )
+        var triggeredByOccurrenceID = Dictionary(
+            uniqueKeysWithValues: (current?.triggeredNotes ?? []).map { ($0.occurrenceID, $0) }
+        )
+        var presentationMetadata = current
+        var index = low
+        while index < scheduledEvents.count {
+            let scheduledEvent = scheduledEvents[index]
+            if scheduledEvent.timeSeconds > playbackPosition + PianoDemonstrationStrikeScheduler.maximumPreRollDuration {
+                break
+            }
+            defer { index += 1 }
+            guard case let .guide(guideIndex, _) = scheduledEvent.event,
+                  transport.guides.indices.contains(guideIndex)
+            else {
+                continue
+            }
+            let upcoming = transport.guides[guideIndex]
+            guard upcoming.triggeredNotes.isEmpty == false else { continue }
+            let upcomingCoverage = targetResolver.resolve(
+                highlightGuide: upcoming,
+                keyboardGeometry: keyboardGeometry
+            )
+            let travelDistanceByHand = Dictionary(
+                uniqueKeysWithValues: PianoDemonstrationHand.allCases.map { hand in
+                    (hand, handTravelDistance(for: hand, targets: upcomingCoverage.coveredTargets(for: hand)))
+                }
+            )
+
+            for target in upcomingCoverage.coveredTargets where target.phase == .triggered {
+                guard let onsetSeconds = transport.timeSchedule.noteOnTimeSeconds(
+                    forSourceEventID: target.occurrenceID
+                ) else {
+                    continue
+                }
+                let preRoll = strikeScheduler.preRollDuration(
+                    velocity: target.velocity,
+                    handTravelDistanceMeters: travelDistanceByHand[target.hand] ?? 0
+                )
+                guard playbackPosition >= onsetSeconds - preRoll else { continue }
+                guard let note = upcoming.triggeredNotes.first(where: {
+                    $0.occurrenceID == target.occurrenceID
+                }) else {
+                    continue
+                }
+                activeByOccurrenceID[target.occurrenceID] = nil
+                triggeredByOccurrenceID[target.occurrenceID] = note
+                presentationMetadata = upcoming
+            }
+        }
+
+        guard let metadata = presentationMetadata ?? transport.guides.first,
+              activeByOccurrenceID.isEmpty == false || triggeredByOccurrenceID.isEmpty == false
+        else {
+            return current
+        }
+        return PianoHighlightGuide(
+            id: metadata.id,
+            kind: triggeredByOccurrenceID.isEmpty ? metadata.kind : .trigger,
+            tick: metadata.tick,
+            durationTicks: metadata.durationTicks,
+            practiceStepIndex: metadata.practiceStepIndex,
+            activeNotes: activeByOccurrenceID.values.sorted { $0.occurrenceID < $1.occurrenceID },
+            triggeredNotes: triggeredByOccurrenceID.values.sorted { $0.occurrenceID < $1.occurrenceID },
+            releasedMIDINotes: current?.releasedMIDINotes ?? []
+        )
+    }
+
+    private func updateStrokeRuntime(
+        for hand: PianoDemonstrationHand,
+        targets: [PianoDemonstrationHandTarget],
+        timing: PianoDemonstrationHandsTiming,
+        at now: PerformanceMonotonicInstant
+    ) {
+        let triggeredTargets = targets.filter { $0.phase == .triggered }
+        var runtime = strokeRuntime(for: hand)
+        let timingIdentity: StrokeTimingIdentity = switch timing {
+        case .manual: .manual
+        case .transportPending: .transportPending
+        case let .transport(transport): .transport(transport.generation)
+        }
+        if runtime.timingIdentity != timingIdentity {
+            runtime.occurrences.removeAll()
+            runtime.timingIdentity = timingIdentity
+        }
+
+        let handTravelDistance = handTravelDistance(for: hand, targets: triggeredTargets)
+        for target in triggeredTargets where runtime.occurrences[target.occurrenceID] == nil {
+            let schedule: PianoDemonstrationStrikeScheduler.Occurrence?
+            switch timing {
+            case let .transport(transport):
+                schedule = makeTransportOccurrence(
+                    hand: hand,
+                    target: target,
+                    handTravelDistanceMeters: handTravelDistance,
+                    timing: transport
+                )
+            case .transportPending:
+                schedule = nil
+            case .manual:
+                schedule = makeManualOccurrence(
+                    hand: hand,
+                    target: target,
+                    handTravelDistanceMeters: handTravelDistance,
+                    at: now
+                )
+                reportManualTimingIfNeeded(reason: "transportUnavailable")
+            }
+            if let schedule {
+                runtime.occurrences[target.occurrenceID] = .init(target: target, schedule: schedule)
+            }
+        }
+
+        let currentlyPresentedOccurrenceIDs = Set(targets.map(\.occurrenceID))
+        runtime.occurrences = runtime.occurrences.filter { occurrenceID, occurrence in
+            currentlyPresentedOccurrenceIDs.contains(occurrenceID)
+                || strikeScheduler.sample(occurrence.schedule, at: now).isComplete == false
+        }
+        strokeRuntimeByHand[hand] = runtime
+    }
+
+    private func makeTransportOccurrence(
+        hand: PianoDemonstrationHand,
+        target: PianoDemonstrationHandTarget,
+        handTravelDistanceMeters: Float,
+        timing: PianoDemonstrationTransportTiming
+    ) -> PianoDemonstrationStrikeScheduler.Occurrence? {
+        guard let onsetSeconds = timing.timeSchedule.noteOnTimeSeconds(
+            forSourceEventID: target.occurrenceID
+        ), let releaseSeconds = timing.timeSchedule.noteOffTimeSeconds(
+            forSourceEventID: target.occurrenceID
+        ) else {
+            return nil
+        }
+        return PianoDemonstrationStrikeScheduler.Occurrence(
+            id: target.occurrenceID,
+            hand: hand,
+            onset: timing.performanceInstant(atPlaybackSeconds: onsetSeconds),
+            release: timing.performanceInstant(atPlaybackSeconds: max(onsetSeconds, releaseSeconds)),
+            velocity: target.velocity,
+            handTravelDistanceMeters: handTravelDistanceMeters
+        )
+    }
+
+    private func makeManualOccurrence(
+        hand: PianoDemonstrationHand,
+        target: PianoDemonstrationHandTarget,
+        handTravelDistanceMeters: Float,
+        at now: PerformanceMonotonicInstant
+    ) -> PianoDemonstrationStrikeScheduler.Occurrence {
+        let onset = now.advanced(by: strikeScheduler.preRollDuration(
+            velocity: target.velocity,
+            handTravelDistanceMeters: handTravelDistanceMeters
         ))
-        let occurrence = PianoDemonstrationStrikeScheduler.Occurrence(
-            id: runtime.occurrenceIDs.sorted().joined(separator: "|"),
+        return PianoDemonstrationStrikeScheduler.Occurrence(
+            id: target.occurrenceID,
             hand: hand,
             onset: onset,
             release: onset,
-            velocity: runtime.velocity,
-            handTravelDistanceMeters: 0
+            velocity: target.velocity,
+            handTravelDistanceMeters: handTravelDistanceMeters
         )
-        let task = Task { @MainActor [weak self] in
-            guard let self else { return }
-            while Task.isCancelled == false {
-                guard var runtime = strokeRuntimeByHand[hand], runtime.generation == generation else {
-                    return
-                }
-                let instant = PerformanceMonotonicInstant(
-                    seconds: ProcessInfo.processInfo.systemUptime
-                )
-                let sample = strikeScheduler.sample(occurrence, at: instant)
-                runtime.progress = sample.contactProgress
-                strokeRuntimeByHand[hand] = runtime
-                applyCurrentTargets(hand: hand)
-                if sample.isComplete { break }
-                try? await Task.sleep(for: .milliseconds(16))
-            }
-            guard Task.isCancelled == false,
-                  var runtime = strokeRuntimeByHand[hand],
-                  runtime.generation == generation
-            else {
-                return
-            }
-            runtime.progress = 1
-            runtime.task = nil
-            strokeRuntimeByHand[hand] = runtime
-            applyCurrentTargets(hand: hand)
-        }
-
-        runtime = strokeRuntime(for: hand)
-        guard runtime.generation == generation else {
-            task.cancel()
-            return
-        }
-        runtime.task = task
-        strokeRuntimeByHand[hand] = runtime
     }
 
-    private func stopStroke(
-        for hand: PianoDemonstrationHand,
-        resetTriggerIDs: Bool
-    ) {
-        var runtime = strokeRuntime(for: hand)
-        runtime.generation &+= 1
-        runtime.task?.cancel()
-        runtime.task = nil
-        if resetTriggerIDs {
-            runtime.progress = 1
-            runtime.occurrenceIDs.removeAll()
-            runtime.velocity = 64
-        }
-        strokeRuntimeByHand[hand] = runtime
+    private func reportManualTimingIfNeeded(reason: String) {
+        guard hasReportedManualTimingFallback == false else { return }
+        hasReportedManualTimingFallback = true
+        diagnosticsReporter?.recordSystem(
+            severity: .warning,
+            category: .immersiveSpace,
+            stage: "pianoDemonstrationHands.timing",
+            summary: "示范手使用未对齐的手动时序",
+            reason: "mode=manual;reason=\(reason)"
+        )
     }
 
-    private func stopAllStrokes(resetTriggerIDs: Bool) {
-        for hand in PianoDemonstrationHand.allCases {
-            stopStroke(for: hand, resetTriggerIDs: resetTriggerIDs)
-        }
+    private func resetAllStrokeRuntimes() {
+        strokeRuntimeByHand.removeAll()
     }
 
     private func strokeRuntime(for hand: PianoDemonstrationHand) -> HandStrokeRuntime {
         strokeRuntimeByHand[hand] ?? HandStrokeRuntime()
     }
 
-    private func applyCurrentTargets(hand selectedHand: PianoDemonstrationHand? = nil) {
+    private func applyCurrentTargets(
+        hand selectedHand: PianoDemonstrationHand? = nil,
+        at now: PerformanceMonotonicInstant
+    ) {
         for hand in PianoDemonstrationHand.allCases where selectedHand == nil || selectedHand == hand {
-            let targetsForHand = lastCoverage.coveredTargets(for: hand)
             let runtime = strokeRuntime(for: hand)
-            let handStrikeProgress = targetsForHand.contains {
-                $0.phase == .triggered && runtime.occurrenceIDs.contains($0.occurrenceID)
-            } ? runtime.progress : 1
+            var targetsByOccurrenceID = Dictionary(
+                uniqueKeysWithValues: lastCoverage.coveredTargets(for: hand).map { ($0.occurrenceID, $0) }
+            )
+            for (occurrenceID, occurrence) in runtime.occurrences
+                where targetsByOccurrenceID[occurrenceID] == nil
+                    && strikeScheduler.sample(occurrence.schedule, at: now).isComplete == false
+            {
+                targetsByOccurrenceID[occurrenceID] = occurrence.target
+            }
+            let targetsForHand = targetsByOccurrenceID.values.sorted { $0.occurrenceID < $1.occurrenceID }
+            let strikeProgressByOccurrenceID = Dictionary(
+                uniqueKeysWithValues: runtime.occurrences.map {
+                    ($0.key, strikeScheduler.sample($0.value.schedule, at: now).contactProgress)
+                }
+            )
             if let pose = poseResolver.resolve(
                 hand: hand,
                 targets: targetsForHand,
-                strikeProgress: handStrikeProgress
+                strikeProgressByOccurrenceID: strikeProgressByOccurrenceID
             ), let rig = rigs[hand] {
                 rig.apply(pose: pose)
                 activeMIDINotesByHand[hand] = Set(targetsForHand.map(\.midiNote))
+                lastSubmittedPalmCenterByHand[hand] = pose.palmCenterLocal
             } else if shouldLift(hand: hand, releasedMIDINotes: lastCoverage.releasedMIDINotes) {
                 rigs[hand]?.lift(animated: reduceMotionEnabled == false)
                 activeMIDINotesByHand[hand] = []
@@ -299,6 +422,18 @@ final class PianoDemonstrationHandsOverlayController {
                 activeMIDINotesByHand[hand] = []
             }
         }
+    }
+
+    private func handTravelDistance(
+        for hand: PianoDemonstrationHand,
+        targets: [PianoDemonstrationHandTarget]
+    ) -> Float {
+        guard let previousPalmCenter = lastSubmittedPalmCenterByHand[hand],
+              let nextPalmCenter = poseResolver.resolve(hand: hand, targets: targets)?.palmCenterLocal
+        else {
+            return 0
+        }
+        return simd_distance(previousPalmCenter, nextPalmCenter)
     }
 
     private func currentSuppressedMIDINotes() -> Set<Int> {
@@ -335,16 +470,17 @@ final class PianoDemonstrationHandsOverlayController {
     }
 
     private func hide() {
-        stopAllStrokes(resetTriggerIDs: true)
-        strokeRuntimeByHand.removeAll()
+        resetAllStrokeRuntimes()
         for rig in rigs.values {
             rig.hide()
         }
         activeMIDINotesByHand.removeAll()
         suppressionExpiryByMIDINote.removeAll()
+        lastSubmittedPalmCenterByHand.removeAll()
         lastResolvedCoverage = PianoDemonstrationHandCoverage()
         lastCoverage = PianoDemonstrationHandCoverage()
         reduceMotionEnabled = false
+        hasReportedManualTimingFallback = false
         rootEntity.removeFromParent()
         hasAttachedRoot = false
     }

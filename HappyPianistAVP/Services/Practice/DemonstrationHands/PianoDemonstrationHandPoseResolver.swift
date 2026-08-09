@@ -20,7 +20,7 @@ struct PianoDemonstrationHandPoseResolver {
     func resolve(
         hand: PianoDemonstrationHand,
         targets: [PianoDemonstrationHandTarget],
-        strikeProgress: Float = 1
+        strikeProgressByOccurrenceID: [String: Float] = [:]
     ) -> PianoDemonstrationHandPose? {
         guard targets.isEmpty == false else { return nil }
 
@@ -31,11 +31,10 @@ struct PianoDemonstrationHandPoseResolver {
         guard targetByFinger.isEmpty == false else { return nil }
 
         let targetPositions = targetByFinger.values.map(\.contactPositionLocal)
-        let clampedStrikeProgress = min(1, max(0, strikeProgress))
         let palmCenter = makePalmCenter(
             hand: hand,
             targetsByFinger: targetByFinger,
-            strikeProgress: clampedStrikeProgress
+            strikeProgressByOccurrenceID: strikeProgressByOccurrenceID
         )
         let fingers = PianoDemonstrationFinger.allCases.map { finger in
             makeFingerPose(
@@ -43,7 +42,9 @@ struct PianoDemonstrationHandPoseResolver {
                 hand: hand,
                 palmCenter: palmCenter,
                 target: targetByFinger[finger],
-                strikeProgress: clampedStrikeProgress
+                strikeProgress: targetByFinger[finger].map {
+                    strikeProgressByOccurrenceID[$0.occurrenceID] ?? 1
+                } ?? 1
             )
         }
         guard targetPositions.allSatisfy(Self.isFinite),
@@ -62,7 +63,7 @@ struct PianoDemonstrationHandPoseResolver {
     private func makePalmCenter(
         hand: PianoDemonstrationHand,
         targetsByFinger: [PianoDemonstrationFinger: PianoDemonstrationHandTarget],
-        strikeProgress: Float
+        strikeProgressByOccurrenceID: [String: Float]
     ) -> SIMD3<Float> {
         let palmX = targetsByFinger.reduce(into: Float.zero) { partial, item in
             partial += item.value.contactPositionLocal.x - fingerOffsetX(item.key, hand: hand)
@@ -71,11 +72,15 @@ struct PianoDemonstrationHandPoseResolver {
             partial += target.contactPositionLocal.z
         } / Float(targetsByFinger.count)
         let surfaceY = targetsByFinger.values.map(\.contactPositionLocal.y).max() ?? 0
+        let palmStrikeProgress = targetsByFinger.values
+            .filter { $0.phase == .triggered }
+            .map { min(1, max(0, strikeProgressByOccurrenceID[$0.occurrenceID] ?? 1)) }
+            .min() ?? 1
 
         return SIMD3<Float>(
             palmX,
-            surfaceY + 0.045 + (1 - strikeProgress) * 0.012,
-            averageZ + 0.050 + (1 - strikeProgress) * 0.004
+            surfaceY + 0.045 + (1 - palmStrikeProgress) * 0.012,
+            averageZ + 0.050 + (1 - palmStrikeProgress) * 0.004
         )
     }
 
@@ -88,10 +93,11 @@ struct PianoDemonstrationHandPoseResolver {
     ) -> PianoDemonstrationFingerPose {
         let knuckle = palmCenter + fingerRootOffset(finger, hand: hand)
         let tip: SIMD3<Float>
+        let clampedStrikeProgress = min(1, max(0, strikeProgress))
         if let target {
             let velocity = Float(target.velocity) / 127
             let strikeLift = target.phase == .triggered
-                ? (1 - strikeProgress) * (0.018 + velocity * 0.008)
+                ? (1 - clampedStrikeProgress) * (0.018 + velocity * 0.008)
                 : 0
             tip = target.contactPositionLocal + SIMD3<Float>(0, strikeLift, 0)
         } else {

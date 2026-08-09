@@ -108,6 +108,7 @@ struct ImmersiveView: View {
         let suppressedMIDINotes = pianoDemonstrationHandsOverlayController?.update(
             isEnabled: shouldShowPianoDemonstrationHands,
             highlightGuide: session.currentPianoHighlightGuide,
+            timing: session.pianoDemonstrationHandsTiming(),
             keyboardGeometry: keyboardGeometry,
             reduceMotion: reduceMotion,
             content: content
