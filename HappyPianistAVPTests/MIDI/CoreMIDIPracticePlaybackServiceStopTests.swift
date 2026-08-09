@@ -282,6 +282,32 @@ struct CoreMIDIPracticePlaybackServiceStopTests {
         ])
     }
 
+    @Test func lookAheadSchedulerScalesHostSchedulingWithPlaybackRate() async {
+        let output = FakePerformanceOutput()
+        let clock = FakeMIDILookAheadClock()
+        let scheduler = MIDILookAheadScheduler(
+            outputService: output,
+            destinationUniqueID: 111,
+            channel: 0,
+            outputCapabilities: output.capabilities,
+            hostTimeConverter: MIDIHostTimeConverter(
+                currentHostTime: { 10000 },
+                hostTicksPerSecond: 1000
+            ),
+            clock: clock,
+            configuration: MIDILookAheadConfiguration(horizonSeconds: 0.1, refillIntervalSeconds: 0.025)
+        )
+        let task = scheduler.start(events: [
+            PracticeSequencerMIDIEvent(timeSeconds: 0.2, kind: .noteOn(midi: 60, velocity: 80)),
+        ], fromSeconds: 0, playbackRate: 2)
+
+        #expect(await waitUntil { output.timestampedBatchesSnapshot().count == 1 })
+        await task.value
+        #expect(output.timestampedBatchesSnapshot().first?.messages == [
+            TimestampedMIDI1Message(hostTime: 10100, bytes: [0x90, 60, 80]),
+        ])
+    }
+
     @Test func lookAheadSchedulerClampsLateEventToCurrentTransportTime() async {
         let output = FakePerformanceOutput()
         let clock = FakeMIDILookAheadClock()

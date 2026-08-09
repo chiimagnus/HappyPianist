@@ -24,24 +24,27 @@ struct PackagedPianoDemonstrationHandRigLoader: PianoDemonstrationHandRigLoading
 
 @MainActor
 final class PianoDemonstrationHandRig {
+    private static let expectedJointPathSuffixes = [
+        "wrist",
+        "thumb_0", "thumb_1", "thumb_2", "thumb_3",
+        "index_0", "index_1", "index_2", "index_3",
+        "middle_0", "middle_1", "middle_2", "middle_3",
+        "ring_0", "ring_1", "ring_2", "ring_3",
+        "little_0", "little_1", "little_2", "little_3",
+    ]
+
     let rootEntity: Entity
 
     private let modelEntity: ModelEntity
     private let restJointTransforms: [Transform]
-    private let jointIndicesByFinger: [PianoDemonstrationFinger: [Int]]
-    private let wristJointIndex: Int
 
     private init(
         rootEntity: Entity,
-        modelEntity: ModelEntity,
-        jointIndicesByFinger: [PianoDemonstrationFinger: [Int]],
-        wristJointIndex: Int
+        modelEntity: ModelEntity
     ) {
         self.rootEntity = rootEntity
         self.modelEntity = modelEntity
         restJointTransforms = modelEntity.jointTransforms
-        self.jointIndicesByFinger = jointIndicesByFinger
-        self.wristJointIndex = wristJointIndex
         rootEntity.isEnabled = false
     }
 
@@ -55,26 +58,11 @@ final class PianoDemonstrationHandRig {
             throw PianoDemonstrationHandRigError.missingSkinnedModel
         }
 
-        let indicesByName = Dictionary(
-            uniqueKeysWithValues: modelEntity.jointNames.enumerated().map { index, name in
-                (name.split(separator: "/").last.map(String.init) ?? name, index)
-            }
-        )
-        guard let wristJointIndex = indicesByName["wrist"] else {
-            throw PianoDemonstrationHandRigError.invalidJointSet
+        let jointPathSuffixes = modelEntity.jointNames.map {
+            $0.split(separator: "/").last.map(String.init) ?? ""
         }
-
-        var jointIndicesByFinger: [PianoDemonstrationFinger: [Int]] = [:]
-        for finger in PianoDemonstrationFinger.allCases {
-            let name = finger.jointName
-            let indices = (0 ..< 4).compactMap { indicesByName["\(name)_\($0)"] }
-            guard indices.count == 4 else {
-                throw PianoDemonstrationHandRigError.invalidJointSet
-            }
-            jointIndicesByFinger[finger] = indices
-        }
-        guard modelEntity.jointNames.count == 21,
-              modelEntity.jointTransforms.count == 21
+        guard jointPathSuffixes == expectedJointPathSuffixes,
+              modelEntity.jointTransforms.count == expectedJointPathSuffixes.count
         else {
             throw PianoDemonstrationHandRigError.invalidJointSet
         }
@@ -84,9 +72,7 @@ final class PianoDemonstrationHandRig {
         rootEntity.addChild(asset)
         return PianoDemonstrationHandRig(
             rootEntity: rootEntity,
-            modelEntity: modelEntity,
-            jointIndicesByFinger: jointIndicesByFinger,
-            wristJointIndex: wristJointIndex
+            modelEntity: modelEntity
         )
     }
 
@@ -94,53 +80,19 @@ final class PianoDemonstrationHandRig {
         modelEntity.jointNames.count
     }
 
-    func apply(pose: PianoDemonstrationHandPose) {
+    func apply(frame: PianoHandMotionClip.Frame) {
+        guard frame.jointRotations.count == restJointTransforms.count else { return }
         rootEntity.stopAllAnimations()
         rootEntity.isEnabled = true
         rootEntity.transform = Transform(
-            rotation: simd_quatf(vector: pose.rootTransform.rotation),
-            translation: pose.rootTransform.translation
+            rotation: simd_quatf(vector: frame.rootTransform.rotation),
+            translation: frame.rootTransform.translation
         )
 
         var transforms = restJointTransforms
-        guard wristJointIndex < transforms.count else { return }
-        let wristRotation = transforms[wristJointIndex].rotation
-
-        for fingerPose in pose.fingers {
-            guard fingerPose.jointPositionsLocal.count == 4,
-                  let jointIndices = jointIndicesByFinger[fingerPose.finger],
-                  jointIndices.count == 4
-            else {
-                continue
-            }
-
-            let positions = fingerPose.jointPositionsLocal
-            var parentRotationInHand = wristRotation
-            for jointSlot in jointIndices.indices {
-                let jointIndex = jointIndices[jointSlot]
-                guard jointIndex < transforms.count else { continue }
-                guard jointSlot + 1 < jointIndices.count else { continue }
-
-                let childIndex = jointIndices[jointSlot + 1]
-                guard childIndex < restJointTransforms.count else { continue }
-                let desiredDirectionInModel = normalized(
-                    modelEntity.convert(
-                        direction: positions[jointSlot + 1] - positions[jointSlot],
-                        from: rootEntity
-                    )
-                )
-                let desiredDirectionInParent = parentRotationInHand.inverse.act(desiredDirectionInModel)
-                let restChildTranslation = restJointTransforms[childIndex].translation
-                let restDirectionInParent = normalized(
-                    restJointTransforms[jointIndex].rotation.act(restChildTranslation)
-                )
-                let rotationDelta = simd_quatf(
-                    from: restDirectionInParent,
-                    to: desiredDirectionInParent
-                )
-                transforms[jointIndex].rotation = rotationDelta * restJointTransforms[jointIndex].rotation
-                parentRotationInHand *= transforms[jointIndex].rotation
-            }
+        for index in transforms.indices {
+            transforms[index].rotation = simd_quatf(vector: frame.jointRotations[index])
+                * restJointTransforms[index].rotation
         }
         modelEntity.jointTransforms = transforms
     }
@@ -184,22 +136,5 @@ final class PianoDemonstrationHandRig {
         material.roughness = 0.22
         material.metallic = 0.06
         return material
-    }
-
-    private func normalized(_ value: SIMD3<Float>) -> SIMD3<Float> {
-        let length = simd_length(value)
-        return length > 0.0001 ? value / length : SIMD3<Float>(0, 0, -1)
-    }
-}
-
-private extension PianoDemonstrationFinger {
-    var jointName: String {
-        switch self {
-        case .thumb: "thumb"
-        case .index: "index"
-        case .middle: "middle"
-        case .ring: "ring"
-        case .little: "little"
-        }
     }
 }

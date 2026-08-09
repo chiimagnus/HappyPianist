@@ -12,43 +12,21 @@ extension PracticeSessionViewModel {
         return .transport(timing)
     }
 
-    func pianoDemonstrationReadyFingeringPlan(
+    func pianoDemonstrationMotionClipSet(
         for timing: PianoDemonstrationHandsTiming
-    ) -> PianoFingeringPlanner.Plan? {
-        guard let readyPlan = self.pianoDemonstrationFingeringPlan,
-              readyPlan.geometryCacheID == self.keyboardGeometry?.cacheID
-        else {
-            return nil
-        }
-        switch timing {
-        case .manual:
-            return readyPlan.transportGeneration == nil ? readyPlan.plan : nil
-        case .transportPending:
-            return nil
-        case let .transport(transport):
-            return readyPlan.transportGeneration == transport.generation ? readyPlan.plan : nil
-        }
-    }
-
-    func pianoDemonstrationRejectedMotionOccurrences(
-        for timing: PianoDemonstrationHandsTiming
-    ) -> Set<String> {
+    ) -> PianoDemonstrationMotionClipSet? {
         guard let clipSet = pianoDemonstrationMotionClipSet,
               clipSet.geometryCacheID == self.keyboardGeometry?.cacheID
         else {
-            return []
+            return nil
         }
         switch timing {
         case .manual:
-            return clipSet.transportGeneration == nil
-                ? Set(clipSet.rejectedOccurrenceIDs)
-                : []
+            return clipSet.transportGeneration == nil ? clipSet : nil
         case .transportPending:
-            return []
+            return nil
         case let .transport(transport):
-            return clipSet.transportGeneration == transport.generation
-                ? Set(clipSet.rejectedOccurrenceIDs)
-                : []
+            return clipSet.transportGeneration == transport.generation ? clipSet : nil
         }
     }
 
@@ -58,6 +36,18 @@ extension PracticeSessionViewModel {
 
     func stopAutoplayTask() {
         playbackControlService?.stopAutoplayTask()
+    }
+
+    func pauseAutoplayPlayback() async {
+        await playbackControlService?.pauseAutoplay()
+    }
+
+    func resumeAutoplayPlayback() async throws {
+        try await playbackControlService?.resumeAutoplay()
+    }
+
+    func setAutoplayPlaybackRate(_ rate: Double) async throws {
+        try await playbackControlService?.setAutoplayPlaybackRate(rate)
     }
 
     func notationViewportTick() -> Double? {

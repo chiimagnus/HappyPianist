@@ -7,6 +7,13 @@ final class NoopPracticeSequencerPlaybackService: PracticeSequencerPlaybackServi
     func stop(resetCommands _: [PerformanceTransportCommand]) {}
     func load(sequence _: PracticeSequencerSequence) throws {}
     func play(fromSeconds _: TimeInterval) throws {}
+    func pause() {}
+    func resume() throws {}
+    func setPlaybackRate(_ rate: Double) throws {
+        guard rate.isFinite, (0.5 ... 2).contains(rate) else {
+            throw PracticePlaybackRateError.invalidRate
+        }
+    }
     func currentSeconds() -> TimeInterval {
         0
     }

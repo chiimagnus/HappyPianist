@@ -26,6 +26,7 @@ public final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackSer
     private var lastKnownSeconds: TimeInterval = 0
     private var playbackStartedAtUptimeSeconds: TimeInterval?
     private var playbackStartSeconds: TimeInterval = 0
+    private var playbackRate = 1.0
 
     public init(
         destinationUniqueID: Int32,
@@ -120,7 +121,33 @@ public final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackSer
             generation: generation
         )
         self.scheduler = scheduler
-        schedulerTask = scheduler.start(events: events, fromSeconds: startSeconds)
+        schedulerTask = scheduler.start(
+            events: events,
+            fromSeconds: startSeconds,
+            playbackRate: playbackRate
+        )
+    }
+
+    public func pause() async {
+        await haltPlayback()
+    }
+
+    public func resume() async throws {
+        try await play(fromSeconds: lastKnownSeconds)
+    }
+
+    public func setPlaybackRate(_ rate: Double) async throws {
+        guard rate.isFinite, (0.5 ... 2).contains(rate) else {
+            throw PracticePlaybackRateError.invalidRate
+        }
+        let resumeSeconds = await currentSeconds()
+        let wasPlaying = playbackStartedAtUptimeSeconds != nil
+        playbackRate = rate
+        if wasPlaying {
+            try await play(fromSeconds: resumeSeconds)
+        } else {
+            lastKnownSeconds = resumeSeconds
+        }
     }
 
     private func haltPlayback() async {
@@ -129,7 +156,10 @@ public final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackSer
         oneShotStopTask = nil
 
         if let playbackStartedAtUptimeSeconds {
-            lastKnownSeconds = playbackStartSeconds + max(0, ProcessInfo.processInfo.systemUptime - playbackStartedAtUptimeSeconds)
+            lastKnownSeconds = playbackStartSeconds + max(
+                0,
+                ProcessInfo.processInfo.systemUptime - playbackStartedAtUptimeSeconds
+            ) * playbackRate
         }
         playbackStartedAtUptimeSeconds = nil
 
@@ -165,7 +195,7 @@ public final class CoreMIDIPracticePlaybackService: PracticeSequencerPlaybackSer
     public func currentSeconds() async -> TimeInterval {
         guard let playbackStartedAtUptimeSeconds else { return lastKnownSeconds }
         let now = ProcessInfo.processInfo.systemUptime
-        let seconds = playbackStartSeconds + max(0, now - playbackStartedAtUptimeSeconds)
+        let seconds = playbackStartSeconds + max(0, now - playbackStartedAtUptimeSeconds) * playbackRate
         if let loadedDurationSeconds {
             return min(seconds, loadedDurationSeconds)
         }

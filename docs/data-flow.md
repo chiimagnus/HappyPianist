@@ -116,20 +116,20 @@ HandTrackingProvider
 
 ```text
 PianoKeyContactTimeline + PianoFingeringPlanner + PianoKeyboardGeometry
-  → PianoDemonstrationHandTargetResolver (ready plan only)
-  → PianoDemonstrationHandPoseResolver
+  → PianoHandMotionClipBuilder (off-main, validated immutable clips)
+  → PianoHandMotionPlayer (current audio transport sample)
   → PianoDemonstrationHandsOverlayController
   → packaged 21-joint left/right rigs
-  → prepare / attack / rebound / hold joint transforms
+  → root transform + 21 joint rotations
 ```
 
 - `pianoDemonstrationHandsEnabled` 默认 `false`，只保存展示偏好；设置页的开关即时改变沉浸空间，绝不写入 round configuration、progress 或 session JSON。
-- 开启时按音符混合示范手与 `PianoGuideOverlayController` 键面贴片：只有 ready plan 中已可达且成功提交给 21 关节 rig 的音符会短暂抑制对应贴片；planning pending、无解、缺少几何或尚未加载资产的音符继续显示贴片。二维 `PianoKeyboard88View` 继续从同一个 guide 渲染高亮。
-- 示范手只消费 ready plan 的手别和 1–5 指法；未知手别的 staff 1/2 归属仅存在于 planner 输入，渲染层不得重新分配或回写曲谱、plan 或手部分配。
-- 自动播放把同一份 `AutoplayTimelineTimeSchedule`、transport generation 与采样时刻交给示范手；controller 按注入的 `PerformanceClock` 逐帧采样，按 `hand → occurrenceID` 保留每个音符自己的 onset、release 与进度。预备窗口取该 occurrence 的实际 pre-roll（最多 `0.45 s`），时刻由 note 的 source event 查得，因此 lead-in、pause、seek 与 loop 不会另走一套时间线。`RealityView.update` 只采样和应用既有 rig，不启动轮询或动画 task。
+- 开启时按音符混合示范手与 `PianoGuideOverlayController` 键面贴片：只有当前 transport 已采样到的已验证 clip coverage 会短暂抑制对应贴片；clip pending、无解、缺少几何或尚未加载资产的音符继续显示贴片。二维 `PianoKeyboard88View` 继续从同一个 guide 渲染高亮。
+- 示范手只消费 clip 中由已确定的 hand 与 1–5 指法构成的 frame/coverage；未知手别的 staff 1/2 归属仅存在于 planner 输入，渲染层不得重新分配或回写曲谱、plan 或手部分配。
+- 自动播放把同一份 `AutoplayTimelineTimeSchedule`、transport generation、position、暂停状态和速率交给示范手；`PianoHandMotionPlayer` 以注入 `PerformanceClock` 在 clip 中插值，暂停时冻结，seek/loop 后仅接受新 generation。`RealityView.update` 只采样和应用既有 rig，不启动轮询或动画 task。
 - `PracticePlaybackControlService` 在每个 transport generation 从该 timeline 与 schedule 建立 `PianoKeyContactTimeline`；它按 source event 的实际 event time 投影 occurrence 的 onset/release、score hand/staff、原始 fingering、guide、step 和 range-start carried-in 事实。缺少任一 on/off 的 occurrence 明确不可规划；示范手只消费这条线，绝不从 tempo map 重算秒数。
 - `PracticeSessionViewModel` 是指法 planning 的唯一生命周期 owner：它把同一 contact 线和校准键盘快照交给 Core 的 off-main planner，并以 song、range、hand mode、tempo、geometry cacheID 与 transport generation 拒绝过期回写。未完成、取消或无解时不产生示范手 target，键面高亮保留；seek、loop、clear、shutdown 与 geometry 替换均先取消旧 task。
-- 指法 ready 后，session 在同一 generation gate 下把纯值 snapshot 交给 off-main `PianoHandMotionClipBuilder`。builder 以拇指/其余手指各自的屈伸、首关节外展、joint/wrist 角速度和 wrist 平移速度为硬约束；它在相邻 onset 之间插入迁移起始帧，时间不足即废弃整手 clip，不夹断或瞬移。唯一纯值 root planner 也提供给暂存的 P1 pose/rig 路径，集中 MCP offset、手腕 clearance 与左右镜像 root rotation；逐关节 translation 仍不变。每个被拒 occurrence 经同一 generation gate 交给现有 coverage，立刻回退键面贴片。`PianoHandMotionClip` 只包含键盘局部整手 transform、21 个 joint rotation、score/skeleton/generator metadata 与 occurrence coverage，结构上不允许 joint translation，故始终保留 authored bind-pose bone length；未完成或过期 clip 不发布。controller 的 pre-roll 只取下一 guide，并清掉前一 guide 的 stale attack，防止同一只手同时被强迫到两个相距甚远的目标。clip 的帧仍未进入 controller，T8 才由唯一播放器替换 P1 的逐帧 pose 路径。
+- 指法 ready 后，session 在同一 generation gate 下把纯值 snapshot 交给 off-main `PianoHandMotionClipBuilder`。builder 以拇指/其余手指各自的屈伸、首关节外展、joint/wrist 角速度、指骨长度、手指/手掌 capsule、键面/按键碰撞和接触残差为硬约束；它在相邻 onset 之间插入迁移起始帧，时间不足或无法以最小 root lift 脱离碰撞即废弃整手 clip，不夹断或瞬移。每个被拒 occurrence 经同一 generation gate 交给现有 coverage，立刻回退键面贴片。`PianoHandMotionClip` 只包含键盘局部整手 transform、21 个 joint rotation、score/skeleton/generator metadata 与 occurrence coverage，结构上不允许 joint translation，故始终保留 authored bind-pose bone length；未完成或过期 clip 不发布。`PianoDemonstrationHandsOverlayController` 不再拥有 scheduler、pose resolver 或 target resolver，且 rig 必须匹配固定的 21-joint 顺序后才应用 player sample。
 - pose resolver 在提交 rig 前核对每个 occurrence 的指尖残差；超过 `5 mm` 的是明确降级红线，标记为 `unreachable` 并交回键面贴片，绝不静默截断后继续抑制该键。可达目标仍保持 `< 0.0001 m` 的接触精度；`5 mm` 不是放宽后的精度目标。
 - controller 不读 ARKit、不挂 `InputTargetComponent`/碰撞、不产生 observation。两手从 RealityKitContent 异步加载 Blender 生成的骨骼资产，渲染期只旋转既有 21 关节并移动整手 root，始终保留绑定姿态的局部平移与骨长；reset 会取消资产加载和击键动作并移除所有子实体，不回退到旧基础体手型。
 - 手动练习没有未来 onset，示范手以 guide 出现时刻开始预备并记录一次未对齐时序诊断；它不声称与音频 onset 对齐。
@@ -170,6 +170,7 @@ ScorePerformancePlan
 ```
 
 - range、seek、loop、stop、interruption 和 route change 共享 reset 规则：逐 identity note-off、踏板归零、all-notes-off、all-sound-off。
+- `PracticePlaybackControlService` 是自动播放、示范手、键盘高亮的唯一 transport owner；pause/resume/速率都下发到 AVAudio 或 CoreMIDI 的同一输出实现，seek/loop 重启 generation 时保留已选速率，示范手不再维护独立 scheduler。
 - `Practice` 的 `RecordingTakeRecorder` 从 canonical observation 记录可重放事件；`TakePlaybackController` 用同一 transport generation 在取消后阻止过期 load/play。target audio 因缺少可靠逐音 release/velocity 不进入 MIDI take。
 - visionOS 的 CoreMIDI 输入明确使用 `.allCurrentSources`；macOS 只启动用户选定的单个稳定 endpoint unique ID，设备枚举 index 和显示名不参与选择或持久化。所选输入断开即停止、递增 generation 并要求用户重新连接或重新选择，绝不回退到别的输入。
 - macOS 输出是可选的 stable endpoint unique ID：缺失或断开只禁用回放，不影响输入判定。manual replay 以 `AutoplayPerformanceTimeline` 与 `PlaybackSequenceBuilder` 输出完整 active range，含 tempo、controller、边界 note-off 与 full reset；开始时关闭 attempt acceptance，取消/结束后按 generation 恢复。更换输出前先取消旧目标未来事件，并向全部通道发送 all-notes-off 与 all-sound-off 后释放旧输出；设备显示名和原始 MIDI 不写入设置或进度。

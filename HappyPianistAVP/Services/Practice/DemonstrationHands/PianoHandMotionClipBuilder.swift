@@ -668,10 +668,7 @@ private extension PianoHandMotionClipBuilder {
     }
 }
 
-/// Pure keyboard-local root planning shared by the clip builder and the temporary P1 pose path.
-///
-/// It owns the authored MCP offsets and wrist clearance so the two paths cannot diverge before
-/// T8 removes the old direct pose player.
+/// Pure keyboard-local hand geometry used by clip planning and collision validation.
 struct PianoDemonstrationHandRootPlanner {
     struct Target: Sendable {
         let finger: Int
@@ -715,31 +712,6 @@ struct PianoDemonstrationHandRootPlanner {
         )
         guard isFinite(translation) else { return nil }
         return .init(translation: translation, rotation: rotation)
-    }
-
-    static func rootTransform(
-        for hand: PianoDemonstrationHand,
-        targets: [PianoDemonstrationHandTarget],
-        strikeProgressByOccurrenceID: [String: Float] = [:]
-    ) -> PianoHandMotionClip.RootTransform? {
-        let progress = targets
-            .filter { $0.phase == .triggered }
-            .map { strikeProgressByOccurrenceID[$0.occurrenceID] ?? 1 }
-            .min() ?? 1
-        return rootTransform(
-            for: hand == .left ? .left : .right,
-            targets: targets.map {
-                .init(finger: $0.finger.rawValue, contactPositionLocal: $0.contactPositionLocal)
-            },
-            strikeProgress: progress
-        )
-    }
-
-    static func fingerRootOffset(
-        _ finger: PianoDemonstrationFinger,
-        hand: PianoDemonstrationHand
-    ) -> SIMD3<Float> {
-        fingerRootOffset(finger.rawValue, hand: hand == .left ? .left : .right)
     }
 
     static func fingerJointPositions(

@@ -214,9 +214,6 @@ func pianoDemonstrationHandsTimingDoesNotLeakTransportAcrossRestart() async {
         ]
     )
     viewModel.applyVirtualKeyboardGeometry(makeFingeringKeyboardGeometry(notes: [60, 62]))
-    await waitUntil("manual fingering plan for restart") {
-        viewModel.pianoDemonstrationReadyFingeringPlan(for: .manual) != nil
-    }
     await waitUntil("manual motion clip for restart") {
         viewModel.pianoDemonstrationMotionClipSet?.transportGeneration == nil
     }
@@ -249,16 +246,10 @@ func pianoDemonstrationHandsTimingDoesNotLeakTransportAcrossRestart() async {
     #expect(initialTiming.contactTimeline.contacts.allSatisfy {
         $0.onsetSeconds != nil && $0.releaseSeconds != nil && $0.carriedIn == false
     })
-    await waitUntil("initial demonstration fingering plan") {
-        viewModel.pianoDemonstrationReadyFingeringPlan(for: viewModel.pianoDemonstrationHandsTiming()) != nil
-    }
-    #expect(viewModel.pianoDemonstrationReadyFingeringPlan(for: viewModel.pianoDemonstrationHandsTiming())?.results.allSatisfy {
-        if case .planned = $0.resolution { return true }
-        return false
-    } == true)
     await waitUntil("initial demonstration motion clip") {
         viewModel.pianoDemonstrationMotionClipSet?.transportGeneration == initialTiming.generation
     }
+    #expect(viewModel.pianoDemonstrationMotionClipSet?.rejectedOccurrenceIDs.isEmpty == true)
 
     viewModel.skip()
     await waitUntil("replacement demonstration transport") {
@@ -272,9 +263,6 @@ func pianoDemonstrationHandsTimingDoesNotLeakTransportAcrossRestart() async {
     case .manual, .transportPending:
         Issue.record("restart must replace, not retain, demonstration timing")
     }
-    await waitUntil("replacement demonstration fingering plan") {
-        viewModel.pianoDemonstrationReadyFingeringPlan(for: viewModel.pianoDemonstrationHandsTiming())?.results.count == 1
-    }
     await waitUntil("replacement demonstration motion clip") {
         guard case let .transport(timing) = viewModel.pianoDemonstrationHandsTiming() else { return false }
         return viewModel.pianoDemonstrationMotionClipSet?.transportGeneration == timing.generation
@@ -285,7 +273,6 @@ func pianoDemonstrationHandsTimingDoesNotLeakTransportAcrossRestart() async {
         Issue.record("stopped autoplay must not expose its cancelled transport")
         return
     }
-    #expect(viewModel.pianoDemonstrationReadyFingeringPlan(for: .manual) == nil)
     #expect(viewModel.pianoDemonstrationMotionClipSet == nil)
     viewModel.shutdown()
 }

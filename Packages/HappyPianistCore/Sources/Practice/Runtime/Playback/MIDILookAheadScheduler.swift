@@ -97,12 +97,17 @@ actor MIDILookAheadScheduler {
 
     nonisolated func start(
         events: [PracticeSequencerMIDIEvent],
-        fromSeconds startSeconds: TimeInterval
+        fromSeconds startSeconds: TimeInterval,
+        playbackRate: Double = 1
     ) -> Task<Void, Never> {
         Task.detached(priority: .userInitiated) { [weak self] in
             guard let self else { return }
             do {
-                try await self.run(events: events, fromSeconds: max(0, startSeconds))
+                try await self.run(
+                    events: events,
+                    fromSeconds: max(0, startSeconds),
+                    playbackRate: playbackRate.isFinite && playbackRate > 0 ? playbackRate : 1
+                )
             } catch is CancellationError {
                 return
             } catch {
@@ -113,7 +118,8 @@ actor MIDILookAheadScheduler {
 
     private func run(
         events: [PracticeSequencerMIDIEvent],
-        fromSeconds startSeconds: TimeInterval
+        fromSeconds startSeconds: TimeInterval,
+        playbackRate: Double
     ) async throws {
         let pendingEvents = events.enumerated()
             .filter { $0.element.timeSeconds >= startSeconds }
@@ -142,8 +148,8 @@ actor MIDILookAheadScheduler {
                 try Task.checkCancellation()
 
                 let elapsedSeconds = max(0, await clock.nowSeconds() - startedAtSeconds)
-                let transportNowSeconds = startSeconds + elapsedSeconds
-                let horizonEndSeconds = transportNowSeconds + configuration.horizonSeconds
+                let transportNowSeconds = startSeconds + elapsedSeconds * playbackRate
+                let horizonEndSeconds = transportNowSeconds + configuration.horizonSeconds * playbackRate
                 var messages: [TimestampedMIDI1Message] = []
                 var scheduledAtSeconds: [TimeInterval] = []
 
@@ -157,15 +163,17 @@ actor MIDILookAheadScheduler {
                         outputCapabilities: outputCapabilities
                     ) {
                         let scheduledTransportSeconds = max(event.timeSeconds, transportNowSeconds)
+                        let scheduledHostTransportSeconds = startSeconds
+                            + (scheduledTransportSeconds - startSeconds) / playbackRate
                         messages.append(TimestampedMIDI1Message(
                             hostTime: hostTimeConverter.hostTime(
-                                atTransportSeconds: scheduledTransportSeconds,
+                                atTransportSeconds: scheduledHostTransportSeconds,
                                 relativeTo: hostTimeOrigin
                             ),
                             bytes: bytes
                         ))
                         scheduledAtSeconds.append(
-                            startedAtSeconds + max(0, event.timeSeconds - startSeconds)
+                            startedAtSeconds + max(0, event.timeSeconds - startSeconds) / playbackRate
                         )
                     } else {
                         metrics.recordDropped(count: 1)
@@ -201,9 +209,9 @@ actor MIDILookAheadScheduler {
                 guard nextEventIndex < pendingEvents.count else { return }
                 let nextRefillSeconds = min(
                     pendingEvents[nextEventIndex].timeSeconds - configuration.horizonSeconds,
-                    transportNowSeconds + configuration.refillIntervalSeconds
+                    transportNowSeconds + configuration.refillIntervalSeconds * playbackRate
                 )
-                let sleepSeconds = max(0, nextRefillSeconds - transportNowSeconds)
+                let sleepSeconds = max(0, nextRefillSeconds - transportNowSeconds) / playbackRate
                 if sleepSeconds == 0 {
                     await Task.yield()
                 } else {

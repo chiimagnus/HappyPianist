@@ -1,49 +1,24 @@
 import Diagnostics
 import Foundation
+import MusicXML
 import Practice
 import RealityKit
-import simd
 import SwiftUI
 
 @MainActor
 final class PianoDemonstrationHandsOverlayController {
-    private enum StrokeTimingIdentity: Equatable {
-        case manual
-        case transportPending
-        case transport(Int)
-    }
-
-    private struct HandStrokeRuntime {
-        struct Occurrence {
-            let target: PianoDemonstrationHandTarget
-            let schedule: PianoDemonstrationStrikeScheduler.Occurrence
-        }
-
-        var occurrences: [String: Occurrence] = [:]
-        var timingIdentity: StrokeTimingIdentity?
-    }
-
     private let rootEntity: Entity
     private let diagnosticsReporter: (any DiagnosticsReporting)?
     private let rigLoader: any PianoDemonstrationHandRigLoading
     private let performanceClock: PerformanceClock
     private let suppressionMinimumResidence: TimeInterval
-    private let targetResolver = PianoDemonstrationHandTargetResolver()
-    private let poseResolver = PianoDemonstrationHandPoseResolver()
-    private let strikeScheduler: PianoDemonstrationStrikeScheduler
+    private let player = PianoHandMotionPlayer()
     private var rigs: [PianoDemonstrationHand: PianoDemonstrationHandRig]
-    private var lastResolvedCoverage = PianoDemonstrationHandCoverage()
-    private var lastCoverage = PianoDemonstrationHandCoverage()
+    private var lastSamples: [PianoDemonstrationHand: PianoHandMotionPlayer.Sample] = [:]
     private var activeMIDINotesByHand: [PianoDemonstrationHand: Set<Int>] = [:]
     private var suppressionExpiryByHand: [PianoDemonstrationHand: [Int: PerformanceMonotonicInstant]] = [:]
-    private var strokeRuntimeByHand: [PianoDemonstrationHand: HandStrokeRuntime] = [:]
-    private var lastSubmittedRootTransformByHand: [
-        PianoDemonstrationHand: PianoHandMotionClip.RootTransform
-    ] = [:]
     private var loadTask: Task<Void, Never>?
-    private var hasReportedManualTimingFallback = false
     private var hasAttachedRoot = false
-    private var reduceMotionEnabled = false
     private(set) var requiresReplacement = false
 
     init(
@@ -58,7 +33,6 @@ final class PianoDemonstrationHandsOverlayController {
         self.diagnosticsReporter = diagnosticsReporter
         self.rigLoader = rigLoader
         self.performanceClock = performanceClock
-        self.strikeScheduler = PianoDemonstrationStrikeScheduler(performanceClock: performanceClock)
         self.suppressionMinimumResidence = max(0, suppressionMinimumResidence)
         rigs = preloadedRigs ?? [:]
         for (hand, rig) in rigs {
@@ -72,79 +46,42 @@ final class PianoDemonstrationHandsOverlayController {
     @discardableResult
     func update(
         isEnabled: Bool,
-        highlightGuide: PianoHighlightGuide?,
+        motionClipSet: PianoDemonstrationMotionClipSet?,
         timing: PianoDemonstrationHandsTiming,
-        fingeringPlan: PianoFingeringPlanner.Plan? = nil,
-        unreachableOccurrenceIDs: Set<String> = [],
         keyboardGeometry: PianoKeyboardGeometry?,
         reduceMotion: Bool,
         content: RealityViewContent?
     ) -> Set<Int> {
-        guard requiresReplacement == false, isEnabled, let keyboardGeometry else {
-            hide()
-            return []
+        guard requiresReplacement == false, isEnabled, reduceMotion == false,
+              let keyboardGeometry,
+              let motionClipSet
+        else {
+            hideRenderedHands()
+            return currentSuppressedMIDINotes()
         }
-
         if let content {
             attachRootIfNeeded(to: content)
         }
         rootEntity.transform = Transform(matrix: keyboardGeometry.frame.worldFromKeyboard)
-
-        let now = performanceClock.now()
-        let presentationGuide = presentationGuide(
-            current: highlightGuide,
+        let samples = player.samples(
+            clipSet: motionClipSet,
             timing: timing,
-            fingeringPlan: fingeringPlan,
-            keyboardGeometry: keyboardGeometry,
-            at: now
+            at: performanceClock.now()
         )
-        let resolvedCoverage = targetResolver.resolve(
-            highlightGuide: presentationGuide,
-            keyboardGeometry: keyboardGeometry,
-            fingeringPlan: fingeringPlan
-        ).markingUnreachable(occurrenceIDs: unreachableOccurrenceIDs)
-        lastResolvedCoverage = resolvedCoverage
-        let coverage = resolvedCoverage.limitedToAvailableHands(Set(rigs.keys))
-        reduceMotionEnabled = reduceMotion
-        lastCoverage = coverage
-
-        if reduceMotion {
-            resetAllStrokeRuntimes()
-            let unreachableOccurrenceIDs = applyCurrentTargets(at: now)
-            lastCoverage = lastCoverage.markingUnreachable(occurrenceIDs: unreachableOccurrenceIDs)
-            return currentSuppressedMIDINotes()
-        }
-
-        for hand in PianoDemonstrationHand.allCases {
-            let targetsForHand = coverage.coveredTargets(for: hand)
-            updateStrokeRuntime(
-                for: hand,
-                targets: targetsForHand,
-                timing: timing,
-                at: now
-            )
-            let unreachableOccurrenceIDs = applyCurrentTargets(hand: hand, at: now)
-            lastCoverage = lastCoverage.markingUnreachable(occurrenceIDs: unreachableOccurrenceIDs)
-        }
+        apply(samples: samples)
         return currentSuppressedMIDINotes()
     }
 
     func reset() {
         loadTask?.cancel()
         loadTask = nil
-        resetAllStrokeRuntimes()
-        rootEntity.stopAllAnimations()
         for rig in rigs.values {
             rig.hide()
         }
         rigs.removeAll()
+        lastSamples.removeAll()
         activeMIDINotesByHand.removeAll()
         suppressionExpiryByHand.removeAll()
-        lastSubmittedRootTransformByHand.removeAll()
-        lastResolvedCoverage = PianoDemonstrationHandCoverage()
-        lastCoverage = PianoDemonstrationHandCoverage()
-        reduceMotionEnabled = false
-        hasReportedManualTimingFallback = false
         rootEntity.children.removeAll(preservingWorldTransforms: false)
         rootEntity.removeFromParent()
         hasAttachedRoot = false
@@ -161,19 +98,13 @@ final class PianoDemonstrationHandsOverlayController {
                     let rig = try await rigLoader.load(hand: hand)
                     guard Task.isCancelled == false, requiresReplacement == false else { return }
                     install(rig: rig, for: hand)
-                    lastCoverage = lastResolvedCoverage.limitedToAvailableHands(Set(rigs.keys))
-                    let unreachableOccurrenceIDs = applyCurrentTargets(
-                        hand: hand,
-                        at: performanceClock.now()
-                    )
-                    lastCoverage = lastCoverage.markingUnreachable(
-                        occurrenceIDs: unreachableOccurrenceIDs
-                    )
+                    if let sample = lastSamples[hand] {
+                        rig.apply(frame: sample.frame)
+                    }
                 } catch is CancellationError {
                     return
                 } catch {
                     guard Task.isCancelled == false else { return }
-                    lastCoverage = lastResolvedCoverage.limitedToAvailableHands(Set(rigs.keys))
                     diagnosticsReporter?.recordSystem(
                         severity: .error,
                         category: .immersiveSpace,
@@ -192,275 +123,23 @@ final class PianoDemonstrationHandsOverlayController {
         rigs[hand] = rig
     }
 
-    private func presentationGuide(
-        current: PianoHighlightGuide?,
-        timing: PianoDemonstrationHandsTiming,
-        fingeringPlan: PianoFingeringPlanner.Plan?,
-        keyboardGeometry: PianoKeyboardGeometry,
-        at now: PerformanceMonotonicInstant
-    ) -> PianoHighlightGuide? {
-        guard case let .transport(transport) = timing else { return current }
-        let playbackPosition = transport.playbackPosition(at: now)
-        let scheduledEvents = transport.timeSchedule.scheduledCursorEvents
-        let earliestRelevantTime = playbackPosition - PianoDemonstrationStrikeScheduler.maximumPreRollDuration
-        var low = 0
-        var high = scheduledEvents.count
-        while low < high {
-            let middle = (low + high) / 2
-            if scheduledEvents[middle].timeSeconds < earliestRelevantTime {
-                low = middle + 1
-            } else {
-                high = middle
+    private func apply(samples: [PianoHandMotionPlayer.Sample]) {
+        let samplesByHand: [PianoDemonstrationHand: PianoHandMotionPlayer.Sample] = Dictionary(
+            uniqueKeysWithValues: samples.compactMap { sample in
+                guard let hand = PianoDemonstrationHand(scoreHand: sample.hand) else { return nil }
+                return (hand, sample)
             }
-        }
-
-        var activeByOccurrenceID = Dictionary(
-            uniqueKeysWithValues: (current?.activeNotes ?? []).map { ($0.occurrenceID, $0) }
         )
-        var triggeredByOccurrenceID = Dictionary(
-            uniqueKeysWithValues: (current?.triggeredNotes ?? []).map { ($0.occurrenceID, $0) }
-        )
-        var presentationMetadata = current
-        var index = low
-        while index < scheduledEvents.count {
-            let scheduledEvent = scheduledEvents[index]
-            if scheduledEvent.timeSeconds > playbackPosition + PianoDemonstrationStrikeScheduler.maximumPreRollDuration {
-                break
-            }
-            defer { index += 1 }
-            guard case let .guide(guideIndex, _) = scheduledEvent.event,
-                  transport.guides.indices.contains(guideIndex)
-            else {
-                continue
-            }
-            let upcoming = transport.guides[guideIndex]
-            guard upcoming.triggeredNotes.isEmpty == false else { continue }
-            let upcomingCoverage = targetResolver.resolve(
-                highlightGuide: upcoming,
-                keyboardGeometry: keyboardGeometry,
-                fingeringPlan: fingeringPlan
-            )
-            let preparedTargets = upcomingCoverage.coveredTargets.filter { target in
-                guard target.phase == .triggered,
-                      let onsetSeconds = transport.contactTimeline
-                          .contact(forOccurrenceID: target.occurrenceID)?
-                          .onsetSeconds
-                else {
-                    return false
-                }
-                return playbackPosition >= onsetSeconds
-                    - PianoDemonstrationStrikeScheduler.maximumPreRollDuration
-            }
-            guard preparedTargets.isEmpty == false else { continue }
-
-            // A hand cannot prepare the next guide while retaining strike targets from the
-            // previous one. Held notes stay in `activeByOccurrenceID`; only stale attacks go.
-            triggeredByOccurrenceID.removeAll()
-            for target in preparedTargets {
-                guard let note = upcoming.triggeredNotes.first(where: {
-                    $0.occurrenceID == target.occurrenceID
-                }) else {
-                    continue
-                }
-                activeByOccurrenceID[target.occurrenceID] = nil
-                triggeredByOccurrenceID[target.occurrenceID] = note
-                presentationMetadata = upcoming
-            }
-        }
-
-        guard let metadata = presentationMetadata ?? transport.guides.first,
-              activeByOccurrenceID.isEmpty == false || triggeredByOccurrenceID.isEmpty == false
-        else {
-            return current
-        }
-        return PianoHighlightGuide(
-            id: metadata.id,
-            kind: triggeredByOccurrenceID.isEmpty ? metadata.kind : .trigger,
-            tick: metadata.tick,
-            durationTicks: metadata.durationTicks,
-            practiceStepIndex: metadata.practiceStepIndex,
-            activeNotes: activeByOccurrenceID.values.sorted { $0.occurrenceID < $1.occurrenceID },
-            triggeredNotes: triggeredByOccurrenceID.values.sorted { $0.occurrenceID < $1.occurrenceID },
-            releasedMIDINotes: current?.releasedMIDINotes ?? []
-        )
-    }
-
-    private func updateStrokeRuntime(
-        for hand: PianoDemonstrationHand,
-        targets: [PianoDemonstrationHandTarget],
-        timing: PianoDemonstrationHandsTiming,
-        at now: PerformanceMonotonicInstant
-    ) {
-        let triggeredTargets = targets.filter { $0.phase == .triggered }
-        var runtime = strokeRuntime(for: hand)
-        let timingIdentity: StrokeTimingIdentity = switch timing {
-        case .manual: .manual
-        case .transportPending: .transportPending
-        case let .transport(transport): .transport(transport.generation)
-        }
-        if runtime.timingIdentity != timingIdentity {
-            runtime.occurrences.removeAll()
-            runtime.timingIdentity = timingIdentity
-        }
-
-        let handTravelDistance = handTravelDistance(for: hand, targets: triggeredTargets)
-        for target in triggeredTargets where runtime.occurrences[target.occurrenceID] == nil {
-            let schedule: PianoDemonstrationStrikeScheduler.Occurrence?
-            switch timing {
-            case let .transport(transport):
-                schedule = makeTransportOccurrence(
-                    hand: hand,
-                    target: target,
-                    handTravelDistanceMeters: handTravelDistance,
-                    timing: transport
-                )
-            case .transportPending:
-                schedule = nil
-            case .manual:
-                schedule = makeManualOccurrence(
-                    hand: hand,
-                    target: target,
-                    handTravelDistanceMeters: handTravelDistance,
-                    at: now
-                )
-                reportManualTimingIfNeeded(reason: "transportUnavailable")
-            }
-            if let schedule {
-                runtime.occurrences[target.occurrenceID] = .init(target: target, schedule: schedule)
-            }
-        }
-
-        let currentlyPresentedOccurrenceIDs = Set(targets.map(\.occurrenceID))
-        runtime.occurrences = runtime.occurrences.filter { occurrenceID, occurrence in
-            currentlyPresentedOccurrenceIDs.contains(occurrenceID)
-                || strikeScheduler.sample(occurrence.schedule, at: now).isComplete == false
-        }
-        strokeRuntimeByHand[hand] = runtime
-    }
-
-    private func makeTransportOccurrence(
-        hand: PianoDemonstrationHand,
-        target: PianoDemonstrationHandTarget,
-        handTravelDistanceMeters: Float,
-        timing: PianoDemonstrationTransportTiming
-    ) -> PianoDemonstrationStrikeScheduler.Occurrence? {
-        guard let contact = timing.contactTimeline.contact(forOccurrenceID: target.occurrenceID),
-              let onsetSeconds = contact.onsetSeconds,
-              let releaseSeconds = contact.releaseSeconds
-        else {
-            return nil
-        }
-        return PianoDemonstrationStrikeScheduler.Occurrence(
-            id: target.occurrenceID,
-            hand: hand,
-            onset: timing.performanceInstant(atPlaybackSeconds: onsetSeconds),
-            release: timing.performanceInstant(atPlaybackSeconds: max(onsetSeconds, releaseSeconds)),
-            velocity: target.velocity,
-            handTravelDistanceMeters: handTravelDistanceMeters
-        )
-    }
-
-    private func makeManualOccurrence(
-        hand: PianoDemonstrationHand,
-        target: PianoDemonstrationHandTarget,
-        handTravelDistanceMeters: Float,
-        at now: PerformanceMonotonicInstant
-    ) -> PianoDemonstrationStrikeScheduler.Occurrence {
-        let onset = now.advanced(by: strikeScheduler.preRollDuration(
-            velocity: target.velocity,
-            handTravelDistanceMeters: handTravelDistanceMeters
-        ))
-        return PianoDemonstrationStrikeScheduler.Occurrence(
-            id: target.occurrenceID,
-            hand: hand,
-            onset: onset,
-            release: onset,
-            velocity: target.velocity,
-            handTravelDistanceMeters: handTravelDistanceMeters
-        )
-    }
-
-    private func reportManualTimingIfNeeded(reason: String) {
-        guard hasReportedManualTimingFallback == false else { return }
-        hasReportedManualTimingFallback = true
-        diagnosticsReporter?.recordSystem(
-            severity: .warning,
-            category: .immersiveSpace,
-            stage: "pianoDemonstrationHands.timing",
-            summary: "示范手使用未对齐的手动时序",
-            reason: "mode=manual;reason=\(reason)"
-        )
-    }
-
-    private func resetAllStrokeRuntimes() {
-        strokeRuntimeByHand.removeAll()
-    }
-
-    private func strokeRuntime(for hand: PianoDemonstrationHand) -> HandStrokeRuntime {
-        strokeRuntimeByHand[hand] ?? HandStrokeRuntime()
-    }
-
-    @discardableResult
-    private func applyCurrentTargets(
-        hand selectedHand: PianoDemonstrationHand? = nil,
-        at now: PerformanceMonotonicInstant
-    ) -> Set<String> {
-        var unreachableOccurrenceIDs = Set<String>()
-        for hand in PianoDemonstrationHand.allCases where selectedHand == nil || selectedHand == hand {
-            let runtime = strokeRuntime(for: hand)
-            var targetsByOccurrenceID = Dictionary(
-                uniqueKeysWithValues: lastCoverage.coveredTargets(for: hand).map { ($0.occurrenceID, $0) }
-            )
-            for (occurrenceID, occurrence) in runtime.occurrences
-                where targetsByOccurrenceID[occurrenceID] == nil
-                    && strikeScheduler.sample(occurrence.schedule, at: now).isComplete == false
-            {
-                targetsByOccurrenceID[occurrenceID] = occurrence.target
-            }
-            let targetsForHand = targetsByOccurrenceID.values.sorted { $0.occurrenceID < $1.occurrenceID }
-            let strikeProgressByOccurrenceID = Dictionary(
-                uniqueKeysWithValues: runtime.occurrences.map {
-                    ($0.key, strikeScheduler.sample($0.value.schedule, at: now).contactProgress)
-                }
-            )
-            let resolution = poseResolver.resolve(
-                hand: hand,
-                targets: targetsForHand,
-                strikeProgressByOccurrenceID: strikeProgressByOccurrenceID
-            )
-            let failedOccurrenceIDs = Set(resolution.unreachableOccurrences.map(\.occurrenceID))
-            unreachableOccurrenceIDs.formUnion(failedOccurrenceIDs)
-            let submittedTargets = targetsForHand.filter {
-                resolution.reachableOccurrenceIDs.contains($0.occurrenceID)
-            }
-            if let pose = resolution.pose, let rig = rigs[hand] {
-                rig.apply(pose: pose)
-                activeMIDINotesByHand[hand] = Set(submittedTargets.map(\.midiNote))
-                lastSubmittedRootTransformByHand[hand] = pose.rootTransform
-            } else if shouldLift(hand: hand, releasedMIDINotes: lastCoverage.releasedMIDINotes) {
-                rigs[hand]?.lift(animated: reduceMotionEnabled == false)
-                activeMIDINotesByHand[hand] = []
-            } else {
+        lastSamples = samplesByHand
+        for hand in PianoDemonstrationHand.allCases {
+            guard let sample = samplesByHand[hand], let rig = rigs[hand] else {
                 rigs[hand]?.hide()
                 activeMIDINotesByHand[hand] = []
+                continue
             }
+            rig.apply(frame: sample.frame)
+            activeMIDINotesByHand[hand] = sample.activeMIDINotes
         }
-        return unreachableOccurrenceIDs
-    }
-
-    private func handTravelDistance(
-        for hand: PianoDemonstrationHand,
-        targets: [PianoDemonstrationHandTarget]
-    ) -> Float {
-        guard let previousRootTransform = lastSubmittedRootTransformByHand[hand],
-              let nextRootTransform = PianoDemonstrationHandRootPlanner.rootTransform(
-                  for: hand,
-                  targets: targets
-              )
-        else {
-            return 0
-        }
-        return simd_distance(previousRootTransform.translation, nextRootTransform.translation)
     }
 
     private func currentSuppressedMIDINotes() -> Set<Int> {
@@ -476,11 +155,7 @@ final class PianoDemonstrationHandsOverlayController {
                 let remainingExpiryByMIDINote = suppressionExpiryByHand[hand, default: [:]].filter {
                     $0.value > now
                 }
-                if remainingExpiryByMIDINote.isEmpty {
-                    suppressionExpiryByHand[hand] = nil
-                } else {
-                    suppressionExpiryByHand[hand] = remainingExpiryByMIDINote
-                }
+                suppressionExpiryByHand[hand] = remainingExpiryByMIDINote.isEmpty ? nil : remainingExpiryByMIDINote
             }
             if let expiryByMIDINote = suppressionExpiryByHand[hand] {
                 suppressedMIDINotes.formUnion(expiryByMIDINote.keys)
@@ -489,35 +164,27 @@ final class PianoDemonstrationHandsOverlayController {
         return suppressedMIDINotes
     }
 
+    private func hideRenderedHands() {
+        lastSamples.removeAll()
+        activeMIDINotesByHand.removeAll()
+        for rig in rigs.values {
+            rig.hide()
+        }
+    }
+
     private func attachRootIfNeeded(to content: RealityViewContent) {
         guard hasAttachedRoot == false else { return }
         content.add(rootEntity)
         hasAttachedRoot = true
     }
+}
 
-    private func shouldLift(
-        hand: PianoDemonstrationHand,
-        releasedMIDINotes: Set<Int>
-    ) -> Bool {
-        guard let activeMIDINotes = activeMIDINotesByHand[hand], activeMIDINotes.isEmpty == false else {
-            return false
+private extension PianoDemonstrationHand {
+    init?(scoreHand: ScoreHand) {
+        switch scoreHand {
+        case .left: self = .left
+        case .right: self = .right
+        case .unknown: return nil
         }
-        return activeMIDINotes.isDisjoint(with: releasedMIDINotes) == false
-    }
-
-    private func hide() {
-        resetAllStrokeRuntimes()
-        for rig in rigs.values {
-            rig.hide()
-        }
-        activeMIDINotesByHand.removeAll()
-        suppressionExpiryByHand.removeAll()
-        lastSubmittedRootTransformByHand.removeAll()
-        lastResolvedCoverage = PianoDemonstrationHandCoverage()
-        lastCoverage = PianoDemonstrationHandCoverage()
-        reduceMotionEnabled = false
-        hasReportedManualTimingFallback = false
-        rootEntity.removeFromParent()
-        hasAttachedRoot = false
     }
 }

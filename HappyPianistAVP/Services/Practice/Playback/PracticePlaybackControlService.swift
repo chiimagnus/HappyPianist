@@ -27,6 +27,8 @@ final class PracticePlaybackControlService {
     private var autoplayTimeSchedule: AutoplayTimelineTimeSchedule?
     private var autoplayContactTimeline: PianoKeyContactTimeline?
     private var autoplayGuideSnapshot: [PianoHighlightGuide]?
+    private var isAutoplayPaused = false
+    private var autoplayPlaybackRate = 1.0
     private var hasShutdown = false
     var onPianoDemonstrationContactTimelineChange: ((Int?, PianoKeyContactTimeline?) -> Void)?
 
@@ -85,6 +87,8 @@ final class PracticePlaybackControlService {
             generation: autoplayTaskGeneration,
             playbackPositionSeconds: playbackPositionSeconds,
             capturedAt: capturedAt,
+            isPaused: isAutoplayPaused,
+            playbackRate: autoplayPlaybackRate,
             timeSchedule: timeSchedule,
             contactTimeline: contactTimeline,
             guides: guides
@@ -114,6 +118,38 @@ final class PracticePlaybackControlService {
         } else {
             stateStore.autoplayState = .off
             stopAutoplayTask()
+        }
+    }
+
+    func pauseAutoplay() async {
+        guard stateStore.autoplayState == .playing,
+              autoplayTask != nil,
+              isAutoplayPaused == false
+        else {
+            return
+        }
+        recordPlaybackPosition(await sequencerPlaybackService.currentSeconds())
+        await sequencerPlaybackService.pause()
+        isAutoplayPaused = true
+    }
+
+    func resumeAutoplay() async throws {
+        guard stateStore.autoplayState == .playing,
+              autoplayTask != nil,
+              isAutoplayPaused
+        else {
+            return
+        }
+        try await sequencerPlaybackService.resume()
+        recordPlaybackPosition(await sequencerPlaybackService.currentSeconds())
+        isAutoplayPaused = false
+    }
+
+    func setAutoplayPlaybackRate(_ rate: Double) async throws {
+        try await sequencerPlaybackService.setPlaybackRate(rate)
+        autoplayPlaybackRate = rate
+        if stateStore.autoplayState == .playing, autoplayTask != nil {
+            recordPlaybackPosition(await sequencerPlaybackService.currentSeconds())
         }
     }
 
@@ -264,6 +300,7 @@ final class PracticePlaybackControlService {
         autoplayTimeSchedule = nil
         autoplayContactTimeline = nil
         autoplayGuideSnapshot = nil
+        isAutoplayPaused = false
         onPianoDemonstrationContactTimelineChange?(nil, nil)
 
         stateStore.autoplayTimingBaseTick = nil
@@ -489,6 +526,7 @@ final class PracticePlaybackControlService {
 
         do {
             try await sequencerPlaybackService.load(sequence: sequence)
+            try await sequencerPlaybackService.setPlaybackRate(autoplayPlaybackRate)
             try await sequencerPlaybackService.play(fromSeconds: 0)
             requiresResetBeforeLoad = true
             autoplayTimeSchedule = timeSchedule
@@ -517,6 +555,11 @@ final class PracticePlaybackControlService {
         while Task.isCancelled == false, autoplayTaskGeneration == generation {
             guard stateStore.autoplayState == .playing else { break }
             guard case .guiding = stateStore.state else { break }
+
+            if isAutoplayPaused {
+                try? await sleeper.sleep(for: .milliseconds(33))
+                continue
+            }
 
             let nowSeconds = await sequencerPlaybackService.currentSeconds()
             recordPlaybackPosition(nowSeconds)
