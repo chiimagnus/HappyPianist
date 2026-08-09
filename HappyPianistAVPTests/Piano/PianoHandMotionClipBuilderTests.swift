@@ -21,10 +21,10 @@ func builderCreatesOneDeterministicClipPerPlannedHandOffMain() async throws {
             .init(occurrenceID: "right-next", resolution: .planned(hand: .right, finger: 2, source: .planned)),
         ]),
         keyboardLayout: .init(keys: [
-            .init(midiNote: 48, contactPositionLocal: [-0.10, 0, -0.07]),
-            .init(midiNote: 60, contactPositionLocal: [0.10, 0, -0.07]),
-            .init(midiNote: 61, contactPositionLocal: [0.11, 0, -0.07]),
-            .init(midiNote: 62, contactPositionLocal: [0.12, 0, -0.07]),
+            key(midiNote: 48, position: [-0.10, 0, -0.07]),
+            key(midiNote: 60, position: [0.10, 0, -0.07]),
+            key(midiNote: 61, position: [0.11, 0, -0.07]),
+            key(midiNote: 62, position: [0.12, 0, -0.07]),
         ]),
         scoreRevision: "test-score"
     )
@@ -58,8 +58,8 @@ func builderRejectsAnImpossibleHandPoseInsteadOfClampingIt() throws {
             .init(occurrenceID: "high", resolution: .planned(hand: .right, finger: 2, source: .planned)),
         ]),
         keyboardLayout: .init(keys: [
-            .init(midiNote: 48, contactPositionLocal: [-0.20, 0, -0.07]),
-            .init(midiNote: 72, contactPositionLocal: [0.20, 0, -0.07]),
+            key(midiNote: 48, position: [-0.20, 0, -0.07]),
+            key(midiNote: 72, position: [0.20, 0, -0.07]),
         ]),
         scoreRevision: "test-score"
     ))
@@ -82,9 +82,9 @@ func builderRejectsAHandPoseThatWouldExceedJointVelocityLimit() throws {
             .init(occurrenceID: "next-thumb", resolution: .planned(hand: .right, finger: 1, source: .planned)),
         ]),
         keyboardLayout: .init(keys: [
-            .init(midiNote: 60, contactPositionLocal: [0, 0, -0.07]),
-            .init(midiNote: 61, contactPositionLocal: [-0.10, 0, -0.07]),
-            .init(midiNote: 62, contactPositionLocal: [0.08, 0, -0.07]),
+            key(midiNote: 60, position: [0, 0, -0.07]),
+            key(midiNote: 61, position: [-0.10, 0, -0.07]),
+            key(midiNote: 62, position: [0.08, 0, -0.07]),
         ]),
         scoreRevision: "test-score"
     ))
@@ -105,8 +105,8 @@ func builderRejectsWristTravelThatCannotFinishBeforeTheNextOnset() throws {
             .init(occurrenceID: "far", resolution: .planned(hand: .right, finger: 1, source: .planned)),
         ]),
         keyboardLayout: .init(keys: [
-            .init(midiNote: 60, contactPositionLocal: [0, 0, -0.07]),
-            .init(midiNote: 72, contactPositionLocal: [0.60, 0, -0.07]),
+            key(midiNote: 60, position: [0, 0, -0.07]),
+            key(midiNote: 72, position: [0.60, 0, -0.07]),
         ]),
         scoreRevision: "test-score"
     ))
@@ -138,14 +138,71 @@ func builderRejectsAmbiguousKeyboardGeometry() throws {
             .init(occurrenceID: "ambiguous", resolution: .planned(hand: .right, finger: 1, source: .planned)),
         ]),
         keyboardLayout: .init(keys: [
-            .init(midiNote: 60, contactPositionLocal: [0.10, 0, -0.07]),
-            .init(midiNote: 60, contactPositionLocal: [0.12, 0, -0.07]),
+            key(midiNote: 60, position: [0.10, 0, -0.07]),
+            key(midiNote: 60, position: [0.12, 0, -0.07]),
         ]),
         scoreRevision: "test-score"
     ))
 
     #expect(result.clips.isEmpty)
     #expect(result.rejectedOccurrenceIDs == ["ambiguous"])
+}
+
+@Test
+func builderRejectsAChordWhoseFingerCapsulesIntersect() throws {
+    let result = try PianoHandMotionClipBuilder().build(input: .init(
+        contacts: PianoKeyContactTimeline(contacts: [
+            contact(id: "first", midiNote: 60, onset: 0),
+            contact(id: "second", midiNote: 61, onset: 0),
+        ]),
+        fingeringPlan: PianoFingeringPlanner.Plan(results: [
+            .init(occurrenceID: "first", resolution: .planned(hand: .right, finger: 2, source: .planned)),
+            .init(occurrenceID: "second", resolution: .planned(hand: .right, finger: 3, source: .planned)),
+        ]),
+        keyboardLayout: .init(keys: [
+            key(midiNote: 60, position: [0, 0, -0.07], topSurfaceSizeLocal: [0.002, 0.160]),
+            key(midiNote: 61, position: [0.001, 0, -0.07], topSurfaceSizeLocal: [0.002, 0.160]),
+        ]),
+        scoreRevision: "test-score"
+    ))
+
+    #expect(result.clips.isEmpty)
+    #expect(result.rejectedOccurrenceIDs == ["first", "second"])
+}
+
+@Test
+func builderRejectsAContactThatPenetratesPastTheKeySurfaceAllowance() throws {
+    let result = try PianoHandMotionClipBuilder().build(input: .init(
+        contacts: PianoKeyContactTimeline(contacts: [contact(id: "sunken", midiNote: 60, onset: 0)]),
+        fingeringPlan: PianoFingeringPlanner.Plan(results: [
+            .init(occurrenceID: "sunken", resolution: .planned(hand: .right, finger: 2, source: .planned)),
+        ]),
+        keyboardLayout: .init(keys: [
+            key(midiNote: 60, position: [0, -0.004, -0.07], surfaceLocalY: 0),
+        ]),
+        scoreRevision: "test-score"
+    ))
+
+    #expect(result.clips.isEmpty)
+    #expect(result.rejectedOccurrenceIDs == ["sunken"])
+}
+
+@Test
+func builderLiftsThePalmByOnlyTheRequiredKeyboardClearance() throws {
+    let result = try PianoHandMotionClipBuilder().build(input: .init(
+        contacts: PianoKeyContactTimeline(contacts: [contact(id: "target", midiNote: 60, onset: 0)]),
+        fingeringPlan: PianoFingeringPlanner.Plan(results: [
+            .init(occurrenceID: "target", resolution: .planned(hand: .right, finger: 2, source: .planned)),
+        ]),
+        keyboardLayout: .init(keys: [
+            key(midiNote: 60, position: [0, 0, -0.07], topSurfaceSizeLocal: [0.010, 0.010]),
+            key(midiNote: 61, position: [0.015, 0.031, -0.030], topSurfaceSizeLocal: [0.010, 0.010]),
+        ]),
+        scoreRevision: "test-score"
+    ))
+
+    #expect(result.rejectedOccurrenceIDs.isEmpty)
+    #expect(result.clips[0].frames[0].rootTransform.translation.y > 0.045)
 }
 
 private func contact(
@@ -164,5 +221,19 @@ private func contact(
         stepIndex: nil,
         carriedIn: false,
         timing: .scheduled(onsetSeconds: onset, releaseSeconds: onset + 0.1)
+    )
+}
+
+private func key(
+    midiNote: Int,
+    position: SIMD3<Float>,
+    surfaceLocalY: Float? = nil,
+    topSurfaceSizeLocal: SIMD2<Float> = [0.022, 0.160]
+) -> PianoHandMotionClipBuilder.KeyboardLayout.Key {
+    .init(
+        midiNote: midiNote,
+        contactPositionLocal: position,
+        surfaceLocalY: surfaceLocalY ?? position.y,
+        topSurfaceSizeLocal: topSurfaceSizeLocal
     )
 }
