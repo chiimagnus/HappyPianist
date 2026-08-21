@@ -151,13 +151,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A10100000000000000000002 /* Diagnostics in Frameworks */,
-				A10200000000000000000002 /* MusicXML in Frameworks */,
 				A10200000000000000000003 /* HappyPianistTestFixtures in Frameworks */,
-				A10300000000000000000002 /* MIDI in Frameworks */,
-				A10400000000000000000002 /* Practice in Frameworks */,
-				A10500000000000000000002 /* Notation in Frameworks */,
-				A10600000000000000000002 /* Library in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
