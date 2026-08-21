@@ -195,6 +195,90 @@ func skipDoesNotLetCancelledAutoplayTaskClearNewTaskReference() async {
 
 @Test
 @MainActor
+func pianoDemonstrationHandsTimingDoesNotLeakTransportAcrossRestart() async {
+    let quarter = MusicXMLTempoMap.ticksPerQuarter
+    let playbackService = CapturingSequencerPlaybackService()
+    let viewModel = PracticeSessionViewModel(
+        chordAttemptAccumulator: NoopChordAttemptAccumulator(),
+        sleeper: TaskSleeper(),
+        sequencerPlaybackService: playbackService
+    )
+    viewModel.installTestPerformanceNotes(
+        [
+            TestScorePerformanceNote(midiNote: 60, onTick: 0, offTick: quarter),
+            TestScorePerformanceNote(midiNote: 62, onTick: quarter, offTick: quarter * 2),
+        ],
+        highlightGuides: [
+            makeHighlightGuide(id: 1, kind: .trigger, tick: 0, practiceStepIndex: 0, midiNotes: [60]),
+            makeHighlightGuide(id: 2, kind: .trigger, tick: quarter, practiceStepIndex: 1, midiNotes: [62]),
+        ]
+    )
+    viewModel.applyVirtualKeyboardGeometry(makeFingeringKeyboardGeometry(notes: [60, 62]))
+    await waitUntil("manual motion clip for restart") {
+        viewModel.pianoDemonstrationMotionClipSet?.transportGeneration == nil
+    }
+
+    guard case .manual = viewModel.pianoDemonstrationHandsTiming() else {
+        Issue.record("inactive session must not expose a transport")
+        return
+    }
+
+    viewModel.setAutoplayEnabled(true)
+    viewModel.startGuidingIfReady()
+
+    guard case .transportPending = viewModel.pianoDemonstrationHandsTiming() else {
+        Issue.record("autoplay must not expose timing before its schedule is loaded")
+        return
+    }
+
+    await waitUntil("initial demonstration transport") {
+        playbackService.loadedSequences.count == 1
+    }
+    let initialTiming: PianoDemonstrationTransportTiming
+    switch viewModel.pianoDemonstrationHandsTiming() {
+    case let .transport(timing):
+        initialTiming = timing
+    case .manual, .transportPending:
+        Issue.record("loaded autoplay must expose its current transport")
+        return
+    }
+    #expect(initialTiming.contactTimeline.contacts.map(\.midiNote) == [60, 62])
+    #expect(initialTiming.contactTimeline.contacts.allSatisfy {
+        $0.onsetSeconds != nil && $0.releaseSeconds != nil && $0.carriedIn == false
+    })
+    await waitUntil("initial demonstration motion clip") {
+        viewModel.pianoDemonstrationMotionClipSet?.transportGeneration == initialTiming.generation
+    }
+    #expect(viewModel.pianoDemonstrationMotionClipSet?.rejectedOccurrenceIDs.isEmpty == true)
+
+    viewModel.skip()
+    await waitUntil("replacement demonstration transport") {
+        playbackService.loadedSequences.count == 2
+    }
+    switch viewModel.pianoDemonstrationHandsTiming() {
+    case let .transport(replacement):
+        #expect(replacement.generation > initialTiming.generation)
+        #expect(replacement.playbackPositionSeconds == 0)
+        #expect(replacement.contactTimeline.contacts.map(\.midiNote) == [62])
+    case .manual, .transportPending:
+        Issue.record("restart must replace, not retain, demonstration timing")
+    }
+    await waitUntil("replacement demonstration motion clip") {
+        guard case let .transport(timing) = viewModel.pianoDemonstrationHandsTiming() else { return false }
+        return viewModel.pianoDemonstrationMotionClipSet?.transportGeneration == timing.generation
+    }
+
+    viewModel.setAutoplayEnabled(false)
+    guard case .manual = viewModel.pianoDemonstrationHandsTiming() else {
+        Issue.record("stopped autoplay must not expose its cancelled transport")
+        return
+    }
+    #expect(viewModel.pianoDemonstrationMotionClipSet == nil)
+    viewModel.shutdown()
+}
+
+@Test
+@MainActor
 func markCorrectSchedulesFeedbackResetWithExpectedDuration() async {
     let sleeper = ControllableSleeper()
     let viewModel = makePracticeSessionViewModel(
@@ -1583,6 +1667,28 @@ private func makeDummyKeyboardGeometry() -> PianoKeyboardGeometry {
         planeHeight: 0.0
     )!
     return PianoKeyboardGeometry(frame: frame, keys: [])
+}
+
+private func makeFingeringKeyboardGeometry(notes: [Int]) -> PianoKeyboardGeometry {
+    let frame = KeyboardFrame(
+        a0World: SIMD3<Float>(0.0, 0.0, 0.0),
+        c8World: SIMD3<Float>(1.0, 0.0, 0.0),
+        planeHeight: 0.0
+    )!
+    let keys = notes.enumerated().map { index, midiNote in
+        PianoKeyGeometry(
+            midiNote: midiNote,
+            kind: .white,
+            localCenter: SIMD3<Float>(Float(index) * 0.024, -0.015, -0.07),
+            localSize: SIMD3<Float>(0.022, 0.03, 0.14),
+            surfaceLocalY: 0,
+            hitCenterLocal: SIMD3<Float>(Float(index) * 0.024, -0.015, -0.07),
+            hitSizeLocal: SIMD3<Float>(0.022, 0.03, 0.14),
+            beamFootprintCenterLocal: SIMD3<Float>(Float(index) * 0.024, 0, -0.07),
+            beamFootprintSizeLocal: SIMD2<Float>(0.022, 0.14)
+        )
+    }
+    return PianoKeyboardGeometry(frame: frame, keys: keys)
 }
 
 @Test

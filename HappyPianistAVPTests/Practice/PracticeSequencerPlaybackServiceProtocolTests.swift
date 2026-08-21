@@ -181,6 +181,27 @@ func engineSequenceAndRenderFailuresKeepTheirStructuredOperation() async throws 
 }
 
 @Test
+func localSamplerPauseResumeAndPlaybackRateUseTheSameSequencer() async throws {
+    let output = FakePerformanceOutput(capabilities: .localSampler)
+    let service = AVAudioSequencerPracticePlaybackService(
+        soundFontResourceName: "TestSoundFont",
+        platform: output.makeAudioPlatform()
+    )
+    try await service.load(sequence: emptyPracticeSequence())
+
+    try await service.setPlaybackRate(1.5)
+    try await service.play(fromSeconds: 0)
+    await service.pause()
+    try await service.resume()
+
+    #expect(output.audioOperationCount(.sequenceStart) == 2)
+    #expect(output.audioEntriesSnapshot().contains(.sequenceStopped))
+    await #expect(throws: PracticePlaybackRateError.invalidRate) {
+        try await service.setPlaybackRate(2.1)
+    }
+}
+
+@Test
 func stopAttemptsEveryResetCommandAndPublishesResetFailure() async throws {
     let output = FakePerformanceOutput(capabilities: .localSampler)
     output.setFailingAudioControllers([64])

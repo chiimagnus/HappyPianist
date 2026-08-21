@@ -2,20 +2,21 @@
 
 [English](./README.en.md) | 中文
 
-HappyPianist 是一个钢琴练习应用。
+HappyPianist 是面向 Apple Vision Pro 的空间钢琴练习应用：将 MusicXML 转为练习、记谱和空间引导，支持麦克风、蓝牙 MIDI 与虚拟钢琴输入。
 
 ![scene](docs/assets/scene1.jpg)
 
 ## 快速开始
 
 ```bash
-make build      # visionOS Simulator
-make test       # visionOS Simulator tests
-make build:mac  # 独立 macOS MusicXML/MIDI/曲目音频 host
-make test:mac   # macOS host tests
+make doctor
+make build
+make test
+make build:mac
+make test:mac
 ```
 
-共享 Swift package 可单独验证：`swift test --package-path Packages/HappyPianistCore`。运行边界、数据契约和硬件证据见[项目概览](docs/overview.md)。
+共享核心可单独验证：`swift test --package-path Packages/HappyPianistCore`。架构、数据契约和验证入口见[项目概览](docs/overview.md)。
 
 ## 致谢
 

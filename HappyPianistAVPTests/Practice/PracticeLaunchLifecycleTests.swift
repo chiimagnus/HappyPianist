@@ -200,8 +200,8 @@ private final class MainActorTestGate {
     }
 
     func waitUntilEntered() async {
-        while hasEntered == false {
-            await Task.yield()
+        await TestAsyncWait.until("scene operation entry") { @MainActor [self] in
+            self.hasEntered
         }
     }
 

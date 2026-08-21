@@ -68,6 +68,12 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
     @ObservationIgnored var hasRegisteredHandCapabilities = false
     @ObservationIgnored var autoplayTimelineBuildTask: Task<Void, Never>?
     @ObservationIgnored var autoplayTimelineBuildGeneration = 0
+    @ObservationIgnored var pianoDemonstrationFingeringPlanTask: Task<Void, Never>?
+    @ObservationIgnored var pianoDemonstrationFingeringPlanGeneration = 0
+    private(set) var pianoDemonstrationFingeringPlan: PianoDemonstrationFingeringPlan?
+    @ObservationIgnored var pianoHandMotionClipBuildTask: Task<Void, Never>?
+    @ObservationIgnored var pianoHandMotionClipBuildGeneration = 0
+    private(set) var pianoDemonstrationMotionClipSet: PianoDemonstrationMotionClipSet?
 
     var practiceHandMode: PracticeHandMode {
         stateStore.activeRoundConfiguration?.handMode ?? .both
@@ -156,6 +162,17 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
             leadInSeconds: autoplayTimingLeadInSeconds,
             diagnosticsReporter: diagnosticsReporter
         )
+        playbackControlService?.onPianoDemonstrationContactTimelineChange = { [weak self] generation, contacts in
+            guard let self else { return }
+            guard let generation, let contacts else {
+                self.cancelPianoDemonstrationFingeringPlan()
+                return
+            }
+            self.startPianoDemonstrationFingeringPlan(
+                contacts: contacts,
+                transportGeneration: generation
+            )
+        }
 
         manualReplayService = PracticeManualReplayService(
             sleeper: sleeper,
@@ -203,6 +220,18 @@ final class PracticeSessionViewModel: PracticeSessionEffectHandlerProtocol {
         manualReplayService?.shutdown()
         handGateController?.shutdown()
         virtualPianoInputController?.shutdown()
+    }
+
+    func replacePianoDemonstrationFingeringPlan(
+        _ plan: PianoDemonstrationFingeringPlan?
+    ) {
+        pianoDemonstrationFingeringPlan = plan
+    }
+
+    func replacePianoDemonstrationMotionClipSet(
+        _ clipSet: PianoDemonstrationMotionClipSet?
+    ) {
+        pianoDemonstrationMotionClipSet = clipSet
     }
 
     func setGuidingStartBlocked(_ isBlocked: Bool) {

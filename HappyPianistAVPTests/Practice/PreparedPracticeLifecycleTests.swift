@@ -437,8 +437,8 @@ private actor SuspendedLifecycleProgressRepository: PracticeProgressRepositoryPr
     }
 
     func waitForRequest(identity: PracticeSongIdentity) async {
-        while continuations[identity] == nil {
-            await Task.yield()
+        await TestAsyncWait.until("lifecycle progress request for \(identity)") { [self] in
+            self.continuations[identity] != nil
         }
     }
 
@@ -523,8 +523,8 @@ private actor FirstSuspendedLifecycleProgressRepository: PracticeProgressReposit
     }
 
     func waitForFirstRequest() async {
-        while firstContinuation == nil {
-            await Task.yield()
+        await TestAsyncWait.until("first lifecycle progress request") { [self] in
+            self.firstContinuation != nil
         }
     }
 

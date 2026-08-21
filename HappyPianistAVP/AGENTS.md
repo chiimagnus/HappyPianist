@@ -1,293 +1,33 @@
 # visionOS 开发补充规范
 
-本目录是 visionOS（Apple Vision Pro）端原型工程。
+本目录是 Apple Vision Pro App；测试在 `HappyPianistAVPTests/`，空间资产在 `Packages/RealityKitContent/`。本规范只记录 visionOS 增量约束；通用 Swift、架构、测试和文档规则以根 `AGENTS.md` 为准。
 
-- App 代码：`HappyPianistAVP/`（RealityKit / ImmersiveSpace）
-- 测试：`HappyPianistAVPTests/`（Swift Testing）
-- 资源包/内容包：`Packages/RealityKitContent/`
-- 当前工程目标随项目设置为 visionOS 26.0。
+修改 visionOS/RealityKit/ARKit API 前，先使用 Apple-docs skill 核对当前 SDK。不要在这里复制 Apple 组件目录、可漂移的 API 清单或通用示例代码。
 
-本文件专注 visionOS 平台本身（空间 UI / RealityKit / ARKit 世界感知等）的差异与增量规则：
+## SwiftUI 与窗口
 
-- SwiftUI 的 visionOS 窗口/空间 UI 约定（Window / Volumetric / Ornament 等）
-- RealityKit / RealityView / ECS 的使用边界与常见模式
-- visionOS 上 ARKit 世界感知能力的可用性/授权/Provider 选择
-- 与舒适性相关的性能底线（避免掉帧/阻塞）
+- 每个 `WindowGroup` 具有明确且不冲突的 id。`pushWindow` 只用于单层前进/返回：来源窗口会在后台保留，且 pushed window 不能再次 push。
+- 标准底部按钮条使用 `ToolbarItemGroup(placement: .bottomOrnament)`；右侧随主窗口移动的面板使用 trailing `.ornament`。独立 `Window` 的 placement 只决定初始位置，不能充当持续贴附。
+- 窗口 chrome 不塞进 content；标准控件保留系统 glass、hover 与按钮样式。自定义交互必须提供 hover，玻璃背景只在面板最外层添加一次。
+- visionOS 没有固定“屏幕”：不使用 `UIScreen.main.bounds`。只有布局确实需要实际尺寸时才读取 geometry，优先 `onGeometryChange` 或容器 API。
 
-## 技术栈
-- **语言:** 遵循项目的 Swift 版本与并发（Swift Concurrency）设置。
-- **UI 框架:** SwiftUI 为主；仅在用户明确要求时才使用 UIKit。
-- **3D 引擎:** RealityKit（Entity Component System, ECS）。
-- 务必多加调用 Apple-docs skill，如果本规范存在问题，以apple-docs skill调研得到的内容为准，并且需要更新本文档。
+## RealityKit 与并发
 
-## 编码规范
+- 所有 3D 内容经 `RealityView` 进入场景；资产异步加载并处理失败，主 Actor 不做解析、文件 I/O 或重计算。
+- 组合 Component，不用继承；可拖拽实体同时配置 `CollisionComponent` 与 `InputTargetComponent`。2D 交互用 SwiftUI，3D 交互用 entity-targeted gesture。
+- 持续且复杂的空间逻辑放进自定义 `System`，不塞进 `RealityView.update`。在 update 外创建加载/动作任务，teardown 必须取消它们并拒绝迟到结果。
+- 仅当系统默认效果不足时添加 hover；不用 `ARView`、原始 gaze 坐标或不必要的 visionOS 条件编译。
 
-### 1. SwiftUI 与窗口管理
-- **WindowGroups:** 在 `App` struct 里为每个 `WindowGroup` 明确且互不冲突地定义 `id`。
-- **底部 Toolbar Ornament:** 窗口下方的标准按钮组使用 `.toolbar { ToolbarItemGroup(placement: .bottomOrnament) { ... } }`，由系统管理布局、玻璃与交互反馈；不要用 `.ornament(attachmentAnchor: .scene(.bottom))` 手工仿制。
-- **自定义 Ornament:** 右侧设置、进度概览等任意自定义面板使用 `.ornament(attachmentAnchor: .scene(.trailing), contentAlignment: .leading)`；它不是 toolbar。需要与主窗口等高时用 `onGeometryChange` 跟随窗口实际高度，玻璃背景只由最外层面板添加一次。
-- **窗口外壳:** 属于窗口 chrome/外壳的按钮不要直接塞进 window content。当前练习窗口底部按钮条采用 Toolbar Ornament，练习与 Library 右侧面板采用 trailing custom ornament。
-- **玻璃背景:** 优先使用系统默认玻璃背景；需要时使用 `.glassBackgroundEffect()`。
-- **Hover Effects:** 标准 SwiftUI `Button` 使用系统样式时已有默认 hover，无需重复添加 `.hoverEffect()`；自定义交互控件必须确保有 hover 反馈，仅在系统未提供时显式添加。
-- **按钮样式:** 无特殊形态需求时使用系统默认按钮边框；仅在圆形图标按钮、胶囊选择器等形态本身承载语义时设置 `.buttonBorderShape()`。
-- **“屏幕”幻觉:** 不要用 `UIScreen.main.bounds`。visionOS 没有“屏幕”。用 `GeometryReader` 或 `GeometryReader3D`。
-- 使用 `pushWindow` 前必须核对完整窗口流：它会后台保留来源窗口、让目标窗口继承来源窗口尺寸；关闭目标才恢复来源，且不能从已 pushed 的窗口再次 push。仅用于真正的单层“前进／返回”窗口栈，不能拿它修补关闭窗口导致 app 退出的问题。
-- 需要始终贴附在主窗口旁、随主窗口移动的自定义面板，使用 `.ornament`；独立 `Window` 加 `defaultWindowPlacement(.trailing(...))` 只决定首次位置，之后系统允许用户移动和调整，不能作为持久贴附行为。
+## 本项目的手部与示范手边界
 
-### 2. RealityKit 与 ECS（Entity Component System）
-- **RealityView:** 所有 3D 内容集成都使用 `RealityView`。
-  ```swift
-  RealityView { content in
-      // 在这里加载并添加实体entities
-      if let model = try? await Entity(named: "Scene") {
-          content.add(model)
-      }
-  } update: { content in
-      // 基于 SwiftUI 状态变化的更新逻辑
-  }
-  ```
-- **Attachments:** 在 `RealityView` 中使用 `Attachment` 将 SwiftUI 视图嵌入 3D 空间。
-- **异步加载:** 资源必须异步加载（例如 `let entity = try? await Entity(named: "MyEntity")`、`async let textureA = try? TextureResource(named: "textureA.jpg")`），避免阻塞主线程。
-- **Components:** 组合优于继承。自定义组件应实现 `Component` 与 `Codable`。
-- **可拖拽实体:** 必须同时具备 `CollisionComponent` 和 `InputTargetComponent`。
-  ```swift
-  entity.components.set(CollisionComponent(shapes: [.generateBox(size: [0.1, 0.1, 0.1])]))
-  entity.components.set(InputTargetComponent())
-  ```
-- **Mesh 资源:** 默认仅生成：`box`、`sphere`、`plane`、`cylinder`、`cone`。唯一例外是 `HandVisualization` 的固定容量 `LowLevelMesh`：它只更新荧光手套的既定顶点，不能在 `RealityView.update` 分配网格、加入资产/纹理，或把手部数据传出渲染边界。`PianoDemonstrationHandsOverlayController` 只异步加载 RealityKitContent 中 Blender 生成的 21 关节左右手资产，不保留基础 mesh fallback；它不读 ARKit、不使用 `LowLevelMesh`、不含输入/碰撞组件，加载与动作任务必须在 update 之外创建，reset 必须取消任务并移除所有子实体。
+- `HandVisualization` 可以使用固定容量 `LowLevelMesh` 更新既定荧光手套顶点；`RealityView.update` 不得分配网格、加载资产/纹理或把手部数据泄漏出渲染边界。
+- `PianoDemonstrationHandsOverlayController` 仅异步加载 RealityKitContent 中 Blender 生成的 21 关节左右手资产；它不读 ARKit、不使用 `LowLevelMesh`，也不含输入或碰撞组件。
+- 左右手和每个 occurrence 的时序独立；update 只按注入时钟采样已有状态。资产、coverage 或接触质量失败时仅回退对应键面贴片，不得静默隐藏引导。
+- reset、scene suspend 和退出取消加载/动作、移除 root，并阻止迟到加载恢复渲染。示范手永不参与 AR 输入、练习判定或 progress。
 
-### 3. 交互与输入
-- **手势:**
-  - **2D:** 标准 SwiftUI 手势可用于 Window。
-  - **3D:** 使用面向实体的 `.gesture(...)`（targeted to entities）。
+## ARKit
 
-### 4. 并发与线程
-- **主线程/主 Actor:** 严禁在主线程做阻塞操作；掉帧会引发眩晕不适。重型物理/数据处理要明确移出主 actor。
-- **Task 管理:** 不要滥用 `Task.detached`。在 teardown 时取消长生命周期任务。
-
-### 5. 进阶空间架构
-- **基于 System 的逻辑:** 对于复杂且持续运行的行为（AI、物理、群集等），不要塞进 SwiftUI 的 `RealityView` update 闭包里。应实现自定义 `System` 并注册。
-
-### 6. ARKit 与世界感知
-- **仅 Full Space:** 只有当 app 处于 `Full Space` 时，ARKit 数据才可用。在 Shared Space（Windows/Volumes）里不可用。
-- **Session 管理:** 使用 `ARKitSession` 管理 data providers，并保持对 session 的强引用。
-- **Provider 生命周期:** `ARKitSession.stop()` 后的 data provider 不得再次传给 `run(_:)`。每次重启都创建一组新的 session/providers，且异步任务只操作自己启动时捕获的那一代原生句柄，避免旧任务停止新会话。
-- **授权:**
-  - 只为“确实会访问的 ARKit 数据类型”添加对应的 usage descriptions:
-    - `NSHandsTrackingUsageDescription`: 当你使用 hand tracking 时才需要。
-    - `NSWorldSensingUsageDescription`: 只有当你使用 image tracking / plane detection / scene reconstruction 时才需要。
-  - World *tracking*（例如 `WorldTrackingProvider`）不需要 world-sensing 授权。除非真的需要 world-sensing 数据，否则不要请求这类权限。
-  - `NSCameraUsageDescription` / `NSMainCameraUsageDescription` 用于 camera access（例如 `ARKitSession.AuthorizationType.cameraAccess` / camera frame 相关能力）。除非你确实要请求 camera access，否则不要添加。
-  - 优雅处理授权（例如检查 `await session.requestAuthorization(for:)` 的结果）。
-- **Data Providers:**
-  - `WorldTrackingProvider`: 用于 device pose 与 world anchors。
-  - `PlaneDetectionProvider`: 用于检测桌面/地面/墙等平面。
-  - `SceneReconstructionProvider`: 用于环境网格与遮挡（meshing/occlusion）。
-  - `HandTrackingProvider`: 用于手部追踪；标准 ARKit hand tracking 通过 `NSHandsTrackingUsageDescription` 请求用户授权，不添加企业 entitlement。荧光手套保持 `.mixed` 透视与系统手部可见；追踪缺失/拒绝时仅隐藏。Simulator 的合成姿态只能留在 `HandVisualization` 的条件编译渲染路径，绝不进入 ARKit service、练习输入、持久化或诊断。
-- **Anchors:** 使用 ARKit anchor 的 `UUID` 来关联 RealityKit entities。
- 
-## RealityKit 组件参考
-
-### 渲染与外观
-| Component | 说明 |
-|-----------|------|
-| `ModelComponent` | 包含实体外观所需的 mesh 与 materials |
-| `ModelSortGroupComponent` | 配置实体 model 的渲染顺序 |
-| `OpacityComponent` | 控制实体及其子实体的不透明度 |
-| `AdaptiveResolutionComponent` | 基于观察距离自适应分辨率 |
-| `ModelDebugOptionsComponent` | 为 model 启用调试可视化选项 |
-| `MeshInstancesComponent` | 高效渲染多种唯一变体的资产 |
-| `BlendShapeWeightsComponent` | 控制 blend shape（morph target）权重 |
-
-### 用户交互
-| Component | 说明 |
-|-----------|------|
-| `InputTargetComponent` | 让实体可接收输入事件（手势必需） |
-| `ManipulationComponent` | 提供更流畅、沉浸的交互操控行为与效果 |
-| `GestureComponent` | 处理实体的手势识别 |
-| `HoverEffectComponent` | 用户注视/聚焦实体时的高亮效果 |
-| `AccessibilityComponent` | 配置实体的无障碍特性 |
-| `BillboardComponent` | 让实体始终朝向相机/用户 |
-
-### 呈现与 UI
-| Component | 说明 |
-|-----------|------|
-| `ViewAttachmentComponent` | 将 SwiftUI 视图嵌入 3D 空间 |
-| `PresentationComponent` | 从实体发起 SwiftUI 的 modal presentation |
-| `TextComponent` | 在场景里渲染 3D 文本 |
-| `ImagePresentationComponent` | 在 3D 空间中显示图片 |
-| `VideoPlayerComponent` | 在实体上播放视频 |
-
-### 传送门与环境
-| Component | 说明 |
-|-----------|------|
-| `PortalComponent` | 创建 portal，用于渲染另一个 world |
-| `WorldComponent` | 将实体标记为一个独立可渲染的 world |
-| `PortalCrossingComponent` | 控制实体穿越 portal 时的行为 |
-| `EnvironmentBlendingComponent` | 与真实环境进行融合渲染 |
-
-### 锚定与空间
-| Component | 说明 |
-|-----------|------|
-| `AnchoringComponent` | 将实体锚定到真实世界位置 |
-| `ARKitAnchorComponent` | 将实体关联到 ARKit anchor |
-| `SceneUnderstandingComponent` | 访问 scene understanding 数据（planes、meshes） |
-| `DockingRegionComponent` | 定义内容可停靠区域 |
-| `ReferenceComponent` | 引用外部实体文件以支持懒加载 |
-| `AttachedTransformComponent` | 将实体 transform 附着到另一实体 |
-
-### 相机
-| Component | 说明 |
-|-----------|------|
-| `PerspectiveCameraComponent` | 配置透视相机参数 |
-| `OrthographicCameraComponent` | 配置正交相机参数 |
-| `ProjectiveTransformCameraComponent` | 自定义相机投影变换 |
-
-### 光照与阴影
-| Component | 说明 |
-|-----------|------|
-| `PointLightComponent` | 点光源（全向） |
-| `DirectionalLightComponent` | 平行光源（类似太阳） |
-| `SpotLightComponent` | 聚光灯（锥形） |
-| `ImageBasedLightComponent` | 基于 HDR 的环境光照 |
-| `ImageBasedLightReceiverComponent` | 让实体接收 IBL |
-| `GroundingShadowComponent` | 生成/接收地面阴影以增强真实感 |
-| `DynamicLightShadowComponent` | 动态光照产生的阴影 |
-| `EnvironmentLightingConfigurationComponent` | 配置环境光照行为 |
-| `VirtualEnvironmentProbeComponent` | 虚拟环境反射探针 |
-
-### 音频
-| Component | 说明 |
-|-----------|------|
-| `SpatialAudioComponent` | 3D 空间定位音频源 |
-| `AmbientAudioComponent` | 无方向的环境音 |
-| `ChannelAudioComponent` | 基于 channel 的音频播放 |
-| `AudioLibraryComponent` | 存放多份音频资源 |
-| `ReverbComponent` | 混响效果 |
-| `AudioMixGroupsComponent` | 将音频分组混音 |
-
-### 动画与角色
-| Component | 说明 |
-|-----------|------|
-| `AnimationLibraryComponent` | 存放多份动画资源 |
-| `CharacterControllerComponent` | 角色移动与物理 |
-| `CharacterControllerStateComponent` | 角色控制器的运行时状态 |
-| `SkeletalPosesComponent` | 骨骼动画 pose |
-| `IKComponent` | 逆向运动学（IK） |
-| `BodyTrackingComponent` | 全身追踪集成 |
-
-### 物理与碰撞
-| Component | 说明 |
-|-----------|------|
-| `CollisionComponent` | 碰撞形状（交互必需） |
-| `PhysicsBodyComponent` | 为实体加入物理模拟（质量、摩擦等） |
-| `PhysicsMotionComponent` | 控制速度与角速度 |
-| `PhysicsSimulationComponent` | 配置物理模拟参数 |
-| `ParticleEmitterComponent` | 粒子发射器 |
-| `ForceEffectComponent` | 力场效果 |
-| `PhysicsJointsComponent` | 物理关节 |
-| `GeometricPinsComponent` | 几何附着点 |
-
-### 网络与同步
-| Component | 说明 |
-|-----------|------|
-| `SynchronizationComponent` | 跨网络同步实体状态 |
-| `TransientComponent` | 标记实体为非持久化 |
-
-## 边界与常见陷阱
-
-### 🚫 禁止事项
-- **Legacy ARKit:** 不要使用 `ARView`（iOS ARKit）。它在 visionOS 上已废弃/不可用。必须使用 `RealityView`。
-- **“屏幕”幻觉:** 不要用 `UIScreen.main.bounds`。visionOS 没有“屏幕”。用 `GeometryReader` 或 `GeometryReader3D`。
-- **阻塞主线程:** 严禁在主线程做阻塞操作。掉帧会引发眩晕不适。
-- **原始眼动数据:** 不要尝试直接访问 gaze 坐标。
-- **Scene 使用:** 不要在主 App target 之外依赖 `Scene`。
-- **跨平台判断:** visionOS-only target 中避免不必要的 `#if`。共享 target 中仅用非常窄的 `#if os(...)` 隔离 visionOS 不可用 API，并遵循仓库的平台布局。
-
-### ✅ 必做事项
-- **Hover Effects:** 交互元素必须有 hover 状态；系统控件的默认效果即可满足此要求。
-- **Validation:** 以最新 Apple 文档校验函数与 API 可用性。
-- **错误处理:** 对 model 加载等关键路径做合理错误处理。
-- **Documentation:** public API 使用清晰命名并写必要的 doc comments。
-- **交付格式:** 遵循下方约定的输出格式。
-
-## 推荐代码模式
-
-### 带错误处理的 Model 加载
-```swift
-@State private var entity: Entity?
-
-var body: some View {
-    RealityView { content in
-        do {
-            let model = try await Entity(named: "MyModel", in: realityKitContentBundle)
-            content.add(model)
-        } catch {
-            print("Failed to load model: \(error)")
-        }
-    }
-}
-```
-
-### Volumetric Window 定义
-```swift
-WindowGroup(id: "VolumetricWindow") {
-    ContentView()
-}
-.windowStyle(.volumetric)
-.defaultSize(width: 1.0, height: 1.0, depth: 1.0, in: .meters)
-```
-
-### RealityView Attachment 用法
-```swift
-RealityView { content in
-    let entity = Entity()
-    let attachment = ViewAttachmentComponent(rootView: AttachmentView())
-    entity.components.set(attachment)
-    entity.position = [0, 1.5, -1]
-    content.add(entity)
-}
-```
-
-### 通过 Environment 注入的 Observable App State
-用于 app 级状态管理，并与 SwiftUI Environment 集成：
-```swift
-@Observable
-final class AppState {
-    var count = 0
-}
-
-@main
-struct VisionApp: App {
-    @State private var appState = AppState()
-
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-                .environment(appState)
-        }
-    }
-}
-
-struct MyView: View {
-    @Environment(AppState.self) private var appState
-
-    var body: some View {
-        Text("Count: \(appState.count)")
-    }
-}
-```
-
-### visionOS 的按钮样式
-默认让系统根据平台与上下文决定按钮边框；仅在形态本身承载语义时显式设置 `.buttonBorderShape()`：
-```swift
-Button(action: {
-    // 在这里处理按钮动作
-}, label: {
-    Label("Play First Episode", systemImage: "play.fill")
-        .padding(.horizontal)
-})
-.foregroundStyle(.black)
-.tint(.white)
-```
-例如纯图标的圆形按钮可使用 `.circle`，胶囊选择器可使用 `.capsule`。
+- 只在 Full Space 使用 ARKit。`ARKitSession.stop()` 后不得复用 provider；每次重启创建新的 session/providers，异步任务只操作自己捕获的那一代原生句柄。
+- 只声明并请求实际访问的数据权限：手部追踪需要 `NSHandsTrackingUsageDescription`；平面、图像或场景重建需要 `NSWorldSensingUsageDescription`；camera frame 才需要相应 camera access。`WorldTrackingProvider` 本身不需要 world-sensing 授权。
+- 当前实践使用手部、world tracking 与按需的水平平面。真实手部缺失、拒绝或不完整时隐藏渲染；Simulator 合成姿态只能留在 `HandVisualization` 的条件编译渲染路径，绝不进入 ARKit service、练习输入、持久化或诊断。
+- 使用 anchor UUID 关联 RealityKit entity，并为 provider 状态、授权失败和不支持能力提供可恢复 UI。

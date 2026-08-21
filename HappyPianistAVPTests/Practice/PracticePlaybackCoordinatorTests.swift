@@ -21,6 +21,9 @@ private final class FakeSequencerPlaybackService: PracticeSequencerPlaybackServi
     private(set) var resetCommandCalls: [[PerformanceTransportCommand]] = []
     private(set) var loadCallCount = 0
     private(set) var playCallCount = 0
+    private(set) var pauseCallCount = 0
+    private(set) var resumeCallCount = 0
+    private(set) var playbackRates: [Double] = []
     private(set) var playOneShotCallCount = 0
     private(set) var lastOneShotNotes: [Int] = []
     private(set) var loadedSequences: [PracticeSequencerSequence] = []
@@ -43,6 +46,21 @@ private final class FakeSequencerPlaybackService: PracticeSequencerPlaybackServi
 
     func play(fromSeconds _: TimeInterval) throws {
         playCallCount += 1
+    }
+
+    func pause() {
+        pauseCallCount += 1
+    }
+
+    func resume() throws {
+        resumeCallCount += 1
+    }
+
+    func setPlaybackRate(_ rate: Double) throws {
+        guard rate.isFinite, (0.5 ... 2).contains(rate) else {
+            throw PracticePlaybackRateError.invalidRate
+        }
+        playbackRates.append(rate)
     }
 
     func currentSeconds() -> TimeInterval {
@@ -335,6 +353,36 @@ func seekAndLoopRestartWithTargetTickState() async throws {
     #expect(fixture.sequencer.loadCallCount == 3)
     #expect(fixture.sequencer.playCallCount == 3)
     #expect(fixture.stateStore.currentStepIndex == 0)
+    fixture.service.shutdown()
+}
+
+@Test
+@MainActor
+func autoplayPauseResumeAndRateShareTheCurrentTransport() async throws {
+    let fixture = makePlaybackCoordinatorFixture(
+        scoreRevision: "autoplay-transport-controls",
+        currentSeconds: 0
+    )
+    fixture.service.startAutoplayTaskIfNeeded()
+    await waitForPlaybackCondition("initial autoplay load") {
+        fixture.sequencer.loadCallCount == 1
+    }
+
+    try await fixture.service.setAutoplayPlaybackRate(1.5)
+    await fixture.service.pauseAutoplay()
+    let pausedTiming = try #require(fixture.service.pianoDemonstrationTransportTiming())
+    #expect(pausedTiming.isPaused)
+    #expect(pausedTiming.playbackRate == 1.5)
+    #expect(fixture.sequencer.pauseCallCount == 1)
+
+    try await fixture.service.resumeAutoplay()
+    #expect(fixture.sequencer.resumeCallCount == 1)
+    #expect(fixture.service.pianoDemonstrationTransportTiming()?.isPaused == false)
+
+    fixture.service.seekAutoplay(toStepIndex: 1)
+    await waitForPlaybackCondition("seek retains the selected playback rate") {
+        fixture.sequencer.loadCallCount == 2 && fixture.sequencer.playbackRates.last == 1.5
+    }
     fixture.service.shutdown()
 }
 

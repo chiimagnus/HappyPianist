@@ -5,6 +5,18 @@ import MIDI
 import Practice
 @testable import HappyPianistAVP
 
+extension PracticeSequencerPlaybackServiceProtocol {
+    func pause() async {}
+
+    func resume() async throws {}
+
+    func setPlaybackRate(_ rate: Double) async throws {
+        guard rate.isFinite, (0.5 ... 2).contains(rate) else {
+            throw PracticePlaybackRateError.invalidRate
+        }
+    }
+}
+
 extension PracticeSessionViewModel {
     @MainActor
     convenience init(

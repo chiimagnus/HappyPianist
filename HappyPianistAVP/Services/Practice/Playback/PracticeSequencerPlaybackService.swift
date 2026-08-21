@@ -149,6 +149,7 @@ actor AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackServiceP
     private var liveNoteBySourceEventID: [String: UInt8] = [:]
     private var noteBySourceEventID: [String: UInt8] = [:]
     private var audioSessionEventTasks: [Task<Void, Never>] = []
+    private var playbackRate: Float = 1
 
     init(
         soundFontResourceName: String,
@@ -274,6 +275,7 @@ actor AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackServiceP
         applyAudioOutputVolumeIfNeeded()
 
         sequencer.currentPositionInSeconds = max(0, start)
+        sequencer.rate = playbackRate
         do {
             try platform.startSequence(sequencer)
         } catch {
@@ -289,6 +291,22 @@ actor AVAudioSequencerPracticePlaybackService: PracticeSequencerPlaybackServiceP
 
     func currentSeconds() -> TimeInterval {
         sequencer.currentPositionInSeconds
+    }
+
+    func pause() {
+        platform.stopSequence(sequencer)
+    }
+
+    func resume() throws {
+        try play(fromSeconds: sequencer.currentPositionInSeconds)
+    }
+
+    func setPlaybackRate(_ rate: Double) throws {
+        guard rate.isFinite, (0.5 ... 2).contains(rate) else {
+            throw PracticePlaybackRateError.invalidRate
+        }
+        playbackRate = Float(rate)
+        sequencer.rate = playbackRate
     }
 
     func currentPlaybackState() -> PracticeAudioPlaybackState {

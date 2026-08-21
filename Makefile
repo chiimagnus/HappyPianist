@@ -17,6 +17,11 @@ MAC_ONLY_TESTING ?=
 SIMULATOR_ID ?= 00CB80CD-6875-4CBB-BA94-63A58C2728EC
 SIMULATOR_NAME ?= Apple Vision Pro
 DEVICE_ID ?= A687F5B3-44BC-5C55-B5C4-22A807A27C6F
+SIMULATOR_BOOT_TIMEOUT_SECONDS ?= 180
+DESTINATION_TIMEOUT_SECONDS ?= 60
+TEST_EXECUTION_TIMEOUT_SECONDS ?= 120
+TEST_MAXIMUM_EXECUTION_TIMEOUT_SECONDS ?= 300
+TEST_RUN_TIMEOUT_SECONDS ?= 900
 
 XCODE_DEVELOPER_DIR ?= $(shell xcode-select -p 2>/dev/null)
 XCODE_CONTENTS_DIR ?= $(patsubst %/Developer,%,$(XCODE_DEVELOPER_DIR))
@@ -30,6 +35,17 @@ RESULT_BUNDLE_DIR ?= .build/TestResults
 SIMULATOR_RESULT_BUNDLE ?= $(RESULT_BUNDLE_DIR)/HappyPianistAVP-Simulator.xcresult
 DEVICE_RESULT_BUNDLE ?= $(RESULT_BUNDLE_DIR)/HappyPianistAVP-Device.xcresult
 MAC_RESULT_BUNDLE ?= $(RESULT_BUNDLE_DIR)/HappyPianistMac.xcresult
+
+define remove_result_bundle
+	@attempt=0; while [ $$attempt -lt 5 ]; do \
+		rtk rm -rf -- "$(1)" 2>/dev/null || true; \
+		test ! -e "$(1)" && exit 0; \
+		attempt=$$((attempt + 1)); \
+		rtk sleep 1; \
+	done; \
+	echo "error: could not remove stale result bundle $(1)" >&2; \
+	exit 1
+endef
 
 PARALLEL_TESTING ?= NO
 ONLY_TESTING ?=
@@ -127,7 +143,7 @@ build\:mac: doctor ## Build HappyPianistMac without a Simulator.
 
 test\:mac: doctor ## Run HappyPianistMac tests without a Simulator.
 	@mkdir -p "$(RESULT_BUNDLE_DIR)"
-	@rm -rf "$(MAC_RESULT_BUNDLE)"
+	$(call remove_result_bundle,$(MAC_RESULT_BUNDLE))
 	@xcodebuild $(MAC_XCODEBUILD_COMMON) \
 		-destination '$(MAC_DESTINATION)' \
 		CODE_SIGNING_ALLOWED=NO \
@@ -161,6 +177,11 @@ config: ## Print the resolved Make configuration.
 		'CONFIGURATION' '$(CONFIGURATION)' \
 		'SIMULATOR_NAME' '$(SIMULATOR_NAME)' \
 		'SIMULATOR_ID' '$(SIMULATOR_ID)' \
+		'SIMULATOR_BOOT_TIMEOUT_SECONDS' '$(SIMULATOR_BOOT_TIMEOUT_SECONDS)' \
+		'DESTINATION_TIMEOUT_SECONDS' '$(DESTINATION_TIMEOUT_SECONDS)' \
+		'TEST_EXECUTION_TIMEOUT_SECONDS' '$(TEST_EXECUTION_TIMEOUT_SECONDS)' \
+		'TEST_MAXIMUM_EXECUTION_TIMEOUT_SECONDS' '$(TEST_MAXIMUM_EXECUTION_TIMEOUT_SECONDS)' \
+		'TEST_RUN_TIMEOUT_SECONDS' '$(TEST_RUN_TIMEOUT_SECONDS)' \
 		'DEVICE_ID' '$(DEVICE_ID)' \
 		'BUNDLE_ID' '$(BUNDLE_ID)' \
 		'XCODE_DEVELOPER_DIR' '$(XCODE_DEVELOPER_DIR)' \
@@ -196,8 +217,21 @@ open\:simulator: ## Open DeviceHub (new Xcode) or Simulator (older Xcode).
 	open "$(SIMULATOR_HOST_APP)"
 
 boot\:simulator: ## Boot and wait for the configured Vision Pro Simulator.
-	@xcrun simctl boot "$(SIMULATOR_ID)" >/dev/null 2>&1 || true
-	xcrun simctl bootstatus "$(SIMULATOR_ID)" -b
+	@set -eu; \
+		xcrun simctl boot "$(SIMULATOR_ID)" >/dev/null 2>&1 || true; \
+		xcrun simctl bootstatus "$(SIMULATOR_ID)" -b & bootstatus_pid=$$!; \
+		deadline=$$(($$(date +%s) + $(SIMULATOR_BOOT_TIMEOUT_SECONDS))); \
+		while kill -0 "$$bootstatus_pid" 2>/dev/null; do \
+			if [ $$(date +%s) -ge "$$deadline" ]; then \
+				kill "$$bootstatus_pid" 2>/dev/null || true; \
+				wait "$$bootstatus_pid" 2>/dev/null || true; \
+				echo "error: Simulator $(SIMULATOR_ID) did not finish booting within $(SIMULATOR_BOOT_TIMEOUT_SECONDS)s" >&2; \
+				xcrun simctl list devices | grep -F "$(SIMULATOR_ID)" || true; \
+				exit 1; \
+			fi; \
+			sleep 1; \
+		done; \
+		wait "$$bootstatus_pid"
 
 shutdown\:simulator: ## Shut down the configured Simulator.
 	@xcrun simctl shutdown "$(SIMULATOR_ID)" >/dev/null 2>&1 || true
@@ -212,15 +246,37 @@ build\:simulator: doctor ## Build HappyPianistAVP for visionOS Simulator.
 
 test\:simulator: doctor boot\:simulator ## Run Swift Testing tests on visionOS Simulator.
 	@mkdir -p "$(RESULT_BUNDLE_DIR)"
-	@rm -rf "$(SIMULATOR_RESULT_BUNDLE)"
-	@xcodebuild $(XCODEBUILD_COMMON) \
+	$(call remove_result_bundle,$(SIMULATOR_RESULT_BUNDLE))
+	@set -eum; \
+		echo "test:simulator: running with a $(TEST_RUN_TIMEOUT_SECONDS)s action limit"; \
+		trap 'if [ -n "$${test_pid:-}" ]; then kill -TERM -- "-$$test_pid" 2>/dev/null || true; wait "$$test_pid" 2>/dev/null || true; fi; exit 130' INT TERM HUP; \
+		trap 'status=$$?; xcrun simctl shutdown "$(SIMULATOR_ID)" >/dev/null 2>&1 || true; exit "$$status"' EXIT; \
+		xcodebuild $(XCODEBUILD_COMMON) \
 		-destination '$(SIMULATOR_DESTINATION)' \
+		-destination-timeout "$(DESTINATION_TIMEOUT_SECONDS)" \
 		CODE_SIGNING_ALLOWED=NO \
 		-parallel-testing-enabled "$(PARALLEL_TESTING)" \
+		-test-timeouts-enabled YES \
+		-default-test-execution-time-allowance "$(TEST_EXECUTION_TIMEOUT_SECONDS)" \
+		-maximum-test-execution-time-allowance "$(TEST_MAXIMUM_EXECUTION_TIMEOUT_SECONDS)" \
 		-resultBundlePath "$(SIMULATOR_RESULT_BUNDLE)" \
 		$(TEST_SELECTION) \
 		$(XCODEBUILD_FLAGS) \
-		test
+		test & test_pid=$$!; set +m; \
+		deadline=$$(($$(date +%s) + $(TEST_RUN_TIMEOUT_SECONDS))); \
+		while kill -0 "$$test_pid" 2>/dev/null; do \
+			if [ $$(date +%s) -ge "$$deadline" ]; then \
+				echo "error: simulator test action exceeded $(TEST_RUN_TIMEOUT_SECONDS)s" >&2; \
+				kill -TERM -- "-$$test_pid" 2>/dev/null || true; \
+				sleep 5; \
+				kill -KILL -- "-$$test_pid" 2>/dev/null || true; \
+				wait "$$test_pid" 2>/dev/null || true; \
+				xcrun simctl diagnose -b --timeout=60 --output "$(RESULT_BUNDLE_DIR)" --udid "$(SIMULATOR_ID)" || true; \
+				exit 124; \
+			fi; \
+			sleep 1; \
+		done; \
+		wait "$$test_pid"
 	@echo 'test:simulator: TEST SUCCEEDED'
 
 install\:simulator: build\:simulator boot\:simulator ## Install the built app in Simulator.
@@ -263,7 +319,7 @@ build\:device: doctor ## Build and sign HappyPianistAVP for the configured physi
 test\:device: doctor ## Build, sign, and run tests on the configured physical Vision Pro.
 	@test -n "$(DEVICE_ID)" || { echo 'error: set DEVICE_ID=<vision-pro-udid>'; exit 1; }
 	@mkdir -p "$(RESULT_BUNDLE_DIR)"
-	@rm -rf "$(DEVICE_RESULT_BUNDLE)"
+	$(call remove_result_bundle,$(DEVICE_RESULT_BUNDLE))
 	@xcodebuild $(XCODEBUILD_COMMON) \
 		-destination '$(DEVICE_DESTINATION)' \
 		-parallel-testing-enabled "$(PARALLEL_TESTING)" \

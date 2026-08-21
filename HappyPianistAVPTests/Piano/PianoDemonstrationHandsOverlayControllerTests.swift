@@ -1,152 +1,99 @@
 @testable import HappyPianistAVP
+import Foundation
 import MusicXML
-import Practice
+@testable import Practice
 import RealityKit
-import simd
 import Testing
 
 @MainActor
-struct PianoDemonstrationHandsOverlayControllerTests {
-    @Test func reusesLoadedHandsAndLiftsReleasedNotesWithoutARKitInput() async throws {
-        let root = Entity()
-        let controller = try await PianoDemonstrationHandsOverlayController(
-            rootEntity: root,
-            preloadedRigs: makeRigs()
-        )
-        let geometry = makeGeometry()
-        let triggered = makeGuide(
-            id: 1,
-            kind: .trigger,
-            active: [],
-            triggered: [makeNote(id: "right", midiNote: 60, hand: .unknown)],
-            released: []
-        )
+@Test
+func hidingTeacherHandsImmediatelyRestoresKeyboardHighlights() async throws {
+    let rig = try await PackagedPianoDemonstrationHandRigLoader().load(hand: .right)
+    let controller = PianoDemonstrationHandsOverlayController(
+        preloadedRigs: [.right: rig],
+        performanceClock: .init(now: { .init(seconds: 0.1) })
+    )
+    let frame = try #require(KeyboardFrame(
+        a0World: .zero,
+        c8World: [1, 0, 0],
+        planeHeight: 0
+    ))
+    let geometry = PianoKeyboardGeometry(frame: frame, keys: [])
+    let timing = makeTransportTiming()
+    let clipSet = try makeMotionClipSet()
 
-        controller.update(
-            isEnabled: true,
-            highlightGuide: triggered,
-            keyboardGeometry: geometry,
-            reduceMotion: true,
-            content: nil
-        )
-        let rightHand = try #require(root.findEntity(named: "pianoDemonstrationHand.right"))
-        #expect(root.children.count == 2)
-        #expect(rightHand.isEnabled)
-        let contactY = rightHand.position.y
+    #expect(controller.update(
+        isEnabled: true,
+        motionClipSet: clipSet,
+        timing: .transport(timing),
+        keyboardGeometry: geometry,
+        reduceMotion: false,
+        content: nil
+    ) == [60])
+    #expect(rig.rootEntity.isEnabled)
 
-        controller.update(
-            isEnabled: true,
-            highlightGuide: triggered,
-            keyboardGeometry: geometry,
-            reduceMotion: true,
-            content: nil
-        )
-        #expect(root.children.count == 2)
+    #expect(controller.update(
+        isEnabled: true,
+        motionClipSet: clipSet,
+        timing: .transport(timing),
+        keyboardGeometry: geometry,
+        reduceMotion: true,
+        content: nil
+    ).isEmpty)
+    #expect(rig.rootEntity.isEnabled == false)
+}
 
-        controller.update(
-            isEnabled: true,
-            highlightGuide: makeGuide(
-                id: 2,
-                kind: .release,
-                active: [],
-                triggered: [],
-                released: [60]
+private func makeTransportTiming() -> PianoDemonstrationTransportTiming {
+    let timeline = AutoplayPerformanceTimeline(events: [])
+    let schedule = AutoplayTimelineTimeSchedule(
+        timeline: timeline,
+        tickToSeconds: { MusicXMLTempoMap(tempoEvents: []).timeSeconds(atTick: $0) },
+        startTick: 0,
+        leadInSeconds: 0
+    )
+    let contacts = PianoKeyContactTimeline(contacts: [
+        .init(
+            occurrenceID: "note",
+            midiNote: 60,
+            staff: 1,
+            handAssignment: .init(hand: .right, provenance: .score),
+            fingerings: [],
+            velocity: 96,
+            guideID: nil,
+            stepIndex: nil,
+            carriedIn: false,
+            timing: .scheduled(onsetSeconds: 0, releaseSeconds: 1)
+        ),
+    ])
+    return .init(
+        generation: 1,
+        playbackPositionSeconds: 0,
+        capturedAt: .init(seconds: 0),
+        isPaused: false,
+        playbackRate: 1,
+        timeSchedule: schedule,
+        contactTimeline: contacts,
+        guides: []
+    )
+}
+
+private func makeMotionClipSet() throws -> PianoDemonstrationMotionClipSet {
+    let clip = try PianoHandMotionClip(
+        metadata: .init(generatorRevision: "test", skeletonRevision: "test", scoreRevision: "test"),
+        hand: .right,
+        frames: [
+            .init(
+                timeSeconds: 0,
+                rootTransform: .init(translation: [0, 0.045, -0.02], rotation: [0, 0, 0, 1]),
+                jointRotations: Array(repeating: [0, 0, 0, 1], count: PianoHandMotionClip.jointCount)
             ),
-            keyboardGeometry: geometry,
-            reduceMotion: true,
-            content: nil
-        )
-        #expect(abs(rightHand.position.y - contactY - 0.035) < 0.0001)
-
-        controller.update(
-            isEnabled: false,
-            highlightGuide: nil,
-            keyboardGeometry: nil,
-            reduceMotion: true,
-            content: nil
-        )
-        #expect(rightHand.isEnabled == false)
-    }
-
-    @Test func resetRemovesRetainedHandEntities() async throws {
-        let root = Entity()
-        root.addChild(Entity())
-        let controller = try await PianoDemonstrationHandsOverlayController(
-            rootEntity: root,
-            preloadedRigs: makeRigs()
-        )
-
-        #expect(root.children.count == 3)
-
-        controller.reset()
-
-        #expect(root.children.isEmpty)
-        #expect(root.parent == nil)
-        #expect(controller.requiresReplacement)
-    }
-}
-
-@MainActor
-private func makeRigs() async throws -> [PianoDemonstrationHand: PianoDemonstrationHandRig] {
-    var rigs: [PianoDemonstrationHand: PianoDemonstrationHandRig] = [:]
-    for hand in PianoDemonstrationHand.allCases {
-        rigs[hand] = try await PianoDemonstrationHandRig.load(hand: hand)
-    }
-    return rigs
-}
-
-private func makeGuide(
-    id: Int,
-    kind: PianoHighlightGuideKind,
-    active: [PianoHighlightNote],
-    triggered: [PianoHighlightNote],
-    released: Set<Int>
-) -> PianoHighlightGuide {
-    PianoHighlightGuide(
-        id: id,
-        kind: kind,
-        tick: id,
-        durationTicks: 1,
-        practiceStepIndex: nil,
-        activeNotes: active,
-        triggeredNotes: triggered,
-        releasedMIDINotes: released
+        ],
+        coverage: [.init(occurrenceID: "note", finger: 2, onsetSeconds: 0, releaseSeconds: 1)]
     )
-}
-
-private func makeNote(id: String, midiNote: Int, hand: ScoreHand) -> PianoHighlightNote {
-    PianoHighlightNote(
-        occurrenceID: id,
-        midiNote: midiNote,
-        staff: hand == .left ? 2 : 1,
-        voice: nil,
-        velocity: 96,
-        onTick: 0,
-        offTick: 1,
-        fingerings: [],
-        handAssignment: ScoreHandAssignment(
-            hand: hand,
-            provenance: hand == .unknown ? .unresolved : .score
-        )
+    return .init(
+        transportGeneration: 1,
+        geometryCacheID: UUID(),
+        clips: [clip],
+        rejectedOccurrenceIDs: []
     )
-}
-
-private func makeGeometry() -> PianoKeyboardGeometry {
-    let frame = KeyboardFrame(
-        a0World: SIMD3<Float>(0, 0.5, 0),
-        c8World: SIMD3<Float>(1, 0.5, 0),
-        planeHeight: 0.5
-    )!
-    let key = PianoKeyGeometry(
-        midiNote: 60,
-        kind: .white,
-        localCenter: SIMD3<Float>(0.12, -0.015, -0.07),
-        localSize: SIMD3<Float>(0.022, 0.03, 0.14),
-        surfaceLocalY: 0,
-        hitCenterLocal: SIMD3<Float>(0.12, -0.015, -0.07),
-        hitSizeLocal: SIMD3<Float>(0.022, 0.03, 0.14),
-        beamFootprintCenterLocal: SIMD3<Float>(0.12, 0, -0.07),
-        beamFootprintSizeLocal: SIMD2<Float>(0.022, 0.14)
-    )
-    return PianoKeyboardGeometry(frame: frame, keys: [key])
 }

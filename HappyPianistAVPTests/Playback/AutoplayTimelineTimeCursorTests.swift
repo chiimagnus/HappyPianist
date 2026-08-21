@@ -8,6 +8,7 @@ private let defaultTempoScope = MusicXMLEventScope(partID: "P1", staff: nil, voi
 
 @Test
 func timeCursorAdvancesStepsAndGuidesBySecondsWithoutDuplicates() {
+    let quarter = MusicXMLTempoMap.ticksPerQuarter
     let tempoMap = MusicXMLTempoMap(
         tempoEvents: [MusicXMLTempoEvent(tick: 0, quarterBPM: 120, scope: defaultTempoScope)]
     )
@@ -15,17 +16,25 @@ func timeCursorAdvancesStepsAndGuidesBySecondsWithoutDuplicates() {
         events: [
             AutoplayPerformanceTimeline.Event(id: 0, tick: 0, kind: .advanceStep(index: 0)),
             AutoplayPerformanceTimeline.Event(id: 1, tick: 0, kind: .advanceGuide(index: 0, guideID: 100)),
-            AutoplayPerformanceTimeline.Event(id: 2, tick: 480, kind: .pauseSeconds(1.0)),
-            AutoplayPerformanceTimeline.Event(id: 3, tick: 480, kind: .advanceStep(index: 1)),
-            AutoplayPerformanceTimeline.Event(id: 4, tick: 480, kind: .advanceGuide(index: 1, guideID: 200)),
+            AutoplayPerformanceTimeline.Event(id: 2, tick: quarter, kind: .pauseSeconds(1.0)),
+            AutoplayPerformanceTimeline.Event(id: 3, sourceEventID: "note-60", tick: quarter, kind: .noteOn(midi: 60, velocity: 96)),
+            AutoplayPerformanceTimeline.Event(id: 4, tick: quarter, kind: .advanceStep(index: 1)),
+            AutoplayPerformanceTimeline.Event(id: 5, tick: quarter, kind: .advanceGuide(index: 1, guideID: 200)),
+            AutoplayPerformanceTimeline.Event(id: 6, sourceEventID: "note-60", tick: quarter * 2, kind: .noteOff(midi: 60)),
         ]
     )
-
-    var cursor = AutoplayTimelineTimeCursor(
+    let schedule = AutoplayTimelineTimeSchedule(
         timeline: timeline,
         tickToSeconds: { tempoMap.timeSeconds(atTick: $0) },
         startTick: 0
     )
+    var cursor = AutoplayTimelineTimeCursor(schedule: schedule)
+
+    #expect(schedule.timeSeconds(forEventID: 5) == 1.5)
+    #expect(schedule.timeSeconds(atTick: quarter) == 1.5)
+    #expect(schedule.timeSeconds(atTick: quarter * 2) == 2.0)
+    #expect(schedule.timeSeconds(forEventID: 3) == 1.5)
+    #expect(schedule.timeSeconds(forEventID: 6) == 2.0)
 
     #expect(cursor.advance(toSeconds: 0) == [.step(index: 0), .guide(index: 0, guideID: 100)])
     #expect(cursor.advance(toSeconds: 0) == [])

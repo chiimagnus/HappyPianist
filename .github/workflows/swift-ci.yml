@@ -27,5 +27,9 @@ jobs:
             -project "$PROJECT" \
             -scheme "$SCHEME" \
             -destination 'platform=visionOS Simulator,name=Apple Vision Pro,OS=latest' \
+            -destination-timeout 60 \
             CODE_SIGNING_ALLOWED=NO \
-            -parallel-testing-enabled NO
+            -parallel-testing-enabled NO \
+            -test-timeouts-enabled YES \
+            -default-test-execution-time-allowance 120 \
+            -maximum-test-execution-time-allowance 300

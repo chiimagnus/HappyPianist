@@ -43,8 +43,8 @@ private actor RecorderRepository: PracticeSessionRepositoryProtocol {
     }
 
     func waitForWriteAttempts(_ count: Int) async {
-        while writeAttemptCount < count {
-            await Task.yield()
+        await TestAsyncWait.until("recorder write attempt \(count)") { [self] in
+            self.writeAttemptCount >= count
         }
     }
 }
@@ -82,8 +82,8 @@ private final class RecorderClock: Sendable {
     }
 
     func waitForMonotonicReads(_ count: Int) async {
-        while state.withLock({ $0.monotonicReadCount }) < count {
-            await Task.yield()
+        await TestAsyncWait.until("recorder clock read \(count)") { [self] in
+            self.state.withLock { $0.monotonicReadCount >= count }
         }
     }
 
@@ -676,8 +676,8 @@ private actor GatedRecorderRepository: PracticeSessionRepositoryProtocol {
     func abandonLiveSession(id _: UUID) {}
 
     func waitUntilFirstWriteStarts() async {
-        while didStartFirstWrite == false {
-            await Task.yield()
+        await TestAsyncWait.until("first recorder write") { [self] in
+            self.didStartFirstWrite
         }
     }
 

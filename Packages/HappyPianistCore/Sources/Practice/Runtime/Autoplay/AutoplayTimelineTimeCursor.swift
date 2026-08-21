@@ -5,14 +5,16 @@ public enum AutoplayCursorEvent: Equatable, Sendable {
     case guide(index: Int, guideID: Int)
 }
 
-public struct AutoplayTimelineTimeCursor: Equatable {
-    private struct TimedEvent: Equatable {
-        let timeSeconds: TimeInterval
-        let event: AutoplayCursorEvent
+public struct AutoplayTimelineTimeSchedule: Equatable, Sendable {
+    public struct ScheduledCursorEvent: Equatable, Sendable {
+        public let timeSeconds: TimeInterval
+        public let tick: Int
+        public let event: AutoplayCursorEvent
     }
 
-    private let scheduled: [TimedEvent]
-    private var nextIndex: Int
+    public let scheduledCursorEvents: [ScheduledCursorEvent]
+    private let timeSecondsByEventID: [Int: TimeInterval]
+    private let timeSecondsByTick: [Int: TimeInterval]
 
     public init(
         timeline: AutoplayPerformanceTimeline,
@@ -22,40 +24,76 @@ public struct AutoplayTimelineTimeCursor: Equatable {
     ) {
         let baseTick = max(0, startTick)
         let baseSeconds = tickToSeconds(baseTick)
-
         let startIndex = timeline.firstEventIndex(atOrAfter: baseTick)
-        var pausePrefixSeconds: TimeInterval = 0
 
-        var scheduled: [TimedEvent] = []
-        scheduled.reserveCapacity(128)
+        var pausePrefixSeconds: TimeInterval = 0
+        var cursorEvents: [ScheduledCursorEvent] = []
+        var eventTimes: [Int: TimeInterval] = [:]
+        var tickTimes: [Int: TimeInterval] = [:]
+        cursorEvents.reserveCapacity(128)
+        eventTimes.reserveCapacity(max(16, timeline.events.count - startIndex))
 
         for event in timeline.events[startIndex...] {
-            switch event.kind {
-            case let .pauseSeconds(seconds):
+            if case let .pauseSeconds(seconds) = event.kind {
                 pausePrefixSeconds += seconds
+            }
+            let timeSeconds = tickToSeconds(event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds
+            eventTimes[event.id] = timeSeconds
+            tickTimes[event.tick] = timeSeconds
 
+            switch event.kind {
             case let .advanceStep(index):
-                scheduled.append(
-                    TimedEvent(
-                        timeSeconds: tickToSeconds(event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
-                        event: .step(index: index)
-                    )
-                )
-
+                cursorEvents.append(ScheduledCursorEvent(
+                    timeSeconds: timeSeconds,
+                    tick: event.tick,
+                    event: .step(index: index)
+                ))
             case let .advanceGuide(index, guideID):
-                scheduled.append(
-                    TimedEvent(
-                        timeSeconds: tickToSeconds(event.tick) - baseSeconds + pausePrefixSeconds + leadInSeconds,
-                        event: .guide(index: index, guideID: guideID)
-                    )
-                )
-
-            case .noteOn, .noteOff, .controlChange, .tempo:
+                cursorEvents.append(ScheduledCursorEvent(
+                    timeSeconds: timeSeconds,
+                    tick: event.tick,
+                    event: .guide(index: index, guideID: guideID)
+                ))
+            case .pauseSeconds, .noteOn, .noteOff, .controlChange, .tempo:
                 continue
             }
         }
 
-        self.scheduled = scheduled
+        scheduledCursorEvents = cursorEvents
+        timeSecondsByEventID = eventTimes
+        timeSecondsByTick = tickTimes
+    }
+
+    public func timeSeconds(forEventID eventID: Int) -> TimeInterval? {
+        timeSecondsByEventID[eventID]
+    }
+
+    public func timeSeconds(atTick tick: Int) -> TimeInterval? {
+        timeSecondsByTick[tick]
+    }
+
+}
+
+public struct AutoplayTimelineTimeCursor: Equatable {
+    private let scheduled: [AutoplayTimelineTimeSchedule.ScheduledCursorEvent]
+    private var nextIndex: Int
+
+    public init(
+        timeline: AutoplayPerformanceTimeline,
+        tickToSeconds: (Int) -> TimeInterval,
+        startTick: Int,
+        leadInSeconds: TimeInterval = 0
+    ) {
+        self.init(schedule: AutoplayTimelineTimeSchedule(
+            timeline: timeline,
+            tickToSeconds: tickToSeconds,
+            startTick: startTick,
+            leadInSeconds: leadInSeconds
+        ))
+    }
+
+    public init(schedule: AutoplayTimelineTimeSchedule) {
+        scheduled = schedule.scheduledCursorEvents
         nextIndex = 0
     }
 

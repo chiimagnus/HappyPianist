@@ -544,8 +544,8 @@ private actor SuspendedHistoryRepository: PracticeProgressRepositoryProtocol {
     }
 
     func waitForRequest(songID: UUID) async {
-        while continuations[songID] == nil {
-            await Task.yield()
+        await TestAsyncWait.until("history request for \(songID)") { [self] in
+            self.continuations[songID] != nil
         }
     }
 
@@ -580,8 +580,8 @@ private actor OrderedSuspendedHistoryRepository: PracticeProgressRepositoryProto
     }
 
     func waitForRequestCount(_ count: Int) async {
-        while requests.count < count {
-            await Task.yield()
+        await TestAsyncWait.until("history request \(count)") { [self] in
+            self.requests.count >= count
         }
     }
 
@@ -732,8 +732,8 @@ private actor ControlledSnapshotRecoveryRepository:
     }
 
     func waitForRecovery() async {
-        while recoveryContinuation == nil {
-            await Task.yield()
+        await TestAsyncWait.until("snapshot recovery") { [self] in
+            self.recoveryContinuation != nil
         }
     }
 
