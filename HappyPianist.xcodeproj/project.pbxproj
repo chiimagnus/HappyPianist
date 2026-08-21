@@ -288,13 +288,7 @@
 			);
 			name = HappyPianistAVPTests;
 			packageProductDependencies = (
-				A10100000000000000000004 /* Diagnostics */,
-				A10200000000000000000005 /* MusicXML */,
 				A10200000000000000000006 /* HappyPianistTestFixtures */,
-				A10300000000000000000004 /* MIDI */,
-				A10400000000000000000004 /* Practice */,
-				A10500000000000000000004 /* Notation */,
-				A10600000000000000000004 /* Library */,
 			);
 			productName = HappyPianistAVPTests;
 			productReference = D8C8848F2FC3623C00F1D94F /* HappyPianistAVPTests.xctest */;
