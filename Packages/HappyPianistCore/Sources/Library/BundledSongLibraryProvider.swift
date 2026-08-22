@@ -2,7 +2,7 @@ import CryptoKit
 import Foundation
 
 public struct BundledSongLibraryProvider: BundledSongLibraryProviderProtocol {
-    private static let seedSubdirectory = "Resources/SeedScores"
+    private static let seedSubdirectory = "SeedScores"
     private static let bundledImportedAt = Date(timeIntervalSince1970: 0)
 
     private let bundle: Bundle
@@ -82,22 +82,8 @@ public struct BundledSongLibraryProvider: BundledSongLibraryProviderProtocol {
         let normalizedExtension = fileExtension.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard normalizedExtension.isEmpty == false else { return [] }
 
-        var urls = seedRootURLs().flatMap {
+        let urls = seedRootURLs().flatMap {
             Self.recursiveResourceURLs(in: $0, withExtension: normalizedExtension)
-        }
-        if seedRootURLsOverride == nil {
-            urls.append(contentsOf: bundle.urls(
-                forResourcesWithExtension: normalizedExtension,
-                subdirectory: Self.seedSubdirectory
-            ) ?? [])
-            urls.append(contentsOf: bundle.urls(
-                forResourcesWithExtension: normalizedExtension,
-                subdirectory: "SeedScores"
-            ) ?? [])
-            urls.append(contentsOf: bundle.urls(
-                forResourcesWithExtension: normalizedExtension,
-                subdirectory: nil
-            ) ?? [])
         }
         var byPath: [String: URL] = [:]
         for url in urls {
@@ -111,15 +97,14 @@ public struct BundledSongLibraryProvider: BundledSongLibraryProviderProtocol {
             return seedRootURLsOverride
         }
         guard let resourceURL = bundle.resourceURL else { return [] }
-        let candidates = [
-            resourceURL.appending(path: Self.seedSubdirectory, directoryHint: .isDirectory),
-            resourceURL.appending(path: "SeedScores", directoryHint: .isDirectory),
-        ]
-        return candidates.filter { candidate in
-            var isDirectory: ObjCBool = false
-            return FileManager.default.fileExists(atPath: candidate.path, isDirectory: &isDirectory)
-                && isDirectory.boolValue
+        let seedDirectoryURL = resourceURL.appending(path: Self.seedSubdirectory, directoryHint: .isDirectory)
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: seedDirectoryURL.path, isDirectory: &isDirectory),
+              isDirectory.boolValue
+        else {
+            return []
         }
+        return [seedDirectoryURL]
     }
 
     static func recursiveResourceURLs(in rootURL: URL, withExtension fileExtension: String) -> [URL] {
