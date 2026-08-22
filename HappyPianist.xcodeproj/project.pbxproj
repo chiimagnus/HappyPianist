@@ -20,7 +20,6 @@
 		A10500000000000000000002 /* Notation in Frameworks */ = {isa = PBXBuildFile; productRef = A10500000000000000000004 /* Notation */; };
 		A10600000000000000000001 /* Library in Frameworks */ = {isa = PBXBuildFile; productRef = A10600000000000000000003 /* Library */; };
 		A10600000000000000000002 /* Library in Frameworks */ = {isa = PBXBuildFile; productRef = A10600000000000000000004 /* Library */; };
-		A10700000000000000000001 /* LibraryPresentation in Frameworks */ = {isa = PBXBuildFile; productRef = A10700000000000000000003 /* LibraryPresentation */; };
 		B20600000000000000000008 /* SeedScores in Resources */ = {isa = PBXBuildFile; fileRef = B20500000000000000000004 /* SeedScores */; };
 		D85596AE2F83FF72005BE7FE /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = D85596AD2F83FF72005BE7FE /* RealityKitContent */; };
 /* End PBXBuildFile section */
@@ -80,7 +79,6 @@
 				A10400000000000000000001 /* Practice in Frameworks */,
 				A10500000000000000000001 /* Notation in Frameworks */,
 				A10600000000000000000001 /* Library in Frameworks */,
-				A10700000000000000000001 /* LibraryPresentation in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -142,7 +140,6 @@
 				A10400000000000000000003 /* Practice */,
 				A10500000000000000000003 /* Notation */,
 				A10600000000000000000003 /* Library */,
-				A10700000000000000000003 /* LibraryPresentation */,
 			);
 			productName = HappyPianistAVP;
 			productReference = D8C8848D2FC3623C00F1D94F /* HappyPianistAVP.app */;
@@ -616,11 +613,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
 			productName = Library;
-		};
-		A10700000000000000000003 /* LibraryPresentation */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = A10100000000000000000005 /* XCLocalSwiftPackageReference "Packages/HappyPianistCore" */;
-			productName = LibraryPresentation;
 		};
 		D85596AD2F83FF72005BE7FE /* RealityKitContent */ = {
 			isa = XCSwiftPackageProductDependency;

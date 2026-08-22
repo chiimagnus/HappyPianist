@@ -3,7 +3,7 @@ import Library
 
 private let libraryRecordScrollCoordinateSpace = "LibraryRecordScroll"
 
-public struct LibraryRecordCarousel: View {
+struct LibraryRecordCarousel: View {
     private static let animation = Animation.timingCurve(0.16, 1, 0.30, 1, duration: 0.56)
 
     let entries: [SongLibraryEntry]
@@ -17,7 +17,7 @@ public struct LibraryRecordCarousel: View {
     let onImportMusicXML: () -> Void
     let onImmediateDelete: (UUID) -> Void
 
-    public init(
+    init(
         entries: [SongLibraryEntry],
         selectedEntryID: UUID?,
         playingEntryID: UUID?,
@@ -58,7 +58,7 @@ public struct LibraryRecordCarousel: View {
         max(0, (crateWidth - LibraryRecordLayout.diameter) / 2)
     }
 
-    public var body: some View {
+    var body: some View {
         let selectedIndex = entries.firstIndex(where: { $0.id == selectedEntryID }) ?? 0
         let selectedEntry = entries.indices.contains(selectedIndex) ? entries[selectedIndex] : nil
         ZStack {
@@ -350,12 +350,12 @@ private struct LibraryRecordScrollItemView: View {
     }
 }
 
-public struct LibraryRecordScrollPresentation: Equatable {
-    public let scale: CGFloat
-    public let opacity: Double
-    public let saturation: Double
+struct LibraryRecordScrollPresentation: Equatable {
+    let scale: CGFloat
+    let opacity: Double
+    let saturation: Double
 
-    public init(centerDistance: CGFloat) {
+    init(centerDistance: CGFloat) {
         let normalizedDistance = min(abs(centerDistance) / LibraryRecordLayout.diameter, 2)
         scale = max(0.64, 1 - normalizedDistance * 0.18)
         opacity = Double(max(0.42, 1 - normalizedDistance * 0.22))
@@ -363,20 +363,20 @@ public struct LibraryRecordScrollPresentation: Equatable {
     }
 }
 
-public enum LibraryRecordScrollTapAction: Equatable {
+enum LibraryRecordScrollTapAction: Equatable {
     case togglePlayback
     case selectEntry
 }
 
-public enum LibraryRecordScrollSelectionDecision {
-    public static func action(
+enum LibraryRecordScrollSelectionDecision {
+    static func action(
         forTappedEntryID entryID: UUID,
         selectedEntryID: UUID?
     ) -> LibraryRecordScrollTapAction {
         entryID == selectedEntryID ? .togglePlayback : .selectEntry
     }
 
-    public static func selectionToCommit(
+    static func selectionToCommit(
         scrollTargetID: UUID?,
         selectedEntryID: UUID?
     ) -> UUID? {
