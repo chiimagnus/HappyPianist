@@ -108,13 +108,6 @@ public struct LibraryRecordCarousel: View {
 
             VStack {
                 Spacer()
-                LibraryPageIndicatorView(count: entries.count, selectedIndex: selectedIndex)
-                    .padding(.bottom, 12)
-            }
-            .zIndex(40)
-
-            VStack {
-                Spacer()
                 Text("↑ 上拽唱片导入乐谱")
                     .font(.caption)
                     .foregroundStyle(Color.primary.opacity(0.45))
@@ -354,31 +347,6 @@ private struct LibraryRecordScrollItemView: View {
         .accessibilityLabel(trackPresentation.title)
         .accessibilityHint(isSelected ? "播放或暂停当前曲目" : "选中这首曲目")
         .accessibilityAddTraits(isSelected ? .isSelected : [])
-    }
-}
-
-private struct LibraryPageIndicatorView: View {
-    let count: Int
-    let selectedIndex: Int
-
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    var body: some View {
-        if count > 12 {
-            Text("\(selectedIndex + 1) / \(count)")
-                .font(.caption)
-                .foregroundStyle(Color.primary.opacity(0.45))
-                .monospacedDigit()
-        } else {
-            HStack(spacing: 7) {
-                ForEach(0 ..< count, id: \.self) { index in
-                    Capsule()
-                        .fill(index == selectedIndex ? Color.primary : Color.white.opacity(0.28))
-                        .frame(width: index == selectedIndex ? 22 : 6, height: 6)
-                        .animation(reduceMotion ? nil : .easeInOut(duration: 0.30), value: selectedIndex)
-                }
-            }
-        }
     }
 }
 
