@@ -48,7 +48,7 @@ struct SongLibraryView: View {
         VStack(spacing: 0) {
             if entries.isEmpty {
                 SongLibraryEmptyView(onImport: viewModel.didTapImportMusicXML)
-            } else if let selectedEntry, let selectedPresentation {
+            } else if selectedEntry != nil, selectedPresentation != nil {
                 LibraryRecordCarousel(
                     entries: entries,
                     selectedEntryID: viewModel.selectedEntryID,
@@ -72,23 +72,6 @@ struct SongLibraryView: View {
             maxHeight: LibraryWindowLayout.maximumHeight
         )
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
-                Button("导入曲谱", systemImage: "square.and.arrow.down") {
-                    viewModel.didTapImportMusicXML()
-                }
-                .disabled(viewModel.importState.isActive)
-            }
-
-            ToolbarItem(placement: .secondaryAction) {
-                Button("选择钢琴", systemImage: "pianokeys", action: onChoosePiano)
-            }
-
-            ToolbarItem(placement: .secondaryAction) {
-                Button("诊断", systemImage: "stethoscope") {
-                    isDiagnosticsPresented = true
-                }
-            }
-
             ToolbarItemGroup(placement: .bottomOrnament) {
                 if let selectedEntry, let selectedPresentation {
                     LibraryNowPlayingBar(
@@ -122,6 +105,18 @@ struct SongLibraryView: View {
                     .accessibilityHint(startPracticeAccessibilityHint)
                 }
             }
+        }
+        .ornament(
+            visibility: .visible,
+            attachmentAnchor: .scene(.top),
+            contentAlignment: .bottom
+        ) {
+            LibraryTopActionsOrnament(
+                isImporting: viewModel.importState.isActive,
+                onImport: viewModel.didTapImportMusicXML,
+                onChoosePiano: onChoosePiano,
+                onShowDiagnostics: { isDiagnosticsPresented = true }
+            )
         }
         .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { height in
             libraryViewHeight = height
@@ -367,6 +362,26 @@ private enum LibraryWindowLayout {
     static let minimumHeight: CGFloat = 620
     static let idealHeight: CGFloat = 720
     static let maximumHeight: CGFloat = 860
+}
+
+private struct LibraryTopActionsOrnament: View {
+    let isImporting: Bool
+    let onImport: () -> Void
+    let onChoosePiano: () -> Void
+    let onShowDiagnostics: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Button("导入曲谱", systemImage: "square.and.arrow.down", action: onImport)
+                .disabled(isImporting)
+            Button("选择钢琴", systemImage: "pianokeys", action: onChoosePiano)
+            Button("诊断", systemImage: "stethoscope", action: onShowDiagnostics)
+        }
+        .controlSize(.large)
+        .buttonStyle(.bordered)
+        .padding(8)
+        .glassBackgroundEffect(in: .capsule)
+    }
 }
 
 private struct LibraryImportStatusView: View {
