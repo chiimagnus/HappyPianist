@@ -2,6 +2,7 @@
 # Uses Xcode's default DerivedData location so CLI and Xcode share build products.
 # Defaults are copied from config.yaml and can be overridden on the command line.
 
+SHELL := /bin/bash
 .DEFAULT_GOAL := help
 .NOTPARALLEL:
 
@@ -49,7 +50,11 @@ endef
 
 PARALLEL_TESTING ?= NO
 ONLY_TESTING ?=
-XCODEBUILD_FLAGS ?= -quiet
+# Optional: install with `brew install xcbeautify` for compact xcodebuild output.
+# ponytail: raw xcodebuild remains the fallback so the Makefile has no new dependency.
+XCBEAUTIFY ?= $(shell command -v xcbeautify 2>/dev/null)
+XCODEBUILD_OUTPUT ?= $(if $(strip $(XCBEAUTIFY)),2>&1 | $(XCBEAUTIFY),)
+XCODEBUILD_FLAGS ?=
 DEVICE_XCODEBUILD_FLAGS ?= -allowProvisioningUpdates
 
 # Keep development output focused on app-owned structured diagnostics.
@@ -125,7 +130,8 @@ help: ## Show available commands.
 		'  make build:device CONFIGURATION=Release' \
 		'  make test:mac MAC_ONLY_TESTING=HappyPianistMacTests/MacPracticeViewModelTests' \
 		'  make dev LOG_LEVEL=debug    Include app debug diagnostics' \
-		'  make build XCODEBUILD_FLAGS=  Show full xcodebuild output (quiet is default)'
+		'  make build XCODEBUILD_FLAGS=-quiet  Use compact xcodebuild output' \
+		'  brew install xcbeautify      Format xcodebuild output when available'
 
 build: ## Build for the configured Vision Pro Simulator.
 	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'build:simulator'
@@ -134,17 +140,17 @@ test: ## Run all tests on the configured Vision Pro Simulator.
 	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'test:simulator'
 
 build\:mac: doctor ## Build HappyPianistMac without a Simulator.
-	@xcodebuild $(MAC_XCODEBUILD_COMMON) \
+	@set -o pipefail; xcodebuild $(MAC_XCODEBUILD_COMMON) \
 		-destination '$(MAC_DESTINATION)' \
 		CODE_SIGNING_ALLOWED=NO \
 		$(XCODEBUILD_FLAGS) \
-		build
+		build $(XCODEBUILD_OUTPUT)
 	@echo 'build:mac: BUILD SUCCEEDED'
 
 test\:mac: doctor ## Run HappyPianistMac tests without a Simulator.
 	@mkdir -p "$(RESULT_BUNDLE_DIR)"
 	$(call remove_result_bundle,$(MAC_RESULT_BUNDLE))
-	@xcodebuild $(MAC_XCODEBUILD_COMMON) \
+	@set -o pipefail; xcodebuild $(MAC_XCODEBUILD_COMMON) \
 		-destination '$(MAC_DESTINATION)' \
 		-destination-timeout "$(DESTINATION_TIMEOUT_SECONDS)" \
 		CODE_SIGNING_ALLOWED=NO \
@@ -155,7 +161,7 @@ test\:mac: doctor ## Run HappyPianistMac tests without a Simulator.
 		-resultBundlePath "$(MAC_RESULT_BUNDLE)" \
 		$(MAC_TEST_SELECTION) \
 		$(XCODEBUILD_FLAGS) \
-		test
+		test $(XCODEBUILD_OUTPUT)
 	@echo 'test:mac: TEST SUCCEEDED'
 
 dev: ## Build, install, launch, then stream Simulator logs.
@@ -201,7 +207,8 @@ config: ## Print the resolved Make configuration.
 		'MAC_ONLY_TESTING' '$(MAC_ONLY_TESTING)' \
 		'LOG_STYLE' '$(LOG_STYLE)' \
 		'LOG_LEVEL' '$(LOG_LEVEL)' \
-		'LOG_PREDICATE' '$(LOG_PREDICATE)'
+		'LOG_PREDICATE' '$(LOG_PREDICATE)' \
+		'XCBEAUTIFY' '$(if $(strip $(XCBEAUTIFY)),$(XCBEAUTIFY),not installed)'
 
 destinations: doctor ## Show destinations accepted by the AVP and macOS schemes.
 	@echo 'HappyPianistAVP:'
@@ -244,17 +251,17 @@ shutdown\:simulator: ## Shut down the configured Simulator.
 	@xcrun simctl shutdown "$(SIMULATOR_ID)" >/dev/null 2>&1 || true
 
 build\:simulator: doctor ## Build HappyPianistAVP for visionOS Simulator.
-	@xcodebuild $(XCODEBUILD_COMMON) \
+	@set -o pipefail; xcodebuild $(XCODEBUILD_COMMON) \
 		-destination '$(SIMULATOR_DESTINATION)' \
 		CODE_SIGNING_ALLOWED=NO \
 		$(XCODEBUILD_FLAGS) \
-		build
+		build $(XCODEBUILD_OUTPUT)
 	@echo 'build:simulator: BUILD SUCCEEDED'
 
 test\:simulator: doctor boot\:simulator ## Run Swift Testing tests on visionOS Simulator.
 	@mkdir -p "$(RESULT_BUNDLE_DIR)"
 	$(call remove_result_bundle,$(SIMULATOR_RESULT_BUNDLE))
-	@set -eum; \
+	@set -eum -o pipefail; \
 		echo "test:simulator: running with a $(TEST_RUN_TIMEOUT_SECONDS)s action limit"; \
 		trap 'if [ -n "$${test_pid:-}" ]; then kill -TERM -- "-$$test_pid" 2>/dev/null || true; wait "$$test_pid" 2>/dev/null || true; fi; exit 130' INT TERM HUP; \
 		trap 'status=$$?; xcrun simctl shutdown "$(SIMULATOR_ID)" >/dev/null 2>&1 || true; exit "$$status"' EXIT; \
@@ -269,7 +276,7 @@ test\:simulator: doctor boot\:simulator ## Run Swift Testing tests on visionOS S
 		-resultBundlePath "$(SIMULATOR_RESULT_BUNDLE)" \
 		$(TEST_SELECTION) \
 		$(XCODEBUILD_FLAGS) \
-		test & test_pid=$$!; set +m; \
+		test $(XCODEBUILD_OUTPUT) & test_pid=$$!; set +m; \
 		deadline=$$(($$(date +%s) + $(TEST_RUN_TIMEOUT_SECONDS))); \
 		while kill -0 "$$test_pid" 2>/dev/null; do \
 			if [ $$(date +%s) -ge "$$deadline" ]; then \
@@ -316,18 +323,18 @@ list\:device: ## List paired physical devices known to CoreDevice.
 
 build\:device: doctor ## Build and sign HappyPianistAVP for the configured physical Vision Pro.
 	@test -n "$(DEVICE_ID)" || { echo 'error: set DEVICE_ID=<vision-pro-udid>'; exit 1; }
-	@xcodebuild $(XCODEBUILD_COMMON) \
+	@set -o pipefail; xcodebuild $(XCODEBUILD_COMMON) \
 		-destination '$(DEVICE_DESTINATION)' \
 		$(DEVICE_XCODEBUILD_FLAGS) \
 		$(XCODEBUILD_FLAGS) \
-		build
+		build $(XCODEBUILD_OUTPUT)
 	@echo 'build:device: BUILD SUCCEEDED'
 
 test\:device: doctor ## Build, sign, and run tests on the configured physical Vision Pro.
 	@test -n "$(DEVICE_ID)" || { echo 'error: set DEVICE_ID=<vision-pro-udid>'; exit 1; }
 	@mkdir -p "$(RESULT_BUNDLE_DIR)"
 	$(call remove_result_bundle,$(DEVICE_RESULT_BUNDLE))
-	@xcodebuild $(XCODEBUILD_COMMON) \
+	@set -o pipefail; xcodebuild $(XCODEBUILD_COMMON) \
 		-destination '$(DEVICE_DESTINATION)' \
 		-destination-timeout "$(DESTINATION_TIMEOUT_SECONDS)" \
 		-test-timeouts-enabled YES \
@@ -338,7 +345,7 @@ test\:device: doctor ## Build, sign, and run tests on the configured physical Vi
 		$(TEST_SELECTION) \
 		$(DEVICE_XCODEBUILD_FLAGS) \
 		$(XCODEBUILD_FLAGS) \
-		test
+		test $(XCODEBUILD_OUTPUT)
 	@echo 'test:device: TEST SUCCEEDED'
 
 install\:device: build\:device ## Install the signed app on the configured physical Vision Pro.
