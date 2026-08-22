@@ -142,6 +142,21 @@ struct MacLibraryViewModelTests {
         #expect(viewModel.selectedEntryID == second.id)
         #expect(player.playedEntryIDs.isEmpty)
     }
+
+    @Test func exposesListeningProgressAndSeeksTheCurrentEntry() async throws {
+        let fixture = try MacLibraryFixture()
+        defer { fixture.remove() }
+        let entry = fixture.makeAudioEntry(name: "seekable")
+        _ = try await fixture.indexStore.appendUserEntry(entry)
+        await fixture.viewModel.loadLibrary()
+
+        await fixture.viewModel.toggleListening(entryID: entry.id)
+        fixture.viewModel.seekListening(entryID: entry.id, progress: 0.25)
+
+        #expect(fixture.viewModel.listeningDuration == 12)
+        #expect(fixture.viewModel.listeningCurrentTime == 3)
+        #expect(fixture.audioPlayer.currentTime == 3)
+    }
 }
 
 private struct MacLibraryFixture {
@@ -303,8 +318,8 @@ private final class MacLibraryAudioPlayer: SongAudioPlayerProtocol {
     var onPlaybackFinished: ((UUID?) -> Void)?
     private(set) var currentEntryID: UUID?
     private(set) var playedEntryIDs: [UUID] = []
-    var currentTime: TimeInterval { 0 }
-    var duration: TimeInterval { 1 }
+    var currentTime: TimeInterval = 0
+    var duration: TimeInterval = 12
 
     func play(entryID: UUID, url _: URL) throws {
         currentEntryID = entryID
@@ -317,7 +332,9 @@ private final class MacLibraryAudioPlayer: SongAudioPlayerProtocol {
         currentEntryID = nil
     }
 
-    func seek(to _: TimeInterval) {}
+    func seek(to time: TimeInterval) {
+        currentTime = min(max(time, 0), duration)
+    }
 
     func isPlaying(entryID: UUID) -> Bool {
         currentEntryID == entryID

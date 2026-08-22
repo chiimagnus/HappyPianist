@@ -25,6 +25,7 @@ final class MacLibraryViewModel {
     private let diagnosticsReporter: any DiagnosticsReporting
     private var importQueue: [SongLibraryImportBatchItem] = []
     private var importQueueIndex = 0
+    @ObservationIgnored private var playbackProgressTask: Task<Void, Never>?
     @ObservationIgnored private var audioIntentGeneration = 0
     @ObservationIgnored private var pendingAudioBindingEntryID: UUID?
 
@@ -36,6 +37,8 @@ final class MacLibraryViewModel {
     var isAudioImporterPresented = false
     private(set) var currentListeningEntryID: UUID?
     private(set) var isCurrentListeningPlaying = false
+    private(set) var listeningCurrentTime: TimeInterval = 0
+    private(set) var listeningDuration: TimeInterval = 0
     private(set) var errorMessage: String?
 
     init(
@@ -58,6 +61,7 @@ final class MacLibraryViewModel {
         audioPlaybackController = SongAudioPlaybackStateController(player: audioPlayer)
         audioPlaybackController.onStateChanged = { [weak self] _ in
             self?.syncListeningState()
+            self?.updatePlaybackProgressTask()
         }
     }
 
@@ -259,6 +263,7 @@ final class MacLibraryViewModel {
             else { return }
             try audioPlaybackController.toggle(entryID: entryID, url: audioURL)
             syncListeningState()
+            updatePlaybackProgressTask()
         } catch {
             guard generation == audioIntentGeneration,
                   entry(for: entryID)?.audioFileName == audioFileName
@@ -269,7 +274,15 @@ final class MacLibraryViewModel {
 
     func stopListening() {
         audioIntentGeneration += 1
+        playbackProgressTask?.cancel()
+        playbackProgressTask = nil
         audioPlaybackController.stop()
+        syncListeningState()
+    }
+
+    func seekListening(entryID: UUID, progress: Double) {
+        guard currentListeningEntryID == entryID else { return }
+        audioPlaybackController.seek(toProgress: progress)
         syncListeningState()
     }
 
@@ -425,8 +438,27 @@ final class MacLibraryViewModel {
         currentListeningEntryID = audioPlaybackController.currentEntryID
         if let currentListeningEntryID {
             isCurrentListeningPlaying = audioPlaybackController.isPlaying(entryID: currentListeningEntryID)
+            listeningCurrentTime = audioPlaybackController.currentTime
+            listeningDuration = audioPlaybackController.duration
         } else {
             isCurrentListeningPlaying = false
+            listeningCurrentTime = 0
+            listeningDuration = 0
+        }
+    }
+
+    private func updatePlaybackProgressTask() {
+        playbackProgressTask?.cancel()
+        playbackProgressTask = nil
+
+        guard isCurrentListeningPlaying else { return }
+
+        playbackProgressTask = Task { @MainActor [weak self] in
+            while Task.isCancelled == false {
+                try? await Task.sleep(for: .milliseconds(250))
+                guard let self, self.isCurrentListeningPlaying else { return }
+                self.syncListeningState()
+            }
         }
     }
 }
