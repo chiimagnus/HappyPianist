@@ -62,8 +62,8 @@ SwiftUI / RealityKit -> ViewModel -> Services -> Models
 ```bash
 make doctor
 make destinations
-make build
-make test
+make build:simulator
+make test:simulator
 ```
 
 规则：
