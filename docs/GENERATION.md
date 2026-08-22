@@ -2,7 +2,7 @@
 
 | 项目 | 值 |
 | --- | --- |
-| 源提交 | `f555dfa557c9d07b65ad4739c7549805459fd748` |
+| 源提交 | `8fa0f7d9192a0a36a5f39a03e599ac0d81ba80b1` |
 | 生成日期 | 2026-08-23 |
 | 方法 | `neat-freak`：CodeGraph 核对源码边界，合并重复说明并检查链接、路径和命令。 |
 
@@ -17,5 +17,5 @@
 
 ## 覆盖缺口
 
-- 本次为文档整理，只验证文档链接、路径和命令；未因文档改动重跑 build/test。
-- 真机硬件、钢琴家盲评、教师标注和 coaching 研究仍为 `pending evidence`；合法多 exporter fixture 仍为 `blocked evidence`，详见[测试](testing.md)。
+- 2026-08-23 的 Simulator 全量回归为 `failed`（999 通过、11 失败）；详见[测试](testing.md)。
+- 真机硬件、钢琴家盲评、教师标注和 coaching 研究仍为 `pending evidence`；合法多 exporter fixture 仍为 `blocked evidence`。

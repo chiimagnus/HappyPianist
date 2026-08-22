@@ -110,7 +110,7 @@ make test:simulator
 
 - `README.md`：新人快速入口。
 - `docs/overview.md`：知识库导航。
-- `docs/architecture.md`、`docs/data-flow.md`、`docs/modules/`：当前实现边界。
+- `docs/`：架构、数据流、配置、存储、质量与验证边界。
 - `.github/features/`：执行计划与审计证据，不作为长期架构说明的替代品。
 - [visionOS 开发补充规范](HappyPianistAVP/AGENTS.md)
 

@@ -56,7 +56,7 @@ Makefile 默认使用 `XCODEBUILD_FLAGS=-quiet`，避免日常构建刷屏；需
 
 | 证据 | 状态 | 不能替代 |
 | --- | --- | --- |
-| Simulator 自动化 suite、corpus manifest、score/performance snapshot、observation replay | `passed`：2026-08-09，`c1383e3` | 真机、听感、教师或教学证据 |
+| Simulator 自动化 suite、corpus manifest、score/performance snapshot、observation replay | `failed`：2026-08-23，`8fa0f7d`；999 通过、11 失败 | 真机、听感、教师或教学证据 |
 | 多 exporter 合法 fixture | `blocked evidence` | 内部 fixture、伪造 provenance、不明来源下载 |
 | 真机硬件、钢琴家盲评、教师标注、coaching 研究 | `pending evidence` | Simulator bucket、诊断字段、点击次数或单个 demo |
 
