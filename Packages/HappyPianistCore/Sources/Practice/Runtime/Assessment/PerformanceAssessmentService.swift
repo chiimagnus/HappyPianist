@@ -1026,7 +1026,7 @@ public struct PerformanceAssessmentService {
                     value: next.deviationSeconds
                         - (2 * current.deviationSeconds)
                         + previous.deviationSeconds,
-                    // ponytail: absent phrase marks use a passage-wide generic baseline, never full-confidence evidence.
+                    // Absent phrase marks use a passage-wide generic baseline, never full-confidence evidence.
                     status: genericBaseline
                         ? .degraded
                         : aggregateStatus([previous.status, current.status, next.status]),

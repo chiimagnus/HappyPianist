@@ -389,7 +389,7 @@ public final class CoreMIDIInputEventSourceService: MIDIInputEventSource, Sendab
         uptimeSeconds: TimeInterval
     ) {
         guard shouldPublishOverflowRecovery(for: .midi1, uptimeSeconds: uptimeSeconds) else { return }
-        // ponytail: the app intentionally collapses MIDI channels into one practice state, so one
+        // The app intentionally collapses MIDI channels into one practice state, so one
         // protocol-native marker resets every downstream note cache without causing 16 duplicate resets.
         midi1EventsBroadcaster.yield(MIDI1InputEvent(
             kind: .controlChange(controller: Self.allNotesOffController, value: 0),

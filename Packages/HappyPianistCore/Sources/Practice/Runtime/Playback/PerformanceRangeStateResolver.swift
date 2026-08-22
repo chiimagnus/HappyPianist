@@ -153,7 +153,7 @@ struct PerformanceRangeStateResolver {
         _ events: [EnumeratedSequence<[ScorePerformanceControllerEvent]>.Element],
         at startTick: Int
     ) -> Int? {
-        // ponytail: sounding-note reconstruction uses the MIDI CC64 switch point; playback still forwards exact values.
+        // Sounding-note reconstruction uses the MIDI CC64 switch point; playback still forwards exact values.
         var intervalStart: Int?
         for event in events.lazy.map(\.element) where event.tick <= startTick {
             if event.value >= 64 {

@@ -2,7 +2,7 @@ import Foundation
 import Testing
 
 enum TestAsyncWait {
-    // ponytail: polling is only for deterministic test doubles; production code must signal completion directly.
+    // Polling is only for deterministic test doubles; production code must signal completion directly.
     static func until(
         _ description: String,
         timeout: Duration = .seconds(5),

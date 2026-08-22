@@ -414,7 +414,7 @@ public struct ScoreNotationProjection: Equatable, Sendable {
             }
             let id = event.performedID?.description
                 ?? "pedal-\(event.tick)-\(event.staff ?? 0)-\(kindToken)"
-            // ponytail: playback expands pedal change to off/on; notation owns one mark per source direction.
+            // Playback expands pedal change to off/on; notation owns one mark per source direction.
             guard seenPedalMarkIDs.insert(id).inserted else { continue }
             marks.append(Mark(
                 id: id,
@@ -798,7 +798,7 @@ public struct ScoreNotationProjection: Equatable, Sendable {
                 } else if let active = activeGroups[track] {
                     active
                 } else {
-                    // ponytail: malformed continue/end still keeps a traceable group rooted at itself.
+                    // Malformed continue/end still keeps a traceable group rooted at itself.
                     BeamGroupID(
                         partID: track.partID,
                         voice: track.voice,

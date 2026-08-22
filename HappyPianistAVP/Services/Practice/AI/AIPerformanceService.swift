@@ -379,7 +379,7 @@ final class AIPerformanceService {
             guard let self, self.isEnabled else { return }
             await self.runContinuousControlTick()
             await self.sleepFor(.milliseconds(100))
-            // ponytail: injected clocks may return immediately; prevent a MainActor hot loop.
+            // Injected clocks may return immediately; prevent a MainActor hot loop.
             try? await Task.sleep(for: .milliseconds(1))
             guard Task.isCancelled == false, self.isEnabled else { return }
             self.scheduleNextControlTick()

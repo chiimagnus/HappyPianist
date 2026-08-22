@@ -42,7 +42,7 @@ public struct MIDIHostTimeConverter: Sendable {
         else { return origin.hostTime }
 
         let elapsedHostTicks = elapsedSeconds * hostTicksPerSecond
-        // ponytail: unreachable score durations saturate instead of overflowing CoreMIDI's UInt64 host clock.
+        // Unreachable score durations saturate instead of overflowing CoreMIDI's UInt64 host clock.
         guard elapsedHostTicks.isFinite,
               elapsedHostTicks < Double(UInt64.max)
         else { return .max }

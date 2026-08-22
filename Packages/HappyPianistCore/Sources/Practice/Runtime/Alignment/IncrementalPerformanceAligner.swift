@@ -101,7 +101,7 @@ public struct IncrementalPerformanceAligner {
     }
 
     public mutating func appendReplayObservations(_ replayObservations: [PerformanceObservation]) {
-        // ponytail: offline replay needs only the final alignment; online append owns transient snapshots.
+        // Offline replay needs only the final alignment; online append owns transient snapshots.
         for observation in replayObservations {
             _ = accept(observation)
         }
@@ -255,7 +255,7 @@ public struct IncrementalPerformanceAligner {
                 commit(link)
             }
         }
-        // ponytail: discard semantically inert controller traffic before freezing unresolved musical evidence.
+        // Discard semantically inert controller traffic before freezing unresolved musical evidence.
         observations.removeAll { evictedIDs.contains($0.id) }
         discardedObservationCount += evictedIDs.count
     }

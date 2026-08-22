@@ -73,7 +73,7 @@ struct PianoKeyHitTestIndex {
             }
         }
 
-        // ponytail: generated piano keys can overlap only their immediate X neighbors.
+        // Generated piano keys can overlap only their immediate X neighbors.
         // Replace this with an interval tree only if irregular custom keyboard geometry is introduced.
         if lower < regions.count, regions[lower].containsXZ(point) {
             return regions[lower]

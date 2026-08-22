@@ -318,7 +318,7 @@ public struct AutoplayPerformanceTimeline: Equatable, Sendable {
             ))
         }
 
-        // ponytail: priority 0 lets the sole fermata pause hold same-tick note-offs without changing plan note ticks.
+        // Priority 0 lets the sole fermata pause hold same-tick note-offs without changing plan note ticks.
         for (index, annotation) in plan.annotations.enumerated() {
             guard annotation.kind == .pause,
                   let durationTicks = annotation.durationTicks,
