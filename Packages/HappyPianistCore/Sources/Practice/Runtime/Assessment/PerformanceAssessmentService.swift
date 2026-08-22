@@ -1026,7 +1026,7 @@ public struct PerformanceAssessmentService {
                     value: next.deviationSeconds
                         - (2 * current.deviationSeconds)
                         + previous.deviationSeconds,
-                    // Absent phrase marks use a passage-wide generic baseline, never full-confidence evidence.
+                    // 缺少乐句标记时使用段落通用基线，绝不生成满置信度证据。
                     status: genericBaseline
                         ? .degraded
                         : aggregateStatus([previous.status, current.status, next.status]),

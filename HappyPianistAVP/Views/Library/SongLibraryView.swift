@@ -391,7 +391,7 @@ private struct LibraryImportStatusView: View {
                     .buttonStyle(.borderedProminent)
                 Button("取消剩余导入", role: .cancel, action: onCancelAll)
             case .idle, .staging, .processing:
-                // The parent only creates this view while an import is active.
+                // 父视图仅在导入进行中创建此视图。
                 Button("取消导入", role: .cancel, action: onCancelAll)
             }
         }

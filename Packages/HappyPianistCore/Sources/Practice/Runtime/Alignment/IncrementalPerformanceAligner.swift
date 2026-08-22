@@ -101,7 +101,7 @@ public struct IncrementalPerformanceAligner {
     }
 
     public mutating func appendReplayObservations(_ replayObservations: [PerformanceObservation]) {
-        // Offline replay needs only the final alignment; online append owns transient snapshots.
+        // 离线回放只需要最终对齐；在线追加负责暂态快照。
         for observation in replayObservations {
             _ = accept(observation)
         }
@@ -255,7 +255,7 @@ public struct IncrementalPerformanceAligner {
                 commit(link)
             }
         }
-        // Discard semantically inert controller traffic before freezing unresolved musical evidence.
+        // 在冻结未决音乐证据前，丢弃语义惰性的控制器流量。
         observations.removeAll { evictedIDs.contains($0.id) }
         discardedObservationCount += evictedIDs.count
     }

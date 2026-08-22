@@ -4,8 +4,8 @@ import MIDI
 import Synchronization
 
 final class MIDIPlaybackGenerationGate: Sendable {
-    // This mutex is the one synchronous bridge from CoreMIDI's route callback to
-    // look-ahead submission. Holding it through the send makes invalidation and submission atomic.
+    // 此 mutex 是 CoreMIDI 路由回调与前瞻提交之间唯一的同步桥。
+    // 在发送期间持锁，使失效与提交保持原子性。
     private let generation = Mutex<UInt64>(0)
 
     func beginGeneration() -> UInt64 {

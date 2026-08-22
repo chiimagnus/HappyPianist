@@ -41,7 +41,7 @@ struct FingerMotionEstimator {
     private let minimumConfidence: Float
     private var stateByFinger: [TrackedFingerID: State] = [:]
 
-    // These are ARKit sample-sanity bounds, not piano touch calibration.
+    // 这些仅是 ARKit 样本合理性范围，不是钢琴触键校准。
     // Add a tracked-device profile only if another hand provider has different timing or jump characteristics.
     init(
         minimumSampleIntervalSeconds: TimeInterval = 1.0 / 240.0,

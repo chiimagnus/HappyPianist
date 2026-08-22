@@ -49,7 +49,7 @@ public struct ScoreTimingScheduleBuilder {
             profile: interpretationProfile,
             entries: &entries
         )
-        // Fermata stays a single downstream pause directive; timing entries never stretch it again.
+        // 延长记号保持为单一下游暂停指令；时序条目不会再次拉长它。
         let entryValues = entries.map(\.value)
         let ornamentSchedule = MusicXMLOrnamentScheduler().schedule(
             notes: notes,

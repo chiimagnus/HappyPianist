@@ -67,7 +67,7 @@ public struct RecordingTakeRecorder {
         let now = observation.timing.host.seconds
         switch observation.event {
         case let .noteOn(note, velocity):
-            // A missing velocity remains explicit in observation; 64 is only the MIDI playback projection.
+            // 缺失的力度在观察中保持明确缺失；64 仅用于 MIDI 回放投影。
             recordNoteOn(
                 note: note,
                 velocity: velocity.map(Self.midi7Bit) ?? 64,

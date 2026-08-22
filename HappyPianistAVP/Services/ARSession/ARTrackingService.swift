@@ -15,7 +15,7 @@ enum ARTrackingServiceError: LocalizedError {
 
 @MainActor
 final class ARTrackingService: ARTrackingServiceProtocol {
-    // ARKit providers cannot run again after stopping, so one runtime owns exactly one start generation.
+    // ARKit provider 停止后不可再次运行，因此每个运行时只能拥有一个启动代次。
     final class Runtime {
         let session = ARKitSession()
         let worldTrackingProvider = WorldTrackingProvider()
