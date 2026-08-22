@@ -75,7 +75,7 @@ MAC_XCODEBUILD_COMMON = \
 	-scheme "$(MAC_SCHEME)" \
 	-configuration "$(CONFIGURATION)"
 
-.PHONY: help doctor config destinations clean build test dev
+.PHONY: help doctor config destinations clean
 .PHONY: build\:mac test\:mac
 .PHONY: list\:simulator open\:simulator boot\:simulator shutdown\:simulator
 .PHONY: build\:simulator test\:simulator install\:simulator launch\:simulator
@@ -87,32 +87,37 @@ help: ## 显示可用命令。
 	@printf '%s\n' \
 		'HappyPianistAVP visionOS Make 目标' \
 		'' \
-		'开发快捷命令：' \
-		'  make build                  构建配置的模拟器版本' \
-		'  make test                   在配置的模拟器上运行全部测试' \
+		'macOS：' \
 		'  make build:mac              构建独立的 macOS App' \
 		'  make test:mac               运行 macOS App 测试' \
-		'  make dev                    构建、安装、启动，然后只输出 App 日志' \
-		'  make clean                  清理 AVP、macOS scheme 和本地测试报告' \
 		'' \
-		'模拟器：' \
-		'  make build:simulator' \
-		'  make test:simulator' \
-		'  make run:simulator' \
-		'  make logs:simulator' \
-		'  make shutdown:simulator      关闭配置的模拟器' \
+		'AVP Simulator：' \
+		'  make build:simulator        构建 visionOS 模拟器版本' \
+		'  make test:simulator         在配置的模拟器上运行全部测试' \
+		'  make install:simulator      构建并安装 App' \
+		'  make launch:simulator       启动已安装的 App' \
+		'  make run:simulator          构建、安装并启动 App' \
+		'  make terminate:simulator    终止 App' \
+		'  make logs:simulator         输出 App 结构化日志' \
+		'  make open:simulator         打开 DeviceHub 或 Simulator' \
+		'  make boot:simulator         启动配置的模拟器' \
+		'  make shutdown:simulator     关闭配置的模拟器' \
 		'' \
-		'真机：' \
-		'  make build:device' \
-		'  make test:device' \
-		'  make run:device' \
+		'AVP Device：' \
+		'  make build:device           构建并签名 visionOS App' \
+		'  make test:device            在配置的 Vision Pro 上运行测试' \
+		'  make install:device         构建并安装 App' \
+		'  make launch:device          启动已安装的 App' \
+		'  make run:device             构建、安装并启动 App' \
 		'  make console:device         启动并附加标准输出/错误' \
 		'' \
-		'发现与配置：' \
+		'发现、配置与维护：' \
+		'  make doctor                 检查开发环境' \
 		'  make destinations           显示 AVP 和 macOS 可用 destination' \
 		'  make list:simulator         列出可用模拟器' \
 		'  make list:device            列出已配对真机' \
 		'  make config                 显示当前 Make 配置' \
+		'  make clean                  清理 AVP、macOS scheme 和本地测试报告' \
 		'' \
 		'DerivedData：' \
 		'  使用 Xcode 默认目录：~/Library/Developer/Xcode/DerivedData/' \
@@ -124,14 +129,8 @@ help: ## 显示可用命令。
 		'  make test:simulator ONLY_TESTING=HappyPianistAVPTests/GrandStaffNotationVisualTests' \
 		'  make build:device CONFIGURATION=Release' \
 		'  make test:mac MAC_ONLY_TESTING=HappyPianistMacTests/MacPracticeViewModelTests' \
-		'  make dev LOG_LEVEL=debug    包含 App 调试诊断信息' \
-		'  make build XCODEBUILD_FLAGS=       显示完整的 xcodebuild 输出'
-
-build: ## 为配置的 Vision Pro 模拟器构建。
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'build:simulator'
-
-test: ## 在配置的 Vision Pro 模拟器上运行全部测试。
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'test:simulator'
+		'  make logs:simulator LOG_LEVEL=debug  包含 App 调试诊断信息' \
+		'  make build:simulator XCODEBUILD_FLAGS=  显示完整的 xcodebuild 输出'
 
 build\:mac: doctor ## 不使用模拟器构建 HappyPianistMac。
 	@xcodebuild $(MAC_XCODEBUILD_COMMON) \
@@ -157,11 +156,6 @@ test\:mac: doctor ## 不使用模拟器运行 HappyPianistMac 测试。
 		$(XCODEBUILD_FLAGS) \
 		test
 	@echo 'test:mac: 测试成功'
-
-dev: ## 构建、安装、启动，然后输出模拟器日志。
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'open:simulator'
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'run:simulator'
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'logs:simulator'
 
 doctor: ## 检查所需 Apple 命令行工具和 Xcode 工程是否存在。
 	@command -v xcodebuild >/dev/null || { echo '错误：未找到 xcodebuild'; exit 1; }
