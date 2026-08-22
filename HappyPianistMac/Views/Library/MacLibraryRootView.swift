@@ -204,21 +204,6 @@ private struct MacLibraryView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("曲库")
-                        .font(.title2)
-                        .bold()
-                    Text("导入 MusicXML 或 MXL 后，从这里选择要练习的曲谱。")
-                        .foregroundStyle(.secondary)
-                }
-                Spacer()
-                Button("导入曲谱", systemImage: "square.and.arrow.down") {
-                    viewModel.presentMusicXMLImporter()
-                }
-                .buttonStyle(.borderedProminent)
-            }
-
             if viewModel.entries.isEmpty {
                 ContentUnavailableView {
                     Label("还没有曲谱", systemImage: "music.note.list")
@@ -292,7 +277,21 @@ private struct MacLibraryView: View {
                 .inspectorColumnWidth(min: 280, ideal: 340, max: 400)
         }
         .toolbar {
-            ToolbarItem(placement: .primaryAction) {
+            ToolbarItem(placement: .principal) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("曲库")
+                        .font(.headline)
+                    Text("导入 MusicXML 或 MXL 后，从这里选择要练习的曲谱。")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button("导入曲谱", systemImage: "square.and.arrow.down") {
+                    viewModel.presentMusicXMLImporter()
+                }
+
                 Button(
                     isInspectorPresented ? "隐藏曲目详情" : "显示曲目详情",
                     systemImage: "sidebar.right"
