@@ -20,7 +20,7 @@ visionOS target 仅声明实际使用的权限：
 - 虚拟钢琴平面放置所需的 world sensing；
 - 用户选择 Aria 网络后端时的 Local Network 与 Bonjour `_lpduet._tcp`。
 
-MusicXML 和 MXL 的 imported type 已在两个 App host 声明。`Packages/RealityKitContent` 承载空间资产；私有 SoundFont、CoreML 模型和部分 SeedScores 不随仓库分发，因此相关资源测试可能跳过，不能视为集成通过。
+MusicXML 和 MXL 的 imported type 已在两个 App host 声明。仓库根的 `Resources/SeedScores` 是两个 host 共用的一份内置曲谱资源：两个 target 都打包该目录，并通过 `BundledSongLibraryProvider` 发现。`Packages/RealityKitContent` 承载空间资产；私有 SoundFont、CoreML 模型和未分发的 SeedScores 仍会使相关资源测试跳过，不能视为集成通过。
 
 ## 用户设置与可选 Aria 服务
 

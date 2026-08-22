@@ -9,7 +9,7 @@ Packages/HappyPianistCore/Package.resolved
 .derivedData
 .derivedData-avp
 *.sf2
-HappyPianistAVP/Resources/SeedScores/
+Resources/SeedScores/
 Packages/RealityKitContent/Sources/RealityKitContent/RealityKitContent.rkassets/xiaocheng.usdz
 *.zip
 

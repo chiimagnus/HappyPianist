@@ -32,6 +32,8 @@
 		B20200000000000000000004 /* MIDI in Frameworks */ = {isa = PBXBuildFile; productRef = B21100000000000000000004 /* MIDI */; };
 		B20200000000000000000005 /* Practice in Frameworks */ = {isa = PBXBuildFile; productRef = B21100000000000000000005 /* Practice */; };
 		B20200000000000000000006 /* Library in Frameworks */ = {isa = PBXBuildFile; productRef = B21100000000000000000006 /* Library */; };
+		B20600000000000000000007 /* SeedScores in Resources */ = {isa = PBXBuildFile; fileRef = B20500000000000000000004 /* SeedScores */; };
+		B20600000000000000000008 /* SeedScores in Resources */ = {isa = PBXBuildFile; fileRef = B20500000000000000000004 /* SeedScores */; };
 		D85596AE2F83FF72005BE7FE /* RealityKitContent in Frameworks */ = {isa = PBXBuildFile; productRef = D85596AD2F83FF72005BE7FE /* RealityKitContent */; };
 /* End PBXBuildFile section */
 
@@ -55,6 +57,7 @@
 /* Begin PBXFileReference section */
 		B20400000000000000000001 /* HappyPianistMac.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HappyPianistMac.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		B20400000000000000000002 /* HappyPianistMacTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HappyPianistMacTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B20500000000000000000004 /* SeedScores */ = {isa = PBXFileReference; lastKnownFileType = folder; name = SeedScores; path = Resources/SeedScores; sourceTree = "<group>"; };
 		D85596AC2F83FF72005BE7FE /* RealityKitContent */ = {isa = PBXFileReference; lastKnownFileType = text; path = RealityKitContent; sourceTree = "<group>"; };
 		D8C8848D2FC3623C00F1D94F /* HappyPianistAVP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HappyPianistAVP.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		D8C8848F2FC3623C00F1D94F /* HappyPianistAVPTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = HappyPianistAVPTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -177,6 +180,7 @@
 				D85596BF2F83FF74005BE7FE /* HappyPianistAVPTests */,
 				B20500000000000000000001 /* HappyPianistMac */,
 				B20500000000000000000002 /* HappyPianistMacTests */,
+				B20500000000000000000004 /* SeedScores */,
 				D85596AB2F83FF72005BE7FE /* Packages */,
 			);
 			sourceTree = "<group>";
@@ -350,6 +354,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B20600000000000000000007 /* SeedScores in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -364,6 +369,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B20600000000000000000008 /* SeedScores in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

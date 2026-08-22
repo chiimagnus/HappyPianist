@@ -1,20 +1,19 @@
 import CryptoKit
 import Foundation
-import Library
 
-struct BundledSongLibraryProvider: BundledSongLibraryProviderProtocol {
-    private static let seedSubdirectory = "Resources/SeedScores"
+public struct BundledSongLibraryProvider: BundledSongLibraryProviderProtocol {
+    private static let seedSubdirectory = "SeedScores"
     private static let bundledImportedAt = Date(timeIntervalSince1970: 0)
 
     private let bundle: Bundle
     private let seedRootURLsOverride: [URL]?
 
-    init(bundle: Bundle = .main, seedRootURLs: [URL]? = nil) {
+    public init(bundle: Bundle = .main, seedRootURLs: [URL]? = nil) {
         self.bundle = bundle
         seedRootURLsOverride = seedRootURLs
     }
 
-    func bundledEntries() -> [SongLibraryEntry] {
+    public func bundledEntries() -> [SongLibraryEntry] {
         var byRelativePath: [String: URL] = [:]
         for url in resourceURLs(withExtension: "musicxml") {
             byRelativePath[relativeResourcePath(for: url)] = url
@@ -49,11 +48,11 @@ struct BundledSongLibraryProvider: BundledSongLibraryProviderProtocol {
             }
     }
 
-    func musicXMLURL(fileName: String) -> URL? {
+    public func musicXMLURL(fileName: String) -> URL? {
         resourceURL(relativePath: fileName, withExtension: "musicxml")
     }
 
-    func audioURL(fileName: String) -> URL? {
+    public func audioURL(fileName: String) -> URL? {
         resourceURL(
             relativePath: fileName,
             withExtension: URL(fileURLWithPath: fileName).pathExtension
@@ -83,22 +82,8 @@ struct BundledSongLibraryProvider: BundledSongLibraryProviderProtocol {
         let normalizedExtension = fileExtension.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard normalizedExtension.isEmpty == false else { return [] }
 
-        var urls = seedRootURLs().flatMap {
+        let urls = seedRootURLs().flatMap {
             Self.recursiveResourceURLs(in: $0, withExtension: normalizedExtension)
-        }
-        if seedRootURLsOverride == nil {
-            urls.append(contentsOf: bundle.urls(
-                forResourcesWithExtension: normalizedExtension,
-                subdirectory: Self.seedSubdirectory
-            ) ?? [])
-            urls.append(contentsOf: bundle.urls(
-                forResourcesWithExtension: normalizedExtension,
-                subdirectory: "SeedScores"
-            ) ?? [])
-            urls.append(contentsOf: bundle.urls(
-                forResourcesWithExtension: normalizedExtension,
-                subdirectory: nil
-            ) ?? [])
         }
         var byPath: [String: URL] = [:]
         for url in urls {
@@ -112,15 +97,14 @@ struct BundledSongLibraryProvider: BundledSongLibraryProviderProtocol {
             return seedRootURLsOverride
         }
         guard let resourceURL = bundle.resourceURL else { return [] }
-        let candidates = [
-            resourceURL.appending(path: Self.seedSubdirectory, directoryHint: .isDirectory),
-            resourceURL.appending(path: "SeedScores", directoryHint: .isDirectory),
-        ]
-        return candidates.filter { candidate in
-            var isDirectory: ObjCBool = false
-            return FileManager.default.fileExists(atPath: candidate.path, isDirectory: &isDirectory)
-                && isDirectory.boolValue
+        let seedDirectoryURL = resourceURL.appending(path: Self.seedSubdirectory, directoryHint: .isDirectory)
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: seedDirectoryURL.path, isDirectory: &isDirectory),
+              isDirectory.boolValue
+        else {
+            return []
         }
+        return [seedDirectoryURL]
     }
 
     static func recursiveResourceURLs(in rootURL: URL, withExtension fileExtension: String) -> [URL] {

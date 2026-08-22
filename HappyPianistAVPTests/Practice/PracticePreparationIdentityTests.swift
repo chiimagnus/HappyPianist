@@ -55,7 +55,7 @@ private let underPressureSeedScoreURL: URL = {
         .deletingLastPathComponent()
     let directoryName = "Under_Pressure_-_David_Bowie,_David_Bowie_&_Queen,_Queen_(Piano_Solo)"
     return repositoryRoot
-        .appending(path: "HappyPianistAVP/Resources/SeedScores")
+        .appending(path: "Resources/SeedScores")
         .appending(path: directoryName)
         .appending(path: "\(directoryName).musicxml")
 }()

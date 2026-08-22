@@ -32,16 +32,18 @@ func builderCreatesOneDeterministicClipPerPlannedHandOffMain() async throws {
     let result = try await PianoHandMotionClipBuilder().buildOffMain(input: input)
 
     #expect(result.rejectedOccurrenceIDs.isEmpty)
-    #expect(result.clips.map(\.hand) == [.left, .right])
-    #expect(result.clips[0].coverage.map(\.occurrenceID) == ["left"])
-    #expect(result.clips[1].coverage.map(\.finger) == [1, 2, 2])
-    #expect(result.clips[1].frames.map(\.timeSeconds).contains(0.2))
-    #expect(result.clips[1].frames.map(\.timeSeconds).contains(0.4))
-    #expect(try #require(result.clips[1].frames.first).timeSeconds < 0.2)
-    #expect(result.clips[1].frames.allSatisfy {
+    #expect(result.clips.count == 2)
+    let leftClip = try #require(result.clips.first { $0.hand == .left })
+    let rightClip = try #require(result.clips.first { $0.hand == .right })
+    #expect(leftClip.coverage.map(\.occurrenceID) == ["left"])
+    #expect(rightClip.coverage.map(\.finger) == [1, 2, 2])
+    #expect(rightClip.frames.map(\.timeSeconds).contains(0.2))
+    #expect(rightClip.frames.map(\.timeSeconds).contains(0.4))
+    #expect(try #require(rightClip.frames.first).timeSeconds < 0.2)
+    #expect(rightClip.frames.allSatisfy {
         $0.rootTransform.rotation != SIMD4<Float>(0, 0, 0, 1)
     })
-    #expect(try #require(result.clips[1].frames.first {
+    #expect(try #require(rightClip.frames.first {
         $0.timeSeconds == 0.2
     }).jointRotations[1].z != 0)
     #expect(result.clips.allSatisfy { clip in

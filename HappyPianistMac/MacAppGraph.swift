@@ -35,7 +35,7 @@ struct MacAppGraph {
             store: diagnosticsStore,
             exporter: diagnosticsExporter
         )
-        let bundledProvider: any BundledSongLibraryProviderProtocol = EmptyMacBundledSongLibraryProvider()
+        let bundledProvider: any BundledSongLibraryProviderProtocol = BundledSongLibraryProvider()
         let indexStore = SongLibraryIndexStore()
         let fileStore = SongFileStore()
         let audioImportService: any AudioImportServiceProtocol = AudioImportService()
@@ -117,10 +117,4 @@ struct MacAppGraph {
             )
         )
     }
-}
-
-private struct EmptyMacBundledSongLibraryProvider: BundledSongLibraryProviderProtocol {
-    func bundledEntries() -> [SongLibraryEntry] { [] }
-    func musicXMLURL(fileName _: String) -> URL? { nil }
-    func audioURL(fileName _: String) -> URL? { nil }
 }
