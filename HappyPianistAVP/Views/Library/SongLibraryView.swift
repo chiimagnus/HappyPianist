@@ -46,6 +46,14 @@ struct SongLibraryView: View {
         let canPerformPlaybackAction = selectedEntry?.audioFileName != nil || requiresAudioImport
 
         VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Button("选择钢琴", systemImage: "pianokeys", action: onChoosePiano)
+                Spacer()
+                Button("诊断", systemImage: "stethoscope") {
+                    isDiagnosticsPresented = true
+                }
+            }
+
             if entries.isEmpty {
                 SongLibraryEmptyView(onImport: viewModel.didTapImportMusicXML)
             } else if selectedEntry != nil, selectedPresentation != nil {
@@ -72,13 +80,6 @@ struct SongLibraryView: View {
             maxHeight: LibraryWindowLayout.maximumHeight
         )
         .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                Button("选择钢琴", systemImage: "pianokeys", action: onChoosePiano)
-                Button("诊断", systemImage: "stethoscope") {
-                    isDiagnosticsPresented = true
-                }
-            }
-
             ToolbarItemGroup(placement: .bottomOrnament) {
                 if let selectedEntry, let selectedPresentation {
                     LibraryNowPlayingBar(
