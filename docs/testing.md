@@ -18,7 +18,7 @@ swift test --package-path Packages/HappyPianistCore
 
 `make build:mac` 和 `make test:mac` 只使用 macOS scheme/destination/result bundle，不启动或读取 visionOS Simulator；`make clean` 会清理两个 App scheme。`build-for-testing`、语法检查或 Linux harness 都不能替代实际 `xcodebuild test`。
 
-Makefile 默认使用 `XCODEBUILD_FLAGS=-quiet`，避免日常构建刷屏；需要完整日志时传入 `XCODEBUILD_FLAGS=`。本地安装 `xcbeautify`（`brew install xcbeautify`）后，Makefile 会自动格式化构建和测试输出；未安装时仍保留 quiet 行为，不影响验证结果。
+Makefile 默认使用 `XCODEBUILD_FLAGS=-quiet`，避免日常构建刷屏；需要完整日志时传入 `XCODEBUILD_FLAGS=`。
 
 ## 证据分层
 

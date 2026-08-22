@@ -2,7 +2,6 @@
 # 使用 Xcode 默认的 DerivedData，让命令行与 Xcode 共用构建产物。
 # 默认值来自 config.yaml，可在命令行覆盖。
 
-SHELL := /bin/bash
 .DEFAULT_GOAL := help
 .NOTPARALLEL:
 
@@ -50,10 +49,6 @@ endef
 
 PARALLEL_TESTING ?= NO
 ONLY_TESTING ?=
-# 可选：运行 `brew install xcbeautify`，获得更紧凑的 xcodebuild 输出。
-# ponytail：未安装时回退到原始 xcodebuild，因此 Makefile 不增加硬依赖。
-XCBEAUTIFY ?= $(shell command -v xcbeautify 2>/dev/null)
-XCODEBUILD_OUTPUT ?= $(if $(strip $(XCBEAUTIFY)),2>&1 | $(XCBEAUTIFY),)
 XCODEBUILD_FLAGS ?= -quiet
 DEVICE_XCODEBUILD_FLAGS ?= -allowProvisioningUpdates
 
@@ -130,8 +125,7 @@ help: ## 显示可用命令。
 		'  make build:device CONFIGURATION=Release' \
 		'  make test:mac MAC_ONLY_TESTING=HappyPianistMacTests/MacPracticeViewModelTests' \
 		'  make dev LOG_LEVEL=debug    包含 App 调试诊断信息' \
-		'  make build XCODEBUILD_FLAGS=       显示完整的 xcodebuild 输出' \
-		'  brew install xcbeautify      有条件地格式化 xcodebuild 输出'
+		'  make build XCODEBUILD_FLAGS=       显示完整的 xcodebuild 输出'
 
 build: ## 为配置的 Vision Pro 模拟器构建。
 	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'build:simulator'
@@ -140,17 +134,17 @@ test: ## 在配置的 Vision Pro 模拟器上运行全部测试。
 	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'test:simulator'
 
 build\:mac: doctor ## 不使用模拟器构建 HappyPianistMac。
-	@set -o pipefail; xcodebuild $(MAC_XCODEBUILD_COMMON) \
+	@xcodebuild $(MAC_XCODEBUILD_COMMON) \
 		-destination '$(MAC_DESTINATION)' \
 		CODE_SIGNING_ALLOWED=NO \
 		$(XCODEBUILD_FLAGS) \
-		build $(XCODEBUILD_OUTPUT)
+		build
 	@echo 'build:mac: 构建成功'
 
 test\:mac: doctor ## 不使用模拟器运行 HappyPianistMac 测试。
 	@mkdir -p "$(RESULT_BUNDLE_DIR)"
 	$(call remove_result_bundle,$(MAC_RESULT_BUNDLE))
-	@set -o pipefail; xcodebuild $(MAC_XCODEBUILD_COMMON) \
+	@xcodebuild $(MAC_XCODEBUILD_COMMON) \
 		-destination '$(MAC_DESTINATION)' \
 		-destination-timeout "$(DESTINATION_TIMEOUT_SECONDS)" \
 		CODE_SIGNING_ALLOWED=NO \
@@ -161,7 +155,7 @@ test\:mac: doctor ## 不使用模拟器运行 HappyPianistMac 测试。
 		-resultBundlePath "$(MAC_RESULT_BUNDLE)" \
 		$(MAC_TEST_SELECTION) \
 		$(XCODEBUILD_FLAGS) \
-		test $(XCODEBUILD_OUTPUT)
+		test
 	@echo 'test:mac: 测试成功'
 
 dev: ## 构建、安装、启动，然后输出模拟器日志。
@@ -208,8 +202,7 @@ config: ## 打印解析后的 Make 配置。
 		'LOG_STYLE' '$(LOG_STYLE)' \
 		'LOG_LEVEL' '$(LOG_LEVEL)' \
 		'LOG_PREDICATE' '$(LOG_PREDICATE)' \
-		'XCODEBUILD_FLAGS' '$(XCODEBUILD_FLAGS)' \
-		'XCBEAUTIFY' '$(if $(strip $(XCBEAUTIFY)),$(XCBEAUTIFY),not installed)'
+		'XCODEBUILD_FLAGS' '$(XCODEBUILD_FLAGS)'
 
 destinations: doctor ## 显示 AVP 和 macOS scheme 接受的 destination。
 	@echo 'HappyPianistAVP 可用 destination：'
@@ -252,17 +245,17 @@ shutdown\:simulator: ## 关闭配置的模拟器。
 	@xcrun simctl shutdown "$(SIMULATOR_ID)" >/dev/null 2>&1 || true
 
 build\:simulator: doctor ## 为 visionOS 模拟器构建 HappyPianistAVP。
-	@set -o pipefail; xcodebuild $(XCODEBUILD_COMMON) \
+	@xcodebuild $(XCODEBUILD_COMMON) \
 		-destination '$(SIMULATOR_DESTINATION)' \
 		CODE_SIGNING_ALLOWED=NO \
 		$(XCODEBUILD_FLAGS) \
-		build $(XCODEBUILD_OUTPUT)
+		build
 	@echo 'build:simulator: 构建成功'
 
 test\:simulator: doctor boot\:simulator ## 在 visionOS 模拟器上运行 Swift Testing 测试。
 	@mkdir -p "$(RESULT_BUNDLE_DIR)"
 	$(call remove_result_bundle,$(SIMULATOR_RESULT_BUNDLE))
-	@set -eum -o pipefail; \
+	@set -eum; \
 		echo "test:simulator：运行总时限为 $(TEST_RUN_TIMEOUT_SECONDS) 秒"; \
 		trap 'if [ -n "$${test_pid:-}" ]; then kill -TERM -- "-$$test_pid" 2>/dev/null || true; wait "$$test_pid" 2>/dev/null || true; fi; exit 130' INT TERM HUP; \
 		trap 'status=$$?; xcrun simctl shutdown "$(SIMULATOR_ID)" >/dev/null 2>&1 || true; exit "$$status"' EXIT; \
@@ -277,7 +270,7 @@ test\:simulator: doctor boot\:simulator ## 在 visionOS 模拟器上运行 Swift
 		-resultBundlePath "$(SIMULATOR_RESULT_BUNDLE)" \
 		$(TEST_SELECTION) \
 		$(XCODEBUILD_FLAGS) \
-		test $(XCODEBUILD_OUTPUT) & test_pid=$$!; set +m; \
+		test & test_pid=$$!; set +m; \
 		deadline=$$(($$(date +%s) + $(TEST_RUN_TIMEOUT_SECONDS))); \
 		while kill -0 "$$test_pid" 2>/dev/null; do \
 			if [ $$(date +%s) -ge "$$deadline" ]; then \
@@ -324,18 +317,18 @@ list\:device: ## 列出 CoreDevice 识别到的已配对真机。
 
 build\:device: doctor ## 为配置的 Vision Pro 真机构建并签名 HappyPianistAVP。
 	@test -n "$(DEVICE_ID)" || { echo '错误：请设置 DEVICE_ID=<vision-pro-udid>'; exit 1; }
-	@set -o pipefail; xcodebuild $(XCODEBUILD_COMMON) \
+	@xcodebuild $(XCODEBUILD_COMMON) \
 		-destination '$(DEVICE_DESTINATION)' \
 		$(DEVICE_XCODEBUILD_FLAGS) \
 		$(XCODEBUILD_FLAGS) \
-		build $(XCODEBUILD_OUTPUT)
+		build
 	@echo 'build:device: 构建成功'
 
 test\:device: doctor ## 为配置的 Vision Pro 真机构建、签名并运行测试。
 	@test -n "$(DEVICE_ID)" || { echo '错误：请设置 DEVICE_ID=<vision-pro-udid>'; exit 1; }
 	@mkdir -p "$(RESULT_BUNDLE_DIR)"
 	$(call remove_result_bundle,$(DEVICE_RESULT_BUNDLE))
-	@set -o pipefail; xcodebuild $(XCODEBUILD_COMMON) \
+	@xcodebuild $(XCODEBUILD_COMMON) \
 		-destination '$(DEVICE_DESTINATION)' \
 		-destination-timeout "$(DESTINATION_TIMEOUT_SECONDS)" \
 		-test-timeouts-enabled YES \
@@ -346,7 +339,7 @@ test\:device: doctor ## 为配置的 Vision Pro 真机构建、签名并运行�
 		$(TEST_SELECTION) \
 		$(DEVICE_XCODEBUILD_FLAGS) \
 		$(XCODEBUILD_FLAGS) \
-		test $(XCODEBUILD_OUTPUT)
+		test
 	@echo 'test:device: 测试成功'
 
 install\:device: build\:device ## 将签名后的 App 安装到配置的 Vision Pro 真机。
