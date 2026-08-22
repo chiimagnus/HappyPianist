@@ -72,6 +72,13 @@ struct SongLibraryView: View {
             maxHeight: LibraryWindowLayout.maximumHeight
         )
         .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button("选择钢琴", systemImage: "pianokeys", action: onChoosePiano)
+                Button("诊断", systemImage: "stethoscope") {
+                    isDiagnosticsPresented = true
+                }
+            }
+
             ToolbarItemGroup(placement: .bottomOrnament) {
                 if let selectedEntry, let selectedPresentation {
                     LibraryNowPlayingBar(
@@ -105,16 +112,6 @@ struct SongLibraryView: View {
                     .accessibilityHint(startPracticeAccessibilityHint)
                 }
             }
-        }
-        .ornament(
-            visibility: .visible,
-            attachmentAnchor: .scene(.top),
-            contentAlignment: .bottom
-        ) {
-            LibraryTopActionsOrnament(
-                onChoosePiano: onChoosePiano,
-                onShowDiagnostics: { isDiagnosticsPresented = true }
-            )
         }
         .onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { height in
             libraryViewHeight = height
@@ -360,22 +357,6 @@ private enum LibraryWindowLayout {
     static let minimumHeight: CGFloat = 620
     static let idealHeight: CGFloat = 720
     static let maximumHeight: CGFloat = 860
-}
-
-private struct LibraryTopActionsOrnament: View {
-    let onChoosePiano: () -> Void
-    let onShowDiagnostics: () -> Void
-
-    var body: some View {
-        HStack(spacing: 8) {
-            Button("选择钢琴", systemImage: "pianokeys", action: onChoosePiano)
-            Button("诊断", systemImage: "stethoscope", action: onShowDiagnostics)
-        }
-        .controlSize(.large)
-        .buttonStyle(.bordered)
-        .padding(8)
-        .glassBackgroundEffect(in: .capsule)
-    }
 }
 
 private struct LibraryImportStatusView: View {
