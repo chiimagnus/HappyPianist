@@ -315,7 +315,7 @@ public actor FilePracticeProgressRepository:
     }
 
     private static func samePersistedTimestamp(_ lhs: Date, _ rhs: Date) -> Bool {
-        // ponytail: JSONEncoder.iso8601 persists whole seconds; compare identity at that wire precision.
+        // JSONEncoder.iso8601 只持久化到整秒；按该传输精度比较身份。
         lhs.timeIntervalSince1970.rounded(.down) == rhs.timeIntervalSince1970.rounded(.down)
     }
 

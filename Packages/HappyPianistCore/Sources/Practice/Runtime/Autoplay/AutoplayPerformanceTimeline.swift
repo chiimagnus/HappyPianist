@@ -318,7 +318,7 @@ public struct AutoplayPerformanceTimeline: Equatable, Sendable {
             ))
         }
 
-        // ponytail: priority 0 lets the sole fermata pause hold same-tick note-offs without changing plan note ticks.
+        // 优先级 0 让唯一的延长记号暂停保留同一时刻的音符释放，且不改计划音符 tick。
         for (index, annotation) in plan.annotations.enumerated() {
             guard annotation.kind == .pause,
                   let durationTicks = annotation.durationTicks,

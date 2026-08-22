@@ -30,7 +30,7 @@ struct PianoGuideKeyHighlightResolver {
 
     private static func resolvedStaffNumber(notes: [PianoHighlightNote]) -> Int? {
         let staffNumbers = Set(notes.compactMap(\.staff))
-        // ponytail: one physical key gets one solid tint; use neutral if both staves contain it simultaneously.
+        // 一枚物理琴键只能使用一种纯色；两谱表同时包含时使用中性色。
         guard staffNumbers.count == 1 else { return nil }
         return staffNumbers.first
     }

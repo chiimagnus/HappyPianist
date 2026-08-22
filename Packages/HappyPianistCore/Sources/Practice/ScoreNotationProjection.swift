@@ -414,7 +414,7 @@ public struct ScoreNotationProjection: Equatable, Sendable {
             }
             let id = event.performedID?.description
                 ?? "pedal-\(event.tick)-\(event.staff ?? 0)-\(kindToken)"
-            // ponytail: playback expands pedal change to off/on; notation owns one mark per source direction.
+            // 回放将踏板变化展开为关闭/开启；记谱为每个源方向只保留一个标记。
             guard seenPedalMarkIDs.insert(id).inserted else { continue }
             marks.append(Mark(
                 id: id,
@@ -798,7 +798,7 @@ public struct ScoreNotationProjection: Equatable, Sendable {
                 } else if let active = activeGroups[track] {
                     active
                 } else {
-                    // ponytail: malformed continue/end still keeps a traceable group rooted at itself.
+                    // 格式错误的 continue/end 仍保留可追踪分组，并以自身作为根。
                     BeamGroupID(
                         partID: track.partID,
                         voice: track.voice,

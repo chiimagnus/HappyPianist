@@ -2,14 +2,9 @@
 
 源码和 Xcode 工程设置是 target、build setting 与依赖版本的真源；本页只记录操作边界。
 
-## Targets 与命令
+## 命令
 
-| Target | 用途 | 常用验证 |
-| --- | --- | --- |
-| `HappyPianistAVP` / `HappyPianistAVPTests` | visionOS App 与 Swift Testing | `make build:simulator`、`make test:simulator` |
-| `Packages/HappyPianistCore` | 共享业务核心 | `swift test --package-path Packages/HappyPianistCore` |
-
-先运行 `make doctor`；`make destinations` 会列出 visionOS scheme 的可用 destination。Makefile 使用 Xcode 默认 DerivedData，测试 result bundle 位于 `.build/TestResults`。完整的 timeout、日志和证据要求见[测试](testing.md)。
+先运行 `make doctor`；以 `make build:simulator` 和 `make test:simulator` 验证 visionOS App，以 `swift test --package-path Packages/HappyPianistCore` 验证共享核心。`make destinations` 列出可用 destination，Makefile 使用 Xcode 默认 DerivedData，result bundle 位于 `.build/TestResults`。timeout、日志和证据要求见[测试](testing.md)。
 
 ## App 权限与资源
 

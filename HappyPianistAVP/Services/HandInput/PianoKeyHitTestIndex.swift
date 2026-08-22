@@ -73,7 +73,7 @@ struct PianoKeyHitTestIndex {
             }
         }
 
-        // ponytail: generated piano keys can overlap only their immediate X neighbors.
+        // 生成的钢琴键仅可能与 X 方向紧邻的琴键重叠。
         // Replace this with an interval tree only if irregular custom keyboard geometry is introduced.
         if lower < regions.count, regions[lower].containsXZ(point) {
             return regions[lower]

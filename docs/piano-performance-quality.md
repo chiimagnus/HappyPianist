@@ -14,7 +14,7 @@ HappyPianist 提供 MusicXML 驱动的回放、按输入 capability 裁剪的练
 | 定向麦克风 | 目标音集合、有限 onset/confidence | 逐音 release、velocity、复杂复调、完整踏板 |
 | 手部接触 | 键位、接触生命周期、hand/finger、估算 velocity | 未经真机验证的精确力度、姿势质量、踏板 |
 
-`ScorePerformancePlan` 是声音、tempo、controller、occurrence 和 provenance 的唯一真源；`PracticeStep` 只判定即时结果，source measure 才进入 progress。unknown、低置信度、`insufficient` 或 degraded capability 必须保留其语义，不能展示成用户错误。
+unknown、低置信度、`insufficient` 或 degraded capability 必须保留其语义，不能展示成用户错误；完整的数据边界见[数据流](data-flow.md)。
 
 ## 能力门
 
@@ -26,11 +26,5 @@ HappyPianist 提供 MusicXML 驱动的回放、按输入 capability 裁剪的练
 | CG-004 专业虚拟指导 | 基于证据选择一个可复测动作 | assessment validity、coaching before/after 研究 |
 
 四项目前均为 `pending evidence`；缺少合法语料、硬件或参与者授权时为 `blocked evidence`。只有同一 app/score/rubric 或 calibration version 的所有必需层均完成且复核，才能标记 `passed`。自动化不能替代真机、盲评、教师标注或研究。
-
-## 发布约束
-
-- 进度不保存 cue、summary、恢复地图、RealityKit 表现或原始传感数据。
-- 指导一次最多一个 action；证据不足时只请求补充证据。
-- 替换实现时同一 task 删除旧 API、状态、测试入口和双轨分支。
 
 运行方式、真机协议和记录模板见[测试](testing.md)。
