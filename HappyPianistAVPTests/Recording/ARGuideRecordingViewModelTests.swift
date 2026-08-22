@@ -60,34 +60,53 @@ func recordingTeardownCancelsPendingOfflineAlignment() async {
 }
 
 private actor RecordingAlignmentCancellationProbe {
-    private var started = false
-    private var cancelled = false
+    private let startedEvents: AsyncStream<Void>
+    private let startedEventsContinuation: AsyncStream<Void>.Continuation
+    private let cancelledEvents: AsyncStream<Void>
+    private let cancelledEventsContinuation: AsyncStream<Void>.Continuation
+
+    init() {
+        let started = AsyncStream.makeStream(of: Void.self, bufferingPolicy: .bufferingNewest(1))
+        startedEvents = started.stream
+        startedEventsContinuation = started.continuation
+
+        let cancelled = AsyncStream.makeStream(of: Void.self, bufferingPolicy: .bufferingNewest(1))
+        cancelledEvents = cancelled.stream
+        cancelledEventsContinuation = cancelled.continuation
+    }
 
     func run() async -> RecordedTakeAlignmentDiagnostics? {
-        started = true
+        startedEventsContinuation.yield()
         do {
             try await Task.sleep(for: .seconds(30))
         } catch {
-            cancelled = true
+            cancelledEventsContinuation.yield()
         }
         return nil
     }
 
     func waitUntilStarted() async -> Bool {
-        await waitUntil { started }
+        await wait(for: startedEvents)
     }
 
     func waitUntilCancelled() async -> Bool {
-        await waitUntil { cancelled }
+        await wait(for: cancelledEvents)
     }
 
-    private func waitUntil(_ condition: () -> Bool) async -> Bool {
-        // ponytail: bounded polling prevents a product failure from hanging the test indefinitely.
-        for _ in 0 ..< 100 {
-            if condition() { return true }
-            try? await Task.sleep(for: .milliseconds(10))
+    private func wait(for events: AsyncStream<Void>) async -> Bool {
+        await withTaskGroup(of: Bool.self) { group in
+            group.addTask {
+                var iterator = events.makeAsyncIterator()
+                return await iterator.next() != nil
+            }
+            group.addTask {
+                (try? await Task.sleep(for: .seconds(1))) != nil
+            }
+
+            guard let result = await group.next() else { return false }
+            group.cancelAll()
+            return result
         }
-        return condition()
     }
 }
 
