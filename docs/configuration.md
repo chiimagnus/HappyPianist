@@ -6,7 +6,7 @@
 
 | Target | 用途 | 常用验证 |
 | --- | --- | --- |
-| `HappyPianistAVP` / `HappyPianistAVPTests` | visionOS App 与 Swift Testing | `make build`、`make test` |
+| `HappyPianistAVP` / `HappyPianistAVPTests` | visionOS App 与 Swift Testing | `make build:simulator`、`make test:simulator` |
 | `HappyPianistMac` / `HappyPianistMacTests` | 独立 macOS MusicXML/MIDI host | `make build:mac`、`make test:mac` |
 | `Packages/HappyPianistCore` | 共享业务核心 | `swift test --package-path Packages/HappyPianistCore` |
 
@@ -33,6 +33,6 @@ Aria v2 是可选的 Mac 本地服务，不是 App 运行前提。安装、启�
 | 现象 | 先检查 |
 | --- | --- |
 | Simulator 不可用 | `make destinations`、配置的 `SIMULATOR_ID` 与 Xcode 版本。 |
-| `make test` 超时 | `.build/TestResults` 中的 result bundle/Simulator 诊断；保留 timeout，定位卡住的测试或生命周期。 |
+| `make test:simulator` 超时 | `.build/TestResults` 中的 result bundle/Simulator 诊断；保留 timeout，定位卡住的测试或生命周期。 |
 | 没有手部或虚拟琴 | 权限、Full Space、provider 状态和真机能力；Simulator 不能证明真实追踪。 |
 | 找不到 Aria | 同一局域网、服务端口、防火墙、Bonjour 与模型 checkpoint。 |

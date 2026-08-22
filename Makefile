@@ -12,6 +12,7 @@ BUNDLE_ID ?= com.chiimagnus.HappyPianistAVP
 CONFIGURATION ?= Debug
 MAC_SCHEME ?= HappyPianistMac
 MAC_DESTINATION ?= platform=macOS,arch=arm64
+MAC_BUNDLE_ID ?= com.chiimagnus.HappyPianistMac
 MAC_ONLY_TESTING ?=
 
 SIMULATOR_ID ?= 00CB80CD-6875-4CBB-BA94-63A58C2728EC
@@ -24,10 +25,6 @@ TEST_MAXIMUM_EXECUTION_TIMEOUT_SECONDS ?= 300
 TEST_RUN_TIMEOUT_SECONDS ?= 900
 
 XCODE_DEVELOPER_DIR ?= $(shell xcode-select -p 2>/dev/null)
-XCODE_CONTENTS_DIR ?= $(patsubst %/Developer,%,$(XCODE_DEVELOPER_DIR))
-DEVICE_HUB_APP ?= $(XCODE_CONTENTS_DIR)/Applications/DeviceHub.app
-SIMULATOR_APP ?= $(XCODE_DEVELOPER_DIR)/Applications/Simulator.app
-SIMULATOR_HOST_APP ?= $(firstword $(wildcard $(DEVICE_HUB_APP) $(SIMULATOR_APP)))
 
 # 测试报告保存在仓库本地；构建产物使用 Xcode 默认目录：
 # ~/Library/Developer/Xcode/DerivedData/<project>-<hash>/
@@ -47,6 +44,46 @@ define remove_result_bundle
 	exit 1
 endef
 
+define boot_simulator
+	set -eu; \
+		xcrun simctl boot "$(SIMULATOR_ID)" >/dev/null 2>&1 || true; \
+		xcrun simctl bootstatus "$(SIMULATOR_ID)" -b & bootstatus_pid=$$!; \
+		deadline=$$(($$(date +%s) + $(SIMULATOR_BOOT_TIMEOUT_SECONDS))); \
+		while kill -0 "$$bootstatus_pid" 2>/dev/null; do \
+			if [ $$(date +%s) -ge "$$deadline" ]; then \
+				kill "$$bootstatus_pid" 2>/dev/null || true; \
+				wait "$$bootstatus_pid" 2>/dev/null || true; \
+				echo "错误：模拟器 $(SIMULATOR_ID) 未能在 $(SIMULATOR_BOOT_TIMEOUT_SECONDS) 秒内完成启动" >&2; \
+				xcrun simctl list devices | grep -F "$(SIMULATOR_ID)" || true; \
+				exit 1; \
+			fi; \
+			sleep 1; \
+		done; \
+		wait "$$bootstatus_pid"
+endef
+
+define install_simulator_app
+	APP_PATH="$$(xcodebuild $(XCODEBUILD_COMMON) \
+		-destination '$(SIMULATOR_DESTINATION)' \
+		CODE_SIGNING_ALLOWED=NO \
+		-showBuildSettings 2>/dev/null | \
+		awk -F ' = ' '/^[[:space:]]*TARGET_BUILD_DIR = / { dir=$$2 } /^[[:space:]]*FULL_PRODUCT_NAME = / { name=$$2 } END { if (dir != "" && name != "") print dir "/" name }')"; \
+	test -n "$$APP_PATH" && test -d "$$APP_PATH" || { echo "error: unable to locate built app: $$APP_PATH"; exit 1; }; \
+	echo "正在安装 $$APP_PATH"; \
+	xcrun simctl install "$(SIMULATOR_ID)" "$$APP_PATH"
+endef
+
+define install_device_app
+	APP_PATH="$$(xcodebuild $(XCODEBUILD_COMMON) \
+		-destination '$(DEVICE_DESTINATION)' \
+		$(DEVICE_XCODEBUILD_FLAGS) \
+		-showBuildSettings 2>/dev/null | \
+		awk -F ' = ' '/^[[:space:]]*TARGET_BUILD_DIR = / { dir=$$2 } /^[[:space:]]*FULL_PRODUCT_NAME = / { name=$$2 } END { if (dir != "" && name != "") print dir "/" name }')"; \
+	test -n "$$APP_PATH" && test -d "$$APP_PATH" || { echo "error: unable to locate built app: $$APP_PATH"; exit 1; }; \
+	echo "正在安装 $$APP_PATH"; \
+	xcrun devicectl device install app --device "$(DEVICE_ID)" "$$APP_PATH"
+endef
+
 PARALLEL_TESTING ?= NO
 ONLY_TESTING ?=
 XCODEBUILD_FLAGS ?= -quiet
@@ -57,6 +94,7 @@ DEVICE_XCODEBUILD_FLAGS ?= -allowProvisioningUpdates
 LOG_STYLE ?= compact
 LOG_LEVEL ?= info
 LOG_PREDICATE ?= subsystem == "$(BUNDLE_ID)"
+MAC_LOG_PREDICATE ?= subsystem == "$(MAC_BUNDLE_ID)"
 
 SIMULATOR_DESTINATION = platform=visionOS Simulator,id=$(SIMULATOR_ID)
 DEVICE_DESTINATION = platform=visionOS,id=$(DEVICE_ID)
@@ -75,44 +113,40 @@ MAC_XCODEBUILD_COMMON = \
 	-scheme "$(MAC_SCHEME)" \
 	-configuration "$(CONFIGURATION)"
 
-.PHONY: help doctor config destinations clean build test dev
-.PHONY: build\:mac test\:mac
-.PHONY: list\:simulator open\:simulator boot\:simulator shutdown\:simulator
-.PHONY: build\:simulator test\:simulator install\:simulator launch\:simulator
-.PHONY: run\:simulator terminate\:simulator logs\:simulator
-.PHONY: list\:device build\:device test\:device install\:device
-.PHONY: launch\:device run\:device console\:device
+.PHONY: help doctor config destinations clean
+.PHONY: build\:mac test\:mac run\:mac logs\:mac
+.PHONY: list\:simulator build\:simulator test\:simulator run\:simulator logs\:simulator
+.PHONY: list\:device build\:device test\:device run\:device logs\:device
 
 help: ## 显示可用命令。
 	@printf '%s\n' \
 		'HappyPianistAVP visionOS Make 目标' \
 		'' \
-		'开发快捷命令：' \
-		'  make build                  构建配置的模拟器版本' \
-		'  make test                   在配置的模拟器上运行全部测试' \
+		'macOS：' \
 		'  make build:mac              构建独立的 macOS App' \
 		'  make test:mac               运行 macOS App 测试' \
-		'  make dev                    构建、安装、启动，然后只输出 App 日志' \
-		'  make clean                  清理 AVP、macOS scheme 和本地测试报告' \
+		'  make run:mac                构建并打开 App' \
+		'  make logs:mac               输出 App 结构化日志' \
 		'' \
-		'模拟器：' \
-		'  make build:simulator' \
-		'  make test:simulator' \
-		'  make run:simulator' \
-		'  make logs:simulator' \
-		'  make shutdown:simulator      关闭配置的模拟器' \
+		'AVP Simulator：' \
+		'  make build:simulator        构建 visionOS 模拟器版本' \
+		'  make test:simulator         在配置的模拟器上运行全部测试' \
+		'  make run:simulator          构建、安装并启动 App' \
+		'  make logs:simulator         输出 App 结构化日志' \
 		'' \
-		'真机：' \
-		'  make build:device' \
-		'  make test:device' \
-		'  make run:device' \
-		'  make console:device         启动并附加标准输出/错误' \
+		'AVP Device：' \
+		'  make build:device           构建并签名 visionOS App' \
+		'  make test:device            在配置的 Vision Pro 上运行测试' \
+		'  make run:device             构建、安装并启动 App' \
+		'  make logs:device            启动并附加标准输出/错误' \
 		'' \
-		'发现与配置：' \
+		'发现、配置与维护：' \
+		'  make doctor                 检查开发环境' \
 		'  make destinations           显示 AVP 和 macOS 可用 destination' \
 		'  make list:simulator         列出可用模拟器' \
 		'  make list:device            列出已配对真机' \
 		'  make config                 显示当前 Make 配置' \
+		'  make clean                  清理 AVP、macOS scheme 和本地测试报告' \
 		'' \
 		'DerivedData：' \
 		'  使用 Xcode 默认目录：~/Library/Developer/Xcode/DerivedData/' \
@@ -124,14 +158,9 @@ help: ## 显示可用命令。
 		'  make test:simulator ONLY_TESTING=HappyPianistAVPTests/GrandStaffNotationVisualTests' \
 		'  make build:device CONFIGURATION=Release' \
 		'  make test:mac MAC_ONLY_TESTING=HappyPianistMacTests/MacPracticeViewModelTests' \
-		'  make dev LOG_LEVEL=debug    包含 App 调试诊断信息' \
-		'  make build XCODEBUILD_FLAGS=       显示完整的 xcodebuild 输出'
-
-build: ## 为配置的 Vision Pro 模拟器构建。
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'build:simulator'
-
-test: ## 在配置的 Vision Pro 模拟器上运行全部测试。
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'test:simulator'
+		'  make logs:simulator LOG_LEVEL=debug  包含 App 调试诊断信息' \
+		'  make logs:mac LOG_LEVEL=debug  包含 App 调试诊断信息' \
+		'  make build:simulator XCODEBUILD_FLAGS=  显示完整的 xcodebuild 输出'
 
 build\:mac: doctor ## 不使用模拟器构建 HappyPianistMac。
 	@xcodebuild $(MAC_XCODEBUILD_COMMON) \
@@ -158,10 +187,21 @@ test\:mac: doctor ## 不使用模拟器运行 HappyPianistMac 测试。
 		test
 	@echo 'test:mac: 测试成功'
 
-dev: ## 构建、安装、启动，然后输出模拟器日志。
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'open:simulator'
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'run:simulator'
-	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'logs:simulator'
+run\:mac: ## 构建并打开 HappyPianistMac。
+	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'build:mac'
+	@APP_PATH="$$(xcodebuild $(MAC_XCODEBUILD_COMMON) \
+		-destination '$(MAC_DESTINATION)' \
+		CODE_SIGNING_ALLOWED=NO \
+		-showBuildSettings 2>/dev/null | \
+		awk -F ' = ' '/^[[:space:]]*TARGET_BUILD_DIR = / { dir=$$2 } /^[[:space:]]*FULL_PRODUCT_NAME = / { name=$$2 } END { if (dir != "" && name != "") print dir "/" name }')"; \
+	test -n "$$APP_PATH" && test -d "$$APP_PATH" || { echo "error: unable to locate built app: $$APP_PATH"; exit 1; }; \
+	open "$$APP_PATH"
+
+logs\:mac: ## 输出 HappyPianistMac 的结构化日志。
+	log stream \
+		--style "$(LOG_STYLE)" \
+		--level "$(LOG_LEVEL)" \
+		--predicate '$(MAC_LOG_PREDICATE)'
 
 doctor: ## 检查所需 Apple 命令行工具和 Xcode 工程是否存在。
 	@command -v xcodebuild >/dev/null || { echo '错误：未找到 xcodebuild'; exit 1; }
@@ -178,6 +218,7 @@ config: ## 打印解析后的 Make 配置。
 		'SCHEME' '$(SCHEME)' \
 		'MAC_SCHEME' '$(MAC_SCHEME)' \
 		'MAC_DESTINATION' '$(MAC_DESTINATION)' \
+		'MAC_BUNDLE_ID' '$(MAC_BUNDLE_ID)' \
 		'CONFIGURATION' '$(CONFIGURATION)' \
 		'SIMULATOR_NAME' '$(SIMULATOR_NAME)' \
 		'SIMULATOR_ID' '$(SIMULATOR_ID)' \
@@ -189,10 +230,6 @@ config: ## 打印解析后的 Make 配置。
 		'DEVICE_ID' '$(DEVICE_ID)' \
 		'BUNDLE_ID' '$(BUNDLE_ID)' \
 		'XCODE_DEVELOPER_DIR' '$(XCODE_DEVELOPER_DIR)' \
-		'XCODE_CONTENTS_DIR' '$(XCODE_CONTENTS_DIR)' \
-		'DEVICE_HUB_APP' '$(DEVICE_HUB_APP)' \
-		'SIMULATOR_APP' '$(SIMULATOR_APP)' \
-		'SIMULATOR_HOST_APP' '$(SIMULATOR_HOST_APP)' \
 		'DERIVED_DATA' '~/Library/Developer/Xcode/DerivedData (Xcode default)' \
 		'RESULT_BUNDLE_DIR' '$(RESULT_BUNDLE_DIR)' \
 		'MAC_RESULT_BUNDLE' '$(MAC_RESULT_BUNDLE)' \
@@ -202,6 +239,7 @@ config: ## 打印解析后的 Make 配置。
 		'LOG_STYLE' '$(LOG_STYLE)' \
 		'LOG_LEVEL' '$(LOG_LEVEL)' \
 		'LOG_PREDICATE' '$(LOG_PREDICATE)' \
+		'MAC_LOG_PREDICATE' '$(MAC_LOG_PREDICATE)' \
 		'XCODEBUILD_FLAGS' '$(XCODEBUILD_FLAGS)'
 
 destinations: doctor ## 显示 AVP 和 macOS scheme 接受的 destination。
@@ -213,37 +251,6 @@ destinations: doctor ## 显示 AVP 和 macOS scheme 接受的 destination。
 list\:simulator: ## 列出可用的 visionOS 模拟器设备。
 	xcrun simctl list devices available | grep -A 40 -E '^-- visionOS|Apple Vision Pro' || true
 
-open\:simulator: ## 打开 DeviceHub（新版 Xcode）或 Simulator（旧版 Xcode）。
-	@test -n "$(SIMULATOR_HOST_APP)" || { \
-		echo '错误：找不到 DeviceHub.app 或 Simulator.app'; \
-		echo '已检查：$(DEVICE_HUB_APP)'; \
-		echo '已检查：$(SIMULATOR_APP)'; \
-		echo '提示：请选择目标 Xcode，例如：'; \
-		echo '  sudo xcode-select -s /Applications/Xcode-beta.app/Contents/Developer'; \
-		exit 1; \
-	}
-	open "$(SIMULATOR_HOST_APP)"
-
-boot\:simulator: ## 启动配置的 Vision Pro 模拟器并等待其就绪。
-	@set -eu; \
-		xcrun simctl boot "$(SIMULATOR_ID)" >/dev/null 2>&1 || true; \
-		xcrun simctl bootstatus "$(SIMULATOR_ID)" -b & bootstatus_pid=$$!; \
-		deadline=$$(($$(date +%s) + $(SIMULATOR_BOOT_TIMEOUT_SECONDS))); \
-		while kill -0 "$$bootstatus_pid" 2>/dev/null; do \
-			if [ $$(date +%s) -ge "$$deadline" ]; then \
-				kill "$$bootstatus_pid" 2>/dev/null || true; \
-				wait "$$bootstatus_pid" 2>/dev/null || true; \
-				echo "错误：模拟器 $(SIMULATOR_ID) 未能在 $(SIMULATOR_BOOT_TIMEOUT_SECONDS) 秒内完成启动" >&2; \
-				xcrun simctl list devices | grep -F "$(SIMULATOR_ID)" || true; \
-				exit 1; \
-			fi; \
-			sleep 1; \
-		done; \
-		wait "$$bootstatus_pid"
-
-shutdown\:simulator: ## 关闭配置的模拟器。
-	@xcrun simctl shutdown "$(SIMULATOR_ID)" >/dev/null 2>&1 || true
-
 build\:simulator: doctor ## 为 visionOS 模拟器构建 HappyPianistAVP。
 	@xcodebuild $(XCODEBUILD_COMMON) \
 		-destination '$(SIMULATOR_DESTINATION)' \
@@ -252,7 +259,8 @@ build\:simulator: doctor ## 为 visionOS 模拟器构建 HappyPianistAVP。
 		build
 	@echo 'build:simulator: 构建成功'
 
-test\:simulator: doctor boot\:simulator ## 在 visionOS 模拟器上运行 Swift Testing 测试。
+test\:simulator: doctor ## 在 visionOS 模拟器上运行 Swift Testing 测试。
+	@$(call boot_simulator)
 	@mkdir -p "$(RESULT_BUNDLE_DIR)"
 	$(call remove_result_bundle,$(SIMULATOR_RESULT_BUNDLE))
 	@set -eum; \
@@ -287,26 +295,14 @@ test\:simulator: doctor boot\:simulator ## 在 visionOS 模拟器上运行 Swift
 		wait "$$test_pid"
 	@echo 'test:simulator: 测试成功'
 
-install\:simulator: build\:simulator boot\:simulator ## 将构建好的 App 安装到模拟器。
-	@APP_PATH="$$(xcodebuild $(XCODEBUILD_COMMON) \
-		-destination '$(SIMULATOR_DESTINATION)' \
-		CODE_SIGNING_ALLOWED=NO \
-		-showBuildSettings 2>/dev/null | \
-		awk -F ' = ' '/^[[:space:]]*TARGET_BUILD_DIR = / { dir=$$2 } /^[[:space:]]*FULL_PRODUCT_NAME = / { name=$$2 } END { if (dir != "" && name != "") print dir "/" name }')"; \
-		test -n "$$APP_PATH" && test -d "$$APP_PATH" || { echo "error: unable to locate built app: $$APP_PATH"; exit 1; }; \
-		echo "正在安装 $$APP_PATH"; \
-		xcrun simctl install "$(SIMULATOR_ID)" "$$APP_PATH"
-
-launch\:simulator: boot\:simulator ## 在模拟器中启动已安装的 App。
+run\:simulator: ## 构建、安装并在模拟器中启动。
+	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'build:simulator'
+	@$(call boot_simulator)
+	@$(call install_simulator_app)
 	xcrun simctl launch --terminate-running-process "$(SIMULATOR_ID)" "$(BUNDLE_ID)"
 
-run\:simulator: install\:simulator ## 构建、安装并在模拟器中启动。
-	xcrun simctl launch --terminate-running-process "$(SIMULATOR_ID)" "$(BUNDLE_ID)"
-
-terminate\:simulator: ## 终止模拟器中的 App。
-	@xcrun simctl terminate "$(SIMULATOR_ID)" "$(BUNDLE_ID)" >/dev/null 2>&1 || true
-
-logs\:simulator: boot\:simulator ## 输出配置模拟器中 App 自己的结构化日志。
+logs\:simulator: ## 输出配置模拟器中 App 自己的结构化日志。
+	@$(call boot_simulator)
 	xcrun simctl spawn "$(SIMULATOR_ID)" log stream \
 		--style "$(LOG_STYLE)" \
 		--level "$(LOG_LEVEL)" \
@@ -342,24 +338,14 @@ test\:device: doctor ## 为配置的 Vision Pro 真机构建、签名并运行�
 		test
 	@echo 'test:device: 测试成功'
 
-install\:device: build\:device ## 将签名后的 App 安装到配置的 Vision Pro 真机。
-	@APP_PATH="$$(xcodebuild $(XCODEBUILD_COMMON) \
-		-destination '$(DEVICE_DESTINATION)' \
-		$(DEVICE_XCODEBUILD_FLAGS) \
-		-showBuildSettings 2>/dev/null | \
-		awk -F ' = ' '/^[[:space:]]*TARGET_BUILD_DIR = / { dir=$$2 } /^[[:space:]]*FULL_PRODUCT_NAME = / { name=$$2 } END { if (dir != "" && name != "") print dir "/" name }')"; \
-		test -n "$$APP_PATH" && test -d "$$APP_PATH" || { echo "error: unable to locate built app: $$APP_PATH"; exit 1; }; \
-		echo "正在安装 $$APP_PATH"; \
-		xcrun devicectl device install app --device "$(DEVICE_ID)" "$$APP_PATH"
-
-launch\:device: ## 在配置的 Vision Pro 真机上启动已安装的 App。
-	@test -n "$(DEVICE_ID)" || { echo '错误：请设置 DEVICE_ID=<vision-pro-udid>'; exit 1; }
+run\:device: ## 构建、安装并在 Vision Pro 真机上启动。
+	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'build:device'
+	@$(call install_device_app)
 	xcrun devicectl device process launch --device "$(DEVICE_ID)" "$(BUNDLE_ID)"
 
-run\:device: install\:device ## 构建、安装并在 Vision Pro 真机上启动。
-	xcrun devicectl device process launch --device "$(DEVICE_ID)" "$(BUNDLE_ID)"
-
-console\:device: install\:device ## 在真机上启动并附加标准输出/错误，直到进程退出。
+logs\:device: ## 在真机上启动并附加标准输出/错误，直到进程退出。
+	@$(MAKE) --no-print-directory -f "$(firstword $(MAKEFILE_LIST))" 'build:device'
+	@$(call install_device_app)
 	xcrun devicectl device process launch --console --device "$(DEVICE_ID)" "$(BUNDLE_ID)"
 
 clean: doctor ## 清理 Xcode 默认 DerivedData 中的 AVP/macOS scheme，并删除本地测试报告。

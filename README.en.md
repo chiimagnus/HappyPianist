@@ -10,10 +10,10 @@ HappyPianist is a piano practice app for Apple Vision Pro. It converts MusicXML 
 
 ```bash
 make doctor
-make build
-make test
 make build:mac
 make test:mac
+make build:simulator
+make test:simulator
 ```
 
 The shared core can be tested with `swift test --package-path Packages/HappyPianistCore`. See the [project overview](docs/overview.md) for architecture, data contracts, and validation.
