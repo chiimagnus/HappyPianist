@@ -1,5 +1,6 @@
 import Diagnostics
 import Library
+import LibraryPresentation
 import MusicXML
 import Observation
 import SwiftUI
@@ -159,6 +160,8 @@ private extension MacLibraryRoute {
 private struct MacLibraryView: View {
     @Bindable var viewModel: MacLibraryViewModel
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
@@ -190,61 +193,30 @@ private struct MacLibraryView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
-                List(viewModel.entries) { entry in
-                    Button {
+                LibraryRecordCarousel(
+                    entries: viewModel.entries,
+                    selectedEntryID: viewModel.selectedEntryID,
+                    playingEntryID: viewModel.currentListeningEntryID,
+                    isPlaying: viewModel.isCurrentListeningPlaying,
+                    reduceMotion: reduceMotion,
+                    allowsDestructiveActions: viewModel.importState.isActive == false,
+                    onSelectEntry: { entryID in
                         Task {
-                            await viewModel.selectEntry(entry.id)
+                            await viewModel.selectEntry(entryID)
                         }
-                    } label: {
-                        HStack {
-                            VStack(alignment: .leading) {
-                                Text(entry.displayName)
-                                    .foregroundStyle(.primary)
-                                Text(entry.musicXMLFileName)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                            Spacer()
-                            if viewModel.selectedEntryID == entry.id {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .foregroundStyle(.tint)
-                                    .accessibilityHidden(true)
-                            }
-                            Button {
-                                Task {
-                                    await viewModel.toggleListening(entryID: entry.id)
-                                }
-                            } label: {
-                                if entry.audioFileName == nil, entry.isBundled != true {
-                                    Label("绑定音频", systemImage: "waveform.badge.plus")
-                                } else {
-                                    Label(
-                                        viewModel.isListeningPlaying(entryID: entry.id) ? "暂停试听" : "试听",
-                                        systemImage: viewModel.isListeningPlaying(entryID: entry.id)
-                                            ? "pause.fill" : "play.fill"
-                                    )
-                                }
-                            }
-                            .disabled(viewModel.importState.isActive)
-                            if entry.isBundled != true {
-                                Button("替换音频", systemImage: "arrow.triangle.2.circlepath") {
-                                    viewModel.presentAudioImporter(for: entry.id)
-                                }
-                                .disabled(viewModel.importState.isActive)
-                                Button("删除曲目", systemImage: "trash", role: .destructive) {
-                                    Task {
-                                        await viewModel.deleteEntry(entryID: entry.id)
-                                    }
-                                }
-                                .disabled(viewModel.importState.isActive)
-                            }
+                    },
+                    onTogglePlayback: { entryID in
+                        Task {
+                            await viewModel.toggleListening(entryID: entryID)
+                        }
+                    },
+                    onImportMusicXML: viewModel.presentMusicXMLImporter,
+                    onImmediateDelete: { entryID in
+                        Task {
+                            await viewModel.deleteEntry(entryID: entryID)
                         }
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(entry.displayName)
-                    .accessibilityValue(viewModel.selectedEntryID == entry.id ? "已选择" : "未选择")
-                }
-                .scrollIndicators(.hidden)
+                )
             }
 
             MacLibraryImportStateView(viewModel: viewModel)
