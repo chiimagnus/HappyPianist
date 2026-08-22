@@ -10,7 +10,7 @@
 | `HappyPianistMac` / `HappyPianistMacTests` | 独立 macOS MusicXML/MIDI host | `make build:mac`、`make test:mac` |
 | `Packages/HappyPianistCore` | 共享业务核心 | `swift test --package-path Packages/HappyPianistCore` |
 
-先运行 `make doctor`；可用 destination 由 `make destinations` 列出。Makefile 使用 Xcode 默认 DerivedData，测试 result bundle 位于 `.build/TestResults`。完整的 timeout、日志和证据要求见[测试](testing.md)。
+先运行 `make doctor`；`make destinations` 会同时列出 visionOS 与 macOS scheme 的可用 destination。Makefile 使用 Xcode 默认 DerivedData，测试 result bundle 位于 `.build/TestResults`。完整的 timeout、日志和证据要求见[测试](testing.md)。
 
 ## App 权限与资源
 
