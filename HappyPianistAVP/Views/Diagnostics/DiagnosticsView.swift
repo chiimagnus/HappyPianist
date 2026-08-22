@@ -3,6 +3,7 @@ import UniformTypeIdentifiers
 import Diagnostics
 
 struct DiagnosticsView: View {
+    @Environment(\.dismiss) private var dismiss
     @Bindable var viewModel: DiagnosticsViewModel
     @State private var isExportPresented = false
     @State private var isClearConfirmationPresented = false
@@ -41,6 +42,13 @@ struct DiagnosticsView: View {
                     ProgressView(viewModel.isExporting ? "正在生成诊断包…" : "正在读取诊断日志…")
                         .padding()
                         .glassBackgroundEffect()
+                }
+            }
+        }
+        .toolbar {
+            ToolbarItem(placement: .cancellationAction) {
+                Button("关闭", systemImage: "xmark") {
+                    dismiss()
                 }
             }
         }
