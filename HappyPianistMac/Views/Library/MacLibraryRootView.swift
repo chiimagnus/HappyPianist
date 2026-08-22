@@ -278,13 +278,7 @@ private struct MacLibraryView: View {
         }
         .toolbar {
             ToolbarItem(placement: .principal) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("曲库")
-                        .font(.headline)
-                    Text("导入 MusicXML 或 MXL 后，从这里选择要练习的曲谱。")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                Text("曲库")
             }
 
             ToolbarItemGroup(placement: .primaryAction) {
